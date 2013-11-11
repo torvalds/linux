@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __LINUX_USB_GADGET_PXA25X_H
@@ -50,7 +41,6 @@ struct pxa25x_ep {
 	struct usb_ep				ep;
 	struct pxa25x_udc			*dev;
 
-	const struct usb_endpoint_descriptor	*desc;
 	struct list_head			queue;
 	unsigned long				pio_irqs;
 
@@ -128,7 +118,7 @@ struct pxa25x_udc {
 	struct device				*dev;
 	struct clk				*clk;
 	struct pxa2xx_udc_mach_info		*mach;
-	struct otg_transceiver			*transceiver;
+	struct usb_phy				*transceiver;
 	u64					dma_mask;
 	struct pxa25x_ep			ep [PXA_UDC_NUM_ENDPOINTS];
 
@@ -136,6 +126,7 @@ struct pxa25x_udc {
 	struct dentry				*debugfs_udc;
 #endif
 };
+#define to_pxa25x(g)	(container_of((g), struct pxa25x_udc, gadget))
 
 /*-------------------------------------------------------------------------*/
 
@@ -160,8 +151,6 @@ static struct pxa25x_udc *the_controller;
 #define DMSG(stuff...)	pr_debug("udc: " stuff)
 
 #ifdef DEBUG
-
-static int is_vbus_present(void);
 
 static const char *state_name[] = {
 	"EP0_IDLE",
@@ -214,8 +203,7 @@ dump_state(struct pxa25x_udc *dev)
 	u32		tmp;
 	unsigned	i;
 
-	DMSG("%s %s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
-		is_vbus_present() ? "host " : "disconnected",
+	DMSG("%s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
 		state_name[dev->ep0state],
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
 	dump_udccr("udccr");
@@ -232,16 +220,13 @@ dump_state(struct pxa25x_udc *dev)
 	} else
 		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);
 
-	if (!is_vbus_present())
-		return;
-
 	dump_udccs0 ("udccs0");
 	DMSG("ep0 IN %lu/%lu, OUT %lu/%lu\n",
 		dev->stats.write.bytes, dev->stats.write.ops,
 		dev->stats.read.bytes, dev->stats.read.ops);
 
 	for (i = 1; i < PXA_UDC_NUM_ENDPOINTS; i++) {
-		if (dev->ep [i].desc == NULL)
+		if (dev->ep[i].ep.desc == NULL)
 			continue;
 		DMSG ("udccs%d = %02x\n", i, *dev->ep->reg_udccs);
 	}

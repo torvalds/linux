@@ -214,7 +214,7 @@ struct sci_uf_address_table_array {
 	 * starting address of the UF address table.
 	 * 64-bit pointers are required by the hardware.
 	 */
-	dma_addr_t *array;
+	u64 *array;
 
 	/**
 	 * This field specifies the physical address location for the UF
@@ -257,9 +257,13 @@ struct sci_unsolicited_frame_control {
 
 };
 
+#define SCI_UFI_BUF_SIZE (SCU_MAX_UNSOLICITED_FRAMES * SCU_UNSOLICITED_FRAME_BUFFER_SIZE)
+#define SCI_UFI_HDR_SIZE (SCU_MAX_UNSOLICITED_FRAMES * sizeof(struct scu_unsolicited_frame_header))
+#define SCI_UFI_TOTAL_SIZE (SCI_UFI_BUF_SIZE + SCI_UFI_HDR_SIZE + SCU_MAX_UNSOLICITED_FRAMES * sizeof(u64))
+
 struct isci_host;
 
-int sci_unsolicited_frame_control_construct(struct isci_host *ihost);
+void sci_unsolicited_frame_control_construct(struct isci_host *ihost);
 
 enum sci_status sci_unsolicited_frame_control_get_header(
 	struct sci_unsolicited_frame_control *uf_control,

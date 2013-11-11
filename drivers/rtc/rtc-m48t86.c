@@ -144,12 +144,14 @@ static const struct rtc_class_ops m48t86_rtc_ops = {
 	.proc		= m48t86_rtc_proc,
 };
 
-static int __devinit m48t86_rtc_probe(struct platform_device *dev)
+static int m48t86_rtc_probe(struct platform_device *dev)
 {
 	unsigned char reg;
 	struct m48t86_ops *ops = dev->dev.platform_data;
-	struct rtc_device *rtc = rtc_device_register("m48t86",
-				&dev->dev, &m48t86_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&dev->dev, "m48t86",
+				&m48t86_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -164,13 +166,8 @@ static int __devinit m48t86_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit m48t86_rtc_remove(struct platform_device *dev)
+static int m48t86_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
- 	if (rtc)
-		rtc_device_unregister(rtc);
-
 	platform_set_drvdata(dev, NULL);
 
 	return 0;
@@ -182,24 +179,13 @@ static struct platform_driver m48t86_rtc_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t86_rtc_probe,
-	.remove		= __devexit_p(m48t86_rtc_remove),
+	.remove		= m48t86_rtc_remove,
 };
 
-static int __init m48t86_rtc_init(void)
-{
-	return platform_driver_register(&m48t86_rtc_platform_driver);
-}
-
-static void __exit m48t86_rtc_exit(void)
-{
-	platform_driver_unregister(&m48t86_rtc_platform_driver);
-}
+module_platform_driver(m48t86_rtc_platform_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("M48T86 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-m48t86");
-
-module_init(m48t86_rtc_init);
-module_exit(m48t86_rtc_exit);

@@ -26,6 +26,7 @@
 #include <linux/etherdevice.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include "i2400m.h"
 
 
@@ -50,17 +51,6 @@ struct dentry *debugfs_create_netdev_queue_stopped(
 {
 	return debugfs_create_file(name, 0400, parent, i2400m,
 				   &fops_netdev_queue_stopped);
-}
-
-
-/*
- * inode->i_private has the @data argument to debugfs_create_file()
- */
-static
-int i2400m_stats_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
 }
 
 /*
@@ -116,7 +106,7 @@ ssize_t i2400m_rx_stats_write(struct file *filp, const char __user *buffer,
 static
 const struct file_operations i2400m_rx_stats_fops = {
 	.owner =	THIS_MODULE,
-	.open =		i2400m_stats_open,
+	.open =		simple_open,
 	.read =		i2400m_rx_stats_read,
 	.write =	i2400m_rx_stats_write,
 	.llseek =	default_llseek,
@@ -169,7 +159,7 @@ ssize_t i2400m_tx_stats_write(struct file *filp, const char __user *buffer,
 static
 const struct file_operations i2400m_tx_stats_fops = {
 	.owner =	THIS_MODULE,
-	.open =		i2400m_stats_open,
+	.open =		simple_open,
 	.read =		i2400m_tx_stats_read,
 	.write =	i2400m_tx_stats_write,
 	.llseek =	default_llseek,
@@ -219,6 +209,7 @@ int debugfs_i2400m_reset_set(void *data, u64 val)
 		result = i2400m_reset(i2400m, rt);
 		if (result >= 0)
 			result = 0;
+		break;
 	default:
 		result = -EINVAL;
 	}

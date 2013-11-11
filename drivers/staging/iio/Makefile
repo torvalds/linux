@@ -2,21 +2,20 @@
 # Makefile for the industrial I/O core.
 #
 
-obj-$(CONFIG_IIO) += industrialio.o
-industrialio-y := industrialio-core.o
-industrialio-$(CONFIG_IIO_RING_BUFFER) += industrialio-ring.o
-industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
+obj-$(CONFIG_IIO_SIMPLE_DUMMY) += iio_dummy.o
+iio_dummy-y := iio_simple_dummy.o
+iio_dummy-$(CONFIG_IIO_SIMPLE_DUMMY_EVENTS) += iio_simple_dummy_events.o
+iio_dummy-$(CONFIG_IIO_SIMPLE_DUMMY_BUFFER) += iio_simple_dummy_buffer.o
 
-obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
-obj-$(CONFIG_IIO_KFIFO_BUF) += kfifo_buf.o
+obj-$(CONFIG_IIO_DUMMY_EVGEN) += iio_dummy_evgen.o
 
 obj-y += accel/
 obj-y += adc/
 obj-y += addac/
-obj-y += dac/
-obj-y += dds/
+obj-y += cdc/
+obj-y += frequency/
 obj-y += gyro/
-obj-y += imu/
+obj-y += impedance-analyzer/
 obj-y += light/
 obj-y += magnetometer/
 obj-y += meter/

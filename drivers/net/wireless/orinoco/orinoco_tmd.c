@@ -59,7 +59,7 @@
  */
 static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 {
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	struct orinoco_pci_card *card = priv->card;
 	unsigned long timeout;
 	u16 reg;
@@ -188,7 +188,7 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit orinoco_tmd_remove_one(struct pci_dev *pdev)
+static void orinoco_tmd_remove_one(struct pci_dev *pdev)
 {
 	struct orinoco_private *priv = pci_get_drvdata(pdev);
 	struct orinoco_pci_card *card = priv->card;
@@ -214,7 +214,7 @@ static struct pci_driver orinoco_tmd_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= orinoco_tmd_id_table,
 	.probe		= orinoco_tmd_init_one,
-	.remove		= __devexit_p(orinoco_tmd_remove_one),
+	.remove		= orinoco_tmd_remove_one,
 	.suspend	= orinoco_pci_suspend,
 	.resume		= orinoco_pci_resume,
 };

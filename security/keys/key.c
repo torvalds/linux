@@ -18,10 +18,9 @@
 #include <linux/workqueue.h>
 #include <linux/random.h>
 #include <linux/err.h>
-#include <linux/user_namespace.h>
 #include "internal.h"
 
-static struct kmem_cache	*key_jar;
+struct kmem_cache *key_jar;
 struct rb_root		key_serial_tree; /* tree of keys indexed by serial */
 DEFINE_SPINLOCK(key_serial_lock);
 
@@ -36,16 +35,8 @@ unsigned int key_quota_maxbytes = 20000;	/* general key space quota */
 static LIST_HEAD(key_types_list);
 static DECLARE_RWSEM(key_types_sem);
 
-static void key_cleanup(struct work_struct *work);
-static DECLARE_WORK(key_cleanup_task, key_cleanup);
-
 /* We serialise key instantiation and link */
 DEFINE_MUTEX(key_construction_mutex);
-
-/* Any key who's type gets unegistered will be re-typed to this */
-static struct key_type key_type_dead = {
-	.name		= "dead",
-};
 
 #ifdef KEY_DEBUGGING
 void __key_check(const struct key *key)
@@ -60,7 +51,7 @@ void __key_check(const struct key *key)
  * Get the key quota record for a user, allocating a new record if one doesn't
  * already exist.
  */
-struct key_user *key_user_lookup(uid_t uid, struct user_namespace *user_ns)
+struct key_user *key_user_lookup(kuid_t uid)
 {
 	struct key_user *candidate = NULL, *user;
 	struct rb_node *parent = NULL;
@@ -75,13 +66,9 @@ try_again:
 		parent = *p;
 		user = rb_entry(parent, struct key_user, node);
 
-		if (uid < user->uid)
+		if (uid_lt(uid, user->uid))
 			p = &(*p)->rb_left;
-		else if (uid > user->uid)
-			p = &(*p)->rb_right;
-		else if (user_ns < user->user_ns)
-			p = &(*p)->rb_left;
-		else if (user_ns > user->user_ns)
+		else if (uid_gt(uid, user->uid))
 			p = &(*p)->rb_right;
 		else
 			goto found;
@@ -110,7 +97,6 @@ try_again:
 	atomic_set(&candidate->nkeys, 0);
 	atomic_set(&candidate->nikeys, 0);
 	candidate->uid = uid;
-	candidate->user_ns = get_user_ns(user_ns);
 	candidate->qnkeys = 0;
 	candidate->qnbytes = 0;
 	spin_lock_init(&candidate->lock);
@@ -139,7 +125,6 @@ void key_user_put(struct key_user *user)
 	if (atomic_dec_and_lock(&user->usage, &key_user_lock)) {
 		rb_erase(&user->node, &key_user_tree);
 		spin_unlock(&key_user_lock);
-		put_user_ns(user->user_ns);
 
 		kfree(user);
 	}
@@ -237,7 +222,7 @@ serial_exists:
  * key_alloc() calls don't race with module unloading.
  */
 struct key *key_alloc(struct key_type *type, const char *desc,
-		      uid_t uid, gid_t gid, const struct cred *cred,
+		      kuid_t uid, kgid_t gid, const struct cred *cred,
 		      key_perm_t perm, unsigned long flags)
 {
 	struct key_user *user = NULL;
@@ -261,16 +246,16 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	quotalen = desclen + type->def_datalen;
 
 	/* get hold of the key tracking for this user */
-	user = key_user_lookup(uid, cred->user->user_ns);
+	user = key_user_lookup(uid);
 	if (!user)
 		goto no_memory_1;
 
 	/* check that the user's quota permits allocation of another key and
 	 * its description */
 	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
-		unsigned maxkeys = (uid == 0) ?
+		unsigned maxkeys = uid_eq(uid, GLOBAL_ROOT_UID) ?
 			key_quota_root_maxkeys : key_quota_maxkeys;
-		unsigned maxbytes = (uid == 0) ?
+		unsigned maxbytes = uid_eq(uid, GLOBAL_ROOT_UID) ?
 			key_quota_root_maxbytes : key_quota_maxbytes;
 
 		spin_lock(&user->lock);
@@ -299,6 +284,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 
 	atomic_set(&key->usage, 1);
 	init_rwsem(&key->sem);
+	lockdep_set_class(&key->sem, &type->lock_class);
 	key->type = type;
 	key->user = user;
 	key->quotalen = quotalen;
@@ -387,7 +373,7 @@ int key_payload_reserve(struct key *key, size_t datalen)
 
 	/* contemplate the quota adjustment */
 	if (delta != 0 && test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
-		unsigned maxbytes = (key->user->uid == 0) ?
+		unsigned maxbytes = uid_eq(key->user->uid, GLOBAL_ROOT_UID) ?
 			key_quota_root_maxbytes : key_quota_maxbytes;
 
 		spin_lock(&key->user->lock);
@@ -419,8 +405,7 @@ EXPORT_SYMBOL(key_payload_reserve);
  * key_construction_mutex.
  */
 static int __key_instantiate_and_link(struct key *key,
-				      const void *data,
-				      size_t datalen,
+				      struct key_preparsed_payload *prep,
 				      struct key *keyring,
 				      struct key *authkey,
 				      unsigned long *_prealloc)
@@ -438,7 +423,7 @@ static int __key_instantiate_and_link(struct key *key,
 	/* can't instantiate twice */
 	if (!test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
 		/* instantiate the key */
-		ret = key->type->instantiate(key, data, datalen);
+		ret = key->type->instantiate(key, prep);
 
 		if (ret == 0) {
 			/* mark the key as being instantiated */
@@ -489,22 +474,37 @@ int key_instantiate_and_link(struct key *key,
 			     struct key *keyring,
 			     struct key *authkey)
 {
+	struct key_preparsed_payload prep;
 	unsigned long prealloc;
 	int ret;
+
+	memset(&prep, 0, sizeof(prep));
+	prep.data = data;
+	prep.datalen = datalen;
+	prep.quotalen = key->type->def_datalen;
+	if (key->type->preparse) {
+		ret = key->type->preparse(&prep);
+		if (ret < 0)
+			goto error;
+	}
 
 	if (keyring) {
 		ret = __key_link_begin(keyring, key->type, key->description,
 				       &prealloc);
 		if (ret < 0)
-			return ret;
+			goto error_free_preparse;
 	}
 
-	ret = __key_instantiate_and_link(key, data, datalen, keyring, authkey,
+	ret = __key_instantiate_and_link(key, &prep, keyring, authkey,
 					 &prealloc);
 
 	if (keyring)
 		__key_link_end(keyring, key->type, prealloc);
 
+error_free_preparse:
+	if (key->type->preparse)
+		key->type->free_preparse(&prep);
+error:
 	return ret;
 }
 
@@ -591,71 +591,6 @@ int key_reject_and_link(struct key *key,
 }
 EXPORT_SYMBOL(key_reject_and_link);
 
-/*
- * Garbage collect keys in process context so that we don't have to disable
- * interrupts all over the place.
- *
- * key_put() schedules this rather than trying to do the cleanup itself, which
- * means key_put() doesn't have to sleep.
- */
-static void key_cleanup(struct work_struct *work)
-{
-	struct rb_node *_n;
-	struct key *key;
-
-go_again:
-	/* look for a dead key in the tree */
-	spin_lock(&key_serial_lock);
-
-	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
-		key = rb_entry(_n, struct key, serial_node);
-
-		if (atomic_read(&key->usage) == 0)
-			goto found_dead_key;
-	}
-
-	spin_unlock(&key_serial_lock);
-	return;
-
-found_dead_key:
-	/* we found a dead key - once we've removed it from the tree, we can
-	 * drop the lock */
-	rb_erase(&key->serial_node, &key_serial_tree);
-	spin_unlock(&key_serial_lock);
-
-	key_check(key);
-
-	security_key_free(key);
-
-	/* deal with the user's key tracking and quota */
-	if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
-		spin_lock(&key->user->lock);
-		key->user->qnkeys--;
-		key->user->qnbytes -= key->quotalen;
-		spin_unlock(&key->user->lock);
-	}
-
-	atomic_dec(&key->user->nkeys);
-	if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
-		atomic_dec(&key->user->nikeys);
-
-	key_user_put(key->user);
-
-	/* now throw away the key memory */
-	if (key->type->destroy)
-		key->type->destroy(key);
-
-	kfree(key->description);
-
-#ifdef KEY_DEBUGGING
-	key->magic = KEY_DEBUG_MAGIC_X;
-#endif
-	kmem_cache_free(key_jar, key);
-
-	/* there may, of course, be more than one key to destroy */
-	goto go_again;
-}
-
 /**
  * key_put - Discard a reference to a key.
  * @key: The key to discard a reference from.
@@ -670,7 +605,7 @@ void key_put(struct key *key)
 		key_check(key);
 
 		if (atomic_dec_and_test(&key->usage))
-			schedule_work(&key_cleanup_task);
+			schedule_work(&key_gc_work);
 	}
 }
 EXPORT_SYMBOL(key_put);
@@ -743,6 +678,26 @@ found_kernel_type:
 	return ktype;
 }
 
+void key_set_timeout(struct key *key, unsigned timeout)
+{
+	struct timespec now;
+	time_t expiry = 0;
+
+	/* make the changes with the locks held to prevent races */
+	down_write(&key->sem);
+
+	if (timeout > 0) {
+		now = current_kernel_time();
+		expiry = now.tv_sec + timeout;
+	}
+
+	key->expiry = expiry;
+	key_schedule_gc(key->expiry + key_gc_delay);
+
+	up_write(&key->sem);
+}
+EXPORT_SYMBOL_GPL(key_set_timeout);
+
 /*
  * Unlock a key type locked by key_type_lookup().
  */
@@ -758,7 +713,7 @@ void key_type_put(struct key_type *ktype)
  * if we get an error.
  */
 static inline key_ref_t __key_update(key_ref_t key_ref,
-				     const void *payload, size_t plen)
+				     struct key_preparsed_payload *prep)
 {
 	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
@@ -774,7 +729,7 @@ static inline key_ref_t __key_update(key_ref_t key_ref,
 
 	down_write(&key->sem);
 
-	ret = key->type->update(key, payload, plen);
+	ret = key->type->update(key, prep);
 	if (ret == 0)
 		/* updating a negative key instantiates it */
 		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
@@ -826,6 +781,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			       unsigned long flags)
 {
 	unsigned long prealloc;
+	struct key_preparsed_payload prep;
 	const struct cred *cred = current_cred();
 	struct key_type *ktype;
 	struct key *keyring, *key = NULL;
@@ -841,8 +797,9 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 
 	key_ref = ERR_PTR(-EINVAL);
-	if (!ktype->match || !ktype->instantiate)
-		goto error_2;
+	if (!ktype->match || !ktype->instantiate ||
+	    (!description && !ktype->preparse))
+		goto error_put_type;
 
 	keyring = key_ref_to_ptr(keyring_ref);
 
@@ -850,18 +807,37 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	key_ref = ERR_PTR(-ENOTDIR);
 	if (keyring->type != &key_type_keyring)
-		goto error_2;
+		goto error_put_type;
+
+	memset(&prep, 0, sizeof(prep));
+	prep.data = payload;
+	prep.datalen = plen;
+	prep.quotalen = ktype->def_datalen;
+	if (ktype->preparse) {
+		ret = ktype->preparse(&prep);
+		if (ret < 0) {
+			key_ref = ERR_PTR(ret);
+			goto error_put_type;
+		}
+		if (!description)
+			description = prep.description;
+		key_ref = ERR_PTR(-EINVAL);
+		if (!description)
+			goto error_free_prep;
+	}
 
 	ret = __key_link_begin(keyring, ktype, description, &prealloc);
-	if (ret < 0)
-		goto error_2;
+	if (ret < 0) {
+		key_ref = ERR_PTR(ret);
+		goto error_free_prep;
+	}
 
 	/* if we're going to allocate a new key, we're going to have
 	 * to modify the keyring */
 	ret = key_permission(keyring_ref, KEY_WRITE);
 	if (ret < 0) {
 		key_ref = ERR_PTR(ret);
-		goto error_3;
+		goto error_link_end;
 	}
 
 	/* if it's possible to update this type of key, search for an existing
@@ -878,13 +854,13 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	/* if the client doesn't provide, decide on the permissions we want */
 	if (perm == KEY_PERM_UNDEF) {
 		perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK | KEY_POS_SETATTR;
-		perm |= KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK | KEY_USR_SETATTR;
+		perm |= KEY_USR_VIEW;
 
 		if (ktype->read)
-			perm |= KEY_POS_READ | KEY_USR_READ;
+			perm |= KEY_POS_READ;
 
 		if (ktype == &key_type_keyring || ktype->update)
-			perm |= KEY_USR_WRITE;
+			perm |= KEY_POS_WRITE;
 	}
 
 	/* allocate a new key */
@@ -892,25 +868,27 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 			perm, flags);
 	if (IS_ERR(key)) {
 		key_ref = ERR_CAST(key);
-		goto error_3;
+		goto error_link_end;
 	}
 
 	/* instantiate it and link it into the target keyring */
-	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL,
-					 &prealloc);
+	ret = __key_instantiate_and_link(key, &prep, keyring, NULL, &prealloc);
 	if (ret < 0) {
 		key_put(key);
 		key_ref = ERR_PTR(ret);
-		goto error_3;
+		goto error_link_end;
 	}
 
 	key_ref = make_key_ref(key, is_key_possessed(keyring_ref));
 
- error_3:
+error_link_end:
 	__key_link_end(keyring, ktype, prealloc);
- error_2:
+error_free_prep:
+	if (ktype->preparse)
+		ktype->free_preparse(&prep);
+error_put_type:
 	key_type_put(ktype);
- error:
+error:
 	return key_ref;
 
  found_matching_key:
@@ -918,10 +896,9 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	 * - we can drop the locks first as we have the key pinned
 	 */
 	__key_link_end(keyring, ktype, prealloc);
-	key_type_put(ktype);
 
-	key_ref = __key_update(key_ref, payload, plen);
-	goto error;
+	key_ref = __key_update(key_ref, &prep);
+	goto error_free_prep;
 }
 EXPORT_SYMBOL(key_create_or_update);
 
@@ -940,6 +917,7 @@ EXPORT_SYMBOL(key_create_or_update);
  */
 int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 {
+	struct key_preparsed_payload prep;
 	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
 
@@ -952,18 +930,31 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 
 	/* attempt to update it if supported */
 	ret = -EOPNOTSUPP;
-	if (key->type->update) {
-		down_write(&key->sem);
+	if (!key->type->update)
+		goto error;
 
-		ret = key->type->update(key, payload, plen);
-		if (ret == 0)
-			/* updating a negative key instantiates it */
-			clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
-
-		up_write(&key->sem);
+	memset(&prep, 0, sizeof(prep));
+	prep.data = payload;
+	prep.datalen = plen;
+	prep.quotalen = key->type->def_datalen;
+	if (key->type->preparse) {
+		ret = key->type->preparse(&prep);
+		if (ret < 0)
+			goto error;
 	}
 
- error:
+	down_write(&key->sem);
+
+	ret = key->type->update(key, &prep);
+	if (ret == 0)
+		/* updating a negative key instantiates it */
+		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
+
+	up_write(&key->sem);
+
+	if (key->type->preparse)
+		key->type->free_preparse(&prep);
+error:
 	return ret;
 }
 EXPORT_SYMBOL(key_update);
@@ -1007,6 +998,28 @@ void key_revoke(struct key *key)
 EXPORT_SYMBOL(key_revoke);
 
 /**
+ * key_invalidate - Invalidate a key.
+ * @key: The key to be invalidated.
+ *
+ * Mark a key as being invalidated and have it cleaned up immediately.  The key
+ * is ignored by all searches and other operations from this point.
+ */
+void key_invalidate(struct key *key)
+{
+	kenter("%d", key_serial(key));
+
+	key_check(key);
+
+	if (!test_bit(KEY_FLAG_INVALIDATED, &key->flags)) {
+		down_write_nested(&key->sem, 1);
+		if (!test_and_set_bit(KEY_FLAG_INVALIDATED, &key->flags))
+			key_schedule_gc_links();
+		up_write(&key->sem);
+	}
+}
+EXPORT_SYMBOL(key_invalidate);
+
+/**
  * register_key_type - Register a type of key.
  * @ktype: The new key type.
  *
@@ -1019,6 +1032,8 @@ int register_key_type(struct key_type *ktype)
 	struct key_type *p;
 	int ret;
 
+	memset(&ktype->lock_class, 0, sizeof(ktype->lock_class));
+
 	ret = -EEXIST;
 	down_write(&key_types_sem);
 
@@ -1030,6 +1045,8 @@ int register_key_type(struct key_type *ktype)
 
 	/* store the type */
 	list_add(&ktype->link, &key_types_list);
+
+	pr_notice("Key type %s registered\n", ktype->name);
 	ret = 0;
 
 out:
@@ -1048,49 +1065,12 @@ EXPORT_SYMBOL(register_key_type);
  */
 void unregister_key_type(struct key_type *ktype)
 {
-	struct rb_node *_n;
-	struct key *key;
-
 	down_write(&key_types_sem);
-
-	/* withdraw the key type */
 	list_del_init(&ktype->link);
-
-	/* mark all the keys of this type dead */
-	spin_lock(&key_serial_lock);
-
-	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
-		key = rb_entry(_n, struct key, serial_node);
-
-		if (key->type == ktype) {
-			key->type = &key_type_dead;
-			set_bit(KEY_FLAG_DEAD, &key->flags);
-		}
-	}
-
-	spin_unlock(&key_serial_lock);
-
-	/* make sure everyone revalidates their keys */
-	synchronize_rcu();
-
-	/* we should now be able to destroy the payloads of all the keys of
-	 * this type with impunity */
-	spin_lock(&key_serial_lock);
-
-	for (_n = rb_first(&key_serial_tree); _n; _n = rb_next(_n)) {
-		key = rb_entry(_n, struct key, serial_node);
-
-		if (key->type == ktype) {
-			if (ktype->destroy)
-				ktype->destroy(key);
-			memset(&key->payload, KEY_DESTROY, sizeof(key->payload));
-		}
-	}
-
-	spin_unlock(&key_serial_lock);
-	up_write(&key_types_sem);
-
-	key_schedule_gc(0);
+	downgrade_write(&key_types_sem);
+	key_gc_keytype(ktype);
+	pr_notice("Key type %s unregistered\n", ktype->name);
+	up_read(&key_types_sem);
 }
 EXPORT_SYMBOL(unregister_key_type);
 
@@ -1107,6 +1087,7 @@ void __init key_init(void)
 	list_add_tail(&key_type_keyring.link, &key_types_list);
 	list_add_tail(&key_type_dead.link, &key_types_list);
 	list_add_tail(&key_type_user.link, &key_types_list);
+	list_add_tail(&key_type_logon.link, &key_types_list);
 
 	/* record the root user tracking */
 	rb_link_node(&root_key_user.node,

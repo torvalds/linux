@@ -63,7 +63,7 @@ static int tosa_tg_send(struct spi_device *spi, int adrs, uint8_t data)
 int tosa_bl_enable(struct spi_device *spi, int enable)
 {
 	/* bl_enable GP04=1 otherwise GP04=0*/
-	return tosa_tg_send(spi, TG_GPODR2, enable? 0x01 : 0x00);
+	return tosa_tg_send(spi, TG_GPODR2, enable ? 0x01 : 0x00);
 }
 EXPORT_SYMBOL(tosa_bl_enable);
 
@@ -91,15 +91,17 @@ static void tosa_lcd_tg_on(struct tosa_lcd_data *data)
 	tosa_tg_send(spi, TG_PNLCTL, value);
 
 	/* TG LCD pannel power up */
-	tosa_tg_send(spi, TG_PINICTL,0x4);
+	tosa_tg_send(spi, TG_PINICTL, 0x4);
 	mdelay(50);
 
 	/* TG LCD GVSS */
-	tosa_tg_send(spi, TG_PINICTL,0x0);
+	tosa_tg_send(spi, TG_PINICTL, 0x0);
 
 	if (!data->i2c) {
-		/* after the pannel is powered up the first time, we can access the i2c bus */
-		/* so probe for the DAC */
+		/*
+		 * after the pannel is powered up the first time,
+		 * we can access the i2c bus so probe for the DAC
+		 */
 		struct i2c_adapter *adap = i2c_get_adapter(0);
 		struct i2c_board_info info = {
 			.type	= "tosa-bl",
@@ -115,11 +117,11 @@ static void tosa_lcd_tg_off(struct tosa_lcd_data *data)
 	struct spi_device *spi = data->spi;
 
 	/* TG LCD VHSA off */
-	tosa_tg_send(spi, TG_PINICTL,0x4);
+	tosa_tg_send(spi, TG_PINICTL, 0x4);
 	mdelay(50);
 
 	/* TG LCD signal off */
-	tosa_tg_send(spi, TG_PINICTL,0x6);
+	tosa_tg_send(spi, TG_PINICTL, 0x6);
 	mdelay(50);
 
 	/* TG Off */
@@ -169,12 +171,13 @@ static struct lcd_ops tosa_lcd_ops = {
 	.set_mode = tosa_lcd_set_mode,
 };
 
-static int __devinit tosa_lcd_probe(struct spi_device *spi)
+static int tosa_lcd_probe(struct spi_device *spi)
 {
 	int ret;
 	struct tosa_lcd_data *data;
 
-	data = kzalloc(sizeof(struct tosa_lcd_data), GFP_KERNEL);
+	data = devm_kzalloc(&spi->dev, sizeof(struct tosa_lcd_data),
+				GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -187,22 +190,18 @@ static int __devinit tosa_lcd_probe(struct spi_device *spi)
 
 	ret = spi_setup(spi);
 	if (ret < 0)
-		goto err_spi;
+		return ret;
 
 	data->spi = spi;
-	dev_set_drvdata(&spi->dev, data);
+	spi_set_drvdata(spi, data);
 
-	ret = gpio_request(TOSA_GPIO_TG_ON, "tg #pwr");
+	ret = devm_gpio_request_one(&spi->dev, TOSA_GPIO_TG_ON,
+				GPIOF_OUT_INIT_LOW, "tg #pwr");
 	if (ret < 0)
 		goto err_gpio_tg;
 
 	mdelay(60);
 
-	ret = gpio_direction_output(TOSA_GPIO_TG_ON, 0);
-	if (ret < 0)
-		goto err_gpio_dir;
-
-	mdelay(60);
 	tosa_lcd_tg_init(data);
 
 	tosa_lcd_tg_on(data);
@@ -220,18 +219,14 @@ static int __devinit tosa_lcd_probe(struct spi_device *spi)
 
 err_register:
 	tosa_lcd_tg_off(data);
-err_gpio_dir:
-	gpio_free(TOSA_GPIO_TG_ON);
 err_gpio_tg:
-	dev_set_drvdata(&spi->dev, NULL);
-err_spi:
-	kfree(data);
+	spi_set_drvdata(spi, NULL);
 	return ret;
 }
 
-static int __devexit tosa_lcd_remove(struct spi_device *spi)
+static int tosa_lcd_remove(struct spi_device *spi)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = spi_get_drvdata(spi);
 
 	lcd_device_unregister(data->lcd);
 
@@ -240,26 +235,24 @@ static int __devexit tosa_lcd_remove(struct spi_device *spi)
 
 	tosa_lcd_tg_off(data);
 
-	gpio_free(TOSA_GPIO_TG_ON);
-	dev_set_drvdata(&spi->dev, NULL);
-	kfree(data);
+	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tosa_lcd_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tosa_lcd_suspend(struct device *dev)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = dev_get_drvdata(dev);
 
 	tosa_lcd_tg_off(data);
 
 	return 0;
 }
 
-static int tosa_lcd_resume(struct spi_device *spi)
+static int tosa_lcd_resume(struct device *dev)
 {
-	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
+	struct tosa_lcd_data *data = dev_get_drvdata(dev);
 
 	tosa_lcd_tg_init(data);
 	if (POWER_IS_ON(data->lcd_power))
@@ -269,34 +262,21 @@ static int tosa_lcd_resume(struct spi_device *spi)
 
 	return 0;
 }
-#else
-#define tosa_lcd_suspend	NULL
-#define tosa_lcd_reume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(tosa_lcd_pm_ops, tosa_lcd_suspend, tosa_lcd_resume);
 
 static struct spi_driver tosa_lcd_driver = {
 	.driver = {
 		.name		= "tosa-lcd",
 		.owner		= THIS_MODULE,
+		.pm		= &tosa_lcd_pm_ops,
 	},
 	.probe		= tosa_lcd_probe,
-	.remove		= __devexit_p(tosa_lcd_remove),
-	.suspend	= tosa_lcd_suspend,
-	.resume		= tosa_lcd_resume,
+	.remove		= tosa_lcd_remove,
 };
 
-static int __init tosa_lcd_init(void)
-{
-	return spi_register_driver(&tosa_lcd_driver);
-}
-
-static void __exit tosa_lcd_exit(void)
-{
-	spi_unregister_driver(&tosa_lcd_driver);
-}
-
-module_init(tosa_lcd_init);
-module_exit(tosa_lcd_exit);
+module_spi_driver(tosa_lcd_driver);
 
 MODULE_AUTHOR("Dmitry Baryshkov");
 MODULE_LICENSE("GPL v2");

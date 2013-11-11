@@ -6,8 +6,9 @@
  *  could probably support others (Winbond WEC102X, NatSemi, etc)
  *  with minor modifications.
  *
- *  Original Author: David Härdeman <david@hardeman.nu>
- *     Copyright (C) 2009 - 2010 David Härdeman <david@hardeman.nu>
+ *  Original Author: David HÃ¤rdeman <david@hardeman.nu>
+ *     Copyright (C) 2012 Sean Young <sean@mess.org>
+ *     Copyright (C) 2009 - 2011 David HÃ¤rdeman <david@hardeman.nu>
  *
  *  Dedicated to my daughter Matilda, without whose loving attention this
  *  driver would have been finished in half the time and with a fraction
@@ -22,9 +23,7 @@
  *    o IR Receive
  *    o IR Transmit
  *    o Wake-On-CIR functionality
- *
- *  To do:
- *    o Learning
+ *    o Carrier detection
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,6 +39,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/pnp.h>
@@ -147,6 +148,14 @@
 #define WBCIR_REGSEL_MASK	0x20
 /* Starting address of selected register in WBCIR_REG_WCEIR_INDEX */
 #define WBCIR_REG_ADDR0		0x00
+/* Enable carrier counter */
+#define WBCIR_CNTR_EN		0x01
+/* Reset carrier counter */
+#define WBCIR_CNTR_R		0x02
+/* Invert TX */
+#define WBCIR_IRTX_INV		0x04
+/* Receiver oversampling */
+#define WBCIR_RX_T_OV		0x40
 
 /* Valid banks for the SP3 UART */
 enum wbcir_bank {
@@ -178,7 +187,6 @@ enum wbcir_rxstate {
 enum wbcir_txstate {
 	WBCIR_TXSTATE_INACTIVE = 0,
 	WBCIR_TXSTATE_ACTIVE,
-	WBCIR_TXSTATE_DONE,
 	WBCIR_TXSTATE_ERROR
 };
 
@@ -206,7 +214,8 @@ struct wbcir_data {
 	/* RX state */
 	enum wbcir_rxstate rxstate;
 	struct led_trigger *rxtrigger;
-	struct ir_raw_event rxev;
+	int carrier_report_enabled;
+	u32 pulse_duration;
 
 	/* TX state */
 	enum wbcir_txstate txstate;
@@ -214,7 +223,6 @@ struct wbcir_data {
 	u32 txlen;
 	u32 txoff;
 	u32 *txbuf;
-	wait_queue_head_t txwaitq;
 	u8 txmask;
 	u32 txcarrier;
 };
@@ -224,13 +232,13 @@ module_param(protocol, uint, 0444);
 MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command "
 		 "(0 = RC5, 1 = NEC, 2 = RC6A, default)");
 
-static int invert; /* default = 0 */
+static bool invert; /* default = 0 */
 module_param(invert, bool, 0444);
 MODULE_PARM_DESC(invert, "Invert the signal from the IR receiver");
 
-static int txandrx; /* default = 0 */
+static bool txandrx; /* default = 0 */
 module_param(txandrx, bool, 0444);
-MODULE_PARM_DESC(invert, "Allow simultaneous TX and RX");
+MODULE_PARM_DESC(txandrx, "Allow simultaneous TX and RX");
 
 static unsigned int wake_sc = 0x800F040C;
 module_param(wake_sc, uint, 0644);
@@ -330,6 +338,30 @@ wbcir_to_rc6cells(u8 val)
  *****************************************************************************/
 
 static void
+wbcir_carrier_report(struct wbcir_data *data)
+{
+	unsigned counter = inb(data->ebase + WBCIR_REG_ECEIR_CNT_LO) |
+			inb(data->ebase + WBCIR_REG_ECEIR_CNT_HI) << 8;
+
+	if (counter > 0 && counter < 0xffff) {
+		DEFINE_IR_RAW_EVENT(ev);
+
+		ev.carrier_report = 1;
+		ev.carrier = DIV_ROUND_CLOSEST(counter * 1000000u,
+						data->pulse_duration);
+
+		ir_raw_event_store(data->dev, &ev);
+	}
+
+	/* reset and restart the counter */
+	data->pulse_duration = 0;
+	wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL, WBCIR_CNTR_R,
+						WBCIR_CNTR_EN | WBCIR_CNTR_R);
+	wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL, WBCIR_CNTR_EN,
+						WBCIR_CNTR_EN | WBCIR_CNTR_R);
+}
+
+static void
 wbcir_idle_rx(struct rc_dev *dev, bool idle)
 {
 	struct wbcir_data *data = dev->priv;
@@ -339,9 +371,16 @@ wbcir_idle_rx(struct rc_dev *dev, bool idle)
 		led_trigger_event(data->rxtrigger, LED_FULL);
 	}
 
-	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE)
+	if (idle && data->rxstate != WBCIR_RXSTATE_INACTIVE) {
+		data->rxstate = WBCIR_RXSTATE_INACTIVE;
+		led_trigger_event(data->rxtrigger, LED_OFF);
+
+		if (data->carrier_report_enabled)
+			wbcir_carrier_report(data);
+
 		/* Tell hardware to go idle by setting RXINACTIVE */
 		outb(WBCIR_RX_DISABLE, data->sbase + WBCIR_REG_SP3_ASCR);
+	}
 }
 
 static void
@@ -349,21 +388,23 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 {
 	u8 irdata;
 	DEFINE_IR_RAW_EVENT(rawir);
+	unsigned duration;
 
 	/* Since RXHDLEV is set, at least 8 bytes are in the FIFO */
 	while (inb(data->sbase + WBCIR_REG_SP3_LSR) & WBCIR_RX_AVAIL) {
 		irdata = inb(data->sbase + WBCIR_REG_SP3_RXDATA);
 		if (data->rxstate == WBCIR_RXSTATE_ERROR)
 			continue;
-		rawir.pulse = irdata & 0x80 ? false : true;
-		rawir.duration = US_TO_NS((irdata & 0x7F) * 10);
-		ir_raw_event_store_with_filter(data->dev, &rawir);
-	}
 
-	/* Check if we should go idle */
-	if (data->dev->idle) {
-		led_trigger_event(data->rxtrigger, LED_OFF);
-		data->rxstate = WBCIR_RXSTATE_INACTIVE;
+		duration = ((irdata & 0x7F) + 1) *
+			(data->carrier_report_enabled ? 2 : 10);
+		rawir.pulse = irdata & 0x80 ? false : true;
+		rawir.duration = US_TO_NS(duration);
+
+		if (rawir.pulse)
+			data->pulse_duration += duration;
+
+		ir_raw_event_store_with_filter(data->dev, &rawir);
 	}
 
 	ir_raw_event_handle(data->dev);
@@ -422,11 +463,11 @@ wbcir_irq_tx(struct wbcir_data *data)
 		if (data->txstate == WBCIR_TXSTATE_ERROR)
 			/* Clear TX underrun bit */
 			outb(WBCIR_TX_UNDERRUN, data->sbase + WBCIR_REG_SP3_ASCR);
-		else
-			data->txstate = WBCIR_TXSTATE_DONE;
 		wbcir_set_irqmask(data, WBCIR_IRQ_RX | WBCIR_IRQ_ERR);
 		led_trigger_event(data->txtrigger, LED_OFF);
-		wake_up(&data->txwaitq);
+		kfree(data->txbuf);
+		data->txbuf = NULL;
+		data->txstate = WBCIR_TXSTATE_INACTIVE;
 	} else if (data->txoff == data->txlen) {
 		/* At the end of transmission, tell the hw before last byte */
 		outsb(data->sbase + WBCIR_REG_SP3_TXDATA, bytes, used - 1);
@@ -490,6 +531,44 @@ wbcir_irq_handler(int irqno, void *cookie)
  * RC-CORE INTERFACE FUNCTIONS
  *
  *****************************************************************************/
+
+static int
+wbcir_set_carrier_report(struct rc_dev *dev, int enable)
+{
+	struct wbcir_data *data = dev->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&data->spinlock, flags);
+
+	if (data->carrier_report_enabled == enable) {
+		spin_unlock_irqrestore(&data->spinlock, flags);
+		return 0;
+	}
+
+	data->pulse_duration = 0;
+	wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL, WBCIR_CNTR_R,
+						WBCIR_CNTR_EN | WBCIR_CNTR_R);
+
+	if (enable && data->dev->idle)
+		wbcir_set_bits(data->ebase + WBCIR_REG_ECEIR_CCTL,
+				WBCIR_CNTR_EN, WBCIR_CNTR_EN | WBCIR_CNTR_R);
+
+	/* Set a higher sampling resolution if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_2);
+	data->dev->rx_resolution = US_TO_NS(enable ? 2 : 10);
+	outb(enable ? 0x03 : 0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
+	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
+
+	/* Enable oversampling if carrier reports are enabled */
+	wbcir_select_bank(data, WBCIR_BANK_7);
+	wbcir_set_bits(data->sbase + WBCIR_REG_SP3_RCCFG,
+				enable ? WBCIR_RX_T_OV : 0, WBCIR_RX_T_OV);
+
+	data->carrier_report_enabled = enable;
+	spin_unlock_irqrestore(&data->spinlock, flags);
+
+	return 0;
+}
 
 static int
 wbcir_txcarrier(struct rc_dev *dev, u32 carrier)
@@ -577,26 +656,28 @@ wbcir_txmask(struct rc_dev *dev, u32 mask)
 }
 
 static int
-wbcir_tx(struct rc_dev *dev, int *buf, u32 bufsize)
+wbcir_tx(struct rc_dev *dev, unsigned *b, unsigned count)
 {
 	struct wbcir_data *data = dev->priv;
-	u32 count;
+	unsigned *buf;
 	unsigned i;
 	unsigned long flags;
 
-	/* bufsize has been sanity checked by the caller */
-	count = bufsize / sizeof(int);
+	buf = kmalloc(count * sizeof(*b), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Convert values to multiples of 10us */
+	for (i = 0; i < count; i++)
+		buf[i] = DIV_ROUND_CLOSEST(b[i], 10);
 
 	/* Not sure if this is possible, but better safe than sorry */
 	spin_lock_irqsave(&data->spinlock, flags);
 	if (data->txstate != WBCIR_TXSTATE_INACTIVE) {
 		spin_unlock_irqrestore(&data->spinlock, flags);
+		kfree(buf);
 		return -EBUSY;
 	}
-
-	/* Convert values to multiples of 10us */
-	for (i = 0; i < count; i++)
-		buf[i] = DIV_ROUND_CLOSEST(buf[i], 10);
 
 	/* Fill the TX fifo once, the irq handler will do the rest */
 	data->txbuf = buf;
@@ -604,20 +685,8 @@ wbcir_tx(struct rc_dev *dev, int *buf, u32 bufsize)
 	data->txoff = 0;
 	wbcir_irq_tx(data);
 
-	/* Wait for the TX to complete */
-	while (data->txstate == WBCIR_TXSTATE_ACTIVE) {
-		spin_unlock_irqrestore(&data->spinlock, flags);
-		wait_event(data->txwaitq, data->txstate != WBCIR_TXSTATE_ACTIVE);
-		spin_lock_irqsave(&data->spinlock, flags);
-	}
-
 	/* We're done */
-	if (data->txstate == WBCIR_TXSTATE_ERROR)
-		count = -EAGAIN;
-	data->txstate = WBCIR_TXSTATE_INACTIVE;
-	data->txbuf = NULL;
 	spin_unlock_irqrestore(&data->spinlock, flags);
-
 	return count;
 }
 
@@ -847,7 +916,7 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/* Set IRTX_INV */
 	if (invert)
-		outb(0x04, data->ebase + WBCIR_REG_ECEIR_CCTL);
+		outb(WBCIR_IRTX_INV, data->ebase + WBCIR_REG_ECEIR_CCTL);
 	else
 		outb(0x00, data->ebase + WBCIR_REG_ECEIR_CCTL);
 
@@ -876,18 +945,8 @@ wbcir_init_hw(struct wbcir_data *data)
 	/* prescaler 1.0, tx/rx fifo lvl 16 */
 	outb(0x30, data->sbase + WBCIR_REG_SP3_EXCR2);
 
-	/* Set baud divisor to generate one byte per bit/cell */
-	switch (protocol) {
-	case IR_PROTOCOL_RC5:
-		outb(0xA7, data->sbase + WBCIR_REG_SP3_BGDL);
-		break;
-	case IR_PROTOCOL_RC6:
-		outb(0x53, data->sbase + WBCIR_REG_SP3_BGDL);
-		break;
-	case IR_PROTOCOL_NEC:
-		outb(0x69, data->sbase + WBCIR_REG_SP3_BGDL);
-		break;
-	}
+	/* Set baud divisor to sample every 10 us */
+	outb(0x0f, data->sbase + WBCIR_REG_SP3_BGDL);
 	outb(0x00, data->sbase + WBCIR_REG_SP3_BGDH);
 
 	/* Set CEIR mode */
@@ -896,9 +955,9 @@ wbcir_init_hw(struct wbcir_data *data)
 	inb(data->sbase + WBCIR_REG_SP3_LSR); /* Clear LSR */
 	inb(data->sbase + WBCIR_REG_SP3_MSR); /* Clear MSR */
 
-	/* Disable RX demod, run-length encoding/decoding, set freq span */
+	/* Disable RX demod, enable run-length enc/dec, set freq span */
 	wbcir_select_bank(data, WBCIR_BANK_7);
-	outb(0x10, data->sbase + WBCIR_REG_SP3_RCCFG);
+	outb(0x90, data->sbase + WBCIR_REG_SP3_RCCFG);
 
 	/* Disable timer */
 	wbcir_select_bank(data, WBCIR_BANK_4);
@@ -935,17 +994,14 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/* Clear RX state */
 	data->rxstate = WBCIR_RXSTATE_INACTIVE;
-	data->rxev.duration = 0;
 	ir_raw_event_reset(data->dev);
-	ir_raw_event_handle(data->dev);
+	ir_raw_event_set_idle(data->dev, true);
 
-	/*
-	 * Check TX state, if we did a suspend/resume cycle while TX was
-	 * active, we will have a process waiting in txwaitq.
-	 */
+	/* Clear TX state */
 	if (data->txstate == WBCIR_TXSTATE_ACTIVE) {
-		data->txstate = WBCIR_TXSTATE_ERROR;
-		wake_up(&data->txwaitq);
+		kfree(data->txbuf);
+		data->txbuf = NULL;
+		data->txstate = WBCIR_TXSTATE_INACTIVE;
 	}
 
 	/* Enable interrupts */
@@ -963,7 +1019,7 @@ wbcir_resume(struct pnp_dev *device)
 	return 0;
 }
 
-static int __devinit
+static int
 wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 {
 	struct device *dev = &device->dev;
@@ -986,7 +1042,6 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	pnp_set_drvdata(device, data);
 
 	spin_lock_init(&data->spinlock);
-	init_waitqueue_head(&data->txwaitq);
 	data->ebase = pnp_port_start(device, 0);
 	data->wbase = pnp_port_start(device, 1);
 	data->sbase = pnp_port_start(device, 2);
@@ -1003,11 +1058,61 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		"(w: 0x%lX, e: 0x%lX, s: 0x%lX, i: %u)\n",
 		data->wbase, data->ebase, data->sbase, data->irq);
 
+	led_trigger_register_simple("cir-tx", &data->txtrigger);
+	if (!data->txtrigger) {
+		err = -ENOMEM;
+		goto exit_free_data;
+	}
+
+	led_trigger_register_simple("cir-rx", &data->rxtrigger);
+	if (!data->rxtrigger) {
+		err = -ENOMEM;
+		goto exit_unregister_txtrigger;
+	}
+
+	data->led.name = "cir::activity";
+	data->led.default_trigger = "cir-rx";
+	data->led.brightness_set = wbcir_led_brightness_set;
+	data->led.brightness_get = wbcir_led_brightness_get;
+	err = led_classdev_register(&device->dev, &data->led);
+	if (err)
+		goto exit_unregister_rxtrigger;
+
+	data->dev = rc_allocate_device();
+	if (!data->dev) {
+		err = -ENOMEM;
+		goto exit_unregister_led;
+	}
+
+	data->dev->driver_type = RC_DRIVER_IR_RAW;
+	data->dev->driver_name = DRVNAME;
+	data->dev->input_name = WBCIR_NAME;
+	data->dev->input_phys = "wbcir/cir0";
+	data->dev->input_id.bustype = BUS_HOST;
+	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;
+	data->dev->input_id.product = WBCIR_ID_FAMILY;
+	data->dev->input_id.version = WBCIR_ID_CHIP;
+	data->dev->map_name = RC_MAP_RC6_MCE;
+	data->dev->s_idle = wbcir_idle_rx;
+	data->dev->s_carrier_report = wbcir_set_carrier_report;
+	data->dev->s_tx_mask = wbcir_txmask;
+	data->dev->s_tx_carrier = wbcir_txcarrier;
+	data->dev->tx_ir = wbcir_tx;
+	data->dev->priv = data;
+	data->dev->dev.parent = &device->dev;
+	data->dev->timeout = MS_TO_NS(100);
+	data->dev->rx_resolution = US_TO_NS(2);
+	data->dev->allowed_protos = RC_BIT_ALL;
+
+	err = rc_register_device(data->dev);
+	if (err)
+		goto exit_free_rc;
+
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
 			data->wbase, data->wbase + WAKEUP_IOMEM_LEN - 1);
 		err = -EBUSY;
-		goto exit_free_data;
+		goto exit_unregister_device;
 	}
 
 	if (!request_region(data->ebase, EHFUNC_IOMEM_LEN, DRVNAME)) {
@@ -1032,57 +1137,21 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_release_sbase;
 	}
 
-	led_trigger_register_simple("cir-tx", &data->txtrigger);
-	if (!data->txtrigger) {
-		err = -ENOMEM;
-		goto exit_free_irq;
-	}
-
-	led_trigger_register_simple("cir-rx", &data->rxtrigger);
-	if (!data->rxtrigger) {
-		err = -ENOMEM;
-		goto exit_unregister_txtrigger;
-	}
-
-	data->led.name = "cir::activity";
-	data->led.default_trigger = "cir-rx";
-	data->led.brightness_set = wbcir_led_brightness_set;
-	data->led.brightness_get = wbcir_led_brightness_get;
-	err = led_classdev_register(&device->dev, &data->led);
-	if (err)
-		goto exit_unregister_rxtrigger;
-
-	data->dev = rc_allocate_device();
-	if (!data->dev) {
-		err = -ENOMEM;
-		goto exit_unregister_led;
-	}
-
-	data->dev->driver_name = WBCIR_NAME;
-	data->dev->input_name = WBCIR_NAME;
-	data->dev->input_phys = "wbcir/cir0";
-	data->dev->input_id.bustype = BUS_HOST;
-	data->dev->input_id.vendor = PCI_VENDOR_ID_WINBOND;
-	data->dev->input_id.product = WBCIR_ID_FAMILY;
-	data->dev->input_id.version = WBCIR_ID_CHIP;
-	data->dev->map_name = RC_MAP_RC6_MCE;
-	data->dev->s_idle = wbcir_idle_rx;
-	data->dev->s_tx_mask = wbcir_txmask;
-	data->dev->s_tx_carrier = wbcir_txcarrier;
-	data->dev->tx_ir = wbcir_tx;
-	data->dev->priv = data;
-	data->dev->dev.parent = &device->dev;
-
-	err = rc_register_device(data->dev);
-	if (err)
-		goto exit_free_rc;
-
 	device_init_wakeup(&device->dev, 1);
 
 	wbcir_init_hw(data);
 
 	return 0;
 
+exit_release_sbase:
+	release_region(data->sbase, SP_IOMEM_LEN);
+exit_release_ebase:
+	release_region(data->ebase, EHFUNC_IOMEM_LEN);
+exit_release_wbase:
+	release_region(data->wbase, WAKEUP_IOMEM_LEN);
+exit_unregister_device:
+	rc_unregister_device(data->dev);
+	data->dev = NULL;
 exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:
@@ -1091,14 +1160,6 @@ exit_unregister_rxtrigger:
 	led_trigger_unregister_simple(data->rxtrigger);
 exit_unregister_txtrigger:
 	led_trigger_unregister_simple(data->txtrigger);
-exit_free_irq:
-	free_irq(data->irq, device);
-exit_release_sbase:
-	release_region(data->sbase, SP_IOMEM_LEN);
-exit_release_ebase:
-	release_region(data->ebase, EHFUNC_IOMEM_LEN);
-exit_release_wbase:
-	release_region(data->wbase, WAKEUP_IOMEM_LEN);
 exit_free_data:
 	kfree(data);
 	pnp_set_drvdata(device, NULL);
@@ -1106,7 +1167,7 @@ exit:
 	return err;
 }
 
-static void __devexit
+static void
 wbcir_remove(struct pnp_dev *device)
 {
 	struct wbcir_data *data = pnp_get_drvdata(device);
@@ -1152,7 +1213,7 @@ static struct pnp_driver wbcir_driver = {
 	.name     = WBCIR_NAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
-	.remove   = __devexit_p(wbcir_remove),
+	.remove   = wbcir_remove,
 	.suspend  = wbcir_suspend,
 	.resume   = wbcir_resume,
 	.shutdown = wbcir_shutdown
@@ -1169,12 +1230,12 @@ wbcir_init(void)
 	case IR_PROTOCOL_RC6:
 		break;
 	default:
-		printk(KERN_ERR DRVNAME ": Invalid power-on protocol\n");
+		pr_err("Invalid power-on protocol\n");
 	}
 
 	ret = pnp_register_driver(&wbcir_driver);
 	if (ret)
-		printk(KERN_ERR DRVNAME ": Unable to register driver\n");
+		pr_err("Unable to register driver\n");
 
 	return ret;
 }
@@ -1188,6 +1249,6 @@ wbcir_exit(void)
 module_init(wbcir_init);
 module_exit(wbcir_exit);
 
-MODULE_AUTHOR("David Härdeman <david@hardeman.nu>");
+MODULE_AUTHOR("David HÃ¤rdeman <david@hardeman.nu>");
 MODULE_DESCRIPTION("Winbond SuperI/O Consumer IR Driver");
 MODULE_LICENSE("GPL");

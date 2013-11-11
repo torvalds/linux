@@ -122,6 +122,123 @@ static int lxt971_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+/*
+ * A2 version of LXT973 chip has an ERRATA: it randomly return the contents
+ * of the previous even register when you read a odd register regularly
+ */
+
+static int lxt973a2_update_link(struct phy_device *phydev)
+{
+	int status;
+	int control;
+	int retry = 8; /* we try 8 times */
+
+	/* Do a fake read */
+	status = phy_read(phydev, MII_BMSR);
+
+	if (status < 0)
+		return status;
+
+	control = phy_read(phydev, MII_BMCR);
+	if (control < 0)
+		return control;
+
+	do {
+		/* Read link and autonegotiation status */
+		status = phy_read(phydev, MII_BMSR);
+	} while (status >= 0 && retry-- && status == control);
+
+	if (status < 0)
+		return status;
+
+	if ((status & BMSR_LSTATUS) == 0)
+		phydev->link = 0;
+	else
+		phydev->link = 1;
+
+	return 0;
+}
+
+static int lxt973a2_read_status(struct phy_device *phydev)
+{
+	int adv;
+	int err;
+	int lpa;
+	int lpagb = 0;
+
+	/* Update the link, but return if there was an error */
+	err = lxt973a2_update_link(phydev);
+	if (err)
+		return err;
+
+	if (AUTONEG_ENABLE == phydev->autoneg) {
+		int retry = 1;
+
+		adv = phy_read(phydev, MII_ADVERTISE);
+
+		if (adv < 0)
+			return adv;
+
+		do {
+			lpa = phy_read(phydev, MII_LPA);
+
+			if (lpa < 0)
+				return lpa;
+
+			/* If both registers are equal, it is suspect but not
+			* impossible, hence a new try
+			*/
+		} while (lpa == adv && retry--);
+
+		lpa &= adv;
+
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_HALF;
+		phydev->pause = phydev->asym_pause = 0;
+
+		if (lpagb & (LPA_1000FULL | LPA_1000HALF)) {
+			phydev->speed = SPEED_1000;
+
+			if (lpagb & LPA_1000FULL)
+				phydev->duplex = DUPLEX_FULL;
+		} else if (lpa & (LPA_100FULL | LPA_100HALF)) {
+			phydev->speed = SPEED_100;
+
+			if (lpa & LPA_100FULL)
+				phydev->duplex = DUPLEX_FULL;
+		} else {
+			if (lpa & LPA_10FULL)
+				phydev->duplex = DUPLEX_FULL;
+		}
+
+		if (phydev->duplex == DUPLEX_FULL) {
+			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
+			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
+		}
+	} else {
+		int bmcr = phy_read(phydev, MII_BMCR);
+
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_FULLDPLX)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = DUPLEX_HALF;
+
+		if (bmcr & BMCR_SPEED1000)
+			phydev->speed = SPEED_1000;
+		else if (bmcr & BMCR_SPEED100)
+			phydev->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_10;
+
+		phydev->pause = phydev->asym_pause = 0;
+	}
+
+	return 0;
+}
+
 static int lxt973_probe(struct phy_device *phydev)
 {
 	int val = phy_read(phydev, MII_LXT973_PCR);
@@ -149,7 +266,8 @@ static int lxt973_config_aneg(struct phy_device *phydev)
 	return phydev->priv ? 0 : genphy_config_aneg(phydev);
 }
 
-static struct phy_driver lxt970_driver = {
+static struct phy_driver lxt97x_driver[] = {
+{
 	.phy_id		= 0x78100000,
 	.name		= "LXT970",
 	.phy_id_mask	= 0xfffffff0,
@@ -160,10 +278,8 @@ static struct phy_driver lxt970_driver = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver lxt971_driver = {
+	.driver		= { .owner = THIS_MODULE,},
+}, {
 	.phy_id		= 0x001378e0,
 	.name		= "LXT971",
 	.phy_id_mask	= 0xfffffff0,
@@ -173,10 +289,18 @@ static struct phy_driver lxt971_driver = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
-static struct phy_driver lxt973_driver = {
+	.driver		= { .owner = THIS_MODULE,},
+}, {
+	.phy_id		= 0x00137a10,
+	.name		= "LXT973-A2",
+	.phy_id_mask	= 0xffffffff,
+	.features	= PHY_BASIC_FEATURES,
+	.flags		= 0,
+	.probe		= lxt973_probe,
+	.config_aneg	= lxt973_config_aneg,
+	.read_status	= lxt973a2_read_status,
+	.driver		= { .owner = THIS_MODULE,},
+}, {
 	.phy_id		= 0x00137a10,
 	.name		= "LXT973",
 	.phy_id_mask	= 0xfffffff0,
@@ -185,39 +309,19 @@ static struct phy_driver lxt973_driver = {
 	.probe		= lxt973_probe,
 	.config_aneg	= lxt973_config_aneg,
 	.read_status	= genphy_read_status,
-	.driver 	= { .owner = THIS_MODULE,},
-};
+	.driver		= { .owner = THIS_MODULE,},
+} };
 
 static int __init lxt_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&lxt970_driver);
-	if (ret)
-		goto err1;
-
-	ret = phy_driver_register(&lxt971_driver);
-	if (ret)
-		goto err2;
-
-	ret = phy_driver_register(&lxt973_driver);
-	if (ret)
-		goto err3;
-	return 0;
-
- err3:
-	phy_driver_unregister(&lxt971_driver);
- err2:
-	phy_driver_unregister(&lxt970_driver);
- err1:
-	return ret;
+	return phy_drivers_register(lxt97x_driver,
+		ARRAY_SIZE(lxt97x_driver));
 }
 
 static void __exit lxt_exit(void)
 {
-	phy_driver_unregister(&lxt970_driver);
-	phy_driver_unregister(&lxt971_driver);
-	phy_driver_unregister(&lxt973_driver);
+	phy_drivers_unregister(lxt97x_driver,
+		ARRAY_SIZE(lxt97x_driver));
 }
 
 module_init(lxt_init);

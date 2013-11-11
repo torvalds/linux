@@ -9,14 +9,6 @@
 
 struct mm_struct;
 
-#ifdef CONFIG_DEBUG_VM
-extern void assert_pte_locked(struct mm_struct *mm, unsigned long addr);
-#else /* CONFIG_DEBUG_VM */
-static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
-{
-}
-#endif /* !CONFIG_DEBUG_VM */
-
 #endif /* !__ASSEMBLY__ */
 
 #if defined(CONFIG_PPC64)
@@ -25,7 +17,15 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #  include <asm/pgtable-ppc32.h>
 #endif
 
+/*
+ * We save the slot number & secondary bit in the second half of the
+ * PTE page. We use the 8 bytes per each pte entry.
+ */
+#define PTE_PAGE_HIDX_OFFSET (PTRS_PER_PTE * 8)
+
 #ifndef __ASSEMBLY__
+
+#include <asm/tlbflush.h>
 
 /* Generic accessors to PTE bits */
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
@@ -170,6 +170,9 @@ extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long addre
 #define pgprot_cached_wthru(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_COHERENT | _PAGE_WRITETHRU))
 
+#define pgprot_cached_noncoherent(prot) \
+		(__pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL))
+
 #define pgprot_writecombine pgprot_noncached_wc
 
 struct file;
@@ -215,6 +218,8 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
 		      unsigned long end, int write, struct page **pages, int *nr);
 
+extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+		       unsigned long end, int write, struct page **pages, int *nr);
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

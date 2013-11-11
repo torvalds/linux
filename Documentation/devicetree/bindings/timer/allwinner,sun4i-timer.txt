@@ -1,0 +1,17 @@
+Allwinner A1X SoCs Timer Controller
+
+Required properties:
+
+- compatible : should be "allwinner,sun4i-timer"
+- reg : Specifies base physical address and size of the registers.
+- interrupts : The interrupt of the first timer
+- clocks: phandle to the source clock (usually a 24 MHz fixed clock)
+
+Example:
+
+timer {
+	compatible = "allwinner,sun4i-timer";
+	reg = <0x01c20c00 0x400>;
+	interrupts = <22>;
+	clocks = <&osc>;
+};

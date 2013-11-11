@@ -69,7 +69,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -90,7 +90,7 @@ MODULE_SUPPORTED_DEVICE("{{Avance Logic,ALS4000}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 #ifdef SUPPORT_JOYSTICK
 static int joystick_port[SNDRV_CARDS];
 #endif
@@ -694,7 +694,7 @@ static struct snd_pcm_ops snd_als4000_capture_ops = {
 	.pointer =	snd_als4000_capture_pointer
 };
 
-static int __devinit snd_als4000_pcm(struct snd_sb *chip, int device)
+static int snd_als4000_pcm(struct snd_sb *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -770,7 +770,7 @@ static void snd_als4000_configure(struct snd_sb *chip)
 }
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
+static int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
 {
 	struct gameport *gp;
 	struct resource *r;
@@ -847,8 +847,8 @@ static void snd_card_als4000_free( struct snd_card *card )
 	pci_disable_device(acard->pci);
 }
 
-static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
-					  const struct pci_device_id *pci_id)
+static int snd_card_als4000_probe(struct pci_dev *pci,
+				  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -931,8 +931,9 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_ALS4000,
 					iobase + ALS4K_IOB_30_MIDI_DATA,
-					MPU401_INFO_INTEGRATED,
-					pci->irq, 0, &chip->rmidi)) < 0) {
+					MPU401_INFO_INTEGRATED |
+					MPU401_INFO_IRQ_HOOK,
+					-1, &chip->rmidi)) < 0) {
 		printk(KERN_ERR "als4000: no MPU-401 device at 0x%lx?\n",
 				iobase + ALS4K_IOB_30_MIDI_DATA);
 		goto out_err;
@@ -980,16 +981,17 @@ out:
 	return err;
 }
 
-static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
+static void snd_card_als4000_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
-static int snd_als4000_suspend(struct pci_dev *pci, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int snd_als4000_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
 
@@ -1000,13 +1002,14 @@ static int snd_als4000_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_als4000_resume(struct pci_dev *pci)
+static int snd_als4000_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
 
@@ -1032,29 +1035,21 @@ static int snd_als4000_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
+static SIMPLE_DEV_PM_OPS(snd_als4000_pm, snd_als4000_suspend, snd_als4000_resume);
+#define SND_ALS4000_PM_OPS	&snd_als4000_pm
+#else
+#define SND_ALS4000_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
 
-static struct pci_driver driver = {
-	.name = "ALS4000",
+static struct pci_driver als4000_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
-	.remove = __devexit_p(snd_card_als4000_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_als4000_suspend,
-	.resume = snd_als4000_resume,
-#endif
+	.remove = snd_card_als4000_remove,
+	.driver = {
+		.pm = SND_ALS4000_PM_OPS,
+	},
 };
 
-static int __init alsa_card_als4000_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_als4000_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_als4000_init)
-module_exit(alsa_card_als4000_exit)
+module_pci_driver(als4000_driver);

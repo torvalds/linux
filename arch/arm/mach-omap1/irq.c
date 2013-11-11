@@ -35,18 +35,21 @@
  * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <mach/gpio.h>
-#include <plat/cpu.h>
+
+#include "soc.h"
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define IRQ_BANK(irq) ((irq) >> 5)
 #define IRQ_BIT(irq)  ((irq) & 0x1f)
@@ -175,7 +178,7 @@ static struct irq_chip omap_irq_chip = {
 	.irq_set_wake	= omap_wake_irq,
 };
 
-void __init omap_init_irq(void)
+void __init omap1_init_irq(void)
 {
 	int i, j;
 

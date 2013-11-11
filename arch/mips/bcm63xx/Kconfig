@@ -1,6 +1,10 @@
 menu "CPU support"
 	depends on BCM63XX
 
+config BCM63XX_CPU_6328
+	bool "support 6328 CPU"
+	select HW_HAS_PCI
+
 config BCM63XX_CPU_6338
 	bool "support 6338 CPU"
 	select HW_HAS_PCI
@@ -19,6 +23,14 @@ config BCM63XX_CPU_6348
 
 config BCM63XX_CPU_6358
 	bool "support 6358 CPU"
+	select HW_HAS_PCI
+
+config BCM63XX_CPU_6362
+	bool "support 6362 CPU"
+	select HW_HAS_PCI
+
+config BCM63XX_CPU_6368
+	bool "support 6368 CPU"
 	select HW_HAS_PCI
 endmenu
 

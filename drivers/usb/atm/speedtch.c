@@ -73,9 +73,9 @@ static const char speedtch_driver_name[] = "speedtch";
 #define DEFAULT_SW_BUFFERING	0
 
 static unsigned int altsetting = 0; /* zero means: use the default */
-static int dl_512_first = DEFAULT_DL_512_FIRST;
-static int enable_isoc = DEFAULT_ENABLE_ISOC;
-static int sw_buffering = DEFAULT_SW_BUFFERING;
+static bool dl_512_first = DEFAULT_DL_512_FIRST;
+static bool enable_isoc = DEFAULT_ENABLE_ISOC;
+static bool sw_buffering = DEFAULT_SW_BUFFERING;
 
 #define DEFAULT_B_MAX_DSL	8128
 #define DEFAULT_MODEM_MODE	11
@@ -170,7 +170,7 @@ static void speedtch_set_swbuff(struct speedtch_instance_data *instance, int sta
 			 "%sabling SW buffering: usb_control_msg returned %d\n",
 			 state ? "En" : "Dis", ret);
 	else
-		dbg("speedtch_set_swbuff: %sbled SW buffering", state ? "En" : "Dis");
+		usb_dbg(usbatm, "speedtch_set_swbuff: %sbled SW buffering\n", state ? "En" : "Dis");
 }
 
 static void speedtch_test_sequence(struct speedtch_instance_data *instance)
@@ -718,7 +718,7 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	del_timer_sync(&instance->resubmit_timer);
 	usb_free_urb(int_urb);
 
-	flush_work_sync(&instance->status_check_work);
+	flush_work(&instance->status_check_work);
 }
 
 static int speedtch_pre_reset(struct usb_interface *intf)
@@ -953,22 +953,7 @@ static int speedtch_usb_probe(struct usb_interface *intf, const struct usb_devic
 	return usbatm_usb_probe(intf, id, &speedtch_usbatm_driver);
 }
 
-static int __init speedtch_usb_init(void)
-{
-	dbg("%s: driver version %s", __func__, DRIVER_VERSION);
-
-	return usb_register(&speedtch_usb_driver);
-}
-
-static void __exit speedtch_usb_cleanup(void)
-{
-	dbg("%s", __func__);
-
-	usb_deregister(&speedtch_usb_driver);
-}
-
-module_init(speedtch_usb_init);
-module_exit(speedtch_usb_cleanup);
+module_usb_driver(speedtch_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

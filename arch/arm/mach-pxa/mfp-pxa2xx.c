@@ -12,13 +12,14 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/syscore_ops.h>
 
-#include <mach/gpio.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
 
@@ -28,6 +29,12 @@
 #define __GAFR(u, x)	__REG2((u) ? 0x40E00058 : 0x40E00054, (x) << 3)
 #define GAFR_L(x)	__GAFR(0, x)
 #define GAFR_U(x)	__GAFR(1, x)
+
+#define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
+#define GPLR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5))
+#define GPDR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x0c)
+#define GPSR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x18)
+#define GPCR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x24)
 
 #define PWER_WE35	(1 << 24)
 
@@ -222,6 +229,12 @@ static void __init pxa25x_mfp_init(void)
 {
 	int i;
 
+	/* running before pxa_gpio_probe() */
+#ifdef CONFIG_CPU_PXA26x
+	pxa_last_gpio = 89;
+#else
+	pxa_last_gpio = 84;
+#endif
 	for (i = 0; i <= pxa_last_gpio; i++)
 		gpio_desc[i].valid = 1;
 
@@ -291,6 +304,7 @@ static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
 
+	pxa_last_gpio = 120;	/* running before pxa_gpio_probe() */
 	for (i = 0; i <= pxa_last_gpio; i++) {
 		/* skip GPIO2, 5, 6, 7, 8, they are not
 		 * valid pins allow configuration
@@ -336,6 +350,7 @@ static inline void pxa27x_mfp_init(void) {}
 #ifdef CONFIG_PM
 static unsigned long saved_gafr[2][4];
 static unsigned long saved_gpdr[4];
+static unsigned long saved_gplr[4];
 static unsigned long saved_pgsr[4];
 
 static int pxa2xx_mfp_suspend(void)
@@ -354,14 +369,26 @@ static int pxa2xx_mfp_suspend(void)
 	}
 
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
-
 		saved_gafr[0][i] = GAFR_L(i);
 		saved_gafr[1][i] = GAFR_U(i);
 		saved_gpdr[i] = GPDR(i * 32);
+		saved_gplr[i] = GPLR(i * 32);
 		saved_pgsr[i] = PGSR(i);
 
-		GPDR(i * 32) = gpdr_lpm[i];
+		GPSR(i * 32) = PGSR(i);
+		GPCR(i * 32) = ~PGSR(i);
 	}
+
+	/* set GPDR bits taking into account MFP_LPM_KEEP_OUTPUT */
+	for (i = 0; i < pxa_last_gpio; i++) {
+		if ((gpdr_lpm[gpio_to_bank(i)] & GPIO_bit(i)) ||
+		    ((gpio_desc[i].config & MFP_LPM_KEEP_OUTPUT) &&
+		     (saved_gpdr[gpio_to_bank(i)] & GPIO_bit(i))))
+			GPDR(i) |= GPIO_bit(i);
+		else
+			GPDR(i) &= ~GPIO_bit(i);
+	}
+
 	return 0;
 }
 
@@ -372,6 +399,8 @@ static void pxa2xx_mfp_resume(void)
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 		GAFR_L(i) = saved_gafr[0][i];
 		GAFR_U(i) = saved_gafr[1][i];
+		GPSR(i * 32) = saved_gplr[i];
+		GPCR(i * 32) = ~saved_gplr[i];
 		GPDR(i * 32) = saved_gpdr[i];
 		PGSR(i) = saved_pgsr[i];
 	}

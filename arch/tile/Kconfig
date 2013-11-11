@@ -3,15 +3,28 @@
 
 config TILE
 	def_bool y
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
+	select SYSCTL_EXCEPTION_TRACE
 	select USE_GENERIC_SMP_HELPERS
 	select CC_OPTIMIZE_FOR_SIZE
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
+	select HAVE_DEBUG_BUGVERBOSE
+	select VIRT_TO_BUS
 	select SYS_HYPERVISOR
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_CLOCKEVENTS
+	select MODULES_USE_ELF_RELA
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_SYSCALL_TRACEPOINTS
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -30,9 +43,6 @@ config MMU
 config GENERIC_CSUM
 	def_bool y
 
-config SEMAPHORE_SLEEPERS
-	def_bool y
-
 config HAVE_ARCH_ALLOC_REMAP
 	def_bool y
 
@@ -45,21 +55,17 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
-config GENERIC_TIME
-	def_bool y
-
-config GENERIC_CLOCKEVENTS
+# Support for additional huge page sizes besides HPAGE_SIZE.
+# The software support is currently only present in the TILE-Gx
+# hypervisor. TILEPro in any case does not support page sizes
+# larger than the default HPAGE_SIZE.
+config HUGETLB_SUPER_PAGES
+	depends on HUGETLB_PAGE && TILEGX
 	def_bool y
 
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
-
-# We have a very flat architecture from a migration point of view,
-# so save boot time by presetting this (particularly useful on tile-sim).
-config DEFAULT_MIGRATION_COST
-	int
-	default "10000000"
 
 # We only support gcc 4.4 and above, so this should work.
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
@@ -70,6 +76,12 @@ config ARCH_PHYS_ADDR_T_64BIT
 
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
+
+config NEED_DMA_MAP_STATE
+	def_bool y
+
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -96,34 +108,28 @@ config STRICT_DEVMEM
 config SMP
 	def_bool y
 
-# Allow checking for compile-time determined overflow errors in
-# copy_from_user().  There are still unprovable places in the
-# generic code as of 2.6.34, so this option is not really compatible
-# with -Werror, which is more useful in general.
-config DEBUG_COPY_FROM_USER
-	def_bool n
-
 config HVC_TILE
+	depends on TTY
 	select HVC_DRIVER
 	def_bool y
 
-# Please note: TILE-Gx support is not yet finalized; this is
-# the preliminary support.  TILE-Gx drivers are only provided
-# with the alpha or beta test versions for Tilera customers.
 config TILEGX
-	depends on EXPERIMENTAL
 	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
 
+config TILEPRO
+	def_bool !TILEGX
+
 config 64BIT
-	depends on TILEGX
-	def_bool y
+	def_bool TILEGX
 
 config ARCH_DEFCONFIG
 	string
-	default "arch/tile/configs/tile_defconfig" if !TILEGX
+	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "Tilera-specific configuration"
 
@@ -137,7 +143,30 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
-source "kernel/time/Kconfig"
+if TILEGX
+
+choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_64KB
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance on memory-intensive applications, a page size of 64KB
+	  is recommended.  For workloads involving many small files, many
+	  connections, etc., it may be better to select 16KB, which uses
+	  memory more efficiently at some cost in TLB performance.
+
+	  Note that this option is TILE-Gx specific; currently
+	  TILEPro page size is set by rebuilding the hypervisor.
+
+config PAGE_SIZE_16KB
+	bool "16KB"
+
+config PAGE_SIZE_64KB
+	bool "64KB"
+
+endchoice
+
+endif
 
 source "kernel/Kconfig.hz"
 
@@ -182,6 +211,22 @@ config HIGHMEM
 	  physical memory into the top 1 GB of virtual memory space.
 
 	  If unsure, say "true".
+
+config ZONE_DMA
+	def_bool y
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	bool
+	default TILEGX
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 
 # We do not currently support disabling NUMA.
 config NUMA
@@ -242,6 +287,7 @@ endchoice
 
 config PAGE_OFFSET
 	hex
+	depends on !64BIT
 	default 0xF0000000 if VMSPLIT_3_75G
 	default 0xE0000000 if VMSPLIT_3_5G
 	default 0xB0000000 if VMSPLIT_2_75G
@@ -309,11 +355,19 @@ config HARDWALL
 config KERNEL_PL
 	int "Processor protection level for kernel"
 	range 1 2
-	default "1"
+	default 2 if TILEGX
+	default 1 if !TILEGX
 	---help---
-	  This setting determines the processor protection level the
-	  kernel will be built to run at.  Generally you should use
-	  the default value here.
+	  Since MDE 4.2, the Tilera hypervisor runs the kernel
+	  at PL2 by default.  If running under an older hypervisor,
+	  or as a KVM guest, you must run at PL1.  (The current
+	  hypervisor may also be recompiled with "make HV_PL=2" to
+	  allow it to run a kernel at PL1, but clients running at PL1
+	  are not expected to be supported indefinitely.)
+
+	  If you're not sure, don't change the default.
+
+source "arch/tile/gxio/Kconfig"
 
 endmenu  # Tilera-specific configuration
 
@@ -323,6 +377,10 @@ config PCI
 	bool "PCI support"
 	default y
 	select PCI_DOMAINS
+	select GENERIC_PCI_IOMAP
+	select TILE_GXIO_TRIO if TILEGX
+	select ARCH_SUPPORTS_MSI if TILEGX
+	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
 	  be attached to the Tile chip.  Many, but not all, PCI devices
@@ -339,24 +397,21 @@ config NO_IOPORT
 
 source "drivers/pci/Kconfig"
 
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
+config TILE_USB
+	tristate "Tilera USB host adapter support"
+	default y
+	depends on USB
+	depends on TILEGX
+	select TILE_GXIO_USB_HOST
 	---help---
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-	  One well-known example of this is USB.
+	  Provides USB host adapter support for the built-in EHCI and OHCI
+	  interfaces on TILE-Gx chips.
 
 source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
 menu "Executable file formats"
-
-# only elf supported
-config KCORE_ELF
-	def_bool y
-	depends on PROC_FS
 
 source "fs/Kconfig.binfmt"
 

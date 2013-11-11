@@ -29,13 +29,13 @@
 #include <linux/poll.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 
 #define snd_pcm_substream_chip(substream) ((substream)->private_data)
 #define snd_pcm_chip(pcm) ((pcm)->private_data)
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-#include "pcm_oss.h"
+#include <sound/pcm_oss.h>
 #endif
 
 /*
@@ -71,6 +71,8 @@ struct snd_pcm_ops {
 	int (*prepare)(struct snd_pcm_substream *substream);
 	int (*trigger)(struct snd_pcm_substream *substream, int cmd);
 	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *substream);
+	int (*wall_clock)(struct snd_pcm_substream *substream,
+			  struct timespec *audio_ts);
 	int (*copy)(struct snd_pcm_substream *substream, int channel,
 		    snd_pcm_uframes_t pos,
 		    void __user *buf, snd_pcm_uframes_t count);
@@ -179,6 +181,8 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_G723_24_1B	_SNDRV_PCM_FMTBIT(G723_24_1B)
 #define SNDRV_PCM_FMTBIT_G723_40	_SNDRV_PCM_FMTBIT(G723_40)
 #define SNDRV_PCM_FMTBIT_G723_40_1B	_SNDRV_PCM_FMTBIT(G723_40_1B)
+#define SNDRV_PCM_FMTBIT_DSD_U8		_SNDRV_PCM_FMTBIT(DSD_U8)
+#define SNDRV_PCM_FMTBIT_DSD_U16_LE	_SNDRV_PCM_FMTBIT(DSD_U16_LE)
 
 #ifdef SNDRV_LITTLE_ENDIAN
 #define SNDRV_PCM_FMTBIT_S16		SNDRV_PCM_FMTBIT_S16_LE
@@ -264,7 +268,7 @@ struct snd_pcm_hw_constraint_ratdens {
 
 struct snd_pcm_hw_constraint_list {
 	unsigned int count;
-	unsigned int *list;
+	const unsigned int *list;
 	unsigned int mask;
 };
 
@@ -281,6 +285,7 @@ struct snd_pcm_runtime {
 	unsigned long hw_ptr_jiffies;	/* Time when hw_ptr is updated */
 	unsigned long hw_ptr_buffer_jiffies; /* buffer time in jiffies */
 	snd_pcm_sframes_t delay;	/* extra delay; typically FIFO size */
+	u64 hw_ptr_wrap;                /* offset for hw_ptr due to boundary wrap-around */
 
 	/* -- HW params -- */
 	snd_pcm_access_t access;	/* access mode */
@@ -373,7 +378,7 @@ struct snd_pcm_substream {
 	int number;
 	char name[32];			/* substream name */
 	int stream;			/* stream (direction) */
-	struct pm_qos_request_list latency_pm_qos_req; /* pm_qos request */
+	struct pm_qos_request latency_pm_qos_req; /* pm_qos request */
 	size_t buffer_bytes_max;	/* limit ring buffer size */
 	struct snd_dma_buffer dma_buffer;
 	unsigned int dma_buf_id;
@@ -437,6 +442,7 @@ struct snd_pcm_str {
 	struct snd_info_entry *proc_xrun_debug_entry;
 #endif
 #endif
+	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
 };
 
 struct snd_pcm {
@@ -454,6 +460,7 @@ struct snd_pcm {
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);
 	struct device *dev; /* actual hw device this belongs to */
+	bool internal; /* pcm is for internal use only */
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	struct snd_pcm_oss oss;
 #endif
@@ -473,6 +480,9 @@ struct snd_pcm_notify {
 extern const struct file_operations snd_pcm_f_ops[2];
 
 int snd_pcm_new(struct snd_card *card, const char *id, int device,
+		int playback_count, int capture_count,
+		struct snd_pcm **rpcm);
+int snd_pcm_new_internal(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count,
 		struct snd_pcm **rpcm);
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count);
@@ -506,6 +516,18 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream, struct file *file,
 void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
+
+
+#ifdef CONFIG_SND_DEBUG
+void snd_pcm_debug_name(struct snd_pcm_substream *substream,
+			   char *name, size_t len);
+#else
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+{
+	*buf = 0;
+}
+#endif
 
 /*
  *  PCM library
@@ -639,7 +661,7 @@ static inline snd_pcm_sframes_t snd_pcm_capture_hw_avail(struct snd_pcm_runtime 
  *
  * Checks whether enough free space is available on the playback buffer.
  *
- * Returns non-zero if available, or zero if not.
+ * Return: Non-zero if available, or zero if not.
  */
 static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
 {
@@ -653,7 +675,7 @@ static inline int snd_pcm_playback_ready(struct snd_pcm_substream *substream)
  *
  * Checks whether enough capture data is available on the capture buffer.
  *
- * Returns non-zero if available, or zero if not.
+ * Return: Non-zero if available, or zero if not.
  */
 static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
 {
@@ -665,10 +687,10 @@ static inline int snd_pcm_capture_ready(struct snd_pcm_substream *substream)
  * snd_pcm_playback_data - check whether any data exists on the playback buffer
  * @substream: the pcm substream instance
  *
- * Checks whether any data exists on the playback buffer. If stop_threshold
- * is bigger or equal to boundary, then this function returns always non-zero.
+ * Checks whether any data exists on the playback buffer.
  *
- * Returns non-zero if exists, or zero if not.
+ * Return: Non-zero if any data exists, or zero if not. If stop_threshold
+ * is bigger or equal to boundary, then this function returns always non-zero.
  */
 static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
 {
@@ -685,7 +707,7 @@ static inline int snd_pcm_playback_data(struct snd_pcm_substream *substream)
  *
  * Checks whether the playback buffer is empty.
  *
- * Returns non-zero if empty, or zero if not.
+ * Return: Non-zero if empty, or zero if not.
  */
 static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
 {
@@ -699,7 +721,7 @@ static inline int snd_pcm_playback_empty(struct snd_pcm_substream *substream)
  *
  * Checks whether the capture buffer is empty.
  *
- * Returns non-zero if empty, or zero if not.
+ * Return: Non-zero if empty, or zero if not.
  */
 static inline int snd_pcm_capture_empty(struct snd_pcm_substream *substream)
 {
@@ -749,17 +771,18 @@ static inline const struct snd_interval *hw_param_interval_c(const struct snd_pc
 	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
-#define params_access(p) ((__force snd_pcm_access_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS)))
-#define params_format(p) ((__force snd_pcm_format_t)snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_FORMAT)))
-#define params_subformat(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_SUBFORMAT))
-#define params_channels(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min
-#define params_rate(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_RATE)->min
-#define params_period_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min
-#define params_period_bytes(p) ((params_period_size(p)*snd_pcm_format_physical_width(params_format(p))*params_channels(p))/8)
-#define params_periods(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIODS)->min
-#define params_buffer_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min
-#define params_buffer_bytes(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min
-
+#define params_channels(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min)
+#define params_rate(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_RATE)->min)
+#define params_period_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min)
+#define params_periods(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIODS)->min)
+#define params_buffer_size(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min)
+#define params_buffer_bytes(p) \
+	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min)
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
 void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);
@@ -768,7 +791,8 @@ void snd_interval_muldivk(const struct snd_interval *a, const struct snd_interva
 			  unsigned int k, struct snd_interval *c);
 void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
 			  const struct snd_interval *b, struct snd_interval *c);
-int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *list, unsigned int mask);
+int snd_interval_list(struct snd_interval *i, unsigned int count,
+		      const unsigned int *list, unsigned int mask);
 int snd_interval_ratnum(struct snd_interval *i,
 			unsigned int rats_count, struct snd_ratnum *rats,
 			unsigned int *nump, unsigned int *denp);
@@ -792,7 +816,7 @@ int snd_pcm_hw_constraint_integer(struct snd_pcm_runtime *runtime, snd_pcm_hw_pa
 int snd_pcm_hw_constraint_list(struct snd_pcm_runtime *runtime, 
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var,
-			       struct snd_pcm_hw_constraint_list *l);
+			       const struct snd_pcm_hw_constraint_list *l);
 int snd_pcm_hw_constraint_ratnums(struct snd_pcm_runtime *runtime, 
 				  unsigned int cond,
 				  snd_pcm_hw_param_t var,
@@ -812,6 +836,8 @@ int snd_pcm_hw_constraint_step(struct snd_pcm_runtime *runtime,
 int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 			       unsigned int cond,
 			       snd_pcm_hw_param_t var);
+int snd_pcm_hw_rule_noresample(struct snd_pcm_runtime *runtime,
+			       unsigned int base_rate);
 int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime,
 			unsigned int cond,
 			int var,
@@ -828,7 +854,7 @@ int snd_pcm_format_big_endian(snd_pcm_format_t format);
  * snd_pcm_format_cpu_endian - Check the PCM format is CPU-endian
  * @format: the format to check
  *
- * Returns 1 if the given PCM format is CPU-endian, 0 if
+ * Return: 1 if the given PCM format is CPU-endian, 0 if
  * opposite, or a negative error code if endian not specified.
  */
 int snd_pcm_format_cpu_endian(snd_pcm_format_t format);
@@ -843,7 +869,7 @@ int snd_pcm_format_physical_width(snd_pcm_format_t format);		/* in bits */
 ssize_t snd_pcm_format_size(snd_pcm_format_t format, size_t samples);
 const unsigned char *snd_pcm_format_silence_64(snd_pcm_format_t format);
 int snd_pcm_format_set_silence(snd_pcm_format_t format, void *buf, unsigned int frames);
-snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsignd, int big_endian);
+snd_pcm_format_t snd_pcm_build_linear_format(int width, int unsigned, int big_endian);
 
 void snd_pcm_set_ops(struct snd_pcm * pcm, int direction, struct snd_pcm_ops *ops);
 void snd_pcm_set_sync(struct snd_pcm_substream *substream);
@@ -873,6 +899,7 @@ extern const struct snd_pcm_hw_constraint_list snd_pcm_known_rates;
 
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime);
 unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate);
+unsigned int snd_pcm_rate_bit_to_rate(unsigned int rate_bit);
 
 static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substream,
 					      struct snd_dma_buffer *bufp)
@@ -938,7 +965,7 @@ struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
  * contiguous in kernel virtual space, but not in physical memory.  Use this
  * if the buffer is accessed by kernel code but not by device DMA.
  *
- * Returns 1 if the buffer was changed, 0 if not changed, or a negative error
+ * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
  * code.
  */
 static int snd_pcm_lib_alloc_vmalloc_buffer
@@ -950,6 +977,9 @@ static int snd_pcm_lib_alloc_vmalloc_buffer
  *
  * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
  * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
+ *
+ * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
+ * code.
  */
 static int snd_pcm_lib_alloc_vmalloc_32_buffer
 			(struct snd_pcm_substream *substream, size_t size);
@@ -961,53 +991,42 @@ static int snd_pcm_lib_alloc_vmalloc_32_buffer
 	_snd_pcm_lib_alloc_vmalloc_buffer \
 			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
 
+#define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * SG-buffer handling
  */
 #define snd_pcm_substream_sgbuf(substream) \
-	((substream)->runtime->dma_buffer_p->private_data)
-
-static inline dma_addr_t
-snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
-{
-	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
-	return snd_sgbuf_get_addr(sg, ofs);
-}
-
-static inline void *
-snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
-{
-	struct snd_sg_buf *sg = snd_pcm_substream_sgbuf(substream);
-	return snd_sgbuf_get_ptr(sg, ofs);
-}
+	snd_pcm_get_dma_buf(substream)->private_data
 
 struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream,
 				    unsigned long offset);
-unsigned int snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
-					  unsigned int ofs, unsigned int size);
-
 #else /* !SND_DMA_SGBUF */
 /*
  * fake using a continuous buffer
  */
+#define snd_pcm_sgbuf_ops_page	NULL
+#endif /* SND_DMA_SGBUF */
+
 static inline dma_addr_t
 snd_pcm_sgbuf_get_addr(struct snd_pcm_substream *substream, unsigned int ofs)
 {
-	return substream->runtime->dma_addr + ofs;
+	return snd_sgbuf_get_addr(snd_pcm_get_dma_buf(substream), ofs);
 }
 
 static inline void *
 snd_pcm_sgbuf_get_ptr(struct snd_pcm_substream *substream, unsigned int ofs)
 {
-	return substream->runtime->dma_area + ofs;
+	return snd_sgbuf_get_ptr(snd_pcm_get_dma_buf(substream), ofs);
 }
 
-#define snd_pcm_sgbuf_ops_page	NULL
-
-#define snd_pcm_sgbuf_get_chunk_size(subs, ofs, size)	(size)
-
-#endif /* SND_DMA_SGBUF */
+static inline unsigned int
+snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
+			     unsigned int ofs, unsigned int size)
+{
+	return snd_sgbuf_get_chunk_size(snd_pcm_get_dma_buf(substream), ofs, size);
+}
 
 /* handle mmap counter - PCM mmap callback should handle this counter properly */
 static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
@@ -1022,6 +1041,8 @@ static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
 	atomic_dec(&substream->mmap_count);
 }
 
+int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
+			     struct vm_area_struct *area);
 /* mmap for io-memory area */
 #if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_ALPHA)
 #define SNDRV_PCM_INFO_MMAP_IOMEM	SNDRV_PCM_INFO_MMAP
@@ -1050,5 +1071,72 @@ static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 #define PCM_RUNTIME_CHECK(sub) snd_BUG_ON(!(sub) || !(sub)->runtime)
 
 const char *snd_pcm_format_name(snd_pcm_format_t format);
+
+/**
+ * snd_pcm_stream_str - Get a string naming the direction of a stream
+ * @substream: the pcm substream instance
+ *
+ * Return: A string naming the direction of the stream.
+ */
+static inline const char *snd_pcm_stream_str(struct snd_pcm_substream *substream)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return "Playback";
+	else
+		return "Capture";
+}
+
+/*
+ * PCM channel-mapping control API
+ */
+/* array element of channel maps */
+struct snd_pcm_chmap_elem {
+	unsigned char channels;
+	unsigned char map[15];
+};
+
+/* channel map information; retrieved via snd_kcontrol_chip() */
+struct snd_pcm_chmap {
+	struct snd_pcm *pcm;	/* assigned PCM instance */
+	int stream;		/* PLAYBACK or CAPTURE */
+	struct snd_kcontrol *kctl;
+	const struct snd_pcm_chmap_elem *chmap;
+	unsigned int max_channels;
+	unsigned int channel_mask;	/* optional: active channels bitmask */
+	void *private_data;	/* optional: private data pointer */
+};
+
+/* get the PCM substream assigned to the given chmap info */
+static inline struct snd_pcm_substream *
+snd_pcm_chmap_substream(struct snd_pcm_chmap *info, unsigned int idx)
+{
+	struct snd_pcm_substream *s;
+	for (s = info->pcm->streams[info->stream].substream; s; s = s->next)
+		if (s->number == idx)
+			return s;
+	return NULL;
+}
+
+/* ALSA-standard channel maps (RL/RR prior to C/LFE) */
+extern const struct snd_pcm_chmap_elem snd_pcm_std_chmaps[];
+/* Other world's standard channel maps (C/LFE prior to RL/RR) */
+extern const struct snd_pcm_chmap_elem snd_pcm_alt_chmaps[];
+
+/* bit masks to be passed to snd_pcm_chmap.channel_mask field */
+#define SND_PCM_CHMAP_MASK_24	((1U << 2) | (1U << 4))
+#define SND_PCM_CHMAP_MASK_246	(SND_PCM_CHMAP_MASK_24 | (1U << 6))
+#define SND_PCM_CHMAP_MASK_2468	(SND_PCM_CHMAP_MASK_246 | (1U << 8))
+
+int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
+			   const struct snd_pcm_chmap_elem *chmap,
+			   int max_channels,
+			   unsigned long private_value,
+			   struct snd_pcm_chmap **info_ret);
+
+/* Strong-typed conversion of pcm_format to bitwise */
+static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
+{
+	return 1ULL << (__force int) pcm_format;
+}
 
 #endif /* __SOUND_PCM_H */

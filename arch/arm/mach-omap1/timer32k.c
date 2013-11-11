@@ -46,14 +46,15 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
-#include <mach/hardware.h>
-#include <asm/leds.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <plat/common.h>
-#include <plat/dmtimer.h>
+
+#include <plat/counter-32k.h>
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 /*
  * ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@
 
 /* 16xx specific defines */
 #define OMAP1_32K_TIMER_BASE		0xfffb9000
+#define OMAP1_32KSYNC_TIMER_BASE	0xfffbc400
 #define OMAP1_32K_TIMER_CR		0x08
 #define OMAP1_32K_TIMER_TVR		0x00
 #define OMAP1_32K_TIMER_TCR		0x04
@@ -138,7 +140,6 @@ static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device clockevent_32k_timer = {
 	.name		= "32k-timer",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_next_event	= omap_32k_timer_set_next_event,
 	.set_mode	= omap_32k_timer_set_mode,
 };
@@ -163,16 +164,9 @@ static __init void omap_init_32k_timer(void)
 {
 	setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
 
-	clockevent_32k_timer.mult = div_sc(OMAP_32K_TICKS_PER_SEC,
-					   NSEC_PER_SEC,
-					   clockevent_32k_timer.shift);
-	clockevent_32k_timer.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &clockevent_32k_timer);
-	clockevent_32k_timer.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_32k_timer);
-
 	clockevent_32k_timer.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_32k_timer);
+	clockevents_config_and_register(&clockevent_32k_timer,
+					OMAP_32K_TICKS_PER_SEC, 1, 0xfffffffe);
 }
 
 /*
@@ -180,14 +174,29 @@ static __init void omap_init_32k_timer(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-bool __init omap_32k_timer_init(void)
+int __init omap_32k_timer_init(void)
 {
-	omap_init_clocksource_32k();
+	int ret = -ENODEV;
 
-#ifdef CONFIG_OMAP_DM_TIMER
-	omap_dm_timer_init();
-#endif
-	omap_init_32k_timer();
+	if (cpu_is_omap16xx()) {
+		void __iomem *base;
+		struct clk *sync32k_ick;
 
-	return true;
+		base = ioremap(OMAP1_32KSYNC_TIMER_BASE, SZ_1K);
+		if (!base) {
+			pr_err("32k_counter: failed to map base addr\n");
+			return -ENODEV;
+		}
+
+		sync32k_ick = clk_get(NULL, "omap_32ksync_ick");
+		if (!IS_ERR(sync32k_ick))
+			clk_enable(sync32k_ick);
+
+		ret = omap_init_clocksource_32k(base);
+	}
+
+	if (!ret)
+		omap_init_32k_timer();
+
+	return ret;
 }

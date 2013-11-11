@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 #include <linux/module.h>
-#include <linux/etherdevice.h>		/* for random_ether_addr() */
+#include <linux/etherdevice.h>		/* for eth_random_addr() */
 
 #include "usbatm.h"
 
@@ -163,7 +163,7 @@ static int xusbatm_atm_start(struct usbatm_data *usbatm,
 	atm_dbg(usbatm, "%s entered\n", __func__);
 
 	/* use random MAC as we've no way to get it from the device */
-	random_ether_addr(atm_dev->esi);
+	eth_random_addr(atm_dev->esi);
 
 	return 0;
 }
@@ -186,8 +186,6 @@ static struct usb_driver xusbatm_usb_driver = {
 static int __init xusbatm_init(void)
 {
 	int i;
-
-	dbg("xusbatm_init");
 
 	if (!num_vendor ||
 	    num_vendor != num_product ||
@@ -221,8 +219,6 @@ module_init(xusbatm_init);
 
 static void __exit xusbatm_exit(void)
 {
-	dbg("xusbatm_exit entered");
-
 	usb_deregister(&xusbatm_usb_driver);
 }
 module_exit(xusbatm_exit);

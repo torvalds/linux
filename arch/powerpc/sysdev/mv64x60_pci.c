@@ -12,6 +12,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/stat.h>
 #include <linux/pci.h>
 
 #include <asm/prom.h>
@@ -103,7 +104,7 @@ subsys_initcall(mv64x60_sysfs_init);
 
 #endif /* CONFIG_SYSFS */
 
-static void __init mv64x60_pci_fixup_early(struct pci_dev *dev)
+static void mv64x60_pci_fixup_early(struct pci_dev *dev)
 {
 	/*
 	 * Set the host bridge hdr_type to an invalid value so that

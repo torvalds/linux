@@ -6,6 +6,7 @@
  * The TUSB6020, using VLYNQ, has CPPI that looks much like DaVinci.
  */
 
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -104,7 +105,7 @@ static void cppi_reset_tx(struct cppi_tx_stateram __iomem *tx, u32 ptr)
 	musb_writel(&tx->tx_complete, 0, ptr);
 }
 
-static void __init cppi_pool_init(struct cppi *cppi, struct cppi_channel *c)
+static void cppi_pool_init(struct cppi *cppi, struct cppi_channel *c)
 {
 	int	j;
 
@@ -149,7 +150,7 @@ static void cppi_pool_free(struct cppi_channel *c)
 	c->last_processed = NULL;
 }
 
-static int __init cppi_controller_start(struct dma_controller *c)
+static int cppi_controller_start(struct dma_controller *c)
 {
 	struct cppi	*controller;
 	void __iomem	*tibase;
@@ -226,8 +227,10 @@ static int cppi_controller_stop(struct dma_controller *c)
 	struct cppi		*controller;
 	void __iomem		*tibase;
 	int			i;
+	struct musb		*musb;
 
 	controller = container_of(c, struct cppi, controller);
+	musb = controller->musb;
 
 	tibase = controller->tibase;
 	/* DISABLE INDIVIDUAL CHANNEL Interrupts */
@@ -289,9 +292,11 @@ cppi_channel_allocate(struct dma_controller *c,
 	u8			index;
 	struct cppi_channel	*cppi_ch;
 	void __iomem		*tibase;
+	struct musb		*musb;
 
 	controller = container_of(c, struct cppi, controller);
 	tibase = controller->tibase;
+	musb = controller->musb;
 
 	/* ep0 doesn't use DMA; remember cppi indices are 0..N-1 */
 	index = ep->epnum - 1;
@@ -339,7 +344,8 @@ static void cppi_channel_release(struct dma_channel *channel)
 	c = container_of(channel, struct cppi_channel, channel);
 	tibase = c->controller->tibase;
 	if (!c->hw_ep)
-		dev_dbg(musb->controller, "releasing idle DMA channel %p\n", c);
+		dev_dbg(c->controller->musb->controller,
+			"releasing idle DMA channel %p\n", c);
 	else if (!c->transmit)
 		core_rxirq_enable(tibase, c->index + 1);
 
@@ -357,10 +363,11 @@ cppi_dump_rx(int level, struct cppi_channel *c, const char *tag)
 
 	musb_ep_select(base, c->index + 1);
 
-	DBG(level, "RX DMA%d%s: %d left, csr %04x, "
-			"%08x H%08x S%08x C%08x, "
-			"B%08x L%08x %08x .. %08x"
-			"\n",
+	dev_dbg(c->controller->musb->controller,
+		"RX DMA%d%s: %d left, csr %04x, "
+		"%08x H%08x S%08x C%08x, "
+		"B%08x L%08x %08x .. %08x"
+		"\n",
 		c->index, tag,
 		musb_readl(c->controller->tibase,
 			DAVINCI_RXCPPI_BUFCNT0_REG + 4 * c->index),
@@ -387,10 +394,11 @@ cppi_dump_tx(int level, struct cppi_channel *c, const char *tag)
 
 	musb_ep_select(base, c->index + 1);
 
-	DBG(level, "TX DMA%d%s: csr %04x, "
-			"H%08x S%08x C%08x %08x, "
-			"F%08x L%08x .. %08x"
-			"\n",
+	dev_dbg(c->controller->musb->controller,
+		"TX DMA%d%s: csr %04x, "
+		"H%08x S%08x C%08x %08x, "
+		"F%08x L%08x .. %08x"
+		"\n",
 		c->index, tag,
 		musb_readw(c->hw_ep->regs, MUSB_TXCSR),
 
@@ -427,7 +435,6 @@ cppi_rndis_update(struct cppi_channel *c, int is_rx,
 	}
 }
 
-#ifdef CONFIG_USB_MUSB_DEBUG
 static void cppi_dump_rxbd(const char *tag, struct cppi_descriptor *bd)
 {
 	pr_debug("RXBD/%s %08x: "
@@ -436,21 +443,16 @@ static void cppi_dump_rxbd(const char *tag, struct cppi_descriptor *bd)
 			bd->hw_next, bd->hw_bufp, bd->hw_off_len,
 			bd->hw_options);
 }
-#endif
 
 static void cppi_dump_rxq(int level, const char *tag, struct cppi_channel *rx)
 {
-#ifdef CONFIG_USB_MUSB_DEBUG
 	struct cppi_descriptor	*bd;
 
-	if (!_dbg_level(level))
-		return;
 	cppi_dump_rx(level, rx, tag);
 	if (rx->last_processed)
 		cppi_dump_rxbd("last", rx->last_processed);
 	for (bd = rx->head; bd; bd = bd->next)
 		cppi_dump_rxbd("active", bd);
-#endif
 }
 
 
@@ -506,7 +508,7 @@ static inline int cppi_autoreq_update(struct cppi_channel *rx,
 		if (!(val & MUSB_RXCSR_H_REQPKT)) {
 			val |= MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_H_WZC_BITS;
 			musb_writew(regs, MUSB_RXCSR, val);
-			/* flush writebufer */
+			/* flush writebuffer */
 			val = musb_readw(regs, MUSB_RXCSR);
 		}
 	}
@@ -743,7 +745,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  * So this module parameter lets the heuristic be disabled.  When using
  * gadgetfs, the heuristic will probably need to be disabled.
  */
-static int cppi_rx_rndis = 1;
+static bool cppi_rx_rndis = 1;
 
 module_param(cppi_rx_rndis, bool, 0);
 MODULE_PARM_DESC(cppi_rx_rndis, "enable/disable RX RNDIS heuristic");
@@ -776,6 +778,7 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 	void __iomem		*tibase = musb->ctrl_base;
 	int			is_rndis = 0;
 	struct cppi_rx_stateram	__iomem *rx_ram = rx->state_ram;
+	struct cppi_descriptor	*d;
 
 	if (onepacket) {
 		/* almost every USB driver, host or peripheral side */
@@ -889,14 +892,8 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 	bd->hw_options |= CPPI_SOP_SET;
 	tail->hw_options |= CPPI_EOP_SET;
 
-#ifdef CONFIG_USB_MUSB_DEBUG
-	if (_dbg_level(5)) {
-		struct cppi_descriptor	*d;
-
-		for (d = rx->head; d; d = d->next)
-			cppi_dump_rxbd("S", d);
-	}
-#endif
+	for (d = rx->head; d; d = d->next)
+		cppi_dump_rxbd("S", d);
 
 	/* in case the preceding transfer left some state... */
 	tail = rx->last_processed;
@@ -1022,6 +1019,7 @@ static bool cppi_rx_scan(struct cppi *cppi, unsigned ch)
 	int				i;
 	dma_addr_t			safe2ack;
 	void __iomem			*regs = rx->hw_ep->regs;
+	struct musb			*musb = cppi->musb;
 
 	cppi_dump_rx(6, rx, "/K");
 
@@ -1305,10 +1303,10 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(cppi_interrupt);
 
 /* Instantiate a software object representing a DMA controller. */
-struct dma_controller *__init
-dma_controller_create(struct musb *musb, void __iomem *mregs)
+struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *mregs)
 {
 	struct cppi		*controller;
 	struct device		*dev = musb->controller;

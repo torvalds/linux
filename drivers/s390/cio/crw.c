@@ -1,7 +1,7 @@
 /*
  *   Channel report handling code
  *
- *    Copyright IBM Corp. 2000,2009
+ *    Copyright IBM Corp. 2000, 2009
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <asm/crw.h>
+#include <asm/ctl_reg.h>
 
 static DEFINE_MUTEX(crw_handler_mutex);
 static crw_handler_t crw_handlers[NR_RSCS];

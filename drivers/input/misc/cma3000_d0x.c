@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/cma3000.h>
+#include <linux/module.h>
 
 #include "cma3000_d0x.h"
 
@@ -57,7 +58,7 @@
 
 /*
  * Bit weights in mg for bit 0, other bits need
- * multipy factor 2^n. Eight bit is the sign bit.
+ * multiply factor 2^n. Eight bit is the sign bit.
  */
 #define BIT_TO_2G  18
 #define BIT_TO_8G  71
@@ -114,8 +115,8 @@ static void decode_mg(struct cma3000_accl_data *data, int *datax,
 static irqreturn_t cma3000_thread_irq(int irq, void *dev_id)
 {
 	struct cma3000_accl_data *data = dev_id;
-	int datax, datay, dataz;
-	u8 ctrl, mode, range, intr_status;
+	int datax, datay, dataz, intr_status;
+	u8 ctrl, mode, range;
 
 	intr_status = CMA3000_READ(data, CMA3000_INTSTATUS, "interrupt status");
 	if (intr_status < 0)
@@ -317,7 +318,7 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 	mutex_init(&data->mutex);
 
 	data->mode = pdata->mode;
-	if (data->mode < CMAMODE_DEFAULT || data->mode > CMAMODE_POFF) {
+	if (data->mode > CMAMODE_POFF) {
 		data->mode = CMAMODE_MOTDET;
 		dev_warn(dev,
 			 "Invalid mode specified, assuming Motion Detect\n");

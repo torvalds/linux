@@ -6,12 +6,31 @@ menuconfig FSL_SOC_BOOKE
 	select MPIC
 	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
+	select SERIAL_8250_EXTENDED if SERIAL_8250
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y
 
 if FSL_SOC_BOOKE
 
 if PPC32
+
+config FSL_85XX_CACHE_SRAM
+	bool
+	select PPC_LIB_RHEAP
+	help
+	  When selected, this option enables cache-sram support
+	  for memory allocation on P1/P2 QorIQ platforms.
+	  cache-sram-size and cache-sram-offset kernel boot
+	  parameters should be passed when this option is enabled.
+
+config BSC9131_RDB
+	bool "Freescale BSC9131RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale BSC9131RDB board.
+	  The BSC9131 is a heterogeneous SoC containing an e500v2 powerpc and a
+	  StarCore SC3850 DSP
+	  Manufacturer : Freescale Semiconductor, Inc
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
@@ -30,6 +49,7 @@ config MPC85xx_CDS
 	bool "Freescale MPC85xx CDS"
 	select DEFAULT_UIMAGE
 	select PPC_I8259
+	select HAS_RAPIDIO
 	help
 	  This option enables support for the MPC85xx CDS board
 
@@ -67,13 +87,35 @@ config MPC85xx_RDB
 	help
 	  This option enables support for the MPC85xx RDB (P2020 RDB) board
 
+config P1010_RDB
+	bool "Freescale P1010RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC85xx RDB (P1010 RDB) board
+
+	  P1010RDB contains P1010Si, which provides CPU performance up to 800
+	  MHz and 1600 DMIPS, additional functionality and faster interfaces
+	  (DDR3/3L, SATA II, and PCI  Express).
+
 config P1022_DS
 	bool "Freescale P1022 DS"
 	select DEFAULT_UIMAGE
-	select CONFIG_PHYS_64BIT	# The DTS has 36-bit addresses
 	select SWIOTLB
 	help
 	  This option enables support for the Freescale P1022DS reference board.
+
+config P1022_RDK
+	bool "Freescale / iVeia P1022 RDK"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale / iVeia P1022RDK
+	  reference board.
+
+config P1023_RDS
+	bool "Freescale P1023 RDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the P1023 RDS board
 
 config SOCRATES
 	bool "Socrates"
@@ -149,11 +191,39 @@ config SBC8548
 	help
 	  This option enables support for the Wind River SBC8548 board
 
-config SBC8560
-	bool "Wind River SBC8560"
-	select DEFAULT_UIMAGE
+config PPA8548
+	bool "Prodrive PPA8548"
 	help
-	  This option enables support for the Wind River SBC8560 board
+	  This option enables support for the Prodrive PPA8548 board.
+	select DEFAULT_UIMAGE
+	select HAS_RAPIDIO
+
+config GE_IMP3A
+	bool "GE Intelligent Platforms IMP3A"
+	select DEFAULT_UIMAGE
+	select SWIOTLB
+	select MMIO_NVRAM
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	help
+	  This option enables support for the GE Intelligent Platforms IMP3A
+	  board.
+
+	  This board is a 3U CompactPCI Single Board Computer with a Freescale
+	  P2020 processor.
+
+config P2041_RDB
+	bool "Freescale P2041 RDB"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P2041 RDB board
 
 config P3041_DS
 	bool "Freescale P3041 DS"
@@ -161,8 +231,10 @@ config P3041_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P3041 DS board
 
@@ -172,10 +244,20 @@ config P4080_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P4080 DS board
+
+config SGY_CTS1000
+	tristate "Servergy CTS-1000 support"
+	select GPIOLIB
+	select OF_GPIO
+	depends on P4080_DS
+	help
+	  Enable this to support functionality in Servergy's CTS-1000 systems.
 
 endif # PPC32
 
@@ -186,11 +268,76 @@ config P5020_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P5020 DS board
 
+config P5040_DS
+	bool "Freescale P5040 DS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P5040 DS board
+
+config PPC_QEMU_E500
+	bool "QEMU generic e500 platform"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for running as a QEMU guest using
+	  QEMU's generic e500 machine.  This is not required if you're
+	  using a QEMU machine that targets a specific board, such as
+	  mpc8544ds.
+
+	  Unlike most e500 boards that target a specific CPU, this
+	  platform works with any e500-family CPU that QEMU supports.
+	  Thus, you'll need to make sure CONFIG_PPC_E500MC is set or
+	  unset based on the emulated CPU (or actual host CPU in the case
+	  of KVM).
+
+if PPC64
+
+config T4240_QDS
+	bool "Freescale T4240 QDS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the T4240 QDS board
+
+config B4_QDS
+	bool "Freescale B4 QDS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the B4 QDS board
+	  The B4 application development system B4 QDS is a complete
+	  debugging environment intended for engineers developing
+	  applications for the B4.
+
+endif
 endif # FSL_SOC_BOOKE
 
 config TQM85xx

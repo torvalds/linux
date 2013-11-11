@@ -411,11 +411,9 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &optiplus_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info_82c700, NULL };
-	static int printed_version;
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&dev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(dev);
 	if (rc)
@@ -449,21 +447,10 @@ static struct pci_driver optidma_pci_driver = {
 #endif
 };
 
-static int __init optidma_init(void)
-{
-	return pci_register_driver(&optidma_pci_driver);
-}
-
-static void __exit optidma_exit(void)
-{
-	pci_unregister_driver(&optidma_pci_driver);
-}
+module_pci_driver(optidma_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Opti Firestar/Firestar Plus");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, optidma);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(optidma_init);
-module_exit(optidma_exit);

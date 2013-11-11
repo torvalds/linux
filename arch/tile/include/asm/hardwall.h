@@ -11,45 +11,13 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  *
- * Provide methods for the HARDWALL_FILE for accessing the UDN.
+ * Provide methods for access control of per-cpu resources like
+ * UDN, IDN, or IPI.
  */
-
 #ifndef _ASM_TILE_HARDWALL_H
 #define _ASM_TILE_HARDWALL_H
 
-#include <linux/ioctl.h>
-
-#define HARDWALL_IOCTL_BASE 0xa2
-
-/*
- * The HARDWALL_CREATE() ioctl is a macro with a "size" argument.
- * The resulting ioctl value is passed to the kernel in conjunction
- * with a pointer to a little-endian bitmask of cpus, which must be
- * physically in a rectangular configuration on the chip.
- * The "size" is the number of bytes of cpu mask data.
- */
-#define _HARDWALL_CREATE 1
-#define HARDWALL_CREATE(size) \
-  _IOC(_IOC_READ, HARDWALL_IOCTL_BASE, _HARDWALL_CREATE, (size))
-
-#define _HARDWALL_ACTIVATE 2
-#define HARDWALL_ACTIVATE \
-  _IO(HARDWALL_IOCTL_BASE, _HARDWALL_ACTIVATE)
-
-#define _HARDWALL_DEACTIVATE 3
-#define HARDWALL_DEACTIVATE \
- _IO(HARDWALL_IOCTL_BASE, _HARDWALL_DEACTIVATE)
-
-#define _HARDWALL_GET_ID 4
-#define HARDWALL_GET_ID \
- _IO(HARDWALL_IOCTL_BASE, _HARDWALL_GET_ID)
-
-#ifndef __KERNEL__
-
-/* This is the canonical name expected by userspace. */
-#define HARDWALL_FILE "/dev/hardwall"
-
-#else
+#include <uapi/asm/hardwall.h>
 
 /* /proc hooks for hardwall. */
 struct proc_dir_entry;
@@ -59,7 +27,4 @@ int proc_pid_hardwall(struct task_struct *task, char *buffer);
 #else
 static inline void proc_tile_hardwall_init(struct proc_dir_entry *root) {}
 #endif
-
-#endif
-
 #endif /* _ASM_TILE_HARDWALL_H */

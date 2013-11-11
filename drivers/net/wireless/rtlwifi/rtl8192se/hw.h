@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -54,7 +54,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw);
 int rtl92se_set_network_type(struct ieee80211_hw *hw,
 			     enum nl80211_iftype type);
 void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 * addr);
+void rtl92se_set_mac_addr(struct rtl_io *io, const u8 *addr);
 void rtl92se_set_qos(struct ieee80211_hw *hw, int aci);
 void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw);
 void rtl92se_set_beacon_interval(struct ieee80211_hw *hw);
@@ -74,6 +74,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw,
 		     u8 enc_algo, bool is_wepkey, bool clear_all);
 void rtl92se_suspend(struct ieee80211_hw *hw);
 void rtl92se_resume(struct ieee80211_hw *hw);
+void rtl92se_allow_all_destaddr(struct ieee80211_hw *hw,
+				bool allow_all_da, bool write_into_reg);
 
 #endif
-

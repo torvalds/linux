@@ -34,7 +34,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
+#include <linux/jiffies.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {
@@ -42,7 +42,7 @@ static const unsigned short normal_i2c[] = {
 };
 
 
-static int reset;
+static bool reset;
 module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
 
@@ -72,8 +72,10 @@ MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
 #define TEMP_CRIT_HYST			2
 #define TEMP_WARN			3
 #define TEMP_WARN_HYST			4
-/* only crit and crit_hyst affect real-time alarm status
- * current crit crit_hyst warn warn_hyst */
+/*
+ * only crit and crit_hyst affect real-time alarm status
+ * current crit crit_hyst warn warn_hyst
+ */
 static const u16 W83795_REG_TEMP[][5] = {
 	{0x21, 0x96, 0x97, 0x98, 0x99},	/* TD1/TR1 */
 	{0x22, 0x9a, 0x9b, 0x9c, 0x9d},	/* TD2/TR2 */
@@ -260,7 +262,7 @@ static inline u16 fan_to_reg(long rpm)
 {
 	if (rpm <= 0)
 		return 0x0fff;
-	return SENSORS_LIMIT((1350000 + (rpm >> 1)) / rpm, 1, 0xffe);
+	return clamp_val((1350000 + (rpm >> 1)) / rpm, 1, 0xffe);
 }
 
 static inline unsigned long time_from_reg(u8 reg)
@@ -270,7 +272,7 @@ static inline unsigned long time_from_reg(u8 reg)
 
 static inline u8 time_to_reg(unsigned long val)
 {
-	return SENSORS_LIMIT((val + 50) / 100, 0, 0xff);
+	return clamp_val((val + 50) / 100, 0, 0xff);
 }
 
 static inline long temp_from_reg(s8 reg)
@@ -280,7 +282,7 @@ static inline long temp_from_reg(s8 reg)
 
 static inline s8 temp_to_reg(long val, s8 min, s8 max)
 {
-	return SENSORS_LIMIT(val / 1000, min, max);
+	return clamp_val(val / 1000, min, max);
 }
 
 static const u16 pwm_freq_cksel0[16] = {
@@ -317,7 +319,7 @@ static u8 pwm_freq_to_reg(unsigned long val, u16 clkin)
 
 	/* Best fit for cksel = 1 */
 	base_clock = clkin * 1000 / ((clkin == 48000) ? 384 : 256);
-	reg1 = SENSORS_LIMIT(DIV_ROUND_CLOSEST(base_clock, val), 1, 128);
+	reg1 = clamp_val(DIV_ROUND_CLOSEST(base_clock, val), 1, 128);
 	best1 = base_clock / reg1;
 	reg1 = 0x80 | (reg1 - 1);
 
@@ -354,26 +356,34 @@ struct w83795_data {
 	u8 temp_mode;		/* Bit vector, 0 = TR, 1 = TD */
 	u8 temp_src[3];		/* Register value */
 
-	u8 enable_dts;		/* Enable PECI and SB-TSI,
+	u8 enable_dts;		/*
+				 * Enable PECI and SB-TSI,
 				 * bit 0: =1 enable, =0 disable,
-				 * bit 1: =1 AMD SB-TSI, =0 Intel PECI */
+				 * bit 1: =1 AMD SB-TSI, =0 Intel PECI
+				 */
 	u8 has_dts;		/* Enable monitor DTS temp */
 	s8 dts[8];		/* Register value */
 	u8 dts_read_vrlsb[8];	/* Register value */
 	s8 dts_ext[4];		/* Register value */
 
-	u8 has_pwm;		/* 795g supports 8 pwm, 795adg only supports 2,
+	u8 has_pwm;		/*
+				 * 795g supports 8 pwm, 795adg only supports 2,
 				 * no config register, only affected by chip
-				 * type */
-	u8 pwm[8][5];		/* Register value, output, freq, start,
-				 *  non stop, stop time */
+				 * type
+				 */
+	u8 pwm[8][5];		/*
+				 * Register value, output, freq, start,
+				 *  non stop, stop time
+				 */
 	u16 clkin;		/* CLKIN frequency in kHz */
 	u8 pwm_fcms[2];		/* Register value */
 	u8 pwm_tfmr[6];		/* Register value */
 	u8 pwm_fomc;		/* Register value */
 
-	u16 target_speed[8];	/* Register value, target speed for speed
-				 * cruise */
+	u16 target_speed[8];	/*
+				 * Register value, target speed for speed
+				 * cruise
+				 */
 	u8 tol_speed;		/* tolerance of target speed */
 	u8 pwm_temp[6][4];	/* TTTI, CTFS, HCT, HOT */
 	u8 sf4_reg[6][2][7];	/* 6 temp, temp/dcpwm, 7 registers */
@@ -482,8 +492,10 @@ static void w83795_update_limits(struct i2c_client *client)
 	/* Read the fan limits */
 	lsb = 0; /* Silent false gcc warning */
 	for (i = 0; i < ARRAY_SIZE(data->fan); i++) {
-		/* Each register contains LSB for 2 fans, but we want to
-		 * read it only once to save time */
+		/*
+		 * Each register contains LSB for 2 fans, but we want to
+		 * read it only once to save time
+		 */
 		if ((i & 1) == 0 && (data->has_fan & (3 << i)))
 			lsb = w83795_read(client, W83795_REG_FAN_MIN_LSB(i));
 
@@ -665,9 +677,11 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 		    w83795_read(client, W83795_REG_PWM(i, PWM_OUTPUT));
 	}
 
-	/* Update intrusion and alarms
+	/*
+	 * Update intrusion and alarms
 	 * It is important to read intrusion first, because reading from
-	 * register SMI STS6 clears the interrupt status temporarily. */
+	 * register SMI STS6 clears the interrupt status temporarily.
+	 */
 	tmp = w83795_read(client, W83795_REG_ALARM_CTRL);
 	/* Switch to interrupt status for intrusion if needed */
 	if (tmp & ALARM_CTRL_RTSACS)
@@ -730,7 +744,7 @@ store_beep(struct device *dev, struct device_attribute *attr,
 	u8 beep_bit = 1 << shift;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
@@ -755,7 +769,7 @@ store_chassis_clear(struct device *dev,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0 || val != 0)
+	if (kstrtoul(buf, 10, &val) < 0 || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -801,7 +815,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 	val = fan_to_reg(val);
 
@@ -863,7 +877,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -875,7 +889,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 		val = pwm_freq_to_reg(val, data->clkin);
 		break;
 	default:
-		val = SENSORS_LIMIT(val, 0, 0xff);
+		val = clamp_val(val, 0, 0xff);
 		break;
 	}
 	w83795_write(client, W83795_REG_PWM(index, nr), val);
@@ -924,10 +938,18 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int i;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if (val < 1 || val > 2)
 		return -EINVAL;
+
+#ifndef CONFIG_SENSORS_W83795_FANCTRL
+	if (val > 1) {
+		dev_warn(dev, "Automatic fan speed control support disabled\n");
+		dev_warn(dev, "Build with CONFIG_SENSORS_W83795_FANCTRL=y if you want it\n");
+		return -EOPNOTSUPP;
+	}
+#endif
 
 	mutex_lock(&data->update_lock);
 	switch (val) {
@@ -1021,7 +1043,7 @@ store_temp_src(struct device *dev, struct device_attribute *attr,
 	unsigned long channel;
 	u8 val = index / 2;
 
-	if (strict_strtoul(buf, 10, &channel) < 0 ||
+	if (kstrtoul(buf, 10, &channel) < 0 ||
 	    channel < 1 || channel > 14)
 		return -EINVAL;
 
@@ -1088,7 +1110,7 @@ store_temp_pwm_enable(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long tmp;
 
-	if (strict_strtoul(buf, 10, &tmp) < 0)
+	if (kstrtoul(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	switch (nr) {
@@ -1104,7 +1126,7 @@ store_temp_pwm_enable(struct device *dev, struct device_attribute *attr,
 		break;
 	case TEMP_PWM_FAN_MAP:
 		mutex_lock(&data->update_lock);
-		tmp = SENSORS_LIMIT(tmp, 0, 0xff);
+		tmp = clamp_val(tmp, 0, 0xff);
 		w83795_write(client, W83795_REG_TFMR(index), tmp);
 		data->pwm_tfmr[index] = tmp;
 		mutex_unlock(&data->update_lock);
@@ -1149,19 +1171,19 @@ store_fanin(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	switch (nr) {
 	case FANIN_TARGET:
-		val = fan_to_reg(SENSORS_LIMIT(val, 0, 0xfff));
+		val = fan_to_reg(clamp_val(val, 0, 0xfff));
 		w83795_write(client, W83795_REG_FTSH(index), val >> 4);
 		w83795_write(client, W83795_REG_FTSL(index), (val << 4) & 0xf0);
 		data->target_speed[index] = val;
 		break;
 	case FANIN_TOL:
-		val = SENSORS_LIMIT(val, 0, 0x3f);
+		val = clamp_val(val, 0, 0x3f);
 		w83795_write(client, W83795_REG_TFTS, val);
 		data->tol_speed = val;
 		break;
@@ -1198,29 +1220,29 @@ store_temp_pwm(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 tmp;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val /= 1000;
 
 	mutex_lock(&data->update_lock);
 	switch (nr) {
 	case TEMP_PWM_TTTI:
-		val = SENSORS_LIMIT(val, 0, 0x7f);
+		val = clamp_val(val, 0, 0x7f);
 		w83795_write(client, W83795_REG_TTTI(index), val);
 		break;
 	case TEMP_PWM_CTFS:
-		val = SENSORS_LIMIT(val, 0, 0x7f);
+		val = clamp_val(val, 0, 0x7f);
 		w83795_write(client, W83795_REG_CTFS(index), val);
 		break;
 	case TEMP_PWM_HCT:
-		val = SENSORS_LIMIT(val, 0, 0x0f);
+		val = clamp_val(val, 0, 0x0f);
 		tmp = w83795_read(client, W83795_REG_HT(index));
 		tmp &= 0x0f;
 		tmp |= (val << 4) & 0xf0;
 		w83795_write(client, W83795_REG_HT(index), tmp);
 		break;
 	case TEMP_PWM_HOT:
-		val = SENSORS_LIMIT(val, 0, 0x0f);
+		val = clamp_val(val, 0, 0x0f);
 		tmp = w83795_read(client, W83795_REG_HT(index));
 		tmp &= 0xf0;
 		tmp |= val & 0x0f;
@@ -1257,7 +1279,7 @@ store_sf4_pwm(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1293,7 +1315,7 @@ store_sf4_temp(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val /= 1000;
 
@@ -1333,7 +1355,7 @@ store_temp(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	long tmp;
 
-	if (strict_strtol(buf, 10, &tmp) < 0)
+	if (kstrtol(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1394,7 +1416,7 @@ store_dts_ext(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	long tmp;
 
-	if (strict_strtol(buf, 10, &tmp) < 0)
+	if (kstrtol(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1436,7 +1458,7 @@ store_temp_mode(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 tmp;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if ((val != 4) && (val != 3))
 		return -EINVAL;
@@ -1512,14 +1534,14 @@ store_in(struct device *dev, struct device_attribute *attr,
 	u8 tmp;
 	u8 lsb_idx;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val = in_to_reg(index, val);
 
 	if ((index >= 17) &&
 	    !((data->has_gain >> (index - 17)) & 1))
 		val /= 8;
-	val = SENSORS_LIMIT(val, 0, 0x3FF);
+	val = clamp_val(val, 0, 0x3FF);
 	mutex_lock(&data->update_lock);
 
 	lsb_idx = IN_LSB_SHIFT_IDX[index][IN_LSB_IDX];
@@ -1569,12 +1591,12 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	switch (nr) {
 	case SETUP_PWM_DEFAULT:
-		val = SENSORS_LIMIT(val, 0, 0xff);
+		val = clamp_val(val, 0, 0xff);
 		break;
 	case SETUP_PWM_UPTIME:
 	case SETUP_PWM_DOWNTIME:
@@ -1595,8 +1617,10 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 
 #define NOT_USED			-1
 
-/* Don't change the attribute order, _max, _min and _beep are accessed by index
- * somewhere else in the code */
+/*
+ * Don't change the attribute order, _max, _min and _beep are accessed by index
+ * somewhere else in the code
+ */
 #define SENSOR_ATTR_IN(index) {						\
 	SENSOR_ATTR_2(in##index##_input, S_IRUGO, show_in, NULL,	\
 		IN_READ, index), \
@@ -1610,8 +1634,10 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		show_alarm_beep, store_beep, BEEP_ENABLE,		\
 		index + ((index > 14) ? 1 : 0)) }
 
-/* Don't change the attribute order, _beep is accessed by index
- * somewhere else in the code */
+/*
+ * Don't change the attribute order, _beep is accessed by index
+ * somewhere else in the code
+ */
 #define SENSOR_ATTR_FAN(index) {					\
 	SENSOR_ATTR_2(fan##index##_input, S_IRUGO, show_fan,		\
 		NULL, FAN_INPUT, index - 1), \
@@ -1625,23 +1651,25 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 #define SENSOR_ATTR_PWM(index) {					\
 	SENSOR_ATTR_2(pwm##index, S_IWUSR | S_IRUGO, show_pwm,		\
 		store_pwm, PWM_OUTPUT, index - 1),			\
+	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
+		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
+	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
+		show_pwm_mode, NULL, NOT_USED, index - 1),		\
+	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,		\
+		show_pwm, store_pwm, PWM_FREQ, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_nonstop, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_NONSTOP, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_start, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_START, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_stop_time, S_IWUSR | S_IRUGO,	\
 		show_pwm, store_pwm, PWM_STOP_TIME, index - 1),	 \
-	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,	\
-		show_pwm, store_pwm, PWM_FREQ, index - 1),	 \
-	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
-		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
-	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
-		show_pwm_mode, NULL, NOT_USED, index - 1),		\
 	SENSOR_ATTR_2(fan##index##_target, S_IWUSR | S_IRUGO, \
 		show_fanin, store_fanin, FANIN_TARGET, index - 1) }
 
-/* Don't change the attribute order, _beep is accessed by index
- * somewhere else in the code */
+/*
+ * Don't change the attribute order, _beep is accessed by index
+ * somewhere else in the code
+ */
 #define SENSOR_ATTR_DTS(index) {					\
 	SENSOR_ATTR_2(temp##index##_type, S_IRUGO ,		\
 		show_dts_mode, NULL, NOT_USED, index - 7),	\
@@ -1660,8 +1688,10 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 	SENSOR_ATTR_2(temp##index##_beep, S_IWUSR | S_IRUGO,		\
 		show_alarm_beep, store_beep, BEEP_ENABLE, index + 17) }
 
-/* Don't change the attribute order, _beep is accessed by index
- * somewhere else in the code */
+/*
+ * Don't change the attribute order, _beep is accessed by index
+ * somewhere else in the code
+ */
 #define SENSOR_ATTR_TEMP(index) {					\
 	SENSOR_ATTR_2(temp##index##_type, S_IRUGO | (index < 4 ? S_IWUSR : 0), \
 		show_temp_mode, store_temp_mode, NOT_USED, index - 1),	\
@@ -1867,8 +1897,10 @@ static int w83795_get_device_id(struct i2c_client *client)
 
 	device_id = i2c_smbus_read_byte_data(client, W83795_REG_DEVICEID);
 
-	/* Special case for rev. A chips; can't be checked first because later
-	   revisions emulate this for compatibility */
+	/*
+	 * Special case for rev. A chips; can't be checked first because later
+	 * revisions emulate this for compatibility
+	 */
 	if (device_id < 0 || (device_id & 0xf0) != 0x50) {
 		int alt_id;
 
@@ -1920,8 +1952,10 @@ static int w83795_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	/* If Nuvoton chip, address of chip and W83795_REG_I2C_ADDR
-	   should match */
+	/*
+	 * If Nuvoton chip, address of chip and W83795_REG_I2C_ADDR
+	 * should match
+	 */
 	if ((bank & 0x07) == 0) {
 		i2c_addr = i2c_smbus_read_byte_data(client,
 						    W83795_REG_I2C_ADDR);
@@ -1933,10 +1967,12 @@ static int w83795_detect(struct i2c_client *client,
 		}
 	}
 
-	/* Check 795 chip type: 795G or 795ADG
-	   Usually we don't write to chips during detection, but here we don't
-	   quite have the choice; hopefully it's OK, we are about to return
-	   success anyway */
+	/*
+	 * Check 795 chip type: 795G or 795ADG
+	 * Usually we don't write to chips during detection, but here we don't
+	 * quite have the choice; hopefully it's OK, we are about to return
+	 * success anyway
+	 */
 	if ((bank & 0x07) != 0)
 		i2c_smbus_write_byte_data(client, W83795_REG_BANKSEL,
 					  bank & ~0x07);
@@ -1952,6 +1988,14 @@ static int w83795_detect(struct i2c_client *client,
 
 	return 0;
 }
+
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
+#define NUM_PWM_ATTRIBUTES	ARRAY_SIZE(w83795_pwm[0])
+#define NUM_TEMP_ATTRIBUTES	ARRAY_SIZE(w83795_temp[0])
+#else
+#define NUM_PWM_ATTRIBUTES	4
+#define NUM_TEMP_ATTRIBUTES	8
+#endif
 
 static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 			       const struct device_attribute *))
@@ -2006,24 +2050,18 @@ static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 		}
 	}
 
-#ifdef CONFIG_SENSORS_W83795_FANCTRL
 	for (i = 0; i < data->has_pwm; i++) {
-		for (j = 0; j < ARRAY_SIZE(w83795_pwm[0]); j++) {
+		for (j = 0; j < NUM_PWM_ATTRIBUTES; j++) {
 			err = fn(dev, &w83795_pwm[i][j].dev_attr);
 			if (err)
 				return err;
 		}
 	}
-#endif
 
 	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++) {
 		if (!(data->has_temp & (1 << i)))
 			continue;
-#ifdef CONFIG_SENSORS_W83795_FANCTRL
-		for (j = 0; j < ARRAY_SIZE(w83795_temp[0]); j++) {
-#else
-		for (j = 0; j < 8; j++) {
-#endif
+		for (j = 0; j < NUM_TEMP_ATTRIBUTES; j++) {
 			if (j == 7 && !data->enable_beep)
 				continue;
 			err = fn(dev, &w83795_temp[i][j].dev_attr);
@@ -2082,11 +2120,12 @@ static void w83795_check_dynamic_in_limits(struct i2c_client *client)
 					   &w83795_in[i][3].dev_attr.attr,
 					   S_IRUGO);
 		if (err_max || err_min)
-			dev_warn(&client->dev, "Failed to set in%d limits "
-				 "read-only (%d, %d)\n", i, err_max, err_min);
+			dev_warn(&client->dev,
+				 "Failed to set in%d limits read-only (%d, %d)\n",
+				 i, err_max, err_min);
 		else
-			dev_info(&client->dev, "in%d limits set dynamically "
-				 "from VID\n", i);
+			dev_info(&client->dev,
+				 "in%d limits set dynamically from VID\n", i);
 	}
 }
 
@@ -2119,11 +2158,9 @@ static int w83795_probe(struct i2c_client *client,
 	struct w83795_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct w83795_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(dev, sizeof(struct w83795_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->chip_type = id->driver_data;
@@ -2183,8 +2220,10 @@ static int w83795_probe(struct i2c_client *client,
 		/* The W83795G has a dedicated BEEP pin */
 		data->enable_beep = 1;
 	} else {
-		/* The W83795ADG has a shared pin for OVT# and BEEP, so you
-		 * can't have both */
+		/*
+		 * The W83795ADG has a shared pin for OVT# and BEEP, so you
+		 * can't have both
+		 */
 		tmp = w83795_read(client, W83795_REG_OVT_CFG);
 		if ((tmp & OVT_CFG_SEL) == 0)
 			data->enable_beep = 1;
@@ -2207,8 +2246,6 @@ static int w83795_probe(struct i2c_client *client,
 
 exit_remove:
 	w83795_handle_files(dev, device_remove_file_wrapper);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -2218,7 +2255,6 @@ static int w83795_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	w83795_handle_files(&client->dev, device_remove_file_wrapper);
-	kfree(data);
 
 	return 0;
 }
@@ -2244,19 +2280,8 @@ static struct i2c_driver w83795_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init sensors_w83795_init(void)
-{
-	return i2c_add_driver(&w83795_driver);
-}
-
-static void __exit sensors_w83795_exit(void)
-{
-	i2c_del_driver(&w83795_driver);
-}
+module_i2c_driver(w83795_driver);
 
 MODULE_AUTHOR("Wei Song, Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("W83795G/ADG hardware monitoring driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_w83795_init);
-module_exit(sensors_w83795_exit);

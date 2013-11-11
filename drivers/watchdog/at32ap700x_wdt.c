@@ -45,8 +45,8 @@ MODULE_PARM_DESC(timeout,
 		"Timeout value. Limited to be 1 or 2 seconds. (default="
 		__MODULE_STRING(TIMEOUT_DEFAULT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -436,17 +436,7 @@ static struct platform_driver at32_wdt_driver = {
 	.shutdown	= at32_wdt_shutdown,
 };
 
-static int __init at32_wdt_init(void)
-{
-	return platform_driver_probe(&at32_wdt_driver, at32_wdt_probe);
-}
-module_init(at32_wdt_init);
-
-static void __exit at32_wdt_exit(void)
-{
-	platform_driver_unregister(&at32_wdt_driver);
-}
-module_exit(at32_wdt_exit);
+module_platform_driver_probe(at32_wdt_driver, at32_wdt_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Watchdog driver for Atmel AT32AP700X");

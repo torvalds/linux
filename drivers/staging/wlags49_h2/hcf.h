@@ -1,5 +1,4 @@
 
-//   vim:tw=110:ts=4:
 #ifndef HCF_H
 #define HCF_H 1
 
@@ -40,9 +39,9 @@
 * software indicates your acceptance of these terms and conditions.  If you do
 * not agree with these terms and conditions, do not use the software.
 *
-* COPYRIGHT © 1994 - 1995	by AT&T.				All Rights Reserved
-* COPYRIGHT © 1996 - 2000 by Lucent Technologies.	All Rights Reserved
-* COPYRIGHT © 2001 - 2004	by Agere Systems Inc.	All Rights Reserved
+* COPYRIGHT Â© 1994 - 1995	by AT&T.				All Rights Reserved
+* COPYRIGHT Â© 1996 - 2000 by Lucent Technologies.	All Rights Reserved
+* COPYRIGHT Â© 2001 - 2004	by Agere Systems Inc.	All Rights Reserved
 * All rights reserved.
 *
 * Redistribution and use in source or binary forms, with or without
@@ -90,7 +89,7 @@
 
 #define LOF(x) 			(sizeof(x)/sizeof(hcf_16)-1)
 
-/*	Endianess
+/*	Endianness
  *	Little Endian (a.k.a. Intel), least significant byte first
  *	Big Endian (a.k.a. Motorola), most significant byte first
  *
@@ -101,7 +100,7 @@
  */
 
 /* To increase portability, use unsigned char and unsigned char * when accessing parts of larger
- * types to convert their Endianess
+ * types to convert their Endianness
  */
 
 #define CNV_END_SHORT(w)  (hcf_16)( ((hcf_16)(w) & 0x00FF) << 8 | ((hcf_16)(w) & 0xFF00) >> 8 )
@@ -109,14 +108,14 @@
 
 #if HCF_BIG_ENDIAN
 //******************************************** B I G   E N D I A N *******************************************
-#define CNV_LITTLE_TO_SHORT(w)	CNV_END_SHORT(w)	//    endianess conversion needed
-#define CNV_BIG_TO_SHORT(w)		(w)				// no endianess conversion needed
+#define CNV_LITTLE_TO_SHORT(w)	CNV_END_SHORT(w)	//    endianness conversion needed
+#define CNV_BIG_TO_SHORT(w)		(w)				// no endianness conversion needed
 #define CNV_LITTLE_TO_LONG(dw)	CNV_END_LONG(dw)
 #define CNV_LONG_TO_LITTLE(dw)	CNV_END_LONG(dw)
 #else
 //****************************************** L I T T L E   E N D I A N ****************************************
-#define CNV_LITTLE_TO_SHORT(w) 	(w)				// no endianess conversion needed
-#define CNV_BIG_TO_SHORT(w)		CNV_END_SHORT(w)	//    endianess conversion needed
+#define CNV_LITTLE_TO_SHORT(w) 	(w)				// no endianness conversion needed
+#define CNV_BIG_TO_SHORT(w)		CNV_END_SHORT(w)	//    endianness conversion needed
 #define CNV_LITTLE_TO_LONG(dw)	(dw)
 #define CNV_LONG_TO_LITTLE(dw)	(dw)
 
@@ -301,13 +300,11 @@ typedef struct  {
 #if (HCF_EXT) & HCF_EXT_INT_TICK
   int			IFB_TickCnt;			// Hermes Timer Tick Counter
 #endif // HCF_EXT_INT_TICK
-#if (HCF_EXT) & HCF_EXT_MB
   hcf_16 	   *IFB_MBp;				// pointer to the MailBox
   hcf_16		IFB_MBSize;				// size of the MailBox
   hcf_16		IFB_MBWp;				// zero-based write index into the MailBox
   hcf_16		IFB_MBRp;				// zero-based read  index into the MailBox
   hcf_16		IFB_MBInfoLen;			// contents of L-field of the oldest available MailBoxInfoBlock
-#endif // HCF_EXT_MB
 #if (HCF_TYPE) & HCF_TYPE_WPA
   hcf_16		IFB_MICTxCntl;			// MIC bit and Key index in TxControl field of TxFS
   hcf_32		IFB_MICTxKey[2];		// calculating key
@@ -335,12 +332,7 @@ typedef struct  {
    CFG_FW_PRINTF_BUFFER_LOCATION_STRCT IFB_FwPfBuff;
 #endif // HCF_ASSERT_PRINTF
 #endif // HCF_ASSERT
-#if ! defined HCF_INT_OFF
   hcf_16 volatile IFB_IntOffCnt;		// 0xFFFF based HCF_ACT_INT_OFF nesting counter, DeepSleep flag
-#endif // HCF_INT_OFF
-#if (HCF_TYPE) & HCF_TYPE_CCX
-  hcf_16         IFB_CKIPStat;			// CKIP Status flag
-#endif // HCF_TYPE_CCX
 #if (HCF_TALLIES) & ( HCF_TALLIES_NIC | HCF_TALLIES_HCF )	//Hermes and/or HCF tally support
   hcf_32		IFB_Silly_you_should_align;	//;?
   hcf_16		IFB_TallyLen;			// Tally length (to build an LTV)
@@ -382,9 +374,6 @@ typedef IFB_STRCT*	IFBP;
 
 EXTERN_C int		 hcf_action			(IFBP ifbp, hcf_16 cmd );
 EXTERN_C int		 hcf_connect		(IFBP ifbp, hcf_io io_base );
-#if (HCF_ENCAP) & HCF_ENC_SUP
-EXTERN_C hcf_8 		 hcf_encap			(wci_bufp type );
-#endif // HCF_ENC_SUP
 EXTERN_C int		 hcf_get_info		(IFBP ifbp, LTVP ltvp );
 EXTERN_C int		 hcf_service_nic	(IFBP ifbp, wci_bufp bufp, unsigned int len );
 EXTERN_C int		 hcf_cntl			(IFBP ifbp, hcf_16 cmd );

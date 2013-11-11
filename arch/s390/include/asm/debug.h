@@ -1,43 +1,16 @@
 /*
- *  include/asm-s390/debug.h
  *   S/390 debug facility
  *
- *    Copyright (C) 1999, 2000 IBM Deutschland Entwicklung GmbH,
- *                             IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  */
-
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <linux/fs.h>
-
-/* Note:
- * struct __debug_entry must be defined outside of #ifdef __KERNEL__ 
- * in order to allow a user program to analyze the 'raw'-view.
- */
-
-struct __debug_entry{
-        union {
-                struct {
-                        unsigned long long clock:52;
-                        unsigned long long exception:1;
-                        unsigned long long level:3;
-                        unsigned long long cpuid:8;
-                } fields;
-
-                unsigned long long stck;
-        } id;
-        void* caller;
-} __attribute__((packed));
-
-
-#define __DEBUG_FEATURE_VERSION      2  /* version of debug feature */
-
-#ifdef __KERNEL__
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
+#include <uapi/asm/debug.h>
 
 #define DEBUG_MAX_LEVEL            6  /* debug levels range from 0 to 6 */
 #define DEBUG_OFF_LEVEL            -1 /* level where debug is switched off */
@@ -73,7 +46,7 @@ typedef struct debug_info {
 	struct dentry* debugfs_entries[DEBUG_MAX_VIEWS];
 	struct debug_view* views[DEBUG_MAX_VIEWS];	
 	char name[DEBUG_MAX_NAME_LEN];
-	mode_t mode;
+	umode_t mode;
 } debug_info_t;
 
 typedef int (debug_header_proc_t) (debug_info_t* id,
@@ -124,13 +97,14 @@ debug_info_t *debug_register(const char *name, int pages, int nr_areas,
                              int buf_size);
 
 debug_info_t *debug_register_mode(const char *name, int pages, int nr_areas,
-				  int buf_size, mode_t mode, uid_t uid,
+				  int buf_size, umode_t mode, uid_t uid,
 				  gid_t gid);
 
 void debug_unregister(debug_info_t* id);
 
 void debug_set_level(debug_info_t* id, int new_level);
 
+void debug_set_critical(void);
 void debug_stop_all(void);
 
 static inline debug_entry_t*
@@ -255,5 +229,4 @@ int debug_unregister_view(debug_info_t* id, struct debug_view* view);
 #define PRINT_FATAL(x...) printk ( KERN_DEBUG PRINTK_HEADER x )
 #endif				/* DASD_DEBUG */
 
-#endif				/* __KERNEL__ */
 #endif				/* DEBUG_H */

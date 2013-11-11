@@ -153,7 +153,7 @@ ieee754sp ieee754sp_sub(ieee754sp x, ieee754sp y)
 		xe = xe;
 		xs = xs;
 
-		if (xm >> (SP_MBITS + 1 + 3)) {	/* carry out */
+		if (xm >> (SP_MBITS + 1 + 3)) { /* carry out */
 			SPXSRSX1();	/* shift preserving sticky */
 		}
 	} else {

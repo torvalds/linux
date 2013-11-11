@@ -15,7 +15,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <plat/cpu.h>
+#include <asm/system_info.h>
+
+#include "soc.h"
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define OMAP_DIE_ID_0		0xfffe1800
 #define OMAP_DIE_ID_1		0xfffe1804

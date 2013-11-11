@@ -23,6 +23,7 @@
  * information.
  */
 
+#include <linux/bug.h>
 #include <linux/plist.h>
 #include <linux/spinlock.h>
 
@@ -56,11 +57,6 @@ static void plist_check_list(struct list_head *top)
 
 static void plist_check_head(struct plist_head *head)
 {
-	WARN_ON(head != &test_head && !head->rawlock && !head->spinlock);
-	if (head->rawlock)
-		WARN_ON_SMP(!raw_spin_is_locked(head->rawlock));
-	if (head->spinlock)
-		WARN_ON_SMP(!spin_is_locked(head->spinlock));
 	if (!plist_head_empty(head))
 		plist_check_list(&plist_first(head)->prio_list);
 	plist_check_list(&head->node_list);
@@ -179,8 +175,8 @@ static int  __init plist_test(void)
 	int nr_expect = 0, i, loop;
 	unsigned int r = local_clock();
 
-	printk(KERN_INFO "start plist test\n");
-	plist_head_init(&test_head, NULL);
+	pr_debug("start plist test\n");
+	plist_head_init(&test_head);
 	for (i = 0; i < ARRAY_SIZE(test_node); i++)
 		plist_node_init(test_node + i, 0);
 
@@ -207,7 +203,7 @@ static int  __init plist_test(void)
 		plist_test_check(nr_expect);
 	}
 
-	printk(KERN_INFO "end plist test\n");
+	pr_debug("end plist test\n");
 	return 0;
 }
 

@@ -15,8 +15,8 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 
 struct nf_conn_counter {
-	u_int64_t packets;
-	u_int64_t bytes;
+	atomic64_t packets;
+	atomic64_t bytes;
 };
 
 static inline
@@ -57,7 +57,9 @@ static inline void nf_ct_set_acct(struct net *net, bool enable)
 	net->ct.sysctl_acct = enable;
 }
 
-extern int nf_conntrack_acct_init(struct net *net);
-extern void nf_conntrack_acct_fini(struct net *net);
+extern int nf_conntrack_acct_pernet_init(struct net *net);
+extern void nf_conntrack_acct_pernet_fini(struct net *net);
 
+extern int nf_conntrack_acct_init(void);
+extern void nf_conntrack_acct_fini(void);
 #endif /* _NF_CONNTRACK_ACCT_H */

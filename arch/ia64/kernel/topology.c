@@ -22,6 +22,7 @@
 #include <linux/bootmem.h>
 #include <linux/nodemask.h>
 #include <linux/notifier.h>
+#include <linux/export.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>
 #include <asm/cpu.h>
@@ -219,7 +220,8 @@ static ssize_t show_shared_cpu_map(struct cache_info *this_leaf, char *buf)
 	ssize_t	len;
 	cpumask_t shared_cpu_map;
 
-	cpus_and(shared_cpu_map, this_leaf->shared_cpu_map, cpu_online_map);
+	cpumask_and(&shared_cpu_map,
+				&this_leaf->shared_cpu_map, cpu_online_mask);
 	len = cpumask_scnprintf(buf, NR_CPUS+1, &shared_cpu_map);
 	len += sprintf(buf+len, "\n");
 	return len;
@@ -273,7 +275,7 @@ static struct attribute * cache_default_attrs[] = {
 #define to_object(k) container_of(k, struct cache_info, kobj)
 #define to_attr(a) container_of(a, struct cache_attr, attr)
 
-static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char * buf)
+static ssize_t ia64_cache_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct cache_attr *fattr = to_attr(attr);
 	struct cache_info *this_leaf = to_object(kobj);
@@ -284,7 +286,7 @@ static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char *
 }
 
 static const struct sysfs_ops cache_sysfs_ops = {
-	.show   = cache_show
+	.show   = ia64_cache_show
 };
 
 static struct kobj_type cache_ktype = {
@@ -349,7 +351,7 @@ static int __cpuinit cpu_cache_sysfs_init(unsigned int cpu)
 }
 
 /* Add cache interface for CPU device */
-static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
+static int __cpuinit cache_add_dev(struct device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i, j;
@@ -399,7 +401,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 }
 
 /* Remove cache interface for CPU device */
-static int __cpuinit cache_remove_dev(struct sys_device * sys_dev)
+static int __cpuinit cache_remove_dev(struct device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
@@ -427,9 +429,9 @@ static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct sys_device *sys_dev;
+	struct device *sys_dev;
 
-	sys_dev = get_cpu_sysdev(cpu);
+	sys_dev = get_cpu_device(cpu);
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
@@ -453,7 +455,7 @@ static int __init cache_sysfs_init(void)
 	int i;
 
 	for_each_online_cpu(i) {
-		struct sys_device *sys_dev = get_cpu_sysdev((unsigned int)i);
+		struct device *sys_dev = get_cpu_device((unsigned int)i);
 		cache_add_dev(sys_dev);
 	}
 

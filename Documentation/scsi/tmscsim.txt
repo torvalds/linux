@@ -102,7 +102,7 @@ So take at least the following measures:
   ftp://student.physik.uni-dortmund.de/pub/linux/kernel/bootdisk.gz
 
 One more warning: I used to overclock my PCI bus to 41.67 MHz. My Tekram
-DC390F (Sym53c875) accepted this as well as my Millenium. But the Am53C974
+DC390F (Sym53c875) accepted this as well as my Millennium. But the Am53C974
 produced errors and started to corrupt my disks. So don't do that! A 37.50
 MHz PCI bus works for me, though, but I don't recommend using higher clocks
 than the 33.33 MHz being in the PCI spec.

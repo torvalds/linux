@@ -1,0 +1,116 @@
+/*
+ * Copyright 2012 Stefan Roese <sr@denx.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "spear600.dtsi"
+
+/ {
+	model = "ST SPEAr600 Evaluation Board";
+	compatible = "st,spear600-evb", "st,spear600";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
+	ahb {
+		clcd@fc200000 {
+			status = "okay";
+		};
+
+		dma@fc400000 {
+			status = "okay";
+		};
+
+		ehci@e1800000 {
+			status = "okay";
+		};
+
+		ehci@e2000000 {
+			status = "okay";
+		};
+
+		gmac: ethernet@e0800000 {
+			phy-mode = "gmii";
+			status = "okay";
+		};
+
+		ohci@e1900000 {
+			status = "okay";
+		};
+
+		ohci@e2100000 {
+			status = "okay";
+		};
+
+		smi: flash@fc000000 {
+			status = "okay";
+			clock-rate=<50000000>;
+
+			flash@f8000000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xf8000000 0x800000>;
+				st,smi-fast-mode;
+
+				partition@0 {
+					label = "xloader";
+					reg = <0x0 0x10000>;
+				};
+				partition@10000 {
+					label = "u-boot";
+					reg = <0x10000 0x50000>;
+				};
+				partition@60000 {
+					label = "environment";
+					reg = <0x60000 0x10000>;
+				};
+				partition@70000 {
+					label = "dtb";
+					reg = <0x70000 0x10000>;
+				};
+				partition@80000 {
+					label = "linux";
+					reg = <0x80000 0x310000>;
+				};
+				partition@390000 {
+					label = "rootfs";
+					reg = <0x390000 0x0>;
+				};
+			};
+		};
+
+		apb {
+			serial@d0000000 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@d0080000 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			rtc@fc900000 {
+			       status = "okay";
+			};
+
+			i2c@d0200000 {
+				clock-frequency = <400000>;
+				status = "okay";
+			};
+		};
+	};
+};

@@ -327,10 +327,10 @@ static void camelot_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static int camelot_pcm_new(struct snd_card *card,
-			   struct snd_soc_dai *dai,
-			   struct snd_pcm *pcm)
+static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_pcm *pcm = rtd->pcm;
+
 	/* dont use SNDRV_DMA_TYPE_DEV, since it will oops the SH kernel
 	 * in MMAP mode (i.e. aplay -M)
 	 */
@@ -342,18 +342,18 @@ static int camelot_pcm_new(struct snd_card *card,
 	return 0;
 }
 
-static struct snd_soc_platform sh7760_soc_platform = {
-	.pcm_ops 	= &camelot_pcm_ops,
+static struct snd_soc_platform_driver sh7760_soc_platform = {
+	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
 	.pcm_free	= camelot_pcm_free,
 };
 
-static int __devinit sh7760_soc_platform_probe(struct platform_device *pdev)
+static int sh7760_soc_platform_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_platform(&pdev->dev, &sh7760_soc_platform);
 }
 
-static int __devexit sh7760_soc_platform_remove(struct platform_device *pdev)
+static int sh7760_soc_platform_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
@@ -366,20 +366,10 @@ static struct platform_driver sh7760_pcm_driver = {
 	},
 
 	.probe = sh7760_soc_platform_probe,
-	.remove = __devexit_p(sh7760_soc_platform_remove),
+	.remove = sh7760_soc_platform_remove,
 };
 
-static int __init snd_sh7760_pcm_init(void)
-{
-	return platform_driver_register(&sh7760_pcm_driver);
-}
-module_init(snd_sh7760_pcm_init);
-
-static void __exit snd_sh7760_pcm_exit(void)
-{
-	platform_driver_unregister(&sh7760_pcm_driver);
-}
-module_exit(snd_sh7760_pcm_exit);
+module_platform_driver(sh7760_pcm_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SH7760 Audio DMA (DMABRG) driver");

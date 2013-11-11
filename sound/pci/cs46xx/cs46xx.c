@@ -28,9 +28,9 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
-#include <sound/cs46xx.h>
+#include "cs46xx.h"
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -46,10 +46,10 @@ MODULE_SUPPORTED_DEVICE("{{Cirrus Logic,Sound Fusion (CS4280)},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int external_amp[SNDRV_CARDS];
-static int thinkpad[SNDRV_CARDS];
-static int mmap_valid[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool external_amp[SNDRV_CARDS];
+static bool thinkpad[SNDRV_CARDS];
+static bool mmap_valid[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the CS46xx soundcard.");
@@ -73,8 +73,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_cs46xx_ids) = {
 
 MODULE_DEVICE_TABLE(pci, snd_cs46xx_ids);
 
-static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
-					   const struct pci_device_id *pci_id)
+static int snd_card_cs46xx_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -155,32 +155,22 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_card_cs46xx_remove(struct pci_dev *pci)
+static void snd_card_cs46xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
-	.name = "Sound Fusion CS46xx",
+static struct pci_driver cs46xx_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_cs46xx_ids,
 	.probe = snd_card_cs46xx_probe,
-	.remove = __devexit_p(snd_card_cs46xx_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_cs46xx_suspend,
-	.resume = snd_cs46xx_resume,
+	.remove = snd_card_cs46xx_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &snd_cs46xx_pm,
+	},
 #endif
 };
 
-static int __init alsa_card_cs46xx_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_cs46xx_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_cs46xx_init)
-module_exit(alsa_card_cs46xx_exit)
+module_pci_driver(cs46xx_driver);

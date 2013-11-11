@@ -21,20 +21,21 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/partitions.h>
 #include <linux/io.h>
+#include <linux/irqchip/arm-gic.h>
+#include <linux/platform_data/clk-realview.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
-#include <asm/pmu.h>
 #include <asm/pgtable.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include <asm/mach/arch.h>
@@ -111,17 +112,14 @@ static void __init realview_pb1176_map_io(void)
 
 static struct pl061_platform_data gpio0_plat_data = {
 	.gpio_base	= 0,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio1_plat_data = {
 	.gpio_base	= 8,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio2_plat_data = {
 	.gpio_base	= 16,
-	.irq_base	= -1,
 };
 
 static struct pl022_ssp_controller ssp0_plat_data = {
@@ -133,50 +131,50 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 /*
  * RealView PB1176 AMBA devices
  */
-#define GPIO2_IRQ	{ IRQ_PB1176_GPIO2, NO_IRQ }
-#define GPIO3_IRQ	{ IRQ_PB1176_GPIO3, NO_IRQ }
-#define AACI_IRQ	{ IRQ_PB1176_AACI, NO_IRQ }
+#define GPIO2_IRQ	{ IRQ_PB1176_GPIO2 }
+#define GPIO3_IRQ	{ IRQ_PB1176_GPIO3 }
+#define AACI_IRQ	{ IRQ_PB1176_AACI }
 #define MMCI0_IRQ	{ IRQ_PB1176_MMCI0A, IRQ_PB1176_MMCI0B }
-#define KMI0_IRQ	{ IRQ_PB1176_KMI0, NO_IRQ }
-#define KMI1_IRQ	{ IRQ_PB1176_KMI1, NO_IRQ }
-#define PB1176_SMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define PB1176_CLCD_IRQ	{ IRQ_DC1176_CLCD, NO_IRQ }
-#define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define PB1176_WATCHDOG_IRQ	{ IRQ_DC1176_WATCHDOG, NO_IRQ }
-#define PB1176_GPIO0_IRQ	{ IRQ_PB1176_GPIO0, NO_IRQ }
-#define GPIO1_IRQ	{ IRQ_PB1176_GPIO1, NO_IRQ }
-#define PB1176_RTC_IRQ	{ IRQ_DC1176_RTC, NO_IRQ }
-#define SCI_IRQ		{ IRQ_PB1176_SCI, NO_IRQ }
-#define PB1176_UART0_IRQ	{ IRQ_DC1176_UART0, NO_IRQ }
-#define PB1176_UART1_IRQ	{ IRQ_DC1176_UART1, NO_IRQ }
-#define PB1176_UART2_IRQ	{ IRQ_DC1176_UART2, NO_IRQ }
-#define PB1176_UART3_IRQ	{ IRQ_DC1176_UART3, NO_IRQ }
-#define PB1176_UART4_IRQ	{ IRQ_PB1176_UART4, NO_IRQ }
-#define PB1176_SSP_IRQ		{ IRQ_DC1176_SSP, NO_IRQ }
+#define KMI0_IRQ	{ IRQ_PB1176_KMI0 }
+#define KMI1_IRQ	{ IRQ_PB1176_KMI1 }
+#define PB1176_SMC_IRQ	{ }
+#define MPMC_IRQ	{ }
+#define PB1176_CLCD_IRQ	{ IRQ_DC1176_CLCD }
+#define SCTL_IRQ	{ }
+#define PB1176_WATCHDOG_IRQ	{ IRQ_DC1176_WATCHDOG }
+#define PB1176_GPIO0_IRQ	{ IRQ_DC1176_GPIO0 }
+#define GPIO1_IRQ	{ IRQ_PB1176_GPIO1 }
+#define PB1176_RTC_IRQ	{ IRQ_DC1176_RTC }
+#define SCI_IRQ		{ IRQ_PB1176_SCI }
+#define PB1176_UART0_IRQ	{ IRQ_DC1176_UART0 }
+#define PB1176_UART1_IRQ	{ IRQ_DC1176_UART1 }
+#define PB1176_UART2_IRQ	{ IRQ_DC1176_UART2 }
+#define PB1176_UART3_IRQ	{ IRQ_DC1176_UART3 }
+#define PB1176_UART4_IRQ	{ IRQ_PB1176_UART4 }
+#define PB1176_SSP_IRQ		{ IRQ_DC1176_SSP }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
-AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
-AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
-AMBA_DEVICE(uart4,	"fpga:uart4",	PB1176_UART4,	NULL);
+APB_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
+APB_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
+APB_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
+APB_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
+APB_DEVICE(uart4,	"fpga:uart4",	PB1176_UART4,	NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,	"dev:smc",	PB1176_SMC,	NULL);
-AMBA_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
-AMBA_DEVICE(wdog,	"dev:wdog",	PB1176_WATCHDOG,	NULL);
-AMBA_DEVICE(gpio0,	"dev:gpio0",	PB1176_GPIO0,	&gpio0_plat_data);
-AMBA_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
-AMBA_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
-AMBA_DEVICE(rtc,	"dev:rtc",	PB1176_RTC,	NULL);
-AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
-AMBA_DEVICE(uart0,	"dev:uart0",	PB1176_UART0,	NULL);
-AMBA_DEVICE(uart1,	"dev:uart1",	PB1176_UART1,	NULL);
-AMBA_DEVICE(uart2,	"dev:uart2",	PB1176_UART2,	NULL);
-AMBA_DEVICE(uart3,	"dev:uart3",	PB1176_UART3,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	&ssp0_plat_data);
-AMBA_DEVICE(clcd,	"dev:clcd",	PB1176_CLCD,	&clcd_plat_data);
+AHB_DEVICE(smc,		"dev:smc",	PB1176_SMC,	NULL);
+AHB_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
+APB_DEVICE(wdog,	"dev:wdog",	PB1176_WATCHDOG,	NULL);
+APB_DEVICE(gpio0,	"dev:gpio0",	PB1176_GPIO0,	&gpio0_plat_data);
+APB_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
+APB_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
+APB_DEVICE(rtc,		"dev:rtc",	PB1176_RTC,	NULL);
+APB_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
+APB_DEVICE(uart0,	"dev:uart0",	PB1176_UART0,	NULL);
+APB_DEVICE(uart1,	"dev:uart1",	PB1176_UART1,	NULL);
+APB_DEVICE(uart2,	"dev:uart2",	PB1176_UART2,	NULL);
+APB_DEVICE(uart3,	"dev:uart3",	PB1176_UART3,	NULL);
+APB_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	&ssp0_plat_data);
+AHB_DEVICE(clcd,	"dev:clcd",	PB1176_CLCD,	&clcd_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
@@ -204,22 +202,48 @@ static struct amba_device *amba_devs[] __initdata = {
  * RealView PB1176 platform devices
  */
 static struct resource realview_pb1176_flash_resources[] = {
-	[0] = {
+	{
 		.start		= REALVIEW_PB1176_FLASH_BASE,
 		.end		= REALVIEW_PB1176_FLASH_BASE + REALVIEW_PB1176_FLASH_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
-	[1] = {
+#ifdef CONFIG_REALVIEW_PB1176_SECURE_FLASH
+	{
 		.start		= REALVIEW_PB1176_SEC_FLASH_BASE,
 		.end		= REALVIEW_PB1176_SEC_FLASH_BASE + REALVIEW_PB1176_SEC_FLASH_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
-};
-#ifdef CONFIG_REALVIEW_PB1176_SECURE_FLASH
-#define PB1176_FLASH_BLOCKS	2
-#else
-#define PB1176_FLASH_BLOCKS	1
 #endif
+};
+
+static struct physmap_flash_data pb1176_rom_pdata = {
+	.probe_type	= "map_rom",
+	.width		= 4,
+	.nr_parts	= 0,
+};
+
+static struct resource pb1176_rom_resources[] = {
+	/*
+	 * This exposes the PB1176 DevChip ROM as an MTD ROM mapping.
+	 * The reference manual states that this is actually a pseudo-ROM
+	 * programmed in NVRAM.
+	 */
+	{
+		.start		= REALVIEW_DC1176_ROM_BASE,
+		.end		= REALVIEW_DC1176_ROM_BASE + SZ_16K - 1,
+		.flags		= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device pb1176_rom_device = {
+	.name		= "physmap-flash",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pb1176_rom_resources),
+	.resource	= pb1176_rom_resources,
+	.dev = {
+		.platform_data = &pb1176_rom_pdata,
+	},
+};
 
 static struct resource realview_pb1176_smsc911x_resources[] = {
 	[0] = {
@@ -255,7 +279,7 @@ static struct resource pmu_resource = {
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= 1,
 	.resource		= &pmu_resource,
 };
@@ -301,23 +325,20 @@ static void __init realview_pb1176_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PB1176_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PB1176_TIMER2_3_BASE) + 0x20;
 
+	realview_clk_init(__io_address(REALVIEW_SYS_BASE), true);
 	realview_timer_init(IRQ_DC1176_TIMER0);
 }
 
-static struct sys_timer realview_pb1176_timer = {
-	.init		= realview_pb1176_timer_init,
-};
-
-static void realview_pb1176_reset(char mode)
+static void realview_pb1176_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
 	__raw_writel(REALVIEW_PB1176_SYS_SOFT_RESET, reset_ctrl);
+	dsb();
 }
 
-static void realview_pb1176_fixup(struct machine_desc *mdesc,
-				  struct tag *tags, char **from,
+static void realview_pb1176_fixup(struct tag *tags, char **from,
 				  struct meminfo *meminfo)
 {
 	/*
@@ -338,7 +359,8 @@ static void __init realview_pb1176_init(void)
 #endif
 
 	realview_flash_register(realview_pb1176_flash_resources,
-				PB1176_FLASH_BLOCKS);
+				ARRAY_SIZE(realview_pb1176_flash_resources));
+	platform_device_register(&pb1176_rom_device);
 	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	realview_usb_register(realview_pb1176_isp1761_resources);
@@ -349,20 +371,19 @@ static void __init realview_pb1176_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = realview_leds_event;
-#endif
-	realview_reset = realview_pb1176_reset;
 }
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_pb1176_timer,
+	.init_time	= realview_pb1176_timer_init,
 	.init_machine	= realview_pb1176_init,
+#ifdef CONFIG_ZONE_DMA
+	.dma_zone_size	= SZ_256M,
+#endif
+	.restart	= realview_pb1176_restart,
 MACHINE_END

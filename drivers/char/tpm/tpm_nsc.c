@@ -227,6 +227,11 @@ static u8 tpm_nsc_status(struct tpm_chip *chip)
 	return inb(chip->vendor.base + NSC_STATUS);
 }
 
+static bool tpm_nsc_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == NSC_STATUS_RDY);
+}
+
 static const struct file_operations nsc_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -258,7 +263,7 @@ static const struct tpm_vendor_specific tpm_nsc = {
 	.status = tpm_nsc_status,
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
-	.req_canceled = NSC_STATUS_RDY,
+	.req_canceled = tpm_nsc_req_canceled,
 	.attr_group = &nsc_attr_grp,
 	.miscdev = { .fops = &nsc_ops, },
 };
@@ -274,22 +279,13 @@ static void tpm_nsc_remove(struct device *dev)
 	}
 }
 
-static int tpm_nsc_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
-
-static int tpm_nsc_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
+static SIMPLE_DEV_PM_OPS(tpm_nsc_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static struct platform_driver nsc_drv = {
-	.suspend         = tpm_nsc_suspend,
-	.resume          = tpm_nsc_resume,
 	.driver          = {
 		.name    = "tpm_nsc",
 		.owner   = THIS_MODULE,
+		.pm      = &tpm_nsc_pm,
 	},
 };
 
@@ -330,12 +326,12 @@ static int __init init_nsc(void)
 	pdev->dev.driver = &nsc_drv.driver;
 	pdev->dev.release = tpm_nsc_remove;
 
-	if ((rc = platform_device_register(pdev)) < 0)
-		goto err_free_dev;
+	if ((rc = platform_device_add(pdev)) < 0)
+		goto err_put_dev;
 
 	if (request_region(base, 2, "tpm_nsc0") == NULL ) {
 		rc = -EBUSY;
-		goto err_unreg_dev;
+		goto err_del_dev;
 	}
 
 	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_nsc))) {
@@ -382,10 +378,10 @@ static int __init init_nsc(void)
 
 err_rel_reg:
 	release_region(base, 2);
-err_unreg_dev:
-	platform_device_unregister(pdev);
-err_free_dev:
-	kfree(pdev);
+err_del_dev:
+	platform_device_del(pdev);
+err_put_dev:
+	platform_device_put(pdev);
 err_unreg_drv:
 	platform_driver_unregister(&nsc_drv);
 	return rc;
@@ -396,8 +392,6 @@ static void __exit cleanup_nsc(void)
 	if (pdev) {
 		tpm_nsc_remove(&pdev->dev);
 		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
 	}
 
 	platform_driver_unregister(&nsc_drv);

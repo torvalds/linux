@@ -27,48 +27,44 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include "ext4.h"
+#include "xattr.h"
 
-static unsigned char ext4_filetype_table[] = {
-	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
-};
-
-static int ext4_readdir(struct file *, void *, filldir_t);
 static int ext4_dx_readdir(struct file *filp,
 			   void *dirent, filldir_t filldir);
-static int ext4_release_dir(struct inode *inode,
-				struct file *filp);
 
-const struct file_operations ext4_dir_operations = {
-	.llseek		= ext4_llseek,
-	.read		= generic_read_dir,
-	.readdir	= ext4_readdir,		/* we take BKL. needed?*/
-	.unlocked_ioctl = ext4_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= ext4_compat_ioctl,
-#endif
-	.fsync		= ext4_sync_file,
-	.release	= ext4_release_dir,
-};
-
-
-static unsigned char get_dtype(struct super_block *sb, int filetype)
+/**
+ * Check if the given dir-inode refers to an htree-indexed directory
+ * (or a directory which chould potentially get coverted to use htree
+ * indexing).
+ *
+ * Return 1 if it is a dx dir, 0 if not
+ */
+static int is_dx_dir(struct inode *inode)
 {
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE) ||
-	    (filetype >= EXT4_FT_MAX))
-		return DT_UNKNOWN;
+	struct super_block *sb = inode->i_sb;
 
-	return (ext4_filetype_table[filetype]);
+	if (EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
+		     EXT4_FEATURE_COMPAT_DIR_INDEX) &&
+	    ((ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) ||
+	     ((inode->i_size >> sb->s_blocksize_bits) == 1) ||
+	     ext4_has_inline_data(inode)))
+		return 1;
+
+	return 0;
 }
 
 /*
  * Return 0 if the directory entry is OK, and 1 if there is a problem
  *
  * Note: this is the opposite of what ext2 and ext3 historically returned...
+ *
+ * bh passed here can be an inode block or a dir data block, depending
+ * on the inode inline data flag.
  */
 int __ext4_check_dir_entry(const char *function, unsigned int line,
 			   struct inode *dir, struct file *filp,
 			   struct ext4_dir_entry_2 *de,
-			   struct buffer_head *bh,
+			   struct buffer_head *bh, char *buf, int size,
 			   unsigned int offset)
 {
 	const char *error_msg = NULL;
@@ -81,9 +77,8 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		error_msg = "rec_len % 4 != 0";
 	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
-	else if (unlikely(((char *) de - bh->b_data) + rlen >
-			  dir->i_sb->s_blocksize))
-		error_msg = "directory entry across blocks";
+	else if (unlikely(((char *) de - buf) + rlen > size))
+		error_msg = "directory entry across range";
 	else if (unlikely(le32_to_cpu(de->inode) >
 			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
@@ -91,17 +86,17 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		return 0;
 
 	if (filp)
-		ext4_error_file(filp, function, line, bh ? bh->b_blocknr : 0,
+		ext4_error_file(filp, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset%bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 	else
-		ext4_error_inode(dir, function, line, bh ? bh->b_blocknr : 0,
+		ext4_error_inode(dir, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset%bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 
@@ -115,18 +110,13 @@ static int ext4_readdir(struct file *filp,
 	unsigned int offset;
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
-	struct super_block *sb;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
+	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
 
-	sb = inode->i_sb;
-
-	if (EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
-				    EXT4_FEATURE_COMPAT_DIR_INDEX) &&
-	    ((ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) ||
-	     ((inode->i_size >> sb->s_blocksize_bits) == 1))) {
+	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(filp, dirent, filldir);
 		if (err != ERR_BAD_DX_DIR) {
 			ret = err;
@@ -136,9 +126,18 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+		ext4_clear_inode_flag(file_inode(filp),
 				      EXT4_INODE_INDEX);
 	}
+
+	if (ext4_has_inline_data(inode)) {
+		int has_inline_data = 1;
+		ret = ext4_read_inline_dir(filp, dirent, filldir,
+					   &has_inline_data);
+		if (has_inline_data)
+			return ret;
+	}
+
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
@@ -180,6 +179,19 @@ static int ext4_readdir(struct file *filp,
 			continue;
 		}
 
+		/* Check the checksum */
+		if (!buffer_verified(bh) &&
+		    !ext4_dirent_csum_verify(inode,
+				(struct ext4_dir_entry *)bh->b_data)) {
+			EXT4_ERROR_FILE(filp, 0, "directory fails checksum "
+					"at offset %llu",
+					(unsigned long long)filp->f_pos);
+			filp->f_pos += sb->s_blocksize - offset;
+			brelse(bh);
+			continue;
+		}
+		set_buffer_verified(bh);
+
 revalidate:
 		/* If the dir block has changed since the last call to
 		 * readdir(2), then we might be pointing to an invalid
@@ -210,8 +222,9 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (ext4_check_dir_entry(inode, filp, de,
-						 bh, offset)) {
+			if (ext4_check_dir_entry(inode, filp, de, bh,
+						 bh->b_data, bh->b_size,
+						 offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
 				 */
@@ -254,22 +267,87 @@ out:
 	return ret;
 }
 
+static inline int is_32bit_api(void)
+{
+#ifdef CONFIG_COMPAT
+	return is_compat_task();
+#else
+	return (BITS_PER_LONG == 32);
+#endif
+}
+
 /*
  * These functions convert from the major/minor hash to an f_pos
- * value.
+ * value for dx directories
  *
- * Currently we only use major hash numer.  This is unfortunate, but
- * on 32-bit machines, the same VFS interface is used for lseek and
- * llseek, so if we use the 64 bit offset, then the 32-bit versions of
- * lseek/telldir/seekdir will blow out spectacularly, and from within
- * the ext2 low-level routine, we don't know if we're being called by
- * a 64-bit version of the system call or the 32-bit version of the
- * system call.  Worse yet, NFSv2 only allows for a 32-bit readdir
- * cookie.  Sigh.
+ * Upper layer (for example NFS) should specify FMODE_32BITHASH or
+ * FMODE_64BITHASH explicitly. On the other hand, we allow ext4 to be mounted
+ * directly on both 32-bit and 64-bit nodes, under such case, neither
+ * FMODE_32BITHASH nor FMODE_64BITHASH is specified.
  */
-#define hash2pos(major, minor)	(major >> 1)
-#define pos2maj_hash(pos)	((pos << 1) & 0xffffffff)
-#define pos2min_hash(pos)	(0)
+static inline loff_t hash2pos(struct file *filp, __u32 major, __u32 minor)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return major >> 1;
+	else
+		return ((__u64)(major >> 1) << 32) | (__u64)minor;
+}
+
+static inline __u32 pos2maj_hash(struct file *filp, loff_t pos)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return (pos << 1) & 0xffffffff;
+	else
+		return ((pos >> 32) << 1) & 0xffffffff;
+}
+
+static inline __u32 pos2min_hash(struct file *filp, loff_t pos)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return 0;
+	else
+		return pos & 0xffffffff;
+}
+
+/*
+ * Return 32- or 64-bit end-of-file for dx directories
+ */
+static inline loff_t ext4_get_htree_eof(struct file *filp)
+{
+	if ((filp->f_mode & FMODE_32BITHASH) ||
+	    (!(filp->f_mode & FMODE_64BITHASH) && is_32bit_api()))
+		return EXT4_HTREE_EOF_32BIT;
+	else
+		return EXT4_HTREE_EOF_64BIT;
+}
+
+
+/*
+ * ext4_dir_llseek() calls generic_file_llseek_size to handle htree
+ * directories, where the "offset" is in terms of the filename hash
+ * value instead of the byte offset.
+ *
+ * Because we may return a 64-bit hash that is well beyond offset limits,
+ * we need to pass the max hash as the maximum allowable offset in
+ * the htree directory case.
+ *
+ * For non-htree, ext4_llseek already chooses the proper max offset.
+ */
+static loff_t ext4_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	int dx_dir = is_dx_dir(inode);
+	loff_t htree_max = ext4_get_htree_eof(file);
+
+	if (likely(dx_dir))
+		return generic_file_llseek_size(file, offset, whence,
+						    htree_max, htree_max);
+	else
+		return ext4_llseek(file, offset, whence);
+}
 
 /*
  * This structure holds the nodes of the red-black tree used to store
@@ -330,15 +408,16 @@ static void free_rb_tree_fname(struct rb_root *root)
 }
 
 
-static struct dir_private_info *ext4_htree_create_dir_info(loff_t pos)
+static struct dir_private_info *ext4_htree_create_dir_info(struct file *filp,
+							   loff_t pos)
 {
 	struct dir_private_info *p;
 
 	p = kzalloc(sizeof(struct dir_private_info), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	p->curr_hash = pos2maj_hash(pos);
-	p->curr_minor_hash = pos2min_hash(pos);
+	p->curr_hash = pos2maj_hash(filp, pos);
+	p->curr_minor_hash = pos2min_hash(filp, pos);
 	return p;
 }
 
@@ -418,18 +497,19 @@ static int call_filldir(struct file *filp, void *dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb;
 	int error;
 
 	sb = inode->i_sb;
 
 	if (!fname) {
-		printk(KERN_ERR "EXT4-fs: call_filldir: called with "
-		       "null fname?!?\n");
+		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%lu: comm %s: "
+			 "called with null fname?!?", __func__, __LINE__,
+			 inode->i_ino, current->comm);
 		return 0;
 	}
-	curr_pos = hash2pos(fname->hash, fname->minor_hash);
+	curr_pos = hash2pos(filp, fname->hash, fname->minor_hash);
 	while (fname) {
 		error = filldir(dirent, fname->name,
 				fname->name_len, curr_pos,
@@ -449,18 +529,18 @@ static int ext4_dx_readdir(struct file *filp,
 			 void *dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 
 	if (!info) {
-		info = ext4_htree_create_dir_info(filp->f_pos);
+		info = ext4_htree_create_dir_info(filp, filp->f_pos);
 		if (!info)
 			return -ENOMEM;
 		filp->private_data = info;
 	}
 
-	if (filp->f_pos == EXT4_HTREE_EOF)
+	if (filp->f_pos == ext4_get_htree_eof(filp))
 		return 0;	/* EOF */
 
 	/* Some one has messed with f_pos; reset the world */
@@ -468,8 +548,8 @@ static int ext4_dx_readdir(struct file *filp,
 		free_rb_tree_fname(&info->root);
 		info->curr_node = NULL;
 		info->extra_fname = NULL;
-		info->curr_hash = pos2maj_hash(filp->f_pos);
-		info->curr_minor_hash = pos2min_hash(filp->f_pos);
+		info->curr_hash = pos2maj_hash(filp, filp->f_pos);
+		info->curr_minor_hash = pos2min_hash(filp, filp->f_pos);
 	}
 
 	/*
@@ -501,7 +581,7 @@ static int ext4_dx_readdir(struct file *filp,
 			if (ret < 0)
 				return ret;
 			if (ret == 0) {
-				filp->f_pos = EXT4_HTREE_EOF;
+				filp->f_pos = ext4_get_htree_eof(filp);
 				break;
 			}
 			info->curr_node = rb_first(&info->root);
@@ -521,7 +601,7 @@ static int ext4_dx_readdir(struct file *filp,
 			info->curr_minor_hash = fname->minor_hash;
 		} else {
 			if (info->next_hash == ~0) {
-				filp->f_pos = EXT4_HTREE_EOF;
+				filp->f_pos = ext4_get_htree_eof(filp);
 				break;
 			}
 			info->curr_hash = info->next_hash;
@@ -540,3 +620,15 @@ static int ext4_release_dir(struct inode *inode, struct file *filp)
 
 	return 0;
 }
+
+const struct file_operations ext4_dir_operations = {
+	.llseek		= ext4_dir_llseek,
+	.read		= generic_read_dir,
+	.readdir	= ext4_readdir,
+	.unlocked_ioctl = ext4_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ext4_compat_ioctl,
+#endif
+	.fsync		= ext4_sync_file,
+	.release	= ext4_release_dir,
+};

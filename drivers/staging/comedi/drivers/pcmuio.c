@@ -77,10 +77,10 @@ Configuration Options:
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include "../comedidev.h"
-#include "pcm_common.h"
 
-#include <linux/pci.h>		/* for PCI devices */
+#include "../comedidev.h"
+
+#include "comedi_fc.h"
 
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
@@ -92,7 +92,6 @@ Configuration Options:
 #define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define SDEV_NO ((int)(s - dev->subdevices))
 #define CALC_N_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x10)
@@ -155,24 +154,6 @@ struct pcmuio_board {
 	const int num_ports;
 };
 
-static const struct pcmuio_board pcmuio_boards[] = {
-	{
-	 .name = "pcmuio48",
-	 .num_asics = 1,
-	 .num_ports = 6,
-	 },
-	{
-	 .name = "pcmuio96",
-	 .num_asics = 2,
-	 .num_ports = 12,
-	 },
-};
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct pcmuio_board *)dev->board_ptr)
-
 /* this structure is for data unique to this subdevice.  */
 struct pcmuio_subdev_private {
 	/* mapping of halfwords (bytes) in port/chanarray to iobase */
@@ -212,268 +193,7 @@ struct pcmuio_private {
 	struct pcmuio_subdev_private *sprivs;
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct pcmuio_private *)dev->private)
 #define subpriv ((struct pcmuio_subdev_private *)s->private)
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pcmuio_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcmuio_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver = {
-	.driver_name = "pcmuio",
-	.module = THIS_MODULE,
-	.attach = pcmuio_attach,
-	.detach = pcmuio_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in pcmuio_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	.board_name = &pcmuio_boards[0].name,
-	.offset = sizeof(struct pcmuio_board),
-	.num_names = ARRAY_SIZE(pcmuio_boards),
-};
-
-static int pcmuio_dio_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static int pcmuio_dio_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-
-static irqreturn_t interrupt_pcmuio(int irq, void *d);
-static void pcmuio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
-static int pcmuio_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int pcmuio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_cmd *cmd);
-
-/* some helper functions to deal with specifics of this device's registers */
-static void init_asics(struct comedi_device *dev);	/* sets up/clears ASIC chips to defaults */
-static void switch_page(struct comedi_device *dev, int asic, int page);
-#ifdef notused
-static void lock_port(struct comedi_device *dev, int asic, int port);
-static void unlock_port(struct comedi_device *dev, int asic, int port);
-#endif
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
-	unsigned long iobase;
-	unsigned int irq[MAX_ASICS];
-
-	iobase = it->options[0];
-	irq[0] = it->options[1];
-	irq[1] = it->options[2];
-
-	printk("comedi%d: %s: io: %lx ", dev->minor, driver.driver_name,
-	       iobase);
-
-	dev->iobase = iobase;
-
-	if (!iobase || !request_region(iobase,
-				       thisboard->num_asics * ASIC_IOSIZE,
-				       driver.driver_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
-
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		printk("cannot allocate private data structure\n");
-		return -ENOMEM;
-	}
-
-	for (asic = 0; asic < MAX_ASICS; ++asic) {
-		devpriv->asics[asic].num = asic;
-		devpriv->asics[asic].iobase = dev->iobase + asic * ASIC_IOSIZE;
-		devpriv->asics[asic].irq = 0;	/* this gets actually set at the end of
-						   this function when we
-						   request_irqs */
-		spin_lock_init(&devpriv->asics[asic].spinlock);
-	}
-
-	chans_left = CHANS_PER_ASIC * thisboard->num_asics;
-	n_subdevs = CALC_N_SUBDEVS(chans_left);
-	devpriv->sprivs =
-	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
-		    GFP_KERNEL);
-	if (!devpriv->sprivs) {
-		printk("cannot allocate subdevice private data structures\n");
-		return -ENOMEM;
-	}
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 *
-	 * Allocate 2 subdevs (32 + 16 DIO lines) or 3 32 DIO subdevs for the
-	 * 96-channel version of the board.
-	 */
-	if (alloc_subdevices(dev, n_subdevs) < 0) {
-		printk("cannot allocate subdevice data structures\n");
-		return -ENOMEM;
-	}
-
-	port = 0;
-	asic = 0;
-	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
-		int byte_no;
-
-		s = dev->subdevices + sdev_no;
-		s->private = devpriv->sprivs + sdev_no;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->type = COMEDI_SUBD_DIO;
-		s->insn_bits = pcmuio_dio_insn_bits;
-		s->insn_config = pcmuio_dio_insn_config;
-		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
-		subpriv->intr.asic = -1;
-		subpriv->intr.first_chan = -1;
-		subpriv->intr.asic_chan = -1;
-		subpriv->intr.num_asic_chans = -1;
-		subpriv->intr.active = 0;
-		s->len_chanlist = 1;
-
-		/* save the ioport address for each 'port' of 8 channels in the
-		   subdevice */
-		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no, ++port) {
-			if (port >= PORTS_PER_ASIC) {
-				port = 0;
-				++asic;
-				thisasic_chanct = 0;
-			}
-			subpriv->iobases[byte_no] =
-			    devpriv->asics[asic].iobase + port;
-
-			if (thisasic_chanct <
-			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
-			    && subpriv->intr.asic < 0) {
-				/* this is an interrupt subdevice, so setup the struct */
-				subpriv->intr.asic = asic;
-				subpriv->intr.active = 0;
-				subpriv->intr.stop_count = 0;
-				subpriv->intr.first_chan = byte_no * 8;
-				subpriv->intr.asic_chan = thisasic_chanct;
-				subpriv->intr.num_asic_chans =
-				    s->n_chan - subpriv->intr.first_chan;
-				dev->read_subdev = s;
-				s->subdev_flags |= SDF_CMD_READ;
-				s->cancel = pcmuio_cancel;
-				s->do_cmd = pcmuio_cmd;
-				s->do_cmdtest = pcmuio_cmdtest;
-				s->len_chanlist = subpriv->intr.num_asic_chans;
-			}
-			thisasic_chanct += CHANS_PER_PORT;
-		}
-		spin_lock_init(&subpriv->intr.spinlock);
-
-		chans_left -= s->n_chan;
-
-		if (!chans_left) {
-			asic = 0;	/* reset the asic to our first asic, to do intr subdevs */
-			port = 0;
-		}
-
-	}
-
-	init_asics(dev);	/* clear out all the registers, basically */
-
-	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
-		if (irq[asic]
-		    && request_irq(irq[asic], interrupt_pcmuio,
-				   IRQF_SHARED, thisboard->name, dev)) {
-			int i;
-			/* unroll the allocated irqs.. */
-			for (i = asic - 1; i >= 0; --i) {
-				free_irq(irq[i], dev);
-				devpriv->asics[i].irq = irq[i] = 0;
-			}
-			irq[asic] = 0;
-		}
-		devpriv->asics[asic].irq = irq[asic];
-	}
-
-	dev->irq = irq[0];	/* grr.. wish comedi dev struct supported multiple
-				   irqs.. */
-
-	if (irq[0]) {
-		printk("irq: %u ", irq[0]);
-		if (irq[1] && thisboard->num_asics == 2)
-			printk("second ASIC irq: %u ", irq[1]);
-	} else {
-		printk("(IRQ mode disabled) ");
-	}
-
-	printk("attached\n");
-
-	return 1;
-}
-
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pcmuio_detach(struct comedi_device *dev)
-{
-	int i;
-
-	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
-	if (dev->iobase)
-		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
-
-	for (i = 0; i < MAX_ASICS; ++i) {
-		if (devpriv->asics[i].irq)
-			free_irq(devpriv->asics[i].irq, dev);
-	}
-
-	if (devpriv && devpriv->sprivs)
-		kfree(devpriv->sprivs);
-
-	return 0;
-}
 
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
@@ -485,8 +205,6 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn, unsigned int *data)
 {
 	int byte_no;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	/* NOTE:
 	   reading a 0 means this channel was high
@@ -501,7 +219,8 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	printk("write mask: %08x  data: %08x\n", data[0], data[1]);
+	dev_dbg(dev->class_dev, "write mask: %08x  data: %08x\n", data[0],
+		data[1]);
 #endif
 
 	s->state = 0;
@@ -537,7 +256,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		}
 #ifdef DAMMIT_ITS_BROKEN
 		/* DEBUG */
-		printk("data_out_byte %02x\n", (unsigned)byte);
+		dev_dbg(dev->class_dev, "data_out_byte %02x\n", (unsigned)byte);
 #endif
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
@@ -548,10 +267,11 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	printk("s->state %08x data_out %08x\n", s->state, data[1]);
+	dev_dbg(dev->class_dev, "s->state %08x data_out %08x\n", s->state,
+		data[1]);
 #endif
 
-	return 2;
+	return insn->n;
 }
 
 /* The input or output configuration of each digital line is
@@ -619,12 +339,31 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void switch_page(struct comedi_device *dev, int asic, int page)
+{
+	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
+
+	if (asic < 0 || asic >= board->num_asics)
+		return;		/* paranoia */
+	if (page < 0 || page >= NUM_PAGES)
+		return;		/* more paranoia */
+
+	devpriv->asics[asic].pagelock &= ~REG_PAGE_MASK;
+	devpriv->asics[asic].pagelock |= page << REG_PAGE_BITOFFSET;
+
+	/* now write out the shadow register */
+	outb(devpriv->asics[asic].pagelock,
+	     dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
+}
+
 static void init_asics(struct comedi_device *dev)
 {				/* sets up an
 				   ASIC chip to defaults */
+	const struct pcmuio_board *board = comedi_board(dev);
 	int asic;
 
-	for (asic = 0; asic < thisboard->num_asics; ++asic) {
+	for (asic = 0; asic < board->num_asics; ++asic) {
 		int port, page;
 		unsigned long baseaddr = dev->iobase + asic * ASIC_IOSIZE;
 
@@ -656,25 +395,13 @@ static void init_asics(struct comedi_device *dev)
 	}
 }
 
-static void switch_page(struct comedi_device *dev, int asic, int page)
-{
-	if (asic < 0 || asic >= thisboard->num_asics)
-		return;		/* paranoia */
-	if (page < 0 || page >= NUM_PAGES)
-		return;		/* more paranoia */
-
-	devpriv->asics[asic].pagelock &= ~REG_PAGE_MASK;
-	devpriv->asics[asic].pagelock |= page << REG_PAGE_BITOFFSET;
-
-	/* now write out the shadow register */
-	outb(devpriv->asics[asic].pagelock,
-	     dev->iobase + ASIC_IOSIZE * asic + REG_PAGELOCK);
-}
-
 #ifdef notused
 static void lock_port(struct comedi_device *dev, int asic, int port)
 {
-	if (asic < 0 || asic >= thisboard->num_asics)
+	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
+
+	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
 		return;		/* more paranoia */
@@ -687,7 +414,10 @@ static void lock_port(struct comedi_device *dev, int asic, int port)
 
 static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
-	if (asic < 0 || asic >= thisboard->num_asics)
+	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
+
+	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
 	if (port < 0 || port >= PORTS_PER_ASIC)
 		return;		/* more paranoia */
@@ -698,10 +428,34 @@ static void unlock_port(struct comedi_device *dev, int asic, int port)
 }
 #endif /* notused */
 
+static void pcmuio_stop_intr(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
+{
+	int nports, firstport, asic, port;
+	struct pcmuio_private *devpriv = dev->private;
+
+	asic = subpriv->intr.asic;
+	if (asic < 0)
+		return;		/* not an interrupt subdev */
+
+	subpriv->intr.enabled_mask = 0;
+	subpriv->intr.active = 0;
+	s->async->inttrig = NULL;
+	nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
+	firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
+	switch_page(dev, asic, PAGE_ENAB);
+	for (port = firstport; port < firstport + nports; ++port) {
+		/* disable all intrs for this subdev.. */
+		outb(0, devpriv->asics[asic].iobase + REG_ENAB0 + port);
+	}
+}
+
 static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pcmuio_private *devpriv = dev->private;
+	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		if (irq == devpriv->asics[asic].irq) {
@@ -753,9 +507,8 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 				printk
 				    ("PCMUIO DEBUG: got edge detect interrupt %d asic %d which_chans: %06x\n",
 				     irq, asic, triggered);
-				for (s = dev->subdevices;
-				     s < dev->subdevices + dev->n_subdevices;
-				     ++s) {
+				for (i = 0; i < dev->n_subdevices; i++) {
+					s = &dev->subdevices[i];
 					if (subpriv->intr.asic == asic) {	/* this is an interrupt subdev, and it matches this asic! */
 						unsigned long flags;
 						unsigned oldevents;
@@ -850,30 +603,11 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void pcmuio_stop_intr(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
-{
-	int nports, firstport, asic, port;
-
-	asic = subpriv->intr.asic;
-	if (asic < 0)
-		return;		/* not an interrupt subdev */
-
-	subpriv->intr.enabled_mask = 0;
-	subpriv->intr.active = 0;
-	s->async->inttrig = 0;
-	nports = subpriv->intr.num_asic_chans / CHANS_PER_PORT;
-	firstport = subpriv->intr.asic_chan / CHANS_PER_PORT;
-	switch_page(dev, asic, PAGE_ENAB);
-	for (port = firstport; port < firstport + nports; ++port) {
-		/* disable all intrs for this subdev.. */
-		outb(0, devpriv->asics[asic].iobase + REG_ENAB0 + port);
-	}
-}
-
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmuio_private *devpriv = dev->private;
+
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -950,15 +684,14 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -EINVAL;
 
 	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
-	s->async->inttrig = 0;
-	if (subpriv->intr.active) {
+	s->async->inttrig = NULL;
+	if (subpriv->intr.active)
 		event = pcmuio_start_intr(dev, s);
-	}
+
 	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 1;
 }
@@ -1000,36 +733,239 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 0;
 }
 
-static int
-pcmuio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	       struct comedi_cmd *cmd)
+static int pcmuio_cmdtest(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_cmd *cmd)
 {
-	return comedi_pcm_cmdtest(dev, s, cmd);
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	switch (cmd->stop_src) {
+	case TRIG_COUNT:
+		/* any count allowed */
+		break;
+	case TRIG_NONE:
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		break;
+	default:
+		break;
+	}
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/* if (err) return 4; */
+
+	return 0;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __init driver_init_module(void)
+static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	return comedi_driver_register(&driver);
+	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv;
+	struct comedi_subdevice *s;
+	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
+	unsigned int irq[MAX_ASICS];
+	int ret;
+
+	irq[0] = it->options[1];
+	irq[1] = it->options[2];
+
+	ret = comedi_request_region(dev, it->options[0],
+				    board->num_asics * ASIC_IOSIZE);
+	if (ret)
+		return ret;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	for (asic = 0; asic < MAX_ASICS; ++asic) {
+		devpriv->asics[asic].num = asic;
+		devpriv->asics[asic].iobase = dev->iobase + asic * ASIC_IOSIZE;
+		devpriv->asics[asic].irq = 0;	/* this gets actually set at the end of
+						   this function when we
+						   request_irqs */
+		spin_lock_init(&devpriv->asics[asic].spinlock);
+	}
+
+	chans_left = CHANS_PER_ASIC * board->num_asics;
+	n_subdevs = CALC_N_SUBDEVS(chans_left);
+	devpriv->sprivs = kcalloc(n_subdevs,
+				  sizeof(struct pcmuio_subdev_private),
+				  GFP_KERNEL);
+	if (!devpriv->sprivs)
+		return -ENOMEM;
+
+	ret = comedi_alloc_subdevices(dev, n_subdevs);
+	if (ret)
+		return ret;
+
+	port = 0;
+	asic = 0;
+	for (sdev_no = 0; sdev_no < (int)dev->n_subdevices; ++sdev_no) {
+		int byte_no;
+
+		s = &dev->subdevices[sdev_no];
+		s->private = &devpriv->sprivs[sdev_no];
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->type = COMEDI_SUBD_DIO;
+		s->insn_bits = pcmuio_dio_insn_bits;
+		s->insn_config = pcmuio_dio_insn_config;
+		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
+		subpriv->intr.asic = -1;
+		subpriv->intr.first_chan = -1;
+		subpriv->intr.asic_chan = -1;
+		subpriv->intr.num_asic_chans = -1;
+		subpriv->intr.active = 0;
+		s->len_chanlist = 1;
+
+		/* save the ioport address for each 'port' of 8 channels in the
+		   subdevice */
+		for (byte_no = 0; byte_no < PORTS_PER_SUBDEV; ++byte_no, ++port) {
+			if (port >= PORTS_PER_ASIC) {
+				port = 0;
+				++asic;
+				thisasic_chanct = 0;
+			}
+			subpriv->iobases[byte_no] =
+			    devpriv->asics[asic].iobase + port;
+
+			if (thisasic_chanct <
+			    CHANS_PER_PORT * INTR_PORTS_PER_ASIC
+			    && subpriv->intr.asic < 0) {
+				/* this is an interrupt subdevice, so setup the struct */
+				subpriv->intr.asic = asic;
+				subpriv->intr.active = 0;
+				subpriv->intr.stop_count = 0;
+				subpriv->intr.first_chan = byte_no * 8;
+				subpriv->intr.asic_chan = thisasic_chanct;
+				subpriv->intr.num_asic_chans =
+				    s->n_chan - subpriv->intr.first_chan;
+				dev->read_subdev = s;
+				s->subdev_flags |= SDF_CMD_READ;
+				s->cancel = pcmuio_cancel;
+				s->do_cmd = pcmuio_cmd;
+				s->do_cmdtest = pcmuio_cmdtest;
+				s->len_chanlist = subpriv->intr.num_asic_chans;
+			}
+			thisasic_chanct += CHANS_PER_PORT;
+		}
+		spin_lock_init(&subpriv->intr.spinlock);
+
+		chans_left -= s->n_chan;
+
+		if (!chans_left) {
+			asic = 0;	/* reset the asic to our first asic, to do intr subdevs */
+			port = 0;
+		}
+
+	}
+
+	init_asics(dev);	/* clear out all the registers, basically */
+
+	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
+		if (irq[asic]
+		    && request_irq(irq[asic], interrupt_pcmuio,
+				   IRQF_SHARED, board->name, dev)) {
+			int i;
+			/* unroll the allocated irqs.. */
+			for (i = asic - 1; i >= 0; --i) {
+				free_irq(irq[i], dev);
+				devpriv->asics[i].irq = irq[i] = 0;
+			}
+			irq[asic] = 0;
+		}
+		devpriv->asics[asic].irq = irq[asic];
+	}
+
+	if (irq[0]) {
+		dev_dbg(dev->class_dev, "irq: %u\n", irq[0]);
+		if (irq[1] && board->num_asics == 2)
+			dev_dbg(dev->class_dev, "second ASIC irq: %u\n",
+				irq[1]);
+	} else {
+		dev_dbg(dev->class_dev, "(IRQ mode disabled)\n");
+	}
+
+
+	return 1;
 }
 
-static void __exit driver_cleanup_module(void)
+static void pcmuio_detach(struct comedi_device *dev)
 {
-	comedi_driver_unregister(&driver);
+	struct pcmuio_private *devpriv = dev->private;
+	int i;
+
+	for (i = 0; i < MAX_ASICS; ++i) {
+		if (devpriv->asics[i].irq)
+			free_irq(devpriv->asics[i].irq, dev);
+	}
+	if (devpriv && devpriv->sprivs)
+		kfree(devpriv->sprivs);
+	comedi_legacy_detach(dev);
 }
 
-module_init(driver_init_module);
-module_exit(driver_cleanup_module);
+static const struct pcmuio_board pcmuio_boards[] = {
+	{
+		.name		= "pcmuio48",
+		.num_asics	= 1,
+		.num_ports	= 6,
+	}, {
+		.name		= "pcmuio96",
+		.num_asics	= 2,
+		.num_ports	= 12,
+	},
+};
+
+static struct comedi_driver pcmuio_driver = {
+	.driver_name	= "pcmuio",
+	.module		= THIS_MODULE,
+	.attach		= pcmuio_attach,
+	.detach		= pcmuio_detach,
+	.board_name	= &pcmuio_boards[0].name,
+	.offset		= sizeof(struct pcmuio_board),
+	.num_names	= ARRAY_SIZE(pcmuio_boards),
+};
+module_comedi_driver(pcmuio_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

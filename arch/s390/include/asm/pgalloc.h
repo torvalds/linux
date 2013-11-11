@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/pgalloc.h
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Hartmut Penner (hp@de.ibm.com)
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -20,12 +18,9 @@
 unsigned long *crst_table_alloc(struct mm_struct *);
 void crst_table_free(struct mm_struct *, unsigned long *);
 
-unsigned long *page_table_alloc(struct mm_struct *);
+unsigned long *page_table_alloc(struct mm_struct *, unsigned long);
 void page_table_free(struct mm_struct *, unsigned long *);
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 void page_table_free_rcu(struct mmu_gather *, unsigned long *);
-void __tlb_remove_table(void *_table);
-#endif
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
@@ -51,7 +46,7 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 	clear_table(crst, entry, sizeof(unsigned long)*2048);
 }
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
@@ -67,7 +62,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 #define pgd_populate(mm, pgd, pud)		BUG()
 #define pud_populate(mm, pud, pmd)		BUG()
 
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
@@ -109,12 +104,13 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
 }
 
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	spin_lock_init(&mm->context.list_lock);
 	INIT_LIST_HEAD(&mm->context.pgtable_list);
+	INIT_LIST_HEAD(&mm->context.gmap_list);
 	return (pgd_t *) crst_table_alloc(mm);
 }
 #define pgd_free(mm, pgd) crst_table_free(mm, (unsigned long *) pgd)
@@ -133,8 +129,8 @@ static inline void pmd_populate(struct mm_struct *mm,
 /*
  * page table entry allocation/free routines.
  */
-#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
-#define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm))
+#define pte_alloc_one_kernel(mm, vmaddr) ((pte_t *) page_table_alloc(mm, vmaddr))
+#define pte_alloc_one(mm, vmaddr) ((pte_t *) page_table_alloc(mm, vmaddr))
 
 #define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
 #define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)

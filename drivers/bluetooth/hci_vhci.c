@@ -41,6 +41,8 @@
 
 #define VERSION "1.3"
 
+static bool amp;
+
 struct vhci_data {
 	struct hci_dev *hdev;
 
@@ -59,7 +61,7 @@ static int vhci_open_dev(struct hci_dev *hdev)
 
 static int vhci_close_dev(struct hci_dev *hdev)
 {
-	struct vhci_data *data = hdev->driver_data;
+	struct vhci_data *data = hci_get_drvdata(hdev);
 
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
@@ -71,7 +73,7 @@ static int vhci_close_dev(struct hci_dev *hdev)
 
 static int vhci_flush(struct hci_dev *hdev)
 {
-	struct vhci_data *data = hdev->driver_data;
+	struct vhci_data *data = hci_get_drvdata(hdev);
 
 	skb_queue_purge(&data->readq);
 
@@ -91,7 +93,7 @@ static int vhci_send_frame(struct sk_buff *skb)
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
 
-	data = hdev->driver_data;
+	data = hci_get_drvdata(hdev);
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&data->readq, skb);
@@ -99,11 +101,6 @@ static int vhci_send_frame(struct sk_buff *skb)
 	wake_up_interruptible(&data->read_wait);
 
 	return 0;
-}
-
-static void vhci_destruct(struct hci_dev *hdev)
-{
-	kfree(hdev->driver_data);
 }
 
 static inline ssize_t vhci_get_user(struct vhci_data *data,
@@ -159,7 +156,7 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 	case HCI_SCODATA_PKT:
 		data->hdev->stat.sco_tx++;
 		break;
-	};
+	}
 
 	return total;
 }
@@ -237,15 +234,15 @@ static int vhci_open(struct inode *inode, struct file *file)
 	data->hdev = hdev;
 
 	hdev->bus = HCI_VIRTUAL;
-	hdev->driver_data = data;
+	hci_set_drvdata(hdev, data);
+
+	if (amp)
+		hdev->dev_type = HCI_AMP;
 
 	hdev->open     = vhci_open_dev;
 	hdev->close    = vhci_close_dev;
 	hdev->flush    = vhci_flush;
 	hdev->send     = vhci_send_frame;
-	hdev->destruct = vhci_destruct;
-
-	hdev->owner = THIS_MODULE;
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
@@ -255,8 +252,9 @@ static int vhci_open(struct inode *inode, struct file *file)
 	}
 
 	file->private_data = data;
+	nonseekable_open(inode, file);
 
-	return nonseekable_open(inode, file);
+	return 0;
 }
 
 static int vhci_release(struct inode *inode, struct file *file)
@@ -264,13 +262,11 @@ static int vhci_release(struct inode *inode, struct file *file)
 	struct vhci_data *data = file->private_data;
 	struct hci_dev *hdev = data->hdev;
 
-	if (hci_unregister_dev(hdev) < 0) {
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-	}
-
+	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
 	file->private_data = NULL;
+	kfree(data);
 
 	return 0;
 }
@@ -305,6 +301,9 @@ static void __exit vhci_exit(void)
 
 module_init(vhci_init);
 module_exit(vhci_exit);
+
+module_param(amp, bool, 0644);
+MODULE_PARM_DESC(amp, "Create AMP controller device");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);

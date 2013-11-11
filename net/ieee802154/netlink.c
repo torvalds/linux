@@ -44,7 +44,7 @@ struct genl_family nl802154_family = {
 struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 {
 	void *hdr;
-	struct sk_buff *msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	unsigned long f;
 
 	if (!msg)
@@ -64,8 +64,8 @@ struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 
 int ieee802154_nl_mcast(struct sk_buff *msg, unsigned int group)
 {
-	/* XXX: nlh is right at the start of msg */
-	void *hdr = genlmsg_data(NLMSG_DATA(msg->data));
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
+	void *hdr = genlmsg_data(nlmsg_data(nlh));
 
 	if (genlmsg_end(msg, hdr) < 0)
 		goto out;
@@ -80,7 +80,7 @@ struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
 		int flags, u8 req)
 {
 	void *hdr;
-	struct sk_buff *msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	struct sk_buff *msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 
 	if (!msg)
 		return NULL;
@@ -97,8 +97,8 @@ struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
 
 int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info)
 {
-	/* XXX: nlh is right at the start of msg */
-	void *hdr = genlmsg_data(NLMSG_DATA(msg->data));
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
+	void *hdr = genlmsg_data(nlmsg_data(nlh));
 
 	if (genlmsg_end(msg, hdr) < 0)
 		goto out;

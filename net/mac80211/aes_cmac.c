@@ -10,13 +10,14 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/export.h>
 #include <linux/err.h>
+#include <crypto/aes.h>
 
 #include <net/mac80211.h>
 #include "key.h"
 #include "aes_cmac.h"
 
-#define AES_BLOCK_SIZE 16
 #define AES_CMAC_KEY_LEN 16
 #define CMAC_TLEN 8 /* CMAC TLen = 64 bits (8 octets) */
 #define AAD_LEN 20
@@ -35,16 +36,12 @@ static void gf_mulx(u8 *pad)
 }
 
 
-static void aes_128_cmac_vector(struct crypto_cipher *tfm, u8 *scratch,
-				size_t num_elem,
+static void aes_128_cmac_vector(struct crypto_cipher *tfm, size_t num_elem,
 				const u8 *addr[], const size_t *len, u8 *mac)
 {
-	u8 *cbc, *pad;
+	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	const u8 *pos, *end;
 	size_t i, e, left, total_len;
-
-	cbc = scratch;
-	pad = scratch + AES_BLOCK_SIZE;
 
 	memset(cbc, 0, AES_BLOCK_SIZE);
 
@@ -95,7 +92,7 @@ static void aes_128_cmac_vector(struct crypto_cipher *tfm, u8 *scratch,
 }
 
 
-void ieee80211_aes_cmac(struct crypto_cipher *tfm, u8 *scratch, const u8 *aad,
+void ieee80211_aes_cmac(struct crypto_cipher *tfm, const u8 *aad,
 			const u8 *data, size_t data_len, u8 *mic)
 {
 	const u8 *addr[3];
@@ -110,7 +107,7 @@ void ieee80211_aes_cmac(struct crypto_cipher *tfm, u8 *scratch, const u8 *aad,
 	addr[2] = zero;
 	len[2] = CMAC_TLEN;
 
-	aes_128_cmac_vector(tfm, scratch, 3, addr, len, mic);
+	aes_128_cmac_vector(tfm, 3, addr, len, mic);
 }
 
 
@@ -130,3 +127,20 @@ void ieee80211_aes_cmac_key_free(struct crypto_cipher *tfm)
 {
 	crypto_free_cipher(tfm);
 }
+
+void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
+					u8 *k1, u8 *k2)
+{
+	u8 l[AES_BLOCK_SIZE] = {};
+	struct ieee80211_key *key =
+		container_of(keyconf, struct ieee80211_key, conf);
+
+	crypto_cipher_encrypt_one(key->u.aes_cmac.tfm, l, l);
+
+	memcpy(k1, l, AES_BLOCK_SIZE);
+	gf_mulx(k1);
+
+	memcpy(k2, k1, AES_BLOCK_SIZE);
+	gf_mulx(k2);
+}
+EXPORT_SYMBOL(ieee80211_aes_cmac_calculate_k1_k2);

@@ -22,8 +22,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "drmP.h"
-#include "savage_drm.h"
+#include <drm/drmP.h>
+#include <drm/savage_drm.h>
 #include "savage_drv.h"
 
 /* Need a long timeout for shadow status updates can take a while
@@ -547,6 +547,8 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->chipset = (enum savage_family)chipset;
 
+	pci_set_master(dev->pdev);
+
 	return 0;
 }
 
@@ -735,7 +737,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 			return -EINVAL;
 		}
 		drm_core_ioremap(dev->agp_buffer_map, dev);
-		if (!dev->agp_buffer_map) {
+		if (!dev->agp_buffer_map->handle) {
 			DRM_ERROR("failed to ioremap DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
 			return -ENOMEM;
@@ -1050,6 +1052,7 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
+	int release_idlelock = 0;
 	int i;
 
 	if (!dma)
@@ -1059,7 +1062,10 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 	if (!dma->buflist)
 		return;
 
-	/*i830_flush_queue(dev); */
+	if (file_priv->master && file_priv->master->lock.hw_lock) {
+		drm_idlelock_take(&file_priv->master->lock);
+		release_idlelock = 1;
+	}
 
 	for (i = 0; i < dma->buf_count; i++) {
 		struct drm_buf *buf = dma->buflist[i];
@@ -1075,7 +1081,8 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 		}
 	}
 
-	drm_core_reclaim_buffers(dev, file_priv);
+	if (release_idlelock)
+		drm_idlelock_release(&file_priv->master->lock);
 }
 
 struct drm_ioctl_desc savage_ioctls[] = {

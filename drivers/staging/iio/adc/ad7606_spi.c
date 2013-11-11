@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "ad7606.h"
 
 #define MAX_SPI_FREQ_HZ		23500000	/* VDRIVE above 4.75 V */
@@ -39,7 +39,7 @@ static const struct ad7606_bus_ops ad7606_spi_bops = {
 	.read_block	= ad7606_spi_read_block,
 };
 
-static int __devinit ad7606_spi_probe(struct spi_device *spi)
+static int ad7606_spi_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 
@@ -55,11 +55,11 @@ static int __devinit ad7606_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit ad7606_spi_remove(struct spi_device *spi)
+static int ad7606_spi_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi->dev);
 
-	return ad7606_remove(indio_dev);
+	return ad7606_remove(indio_dev, spi->irq);
 }
 
 #ifdef CONFIG_PM
@@ -97,32 +97,20 @@ static const struct spi_device_id ad7606_id[] = {
 	{"ad7606-4", ID_AD7606_4},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad7606_id);
 
 static struct spi_driver ad7606_driver = {
 	.driver = {
 		.name = "ad7606",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 		.pm    = AD7606_SPI_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
-	.remove = __devexit_p(ad7606_spi_remove),
+	.remove = ad7606_spi_remove,
 	.id_table = ad7606_id,
 };
-
-static int __init ad7606_spi_init(void)
-{
-	return spi_register_driver(&ad7606_driver);
-}
-module_init(ad7606_spi_init);
-
-static void __exit ad7606_spi_exit(void)
-{
-	spi_unregister_driver(&ad7606_driver);
-}
-module_exit(ad7606_spi_exit);
+module_spi_driver(ad7606_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:ad7606_spi");

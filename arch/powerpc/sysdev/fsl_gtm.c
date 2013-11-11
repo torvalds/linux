@@ -1,7 +1,7 @@
 /*
  * Freescale General-purpose Timers Module
  *
- * Copyright (c) Freescale Semicondutor, Inc. 2006.
+ * Copyright (c) Freescale Semiconductor, Inc. 2006.
  *               Shlomi Gridish <gridish@freescale.com>
  *               Jerry Huang <Chang-Ming.Huang@freescale.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <asm/fsl_gtm.h>
 
 #define GTCFR_STP(x)		((x) & 1 ? 1 << 5 : 1 << 1)

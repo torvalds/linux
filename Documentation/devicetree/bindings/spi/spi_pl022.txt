@@ -1,0 +1,70 @@
+ARM PL022 SPI controller
+
+Required properties:
+- compatible : "arm,pl022", "arm,primecell"
+- reg : Offset and length of the register set for the device
+- interrupts : Should contain SPI controller interrupt
+
+Optional properties:
+- num-cs : total number of chipselects
+- cs-gpios : should specify GPIOs used for chipselects.
+  The gpios will be referred to as reg = <index> in the SPI child nodes.
+  If unspecified, a single SPI device without a chip select can be used.
+- pl022,autosuspend-delay : delay in ms following transfer completion before
+			    the runtime power management system suspends the
+			    device. A setting of 0 indicates no delay and the
+                            device will be suspended immediately
+- pl022,rt : indicates the controller should run the message pump with realtime
+             priority to minimise the transfer latency on the bus (boolean)
+- dmas : Two or more DMA channel specifiers following the convention outlined
+         in bindings/dma/dma.txt
+- dma-names: Names for the dma channels, if present. There must be at
+	     least one channel named "tx" for transmit and named "rx" for
+             receive.
+
+
+SPI slave nodes must be children of the SPI master node and can
+contain the following properties.
+
+- pl022,interface : interface type:
+	0: SPI
+	1: Texas Instruments Synchronous Serial Frame Format
+	2: Microwire (Half Duplex)
+- pl022,com-mode : polling, interrupt or dma
+- pl022,rx-level-trig : Rx FIFO watermark level
+- pl022,tx-level-trig : Tx FIFO watermark level
+- pl022,ctrl-len : Microwire interface: Control length
+- pl022,wait-state : Microwire interface: Wait state
+- pl022,duplex : Microwire interface: Full/Half duplex
+
+
+Example:
+
+	spi@e0100000 {
+		compatible = "arm,pl022", "arm,primecell";
+		reg = <0xe0100000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 31 0x4>;
+		dmas = <&dma-controller 23 1>,
+			<&dma-controller 24 0>;
+		dma-names = "rx", "tx";
+
+		m25p80@1 {
+			compatible = "st,m25p80";
+			reg = <1>;
+			spi-max-frequency = <12000000>;
+			spi-cpol;
+			spi-cpha;
+			pl022,hierarchy = <0>;
+			pl022,interface = <0>;
+			pl022,slave-tx-disable;
+			pl022,com-mode = <0x2>;
+			pl022,rx-level-trig = <0>;
+			pl022,tx-level-trig = <0>;
+			pl022,ctrl-len = <0x11>;
+			pl022,wait-state = <0>;
+			pl022,duplex = <0>;
+		};
+	};
+	

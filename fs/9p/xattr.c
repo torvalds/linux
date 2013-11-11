@@ -32,8 +32,8 @@ ssize_t v9fs_fid_xattr_get(struct p9_fid *fid, const char *name,
 	attr_fid = p9_client_xattrwalk(fid, name, &attr_size);
 	if (IS_ERR(attr_fid)) {
 		retval = PTR_ERR(attr_fid);
-		P9_DPRINTK(P9_DEBUG_VFS,
-			"p9_client_attrwalk failed %zd\n", retval);
+		p9_debug(P9_DEBUG_VFS, "p9_client_attrwalk failed %zd\n",
+			 retval);
 		attr_fid = NULL;
 		goto error;
 	}
@@ -87,8 +87,8 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 {
 	struct p9_fid *fid;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "%s: name = %s value_len = %zu\n",
-		__func__, name, buffer_size);
+	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu\n",
+		 name, buffer_size);
 	fid = v9fs_fid_lookup(dentry);
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
@@ -111,27 +111,35 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+	return v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+}
+
+int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
+		   const void *value, size_t value_len, int flags)
+{
 	u64 offset = 0;
 	int retval, msize, write_count;
-	struct p9_fid *fid = NULL;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "%s: name = %s value_len = %zu flags = %d\n",
-		__func__, name, value_len, flags);
+	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu flags = %d\n",
+		 name, value_len, flags);
 
-	fid = v9fs_fid_clone(dentry);
-	if (IS_ERR(fid)) {
-		retval = PTR_ERR(fid);
-		fid = NULL;
-		goto error;
-	}
+	/* Clone it */
+	fid = p9_client_walk(fid, 0, NULL, 1);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+
 	/*
 	 * On success fid points to xattr
 	 */
 	retval = p9_client_xattrcreate(fid, name, value_len, flags);
 	if (retval < 0) {
-		P9_DPRINTK(P9_DEBUG_VFS,
-			"p9_client_xattrcreate failed %d\n", retval);
-		goto error;
+		p9_debug(P9_DEBUG_VFS, "p9_client_xattrcreate failed %d\n",
+			 retval);
+		p9_client_clunk(fid);
+		return retval;
 	}
 	msize = fid->clnt->msize;
 	while (value_len) {
@@ -144,17 +152,12 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		if (write_count < 0) {
 			/* error in xattr write */
 			retval = write_count;
-			goto error;
+			break;
 		}
 		offset += write_count;
 		value_len -= write_count;
 	}
-	/* Total read xattr bytes */
-	retval = offset;
-error:
-	if (fid)
-		retval = p9_client_clunk(fid);
-	return retval;
+	return p9_client_clunk(fid);
 }
 
 ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)

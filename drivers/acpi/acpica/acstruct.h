@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
  ****************************************************************************/
 
 /*
- * Walk state - current state of a parse tree walk.  Used for both a leisurely
+ * Walk state - current state of a parse tree walk. Used for both a leisurely
  * stroll through the tree (for whatever reason), and for control method
  * execution.
  */
@@ -68,7 +68,7 @@
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
 
-/* Flags for i_aSL compiler only */
+/* Flags for iASL compiler only */
 
 #define ACPI_WALK_CONST_REQUIRED    0x10
 #define ACPI_WALK_CONST_OPTIONAL    0x20

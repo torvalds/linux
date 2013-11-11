@@ -12,10 +12,13 @@
  */
 
 struct dst_entry;
+struct neighbour;
 
 struct netevent_redirect {
 	struct dst_entry *old;
 	struct dst_entry *new;
+	struct neighbour *neigh;
+	const void *daddr;
 };
 
 enum netevent_notif_type {

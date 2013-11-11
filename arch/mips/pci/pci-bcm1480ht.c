@@ -53,8 +53,8 @@
 
 static void *ht_cfg_space;
 
-#define PCI_BUS_ENABLED	1
-#define PCI_DEVICE_MODE	2
+#define PCI_BUS_ENABLED 1
+#define PCI_DEVICE_MODE 2
 
 static int bcm1480ht_bus_status;
 
@@ -191,7 +191,7 @@ struct pci_controller bcm1480ht_controller = {
 	.io_resource	= &bcm1480ht_io_resource,
 	.index		= 1,
 	.get_busno	= bcm1480ht_pcibios_get_busno,
-	.io_offset      = A_BCM1480_PHYS_HT_IO_MATCH_BYTES,
+	.io_offset	= A_BCM1480_PHYS_HT_IO_MATCH_BYTES,
 };
 
 static int __init bcm1480ht_pcibios_init(void)

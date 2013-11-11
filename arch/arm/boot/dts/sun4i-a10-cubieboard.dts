@@ -1,0 +1,62 @@
+/*
+ * Copyright 2012 Stefan Roese
+ * Stefan Roese <sr@denx.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "sun4i-a10.dtsi"
+
+/ {
+	model = "Cubietech Cubieboard";
+	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	chosen {
+		bootargs = "earlyprintk console=ttyS0,115200";
+	};
+
+	soc@01c20000 {
+		pinctrl@01c20800 {
+			led_pins_cubieboard: led_pins@0 {
+				allwinner,pins = "PH20", "PH21";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <1>;
+				allwinner,pull = <0>;
+			};
+		};
+
+		uart0: serial@01c28000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_pins_a>;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_cubieboard>;
+
+		blue {
+			label = "cubieboard::blue";
+			gpios = <&pio 7 21 0>; /* LED1 */
+		};
+
+		green {
+			label = "cubieboard::green";
+			gpios = <&pio 7 20 0>; /* LED2 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};

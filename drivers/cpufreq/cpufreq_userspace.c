@@ -11,6 +11,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -47,9 +49,11 @@ userspace_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (!per_cpu(cpu_is_managed, freq->cpu))
 		return 0;
 
-	pr_debug("saving cpu_cur_freq of cpu %u to be %u kHz\n",
-			freq->cpu, freq->new);
-	per_cpu(cpu_cur_freq, freq->cpu) = freq->new;
+	if (val == CPUFREQ_POSTCHANGE) {
+		pr_debug("saving cpu_cur_freq of cpu %u to be %u kHz\n",
+				freq->cpu, freq->new);
+		per_cpu(cpu_cur_freq, freq->cpu) = freq->new;
+	}
 
 	return 0;
 }
@@ -114,8 +118,6 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if (!cpu_online(cpu))
-			return -EINVAL;
 		BUG_ON(!policy->cur);
 		mutex_lock(&userspace_mutex);
 

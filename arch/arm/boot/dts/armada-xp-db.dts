@@ -1,0 +1,160 @@
+/*
+ * Device Tree file for Marvell Armada XP evaluation board
+ * (DB-78460-BP)
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "armada-xp-mv78460.dtsi"
+
+/ {
+	model = "Marvell Armada XP Evaluation Board";
+	compatible = "marvell,axp-db", "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0x80000000>; /* 2 GB */
+	};
+
+	soc {
+		internal-regs {
+			serial@12000 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12100 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12200 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+			serial@12300 {
+				clock-frequency = <250000000>;
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+
+				phy2: ethernet-phy@2 {
+					reg = <25>;
+				};
+
+				phy3: ethernet-phy@3 {
+					reg = <27>;
+				};
+			};
+
+			ethernet@70000 {
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@30000 {
+				status = "okay";
+				phy = <&phy2>;
+				phy-mode = "sgmii";
+			};
+			ethernet@34000 {
+				status = "okay";
+				phy = <&phy3>;
+				phy-mode = "sgmii";
+			};
+
+			mvsdio@d4000 {
+				pinctrl-0 = <&sdio_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				/* No CD or WP GPIOs */
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+
+			usb@51000 {
+				status = "okay";
+			};
+
+			usb@52000 {
+				status = "okay";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "m25p64";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <20000000>;
+				};
+			};
+
+			pcie-controller {
+				status = "okay";
+
+				/*
+				 * All 6 slots are physically present as
+				 * standard PCIe slots on the board.
+				 */
+				pcie@1,0 {
+					/* Port 0, Lane 0 */
+					status = "okay";
+				};
+				pcie@2,0 {
+					/* Port 0, Lane 1 */
+					status = "okay";
+				};
+				pcie@3,0 {
+					/* Port 0, Lane 2 */
+					status = "okay";
+				};
+				pcie@4,0 {
+					/* Port 0, Lane 3 */
+					status = "okay";
+				};
+				pcie@9,0 {
+					/* Port 2, Lane 0 */
+					status = "okay";
+				};
+				pcie@10,0 {
+					/* Port 3, Lane 0 */
+					status = "okay";
+				};
+			};
+		};
+	};
+};

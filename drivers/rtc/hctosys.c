@@ -22,8 +22,6 @@
  * the best guess is to add 0.5s.
  */
 
-int rtc_hctosys_ret = -ENODEV;
-
 static int __init rtc_hctosys(void)
 {
 	int err = -ENODEV;
@@ -56,7 +54,7 @@ static int __init rtc_hctosys(void)
 
 	rtc_tm_to_time(&tm, &tv.tv_sec);
 
-	do_settimeofday(&tv);
+	err = do_settimeofday(&tv);
 
 	dev_info(rtc->dev.parent,
 		"setting system clock to "

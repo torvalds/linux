@@ -124,8 +124,9 @@
    by default.
 
 */
+#include <linux/types.h>
 
-static int verbose = 0;
+static bool verbose = 0;
 static int major = PD_MAJOR;
 static char *name = PD_NAME;
 static int cluster = 64;
@@ -782,7 +783,7 @@ static int pd_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
-static int pd_release(struct gendisk *p, fmode_t mode)
+static void pd_release(struct gendisk *p, fmode_t mode)
 {
 	struct pd_unit *disk = p->private_data;
 
@@ -790,8 +791,6 @@ static int pd_release(struct gendisk *p, fmode_t mode)
 	if (!--disk->access && disk->removable)
 		pd_special_command(disk, pd_door_unlock);
 	mutex_unlock(&pd_mutex);
-
-	return 0;
 }
 
 static unsigned int pd_check_events(struct gendisk *p, unsigned int clearing)

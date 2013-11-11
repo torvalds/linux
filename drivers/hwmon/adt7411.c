@@ -8,14 +8,13 @@
  *  published by the Free Software Foundation.
  *
  *  TODO: SPI, support for external temperature sensor
- * 	  use power-down mode for suspend?, interrupt handling?
+ *	  use power-down mode for suspend?, interrupt handling?
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
@@ -197,7 +196,7 @@ static ssize_t adt7411_set_bit(struct device *dev,
 	int ret;
 	unsigned long flag;
 
-	ret = strict_strtoul(buf, 0, &flag);
+	ret = kstrtoul(buf, 0, &flag);
 	if (ret || flag > 1)
 		return -EINVAL;
 
@@ -260,15 +259,17 @@ static int adt7411_detect(struct i2c_client *client,
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_MANUFACTURER_ID);
 	if (val < 0 || val != ADT7411_MANUFACTURER_ID) {
-		dev_dbg(&client->dev, "Wrong manufacturer ID. Got %d, "
-			"expected %d\n", val, ADT7411_MANUFACTURER_ID);
+		dev_dbg(&client->dev,
+			"Wrong manufacturer ID. Got %d, expected %d\n",
+			val, ADT7411_MANUFACTURER_ID);
 		return -ENODEV;
 	}
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_DEVICE_ID);
 	if (val < 0 || val != ADT7411_DEVICE_ID) {
-		dev_dbg(&client->dev, "Wrong device ID. Got %d, "
-			"expected %d\n", val, ADT7411_DEVICE_ID);
+		dev_dbg(&client->dev,
+			"Wrong device ID. Got %d, expected %d\n",
+			val, ADT7411_DEVICE_ID);
 		return -ENODEV;
 	}
 
@@ -277,13 +278,13 @@ static int adt7411_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int __devinit adt7411_probe(struct i2c_client *client,
+static int adt7411_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct adt7411_data *data;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -294,14 +295,14 @@ static int __devinit adt7411_probe(struct i2c_client *client,
 	ret = adt7411_modify_bit(client, ADT7411_REG_CFG1,
 				 ADT7411_CFG1_START_MONITOR, 1);
 	if (ret < 0)
-		goto exit_free;
+		return ret;
 
 	/* force update on first occasion */
 	data->next_update = jiffies;
 
 	ret = sysfs_create_group(&client->dev.kobj, &adt7411_attr_grp);
 	if (ret)
-		goto exit_free;
+		return ret;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -315,18 +316,15 @@ static int __devinit adt7411_probe(struct i2c_client *client,
 
  exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
- exit_free:
-	kfree(data);
 	return ret;
 }
 
-static int __devexit adt7411_remove(struct i2c_client *client)
+static int adt7411_remove(struct i2c_client *client)
 {
 	struct adt7411_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adt7411_attr_grp);
-	kfree(data);
 	return 0;
 }
 
@@ -341,24 +339,14 @@ static struct i2c_driver adt7411_driver = {
 		.name		= "adt7411",
 	},
 	.probe  = adt7411_probe,
-	.remove	= __devexit_p(adt7411_remove),
+	.remove	= adt7411_remove,
 	.id_table = adt7411_id,
 	.detect = adt7411_detect,
 	.address_list = normal_i2c,
 	.class = I2C_CLASS_HWMON,
 };
 
-static int __init sensors_adt7411_init(void)
-{
-	return i2c_add_driver(&adt7411_driver);
-}
-module_init(sensors_adt7411_init)
-
-static void __exit sensors_adt7411_exit(void)
-{
-	i2c_del_driver(&adt7411_driver);
-}
-module_exit(sensors_adt7411_exit)
+module_i2c_driver(adt7411_driver);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de> and "
 	"Wolfram Sang <w.sang@pengutronix.de>");

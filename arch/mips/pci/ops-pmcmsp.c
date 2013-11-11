@@ -9,8 +9,8 @@
  * Much of the code is derived from the original DDB5074 port by
  * Geert Uytterhoeven <geert@sonycom.com>
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
@@ -53,96 +53,84 @@ static void pci_proc_init(void);
 
 /*****************************************************************************
  *
- *  FUNCTION: read_msp_pci_counts
+ *  FUNCTION: show_msp_pci_counts
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Prints the count of how many times each PCI
- *               interrupt has asserted. Can be invoked by the
- *               /proc filesystem.
+ *		 interrupt has asserted. Can be invoked by the
+ *		 /proc filesystem.
  *
- *  INPUTS:      page    - part of STDOUT calculation
- *               off     - part of STDOUT calculation
- *               count   - part of STDOUT calculation
- *               data    - unused
+ *  INPUTS:	 m	 - synthetic file construction data
+ *		 v	 - iterator
  *
- *  OUTPUTS:     start   - new start location
- *               eof     - end of file pointer
- *
- *  RETURNS:     len     - STDOUT length
+ *  RETURNS:	 0 or error
  *
  ****************************************************************************/
-static int read_msp_pci_counts(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int show_msp_pci_counts(struct seq_file *m, void *v)
 {
 	int i;
-	int len = 0;
 	unsigned int intcount, total = 0;
 
 	for (i = 0; i < 32; ++i) {
 		intcount = pci_int_count[i];
 		if (intcount != 0) {
-			len += sprintf(page + len, "[%d] = %u\n", i, intcount);
+			seq_printf(m, "[%d] = %u\n", i, intcount);
 			total += intcount;
 		}
 	}
 
-	len += sprintf(page + len, "total = %u\n", total);
-	if (len <= off+count)
-		*eof = 1;
-
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-
-	return len;
+	seq_printf(m, "total = %u\n", total);
+	return 0;
 }
+
+static int msp_pci_rd_cnt_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_msp_pci_counts, NULL);
+}
+
+static const struct file_operations msp_pci_rd_cnt_fops = {
+	.open		= msp_pci_rd_cnt_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*****************************************************************************
  *
- *  FUNCTION: gen_pci_cfg_wr
+ *  FUNCTION: gen_pci_cfg_wr_show
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Generates a configuration write cycle for debug purposes.
- *               The IDSEL line asserted and location and data written are
- *               immaterial. Just want to be able to prove that a
- *               configuration write can be correctly generated on the
- *               PCI bus.  Intent is that this function by invocable from
- *               the /proc filesystem.
+ *		 The IDSEL line asserted and location and data written are
+ *		 immaterial. Just want to be able to prove that a
+ *		 configuration write can be correctly generated on the
+ *		 PCI bus.  Intent is that this function by invocable from
+ *		 the /proc filesystem.
  *
- *  INPUTS:      page    - part of STDOUT calculation
- *               off     - part of STDOUT calculation
- *               count   - part of STDOUT calculation
- *               data    - unused
+ *  INPUTS:	 m	 - synthetic file construction data
+ *		 v	 - iterator
  *
- *  OUTPUTS:     start   - new start location
- *               eof     - end of file pointer
- *
- *  RETURNS:     len     - STDOUT length
+ *  RETURNS:	 0 or error
  *
  ****************************************************************************/
-static int gen_pci_cfg_wr(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int gen_pci_cfg_wr_show(struct seq_file *m, void *v)
 {
 	unsigned char where = 0; /* Write to static Device/Vendor ID */
 	unsigned char bus_num = 0; /* Bus 0 */
 	unsigned char dev_fn = 0xF; /* Arbitrary device number */
 	u32 wr_data = 0xFF00AA00; /* Arbitrary data */
 	struct msp_pci_regs *preg = (void *)PCI_BASE_REG;
-	int len = 0;
 	unsigned long value;
 	int intr;
 
-	len += sprintf(page + len, "PMC MSP PCI: Beginning\n");
+	seq_puts(m, "PMC MSP PCI: Beginning\n");
 
 	if (proc_init == 0) {
 		pci_proc_init();
 		proc_init = ~0;
 	}
 
-	len += sprintf(page + len, "PMC MSP PCI: Before Cfg Wr\n");
+	seq_puts(m, "PMC MSP PCI: Before Cfg Wr\n");
 
 	/*
 	 * Generate PCI Configuration Write Cycle
@@ -168,20 +156,21 @@ static int gen_pci_cfg_wr(char *page, char **start, off_t off,
 	 */
 	intr = preg->if_status;
 
-	len += sprintf(page + len, "PMC MSP PCI: After Cfg Wr\n");
-
-	/* Handle STDOUT calculations */
-	if (len <= off+count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-
-	return len;
+	seq_puts(m, "PMC MSP PCI: After Cfg Wr\n");
+	return 0;
 }
+
+static int gen_pci_cfg_wr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gen_pci_cfg_wr_show, NULL);
+}
+
+static const struct file_operations gen_pci_cfg_wr_fops = {
+	.open		= gen_pci_cfg_wr_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*****************************************************************************
  *
@@ -190,19 +179,17 @@ static int gen_pci_cfg_wr(char *page, char **start, off_t off,
  *
  *  DESCRIPTION: Create entries in the /proc filesystem for debug access.
  *
- *  INPUTS:      none
+ *  INPUTS:	 none
  *
- *  OUTPUTS:     none
+ *  OUTPUTS:	 none
  *
- *  RETURNS:     none
+ *  RETURNS:	 none
  *
  ****************************************************************************/
 static void pci_proc_init(void)
 {
-	create_proc_read_entry("pmc_msp_pci_rd_cnt", 0, NULL,
-				read_msp_pci_counts, NULL);
-	create_proc_read_entry("pmc_msp_pci_cfg_wr", 0, NULL,
-				gen_pci_cfg_wr, NULL);
+	proc_create("pmc_msp_pci_rd_cnt", 0, NULL, &msp_pci_rd_cnt_fops);
+	proc_create("pmc_msp_pci_cfg_wr", 0, NULL, &gen_pci_cfg_wr_fops);
 }
 #endif /* CONFIG_PROC_FS && PCI_COUNTERS */
 
@@ -214,44 +201,44 @@ static DEFINE_SPINLOCK(bpci_lock);
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Defines the address range that pciauto() will use to
- *               assign to the I/O BARs of PCI devices.
+ *		 assign to the I/O BARs of PCI devices.
  *
- *               Use the start and end addresses of the MSP7120 PCI Host
- *               Controller I/O space, in the form that they appear on the
- *               PCI bus AFTER MSP7120 has performed address translation.
+ *		 Use the start and end addresses of the MSP7120 PCI Host
+ *		 Controller I/O space, in the form that they appear on the
+ *		 PCI bus AFTER MSP7120 has performed address translation.
  *
- *               For I/O accesses, MSP7120 ignores OATRAN and maps I/O
- *               accesses into the bottom 0xFFF region of address space,
- *               so that is the range to put into the pci_io_resource
- *               struct.
+ *		 For I/O accesses, MSP7120 ignores OATRAN and maps I/O
+ *		 accesses into the bottom 0xFFF region of address space,
+ *		 so that is the range to put into the pci_io_resource
+ *		 struct.
  *
- *               In MSP4200, the start address was 0x04 instead of the
- * 		 expected 0x00. Will just assume there was a good reason
- * 		 for this!
+ *		 In MSP4200, the start address was 0x04 instead of the
+ *		 expected 0x00. Will just assume there was a good reason
+ *		 for this!
  *
- *  NOTES:       Linux, by default, will assign I/O space to the lowest
- *               region of address space. Since MSP7120 and Linux,
- *               by default, have no offset in between how they map, the
- *               io_offset element of pci_controller struct should be set
- *               to zero.
+ *  NOTES:	 Linux, by default, will assign I/O space to the lowest
+ *		 region of address space. Since MSP7120 and Linux,
+ *		 by default, have no offset in between how they map, the
+ *		 io_offset element of pci_controller struct should be set
+ *		 to zero.
  *  ELEMENTS:
- *    name       - String used for a meaningful name.
+ *    name	 - String used for a meaningful name.
  *
- *    start      - Start address of MSP7120's I/O space, as MSP7120 presents
- *                 the address on the PCI bus.
+ *    start	 - Start address of MSP7120's I/O space, as MSP7120 presents
+ *		   the address on the PCI bus.
  *
- *    end        - End address of MSP7120's I/O space, as MSP7120 presents
- *                 the address on the PCI bus.
+ *    end	 - End address of MSP7120's I/O space, as MSP7120 presents
+ *		   the address on the PCI bus.
  *
- *    flags      - Attributes indicating the type of resource. In this case,
- *                 indicate I/O space.
+ *    flags	 - Attributes indicating the type of resource. In this case,
+ *		   indicate I/O space.
  *
  ****************************************************************************/
 static struct resource pci_io_resource = {
 	.name	= "pci IO space",
 	.start	= 0x04,
 	.end	= 0x0FFF,
-	.flags	= IORESOURCE_IO	/* I/O space */
+	.flags	= IORESOURCE_IO /* I/O space */
 };
 
 /*****************************************************************************
@@ -260,26 +247,26 @@ static struct resource pci_io_resource = {
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Defines the address range that pciauto() will use to
- *               assign to the memory BARs of PCI devices.
+ *		 assign to the memory BARs of PCI devices.
  *
- *               The .start and .end values are dependent upon how address
- *               translation is performed by the OATRAN regiser.
+ *		 The .start and .end values are dependent upon how address
+ *		 translation is performed by the OATRAN regiser.
  *
- *               The values to use for .start and .end are the values
- *               in the form they appear on the PCI bus AFTER MSP7120 has
- *               performed OATRAN address translation.
+ *		 The values to use for .start and .end are the values
+ *		 in the form they appear on the PCI bus AFTER MSP7120 has
+ *		 performed OATRAN address translation.
  *
  *  ELEMENTS:
- *    name       - String used for a meaningful name.
+ *    name	 - String used for a meaningful name.
  *
- *    start      - Start address of MSP7120's memory space, as MSP7120 presents
- *                 the address on the PCI bus.
+ *    start	 - Start address of MSP7120's memory space, as MSP7120 presents
+ *		   the address on the PCI bus.
  *
- *    end        - End address of MSP7120's memory space, as MSP7120 presents
- *                 the address on the PCI bus.
+ *    end	 - End address of MSP7120's memory space, as MSP7120 presents
+ *		   the address on the PCI bus.
  *
- *    flags      - Attributes indicating the type of resource. In this case,
- *                 indicate memory space.
+ *    flags	 - Attributes indicating the type of resource. In this case,
+ *		   indicate memory space.
  *
  ****************************************************************************/
 static struct resource pci_mem_resource = {
@@ -295,17 +282,17 @@ static struct resource pci_mem_resource = {
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: PCI status interrupt handler. Updates the count of how
- *               many times each status bit has been set, then clears
- *               the status bits. If the appropriate macros are defined,
- *               these counts can be viewed via the /proc filesystem.
+ *		 many times each status bit has been set, then clears
+ *		 the status bits. If the appropriate macros are defined,
+ *		 these counts can be viewed via the /proc filesystem.
  *
- *  INPUTS:      irq     - unused
- *               dev_id  - unused
- *               pt_regs - unused
+ *  INPUTS:	 irq	 - unused
+ *		 dev_id	 - unused
+ *		 pt_regs - unused
  *
- *  OUTPUTS:     none
+ *  OUTPUTS:	 none
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL  - success
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
  *
  ****************************************************************************/
 static irqreturn_t bpci_interrupt(int irq, void *dev_id)
@@ -335,41 +322,41 @@ static irqreturn_t bpci_interrupt(int irq, void *dev_id)
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Performs a PCI configuration access (rd or wr), then
- *               checks that the access succeeded by querying MSP7120's
- *               PCI status bits.
+ *		 checks that the access succeeded by querying MSP7120's
+ *		 PCI status bits.
  *
  *  INPUTS:
- *               access_type  - kind of PCI configuration cycle to perform
- *                              (read or write). Legal values are
- *                              PCI_ACCESS_WRITE and PCI_ACCESS_READ.
+ *		 access_type  - kind of PCI configuration cycle to perform
+ *				(read or write). Legal values are
+ *				PCI_ACCESS_WRITE and PCI_ACCESS_READ.
  *
- *               bus          - pointer to the bus number of the device to
- *                              be targeted for the configuration cycle.
- *                              The only element of the pci_bus structure
- *                              used is bus->number. This argument determines
- *                              if the configuration access will be Type 0 or
- *                              Type 1. Since MSP7120 assumes itself to be the
- *                              PCI Host, any non-zero bus->number generates
- *                              a Type 1 access.
+ *		 bus	      - pointer to the bus number of the device to
+ *				be targeted for the configuration cycle.
+ *				The only element of the pci_bus structure
+ *				used is bus->number. This argument determines
+ *				if the configuration access will be Type 0 or
+ *				Type 1. Since MSP7120 assumes itself to be the
+ *				PCI Host, any non-zero bus->number generates
+ *				a Type 1 access.
  *
- *               devfn        - this is an 8-bit field. The lower three bits
- *                              specify the function number of the device to
- *                              be targeted for the configuration cycle, with
- *                              all three-bit combinations being legal. The
- *                              upper five bits specify the device number,
- *                              with legal values being 10 to 31.
+ *		 devfn	      - this is an 8-bit field. The lower three bits
+ *				specify the function number of the device to
+ *				be targeted for the configuration cycle, with
+ *				all three-bit combinations being legal. The
+ *				upper five bits specify the device number,
+ *				with legal values being 10 to 31.
  *
- *               where        - address within the Configuration Header
- *                              space to access.
+ *		 where	      - address within the Configuration Header
+ *				space to access.
  *
- *               data         - for write accesses, contains the data to
- *                              write.
+ *		 data	      - for write accesses, contains the data to
+ *				write.
  *
  *  OUTPUTS:
- *               data         - for read accesses, contains the value read.
+ *		 data	      - for read accesses, contains the value read.
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL  - success
- *               -1                  - access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
+ *		 -1		     - access failure
  *
  ****************************************************************************/
 int msp_pcibios_config_access(unsigned char access_type,
@@ -405,7 +392,7 @@ int msp_pcibios_config_access(unsigned char access_type,
 	if (pciirqflag == 0) {
 		ret = request_irq(MSP_INT_PCI,/* Hardcoded internal MSP7120 wiring */
 				bpci_interrupt,
-				IRQF_SHARED | IRQF_DISABLED,
+				IRQF_SHARED,
 				"PMC MSP PCI Host",
 				preg);
 		if (ret != 0)
@@ -429,7 +416,7 @@ int msp_pcibios_config_access(unsigned char access_type,
 	 * for this Block Copy, called Block Copy 0 Fault (BC0F) and
 	 * Block Copy 1 Fault (BC1F). MSP4200 and MSP7120 don't have this
 	 * dedicated Block Copy block, so these two interrupts are now
-	 * marked reserved. In case the  Block Copy is resurrected in a
+	 * marked reserved. In case the	 Block Copy is resurrected in a
 	 * future design, maintain the code that treats these two interrupts
 	 * specially.
 	 *
@@ -439,7 +426,7 @@ int msp_pcibios_config_access(unsigned char access_type,
 	preg->if_status = ~(BPCI_IFSTATUS_BC0F | BPCI_IFSTATUS_BC1F);
 
 	/* Setup address that is to appear on PCI bus */
-	preg->config_addr = BPCI_CFGADDR_ENABLE	|
+	preg->config_addr = BPCI_CFGADDR_ENABLE |
 		(bus_num << BPCI_CFGADDR_BUSNUM_SHF) |
 		(dev_fn << BPCI_CFGADDR_FUNCTNUM_SHF) |
 		(where & 0xFC);
@@ -494,21 +481,21 @@ int msp_pcibios_config_access(unsigned char access_type,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Read a byte from PCI configuration address spac
- *               Since the hardware can't address 8 bit chunks
- *               directly, read a 32-bit chunk, then mask off extraneous
- *               bits.
+ *		 Since the hardware can't address 8 bit chunks
+ *		 directly, read a 32-bit chunk, then mask off extraneous
+ *		 bits.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the read is destined for.
- *               devfn  - device/function combination that the read is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the read is destined for.
+ *		 devfn	- device/function combination that the read is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
  *
- *  OUTPUTS      val    - read data
+ *  OUTPUTS	 val	- read data
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL  - success
- *               -1                  - read access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
+ *		 -1		     - read access failure
  *
  ****************************************************************************/
 static int
@@ -541,22 +528,22 @@ msp_pcibios_read_config_byte(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Read a word (16 bits) from PCI configuration address space.
- *               Since the hardware can't address 16 bit chunks
- *               directly, read a 32-bit chunk, then mask off extraneous
- *               bits.
+ *		 Since the hardware can't address 16 bit chunks
+ *		 directly, read a 32-bit chunk, then mask off extraneous
+ *		 bits.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the read is destined for.
- *               devfn  - device/function combination that the read is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the read is destined for.
+ *		 devfn	- device/function combination that the read is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
  *
- *  OUTPUTS      val    - read data
+ *  OUTPUTS	 val	- read data
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL           - success
- *               PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
- *               -1                           - read access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
+ *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
+ *		 -1			      - read access failure
  *
  ****************************************************************************/
 static int
@@ -600,20 +587,20 @@ msp_pcibios_read_config_word(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Read a double word (32 bits) from PCI configuration
- *               address space.
+ *		 address space.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the read is destined for.
- *               devfn  - device/function combination that the read is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the read is destined for.
+ *		 devfn	- device/function combination that the read is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
  *
- *  OUTPUTS      val    - read data
+ *  OUTPUTS	 val	- read data
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL           - success
- *               PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
- *               -1                           - read access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
+ *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
+ *		 -1			      - read access failure
  *
  ****************************************************************************/
 static int
@@ -652,21 +639,21 @@ msp_pcibios_read_config_dword(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Write a byte to PCI configuration address space.
- *               Since the hardware can't address 8 bit chunks
- *               directly, a read-modify-write is performed.
+ *		 Since the hardware can't address 8 bit chunks
+ *		 directly, a read-modify-write is performed.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the write is destined for.
- *               devfn  - device/function combination that the write is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
- *               val    - value to write
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the write is destined for.
+ *		 devfn	- device/function combination that the write is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
+ *		 val	- value to write
  *
- *  OUTPUTS      none
+ *  OUTPUTS	 none
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL  - success
- *               -1                  - write access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
+ *		 -1		     - write access failure
  *
  ****************************************************************************/
 static int
@@ -700,22 +687,22 @@ msp_pcibios_write_config_byte(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Write a word (16-bits) to PCI configuration address space.
- *               Since the hardware can't address 16 bit chunks
- *               directly, a read-modify-write is performed.
+ *		 Since the hardware can't address 16 bit chunks
+ *		 directly, a read-modify-write is performed.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the write is destined for.
- *               devfn  - device/function combination that the write is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
- *               val    - value to write
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the write is destined for.
+ *		 devfn	- device/function combination that the write is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
+ *		 val	- value to write
  *
- *  OUTPUTS      none
+ *  OUTPUTS	 none
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL           - success
- *               PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
- *               -1                           - write access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
+ *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
+ *		 -1			      - write access failure
  *
  ****************************************************************************/
 static int
@@ -753,21 +740,21 @@ msp_pcibios_write_config_word(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Write a double word (32-bits) to PCI configuration address
- *               space.
+ *		 space.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the write is destined for.
- *               devfn  - device/function combination that the write is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
- *               val    - value to write
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the write is destined for.
+ *		 devfn	- device/function combination that the write is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
+ *		 val	- value to write
  *
- *  OUTPUTS      none
+ *  OUTPUTS	 none
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL           - success
- *               PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
- *               -1                           - write access failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
+ *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
+ *		 -1			      - write access failure
  *
  ****************************************************************************/
 static int
@@ -794,22 +781,22 @@ msp_pcibios_write_config_dword(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Interface the PCI configuration read request with
- *               the appropriate function, based on how many bytes
- *               the read request is.
+ *		 the appropriate function, based on how many bytes
+ *		 the read request is.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the write is destined for.
- *               devfn  - device/function combination that the write is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
- *               size   - in units of bytes, should be 1, 2, or 4.
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the write is destined for.
+ *		 devfn	- device/function combination that the write is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
+ *		 size	- in units of bytes, should be 1, 2, or 4.
  *
- *  OUTPUTS      val    - value read, with any extraneous bytes masked
- *                        to zero.
+ *  OUTPUTS	 val	- value read, with any extraneous bytes masked
+ *			  to zero.
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL   - success
- *               -1                   - failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL   - success
+ *		 -1		      - failure
  *
  ****************************************************************************/
 int
@@ -845,22 +832,22 @@ msp_pcibios_read_config(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Interface the PCI configuration write request with
- *               the appropriate function, based on how many bytes
- *               the read request is.
+ *		 the appropriate function, based on how many bytes
+ *		 the read request is.
  *
- *  INPUTS       bus    - structure containing attributes for the PCI bus
- *                        that the write is destined for.
- *               devfn  - device/function combination that the write is
- *                        destined for.
- *               where  - register within the Configuration Header space
- *                        to access.
- *               size   - in units of bytes, should be 1, 2, or 4.
- *               val    - value to write
+ *  INPUTS	 bus	- structure containing attributes for the PCI bus
+ *			  that the write is destined for.
+ *		 devfn	- device/function combination that the write is
+ *			  destined for.
+ *		 where	- register within the Configuration Header space
+ *			  to access.
+ *		 size	- in units of bytes, should be 1, 2, or 4.
+ *		 val	- value to write
  *
- *  OUTPUTS:     none
+ *  OUTPUTS:	 none
  *
- *  RETURNS:     PCIBIOS_SUCCESSFUL   - success
- *               -1                   - failure
+ *  RETURNS:	 PCIBIOS_SUCCESSFUL   - success
+ *		 -1		      - failure
  *
  ****************************************************************************/
 int
@@ -897,11 +884,11 @@ msp_pcibios_write_config(struct pci_bus *bus,
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: structure to abstract the hardware specific PCI
- *               configuration accesses.
+ *		 configuration accesses.
  *
  *  ELEMENTS:
- *    read      - function for Linux to generate PCI Configuration reads.
- *    write     - function for Linux to generate PCI Configuration writes.
+ *    read	- function for Linux to generate PCI Configuration reads.
+ *    write	- function for Linux to generate PCI Configuration writes.
  *
  ****************************************************************************/
 struct pci_ops msp_pci_ops = {
@@ -917,27 +904,27 @@ struct pci_ops msp_pci_ops = {
  *  Describes the attributes of the MSP7120 PCI Host Controller
  *
  *  ELEMENTS:
- *    pci_ops      - abstracts the hardware specific PCI configuration
- *                   accesses.
+ *    pci_ops	   - abstracts the hardware specific PCI configuration
+ *		     accesses.
  *
  *    mem_resource - address range pciauto() uses to assign to PCI device
- *                   memory BARs.
+ *		     memory BARs.
  *
  *    mem_offset   - offset between how MSP7120 outbound PCI memory
- *                   transaction addresses appear on the PCI bus and how Linux
- *                   wants to configure memory BARs of the PCI devices.
- *                   MSP7120 does nothing funky, so just set to zero.
+ *		     transaction addresses appear on the PCI bus and how Linux
+ *		     wants to configure memory BARs of the PCI devices.
+ *		     MSP7120 does nothing funky, so just set to zero.
  *
  *    io_resource  - address range pciauto() uses to assign to PCI device
- *                   I/O BARs.
+ *		     I/O BARs.
  *
- *    io_offset    - offset between how MSP7120 outbound PCI I/O
- *                   transaction addresses appear on the PCI bus and how
- *                   Linux defaults to configure I/O BARs of the PCI devices.
- *                   MSP7120 maps outbound I/O accesses into the bottom
- *                   bottom 4K of PCI address space (and ignores OATRAN).
- *                   Since the Linux default is to configure I/O BARs to the
- *                   bottom 4K, no special offset is needed. Just set to zero.
+ *    io_offset	   - offset between how MSP7120 outbound PCI I/O
+ *		     transaction addresses appear on the PCI bus and how
+ *		     Linux defaults to configure I/O BARs of the PCI devices.
+ *		     MSP7120 maps outbound I/O accesses into the bottom
+ *		     bottom 4K of PCI address space (and ignores OATRAN).
+ *		     Since the Linux default is to configure I/O BARs to the
+ *		     bottom 4K, no special offset is needed. Just set to zero.
  *
  ****************************************************************************/
 static struct pci_controller msp_pci_controller = {
@@ -955,7 +942,7 @@ static struct pci_controller msp_pci_controller = {
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Initialize the PCI Host Controller and register it with
- *               Linux so Linux can seize control of the PCI bus.
+ *		 Linux so Linux can seize control of the PCI bus.
  *
  ****************************************************************************/
 void __init msp_pci_init(void)
@@ -979,7 +966,7 @@ void __init msp_pci_init(void)
 	*(unsigned long *)QFLUSH_REG_1 = 3;
 
 	/* Configure PCI Host Controller. */
-	preg->if_status	= ~0;		/* Clear cause register bits */
+	preg->if_status = ~0;		/* Clear cause register bits */
 	preg->config_addr = 0;		/* Clear config access */
 	preg->oatran	= MSP_PCI_OATRAN; /* PCI outbound addr translation */
 	preg->if_mask	= 0xF8BF87C0;	/* Enable all PCI status interrupts */

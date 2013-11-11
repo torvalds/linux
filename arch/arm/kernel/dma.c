@@ -23,7 +23,7 @@
 
 #include <asm/mach/dma.h>
 
-DEFINE_SPINLOCK(dma_spin_lock);
+DEFINE_RAW_SPINLOCK(dma_spin_lock);
 EXPORT_SYMBOL(dma_spin_lock);
 
 static dma_t *dma_chan[MAX_DMA_CHANNELS];

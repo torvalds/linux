@@ -860,7 +860,14 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     [Multiple options for each card instance]
     model	- force the model name
-    position_fix - Fix DMA pointer (0 = auto, 1 = use LPIB, 2 = POSBUF)
+    position_fix - Fix DMA pointer
+		  -1 = system default: choose appropriate one per controller
+			hardware
+		  0 = auto: falls back to LPIB when POSBUF doesn't work
+		  1 = use LPIB
+		  2 = POSBUF: use position buffer
+		  3 = VIACOMBO: VIA-specific workaround for capture
+		  4 = COMBO: use LPIB for playback, auto for capture stream
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
     		  When the bit 8 (0x100) is set, the lower 8 bits are used
 		  as the "fixed" codec slots; i.e. the driver probes the
@@ -874,8 +881,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     		setup before initializing the codecs.  This option is
 		available only when CONFIG_SND_HDA_PATCH_LOADER=y is set.
 		See HD-Audio.txt for details.
-    beep_mode	- Selects the beep registration mode (0=off, 1=on, 2=
-		dynamic registration via mute switch on/off); the default
+    beep_mode	- Selects the beep registration mode (0=off, 1=on); default
 		value is set via CONFIG_SND_HDA_INPUT_BEEP_MODE kconfig.
     
     [Single (global) options]
@@ -886,6 +892,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		disable)
     power_save_controller - Reset HD-audio controller in power-saving mode
 		(default = on)
+    align_buffer_size - Force rounding of buffer/period sizes to multiples
+    		      of 128 bytes. This is more efficient in terms of memory
+		      access but isn't required by the HDA spec and prevents
+		      users from specifying exact period/buffer sizes.
+		      (default = on)
+    snoop	- Enable/disable snooping (default = on)
 
     This module supports multiple cards and autoprobe.
     
@@ -899,7 +911,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     models depending on the codec chip.  The list of available models
     is found in HD-Audio-Models.txt
 
-    The model name "genric" is treated as a special case.  When this
+    The model name "generic" is treated as a special case.  When this
     model is given, the driver uses the generic codec parser without
     "codec-patch".  It's sometimes good for testing and debugging.
 
@@ -918,6 +930,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    the position buffer instead of reading SD_LPIB register.
 	    (Usually SD_LPIB register is more accurate than the
 	    position buffer.)
+
+	    position_fix=3 is specific to VIA devices.  The position
+	    of the capture stream is checked from both LPIB and POSBUF
+	    values.  position_fix=4 is a combination mode, using LPIB
+	    for playback and POSBUF for capture.
 
     NB: If you get many "azx_get_response timeout" messages at
     loading, it's likely a problem of interrupts (e.g. ACPI irq
@@ -1533,7 +1550,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on the C-Media CMI8786/8787/8788 chip:
     * Asound A-8788
-    * Asus Xonar DG
+    * Asus Xonar DG/DGX
     * AuzenTech X-Meridian
     * AuzenTech X-Meridian 2G
     * Bgears b-Enspirer
@@ -1582,7 +1599,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports autoprobe a chip.
 
-    Note: the driver may have problems regarding endianess.
+    Note: the driver may have problems regarding endianness.
 
     The power-management is supported.
 
@@ -1888,7 +1905,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     vid             - Vendor ID for the device (optional)
     pid             - Product ID for the device (optional)
     nrpacks	    - Max. number of packets per URB (default: 8)
-    async_unlink    - Use async unlink mode (default: yes)
     device_setup    - Device specific magic number (optional)
                     - Influence depends on the device
                     - Default: 0x0000 
@@ -1900,8 +1916,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     NB: nrpacks parameter can be modified dynamically via sysfs.
         Don't put the value over 20.  Changing via sysfs has no sanity
 	check.
-    NB: async_unlink=0 would cause Oops.  It remains just for
-        debugging purpose (if any).
     NB: ignore_ctl_error=1 may help when you get an error at accessing
         the mixer element such as URB error -22.  This happens on some
         buggy USB device or the controller.
@@ -2032,7 +2046,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Install the necessary firmware files in alsa-firmware package.
     When no hotplug fw loader is available, you need to load the
     firmware via vxloader utility in alsa-tools package.  To invoke
-    vxloader automatically, add the following to /etc/modprobe.conf
+    vxloader automatically, add the following to /etc/modprobe.d/alsa.conf
 
 	install snd-vx222 /sbin/modprobe --first-time -i snd-vx222 && /usr/bin/vxloader
 
@@ -2156,10 +2170,10 @@ corresponds to the card index of ALSA.  Usually, define this
 as the same card module.
 
 An example configuration for a single emu10k1 card is like below:
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 alias snd-card-0 snd-emu10k1
 alias sound-slot-0 snd-emu10k1
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 
 The available number of auto-loaded sound cards depends on the module
 option "cards_limit" of snd module.  As default it's set to 1.
@@ -2172,7 +2186,7 @@ cards is kept consistent.
 
 An example configuration for two sound cards is like below:
 
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 # ALSA portion
 options snd cards_limit=2
 alias snd-card-0 snd-interwave
@@ -2182,7 +2196,7 @@ options snd-ens1371 index=1
 # OSS/Free portion
 alias sound-slot-0 snd-interwave
 alias sound-slot-1 snd-ens1371
------ /etc/modprobe.conf
+----- /etc/modprobe.d/alsa.conf
 
 In this example, the interwave card is always loaded as the first card
 (index 0) and ens1371 as the second (index 1).

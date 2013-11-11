@@ -10,7 +10,7 @@
 void *memcpy(void *to, const void *from, size_t n)
 {
 	void *xto = to;
-	size_t temp, temp1;
+	size_t temp;
 
 	if (!n)
 		return xto;
@@ -22,6 +22,15 @@ void *memcpy(void *to, const void *from, size_t n)
 		from = cfrom;
 		n--;
 	}
+#if defined(CONFIG_M68000)
+	if ((long)from & 1) {
+		char *cto = to;
+		const char *cfrom = from;
+		for (; n; n--)
+			*cto++ = *cfrom++;
+		return xto;
+	}
+#endif
 	if (n > 2 && (long)to & 2) {
 		short *sto = to;
 		const short *sfrom = from;
@@ -38,6 +47,7 @@ void *memcpy(void *to, const void *from, size_t n)
 		for (; temp; temp--)
 			*lto++ = *lfrom++;
 #else
+		size_t temp1;
 		asm volatile (
 			"	movel %2,%3\n"
 			"	andw  #7,%3\n"

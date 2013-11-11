@@ -6,8 +6,10 @@
 #ifndef __KERN_UTIL_H__
 #define __KERN_UTIL_H__
 
-#include "sysdep/ptrace.h"
-#include "sysdep/faultinfo.h"
+#include <sysdep/ptrace.h>
+#include <sysdep/faultinfo.h>
+
+struct siginfo;
 
 extern int uml_exitcode;
 
@@ -21,9 +23,8 @@ extern unsigned long alloc_stack(int order, int atomic);
 extern void free_stack(unsigned long stack, int order);
 
 extern int do_signal(void);
-extern void copy_sc(struct uml_pt_regs *regs, void *from);
 extern void interrupt_end(void);
-extern void relay_signal(int sig, struct uml_pt_regs *regs);
+extern void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs);
 
 extern unsigned long segv(struct faultinfo fi, unsigned long ip,
 			  int is_user, struct uml_pt_regs *regs);
@@ -34,9 +35,8 @@ extern unsigned int do_IRQ(int irq, struct uml_pt_regs *regs);
 extern int smp_sigio_handler(void);
 extern void initial_thread_cb(void (*proc)(void *), void *arg);
 extern int is_syscall(unsigned long addr);
-extern void timer_handler(int sig, struct uml_pt_regs *regs);
 
-extern void timer_handler(int sig, struct uml_pt_regs *regs);
+extern void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
 
 extern int start_uml(void);
 extern void paging_init(void);
@@ -49,7 +49,7 @@ extern void do_uml_exitcalls(void);
  * GFP_ATOMIC.
  */
 extern int __cant_sleep(void);
-extern void *get_current(void);
+extern int get_current_pid(void);
 extern int copy_from_user_proc(void *to, void *from, int size);
 extern int cpu(void);
 extern char *uml_strdup(const char *string);
@@ -60,9 +60,9 @@ extern unsigned long from_irq_stack(int nested);
 extern void syscall_trace(struct uml_pt_regs *regs, int entryexit);
 extern int singlestepping(void *t);
 
-extern void segv_handler(int sig, struct uml_pt_regs *regs);
-extern void bus_handler(int sig, struct uml_pt_regs *regs);
-extern void winch(int sig, struct uml_pt_regs *regs);
+extern void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
+extern void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs);
+extern void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);
 extern void fatal_sigsegv(void) __attribute__ ((noreturn));
 
 

@@ -180,7 +180,7 @@ err_free_memtype:
 
 /**
  * ioremap_nocache     -   map bus memory into CPU space
- * @offset:    bus address of the memory
+ * @phys_addr:    bus address of the memory
  * @size:      size of the resource to map
  *
  * ioremap_nocache performs a platform specific sequence of operations to
@@ -217,7 +217,7 @@ EXPORT_SYMBOL(ioremap_nocache);
 
 /**
  * ioremap_wc	-	map memory into CPU space write combined
- * @offset:	bus address of the memory
+ * @phys_addr:	bus address of the memory
  * @size:	size of the resource to map
  *
  * This version of ioremap ensures that the memory is marked write combining.
@@ -282,12 +282,7 @@ void iounmap(volatile void __iomem *addr)
 	   in parallel. Reuse of the virtual address is prevented by
 	   leaving it in the global lists until we're done with it.
 	   cpa takes care of the direct mappings. */
-	read_lock(&vmlist_lock);
-	for (p = vmlist; p; p = p->next) {
-		if (p->addr == (void __force *)addr)
-			break;
-	}
-	read_unlock(&vmlist_lock);
+	p = find_vm_area((void __force *)addr);
 
 	if (!p) {
 		printk(KERN_ERR "iounmap: bad address %p\n", addr);

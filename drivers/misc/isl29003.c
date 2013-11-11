@@ -365,7 +365,7 @@ static int isl29003_init_client(struct i2c_client *client)
  * I2C layer
  */
 
-static int __devinit isl29003_probe(struct i2c_client *client,
+static int isl29003_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
@@ -401,7 +401,7 @@ exit_kfree:
 	return err;
 }
 
-static int __devexit isl29003_remove(struct i2c_client *client)
+static int isl29003_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &isl29003_attr_group);
 	isl29003_set_power_state(client, 0);
@@ -409,18 +409,20 @@ static int __devexit isl29003_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int isl29003_suspend(struct i2c_client *client, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int isl29003_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct isl29003_data *data = i2c_get_clientdata(client);
 
 	data->power_state_before_suspend = isl29003_get_power_state(client);
 	return isl29003_set_power_state(client, 0);
 }
 
-static int isl29003_resume(struct i2c_client *client)
+static int isl29003_resume(struct device *dev)
 {
 	int i;
+	struct i2c_client *client = to_i2c_client(dev);
 	struct isl29003_data *data = i2c_get_clientdata(client);
 
 	/* restore registers from cache */
@@ -432,10 +434,12 @@ static int isl29003_resume(struct i2c_client *client)
 		data->power_state_before_suspend);
 }
 
+static SIMPLE_DEV_PM_OPS(isl29003_pm_ops, isl29003_suspend, isl29003_resume);
+#define ISL29003_PM_OPS (&isl29003_pm_ops)
+
 #else
-#define isl29003_suspend	NULL
-#define isl29003_resume		NULL
-#endif /* CONFIG_PM */
+#define ISL29003_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id isl29003_id[] = {
 	{ "isl29003", 0 },
@@ -447,29 +451,16 @@ static struct i2c_driver isl29003_driver = {
 	.driver = {
 		.name	= ISL29003_DRV_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= ISL29003_PM_OPS,
 	},
-	.suspend = isl29003_suspend,
-	.resume	= isl29003_resume,
 	.probe	= isl29003_probe,
-	.remove	= __devexit_p(isl29003_remove),
+	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };
 
-static int __init isl29003_init(void)
-{
-	return i2c_add_driver(&isl29003_driver);
-}
-
-static void __exit isl29003_exit(void)
-{
-	i2c_del_driver(&isl29003_driver);
-}
+module_i2c_driver(isl29003_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("ISL29003 ambient light sensor driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(isl29003_init);
-module_exit(isl29003_exit);
-

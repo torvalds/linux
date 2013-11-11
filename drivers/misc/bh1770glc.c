@@ -1162,7 +1162,7 @@ static struct attribute_group bh1770_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
-static int __devinit bh1770_probe(struct i2c_client *client,
+static int bh1770_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct bh1770_chip *chip;
@@ -1285,7 +1285,7 @@ fail1:
 	return err;
 }
 
-static int __devexit bh1770_remove(struct i2c_client *client)
+static int bh1770_remove(struct i2c_client *client)
 {
 	struct bh1770_chip *chip = i2c_get_clientdata(client);
 
@@ -1310,7 +1310,7 @@ static int __devexit bh1770_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bh1770_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
@@ -1346,11 +1346,6 @@ static int bh1770_resume(struct device *dev)
 	}
 	return ret;
 }
-
-#else
-#define bh1770_suspend	NULL
-#define bh1770_shutdown NULL
-#define bh1770_resume	NULL
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
@@ -1395,23 +1390,12 @@ static struct i2c_driver bh1770_driver = {
 		.pm	= &bh1770_pm_ops,
 	},
 	.probe	  = bh1770_probe,
-	.remove	  = __devexit_p(bh1770_remove),
+	.remove	  = bh1770_remove,
 	.id_table = bh1770_id,
 };
 
-static int __init bh1770_init(void)
-{
-	return i2c_add_driver(&bh1770_driver);
-}
-
-static void __exit bh1770_exit(void)
-{
-	i2c_del_driver(&bh1770_driver);
-}
+module_i2c_driver(bh1770_driver);
 
 MODULE_DESCRIPTION("BH1770GLC / SFH7770 combined ALS and proximity sensor");
 MODULE_AUTHOR("Samu Onkalo, Nokia Corporation");
 MODULE_LICENSE("GPL v2");
-
-module_init(bh1770_init);
-module_exit(bh1770_exit);

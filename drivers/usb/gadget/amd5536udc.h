@@ -8,15 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef AMD5536UDC_H
@@ -481,7 +472,6 @@ struct udc_request {
 
 	/* flags */
 	unsigned			dma_going : 1,
-					dma_mapping : 1,
 					dma_done : 1;
 	/* phys. address */
 	dma_addr_t			td_phys;
@@ -521,7 +511,6 @@ struct udc_ep {
 
 	/* queue for requests */
 	struct list_head		queue;
-	const struct usb_endpoint_descriptor	*desc;
 	unsigned			halted;
 	unsigned			cancel_transfer;
 	unsigned			num : 5,
@@ -572,6 +561,8 @@ struct udc {
 	u16				cur_intf;
 	u16				cur_alt;
 };
+
+#define to_amd5536_udc(g)	(container_of((g), struct udc, gadget))
 
 /* setup request data */
 union udc_setup_data {

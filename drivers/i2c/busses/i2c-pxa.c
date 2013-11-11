@@ -29,6 +29,8 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/i2c-pxa.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -38,13 +40,6 @@
 #include <linux/i2c/pxa-i2c.h>
 
 #include <asm/irq.h>
-
-#ifndef CONFIG_HAVE_CLK
-#define clk_get(dev, id)	NULL
-#define clk_put(clk)		do { } while (0)
-#define clk_disable(clk)	do { } while (0)
-#define clk_enable(clk)		do { } while (0)
-#endif
 
 struct pxa_reg_layout {
 	u32 ibmr;
@@ -1044,28 +1039,83 @@ static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
 	.functionality	= i2c_pxa_functionality,
 };
 
+static struct of_device_id i2c_pxa_dt_ids[] = {
+	{ .compatible = "mrvl,pxa-i2c", .data = (void *)REGS_PXA2XX },
+	{ .compatible = "mrvl,pwri2c", .data = (void *)REGS_PXA3XX },
+	{ .compatible = "mrvl,mmp-twsi", .data = (void *)REGS_PXA2XX },
+	{}
+};
+MODULE_DEVICE_TABLE(of, i2c_pxa_dt_ids);
+
+static int i2c_pxa_probe_dt(struct platform_device *pdev, struct pxa_i2c *i2c,
+			    enum pxa_i2c_types *i2c_types)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *of_id =
+			of_match_device(i2c_pxa_dt_ids, &pdev->dev);
+
+	if (!of_id)
+		return 1;
+
+	/* For device tree we always use the dynamic or alias-assigned ID */
+	i2c->adap.nr = -1;
+
+	if (of_get_property(np, "mrvl,i2c-polling", NULL))
+		i2c->use_pio = 1;
+	if (of_get_property(np, "mrvl,i2c-fast-mode", NULL))
+		i2c->fast_mode = 1;
+	*i2c_types = (u32)(of_id->data);
+	return 0;
+}
+
+static int i2c_pxa_probe_pdata(struct platform_device *pdev,
+			       struct pxa_i2c *i2c,
+			       enum pxa_i2c_types *i2c_types)
+{
+	struct i2c_pxa_platform_data *plat = pdev->dev.platform_data;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
+
+	*i2c_types = id->driver_data;
+	if (plat) {
+		i2c->use_pio = plat->use_pio;
+		i2c->fast_mode = plat->fast_mode;
+	}
+	return 0;
+}
+
 static int i2c_pxa_probe(struct platform_device *dev)
 {
-	struct pxa_i2c *i2c;
-	struct resource *res;
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-	const struct platform_device_id *id = platform_get_device_id(dev);
-	enum pxa_i2c_types i2c_type = id->driver_data;
-	int ret;
-	int irq;
-
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(dev, 0);
-	if (res == NULL || irq < 0)
-		return -ENODEV;
-
-	if (!request_mem_region(res->start, resource_size(res), res->name))
-		return -ENOMEM;
+	enum pxa_i2c_types i2c_type;
+	struct pxa_i2c *i2c;
+	struct resource *res = NULL;
+	int ret, irq;
 
 	i2c = kzalloc(sizeof(struct pxa_i2c), GFP_KERNEL);
 	if (!i2c) {
 		ret = -ENOMEM;
 		goto emalloc;
+	}
+
+	/* Default adapter num to device id; i2c_pxa_probe_dt can override. */
+	i2c->adap.nr = dev->id;
+
+	ret = i2c_pxa_probe_dt(dev, i2c, &i2c_type);
+	if (ret > 0)
+		ret = i2c_pxa_probe_pdata(dev, i2c, &i2c_type);
+	if (ret < 0)
+		goto eclk;
+
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(dev, 0);
+	if (res == NULL || irq < 0) {
+		ret = -ENODEV;
+		goto eclk;
+	}
+
+	if (!request_mem_region(res->start, resource_size(res), res->name)) {
+		ret = -ENOMEM;
+		goto eclk;
 	}
 
 	i2c->adap.owner   = THIS_MODULE;
@@ -1074,14 +1124,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
-	/*
-	 * If "dev->id" is negative we consider it as zero.
-	 * The reason to do so is to avoid sysfs names that only make
-	 * sense when there are multiple adapters.
-	 */
-	i2c->adap.nr = dev->id != -1 ? dev->id : 0;
-	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "pxa_i2c-i2c.%u",
-		 i2c->adap.nr);
+	strlcpy(i2c->adap.name, "pxa_i2c-i2c", sizeof(i2c->adap.name));
 
 	i2c->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
@@ -1109,27 +1152,22 @@ static int i2c_pxa_probe(struct platform_device *dev)
 
 	i2c->slave_addr = I2C_PXA_SLAVE_ADDR;
 
-#ifdef CONFIG_I2C_PXA_SLAVE
 	if (plat) {
+#ifdef CONFIG_I2C_PXA_SLAVE
 		i2c->slave_addr = plat->slave_addr;
 		i2c->slave = plat->slave;
-	}
 #endif
+		i2c->adap.class = plat->class;
+	}
 
 	clk_enable(i2c->clk);
-
-	if (plat) {
-		i2c->adap.class = plat->class;
-		i2c->use_pio = plat->use_pio;
-		i2c->fast_mode = plat->fast_mode;
-	}
 
 	if (i2c->use_pio) {
 		i2c->adap.algo = &i2c_pxa_pio_algorithm;
 	} else {
 		i2c->adap.algo = &i2c_pxa_algorithm;
 		ret = request_irq(irq, i2c_pxa_handler, IRQF_SHARED,
-				  i2c->adap.name, i2c);
+				  dev_name(&dev->dev), i2c);
 		if (ret)
 			goto ereqirq;
 	}
@@ -1142,10 +1180,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->adap.dev.of_node = dev->dev.of_node;
 #endif
 
-	if (i2c_type == REGS_CE4100)
-		ret = i2c_add_adapter(&i2c->adap);
-	else
-		ret = i2c_add_numbered_adapter(&i2c->adap);
+	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		printk(KERN_INFO "I2C: Failed to add bus\n");
 		goto eadapt;
@@ -1178,11 +1213,9 @@ emalloc:
 	return ret;
 }
 
-static int __exit i2c_pxa_remove(struct platform_device *dev)
+static int i2c_pxa_remove(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = platform_get_drvdata(dev);
-
-	platform_set_drvdata(dev, NULL);
 
 	i2c_del_adapter(&i2c->adap);
 	if (!i2c->use_pio)
@@ -1232,11 +1265,12 @@ static const struct dev_pm_ops i2c_pxa_dev_pm_ops = {
 
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
-	.remove		= __exit_p(i2c_pxa_remove),
+	.remove		= i2c_pxa_remove,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
 		.owner	= THIS_MODULE,
 		.pm	= I2C_PXA_DEV_PM_OPS,
+		.of_match_table = i2c_pxa_dt_ids,
 	},
 	.id_table	= i2c_pxa_id_table,
 };

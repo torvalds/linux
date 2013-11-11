@@ -263,19 +263,19 @@ static reg_val common_regs[] = {
         
 static char *mode_option;
 static char *monitor_layout;
-static int noaccel = 0;
+static bool noaccel = 0;
 static int default_dynclk = -2;
-static int nomodeset = 0;
-static int ignore_edid = 0;
-static int mirror = 0;
+static bool nomodeset = 0;
+static bool ignore_edid = 0;
+static bool mirror = 0;
 static int panel_yres = 0;
-static int force_dfp = 0;
-static int force_measure_pll = 0;
+static bool force_dfp = 0;
+static bool force_measure_pll = 0;
 #ifdef CONFIG_MTRR
-static int nomtrr = 0;
+static bool nomtrr = 0;
 #endif
-static int force_sleep;
-static int ignore_devlist;
+static bool force_sleep;
+static bool ignore_devlist;
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else
@@ -293,7 +293,7 @@ static void radeon_unmap_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 	pci_unmap_rom(dev, rinfo->bios_seg);
 }
 
-static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
+static int radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev *dev)
 {
 	void __iomem *rom;
 	u16 dptr;
@@ -388,7 +388,7 @@ static int __devinit radeon_map_ROM(struct radeonfb_info *rinfo, struct pci_dev 
 }
 
 #ifdef CONFIG_X86
-static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
+static int  radeon_find_mem_vbios(struct radeonfb_info *rinfo)
 {
 	/* I simplified this code as we used to miss the signatures in
 	 * a lot of case. It's now closer to XFree, we just don't check
@@ -423,7 +423,7 @@ static int  __devinit radeon_find_mem_vbios(struct radeonfb_info *rinfo)
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
  * tree. Hopefully, ATI OF driver is kind enough to fill these
  */
-static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
+static int radeon_read_xtal_OF(struct radeonfb_info *rinfo)
 {
 	struct device_node *dp = rinfo->of_node;
 	const u32 *val;
@@ -453,7 +453,7 @@ static int __devinit radeon_read_xtal_OF (struct radeonfb_info *rinfo)
 /*
  * Read PLL infos from chip registers
  */
-static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
+static int radeon_probe_pll_params(struct radeonfb_info *rinfo)
 {
 	unsigned char ppll_div_sel;
 	unsigned Ns, Nm, M;
@@ -591,7 +591,7 @@ static int __devinit radeon_probe_pll_params(struct radeonfb_info *rinfo)
 /*
  * Retrieve PLL infos by different means (BIOS, Open Firmware, register probing...)
  */
-static void __devinit radeon_get_pllinfo(struct radeonfb_info *rinfo)
+static void radeon_get_pllinfo(struct radeonfb_info *rinfo)
 {
 	/*
 	 * In the case nothing works, these are defaults; they are mostly
@@ -845,16 +845,16 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
 {
         struct radeonfb_info *rinfo = info->par;
 
-        if ((var->xoffset + var->xres > var->xres_virtual)
-	    || (var->yoffset + var->yres > var->yres_virtual))
-               return -EINVAL;
+	if ((var->xoffset + info->var.xres > info->var.xres_virtual)
+	    || (var->yoffset + info->var.yres > info->var.yres_virtual))
+		return -EINVAL;
                 
         if (rinfo->asleep)
         	return 0;
 
 	radeon_fifo_wait(2);
-        OUTREG(CRTC_OFFSET, ((var->yoffset * var->xres_virtual + var->xoffset)
-			     * var->bits_per_pixel / 8) & ~7);
+	OUTREG(CRTC_OFFSET, (var->yoffset * info->fix.line_length +
+			     var->xoffset * info->var.bits_per_pixel / 8) & ~7);
         return 0;
 }
 
@@ -1868,7 +1868,7 @@ static struct fb_ops radeonfb_ops = {
 };
 
 
-static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
+static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
 {
 	struct fb_info *info = rinfo->info;
 
@@ -2018,7 +2018,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
           if ((rinfo->family == CHIP_FAMILY_RS100) ||
               (rinfo->family == CHIP_FAMILY_RS200)) {
              /* This is to workaround the asic bug for RMX, some versions
-                of BIOS dosen't have this register initialized correctly.
+                of BIOS doesn't have this register initialized correctly.
              */
              OUTREGP(CRTC_MORE_CNTL, CRTC_H_CUTOFF_ACTIVE_EN,
                      ~CRTC_H_CUTOFF_ACTIVE_EN);
@@ -2143,8 +2143,8 @@ static struct bin_attribute edid2_attr = {
 };
 
 
-static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int radeonfb_pci_register(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct radeonfb_info *rinfo;
@@ -2407,7 +2407,7 @@ err_out:
 
 
 
-static void __devexit radeonfb_pci_unregister (struct pci_dev *pdev)
+static void radeonfb_pci_unregister(struct pci_dev *pdev)
 {
         struct fb_info *info = pci_get_drvdata(pdev);
         struct radeonfb_info *rinfo = info->par;
@@ -2465,7 +2465,7 @@ static struct pci_driver radeonfb_driver = {
 	.name		= "radeonfb",
 	.id_table	= radeonfb_pci_table,
 	.probe		= radeonfb_pci_register,
-	.remove		= __devexit_p(radeonfb_pci_unregister),
+	.remove		= radeonfb_pci_unregister,
 #ifdef CONFIG_PM
 	.suspend       	= radeonfb_pci_suspend,
 	.resume		= radeonfb_pci_resume,

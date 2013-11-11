@@ -29,7 +29,6 @@
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>
@@ -152,7 +151,7 @@ static int regwindow64_get(struct task_struct *target,
 {
 	unsigned long rw_addr = regs->u_regs[UREG_I6];
 
-	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+	if (!test_thread_64bit_stack(rw_addr)) {
 		struct reg_window32 win32;
 		int i;
 
@@ -177,7 +176,7 @@ static int regwindow64_set(struct task_struct *target,
 {
 	unsigned long rw_addr = regs->u_regs[UREG_I6];
 
-	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+	if (!test_thread_64bit_stack(rw_addr)) {
 		struct reg_window32 win32;
 		int i;
 
@@ -1063,7 +1062,7 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	int ret = 0;
 
 	/* do the secure computing check first */
-	secure_computing(regs->u_regs[UREG_G1]);
+	secure_computing_strict(regs->u_regs[UREG_G1]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		ret = tracehook_report_syscall_entry(regs);
@@ -1071,32 +1070,22 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->u_regs[UREG_G1]);
 
-	if (unlikely(current->audit_context) && !ret)
-		audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
-				     AUDIT_ARCH_SPARC :
-				     AUDIT_ARCH_SPARC64),
-				    regs->u_regs[UREG_G1],
-				    regs->u_regs[UREG_I0],
-				    regs->u_regs[UREG_I1],
-				    regs->u_regs[UREG_I2],
-				    regs->u_regs[UREG_I3]);
+	audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
+			     AUDIT_ARCH_SPARC :
+			     AUDIT_ARCH_SPARC64),
+			    regs->u_regs[UREG_G1],
+			    regs->u_regs[UREG_I0],
+			    regs->u_regs[UREG_I1],
+			    regs->u_regs[UREG_I2],
+			    regs->u_regs[UREG_I3]);
 
 	return ret;
 }
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
-#ifdef CONFIG_AUDITSYSCALL
-	if (unlikely(current->audit_context)) {
-		unsigned long tstate = regs->tstate;
-		int result = AUDITSC_SUCCESS;
+	audit_syscall_exit(regs);
 
-		if (unlikely(tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
-			result = AUDITSC_FAILURE;
-
-		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
-	}
-#endif
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_exit(regs, regs->u_regs[UREG_G1]);
 

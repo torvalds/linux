@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
+#include <asm/special_insns.h>
 
 #include "op_impl.h"
 

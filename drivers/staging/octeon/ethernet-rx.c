@@ -34,14 +34,16 @@
 #include <linux/ip.h>
 #include <linux/string.h>
 #include <linux/prefetch.h>
+#include <linux/ratelimit.h>
 #include <linux/smp.h>
+#include <linux/interrupt.h>
 #include <net/dst.h>
 #ifdef CONFIG_XFRM
 #include <linux/xfrm.h>
 #include <net/xfrm.h>
 #endif /* CONFIG_XFRM */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -51,14 +53,14 @@
 #include "octeon-ethernet.h"
 #include "ethernet-util.h"
 
-#include "cvmx-helper.h"
-#include "cvmx-wqe.h"
-#include "cvmx-fau.h"
-#include "cvmx-pow.h"
-#include "cvmx-pip.h"
-#include "cvmx-scratch.h"
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-wqe.h>
+#include <asm/octeon/cvmx-fau.h>
+#include <asm/octeon/cvmx-pow.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-scratch.h>
 
-#include "cvmx-gmxx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
 
 struct cvm_napi_wrapper {
 	struct napi_struct napi;
@@ -161,7 +163,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		/*
 		 * We received a packet with either an alignment error
 		 * or a FCS error. This may be signalling that we are
-		 * running 10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK}
+		 * running 10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK]
 		 * off. If this is the case we need to parse the
 		 * packet to determine if we can remove a non spec
 		 * preamble and generate a correct packet.
@@ -186,13 +188,13 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 
 			if (*ptr == 0xd5) {
 				/*
-				   DEBUGPRINT("Port %d received 0xd5 preamble\n", work->ipprt);
+				  printk_ratelimited("Port %d received 0xd5 preamble\n", work->ipprt);
 				 */
 				work->packet_ptr.s.addr += i + 1;
 				work->len -= i + 5;
 			} else if ((*ptr & 0xf) == 0xd) {
 				/*
-				   DEBUGPRINT("Port %d received 0x?d preamble\n", work->ipprt);
+				  printk_ratelimited("Port %d received 0x?d preamble\n", work->ipprt);
 				 */
 				work->packet_ptr.s.addr += i;
 				work->len -= i + 4;
@@ -203,9 +205,9 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 					ptr++;
 				}
 			} else {
-				DEBUGPRINT("Port %d unknown preamble, packet "
-					   "dropped\n",
-				     work->ipprt);
+				printk_ratelimited("Port %d unknown preamble, packet "
+						   "dropped\n",
+						   work->ipprt);
 				/*
 				   cvmx_helper_dump_packet(work);
 				 */
@@ -214,8 +216,8 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			}
 		}
 	} else {
-		DEBUGPRINT("Port %d receive error code %d, packet dropped\n",
-			   work->ipprt, work->word2.snoip.err_code);
+		printk_ratelimited("Port %d receive error code %d, packet dropped\n",
+				   work->ipprt, work->word2.snoip.err_code);
 		cvm_oct_free_work(work);
 		return 1;
 	}
@@ -334,8 +336,9 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 */
 			skb = dev_alloc_skb(work->len);
 			if (!skb) {
-				DEBUGPRINT("Port %d failed to allocate skbuff, packet dropped\n",
-					   work->ipprt);
+				printk_ratelimited("Port %d failed to allocate "
+						   "skbuff, packet dropped\n",
+						   work->ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
@@ -409,7 +412,8 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 				skb->protocol = eth_type_trans(skb, dev);
 				skb->dev = dev;
 
-				if (unlikely(work->word2.s.not_IP || work->word2.s.IP_exc || work->word2.s.L4_error))
+				if (unlikely(work->word2.s.not_IP || work->word2.s.IP_exc ||
+					work->word2.s.L4_error || !work->word2.s.tcp_or_udp))
 					skb->ip_summed = CHECKSUM_NONE;
 				else
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -429,7 +433,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			} else {
 				/* Drop any packet received for a device that isn't up */
 				/*
-				DEBUGPRINT("%s: Device not up, packet dropped\n",
+				  printk_ratelimited("%s: Device not up, packet dropped\n",
 					   dev->name);
 				*/
 #ifdef CONFIG_64BIT
@@ -444,7 +448,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 * Drop any packet received for a device that
 			 * doesn't exist.
 			 */
-			DEBUGPRINT("Port %d not controlled by Linux, packet dropped\n",
+			printk_ratelimited("Port %d not controlled by Linux, packet dropped\n",
 				   work->ipprt);
 			dev_kfree_skb_irq(skb);
 		}

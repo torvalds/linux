@@ -21,36 +21,37 @@
 #include <linux/mtd/partitions.h>
 
 #include <mach/hardware.h>
-#include <mach/ts72xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
+#include "ts72xx.h"
 
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{
-		.virtual	= TS72XX_MODEL_VIRT_BASE,
+		.virtual	= (unsigned long)TS72XX_MODEL_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_MODEL_PHYS_BASE),
 		.length		= TS72XX_MODEL_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= TS72XX_OPTIONS_VIRT_BASE,
+		.virtual	= (unsigned long)TS72XX_OPTIONS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_OPTIONS_PHYS_BASE),
 		.length		= TS72XX_OPTIONS_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= TS72XX_OPTIONS2_VIRT_BASE,
+		.virtual	= (unsigned long)TS72XX_OPTIONS2_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_OPTIONS2_PHYS_BASE),
 		.length		= TS72XX_OPTIONS2_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= TS72XX_RTC_INDEX_VIRT_BASE,
+		.virtual	= (unsigned long)TS72XX_RTC_INDEX_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_RTC_INDEX_PHYS_BASE),
 		.length		= TS72XX_RTC_INDEX_SIZE,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= TS72XX_RTC_DATA_VIRT_BASE,
+		.virtual	= (unsigned long)TS72XX_RTC_DATA_VIRT_BASE,
 		.pfn		= __phys_to_pfn(TS72XX_RTC_DATA_PHYS_BASE),
 		.length		= TS72XX_RTC_DATA_SIZE,
 		.type		= MT_DEVICE,
@@ -103,8 +104,6 @@ static int ts72xx_nand_device_ready(struct mtd_info *mtd)
 	return !!(__raw_readb(addr) & 0x20);
 }
 
-static const char *ts72xx_nand_part_probes[] = { "cmdlinepart", NULL };
-
 #define TS72XX_BOOTROM_PART_SIZE	(SZ_16K)
 #define TS72XX_REDBOOT_PART_SIZE	(SZ_2M + SZ_1M)
 
@@ -116,8 +115,9 @@ static struct mtd_partition ts72xx_nand_parts[] = {
 		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
 	}, {
 		.name		= "Linux",
-		.offset		= MTDPART_OFS_APPEND,
-		.size		= 0,			/* filled in later */
+		.offset		= MTDPART_OFS_RETAIN,
+		.size		= TS72XX_REDBOOT_PART_SIZE,
+				/* leave so much for last partition */
 	}, {
 		.name		= "RedBoot",
 		.offset		= MTDPART_OFS_APPEND,
@@ -126,28 +126,13 @@ static struct mtd_partition ts72xx_nand_parts[] = {
 	},
 };
 
-static void ts72xx_nand_set_parts(uint64_t size,
-				  struct platform_nand_chip *chip)
-{
-	/* Factory TS-72xx boards only come with 32MiB or 128MiB NAND options */
-	if (size == SZ_32M || size == SZ_128M) {
-		/* Set the "Linux" partition size */
-		ts72xx_nand_parts[1].size = size - TS72XX_REDBOOT_PART_SIZE;
-
-		chip->partitions = ts72xx_nand_parts;
-		chip->nr_partitions = ARRAY_SIZE(ts72xx_nand_parts);
-	} else {
-		pr_warning("Unknown nand disk size:%lluMiB\n", size >> 20);
-	}
-}
-
 static struct platform_nand_data ts72xx_nand_data = {
 	.chip = {
 		.nr_chips	= 1,
 		.chip_offset	= 0,
 		.chip_delay	= 15,
-		.part_probe_types = ts72xx_nand_part_probes,
-		.set_parts	= ts72xx_nand_set_parts,
+		.partitions	= ts72xx_nand_parts,
+		.nr_partitions	= ARRAY_SIZE(ts72xx_nand_parts),
 	},
 	.ctrl = {
 		.cmd_ctrl	= ts72xx_nand_hwcontrol,
@@ -257,9 +242,11 @@ static void __init ts72xx_init_machine(void)
 
 MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,
-	.timer		= &ep93xx_timer,
+	.init_time	= ep93xx_timer_init,
 	.init_machine	= ts72xx_init_machine,
+	.init_late	= ep93xx_init_late,
+	.restart	= ep93xx_restart,
 MACHINE_END

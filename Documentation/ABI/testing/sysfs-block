@@ -206,3 +206,17 @@ Description:
 		when a discarded area is read the discard_zeroes_data
 		parameter will be set to one. Otherwise it will be 0 and
 		the result of reading a discarded area is undefined.
+
+What:		/sys/block/<disk>/queue/write_same_max_bytes
+Date:		January 2012
+Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+Description:
+		Some devices support a write same operation in which a
+		single data block can be written to a range of several
+		contiguous blocks on storage. This can be used to wipe
+		areas on disk or to initialize drives in a RAID
+		configuration. write_same_max_bytes indicates how many
+		bytes can be written in a single write same command. If
+		write_same_max_bytes is 0, write same is not supported
+		by the device.
+

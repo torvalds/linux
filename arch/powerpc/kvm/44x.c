@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/export.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -28,15 +29,18 @@
 #include <asm/kvm_ppc.h>
 
 #include "44x_tlb.h"
+#include "booke.h"
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvmppc_booke_vcpu_load(vcpu, cpu);
 	kvmppc_44x_tlb_load(vcpu);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvmppc_44x_tlb_put(vcpu);
+	kvmppc_booke_vcpu_put(vcpu);
 }
 
 int kvmppc_core_check_processor_compat(void)
@@ -78,6 +82,9 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(vcpu_44x->shadow_refs); i++)
 		vcpu_44x->shadow_refs[i].gtlb_index = -1;
 
+	vcpu->arch.cpu_type = KVM_CPU_440;
+	vcpu->arch.pvr = mfspr(SPRN_PVR);
+
 	return 0;
 }
 
@@ -115,6 +122,18 @@ void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
 	return kvmppc_set_sregs_ivor(vcpu, sregs);
+}
+
+int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
+			union kvmppc_one_reg *val)
+{
+	return -EINVAL;
+}
+
+int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
+		       union kvmppc_one_reg *val)
+{
+	return -EINVAL;
 }
 
 struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
@@ -155,6 +174,15 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	free_page((unsigned long)vcpu->arch.shared);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu_44x);
+}
+
+int kvmppc_core_init_vm(struct kvm *kvm)
+{
+	return 0;
+}
+
+void kvmppc_core_destroy_vm(struct kvm *kvm)
+{
 }
 
 static int __init kvmppc_44x_init(void)

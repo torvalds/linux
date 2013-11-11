@@ -1,7 +1,7 @@
 /*
  * Topcliff PCH DMA controller driver
  * Copyright (c) 2010 Intel Corporation
- * Copyright (C) 2011 OKI SEMICONDUCTOR CO., LTD.
+ * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/pch_dma.h>
 
+#include "dmaengine.h"
+
 #define DRV_NAME "pch-dma"
 
 #define DMA_CTL0_DISABLE		0x0
@@ -45,7 +47,8 @@
 #define DMA_STATUS_MASK_BITS		0x3
 #define DMA_STATUS_SHIFT_BITS		16
 #define DMA_STATUS_IRQ(x)		(0x1 << (x))
-#define DMA_STATUS_ERR(x)		(0x1 << ((x) + 8))
+#define DMA_STATUS0_ERR(x)		(0x1 << ((x) + 8))
+#define DMA_STATUS2_ERR(x)		(0x1 << (x))
 
 #define DMA_DESC_WIDTH_SHIFT_BITS	12
 #define DMA_DESC_WIDTH_1_BYTE		(0x3 << DMA_DESC_WIDTH_SHIFT_BITS)
@@ -59,7 +62,10 @@
 #define DMA_DESC_FOLLOW_WITHOUT_IRQ	0x2
 #define DMA_DESC_FOLLOW_WITH_IRQ	0x3
 
-#define MAX_CHAN_NR			8
+#define MAX_CHAN_NR			12
+
+#define DMA_MASK_CTL0_MODE	0x33333333
+#define DMA_MASK_CTL2_MODE	0x00003333
 
 static unsigned int init_nr_desc_per_channel = 64;
 module_param(init_nr_desc_per_channel, uint, 0644);
@@ -95,13 +101,12 @@ struct pch_dma_desc {
 struct pch_dma_chan {
 	struct dma_chan		chan;
 	void __iomem *membase;
-	enum dma_data_direction	dir;
+	enum dma_transfer_direction dir;
 	struct tasklet_struct	tasklet;
 	unsigned long		err_status;
 
 	spinlock_t		lock;
 
-	dma_cookie_t		completed_cookie;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -133,6 +138,7 @@ struct pch_dma {
 #define PCH_DMA_CTL3	0x0C
 #define PCH_DMA_STS0	0x10
 #define PCH_DMA_STS1	0x14
+#define PCH_DMA_STS2	0x18
 
 #define dma_readl(pd, name) \
 	readl((pd)->membase + PCH_DMA_##name)
@@ -183,13 +189,19 @@ static void pdc_enable_irq(struct dma_chan *chan, int enable)
 {
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	int pos;
+
+	if (chan->chan_id < 8)
+		pos = chan->chan_id;
+	else
+		pos = chan->chan_id + 8;
 
 	val = dma_readl(pd, CTL2);
 
 	if (enable)
-		val |= 0x1 << chan->chan_id;
+		val |= 0x1 << pos;
 	else
-		val &= ~(0x1 << chan->chan_id);
+		val &= ~(0x1 << pos);
 
 	dma_writel(pd, CTL2, val);
 
@@ -202,29 +214,42 @@ static void pdc_set_dir(struct dma_chan *chan)
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_mode;
+	u32 mask_ctl;
 
 	if (chan->chan_id < 8) {
 		val = dma_readl(pd, CTL0);
 
-		if (pd_chan->dir == DMA_TO_DEVICE)
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+					(DMA_CTL0_BITS_PER_CH * chan->chan_id);
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+				       (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val &= mask_mode;
+		if (pd_chan->dir == DMA_MEM_TO_DEV)
 			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
 				       DMA_CTL0_DIR_SHIFT_BITS);
 		else
 			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
 					 DMA_CTL0_DIR_SHIFT_BITS));
 
+		val |= mask_ctl;
 		dma_writel(pd, CTL0, val);
 	} else {
 		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
 		val = dma_readl(pd, CTL3);
 
-		if (pd_chan->dir == DMA_TO_DEVICE)
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+						(DMA_CTL0_BITS_PER_CH * ch);
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		val &= mask_mode;
+		if (pd_chan->dir == DMA_MEM_TO_DEV)
 			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * ch +
 				       DMA_CTL0_DIR_SHIFT_BITS);
 		else
 			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * ch +
 					 DMA_CTL0_DIR_SHIFT_BITS));
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL3, val);
 	}
 
@@ -236,33 +261,37 @@ static void pdc_set_mode(struct dma_chan *chan, u32 mode)
 {
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_ctl;
+	u32 mask_dir;
 
 	if (chan->chan_id < 8) {
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+			   (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
 		val = dma_readl(pd, CTL0);
-
-		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-			(DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val &= mask_dir;
 		val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL0, val);
 	} else {
 		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
-
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * ch +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
 		val = dma_readl(pd, CTL3);
-
-		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-			(DMA_CTL0_BITS_PER_CH * ch));
+		val &= mask_dir;
 		val |= mode << (DMA_CTL0_BITS_PER_CH * ch);
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL3, val);
-
 	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_mode: chan %d -> %x\n",
 		chan->chan_id, val);
 }
 
-static u32 pdc_get_status(struct pch_dma_chan *pd_chan)
+static u32 pdc_get_status0(struct pch_dma_chan *pd_chan)
 {
 	struct pch_dma *pd = to_pd(pd_chan->chan.device);
 	u32 val;
@@ -272,9 +301,27 @@ static u32 pdc_get_status(struct pch_dma_chan *pd_chan)
 			DMA_STATUS_BITS_PER_CH * pd_chan->chan.chan_id));
 }
 
+static u32 pdc_get_status2(struct pch_dma_chan *pd_chan)
+{
+	struct pch_dma *pd = to_pd(pd_chan->chan.device);
+	u32 val;
+
+	val = dma_readl(pd, STS2);
+	return DMA_STATUS_MASK_BITS & (val >> (DMA_STATUS_SHIFT_BITS +
+			DMA_STATUS_BITS_PER_CH * (pd_chan->chan.chan_id - 8)));
+}
+
 static bool pdc_is_idle(struct pch_dma_chan *pd_chan)
 {
-	if (pdc_get_status(pd_chan) == DMA_STATUS_IDLE)
+	u32 sts;
+
+	if (pd_chan->chan.chan_id < 8)
+		sts = pdc_get_status0(pd_chan);
+	else
+		sts = pdc_get_status2(pd_chan);
+
+
+	if (sts == DMA_STATUS_IDLE)
 		return true;
 	else
 		return false;
@@ -370,20 +417,6 @@ static void pdc_advance_work(struct pch_dma_chan *pd_chan)
 	}
 }
 
-static dma_cookie_t pdc_assign_cookie(struct pch_dma_chan *pd_chan,
-				      struct pch_dma_desc *desc)
-{
-	dma_cookie_t cookie = pd_chan->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	pd_chan->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
 static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 {
 	struct pch_dma_desc *desc = to_pd_desc(txd);
@@ -391,7 +424,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 	dma_cookie_t cookie;
 
 	spin_lock(&pd_chan->lock);
-	cookie = pdc_assign_cookie(pd_chan, desc);
+	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&pd_chan->active_list)) {
 		list_add_tail(&desc->desc_node, &pd_chan->active_list);
@@ -443,7 +476,7 @@ static struct pch_dma_desc *pdc_desc_get(struct pch_dma_chan *pd_chan)
 	dev_dbg(chan2dev(&pd_chan->chan), "scanned %d descriptors\n", i);
 
 	if (!ret) {
-		ret = pdc_alloc_desc(&pd_chan->chan, GFP_NOIO);
+		ret = pdc_alloc_desc(&pd_chan->chan, GFP_ATOMIC);
 		if (ret) {
 			spin_lock(&pd_chan->lock);
 			pd_chan->descs_allocated++;
@@ -495,11 +528,11 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &tmp_list);
 	}
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice(&tmp_list, &pd_chan->free_list);
 	pd_chan->descs_allocated = i;
-	pd_chan->completed_cookie = chan->cookie = 1;
-	spin_unlock_bh(&pd_chan->lock);
+	dma_cookie_init(chan);
+	spin_unlock_irq(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
 
@@ -517,10 +550,10 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	BUG_ON(!list_empty(&pd_chan->active_list));
 	BUG_ON(!list_empty(&pd_chan->queue));
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice_init(&pd_chan->free_list, &tmp_list);
 	pd_chan->descs_allocated = 0;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	list_for_each_entry_safe(desc, _d, &tmp_list, desc_node)
 		pci_pool_free(pd->pool, desc, desc->txd.phys);
@@ -532,18 +565,11 @@ static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_completed;
-	int ret;
+	enum dma_status ret;
 
-	spin_lock_bh(&pd_chan->lock);
-	last_completed = pd_chan->completed_cookie;
-	last_used = chan->cookie;
-	spin_unlock_bh(&pd_chan->lock);
-
-	ret = dma_async_is_complete(cookie, last_completed, last_used);
-
-	dma_set_tx_state(txstate, last_completed, last_used, 0);
+	spin_lock_irq(&pd_chan->lock);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	spin_unlock_irq(&pd_chan->lock);
 
 	return ret;
 }
@@ -561,7 +587,8 @@ static void pd_issue_pending(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			struct scatterlist *sgl, unsigned int sg_len,
-			enum dma_data_direction direction, unsigned long flags)
+			enum dma_transfer_direction direction, unsigned long flags,
+			void *context)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma_slave *pd_slave = chan->private;
@@ -577,9 +604,9 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 		return NULL;
 	}
 
-	if (direction == DMA_FROM_DEVICE)
+	if (direction == DMA_DEV_TO_MEM)
 		reg = pd_slave->rx_reg;
-	else if (direction == DMA_TO_DEVICE)
+	else if (direction == DMA_MEM_TO_DEV)
 		reg = pd_slave->tx_reg;
 	else
 		return NULL;
@@ -594,7 +621,7 @@ static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			goto err_desc_get;
 
 		desc->regs.dev_addr = reg;
-		desc->regs.mem_addr = sg_phys(sg);
+		desc->regs.mem_addr = sg_dma_address(sg);
 		desc->regs.size = sg_dma_len(sg);
 		desc->regs.next = DMA_DESC_FOLLOW_WITHOUT_IRQ;
 
@@ -654,7 +681,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	if (cmd != DMA_TERMINATE_ALL)
 		return -ENXIO;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 
 	pdc_set_mode(&pd_chan->chan, DMA_CTL0_DISABLE);
 
@@ -664,7 +691,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	list_for_each_entry_safe(desc, _d, &list, desc_node)
 		pdc_chain_complete(pd_chan, desc);
 
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	return 0;
 }
@@ -693,30 +720,45 @@ static irqreturn_t pd_irq(int irq, void *devid)
 	struct pch_dma *pd = (struct pch_dma *)devid;
 	struct pch_dma_chan *pd_chan;
 	u32 sts0;
+	u32 sts2;
 	int i;
-	int ret = IRQ_NONE;
+	int ret0 = IRQ_NONE;
+	int ret2 = IRQ_NONE;
 
 	sts0 = dma_readl(pd, STS0);
+	sts2 = dma_readl(pd, STS2);
 
 	dev_dbg(pd->dma.dev, "pd_irq sts0: %x\n", sts0);
 
 	for (i = 0; i < pd->dma.chancnt; i++) {
 		pd_chan = &pd->channels[i];
 
-		if (sts0 & DMA_STATUS_IRQ(i)) {
-			if (sts0 & DMA_STATUS_ERR(i))
-				set_bit(0, &pd_chan->err_status);
+		if (i < 8) {
+			if (sts0 & DMA_STATUS_IRQ(i)) {
+				if (sts0 & DMA_STATUS0_ERR(i))
+					set_bit(0, &pd_chan->err_status);
 
-			tasklet_schedule(&pd_chan->tasklet);
-			ret = IRQ_HANDLED;
+				tasklet_schedule(&pd_chan->tasklet);
+				ret0 = IRQ_HANDLED;
+			}
+		} else {
+			if (sts2 & DMA_STATUS_IRQ(i - 8)) {
+				if (sts2 & DMA_STATUS2_ERR(i))
+					set_bit(0, &pd_chan->err_status);
+
+				tasklet_schedule(&pd_chan->tasklet);
+				ret2 = IRQ_HANDLED;
+			}
 		}
-
 	}
 
 	/* clear interrupt bits in status register */
-	dma_writel(pd, STS0, sts0);
+	if (ret0)
+		dma_writel(pd, STS0, sts0);
+	if (ret2)
+		dma_writel(pd, STS2, sts2);
 
-	return ret;
+	return ret0 | ret2;
 }
 
 #ifdef	CONFIG_PM
@@ -801,7 +843,7 @@ static int pch_dma_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int __devinit pch_dma_probe(struct pci_dev *pdev,
+static int pch_dma_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct pch_dma *pd;
@@ -811,8 +853,7 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 	int i;
 
 	nr_channels = id->driver_data;
-	pd = kzalloc(sizeof(struct pch_dma)+
-		sizeof(struct pch_dma_chan) * nr_channels, GFP_KERNEL);
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 
@@ -865,7 +906,6 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 	}
 
 	pd->dma.dev = &pdev->dev;
-	pd->dma.chancnt = nr_channels;
 
 	INIT_LIST_HEAD(&pd->dma.channels);
 
@@ -873,8 +913,7 @@ static int __devinit pch_dma_probe(struct pci_dev *pdev,
 		struct pch_dma_chan *pd_chan = &pd->channels[i];
 
 		pd_chan->chan.device = &pd->dma;
-		pd_chan->chan.cookie = 1;
-		pd_chan->chan.chan_id = i;
+		dma_cookie_init(&pd_chan->chan);
 
 		pd_chan->membase = &regs->desc[i];
 
@@ -922,7 +961,7 @@ err_free_mem:
 	return err;
 }
 
-static void __devexit pch_dma_remove(struct pci_dev *pdev)
+static void pch_dma_remove(struct pci_dev *pdev)
 {
 	struct pch_dma *pd = pci_get_drvdata(pdev);
 	struct pch_dma_chan *pd_chan;
@@ -960,6 +999,8 @@ static void __devexit pch_dma_remove(struct pci_dev *pdev)
 #define PCI_DEVICE_ID_ML7223_DMA2_4CH	0x800E
 #define PCI_DEVICE_ID_ML7223_DMA3_4CH	0x8017
 #define PCI_DEVICE_ID_ML7223_DMA4_4CH	0x803B
+#define PCI_DEVICE_ID_ML7831_DMA1_8CH	0x8810
+#define PCI_DEVICE_ID_ML7831_DMA2_4CH	0x8815
 
 DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_EG20T_PCH_DMA_8CH), 8 },
@@ -972,6 +1013,8 @@ DEFINE_PCI_DEVICE_TABLE(pch_dma_id_table) = {
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA2_4CH), 4}, /* Video SPI */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA3_4CH), 4}, /* Security */
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_DMA4_4CH), 4}, /* FPGA */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_DMA1_8CH), 8}, /* UART */
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_DMA2_4CH), 4}, /* SPI */
 	{ 0, },
 };
 
@@ -979,27 +1022,16 @@ static struct pci_driver pch_dma_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pch_dma_id_table,
 	.probe		= pch_dma_probe,
-	.remove		= __devexit_p(pch_dma_remove),
+	.remove		= pch_dma_remove,
 #ifdef CONFIG_PM
 	.suspend	= pch_dma_suspend,
 	.resume		= pch_dma_resume,
 #endif
 };
 
-static int __init pch_dma_init(void)
-{
-	return pci_register_driver(&pch_dma_driver);
-}
+module_pci_driver(pch_dma_driver);
 
-static void __exit pch_dma_exit(void)
-{
-	pci_unregister_driver(&pch_dma_driver);
-}
-
-module_init(pch_dma_init);
-module_exit(pch_dma_exit);
-
-MODULE_DESCRIPTION("Intel EG20T PCH / OKI SEMICONDUCTOR ML7213 IOH "
+MODULE_DESCRIPTION("Intel EG20T PCH / LAPIS Semicon ML7213/ML7223/ML7831 IOH "
 		   "DMA controller driver");
 MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_LICENSE("GPL v2");

@@ -9,6 +9,7 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/cpufeature.h>
+#include <asm/alternative-asm.h>
 
 #undef memmove
 
@@ -26,7 +27,7 @@
 ENTRY(memmove)
 	CFI_STARTPROC
 
-	/* Handle more 32bytes in loop */
+	/* Handle more 32 bytes in loop */
 	mov %rdi, %rax
 	cmp $0x20, %rdx
 	jb	1f
@@ -55,7 +56,7 @@ ENTRY(memmove)
 3:
 	sub $0x20, %rdx
 	/*
-	 * We gobble 32byts forward in each loop.
+	 * We gobble 32 bytes forward in each loop.
 	 */
 5:
 	sub $0x20, %rdx
@@ -121,7 +122,7 @@ ENTRY(memmove)
 	addq %rdx, %rdi
 	subq $0x20, %rdx
 	/*
-	 * We gobble 32byts backward in each loop.
+	 * We gobble 32 bytes backward in each loop.
 	 */
 8:
 	subq $0x20, %rdx
@@ -214,11 +215,9 @@ ENTRY(memmove)
 	.previous
 
 	.section .altinstructions,"a"
-	.align 8
-	.quad .Lmemmove_begin_forward
-	.quad .Lmemmove_begin_forward_efs
-	.word X86_FEATURE_ERMS
-	.byte .Lmemmove_end_forward-.Lmemmove_begin_forward
-	.byte .Lmemmove_end_forward_efs-.Lmemmove_begin_forward_efs
+	altinstruction_entry .Lmemmove_begin_forward,		\
+		.Lmemmove_begin_forward_efs,X86_FEATURE_ERMS,	\
+		.Lmemmove_end_forward-.Lmemmove_begin_forward,	\
+		.Lmemmove_end_forward_efs-.Lmemmove_begin_forward_efs
 	.previous
 ENDPROC(memmove)

@@ -26,7 +26,6 @@
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/io.h>
 

@@ -409,7 +409,7 @@ cond_resched(); /* Will sleep */
 
   <para>
    You should always compile your kernel
-   <symbol>CONFIG_DEBUG_SPINLOCK_SLEEP</symbol> on, and it will warn
+   <symbol>CONFIG_DEBUG_ATOMIC_SLEEP</symbol> on, and it will warn
    you if you break these rules.  If you <emphasis>do</emphasis> break
    the rules, you will eventually lock up your box.
   </para>
@@ -945,7 +945,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols">
    <title><function>EXPORT_SYMBOL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     This is the classic method of exporting a symbol: dynamically
@@ -955,7 +955,7 @@ printk(KERN_INFO "my ip: %pI4\n", &amp;ipaddress);
 
   <sect1 id="sym-exportsymbols-gpl">
    <title><function>EXPORT_SYMBOL_GPL()</function>
-    <filename class="headerfile">include/linux/module.h</filename></title>
+    <filename class="headerfile">include/linux/export.h</filename></title>
 
    <para>
     Similar to <function>EXPORT_SYMBOL()</function> except that the
@@ -1185,13 +1185,6 @@ static struct block_device_operations opt_fops = {
     </para>
 
     <para>
-     You may well want to make your CONFIG option only visible if
-     <symbol>CONFIG_EXPERIMENTAL</symbol> is enabled: this serves as a
-     warning to users.  There many other fancy things you can do: see
-     the various <filename>Kconfig</filename> files for ideas.
-    </para>
-
-    <para>
      In your description of the option, make sure you address both the
      expert user and the user who knows nothing about your feature.  Mention
      incompatibilities and issues here.  <emphasis> Definitely
@@ -1289,7 +1282,7 @@ static struct block_device_operations opt_fops = {
  * Sparc assembly will do this to ya.
  */
 C_LABEL(cputypvar):
-        .asciz "compatability"
+        .asciz "compatibility"
 
 /* Tested on SS-5, SS-10. Probably someone at Sun applied a spell-checker. */
         .align 4

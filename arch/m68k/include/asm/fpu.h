@@ -12,6 +12,8 @@
 #define FPSTATESIZE (96)
 #elif defined(CONFIG_M68KFPU_EMU)
 #define FPSTATESIZE (28)
+#elif defined(CONFIG_COLDFIRE) && defined(CONFIG_MMU)
+#define FPSTATESIZE (16)
 #elif defined(CONFIG_M68060)
 #define FPSTATESIZE (12)
 #else

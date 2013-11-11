@@ -49,7 +49,6 @@ static inline int plat_dma_supported(struct device *dev, u64 mask)
 
 static inline void plat_extra_sync_for_device(struct device *dev)
 {
-	return;
 }
 
 static inline int plat_dma_mapping_error(struct device *dev,
@@ -62,9 +61,8 @@ static inline int plat_device_is_coherent(struct device *dev)
 {
 #ifdef CONFIG_DMA_COHERENT
 	return 1;
-#endif
-#ifdef CONFIG_DMA_NONCOHERENT
-	return 0;
+#else
+	return coherentio;
 #endif
 }
 

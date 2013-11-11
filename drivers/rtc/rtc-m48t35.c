@@ -141,69 +141,47 @@ static const struct rtc_class_ops m48t35_ops = {
 	.set_time	= m48t35_set_time,
 };
 
-static int __devinit m48t35_probe(struct platform_device *pdev)
+static int m48t35_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct m48t35_priv *priv;
-	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	priv = kzalloc(sizeof(struct m48t35_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct m48t35_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->size = res->end - res->start + 1;
+	priv->size = resource_size(res);
 	/*
 	 * kludge: remove the #ifndef after ioc3 resource
 	 * conflicts are resolved
 	 */
 #ifndef CONFIG_SGI_IP27
-	if (!request_mem_region(res->start, priv->size, pdev->name)) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if (!devm_request_mem_region(&pdev->dev, res->start, priv->size,
+				     pdev->name))
+		return -EBUSY;
 #endif
 	priv->baseaddr = res->start;
-	priv->reg = ioremap(priv->baseaddr, priv->size);
-	if (!priv->reg) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	priv->reg = devm_ioremap(&pdev->dev, priv->baseaddr, priv->size);
+	if (!priv->reg)
+		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
 
 	platform_set_drvdata(pdev, priv);
 
-	priv->rtc = rtc_device_register("m48t35", &pdev->dev,
+	priv->rtc = devm_rtc_device_register(&pdev->dev, "m48t35",
 				  &m48t35_ops, THIS_MODULE);
-	if (IS_ERR(priv->rtc)) {
-		ret = PTR_ERR(priv->rtc);
-		goto out;
-	}
+	if (IS_ERR(priv->rtc))
+		return PTR_ERR(priv->rtc);
 
 	return 0;
-
-out:
-	if (priv->reg)
-		iounmap(priv->reg);
-	if (priv->baseaddr)
-		release_mem_region(priv->baseaddr, priv->size);
-	kfree(priv);
-	return ret;
 }
 
-static int __devexit m48t35_remove(struct platform_device *pdev)
+static int m48t35_remove(struct platform_device *pdev)
 {
-	struct m48t35_priv *priv = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(priv->rtc);
-	iounmap(priv->reg);
-#ifndef CONFIG_SGI_IP27
-	release_mem_region(priv->baseaddr, priv->size);
-#endif
-	kfree(priv);
 	return 0;
 }
 
@@ -213,24 +191,13 @@ static struct platform_driver m48t35_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t35_probe,
-	.remove		= __devexit_p(m48t35_remove),
+	.remove		= m48t35_remove,
 };
 
-static int __init m48t35_init(void)
-{
-	return platform_driver_register(&m48t35_platform_driver);
-}
-
-static void __exit m48t35_exit(void)
-{
-	platform_driver_unregister(&m48t35_platform_driver);
-}
+module_platform_driver(m48t35_platform_driver);
 
 MODULE_AUTHOR("Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("M48T35 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-m48t35");
-
-module_init(m48t35_init);
-module_exit(m48t35_exit);

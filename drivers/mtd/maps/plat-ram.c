@@ -44,8 +44,6 @@ struct platram_info {
 	struct device		*dev;
 	struct mtd_info		*mtd;
 	struct map_info		 map;
-	struct mtd_partition	*partitions;
-	bool			free_partitions;
 	struct resource		*area;
 	struct platdata_mtd_ram	*pdata;
 };
@@ -95,10 +93,6 @@ static int platram_remove(struct platform_device *pdev)
 
 	if (info->mtd) {
 		mtd_device_unregister(info->mtd);
-		if (info->partitions) {
-			if (info->free_partitions)
-				kfree(info->partitions);
-		}
 		map_destroy(info->mtd);
 	}
 
@@ -205,7 +199,7 @@ static int platram_probe(struct platform_device *pdev)
 	 * supplied by the platform_data struct */
 
 	if (pdata->map_probes) {
-		const char **map_probes = pdata->map_probes;
+		const char * const *map_probes = pdata->map_probes;
 
 		for ( ; !info->mtd && *map_probes; map_probes++)
 			info->mtd = do_map_probe(*map_probes , &info->map);
@@ -225,31 +219,23 @@ static int platram_probe(struct platform_device *pdev)
 
 	platram_setrw(info, PLATRAM_RW);
 
-	/* check to see if there are any available partitions, or wether
+	/* check to see if there are any available partitions, or whether
 	 * to add this device whole */
 
-	if (!pdata->nr_partitions) {
-		/* try to probe using the supplied probe type */
-		if (pdata->probes) {
-			err = parse_mtd_partitions(info->mtd, pdata->probes,
-					   &info->partitions, 0);
-			info->free_partitions = 1;
-			if (err > 0)
-				err = mtd_device_register(info->mtd,
-					info->partitions, err);
-		}
-	}
-	/* use the static mapping */
-	else
-		err = mtd_device_register(info->mtd, pdata->partitions,
-					  pdata->nr_partitions);
+	err = mtd_device_parse_register(info->mtd, pdata->probes, NULL,
+					pdata->partitions,
+					pdata->nr_partitions);
 	if (!err)
 		dev_info(&pdev->dev, "registered mtd device\n");
 
-	/* add the whole device. */
-	err = mtd_device_register(info->mtd, NULL, 0);
-	if (err)
-		dev_err(&pdev->dev, "failed to register the entire device\n");
+	if (pdata->nr_partitions) {
+		/* add the whole device. */
+		err = mtd_device_register(info->mtd, NULL, 0);
+		if (err) {
+			dev_err(&pdev->dev,
+				"failed to register the entire device\n");
+		}
+	}
 
 	return err;
 

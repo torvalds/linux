@@ -5,9 +5,21 @@
 menu "Multiplexer I2C Chip support"
 	depends on I2C_MUX
 
+config I2C_ARB_GPIO_CHALLENGE
+	tristate "GPIO-based I2C arbitration"
+	depends on GPIOLIB && OF
+	help
+	  If you say yes to this option, support will be included for an
+	  I2C multimaster arbitration scheme using GPIOs and a challenge &
+	  response mechanism where masters have to claim the bus by asserting
+	  a GPIO.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-arb-gpio-challenge.
+
 config I2C_MUX_GPIO
 	tristate "GPIO-based I2C multiplexer"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  If you say yes to this option, support will be included for a
 	  GPIO based I2C multiplexer. This driver provides access to
@@ -15,26 +27,36 @@ config I2C_MUX_GPIO
 	  through GPIO pins.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called gpio-i2cmux.
+	  will be called i2c-mux-gpio.
 
 config I2C_MUX_PCA9541
 	tristate "NXP PCA9541 I2C Master Selector"
-	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for the NXP PCA9541
 	  I2C Master Selector.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca9541.
+	  will be called i2c-mux-pca9541.
 
 config I2C_MUX_PCA954x
 	tristate "Philips PCA954x I2C Mux/switches"
-	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for the Philips PCA954x
 	  I2C mux/switch devices.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca954x.
+	  will be called i2c-mux-pca954x.
+
+config I2C_MUX_PINCTRL
+	tristate "pinctrl-based I2C multiplexer"
+	depends on PINCTRL
+	help
+	  If you say yes to this option, support will be included for an I2C
+	  multiplexer that uses the pinctrl subsystem, i.e. pin multiplexing.
+	  This is useful for SoCs whose I2C module's signals can be routed to
+	  different sets of pins at run-time.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called pinctrl-i2cmux.
 
 endmenu

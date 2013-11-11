@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -42,7 +42,7 @@ struct cfmuxl {
 static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid);
+			   int phyid);
 static struct cflayer *get_up(struct cfmuxl *muxl, u16 id);
 
 struct cflayer *cfmuxl_create(void)
@@ -108,7 +108,7 @@ struct cflayer *cfmuxl_remove_dnlayer(struct cflayer *layr, u8 phyid)
 	int idx = phyid % DN_CACHE_SIZE;
 
 	spin_lock_bh(&muxl->transmit_lock);
-	rcu_assign_pointer(muxl->dn_cache[idx], NULL);
+	RCU_INIT_POINTER(muxl->dn_cache[idx], NULL);
 	dn = get_from_id(&muxl->frml_list, phyid);
 	if (dn == NULL)
 		goto out;
@@ -164,7 +164,7 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 	if (up == NULL)
 		goto out;
 
-	rcu_assign_pointer(muxl->up_cache[idx], NULL);
+	RCU_INIT_POINTER(muxl->up_cache[idx], NULL);
 	list_del_rcu(&up->node);
 out:
 	spin_unlock_bh(&muxl->receive_lock);
@@ -244,11 +244,10 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 }
 
 static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid)
+			   int phyid)
 {
 	struct cfmuxl *muxl = container_obj(layr);
 	struct cflayer *layer;
-	int idx;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(layer, &muxl->srvl_list, node) {
@@ -257,14 +256,9 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 
 			if ((ctrl == _CAIF_CTRLCMD_PHYIF_DOWN_IND ||
 				ctrl == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND) &&
-					layer->id != 0) {
+					layer->id != 0)
+				cfmuxl_remove_uplayer(layr, layer->id);
 
-				idx = layer->id % UP_CACHE_SIZE;
-				spin_lock_bh(&muxl->receive_lock);
-				rcu_assign_pointer(muxl->up_cache[idx], NULL);
-				list_del_rcu(&layer->node);
-				spin_unlock_bh(&muxl->receive_lock);
-			}
 			/* NOTE: ctrlcmd is not allowed to block */
 			layer->ctrlcmd(layer, ctrl, phyid);
 		}

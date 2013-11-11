@@ -104,9 +104,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
  * @lim:  the queue_limits structure to reset
  *
  * Description:
- *   Returns a queue_limit struct to its default state.  Can be used by
- *   stacking drivers like DM that stage table swaps and reuse an
- *   existing device queue.
+ *   Returns a queue_limit struct to its default state.
  */
 void blk_set_default_limits(struct queue_limits *lim)
 {
@@ -114,13 +112,13 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
-	lim->max_sectors = BLK_DEF_MAX_SECTORS;
-	lim->max_hw_sectors = INT_MAX;
+	lim->max_sectors = lim->max_hw_sectors = BLK_SAFE_MAX_SECTORS;
+	lim->max_write_same_sectors = 0;
 	lim->max_discard_sectors = 0;
 	lim->discard_granularity = 0;
 	lim->discard_alignment = 0;
 	lim->discard_misaligned = 0;
-	lim->discard_zeroes_data = 1;
+	lim->discard_zeroes_data = 0;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
 	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
@@ -129,6 +127,27 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->cluster = 1;
 }
 EXPORT_SYMBOL(blk_set_default_limits);
+
+/**
+ * blk_set_stacking_limits - set default limits for stacking devices
+ * @lim:  the queue_limits structure to reset
+ *
+ * Description:
+ *   Returns a queue_limit struct to its default state. Should be used
+ *   by stacking drivers like DM that have no internal limits.
+ */
+void blk_set_stacking_limits(struct queue_limits *lim)
+{
+	blk_set_default_limits(lim);
+
+	/* Inherit limits from component devices */
+	lim->discard_zeroes_data = 1;
+	lim->max_segments = USHRT_MAX;
+	lim->max_hw_sectors = UINT_MAX;
+	lim->max_sectors = UINT_MAX;
+	lim->max_write_same_sectors = UINT_MAX;
+}
+EXPORT_SYMBOL(blk_set_stacking_limits);
 
 /**
  * blk_queue_make_request - define an alternate make_request function for a device
@@ -165,8 +184,6 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->nr_batching = BLK_BATCH_REQ;
 
 	blk_set_default_limits(&q->limits);
-	blk_queue_max_hw_sectors(q, BLK_SAFE_MAX_SECTORS);
-	q->limits.discard_zeroes_data = 0;
 
 	/*
 	 * by default assume old behaviour and bounce for any highmem page
@@ -269,6 +286,18 @@ void blk_queue_max_discard_sectors(struct request_queue *q,
 	q->limits.max_discard_sectors = max_discard_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_discard_sectors);
+
+/**
+ * blk_queue_max_write_same_sectors - set max sectors for a single write same
+ * @q:  the request queue for the device
+ * @max_write_same_sectors: maximum number of sectors to write per command
+ **/
+void blk_queue_max_write_same_sectors(struct request_queue *q,
+				      unsigned int max_write_same_sectors)
+{
+	q->limits.max_write_same_sectors = max_write_same_sectors;
+}
+EXPORT_SYMBOL(blk_queue_max_write_same_sectors);
 
 /**
  * blk_queue_max_segments - set max hw segments for a request for this queue
@@ -495,6 +524,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->max_write_same_sectors = min(t->max_write_same_sectors,
+					b->max_write_same_sectors);
 	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
@@ -580,7 +611,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			bottom = b->discard_granularity + alignment;
 
 			/* Verify that top and bottom intervals line up */
-			if (max(top, bottom) & (min(top, bottom) - 1))
+			if ((max(top, bottom) % min(top, bottom)) != 0)
 				t->discard_misaligned = 1;
 		}
 
@@ -588,8 +619,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 						      b->max_discard_sectors);
 		t->discard_granularity = max(t->discard_granularity,
 					     b->discard_granularity);
-		t->discard_alignment = lcm(t->discard_alignment, alignment) &
-			(t->discard_granularity - 1);
+		t->discard_alignment = lcm(t->discard_alignment, alignment) %
+			t->discard_granularity;
 	}
 
 	return ret;

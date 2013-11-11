@@ -30,7 +30,7 @@
 extern int init_atu; /* Flag to select which ATU(s) to initialize / disable */
 
 static int __init
-iq81340mc_pcix_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iq81340mc_pcix_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	switch (idsel) {
 	case 1:
@@ -54,7 +54,6 @@ iq81340mc_pcix_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
 }
 
 static struct hw_pci iq81340mc_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 0,
 	.setup		= iop13xx_pci_setup,
 	.map_irq	= iq81340mc_pcix_map_irq,
@@ -85,15 +84,13 @@ static void __init iq81340mc_timer_init(void)
 	iop_init_time(bus_freq);
 }
 
-static struct sys_timer iq81340mc_timer = {
-       .init       = iq81340mc_timer_init,
-};
-
 MACHINE_START(IQ81340MC, "Intel IQ81340MC")
 	/* Maintainer: Dan Williams <dan.j.williams@intel.com> */
-	.boot_params    = 0x00000100,
+	.atag_offset    = 0x100,
+	.init_early     = iop13xx_init_early,
 	.map_io         = iop13xx_map_io,
 	.init_irq       = iop13xx_init_irq,
-	.timer          = &iq81340mc_timer,
+	.init_time	= iq81340mc_timer_init,
 	.init_machine   = iq81340mc_init,
+	.restart	= iop13xx_restart,
 MACHINE_END

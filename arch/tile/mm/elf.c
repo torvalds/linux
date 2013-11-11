@@ -21,6 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
+#include <arch/sim_def.h>
 
 /* Notify a running simulator, if any, that an exec just occurred. */
 static void sim_notify_exec(const char *binary_name)
@@ -35,19 +36,14 @@ static void sim_notify_exec(const char *binary_name)
 	} while (c);
 }
 
-static int notify_exec(void)
+static int notify_exec(struct mm_struct *mm)
 {
 	int retval = 0;  /* failure */
-	struct vm_area_struct *vma = current->mm->mmap;
-	while (vma) {
-		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
-			break;
-		vma = vma->vm_next;
-	}
-	if (vma) {
+
+	if (mm->exe_file) {
 		char *buf = (char *) __get_free_page(GFP_KERNEL);
 		if (buf) {
-			char *path = d_path(&vma->vm_file->f_path,
+			char *path = d_path(&mm->exe_file->f_path,
 					    buf, PAGE_SIZE);
 			if (!IS_ERR(path)) {
 				sim_notify_exec(path);
@@ -105,29 +101,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	unsigned long vdso_base;
 	int retval = 0;
 
+	down_write(&mm->mmap_sem);
+
 	/*
 	 * Notify the simulator that an exec just occurred.
 	 * If we can't find the filename of the mapping, just use
 	 * whatever was passed as the linux_binprm filename.
 	 */
-	if (!notify_exec())
+	if (!notify_exec(mm))
 		sim_notify_exec(bprm->filename);
-
-	down_write(&mm->mmap_sem);
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
-	 *
-	 * Make sure the vDSO gets into every core dump.  Dumping its
-	 * contents makes post-mortem fully interpretable later
-	 * without matching up the same kernel and hardware config to
-	 * see what PC values meant.
 	 */
 	vdso_base = VDSO_BASE;
 	retval = install_special_mapping(mm, vdso_base, PAGE_SIZE,
 					 VM_READ|VM_EXEC|
-					 VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-					 VM_ALWAYSDUMP,
+					 VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 					 vdso_pages);
 
 #ifndef __tilegx__
@@ -140,7 +130,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (!retval) {
 		unsigned long addr = MEM_USER_INTRPT;
 		addr = mmap_region(NULL, addr, INTRPT_SIZE,
-				   MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
 				   VM_READ|VM_EXEC|
 				   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0);
 		if (addr > (unsigned long) -PAGE_SIZE)

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,6 @@
 
 #define EFUSE_IC_ID_OFFSET		506
 
-#define EFUSE_REAL_CONTENT_LEN		512
 #define EFUSE_MAP_LEN			128
 #define EFUSE_MAX_WORD_UNIT		4
 

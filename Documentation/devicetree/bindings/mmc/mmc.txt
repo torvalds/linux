@@ -1,0 +1,66 @@
+These properties are common to multiple MMC host controllers. Any host
+that requires the respective functionality should implement them using
+these definitions.
+
+Interpreted by the OF core:
+- reg: Registers location and length.
+- interrupts: Interrupts used by the MMC controller.
+
+Card detection:
+If no property below is supplied, host native card detect is used.
+Only one of the properties in this section should be supplied:
+  - broken-cd: There is no card detection available; polling must be used.
+  - cd-gpios: Specify GPIOs for card detection, see gpio binding
+  - non-removable: non-removable slot (like eMMC); assume always present.
+
+Optional properties:
+- bus-width: Number of data lines, can be <1>, <4>, or <8>.  The default
+  will be <1> if the property is absent.
+- wp-gpios: Specify GPIOs for write protection, see gpio binding
+- cd-inverted: when present, polarity on the CD line is inverted. See the note
+  below for the case, when a GPIO is used for the CD line
+- wp-inverted: when present, polarity on the WP line is inverted. See the note
+  below for the case, when a GPIO is used for the WP line
+- max-frequency: maximum operating clock frequency
+- no-1-8-v: when present, denotes that 1.8v card voltage is not supported on
+  this system, even if the controller claims it is.
+- cap-sd-highspeed: SD high-speed timing is supported
+- cap-mmc-highspeed: MMC high-speed timing is supported
+- cap-power-off-card: powering off the card is safe
+- cap-sdio-irq: enable SDIO IRQ signalling on this interface
+
+*NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
+polarity properties, we have to fix the meaning of the "normal" and "inverted"
+line levels. We choose to follow the SDHCI standard, which specifies both those
+lines as "active low." Therefore, using the "cd-inverted" property means, that
+the CD line is active high, i.e. it is high, when a card is inserted. Similar
+logic applies to the "wp-inverted" property.
+
+CD and WP lines can be implemented on the hardware in one of two ways: as GPIOs,
+specified in cd-gpios and wp-gpios properties, or as dedicated pins. Polarity of
+dedicated pins can be specified, using *-inverted properties. GPIO polarity can
+also be specified using the OF_GPIO_ACTIVE_LOW flag. This creates an ambiguity
+in the latter case. We choose to use the XOR logic for GPIO CD and WP lines.
+This means, the two properties are "superimposed," for example leaving the
+OF_GPIO_ACTIVE_LOW flag clear and specifying the respective *-inverted
+property results in a double-inversion and actually means the "normal" line
+polarity is in effect.
+
+Optional SDIO properties:
+- keep-power-in-suspend: Preserves card power during a suspend/resume cycle
+- enable-sdio-wakeup: Enables wake up of host system on SDIO IRQ assertion
+
+Example:
+
+sdhci@ab000000 {
+	compatible = "sdhci";
+	reg = <0xab000000 0x200>;
+	interrupts = <23>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 69 0>;
+	cd-inverted;
+	wp-gpios = <&gpio 70 0>;
+	max-frequency = <50000000>;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
+}

@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Maintained by: Alok N Kataria <akataria@vmware.com>
+ * Maintained by: Arvind Kumar <arvindkumar@vmware.com>
  *
  */
 
@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-#define PVSCSI_DRIVER_VERSION_STRING   "1.0.1.0-k"
+#define PVSCSI_DRIVER_VERSION_STRING   "1.0.2.0-k"
 
 #define PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT 128
 
@@ -39,28 +39,45 @@
  * host adapter status/error codes
  */
 enum HostBusAdapterStatus {
-   BTSTAT_SUCCESS       = 0x00,  /* CCB complete normally with no errors */
-   BTSTAT_LINKED_COMMAND_COMPLETED           = 0x0a,
-   BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG = 0x0b,
-   BTSTAT_DATA_UNDERRUN = 0x0c,
-   BTSTAT_SELTIMEO      = 0x11,  /* SCSI selection timeout */
-   BTSTAT_DATARUN       = 0x12,  /* data overrun/underrun */
-   BTSTAT_BUSFREE       = 0x13,  /* unexpected bus free */
-   BTSTAT_INVPHASE      = 0x14,  /* invalid bus phase or sequence requested by target */
-   BTSTAT_LUNMISMATCH   = 0x17,  /* linked CCB has different LUN from first CCB */
-   BTSTAT_SENSFAILED    = 0x1b,  /* auto request sense failed */
-   BTSTAT_TAGREJECT     = 0x1c,  /* SCSI II tagged queueing message rejected by target */
-   BTSTAT_BADMSG        = 0x1d,  /* unsupported message received by the host adapter */
-   BTSTAT_HAHARDWARE    = 0x20,  /* host adapter hardware failed */
-   BTSTAT_NORESPONSE    = 0x21,  /* target did not respond to SCSI ATN, sent a SCSI RST */
-   BTSTAT_SENTRST       = 0x22,  /* host adapter asserted a SCSI RST */
-   BTSTAT_RECVRST       = 0x23,  /* other SCSI devices asserted a SCSI RST */
-   BTSTAT_DISCONNECT    = 0x24,  /* target device reconnected improperly (w/o tag) */
-   BTSTAT_BUSRESET      = 0x25,  /* host adapter issued BUS device reset */
-   BTSTAT_ABORTQUEUE    = 0x26,  /* abort queue generated */
-   BTSTAT_HASOFTWARE    = 0x27,  /* host adapter software error */
-   BTSTAT_HATIMEOUT     = 0x30,  /* host adapter hardware timeout error */
-   BTSTAT_SCSIPARITY    = 0x34,  /* SCSI parity error detected */
+	BTSTAT_SUCCESS       = 0x00,  /* CCB complete normally with no errors */
+	BTSTAT_LINKED_COMMAND_COMPLETED           = 0x0a,
+	BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG = 0x0b,
+	BTSTAT_DATA_UNDERRUN = 0x0c,
+	BTSTAT_SELTIMEO      = 0x11,  /* SCSI selection timeout */
+	BTSTAT_DATARUN       = 0x12,  /* data overrun/underrun */
+	BTSTAT_BUSFREE       = 0x13,  /* unexpected bus free */
+	BTSTAT_INVPHASE      = 0x14,  /* invalid bus phase or sequence
+				       * requested by target */
+	BTSTAT_LUNMISMATCH   = 0x17,  /* linked CCB has different LUN from
+				       * first CCB */
+	BTSTAT_INVPARAM      = 0x1a,  /* invalid parameter in CCB or segment
+				       * list */
+	BTSTAT_SENSFAILED    = 0x1b,  /* auto request sense failed */
+	BTSTAT_TAGREJECT     = 0x1c,  /* SCSI II tagged queueing message
+				       * rejected by target */
+	BTSTAT_BADMSG        = 0x1d,  /* unsupported message received by the
+				       * host adapter */
+	BTSTAT_HAHARDWARE    = 0x20,  /* host adapter hardware failed */
+	BTSTAT_NORESPONSE    = 0x21,  /* target did not respond to SCSI ATN,
+				       * sent a SCSI RST */
+	BTSTAT_SENTRST       = 0x22,  /* host adapter asserted a SCSI RST */
+	BTSTAT_RECVRST       = 0x23,  /* other SCSI devices asserted a SCSI
+				       * RST */
+	BTSTAT_DISCONNECT    = 0x24,  /* target device reconnected improperly
+				       * (w/o tag) */
+	BTSTAT_BUSRESET      = 0x25,  /* host adapter issued BUS device reset */
+	BTSTAT_ABORTQUEUE    = 0x26,  /* abort queue generated */
+	BTSTAT_HASOFTWARE    = 0x27,  /* host adapter software error */
+	BTSTAT_HATIMEOUT     = 0x30,  /* host adapter hardware timeout error */
+	BTSTAT_SCSIPARITY    = 0x34,  /* SCSI parity error detected */
+};
+
+/*
+ * SCSI device status values.
+ */
+enum ScsiDeviceStatus {
+	SDSTAT_GOOD  = 0x00, /* No errors. */
+	SDSTAT_CHECK = 0x02, /* Check condition. */
 };
 
 /*
@@ -112,6 +129,29 @@ struct PVSCSICmdDescResetDevice {
 	u32	target;
 	u8	lun[8];
 } __packed;
+
+/*
+ * Command descriptor for PVSCSI_CMD_CONFIG --
+ */
+
+struct PVSCSICmdDescConfigCmd {
+	u64 cmpAddr;
+	u64 configPageAddress;
+	u32 configPageNum;
+	u32 _pad;
+} __packed;
+
+enum PVSCSIConfigPageType {
+	PVSCSI_CONFIG_PAGE_CONTROLLER = 0x1958,
+	PVSCSI_CONFIG_PAGE_PHY        = 0x1959,
+	PVSCSI_CONFIG_PAGE_DEVICE     = 0x195a,
+};
+
+enum PVSCSIConfigPageAddressType {
+	PVSCSI_CONFIG_CONTROLLER_ADDRESS = 0x2120,
+	PVSCSI_CONFIG_BUSTARGET_ADDRESS  = 0x2121,
+	PVSCSI_CONFIG_PHY_ADDRESS        = 0x2122,
+};
 
 /*
  * Command descriptor for PVSCSI_CMD_ABORT_CMD --
@@ -330,6 +370,27 @@ struct PVSCSIRingCmpDesc {
 	u16	hostStatus;
 	u16	scsiStatus;
 	u32	_pad[2];
+} __packed;
+
+struct PVSCSIConfigPageHeader {
+	u32 pageNum;
+	u16 numDwords;
+	u16 hostStatus;
+	u16 scsiStatus;
+	u16 reserved[3];
+} __packed;
+
+struct PVSCSIConfigPageController {
+	struct PVSCSIConfigPageHeader header;
+	u64 nodeWWN; /* Device name as defined in the SAS spec. */
+	u16 manufacturer[64];
+	u16 serialNumber[64];
+	u16 opromVersion[32];
+	u16 hwVersion[32];
+	u16 firmwareVersion[32];
+	u32 numPhys;
+	u8  useConsecutivePhyWWNs;
+	u8  reserved[3];
 } __packed;
 
 /*

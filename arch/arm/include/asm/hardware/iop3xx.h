@@ -37,7 +37,7 @@ extern int iop3xx_get_init_atu(void);
  * IOP3XX processor registers
  */
 #define IOP3XX_PERIPHERAL_PHYS_BASE	0xffffe000
-#define IOP3XX_PERIPHERAL_VIRT_BASE	0xfeffe000
+#define IOP3XX_PERIPHERAL_VIRT_BASE	0xfedfe000
 #define IOP3XX_PERIPHERAL_SIZE		0x00002000
 #define IOP3XX_PERIPHERAL_UPPER_PA (IOP3XX_PERIPHERAL_PHYS_BASE +\
 					IOP3XX_PERIPHERAL_SIZE - 1)
@@ -217,23 +217,17 @@ extern int iop3xx_get_init_atu(void);
 #define IOP3XX_PCI_LOWER_MEM_PA	0x80000000
 #define IOP3XX_PCI_MEM_WINDOW_SIZE	0x08000000
 
-#define IOP3XX_PCI_IO_WINDOW_SIZE	0x00010000
 #define IOP3XX_PCI_LOWER_IO_PA		0x90000000
-#define IOP3XX_PCI_LOWER_IO_VA		0xfe000000
-#define IOP3XX_PCI_LOWER_IO_BA		0x90000000
-#define IOP3XX_PCI_UPPER_IO_PA		(IOP3XX_PCI_LOWER_IO_PA +\
-					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
-#define IOP3XX_PCI_UPPER_IO_VA		(IOP3XX_PCI_LOWER_IO_VA +\
-					IOP3XX_PCI_IO_WINDOW_SIZE - 1)
-#define IOP3XX_PCI_IO_PHYS_TO_VIRT(addr) (((u32) (addr) -\
-					IOP3XX_PCI_LOWER_IO_PA) +\
-					IOP3XX_PCI_LOWER_IO_VA)
-
+#define IOP3XX_PCI_LOWER_IO_BA		0x00000000
 
 #ifndef __ASSEMBLY__
+
+#include <linux/types.h>
+
 void iop3xx_map_io(void);
 void iop_init_cp6_handler(void);
 void iop_init_time(unsigned long tickrate);
+void iop3xx_restart(char, const char *);
 
 static inline u32 read_tmr0(void)
 {

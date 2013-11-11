@@ -8,10 +8,13 @@
 
 #ifdef CONFIG_NFS_USE_KERNEL_DNS
 
+#include <linux/module.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/dns_resolver.h>
+#include "dns_resolve.h"
 
-ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
+ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 		struct sockaddr *sa, size_t salen)
 {
 	ssize_t ret;
@@ -20,15 +23,17 @@ ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
 
 	ip_len = dns_query(NULL, name, namelen, NULL, &ip_addr, NULL);
 	if (ip_len > 0)
-		ret = rpc_pton(ip_addr, ip_len, sa, salen);
+		ret = rpc_pton(net, ip_addr, ip_len, sa, salen);
 	else
 		ret = -ESRCH;
 	kfree(ip_addr);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
 #else
 
+#include <linux/module.h>
 #include <linux/hash.h>
 #include <linux/string.h>
 #include <linux/kmod.h>
@@ -38,16 +43,17 @@ ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
 #include <linux/seq_file.h>
 #include <linux/inet.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/svcauth.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include "dns_resolve.h"
 #include "cache_lib.h"
+#include "netns.h"
 
 #define NFS_DNS_HASHBITS 4
 #define NFS_DNS_HASHTBL_SIZE (1 << NFS_DNS_HASHBITS)
-
-static struct cache_head *nfs_dns_table[NFS_DNS_HASHTBL_SIZE];
 
 struct nfs_dns_ent {
 	struct cache_head h;
@@ -138,7 +144,7 @@ static int nfs_dns_upcall(struct cache_detail *cd,
 
 	ret = nfs_cache_upcall(cd, key->hostname);
 	if (ret)
-		ret = sunrpc_cache_pipe_upcall(cd, ch, nfs_dns_request);
+		ret = sunrpc_cache_pipe_upcall(cd, ch);
 	return ret;
 }
 
@@ -213,7 +219,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 {
 	char buf1[NFS_DNS_HOSTNAME_MAXLEN+1];
 	struct nfs_dns_ent key, *item;
-	unsigned long ttl;
+	unsigned int ttl;
 	ssize_t len;
 	int ret = -EINVAL;
 
@@ -224,7 +230,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 	len = qword_get(&buf, buf1, sizeof(buf1));
 	if (len <= 0)
 		goto out;
-	key.addrlen = rpc_pton(buf1, len,
+	key.addrlen = rpc_pton(cd->net, buf1, len,
 			(struct sockaddr *)&key.addr,
 			sizeof(key.addr));
 
@@ -236,7 +242,8 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 	key.namelen = len;
 	memset(&key.h, 0, sizeof(key.h));
 
-	ttl = get_expiry(&buf);
+	if (get_uint(&buf, &ttl) < 0)
+		goto out;
 	if (ttl == 0)
 		goto out;
 	key.h.expiry_time = ttl + seconds_since_boot();
@@ -258,21 +265,6 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 out:
 	return ret;
 }
-
-static struct cache_detail nfs_dns_resolve = {
-	.owner = THIS_MODULE,
-	.hash_size = NFS_DNS_HASHTBL_SIZE,
-	.hash_table = nfs_dns_table,
-	.name = "dns_resolve",
-	.cache_put = nfs_dns_ent_put,
-	.cache_upcall = nfs_dns_upcall,
-	.cache_parse = nfs_dns_parse,
-	.cache_show = nfs_dns_show,
-	.match = nfs_dns_match,
-	.init = nfs_dns_ent_init,
-	.update = nfs_dns_ent_update,
-	.alloc = nfs_dns_ent_alloc,
-};
 
 static int do_cache_lookup(struct cache_detail *cd,
 		struct nfs_dns_ent *key,
@@ -336,8 +328,8 @@ out:
 	return ret;
 }
 
-ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
-		struct sockaddr *sa, size_t salen)
+ssize_t nfs_dns_resolve_name(struct net *net, char *name,
+		size_t namelen, struct sockaddr *sa, size_t salen)
 {
 	struct nfs_dns_ent key = {
 		.hostname = name,
@@ -345,28 +337,106 @@ ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
 	};
 	struct nfs_dns_ent *item = NULL;
 	ssize_t ret;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
-	ret = do_cache_lookup_wait(&nfs_dns_resolve, &key, &item);
+	ret = do_cache_lookup_wait(nn->nfs_dns_resolve, &key, &item);
 	if (ret == 0) {
 		if (salen >= item->addrlen) {
 			memcpy(sa, &item->addr, item->addrlen);
 			ret = item->addrlen;
 		} else
 			ret = -EOVERFLOW;
-		cache_put(&item->h, &nfs_dns_resolve);
+		cache_put(&item->h, nn->nfs_dns_resolve);
 	} else if (ret == -ENOENT)
 		ret = -ESRCH;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
+
+static struct cache_detail nfs_dns_resolve_template = {
+	.owner		= THIS_MODULE,
+	.hash_size	= NFS_DNS_HASHTBL_SIZE,
+	.name		= "dns_resolve",
+	.cache_put	= nfs_dns_ent_put,
+	.cache_upcall	= nfs_dns_upcall,
+	.cache_request	= nfs_dns_request,
+	.cache_parse	= nfs_dns_parse,
+	.cache_show	= nfs_dns_show,
+	.match		= nfs_dns_match,
+	.init		= nfs_dns_ent_init,
+	.update		= nfs_dns_ent_update,
+	.alloc		= nfs_dns_ent_alloc,
+};
+
+
+int nfs_dns_resolver_cache_init(struct net *net)
+{
+	int err;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	nn->nfs_dns_resolve = cache_create_net(&nfs_dns_resolve_template, net);
+	if (IS_ERR(nn->nfs_dns_resolve))
+		return PTR_ERR(nn->nfs_dns_resolve);
+
+	err = nfs_cache_register_net(net, nn->nfs_dns_resolve);
+	if (err)
+		goto err_reg;
+	return 0;
+
+err_reg:
+	cache_destroy_net(nn->nfs_dns_resolve, net);
+	return err;
+}
+
+void nfs_dns_resolver_cache_destroy(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	nfs_cache_unregister_net(net, nn->nfs_dns_resolve);
+	cache_destroy_net(nn->nfs_dns_resolve, net);
+}
+
+static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+			   void *ptr)
+{
+	struct super_block *sb = ptr;
+	struct net *net = sb->s_fs_info;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct cache_detail *cd = nn->nfs_dns_resolve;
+	int ret = 0;
+
+	if (cd == NULL)
+		return 0;
+
+	if (!try_module_get(THIS_MODULE))
+		return 0;
+
+	switch (event) {
+	case RPC_PIPEFS_MOUNT:
+		ret = nfs_cache_register_sb(sb, cd);
+		break;
+	case RPC_PIPEFS_UMOUNT:
+		nfs_cache_unregister_sb(sb, cd);
+		break;
+	default:
+		ret = -ENOTSUPP;
+		break;
+	}
+	module_put(THIS_MODULE);
+	return ret;
+}
+
+static struct notifier_block nfs_dns_resolver_block = {
+	.notifier_call	= rpc_pipefs_event,
+};
 
 int nfs_dns_resolver_init(void)
 {
-	return nfs_cache_register(&nfs_dns_resolve);
+	return rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
 }
 
 void nfs_dns_resolver_destroy(void)
 {
-	nfs_cache_unregister(&nfs_dns_resolve);
+	rpc_pipefs_notifier_unregister(&nfs_dns_resolver_block);
 }
-
 #endif

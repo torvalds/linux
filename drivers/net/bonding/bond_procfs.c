@@ -1,4 +1,5 @@
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include "bonding.h"
@@ -125,10 +126,11 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
+		seq_printf(seq, "Min links: %d\n", bond->params.min_links);
 		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
 			   ad_select_tbl[bond->params.ad_select].modename);
 
-		if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
+		if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",
 				   bond->dev->name);
 		} else {
@@ -148,16 +150,35 @@ static void bond_info_show_master(struct seq_file *seq)
 	}
 }
 
+static const char *bond_slave_link_status(s8 link)
+{
+	static const char * const status[] = {
+		[BOND_LINK_UP] = "up",
+		[BOND_LINK_FAIL] = "going down",
+		[BOND_LINK_DOWN] = "down",
+		[BOND_LINK_BACK] = "going back",
+	};
+
+	return status[link];
+}
+
 static void bond_info_show_slave(struct seq_file *seq,
 				 const struct slave *slave)
 {
 	struct bonding *bond = seq->private;
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
-	seq_printf(seq, "MII Status: %s\n",
-		   (slave->link == BOND_LINK_UP) ?  "up" : "down");
-	seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
-	seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
+	seq_printf(seq, "MII Status: %s\n", bond_slave_link_status(slave->link));
+	if (slave->speed == SPEED_UNKNOWN)
+		seq_printf(seq, "Speed: %s\n", "Unknown");
+	else
+		seq_printf(seq, "Speed: %d Mbps\n", slave->speed);
+
+	if (slave->duplex == DUPLEX_UNKNOWN)
+		seq_printf(seq, "Duplex: %s\n", "Unknown");
+	else
+		seq_printf(seq, "Duplex: %s\n", slave->duplex ? "full" : "half");
+
 	seq_printf(seq, "Link Failure Count: %u\n",
 		   slave->link_failure_count);
 
@@ -197,15 +218,13 @@ static const struct seq_operations bond_info_seq_ops = {
 static int bond_info_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
-	struct proc_dir_entry *proc;
 	int res;
 
 	res = seq_open(file, &bond_info_seq_ops);
 	if (!res) {
 		/* recover the pointer buried in proc_dir_entry data */
 		seq = file->private_data;
-		proc = PDE(inode);
-		seq->private = proc->data;
+		seq->private = PDE_DATA(inode);
 	}
 
 	return res;

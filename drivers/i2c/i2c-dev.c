@@ -17,7 +17,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+    MA 02110-1301 USA.
 */
 
 /* Note that this is a complete rewrite of Simon Vogl's i2c-dev module.
@@ -147,7 +148,7 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 		return -ENOMEM;
 
 	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
@@ -171,7 +172,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 		return PTR_ERR(tmp);
 
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);
@@ -251,15 +252,10 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
-	rdwr_pa = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
-	if (!rdwr_pa)
-		return -ENOMEM;
-
-	if (copy_from_user(rdwr_pa, rdwr_arg.msgs,
-			   rdwr_arg.nmsgs * sizeof(struct i2c_msg))) {
-		kfree(rdwr_pa);
-		return -EFAULT;
-	}
+	rdwr_pa = memdup_user(rdwr_arg.msgs,
+			      rdwr_arg.nmsgs * sizeof(struct i2c_msg));
+	if (IS_ERR(rdwr_pa))
+		return PTR_ERR(rdwr_pa);
 
 	data_ptrs = kmalloc(rdwr_arg.nmsgs * sizeof(u8 __user *), GFP_KERNEL);
 	if (data_ptrs == NULL) {
@@ -269,18 +265,40 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 
 	res = 0;
 	for (i = 0; i < rdwr_arg.nmsgs; i++) {
-		/* Limit the size of the message to a sane amount;
-		 * and don't let length change either. */
-		if ((rdwr_pa[i].len > 8192) ||
-		    (rdwr_pa[i].flags & I2C_M_RECV_LEN)) {
+		/* Limit the size of the message to a sane amount */
+		if (rdwr_pa[i].len > 8192) {
 			res = -EINVAL;
 			break;
 		}
+
 		data_ptrs[i] = (u8 __user *)rdwr_pa[i].buf;
 		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
 		if (IS_ERR(rdwr_pa[i].buf)) {
 			res = PTR_ERR(rdwr_pa[i].buf);
 			break;
+		}
+
+		/*
+		 * If the message length is received from the slave (similar
+		 * to SMBus block read), we must ensure that the buffer will
+		 * be large enough to cope with a message length of
+		 * I2C_SMBUS_BLOCK_MAX as this is the maximum underlying bus
+		 * drivers allow. The first byte in the buffer must be
+		 * pre-filled with the number of extra bytes, which must be
+		 * at least one to hold the message length, but can be
+		 * greater (for example to account for a checksum byte at
+		 * the end of the message.)
+		 */
+		if (rdwr_pa[i].flags & I2C_M_RECV_LEN) {
+			if (!(rdwr_pa[i].flags & I2C_M_RD) ||
+			    rdwr_pa[i].buf[0] < 1 ||
+			    rdwr_pa[i].len < rdwr_pa[i].buf[0] +
+					     I2C_SMBUS_BLOCK_MAX) {
+				res = -EINVAL;
+				break;
+			}
+
+			rdwr_pa[i].len = rdwr_pa[i].buf[0];
 		}
 	}
 	if (res < 0) {
@@ -579,7 +597,7 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	return 0;
 }
 
-int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
+static int i2cdev_notifier_call(struct notifier_block *nb, unsigned long action,
 			 void *data)
 {
 	struct device *dev = data;

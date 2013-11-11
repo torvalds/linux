@@ -8,7 +8,6 @@
  *	archive for more details.
  */
 #include <linux/types.h>
-#include <asm/system.h>
 
 /*
  * Bt455 byte-wide registers, 32-bit aligned.

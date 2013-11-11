@@ -6,9 +6,10 @@
  * License as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/gpio.h>
 #include <asm/olpc.h>
 
@@ -60,33 +61,6 @@ static int dcon_was_irq(void)
 static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 {
 	unsigned int irq;
-	u_int8_t tmp;
-	struct pci_dev *pdev;
-
-	pdev = pci_get_device(PCI_VENDOR_ID_VIA,
-			      PCI_DEVICE_ID_VIA_VX855, NULL);
-	if (!pdev) {
-		printk(KERN_ERR "cannot find VX855 PCI ID\n");
-		return 1;
-	}
-
-	pci_read_config_byte(pdev, 0x95, &tmp);
-	pci_write_config_byte(pdev, 0x95, tmp|0x0c);
-
-	/* Set GPIO8 to GPIO mode, not SSPICLK */
-	pci_read_config_byte(pdev, 0xe3, &tmp);
-	pci_write_config_byte(pdev, 0xe3, tmp | 0x04);
-
-	/* Set GPI10/GPI11 to GPI mode, not SSPISDI/SSPISS */
-	pci_read_config_byte(pdev, 0xe4, &tmp);
-	pci_write_config_byte(pdev, 0xe4, tmp|0x08);
-
-	/* clear PMU_RxE1[6] to select SCI on GPIO12 */
-	/* clear PMU_RxE0[6] to choose falling edge */
-	pci_read_config_byte(pdev, 0xe1, &tmp);
-	pci_write_config_byte(pdev, 0xe1, tmp & ~BIT_GPIO12);
-	pci_read_config_byte(pdev, 0xe0, &tmp);
-	pci_write_config_byte(pdev, 0xe0, tmp & ~BIT_GPIO12);
 
 	dcon_clear_irq();
 
@@ -99,12 +73,10 @@ static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 			DCON_SOURCE_CPU : DCON_SOURCE_DCON;
 	dcon->pending_src = dcon->curr_src;
 
-	pci_dev_put(pdev);
-
 	/* we're sharing the IRQ with ACPI */
 	irq = acpi_gbl_FADT.sci_interrupt;
 	if (request_irq(irq, &dcon_interrupt, IRQF_SHARED, "DCON", dcon)) {
-		printk(KERN_ERR PREFIX "DCON (IRQ%d) allocation failed\n", irq);
+		pr_err("DCON (IRQ%d) allocation failed\n", irq);
 		return 1;
 	}
 
@@ -167,20 +139,18 @@ static void dcon_set_dconload_xo_1_5(int val)
 	gpio_set_value(VX855_GPIO(1), val);
 }
 
-static u8 dcon_read_status_xo_1_5(void)
+static int dcon_read_status_xo_1_5(u8 *status)
 {
-	u8 status;
-
 	if (!dcon_was_irq())
 		return -1;
 
 	/* i believe this is the same as "inb(0x44b) & 3" */
-	status = gpio_get_value(VX855_GPI(10));
-	status |= gpio_get_value(VX855_GPI(11)) << 1;
+	*status = gpio_get_value(VX855_GPI(10));
+	*status |= gpio_get_value(VX855_GPI(11)) << 1;
 
 	dcon_clear_irq();
 
-	return status;
+	return 0;
 }
 
 struct dcon_platform_data dcon_pdata_xo_1_5 = {

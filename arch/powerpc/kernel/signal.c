@@ -11,9 +11,14 @@
 
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/uprobes.h>
+#include <linux/key.h>
+#include <linux/context_tracking.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include <asm/debug.h>
+#include <asm/tm.h>
 
 #include "signal.h"
 
@@ -21,18 +26,18 @@
  * through debug.exception-trace sysctl.
  */
 
-int show_unhandled_signals = 0;
+int show_unhandled_signals = 1;
 
 /*
  * Allocate space for the signal frame
  */
-void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
+void __user * get_sigframe(struct k_sigaction *ka, unsigned long sp,
 			   size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
 
         /* Default to using normal stack */
-        oldsp = get_clean_sp(regs, is_32);
+        oldsp = get_clean_sp(sp, is_32);
 
 	/* Check for alt stack */
 	if ((ka->sa.sa_flags & SA_ONSTACK) &&
@@ -47,19 +52,6 @@ void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 		return NULL;
 
         return (void __user *)newsp;
-}
-
-
-/*
- * Restore the user process's signal mask
- */
-void restore_sigmask(sigset_t *set)
-{
-	sigdelsetmask(set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = *set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
 }
 
 static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
@@ -113,18 +105,14 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
+static int do_signal(struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
 	int ret;
 	int is32 = is_32bit_task();
-
-	if (current_thread_info()->local_flags & _TLF_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
@@ -132,12 +120,8 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 	check_syscall_restart(regs, &ka, signr > 0);
 
 	if (signr <= 0) {
-		struct thread_info *ti = current_thread_info();
 		/* No signal to deliver -- put the saved sigmask back */
-		if (ti->local_flags & _TLF_RESTORE_SIGMASK) {
-			ti->local_flags &= ~_TLF_RESTORE_SIGMASK;
-			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-		}
+		restore_saved_sigmask();
 		regs->trap = 0;
 		return 0;               /* no signals delivered */
 	}
@@ -148,8 +132,9 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr)
-		set_dabr(current->thread.dabr);
+	if (current->thread.hw_brk.address &&
+		current->thread.hw_brk.type)
+		set_breakpoint(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
@@ -167,44 +152,62 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 
 	regs->trap = 0;
 	if (ret) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked,
-			  &ka.sa.sa_mask);
-		if (!(ka.sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-
-		/*
-		 * A signal was successfully delivered; the saved sigmask is in
-		 * its frame, and we can clear the TLF_RESTORE_SIGMASK flag.
-		 */
-		current_thread_info()->local_flags &= ~_TLF_RESTORE_SIGMASK;
-
-		/*
-		 * Let tracing know that we've done the handler setup.
-		 */
-		tracehook_signal_handler(signr, &info, &ka, regs,
+		signal_delivered(signr, &info, &ka, regs,
 					 test_thread_flag(TIF_SINGLESTEP));
 	}
 
 	return ret;
 }
 
-void do_signal(struct pt_regs *regs, unsigned long thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
+	user_exit();
+
+	if (thread_info_flags & _TIF_UPROBE)
+		uprobe_notify_resume(regs);
+
 	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal_pending(NULL, regs);
+		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
+
+	user_enter();
 }
 
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-		unsigned long r5, unsigned long r6, unsigned long r7,
-		unsigned long r8, struct pt_regs *regs)
+unsigned long get_tm_stackpointer(struct pt_regs *regs)
 {
-	return do_sigaltstack(uss, uoss, regs->gpr[1]);
+	/* When in an active transaction that takes a signal, we need to be
+	 * careful with the stack.  It's possible that the stack has moved back
+	 * up after the tbegin.  The obvious case here is when the tbegin is
+	 * called inside a function that returns before a tend.  In this case,
+	 * the stack is part of the checkpointed transactional memory state.
+	 * If we write over this non transactionally or in suspend, we are in
+	 * trouble because if we get a tm abort, the program counter and stack
+	 * pointer will be back at the tbegin but our in memory stack won't be
+	 * valid anymore.
+	 *
+	 * To avoid this, when taking a signal in an active transaction, we
+	 * need to use the stack pointer from the checkpointed state, rather
+	 * than the speculated state.  This ensures that the signal context
+	 * (written tm suspended) will be written below the stack required for
+	 * the rollback.  The transaction is aborted becuase of the treclaim,
+	 * so any memory written between the tbegin and the signal will be
+	 * rolled back anyway.
+	 *
+	 * For signals taken in non-TM or suspended mode, we use the
+	 * normal/non-checkpointed stack pointer.
+	 */
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr)) {
+		tm_enable();
+		tm_reclaim(&current->thread, regs->msr, TM_CAUSE_SIGNAL);
+		if (MSR_TM_TRANSACTIONAL(regs->msr))
+			return current->thread.ckpt_regs.gpr[1];
+	}
+#endif
+	return regs->gpr[1];
 }

@@ -29,7 +29,6 @@
 #include <linux/module.h>
 
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -44,7 +43,7 @@ static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 
 static void mvme16x_get_model(char *model);
 extern void mvme16x_sched_init(irq_handler_t handler);
-extern unsigned long mvme16x_gettimeoffset (void);
+extern u32 mvme16x_gettimeoffset(void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern int mvme16x_set_clock_mmss (unsigned long);
 extern void mvme16x_reset (void);
@@ -117,13 +116,170 @@ static void mvme16x_get_hardware_list(struct seq_file *m)
 
 static void __init mvme16x_init_IRQ (void)
 {
-	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+	m68k_setup_user_interrupt(VEC_USER, 192);
 }
 
 #define pcc2chip	((volatile u_char *)0xfff42000)
 #define PccSCCMICR	0x1d
 #define PccSCCTICR	0x1e
 #define PccSCCRICR	0x1f
+#define PccTPIACKR	0x25
+
+#ifdef CONFIG_EARLY_PRINTK
+
+/**** cd2401 registers ****/
+#define CD2401_ADDR	(0xfff45000)
+
+#define CyGFRCR         (0x81)
+#define CyCCR		(0x13)
+#define      CyCLR_CHAN		(0x40)
+#define      CyINIT_CHAN	(0x20)
+#define      CyCHIP_RESET	(0x10)
+#define      CyENB_XMTR		(0x08)
+#define      CyDIS_XMTR		(0x04)
+#define      CyENB_RCVR		(0x02)
+#define      CyDIS_RCVR		(0x01)
+#define CyCAR		(0xee)
+#define CyIER		(0x11)
+#define      CyMdmCh		(0x80)
+#define      CyRxExc		(0x20)
+#define      CyRxData		(0x08)
+#define      CyTxMpty		(0x02)
+#define      CyTxRdy		(0x01)
+#define CyLICR		(0x26)
+#define CyRISR		(0x89)
+#define      CyTIMEOUT		(0x80)
+#define      CySPECHAR		(0x70)
+#define      CyOVERRUN		(0x08)
+#define      CyPARITY		(0x04)
+#define      CyFRAME		(0x02)
+#define      CyBREAK		(0x01)
+#define CyREOIR		(0x84)
+#define CyTEOIR		(0x85)
+#define CyMEOIR		(0x86)
+#define      CyNOTRANS		(0x08)
+#define CyRFOC		(0x30)
+#define CyRDR		(0xf8)
+#define CyTDR		(0xf8)
+#define CyMISR		(0x8b)
+#define CyRISR		(0x89)
+#define CyTISR		(0x8a)
+#define CyMSVR1		(0xde)
+#define CyMSVR2		(0xdf)
+#define      CyDSR		(0x80)
+#define      CyDCD		(0x40)
+#define      CyCTS		(0x20)
+#define      CyDTR		(0x02)
+#define      CyRTS		(0x01)
+#define CyRTPRL		(0x25)
+#define CyRTPRH		(0x24)
+#define CyCOR1		(0x10)
+#define      CyPARITY_NONE	(0x00)
+#define      CyPARITY_E		(0x40)
+#define      CyPARITY_O		(0xC0)
+#define      Cy_5_BITS		(0x04)
+#define      Cy_6_BITS		(0x05)
+#define      Cy_7_BITS		(0x06)
+#define      Cy_8_BITS		(0x07)
+#define CyCOR2		(0x17)
+#define      CyETC		(0x20)
+#define      CyCtsAE		(0x02)
+#define CyCOR3		(0x16)
+#define      Cy_1_STOP		(0x02)
+#define      Cy_2_STOP		(0x04)
+#define CyCOR4		(0x15)
+#define      CyREC_FIFO		(0x0F)  /* Receive FIFO threshold */
+#define CyCOR5		(0x14)
+#define CyCOR6		(0x18)
+#define CyCOR7		(0x07)
+#define CyRBPR		(0xcb)
+#define CyRCOR		(0xc8)
+#define CyTBPR		(0xc3)
+#define CyTCOR		(0xc0)
+#define CySCHR1		(0x1f)
+#define CySCHR2 	(0x1e)
+#define CyTPR		(0xda)
+#define CyPILR1		(0xe3)
+#define CyPILR2		(0xe0)
+#define CyPILR3		(0xe1)
+#define CyCMR		(0x1b)
+#define      CyASYNC		(0x02)
+#define CyLICR          (0x26)
+#define CyLIVR          (0x09)
+#define CySCRL		(0x23)
+#define CySCRH		(0x22)
+#define CyTFTC		(0x80)
+
+static void cons_write(struct console *co, const char *str, unsigned count)
+{
+	volatile unsigned char *base_addr = (u_char *)CD2401_ADDR;
+	volatile u_char sink;
+	u_char ier;
+	int port;
+	u_char do_lf = 0;
+	int i = 0;
+
+	/* Ensure transmitter is enabled! */
+
+	port = 0;
+	base_addr[CyCAR] = (u_char)port;
+	while (base_addr[CyCCR])
+		;
+	base_addr[CyCCR] = CyENB_XMTR;
+
+	ier = base_addr[CyIER];
+	base_addr[CyIER] = CyTxMpty;
+
+	while (1) {
+		if (pcc2chip[PccSCCTICR] & 0x20)
+		{
+			/* We have a Tx int. Acknowledge it */
+			sink = pcc2chip[PccTPIACKR];
+			if ((base_addr[CyLICR] >> 2) == port) {
+				if (i == count) {
+					/* Last char of string is now output */
+					base_addr[CyTEOIR] = CyNOTRANS;
+					break;
+				}
+				if (do_lf) {
+					base_addr[CyTDR] = '\n';
+					str++;
+					i++;
+					do_lf = 0;
+				}
+				else if (*str == '\n') {
+					base_addr[CyTDR] = '\r';
+					do_lf = 1;
+				}
+				else {
+					base_addr[CyTDR] = *str++;
+					i++;
+				}
+				base_addr[CyTEOIR] = 0;
+			}
+			else
+				base_addr[CyTEOIR] = CyNOTRANS;
+		}
+	}
+
+	base_addr[CyIER] = ier;
+}
+
+static struct console cons_info =
+{
+	.name	= "sercon",
+	.write	= cons_write,
+	.flags	= CON_PRINTBUFFER | CON_BOOT,
+	.index	= -1,
+};
+
+static void __init mvme16x_early_console(void)
+{
+	register_console(&cons_info);
+
+	printk(KERN_INFO "MVME16x: early console registered\n");
+}
+#endif
 
 void __init config_mvme16x(void)
 {
@@ -133,7 +289,7 @@ void __init config_mvme16x(void)
     mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
-    mach_gettimeoffset   = mvme16x_gettimeoffset;
+    arch_gettimeoffset   = mvme16x_gettimeoffset;
     mach_hwclk           = mvme16x_hwclk;
     mach_set_clock_mmss	 = mvme16x_set_clock_mmss;
     mach_reset		 = mvme16x_reset;
@@ -183,6 +339,9 @@ void __init config_mvme16x(void)
 	pcc2chip[PccSCCMICR] = 0x10;
 	pcc2chip[PccSCCTICR] = 0x10;
 	pcc2chip[PccSCCRICR] = 0x10;
+#ifdef CONFIG_EARLY_PRINTK
+	mvme16x_early_console();
+#endif
     }
 }
 
@@ -246,9 +405,9 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
 
 
 /* This is always executed with interrupts disabled.  */
-unsigned long mvme16x_gettimeoffset (void)
+u32 mvme16x_gettimeoffset(void)
 {
-    return (*(volatile unsigned long *)0xfff42008);
+    return (*(volatile u32 *)0xfff42008) * 1000;
 }
 
 int bcd2int (unsigned char b)

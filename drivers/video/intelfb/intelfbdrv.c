@@ -132,7 +132,7 @@
 #include "intelfbhw.h"
 #include "../edid.h"
 
-static void __devinit get_initial_mode(struct intelfb_info *dinfo);
+static void get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
 			 struct fb_var_screeninfo *var);
 static int intelfb_open(struct fb_info *info, int user);
@@ -162,10 +162,10 @@ static int intelfb_sync(struct fb_info *info);
 static int intelfb_ioctl(struct fb_info *info,
 			 unsigned int cmd, unsigned long arg);
 
-static int __devinit intelfb_pci_register(struct pci_dev *pdev,
-					  const struct pci_device_id *ent);
-static void __devexit intelfb_pci_unregister(struct pci_dev *pdev);
-static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo);
+static int intelfb_pci_register(struct pci_dev *pdev,
+				const struct pci_device_id *ent);
+static void intelfb_pci_unregister(struct pci_dev *pdev);
+static int intelfb_set_fbinfo(struct intelfb_info *dinfo);
 
 /*
  * Limiting the class to PCI_CLASS_DISPLAY_VGA prevents function 1 of the
@@ -177,7 +177,7 @@ static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo);
 #define INTELFB_CLASS_MASK 0
 #endif
 
-static struct pci_device_id intelfb_pci_table[] __devinitdata = {
+static struct pci_device_id intelfb_pci_table[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_830M, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_830M },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_845G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_845G },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_85XGM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_85XGM },
@@ -219,7 +219,7 @@ static struct pci_driver intelfb_driver = {
 	.name =		"intelfb",
 	.id_table =	intelfb_pci_table,
 	.probe =	intelfb_pci_register,
-	.remove =	__devexit_p(intelfb_pci_unregister)
+	.remove =	intelfb_pci_unregister,
 };
 
 /* Module description/parameters */
@@ -230,15 +230,15 @@ MODULE_DESCRIPTION("Framebuffer driver for Intel(R) " SUPPORTED_CHIPSETS
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
-static int accel        = 1;
+static bool accel       = 1;
 static int vram         = 4;
-static int hwcursor     = 0;
-static int mtrr         = 1;
-static int fixed        = 0;
-static int noinit       = 0;
-static int noregister   = 0;
-static int probeonly    = 0;
-static int idonly       = 0;
+static bool hwcursor    = 0;
+static bool mtrr        = 1;
+static bool fixed       = 0;
+static bool noinit      = 0;
+static bool noregister  = 0;
+static bool probeonly   = 0;
+static bool idonly      = 0;
 static int bailearly    = 0;
 static int voffset	= 48;
 static char *mode       = NULL;
@@ -263,7 +263,7 @@ module_param(probeonly, bool, 0);
 MODULE_PARM_DESC(probeonly, "Do a minimal probe (debug)");
 module_param(idonly, bool, 0);
 MODULE_PARM_DESC(idonly, "Just identify without doing anything else (debug)");
-module_param(bailearly, bool, 0);
+module_param(bailearly, int, 0);
 MODULE_PARM_DESC(bailearly, "Bail out early, depending on value (debug)");
 module_param(mode, charp, S_IRUGO);
 MODULE_PARM_DESC(mode,
@@ -415,7 +415,7 @@ module_exit(intelfb_exit);
  ***************************************************************/
 
 #ifdef CONFIG_MTRR
-static inline void __devinit set_mtrr(struct intelfb_info *dinfo)
+static inline void set_mtrr(struct intelfb_info *dinfo)
 {
 	dinfo->mtrr_reg = mtrr_add(dinfo->aperture.physical,
 				   dinfo->aperture.size, MTRR_TYPE_WRCOMB, 1);
@@ -497,8 +497,8 @@ static void cleanup(struct intelfb_info *dinfo)
 } while (0)
 
 
-static int __devinit intelfb_pci_register(struct pci_dev *pdev,
-					  const struct pci_device_id *ent)
+static int intelfb_pci_register(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
@@ -529,7 +529,6 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 	if (fb_alloc_cmap(&info->cmap, 256, 1) < 0) {
 		ERR_MSG("Could not allocate cmap for intelfb_info.\n");
 		goto err_out_cmap;
-		return -ENODEV;
 	}
 
 	dinfo = info->par;
@@ -681,6 +680,7 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 		 + dinfo->fb.size);
 	if (!dinfo->aperture.virtual) {
 		ERR_MSG("Cannot remap FB region.\n");
+		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -690,6 +690,7 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 					      INTEL_REG_SIZE);
 	if (!dinfo->mmio_base) {
 		ERR_MSG("Cannot remap MMIO region.\n");
+		agp_backend_release(bridge);
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -920,8 +921,7 @@ err_out_cmap:
 	return -ENODEV;
 }
 
-static void __devexit
-intelfb_pci_unregister(struct pci_dev *pdev)
+static void intelfb_pci_unregister(struct pci_dev *pdev)
 {
 	struct intelfb_info *dinfo = pci_get_drvdata(pdev);
 
@@ -969,7 +969,7 @@ static __inline__ int var_to_refresh(const struct fb_var_screeninfo *var)
  *                Various intialisation functions              *
  ***************************************************************/
 
-static void __devinit get_initial_mode(struct intelfb_info *dinfo)
+static void get_initial_mode(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int xtot, ytot;
@@ -1036,7 +1036,7 @@ static void __devinit get_initial_mode(struct intelfb_info *dinfo)
 	}
 }
 
-static int __devinit intelfb_init_var(struct intelfb_info *dinfo)
+static int intelfb_init_var(struct intelfb_info *dinfo)
 {
 	struct fb_var_screeninfo *var;
 	int msrc = 0;
@@ -1117,7 +1117,7 @@ static int __devinit intelfb_init_var(struct intelfb_info *dinfo)
 	return 0;
 }
 
-static int __devinit intelfb_set_fbinfo(struct intelfb_info *dinfo)
+static int intelfb_set_fbinfo(struct intelfb_info *dinfo)
 {
 	struct fb_info *info = dinfo->info;
 

@@ -54,7 +54,7 @@ static int __init ebony_probe(void)
 	if (!of_flat_dt_is_compatible(root, "ibm,ebony"))
 		return 0;
 
-	ppc_pci_set_flags(PPC_PCI_REASSIGN_ALL_RSRC);
+	pci_set_flags(PCI_REASSIGN_ALL_RSRC);
 
 	return 1;
 }

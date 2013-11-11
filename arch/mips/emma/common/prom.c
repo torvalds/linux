@@ -50,7 +50,7 @@ void __init prom_init(void)
 
 	/* arg[0] is "g", the rest is boot parameters */
 	for (i = 1; i < argc; i++) {
-		if (strlen(arcs_cmdline) + strlen(arg[i] + 1)
+		if (strlen(arcs_cmdline) + strlen(arg[i]) + 1
 		    >= sizeof(arcs_cmdline))
 			break;
 		strcat(arcs_cmdline, arg[i]);

@@ -182,7 +182,7 @@ int da903x_set_bits(struct device *dev, int reg, uint8_t bit_mask)
 	if (ret)
 		goto out;
 
-	if ((reg_val & bit_mask) == 0) {
+	if ((reg_val & bit_mask) != bit_mask) {
 		reg_val |= bit_mask;
 		ret = __da903x_write(chip->client, reg, reg_val);
 	}
@@ -246,7 +246,7 @@ int da903x_query_status(struct device *dev, unsigned int sbits)
 }
 EXPORT_SYMBOL(da903x_query_status);
 
-static int __devinit da9030_init_chip(struct da903x_chip *chip)
+static int da9030_init_chip(struct da903x_chip *chip)
 {
 	uint8_t chip_id;
 	int err;
@@ -459,7 +459,7 @@ static int da903x_remove_subdevs(struct da903x_chip *chip)
 	return device_for_each_child(chip->dev, NULL, __remove_subdev);
 }
 
-static int __devinit da903x_add_subdevs(struct da903x_chip *chip,
+static int da903x_add_subdevs(struct da903x_chip *chip,
 					struct da903x_platform_data *pdata)
 {
 	struct da903x_subdev_info *subdev;
@@ -491,7 +491,7 @@ failed:
 	return ret;
 }
 
-static int __devinit da903x_probe(struct i2c_client *client,
+static int da903x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct da903x_platform_data *pdata = client->dev.platform_data;
@@ -499,7 +499,8 @@ static int __devinit da903x_probe(struct i2c_client *client,
 	unsigned int tmp;
 	int ret;
 
-	chip = kzalloc(sizeof(struct da903x_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(struct da903x_chip),
+				GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
@@ -515,41 +516,34 @@ static int __devinit da903x_probe(struct i2c_client *client,
 
 	ret = chip->ops->init_chip(chip);
 	if (ret)
-		goto out_free_chip;
+		return ret;
 
 	/* mask and clear all IRQs */
 	chip->events_mask = 0xffffffff;
 	chip->ops->mask_events(chip, chip->events_mask);
 	chip->ops->read_events(chip, &tmp);
 
-	ret = request_irq(client->irq, da903x_irq_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+	ret = devm_request_irq(&client->dev, client->irq, da903x_irq_handler,
+			IRQF_TRIGGER_FALLING,
 			"da903x", chip);
 	if (ret) {
 		dev_err(&client->dev, "failed to request irq %d\n",
 				client->irq);
-		goto out_free_chip;
+		return ret;
 	}
 
 	ret = da903x_add_subdevs(chip, pdata);
 	if (ret)
-		goto out_free_irq;
+		return ret;
 
 	return 0;
-
-out_free_irq:
-	free_irq(client->irq, chip);
-out_free_chip:
-	kfree(chip);
-	return ret;
 }
 
-static int __devexit da903x_remove(struct i2c_client *client)
+static int da903x_remove(struct i2c_client *client)
 {
 	struct da903x_chip *chip = i2c_get_clientdata(client);
 
 	da903x_remove_subdevs(chip);
-	kfree(chip);
 	return 0;
 }
 
@@ -559,7 +553,7 @@ static struct i2c_driver da903x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_probe,
-	.remove		= __devexit_p(da903x_remove),
+	.remove		= da903x_remove,
 	.id_table	= da903x_id_table,
 };
 

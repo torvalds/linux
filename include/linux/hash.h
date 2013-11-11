@@ -1,7 +1,7 @@
 #ifndef _LINUX_HASH_H
 #define _LINUX_HASH_H
 /* Fast hashing routine for ints,  longs and pointers.
-   (C) 2002 William Lee Irwin III, IBM */
+   (C) 2002 Nadia Yvette Chambers, IBM */
 
 /*
  * Knuth recommends primes in approximately golden ratio to the maximum
@@ -15,6 +15,7 @@
  */
 
 #include <asm/types.h>
+#include <linux/compiler.h>
 
 /* 2^31 + 2^29 - 2^25 + 2^22 - 2^19 - 2^16 + 1 */
 #define GOLDEN_RATIO_PRIME_32 0x9e370001UL
@@ -31,7 +32,7 @@
 #error Wordsize not 32 or 64
 #endif
 
-static inline u64 hash_64(u64 val, unsigned int bits)
+static __always_inline u64 hash_64(u64 val, unsigned int bits)
 {
 	u64 hash = val;
 
@@ -63,8 +64,18 @@ static inline u32 hash_32(u32 val, unsigned int bits)
 	return hash >> (32 - bits);
 }
 
-static inline unsigned long hash_ptr(void *ptr, unsigned int bits)
+static inline unsigned long hash_ptr(const void *ptr, unsigned int bits)
 {
 	return hash_long((unsigned long)ptr, bits);
+}
+
+static inline u32 hash32_ptr(const void *ptr)
+{
+	unsigned long val = (unsigned long)ptr;
+
+#if BITS_PER_LONG == 64
+	val ^= (val >> 32);
+#endif
+	return (u32)val;
 }
 #endif /* _LINUX_HASH_H */

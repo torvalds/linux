@@ -162,14 +162,14 @@ static void wm9712_phy_init(struct wm97xx *wm)
 	if (rpu) {
 		dig2 &= 0xffc0;
 		dig2 |= WM9712_RPU(rpu);
-		dev_dbg(wm->dev, "setting pen detect pull-up to %d Ohms",
+		dev_dbg(wm->dev, "setting pen detect pull-up to %d Ohms\n",
 			64000 / rpu);
 	}
 
 	/* WM9712 five wire */
 	if (five_wire) {
 		dig2 |= WM9712_45W;
-		dev_dbg(wm->dev, "setting 5-wire touchscreen mode.");
+		dev_dbg(wm->dev, "setting 5-wire touchscreen mode.\n");
 
 		if (pil) {
 			dev_warn(wm->dev, "pressure measurement is not "
@@ -182,21 +182,21 @@ static void wm9712_phy_init(struct wm97xx *wm)
 	if (pil == 2) {
 		dig2 |= WM9712_PIL;
 		dev_dbg(wm->dev,
-			"setting pressure measurement current to 400uA.");
+			"setting pressure measurement current to 400uA.\n");
 	} else if (pil)
 		dev_dbg(wm->dev,
-			"setting pressure measurement current to 200uA.");
+			"setting pressure measurement current to 200uA.\n");
 	if (!pil)
 		pressure = 0;
 
 	/* polling mode sample settling delay */
 	if (delay < 0 || delay > 15) {
-		dev_dbg(wm->dev, "supplied delay out of range.");
+		dev_dbg(wm->dev, "supplied delay out of range.\n");
 		delay = 4;
 	}
 	dig1 &= 0xff0f;
 	dig1 |= WM97XX_DELAY(delay);
-	dev_dbg(wm->dev, "setting adc sample delay to %d u Secs.",
+	dev_dbg(wm->dev, "setting adc sample delay to %d u Secs.\n",
 		delay_table[delay]);
 
 	/* mask */
@@ -255,8 +255,9 @@ static inline int is_pden(struct wm97xx *wm)
 static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 {
 	int timeout = 5 * delay;
+	bool wants_pen = adcsel & WM97XX_PEN_DOWN;
 
-	if (!wm->pen_probably_down) {
+	if (wants_pen && !wm->pen_probably_down) {
 		u16 data = wm97xx_reg_read(wm, AC97_WM97XX_DIGITISER_RD);
 		if (!(data & WM97XX_PEN_DOWN))
 			return RC_PENUP;
@@ -264,13 +265,10 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 	}
 
 	/* set up digitiser */
-	if (adcsel & 0x8000)
-		adcsel = ((adcsel & 0x7fff) + 3) << 12;
-
 	if (wm->mach_ops && wm->mach_ops->pre_sample)
 		wm->mach_ops->pre_sample(adcsel);
-	wm97xx_reg_write(wm, AC97_WM97XX_DIGITISER1,
-			 adcsel | WM97XX_POLL | WM97XX_DELAY(delay));
+	wm97xx_reg_write(wm, AC97_WM97XX_DIGITISER1, (adcsel & WM97XX_ADCSEL_MASK)
+				| WM97XX_POLL | WM97XX_DELAY(delay));
 
 	/* wait 3 AC97 time slots + delay for conversion */
 	poll_delay(delay);
@@ -287,7 +285,7 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		if (is_pden(wm))
 			wm->pen_probably_down = 0;
 		else
-			dev_dbg(wm->dev, "adc sample timeout");
+			dev_dbg(wm->dev, "adc sample timeout\n");
 		return RC_PENUP;
 	}
 
@@ -296,15 +294,20 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		wm->mach_ops->post_sample(adcsel);
 
 	/* check we have correct sample */
-	if ((*sample & WM97XX_ADCSEL_MASK) != adcsel) {
-		dev_dbg(wm->dev, "adc wrong sample, read %x got %x", adcsel,
-		*sample & WM97XX_ADCSEL_MASK);
-		return RC_PENUP;
+	if ((*sample ^ adcsel) & WM97XX_ADCSEL_MASK) {
+		dev_dbg(wm->dev, "adc wrong sample, wanted %x got %x\n",
+			adcsel & WM97XX_ADCSEL_MASK,
+			*sample & WM97XX_ADCSEL_MASK);
+		return RC_AGAIN;
 	}
 
-	if (!(*sample & WM97XX_PEN_DOWN)) {
-		wm->pen_probably_down = 0;
-		return RC_PENUP;
+	if (wants_pen && !(*sample & WM97XX_PEN_DOWN)) {
+		/* Sometimes it reads a wrong value the first time. */
+		*sample = wm97xx_reg_read(wm, AC97_WM97XX_DIGITISER_RD);
+		if (!(*sample & WM97XX_PEN_DOWN)) {
+			wm->pen_probably_down = 0;
+			return RC_PENUP;
+		}
 	}
 
 	return RC_VALID;
@@ -346,7 +349,7 @@ static int wm9712_poll_coord(struct wm97xx *wm, struct wm97xx_data *data)
 		if (is_pden(wm))
 			wm->pen_probably_down = 0;
 		else
-			dev_dbg(wm->dev, "adc sample timeout");
+			dev_dbg(wm->dev, "adc sample timeout\n");
 		return RC_PENUP;
 	}
 
@@ -387,16 +390,18 @@ static int wm9712_poll_touch(struct wm97xx *wm, struct wm97xx_data *data)
 		if (rc != RC_VALID)
 			return rc;
 	} else {
-		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_X, &data->x);
+		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_X | WM97XX_PEN_DOWN,
+					&data->x);
 		if (rc != RC_VALID)
 			return rc;
 
-		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_Y, &data->y);
+		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_Y | WM97XX_PEN_DOWN,
+					&data->y);
 		if (rc != RC_VALID)
 			return rc;
 
 		if (pil && !five_wire) {
-			rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_PRES,
+			rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_PRES | WM97XX_PEN_DOWN,
 						&data->p);
 			if (rc != RC_VALID)
 				return rc;

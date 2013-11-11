@@ -45,16 +45,12 @@ static void __init iq80331_timer_init(void)
 		iop_init_time(266000000);
 }
 
-static struct sys_timer iq80331_timer = {
-	.init		= iq80331_timer_init,
-};
-
 
 /*
  * IQ80331 PCI.
  */
 static int __init
-iq80331_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+iq80331_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -84,11 +80,10 @@ iq80331_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci iq80331_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
+	.ops		= &iop3xx_ops,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit_cond,
-	.scan		= iop3xx_pci_scan_bus,
 	.map_irq	= iq80331_pci_map_irq,
 };
 
@@ -141,9 +136,10 @@ static void __init iq80331_init_machine(void)
 
 MACHINE_START(IQ80331, "Intel IQ80331")
 	/* Maintainer: Intel Corp. */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= iop3xx_map_io,
 	.init_irq	= iop33x_init_irq,
-	.timer		= &iq80331_timer,
+	.init_time	= iq80331_timer_init,
 	.init_machine	= iq80331_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

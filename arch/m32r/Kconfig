@@ -7,9 +7,15 @@ config M32R
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_GENERIC_HARDIRQS
+	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select GENERIC_ATOMIC64
+	select ARCH_USES_GETTIMEOFFSET
+	select MODULES_USE_ELF_RELA
 
 config SBUS
 	bool
@@ -31,9 +37,6 @@ config NO_DMA
 config HZ
 	int
 	default 100
-
-config ARCH_USES_GETTIMEOFFSET
-	def_bool y
 
 source "init/Kconfig"
 
@@ -268,17 +271,7 @@ config SCHED_OMIT_FRAME_POINTER
         bool
         default y
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
-
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
+source "kernel/Kconfig.preempt"
 
 config SMP
 	bool "Symmetric multi-processing support"
@@ -331,13 +324,6 @@ config NODES_SHIFT
 	int
 	default "1"
 	depends on NEED_MULTIPLE_NODES
-
-# turning this on wastes a bunch of space.
-# Summit needs it only when NUMA is on
-config BOOT_IOREMAP
-	bool
-	depends on NUMA
-	default n
 
 endmenu
 

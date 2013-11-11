@@ -9,7 +9,7 @@
  */
 #include "internals.h"
 
-static unsigned long dist_handle[NR_IRQS];
+static unsigned long dist_handle[INTC_NR_IRQS];
 
 void intc_balancing_enable(unsigned int irq)
 {

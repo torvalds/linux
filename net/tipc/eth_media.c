@@ -2,7 +2,7 @@
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
  *
  * Copyright (c) 2001-2007, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2008, 2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,32 +37,58 @@
 #include "core.h"
 #include "bearer.h"
 
-#define MAX_ETH_BEARERS		2
-#define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
-#define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
-#define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
+#define MAX_ETH_BEARERS		MAX_BEARERS
+
+#define ETH_ADDR_OFFSET	4	/* message header offset of MAC address */
 
 /**
  * struct eth_bearer - Ethernet bearer data structure
  * @bearer: ptr to associated "generic" bearer structure
  * @dev: ptr to associated Ethernet network device
  * @tipc_packet_type: used in binding TIPC to Ethernet driver
+ * @setup: work item used when enabling bearer
+ * @cleanup: work item used when disabling bearer
  */
-
 struct eth_bearer {
 	struct tipc_bearer *bearer;
 	struct net_device *dev;
 	struct packet_type tipc_packet_type;
+	struct work_struct setup;
+	struct work_struct cleanup;
 };
 
+static struct tipc_media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
-static struct notifier_block notifier;
+
+static int recv_notification(struct notifier_block *nb, unsigned long evt,
+			      void *dv);
+/*
+ * Network device notifier info
+ */
+static struct notifier_block notifier = {
+	.notifier_call	= recv_notification,
+	.priority	= 0
+};
+
+/**
+ * eth_media_addr_set - initialize Ethernet media address structure
+ *
+ * Media-dependent "value" field stores MAC address in first 6 bytes
+ * and zeroes out the remaining bytes.
+ */
+static void eth_media_addr_set(const struct tipc_bearer *tb_ptr,
+			       struct tipc_media_addr *a, char *mac)
+{
+	memcpy(a->value, mac, ETH_ALEN);
+	memset(a->value + ETH_ALEN, 0, sizeof(a->value) - ETH_ALEN);
+	a->media_id = TIPC_MEDIA_TYPE_ETH;
+	a->broadcast = !memcmp(mac, tb_ptr->bcast_addr.value, ETH_ALEN);
+}
 
 /**
  * send_msg - send a TIPC message out over an Ethernet interface
  */
-
 static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		    struct tipc_media_addr *dest)
 {
@@ -85,7 +111,8 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 
 	skb_reset_network_header(clone);
 	clone->dev = dev;
-	dev_hard_header(clone, dev, ETH_P_TIPC, &dest->dev_addr.eth_addr,
+	clone->protocol = htons(ETH_P_TIPC);
+	dev_hard_header(clone, dev, ETH_P_TIPC, dest->value,
 			dev->dev_addr, clone->len);
 	dev_queue_xmit(clone);
 	return 0;
@@ -98,7 +125,6 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
  * ignores packets sent using Ethernet multicast, and traffic sent to other
  * nodes (which can happen if interface is running in promiscuous mode).
  */
-
 static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 		    struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -121,9 +147,19 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 }
 
 /**
+ * setup_bearer - setup association between Ethernet bearer and interface
+ */
+static void setup_bearer(struct work_struct *work)
+{
+	struct eth_bearer *eb_ptr =
+		container_of(work, struct eth_bearer, setup);
+
+	dev_add_pack(&eb_ptr->tipc_packet_type);
+}
+
+/**
  * enable_bearer - attach TIPC bearer to an Ethernet interface
  */
-
 static int enable_bearer(struct tipc_bearer *tb_ptr)
 {
 	struct net_device *dev = NULL;
@@ -134,7 +170,6 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	int pending_dev = 0;
 
 	/* Find unused Ethernet bearer structure */
-
 	while (eb_ptr->dev) {
 		if (!eb_ptr->bearer)
 			pending_dev++;
@@ -143,55 +178,70 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	}
 
 	/* Find device with specified name */
-
+	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, pdev) {
 		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
+			dev_hold(dev);
 			break;
 		}
 	}
+	read_unlock(&dev_base_lock);
 	if (!dev)
 		return -ENODEV;
 
-	/* Find Ethernet bearer for device (or create one) */
-
-	while ((eb_ptr != stop) && eb_ptr->dev && (eb_ptr->dev != dev))
-		eb_ptr++;
-	if (eb_ptr == stop)
-		return -EDQUOT;
-	if (!eb_ptr->dev) {
-		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-		eb_ptr->tipc_packet_type.dev = dev;
-		eb_ptr->tipc_packet_type.func = recv_msg;
-		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
-		INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-		dev_hold(dev);
-		dev_add_pack(&eb_ptr->tipc_packet_type);
-	}
+	/* Create Ethernet bearer for device */
+	eb_ptr->dev = dev;
+	eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
+	eb_ptr->tipc_packet_type.dev = dev;
+	eb_ptr->tipc_packet_type.func = recv_msg;
+	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
+	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
+	INIT_WORK(&eb_ptr->setup, setup_bearer);
+	schedule_work(&eb_ptr->setup);
 
 	/* Associate TIPC bearer with Ethernet bearer */
-
 	eb_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)eb_ptr;
+	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
+	memcpy(tb_ptr->bcast_addr.value, dev->broadcast, ETH_ALEN);
+	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_ETH;
+	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
 	tb_ptr->blocked = 0;
-	tb_ptr->addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memcpy(&tb_ptr->addr.dev_addr, dev->dev_addr, ETH_ALEN);
+	eth_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
 	return 0;
+}
+
+/**
+ * cleanup_bearer - break association between Ethernet bearer and interface
+ *
+ * This routine must be invoked from a work queue because it can sleep.
+ */
+static void cleanup_bearer(struct work_struct *work)
+{
+	struct eth_bearer *eb_ptr =
+		container_of(work, struct eth_bearer, cleanup);
+
+	dev_remove_pack(&eb_ptr->tipc_packet_type);
+	dev_put(eb_ptr->dev);
+	eb_ptr->dev = NULL;
 }
 
 /**
  * disable_bearer - detach TIPC bearer from an Ethernet interface
  *
- * We really should do dev_remove_pack() here, but this function can not be
- * called at tasklet level. => Use eth_bearer->bearer as a flag to throw away
- * incoming buffers, & postpone dev_remove_pack() to eth_media_stop() on exit.
+ * Mark Ethernet bearer as inactive so that incoming buffers are thrown away,
+ * then get worker thread to complete bearer cleanup.  (Can't do cleanup
+ * here because cleanup code needs to sleep and caller holds spinlocks.)
  */
-
 static void disable_bearer(struct tipc_bearer *tb_ptr)
 {
-	((struct eth_bearer *)tb_ptr->usr_handle)->bearer = NULL;
+	struct eth_bearer *eb_ptr = (struct eth_bearer *)tb_ptr->usr_handle;
+
+	eb_ptr->bearer = NULL;
+	INIT_WORK(&eb_ptr->cleanup, cleanup_bearer);
+	schedule_work(&eb_ptr->cleanup);
 }
 
 /**
@@ -200,7 +250,6 @@ static void disable_bearer(struct tipc_bearer *tb_ptr)
  * Change the state of the Ethernet bearer (if any) associated with the
  * specified device.
  */
-
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
 			     void *dv)
 {
@@ -249,17 +298,55 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 /**
  * eth_addr2str - convert Ethernet address to string
  */
-
-static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
+static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 {
-	unchar *addr = (unchar *)&a->dev_addr;
+	if (str_size < 18)	/* 18 = strlen("aa:bb:cc:dd:ee:ff\0") */
+		return 1;
 
-	if (str_size < 18)
-		*str_buf = '\0';
-	else
-		sprintf(str_buf, "%pM", addr);
-	return str_buf;
+	sprintf(str_buf, "%pM", a->value);
+	return 0;
 }
+
+/**
+ * eth_str2addr - convert Ethernet address format to message header format
+ */
+static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
+{
+	memset(msg_area, 0, TIPC_MEDIA_ADDR_SIZE);
+	msg_area[TIPC_MEDIA_TYPE_OFFSET] = TIPC_MEDIA_TYPE_ETH;
+	memcpy(msg_area + ETH_ADDR_OFFSET, a->value, ETH_ALEN);
+	return 0;
+}
+
+/**
+ * eth_str2addr - convert message header address format to Ethernet format
+ */
+static int eth_msg2addr(const struct tipc_bearer *tb_ptr,
+			struct tipc_media_addr *a, char *msg_area)
+{
+	if (msg_area[TIPC_MEDIA_TYPE_OFFSET] != TIPC_MEDIA_TYPE_ETH)
+		return 1;
+
+	eth_media_addr_set(tb_ptr, a, msg_area + ETH_ADDR_OFFSET);
+	return 0;
+}
+
+/*
+ * Ethernet media registration info
+ */
+static struct tipc_media eth_media_info = {
+	.send_msg	= send_msg,
+	.enable_bearer	= enable_bearer,
+	.disable_bearer	= disable_bearer,
+	.addr2str	= eth_addr2str,
+	.addr2msg	= eth_addr2msg,
+	.msg2addr	= eth_msg2addr,
+	.priority	= TIPC_DEF_LINK_PRI,
+	.tolerance	= TIPC_DEF_LINK_TOL,
+	.window		= TIPC_DEF_LINK_WIN,
+	.type_id	= TIPC_MEDIA_TYPE_ETH,
+	.name		= "eth"
+};
 
 /**
  * tipc_eth_media_start - activate Ethernet bearer support
@@ -267,29 +354,17 @@ static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size
  * Register Ethernet media type with TIPC bearer code.  Also register
  * with OS for notifications about device state changes.
  */
-
 int tipc_eth_media_start(void)
 {
-	struct tipc_media_addr bcast_addr;
 	int res;
 
 	if (eth_started)
 		return -EINVAL;
 
-	bcast_addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memset(&bcast_addr.dev_addr, 0xff, ETH_ALEN);
-
-	memset(eth_bearers, 0, sizeof(eth_bearers));
-
-	res = tipc_register_media(TIPC_MEDIA_TYPE_ETH, "eth",
-				  enable_bearer, disable_bearer, send_msg,
-				  eth_addr2str, &bcast_addr, ETH_LINK_PRIORITY,
-				  ETH_LINK_TOLERANCE, ETH_LINK_WINDOW);
+	res = tipc_register_media(&eth_media_info);
 	if (res)
 		return res;
 
-	notifier.notifier_call = &recv_notification;
-	notifier.priority = 0;
 	res = register_netdevice_notifier(&notifier);
 	if (!res)
 		eth_started = 1;
@@ -299,25 +374,12 @@ int tipc_eth_media_start(void)
 /**
  * tipc_eth_media_stop - deactivate Ethernet bearer support
  */
-
 void tipc_eth_media_stop(void)
 {
-	int i;
-
 	if (!eth_started)
 		return;
 
+	flush_scheduled_work();
 	unregister_netdevice_notifier(&notifier);
-	for (i = 0; i < MAX_ETH_BEARERS ; i++) {
-		if (eth_bearers[i].bearer) {
-			eth_bearers[i].bearer->blocked = 1;
-			eth_bearers[i].bearer = NULL;
-		}
-		if (eth_bearers[i].dev) {
-			dev_remove_pack(&eth_bearers[i].tipc_packet_type);
-			dev_put(eth_bearers[i].dev);
-		}
-	}
-	memset(&eth_bearers, 0, sizeof(eth_bearers));
 	eth_started = 0;
 }

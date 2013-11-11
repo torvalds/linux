@@ -58,13 +58,6 @@ static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
-static int c4iw_modify_port(struct ib_device *ibdev,
-			    u8 port, int port_modify_mask,
-			    struct ib_port_modify *props)
-{
-	return -ENOSYS;
-}
-
 static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
 				    struct ib_ah_attr *ah_attr)
 {
@@ -169,8 +162,14 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		 */
 		if (addr >= rdev->oc_mw_pa)
 			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
-		else
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		else {
+			if (is_t5(rdev->lldi.adapter_type))
+				vma->vm_page_prot =
+					t4_pgprot_wc(vma->vm_page_prot);
+			else
+				vma->vm_page_prot =
+					pgprot_noncached(vma->vm_page_prot);
+		}
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -195,8 +194,10 @@ static int c4iw_deallocate_pd(struct ib_pd *pd)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	PDBG("%s ibpd %p pdid 0x%x\n", __func__, pd, php->pdid);
-	c4iw_put_resource(&rhp->rdev.resource.pdid_fifo, php->pdid,
-			  &rhp->rdev.resource.pdid_fifo_lock);
+	c4iw_put_resource(&rhp->rdev.resource.pdid_table, php->pdid);
+	mutex_lock(&rhp->rdev.stats.lock);
+	rhp->rdev.stats.pd.cur--;
+	mutex_unlock(&rhp->rdev.stats.lock);
 	kfree(php);
 	return 0;
 }
@@ -211,14 +212,12 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 
 	PDBG("%s ibdev %p\n", __func__, ibdev);
 	rhp = (struct c4iw_dev *) ibdev;
-	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_fifo,
-				  &rhp->rdev.resource.pdid_fifo_lock);
+	pdid =  c4iw_get_resource(&rhp->rdev.resource.pdid_table);
 	if (!pdid)
 		return ERR_PTR(-EINVAL);
 	php = kzalloc(sizeof(*php), GFP_KERNEL);
 	if (!php) {
-		c4iw_put_resource(&rhp->rdev.resource.pdid_fifo, pdid,
-				  &rhp->rdev.resource.pdid_fifo_lock);
+		c4iw_put_resource(&rhp->rdev.resource.pdid_table, pdid);
 		return ERR_PTR(-ENOMEM);
 	}
 	php->pdid = pdid;
@@ -229,6 +228,11 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 			return ERR_PTR(-EFAULT);
 		}
 	}
+	mutex_lock(&rhp->rdev.stats.lock);
+	rhp->rdev.stats.pd.cur++;
+	if (rhp->rdev.stats.pd.cur > rhp->rdev.stats.pd.max)
+		rhp->rdev.stats.pd.max = rhp->rdev.stats.pd.cur;
+	mutex_unlock(&rhp->rdev.stats.lock);
 	PDBG("%s pdid 0x%0x ptr 0x%p\n", __func__, pdid, php);
 	return &php->ibpd;
 }
@@ -265,7 +269,7 @@ static int c4iw_query_device(struct ib_device *ibdev,
 	dev = to_c4iw_dev(ibdev);
 	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
-	props->hw_ver = dev->rdev.lldi.adapter_type;
+	props->hw_ver = CHELSIO_CHIP_RELEASE(dev->rdev.lldi.adapter_type);
 	props->fw_ver = dev->rdev.lldi.fw_vers;
 	props->device_cap_flags = dev->device_cap_flags;
 	props->page_size_cap = T4_PAGESIZE_MASK;
@@ -336,7 +340,7 @@ static int c4iw_query_port(struct ib_device *ibdev, u8 port,
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
 	props->active_width = 2;
-	props->active_speed = 2;
+	props->active_speed = IB_SPEED_DDR;
 	props->max_msg_sz = -1;
 
 	return 0;
@@ -348,7 +352,8 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev.dev);
 	PDBG("%s dev 0x%p\n", __func__, dev);
-	return sprintf(buf, "%d\n", c4iw_dev->rdev.lldi.adapter_type);
+	return sprintf(buf, "%d\n",
+		       CHELSIO_CHIP_RELEASE(c4iw_dev->rdev.lldi.adapter_type));
 }
 
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
@@ -445,6 +450,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	    (1ull << IB_USER_VERBS_CMD_REQ_NOTIFY_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_CREATE_QP) |
 	    (1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
+	    (1ull << IB_USER_VERBS_CMD_QUERY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POLL_CQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
 	    (1ull << IB_USER_VERBS_CMD_POST_SEND) |
@@ -456,7 +462,6 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.dma_device = &(dev->rdev.lldi.pdev->dev);
 	dev->ibdev.query_device = c4iw_query_device;
 	dev->ibdev.query_port = c4iw_query_port;
-	dev->ibdev.modify_port = c4iw_modify_port;
 	dev->ibdev.query_pkey = c4iw_query_pkey;
 	dev->ibdev.query_gid = c4iw_query_gid;
 	dev->ibdev.alloc_ucontext = c4iw_alloc_ucontext;
@@ -468,6 +473,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.destroy_ah = c4iw_ah_destroy;
 	dev->ibdev.create_qp = c4iw_create_qp;
 	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
+	dev->ibdev.query_qp = c4iw_ib_query_qp;
 	dev->ibdev.destroy_qp = c4iw_destroy_qp;
 	dev->ibdev.create_cq = c4iw_create_cq;
 	dev->ibdev.destroy_cq = c4iw_destroy_cq;

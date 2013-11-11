@@ -7,6 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -115,12 +116,9 @@ static int __init tx4939_rng_probe(struct platform_device *dev)
 	rngdev = devm_kzalloc(&dev->dev, sizeof(*rngdev), GFP_KERNEL);
 	if (!rngdev)
 		return -ENOMEM;
-	if (!devm_request_mem_region(&dev->dev, r->start, resource_size(r),
-				     dev_name(&dev->dev)))
-		return -EBUSY;
-	rngdev->base = devm_ioremap(&dev->dev, r->start, resource_size(r));
-	if (!rngdev->base)
-		return -EBUSY;
+	rngdev->base = devm_ioremap_resource(&dev->dev, r);
+	if (IS_ERR(rngdev->base))
+		return PTR_ERR(rngdev->base);
 
 	rngdev->rng.name = dev_name(&dev->dev);
 	rngdev->rng.data_present = tx4939_rng_data_present;
@@ -168,18 +166,7 @@ static struct platform_driver tx4939_rng_driver = {
 	.remove = tx4939_rng_remove,
 };
 
-static int __init tx4939rng_init(void)
-{
-	return platform_driver_probe(&tx4939_rng_driver, tx4939_rng_probe);
-}
-
-static void __exit tx4939rng_exit(void)
-{
-	platform_driver_unregister(&tx4939_rng_driver);
-}
-
-module_init(tx4939rng_init);
-module_exit(tx4939rng_exit);
+module_platform_driver_probe(tx4939_rng_driver, tx4939_rng_probe);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver for TX4939");
 MODULE_LICENSE("GPL");

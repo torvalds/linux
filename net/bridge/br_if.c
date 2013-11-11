@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/netpoll.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
@@ -22,6 +23,7 @@
 #include <linux/if_ether.h>
 #include <linux/slab.h>
 #include <net/sock.h>
+#include <linux/if_vlan.h>
 
 #include "br_private.h"
 
@@ -33,20 +35,18 @@
  */
 static int port_cost(struct net_device *dev)
 {
-	if (dev->ethtool_ops && dev->ethtool_ops->get_settings) {
-		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET, };
+	struct ethtool_cmd ecmd;
 
-		if (!dev_ethtool_get_settings(dev, &ecmd)) {
-			switch (ethtool_cmd_speed(&ecmd)) {
-			case SPEED_10000:
-				return 2;
-			case SPEED_1000:
-				return 4;
-			case SPEED_100:
-				return 19;
-			case SPEED_10:
-				return 100;
-			}
+	if (!__ethtool_get_settings(dev, &ecmd)) {
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_10000:
+			return 2;
+		case SPEED_1000:
+			return 4;
+		case SPEED_100:
+			return 19;
+		case SPEED_10:
+			return 100;
 		}
 	}
 
@@ -67,14 +67,15 @@ void br_port_carrier_check(struct net_bridge_port *p)
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
 
-	if (netif_running(dev) && netif_carrier_ok(dev))
+	if (!(p->flags & BR_ADMIN_COST) &&
+	    netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
 	if (!netif_running(br->dev))
 		return;
 
 	spin_lock_bh(&br->lock);
-	if (netif_running(dev) && netif_carrier_ok(dev)) {
+	if (netif_running(dev) && netif_oper_up(dev)) {
 		if (p->state == BR_STATE_DISABLED)
 			br_stp_enable_port(p);
 	} else {
@@ -140,6 +141,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	br_ifinfo_notify(RTM_DELLINK, p);
 
+	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 1);
 
 	list_del_rcu(&p->list);
@@ -147,9 +149,8 @@ static void del_nbp(struct net_bridge_port *p)
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;
 
 	netdev_rx_handler_unregister(dev);
-	synchronize_net();
 
-	netdev_set_master(dev, NULL);
+	netdev_upper_dev_unlink(dev, br->dev);
 
 	br_multicast_del_port(p);
 
@@ -161,9 +162,10 @@ static void del_nbp(struct net_bridge_port *p)
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
-/* called with RTNL */
-static void del_br(struct net_bridge *br, struct list_head *head)
+/* Delete bridge device */
+void br_dev_delete(struct net_device *dev, struct list_head *head)
 {
+	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p, *n;
 
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
@@ -231,6 +233,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 int br_add_bridge(struct net *net, const char *name)
 {
 	struct net_device *dev;
+	int res;
 
 	dev = alloc_netdev(sizeof(struct net_bridge), name,
 			   br_dev_setup);
@@ -239,8 +242,12 @@ int br_add_bridge(struct net *net, const char *name)
 		return -ENOMEM;
 
 	dev_net_set(dev, net);
+	dev->rtnl_link_ops = &br_link_ops;
 
-	return register_netdev(dev);
+	res = register_netdev(dev);
+	if (res)
+		free_netdev(dev);
+	return res;
 }
 
 int br_del_bridge(struct net *net, const char *name)
@@ -264,7 +271,7 @@ int br_del_bridge(struct net *net, const char *name)
 	}
 
 	else
-		del_br(netdev_priv(dev), NULL);
+		br_dev_delete(dev, NULL);
 
 	rtnl_unlock();
 	return ret;
@@ -292,10 +299,11 @@ int br_min_mtu(const struct net_bridge *br)
 /*
  * Recomputes features using slave's features
  */
-u32 br_features_recompute(struct net_bridge *br, u32 features)
+netdev_features_t br_features_recompute(struct net_bridge *br,
+	netdev_features_t features)
 {
 	struct net_bridge_port *p;
-	u32 mask;
+	netdev_features_t mask;
 
 	if (list_empty(&br->port_list))
 		return features;
@@ -320,7 +328,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	/* Don't allow bridging non-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) ||
-	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN)
+	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
+	    !is_valid_ether_addr(dev->dev_addr))
 		return -EINVAL;
 
 	/* No bridging of bridges */
@@ -348,26 +357,22 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	err = kobject_init_and_add(&p->kobj, &brport_ktype, &(dev->dev.kobj),
 				   SYSFS_BRIDGE_PORT_ATTR);
 	if (err)
-		goto err0;
-
-	err = br_fdb_insert(br, p, dev->dev_addr);
-	if (err)
 		goto err1;
 
 	err = br_sysfs_addif(p);
 	if (err)
 		goto err2;
 
-	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p))))
+	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p, GFP_KERNEL))))
 		goto err3;
 
-	err = netdev_set_master(dev, br->dev);
+	err = netdev_master_upper_dev_link(dev, br->dev);
 	if (err)
-		goto err3;
+		goto err4;
 
 	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
-		goto err4;
+		goto err5;
 
 	dev->priv_flags |= IFF_BRIDGE_PORT;
 
@@ -380,7 +385,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
 
-	if ((dev->flags & IFF_UP) && netif_carrier_ok(dev) &&
+	if (netif_running(dev) && netif_oper_up(dev) &&
 	    (br->dev->flags & IFF_UP))
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
@@ -388,24 +393,27 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
+
+	if (br_fdb_insert(br, p, dev->dev_addr, 0))
+		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
 
+err5:
+	netdev_upper_dev_unlink(dev, br->dev);
 err4:
-	netdev_set_master(dev, NULL);
+	br_netpoll_disable(p);
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
-	br_fdb_delete_by_port(br, p, 1);
-err1:
 	kobject_put(&p->kobj);
 	p = NULL; /* kobject_put frees */
-err0:
+err1:
 	dev_set_promiscuity(dev, -1);
 put_back:
 	dev_put(dev);
@@ -417,16 +425,24 @@ put_back:
 int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
+	bool changed_addr;
 
 	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
 		return -EINVAL;
 
+	/* Since more than one interface can be attached to a bridge,
+	 * there still maybe an alternate path for netconsole to use;
+	 * therefore there is no reason for a NETDEV_RELEASE event.
+	 */
 	del_nbp(p);
 
 	spin_lock_bh(&br->lock);
-	br_stp_recalculate_bridge_id(br);
+	changed_addr = br_stp_recalculate_bridge_id(br);
 	spin_unlock_bh(&br->lock);
+
+	if (changed_addr)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
 	netdev_update_features(br->dev);
 
@@ -441,7 +457,7 @@ void __net_exit br_net_exit(struct net *net)
 	rtnl_lock();
 	for_each_netdev(net, dev)
 		if (dev->priv_flags & IFF_EBRIDGE)
-			del_br(netdev_priv(dev), &list);
+			br_dev_delete(dev, &list);
 
 	unregister_netdevice_many(&list);
 	rtnl_unlock();

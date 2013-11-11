@@ -1,5 +1,5 @@
 /*
- * Code for TI8168 EVM.
+ * Code for TI8168/TI8148 EVM.
  *
  * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
  *
@@ -14,49 +14,49 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/usb/musb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/irqs.h>
-#include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 
-static struct omap_board_config_kernel ti8168_evm_config[] __initdata = {
+static struct omap_musb_board_data musb_board_data = {
+	.set_phy_power	= ti81xx_musb_phy_power,
+	.interface_type	= MUSB_INTERFACE_ULPI,
+	.mode           = MUSB_OTG,
+	.power		= 500,
 };
 
-static void __init ti8168_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
-static void __init ti8168_evm_init_irq(void)
-{
-	omap_init_irq();
-}
-
-static void __init ti8168_evm_init(void)
+static void __init ti81xx_evm_init(void)
 {
 	omap_serial_init();
-	omap_board_config = ti8168_evm_config;
-	omap_board_config_size = ARRAY_SIZE(ti8168_evm_config);
-}
-
-static void __init ti8168_evm_map_io(void)
-{
-	omap2_set_globals_ti816x();
-	omapti816x_map_common_io();
+	omap_sdrc_init(NULL, NULL);
+	usb_musb_init(&musb_board_data);
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")
 	/* Maintainer: Texas Instruments */
-	.boot_params	= 0x80000100,
-	.map_io		= ti8168_evm_map_io,
-	.init_early	= ti8168_init_early,
-	.init_irq	= ti8168_evm_init_irq,
-	.timer		= &omap_timer,
-	.init_machine	= ti8168_evm_init,
+	.atag_offset	= 0x100,
+	.map_io		= ti81xx_map_io,
+	.init_early	= ti81xx_init_early,
+	.init_irq	= ti81xx_init_irq,
+	.init_time	= omap3_sync32k_timer_init,
+	.init_machine	= ti81xx_evm_init,
+	.init_late	= ti81xx_init_late,
+	.restart	= omap44xx_restart,
+MACHINE_END
+
+MACHINE_START(TI8148EVM, "ti8148evm")
+	/* Maintainer: Texas Instruments */
+	.atag_offset	= 0x100,
+	.map_io		= ti81xx_map_io,
+	.init_early	= ti81xx_init_early,
+	.init_irq	= ti81xx_init_irq,
+	.init_time	= omap3_sync32k_timer_init,
+	.init_machine	= ti81xx_evm_init,
+	.init_late	= ti81xx_init_late,
+	.restart	= omap44xx_restart,
 MACHINE_END

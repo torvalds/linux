@@ -67,7 +67,7 @@
  * Driver data
  */
 static int hwcursor = 1;
-static char *mode_option __devinitdata;
+static char *mode_option;
 
 /*
  * The XFree GLINT driver will (I think to implement hardware cursor
@@ -78,12 +78,12 @@ static char *mode_option __devinitdata;
  * these flags allow the user to specify that requests for +ve sync
  * should be silently turned in -ve sync.
  */
-static int lowhsync;
-static int lowvsync;
-static int noaccel __devinitdata;
+static bool lowhsync;
+static bool lowvsync;
+static bool noaccel;
 /* mtrr option */
 #ifdef CONFIG_MTRR
-static int nomtrr __devinitdata;
+static bool nomtrr;
 #endif
 
 /*
@@ -107,7 +107,7 @@ struct pm2fb_par
  * Here we define the default structs fb_fix_screeninfo and fb_var_screeninfo
  * if we don't use modedb.
  */
-static struct fb_fix_screeninfo pm2fb_fix __devinitdata = {
+static struct fb_fix_screeninfo pm2fb_fix = {
 	.id =		"",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
@@ -120,7 +120,7 @@ static struct fb_fix_screeninfo pm2fb_fix __devinitdata = {
 /*
  * Default video mode. In case the modedb doesn't work.
  */
-static struct fb_var_screeninfo pm2fb_var __devinitdata = {
+static struct fb_var_screeninfo pm2fb_var = {
 	/* "640x480, 8 bpp @ 60 Hz */
 	.xres =			640,
 	.yres =			480,
@@ -973,8 +973,8 @@ static int pm2fb_pan_display(struct fb_var_screeninfo *var,
 {
 	struct pm2fb_par *p = info->par;
 	u32 base;
-	u32 depth = (var->bits_per_pixel + 7) & ~7;
-	u32 xres = (var->xres + 31) & ~31;
+	u32 depth = (info->var.bits_per_pixel + 7) & ~7;
+	u32 xres = (info->var.xres + 31) & ~31;
 
 	depth = (depth > 32) ? 32 : depth;
 	base = to3264(var->yoffset * xres + var->xoffset, depth, 1);
@@ -1515,8 +1515,7 @@ static struct fb_ops pm2fb_ops = {
  * @param	pdev	PCI device.
  * @param	id	PCI device ID.
  */
-static int __devinit pm2fb_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *id)
+static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pm2fb_par *default_par;
 	struct fb_info *info;
@@ -1727,7 +1726,7 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
  *
  * @param	pdev	PCI device to clean up.
  */
-static void __devexit pm2fb_remove(struct pci_dev *pdev)
+static void pm2fb_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct fb_fix_screeninfo *fix = &info->fix;
@@ -1765,7 +1764,7 @@ static struct pci_driver pm2fb_driver = {
 	.name		= "pm2fb",
 	.id_table	= pm2fb_id_table,
 	.probe		= pm2fb_probe,
-	.remove		= __devexit_p(pm2fb_remove),
+	.remove		= pm2fb_remove,
 };
 
 MODULE_DEVICE_TABLE(pci, pm2fb_id_table);
@@ -1773,7 +1772,7 @@ MODULE_DEVICE_TABLE(pci, pm2fb_id_table);
 
 #ifndef MODULE
 /**
- * Parse user speficied options.
+ * Parse user specified options.
  *
  * This is, comma-separated options following `video=pm2fb:'.
  */

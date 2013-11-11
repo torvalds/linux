@@ -36,7 +36,7 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/keyscan.h>
+#include <linux/platform_data/keyscan-davinci.h>
 
 /* Key scan registers */
 #define DAVINCI_KEYSCAN_KEYCTRL		0x0000
@@ -271,7 +271,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	}
 
 	error = request_irq(davinci_ks->irq, davinci_ks_interrupt,
-			  IRQF_DISABLED, pdev->name, davinci_ks);
+			  0, pdev->name, davinci_ks);
 	if (error < 0) {
 		dev_err(dev, "unable to register davinci key scan interrupt\n");
 		goto fail5;
@@ -303,7 +303,7 @@ fail1:
 	return error;
 }
 
-static int __devexit davinci_ks_remove(struct platform_device *pdev)
+static int davinci_ks_remove(struct platform_device *pdev)
 {
 	struct davinci_ks *davinci_ks = platform_get_drvdata(pdev);
 
@@ -326,20 +326,10 @@ static struct platform_driver davinci_ks_driver = {
 		.name = "davinci_keyscan",
 		.owner = THIS_MODULE,
 	},
-	.remove	= __devexit_p(davinci_ks_remove),
+	.remove	= davinci_ks_remove,
 };
 
-static int __init davinci_ks_init(void)
-{
-	return platform_driver_probe(&davinci_ks_driver, davinci_ks_probe);
-}
-module_init(davinci_ks_init);
-
-static void __exit davinci_ks_exit(void)
-{
-	platform_driver_unregister(&davinci_ks_driver);
-}
-module_exit(davinci_ks_exit);
+module_platform_driver_probe(davinci_ks_driver, davinci_ks_probe);
 
 MODULE_AUTHOR("Miguel Aguilar");
 MODULE_DESCRIPTION("Texas Instruments DaVinci Key Scan Driver");

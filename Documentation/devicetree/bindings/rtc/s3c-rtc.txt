@@ -1,0 +1,20 @@
+* Samsung's S3C Real Time Clock controller
+
+Required properties:
+- compatible: should be one of the following.
+    * "samsung,s3c2410-rtc" - for controllers compatible with s3c2410 rtc.
+    * "samsung,s3c6410-rtc" - for controllers compatible with s3c6410 rtc.
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: Two interrupt numbers to the cpu should be specified. First
+  interrupt number is the rtc alarm interrupt and second interrupt number
+  is the rtc tick interrupt. The number of cells representing a interrupt
+  depends on the parent interrupt controller.
+
+Example:
+
+	rtc@10070000 {
+		compatible = "samsung,s3c6410-rtc";
+		reg = <0x10070000 0x100>;
+		interrupts = <44 0 45 0>;
+	};

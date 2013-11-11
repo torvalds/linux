@@ -1,0 +1,66 @@
+Device tree binding vendor prefix registry.  Keep list in alphabetical order.
+
+This isn't an exhaustive list, but you should add new prefixes to it before
+using them to avoid name-space collisions.
+
+ad	Avionic Design GmbH
+adi	Analog Devices, Inc.
+aeroflexgaisler	Aeroflex Gaisler AB
+ak	Asahi Kasei Corp.
+amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
+apm	Applied Micro Circuits Corporation (APM)
+arm	ARM Ltd.
+atmel	Atmel Corporation
+bosch	Bosch Sensortec GmbH
+brcm	Broadcom Corporation
+cavium	Cavium, Inc.
+chrp	Common Hardware Reference Platform
+cirrus	Cirrus Logic, Inc.
+cortina	Cortina Systems, Inc.
+dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
+denx	Denx Software Engineering
+emmicro	EM Microelectronic
+epson	Seiko Epson Corp.
+est	ESTeem Wireless Modems
+fsl	Freescale Semiconductor
+GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+hp	Hewlett Packard
+ibm	International Business Machines (IBM)
+idt	Integrated Device Technologies, Inc.
+img	Imagination Technologies Ltd.
+intercontrol	Inter Control Group
+linux	Linux-specific binding
+marvell	Marvell Technology Group Ltd.
+maxim	Maxim Integrated Products
+mosaixtech	Mosaix Technologies, Inc.
+national	National Semiconductor
+nintendo	Nintendo
+nvidia	NVIDIA
+nxp	NXP Semiconductors
+onnn	ON Semiconductor Corp.
+picochip	Picochip Ltd
+powervr	PowerVR (deprecated, use img)
+qcom	Qualcomm, Inc.
+ralink	Mediatek/Ralink Technology Corp.
+ramtron	Ramtron International
+realtek Realtek Semiconductor Corp.
+renesas	Renesas Electronics Corporation
+samsung	Samsung Semiconductor
+sbs	Smart Battery System
+schindler	Schindler
+sil	Silicon Image
+silabs	Silicon Laboratories
+simtek
+sirf	SiRF Technology, Inc.
+snps 	Synopsys, Inc.
+st	STMicroelectronics
+ste	ST-Ericsson
+stericsson	ST-Ericsson
+ti	Texas Instruments
+toshiba	Toshiba Corporation
+via	VIA Technologies, Inc.
+wlf	Wolfson Microelectronics
+wm	Wondermedia Technologies, Inc.
+winbond Winbond Electronics corp.
+xlnx	Xilinx

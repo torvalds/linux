@@ -1,0 +1,45 @@
+* Tegra keyboard controller
+The key controller has maximum 24 pins to make matrix keypad. Any pin
+can be configured as row or column. The maximum column pin can be 8
+and maximum row pins can be 16 for Tegra20/Tegra30.
+
+Required properties:
+- compatible: "nvidia,tegra20-kbc"
+- reg: Register base address of KBC.
+- interrupts: Interrupt number for the KBC.
+- nvidia,kbc-row-pins: The KBC pins which are configured as row. This is an
+  array of pin numbers which is used as rows.
+- nvidia,kbc-col-pins: The KBC pins which are configured as column. This is an
+  array of pin numbers which is used as column.
+- linux,keymap: The keymap for keys as described in the binding document
+  devicetree/bindings/input/matrix-keymap.txt.
+
+Optional properties, in addition to those specified by the shared
+matrix-keyboard bindings:
+
+- linux,fn-keymap: a second keymap, same specification as the
+  matrix-keyboard-controller spec but to be used when the KEY_FN modifier
+  key is pressed.
+- nvidia,debounce-delay-ms: delay in milliseconds per row scan for debouncing
+- nvidia,repeat-delay-ms: delay in milliseconds before repeat starts
+- nvidia,ghost-filter: enable ghost filtering for this device
+- nvidia,wakeup-source: configure keyboard as a wakeup source for suspend/resume
+
+Example:
+
+keyboard: keyboard {
+	compatible = "nvidia,tegra20-kbc";
+	reg = <0x7000e200 0x100>;
+	interrupts = <0 85 0x04>;
+	nvidia,ghost-filter;
+	nvidia,debounce-delay-ms = <640>;
+	nvidia,kbc-row-pins = <0 1 2>;    /* pin 0, 1, 2 as rows */
+	nvidia,kbc-col-pins = <11 12 13>; /* pin 11, 12, 13 as columns */
+	linux,keymap = <0x00000074
+			0x00010067
+			0x00020066
+			0x01010068
+			0x02000069
+			0x02010070
+			0x02020071>;
+};

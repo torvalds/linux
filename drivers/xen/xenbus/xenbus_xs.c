@@ -44,7 +44,9 @@
 #include <linux/rwsem.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <asm/xen/hypervisor.h>
 #include <xen/xenbus.h>
+#include <xen/xen.h>
 #include "xenbus_comms.h"
 
 struct xs_stored_msg {
@@ -531,21 +533,18 @@ int xenbus_printf(struct xenbus_transaction t,
 {
 	va_list ap;
 	int ret;
-#define PRINTF_BUFFER_SIZE 4096
-	char *printf_buffer;
-
-	printf_buffer = kmalloc(PRINTF_BUFFER_SIZE, GFP_NOIO | __GFP_HIGH);
-	if (printf_buffer == NULL)
-		return -ENOMEM;
+	char *buf;
 
 	va_start(ap, fmt);
-	ret = vsnprintf(printf_buffer, PRINTF_BUFFER_SIZE, fmt, ap);
+	buf = kvasprintf(GFP_NOIO | __GFP_HIGH, fmt, ap);
 	va_end(ap);
 
-	BUG_ON(ret > PRINTF_BUFFER_SIZE-1);
-	ret = xenbus_write(t, dir, node, printf_buffer);
+	if (!buf)
+		return -ENOMEM;
 
-	kfree(printf_buffer);
+	ret = xenbus_write(t, dir, node, buf);
+
+	kfree(buf);
 
 	return ret;
 }
@@ -619,6 +618,45 @@ static struct xenbus_watch *find_watch(const char *token)
 
 	return NULL;
 }
+/*
+ * Certain older XenBus toolstack cannot handle reading values that are
+ * not populated. Some Xen 3.4 installation are incapable of doing this
+ * so if we are running on anything older than 4 do not attempt to read
+ * control/platform-feature-xs_reset_watches.
+ */
+static bool xen_strict_xenbus_quirk(void)
+{
+#ifdef CONFIG_X86
+	uint32_t eax, ebx, ecx, edx, base;
+
+	base = xen_cpuid_base();
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+
+	if ((eax >> 16) < 4)
+		return true;
+#endif
+	return false;
+
+}
+static void xs_reset_watches(void)
+{
+	int err, supported = 0;
+
+	if (!xen_hvm_domain() || xen_initial_domain())
+		return;
+
+	if (xen_strict_xenbus_quirk())
+		return;
+
+	err = xenbus_scanf(XBT_NIL, "control",
+			"platform-feature-xs_reset_watches", "%d", &supported);
+	if (err != 1 || !supported)
+		return;
+
+	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));
+	if (err && err != -EEXIST)
+		printk(KERN_WARNING "xs_reset_watches failed: %d\n", err);
+}
 
 /* Register callback to watch this node. */
 int register_xenbus_watch(struct xenbus_watch *watch)
@@ -638,8 +676,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 
 	err = xs_watch(watch->node, token);
 
-	/* Ignore errors due to multiple registration. */
-	if ((err != 0) && (err != -EEXIST)) {
+	if (err) {
 		spin_lock(&watches_lock);
 		list_del(&watch->list);
 		spin_unlock(&watches_lock);
@@ -801,6 +838,12 @@ static int process_msg(void)
 		goto out;
 	}
 
+	if (msg->hdr.len > XENSTORE_PAYLOAD_MAX) {
+		kfree(msg);
+		err = -EINVAL;
+		goto out;
+	}
+
 	body = kmalloc(msg->hdr.len + 1, GFP_NOIO | __GFP_HIGH);
 	if (body == NULL) {
 		kfree(msg);
@@ -896,6 +939,9 @@ int xs_init(void)
 	task = kthread_run(xenbus_thread, NULL, "xenbus");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+
+	/* shutdown watches for kexec boot */
+	xs_reset_watches();
 
 	return 0;
 }

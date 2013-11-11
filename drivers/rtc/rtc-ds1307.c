@@ -4,6 +4,7 @@
  *  Copyright (C) 2005 James Chapman (ds1337 core)
  *  Copyright (C) 2006 David Brownell
  *  Copyright (C) 2009 Matthias Fuchs (rx8025 support)
+ *  Copyright (C) 2012 Bertrand Achard (nvram access fixes)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,10 +18,10 @@
 #include <linux/string.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/rtc/ds1307.h>
 
-
-
-/* We can't determine type by probing, but if we expect pre-Linux code
+/*
+ * We can't determine type by probing, but if we expect pre-Linux code
  * to have set the chip up as a clock (turning on the oscillator and
  * setting the date and time), Linux can ignore the non-clock features.
  * That's a natural job for a factory or repair bench.
@@ -34,8 +35,10 @@ enum ds_type {
 	ds_1388,
 	ds_3231,
 	m41t00,
+	mcp7941x,
 	rx_8025,
-	// rs5c372 too?  different address...
+	last_ds_type /* always last */
+	/* rs5c372 too?  different address... */
 };
 
 
@@ -43,6 +46,7 @@ enum ds_type {
 #define DS1307_REG_SECS		0x00	/* 00-59 */
 #	define DS1307_BIT_CH		0x80
 #	define DS1340_BIT_nEOSC		0x80
+#	define MCP7941X_BIT_ST		0x80
 #define DS1307_REG_MIN		0x01	/* 00-59 */
 #define DS1307_REG_HOUR		0x02	/* 00-23, or 1-12{am,pm} */
 #	define DS1307_BIT_12HR		0x40	/* in REG_HOUR */
@@ -50,12 +54,14 @@ enum ds_type {
 #	define DS1340_BIT_CENTURY_EN	0x80	/* in REG_HOUR */
 #	define DS1340_BIT_CENTURY	0x40	/* in REG_HOUR */
 #define DS1307_REG_WDAY		0x03	/* 01-07 */
+#	define MCP7941X_BIT_VBATEN	0x08
 #define DS1307_REG_MDAY		0x04	/* 01-31 */
 #define DS1307_REG_MONTH	0x05	/* 01-12 */
 #	define DS1337_BIT_CENTURY	0x80	/* in REG_MONTH */
 #define DS1307_REG_YEAR		0x06	/* 00-99 */
 
-/* Other registers (control, status, alarms, trickle charge, NVRAM, etc)
+/*
+ * Other registers (control, status, alarms, trickle charge, NVRAM, etc)
  * start at 7, and they differ a LOT. Only control and status matter for
  * basic RTC date and time functionality; be careful using them.
  */
@@ -86,7 +92,8 @@ enum ds_type {
 #	define DS1337_BIT_A2I		0x02
 #	define DS1337_BIT_A1I		0x01
 #define DS1339_REG_ALARM1_SECS	0x07
-#define DS1339_REG_TRICKLE	0x10
+
+#define DS13XX_TRICKLE_CHARGER_MAGIC	0xa0
 
 #define RX8025_REG_CTRL1	0x0e
 #	define RX8025_BIT_2412		0x20
@@ -99,6 +106,8 @@ enum ds_type {
 struct ds1307 {
 	u8			offset; /* register's offset */
 	u8			regs[11];
+	u16			nvram_offset;
+	struct bin_attribute	*nvram;
 	enum ds_type		type;
 	unsigned long		flags;
 #define HAS_NVRAM	0		/* bit 0 == sysfs file active */
@@ -113,32 +122,43 @@ struct ds1307 {
 };
 
 struct chip_desc {
-	unsigned		nvram56:1;
 	unsigned		alarm:1;
+	u16			nvram_offset;
+	u16			nvram_size;
+	u16			trickle_charger_reg;
 };
 
-static const struct chip_desc chips[] = {
-[ds_1307] = {
-	.nvram56	= 1,
-},
-[ds_1337] = {
-	.alarm		= 1,
-},
-[ds_1338] = {
-	.nvram56	= 1,
-},
-[ds_1339] = {
-	.alarm		= 1,
-},
-[ds_1340] = {
-},
-[ds_3231] = {
-	.alarm		= 1,
-},
-[m41t00] = {
-},
-[rx_8025] = {
-}, };
+static const struct chip_desc chips[last_ds_type] = {
+	[ds_1307] = {
+		.nvram_offset	= 8,
+		.nvram_size	= 56,
+	},
+	[ds_1337] = {
+		.alarm		= 1,
+	},
+	[ds_1338] = {
+		.nvram_offset	= 8,
+		.nvram_size	= 56,
+	},
+	[ds_1339] = {
+		.alarm		= 1,
+		.trickle_charger_reg = 0x10,
+	},
+	[ds_1340] = {
+		.trickle_charger_reg = 0x08,
+	},
+	[ds_1388] = {
+		.trickle_charger_reg = 0x0a,
+	},
+	[ds_3231] = {
+		.alarm		= 1,
+	},
+	[mcp7941x] = {
+		/* this is battery backed SRAM */
+		.nvram_offset	= 0x20,
+		.nvram_size	= 0x40,
+	},
+};
 
 static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1307", ds_1307 },
@@ -149,6 +169,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1340", ds_1340 },
 	{ "ds3231", ds_3231 },
 	{ "m41t00", m41t00 },
+	{ "mcp7941x", mcp7941x },
 	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
 	{ }
@@ -176,7 +197,7 @@ static s32 ds1307_read_block_data_once(const struct i2c_client *client,
 static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 				  u8 length, u8 *values)
 {
-	u8 oldvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 oldvalues[255];
 	s32 ret;
 	int tries = 0;
 
@@ -202,7 +223,7 @@ static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 				   u8 length, const u8 *values)
 {
-	u8 currvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 currvalues[255];
 	int tries = 0;
 
 	dev_dbg(&client->dev, "ds1307_write_block_data (length=%d)\n", length);
@@ -225,6 +246,57 @@ static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 		if (ret < 0)
 			return ret;
 	} while (memcmp(currvalues, values, length));
+	return length;
+}
+
+/*----------------------------------------------------------------------*/
+
+/* These RTC devices are not designed to be connected to a SMbus adapter.
+   SMbus limits block operations length to 32 bytes, whereas it's not
+   limited on I2C buses. As a result, accesses may exceed 32 bytes;
+   in that case, split them into smaller blocks */
+
+static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
+				u8 command, u8 length, const u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_write_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
+	return length;
+}
+
+static s32 ds1307_native_smbus_read_block_data(const struct i2c_client *client,
+				u8 command, u8 length, u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_read_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_read_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
 	return length;
 }
 
@@ -302,12 +374,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 		return -EIO;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-			"read",
-			ds1307->regs[0], ds1307->regs[1],
-			ds1307->regs[2], ds1307->regs[3],
-			ds1307->regs[4], ds1307->regs[5],
-			ds1307->regs[6]);
+	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
 
 	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
 	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
@@ -365,13 +432,20 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY_EN
 				| DS1340_BIT_CENTURY;
 		break;
+	case mcp7941x:
+		/*
+		 * these bits were cleared when preparing the date/time
+		 * values and need to be set again before writing the
+		 * buffer out to the device.
+		 */
+		buf[DS1307_REG_SECS] |= MCP7941X_BIT_ST;
+		buf[DS1307_REG_WDAY] |= MCP7941X_BIT_VBATEN;
+		break;
 	default:
 		break;
 	}
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x\n",
-		"write", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6]);
+	dev_dbg(dev, "%s: %7ph\n", "write", buf);
 
 	result = ds1307->write_block_data(ds1307->client,
 		ds1307->offset, 7, buf);
@@ -407,7 +481,8 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 			ds1307->regs[6], ds1307->regs[7],
 			ds1307->regs[8]);
 
-	/* report alarm time (ALARM1); assume 24 hour and day-of-month modes,
+	/*
+	 * report alarm time (ALARM1); assume 24 hour and day-of-month modes,
 	 * and that all four fields are checked matches
 	 */
 	t->time.tm_sec = bcd2bin(ds1307->regs[0] & 0x7f);
@@ -435,7 +510,7 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
-	struct i2c_client       *client = to_i2c_client(dev);
+	struct i2c_client	*client = to_i2c_client(dev);
 	struct ds1307		*ds1307 = i2c_get_clientdata(client);
 	unsigned char		*buf = ds1307->regs;
 	u8			control, status;
@@ -531,8 +606,6 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-#define NVRAM_SIZE	56
-
 static ssize_t
 ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
@@ -545,14 +618,15 @@ ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
-	if (unlikely(off >= NVRAM_SIZE))
+	if (unlikely(off >= ds1307->nvram->size))
 		return 0;
-	if ((off + count) > NVRAM_SIZE)
-		count = NVRAM_SIZE - off;
+	if ((off + count) > ds1307->nvram->size)
+		count = ds1307->nvram->size - off;
 	if (unlikely(!count))
 		return count;
 
-	result = ds1307->read_block_data(client, 8 + off, count, buf);
+	result = ds1307->read_block_data(client, ds1307->nvram_offset + off,
+								count, buf);
 	if (result < 0)
 		dev_err(&client->dev, "%s error %d\n", "nvram read", result);
 	return result;
@@ -570,14 +644,15 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
-	if (unlikely(off >= NVRAM_SIZE))
+	if (unlikely(off >= ds1307->nvram->size))
 		return -EFBIG;
-	if ((off + count) > NVRAM_SIZE)
-		count = NVRAM_SIZE - off;
+	if ((off + count) > ds1307->nvram->size)
+		count = ds1307->nvram->size - off;
 	if (unlikely(!count))
 		return count;
 
-	result = ds1307->write_block_data(client, 8 + off, count, buf);
+	result = ds1307->write_block_data(client, ds1307->nvram_offset + off,
+								count, buf);
 	if (result < 0) {
 		dev_err(&client->dev, "%s error %d\n", "nvram write", result);
 		return result;
@@ -585,23 +660,10 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute nvram = {
-	.attr = {
-		.name	= "nvram",
-		.mode	= S_IRUGO | S_IWUSR,
-	},
-
-	.read	= ds1307_nvram_read,
-	.write	= ds1307_nvram_write,
-	.size	= NVRAM_SIZE,
-};
-
 /*----------------------------------------------------------------------*/
 
-static struct i2c_driver ds1307_driver;
-
-static int __devinit ds1307_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int ds1307_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
@@ -610,6 +672,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	int			want_irq = false;
 	unsigned char		*buf;
+	struct ds1307_platform_data *pdata = client->dev.platform_data;
 	static const int	bbsqi_bitpos[] = {
 		[ds_1337] = 0,
 		[ds_1339] = DS1339_BIT_BBSQI,
@@ -620,19 +683,23 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	if (!(ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL)))
+	ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL);
+	if (!ds1307)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ds1307);
 
 	ds1307->client	= client;
 	ds1307->type	= id->driver_data;
-	ds1307->offset	= 0;
+
+	if (pdata && pdata->trickle_charger_setup && chip->trickle_charger_reg)
+		i2c_smbus_write_byte_data(client, chip->trickle_charger_reg,
+			DS13XX_TRICKLE_CHARGER_MAGIC | pdata->trickle_charger_setup);
 
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
-		ds1307->write_block_data = i2c_smbus_write_i2c_block_data;
+		ds1307->read_block_data = ds1307_native_smbus_read_block_data;
+		ds1307->write_block_data = ds1307_native_smbus_write_block_data;
 	} else {
 		ds1307->read_block_data = ds1307_read_block_data;
 		ds1307->write_block_data = ds1307_write_block_data;
@@ -642,16 +709,11 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	case ds_1337:
 	case ds_1339:
 	case ds_3231:
-		/* has IRQ? */
-		if (ds1307->client->irq > 0 && chip->alarm) {
-			INIT_WORK(&ds1307->work, ds1307_work);
-			want_irq = true;
-		}
 		/* get registers that the "rtc" read below won't read... */
 		tmp = ds1307->read_block_data(ds1307->client,
 				DS1337_REG_CONTROL, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
@@ -660,14 +722,19 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 		if (ds1307->regs[0] & DS1337_BIT_nEOSC)
 			ds1307->regs[0] &= ~DS1337_BIT_nEOSC;
 
-		/* Using IRQ?  Disable the square wave and both alarms.
+		/*
+		 * Using IRQ?  Disable the square wave and both alarms.
 		 * For some variants, be sure alarms can trigger when we're
 		 * running on Vbackup (BBSQI/BBSQW)
 		 */
-		if (want_irq) {
+		if (ds1307->client->irq > 0 && chip->alarm) {
+			INIT_WORK(&ds1307->work, ds1307_work);
+
 			ds1307->regs[0] |= DS1337_BIT_INTCN
 					| bbsqi_bitpos[ds1307->type];
 			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
+
+			want_irq = true;
 		}
 
 		i2c_smbus_write_byte_data(client, DS1337_REG_CONTROL,
@@ -685,7 +752,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 				RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
@@ -729,7 +796,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 					RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 			if (tmp != 2) {
-				pr_debug("read error %d\n", tmp);
+				dev_dbg(&client->dev, "read error %d\n", tmp);
 				err = -EIO;
 				goto exit_free;
 			}
@@ -757,12 +824,13 @@ read_rtc:
 	/* read RTC registers */
 	tmp = ds1307->read_block_data(ds1307->client, ds1307->offset, 8, buf);
 	if (tmp != 8) {
-		pr_debug("read error %d\n", tmp);
+		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
 		goto exit_free;
 	}
 
-	/* minimal sanity checking; some chips (like DS1340) don't
+	/*
+	 * minimal sanity checking; some chips (like DS1340) don't
 	 * specify the extra bits as must-be-zero, but there are
 	 * still a few values that are clearly out-of-range.
 	 */
@@ -798,7 +866,7 @@ read_rtc:
 
 		tmp = i2c_smbus_read_byte_data(client, DS1340_REG_FLAG);
 		if (tmp < 0) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
@@ -809,11 +877,24 @@ read_rtc:
 			dev_warn(&client->dev, "SET TIME!\n");
 		}
 		break;
-	case rx_8025:
-	case ds_1337:
-	case ds_1339:
-	case ds_1388:
-	case ds_3231:
+	case mcp7941x:
+		/* make sure that the backup battery is enabled */
+		if (!(ds1307->regs[DS1307_REG_WDAY] & MCP7941X_BIT_VBATEN)) {
+			i2c_smbus_write_byte_data(client, DS1307_REG_WDAY,
+					ds1307->regs[DS1307_REG_WDAY]
+					| MCP7941X_BIT_VBATEN);
+		}
+
+		/* clock halted?  turn it on, so clock can tick. */
+		if (!(tmp & MCP7941X_BIT_ST)) {
+			i2c_smbus_write_byte_data(client, DS1307_REG_SECS,
+					MCP7941X_BIT_ST);
+			dev_warn(&client->dev, "SET TIME!\n");
+			goto read_rtc;
+		}
+
+		break;
+	default:
 		break;
 	}
 
@@ -821,7 +902,8 @@ read_rtc:
 	switch (ds1307->type) {
 	case ds_1340:
 	case m41t00:
-		/* NOTE: ignores century bits; fix before deploying
+		/*
+		 * NOTE: ignores century bits; fix before deploying
 		 * systems that will run through year 2100.
 		 */
 		break;
@@ -831,7 +913,8 @@ read_rtc:
 		if (!(tmp & DS1307_BIT_12HR))
 			break;
 
-		/* Be sure we're in 24 hour mode.  Multi-master systems
+		/*
+		 * Be sure we're in 24 hour mode.  Multi-master systems
 		 * take note...
 		 */
 		tmp = bcd2bin(tmp & 0x1f);
@@ -867,16 +950,32 @@ read_rtc:
 		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
 	}
 
-	if (chip->nvram56) {
-		err = sysfs_create_bin_file(&client->dev.kobj, &nvram);
-		if (err == 0) {
-			set_bit(HAS_NVRAM, &ds1307->flags);
-			dev_info(&client->dev, "56 bytes nvram\n");
+	if (chip->nvram_size) {
+		ds1307->nvram = kzalloc(sizeof(struct bin_attribute),
+							GFP_KERNEL);
+		if (!ds1307->nvram) {
+			err = -ENOMEM;
+			goto exit_nvram;
 		}
+		ds1307->nvram->attr.name = "nvram";
+		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+		sysfs_bin_attr_init(ds1307->nvram);
+		ds1307->nvram->read = ds1307_nvram_read;
+		ds1307->nvram->write = ds1307_nvram_write;
+		ds1307->nvram->size = chip->nvram_size;
+		ds1307->nvram_offset = chip->nvram_offset;
+		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
+		if (err) {
+			kfree(ds1307->nvram);
+			goto exit_nvram;
+		}
+		set_bit(HAS_NVRAM, &ds1307->flags);
+		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
+exit_nvram:
 exit_irq:
 	rtc_device_unregister(ds1307->rtc);
 exit_free:
@@ -884,17 +983,19 @@ exit_free:
 	return err;
 }
 
-static int __devexit ds1307_remove(struct i2c_client *client)
+static int ds1307_remove(struct i2c_client *client)
 {
-	struct ds1307		*ds1307 = i2c_get_clientdata(client);
+	struct ds1307 *ds1307 = i2c_get_clientdata(client);
 
 	if (test_and_clear_bit(HAS_ALARM, &ds1307->flags)) {
 		free_irq(client->irq, client);
 		cancel_work_sync(&ds1307->work);
 	}
 
-	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
-		sysfs_remove_bin_file(&client->dev.kobj, &nvram);
+	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags)) {
+		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);
+		kfree(ds1307->nvram);
+	}
 
 	rtc_device_unregister(ds1307->rtc);
 	kfree(ds1307);
@@ -907,21 +1008,11 @@ static struct i2c_driver ds1307_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1307_probe,
-	.remove		= __devexit_p(ds1307_remove),
+	.remove		= ds1307_remove,
 	.id_table	= ds1307_id,
 };
 
-static int __init ds1307_init(void)
-{
-	return i2c_add_driver(&ds1307_driver);
-}
-module_init(ds1307_init);
-
-static void __exit ds1307_exit(void)
-{
-	i2c_del_driver(&ds1307_driver);
-}
-module_exit(ds1307_exit);
+module_i2c_driver(ds1307_driver);
 
 MODULE_DESCRIPTION("RTC driver for DS1307 and similar chips");
 MODULE_LICENSE("GPL");

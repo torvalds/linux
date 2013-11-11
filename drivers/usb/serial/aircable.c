@@ -47,11 +47,10 @@
 #include <asm/unaligned.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/tty_flip.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-
-static int debug;
 
 /* Vendor and Product ID */
 #define AIRCABLE_VID		0x16CA
@@ -69,10 +68,6 @@ static int debug;
 #define THROTTLED		0x01
 #define ACTUALLY_THROTTLED	0x02
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Naranjo, Manuel Francisco <naranjo.manuel@gmail.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "AIRcable USB Driver"
 
@@ -110,33 +105,33 @@ static int aircable_probe(struct usb_serial *serial,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint = &iface_desc->endpoint[i].desc;
 		if (usb_endpoint_is_bulk_out(endpoint)) {
-			dbg("found bulk out on endpoint %d", i);
+			dev_dbg(&serial->dev->dev,
+				"found bulk out on endpoint %d\n", i);
 			++num_bulk_out;
 		}
 	}
 
 	if (num_bulk_out == 0) {
-		dbg("Invalid interface, discarding");
+		dev_dbg(&serial->dev->dev, "Invalid interface, discarding\n");
 		return -ENODEV;
 	}
 
 	return 0;
 }
 
-static int aircable_process_packet(struct tty_struct *tty,
-			struct usb_serial_port *port, int has_headers,
-			char *packet, int len)
+static int aircable_process_packet(struct usb_serial_port *port,
+		int has_headers, char *packet, int len)
 {
 	if (has_headers) {
 		len -= HCI_HEADER_LENGTH;
 		packet += HCI_HEADER_LENGTH;
 	}
 	if (len <= 0) {
-		dbg("%s - malformed packet", __func__);
+		dev_dbg(&port->dev, "%s - malformed packet\n", __func__);
 		return 0;
 	}
 
-	tty_insert_flip_string(tty, packet, len);
+	tty_insert_flip_string(&port->port, packet, len);
 
 	return len;
 }
@@ -145,44 +140,29 @@ static void aircable_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *data = (char *)urb->transfer_buffer;
-	struct tty_struct *tty;
 	int has_headers;
 	int count;
 	int len;
 	int i;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	has_headers = (urb->actual_length > 2 && data[0] == RX_HEADER_0);
 
 	count = 0;
 	for (i = 0; i < urb->actual_length; i += HCI_COMPLETE_FRAME) {
 		len = min_t(int, urb->actual_length - i, HCI_COMPLETE_FRAME);
-		count += aircable_process_packet(tty, port, has_headers,
+		count += aircable_process_packet(port, has_headers,
 								&data[i], len);
 	}
 
 	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&port->port);
 }
-
-static struct usb_driver aircable_driver = {
-	.name =		"aircable",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-	.no_dynamic_id =	1,
-};
 
 static struct usb_serial_driver aircable_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"aircable",
 	},
-	.usb_driver = 		&aircable_driver,
 	.id_table = 		id_table,
 	.num_ports =		1,
 	.bulk_out_size =	HCI_COMPLETE_FRAME,
@@ -193,36 +173,12 @@ static struct usb_serial_driver aircable_device = {
 	.unthrottle =		usb_serial_generic_unthrottle,
 };
 
-static int __init aircable_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&aircable_device);
-	if (retval)
-		goto failed_serial_register;
-	retval = usb_register(&aircable_driver);
-	if (retval)
-		goto failed_usb_register;
-	return 0;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&aircable_device, NULL
+};
 
-failed_usb_register:
-	usb_serial_deregister(&aircable_device);
-failed_serial_register:
-	return retval;
-}
-
-static void __exit aircable_exit(void)
-{
-	usb_deregister(&aircable_driver);
-	usb_serial_deregister(&aircable_device);
-}
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_init(aircable_init);
-module_exit(aircable_exit);
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

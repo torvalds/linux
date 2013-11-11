@@ -142,7 +142,7 @@ hydra_init(void)
 		return 0;
 	}
 	of_node_put(np);
-	Hydra = ioremap(r.start, r.end-r.start);
+	Hydra = ioremap(r.start, resource_size(&r));
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
 	       in_le32(&Hydra->Feature_Control));
@@ -199,7 +199,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 		printk ("RTAS supporting Pegasos OF not found, please upgrade"
 			" your firmware\n");
 	}
-	ppc_pci_add_flags(PPC_PCI_REASSIGN_ALL_BUS);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 	/* keep the reference to the root node */
 }
 
@@ -323,7 +323,7 @@ chrp_find_bridges(void)
  * ATA controller to be set to fully native mode or bad things
  * will happen.
  */
-static void __devinit chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
+static void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 {
 	u8 progif;
 

@@ -1,0 +1,794 @@
+What:		/sys/bus/iio/devices/iio:deviceX
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware chip or device accessed by one communication port.
+		Corresponds to a grouping of sensor channels. X is the IIO
+		index of the device.
+
+What:		/sys/bus/iio/devices/triggerX
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		An event driven driver of data capture to an in kernel buffer.
+		May be provided by a device driver that also has an IIO device
+		based on hardware generated events (e.g. data ready) or
+		provided by a separate driver for other hardware (e.g.
+		periodic timer, GPIO or high resolution timer).
+		Contains trigger type specific elements. These do not
+		generalize well and hence are not documented in this file.
+		X is the IIO index of the trigger.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Directory of attributes relating to the buffer for the device.
+
+What:		/sys/bus/iio/devices/iio:deviceX/name
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Description of the physical chip / device for device X.
+		Typically a part number.
+
+What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/sampling_frequency
+What:		/sys/bus/iio/devices/triggerX/sampling_frequency
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Some devices have internal clocks.  This parameter sets the
+		resulting sampling frequency.  In many devices this
+		parameter has an effect on input filters etc. rather than
+		simply controlling when the input is sampled.  As this
+		effects data ready triggers, hardware buffers and the sysfs
+		direct access interfaces, it may be found in any of the
+		relevant directories.  If it effects all of the above
+		then it is to be found in the base device directory.
+
+What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency_available
+What:		/sys/.../iio:deviceX/buffer/sampling_frequency_available
+What:		/sys/bus/iio/devices/triggerX/sampling_frequency_available
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		When the internal sampling clock can only take a small
+		discrete set of values, this file lists those available.
+
+What:		/sys/bus/iio/devices/iio:deviceX/oversampling_ratio
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent ADC oversampling. Controls the sampling ratio
+		of the digital filter if available.
+
+What:		/sys/bus/iio/devices/iio:deviceX/oversampling_ratio_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware dependent values supported by the oversampling filter.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) voltage measurement from
+		channel Y. In special cases where the channel does not
+		correspond to externally available input one of the named
+		versions may be used. The number must always be specified and
+		unique to allow association with event codes. Units after
+		application of scale and offset are microvolts.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled) differential voltage measurement equivalent to
+		channel Y - channel Z where these channel numbers apply to the
+		physically equivalent inputs when non differential readings are
+		separately available. In differential only parts, then all that
+		is required is a consistent labeling.  Units after application
+		of scale and offset are microvolts.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
+KernelVersion:	3.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw capacitance measurement from channel Y. Units after
+		application of scale and offset are nanofarads.
+
+What:		/sys/.../iio:deviceX/in_capacitanceY-in_capacitanceZ_raw
+KernelVersion:	3.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw differential capacitance measurement equivalent to
+		channel Y - channel Z where these channel numbers apply to the
+		physically equivalent inputs when non differential readings are
+		separately available. In differential only parts, then all that
+		is required is a consistent labeling.  Units after application
+		of scale and offset are nanofarads.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_z_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) temperature measurement.
+		If an axis is specified it generally means that the temperature
+		sensor is associated with one part of a compound device (e.g.
+		a gyroscope axis). Units after application of scale and offset
+		are milli degrees Celsius.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_input
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scaled temperature measurement in milli degrees Celsius.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Acceleration in direction x, y or z (may be arbitrarily assigned
+		but should match other such assignments on device).
+		Has all of the equivalent parameters as per voltageY. Units
+		after application of scale and offset are m/s^2.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Angular velocity about axis x, y or z (may be arbitrarily
+		assigned). Has all the equivalent parameters as	per voltageY.
+		Units after application of scale and offset are	radians per
+		second.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_incli_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_incli_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_incli_z_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Inclination raw reading about axis x, y or z (may be
+		arbitrarily assigned). Data converted by application of offset
+		and scale to degrees.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_raw
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Magnetic field along axis x, y or z (may be arbitrarily
+		assigned).  Data converted by application of offset
+		then scale to Gauss.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_peak_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_peak_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_peak_raw
+KernelVersion:	2.6.36
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Highest value since some reset condition.  These
+		attributes allow access to this and are otherwise
+		the direct equivalent of the <type>Y[_name]_raw attributes.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_xyz_squared_peak_raw
+KernelVersion:	2.6.36
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A computed peak value based on the sum squared magnitude of
+		the underlying value in the specified directions.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_raw
+KernelVersion:	3.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw pressure measurement from channel Y. Units after
+		application of scale and offset are kilopascal.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_offset
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If known for a device, offset to be added to <type>[Y]_raw prior
+		to scaling by <type>[Y]_scale in order to obtain value in the
+		<type> units as specified in <type>[Y]_raw documentation.
+		Not present if the offset is always 0 or unknown. If Y or
+		axis <x|y|z> is not present, then the offset applies to all
+		in channels of <type>.
+		May be writable if a variable offset can be applied on the
+		device. Note that this is different to calibbias which
+		is for devices (or drivers) that apply offsets to compensate
+		for variation between different instances of the part, typically
+		adjusted by using some hardware supported calibration procedure.
+		Calibbias is applied internally, offset is applied in userspace
+		to the _raw output.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If known for a device, scale to be applied to <type>Y[_name]_raw
+		post addition of <type>[Y][_name]_offset in order to obtain the
+		measured value in <type> units as specified in
+		<type>[Y][_name]_raw documentation.  If shared across all in
+		channels then Y and <x|y|z> are not present and the value is
+		called <type>[Y][_name]_scale. The peak modifier means this
+		value is applied to <type>Y[_name]_peak_raw values.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibbias
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied calibration offset (assumed to fix production
+		inaccuracies).
+
+What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltageY_supply_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_voltage_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_accel_x_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_accel_y_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibscale
+What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibscale
+what		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
+what		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_calibscale
+What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_calibscale
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied calibration scale factor (assumed to fix
+		production inaccuracies).  If shared across all channels,
+		<type>_calibscale is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
+What:		/sys/.../iio:deviceX/in_voltageX_scale_available
+What:		/sys/.../iio:deviceX/in_voltage-voltage_scale_available
+What:		/sys/.../iio:deviceX/out_voltageX_scale_available
+What:		/sys/.../iio:deviceX/out_altvoltageX_scale_available
+What:		/sys/.../iio:deviceX/in_capacitance_scale_available
+What:		/sys/.../iio:deviceX/in_pressure_scale_available
+What:		/sys/.../iio:deviceX/in_pressureY_scale_available
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a discrete set of scale values is available, they
+		are listed in this attribute.
+
+What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied gain factor. If shared across all channels,
+		<type>_hardwaregain is used.
+
+What:		/sys/.../in_accel_filter_low_pass_3db_frequency
+What:		/sys/.../in_magn_filter_low_pass_3db_frequency
+What:		/sys/.../in_anglvel_filter_low_pass_3db_frequency
+KernelVersion:	3.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a known or controllable low pass filter is applied
+		to the underlying data channel, then this parameter
+		gives the 3dB frequency of the filter in Hz.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for
+		channel Y.  The number must always be specified and
+		unique if the output corresponds to a single channel.
+		While DAC like devices typically use out_voltage,
+		a continuous frequency generating device, such as
+		a DDS or PLL should use out_altvoltage.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY&Z_raw
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY&Z_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for an aggregate of
+		channel Y, channel Z, etc.  This interface is available in cases
+		where a single output sets the value for multiple channels
+		simultaneously.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_powerdown_mode
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltage_powerdown_mode
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_powerdown_mode
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltage_powerdown_mode
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the output powerdown mode.
+		DAC output stage is disconnected from the amplifier and
+		1kohm_to_gnd: connected	to ground via an 1kOhm resistor,
+		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
+		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
+		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
+		three_state: left floating.
+		For a list of available output power down options read
+		outX_powerdown_mode_available. If Y is not present the
+		mode is shared across all outputs.
+
+What:		/sys/.../iio:deviceX/out_votlageY_powerdown_mode_available
+What:		/sys/.../iio:deviceX/out_voltage_powerdown_mode_available
+What:		/sys/.../iio:deviceX/out_altvotlageY_powerdown_mode_available
+What:		/sys/.../iio:deviceX/out_altvoltage_powerdown_mode_available
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available output power down modes.
+		If Y is not present the mode is shared across all outputs.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_powerdown
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltage_powerdown
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_powerdown
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltage_powerdown
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing 1 causes output Y to enter the power down mode specified
+		by the corresponding outY_powerdown_mode. DAC output stage is
+		disconnected from the amplifier. Clearing returns to normal
+		operation. Y may be suppressed if all outputs are controlled
+		together.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_frequency
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Output frequency for channel Y in Hz. The number must always be
+		specified and unique if the output corresponds to a single
+		channel.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_phase
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Phase in radians of one frequency/clock output Y
+		(out_altvoltageY) relative to another frequency/clock output
+		(out_altvoltageZ) of the device X. The number must always be
+		specified and unique if the output corresponds to a single
+		channel.
+
+What:		/sys/bus/iio/devices/iio:deviceX/events
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Configuration of which hardware generated events are passed up
+		to user-space.
+
+What:		/sys/.../iio:deviceX/events/in_accel_x_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_x_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_x_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_x_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_y_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_y_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_z_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_z_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_x_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_x_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_y_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_y_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_z_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_z_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_supply_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_thresh_falling_en
+What:		/sys/.../iio:deviceX/events/in_tempY_thresh_rising_en
+What:		/sys/.../iio:deviceX/events/in_tempY_thresh_falling_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Event generated when channel passes a threshold in the specified
+		(_rising|_falling) direction. If the direction is not specified,
+		then either the device will report an event which ever direction
+		a single threshold value is passed in (e.g.
+		<type>[Y][_name]_<raw|input>_thresh_value) or
+		<type>[Y][_name]_<raw|input>_thresh_rising_value and
+		<type>[Y][_name]_<raw|input>_thresh_falling_value may take
+		different values, but the device can only enable both thresholds
+		or neither.
+		Note the driver will assume the last p events requested are
+		to be enabled where p is how many it supports (which may vary
+		depending on the exact set requested. So if you want to be
+		sure you have set what you think you have, check the contents of
+		these attributes after everything is configured. Drivers may
+		have to buffer any parameters so that they are consistent when
+		a given event type is enabled at a future point (and not those for
+		whatever event was previously enabled).
+
+What:		/sys/.../iio:deviceX/events/in_accel_x_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_x_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_x_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_x_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_y_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_y_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_z_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_anglvel_z_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_x_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_x_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_y_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_y_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_magn_z_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_magn_z_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_supply_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_supply_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_voltageY_roc_falling_en
+What:		/sys/.../iio:deviceX/events/in_tempY_roc_rising_en
+What:		/sys/.../iio:deviceX/events/in_tempY_roc_falling_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Event generated when channel passes a threshold on the rate of
+		change (1st differential) in the specified (_rising|_falling)
+		direction. If the direction is not specified, then either the
+		device will report an event which ever direction a single
+		threshold value is passed in (e.g.
+		<type>[Y][_name]_<raw|input>_roc_value) or
+		<type>[Y][_name]_<raw|input>_roc_rising_value and
+		<type>[Y][_name]_<raw|input>_roc_falling_value may take
+		different values, but the device can only enable both rate of
+		change thresholds or neither.
+		Note the driver will assume the last p events requested are
+		to be enabled where p is however many it supports (which may
+		vary depending on the exact set requested. So if you want to be
+		sure you have set what you think you have, check the contents of
+		these attributes after everything is configured. Drivers may
+		have to buffer any parameters so that they are consistent when
+		a given event type is enabled a future point (and not those for
+		whatever event was previously enabled).
+
+What:		/sys/.../events/in_accel_x_raw_thresh_rising_value
+What:		/sys/.../events/in_accel_x_raw_thresh_falling_value
+What:		/sys/.../events/in_accel_y_raw_thresh_rising_value
+What:		/sys/.../events/in_accel_y_raw_thresh_falling_value
+What:		/sys/.../events/in_accel_z_raw_thresh_rising_value
+What:		/sys/.../events/in_accel_z_raw_thresh_falling_value
+What:		/sys/.../events/in_anglvel_x_raw_thresh_rising_value
+What:		/sys/.../events/in_anglvel_x_raw_thresh_falling_value
+What:		/sys/.../events/in_anglvel_y_raw_thresh_rising_value
+What:		/sys/.../events/in_anglvel_y_raw_thresh_falling_value
+What:		/sys/.../events/in_anglvel_z_raw_thresh_rising_value
+What:		/sys/.../events/in_anglvel_z_raw_thresh_falling_value
+What:		/sys/.../events/in_magn_x_raw_thresh_rising_value
+What:		/sys/.../events/in_magn_x_raw_thresh_falling_value
+What:		/sys/.../events/in_magn_y_raw_thresh_rising_value
+What:		/sys/.../events/in_magn_y_raw_thresh_falling_value
+What:		/sys/.../events/in_magn_z_raw_thresh_rising_value
+What:		/sys/.../events/in_magn_z_raw_thresh_falling_value
+What:		/sys/.../events/in_voltageY_supply_raw_thresh_rising_value
+What:		/sys/.../events/in_voltageY_supply_raw_thresh_falling_value
+What:		/sys/.../events/in_voltageY_raw_thresh_rising_value
+What:		/sys/.../events/in_voltageY_raw_thresh_falling_value
+What:		/sys/.../events/in_tempY_raw_thresh_rising_value
+What:		/sys/.../events/in_tempY_raw_thresh_falling_value
+What:		/sys/.../events/in_illuminance0_thresh_falling_value
+what:		/sys/.../events/in_illuminance0_thresh_rising_value
+what:		/sys/.../events/in_proximity0_thresh_falling_value
+what:		/sys/.../events/in_proximity0_thresh_rising_value
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the value of threshold that the device is comparing
+		against for the events enabled by
+		<type>Y[_name]_thresh[_rising|falling]_en.
+		If separate attributes exist for the two directions, but
+		direction is not specified for this attribute, then a single
+		threshold value applies to both directions.
+		The raw or input element of the name indicates whether the
+		value is in raw device units or in processed units (as _raw
+		and _input do on sysfs direct channel read attributes).
+
+What:		/sys/.../events/in_accel_x_raw_roc_rising_value
+What:		/sys/.../events/in_accel_x_raw_roc_falling_value
+What:		/sys/.../events/in_accel_y_raw_roc_rising_value
+What:		/sys/.../events/in_accel_y_raw_roc_falling_value
+What:		/sys/.../events/in_accel_z_raw_roc_rising_value
+What:		/sys/.../events/in_accel_z_raw_roc_falling_value
+What:		/sys/.../events/in_anglvel_x_raw_roc_rising_value
+What:		/sys/.../events/in_anglvel_x_raw_roc_falling_value
+What:		/sys/.../events/in_anglvel_y_raw_roc_rising_value
+What:		/sys/.../events/in_anglvel_y_raw_roc_falling_value
+What:		/sys/.../events/in_anglvel_z_raw_roc_rising_value
+What:		/sys/.../events/in_anglvel_z_raw_roc_falling_value
+What:		/sys/.../events/in_magn_x_raw_roc_rising_value
+What:		/sys/.../events/in_magn_x_raw_roc_falling_value
+What:		/sys/.../events/in_magn_y_raw_roc_rising_value
+What:		/sys/.../events/in_magn_y_raw_roc_falling_value
+What:		/sys/.../events/in_magn_z_raw_roc_rising_value
+What:		/sys/.../events/in_magn_z_raw_roc_falling_value
+What:		/sys/.../events/in_voltageY_supply_raw_roc_rising_value
+What:		/sys/.../events/in_voltageY_supply_raw_roc_falling_value
+What:		/sys/.../events/in_voltageY_raw_roc_rising_value
+What:		/sys/.../events/in_voltageY_raw_roc_falling_value
+What:		/sys/.../events/in_tempY_raw_roc_rising_value
+What:		/sys/.../events/in_tempY_raw_roc_falling_value
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the value of rate of change threshold that the
+		device is comparing against for the events enabled by
+		<type>[Y][_name]_roc[_rising|falling]_en.
+		If separate attributes exist for the two directions,
+		but direction is not specified for this attribute,
+		then a single threshold value applies to both directions.
+		The raw or input element of the name indicates whether the
+		value is in raw device units or in processed units (as _raw
+		and _input do on sysfs direct channel read attributes).
+
+What:		/sys/.../events/in_accel_x_thresh_rising_period
+What:		/sys/.../events/in_accel_x_thresh_falling_period
+hat:		/sys/.../events/in_accel_x_roc_rising_period
+What:		/sys/.../events/in_accel_x_roc_falling_period
+What:		/sys/.../events/in_accel_y_thresh_rising_period
+What:		/sys/.../events/in_accel_y_thresh_falling_period
+What:		/sys/.../events/in_accel_y_roc_rising_period
+What:		/sys/.../events/in_accel_y_roc_falling_period
+What:		/sys/.../events/in_accel_z_thresh_rising_period
+What:		/sys/.../events/in_accel_z_thresh_falling_period
+What:		/sys/.../events/in_accel_z_roc_rising_period
+What:		/sys/.../events/in_accel_z_roc_falling_period
+What:		/sys/.../events/in_anglvel_x_thresh_rising_period
+What:		/sys/.../events/in_anglvel_x_thresh_falling_period
+What:		/sys/.../events/in_anglvel_x_roc_rising_period
+What:		/sys/.../events/in_anglvel_x_roc_falling_period
+What:		/sys/.../events/in_anglvel_y_thresh_rising_period
+What:		/sys/.../events/in_anglvel_y_thresh_falling_period
+What:		/sys/.../events/in_anglvel_y_roc_rising_period
+What:		/sys/.../events/in_anglvel_y_roc_falling_period
+What:		/sys/.../events/in_anglvel_z_thresh_rising_period
+What:		/sys/.../events/in_anglvel_z_thresh_falling_period
+What:		/sys/.../events/in_anglvel_z_roc_rising_period
+What:		/sys/.../events/in_anglvel_z_roc_falling_period
+What:		/sys/.../events/in_magn_x_thresh_rising_period
+What:		/sys/.../events/in_magn_x_thresh_falling_period
+What:		/sys/.../events/in_magn_x_roc_rising_period
+What:		/sys/.../events/in_magn_x_roc_falling_period
+What:		/sys/.../events/in_magn_y_thresh_rising_period
+What:		/sys/.../events/in_magn_y_thresh_falling_period
+What:		/sys/.../events/in_magn_y_roc_rising_period
+What:		/sys/.../events/in_magn_y_roc_falling_period
+What:		/sys/.../events/in_magn_z_thresh_rising_period
+What:		/sys/.../events/in_magn_z_thresh_falling_period
+What:		/sys/.../events/in_magn_z_roc_rising_period
+What:		/sys/.../events/in_magn_z_roc_falling_period
+What:		/sys/.../events/in_voltageY_supply_thresh_rising_period
+What:		/sys/.../events/in_voltageY_supply_thresh_falling_period
+What:		/sys/.../events/in_voltageY_supply_roc_rising_period
+What:		/sys/.../events/in_voltageY_supply_roc_falling_period
+What:		/sys/.../events/in_voltageY_thresh_rising_period
+What:		/sys/.../events/in_voltageY_thresh_falling_period
+What:		/sys/.../events/in_voltageY_roc_rising_period
+What:		/sys/.../events/in_voltageY_roc_falling_period
+What:		/sys/.../events/in_tempY_thresh_rising_period
+What:		/sys/.../events/in_tempY_thresh_falling_period
+What:		/sys/.../events/in_tempY_roc_rising_period
+What:		/sys/.../events/in_tempY_roc_falling_period
+What:		/sys/.../events/in_accel_x&y&z_mag_falling_period
+What:		/sys/.../events/in_intensity0_thresh_period
+What:		/sys/.../events/in_proximity0_thresh_period
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Period of time (in seconds) for which the condition must be
+		met before an event is generated. If direction is not
+		specified then this period applies to both directions.
+
+What:		/sys/.../iio:deviceX/events/in_accel_mag_en
+What:		/sys/.../iio:deviceX/events/in_accel_mag_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_mag_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_x_mag_en
+What:		/sys/.../iio:deviceX/events/in_accel_x_mag_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_x_mag_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_mag_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_mag_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_y_mag_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_mag_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_mag_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_z_mag_falling_en
+What:		/sys/.../iio:deviceX/events/in_accel_x&y&z_mag_rising_en
+What:		/sys/.../iio:deviceX/events/in_accel_x&y&z_mag_falling_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Similar to in_accel_x_thresh[_rising|_falling]_en, but here the
+		magnitude of the channel is compared to the threshold, not its
+		signed value.
+
+What:		/sys/.../events/in_accel_raw_mag_value
+What:		/sys/.../events/in_accel_x_raw_mag_rising_value
+What:		/sys/.../events/in_accel_y_raw_mag_rising_value
+What:		/sys/.../events/in_accel_z_raw_mag_rising_value
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The value to which the magnitude of the channel is compared. If
+		number or direction is not specified, applies to all channels of
+		this type.
+
+What:		/sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The name of the trigger source being used, as per string given
+		in /sys/class/iio/triggerY/name.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/length
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Number of scans contained by the buffer.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/bytes_per_datum
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Bytes per scan.  Due to alignment fun, the scan may be larger
+		than implied directly by the scan_element parameters.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/enable
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Actually start the buffer capture up.  Will start trigger
+		if first device and appropriate.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/scan_elements
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Directory containing interfaces for elements that will be
+		captured for a single triggered sample set in the buffer.
+
+What:		/sys/.../buffer/scan_elements/in_accel_x_en
+What:		/sys/.../buffer/scan_elements/in_accel_y_en
+What:		/sys/.../buffer/scan_elements/in_accel_z_en
+What:		/sys/.../buffer/scan_elements/in_anglvel_x_en
+What:		/sys/.../buffer/scan_elements/in_anglvel_y_en
+What:		/sys/.../buffer/scan_elements/in_anglvel_z_en
+What:		/sys/.../buffer/scan_elements/in_magn_x_en
+What:		/sys/.../buffer/scan_elements/in_magn_y_en
+What:		/sys/.../buffer/scan_elements/in_magn_z_en
+What:		/sys/.../buffer/scan_elements/in_timestamp_en
+What:		/sys/.../buffer/scan_elements/in_voltageY_supply_en
+What:		/sys/.../buffer/scan_elements/in_voltageY_en
+What:		/sys/.../buffer/scan_elements/in_voltageY-voltageZ_en
+What:		/sys/.../buffer/scan_elements/in_incli_x_en
+What:		/sys/.../buffer/scan_elements/in_incli_y_en
+What:		/sys/.../buffer/scan_elements/in_pressureY_en
+What:		/sys/.../buffer/scan_elements/in_pressure_en
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scan element control for triggered data capture.
+
+What:		/sys/.../buffer/scan_elements/in_accel_type
+What:		/sys/.../buffer/scan_elements/in_anglvel_type
+What:		/sys/.../buffer/scan_elements/in_magn_type
+What:		/sys/.../buffer/scan_elements/in_incli_type
+What:		/sys/.../buffer/scan_elements/in_voltageY_type
+What:		/sys/.../buffer/scan_elements/in_voltage_type
+What:		/sys/.../buffer/scan_elements/in_voltageY_supply_type
+What:		/sys/.../buffer/scan_elements/in_timestamp_type
+What:		/sys/.../buffer/scan_elements/in_pressureY_type
+What:		/sys/.../buffer/scan_elements/in_pressure_type
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Description of the scan element data storage within the buffer
+		and hence the form in which it is read from user-space.
+		Form is [be|le]:[s|u]bits/storagebits[>>shift].
+		be or le specifies big or little endian. s or u specifies if
+		signed (2's complement) or unsigned. bits is the number of bits
+		of data and storagebits is the space (after padding) that it
+		occupies in the buffer. shift if specified, is the shift that
+		needs to be applied prior to masking out unused bits. Some
+		devices put their data in the middle of the transferred elements
+		with additional information on both sides.  Note that some
+		devices will have additional information in the unused bits
+		so to get a clean value, the bits value must be used to mask
+		the buffer output value appropriately.  The storagebits value
+		also specifies the data alignment.  So s48/64>>2 will be a
+		signed 48 bit integer stored in a 64 bit location aligned to
+		a 64 bit boundary. To obtain the clean value, shift right 2
+		and apply a mask to zero the top 16 bits of the result.
+		For other storage combinations this attribute will be extended
+		appropriately.
+
+What:		/sys/.../buffer/scan_elements/in_accel_type_available
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If the type parameter can take one of a small set of values,
+		this attribute lists them.
+
+What:		/sys/.../buffer/scan_elements/in_voltageY_index
+What:		/sys/.../buffer/scan_elements/in_voltageY_supply_index
+What:		/sys/.../buffer/scan_elements/in_accel_x_index
+What:		/sys/.../buffer/scan_elements/in_accel_y_index
+What:		/sys/.../buffer/scan_elements/in_accel_z_index
+What:		/sys/.../buffer/scan_elements/in_anglvel_x_index
+What:		/sys/.../buffer/scan_elements/in_anglvel_y_index
+What:		/sys/.../buffer/scan_elements/in_anglvel_z_index
+What:		/sys/.../buffer/scan_elements/in_magn_x_index
+What:		/sys/.../buffer/scan_elements/in_magn_y_index
+What:		/sys/.../buffer/scan_elements/in_magn_z_index
+What:		/sys/.../buffer/scan_elements/in_incli_x_index
+What:		/sys/.../buffer/scan_elements/in_incli_y_index
+What:		/sys/.../buffer/scan_elements/in_timestamp_index
+What:		/sys/.../buffer/scan_elements/in_pressureY_index
+What:		/sys/.../buffer/scan_elements/in_pressure_index
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the position of this
+		scan element in the buffer. Note these are not dependent on
+		what is enabled and may not be contiguous. Thus for user-space
+		to establish the full layout these must be used in conjunction
+		with all _en attributes to establish which channels are present,
+		and the relevant _type attributes to establish the data storage
+		format.
+
+What:		/sys/.../iio:deviceX/in_anglvel_z_quadrature_correction_raw
+KernelVersion:	2.6.38
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the amount of quadrature error
+		present in the device at a given time.

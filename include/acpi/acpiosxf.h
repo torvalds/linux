@@ -1,14 +1,13 @@
-
 /******************************************************************************
  *
- * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL).  These
+ * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL). These
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,8 +46,8 @@
 #ifndef __ACPIOSXF_H__
 #define __ACPIOSXF_H__
 
-#include "platform/acenv.h"
-#include "actypes.h"
+#include <acpi/platform/acenv.h>
+#include <acpi/actypes.h>
 
 /* Types for acpi_os_execute */
 
@@ -78,7 +77,7 @@ struct acpi_signal_fatal_info {
 /*
  * OSL Initialization and shutdown primitives
  */
-acpi_status __initdata acpi_os_initialize(void);
+acpi_status __init acpi_os_initialize(void);
 
 acpi_status acpi_os_terminate(void);
 
@@ -95,13 +94,16 @@ acpi_status
 acpi_os_table_override(struct acpi_table_header *existing_table,
 		       struct acpi_table_header **new_table);
 
+acpi_status
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address * new_address,
+				u32 *new_table_length);
+
 /*
  * Spinlock primitives
  */
-
 #ifndef acpi_os_create_lock
-acpi_status
-acpi_os_create_lock(acpi_spinlock *out_handle);
+acpi_status acpi_os_create_lock(acpi_spinlock * out_handle);
 #endif
 
 void acpi_os_delete_lock(acpi_spinlock handle);
@@ -144,6 +146,8 @@ void acpi_os_release_mutex(acpi_mutex handle);
  */
 void *acpi_os_allocate(acpi_size size);
 
+void acpi_os_free(void *memory);
+
 void __iomem *acpi_os_map_memory(acpi_physical_address where,
 				acpi_size length);
 
@@ -176,12 +180,13 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object);
  * Interrupt handlers
  */
 acpi_status
-acpi_os_install_interrupt_handler(u32 gsi,
+acpi_os_install_interrupt_handler(u32 interrupt_number,
 				  acpi_osd_handler service_routine,
 				  void *context);
 
 acpi_status
-acpi_os_remove_interrupt_handler(u32 gsi, acpi_osd_handler service_routine);
+acpi_os_remove_interrupt_handler(u32 interrupt_number,
+				 acpi_osd_handler service_routine);
 
 void acpi_os_gpe_count(u32 gpe_number);
 void acpi_os_fixed_event_count(u32 fixed_event_number);
@@ -198,7 +203,7 @@ acpi_os_execute(acpi_execute_type type,
 acpi_status
 acpi_os_hotplug_execute(acpi_osd_exec_callback function, void *context);
 
-void acpi_os_wait_events_complete(void *context);
+void acpi_os_wait_events_complete(void);
 
 void acpi_os_sleep(u64 milliseconds);
 
@@ -215,10 +220,10 @@ acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width);
  * Platform and hardware-independent physical memory interfaces
  */
 acpi_status
-acpi_os_read_memory(acpi_physical_address address, u32 * value, u32 width);
+acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width);
 
 acpi_status
-acpi_os_write_memory(acpi_physical_address address, u32 value, u32 width);
+acpi_os_write_memory(acpi_physical_address address, u64 value, u32 width);
 
 /*
  * Platform and hardware-independent PCI configuration space access
@@ -236,13 +241,6 @@ acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
 /*
  * Miscellaneous
  */
-acpi_status
-acpi_os_validate_address(u8 space_id, acpi_physical_address address,
-			 acpi_size length, char *name);
-acpi_status
-acpi_os_invalidate_address(u8 space_id, acpi_physical_address address,
-			 acpi_size length);
-
 u64 acpi_os_get_timer(void);
 
 acpi_status acpi_os_signal(u32 function, void *info);

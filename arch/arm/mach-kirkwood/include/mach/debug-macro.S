@@ -8,7 +8,7 @@
 
 #include <mach/bridge-regs.h>
 
-	.macro	addruart, rp, rv
+	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =KIRKWOOD_REGS_PHYS_BASE
 	ldr	\rv, =KIRKWOOD_REGS_VIRT_BASE
 	orr	\rp, \rp, #0x00012000

@@ -16,10 +16,13 @@
 #define __LINUX_REGULATOR_DRIVER_H_
 
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
 
+struct regmap;
 struct regulator_dev;
 struct regulator_init_data;
+struct regulator_enable_gpio;
 
 enum regulator_status {
 	REGULATOR_STATUS_OFF,
@@ -30,6 +33,10 @@ enum regulator_status {
 	REGULATOR_STATUS_NORMAL,
 	REGULATOR_STATUS_IDLE,
 	REGULATOR_STATUS_STANDBY,
+	/* The regulator is enabled but not regulating */
+	REGULATOR_STATUS_BYPASS,
+	/* in case that any other status doesn't apply */
+	REGULATOR_STATUS_UNDEFINED,
 };
 
 /**
@@ -44,6 +51,7 @@ enum regulator_status {
  *               The driver should select the voltage closest to min_uV.
  * @set_voltage_sel: Set the voltage for the regulator using the specified
  *                   selector.
+ * @map_voltage: Convert a voltage into a selector
  * @get_voltage: Return the currently configured voltage for the regulator.
  * @get_voltage_sel: Return the currently configured voltage selector for the
  *                   regulator.
@@ -53,6 +61,7 @@ enum regulator_status {
  *	regulator_desc.n_voltages.  Voltages may be reported in any order.
  *
  * @set_current_limit: Configure a limit for a current-limited regulator.
+ *                     The driver should select the current closest to max_uA.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  *
  * @set_mode: Set the configured operating mode for the regulator.
@@ -62,8 +71,13 @@ enum regulator_status {
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  *
+ * @set_bypass: Set the regulator in bypass mode.
+ * @get_bypass: Get the regulator bypass mode state.
+ *
  * @enable_time: Time taken for the regulator voltage output voltage to
  *               stabilise after being enabled, in microseconds.
+ * @set_ramp_delay: Set the ramp delay for the regulator. The driver should
+ *		select ramp delay equal to or less than(closest) ramp_delay.
  * @set_voltage_time_sel: Time taken for the regulator voltage output voltage
  *               to stabilise after being set to a new value, in microseconds.
  *               The function provides the from and to voltage selector, the
@@ -89,6 +103,7 @@ struct regulator_ops {
 	/* get/set regulator voltage */
 	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV,
 			    unsigned *selector);
+	int (*map_voltage)(struct regulator_dev *, int min_uV, int max_uV);
 	int (*set_voltage_sel) (struct regulator_dev *, unsigned selector);
 	int (*get_voltage) (struct regulator_dev *);
 	int (*get_voltage_sel) (struct regulator_dev *);
@@ -103,12 +118,13 @@ struct regulator_ops {
 	int (*disable) (struct regulator_dev *);
 	int (*is_enabled) (struct regulator_dev *);
 
-	/* get/set regulator operating mode (defined in regulator.h) */
+	/* get/set regulator operating mode (defined in consumer.h) */
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
 
 	/* Time taken to enable or set voltage on the regulator */
 	int (*enable_time) (struct regulator_dev *);
+	int (*set_ramp_delay) (struct regulator_dev *, int ramp_delay);
 	int (*set_voltage_time_sel) (struct regulator_dev *,
 				     unsigned int old_selector,
 				     unsigned int new_selector);
@@ -124,6 +140,10 @@ struct regulator_ops {
 	unsigned int (*get_optimum_mode) (struct regulator_dev *, int input_uV,
 					  int output_uV, int load_uA);
 
+	/* control and report on bypass mode */
+	int (*set_bypass)(struct regulator_dev *dev, bool enable);
+	int (*get_bypass)(struct regulator_dev *dev, bool *enable);
+
 	/* the operations below are for configuration of regulator state when
 	 * its parent PMIC enters a global STANDBY/HIBERNATE state */
 
@@ -134,7 +154,7 @@ struct regulator_ops {
 	int (*set_suspend_enable) (struct regulator_dev *);
 	int (*set_suspend_disable) (struct regulator_dev *);
 
-	/* set regulator suspend operating mode (defined in regulator.h) */
+	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
 };
 
@@ -147,27 +167,105 @@ enum regulator_type {
 };
 
 /**
- * struct regulator_desc - Regulator descriptor
+ * struct regulator_desc - Static regulator descriptor
  *
- * Each regulator registered with the core is described with a structure of
- * this type.
+ * Each regulator registered with the core is described with a
+ * structure of this type and a struct regulator_config.  This
+ * structure contains the non-varying parts of the regulator
+ * description.
  *
  * @name: Identifying name for the regulator.
+ * @supply_name: Identifying the regulator supply
  * @id: Numerical identifier for the regulator.
- * @n_voltages: Number of selectors available for ops.list_voltage().
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
  * @type: Indicates if the regulator is a voltage or current regulator.
  * @owner: Module providing the regulator, used for refcounting.
+ *
+ * @continuous_voltage_range: Indicates if the regulator can set any
+ *                            voltage within constrains range.
+ * @n_voltages: Number of selectors available for ops.list_voltage().
+ *
+ * @min_uV: Voltage given by the lowest selector (if linear mapping)
+ * @uV_step: Voltage increase with each selector (if linear mapping)
+ * @linear_min_sel: Minimal selector for starting linear mapping
+ * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
+ * @volt_table: Voltage mapping table (if table based mapping)
+ *
+ * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
+ * @vsel_mask: Mask for register bitfield used for selector
+ * @apply_reg: Register for initiate voltage change on the output when
+ *                using regulator_set_voltage_sel_regmap
+ * @apply_bit: Register bitfield used for initiate voltage change on the
+ *                output when using regulator_set_voltage_sel_regmap
+ * @enable_reg: Register for control when using regmap enable/disable ops
+ * @enable_mask: Mask for control when using regmap enable/disable ops
+ * @enable_is_inverted: A flag to indicate set enable_mask bits to disable
+ *                      when using regulator_enable_regmap and friends APIs.
+ * @bypass_reg: Register for control when using regmap set_bypass
+ * @bypass_mask: Mask for control when using regmap set_bypass
+ *
+ * @enable_time: Time taken for initial enable of regulator (in uS).
  */
 struct regulator_desc {
 	const char *name;
+	const char *supply_name;
 	int id;
+	bool continuous_voltage_range;
 	unsigned n_voltages;
 	struct regulator_ops *ops;
 	int irq;
 	enum regulator_type type;
 	struct module *owner;
+
+	unsigned int min_uV;
+	unsigned int uV_step;
+	unsigned int linear_min_sel;
+	unsigned int ramp_delay;
+
+	const unsigned int *volt_table;
+
+	unsigned int vsel_reg;
+	unsigned int vsel_mask;
+	unsigned int apply_reg;
+	unsigned int apply_bit;
+	unsigned int enable_reg;
+	unsigned int enable_mask;
+	bool enable_is_inverted;
+	unsigned int bypass_reg;
+	unsigned int bypass_mask;
+
+	unsigned int enable_time;
+};
+
+/**
+ * struct regulator_config - Dynamic regulator descriptor
+ *
+ * Each regulator registered with the core is described with a
+ * structure of this type and a struct regulator_desc.  This structure
+ * contains the runtime variable parts of the regulator description.
+ *
+ * @dev: struct device for the regulator
+ * @init_data: platform provided init data, passed through by driver
+ * @driver_data: private regulator data
+ * @of_node: OpenFirmware node to parse for device tree bindings (may be
+ *           NULL).
+ * @regmap: regmap to use for core regmap helpers if dev_get_regulator() is
+ *          insufficient.
+ * @ena_gpio: GPIO controlling regulator enable.
+ * @ena_gpio_invert: Sense for GPIO enable control.
+ * @ena_gpio_flags: Flags to use when calling gpio_request_one()
+ */
+struct regulator_config {
+	struct device *dev;
+	const struct regulator_init_data *init_data;
+	void *driver_data;
+	struct device_node *of_node;
+	struct regmap *regmap;
+
+	int ena_gpio;
+	unsigned int ena_gpio_invert:1;
+	unsigned int ena_gpio_flags;
 };
 
 /*
@@ -181,36 +279,40 @@ struct regulator_desc {
  * no other direct access).
  */
 struct regulator_dev {
-	struct regulator_desc *desc;
+	const struct regulator_desc *desc;
 	int exclusive;
 	u32 use_count;
 	u32 open_count;
+	u32 bypass_count;
 
 	/* lists we belong to */
 	struct list_head list; /* list of all regulators */
-	struct list_head slist; /* list of supplied regulators */
 
 	/* lists we own */
 	struct list_head consumer_list; /* consumers we supply */
-	struct list_head supply_list; /* regulators we supply */
 
 	struct blocking_notifier_head notifier;
 	struct mutex mutex; /* consumer lock */
 	struct module *owner;
 	struct device dev;
 	struct regulation_constraints *constraints;
-	struct regulator_dev *supply;	/* for tree */
+	struct regulator *supply;	/* for tree */
+	struct regmap *regmap;
+
+	struct delayed_work disable_work;
+	int deferred_disables;
 
 	void *reg_data;		/* regulator_dev data */
 
-#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
-#endif
+
+	struct regulator_enable_gpio *ena_pin;
+	unsigned int ena_gpio_state:1;
 };
 
-struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, const struct regulator_init_data *init_data,
-	void *driver_data);
+struct regulator_dev *
+regulator_register(const struct regulator_desc *regulator_desc,
+		   const struct regulator_config *config);
 void regulator_unregister(struct regulator_dev *rdev);
 
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
@@ -221,6 +323,27 @@ struct device *rdev_get_dev(struct regulator_dev *rdev);
 int rdev_get_id(struct regulator_dev *rdev);
 
 int regulator_mode_to_status(unsigned int);
+
+int regulator_list_voltage_linear(struct regulator_dev *rdev,
+				  unsigned int selector);
+int regulator_list_voltage_table(struct regulator_dev *rdev,
+				  unsigned int selector);
+int regulator_map_voltage_linear(struct regulator_dev *rdev,
+				  int min_uV, int max_uV);
+int regulator_map_voltage_iterate(struct regulator_dev *rdev,
+				  int min_uV, int max_uV);
+int regulator_map_voltage_ascend(struct regulator_dev *rdev,
+				  int min_uV, int max_uV);
+int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev);
+int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel);
+int regulator_is_enabled_regmap(struct regulator_dev *rdev);
+int regulator_enable_regmap(struct regulator_dev *rdev);
+int regulator_disable_regmap(struct regulator_dev *rdev);
+int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
+				   unsigned int old_selector,
+				   unsigned int new_selector);
+int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable);
+int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable);
 
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 

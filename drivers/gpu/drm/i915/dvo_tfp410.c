@@ -56,7 +56,7 @@
 #define TFP410_CTL_2_MDI	(1<<0)
 
 #define TFP410_CTL_3		0x0A
-#define TFP410_CTL_3_DK_MASK 	(0x7<<5)
+#define TFP410_CTL_3_DK_MASK	(0x7<<5)
 #define TFP410_CTL_3_DK		(1<<5)
 #define TFP410_CTL_3_DKEN	(1<<4)
 #define TFP410_CTL_3_CTL_MASK	(0x7<<1)
@@ -225,28 +225,41 @@ static void tfp410_mode_set(struct intel_dvo_device *dvo,
 			    struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
-    /* As long as the basics are set up, since we don't have clock dependencies
-     * in the mode setup, we can just leave the registers alone and everything
-     * will work fine.
-     */
-    /* don't do much */
-    return;
+	/* As long as the basics are set up, since we don't have clock dependencies
+	* in the mode setup, we can just leave the registers alone and everything
+	* will work fine.
+	*/
+	/* don't do much */
+	return;
 }
 
 /* set the tfp410 power state */
-static void tfp410_dpms(struct intel_dvo_device *dvo, int mode)
+static void tfp410_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	uint8_t ctl1;
 
 	if (!tfp410_readb(dvo, TFP410_CTL_1, &ctl1))
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		ctl1 |= TFP410_CTL_1_PD;
 	else
 		ctl1 &= ~TFP410_CTL_1_PD;
 
 	tfp410_writeb(dvo, TFP410_CTL_1, ctl1);
+}
+
+static bool tfp410_get_hw_state(struct intel_dvo_device *dvo)
+{
+	uint8_t ctl1;
+
+	if (!tfp410_readb(dvo, TFP410_CTL_1, &ctl1))
+		return false;
+
+	if (ctl1 & TFP410_CTL_1_PD)
+		return true;
+	else
+		return false;
 }
 
 static void tfp410_dump_regs(struct intel_dvo_device *dvo)
@@ -299,6 +312,7 @@ struct intel_dvo_dev_ops tfp410_ops = {
 	.mode_valid = tfp410_mode_valid,
 	.mode_set = tfp410_mode_set,
 	.dpms = tfp410_dpms,
+	.get_hw_state = tfp410_get_hw_state,
 	.dump_regs = tfp410_dump_regs,
 	.destroy = tfp410_destroy,
 };

@@ -48,10 +48,12 @@ static inline void wrusp(unsigned long usp)
  * so don't change it unless you know what you are doing.
  */
 #ifdef CONFIG_MMU
-#ifndef CONFIG_SUN3
-#define TASK_SIZE	(0xF0000000UL)
-#else
+#if defined(CONFIG_COLDFIRE)
+#define TASK_SIZE	(0xC0000000UL)
+#elif defined(CONFIG_SUN3)
 #define TASK_SIZE	(0x0E000000UL)
+#else
+#define TASK_SIZE	(0xF0000000UL)
 #endif
 #else
 #define TASK_SIZE	(0xFFFFFFFFUL)
@@ -66,10 +68,12 @@ static inline void wrusp(unsigned long usp)
  * space during mmap's.
  */
 #ifdef CONFIG_MMU
-#ifndef CONFIG_SUN3
-#define TASK_UNMAPPED_BASE	0xC0000000UL
-#else
+#if defined(CONFIG_COLDFIRE)
+#define TASK_UNMAPPED_BASE	0x60000000UL
+#elif defined(CONFIG_SUN3)
 #define TASK_UNMAPPED_BASE	0x0A000000UL
+#else
+#define TASK_UNMAPPED_BASE	0xC0000000UL
 #endif
 #define TASK_UNMAPPED_ALIGN(addr, off)	PAGE_ALIGN(addr)
 #else
@@ -88,15 +92,23 @@ struct thread_struct {
 	unsigned long  fp[8*3];
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */
-	struct thread_info info;
 };
 
 #define INIT_THREAD  {							\
 	.ksp	= sizeof(init_stack) + (unsigned long) init_stack,	\
 	.sr	= PS_S,							\
 	.fs	= __KERNEL_DS,						\
-	.info	= INIT_THREAD_INFO(init_task),				\
 }
+
+/*
+ * ColdFire stack format sbould be 0x4 for an aligned usp (will always be
+ * true on thread creation). We need to set this explicitly.
+ */
+#ifdef CONFIG_COLDFIRE
+#define setframeformat(_regs)	do { (_regs)->format = 0x4; } while(0)
+#else
+#define setframeformat(_regs)	do { } while (0)
+#endif
 
 #ifdef CONFIG_MMU
 /*
@@ -105,11 +117,9 @@ struct thread_struct {
 static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 				unsigned long usp)
 {
-	/* reads from user space */
-	set_fs(USER_DS);
-
 	regs->pc = pc;
 	regs->sr &= ~0x2000;
+	setframeformat(regs);
 	wrusp(usp);
 }
 
@@ -117,27 +127,21 @@ extern int handle_kernel_fault(struct pt_regs *regs);
 
 #else
 
-/*
- * Coldfire stacks need to be re-aligned on trap exit, conventional
- * 68k can handle this case cleanly.
- */
-#ifdef CONFIG_COLDFIRE
-#define reformat(_regs)		do { (_regs)->format = 0x4; } while(0)
-#else
-#define reformat(_regs)		do { } while (0)
-#endif
-
 #define start_thread(_regs, _pc, _usp)                  \
 do {                                                    \
-	set_fs(USER_DS); /* reads from user space */    \
 	(_regs)->pc = (_pc);                            \
-	((struct switch_stack *)(_regs))[-1].a6 = 0;    \
-	reformat(_regs);                                \
+	setframeformat(_regs);                          \
 	if (current->mm)                                \
 		(_regs)->d5 = current->mm->start_data;  \
 	(_regs)->sr &= ~0x2000;                         \
 	wrusp(_usp);                                    \
 } while(0)
+
+static inline  int handle_kernel_fault(struct pt_regs *regs)
+{
+	/* Any fault in kernel is fatal on non-mmu */
+	return 0;
+}
 
 #endif
 
@@ -148,11 +152,6 @@ struct task_struct;
 static inline void release_thread(struct task_struct *dead_task)
 {
 }
-
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)	do { } while (0)
-
-extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 /*
  * Free current thread data structures etc..

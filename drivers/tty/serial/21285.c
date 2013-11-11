@@ -16,6 +16,7 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
+#include <asm/system_info.h>
 #include <asm/hardware/dec21285.h>
 #include <mach/hardware.h>
 
@@ -84,7 +85,6 @@ static void serial21285_enable_ms(struct uart_port *port)
 static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, flag, rxs, max_count = 256;
 
 	status = *CSR_UARTFLG;
@@ -114,7 +114,7 @@ static irqreturn_t serial21285_rx_chars(int irq, void *dev_id)
 
 		status = *CSR_UARTFLG;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return IRQ_HANDLED;
 }
@@ -331,7 +331,7 @@ static int serial21285_verify_port(struct uart_port *port, struct serial_struct 
 	int ret = 0;
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_21285)
 		ret = -EINVAL;
-	if (ser->irq != NO_IRQ)
+	if (ser->irq <= 0)
 		ret = -EINVAL;
 	if (ser->baud_base != port->uartclk / 16)
 		ret = -EINVAL;
@@ -360,7 +360,7 @@ static struct uart_ops serial21285_ops = {
 static struct uart_port serial21285_port = {
 	.mapbase	= 0x42000160,
 	.iotype		= UPIO_MEM,
-	.irq		= NO_IRQ,
+	.irq		= 0,
 	.fifosize	= 16,
 	.ops		= &serial21285_ops,
 	.flags		= UPF_BOOT_AUTOCONF,

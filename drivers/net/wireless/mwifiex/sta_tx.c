@@ -47,27 +47,35 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct txpd *local_tx_pd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
+	u8 pad;
+	u16 pkt_type, pkt_offset;
 
 	if (!skb->len) {
-		dev_err(adapter->dev, "Tx: bad packet length: %d\n",
-		       skb->len);
+		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
 		tx_info->status_code = -1;
 		return skb->data;
 	}
 
-	BUG_ON(skb_headroom(skb) < (sizeof(*local_tx_pd) + INTF_HEADER_LEN));
-	skb_push(skb, sizeof(*local_tx_pd));
+	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
+
+	/* If skb->data is not aligned; add padding */
+	pad = (4 - (((void *)skb->data - NULL) & 0x3)) % 4;
+
+	BUG_ON(skb_headroom(skb) < (sizeof(*local_tx_pd) + INTF_HEADER_LEN
+				    + pad));
+	skb_push(skb, sizeof(*local_tx_pd) + pad);
 
 	local_tx_pd = (struct txpd *) skb->data;
 	memset(local_tx_pd, 0, sizeof(struct txpd));
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
-	local_tx_pd->tx_pkt_length = cpu_to_le16((u16) (skb->len -
-							sizeof(struct txpd)));
+	local_tx_pd->tx_pkt_length = cpu_to_le16((u16)(skb->len -
+						       (sizeof(struct txpd)
+							+ pad)));
 
 	local_tx_pd->priority = (u8) skb->priority;
 	local_tx_pd->pkt_delay_2ms =
-		mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
+				mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
 
 	if (local_tx_pd->priority <
 	    ARRAY_SIZE(priv->wmm.user_pri_pkt_tx_ctrl))
@@ -77,7 +85,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 		 */
 		local_tx_pd->tx_control =
 			cpu_to_le32(priv->wmm.user_pri_pkt_tx_ctrl[local_tx_pd->
-							 priority]);
+								   priority]);
 
 	if (adapter->pps_uapsd_mode) {
 		if (mwifiex_check_last_packet_indication(priv)) {
@@ -88,7 +96,14 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	}
 
 	/* Offset of actual data */
-	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd));
+	pkt_offset = sizeof(struct txpd) + pad;
+	if (pkt_type == PKT_TYPE_MGMT) {
+		/* Set the packet type and add header for management frame */
+		local_tx_pd->tx_pkt_type = cpu_to_le16(pkt_type);
+		pkt_offset += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
+	}
+
+	local_tx_pd->tx_pkt_offset = cpu_to_le16(pkt_offset);
 
 	/* make space for INTF_HEADER_LEN */
 	skb_push(skb, INTF_HEADER_LEN);
@@ -131,7 +146,8 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 		return -1;
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
-	tx_info->bss_index = priv->bss_index;
+	tx_info->bss_num = priv->bss_num;
+	tx_info->bss_type = priv->bss_type;
 	skb_reserve(skb, sizeof(struct txpd) + INTF_HEADER_LEN);
 	skb_push(skb, sizeof(struct txpd));
 
@@ -143,10 +159,14 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
 
-	skb_push(skb, INTF_HEADER_LEN);
-
-	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb->data, skb->len, NULL);
+	if (adapter->iface_type == MWIFIEX_USB) {
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_USB_EP_DATA,
+						   skb, NULL);
+	} else {
+		skb_push(skb, INTF_HEADER_LEN);
+		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
+						   skb, NULL);
+	}
 	switch (ret) {
 	case -EBUSY:
 		adapter->data_sent = true;
@@ -154,13 +174,13 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	case -1:
 		dev_kfree_skb_any(skb);
 		dev_err(adapter->dev, "%s: host_to_card failed: ret=%d\n",
-						__func__, ret);
+			__func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		break;
 	case 0:
 		dev_kfree_skb_any(skb);
 		dev_dbg(adapter->dev, "data: %s: host_to_card succeeded\n",
-						__func__);
+			__func__);
 		adapter->tx_lock_flag = true;
 		break;
 	case -EINPROGRESS:
@@ -186,8 +206,8 @@ mwifiex_check_last_packet_indication(struct mwifiex_private *priv)
 	if (mwifiex_wmm_lists_empty(adapter))
 			ret = true;
 
-	if (ret && !adapter->cmd_sent && !adapter->curr_cmd
-	    && !is_command_pending(adapter)) {
+	if (ret && !adapter->cmd_sent && !adapter->curr_cmd &&
+	    !is_command_pending(adapter)) {
 		adapter->delay_null_pkt = false;
 		ret = true;
 	} else {

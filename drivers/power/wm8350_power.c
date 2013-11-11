@@ -442,7 +442,7 @@ static void free_charger_irq(struct wm8350 *wm8350)
 	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_BAT_FB, wm8350);
 }
 
-static __devinit int wm8350_power_probe(struct platform_device *pdev)
+static int wm8350_power_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_power *power = &wm8350->power;
@@ -501,7 +501,7 @@ battery_failed:
 	return ret;
 }
 
-static __devexit int wm8350_power_remove(struct platform_device *pdev)
+static int wm8350_power_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_power *power = &wm8350->power;
@@ -516,23 +516,13 @@ static __devexit int wm8350_power_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8350_power_driver = {
 	.probe = wm8350_power_probe,
-	.remove = __devexit_p(wm8350_power_remove),
+	.remove = wm8350_power_remove,
 	.driver = {
 		.name = "wm8350-power",
 	},
 };
 
-static int __init wm8350_power_init(void)
-{
-	return platform_driver_register(&wm8350_power_driver);
-}
-module_init(wm8350_power_init);
-
-static void __exit wm8350_power_exit(void)
-{
-	platform_driver_unregister(&wm8350_power_driver);
-}
-module_exit(wm8350_power_exit);
+module_platform_driver(wm8350_power_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Power supply driver for WM8350");

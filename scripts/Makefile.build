@@ -46,7 +46,7 @@ include $(kbuild-file)
 # If the save-* variables changed error out
 ifeq ($(KBUILD_NOPEDANTIC),)
         ifneq ("$(save-cflags)","$(CFLAGS)")
-                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use EXTRA_CFLAGS)
+                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use ccflags-y)
         endif
 endif
 
@@ -69,6 +69,7 @@ warning-1 += -Wmissing-prototypes
 warning-1 += -Wold-style-definition
 warning-1 += $(call cc-option, -Wmissing-include-dirs)
 warning-1 += $(call cc-option, -Wunused-but-set-variable)
+warning-1 += $(call cc-disable-warning, missing-field-initializers)
 
 warning-2 := -Waggregate-return
 warning-2 += -Wcast-align
@@ -76,6 +77,7 @@ warning-2 += -Wdisabled-optimization
 warning-2 += -Wnested-externs
 warning-2 += -Wshadow
 warning-2 += $(call cc-option, -Wlogical-op)
+warning-2 += $(call cc-option, -Wmissing-field-initializers)
 
 warning-3 := -Wbad-function-cast
 warning-3 += -Wcast-qual
@@ -209,7 +211,8 @@ $(obj)/%.i: $(src)/%.c FORCE
 
 cmd_gensymtypes =                                                           \
     $(CPP) -D__GENKSYMS__ $(c_flags) $< |                                   \
-    $(GENKSYMS) $(if $(1), -T $(2)) -a $(ARCH)                              \
+    $(GENKSYMS) $(if $(1), -T $(2))                                         \
+     $(patsubst y,-s _,$(CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX))             \
      $(if $(KBUILD_PRESERVE),-p)                                            \
      -r $(firstword $(wildcard $(2:.symtypes=.symref) /dev/null))
 
@@ -351,6 +354,17 @@ quiet_cmd_cpp_lds_S = LDS     $@
 
 $(obj)/%.lds: $(src)/%.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
+
+# ASN.1 grammar
+# ---------------------------------------------------------------------------
+quiet_cmd_asn1_compiler = ASN.1   $@
+      cmd_asn1_compiler = $(objtree)/scripts/asn1_compiler $< \
+				$(subst .h,.c,$@) $(subst .c,.h,$@)
+
+.PRECIOUS: $(objtree)/$(obj)/%-asn1.c $(objtree)/$(obj)/%-asn1.h
+
+$(obj)/%-asn1.c $(obj)/%-asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
+	$(call cmd,asn1_compiler)
 
 # Build the compiled-in targets
 # ---------------------------------------------------------------------------

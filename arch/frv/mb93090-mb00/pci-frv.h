@@ -26,14 +26,11 @@ extern unsigned int __nongpreldata pci_probe;
 
 /* pci-frv.c */
 
-extern unsigned int pcibios_max_latency;
-
 void pcibios_resource_survey(void);
 
 /* pci-vdk.c */
 
 extern int __nongpreldata pcibios_last_bus;
-extern struct pci_bus *__nongpreldata pci_root_bus;
 extern struct pci_ops *__nongpreldata pci_root_ops;
 
 /* pci-irq.c */

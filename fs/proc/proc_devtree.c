@@ -8,10 +8,11 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/printk.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/of.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/prom.h>
 #include <asm/uaccess.h>
@@ -40,7 +41,7 @@ static int property_proc_show(struct seq_file *m, void *v)
 
 static int property_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, property_proc_show, PDE(inode)->data);
+	return single_open(file, property_proc_show, __PDE_DATA(inode));
 }
 
 static const struct file_operations property_proc_fops = {
@@ -101,12 +102,17 @@ void proc_device_tree_update_prop(struct proc_dir_entry *pde,
 {
 	struct proc_dir_entry *ent;
 
+	if (!oldprop) {
+		proc_device_tree_add_prop(pde, newprop);
+		return;
+	}
+
 	for (ent = pde->subdir; ent != NULL; ent = ent->next)
 		if (ent->data == oldprop)
 			break;
 	if (ent == NULL) {
-		printk(KERN_WARNING "device-tree: property \"%s\" "
-		       " does not exist\n", oldprop->name);
+		pr_warn("device-tree: property \"%s\" does not exist\n",
+			oldprop->name);
 	} else {
 		ent->data = newprop;
 		ent->size = newprop->length;
@@ -148,8 +154,8 @@ static const char *fixup_name(struct device_node *np, struct proc_dir_entry *de,
 realloc:
 	fixed_name = kmalloc(fixup_len, GFP_KERNEL);
 	if (fixed_name == NULL) {
-		printk(KERN_ERR "device-tree: Out of memory trying to fixup "
-				"name \"%s\"\n", name);
+		pr_err("device-tree: Out of memory trying to fixup "
+		       "name \"%s\"\n", name);
 		return name;
 	}
 
@@ -170,8 +176,8 @@ retry:
 		goto retry;
 	}
 
-	printk(KERN_WARNING "device-tree: Duplicate name in %s, "
-			"renamed to \"%s\"\n", np->full_name, fixed_name);
+	pr_warn("device-tree: Duplicate name in %s, renamed to \"%s\"\n",
+		np->full_name, fixed_name);
 
 	return fixed_name;
 }
@@ -190,11 +196,7 @@ void proc_device_tree_add_node(struct device_node *np,
 	set_node_proc_entry(np, de);
 	for (child = NULL; (child = of_get_next_child(np, child));) {
 		/* Use everything after the last slash, or the full name */
-		p = strrchr(child->full_name, '/');
-		if (!p)
-			p = child->full_name;
-		else
-			++p;
+		p = kbasename(child->full_name);
 
 		if (duplicate_name(de, p))
 			p = fixup_name(np, de, p);

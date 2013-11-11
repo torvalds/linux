@@ -26,10 +26,10 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 
-#include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#include <mach/irqs.h>
 
 /* 
  * A small note about bridges and interrupts.  The DECchip 21050 (and
@@ -70,21 +70,10 @@
  */
 static u8 __init integrator_swizzle(struct pci_dev *dev, u8 *pinp)
 {
-	int pin = *pinp;
+	if (*pinp == 0)
+		*pinp = 1;
 
-	if (pin == 0)
-		pin = 1;
-
-	while (dev->bus->self) {
-		pin = pci_swizzle_interrupt_pin(dev, pin);
-		/*
-		 * move up the chain of bridges, swizzling as we go.
-		 */
-		dev = dev->bus->self;
-	}
-	*pinp = pin;
-
-	return PCI_SLOT(dev->devfn);
+	return pci_common_swizzle(dev, pinp);
 }
 
 static int irq_tab[4] __initdata = {
@@ -95,7 +84,7 @@ static int irq_tab[4] __initdata = {
  * map the specified device/slot/pin to an IRQ.  This works out such
  * that slot 9 pin 1 is INT0, pin 2 is INT1, and slot 10 pin 1 is INT1.
  */
-static int __init integrator_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init integrator_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int intnr = ((slot - 9) + (pin - 1)) & 3;
 
@@ -109,7 +98,7 @@ static struct hw_pci integrator_pci __initdata = {
 	.map_irq		= integrator_map_irq,
 	.setup			= pci_v3_setup,
 	.nr_controllers		= 1,
-	.scan			= pci_v3_scan_bus,
+	.ops			= &pci_v3_ops,
 	.preinit		= pci_v3_preinit,
 	.postinit		= pci_v3_postinit,
 };

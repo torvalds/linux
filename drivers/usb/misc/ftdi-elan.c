@@ -53,7 +53,7 @@ MODULE_AUTHOR("Tony Olech");
 MODULE_DESCRIPTION("FTDI ELAN driver");
 MODULE_LICENSE("GPL");
 #define INT_MODULE_PARM(n, v) static int n = v;module_param(n, int, 0444)
-static int distrust_firmware = 1;
+static bool distrust_firmware = 1;
 module_param(distrust_firmware, bool, 0);
 MODULE_PARM_DESC(distrust_firmware, "true to distrust firmware power/overcurren"
         "t setup");
@@ -187,7 +187,7 @@ struct usb_ftdi {
         u32 controlreg;
         u8 response[4 + 1024];
         int expected;
-        int recieved;
+        int received;
         int ed_found;
 };
 #define kref_to_usb_ftdi(d) container_of(d, struct usb_ftdi, kref)
@@ -353,7 +353,7 @@ static void ftdi_elan_abandon_targets(struct usb_ftdi *ftdi)
                         mutex_lock(&ftdi->u132_lock);
                 }
         }
-        ftdi->recieved = 0;
+        ftdi->received = 0;
         ftdi->expected = 4;
         ftdi->ed_found = 0;
         mutex_unlock(&ftdi->u132_lock);
@@ -411,7 +411,7 @@ static void ftdi_elan_flush_targets(struct usb_ftdi *ftdi)
                         }
                 }
         }
-        ftdi->recieved = 0;
+        ftdi->received = 0;
         ftdi->expected = 4;
         ftdi->ed_found = 0;
         mutex_unlock(&ftdi->u132_lock);
@@ -447,7 +447,7 @@ static void ftdi_elan_cancel_targets(struct usb_ftdi *ftdi)
                         }
                 }
         }
-        ftdi->recieved = 0;
+        ftdi->received = 0;
         ftdi->expected = 4;
         ftdi->ed_found = 0;
         mutex_unlock(&ftdi->u132_lock);
@@ -874,7 +874,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
                         mutex_unlock(&ftdi->u132_lock);
                         ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
                                 payload);
-                        ftdi->recieved = 0;
+                        ftdi->received = 0;
                         ftdi->expected = 4;
                         ftdi->ed_found = 0;
                         return ftdi->response;
@@ -890,7 +890,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
                         mutex_unlock(&ftdi->u132_lock);
                         ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
                                 payload);
-                        ftdi->recieved = 0;
+                        ftdi->received = 0;
                         ftdi->expected = 4;
                         ftdi->ed_found = 0;
                         return ftdi->response;
@@ -905,7 +905,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
                 mutex_unlock(&ftdi->u132_lock);
                 ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
                         payload);
-                ftdi->recieved = 0;
+                ftdi->received = 0;
                 ftdi->expected = 4;
                 ftdi->ed_found = 0;
                 return ftdi->response;
@@ -914,7 +914,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
                 mutex_unlock(&ftdi->u132_lock);
                 ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
                         payload);
-                ftdi->recieved = 0;
+                ftdi->received = 0;
                 ftdi->expected = 4;
                 ftdi->ed_found = 0;
                 return ftdi->response;
@@ -934,7 +934,7 @@ static char *have_ed_get_response(struct usb_ftdi *ftdi,
         if (target->active)
                 ftdi_elan_do_callback(ftdi, target, NULL, 0);
         target->abandoning = 0;
-        ftdi->recieved = 0;
+        ftdi->received = 0;
         ftdi->expected = 4;
         ftdi->ed_found = 0;
         return ftdi->response;
@@ -951,7 +951,7 @@ static char *have_ed_get_response(struct usb_ftdi *ftdi,
 */
 static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
 {
-        u8 *b = ftdi->response + ftdi->recieved;
+        u8 *b = ftdi->response + ftdi->received;
         int bytes_read = 0;
         int retry_on_empty = 1;
         int retry_on_timeout = 3;
@@ -1043,11 +1043,11 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
                 u8 c = ftdi->bulk_in_buffer[++ftdi->bulk_in_last];
                 bytes_read += 1;
                 ftdi->bulk_in_left -= 1;
-                if (ftdi->recieved == 0 && c == 0xFF) {
+                if (ftdi->received == 0 && c == 0xFF) {
                         goto have;
                 } else
                         *b++ = c;
-                if (++ftdi->recieved < ftdi->expected) {
+                if (++ftdi->received < ftdi->expected) {
                         goto have;
                 } else if (ftdi->ed_found) {
                         int ed_number = (ftdi->response[0] >> 5) & 0x03;
@@ -1069,7 +1069,7 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
                         }
                         ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
                                 payload);
-                        ftdi->recieved = 0;
+                        ftdi->received = 0;
                         ftdi->expected = 4;
                         ftdi->ed_found = 0;
                         b = ftdi->response;
@@ -1089,7 +1089,7 @@ static int ftdi_elan_respond_engine(struct usb_ftdi *ftdi)
                         *respond->value = data;
                         *respond->result = 0;
                         complete(&respond->wait_completion);
-                        ftdi->recieved = 0;
+                        ftdi->received = 0;
                         ftdi->expected = 4;
                         ftdi->ed_found = 0;
                         b = ftdi->response;
@@ -2777,7 +2777,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
                 endpoint = &iface_desc->endpoint[i].desc;
                 if (!ftdi->bulk_in_endpointAddr &&
 		    usb_endpoint_is_bulk_in(endpoint)) {
-                        buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
+                        buffer_size = usb_endpoint_maxp(endpoint);
                         ftdi->bulk_in_size = buffer_size;
                         ftdi->bulk_in_endpointAddr = endpoint->bEndpointAddress;
                         ftdi->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);

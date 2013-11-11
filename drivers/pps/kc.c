@@ -34,10 +34,10 @@
  */
 
 /* state variables to bind kernel consumer */
-DEFINE_SPINLOCK(pps_kc_hardpps_lock);
+static DEFINE_SPINLOCK(pps_kc_hardpps_lock);
 /* PPS API (RFC 2783): current source and mode for kernel consumer */
-struct pps_device *pps_kc_hardpps_dev;	/* unique pointer to device */
-int pps_kc_hardpps_mode;		/* mode bits for kernel consumer */
+static struct pps_device *pps_kc_hardpps_dev;	/* unique pointer to device */
+static int pps_kc_hardpps_mode;		/* mode bits for kernel consumer */
 
 /* pps_kc_bind - control PPS kernel consumer binding
  * @pps: the PPS source

@@ -1,7 +1,7 @@
 /*
  *	w1_family.c
  *
- * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/sched.h>	/* schedule_timeout() */
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include "w1_family.h"
 #include "w1.h"

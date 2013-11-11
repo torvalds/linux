@@ -10,7 +10,6 @@
 #include <linux/suspend.h>
 #include <linux/bootmem.h>
 
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmzone.h>
@@ -129,8 +128,6 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 			}
 		}
 	}
-
-	resume_map_numa_kva(pgd_base);
 
 	return 0;
 }

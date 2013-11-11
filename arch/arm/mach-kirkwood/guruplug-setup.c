@@ -19,7 +19,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
-#include <plat/mvsdio.h>
+#include <linux/platform_data/mmc-mvsdio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -53,6 +53,8 @@ static struct mv_sata_platform_data guruplug_sata_data = {
 
 static struct mvsdio_platform_data guruplug_mvsdio_data = {
 	/* unfortunately the CD signal has not been connected */
+	.gpio_card_detect = -1,
+	.gpio_write_protect = -1,
 };
 
 static struct gpio_led guruplug_led_pins[] = {
@@ -121,10 +123,11 @@ static void __init guruplug_init(void)
 
 MACHINE_START(GURUPLUG, "Marvell GuruPlug Reference Board")
 	/* Maintainer: Siddarth Gore <gores@marvell.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= guruplug_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
+	.restart	= kirkwood_restart,
 MACHINE_END

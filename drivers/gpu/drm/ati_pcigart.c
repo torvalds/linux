@@ -31,7 +31,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <linux/export.h>
+#include <drm/drmP.h>
 
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 

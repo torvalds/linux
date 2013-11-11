@@ -3,14 +3,13 @@
 #include <linux/sched.h>
 #include <linux/user.h>
 #include <linux/regset.h>
+#include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
 #include <asm/desc.h>
-#include <asm/system.h>
 #include <asm/ldt.h>
 #include <asm/processor.h>
 #include <asm/proto.h>
-#include <asm/syscalls.h>
 
 #include "tls.h"
 
@@ -90,11 +89,9 @@ int do_set_thread_area(struct task_struct *p, int idx,
 	return 0;
 }
 
-asmlinkage int sys_set_thread_area(struct user_desc __user *u_info)
+SYSCALL_DEFINE1(set_thread_area, struct user_desc __user *, u_info)
 {
-	int ret = do_set_thread_area(current, -1, u_info, 1);
-	asmlinkage_protect(1, ret, u_info);
-	return ret;
+	return do_set_thread_area(current, -1, u_info, 1);
 }
 
 
@@ -140,11 +137,9 @@ int do_get_thread_area(struct task_struct *p, int idx,
 	return 0;
 }
 
-asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
+SYSCALL_DEFINE1(get_thread_area, struct user_desc __user *, u_info)
 {
-	int ret = do_get_thread_area(current, -1, u_info);
-	asmlinkage_protect(1, ret, u_info);
-	return ret;
+	return do_get_thread_area(current, -1, u_info);
 }
 
 int regset_tls_active(struct task_struct *target,
@@ -163,7 +158,7 @@ int regset_tls_get(struct task_struct *target, const struct user_regset *regset,
 {
 	const struct desc_struct *tls;
 
-	if (pos > GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
+	if (pos >= GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
 	    (pos % sizeof(struct user_desc)) != 0 ||
 	    (count % sizeof(struct user_desc)) != 0)
 		return -EINVAL;
@@ -198,7 +193,7 @@ int regset_tls_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_desc infobuf[GDT_ENTRY_TLS_ENTRIES];
 	const struct user_desc *info;
 
-	if (pos > GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
+	if (pos >= GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
 	    (pos % sizeof(struct user_desc)) != 0 ||
 	    (count % sizeof(struct user_desc)) != 0)
 		return -EINVAL;

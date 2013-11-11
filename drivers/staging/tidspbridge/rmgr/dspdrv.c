@@ -23,9 +23,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/drv.h>
 #include <dspbridge/dev.h>
@@ -75,7 +72,7 @@ u32 dsp_init(u32 *init_status)
 
 	/* Unwind whatever was loaded */
 	if (status) {
-		/* irrespective of the status of dev_remove_device we conitinue
+		/* irrespective of the status of dev_remove_device we continue
 		 * unloading. Get the Driver Object iterate through and remove.
 		 * Reset the status to E_FAIL to avoid going through
 		 * api_init_complete2. */
@@ -95,15 +92,13 @@ u32 dsp_init(u32 *init_status)
 func_cont:
 	/* Attempt to Start the Board */
 	if (!status) {
-		/* BRD_AutoStart could fail if the dsp execuetable is not the
+		/* BRD_AutoStart could fail if the dsp executable is not the
 		 * correct one. We should not propagate that error
 		 * into the device loader. */
 		(void)api_init_complete2();
 	} else {
 		dev_dbg(bridge, "%s: Failed\n", __func__);
 	}			/* End api_init_complete2 */
-	DBC_ENSURE((!status && drv_obj != NULL) ||
-		   (status && drv_obj == NULL));
 	*init_status = status;
 	/* Return the Driver Object */
 	return (u32) drv_obj;

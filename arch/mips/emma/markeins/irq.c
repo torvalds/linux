@@ -27,7 +27,6 @@
 #include <linux/delay.h>
 
 #include <asm/irq_cpu.h>
-#include <asm/system.h>
 #include <asm/mipsregs.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -169,7 +168,7 @@ void emma2rh_gpio_irq_init(void)
 
 static struct irqaction irq_cascade = {
 	   .handler = no_action,
-	   .flags = 0,
+	   .flags = IRQF_NO_THREAD,
 	   .name = "cascade",
 	   .dev_id = NULL,
 	   .next = NULL,
@@ -293,7 +292,7 @@ void __init arch_init_irq(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
-        unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & STATUSF_IP7)
 		do_IRQ(MIPS_CPU_IRQ_BASE + 7);

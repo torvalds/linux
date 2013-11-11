@@ -4,7 +4,7 @@
  *
  * Author       Fritz Elfert
  * Copyright    by Fritz Elfert      <fritz@isdn4linux.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -18,9 +18,9 @@
 #define ISA_POLL_LOOP 40        /* Try to read-write before give up */
 
 typedef enum {
-        INT_NO_CHANGE = 0,      /* Do not change the Mask */
-        INT_ON = 1,             /* Set to Enable */
-        INT_OFF = 2,            /* Set to Disable */
+	INT_NO_CHANGE = 0,      /* Do not change the Mask */
+	INT_ON = 1,             /* Set to Enable */
+	INT_OFF = 2,            /* Set to Disable */
 } ISA_INT_T;
 
 /**************************************************************************/
@@ -114,22 +114,22 @@ typedef enum {
 
 
 /* Macros for accessing ports */
-#define ISA_PORT_COR (card->port+ISA_COR)
-#define ISA_PORT_ISR (card->port+ISA_ISR)
-#define ISA_PORT_EPR (card->port+ISA_EPR)
-#define ISA_PORT_EER (card->port+ISA_EER)
-#define ISA_PORT_SDI (card->port+ISA_SDI)
-#define ISA_PORT_SDO (card->port+ISA_SDO)
-#define ISA_PORT_SIS (card->port+ISA_SIS)
-#define ISA_PORT_SOS (card->port+ISA_SOS)
+#define ISA_PORT_COR (card->port + ISA_COR)
+#define ISA_PORT_ISR (card->port + ISA_ISR)
+#define ISA_PORT_EPR (card->port + ISA_EPR)
+#define ISA_PORT_EER (card->port + ISA_EER)
+#define ISA_PORT_SDI (card->port + ISA_SDI)
+#define ISA_PORT_SDO (card->port + ISA_SDO)
+#define ISA_PORT_SIS (card->port + ISA_SIS)
+#define ISA_PORT_SOS (card->port + ISA_SOS)
 
 /* Prototypes */
 
 extern int act2000_isa_detect(unsigned short portbase);
-extern int act2000_isa_config_irq(act2000_card * card, short irq);
-extern int act2000_isa_config_port(act2000_card * card, unsigned short portbase);
-extern int act2000_isa_download(act2000_card * card, act2000_ddef __user * cb);
-extern void act2000_isa_release(act2000_card * card);
+extern int act2000_isa_config_irq(act2000_card *card, short irq);
+extern int act2000_isa_config_port(act2000_card *card, unsigned short portbase);
+extern int act2000_isa_download(act2000_card *card, act2000_ddef __user *cb);
+extern void act2000_isa_release(act2000_card *card);
 extern void act2000_isa_receive(act2000_card *card);
 extern void act2000_isa_send(act2000_card *card);
 

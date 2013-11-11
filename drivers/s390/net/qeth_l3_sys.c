@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_l3_sys.c
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
@@ -9,7 +7,7 @@
  */
 
 #include <linux/slab.h>
-
+#include <asm/ebcdic.h>
 #include "qeth_l3.h"
 
 #define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \
@@ -89,6 +87,8 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 			rc = qeth_l3_setrouting_v6(card);
 	}
 out:
+	if (rc)
+		route->type = old_route_type;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -175,116 +175,6 @@ out:
 static DEVICE_ATTR(fake_broadcast, 0644, qeth_l3_dev_fake_broadcast_show,
 		   qeth_l3_dev_fake_broadcast_store);
 
-static ssize_t qeth_l3_dev_broadcast_mode_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR)))
-		return sprintf(buf, "n/a\n");
-
-	return sprintf(buf, "%s\n", (card->options.broadcast_mode ==
-				     QETH_TR_BROADCAST_ALLRINGS)?
-		       "all rings":"local");
-}
-
-static ssize_t qeth_l3_dev_broadcast_mode_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int rc = 0;
-
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR))) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	tmp = strsep((char **) &buf, "\n");
-
-	if (!strcmp(tmp, "local"))
-		card->options.broadcast_mode = QETH_TR_BROADCAST_LOCAL;
-	else if (!strcmp(tmp, "all_rings"))
-		card->options.broadcast_mode = QETH_TR_BROADCAST_ALLRINGS;
-	else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(broadcast_mode, 0644, qeth_l3_dev_broadcast_mode_show,
-		   qeth_l3_dev_broadcast_mode_store);
-
-static ssize_t qeth_l3_dev_canonical_macaddr_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-
-	if (!card)
-		return -EINVAL;
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR)))
-		return sprintf(buf, "n/a\n");
-
-	return sprintf(buf, "%i\n", (card->options.macaddr_mode ==
-				     QETH_TR_MACADDR_CANONICAL)? 1:0);
-}
-
-static ssize_t qeth_l3_dev_canonical_macaddr_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct qeth_card *card = dev_get_drvdata(dev);
-	char *tmp;
-	int i, rc = 0;
-
-	if (!card)
-		return -EINVAL;
-
-	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	if (!((card->info.link_type == QETH_LINK_TYPE_HSTR) ||
-	      (card->info.link_type == QETH_LINK_TYPE_LANE_TR))) {
-		rc = -EINVAL;
-		goto out;
-	}
-
-	i = simple_strtoul(buf, &tmp, 16);
-	if ((i == 0) || (i == 1))
-		card->options.macaddr_mode = i?
-			QETH_TR_MACADDR_CANONICAL :
-			QETH_TR_MACADDR_NONCANONICAL;
-	else
-		rc = -EINVAL;
-out:
-	mutex_unlock(&card->conf_mutex);
-	return rc ? rc : count;
-}
-
-static DEVICE_ATTR(canonical_macaddr, 0644, qeth_l3_dev_canonical_macaddr_show,
-		   qeth_l3_dev_canonical_macaddr_store);
-
 static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -307,6 +197,8 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 		return -EINVAL;
 
 	if (card->info.type != QETH_CARD_TYPE_IQD)
+		return -EPERM;
+	if (card->options.cq == QETH_CQ_ENABLED)
 		return -EPERM;
 
 	mutex_lock(&card->conf_mutex);
@@ -333,10 +225,10 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 					QETH_IN_BUF_COUNT_MAX)
 				qeth_realloc_buffer_pool(card,
 					QETH_IN_BUF_COUNT_MAX);
-			break;
 		} else
 			rc = -EPERM;
-	default:   /* fall through */
+		break;
+	default:
 		rc = -EINVAL;
 	}
 out:
@@ -347,13 +239,117 @@ out:
 static DEVICE_ATTR(sniffer, 0644, qeth_l3_dev_sniffer_show,
 		qeth_l3_dev_sniffer_store);
 
+
+static ssize_t qeth_l3_dev_hsuid_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	char tmp_hsuid[9];
+
+	if (!card)
+		return -EINVAL;
+
+	if (card->info.type != QETH_CARD_TYPE_IQD)
+		return -EPERM;
+
+	if (card->state == CARD_STATE_DOWN)
+		return -EPERM;
+
+	memcpy(tmp_hsuid, card->options.hsuid, sizeof(tmp_hsuid));
+	EBCASC(tmp_hsuid, 8);
+	return sprintf(buf, "%s\n", tmp_hsuid);
+}
+
+static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	struct qeth_ipaddr *addr;
+	char *tmp;
+	int i;
+
+	if (!card)
+		return -EINVAL;
+
+	if (card->info.type != QETH_CARD_TYPE_IQD)
+		return -EPERM;
+	if (card->state != CARD_STATE_DOWN &&
+	    card->state != CARD_STATE_RECOVER)
+		return -EPERM;
+	if (card->options.sniffer)
+		return -EPERM;
+	if (card->options.cq == QETH_CQ_NOTAVAILABLE)
+		return -EPERM;
+
+	tmp = strsep((char **)&buf, "\n");
+	if (strlen(tmp) > 8)
+		return -EINVAL;
+
+	if (card->options.hsuid[0]) {
+		/* delete old ip address */
+		addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
+		if (addr != NULL) {
+			addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+			addr->u.a6.addr.s6_addr32[1] = 0x00000000;
+			for (i = 8; i < 16; i++)
+				addr->u.a6.addr.s6_addr[i] =
+					card->options.hsuid[i - 8];
+			addr->u.a6.pfxlen = 0;
+			addr->type = QETH_IP_TYPE_NORMAL;
+		} else
+			return -ENOMEM;
+		if (!qeth_l3_delete_ip(card, addr))
+			kfree(addr);
+		qeth_l3_set_ip_addr_list(card);
+	}
+
+	if (strlen(tmp) == 0) {
+		/* delete ip address only */
+		card->options.hsuid[0] = '\0';
+		if (card->dev)
+			memcpy(card->dev->perm_addr, card->options.hsuid, 9);
+		qeth_configure_cq(card, QETH_CQ_DISABLED);
+		return count;
+	}
+
+	if (qeth_configure_cq(card, QETH_CQ_ENABLED))
+		return -EPERM;
+
+	for (i = 0; i < 8; i++)
+		card->options.hsuid[i] = ' ';
+	card->options.hsuid[8] = '\0';
+	strncpy(card->options.hsuid, tmp, strlen(tmp));
+	ASCEBC(card->options.hsuid, 8);
+	if (card->dev)
+		memcpy(card->dev->perm_addr, card->options.hsuid, 9);
+
+	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
+	if (addr != NULL) {
+		addr->u.a6.addr.s6_addr32[0] = 0xfe800000;
+		addr->u.a6.addr.s6_addr32[1] = 0x00000000;
+		for (i = 8; i < 16; i++)
+			addr->u.a6.addr.s6_addr[i] = card->options.hsuid[i - 8];
+		addr->u.a6.pfxlen = 0;
+		addr->type = QETH_IP_TYPE_NORMAL;
+	} else
+		return -ENOMEM;
+	if (!qeth_l3_add_ip(card, addr))
+		kfree(addr);
+	qeth_l3_set_ip_addr_list(card);
+
+	return count;
+}
+
+static DEVICE_ATTR(hsuid, 0644, qeth_l3_dev_hsuid_show,
+		   qeth_l3_dev_hsuid_store);
+
+
 static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_route4.attr,
 	&dev_attr_route6.attr,
 	&dev_attr_fake_broadcast.attr,
-	&dev_attr_broadcast_mode.attr,
-	&dev_attr_canonical_macaddr.attr,
 	&dev_attr_sniffer.attr,
+	&dev_attr_hsuid.attr,
 	NULL,
 };
 

@@ -39,6 +39,29 @@ static inline int ubifs_zn_dirty(const struct ubifs_znode *znode)
 }
 
 /**
+ * ubifs_zn_obsolete - check if znode is obsolete.
+ * @znode: znode to check
+ *
+ * This helper function returns %1 if @znode is obsolete and %0 otherwise.
+ */
+static inline int ubifs_zn_obsolete(const struct ubifs_znode *znode)
+{
+	return !!test_bit(OBSOLETE_ZNODE, &znode->flags);
+}
+
+/**
+ * ubifs_zn_cow - check if znode has to be copied on write.
+ * @znode: znode to check
+ *
+ * This helper function returns %1 if @znode is has COW flag set and %0
+ * otherwise.
+ */
+static inline int ubifs_zn_cow(const struct ubifs_znode *znode)
+{
+	return !!test_bit(COW_ZNODE, &znode->flags);
+}
+
+/**
  * ubifs_wake_up_bgt - wake up background thread.
  * @c: UBIFS file-system description object
  */
@@ -119,86 +142,6 @@ static inline int ubifs_wbuf_sync(struct ubifs_wbuf *wbuf)
 	err = ubifs_wbuf_sync_nolock(wbuf);
 	mutex_unlock(&wbuf->io_mutex);
 	return err;
-}
-
-/**
- * ubifs_leb_unmap - unmap an LEB.
- * @c: UBIFS file-system description object
- * @lnum: LEB number to unmap
- *
- * This function returns %0 on success and a negative error code on failure.
- */
-static inline int ubifs_leb_unmap(const struct ubifs_info *c, int lnum)
-{
-	int err;
-
-	ubifs_assert(!c->ro_media && !c->ro_mount);
-	if (c->ro_error)
-		return -EROFS;
-	err = ubi_leb_unmap(c->ubi, lnum);
-	if (err) {
-		ubifs_err("unmap LEB %d failed, error %d", lnum, err);
-		return err;
-	}
-
-	return 0;
-}
-
-/**
- * ubifs_leb_write - write to a LEB.
- * @c: UBIFS file-system description object
- * @lnum: LEB number to write
- * @buf: buffer to write from
- * @offs: offset within LEB to write to
- * @len: length to write
- * @dtype: data type
- *
- * This function returns %0 on success and a negative error code on failure.
- */
-static inline int ubifs_leb_write(const struct ubifs_info *c, int lnum,
-				  const void *buf, int offs, int len, int dtype)
-{
-	int err;
-
-	ubifs_assert(!c->ro_media && !c->ro_mount);
-	if (c->ro_error)
-		return -EROFS;
-	err = ubi_leb_write(c->ubi, lnum, buf, offs, len, dtype);
-	if (err) {
-		ubifs_err("writing %d bytes at %d:%d, error %d",
-			  len, lnum, offs, err);
-		return err;
-	}
-
-	return 0;
-}
-
-/**
- * ubifs_leb_change - atomic LEB change.
- * @c: UBIFS file-system description object
- * @lnum: LEB number to write
- * @buf: buffer to write from
- * @len: length to write
- * @dtype: data type
- *
- * This function returns %0 on success and a negative error code on failure.
- */
-static inline int ubifs_leb_change(const struct ubifs_info *c, int lnum,
-				   const void *buf, int len, int dtype)
-{
-	int err;
-
-	ubifs_assert(!c->ro_media && !c->ro_mount);
-	if (c->ro_error)
-		return -EROFS;
-	err = ubi_leb_change(c->ubi, lnum, buf, len, dtype);
-	if (err) {
-		ubifs_err("changing %d bytes in LEB %d, error %d",
-			  len, lnum, err);
-		return err;
-	}
-
-	return 0;
 }
 
 /**

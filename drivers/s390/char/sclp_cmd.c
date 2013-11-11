@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2007, 2009
+ * Copyright IBM Corp. 2007,2012
  *
  * Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *	      Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
@@ -12,15 +12,19 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/memory.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <asm/ctl_reg.h>
 #include <asm/chpid.h>
-#include <asm/sclp.h>
 #include <asm/setup.h>
+#include <asm/page.h>
+#include <asm/sclp.h>
 
 #include "sclp.h"
 
@@ -37,7 +41,8 @@ struct read_info_sccb {
 	u64	facilities;		/* 48-55 */
 	u8	_reserved2[84 - 56];	/* 56-83 */
 	u8	fac84;			/* 84 */
-	u8	_reserved3[91 - 85];	/* 85-90 */
+	u8	fac85;			/* 85 */
+	u8	_reserved3[91 - 86];	/* 86-90 */
 	u8	flags;			/* 91 */
 	u8	_reserved4[100 - 92];	/* 92-99 */
 	u32	rnsize2;		/* 100-103 */
@@ -45,6 +50,7 @@ struct read_info_sccb {
 	u8	_reserved5[4096 - 112];	/* 112-4095 */
 } __attribute__((packed, aligned(PAGE_SIZE)));
 
+static struct init_sccb __initdata early_event_mask_sccb __aligned(PAGE_SIZE);
 static struct read_info_sccb __initdata early_read_info_sccb;
 static int __initdata early_read_info_sccb_valid;
 
@@ -61,8 +67,8 @@ static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 	rc = sclp_service_call(cmd, sccb);
 	if (rc)
 		goto out;
-	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_EXT |
-			PSW_MASK_WAIT | PSW_DEFAULT_KEY);
+	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA |
+			PSW_MASK_BA | PSW_MASK_EXT | PSW_MASK_WAIT);
 	local_irq_disable();
 out:
 	/* Contents of the sccb might have changed. */
@@ -100,6 +106,19 @@ static void __init sclp_read_info_early(void)
 	}
 }
 
+static void __init sclp_event_mask_early(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+	int rc;
+
+	do {
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->mask_length = sizeof(sccb_mask_t);
+		rc = sclp_cmd_sync_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
+	} while (rc == -EBUSY);
+}
+
 void __init sclp_facilities_detect(void)
 {
 	struct read_info_sccb *sccb;
@@ -111,9 +130,35 @@ void __init sclp_facilities_detect(void)
 	sccb = &early_read_info_sccb;
 	sclp_facilities = sccb->facilities;
 	sclp_fac84 = sccb->fac84;
+	if (sccb->fac85 & 0x02)
+		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
 	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	rzm <<= 20;
+
+	sclp_event_mask_early();
+}
+
+bool __init sclp_has_linemode(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+
+	if (sccb->header.response_code != 0x20)
+		return 0;
+	if (sccb->sclp_send_mask & (EVTYP_MSG_MASK | EVTYP_PMSGCMD_MASK))
+		return 1;
+	return 0;
+}
+
+bool __init sclp_has_vt220(void)
+{
+	struct init_sccb *sccb = &early_event_mask_sccb;
+
+	if (sccb->header.response_code != 0x20)
+		return 0;
+	if (sccb->sclp_send_mask & EVTYP_VT220MSG_MASK)
+		return 1;
+	return 0;
 }
 
 unsigned long long sclp_get_rnmax(void)
@@ -300,7 +345,6 @@ struct memory_increment {
 	struct list_head list;
 	u16 rn;
 	int standby;
-	int usecount;
 };
 
 struct assign_storage_sccb {
@@ -351,7 +395,15 @@ out:
 
 static int sclp_assign_storage(u16 rn)
 {
-	return do_assign_storage(0x000d0001, rn);
+	unsigned long long start;
+	int rc;
+
+	rc = do_assign_storage(0x000d0001, rn);
+	if (rc)
+		return rc;
+	start = rn2addr(rn);
+	storage_key_init_range(start, start + rzm);
+	return 0;
 }
 
 static int sclp_unassign_storage(u16 rn)
@@ -383,8 +435,10 @@ static int sclp_attach_storage(u8 id)
 	switch (sccb->header.response_code) {
 	case 0x0020:
 		set_bit(id, sclp_storage_ids);
-		for (i = 0; i < sccb->assigned; i++)
-			sclp_unassign_storage(sccb->entries[i] >> 16);
+		for (i = 0; i < sccb->assigned; i++) {
+			if (sccb->entries[i])
+				sclp_unassign_storage(sccb->entries[i] >> 16);
+		}
 		break;
 	default:
 		rc = -EIO;
@@ -408,21 +462,10 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 			break;
 		if (start > istart + rzm - 1)
 			continue;
-		if (online) {
-			if (incr->usecount++)
-				continue;
-			/*
-			 * Don't break the loop if one assign fails. Loop may
-			 * be walked again on CANCEL and we can't save
-			 * information if state changed before or not.
-			 * So continue and increase usecount for all increments.
-			 */
+		if (online)
 			rc |= sclp_assign_storage(incr->rn);
-		} else {
-			if (--incr->usecount)
-				continue;
+		else
 			sclp_unassign_storage(incr->rn);
-		}
 	}
 	return rc ? -EIO : 0;
 }
@@ -439,9 +482,8 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 	start = arg->start_pfn << PAGE_SHIFT;
 	size = arg->nr_pages << PAGE_SHIFT;
 	mutex_lock(&sclp_mem_mutex);
-	for (id = 0; id <= sclp_max_storage_id; id++)
-		if (!test_bit(id, sclp_storage_ids))
-			sclp_attach_storage(id);
+	for_each_clear_bit(id, sclp_storage_ids, sclp_max_storage_id + 1)
+		sclp_attach_storage(id);
 	switch (action) {
 	case MEM_ONLINE:
 	case MEM_GOING_OFFLINE:
@@ -518,8 +560,6 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 		return;
 	new_incr->rn = rn;
 	new_incr->standby = standby;
-	if (!standby)
-		new_incr->usecount = 1;
 	last_rn = 0;
 	prev = &sclp_mem_list;
 	list_for_each_entry(incr, &sclp_mem_list, list) {
@@ -573,6 +613,8 @@ static int __init sclp_detect_standby_memory(void)
 	struct read_storage_sccb *sccb;
 	int i, id, assigned, rc;
 
+	if (OLDMEM_BASE) /* No standby memory in kdump mode */
+		return 0;
 	if (!early_read_info_sccb_valid)
 		return 0;
 	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
@@ -640,6 +682,67 @@ out:
 __initcall(sclp_detect_standby_memory);
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+/*
+ * PCI I/O adapter configuration related functions.
+ */
+#define SCLP_CMDW_CONFIGURE_PCI			0x001a0001
+#define SCLP_CMDW_DECONFIGURE_PCI		0x001b0001
+
+#define SCLP_RECONFIG_PCI_ATPYE			2
+
+struct pci_cfg_sccb {
+	struct sccb_header header;
+	u8 atype;		/* adapter type */
+	u8 reserved1;
+	u16 reserved2;
+	u32 aid;		/* adapter identifier */
+} __packed;
+
+static int do_pci_configure(sclp_cmdw_t cmd, u32 fid)
+{
+	struct pci_cfg_sccb *sccb;
+	int rc;
+
+	if (!SCLP_HAS_PCI_RECONFIG)
+		return -EOPNOTSUPP;
+
+	sccb = (struct pci_cfg_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		return -ENOMEM;
+
+	sccb->header.length = PAGE_SIZE;
+	sccb->atype = SCLP_RECONFIG_PCI_ATPYE;
+	sccb->aid = fid;
+	rc = do_sync_request(cmd, sccb);
+	if (rc)
+		goto out;
+	switch (sccb->header.response_code) {
+	case 0x0020:
+	case 0x0120:
+		break;
+	default:
+		pr_warn("configure PCI I/O adapter failed: cmd=0x%08x  response=0x%04x\n",
+			cmd, sccb->header.response_code);
+		rc = -EIO;
+		break;
+	}
+out:
+	free_page((unsigned long) sccb);
+	return rc;
+}
+
+int sclp_pci_configure(u32 fid)
+{
+	return do_pci_configure(SCLP_CMDW_CONFIGURE_PCI, fid);
+}
+EXPORT_SYMBOL(sclp_pci_configure);
+
+int sclp_pci_deconfigure(u32 fid)
+{
+	return do_pci_configure(SCLP_CMDW_DECONFIGURE_PCI, fid);
+}
+EXPORT_SYMBOL(sclp_pci_deconfigure);
 
 /*
  * Channel path configuration related functions.

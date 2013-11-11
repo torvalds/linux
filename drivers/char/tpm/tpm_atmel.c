@@ -116,6 +116,11 @@ static u8 tpm_atml_status(struct tpm_chip *chip)
 	return ioread8(chip->vendor.iobase + 1);
 }
 
+static bool tpm_atml_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == ATML_STATUS_READY);
+}
+
 static const struct file_operations atmel_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -147,7 +152,7 @@ static const struct tpm_vendor_specific tpm_atmel = {
 	.status = tpm_atml_status,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
-	.req_canceled = ATML_STATUS_READY,
+	.req_canceled = tpm_atml_req_canceled,
 	.attr_group = &atmel_attr_grp,
 	.miscdev = { .fops = &atmel_ops, },
 };
@@ -168,22 +173,14 @@ static void atml_plat_remove(void)
 	}
 }
 
-static int tpm_atml_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
+static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);
 
-static int tpm_atml_resume(struct platform_device *dev)
-{
-	return tpm_pm_resume(&dev->dev);
-}
 static struct platform_driver atml_drv = {
 	.driver = {
 		.name = "tpm_atmel",
 		.owner		= THIS_MODULE,
+		.pm		= &tpm_atml_pm,
 	},
-	.suspend = tpm_atml_suspend,
-	.resume = tpm_atml_resume,
 };
 
 static int __init init_atmel(void)

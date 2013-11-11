@@ -71,7 +71,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -84,12 +83,12 @@
 
 /* --------------------------------------------------------------------- */
 
-static int internal;
-static int external;
-static int libretto;
-static int nostretch;
-static int nopciburst;
-static char *mode_option __devinitdata = NULL;
+static bool internal;
+static bool external;
+static bool libretto;
+static bool nostretch;
+static bool nopciburst;
+static char *mode_option = NULL;
 
 #ifdef MODULE
 
@@ -1185,8 +1184,8 @@ static int neofb_pan_display(struct fb_var_screeninfo *var,
 
 	DBG("neofb_update_start");
 
-	Base = (var->yoffset * var->xres_virtual + var->xoffset) >> 2;
-	Base *= (var->bits_per_pixel + 7) / 8;
+	Base = (var->yoffset * info->var.xres_virtual + var->xoffset) >> 2;
+	Base *= (info->var.bits_per_pixel + 7) / 8;
 
 	neoUnlock();
 
@@ -1633,7 +1632,7 @@ static struct fb_ops neofb_ops = {
 
 /* --------------------------------------------------------------------- */
 
-static struct fb_videomode __devinitdata mode800x480 = {
+static struct fb_videomode mode800x480 = {
 	.xres           = 800,
 	.yres           = 480,
 	.pixclock       = 25000,
@@ -1647,8 +1646,7 @@ static struct fb_videomode __devinitdata mode800x480 = {
 	.vmode          = FB_VMODE_NONINTERLACED
 };
 
-static int __devinit neo_map_mmio(struct fb_info *info,
-				  struct pci_dev *dev)
+static int neo_map_mmio(struct fb_info *info, struct pci_dev *dev)
 {
 	struct neofb_par *par = info->par;
 
@@ -1708,8 +1706,8 @@ static void neo_unmap_mmio(struct fb_info *info)
 			   info->fix.mmio_len);
 }
 
-static int __devinit neo_map_video(struct fb_info *info,
-				   struct pci_dev *dev, int video_len)
+static int neo_map_video(struct fb_info *info, struct pci_dev *dev,
+			 int video_len)
 {
 	//unsigned long addr;
 
@@ -1773,7 +1771,7 @@ static void neo_unmap_video(struct fb_info *info)
 			   info->fix.smem_len);
 }
 
-static int __devinit neo_scan_monitor(struct fb_info *info)
+static int neo_scan_monitor(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 	unsigned char type, display;
@@ -1852,7 +1850,7 @@ static int __devinit neo_scan_monitor(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit neo_init_hw(struct fb_info *info)
+static int neo_init_hw(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 	int videoRam = 896;
@@ -1940,8 +1938,8 @@ static int __devinit neo_init_hw(struct fb_info *info)
 }
 
 
-static struct fb_info *__devinit neo_alloc_fb_info(struct pci_dev *dev, const struct
-						   pci_device_id *id)
+static struct fb_info *neo_alloc_fb_info(struct pci_dev *dev,
+					 const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	struct neofb_par *par;
@@ -2039,8 +2037,7 @@ static void neo_free_fb_info(struct fb_info *info)
 
 /* --------------------------------------------------------------------- */
 
-static int __devinit neofb_probe(struct pci_dev *dev,
-				 const struct pci_device_id *id)
+static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	u_int h_sync, v_sync;
@@ -2129,7 +2126,7 @@ err_map_mmio:
 	return err;
 }
 
-static void __devexit neofb_remove(struct pci_dev *dev)
+static void neofb_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -2195,7 +2192,7 @@ static struct pci_driver neofb_driver = {
 	.name =		"neofb",
 	.id_table =	neofb_devices,
 	.probe =	neofb_probe,
-	.remove =	__devexit_p(neofb_remove)
+	.remove =	neofb_remove,
 };
 
 /* ************************* init in-kernel code ************************** */

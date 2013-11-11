@@ -35,11 +35,11 @@
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/palmld.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <mach/irda.h>
-#include <plat/pxa27x_keypad.h>
-#include <mach/palmasoc.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/keypad-pxa27x.h>
+#include <linux/platform_data/asoc-palm27x.h>
 #include <mach/palm27x.h>
 
 #include "generic.h"
@@ -342,9 +342,12 @@ static void __init palmld_init(void)
 }
 
 MACHINE_START(PALMLD, "Palm LifeDrive")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= palmld_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.timer		= &pxa_timer,
-	.init_machine	= palmld_init
+	.handle_irq	= pxa27x_handle_irq,
+	.init_time	= pxa_timer_init,
+	.init_machine	= palmld_init,
+	.restart	= pxa_restart,
 MACHINE_END

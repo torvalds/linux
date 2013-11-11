@@ -1,0 +1,24 @@
+Picochip picoXcell device tree bindings.
+========================================
+
+Required root node properties:
+    - compatible:
+	- "picochip,pc7302-pc3x3" : PC7302 development board with PC3X3 device.
+	- "picochip,pc7302-pc3x2" : PC7302 development board with PC3X2 device.
+	- "picochip,pc3x3" : picoXcell PC3X3 device based board.
+	- "picochip,pc3x2" : picoXcell PC3X2 device based board.
+
+Timers required properties:
+    - compatible = "picochip,pc3x2-timer"
+    - interrupts : The single IRQ line for the timer.
+    - clock-freq : The frequency in HZ of the timer.
+    - reg : The register bank for the timer.
+
+Note: two timers are required - one for the scheduler clock and one for the
+event tick/NOHZ.
+
+VIC required properties:
+    - compatible = "arm,pl192-vic".
+    - interrupt-controller.
+    - reg : The register bank for the device.
+    - #interrupt-cells : Must be 1.

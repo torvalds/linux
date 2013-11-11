@@ -10,7 +10,6 @@ config STATIC_LINK
 	  2.75G) for UML.
 
 source "mm/Kconfig"
-source "kernel/time/Kconfig"
 
 config LD_SCRIPT_STATIC
 	bool
@@ -46,8 +45,8 @@ config HOSTFS
           say Y or M here; otherwise say N.
 
 config HPPFS
-	tristate "HoneyPot ProcFS (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PROC_FS
+	tristate "HoneyPot ProcFS"
+	depends on PROC_FS
 	help
 	  hppfs (HoneyPot ProcFS) is a filesystem which allows UML /proc
 	  entries to be overridden, removed, or fabricated from the host.
@@ -97,7 +96,7 @@ config MAGIC_SYSRQ
 	  unless you really know what this hack does.
 
 config SMP
-	bool "Symmetric multi-processing support (EXPERIMENTAL)"
+	bool "Symmetric multi-processing support"
 	default n
 	depends on BROKEN
 	help
@@ -127,7 +126,7 @@ config NR_CPUS
 	default "32"
 
 config HIGHMEM
-	bool "Highmem support (EXPERIMENTAL)"
+	bool "Highmem support"
 	depends on !64BIT && BROKEN
 	default n
 	help
@@ -147,6 +146,12 @@ config KERNEL_STACK_ORDER
 	  This option determines the size of UML kernel stacks.  They will
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
+
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	  This driver allows a host file to be used as emulated IO memory inside
+	  UML.
 
 config NO_DMA
 	def_bool y

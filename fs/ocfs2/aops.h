@@ -22,6 +22,8 @@
 #ifndef OCFS2_AOPS_H
 #define OCFS2_AOPS_H
 
+#include <linux/aio.h>
+
 handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,
@@ -78,6 +80,7 @@ enum ocfs2_iocb_lock_bits {
 	OCFS2_IOCB_RW_LOCK = 0,
 	OCFS2_IOCB_RW_LOCK_LEVEL,
 	OCFS2_IOCB_SEM,
+	OCFS2_IOCB_UNALIGNED_IO,
 	OCFS2_IOCB_NUM_LOCKS
 };
 
@@ -91,4 +94,17 @@ enum ocfs2_iocb_lock_bits {
 	clear_bit(OCFS2_IOCB_SEM, (unsigned long *)&iocb->private)
 #define ocfs2_iocb_is_sem_locked(iocb) \
 	test_bit(OCFS2_IOCB_SEM, (unsigned long *)&iocb->private)
+
+#define ocfs2_iocb_set_unaligned_aio(iocb) \
+	set_bit(OCFS2_IOCB_UNALIGNED_IO, (unsigned long *)&iocb->private)
+#define ocfs2_iocb_clear_unaligned_aio(iocb) \
+	clear_bit(OCFS2_IOCB_UNALIGNED_IO, (unsigned long *)&iocb->private)
+#define ocfs2_iocb_is_unaligned_aio(iocb) \
+	test_bit(OCFS2_IOCB_UNALIGNED_IO, (unsigned long *)&iocb->private)
+
+#define OCFS2_IOEND_WQ_HASH_SZ	37
+#define ocfs2_ioend_wq(v)   (&ocfs2__ioend_wq[((unsigned long)(v)) %\
+					    OCFS2_IOEND_WQ_HASH_SZ])
+extern wait_queue_head_t ocfs2__ioend_wq[OCFS2_IOEND_WQ_HASH_SZ];
+
 #endif /* OCFS2_FILE_H */

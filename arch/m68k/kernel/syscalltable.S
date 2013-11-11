@@ -22,7 +22,7 @@ ALIGN
 ENTRY(sys_call_table)
 	.long sys_restart_syscall	/* 0 - old "setup()" system call, used for restarting */
 	.long sys_exit
-	.long sys_fork
+	.long __sys_fork
 	.long sys_read
 	.long sys_write
 	.long sys_open			/* 5 */
@@ -140,7 +140,7 @@ ENTRY(sys_call_table)
 	.long sys_ipc
 	.long sys_fsync
 	.long sys_sigreturn
-	.long sys_clone			/* 120 */
+	.long __sys_clone		/* 120 */
 	.long sys_setdomainname
 	.long sys_newuname
 	.long sys_cacheflush		/* modify_ldt for i386 */
@@ -189,7 +189,7 @@ ENTRY(sys_call_table)
 	.long sys_getpagesize
 	.long sys_ni_syscall		/* old "query_module" */
 	.long sys_poll
-	.long sys_nfsservctl
+	.long sys_ni_syscall		/* old nfsservctl */
 	.long sys_setresgid16		/* 170 */
 	.long sys_getresgid16
 	.long sys_prctl
@@ -210,7 +210,7 @@ ENTRY(sys_call_table)
 	.long sys_sendfile
 	.long sys_ni_syscall		/* streams1 */
 	.long sys_ni_syscall		/* streams2 */
-	.long sys_vfork			/* 190 */
+	.long __sys_vfork		/* 190 */
 	.long sys_getrlimit
 	.long sys_mmap2
 	.long sys_truncate64
@@ -365,4 +365,8 @@ ENTRY(sys_call_table)
 	.long sys_clock_adjtime
 	.long sys_syncfs
 	.long sys_setns
+	.long sys_process_vm_readv	/* 345 */
+	.long sys_process_vm_writev
+	.long sys_kcmp
+	.long sys_finit_module
 

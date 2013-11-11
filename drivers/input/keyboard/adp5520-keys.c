@@ -69,7 +69,7 @@ static int adp5520_keys_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static int __devinit adp5520_keys_probe(struct platform_device *pdev)
+static int adp5520_keys_probe(struct platform_device *pdev)
 {
 	struct adp5520_keys_platform_data *pdata = pdev->dev.platform_data;
 	struct input_dev *input;
@@ -182,7 +182,7 @@ err:
 	return ret;
 }
 
-static int __devexit adp5520_keys_remove(struct platform_device *pdev)
+static int adp5520_keys_remove(struct platform_device *pdev)
 {
 	struct adp5520_keys *dev = platform_get_drvdata(pdev);
 
@@ -200,20 +200,9 @@ static struct platform_driver adp5520_keys_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_keys_probe,
-	.remove		= __devexit_p(adp5520_keys_remove),
+	.remove		= adp5520_keys_remove,
 };
-
-static int __init adp5520_keys_init(void)
-{
-	return platform_driver_register(&adp5520_keys_driver);
-}
-module_init(adp5520_keys_init);
-
-static void __exit adp5520_keys_exit(void)
-{
-	platform_driver_unregister(&adp5520_keys_driver);
-}
-module_exit(adp5520_keys_exit);
+module_platform_driver(adp5520_keys_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Keys ADP5520 Driver");

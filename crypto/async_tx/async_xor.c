@@ -25,6 +25,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/raid/xor.h>
@@ -229,9 +230,7 @@ EXPORT_SYMBOL_GPL(async_xor);
 
 static int page_is_zero(struct page *p, unsigned int offset, size_t len)
 {
-	char *a = page_address(p) + offset;
-	return ((*(u32 *) a) == 0 &&
-		memcmp(a, a + 4, len - 4) == 0);
+	return !memchr_inv(page_address(p) + offset, 0, len);
 }
 
 static inline struct dma_chan *

@@ -117,7 +117,7 @@ static void rtl8187_led_brightness_set(struct led_classdev *led_dev,
 			radio_on = true;
 		} else if (radio_on) {
 			radio_on = false;
-			cancel_delayed_work_sync(&priv->led_on);
+			cancel_delayed_work(&priv->led_on);
 			ieee80211_queue_delayed_work(hw, &priv->led_off, 0);
 		}
 	} else if (radio_on) {

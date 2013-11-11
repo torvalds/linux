@@ -12,12 +12,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
-#include <plat/mmc.h>
-#include <mach/gpio.h>
-#include <plat/board-sx1.h>
+#include <mach/board-sx1.h>
+
+#include "mmc.h"
 
 #if defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 

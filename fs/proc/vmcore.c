@@ -8,18 +8,21 @@
  */
 
 #include <linux/mm.h>
-#include <linux/proc_fs.h>
+#include <linux/kcore.h>
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/printk.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/crash_dump.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include "internal.h"
 
 /* List representing chunks of contiguous memory areas and their offsets in
  * vmcore file.
@@ -174,15 +177,15 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 	start = map_offset_to_paddr(*fpos, &vmcore_list, &curr_m);
 	if (!curr_m)
         	return -EINVAL;
-	if ((tsz = (PAGE_SIZE - (start & ~PAGE_MASK))) > buflen)
-		tsz = buflen;
-
-	/* Calculate left bytes in current memory segment. */
-	nr_bytes = (curr_m->size - (start - curr_m->paddr));
-	if (tsz > nr_bytes)
-		tsz = nr_bytes;
 
 	while (buflen) {
+		tsz = min_t(size_t, buflen, PAGE_SIZE - (start & ~PAGE_MASK));
+
+		/* Calculate left bytes in current memory segment. */
+		nr_bytes = (curr_m->size - (start - curr_m->paddr));
+		if (tsz > nr_bytes)
+			tsz = nr_bytes;
+
 		tmp = read_from_oldmem(buffer, tsz, &start, 1);
 		if (tmp < 0)
 			return tmp;
@@ -197,12 +200,6 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 						struct vmcore, list);
 			start = curr_m->paddr;
 		}
-		if ((tsz = (PAGE_SIZE - (start & ~PAGE_MASK))) > buflen)
-			tsz = buflen;
-		/* Calculate left bytes in current memory segment. */
-		nr_bytes = (curr_m->size - (start - curr_m->paddr));
-		if (tsz > nr_bytes)
-			tsz = nr_bytes;
 	}
 	return acc;
 }
@@ -552,8 +549,7 @@ static int __init parse_crash_elf64_headers(void)
 		ehdr.e_ehsize != sizeof(Elf64_Ehdr) ||
 		ehdr.e_phentsize != sizeof(Elf64_Phdr) ||
 		ehdr.e_phnum == 0) {
-		printk(KERN_WARNING "Warning: Core image elf header is not"
-					"sane\n");
+		pr_warn("Warning: Core image elf header is not sane\n");
 		return -EINVAL;
 	}
 
@@ -608,8 +604,7 @@ static int __init parse_crash_elf32_headers(void)
 		ehdr.e_ehsize != sizeof(Elf32_Ehdr) ||
 		ehdr.e_phentsize != sizeof(Elf32_Phdr) ||
 		ehdr.e_phnum == 0) {
-		printk(KERN_WARNING "Warning: Core image elf header is not"
-					"sane\n");
+		pr_warn("Warning: Core image elf header is not sane\n");
 		return -EINVAL;
 	}
 
@@ -652,8 +647,7 @@ static int __init parse_crash_elf_headers(void)
 	if (rc < 0)
 		return rc;
 	if (memcmp(e_ident, ELFMAG, SELFMAG) != 0) {
-		printk(KERN_WARNING "Warning: Core image elf header"
-					" not found\n");
+		pr_warn("Warning: Core image elf header not found\n");
 		return -EINVAL;
 	}
 
@@ -672,8 +666,7 @@ static int __init parse_crash_elf_headers(void)
 		/* Determine vmcore size. */
 		vmcore_size = get_vmcore_size_elf32(elfcorebuf);
 	} else {
-		printk(KERN_WARNING "Warning: Core image elf header is not"
-					" sane\n");
+		pr_warn("Warning: Core image elf header is not sane\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -689,7 +682,7 @@ static int __init vmcore_init(void)
 		return rc;
 	rc = parse_crash_elf_headers();
 	if (rc) {
-		printk(KERN_WARNING "Kdump: vmcore not initialized\n");
+		pr_warn("Kdump: vmcore not initialized\n");
 		return rc;
 	}
 
@@ -699,3 +692,26 @@ static int __init vmcore_init(void)
 	return 0;
 }
 module_init(vmcore_init)
+
+/* Cleanup function for vmcore module. */
+void vmcore_cleanup(void)
+{
+	struct list_head *pos, *next;
+
+	if (proc_vmcore) {
+		proc_remove(proc_vmcore);
+		proc_vmcore = NULL;
+	}
+
+	/* clear the vmcore list. */
+	list_for_each_safe(pos, next, &vmcore_list) {
+		struct vmcore *m;
+
+		m = list_entry(pos, struct vmcore, list);
+		list_del(&m->list);
+		kfree(m);
+	}
+	kfree(elfcorebuf);
+	elfcorebuf = NULL;
+}
+EXPORT_SYMBOL_GPL(vmcore_cleanup);

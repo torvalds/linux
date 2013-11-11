@@ -16,7 +16,7 @@
 
 static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	unsigned int offset;
 	struct buffer_head *bh;
 	struct qnx4_inode_entry *de;

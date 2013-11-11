@@ -344,9 +344,9 @@ _xfs_filestream_update_ag(
 	 * Either ip is a regular file and pip is a directory, or ip is a
 	 * directory and pip is NULL.
 	 */
-	ASSERT(ip && (((ip->i_d.di_mode & S_IFREG) && pip &&
-	               (pip->i_d.di_mode & S_IFDIR)) ||
-	              ((ip->i_d.di_mode & S_IFDIR) && !pip)));
+	ASSERT(ip && ((S_ISREG(ip->i_d.di_mode) && pip &&
+	               S_ISDIR(pip->i_d.di_mode)) ||
+	              (S_ISDIR(ip->i_d.di_mode) && !pip)));
 
 	mp = ip->i_mount;
 	cache = mp->m_filestream;
@@ -537,7 +537,7 @@ xfs_filestream_lookup_ag(
 	xfs_agnumber_t	ag;
 	int		ref;
 
-	if (!(ip->i_d.di_mode & (S_IFREG | S_IFDIR))) {
+	if (!S_ISREG(ip->i_d.di_mode) && !S_ISDIR(ip->i_d.di_mode)) {
 		ASSERT(0);
 		return NULLAGNUMBER;
 	}
@@ -579,9 +579,9 @@ xfs_filestream_associate(
 	xfs_agnumber_t	ag, rotorstep, startag;
 	int		err = 0;
 
-	ASSERT(pip->i_d.di_mode & S_IFDIR);
-	ASSERT(ip->i_d.di_mode & S_IFREG);
-	if (!(pip->i_d.di_mode & S_IFDIR) || !(ip->i_d.di_mode & S_IFREG))
+	ASSERT(S_ISDIR(pip->i_d.di_mode));
+	ASSERT(S_ISREG(ip->i_d.di_mode));
+	if (!S_ISDIR(pip->i_d.di_mode) || !S_ISREG(ip->i_d.di_mode))
 		return -EINVAL;
 
 	mp = pip->i_mount;
@@ -682,7 +682,7 @@ xfs_filestream_new_ag(
 	ip = ap->ip;
 	mp = ip->i_mount;
 	cache = mp->m_filestream;
-	minlen = ap->alen;
+	minlen = ap->length;
 	*agp = NULLAGNUMBER;
 
 	/*
@@ -761,7 +761,7 @@ xfs_filestream_new_ag(
 	 */
 	ag = (ag == NULLAGNUMBER) ? 0 : (ag + 1) % mp->m_sb.sb_agcount;
 	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->low ? XFS_PICK_LOWSPACE : 0);
+	        (ap->flist->xbf_low ? XFS_PICK_LOWSPACE : 0);
 
 	err = _xfs_filestream_pick_ag(mp, ag, agp, flags, minlen);
 	if (err || *agp == NULLAGNUMBER)

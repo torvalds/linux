@@ -38,8 +38,8 @@
 struct jfs_inode_info {
 	int	fileset;	/* fileset number (always 16)*/
 	uint	mode2;		/* jfs-specific mode		*/
-	uint	saved_uid;	/* saved for uid mount option */
-	uint	saved_gid;	/* saved for gid mount option */
+	kuid_t	saved_uid;	/* saved for uid mount option */
+	kgid_t	saved_gid;	/* saved for gid mount option */
 	pxd_t	ixpxd;		/* inode extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
@@ -192,9 +192,10 @@ struct jfs_sb_info {
 	uint		state;		/* mount/recovery state	*/
 	unsigned long	flag;		/* mount time flags */
 	uint		p_state;	/* state prior to going no integrity */
-	uint		uid;		/* uid to override on-disk uid */
-	uint		gid;		/* gid to override on-disk gid */
+	kuid_t		uid;		/* uid to override on-disk uid */
+	kgid_t		gid;		/* gid to override on-disk gid */
 	uint		umask;		/* umask to override on-disk umask */
+	uint		minblks_trim;	/* minimum blocks, for online trim */
 };
 
 /* jfs_sb_info commit_state */

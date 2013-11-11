@@ -34,8 +34,8 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. "
 			  __MODULE_STRING(TS72XX_WDT_DEFAULT_TIMEOUT)
 			  ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 
 /**
@@ -310,7 +310,8 @@ static long ts72xx_wdt_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, p);
+		error = put_user(0, p);
+		break;
 
 	case WDIOC_KEEPALIVE:
 		ts72xx_wdt_kick(wdt);
@@ -390,7 +391,7 @@ static struct miscdevice ts72xx_wdt_miscdev = {
 	.fops		= &ts72xx_wdt_fops,
 };
 
-static __devinit int ts72xx_wdt_probe(struct platform_device *pdev)
+static int ts72xx_wdt_probe(struct platform_device *pdev)
 {
 	struct ts72xx_wdt *wdt;
 	struct resource *r1, *r2;
@@ -476,7 +477,7 @@ fail:
 	return error;
 }
 
-static __devexit int ts72xx_wdt_remove(struct platform_device *pdev)
+static int ts72xx_wdt_remove(struct platform_device *pdev)
 {
 	struct ts72xx_wdt *wdt = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -499,24 +500,14 @@ static __devexit int ts72xx_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver ts72xx_wdt_driver = {
 	.probe		= ts72xx_wdt_probe,
-	.remove		= __devexit_p(ts72xx_wdt_remove),
+	.remove		= ts72xx_wdt_remove,
 	.driver		= {
 		.name	= "ts72xx-wdt",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static __init int ts72xx_wdt_init(void)
-{
-	return platform_driver_register(&ts72xx_wdt_driver);
-}
-module_init(ts72xx_wdt_init);
-
-static __exit void ts72xx_wdt_exit(void)
-{
-	platform_driver_unregister(&ts72xx_wdt_driver);
-}
-module_exit(ts72xx_wdt_exit);
+module_platform_driver(ts72xx_wdt_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");
 MODULE_DESCRIPTION("TS-72xx SBC Watchdog");

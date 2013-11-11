@@ -68,7 +68,6 @@
 #define CMD_802_11_BEACON_STOP                  0x0049
 #define CMD_802_11_MAC_ADDRESS                  0x004d
 #define CMD_802_11_LED_GPIO_CTRL                0x004e
-#define CMD_802_11_EEPROM_ACCESS                0x0059
 #define CMD_802_11_BAND_CONFIG                  0x0058
 #define CMD_GSPI_BUS_CONFIG                     0x005a
 #define CMD_802_11D_DOMAIN_INFO                 0x005b

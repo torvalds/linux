@@ -66,7 +66,7 @@ static struct usb_class {
 	struct class *class;
 } *usb_class;
 
-static char *usb_devnode(struct device *dev, mode_t *mode)
+static char *usb_devnode(struct device *dev, umode_t *mode)
 {
 	struct usb_class_driver *drv;
 
@@ -92,7 +92,7 @@ static int init_usb_class(void)
 	}
 
 	kref_init(&usb_class->kref);
-	usb_class->class = class_create(THIS_MODULE, "usb");
+	usb_class->class = class_create(THIS_MODULE, "usbmisc");
 	if (IS_ERR(usb_class->class)) {
 		result = IS_ERR(usb_class->class);
 		printk(KERN_ERR "class_create failed for usb devices\n");
@@ -183,7 +183,7 @@ int usb_register_dev(struct usb_interface *intf,
 	if (retval)
 		return retval;
 
-	dev_dbg(&intf->dev, "looking for a minor, starting at %d", minor_base);
+	dev_dbg(&intf->dev, "looking for a minor, starting at %d\n", minor_base);
 
 	down_write(&minor_rwsem);
 	for (minor = minor_base; minor < MAX_USB_MINORS; ++minor) {
@@ -239,7 +239,7 @@ void usb_deregister_dev(struct usb_interface *intf,
 	if (intf->minor == -1)
 		return;
 
-	dbg ("removing %d minor", intf->minor);
+	dev_dbg(&intf->dev, "removing %d minor\n", intf->minor);
 
 	down_write(&minor_rwsem);
 	usb_minors[intf->minor] = NULL;

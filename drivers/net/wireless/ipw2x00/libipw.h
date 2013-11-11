@@ -66,16 +66,8 @@ extern u32 libipw_debug_level;
 do { if (libipw_debug_level & (level)) \
   printk(KERN_DEBUG "libipw: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return (libipw_debug_level & level) && net_ratelimit();
-}
 #else
 #define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return false;
-}
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 /*
@@ -592,61 +584,6 @@ struct libipw_tim_parameters {
 
 /*******************************************************/
 
-enum {				/* libipw_basic_report.map */
-	LIBIPW_BASIC_MAP_BSS = (1 << 0),
-	LIBIPW_BASIC_MAP_OFDM = (1 << 1),
-	LIBIPW_BASIC_MAP_UNIDENTIFIED = (1 << 2),
-	LIBIPW_BASIC_MAP_RADAR = (1 << 3),
-	LIBIPW_BASIC_MAP_UNMEASURED = (1 << 4),
-	/* Bits 5-7 are reserved */
-
-};
-struct libipw_basic_report {
-	u8 channel;
-	__le64 start_time;
-	__le16 duration;
-	u8 map;
-} __packed;
-
-enum {				/* libipw_measurement_request.mode */
-	/* Bit 0 is reserved */
-	LIBIPW_MEASUREMENT_ENABLE = (1 << 1),
-	LIBIPW_MEASUREMENT_REQUEST = (1 << 2),
-	LIBIPW_MEASUREMENT_REPORT = (1 << 3),
-	/* Bits 4-7 are reserved */
-};
-
-enum {
-	LIBIPW_REPORT_BASIC = 0,	/* required */
-	LIBIPW_REPORT_CCA = 1,	/* optional */
-	LIBIPW_REPORT_RPI = 2,	/* optional */
-	/* 3-255 reserved */
-};
-
-struct libipw_measurement_params {
-	u8 channel;
-	__le64 start_time;
-	__le16 duration;
-} __packed;
-
-struct libipw_measurement_request {
-	struct libipw_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	struct libipw_measurement_params params[0];
-} __packed;
-
-struct libipw_measurement_report {
-	struct libipw_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	union {
-		struct libipw_basic_report basic[0];
-	} u;
-} __packed;
-
 struct libipw_tpc_report {
 	u8 transmit_power;
 	u8 link_margin;
@@ -813,9 +750,6 @@ struct libipw_device {
 	/* WEP and other encryption related settings at the device level */
 	int open_wep;		/* Set to 1 to allow unencrypted frames */
 
-	int reset_on_keychange;	/* Set to 1 if the HW needs to be reset on
-				 * WEP key changes */
-
 	/* If the host performs {en,de}cryption, then set to 1 */
 	int host_encrypt;
 	int host_encrypt_msdu;
@@ -868,7 +802,6 @@ struct libipw_device {
 			      struct libipw_security * sec);
 	netdev_tx_t (*hard_start_xmit) (struct libipw_txb * txb,
 					struct net_device * dev, int pri);
-	int (*reset_port) (struct net_device * dev);
 	int (*is_queue_full) (struct net_device * dev, int pri);
 
 	int (*handle_management) (struct net_device * dev,
@@ -1045,7 +978,7 @@ extern void libipw_network_reset(struct libipw_network *network);
 /* libipw_geo.c */
 extern const struct libipw_geo *libipw_get_geo(struct libipw_device
 						     *ieee);
-extern int libipw_set_geo(struct libipw_device *ieee,
+extern void libipw_set_geo(struct libipw_device *ieee,
 			     const struct libipw_geo *geo);
 
 extern int libipw_is_valid_channel(struct libipw_device *ieee,

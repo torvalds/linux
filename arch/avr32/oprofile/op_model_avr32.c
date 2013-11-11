@@ -17,7 +17,6 @@
 #include <linux/types.h>
 
 #include <asm/sysreg.h>
-#include <asm/system.h>
 
 #define AVR32_PERFCTR_IRQ_GROUP	0
 #define AVR32_PERFCTR_IRQ_LINE	1

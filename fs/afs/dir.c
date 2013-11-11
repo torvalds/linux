@@ -20,17 +20,17 @@
 #include "internal.h"
 
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
-				 struct nameidata *nd);
+				 unsigned int flags);
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, void *dirent, filldir_t filldir);
-static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
+static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
 static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
-static int afs_create(struct inode *dir, struct dentry *dentry, int mode,
-		      struct nameidata *nd);
-static int afs_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+		      bool excl);
+static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static int afs_rmdir(struct inode *dir, struct dentry *dentry);
 static int afs_unlink(struct inode *dir, struct dentry *dentry);
 static int afs_link(struct dentry *from, struct inode *dir,
@@ -393,12 +393,12 @@ static int afs_readdir(struct file *file, void *cookie, filldir_t filldir)
 	int ret;
 
 	_enter("{%Ld,{%lu}}",
-	       file->f_pos, file->f_path.dentry->d_inode->i_ino);
+	       file->f_pos, file_inode(file)->i_ino);
 
 	ASSERT(file->private_data != NULL);
 
 	fpos = file->f_pos;
-	ret = afs_dir_iterate(file->f_path.dentry->d_inode, &fpos,
+	ret = afs_dir_iterate(file_inode(file), &fpos,
 			      cookie, filldir, file->private_data);
 	file->f_pos = fpos;
 
@@ -516,7 +516,7 @@ out:
  * look up an entry in a directory
  */
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
-				 struct nameidata *nd)
+				 unsigned int flags)
 {
 	struct afs_vnode *vnode;
 	struct afs_fid fid;
@@ -598,7 +598,7 @@ success:
  * - NOTE! the hit can be a negative hit too, so we can't assume we have an
  *   inode
  */
-static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct afs_vnode *vnode, *dir;
 	struct afs_fid uninitialized_var(fid);
@@ -607,7 +607,7 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	void *dir_version;
 	int ret;
 
-	if (nd->flags & LOOKUP_RCU)
+	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	vnode = AFS_FS_I(dentry->d_inode);
@@ -764,7 +764,7 @@ static void afs_d_release(struct dentry *dentry)
 /*
  * create a directory on an AFS filesystem
  */
-static int afs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct afs_file_status status;
 	struct afs_callback cb;
@@ -777,7 +777,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%u},{%s},%o",
+	_enter("{%x:%u},{%s},%ho",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;
@@ -948,8 +948,8 @@ error:
 /*
  * create a regular file on an AFS filesystem
  */
-static int afs_create(struct inode *dir, struct dentry *dentry, int mode,
-		      struct nameidata *nd)
+static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+		      bool excl)
 {
 	struct afs_file_status status;
 	struct afs_callback cb;
@@ -962,7 +962,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	dvnode = AFS_FS_I(dir);
 
-	_enter("{%x:%u},{%s},%o,",
+	_enter("{%x:%u},{%s},%ho,",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name, mode);
 
 	ret = -ENAMETOOLONG;

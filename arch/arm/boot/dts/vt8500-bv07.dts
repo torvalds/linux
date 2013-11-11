@@ -1,0 +1,32 @@
+/*
+ * vt8500-bv07.dts - Device tree file for Benign BV07 Netbook
+ *
+ * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
+ *
+ * Licensed under GPLv2 or later
+ */
+
+/dts-v1/;
+/include/ "vt8500.dtsi"
+
+/ {
+	model = "Benign BV07 Netbook";
+};
+
+&fb {
+	bits-per-pixel = <16>;
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: 800x480 {
+			clock-frequency = <0>; /* unused but required */
+			hactive = <800>;
+			vactive = <480>;
+			hfront-porch = <40>;
+			hback-porch = <88>;
+			hsync-len = <0>;
+			vback-porch = <32>;
+			vfront-porch = <11>;
+			vsync-len = <1>;
+		};
+	};
+};

@@ -111,7 +111,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 		switch (ah->eep_ops->get_eeprom(ah, EEP_FRAC_N_5G)) {
 		case 0:
-			if ((freq % 20) == 0)
+			if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
+				aModeRefSel = 0;
+			else if ((freq % 20) == 0)
 				aModeRefSel = 3;
 			else if ((freq % 10) == 0)
 				aModeRefSel = 2;
@@ -129,8 +131,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = CHANSEL_5G(freq);
 
 			/* RefDivA setting */
-			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
-				      AR_AN_SYNTH9_REFDIVA, refDivA);
+			ath9k_hw_analog_shift_rmw(ah, AR_AN_SYNTH9,
+				      AR_AN_SYNTH9_REFDIVA,
+				      AR_AN_SYNTH9_REFDIVA_S, refDivA);
 
 		}
 
@@ -149,7 +152,6 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_WRITE(ah, AR_PHY_SYNTH_CONTROL, reg32);
 
 	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
 
 	return 0;
 }
@@ -447,25 +449,26 @@ static void ar9002_olc_init(struct ath_hw *ah)
 static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
+	int ref_div = 5;
+	int pll_div = 0x2c;
 	u32 pll;
 
-	pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
+	if (chan && IS_CHAN_5GHZ(chan) && !IS_CHAN_A_FAST_CLOCK(ah, chan)) {
+		if (AR_SREV_9280_20(ah)) {
+			ref_div = 10;
+			pll_div = 0x50;
+		} else {
+			pll_div = 0x28;
+		}
+	}
+
+	pll = SM(ref_div, AR_RTC_9160_PLL_REFDIV);
+	pll |= SM(pll_div, AR_RTC_9160_PLL_DIV);
 
 	if (chan && IS_CHAN_HALF_RATE(chan))
 		pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
 	else if (chan && IS_CHAN_QUARTER_RATE(chan))
 		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
-
-	if (chan && IS_CHAN_5GHZ(chan)) {
-		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-			pll = 0x142c;
-		else if (AR_SREV_9280_20(ah))
-			pll = 0x2850;
-		else
-			pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
-	} else {
-		pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
-	}
 
 	return pll;
 }
@@ -552,14 +555,73 @@ static void ar9002_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
 }
 
+static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
+				    struct ath_spec_scan *param)
+{
+	u8 count;
+
+	if (!param->enabled) {
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_ENABLE);
+		return;
+	}
+	REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_FFT_ENA);
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
+
+	if (param->short_repeat)
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+	else
+		REG_CLR_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+			    AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT);
+
+	/* on AR92xx, the highest bit of count will make the the chip send
+	 * spectral samples endlessly. Check if this really was intended,
+	 * and fix otherwise.
+	 */
+	count = param->count;
+	if (param->endless)
+		count = 0x80;
+	else if (count & 0x80)
+		count = 0x7f;
+
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_COUNT, count);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_PERIOD, param->period);
+	REG_RMW_FIELD(ah, AR_PHY_SPECTRAL_SCAN,
+		      AR_PHY_SPECTRAL_SCAN_FFT_PERIOD, param->fft_period);
+
+	return;
+}
+
+static void ar9002_hw_spectral_scan_trigger(struct ath_hw *ah)
+{
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENABLE);
+	/* Activate spectral scan */
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+		    AR_PHY_SPECTRAL_SCAN_ACTIVE);
+}
+
+static void ar9002_hw_spectral_scan_wait(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	/* Poll for spectral scan complete */
+	if (!ath9k_hw_wait(ah, AR_PHY_SPECTRAL_SCAN,
+			   AR_PHY_SPECTRAL_SCAN_ACTIVE,
+			   0, AH_WAIT_TIMEOUT)) {
+		ath_err(common, "spectral scan wait failed\n");
+		return;
+	}
+}
+
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
 	priv_ops->set_rf_regs = NULL;
-	priv_ops->rf_alloc_ext_banks = NULL;
-	priv_ops->rf_free_ext_banks = NULL;
 	priv_ops->rf_set_freq = ar9002_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
 	priv_ops->olc_init = ar9002_olc_init;
@@ -568,6 +630,9 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ops->antdiv_comb_conf_get = ar9002_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9002_hw_antdiv_comb_conf_set;
+	ops->spectral_scan_config = ar9002_hw_spectral_scan_config;
+	ops->spectral_scan_trigger = ar9002_hw_spectral_scan_trigger;
+	ops->spectral_scan_wait = ar9002_hw_spectral_scan_wait;
 
 	ar9002_hw_set_nf_limits(ah);
 }

@@ -1,6 +1,4 @@
 /*
- * eeh_event.c
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -21,9 +19,11 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
 
@@ -45,7 +45,7 @@ DECLARE_WORK(eeh_event_wq, eeh_thread_launcher);
 DEFINE_MUTEX(eeh_event_mutex);
 
 /**
- * eeh_event_handler - dispatch EEH events.
+ * eeh_event_handler - Dispatch EEH events.
  * @dummy - unused
  *
  * The detection of a frozen slot can occur inside an interrupt,
@@ -57,11 +57,8 @@ DEFINE_MUTEX(eeh_event_mutex);
 static int eeh_event_handler(void * dummy)
 {
 	unsigned long flags;
-	struct eeh_event	*event;
-	struct pci_dn *pdn;
-
-	daemonize ("eehd");
-	set_current_state(TASK_INTERRUPTIBLE);
+	struct eeh_event *event;
+	struct eeh_pe *pe;
 
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	event = NULL;
@@ -78,71 +75,61 @@ static int eeh_event_handler(void * dummy)
 
 	/* Serialize processing of EEH events */
 	mutex_lock(&eeh_event_mutex);
-	eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
+	pe = event->pe;
+	eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+	pr_info("EEH: Detected PCI bus error on PHB#%d-PE#%x\n",
+		pe->phb->global_number, pe->addr);
 
-	printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
-	       eeh_pci_name(event->dev));
+	set_current_state(TASK_INTERRUPTIBLE);	/* Don't add to load average */
+	eeh_handle_event(pe);
+	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 
-	pdn = handle_eeh_events(event);
-
-	eeh_clear_slot(event->dn, EEH_MODE_RECOVERING);
-	pci_dev_put(event->dev);
 	kfree(event);
 	mutex_unlock(&eeh_event_mutex);
 
 	/* If there are no new errors after an hour, clear the counter. */
-	if (pdn && pdn->eeh_freeze_count>0) {
-		msleep_interruptible (3600*1000);
-		if (pdn->eeh_freeze_count>0)
-			pdn->eeh_freeze_count--;
+	if (pe && pe->freeze_count > 0) {
+		msleep_interruptible(3600*1000);
+		if (pe->freeze_count > 0)
+			pe->freeze_count--;
+
 	}
 
 	return 0;
 }
 
 /**
- * eeh_thread_launcher
+ * eeh_thread_launcher - Start kernel thread to handle EEH events
  * @dummy - unused
+ *
+ * This routine is called to start the kernel thread for processing
+ * EEH event.
  */
 static void eeh_thread_launcher(struct work_struct *dummy)
 {
-	if (kernel_thread(eeh_event_handler, NULL, CLONE_KERNEL) < 0)
+	if (IS_ERR(kthread_run(eeh_event_handler, NULL, "eehd")))
 		printk(KERN_ERR "Failed to start EEH daemon\n");
 }
 
 /**
- * eeh_send_failure_event - generate a PCI error event
- * @dev pci device
+ * eeh_send_failure_event - Generate a PCI error event
+ * @pe: EEH PE
  *
  * This routine can be called within an interrupt context;
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event (struct device_node *dn,
-                            struct pci_dev *dev)
+int eeh_send_failure_event(struct eeh_pe *pe)
 {
 	unsigned long flags;
 	struct eeh_event *event;
-	const char *location;
 
-	if (!mem_init_done) {
-		printk(KERN_ERR "EEH: event during early boot not handled\n");
-		location = of_get_property(dn, "ibm,loc-code", NULL);
-		printk(KERN_ERR "EEH: device node = %s\n", dn->full_name);
-		printk(KERN_ERR "EEH: PCI location = %s\n", location);
-		return 1;
+	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	if (!event) {
+		pr_err("EEH: out of memory, event not handled\n");
+		return -ENOMEM;
 	}
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
-	if (event == NULL) {
-		printk (KERN_ERR "EEH: out of memory, event not handled\n");
-		return 1;
- 	}
-
-	if (dev)
-		pci_dev_get(dev);
-
-	event->dn = dn;
-	event->dev = dev;
+	event->pe = pe;
 
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
@@ -153,5 +140,3 @@ int eeh_send_failure_event (struct device_node *dn,
 
 	return 0;
 }
-
-/********************** END OF FILE ******************************/

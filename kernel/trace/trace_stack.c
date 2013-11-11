@@ -13,48 +13,70 @@
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+
+#include <asm/setup.h>
+
 #include "trace.h"
 
 #define STACK_TRACE_ENTRIES 500
+
+#ifdef CC_USING_FENTRY
+# define fentry		1
+#else
+# define fentry		0
+#endif
 
 static unsigned long stack_dump_trace[STACK_TRACE_ENTRIES+1] =
 	 { [0 ... (STACK_TRACE_ENTRIES)] = ULONG_MAX };
 static unsigned stack_dump_index[STACK_TRACE_ENTRIES];
 
+/*
+ * Reserve one entry for the passed in ip. This will allow
+ * us to remove most or all of the stack size overhead
+ * added by the stack tracer itself.
+ */
 static struct stack_trace max_stack_trace = {
-	.max_entries		= STACK_TRACE_ENTRIES,
-	.entries		= stack_dump_trace,
+	.max_entries		= STACK_TRACE_ENTRIES - 1,
+	.entries		= &stack_dump_trace[1],
 };
 
 static unsigned long max_stack_size;
 static arch_spinlock_t max_stack_lock =
 	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
-static int stack_trace_disabled __read_mostly;
 static DEFINE_PER_CPU(int, trace_active);
 static DEFINE_MUTEX(stack_sysctl_mutex);
 
 int stack_tracer_enabled;
 static int last_stack_tracer_enabled;
 
-static inline void check_stack(void)
+static inline void
+check_stack(unsigned long ip, unsigned long *stack)
 {
 	unsigned long this_size, flags;
 	unsigned long *p, *top, *start;
+	static int tracer_frame;
+	int frame_size = ACCESS_ONCE(tracer_frame);
 	int i;
 
-	this_size = ((unsigned long)&this_size) & (THREAD_SIZE-1);
+	this_size = ((unsigned long)stack) & (THREAD_SIZE-1);
 	this_size = THREAD_SIZE - this_size;
+	/* Remove the frame of the tracer */
+	this_size -= frame_size;
 
 	if (this_size <= max_stack_size)
 		return;
 
 	/* we do not handle interrupt stacks yet */
-	if (!object_is_on_stack(&this_size))
+	if (!object_is_on_stack(stack))
 		return;
 
 	local_irq_save(flags);
 	arch_spin_lock(&max_stack_lock);
+
+	/* In case another CPU set the tracer_frame on us */
+	if (unlikely(!frame_size))
+		this_size -= tracer_frame;
 
 	/* a race could have already updated it */
 	if (this_size <= max_stack_size)
@@ -68,10 +90,18 @@ static inline void check_stack(void)
 	save_stack_trace(&max_stack_trace);
 
 	/*
+	 * Add the passed in ip from the function tracer.
+	 * Searching for this on the stack will skip over
+	 * most of the overhead from the stack tracer itself.
+	 */
+	stack_dump_trace[0] = ip;
+	max_stack_trace.nr_entries++;
+
+	/*
 	 * Now find where in the stack these are.
 	 */
 	i = 0;
-	start = &this_size;
+	start = stack;
 	top = (unsigned long *)
 		(((unsigned long)start & ~(THREAD_SIZE-1)) + THREAD_SIZE);
 
@@ -95,6 +125,18 @@ static inline void check_stack(void)
 				found = 1;
 				/* Start the search from here */
 				start = p + 1;
+				/*
+				 * We do not want to show the overhead
+				 * of the stack tracer stack in the
+				 * max stack. If we haven't figured
+				 * out what that is, then figure it out
+				 * now.
+				 */
+				if (unlikely(!tracer_frame) && i == 1) {
+					tracer_frame = (p - stack) *
+						sizeof(unsigned long);
+					max_stack_size -= tracer_frame;
+				}
 			}
 		}
 
@@ -108,12 +150,11 @@ static inline void check_stack(void)
 }
 
 static void
-stack_trace_call(unsigned long ip, unsigned long parent_ip)
+stack_trace_call(unsigned long ip, unsigned long parent_ip,
+		 struct ftrace_ops *op, struct pt_regs *pt_regs)
 {
+	unsigned long stack;
 	int cpu;
-
-	if (unlikely(!ftrace_enabled || stack_trace_disabled))
-		return;
 
 	preempt_disable_notrace();
 
@@ -122,7 +163,26 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 	if (per_cpu(trace_active, cpu)++ != 0)
 		goto out;
 
-	check_stack();
+	/*
+	 * When fentry is used, the traced function does not get
+	 * its stack frame set up, and we lose the parent.
+	 * The ip is pretty useless because the function tracer
+	 * was called before that function set up its stack frame.
+	 * In this case, we use the parent ip.
+	 *
+	 * By adding the return address of either the parent ip
+	 * or the current ip we can disregard most of the stack usage
+	 * caused by the stack tracer itself.
+	 *
+	 * The function tracer always reports the address of where the
+	 * mcount call was, but the stack will hold the return address.
+	 */
+	if (fentry)
+		ip = parent_ip;
+	else
+		ip += MCOUNT_INSN_SIZE;
+
+	check_stack(ip, &stack);
 
  out:
 	per_cpu(trace_active, cpu)--;
@@ -133,7 +193,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL,
+	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static ssize_t
@@ -156,20 +216,11 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 {
 	long *ptr = filp->private_data;
 	unsigned long val, flags;
-	char buf[64];
 	int ret;
 	int cpu;
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(&buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = 0;
-
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret < 0)
+	ret = kstrtoul_from_user(ubuf, count, 10, &val);
+	if (ret)
 		return ret;
 
 	local_irq_save(flags);
@@ -320,6 +371,21 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+static int
+stack_trace_filter_open(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_open(&trace_ops, FTRACE_ITER_FILTER,
+				 inode, file);
+}
+
+static const struct file_operations stack_trace_filter_fops = {
+	.open = stack_trace_filter_open,
+	.read = seq_read,
+	.write = ftrace_filter_write,
+	.llseek = ftrace_filter_lseek,
+	.release = ftrace_regex_release,
+};
+
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
 		   void __user *buffer, size_t *lenp,
@@ -347,8 +413,13 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
+static char stack_trace_filter_buf[COMMAND_LINE_SIZE+1] __initdata;
+
 static __init int enable_stacktrace(char *str)
 {
+	if (strncmp(str, "_filter=", 8) == 0)
+		strncpy(stack_trace_filter_buf, str+8, COMMAND_LINE_SIZE);
+
 	stack_tracer_enabled = 1;
 	last_stack_tracer_enabled = 1;
 	return 1;
@@ -360,12 +431,20 @@ static __init int stack_trace_init(void)
 	struct dentry *d_tracer;
 
 	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return 0;
 
 	trace_create_file("stack_max_size", 0644, d_tracer,
 			&max_stack_size, &stack_max_size_fops);
 
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
+
+	trace_create_file("stack_trace_filter", 0444, d_tracer,
+			NULL, &stack_trace_filter_fops);
+
+	if (stack_trace_filter_buf[0])
+		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);

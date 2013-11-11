@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 
 #include <mach/da8xx.h>
-#include <mach/usb.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #ifndef CONFIG_ARCH_DAVINCI_DA8XX
 #error "This file is DA8xx bus glue.  Define CONFIG_ARCH_DAVINCI_DA8XX."
@@ -322,7 +322,7 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 		goto err2;
 	}
 	hcd->rsrc_start = mem->start;
-	hcd->rsrc_len = mem->end - mem->start + 1;
+	hcd->rsrc_len = resource_size(mem);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_dbg(&pdev->dev, "request_mem_region failed\n");
@@ -344,7 +344,7 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 		error = -ENODEV;
 		goto err4;
 	}
-	error = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	error = usb_add_hcd(hcd, irq, 0);
 	if (error)
 		goto err4;
 
@@ -454,3 +454,5 @@ static struct platform_driver ohci_hcd_da8xx_driver = {
 		.name	= "ohci",
 	},
 };
+
+MODULE_ALIAS("platform:ohci");

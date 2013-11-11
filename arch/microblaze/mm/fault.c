@@ -32,8 +32,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
-#include <asm/mmu_context.h>
-#include <asm/system.h>
+#include <linux/mmu_context.h>
 #include <linux/uaccess.h>
 #include <asm/exceptions.h>
 
@@ -93,13 +92,15 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	int code = SEGV_MAPERR;
 	int is_write = error_code & ESR_S;
 	int fault;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+					 (is_write ? FAULT_FLAG_WRITE : 0);
 
 	regs->ear = address;
 	regs->esr = error_code;
 
 	/* On a kernel SLB miss we can only check for a valid exception entry */
 	if (unlikely(kernel_mode(regs) && (address >= TASK_SIZE))) {
-		printk(KERN_WARNING "kernel task_size exceed");
+		pr_warn("kernel task_size exceed");
 		_exception(SIGSEGV, regs, code, address);
 	}
 
@@ -113,9 +114,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 
 		/* in_atomic() in user mode is really bad,
 		   as is current->mm == NULL. */
-		printk(KERN_EMERG "Page fault in user mode with "
-		       "in_atomic(), mm = %p\n", mm);
-		printk(KERN_EMERG "r15 = %lx  MSR = %lx\n",
+		pr_emerg("Page fault in user mode with in_atomic(), mm = %p\n",
+									mm);
+		pr_emerg("r15 = %lx  MSR = %lx\n",
 		       regs->r15, regs->msr);
 		die("Weird page fault", regs, SIGSEGV);
 	}
@@ -139,6 +140,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 		if (kernel_mode(regs) && !search_exception_tables(regs->pc))
 			goto bad_area_nosemaphore;
 
+retry:
 		down_read(&mm->mmap_sem);
 	}
 
@@ -211,7 +213,11 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, is_write ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, address, flags);
+
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+		return;
+
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
@@ -219,11 +225,28 @@ good_area:
 			goto do_sigbus;
 		BUG();
 	}
-	if (unlikely(fault & VM_FAULT_MAJOR))
-		current->maj_flt++;
-	else
-		current->min_flt++;
+
+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+		if (unlikely(fault & VM_FAULT_MAJOR))
+			current->maj_flt++;
+		else
+			current->min_flt++;
+		if (fault & VM_FAULT_RETRY) {
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
+
+			/*
+			 * No need to up_read(&mm->mmap_sem) as we would
+			 * have already released it in __lock_page_or_retry
+			 * in mm/filemap.c.
+			 */
+
+			goto retry;
+		}
+	}
+
 	up_read(&mm->mmap_sem);
+
 	/*
 	 * keep track of tlb+htab misses that are good addrs but
 	 * just need pte's created via handle_mm_fault()

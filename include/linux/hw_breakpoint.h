@@ -1,35 +1,8 @@
 #ifndef _LINUX_HW_BREAKPOINT_H
 #define _LINUX_HW_BREAKPOINT_H
 
-enum {
-	HW_BREAKPOINT_LEN_1 = 1,
-	HW_BREAKPOINT_LEN_2 = 2,
-	HW_BREAKPOINT_LEN_4 = 4,
-	HW_BREAKPOINT_LEN_8 = 8,
-};
-
-enum {
-	HW_BREAKPOINT_EMPTY	= 0,
-	HW_BREAKPOINT_R		= 1,
-	HW_BREAKPOINT_W		= 2,
-	HW_BREAKPOINT_RW	= HW_BREAKPOINT_R | HW_BREAKPOINT_W,
-	HW_BREAKPOINT_X		= 4,
-	HW_BREAKPOINT_INVALID   = HW_BREAKPOINT_RW | HW_BREAKPOINT_X,
-};
-
-enum bp_type_idx {
-	TYPE_INST 	= 0,
-#ifdef CONFIG_HAVE_MIXED_BREAKPOINTS_REGS
-	TYPE_DATA	= 0,
-#else
-	TYPE_DATA	= 1,
-#endif
-	TYPE_MAX
-};
-
-#ifdef __KERNEL__
-
 #include <linux/perf_event.h>
+#include <uapi/linux/hw_breakpoint.h>
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
@@ -73,6 +46,7 @@ static inline unsigned long hw_breakpoint_len(struct perf_event *bp)
 extern struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
+			    void *context,
 			    struct task_struct *tsk);
 
 /* FIXME: only change from the attr, and don't unregister */
@@ -85,11 +59,13 @@ modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr);
 extern struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_overflow_handler_t	triggered,
+				void *context,
 				int cpu);
 
 extern struct perf_event * __percpu *
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_overflow_handler_t triggered);
+			    perf_overflow_handler_t triggered,
+			    void *context);
 
 extern int register_perf_hw_breakpoint(struct perf_event *bp);
 extern int __register_perf_hw_breakpoint(struct perf_event *bp);
@@ -115,6 +91,7 @@ static inline int __init init_hw_breakpoint(void) { return 0; }
 static inline struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
+			    void *context,
 			    struct task_struct *tsk)	{ return NULL; }
 static inline int
 modify_user_hw_breakpoint(struct perf_event *bp,
@@ -122,10 +99,12 @@ modify_user_hw_breakpoint(struct perf_event *bp,
 static inline struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_overflow_handler_t	 triggered,
+				void *context,
 				int cpu)		{ return NULL; }
 static inline struct perf_event * __percpu *
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_overflow_handler_t triggered)	{ return NULL; }
+			    perf_overflow_handler_t triggered,
+			    void *context)		{ return NULL; }
 static inline int
 register_perf_hw_breakpoint(struct perf_event *bp)	{ return -ENOSYS; }
 static inline int
@@ -145,6 +124,4 @@ static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
 }
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-#endif /* __KERNEL__ */
-
 #endif /* _LINUX_HW_BREAKPOINT_H */

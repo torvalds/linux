@@ -41,11 +41,11 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/slab.h>
+#include <linux/mfd/menelaus.h>
 
 #include <asm/mach/irq.h>
 
-#include <mach/gpio.h>
-#include <plat/menelaus.h>
+#include <asm/gpio.h>
 
 #define DRIVER_NAME			"menelaus"
 
@@ -1226,7 +1226,7 @@ static int menelaus_probe(struct i2c_client *client,
 	menelaus_write_reg(MENELAUS_MCT_CTRL1, 0x73);
 
 	if (client->irq > 0) {
-		err = request_irq(client->irq, menelaus_irq, IRQF_DISABLED,
+		err = request_irq(client->irq, menelaus_irq, 0,
 				  DRIVER_NAME, menelaus);
 		if (err) {
 			dev_dbg(&client->dev,  "can't get IRQ %d, err %d\n",
@@ -1259,7 +1259,7 @@ static int menelaus_probe(struct i2c_client *client,
 	return 0;
 fail2:
 	free_irq(client->irq, menelaus);
-	flush_work_sync(&menelaus->work);
+	flush_work(&menelaus->work);
 fail1:
 	kfree(menelaus);
 	return err;
@@ -1270,7 +1270,7 @@ static int __exit menelaus_remove(struct i2c_client *client)
 	struct menelaus_chip	*menelaus = i2c_get_clientdata(client);
 
 	free_irq(client->irq, menelaus);
-	flush_work_sync(&menelaus->work);
+	flush_work(&menelaus->work);
 	kfree(menelaus);
 	the_menelaus = NULL;
 	return 0;

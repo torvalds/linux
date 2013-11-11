@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,9 +43,9 @@
 
 /*
  * Parse the AML and build an operation tree as most interpreters,
- * like Perl, do.  Parsing is done by hand rather than with a YACC
+ * like Perl, do. Parsing is done by hand rather than with a YACC
  * generated parser to tightly constrain stack and dynamic memory
- * usage.  At the same time, parsing is kept flexible and the code
+ * usage. At the same time, parsing is kept flexible and the code
  * fairly compact by parsing based on a list of AML opcode
  * templates in aml_op_info[]
  */
@@ -64,7 +64,7 @@ ACPI_MODULE_NAME("psparse")
  *
  * FUNCTION:    acpi_ps_get_opcode_size
  *
- * PARAMETERS:  Opcode          - An AML opcode
+ * PARAMETERS:  opcode          - An AML opcode
  *
  * RETURN:      Size of the opcode, in bytes (1 or 2)
  *
@@ -121,7 +121,7 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
  * FUNCTION:    acpi_ps_complete_this_op
  *
  * PARAMETERS:  walk_state      - Current State
- *              Op              - Op to complete
+ *              op              - Op to complete
  *
  * RETURN:      Status
  *
@@ -311,7 +311,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
  * FUNCTION:    acpi_ps_next_parse_state
  *
  * PARAMETERS:  walk_state          - Current state
- *              Op                  - Current parse op
+ *              op                  - Current parse op
  *              callback_status     - Status from previous operation
  *
  * RETURN:      Status
@@ -379,7 +379,7 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 	case AE_CTRL_FALSE:
 		/*
 		 * Either an IF/WHILE Predicate was false or we encountered a BREAK
-		 * opcode.  In both cases, we do not execute the rest of the
+		 * opcode. In both cases, we do not execute the rest of the
 		 * package;  We simply close out the parent (finishing the walk of
 		 * this branch of the tree) and continue execution at the parent
 		 * level.
@@ -459,8 +459,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			/* Executing a control method - additional cleanup */
 
-			acpi_ds_terminate_control_method(
-				walk_state->method_desc, walk_state);
+			acpi_ds_terminate_control_method(walk_state->
+							 method_desc,
+							 walk_state);
 		}
 
 		acpi_ds_delete_walk_state(walk_state);
@@ -487,7 +488,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 	acpi_gbl_current_walk_list = thread;
 
 	/*
-	 * Execute the walk loop as long as there is a valid Walk State.  This
+	 * Execute the walk loop as long as there is a valid Walk State. This
 	 * handles nested control method invocations without recursion.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "State=%p\n", walk_state));

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,8 +60,8 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  * FUNCTION:    acpi_ds_init_one_object
  *
  * PARAMETERS:  obj_handle      - Node for the object
- *              Level           - Current nesting level
- *              Context         - Points to a init info struct
+ *              level           - Current nesting level
+ *              context         - Points to a init info struct
  *              return_value    - Not used
  *
  * RETURN:      Status

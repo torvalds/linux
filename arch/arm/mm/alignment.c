@@ -22,6 +22,8 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
+#include <asm/cp15.h>
+#include <asm/system_info.h>
 #include <asm/unaligned.h>
 
 #include "fault.h"
@@ -85,6 +87,33 @@ core_param(alignment, ai_usermode, int, 0600);
 #define UM_FIXUP	(1 << 1)
 #define UM_SIGNAL	(1 << 2)
 
+/* Return true if and only if the ARMv6 unaligned access model is in use. */
+static bool cpu_is_v6_unaligned(void)
+{
+	return cpu_architecture() >= CPU_ARCH_ARMv6 && (cr_alignment & CR_U);
+}
+
+static int safe_usermode(int new_usermode, bool warn)
+{
+	/*
+	 * ARMv6 and later CPUs can perform unaligned accesses for
+	 * most single load and store instructions up to word size.
+	 * LDM, STM, LDRD and STRD still need to be handled.
+	 *
+	 * Ignoring the alignment fault is not an option on these
+	 * CPUs since we spin re-faulting the instruction without
+	 * making any progress.
+	 */
+	if (cpu_is_v6_unaligned() && !(new_usermode & (UM_FIXUP | UM_SIGNAL))) {
+		new_usermode |= UM_FIXUP;
+
+		if (warn)
+			printk(KERN_WARNING "alignment: ignoring faults is unsafe on this CPU.  Defaulting to fixup mode.\n");
+	}
+
+	return new_usermode;
+}
+
 #ifdef CONFIG_PROC_FS
 static const char *usermode_action[] = {
 	"ignored",
@@ -125,7 +154,7 @@ static ssize_t alignment_proc_write(struct file *file, const char __user *buffer
 		if (get_user(mode, buffer))
 			return -EFAULT;
 		if (mode >= '0' && mode <= '5')
-			ai_usermode = mode - '0';
+			ai_usermode = safe_usermode(mode - '0', true);
 	}
 	return count;
 }
@@ -670,7 +699,6 @@ do_alignment_t32_to_handler(unsigned long *pinstr, struct pt_regs *regs,
 	unsigned long instr = *pinstr;
 	u16 tinst1 = (instr >> 16) & 0xffff;
 	u16 tinst2 = instr & 0xffff;
-	poffset->un = 0;
 
 	switch (tinst1 & 0xffe0) {
 	/* A6.3.5 Load/Store multiple */
@@ -717,28 +745,29 @@ do_alignment_t32_to_handler(unsigned long *pinstr, struct pt_regs *regs,
 static int
 do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
-	union offset_union offset;
+	union offset_union uninitialized_var(offset);
 	unsigned long instr = 0, instrptr;
 	int (*handler)(unsigned long addr, unsigned long instr, struct pt_regs *regs);
 	unsigned int type;
-	mm_segment_t fs;
 	unsigned int fault;
 	u16 tinstr = 0;
 	int isize = 4;
 	int thumb2_32b = 0;
 
+	if (interrupts_enabled(regs))
+		local_irq_enable();
+
 	instrptr = instruction_pointer(regs);
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	if (thumb_mode(regs)) {
-		fault = __get_user(tinstr, (u16 *)(instrptr & ~1));
+		u16 *ptr = (u16 *)(instrptr & ~1);
+		fault = probe_kernel_address(ptr, tinstr);
 		if (!fault) {
 			if (cpu_architecture() >= CPU_ARCH_ARMv7 &&
 			    IS_T32(tinstr)) {
 				/* Thumb-2 32-bit */
 				u16 tinst2 = 0;
-				fault = __get_user(tinst2, (u16 *)(instrptr+2));
+				fault = probe_kernel_address(ptr + 1, tinst2);
 				instr = (tinstr << 16) | tinst2;
 				thumb2_32b = 1;
 			} else {
@@ -747,8 +776,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 			}
 		}
 	} else
-		fault = __get_user(instr, (u32 *)instrptr);
-	set_fs(fs);
+		fault = probe_kernel_address(instrptr, instr);
 
 	if (fault) {
 		type = TYPE_FAULT;
@@ -822,10 +850,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		break;
 
 	case 0x08000000:	/* ldm or stm, or thumb-2 32bit instruction */
-		if (thumb2_32b)
+		if (thumb2_32b) {
+			offset.un = 0;
 			handler = do_alignment_t32_to_handler(&instr, regs, &offset);
-		else
+		} else {
+			offset.un = 0;
 			handler = do_alignment_ldmstm;
+		}
 		break;
 
 	default:
@@ -883,9 +914,16 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (ai_usermode & UM_FIXUP)
 		goto fixup;
 
-	if (ai_usermode & UM_SIGNAL)
-		force_sig(SIGBUS, current);
-	else {
+	if (ai_usermode & UM_SIGNAL) {
+		siginfo_t si;
+
+		si.si_signo = SIGBUS;
+		si.si_errno = 0;
+		si.si_code = BUS_ADRALN;
+		si.si_addr = (void __user *)addr;
+
+		force_sig_info(si.si_signo, &si, current);
+	} else {
 		/*
 		 * We're about to disable the alignment trap and return to
 		 * user space.  But if an interrupt occurs before actually
@@ -923,23 +961,16 @@ static int __init alignment_init(void)
 		return -ENOMEM;
 #endif
 
-	/*
-	 * ARMv6 and later CPUs can perform unaligned accesses for
-	 * most single load and store instructions up to word size.
-	 * LDM, STM, LDRD and STRD still need to be handled.
-	 *
-	 * Ignoring the alignment fault is not an option on these
-	 * CPUs since we spin re-faulting the instruction without
-	 * making any progress.
-	 */
-	if (cpu_architecture() >= CPU_ARCH_ARMv6 && (cr_alignment & CR_U)) {
+#ifdef CONFIG_CPU_CP15
+	if (cpu_is_v6_unaligned()) {
 		cr_alignment &= ~CR_A;
 		cr_no_alignment &= ~CR_A;
 		set_cr(cr_alignment);
-		ai_usermode = UM_FIXUP;
+		ai_usermode = safe_usermode(ai_usermode, false);
 	}
+#endif
 
-	hook_fault_code(1, do_alignment, SIGBUS, BUS_ADRALN,
+	hook_fault_code(FAULT_CODE_ALIGNMENT, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");
 
 	/*

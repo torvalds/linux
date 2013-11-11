@@ -1,0 +1,22 @@
+* Freescale (Enhanced) Configurable Serial Peripheral Interface
+  (CSPI/eCSPI) for i.MX
+
+Required properties:
+- compatible : Should be "fsl,<soc>-cspi" or "fsl,<soc>-ecspi"
+- reg : Offset and length of the register set for the device
+- interrupts : Should contain CSPI/eCSPI interrupt
+- fsl,spi-num-chipselects : Contains the number of the chipselect
+- cs-gpios : Specifies the gpio pins to be used for chipselects.
+
+Example:
+
+ecspi@70010000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx51-ecspi";
+	reg = <0x70010000 0x4000>;
+	interrupts = <36>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio3 24 0>, /* GPIO3_24 */
+		   <&gpio3 25 0>; /* GPIO3_25 */
+};

@@ -59,9 +59,19 @@
 #include <linux/firmware.h>
 #include <linux/efi.h>
 #include <asm/string.h>
+#include <scsi/scsi_host.h>
+#include "host.h"
 #include "isci.h"
 #include "task.h"
 #include "probe_roms.h"
+
+#define MAJ 1
+#define MIN 1
+#define BUILD 0
+#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
+	__stringify(BUILD)
+
+MODULE_VERSION(DRV_VERSION);
 
 static struct scsi_transport_template *isci_transport_template;
 
@@ -85,7 +95,7 @@ MODULE_DEVICE_TABLE(pci, isci_id_table);
 
 /* linux isci specific settings */
 
-unsigned char no_outbound_task_to = 20;
+unsigned char no_outbound_task_to = 2;
 module_param(no_outbound_task_to, byte, 0);
 MODULE_PARM_DESC(no_outbound_task_to, "No Outbound Task Timeout (1us incr)");
 
@@ -105,13 +115,37 @@ u16 stp_inactive_to = 5;
 module_param(stp_inactive_to, ushort, 0);
 MODULE_PARM_DESC(stp_inactive_to, "STP inactivity timeout (100us incr)");
 
-unsigned char phy_gen = 3;
+unsigned char phy_gen = SCIC_SDS_PARM_GEN2_SPEED;
 module_param(phy_gen, byte, 0);
 MODULE_PARM_DESC(phy_gen, "PHY generation (1: 1.5Gbps 2: 3.0Gbps 3: 6.0Gbps)");
 
-unsigned char max_concurr_spinup = 1;
+unsigned char max_concurr_spinup;
 module_param(max_concurr_spinup, byte, 0);
 MODULE_PARM_DESC(max_concurr_spinup, "Max concurrent device spinup");
+
+uint cable_selection_override = CABLE_OVERRIDE_DISABLED;
+module_param(cable_selection_override, uint, 0);
+
+MODULE_PARM_DESC(cable_selection_override,
+		 "This field indicates length of the SAS/SATA cable between "
+		 "host and device. If any bits > 15 are set (default) "
+		 "indicates \"use platform defaults\"");
+
+static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = container_of(dev, typeof(*shost), shost_dev);
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+	struct isci_host *ihost = container_of(sas_ha, typeof(*ihost), sas_ha);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ihost->id);
+}
+
+static DEVICE_ATTR(isci_id, S_IRUGO, isci_show_id, NULL);
+
+struct device_attribute *isci_host_attrs[] = {
+	&dev_attr_isci_id,
+	NULL
+};
 
 static struct scsi_host_template isci_sht = {
 
@@ -121,9 +155,8 @@ static struct scsi_host_template isci_sht = {
 	.queuecommand			= sas_queuecommand,
 	.target_alloc			= sas_target_alloc,
 	.slave_configure		= sas_slave_configure,
-	.slave_destroy			= sas_slave_destroy,
 	.scan_finished			= isci_host_scan_finished,
-	.scan_start			= isci_host_scan_start,
+	.scan_start			= isci_host_start,
 	.change_queue_depth		= sas_change_queue_depth,
 	.change_queue_type		= sas_change_queue_type,
 	.bios_param			= sas_bios_param,
@@ -133,11 +166,12 @@ static struct scsi_host_template isci_sht = {
 	.sg_tablesize			= SG_ALL,
 	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
 	.use_clustering			= ENABLE_CLUSTERING,
-	.eh_device_reset_handler	= sas_eh_device_reset_handler,
-	.eh_bus_reset_handler		= isci_bus_reset_handler,
-	.slave_alloc			= sas_slave_alloc,
+	.eh_abort_handler		= sas_eh_abort_handler,
+	.eh_device_reset_handler        = sas_eh_device_reset_handler,
+	.eh_bus_reset_handler           = sas_eh_bus_reset_handler,
 	.target_destroy			= sas_target_destroy,
 	.ioctl				= sas_ioctl,
+	.shost_attrs			= isci_host_attrs,
 };
 
 static struct sas_domain_function_template isci_transport_ops  = {
@@ -160,12 +194,18 @@ static struct sas_domain_function_template isci_transport_ops  = {
 	.lldd_lu_reset		= isci_task_lu_reset,
 	.lldd_query_task	= isci_task_query_task,
 
+	/* ata recovery called from ata-eh */
+	.lldd_ata_check_ready	= isci_ata_check_ready,
+
 	/* Port and Adapter management */
 	.lldd_clear_nexus_port	= isci_task_clear_nexus_port,
 	.lldd_clear_nexus_ha	= isci_task_clear_nexus_ha,
 
 	/* Phy management */
 	.lldd_control_phy	= isci_phy_control,
+
+	/* GPIO support */
+	.lldd_write_gpio	= isci_gpio_write,
 };
 
 
@@ -182,7 +222,7 @@ static struct sas_domain_function_template isci_transport_ops  = {
  * @isci_host: This parameter specifies the lldd specific wrapper for the
  *    libsas sas_ha struct.
  *
- * This method returns an error code indicating sucess or failure. The user
+ * This method returns an error code indicating success or failure. The user
  * should check for possible memory allocation error return otherwise, a zero
  * indicates success.
  */
@@ -205,18 +245,13 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	if (!sas_ports)
 		return -ENOMEM;
 
-	/*----------------- Libsas Initialization Stuff----------------------
-	 * Set various fields in the sas_ha struct:
-	 */
-
 	sas_ha->sas_ha_name = DRV_NAME;
 	sas_ha->lldd_module = THIS_MODULE;
 	sas_ha->sas_addr    = &isci_host->phys[0].sas_addr[0];
 
-	/* set the array of phy and port structs.  */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		sas_phys[i] = &isci_host->phys[i].sas_phy;
-		sas_ports[i] = &isci_host->ports[i].sas_port;
+		sas_ports[i] = &isci_host->sas_ports[i];
 	}
 
 	sas_ha->sas_phy  = sas_phys;
@@ -232,17 +267,6 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	return 0;
 }
 
-static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host *shost = container_of(dev, typeof(*shost), shost_dev);
-	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
-	struct isci_host *ihost = container_of(sas_ha, typeof(*ihost), sas_ha);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ihost->id);
-}
-
-static DEVICE_ATTR(isci_id, S_IRUGO, isci_show_id, NULL);
-
 static void isci_unregister(struct isci_host *isci_host)
 {
 	struct Scsi_Host *shost;
@@ -250,17 +274,15 @@ static void isci_unregister(struct isci_host *isci_host)
 	if (!isci_host)
 		return;
 
-	shost = isci_host->shost;
-	device_remove_file(&shost->shost_dev, &dev_attr_isci_id);
-
 	sas_unregister_ha(&isci_host->sas_ha);
 
-	sas_remove_host(isci_host->shost);
-	scsi_remove_host(isci_host->shost);
-	scsi_host_put(isci_host->shost);
+	shost = to_shost(isci_host);
+	sas_remove_host(shost);
+	scsi_remove_host(shost);
+	scsi_host_put(shost);
 }
 
-static int __devinit isci_pci_init(struct pci_dev *pdev)
+static int isci_pci_init(struct pci_dev *pdev)
 {
 	int err, bar_num, bar_mask = 0;
 	void __iomem * const *iomap;
@@ -377,30 +399,199 @@ static int isci_setup_interrupts(struct pci_dev *pdev)
 	return err;
 }
 
+static void isci_user_parameters_get(struct sci_user_parameters *u)
+{
+	int i;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct sci_phy_user_params *u_phy = &u->phys[i];
+
+		u_phy->max_speed_generation = phy_gen;
+
+		/* we are not exporting these for now */
+		u_phy->align_insertion_frequency = 0x7f;
+		u_phy->in_connection_align_insertion_frequency = 0xff;
+		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
+	}
+
+	u->stp_inactivity_timeout = stp_inactive_to;
+	u->ssp_inactivity_timeout = ssp_inactive_to;
+	u->stp_max_occupancy_timeout = stp_max_occ_to;
+	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
+	u->no_outbound_task_timeout = no_outbound_task_to;
+	u->max_concurr_spinup = max_concurr_spinup;
+}
+
+static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
+					       struct sci_user_parameters *sci_parms)
+{
+	u16 index;
+
+	/*
+	 * Validate the user parameters.  If they are not legal, then
+	 * return a failure.
+	 */
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		struct sci_phy_user_params *u;
+
+		u = &sci_parms->phys[index];
+
+		if (!((u->max_speed_generation <= SCIC_SDS_PARM_MAX_SPEED) &&
+		      (u->max_speed_generation > SCIC_SDS_PARM_NO_SPEED)))
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+		if (u->in_connection_align_insertion_frequency < 3)
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+		if ((u->in_connection_align_insertion_frequency < 3) ||
+		    (u->align_insertion_frequency == 0) ||
+		    (u->notify_enable_spin_up_insertion_frequency == 0))
+			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	}
+
+	if ((sci_parms->stp_inactivity_timeout == 0) ||
+	    (sci_parms->ssp_inactivity_timeout == 0) ||
+	    (sci_parms->stp_max_occupancy_timeout == 0) ||
+	    (sci_parms->ssp_max_occupancy_timeout == 0) ||
+	    (sci_parms->no_outbound_task_timeout == 0))
+		return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
+	memcpy(&ihost->user_parameters, sci_parms, sizeof(*sci_parms));
+
+	return SCI_SUCCESS;
+}
+
+static void sci_oem_defaults(struct isci_host *ihost)
+{
+	/* these defaults are overridden by the platform / firmware */
+	struct sci_user_parameters *user = &ihost->user_parameters;
+	struct sci_oem_params *oem = &ihost->oem_parameters;
+	int i;
+
+	/* Default to APC mode. */
+	oem->controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
+
+	/* Default to APC mode. */
+	oem->controller.max_concurr_spin_up = 1;
+
+	/* Default to no SSC operation. */
+	oem->controller.do_enable_ssc = false;
+
+	/* Default to short cables on all phys. */
+	oem->controller.cable_selection_mask = 0;
+
+	/* Initialize all of the port parameter information to narrow ports. */
+	for (i = 0; i < SCI_MAX_PORTS; i++)
+		oem->ports[i].phy_mask = 0;
+
+	/* Initialize all of the phy parameter information. */
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		/* Default to 3G (i.e. Gen 2). */
+		user->phys[i].max_speed_generation = SCIC_SDS_PARM_GEN2_SPEED;
+
+		/* the frequencies cannot be 0 */
+		user->phys[i].align_insertion_frequency = 0x7f;
+		user->phys[i].in_connection_align_insertion_frequency = 0xff;
+		user->phys[i].notify_enable_spin_up_insertion_frequency = 0x33;
+
+		/* Previous Vitesse based expanders had a arbitration issue that
+		 * is worked around by having the upper 32-bits of SAS address
+		 * with a value greater then the Vitesse company identifier.
+		 * Hence, usage of 0x5FCFFFFF.
+		 */
+		oem->phys[i].sas_address.low = 0x1 + ihost->id;
+		oem->phys[i].sas_address.high = 0x5FCFFFFF;
+	}
+
+	user->stp_inactivity_timeout = 5;
+	user->ssp_inactivity_timeout = 5;
+	user->stp_max_occupancy_timeout = 5;
+	user->ssp_max_occupancy_timeout = 20;
+	user->no_outbound_task_timeout = 2;
+}
+
 static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 {
-	struct isci_host *isci_host;
+	struct isci_orom *orom = to_pci_info(pdev)->orom;
+	struct sci_user_parameters sci_user_params;
+	u8 oem_version = ISCI_ROM_VER_1_0;
+	struct isci_host *ihost;
 	struct Scsi_Host *shost;
-	int err;
+	int err, i;
 
-	isci_host = devm_kzalloc(&pdev->dev, sizeof(*isci_host), GFP_KERNEL);
-	if (!isci_host)
+	ihost = devm_kzalloc(&pdev->dev, sizeof(*ihost), GFP_KERNEL);
+	if (!ihost)
 		return NULL;
 
-	isci_host->pdev = pdev;
-	isci_host->id = id;
+	ihost->pdev = pdev;
+	ihost->id = id;
+	spin_lock_init(&ihost->scic_lock);
+	init_waitqueue_head(&ihost->eventq);
+	ihost->sas_ha.dev = &ihost->pdev->dev;
+	ihost->sas_ha.lldd_ha = ihost;
+	tasklet_init(&ihost->completion_tasklet,
+		     isci_host_completion_routine, (unsigned long)ihost);
+
+	/* validate module parameters */
+	/* TODO: kill struct sci_user_parameters and reference directly */
+	sci_oem_defaults(ihost);
+	isci_user_parameters_get(&sci_user_params);
+	if (sci_user_parameters_set(ihost, &sci_user_params)) {
+		dev_warn(&pdev->dev,
+			 "%s: sci_user_parameters_set failed\n", __func__);
+		return NULL;
+	}
+
+	/* sanity check platform (or 'firmware') oem parameters */
+	if (orom) {
+		if (id < 0 || id >= SCI_MAX_CONTROLLERS || id > orom->hdr.num_elements) {
+			dev_warn(&pdev->dev, "parsing firmware oem parameters failed\n");
+			return NULL;
+		}
+		ihost->oem_parameters = orom->ctrl[id];
+		oem_version = orom->hdr.version;
+	}
+
+	/* validate oem parameters (platform, firmware, or built-in defaults) */
+	if (sci_oem_parameters_validate(&ihost->oem_parameters, oem_version)) {
+		dev_warn(&pdev->dev, "oem parameter validation failed\n");
+		return NULL;
+	}
+
+	for (i = 0; i < SCI_MAX_PORTS; i++) {
+		struct isci_port *iport = &ihost->ports[i];
+
+		INIT_LIST_HEAD(&iport->remote_dev_list);
+		iport->isci_host = ihost;
+	}
+
+	for (i = 0; i < SCI_MAX_PHYS; i++)
+		isci_phy_init(&ihost->phys[i], ihost, i);
+
+	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
+		struct isci_remote_device *idev = &ihost->devices[i];
+
+		INIT_LIST_HEAD(&idev->node);
+	}
 
 	shost = scsi_host_alloc(&isci_sht, sizeof(void *));
 	if (!shost)
 		return NULL;
-	isci_host->shost = shost;
 
-	err = isci_host_init(isci_host);
+	dev_info(&pdev->dev, "%sSCU controller %d: phy 3-0 cables: "
+		 "{%s, %s, %s, %s}\n",
+		 (is_cable_select_overridden() ? "* " : ""), ihost->id,
+		 lookup_cable_names(decode_cable_selection(ihost, 3)),
+		 lookup_cable_names(decode_cable_selection(ihost, 2)),
+		 lookup_cable_names(decode_cable_selection(ihost, 1)),
+		 lookup_cable_names(decode_cable_selection(ihost, 0)));
+
+	err = isci_host_init(ihost);
 	if (err)
 		goto err_shost;
 
-	SHOST_TO_SAS_HA(shost) = &isci_host->sas_ha;
-	isci_host->sas_ha.core.shost = shost;
+	SHOST_TO_SAS_HA(shost) = &ihost->sas_ha;
+	ihost->sas_ha.core.shost = shost;
 	shost->transportt = isci_transport_template;
 
 	shost->max_id = ~0;
@@ -411,18 +602,12 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	if (err)
 		goto err_shost;
 
-	err = isci_register_sas_ha(isci_host);
+	err = isci_register_sas_ha(ihost);
 	if (err)
 		goto err_shost_remove;
 
-	err = device_create_file(&shost->shost_dev, &dev_attr_isci_id);
-	if (err)
-		goto err_unregister_ha;
+	return ihost;
 
-	return isci_host;
-
- err_unregister_ha:
-	sas_unregister_ha(&(isci_host->sas_ha));
  err_shost_remove:
 	scsi_remove_host(shost);
  err_shost:
@@ -431,7 +616,7 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	return NULL;
 }
 
-static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
 	int err, i;
@@ -448,17 +633,17 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	if (efi_enabled)
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		orom = isci_get_efi_var(pdev);
 
 	if (!orom)
 		orom = isci_request_oprom(pdev);
 
-	for (i = 0; orom && i < ARRAY_SIZE(orom->ctrl); i++) {
-		if (sci_oem_parameters_validate(&orom->ctrl[i])) {
+	for (i = 0; orom && i < num_controllers(pdev); i++) {
+		if (sci_oem_parameters_validate(&orom->ctrl[i],
+						orom->hdr.version)) {
 			dev_warn(&pdev->dev,
 				 "[%d]: invalid oem parameters detected, falling back to firmware\n", i);
-			devm_kfree(&pdev->dev, orom);
 			orom = NULL;
 			break;
 		}
@@ -500,6 +685,13 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 			goto err_host_alloc;
 		}
 		pci_info->hosts[i] = h;
+
+		/* turn on DIF support */
+		scsi_host_set_prot(to_shost(h),
+				   SHOST_DIF_TYPE1_PROTECTION |
+				   SHOST_DIF_TYPE2_PROTECTION |
+				   SHOST_DIF_TYPE3_PROTECTION);
+		scsi_host_set_guard(to_shost(h), SHOST_DIX_GUARD_CRC);
 	}
 
 	err = isci_setup_interrupts(pdev);
@@ -507,7 +699,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		goto err_host_alloc;
 
 	for_each_isci_host(i, isci_host, pdev)
-		scsi_scan_host(isci_host->shost);
+		scsi_scan_host(to_shost(isci_host));
 
 	return 0;
 
@@ -517,30 +709,85 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	return err;
 }
 
-static void __devexit isci_pci_remove(struct pci_dev *pdev)
+static void isci_pci_remove(struct pci_dev *pdev)
 {
 	struct isci_host *ihost;
 	int i;
 
 	for_each_isci_host(i, ihost, pdev) {
+		wait_for_start(ihost);
 		isci_unregister(ihost);
 		isci_host_deinit(ihost);
-		sci_controller_disable_interrupts(ihost);
 	}
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int isci_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct isci_host *ihost;
+	int i;
+
+	for_each_isci_host(i, ihost, pdev) {
+		sas_suspend_ha(&ihost->sas_ha);
+		isci_host_deinit(ihost);
+	}
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+
+static int isci_resume(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct isci_host *ihost;
+	int rc, i;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	rc = pcim_enable_device(pdev);
+	if (rc) {
+		dev_err(&pdev->dev,
+			"enabling device failure after resume(%d)\n", rc);
+		return rc;
+	}
+
+	pci_set_master(pdev);
+
+	for_each_isci_host(i, ihost, pdev) {
+		sas_prep_resume_ha(&ihost->sas_ha);
+
+		isci_host_init(ihost);
+		isci_host_start(ihost->sas_ha.core.shost);
+		wait_for_start(ihost);
+
+		sas_resume_ha(&ihost->sas_ha);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(isci_pm_ops, isci_suspend, isci_resume);
 
 static struct pci_driver isci_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= isci_id_table,
 	.probe		= isci_pci_probe,
-	.remove		= __devexit_p(isci_pci_remove),
+	.remove		= isci_pci_remove,
+	.driver.pm      = &isci_pm_ops,
 };
 
 static __init int isci_init(void)
 {
 	int err;
 
-	pr_info("%s: Intel(R) C600 SAS Controller Driver\n", DRV_NAME);
+	pr_info("%s: Intel(R) C600 SAS Controller Driver - version %s\n",
+		DRV_NAME, DRV_VERSION);
 
 	isci_transport_template = sas_domain_attach_transport(&isci_transport_ops);
 	if (!isci_transport_template)

@@ -31,8 +31,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
-
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
@@ -103,7 +101,6 @@ struct pxa3xx_gcu_priv {
 	dma_addr_t		  shared_phys;
 	struct resource		 *resource_mem;
 	struct miscdevice	  misc_dev;
-	struct file_operations	  misc_fops;
 	wait_queue_head_t	  wait_idle;
 	wait_queue_head_t	  wait_free;
 	spinlock_t		  spinlock;
@@ -318,11 +315,8 @@ pxa3xx_gcu_wait_idle(struct pxa3xx_gcu_priv *priv)
 		ret = wait_event_interruptible_timeout(priv->wait_idle,
 					!priv->shared->hw_running, HZ*4);
 
-		if (ret < 0)
+		if (ret != 0)
 			break;
-
-		if (ret > 0)
-			continue;
 
 		if (gc_readl(priv, REG_GCRBEXHR) == rbexhr &&
 		    priv->shared->num_interrupts == num) {
@@ -374,15 +368,20 @@ pxa3xx_gcu_wait_free(struct pxa3xx_gcu_priv *priv)
 
 /* Misc device layer */
 
+static inline struct pxa3xx_gcu_priv *file_dev(struct file *file)
+{
+	struct miscdevice *dev = file->private_data;
+	return container_of(dev, struct pxa3xx_gcu_priv, misc_dev);
+}
+
 static ssize_t
-pxa3xx_gcu_misc_write(struct file *filp, const char *buff,
+pxa3xx_gcu_misc_write(struct file *file, const char *buff,
 		      size_t count, loff_t *offp)
 {
 	int ret;
 	unsigned long flags;
 	struct pxa3xx_gcu_batch	*buffer;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	int words = count / 4;
 
@@ -455,11 +454,10 @@ pxa3xx_gcu_misc_write(struct file *filp, const char *buff,
 
 
 static long
-pxa3xx_gcu_misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+pxa3xx_gcu_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	switch (cmd) {
 	case PXA3XX_GCU_IOCTL_RESET:
@@ -476,11 +474,10 @@ pxa3xx_gcu_misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 static int
-pxa3xx_gcu_misc_mmap(struct file *filp, struct vm_area_struct *vma)
+pxa3xx_gcu_misc_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned int size = vma->vm_end - vma->vm_start;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	switch (vma->vm_pgoff) {
 	case 0:
@@ -579,8 +576,14 @@ free_buffers(struct platform_device *dev,
 	priv->free = NULL;
 }
 
-static int __devinit
-pxa3xx_gcu_probe(struct platform_device *dev)
+static const struct file_operations misc_fops = {
+	.owner	= THIS_MODULE,
+	.write	= pxa3xx_gcu_misc_write,
+	.unlocked_ioctl = pxa3xx_gcu_misc_ioctl,
+	.mmap	= pxa3xx_gcu_misc_mmap
+};
+
+static int pxa3xx_gcu_probe(struct platform_device *dev)
 {
 	int i, ret, irq;
 	struct resource *r;
@@ -607,14 +610,9 @@ pxa3xx_gcu_probe(struct platform_device *dev)
 	 * container_of(). This isn't really necessary as we have a fixed minor
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_fops.owner	= THIS_MODULE;
-	priv->misc_fops.write	= pxa3xx_gcu_misc_write;
-	priv->misc_fops.unlocked_ioctl = pxa3xx_gcu_misc_ioctl;
-	priv->misc_fops.mmap	= pxa3xx_gcu_misc_mmap;
-
 	priv->misc_dev.minor	= MISCDEV_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
-	priv->misc_dev.fops	= &priv->misc_fops,
+	priv->misc_dev.fops	= &misc_fops,
 
 	/* register misc device */
 	ret = misc_register(&priv->misc_dev);
@@ -678,7 +676,7 @@ pxa3xx_gcu_probe(struct platform_device *dev)
 	}
 
 	ret = request_irq(irq, pxa3xx_gcu_handle_irq,
-			  IRQF_DISABLED, DRV_NAME, priv);
+			  0, DRV_NAME, priv);
 	if (ret) {
 		dev_err(&dev->dev, "request_irq failed\n");
 		ret = -EBUSY;
@@ -719,8 +717,7 @@ err_free_priv:
 	return ret;
 }
 
-static int __devexit
-pxa3xx_gcu_remove(struct platform_device *dev)
+static int pxa3xx_gcu_remove(struct platform_device *dev)
 {
 	struct pxa3xx_gcu_priv *priv = platform_get_drvdata(dev);
 	struct resource *r = priv->resource_mem;
@@ -742,27 +739,14 @@ pxa3xx_gcu_remove(struct platform_device *dev)
 
 static struct platform_driver pxa3xx_gcu_driver = {
 	.probe	  = pxa3xx_gcu_probe,
-	.remove	 = __devexit_p(pxa3xx_gcu_remove),
+	.remove	 = pxa3xx_gcu_remove,
 	.driver	 = {
 		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,
 	},
 };
 
-static int __init
-pxa3xx_gcu_init(void)
-{
-	return platform_driver_register(&pxa3xx_gcu_driver);
-}
-
-static void __exit
-pxa3xx_gcu_exit(void)
-{
-	platform_driver_unregister(&pxa3xx_gcu_driver);
-}
-
-module_init(pxa3xx_gcu_init);
-module_exit(pxa3xx_gcu_exit);
+module_platform_driver(pxa3xx_gcu_driver);
 
 MODULE_DESCRIPTION("PXA3xx graphics controller unit driver");
 MODULE_LICENSE("GPL");

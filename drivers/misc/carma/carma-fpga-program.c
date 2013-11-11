@@ -513,7 +513,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 	 * transaction, and then put it under external control
 	 */
 	memset(&config, 0, sizeof(config));
-	config.direction = DMA_TO_DEVICE;
+	config.direction = DMA_MEM_TO_DEV;
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	config.dst_maxburst = fpga_fifo_size(priv->regs) / 2 / 4;
 	ret = chan->device->device_control(chan, DMA_SLAVE_CONFIG,
@@ -546,7 +546,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 		goto out_dma_unmap;
 	}
 
-	dma_async_memcpy_issue_pending(chan);
+	dma_async_issue_pending(chan);
 
 	/* Set the total byte count */
 	fpga_set_byte_count(priv->regs, priv->bytes);
@@ -945,8 +945,7 @@ static int fpga_of_remove(struct platform_device *op)
 /* CTL-CPLD Version Register */
 #define CTL_CPLD_VERSION	0x2000
 
-static int fpga_of_probe(struct platform_device *op,
-			 const struct of_device_id *match)
+static int fpga_of_probe(struct platform_device *op)
 {
 	struct device_node *of_node = op->dev.of_node;
 	struct device *this_device;
@@ -979,7 +978,6 @@ static int fpga_of_probe(struct platform_device *op,
 	dev_set_drvdata(priv->dev, priv);
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
-	dma_cap_set(DMA_INTERRUPT, mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_SG, mask);
 
@@ -1107,7 +1105,7 @@ static struct of_device_id fpga_of_match[] = {
 	{},
 };
 
-static struct of_platform_driver fpga_of_driver = {
+static struct platform_driver fpga_of_driver = {
 	.probe		= fpga_of_probe,
 	.remove		= fpga_of_remove,
 	.driver		= {
@@ -1124,12 +1122,12 @@ static struct of_platform_driver fpga_of_driver = {
 static int __init fpga_init(void)
 {
 	led_trigger_register_simple("fpga", &ledtrig_fpga);
-	return of_register_platform_driver(&fpga_of_driver);
+	return platform_driver_register(&fpga_of_driver);
 }
 
 static void __exit fpga_exit(void)
 {
-	of_unregister_platform_driver(&fpga_of_driver);
+	platform_driver_unregister(&fpga_of_driver);
 	led_trigger_unregister_simple(ledtrig_fpga);
 }
 

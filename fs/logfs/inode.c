@@ -33,7 +33,7 @@
  * are being written out - and waiting for GC to make progress, naturally.
  *
  * So we cannot just call iget() or some variant of it, but first have to check
- * wether the inode in question might be in I_FREEING state.  Therefore we
+ * whether the inode in question might be in I_FREEING state.  Therefore we
  * maintain our own per-sb list of "almost deleted" inodes and check against
  * that list first.  Normally this should be at most 1-2 entries long.
  *
@@ -93,7 +93,7 @@ static struct inode *__logfs_iget(struct super_block *sb, ino_t ino)
 		/* inode->i_nlink == 0 can be true when called from
 		 * block validator */
 		/* set i_nlink to 0 to prevent caching */
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		logfs_inode(inode)->li_flags |= LOGFS_IF_ZOMBIE;
 		iget_failed(inode);
 		if (!err)
@@ -144,7 +144,6 @@ struct inode *logfs_safe_iget(struct super_block *sb, ino_t ino, int *is_cached)
 static void logfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(logfs_inode_cache, logfs_inode(inode));
 }
 
@@ -157,9 +156,25 @@ static void __logfs_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, logfs_i_callback);
 }
 
+static void __logfs_destroy_meta_inode(struct inode *inode)
+{
+	struct logfs_inode *li = logfs_inode(inode);
+	BUG_ON(li->li_block);
+	call_rcu(&inode->i_rcu, logfs_i_callback);
+}
+
 static void logfs_destroy_inode(struct inode *inode)
 {
 	struct logfs_inode *li = logfs_inode(inode);
+
+	if (inode->i_ino < LOGFS_RESERVED_INOS) {
+		/*
+		 * The reserved inodes are never destroyed unless we are in
+		 * unmont path.
+		 */
+		__logfs_destroy_meta_inode(inode);
+		return;
+	}
 
 	BUG_ON(list_empty(&li->li_freeing_list));
 	spin_lock(&logfs_inode_lock);
@@ -193,13 +208,12 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	li->li_height	= 0;
 	li->li_used_bytes = 0;
 	li->li_block	= NULL;
-	inode->i_uid	= 0;
-	inode->i_gid	= 0;
+	i_uid_write(inode, 0);
+	i_gid_write(inode, 0);
 	inode->i_size	= 0;
 	inode->i_blocks	= 0;
 	inode->i_ctime	= CURRENT_TIME;
 	inode->i_mtime	= CURRENT_TIME;
-	inode->i_nlink	= 1;
 	li->li_refcount = 1;
 	INIT_LIST_HEAD(&li->li_freeing_list);
 
@@ -288,7 +302,7 @@ static int logfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (logfs_inode(inode)->li_flags & LOGFS_IF_STILLBORN)
 		return 0;
 
-	ret = __logfs_write_inode(inode, flags);
+	ret = __logfs_write_inode(inode, NULL, flags);
 	LOGFS_BUG_ON(ret, inode->i_sb);
 	return ret;
 }
@@ -325,7 +339,7 @@ static void logfs_set_ino_generation(struct super_block *sb,
 	mutex_unlock(&super->s_journal_mutex);
 }
 
-struct inode *logfs_new_inode(struct inode *dir, int mode)
+struct inode *logfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
@@ -365,7 +379,9 @@ static void logfs_init_once(void *_li)
 
 static int logfs_sync_fs(struct super_block *sb, int wait)
 {
+	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
+	logfs_put_wblocks(sb, NULL, WF_LOCK);
 	return 0;
 }
 
@@ -373,8 +389,8 @@ static void logfs_put_super(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 	/* kill the meta-inodes */
-	iput(super->s_master_inode);
 	iput(super->s_segfile_inode);
+	iput(super->s_master_inode);
 	iput(super->s_mapping_inode);
 }
 
@@ -401,5 +417,10 @@ int logfs_init_inode_cache(void)
 
 void logfs_destroy_inode_cache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(logfs_inode_cache);
 }

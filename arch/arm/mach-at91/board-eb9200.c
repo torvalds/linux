@@ -20,6 +20,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -34,44 +35,26 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/gpio.h>
-
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 
 static void __init eb9200_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
-			| ATMEL_UART_RI);
-
-	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
-	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
+	at91_initialize(18432000);
 }
 
-static void __init eb9200_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
-static struct at91_eth_data __initdata eb9200_eth_data = {
+static struct macb_platform_data __initdata eb9200_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
 };
 
 static struct at91_usbh_data __initdata eb9200_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata eb9200_udc_data = {
@@ -80,15 +63,18 @@ static struct at91_udc_data __initdata eb9200_udc_data = {
 };
 
 static struct at91_cf_data __initdata eb9200_cf_data = {
+	.irq_pin	= -EINVAL,
 	.det_pin	= AT91_PIN_PB0,
+	.vcc_pin	= -EINVAL,
 	.rst_pin	= AT91_PIN_PC5,
-	// .irq_pin	= ... not connected
-	// .vcc_pin	= ... always powered
 };
 
-static struct at91_mmc_data __initdata eb9200_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
+static struct mci_platform_data __initdata eb9200_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static struct i2c_board_info __initdata eb9200_i2c_devices[] = {
@@ -101,6 +87,16 @@ static struct i2c_board_info __initdata eb9200_i2c_devices[] = {
 static void __init eb9200_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			| ATMEL_UART_RI);
+
+	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
+	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&eb9200_eth_data);
@@ -116,13 +112,14 @@ static void __init eb9200_board_init(void)
 	at91_add_device_spi(NULL, 0);
 	/* MMC */
 	/* only supports 1 or 4 bit interface, not wired through to SPI */
-	at91_add_device_mmc(0, &eb9200_mmc_data);
+	at91_add_device_mci(0, &eb9200_mci0_data);
 }
 
 MACHINE_START(ATEB9200, "Embest ATEB9200")
-	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.init_time	= at91rm9200_timer_init,
+	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= eb9200_init_early,
-	.init_irq	= eb9200_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= eb9200_board_init,
 MACHINE_END

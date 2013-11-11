@@ -296,8 +296,7 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	struct ceph_snap_realm *parent = realm->parent;
 	struct ceph_snap_context *snapc;
 	int err = 0;
-	int i;
-	int num = realm->num_prior_parent_snaps + realm->num_snaps;
+	u32 num = realm->num_prior_parent_snaps + realm->num_snaps;
 
 	/*
 	 * build parent context, if it hasn't been built.
@@ -321,27 +320,28 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	    realm->cached_context->seq == realm->seq &&
 	    (!parent ||
 	     realm->cached_context->seq >= parent->cached_context->seq)) {
-		dout("build_snap_context %llx %p: %p seq %lld (%d snaps)"
+		dout("build_snap_context %llx %p: %p seq %lld (%u snaps)"
 		     " (unchanged)\n",
 		     realm->ino, realm, realm->cached_context,
 		     realm->cached_context->seq,
-		     realm->cached_context->num_snaps);
+		     (unsigned int) realm->cached_context->num_snaps);
 		return 0;
 	}
 
 	/* alloc new snap context */
 	err = -ENOMEM;
-	if (num > ULONG_MAX / sizeof(u64) - sizeof(*snapc))
+	if (num > (SIZE_MAX - sizeof(*snapc)) / sizeof(u64))
 		goto fail;
-	snapc = kzalloc(sizeof(*snapc) + num*sizeof(u64), GFP_NOFS);
+	snapc = ceph_create_snap_context(num, GFP_NOFS);
 	if (!snapc)
 		goto fail;
-	atomic_set(&snapc->nref, 1);
 
 	/* build (reverse sorted) snap vector */
 	num = 0;
 	snapc->seq = realm->seq;
 	if (parent) {
+		u32 i;
+
 		/* include any of parent's snaps occurring _after_ my
 		   parent became my parent */
 		for (i = 0; i < parent->cached_context->num_snaps; i++)
@@ -361,8 +361,9 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 
 	sort(snapc->snaps, num, sizeof(u64), cmpu64_rev, NULL);
 	snapc->num_snaps = num;
-	dout("build_snap_context %llx %p: %p seq %lld (%d snaps)\n",
-	     realm->ino, realm, snapc, snapc->seq, snapc->num_snaps);
+	dout("build_snap_context %llx %p: %p seq %lld (%u snaps)\n",
+	     realm->ino, realm, snapc, snapc->seq,
+	     (unsigned int) snapc->num_snaps);
 
 	if (realm->cached_context)
 		ceph_put_snap_context(realm->cached_context);
@@ -402,9 +403,9 @@ static void rebuild_snap_realms(struct ceph_snap_realm *realm)
  * helper to allocate and decode an array of snapids.  free prior
  * instance, if any.
  */
-static int dup_array(u64 **dst, __le64 *src, int num)
+static int dup_array(u64 **dst, __le64 *src, u32 num)
 {
-	int i;
+	u32 i;
 
 	kfree(*dst);
 	if (num) {
@@ -446,9 +447,18 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		return;
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	used = __ceph_caps_used(ci);
 	dirty = __ceph_caps_dirty(ci);
+
+	/*
+	 * If there is a write in progress, treat that as a dirty Fw,
+	 * even though it hasn't completed yet; by the time we finish
+	 * up this capsnap it will be.
+	 */
+	if (used & CEPH_CAP_FILE_WR)
+		dirty |= CEPH_CAP_FILE_WR;
+
 	if (__ceph_have_pending_cap_snap(ci)) {
 		/* there is no point in queuing multiple "pending" cap_snaps,
 		   as no new writes are allowed to start when pending, so any
@@ -456,13 +466,19 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
 		kfree(capsnap);
-	} else if (ci->i_wrbuffer_ref_head || (used & CEPH_CAP_FILE_WR) ||
-		   (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
-			     CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
+	} else if (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+			    CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR)) {
 		struct ceph_snap_context *snapc = ci->i_head_snapc;
 
-		dout("queue_cap_snap %p cap_snap %p queuing under %p\n", inode,
-		     capsnap, snapc);
+		/*
+		 * if we are a sync write, we may need to go to the snaprealm
+		 * to get the current snapc.
+		 */
+		if (!snapc)
+			snapc = ci->i_snap_realm->cached_context;
+
+		dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
+		     inode, capsnap, snapc, ceph_cap_string(dirty));
 		ihold(inode);
 
 		atomic_set(&capsnap->nref, 1);
@@ -513,7 +529,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		kfree(capsnap);
 	}
 
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 }
 
 /*
@@ -522,7 +538,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
  *
  * If capsnap can now be flushed, add to snap_flush list, and return 1.
  *
- * Caller must hold i_lock.
+ * Caller must hold i_ceph_lock.
  */
 int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 			    struct ceph_cap_snap *capsnap)
@@ -724,9 +740,9 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		inode = &ci->vfs_inode;
 		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		__ceph_flush_snaps(ci, &session, 0);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		iput(inode);
 		spin_lock(&mdsc->snap_flush_lock);
 	}
@@ -832,7 +848,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 				continue;
 			ci = ceph_inode(inode);
 
-			spin_lock(&inode->i_lock);
+			spin_lock(&ci->i_ceph_lock);
 			if (!ci->i_snap_realm)
 				goto skip_inode;
 			/*
@@ -861,7 +877,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			oldrealm = ci->i_snap_realm;
 			ci->i_snap_realm = realm;
 			spin_unlock(&realm->inodes_with_caps_lock);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 
 			ceph_get_snap_realm(mdsc, realm);
 			ceph_put_snap_realm(mdsc, oldrealm);
@@ -870,7 +886,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			continue;
 
 skip_inode:
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 			iput(inode);
 		}
 

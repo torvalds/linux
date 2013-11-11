@@ -85,6 +85,7 @@ struct elf_prpsinfo32
  * could set a processor dependent flag in the thread_struct.
  */
 
+#undef SET_PERSONALITY
 #define SET_PERSONALITY(ex) \
 	set_thread_flag(TIF_32BIT); \
 	current->thread.map_base = DEFAULT_MAP_BASE32; \

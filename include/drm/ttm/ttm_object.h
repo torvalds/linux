@@ -38,8 +38,9 @@
 #define _TTM_OBJECT_H_
 
 #include <linux/list.h>
-#include "drm_hashtab.h"
+#include <drm/drm_hashtab.h>
 #include <linux/kref.h>
+#include <linux/rcupdate.h>
 #include <ttm/ttm_memory.h>
 
 /**
@@ -111,7 +112,7 @@ struct ttm_object_device;
  *
  * @ref_obj_release: A function to be called when a reference object
  * with another ttm_ref_type than TTM_REF_USAGE is deleted.
- * this function may, for example, release a lock held by a user-space
+ * This function may, for example, release a lock held by a user-space
  * process.
  *
  * This struct is intended to be used as a base struct for objects that
@@ -120,6 +121,7 @@ struct ttm_object_device;
  */
 
 struct ttm_base_object {
+	struct rcu_head rhead;
 	struct drm_hash_item hash;
 	enum ttm_object_type object_type;
 	bool shareable;
@@ -172,7 +174,7 @@ extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
 /**
  * ttm_base_object_unref
  *
- * @p_base: Pointer to a pointer referncing a struct ttm_base_object.
+ * @p_base: Pointer to a pointer referencing a struct ttm_base_object.
  *
  * Decrements the base object refcount and clears the pointer pointed to by
  * p_base.
@@ -268,4 +270,6 @@ extern struct ttm_object_device *ttm_object_device_init
 
 extern void ttm_object_device_release(struct ttm_object_device **p_tdev);
 
+#define ttm_base_object_kfree(__object, __base)\
+	kfree_rcu(__object, __base.rhead)
 #endif

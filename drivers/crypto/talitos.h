@@ -1,7 +1,7 @@
 /*
  * Freescale SEC (talitos) device register and descriptor header defines
  *
- * Copyright (c) 2006-2010 Freescale Semiconductor, Inc.
+ * Copyright (c) 2006-2011 Freescale Semiconductor, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,34 +28,160 @@
  *
  */
 
+#define TALITOS_TIMEOUT 100000
+#define TALITOS_MAX_DATA_LEN 65535
+
+#define DESC_TYPE(desc_hdr) ((be32_to_cpu(desc_hdr) >> 3) & 0x1f)
+#define PRIMARY_EU(desc_hdr) ((be32_to_cpu(desc_hdr) >> 28) & 0xf)
+#define SECONDARY_EU(desc_hdr) ((be32_to_cpu(desc_hdr) >> 16) & 0xf)
+
+/* descriptor pointer entry */
+struct talitos_ptr {
+	__be16 len;     /* length */
+	u8 j_extent;    /* jump to sg link table and/or extent */
+	u8 eptr;        /* extended address */
+	__be32 ptr;     /* address */
+};
+
+static const struct talitos_ptr zero_entry = {
+	.len = 0,
+	.j_extent = 0,
+	.eptr = 0,
+	.ptr = 0
+};
+
+/* descriptor */
+struct talitos_desc {
+	__be32 hdr;                     /* header high bits */
+	__be32 hdr_lo;                  /* header low bits */
+	struct talitos_ptr ptr[7];      /* ptr/len pair array */
+};
+
+/**
+ * talitos_request - descriptor submission request
+ * @desc: descriptor pointer (kernel virtual)
+ * @dma_desc: descriptor's physical bus address
+ * @callback: whom to call when descriptor processing is done
+ * @context: caller context (optional)
+ */
+struct talitos_request {
+	struct talitos_desc *desc;
+	dma_addr_t dma_desc;
+	void (*callback) (struct device *dev, struct talitos_desc *desc,
+			  void *context, int error);
+	void *context;
+};
+
+/* per-channel fifo management */
+struct talitos_channel {
+	void __iomem *reg;
+
+	/* request fifo */
+	struct talitos_request *fifo;
+
+	/* number of requests pending in channel h/w fifo */
+	atomic_t submit_count ____cacheline_aligned;
+
+	/* request submission (head) lock */
+	spinlock_t head_lock ____cacheline_aligned;
+	/* index to next free descriptor request */
+	int head;
+
+	/* request release (tail) lock */
+	spinlock_t tail_lock ____cacheline_aligned;
+	/* index to next in-progress/done descriptor request */
+	int tail;
+};
+
+struct talitos_private {
+	struct device *dev;
+	struct platform_device *ofdev;
+	void __iomem *reg;
+	int irq[2];
+
+	/* SEC global registers lock  */
+	spinlock_t reg_lock ____cacheline_aligned;
+
+	/* SEC version geometry (from device tree node) */
+	unsigned int num_channels;
+	unsigned int chfifo_len;
+	unsigned int exec_units;
+	unsigned int desc_types;
+
+	/* SEC Compatibility info */
+	unsigned long features;
+
+	/*
+	 * length of the request fifo
+	 * fifo_len is chfifo_len rounded up to next power of 2
+	 * so we can use bitwise ops to wrap
+	 */
+	unsigned int fifo_len;
+
+	struct talitos_channel *chan;
+
+	/* next channel to be assigned next incoming descriptor */
+	atomic_t last_chan ____cacheline_aligned;
+
+	/* request callback tasklet */
+	struct tasklet_struct done_task[2];
+
+	/* list of registered algorithms */
+	struct list_head alg_list;
+
+	/* hwrng device */
+	struct hwrng rng;
+};
+
+extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
+			  void (*callback)(struct device *dev,
+					   struct talitos_desc *desc,
+					   void *context, int error),
+			  void *context);
+
+/* .features flag */
+#define TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT 0x00000001
+#define TALITOS_FTR_HW_AUTH_CHECK 0x00000002
+#define TALITOS_FTR_SHA224_HWINIT 0x00000004
+#define TALITOS_FTR_HMAC_OK 0x00000008
+
 /*
  * TALITOS_xxx_LO addresses point to the low data bits (32-63) of the register
  */
 
 /* global register offset addresses */
 #define TALITOS_MCR			0x1030  /* master control register */
-#define TALITOS_MCR_LO			0x1038
+#define   TALITOS_MCR_RCA0		(1 << 15) /* remap channel 0 */
+#define   TALITOS_MCR_RCA1		(1 << 14) /* remap channel 1 */
+#define   TALITOS_MCR_RCA2		(1 << 13) /* remap channel 2 */
+#define   TALITOS_MCR_RCA3		(1 << 12) /* remap channel 3 */
 #define   TALITOS_MCR_SWR		0x1     /* s/w reset */
+#define TALITOS_MCR_LO			0x1034
 #define TALITOS_IMR			0x1008  /* interrupt mask register */
 #define   TALITOS_IMR_INIT		0x100ff /* enable channel IRQs */
 #define   TALITOS_IMR_DONE		0x00055 /* done IRQs */
 #define TALITOS_IMR_LO			0x100C
 #define   TALITOS_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
 #define TALITOS_ISR			0x1010  /* interrupt status register */
-#define   TALITOS_ISR_CHERR		0xaa    /* channel errors mask */
-#define   TALITOS_ISR_CHDONE		0x55    /* channel done mask */
+#define   TALITOS_ISR_4CHERR		0xaa    /* 4 channel errors mask */
+#define   TALITOS_ISR_4CHDONE		0x55    /* 4 channel done mask */
+#define   TALITOS_ISR_CH_0_2_ERR	0x22    /* channels 0, 2 errors mask */
+#define   TALITOS_ISR_CH_0_2_DONE	0x11    /* channels 0, 2 done mask */
+#define   TALITOS_ISR_CH_1_3_ERR	0x88    /* channels 1, 3 errors mask */
+#define   TALITOS_ISR_CH_1_3_DONE	0x44    /* channels 1, 3 done mask */
 #define TALITOS_ISR_LO			0x1014
 #define TALITOS_ICR			0x1018  /* interrupt clear register */
 #define TALITOS_ICR_LO			0x101C
 
 /* channel register address stride */
+#define TALITOS_CH_BASE_OFFSET		0x1000	/* default channel map base */
 #define TALITOS_CH_STRIDE		0x100
 
 /* channel configuration register  */
-#define TALITOS_CCCR(ch)		(ch * TALITOS_CH_STRIDE + 0x1108)
+#define TALITOS_CCCR			0x8
 #define   TALITOS_CCCR_CONT		0x2    /* channel continue */
 #define   TALITOS_CCCR_RESET		0x1    /* channel reset */
-#define TALITOS_CCCR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x110c)
+#define TALITOS_CCCR_LO			0xc
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
@@ -63,8 +189,8 @@
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 
 /* CCPSR: channel pointer status register */
-#define TALITOS_CCPSR(ch)		(ch * TALITOS_CH_STRIDE + 0x1110)
-#define TALITOS_CCPSR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1114)
+#define TALITOS_CCPSR			0x10
+#define TALITOS_CCPSR_LO		0x14
 #define   TALITOS_CCPSR_LO_DOF		0x8000 /* double FF write oflow error */
 #define   TALITOS_CCPSR_LO_SOF		0x4000 /* single FF write oflow error */
 #define   TALITOS_CCPSR_LO_MDTE		0x2000 /* master data transfer error */
@@ -79,24 +205,24 @@
 #define   TALITOS_CCPSR_LO_SRL		0x0010 /* scatter return/length error */
 
 /* channel fetch fifo register */
-#define TALITOS_FF(ch)			(ch * TALITOS_CH_STRIDE + 0x1148)
-#define TALITOS_FF_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x114c)
+#define TALITOS_FF			0x48
+#define TALITOS_FF_LO			0x4c
 
 /* current descriptor pointer register */
-#define TALITOS_CDPR(ch)		(ch * TALITOS_CH_STRIDE + 0x1140)
-#define TALITOS_CDPR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1144)
+#define TALITOS_CDPR			0x40
+#define TALITOS_CDPR_LO			0x44
 
 /* descriptor buffer register */
-#define TALITOS_DESCBUF(ch)		(ch * TALITOS_CH_STRIDE + 0x1180)
-#define TALITOS_DESCBUF_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1184)
+#define TALITOS_DESCBUF			0x80
+#define TALITOS_DESCBUF_LO		0x84
 
 /* gather link table */
-#define TALITOS_GATHER(ch)		(ch * TALITOS_CH_STRIDE + 0x11c0)
-#define TALITOS_GATHER_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x11c4)
+#define TALITOS_GATHER			0xc0
+#define TALITOS_GATHER_LO		0xc4
 
 /* scatter link table */
-#define TALITOS_SCATTER(ch)		(ch * TALITOS_CH_STRIDE + 0x11e0)
-#define TALITOS_SCATTER_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x11e4)
+#define TALITOS_SCATTER			0xe0
+#define TALITOS_SCATTER_LO		0xe4
 
 /* execution unit interrupt status registers */
 #define TALITOS_DEUISR			0x2030 /* DES unit */
@@ -200,6 +326,12 @@
 					 DESC_HDR_MODE1_MDEU_HMAC)
 #define	DESC_HDR_MODE1_MDEU_SHA1_HMAC	(DESC_HDR_MODE1_MDEU_SHA1 | \
 					 DESC_HDR_MODE1_MDEU_HMAC)
+#define DESC_HDR_MODE1_MDEU_SHA224_HMAC	(DESC_HDR_MODE1_MDEU_SHA224 | \
+					 DESC_HDR_MODE1_MDEU_HMAC)
+#define DESC_HDR_MODE1_MDEUB_SHA384_HMAC	(DESC_HDR_MODE1_MDEUB_SHA384 | \
+						 DESC_HDR_MODE1_MDEU_HMAC)
+#define DESC_HDR_MODE1_MDEUB_SHA512_HMAC	(DESC_HDR_MODE1_MDEUB_SHA512 | \
+						 DESC_HDR_MODE1_MDEU_HMAC)
 
 /* direction of overall data flow (DIR) */
 #define	DESC_HDR_DIR_INBOUND		cpu_to_be32(0x00000002)

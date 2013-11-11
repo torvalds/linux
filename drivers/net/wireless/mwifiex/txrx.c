@@ -48,9 +48,19 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	if (!priv)
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
-	rx_info->bss_index = priv->bss_index;
+	if (!priv) {
+		dev_err(adapter->dev, "data: priv not found. Drop RX packet\n");
+		dev_kfree_skb_any(skb);
+		return -1;
+	}
 
-	return mwifiex_process_sta_rx_packet(adapter, skb);
+	rx_info->bss_num = priv->bss_num;
+	rx_info->bss_type = priv->bss_type;
+
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		return mwifiex_process_uap_rx_packet(priv, skb);
+
+	return mwifiex_process_sta_rx_packet(priv, skb);
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 
@@ -71,38 +81,55 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	u8 *head_ptr;
 	struct txpd *local_tx_pd = NULL;
 
-	head_ptr = (u8 *) mwifiex_process_sta_txpd(priv, skb);
+	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+		head_ptr = mwifiex_process_uap_txpd(priv, skb);
+	else
+		head_ptr = mwifiex_process_sta_txpd(priv, skb);
+
 	if (head_ptr) {
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
 			local_tx_pd =
 				(struct txpd *) (head_ptr + INTF_HEADER_LEN);
-
-		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb->data, skb->len, tx_param);
+		if (adapter->iface_type == MWIFIEX_USB) {
+			adapter->data_sent = true;
+			skb_pull(skb, INTF_HEADER_LEN);
+			ret = adapter->if_ops.host_to_card(adapter,
+							   MWIFIEX_USB_EP_DATA,
+							   skb, NULL);
+		} else {
+			ret = adapter->if_ops.host_to_card(adapter,
+							   MWIFIEX_TYPE_DATA,
+							   skb, tx_param);
+		}
 	}
 
 	switch (ret) {
+	case -ENOSR:
+		dev_err(adapter->dev, "data: -ENOSR is returned\n");
+		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-			(adapter->pps_uapsd_mode) &&
-			(adapter->tx_lock_flag)) {
+		    (adapter->pps_uapsd_mode) && (adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
-				local_tx_pd->flags = 0;
+				if (local_tx_pd)
+					local_tx_pd->flags = 0;
 		}
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		dev_err(adapter->dev, "mwifiex_write_data_async failed: 0x%X\n",
-		       ret);
+			ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
-		mwifiex_write_data_complete(adapter, skb, ret);
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		break;
 	case 0:
-		mwifiex_write_data_complete(adapter, skb, ret);
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	default:
 		break;
@@ -119,39 +146,50 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
  * wakes up stalled traffic queue if required, and then frees the buffer.
  */
 int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
-				struct sk_buff *skb, int status)
+				struct sk_buff *skb, int aggr, int status)
 {
-	struct mwifiex_private *priv, *tpriv;
+	struct mwifiex_private *priv;
 	struct mwifiex_txinfo *tx_info;
-	int i;
+	struct netdev_queue *txq;
+	int index;
 
 	if (!skb)
 		return 0;
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
-	priv = mwifiex_bss_index_to_priv(adapter, tx_info->bss_index);
+	priv = mwifiex_get_priv_by_id(adapter, tx_info->bss_num,
+				      tx_info->bss_type);
 	if (!priv)
 		goto done;
 
-	priv->netdev->trans_start = jiffies;
+	if (adapter->iface_type == MWIFIEX_USB)
+		adapter->data_sent = false;
+
+	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
+		if (priv->tx_timeout_cnt)
+			priv->tx_timeout_cnt = 0;
 	} else {
 		priv->stats.tx_errors++;
 	}
 
-	if (atomic_dec_return(&adapter->tx_pending) >= LOW_TX_PENDING)
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT)
+		atomic_dec_return(&adapter->pending_bridged_pkts);
+
+	if (aggr)
+		/* For skb_aggr, do not wake up tx queue */
 		goto done;
 
-	for (i = 0; i < adapter->priv_num; i++) {
+	atomic_dec(&adapter->tx_pending);
 
-		tpriv = adapter->priv[i];
-
-		if ((GET_BSS_ROLE(tpriv) == MWIFIEX_BSS_ROLE_STA)
-				&& (tpriv->media_connected)) {
-			if (netif_queue_stopped(tpriv->netdev))
-				netif_wake_queue(tpriv->netdev);
+	index = mwifiex_1d_to_wmm_queue[skb->priority];
+	if (atomic_dec_return(&priv->wmm_tx_pending[index]) < LOW_TX_PENDING) {
+		txq = netdev_get_tx_queue(priv->netdev, index);
+		if (netif_tx_queue_stopped(txq)) {
+			netif_tx_wake_queue(txq);
+			dev_dbg(adapter->dev, "wake queue: %d\n", index);
 		}
 	}
 done:
@@ -159,44 +197,5 @@ done:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mwifiex_write_data_complete);
 
-/*
- * Packet receive completion callback handler.
- *
- * This function calls another completion callback handler which
- * updates the statistics, and optionally updates the parent buffer
- * use count before freeing the received packet.
- */
-int mwifiex_recv_packet_complete(struct mwifiex_adapter *adapter,
-				 struct sk_buff *skb, int status)
-{
-	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
-	struct mwifiex_rxinfo *rx_info_parent;
-	struct mwifiex_private *priv;
-	struct sk_buff *skb_parent;
-	unsigned long flags;
-
-	priv = adapter->priv[rx_info->bss_index];
-
-	if (priv && (status == -1))
-		priv->stats.rx_dropped++;
-
-	if (rx_info->parent) {
-		skb_parent = rx_info->parent;
-		rx_info_parent = MWIFIEX_SKB_RXCB(skb_parent);
-
-		spin_lock_irqsave(&priv->rx_pkt_lock, flags);
-		--rx_info_parent->use_count;
-
-		if (!rx_info_parent->use_count) {
-			spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-			dev_kfree_skb_any(skb_parent);
-		} else {
-			spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		}
-	} else {
-		dev_kfree_skb_any(skb);
-	}
-
-	return 0;
-}

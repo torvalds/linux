@@ -89,7 +89,6 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_OF
 /* For open firmware. */
@@ -168,6 +167,7 @@ static const struct config_registers v4_config_registers = {
 	.BOOTSTS = UNIMPLEMENTED,
 	.CTL_1 = UNIMPLEMENTED,
 };
+
 static const struct config_registers v5_config_registers = {
 	.CRC = 0,
 	.FAR = 1,
@@ -191,6 +191,31 @@ static const struct config_registers v5_config_registers = {
 	.TIMER = 17,
 	.BOOTSTS = 18,
 	.CTL_1 = 19,
+};
+
+static const struct config_registers v6_config_registers = {
+	.CRC = 0,
+	.FAR = 1,
+	.FDRI = 2,
+	.FDRO = 3,
+	.CMD = 4,
+	.CTL = 5,
+	.MASK = 6,
+	.STAT = 7,
+	.LOUT = 8,
+	.COR = 9,
+	.MFWR = 10,
+	.FLR = UNIMPLEMENTED,
+	.KEY = UNIMPLEMENTED,
+	.CBC = 11,
+	.IDCODE = 12,
+	.AXSS = 13,
+	.C0R_1 = 14,
+	.CSOB = 15,
+	.WBSTAR = 16,
+	.TIMER = 17,
+	.BOOTSTS = 22,
+	.CTL_1 = 24,
 };
 
 /**
@@ -570,7 +595,7 @@ static const struct file_operations hwicap_fops = {
 	.llseek = noop_llseek,
 };
 
-static int __devinit hwicap_setup(struct device *dev, int id,
+static int hwicap_setup(struct device *dev, int id,
 		const struct resource *regs_res,
 		const struct hwicap_driver_config *config,
 		const struct config_registers *config_regs)
@@ -621,7 +646,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 
 	drvdata->mem_start = regs_res->start;
 	drvdata->mem_end = regs_res->end;
-	drvdata->mem_size = regs_res->end - regs_res->start + 1;
+	drvdata->mem_size = resource_size(regs_res);
 
 	if (!request_mem_region(drvdata->mem_start,
 					drvdata->mem_size, DRIVER_NAME)) {
@@ -692,7 +717,7 @@ static struct hwicap_driver_config fifo_icap_config = {
 	.reset = fifo_icap_reset,
 };
 
-static int __devexit hwicap_remove(struct device *dev)
+static int hwicap_remove(struct device *dev)
 {
 	struct hwicap_drvdata *drvdata;
 
@@ -715,7 +740,7 @@ static int __devexit hwicap_remove(struct device *dev)
 }
 
 #ifdef CONFIG_OF
-static int __devinit hwicap_of_probe(struct platform_device *op,
+static int hwicap_of_probe(struct platform_device *op,
 				     const struct hwicap_driver_config *config)
 {
 	struct resource res;
@@ -745,6 +770,8 @@ static int __devinit hwicap_of_probe(struct platform_device *op,
 			regs = &v4_config_registers;
 		} else if (!strcmp(family, "virtex5")) {
 			regs = &v5_config_registers;
+		} else if (!strcmp(family, "virtex6")) {
+			regs = &v6_config_registers;
 		}
 	}
 	return hwicap_setup(&op->dev, id ? *id : -1, &res, config,
@@ -758,8 +785,8 @@ static inline int hwicap_of_probe(struct platform_device *op,
 }
 #endif /* CONFIG_OF */
 
-static const struct of_device_id __devinitconst hwicap_of_match[];
-static int __devinit hwicap_drv_probe(struct platform_device *pdev)
+static const struct of_device_id hwicap_of_match[];
+static int hwicap_drv_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct resource *res;
@@ -786,6 +813,8 @@ static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 			regs = &v4_config_registers;
 		} else if (!strcmp(family, "virtex5")) {
 			regs = &v5_config_registers;
+		} else if (!strcmp(family, "virtex6")) {
+			regs = &v6_config_registers;
 		}
 	}
 
@@ -793,14 +822,14 @@ static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 			&buffer_icap_config, regs);
 }
 
-static int __devexit hwicap_drv_remove(struct platform_device *pdev)
+static int hwicap_drv_remove(struct platform_device *pdev)
 {
 	return hwicap_remove(&pdev->dev);
 }
 
 #ifdef CONFIG_OF
 /* Match table for device tree binding */
-static const struct of_device_id __devinitconst hwicap_of_match[] = {
+static const struct of_device_id hwicap_of_match[] = {
 	{ .compatible = "xlnx,opb-hwicap-1.00.b", .data = &buffer_icap_config},
 	{ .compatible = "xlnx,xps-hwicap-1.00.a", .data = &fifo_icap_config},
 	{},

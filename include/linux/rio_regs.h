@@ -36,12 +36,12 @@
 #define  RIO_PEF_PROCESSOR		0x20000000	/* [I] Processor */
 #define  RIO_PEF_SWITCH			0x10000000	/* [I] Switch */
 #define  RIO_PEF_MULTIPORT		0x08000000	/* [VI, 2.1] Multiport */
-#define  RIO_PEF_INB_MBOX		0x00f00000	/* [II] Mailboxes */
-#define  RIO_PEF_INB_MBOX0		0x00800000	/* [II] Mailbox 0 */
-#define  RIO_PEF_INB_MBOX1		0x00400000	/* [II] Mailbox 1 */
-#define  RIO_PEF_INB_MBOX2		0x00200000	/* [II] Mailbox 2 */
-#define  RIO_PEF_INB_MBOX3		0x00100000	/* [II] Mailbox 3 */
-#define  RIO_PEF_INB_DOORBELL		0x00080000	/* [II] Doorbells */
+#define  RIO_PEF_INB_MBOX		0x00f00000	/* [II, <= 1.2] Mailboxes */
+#define  RIO_PEF_INB_MBOX0		0x00800000	/* [II, <= 1.2] Mailbox 0 */
+#define  RIO_PEF_INB_MBOX1		0x00400000	/* [II, <= 1.2] Mailbox 1 */
+#define  RIO_PEF_INB_MBOX2		0x00200000	/* [II, <= 1.2] Mailbox 2 */
+#define  RIO_PEF_INB_MBOX3		0x00100000	/* [II, <= 1.2] Mailbox 3 */
+#define  RIO_PEF_INB_DOORBELL		0x00080000	/* [II, <= 1.2] Doorbells */
 #define  RIO_PEF_EXT_RT			0x00000200	/* [III, 1.3] Extended route table support */
 #define  RIO_PEF_STD_RT			0x00000100	/* [III, 1.3] Standard route table support */
 #define  RIO_PEF_CTLS			0x00000010	/* [III] CTLS */
@@ -102,7 +102,7 @@
 #define	RIO_SWITCH_RT_LIMIT	0x34	/* [III, 1.3] Switch Route Table Destination ID Limit CAR */
 #define	 RIO_RT_MAX_DESTID		0x0000ffff
 
-#define RIO_MBOX_CSR		0x40	/* [II] Mailbox CSR */
+#define RIO_MBOX_CSR		0x40	/* [II, <= 1.2] Mailbox CSR */
 #define  RIO_MBOX0_AVAIL		0x80000000	/* [II] Mbox 0 avail */
 #define  RIO_MBOX0_FULL			0x40000000	/* [II] Mbox 0 full */
 #define  RIO_MBOX0_EMPTY		0x20000000	/* [II] Mbox 0 empty */
@@ -128,8 +128,8 @@
 #define  RIO_MBOX3_FAIL			0x00000008	/* [II] Mbox 3 fail */
 #define  RIO_MBOX3_ERROR		0x00000004	/* [II] Mbox 3 error */
 
-#define RIO_WRITE_PORT_CSR	0x44	/* [I] Write Port CSR */
-#define RIO_DOORBELL_CSR	0x44	/* [II] Doorbell CSR */
+#define RIO_WRITE_PORT_CSR	0x44	/* [I, <= 1.2] Write Port CSR */
+#define RIO_DOORBELL_CSR	0x44	/* [II, <= 1.2] Doorbell CSR */
 #define  RIO_DOORBELL_AVAIL		0x80000000	/* [II] Doorbell avail */
 #define  RIO_DOORBELL_FULL		0x40000000	/* [II] Doorbell full */
 #define  RIO_DOORBELL_EMPTY		0x20000000	/* [II] Doorbell empty */

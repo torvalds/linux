@@ -94,9 +94,8 @@ protected.
 ---
 [mandatory]
 
-BKL is also moved from around sb operations.  ->write_super() Is now called 
-without BKL held.  BKL should have been shifted into individual fs sb_op
-functions.  If you don't need it, remove it.  
+BKL is also moved from around sb operations. BKL should have been shifted into
+individual fs sb_op functions.  If you don't need it, remove it.
 
 ---
 [informational]
@@ -282,7 +281,7 @@ ext2_write_failed and callers for an example.
 
 [mandatory]
 
-	->truncate is going away.  The whole truncate sequence needs to be
+	->truncate is gone.  The whole truncate sequence needs to be
 implemented in ->setattr, which is now mandatory for filesystems
 implementing on-disk size changes.  Start with a copy of the old inode_setattr
 and vmtruncate, and the reorder the vmtruncate + foofs_vmtruncate sequence to
@@ -297,7 +296,8 @@ in the beginning of ->setattr unconditionally.
 be used instead.  It gets called whenever the inode is evicted, whether it has
 remaining links or not.  Caller does *not* evict the pagecache or inode-associated
 metadata buffers; getting rid of those is responsibility of method, as it had
-been for ->delete_inode().
+been for ->delete_inode(). Caller makes sure async writeback cannot be running
+for the inode while (or after) ->evict_inode() is called.
 
 	->drop_inode() returns int now; it's called on final iput() with
 inode->i_lock held and it returns true if filesystems wants the inode to be
@@ -306,14 +306,11 @@ updated appropriately.  generic_delete_inode() is also alive and it consists
 simply of return 1.  Note that all actual eviction work is done by caller after
 ->drop_inode() returns.
 
-	clear_inode() is gone; use end_writeback() instead.  As before, it must
-be called exactly once on each call of ->evict_inode() (as it used to be for
-each call of ->delete_inode()).  Unlike before, if you are using inode-associated
-metadata buffers (i.e. mark_buffer_dirty_inode()), it's your responsibility to
-call invalidate_inode_buffers() before end_writeback().
-	No async writeback (and thus no calls of ->write_inode()) will happen
-after end_writeback() returns, so actions that should not overlap with ->write_inode()
-(e.g. freeing on-disk inode if i_nlink is 0) ought to be done after that call.
+	As before, clear_inode() must be called exactly once on each call of
+->evict_inode() (as it used to be for each call of ->delete_inode()).  Unlike
+before, if you are using inode-associated metadata buffers (i.e.
+mark_buffer_dirty_inode()), it's your responsibility to call
+invalidate_inode_buffers() before clear_inode().
 
 	NOTE: checking i_nlink in the beginning of ->write_inode() and bailing out
 if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput()
@@ -357,12 +354,10 @@ protects *all* the dcache state of a given dentry.
 via rcu-walk path walk (basically, if the file can have had a path name in the
 vfs namespace).
 
-	i_dentry and i_rcu share storage in a union, and the vfs expects
-i_dentry to be reinitialized before it is freed, so an:
-
-  INIT_LIST_HEAD(&inode->i_dentry);
-
-must be done in the RCU callback.
+	Even though i_dentry and i_rcu share storage in a union, we will
+initialize the former in inode_init_always(), so just leave it alone in
+the callback.  It used to be necessary to clean it there, but not anymore
+(starting at 3.2).
 
 --
 [recommended]
@@ -400,10 +395,53 @@ a file off.
 
 --
 [mandatory]
-
---
-[mandatory]
 	->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
 a matter of switching from calling get_sb_... to mount_... and changing the
 function type.  If you were doing it manually, just switch from setting ->mnt_root
 to some pointer to returning that pointer.  On errors return ERR_PTR(...).
+
+--
+[mandatory]
+	->permission() and generic_permission()have lost flags
+argument; instead of passing IPERM_FLAG_RCU we add MAY_NOT_BLOCK into mask.
+	generic_permission() has also lost the check_acl argument; ACL checking
+has been taken to VFS and filesystems need to provide a non-NULL ->i_op->get_acl
+to read an ACL from disk.
+
+--
+[mandatory]
+	If you implement your own ->llseek() you must handle SEEK_HOLE and
+SEEK_DATA.  You can hanle this by returning -EINVAL, but it would be nicer to
+support it in some way.  The generic handler assumes that the entire file is
+data and there is a virtual hole at the end of the file.  So if the provided
+offset is less than i_size and SEEK_DATA is specified, return the same offset.
+If the above is true for the offset and you are given SEEK_HOLE, return the end
+of the file.  If the offset is i_size or greater return -ENXIO in either case.
+
+[mandatory]
+	If you have your own ->fsync() you must make sure to call
+filemap_write_and_wait_range() so that all dirty pages are synced out properly.
+You must also keep in mind that ->fsync() is not called with i_mutex held
+anymore, so if you require i_mutex locking you must make sure to take it and
+release it yourself.
+
+--
+[mandatory]
+	d_alloc_root() is gone, along with a lot of bugs caused by code
+misusing it.  Replacement: d_make_root(inode).  The difference is,
+d_make_root() drops the reference to inode if dentry allocation fails.  
+
+--
+[mandatory]
+	The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
+->lookup() do *not* take struct nameidata anymore; just the flags.
+--
+[mandatory]
+	->create() doesn't take struct nameidata *; unlike the previous
+two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
+local filesystems can ignore tha argument - they are guaranteed that the
+object doesn't exist.  It's remote/distributed ones that might care...
+--
+[mandatory]
+	FS_REVAL_DOT is gone; if you used to have it, add ->d_weak_revalidate()
+in your dentry operations instead.

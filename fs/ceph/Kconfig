@@ -1,6 +1,6 @@
 config CEPH_FS
-        tristate "Ceph distributed file system (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "Ceph distributed file system"
+	depends on INET
 	select CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES

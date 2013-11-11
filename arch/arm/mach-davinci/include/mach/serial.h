@@ -15,15 +15,6 @@
 
 #include <mach/hardware.h>
 
-/*
- * Stolen area that contains debug uart physical and virtual addresses.  These
- * addresses are filled in by the uncompress.h code, and are used by the debug
- * macros in debug-macro.S.
- *
- * This area sits just below the page tables (see arch/arm/kernel/head.S).
- */
-#define DAVINCI_UART_INFO	(PLAT_PHYS_OFFSET + 0x3ff8)
-
 #define DAVINCI_UART0_BASE	(IO_PHYS + 0x20000)
 #define DAVINCI_UART1_BASE	(IO_PHYS + 0x20400)
 #define DAVINCI_UART2_BASE	(IO_PHYS + 0x20800)
@@ -47,11 +38,12 @@
 
 #ifndef __ASSEMBLY__
 struct davinci_uart_config {
-	/* Bit field of UARTs present; bit 0 --> UART1 */
+	/* Bit field of UARTs present; bit 0 --> UART0 */
 	unsigned int enabled_uarts;
 };
 
 extern int davinci_serial_init(struct davinci_uart_config *);
+extern int davinci_serial_setup_clk(unsigned instance, unsigned int *rate);
 #endif
 
 #endif /* __ASM_ARCH_SERIAL_H */

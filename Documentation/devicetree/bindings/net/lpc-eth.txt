@@ -1,0 +1,24 @@
+* NXP LPC32xx SoC Ethernet Controller
+
+Required properties:
+- compatible: Should be "nxp,lpc-eth"
+- reg: Address and length of the register set for the device
+- interrupts: Should contain ethernet controller interrupt
+
+Optional properties:
+- phy-mode: String, operation mode of the PHY interface.
+  Supported values are: "mii", "rmii" (default)
+- use-iram: Use LPC32xx internal SRAM (IRAM) for DMA buffering
+- local-mac-address : 6 bytes, mac address
+
+Example:
+
+	mac: ethernet@31060000 {
+		compatible = "nxp,lpc-eth";
+		reg = <0x31060000 0x1000>;
+		interrupt-parent = <&mic>;
+		interrupts = <29 0>;
+
+		phy-mode = "rmii";
+		use-iram;
+	};

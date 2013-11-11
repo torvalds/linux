@@ -1,6 +1,7 @@
 #ifndef SOUND_FIREWIRE_AMDTP_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_H_INCLUDED
 
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include "packets-buffer.h"
@@ -55,6 +56,7 @@ struct amdtp_out_stream {
 	struct iso_packets_buffer buffer;
 
 	struct snd_pcm_substream *pcm;
+	struct tasklet_struct period_tasklet;
 
 	int packet_index;
 	unsigned int data_block_counter;
@@ -66,6 +68,7 @@ struct amdtp_out_stream {
 
 	unsigned int pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
+	bool pointer_flush;
 };
 
 int amdtp_out_stream_init(struct amdtp_out_stream *s, struct fw_unit *unit,
@@ -81,6 +84,8 @@ void amdtp_out_stream_stop(struct amdtp_out_stream *s);
 
 void amdtp_out_stream_set_pcm_format(struct amdtp_out_stream *s,
 				     snd_pcm_format_t format);
+void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s);
+unsigned long amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s);
 void amdtp_out_stream_pcm_abort(struct amdtp_out_stream *s);
 
 /**
@@ -123,18 +128,6 @@ static inline bool amdtp_out_streaming_error(struct amdtp_out_stream *s)
 }
 
 /**
- * amdtp_out_stream_pcm_prepare - prepare PCM device for running
- * @s: the AMDTP output stream
- *
- * This function should be called from the PCM device's .prepare callback.
- */
-static inline void amdtp_out_stream_pcm_prepare(struct amdtp_out_stream *s)
-{
-	s->pcm_buffer_pointer = 0;
-	s->pcm_period_pointer = 0;
-}
-
-/**
  * amdtp_out_stream_pcm_trigger - start/stop playback from a PCM device
  * @s: the AMDTP output stream
  * @pcm: the PCM device to be started, or %NULL to stop the current device
@@ -147,18 +140,6 @@ static inline void amdtp_out_stream_pcm_trigger(struct amdtp_out_stream *s,
 						struct snd_pcm_substream *pcm)
 {
 	ACCESS_ONCE(s->pcm) = pcm;
-}
-
-/**
- * amdtp_out_stream_pcm_pointer - get the PCM buffer position
- * @s: the AMDTP output stream that transports the PCM data
- *
- * Returns the current buffer position, in frames.
- */
-static inline unsigned long
-amdtp_out_stream_pcm_pointer(struct amdtp_out_stream *s)
-{
-	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)

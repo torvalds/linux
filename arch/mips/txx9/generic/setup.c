@@ -22,10 +22,11 @@
 #include <linux/serial_core.h>
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
@@ -118,7 +119,7 @@ EXPORT_SYMBOL(clk_put);
 
 /* GPIO support */
 
-#ifdef CONFIG_GENERIC_GPIO
+#ifdef CONFIG_GPIOLIB
 int gpio_to_irq(unsigned gpio)
 {
 	return -EINVAL;
@@ -513,19 +514,19 @@ void __init txx9_sio_init(unsigned long baseaddr, int irq,
 }
 
 #ifdef CONFIG_EARLY_PRINTK
-static void __init null_prom_putchar(char c)
+static void null_prom_putchar(char c)
 {
 }
-void (*txx9_prom_putchar)(char c) __initdata = null_prom_putchar;
+void (*txx9_prom_putchar)(char c) = null_prom_putchar;
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	txx9_prom_putchar(c);
 }
 
 static void __iomem *early_txx9_sio_port;
 
-static void __init early_txx9_sio_putchar(char c)
+static void early_txx9_sio_putchar(char c)
 {
 #define TXX9_SICISR	0x0c
 #define TXX9_SITFIFO	0x1c
@@ -632,7 +633,7 @@ void __init txx9_physmap_flash_init(int no, unsigned long addr,
 				    unsigned long size,
 				    const struct physmap_flash_data *pdata)
 {
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 	struct resource res = {
 		.start = addr,
 		.end = addr + size - 1,
@@ -670,8 +671,7 @@ void __init txx9_physmap_flash_init(int no, unsigned long addr,
 void __init txx9_ndfmc_init(unsigned long baseaddr,
 			    const struct txx9ndfmc_platform_data *pdata)
 {
-#if defined(CONFIG_MTD_NAND_TXX9NDFMC) || \
-	defined(CONFIG_MTD_NAND_TXX9NDFMC_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_TXX9NDFMC)
 	struct resource res = {
 		.start = baseaddr,
 		.end = baseaddr + 0x1000 - 1,
@@ -687,7 +687,7 @@ void __init txx9_ndfmc_init(unsigned long baseaddr,
 #endif
 }
 
-#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+#if IS_ENABLED(CONFIG_LEDS_GPIO)
 static DEFINE_SPINLOCK(txx9_iocled_lock);
 
 #define TXX9_IOCLED_MAXLEDS 8
@@ -810,7 +810,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 void __init txx9_dmac_init(int id, unsigned long baseaddr, int irq,
 			   const struct txx9dmac_platform_data *pdata)
 {
-#if defined(CONFIG_TXX9_DMAC) || defined(CONFIG_TXX9_DMAC_MODULE)
+#if IS_ENABLED(CONFIG_TXX9_DMAC)
 	struct resource res[] = {
 		{
 			.start = baseaddr,
@@ -866,8 +866,7 @@ void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 			   unsigned int dma_chan_out,
 			   unsigned int dma_chan_in)
 {
-#if defined(CONFIG_SND_SOC_TXX9ACLC) || \
-	defined(CONFIG_SND_SOC_TXX9ACLC_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_TXX9ACLC)
 	unsigned int dma_base = dmac_id * TXX9_DMA_MAX_NR_CHANNELS;
 	struct resource res[] = {
 		{
@@ -897,10 +896,13 @@ void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 #endif
 }
 
-static struct sysdev_class txx9_sramc_sysdev_class;
+static struct bus_type txx9_sramc_subsys = {
+	.name = "txx9_sram",
+	.dev_name = "txx9_sram",
+};
 
-struct txx9_sramc_sysdev {
-	struct sys_device dev;
+struct txx9_sramc_dev {
+	struct device dev;
 	struct bin_attribute bindata_attr;
 	void __iomem *base;
 };
@@ -909,7 +911,7 @@ static ssize_t txx9_sram_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t size)
 {
-	struct txx9_sramc_sysdev *dev = bin_attr->private;
+	struct txx9_sramc_dev *dev = bin_attr->private;
 	size_t ramsize = bin_attr->size;
 
 	if (pos >= ramsize)
@@ -924,7 +926,7 @@ static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t pos, size_t size)
 {
-	struct txx9_sramc_sysdev *dev = bin_attr->private;
+	struct txx9_sramc_dev *dev = bin_attr->private;
 	size_t ramsize = bin_attr->size;
 
 	if (pos >= ramsize)
@@ -937,18 +939,13 @@ static ssize_t txx9_sram_write(struct file *filp, struct kobject *kobj,
 
 void __init txx9_sramc_init(struct resource *r)
 {
-	struct txx9_sramc_sysdev *dev;
+	struct txx9_sramc_dev *dev;
 	size_t size;
 	int err;
 
-	if (!txx9_sramc_sysdev_class.name) {
-		txx9_sramc_sysdev_class.name = "txx9_sram";
-		err = sysdev_class_register(&txx9_sramc_sysdev_class);
-		if (err) {
-			txx9_sramc_sysdev_class.name = NULL;
-			return;
-		}
-	}
+	err = subsys_system_register(&txx9_sramc_subsys, NULL);
+	if (err)
+		return;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return;
@@ -956,7 +953,7 @@ void __init txx9_sramc_init(struct resource *r)
 	dev->base = ioremap(r->start, size);
 	if (!dev->base)
 		goto exit;
-	dev->dev.cls = &txx9_sramc_sysdev_class;
+	dev->dev.bus = &txx9_sramc_subsys;
 	sysfs_bin_attr_init(&dev->bindata_attr);
 	dev->bindata_attr.attr.name = "bindata";
 	dev->bindata_attr.attr.mode = S_IRUSR | S_IWUSR;
@@ -964,12 +961,12 @@ void __init txx9_sramc_init(struct resource *r)
 	dev->bindata_attr.write = txx9_sram_write;
 	dev->bindata_attr.size = size;
 	dev->bindata_attr.private = dev;
-	err = sysdev_register(&dev->dev);
+	err = device_register(&dev->dev);
 	if (err)
 		goto exit;
 	err = sysfs_create_bin_file(&dev->dev.kobj, &dev->bindata_attr);
 	if (err) {
-		sysdev_unregister(&dev->dev);
+		device_unregister(&dev->dev);
 		goto exit;
 	}
 	return;

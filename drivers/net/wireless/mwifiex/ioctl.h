@@ -20,7 +20,7 @@
 #ifndef _MWIFIEX_IOCTL_H_
 #define _MWIFIEX_IOCTL_H_
 
-#include <net/mac80211.h>
+#include <net/lib80211.h>
 
 enum {
 	MWIFIEX_SCAN_TYPE_UNCHANGED = 0,
@@ -50,7 +50,7 @@ struct mwifiex_chan_freq {
 };
 
 struct mwifiex_ssid_bssid {
-	struct mwifiex_802_11_ssid ssid;
+	struct cfg80211_ssid ssid;
 	u8 bssid[ETH_ALEN];
 };
 
@@ -60,17 +60,57 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
+	BAND_GAC = 32,
+	BAND_AAC = 64,
 };
 
-#define NO_SEC_CHANNEL               0
-#define SEC_CHANNEL_ABOVE            1
-#define SEC_CHANNEL_BELOW            3
+#define MWIFIEX_WPA_PASSHPHRASE_LEN 64
+struct wpa_param {
+	u8 pairwise_cipher_wpa;
+	u8 pairwise_cipher_wpa2;
+	u8 group_cipher;
+	u32 length;
+	u8 passphrase[MWIFIEX_WPA_PASSHPHRASE_LEN];
+};
 
-struct mwifiex_ds_band_cfg {
-	u32 config_bands;
-	u32 adhoc_start_band;
-	u32 adhoc_channel;
-	u32 sec_chan_offset;
+struct wep_key {
+	u8 key_index;
+	u8 is_default;
+	u16 length;
+	u8 key[WLAN_KEY_LEN_WEP104];
+};
+
+#define KEY_MGMT_ON_HOST        0x03
+#define MWIFIEX_AUTH_MODE_AUTO  0xFF
+#define BAND_CONFIG_BG          0x00
+#define BAND_CONFIG_A           0x01
+#define MWIFIEX_SUPPORTED_RATES                 14
+#define MWIFIEX_SUPPORTED_RATES_EXT             32
+
+struct mwifiex_uap_bss_param {
+	u8 channel;
+	u8 band_cfg;
+	u16 rts_threshold;
+	u16 frag_threshold;
+	u8 retry_limit;
+	struct mwifiex_802_11_ssid ssid;
+	u8 bcast_ssid_ctl;
+	u8 radio_ctl;
+	u8 dtim_period;
+	u16 beacon_period;
+	u16 auth_mode;
+	u16 protocol;
+	u16 key_mgmt;
+	u16 key_mgmt_operation;
+	struct wpa_param wpa_cfg;
+	struct wep_key wep_cfg[NUM_WEP_KEYS];
+	struct ieee80211_ht_cap ht_cap;
+	struct ieee80211_vht_cap vht_cap;
+	u8 rates[MWIFIEX_SUPPORTED_RATES];
+	u32 sta_ao_timer;
+	u32 ps_sta_ao_timer;
+	u8 qos_info;
+	struct mwifiex_types_wmm_info wmm_info;
 };
 
 enum {
@@ -96,34 +136,6 @@ struct mwifiex_ds_get_stats {
 	u32 wep_icv_error[4];
 };
 
-#define BCN_RSSI_AVG_MASK               0x00000002
-#define BCN_NF_AVG_MASK                 0x00000200
-#define ALL_RSSI_INFO_MASK              0x00000fff
-
-struct mwifiex_ds_get_signal {
-	/*
-	 * Bit0:  Last Beacon RSSI,  Bit1:  Average Beacon RSSI,
-	 * Bit2:  Last Data RSSI,    Bit3:  Average Data RSSI,
-	 * Bit4:  Last Beacon SNR,   Bit5:  Average Beacon SNR,
-	 * Bit6:  Last Data SNR,     Bit7:  Average Data SNR,
-	 * Bit8:  Last Beacon NF,    Bit9:  Average Beacon NF,
-	 * Bit10: Last Data NF,      Bit11: Average Data NF
-	 */
-	u16 selector;
-	s16 bcn_rssi_last;
-	s16 bcn_rssi_avg;
-	s16 data_rssi_last;
-	s16 data_rssi_avg;
-	s16 bcn_snr_last;
-	s16 bcn_snr_avg;
-	s16 data_snr_last;
-	s16 data_snr_avg;
-	s16 bcn_nf_last;
-	s16 bcn_nf_avg;
-	s16 data_nf_last;
-	s16 data_nf_avg;
-};
-
 #define MWIFIEX_MAX_VER_STR_LEN    128
 
 struct mwifiex_ver_ext {
@@ -133,10 +145,9 @@ struct mwifiex_ver_ext {
 
 struct mwifiex_bss_info {
 	u32 bss_mode;
-	struct mwifiex_802_11_ssid ssid;
-	u32 scan_table_idx;
+	struct cfg80211_ssid ssid;
 	u32 bss_chan;
-	u32 region_code;
+	u8 country_code[3];
 	u32 media_connected;
 	u32 max_power_level;
 	u32 min_power_level;
@@ -170,7 +181,6 @@ struct mwifiex_ds_tx_ba_stream_tbl {
 struct mwifiex_debug_info {
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
-	u32 max_tx_buf_size;
 	u32 tx_buf_size;
 	u32 curr_tx_buf_size;
 	u32 tx_tbl_num;
@@ -213,7 +223,7 @@ struct mwifiex_debug_info {
 };
 
 #define MWIFIEX_KEY_INDEX_UNICAST	0x40000000
-#define WAPI_RXPN_LEN			16
+#define PN_LEN				16
 
 struct mwifiex_ds_encrypt_key {
 	u32 key_disable;
@@ -222,13 +232,8 @@ struct mwifiex_ds_encrypt_key {
 	u8 key_material[WLAN_MAX_KEY_LEN];
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
-	u8 wapi_rxpn[WAPI_RXPN_LEN];
-};
-
-struct mwifiex_rate_cfg {
-	u32 action;
-	u32 is_rate_auto;
-	u32 rate;
+	u8 pn[PN_LEN];		/* packet number */
+	u8 is_igtk_key;
 };
 
 struct mwifiex_power_cfg {
@@ -249,6 +254,7 @@ struct mwifiex_ds_hs_cfg {
 };
 
 #define DEEP_SLEEP_ON  1
+#define DEEP_SLEEP_OFF 0
 #define DEEP_SLEEP_IDLE_TIME	100
 #define PS_MODE_AUTO		1
 
@@ -266,14 +272,28 @@ struct mwifiex_ds_pm_cfg {
 	} param;
 };
 
+struct mwifiex_11ac_vht_cfg {
+	u8 band_config;
+	u8 misc_config;
+	u32 cap_info;
+	u32 mcs_tx_set;
+	u32 mcs_rx_set;
+};
+
 struct mwifiex_ds_11n_tx_cfg {
 	u16 tx_htcap;
 	u16 tx_htinfo;
+	u16 misc_config; /* Needed for 802.11AC cards only */
 };
 
 struct mwifiex_ds_11n_amsdu_aggr_ctrl {
 	u16 enable;
 	u16 curr_buf_size;
+};
+
+struct mwifiex_ds_ant_cfg {
+	u32 tx_ant;
+	u32 rx_ant;
 };
 
 #define MWIFIEX_NUM_OF_CMD_BUFFER	20
@@ -306,10 +326,14 @@ struct mwifiex_ds_read_eeprom {
 	u8 value[MAX_EEPROM_DATA];
 };
 
+#define IEEE_MAX_IE_SIZE		256
+
+#define MWIFIEX_IE_HDR_SIZE	(sizeof(struct mwifiex_ie) - IEEE_MAX_IE_SIZE)
+
 struct mwifiex_ds_misc_gen_ie {
 	u32 type;
 	u32 len;
-	u8 ie_data[IW_CUSTOM_MAX];
+	u8 ie_data[IEEE_MAX_IE_SIZE];
 };
 
 struct mwifiex_ds_misc_cmd {
@@ -317,8 +341,53 @@ struct mwifiex_ds_misc_cmd {
 	u8 cmd[MWIFIEX_SIZE_OF_CMD_BUFFER];
 };
 
+#define BITMASK_BCN_RSSI_LOW	BIT(0)
+#define BITMASK_BCN_RSSI_HIGH	BIT(4)
+
+enum subsc_evt_rssi_state {
+	EVENT_HANDLED,
+	RSSI_LOW_RECVD,
+	RSSI_HIGH_RECVD
+};
+
+struct subsc_evt_cfg {
+	u8 abs_value;
+	u8 evt_freq;
+};
+
+struct mwifiex_ds_misc_subsc_evt {
+	u16 action;
+	u16 events;
+	struct subsc_evt_cfg bcn_l_rssi_cfg;
+	struct subsc_evt_cfg bcn_h_rssi_cfg;
+};
+
+#define MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MAX_FILTERS	10
+
+struct mwifiex_mef_filter {
+	u16 repeat;
+	u16 offset;
+	s8 byte_seq[MAX_BYTESEQ + 1];
+	u8 filt_type;
+	u8 filt_action;
+};
+
+struct mwifiex_mef_entry {
+	u8 mode;
+	u8 action;
+	struct mwifiex_mef_filter filter[MWIFIEX_MAX_FILTERS];
+};
+
+struct mwifiex_ds_mef_cfg {
+	u32 criteria;
+	u16 num_entries;
+	struct mwifiex_mef_entry *mef_entry;
+};
+
 #define MWIFIEX_MAX_VSIE_LEN       (256)
 #define MWIFIEX_MAX_VSIE_NUM       (8)
+#define MWIFIEX_VSIE_MASK_CLEAR    0x00
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04

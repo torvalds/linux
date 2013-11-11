@@ -47,9 +47,9 @@ including the console 3270, changes subchannel identifier relative to
 one another.  ReIPL as soon as possible after running the configuration
 script and the resulting /tmp/mkdev3270.
 
-If you have chosen to make tub3270 a module, you add a line to
-/etc/modprobe.conf.  If you are working on a VM virtual machine, you
-can use DEF GRAF to define virtual 3270 devices.
+If you have chosen to make tub3270 a module, you add a line to a
+configuration file under /etc/modprobe.d/.  If you are working on a VM
+virtual machine, you can use DEF GRAF to define virtual 3270 devices.
 
 You may generate both 3270 and 3215 console support, or one or the
 other, or neither.  If you generate both, the console type under VM is
@@ -60,7 +60,7 @@ at boot time to a 3270 if it is a 3215.
 
 In brief, these are the steps:
 	1. Install the tub3270 patch
-	2. (If a module) add a line to /etc/modprobe.conf
+	2. (If a module) add a line to a file in /etc/modprobe.d/*.conf
 	3. (If VM) define devices with DEF GRAF
 	4. Reboot
 	5. Configure
@@ -84,13 +84,12 @@ Here are the installation steps in detail:
 		make modules_install
 
 	2. (Perform this step only if you have configured tub3270 as a
-	module.)  Add a line to /etc/modprobe.conf to automatically
-	load the driver when it's needed.  With this line added,
-	you will see login prompts appear on your 3270s as soon as
-	boot is complete (or with emulated 3270s, as soon as you dial
-	into your vm guest using the command "DIAL <vmguestname>").
-	Since the line-mode major number is 227, the line to add to
-	/etc/modprobe.conf should be:
+	module.)  Add a line to a file /etc/modprobe.d/*.conf to automatically
+	load the driver when it's needed.  With this line added, you will see
+	login prompts appear on your 3270s as soon as boot is complete (or
+	with emulated 3270s, as soon as you dial into your vm guest using the
+	command "DIAL <vmguestname>").  Since the line-mode major number is
+	227, the line to add should be:
 		alias char-major-227 tub3270
 
 	3. Define graphic devices to your vm guest machine, if you

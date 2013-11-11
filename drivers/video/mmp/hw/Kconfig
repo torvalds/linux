@@ -1,0 +1,20 @@
+if MMP_DISP
+
+config MMP_DISP_CONTROLLER
+	bool "mmp display controller hw support"
+	depends on CPU_PXA910 || CPU_MMP2 || CPU_MMP3 || CPU_PXA988
+	default n
+	help
+		Marvell MMP display hw controller support
+		this controller is used on Marvell PXA910,
+		MMP2, MMP3, PXA988 chips
+
+config MMP_DISP_SPI
+	bool "mmp display controller spi port"
+	depends on MMP_DISP_CONTROLLER && SPI_MASTER
+	default y
+	help
+		Marvell MMP display hw controller spi port support
+		will register as a spi master for panel usage
+
+endif

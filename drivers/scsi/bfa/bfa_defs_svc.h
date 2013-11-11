@@ -34,40 +34,43 @@
 struct bfa_iocfc_intr_attr_s {
 	u8		coalesce;	/*  enable/disable coalescing */
 	u8		rsvd[3];
-	__be16	latency;	/*  latency in microseconds   */
-	__be16	delay;		/*  delay in microseconds     */
+	__be16		latency;	/*  latency in microseconds   */
+	__be16		delay;		/*  delay in microseconds     */
 };
 
 /*
  * IOC firmware configuraton
  */
 struct bfa_iocfc_fwcfg_s {
-	u16        num_fabrics;	/*  number of fabrics		*/
-	u16        num_lports;	/*  number of local lports	*/
-	u16        num_rports;	/*  number of remote ports	*/
-	u16        num_ioim_reqs;	/*  number of IO reqs		*/
-	u16        num_tskim_reqs;	/*  task management requests	*/
-	u16        num_iotm_reqs;	/*  number of TM IO reqs	*/
-	u16        num_tsktm_reqs;	/*  TM task management requests*/
-	u16        num_fcxp_reqs;	/*  unassisted FC exchanges	*/
-	u16        num_uf_bufs;	/*  unsolicited recv buffers	*/
+	u16		num_fabrics;	/*  number of fabrics		*/
+	u16		num_lports;	/*  number of local lports	*/
+	u16		num_rports;	/*  number of remote ports	*/
+	u16		num_ioim_reqs;	/*  number of IO reqs		*/
+	u16		num_tskim_reqs;	/*  task management requests	*/
+	u16		num_fwtio_reqs;	/* number of TM IO reqs in FW   */
+	u16		num_fcxp_reqs;	/*  unassisted FC exchanges	*/
+	u16		num_uf_bufs;	/*  unsolicited recv buffers	*/
 	u8		num_cqs;
 	u8		fw_tick_res;	/*  FW clock resolution in ms */
-	u8		rsvd[4];
+	u8		rsvd[6];
 };
 #pragma pack()
 
 struct bfa_iocfc_drvcfg_s {
-	u16        num_reqq_elems;	/*  number of req queue elements */
-	u16        num_rspq_elems;	/*  number of rsp queue elements */
-	u16        num_sgpgs;	/*  number of total SG pages	  */
-	u16        num_sboot_tgts;	/*  number of SAN boot targets	  */
-	u16        num_sboot_luns;	/*  number of SAN boot luns	  */
-	u16	    ioc_recover;	/*  IOC recovery mode		  */
-	u16	    min_cfg;	/*  minimum configuration	  */
-	u16        path_tov;	/*  device path timeout	  */
-	bfa_boolean_t   delay_comp; /*  delay completion of
-							failed inflight IOs */
+	u16		num_reqq_elems;	/*  number of req queue elements */
+	u16		num_rspq_elems;	/*  number of rsp queue elements */
+	u16		num_sgpgs;	/*  number of total SG pages	 */
+	u16		num_sboot_tgts;	/*  number of SAN boot targets	 */
+	u16		num_sboot_luns;	/*  number of SAN boot luns	 */
+	u16		ioc_recover;	/*  IOC recovery mode		 */
+	u16		min_cfg;	/*  minimum configuration	 */
+	u16		path_tov;	/*  device path timeout		*/
+	u16		num_tio_reqs;	/* number of TM IO reqs	*/
+	u8		port_mode;
+	u8		rsvd_a;
+	bfa_boolean_t	delay_comp;	/* delay completion of failed
+					 * inflight IOs */
+	u16		num_ttsk_reqs;	 /* TM task management requests */
 	u32		rsvd;
 };
 
@@ -82,7 +85,7 @@ struct bfa_iocfc_cfg_s {
 /*
  * IOC firmware IO stats
  */
-struct bfa_fw_io_stats_s {
+struct bfa_fw_ioim_stats_s {
 	u32	host_abort;		/*  IO aborted by host driver*/
 	u32	host_cleanup;		/*  IO clean up by host driver */
 
@@ -98,8 +101,8 @@ struct bfa_fw_io_stats_s {
 	u32	fw_frm_drop;		/*  f/w drop the frame */
 
 	u32	rec_timeout;		/*  FW rec timed out */
-	u32	error_rec;			/*  FW sending rec on
-							* an error condition*/
+	u32	error_rec;		/*  FW sending rec on
+					 *  an error condition*/
 	u32	wait_for_si;		/*  FW wait for SI */
 	u32	rec_rsp_inval;		/*  REC rsp invalid */
 	u32	seqr_io_abort;		/*  target does not know cmd so abort */
@@ -121,9 +124,9 @@ struct bfa_fw_io_stats_s {
 	u32	unexp_fcp_rsp;		/*  fcp response in wrong state */
 
 	u32	fcp_rsp_under_run;	/*  fcp rsp IO underrun */
-	u32        fcp_rsp_under_run_wr;   /*  fcp rsp IO underrun for write */
+	u32     fcp_rsp_under_run_wr;   /*  fcp rsp IO underrun for write */
 	u32	fcp_rsp_under_run_err;	/*  fcp rsp IO underrun error */
-	u32        fcp_rsp_resid_inval;    /*  invalid residue */
+	u32     fcp_rsp_resid_inval;    /*  invalid residue */
 	u32	fcp_rsp_over_run;	/*  fcp rsp IO overrun */
 	u32	fcp_rsp_over_run_err;	/*  fcp rsp IO overrun error */
 	u32	fcp_rsp_proto_err;	/*  protocol error in fcp rsp */
@@ -139,17 +142,66 @@ struct bfa_fw_io_stats_s {
 	u32	ioh_hit_class2_event;	/*  IOH hit class2 */
 	u32	ioh_miss_other_event;	/*  IOH miss other */
 	u32	ioh_seq_cnt_err_event;	/*  IOH seq cnt error */
-	u32	ioh_len_err_event;		/*  IOH len error - fcp_dl !=
-							* bytes xfered */
+	u32	ioh_len_err_event;	/*  IOH len error - fcp_dl !=
+					 *  bytes xfered */
 	u32	ioh_seq_len_err_event;	/*  IOH seq len error */
 	u32	ioh_data_oor_event;	/*  Data out of range */
 	u32	ioh_ro_ooo_event;	/*  Relative offset out of range */
 	u32	ioh_cpu_owned_event;	/*  IOH hit -iost owned by f/w */
 	u32	ioh_unexp_frame_event;	/*  unexpected frame received
-						 *   count */
+					 *  count */
 	u32	ioh_err_int;		/*  IOH error int during data-phase
-						 *   for scsi write
-						 */
+					 *  for scsi write */
+};
+
+struct bfa_fw_tio_stats_s {
+	u32	tio_conf_proc;	    /* TIO CONF processed */
+	u32	tio_conf_drop;      /* TIO CONF dropped */
+	u32	tio_cleanup_req;    /* TIO cleanup requested */
+	u32	tio_cleanup_comp;   /* TIO cleanup completed */
+	u32	tio_abort_rsp;      /* TIO abort response */
+	u32	tio_abort_rsp_comp; /* TIO abort rsp completed */
+	u32	tio_abts_req;       /* TIO ABTS requested */
+	u32	tio_abts_ack;       /* TIO ABTS ack-ed */
+	u32	tio_abts_ack_nocomp;/* TIO ABTS ack-ed but not completed */
+	u32	tio_abts_tmo;       /* TIO ABTS timeout */
+	u32	tio_snsdata_dma;    /* TIO sense data DMA */
+	u32	tio_rxwchan_wait;   /* TIO waiting for RX wait channel */
+	u32	tio_rxwchan_avail;  /* TIO RX wait channel available */
+	u32	tio_hit_bls;        /* TIO IOH BLS event */
+	u32	tio_uf_recv;        /* TIO received UF */
+	u32	tio_rd_invalid_sm;  /* TIO read reqst in wrong state machine */
+	u32	tio_wr_invalid_sm;  /* TIO write reqst in wrong state machine */
+
+	u32	ds_rxwchan_wait;    /* DS waiting for RX wait channel */
+	u32	ds_rxwchan_avail;   /* DS RX wait channel available */
+	u32	ds_unaligned_rd;    /* DS unaligned read */
+	u32	ds_rdcomp_invalid_sm; /* DS read completed in wrong state
+				       * machine */
+	u32	ds_wrcomp_invalid_sm; /* DS write completed in wrong state
+				       * machine */
+	u32	ds_flush_req;       /* DS flush requested */
+	u32	ds_flush_comp;      /* DS flush completed */
+	u32	ds_xfrdy_exp;       /* DS XFER_RDY expired */
+	u32	ds_seq_cnt_err;     /* DS seq cnt error */
+	u32	ds_seq_len_err;     /* DS seq len error */
+	u32	ds_data_oor;        /* DS data out of order */
+	u32	ds_hit_bls;	    /* DS hit BLS */
+	u32	ds_edtov_timer_exp; /* DS edtov expired */
+	u32	ds_cpu_owned;       /* DS cpu owned */
+	u32	ds_hit_class2;      /* DS hit class2 */
+	u32	ds_length_err;      /* DS length error */
+	u32	ds_ro_ooo_err;      /* DS relative offset out-of-order error */
+	u32	ds_rectov_timer_exp;/* DS rectov expired */
+	u32	ds_unexp_fr_err;    /* DS unexp frame error */
+};
+
+/*
+ * IOC firmware IO stats
+ */
+struct bfa_fw_io_stats_s {
+	struct bfa_fw_ioim_stats_s	ioim_stats;
+	struct bfa_fw_tio_stats_s	tio_stats;
 };
 
 /*
@@ -157,117 +209,156 @@ struct bfa_fw_io_stats_s {
  */
 
 struct bfa_fw_port_fpg_stats_s {
-    u32    intr_evt;
-    u32    intr;
-    u32    intr_excess;
-    u32    intr_cause0;
-    u32    intr_other;
-    u32    intr_other_ign;
-    u32    sig_lost;
-    u32    sig_regained;
-    u32    sync_lost;
-    u32    sync_to;
-    u32    sync_regained;
-    u32    div2_overflow;
-    u32    div2_underflow;
-    u32    efifo_overflow;
-    u32    efifo_underflow;
-    u32    idle_rx;
-    u32    lrr_rx;
-    u32    lr_rx;
-    u32    ols_rx;
-    u32    nos_rx;
-    u32    lip_rx;
-    u32    arbf0_rx;
-    u32    arb_rx;
-    u32    mrk_rx;
-    u32    const_mrk_rx;
-    u32    prim_unknown;
+	u32    intr_evt;
+	u32    intr;
+	u32    intr_excess;
+	u32    intr_cause0;
+	u32    intr_other;
+	u32    intr_other_ign;
+	u32    sig_lost;
+	u32    sig_regained;
+	u32    sync_lost;
+	u32    sync_to;
+	u32    sync_regained;
+	u32    div2_overflow;
+	u32    div2_underflow;
+	u32    efifo_overflow;
+	u32    efifo_underflow;
+	u32    idle_rx;
+	u32    lrr_rx;
+	u32    lr_rx;
+	u32    ols_rx;
+	u32    nos_rx;
+	u32    lip_rx;
+	u32    arbf0_rx;
+	u32    arb_rx;
+	u32    mrk_rx;
+	u32    const_mrk_rx;
+	u32    prim_unknown;
 };
 
 
 struct bfa_fw_port_lksm_stats_s {
-    u32    hwsm_success;       /*  hwsm state machine success          */
-    u32    hwsm_fails;         /*  hwsm fails                          */
-    u32    hwsm_wdtov;         /*  hwsm timed out                      */
-    u32    swsm_success;       /*  swsm success                        */
-    u32    swsm_fails;         /*  swsm fails                          */
-    u32    swsm_wdtov;         /*  swsm timed out                      */
-    u32    busybufs;           /*  link init failed due to busybuf     */
-    u32    buf_waits;          /*  bufwait state entries               */
-    u32    link_fails;         /*  link failures                       */
-    u32    psp_errors;         /*  primitive sequence protocol errors  */
-    u32    lr_unexp;           /*  No. of times LR rx-ed unexpectedly  */
-    u32    lrr_unexp;          /*  No. of times LRR rx-ed unexpectedly */
-    u32    lr_tx;              /*  No. of times LR tx started          */
-    u32    lrr_tx;             /*  No. of times LRR tx started         */
-    u32    ols_tx;             /*  No. of times OLS tx started         */
-    u32    nos_tx;             /*  No. of times NOS tx started         */
-    u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
-    u32    hwsm_lr_rx;         /*  No. of times LR rx-ed by HWSM      */
+	u32    hwsm_success;       /*  hwsm state machine success          */
+	u32    hwsm_fails;         /*  hwsm fails                          */
+	u32    hwsm_wdtov;         /*  hwsm timed out                      */
+	u32    swsm_success;       /*  swsm success                        */
+	u32    swsm_fails;         /*  swsm fails                          */
+	u32    swsm_wdtov;         /*  swsm timed out                      */
+	u32    busybufs;           /*  link init failed due to busybuf     */
+	u32    buf_waits;          /*  bufwait state entries               */
+	u32    link_fails;         /*  link failures                       */
+	u32    psp_errors;         /*  primitive sequence protocol errors  */
+	u32    lr_unexp;           /*  No. of times LR rx-ed unexpectedly  */
+	u32    lrr_unexp;          /*  No. of times LRR rx-ed unexpectedly */
+	u32    lr_tx;              /*  No. of times LR tx started          */
+	u32    lrr_tx;             /*  No. of times LRR tx started         */
+	u32    ols_tx;             /*  No. of times OLS tx started         */
+	u32    nos_tx;             /*  No. of times NOS tx started         */
+	u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
+	u32    hwsm_lr_rx;         /*  No. of times LR rx-ed by HWSM       */
+	u32    bbsc_lr;		   /* LKSM LR tx for credit recovery       */
+	u32	rsvd;
 };
 
 struct bfa_fw_port_snsm_stats_s {
-    u32    hwsm_success;       /*  Successful hwsm terminations        */
-    u32    hwsm_fails;         /*  hwsm fail count                     */
-    u32    hwsm_wdtov;         /*  hwsm timed out                      */
-    u32    swsm_success;       /*  swsm success                        */
-    u32    swsm_wdtov;         /*  swsm timed out                      */
-    u32    error_resets;       /*  error resets initiated by upsm      */
-    u32    sync_lost;          /*  Sync loss count                     */
-    u32    sig_lost;           /*  Signal loss count                   */
+	u32    hwsm_success;       /*  Successful hwsm terminations        */
+	u32    hwsm_fails;         /*  hwsm fail count                     */
+	u32    hwsm_wdtov;         /*  hwsm timed out                      */
+	u32    swsm_success;       /*  swsm success                        */
+	u32    swsm_wdtov;         /*  swsm timed out                      */
+	u32    error_resets;       /*  error resets initiated by upsm      */
+	u32    sync_lost;          /*  Sync loss count                     */
+	u32    sig_lost;           /*  Signal loss count                   */
+	u32    asn8g_attempts;	   /* SNSM HWSM at 8Gbps attempts	   */
+	u32    adapt_success;	   /* SNSM adaptation success	*/
+	u32    adapt_fails;	   /* SNSM adaptation failures */
+	u32    adapt_ign_fails;	   /* SNSM adaptation failures ignored */
 };
 
 struct bfa_fw_port_physm_stats_s {
-    u32    module_inserts;     /*  Module insert count                 */
-    u32    module_xtracts;     /*  Module extracts count               */
-    u32    module_invalids;    /*  Invalid module inserted count       */
-    u32    module_read_ign;    /*  Module validation status ignored    */
-    u32    laser_faults;       /*  Laser fault count                   */
-    u32    rsvd;
+	u32    module_inserts;     /*  Module insert count                 */
+	u32    module_xtracts;     /*  Module extracts count               */
+	u32    module_invalids;    /*  Invalid module inserted count       */
+	u32    module_read_ign;    /*  Module validation status ignored    */
+	u32    laser_faults;       /*  Laser fault count                   */
+	u32    rsvd;
 };
 
 struct bfa_fw_fip_stats_s {
-    u32    vlan_req;           /*  vlan discovery requests             */
-    u32    vlan_notify;        /*  vlan notifications                  */
-    u32    vlan_err;           /*  vlan response error                 */
-    u32    vlan_timeouts;      /*  vlan disvoery timeouts              */
-    u32    vlan_invalids;      /*  invalid vlan in discovery advert.   */
-    u32    disc_req;           /*  Discovery solicit requests          */
-    u32    disc_rsp;           /*  Discovery solicit response          */
-    u32    disc_err;           /*  Discovery advt. parse errors        */
-    u32    disc_unsol;         /*  Discovery unsolicited               */
-    u32    disc_timeouts;      /*  Discovery timeouts                  */
-    u32    disc_fcf_unavail;   /*  Discovery FCF Not Avail.            */
-    u32    linksvc_unsupp;     /*  Unsupported link service req        */
-    u32    linksvc_err;        /*  Parse error in link service req     */
-    u32    logo_req;           /*  FIP logos received                  */
-    u32    clrvlink_req;       /*  Clear virtual link req              */
-    u32    op_unsupp;          /*  Unsupported FIP operation           */
-    u32    untagged;           /*  Untagged frames (ignored)           */
-    u32    invalid_version;    /*  Invalid FIP version                 */
+	u32    vlan_req;           /*  vlan discovery requests             */
+	u32    vlan_notify;        /*  vlan notifications                  */
+	u32    vlan_err;           /*  vlan response error                 */
+	u32    vlan_timeouts;      /*  vlan disvoery timeouts              */
+	u32    vlan_invalids;      /*  invalid vlan in discovery advert.   */
+	u32    disc_req;           /*  Discovery solicit requests          */
+	u32    disc_rsp;           /*  Discovery solicit response          */
+	u32    disc_err;           /*  Discovery advt. parse errors        */
+	u32    disc_unsol;         /*  Discovery unsolicited               */
+	u32    disc_timeouts;      /*  Discovery timeouts                  */
+	u32    disc_fcf_unavail;   /*  Discovery FCF Not Avail.            */
+	u32    linksvc_unsupp;     /*  Unsupported link service req        */
+	u32    linksvc_err;        /*  Parse error in link service req     */
+	u32    logo_req;           /*  FIP logos received                  */
+	u32    clrvlink_req;       /*  Clear virtual link req              */
+	u32    op_unsupp;          /*  Unsupported FIP operation           */
+	u32    untagged;           /*  Untagged frames (ignored)           */
+	u32    invalid_version;    /*  Invalid FIP version                 */
 };
 
 struct bfa_fw_lps_stats_s {
-    u32    mac_invalids;       /*  Invalid mac assigned                */
-    u32    rsvd;
+	u32    mac_invalids;       /*  Invalid mac assigned                */
+	u32    rsvd;
 };
 
 struct bfa_fw_fcoe_stats_s {
-    u32    cee_linkups;        /*  CEE link up count                   */
-    u32    cee_linkdns;        /*  CEE link down count                 */
-    u32    fip_linkups;        /*  FIP link up count                   */
-    u32    fip_linkdns;        /*  FIP link up count                   */
-    u32    fip_fails;          /*  FIP fail count                      */
-    u32    mac_invalids;       /*  Invalid mac assigned                */
+	u32    cee_linkups;        /*  CEE link up count                   */
+	u32    cee_linkdns;        /*  CEE link down count                 */
+	u32    fip_linkups;        /*  FIP link up count                   */
+	u32    fip_linkdns;        /*  FIP link up count                   */
+	u32    fip_fails;          /*  FIP fail count                      */
+	u32    mac_invalids;       /*  Invalid mac assigned                */
 };
 
 /*
  * IOC firmware FCoE port stats
  */
 struct bfa_fw_fcoe_port_stats_s {
-    struct bfa_fw_fcoe_stats_s  fcoe_stats;
-    struct bfa_fw_fip_stats_s   fip_stats;
+	struct bfa_fw_fcoe_stats_s		fcoe_stats;
+	struct bfa_fw_fip_stats_s		fip_stats;
+};
+
+/**
+ * @brief LPSM statistics
+ */
+struct bfa_fw_lpsm_stats_s {
+	u32	cls_rx;		/* LPSM cls_rx			*/
+	u32	cls_tx;		/* LPSM cls_tx			*/
+	u32	arbf0_rx;	/* LPSM abrf0 rcvd		*/
+	u32	arbf0_tx;	/* LPSM abrf0 xmit		*/
+	u32	init_rx;	/* LPSM loop init start		*/
+	u32	unexp_hwst;	/* LPSM unknown hw state	*/
+	u32	unexp_frame;	/* LPSM unknown_frame		*/
+	u32	unexp_prim;	/* LPSM unexpected primitive	*/
+	u32	prev_alpa_unavail; /* LPSM prev alpa unavailable */
+	u32	alpa_unavail;	/* LPSM alpa not available	*/
+	u32	lip_rx;		/* LPSM lip rcvd		*/
+	u32	lip_f7f7_rx;	/* LPSM lip f7f7 rcvd		*/
+	u32	lip_f8_rx;	/* LPSM lip f8 rcvd		*/
+	u32	lip_f8f7_rx;	/* LPSM lip f8f7 rcvd		*/
+	u32	lip_other_rx;	/* LPSM lip other rcvd		*/
+	u32	lip_tx;		/* LPSM lip xmit		*/
+	u32	retry_tov;	/* LPSM retry TOV		*/
+	u32	lip_tov;	/* LPSM LIP wait TOV		*/
+	u32	idle_tov;	/* LPSM idle wait TOV		*/
+	u32	arbf0_tov;	/* LPSM arbfo wait TOV		*/
+	u32	stop_loop_tov;	/* LPSM stop loop wait TOV	*/
+	u32	lixa_tov;	/* LPSM lisa wait TOV		*/
+	u32	lixx_tov;	/* LPSM lilp/lirp wait TOV	*/
+	u32	cls_tov;	/* LPSM cls wait TOV		*/
+	u32	sler;		/* LPSM SLER recvd		*/
+	u32	failed;		/* LPSM failed			*/
+	u32	success;	/* LPSM online			*/
 };
 
 /*
@@ -276,14 +367,15 @@ struct bfa_fw_fcoe_port_stats_s {
 struct bfa_fw_fc_uport_stats_s {
 	struct bfa_fw_port_snsm_stats_s		snsm_stats;
 	struct bfa_fw_port_lksm_stats_s		lksm_stats;
+	struct bfa_fw_lpsm_stats_s		lpsm_stats;
 };
 
 /*
  * IOC firmware FC port stats
  */
 union bfa_fw_fc_port_stats_s {
-	struct bfa_fw_fc_uport_stats_s	fc_stats;
-	struct bfa_fw_fcoe_port_stats_s	fcoe_stats;
+	struct bfa_fw_fc_uport_stats_s		fc_stats;
+	struct bfa_fw_fcoe_port_stats_s		fcoe_stats;
 };
 
 /*
@@ -303,35 +395,30 @@ struct bfa_fw_fcxchg_stats_s {
 	u32	ua_state_inv;
 };
 
-struct bfa_fw_lpsm_stats_s {
-	u32	cls_rx;
-	u32	cls_tx;
-};
-
 /*
  *  Trunk statistics
  */
 struct bfa_fw_trunk_stats_s {
 	u32 emt_recvd;		/*  Trunk EMT received		*/
-	u32 emt_accepted;		/*  Trunk EMT Accepted		*/
-	u32 emt_rejected;		/*  Trunk EMT rejected		*/
+	u32 emt_accepted;	/*  Trunk EMT Accepted		*/
+	u32 emt_rejected;	/*  Trunk EMT rejected		*/
 	u32 etp_recvd;		/*  Trunk ETP received		*/
-	u32 etp_accepted;		/*  Trunk ETP Accepted		*/
-	u32 etp_rejected;		/*  Trunk ETP rejected		*/
+	u32 etp_accepted;	/*  Trunk ETP Accepted		*/
+	u32 etp_rejected;	/*  Trunk ETP rejected		*/
 	u32 lr_recvd;		/*  Trunk LR received		*/
-	u32 rsvd;			/*  padding for 64 bit alignment */
+	u32 rsvd;		/*  padding for 64 bit alignment */
 };
 
 struct bfa_fw_advsm_stats_s {
 	u32 flogi_sent;		/*  Flogi sent			*/
 	u32 flogi_acc_recvd;	/*  Flogi Acc received		*/
 	u32 flogi_rjt_recvd;	/*  Flogi rejects received	*/
-	u32 flogi_retries;		/*  Flogi retries		*/
+	u32 flogi_retries;	/*  Flogi retries		*/
 
 	u32 elp_recvd;		/*  ELP received		*/
-	u32 elp_accepted;		/*  ELP Accepted		*/
-	u32 elp_rejected;		/*  ELP rejected		*/
-	u32 elp_dropped;		/*  ELP dropped		*/
+	u32 elp_accepted;	/*  ELP Accepted		*/
+	u32 elp_rejected;	/*  ELP rejected		*/
+	u32 elp_dropped;	/*  ELP dropped			*/
 };
 
 /*
@@ -400,7 +487,6 @@ struct bfa_fw_stats_s {
 	struct bfa_fw_io_stats_s	io_stats;
 	struct bfa_fw_port_stats_s	port_stats;
 	struct bfa_fw_fcxchg_stats_s	fcxchg_stats;
-	struct bfa_fw_lpsm_stats_s	lpsm_stats;
 	struct bfa_fw_lps_stats_s	lps_stats;
 	struct bfa_fw_trunk_stats_s	trunk_stats;
 	struct bfa_fw_advsm_stats_s	advsm_stats;
@@ -416,6 +502,7 @@ struct bfa_fw_stats_s {
  * QoS states
  */
 enum bfa_qos_state {
+	BFA_QOS_DISABLED = 0,		/* QoS is disabled */
 	BFA_QOS_ONLINE = 1,		/*  QoS is online */
 	BFA_QOS_OFFLINE = 2,		/*  QoS is offline */
 };
@@ -439,13 +526,23 @@ enum bfa_qos_bw_alloc {
 	BFA_QOS_BW_LOW  =  10,	/*  bandwidth allocation for Low */
 };
 #pragma pack(1)
+
+struct bfa_qos_bw_s {
+	u8	qos_bw_set;
+	u8	high;
+	u8	med;
+	u8	low;
+};
+
 /*
  * QoS attribute returned in QoS Query
  */
 struct bfa_qos_attr_s {
-	u8		state;		/*  QoS current state */
-	u8		rsvd[3];
-	u32  total_bb_cr;		/*  Total BB Credits */
+	u8	state;		/*  QoS current state */
+	u8	rsvd1[3];
+	u32	total_bb_cr;	/*  Total BB Credits */
+	struct bfa_qos_bw_s qos_bw;	/* QOS bw cfg */
+	struct bfa_qos_bw_s qos_bw_op;	/* QOS bw operational */
 };
 
 /*
@@ -467,7 +564,7 @@ struct bfa_qos_vc_attr_s {
 	u16  total_vc_count;                    /*  Total VC Count */
 	u16  shared_credit;
 	u32  elp_opmode_flags;
-	struct bfa_qos_vc_info_s vc_info[BFA_QOS_MAX_VC];  /*   as many as
+	struct bfa_qos_vc_info_s vc_info[BFA_QOS_MAX_VC];  /* as many as
 							    * total_vc_count */
 };
 
@@ -477,16 +574,16 @@ struct bfa_qos_vc_attr_s {
 struct bfa_qos_stats_s {
 	u32	flogi_sent;		/*  QoS Flogi sent */
 	u32	flogi_acc_recvd;	/*  QoS Flogi Acc received */
-	u32	flogi_rjt_recvd; /*  QoS Flogi rejects received */
+	u32	flogi_rjt_recvd;	/*  QoS Flogi rejects received */
 	u32	flogi_retries;		/*  QoS Flogi retries */
 
 	u32	elp_recvd;		/*  QoS ELP received */
 	u32	elp_accepted;		/*  QoS ELP Accepted */
-	u32	elp_rejected;       /*  QoS ELP rejected */
-	u32	elp_dropped;        /*  QoS ELP dropped  */
+	u32	elp_rejected;		/*  QoS ELP rejected */
+	u32	elp_dropped;		/*  QoS ELP dropped  */
 
-	u32	qos_rscn_recvd;     /*  QoS RSCN received */
-	u32	rsvd;		    /* padding for 64 bit alignment */
+	u32	qos_rscn_recvd;		/*  QoS RSCN received */
+	u32	rsvd;			/* padding for 64 bit alignment */
 };
 
 /*
@@ -494,9 +591,9 @@ struct bfa_qos_stats_s {
  */
 struct bfa_fcoe_stats_s {
 	u64	secs_reset;	/*  Seconds since stats reset	     */
-	u64	cee_linkups;	/*  CEE link up		     */
+	u64	cee_linkups;	/*  CEE link up			     */
 	u64	cee_linkdns;	/*  CEE link down		     */
-	u64	fip_linkups;	/*  FIP link up		     */
+	u64	fip_linkups;	/*  FIP link up			     */
 	u64	fip_linkdns;	/*  FIP link down		     */
 	u64	fip_fails;	/*  FIP failures		     */
 	u64	mac_invalids;	/*  Invalid mac assignments	     */
@@ -506,38 +603,38 @@ struct bfa_fcoe_stats_s {
 	u64	vlan_timeouts;	/*  Vlan request timeouts	     */
 	u64	vlan_invalids;	/*  Vlan invalids		     */
 	u64	disc_req;	/*  Discovery requests		     */
-	u64	disc_rsp;	/*  Discovery responses	     */
+	u64	disc_rsp;	/*  Discovery responses		     */
 	u64	disc_err;	/*  Discovery error frames	     */
 	u64	disc_unsol;	/*  Discovery unsolicited	     */
 	u64	disc_timeouts;	/*  Discovery timeouts		     */
 	u64	disc_fcf_unavail; /*  Discovery FCF not avail	     */
-	u64	linksvc_unsupp;	/*  FIP link service req unsupp.    */
-	u64	linksvc_err;	/*  FIP link service req errors     */
+	u64	linksvc_unsupp;	/*  FIP link service req unsupp	     */
+	u64	linksvc_err;	/*  FIP link service req errors	     */
 	u64	logo_req;	/*  FIP logos received		     */
-	u64	clrvlink_req;	/*  Clear virtual link requests     */
+	u64	clrvlink_req;	/*  Clear virtual link requests	     */
 	u64	op_unsupp;	/*  FIP operation unsupp.	     */
-	u64	untagged;	/*  FIP untagged frames	     */
+	u64	untagged;	/*  FIP untagged frames		     */
 	u64	txf_ucast;	/*  Tx FCoE unicast frames	     */
-	u64	txf_ucast_vlan;	/*  Tx FCoE unicast vlan frames     */
+	u64	txf_ucast_vlan;	/*  Tx FCoE unicast vlan frames      */
 	u64	txf_ucast_octets; /*  Tx FCoE unicast octets	     */
 	u64	txf_mcast;	/*  Tx FCoE multicast frames	     */
-	u64	txf_mcast_vlan;	/*  Tx FCoE multicast vlan frames   */
+	u64	txf_mcast_vlan;	/*  Tx FCoE multicast vlan frames    */
 	u64	txf_mcast_octets; /*  Tx FCoE multicast octets	     */
 	u64	txf_bcast;	/*  Tx FCoE broadcast frames	     */
-	u64	txf_bcast_vlan;	/*  Tx FCoE broadcast vlan frames   */
+	u64	txf_bcast_vlan;	/*  Tx FCoE broadcast vlan frames    */
 	u64	txf_bcast_octets; /*  Tx FCoE broadcast octets	     */
-	u64	txf_timeout;	/*  Tx timeouts		     */
+	u64	txf_timeout;	  /*  Tx timeouts		     */
 	u64	txf_parity_errors; /*  Transmit parity err	     */
-	u64	txf_fid_parity_errors; /*  Transmit FID parity err  */
+	u64	txf_fid_parity_errors; /*  Transmit FID parity err   */
 	u64	rxf_ucast_octets; /*  Rx FCoE unicast octets	     */
 	u64	rxf_ucast;	/*  Rx FCoE unicast frames	     */
-	u64	rxf_ucast_vlan;	/*  Rx FCoE unicast vlan frames     */
+	u64	rxf_ucast_vlan;	/*  Rx FCoE unicast vlan frames	     */
 	u64	rxf_mcast_octets; /*  Rx FCoE multicast octets	     */
 	u64	rxf_mcast;	/*  Rx FCoE multicast frames	     */
-	u64	rxf_mcast_vlan;	/*  Rx FCoE multicast vlan frames   */
+	u64	rxf_mcast_vlan;	/*  Rx FCoE multicast vlan frames    */
 	u64	rxf_bcast_octets; /*  Rx FCoE broadcast octets	     */
 	u64	rxf_bcast;	/*  Rx FCoE broadcast frames	     */
-	u64	rxf_bcast_vlan;	/*  Rx FCoE broadcast vlan frames   */
+	u64	rxf_bcast_vlan;	/*  Rx FCoE broadcast vlan frames    */
 };
 
 /*
@@ -618,6 +715,7 @@ struct bfa_itnim_iostats_s {
 	u32	tm_iocdowns;		/*  TM cleaned-up due to IOC down   */
 	u32	tm_cleanups;		/*  TM cleanup requests	*/
 	u32	tm_cleanup_comps;	/*  TM cleanup completions	*/
+	u32	rsvd[6];
 };
 
 /* Modify char* port_stt[] in bfal_port.c if a new state was added */
@@ -636,6 +734,8 @@ enum bfa_port_states {
 	BFA_PORT_ST_FWMISMATCH		= 12,
 	BFA_PORT_ST_PREBOOT_DISABLED	= 13,
 	BFA_PORT_ST_TOGGLING_QWAIT	= 14,
+	BFA_PORT_ST_FAA_MISCONFIG	= 15,
+	BFA_PORT_ST_DPORT		= 16,
 	BFA_PORT_ST_MAX_STATE,
 };
 
@@ -657,9 +757,11 @@ enum bfa_port_type {
  */
 enum bfa_port_topology {
 	BFA_PORT_TOPOLOGY_NONE = 0,	/*  No valid topology */
-	BFA_PORT_TOPOLOGY_P2P  = 1,	/*  P2P only */
-	BFA_PORT_TOPOLOGY_LOOP = 2,	/*  LOOP topology */
-	BFA_PORT_TOPOLOGY_AUTO = 3,	/*  auto topology selection */
+	BFA_PORT_TOPOLOGY_P2P_OLD_VER = 1, /* P2P def for older ver */
+	BFA_PORT_TOPOLOGY_LOOP = 2,	/* LOOP topology */
+	BFA_PORT_TOPOLOGY_AUTO_OLD_VER = 3, /* auto def for older ver */
+	BFA_PORT_TOPOLOGY_AUTO = 4,	/* auto topology selection */
+	BFA_PORT_TOPOLOGY_P2P = 5,	/* P2P only */
 };
 
 /*
@@ -703,6 +805,7 @@ enum bfa_port_linkstate_rsn {
 	BFA_PORT_LINKSTATE_RSN_LOCAL_FAULT	= 9,
 	BFA_PORT_LINKSTATE_RSN_REMOTE_FAULT	= 10,
 	BFA_PORT_LINKSTATE_RSN_TIMEOUT		= 11,
+	BFA_PORT_LINKSTATE_RSN_FAA_MISCONFIG	= 12,
 
 
 
@@ -732,7 +835,63 @@ enum bfa_port_linkstate_rsn {
 	CEE_ISCSI_PRI_PFC_OFF			= 42,
 	CEE_ISCSI_PRI_OVERLAP_FCOE_PRI		= 43
 };
+
+#define MAX_LUN_MASK_CFG 16
+
+/*
+ * Initially flash content may be fff. On making LUN mask enable and disable
+ * state chnage.  when report lun command is being processed it goes from
+ * BFA_LUN_MASK_ACTIVE to BFA_LUN_MASK_FETCH and comes back to
+ * BFA_LUN_MASK_ACTIVE.
+ */
+enum bfa_ioim_lun_mask_state_s {
+	BFA_IOIM_LUN_MASK_INACTIVE = 0,
+	BFA_IOIM_LUN_MASK_ACTIVE = 1,
+	BFA_IOIM_LUN_MASK_FETCHED = 2,
+};
+
+enum bfa_lunmask_state_s {
+	BFA_LUNMASK_DISABLED = 0x00,
+	BFA_LUNMASK_ENABLED = 0x01,
+	BFA_LUNMASK_MINCFG = 0x02,
+	BFA_LUNMASK_UNINITIALIZED = 0xff,
+};
+
 #pragma pack(1)
+/*
+ * LUN mask configuration
+ */
+struct bfa_lun_mask_s {
+	wwn_t		lp_wwn;
+	wwn_t		rp_wwn;
+	struct scsi_lun	lun;
+	u8		ua;
+	u8		rsvd[3];
+	u16		rp_tag;
+	u8		lp_tag;
+	u8		state;
+};
+
+#define MAX_LUN_MASK_CFG 16
+struct bfa_lunmask_cfg_s {
+	u32	status;
+	u32	rsvd;
+	struct bfa_lun_mask_s	lun_list[MAX_LUN_MASK_CFG];
+};
+
+struct bfa_throttle_cfg_s {
+	u16	is_valid;
+	u16	value;
+	u32	rsvd;
+};
+
+struct bfa_defs_fcpim_throttle_s {
+	u16	max_value;
+	u16	cur_value;
+	u16	cfg_value;
+	u16	rsvd;
+};
+
 /*
  *      Physical port configuration
  */
@@ -748,8 +907,13 @@ struct bfa_port_cfg_s {
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
 	u8	 trl_def_speed;	/*  ratelimit default speed	*/
-	u16 path_tov;	/*  device path timeout	*/
-	u16 q_depth;	/*  SCSI Queue depth		*/
+	u8	 bb_scn;	/*  BB_SCN value from FLOGI Exchg */
+	u8	 bb_scn_state;	/*  Config state of BB_SCN */
+	u8	 faa_state;	/*  FAA enabled/disabled        */
+	u8	 rsvd1;
+	u16	 path_tov;	/*  device path timeout	*/
+	u16	 q_depth;	/*  SCSI Queue depth		*/
+	struct bfa_qos_bw_s qos_bw;	/* QOS bandwidth	*/
 };
 #pragma pack()
 
@@ -760,20 +924,21 @@ struct bfa_port_attr_s {
 	/*
 	 * Static fields
 	 */
-	wwn_t	   nwwn;		/*  node wwn */
-	wwn_t	   pwwn;		/*  port wwn */
-	wwn_t	   factorynwwn;	/*  factory node wwn */
-	wwn_t	   factorypwwn;	/*  factory port wwn */
-	enum fc_cos	cos_supported;	/*  supported class of services */
-	u32	rsvd;
+	wwn_t			nwwn;		/*  node wwn */
+	wwn_t			pwwn;		/*  port wwn */
+	wwn_t			factorynwwn;	/*  factory node wwn */
+	wwn_t			factorypwwn;	/*  factory port wwn */
+	enum fc_cos		cos_supported;	/*  supported class of
+						 *  services */
+	u32			rsvd;
 	struct fc_symname_s	port_symname;	/*  port symbolic name */
-	enum bfa_port_speed speed_supported; /*  supported speeds */
-	bfa_boolean_t   pbind_enabled;
+	enum bfa_port_speed	speed_supported; /* supported speeds */
+	bfa_boolean_t		pbind_enabled;
 
 	/*
 	 * Configured values
 	 */
-	struct bfa_port_cfg_s pport_cfg;	/*  pport cfg */
+	struct bfa_port_cfg_s	pport_cfg;	/*  pport cfg */
 
 	/*
 	 * Dynamic field - info from BFA
@@ -782,21 +947,20 @@ struct bfa_port_attr_s {
 	enum bfa_port_speed	speed;		/*  current speed */
 	enum bfa_port_topology	topology;	/*  current topology */
 	bfa_boolean_t		beacon;		/*  current beacon status */
-	bfa_boolean_t		link_e2e_beacon; /*  link beacon is on */
-	bfa_boolean_t		plog_enabled;	/*  portlog is enabled */
+	bfa_boolean_t		link_e2e_beacon; /* link beacon is on */
+	bfa_boolean_t		bbsc_op_status;	/* fc credit recovery oper
+						 * state */
 
 	/*
 	 * Dynamic field - info from FCS
 	 */
-	u32		pid;		/*  port ID */
+	u32			pid;		/*  port ID */
 	enum bfa_port_type	port_type;	/*  current topology */
-	u32		loopback;	/*  external loopback */
-	u32		authfail;	/*  auth fail state */
-	bfa_boolean_t		io_profile;	/*  get it from fcpim mod */
-	u8			pad[4];		/*  for 64-bit alignement */
+	u32			loopback;	/*  external loopback */
+	u32			authfail;	/*  auth fail state */
 
 	/* FCoE specific  */
-	u16		fcoe_vlan;
+	u16			fcoe_vlan;
 	u8			rsvd1[6];
 };
 
@@ -804,48 +968,48 @@ struct bfa_port_attr_s {
  *	      Port FCP mappings.
  */
 struct bfa_port_fcpmap_s {
-	char		osdevname[256];
+	char	osdevname[256];
 	u32	bus;
 	u32	target;
 	u32	oslun;
 	u32	fcid;
-	wwn_t	   nwwn;
-	wwn_t	   pwwn;
+	wwn_t	nwwn;
+	wwn_t	pwwn;
 	u64	fcplun;
-	char		luid[256];
+	char	luid[256];
 };
 
 /*
  *	      Port RNID info.
  */
 struct bfa_port_rnid_s {
-	wwn_t	     wwn;
+	wwn_t	  wwn;
 	u32	  unittype;
 	u32	  portid;
 	u32	  attached_nodes_num;
 	u16	  ip_version;
 	u16	  udp_port;
-	u8	   ipaddr[16];
+	u8	  ipaddr[16];
 	u16	  rsvd;
 	u16	  topologydiscoveryflags;
 };
 
 #pragma pack(1)
 struct bfa_fcport_fcf_s {
-	wwn_t	   name;	   /*  FCF name		 */
-	wwn_t	   fabric_name;    /*  Fabric Name	      */
-	u8		fipenabled;	/*  FIP enabled or not */
-	u8		fipfailed;	/*  FIP failed or not	*/
-	u8		resv[2];
-	u8	 pri;	    /*  FCF priority	     */
-	u8	 version;	/*  FIP version used	 */
-	u8	 available;      /*  Available  for  login    */
-	u8	 fka_disabled;   /*  FKA is disabled	  */
-	u8	 maxsz_verified; /*  FCoE max size verified   */
-	u8	 fc_map[3];      /*  FC map		   */
-	__be16	 vlan;	   /*  FCoE vlan tag/priority   */
-	u32	fka_adv_per;    /*  FIP  ka advert. period   */
-	mac_t	   mac;	    /*  FCF mac		  */
+	wwn_t	name;		/*  FCF name		   */
+	wwn_t	fabric_name;    /*  Fabric Name		   */
+	u8	fipenabled;	/*  FIP enabled or not	   */
+	u8	fipfailed;	/*  FIP failed or not	   */
+	u8	resv[2];
+	u8	pri;		/*  FCF priority	   */
+	u8	version;	/*  FIP version used	   */
+	u8	available;      /*  Available for login    */
+	u8	fka_disabled;   /*  FKA is disabled	   */
+	u8	maxsz_verified; /*  FCoE max size verified */
+	u8	fc_map[3];      /*  FC map		   */
+	__be16	vlan;		/*  FCoE vlan tag/priority */
+	u32	fka_adv_per;    /*  FIP  ka advert. period */
+	mac_t	mac;		/*  FCF mac		   */
 };
 
 /*
@@ -867,6 +1031,13 @@ struct bfa_trunk_vc_attr_s {
 	u16 vc_credits[8];
 };
 
+struct bfa_fcport_loop_info_s {
+	u8	myalpa;		/* alpa claimed */
+	u8	alpabm_val;	/* alpa bitmap valid or not (1 or 0) */
+	u8	resvd[6];
+	struct fc_alpabm_s alpabm;	/* alpa bitmap */
+};
+
 /*
  *	Link state information
  */
@@ -875,15 +1046,20 @@ struct bfa_port_link_s {
 	u8	 linkstate_rsn;	/*  bfa_port_linkstate_rsn_t */
 	u8	 topology;	/*  P2P/LOOP bfa_port_topology */
 	u8	 speed;		/*  Link speed (1/2/4/8 G) */
-	u32	linkstate_opt;  /*  Linkstate optional data (debug) */
+	u32	 linkstate_opt; /*  Linkstate optional data (debug) */
 	u8	 trunked;	/*  Trunked or not (1 or 0) */
-	u8	 resvd[3];
+	u8	 resvd[7];
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
 	union {
-		struct bfa_qos_vc_attr_s qos_vc_attr;  /*  VC info from ELP */
-		struct bfa_trunk_vc_attr_s trunk_vc_attr;
-		struct bfa_fcport_fcf_s fcf; /*  FCF information (for FCoE) */
-	} vc_fcf;
+		struct bfa_fcport_loop_info_s loop_info;
+		union {
+			struct bfa_qos_vc_attr_s qos_vc_attr;
+					/*  VC info from ELP */
+			struct bfa_trunk_vc_attr_s trunk_vc_attr;
+			struct bfa_fcport_fcf_s fcf;
+					/*  FCF information (for FCoE) */
+		} vc_fcf;
+	} attr;
 };
 #pragma pack()
 
@@ -929,7 +1105,7 @@ struct bfa_rport_hal_stats_s {
 	u32        sm_fwc_del;	    /*  fw create: delete events   */
 	u32        sm_fwc_off;	    /*  fw create: offline events  */
 	u32        sm_fwc_hwf;	    /*  fw create: IOC down        */
-	u32        sm_fwc_unexp;	    /*  fw create: exception events*/
+	u32        sm_fwc_unexp;    /*  fw create: exception events*/
 	u32        sm_on_off;	    /*  online: offline events     */
 	u32        sm_on_del;	    /*  online: delete events      */
 	u32        sm_on_hwf;	    /*  online: IOC down events    */
@@ -937,25 +1113,25 @@ struct bfa_rport_hal_stats_s {
 	u32        sm_fwd_rsp;	    /*  fw delete: fw responses    */
 	u32        sm_fwd_del;	    /*  fw delete: delete events   */
 	u32        sm_fwd_hwf;	    /*  fw delete: IOC down events */
-	u32        sm_fwd_unexp;	    /*  fw delete: exception events*/
+	u32        sm_fwd_unexp;    /*  fw delete: exception events*/
 	u32        sm_off_del;	    /*  offline: delete events     */
 	u32        sm_off_on;	    /*  offline: online events     */
 	u32        sm_off_hwf;	    /*  offline: IOC down events   */
-	u32        sm_off_unexp;	    /*  offline: exception events  */
-	u32        sm_del_fwrsp;	    /*  delete: fw responses       */
+	u32        sm_off_unexp;    /*  offline: exception events  */
+	u32        sm_del_fwrsp;    /*  delete: fw responses       */
 	u32        sm_del_hwf;	    /*  delete: IOC down events    */
-	u32        sm_del_unexp;	    /*  delete: exception events   */
-	u32        sm_delp_fwrsp;	    /*  delete pend: fw responses  */
+	u32        sm_del_unexp;    /*  delete: exception events   */
+	u32        sm_delp_fwrsp;   /*  delete pend: fw responses  */
 	u32        sm_delp_hwf;	    /*  delete pend: IOC downs     */
-	u32        sm_delp_unexp;	    /*  delete pend: exceptions    */
-	u32        sm_offp_fwrsp;	    /*  off-pending: fw responses  */
+	u32        sm_delp_unexp;   /*  delete pend: exceptions    */
+	u32        sm_offp_fwrsp;   /*  off-pending: fw responses  */
 	u32        sm_offp_del;	    /*  off-pending: deletes       */
 	u32        sm_offp_hwf;	    /*  off-pending: IOC downs     */
-	u32        sm_offp_unexp;	    /*  off-pending: exceptions    */
+	u32        sm_offp_unexp;   /*  off-pending: exceptions    */
 	u32        sm_iocd_off;	    /*  IOC down: offline events   */
 	u32        sm_iocd_del;	    /*  IOC down: delete events    */
 	u32        sm_iocd_on;	    /*  IOC down: online events    */
-	u32        sm_iocd_unexp;	    /*  IOC down: exceptions       */
+	u32        sm_iocd_unexp;   /*  IOC down: exceptions       */
 	u32        rsvd;
 };
 #pragma pack(1)
@@ -963,9 +1139,9 @@ struct bfa_rport_hal_stats_s {
  *  Rport's QoS attributes
  */
 struct bfa_rport_qos_attr_s {
-	u8			qos_priority;  /*  rport's QoS priority   */
-	u8			rsvd[3];
-	u32	       qos_flow_id;	  /*  QoS flow Id	 */
+	u8		qos_priority;	/*  rport's QoS priority   */
+	u8		rsvd[3];
+	u32		qos_flow_id;	/*  QoS flow Id	 */
 };
 #pragma pack()
 
@@ -988,6 +1164,19 @@ struct bfa_itnim_ioprofile_s {
 };
 
 /*
+ *	vHBA port attribute values.
+ */
+struct bfa_vhba_attr_s {
+	wwn_t	nwwn;       /* node wwn */
+	wwn_t	pwwn;       /* port wwn */
+	u32	pid;        /* port ID */
+	bfa_boolean_t       io_profile; /* get it from fcpim mod */
+	bfa_boolean_t       plog_enabled;   /* portlog is enabled */
+	u16	path_tov;
+	u8	rsvd[2];
+};
+
+/*
  * FC physical port statistics.
  */
 struct bfa_port_fc_stats_s {
@@ -995,6 +1184,9 @@ struct bfa_port_fc_stats_s {
 	u64     tx_frames;      /*  Tx frames                   */
 	u64     tx_words;       /*  Tx words                    */
 	u64     tx_lip;         /*  Tx LIP                      */
+	u64	tx_lip_f7f7;	/*  Tx LIP_F7F7		*/
+	u64	tx_lip_f8f7;	/*  Tx LIP_F8F7		*/
+	u64	tx_arbf0;	/*  Tx ARB F0			*/
 	u64     tx_nos;         /*  Tx NOS                      */
 	u64     tx_ols;         /*  Tx OLS                      */
 	u64     tx_lr;          /*  Tx LR                       */
@@ -1002,6 +1194,9 @@ struct bfa_port_fc_stats_s {
 	u64     rx_frames;      /*  Rx frames                   */
 	u64     rx_words;       /*  Rx words                    */
 	u64     lip_count;      /*  Rx LIP                      */
+	u64	rx_lip_f7f7;	/*  Rx LIP_F7F7		*/
+	u64	rx_lip_f8f7;	/*  Rx LIP_F8F7		*/
+	u64	rx_arbf0;	/*  Rx ARB F0			*/
 	u64     nos_count;      /*  Rx NOS                      */
 	u64     ols_count;      /*  Rx OLS                      */
 	u64     lr_count;       /*  Rx LR                       */
@@ -1020,6 +1215,10 @@ struct bfa_port_fc_stats_s {
 	u64     bad_os_count;   /*  Invalid ordered sets        */
 	u64     err_enc_out;    /*  Encoding err nonframe_8b10b */
 	u64     err_enc;        /*  Encoding err frame_8b10b    */
+	u64	bbsc_frames_lost; /* Credit Recovery-Frames Lost  */
+	u64	bbsc_credits_lost; /* Credit Recovery-Credits Lost */
+	u64	bbsc_link_resets; /* Credit Recovery-Link Resets   */
+	u64	loop_timeouts;	/*  Loop timeouts		*/
 };
 
 /*
@@ -1076,6 +1275,133 @@ struct bfa_port_eth_stats_s {
 union bfa_port_stats_u {
 	struct bfa_port_fc_stats_s      fc;
 	struct bfa_port_eth_stats_s     eth;
+};
+
+struct bfa_port_cfg_mode_s {
+	u16		max_pf;
+	u16		max_vf;
+	enum bfa_mode_s	mode;
+};
+
+#pragma pack(1)
+
+#define BFA_CEE_LLDP_MAX_STRING_LEN	(128)
+#define BFA_CEE_DCBX_MAX_PRIORITY	(8)
+#define BFA_CEE_DCBX_MAX_PGID		(8)
+
+struct bfa_cee_lldp_str_s {
+	u8	sub_type;
+	u8	len;
+	u8	rsvd[2];
+	u8	value[BFA_CEE_LLDP_MAX_STRING_LEN];
+};
+
+struct bfa_cee_lldp_cfg_s {
+	struct bfa_cee_lldp_str_s chassis_id;
+	struct bfa_cee_lldp_str_s port_id;
+	struct bfa_cee_lldp_str_s port_desc;
+	struct bfa_cee_lldp_str_s sys_name;
+	struct bfa_cee_lldp_str_s sys_desc;
+	struct bfa_cee_lldp_str_s mgmt_addr;
+	u16	time_to_live;
+	u16	enabled_system_cap;
+};
+
+/* CEE/DCBX parameters */
+struct bfa_cee_dcbx_cfg_s {
+	u8	pgid[BFA_CEE_DCBX_MAX_PRIORITY];
+	u8	pg_percentage[BFA_CEE_DCBX_MAX_PGID];
+	u8	pfc_primap; /* bitmap of priorties with PFC enabled */
+	u8	fcoe_primap; /* bitmap of priorities used for FcoE traffic */
+	u8	iscsi_primap; /* bitmap of priorities used for iSCSI traffic */
+	u8	dcbx_version; /* operating version:CEE or preCEE */
+	u8	lls_fcoe; /* FCoE Logical Link Status */
+	u8	lls_lan; /* LAN Logical Link Status */
+	u8	rsvd[2];
+};
+
+/* CEE Query */
+struct bfa_cee_attr_s {
+	u8	cee_status;
+	u8	error_reason;
+	struct bfa_cee_lldp_cfg_s lldp_remote;
+	struct bfa_cee_dcbx_cfg_s dcbx_remote;
+	mac_t src_mac;
+	u8	link_speed;
+	u8	nw_priority;
+	u8	filler[2];
+};
+
+/* LLDP/DCBX/CEE Statistics */
+struct bfa_cee_stats_s {
+	u32		lldp_tx_frames;		/* LLDP Tx Frames */
+	u32		lldp_rx_frames;		/* LLDP Rx Frames */
+	u32		lldp_rx_frames_invalid; /* LLDP Rx Frames invalid */
+	u32		lldp_rx_frames_new;     /* LLDP Rx Frames new */
+	u32		lldp_tlvs_unrecognized; /* LLDP Rx unrecog. TLVs */
+	u32		lldp_rx_shutdown_tlvs;  /* LLDP Rx shutdown TLVs */
+	u32		lldp_info_aged_out;     /* LLDP remote info aged */
+	u32		dcbx_phylink_ups;       /* DCBX phy link ups */
+	u32		dcbx_phylink_downs;     /* DCBX phy link downs */
+	u32		dcbx_rx_tlvs;           /* DCBX Rx TLVs */
+	u32		dcbx_rx_tlvs_invalid;   /* DCBX Rx TLVs invalid */
+	u32		dcbx_control_tlv_error; /* DCBX control TLV errors */
+	u32		dcbx_feature_tlv_error; /* DCBX feature TLV errors */
+	u32		dcbx_cee_cfg_new;       /* DCBX new CEE cfg rcvd */
+	u32		cee_status_down;        /* DCB status down */
+	u32		cee_status_up;          /* DCB status up */
+	u32		cee_hw_cfg_changed;     /* DCB hw cfg changed */
+	u32		cee_rx_invalid_cfg;     /* DCB invalid cfg */
+};
+
+#pragma pack()
+
+/*
+ *			AEN related definitions
+ */
+#define BFAD_NL_VENDOR_ID (((u64)0x01 << SCSI_NL_VID_TYPE_SHIFT) \
+			   | BFA_PCI_VENDOR_ID_BROCADE)
+
+/* BFA remote port events */
+enum bfa_rport_aen_event {
+	BFA_RPORT_AEN_ONLINE     = 1,   /* RPort online event */
+	BFA_RPORT_AEN_OFFLINE    = 2,   /* RPort offline event */
+	BFA_RPORT_AEN_DISCONNECT = 3,   /* RPort disconnect event */
+	BFA_RPORT_AEN_QOS_PRIO   = 4,   /* QOS priority change event */
+	BFA_RPORT_AEN_QOS_FLOWID = 5,   /* QOS flow Id change event */
+};
+
+struct bfa_rport_aen_data_s {
+	u16             vf_id;  /* vf_id of this logical port */
+	u16             rsvd[3];
+	wwn_t           ppwwn;  /* WWN of its physical port */
+	wwn_t           lpwwn;  /* WWN of this logical port */
+	wwn_t           rpwwn;  /* WWN of this remote port */
+	union {
+		struct bfa_rport_qos_attr_s qos;
+	} priv;
+};
+
+union bfa_aen_data_u {
+	struct bfa_adapter_aen_data_s	adapter;
+	struct bfa_port_aen_data_s	port;
+	struct bfa_lport_aen_data_s	lport;
+	struct bfa_rport_aen_data_s	rport;
+	struct bfa_itnim_aen_data_s	itnim;
+	struct bfa_audit_aen_data_s	audit;
+	struct bfa_ioc_aen_data_s	ioc;
+};
+
+#define BFA_AEN_MAX_ENTRY	512
+
+struct bfa_aen_entry_s {
+	struct list_head	qe;
+	enum bfa_aen_category   aen_category;
+	u32                     aen_type;
+	union bfa_aen_data_u    aen_data;
+	struct timeval          aen_tv;
+	u32                     seq_num;
+	u32                     bfad_num;
 };
 
 #endif /* __BFA_DEFS_SVC_H__ */

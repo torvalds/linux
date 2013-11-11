@@ -106,10 +106,9 @@ static int atmel_pwm_bl_init_pwm(struct atmel_pwm_bl *pwmbl)
 	pwm_channel_writel(&pwmbl->pwmc, PWM_CPRD,
 			pwmbl->pdata->pwm_compare_max);
 
-	dev_info(&pwmbl->pdev->dev, "Atmel PWM backlight driver "
-			"(%lu Hz)\n", pwmbl->pwmc.mck /
-			pwmbl->pdata->pwm_compare_max /
-			(1 << prescale));
+	dev_info(&pwmbl->pdev->dev, "Atmel PWM backlight driver (%lu Hz)\n",
+		pwmbl->pwmc.mck / pwmbl->pdata->pwm_compare_max /
+		(1 << prescale));
 
 	return pwm_channel_enable(&pwmbl->pwmc);
 }
@@ -119,7 +118,7 @@ static const struct backlight_ops atmel_pwm_bl_ops = {
 	.update_status  = atmel_pwm_bl_set_intensity,
 };
 
-static int atmel_pwm_bl_probe(struct platform_device *pdev)
+static int __init atmel_pwm_bl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
 	const struct atmel_pwm_bl_platform_data *pdata;
@@ -127,7 +126,8 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 	struct atmel_pwm_bl *pwmbl;
 	int retval;
 
-	pwmbl = kzalloc(sizeof(struct atmel_pwm_bl), GFP_KERNEL);
+	pwmbl = devm_kzalloc(&pdev->dev, sizeof(struct atmel_pwm_bl),
+				GFP_KERNEL);
 	if (!pwmbl)
 		return -ENOMEM;
 
@@ -154,7 +154,8 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 		goto err_free_mem;
 
 	if (pwmbl->gpio_on != -1) {
-		retval = gpio_request(pwmbl->gpio_on, "gpio_atmel_pwm_bl");
+		retval = devm_gpio_request(&pdev->dev, pwmbl->gpio_on,
+					"gpio_atmel_pwm_bl");
 		if (retval) {
 			pwmbl->gpio_on = -1;
 			goto err_free_pwm;
@@ -164,7 +165,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 		retval = gpio_direction_output(pwmbl->gpio_on,
 				0 ^ pdata->on_active_low);
 		if (retval)
-			goto err_free_gpio;
+			goto err_free_pwm;
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
@@ -174,7 +175,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 					  &atmel_pwm_bl_ops, &props);
 	if (IS_ERR(bldev)) {
 		retval = PTR_ERR(bldev);
-		goto err_free_gpio;
+		goto err_free_pwm;
 	}
 
 	pwmbl->bldev = bldev;
@@ -196,13 +197,9 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 err_free_bl_dev:
 	platform_set_drvdata(pdev, NULL);
 	backlight_device_unregister(bldev);
-err_free_gpio:
-	if (pwmbl->gpio_on != -1)
-		gpio_free(pwmbl->gpio_on);
 err_free_pwm:
 	pwm_channel_free(&pwmbl->pwmc);
 err_free_mem:
-	kfree(pwmbl);
 	return retval;
 }
 
@@ -210,15 +207,12 @@ static int __exit atmel_pwm_bl_remove(struct platform_device *pdev)
 {
 	struct atmel_pwm_bl *pwmbl = platform_get_drvdata(pdev);
 
-	if (pwmbl->gpio_on != -1) {
+	if (pwmbl->gpio_on != -1)
 		gpio_set_value(pwmbl->gpio_on, 0);
-		gpio_free(pwmbl->gpio_on);
-	}
 	pwm_channel_disable(&pwmbl->pwmc);
 	pwm_channel_free(&pwmbl->pwmc);
 	backlight_device_unregister(pwmbl->bldev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(pwmbl);
 
 	return 0;
 }
@@ -231,17 +225,7 @@ static struct platform_driver atmel_pwm_bl_driver = {
 	.remove = __exit_p(atmel_pwm_bl_remove),
 };
 
-static int __init atmel_pwm_bl_init(void)
-{
-	return platform_driver_probe(&atmel_pwm_bl_driver, atmel_pwm_bl_probe);
-}
-module_init(atmel_pwm_bl_init);
-
-static void __exit atmel_pwm_bl_exit(void)
-{
-	platform_driver_unregister(&atmel_pwm_bl_driver);
-}
-module_exit(atmel_pwm_bl_exit);
+module_platform_driver_probe(atmel_pwm_bl_driver, atmel_pwm_bl_probe);
 
 MODULE_AUTHOR("Hans-Christian egtvedt <hans-christian.egtvedt@atmel.com>");
 MODULE_DESCRIPTION("Atmel PWM backlight driver");

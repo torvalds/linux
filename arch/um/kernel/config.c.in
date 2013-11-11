@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "init.h"
+#include <init.h>
 
 static __initdata const char *config[] = {
 "CONFIG"

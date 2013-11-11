@@ -1,0 +1,94 @@
+.TH CPUPOWER\-SET "1" "22/02/2011" "" "cpupower Manual"
+.SH NAME
+cpupower\-set \- Set processor power related kernel or hardware configurations
+.SH SYNOPSIS
+.ft B
+.B cpupower set [ \-b VAL ] [ \-s VAL ] [ \-m VAL ]
+
+
+.SH DESCRIPTION
+\fBcpupower set \fP sets kernel configurations or directly accesses hardware
+registers affecting processor power saving policies.
+
+Some options are platform wide, some affect single cores. By default values
+are applied on all cores. How to modify single core configurations is
+described in the cpupower(1) manpage in the \-\-cpu option section. Whether an
+option affects the whole system or can be applied to individual cores is
+described in the Options sections.
+
+Use \fBcpupower info \fP to read out current settings and whether they are
+supported on the system at all.
+
+.SH Options
+.PP
+\-\-perf-bias, \-b
+.RS 4
+Sets a register on supported Intel processore which allows software to convey
+its policy for the relative importance of performance versus energy savings to
+the  processor.
+
+The range of valid numbers is 0-15, where 0 is maximum
+performance and 15 is maximum energy efficiency.
+
+The processor uses this information in model-specific ways
+when it must select trade-offs between performance and
+energy efficiency.
+
+This policy hint does not supersede Processor Performance states
+(P-states) or CPU Idle power states (C-states), but allows
+software to have influence where it would otherwise be unable
+to express a preference.
+
+For example, this setting may tell the hardware how
+aggressively or conservatively to control frequency
+in the "turbo range" above the explicitly OS-controlled
+P-state frequency range.  It may also tell the hardware
+how aggressively it should enter the OS requested C-states.
+
+This option can be applied to individual cores only via the \-\-cpu option,
+cpupower(1).
+
+Setting the performance bias value on one CPU can modify the setting on
+related CPUs as well (for example all CPUs on one socket), because of
+hardware restrictions.
+Use \fBcpupower -c all info -b\fP to verify.
+
+This options needs the msr kernel driver (CONFIG_X86_MSR) loaded.
+.RE
+.PP
+\-\-sched\-mc,  \-m [ VAL ]
+.RE
+\-\-sched\-smt, \-s [ VAL ]
+.RS 4
+\-\-sched\-mc utilizes cores in one processor package/socket first before
+processes are scheduled to other processor packages/sockets.
+
+\-\-sched\-smt utilizes thread siblings of one processor core first before
+processes are scheduled to other cores.
+
+The impact on power consumption and performance (positiv or negativ) heavily
+depends on processor support for deep sleep states, frequency scaling and
+frequency boost modes and their dependencies between other thread siblings
+and processor cores.
+
+Taken over from kernel documentation:
+
+Adjust the kernel's multi-core scheduler support.
+
+Possible values are:
+.RS 2
+0 - No power saving load balance (default value)
+
+1 - Fill one thread/core/package first for long running threads
+
+2 - Also bias task wakeups to semi-idle cpu package for power
+savings
+.RE
+
+.SH "SEE ALSO"
+cpupower-info(1), cpupower-monitor(1), powertop(1)
+.PP
+.SH AUTHORS
+.nf
+\-\-perf\-bias parts written by Len Brown <len.brown@intel.com>
+Thomas Renninger <trenn@suse.de>

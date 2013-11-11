@@ -29,10 +29,10 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 #include <mach/regs-gpio.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -43,14 +43,17 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/s5pc100.h>
 #include <plat/fb.h>
-#include <plat/iic.h>
-#include <plat/ata.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/ata-samsung_cf.h>
 #include <plat/adc.h>
 #include <plat/keypad.h>
-#include <plat/ts.h>
-#include <plat/audio.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/asoc-s3c.h>
+#include <plat/backlight.h>
+#include <plat/samsung-time.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -133,24 +136,27 @@ static struct platform_device smdkc100_lcd_powerdev = {
 
 /* Frame Buffer */
 static struct s3c_fb_pd_win smdkc100_fb_win0 = {
-	/* this is to ensure we use win0 */
-	.win_mode	= {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-		.refresh	= 80,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode smdkc100_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
+	.refresh	= 80,
 };
 
 static struct s3c_fb_platdata smdkc100_lcd_pdata __initdata = {
 	.win[0]		= &smdkc100_fb_win0,
+	.vtiming	= &smdkc100_lcd_timing,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= s5pc100_fb_gpio_setup_24bpp,
@@ -179,45 +185,6 @@ static struct samsung_keypad_platdata smdkc100_keypad_data __initdata = {
 	.cols		= 8,
 };
 
-static int smdkc100_backlight_init(struct device *dev)
-{
-	int ret;
-
-	ret = gpio_request(S5PC100_GPD(0), "Backlight");
-	if (ret) {
-		printk(KERN_ERR "failed to request GPF for PWM-OUT0\n");
-		return ret;
-	}
-
-	/* Configure GPIO pin with S5PC100_GPD_TOUT_0 */
-	s3c_gpio_cfgpin(S5PC100_GPD(0), S3C_GPIO_SFN(2));
-
-	return 0;
-}
-
-static void smdkc100_backlight_exit(struct device *dev)
-{
-	s3c_gpio_cfgpin(S5PC100_GPD(0), S3C_GPIO_OUTPUT);
-	gpio_free(S5PC100_GPD(0));
-}
-
-static struct platform_pwm_backlight_data smdkc100_backlight_data = {
-	.pwm_id		= 0,
-	.max_brightness	= 255,
-	.dft_brightness	= 255,
-	.pwm_period_ns	= 78770,
-	.init		= smdkc100_backlight_init,
-	.exit		= smdkc100_backlight_exit,
-};
-
-static struct platform_device smdkc100_backlight_device = {
-	.name		= "pwm-backlight",
-	.dev		= {
-		.parent		= &s3c_device_timer[0].dev,
-		.platform_data	= &smdkc100_backlight_data,
-	},
-};
-
 static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
@@ -230,7 +197,6 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
-	&samsung_asoc_dma,
 	&s5pc100_device_iis0,
 	&samsung_device_keypad,
 	&s5pc100_device_ac97,
@@ -239,26 +205,29 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
 	&s5pc100_device_spdif,
-	&s3c_device_timer[0],
-	&smdkc100_backlight_device,
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info smdkc100_bl_gpio_info = {
+	.no = S5PC100_GPD(0),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data smdkc100_bl_data = {
+	.pwm_id = 0,
 };
 
 static void __init smdkc100_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	s5pc100_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdkc100_uartcfgs, ARRAY_SIZE(smdkc100_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init smdkc100_machine_init(void)
 {
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	/* I2C */
 	s3c_i2c0_set_platdata(NULL);
@@ -276,14 +245,18 @@ static void __init smdkc100_machine_init(void)
 	/* LCD init */
 	gpio_request(S5PC100_GPH0(6), "GPH0");
 	smdkc100_lcd_power_set(&smdkc100_lcd_power_data, 0);
+
+	samsung_bl_set(&smdkc100_bl_gpio_info, &smdkc100_bl_data);
+
 	platform_add_devices(smdkc100_devices, ARRAY_SIZE(smdkc100_devices));
 }
 
 MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
-	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s5pc100_init_irq,
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
+	.restart	= s5pc100_restart,
 MACHINE_END

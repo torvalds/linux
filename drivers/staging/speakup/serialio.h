@@ -1,13 +1,23 @@
 #ifndef _SPEAKUP_SERIAL_H
 #define _SPEAKUP_SERIAL_H
 
-#include <linux/serial.h>	/* for rs_table, serial constants &
-				   serial_uart_config */
+#include <linux/serial.h>	/* for rs_table, serial constants */
 #include <linux/serial_reg.h>	/* for more serial constants */
-#include <linux/serialP.h>	/* for struct serial_state */
 #ifndef __sparc__
 #include <asm/serial.h>
 #endif
+
+/*
+ * this is cut&paste from 8250.h. Get rid of the structure, the definitions
+ * and this whole broken driver.
+ */
+struct old_serial_port {
+	unsigned int uart; /* unused */
+	unsigned int baud_base;
+	unsigned int port;
+	unsigned int irq;
+	unsigned int flags; /* unused */
+};
 
 /* countdown values for serial timeouts in us */
 #define SPK_SERIAL_TIMEOUT 100000

@@ -36,6 +36,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -799,13 +800,10 @@ static int c2_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* Loop thru additional data fragments and queue them */
 	if (skb_shinfo(skb)->nr_frags) {
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-			maplen = frag->size;
-			mapaddr =
-			    pci_map_page(c2dev->pcidev, frag->page,
-					 frag->page_offset, maplen,
-					 PCI_DMA_TODEVICE);
-
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			maplen = skb_frag_size(frag);
+			mapaddr = skb_frag_dma_map(&c2dev->pcidev->dev, frag,
+						   0, maplen, DMA_TO_DEVICE);
 			elem = elem->next;
 			elem->skb = NULL;
 			elem->mapaddr = mapaddr;
@@ -922,8 +920,7 @@ static struct net_device *c2_devinit(struct c2_dev *c2dev,
 	return netdev;
 }
 
-static int __devinit c2_probe(struct pci_dev *pcidev,
-			      const struct pci_device_id *ent)
+static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
 	int ret = 0, i;
 	unsigned long reg0_start, reg0_flags, reg0_len;
@@ -1193,7 +1190,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	return ret;
 }
 
-static void __devexit c2_remove(struct pci_dev *pcidev)
+static void c2_remove(struct pci_dev *pcidev)
 {
 	struct c2_dev *c2dev = pci_get_drvdata(pcidev);
 	struct net_device *netdev = c2dev->netdev;
@@ -1238,18 +1235,7 @@ static struct pci_driver c2_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = c2_pci_table,
 	.probe = c2_probe,
-	.remove = __devexit_p(c2_remove),
+	.remove = c2_remove,
 };
 
-static int __init c2_init_module(void)
-{
-	return pci_register_driver(&c2_pci_driver);
-}
-
-static void __exit c2_exit_module(void)
-{
-	pci_unregister_driver(&c2_pci_driver);
-}
-
-module_init(c2_init_module);
-module_exit(c2_exit_module);
+module_pci_driver(c2_pci_driver);

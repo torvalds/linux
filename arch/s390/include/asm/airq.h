@@ -1,7 +1,5 @@
 /*
- *  include/asm-s390/airq.h
- *
- *    Copyright IBM Corp. 2002,2007
+ *    Copyright IBM Corp. 2002, 2007
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>
  *		 Arnd Bergmann <arndb@de.ibm.com>

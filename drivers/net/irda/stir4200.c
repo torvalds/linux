@@ -750,7 +750,7 @@ static int stir_transmit_thread(void *arg)
 
 			write_reg(stir, REG_CTRL1, CTRL1_TXPWD|CTRL1_RXPWD);
 
-			refrigerator();
+			try_to_freeze();
 
 			if (change_speed(stir, stir->speed))
 				break;
@@ -904,7 +904,7 @@ static int stir_net_open(struct net_device *netdev)
 	sprintf(hwname, "usb#%d", stir->usbdev->devnum);
 	stir->irlap = irlap_open(netdev, &stir->qos, hwname);
 	if (!stir->irlap) {
-		err("stir4200: irlap_open failed");
+		dev_err(&stir->usbdev->dev, "irlap_open failed\n");
 		goto err_out5;
 	}
 
@@ -913,7 +913,7 @@ static int stir_net_open(struct net_device *netdev)
 				   "%s", stir->netdev->name);
         if (IS_ERR(stir->thread)) {
                 err = PTR_ERR(stir->thread);
-		err("stir4200: unable to start kernel thread");
+		dev_err(&stir->usbdev->dev, "unable to start kernel thread\n");
 		goto err_out6;
 	}
 
@@ -1042,7 +1042,7 @@ static int stir_probe(struct usb_interface *intf,
 
 	ret = usb_reset_configuration(dev);
 	if (ret != 0) {
-		err("stir4200: usb reset configuration failed");
+		dev_err(&intf->dev, "usb reset configuration failed\n");
 		goto err_out2;
 	}
 
@@ -1133,21 +1133,4 @@ static struct usb_driver irda_driver = {
 #endif
 };
 
-/*
- * Module insertion
- */
-static int __init stir_init(void)
-{
-	return usb_register(&irda_driver);
-}
-module_init(stir_init);
-
-/*
- * Module removal
- */
-static void __exit stir_cleanup(void)
-{
-	/* Deregister the driver and remove all pending instances */
-	usb_deregister(&irda_driver);
-}
-module_exit(stir_cleanup);
+module_usb_driver(irda_driver);

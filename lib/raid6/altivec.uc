@@ -24,13 +24,10 @@
 
 #include <linux/raid/pq.h>
 
-#ifdef CONFIG_ALTIVEC
-
 #include <altivec.h>
 #ifdef __KERNEL__
-# include <asm/system.h>
 # include <asm/cputable.h>
-#endif
+# include <asm/switch_to.h>
 
 /*
  * This is the C data type to use.  We use a vector of

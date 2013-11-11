@@ -32,7 +32,7 @@ enum bus_reset_handling {
 	SUCCEED_ON_BUS_RESET,
 };
 
-static __attribute__((format(printf, 2, 3)))
+static __printf(2, 3)
 void cmp_error(struct cmp_connection *c, const char *fmt, ...)
 {
 	va_list va;
@@ -84,7 +84,7 @@ static int pcr_modify(struct cmp_connection *c,
 	return 0;
 
 io_error:
-	cmp_error(c, "transaction failed: %s\n", rcode_string(rcode));
+	cmp_error(c, "transaction failed: %s\n", fw_rcode_string(rcode));
 	return -EIO;
 
 bus_reset:

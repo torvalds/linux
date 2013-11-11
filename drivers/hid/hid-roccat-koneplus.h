@@ -14,75 +14,29 @@
 
 #include <linux/types.h>
 
-/*
- * case 1: writes request 80 and reads value 1
- *
- */
-struct koneplus_control {
-	uint8_t command; /* KONEPLUS_COMMAND_CONTROL */
-	/*
-	 * value is profile number in range 0-4 for requesting settings and buttons
-	 * 1 if status ok for requesting status
-	 */
-	uint8_t value;
-	uint8_t request;
-} __attribute__ ((__packed__));
-
-enum koneplus_control_requests {
-	KONEPLUS_CONTROL_REQUEST_STATUS = 0x00,
-	KONEPLUS_CONTROL_REQUEST_PROFILE_SETTINGS = 0x80,
-	KONEPLUS_CONTROL_REQUEST_PROFILE_BUTTONS = 0x90,
+enum {
+	KONEPLUS_SIZE_ACTUAL_PROFILE = 0x03,
+	KONEPLUS_SIZE_CONTROL = 0x03,
+	KONEPLUS_SIZE_FIRMWARE_WRITE = 0x0402,
+	KONEPLUS_SIZE_INFO = 0x06,
+	KONEPLUS_SIZE_MACRO = 0x0822,
+	KONEPLUS_SIZE_PROFILE_SETTINGS = 0x2b,
+	KONEPLUS_SIZE_PROFILE_BUTTONS = 0x4d,
+	KONEPLUS_SIZE_SENSOR = 0x06,
+	KONEPLUS_SIZE_TALK = 0x10,
+	KONEPLUS_SIZE_TCU = 0x04,
+	KONEPLUS_SIZE_TCU_IMAGE = 0x0404,
 };
 
-enum koneplus_control_values {
-	KONEPLUS_CONTROL_REQUEST_STATUS_OVERLOAD = 0,
-	KONEPLUS_CONTROL_REQUEST_STATUS_OK = 1,
-	KONEPLUS_CONTROL_REQUEST_STATUS_WAIT = 3,
+enum koneplus_control_requests {
+	KONEPLUS_CONTROL_REQUEST_PROFILE_SETTINGS = 0x80,
+	KONEPLUS_CONTROL_REQUEST_PROFILE_BUTTONS = 0x90,
 };
 
 struct koneplus_actual_profile {
 	uint8_t command; /* KONEPLUS_COMMAND_ACTUAL_PROFILE */
 	uint8_t size; /* always 3 */
 	uint8_t actual_profile; /* Range 0-4! */
-} __attribute__ ((__packed__));
-
-struct koneplus_profile_settings {
-	uint8_t command; /* KONEPLUS_COMMAND_PROFILE_SETTINGS */
-	uint8_t size; /* always 43 */
-	uint8_t number; /* range 0-4 */
-	uint8_t advanced_sensitivity;
-	uint8_t sensitivity_x;
-	uint8_t sensitivity_y;
-	uint8_t cpi_levels_enabled;
-	uint8_t cpi_levels_x[5];
-	uint8_t cpi_startup_level; /* range 0-4 */
-	uint8_t cpi_levels_y[5]; /* range 1-60 means 100-6000 cpi */
-	uint8_t unknown1;
-	uint8_t polling_rate;
-	uint8_t lights_enabled;
-	uint8_t light_effect_mode;
-	uint8_t color_flow_effect;
-	uint8_t light_effect_type;
-	uint8_t light_effect_speed;
-	uint8_t lights[16];
-	uint16_t checksum;
-} __attribute__ ((__packed__));
-
-struct koneplus_profile_buttons {
-	uint8_t command; /* KONEPLUS_COMMAND_PROFILE_BUTTONS */
-	uint8_t size; /* always 77 */
-	uint8_t number; /* range 0-4 */
-	uint8_t data[72];
-	uint16_t checksum;
-} __attribute__ ((__packed__));
-
-struct koneplus_macro {
-	uint8_t command; /* KONEPLUS_COMMAND_MACRO */
-	uint16_t size; /* always 0x822 little endian */
-	uint8_t profile; /* range 0-4 */
-	uint8_t button; /* range 0-23 */
-	uint8_t data[2075];
-	uint16_t checksum;
 } __attribute__ ((__packed__));
 
 struct koneplus_info {
@@ -92,69 +46,20 @@ struct koneplus_info {
 	uint8_t unknown[3];
 } __attribute__ ((__packed__));
 
-struct koneplus_e {
-	uint8_t command; /* KONEPLUS_COMMAND_E */
-	uint8_t size; /* always 3 */
-	uint8_t unknown; /* TODO 1; 0 before firmware update */
-} __attribute__ ((__packed__));
-
-struct koneplus_sensor {
-	uint8_t command;  /* KONEPLUS_COMMAND_SENSOR */
-	uint8_t size; /* always 6 */
-	uint8_t data[4];
-} __attribute__ ((__packed__));
-
-struct koneplus_firmware_write {
-	uint8_t command; /* KONEPLUS_COMMAND_FIRMWARE_WRITE */
-	uint8_t unknown[1025];
-} __attribute__ ((__packed__));
-
-struct koneplus_firmware_write_control {
-	uint8_t command; /* KONEPLUS_COMMAND_FIRMWARE_WRITE_CONTROL */
-	/*
-	 * value is 1 on success
-	 * 3 means "not finished yet"
-	 */
-	uint8_t value;
-	uint8_t unknown; /* always 0x75 */
-} __attribute__ ((__packed__));
-
-struct koneplus_tcu {
-	uint16_t usb_command; /* KONEPLUS_USB_COMMAND_TCU */
-	uint8_t data[2];
-} __attribute__ ((__packed__));
-
-struct koneplus_tcu_image {
-	uint16_t usb_command; /* KONEPLUS_USB_COMMAND_TCU */
-	uint8_t data[1024];
-	uint16_t checksum;
-} __attribute__ ((__packed__));
-
 enum koneplus_commands {
-	KONEPLUS_COMMAND_CONTROL = 0x4,
 	KONEPLUS_COMMAND_ACTUAL_PROFILE = 0x5,
+	KONEPLUS_COMMAND_CONTROL = 0x4,
 	KONEPLUS_COMMAND_PROFILE_SETTINGS = 0x6,
 	KONEPLUS_COMMAND_PROFILE_BUTTONS = 0x7,
 	KONEPLUS_COMMAND_MACRO = 0x8,
 	KONEPLUS_COMMAND_INFO = 0x9,
+	KONEPLUS_COMMAND_TCU = 0xc,
+	KONEPLUS_COMMAND_TCU_IMAGE = 0xc,
 	KONEPLUS_COMMAND_E = 0xe,
 	KONEPLUS_COMMAND_SENSOR = 0xf,
+	KONEPLUS_COMMAND_TALK = 0x10,
 	KONEPLUS_COMMAND_FIRMWARE_WRITE = 0x1b,
 	KONEPLUS_COMMAND_FIRMWARE_WRITE_CONTROL = 0x1c,
-};
-
-enum koneplus_usb_commands {
-	KONEPLUS_USB_COMMAND_CONTROL = 0x304,
-	KONEPLUS_USB_COMMAND_ACTUAL_PROFILE = 0x305,
-	KONEPLUS_USB_COMMAND_PROFILE_SETTINGS = 0x306,
-	KONEPLUS_USB_COMMAND_PROFILE_BUTTONS = 0x307,
-	KONEPLUS_USB_COMMAND_MACRO = 0x308,
-	KONEPLUS_USB_COMMAND_INFO = 0x309,
-	KONEPLUS_USB_COMMAND_TCU = 0x30c,
-	KONEPLUS_USB_COMMAND_E = 0x30e,
-	KONEPLUS_USB_COMMAND_SENSOR = 0x30f,
-	KONEPLUS_USB_COMMAND_FIRMWARE_WRITE = 0x31b,
-	KONEPLUS_USB_COMMAND_FIRMWARE_WRITE_CONTROL = 0x31c,
 };
 
 enum koneplus_mouse_report_numbers {
@@ -193,6 +98,7 @@ enum koneplus_mouse_report_button_types {
 	 * data2 = action
 	 */
 	KONEPLUS_MOUSE_REPORT_BUTTON_TYPE_MULTIMEDIA = 0xf0,
+	KONEPLUS_MOUSE_REPORT_TALK = 0xff,
 };
 
 enum koneplus_mouse_report_button_action {
@@ -214,10 +120,6 @@ struct koneplus_device {
 	int chrdev_minor;
 
 	struct mutex koneplus_lock;
-
-	struct koneplus_info info;
-	struct koneplus_profile_settings profile_settings[5];
-	struct koneplus_profile_buttons profile_buttons[5];
 };
 
 #endif

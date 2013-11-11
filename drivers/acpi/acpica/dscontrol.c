@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ ACPI_MODULE_NAME("dscontrol")
  * FUNCTION:    acpi_ds_exec_begin_control_op
  *
  * PARAMETERS:  walk_list       - The list that owns the walk stack
- *              Op              - The control Op
+ *              op              - The control Op
  *
  * RETURN:      Status
  *
@@ -153,7 +153,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
  * FUNCTION:    acpi_ds_exec_end_control_op
  *
  * PARAMETERS:  walk_list       - The list that owns the walk stack
- *              Op              - The control Op
+ *              op              - The control Op
  *
  * RETURN:      Status
  *
@@ -280,7 +280,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 			/*
 			 * Get the return value and save as the last result
-			 * value.  This is the only place where walk_state->return_desc
+			 * value. This is the only place where walk_state->return_desc
 			 * is set to anything other than zero!
 			 */
 			walk_state->return_desc = walk_state->operands[0];

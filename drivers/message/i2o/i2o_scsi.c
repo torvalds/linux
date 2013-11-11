@@ -57,9 +57,8 @@
 #include <linux/scatterlist.h>
 
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

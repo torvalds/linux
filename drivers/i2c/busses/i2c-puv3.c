@@ -184,7 +184,7 @@ static struct i2c_algorithm puv3_i2c_algorithm = {
 /*
  * Main initialization routine.
  */
-static int __devinit puv3_i2c_probe(struct platform_device *pdev)
+static int puv3_i2c_probe(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter;
 	struct resource *mem;
@@ -199,7 +199,7 @@ static int __devinit puv3_i2c_probe(struct platform_device *pdev)
 
 	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (adapter == NULL) {
-		dev_err(&pdev->dev, "can't allocate inteface!\n");
+		dev_err(&pdev->dev, "can't allocate interface!\n");
 		rc = -ENOMEM;
 		goto fail_nomem;
 	}
@@ -223,7 +223,6 @@ static int __devinit puv3_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 fail_add_adapter:
-	platform_set_drvdata(pdev, NULL);
 	kfree(adapter);
 fail_nomem:
 	release_mem_region(mem->start, resource_size(mem));
@@ -231,30 +230,23 @@ fail_nomem:
 	return rc;
 }
 
-static int __devexit puv3_i2c_remove(struct platform_device *pdev)
+static int puv3_i2c_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
 	struct resource *mem;
-	int rc;
 
-	rc = i2c_del_adapter(adapter);
-	if (rc) {
-		dev_err(&pdev->dev, "Adapter '%s' delete fail\n",
-				adapter->name);
-		return rc;
-	}
+	i2c_del_adapter(adapter);
 
 	put_device(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 
-	return rc;
+	return 0;
 }
 
 #ifdef CONFIG_PM
-static int puv3_i2c_suspend(struct platform_device *dev, pm_message_t state)
+static int puv3_i2c_suspend(struct device *dev)
 {
 	int poll_count;
 	/* Disable the IIC */
@@ -267,40 +259,25 @@ static int puv3_i2c_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int puv3_i2c_resume(struct platform_device *dev)
-{
-	return 0 ;
-}
-#else
-#define puv3_i2c_suspend NULL
-#define puv3_i2c_resume NULL
-#endif
+static SIMPLE_DEV_PM_OPS(puv3_i2c_pm, puv3_i2c_suspend, NULL);
+#define PUV3_I2C_PM	(&puv3_i2c_pm)
 
-MODULE_ALIAS("platform:puv3_i2c");
+#else
+#define PUV3_I2C_PM	NULL
+#endif
 
 static struct platform_driver puv3_i2c_driver = {
 	.probe		= puv3_i2c_probe,
-	.remove		= __devexit_p(puv3_i2c_remove),
-	.suspend	= puv3_i2c_suspend,
-	.resume		= puv3_i2c_resume,
+	.remove		= puv3_i2c_remove,
 	.driver		= {
 		.name	= "PKUnity-v3-I2C",
 		.owner	= THIS_MODULE,
+		.pm	= PUV3_I2C_PM,
 	}
 };
 
-static int __init puv3_i2c_init(void)
-{
-	return platform_driver_register(&puv3_i2c_driver);
-}
-
-static void __exit puv3_i2c_exit(void)
-{
-	platform_driver_unregister(&puv3_i2c_driver);
-}
-
-module_init(puv3_i2c_init);
-module_exit(puv3_i2c_exit);
+module_platform_driver(puv3_i2c_driver);
 
 MODULE_DESCRIPTION("PKUnity v3 I2C driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:puv3_i2c");

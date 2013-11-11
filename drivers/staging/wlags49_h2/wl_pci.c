@@ -23,7 +23,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -44,7 +44,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -77,7 +77,6 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/bitops.h>
@@ -112,17 +111,10 @@ extern dbg_info_t *DbgInfo;
 #endif  // DBG
 
 /* define the PCI device Table Cardname and id tables */
-enum hermes_pci_versions {
-	CH_Agere_Systems_Mini_PCI_V1 = 0,
-};
-
-static struct pci_device_id wl_pci_tbl[] __devinitdata = {
-	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_0,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
-	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_1,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
-	{ PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_2,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_Agere_Systems_Mini_PCI_V1 },
+static struct pci_device_id wl_pci_tbl[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_0), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_1), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_WL_LKM, PCI_DEVICE_ID_WL_LKM_2), },
 
 	{ }			/* Terminating entry */
 };
@@ -132,9 +124,9 @@ MODULE_DEVICE_TABLE(pci, wl_pci_tbl);
 /*******************************************************************************
  * function prototypes
  ******************************************************************************/
-int __devinit wl_pci_probe( struct pci_dev *pdev,
+int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent );
-void __devexit wl_pci_remove(struct pci_dev *pdev);
+void wl_pci_remove(struct pci_dev *pdev);
 int wl_pci_setup( struct pci_dev *pdev );
 void wl_pci_enable_cardbus_interrupts( struct pci_dev *pdev );
 
@@ -168,14 +160,13 @@ void wl_pci_dma_hcf_reclaim_rx( struct wl_private *lp );
 /*******************************************************************************
  * PCI module function registration
  ******************************************************************************/
-static struct pci_driver wl_driver =
-{
-	name:		MODULE_NAME,
-    id_table:	wl_pci_tbl,
-	probe:		wl_pci_probe,
-	remove:		__devexit_p(wl_pci_remove),
-    suspend:    NULL,
-    resume:     NULL,
+static struct pci_driver wl_driver = {
+	.name	  = MODULE_NAME,
+	.id_table = wl_pci_tbl,
+	.probe	  = wl_pci_probe,
+	.remove	  = wl_pci_remove,
+	.suspend  = NULL,
+	.resume	  = NULL
 };
 
 /*******************************************************************************
@@ -231,7 +222,7 @@ int wl_adapter_init_module( void )
  ******************************************************************************/
 void wl_adapter_cleanup_module( void )
 {
-	//;?how comes wl_adapter_cleanup_module is located in a seemingly pci specific module
+	//;?how come wl_adapter_cleanup_module is located in a seemingly pci specific module
     DBG_FUNC( "wl_adapter_cleanup_module" );
     DBG_ENTER( DbgInfo );
 
@@ -393,7 +384,7 @@ int wl_adapter_is_open( struct net_device *dev )
  *  DESCRIPTION:
  *
  *      Registered in the pci_driver structure, this function is called when the
- *  PCI subsystem finds a new PCI device which matches the infomation contained
+ *  PCI subsystem finds a new PCI device which matches the information contained
  *  in the pci_device_id table.
  *
  *  PARAMETERS:
@@ -407,7 +398,7 @@ int wl_adapter_is_open( struct net_device *dev )
  *      errno value otherwise
  *
  ******************************************************************************/
-int __devinit wl_pci_probe( struct pci_dev *pdev,
+int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent )
 {
     int result;
@@ -432,7 +423,7 @@ int __devinit wl_pci_probe( struct pci_dev *pdev,
  *  DESCRIPTION:
  *
  *      Registered in the pci_driver structure, this function is called when the
- *  PCI subsystem detects that a PCI device which matches the infomation
+ *  PCI subsystem detects that a PCI device which matches the information
  *  contained in the pci_device_id table has been removed.
  *
  *  PARAMETERS:
@@ -444,7 +435,7 @@ int __devinit wl_pci_probe( struct pci_dev *pdev,
  *      N/A
  *
  ******************************************************************************/
-void __devexit wl_pci_remove(struct pci_dev *pdev)
+void wl_pci_remove(struct pci_dev *pdev)
 {
     struct net_device       *dev = NULL;
     /*------------------------------------------------------------------------*/
@@ -532,6 +523,7 @@ int wl_pci_setup( struct pci_dev *pdev )
     /* Make sure that space was allocated for our private adapter struct */
     if( dev->priv == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct was not allocated!!!\n" );
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
@@ -540,6 +532,7 @@ int wl_pci_setup( struct pci_dev *pdev )
     /* Allocate DMA Descriptors */
     if( wl_pci_dma_alloc( pdev, dev->priv ) < 0 ) {
         DBG_ERROR( DbgInfo, "Could not allocate DMA descriptor memory!!!\n" );
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return -ENOMEM;
     }
@@ -569,6 +562,8 @@ int wl_pci_setup( struct pci_dev *pdev )
     result = request_irq(dev->irq, wl_isr, SA_SHIRQ, dev->name, dev);
     if( result ) {
         DBG_WARNING( DbgInfo, "Could not register ISR!!!\n" );
+	wl_remove(dev);
+	wl_device_dealloc(dev);
         DBG_LEAVE( DbgInfo );
         return result;
 	}
@@ -903,7 +898,7 @@ int wl_pci_dma_free_tx_packet( struct pci_dev *pdev, struct wl_private *lp,
  *  DESCRIPTION:
  *
  *      Allocates a single Rx packet, consisting of two descriptors and one
- *      contiguous buffer. THe buffer starts with the hermes-specific header.
+ *      contiguous buffer. The buffer starts with the hermes-specific header.
  *      One descriptor points at the start, the other at offset 0x3a of the
  *      buffer.
  *

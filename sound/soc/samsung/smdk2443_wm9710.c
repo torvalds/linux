@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <sound/soc.h>
 
 static struct snd_soc_card smdk2443;
@@ -23,12 +24,13 @@ static struct snd_soc_dai_link smdk2443_dai[] = {
 	.cpu_dai_name = "samsung-ac97",
 	.codec_dai_name = "ac97-hifi",
 	.codec_name = "ac97-codec",
-	.platform_name = "samsung-audio",
+	.platform_name = "samsung-ac97",
 },
 };
 
 static struct snd_soc_card smdk2443 = {
 	.name = "SMDK2443",
+	.owner = THIS_MODULE,
 	.dai_link = smdk2443_dai,
 	.num_links = ARRAY_SIZE(smdk2443_dai),
 };

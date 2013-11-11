@@ -42,6 +42,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/rpc_rdma.h>
+#include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -49,6 +50,8 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
+#include <linux/export.h>
+#include "xprt_rdma.h"
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -87,12 +90,6 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_ops = &svc_rdma_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
 };
-
-/* WR context cache. Created in svc_rdma.c  */
-extern struct kmem_cache *svc_rdma_ctxt_cachep;
-
-/* Workqueue created in svc_rdma.c */
-extern struct workqueue_struct *svc_rdma_wq;
 
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
@@ -147,9 +144,6 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	kmem_cache_free(svc_rdma_ctxt_cachep, ctxt);
 	atomic_dec(&xprt->sc_ctxt_used);
 }
-
-/* Temporary NFS request map cache. Created in svc_rdma.c  */
-extern struct kmem_cache *svc_rdma_map_cachep;
 
 /*
  * Temporary NFS req mappings are shared across all transport
@@ -451,7 +445,7 @@ static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
 
 	if (!cma_xprt)
 		return NULL;
-	svc_xprt_init(&svc_rdma_class, &cma_xprt->sc_xprt, serv);
+	svc_xprt_init(&init_net, &svc_rdma_class, &cma_xprt->sc_xprt, serv);
 	INIT_LIST_HEAD(&cma_xprt->sc_accept_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_dto_q);
 	INIT_LIST_HEAD(&cma_xprt->sc_rq_dto_q);
@@ -584,10 +578,6 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id, size_t client_ird)
 	list_add_tail(&newxprt->sc_accept_q, &listen_xprt->sc_accept_q);
 	spin_unlock_bh(&listen_xprt->sc_lock);
 
-	/*
-	 * Can't use svc_xprt_received here because we are not on a
-	 * rqstp thread
-	*/
 	set_bit(XPT_CONN, &listen_xprt->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&listen_xprt->sc_xprt);
 }

@@ -28,6 +28,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/cper.h>
@@ -41,7 +42,8 @@ void apei_mce_report_mem_error(int corrected, struct cper_sec_mem_err *mem_err)
 	struct mce m;
 
 	/* Only corrected MC is reported */
-	if (!corrected)
+	if (!corrected || !(mem_err->validation_bits &
+				CPER_MEM_VALID_PHYSICAL_ADDRESS))
 		return;
 
 	mce_setup(&m);

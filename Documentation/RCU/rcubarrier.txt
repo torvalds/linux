@@ -79,9 +79,20 @@ complete. Pseudo-code using rcu_barrier() is as follows:
    2. Execute rcu_barrier().
    3. Allow the module to be unloaded.
 
-Quick Quiz #1: Why is there no srcu_barrier()?
+There are also rcu_barrier_bh(), rcu_barrier_sched(), and srcu_barrier()
+functions for the other flavors of RCU, and you of course must match
+the flavor of rcu_barrier() with that of call_rcu().  If your module
+uses multiple flavors of call_rcu(), then it must also use multiple
+flavors of rcu_barrier() when unloading that module.  For example, if
+it uses call_rcu_bh(), call_srcu() on srcu_struct_1, and call_srcu() on
+srcu_struct_2(), then the following three lines of code will be required
+when unloading:
 
-The rcutorture module makes use of rcu_barrier in its exit function
+ 1 rcu_barrier_bh();
+ 2 srcu_barrier(&srcu_struct_1);
+ 3 srcu_barrier(&srcu_struct_2);
+
+The rcutorture module makes use of rcu_barrier() in its exit function
 as follows:
 
  1 static void
@@ -162,7 +173,7 @@ for any pre-existing callbacks to complete.
 Then lines 55-62 print status and do operation-specific cleanup, and
 then return, permitting the module-unload operation to be completed.
 
-Quick Quiz #2: Is there any other situation where rcu_barrier() might
+Quick Quiz #1: Is there any other situation where rcu_barrier() might
 	be required?
 
 Your module might have additional complications. For example, if your
@@ -242,7 +253,7 @@ reaches zero, as follows:
  4 complete(&rcu_barrier_completion);
  5 }
 
-Quick Quiz #3: What happens if CPU 0's rcu_barrier_func() executes
+Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	immediately (thus incrementing rcu_barrier_cpu_count to the
 	value one), but the other CPU's rcu_barrier_func() invocations
 	are delayed for a full grace period? Couldn't this result in
@@ -259,12 +270,7 @@ so that your module may be safely unloaded.
 
 Answers to Quick Quizzes
 
-Quick Quiz #1: Why is there no srcu_barrier()?
-
-Answer: Since there is no call_srcu(), there can be no outstanding SRCU
-	callbacks. Therefore, there is no need to wait for them.
-
-Quick Quiz #2: Is there any other situation where rcu_barrier() might
+Quick Quiz #1: Is there any other situation where rcu_barrier() might
 	be required?
 
 Answer: Interestingly enough, rcu_barrier() was not originally
@@ -278,7 +284,7 @@ Answer: Interestingly enough, rcu_barrier() was not originally
 	implementing rcutorture, and found that rcu_barrier() solves
 	this problem as well.
 
-Quick Quiz #3: What happens if CPU 0's rcu_barrier_func() executes
+Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	immediately (thus incrementing rcu_barrier_cpu_count to the
 	value one), but the other CPU's rcu_barrier_func() invocations
 	are delayed for a full grace period? Couldn't this result in

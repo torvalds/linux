@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
 
@@ -31,11 +32,19 @@
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
 
+struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
+{
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+	if (!dn)
+		return NULL;
+	return PCI_DN(dn);
+}
+
 /*
  * Traverse_func that inits the PCI fields of the device node.
  * NOTE: this *must* be done before read/write config to the device.
  */
-void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
+void *update_dn_pci_info(struct device_node *dn, void *data)
 {
 	struct pci_controller *phb = data;
 	const int *type =
@@ -49,6 +58,9 @@ void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 	dn->data = pdn;
 	pdn->node = dn;
 	pdn->phb = phb;
+#ifdef CONFIG_PPC_POWERNV
+	pdn->pe_number = IODA_INVALID_PE;
+#endif
 	regs = of_get_property(dn, "reg", NULL);
 	if (regs) {
 		/* First register entry is addr (00BBSS00)  */
@@ -125,7 +137,7 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
  * subsystem is set up, before kmalloc is valid) and during the 
  * dynamic lpar operation of adding a PHB to a running system.
  */
-void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
+void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 {
 	struct device_node *dn = phb->dn;
 	struct pci_dn *pdn;
@@ -141,53 +153,6 @@ void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	/* Update dn->phb ptrs for new phb and children devices */
 	traverse_pci_devices(dn, update_dn_pci_info, phb);
 }
-
-/*
- * Traversal func that looks for a <busno,devfcn> value.
- * If found, the pci_dn is returned (thus terminating the traversal).
- */
-static void *is_devfn_node(struct device_node *dn, void *data)
-{
-	int busno = ((unsigned long)data >> 8) & 0xff;
-	int devfn = ((unsigned long)data) & 0xff;
-	struct pci_dn *pci = dn->data;
-
-	if (pci && (devfn == pci->devfn) && (busno == pci->busno))
-		return dn;
-	return NULL;
-}
-
-/*
- * This is the "slow" path for looking up a device_node from a
- * pci_dev.  It will hunt for the device under its parent's
- * phb and then update of_node pointer.
- *
- * It may also do fixups on the actual device since this happens
- * on the first read/write.
- *
- * Note that it also must deal with devices that don't exist.
- * In this case it may probe for real hardware ("just in case")
- * and add a device_node to the device tree if necessary.
- *
- * Is this function necessary anymore now that dev->dev.of_node is
- * used to store the node pointer?
- *
- */
-struct device_node *fetch_dev_dn(struct pci_dev *dev)
-{
-	struct pci_controller *phb = dev->sysdata;
-	struct device_node *dn;
-	unsigned long searchval = (dev->bus->number << 8) | dev->devfn;
-
-	if (WARN_ON(!phb))
-		return NULL;
-
-	dn = traverse_pci_devices(phb->dn, is_devfn_node, (void *)searchval);
-	if (dn)
-		dev->dev.of_node = dn;
-	return dn;
-}
-EXPORT_SYMBOL(fetch_dev_dn);
 
 /** 
  * pci_devs_phb_init - Initialize phbs and pci devs under them.

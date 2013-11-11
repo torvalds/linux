@@ -1777,10 +1777,17 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		return adc_init_SBx(hw, info->input, info->mic20db);
 }
 
-static int hw_have_digit_io_switch(struct hw *hw)
+static struct capabilities hw_capabilities(struct hw *hw)
 {
+	struct capabilities cap;
+
 	/* SB073x and Vista compatible cards have no digit IO switch */
-	return !(hw->model == CTSB073X || hw->model == CTUAA);
+	cap.digit_io_switch = !(hw->model == CTSB073X || hw->model == CTUAA);
+	cap.dedicated_mic = 0;
+	cap.output_switch = 0;
+	cap.mic_source_switch = 0;
+
+	return cap;
 }
 
 #define CTLBITS(a, b, c, d)	(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
@@ -1933,7 +1940,7 @@ static int hw_card_start(struct hw *hw)
 
 	if (hw->irq < 0) {
 		err = request_irq(pci->irq, ct_20k1_interrupt, IRQF_SHARED,
-				  "ctxfi", hw);
+				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			printk(KERN_ERR "XFi: Cannot get irq %d\n", pci->irq);
 			goto error2;
@@ -2078,8 +2085,8 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int hw_suspend(struct hw *hw, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int hw_suspend(struct hw *hw)
 {
 	struct pci_dev *pci = hw->pci;
 
@@ -2092,7 +2099,7 @@ static int hw_suspend(struct hw *hw, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 
 	return 0;
 }
@@ -2164,7 +2171,7 @@ static void hw_write_pci(struct hw *hw, u32 reg, u32 data)
 		&container_of(hw, struct hw20k1, hw)->reg_pci_lock, flags);
 }
 
-static struct hw ct20k1_preset __devinitdata = {
+static struct hw ct20k1_preset = {
 	.irq = -1,
 
 	.card_init = hw_card_init,
@@ -2172,8 +2179,8 @@ static struct hw ct20k1_preset __devinitdata = {
 	.pll_init = hw_pll_init,
 	.is_adc_source_selected = hw_is_adc_input_selected,
 	.select_adc_source = hw_adc_input_select,
-	.have_digit_io_switch = hw_have_digit_io_switch,
-#ifdef CONFIG_PM
+	.capabilities = hw_capabilities,
+#ifdef CONFIG_PM_SLEEP
 	.suspend = hw_suspend,
 	.resume = hw_resume,
 #endif
@@ -2268,7 +2275,7 @@ static struct hw ct20k1_preset __devinitdata = {
 	.get_wc = get_wc,
 };
 
-int __devinit create_20k1_hw_obj(struct hw **rhw)
+int create_20k1_hw_obj(struct hw **rhw)
 {
 	struct hw20k1 *hw20k1;
 

@@ -82,7 +82,6 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 
 static int keywest_remove(struct i2c_client *client)
 {
-	i2c_set_clientdata(client, NULL);
 	if (! keywest_ctx)
 		return 0;
 	if (client == keywest_ctx->client)
@@ -116,7 +115,7 @@ void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 	}
 }
 
-int __devinit snd_pmac_tumbler_post_init(void)
+int snd_pmac_tumbler_post_init(void)
 {
 	int err;
 	
@@ -131,7 +130,7 @@ int __devinit snd_pmac_tumbler_post_init(void)
 }
 
 /* exported */
-int __devinit snd_pmac_keywest_init(struct pmac_keywest *i2c)
+int snd_pmac_keywest_init(struct pmac_keywest *i2c)
 {
 	int err;
 

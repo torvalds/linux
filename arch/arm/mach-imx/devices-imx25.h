@@ -6,8 +6,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
-#include <mach/mx25.h>
-#include <mach/devices-common.h>
+#include "devices/devices-common.h"
 
 extern const struct imx_fec_data imx25_fec_data;
 #define imx25_add_fec(pdata)	\
@@ -24,11 +23,11 @@ extern const struct imx_fsl_usb2_udc_data imx25_fsl_usb2_udc_data;
 	imx_add_fsl_usb2_udc(&imx25_fsl_usb2_udc_data, pdata)
 
 extern struct imx_imxdi_rtc_data imx25_imxdi_rtc_data;
-#define imx25_add_imxdi_rtc(pdata)	\
+#define imx25_add_imxdi_rtc()	\
 	imx_add_imxdi_rtc(&imx25_imxdi_rtc_data)
 
 extern const struct imx_imx2_wdt_data imx25_imx2_wdt_data;
-#define imx25_add_imx2_wdt(pdata)	\
+#define imx25_add_imx2_wdt()	\
 	imx_add_imx2_wdt(&imx25_imx2_wdt_data)
 
 extern const struct imx_imx_fb_data imx25_imx_fb_data;

@@ -1,18 +1,19 @@
 /*
  *  arch/s390/kernel/base.S
  *
- *    Copyright IBM Corp. 2006,2007
+ *    Copyright IBM Corp. 2006, 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/sigp.h>
 
 #ifdef CONFIG_64BIT
 
-	.globl	s390_base_mcck_handler
-s390_base_mcck_handler:
+ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
 0:	lg	%r15,__LC_PANIC_STACK	# load panic stack
 	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -26,14 +27,14 @@ s390_base_mcck_handler:
 	lpswe	__LC_MCK_OLD_PSW
 
 	.section .bss
+	.align 8
 	.globl	s390_base_mcck_handler_fn
 s390_base_mcck_handler_fn:
 	.quad	0
 	.previous
 
-	.globl	s390_base_ext_handler
-s390_base_ext_handler:
-	stmg	%r0,%r15,__LC_SAVE_AREA
+ENTRY(s390_base_ext_handler)
+	stmg	%r0,%r15,__LC_SAVE_AREA_ASYNC
 	basr	%r13,0
 0:	aghi	%r15,-STACK_FRAME_OVERHEAD
 	larl	%r1,s390_base_ext_handler_fn
@@ -41,19 +42,19 @@ s390_base_ext_handler:
 	ltgr	%r1,%r1
 	jz	1f
 	basr	%r14,%r1
-1:	lmg	%r0,%r15,__LC_SAVE_AREA
+1:	lmg	%r0,%r15,__LC_SAVE_AREA_ASYNC
 	ni	__LC_EXT_OLD_PSW+1,0xfd	# clear wait state bit
 	lpswe	__LC_EXT_OLD_PSW
 
 	.section .bss
+	.align 8
 	.globl s390_base_ext_handler_fn
 s390_base_ext_handler_fn:
 	.quad	0
 	.previous
 
-	.globl	s390_base_pgm_handler
-s390_base_pgm_handler:
-	stmg	%r0,%r15,__LC_SAVE_AREA
+ENTRY(s390_base_pgm_handler)
+	stmg	%r0,%r15,__LC_SAVE_AREA_SYNC
 	basr	%r13,0
 0:	aghi	%r15,-STACK_FRAME_OVERHEAD
 	larl	%r1,s390_base_pgm_handler_fn
@@ -61,7 +62,7 @@ s390_base_pgm_handler:
 	ltgr	%r1,%r1
 	jz	1f
 	basr	%r14,%r1
-	lmg	%r0,%r15,__LC_SAVE_AREA
+	lmg	%r0,%r15,__LC_SAVE_AREA_SYNC
 	lpswe	__LC_PGM_OLD_PSW
 1:	lpswe	disabled_wait_psw-0b(%r13)
 
@@ -70,15 +71,69 @@ disabled_wait_psw:
 	.quad	0x0002000180000000,0x0000000000000000 + s390_base_pgm_handler
 
 	.section .bss
+	.align 8
 	.globl s390_base_pgm_handler_fn
 s390_base_pgm_handler_fn:
 	.quad	0
 	.previous
 
+#
+# Calls diag 308 subcode 1 and continues execution
+#
+# The following conditions must be ensured before calling this function:
+# * Prefix register = 0
+# * Lowcore protection is disabled
+#
+ENTRY(diag308_reset)
+	larl	%r4,.Lctlregs		# Save control registers
+	stctg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Floating point control register
+	stfpc	0(%r4)
+	larl	%r4,.Lcontinue_psw	# Save PSW flags
+	epsw	%r2,%r3
+	stm	%r2,%r3,0(%r4)
+	larl	%r4,.Lrestart_psw	# Setup restart PSW at absolute 0
+	lghi	%r3,0
+	lg	%r4,0(%r4)		# Save PSW
+	sturg	%r4,%r3			# Use sturg, because of large pages
+	lghi	%r1,1
+	diag	%r1,%r1,0x308
+.Lrestart_part2:
+	lhi	%r0,0			# Load r0 with zero
+	lhi	%r1,2			# Use mode 2 = ESAME (dump)
+	sigp	%r1,%r0,SIGP_SET_ARCHITECTURE	# Switch to ESAME mode
+	sam64				# Switch to 64 bit addressing mode
+	larl	%r4,.Lctlregs		# Restore control registers
+	lctlg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Restore floating point ctl register
+	lfpc	0(%r4)
+	larl	%r4,.Lcontinue_psw	# Restore PSW flags
+	lpswe	0(%r4)
+.Lcontinue:
+	br	%r14
+.align 16
+.Lrestart_psw:
+	.long	0x00080000,0x80000000 + .Lrestart_part2
+
+	.section .data..nosave,"aw",@progbits
+.align 8
+.Lcontinue_psw:
+	.quad	0,.Lcontinue
+	.previous
+
+	.section .bss
+.align 8
+.Lctlregs:
+	.rept	16
+	.quad	0
+	.endr
+.Lfpctl:
+	.long	0
+	.previous
+
 #else /* CONFIG_64BIT */
 
-	.globl	s390_base_mcck_handler
-s390_base_mcck_handler:
+ENTRY(s390_base_mcck_handler)
 	basr	%r13,0
 0:	l	%r15,__LC_PANIC_STACK	# load panic stack
 	ahi	%r15,-STACK_FRAME_OVERHEAD
@@ -93,14 +148,14 @@ s390_base_mcck_handler:
 2:	.long	s390_base_mcck_handler_fn
 
 	.section .bss
+	.align 4
 	.globl	s390_base_mcck_handler_fn
 s390_base_mcck_handler_fn:
 	.long	0
 	.previous
 
-	.globl	s390_base_ext_handler
-s390_base_ext_handler:
-	stm	%r0,%r15,__LC_SAVE_AREA
+ENTRY(s390_base_ext_handler)
+	stm	%r0,%r15,__LC_SAVE_AREA_ASYNC
 	basr	%r13,0
 0:	ahi	%r15,-STACK_FRAME_OVERHEAD
 	l	%r1,2f-0b(%r13)
@@ -108,21 +163,21 @@ s390_base_ext_handler:
 	ltr	%r1,%r1
 	jz	1f
 	basr	%r14,%r1
-1:	lm	%r0,%r15,__LC_SAVE_AREA
+1:	lm	%r0,%r15,__LC_SAVE_AREA_ASYNC
 	ni	__LC_EXT_OLD_PSW+1,0xfd	# clear wait state bit
 	lpsw	__LC_EXT_OLD_PSW
 
 2:	.long	s390_base_ext_handler_fn
 
 	.section .bss
+	.align 4
 	.globl	s390_base_ext_handler_fn
 s390_base_ext_handler_fn:
 	.long	0
 	.previous
 
-	.globl	s390_base_pgm_handler
-s390_base_pgm_handler:
-	stm	%r0,%r15,__LC_SAVE_AREA
+ENTRY(s390_base_pgm_handler)
+	stm	%r0,%r15,__LC_SAVE_AREA_SYNC
 	basr	%r13,0
 0:	ahi	%r15,-STACK_FRAME_OVERHEAD
 	l	%r1,2f-0b(%r13)
@@ -130,7 +185,7 @@ s390_base_pgm_handler:
 	ltr	%r1,%r1
 	jz	1f
 	basr	%r14,%r1
-	lm	%r0,%r15,__LC_SAVE_AREA
+	lm	%r0,%r15,__LC_SAVE_AREA_SYNC
 	lpsw	__LC_PGM_OLD_PSW
 
 1:	lpsw	disabled_wait_psw-0b(%r13)
@@ -142,6 +197,7 @@ disabled_wait_psw:
 	.long	0x000a0000,0x00000000 + s390_base_pgm_handler
 
 	.section .bss
+	.align 4
 	.globl	s390_base_pgm_handler_fn
 s390_base_pgm_handler_fn:
 	.long	0

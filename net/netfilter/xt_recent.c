@@ -29,6 +29,7 @@
 #include <linux/skbuff.h>
 #include <linux/inet.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -75,6 +76,7 @@ struct recent_entry {
 struct recent_table {
 	struct list_head	list;
 	char			name[XT_RECENT_NAME_LEN];
+	union nf_inet_addr	mask;
 	unsigned int		refcnt;
 	unsigned int		entries;
 	struct list_head	lru_list;
@@ -228,10 +230,10 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	struct recent_net *recent_net = recent_pernet(net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
+	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
 	struct recent_entry *e;
-	union nf_inet_addr addr = {};
+	union nf_inet_addr addr = {}, addr_mask;
 	u_int8_t ttl;
 	bool ret = info->invert;
 
@@ -261,12 +263,15 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	spin_lock_bh(&recent_lock);
 	t = recent_table_lookup(recent_net, info->name);
-	e = recent_entry_lookup(t, &addr, par->family,
+
+	nf_inet_addr_mask(&addr, &addr_mask, &t->mask);
+
+	e = recent_entry_lookup(t, &addr_mask, par->family,
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr, par->family, ttl);
+		e = recent_entry_init(t, &addr_mask, par->family, ttl);
 		if (e == NULL)
 			par->hotdrop = true;
 		ret = !ret;
@@ -306,16 +311,27 @@ out:
 	return ret;
 }
 
-static int recent_mt_check(const struct xt_mtchk_param *par)
+static void recent_table_free(void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+
+static int recent_mt_check(const struct xt_mtchk_param *par,
+			   const struct xt_recent_mtinfo_v1 *info)
 {
 	struct recent_net *recent_net = recent_pernet(par->net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
 	struct recent_table *t;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
+	kuid_t uid;
+	kgid_t gid;
 #endif
-	unsigned i;
+	unsigned int i;
 	int ret = -EINVAL;
+	size_t sz;
 
 	if (unlikely(!hash_rnd_inited)) {
 		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
@@ -354,27 +370,38 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 		goto out;
 	}
 
-	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
-		    GFP_KERNEL);
+	sz = sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size;
+	if (sz <= PAGE_SIZE)
+		t = kzalloc(sz, GFP_KERNEL);
+	else
+		t = vzalloc(sz);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	t->refcnt = 1;
+
+	memcpy(&t->mask, &info->mask, sizeof(t->mask));
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
+	uid = make_kuid(&init_user_ns, ip_list_uid);
+	gid = make_kgid(&init_user_ns, ip_list_gid);
+	if (!uid_valid(uid) || !gid_valid(gid)) {
+		recent_table_free(t);
+		ret = -EINVAL;
+		goto out;
+	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
-		kfree(t);
+		recent_table_free(t);
 		ret = -ENOMEM;
 		goto out;
 	}
-	pde->uid = ip_list_uid;
-	pde->gid = ip_list_gid;
+	proc_set_user(pde, uid, gid);
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);
@@ -385,10 +412,28 @@ out:
 	return ret;
 }
 
+static int recent_mt_check_v0(const struct xt_mtchk_param *par)
+{
+	const struct xt_recent_mtinfo_v0 *info_v0 = par->matchinfo;
+	struct xt_recent_mtinfo_v1 info_v1;
+
+	/* Copy revision 0 structure to revision 1 */
+	memcpy(&info_v1, info_v0, sizeof(struct xt_recent_mtinfo));
+	/* Set default mask to ensure backward compatible behaviour */
+	memset(info_v1.mask.all, 0xFF, sizeof(info_v1.mask.all));
+
+	return recent_mt_check(par, &info_v1);
+}
+
+static int recent_mt_check_v1(const struct xt_mtchk_param *par)
+{
+	return recent_mt_check(par, par->matchinfo);
+}
+
 static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	struct recent_net *recent_net = recent_pernet(par->net);
-	const struct xt_recent_mtinfo *info = par->matchinfo;
+	const struct xt_recent_mtinfo_v1 *info = par->matchinfo;
 	struct recent_table *t;
 
 	mutex_lock(&recent_mutex);
@@ -398,10 +443,11 @@ static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 		list_del(&t->list);
 		spin_unlock_bh(&recent_lock);
 #ifdef CONFIG_PROC_FS
-		remove_proc_entry(t->name, recent_net->xt_recent);
+		if (recent_net->xt_recent != NULL)
+			remove_proc_entry(t->name, recent_net->xt_recent);
 #endif
 		recent_table_flush(t);
-		kfree(t);
+		recent_table_free(t);
 	}
 	mutex_unlock(&recent_mutex);
 }
@@ -478,14 +524,13 @@ static const struct seq_operations recent_seq_ops = {
 
 static int recent_seq_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *pde = PDE(inode);
 	struct recent_iter_state *st;
 
 	st = __seq_open_private(file, &recent_seq_ops, sizeof(*st));
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = pde->data;
+	st->table    = PDE_DATA(inode);
 	return 0;
 }
 
@@ -493,8 +538,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
-	struct recent_table *t = pde->data;
+	struct recent_table *t = PDE_DATA(file_inode(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;
@@ -582,7 +626,21 @@ static int __net_init recent_proc_net_init(struct net *net)
 
 static void __net_exit recent_proc_net_exit(struct net *net)
 {
-	proc_net_remove(net, "xt_recent");
+	struct recent_net *recent_net = recent_pernet(net);
+	struct recent_table *t;
+
+	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
+	 * that the parent xt_recent proc entry is is empty before trying to
+	 * remove it.
+	 */
+	spin_lock_bh(&recent_lock);
+	list_for_each_entry(t, &recent_net->tables, list)
+	        remove_proc_entry(t->name, recent_net->xt_recent);
+
+	recent_net->xt_recent = NULL;
+	spin_unlock_bh(&recent_lock);
+
+	remove_proc_entry("xt_recent", net->proc_net);
 }
 #else
 static inline int recent_proc_net_init(struct net *net)
@@ -605,9 +663,6 @@ static int __net_init recent_net_init(struct net *net)
 
 static void __net_exit recent_net_exit(struct net *net)
 {
-	struct recent_net *recent_net = recent_pernet(net);
-
-	BUG_ON(!list_empty(&recent_net->tables));
 	recent_proc_net_exit(net);
 }
 
@@ -625,7 +680,7 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV4,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
-		.checkentry = recent_mt_check,
+		.checkentry = recent_mt_check_v0,
 		.destroy    = recent_mt_destroy,
 		.me         = THIS_MODULE,
 	},
@@ -635,10 +690,30 @@ static struct xt_match recent_mt_reg[] __read_mostly = {
 		.family     = NFPROTO_IPV6,
 		.match      = recent_mt,
 		.matchsize  = sizeof(struct xt_recent_mtinfo),
-		.checkentry = recent_mt_check,
+		.checkentry = recent_mt_check_v0,
 		.destroy    = recent_mt_destroy,
 		.me         = THIS_MODULE,
 	},
+	{
+		.name       = "recent",
+		.revision   = 1,
+		.family     = NFPROTO_IPV4,
+		.match      = recent_mt,
+		.matchsize  = sizeof(struct xt_recent_mtinfo_v1),
+		.checkentry = recent_mt_check_v1,
+		.destroy    = recent_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+	{
+		.name       = "recent",
+		.revision   = 1,
+		.family     = NFPROTO_IPV6,
+		.match      = recent_mt,
+		.matchsize  = sizeof(struct xt_recent_mtinfo_v1),
+		.checkentry = recent_mt_check_v1,
+		.destroy    = recent_mt_destroy,
+		.me         = THIS_MODULE,
+	}
 };
 
 static int __init recent_mt_init(void)

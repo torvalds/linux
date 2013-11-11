@@ -25,6 +25,10 @@ client_id
 
 	The ceph unique client id that was assigned for this specific session.
 
+features
+
+	A hexadecimal encoding of the feature bits for this image.
+
 major
 
 	The block device major number.
@@ -33,10 +37,21 @@ name
 
 	The name of the rbd image.
 
+image_id
+
+	The unique id for the rbd image.  (For rbd image format 1
+	this is empty.)
+
 pool
 
-	The pool where this rbd image resides. The pool-name pair is unique
-	per rados system.
+	The name of the storage pool where this rbd image resides.
+	An rbd image name is unique within its pool.
+
+pool_id
+
+	The unique identifier for the rbd image's pool.  This is
+	a permanent attribute of the pool.  A pool's id will never
+	change.
 
 size
 
@@ -51,33 +66,7 @@ current_snap
 
 	The current snapshot for which the device is mapped.
 
-create_snap
+parent
 
-	Create a snapshot:
-
-	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_create
-
-rollback_snap
-
-	Rolls back data to the specified snapshot. This goes over the entire
-	list of rados blocks and sends a rollback command to each.
-
-	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_rollback
-
-snap_*
-
-	A directory per each snapshot
-
-
-Entries under /sys/bus/rbd/devices/<dev-id>/snap_<snap-name>
--------------------------------------------------------------
-
-id
-
-	The rados internal snapshot id assigned for this snapshot
-
-size
-
-	The size of the image when this snapshot was taken.
-
-
+	Information identifying the pool, image, and snapshot id for
+	the parent image in a layered rbd image (format 2 only).

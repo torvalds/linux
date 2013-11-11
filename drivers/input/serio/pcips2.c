@@ -127,7 +127,7 @@ static void pcips2_close(struct serio *io)
 	free_irq(ps2if->dev->irq, ps2if);
 }
 
-static int __devinit pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct pcips2_data *ps2if;
 	struct serio *serio;
@@ -176,7 +176,7 @@ static int __devinit pcips2_probe(struct pci_dev *dev, const struct pci_device_i
 	return ret;
 }
 
-static void __devexit pcips2_remove(struct pci_dev *dev)
+static void pcips2_remove(struct pci_dev *dev)
 {
 	struct pcips2_data *ps2if = pci_get_drvdata(dev);
 
@@ -206,28 +206,17 @@ static const struct pci_device_id pcips2_ids[] = {
 	},
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(pci, pcips2_ids);
 
 static struct pci_driver pcips2_driver = {
 	.name			= "pcips2",
 	.id_table		= pcips2_ids,
 	.probe			= pcips2_probe,
-	.remove			= __devexit_p(pcips2_remove),
+	.remove			= pcips2_remove,
 };
 
-static int __init pcips2_init(void)
-{
-	return pci_register_driver(&pcips2_driver);
-}
-
-static void __exit pcips2_exit(void)
-{
-	pci_unregister_driver(&pcips2_driver);
-}
-
-module_init(pcips2_init);
-module_exit(pcips2_exit);
+module_pci_driver(pcips2_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_DESCRIPTION("PCI PS/2 keyboard/mouse driver");
-MODULE_DEVICE_TABLE(pci, pcips2_ids);

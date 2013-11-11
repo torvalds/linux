@@ -15,12 +15,10 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
-#include <linux/wait.h>
 
 #include <sound/core.h>
 
 #include "driver.h"
-#include "dumprequest.h"
 
 /*
 	PODxt Live interfaces
@@ -46,35 +44,10 @@
 */
 enum {
 	POD_STARTUP_INIT = 1,
-	POD_STARTUP_DUMPREQ,
 	POD_STARTUP_VERSIONREQ,
 	POD_STARTUP_WORKQUEUE,
 	POD_STARTUP_SETUP,
 	POD_STARTUP_LAST = POD_STARTUP_SETUP - 1
-};
-
-/**
-	Data structure for values that need to be requested explicitly.
-	This is the case for system and tuner settings.
-*/
-struct ValueWait {
-	int value;
-	wait_queue_head_t wait;
-};
-
-/**
-	Binary PODxt Pro program dump
-*/
-struct pod_program {
-	/**
-		Header information (including program name).
-	*/
-	unsigned char header[0x20];
-
-	/**
-		Program parameters.
-	*/
-	unsigned char control[POD_CONTROL_SIZE];
 };
 
 struct usb_line6_pod {
@@ -84,63 +57,9 @@ struct usb_line6_pod {
 	struct usb_line6 line6;
 
 	/**
-		Dump request structure.
-	*/
-	struct line6_dump_request dumpreq;
-
-	/**
-		Current program number.
-	*/
-	unsigned char channel_num;
-
-	/**
-		Current program settings.
-	*/
-	struct pod_program prog_data;
-
-	/**
-		Buffer for data retrieved from or to be stored on PODxt Pro.
-	*/
-	struct pod_program prog_data_buf;
-
-	/**
-		Tuner mute mode.
-	*/
-	struct ValueWait tuner_mute;
-
-	/**
-		Tuner base frequency (typically 440Hz).
-	*/
-	struct ValueWait tuner_freq;
-
-	/**
-		Note received from tuner.
-	*/
-	struct ValueWait tuner_note;
-
-	/**
-		Pitch value received from tuner.
-	*/
-	struct ValueWait tuner_pitch;
-
-	/**
 		Instrument monitor level.
 	*/
-	struct ValueWait monitor_level;
-
-	/**
-		Audio routing mode.
-		0: send processed guitar
-		1: send clean guitar
-		2: send clean guitar re-amp playback
-		3: send re-amp playback
-	*/
-	struct ValueWait routing;
-
-	/**
-		Wait for audio clipping event.
-	*/
-	struct ValueWait clipping;
+	int monitor_level;
 
 	/**
 		Timer for device initializaton.
@@ -158,16 +77,6 @@ struct usb_line6_pod {
 	int startup_progress;
 
 	/**
-		Dirty flags for access to parameter data.
-	*/
-	unsigned long param_dirty[POD_CONTROL_SIZE / sizeof(unsigned long)];
-
-	/**
-		Some atomic flags.
-	*/
-	unsigned long atomic_flags;
-
-	/**
 		Serial number of device.
 	*/
 	int serial_number;
@@ -181,25 +90,13 @@ struct usb_line6_pod {
 		Device ID.
 	*/
 	int device_id;
-
-	/**
-		Flag to indicate modification of current program settings.
-	*/
-	char dirty;
-
-	/**
-		Flag to enable MIDI postprocessing.
-	*/
-	char midi_postprocess;
 };
 
 extern void line6_pod_disconnect(struct usb_interface *interface);
 extern int line6_pod_init(struct usb_interface *interface,
 			  struct usb_line6_pod *pod);
-extern void line6_pod_midi_postprocess(struct usb_line6_pod *pod,
-				       unsigned char *data, int length);
 extern void line6_pod_process_message(struct usb_line6_pod *pod);
 extern void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-					 int value);
+					 u8 value);
 
 #endif

@@ -13,6 +13,7 @@
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/circ_buf.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
@@ -241,7 +242,7 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 
 EXPORT_SYMBOL(rxrpc_kernel_send_data);
 
-/*
+/**
  * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
  * @call: The call to be aborted
  * @abort_code: The abort code to stick into the ABORT packet
@@ -485,7 +486,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	_proto("Tx DATA %%%u { #%u }",
 	       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
 
-	sp->need_resend = 0;
+	sp->need_resend = false;
 	sp->resend_at = jiffies + rxrpc_resend_timeout * HZ;
 	if (!test_and_set_bit(RXRPC_CALL_RUN_RTIMER, &call->flags)) {
 		_debug("run timer");
@@ -507,7 +508,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	if (ret < 0) {
 		_debug("need instant resend %d", ret);
-		sp->need_resend = 1;
+		sp->need_resend = true;
 		rxrpc_instant_resend(call);
 	}
 

@@ -27,7 +27,6 @@
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
 
 #include <asm/processor.h>
 #include <asm/pci/bridge.h>
@@ -63,7 +62,7 @@ extern int irq_to_slot[];
  * from the irq value
  */
 #define IRQ_TO_BRIDGE(i)		irq_to_bridge[(i)]
-#define	SLOT_FROM_PCI_IRQ(i)		irq_to_slot[i]
+#define SLOT_FROM_PCI_IRQ(i)		irq_to_slot[i]
 
 static inline int alloc_level(int cpu, int irq)
 {
@@ -73,7 +72,7 @@ static inline int alloc_level(int cpu, int irq)
 
 	level = find_first_zero_bit(hub->irq_alloc_mask, LEVELS_PER_SLICE);
 	if (level >= LEVELS_PER_SLICE)
-		panic("Cpu %d flooded with devices\n", cpu);
+		panic("Cpu %d flooded with devices", cpu);
 
 	__set_bit(level, hub->irq_alloc_mask);
 	si->level_to_irq[level] = irq;
@@ -96,7 +95,7 @@ static inline int find_level(cpuid_t *cpunum, int irq)
 			}
 	}
 
-	panic("Could not identify cpu/level for irq %d\n", irq);
+	panic("Could not identify cpu/level for irq %d", irq);
 }
 
 /*
@@ -116,7 +115,7 @@ static int ms1bit(unsigned long x)
 }
 
 /*
- * This code is unnecessarily complex, because we do IRQF_DISABLED
+ * This code is unnecessarily complex, because we do
  * intr enabling. Basically, once we grab the set of intrs we need
  * to service, we must mask _all_ these interrupts; firstly, to make
  * sure the same intr does not intr again, causing recursion that
@@ -282,11 +281,11 @@ static unsigned int startup_bridge_irq(struct irq_data *d)
 	device |= (pin << (pin*3));
 	bridge->b_int_device = device;
 
-        bridge->b_wid_tflush;
+	bridge->b_wid_tflush;
 
 	intr_connect_level(cpu, swlevel);
 
-        return 0;       /* Never anything pending.  */
+	return 0;	/* Never anything pending.  */
 }
 
 /* Shutdown one of the (PCI ...) IRQs routes over a bridge.  */
@@ -337,12 +336,12 @@ static struct irq_chip bridge_irq_type = {
 	.irq_unmask	= enable_bridge_irq,
 };
 
-void __devinit register_bridge_irq(unsigned int irq)
+void register_bridge_irq(unsigned int irq)
 {
 	irq_set_chip_and_handler(irq, &bridge_irq_type, handle_level_irq);
 }
 
-int __devinit request_bridge_irq(struct bridge_controller *bc)
+int request_bridge_irq(struct bridge_controller *bc)
 {
 	int irq = allocate_irqno();
 	int swlevel, cpu;

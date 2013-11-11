@@ -16,6 +16,7 @@
 #include <net/cfg80211.h>
 #include "sysfs.h"
 #include "core.h"
+#include "rdev-ops.h"
 
 static inline struct cfg80211_registered_device *dev_to_rdev(
 	struct device *dev)
@@ -76,13 +77,19 @@ static void wiphy_dev_release(struct device *dev)
 	cfg80211_dev_free(rdev);
 }
 
-#ifdef CONFIG_HOTPLUG
 static int wiphy_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	/* TODO, we probably need stuff here */
 	return 0;
 }
-#endif
+
+static void cfg80211_leave_all(struct cfg80211_registered_device *rdev)
+{
+	struct wireless_dev *wdev;
+
+	list_for_each_entry(wdev, &rdev->wdev_list, list)
+		cfg80211_leave(rdev, wdev);
+}
 
 static int wiphy_suspend(struct device *dev, pm_message_t state)
 {
@@ -91,11 +98,19 @@ static int wiphy_suspend(struct device *dev, pm_message_t state)
 
 	rdev->suspend_at = get_seconds();
 
-	if (rdev->ops->suspend) {
-		rtnl_lock();
-		ret = rdev->ops->suspend(&rdev->wiphy, rdev->wowlan);
-		rtnl_unlock();
+	rtnl_lock();
+	if (rdev->wiphy.registered) {
+		if (!rdev->wowlan)
+			cfg80211_leave_all(rdev);
+		if (rdev->ops->suspend)
+			ret = rdev_suspend(rdev, rdev->wowlan);
+		if (ret == 1) {
+			/* Driver refuse to configure wowlan */
+			cfg80211_leave_all(rdev);
+			ret = rdev_suspend(rdev, NULL);
+		}
 	}
+	rtnl_unlock();
 
 	return ret;
 }
@@ -106,13 +121,12 @@ static int wiphy_resume(struct device *dev)
 	int ret = 0;
 
 	/* Age scan results with time spent in suspend */
-	spin_lock_bh(&rdev->bss_lock);
 	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
-	spin_unlock_bh(&rdev->bss_lock);
 
 	if (rdev->ops->resume) {
 		rtnl_lock();
-		ret = rdev->ops->resume(&rdev->wiphy);
+		if (rdev->wiphy.registered)
+			ret = rdev_resume(rdev);
 		rtnl_unlock();
 	}
 
@@ -131,9 +145,7 @@ struct class ieee80211_class = {
 	.owner = THIS_MODULE,
 	.dev_release = wiphy_dev_release,
 	.dev_attrs = ieee80211_dev_attrs,
-#ifdef CONFIG_HOTPLUG
 	.dev_uevent = wiphy_uevent,
-#endif
 	.suspend = wiphy_suspend,
 	.resume = wiphy_resume,
 	.ns_type = &net_ns_type_operations,

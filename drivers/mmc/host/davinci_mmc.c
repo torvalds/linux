@@ -30,11 +30,14 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/edma.h>
 #include <linux/mmc/mmc.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
-#include <mach/mmc.h>
-#include <mach/edma.h>
+#include <linux/platform_data/mmc-davinci.h>
 
 /*
  * Register Definitions
@@ -160,6 +163,16 @@ module_param(rw_threshold, uint, S_IRUGO);
 MODULE_PARM_DESC(rw_threshold,
 		"Read/Write threshold. Default = 32");
 
+static unsigned poll_threshold = 128;
+module_param(poll_threshold, uint, S_IRUGO);
+MODULE_PARM_DESC(poll_threshold,
+		 "Polling transaction size threshold. Default = 128");
+
+static unsigned poll_loopcount = 32;
+module_param(poll_loopcount, uint, S_IRUGO);
+MODULE_PARM_DESC(poll_loopcount,
+		 "Maximum polling loop count. Default = 32");
+
 static unsigned __initdata use_dma = 1;
 module_param(use_dma, uint, 0);
 MODULE_PARM_DESC(use_dma, "Whether to use DMA or not. Default = 1");
@@ -190,19 +203,12 @@ struct mmc_davinci_host {
 	u32 bytes_left;
 
 	u32 rxdma, txdma;
+	struct dma_chan *dma_tx;
+	struct dma_chan *dma_rx;
 	bool use_dma;
 	bool do_dma;
 	bool sdio_int;
-
-	/* Scatterlist DMA uses one or more parameter RAM entries:
-	 * the main one (associated with rxdma or txdma) plus zero or
-	 * more links.  The entries for a given transfer differ only
-	 * by memory buffer (address, length) and link field.
-	 */
-	struct edmacc_param	tx_template;
-	struct edmacc_param	rx_template;
-	unsigned		n_link;
-	u32			links[MAX_NR_SG - 1];
+	bool active_request;
 
 	/* For PIO we walk scatterlists one segment at a time. */
 	unsigned int		sg_len;
@@ -219,6 +225,7 @@ struct mmc_davinci_host {
 #endif
 };
 
+static irqreturn_t mmc_davinci_irq(int irq, void *dev_id);
 
 /* PIO only */
 static void mmc_davinci_sg_to_buf(struct mmc_davinci_host *host)
@@ -376,7 +383,20 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 
 	writel(cmd->arg, host->base + DAVINCI_MMCARGHL);
 	writel(cmd_reg,  host->base + DAVINCI_MMCCMD);
-	writel(im_val, host->base + DAVINCI_MMCIM);
+
+	host->active_request = true;
+
+	if (!host->do_dma && host->bytes_left <= poll_threshold) {
+		u32 count = poll_loopcount;
+
+		while (host->active_request && count--) {
+			mmc_davinci_irq(0, host);
+			cpu_relax();
+		}
+	}
+
+	if (host->active_request)
+		writel(im_val, host->base + DAVINCI_MMCIM);
 }
 
 /*----------------------------------------------------------------------*/
@@ -385,153 +405,74 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 
 static void davinci_abort_dma(struct mmc_davinci_host *host)
 {
-	int sync_dev;
+	struct dma_chan *sync_dev;
 
 	if (host->data_dir == DAVINCI_MMC_DATADIR_READ)
-		sync_dev = host->rxdma;
+		sync_dev = host->dma_rx;
 	else
-		sync_dev = host->txdma;
+		sync_dev = host->dma_tx;
 
-	edma_stop(sync_dev);
-	edma_clean_channel(sync_dev);
+	dmaengine_terminate_all(sync_dev);
 }
 
-static void
-mmc_davinci_xfer_done(struct mmc_davinci_host *host, struct mmc_data *data);
-
-static void mmc_davinci_dma_cb(unsigned channel, u16 ch_status, void *data)
-{
-	if (DMA_COMPLETE != ch_status) {
-		struct mmc_davinci_host *host = data;
-
-		/* Currently means:  DMA Event Missed, or "null" transfer
-		 * request was seen.  In the future, TC errors (like bad
-		 * addresses) might be presented too.
-		 */
-		dev_warn(mmc_dev(host->mmc), "DMA %s error\n",
-			(host->data->flags & MMC_DATA_WRITE)
-				? "write" : "read");
-		host->data->error = -EIO;
-		mmc_davinci_xfer_done(host, host->data);
-	}
-}
-
-/* Set up tx or rx template, to be modified and updated later */
-static void __init mmc_davinci_dma_setup(struct mmc_davinci_host *host,
-		bool tx, struct edmacc_param *template)
-{
-	unsigned	sync_dev;
-	const u16	acnt = 4;
-	const u16	bcnt = rw_threshold >> 2;
-	const u16	ccnt = 0;
-	u32		src_port = 0;
-	u32		dst_port = 0;
-	s16		src_bidx, dst_bidx;
-	s16		src_cidx, dst_cidx;
-
-	/*
-	 * A-B Sync transfer:  each DMA request is for one "frame" of
-	 * rw_threshold bytes, broken into "acnt"-size chunks repeated
-	 * "bcnt" times.  Each segment needs "ccnt" such frames; since
-	 * we tell the block layer our mmc->max_seg_size limit, we can
-	 * trust (later) that it's within bounds.
-	 *
-	 * The FIFOs are read/written in 4-byte chunks (acnt == 4) and
-	 * EDMA will optimize memory operations to use larger bursts.
-	 */
-	if (tx) {
-		sync_dev = host->txdma;
-
-		/* src_prt, ccnt, and link to be set up later */
-		src_bidx = acnt;
-		src_cidx = acnt * bcnt;
-
-		dst_port = host->mem_res->start + DAVINCI_MMCDXR;
-		dst_bidx = 0;
-		dst_cidx = 0;
-	} else {
-		sync_dev = host->rxdma;
-
-		src_port = host->mem_res->start + DAVINCI_MMCDRR;
-		src_bidx = 0;
-		src_cidx = 0;
-
-		/* dst_prt, ccnt, and link to be set up later */
-		dst_bidx = acnt;
-		dst_cidx = acnt * bcnt;
-	}
-
-	/*
-	 * We can't use FIFO mode for the FIFOs because MMC FIFO addresses
-	 * are not 256-bit (32-byte) aligned.  So we use INCR, and the W8BIT
-	 * parameter is ignored.
-	 */
-	edma_set_src(sync_dev, src_port, INCR, W8BIT);
-	edma_set_dest(sync_dev, dst_port, INCR, W8BIT);
-
-	edma_set_src_index(sync_dev, src_bidx, src_cidx);
-	edma_set_dest_index(sync_dev, dst_bidx, dst_cidx);
-
-	edma_set_transfer_params(sync_dev, acnt, bcnt, ccnt, 8, ABSYNC);
-
-	edma_read_slot(sync_dev, template);
-
-	/* don't bother with irqs or chaining */
-	template->opt |= EDMA_CHAN_SLOT(sync_dev) << 12;
-}
-
-static void mmc_davinci_send_dma_request(struct mmc_davinci_host *host,
+static int mmc_davinci_send_dma_request(struct mmc_davinci_host *host,
 		struct mmc_data *data)
 {
-	struct edmacc_param	*template;
-	int			channel, slot;
-	unsigned		link;
-	struct scatterlist	*sg;
-	unsigned		sg_len;
-	unsigned		bytes_left = host->bytes_left;
-	const unsigned		shift = ffs(rw_threshold) - 1;
+	struct dma_chan *chan;
+	struct dma_async_tx_descriptor *desc;
+	int ret = 0;
 
 	if (host->data_dir == DAVINCI_MMC_DATADIR_WRITE) {
-		template = &host->tx_template;
-		channel = host->txdma;
+		struct dma_slave_config dma_tx_conf = {
+			.direction = DMA_MEM_TO_DEV,
+			.dst_addr = host->mem_res->start + DAVINCI_MMCDXR,
+			.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+			.dst_maxburst =
+				rw_threshold / DMA_SLAVE_BUSWIDTH_4_BYTES,
+		};
+		chan = host->dma_tx;
+		dmaengine_slave_config(host->dma_tx, &dma_tx_conf);
+
+		desc = dmaengine_prep_slave_sg(host->dma_tx,
+				data->sg,
+				host->sg_len,
+				DMA_MEM_TO_DEV,
+				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_dbg(mmc_dev(host->mmc),
+				"failed to allocate DMA TX descriptor");
+			ret = -1;
+			goto out;
+		}
 	} else {
-		template = &host->rx_template;
-		channel = host->rxdma;
+		struct dma_slave_config dma_rx_conf = {
+			.direction = DMA_DEV_TO_MEM,
+			.src_addr = host->mem_res->start + DAVINCI_MMCDRR,
+			.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+			.src_maxburst =
+				rw_threshold / DMA_SLAVE_BUSWIDTH_4_BYTES,
+		};
+		chan = host->dma_rx;
+		dmaengine_slave_config(host->dma_rx, &dma_rx_conf);
+
+		desc = dmaengine_prep_slave_sg(host->dma_rx,
+				data->sg,
+				host->sg_len,
+				DMA_DEV_TO_MEM,
+				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_dbg(mmc_dev(host->mmc),
+				"failed to allocate DMA RX descriptor");
+			ret = -1;
+			goto out;
+		}
 	}
 
-	/* We know sg_len and ccnt will never be out of range because
-	 * we told the mmc layer which in turn tells the block layer
-	 * to ensure that it only hands us one scatterlist segment
-	 * per EDMA PARAM entry.  Update the PARAM
-	 * entries needed for each segment of this scatterlist.
-	 */
-	for (slot = channel, link = 0, sg = data->sg, sg_len = host->sg_len;
-			sg_len-- != 0 && bytes_left;
-			sg = sg_next(sg), slot = host->links[link++]) {
-		u32		buf = sg_dma_address(sg);
-		unsigned	count = sg_dma_len(sg);
+	dmaengine_submit(desc);
+	dma_async_issue_pending(chan);
 
-		template->link_bcntrld = sg_len
-				? (EDMA_CHAN_SLOT(host->links[link]) << 5)
-				: 0xffff;
-
-		if (count > bytes_left)
-			count = bytes_left;
-		bytes_left -= count;
-
-		if (host->data_dir == DAVINCI_MMC_DATADIR_WRITE)
-			template->src = buf;
-		else
-			template->dst = buf;
-		template->ccnt = count >> shift;
-
-		edma_write_slot(slot, template);
-	}
-
-	if (host->version == MMC_CTLR_VERSION_2)
-		edma_clear_event(channel);
-
-	edma_start(channel);
+out:
+	return ret;
 }
 
 static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
@@ -539,6 +480,7 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 {
 	int i;
 	int mask = rw_threshold - 1;
+	int ret = 0;
 
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 				((data->flags & MMC_DATA_WRITE)
@@ -558,70 +500,50 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 	}
 
 	host->do_dma = 1;
-	mmc_davinci_send_dma_request(host, data);
+	ret = mmc_davinci_send_dma_request(host, data);
 
-	return 0;
+	return ret;
 }
 
 static void __init_or_module
 davinci_release_dma_channels(struct mmc_davinci_host *host)
 {
-	unsigned	i;
-
 	if (!host->use_dma)
 		return;
 
-	for (i = 0; i < host->n_link; i++)
-		edma_free_slot(host->links[i]);
-
-	edma_free_channel(host->txdma);
-	edma_free_channel(host->rxdma);
+	dma_release_channel(host->dma_tx);
+	dma_release_channel(host->dma_rx);
 }
 
 static int __init davinci_acquire_dma_channels(struct mmc_davinci_host *host)
 {
-	u32 link_size;
-	int r, i;
+	int r;
+	dma_cap_mask_t mask;
 
-	/* Acquire master DMA write channel */
-	r = edma_alloc_channel(host->txdma, mmc_davinci_dma_cb, host,
-			EVENTQ_DEFAULT);
-	if (r < 0) {
-		dev_warn(mmc_dev(host->mmc), "alloc %s channel err %d\n",
-				"tx", r);
-		return r;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	host->dma_tx =
+		dma_request_slave_channel_compat(mask, edma_filter_fn,
+				&host->txdma, mmc_dev(host->mmc), "tx");
+	if (!host->dma_tx) {
+		dev_err(mmc_dev(host->mmc), "Can't get dma_tx channel\n");
+		return -ENODEV;
 	}
-	mmc_davinci_dma_setup(host, true, &host->tx_template);
 
-	/* Acquire master DMA read channel */
-	r = edma_alloc_channel(host->rxdma, mmc_davinci_dma_cb, host,
-			EVENTQ_DEFAULT);
-	if (r < 0) {
-		dev_warn(mmc_dev(host->mmc), "alloc %s channel err %d\n",
-				"rx", r);
+	host->dma_rx =
+		dma_request_slave_channel_compat(mask, edma_filter_fn,
+				&host->rxdma, mmc_dev(host->mmc), "rx");
+	if (!host->dma_rx) {
+		dev_err(mmc_dev(host->mmc), "Can't get dma_rx channel\n");
+		r = -ENODEV;
 		goto free_master_write;
 	}
-	mmc_davinci_dma_setup(host, false, &host->rx_template);
-
-	/* Allocate parameter RAM slots, which will later be bound to a
-	 * channel as needed to handle a scatterlist.
-	 */
-	link_size = min_t(unsigned, host->nr_sg, ARRAY_SIZE(host->links));
-	for (i = 0; i < link_size; i++) {
-		r = edma_alloc_slot(EDMA_CTLR(host->txdma), EDMA_SLOT_ANY);
-		if (r < 0) {
-			dev_dbg(mmc_dev(host->mmc), "dma PaRAM alloc --> %d\n",
-				r);
-			break;
-		}
-		host->links[i] = r;
-	}
-	host->n_link = i;
 
 	return 0;
 
 free_master_write:
-	edma_free_channel(host->txdma);
+	dma_release_channel(host->dma_tx);
 
 	return r;
 }
@@ -807,11 +729,24 @@ static void calculate_clk_divider(struct mmc_host *mmc, struct mmc_ios *ios)
 static void mmc_davinci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct mmc_davinci_host *host = mmc_priv(mmc);
+	struct platform_device *pdev = to_platform_device(mmc->parent);
+	struct davinci_mmc_config *config = pdev->dev.platform_data;
 
 	dev_dbg(mmc_dev(host->mmc),
 		"clock %dHz busmode %d powermode %d Vdd %04x\n",
 		ios->clock, ios->bus_mode, ios->power_mode,
 		ios->vdd);
+
+	switch (ios->power_mode) {
+	case MMC_POWER_OFF:
+		if (config && config->set_power)
+			config->set_power(pdev->id, false);
+		break;
+	case MMC_POWER_UP:
+		if (config && config->set_power)
+			config->set_power(pdev->id, true);
+		break;
+	}
 
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_8:
@@ -902,6 +837,7 @@ mmc_davinci_xfer_done(struct mmc_davinci_host *host, struct mmc_data *data)
 	if (!data->stop || (host->cmd && host->cmd->error)) {
 		mmc_request_done(host->mmc, data->mrq);
 		writel(0, host->base + DAVINCI_MMCIM);
+		host->active_request = false;
 	} else
 		mmc_davinci_start_command(host, data->stop);
 }
@@ -929,6 +865,7 @@ static void mmc_davinci_cmd_done(struct mmc_davinci_host *host,
 			cmd->mrq->cmd->retries = 0;
 		mmc_request_done(host->mmc, cmd->mrq);
 		writel(0, host->base + DAVINCI_MMCIM);
+		host->active_request = false;
 	}
 }
 
@@ -996,12 +933,33 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 	 * by read. So, it is not unbouned loop even in the case of
 	 * non-dma.
 	 */
-	while (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
-		davinci_fifo_data_trans(host, rw_threshold);
-		status = readl(host->base + DAVINCI_MMCST0);
-		if (!status)
-			break;
-		qstatus |= status;
+	if (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
+		unsigned long im_val;
+
+		/*
+		 * If interrupts fire during the following loop, they will be
+		 * handled by the handler, but the PIC will still buffer these.
+		 * As a result, the handler will be called again to serve these
+		 * needlessly. In order to avoid these spurious interrupts,
+		 * keep interrupts masked during the loop.
+		 */
+		im_val = readl(host->base + DAVINCI_MMCIM);
+		writel(0, host->base + DAVINCI_MMCIM);
+
+		do {
+			davinci_fifo_data_trans(host, rw_threshold);
+			status = readl(host->base + DAVINCI_MMCST0);
+			qstatus |= status;
+		} while (host->bytes_left &&
+			 (status & (MMCST0_DXRDY | MMCST0_DRRDY)));
+
+		/*
+		 * If an interrupt is pending, it is assumed it will fire when
+		 * it is unmasked. This assumption is also taken when the MMCIM
+		 * is first set. Otherwise, writing to MMCIM after reading the
+		 * status is race-prone.
+		 */
+		writel(im_val, host->base + DAVINCI_MMCIM);
 	}
 
 	if (qstatus & MMCST0_DATDNE) {
@@ -1203,16 +1161,86 @@ static void __init init_mmcsd_host(struct mmc_davinci_host *host)
 	mmc_davinci_reset_ctrl(host, 0);
 }
 
+static struct platform_device_id davinci_mmc_devtype[] = {
+	{
+		.name	= "dm6441-mmc",
+		.driver_data = MMC_CTLR_VERSION_1,
+	}, {
+		.name	= "da830-mmc",
+		.driver_data = MMC_CTLR_VERSION_2,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, davinci_mmc_devtype);
+
+static const struct of_device_id davinci_mmc_dt_ids[] = {
+	{
+		.compatible = "ti,dm6441-mmc",
+		.data = &davinci_mmc_devtype[MMC_CTLR_VERSION_1],
+	},
+	{
+		.compatible = "ti,da830-mmc",
+		.data = &davinci_mmc_devtype[MMC_CTLR_VERSION_2],
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, davinci_mmc_dt_ids);
+
+static struct davinci_mmc_config
+	*mmc_parse_pdata(struct platform_device *pdev)
+{
+	struct device_node *np;
+	struct davinci_mmc_config *pdata = pdev->dev.platform_data;
+	const struct of_device_id *match =
+		of_match_device(of_match_ptr(davinci_mmc_dt_ids), &pdev->dev);
+	u32 data;
+
+	np = pdev->dev.of_node;
+	if (!np)
+		return pdata;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&pdev->dev, "Failed to allocate memory for struct davinci_mmc_config\n");
+		goto nodata;
+	}
+
+	if (match)
+		pdev->id_entry = match->data;
+
+	if (of_property_read_u32(np, "max-frequency", &pdata->max_freq))
+		dev_info(&pdev->dev, "'max-frequency' property not specified, defaulting to 25MHz\n");
+
+	of_property_read_u32(np, "bus-width", &data);
+	switch (data) {
+	case 1:
+	case 4:
+	case 8:
+		pdata->wires = data;
+		break;
+	default:
+		pdata->wires = 1;
+		dev_info(&pdev->dev, "Unsupported buswidth, defaulting to 1 bit\n");
+	}
+nodata:
+	return pdata;
+}
+
 static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 {
-	struct davinci_mmc_config *pdata = pdev->dev.platform_data;
+	struct davinci_mmc_config *pdata = NULL;
 	struct mmc_davinci_host *host = NULL;
 	struct mmc_host *mmc = NULL;
 	struct resource *r, *mem = NULL;
 	int ret = 0, irq = 0;
 	size_t mem_size;
+	const struct platform_device_id *id_entry;
 
-	/* REVISIT:  when we're fully converted, fail if pdata is NULL */
+	pdata = mmc_parse_pdata(pdev);
+	if (pdata == NULL) {
+		dev_err(&pdev->dev, "Couldn't get platform data\n");
+		return -ENOENT;
+	}
 
 	ret = -ENODEV;
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1236,13 +1264,15 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!r)
-		goto out;
-	host->rxdma = r->start;
+		dev_warn(&pdev->dev, "RX DMA resource not specified\n");
+	else
+		host->rxdma = r->start;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!r)
-		goto out;
-	host->txdma = r->start;
+		dev_warn(&pdev->dev, "TX DMA resource not specified\n");
+	else
+		host->txdma = r->start;
 
 	host->mem_res = mem;
 	host->base = ioremap(mem->start, mem_size);
@@ -1283,7 +1313,9 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	if (pdata && (pdata->wires == 8))
 		mmc->caps |= (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
 
-	host->version = pdata->version;
+	id_entry = platform_get_device_id(pdev);
+	if (id_entry)
+		host->version = id_entry->driver_data;
 
 	mmc->ops = &mmc_davinci_ops;
 	mmc->f_min = 312500;
@@ -1298,7 +1330,7 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	 * Each hw_seg uses one EDMA parameter RAM slot, always one
 	 * channel and then usually some linked slots.
 	 */
-	mmc->max_segs		= 1 + host->n_link;
+	mmc->max_segs		= MAX_NR_SG;
 
 	/* EDMA limit per hw segment (one or two MBytes) */
 	mmc->max_seg_size	= MAX_CCNT * rw_threshold;
@@ -1405,17 +1437,14 @@ static int davinci_mmcsd_suspend(struct device *dev)
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
 	int ret;
 
-	mmc_host_enable(host->mmc);
 	ret = mmc_suspend_host(host->mmc);
 	if (!ret) {
 		writel(0, host->base + DAVINCI_MMCIM);
 		mmc_davinci_reset_ctrl(host, 1);
-		mmc_host_disable(host->mmc);
 		clk_disable(host->clk);
 		host->suspended = 1;
 	} else {
 		host->suspended = 0;
-		mmc_host_disable(host->mmc);
 	}
 
 	return ret;
@@ -1431,7 +1460,6 @@ static int davinci_mmcsd_resume(struct device *dev)
 		return 0;
 
 	clk_enable(host->clk);
-	mmc_host_enable(host->mmc);
 
 	mmc_davinci_reset_ctrl(host, 0);
 	ret = mmc_resume_host(host->mmc);
@@ -1456,24 +1484,16 @@ static struct platform_driver davinci_mmcsd_driver = {
 		.name	= "davinci_mmc",
 		.owner	= THIS_MODULE,
 		.pm	= davinci_mmcsd_pm_ops,
+		.of_match_table = of_match_ptr(davinci_mmc_dt_ids),
 	},
 	.remove		= __exit_p(davinci_mmcsd_remove),
+	.id_table	= davinci_mmc_devtype,
 };
 
-static int __init davinci_mmcsd_init(void)
-{
-	return platform_driver_probe(&davinci_mmcsd_driver,
-				     davinci_mmcsd_probe);
-}
-module_init(davinci_mmcsd_init);
-
-static void __exit davinci_mmcsd_exit(void)
-{
-	platform_driver_unregister(&davinci_mmcsd_driver);
-}
-module_exit(davinci_mmcsd_exit);
+module_platform_driver_probe(davinci_mmcsd_driver, davinci_mmcsd_probe);
 
 MODULE_AUTHOR("Texas Instruments India");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MMC/SD driver for Davinci MMC controller");
+MODULE_ALIAS("platform:davinci_mmc");
 

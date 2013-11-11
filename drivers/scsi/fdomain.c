@@ -282,7 +282,6 @@
 #include <linux/slab.h>
 #include <scsi/scsicam.h>
 
-#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -1772,7 +1771,7 @@ struct scsi_host_template fdomain_driver_template = {
 #ifndef PCMCIA
 #ifdef CONFIG_PCI
 
-static struct pci_device_id fdomain_pci_tbl[] __devinitdata = {
+static struct pci_device_id fdomain_pci_tbl[] = {
 	{ PCI_VENDOR_ID_FD, PCI_DEVICE_ID_FD_36C70,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ }

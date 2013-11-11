@@ -37,6 +37,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -47,11 +48,10 @@
 /* name size which is used for entries in pcihpfs */
 #define SLOT_NAME_SIZE  21              /* {_SUN} */
 
-static int debug;
-int acpiphp_debug;
+bool acpiphp_debug;
+bool acpiphp_disabled;
 
 /* local variables */
-static int num_slots;
 static struct acpiphp_attention_info *attention_info;
 
 #define DRIVER_VERSION	"0.5"
@@ -62,7 +62,9 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-module_param(debug, bool, 0644);
+MODULE_PARM_DESC(disable, "disable acpiphp driver");
+module_param_named(debug, acpiphp_debug, bool, 0644);
+module_param_named(disable, acpiphp_disabled, bool, 0444);
 
 /* export the attention callback registration methods */
 EXPORT_SYMBOL_GPL(acpiphp_register_attention);
@@ -273,25 +275,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static int __init init_acpi(void)
-{
-	int retval;
-
-	/* initialize internal data structure etc. */
-	retval = acpiphp_glue_init();
-
-	/* read initial number of slots */
-	if (!retval) {
-		num_slots = acpiphp_get_num_slots();
-		if (num_slots == 0) {
-			acpiphp_glue_exit();
-			retval = -ENODEV;
-		}
-	}
-
-	return retval;
-}
-
 /**
  * release_slot - free up the memory used by a slot
  * @hotplug_slot: slot to free
@@ -372,28 +355,9 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 }
 
 
-static int __init acpiphp_init(void)
+void __init acpiphp_init(void)
 {
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-
-	if (acpi_pci_disabled)
-		return 0;
-
-	acpiphp_debug = debug;
-
-	/* read all the ACPI info from the system */
-	return init_acpi();
+	info(DRIVER_DESC " version: " DRIVER_VERSION "%s\n",
+		acpiphp_disabled ? ", disabled by user; please report a bug"
+				 : "");
 }
-
-
-static void __exit acpiphp_exit(void)
-{
-	if (acpi_pci_disabled)
-		return;
-
-	/* deallocate internal data structures etc. */
-	acpiphp_glue_exit();
-}
-
-module_init(acpiphp_init);
-module_exit(acpiphp_exit);

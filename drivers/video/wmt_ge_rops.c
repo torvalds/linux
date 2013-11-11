@@ -124,7 +124,7 @@ int wmt_ge_sync(struct fb_info *p)
 }
 EXPORT_SYMBOL_GPL(wmt_ge_sync);
 
-static int __devinit wmt_ge_rops_probe(struct platform_device *pdev)
+static int wmt_ge_rops_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -152,35 +152,31 @@ static int __devinit wmt_ge_rops_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit wmt_ge_rops_remove(struct platform_device *pdev)
+static int wmt_ge_rops_remove(struct platform_device *pdev)
 {
 	iounmap(regbase);
 	return 0;
 }
 
+static const struct of_device_id wmt_dt_ids[] = {
+	{ .compatible = "wm,prizm-ge-rops", },
+	{ /* sentinel */ }
+};
+
 static struct platform_driver wmt_ge_rops_driver = {
 	.probe		= wmt_ge_rops_probe,
-	.remove		= __devexit_p(wmt_ge_rops_remove),
+	.remove		= wmt_ge_rops_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "wmt_ge_rops",
+		.of_match_table = of_match_ptr(wmt_dt_ids),
 	},
 };
 
-static int __init wmt_ge_rops_init(void)
-{
-	return platform_driver_register(&wmt_ge_rops_driver);
-}
-
-static void __exit wmt_ge_rops_exit(void)
-{
-	platform_driver_unregister(&wmt_ge_rops_driver);
-}
-
-module_init(wmt_ge_rops_init);
-module_exit(wmt_ge_rops_exit);
+module_platform_driver(wmt_ge_rops_driver);
 
 MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com");
 MODULE_DESCRIPTION("Accelerators for raster operations using "
 		   "WonderMedia Graphics Engine");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, wmt_dt_ids);

@@ -162,9 +162,9 @@ over a rather long period of time, but improvements are always welcome!
 		when publicizing a pointer to a structure that can
 		be traversed by an RCU read-side critical section.
 
-5.	If call_rcu(), or a related primitive such as call_rcu_bh() or
-	call_rcu_sched(), is used, the callback function must be
-	written to be called from softirq context.  In particular,
+5.	If call_rcu(), or a related primitive such as call_rcu_bh(),
+	call_rcu_sched(), or call_srcu() is used, the callback function
+	must be written to be called from softirq context.  In particular,
 	it cannot block.
 
 6.	Since synchronize_rcu() can block, it cannot be called from
@@ -180,6 +180,20 @@ over a rather long period of time, but improvements are always welcome!
 	operations that would not normally be undertaken while a real-time
 	workload is running.
 
+	In particular, if you find yourself invoking one of the expedited
+	primitives repeatedly in a loop, please do everyone a favor:
+	Restructure your code so that it batches the updates, allowing
+	a single non-expedited primitive to cover the entire batch.
+	This will very likely be faster than the loop containing the
+	expedited primitive, and will be much much easier on the rest
+	of the system, especially to real-time workloads running on
+	the rest of the system.
+
+	In addition, it is illegal to call the expedited forms from
+	a CPU-hotplug notifier, or while holding a lock that is acquired
+	by a CPU-hotplug notifier.  Failing to observe this restriction
+	will result in deadlock.
+
 7.	If the updater uses call_rcu() or synchronize_rcu(), then the
 	corresponding readers must use rcu_read_lock() and
 	rcu_read_unlock().  If the updater uses call_rcu_bh() or
@@ -188,11 +202,12 @@ over a rather long period of time, but improvements are always welcome!
 	updater uses call_rcu_sched() or synchronize_sched(), then
 	the corresponding readers must disable preemption, possibly
 	by calling rcu_read_lock_sched() and rcu_read_unlock_sched().
-	If the updater uses synchronize_srcu(), the the corresponding
-	readers must use srcu_read_lock() and srcu_read_unlock(),
-	and with the same srcu_struct.	The rules for the expedited
-	primitives are the same as for their non-expedited counterparts.
-	Mixing things up will result in confusion and broken kernels.
+	If the updater uses synchronize_srcu() or call_srcu(),
+	the the corresponding readers must use srcu_read_lock() and
+	srcu_read_unlock(), and with the same srcu_struct.  The rules for
+	the expedited primitives are the same as for their non-expedited
+	counterparts.  Mixing things up will result in confusion and
+	broken kernels.
 
 	One exception to this rule: rcu_read_lock() and rcu_read_unlock()
 	may be substituted for rcu_read_lock_bh() and rcu_read_unlock_bh()
@@ -202,9 +217,14 @@ over a rather long period of time, but improvements are always welcome!
 	whether the increased speed is worth it.
 
 8.	Although synchronize_rcu() is slower than is call_rcu(), it
-	usually results in simpler code.  So, unless update performance
-	is critically important or the updaters cannot block,
-	synchronize_rcu() should be used in preference to call_rcu().
+	usually results in simpler code.  So, unless update performance is
+	critically important, the updaters cannot block, or the latency of
+	synchronize_rcu() is visible from userspace, synchronize_rcu()
+	should be used in preference to call_rcu().  Furthermore,
+	kfree_rcu() usually results in even simpler code than does
+	synchronize_rcu() without synchronize_rcu()'s multi-millisecond
+	latency.  So please take advantage of kfree_rcu()'s "fire and
+	forget" memory-freeing capabilities where it applies.
 
 	An especially important property of the synchronize_rcu()
 	primitive is that it automatically self-limits: if grace periods
@@ -253,18 +273,18 @@ over a rather long period of time, but improvements are always welcome!
 	e.	Periodically invoke synchronize_rcu(), permitting a limited
 		number of updates per grace period.
 
-	The same cautions apply to call_rcu_bh() and call_rcu_sched().
+	The same cautions apply to call_rcu_bh(), call_rcu_sched(),
+	call_srcu(), and kfree_rcu().
 
 9.	All RCU list-traversal primitives, which include
-	rcu_dereference(), list_for_each_entry_rcu(),
-	list_for_each_continue_rcu(), and list_for_each_safe_rcu(),
-	must be either within an RCU read-side critical section or
-	must be protected by appropriate update-side locks.  RCU
-	read-side critical sections are delimited by rcu_read_lock()
-	and rcu_read_unlock(), or by similar primitives such as
-	rcu_read_lock_bh() and rcu_read_unlock_bh(), in which case
-	the matching rcu_dereference() primitive must be used in order
-	to keep lockdep happy, in this case, rcu_dereference_bh().
+	rcu_dereference(), list_for_each_entry_rcu(), and
+	list_for_each_safe_rcu(), must be either within an RCU read-side
+	critical section or must be protected by appropriate update-side
+	locks.	RCU read-side critical sections are delimited by
+	rcu_read_lock() and rcu_read_unlock(), or by similar primitives
+	such as rcu_read_lock_bh() and rcu_read_unlock_bh(), in which
+	case the matching rcu_dereference() primitive must be used in
+	order to keep lockdep happy, in this case, rcu_dereference_bh().
 
 	The reason that it is permissible to use RCU list-traversal
 	primitives when the update-side lock is held is that doing so
@@ -282,9 +302,9 @@ over a rather long period of time, but improvements are always welcome!
 	all currently executing rcu_read_lock()-protected RCU read-side
 	critical sections complete.  It does -not- necessarily guarantee
 	that all currently running interrupts, NMIs, preempt_disable()
-	code, or idle loops will complete.  Therefore, if you do not have
-	rcu_read_lock()-protected read-side critical sections, do -not-
-	use synchronize_rcu().
+	code, or idle loops will complete.  Therefore, if your
+	read-side critical sections are protected by something other
+	than rcu_read_lock(), do -not- use synchronize_rcu().
 
 	Similarly, disabling preemption is not an acceptable substitute
 	for rcu_read_lock().  Code that attempts to use preemption
@@ -294,6 +314,12 @@ over a rather long period of time, but improvements are always welcome!
 	If you want to wait for interrupt handlers, NMI handlers, and
 	code under the influence of preempt_disable(), you instead
 	need to use synchronize_irq() or synchronize_sched().
+
+	This same limitation also applies to synchronize_rcu_bh()
+	and synchronize_srcu(), as well as to the asynchronous and
+	expedited forms of the three primitives, namely call_rcu(),
+	call_rcu_bh(), call_srcu(), synchronize_rcu_expedited(),
+	synchronize_rcu_bh_expedited(), and synchronize_srcu_expedited().
 
 12.	Any lock acquired by an RCU callback must be acquired elsewhere
 	with softirq disabled, e.g., via spin_lock_irqsave(),
@@ -319,22 +345,28 @@ over a rather long period of time, but improvements are always welcome!
 	victim CPU from ever going offline.)
 
 14.	SRCU (srcu_read_lock(), srcu_read_unlock(), srcu_dereference(),
-	synchronize_srcu(), and synchronize_srcu_expedited()) may only
-	be invoked from process context.  Unlike other forms of RCU, it
-	-is- permissible to block in an SRCU read-side critical section
-	(demarked by srcu_read_lock() and srcu_read_unlock()), hence the
-	"SRCU": "sleepable RCU".  Please note that if you don't need
-	to sleep in read-side critical sections, you should be using
-	RCU rather than SRCU, because RCU is almost always faster and
-	easier to use than is SRCU.
+	synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu())
+	may only be invoked from process context.  Unlike other forms of
+	RCU, it -is- permissible to block in an SRCU read-side critical
+	section (demarked by srcu_read_lock() and srcu_read_unlock()),
+	hence the "SRCU": "sleepable RCU".  Please note that if you
+	don't need to sleep in read-side critical sections, you should be
+	using RCU rather than SRCU, because RCU is almost always faster
+	and easier to use than is SRCU.
+
+	If you need to enter your read-side critical section in a
+	hardirq or exception handler, and then exit that same read-side
+	critical section in the task that was interrupted, then you need
+	to srcu_read_lock_raw() and srcu_read_unlock_raw(), which avoid
+	the lockdep checking that would otherwise this practice illegal.
 
 	Also unlike other forms of RCU, explicit initialization
 	and cleanup is required via init_srcu_struct() and
 	cleanup_srcu_struct().	These are passed a "struct srcu_struct"
 	that defines the scope of a given SRCU domain.	Once initialized,
 	the srcu_struct is passed to srcu_read_lock(), srcu_read_unlock()
-	synchronize_srcu(), and synchronize_srcu_expedited().  A given
-	synchronize_srcu() waits only for SRCU read-side critical
+	synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu().
+	A given synchronize_srcu() waits only for SRCU read-side critical
 	sections governed by srcu_read_lock() and srcu_read_unlock()
 	calls that have been passed the same srcu_struct.  This property
 	is what makes sleeping read-side critical sections tolerable --
@@ -354,7 +386,7 @@ over a rather long period of time, but improvements are always welcome!
 	requiring SRCU's read-side deadlock immunity or low read-side
 	realtime latency.
 
-	Note that, rcu_assign_pointer() relates to SRCU just as they do
+	Note that, rcu_assign_pointer() relates to SRCU just as it does
 	to other forms of RCU.
 
 15.	The whole point of call_rcu(), synchronize_rcu(), and friends
@@ -375,9 +407,9 @@ over a rather long period of time, but improvements are always welcome!
 	read-side critical sections.  It is the responsibility of the
 	RCU update-side primitives to deal with this.
 
-17.	Use CONFIG_PROVE_RCU, CONFIG_DEBUG_OBJECTS_RCU_HEAD, and
-	the __rcu sparse checks to validate your RCU code.  These
-	can help find problems as follows:
+17.	Use CONFIG_PROVE_RCU, CONFIG_DEBUG_OBJECTS_RCU_HEAD, and the
+	__rcu sparse checks (enabled by CONFIG_SPARSE_RCU_POINTER) to
+	validate your RCU code.  These can help find problems as follows:
 
 	CONFIG_PROVE_RCU: check that accesses to RCU-protected data
 		structures are carried out under the proper RCU

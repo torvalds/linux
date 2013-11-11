@@ -14,9 +14,9 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 #include <linux/cpuidle.h>
+#include <linux/export.h>
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
-#include <asm/hwblk.h>
 
 static unsigned long cpuidle_mode[] = {
 	SUSP_SH_SLEEP, /* regular sleep mode */
@@ -25,11 +25,11 @@ static unsigned long cpuidle_mode[] = {
 };
 
 static int cpuidle_sleep_enter(struct cpuidle_device *dev,
-			       struct cpuidle_state *state)
+				struct cpuidle_driver *drv,
+				int index)
 {
-	unsigned long allowed_mode = arch_hwblk_sleep_mode();
-	ktime_t before, after;
-	int requested_state = state - &dev->states[0];
+	unsigned long allowed_mode = SUSP_SH_SLEEP;
+	int requested_state = index;
 	int allowed_state;
 	int k;
 
@@ -46,73 +46,58 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 	 */
 	k = min_t(int, allowed_state, requested_state);
 
-	dev->last_state = &dev->states[k];
-	before = ktime_get();
 	sh_mobile_call_standby(cpuidle_mode[k]);
-	after = ktime_get();
-	return ktime_to_ns(ktime_sub(after, before)) >> 10;
+
+	return k;
 }
 
-static struct cpuidle_device cpuidle_dev;
 static struct cpuidle_driver cpuidle_driver = {
-	.name =		"sh_idle",
-	.owner =	THIS_MODULE,
+	.name   = "sh_idle",
+	.owner  = THIS_MODULE,
+	.states = {
+		{
+			.exit_latency = 1,
+			.target_residency = 1 * 2,
+			.power_usage = 3,
+			.flags = CPUIDLE_FLAG_TIME_VALID,
+			.enter = cpuidle_sleep_enter,
+			.name = "C1",
+			.desc = "SuperH Sleep Mode",
+		},
+		{
+			.exit_latency = 100,
+			.target_residency = 1 * 2,
+			.power_usage = 1,
+			.flags = CPUIDLE_FLAG_TIME_VALID,
+			.enter = cpuidle_sleep_enter,
+			.name = "C2",
+			.desc = "SuperH Sleep Mode [SF]",
+			.disabled = true,
+		},
+		{
+			.exit_latency = 2300,
+			.target_residency = 1 * 2,
+			.power_usage = 1,
+			.flags = CPUIDLE_FLAG_TIME_VALID,
+			.enter = cpuidle_sleep_enter,
+			.name = "C3",
+			.desc = "SuperH Mobile Standby Mode [SF]",
+			.disabled = true,
+		},
+	},
+	.safe_state_index = 0,
+	.state_count = 3,
 };
 
-void sh_mobile_setup_cpuidle(void)
+int __init sh_mobile_setup_cpuidle(void)
 {
-	struct cpuidle_device *dev = &cpuidle_dev;
-	struct cpuidle_state *state;
-	int i;
+	int ret;
 
-	cpuidle_register_driver(&cpuidle_driver);
+	if (sh_mobile_sleep_supported & SUSP_SH_SF)
+		cpuidle_driver.states[1].disabled = false;
 
-	for (i = 0; i < CPUIDLE_STATE_MAX; i++) {
-		dev->states[i].name[0] = '\0';
-		dev->states[i].desc[0] = '\0';
-	}
+	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY)
+		cpuidle_driver.states[2].disabled = false;
 
-	i = CPUIDLE_DRIVER_STATE_START;
-
-	state = &dev->states[i++];
-	snprintf(state->name, CPUIDLE_NAME_LEN, "C1");
-	strncpy(state->desc, "SuperH Sleep Mode", CPUIDLE_DESC_LEN);
-	state->exit_latency = 1;
-	state->target_residency = 1 * 2;
-	state->power_usage = 3;
-	state->flags = 0;
-	state->flags |= CPUIDLE_FLAG_TIME_VALID;
-	state->enter = cpuidle_sleep_enter;
-
-	dev->safe_state = state;
-
-	if (sh_mobile_sleep_supported & SUSP_SH_SF) {
-		state = &dev->states[i++];
-		snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
-		strncpy(state->desc, "SuperH Sleep Mode [SF]",
-			CPUIDLE_DESC_LEN);
-		state->exit_latency = 100;
-		state->target_residency = 1 * 2;
-		state->power_usage = 1;
-		state->flags = 0;
-		state->flags |= CPUIDLE_FLAG_TIME_VALID;
-		state->enter = cpuidle_sleep_enter;
-	}
-
-	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY) {
-		state = &dev->states[i++];
-		snprintf(state->name, CPUIDLE_NAME_LEN, "C3");
-		strncpy(state->desc, "SuperH Mobile Standby Mode [SF]",
-			CPUIDLE_DESC_LEN);
-		state->exit_latency = 2300;
-		state->target_residency = 1 * 2;
-		state->power_usage = 1;
-		state->flags = 0;
-		state->flags |= CPUIDLE_FLAG_TIME_VALID;
-		state->enter = cpuidle_sleep_enter;
-	}
-
-	dev->state_count = i;
-
-	cpuidle_register_device(dev);
+	return cpuidle_register(&cpuidle_driver);
 }

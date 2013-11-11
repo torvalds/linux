@@ -31,7 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-#include <asm/system.h>
 
 /*
  * The apm_bios device is one of the misc char devices.
@@ -40,10 +39,7 @@
 #define APM_MINOR_DEV	134
 
 /*
- * See Documentation/Config.help for the configuration options.
- *
- * Various options can be changed at boot time as follows:
- * (We allow underscores for compatibility with the modules code)
+ * One option can be changed at boot time as follows:
  *	apm=on/off			enable/disable APM
  */
 
@@ -300,17 +296,13 @@ apm_ioctl(struct file *filp, u_int cmd, u_long arg)
 			/*
 			 * Wait for the suspend/resume to complete.  If there
 			 * are pending acknowledges, we wait here for them.
+			 * wait_event_freezable() is interruptible and pending
+			 * signal can cause busy looping.  We aren't doing
+			 * anything critical, chill a bit on each iteration.
 			 */
-			freezer_do_not_count();
-
-			wait_event(apm_suspend_waitqueue,
-				   as->suspend_state == SUSPEND_DONE);
-
-			/*
-			 * Since we are waiting until the suspend is done, the
-			 * try_to_freeze() in freezer_count() will not trigger
-			 */
-			freezer_count();
+			while (wait_event_freezable(apm_suspend_waitqueue,
+					as->suspend_state != SUSPEND_ACKED))
+				msleep(10);
 			break;
 		case SUSPEND_ACKTO:
 			as->suspend_result = -ETIMEDOUT;
@@ -606,7 +598,7 @@ static int apm_suspend_notifier(struct notifier_block *nb,
 			return NOTIFY_OK;
 
 		/* interrupted by signal */
-		return NOTIFY_BAD;
+		return notifier_from_errno(err);
 
 	case PM_POST_SUSPEND:
 		/*

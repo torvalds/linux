@@ -1,10 +1,11 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X specific setup
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
- *  Parts of this file are based on Atheros' 2.6.15 BSP
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -18,6 +19,7 @@
 #include <linux/clk.h>
 
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
 #include <asm/mips_machine.h>
@@ -48,20 +50,6 @@ static void ath79_halt(void)
 {
 	while (1)
 		cpu_wait();
-}
-
-static void __init ath79_detect_mem_size(void)
-{
-	unsigned long size;
-
-	for (size = ATH79_MEM_SIZE_MIN; size < ATH79_MEM_SIZE_MAX;
-	     size <<= 1) {
-		if (!memcmp(ath79_detect_mem_size,
-			    ath79_detect_mem_size + size, 1024))
-			break;
-	}
-
-	add_memory_region(0, size, BOOT_MEM_RAM);
 }
 
 static void __init ath79_detect_sys_type(void)
@@ -101,19 +89,19 @@ static void __init ath79_detect_sys_type(void)
 	case REV_ID_MAJOR_AR7240:
 		ath79_soc = ATH79_SOC_AR7240;
 		chip = "7240";
-		rev = (id & AR724X_REV_ID_REVISION_MASK);
+		rev = id & AR724X_REV_ID_REVISION_MASK;
 		break;
 
 	case REV_ID_MAJOR_AR7241:
 		ath79_soc = ATH79_SOC_AR7241;
 		chip = "7241";
-		rev = (id & AR724X_REV_ID_REVISION_MASK);
+		rev = id & AR724X_REV_ID_REVISION_MASK;
 		break;
 
 	case REV_ID_MAJOR_AR7242:
 		ath79_soc = ATH79_SOC_AR7242;
 		chip = "7242";
-		rev = (id & AR724X_REV_ID_REVISION_MASK);
+		rev = id & AR724X_REV_ID_REVISION_MASK;
 		break;
 
 	case REV_ID_MAJOR_AR913X:
@@ -133,11 +121,59 @@ static void __init ath79_detect_sys_type(void)
 		}
 		break;
 
+	case REV_ID_MAJOR_AR9330:
+		ath79_soc = ATH79_SOC_AR9330;
+		chip = "9330";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9331:
+		ath79_soc = ATH79_SOC_AR9331;
+		chip = "9331";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9341:
+		ath79_soc = ATH79_SOC_AR9341;
+		chip = "9341";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9342:
+		ath79_soc = ATH79_SOC_AR9342;
+		chip = "9342";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9344:
+		ath79_soc = ATH79_SOC_AR9344;
+		chip = "9344";
+		rev = id & AR934X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_QCA9556:
+		ath79_soc = ATH79_SOC_QCA9556;
+		chip = "9556";
+		rev = id & QCA955X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_QCA9558:
+		ath79_soc = ATH79_SOC_QCA9558;
+		chip = "9558";
+		rev = id & QCA955X_REV_ID_REVISION_MASK;
+		break;
+
 	default:
-		panic("ath79: unknown SoC, id:0x%08x\n", id);
+		panic("ath79: unknown SoC, id:0x%08x", id);
 	}
 
-	sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);
+	ath79_soc_rev = rev;
+
+	if (soc_is_qca955x())
+		sprintf(ath79_sys_type, "Qualcomm Atheros QCA%s rev %u",
+			chip, rev);
+	else
+		sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);
 	pr_info("SoC: %s\n", ath79_sys_type);
 }
 
@@ -163,7 +199,7 @@ void __init plat_mem_setup(void)
 					 AR71XX_DDR_CTRL_SIZE);
 
 	ath79_detect_sys_type();
-	ath79_detect_mem_size();
+	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 	ath79_clocks_init();
 
 	_machine_restart = ath79_restart;

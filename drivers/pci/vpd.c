@@ -6,6 +6,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/export.h>
 
 int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
 {

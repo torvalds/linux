@@ -23,7 +23,6 @@ static struct gpio palmtx_pcmcia_gpios[] = {
 	{ GPIO_NR_PALMTX_PCMCIA_POWER1,	GPIOF_INIT_LOW,	"PCMCIA Power 1" },
 	{ GPIO_NR_PALMTX_PCMCIA_POWER2,	GPIOF_INIT_LOW,	"PCMCIA Power 2" },
 	{ GPIO_NR_PALMTX_PCMCIA_RESET,	GPIOF_INIT_HIGH,"PCMCIA Reset" },
-	{ GPIO_NR_PALMTX_PCMCIA_READY,	GPIOF_IN,	"PCMCIA Ready" },
 };
 
 static int palmtx_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
@@ -33,7 +32,8 @@ static int palmtx_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	ret = gpio_request_array(palmtx_pcmcia_gpios,
 				ARRAY_SIZE(palmtx_pcmcia_gpios));
 
-	skt->socket.pci_irq = gpio_to_irq(GPIO_NR_PALMTX_PCMCIA_READY);
+	skt->stat[SOC_STAT_RDY].gpio = GPIO_NR_PALMTX_PCMCIA_READY;
+	skt->stat[SOC_STAT_RDY].name = "PCMCIA Ready";
 
 	return ret;
 }
@@ -47,10 +47,6 @@ static void palmtx_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 					struct pcmcia_state *state)
 {
 	state->detect = 1; /* always inserted */
-	state->ready  = !!gpio_get_value(GPIO_NR_PALMTX_PCMCIA_READY);
-	state->bvd1   = 1;
-	state->bvd2   = 1;
-	state->wrprot = 0;
 	state->vs_3v  = 1;
 	state->vs_Xv  = 0;
 }
@@ -67,14 +63,6 @@ palmtx_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void palmtx_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void palmtx_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
 static struct pcmcia_low_level palmtx_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 
@@ -86,9 +74,6 @@ static struct pcmcia_low_level palmtx_pcmcia_ops = {
 
 	.socket_state		= palmtx_pcmcia_socket_state,
 	.configure_socket	= palmtx_pcmcia_configure_socket,
-
-	.socket_init		= palmtx_pcmcia_socket_init,
-	.socket_suspend		= palmtx_pcmcia_socket_suspend,
 };
 
 static struct platform_device *palmtx_pcmcia_device;

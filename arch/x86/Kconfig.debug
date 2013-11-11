@@ -43,9 +43,9 @@ config EARLY_PRINTK
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash.
 
-config EARLY_PRINTK_MRST
-	bool "Early printk for MRST platform support"
-	depends on EARLY_PRINTK && X86_MRST
+config EARLY_PRINTK_INTEL_MID
+	bool "Early printk for Intel MID platform support"
+	depends on EARLY_PRINTK && X86_INTEL_MID
 
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
@@ -63,8 +63,11 @@ config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
 	---help---
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
+	  Say Y here if you want to check the overflows of kernel, IRQ
+	  and exception stacks. This option will cause messages of the
+	  stacks in detail when free stack space drops below a certain
+	  limit.
+	  If in doubt, say "N".
 
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
@@ -126,6 +129,25 @@ config DOUBLEFAULT
 	  option saves about 4k and might cause you much additional grey
 	  hair.
 
+config DEBUG_TLBFLUSH
+	bool "Set upper limit of TLB entries to flush one-by-one"
+	depends on DEBUG_KERNEL
+	---help---
+
+	X86-only for now.
+
+	This option allows the user to tune the amount of TLB entries the
+	kernel flushes one-by-one instead of doing a full TLB flush. In
+	certain situations, the former is cheaper. This is controlled by the
+	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+	to -1, the code flushes the whole TLB unconditionally. Otherwise,
+	for positive values of it, the kernel will use single TLB entry
+	invalidating instructions according to the following formula:
+
+	flush_entries <= active_tlb_entries / 2^tlb_flushall_shift
+
+	If in doubt, say "N".
+
 config IOMMU_DEBUG
 	bool "Enable IOMMU debugging"
 	depends on GART_IOMMU && DEBUG_KERNEL
@@ -139,7 +161,7 @@ config IOMMU_DEBUG
 	  code. When you use it make sure you have a big enough
 	  IOMMU/AGP aperture.  Most of the options enabled by this can
 	  be set more finegrained using the iommu= command line
-	  options. See Documentation/x86_64/boot-options.txt for more
+	  options. See Documentation/x86/x86_64/boot-options.txt for more
 	  details.
 
 config IOMMU_STRESS
@@ -270,18 +292,16 @@ config OPTIMIZE_INLINING
 
 	  If unsure, say N.
 
-config DEBUG_STRICT_USER_COPY_CHECKS
-	bool "Strict copy size checks"
-	depends on DEBUG_KERNEL && !TRACE_BRANCH_PROFILING
+config DEBUG_NMI_SELFTEST
+	bool "NMI Selftest"
+	depends on DEBUG_KERNEL && X86_LOCAL_APIC
 	---help---
-	  Enabling this option turns a certain set of sanity checks for user
-	  copy operations into compile time failures.
+	  Enabling this option turns on a quick NMI selftest to verify
+	  that the NMI behaves correctly.
 
-	  The copy_from_user() etc checks are there to help test if there
-	  are sufficient security checks on the length argument of
-	  the copy operation, by having gcc prove that the argument is
-	  within bounds.
+	  This might help diagnose strange hangs that rely on NMI to
+	  function properly.
 
-	  If unsure, or if you run an older (pre 4.4) gcc, say N.
+	  If unsure, say N.
 
 endmenu

@@ -1,0 +1,17 @@
+Calxeda Highbank Combination Phys for SATA
+
+Properties:
+- compatible : Should be "calxeda,hb-combophy"
+- #phy-cells: Should be 1.
+- reg : Address and size for Combination Phy registers.
+- phydev: device ID for programming the combophy.
+
+Example:
+
+	combophy5: combo-phy@fff5d000 {
+		compatible = "calxeda,hb-combophy";
+		#phy-cells = <1>;
+		reg = <0xfff5d000 0x1000>;
+		phydev = <31>;
+	};
+

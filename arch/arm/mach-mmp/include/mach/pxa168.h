@@ -1,22 +1,24 @@
 #ifndef __ASM_MACH_PXA168_H
 #define __ASM_MACH_PXA168_H
 
-struct sys_timer;
-
-extern struct sys_timer pxa168_timer;
+extern void pxa168_timer_init(void);
 extern void __init pxa168_init_irq(void);
+extern void pxa168_restart(char, const char *);
 extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <mach/devices.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 #include <video/pxa168fb.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/cputype.h>
+#include <linux/pxa168_eth.h>
+#include <linux/platform_data/mv_usb.h>
 
 extern struct pxa_device_desc pxa168_device_uart1;
 extern struct pxa_device_desc pxa168_device_uart2;
+extern struct pxa_device_desc pxa168_device_uart3;
 extern struct pxa_device_desc pxa168_device_twsi0;
 extern struct pxa_device_desc pxa168_device_twsi1;
 extern struct pxa_device_desc pxa168_device_pwm1;
@@ -31,6 +33,13 @@ extern struct pxa_device_desc pxa168_device_ssp5;
 extern struct pxa_device_desc pxa168_device_nand;
 extern struct pxa_device_desc pxa168_device_fb;
 extern struct pxa_device_desc pxa168_device_keypad;
+extern struct pxa_device_desc pxa168_device_eth;
+
+/* pdata can be NULL */
+extern int __init pxa168_add_usb_host(struct mv_usb_platform_data *pdata);
+
+
+extern struct platform_device pxa168_device_gpio;
 
 static inline int pxa168_add_uart(int id)
 {
@@ -39,6 +48,7 @@ static inline int pxa168_add_uart(int id)
 	switch (id) {
 	case 1: d = &pxa168_device_uart1; break;
 	case 2: d = &pxa168_device_uart2; break;
+	case 3: d = &pxa168_device_uart3; break;
 	}
 
 	if (d == NULL)
@@ -117,4 +127,8 @@ static inline int pxa168_add_keypad(struct pxa27x_keypad_platform_data *data)
 	return pxa_register_device(&pxa168_device_keypad, data, sizeof(*data));
 }
 
+static inline int pxa168_add_eth(struct pxa168_eth_platform_data *data)
+{
+	return pxa_register_device(&pxa168_device_eth, data, sizeof(*data));
+}
 #endif /* __ASM_MACH_PXA168_H */

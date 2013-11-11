@@ -1,0 +1,58 @@
+config STMMAC_ETH
+	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	depends on HAS_IOMEM && HAS_DMA
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	select PTP_1588_CLOCK
+	---help---
+	  This is the driver for the Ethernet IPs are built around a
+	  Synopsys IP Core and only tested on the STMicroelectronics
+	  platforms.
+
+if STMMAC_ETH
+
+config STMMAC_PLATFORM
+	bool "STMMAC Platform bus support"
+	depends on STMMAC_ETH
+	default y
+	---help---
+	  This selects the platform specific bus support for
+	  the stmmac device driver. This is the driver used
+	  on many embedded STM platforms based on ARM and SuperH
+	  processors.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config STMMAC_PCI
+	bool "STMMAC PCI bus support"
+	depends on STMMAC_ETH && PCI
+	---help---
+	  This is to select the Synopsys DWMAC available on PCI devices,
+	  if you have a controller with this interface, say Y or M here.
+
+	  This PCI support is tested on XLINX XC2V3000 FF1152AMT0221
+	  D1215994A VIRTEX FPGA board.
+
+	  If unsure, say N.
+
+config STMMAC_DEBUG_FS
+	bool "Enable monitoring via sysFS "
+	default n
+	depends on STMMAC_ETH && DEBUG_FS
+	---help---
+	  The stmmac entry in /sys reports DMA TX/RX rings
+	  or (if supported) the HW cap register.
+
+config STMMAC_DA
+	bool "STMMAC DMA arbitration scheme"
+	default n
+	---help---
+	  Selecting this option, rx has priority over Tx (only for Giga
+	  Ethernet device).
+	  By default, the DMA arbitration scheme is based on Round-robin
+	  (rx:tx priority is 1:1).
+
+endif

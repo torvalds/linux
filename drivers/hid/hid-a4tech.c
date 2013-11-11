@@ -5,7 +5,6 @@
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  */
 
@@ -147,17 +146,6 @@ static struct hid_driver a4_driver = {
 	.probe = a4_probe,
 	.remove = a4_remove,
 };
+module_hid_driver(a4_driver);
 
-static int __init a4_init(void)
-{
-	return hid_register_driver(&a4_driver);
-}
-
-static void __exit a4_exit(void)
-{
-	hid_unregister_driver(&a4_driver);
-}
-
-module_init(a4_init);
-module_exit(a4_exit);
 MODULE_LICENSE("GPL");

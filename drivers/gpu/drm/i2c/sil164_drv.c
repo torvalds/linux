@@ -24,10 +24,12 @@
  *
  */
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
-#include "drm_encoder_slave.h"
-#include "i2c/sil164.h"
+#include <linux/module.h>
+
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder_slave.h>
+#include <drm/i2c/sil164.h>
 
 struct sil164_priv {
 	struct sil164_encoder_params config;
@@ -252,7 +254,7 @@ sil164_encoder_restore(struct drm_encoder *encoder)
 
 static bool
 sil164_encoder_mode_fixup(struct drm_encoder *encoder,
-			  struct drm_display_mode *mode,
+			  const struct drm_display_mode *mode,
 			  struct drm_display_mode *adjusted_mode)
 {
 	return true;

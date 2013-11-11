@@ -28,7 +28,7 @@ static struct buffer_head *bfs_find_entry(struct inode *dir,
 
 static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 {
-	struct inode *dir = f->f_path.dentry->d_inode;
+	struct inode *dir = file_inode(f);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	struct bfs_sb_info *info = BFS_SB(dir->i_sb);
@@ -84,8 +84,8 @@ const struct file_operations bfs_dir_operations = {
 
 extern void dump_imap(const char *, struct super_block *);
 
-static int bfs_create(struct inode *dir, struct dentry *dentry, int mode,
-						struct nameidata *nd)
+static int bfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+						bool excl)
 {
 	int err;
 	struct inode *inode;
@@ -133,7 +133,7 @@ static int bfs_create(struct inode *dir, struct dentry *dentry, int mode,
 }
 
 static struct dentry *bfs_lookup(struct inode *dir, struct dentry *dentry,
-						struct nameidata *nd)
+						unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct buffer_head *bh;
@@ -199,7 +199,7 @@ static int bfs_unlink(struct inode *dir, struct dentry *dentry)
 		printf("unlinking non-existent file %s:%lu (nlink=%d)\n",
 					inode->i_sb->s_id, inode->i_ino,
 					inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	de->ino = 0;
 	mark_buffer_dirty_inode(bh, dir);

@@ -25,7 +25,6 @@
 
 static struct irqaction bfin_timer_irq = {
 	.name = "Blackfin Timer Tick",
-	.flags = IRQF_DISABLED
 };
 
 #if defined(CONFIG_IPIPE)
@@ -51,7 +50,7 @@ void __init setup_core_timer(void)
 	u32 tcount;
 
 	/* power up the timer, but don't enable it just yet */
-	bfin_write_TCNTL(1);
+	bfin_write_TCNTL(TMPWR);
 	CSYNC();
 
 	/* the TSCALE prescaler counter */
@@ -64,7 +63,7 @@ void __init setup_core_timer(void)
 	/* now enable the timer */
 	CSYNC();
 
-	bfin_write_TCNTL(7);
+	bfin_write_TCNTL(TAUTORLD | TMREN | TMPWR);
 }
 #endif
 
@@ -86,7 +85,7 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 /*
  * Should return useconds since last timer tick
  */
-u32 arch_gettimeoffset(void)
+static u32 blackfin_gettimeoffset(void)
 {
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
@@ -142,6 +141,10 @@ void read_persistent_clock(struct timespec *ts)
 
 void __init time_init(void)
 {
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
+	arch_gettimeoffset = blackfin_gettimeoffset;
+#endif
+
 #ifdef CONFIG_RTC_DRV_BFIN
 	/* [#2663] hack to filter junk RTC values that would cause
 	 * userspace to have to deal with time values greater than

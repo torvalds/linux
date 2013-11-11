@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,12 +44,12 @@
 /*
  * DEFINE_AML_GLOBALS is tested in amlcode.h
  * to determine whether certain global names should be "defined" or only
- * "declared" in the current compilation.  This enhances maintainability
+ * "declared" in the current compilation. This enhances maintainability
  * by enabling a single header file to embody all knowledge of the names
  * in question.
  *
  * Exactly one module of any executable should #define DEFINE_GLOBALS
- * before #including the header files which use this convention.  The
+ * before #including the header files which use this convention. The
  * names in question will be defined and initialized in that module,
  * and declared as extern in all other modules which #include those
  * header files.
@@ -109,7 +108,7 @@ void acpi_ex_enter_interpreter(void)
  *
  * DESCRIPTION: Reacquire the interpreter execution region from within the
  *              interpreter code. Failure to enter the interpreter region is a
- *              fatal system error. Used in  conjunction with
+ *              fatal system error. Used in conjunction with
  *              relinquish_interpreter
  *
  ******************************************************************************/
@@ -203,35 +202,39 @@ void acpi_ex_relinquish_interpreter(void)
  *
  * PARAMETERS:  obj_desc        - Object to be truncated
  *
- * RETURN:      none
+ * RETURN:      TRUE if a truncation was performed, FALSE otherwise.
  *
  * DESCRIPTION: Truncate an ACPI Integer to 32 bits if the execution mode is
  *              32-bit, as determined by the revision of the DSDT.
  *
  ******************************************************************************/
 
-void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
+u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
 {
 
 	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * Object must be a valid number and we must be executing
-	 * a control method. NS node could be there for AML_INT_NAMEPATH_OP.
+	 * a control method. Object could be NS node for AML_INT_NAMEPATH_OP.
 	 */
 	if ((!obj_desc) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) ||
 	    (obj_desc->common.type != ACPI_TYPE_INTEGER)) {
-		return;
+		return (FALSE);
 	}
 
-	if (acpi_gbl_integer_byte_width == 4) {
+	if ((acpi_gbl_integer_byte_width == 4) &&
+	    (obj_desc->integer.value > (u64)ACPI_UINT32_MAX)) {
 		/*
-		 * We are running a method that exists in a 32-bit ACPI table.
+		 * We are executing in a 32-bit ACPI table.
 		 * Truncate the value to 32 bits by zeroing out the upper 32-bit field
 		 */
-		obj_desc->integer.value &= (u64) ACPI_UINT32_MAX;
+		obj_desc->integer.value &= (u64)ACPI_UINT32_MAX;
+		return (TRUE);
 	}
+
+	return (FALSE);
 }
 
 /*******************************************************************************
@@ -317,8 +320,8 @@ void acpi_ex_release_global_lock(u32 field_flags)
  *
  * FUNCTION:    acpi_ex_digits_needed
  *
- * PARAMETERS:  Value           - Value to be represented
- *              Base            - Base of representation
+ * PARAMETERS:  value           - Value to be represented
+ *              base            - Base of representation
  *
  * RETURN:      The number of digits.
  *
@@ -408,7 +411,7 @@ void acpi_ex_eisa_id_to_string(char *out_string, u64 compressed_id)
  * PARAMETERS:  out_string      - Where to put the converted string. At least
  *                                21 bytes are needed to hold the largest
  *                                possible 64-bit integer.
- *              Value           - Value to be converted
+ *              value           - Value to be converted
  *
  * RETURN:      None, string
  *
@@ -433,6 +436,31 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
 		(void)acpi_ut_short_divide(value, 10, &value, &remainder);
 		out_string[count - 1] = (char)('0' + remainder);
 	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_is_valid_space_id
+ *
+ * PARAMETERS:  space_id            - ID to be validated
+ *
+ * RETURN:      TRUE if valid/supported ID.
+ *
+ * DESCRIPTION: Validate an operation region space_ID.
+ *
+ ******************************************************************************/
+
+u8 acpi_is_valid_space_id(u8 space_id)
+{
+
+	if ((space_id >= ACPI_NUM_PREDEFINED_REGIONS) &&
+	    (space_id < ACPI_USER_REGION_BEGIN) &&
+	    (space_id != ACPI_ADR_SPACE_DATA_TABLE) &&
+	    (space_id != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
+		return (FALSE);
+	}
+
+	return (TRUE);
 }
 
 #endif

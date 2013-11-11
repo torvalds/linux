@@ -186,8 +186,7 @@ static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
 	for (n = 0; n < current_setting->desc.bNumEndpoints; n++)
 		if (current_setting->endpoint[n].desc.bEndpointAddress ==
 			data->bulk_in)
-			max_size = le16_to_cpu(current_setting->endpoint[n].
-						desc.wMaxPacketSize);
+			max_size = usb_endpoint_maxp(&current_setting->endpoint[n].desc);
 
 	if (max_size == 0) {
 		dev_err(dev, "Couldn't get wMaxPacketSize\n");
@@ -268,7 +267,7 @@ usbtmc_abort_bulk_in_status:
 				dev_err(dev, "usb_bulk_msg returned %d\n", rv);
 				goto exit;
 			}
-		} while ((actual = max_size) &&
+		} while ((actual == max_size) &&
 			 (n < USBTMC_MAX_READS_TO_CLEAR_BULK_IN));
 
 	if (actual == max_size) {
@@ -636,7 +635,7 @@ static int usbtmc_ioctl_clear(struct usbtmc_device_data *data)
 	for (n = 0; n < current_setting->desc.bNumEndpoints; n++) {
 		desc = &current_setting->endpoint[n].desc;
 		if (desc->bEndpointAddress == data->bulk_in)
-			max_size = le16_to_cpu(desc->wMaxPacketSize);
+			max_size = usb_endpoint_maxp(desc);
 	}
 
 	if (max_size == 0) {
@@ -719,12 +718,7 @@ exit:
 
 static int usbtmc_ioctl_clear_out_halt(struct usbtmc_device_data *data)
 {
-	u8 *buffer;
 	int rv;
-
-	buffer = kmalloc(2, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
 
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_sndbulkpipe(data->usb_dev, data->bulk_out));
@@ -732,23 +726,14 @@ static int usbtmc_ioctl_clear_out_halt(struct usbtmc_device_data *data)
 	if (rv < 0) {
 		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
 			rv);
-		goto exit;
+		return rv;
 	}
-	rv = 0;
-
-exit:
-	kfree(buffer);
-	return rv;
+	return 0;
 }
 
 static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 {
-	u8 *buffer;
 	int rv;
-
-	buffer = kmalloc(2, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
 
 	rv = usb_clear_halt(data->usb_dev,
 			    usb_rcvbulkpipe(data->usb_dev, data->bulk_in));
@@ -756,13 +741,9 @@ static int usbtmc_ioctl_clear_in_halt(struct usbtmc_device_data *data)
 	if (rv < 0) {
 		dev_err(&data->usb_dev->dev, "usb_control_msg returned %d\n",
 			rv);
-		goto exit;
+		return rv;
 	}
-	rv = 0;
-
-exit:
-	kfree(buffer);
-	return rv;
+	return 0;
 }
 
 static int get_capabilities(struct usbtmc_device_data *data)
@@ -1117,21 +1098,6 @@ static struct usb_driver usbtmc_driver = {
 	.resume		= usbtmc_resume,
 };
 
-static int __init usbtmc_init(void)
-{
-	int retcode;
-
-	retcode = usb_register(&usbtmc_driver);
-	if (retcode)
-		printk(KERN_ERR KBUILD_MODNAME": Unable to register driver\n");
-	return retcode;
-}
-module_init(usbtmc_init);
-
-static void __exit usbtmc_exit(void)
-{
-	usb_deregister(&usbtmc_driver);
-}
-module_exit(usbtmc_exit);
+module_usb_driver(usbtmc_driver);
 
 MODULE_LICENSE("GPL");

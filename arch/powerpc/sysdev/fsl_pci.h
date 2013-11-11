@@ -14,8 +14,12 @@
 #ifndef __POWERPC_FSL_PCI_H
 #define __POWERPC_FSL_PCI_H
 
+struct platform_device;
+
 #define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
 #define PCIE_LTSSM_L0	0x16		/* L0 state */
+#define PCIE_IP_REV_2_2		0x02080202 /* PCIE IP block version Rev2.2 */
+#define PCIE_IP_REV_3_0		0x02080300 /* PCIE IP block version Rev3.0 */
 #define PIWAR_EN		0x80000000	/* Enable */
 #define PIWAR_PF		0x20000000	/* prefetch */
 #define PIWAR_TGI_LOCAL		0x00f00000	/* target - local memory */
@@ -57,7 +61,9 @@ struct ccsr_pci {
 	__be32	pex_pme_mes_disr;	/* 0x.024 - PCIE PME and message disable register */
 	__be32	pex_pme_mes_ier;	/* 0x.028 - PCIE PME and message interrupt enable register */
 	__be32	pex_pmcr;		/* 0x.02c - PCIE power management command register */
-	u8	res3[3024];
+	u8	res3[3016];
+	__be32	block_rev1;	/* 0x.bf8 - PCIE Block Revision register 1 */
+	__be32	block_rev2;	/* 0x.bfc - PCIE Block Revision register 2 */
 
 /* PCI/PCI Express outbound window 0-4
  * Window 0 is the default window and is the only window enabled upon reset.
@@ -86,12 +92,39 @@ struct ccsr_pci {
 	__be32	pex_err_cap_r1;		/* 0x.e2c - PCIE error capture register 0 */
 	__be32	pex_err_cap_r2;		/* 0x.e30 - PCIE error capture register 0 */
 	__be32	pex_err_cap_r3;		/* 0x.e34 - PCIE error capture register 0 */
+	u8	res_e38[200];
+	__be32	pdb_stat;		/* 0x.f00 - PCIE Debug Status */
+	u8	res_f04[16];
+	__be32	pex_csr0;		/* 0x.f14 - PEX Control/Status register 0*/
+#define PEX_CSR0_LTSSM_MASK	0xFC
+#define PEX_CSR0_LTSSM_SHIFT	2
+#define PEX_CSR0_LTSSM_L0	0x11
+	__be32	pex_csr1;		/* 0x.f18 - PEX Control/Status register 1*/
+	u8	res_f1c[228];
+
 };
 
-extern int fsl_add_bridge(struct device_node *dev, int is_primary);
+extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern int mpc83xx_add_bridge(struct device_node *dev);
 u64 fsl_pci_immrbar_base(struct pci_controller *hose);
+
+extern struct device_node *fsl_pci_primary;
+
+#ifdef CONFIG_PCI
+void fsl_pci_assign_primary(void);
+#else
+static inline void fsl_pci_assign_primary(void) {}
+#endif
+
+#ifdef CONFIG_EDAC_MPC85XX
+int mpc85xx_pci_err_probe(struct platform_device *op);
+#else
+static inline int mpc85xx_pci_err_probe(struct platform_device *op)
+{
+	return -ENOTSUPP;
+}
+#endif
 
 #endif /* __POWERPC_FSL_PCI_H */
 #endif /* __KERNEL__ */

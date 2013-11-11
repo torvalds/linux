@@ -79,7 +79,6 @@
 
 #include <linux/spinlock.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 extern spinlock_t ns87303_lock;

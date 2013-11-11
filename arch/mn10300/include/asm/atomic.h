@@ -12,112 +12,7 @@
 #define _ASM_ATOMIC_H
 
 #include <asm/irqflags.h>
-
-#ifndef __ASSEMBLY__
-
-#ifdef CONFIG_SMP
-#ifdef CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT
-static inline
-unsigned long __xchg(volatile unsigned long *m, unsigned long val)
-{
-	unsigned long status;
-	unsigned long oldval;
-
-	asm volatile(
-		"1:	mov	%4,(_AAR,%3)	\n"
-		"	mov	(_ADR,%3),%1	\n"
-		"	mov	%5,(_ADR,%3)	\n"
-		"	mov	(_ADR,%3),%0	\n"	/* flush */
-		"	mov	(_ASR,%3),%0	\n"
-		"	or	%0,%0		\n"
-		"	bne	1b		\n"
-		: "=&r"(status), "=&r"(oldval), "=m"(*m)
-		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(m), "r"(val)
-		: "memory", "cc");
-
-	return oldval;
-}
-
-static inline unsigned long __cmpxchg(volatile unsigned long *m,
-				      unsigned long old, unsigned long new)
-{
-	unsigned long status;
-	unsigned long oldval;
-
-	asm volatile(
-		"1:	mov	%4,(_AAR,%3)	\n"
-		"	mov	(_ADR,%3),%1	\n"
-		"	cmp	%5,%1		\n"
-		"	bne	2f		\n"
-		"	mov	%6,(_ADR,%3)	\n"
-		"2:	mov	(_ADR,%3),%0	\n"	/* flush */
-		"	mov	(_ASR,%3),%0	\n"
-		"	or	%0,%0		\n"
-		"	bne	1b		\n"
-		: "=&r"(status), "=&r"(oldval), "=m"(*m)
-		: "a"(ATOMIC_OPS_BASE_ADDR), "r"(m),
-		  "r"(old), "r"(new)
-		: "memory", "cc");
-
-	return oldval;
-}
-#else  /* CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT */
-#error "No SMP atomic operation support!"
-#endif /* CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT */
-
-#else  /* CONFIG_SMP */
-
-/*
- * Emulate xchg for non-SMP MN10300
- */
-struct __xchg_dummy { unsigned long a[100]; };
-#define __xg(x) ((struct __xchg_dummy *)(x))
-
-static inline
-unsigned long __xchg(volatile unsigned long *m, unsigned long val)
-{
-	unsigned long oldval;
-	unsigned long flags;
-
-	flags = arch_local_cli_save();
-	oldval = *m;
-	*m = val;
-	arch_local_irq_restore(flags);
-	return oldval;
-}
-
-/*
- * Emulate cmpxchg for non-SMP MN10300
- */
-static inline unsigned long __cmpxchg(volatile unsigned long *m,
-				      unsigned long old, unsigned long new)
-{
-	unsigned long oldval;
-	unsigned long flags;
-
-	flags = arch_local_cli_save();
-	oldval = *m;
-	if (oldval == old)
-		*m = new;
-	arch_local_irq_restore(flags);
-	return oldval;
-}
-
-#endif /* CONFIG_SMP */
-
-#define xchg(ptr, v)						\
-	((__typeof__(*(ptr))) __xchg((unsigned long *)(ptr),	\
-				     (unsigned long)(v)))
-
-#define cmpxchg(ptr, o, n)					\
-	((__typeof__(*(ptr))) __cmpxchg((unsigned long *)(ptr), \
-					(unsigned long)(o),	\
-					(unsigned long)(n)))
-
-#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
-#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
-
-#endif /* !__ASSEMBLY__ */
+#include <asm/cmpxchg.h>
 
 #ifndef CONFIG_SMP
 #include <asm-generic/atomic.h>
@@ -260,16 +155,17 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
 #define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
 
-#define atomic_add_unless(v, a, u)				\
+#define __atomic_add_unless(v, a, u)				\
 ({								\
 	int c, old;						\
 	c = atomic_read(v);					\
 	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
 		c = old;					\
-	c != (u);						\
+	c;							\
 })
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+#define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
+#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
 
 /**
  * atomic_clear_mask - Atomically clear bits in memory
@@ -343,8 +239,6 @@ static inline void atomic_set_mask(unsigned long mask, unsigned long *addr)
 #define smp_mb__after_atomic_dec()	barrier()
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
-
-#include <asm-generic/atomic-long.h>
 
 #endif /* __KERNEL__ */
 #endif /* CONFIG_SMP */

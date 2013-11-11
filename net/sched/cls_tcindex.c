@@ -79,7 +79,7 @@ tcindex_lookup(struct tcindex_data *p, u16 key)
 }
 
 
-static int tcindex_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int tcindex_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			    struct tcf_result *res)
 {
 	struct tcindex_data *p = PRIV(tp);
@@ -197,9 +197,10 @@ static const struct nla_policy tcindex_policy[TCA_TCINDEX_MAX + 1] = {
 };
 
 static int
-tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
-		  struct tcindex_data *p, struct tcindex_filter_result *r,
-		  struct nlattr **tb, struct nlattr *est)
+tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
+		  u32 handle, struct tcindex_data *p,
+		  struct tcindex_filter_result *r, struct nlattr **tb,
+		 struct nlattr *est)
 {
 	int err, balloc = 0;
 	struct tcindex_filter_result new_filter_result, *old_r = r;
@@ -208,7 +209,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	struct tcindex_filter *f = NULL; /* make gcc behave */
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(tp, tb, est, &e, &tcindex_ext_map);
+	err = tcf_exts_validate(net, tp, tb, est, &e, &tcindex_ext_map);
 	if (err < 0)
 		return err;
 
@@ -332,7 +333,8 @@ errout:
 }
 
 static int
-tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
+tcindex_change(struct net *net, struct sk_buff *in_skb,
+	       struct tcf_proto *tp, unsigned long base, u32 handle,
 	       struct nlattr **tca, unsigned long *arg)
 {
 	struct nlattr *opt = tca[TCA_OPTIONS];
@@ -352,7 +354,8 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (err < 0)
 		return err;
 
-	return tcindex_set_parms(tp, base, handle, p, r, tb, tca[TCA_RATE]);
+	return tcindex_set_parms(net, tp, base, handle, p, r, tb,
+				 tca[TCA_RATE]);
 }
 
 
@@ -438,10 +441,11 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 
 	if (!fh) {
 		t->tcm_handle = ~0; /* whatever ... */
-		NLA_PUT_U32(skb, TCA_TCINDEX_HASH, p->hash);
-		NLA_PUT_U16(skb, TCA_TCINDEX_MASK, p->mask);
-		NLA_PUT_U32(skb, TCA_TCINDEX_SHIFT, p->shift);
-		NLA_PUT_U32(skb, TCA_TCINDEX_FALL_THROUGH, p->fall_through);
+		if (nla_put_u32(skb, TCA_TCINDEX_HASH, p->hash) ||
+		    nla_put_u16(skb, TCA_TCINDEX_MASK, p->mask) ||
+		    nla_put_u32(skb, TCA_TCINDEX_SHIFT, p->shift) ||
+		    nla_put_u32(skb, TCA_TCINDEX_FALL_THROUGH, p->fall_through))
+			goto nla_put_failure;
 		nla_nest_end(skb, nest);
 	} else {
 		if (p->perfect) {
@@ -460,8 +464,9 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 			}
 		}
 		pr_debug("handle = %d\n", t->tcm_handle);
-		if (r->res.class)
-			NLA_PUT_U32(skb, TCA_TCINDEX_CLASSID, r->res.classid);
+		if (r->res.class &&
+		    nla_put_u32(skb, TCA_TCINDEX_CLASSID, r->res.classid))
+			goto nla_put_failure;
 
 		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto nla_put_failure;

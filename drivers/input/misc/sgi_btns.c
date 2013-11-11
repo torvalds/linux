@@ -91,7 +91,7 @@ static void handle_buttons(struct input_polled_dev *dev)
 	}
 }
 
-static int __devinit sgi_buttons_probe(struct platform_device *pdev)
+static int sgi_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
 	struct input_polled_dev *poll_dev;
@@ -143,7 +143,7 @@ static int __devinit sgi_buttons_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit sgi_buttons_remove(struct platform_device *pdev)
+static int sgi_buttons_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct buttons_dev *bdev = dev_get_drvdata(dev);
@@ -158,23 +158,12 @@ static int __devexit sgi_buttons_remove(struct platform_device *pdev)
 
 static struct platform_driver sgi_buttons_driver = {
 	.probe	= sgi_buttons_probe,
-	.remove	= __devexit_p(sgi_buttons_remove),
+	.remove	= sgi_buttons_remove,
 	.driver	= {
 		.name	= "sgibtns",
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init sgi_buttons_init(void)
-{
-	return platform_driver_register(&sgi_buttons_driver);
-}
-
-static void __exit sgi_buttons_exit(void)
-{
-	platform_driver_unregister(&sgi_buttons_driver);
-}
+module_platform_driver(sgi_buttons_driver);
 
 MODULE_LICENSE("GPL");
-module_init(sgi_buttons_init);
-module_exit(sgi_buttons_exit);

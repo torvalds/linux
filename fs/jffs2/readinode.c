@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -62,17 +64,15 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 #ifndef __ECOS
 	/* TODO: instead, incapsulate point() stuff to jffs2_flash_read(),
 	 * adding and jffs2_flash_read_end() interface. */
-	if (c->mtd->point) {
-		err = c->mtd->point(c->mtd, ofs, len, &retlen,
-				    (void **)&buffer, NULL);
-		if (!err && retlen < len) {
-			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
-			c->mtd->unpoint(c->mtd, ofs, retlen);
-		} else if (err)
+	err = mtd_point(c->mtd, ofs, len, &retlen, (void **)&buffer, NULL);
+	if (!err && retlen < len) {
+		JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
+		mtd_unpoint(c->mtd, ofs, retlen);
+	} else if (err) {
+		if (err != -EOPNOTSUPP)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
-		else
-			pointed = 1; /* succefully pointed to device */
-	}
+	} else
+		pointed = 1; /* succefully pointed to device */
 #endif
 
 	if (!pointed) {
@@ -101,7 +101,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, ofs, len);
+		mtd_unpoint(c->mtd, ofs, len);
 #endif
 
 	if (crc != tn->data_crc) {
@@ -137,7 +137,7 @@ free_out:
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, ofs, len);
+		mtd_unpoint(c->mtd, ofs, len);
 #endif
 	return err;
 }
@@ -394,8 +394,11 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 }
 
 /* Trivial function to remove the last node in the tree. Which by definition
-   has no right-hand -- so can be removed just by making its only child (if
-   any) take its place under its parent. */
+   has no right-hand child — so can be removed just by making its left-hand
+   child (if any) take its place under its parent. Since this is only done
+   when we're consuming the whole tree, there's no need to use rb_erase()
+   and let it worry about adjusting colours and balancing the tree. That
+   would just be a waste of time. */
 static void eat_last(struct rb_root *root, struct rb_node *node)
 {
 	struct rb_node *parent = rb_parent(node);
@@ -412,12 +415,12 @@ static void eat_last(struct rb_root *root, struct rb_node *node)
 		link = &parent->rb_right;
 
 	*link = node->rb_left;
-	/* Colour doesn't matter now. Only the parent pointer. */
 	if (node->rb_left)
-		node->rb_left->rb_parent_color = node->rb_parent_color;
+		node->rb_left->__rb_parent_color = node->__rb_parent_color;
 }
 
-/* We put this in reverse order, so we can just use eat_last */
+/* We put the version tree in reverse order, so we can use the same eat_last()
+   function that we use to consume the tmpnode tree (tn_root). */
 static void ver_insert(struct rb_root *ver_root, struct jffs2_tmp_dnode_info *tn)
 {
 	struct rb_node **link = &ver_root->rb_node;
@@ -1041,7 +1044,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		/* FIXME: point() */
 		err = jffs2_flash_read(c, ref_offset(ref), len, &retlen, buf);
 		if (err) {
-			JFFS2_ERROR("can not read %d bytes from 0x%08x, " "error code: %d.\n", len, ref_offset(ref), err);
+			JFFS2_ERROR("can not read %d bytes from 0x%08x, error code: %d.\n", len, ref_offset(ref), err);
 			goto free_out;
 		}
 
@@ -1266,19 +1269,25 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			/* Symlink's inode data is the target path. Read it and
 			 * keep in RAM to facilitate quick follow symlink
 			 * operation. */
-			f->target = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
+			uint32_t csize = je32_to_cpu(latest_node->csize);
+			if (csize > JFFS2_MAX_NAME_LEN) {
+				mutex_unlock(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ENAMETOOLONG;
+			}
+			f->target = kmalloc(csize + 1, GFP_KERNEL);
 			if (!f->target) {
-				JFFS2_ERROR("can't allocate %d bytes of memory for the symlink target path cache\n", je32_to_cpu(latest_node->csize));
+				JFFS2_ERROR("can't allocate %u bytes of memory for the symlink target path cache\n", csize);
 				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
 				return -ENOMEM;
 			}
 
 			ret = jffs2_flash_read(c, ref_offset(rii.latest_ref) + sizeof(*latest_node),
-						je32_to_cpu(latest_node->csize), &retlen, (char *)f->target);
+					       csize, &retlen, (char *)f->target);
 
-			if (ret  || retlen != je32_to_cpu(latest_node->csize)) {
-				if (retlen != je32_to_cpu(latest_node->csize))
+			if (ret || retlen != csize) {
+				if (retlen != csize)
 					ret = -EIO;
 				kfree(f->target);
 				f->target = NULL;
@@ -1287,7 +1296,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 				return ret;
 			}
 
-			f->target[je32_to_cpu(latest_node->csize)] = '\0';
+			f->target[csize] = '\0';
 			dbg_readinode("symlink's target '%s' cached\n", f->target);
 		}
 
@@ -1415,6 +1424,7 @@ int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 		mutex_unlock(&f->sem);
 		jffs2_do_clear_inode(c, f);
 	}
+	jffs2_xattr_do_crccheck_inode(c, ic);
 	kfree (f);
 	return ret;
 }

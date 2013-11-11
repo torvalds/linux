@@ -329,6 +329,9 @@ static void bfin_disable_hw_debug(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_SMP
+extern void generic_exec_single(int cpu, struct call_single_data *data, int wait);
+static struct call_single_data kgdb_smp_ipi_data[NR_CPUS];
+
 void kgdb_passive_cpu_callback(void *info)
 {
 	kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
@@ -336,12 +339,18 @@ void kgdb_passive_cpu_callback(void *info)
 
 void kgdb_roundup_cpus(unsigned long flags)
 {
-	smp_call_function(kgdb_passive_cpu_callback, NULL, 0);
+	unsigned int cpu;
+
+	for (cpu = cpumask_first(cpu_online_mask); cpu < nr_cpu_ids;
+		cpu = cpumask_next(cpu, cpu_online_mask)) {
+		kgdb_smp_ipi_data[cpu].func = kgdb_passive_cpu_callback;
+		generic_exec_single(cpu, &kgdb_smp_ipi_data[cpu], 0);
+	}
 }
 
 void kgdb_roundup_cpu(int cpu, unsigned long flags)
 {
-	smp_call_function_single(cpu, kgdb_passive_cpu_callback, NULL, 0);
+	generic_exec_single(cpu, &kgdb_smp_ipi_data[cpu], 0);
 }
 #endif
 

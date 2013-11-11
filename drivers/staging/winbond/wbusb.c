@@ -11,6 +11,7 @@
  */
 #include <net/mac80211.h>
 #include <linux/usb.h>
+#include <linux/module.h>
 
 #include "core.h"
 #include "mds_f.h"
@@ -24,7 +25,7 @@ MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
-static const struct usb_device_id wb35_table[] __devinitconst = {
+static const struct usb_device_id wb35_table[] = {
 	{ USB_DEVICE(0x0416, 0x0035) },
 	{ USB_DEVICE(0x18E8, 0x6201) },
 	{ USB_DEVICE(0x18E8, 0x6206) },
@@ -78,18 +79,15 @@ static int wbsoft_add_interface(struct ieee80211_hw *dev,
 static void wbsoft_remove_interface(struct ieee80211_hw *dev,
 				    struct ieee80211_vif *vif)
 {
-	printk("wbsoft_remove interface called\n");
 }
 
 static void wbsoft_stop(struct ieee80211_hw *hw)
 {
-	printk(KERN_INFO "%s called\n", __func__);
 }
 
 static int wbsoft_get_stats(struct ieee80211_hw *hw,
 			    struct ieee80211_low_level_stats *stats)
 {
-	printk(KERN_INFO "%s called\n", __func__);
 	return 0;
 }
 
@@ -118,7 +116,9 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 	*total_flags = new_flags;
 }
 
-static void wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void wbsoft_tx(struct ieee80211_hw *dev,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
@@ -176,12 +176,9 @@ static void hal_set_current_channel_ex(struct hw_data *pHwData, struct chan_info
 	if (pHwData->SurpriseRemove)
 		return;
 
-	printk("Going to channel: %d/%d\n", channel.band, channel.ChanNo);
-
 	RFSynthesizer_SwitchingChannel(pHwData, channel); /* Switch channel */
 	pHwData->Channel = channel.ChanNo;
 	pHwData->band = channel.band;
-	pr_debug("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band);
 	reg->M28_MacControl &= ~0xff;	/* Clean channel information field */
 	reg->M28_MacControl |= channel.ChanNo;
 	Wb35Reg_WriteWithCallbackValue(pHwData, 0x0828, reg->M28_MacControl,
@@ -261,8 +258,6 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	struct wbsoft_priv *priv = dev->priv;
 	struct chan_info ch;
 
-	printk("wbsoft_config called\n");
-
 	/* Should use channel_num, or something, as that is already pre-translated */
 	ch.band = 1;
 	ch.ChanNo = 1;
@@ -277,9 +272,8 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static u64 wbsoft_get_tsf(struct ieee80211_hw *dev)
+static u64 wbsoft_get_tsf(struct ieee80211_hw *dev, struct ieee80211_vif *vif)
 {
-	printk("wbsoft_get_tsf called\n");
 	return 0;
 }
 
@@ -713,7 +707,6 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	}
 
 	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
-	pr_debug("Driver init, antenna no = %d\n", priv->sLocalPara.bAntennaNo);
 	hal_get_hw_radio_off(pHwData);
 
 	/* Waiting for HAL setting OK */
@@ -746,20 +739,18 @@ static int wb35_probe(struct usb_interface *intf,
 	struct usb_host_interface *interface;
 	struct ieee80211_hw *dev;
 	struct wbsoft_priv *priv;
-	int nr, err;
+	int err;
 	u32 ltmp;
 
 	usb_get_dev(udev);
 
 	/* Check the device if it already be opened */
-	nr = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	err = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			     0x01,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			     0x0, 0x400, &ltmp, 4, HZ * 100);
-	if (nr < 0) {
-		err = nr;
+	if (err < 0)
 		goto error;
-	}
 
 	/* Is already initialized? */
 	ltmp = cpu_to_le32(ltmp);
@@ -780,9 +771,6 @@ static int wb35_probe(struct usb_interface *intf,
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-
-	if (endpoint[2].wMaxPacketSize == 512)
-		printk("[w35und] Working on USB 2.0\n");
 
 	err = wb35_hw_init(dev);
 	if (err)
@@ -835,7 +823,6 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
 	/* Turn off Rx and Tx hardware ability */
 	hal_stop(&adapter->sHwData);
-	pr_debug("[w35und] Hal_stop O.K.\n");
 	/* Waiting Irp completed */
 	msleep(100);
 
@@ -864,15 +851,4 @@ static struct usb_driver wb35_driver = {
 	.disconnect	= wb35_disconnect,
 };
 
-static int __init wb35_init(void)
-{
-	return usb_register(&wb35_driver);
-}
-
-static void __exit wb35_exit(void)
-{
-	usb_deregister(&wb35_driver);
-}
-
-module_init(wb35_init);
-module_exit(wb35_exit);
+module_usb_driver(wb35_driver);

@@ -2,13 +2,14 @@
  * IRQ chip definitions for INTC IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009, 2010 Paul Mundt
+ * Copyright (C) 2009 - 2012 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/cpumask.h>
+#include <linux/bsearch.h>
 #include <linux/io.h>
 #include "internals.h"
 
@@ -58,11 +59,6 @@ static void intc_disable(struct irq_data *data)
 	}
 }
 
-static int intc_set_wake(struct irq_data *data, unsigned int on)
-{
-	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
-}
-
 #ifdef CONFIG_SMP
 /*
  * This is held with the irq desc lock held, so we don't require any
@@ -78,7 +74,7 @@ static int intc_set_affinity(struct irq_data *data,
 
 	cpumask_copy(data->affinity, cpumask);
 
-	return 0;
+	return IRQ_SET_MASK_OK_NOCOPY;
 }
 #endif
 
@@ -87,7 +83,7 @@ static void intc_mask_ack(struct irq_data *data)
 	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned long handle = intc_get_ack_handle(irq);
-	unsigned long addr;
+	void __iomem *addr;
 
 	intc_disable(data);
 
@@ -95,7 +91,7 @@ static void intc_mask_ack(struct irq_data *data)
 	if (handle) {
 		unsigned int value;
 
-		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
+		addr = (void __iomem *)INTC_REG(d, _INTC_ADDR_D(handle), 0);
 		value = intc_set_field_from_handle(0, 1, handle);
 
 		switch (_INTC_FN(handle)) {
@@ -122,28 +118,12 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 					     unsigned int nr_hp,
 					     unsigned int irq)
 {
-	int i;
+	struct intc_handle_int key;
 
-	/*
-	 * this doesn't scale well, but...
-	 *
-	 * this function should only be used for cerain uncommon
-	 * operations such as intc_set_priority() and intc_set_type()
-	 * and in those rare cases performance doesn't matter that much.
-	 * keeping the memory footprint low is more important.
-	 *
-	 * one rather simple way to speed this up and still keep the
-	 * memory footprint down is to make sure the array is sorted
-	 * and then perform a bisect to lookup the irq.
-	 */
-	for (i = 0; i < nr_hp; i++) {
-		if ((hp + i)->irq != irq)
-			continue;
+	key.irq = irq;
+	key.handle = 0;
 
-		return hp + i;
-	}
-
-	return NULL;
+	return bsearch(&key, hp, nr_hp, sizeof(*hp), intc_handle_int_cmp);
 }
 
 int intc_set_priority(unsigned int irq, unsigned int prio)
@@ -186,6 +166,9 @@ static unsigned char intc_irq_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
     !defined(CONFIG_CPU_SUBTYPE_SH7709)
 	[IRQ_TYPE_LEVEL_HIGH] = VALID(3),
 #endif
+#if defined(CONFIG_ARM) /* all recent SH-Mobile / R-Mobile ARM support this */
+	[IRQ_TYPE_EDGE_BOTH] = VALID(4),
+#endif
 };
 
 static int intc_set_type(struct irq_data *data, unsigned int type)
@@ -199,11 +182,16 @@ static int intc_set_type(struct irq_data *data, unsigned int type)
 	if (!value)
 		return -EINVAL;
 
+	value &= ~SENSE_VALID_FLAG;
+
 	ihp = intc_find_irq(d->sense, d->nr_sense, irq);
 	if (ihp) {
+		/* PINT has 2-bit sense registers, should fail on EDGE_BOTH */
+		if (value >= (1 << _INTC_WIDTH(ihp->handle)))
+			return -EINVAL;
+
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
-		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle,
-						    value & ~SENSE_VALID_FLAG);
+		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
 
 	return 0;
@@ -215,10 +203,9 @@ struct irq_chip intc_irq_chip	= {
 	.irq_mask_ack		= intc_mask_ack,
 	.irq_enable		= intc_enable,
 	.irq_disable		= intc_disable,
-	.irq_shutdown		= intc_disable,
 	.irq_set_type		= intc_set_type,
-	.irq_set_wake		= intc_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= intc_set_affinity,
 #endif
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };

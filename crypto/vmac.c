@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <asm/byteorder.h>
 #include <crypto/scatterwalk.h>
@@ -37,11 +38,11 @@
  * Constants and masks
  */
 #define UINT64_C(x) x##ULL
-const u64 p64   = UINT64_C(0xfffffffffffffeff);  /* 2^64 - 257 prime  */
-const u64 m62   = UINT64_C(0x3fffffffffffffff);  /* 62-bit mask       */
-const u64 m63   = UINT64_C(0x7fffffffffffffff);  /* 63-bit mask       */
-const u64 m64   = UINT64_C(0xffffffffffffffff);  /* 64-bit mask       */
-const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
+static const u64 p64   = UINT64_C(0xfffffffffffffeff);	/* 2^64 - 257 prime  */
+static const u64 m62   = UINT64_C(0x3fffffffffffffff);	/* 62-bit mask       */
+static const u64 m63   = UINT64_C(0x7fffffffffffffff);	/* 63-bit mask       */
+static const u64 m64   = UINT64_C(0xffffffffffffffff);	/* 64-bit mask       */
+static const u64 mpoly = UINT64_C(0x1fffffff1fffffff);	/* Poly key mask     */
 
 #define pe64_to_cpup le64_to_cpup		/* Prefer little endian */
 
@@ -374,6 +375,11 @@ static void vhash_update(const unsigned char *m,
 	u64 pkh = ctx->polykey[0];
 	u64 pkl = ctx->polykey[1];
 
+	if (!mbytes)
+		return;
+
+	BUG_ON(mbytes % VMAC_NHBYTES);
+
 	mptr = (u64 *)m;
 	i = mbytes / VMAC_NHBYTES;  /* Must be non-zero */
 
@@ -453,7 +459,7 @@ do_l3:
 }
 
 static u64 vmac(unsigned char m[], unsigned int mbytes,
-			unsigned char n[16], u64 *tagl,
+			const unsigned char n[16], u64 *tagl,
 			struct vmac_ctx_t *ctx)
 {
 	u64 *in_n, *out_p;
@@ -558,8 +564,33 @@ static int vmac_update(struct shash_desc *pdesc, const u8 *p,
 {
 	struct crypto_shash *parent = pdesc->tfm;
 	struct vmac_ctx_t *ctx = crypto_shash_ctx(parent);
+	int expand;
+	int min;
 
-	vhash_update(p, len, &ctx->__vmac_ctx);
+	expand = VMAC_NHBYTES - ctx->partial_size > 0 ?
+			VMAC_NHBYTES - ctx->partial_size : 0;
+
+	min = len < expand ? len : expand;
+
+	memcpy(ctx->partial + ctx->partial_size, p, min);
+	ctx->partial_size += min;
+
+	if (len < expand)
+		return 0;
+
+	vhash_update(ctx->partial, VMAC_NHBYTES, &ctx->__vmac_ctx);
+	ctx->partial_size = 0;
+
+	len -= expand;
+	p += expand;
+
+	if (len % VMAC_NHBYTES) {
+		memcpy(ctx->partial, p + len - (len % VMAC_NHBYTES),
+			len % VMAC_NHBYTES);
+		ctx->partial_size = len % VMAC_NHBYTES;
+	}
+
+	vhash_update(p, len - len % VMAC_NHBYTES, &ctx->__vmac_ctx);
 
 	return 0;
 }
@@ -571,10 +602,20 @@ static int vmac_final(struct shash_desc *pdesc, u8 *out)
 	vmac_t mac;
 	u8 nonce[16] = {};
 
-	mac = vmac(NULL, 0, nonce, NULL, ctx);
+	/* vmac() ends up accessing outside the array bounds that
+	 * we specify.  In appears to access up to the next 2-word
+	 * boundary.  We'll just be uber cautious and zero the
+	 * unwritten bytes in the buffer.
+	 */
+	if (ctx->partial_size) {
+		memset(ctx->partial + ctx->partial_size, 0,
+			VMAC_NHBYTES - ctx->partial_size);
+	}
+	mac = vmac(ctx->partial, ctx->partial_size, nonce, NULL, ctx);
 	memcpy(out, &mac, sizeof(vmac_t));
 	memset(&mac, 0, sizeof(vmac_t));
 	memset(&ctx->__vmac_ctx, 0, sizeof(struct vmac_ctx));
+	ctx->partial_size = 0;
 	return 0;
 }
 
@@ -672,4 +713,3 @@ module_exit(vmac_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VMAC hash algorithm");
-

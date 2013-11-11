@@ -1,7 +1,7 @@
 /*
  * AD714X CapTouch Programmable Controller driver supporting AD7142/3/7/8/7A
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/input/ad714x.h>
+#include <linux/module.h>
 #include "ad714x.h"
 
 #define AD714X_PWR_CTRL           0x0
@@ -59,7 +60,6 @@
 #define STAGE11_AMBIENT		0x27D
 
 #define PER_STAGE_REG_NUM      36
-#define STAGE_NUM              12
 #define STAGE_CFGREG_NUM       8
 #define SYS_CFGREG_NUM         8
 
@@ -124,27 +124,6 @@ struct ad714x_driver_data {
  * information to integrate all things which will be private data
  * of spi/i2c device
  */
-struct ad714x_chip {
-	unsigned short h_state;
-	unsigned short l_state;
-	unsigned short c_state;
-	unsigned short adc_reg[STAGE_NUM];
-	unsigned short amb_reg[STAGE_NUM];
-	unsigned short sensor_val[STAGE_NUM];
-
-	struct ad714x_platform_data *hw;
-	struct ad714x_driver_data *sw;
-
-	int irq;
-	struct device *dev;
-	ad714x_read_t read;
-	ad714x_write_t write;
-
-	struct mutex mutex;
-
-	unsigned product;
-	unsigned version;
-};
 
 static void ad714x_use_com_int(struct ad714x_chip *ad714x,
 				int start_stage, int end_stage)
@@ -154,13 +133,13 @@ static void ad714x_use_com_int(struct ad714x_chip *ad714x,
 
 	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
-	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
+	ad714x->read(ad714x, STG_COM_INT_EN_REG, &data, 1);
 	data |= 1 << end_stage;
-	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
+	ad714x->write(ad714x, STG_COM_INT_EN_REG, data);
 
-	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
+	ad714x->read(ad714x, STG_HIGH_INT_EN_REG, &data, 1);
 	data &= ~mask;
-	ad714x->write(ad714x->dev, STG_HIGH_INT_EN_REG, data);
+	ad714x->write(ad714x, STG_HIGH_INT_EN_REG, data);
 }
 
 static void ad714x_use_thr_int(struct ad714x_chip *ad714x,
@@ -171,13 +150,13 @@ static void ad714x_use_thr_int(struct ad714x_chip *ad714x,
 
 	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
-	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
+	ad714x->read(ad714x, STG_COM_INT_EN_REG, &data, 1);
 	data &= ~(1 << end_stage);
-	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
+	ad714x->write(ad714x, STG_COM_INT_EN_REG, data);
 
-	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
+	ad714x->read(ad714x, STG_HIGH_INT_EN_REG, &data, 1);
 	data |= mask;
-	ad714x->write(ad714x->dev, STG_HIGH_INT_EN_REG, data);
+	ad714x->write(ad714x, STG_HIGH_INT_EN_REG, data);
 }
 
 static int ad714x_cal_highest_stage(struct ad714x_chip *ad714x,
@@ -273,15 +252,16 @@ static void ad714x_slider_cal_sensor_val(struct ad714x_chip *ad714x, int idx)
 	struct ad714x_slider_plat *hw = &ad714x->hw->slider[idx];
 	int i;
 
-	for (i = hw->start_stage; i <= hw->end_stage; i++) {
-		ad714x->read(ad714x->dev, CDC_RESULT_S0 + i,
-			&ad714x->adc_reg[i]);
-		ad714x->read(ad714x->dev,
-				STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
-				&ad714x->amb_reg[i]);
+	ad714x->read(ad714x, CDC_RESULT_S0 + hw->start_stage,
+			&ad714x->adc_reg[hw->start_stage],
+			hw->end_stage - hw->start_stage + 1);
 
-		ad714x->sensor_val[i] = abs(ad714x->adc_reg[i] -
-				ad714x->amb_reg[i]);
+	for (i = hw->start_stage; i <= hw->end_stage; i++) {
+		ad714x->read(ad714x, STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
+				&ad714x->amb_reg[i], 1);
+
+		ad714x->sensor_val[i] =
+			abs(ad714x->adc_reg[i] - ad714x->amb_reg[i]);
 	}
 }
 
@@ -444,15 +424,16 @@ static void ad714x_wheel_cal_sensor_val(struct ad714x_chip *ad714x, int idx)
 	struct ad714x_wheel_plat *hw = &ad714x->hw->wheel[idx];
 	int i;
 
+	ad714x->read(ad714x, CDC_RESULT_S0 + hw->start_stage,
+			&ad714x->adc_reg[hw->start_stage],
+			hw->end_stage - hw->start_stage + 1);
+
 	for (i = hw->start_stage; i <= hw->end_stage; i++) {
-		ad714x->read(ad714x->dev, CDC_RESULT_S0 + i,
-			&ad714x->adc_reg[i]);
-		ad714x->read(ad714x->dev,
-				STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
-				&ad714x->amb_reg[i]);
+		ad714x->read(ad714x, STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
+				&ad714x->amb_reg[i], 1);
 		if (ad714x->adc_reg[i] > ad714x->amb_reg[i])
-			ad714x->sensor_val[i] = ad714x->adc_reg[i] -
-				ad714x->amb_reg[i];
+			ad714x->sensor_val[i] =
+				ad714x->adc_reg[i] - ad714x->amb_reg[i];
 		else
 			ad714x->sensor_val[i] = 0;
 	}
@@ -597,15 +578,16 @@ static void touchpad_cal_sensor_val(struct ad714x_chip *ad714x, int idx)
 	struct ad714x_touchpad_plat *hw = &ad714x->hw->touchpad[idx];
 	int i;
 
+	ad714x->read(ad714x, CDC_RESULT_S0 + hw->x_start_stage,
+			&ad714x->adc_reg[hw->x_start_stage],
+			hw->x_end_stage - hw->x_start_stage + 1);
+
 	for (i = hw->x_start_stage; i <= hw->x_end_stage; i++) {
-		ad714x->read(ad714x->dev, CDC_RESULT_S0 + i,
-				&ad714x->adc_reg[i]);
-		ad714x->read(ad714x->dev,
-				STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
-				&ad714x->amb_reg[i]);
+		ad714x->read(ad714x, STAGE0_AMBIENT + i * PER_STAGE_REG_NUM,
+				&ad714x->amb_reg[i], 1);
 		if (ad714x->adc_reg[i] > ad714x->amb_reg[i])
-			ad714x->sensor_val[i] = ad714x->adc_reg[i] -
-				ad714x->amb_reg[i];
+			ad714x->sensor_val[i] =
+				ad714x->adc_reg[i] - ad714x->amb_reg[i];
 		else
 			ad714x->sensor_val[i] = 0;
 	}
@@ -891,7 +873,7 @@ static int ad714x_hw_detect(struct ad714x_chip *ad714x)
 {
 	unsigned short data;
 
-	ad714x->read(ad714x->dev, AD714X_PARTID_REG, &data);
+	ad714x->read(ad714x, AD714X_PARTID_REG, &data, 1);
 	switch (data & 0xFFF0) {
 	case AD7142_PARTID:
 		ad714x->product = 0x7142;
@@ -940,23 +922,20 @@ static void ad714x_hw_init(struct ad714x_chip *ad714x)
 	for (i = 0; i < STAGE_NUM; i++) {
 		reg_base = AD714X_STAGECFG_REG + i * STAGE_CFGREG_NUM;
 		for (j = 0; j < STAGE_CFGREG_NUM; j++)
-			ad714x->write(ad714x->dev, reg_base + j,
+			ad714x->write(ad714x, reg_base + j,
 					ad714x->hw->stage_cfg_reg[i][j]);
 	}
 
 	for (i = 0; i < SYS_CFGREG_NUM; i++)
-		ad714x->write(ad714x->dev, AD714X_SYSCFG_REG + i,
+		ad714x->write(ad714x, AD714X_SYSCFG_REG + i,
 			ad714x->hw->sys_cfg_reg[i]);
 	for (i = 0; i < SYS_CFGREG_NUM; i++)
-		ad714x->read(ad714x->dev, AD714X_SYSCFG_REG + i,
-			&data);
+		ad714x->read(ad714x, AD714X_SYSCFG_REG + i, &data, 1);
 
-	ad714x->write(ad714x->dev, AD714X_STG_CAL_EN_REG, 0xFFF);
+	ad714x->write(ad714x, AD714X_STG_CAL_EN_REG, 0xFFF);
 
 	/* clear all interrupts */
-	ad714x->read(ad714x->dev, STG_LOW_INT_STA_REG, &data);
-	ad714x->read(ad714x->dev, STG_HIGH_INT_STA_REG, &data);
-	ad714x->read(ad714x->dev, STG_COM_INT_STA_REG, &data);
+	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);
 }
 
 static irqreturn_t ad714x_interrupt_thread(int irq, void *data)
@@ -966,9 +945,7 @@ static irqreturn_t ad714x_interrupt_thread(int irq, void *data)
 
 	mutex_lock(&ad714x->mutex);
 
-	ad714x->read(ad714x->dev, STG_LOW_INT_STA_REG, &ad714x->l_state);
-	ad714x->read(ad714x->dev, STG_HIGH_INT_STA_REG, &ad714x->h_state);
-	ad714x->read(ad714x->dev, STG_COM_INT_STA_REG, &ad714x->c_state);
+	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);
 
 	for (i = 0; i < ad714x->hw->button_num; i++)
 		ad714x_button_state_machine(ad714x, i);
@@ -995,6 +972,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 	struct ad714x_platform_data *plat_data = dev->platform_data;
 	struct ad714x_chip *ad714x;
 	void *drv_mem;
+	unsigned long irqflags;
 
 	struct ad714x_button_drv *bt_drv;
 	struct ad714x_slider_drv *sd_drv;
@@ -1185,10 +1163,11 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		alloc_idx++;
 	}
 
+	irqflags = plat_data->irqflags ?: IRQF_TRIGGER_FALLING;
+	irqflags |= IRQF_ONESHOT;
+
 	error = request_threaded_irq(ad714x->irq, NULL, ad714x_interrupt_thread,
-				plat_data->irqflags ?
-					plat_data->irqflags : IRQF_TRIGGER_FALLING,
-				"ad714x_captouch", ad714x);
+				     irqflags, "ad714x_captouch", ad714x);
 	if (error) {
 		dev_err(dev, "can't allocate irq %d\n", ad714x->irq);
 		goto err_unreg_dev;
@@ -1245,7 +1224,7 @@ int ad714x_disable(struct ad714x_chip *ad714x)
 	mutex_lock(&ad714x->mutex);
 
 	data = ad714x->hw->sys_cfg_reg[AD714X_PWR_CTRL] | 0x3;
-	ad714x->write(ad714x->dev, AD714X_PWR_CTRL, data);
+	ad714x->write(ad714x, AD714X_PWR_CTRL, data);
 
 	mutex_unlock(&ad714x->mutex);
 
@@ -1255,24 +1234,20 @@ EXPORT_SYMBOL(ad714x_disable);
 
 int ad714x_enable(struct ad714x_chip *ad714x)
 {
-	unsigned short data;
-
 	dev_dbg(ad714x->dev, "%s enter\n", __func__);
 
 	mutex_lock(&ad714x->mutex);
 
 	/* resume to non-shutdown mode */
 
-	ad714x->write(ad714x->dev, AD714X_PWR_CTRL,
+	ad714x->write(ad714x, AD714X_PWR_CTRL,
 			ad714x->hw->sys_cfg_reg[AD714X_PWR_CTRL]);
 
 	/* make sure the interrupt output line is not low level after resume,
 	 * otherwise we will get no chance to enter falling-edge irq again
 	 */
 
-	ad714x->read(ad714x->dev, STG_LOW_INT_STA_REG, &data);
-	ad714x->read(ad714x->dev, STG_HIGH_INT_STA_REG, &data);
-	ad714x->read(ad714x->dev, STG_COM_INT_STA_REG, &data);
+	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);
 
 	mutex_unlock(&ad714x->mutex);
 

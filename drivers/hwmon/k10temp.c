@@ -1,5 +1,5 @@
 /*
- * k10temp.c - AMD Family 10h/11h/12h/14h/15h processor hardware monitoring
+ * k10temp.c - AMD Family 10h/11h/12h/14h/15h/16h processor hardware monitoring
  *
  * Copyright (c) 2009 Clemens Ladisch <clemens@ladisch.de>
  *
@@ -95,7 +95,7 @@ static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, show_temp_crit, NULL, 1);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-static bool __devinit has_erratum_319(struct pci_dev *pdev)
+static bool has_erratum_319(struct pci_dev *pdev)
 {
 	u32 pkg_type, reg_dram_cfg;
 
@@ -129,7 +129,7 @@ static bool __devinit has_erratum_319(struct pci_dev *pdev)
 	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask <= 2);
 }
 
-static int __devinit k10temp_probe(struct pci_dev *pdev,
+static int k10temp_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct device *hwmon_dev;
@@ -192,7 +192,7 @@ exit:
 	return err;
 }
 
-static void __devexit k10temp_remove(struct pci_dev *pdev)
+static void k10temp_remove(struct pci_dev *pdev)
 {
 	hwmon_device_unregister(pci_get_drvdata(pdev));
 	device_remove_file(&pdev->dev, &dev_attr_name);
@@ -205,11 +205,13 @@ static void __devexit k10temp_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static const struct pci_device_id k10temp_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(k10temp_id_table) = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_11H_NB_MISC) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_CNB17H_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_NB_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M10H_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F3) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, k10temp_id_table);
@@ -218,18 +220,7 @@ static struct pci_driver k10temp_driver = {
 	.name = "k10temp",
 	.id_table = k10temp_id_table,
 	.probe = k10temp_probe,
-	.remove = __devexit_p(k10temp_remove),
+	.remove = k10temp_remove,
 };
 
-static int __init k10temp_init(void)
-{
-	return pci_register_driver(&k10temp_driver);
-}
-
-static void __exit k10temp_exit(void)
-{
-	pci_unregister_driver(&k10temp_driver);
-}
-
-module_init(k10temp_init)
-module_exit(k10temp_exit)
+module_pci_driver(k10temp_driver);

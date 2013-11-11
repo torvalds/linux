@@ -5,17 +5,17 @@
  *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
  */
 
-#include "linux/cpumask.h"
-#include "linux/hardirq.h"
-#include "linux/interrupt.h"
-#include "linux/kernel_stat.h"
-#include "linux/module.h"
-#include "linux/sched.h"
-#include "linux/seq_file.h"
-#include "linux/slab.h"
-#include "as-layout.h"
-#include "kern_util.h"
-#include "os.h"
+#include <linux/cpumask.h>
+#include <linux/hardirq.h>
+#include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
+#include <linux/module.h>
+#include <linux/sched.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <as-layout.h>
+#include <kern_util.h>
+#include <os.h>
 
 /*
  * This list is accessed under irq_lock, except in sigio_handler,
@@ -30,7 +30,7 @@ static struct irq_fd **last_irq_ptr = &active_fds;
 
 extern void free_irqs(void);
 
-void sigio_handler(int sig, struct uml_pt_regs *regs)
+void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	struct irq_fd *irq_fd;
 	int n;
@@ -258,6 +258,7 @@ void deactivate_fd(int fd, int irqnum)
 
 	ignore_sigio_fd(fd);
 }
+EXPORT_SYMBOL(deactivate_fd);
 
 /*
  * Called just before shutdown in order to provide a clean exec
@@ -296,6 +297,13 @@ unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 	return 1;
 }
 
+void um_free_irq(unsigned int irq, void *dev)
+{
+	free_irq_by_irq_and_dev(irq, dev);
+	free_irq(irq, dev);
+}
+EXPORT_SYMBOL(um_free_irq);
+
 int um_request_irq(unsigned int irq, int fd, int type,
 		   irq_handler_t handler,
 		   unsigned long irqflags, const char * devname,
@@ -326,7 +334,6 @@ static void dummy(struct irq_data *d)
 /* This is used for everything else than the timer. */
 static struct irq_chip normal_irq_type = {
 	.name = "SIGIO",
-	.release = free_irq_by_irq_and_dev,
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
@@ -334,7 +341,6 @@ static struct irq_chip normal_irq_type = {
 
 static struct irq_chip SIGVTALRM_irq_type = {
 	.name = "SIGVTALRM",
-	.release = free_irq_by_irq_and_dev,
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,

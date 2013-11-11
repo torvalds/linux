@@ -1,5 +1,5 @@
 /*
- * Trace files that want to automate creationg of all tracepoints defined
+ * Trace files that want to automate creation of all tracepoints defined
  * in their file should include this file. The following are macros that the
  * trace file may define:
  *
@@ -21,16 +21,6 @@
 #undef CREATE_TRACE_POINTS
 
 #include <linux/stringify.h>
-/*
- * module.h includes tracepoints, and because ftrace.h
- * pulls in module.h:
- *  trace/ftrace.h -> linux/ftrace_event.h -> linux/perf_event.h ->
- *  linux/ftrace.h -> linux/module.h
- * we must include module.h here before we play with any of
- * the TRACE_EVENT() macros, otherwise the tracepoints included
- * by module.h may break the build.
- */
-#include <linux/module.h>
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\

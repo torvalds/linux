@@ -299,11 +299,17 @@ map_hugetlb.c.
 *******************************************************************
 
 /*
- * hugepage-shm:  see Documentation/vm/hugepage-shm.c
+ * map_hugetlb: see tools/testing/selftests/vm/map_hugetlb.c
  */
 
 *******************************************************************
 
 /*
- * hugepage-mmap:  see Documentation/vm/hugepage-mmap.c
+ * hugepage-shm:  see tools/testing/selftests/vm/hugepage-shm.c
+ */
+
+*******************************************************************
+
+/*
+ * hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
  */

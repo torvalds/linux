@@ -34,6 +34,7 @@ static int pci_conf1_mq_read(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	void *adr __iomem = XQUAD_PORT_ADDR(0xcfc, BUS2QUAD(bus));
 
+	WARN_ON(seg);
 	if (!value || (bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
@@ -73,6 +74,7 @@ static int pci_conf1_mq_write(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	void *adr __iomem = XQUAD_PORT_ADDR(0xcfc, BUS2QUAD(bus));
 
+	WARN_ON(seg);
 	if ((bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255)) 
 		return -EINVAL;
 
@@ -108,13 +110,13 @@ static int pci_conf1_mq_write(unsigned int seg, unsigned int bus,
 
 #undef PCI_CONF1_MQ_ADDRESS
 
-static struct pci_raw_ops pci_direct_conf1_mq = {
+static const struct pci_raw_ops pci_direct_conf1_mq = {
 	.read	= pci_conf1_mq_read,
 	.write	= pci_conf1_mq_write
 };
 
 
-static void __devinit pci_fixup_i450nx(struct pci_dev *d)
+static void pci_fixup_i450nx(struct pci_dev *d)
 {
 	/*
 	 * i450NX -- Find and scan all secondary buses on all PXB's.
@@ -150,9 +152,7 @@ int __init pci_numaq_init(void)
 
 	raw_pci_ops = &pci_direct_conf1_mq;
 
-	pci_root_bus = pcibios_scan_root(0);
-	if (pci_root_bus)
-		pci_bus_add_devices(pci_root_bus);
+	pcibios_scan_root(0);
 	if (num_online_nodes() > 1)
 		for_each_online_node(quad) {
 			if (quad == 0)

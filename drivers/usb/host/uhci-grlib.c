@@ -85,7 +85,7 @@ static const struct hc_driver uhci_grlib_hc_driver = {
 };
 
 
-static int __devinit uhci_hcd_grlib_probe(struct platform_device *op)
+static int uhci_hcd_grlib_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -111,7 +111,7 @@ static int __devinit uhci_hcd_grlib_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	hcd->rsrc_start = res.start;
-	hcd->rsrc_len = res.end - res.start + 1;
+	hcd->rsrc_len = resource_size(&res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		printk(KERN_ERR "%s: request_mem_region failed\n", __FILE__);

@@ -8,7 +8,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -17,9 +16,10 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "meter.h"
 #include "ade7759.h"
 
@@ -28,8 +28,8 @@ static int ade7759_spi_write_reg_8(struct device *dev,
 		u8 val)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7759_WRITE_REG(reg_address);
@@ -46,8 +46,8 @@ static int ade7759_spi_write_reg_16(struct device *dev,
 		u16 value)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->buf_lock);
 	st->tx[0] = ADE7759_WRITE_REG(reg_address);
@@ -63,8 +63,8 @@ static int ade7759_spi_read_reg_8(struct device *dev,
 		u8 reg_address,
 		u8 *val)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 	int ret;
 
 	ret = spi_w8r8(st->us, ADE7759_READ_REG(reg_address));
@@ -82,8 +82,8 @@ static int ade7759_spi_read_reg_16(struct device *dev,
 		u8 reg_address,
 		u16 *val)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 	int ret;
 
 	ret = spi_w8r16(st->us, ADE7759_READ_REG(reg_address));
@@ -103,9 +103,8 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 		u8 reg_address,
 		u64 *val)
 {
-	struct spi_message msg;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 	int ret;
 	struct spi_transfer xfers[] = {
 		{
@@ -120,9 +119,7 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 	st->tx[0] = ADE7759_READ_REG(reg_address);
 	memset(&st->tx[1], 0 , 5);
 
-	spi_message_init(&msg);
-	spi_message_add_tail(xfers, &msg);
-	ret = spi_sync(st->us, &msg);
+	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 40 bit register 0x%02X",
 				reg_address);
@@ -328,10 +325,11 @@ static int ade7759_stop_device(struct device *dev)
 	return ade7759_spi_write_reg_16(dev, ADE7759_MODE, val);
 }
 
-static int ade7759_initial_setup(struct ade7759_state *st)
+static int ade7759_initial_setup(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct device *dev = &st->indio_dev->dev;
+	struct ade7759_state *st = iio_priv(indio_dev);
+	struct device *dev = &indio_dev->dev;
 
 	/* use low spi speed for init */
 	st->us->mode = SPI_MODE_3;
@@ -375,8 +373,8 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ade7759_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct ade7759_state *st = iio_priv(indio_dev);
 	unsigned long val;
 	int ret;
 	u16 reg, t;
@@ -384,6 +382,8 @@ static ssize_t ade7759_write_frequency(struct device *dev,
 	ret = strict_strtol(buf, 10, &val);
 	if (ret)
 		return ret;
+	if (val == 0)
+		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
 
@@ -411,8 +411,8 @@ out:
 	return ret ? ret : len;
 }
 static IIO_DEV_ATTR_TEMP_RAW(ade7759_read_8bit);
-static IIO_CONST_ATTR(temp_offset, "70 C");
-static IIO_CONST_ATTR(temp_scale, "1 C");
+static IIO_CONST_ATTR(in_temp_offset, "70 C");
+static IIO_CONST_ATTR(in_temp_scale, "1 C");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7759_read_frequency,
@@ -423,9 +423,9 @@ static IIO_DEV_ATTR_RESET(ade7759_write_reset);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
 static struct attribute *ade7759_attributes[] = {
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
+	&iio_dev_attr_in_temp_raw.dev_attr.attr,
+	&iio_const_attr_in_temp_offset.dev_attr.attr,
+	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
@@ -455,65 +455,42 @@ static const struct iio_info ade7759_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ade7759_probe(struct spi_device *spi)
+static int ade7759_probe(struct spi_device *spi)
 {
 	int ret;
-	struct ade7759_state *st = kzalloc(sizeof *st, GFP_KERNEL);
-	if (!st) {
-		ret =  -ENOMEM;
+	struct ade7759_state *st;
+	struct iio_dev *indio_dev;
+
+	/* setup the industrialio driver allocated elements */
+	indio_dev = iio_device_alloc(sizeof(*st));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
 		goto error_ret;
 	}
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
-	/* Allocate the comms buffers */
-	st->rx = kzalloc(sizeof(*st->rx)*ADE7759_MAX_RX, GFP_KERNEL);
-	if (st->rx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_st;
-	}
-	st->tx = kzalloc(sizeof(*st->tx)*ADE7759_MAX_TX, GFP_KERNEL);
-	if (st->tx == NULL) {
-		ret = -ENOMEM;
-		goto error_free_rx;
-	}
+	st = iio_priv(indio_dev);
 	st->us = spi;
 	mutex_init(&st->buf_lock);
-	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_tx;
-	}
+	indio_dev->name = spi->dev.driver->name;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &ade7759_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	st->indio_dev->name = spi->dev.driver->name;
-	st->indio_dev->dev.parent = &spi->dev;
-
-	st->indio_dev->info = &ade7759_info;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
-
-	ret = iio_device_register(st->indio_dev);
+	/* Get the device into a sane initial state */
+	ret = ade7759_initial_setup(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	/* Get the device into a sane initial state */
-	ret = ade7759_initial_setup(st);
+	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_unreg_dev;
+		goto error_free_dev;
+
 	return 0;
 
-
-error_unreg_dev:
-	iio_device_unregister(st->indio_dev);
 error_free_dev:
-	iio_free_device(st->indio_dev);
-error_free_tx:
-	kfree(st->tx);
-error_free_rx:
-	kfree(st->rx);
-error_free_st:
-	kfree(st);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -521,23 +498,13 @@ error_ret:
 /* fixme, confirm ordering in this function */
 static int ade7759_remove(struct spi_device *spi)
 {
-	int ret;
-	struct ade7759_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
-
-	ret = ade7759_stop_device(&(indio_dev->dev));
-	if (ret)
-		goto err_ret;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-	kfree(st->tx);
-	kfree(st->rx);
-	kfree(st);
+	ade7759_stop_device(&indio_dev->dev);
+	iio_device_free(indio_dev);
 
 	return 0;
-
-err_ret:
-	return ret;
 }
 
 static struct spi_driver ade7759_driver = {
@@ -546,21 +513,11 @@ static struct spi_driver ade7759_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ade7759_probe,
-	.remove = __devexit_p(ade7759_remove),
+	.remove = ade7759_remove,
 };
-
-static __init int ade7759_init(void)
-{
-	return spi_register_driver(&ade7759_driver);
-}
-module_init(ade7759_init);
-
-static __exit void ade7759_exit(void)
-{
-	spi_unregister_driver(&ade7759_driver);
-}
-module_exit(ade7759_exit);
+module_spi_driver(ade7759_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7759 Active Energy Metering IC Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ad7759");

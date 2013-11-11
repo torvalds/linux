@@ -55,9 +55,9 @@
 
 static void *cfg_space;
 
-#define PCI_BUS_ENABLED	1
-#define LDT_BUS_ENABLED	2
-#define PCI_DEVICE_MODE	4
+#define PCI_BUS_ENABLED 1
+#define LDT_BUS_ENABLED 2
+#define PCI_DEVICE_MODE 4
 
 static int sb1250_bus_status;
 
@@ -213,7 +213,7 @@ static int __init sb1250_pcibios_init(void)
 	uint64_t reg;
 
 	/* CFE will assign PCI resources */
-	pci_probe_only = 1;
+	pci_set_flags(PCI_PROBE_ONLY);
 
 	/* Avoid ISA compat ranges.  */
 	PCIBIOS_MIN_IO = 0x00008000UL;
@@ -239,7 +239,7 @@ static int __init sb1250_pcibios_init(void)
 			       PCI_COMMAND));
 		if (!(cmdreg & PCI_COMMAND_MASTER)) {
 			printk
-			    ("PCI: Skipping PCI probe.  Bus is not initialized.\n");
+			    ("PCI: Skipping PCI probe.	Bus is not initialized.\n");
 			iounmap(cfg_space);
 			return 0;
 		}

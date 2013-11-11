@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 
 #include <linux/spi/ad7879.h>
+#include <linux/module.h>
 #include "ad7879.h"
 
 #define AD7879_REG_ZEROS		0
@@ -117,6 +118,7 @@ struct ad7879 {
 	unsigned int		irq;
 	bool			disabled;	/* P: input->mutex */
 	bool			suspended;	/* P: input->mutex */
+	bool			swap_xy;
 	u16			conversion_data[AD7879_NR_SENSE];
 	char			phys[32];
 	u8			first_conversion_delay;
@@ -159,6 +161,9 @@ static int ad7879_report(struct ad7879 *ts)
 	y = ts->conversion_data[AD7879_SEQ_YPOS] & MAX_12BIT;
 	z1 = ts->conversion_data[AD7879_SEQ_Z1] & MAX_12BIT;
 	z2 = ts->conversion_data[AD7879_SEQ_Z2] & MAX_12BIT;
+
+	if (ts->swap_xy)
+		swap(x, y);
 
 	/*
 	 * The samples processed here are already preprocessed by the AD7879.
@@ -249,12 +254,14 @@ static void __ad7879_enable(struct ad7879 *ts)
 
 static void __ad7879_disable(struct ad7879 *ts)
 {
+	u16 reg = (ts->cmd_crtl2 & ~AD7879_PM(-1)) |
+		AD7879_PM(AD7879_PM_SHUTDOWN);
 	disable_irq(ts->irq);
 
 	if (del_timer_sync(&ts->timer))
 		ad7879_ts_event_release(ts);
 
-	ad7879_write(ts, AD7879_REG_CTRL2, AD7879_PM(AD7879_PM_SHUTDOWN));
+	ad7879_write(ts, AD7879_REG_CTRL2, reg);
 }
 
 
@@ -278,8 +285,11 @@ static void ad7879_close(struct input_dev* input)
 		__ad7879_disable(ts);
 }
 
-void ad7879_suspend(struct ad7879 *ts)
+#ifdef CONFIG_PM_SLEEP
+static int ad7879_suspend(struct device *dev)
 {
+	struct ad7879 *ts = dev_get_drvdata(dev);
+
 	mutex_lock(&ts->input->mutex);
 
 	if (!ts->suspended && !ts->disabled && ts->input->users)
@@ -288,11 +298,14 @@ void ad7879_suspend(struct ad7879 *ts)
 	ts->suspended = true;
 
 	mutex_unlock(&ts->input->mutex);
-}
-EXPORT_SYMBOL(ad7879_suspend);
 
-void ad7879_resume(struct ad7879 *ts)
+	return 0;
+}
+
+static int ad7879_resume(struct device *dev)
 {
+	struct ad7879 *ts = dev_get_drvdata(dev);
+
 	mutex_lock(&ts->input->mutex);
 
 	if (ts->suspended && !ts->disabled && ts->input->users)
@@ -301,8 +314,13 @@ void ad7879_resume(struct ad7879 *ts)
 	ts->suspended = false;
 
 	mutex_unlock(&ts->input->mutex);
+
+	return 0;
 }
-EXPORT_SYMBOL(ad7879_resume);
+#endif
+
+SIMPLE_DEV_PM_OPS(ad7879_pm_ops, ad7879_suspend, ad7879_resume);
+EXPORT_SYMBOL(ad7879_pm_ops);
 
 static void ad7879_toggle(struct ad7879 *ts, bool disable)
 {
@@ -337,10 +355,10 @@ static ssize_t ad7879_disable_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ad7879 *ts = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -506,6 +524,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->irq = irq;
+	ts->swap_xy = pdata->swap_xy;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
 
@@ -583,7 +602,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 			AD7879_TMR(ts->pen_down_acc_interval);
 
 	err = request_threaded_irq(ts->irq, NULL, ad7879_irq,
-				   IRQF_TRIGGER_FALLING,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   dev_name(dev), ts);
 	if (err) {
 		dev_err(dev, "irq %d busy?\n", ts->irq);

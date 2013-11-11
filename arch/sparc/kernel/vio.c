@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
+#include <linux/export.h>
 #include <linux/init.h>
 
 #include <asm/mdesc.h>
@@ -118,13 +119,17 @@ static struct bus_type vio_bus_type = {
 	.remove		= vio_device_remove,
 };
 
-int vio_register_driver(struct vio_driver *viodrv)
+int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
+			const char *mod_name)
 {
 	viodrv->driver.bus = &vio_bus_type;
+	viodrv->driver.name = viodrv->name;
+	viodrv->driver.owner = owner;
+	viodrv->driver.mod_name = mod_name;
 
 	return driver_register(&viodrv->driver);
 }
-EXPORT_SYMBOL(vio_register_driver);
+EXPORT_SYMBOL(__vio_register_driver);
 
 void vio_unregister_driver(struct vio_driver *viodrv)
 {
@@ -337,6 +342,7 @@ static void vio_remove(struct mdesc_handle *hp, u64 node)
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
+		put_device(dev);
 	}
 }
 
@@ -438,7 +444,7 @@ static int __init vio_init(void)
 	root_vdev = vio_create_one(hp, root, NULL);
 	err = -ENODEV;
 	if (!root_vdev) {
-		printk(KERN_ERR "VIO: Coult not create root device.\n");
+		printk(KERN_ERR "VIO: Could not create root device.\n");
 		goto out_release;
 	}
 

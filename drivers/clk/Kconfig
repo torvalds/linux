@@ -2,3 +2,85 @@
 config CLKDEV_LOOKUP
 	bool
 	select HAVE_CLK
+
+config HAVE_CLK_PREPARE
+	bool
+
+config HAVE_MACH_CLKDEV
+	bool
+
+config COMMON_CLK
+	bool
+	select HAVE_CLK_PREPARE
+	select CLKDEV_LOOKUP
+	---help---
+	  The common clock framework is a single definition of struct
+	  clk, useful across many platforms, as well as an
+	  implementation of the clock API in include/linux/clk.h.
+	  Architectures utilizing the common struct clk should select
+	  this option.
+
+menu "Common Clock Framework"
+	depends on COMMON_CLK
+
+config COMMON_CLK_DEBUG
+	bool "DebugFS representation of clock tree"
+	select DEBUG_FS
+	---help---
+	  Creates a directory hierchy in debugfs for visualizing the clk
+	  tree structure.  Each directory contains read-only members
+	  that export information specific to that clk node: clk_rate,
+	  clk_flags, clk_prepare_count, clk_enable_count &
+	  clk_notifier_count.
+
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
+	---help---
+          Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microlectronics.
+
+config COMMON_CLK_VERSATILE
+	bool "Clock driver for ARM Reference designs"
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS || ARM64
+	---help---
+          Supports clocking on ARM Reference designs:
+	  - Integrator/AP and Integrator/CP
+	  - RealView PB1176, EB, PB11MP and PBX
+	  - Versatile Express
+
+config COMMON_CLK_MAX77686
+	tristate "Clock driver for Maxim 77686 MFD"
+	depends on MFD_MAX77686
+	---help---
+	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config COMMON_CLK_SI5351
+	tristate "Clock driver for SiLabs 5351A/B/C"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports Silicon Labs 5351A/B/C programmable clock
+	  generators.
+
+config CLK_TWL6040
+	tristate "External McPDM functional clock from twl6040"
+	depends on TWL6040_CORE
+	---help---
+	  Enable the external functional clock support on OMAP4+ platforms for
+	  McPDM. McPDM module is using the external bit clock on the McPDM bus
+	  as functional clock.
+
+config COMMON_CLK_AXI_CLKGEN
+	tristate "AXI clkgen driver"
+	depends on ARCH_ZYNQ || MICROBLAZE
+	help
+	---help---
+	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
+	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+endmenu
+
+source "drivers/clk/mvebu/Kconfig"

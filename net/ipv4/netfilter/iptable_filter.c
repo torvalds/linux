@@ -52,7 +52,7 @@ iptable_filter_hook(unsigned int hook, struct sk_buff *skb,
 static struct nf_hook_ops *filter_ops __read_mostly;
 
 /* Default to forward because I got too much mail already. */
-static int forward = NF_ACCEPT;
+static bool forward = true;
 module_param(forward, bool, 0000);
 
 static int __net_init iptable_filter_net_init(struct net *net)
@@ -64,14 +64,12 @@ static int __net_init iptable_filter_net_init(struct net *net)
 		return -ENOMEM;
 	/* Entry 1 is the FORWARD hook */
 	((struct ipt_standard *)repl->entries)[1].target.verdict =
-		-forward - 1;
+		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 
 	net->ipv4.iptable_filter =
 		ipt_register_table(net, &packet_filter, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv4.iptable_filter))
-		return PTR_ERR(net->ipv4.iptable_filter);
-	return 0;
+	return PTR_RET(net->ipv4.iptable_filter);
 }
 
 static void __net_exit iptable_filter_net_exit(struct net *net)
@@ -88,11 +86,6 @@ static int __init iptable_filter_init(void)
 {
 	int ret;
 
-	if (forward < 0 || forward > NF_MAX_VERDICT) {
-		pr_err("iptables forward must be 0 or 1\n");
-		return -EINVAL;
-	}
-
 	ret = register_pernet_subsys(&iptable_filter_net_ops);
 	if (ret < 0)
 		return ret;
@@ -101,13 +94,9 @@ static int __init iptable_filter_init(void)
 	filter_ops = xt_hook_link(&packet_filter, iptable_filter_hook);
 	if (IS_ERR(filter_ops)) {
 		ret = PTR_ERR(filter_ops);
-		goto cleanup_table;
+		unregister_pernet_subsys(&iptable_filter_net_ops);
 	}
 
-	return ret;
-
- cleanup_table:
-	unregister_pernet_subsys(&iptable_filter_net_ops);
 	return ret;
 }
 

@@ -9,6 +9,7 @@
 #ifndef _ASM_PGTABLE_64_H
 #define _ASM_PGTABLE_64_H
 
+#include <linux/compiler.h>
 #include <linux/linkage.h>
 
 #include <asm/addrspace.h>
@@ -114,7 +115,7 @@
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
 #if PGDIR_SIZE >= TASK_SIZE64
-#define USER_PTRS_PER_PGD       (1)
+#define USER_PTRS_PER_PGD	(1)
 #else
 #define USER_PTRS_PER_PGD	(TASK_SIZE64 / PGDIR_SIZE)
 #endif
@@ -162,7 +163,6 @@ typedef struct { unsigned long pmd; } pmd_t;
 
 
 extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
-extern pmd_t empty_bad_pmd_table[PTRS_PER_PMD];
 #endif
 
 /*
@@ -173,7 +173,19 @@ static inline int pmd_none(pmd_t pmd)
 	return pmd_val(pmd) == (unsigned long) invalid_pte_table;
 }
 
-#define pmd_bad(pmd)		(pmd_val(pmd) & ~PAGE_MASK)
+static inline int pmd_bad(pmd_t pmd)
+{
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
+	/* pmd_huge(pmd) but inline */
+	if (unlikely(pmd_val(pmd) & _PAGE_HUGE))
+		return 0;
+#endif
+
+	if (unlikely(pmd_val(pmd) & ~PAGE_MASK))
+		return 1;
+
+	return 0;
+}
 
 static inline int pmd_present(pmd_t pmd)
 {
@@ -218,6 +230,7 @@ static inline void pud_clear(pud_t *pudp)
 #else
 #define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
+#define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 
 #define __pgd_offset(address)	pgd_index(address)
@@ -275,7 +288,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define __swp_type(x)		(((x).val >> 32) & 0xff)
 #define __swp_offset(x)		((x).val >> 40)
 #define __swp_entry(type, offset) ((swp_entry_t) { pte_val(mk_swap_pte((type), (offset))) })
-#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
+#define __pte_to_swp_entry(pte) ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
 /*

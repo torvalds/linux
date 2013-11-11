@@ -1,1 +1,1 @@
-   zreladdr-y	:= 0x00008000
+   zreladdr-y	+= 0x00008000

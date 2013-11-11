@@ -94,8 +94,7 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 /* Start and end of the vmalloc area. */
 /* Make sure to map the vmalloc area above the pinned kernel memory area
    of 32Mb.  */
-#define VMALLOC_START	(CONFIG_KERNEL_START + \
-				max(32 * 1024 * 1024UL, memory_size))
+#define VMALLOC_START	(CONFIG_KERNEL_START + CONFIG_LOWMEM_SIZE)
 #define VMALLOC_END	ioremap_bot
 
 #endif /* __ASSEMBLY__ */
@@ -234,12 +233,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #endif
 #ifndef _PAGE_SHARED
 #define _PAGE_SHARED	0
-#endif
-#ifndef _PAGE_HWWRITE
-#define _PAGE_HWWRITE	0
-#endif
-#ifndef _PAGE_HWEXEC
-#define _PAGE_HWEXEC	0
 #endif
 #ifndef _PAGE_EXEC
 #define _PAGE_EXEC	0
@@ -542,8 +535,6 @@ extern unsigned long iopa(unsigned long addr);
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
-
-#define io_remap_page_range remap_page_range
 
 /*
  * No page table caches to initialise

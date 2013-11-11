@@ -23,6 +23,11 @@
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 
+/* LPIDs we support with this build -- runtime limit may be lower */
+#define KVMPPC_NR_LPIDS                        64
+
+#define KVMPPC_INST_EHPRIV	0x7c00021c
+
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	vcpu->arch.gpr[num] = val;
@@ -93,4 +98,8 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 	return vcpu->arch.fault_dear;
 }
 
+static inline ulong kvmppc_get_msr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.shared->msr;
+}
 #endif /* __ASM_KVM_BOOKE_H__ */

@@ -1,7 +1,7 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2011  LSI Corporation.
+ *  Copyright (c) 2009-2012  LSI Corporation.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -43,6 +43,15 @@
 #define HOST_DIAG_WRITE_ENABLE			    0x80
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
+#define MAX_MSIX_QUEUES_FUSION			    16
+
+/* Invader defines */
+#define MPI2_TYPE_CUDA				    0x2
+#define MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH   0x4000
+#define	MR_RL_FLAGS_GRANT_DESTINATION_CPU0	    0x00
+#define	MR_RL_FLAGS_GRANT_DESTINATION_CPU1	    0x10
+#define	MR_RL_FLAGS_GRANT_DESTINATION_CUDA	    0x80
+#define MR_RL_FLAGS_SEQ_NUM_ENABLE		    0x8
 
 /* T10 PI defines */
 #define MR_PROT_INFO_TYPE_CONTROLLER                0x8
@@ -52,7 +61,6 @@
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
-#define MEGASAS_EEDPBLOCKSIZE			    512
 
 /*
  * Raid context flags
@@ -70,7 +78,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
  */
 #define MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO           0x7
 #define MEGASAS_REQ_DESCRIPT_FLAGS_MFA             0x1
-
+#define MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK	   0x2
 #define MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT      1
 
 #define MEGASAS_FP_CMD_LEN	16
@@ -82,7 +90,9 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
  */
 
 struct RAID_CONTEXT {
-	u16     resvd0;
+	u8	Type:4;
+	u8	nseg:4;
+	u8	resvd0;
 	u16     timeoutValue;
 	u8      regLockFlags;
 	u8      resvd1;
@@ -527,7 +537,7 @@ struct MR_LD_RAID {
 	u8      ldState;
 	u8      regTypeReqOnWrite;
 	u8      modFactor;
-	u8      reserved2[1];
+	u8	regTypeReqOnRead;
 	u16     seqNum;
 
 	struct {
@@ -663,7 +673,7 @@ struct fusion_context {
 	union MPI2_REPLY_DESCRIPTORS_UNION *reply_frames_desc;
 	struct dma_pool *reply_frames_desc_pool;
 
-	u16 last_reply_idx;
+	u16 last_reply_idx[MAX_MSIX_QUEUES_FUSION];
 
 	u32 reply_q_depth;
 	u32 request_alloc_sz;

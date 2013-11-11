@@ -8,18 +8,16 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "init.h"
-#include "kern_constants.h"
-#include "as-layout.h"
-#include "mm_id.h"
-#include "os.h"
-#include "proc_mm.h"
-#include "ptrace_user.h"
-#include "registers.h"
-#include "skas.h"
-#include "user.h"
-#include "sysdep/ptrace.h"
-#include "sysdep/stub.h"
+#include <init.h>
+#include <as-layout.h>
+#include <mm_id.h>
+#include <os.h>
+#include <proc_mm.h>
+#include <ptrace_user.h>
+#include <registers.h>
+#include <skas.h>
+#include <sysdep/ptrace.h>
+#include <sysdep/stub.h>
 
 extern unsigned long batch_syscall_stub, __syscall_stub_start;
 
@@ -39,7 +37,7 @@ static unsigned long syscall_regs[MAX_REG_NR];
 
 static int __init init_syscall_regs(void)
 {
-	get_safe_registers(syscall_regs);
+	get_safe_registers(syscall_regs, NULL);
 	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
 		((unsigned long) &batch_syscall_stub -
 		 (unsigned long) &__syscall_stub_start);
@@ -49,10 +47,6 @@ static int __init init_syscall_regs(void)
 __initcall(init_syscall_regs);
 
 extern int proc_mm;
-
-int single_count = 0;
-int multi_count = 0;
-int multi_op_count = 0;
 
 static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 {
@@ -65,8 +59,6 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	if (proc_mm)
 		/* FIXME: Need to look up userspace_pid by cpu */
 		pid = userspace_pid[0];
-
-	multi_count++;
 
 	n = ptrace_setregs(pid, syscall_regs);
 	if (n < 0) {
@@ -128,9 +120,6 @@ long run_syscall_stub(struct mm_id * mm_idp, int syscall,
 {
 	unsigned long *stack = check_init_stack(mm_idp, *addr);
 
-	if (done && *addr == NULL)
-		single_count++;
-
 	*stack += sizeof(long);
 	stack += *stack / sizeof(long);
 
@@ -143,7 +132,6 @@ long run_syscall_stub(struct mm_id * mm_idp, int syscall,
 	*stack++ = args[5];
 	*stack++ = expected;
 	*stack = 0;
-	multi_op_count++;
 
 	if (!done && ((((unsigned long) stack) & ~UM_KERN_PAGE_MASK) <
 		     UM_KERN_PAGE_SIZE - 10 * sizeof(long))) {

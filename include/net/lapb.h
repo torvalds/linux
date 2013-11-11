@@ -95,7 +95,7 @@ struct lapb_cb {
 	struct sk_buff_head	write_queue;
 	struct sk_buff_head	ack_queue;
 	unsigned char		window;
-	struct lapb_register_struct callbacks;
+	const struct lapb_register_struct *callbacks;
 
 	/* FRMR control information */
 	struct lapb_frame	frmr_data;
@@ -148,5 +148,11 @@ extern int  lapb_t1timer_running(struct lapb_cb *lapb);
  *	3 = Hex dumps, Packets I/O and State Changes.
  */
 #define	LAPB_DEBUG	0
+
+#define lapb_dbg(level, fmt, ...)			\
+do {							\
+	if (level < LAPB_DEBUG)				\
+		pr_debug(fmt, ##__VA_ARGS__);		\
+} while (0)
 
 #endif

@@ -5,7 +5,6 @@
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
  *  Copyright (c) 2006-2007 Jiri Kosina
- *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
  */
 
@@ -64,17 +63,6 @@ static struct hid_driver sp_driver = {
 	.report_fixup = sp_report_fixup,
 	.input_mapping = sp_input_mapping,
 };
+module_hid_driver(sp_driver);
 
-static int __init sp_init(void)
-{
-	return hid_register_driver(&sp_driver);
-}
-
-static void __exit sp_exit(void)
-{
-	hid_unregister_driver(&sp_driver);
-}
-
-module_init(sp_init);
-module_exit(sp_exit);
 MODULE_LICENSE("GPL");

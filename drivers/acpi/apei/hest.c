@@ -41,7 +41,7 @@
 
 #define HEST_PFX "HEST: "
 
-int hest_disable;
+bool hest_disable;
 EXPORT_SYMBOL_GPL(hest_disable);
 
 /* HEST table parsing */
@@ -89,7 +89,7 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 	struct acpi_hest_header *hest_hdr;
 	int i, rc, len;
 
-	if (hest_disable)
+	if (hest_disable || !hest_tab)
 		return -EINVAL;
 
 	hest_hdr = (struct acpi_hest_header *)(hest_tab + 1);
@@ -216,31 +216,28 @@ void __init acpi_hest_init(void)
 		return;
 	}
 
-	if (acpi_disabled)
-		goto err;
-
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);
-	if (status == AE_NOT_FOUND) {
-		pr_info(HEST_PFX "Table not found.\n");
+	if (status == AE_NOT_FOUND)
 		goto err;
-	} else if (ACPI_FAILURE(status)) {
+	else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 		pr_err(HEST_PFX "Failed to get table, %s\n", msg);
 		rc = -EINVAL;
 		goto err;
 	}
 
-	rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
-	if (rc)
-		goto err;
-
-	rc = hest_ghes_dev_register(ghes_count);
-	if (!rc) {
-		pr_info(HEST_PFX "Table parsing has been initialized.\n");
-		return;
+	if (!ghes_disable) {
+		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
+		if (rc)
+			goto err;
+		rc = hest_ghes_dev_register(ghes_count);
+		if (rc)
+			goto err;
 	}
 
+	pr_info(HEST_PFX "Table parsing has been initialized.\n");
+	return;
 err:
 	hest_disable = 1;
 }

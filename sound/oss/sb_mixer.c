@@ -232,7 +232,7 @@ static int detect_mixer(sb_devc * devc)
 	return 1;
 }
 
-static void change_bits(sb_devc * devc, unsigned char *regval, int dev, int chn, int newval)
+static void oss_change_bits(sb_devc *devc, unsigned char *regval, int dev, int chn, int newval)
 {
 	unsigned char mask;
 	int shift;
@@ -284,7 +284,7 @@ int sb_common_mixer_set(sb_devc * devc, int dev, int left, int right)
 		return -EINVAL;
 
 	val = sb_getmixer(devc, regoffs);
-	change_bits(devc, &val, dev, LEFT_CHN, left);
+	oss_change_bits(devc, &val, dev, LEFT_CHN, left);
 
 	if ((*devc->iomap)[dev][RIGHT_CHN].regno != regoffs)	/*
 								 * Change register
@@ -304,7 +304,7 @@ int sb_common_mixer_set(sb_devc * devc, int dev, int left, int right)
 							 * Read the new one
 							 */
 	}
-	change_bits(devc, &val, dev, RIGHT_CHN, right);
+	oss_change_bits(devc, &val, dev, RIGHT_CHN, right);
 
 	sb_setmixer(devc, regoffs, val);
 
@@ -410,7 +410,7 @@ static int set_recmask(sb_devc * devc, int mask)
 		case MDL_SMW:
 			if (devc->model == MDL_ESS && ess_set_recmask (devc, &devmask)) {
 				break;
-			};
+			}
 			if (devmask != SOUND_MASK_MIC &&
 				devmask != SOUND_MASK_LINE &&
 				devmask != SOUND_MASK_CD)
@@ -666,7 +666,7 @@ static void sb_mixer_reset(sb_devc * devc)
 
 	if (devc->model != MDL_ESS || !ess_mixer_reset (devc)) {
 		set_recmask(devc, SOUND_MASK_MIC);
-	};
+	}
 }
 
 int sb_mixer_init(sb_devc * devc, struct module *owner)

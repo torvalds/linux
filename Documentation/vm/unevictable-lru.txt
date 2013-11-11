@@ -197,12 +197,8 @@ the pages are also "rescued" from the unevictable list in the process of
 freeing them.
 
 page_evictable() also checks for mlocked pages by testing an additional page
-flag, PG_mlocked (as wrapped by PageMlocked()).  If the page is NOT mlocked,
-and a non-NULL VMA is supplied, page_evictable() will check whether the VMA is
-VM_LOCKED via is_mlocked_vma().  is_mlocked_vma() will SetPageMlocked() and
-update the appropriate statistics if the vma is VM_LOCKED.  This method allows
-efficient "culling" of pages in the fault path that are being faulted in to
-VM_LOCKED VMAs.
+flag, PG_mlocked (as wrapped by PageMlocked()), which is set when a page is
+faulted into a VM_LOCKED vma, or found in a vma being VM_LOCKED.
 
 
 VMSCAN'S HANDLING OF UNEVICTABLE PAGES
@@ -371,8 +367,8 @@ mlock_fixup() filters several classes of "special" VMAs:
    mlock_fixup() will call make_pages_present() in the hugetlbfs VMA range to
    allocate the huge pages and populate the ptes.
 
-3) VMAs with VM_DONTEXPAND or VM_RESERVED are generally userspace mappings of
-   kernel pages, such as the VDSO page, relay channel pages, etc.  These pages
+3) VMAs with VM_DONTEXPAND are generally userspace mappings of kernel pages,
+   such as the VDSO page, relay channel pages, etc. These pages
    are inherently unevictable and are not managed on the LRU lists.
    mlock_fixup() treats these VMAs the same as hugetlbfs VMAs.  It calls
    make_pages_present() to populate the ptes.
@@ -538,7 +534,7 @@ different reverse map mechanisms.
      process because mlocked pages are migratable.  However, for reclaim, if
      the page is mapped into a VM_LOCKED VMA, the scan stops.
 
-     try_to_unmap_anon() attempts to acquire in read mode the mmap semphore of
+     try_to_unmap_anon() attempts to acquire in read mode the mmap semaphore of
      the mm_struct to which the VMA belongs.  If this is successful, it will
      mlock the page via mlock_vma_page() - we wouldn't have gotten to
      try_to_unmap_anon() if the page were already mlocked - and will return
@@ -619,11 +615,11 @@ all PTEs from the page.  For this purpose, the unevictable/mlock infrastructure
 introduced a variant of try_to_unmap() called try_to_munlock().
 
 try_to_munlock() calls the same functions as try_to_unmap() for anonymous and
-mapped file pages with an additional argument specifing unlock versus unmap
+mapped file pages with an additional argument specifying unlock versus unmap
 processing.  Again, these functions walk the respective reverse maps looking
 for VM_LOCKED VMAs.  When such a VMA is found for anonymous pages and file
 pages mapped in linear VMAs, as in the try_to_unmap() case, the functions
-attempt to acquire the associated mmap semphore, mlock the page via
+attempt to acquire the associated mmap semaphore, mlock the page via
 mlock_vma_page() and return SWAP_MLOCK.  This effectively undoes the
 pre-clearing of the page's PG_mlocked done by munlock_vma_page.
 
@@ -641,7 +637,7 @@ with it - the usual fallback position.
 Note that try_to_munlock()'s reverse map walk must visit every VMA in a page's
 reverse map to determine that a page is NOT mapped into any VM_LOCKED VMA.
 However, the scan can terminate when it encounters a VM_LOCKED VMA and can
-successfully acquire the VMA's mmap semphore for read and mlock the page.
+successfully acquire the VMA's mmap semaphore for read and mlock the page.
 Although try_to_munlock() might be called a great many times when munlocking a
 large region or tearing down a large address space that has been mlocked via
 mlockall(), overall this is a fairly rare event.
@@ -651,7 +647,7 @@ PAGE RECLAIM IN shrink_*_list()
 -------------------------------
 
 shrink_active_list() culls any obviously unevictable pages - i.e.
-!page_evictable(page, NULL) - diverting these to the unevictable list.
+!page_evictable(page) - diverting these to the unevictable list.
 However, shrink_active_list() only sees unevictable pages that made it onto the
 active/inactive lru lists.  Note that these pages do not have PageUnevictable
 set - otherwise they would be on the unevictable list and shrink_active_list

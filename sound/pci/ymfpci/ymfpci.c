@@ -22,9 +22,9 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
-#include <sound/ymfpci.h>
+#include "ymfpci.h"
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
@@ -41,13 +41,13 @@ MODULE_SUPPORTED_DEVICE("{{Yamaha,YMF724},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static long fm_port[SNDRV_CARDS];
 static long mpu_port[SNDRV_CARDS];
 #ifdef SUPPORT_JOYSTICK
 static long joystick_port[SNDRV_CARDS];
 #endif
-static int rear_switch[SNDRV_CARDS];
+static bool rear_switch[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the Yamaha DS-1 PCI soundcard.");
@@ -79,8 +79,8 @@ static DEFINE_PCI_DEVICE_TABLE(snd_ymfpci_ids) = {
 MODULE_DEVICE_TABLE(pci, snd_ymfpci_ids);
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
-						int legacy_ctrl, int legacy_ctrl2)
+static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
+				      int legacy_ctrl, int legacy_ctrl2)
 {
 	struct gameport *gp;
 	struct resource *r = NULL;
@@ -167,8 +167,8 @@ static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, i
 void snd_ymfpci_free_gameport(struct snd_ymfpci *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
-static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
-					   const struct pci_device_id *pci_id)
+static int snd_card_ymfpci_probe(struct pci_dev *pci,
+				 const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -286,17 +286,22 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm_4ch(chip, 2, NULL)) < 0) {
+	err = snd_ymfpci_mixer(chip, rear_switch[dev]);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm2(chip, 3, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev])) < 0) {
-		snd_card_free(card);
-		return err;
+	if (chip->ac97->ext_id & AC97_EI_SDAC) {
+		err = snd_ymfpci_pcm_4ch(chip, 2, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
+		err = snd_ymfpci_pcm2(chip, 3, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
 	}
 	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
 		snd_card_free(card);
@@ -305,8 +310,9 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	if (chip->mpu_res) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_YMFPCI,
 					       mpu_port[dev],
-					       MPU401_INFO_INTEGRATED,
-					       pci->irq, 0, &chip->rawmidi)) < 0) {
+					       MPU401_INFO_INTEGRATED |
+					       MPU401_INFO_IRQ_HOOK,
+					       -1, &chip->rawmidi)) < 0) {
 			printk(KERN_WARNING "ymfpci: cannot initialize MPU401 at 0x%lx, skipping...\n", mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
@@ -338,32 +344,22 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_card_ymfpci_remove(struct pci_dev *pci)
+static void snd_card_ymfpci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
-	.name = "Yamaha DS-1 PCI",
+static struct pci_driver ymfpci_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_ymfpci_ids,
 	.probe = snd_card_ymfpci_probe,
-	.remove = __devexit_p(snd_card_ymfpci_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_ymfpci_suspend,
-	.resume = snd_ymfpci_resume,
+	.remove = snd_card_ymfpci_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &snd_ymfpci_pm,
+	},
 #endif
 };
 
-static int __init alsa_card_ymfpci_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_ymfpci_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_ymfpci_init)
-module_exit(alsa_card_ymfpci_exit)
+module_pci_driver(ymfpci_driver);

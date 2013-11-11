@@ -20,9 +20,6 @@
 #include <asm/paca.h>
 #include <asm/cputable.h>
 #include <asm/prom.h>
-#include <asm/abs_addr.h>
-#include <asm/firmware.h>
-#include <asm/iseries/hv_call.h>
 
 struct stab_entry {
 	unsigned long esid_data;
@@ -259,7 +256,7 @@ void __init stabs_alloc(void)
 		memset((void *)newstab, 0, HW_PAGE_SIZE);
 
 		paca[cpu].stab_addr = newstab;
-		paca[cpu].stab_real = virt_to_abs(newstab);
+		paca[cpu].stab_real = __pa(newstab);
 		printk(KERN_INFO "Segment table for CPU %d at 0x%llx "
 		       "virtual, 0x%llx absolute\n",
 		       cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
@@ -284,13 +281,6 @@ void stab_initialize(unsigned long stab)
 
 	/* Set ASR */
 	stabreal = get_paca()->stab_real | 0x1ul;
-
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		HvCall1(HvCallBaseSetASR, stabreal);
-		return;
-	}
-#endif /* CONFIG_PPC_ISERIES */
 
 	mtspr(SPRN_ASR, stabreal);
 }

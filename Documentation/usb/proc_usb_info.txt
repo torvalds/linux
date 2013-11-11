@@ -7,7 +7,7 @@ The usbfs filesystem for USB devices is traditionally mounted at
 /proc/bus/usb.  It provides the /proc/bus/usb/devices file, as well as
 the /proc/bus/usb/BBB/DDD files.
 
-In many modern systems the usbfs filsystem isn't used at all.  Instead
+In many modern systems the usbfs filesystem isn't used at all.  Instead
 USB device nodes are created under /dev/usb/ or someplace similar.  The
 "devices" file is available in debugfs, typically as
 /sys/kernel/debug/usb/devices.

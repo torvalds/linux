@@ -14,19 +14,25 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
+#include <linux/sh_intc.h>
 #include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
 #include <cpu/sh7720.h>
 
-#define LAN9115_READY	(__raw_readl(0xA8000084UL) & 0x00000001UL)
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
-/* Prefer cmdline over RedBoot */
-static const char *probes[] = { "cmdlinepart", "RedBoot", NULL };
+#define LAN9115_READY	(__raw_readl(0xA8000084UL) & 0x00000001UL)
 
 /* Wait until reset finished. Timeout is 100ms. */
 static int __init ethernet_reset_finished(void)
@@ -248,8 +254,8 @@ static struct resource smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= 35,
-		.end		= 35,
+		.start		= evt2irq(0x660),
+		.end		= evt2irq(0x660),
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -293,8 +299,6 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
-static struct mtd_partition *parsed_partitions;
-
 static struct mtd_partition mpr2_partitions[] = {
 	/* Reserved for bootloader, read-only */
 	{
@@ -318,6 +322,8 @@ static struct mtd_partition mpr2_partitions[] = {
 };
 
 static struct physmap_flash_data flash_data = {
+	.parts		= mpr2_partitions,
+	.nr_parts	= ARRAY_SIZE(mpr2_partitions),
 	.width		= 2,
 };
 
@@ -337,32 +343,6 @@ static struct platform_device flash_device = {
 	},
 };
 
-static struct mtd_info *flash_mtd;
-
-static struct map_info mpr2_flash_map = {
-	.name = "Magic Panel R2 Flash",
-	.size = 0x2000000UL,
-	.bankwidth = 2,
-};
-
-static void __init set_mtd_partitions(void)
-{
-	int nr_parts = 0;
-
-	simple_map_init(&mpr2_flash_map);
-	flash_mtd = do_map_probe("cfi_probe", &mpr2_flash_map);
-	nr_parts = parse_mtd_partitions(flash_mtd, probes,
-					&parsed_partitions, 0);
-	/* If there is no partition table, used the hard coded table */
-	if (nr_parts <= 0) {
-		flash_data.parts = mpr2_partitions;
-		flash_data.nr_parts = ARRAY_SIZE(mpr2_partitions);
-	} else {
-		flash_data.nr_parts = nr_parts;
-		flash_data.parts = parsed_partitions;
-	}
-}
-
 /*
  * Add all resources to the platform_device
  */
@@ -376,7 +356,8 @@ static struct platform_device *mpr2_devices[] __initdata = {
 
 static int __init mpr2_devices_setup(void)
 {
-	set_mtd_partitions();
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	return platform_add_devices(mpr2_devices, ARRAY_SIZE(mpr2_devices));
 }
 device_initcall(mpr2_devices_setup);
@@ -388,17 +369,17 @@ static void __init init_mpr2_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-5 */
 
-	irq_set_irq_type(32, IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
-	irq_set_irq_type(33, IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
-	irq_set_irq_type(34, IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
-	irq_set_irq_type(35, IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
-	irq_set_irq_type(36, IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
-	irq_set_irq_type(37, IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
+	irq_set_irq_type(evt2irq(0x600), IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
+	irq_set_irq_type(evt2irq(0x620), IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
+	irq_set_irq_type(evt2irq(0x640), IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
+	irq_set_irq_type(evt2irq(0x660), IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
+	irq_set_irq_type(evt2irq(0x680), IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
+	irq_set_irq_type(evt2irq(0x6a0), IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
 
-	intc_set_priority(32, 13);		/* IRQ0 CAN1 */
-	intc_set_priority(33, 13);		/* IRQ0 CAN2 */
-	intc_set_priority(34, 13);		/* IRQ0 CAN3 */
-	intc_set_priority(35, 6);		/* IRQ3 SMSC9115 */
+	intc_set_priority(evt2irq(0x600), 13);		/* IRQ0 CAN1 */
+	intc_set_priority(evt2irq(0x620), 13);		/* IRQ0 CAN2 */
+	intc_set_priority(evt2irq(0x640), 13);		/* IRQ0 CAN3 */
+	intc_set_priority(evt2irq(0x660), 6);		/* IRQ3 SMSC9115 */
 }
 
 /*

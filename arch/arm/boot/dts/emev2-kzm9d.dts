@@ -1,0 +1,26 @@
+/*
+ * Device Tree Source for the KZM9D board
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+/dts-v1/;
+
+/include/ "emev2.dtsi"
+
+/ {
+	model = "EMEV2 KZM9D Board";
+	compatible = "renesas,kzm9d", "renesas,emev2";
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=tty0 console=ttyS1,115200n81 earlyprintk=serial8250-em.1,115200n81 mem=128M@0x40000000 ignore_loglevel root=/dev/nfs ip=dhcp nfsroot=,rsize=4096,wsize=4096";
+	};
+};

@@ -7,6 +7,8 @@
 #ifndef _SELINUX_XFRM_H_
 #define _SELINUX_XFRM_H_
 
+#include <net/flow.h>
+
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 			      struct xfrm_user_sec_ctx *sec_ctx);
 int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
@@ -49,6 +51,7 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 static inline void selinux_xfrm_notify_policyload(void)
 {
 	atomic_inc(&flow_cache_genid);
+	rt_genid_bump(&init_net);
 }
 #else
 static inline int selinux_xfrm_enabled(void)

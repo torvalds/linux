@@ -1,0 +1,14 @@
+TODOs prior to this driver moving out of staging
+------------------------------------------------
+1. Implement retries for RCODE_BUSY, RCODE_NO_ACK and RCODE_SEND_ERROR
+   - I/O is handled asynchronously which presents some issues when error
+     conditions occur.
+2. Implement _robust_ console on top of this. The existing prototype console
+   driver is not ready for the big leagues yet.
+3. Expose means of controlling attach/detach of peers via sysfs. Include
+   GUID-to-port matching/whitelist/blacklist.
+
+-- Issues with firewire stack --
+1. This driver uses the same unregistered vendor id that the firewire core does
+     (0xd00d1e). Perhaps this could be exposed as a define in
+     firewire.h?

@@ -1,14 +1,11 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-static inline void arch_idle(void)
-{
-	cpu_do_idle();
-}
+#include <asm/system_misc.h>
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	cpu_reset(0);
+	soft_restart(0);
 }
 
 #endif

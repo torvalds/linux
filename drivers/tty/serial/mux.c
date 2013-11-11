@@ -17,10 +17,11 @@
 */
 
 #include <linux/module.h>
-#include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/console.h>
 #include <linux/delay.h> /* for udelay */
 #include <linux/device.h>
@@ -241,8 +242,8 @@ static void mux_write(struct uart_port *port)
  */
 static void mux_read(struct uart_port *port)
 {
+	struct tty_port *tport = &port->state->port;
 	int data;
-	struct tty_struct *tty = port->state->port.tty;
 	__u32 start_count = port->icount.rx;
 
 	while(1) {
@@ -265,12 +266,11 @@ static void mux_read(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, data & 0xffu))
 			continue;
 
-		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
+		tty_insert_flip_char(tport, data & 0xFF, TTY_NORMAL);
 	}
 	
-	if (start_count != port->icount.rx) {
-		tty_flip_buffer_push(tty);
-	}
+	if (start_count != port->icount.rx)
+		tty_flip_buffer_push(tport);
 }
 
 /**
@@ -497,7 +497,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->membase	= ioremap_nocache(port->mapbase, MUX_LINE_OFFSET);
 		port->iotype	= UPIO_MEM;
 		port->type	= PORT_MUX;
-		port->irq	= NO_IRQ;
+		port->irq	= 0;
 		port->uartclk	= 0;
 		port->fifosize	= MUX_FIFO_SIZE;
 		port->ops	= &mux_pops;
@@ -519,7 +519,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	return 0;
 }
 
-static int __devexit mux_remove(struct parisc_device *dev)
+static int mux_remove(struct parisc_device *dev)
 {
 	int i, j;
 	int port_count = (long)dev_get_drvdata(&dev->dev);
@@ -570,14 +570,14 @@ static struct parisc_driver builtin_serial_mux_driver = {
 	.name =		"builtin_serial_mux",
 	.id_table =	builtin_mux_tbl,
 	.probe =	mux_probe,
-	.remove =       __devexit_p(mux_remove),
+	.remove =       mux_remove,
 };
 
 static struct parisc_driver serial_mux_driver = {
 	.name =		"serial_mux",
 	.id_table =	mux_tbl,
 	.probe =	mux_probe,
-	.remove =       __devexit_p(mux_remove),
+	.remove =       mux_remove,
 };
 
 /**

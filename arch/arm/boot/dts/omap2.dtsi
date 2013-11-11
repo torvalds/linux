@@ -1,0 +1,172 @@
+/*
+ * Device Tree Source for OMAP2 SoC
+ *
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "ti,omap2430", "ti,omap2420", "ti,omap2";
+	interrupt-parent = <&intc>;
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+	};
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,arm1136jf-s";
+		};
+	};
+
+	pmu {
+		compatible = "arm,arm1136-pmu";
+		interrupts = <3>;
+	};
+
+	soc {
+		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap2-mpu";
+			ti,hwmods = "mpu";
+		};
+	};
+
+	ocp {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ti,hwmods = "l3_main";
+
+		intc: interrupt-controller@1 {
+			compatible = "ti,omap2-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,intc-size = <96>;
+			reg = <0x480FE000 0x1000>;
+		};
+
+		sdma: dma-controller@48056000 {
+			compatible = "ti,omap2430-sdma", "ti,omap2420-sdma";
+			reg = <0x48056000 0x1000>;
+			interrupts = <12>,
+				     <13>,
+				     <14>,
+				     <15>;
+			#dma-cells = <1>;
+			#dma-channels = <32>;
+			#dma-requests = <64>;
+		};
+
+		uart1: serial@4806a000 {
+			compatible = "ti,omap2-uart";
+			ti,hwmods = "uart1";
+			clock-frequency = <48000000>;
+		};
+
+		uart2: serial@4806c000 {
+			compatible = "ti,omap2-uart";
+			ti,hwmods = "uart2";
+			clock-frequency = <48000000>;
+		};
+
+		uart3: serial@4806e000 {
+			compatible = "ti,omap2-uart";
+			ti,hwmods = "uart3";
+			clock-frequency = <48000000>;
+		};
+
+		timer2: timer@4802a000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x4802a000 0x400>;
+			interrupts = <38>;
+			ti,hwmods = "timer2";
+		};
+
+		timer3: timer@48078000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48078000 0x400>;
+			interrupts = <39>;
+			ti,hwmods = "timer3";
+		};
+
+		timer4: timer@4807a000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x4807a000 0x400>;
+			interrupts = <40>;
+			ti,hwmods = "timer4";
+		};
+
+		timer5: timer@4807c000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x4807c000 0x400>;
+			interrupts = <41>;
+			ti,hwmods = "timer5";
+			ti,timer-dsp;
+		};
+
+		timer6: timer@4807e000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x4807e000 0x400>;
+			interrupts = <42>;
+			ti,hwmods = "timer6";
+			ti,timer-dsp;
+		};
+
+		timer7: timer@48080000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48080000 0x400>;
+			interrupts = <43>;
+			ti,hwmods = "timer7";
+			ti,timer-dsp;
+		};
+
+		timer8: timer@48082000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48082000 0x400>;
+			interrupts = <44>;
+			ti,hwmods = "timer8";
+			ti,timer-dsp;
+		};
+
+		timer9: timer@48084000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48084000 0x400>;
+			interrupts = <45>;
+			ti,hwmods = "timer9";
+			ti,timer-pwm;
+		};
+
+		timer10: timer@48086000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48086000 0x400>;
+			interrupts = <46>;
+			ti,hwmods = "timer10";
+			ti,timer-pwm;
+		};
+
+		timer11: timer@48088000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x48088000 0x400>;
+			interrupts = <47>;
+			ti,hwmods = "timer11";
+			ti,timer-pwm;
+		};
+
+		timer12: timer@4808a000 {
+			compatible = "ti,omap2420-timer";
+			reg = <0x4808a000 0x400>;
+			interrupts = <48>;
+			ti,hwmods = "timer12";
+			ti,timer-pwm;
+		};
+	};
+};

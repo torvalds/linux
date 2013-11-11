@@ -24,9 +24,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- This */
 #include <dspbridge/drv.h>
 #include <dspbridge/dev.h>
@@ -54,7 +51,6 @@ struct drv_ext {
 };
 
 /*  ----------------------------------- Globals */
-static s32 refs;
 static bool ext_phys_mem_pool_enabled;
 struct ext_phys_mem_pool {
 	u32 phys_mem_base;
@@ -80,37 +76,28 @@ int drv_insert_node_res_element(void *hnode, void *node_resource,
 	struct node_res_object **node_res_obj =
 	    (struct node_res_object **)node_resource;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
 	int retval;
 
 	*node_res_obj = kzalloc(sizeof(struct node_res_object), GFP_KERNEL);
-	if (!*node_res_obj) {
-		status = -ENOMEM;
-		goto func_end;
-	}
+	if (!*node_res_obj)
+		return -ENOMEM;
 
 	(*node_res_obj)->node = hnode;
-	retval = idr_get_new(ctxt->node_id, *node_res_obj,
-						&(*node_res_obj)->id);
-	if (retval == -EAGAIN) {
-		if (!idr_pre_get(ctxt->node_id, GFP_KERNEL)) {
-			pr_err("%s: OUT OF MEMORY\n", __func__);
-			status = -ENOMEM;
-			goto func_end;
-		}
-
-		retval = idr_get_new(ctxt->node_id, *node_res_obj,
-						&(*node_res_obj)->id);
+	retval = idr_alloc(ctxt->node_id, *node_res_obj, 0, 0, GFP_KERNEL);
+	if (retval >= 0) {
+		(*node_res_obj)->id = retval;
+		return 0;
 	}
-	if (retval) {
+
+	kfree(*node_res_obj);
+
+	if (retval == -ENOSPC) {
 		pr_err("%s: FAILED, IDR is FULL\n", __func__);
-		status = -EFAULT;
+		return -EFAULT;
+	} else {
+		pr_err("%s: OUT OF MEMORY\n", __func__);
+		return -ENOMEM;
 	}
-func_end:
-	if (status)
-		kfree(*node_res_obj);
-
-	return status;
 }
 
 /* Release all Node resources and its context
@@ -172,7 +159,6 @@ void drv_proc_node_update_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
 	    (struct node_res_object *)node_resource;
-	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->node_allocated = status;
 }
 
@@ -181,7 +167,6 @@ void drv_proc_node_update_heap_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
 	    (struct node_res_object *)node_resource;
-	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->heap_allocated = status;
 }
 
@@ -207,35 +192,26 @@ int drv_proc_insert_strm_res_element(void *stream_obj,
 	struct strm_res_object **pstrm_res =
 	    (struct strm_res_object **)strm_res;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
-	int status = 0;
 	int retval;
 
 	*pstrm_res = kzalloc(sizeof(struct strm_res_object), GFP_KERNEL);
-	if (*pstrm_res == NULL) {
-		status = -EFAULT;
-		goto func_end;
-	}
+	if (*pstrm_res == NULL)
+		return -EFAULT;
 
 	(*pstrm_res)->stream = stream_obj;
-	retval = idr_get_new(ctxt->stream_id, *pstrm_res,
-						&(*pstrm_res)->id);
-	if (retval == -EAGAIN) {
-		if (!idr_pre_get(ctxt->stream_id, GFP_KERNEL)) {
-			pr_err("%s: OUT OF MEMORY\n", __func__);
-			status = -ENOMEM;
-			goto func_end;
-		}
-
-		retval = idr_get_new(ctxt->stream_id, *pstrm_res,
-						&(*pstrm_res)->id);
+	retval = idr_alloc(ctxt->stream_id, *pstrm_res, 0, 0, GFP_KERNEL);
+	if (retval >= 0) {
+		(*pstrm_res)->id = retval;
+		return 0;
 	}
-	if (retval) {
+
+	if (retval == -ENOSPC) {
 		pr_err("%s: FAILED, IDR is FULL\n", __func__);
-		status = -EPERM;
+		return -EPERM;
+	} else {
+		pr_err("%s: OUT OF MEMORY\n", __func__);
+		return -ENOMEM;
 	}
-
-func_end:
-	return status;
 }
 
 static int drv_proc_free_strm_res(int id, void *p, void *process_ctxt)
@@ -308,9 +284,6 @@ int drv_create(struct drv_object **drv_obj)
 	struct drv_object *pdrv_object = NULL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	DBC_REQUIRE(drv_obj != NULL);
-	DBC_REQUIRE(refs > 0);
-
 	pdrv_object = kzalloc(sizeof(struct drv_object), GFP_KERNEL);
 	if (pdrv_object) {
 		/* Create and Initialize List of device objects */
@@ -336,22 +309,7 @@ int drv_create(struct drv_object **drv_obj)
 		kfree(pdrv_object);
 	}
 
-	DBC_ENSURE(status || pdrv_object);
 	return status;
-}
-
-/*
- *  ======== drv_exit ========
- *  Purpose:
- *      Discontinue usage of the DRV module.
- */
-void drv_exit(void)
-{
-	DBC_REQUIRE(refs > 0);
-
-	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -364,9 +322,6 @@ int drv_destroy(struct drv_object *driver_obj)
 	int status = 0;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pdrv_object);
 
 	kfree(pdrv_object);
 	/* Update the DRV Object in the driver data */
@@ -389,17 +344,8 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 			      struct dev_object **device_obj)
 {
 	int status = 0;
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
-	/* used only for Assertions and debug messages */
-	struct drv_object *pdrv_obj = (struct drv_object *)hdrv_obj;
-#endif
 	struct dev_object *dev_obj;
 	u32 i;
-	DBC_REQUIRE(pdrv_obj);
-	DBC_REQUIRE(device_obj != NULL);
-	DBC_REQUIRE(index >= 0);
-	DBC_REQUIRE(refs > 0);
-	DBC_ASSERT(!(list_empty(&pdrv_obj->dev_list)));
 
 	dev_obj = (struct dev_object *)drv_get_first_dev_object();
 	for (i = 0; i < index; i++) {
@@ -524,25 +470,6 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 }
 
 /*
- *  ======== drv_init ========
- *  Purpose:
- *      Initialize DRV module private state.
- */
-int drv_init(void)
-{
-	s32 ret = 1;		/* function return value */
-
-	DBC_REQUIRE(refs >= 0);
-
-	if (ret)
-		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
-
-	return ret;
-}
-
-/*
  *  ======== drv_insert_dev_object ========
  *  Purpose:
  *      Insert a DevObject into the list of Manager object.
@@ -551,10 +478,6 @@ int drv_insert_dev_object(struct drv_object *driver_obj,
 				 struct dev_object *hdev_obj)
 {
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hdev_obj != NULL);
-	DBC_REQUIRE(pdrv_object);
 
 	list_add_tail((struct list_head *)hdev_obj, &pdrv_object->dev_list);
 
@@ -573,12 +496,6 @@ int drv_remove_dev_object(struct drv_object *driver_obj,
 	int status = -EPERM;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 	struct list_head *cur_elem;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pdrv_object);
-	DBC_REQUIRE(hdev_obj != NULL);
-
-	DBC_REQUIRE(!list_empty(&pdrv_object->dev_list));
 
 	/* Search list for p_proc_object: */
 	list_for_each(cur_elem, &pdrv_object->dev_list) {
@@ -604,9 +521,6 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	struct drv_object *pdrv_object;
 	struct drv_ext *pszdev_node;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(dw_context != 0);
-	DBC_REQUIRE(dev_node_strg != NULL);
 
 	/*
 	 *  Allocate memory to hold the string. This will live until
@@ -638,10 +552,6 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 			__func__);
 		*dev_node_strg = 0;
 	}
-
-	DBC_ENSURE((!status && dev_node_strg != NULL &&
-		    !list_empty(&pdrv_object->dev_node_string)) ||
-		   (status && *dev_node_strg == 0));
 
 	return status;
 }
@@ -739,10 +649,10 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 							 OMAP_DSP_MEM3_SIZE);
 		host_res->per_base = ioremap(OMAP_PER_CM_BASE,
 						OMAP_PER_CM_SIZE);
-		host_res->per_pm_base = (u32) ioremap(OMAP_PER_PRM_BASE,
-							 OMAP_PER_PRM_SIZE);
-		host_res->core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
-							  OMAP_CORE_PRM_SIZE);
+		host_res->per_pm_base = ioremap(OMAP_PER_PRM_BASE,
+						OMAP_PER_PRM_SIZE);
+		host_res->core_pm_base = ioremap(OMAP_CORE_PRM_BASE,
+							OMAP_CORE_PRM_SIZE);
 		host_res->dmmu_base = ioremap(OMAP_DMMU_BASE,
 						 OMAP_DMMU_SIZE);
 
@@ -900,8 +810,6 @@ void *mem_alloc_phys_mem(u32 byte_size, u32 align_mask,
 void mem_free_phys_mem(void *virtual_address, u32 physical_address,
 		       u32 byte_size)
 {
-	DBC_REQUIRE(virtual_address != NULL);
-
 	if (!ext_phys_mem_pool_enabled)
 		dma_free_coherent(NULL, byte_size, virtual_address,
 				  physical_address);

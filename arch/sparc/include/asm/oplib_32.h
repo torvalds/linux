@@ -94,7 +94,7 @@ extern int prom_getprev(void);
 extern void prom_console_write_buf(const char *buf, int len);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
-extern void prom_printf(const char *fmt, ...);
+extern __printf(1, 2) void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
 
 /* Multiprocessor operations... */
@@ -104,14 +104,6 @@ extern void prom_write(const char *buf, unsigned int len);
  */
 extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
 			 int context, char *program_counter);
-
-/* Sun4/sun4c specific memory-management startup hook. */
-
-/* Map the passed segment in the given context at the passed
- * virtual address.
- */
-extern void prom_putsegment(int context, unsigned long virt_addr,
-			    int physical_segment);
 
 /* Initialize the memory lists based upon the prom version. */
 void prom_meminit(void);

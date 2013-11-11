@@ -32,7 +32,7 @@
 /* Revised by Kenneth Albanowski for m68knommu. Basic problem: unaligned access
  kills, so most of the assembly has to go. */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <net/checksum.h>
 
 #include <asm/byteorder.h>
@@ -49,7 +49,7 @@ static inline unsigned short from32to16(unsigned int x)
 
 static unsigned int do_csum(const unsigned char *buff, int len)
 {
-	int odd, count;
+	int odd;
 	unsigned int result = 0;
 
 	if (len <= 0)
@@ -64,25 +64,22 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 		len--;
 		buff++;
 	}
-	count = len >> 1;		/* nr of 16-bit words.. */
-	if (count) {
+	if (len >= 2) {
 		if (2 & (unsigned long) buff) {
 			result += *(unsigned short *) buff;
-			count--;
 			len -= 2;
 			buff += 2;
 		}
-		count >>= 1;		/* nr of 32-bit words.. */
-		if (count) {
+		if (len >= 4) {
+			const unsigned char *end = buff + ((unsigned)len & ~3);
 			unsigned int carry = 0;
 			do {
 				unsigned int w = *(unsigned int *) buff;
-				count--;
 				buff += 4;
 				result += carry;
 				result += w;
 				carry = (w > result);
-			} while (count);
+			} while (buff < end);
 			result += carry;
 			result = (result & 0xffff) + (result >> 16);
 		}
@@ -105,6 +102,7 @@ out:
 }
 #endif
 
+#ifndef ip_fast_csum
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
@@ -114,6 +112,7 @@ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return (__force __sum16)~do_csum(iph, ihl*4);
 }
 EXPORT_SYMBOL(ip_fast_csum);
+#endif
 
 /*
  * computes the checksum of a memory block at buff, length len,

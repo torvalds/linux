@@ -1,0 +1,14 @@
+/* The pxa3xx skeleton simply augments the 2xx version */
+/include/ "pxa2xx.dtsi"
+
+/ {
+	model = "Marvell PXA27x familiy SoC";
+	compatible = "marvell,pxa27x";
+
+	pxabus {
+		pxairq: interrupt-controller@40d00000 {
+			marvell,intc-priority;
+			marvell,intc-nr-irqs = <34>;
+		};
+	};
+};

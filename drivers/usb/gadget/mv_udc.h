@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
 
 #ifndef __MV_UDC_H
 #define __MV_UDC_H
@@ -172,7 +180,7 @@ struct mv_udc {
 
 	struct mv_cap_regs __iomem	*cap_regs;
 	struct mv_op_regs __iomem	*op_regs;
-	unsigned int			phy_regs;
+	void __iomem                    *phy_regs;
 	unsigned int			max_eps;
 	struct mv_dqh			*ep_dqh;
 	size_t				ep_dqh_size;
@@ -194,14 +202,27 @@ struct mv_udc {
 	unsigned int		ep0_dir;
 
 	unsigned int		dev_addr;
+	unsigned int		test_mode;
 
 	int			errors;
 	unsigned		softconnect:1,
 				vbus_active:1,
 				remote_wakeup:1,
 				softconnected:1,
-				force_fs:1;
-	struct clk		*clk;
+				force_fs:1,
+				clock_gating:1,
+				active:1,
+				stopped:1;      /* stop bit is setted */
+
+	struct work_struct	vbus_work;
+	struct workqueue_struct *qwork;
+
+	struct usb_phy		*transceiver;
+
+	struct mv_usb_platform_data     *pdata;
+
+	/* some SOC has mutiple clock sources for USB*/
+	struct clk      *clk;
 };
 
 /* endpoint data structure */
@@ -210,7 +231,6 @@ struct mv_ep {
 	struct mv_udc		*udc;
 	struct list_head	queue;
 	struct mv_dqh		*dqh;
-	const struct usb_endpoint_descriptor	*desc;
 	u32			direction;
 	char			name[14];
 	unsigned		stopped:1,
@@ -225,6 +245,7 @@ struct mv_req {
 	struct mv_dtd		*dtd, *head, *tail;
 	struct mv_ep		*ep;
 	struct list_head	queue;
+	unsigned int            test_mode;
 	unsigned		dtd_count;
 	unsigned		mapped:1;
 };
@@ -288,7 +309,5 @@ struct mv_dtd {
 	dma_addr_t td_dma;		/* dma address for this td */
 	struct mv_dtd *next_dtd_virt;
 };
-
-extern int mv_udc_phy_init(unsigned int base);
 
 #endif

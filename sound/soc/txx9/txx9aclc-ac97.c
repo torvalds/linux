@@ -170,7 +170,11 @@ static struct snd_soc_dai_driver txx9aclc_ac97_dai = {
 	},
 };
 
-static int __devinit txx9aclc_ac97_dev_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver txx9aclc_ac97_component = {
+	.name		= "txx9aclc-ac97",
+};
+
+static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 {
 	struct txx9aclc_plat_drvdata *drvdata;
 	struct resource *r;
@@ -201,40 +205,30 @@ static int __devinit txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (!drvdata->base)
 		return -EBUSY;
 	err = devm_request_irq(&pdev->dev, irq, txx9aclc_ac97_irq,
-			       IRQF_DISABLED, dev_name(&pdev->dev), drvdata);
+			       0, dev_name(&pdev->dev), drvdata);
 	if (err < 0)
 		return err;
 
-	return snd_soc_register_dai(&pdev->dev, &txx9aclc_ac97_dai);
+	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
+					  &txx9aclc_ac97_dai, 1);
 }
 
-static int __devexit txx9aclc_ac97_dev_remove(struct platform_device *pdev)
+static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
 static struct platform_driver txx9aclc_ac97_driver = {
 	.probe		= txx9aclc_ac97_dev_probe,
-	.remove		= __devexit_p(txx9aclc_ac97_dev_remove),
+	.remove		= txx9aclc_ac97_dev_remove,
 	.driver		= {
 		.name	= "txx9aclc-ac97",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init txx9aclc_ac97_init(void)
-{
-	return platform_driver_register(&txx9aclc_ac97_driver);
-}
-
-static void __exit txx9aclc_ac97_exit(void)
-{
-	platform_driver_unregister(&txx9aclc_ac97_driver);
-}
-
-module_init(txx9aclc_ac97_init);
-module_exit(txx9aclc_ac97_exit);
+module_platform_driver(txx9aclc_ac97_driver);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TXx9 ACLC AC97 driver");

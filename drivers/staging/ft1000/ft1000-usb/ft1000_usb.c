@@ -37,9 +37,9 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 static bool gPollingfailed = FALSE;
-int ft1000_poll_thread(void *arg)
+static int ft1000_poll_thread(void *arg)
 {
-	int ret = STATUS_SUCCESS;
+	int ret;
 
 	while (!kthread_should_stop()) {
 		msleep(10);
@@ -63,18 +63,13 @@ static int ft1000_probe(struct usb_interface *interface,
 	unsigned numaltsetting;
 	int i, ret = 0, size;
 
-	struct ft1000_device *ft1000dev;
+	struct ft1000_usb *ft1000dev;
 	struct ft1000_info *pft1000info = NULL;
 	const struct firmware *dsp_fw;
 
-	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
-
-	if (!ft1000dev) {
-		printk(KERN_ERR "out of memory allocating device structure\n");
-		return 0;
-	}
-
-	memset(ft1000dev, 0, sizeof(*ft1000dev));
+	ft1000dev = kzalloc(sizeof(struct ft1000_usb), GFP_KERNEL);
+	if (!ft1000dev)
+		return -ENOMEM;
 
 	dev = interface_to_usbdev(interface);
 	DEBUG("ft1000_probe: usb device descriptor info:\n");
@@ -140,7 +135,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	ret = request_firmware(&dsp_fw, "ft3000.img", &dev->dev);
 	if (ret < 0) {
-		printk(KERN_ERR "Error request_firmware().\n");
+		pr_err("Error request_firmware().\n");
 		goto err_fw;
 	}
 
@@ -168,16 +163,16 @@ static int ft1000_probe(struct usb_interface *interface,
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);
 	if (ret) {
-		printk(KERN_ERR "Problem with DSP image loading\n");
+		pr_err("Problem with DSP image loading\n");
 		goto err_load;
 	}
 
 	gPollingfailed = FALSE;
-	pft1000info->pPollThread =
+	ft1000dev->pPollThread =
 	    kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 
-	if (IS_ERR(pft1000info->pPollThread)) {
-		ret = PTR_ERR(pft1000info->pPollThread);
+	if (IS_ERR(ft1000dev->pPollThread)) {
+		ret = PTR_ERR(ft1000dev->pPollThread);
 		goto err_load;
 	}
 
@@ -202,7 +197,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_proc;
 
-	pft1000info->NetDevRegDone = 1;
+	ft1000dev->NetDevRegDone = 1;
 
 	return 0;
 
@@ -210,7 +205,7 @@ err_proc:
 	unregister_netdev(ft1000dev->net);
 	free_netdev(ft1000dev->net);
 err_thread:
-	kthread_stop(pft1000info->pPollThread);
+	kthread_stop(ft1000dev->pPollThread);
 err_load:
 	kfree(pFileStart);
 err_fw:
@@ -221,6 +216,7 @@ err_fw:
 static void ft1000_disconnect(struct usb_interface *interface)
 {
 	struct ft1000_info *pft1000info;
+	struct ft1000_usb *ft1000dev;
 
 	DEBUG("ft1000_disconnect is called\n");
 
@@ -228,28 +224,29 @@ static void ft1000_disconnect(struct usb_interface *interface)
 	DEBUG("In disconnect pft1000info=%p\n", pft1000info);
 
 	if (pft1000info) {
+		ft1000dev = pft1000info->priv;
 		ft1000_cleanup_proc(pft1000info);
-		if (pft1000info->pPollThread)
-			kthread_stop(pft1000info->pPollThread);
+		if (ft1000dev->pPollThread)
+			kthread_stop(ft1000dev->pPollThread);
 
 		DEBUG("ft1000_disconnect: threads are terminated\n");
 
-		if (pft1000info->pFt1000Dev->net) {
+		if (ft1000dev->net) {
 			DEBUG("ft1000_disconnect: destroy char driver\n");
-			ft1000_destroy_dev(pft1000info->pFt1000Dev->net);
-			unregister_netdev(pft1000info->pFt1000Dev->net);
+			ft1000_destroy_dev(ft1000dev->net);
+			unregister_netdev(ft1000dev->net);
 			DEBUG
-			    ("ft1000_disconnect: network device unregisterd\n");
-			free_netdev(pft1000info->pFt1000Dev->net);
+			    ("ft1000_disconnect: network device unregistered\n");
+			free_netdev(ft1000dev->net);
 
 		}
 
-		usb_free_urb(pft1000info->pFt1000Dev->rx_urb);
-		usb_free_urb(pft1000info->pFt1000Dev->tx_urb);
+		usb_free_urb(ft1000dev->rx_urb);
+		usb_free_urb(ft1000dev->tx_urb);
 
 		DEBUG("ft1000_disconnect: urb freed\n");
 
-		kfree(pft1000info->pFt1000Dev);
+		kfree(ft1000dev);
 	}
 	kfree(pFileStart);
 
@@ -263,24 +260,4 @@ static struct usb_driver ft1000_usb_driver = {
 	.id_table = id_table,
 };
 
-static int __init usb_ft1000_init(void)
-{
-	int ret = 0;
-
-	DEBUG("Initialize and register the driver\n");
-
-	ret = usb_register(&ft1000_usb_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-static void __exit usb_ft1000_exit(void)
-{
-	DEBUG("Deregister the driver\n");
-	usb_deregister(&ft1000_usb_driver);
-}
-
-module_init(usb_ft1000_init);
-module_exit(usb_ft1000_exit);
+module_usb_driver(ft1000_usb_driver);

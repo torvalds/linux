@@ -19,3 +19,7 @@ TAGS
 cscope*
 config.mak
 config.mak.autogen
+*-bison.*
+*-flex.*
+*.pyc
+*.pyo

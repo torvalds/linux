@@ -13,7 +13,9 @@
 #ifndef __ASSEMBLY__
 
 struct blackfin_pda {			/* Per-processor Data Area */
+#ifdef CONFIG_SMP
 	struct blackfin_pda *next;
+#endif
 
 	unsigned long syscfg;
 #ifdef CONFIG_SMP
@@ -51,6 +53,16 @@ struct blackfin_pda {			/* Per-processor Data Area */
 	unsigned long icplb_doublefault_addr;
 	unsigned long retx_doublefault;
 	unsigned long seqstat_doublefault;
+#endif
+};
+
+struct blackfin_initial_pda {
+	void *retx;
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+	void *dcplb_doublefault_addr;
+	void *icplb_doublefault_addr;
+	void *retx_doublefault;
+	unsigned seqstat_doublefault;
 #endif
 };
 

@@ -1,0 +1,95 @@
+TI SoC Ethernet Switch Controller Device Tree Bindings
+------------------------------------------------------
+
+Required properties:
+- compatible		: Should be "ti,cpsw"
+- reg			: physical base address and size of the cpsw
+			  registers map
+- interrupts		: property with a value describing the interrupt
+			  number
+- interrupt-parent	: The parent interrupt controller
+- cpdma_channels 	: Specifies number of channels in CPDMA
+- ale_entries		: Specifies No of entries ALE can hold
+- bd_ram_size		: Specifies internal descriptor RAM size
+- rx_descs		: Specifies number of Rx descriptors
+- mac_control		: Specifies Default MAC control register content
+			  for the specific platform
+- slaves		: Specifies number for slaves
+- active_slave		: Specifies the slave to use for time stamping,
+			  ethtool and SIOCGMIIPHY
+- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
+- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
+
+Optional properties:
+- ti,hwmods		: Must be "cpgmac0"
+- no_bd_ram		: Must be 0 or 1
+- dual_emac		: Specifies Switch to act as Dual EMAC
+
+Slave Properties:
+Required properties:
+- phy_id		: Specifies slave phy id
+- mac-address		: Specifies slave MAC address
+
+Optional properties:
+- dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
+
+Note: "ti,hwmods" field is used to fetch the base address and irq
+resources from TI, omap hwmod data base during device registration.
+Future plan is to migrate hwmod data base contents into device tree
+blob so that, all the required data will be used from device tree dts
+file.
+
+Examples:
+
+	mac: ethernet@4A100000 {
+		compatible = "ti,cpsw";
+		reg = <0x4A100000 0x1000>;
+		interrupts = <55 0x4>;
+		interrupt-parent = <&intc>;
+		cpdma_channels = <8>;
+		ale_entries = <1024>;
+		bd_ram_size = <0x2000>;
+		no_bd_ram = <0>;
+		rx_descs = <64>;
+		mac_control = <0x20>;
+		slaves = <2>;
+		active_slave = <0>;
+		cpts_clock_mult = <0x80000000>;
+		cpts_clock_shift = <29>;
+		cpsw_emac0: slave@0 {
+			phy_id = <&davinci_mdio>, <0>;
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+		cpsw_emac1: slave@1 {
+			phy_id = <&davinci_mdio>, <1>;
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+	};
+
+(or)
+	mac: ethernet@4A100000 {
+		compatible = "ti,cpsw";
+		ti,hwmods = "cpgmac0";
+		cpdma_channels = <8>;
+		ale_entries = <1024>;
+		bd_ram_size = <0x2000>;
+		no_bd_ram = <0>;
+		rx_descs = <64>;
+		mac_control = <0x20>;
+		slaves = <2>;
+		active_slave = <0>;
+		cpts_clock_mult = <0x80000000>;
+		cpts_clock_shift = <29>;
+		cpsw_emac0: slave@0 {
+			phy_id = <&davinci_mdio>, <0>;
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+		cpsw_emac1: slave@1 {
+			phy_id = <&davinci_mdio>, <1>;
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+	};

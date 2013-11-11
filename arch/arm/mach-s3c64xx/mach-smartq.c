@@ -18,27 +18,30 @@
 #include <linux/serial_core.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/gpio-cfg.h>
-#include <plat/hwmon.h>
+#include <linux/platform_data/hwmon-s3c.h>
 #include <plat/regs-serial.h>
-#include <plat/udc-hs.h>
-#include <plat/usb-control.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/sdhci.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
+#include <plat/samsung-time.h>
+
+#include "common.h"
+#include "regs-modem.h"
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE)
@@ -184,6 +187,8 @@ static struct s3c_hwmon_pdata smartq_hwmon_pdata __initdata = {
 		.div		= 4096,
 	},
 };
+
+static struct s3c_hsotg_plat smartq_hsotg_pdata;
 
 static int __init smartq_lcd_setup_gpio(void)
 {
@@ -374,6 +379,7 @@ void __init smartq_map_io(void)
 	s3c64xx_init_io(smartq_iodesc, ARRAY_SIZE(smartq_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smartq_uartcfgs, ARRAY_SIZE(smartq_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	smartq_lcd_mode_set();
 }
@@ -381,6 +387,7 @@ void __init smartq_map_io(void)
 void __init smartq_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+	s3c_hsotg_set_platdata(&smartq_hsotg_pdata);
 	s3c_hwmon_set_platdata(&smartq_hwmon_pdata);
 	s3c_sdhci1_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);

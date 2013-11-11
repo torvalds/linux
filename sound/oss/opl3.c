@@ -1190,7 +1190,7 @@ static int opl3_init(int ioaddr, struct module *owner)
 
 		for (i = 0; i < 18; i++)
 			pv_map[i].ioaddr = devc->left_io;
-	};
+	}
 	conf_printf2(devc->fm_info.name, ioaddr, 0, -1, -1);
 
 	for (i = 0; i < SBFM_MAXINSTR; i++)

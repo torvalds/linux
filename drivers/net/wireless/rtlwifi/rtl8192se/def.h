@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -33,42 +33,8 @@
 #define RX_CMD_QUEUE				1
 #define RX_MAX_QUEUE				2
 
-#define DESC92S_RATE1M				0x00
-#define DESC92S_RATE2M				0x01
-#define DESC92S_RATE5_5M			0x02
-#define DESC92S_RATE11M				0x03
-#define DESC92S_RATE6M				0x04
-#define DESC92S_RATE9M				0x05
-#define DESC92S_RATE12M				0x06
-#define DESC92S_RATE18M				0x07
-#define DESC92S_RATE24M				0x08
-#define DESC92S_RATE36M				0x09
-#define DESC92S_RATE48M				0x0a
-#define DESC92S_RATE54M				0x0b
-#define DESC92S_RATEMCS0			0x0c
-#define DESC92S_RATEMCS1			0x0d
-#define DESC92S_RATEMCS2			0x0e
-#define DESC92S_RATEMCS3			0x0f
-#define DESC92S_RATEMCS4			0x10
-#define DESC92S_RATEMCS5			0x11
-#define DESC92S_RATEMCS6			0x12
-#define DESC92S_RATEMCS7			0x13
-#define DESC92S_RATEMCS8			0x14
-#define DESC92S_RATEMCS9			0x15
-#define DESC92S_RATEMCS10			0x16
-#define DESC92S_RATEMCS11			0x17
-#define DESC92S_RATEMCS12			0x18
-#define DESC92S_RATEMCS13			0x19
-#define DESC92S_RATEMCS14			0x1a
-#define DESC92S_RATEMCS15			0x1b
-#define DESC92S_RATEMCS15_SG			0x1c
-#define DESC92S_RATEMCS32			0x20
-
 #define SHORT_SLOT_TIME				9
 #define NON_SHORT_SLOT_TIME			20
-
-/* Rx smooth factor */
-#define	RX_SMOOTH_FACTOR			20
 
 /* Queue Select Value in TxDesc */
 #define QSLT_BK					0x2
@@ -79,10 +45,6 @@
 #define QSLT_HIGH				0x11
 #define QSLT_MGNT				0x12
 #define QSLT_CMD				0x13
-
-#define	PHY_RSSI_SLID_WIN_MAX			100
-#define	PHY_LINKQUALITY_SLID_WIN_MAX		20
-#define	PHY_BEACON_RSSI_SLID_WIN_MAX		10
 
 /* Tx Desc */
 #define TX_DESC_SIZE_RTL8192S			(16 * 4)
@@ -283,12 +245,7 @@
  * the desc is cleared. */
 #define	TX_DESC_NEXT_DESC_OFFSET			36
 #define CLEAR_PCI_TX_DESC_CONTENT(__pdesc, _size)		\
-do {								\
-	if (_size > TX_DESC_NEXT_DESC_OFFSET)			\
-		memset(__pdesc, 0, TX_DESC_NEXT_DESC_OFFSET);	\
-	else							\
-		memset(__pdesc, 0, _size);			\
-} while (0);
+	memset(__pdesc, 0, min_t(size_t, _size, TX_DESC_NEXT_DESC_OFFSET))
 
 /* Rx Desc */
 #define RX_STATUS_DESC_SIZE				24
@@ -490,11 +447,11 @@ do {								\
 #define SET_RX_STATUS__DESC_BUFF_ADDR(__pdesc, __val)	\
 	SET_BITS_OFFSET_LE(__pdesc + 24, 0, 32, __val)
 
-#define RX_HAL_IS_CCK_RATE(_pdesc)\
-	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92S_RATE1M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92S_RATE2M ||	\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92S_RATE5_5M ||\
-	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92S_RATE11M)
+#define SE_RX_HAL_IS_CCK_RATE(_pdesc)\
+	(GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE1M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE2M ||	\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE5_5M ||\
+	 GET_RX_STATUS_DESC_RX_MCS(_pdesc) == DESC92_RATE11M)
 
 enum rf_optype {
 	RF_OP_BY_SW_3WIRE = 0,
@@ -558,8 +515,7 @@ enum fwcmd_iotype {
 	FW_CMD_IQK_ENABLE = 30,
 };
 
-/*
- * Driver info contain PHY status
+/* Driver info contain PHY status
  * and other variabel size info
  * PHY Status content as below
  */

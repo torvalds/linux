@@ -18,10 +18,10 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/timex.h>
-#include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/export.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sched_clock.h>
@@ -51,21 +51,12 @@ static struct clocksource iop_clocksource = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static DEFINE_CLOCK_DATA(cd);
-
 /*
  * IOP sched_clock() implementation via its clocksource.
  */
-unsigned long long notrace sched_clock(void)
+static u32 notrace iop_read_sched_clock(void)
 {
-	u32 cyc = 0xffffffffu - read_tcr1();
-	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
-}
-
-static void notrace iop_update_sched_clock(void)
-{
-	u32 cyc = 0xffffffffu - read_tcr1();
-	update_sched_clock(&cd, cyc, (u32)~0);
+	return 0xffffffffu - read_tcr1();
 }
 
 /*
@@ -151,7 +142,7 @@ void __init iop_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
 
-	init_sched_clock(&cd, iop_update_sched_clock, 32, tick_rate);
+	setup_sched_clock(iop_read_sched_clock, 32, tick_rate);
 
 	ticks_per_jiffy = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	iop_tick_rate = tick_rate;
@@ -165,14 +156,9 @@ void __init iop_init_time(unsigned long tick_rate)
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
 	write_tisr(1);
 	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
-	clockevents_calc_mult_shift(&iop_clockevent,
-				    tick_rate, IOP_MIN_RANGE);
-	iop_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &iop_clockevent);
-	iop_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xf, &iop_clockevent);
 	iop_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&iop_clockevent);
+	clockevents_config_and_register(&iop_clockevent, tick_rate,
+					0xf, 0xfffffffe);
 
 	/*
 	 * Set up free-running clocksource timer 1.

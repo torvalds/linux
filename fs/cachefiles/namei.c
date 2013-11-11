@@ -40,8 +40,7 @@ void __cachefiles_printk_object(struct cachefiles_object *object,
 	printk(KERN_ERR "%sobjstate=%s fl=%lx wbusy=%x ev=%lx[%lx]\n",
 	       prefix, fscache_object_states[object->fscache.state],
 	       object->fscache.flags, work_busy(&object->fscache.work),
-	       object->fscache.events,
-	       object->fscache.event_mask & FSCACHE_OBJECT_EVENTS_MASK);
+	       object->fscache.events, object->fscache.event_mask);
 	printk(KERN_ERR "%sops=%u inp=%u exc=%u\n",
 	       prefix, object->fscache.n_ops, object->fscache.n_in_progress,
 	       object->fscache.n_exclusive);
@@ -567,7 +566,7 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 			start = jiffies;
-			ret = vfs_create(dir->d_inode, next, S_IFREG, NULL);
+			ret = vfs_create(dir->d_inode, next, S_IFREG, true);
 			cachefiles_hist(cachefiles_create_histogram, start);
 			if (ret < 0)
 				goto create_error;
@@ -646,7 +645,8 @@ lookup_again:
 		 * (this is used to keep track of culling, and atimes are only
 		 * updated by read, write and readdir but not lookup or
 		 * open) */
-		touch_atime(cache->mnt, next);
+		path.dentry = next;
+		touch_atime(&path);
 	}
 
 	/* open a file interface onto a data file */

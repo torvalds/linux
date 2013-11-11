@@ -65,12 +65,10 @@ static inline void spufs_calls_put(struct spufs_calls *calls) { }
 
 #endif /* CONFIG_SPU_FS_MODULE */
 
-asmlinkage long sys_spu_create(const char __user *name,
-		unsigned int flags, mode_t mode, int neighbor_fd)
+SYSCALL_DEFINE4(spu_create, const char __user *, name, unsigned int, flags,
+	umode_t, mode, int, neighbor_fd)
 {
 	long ret;
-	struct file *neighbor;
-	int fput_needed;
 	struct spufs_calls *calls;
 
 	calls = spufs_calls_get();
@@ -78,11 +76,11 @@ asmlinkage long sys_spu_create(const char __user *name,
 		return -ENOSYS;
 
 	if (flags & SPU_CREATE_AFFINITY_SPU) {
+		struct fd neighbor = fdget(neighbor_fd);
 		ret = -EBADF;
-		neighbor = fget_light(neighbor_fd, &fput_needed);
-		if (neighbor) {
-			ret = calls->create_thread(name, flags, mode, neighbor);
-			fput_light(neighbor, fput_needed);
+		if (neighbor.file) {
+			ret = calls->create_thread(name, flags, mode, neighbor.file);
+			fdput(neighbor);
 		}
 	} else
 		ret = calls->create_thread(name, flags, mode, NULL);
@@ -94,8 +92,7 @@ asmlinkage long sys_spu_create(const char __user *name,
 asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 {
 	long ret;
-	struct file *filp;
-	int fput_needed;
+	struct fd arg;
 	struct spufs_calls *calls;
 
 	calls = spufs_calls_get();
@@ -103,10 +100,10 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 		return -ENOSYS;
 
 	ret = -EBADF;
-	filp = fget_light(fd, &fput_needed);
-	if (filp) {
-		ret = calls->spu_run(filp, unpc, ustatus);
-		fput_light(filp, fput_needed);
+	arg = fdget(fd);
+	if (arg.file) {
+		ret = calls->spu_run(arg.file, unpc, ustatus);
+		fdput(arg);
 	}
 
 	spufs_calls_put(calls);

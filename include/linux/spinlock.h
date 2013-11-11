@@ -55,8 +55,8 @@
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/bottom_half.h>
+#include <asm/barrier.h>
 
-#include <asm/system.h>
 
 /*
  * Must define these before including other files, inline functions need them
@@ -375,16 +375,13 @@ static inline int spin_can_lock(spinlock_t *lock)
 	return raw_spin_can_lock(&lock->rlock);
 }
 
-static inline void assert_spin_locked(spinlock_t *lock)
-{
-	assert_raw_spin_locked(&lock->rlock);
-}
+#define assert_spin_locked(lock)	assert_raw_spin_locked(&(lock)->rlock)
 
 /*
  * Pull the atomic_t declaration:
  * (asm-mips/atomic.h needs above definitions)
  */
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 /**
  * atomic_dec_and_lock - lock on reaching reference count zero
  * @atomic: the atomic counter

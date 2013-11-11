@@ -73,11 +73,7 @@ void __init cris_mmu_init(void)
 #endif
 		       REG_STATE(mmu, rw_mm_cfg, seg_c, linear) |
 		       REG_STATE(mmu, rw_mm_cfg, seg_b, linear) |
-#ifndef CONFIG_ETRAX_VCS_SIM
                        REG_STATE(mmu, rw_mm_cfg, seg_a, page)   |
-#else
-		       REG_STATE(mmu, rw_mm_cfg, seg_a, linear) |
-#endif
 		       REG_STATE(mmu, rw_mm_cfg, seg_9, page)   |
 		       REG_STATE(mmu, rw_mm_cfg, seg_8, page)   |
 		       REG_STATE(mmu, rw_mm_cfg, seg_7, page)   |
@@ -100,11 +96,7 @@ void __init cris_mmu_init(void)
 #endif
                          REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 0x4) |
 			 REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb) |
-#ifndef CONFIG_ETRAX_VCS_SIM
 			 REG_FIELD(mmu, rw_mm_kbase_hi, base_a, 0x0) |
-#else
-                         REG_FIELD(mmu, rw_mm_kbase_hi, base_a, 0xa) |
-#endif
 			 REG_FIELD(mmu, rw_mm_kbase_hi, base_9, 0x0) |
 			 REG_FIELD(mmu, rw_mm_kbase_hi, base_8, 0x0));
 

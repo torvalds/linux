@@ -11,11 +11,13 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 
 #include <asm/cpudata.h>
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
 #include <asm/prom.h>
+#include <asm/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
 
@@ -508,6 +510,8 @@ const char *mdesc_node_name(struct mdesc_handle *hp, u64 node)
 }
 EXPORT_SYMBOL(mdesc_node_name);
 
+static u64 max_cpus = 64;
+
 static void __init report_platform_properties(void)
 {
 	struct mdesc_handle *hp = mdesc_grab();
@@ -543,8 +547,10 @@ static void __init report_platform_properties(void)
 	if (v)
 		printk("PLATFORM: watchdog-max-timeout [%llu ms]\n", *v);
 	v = mdesc_get_property(hp, pn, "max-cpus", NULL);
-	if (v)
-		printk("PLATFORM: max-cpus [%llu]\n", *v);
+	if (v) {
+		max_cpus = *v;
+		printk("PLATFORM: max-cpus [%llu]\n", max_cpus);
+	}
 
 #ifdef CONFIG_SMP
 	{
@@ -715,7 +721,7 @@ static void __cpuinit set_proc_ids(struct mdesc_handle *hp)
 }
 
 static void __cpuinit get_one_mondo_bits(const u64 *p, unsigned int *mask,
-					 unsigned char def)
+					 unsigned long def, unsigned long max)
 {
 	u64 val;
 
@@ -725,6 +731,9 @@ static void __cpuinit get_one_mondo_bits(const u64 *p, unsigned int *mask,
 
 	if (!val || val >= 64)
 		goto use_default;
+
+	if (val > max)
+		val = max;
 
 	*mask = ((1U << val) * 64U) - 1U;
 	return;
@@ -736,19 +745,28 @@ use_default:
 static void __cpuinit get_mondo_data(struct mdesc_handle *hp, u64 mp,
 				     struct trap_per_cpu *tb)
 {
+	static int printed;
 	const u64 *val;
 
 	val = mdesc_get_property(hp, mp, "q-cpu-mondo-#bits", NULL);
-	get_one_mondo_bits(val, &tb->cpu_mondo_qmask, 7);
+	get_one_mondo_bits(val, &tb->cpu_mondo_qmask, 7, ilog2(max_cpus * 2));
 
 	val = mdesc_get_property(hp, mp, "q-dev-mondo-#bits", NULL);
-	get_one_mondo_bits(val, &tb->dev_mondo_qmask, 7);
+	get_one_mondo_bits(val, &tb->dev_mondo_qmask, 7, 8);
 
 	val = mdesc_get_property(hp, mp, "q-resumable-#bits", NULL);
-	get_one_mondo_bits(val, &tb->resum_qmask, 6);
+	get_one_mondo_bits(val, &tb->resum_qmask, 6, 7);
 
 	val = mdesc_get_property(hp, mp, "q-nonresumable-#bits", NULL);
-	get_one_mondo_bits(val, &tb->nonresum_qmask, 2);
+	get_one_mondo_bits(val, &tb->nonresum_qmask, 2, 2);
+	if (!printed++) {
+		pr_info("SUN4V: Mondo queue sizes "
+			"[cpu(%u) dev(%u) r(%u) nr(%u)]\n",
+			tb->cpu_mondo_qmask + 1,
+			tb->dev_mondo_qmask + 1,
+			tb->resum_qmask + 1,
+			tb->nonresum_qmask + 1);
+	}
 }
 
 static void * __cpuinit mdesc_iterate_over_cpus(void *(*func)(struct mdesc_handle *, u64, int, void *), void *arg, cpumask_t *mask)
@@ -797,6 +815,30 @@ void __cpuinit mdesc_populate_present_mask(cpumask_t *mask)
 
 	ncpus_probed = 0;
 	mdesc_iterate_over_cpus(record_one_cpu, NULL, mask);
+}
+
+static void * __init check_one_pgsz(struct mdesc_handle *hp, u64 mp, int cpuid, void *arg)
+{
+	const u64 *pgsz_prop = mdesc_get_property(hp, mp, "mmu-page-size-list", NULL);
+	unsigned long *pgsz_mask = arg;
+	u64 val;
+
+	val = (HV_PGSZ_MASK_8K | HV_PGSZ_MASK_64K |
+	       HV_PGSZ_MASK_512K | HV_PGSZ_MASK_4MB);
+	if (pgsz_prop)
+		val = *pgsz_prop;
+
+	if (!*pgsz_mask)
+		*pgsz_mask = val;
+	else
+		*pgsz_mask &= val;
+	return NULL;
+}
+
+void __init mdesc_get_page_sizes(cpumask_t *mask, unsigned long *pgsz_mask)
+{
+	*pgsz_mask = 0;
+	mdesc_iterate_over_cpus(check_one_pgsz, pgsz_mask, mask);
 }
 
 static void * __cpuinit fill_in_one_cpu(struct mdesc_handle *hp, u64 mp, int cpuid, void *arg)

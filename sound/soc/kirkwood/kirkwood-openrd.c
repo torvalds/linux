@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <sound/soc.h>
 #include <mach/kirkwood.h>
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include <asm/mach-types.h>
 #include "../codecs/cs42l51.h"
 
@@ -26,18 +26,7 @@ static int openrd_client_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret;
-	unsigned int freq, fmt;
-
-	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS;
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0)
-		return ret;
+	unsigned int freq;
 
 	switch (params_rate(params)) {
 	default:
@@ -69,6 +58,7 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 	.platform_name = "kirkwood-pcm-audio",
 	.codec_dai_name = "cs42l51-hifi",
 	.codec_name = "cs42l51-codec.0-004a",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &openrd_client_ops,
 },
 };
@@ -76,45 +66,46 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 
 static struct snd_soc_card openrd_client = {
 	.name = "OpenRD Client",
+	.owner = THIS_MODULE,
 	.dai_link = openrd_client_dai,
 	.num_links = ARRAY_SIZE(openrd_client_dai),
 };
 
-static struct platform_device *openrd_client_snd_device;
-
-static int __init openrd_client_init(void)
+static int openrd_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &openrd_client;
 	int ret;
 
-	if (!machine_is_openrd_client() && !machine_is_openrd_ultimate())
-		return 0;
+	card->dev = &pdev->dev;
 
-	openrd_client_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!openrd_client_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(openrd_client_snd_device,
-			&openrd_client);
-
-	ret = platform_device_add(openrd_client_snd_device);
-	if (ret) {
-		printk(KERN_ERR "%s: platform_device_add failed\n", __func__);
-		platform_device_put(openrd_client_snd_device);
-	}
-
+	ret = snd_soc_register_card(card);
+	if (ret)
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
 
-static void __exit openrd_client_exit(void)
+static int openrd_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(openrd_client_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	return 0;
 }
 
-module_init(openrd_client_init);
-module_exit(openrd_client_exit);
+static struct platform_driver openrd_driver = {
+	.driver		= {
+		.name	= "openrd-client-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= openrd_probe,
+	.remove		= openrd_remove,
+};
+
+module_platform_driver(openrd_driver);
 
 /* Module information */
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("ALSA SoC OpenRD Client");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:soc-audio");
+MODULE_ALIAS("platform:openrd-client-audio");

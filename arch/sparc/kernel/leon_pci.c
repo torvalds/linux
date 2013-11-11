@@ -9,87 +9,47 @@
 #include <linux/of_device.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <asm/leon.h>
 #include <asm/leon_pci.h>
 
 /* The LEON architecture does not rely on a BIOS or bootloader to setup
  * PCI for us. The Linux generic routines are used to setup resources,
- * reset values of confuration-space registers settings ae preseved.
+ * reset values of configuration-space register settings are preserved.
+ *
+ * PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is
+ * accessed through a Window which is translated to low 64KB in PCI space, the
+ * first 4KB is not used so 60KB is available.
  */
 void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 {
+	LIST_HEAD(resources);
 	struct pci_bus *root_bus;
 
-	root_bus = pci_scan_bus_parented(&ofdev->dev, 0, info->ops, info);
+	pci_add_resource_offset(&resources, &info->io_space,
+				info->io_space.start - 0x1000);
+	pci_add_resource(&resources, &info->mem_space);
+	info->busn.flags = IORESOURCE_BUS;
+	pci_add_resource(&resources, &info->busn);
+
+	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
+				     &resources);
 	if (root_bus) {
-		root_bus->resource[0] = &info->io_space;
-		root_bus->resource[1] = &info->mem_space;
-		root_bus->resource[2] = NULL;
-
-		/* Init all PCI devices into PCI tree */
-		pci_bus_add_devices(root_bus);
-
 		/* Setup IRQs of all devices using custom routines */
 		pci_fixup_irqs(pci_common_swizzle, info->map_irq);
 
 		/* Assign devices with resources */
 		pci_assign_unassigned_resources();
+	} else {
+		pci_free_resource_list(&resources);
 	}
 }
 
-/* PCI Memory and Prefetchable Memory is direct-mapped. However I/O Space is
- * accessed through a Window which is translated to low 64KB in PCI space, the
- * first 4KB is not used so 60KB is available.
- *
- * This function is used by generic code to translate resource addresses into
- * PCI addresses.
- */
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			     struct resource *res)
+void pcibios_fixup_bus(struct pci_bus *pbus)
 {
-	struct leon_pci_info *info = dev->bus->sysdata;
-
-	region->start = res->start;
-	region->end = res->end;
-
-	if (res->flags & IORESOURCE_IO) {
-		region->start -= (info->io_space.start - 0x1000);
-		region->end -= (info->io_space.start - 0x1000);
-	}
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-/* see pcibios_resource_to_bus() comment */
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	struct leon_pci_info *info = dev->bus->sysdata;
-
-	res->start = region->start;
-	res->end = region->end;
-
-	if (res->flags & IORESOURCE_IO) {
-		res->start += (info->io_space.start - 0x1000);
-		res->end += (info->io_space.start - 0x1000);
-	}
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
-
-void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
-{
-	struct leon_pci_info *info = pbus->sysdata;
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
 	u16 cmd;
-
-	/* Generic PCI bus probing sets these to point at
-	 * &io{port,mem}_resouce which is wrong for us.
-	 */
-	if (pbus->self == NULL) {
-		pbus->resource[0] = &info->io_space;
-		pbus->resource[1] = &info->mem_space;
-		pbus->resource[2] = NULL;
-	}
 
 	list_for_each_entry(dev, &pbus->devices, bus_list) {
 		/*
@@ -133,14 +93,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 	}
 }
 
-/*
- * Other archs parse arguments here.
- */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
 {
@@ -150,27 +102,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
 	return pci_enable_resources(dev, mask);
-}
-
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	/*
-	 * Currently the OpenBoot nodes are not connected with the PCI device,
-	 * this is because the LEON PROM does not create PCI nodes. Eventually
-	 * this will change and the same approach as pcic.c can be used to
-	 * match PROM nodes with pci devices.
-	 */
-	return NULL;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
-
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-#ifdef CONFIG_PCI_DEBUG
-	printk(KERN_DEBUG "LEONPCI: Assigning IRQ %02d to %s\n", irq,
-		pci_name(dev));
-#endif
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 /* in/out routines taken from pcic.c

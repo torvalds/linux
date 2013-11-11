@@ -33,7 +33,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/hydra.h>
 #include <asm/processor.h>

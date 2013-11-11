@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/export.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
@@ -177,3 +178,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	flush_range(vma->vm_mm, start, end);
 }
 EXPORT_SYMBOL(flush_tlb_range);
+
+void __init early_init_mmu(void)
+{
+}

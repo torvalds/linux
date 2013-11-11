@@ -63,17 +63,30 @@ _ENTRY(_start);
 	 * of abatron_pteptrs
 	 */
 	nop
-/*
- * Save parameters we are passed
- */
-	mr	r31,r3
-	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
-	li	r25,0		/* phys kernel start (low) */
-	li	r24,0		/* CPU number */
-	li	r23,0		/* phys kernel start (high) */
+
+	/* Translate device tree address to physical, save in r30/r31 */
+	mfmsr	r16
+	mfspr	r17,SPRN_PID
+	rlwinm	r17,r17,16,0x3fff0000	/* turn PID into MAS6[SPID] */
+	rlwimi	r17,r16,28,0x00000001	/* turn MSR[DS] into MAS6[SAS] */
+	mtspr	SPRN_MAS6,r17
+
+	tlbsx	0,r3			/* must succeed */
+
+	mfspr	r16,SPRN_MAS1
+	mfspr	r20,SPRN_MAS3
+	rlwinm	r17,r16,25,0x1f		/* r17 = log2(page size) */
+	li	r18,1024
+	slw	r18,r18,r17		/* r18 = page size */
+	addi	r18,r18,-1
+	and	r19,r3,r18		/* r19 = page offset */
+	andc	r31,r20,r18		/* r31 = page base */
+	or	r31,r31,r19		/* r31 = devtree phys addr */
+	mfspr	r30,SPRN_MAS7
+
+	li	r25,0			/* phys kernel start (low) */
+	li	r24,0			/* CPU number */
+	li	r23,0			/* phys kernel start (high) */
 
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
@@ -179,12 +192,12 @@ _ENTRY(__early_start)
 	li	r0,0
 	stwu	r0,THREAD_SIZE-STACK_FRAME_OVERHEAD(r1)
 
-	rlwinm  r22,r1,0,0,31-THREAD_SHIFT      /* current thread_info */
+	CURRENT_THREAD_INFO(r22, r1)
 	stw	r24, TI_CPU(r22)
 
 	bl	early_init
 
-#ifdef CONFIG_RELOCATABLE
+#ifdef CONFIG_DYNAMIC_MEMSTART
 	lis	r3,kernstart_addr@ha
 	la	r3,kernstart_addr@l(r3)
 #ifdef CONFIG_PHYS_64BIT
@@ -198,11 +211,8 @@ _ENTRY(__early_start)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
-	mr	r3,r31
-	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
+	mr	r3,r30
+	mr	r4,r31
 	bl	machine_init
 	bl	MMU_init
 
@@ -236,8 +246,24 @@ _ENTRY(__early_start)
  * if we find the pte (fall through):
  *   r11 is low pte word
  *   r12 is pointer to the pte
+ *   r10 is the pshift from the PGD, if we're a hugepage
  */
 #ifdef CONFIG_PTE_64BIT
+#ifdef CONFIG_HUGETLB_PAGE
+#define FIND_PTE	\
+	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
+	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
+	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
+	blt	1000f;			/* Normal non-huge page */	\
+	beq	2f;			/* Bail if no table */		\
+	oris	r11, r11, PD_HUGE@h;	/* Put back address bit */	\
+	andi.	r10, r11, HUGEPD_SHIFT_MASK@l; /* extract size field */	\
+	xor	r12, r10, r11;		/* drop size bits from pointer */ \
+	b	1001f;							\
+1000:	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
+	li	r10, 0;			/* clear r10 */			\
+1001:	lwz	r11, 4(r12);		/* Get pte entry */
+#else
 #define FIND_PTE	\
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
@@ -245,7 +271,8 @@ _ENTRY(__early_start)
 	beq	2f;			/* Bail if no table */		\
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
-#else
+#endif /* HUGEPAGE */
+#else /* !PTE_64BIT */
 #define FIND_PTE	\
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
@@ -274,25 +301,26 @@ _ENTRY(__early_start)
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
 #ifdef CONFIG_E200
 	/* no RFMCI, MCSRRs on E200 */
-	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
+	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
+			   machine_check_exception)
 #else
 	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
-	NORMAL_EXCEPTION_PROLOG
+	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE)
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
 	andis.	r10,r5,(ESR_ILK|ESR_DLK)@h
 	bne	1f
-	EXC_XFER_EE_LITE(0x0300, handle_page_fault)
+	EXC_XFER_LITE(0x0300, handle_page_fault)
 1:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x0300, CacheLockingException)
@@ -301,7 +329,7 @@ interrupt_base:
 	INSTRUCTION_STORAGE_EXCEPTION
 
 	/* External Input Interrupt */
-	EXCEPTION(0x0500, ExternalInput, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ, EXC_XFER_LITE)
 
 	/* Alignment Interrupt */
 	ALIGNMENT_EXCEPTION
@@ -315,42 +343,53 @@ interrupt_base:
 #else
 #ifdef CONFIG_E200
 	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
-	EXCEPTION(0x0800, FloatingPointUnavailable, program_check_exception, EXC_XFER_EE)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
+		  program_check_exception, EXC_XFER_EE)
 #else
-	EXCEPTION(0x0800, FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 #endif
 #endif
 
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
-	NORMAL_EXCEPTION_PROLOG
+	NORMAL_EXCEPTION_PROLOG(SYSCALL)
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
 	/* Auxiliary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FixedIntervalTimer, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
+		  unknown_exception, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
-	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, WatchdogException)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unknown_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
 	START_EXCEPTION(DataTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
-	mtspr	SPRN_SPRG_WSCRATCH1, r11
-	mtspr	SPRN_SPRG_WSCRATCH2, r12
-	mtspr	SPRN_SPRG_WSCRATCH3, r13
-	mfcr	r11
-	mtspr	SPRN_SPRG_WSCRATCH4, r11
+	mfspr	r10, SPRN_SPRG_THREAD
+	stw	r11, THREAD_NORMSAVE(0)(r10)
+#ifdef CONFIG_KVM_BOOKE_HV
+BEGIN_FTR_SECTION
+	mfspr	r11, SPRN_SRR1
+END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
+#endif
+	stw	r12, THREAD_NORMSAVE(1)(r10)
+	stw	r13, THREAD_NORMSAVE(2)(r10)
+	mfcr	r13
+	stw	r13, THREAD_NORMSAVE(3)(r10)
+	DO_KVM	BOOKE_INTERRUPT_DTLB_MISS SPRN_SRR1
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -401,8 +440,8 @@ interrupt_base:
 
 #ifdef CONFIG_PTE_64BIT
 #ifdef CONFIG_SMP
-	subf	r10,r11,r12		/* create false data dep */
-	lwzx	r13,r11,r10		/* Get upper pte bits */
+	subf	r13,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r13		/* Get upper pte bits */
 #else
 	lwz	r13,0(r12)		/* Get upper pte bits */
 #endif
@@ -416,11 +455,12 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	DataStorage
 
@@ -432,11 +472,18 @@ interrupt_base:
 	 */
 	START_EXCEPTION(InstructionTLBError)
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
-	mtspr	SPRN_SPRG_WSCRATCH1, r11
-	mtspr	SPRN_SPRG_WSCRATCH2, r12
-	mtspr	SPRN_SPRG_WSCRATCH3, r13
-	mfcr	r11
-	mtspr	SPRN_SPRG_WSCRATCH4, r11
+	mfspr	r10, SPRN_SPRG_THREAD
+	stw	r11, THREAD_NORMSAVE(0)(r10)
+#ifdef CONFIG_KVM_BOOKE_HV
+BEGIN_FTR_SECTION
+	mfspr	r11, SPRN_SRR1
+END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
+#endif
+	stw	r12, THREAD_NORMSAVE(1)(r10)
+	stw	r13, THREAD_NORMSAVE(2)(r10)
+	mfcr	r13
+	stw	r13, THREAD_NORMSAVE(3)(r10)
+	DO_KVM	BOOKE_INTERRUPT_ITLB_MISS SPRN_SRR1
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -480,8 +527,8 @@ interrupt_base:
 
 #ifdef CONFIG_PTE_64BIT
 #ifdef CONFIG_SMP
-	subf	r10,r11,r12		/* create false data dep */
-	lwzx	r13,r11,r10		/* Get upper pte bits */
+	subf	r13,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r13		/* Get upper pte bits */
 #else
 	lwz	r13,0(r12)		/* Get upper pte bits */
 #endif
@@ -496,46 +543,69 @@ interrupt_base:
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	b	InstructionStorage
 
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG
-	bne	load_up_spe
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
+	beq	1f
+	bl	load_up_spe
+	b	fast_exception_return
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
 #else
-	EXCEPTION(0x2020, SPEUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPEFloatingPointData, SPEFloatingPointException, EXC_XFER_EE);
+	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData, \
+		  SPEFloatingPointException, EXC_XFER_EE);
 
 	/* SPE Floating Point Round */
-	EXCEPTION(0x2050, SPEFloatingPointRound, SPEFloatingPointRoundException, EXC_XFER_EE)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
+		  SPEFloatingPointRoundException, EXC_XFER_EE)
 #else
-	EXCEPTION(0x2040, SPEFloatingPointData, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x2050, SPEFloatingPointRound, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, \
+		  unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
+		  unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* Performance Monitor */
-	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
+	EXCEPTION(0x2060, PERFORMANCE_MONITOR, PerformanceMonitor, \
+		  performance_monitor_exception, EXC_XFER_STD)
 
-	EXCEPTION(0x2070, Doorbell, doorbell_exception, EXC_XFER_STD)
+	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception, EXC_XFER_STD)
 
-	CRITICAL_EXCEPTION(0x2080, CriticalDoorbell, unknown_exception)
+	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
+			   CriticalDoorbell, unknown_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
 	DEBUG_CRIT_EXCEPTION
+
+	GUEST_DOORBELL_EXCEPTION
+
+	CRITICAL_EXCEPTION(0, GUEST_DBELL_CRIT, CriticalGuestDoorbell, \
+			   unknown_exception)
+
+	/* Hypercall */
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_EE)
+
+	/* Embedded Hypervisor Privilege */
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_EE)
+
+interrupt_end:
 
 /*
  * Local functions
@@ -544,7 +614,7 @@ interrupt_base:
 /*
  * Both the instruction and data TLB miss get to this
  * point to load the TLB.
- *	r10 - available to use
+ *	r10 - tsize encoding (if HUGETLB_PAGE) or available to use
  *	r11 - TLB (info from Linux PTE)
  *	r12 - available to use
  *	r13 - upper bits of PTE (if PTE_64BIT) or available to use
@@ -554,21 +624,73 @@ interrupt_base:
  *	Upon exit, we reload everything and RFI.
  */
 finish_tlb_load:
+#ifdef CONFIG_HUGETLB_PAGE
+	cmpwi	6, r10, 0			/* check for huge page */
+	beq	6, finish_tlb_load_cont    	/* !huge */
+
+	/* Alas, we need more scratch registers for hugepages */
+	mfspr	r12, SPRN_SPRG_THREAD
+	stw	r14, THREAD_NORMSAVE(4)(r12)
+	stw	r15, THREAD_NORMSAVE(5)(r12)
+	stw	r16, THREAD_NORMSAVE(6)(r12)
+	stw	r17, THREAD_NORMSAVE(7)(r12)
+
+	/* Get the next_tlbcam_idx percpu var */
+#ifdef CONFIG_SMP
+	lwz	r12, THREAD_INFO-THREAD(r12)
+	lwz	r15, TI_CPU(r12)
+	lis     r14, __per_cpu_offset@h
+	ori     r14, r14, __per_cpu_offset@l
+	rlwinm  r15, r15, 2, 0, 29
+	lwzx    r16, r14, r15
+#else
+	li	r16, 0
+#endif
+	lis     r17, next_tlbcam_idx@h
+	ori	r17, r17, next_tlbcam_idx@l
+	add	r17, r17, r16			/* r17 = *next_tlbcam_idx */
+	lwz     r15, 0(r17)			/* r15 = next_tlbcam_idx */
+
+	lis	r14, MAS0_TLBSEL(1)@h		/* select TLB1 (TLBCAM) */
+	rlwimi	r14, r15, 16, 4, 15		/* next_tlbcam_idx entry */
+	mtspr	SPRN_MAS0, r14
+
+	/* Extract TLB1CFG(NENTRY) */
+	mfspr	r16, SPRN_TLB1CFG
+	andi.	r16, r16, 0xfff
+
+	/* Update next_tlbcam_idx, wrapping when necessary */
+	addi	r15, r15, 1
+	cmpw	r15, r16
+	blt 	100f
+	lis	r14, tlbcam_index@h
+	ori	r14, r14, tlbcam_index@l
+	lwz	r15, 0(r14)
+100:	stw	r15, 0(r17)
+
+	/*
+	 * Calc MAS1_TSIZE from r10 (which has pshift encoded)
+	 * tlb_enc = (pshift - 10).
+	 */
+	subi	r15, r10, 10
+	mfspr	r16, SPRN_MAS1
+	rlwimi	r16, r15, 7, 20, 24
+	mtspr	SPRN_MAS1, r16
+
+	/* copy the pshift for use later */
+	mr	r14, r10
+
+	/* fall through */
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
 	/*
 	 * We set execute, because we don't have the granularity to
 	 * properly set this at the page level (Linux problem).
 	 * Many of these bits are software only.  Bits we don't set
 	 * here we (properly should) assume have the appropriate value.
 	 */
-
-	mfspr	r12, SPRN_MAS2
-#ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
-#else
-	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
-#endif
-	mtspr	SPRN_MAS2, r12
-
+finish_tlb_load_cont:
 #ifdef CONFIG_PTE_64BIT
 	rlwinm	r12, r11, 32-2, 26, 31	/* Move in perm bits */
 	andi.	r10, r11, _PAGE_DIRTY
@@ -577,22 +699,40 @@ finish_tlb_load:
 	andc	r12, r12, r10
 1:	rlwimi	r12, r13, 20, 0, 11	/* grab RPN[32:43] */
 	rlwimi	r12, r11, 20, 12, 19	/* grab RPN[44:51] */
-	mtspr	SPRN_MAS3, r12
+2:	mtspr	SPRN_MAS3, r12
 BEGIN_MMU_FTR_SECTION
 	srwi	r10, r13, 12		/* grab RPN[12:31] */
 	mtspr	SPRN_MAS7, r10
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #else
 	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
+	mr	r13, r11
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
 	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
 	slwi	r10, r12, 1
 	or	r10, r10, r12
 	iseleq	r12, r12, r10
-	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
-	mtspr	SPRN_MAS3, r11
+	rlwimi	r13, r12, 0, 20, 31	/* Get RPN from PTE, merge w/ perms */
+	mtspr	SPRN_MAS3, r13
 #endif
+
+	mfspr	r12, SPRN_MAS2
+#ifdef CONFIG_PTE_64BIT
+	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
+#else
+	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	beq	6, 3f			/* don't mask if page isn't huge */
+	li	r13, 1
+	slw	r13, r13, r14
+	subi	r13, r13, 1
+	rlwinm	r13, r13, 0, 0, 19	/* bottom bits used for WIMGE/etc */
+	andc	r12, r12, r13		/* mask off ea bits within the page */
+#endif
+3:	mtspr	SPRN_MAS2, r12
+
 #ifdef CONFIG_E200
 	/* Round robin TLB1 entries assignment */
 	mfspr	r12, SPRN_MAS0
@@ -618,14 +758,23 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	mtspr	SPRN_MAS0,r12
 #endif /* CONFIG_E200 */
 
+tlb_write_entry:
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
-	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mfspr	r10, SPRN_SPRG_THREAD
+#ifdef CONFIG_HUGETLB_PAGE
+	beq	6, 8f /* skip restore for 4k page faults */
+	lwz	r14, THREAD_NORMSAVE(4)(r10)
+	lwz	r15, THREAD_NORMSAVE(5)(r10)
+	lwz	r16, THREAD_NORMSAVE(6)(r10)
+	lwz	r17, THREAD_NORMSAVE(7)(r10)
+#endif
+8:	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
-	mfspr	r13, SPRN_SPRG_RSCRATCH3
-	mfspr	r12, SPRN_SPRG_RSCRATCH2
-	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r12, THREAD_NORMSAVE(1)(r10)
+	lwz	r11, THREAD_NORMSAVE(0)(r10)
 	mfspr	r10, SPRN_SPRG_RSCRATCH0
 	rfi					/* Force context change */
 
@@ -633,7 +782,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 /* Note that the SPE support is closely modeled after the AltiVec
  * support.  Changes to one are likely to be applicable to the
  * other!  */
-load_up_spe:
+_GLOBAL(load_up_spe)
 /*
  * Disable SPE for the task which had SPE previously,
  * and save its SPE registers in its thread_struct.
@@ -656,7 +805,7 @@ load_up_spe:
 	cmpi	0,r4,0
 	beq	1f
 	addi	r4,r4,THREAD	/* want THREAD of last_task_used_spe */
-	SAVE_32EVRS(0,r10,r4)
+	SAVE_32EVRS(0,r10,r4,THREAD_EVR0)
 	evxor	evr10, evr10, evr10	/* clear out evr10 */
 	evmwumiaa evr10, evr10, evr10	/* evr10 <- ACC = 0 * 0 + ACC */
 	li	r5,THREAD_ACC
@@ -676,25 +825,12 @@ load_up_spe:
 	stw	r4,THREAD_USED_SPE(r5)
 	evlddx	evr4,r10,r5
 	evmra	evr4,evr4
-	REST_32EVRS(0,r10,r5)
+	REST_32EVRS(0,r10,r5,THREAD_EVR0)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	stw	r4,last_task_used_spe@l(r3)
 #endif /* !CONFIG_SMP */
-	/* restore registers and return */
-2:	REST_4GPRS(3, r11)
-	lwz	r10,_CCR(r11)
-	REST_GPR(1, r11)
-	mtcr	r10
-	lwz	r10,_LINK(r11)
-	mtlr	r10
-	REST_GPR(10, r11)
-	mtspr	SPRN_SRR1,r9
-	mtspr	SPRN_SRR0,r12
-	REST_GPR(9, r11)
-	REST_GPR(12, r11)
-	lwz	r11,GPR11(r11)
-	rfi
+	blr
 
 /*
  * SPE unavailable trap from kernel - print a message, but let
@@ -764,12 +900,17 @@ _GLOBAL(__setup_e500mc_ivors)
 	sync
 	blr
 
-/*
- * extern void giveup_altivec(struct task_struct *prev)
- *
- * The e500 core does not have an AltiVec unit.
- */
-_GLOBAL(giveup_altivec)
+/* setup ehv ivors for */
+_GLOBAL(__setup_ehv_ivors)
+	li	r3,GuestDoorbell@l
+	mtspr	SPRN_IVOR38,r3
+	li	r3,CriticalGuestDoorbell@l
+	mtspr	SPRN_IVOR39,r3
+	li	r3,Hypercall@l
+	mtspr	SPRN_IVOR40,r3
+	li	r3,Ehvpriv@l
+	mtspr	SPRN_IVOR41,r3
+	sync
 	blr
 
 #ifdef CONFIG_SPE
@@ -787,13 +928,11 @@ _GLOBAL(giveup_spe)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	lwz	r5,PT_REGS(r3)
 	cmpi	0,r5,0
-	SAVE_32EVRS(0, r4, r3)
+	SAVE_32EVRS(0, r4, r3, THREAD_EVR0)
 	evxor	evr6, evr6, evr6	/* clear out evr6 */
 	evmwumiaa evr6, evr6, evr6	/* evr6 <- ACC = 0 * 0 + ACC */
 	li	r4,THREAD_ACC
 	evstddx	evr6, r4, r3		/* save off accumulator */
-	mfspr	r6,SPRN_SPEFSCR
-	stw	r6,THREAD_SPEFSCR(r3)	/* save spefscr register value */
 	beq	1f
 	lwz	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	lis	r3,MSR_SPE@h
@@ -892,6 +1031,34 @@ _GLOBAL(flush_dcache_L1)
 	
 	/* restore HID0 */
 	mtspr	SPRN_HID0,r8
+	isync
+
+	blr
+
+/* Flush L1 d-cache, invalidate and disable d-cache and i-cache */
+_GLOBAL(__flush_disable_L1)
+	mflr	r10
+	bl	flush_dcache_L1	/* Flush L1 d-cache */
+	mtlr	r10
+
+	mfspr	r4, SPRN_L1CSR0	/* Invalidate and disable d-cache */
+	li	r5, 2
+	rlwimi	r4, r5, 0, 3
+
+	msync
+	isync
+	mtspr	SPRN_L1CSR0, r4
+	isync
+
+1:	mfspr	r4, SPRN_L1CSR0	/* Wait for the invalidate to finish */
+	andi.	r4, r4, 2
+	bne	1b
+
+	mfspr	r4, SPRN_L1CSR1	/* Invalidate and disable i-cache */
+	li	r5, 2
+	rlwimi	r4, r5, 0, 3
+
+	mtspr	SPRN_L1CSR1, r4
 	isync
 
 	blr

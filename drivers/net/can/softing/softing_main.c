@@ -17,10 +17,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <asm/io.h>
 
 #include "softing.h"
 
@@ -478,7 +478,7 @@ static void softing_card_shutdown(struct softing *card)
 	mutex_unlock(&card->fw.lock);
 }
 
-static __devinit int softing_card_boot(struct softing *card)
+static int softing_card_boot(struct softing *card)
 {
 	int ret, j;
 	static const uint8_t stream[] = {
@@ -645,8 +645,8 @@ static const struct can_bittiming_const softing_btr_const = {
 };
 
 
-static __devinit struct net_device *softing_netdev_create(struct softing *card,
-		uint16_t chip_id)
+static struct net_device *softing_netdev_create(struct softing *card,
+						uint16_t chip_id)
 {
 	struct net_device *netdev;
 	struct softing_priv *priv;
@@ -676,7 +676,7 @@ static __devinit struct net_device *softing_netdev_create(struct softing *card,
 	return netdev;
 }
 
-static __devinit int softing_netdev_register(struct net_device *netdev)
+static int softing_netdev_register(struct net_device *netdev)
 {
 	int ret;
 
@@ -745,7 +745,7 @@ static const struct attribute_group softing_pdev_group = {
 /*
  * platform driver
  */
-static __devexit int softing_pdev_remove(struct platform_device *pdev)
+static int softing_pdev_remove(struct platform_device *pdev)
 {
 	struct softing *card = platform_get_drvdata(pdev);
 	int j;
@@ -766,7 +766,7 @@ static __devexit int softing_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __devinit int softing_pdev_probe(struct platform_device *pdev)
+static int softing_pdev_probe(struct platform_device *pdev)
 {
 	const struct softing_platform_data *pdat = pdev->dev.platform_data;
 	struct softing *card;
@@ -799,7 +799,7 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 	if (!pres)
 		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
-	card->dpram_size = pres->end - pres->start + 1;
+	card->dpram_size = resource_size(pres);
 	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);
 	if (!card->dpram) {
 		dev_alert(&card->pdev->dev, "dpram ioremap failed\n");
@@ -826,12 +826,12 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 		goto sysfs_failed;
 	}
 
-	ret = -ENOMEM;
 	for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 		card->net[j] = netdev =
 			softing_netdev_create(card, card->id.chip[j]);
 		if (!netdev) {
 			dev_alert(&pdev->dev, "failed to make can[%i]", j);
+			ret = -ENOMEM;
 			goto netdev_failed;
 		}
 		priv = netdev_priv(card->net[j]);
@@ -871,24 +871,12 @@ static struct platform_driver softing_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = softing_pdev_probe,
-	.remove = __devexit_p(softing_pdev_remove),
+	.remove = softing_pdev_remove,
 };
 
+module_platform_driver(softing_driver);
+
 MODULE_ALIAS("platform:softing");
-
-static int __init softing_start(void)
-{
-	return platform_driver_register(&softing_driver);
-}
-
-static void __exit softing_stop(void)
-{
-	platform_driver_unregister(&softing_driver);
-}
-
-module_init(softing_start);
-module_exit(softing_stop);
-
 MODULE_DESCRIPTION("Softing DPRAM CAN driver");
 MODULE_AUTHOR("Kurt Van Dijck <kurt.van.dijck@eia.be>");
 MODULE_LICENSE("GPL v2");

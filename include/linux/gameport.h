@@ -1,6 +1,3 @@
-#ifndef _GAMEPORT_H
-#define _GAMEPORT_H
-
 /*
  *  Copyright (c) 1999-2002 Vojtech Pavlik
  *
@@ -8,8 +5,9 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+#ifndef _GAMEPORT_H
+#define _GAMEPORT_H
 
-#ifdef __KERNEL__
 #include <asm/io.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -17,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <uapi/linux/gameport.h>
 
 struct gameport {
 
@@ -71,15 +70,14 @@ void gameport_close(struct gameport *gameport);
 #if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
 
 void __gameport_register_port(struct gameport *gameport, struct module *owner);
-static inline void gameport_register_port(struct gameport *gameport)
-{
-	__gameport_register_port(gameport, THIS_MODULE);
-}
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define gameport_register_port(gameport) \
+	__gameport_register_port(gameport, THIS_MODULE)
 
 void gameport_unregister_port(struct gameport *gameport);
 
-void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+__printf(2, 3)
+void gameport_set_phys(struct gameport *gameport, const char *fmt, ...);
 
 #else
 
@@ -93,8 +91,8 @@ static inline void gameport_unregister_port(struct gameport *gameport)
 	return;
 }
 
-static inline void gameport_set_phys(struct gameport *gameport,
-				     const char *fmt, ...)
+static inline __printf(2, 3)
+void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
 {
 	return;
 }
@@ -145,33 +143,28 @@ static inline void gameport_unpin_driver(struct gameport *gameport)
 	mutex_unlock(&gameport->drv_mutex);
 }
 
-int __gameport_register_driver(struct gameport_driver *drv,
+int __must_check __gameport_register_driver(struct gameport_driver *drv,
 				struct module *owner, const char *mod_name);
-static inline int __must_check gameport_register_driver(struct gameport_driver *drv)
-{
-	return __gameport_register_driver(drv, THIS_MODULE, KBUILD_MODNAME);
-}
+
+/* use a define to avoid include chaining to get THIS_MODULE & friends */
+#define gameport_register_driver(drv) \
+	__gameport_register_driver(drv, THIS_MODULE, KBUILD_MODNAME)
 
 void gameport_unregister_driver(struct gameport_driver *drv);
 
-#endif /* __KERNEL__ */
+/**
+ * module_gameport_driver() - Helper macro for registering a gameport driver
+ * @__gameport_driver: gameport_driver struct
+ *
+ * Helper macro for gameport drivers which do not do anything special in
+ * module init/exit. This eliminates a lot of boilerplate. Each module may
+ * only use this macro once, and calling it replaces module_init() and
+ * module_exit().
+ */
+#define module_gameport_driver(__gameport_driver) \
+	module_driver(__gameport_driver, gameport_register_driver, \
+		       gameport_unregister_driver)
 
-#define GAMEPORT_MODE_DISABLED		0
-#define GAMEPORT_MODE_RAW		1
-#define GAMEPORT_MODE_COOKED		2
-
-#define GAMEPORT_ID_VENDOR_ANALOG	0x0001
-#define GAMEPORT_ID_VENDOR_MADCATZ	0x0002
-#define GAMEPORT_ID_VENDOR_LOGITECH	0x0003
-#define GAMEPORT_ID_VENDOR_CREATIVE	0x0004
-#define GAMEPORT_ID_VENDOR_GENIUS	0x0005
-#define GAMEPORT_ID_VENDOR_INTERACT	0x0006
-#define GAMEPORT_ID_VENDOR_MICROSOFT	0x0007
-#define GAMEPORT_ID_VENDOR_THRUSTMASTER	0x0008
-#define GAMEPORT_ID_VENDOR_GRAVIS	0x0009
-#define GAMEPORT_ID_VENDOR_GUILLEMOT	0x000a
-
-#ifdef __KERNEL__
 
 static inline void gameport_trigger(struct gameport *gameport)
 {
@@ -223,5 +216,4 @@ static inline void gameport_set_poll_interval(struct gameport *gameport, unsigne
 void gameport_start_polling(struct gameport *gameport);
 void gameport_stop_polling(struct gameport *gameport);
 
-#endif /* __KERNEL__ */
 #endif

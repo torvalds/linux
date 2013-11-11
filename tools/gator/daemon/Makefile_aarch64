@@ -1,0 +1,15 @@
+#
+# Makefile for ARM Streamline - Gator Daemon
+# make -f Makefile_aarch64
+#
+
+# Uncomment and define CROSS_COMPILE if it is not already defined
+# CROSS_COMPILE=/path/to/cross-compiler/arm-linux-gnueabihf-
+# NOTE: This toolchain uses the hardfloat abi by default. For non-hardfloat
+# targets it is necessary to add options
+# '-marm -march=armv4t -mfloat-abi=soft'.
+
+CPP = $(CROSS_COMPILE)g++
+GCC = $(CROSS_COMPILE)gcc
+
+include common.mk

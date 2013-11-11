@@ -23,7 +23,6 @@
  *
  */
 
-#include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -283,7 +282,7 @@ static const struct snd_akm4xxx_dac_channel juli_dac[] = {
 };
 
 
-static struct snd_akm4xxx akm_juli_dac __devinitdata = {
+static struct snd_akm4xxx akm_juli_dac = {
 	.type = SND_AK4358,
 	.num_dacs = 8,	/* DAC1 - analog out
 			   DAC2 - analog in monitor
@@ -358,7 +357,7 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
+static struct snd_kcontrol_new juli_mute_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -412,7 +411,7 @@ static struct snd_kcontrol_new juli_mute_controls[] __devinitdata = {
 	},
 };
 
-static char *slave_vols[] __devinitdata = {
+static char *slave_vols[] = {
 	PCM_VOLUME,
 	MONITOR_AN_IN_VOLUME,
 	MONITOR_DIG_IN_VOLUME,
@@ -420,11 +419,11 @@ static char *slave_vols[] __devinitdata = {
 	NULL
 };
 
-static __devinitdata
+static
 DECLARE_TLV_DB_SCALE(juli_master_db_scale, -6350, 50, 1);
 
-static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
-		const char *name)
+static struct snd_kcontrol *ctl_find(struct snd_card *card,
+				     const char *name)
 {
 	struct snd_ctl_elem_id sid;
 	memset(&sid, 0, sizeof(sid));
@@ -434,8 +433,9 @@ static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card,
 	return snd_ctl_find_id(card, &sid);
 }
 
-static void __devinit add_slaves(struct snd_card *card,
-				 struct snd_kcontrol *master, char **list)
+static void add_slaves(struct snd_card *card,
+		       struct snd_kcontrol *master,
+		       char * const *list)
 {
 	for (; *list; list++) {
 		struct snd_kcontrol *slave = ctl_find(card, *list);
@@ -447,7 +447,7 @@ static void __devinit add_slaves(struct snd_card *card,
 	}
 }
 
-static int __devinit juli_add_controls(struct snd_ice1712 *ice)
+static int juli_add_controls(struct snd_ice1712 *ice)
 {
 	struct juli_spec *spec = ice->spec;
 	int err;
@@ -486,7 +486,7 @@ static int __devinit juli_add_controls(struct snd_ice1712 *ice)
  * suspend/resume
  * */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int juli_resume(struct snd_ice1712 *ice)
 {
 	struct snd_akm4xxx *ak = ice->akm;
@@ -579,7 +579,7 @@ static void juli_ak4114_change(struct ak4114 *ak4114, unsigned char c0,
 	}
 }
 
-static int __devinit juli_init(struct snd_ice1712 *ice)
+static int juli_init(struct snd_ice1712 *ice)
 {
 	static const unsigned char ak4114_init_vals[] = {
 		/* AK4117_REG_PWRDN */	AK4114_RST | AK4114_PWN |
@@ -652,7 +652,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 
 	ice->spdif.ops.open = juli_spdif_in_open;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	ice->pm_resume = juli_resume;
 	ice->pm_suspend = juli_suspend;
 	ice->pm_suspend_enabled = 1;
@@ -667,7 +667,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
  * hence the driver needs to sets up it properly.
  */
 
-static unsigned char juli_eeprom[] __devinitdata = {
+static unsigned char juli_eeprom[] = {
 	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, 1xADC, 1xDACs,
 					   SPDIF in */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
@@ -686,7 +686,7 @@ static unsigned char juli_eeprom[] __devinitdata = {
 };
 
 /* entry point */
-struct snd_ice1712_card_info snd_vt1724_juli_cards[] __devinitdata = {
+struct snd_ice1712_card_info snd_vt1724_juli_cards[] = {
 	{
 		.subvendor = VT1724_SUBDEVICE_JULI,
 		.name = "ESI Juli@",

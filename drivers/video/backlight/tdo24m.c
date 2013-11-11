@@ -2,7 +2,7 @@
  * tdo24m - SPI-based drivers for Toppoly TDO24M series LCD panels
  *
  * Copyright (C) 2008 Marvell International Ltd.
- * 	Eric Miao <eric.miao@marvell.com>
+ *	Eric Miao <eric.miao@marvell.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -47,7 +47,7 @@ struct tdo24m {
 			((x1) << 9) | 0x100 | (x2))
 #define CMD_NULL	(-1)
 
-static uint32_t lcd_panel_reset[] = {
+static const uint32_t lcd_panel_reset[] = {
 	CMD0(0x1), /* reset */
 	CMD0(0x0), /* nop */
 	CMD0(0x0), /* nop */
@@ -55,7 +55,7 @@ static uint32_t lcd_panel_reset[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_panel_on[] = {
+static const uint32_t lcd_panel_on[] = {
 	CMD0(0x29),		/* Display ON */
 	CMD2(0xB8, 0xFF, 0xF9),	/* Output Control */
 	CMD0(0x11),		/* Sleep out */
@@ -63,7 +63,7 @@ static uint32_t lcd_panel_on[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_panel_off[] = {
+static const uint32_t lcd_panel_off[] = {
 	CMD0(0x28),		/* Display OFF */
 	CMD2(0xB8, 0x80, 0x02),	/* Output Control */
 	CMD0(0x10),		/* Sleep in */
@@ -71,7 +71,7 @@ static uint32_t lcd_panel_off[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_vga_pass_through_tdo24m[] = {
+static const uint32_t lcd_vga_pass_through_tdo24m[] = {
 	CMD1(0xB0, 0x16),
 	CMD1(0xBC, 0x80),
 	CMD1(0xE1, 0x00),
@@ -80,7 +80,7 @@ static uint32_t lcd_vga_pass_through_tdo24m[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_qvga_pass_through_tdo24m[] = {
+static const uint32_t lcd_qvga_pass_through_tdo24m[] = {
 	CMD1(0xB0, 0x16),
 	CMD1(0xBC, 0x81),
 	CMD1(0xE1, 0x00),
@@ -89,8 +89,8 @@ static uint32_t lcd_qvga_pass_through_tdo24m[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_vga_transfer_tdo24m[] = {
-	CMD1(0xcf, 0x02), 	/* Blanking period control (1) */
+static const uint32_t lcd_vga_transfer_tdo24m[] = {
+	CMD1(0xcf, 0x02),	/* Blanking period control (1) */
 	CMD2(0xd0, 0x08, 0x04),	/* Blanking period control (2) */
 	CMD1(0xd1, 0x01),	/* CKV timing control on/off */
 	CMD2(0xd2, 0x14, 0x00),	/* CKV 1,2 timing control */
@@ -102,7 +102,7 @@ static uint32_t lcd_vga_transfer_tdo24m[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_qvga_transfer[] = {
+static const uint32_t lcd_qvga_transfer[] = {
 	CMD1(0xd6, 0x02),	/* Blanking period control (1) */
 	CMD2(0xd7, 0x08, 0x04),	/* Blanking period control (2) */
 	CMD1(0xd8, 0x01),	/* CKV timing control on/off */
@@ -115,7 +115,7 @@ static uint32_t lcd_qvga_transfer[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_vga_pass_through_tdo35s[] = {
+static const uint32_t lcd_vga_pass_through_tdo35s[] = {
 	CMD1(0xB0, 0x16),
 	CMD1(0xBC, 0x80),
 	CMD1(0xE1, 0x00),
@@ -123,7 +123,7 @@ static uint32_t lcd_vga_pass_through_tdo35s[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_qvga_pass_through_tdo35s[] = {
+static const uint32_t lcd_qvga_pass_through_tdo35s[] = {
 	CMD1(0xB0, 0x16),
 	CMD1(0xBC, 0x81),
 	CMD1(0xE1, 0x00),
@@ -131,8 +131,8 @@ static uint32_t lcd_qvga_pass_through_tdo35s[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_vga_transfer_tdo35s[] = {
-	CMD1(0xcf, 0x02), 	/* Blanking period control (1) */
+static const uint32_t lcd_vga_transfer_tdo35s[] = {
+	CMD1(0xcf, 0x02),	/* Blanking period control (1) */
 	CMD2(0xd0, 0x08, 0x04),	/* Blanking period control (2) */
 	CMD1(0xd1, 0x01),	/* CKV timing control on/off */
 	CMD2(0xd2, 0x00, 0x1e),	/* CKV 1,2 timing control */
@@ -144,7 +144,7 @@ static uint32_t lcd_vga_transfer_tdo35s[] = {
 	CMD_NULL,
 };
 
-static uint32_t lcd_panel_config[] = {
+static const uint32_t lcd_panel_config[] = {
 	CMD2(0xb8, 0xff, 0xf9),	/* Output control */
 	CMD0(0x11),		/* sleep out */
 	CMD1(0xba, 0x01),	/* Display mode (1) */
@@ -175,10 +175,11 @@ static uint32_t lcd_panel_config[] = {
 	CMD_NULL,
 };
 
-static int tdo24m_writes(struct tdo24m *lcd, uint32_t *array)
+static int tdo24m_writes(struct tdo24m *lcd, const uint32_t *array)
 {
 	struct spi_transfer *x = &lcd->xfer;
-	uint32_t data, *p = array;
+	const uint32_t *p = array;
+	uint32_t data;
 	int nparams, err = 0;
 
 	for (; *p != CMD_NULL; p++) {
@@ -328,7 +329,7 @@ static struct lcd_ops tdo24m_ops = {
 	.set_mode	= tdo24m_set_mode,
 };
 
-static int __devinit tdo24m_probe(struct spi_device *spi)
+static int tdo24m_probe(struct spi_device *spi)
 {
 	struct tdo24m *lcd;
 	struct spi_message *m;
@@ -349,7 +350,7 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 	if (err)
 		return err;
 
-	lcd = kzalloc(sizeof(struct tdo24m), GFP_KERNEL);
+	lcd = devm_kzalloc(&spi->dev, sizeof(struct tdo24m), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
@@ -357,11 +358,9 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->mode = MODE_VGA;	/* default to VGA */
 
-	lcd->buf = kmalloc(TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
-	if (lcd->buf == NULL) {
-		kfree(lcd);
+	lcd->buf = devm_kzalloc(&spi->dev, TDO24M_SPI_BUFF_SIZE, GFP_KERNEL);
+	if (lcd->buf == NULL)
 		return -ENOMEM;
-	}
 
 	m = &lcd->msg;
 	x = &lcd->xfer;
@@ -383,17 +382,15 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 		break;
 	default:
 		dev_err(&spi->dev, "Unsupported model");
-		goto out_free;
+		return -EINVAL;
 	}
 
 	lcd->lcd_dev = lcd_device_register("tdo24m", &spi->dev,
 					lcd, &tdo24m_ops);
-	if (IS_ERR(lcd->lcd_dev)) {
-		err = PTR_ERR(lcd->lcd_dev);
-		goto out_free;
-	}
+	if (IS_ERR(lcd->lcd_dev))
+		return PTR_ERR(lcd->lcd_dev);
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
 	if (err)
 		goto out_unregister;
@@ -402,47 +399,41 @@ static int __devinit tdo24m_probe(struct spi_device *spi)
 
 out_unregister:
 	lcd_device_unregister(lcd->lcd_dev);
-out_free:
-	kfree(lcd->buf);
-	kfree(lcd);
 	return err;
 }
 
-static int __devexit tdo24m_remove(struct spi_device *spi)
+static int tdo24m_remove(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->lcd_dev);
-	kfree(lcd->buf);
-	kfree(lcd);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tdo24m_suspend(struct spi_device *spi, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tdo24m_suspend(struct device *dev)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = dev_get_drvdata(dev);
 
 	return tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int tdo24m_resume(struct spi_device *spi)
+static int tdo24m_resume(struct device *dev)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = dev_get_drvdata(dev);
 
 	return tdo24m_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define tdo24m_suspend	NULL
-#define tdo24m_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(tdo24m_pm_ops, tdo24m_suspend, tdo24m_resume);
 
 /* Power down all displays on reboot, poweroff or halt */
 static void tdo24m_shutdown(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }
@@ -451,25 +442,14 @@ static struct spi_driver tdo24m_driver = {
 	.driver = {
 		.name		= "tdo24m",
 		.owner		= THIS_MODULE,
+		.pm		= &tdo24m_pm_ops,
 	},
 	.probe		= tdo24m_probe,
-	.remove		= __devexit_p(tdo24m_remove),
+	.remove		= tdo24m_remove,
 	.shutdown	= tdo24m_shutdown,
-	.suspend	= tdo24m_suspend,
-	.resume		= tdo24m_resume,
 };
 
-static int __init tdo24m_init(void)
-{
-	return spi_register_driver(&tdo24m_driver);
-}
-module_init(tdo24m_init);
-
-static void __exit tdo24m_exit(void)
-{
-	spi_unregister_driver(&tdo24m_driver);
-}
-module_exit(tdo24m_exit);
+module_spi_driver(tdo24m_driver);
 
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_DESCRIPTION("Driver for Toppoly TDO24M LCD Panel");

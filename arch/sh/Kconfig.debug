@@ -61,6 +61,7 @@ config DUMP_CODE
 config DWARF_UNWINDER
 	bool "Enable the DWARF unwinder for stacktraces"
 	select FRAME_POINTER
+	depends on SUPERH32
 	default n
 	help
 	  Enabling this option will make stacktraces more accurate, at

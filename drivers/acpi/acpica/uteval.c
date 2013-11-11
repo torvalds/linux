@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ ACPI_MODULE_NAME("uteval")
  * FUNCTION:    acpi_ut_evaluate_object
  *
  * PARAMETERS:  prefix_node         - Starting node
- *              Path                - Path to object from starting node
+ *              path                - Path to object from starting node
  *              expected_return_types - Bitmap of allowed return types
  *              return_desc         - Where a return value is stored
  *
@@ -68,7 +68,7 @@ ACPI_MODULE_NAME("uteval")
  ******************************************************************************/
 
 acpi_status
-acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
+acpi_ut_evaluate_object(struct acpi_namespace_node * prefix_node,
 			char *path,
 			u32 expected_return_btypes,
 			union acpi_operand_object **return_desc)
@@ -187,7 +187,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
  *
  * PARAMETERS:  object_name         - Object name to be evaluated
  *              device_node         - Node for the device
- *              Value               - Where the value is returned
+ *              value               - Where the value is returned
  *
  * RETURN:      Status
  *
@@ -229,7 +229,7 @@ acpi_ut_evaluate_numeric_object(char *object_name,
  * FUNCTION:    acpi_ut_execute_STA
  *
  * PARAMETERS:  device_node         - Node for the device
- *              Flags               - Where the status flags are returned
+ *              flags               - Where the status flags are returned
  *
  * RETURN:      Status
  *

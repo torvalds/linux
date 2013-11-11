@@ -35,27 +35,11 @@
 #include "tmacro.h"
 #include "tkip.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
 /* The Sbox is reduced to 2 16-bit wide tables, each with 256 entries. */
 /* The 2nd table is the same as the 1st but with the upper and lower   */
 /* bytes swapped. To allow an endian tolerant implementation, the byte */
 /* halves have been expressed independently here.                      */
-const BYTE TKIP_Sbox_Lower[256] = {
+const u8 TKIP_Sbox_Lower[256] = {
     0xA5,0x84,0x99,0x8D,0x0D,0xBD,0xB1,0x54,
     0x50,0x03,0xA9,0x7D,0x19,0x62,0xE6,0x9A,
     0x45,0x9D,0x40,0x87,0x15,0xEB,0xC9,0x0B,
@@ -90,7 +74,7 @@ const BYTE TKIP_Sbox_Lower[256] = {
     0xC3,0xB0,0x77,0x11,0xCB,0xFC,0xD6,0x3A
 };
 
-const BYTE TKIP_Sbox_Upper[256] = {
+const u8 TKIP_Sbox_Upper[256] = {
     0xC6,0xF8,0xEE,0xF6,0xFF,0xD6,0xDE,0x91,
     0x60,0x02,0xCE,0x56,0xE7,0xB5,0x4D,0xEC,
     0x8F,0x1F,0x89,0xFA,0xEF,0xB2,0x8E,0xFB,
@@ -125,12 +109,7 @@ const BYTE TKIP_Sbox_Upper[256] = {
     0x82,0x29,0x5A,0x1E,0x7B,0xA8,0x6D,0x2C
 };
 
-
 //STKIPKeyManagement  sTKIPKeyTable[MAX_TKIP_KEY];
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
 
 /************************************************************/
 /* tkip_sbox()                                              */
@@ -152,7 +131,6 @@ static unsigned int tkip_sbox(unsigned int index)
     return (left ^ right);
 };
 
-
 static unsigned int rotr1(unsigned int a)
 {
     unsigned int b;
@@ -166,9 +144,8 @@ static unsigned int rotr1(unsigned int a)
     return b;
 }
 
-
 /*
- * Description: Caculate RC4Key fom TK, TA, and TSC
+ * Description: Calculate RC4Key fom TK, TA, and TSC
  *
  * Parameters:
  *  In:
@@ -182,34 +159,32 @@ static unsigned int rotr1(unsigned int a)
  *
  */
 void TKIPvMixKey(
-    PBYTE   pbyTKey,
-    PBYTE   pbyTA,
-    WORD    wTSC15_0,
-    DWORD   dwTSC47_16,
-    PBYTE   pbyRC4Key
+    u8 *   pbyTKey,
+    u8 *   pbyTA,
+    u16    wTSC15_0,
+    u32   dwTSC47_16,
+    u8 *   pbyRC4Key
     )
 {
-    unsigned int p1k[5];
-//    unsigned int ttak0, ttak1, ttak2, ttak3, ttak4;
-    unsigned int tsc0, tsc1, tsc2;
-    unsigned int ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
-    unsigned long int pnl,pnh;
+	u32 p1k[5];
+	u32 tsc0, tsc1, tsc2;
+	u32 ppk0, ppk1, ppk2, ppk3, ppk4, ppk5;
+	u32 pnl, pnh;
+	int i, j;
 
-    int i, j;
+	pnl = (u32)wTSC15_0;
+	pnh = (u32)(dwTSC47_16 & 0xffffffff);
 
-    pnl = wTSC15_0;
-    pnh = dwTSC47_16;
+	tsc0 = (u32)((pnh >> 16) % 65536); /* msb */
+	tsc1 = (u32)(pnh % 65536);
+	tsc2 = (u32)(pnl % 65536); /* lsb */
 
-    tsc0 = (unsigned int)((pnh >> 16) % 65536); /* msb */
-    tsc1 = (unsigned int)(pnh % 65536);
-    tsc2 = (unsigned int)(pnl % 65536); /* lsb */
-
-    /* Phase 1, step 1 */
-    p1k[0] = tsc1;
-    p1k[1] = tsc0;
-    p1k[2] = (unsigned int)(pbyTA[0] + (pbyTA[1]*256));
-    p1k[3] = (unsigned int)(pbyTA[2] + (pbyTA[3]*256));
-    p1k[4] = (unsigned int)(pbyTA[4] + (pbyTA[5]*256));
+	/* Phase 1, step 1 */
+	p1k[0] = tsc1;
+	p1k[1] = tsc0;
+	p1k[2] = (u32)(pbyTA[0] + (pbyTA[1]*256));
+	p1k[3] = (u32)(pbyTA[2] + (pbyTA[3]*256));
+	p1k[4] = (u32)(pbyTA[4] + (pbyTA[5]*256));
 
     /* Phase 1, step 2 */
     for (i=0; i<8; i++) {

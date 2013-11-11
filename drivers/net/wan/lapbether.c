@@ -20,6 +20,8 @@
  *	2000-11-14	Henner Eisen	dev_hold/put, NETDEV_GOING_DOWN support
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -33,7 +35,6 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -165,13 +166,11 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 		break;
 	case X25_IFACE_CONNECT:
 		if ((err = lapb_connect_request(dev)) != LAPB_OK)
-			printk(KERN_ERR "lapbeth: lapb_connect_request "
-			       "error: %d\n", err);
+			pr_err("lapb_connect_request error: %d\n", err);
 		goto drop;
 	case X25_IFACE_DISCONNECT:
 		if ((err = lapb_disconnect_request(dev)) != LAPB_OK)
-			printk(KERN_ERR "lapbeth: lapb_disconnect_request "
-			       "err: %d\n", err);
+			pr_err("lapb_disconnect_request err: %d\n", err);
 		/* Fall thru */
 	default:
 		goto drop;
@@ -180,7 +179,7 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	skb_pull(skb, 1);
 
 	if ((err = lapb_data_request(dev, skb)) != LAPB_OK) {
-		printk(KERN_ERR "lapbeth: lapb_data_request error - %d\n", err);
+		pr_err("lapb_data_request error - %d\n", err);
 		goto drop;
 	}
 out:
@@ -220,7 +219,7 @@ static void lapbeth_connected(struct net_device *dev, int reason)
 	struct sk_buff *skb = dev_alloc_skb(1);
 
 	if (!skb) {
-		printk(KERN_ERR "lapbeth: out of memory\n");
+		pr_err("out of memory\n");
 		return;
 	}
 
@@ -237,7 +236,7 @@ static void lapbeth_disconnected(struct net_device *dev, int reason)
 	struct sk_buff *skb = dev_alloc_skb(1);
 
 	if (!skb) {
-		printk(KERN_ERR "lapbeth: out of memory\n");
+		pr_err("out of memory\n");
 		return;
 	}
 
@@ -259,14 +258,13 @@ static int lapbeth_set_mac_address(struct net_device *dev, void *addr)
 }
 
 
-static struct lapb_register_struct lapbeth_callbacks = {
+static const struct lapb_register_struct lapbeth_callbacks = {
 	.connect_confirmation    = lapbeth_connected,
 	.connect_indication      = lapbeth_connected,
 	.disconnect_confirmation = lapbeth_disconnected,
 	.disconnect_indication   = lapbeth_disconnected,
 	.data_indication         = lapbeth_data_indication,
 	.data_transmit           = lapbeth_data_transmit,
-
 };
 
 /*
@@ -277,7 +275,7 @@ static int lapbeth_open(struct net_device *dev)
 	int err;
 
 	if ((err = lapb_register(dev, &lapbeth_callbacks)) != LAPB_OK) {
-		printk(KERN_ERR "lapbeth: lapb_register error - %d\n", err);
+		pr_err("lapb_register error: %d\n", err);
 		return -ENODEV;
 	}
 
@@ -292,7 +290,7 @@ static int lapbeth_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	if ((err = lapb_unregister(dev)) != LAPB_OK)
-		printk(KERN_ERR "lapbeth: lapb_unregister error - %d\n", err);
+		pr_err("lapb_unregister error: %d\n", err);
 
 	return 0;
 }

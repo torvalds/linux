@@ -81,17 +81,6 @@
 #define	MPC10X_MAPB_PCI_MEM_OFFSET	(MPC10X_MAPB_ISA_MEM_BASE -	\
 					 MPC10X_MAPB_PCI_MEM_START)
 
-/* Set hose members to values appropriate for the mem map used */
-#define	MPC10X_SETUP_HOSE(hose, map) {					\
-	(hose)->pci_mem_offset = MPC10X_MAP##map##_PCI_MEM_OFFSET;	\
-	(hose)->io_space.start = MPC10X_MAP##map##_PCI_IO_START;	\
-	(hose)->io_space.end = MPC10X_MAP##map##_PCI_IO_END;		\
-	(hose)->mem_space.start = MPC10X_MAP##map##_PCI_MEM_START;	\
-	(hose)->mem_space.end = MPC10X_MAP##map##_PCI_MEM_END;		\
-	(hose)->io_base_virt = (void *)MPC10X_MAP##map##_ISA_IO_BASE;	\
-}
-
-
 /* Miscellaneous Configuration register offsets */
 #define	MPC10X_CFG_PIR_REG		0x09
 #define	MPC10X_CFG_PIR_HOST_BRIDGE	0x00

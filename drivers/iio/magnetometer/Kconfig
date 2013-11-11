@@ -1,0 +1,58 @@
+#
+# Magnetometer sensors
+#
+menu "Magnetometer sensors"
+
+config AK8975
+	tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for Asahi Kasei AK8975 3-Axis
+	  Magnetometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ak8975.
+
+config HID_SENSOR_MAGNETOMETER_3D
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID Magenetometer 3D"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Magnetometer 3D.
+
+config IIO_ST_MAGN_3AXIS
+	tristate "STMicroelectronics magnetometers 3-Axis Driver"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_ST_SENSORS_CORE
+	select IIO_ST_MAGN_I2C_3AXIS if (I2C)
+	select IIO_ST_MAGN_SPI_3AXIS if (SPI_MASTER)
+	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
+	select IIO_ST_MAGN_BUFFER if (IIO_TRIGGERED_BUFFER)
+	help
+	  Say yes here to build support for STMicroelectronics magnetometers:
+	  LSM303DLHC, LSM303DLM, LIS3MDL.
+
+	  This driver can also be built as a module. If so, will be created
+	  these modules:
+	  - st_magn (core functions for the driver [it is mandatory]);
+	  - st_magn_i2c (necessary for the I2C devices [optional*]);
+	  - st_magn_spi (necessary for the SPI devices [optional*]);
+
+	  (*) one of these is necessary to do something.
+
+config IIO_ST_MAGN_I2C_3AXIS
+	tristate
+	depends on IIO_ST_MAGN_3AXIS
+	depends on IIO_ST_SENSORS_I2C
+
+config IIO_ST_MAGN_SPI_3AXIS
+	tristate
+	depends on IIO_ST_MAGN_3AXIS
+	depends on IIO_ST_SENSORS_SPI
+
+endmenu

@@ -1,22 +1,13 @@
 #ifndef _LINUX_TYPES_H
 #define _LINUX_TYPES_H
 
-#include <asm/types.h>
+#define __EXPORTED_HEADERS__
+#include <uapi/linux/types.h>
 
 #ifndef __ASSEMBLY__
-#ifdef	__KERNEL__
 
 #define DECLARE_BITMAP(name,bits) \
 	unsigned long name[BITS_TO_LONGS(bits)]
-#else
-#ifndef __EXPORTED_HEADERS__
-#warning "Attempt to use kernel headers from user space, see http://kernelnewbies.org/KernelHeaders"
-#endif /* __EXPORTED_HEADERS__ */
-#endif
-
-#include <linux/posix_types.h>
-
-#ifdef __KERNEL__
 
 typedef __u32 __kernel_dev_t;
 
@@ -24,7 +15,8 @@ typedef __kernel_fd_set		fd_set;
 typedef __kernel_dev_t		dev_t;
 typedef __kernel_ino_t		ino_t;
 typedef __kernel_mode_t		mode_t;
-typedef __kernel_nlink_t	nlink_t;
+typedef unsigned short		umode_t;
+typedef __u32			nlink_t;
 typedef __kernel_off_t		off_t;
 typedef __kernel_pid_t		pid_t;
 typedef __kernel_daddr_t	daddr_t;
@@ -156,50 +148,15 @@ typedef u64 dma_addr_t;
 typedef u32 dma_addr_t;
 #endif /* dma_addr_t */
 
-#endif /* __KERNEL__ */
-
-/*
- * Below are truly Linux-specific types that should never collide with
- * any application/library that wants linux/types.h.
- */
-
 #ifdef __CHECKER__
-#define __bitwise__ __attribute__((bitwise))
 #else
-#define __bitwise__
 #endif
 #ifdef __CHECK_ENDIAN__
-#define __bitwise __bitwise__
 #else
-#define __bitwise
 #endif
-
-typedef __u16 __bitwise __le16;
-typedef __u16 __bitwise __be16;
-typedef __u32 __bitwise __le32;
-typedef __u32 __bitwise __be32;
-typedef __u64 __bitwise __le64;
-typedef __u64 __bitwise __be64;
-
-typedef __u16 __bitwise __sum16;
-typedef __u32 __bitwise __wsum;
-
-/*
- * aligned_u64 should be used in defining kernel<->userspace ABIs to avoid
- * common 32/64-bit compat problems.
- * 64-bit values align to 4-byte boundaries on x86_32 (and possibly other
- * architectures) and to 8-byte boundaries on 64-bit architetures.  The new
- * aligned_64 type enforces 8-byte alignment so that structs containing
- * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
- * No conversions are necessary between 32-bit user-space and a 64-bit kernel.
- */
-#define __aligned_u64 __u64 __attribute__((aligned(8)))
-#define __aligned_be64 __be64 __attribute__((aligned(8)))
-#define __aligned_le64 __le64 __attribute__((aligned(8)))
-
-#ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;
 typedef unsigned __bitwise__ fmode_t;
+typedef unsigned __bitwise__ oom_flags_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
@@ -208,6 +165,12 @@ typedef u32 phys_addr_t;
 #endif
 
 typedef phys_addr_t resource_size_t;
+
+/*
+ * This type is the placeholder for a hardware interrupt number. It has to be
+ * big enough to enclose whatever representation is used by a given platform.
+ */
+typedef unsigned long irq_hw_number_t;
 
 typedef struct {
 	int counter;
@@ -238,6 +201,16 @@ struct ustat {
 	char			f_fpack[6];
 };
 
-#endif	/* __KERNEL__ */
+/**
+ * struct callback_head - callback structure for use with RCU and task_work
+ * @next: next update requests in a list
+ * @func: actual update function to call after the grace period.
+ */
+struct callback_head {
+	struct callback_head *next;
+	void (*func)(struct callback_head *head);
+};
+#define rcu_head callback_head
+
 #endif /*  __ASSEMBLY__ */
 #endif /* _LINUX_TYPES_H */

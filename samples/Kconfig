@@ -5,12 +5,6 @@ menuconfig SAMPLES
 
 if SAMPLES
 
-config SAMPLE_TRACEPOINTS
-	tristate "Build tracepoints examples -- loadable modules only"
-	depends on TRACEPOINTS && m
-	help
-	  This build tracepoints example modules.
-
 config SAMPLE_TRACE_EVENTS
 	tristate "Build trace_events examples -- loadable modules only"
 	depends on EVENT_TRACING && m
@@ -61,10 +55,12 @@ config SAMPLE_KDB
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
 
-config SAMPLE_HIDRAW
-	bool "Build simple hidraw example"
-	depends on HIDRAW && HEADERS_CHECK
+config SAMPLE_RPMSG_CLIENT
+	tristate "Build rpmsg client sample -- loadable modules only"
+	depends on RPMSG && m
 	help
-	  Build an example of how to use hidraw from userspace.
+	  Build an rpmsg client sample driver, which demonstrates how
+	  to communicate with an AMP-configured remote processor over
+	  the rpmsg bus.
 
 endif # SAMPLES

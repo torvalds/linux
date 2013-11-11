@@ -13,7 +13,6 @@
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
-#include <asm/system.h>
 #include <asm/spitfire.h>
 #include <asm/pstate.h>
 #include <asm/ldc.h>

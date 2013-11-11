@@ -24,8 +24,11 @@
 
 static int mfgpt_reset_timers;
 module_param_named(mfgptfix, mfgpt_reset_timers, int, 0644);
-MODULE_PARM_DESC(mfgptfix, "Reset the MFGPT timers during init; "
-		"required by some broken BIOSes (ie, TinyBIOS < 0.99).");
+MODULE_PARM_DESC(mfgptfix, "Try to reset the MFGPT timers during init; "
+		"required by some broken BIOSes (ie, TinyBIOS < 0.99) or kexec "
+		"(1 = reset the MFGPT using an undocumented bit, "
+		"2 = perform a soft reset by unconfiguring all timers); "
+		"use what works best for you.");
 
 struct cs5535_mfgpt_timer {
 	struct cs5535_mfgpt_chip *chip;
@@ -246,7 +249,7 @@ EXPORT_SYMBOL_GPL(cs5535_mfgpt_write);
  * Jordan tells me that he and Mitch once played w/ it, but it's unclear
  * what the results of that were (and they experienced some instability).
  */
-static void __init reset_all_timers(void)
+static void reset_all_timers(void)
 {
 	uint32_t val, dummy;
 
@@ -256,13 +259,35 @@ static void __init reset_all_timers(void)
 }
 
 /*
+ * This is another sledgehammer to reset all MFGPT timers.
+ * Instead of using the undocumented bit method it clears
+ * IRQ, NMI and RESET settings.
+ */
+static void soft_reset(void)
+{
+	int i;
+	struct cs5535_mfgpt_timer t;
+
+	for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
+		t.nr = i;
+
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP1, MFGPT_EVENT_RESET, 0);
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP2, MFGPT_EVENT_RESET, 0);
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP1, MFGPT_EVENT_NMI, 0);
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP2, MFGPT_EVENT_NMI, 0);
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP1, MFGPT_EVENT_IRQ, 0);
+		cs5535_mfgpt_toggle_event(&t, MFGPT_CMP2, MFGPT_EVENT_IRQ, 0);
+	}
+}
+
+/*
  * Check whether any MFGPTs are available for the kernel to use.  In most
  * cases, firmware that uses AMD's VSA code will claim all timers during
  * bootup; we certainly don't want to take them if they're already in use.
  * In other cases (such as with VSAless OpenFirmware), the system firmware
  * leaves timers available for us to use.
  */
-static int __init scan_timers(struct cs5535_mfgpt_chip *mfgpt)
+static int scan_timers(struct cs5535_mfgpt_chip *mfgpt)
 {
 	struct cs5535_mfgpt_timer timer = { .chip = mfgpt };
 	unsigned long flags;
@@ -271,15 +296,17 @@ static int __init scan_timers(struct cs5535_mfgpt_chip *mfgpt)
 	int i;
 
 	/* bios workaround */
-	if (mfgpt_reset_timers)
+	if (mfgpt_reset_timers == 1)
 		reset_all_timers();
+	else if (mfgpt_reset_timers == 2)
+		soft_reset();
 
 	/* just to be safe, protect this section w/ lock */
 	spin_lock_irqsave(&mfgpt->lock, flags);
 	for (i = 0; i < MFGPT_MAX_TIMERS; i++) {
 		timer.nr = i;
 		val = cs5535_mfgpt_read(&timer, MFGPT_REG_SETUP);
-		if (!(val & MFGPT_SETUP_SETUP)) {
+		if (!(val & MFGPT_SETUP_SETUP) || mfgpt_reset_timers == 2) {
 			__set_bit(i, mfgpt->avail);
 			timers++;
 		}
@@ -289,10 +316,16 @@ static int __init scan_timers(struct cs5535_mfgpt_chip *mfgpt)
 	return timers;
 }
 
-static int __devinit cs5535_mfgpt_probe(struct platform_device *pdev)
+static int cs5535_mfgpt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err = -EIO, t;
+
+	if (mfgpt_reset_timers < 0 || mfgpt_reset_timers > 2) {
+		dev_err(&pdev->dev, "Bad mfgpt_reset_timers value: %i\n",
+			mfgpt_reset_timers);
+		goto done;
+	}
 
 	/* There are two ways to get the MFGPT base address; one is by
 	 * fetching it from MSR_LBAR_MFGPT, the other is by reading the

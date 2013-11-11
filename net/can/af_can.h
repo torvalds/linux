@@ -35,8 +35,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Send feedback to <socketcan-users@lists.berlios.de>
- *
  */
 
 #ifndef AF_CAN_H
@@ -105,6 +103,9 @@ struct s_pstats {
 	unsigned long rcv_entries;
 	unsigned long rcv_entries_max;
 };
+
+/* receive filters subscribed for 'all' CAN devices */
+extern struct dev_rcv_lists can_rx_alldev_list;
 
 /* function prototypes for the CAN networklayer procfs (proc.c) */
 extern void can_init_proc(void);

@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
@@ -31,8 +32,6 @@
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
-
-unsigned long pci_probe_only = 1;
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
@@ -54,13 +53,10 @@ static int __init pcibios_init(void)
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
-	if (pci_probe_only)
-		ppc_pci_flags |= PPC_PCI_PROBE_ONLY;
-
 	/* On ppc64, we always enable PCI domains and we keep domain 0
 	 * backward compatible in /proc for video cards
 	 */
-	ppc_pci_flags |= PPC_PCI_ENABLE_PROC_DOMAINS | PPC_PCI_COMPAT_DOMAIN_0;
+	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
@@ -77,8 +73,6 @@ static int __init pcibios_init(void)
 }
 
 subsys_initcall(pcibios_init);
-
-#ifdef CONFIG_HOTPLUG
 
 int pcibios_unmap_io_space(struct pci_bus *bus)
 {
@@ -128,32 +122,13 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_unmap_io_space);
 
-#endif /* CONFIG_HOTPLUG */
-
-int __devinit pcibios_map_io_space(struct pci_bus *bus)
+static int pcibios_map_phb_io_space(struct pci_controller *hose)
 {
 	struct vm_struct *area;
 	unsigned long phys_page;
 	unsigned long size_page;
 	unsigned long io_virt_offset;
-	struct pci_controller *hose;
 
-	WARN_ON(bus == NULL);
-
-	/* If this not a PHB, nothing to do, page tables still exist and
-	 * thus HPTEs will be faulted in when needed
-	 */
-	if (bus->self) {
-		pr_debug("IO mapping for PCI-PCI bridge %s\n",
-			 pci_name(bus->self));
-		pr_debug("  virt=0x%016llx...0x%016llx\n",
-			 bus->resource[0]->start + _IO_BASE,
-			 bus->resource[0]->end + _IO_BASE);
-		return 0;
-	}
-
-	/* Get the host bridge */
-	hose = pci_bus_to_host(bus);
 	phys_page = _ALIGN_DOWN(hose->io_base_phys, PAGE_SIZE);
 	size_page = _ALIGN_UP(hose->pci_io_size, PAGE_SIZE);
 
@@ -189,7 +164,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 		return -ENOMEM;
 
 	/* Fixup hose IO resource */
-	io_virt_offset = (unsigned long)hose->io_base_virt - _IO_BASE;
+	io_virt_offset = pcibios_io_space_offset(hose);
 	hose->io_resource.start += io_virt_offset;
 	hose->io_resource.end += io_virt_offset;
 
@@ -197,11 +172,30 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 
 	return 0;
 }
+
+int pcibios_map_io_space(struct pci_bus *bus)
+{
+	WARN_ON(bus == NULL);
+
+	/* If this not a PHB, nothing to do, page tables still exist and
+	 * thus HPTEs will be faulted in when needed
+	 */
+	if (bus->self) {
+		pr_debug("IO mapping for PCI-PCI bridge %s\n",
+			 pci_name(bus->self));
+		pr_debug("  virt=0x%016llx...0x%016llx\n",
+			 bus->resource[0]->start + _IO_BASE,
+			 bus->resource[0]->end + _IO_BASE);
+		return 0;
+	}
+
+	return pcibios_map_phb_io_space(pci_bus_to_host(bus));
+}
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
-void __devinit pcibios_setup_phb_io_space(struct pci_controller *hose)
+void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
-	pcibios_map_io_space(hose->bus);
+	pcibios_map_phb_io_space(hose);
 }
 
 #define IOBASE_BRIDGE_NUMBER	0
@@ -238,7 +232,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 
 	for (ln = pci_root_buses.next; ln != &pci_root_buses; ln = ln->next) {
 		bus = pci_bus_b(ln);
-		if (in_bus >= bus->number && in_bus <= bus->subordinate)
+		if (in_bus >= bus->number && in_bus <= bus->busn_res.end)
 			break;
 		bus = NULL;
 	}
@@ -252,7 +246,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	case IOBASE_BRIDGE_NUMBER:
 		return (long)hose->first_busno;
 	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
+		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
 		return (long)hose->io_base_phys;
 	case IOBASE_ISA_IO:
@@ -272,3 +266,13 @@ int pcibus_to_node(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
+
+static void quirk_radeon_32bit_msi(struct pci_dev *dev)
+{
+	struct pci_dn *pdn = pci_get_pdn(dev);
+
+	if (pdn)
+		pdn->force_32bit_msi = 1;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);

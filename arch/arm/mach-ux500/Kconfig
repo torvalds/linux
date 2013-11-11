@@ -1,39 +1,89 @@
+config ARCH_U8500
+	bool "ST-Ericsson U8500 Series" if ARCH_MULTI_V7
+	depends on MMU
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	help
+	  Support for ST-Ericsson's Ux500 architecture
+
 if ARCH_U8500
 
 config UX500_SOC_COMMON
 	bool
 	default y
+	select ABX500_CORE
+	select AB8500_CORE
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
-	select HAS_MTU
-	select ARM_ERRATA_753970
-
-menu "Ux500 SoC"
-
-config UX500_SOC_DB5500
-	bool "DB5500"
-	select MFD_DB5500_PRCMU
+	select CACHE_L2X0
+	select CLKSRC_NOMADIK_MTU
+	select COMMON_CLK
+	select PINCTRL
+	select PINCTRL_NOMADIK
+	select PINCTRL_ABX500
+	select PL310_ERRATA_753970 if CACHE_PL310
 
 config UX500_SOC_DB8500
-	bool "DB8500"
+	bool
+	select CPU_FREQ_TABLE if CPU_FREQ
 	select MFD_DB8500_PRCMU
+	select PINCTRL_DB8500
+	select PINCTRL_DB8540
+	select PINCTRL_AB8500
+	select PINCTRL_AB8505
+	select PINCTRL_AB9540
+	select PINCTRL_AB8540
+	select REGULATOR
 	select REGULATOR_DB8500_PRCMU
 
-endmenu
+menu "Ux500 target platform (boards)"
 
-menu "Ux500 target platform"
-
-config MACH_U8500
-	bool "U8500 Development platform"
-	depends on UX500_SOC_DB8500
-	select TPS6105X
+config MACH_MOP500
+	bool "U8500 Development platform, MOP500 versions"
+	select I2C
+	select I2C_NOMADIK
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	select SOC_BUS
+	select UX500_SOC_DB8500
 	help
-	  Include support for the mop500 development platform.
+	  Include support for the MOP500 development platform.
 
-config MACH_U5500
-	bool "U5500 Development platform"
-	depends on UX500_SOC_DB5500
+config MACH_HREFV60
+	bool "U8500 Development platform, HREFv60 version"
+	select MACH_MOP500
 	help
-	  Include support for the U5500 development platform.
+	  Include support for the HREFv60 new development platform.
+	  Includes HREFv70, v71 etc.
+
+config MACH_SNOWBALL
+	bool "U8500 Snowball platform"
+	select MACH_MOP500
+	help
+	  Include support for the snowball development platform.
+
+config UX500_AUTO_PLATFORM
+	def_bool y
+	select MACH_MOP500
+	help
+	  At least one platform needs to be selected in order to build
+	  a working kernel. If everything else is disabled, this
+	  automatically enables MACH_MOP500.
+
+config MACH_UX500_DT
+	bool "Generic U8500 support using device tree"
+	depends on MACH_MOP500
+	select USE_OF
+
 endmenu
 
 config UX500_DEBUG_UART
@@ -42,19 +92,5 @@ config UX500_DEBUG_UART
 	help
 	  Choose the UART on which kernel low-level debug messages should be
 	  output.
-
-config U5500_MODEM_IRQ
-	bool "Modem IRQ support"
-	depends on UX500_SOC_DB5500
-	default y
-	help
-	  Add support for handling IRQ:s from modem side
-
-config U5500_MBOX
-	bool "Mailbox support"
-	depends on U5500_MODEM_IRQ
-	default y
-	help
-	  Add support for U5500 mailbox communication with modem side
 
 endif

@@ -166,7 +166,7 @@ void sigd_enq2(struct atm_vcc *vcc, enum atmsvc_msg_type type,
 {
 	struct sk_buff *skb;
 	struct atmsvc_msg *msg;
-	static unsigned session = 0;
+	static unsigned int session = 0;
 
 	pr_debug("%d (0x%p)\n", (int)type, vcc);
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg), GFP_KERNEL)))
@@ -217,7 +217,6 @@ static void purge_vcc(struct atm_vcc *vcc)
 
 static void sigd_close(struct atm_vcc *vcc)
 {
-	struct hlist_node *node;
 	struct sock *s;
 	int i;
 
@@ -231,7 +230,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	for (i = 0; i < VCC_HTABLE_SIZE; ++i) {
 		struct hlist_head *head = &vcc_hash[i];
 
-		sk_for_each(s, node, head) {
+		sk_for_each(s, head) {
 			vcc = atm_sk(s);
 
 			purge_vcc(vcc);

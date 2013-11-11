@@ -22,7 +22,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -30,6 +29,8 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
@@ -111,14 +112,15 @@
  * This array contains the power-on default values of the registers, with the
  * exception of the "CHIPID" register (01h).  The lower four bits of that
  * register contain the hardware revision, so it is treated as volatile.
- *
- * Also note that on the CS4270, the first readable register is 1, but ASoC
- * assumes the first register is 0.  Therfore, the array must have an entry for
- * register 0, but we use cs4270_reg_is_readable() to tell ASoC that it can't
- * be read.
  */
-static const u8 cs4270_default_reg_cache[CS4270_LASTREG + 1] = {
-	0x00, 0x00, 0x00, 0x30, 0x00, 0x60, 0x20, 0x00, 0x00
+static const struct reg_default cs4270_reg_defaults[] = {
+	{ 2, 0x00 },
+	{ 3, 0x30 },
+	{ 4, 0x00 },
+	{ 5, 0x60 },
+	{ 6, 0x20 },
+	{ 7, 0x00 },
+	{ 8, 0x00 },
 };
 
 static const char *supply_names[] = {
@@ -127,8 +129,7 @@ static const char *supply_names[] = {
 
 /* Private data for the CS4270 */
 struct cs4270_private {
-	enum snd_soc_control_type control_type;
-	void *control_data;
+	struct regmap *regmap;
 	unsigned int mclk; /* Input frequency of the MCLK pin */
 	unsigned int mode; /* The mode (I2S or left-justified) */
 	unsigned int slave_mode;
@@ -193,12 +194,12 @@ static struct cs4270_mode_ratios cs4270_mode_ratios[] = {
 /* The number of MCLK/LRCK ratios supported by the CS4270 */
 #define NUM_MCLK_RATIOS		ARRAY_SIZE(cs4270_mode_ratios)
 
-static int cs4270_reg_is_readable(struct snd_soc_codec *codec, unsigned int reg)
+static bool cs4270_reg_is_readable(struct device *dev, unsigned int reg)
 {
 	return (reg >= CS4270_FIRSTREG) && (reg <= CS4270_LASTREG);
 }
 
-static int cs4270_reg_is_volatile(struct snd_soc_codec *codec, unsigned int reg)
+static bool cs4270_reg_is_volatile(struct device *dev, unsigned int reg)
 {
 	/* Unreadable registers are considered volatile */
 	if ((reg < CS4270_FIRSTREG) || (reg > CS4270_LASTREG))
@@ -262,7 +263,6 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -272,7 +272,7 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(codec->dev, "invalid dai format\n");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
 	/* set master/slave audio interface */
@@ -285,10 +285,11 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		/* all other modes are unsupported by the hardware */
-		ret = -EINVAL;
+		dev_err(codec->dev, "Unknown master/slave configuration\n");
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -309,8 +310,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 	unsigned int i;
@@ -448,7 +448,7 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 		snd_soc_get_volsw, cs4270_soc_put_mute),
 };
 
-static struct snd_soc_dai_ops cs4270_dai_ops = {
+static const struct snd_soc_dai_ops cs4270_dai_ops = {
 	.hw_params	= cs4270_hw_params,
 	.set_sysclk	= cs4270_set_dai_sysclk,
 	.set_fmt	= cs4270_set_dai_fmt,
@@ -459,7 +459,7 @@ static struct snd_soc_dai_driver cs4270_dai = {
 	.name = "cs4270-hifi",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.rate_min = 4000,
@@ -468,7 +468,7 @@ static struct snd_soc_dai_driver cs4270_dai = {
 	},
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 		.rate_min = 4000,
@@ -488,14 +488,12 @@ static struct snd_soc_dai_driver cs4270_dai = {
 static int cs4270_probe(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int i, ret;
-
-	codec->control_data = cs4270->control_data;
+	int ret;
 
 	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
 	 * then do the I2C transactions itself.
 	 */
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, cs4270->control_type);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O (ret=%i)\n", ret);
 		return ret;
@@ -524,33 +522,8 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* Add the non-DAPM controls */
-	ret = snd_soc_add_controls(codec, cs4270_snd_controls,
-				ARRAY_SIZE(cs4270_snd_controls));
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to add controls\n");
-		return ret;
-	}
-
-	/* get the power supply regulators */
-	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
-		cs4270->supplies[i].supply = supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(cs4270->supplies),
-				 cs4270->supplies);
-	if (ret < 0)
-		return ret;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
 				    cs4270->supplies);
-	if (ret < 0)
-		goto error_free_regulators;
-
-	return 0;
-
-error_free_regulators:
-	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies),
-			    cs4270->supplies);
 
 	return ret;
 }
@@ -566,7 +539,6 @@ static int cs4270_remove(struct snd_soc_codec *codec)
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
-	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
 
 	return 0;
 };
@@ -582,7 +554,7 @@ static int cs4270_remove(struct snd_soc_codec *codec)
  * and all registers are written back to the hardware when resuming.
  */
 
-static int cs4270_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
+static int cs4270_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int reg, ret;
@@ -604,25 +576,19 @@ static int cs4270_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
 static int cs4270_soc_resume(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c_client = codec->control_data;
-	int reg;
+	int reg, ret;
 
-	regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
-			      cs4270->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
+				    cs4270->supplies);
+	if (ret != 0)
+		return ret;
 
 	/* In case the device was put to hard reset during sleep, we need to
 	 * wait 500ns here before any I2C communication. */
 	ndelay(500);
 
 	/* first restore the entire register cache ... */
-	for (reg = CS4270_FIRSTREG; reg <= CS4270_LASTREG; reg++) {
-		u8 val = snd_soc_read(codec, reg);
-
-		if (i2c_smbus_write_byte_data(i2c_client, reg, val)) {
-			dev_err(codec->dev, "i2c write failed\n");
-			return -EIO;
-		}
-	}
+	regcache_sync(cs4270->regmap);
 
 	/* ... then disable the power-down bits */
 	reg = snd_soc_read(codec, CS4270_PWRCTL);
@@ -636,21 +602,37 @@ static int cs4270_soc_resume(struct snd_soc_codec *codec)
 #endif /* CONFIG_PM */
 
 /*
- * ASoC codec device structure
- *
- * Assign this variable to the codec_dev field of the machine driver's
- * snd_soc_device structure.
+ * ASoC codec driver structure
  */
 static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 	.probe =		cs4270_probe,
 	.remove =		cs4270_remove,
 	.suspend =		cs4270_soc_suspend,
 	.resume =		cs4270_soc_resume,
-	.volatile_register =	cs4270_reg_is_volatile,
-	.readable_register =	cs4270_reg_is_readable,
-	.reg_cache_size =	CS4270_LASTREG + 1,
-	.reg_word_size =	sizeof(u8),
-	.reg_cache_default =	cs4270_default_reg_cache,
+
+	.controls =		cs4270_snd_controls,
+	.num_controls =		ARRAY_SIZE(cs4270_snd_controls),
+};
+
+/*
+ * cs4270_of_match - the device tree bindings
+ */
+static const struct of_device_id cs4270_of_match[] = {
+	{ .compatible = "cirrus,cs4270", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs4270_of_match);
+
+static const struct regmap_config cs4270_regmap = {
+	.reg_bits =		8,
+	.val_bits =		8,
+	.max_register =		CS4270_LASTREG,
+	.reg_defaults =		cs4270_reg_defaults,
+	.num_reg_defaults =	ARRAY_SIZE(cs4270_reg_defaults),
+	.cache_type =		REGCACHE_RBTREE,
+
+	.readable_reg =		cs4270_reg_is_readable,
+	.volatile_reg =		cs4270_reg_is_volatile,
 };
 
 /**
@@ -664,19 +646,56 @@ static const struct snd_soc_codec_driver soc_codec_device_cs4270 = {
 static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	const struct i2c_device_id *id)
 {
+	struct device_node *np = i2c_client->dev.of_node;
 	struct cs4270_private *cs4270;
-	int ret;
+	unsigned int val;
+	int ret, i;
+
+	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
+			      GFP_KERNEL);
+	if (!cs4270) {
+		dev_err(&i2c_client->dev, "could not allocate codec\n");
+		return -ENOMEM;
+	}
+
+	/* get the power supply regulators */
+	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
+		cs4270->supplies[i].supply = supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c_client->dev,
+				      ARRAY_SIZE(cs4270->supplies),
+				      cs4270->supplies);
+	if (ret < 0)
+		return ret;
+
+	/* See if we have a way to bring the codec out of reset */
+	if (np) {
+		enum of_gpio_flags flags;
+		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+
+		if (gpio_is_valid(gpio)) {
+			ret = devm_gpio_request_one(&i2c_client->dev, gpio,
+				     flags & OF_GPIO_ACTIVE_LOW ?
+					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
+				     "cs4270 reset");
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	cs4270->regmap = devm_regmap_init_i2c(i2c_client, &cs4270_regmap);
+	if (IS_ERR(cs4270->regmap))
+		return PTR_ERR(cs4270->regmap);
 
 	/* Verify that we have a CS4270 */
-
-	ret = i2c_smbus_read_byte_data(i2c_client, CS4270_CHIPID);
+	ret = regmap_read(cs4270->regmap, CS4270_CHIPID, &val);
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "failed to read i2c at addr %X\n",
 		       i2c_client->addr);
 		return ret;
 	}
 	/* The top four bits of the chip ID should be 1100. */
-	if ((ret & 0xF0) != 0xC0) {
+	if ((val & 0xF0) != 0xC0) {
 		dev_err(&i2c_client->dev, "device at addr %X is not a CS4270\n",
 		       i2c_client->addr);
 		return -ENODEV;
@@ -684,22 +703,12 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 
 	dev_info(&i2c_client->dev, "found device at i2c address %X\n",
 		i2c_client->addr);
-	dev_info(&i2c_client->dev, "hardware revision %X\n", ret & 0xF);
-
-	cs4270 = kzalloc(sizeof(struct cs4270_private), GFP_KERNEL);
-	if (!cs4270) {
-		dev_err(&i2c_client->dev, "could not allocate codec\n");
-		return -ENOMEM;
-	}
+	dev_info(&i2c_client->dev, "hardware revision %X\n", val & 0xF);
 
 	i2c_set_clientdata(i2c_client, cs4270);
-	cs4270->control_data = i2c_client;
-	cs4270->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs4270, &cs4270_dai, 1);
-	if (ret < 0)
-		kfree(cs4270);
 	return ret;
 }
 
@@ -712,7 +721,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 {
 	snd_soc_unregister_codec(&i2c_client->dev);
-	kfree(i2c_get_clientdata(i2c_client));
 	return 0;
 }
 
@@ -733,25 +741,16 @@ MODULE_DEVICE_TABLE(i2c, cs4270_id);
  */
 static struct i2c_driver cs4270_i2c_driver = {
 	.driver = {
-		.name = "cs4270-codec",
+		.name = "cs4270",
 		.owner = THIS_MODULE,
+		.of_match_table = cs4270_of_match,
 	},
 	.id_table = cs4270_id,
 	.probe = cs4270_i2c_probe,
 	.remove = cs4270_i2c_remove,
 };
 
-static int __init cs4270_init(void)
-{
-	return i2c_add_driver(&cs4270_i2c_driver);
-}
-module_init(cs4270_init);
-
-static void __exit cs4270_exit(void)
-{
-	i2c_del_driver(&cs4270_i2c_driver);
-}
-module_exit(cs4270_exit);
+module_i2c_driver(cs4270_i2c_driver);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Cirrus Logic CS4270 ALSA SoC Codec Driver");

@@ -269,15 +269,17 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	inode->i_generation = le32_to_cpu(fe->i_generation);
 	inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 	inode->i_mode = le16_to_cpu(fe->i_mode);
-	inode->i_uid = le32_to_cpu(fe->i_uid);
-	inode->i_gid = le32_to_cpu(fe->i_gid);
+	i_uid_write(inode, le32_to_cpu(fe->i_uid));
+	i_gid_write(inode, le32_to_cpu(fe->i_gid));
 
 	/* Fast symlinks will have i_size but no allocated clusters. */
-	if (S_ISLNK(inode->i_mode) && !fe->i_clusters)
+	if (S_ISLNK(inode->i_mode) && !fe->i_clusters) {
 		inode->i_blocks = 0;
-	else
+		inode->i_mapping->a_ops = &ocfs2_fast_symlink_aops;
+	} else {
 		inode->i_blocks = ocfs2_inode_sector_count(inode);
-	inode->i_mapping->a_ops = &ocfs2_aops;
+		inode->i_mapping->a_ops = &ocfs2_aops;
+	}
 	inode->i_atime.tv_sec = le64_to_cpu(fe->i_atime);
 	inode->i_atime.tv_nsec = le32_to_cpu(fe->i_atime_nsec);
 	inode->i_mtime.tv_sec = le64_to_cpu(fe->i_mtime);
@@ -291,7 +293,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 		     (unsigned long long)le64_to_cpu(fe->i_blkno));
 
-	inode->i_nlink = ocfs2_read_links_count(fe);
+	set_nlink(inode, ocfs2_read_links_count(fe));
 
 	trace_ocfs2_populate_inode(OCFS2_I(inode)->ip_blkno,
 				   le32_to_cpu(fe->i_flags));
@@ -331,10 +333,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 		    OCFS2_I(inode)->ip_dir_lock_gen = 1;
 		    break;
 	    case S_IFLNK:
-		    if (ocfs2_inode_is_fast_symlink(inode))
-			inode->i_op = &ocfs2_fast_symlink_inode_operations;
-		    else
-			inode->i_op = &ocfs2_symlink_inode_operations;
+		    inode->i_op = &ocfs2_symlink_inode_operations;
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    default:
@@ -951,7 +950,7 @@ static void ocfs2_cleanup_delete_inode(struct inode *inode,
 	trace_ocfs2_cleanup_delete_inode(
 		(unsigned long long)OCFS2_I(inode)->ip_blkno, sync_data);
 	if (sync_data)
-		write_inode_now(inode, 1);
+		filemap_write_and_wait(inode->i_mapping);
 	truncate_inode_pages(&inode->i_data, 0);
 }
 
@@ -1069,7 +1068,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	int status;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	end_writeback(inode);
+	clear_inode(inode);
 	trace_ocfs2_clear_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink);
 
@@ -1260,8 +1259,8 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 
 	fe->i_size = cpu_to_le64(i_size_read(inode));
 	ocfs2_set_links_count(fe, inode->i_nlink);
-	fe->i_uid = cpu_to_le32(inode->i_uid);
-	fe->i_gid = cpu_to_le32(inode->i_gid);
+	fe->i_uid = cpu_to_le32(i_uid_read(inode));
+	fe->i_gid = cpu_to_le32(i_gid_read(inode));
 	fe->i_mode = cpu_to_le16(inode->i_mode);
 	fe->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
 	fe->i_atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
@@ -1290,9 +1289,9 @@ void ocfs2_refresh_inode(struct inode *inode,
 	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 	ocfs2_set_inode_flags(inode);
 	i_size_write(inode, le64_to_cpu(fe->i_size));
-	inode->i_nlink = ocfs2_read_links_count(fe);
-	inode->i_uid = le32_to_cpu(fe->i_uid);
-	inode->i_gid = le32_to_cpu(fe->i_gid);
+	set_nlink(inode, ocfs2_read_links_count(fe));
+	i_uid_write(inode, le32_to_cpu(fe->i_uid));
+	i_gid_write(inode, le32_to_cpu(fe->i_gid));
 	inode->i_mode = le16_to_cpu(fe->i_mode);
 	if (S_ISLNK(inode->i_mode) && le32_to_cpu(fe->i_clusters) == 0)
 		inode->i_blocks = 0;

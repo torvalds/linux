@@ -35,7 +35,6 @@
 #include "qlogicpti.h"
 
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
@@ -462,7 +461,7 @@ static int qlogicpti_reset_hardware(struct Scsi_Host *host)
 
 #define PTI_RESET_LIMIT 400
 
-static int __devinit qlogicpti_load_firmware(struct qlogicpti *qpti)
+static int qlogicpti_load_firmware(struct qlogicpti *qpti)
 {
 	const struct firmware *fw;
 	const char fwname[] = "qlogic/isp1000.bin";
@@ -671,7 +670,7 @@ static int qlogicpti_verify_tmon(struct qlogicpti *qpti)
 
 static irqreturn_t qpti_intr(int irq, void *dev_id);
 
-static void __devinit qpti_chain_add(struct qlogicpti *qpti)
+static void qpti_chain_add(struct qlogicpti *qpti)
 {
 	spin_lock_irq(&qptichain_lock);
 	if (qptichain != NULL) {
@@ -687,7 +686,7 @@ static void __devinit qpti_chain_add(struct qlogicpti *qpti)
 	spin_unlock_irq(&qptichain_lock);
 }
 
-static void __devexit qpti_chain_del(struct qlogicpti *qpti)
+static void qpti_chain_del(struct qlogicpti *qpti)
 {
 	spin_lock_irq(&qptichain_lock);
 	if (qptichain == qpti) {
@@ -702,7 +701,7 @@ static void __devexit qpti_chain_del(struct qlogicpti *qpti)
 	spin_unlock_irq(&qptichain_lock);
 }
 
-static int __devinit qpti_map_regs(struct qlogicpti *qpti)
+static int qpti_map_regs(struct qlogicpti *qpti)
 {
 	struct platform_device *op = qpti->op;
 
@@ -725,7 +724,7 @@ static int __devinit qpti_map_regs(struct qlogicpti *qpti)
 	return 0;
 }
 
-static int __devinit qpti_register_irq(struct qlogicpti *qpti)
+static int qpti_register_irq(struct qlogicpti *qpti)
 {
 	struct platform_device *op = qpti->op;
 
@@ -750,7 +749,7 @@ fail:
 	return -1;
 }
 
-static void __devinit qpti_get_scsi_id(struct qlogicpti *qpti)
+static void qpti_get_scsi_id(struct qlogicpti *qpti)
 {
 	struct platform_device *op = qpti->op;
 	struct device_node *dp;
@@ -804,7 +803,7 @@ static void qpti_get_clock(struct qlogicpti *qpti)
 /* The request and response queues must each be aligned
  * on a page boundary.
  */
-static int __devinit qpti_map_queues(struct qlogicpti *qpti)
+static int qpti_map_queues(struct qlogicpti *qpti)
 {
 	struct platform_device *op = qpti->op;
 
@@ -880,7 +879,7 @@ static inline void cmd_frob(struct Command_Entry *cmd, struct scsi_cmnd *Cmnd,
 		cmd->control_flags |= CFLAG_WRITE;
 	else
 		cmd->control_flags |= CFLAG_READ;
-	cmd->time_out = 30;
+	cmd->time_out = Cmnd->request->timeout/HZ;
 	memcpy(cmd->cdb, Cmnd->cmnd, Cmnd->cmd_len);
 }
 
@@ -1293,20 +1292,13 @@ static struct scsi_host_template qpti_template = {
 };
 
 static const struct of_device_id qpti_match[];
-static int __devinit qpti_sbus_probe(struct platform_device *op)
+static int qpti_sbus_probe(struct platform_device *op)
 {
-	const struct of_device_id *match;
-	struct scsi_host_template *tpnt;
 	struct device_node *dp = op->dev.of_node;
 	struct Scsi_Host *host;
 	struct qlogicpti *qpti;
 	static int nqptis;
 	const char *fcode;
-
-	match = of_match_device(qpti_match, &op->dev);
-	if (!match)
-		return -EINVAL;
-	tpnt = match->data;
 
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
@@ -1314,7 +1306,7 @@ static int __devinit qpti_sbus_probe(struct platform_device *op)
 	if (op->archdata.irqs[0] == 0)
 		return -ENODEV;
 
-	host = scsi_host_alloc(tpnt, sizeof(struct qlogicpti));
+	host = scsi_host_alloc(&qpti_template, sizeof(struct qlogicpti));
 	if (!host)
 		return -ENOMEM;
 
@@ -1410,7 +1402,7 @@ fail_unlink:
 	return -ENODEV;
 }
 
-static int __devexit qpti_sbus_remove(struct platform_device *op)
+static int qpti_sbus_remove(struct platform_device *op)
 {
 	struct qlogicpti *qpti = dev_get_drvdata(&op->dev);
 
@@ -1446,19 +1438,15 @@ static int __devexit qpti_sbus_remove(struct platform_device *op)
 static const struct of_device_id qpti_match[] = {
 	{
 		.name = "ptisp",
-		.data = &qpti_template,
 	},
 	{
 		.name = "PTI,ptisp",
-		.data = &qpti_template,
 	},
 	{
 		.name = "QLGC,isp",
-		.data = &qpti_template,
 	},
 	{
 		.name = "SUNW,isp",
-		.data = &qpti_template,
 	},
 	{},
 };
@@ -1471,7 +1459,7 @@ static struct platform_driver qpti_sbus_driver = {
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,
-	.remove		= __devexit_p(qpti_sbus_remove),
+	.remove		= qpti_sbus_remove,
 };
 
 static int __init qpti_init(void)

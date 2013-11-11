@@ -78,10 +78,15 @@ unsigned long lx_dsp_reg_read(struct lx6464es *chip, int port)
 	return ioread32(address);
 }
 
-void lx_dsp_reg_readbuf(struct lx6464es *chip, int port, u32 *data, u32 len)
+static void lx_dsp_reg_readbuf(struct lx6464es *chip, int port, u32 *data,
+			       u32 len)
 {
-	void __iomem *address = lx_dsp_register(chip, port);
-	memcpy_fromio(data, address, len*sizeof(u32));
+	u32 __iomem *address = lx_dsp_register(chip, port);
+	int i;
+
+	/* we cannot use memcpy_fromio */
+	for (i = 0; i != len; ++i)
+		data[i] = ioread32(address + i);
 }
 
 
@@ -91,11 +96,15 @@ void lx_dsp_reg_write(struct lx6464es *chip, int port, unsigned data)
 	iowrite32(data, address);
 }
 
-void lx_dsp_reg_writebuf(struct lx6464es *chip, int port, const u32 *data,
-			 u32 len)
+static void lx_dsp_reg_writebuf(struct lx6464es *chip, int port,
+				const u32 *data, u32 len)
 {
-	void __iomem *address = lx_dsp_register(chip, port);
-	memcpy_toio(address, data, len*sizeof(u32));
+	u32 __iomem *address = lx_dsp_register(chip, port);
+	int i;
+
+	/* we cannot use memcpy_to */
+	for (i = 0; i != len; ++i)
+		iowrite32(data[i], address + i);
 }
 
 
@@ -376,7 +385,7 @@ polling_successful:
 
 
 /* low-level dsp access */
-int __devinit lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version)
+int lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version)
 {
 	u16 ret;
 	unsigned long flags;
@@ -424,7 +433,7 @@ int lx_dsp_get_clock_frequency(struct lx6464es *chip, u32 *rfreq)
 	return ret;
 }
 
-int lx_dsp_get_mac(struct lx6464es *chip, u8 *mac_address)
+int lx_dsp_get_mac(struct lx6464es *chip)
 {
 	u32 macmsb, maclsb;
 
@@ -432,12 +441,12 @@ int lx_dsp_get_mac(struct lx6464es *chip, u8 *mac_address)
 	maclsb = lx_dsp_reg_read(chip, eReg_ADMACESLSB) & 0x00FFFFFF;
 
 	/* todo: endianess handling */
-	mac_address[5] = ((u8 *)(&maclsb))[0];
-	mac_address[4] = ((u8 *)(&maclsb))[1];
-	mac_address[3] = ((u8 *)(&maclsb))[2];
-	mac_address[2] = ((u8 *)(&macmsb))[0];
-	mac_address[1] = ((u8 *)(&macmsb))[1];
-	mac_address[0] = ((u8 *)(&macmsb))[2];
+	chip->mac_address[5] = ((u8 *)(&maclsb))[0];
+	chip->mac_address[4] = ((u8 *)(&maclsb))[1];
+	chip->mac_address[3] = ((u8 *)(&maclsb))[2];
+	chip->mac_address[2] = ((u8 *)(&macmsb))[0];
+	chip->mac_address[1] = ((u8 *)(&macmsb))[1];
+	chip->mac_address[0] = ((u8 *)(&macmsb))[2];
 
 	return 0;
 }

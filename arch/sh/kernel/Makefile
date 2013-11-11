@@ -2,7 +2,7 @@
 # Makefile for the Linux/SuperH kernel.
 #
 
-extra-y	:= head_$(BITS).o init_task.o vmlinux.lds
+extra-y	:= head_$(BITS).o vmlinux.lds
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not profile debug and lowlevel utilities
@@ -16,7 +16,7 @@ obj-y	:= debugtraps.o dma-nommu.o dumpstack.o 		\
 	   machvec.o nmi_debug.o process.o				\
 	   process_$(BITS).o ptrace.o ptrace_$(BITS).o			\
 	   reboot.o return_address.o					\
-	   setup.o signal_$(BITS).o sys_sh.o sys_sh$(BITS).o		\
+	   setup.o signal_$(BITS).o sys_sh.o 				\
 	   syscalls_$(BITS).o time.o topology.o traps.o			\
 	   traps_$(BITS).o unwinder.o
 
@@ -25,12 +25,12 @@ obj-y				+= iomap.o
 obj-$(CONFIG_HAS_IOPORT)	+= ioport.o
 endif
 
+obj-$(CONFIG_SUPERH32)		+= sys_sh32.o
 obj-y				+= cpu/
 obj-$(CONFIG_VSYSCALL)		+= vsyscall/
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SH_STANDARD_BIOS)	+= sh_bios.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
-obj-$(CONFIG_SH_CPU_FREQ)	+= cpufreq.o
 obj-$(CONFIG_MODULES)		+= sh_ksyms_$(BITS).o module.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o

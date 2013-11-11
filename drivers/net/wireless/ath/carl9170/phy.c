@@ -578,11 +578,10 @@ static int carl9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
 	if (err)
 		return err;
 
-	/* XXX: remove magic! */
-	if (is_2ghz)
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5163);
-	else
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5143);
+	if (!ar->fw.hw_counters) {
+		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC,
+					 is_2ghz ? 0x5163 : 0x5143);
+	}
 
 	return err;
 }
@@ -1098,7 +1097,7 @@ static u8 carl9170_interpolate_u8(u8 x, u8 x1, u8 y1, u8 x2, u8 y2)
 	 *	Isn't it just DIV_ROUND_UP(y, 1<<SHIFT)?
 	 *	Can we rely on the compiler to optimise away the div?
 	 */
-	return (y >> SHIFT) + ((y & (1<<(SHIFT-1))) >> (SHIFT - 1));
+	return (y >> SHIFT) + ((y & (1 << (SHIFT - 1))) >> (SHIFT - 1));
 #undef SHIFT
 }
 
@@ -1332,7 +1331,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 	 * CTL_ETSI for 2GHz and CTL_FCC for 5GHz.
 	 */
 	ctl_grp = ath_regd_get_band_ctl(&ar->common.regulatory,
-					ar->hw->conf.channel->band);
+					ar->hw->conf.chandef.chan->band);
 
 	/* ctl group not found - either invalid band (NO_CTL) or ww roaming */
 	if (ctl_grp == NO_CTL || ctl_grp == SD_NO_CTL)
@@ -1342,7 +1341,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 		/* skip CTL and heavy clip for CTL_MKK and CTL_ETSI */
 		return;
 
-	if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
+	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		modes = mode_list_2ghz;
 		nr_modes = ARRAY_SIZE(mode_list_2ghz);
 	} else {
@@ -1379,7 +1378,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 
 			modes[i].max_power =
 				carl9170_get_max_edge_power(ar,
-					freq+f_off, EDGES(ctl_idx, 1));
+					freq + f_off, EDGES(ctl_idx, 1));
 
 			/*
 			 * TODO: check if the regulatory max. power is
@@ -1427,21 +1426,21 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 #undef EDGES
 }
 
-static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
-				  enum carl9170_bw bw)
+static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
+				   enum carl9170_bw bw)
 {
 	struct ar9170_calibration_target_power_legacy *ctpl;
 	struct ar9170_calibration_target_power_ht *ctph;
 	u8 *ctpres;
 	int ntargets;
 	int idx, i, n;
-	u8 ackpower, ackchains, f;
+	u8 f;
 	u8 pwr_freqs[AR5416_MAX_NUM_TGT_PWRS];
 
 	if (freq < 3000)
 		f = freq - 2300;
 	else
-		f = (freq - 4800)/5;
+		f = (freq - 4800) / 5;
 
 	/*
 	 * cycle through the various modes
@@ -1524,32 +1523,6 @@ static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 
 	/* calc. conformance test limits and apply to ar->power*[] */
 	carl9170_calc_ctl(ar, freq, bw);
-
-	/* set ACK/CTS TX power */
-	carl9170_regwrite_begin(ar);
-
-	if (ar->eeprom.tx_mask != 1)
-		ackchains = AR9170_TX_PHY_TXCHAIN_2;
-	else
-		ackchains = AR9170_TX_PHY_TXCHAIN_1;
-
-	if (freq < 3000)
-		ackpower = ar->power_2G_ofdm[0] & 0x3f;
-	else
-		ackpower = ar->power_5G_leg[0] & 0x3f;
-
-	carl9170_regwrite(AR9170_MAC_REG_ACK_TPC,
-			  0x3c1e | ackpower << 20 | ackchains << 26);
-	carl9170_regwrite(AR9170_MAC_REG_RTS_CTS_TPC,
-			  ackpower << 5 | ackchains << 11 |
-			  ackpower << 21 | ackchains << 27);
-
-	carl9170_regwrite(AR9170_MAC_REG_CFEND_QOSNULL_TPC,
-			  ackpower << 5 | ackchains << 11 |
-			  ackpower << 21 | ackchains << 27);
-
-	carl9170_regwrite_finish();
-	return carl9170_regwrite_result();
 }
 
 int carl9170_get_noisefloor(struct ar9170 *ar)
@@ -1574,6 +1547,9 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
 
+	if (ar->channel)
+		ar->survey[ar->channel->hw_value].noise = ar->noise[0];
+
 	return 0;
 }
 
@@ -1593,16 +1569,14 @@ static enum carl9170_bw nl80211_to_carl(enum nl80211_channel_type type)
 }
 
 int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
-			 enum nl80211_channel_type _bw,
-			 enum carl9170_rf_init_mode rfi)
+			 enum nl80211_channel_type _bw)
 {
 	const struct carl9170_phy_freq_params *freqpar;
 	struct carl9170_rf_init_result rf_res;
 	struct carl9170_rf_init rf;
-	u32 cmd, tmp, offs = 0, new_ht = 0;
+	u32 tmp, offs = 0, new_ht = 0;
 	int err;
 	enum carl9170_bw bw;
-	bool warm_reset;
 	struct ieee80211_channel *old_channel = NULL;
 
 	bw = nl80211_to_carl(_bw);
@@ -1616,51 +1590,27 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	/* may be NULL at first setup */
 	if (ar->channel) {
 		old_channel = ar->channel;
-		warm_reset = (old_channel->band != channel->band) ||
-			     (old_channel->center_freq ==
-			      channel->center_freq) ||
-			     (ar->ht_settings != new_ht);
-
 		ar->channel = NULL;
-	} else {
-		warm_reset = true;
 	}
 
-	/* HW workaround */
-	if (!ar->hw->wiphy->bands[IEEE80211_BAND_5GHZ] &&
-	    channel->center_freq <= 2417)
-		warm_reset = true;
+	/* cold reset BB/ADDA */
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET,
+				 AR9170_PWR_RESET_BB_COLD_RESET);
+	if (err)
+		return err;
 
-	if (rfi != CARL9170_RFI_NONE || warm_reset) {
-		u32 val;
+	err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, 0x0);
+	if (err)
+		return err;
 
-		if (rfi == CARL9170_RFI_COLD)
-			val = AR9170_PWR_RESET_BB_COLD_RESET;
-		else
-			val = AR9170_PWR_RESET_BB_WARM_RESET;
+	err = carl9170_init_phy(ar, channel->band);
+	if (err)
+		return err;
 
-		/* warm/cold reset BB/ADDA */
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, val);
-		if (err)
-			return err;
-
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_RESET, 0x0);
-		if (err)
-			return err;
-
-		err = carl9170_init_phy(ar, channel->band);
-		if (err)
-			return err;
-
-		err = carl9170_init_rf_banks_0_7(ar,
-			channel->band == IEEE80211_BAND_5GHZ);
-		if (err)
-			return err;
-
-		cmd = CARL9170_CMD_RF_INIT;
-	} else {
-		cmd = CARL9170_CMD_FREQUENCY;
-	}
+	err = carl9170_init_rf_banks_0_7(ar,
+					 channel->band == IEEE80211_BAND_5GHZ);
+	if (err)
+		return err;
 
 	err = carl9170_exec_cmd(ar, CARL9170_CMD_FREQ_START, 0, NULL, 0, NULL);
 	if (err)
@@ -1672,8 +1622,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		return err;
 
 	err = carl9170_init_rf_bank4_pwr(ar,
-		channel->band == IEEE80211_BAND_5GHZ,
-		channel->center_freq, bw);
+					 channel->band == IEEE80211_BAND_5GHZ,
+					 channel->center_freq, bw);
 	if (err)
 		return err;
 
@@ -1710,7 +1660,9 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	if (err)
 		return err;
 
-	err = carl9170_set_power_cal(ar, channel->center_freq, bw);
+	carl9170_set_power_cal(ar, channel->center_freq, bw);
+
+	err = carl9170_set_mac_tpc(ar, channel);
 	if (err)
 		return err;
 
@@ -1725,13 +1677,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	rf.delta_slope_coeff_man = cpu_to_le32(freqpar->coeff_man);
 	rf.delta_slope_coeff_exp_shgi = cpu_to_le32(freqpar->coeff_exp_shgi);
 	rf.delta_slope_coeff_man_shgi = cpu_to_le32(freqpar->coeff_man_shgi);
-
-	if (rfi != CARL9170_RFI_NONE)
-		rf.finiteLoopCount = cpu_to_le32(2000);
-	else
-		rf.finiteLoopCount = cpu_to_le32(1000);
-
-	err = carl9170_exec_cmd(ar, cmd, sizeof(rf), &rf,
+	rf.finiteLoopCount = cpu_to_le32(2000);
+	err = carl9170_exec_cmd(ar, CARL9170_CMD_RF_INIT, sizeof(rf), &rf,
 				sizeof(rf_res), &rf_res);
 	if (err)
 		return err;
@@ -1746,9 +1693,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			  old_channel->center_freq : -1, channel->center_freq,
 			  err);
 
-		if ((rfi == CARL9170_RFI_COLD) || (ar->chan_fail > 3)) {
-			/*
-			 * We have tried very hard to change to _another_
+		if (ar->chan_fail > 3) {
+			/* We have tried very hard to change to _another_
 			 * channel and we've failed to do so!
 			 * Chances are that the PHY/RF is no longer
 			 * operable (due to corruptions/fatal events/bugs?)
@@ -1758,17 +1704,12 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return 0;
 		}
 
-		err = carl9170_set_channel(ar, channel, _bw,
-					   CARL9170_RFI_COLD);
+		err = carl9170_set_channel(ar, channel, _bw);
 		if (err)
 			return err;
 	} else {
 		ar->chan_fail = 0;
 	}
-
-	err = carl9170_get_noisefloor(ar);
-	if (err)
-		return err;
 
 	if (ar->heavy_clip) {
 		err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
@@ -1782,12 +1723,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return err;
 		}
 	}
-
-	/* FIXME: PSM does not work in 5GHz Band */
-	if (channel->band == IEEE80211_BAND_5GHZ)
-		ar->ps.off_override |= PS_OFF_5GHZ;
-	else
-		ar->ps.off_override &= ~PS_OFF_5GHZ;
 
 	ar->channel = channel;
 	ar->ht_settings = new_ht;

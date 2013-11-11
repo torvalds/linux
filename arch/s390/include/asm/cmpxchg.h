@@ -7,7 +7,9 @@
 #ifndef __ASM_CMPXCHG_H
 #define __ASM_CMPXCHG_H
 
+#include <linux/mmdebug.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 
 extern void __xchg_called_with_bad_pointer(void);
 
@@ -29,7 +31,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(255 << shift)),
+			: "d" ((x & 0xff) << shift), "d" (~(0xff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 2:
@@ -44,7 +46,7 @@ static inline unsigned long __xchg(unsigned long x, void *ptr, int size)
 			"	cs	%0,0,%4\n"
 			"	jl	0b\n"
 			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(65535 << shift)),
+			: "d" ((x & 0xffff) << shift), "d" (~(0xffff << shift)),
 			  "Q" (*(int *) addr) : "memory", "cc", "0");
 		return old >> shift;
 	case 4:
@@ -113,9 +115,10 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(255 << shift)), "Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xff) << shift),
+			  "d" ((new & 0xff) << shift),
+			  "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
@@ -134,9 +137,10 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 			"	nr	%1,%5\n"
 			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(65535 << shift)), "Q" (*(int *) ptr)
+			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) addr)
+			: "d" ((old & 0xffff) << shift),
+			  "d" ((new & 0xffff) << shift),
+			  "d" (~(0xffff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 4:
@@ -160,9 +164,14 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 	return old;
 }
 
-#define cmpxchg(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	\
-				       (unsigned long)(n), sizeof(*(ptr))))
+#define cmpxchg(ptr, o, n)						 \
+({									 \
+	__typeof__(*(ptr)) __ret;					 \
+	__ret = (__typeof__(*(ptr)))					 \
+		__cmpxchg((ptr), (unsigned long)(o), (unsigned long)(n), \
+			  sizeof(*(ptr)));				 \
+	__ret;								 \
+})
 
 #ifdef CONFIG_64BIT
 #define cmpxchg64(ptr, o, n)						\
@@ -181,14 +190,79 @@ static inline unsigned long long __cmpxchg64(void *ptr,
 		"	cds	%0,%2,%1"
 		: "+&d" (rp_old), "=Q" (ptr)
 		: "d" (rp_new), "Q" (ptr)
-		: "cc");
+		: "memory", "cc");
 	return rp_old.pair;
 }
-#define cmpxchg64(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
-					 (unsigned long long)(o),	\
-					 (unsigned long long)(n)))
+
+#define cmpxchg64(ptr, o, n)				\
+({							\
+	__typeof__(*(ptr)) __ret;			\
+	__ret = (__typeof__(*(ptr)))			\
+		__cmpxchg64((ptr),			\
+			    (unsigned long long)(o),	\
+			    (unsigned long long)(n));	\
+	__ret;						\
+})
 #endif /* CONFIG_64BIT */
+
+#define __cmpxchg_double_op(p1, p2, o1, o2, n1, n2, insn)		\
+({									\
+	register __typeof__(*(p1)) __old1 asm("2") = (o1);		\
+	register __typeof__(*(p2)) __old2 asm("3") = (o2);		\
+	register __typeof__(*(p1)) __new1 asm("4") = (n1);		\
+	register __typeof__(*(p2)) __new2 asm("5") = (n2);		\
+	int cc;								\
+	asm volatile(							\
+			insn   " %[old],%[new],%[ptr]\n"		\
+		"	ipm	%[cc]\n"				\
+		"	srl	%[cc],28"				\
+		: [cc] "=d" (cc), [old] "+d" (__old1), "+d" (__old2)	\
+		: [new] "d" (__new1), "d" (__new2),			\
+		  [ptr] "Q" (*(p1)), "Q" (*(p2))			\
+		: "memory", "cc");					\
+	!cc;								\
+})
+
+#define __cmpxchg_double_4(p1, p2, o1, o2, n1, n2) \
+	__cmpxchg_double_op(p1, p2, o1, o2, n1, n2, "cds")
+
+#define __cmpxchg_double_8(p1, p2, o1, o2, n1, n2) \
+	__cmpxchg_double_op(p1, p2, o1, o2, n1, n2, "cdsg")
+
+extern void __cmpxchg_double_called_with_bad_pointer(void);
+
+#define __cmpxchg_double(p1, p2, o1, o2, n1, n2)			\
+({									\
+	int __ret;							\
+	switch (sizeof(*(p1))) {					\
+	case 4:								\
+		__ret = __cmpxchg_double_4(p1, p2, o1, o2, n1, n2);	\
+		break;							\
+	case 8:								\
+		__ret = __cmpxchg_double_8(p1, p2, o1, o2, n1, n2);	\
+		break;							\
+	default:							\
+		__cmpxchg_double_called_with_bad_pointer();		\
+	}								\
+	__ret;								\
+})
+
+#define cmpxchg_double(p1, p2, o1, o2, n1, n2)				\
+({									\
+	__typeof__(p1) __p1 = (p1);					\
+	__typeof__(p2) __p2 = (p2);					\
+	int __ret;							\
+	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
+	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
+	VM_BUG_ON((unsigned long)((__p1) + 1) != (unsigned long)(__p2));\
+	if (sizeof(long) == 4)						\
+		__ret = __cmpxchg_double_4(__p1, __p2, o1, o2, n1, n2);	\
+	else								\
+		__ret = __cmpxchg_double_8(__p1, __p2, o1, o2, n1, n2);	\
+	__ret;								\
+})
+
+#define system_has_cmpxchg_double()	1
 
 #include <asm-generic/cmpxchg-local.h>
 
@@ -216,8 +290,13 @@ static inline unsigned long __cmpxchg_local(void *ptr,
  * them available.
  */
 #define cmpxchg_local(ptr, o, n)					\
-	((__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
-			(unsigned long)(n), sizeof(*(ptr))))
+({									\
+	__typeof__(*(ptr)) __ret;					\
+	__ret = (__typeof__(*(ptr)))					\
+		__cmpxchg_local((ptr), (unsigned long)(o),		\
+				(unsigned long)(n), sizeof(*(ptr)));	\
+	__ret;								\
+})
 
 #define cmpxchg64_local(ptr, o, n)	cmpxchg64((ptr), (o), (n))
 

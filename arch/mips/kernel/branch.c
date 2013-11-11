@@ -9,36 +9,207 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/module.h>
 #include <asm/branch.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
 #include <asm/fpu.h>
+#include <asm/fpu_emulator.h>
 #include <asm/inst.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
 
 /*
- * Compute the return address and do emulate branch simulation, if required.
+ * Calculate and return exception PC in case of branch delay slot
+ * for microMIPS and MIPS16e. It does not clear the ISA mode bit.
  */
-int __compute_return_epc(struct pt_regs *regs)
+int __isa_exception_epc(struct pt_regs *regs)
 {
-	unsigned int __user *addr;
-	unsigned int bit, fcr31, dspcontrol;
+	unsigned short inst;
+	long epc = regs->cp0_epc;
+
+	/* Calculate exception PC in branch delay slot. */
+	if (__get_user(inst, (u16 __user *) msk_isa16_mode(epc))) {
+		/* This should never happen because delay slot was checked. */
+		force_sig(SIGSEGV, current);
+		return epc;
+	}
+	if (cpu_has_mips16) {
+		if (((union mips16e_instruction)inst).ri.opcode
+				== MIPS16e_jal_op)
+			epc += 4;
+		else
+			epc += 2;
+	} else if (mm_insn_16bit(inst))
+		epc += 2;
+	else
+		epc += 4;
+
+	return epc;
+}
+
+/*
+ * Compute return address and emulate branch in microMIPS mode after an
+ * exception only. It does not handle compact branches/jumps and cannot
+ * be used in interrupt context. (Compact branches/jumps do not cause
+ * exceptions.)
+ */
+int __microMIPS_compute_return_epc(struct pt_regs *regs)
+{
+	u16 __user *pc16;
+	u16 halfword;
+	unsigned int word;
+	unsigned long contpc;
+	struct mm_decoded_insn mminsn = { 0 };
+
+	mminsn.micro_mips_mode = 1;
+
+	/* This load never faults. */
+	pc16 = (unsigned short __user *)msk_isa16_mode(regs->cp0_epc);
+	__get_user(halfword, pc16);
+	pc16++;
+	contpc = regs->cp0_epc + 2;
+	word = ((unsigned int)halfword << 16);
+	mminsn.pc_inc = 2;
+
+	if (!mm_insn_16bit(halfword)) {
+		__get_user(halfword, pc16);
+		pc16++;
+		contpc = regs->cp0_epc + 4;
+		mminsn.pc_inc = 4;
+		word |= halfword;
+	}
+	mminsn.insn = word;
+
+	if (get_user(halfword, pc16))
+		goto sigsegv;
+	mminsn.next_pc_inc = 2;
+	word = ((unsigned int)halfword << 16);
+
+	if (!mm_insn_16bit(halfword)) {
+		pc16++;
+		if (get_user(halfword, pc16))
+			goto sigsegv;
+		mminsn.next_pc_inc = 4;
+		word |= halfword;
+	}
+	mminsn.next_insn = word;
+
+	mm_isBranchInstr(regs, mminsn, &contpc);
+
+	regs->cp0_epc = contpc;
+
+	return 0;
+
+sigsegv:
+	force_sig(SIGSEGV, current);
+	return -EFAULT;
+}
+
+/*
+ * Compute return address and emulate branch in MIPS16e mode after an
+ * exception only. It does not handle compact branches/jumps and cannot
+ * be used in interrupt context. (Compact branches/jumps do not cause
+ * exceptions.)
+ */
+int __MIPS16e_compute_return_epc(struct pt_regs *regs)
+{
+	u16 __user *addr;
+	union mips16e_instruction inst;
+	u16 inst2;
+	u32 fullinst;
 	long epc;
-	union mips_instruction insn;
 
 	epc = regs->cp0_epc;
-	if (epc & 3)
-		goto unaligned;
 
-	/*
-	 * Read the instruction
-	 */
-	addr = (unsigned int __user *) epc;
-	if (__get_user(insn.word, addr)) {
+	/* Read the instruction. */
+	addr = (u16 __user *)msk_isa16_mode(epc);
+	if (__get_user(inst.full, addr)) {
 		force_sig(SIGSEGV, current);
 		return -EFAULT;
 	}
+
+	switch (inst.ri.opcode) {
+	case MIPS16e_extend_op:
+		regs->cp0_epc += 4;
+		return 0;
+
+		/*
+		 *  JAL and JALX in MIPS16e mode
+		 */
+	case MIPS16e_jal_op:
+		addr += 1;
+		if (__get_user(inst2, addr)) {
+			force_sig(SIGSEGV, current);
+			return -EFAULT;
+		}
+		fullinst = ((unsigned)inst.full << 16) | inst2;
+		regs->regs[31] = epc + 6;
+		epc += 4;
+		epc >>= 28;
+		epc <<= 28;
+		/*
+		 * JAL:5 X:1 TARGET[20-16]:5 TARGET[25:21]:5 TARGET[15:0]:16
+		 *
+		 * ......TARGET[15:0].................TARGET[20:16]...........
+		 * ......TARGET[25:21]
+		 */
+		epc |=
+		    ((fullinst & 0xffff) << 2) | ((fullinst & 0x3e00000) >> 3) |
+		    ((fullinst & 0x1f0000) << 7);
+		if (!inst.jal.x)
+			set_isa16_mode(epc);	/* Set ISA mode bit. */
+		regs->cp0_epc = epc;
+		return 0;
+
+		/*
+		 *  J(AL)R(C)
+		 */
+	case MIPS16e_rr_op:
+		if (inst.rr.func == MIPS16e_jr_func) {
+
+			if (inst.rr.ra)
+				regs->cp0_epc = regs->regs[31];
+			else
+				regs->cp0_epc =
+				    regs->regs[reg16to32[inst.rr.rx]];
+
+			if (inst.rr.l) {
+				if (inst.rr.nd)
+					regs->regs[31] = epc + 2;
+				else
+					regs->regs[31] = epc + 4;
+			}
+			return 0;
+		}
+		break;
+	}
+
+	/*
+	 * All other cases have no branch delay slot and are 16-bits.
+	 * Branches do not cause an exception.
+	 */
+	regs->cp0_epc += 2;
+
+	return 0;
+}
+
+/**
+ * __compute_return_epc_for_insn - Computes the return address and do emulate
+ *				    branch simulation, if required.
+ *
+ * @regs:	Pointer to pt_regs
+ * @insn:	branch instruction to decode
+ * @returns:	-EFAULT on error and forces SIGBUS, and on success
+ *		returns 0 or BRANCH_LIKELY_TAKEN as appropriate after
+ *		evaluating the branch.
+ */
+int __compute_return_epc_for_insn(struct pt_regs *regs,
+				   union mips_instruction insn)
+{
+	unsigned int bit, fcr31, dspcontrol;
+	long epc = regs->cp0_epc;
+	int ret = 0;
 
 	switch (insn.i_format.opcode) {
 	/*
@@ -62,20 +233,24 @@ int __compute_return_epc(struct pt_regs *regs)
 	 */
 	case bcond_op:
 		switch (insn.i_format.rt) {
-	 	case bltz_op:
+		case bltz_op:
 		case bltzl_op:
-			if ((long)regs->regs[insn.i_format.rs] < 0)
+			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == bltzl_op)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
 
 		case bgez_op:
 		case bgezl_op:
-			if ((long)regs->regs[insn.i_format.rs] >= 0)
+			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == bgezl_op)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
@@ -83,9 +258,11 @@ int __compute_return_epc(struct pt_regs *regs)
 		case bltzal_op:
 		case bltzall_op:
 			regs->regs[31] = epc + 8;
-			if ((long)regs->regs[insn.i_format.rs] < 0)
+			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == bltzall_op)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
@@ -93,12 +270,15 @@ int __compute_return_epc(struct pt_regs *regs)
 		case bgezal_op:
 		case bgezall_op:
 			regs->regs[31] = epc + 8;
-			if ((long)regs->regs[insn.i_format.rs] >= 0)
+			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == bgezall_op)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
+
 		case bposge32_op:
 			if (!cpu_has_dsp)
 				goto sigill;
@@ -125,6 +305,8 @@ int __compute_return_epc(struct pt_regs *regs)
 		epc <<= 28;
 		epc |= (insn.j_format.target << 2);
 		regs->cp0_epc = epc;
+		if (insn.i_format.opcode == jalx_op)
+			set_isa16_mode(regs->cp0_epc);
 		break;
 
 	/*
@@ -133,9 +315,11 @@ int __compute_return_epc(struct pt_regs *regs)
 	case beq_op:
 	case beql_op:
 		if (regs->regs[insn.i_format.rs] ==
-		    regs->regs[insn.i_format.rt])
+		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-		else
+			if (insn.i_format.rt == beql_op)
+				ret = BRANCH_LIKELY_TAKEN;
+		} else
 			epc += 8;
 		regs->cp0_epc = epc;
 		break;
@@ -143,9 +327,11 @@ int __compute_return_epc(struct pt_regs *regs)
 	case bne_op:
 	case bnel_op:
 		if (regs->regs[insn.i_format.rs] !=
-		    regs->regs[insn.i_format.rt])
+		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-		else
+			if (insn.i_format.rt == bnel_op)
+				ret = BRANCH_LIKELY_TAKEN;
+		} else
 			epc += 8;
 		regs->cp0_epc = epc;
 		break;
@@ -153,9 +339,11 @@ int __compute_return_epc(struct pt_regs *regs)
 	case blez_op: /* not really i_format */
 	case blezl_op:
 		/* rt field assumed to be zero */
-		if ((long)regs->regs[insn.i_format.rs] <= 0)
+		if ((long)regs->regs[insn.i_format.rs] <= 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-		else
+			if (insn.i_format.rt == bnel_op)
+				ret = BRANCH_LIKELY_TAKEN;
+		} else
 			epc += 8;
 		regs->cp0_epc = epc;
 		break;
@@ -163,9 +351,11 @@ int __compute_return_epc(struct pt_regs *regs)
 	case bgtz_op:
 	case bgtzl_op:
 		/* rt field assumed to be zero */
-		if ((long)regs->regs[insn.i_format.rs] > 0)
+		if ((long)regs->regs[insn.i_format.rs] > 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-		else
+			if (insn.i_format.rt == bnel_op)
+				ret = BRANCH_LIKELY_TAKEN;
+		} else
 			epc += 8;
 		regs->cp0_epc = epc;
 		break;
@@ -185,20 +375,24 @@ int __compute_return_epc(struct pt_regs *regs)
 		bit += (bit != 0);
 		bit += 23;
 		switch (insn.i_format.rt & 3) {
-		case 0:	/* bc1f */
-		case 2:	/* bc1fl */
-			if (~fcr31 & (1 << bit))
+		case 0: /* bc1f */
+		case 2: /* bc1fl */
+			if (~fcr31 & (1 << bit)) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == 2)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
 
-		case 1:	/* bc1t */
-		case 3:	/* bc1tl */
-			if (fcr31 & (1 << bit))
+		case 1: /* bc1t */
+		case 3: /* bc1tl */
+			if (fcr31 & (1 << bit)) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
-			else
+				if (insn.i_format.rt == 3)
+					ret = BRANCH_LIKELY_TAKEN;
+			} else
 				epc += 8;
 			regs->cp0_epc = epc;
 			break;
@@ -239,15 +433,39 @@ int __compute_return_epc(struct pt_regs *regs)
 #endif
 	}
 
-	return 0;
+	return ret;
+
+sigill:
+	printk("%s: DSP branch but not DSP ASE - sending SIGBUS.\n", current->comm);
+	force_sig(SIGBUS, current);
+	return -EFAULT;
+}
+EXPORT_SYMBOL_GPL(__compute_return_epc_for_insn);
+
+int __compute_return_epc(struct pt_regs *regs)
+{
+	unsigned int __user *addr;
+	long epc;
+	union mips_instruction insn;
+
+	epc = regs->cp0_epc;
+	if (epc & 3)
+		goto unaligned;
+
+	/*
+	 * Read the instruction
+	 */
+	addr = (unsigned int __user *) epc;
+	if (__get_user(insn.word, addr)) {
+		force_sig(SIGSEGV, current);
+		return -EFAULT;
+	}
+
+	return __compute_return_epc_for_insn(regs, insn);
 
 unaligned:
 	printk("%s: unaligned epc - sending SIGBUS.\n", current->comm);
 	force_sig(SIGBUS, current);
 	return -EFAULT;
 
-sigill:
-	printk("%s: DSP branch but not DSP ASE - sending SIGBUS.\n", current->comm);
-	force_sig(SIGBUS, current);
-	return -EFAULT;
 }

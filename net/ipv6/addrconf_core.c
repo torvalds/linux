@@ -3,13 +3,14 @@
  * not configured or static.
  */
 
+#include <linux/export.h>
 #include <net/ipv6.h>
 
 #define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)
 
-static inline unsigned ipv6_addr_scope2type(unsigned scope)
+static inline unsigned int ipv6_addr_scope2type(unsigned int scope)
 {
-	switch(scope) {
+	switch (scope) {
 	case IPV6_ADDR_SCOPE_NODELOCAL:
 		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_NODELOCAL) |
 			IPV6_ADDR_LOOPBACK);
@@ -77,3 +78,22 @@ int __ipv6_addr_type(const struct in6_addr *addr)
 }
 EXPORT_SYMBOL(__ipv6_addr_type);
 
+static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
+
+int register_inet6addr_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&inet6addr_chain, nb);
+}
+EXPORT_SYMBOL(register_inet6addr_notifier);
+
+int unregister_inet6addr_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&inet6addr_chain, nb);
+}
+EXPORT_SYMBOL(unregister_inet6addr_notifier);
+
+int inet6addr_notifier_call_chain(unsigned long val, void *v)
+{
+	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
+}
+EXPORT_SYMBOL(inet6addr_notifier_call_chain);

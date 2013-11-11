@@ -130,7 +130,31 @@ Menu controls are added by calling v4l2_ctrl_new_std_menu:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 skip_mask, s32 def);
 
+Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
+
+	struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
+			const struct v4l2_ctrl_ops *ops,
+			u32 id, s32 max, s32 def, const s64 *qmenu_int);
+
+Standard menu controls with a driver specific menu are added by calling
+v4l2_ctrl_new_std_menu_items:
+
+	struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
+		struct v4l2_ctrl_handler *hdl,
+		const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
+		s32 skip_mask, s32 def, const char * const *qmenu);
+
 These functions are typically called right after the v4l2_ctrl_handler_init:
+
+	static const s64 exp_bias_qmenu[] = {
+	       -2, -1, 0, 1, 2
+	};
+	static const char * const test_pattern[] = {
+		"Disabled",
+		"Vertical Bars",
+		"Solid Black",
+		"Solid White",
+	};
 
 	v4l2_ctrl_handler_init(&foo->ctrl_handler, nr_of_controls);
 	v4l2_ctrl_new_std(&foo->ctrl_handler, &foo_ctrl_ops,
@@ -141,6 +165,14 @@ These functions are typically called right after the v4l2_ctrl_handler_init:
 			V4L2_CID_POWER_LINE_FREQUENCY,
 			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0,
 			V4L2_CID_POWER_LINE_FREQUENCY_DISABLED);
+	v4l2_ctrl_new_int_menu(&foo->ctrl_handler, &foo_ctrl_ops,
+			V4L2_CID_EXPOSURE_BIAS,
+			ARRAY_SIZE(exp_bias_qmenu) - 1,
+			ARRAY_SIZE(exp_bias_qmenu) / 2 - 1,
+			exp_bias_qmenu);
+	v4l2_ctrl_new_std_menu_items(&foo->ctrl_handler, &foo_ctrl_ops,
+			V4L2_CID_TEST_PATTERN, ARRAY_SIZE(test_pattern) - 1, 0,
+			0, test_pattern);
 	...
 	if (foo->ctrl_handler.error) {
 		int err = foo->ctrl_handler.error;
@@ -163,6 +195,19 @@ The v4l2_ctrl_new_std_menu function is very similar but it is used for menu
 controls. There is no min argument since that is always 0 for menu controls,
 and instead of a step there is a skip_mask argument: if bit X is 1, then menu
 item X is skipped.
+
+The v4l2_ctrl_new_int_menu function creates a new standard integer menu
+control with driver-specific items in the menu. It differs from
+v4l2_ctrl_new_std_menu in that it doesn't have the mask argument and takes
+as the last argument an array of signed 64-bit integers that form an exact
+menu item list.
+
+The v4l2_ctrl_new_std_menu_items function is very similar to
+v4l2_ctrl_new_std_menu but takes an extra parameter qmenu, which is the driver
+specific menu for an otherwise standard menu control. A good example for this
+control is the test pattern control for capture/display/sensors devices that
+have the capability to generate test patterns. These test patterns are hardware
+specific, so the contents of the menu will vary from device to device.
 
 Note that if something fails, the function will return NULL or an error and
 set ctrl_handler->error to the error code. If ctrl_handler->error was already
@@ -277,22 +322,19 @@ implement g_volatile_ctrl like this:
 	{
 		switch (ctrl->id) {
 		case V4L2_CID_BRIGHTNESS:
-			ctrl->cur.val = read_reg(0x123);
+			ctrl->val = read_reg(0x123);
 			break;
 		}
 	}
 
-The 'new value' union is not used in g_volatile_ctrl. In general controls
-that need to implement g_volatile_ctrl are read-only controls.
+Note that you use the 'new value' union as well in g_volatile_ctrl. In general
+controls that need to implement g_volatile_ctrl are read-only controls.
 
-Note that if one or more controls in a control cluster are marked as volatile,
-then all the controls in the cluster are seen as volatile.
-
-To mark a control as volatile you have to set the is_volatile flag:
+To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
 
 	ctrl = v4l2_ctrl_new_std(&sd->ctrl_handler, ...);
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 For try/s_ctrl the new values (i.e. as passed by the user) are filled in and
 you can modify them in try_ctrl or set them in s_ctrl. The 'cur' union
@@ -370,8 +412,7 @@ Driver specific controls can be created using v4l2_ctrl_new_custom():
 The last argument is the priv pointer which can be set to driver-specific
 private data.
 
-The v4l2_ctrl_config struct also has fields to set the is_private and is_volatile
-flags.
+The v4l2_ctrl_config struct also has a field to set the is_private flag.
 
 If the name field is not set, then the framework will assume this is a standard
 control and will fill in the name, type and flags fields accordingly.
@@ -453,6 +494,25 @@ In the example above the following are equivalent for the VOLUME case:
 	ctrl == ctrl->cluster[AUDIO_CL_VOLUME] == state->audio_cluster[AUDIO_CL_VOLUME]
 	ctrl->cluster[AUDIO_CL_MUTE] == state->audio_cluster[AUDIO_CL_MUTE]
 
+In practice using cluster arrays like this becomes very tiresome. So instead
+the following equivalent method is used:
+
+	struct {
+		/* audio cluster */
+		struct v4l2_ctrl *volume;
+		struct v4l2_ctrl *mute;
+	};
+
+The anonymous struct is used to clearly 'cluster' these two control pointers,
+but it serves no other purpose. The effect is the same as creating an
+array with two control pointers. So you can just do:
+
+	state->volume = v4l2_ctrl_new_std(&state->ctrl_handler, ...);
+	state->mute = v4l2_ctrl_new_std(&state->ctrl_handler, ...);
+	v4l2_ctrl_cluster(2, &state->volume);
+
+And in foo_s_ctrl you can use these pointers directly: state->mute->val.
+
 Note that controls in a cluster may be NULL. For example, if for some
 reason mute was never added (because the hardware doesn't support that
 particular feature), then mute will be NULL. So in that case we have a
@@ -473,6 +533,49 @@ mute only. If the user would call VIDIOC_S_EXT_CTRLS for both mute and volume
 controls, then the 'is_new' flag would be 1 for both controls.
 
 The 'is_new' flag is always 1 when called from v4l2_ctrl_handler_setup().
+
+
+Handling autogain/gain-type Controls with Auto Clusters
+=======================================================
+
+A common type of control cluster is one that handles 'auto-foo/foo'-type
+controls. Typical examples are autogain/gain, autoexposure/exposure,
+autowhitebalance/red balance/blue balance. In all cases you have one control
+that determines whether another control is handled automatically by the hardware,
+or whether it is under manual control from the user.
+
+If the cluster is in automatic mode, then the manual controls should be
+marked inactive and volatile. When the volatile controls are read the
+g_volatile_ctrl operation should return the value that the hardware's automatic
+mode set up automatically.
+
+If the cluster is put in manual mode, then the manual controls should become
+active again and the volatile flag is cleared (so g_volatile_ctrl is no longer
+called while in manual mode). In addition just before switching to manual mode
+the current values as determined by the auto mode are copied as the new manual
+values.
+
+Finally the V4L2_CTRL_FLAG_UPDATE should be set for the auto control since
+changing that control affects the control flags of the manual controls.
+
+In order to simplify this a special variation of v4l2_ctrl_cluster was
+introduced:
+
+void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
+			u8 manual_val, bool set_volatile);
+
+The first two arguments are identical to v4l2_ctrl_cluster. The third argument
+tells the framework which value switches the cluster into manual mode. The
+last argument will optionally set V4L2_CTRL_FLAG_VOLATILE for the non-auto controls.
+If it is false, then the manual controls are never volatile. You would typically
+use that if the hardware does not give you the option to read back to values as
+determined by the auto mode (e.g. if autogain is on, the hardware doesn't allow
+you to obtain the current gain value).
+
+The first control of the cluster is assumed to be the 'auto' control.
+
+Using this function will ensure that you don't need to handle all the complex
+flag and volatile handling.
 
 
 VIDIOC_LOG_STATUS Support
@@ -515,7 +618,11 @@ handler and finally add the first handler to the second. For example:
 	v4l2_ctrl_new_std(&radio_ctrl_handler, &radio_ops, V4L2_CID_AUDIO_MUTE, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_BRIGHTNESS, ...);
 	v4l2_ctrl_new_std(&video_ctrl_handler, &video_ops, V4L2_CID_CONTRAST, ...);
-	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler);
+	v4l2_ctrl_add_handler(&video_ctrl_handler, &radio_ctrl_handler, NULL);
+
+The last argument to v4l2_ctrl_add_handler() is a filter function that allows
+you to filter which controls will be added. Set it to NULL if you want to add
+all controls.
 
 Or you can add specific controls to a handler:
 
@@ -608,53 +715,20 @@ a control of this type whenever the first control belonging to a new control
 class is added.
 
 
-Differences from the Spec
-=========================
+Adding Notify Callbacks
+=======================
 
-There are a few places where the framework acts slightly differently from the
-V4L2 Specification. Those differences are described in this section. We will
-have to see whether we need to adjust the spec or not.
+Sometimes the platform or bridge driver needs to be notified when a control
+from a sub-device driver changes. You can set a notify callback by calling
+this function:
 
-1) It is no longer required to have all controls contained in a
-v4l2_ext_control array be from the same control class. The framework will be
-able to handle any type of control in the array. You need to set ctrl_class
-to 0 in order to enable this. If ctrl_class is non-zero, then it will still
-check that all controls belong to that control class.
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl,
+	void (*notify)(struct v4l2_ctrl *ctrl, void *priv), void *priv);
 
-If you set ctrl_class to 0 and count to 0, then it will only return an error
-if there are no controls at all.
+Whenever the give control changes value the notify callback will be called
+with a pointer to the control and the priv pointer that was passed with
+v4l2_ctrl_notify. Note that the control's handler lock is held when the
+notify function is called.
 
-2) Clarified the way error_idx works. For get and set it will be equal to
-count if nothing was done yet. If it is less than count then only the controls
-up to error_idx-1 were successfully applied.
-
-3) When attempting to read a button control the framework will return -EACCES
-instead of -EINVAL as stated in the spec. It seems to make more sense since
-button controls are write-only controls.
-
-4) Attempting to write to a read-only control will return -EACCES instead of
--EINVAL as the spec says.
-
-5) The spec does not mention what should happen when you try to set/get a
-control class controls. ivtv currently returns -EINVAL (indicating that the
-control ID does not exist) while the framework will return -EACCES, which
-makes more sense.
-
-
-Proposals for Extensions
-========================
-
-Some ideas for future extensions to the spec:
-
-1) Add a V4L2_CTRL_FLAG_HEX to have values shown as hexadecimal instead of
-decimal. Useful for e.g. video_mute_yuv.
-
-2) It is possible to mark in the controls array which controls have been
-successfully written and which failed by for example adding a bit to the
-control ID. Not sure if it is worth the effort, though.
-
-3) Trying to set volatile inactive controls should result in -EACCESS.
-
-4) Add a new flag to mark volatile controls. Any application that wants
-to store the state of the controls can then skip volatile inactive controls.
-Currently it is not possible to detect such controls.
+There can be only one notify function per control handler. Any attempt
+to set another notify function will cause a WARN_ON.

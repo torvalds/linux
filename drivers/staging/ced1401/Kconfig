@@ -1,0 +1,6 @@
+config CED1401
+	tristate "Cambridge Electronic Design 1401 USB support"
+	depends on USB
+	help
+	  This driver supports the Cambridge Electronic Design 1401 USB device
+	  (whatever that is.)

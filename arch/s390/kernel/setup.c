@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/setup.c
- *
  *  S390 version
- *    Copyright (C) IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -18,9 +16,10 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -42,10 +41,14 @@
 #include <linux/reboot.h>
 #include <linux/topology.h>
 #include <linux/ftrace.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
+#include <linux/memory.h>
+#include <linux/compat.h>
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
+#include <asm/facility.h>
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>
@@ -55,14 +58,17 @@
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/ebcdic.h>
-#include <asm/compat.h>
 #include <asm/kvm_virtio.h>
+#include <asm/diag.h>
+#include <asm/os_info.h>
+#include <asm/sclp.h>
+#include "entry.h"
 
-long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
-			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
-long psw_user_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
-			   PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			   PSW_MASK_PSTATE | PSW_DEFAULT_KEY);
+long psw_kernel_bits	= PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_PRIMARY |
+			  PSW_MASK_EA | PSW_MASK_BA;
+long psw_user_bits	= PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT |
+			  PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK |
+			  PSW_MASK_PSTATE | PSW_ASC_HOME;
 
 /*
  * User copy operations.
@@ -89,6 +95,20 @@ struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
+
+unsigned long VMALLOC_START;
+EXPORT_SYMBOL(VMALLOC_START);
+
+unsigned long VMALLOC_END;
+EXPORT_SYMBOL(VMALLOC_END);
+
+struct page *vmemmap;
+EXPORT_SYMBOL(vmemmap);
+
+#ifdef CONFIG_64BIT
+unsigned long MODULES_VADDR;
+unsigned long MODULES_END;
+#endif
 
 /* An array with a pointer to the lowcore of every CPU. */
 struct _lowcore *lowcore_ptr[NR_CPUS];
@@ -122,9 +142,14 @@ __setup("condev=", condev_setup);
 
 static void __init set_preferred_console(void)
 {
-	if (MACHINE_IS_KVM)
-		add_preferred_console("hvc", 0, NULL);
-	else if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
+	if (MACHINE_IS_KVM) {
+		if (sclp_has_vt220())
+			add_preferred_console("ttyS", 1, NULL);
+		else if (sclp_has_linemode())
+			add_preferred_console("ttyS", 0, NULL);
+		else
+			add_preferred_console("hvc", 0, NULL);
+	} else if (CONSOLE_IS_3215 || CONSOLE_IS_SCLP)
 		add_preferred_console("ttyS", 0, NULL);
 	else if (CONSOLE_IS_3270)
 		add_preferred_console("tty3270", 0, NULL);
@@ -201,23 +226,17 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_ZFCPDUMP
-static void __init setup_zfcpdump(unsigned int console_devno)
+static void __init setup_zfcpdump(void)
 {
-	static char str[41];
-
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
-	if (console_devno != -1)
-		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno, console_devno);
-	else
-		sprintf(str, " cio_ignore=all,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno);
-	strcat(boot_command_line, str);
+	if (OLDMEM_BASE)
+		return;
+	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
 	console_loglevel = 2;
 }
 #else
-static inline void setup_zfcpdump(unsigned int console_devno) {}
+static inline void setup_zfcpdump(void) {}
 #endif /* CONFIG_ZFCPDUMP */
 
  /*
@@ -262,6 +281,7 @@ void machine_power_off(void)
  * Dummy power off function.
  */
 void (*pm_power_off)(void) = machine_power_off;
+EXPORT_SYMBOL_GPL(pm_power_off);
 
 static int __init early_parse_mem(char *p)
 {
@@ -271,71 +291,55 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-unsigned int user_mode = HOME_SPACE_MODE;
-EXPORT_SYMBOL_GPL(user_mode);
-
-static int set_amode_and_uaccess(unsigned long user_amode,
-				 unsigned long user32_amode)
+static int __init parse_vmalloc(char *arg)
 {
-	psw_user_bits = PSW_BASE_BITS | PSW_MASK_DAT | user_amode |
-			PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
-#ifdef CONFIG_COMPAT
-	psw_user32_bits = PSW_BASE32_BITS | PSW_MASK_DAT | user_amode |
-			  PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK |
-			  PSW_MASK_PSTATE | PSW_DEFAULT_KEY;
-	psw32_user_bits = PSW32_BASE_BITS | PSW32_MASK_DAT | user32_amode |
-			  PSW32_MASK_IO | PSW32_MASK_EXT | PSW32_MASK_MCHECK |
-			  PSW32_MASK_PSTATE;
-#endif
-	psw_kernel_bits = PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME |
-			  PSW_MASK_MCHECK | PSW_DEFAULT_KEY;
-
-	if (MACHINE_HAS_MVCOS) {
-		memcpy(&uaccess, &uaccess_mvcos_switch, sizeof(uaccess));
-		return 1;
-	} else {
-		memcpy(&uaccess, &uaccess_pt, sizeof(uaccess));
-		return 0;
-	}
-}
-
-/*
- * Switch kernel/user addressing modes?
- */
-static int __init early_parse_switch_amode(char *p)
-{
-	user_mode = PRIMARY_SPACE_MODE;
+	if (!arg)
+		return -EINVAL;
+	VMALLOC_END = (memparse(arg, &arg) + PAGE_SIZE - 1) & PAGE_MASK;
 	return 0;
 }
-early_param("switch_amode", early_parse_switch_amode);
+early_param("vmalloc", parse_vmalloc);
+
+unsigned int s390_user_mode = PRIMARY_SPACE_MODE;
+EXPORT_SYMBOL_GPL(s390_user_mode);
+
+static void __init set_user_mode_primary(void)
+{
+	psw_kernel_bits = (psw_kernel_bits & ~PSW_MASK_ASC) | PSW_ASC_HOME;
+	psw_user_bits = (psw_user_bits & ~PSW_MASK_ASC) | PSW_ASC_PRIMARY;
+#ifdef CONFIG_COMPAT
+	psw32_user_bits =
+		(psw32_user_bits & ~PSW32_MASK_ASC) | PSW32_ASC_PRIMARY;
+#endif
+	uaccess = MACHINE_HAS_MVCOS ? uaccess_mvcos_switch : uaccess_pt;
+}
 
 static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
-		user_mode = PRIMARY_SPACE_MODE;
+		s390_user_mode = PRIMARY_SPACE_MODE;
 	else if (!p || strcmp(p, "home") == 0)
-		user_mode = HOME_SPACE_MODE;
+		s390_user_mode = HOME_SPACE_MODE;
 	else
 		return 1;
 	return 0;
 }
 early_param("user_mode", early_parse_user_mode);
 
-static void setup_addressing_mode(void)
+static void __init setup_addressing_mode(void)
 {
-	if (user_mode == PRIMARY_SPACE_MODE) {
-		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
-			pr_info("Address spaces switched, "
-				"mvcos available\n");
-		else
-			pr_info("Address spaces switched, "
-				"mvcos not available\n");
-	}
+	if (s390_user_mode != PRIMARY_SPACE_MODE)
+		return;
+	set_user_mode_primary();
+	if (MACHINE_HAS_MVCOS)
+		pr_info("Address spaces switched, mvcos available\n");
+	else
+		pr_info("Address spaces switched, mvcos not available\n");
 }
 
-static void __init
-setup_lowcore(void)
+void *restart_stack __attribute__((__section__(".data")));
+
+static void __init setup_lowcore(void)
 {
 	struct _lowcore *lc;
 
@@ -344,31 +348,35 @@ setup_lowcore(void)
 	 */
 	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
-	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lc->restart_psw.mask = psw_kernel_bits;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	if (user_mode != HOME_SPACE_MODE)
-		lc->restart_psw.mask |= PSW_ASC_HOME;
-	lc->external_new_psw.mask = psw_kernel_bits;
+	lc->external_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = psw_kernel_bits | PSW_MASK_IO | PSW_MASK_EXT;
+	lc->svc_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) system_call;
-	lc->program_new_psw.mask = psw_kernel_bits;
+	lc->program_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long)pgm_check_handler;
-	lc->mcck_new_psw.mask =
-		psw_kernel_bits & ~PSW_MASK_MCHECK & ~PSW_MASK_DAT;
+		PSW_ADDR_AMODE | (unsigned long) pgm_check_handler;
+	lc->mcck_new_psw.mask = psw_kernel_bits;
 	lc->mcck_new_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = psw_kernel_bits;
+	lc->io_new_psw.mask = psw_kernel_bits |
+		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
-	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
+	lc->kernel_stack = ((unsigned long) &init_thread_union)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
-		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
+		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0)
+		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->panic_stack = (unsigned long)
-		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0) + PAGE_SIZE;
+		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0)
+		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -383,7 +391,6 @@ setup_lowcore(void)
 		__ctl_set_bit(14, 29);
 	}
 #else
-	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -395,6 +402,27 @@ setup_lowcore(void)
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
 	lc->ftrace_func = S390_lowcore.ftrace_func;
+
+	restart_stack = __alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0);
+	restart_stack += ASYNC_SIZE;
+
+	/*
+	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
+	 * restart data to the absolute zero lowcore. This is necesary if
+	 * PSW restart is done on an offline CPU that has lowcore zero.
+	 */
+	lc->restart_stack = (unsigned long) restart_stack;
+	lc->restart_fn = (unsigned long) do_restart;
+	lc->restart_data = 0;
+	lc->restart_source = -1UL;
+
+	/* Setup absolute zero lowcore */
+	mem_assign_absolute(S390_lowcore.restart_stack, lc->restart_stack);
+	mem_assign_absolute(S390_lowcore.restart_fn, lc->restart_fn);
+	mem_assign_absolute(S390_lowcore.restart_data, lc->restart_data);
+	mem_assign_absolute(S390_lowcore.restart_source, lc->restart_source);
+	mem_assign_absolute(S390_lowcore.restart_psw, lc->restart_psw);
+
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
 }
@@ -470,26 +498,20 @@ static void __init setup_resources(void)
 	}
 }
 
-unsigned long real_memory_size;
-EXPORT_SYMBOL_GPL(real_memory_size);
-
 static void __init setup_memory_end(void)
 {
-	unsigned long memory_size;
-	unsigned long max_mem;
+	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long real_memory_size = 0;
 	int i;
 
+
 #ifdef CONFIG_ZFCPDUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !OLDMEM_BASE) {
 		memory_end = ZFCPDUMP_HSA_SIZE;
 		memory_end_set = 1;
 	}
 #endif
-	memory_size = 0;
 	memory_end &= PAGE_MASK;
-
-	max_mem = memory_end ? min(VMEM_MAX_PHYS, memory_end) : VMEM_MAX_PHYS;
-	memory_end = min(max_mem, memory_end);
 
 	/*
 	 * Make sure all chunks are MAX_ORDER aligned so we don't need the
@@ -501,6 +523,8 @@ static void __init setup_memory_end(void)
 		unsigned long align;
 
 		chunk = &memory_chunk[i];
+		if (!chunk->size)
+			continue;
 		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
 		start = (chunk->addr + align - 1) & ~(align - 1);
 		end = (chunk->addr + chunk->size) & ~(align - 1);
@@ -510,27 +534,242 @@ static void __init setup_memory_end(void)
 			chunk->addr = start;
 			chunk->size = end - start;
 		}
+		real_memory_size = max(real_memory_size,
+				       chunk->addr + chunk->size);
 	}
 
+	/* Choose kernel address space layout: 2, 3, or 4 levels. */
+#ifdef CONFIG_64BIT
+	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
+	tmp = (memory_end ?: real_memory_size) / PAGE_SIZE;
+	tmp = tmp * (sizeof(struct page) + PAGE_SIZE) + vmalloc_size;
+	if (tmp <= (1UL << 42))
+		vmax = 1UL << 42;	/* 3-level kernel page table */
+	else
+		vmax = 1UL << 53;	/* 4-level kernel page table */
+	/* module area is at the end of the kernel address space. */
+	MODULES_END = vmax;
+	MODULES_VADDR = MODULES_END - MODULES_LEN;
+	VMALLOC_END = MODULES_VADDR;
+#else
+	vmalloc_size = VMALLOC_END ?: 96UL << 20;
+	vmax = 1UL << 31;		/* 2-level kernel page table */
+	/* vmalloc area is at the end of the kernel address space. */
+	VMALLOC_END = vmax;
+#endif
+	VMALLOC_START = vmax - vmalloc_size;
+
+	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
+	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	tmp = SECTION_ALIGN_UP(tmp);
+	tmp = VMALLOC_START - tmp * sizeof(struct page);
+	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
+	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
+	vmemmap = (struct page *) tmp;
+
+	/* Take care that memory_end is set and <= vmemmap */
+	memory_end = min(memory_end ?: real_memory_size, tmp);
+
+	/* Fixup memory chunk array to fit into 0..memory_end */
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
-		real_memory_size = max(real_memory_size,
-				       chunk->addr + chunk->size);
-		if (chunk->addr >= max_mem) {
+		if (!chunk->size)
+			continue;
+		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
 		}
-		if (chunk->addr + chunk->size > max_mem)
-			chunk->size = max_mem - chunk->addr;
-		memory_size = max(memory_size, chunk->addr + chunk->size);
+		if (chunk->addr + chunk->size > memory_end)
+			chunk->size = memory_end - chunk->addr;
 	}
-	if (!memory_end)
-		memory_end = memory_size;
 }
 
-static void __init
-setup_memory(void)
+static void __init setup_vmcoreinfo(void)
+{
+	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
+}
+
+#ifdef CONFIG_CRASH_DUMP
+
+/*
+ * Find suitable location for crashkernel memory
+ */
+static unsigned long __init find_crash_base(unsigned long crash_size,
+					    char **msg)
+{
+	unsigned long crash_base;
+	struct mem_chunk *chunk;
+	int i;
+
+	if (memory_chunk[0].size < crash_size) {
+		*msg = "first memory chunk must be at least crashkernel size";
+		return 0;
+	}
+	if (OLDMEM_BASE && crash_size == OLDMEM_SIZE)
+		return OLDMEM_BASE;
+
+	for (i = MEMORY_CHUNKS - 1; i >= 0; i--) {
+		chunk = &memory_chunk[i];
+		if (chunk->size == 0)
+			continue;
+		if (chunk->type != CHUNK_READ_WRITE)
+			continue;
+		if (chunk->size < crash_size)
+			continue;
+		crash_base = (chunk->addr + chunk->size) - crash_size;
+		if (crash_base < crash_size)
+			continue;
+		if (crash_base < ZFCPDUMP_HSA_SIZE_MAX)
+			continue;
+		if (crash_base < (unsigned long) INITRD_START + INITRD_SIZE)
+			continue;
+		return crash_base;
+	}
+	*msg = "no suitable area found";
+	return 0;
+}
+
+/*
+ * Check if crash_base and crash_size is valid
+ */
+static int __init verify_crash_base(unsigned long crash_base,
+				    unsigned long crash_size,
+				    char **msg)
+{
+	struct mem_chunk *chunk;
+	int i;
+
+	/*
+	 * Because we do the swap to zero, we must have at least 'crash_size'
+	 * bytes free space before crash_base
+	 */
+	if (crash_size > crash_base) {
+		*msg = "crashkernel offset must be greater than size";
+		return -EINVAL;
+	}
+
+	/* First memory chunk must be at least crash_size */
+	if (memory_chunk[0].size < crash_size) {
+		*msg = "first memory chunk must be at least crashkernel size";
+		return -EINVAL;
+	}
+	/* Check if we fit into the respective memory chunk */
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		chunk = &memory_chunk[i];
+		if (chunk->size == 0)
+			continue;
+		if (crash_base < chunk->addr)
+			continue;
+		if (crash_base >= chunk->addr + chunk->size)
+			continue;
+		/* we have found the memory chunk */
+		if (crash_base + crash_size > chunk->addr + chunk->size) {
+			*msg = "selected memory chunk is too small for "
+				"crashkernel memory";
+			return -EINVAL;
+		}
+		return 0;
+	}
+	*msg = "invalid memory range specified";
+	return -EINVAL;
+}
+
+/*
+ * When kdump is enabled, we have to ensure that no memory from
+ * the area [0 - crashkernel memory size] and
+ * [crashk_res.start - crashk_res.end] is set offline.
+ */
+static int kdump_mem_notifier(struct notifier_block *nb,
+			      unsigned long action, void *data)
+{
+	struct memory_notify *arg = data;
+
+	if (arg->start_pfn < PFN_DOWN(resource_size(&crashk_res)))
+		return NOTIFY_BAD;
+	if (arg->start_pfn > PFN_DOWN(crashk_res.end))
+		return NOTIFY_OK;
+	if (arg->start_pfn + arg->nr_pages - 1 < PFN_DOWN(crashk_res.start))
+		return NOTIFY_OK;
+	return NOTIFY_BAD;
+}
+
+static struct notifier_block kdump_mem_nb = {
+	.notifier_call = kdump_mem_notifier,
+};
+
+#endif
+
+/*
+ * Make sure that oldmem, where the dump is stored, is protected
+ */
+static void reserve_oldmem(void)
+{
+#ifdef CONFIG_CRASH_DUMP
+	unsigned long real_size = 0;
+	int i;
+
+	if (!OLDMEM_BASE)
+		return;
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
+
+		real_size = max(real_size, chunk->addr + chunk->size);
+	}
+	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
+	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
+	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
+		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
+	else
+		saved_max_pfn = PFN_DOWN(real_size) - 1;
+#endif
+}
+
+/*
+ * Reserve memory for kdump kernel to be loaded with kexec
+ */
+static void __init reserve_crashkernel(void)
+{
+#ifdef CONFIG_CRASH_DUMP
+	unsigned long long crash_base, crash_size;
+	char *msg = NULL;
+	int rc;
+
+	rc = parse_crashkernel(boot_command_line, memory_end, &crash_size,
+			       &crash_base);
+	if (rc || crash_size == 0)
+		return;
+	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
+	crash_size = ALIGN(crash_size, KEXEC_CRASH_MEM_ALIGN);
+	if (register_memory_notifier(&kdump_mem_nb))
+		return;
+	if (!crash_base)
+		crash_base = find_crash_base(crash_size, &msg);
+	if (!crash_base) {
+		pr_info("crashkernel reservation failed: %s\n", msg);
+		unregister_memory_notifier(&kdump_mem_nb);
+		return;
+	}
+	if (verify_crash_base(crash_base, crash_size, &msg)) {
+		pr_info("crashkernel reservation failed: %s\n", msg);
+		unregister_memory_notifier(&kdump_mem_nb);
+		return;
+	}
+	if (!OLDMEM_BASE && MACHINE_IS_VM)
+		diag10_range(PFN_DOWN(crash_base), PFN_DOWN(crash_size));
+	crashk_res.start = crash_base;
+	crashk_res.end = crash_base + crash_size - 1;
+	insert_resource(&iomem_resource, &crashk_res);
+	create_mem_hole(memory_chunk, crash_base, crash_size);
+	pr_info("Reserving %lluMB of memory at %lluMB "
+		"for crashkernel (System RAM: %luMB)\n",
+		crash_size >> 20, crash_base >> 20, memory_end >> 20);
+	os_info_crashkernel_add(crash_base, crash_size);
+#endif
+}
+
+static void __init setup_memory(void)
 {
         unsigned long bootmap_size;
 	unsigned long start_pfn, end_pfn;
@@ -559,6 +798,14 @@ setup_memory(void)
 		if (PFN_PHYS(start_pfn) + bmap_size > INITRD_START) {
 			start = PFN_PHYS(start_pfn) + bmap_size + PAGE_SIZE;
 
+#ifdef CONFIG_CRASH_DUMP
+			if (OLDMEM_BASE) {
+				/* Move initrd behind kdump oldmem */
+				if (start + INITRD_SIZE > OLDMEM_BASE &&
+				    start < OLDMEM_BASE + OLDMEM_SIZE)
+					start = OLDMEM_BASE + OLDMEM_SIZE;
+			}
+#endif
 			if (start + INITRD_SIZE > memory_end) {
 				pr_err("initrd extends beyond end of "
 				       "memory (0x%08lx > 0x%08lx) "
@@ -586,21 +833,20 @@ setup_memory(void)
 	 * Register RAM areas with the bootmem allocator.
 	 */
 
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		unsigned long start_chunk, end_chunk, pfn;
 
-		if (memory_chunk[i].type != CHUNK_READ_WRITE)
+		if (!memory_chunk[i].size)
 			continue;
 		start_chunk = PFN_DOWN(memory_chunk[i].addr);
 		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size);
 		end_chunk = min(end_chunk, end_pfn);
 		if (start_chunk >= end_chunk)
 			continue;
-		add_active_range(0, start_chunk, end_chunk);
+		memblock_add_node(PFN_PHYS(start_chunk),
+				  PFN_PHYS(end_chunk - start_chunk), 0);
 		pfn = max(start_chunk, start_pfn);
-		for (; pfn < end_chunk; pfn++)
-			page_set_storage_key(PFN_PHYS(pfn),
-					     PAGE_DEFAULT_KEY, 0);
+		storage_key_init_range(PFN_PHYS(pfn), PFN_PHYS(end_chunk));
 	}
 
 	psw_set_key(PAGE_DEFAULT_KEY);
@@ -623,6 +869,15 @@ setup_memory(void)
 	reserve_bootmem(start_pfn << PAGE_SHIFT, bootmap_size,
 			BOOTMEM_DEFAULT);
 
+#ifdef CONFIG_CRASH_DUMP
+	if (crashk_res.start)
+		reserve_bootmem(crashk_res.start,
+				crashk_res.end - crashk_res.start + 1,
+				BOOTMEM_DEFAULT);
+	if (is_kdump_kernel())
+		reserve_bootmem(elfcorehdr_addr - OLDMEM_BASE,
+				PAGE_ALIGN(elfcorehdr_size), BOOTMEM_DEFAULT);
+#endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (INITRD_START && INITRD_SIZE) {
 		if (INITRD_START + INITRD_SIZE <= memory_end) {
@@ -697,11 +952,19 @@ static void __init setup_hwcaps(void)
 	if (MACHINE_HAS_HPAGE)
 		elf_hwcap |= HWCAP_S390_HPAGE;
 
+#if defined(CONFIG_64BIT)
 	/*
 	 * 64-bit register support for 31-bit processes
 	 * HWCAP_S390_HIGH_GPRS is bit 9.
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
+
+	/*
+	 * Transactional execution support HWCAP_S390_TE is bit 10.
+	 */
+	if (test_facility(50) && test_facility(73))
+		elf_hwcap |= HWCAP_S390_TE;
+#endif
 
 	get_cpu_id(&cpu_id);
 	switch (cpu_id.machine) {
@@ -731,7 +994,12 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "z10");
 		break;
 	case 0x2817:
+	case 0x2818:
 		strcpy(elf_platform, "z196");
+		break;
+	case 0x2827:
+	case 0x2828:
+		strcpy(elf_platform, "zEC12");
 		break;
 	}
 }
@@ -741,8 +1009,7 @@ static void __init setup_hwcaps(void)
  * was printed.
  */
 
-void __init
-setup_arch(char **cmdline_p)
+void __init setup_arch(char **cmdline_p)
 {
         /*
          * print what head.S has found out about the machine
@@ -786,12 +1053,16 @@ setup_arch(char **cmdline_p)
 		memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
 
 	parse_early_param();
-
+	detect_memory_layout(memory_chunk, memory_end);
+	os_info_init();
 	setup_ipl();
+	reserve_oldmem();
 	setup_memory_end();
 	setup_addressing_mode();
+	reserve_crashkernel();
 	setup_memory();
 	setup_resources();
+	setup_vmcoreinfo();
 	setup_lowcore();
 
         cpu_init();
@@ -812,5 +1083,5 @@ setup_arch(char **cmdline_p)
 	set_preferred_console();
 
 	/* Setup zfcpdump support */
-	setup_zfcpdump(console_devno);
+	setup_zfcpdump();
 }

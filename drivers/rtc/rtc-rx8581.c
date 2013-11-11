@@ -228,8 +228,8 @@ static const struct rtc_class_ops rx8581_rtc_ops = {
 	.set_time	= rx8581_rtc_set_time,
 };
 
-static int __devinit rx8581_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int rx8581_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct rtc_device *rtc;
 
@@ -240,8 +240,8 @@ static int __devinit rx8581_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(rx8581_driver.driver.name,
-				&client->dev, &rx8581_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, rx8581_driver.driver.name,
+					&rx8581_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -251,12 +251,8 @@ static int __devinit rx8581_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit rx8581_remove(struct i2c_client *client)
+static int rx8581_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rtc);
-
 	return 0;
 }
 
@@ -272,24 +268,13 @@ static struct i2c_driver rx8581_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rx8581_probe,
-	.remove		= __devexit_p(rx8581_remove),
+	.remove		= rx8581_remove,
 	.id_table	= rx8581_id,
 };
 
-static int __init rx8581_init(void)
-{
-	return i2c_add_driver(&rx8581_driver);
-}
-
-static void __exit rx8581_exit(void)
-{
-	i2c_del_driver(&rx8581_driver);
-}
+module_i2c_driver(rx8581_driver);
 
 MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com>");
 MODULE_DESCRIPTION("Epson RX-8581 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(rx8581_init);
-module_exit(rx8581_exit);

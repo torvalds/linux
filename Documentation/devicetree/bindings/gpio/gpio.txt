@@ -4,17 +4,45 @@ Specifying GPIO information for devices
 1) gpios property
 -----------------
 
-Nodes that makes use of GPIOs should define them using `gpios' property,
-format of which is: <&gpio-controller1-phandle gpio1-specifier
-		     &gpio-controller2-phandle gpio2-specifier
-		     0 /* holes are permitted, means no GPIO 3 */
-		     &gpio-controller4-phandle gpio4-specifier
-		     ...>;
+Nodes that makes use of GPIOs should specify them using one or more
+properties, each containing a 'gpio-list':
 
-Note that gpio-specifier length is controller dependent.
+	gpio-list ::= <single-gpio> [gpio-list]
+	single-gpio ::= <gpio-phandle> <gpio-specifier>
+	gpio-phandle : phandle to gpio controller node
+	gpio-specifier : Array of #gpio-cells specifying specific gpio
+			 (controller specific)
+
+GPIO properties should be named "[<name>-]gpios".  Exact
+meaning of each gpios property must be documented in the device tree
+binding for each device.
+
+For example, the following could be used to describe gpios pins to use
+as chip select lines; with chip selects 0, 1 and 3 populated, and chip
+select 2 left empty:
+
+	gpio1: gpio1 {
+		gpio-controller
+		 #gpio-cells = <2>;
+	};
+	gpio2: gpio2 {
+		gpio-controller
+		 #gpio-cells = <1>;
+	};
+	[...]
+	 chipsel-gpios = <&gpio1 12 0>,
+			 <&gpio1 13 0>,
+			 <0>, /* holes are permitted, means no GPIO 2 */
+			 <&gpio2 2>;
+
+Note that gpio-specifier length is controller dependent.  In the
+above example, &gpio1 uses 2 cells to specify a gpio, while &gpio2
+only uses one.
 
 gpio-specifier may encode: bank, pin position inside the bank,
 whether pin is open-drain and whether pin is logically inverted.
+Exact meaning of each specifier cell is controller specific, and must
+be documented in the device tree binding for the device.
 
 Example of the node using GPIOs:
 
@@ -28,8 +56,8 @@ and empty GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 2) gpio-controller nodes
 ------------------------
 
-Every GPIO controller node must have #gpio-cells property defined,
-this information will be used to translate gpio-specifiers.
+Every GPIO controller node must both an empty "gpio-controller"
+property, and have #gpio-cells contain the size of the gpio-specifier.
 
 Example of two SOC GPIO banks defined as gpio-controller nodes:
 
@@ -47,4 +75,40 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
+2.1) gpio-controller and pinctrl subsystem
+------------------------------------------
 
+gpio-controller on a SOC might be tightly coupled with the pinctrl
+subsystem, in the sense that the pins can be used by other functions
+together with optional gpio feature.
+
+While the pin allocation is totally managed by the pin ctrl subsystem,
+gpio (under gpiolib) is still maintained by gpio drivers. It may happen
+that different pin ranges in a SoC is managed by different gpio drivers.
+
+This makes it logical to let gpio drivers announce their pin ranges to
+the pin ctrl subsystem and call 'pinctrl_request_gpio' in order to
+request the corresponding pin before any gpio usage.
+
+For this, the gpio controller can use a pinctrl phandle and pins to
+announce the pinrange to the pin ctrl subsystem. For example,
+
+	qe_pio_e: gpio-controller@1460 {
+		#gpio-cells = <2>;
+		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
+		reg = <0x1460 0x18>;
+		gpio-controller;
+		gpio-ranges = <&pinctrl1 0 20 10>, <&pinctrl2 10 50 20>;
+
+    }
+
+where,
+   &pinctrl1 and &pinctrl2 is the phandle to the pinctrl DT node.
+
+   Next values specify the base pin and number of pins for the range
+   handled by 'qe_pio_e' gpio. In the given example from base pin 20 to
+   pin 29 under pinctrl1 with gpio offset 0 and pin 50 to pin 69 under
+   pinctrl2 with gpio offset 10 is handled by this gpio controller.
+
+The pinctrl node must have "#gpio-range-cells" property to show number of
+arguments to pass with phandle from gpio controllers node.

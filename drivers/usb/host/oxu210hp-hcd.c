@@ -40,7 +40,6 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include <linux/irq.h>
@@ -233,7 +232,7 @@ module_param(park, uint, S_IRUGO);
 MODULE_PARM_DESC(park, "park setting; 1-3 back-to-back async packets");
 
 /* For flakey hardware, ignore overcurrent indicators */
-static int ignore_oc;
+static bool ignore_oc;
 module_param(ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC(ignore_oc, "ignore bogus hardware overcurrent indications");
 
@@ -1400,8 +1399,8 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 				 * But interval 1 scheduling is simpler, and
 				 * includes high bandwidth.
 				 */
-				dbg("intr period %d uframes, NYET!",
-						urb->interval);
+				oxu_dbg(oxu, "intr period %d uframes, NYET!\n",
+					urb->interval);
 				goto done;
 			}
 		} else {
@@ -1472,7 +1471,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 		}
 		break;
 	default:
-		dbg("bogus dev %p speed %d", urb->dev, urb->dev->speed);
+		oxu_dbg(oxu, "bogus dev %p speed %d\n", urb->dev, urb->dev->speed);
 done:
 		qh_put(qh);
 		return NULL;
@@ -2308,7 +2307,7 @@ restart:
 				qh_put(temp.qh);
 				break;
 			default:
-				dbg("corrupt type %d frame %d shadow %p",
+				oxu_dbg(oxu, "corrupt type %d frame %d shadow %p\n",
 					type, frame, q.ptr);
 				q.ptr = NULL;
 			}
@@ -2992,8 +2991,9 @@ static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 				/* shouldn't happen often, but ...
 				 * FIXME kill those tds' urbs
 				 */
-				err("can't reschedule qh %p, err %d",
-					qh, status);
+				dev_err(hcd->self.controller,
+					"can't reschedule qh %p, err %d\n", qh,
+					status);
 			}
 			return status;
 		}
@@ -3084,7 +3084,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3828,7 +3828,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	memstart = res->start;
-	memlen = res->end - res->start + 1;
+	memlen = resource_size(res);
 	dev_dbg(&pdev->dev, "MEM resource %lx-%lx\n", memstart, memlen);
 	if (!request_mem_region(memstart, memlen,
 				oxu_hc_driver.description)) {
@@ -3951,24 +3951,7 @@ static struct platform_driver oxu_driver = {
 	}
 };
 
-static int __init oxu_module_init(void)
-{
-	int retval = 0;
-
-	retval = platform_driver_register(&oxu_driver);
-	if (retval < 0)
-		return retval;
-
-	return retval;
-}
-
-static void __exit oxu_module_cleanup(void)
-{
-	platform_driver_unregister(&oxu_driver);
-}
-
-module_init(oxu_module_init);
-module_exit(oxu_module_cleanup);
+module_platform_driver(oxu_driver);
 
 MODULE_DESCRIPTION("Oxford OXU210HP HCD driver - ver. " DRIVER_VERSION);
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");

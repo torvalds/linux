@@ -11,12 +11,21 @@
  * for more details.
  */
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
-#include <asm/mach/irq.h>
 
+#include <asm/exception.h>
+#include <asm/mach/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+
+#include "soc.h"
+#include "iomap.h"
+#include "common.h"
 
 /* selected INTC register offsets */
 
@@ -35,6 +44,13 @@
 /* Number of IRQ state bits in each MIR register */
 #define IRQ_BITS_PER_REG	32
 
+#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
+#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
+#define INTCPS_SIR_IRQ_OFFSET	0x0040	/* omap2/3 active interrupt offset */
+#define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
+#define INTCPS_NR_MIR_REGS	3
+#define INTCPS_NR_IRQS		96
+
 /*
  * OMAP2 has a number of different interrupt controllers, each interrupt
  * controller is identified as its own "bank". Register definitions are
@@ -50,6 +66,8 @@ static struct omap_irq_bank {
 		.nr_irqs	= 96,
 	},
 };
+
+static struct irq_domain *domain;
 
 /* Structure to save interrupt controller context */
 struct omap3_intc_regs {
@@ -90,9 +108,8 @@ static void __init omap_irq_bank_init_one(struct omap_irq_bank *bank)
 	unsigned long tmp;
 
 	tmp = intc_bank_read_reg(bank, INTC_REVISION) & 0xff;
-	printk(KERN_INFO "IRQ: Found an INTC at 0x%p "
-			 "(revision %ld.%ld) with %d interrupts\n",
-			 bank->base_reg, tmp >> 4, tmp & 0xf, bank->nr_irqs);
+	pr_info("IRQ: Found an INTC at 0x%p (revision %ld.%ld) with %d interrupts\n",
+		bank->base_reg, tmp >> 4, tmp & 0xf, bank->nr_irqs);
 
 	tmp = intc_bank_read_reg(bank, INTC_SYSCONFIG);
 	tmp |= 1 << 1;	/* soft reset */
@@ -133,55 +150,148 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 	ct->chip.irq_ack = omap_mask_ack_irq;
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
+	ct->chip.flags |= IRQCHIP_SKIP_SET_WAKE;
 
-	ct->regs.ack = INTC_CONTROL;
 	ct->regs.enable = INTC_MIR_CLEAR0;
 	ct->regs.disable = INTC_MIR_SET0;
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
 				IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-void __init omap_init_irq(void)
+static void __init omap_init_irq(u32 base, int nr_irqs,
+				 struct device_node *node)
 {
+	void __iomem *omap_irq_base;
 	unsigned long nr_of_irqs = 0;
 	unsigned int nr_banks = 0;
-	int i, j;
+	int i, j, irq_base;
+
+	omap_irq_base = ioremap(base, SZ_4K);
+	if (WARN_ON(!omap_irq_base))
+		return;
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (irq_base < 0) {
+		pr_warn("Couldn't allocate IRQ numbers\n");
+		irq_base = 0;
+	}
+
+	domain = irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+				       &irq_domain_simple_ops, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(irq_banks); i++) {
-		unsigned long base = 0;
 		struct omap_irq_bank *bank = irq_banks + i;
 
-		if (cpu_is_omap24xx())
-			base = OMAP24XX_IC_BASE;
-		else if (cpu_is_omap34xx())
-			base = OMAP34XX_IC_BASE;
-
-		BUG_ON(!base);
-
-		if (cpu_is_ti816x())
-			bank->nr_irqs = 128;
+		bank->nr_irqs = nr_irqs;
 
 		/* Static mapping, never released */
 		bank->base_reg = ioremap(base, SZ_4K);
 		if (!bank->base_reg) {
-			printk(KERN_ERR "Could not ioremap irq bank%i\n", i);
+			pr_err("Could not ioremap irq bank%i\n", i);
 			continue;
 		}
 
 		omap_irq_bank_init_one(bank);
 
-		for (i = 0, j = 0; i < bank->nr_irqs; i += 32, j += 0x20)
-			omap_alloc_gc(bank->base_reg + j, i, 32);
+		for (j = 0; j < bank->nr_irqs; j += 32)
+			omap_alloc_gc(bank->base_reg + j, j + irq_base, 32);
 
 		nr_of_irqs += bank->nr_irqs;
 		nr_banks++;
 	}
 
-	printk(KERN_INFO "Total of %ld interrupts on %d active controller%s\n",
-	       nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
+	pr_info("Total of %ld interrupts on %d active controller%s\n",
+		nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
 }
 
-#ifdef CONFIG_ARCH_OMAP3
+void __init omap2_init_irq(void)
+{
+	omap_init_irq(OMAP24XX_IC_BASE, 96, NULL);
+}
+
+void __init omap3_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 96, NULL);
+}
+
+void __init ti81xx_init_irq(void)
+{
+	omap_init_irq(OMAP34XX_IC_BASE, 128, NULL);
+}
+
+static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
+{
+	u32 irqnr;
+
+	do {
+		irqnr = readl_relaxed(base_addr + 0x98);
+		if (irqnr)
+			goto out;
+
+		irqnr = readl_relaxed(base_addr + 0xb8);
+		if (irqnr)
+			goto out;
+
+		irqnr = readl_relaxed(base_addr + 0xd8);
+#ifdef CONFIG_SOC_TI81XX
+		if (irqnr)
+			goto out;
+		irqnr = readl_relaxed(base_addr + 0xf8);
+#endif
+
+out:
+		if (!irqnr)
+			break;
+
+		irqnr = readl_relaxed(base_addr + INTCPS_SIR_IRQ_OFFSET);
+		irqnr &= ACTIVEIRQ_MASK;
+
+		if (irqnr) {
+			irqnr = irq_find_mapping(domain, irqnr);
+			handle_IRQ(irqnr, regs);
+		}
+	} while (irqnr);
+}
+
+asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)
+{
+	void __iomem *base_addr = OMAP2_IRQ_BASE;
+	omap_intc_handle_irq(base_addr, regs);
+}
+
+int __init intc_of_init(struct device_node *node,
+			     struct device_node *parent)
+{
+	struct resource res;
+	u32 nr_irq = 96;
+
+	if (WARN_ON(!node))
+		return -ENODEV;
+
+	if (of_address_to_resource(node, 0, &res)) {
+		WARN(1, "unable to get intc registers\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(node, "ti,intc-size", &nr_irq))
+		pr_warn("unable to get intc-size, default to %d\n", nr_irq);
+
+	omap_init_irq(res.start, nr_irq, of_node_get(node));
+
+	return 0;
+}
+
+static struct of_device_id irq_match[] __initdata = {
+	{ .compatible = "ti,omap2-intc", .data = intc_of_init, },
+	{ }
+};
+
+void __init omap_intc_of_init(void)
+{
+	of_irq_init(irq_match);
+}
+
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
 static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
 
 void omap_intc_save_context(void)
@@ -236,7 +346,7 @@ void omap_intc_restore_context(void)
 void omap3_intc_suspend(void)
 {
 	/* A pending interrupt would prevent OMAP from entering suspend */
-	omap_ack_irq(0);
+	omap_ack_irq(NULL);
 }
 
 void omap3_intc_prepare_idle(void)
@@ -252,5 +362,11 @@ void omap3_intc_resume_idle(void)
 {
 	/* Re-enable autoidle */
 	intc_bank_write_reg(1, &irq_banks[0], INTC_SYSCONFIG);
+}
+
+asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
+{
+	void __iomem *base_addr = OMAP3_IRQ_BASE;
+	omap_intc_handle_irq(base_addr, regs);
 }
 #endif /* CONFIG_ARCH_OMAP3 */

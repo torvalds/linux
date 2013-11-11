@@ -70,4 +70,9 @@
 
 #include <asm-generic/bug.h>
 
+struct pt_regs;
+void die(const char *str, struct pt_regs *regs, long err);
+void _exception(long signr, struct pt_regs *regs, int code,
+		unsigned long addr);
+
 #endif /* __ASM_AVR32_BUG_H */

@@ -1,0 +1,120 @@
+    <refentry id="V4L2-PIX-FMT-VYUY">
+      <refmeta>
+	<refentrytitle>V4L2_PIX_FMT_VYUY ('VYUY')</refentrytitle>
+	&manvol;
+      </refmeta>
+      <refnamediv>
+	<refname><constant>V4L2_PIX_FMT_VYUY</constant></refname>
+	<refpurpose>Variation of
+<constant>V4L2_PIX_FMT_YUYV</constant> with different order of samples
+in memory</refpurpose>
+      </refnamediv>
+      <refsect1>
+	<title>Description</title>
+
+	<para>In this format each four bytes is two pixels. Each four
+bytes is two Y's, a Cb and a Cr. Each Y goes to one of the pixels, and
+the Cb and Cr belong to both pixels. As you can see, the Cr and Cb
+components have half the horizontal resolution of the Y
+component.</para>
+
+	<example>
+	  <title><constant>V4L2_PIX_FMT_VYUY</constant> 4 &times; 4
+pixel image</title>
+
+	  <formalpara>
+	    <title>Byte Order.</title>
+	    <para>Each cell is one byte.
+		<informaltable frame="none">
+		<tgroup cols="9" align="center">
+		  <colspec align="left" colwidth="2*" />
+		  <tbody valign="top">
+		    <row>
+		      <entry>start&nbsp;+&nbsp;0:</entry>
+		      <entry>Cr<subscript>00</subscript></entry>
+		      <entry>Y'<subscript>00</subscript></entry>
+		      <entry>Cb<subscript>00</subscript></entry>
+		      <entry>Y'<subscript>01</subscript></entry>
+		      <entry>Cr<subscript>01</subscript></entry>
+		      <entry>Y'<subscript>02</subscript></entry>
+		      <entry>Cb<subscript>01</subscript></entry>
+		      <entry>Y'<subscript>03</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;8:</entry>
+		      <entry>Cr<subscript>10</subscript></entry>
+		      <entry>Y'<subscript>10</subscript></entry>
+		      <entry>Cb<subscript>10</subscript></entry>
+		      <entry>Y'<subscript>11</subscript></entry>
+		      <entry>Cr<subscript>11</subscript></entry>
+		      <entry>Y'<subscript>12</subscript></entry>
+		      <entry>Cb<subscript>11</subscript></entry>
+		      <entry>Y'<subscript>13</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;16:</entry>
+		      <entry>Cr<subscript>20</subscript></entry>
+		      <entry>Y'<subscript>20</subscript></entry>
+		      <entry>Cb<subscript>20</subscript></entry>
+		      <entry>Y'<subscript>21</subscript></entry>
+		      <entry>Cr<subscript>21</subscript></entry>
+		      <entry>Y'<subscript>22</subscript></entry>
+		      <entry>Cb<subscript>21</subscript></entry>
+		      <entry>Y'<subscript>23</subscript></entry>
+		    </row>
+		    <row>
+		      <entry>start&nbsp;+&nbsp;24:</entry>
+		      <entry>Cr<subscript>30</subscript></entry>
+		      <entry>Y'<subscript>30</subscript></entry>
+		      <entry>Cb<subscript>30</subscript></entry>
+		      <entry>Y'<subscript>31</subscript></entry>
+		      <entry>Cr<subscript>31</subscript></entry>
+		      <entry>Y'<subscript>32</subscript></entry>
+		      <entry>Cb<subscript>31</subscript></entry>
+		      <entry>Y'<subscript>33</subscript></entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+		</informaltable>
+	      </para>
+	  </formalpara>
+
+	  <formalpara>
+	    <title>Color Sample Location.</title>
+	    <para>
+		<informaltable frame="none">
+		<tgroup cols="7" align="center">
+		  <tbody valign="top">
+		    <row>
+		      <entry></entry>
+		      <entry>0</entry><entry></entry><entry>1</entry><entry></entry>
+		      <entry>2</entry><entry></entry><entry>3</entry>
+		    </row>
+		    <row>
+		      <entry>0</entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry>1</entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry>2</entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry>
+		    </row>
+		    <row>
+		      <entry>3</entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry><entry></entry>
+		      <entry>Y</entry><entry>C</entry><entry>Y</entry>
+		    </row>
+		  </tbody>
+		</tgroup>
+		</informaltable>
+	      </para>
+	  </formalpara>
+	</example>
+      </refsect1>
+    </refentry>

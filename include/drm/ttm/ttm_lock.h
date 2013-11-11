@@ -49,9 +49,9 @@
 #ifndef _TTM_LOCK_H_
 #define _TTM_LOCK_H_
 
-#include "ttm/ttm_object.h"
+#include <ttm/ttm_object.h>
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /**
  * struct ttm_lock

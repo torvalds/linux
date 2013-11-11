@@ -28,13 +28,13 @@
 
 #define _XMIT_OSDEP_C_
 
+#include <linux/usb.h>
+#include <linux/ip.h>
+#include <linux/if_ether.h>
+
 #include "osdep_service.h"
 #include "drv_types.h"
 
-
-#include "if_ether.h"
-#include "ip.h"
-#include "rtl871x_byteorder.h"
 #include "wifi.h"
 #include "mlme_osdep.h"
 #include "xmit_osdep.h"
@@ -42,7 +42,6 @@
 
 static uint remainder_len(struct pkt_file *pfile)
 {
-	/* Kovich: Need to extend the buf_len to 64 bit ?(unsigned long long) */
 	return (uint)(pfile->buf_len - ((addr_t)(pfile->cur_addr) -
 	       (addr_t)(pfile->buf_start)));
 }
@@ -107,16 +106,35 @@ void r8712_set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 	pattrib->subtype = WIFI_QOS_DATA_TYPE;
 }
 
+void r8712_SetFilter(struct work_struct *work)
+{
+	struct _adapter *padapter = container_of(work, struct _adapter,
+						wkFilterRxFF0);
+	u8  oldvalue = 0x00, newvalue = 0x00;
+	unsigned long irqL;
+
+	oldvalue = r8712_read8(padapter, 0x117);
+	newvalue = oldvalue & 0xfe;
+	r8712_write8(padapter, 0x117, newvalue);
+
+	spin_lock_irqsave(&padapter->lockRxFF0Filter, irqL);
+	padapter->blnEnableRxFF0Filter = 1;
+	spin_unlock_irqrestore(&padapter->lockRxFF0Filter, irqL);
+	do {
+		msleep(100);
+	} while (padapter->blnEnableRxFF0Filter == 1);
+	r8712_write8(padapter, 0x117, oldvalue);
+}
+
 int r8712_xmit_resource_alloc(struct _adapter *padapter,
 			      struct xmit_buf *pxmitbuf)
 {
 	int i;
 
 	for (i = 0; i < 8; i++) {
-		pxmitbuf->pxmit_urb[i] = _usb_alloc_urb(0, GFP_KERNEL);
+		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (pxmitbuf->pxmit_urb[i] == NULL) {
-			printk(KERN_ERR "r8712u: pxmitbuf->pxmit_urb[i]"
-			    " == NULL");
+			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return _FAIL;
 		}
 	}
@@ -146,7 +164,7 @@ void r8712_xmit_complete(struct _adapter *padapter, struct xmit_frame *pxframe)
 int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 {
 	struct xmit_frame *pxmitframe = NULL;
-	struct _adapter *padapter = (struct _adapter *)_netdev_priv(pnetdev);
+	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 	int ret = 0;
 

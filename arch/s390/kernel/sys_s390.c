@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/sys_s390.c
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Thomas Spatzier (tspat@de.ibm.com)
  *
@@ -60,74 +58,22 @@ out:
 }
 
 /*
- * sys_ipc() is the de-multiplexer for the SysV IPC calls..
- *
- * This is really horribly ugly.
+ * sys_ipc() is the de-multiplexer for the SysV IPC calls.
  */
 SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 		unsigned long, third, void __user *, ptr)
 {
-        struct ipc_kludge tmp;
-	int ret;
-
-        switch (call) {
-        case SEMOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-				       (unsigned)second, NULL);
-	case SEMTIMEDOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-				       (unsigned)second,
-				       (const struct timespec __user *) third);
-        case SEMGET:
-                return sys_semget(first, (int)second, third);
-        case SEMCTL: {
-                union semun fourth;
-                if (!ptr)
-                        return -EINVAL;
-                if (get_user(fourth.__pad, (void __user * __user *) ptr))
-                        return -EFAULT;
-                return sys_semctl(first, (int)second, third, fourth);
-        }
-        case MSGSND:
-		return sys_msgsnd (first, (struct msgbuf __user *) ptr,
-                                   (size_t)second, third);
-		break;
-        case MSGRCV:
-                if (!ptr)
-                        return -EINVAL;
-                if (copy_from_user (&tmp, (struct ipc_kludge __user *) ptr,
-                                    sizeof (struct ipc_kludge)))
-                        return -EFAULT;
-                return sys_msgrcv (first, tmp.msgp,
-                                   (size_t)second, tmp.msgtyp, third);
-        case MSGGET:
-                return sys_msgget((key_t)first, (int)second);
-        case MSGCTL:
-                return sys_msgctl(first, (int)second,
-				   (struct msqid_ds __user *)ptr);
-
-	case SHMAT: {
-		ulong raddr;
-		ret = do_shmat(first, (char __user *)ptr,
-				(int)second, &raddr);
-		if (ret)
-			return ret;
-		return put_user (raddr, (ulong __user *) third);
-		break;
-        }
-	case SHMDT:
-		return sys_shmdt ((char __user *)ptr);
-	case SHMGET:
-		return sys_shmget(first, (size_t)second, third);
-	case SHMCTL:
-		return sys_shmctl(first, (int)second,
-                                   (struct shmid_ds __user *) ptr);
-	default:
-		return -ENOSYS;
-
-	}
-
-	return -EINVAL;
+	if (call >> 16)
+		return -EINVAL;
+	/* The s390 sys_ipc variant has only five parameters instead of six
+	 * like the generic variant. The only difference is the handling of
+	 * the SEMTIMEDOP subcall where on s390 the third parameter is used
+	 * as a pointer to a struct timespec where the generic variant uses
+	 * the fifth parameter.
+	 * Therefore we can call the generic variant by simply passing the
+	 * third parameter also as fifth parameter.
+	 */
+	return sys_ipc(call, first, second, third, ptr, third);
 }
 
 #ifdef CONFIG_64BIT
@@ -135,11 +81,12 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
 	unsigned int ret;
 
-	if (current->personality == PER_LINUX32 && personality == PER_LINUX)
-		personality = PER_LINUX32;
+	if (personality(current->personality) == PER_LINUX32 &&
+	    personality(personality) == PER_LINUX)
+		personality |= PER_LINUX32;
 	ret = sys_personality(personality);
-	if (ret == PER_LINUX32)
-		ret = PER_LINUX;
+	if (personality(ret) == PER_LINUX32)
+		ret &= ~PER_LINUX32;
 
 	return ret;
 }
@@ -185,19 +132,9 @@ SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, args)
  * to
  *   %r2: fd, %r3: mode, %r4/%r5: offset, 96(%r15)-103(%r15): len
  */
-SYSCALL_DEFINE(s390_fallocate)(int fd, int mode, loff_t offset,
-			       u32 len_high, u32 len_low)
+SYSCALL_DEFINE5(s390_fallocate, int, fd, int, mode, loff_t, offset,
+			       u32, len_high, u32, len_low)
 {
 	return sys_fallocate(fd, mode, offset, ((u64)len_high << 32) | len_low);
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_s390_fallocate(long fd, long mode, loff_t offset,
-				   long len_high, long len_low)
-{
-	return SYSC_s390_fallocate((int) fd, (int) mode, offset,
-				   (u32) len_high, (u32) len_low);
-}
-SYSCALL_ALIAS(sys_s390_fallocate, SyS_s390_fallocate);
-#endif
-
 #endif

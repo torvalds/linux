@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/sfi.h>
 #include <linux/platform_device.h>
@@ -58,7 +59,10 @@ EXPORT_SYMBOL_GPL(vrtc_cmos_write);
 unsigned long vrtc_get_time(void)
 {
 	u8 sec, min, hour, mday, mon;
+	unsigned long flags;
 	u32 year;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 
 	while ((vrtc_cmos_read(RTC_FREQ_SELECT) & RTC_UIP))
 		cpu_relax();
@@ -70,8 +74,10 @@ unsigned long vrtc_get_time(void)
 	mon = vrtc_cmos_read(RTC_MONTH);
 	year = vrtc_cmos_read(RTC_YEAR);
 
-	/* vRTC YEAR reg contains the offset to 1960 */
-	year += 1960;
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	/* vRTC YEAR reg contains the offset to 1972 */
+	year += 1972;
 
 	printk(KERN_INFO "vRTC: sec: %d min: %d hour: %d day: %d "
 		"mon: %d year: %d\n", sec, min, hour, mday, mon, year);
@@ -79,23 +85,35 @@ unsigned long vrtc_get_time(void)
 	return mktime(year, mon, mday, hour, min, sec);
 }
 
-/* Only care about the minutes and seconds */
 int vrtc_set_mmss(unsigned long nowtime)
 {
-	int real_sec, real_min;
-	int vrtc_min;
+	unsigned long flags;
+	struct rtc_time tm;
+	int year;
+	int retval = 0;
 
-	vrtc_min = vrtc_cmos_read(RTC_MINUTES);
-
-	real_sec = nowtime % 60;
-	real_min = nowtime / 60;
-	if (((abs(real_min - vrtc_min) + 15)/30) & 1)
-		real_min += 30;
-	real_min %= 60;
-
-	vrtc_cmos_write(real_sec, RTC_SECONDS);
-	vrtc_cmos_write(real_min, RTC_MINUTES);
-	return 0;
+	rtc_time_to_tm(nowtime, &tm);
+	if (!rtc_valid_tm(&tm) && tm.tm_year >= 72) {
+		/*
+		 * tm.year is the number of years since 1900, and the
+		 * vrtc need the years since 1972.
+		 */
+		year = tm.tm_year - 72;
+		spin_lock_irqsave(&rtc_lock, flags);
+		vrtc_cmos_write(year, RTC_YEAR);
+		vrtc_cmos_write(tm.tm_mon, RTC_MONTH);
+		vrtc_cmos_write(tm.tm_mday, RTC_DAY_OF_MONTH);
+		vrtc_cmos_write(tm.tm_hour, RTC_HOURS);
+		vrtc_cmos_write(tm.tm_min, RTC_MINUTES);
+		vrtc_cmos_write(tm.tm_sec, RTC_SECONDS);
+		spin_unlock_irqrestore(&rtc_lock, flags);
+	} else {
+		printk(KERN_ERR
+		       "%s: Invalid vRTC value: write of %lx to vRTC failed\n",
+			__FUNCTION__, nowtime);
+		retval = -EINVAL;
+	}
+	return retval;
 }
 
 void __init mrst_rtc_init(void)

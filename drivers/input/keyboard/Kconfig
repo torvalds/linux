@@ -33,10 +33,10 @@ config KEYBOARD_ADP5588
 	  module will be called adp5588-keys.
 
 config KEYBOARD_ADP5589
-	tristate "ADP5589 I2C QWERTY Keypad and IO Expander"
+	tristate "ADP5585/ADP5589 I2C QWERTY Keypad and IO Expander"
 	depends on I2C
 	help
-	  Say Y here if you want to use a ADP5589 attached to your
+	  Say Y here if you want to use a ADP5585/ADP5589 attached to your
 	  system I2C bus.
 
 	  To compile this driver as a module, choose M here: the
@@ -134,7 +134,7 @@ config KEYBOARD_QT1070
 
 config KEYBOARD_QT2160
 	tristate "Atmel AT42QT2160 Touch Sensor Chip"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	help
 	  If you say yes here you get support for Atmel AT42QT2160 Touch
 	  Sensor chip as a keyboard input.
@@ -166,6 +166,7 @@ config KEYBOARD_LKKBD
 config KEYBOARD_EP93XX
 	tristate "EP93xx Matrix Keypad support"
 	depends on ARCH_EP93XX
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
 
@@ -174,7 +175,7 @@ config KEYBOARD_EP93XX
 
 config KEYBOARD_GPIO
 	tristate "GPIO Buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins of various CPUs (and some other chips).
@@ -189,7 +190,7 @@ config KEYBOARD_GPIO
 
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
@@ -221,9 +222,27 @@ config KEYBOARD_TCA6416
 	  To compile this driver as a module, choose M here: the
 	  module will be called tca6416_keypad.
 
+config KEYBOARD_TCA8418
+	tristate "TCA8418 Keypad Support"
+	depends on I2C && GENERIC_HARDIRQS
+	select INPUT_MATRIXKMAP
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA8418 keypad decoder.
+
+	  Say Y here if your device has keys connected to
+	  TCA8418 keypad decoder.
+
+	  If enabled the complete TCA8418 device will be managed through
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tca8418_keypad.
+
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
+	select INPUT_MATRIXKMAP
 	help
 	  Enable support for GPIO driven matrix keypad.
 
@@ -284,7 +303,7 @@ config KEYBOARD_HP7XX
 
 config KEYBOARD_LM8323
 	tristate "LM8323 keypad chip"
-	depends on I2C
+	depends on I2C && GENERIC_HARDIRQS
 	depends on LEDS_CLASS
 	help
 	  If you say yes here you get support for the National Semiconductor
@@ -292,6 +311,17 @@ config KEYBOARD_LM8323
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lm8323.
+
+config KEYBOARD_LM8333
+	tristate "LM8333 keypad chip"
+	depends on I2C
+	select INPUT_MATRIXKMAP
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM8333 keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lm8333.
 
 config KEYBOARD_LOCOMO
 	tristate "LoCoMo Keyboard Support"
@@ -301,6 +331,17 @@ config KEYBOARD_LOCOMO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called locomokbd.
+
+config KEYBOARD_LPC32XX
+	tristate "LPC32XX matrix key scanner support"
+	depends on ARCH_LPC32XX && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use NXP LPC32XX SoC key scanner interface,
+	  connected to a key matrix.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc32xx-keys.
 
 config KEYBOARD_MAPLE
 	tristate "Maple bus keyboard"
@@ -350,6 +391,7 @@ config KEYBOARD_MPR121
 config KEYBOARD_IMX
 	tristate "IMX keypad support"
 	depends on ARCH_MXC
+	select INPUT_MATRIXKMAP
 	help
 	  Enable support for IMX keypad port.
 
@@ -367,7 +409,8 @@ config KEYBOARD_NEWTON
 
 config KEYBOARD_NOMADIK
 	tristate "ST-Ericsson Nomadik SKE keyboard"
-	depends on PLAT_NOMADIK
+	depends on (ARCH_NOMADIK || ARCH_U8500)
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a keypad provided on the SKE controller
 	  used on the Ux500 and Nomadik platforms
@@ -377,7 +420,8 @@ config KEYBOARD_NOMADIK
 
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA && OF
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a matrix keyboard connected directly
 	  to the internal keyboard controller on Tegra SoCs.
@@ -387,6 +431,7 @@ config KEYBOARD_TEGRA
 
 config KEYBOARD_OPENCORES
 	tristate "OpenCores Keyboard Controller"
+	depends on HAS_IOMEM
 	help
 	  Say Y here if you want to use the OpenCores Keyboard Controller
 	  http://www.opencores.org/project,keyboardcontroller
@@ -415,6 +460,7 @@ config KEYBOARD_PXA930_ROTARY
 config KEYBOARD_PMIC8XXX
 	tristate "Qualcomm PMIC8XXX keypad support"
 	depends on MFD_PM8XXX
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to enable the driver for the PMIC8XXX
 	  keypad provided as a reference design from Qualcomm. This is intended
@@ -425,12 +471,24 @@ config KEYBOARD_PMIC8XXX
 
 config KEYBOARD_SAMSUNG
 	tristate "Samsung keypad support"
-	depends on SAMSUNG_DEV_KEYPAD
+	depends on HAVE_CLK
+	select INPUT_MATRIXKMAP
 	help
-	  Say Y here if you want to use the Samsung keypad.
+	  Say Y here if you want to use the keypad on your Samsung mobile
+	  device.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.
+
+config KEYBOARD_GOLDFISH_EVENTS
+	depends on GOLDFISH
+	tristate "Generic Input Event device for Goldfish"
+	help
+	  Say Y here to get an input event device for the Goldfish virtual
+	  device emulator.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called goldfish-events.
 
 config KEYBOARD_STOWAWAY
 	tristate "Stowaway keyboard"
@@ -467,6 +525,7 @@ config KEYBOARD_SH_KEYSC
 config KEYBOARD_STMPE
 	tristate "STMPE keypad support"
 	depends on MFD_STMPE
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the keypad controller on STMPE I/O
 	  expanders.
@@ -486,7 +545,8 @@ config KEYBOARD_DAVINCI
 
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
-	depends on (ARCH_OMAP1 || ARCH_OMAP2)
+	depends on ARCH_OMAP1
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the OMAP keypad.
 
@@ -494,10 +554,11 @@ config KEYBOARD_OMAP
 	  module will be called omap-keypad.
 
 config KEYBOARD_OMAP4
-	tristate "TI OMAP4 keypad support"
-	depends on ARCH_OMAP4
+	tristate "TI OMAP4+ keypad support"
+	depends on ARCH_OMAP2PLUS
+	select INPUT_MATRIXKMAP
 	help
-	  Say Y here if you want to use the OMAP4 keypad.
+	  Say Y here if you want to use the OMAP4+ keypad.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap4-keypad.
@@ -505,6 +566,7 @@ config KEYBOARD_OMAP4
 config KEYBOARD_SPEAR
 	tristate "ST SPEAR keyboard support"
 	depends on PLAT_SPEAR
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the SPEAR keyboard.
 
@@ -514,6 +576,7 @@ config KEYBOARD_SPEAR
 config KEYBOARD_TC3589X
 	tristate "TC3589X Keypad support"
 	depends on MFD_TC3589X
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the keypad controller on
 	  TC35892/3 I/O expander.
@@ -524,6 +587,7 @@ config KEYBOARD_TC3589X
 config KEYBOARD_TNETV107X
 	tristate "TI TNETV107X keypad support"
 	depends on ARCH_DAVINCI_TNETV107X
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the TNETV107X keypad.
 
@@ -533,6 +597,7 @@ config KEYBOARD_TNETV107X
 config KEYBOARD_TWL4030
 	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"
 	depends on TWL4030_CORE
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if your board use the keypad controller on
 	  TWL4030 family chips.  It's safe to say enable this
@@ -556,11 +621,24 @@ config KEYBOARD_XTKBD
 config KEYBOARD_W90P910
 	tristate "W90P910 Matrix Keypad support"
 	depends on ARCH_W90X900
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on evaluation board
 	  based on W90P910.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
+
+config KEYBOARD_CROS_EC
+	tristate "ChromeOS EC keyboard"
+	select INPUT_MATRIXKMAP
+	depends on MFD_CROS_EC
+	help
+	  Say Y here to enable the matrix keyboard used by ChromeOS devices
+	  and implemented on the ChromeOS EC. You must enable one bus option
+	  (MFD_CROS_EC_I2C or MFD_CROS_EC_SPI) to use this.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_keyb.
 
 endif

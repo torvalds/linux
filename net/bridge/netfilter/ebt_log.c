@@ -72,15 +72,19 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 }
 
 static void
-ebt_log_packet(u_int8_t pf, unsigned int hooknum,
-   const struct sk_buff *skb, const struct net_device *in,
-   const struct net_device *out, const struct nf_loginfo *loginfo,
-   const char *prefix)
+ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
+	       const struct sk_buff *skb, const struct net_device *in,
+	       const struct net_device *out, const struct nf_loginfo *loginfo,
+	       const char *prefix)
 {
 	unsigned int bitmask;
 
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
 	spin_lock_bh(&ebt_log_lock);
-	printk("<%c>%s IN=%s OUT=%s MAC source = %pM MAC dest = %pM proto = 0x%04x",
+	printk(KERN_SOH "%c%s IN=%s OUT=%s MAC source = %pM MAC dest = %pM proto = 0x%04x",
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "", out ? out->name : "",
 	       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
@@ -107,12 +111,13 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		goto out;
 	}
 
-#if defined(CONFIG_BRIDGE_EBT_IP6) || defined(CONFIG_BRIDGE_EBT_IP6_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE_EBT_IP6)
 	if ((bitmask & EBT_LOG_IP6) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IPV6)) {
 		const struct ipv6hdr *ih;
 		struct ipv6hdr _iph;
 		uint8_t nexthdr;
+		__be16 frag_off;
 		int offset_ph;
 
 		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
@@ -123,7 +128,7 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		printk(" IPv6 SRC=%pI6 IPv6 DST=%pI6, IPv6 priority=0x%01X, Next Header=%d",
 		       &ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
 		nexthdr = ih->nexthdr;
-		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr);
+		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr, &frag_off);
 		if (offset_ph == -1)
 			goto out;
 		print_ports(skb, nexthdr, offset_ph);
@@ -175,17 +180,18 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
+	struct net *net = dev_net(par->in ? par->in : par->out);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;
 	li.u.log.logflags = info->bitmask;
 
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-		              par->out, &li, "%s", info->prefix);
+		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
+			      par->in, par->out, &li, "%s", info->prefix);
 	else
-		ebt_log_packet(NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-		               par->out, &li, info->prefix);
+		ebt_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb, par->in,
+			       par->out, &li, info->prefix);
 	return EBT_CONTINUE;
 }
 
@@ -205,19 +211,47 @@ static struct nf_logger ebt_log_logger __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
+static int __net_init ebt_log_net_init(struct net *net)
+{
+	nf_log_set(net, NFPROTO_BRIDGE, &ebt_log_logger);
+	return 0;
+}
+
+static void __net_exit ebt_log_net_fini(struct net *net)
+{
+	nf_log_unset(net, &ebt_log_logger);
+}
+
+static struct pernet_operations ebt_log_net_ops = {
+	.init = ebt_log_net_init,
+	.exit = ebt_log_net_fini,
+};
+
 static int __init ebt_log_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&ebt_log_net_ops);
+	if (ret < 0)
+		goto err_pernet;
+
 	ret = xt_register_target(&ebt_log_tg_reg);
 	if (ret < 0)
-		return ret;
+		goto err_target;
+
 	nf_log_register(NFPROTO_BRIDGE, &ebt_log_logger);
-	return 0;
+
+	return ret;
+
+err_target:
+	unregister_pernet_subsys(&ebt_log_net_ops);
+err_pernet:
+	return ret;
 }
 
 static void __exit ebt_log_fini(void)
 {
+	unregister_pernet_subsys(&ebt_log_net_ops);
 	nf_log_unregister(&ebt_log_logger);
 	xt_unregister_target(&ebt_log_tg_reg);
 }

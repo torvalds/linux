@@ -1,0 +1,319 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "skeleton.dtsi"
+
+/ {
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+		serial5 = &uart6;
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		gpio3 = &gpio4;
+		gpio4 = &gpio5;
+		gpio5 = &gpio6;
+	};
+
+	avic: avic-interrupt-controller@e0000000 {
+		compatible = "fsl,imx27-avic", "fsl,avic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x10040000 0x1000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc26m {
+			compatible = "fsl,imx-osc26m", "fixed-clock";
+			clock-frequency = <26000000>;
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&avic>;
+		ranges;
+
+		aipi@10000000 { /* AIPI1 */
+			compatible = "fsl,aipi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x10000000 0x20000>;
+			ranges;
+
+			wdog: wdog@10002000 {
+				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
+				reg = <0x10002000 0x1000>;
+				interrupts = <27>;
+				clocks = <&clks 0>;
+			};
+
+			gpt1: timer@10003000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10003000 0x1000>;
+				interrupts = <26>;
+				clocks = <&clks 46>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt2: timer@10004000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10004000 0x1000>;
+				interrupts = <25>;
+				clocks = <&clks 45>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt3: timer@10005000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10005000 0x1000>;
+				interrupts = <24>;
+				clocks = <&clks 44>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			uart1: serial@1000a000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000a000 0x1000>;
+				interrupts = <20>;
+				clocks = <&clks 81>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			uart2: serial@1000b000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000b000 0x1000>;
+				interrupts = <19>;
+				clocks = <&clks 80>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			uart3: serial@1000c000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000c000 0x1000>;
+				interrupts = <18>;
+				clocks = <&clks 79>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			uart4: serial@1000d000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1000d000 0x1000>;
+				interrupts = <17>;
+				clocks = <&clks 78>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			cspi1: cspi@1000e000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x1000e000 0x1000>;
+				interrupts = <16>;
+				clocks = <&clks 53>, <&clks 53>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			cspi2: cspi@1000f000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x1000f000 0x1000>;
+				interrupts = <15>;
+				clocks = <&clks 52>, <&clks 52>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			i2c1: i2c@10012000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
+				reg = <0x10012000 0x1000>;
+				interrupts = <12>;
+				clocks = <&clks 40>;
+				status = "disabled";
+			};
+
+			gpio1: gpio@10015000 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015000 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio2: gpio@10015100 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015100 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio3: gpio@10015200 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015200 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio4: gpio@10015300 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015300 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio5: gpio@10015400 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015400 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio6: gpio@10015500 {
+				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+				reg = <0x10015500 0x100>;
+				interrupts = <8>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			cspi3: cspi@10017000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-cspi";
+				reg = <0x10017000 0x1000>;
+				interrupts = <6>;
+				clocks = <&clks 51>, <&clks 51>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			gpt4: timer@10019000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10019000 0x1000>;
+				interrupts = <4>;
+				clocks = <&clks 43>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt5: timer@1001a000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001a000 0x1000>;
+				interrupts = <3>;
+				clocks = <&clks 42>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			uart5: serial@1001b000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1001b000 0x1000>;
+				interrupts = <49>;
+				clocks = <&clks 77>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			uart6: serial@1001c000 {
+				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+				reg = <0x1001c000 0x1000>;
+				interrupts = <48>;
+				clocks = <&clks 78>, <&clks 61>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			i2c2: i2c@1001d000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
+				reg = <0x1001d000 0x1000>;
+				interrupts = <1>;
+				clocks = <&clks 39>;
+				status = "disabled";
+			};
+
+			gpt6: timer@1001f000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001f000 0x1000>;
+				interrupts = <2>;
+				clocks = <&clks 41>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+		};
+
+		aipi@10020000 { /* AIPI2 */
+			compatible = "fsl,aipi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x10020000 0x20000>;
+			ranges;
+
+			fec: ethernet@1002b000 {
+				compatible = "fsl,imx27-fec";
+				reg = <0x1002b000 0x4000>;
+				interrupts = <50>;
+				clocks = <&clks 48>, <&clks 67>, <&clks 0>;
+				clock-names = "ipg", "ahb", "ptp";
+				status = "disabled";
+			};
+
+			clks: ccm@10027000{
+				compatible = "fsl,imx27-ccm";
+				reg = <0x10027000 0x1000>;
+				#clock-cells = <1>;
+			};
+		};
+
+
+		nfc: nand@d8000000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			compatible = "fsl,imx27-nand";
+			reg = <0xd8000000 0x1000>;
+			interrupts = <29>;
+			clocks = <&clks 54>;
+			status = "disabled";
+		};
+	};
+};

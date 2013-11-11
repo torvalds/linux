@@ -126,9 +126,10 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	return 0;
 }
 
-extern int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
-	                     struct nlattr *rate_tlv, struct tcf_exts *exts,
-	                     const struct tcf_ext_map *map);
+extern int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
+			     struct nlattr **tb, struct nlattr *rate_tlv,
+			     struct tcf_exts *exts,
+			     const struct tcf_ext_map *map);
 extern void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 extern void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 	                     struct tcf_exts *src);

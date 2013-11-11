@@ -20,36 +20,14 @@
 #include <linux/swapops.h>
 #include <linux/pm.h>
 #include <linux/fs.h>
+#include <linux/compat.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
-#include <scsi/scsi_scan.h>
 
 #include <asm/uaccess.h>
 
 #include "power.h"
-
-/*
- * NOTE: The SNAPSHOT_SET_SWAP_FILE and SNAPSHOT_PMOPS ioctls are obsolete and
- * will be removed in the future.  They are only preserved here for
- * compatibility with existing userland utilities.
- */
-#define SNAPSHOT_SET_SWAP_FILE	_IOW(SNAPSHOT_IOC_MAGIC, 10, unsigned int)
-#define SNAPSHOT_PMOPS		_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
-
-#define PMOPS_PREPARE	1
-#define PMOPS_ENTER	2
-#define PMOPS_FINISH	3
-
-/*
- * NOTE: The following ioctl definitions are wrong and have been replaced with
- * correct ones.  They are only preserved here for compatibility with existing
- * userland utilities and will be removed in the future.
- */
-#define SNAPSHOT_ATOMIC_SNAPSHOT	_IOW(SNAPSHOT_IOC_MAGIC, 3, void *)
-#define SNAPSHOT_SET_IMAGE_SIZE		_IOW(SNAPSHOT_IOC_MAGIC, 6, unsigned long)
-#define SNAPSHOT_AVAIL_SWAP		_IOR(SNAPSHOT_IOC_MAGIC, 7, void *)
-#define SNAPSHOT_GET_SWAP_PAGE		_IOR(SNAPSHOT_IOC_MAGIC, 8, void *)
 
 
 #define SNAPSHOT_MINOR	231
@@ -70,7 +48,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	struct snapshot_data *data;
 	int error;
 
-	mutex_lock(&pm_mutex);
+	lock_system_sleep();
 
 	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
 		error = -EBUSY;
@@ -105,7 +83,6 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		 * appear.
 		 */
 		wait_for_device_probe();
-		scsi_complete_async_scans();
 
 		data->swap = -1;
 		data->mode = O_WRONLY;
@@ -122,7 +99,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	data->platform_support = 0;
 
  Unlock:
-	mutex_unlock(&pm_mutex);
+	unlock_system_sleep();
 
 	return error;
 }
@@ -131,7 +108,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 {
 	struct snapshot_data *data;
 
-	mutex_lock(&pm_mutex);
+	lock_system_sleep();
 
 	swsusp_free();
 	free_basic_memory_bitmaps();
@@ -145,7 +122,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
 	atomic_inc(&snapshot_device_available);
 
-	mutex_unlock(&pm_mutex);
+	unlock_system_sleep();
 
 	return 0;
 }
@@ -157,7 +134,7 @@ static ssize_t snapshot_read(struct file *filp, char __user *buf,
 	ssize_t res;
 	loff_t pg_offp = *offp & ~PAGE_MASK;
 
-	mutex_lock(&pm_mutex);
+	lock_system_sleep();
 
 	data = filp->private_data;
 	if (!data->ready) {
@@ -178,7 +155,7 @@ static ssize_t snapshot_read(struct file *filp, char __user *buf,
 		*offp += res;
 
  Unlock:
-	mutex_unlock(&pm_mutex);
+	unlock_system_sleep();
 
 	return res;
 }
@@ -190,7 +167,7 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	ssize_t res;
 	loff_t pg_offp = *offp & ~PAGE_MASK;
 
-	mutex_lock(&pm_mutex);
+	lock_system_sleep();
 
 	data = filp->private_data;
 
@@ -207,18 +184,9 @@ static ssize_t snapshot_write(struct file *filp, const char __user *buf,
 	if (res > 0)
 		*offp += res;
 unlock:
-	mutex_unlock(&pm_mutex);
+	unlock_system_sleep();
 
 	return res;
-}
-
-static void snapshot_deprecated_ioctl(unsigned int cmd)
-{
-	if (printk_ratelimit())
-		printk(KERN_NOTICE "%pf: ioctl '%.8x' is deprecated and will "
-				"be removed soon, update your suspend-to-disk "
-				"utilities\n",
-				__builtin_return_address(0), cmd);
 }
 
 static long snapshot_ioctl(struct file *filp, unsigned int cmd,
@@ -251,15 +219,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		sys_sync();
 		printk("done.\n");
 
-		error = usermodehelper_disable();
-		if (error)
-			break;
-
 		error = freeze_processes();
-		if (error) {
-			thaw_processes();
-			usermodehelper_enable();
-		}
 		if (!error)
 			data->frozen = 1;
 		break;
@@ -269,12 +229,9 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		pm_restore_gfp_mask();
 		thaw_processes();
-		usermodehelper_enable();
 		data->frozen = 0;
 		break;
 
-	case SNAPSHOT_ATOMIC_SNAPSHOT:
-		snapshot_deprecated_ioctl(cmd);
 	case SNAPSHOT_CREATE_IMAGE:
 		if (data->mode != O_RDONLY || !data->frozen  || data->ready) {
 			error = -EPERM;
@@ -282,10 +239,11 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		}
 		pm_restore_gfp_mask();
 		error = hibernation_snapshot(data->platform_support);
-		if (!error)
+		if (!error) {
 			error = put_user(in_suspend, (int __user *)arg);
-		if (!error)
-			data->ready = 1;
+			data->ready = !freezer_test_done && !error;
+			freezer_test_done = false;
+		}
 		break;
 
 	case SNAPSHOT_ATOMIC_RESTORE:
@@ -302,10 +260,17 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		swsusp_free();
 		memset(&data->handle, 0, sizeof(struct snapshot_handle));
 		data->ready = 0;
+		/*
+		 * It is necessary to thaw kernel threads here, because
+		 * SNAPSHOT_CREATE_IMAGE may be invoked directly after
+		 * SNAPSHOT_FREE.  In that case, if kernel threads were not
+		 * thawed, the preallocation of memory carried out by
+		 * hibernation_snapshot() might run into problems (i.e. it
+		 * might fail or even deadlock).
+		 */
+		thaw_kernel_threads();
 		break;
 
-	case SNAPSHOT_SET_IMAGE_SIZE:
-		snapshot_deprecated_ioctl(cmd);
 	case SNAPSHOT_PREF_IMAGE_SIZE:
 		image_size = arg;
 		break;
@@ -320,16 +285,12 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
-	case SNAPSHOT_AVAIL_SWAP:
-		snapshot_deprecated_ioctl(cmd);
 	case SNAPSHOT_AVAIL_SWAP_SIZE:
 		size = count_swap_pages(data->swap, 1);
 		size <<= PAGE_SHIFT;
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
-	case SNAPSHOT_GET_SWAP_PAGE:
-		snapshot_deprecated_ioctl(cmd);
 	case SNAPSHOT_ALLOC_SWAP_PAGE:
 		if (data->swap < 0 || data->swap >= MAX_SWAPFILES) {
 			error = -ENODEV;
@@ -352,27 +313,6 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		free_all_swap_pages(data->swap);
 		break;
 
-	case SNAPSHOT_SET_SWAP_FILE: /* This ioctl is deprecated */
-		snapshot_deprecated_ioctl(cmd);
-		if (!swsusp_swap_in_use()) {
-			/*
-			 * User space encodes device types as two-byte values,
-			 * so we need to recode them
-			 */
-			if (old_decode_dev(arg)) {
-				data->swap = swap_type_of(old_decode_dev(arg),
-							0, NULL);
-				if (data->swap < 0)
-					error = -ENODEV;
-			} else {
-				data->swap = -1;
-				error = -EINVAL;
-			}
-		} else {
-			error = -EPERM;
-		}
-		break;
-
 	case SNAPSHOT_S2RAM:
 		if (!data->frozen) {
 			error = -EPERM;
@@ -393,33 +333,6 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	case SNAPSHOT_POWER_OFF:
 		if (data->platform_support)
 			error = hibernation_platform_enter();
-		break;
-
-	case SNAPSHOT_PMOPS: /* This ioctl is deprecated */
-		snapshot_deprecated_ioctl(cmd);
-		error = -EINVAL;
-
-		switch (arg) {
-
-		case PMOPS_PREPARE:
-			data->platform_support = 1;
-			error = 0;
-			break;
-
-		case PMOPS_ENTER:
-			if (data->platform_support)
-				error = hibernation_platform_enter();
-			break;
-
-		case PMOPS_FINISH:
-			if (data->platform_support)
-				error = 0;
-			break;
-
-		default:
-			printk(KERN_ERR "SNAPSHOT_PMOPS: invalid argument %ld\n", arg);
-
-		}
 		break;
 
 	case SNAPSHOT_SET_SWAP_AREA:
@@ -463,6 +376,66 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	return error;
 }
 
+#ifdef CONFIG_COMPAT
+
+struct compat_resume_swap_area {
+	compat_loff_t offset;
+	u32 dev;
+} __packed;
+
+static long
+snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	BUILD_BUG_ON(sizeof(loff_t) != sizeof(compat_loff_t));
+
+	switch (cmd) {
+	case SNAPSHOT_GET_IMAGE_SIZE:
+	case SNAPSHOT_AVAIL_SWAP_SIZE:
+	case SNAPSHOT_ALLOC_SWAP_PAGE: {
+		compat_loff_t __user *uoffset = compat_ptr(arg);
+		loff_t offset;
+		mm_segment_t old_fs;
+		int err;
+
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = snapshot_ioctl(file, cmd, (unsigned long) &offset);
+		set_fs(old_fs);
+		if (!err && put_user(offset, uoffset))
+			err = -EFAULT;
+		return err;
+	}
+
+	case SNAPSHOT_CREATE_IMAGE:
+		return snapshot_ioctl(file, cmd,
+				      (unsigned long) compat_ptr(arg));
+
+	case SNAPSHOT_SET_SWAP_AREA: {
+		struct compat_resume_swap_area __user *u_swap_area =
+			compat_ptr(arg);
+		struct resume_swap_area swap_area;
+		mm_segment_t old_fs;
+		int err;
+
+		err = get_user(swap_area.offset, &u_swap_area->offset);
+		err |= get_user(swap_area.dev, &u_swap_area->dev);
+		if (err)
+			return -EFAULT;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = snapshot_ioctl(file, SNAPSHOT_SET_SWAP_AREA,
+				     (unsigned long) &swap_area);
+		set_fs(old_fs);
+		return err;
+	}
+
+	default:
+		return snapshot_ioctl(file, cmd, arg);
+	}
+}
+
+#endif /* CONFIG_COMPAT */
+
 static const struct file_operations snapshot_fops = {
 	.open = snapshot_open,
 	.release = snapshot_release,
@@ -470,6 +443,9 @@ static const struct file_operations snapshot_fops = {
 	.write = snapshot_write,
 	.llseek = no_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = snapshot_compat_ioctl,
+#endif
 };
 
 static struct miscdevice snapshot_device = {

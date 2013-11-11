@@ -17,6 +17,7 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -278,7 +279,7 @@ static int mb862xxfb_pan(struct fb_var_screeninfo *var,
 	reg = pack(var->yoffset, var->xoffset);
 	outreg(disp, GC_L0WY_L0WX, reg);
 
-	reg = pack(var->yres_virtual, var->xres_virtual);
+	reg = pack(info->var.yres_virtual, info->var.xres_virtual);
 	outreg(disp, GC_L0WH_L0WW, reg);
 	return 0;
 }
@@ -327,6 +328,8 @@ static int mb862xxfb_ioctl(struct fb_info *fbi, unsigned int cmd,
 	case MB862XX_L1_SET_CFG:
 		if (copy_from_user(l1_cfg, argp, sizeof(*l1_cfg)))
 			return -EFAULT;
+		if (l1_cfg->dh == 0 || l1_cfg->dw == 0)
+			return -EINVAL;
 		if ((l1_cfg->sw >= l1_cfg->dw) && (l1_cfg->sh >= l1_cfg->dh)) {
 			/* downscaling */
 			outreg(cap, GC_CAP_CSC,
@@ -578,7 +581,7 @@ static ssize_t mb862xxfb_show_dispregs(struct device *dev,
 
 static DEVICE_ATTR(dispregs, 0444, mb862xxfb_show_dispregs, NULL);
 
-irqreturn_t mb862xx_intr(int irq, void *dev_id)
+static irqreturn_t mb862xx_intr(int irq, void *dev_id)
 {
 	struct mb862xxfb_par *par = (struct mb862xxfb_par *) dev_id;
 	unsigned long reg_ist, mask;
@@ -665,7 +668,7 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 	return 0;
 }
 
-static int __devinit of_platform_mb862xx_probe(struct platform_device *ofdev)
+static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct device *dev = &ofdev->dev;
@@ -697,7 +700,7 @@ static int __devinit of_platform_mb862xx_probe(struct platform_device *ofdev)
 		goto fbrel;
 	}
 
-	res_size = 1 + res.end - res.start;
+	res_size = resource_size(&res);
 	par->res = request_mem_region(res.start, res_size, DRV_NAME);
 	if (par->res == NULL) {
 		dev_err(dev, "Cannot claim framebuffer/mmio\n");
@@ -737,7 +740,7 @@ static int __devinit of_platform_mb862xx_probe(struct platform_device *ofdev)
 	if (mb862xx_gdc_init(par))
 		goto io_unmap;
 
-	if (request_irq(par->irq, mb862xx_intr, IRQF_DISABLED,
+	if (request_irq(par->irq, mb862xx_intr, 0,
 			DRV_NAME, (void *)par)) {
 		dev_err(dev, "Cannot request irq\n");
 		goto io_unmap;
@@ -783,11 +786,11 @@ fbrel:
 	return ret;
 }
 
-static int __devexit of_platform_mb862xx_remove(struct platform_device *ofdev)
+static int of_platform_mb862xx_remove(struct platform_device *ofdev)
 {
 	struct fb_info *fbi = dev_get_drvdata(&ofdev->dev);
 	struct mb862xxfb_par *par = fbi->par;
-	resource_size_t res_size = 1 + par->res->end - par->res->start;
+	resource_size_t res_size = resource_size(par->res);
 	unsigned long reg;
 
 	dev_dbg(fbi->dev, "%s release\n", fbi->fix.id);
@@ -820,7 +823,7 @@ static int __devexit of_platform_mb862xx_remove(struct platform_device *ofdev)
 /*
  * common types
  */
-static struct of_device_id __devinitdata of_platform_mb862xx_tbl[] = {
+static struct of_device_id of_platform_mb862xx_tbl[] = {
 	{ .compatible = "fujitsu,MB86276", },
 	{ .compatible = "fujitsu,lime", },
 	{ .compatible = "fujitsu,MB86277", },
@@ -838,7 +841,7 @@ static struct platform_driver of_platform_mb862xxfb_driver = {
 		.of_match_table = of_platform_mb862xx_tbl,
 	},
 	.probe		= of_platform_mb862xx_probe,
-	.remove		= __devexit_p(of_platform_mb862xx_remove),
+	.remove		= of_platform_mb862xx_remove,
 };
 #endif
 
@@ -981,7 +984,7 @@ static inline int mb862xx_pci_gdc_init(struct mb862xxfb_par *par)
 #define CHIP_ID(id)	\
 	{ PCI_DEVICE(PCI_VENDOR_ID_FUJITSU_LIMITED, id) }
 
-static struct pci_device_id mb862xx_pci_tbl[] __devinitdata = {
+static struct pci_device_id mb862xx_pci_tbl[] = {
 	/* MB86295/MB86296 */
 	CHIP_ID(PCI_DEVICE_ID_FUJITSU_CORALP),
 	CHIP_ID(PCI_DEVICE_ID_FUJITSU_CORALPA),
@@ -992,8 +995,8 @@ static struct pci_device_id mb862xx_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, mb862xx_pci_tbl);
 
-static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int mb862xx_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
@@ -1049,12 +1052,14 @@ static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
 		break;
 	default:
 		/* should never occur */
+		ret = -EIO;
 		goto rel_reg;
 	}
 
 	par->fb_base = ioremap(par->fb_base_phys, par->mapped_vram);
 	if (par->fb_base == NULL) {
 		dev_err(dev, "Cannot map framebuffer\n");
+		ret = -EIO;
 		goto rel_reg;
 	}
 
@@ -1070,11 +1075,13 @@ static int __devinit mb862xx_pci_probe(struct pci_dev *pdev,
 	dev_dbg(dev, "mmio phys 0x%llx 0x%lx\n",
 		(unsigned long long)par->mmio_base_phys, (ulong)par->mmio_len);
 
-	if (mb862xx_pci_gdc_init(par))
+	ret = mb862xx_pci_gdc_init(par);
+	if (ret)
 		goto io_unmap;
 
-	if (request_irq(par->irq, mb862xx_intr, IRQF_DISABLED | IRQF_SHARED,
-			DRV_NAME, (void *)par)) {
+	ret = request_irq(par->irq, mb862xx_intr, IRQF_SHARED,
+			  DRV_NAME, (void *)par);
+	if (ret) {
 		dev_err(dev, "Cannot request irq\n");
 		goto io_unmap;
 	}
@@ -1126,7 +1133,7 @@ out:
 	return ret;
 }
 
-static void __devexit mb862xx_pci_remove(struct pci_dev *pdev)
+static void mb862xx_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *fbi = pci_get_drvdata(pdev);
 	struct mb862xxfb_par *par = fbi->par;
@@ -1167,11 +1174,11 @@ static struct pci_driver mb862xxfb_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= mb862xx_pci_tbl,
 	.probe		= mb862xx_pci_probe,
-	.remove		= __devexit_p(mb862xx_pci_remove),
+	.remove		= mb862xx_pci_remove,
 };
 #endif
 
-static int __devinit mb862xxfb_init(void)
+static int mb862xxfb_init(void)
 {
 	int ret = -ENODEV;
 

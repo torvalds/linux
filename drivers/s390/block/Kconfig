@@ -70,3 +70,21 @@ config DASD_EER
 	  This driver provides a character device interface to the
 	  DASD extended error reporting. This is only needed if you want to
 	  use applications written for the EER facility.
+
+config SCM_BLOCK
+	def_tristate m
+	prompt "Support for Storage Class Memory"
+	depends on S390 && BLOCK && EADM_SCH && SCM_BUS
+	help
+	  Block device driver for Storage Class Memory (SCM). This driver
+	  provides a block device interface for each available SCM increment.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called scm_block.
+
+config SCM_BLOCK_CLUSTER_WRITE
+	def_bool y
+	prompt "SCM force cluster writes"
+	depends on SCM_BLOCK
+	help
+	  Force writes to Storage Class Memory (SCM) to be in done in clusters.

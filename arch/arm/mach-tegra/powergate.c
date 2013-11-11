@@ -22,14 +22,16 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/clk/tegra.h>
+#include <linux/tegra-powergate.h>
 
-#include <mach/clk.h>
-#include <mach/iomap.h>
-#include <mach/powergate.h>
+#include "fuse.h"
+#include "iomap.h"
 
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)
@@ -37,6 +39,16 @@
 #define REMOVE_CLAMPING		0x34
 
 #define PWRGATE_STATUS		0x38
+
+static int tegra_num_powerdomains;
+static int tegra_num_cpu_domains;
+static u8 *tegra_cpu_domains;
+static u8 tegra30_cpu_domains[] = {
+	TEGRA_POWERGATE_CPU0,
+	TEGRA_POWERGATE_CPU1,
+	TEGRA_POWERGATE_CPU2,
+	TEGRA_POWERGATE_CPU3,
+};
 
 static DEFINE_SPINLOCK(tegra_powergate_lock);
 
@@ -63,7 +75,7 @@ static int tegra_powergate_set(int id, bool new_state)
 
 	if (status == new_state) {
 		spin_unlock_irqrestore(&tegra_powergate_lock, flags);
-		return -EINVAL;
+		return 0;
 	}
 
 	pmc_write(PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
@@ -75,7 +87,7 @@ static int tegra_powergate_set(int id, bool new_state)
 
 int tegra_powergate_power_on(int id)
 {
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, true);
@@ -83,17 +95,17 @@ int tegra_powergate_power_on(int id)
 
 int tegra_powergate_power_off(int id)
 {
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, false);
 }
 
-bool tegra_powergate_is_powered(int id)
+int tegra_powergate_is_powered(int id)
 {
 	u32 status;
 
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	status = pmc_read(PWRGATE_STATUS) & (1 << id);
@@ -104,7 +116,7 @@ int tegra_powergate_remove_clamping(int id)
 {
 	u32 mask;
 
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	/*
@@ -134,7 +146,7 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 	if (ret)
 		goto err_power;
 
-	ret = clk_enable(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret)
 		goto err_clk;
 
@@ -150,16 +162,47 @@ int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 	return 0;
 
 err_clamp:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 err_clk:
 	tegra_powergate_power_off(id);
 err_power:
 	return ret;
 }
+EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
+
+int tegra_cpu_powergate_id(int cpuid)
+{
+	if (cpuid > 0 && cpuid < tegra_num_cpu_domains)
+		return tegra_cpu_domains[cpuid];
+
+	return -EINVAL;
+}
+
+int __init tegra_powergate_init(void)
+{
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		tegra_num_powerdomains = 7;
+		break;
+	case TEGRA30:
+		tegra_num_powerdomains = 14;
+		tegra_num_cpu_domains = 4;
+		tegra_cpu_domains = tegra30_cpu_domains;
+		break;
+	default:
+		/* Unknown Tegra variant. Disable powergating */
+		tegra_num_powerdomains = 0;
+		break;
+	}
+
+	return 0;
+}
 
 #ifdef CONFIG_DEBUG_FS
 
-static const char * const powergate_name[] = {
+static const char * const *powergate_name;
+
+static const char * const powergate_name_t20[] = {
 	[TEGRA_POWERGATE_CPU]	= "cpu",
 	[TEGRA_POWERGATE_3D]	= "3d",
 	[TEGRA_POWERGATE_VENC]	= "venc",
@@ -169,6 +212,23 @@ static const char * const powergate_name[] = {
 	[TEGRA_POWERGATE_MPE]	= "mpe",
 };
 
+static const char * const powergate_name_t30[] = {
+	[TEGRA_POWERGATE_CPU]	= "cpu0",
+	[TEGRA_POWERGATE_3D]	= "3d0",
+	[TEGRA_POWERGATE_VENC]	= "venc",
+	[TEGRA_POWERGATE_VDEC]	= "vdec",
+	[TEGRA_POWERGATE_PCIE]	= "pcie",
+	[TEGRA_POWERGATE_L2]	= "l2",
+	[TEGRA_POWERGATE_MPE]	= "mpe",
+	[TEGRA_POWERGATE_HEG]	= "heg",
+	[TEGRA_POWERGATE_SATA]	= "sata",
+	[TEGRA_POWERGATE_CPU1]	= "cpu1",
+	[TEGRA_POWERGATE_CPU2]	= "cpu2",
+	[TEGRA_POWERGATE_CPU3]	= "cpu3",
+	[TEGRA_POWERGATE_CELP]	= "celp",
+	[TEGRA_POWERGATE_3D1]	= "3d1",
+};
+
 static int powergate_show(struct seq_file *s, void *data)
 {
 	int i;
@@ -176,7 +236,7 @@ static int powergate_show(struct seq_file *s, void *data)
 	seq_printf(s, " powergate powered\n");
 	seq_printf(s, "------------------\n");
 
-	for (i = 0; i < TEGRA_NUM_POWERGATE; i++)
+	for (i = 0; i < tegra_num_powerdomains; i++)
 		seq_printf(s, " %9s %7s\n", powergate_name[i],
 			tegra_powergate_is_powered(i) ? "yes" : "no");
 	return 0;
@@ -194,19 +254,27 @@ static const struct file_operations powergate_fops = {
 	.release	= single_release,
 };
 
-static int __init powergate_debugfs_init(void)
+int __init tegra_powergate_debugfs_init(void)
 {
 	struct dentry *d;
-	int err = -ENOMEM;
 
-	d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-		&powergate_fops);
-	if (!d)
-		return -ENOMEM;
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		powergate_name = powergate_name_t20;
+		break;
+	case TEGRA30:
+		powergate_name = powergate_name_t30;
+		break;
+	}
 
-	return err;
+	if (powergate_name) {
+		d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
+			&powergate_fops);
+		if (!d)
+			return -ENOMEM;
+	}
+
+	return 0;
 }
-
-late_initcall(powergate_debugfs_init);
 
 #endif

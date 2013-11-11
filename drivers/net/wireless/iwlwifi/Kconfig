@@ -1,6 +1,6 @@
-config IWLAGN
-	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlagn) "
-	depends on PCI && MAC80211
+config IWLWIFI
+	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
+	depends on PCI && MAC80211 && HAS_IOMEM
 	select FW_LOADER
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -39,14 +39,40 @@ config IWLAGN
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwlagn.
+	  module will be called iwlwifi.
+
+config IWLDVM
+	tristate "Intel Wireless WiFi DVM Firmware support"
+	depends on IWLWIFI
+	default IWLWIFI
+	help
+	  This is the driver supporting the DVM firmware which is
+	  currently the only firmware available for existing devices.
+
+config IWLMVM
+	tristate "Intel Wireless WiFi MVM Firmware support"
+	depends on IWLWIFI
+	help
+	  This is the driver supporting the MVM firmware which is
+	  currently only available for 7000 series devices.
+
+	  Say yes if you have such a device.
+
+# don't call it _MODULE -- will confuse Kconfig/fixdep/...
+config IWLWIFI_OPMODE_MODULAR
+	bool
+	default y if IWLDVM=m
+	default y if IWLMVM=m
+
+comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
+	depends on IWLWIFI && IWLDVM=n && IWLMVM=n
 
 menu "Debugging Options"
-	depends on IWLAGN
+	depends on IWLWIFI
 
 config IWLWIFI_DEBUG
-	bool "Enable full debugging output in the iwlagn driver"
-	depends on IWLAGN
+	bool "Enable full debugging output in the iwlwifi driver"
+	depends on IWLWIFI
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
 
@@ -54,13 +80,13 @@ config IWLWIFI_DEBUG
 	  control which debug output is sent to the kernel log by setting the
 	  value in
 
-		/sys/class/net/wlan0/device/debug_level
+		/sys/module/iwlwifi/parameters/debug
 
 	  This entry will only exist if this option is enabled.
 
 	  To set a value, simply echo an 8-byte hex value to the same file:
 
-		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
+		  % echo 0x43fff > /sys/module/iwlwifi/parameters/debug
 
 	  You can find the list of debug mask values in:
 		  drivers/net/wireless/iwlwifi/iwl-debug.h
@@ -70,8 +96,8 @@ config IWLWIFI_DEBUG
 	  any problems you may encounter.
 
 config IWLWIFI_DEBUGFS
-        bool "iwlagn debugfs support"
-        depends on IWLAGN && MAC80211_DEBUGFS
+        bool "iwlwifi debugfs support"
+        depends on IWLWIFI && MAC80211_DEBUGFS
         ---help---
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
@@ -79,13 +105,13 @@ config IWLWIFI_DEBUGFS
 
 config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
         bool "Experimental uCode support"
-        depends on IWLAGN && IWLWIFI_DEBUG
+        depends on IWLWIFI && IWLWIFI_DEBUG
         ---help---
 	  Enable use of experimental ucode for testing and debugging.
 
 config IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
-	depends on IWLAGN
+	depends on IWLWIFI
 	depends on EVENT_TRACING
 	help
 	  Say Y here to trace all commands, including TX frames and IO
@@ -102,19 +128,20 @@ config IWLWIFI_DEVICE_TRACING
 	  occur.
 endmenu
 
-config IWLWIFI_DEVICE_SVTOOL
-	bool "iwlwifi device svtool support"
-	depends on IWLAGN
-	select NL80211_TESTMODE
+config IWLWIFI_DEVICE_TESTMODE
+	def_bool y
+	depends on IWLWIFI
+	depends on NL80211_TESTMODE
 	help
-	  This option enables the svtool support for iwlwifi device through
-	  NL80211_TESTMODE. svtool is a software validation tool that runs in
-	  the user space and interacts with the device in the kernel space
-	  through the generic netlink message via NL80211_TESTMODE channel.
+	  This option enables the testmode support for iwlwifi device through
+	  NL80211_TESTMODE. This provide the capabilities of enable user space
+	  validation applications to interacts with the device through the
+	  generic netlink message via NL80211_TESTMODE channel.
 
-config IWL_P2P
+config IWLWIFI_P2P
+	def_bool y
 	bool "iwlwifi experimental P2P support"
-	depends on IWLAGN
+	depends on IWLWIFI
 	help
 	  This option enables experimental P2P support for some devices
 	  based on microcode support. Since P2P support is still under
@@ -127,4 +154,3 @@ config IWL_P2P
 	  support when it is loaded.
 
 	  Say Y only if you want to experiment with P2P.
-

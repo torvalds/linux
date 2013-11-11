@@ -347,7 +347,7 @@ static int tsl2550_init_client(struct i2c_client *client)
  */
 
 static struct i2c_driver tsl2550_driver;
-static int __devinit tsl2550_probe(struct i2c_client *client,
+static int tsl2550_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
@@ -405,7 +405,7 @@ exit:
 	return err;
 }
 
-static int __devexit tsl2550_remove(struct i2c_client *client)
+static int tsl2550_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &tsl2550_attr_group);
 
@@ -417,24 +417,26 @@ static int __devexit tsl2550_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int tsl2550_suspend(struct i2c_client *client, pm_message_t mesg)
+static int tsl2550_suspend(struct device *dev)
 {
-	return tsl2550_set_power_state(client, 0);
+	return tsl2550_set_power_state(to_i2c_client(dev), 0);
 }
 
-static int tsl2550_resume(struct i2c_client *client)
+static int tsl2550_resume(struct device *dev)
 {
-	return tsl2550_set_power_state(client, 1);
+	return tsl2550_set_power_state(to_i2c_client(dev), 1);
 }
+
+static SIMPLE_DEV_PM_OPS(tsl2550_pm_ops, tsl2550_suspend, tsl2550_resume);
+#define TSL2550_PM_OPS (&tsl2550_pm_ops)
 
 #else
 
-#define tsl2550_suspend		NULL
-#define tsl2550_resume		NULL
+#define TSL2550_PM_OPS NULL
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id tsl2550_id[] = {
 	{ "tsl2550", 0 },
@@ -446,28 +448,16 @@ static struct i2c_driver tsl2550_driver = {
 	.driver = {
 		.name	= TSL2550_DRV_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= TSL2550_PM_OPS,
 	},
-	.suspend = tsl2550_suspend,
-	.resume	= tsl2550_resume,
 	.probe	= tsl2550_probe,
-	.remove	= __devexit_p(tsl2550_remove),
+	.remove	= tsl2550_remove,
 	.id_table = tsl2550_id,
 };
 
-static int __init tsl2550_init(void)
-{
-	return i2c_add_driver(&tsl2550_driver);
-}
-
-static void __exit tsl2550_exit(void)
-{
-	i2c_del_driver(&tsl2550_driver);
-}
+module_i2c_driver(tsl2550_driver);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("TSL2550 ambient light sensor driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(tsl2550_init);
-module_exit(tsl2550_exit);

@@ -10,6 +10,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -524,7 +525,7 @@ static int ps3vram_proc_show(struct seq_file *m, void *v)
 
 static int ps3vram_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ps3vram_proc_show, PDE(inode)->data);
+	return single_open(file, ps3vram_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations ps3vram_proc_fops = {
@@ -535,7 +536,7 @@ static const struct file_operations ps3vram_proc_fops = {
 	.release	= single_release,
 };
 
-static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
+static void ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	struct proc_dir_entry *pde;
@@ -596,7 +597,7 @@ out:
 	return next;
 }
 
-static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
+static void ps3vram_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct ps3_system_bus_device *dev = q->queuedata;
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
@@ -610,16 +611,14 @@ static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	spin_unlock_irq(&priv->lock);
 
 	if (busy)
-		return 0;
+		return;
 
 	do {
 		bio = ps3vram_do_bio(dev, bio);
 	} while (bio);
-
-	return 0;
 }
 
-static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
+static int ps3vram_probe(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv;
 	int error, status;

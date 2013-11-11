@@ -10,15 +10,15 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __PLAT_DMA_H
+#define __PLAT_DMA_H
+
+#include <linux/dma-mapping.h>
+
 enum s3c2410_dma_buffresult {
 	S3C2410_RES_OK,
 	S3C2410_RES_ERR,
 	S3C2410_RES_ABORT
-};
-
-enum s3c2410_dmasrc {
-	S3C2410_DMASRC_HW,		/* source is memory */
-	S3C2410_DMASRC_MEM		/* source is hardware */
 };
 
 /* enum s3c2410_chan_op
@@ -112,7 +112,7 @@ extern int s3c2410_dma_config(enum dma_ch channel, int xferunit);
 */
 
 extern int s3c2410_dma_devconfig(enum dma_ch channel,
-		enum s3c2410_dmasrc source, unsigned long devaddr);
+		enum dma_data_direction source, unsigned long devaddr);
 
 /* s3c2410_dma_getposition
  *
@@ -125,4 +125,6 @@ extern int s3c2410_dma_getposition(enum dma_ch channel,
 extern int s3c2410_dma_set_opfn(enum dma_ch, s3c2410_dma_opfn_t rtn);
 extern int s3c2410_dma_set_buffdone_fn(enum dma_ch, s3c2410_dma_cbfn_t rtn);
 
+#include <plat/dma-ops.h>
 
+#endif

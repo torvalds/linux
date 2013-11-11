@@ -18,7 +18,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/param.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
@@ -36,7 +35,6 @@
 #include <asm/machdep.h>
 #include <asm/page.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>

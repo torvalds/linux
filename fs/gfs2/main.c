@@ -16,7 +16,8 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
+#include <linux/mempool.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -27,6 +28,8 @@
 #include "quota.h"
 #include "recovery.h"
 #include "dir.h"
+
+struct workqueue_struct *gfs2_control_wq;
 
 static struct shrinker qd_shrinker = {
 	.shrink = gfs2_shrink_qd_memory,
@@ -40,7 +43,8 @@ static void gfs2_init_inode_once(void *foo)
 	inode_init_once(&ip->i_inode);
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
-	ip->i_alloc = NULL;
+	ip->i_res = NULL;
+	ip->i_hash_cache = NULL;
 }
 
 static void gfs2_init_glock_once(void *foo)
@@ -128,6 +132,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_quotad_cachep)
 		goto fail;
 
+	gfs2_rsrv_cachep = kmem_cache_create("gfs2_mblk",
+					     sizeof(struct gfs2_blkreserv),
+					       0, 0, NULL);
+	if (!gfs2_rsrv_cachep)
+		goto fail;
+
 	register_shrinker(&qd_shrinker);
 
 	error = register_filesystem(&gfs2_fs_type);
@@ -144,12 +154,25 @@ static int __init init_gfs2_fs(void)
 	if (!gfs_recovery_wq)
 		goto fail_wq;
 
+	gfs2_control_wq = alloc_workqueue("gfs2_control",
+			       WQ_NON_REENTRANT | WQ_UNBOUND | WQ_FREEZABLE, 0);
+	if (!gfs2_control_wq)
+		goto fail_recovery;
+
+	gfs2_page_pool = mempool_create_page_pool(64, 0);
+	if (!gfs2_page_pool)
+		goto fail_control;
+
 	gfs2_register_debugfs();
 
 	printk("GFS2 installed\n");
 
 	return 0;
 
+fail_control:
+	destroy_workqueue(gfs2_control_wq);
+fail_recovery:
+	destroy_workqueue(gfs_recovery_wq);
 fail_wq:
 	unregister_filesystem(&gfs2meta_fs_type);
 fail_unregister:
@@ -157,6 +180,9 @@ fail_unregister:
 fail:
 	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
+
+	if (gfs2_rsrv_cachep)
+		kmem_cache_destroy(gfs2_rsrv_cachep);
 
 	if (gfs2_quotad_cachep)
 		kmem_cache_destroy(gfs2_quotad_cachep);
@@ -193,9 +219,12 @@ static void __exit exit_gfs2_fs(void)
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
 	destroy_workqueue(gfs_recovery_wq);
+	destroy_workqueue(gfs2_control_wq);
 
 	rcu_barrier();
 
+	mempool_destroy(gfs2_page_pool);
+	kmem_cache_destroy(gfs2_rsrv_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);

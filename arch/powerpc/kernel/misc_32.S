@@ -8,6 +8,8 @@
  * kexec bits:
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
+ * PPC44x port. Copyright (C) 2011,  IBM Corporation
+ * 		Author: Suzuki Poulose <suzuki@in.ibm.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -177,7 +179,7 @@ _GLOBAL(low_choose_750fx_pll)
 	mtspr	SPRN_HID1,r4
 
 	/* Store new HID1 image */
-	rlwinm	r6,r1,0,0,(31-THREAD_SHIFT)
+	CURRENT_THREAD_INFO(r6, r1)
 	lwz	r6,TI_CPU(r6)
 	slwi	r6,r6,2
 	addis	r6,r6,nap_save_hid1@ha
@@ -655,49 +657,27 @@ _GLOBAL(__ucmpdi2)
 	li	r3,2
 	blr
 
+_GLOBAL(__bswapdi2)
+	rotlwi  r9,r4,8
+	rotlwi  r10,r3,8
+	rlwimi  r9,r4,24,0,7
+	rlwimi  r10,r3,24,0,7
+	rlwimi  r9,r4,24,16,23
+	rlwimi  r10,r3,24,16,23
+	mr      r3,r9
+	mr      r4,r10
+	blr
+
 _GLOBAL(abs)
 	srawi	r4,r3,31
 	xor	r3,r3,r4
 	sub	r3,r3,r4
 	blr
 
-/*
- * Create a kernel thread
- *   kernel_thread(fn, arg, flags)
- */
-_GLOBAL(kernel_thread)
-	stwu	r1,-16(r1)
-	stw	r30,8(r1)
-	stw	r31,12(r1)
-	mr	r30,r3		/* function */
-	mr	r31,r4		/* argument */
-	ori	r3,r5,CLONE_VM	/* flags */
-	oris	r3,r3,CLONE_UNTRACED>>16
-	li	r4,0		/* new sp (unused) */
-	li	r0,__NR_clone
-	sc
-	bns+	1f		/* did system call indicate error? */
-	neg	r3,r3		/* if so, make return code negative */
-1:	cmpwi	0,r3,0		/* parent or child? */
-	bne	2f		/* return if parent */
-	li	r0,0		/* make top-level stack frame */
-	stwu	r0,-16(r1)
-	mtlr	r30		/* fn addr in lr */
-	mr	r3,r31		/* load arg and call fn */
-	PPC440EP_ERR42
-	blrl
-	li	r0,__NR_exit	/* exit if function returns */
-	li	r3,0
-	sc
-2:	lwz	r30,8(r1)
-	lwz	r31,12(r1)
-	addi	r1,r1,16
-	blr
-
 #ifdef CONFIG_SMP
 _GLOBAL(start_secondary_resume)
 	/* Reset stack */
-	rlwinm	r1,r1,0,0,(31-THREAD_SHIFT)	/* current_thread_info() */
+	CURRENT_THREAD_INFO(r1, r1)
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
 	li	r3,0
 	stw	r3,0(r1)		/* Zero the stack frame pointer	*/
@@ -734,6 +714,362 @@ relocate_new_kernel:
 	mr      r3, r29
 	mr      r4, r30
 	mr      r5, r31
+
+	li	r0, 0
+#elif defined(CONFIG_44x)
+
+	/* Save our parameters */
+	mr	r29, r3
+	mr	r30, r4
+	mr	r31, r5
+
+#ifdef CONFIG_PPC_47x
+	/* Check for 47x cores */
+	mfspr	r3,SPRN_PVR
+	srwi	r3,r3,16
+	cmplwi	cr0,r3,PVR_476@h
+	beq	setup_map_47x
+	cmplwi	cr0,r3,PVR_476_ISS@h
+	beq	setup_map_47x
+#endif /* CONFIG_PPC_47x */
+	
+/*
+ * Code for setting up 1:1 mapping for PPC440x for KEXEC
+ *
+ * We cannot switch off the MMU on PPC44x.
+ * So we:
+ * 1) Invalidate all the mappings except the one we are running from.
+ * 2) Create a tmp mapping for our code in the other address space(TS) and
+ *    jump to it. Invalidate the entry we started in.
+ * 3) Create a 1:1 mapping for 0-2GiB in chunks of 256M in original TS.
+ * 4) Jump to the 1:1 mapping in original TS.
+ * 5) Invalidate the tmp mapping.
+ *
+ * - Based on the kexec support code for FSL BookE
+ *
+ */
+
+	/* 
+	 * Load the PID with kernel PID (0).
+	 * Also load our MSR_IS and TID to MMUCR for TLB search.
+	 */
+	li	r3, 0
+	mtspr	SPRN_PID, r3
+	mfmsr	r4
+	andi.	r4,r4,MSR_IS@l
+	beq	wmmucr
+	oris	r3,r3,PPC44x_MMUCR_STS@h
+wmmucr:
+	mtspr	SPRN_MMUCR,r3
+	sync
+
+	/*
+	 * Invalidate all the TLB entries except the current entry
+	 * where we are running from
+	 */
+	bl	0f				/* Find our address */
+0:	mflr	r5				/* Make it accessible */
+	tlbsx	r23,0,r5			/* Find entry we are in */
+	li	r4,0				/* Start at TLB entry 0 */
+	li	r3,0				/* Set PAGEID inval value */
+1:	cmpw	r23,r4				/* Is this our entry? */
+	beq	skip				/* If so, skip the inval */
+	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
+skip:
+	addi	r4,r4,1				/* Increment */
+	cmpwi	r4,64				/* Are we done?	*/
+	bne	1b				/* If not, repeat */
+	isync
+
+	/* Create a temp mapping and jump to it */
+	andi.	r6, r23, 1		/* Find the index to use */
+	addi	r24, r6, 1		/* r24 will contain 1 or 2 */
+
+	mfmsr	r9			/* get the MSR */
+	rlwinm	r5, r9, 27, 31, 31	/* Extract the MSR[IS] */
+	xori	r7, r5, 1		/* Use the other address space */
+
+	/* Read the current mapping entries */
+	tlbre	r3, r23, PPC44x_TLB_PAGEID
+	tlbre	r4, r23, PPC44x_TLB_XLAT
+	tlbre	r5, r23, PPC44x_TLB_ATTRIB
+
+	/* Save our current XLAT entry */
+	mr	r25, r4
+
+	/* Extract the TLB PageSize */
+	li	r10, 1 			/* r10 will hold PageSize */
+	rlwinm	r11, r3, 0, 24, 27	/* bits 24-27 */
+
+	/* XXX: As of now we use 256M, 4K pages */
+	cmpwi	r11, PPC44x_TLB_256M
+	bne	tlb_4k
+	rotlwi	r10, r10, 28		/* r10 = 256M */
+	b	write_out
+tlb_4k:
+	cmpwi	r11, PPC44x_TLB_4K
+	bne	default
+	rotlwi	r10, r10, 12		/* r10 = 4K */
+	b	write_out
+default:
+	rotlwi	r10, r10, 10		/* r10 = 1K */
+
+write_out:
+	/*
+	 * Write out the tmp 1:1 mapping for this code in other address space
+	 * Fixup  EPN = RPN , TS=other address space
+	 */
+	insrwi	r3, r7, 1, 23		/* Bit 23 is TS for PAGEID field */
+
+	/* Write out the tmp mapping entries */
+	tlbwe	r3, r24, PPC44x_TLB_PAGEID
+	tlbwe	r4, r24, PPC44x_TLB_XLAT
+	tlbwe	r5, r24, PPC44x_TLB_ATTRIB
+
+	subi	r11, r10, 1		/* PageOffset Mask = PageSize - 1 */
+	not	r10, r11		/* Mask for PageNum */
+
+	/* Switch to other address space in MSR */
+	insrwi	r9, r7, 1, 26		/* Set MSR[IS] = r7 */
+
+	bl	1f
+1:	mflr	r8
+	addi	r8, r8, (2f-1b)		/* Find the target offset */
+
+	/* Jump to the tmp mapping */
+	mtspr	SPRN_SRR0, r8
+	mtspr	SPRN_SRR1, r9
+	rfi
+
+2:
+	/* Invalidate the entry we were executing from */
+	li	r3, 0
+	tlbwe	r3, r23, PPC44x_TLB_PAGEID
+
+	/* attribute fields. rwx for SUPERVISOR mode */
+	li	r5, 0
+	ori	r5, r5, (PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_SX | PPC44x_TLB_G)
+
+	/* Create 1:1 mapping in 256M pages */
+	xori	r7, r7, 1			/* Revert back to Original TS */
+
+	li	r8, 0				/* PageNumber */
+	li	r6, 3				/* TLB Index, start at 3  */
+
+next_tlb:
+	rotlwi	r3, r8, 28			/* Create EPN (bits 0-3) */
+	mr	r4, r3				/* RPN = EPN  */
+	ori	r3, r3, (PPC44x_TLB_VALID | PPC44x_TLB_256M) /* SIZE = 256M, Valid */
+	insrwi	r3, r7, 1, 23			/* Set TS from r7 */
+
+	tlbwe	r3, r6, PPC44x_TLB_PAGEID	/* PageID field : EPN, V, SIZE */
+	tlbwe	r4, r6, PPC44x_TLB_XLAT		/* Address translation : RPN   */
+	tlbwe	r5, r6, PPC44x_TLB_ATTRIB	/* Attributes */
+
+	addi	r8, r8, 1			/* Increment PN */
+	addi	r6, r6, 1			/* Increment TLB Index */
+	cmpwi	r8, 8				/* Are we done ? */
+	bne	next_tlb
+	isync
+
+	/* Jump to the new mapping 1:1 */
+	li	r9,0
+	insrwi	r9, r7, 1, 26			/* Set MSR[IS] = r7 */
+
+	bl	1f
+1:	mflr	r8
+	and	r8, r8, r11			/* Get our offset within page */
+	addi	r8, r8, (2f-1b)
+
+	and	r5, r25, r10			/* Get our target PageNum */
+	or	r8, r8, r5			/* Target jump address */
+
+	mtspr	SPRN_SRR0, r8
+	mtspr	SPRN_SRR1, r9
+	rfi
+2:
+	/* Invalidate the tmp entry we used */
+	li	r3, 0
+	tlbwe	r3, r24, PPC44x_TLB_PAGEID
+	sync
+	b	ppc44x_map_done
+
+#ifdef CONFIG_PPC_47x
+
+	/* 1:1 mapping for 47x */
+
+setup_map_47x:
+
+	/*
+	 * Load the kernel pid (0) to PID and also to MMUCR[TID].
+	 * Also set the MSR IS->MMUCR STS
+	 */
+	li	r3, 0
+	mtspr	SPRN_PID, r3			/* Set PID */
+	mfmsr	r4				/* Get MSR */
+	andi.	r4, r4, MSR_IS@l		/* TS=1? */
+	beq	1f				/* If not, leave STS=0 */
+	oris	r3, r3, PPC47x_MMUCR_STS@h	/* Set STS=1 */
+1:	mtspr	SPRN_MMUCR, r3			/* Put MMUCR */
+	sync
+
+	/* Find the entry we are running from */
+	bl	2f
+2:	mflr	r23
+	tlbsx	r23, 0, r23
+	tlbre	r24, r23, 0			/* TLB Word 0 */
+	tlbre	r25, r23, 1			/* TLB Word 1 */
+	tlbre	r26, r23, 2			/* TLB Word 2 */
+
+
+	/*
+	 * Invalidates all the tlb entries by writing to 256 RPNs(r4)
+	 * of 4k page size in all  4 ways (0-3 in r3).
+	 * This would invalidate the entire UTLB including the one we are
+	 * running from. However the shadow TLB entries would help us 
+	 * to continue the execution, until we flush them (rfi/isync).
+	 */
+	addis	r3, 0, 0x8000			/* specify the way */
+	addi	r4, 0, 0			/* TLB Word0 = (EPN=0, VALID = 0) */
+	addi	r5, 0, 0
+	b	clear_utlb_entry
+
+	/* Align the loop to speed things up. from head_44x.S */
+	.align	6
+
+clear_utlb_entry:
+
+	tlbwe	r4, r3, 0
+	tlbwe	r5, r3, 1
+	tlbwe	r5, r3, 2
+	addis	r3, r3, 0x2000			/* Increment the way */
+	cmpwi	r3, 0
+	bne	clear_utlb_entry
+	addis	r3, 0, 0x8000
+	addis	r4, r4, 0x100			/* Increment the EPN */
+	cmpwi	r4, 0
+	bne	clear_utlb_entry
+
+	/* Create the entries in the other address space */
+	mfmsr	r5
+	rlwinm	r7, r5, 27, 31, 31		/* Get the TS (Bit 26) from MSR */
+	xori	r7, r7, 1			/* r7 = !TS */
+
+	insrwi	r24, r7, 1, 21			/* Change the TS in the saved TLB word 0 */
+
+	/* 
+	 * write out the TLB entries for the tmp mapping
+	 * Use way '0' so that we could easily invalidate it later.
+	 */
+	lis	r3, 0x8000			/* Way '0' */ 
+
+	tlbwe	r24, r3, 0
+	tlbwe	r25, r3, 1
+	tlbwe	r26, r3, 2
+
+	/* Update the msr to the new TS */
+	insrwi	r5, r7, 1, 26
+
+	bl	1f
+1:	mflr	r6
+	addi	r6, r6, (2f-1b)
+
+	mtspr	SPRN_SRR0, r6
+	mtspr	SPRN_SRR1, r5
+	rfi
+
+	/* 
+	 * Now we are in the tmp address space.
+	 * Create a 1:1 mapping for 0-2GiB in the original TS.
+	 */
+2:
+	li	r3, 0
+	li	r4, 0				/* TLB Word 0 */
+	li	r5, 0				/* TLB Word 1 */
+	li	r6, 0
+	ori	r6, r6, PPC47x_TLB2_S_RWX	/* TLB word 2 */
+
+	li	r8, 0				/* PageIndex */
+
+	xori	r7, r7, 1			/* revert back to original TS */
+
+write_utlb:
+	rotlwi	r5, r8, 28			/* RPN = PageIndex * 256M */
+						/* ERPN = 0 as we don't use memory above 2G */
+
+	mr	r4, r5				/* EPN = RPN */
+	ori	r4, r4, (PPC47x_TLB0_VALID | PPC47x_TLB0_256M)
+	insrwi	r4, r7, 1, 21			/* Insert the TS to Word 0 */
+
+	tlbwe	r4, r3, 0			/* Write out the entries */
+	tlbwe	r5, r3, 1
+	tlbwe	r6, r3, 2
+	addi	r8, r8, 1
+	cmpwi	r8, 8				/* Have we completed ? */
+	bne	write_utlb
+
+	/* make sure we complete the TLB write up */
+	isync
+
+	/* 
+	 * Prepare to jump to the 1:1 mapping.
+	 * 1) Extract page size of the tmp mapping
+	 *    DSIZ = TLB_Word0[22:27]
+	 * 2) Calculate the physical address of the address
+	 *    to jump to.
+	 */
+	rlwinm	r10, r24, 0, 22, 27
+
+	cmpwi	r10, PPC47x_TLB0_4K
+	bne	0f
+	li	r10, 0x1000			/* r10 = 4k */
+	bl	1f
+
+0:
+	/* Defaults to 256M */
+	lis	r10, 0x1000
+	
+	bl	1f
+1:	mflr	r4
+	addi	r4, r4, (2f-1b)			/* virtual address  of 2f */
+
+	subi	r11, r10, 1			/* offsetmask = Pagesize - 1 */
+	not	r10, r11			/* Pagemask = ~(offsetmask) */
+
+	and	r5, r25, r10			/* Physical page */
+	and	r6, r4, r11			/* offset within the current page */
+
+	or	r5, r5, r6			/* Physical address for 2f */
+
+	/* Switch the TS in MSR to the original one */
+	mfmsr	r8
+	insrwi	r8, r7, 1, 26
+
+	mtspr	SPRN_SRR1, r8
+	mtspr	SPRN_SRR0, r5
+	rfi
+
+2:
+	/* Invalidate the tmp mapping */
+	lis	r3, 0x8000			/* Way '0' */
+
+	clrrwi	r24, r24, 12			/* Clear the valid bit */
+	tlbwe	r24, r3, 0
+	tlbwe	r25, r3, 1
+	tlbwe	r26, r3, 2
+
+	/* Make sure we complete the TLB write and flush the shadow TLB */
+	isync
+
+#endif
+
+ppc44x_map_done:
+
+
+	/* Restore the parameters */
+	mr	r3, r29
+	mr	r4, r30
+	mr	r5, r31
 
 	li	r0, 0
 #else

@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -217,8 +218,8 @@ static struct resource colibri_pxa270_dm9000_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= gpio_to_irq(GPIO114_COLIBRI_PXA270_ETH_IRQ),
-		.end	= gpio_to_irq(GPIO114_COLIBRI_PXA270_ETH_IRQ),
+		.start	= PXA_GPIO_TO_IRQ(GPIO114_COLIBRI_PXA270_ETH_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO114_COLIBRI_PXA270_ETH_IRQ),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_RISING,
 	},
 };
@@ -248,7 +249,7 @@ static pxa2xx_audio_ops_t colibri_pxa270_ac97_pdata = {
 };
 
 static struct ucb1400_pdata colibri_pxa270_ucb1400_pdata = {
-	.irq		= gpio_to_irq(GPIO113_COLIBRI_PXA270_TS_IRQ),
+	.irq		= PXA_GPIO_TO_IRQ(GPIO113_COLIBRI_PXA270_TS_IRQ),
 };
 
 static struct platform_device colibri_pxa270_ucb1400_device = {
@@ -306,18 +307,24 @@ static void __init colibri_pxa270_income_init(void)
 }
 
 MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
-	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.init_machine	= colibri_pxa270_init,
 	.map_io		= pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.timer		= &pxa_timer,
+	.handle_irq	= pxa27x_handle_irq,
+	.init_time	= pxa_timer_init,
+	.restart	= pxa_restart,
 MACHINE_END
 
 MACHINE_START(INCOME, "Income s.r.o. SH-Dmaster PXA270 SBC")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.init_machine	= colibri_pxa270_income_init,
 	.map_io		= pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.timer		= &pxa_timer,
+	.handle_irq	= pxa27x_handle_irq,
+	.init_time	= pxa_timer_init,
+	.restart	= pxa_restart,
 MACHINE_END
 

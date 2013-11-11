@@ -1,0 +1,33 @@
+Device tree configuration for i2c-ocores
+
+Required properties:
+- compatible      : "opencores,i2c-ocores" or "aeroflexgaisler,i2cmst"
+- reg             : bus address start and address range size of device
+- interrupts      : interrupt number
+- clock-frequency : frequency of bus clock in Hz
+- #address-cells  : should be <1>
+- #size-cells     : should be <0>
+
+Optional properties:
+- reg-shift       : device register offsets are shifted by this value
+- reg-io-width    : io register width in bytes (1, 2 or 4)
+- regstep         : deprecated, use reg-shift above
+
+Example:
+
+	i2c0: ocores@a0000000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "opencores,i2c-ocores";
+		reg = <0xa0000000 0x8>;
+		interrupts = <10>;
+		clock-frequency = <20000000>;
+
+		reg-shift = <0>;	/* 8 bit registers */
+		reg-io-width = <1>;	/* 8 bit read/write */
+
+		dummy@60 {
+			compatible = "dummy";
+			reg = <0x60>;
+		};
+	};

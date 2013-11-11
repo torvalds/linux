@@ -5,7 +5,6 @@
  *
  * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  */
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/serial_8250.h>
 

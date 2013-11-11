@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/intel_scu_ipc.h>
 #include <sound/pcm.h>
@@ -79,7 +80,7 @@ static void configure_adc(struct snd_soc_codec *sn95031_codec, int val)
  */
 static int find_free_channel(struct snd_soc_codec *sn95031_codec)
 {
-	int ret = 0, i, value;
+	int i, value;
 
 	/* check whether ADC is enabled */
 	value = snd_soc_read(sn95031_codec, SN95031_ADC1CNTL1);
@@ -91,12 +92,10 @@ static int find_free_channel(struct snd_soc_codec *sn95031_codec)
 	for (i = 0; i <	SN95031_ADC_CHANLS_MAX; i++) {
 		value = snd_soc_read(sn95031_codec,
 				SN95031_ADC_CHNL_START_ADDR + i);
-		if (value & SN95031_STOPBIT_MASK) {
-			ret = i;
+		if (value & SN95031_STOPBIT_MASK)
 			break;
-		}
 	}
-	return (ret > SN95031_ADC_LOOP_MAX) ? (-EINVAL) : ret;
+	return (i == SN95031_ADC_CHANLS_MAX) ? (-EINVAL) : i;
 }
 
 /* Initialize the ADC for reading micbias values. Can sleep. */
@@ -104,7 +103,7 @@ static int sn95031_initialize_adc(struct snd_soc_codec *sn95031_codec)
 {
 	int base_addr, chnl_addr;
 	int value;
-	static int channel_index;
+	int channel_index;
 
 	/* Index of the first channel in which the stop bit is set */
 	channel_index = find_free_channel(sn95031_codec);
@@ -163,7 +162,6 @@ static unsigned int sn95031_get_mic_bias(struct snd_soc_codec *codec)
 	pr_debug("mic bias = %dmV\n", mic_bias);
 	return mic_bias;
 }
-EXPORT_SYMBOL_GPL(sn95031_get_mic_bias);
 /*end - adc helper functions */
 
 static inline unsigned int sn95031_read(struct snd_soc_codec *codec,
@@ -660,7 +658,7 @@ static int sn95031_pcm_spkr_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
+static int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
 	unsigned int format, rate;
@@ -700,25 +698,25 @@ int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 /* Codec DAI section */
-static struct snd_soc_dai_ops sn95031_headset_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_headset_dai_ops = {
 	.digital_mute	= sn95031_pcm_hs_mute,
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_speaker_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_speaker_dai_ops = {
 	.digital_mute	= sn95031_pcm_spkr_mute,
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_vib1_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_vib1_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-struct snd_soc_dai_driver sn95031_dais[] = {
+static struct snd_soc_dai_driver sn95031_dais[] = {
 {
 	.name = "SN95031 Headset",
 	.playback = {
@@ -829,9 +827,6 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 {
 	pr_debug("codec_probe called\n");
 
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
-	codec->dapm.idle_bias_off = 1;
-
 	/* PCM interface config
 	 * This sets the pcm rx slot conguration to max 6 slots
 	 * for max 4 dais (2 stereo and 2 mono)
@@ -874,7 +869,7 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_SSR2, 0x10);
 	snd_soc_write(codec, SN95031_SSR3, 0x40);
 
-	snd_soc_add_controls(codec, sn95031_snd_controls,
+	snd_soc_add_codec_controls(codec, sn95031_snd_controls,
 			     ARRAY_SIZE(sn95031_snd_controls));
 
 	return 0;
@@ -894,20 +889,21 @@ struct snd_soc_codec_driver sn95031_codec = {
 	.read		= sn95031_read,
 	.write		= sn95031_write,
 	.set_bias_level	= sn95031_set_vaud_bias,
+	.idle_bias_off	= true,
 	.dapm_widgets	= sn95031_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(sn95031_dapm_widgets),
 	.dapm_routes	= sn95031_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(sn95031_audio_map),
 };
 
-static int __devinit sn95031_device_probe(struct platform_device *pdev)
+static int sn95031_device_probe(struct platform_device *pdev)
 {
 	pr_debug("codec device probe called for %s\n", dev_name(&pdev->dev));
 	return snd_soc_register_codec(&pdev->dev, &sn95031_codec,
 			sn95031_dais, ARRAY_SIZE(sn95031_dais));
 }
 
-static int __devexit sn95031_device_remove(struct platform_device *pdev)
+static int sn95031_device_remove(struct platform_device *pdev)
 {
 	pr_debug("codec device remove called\n");
 	snd_soc_unregister_codec(&pdev->dev);
@@ -920,22 +916,10 @@ static struct platform_driver sn95031_codec_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= sn95031_device_probe,
-	.remove		= __devexit_p(sn95031_device_remove),
+	.remove		= sn95031_device_remove,
 };
 
-static int __init sn95031_init(void)
-{
-	pr_debug("driver init called\n");
-	return platform_driver_register(&sn95031_codec_driver);
-}
-module_init(sn95031_init);
-
-static void __exit sn95031_exit(void)
-{
-	pr_debug("driver exit called\n");
-	platform_driver_unregister(&sn95031_codec_driver);
-}
-module_exit(sn95031_exit);
+module_platform_driver(sn95031_codec_driver);
 
 MODULE_DESCRIPTION("ASoC TI SN95031 codec driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");

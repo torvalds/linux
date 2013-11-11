@@ -145,11 +145,10 @@ static void ixp4xx_write16(struct map_info *map, map_word d, unsigned long adr)
 struct ixp4xx_flash_info {
 	struct mtd_info *mtd;
 	struct map_info map;
-	struct mtd_partition *partitions;
 	struct resource *res;
 };
 
-static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
+static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int ixp4xx_flash_remove(struct platform_device *dev)
 {
@@ -168,8 +167,6 @@ static int ixp4xx_flash_remove(struct platform_device *dev)
 	if (info->map.virt)
 		iounmap(info->map.virt);
 
-	kfree(info->partitions);
-
 	if (info->res) {
 		release_resource(info->res);
 		kfree(info->res);
@@ -185,8 +182,9 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 {
 	struct flash_platform_data *plat = dev->dev.platform_data;
 	struct ixp4xx_flash_info *info;
-	const char *part_type = NULL;
-	int nr_parts = 0;
+	struct mtd_part_parser_data ppdata = {
+		.origin = dev->resource->start,
+	};
 	int err = -1;
 
 	if (!plat)
@@ -252,28 +250,12 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 	/* Use the fast version */
 	info->map.write = ixp4xx_write16;
 
-	nr_parts = parse_mtd_partitions(info->mtd, probes, &info->partitions,
-					dev->resource->start);
-	if (nr_parts > 0) {
-		part_type = "dynamic";
-	} else {
-		info->partitions = plat->parts;
-		nr_parts = plat->nr_parts;
-		part_type = "static";
-	}
-	if (nr_parts == 0)
-		printk(KERN_NOTICE "IXP4xx flash: no partition info "
-			"available, registering whole flash\n");
-	else
-		printk(KERN_NOTICE "IXP4xx flash: using %s partition "
-			"definition\n", part_type);
-
-	err = mtd_device_register(info->mtd, info->partitions, nr_parts);
-	if (err)
+	err = mtd_device_parse_register(info->mtd, probes, &ppdata,
+			plat->parts, plat->nr_parts);
+	if (err) {
 		printk(KERN_ERR "Could not parse partitions\n");
-
-	if (err)
 		goto Error;
+	}
 
 	return 0;
 
@@ -291,19 +273,7 @@ static struct platform_driver ixp4xx_flash_driver = {
 	},
 };
 
-static int __init ixp4xx_flash_init(void)
-{
-	return platform_driver_register(&ixp4xx_flash_driver);
-}
-
-static void __exit ixp4xx_flash_exit(void)
-{
-	platform_driver_unregister(&ixp4xx_flash_driver);
-}
-
-
-module_init(ixp4xx_flash_init);
-module_exit(ixp4xx_flash_exit);
+module_platform_driver(ixp4xx_flash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MTD map driver for Intel IXP4xx systems");

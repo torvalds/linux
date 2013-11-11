@@ -152,6 +152,17 @@ static const struct file_operations dccpprobe_fops = {
 	.llseek  = noop_llseek,
 };
 
+static __init int setup_jprobe(void)
+{
+	int ret = register_jprobe(&dccp_send_probe);
+
+	if (ret) {
+		request_module("dccp");
+		ret = register_jprobe(&dccp_send_probe);
+	}
+	return ret;
+}
+
 static __init int dccpprobe_init(void)
 {
 	int ret = -ENOMEM;
@@ -160,18 +171,17 @@ static __init int dccpprobe_init(void)
 	spin_lock_init(&dccpw.lock);
 	if (kfifo_alloc(&dccpw.fifo, bufsize, GFP_KERNEL))
 		return ret;
-	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
+	if (!proc_create(procname, S_IRUSR, init_net.proc_net, &dccpprobe_fops))
 		goto err0;
 
-	try_then_request_module((ret = register_jprobe(&dccp_send_probe)) == 0,
-				"dccp");
+	ret = setup_jprobe();
 	if (ret)
 		goto err1;
 
 	pr_info("DCCP watch registered (port=%d)\n", port);
 	return 0;
 err1:
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 err0:
 	kfifo_free(&dccpw.fifo);
 	return ret;
@@ -181,7 +191,7 @@ module_init(dccpprobe_init);
 static __exit void dccpprobe_exit(void)
 {
 	kfifo_free(&dccpw.fifo);
-	proc_net_remove(&init_net, procname);
+	remove_proc_entry(procname, init_net.proc_net);
 	unregister_jprobe(&dccp_send_probe);
 
 }

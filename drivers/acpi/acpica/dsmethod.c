@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 #include "acinterp.h"
 #include "acnamesp.h"
 #ifdef	ACPI_DISASSEMBLER
-#include <acpi/acdisasm.h>
+#include "acdisasm.h"
 #endif
 
 #define _COMPONENT          ACPI_DISPATCHER
@@ -61,7 +61,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc);
  *
  * FUNCTION:    acpi_ds_method_error
  *
- * PARAMETERS:  Status          - Execution status
+ * PARAMETERS:  status          - Execution status
  *              walk_state      - Current state
  *
  * RETURN:      Status
@@ -151,6 +151,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
 
 	status = acpi_os_create_mutex(&mutex_desc->mutex.os_mutex);
 	if (ACPI_FAILURE(status)) {
+		acpi_ut_delete_object_desc(mutex_desc);
 		return_ACPI_STATUS(status);
 	}
 
@@ -170,7 +171,7 @@ acpi_ds_create_method_mutex(union acpi_operand_object *method_desc)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Prepare a method for execution.  Parses the method if necessary,
+ * DESCRIPTION: Prepare a method for execution. Parses the method if necessary,
  *              increments the thread count, and waits at the method semaphore
  *              for clearance to execute.
  *
@@ -306,9 +307,9 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
  *
  * FUNCTION:    acpi_ds_call_control_method
  *
- * PARAMETERS:  Thread              - Info for this thread
+ * PARAMETERS:  thread              - Info for this thread
  *              this_walk_state     - Current walk state
- *              Op                  - Current Op to be walked
+ *              op                  - Current Op to be walked
  *
  * RETURN:      Status
  *
@@ -378,7 +379,8 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	 */
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		status = AE_NO_MEMORY;
+		goto cleanup;
 	}
 
 	info->parameters = &this_walk_state->operands[0];
@@ -444,7 +446,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
  * RETURN:      Status
  *
  * DESCRIPTION: Restart a method that was preempted by another (nested) method
- *              invocation.  Handle the return value (if any) from the callee.
+ *              invocation. Handle the return value (if any) from the callee.
  *
  ******************************************************************************/
 
@@ -530,7 +532,7 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Terminate a control method.  Delete everything that the method
+ * DESCRIPTION: Terminate a control method. Delete everything that the method
  *              created, delete all locals and arguments, and delete the parse
  *              tree if requested.
  *

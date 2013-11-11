@@ -1,0 +1,20 @@
+config ARCH_HIGHBANK
+	bool "Calxeda ECX-1000/2000 (Highbank/Midway)" if ARCH_MULTI_V7
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CACHE_L2X0
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select MAILBOX
+	select PL320_MBOX
+	select SPARSE_IRQ
+	select USE_OF

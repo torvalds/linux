@@ -30,7 +30,7 @@
 #include <crypto/ctr.h>
 
 #include <plat/cpu.h>
-#include <plat/dma.h>
+#include <mach/dma.h>
 
 #define _SBF(s, v)                      ((v) << (s))
 #define _BIT(b)                         _SBF(b, 1)
@@ -518,7 +518,8 @@ static struct crypto_alg algs[] = {
 		.cra_driver_name	= "ecb-aes-s5p",
 		.cra_priority		= 100,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-					  CRYPTO_ALG_ASYNC,
+					  CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_KERN_DRIVER_ONLY,
 		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct s5p_aes_ctx),
 		.cra_alignmask		= 0x0f,
@@ -538,7 +539,8 @@ static struct crypto_alg algs[] = {
 		.cra_driver_name	= "cbc-aes-s5p",
 		.cra_priority		= 100,
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
-					  CRYPTO_ALG_ASYNC,
+					  CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_KERN_DRIVER_ONLY,
 		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct s5p_aes_ctx),
 		.cra_alignmask		= 0x0f,
@@ -578,7 +580,7 @@ static int s5p_aes_probe(struct platform_device *pdev)
 				     resource_size(res), pdev->name))
 		return -EBUSY;
 
-	pdata->clk = clk_get(dev, "secss");
+	pdata->clk = devm_clk_get(dev, "secss");
 	if (IS_ERR(pdata->clk)) {
 		dev_err(dev, "failed to find secss clock source\n");
 		return -ENOENT;
@@ -624,7 +626,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	crypto_init_queue(&pdata->queue, CRYPTO_QUEUE_LEN);
 
 	for (i = 0; i < ARRAY_SIZE(algs); i++) {
-		INIT_LIST_HEAD(&algs[i].cra_list);
 		err = crypto_register_alg(&algs[i]);
 		if (err)
 			goto err_algs;
@@ -644,7 +645,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 
  err_irq:
 	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
 
 	s5p_dev = NULL;
 	platform_set_drvdata(pdev, NULL);
@@ -666,7 +666,6 @@ static int s5p_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&pdata->tasklet);
 
 	clk_disable(pdata->clk);
-	clk_put(pdata->clk);
 
 	s5p_dev = NULL;
 	platform_set_drvdata(pdev, NULL);
@@ -683,18 +682,7 @@ static struct platform_driver s5p_aes_crypto = {
 	},
 };
 
-static int __init s5p_aes_mod_init(void)
-{
-	return  platform_driver_register(&s5p_aes_crypto);
-}
-
-static void __exit s5p_aes_mod_exit(void)
-{
-	platform_driver_unregister(&s5p_aes_crypto);
-}
-
-module_init(s5p_aes_mod_init);
-module_exit(s5p_aes_mod_exit);
+module_platform_driver(s5p_aes_crypto);
 
 MODULE_DESCRIPTION("S5PV210 AES hw acceleration support.");
 MODULE_LICENSE("GPL v2");

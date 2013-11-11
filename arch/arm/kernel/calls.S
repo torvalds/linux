@@ -11,7 +11,7 @@
  */
 /* 0 */		CALL(sys_restart_syscall)
 		CALL(sys_exit)
-		CALL(sys_fork_wrapper)
+		CALL(sys_fork)
 		CALL(sys_read)
 		CALL(sys_write)
 /* 5 */		CALL(sys_open)
@@ -20,7 +20,7 @@
 		CALL(sys_creat)
 		CALL(sys_link)
 /* 10 */	CALL(sys_unlink)
-		CALL(sys_execve_wrapper)
+		CALL(sys_execve)
 		CALL(sys_chdir)
 		CALL(OBSOLETE(sys_time))	/* used by libc4 */
 		CALL(sys_mknod)
@@ -129,7 +129,7 @@
 		CALL(OBSOLETE(ABI(sys_ipc, sys_oabi_ipc)))
 		CALL(sys_fsync)
 		CALL(sys_sigreturn_wrapper)
-/* 120 */	CALL(sys_clone_wrapper)
+/* 120 */	CALL(sys_clone)
 		CALL(sys_setdomainname)
 		CALL(sys_newuname)
 		CALL(sys_ni_syscall)		/* modify_ldt */
@@ -178,7 +178,7 @@
 		CALL(sys_ni_syscall)		/* vm86 */
 		CALL(sys_ni_syscall)		/* was sys_query_module */
 		CALL(sys_poll)
-		CALL(sys_nfsservctl)
+		CALL(sys_ni_syscall)		/* was nfsservctl */
 /* 170 */	CALL(sys_setresgid16)
 		CALL(sys_getresgid16)
 		CALL(sys_prctl)
@@ -195,11 +195,11 @@
 		CALL(sys_getcwd)
 		CALL(sys_capget)
 /* 185 */	CALL(sys_capset)
-		CALL(sys_sigaltstack_wrapper)
+		CALL(sys_sigaltstack)
 		CALL(sys_sendfile)
 		CALL(sys_ni_syscall)		/* getpmsg */
 		CALL(sys_ni_syscall)		/* putpmsg */
-/* 190 */	CALL(sys_vfork_wrapper)
+/* 190 */	CALL(sys_vfork)
 		CALL(sys_getrlimit)
 		CALL(sys_mmap2)
 		CALL(ABI(sys_truncate64, sys_oabi_truncate64))
@@ -385,6 +385,10 @@
 		CALL(sys_syncfs)
 		CALL(sys_sendmmsg)
 /* 375 */	CALL(sys_setns)
+		CALL(sys_process_vm_readv)
+		CALL(sys_process_vm_writev)
+		CALL(sys_kcmp)
+		CALL(sys_finit_module)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

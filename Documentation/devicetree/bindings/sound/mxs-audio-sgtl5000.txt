@@ -1,0 +1,17 @@
+* Freescale MXS audio complex with SGTL5000 codec
+
+Required properties:
+- compatible: "fsl,mxs-audio-sgtl5000"
+- model: The user-visible name of this sound complex
+- saif-controllers: The phandle list of the MXS SAIF controller
+- audio-codec: The phandle of the SGTL5000 audio codec
+
+Example:
+
+sound {
+	compatible = "fsl,imx28-evk-sgtl5000",
+		     "fsl,mxs-audio-sgtl5000";
+	model = "imx28-evk-sgtl5000";
+	saif-controllers = <&saif0 &saif1>;
+	audio-codec = <&sgtl5000>;
+};

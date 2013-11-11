@@ -221,3 +221,66 @@ when the chain is validated for the first time, is then put into a hash
 table, which hash-table can be checked in a lockfree manner. If the
 locking chain occurs again later on, the hash table tells us that we
 dont have to validate the chain again.
+
+Troubleshooting:
+----------------
+
+The validator tracks a maximum of MAX_LOCKDEP_KEYS number of lock classes.
+Exceeding this number will trigger the following lockdep warning:
+
+	(DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
+
+By default, MAX_LOCKDEP_KEYS is currently set to 8191, and typical
+desktop systems have less than 1,000 lock classes, so this warning
+normally results from lock-class leakage or failure to properly
+initialize locks.  These two problems are illustrated below:
+
+1.	Repeated module loading and unloading while running the validator
+	will result in lock-class leakage.  The issue here is that each
+	load of the module will create a new set of lock classes for
+	that module's locks, but module unloading does not remove old
+	classes (see below discussion of reuse of lock classes for why).
+	Therefore, if that module is loaded and unloaded repeatedly,
+	the number of lock classes will eventually reach the maximum.
+
+2.	Using structures such as arrays that have large numbers of
+	locks that are not explicitly initialized.  For example,
+	a hash table with 8192 buckets where each bucket has its own
+	spinlock_t will consume 8192 lock classes -unless- each spinlock
+	is explicitly initialized at runtime, for example, using the
+	run-time spin_lock_init() as opposed to compile-time initializers
+	such as __SPIN_LOCK_UNLOCKED().  Failure to properly initialize
+	the per-bucket spinlocks would guarantee lock-class overflow.
+	In contrast, a loop that called spin_lock_init() on each lock
+	would place all 8192 locks into a single lock class.
+
+	The moral of this story is that you should always explicitly
+	initialize your locks.
+
+One might argue that the validator should be modified to allow
+lock classes to be reused.  However, if you are tempted to make this
+argument, first review the code and think through the changes that would
+be required, keeping in mind that the lock classes to be removed are
+likely to be linked into the lock-dependency graph.  This turns out to
+be harder to do than to say.
+
+Of course, if you do run out of lock classes, the next thing to do is
+to find the offending lock classes.  First, the following command gives
+you the number of lock classes currently in use along with the maximum:
+
+	grep "lock-classes" /proc/lockdep_stats
+
+This command produces the following output on a modest system:
+
+	 lock-classes:                          748 [max: 8191]
+
+If the number allocated (748 above) increases continually over time,
+then there is likely a leak.  The following command can be used to
+identify the leaking lock classes:
+
+	grep "BD" /proc/lockdep
+
+Run the command and save the output, then compare against the output from
+a later run of this command to identify the leakers.  This same output
+can also help you find situations where runtime lock initialization has
+been omitted.

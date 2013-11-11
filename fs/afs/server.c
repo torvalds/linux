@@ -285,12 +285,7 @@ static void afs_reap_server(struct work_struct *work)
 		expiry = server->time_of_death + afs_server_timeout;
 		if (expiry > now) {
 			delay = (expiry - now) * HZ;
-			if (!queue_delayed_work(afs_wq, &afs_server_reaper,
-						delay)) {
-				cancel_delayed_work(&afs_server_reaper);
-				queue_delayed_work(afs_wq, &afs_server_reaper,
-						   delay);
-			}
+			mod_delayed_work(afs_wq, &afs_server_reaper, delay);
 			break;
 		}
 
@@ -323,6 +318,5 @@ static void afs_reap_server(struct work_struct *work)
 void __exit afs_purge_servers(void)
 {
 	afs_server_timeout = 0;
-	cancel_delayed_work(&afs_server_reaper);
-	queue_delayed_work(afs_wq, &afs_server_reaper, 0);
+	mod_delayed_work(afs_wq, &afs_server_reaper, 0);
 }

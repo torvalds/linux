@@ -80,6 +80,8 @@ EXPORT_SYMBOL(framebuffer_alloc);
  */
 void framebuffer_release(struct fb_info *info)
 {
+	if (!info)
+		return;
 	kfree(info->apertures);
 	kfree(info);
 }
@@ -175,6 +177,8 @@ static ssize_t store_modes(struct device *device,
 	if (i * sizeof(struct fb_videomode) != count)
 		return -EINVAL;
 
+	if (!lock_fb_info(fb_info))
+		return -ENODEV;
 	console_lock();
 	list_splice(&fb_info->modelist, &old_list);
 	fb_videomode_to_modelist((const struct fb_videomode *)buf, i,
@@ -186,6 +190,7 @@ static ssize_t store_modes(struct device *device,
 		fb_destroy_modelist(&old_list);
 
 	console_unlock();
+	unlock_fb_info(fb_info);
 
 	return 0;
 }
@@ -399,9 +404,12 @@ static ssize_t store_fbstate(struct device *device,
 
 	state = simple_strtoul(buf, &last, 0);
 
+	if (!lock_fb_info(fb_info))
+		return -ENODEV;
 	console_lock();
 	fb_set_suspend(fb_info, (int)state);
 	console_unlock();
+	unlock_fb_info(fb_info);
 
 	return count;
 }

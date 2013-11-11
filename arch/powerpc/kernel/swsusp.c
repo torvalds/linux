@@ -10,9 +10,9 @@
  */
 
 #include <linux/sched.h>
-#include <asm/system.h>
 #include <asm/current.h>
 #include <asm/mmu_context.h>
+#include <asm/switch_to.h>
 
 void save_processor_state(void)
 {
@@ -33,6 +33,6 @@ void save_processor_state(void)
 void restore_processor_state(void)
 {
 #ifdef CONFIG_PPC32
-	switch_mmu_context(NULL, current->active_mm);
+	switch_mmu_context(current->active_mm, current->active_mm);
 #endif
 }

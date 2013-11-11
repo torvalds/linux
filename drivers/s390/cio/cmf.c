@@ -1,9 +1,7 @@
 /*
- * linux/drivers/s390/cio/cmf.c
- *
  * Linux on zSeries Channel Measurement Facility support
  *
- * Copyright 2000,2006 IBM Corporation
+ * Copyright IBM Corp. 2000, 2006
  *
  * Authors: Arnd Bergmann <arndb@de.ibm.com>
  *	    Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -35,7 +33,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
-#include <linux/timex.h>	/* get_clock() */
+#include <linux/timex.h>	/* get_tod_clock() */
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -98,7 +96,7 @@ enum cmb_format {
  * enum cmb_format.
  */
 static int format = CMF_AUTODETECT;
-module_param(format, bool, 0444);
+module_param(format, bint, 0444);
 
 /**
  * struct cmb_operations - functions to use depending on cmb_format
@@ -328,7 +326,7 @@ static int cmf_copy_block(struct ccw_device *cdev)
 		memcpy(cmb_data->last_block, hw_block, cmb_data->size);
 		memcpy(reference_buf, hw_block, cmb_data->size);
 	} while (memcmp(cmb_data->last_block, reference_buf, cmb_data->size));
-	cmb_data->last_update = get_clock();
+	cmb_data->last_update = get_tod_clock();
 	kfree(reference_buf);
 	return 0;
 }
@@ -430,7 +428,7 @@ static void cmf_generic_reset(struct ccw_device *cdev)
 		memset(cmbops->align(cmb_data->hw_block), 0, cmb_data->size);
 		cmb_data->last_update = 0;
 	}
-	cdev->private->cmb_start_time = get_clock();
+	cdev->private->cmb_start_time = get_tod_clock();
 	spin_unlock_irq(cdev->ccwlock);
 }
 
@@ -1341,7 +1339,7 @@ module_init(init_cmf);
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("channel measurement facility base driver\n"
-		   "Copyright 2003 IBM Corporation\n");
+		   "Copyright IBM Corp. 2003\n");
 
 EXPORT_SYMBOL_GPL(enable_cmf);
 EXPORT_SYMBOL_GPL(disable_cmf);

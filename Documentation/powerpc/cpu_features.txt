@@ -11,10 +11,10 @@ split instruction and data caches, and if the CPU supports the DOZE and NAP
 sleep modes.
 
 Detection of the feature set is simple. A list of processors can be found in
-arch/ppc/kernel/cputable.c. The PVR register is masked and compared with each
-value in the list. If a match is found, the cpu_features of cur_cpu_spec is
-assigned to the feature bitmask for this processor and a __setup_cpu function
-is called.
+arch/powerpc/kernel/cputable.c. The PVR register is masked and compared with
+each value in the list. If a match is found, the cpu_features of cur_cpu_spec
+is assigned to the feature bitmask for this processor and a __setup_cpu
+function is called.
 
 C code may test 'cur_cpu_spec[smp_processor_id()]->cpu_features' for a
 particular feature bit. This is done in quite a few places, for example
@@ -51,6 +51,6 @@ should be used in the majority of cases.
 
 The END_FTR_SECTION macros are implemented by storing information about this
 code in the '__ftr_fixup' ELF section. When do_cpu_ftr_fixups
-(arch/ppc/kernel/misc.S) is invoked, it will iterate over the records in
+(arch/powerpc/kernel/misc.S) is invoked, it will iterate over the records in
 __ftr_fixup, and if the required feature is not present it will loop writing
 nop's from each BEGIN_FTR_SECTION to END_FTR_SECTION.

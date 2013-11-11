@@ -1,0 +1,79 @@
+NVIDIA Tegra audio complex
+
+Required properties:
+- compatible : "nvidia,tegra-audio-wm8903"
+- clocks : Must contain an entry for each entry in clock-names.
+- clock-names : Must include the following entries:
+  "pll_a" (The Tegra clock of that name),
+  "pll_a_out0" (The Tegra clock of that name),
+  "mclk" (The Tegra cdev1/extern1 clock, which feeds the CODEC's mclk)
+- nvidia,model : The user-visible name of this sound complex.
+- nvidia,audio-routing : A list of the connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source. Valid names for sources and
+  sinks are the WM8903's pins, and the jacks on the board:
+
+  WM8903 pins:
+
+  * IN1L
+  * IN1R
+  * IN2L
+  * IN2R
+  * IN3L
+  * IN3R
+  * DMICDAT
+  * HPOUTL
+  * HPOUTR
+  * LINEOUTL
+  * LINEOUTR
+  * LOP
+  * LON
+  * ROP
+  * RON
+  * MICBIAS
+
+  Board connectors:
+
+  * Headphone Jack
+  * Int Spk
+  * Mic Jack
+
+- nvidia,i2s-controller : The phandle of the Tegra I2S1 controller
+- nvidia,audio-codec : The phandle of the WM8903 audio codec
+
+Optional properties:
+- nvidia,spkr-en-gpios : The GPIO that enables the speakers
+- nvidia,hp-mute-gpios : The GPIO that mutes the headphones
+- nvidia,hp-det-gpios : The GPIO that detect headphones are plugged in
+- nvidia,int-mic-en-gpios : The GPIO that enables the internal microphone
+- nvidia,ext-mic-en-gpios : The GPIO that enables the external microphone
+
+Example:
+
+sound {
+	compatible = "nvidia,tegra-audio-wm8903-harmony",
+		     "nvidia,tegra-audio-wm8903"
+	nvidia,model = "tegra-wm8903-harmony";
+
+	nvidia,audio-routing =
+		"Headphone Jack", "HPOUTR",
+		"Headphone Jack", "HPOUTL",
+		"Int Spk", "ROP",
+		"Int Spk", "RON",
+		"Int Spk", "LOP",
+		"Int Spk", "LON",
+		"Mic Jack", "MICBIAS",
+		"IN1L", "Mic Jack";
+
+	nvidia,i2s-controller = <&i2s1>;
+	nvidia,audio-codec = <&wm8903>;
+
+	nvidia,spkr-en-gpios = <&codec 2 0>;
+	nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
+	nvidia,int-mic-en-gpios = <&gpio 184 0>; /*gpio PX0 */
+	nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
+
+	clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+	clock-names = "pll_a", "pll_a_out0", "mclk";
+};
+

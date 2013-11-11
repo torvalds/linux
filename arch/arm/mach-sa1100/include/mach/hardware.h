@@ -32,7 +32,7 @@
 #define PIO_START       0x80000000	/* physical start of IO space */
 
 #define io_p2v( x )             \
-   ( (((x)&0x00ffffff) | (((x)&0x30000000)>>VIO_SHIFT)) + VIO_BASE )
+   IOMEM( (((x)&0x00ffffff) | (((x)&0x30000000)>>VIO_SHIFT)) + VIO_BASE )
 #define io_v2p( x )             \
    ( (((x)&0x00ffffff) | (((x)&(0x30000000>>VIO_SHIFT))<<VIO_SHIFT)) + PIO_START )
 
@@ -47,6 +47,8 @@
 #define CPU_SA1110_ID	(0x6901b110)
 #define CPU_SA1110_MASK	(0xfffffff0)
 
+#define __MREG(x)	IOMEM(io_p2v(x))
+
 #ifndef __ASSEMBLY__
 
 #include <asm/cputype.h>
@@ -56,7 +58,7 @@
 #define cpu_is_sa1100()	((read_cpuid_id() & CPU_SA1100_MASK) == CPU_SA1100_ID)
 #define cpu_is_sa1110()	((read_cpuid_id() & CPU_SA1110_MASK) == CPU_SA1110_ID)
 
-# define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
+# define __REG(x)	(*((volatile unsigned long __iomem *)io_p2v(x)))
 # define __PREG(x)	(io_v2p((unsigned long)&(x)))
 
 static inline unsigned long get_clock_tick_rate(void)
@@ -75,13 +77,5 @@ static inline unsigned long get_clock_tick_rate(void)
 #ifdef CONFIG_SA1101
 #include "SA-1101.h"
 #endif
-
-#if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_PCI)
-#define PCIBIOS_MIN_IO		0
-#define PCIBIOS_MIN_MEM		0
-#define pcibios_assign_all_busses()	1
-#define HAVE_ARCH_PCI_SET_DMA_MASK	1
-#endif
-
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

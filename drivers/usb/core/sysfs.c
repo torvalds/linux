@@ -17,7 +17,7 @@
 #include "usb.h"
 
 /* Active configuration fields */
-#define usb_actconfig_show(field, multiplier, format_string)		\
+#define usb_actconfig_show(field, format_string)			\
 static ssize_t  show_##field(struct device *dev,			\
 		struct device_attribute *attr, char *buf)		\
 {									\
@@ -28,18 +28,31 @@ static ssize_t  show_##field(struct device *dev,			\
 	actconfig = udev->actconfig;					\
 	if (actconfig)							\
 		return sprintf(buf, format_string,			\
-				actconfig->desc.field * multiplier);	\
+				actconfig->desc.field);			\
 	else								\
 		return 0;						\
 }									\
 
-#define usb_actconfig_attr(field, multiplier, format_string)		\
-usb_actconfig_show(field, multiplier, format_string)			\
-static DEVICE_ATTR(field, S_IRUGO, show_##field, NULL);
+#define usb_actconfig_attr(field, format_string)		\
+	usb_actconfig_show(field, format_string)		\
+	static DEVICE_ATTR(field, S_IRUGO, show_##field, NULL);
 
-usb_actconfig_attr(bNumInterfaces, 1, "%2d\n")
-usb_actconfig_attr(bmAttributes, 1, "%2x\n")
-usb_actconfig_attr(bMaxPower, 2, "%3dmA\n")
+usb_actconfig_attr(bNumInterfaces, "%2d\n")
+usb_actconfig_attr(bmAttributes, "%2x\n")
+
+static ssize_t show_bMaxPower(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+	struct usb_host_config *actconfig;
+
+	udev = to_usb_device(dev);
+	actconfig = udev->actconfig;
+	if (!actconfig)
+		return 0;
+	return sprintf(buf, "%dmA\n", usb_get_max_power(udev, actconfig));
+}
+static DEVICE_ATTR(bMaxPower, S_IRUGO, show_bMaxPower, NULL);
 
 static ssize_t show_configuration_string(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -56,7 +69,7 @@ static ssize_t show_configuration_string(struct device *dev,
 static DEVICE_ATTR(configuration, S_IRUGO, show_configuration_string, NULL);
 
 /* configuration value is always present, and r/w */
-usb_actconfig_show(bConfigurationValue, 1, "%u\n");
+usb_actconfig_show(bConfigurationValue, "%u\n");
 
 static ssize_t
 set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
@@ -73,7 +86,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	return (value < 0) ? value : count;
 }
 
-static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR_IGNORE_LOCKDEP(bConfigurationValue, S_IRUGO | S_IWUSR,
 		show_bConfigurationValue, set_bConfigurationValue);
 
 /* String fields */
@@ -196,7 +209,7 @@ show_avoid_reset_quirk(struct device *dev, struct device_attribute *attr, char *
 	struct usb_device *udev;
 
 	udev = to_usb_device(dev);
-	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET_MORPHS));
+	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET));
 }
 
 static ssize_t
@@ -204,15 +217,15 @@ set_avoid_reset_quirk(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device	*udev = to_usb_device(dev);
-	int			config;
+	int			val;
 
-	if (sscanf(buf, "%d", &config) != 1 || config < 0 || config > 1)
+	if (sscanf(buf, "%d", &val) != 1 || val < 0 || val > 1)
 		return -EINVAL;
 	usb_lock_device(udev);
-	if (config)
-		udev->quirks |= USB_QUIRK_RESET_MORPHS;
+	if (val)
+		udev->quirks |= USB_QUIRK_RESET;
 	else
-		udev->quirks &= ~USB_QUIRK_RESET_MORPHS;
+		udev->quirks &= ~USB_QUIRK_RESET;
 	usb_unlock_device(udev);
 	return count;
 }
@@ -230,6 +243,37 @@ show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
 
+static ssize_t
+show_removable(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+	char *state;
+
+	udev = to_usb_device(dev);
+
+	switch (udev->removable) {
+	case USB_DEVICE_REMOVABLE:
+		state = "removable";
+		break;
+	case USB_DEVICE_FIXED:
+		state = "fixed";
+		break;
+	default:
+		state = "unknown";
+	}
+
+	return sprintf(buf, "%s\n", state);
+}
+static DEVICE_ATTR(removable, S_IRUGO, show_removable, NULL);
+
+static ssize_t
+show_ltm_capable(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	if (usb_device_supports_ltm(to_usb_device(dev)))
+		return sprintf(buf, "%s\n", "yes");
+	return sprintf(buf, "%s\n", "no");
+}
+static DEVICE_ATTR(ltm_capable, S_IRUGO, show_ltm_capable, NULL);
 
 #ifdef	CONFIG_PM
 
@@ -294,7 +338,7 @@ static void remove_persist_attributes(struct device *dev)
 
 #endif	/* CONFIG_PM */
 
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM_RUNTIME
 
 static ssize_t
 show_connected_duration(struct device *dev, struct device_attribute *attr,
@@ -412,6 +456,56 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
 
+static ssize_t
+show_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	const char *p;
+
+	if (udev->usb2_hw_lpm_enabled == 1)
+		p = "enabled";
+	else
+		p = "disabled";
+
+	return sprintf(buf, "%s\n", p);
+}
+
+static ssize_t
+set_usb2_hardware_lpm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device *udev = to_usb_device(dev);
+	bool value;
+	int ret;
+
+	usb_lock_device(udev);
+
+	ret = strtobool(buf, &value);
+
+	if (!ret)
+		ret = usb_set_usb2_hardware_lpm(udev, value);
+
+	usb_unlock_device(udev);
+
+	if (!ret)
+		return count;
+
+	return ret;
+}
+
+static DEVICE_ATTR(usb2_hardware_lpm, S_IRUGO | S_IWUSR, show_usb2_hardware_lpm,
+			set_usb2_hardware_lpm);
+
+static struct attribute *usb2_hardware_lpm_attr[] = {
+	&dev_attr_usb2_hardware_lpm.attr,
+	NULL,
+};
+static struct attribute_group usb2_hardware_lpm_attr_group = {
+	.name	= power_group_name,
+	.attrs	= usb2_hardware_lpm_attr,
+};
+
 static struct attribute *power_attrs[] = {
 	&dev_attr_autosuspend.attr,
 	&dev_attr_level.attr,
@@ -428,13 +522,20 @@ static int add_power_attributes(struct device *dev)
 {
 	int rc = 0;
 
-	if (is_usb_device(dev))
+	if (is_usb_device(dev)) {
+		struct usb_device *udev = to_usb_device(dev);
 		rc = sysfs_merge_group(&dev->kobj, &power_attr_group);
+		if (udev->usb2_hw_lpm_capable == 1)
+			rc = sysfs_merge_group(&dev->kobj,
+					&usb2_hardware_lpm_attr_group);
+	}
+
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
+	sysfs_unmerge_group(&dev->kobj, &usb2_hardware_lpm_attr_group);
 	sysfs_unmerge_group(&dev->kobj, &power_attr_group);
 }
 
@@ -443,7 +544,7 @@ static void remove_power_attributes(struct device *dev)
 #define add_power_attributes(dev)	0
 #define remove_power_attributes(dev)	do {} while (0)
 
-#endif	/* CONFIG_USB_SUSPEND */
+#endif	/* CONFIG_PM_RUNTIME */
 
 
 /* Descriptor fields */
@@ -516,7 +617,7 @@ static ssize_t usb_dev_authorized_store(struct device *dev,
 	return result < 0? result : size;
 }
 
-static DEVICE_ATTR(authorized, 0644,
+static DEVICE_ATTR_IGNORE_LOCKDEP(authorized, 0644,
 	    usb_dev_authorized_show, usb_dev_authorized_store);
 
 /* "Safely remove a device" */
@@ -539,7 +640,7 @@ static ssize_t usb_remove_store(struct device *dev,
 	usb_unlock_device(udev);
 	return rc;
 }
-static DEVICE_ATTR(remove, 0200, NULL, usb_remove_store);
+static DEVICE_ATTR_IGNORE_LOCKDEP(remove, 0200, NULL, usb_remove_store);
 
 
 static struct attribute *dev_attrs[] = {
@@ -569,6 +670,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_avoid_reset_quirk.attr,
 	&dev_attr_authorized.attr,
 	&dev_attr_remove.attr,
+	&dev_attr_removable.attr,
+	&dev_attr_ltm_capable.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {
@@ -585,7 +688,7 @@ static struct attribute *dev_string_attrs[] = {
 	NULL
 };
 
-static mode_t dev_string_attrs_are_visible(struct kobject *kobj,
+static umode_t dev_string_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -760,7 +863,7 @@ static ssize_t show_modalias(struct device *dev,
 	alt = intf->cur_altsetting;
 
 	return sprintf(buf, "usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02X"
-			"ic%02Xisc%02Xip%02X\n",
+			"ic%02Xisc%02Xip%02Xin%02X\n",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct),
 			le16_to_cpu(udev->descriptor.bcdDevice),
@@ -769,7 +872,8 @@ static ssize_t show_modalias(struct device *dev,
 			udev->descriptor.bDeviceProtocol,
 			alt->desc.bInterfaceClass,
 			alt->desc.bInterfaceSubClass,
-			alt->desc.bInterfaceProtocol);
+			alt->desc.bInterfaceProtocol,
+			alt->desc.bInterfaceNumber);
 }
 static DEVICE_ATTR(modalias, S_IRUGO, show_modalias, NULL);
 
@@ -820,7 +924,7 @@ static struct attribute *intf_assoc_attrs[] = {
 	NULL,
 };
 
-static mode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
+static umode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

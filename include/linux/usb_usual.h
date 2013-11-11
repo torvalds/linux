@@ -64,39 +64,17 @@
 	US_FLAG(NO_READ_CAPACITY_16,	0x00080000)		\
 		/* cannot handle READ_CAPACITY_16 */		\
 	US_FLAG(INITIAL_READ10,	0x00100000)			\
-		/* Initial READ(10) (and others) must be retried */
+		/* Initial READ(10) (and others) must be retried */	\
+	US_FLAG(WRITE_CACHE,	0x00200000)			\
+		/* Write Cache status is not available */
 
 #define US_FLAG(name, value)	US_FL_##name = value ,
 enum { US_DO_ALL_FLAGS };
 #undef US_FLAG
 
-/*
- * The bias field for libusual and friends.
- */
-#define USB_US_TYPE_NONE   0
-#define USB_US_TYPE_STOR   1		/* usb-storage */
-#define USB_US_TYPE_UB     2		/* ub */
-
-#define USB_US_TYPE(flags) 		(((flags) >> 24) & 0xFF)
-#define USB_US_ORIG_FLAGS(flags)	((flags) & 0x00FFFFFF)
-
 #include <linux/usb/storage.h>
 
-/*
- */
 extern int usb_usual_ignore_device(struct usb_interface *intf);
 extern struct usb_device_id usb_storage_usb_ids[];
-
-#ifdef CONFIG_USB_LIBUSUAL
-
-extern void usb_usual_set_present(int type);
-extern void usb_usual_clear_present(int type);
-extern int usb_usual_check_type(const struct usb_device_id *, int type);
-#else
-
-#define usb_usual_set_present(t)	do { } while(0)
-#define usb_usual_clear_present(t)	do { } while(0)
-#define usb_usual_check_type(id, t)	(0)
-#endif /* CONFIG_USB_LIBUSUAL */
 
 #endif /* __LINUX_USB_USUAL_H */

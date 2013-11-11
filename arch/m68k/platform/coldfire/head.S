@@ -3,7 +3,7 @@
 /*
  *	head.S -- common startup code for ColdFire CPUs.
  *
- *	(C) Copyright 1999-2010, Greg Ungerer <gerg@snapgear.com>.
+ *	(C) Copyright 1999-2011, Greg Ungerer <gerg@snapgear.com>.
  */
 
 /*****************************************************************************/
@@ -13,6 +13,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfmmu.h>
 #include <asm/thread_info.h>
 
 /*****************************************************************************/
@@ -30,9 +31,9 @@
 .endm
 
 #elif defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
-      defined(CONFIG_M5249) || defined(CONFIG_M527x) || \
-      defined(CONFIG_M528x) || defined(CONFIG_M5307) || \
-      defined(CONFIG_M5407)
+      defined(CONFIG_M5249) || defined(CONFIG_M525x) || \
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M5307) || defined(CONFIG_M5407)
 /*
  *	Not all these devices have exactly the same DRAM controller,
  *	but the DCMR register is virtually identical - give or take
@@ -59,7 +60,7 @@
 
 #elif defined(CONFIG_M5272)
 .macro GET_MEM_SIZE
-	movel	MCF_MBAR+MCFSIM_CSOR7,%d0 /* get SDRAM address mask */
+	movel	MCFSIM_CSOR7,%d0	/* get SDRAM address mask */
 	andil	#0xfffff000,%d0		/* mask out chip select options */
 	negl	%d0			/* negate bits */
 .endm
@@ -135,6 +136,14 @@ _init_sp:
 
 __HEAD
 
+#ifdef CONFIG_MMU
+_start0:
+	jmp	_start
+.global kernel_pg_dir
+.equ	kernel_pg_dir,_start0
+.equ	.,_start0+0x1000
+#endif
+
 /*
  *	This is the codes first entry point. This is where it all
  *	begins...
@@ -143,8 +152,15 @@ __HEAD
 _start:
 	nop					/* filler */
 	movew	#0x2700, %sr			/* no interrupts */
+	movel	#CACHE_INIT,%d0			/* disable cache */
+	movec	%d0,%CACR
+	nop
 #if defined(CONFIG_UBOOT)
 	movel	%sp,_init_sp			/* save initial stack pointer */
+#endif
+#ifdef CONFIG_MBAR
+	movel	#CONFIG_MBAR+1,%d0		/* configured MBAR address */
+	movec	%d0,%MBAR			/* set it */
 #endif
 
 	/*
@@ -176,9 +192,6 @@ _start:
 	 *	it is very similar. Define the exact settings in the headers
 	 *	then the code here is the same for all.
 	 */
-	movel	#CACHE_INIT,%d0			/* invalidate whole cache */
-	movec	%d0,%CACR
-	nop
 	movel	#ACR0_MODE,%d0			/* set RAM region for caching */
 	movec	%d0,%ACR0
 	movel	#ACR1_MODE,%d0			/* anything else to cache? */
@@ -193,12 +206,32 @@ _start:
 	movec	%d0,%CACR
 	nop
 
+#ifdef CONFIG_MMU
+	/*
+	 *	Identity mapping for the kernel region.
+	 */
+	movel	#(MMUBASE+1),%d0		/* enable MMUBAR registers */
+	movec	%d0,%MMUBAR
+	movel	#MMUOR_CA,%d0			/* clear TLB entries */
+	movel	%d0,MMUOR
+	movel	#0,%d0				/* set ASID to 0 */
+	movec	%d0,%asid
+
+	movel	#MMUCR_EN,%d0			/* Enable the identity map */
+	movel	%d0,MMUCR
+	nop					/* sync i-pipeline */
+
+	movel	#_vstart,%a0			/* jump to "virtual" space */
+	jmp	%a0@
+_vstart:
+#endif /* CONFIG_MMU */
+
 #ifdef CONFIG_ROMFS_FS
 	/*
 	 *	Move ROM filesystem above bss :-)
 	 */
-	lea	_sbss,%a0			/* get start of bss */
-	lea	_ebss,%a1			/* set up destination  */
+	lea	__bss_start,%a0			/* get start of bss */
+	lea	__bss_stop,%a1			/* set up destination  */
 	movel	%a0,%a2				/* copy of bss start */
 
 	movel	8(%a0),%d0			/* get size of ROMFS */
@@ -216,7 +249,7 @@ _copy_romfs:
 	bne	_copy_romfs
 
 #else /* CONFIG_ROMFS_FS */
-	lea	_ebss,%a1
+	lea	__bss_stop,%a1
 	movel	%a1,_ramstart
 #endif /* CONFIG_ROMFS_FS */
 
@@ -224,8 +257,8 @@ _copy_romfs:
 	/*
 	 *	Zero out the bss region.
 	 */
-	lea	_sbss,%a0			/* get start of bss */
-	lea	_ebss,%a1			/* get end of bss */
+	lea	__bss_start,%a0			/* get start of bss */
+	lea	__bss_stop,%a1			/* get end of bss */
 	clrl	%d0				/* set value */
 _clear_bss:
 	movel	%d0,(%a0)+			/* clear each word */
@@ -237,6 +270,22 @@ _clear_bss:
 	 */
 	lea	init_thread_union,%a0
 	lea	THREAD_SIZE(%a0),%sp
+
+#ifdef CONFIG_MMU
+.global m68k_cputype
+.global m68k_mmutype
+.global m68k_fputype
+.global m68k_machtype
+	movel	#CPU_COLDFIRE,%d0
+	movel	%d0,m68k_cputype		/* Mark us as a ColdFire */
+	movel	#MMU_COLDFIRE,%d0
+	movel	%d0,m68k_mmutype
+	movel	#FPU_COLDFIRE,%d0
+	movel	%d0,m68k_fputype
+	movel	#MACH_M54XX,%d0
+	movel	%d0,m68k_machtype		/* Mark us as a 54xx machine */
+	lea	init_task,%a2			/* Set "current" init task */
+#endif
 
 	/*
 	 *	Assember start up done, start code proper.

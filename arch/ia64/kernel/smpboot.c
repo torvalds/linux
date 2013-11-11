@@ -40,7 +40,7 @@
 #include <linux/percpu.h>
 #include <linux/bitops.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cache.h>
 #include <asm/current.h>
 #include <asm/delay.h>
@@ -55,7 +55,6 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/sal.h>
-#include <asm/system.h>
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
 #include <asm/sn/arch.h>
@@ -76,13 +75,6 @@
 #endif
 
 /*
- * Store all idle threads, this can be reused instead of creating
- * a new thread. Also avoids complicated thread destroy functionality
- * for idle threads.
- */
-struct task_struct *idle_thread_array[NR_CPUS];
-
-/*
  * Global array allocated for NR_CPUS at boot time
  */
 struct sal_to_os_boot sal_boot_rendez_state[NR_CPUS];
@@ -95,13 +87,7 @@ struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
 
 #define set_brendez_area(x) (sal_state_for_booting_cpu = &sal_boot_rendez_state[(x)]);
 
-#define get_idle_for_cpu(x)		(idle_thread_array[(x)])
-#define set_idle_for_cpu(x,p)	(idle_thread_array[(x)] = (p))
-
 #else
-
-#define get_idle_for_cpu(x)		(NULL)
-#define set_idle_for_cpu(x,p)
 #define set_brendez_area(x)
 #endif
 
@@ -361,8 +347,7 @@ ia64_sync_itc (unsigned int master)
 /*
  * Ideally sets up per-cpu profiling hooks.  Doesn't do much now...
  */
-static inline void __devinit
-smp_setup_percpu_timer (void)
+static inline void smp_setup_percpu_timer(void)
 {
 }
 
@@ -396,15 +381,13 @@ smp_callin (void)
 	set_numa_node(cpu_to_node_map[cpuid]);
 	set_numa_mem(local_memory_node(cpu_to_node_map[cpuid]));
 
-	ipi_call_lock_irq();
 	spin_lock(&vector_lock);
 	/* Setup the per cpu irq handling data structures */
 	__setup_vector_irq(cpuid);
 	notify_cpu_starting(cpuid);
-	cpu_set(cpuid, cpu_online_map);
+	set_cpu_online(cpuid, true);
 	per_cpu(cpu_state, cpuid) = CPU_ONLINE;
 	spin_unlock(&vector_lock);
-	ipi_call_unlock_irq();
 
 	smp_setup_percpu_timer();
 
@@ -472,63 +455,16 @@ start_secondary (void *unused)
 	preempt_disable();
 	smp_callin();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 	return 0;
 }
 
-struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
-{
-	return NULL;
-}
-
-struct create_idle {
-	struct work_struct work;
-	struct task_struct *idle;
-	struct completion done;
-	int cpu;
-};
-
-void __cpuinit
-do_fork_idle(struct work_struct *work)
-{
-	struct create_idle *c_idle =
-		container_of(work, struct create_idle, work);
-
-	c_idle->idle = fork_idle(c_idle->cpu);
-	complete(&c_idle->done);
-}
-
 static int __cpuinit
-do_boot_cpu (int sapicid, int cpu)
+do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 {
 	int timeout;
-	struct create_idle c_idle = {
-		.work = __WORK_INITIALIZER(c_idle.work, do_fork_idle),
-		.cpu	= cpu,
-		.done	= COMPLETION_INITIALIZER(c_idle.done),
-	};
 
-	/*
-	 * We can't use kernel_thread since we must avoid to
-	 * reschedule the child.
-	 */
- 	c_idle.idle = get_idle_for_cpu(cpu);
- 	if (c_idle.idle) {
-		init_idle(c_idle.idle, cpu);
- 		goto do_rest;
-	}
-
-	schedule_work(&c_idle.work);
-	wait_for_completion(&c_idle.done);
-
-	if (IS_ERR(c_idle.idle))
-		panic("failed fork for CPU %d", cpu);
-
-	set_idle_for_cpu(cpu, c_idle.idle);
-
-do_rest:
-	task_for_booting_cpu = c_idle.idle;
-
+	task_for_booting_cpu = idle;
 	Dprintk("Sending wakeup vector %lu to AP 0x%x/0x%x.\n", ap_wakeup_vector, cpu, sapicid);
 
 	set_brendez_area(cpu);
@@ -548,7 +484,7 @@ do_rest:
 	if (!cpu_isset(cpu, cpu_callin_map)) {
 		printk(KERN_ERR "Processor 0x%x/0x%x is stuck.\n", cpu, sapicid);
 		ia64_cpu_to_sapicid[cpu] = -1;
-		cpu_clear(cpu, cpu_online_map);  /* was set in smp_callin() */
+		set_cpu_online(cpu, false);  /* was set in smp_callin() */
 		return -EINVAL;
 	}
 	return 0;
@@ -578,8 +514,7 @@ smp_build_cpu_map (void)
 	}
 
 	ia64_cpu_to_sapicid[0] = boot_cpu_id;
-	cpus_clear(cpu_present_map);
-	set_cpu_present(0, true);
+	init_cpu_present(cpumask_of(0));
 	set_cpu_possible(0, true);
 	for (cpu = 1, i = 0; i < smp_boot_data.cpu_count; i++) {
 		sapicid = smp_boot_data.cpu_phys_id[i];
@@ -606,10 +541,6 @@ smp_prepare_cpus (unsigned int max_cpus)
 
 	smp_setup_percpu_timer();
 
-	/*
-	 * We have the boot CPU online for sure.
-	 */
-	cpu_set(0, cpu_online_map);
 	cpu_set(0, cpu_callin_map);
 
 	local_cpu_data->loops_per_jiffy = loops_per_jiffy;
@@ -631,9 +562,9 @@ smp_prepare_cpus (unsigned int max_cpus)
 	}
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
-	cpu_set(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), true);
 	cpu_set(smp_processor_id(), cpu_callin_map);
 	set_numa_node(cpu_to_node_map[smp_processor_id()]);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
@@ -690,7 +621,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			/*
 			 * Now re-target the CPEI to a different processor
 			 */
-			new_cpei_cpu = any_online_cpu(cpu_online_map);
+			new_cpei_cpu = cpumask_any(cpu_online_mask);
 			mask = cpumask_of(new_cpei_cpu);
 			set_cpei_target_cpu(new_cpei_cpu);
 			data = irq_get_irq_data(ia64_cpe_irq);
@@ -732,10 +663,10 @@ int __cpu_disable(void)
 			return -EBUSY;
 	}
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	if (migrate_platform_irqs(cpu)) {
-		cpu_set(cpu, cpu_online_map);
+		set_cpu_online(cpu, true);
 		return -EBUSY;
 	}
 
@@ -781,8 +712,7 @@ smp_cpus_done (unsigned int dummy)
 	       (int)num_online_cpus(), bogosum/(500000/HZ), (bogosum/(5000/HZ))%100);
 }
 
-static inline void __devinit
-set_cpu_sibling_map(int cpu)
+static inline void set_cpu_sibling_map(int cpu)
 {
 	int i;
 
@@ -799,7 +729,7 @@ set_cpu_sibling_map(int cpu)
 }
 
 int __cpuinit
-__cpu_up (unsigned int cpu)
+__cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int ret;
 	int sapicid;
@@ -817,7 +747,7 @@ __cpu_up (unsigned int cpu)
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Processor goes to start_secondary(), sets online flag */
-	ret = do_boot_cpu(sapicid, cpu);
+	ret = do_boot_cpu(sapicid, cpu, tidle);
 	if (ret < 0)
 		return ret;
 
@@ -861,8 +791,7 @@ init_smp_config(void)
  * identify_siblings(cpu) gets called from identify_cpu. This populates the 
  * information related to logical execution units in per_cpu_data structure.
  */
-void __devinit
-identify_siblings(struct cpuinfo_ia64 *c)
+void identify_siblings(struct cpuinfo_ia64 *c)
 {
 	long status;
 	u16 pltid;

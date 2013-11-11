@@ -15,6 +15,7 @@
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/export.h>
 #include <net/dsfield.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -26,8 +27,8 @@ __xfrm6_init_tempsel(struct xfrm_selector *sel, const struct flowi *fl)
 
 	/* Initialize temporary selector matching only
 	 * to current session. */
-	ipv6_addr_copy((struct in6_addr *)&sel->daddr, &fl6->daddr);
-	ipv6_addr_copy((struct in6_addr *)&sel->saddr, &fl6->saddr);
+	*(struct in6_addr *)&sel->daddr = fl6->daddr;
+	*(struct in6_addr *)&sel->saddr = fl6->saddr;
 	sel->dport = xfrm_flowi_dport(fl, &fl6->uli);
 	sel->dport_mask = htons(0xffff);
 	sel->sport = xfrm_flowi_sport(fl, &fl6->uli);
@@ -100,7 +101,7 @@ static int __xfrm6_state_sort_cmp(void *p)
 			return 1;
 		else
 			return 3;
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case XFRM_MODE_ROUTEOPTIMIZATION:
 	case XFRM_MODE_IN_TRIGGER:
 		return 2;
@@ -133,7 +134,7 @@ static int __xfrm6_tmpl_sort_cmp(void *p)
 	switch (v->mode) {
 	case XFRM_MODE_TRANSPORT:
 		return 1;
-#if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
 	case XFRM_MODE_ROUTEOPTIMIZATION:
 	case XFRM_MODE_IN_TRIGGER:
 		return 2;

@@ -22,8 +22,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "drmP.h"
-#include "savage_drm.h"
+#include <drm/drmP.h>
+#include <drm/savage_drm.h>
 #include "savage_drv.h"
 
 void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,
@@ -988,7 +988,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	 * for locking on FreeBSD.
 	 */
 	if (cmdbuf->size) {
-		kcmd_addr = kmalloc(cmdbuf->size * 8, GFP_KERNEL);
+		kcmd_addr = kmalloc_array(cmdbuf->size, 8, GFP_KERNEL);
 		if (kcmd_addr == NULL)
 			return -ENOMEM;
 
@@ -1015,8 +1015,8 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 		cmdbuf->vb_addr = kvb_addr;
 	}
 	if (cmdbuf->nbox) {
-		kbox_addr = kmalloc(cmdbuf->nbox * sizeof(struct drm_clip_rect),
-				    GFP_KERNEL);
+		kbox_addr = kmalloc_array(cmdbuf->nbox, sizeof(struct drm_clip_rect),
+					  GFP_KERNEL);
 		if (kbox_addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
@@ -1057,7 +1057,8 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 				DRM_ERROR("indexed drawing command extends "
 					  "beyond end of command buffer\n");
 				DMA_FLUSH();
-				return -EINVAL;
+				ret = -EINVAL;
+				goto done;
 			}
 			/* fall through */
 		case SAVAGE_CMD_DMA_PRIM:
@@ -1076,7 +1077,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 				      cmdbuf->vb_stride,
 				      cmdbuf->nbox, cmdbuf->box_addr);
 				if (ret != 0)
-					return ret;
+					goto done;
 				first_draw_cmd = NULL;
 			}
 		}

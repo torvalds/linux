@@ -29,7 +29,6 @@
 	edac_mc_chipset_printk(mci, level, "amd76x", fmt, ##arg)
 
 #define AMD76X_NR_CSROWS 8
-#define AMD76X_NR_CHANS  1
 #define AMD76X_NR_DIMMS  4
 
 /* AMD 76x register addresses - device 0 function 0 - PCI bridge */
@@ -106,7 +105,7 @@ static void amd76x_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS,
 			&info->ecc_mode_status);
 
@@ -146,8 +145,10 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = (info->ecc_mode_status >> 4) & 0xf;
-			edac_mc_handle_ue(mci, mci->csrows[row].first_page, 0,
-					row, mci->ctl_name);
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+					     mci->csrows[row]->first_page, 0, 0,
+					     row, 0, -1,
+					     mci->ctl_name, "");
 		}
 	}
 
@@ -159,8 +160,10 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = info->ecc_mode_status & 0xf;
-			edac_mc_handle_ce(mci, mci->csrows[row].first_page, 0,
-					0, row, 0, mci->ctl_name);
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
+					     mci->csrows[row]->first_page, 0, 0,
+					     row, 0, -1,
+					     mci->ctl_name, "");
 		}
 	}
 
@@ -177,7 +180,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 static void amd76x_check(struct mem_ctl_info *mci)
 {
 	struct amd76x_error_info info;
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 	amd76x_get_error_info(mci, &info);
 	amd76x_process_error_info(mci, &info, 1);
 }
@@ -186,11 +189,13 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			enum edac_type edac_mode)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 mba, mba_base, mba_mask, dms;
 	int index;
 
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_dword(pdev,
@@ -203,13 +208,13 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		mba_mask = ((mba & 0xff80) << 16) | 0x7fffffUL;
 		pci_read_config_dword(pdev, AMD76X_DRAM_MODE_STATUS, &dms);
 		csrow->first_page = mba_base >> PAGE_SHIFT;
-		csrow->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
+		dimm->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
+		csrow->last_page = csrow->first_page + dimm->nr_pages - 1;
 		csrow->page_mask = mba_mask >> PAGE_SHIFT;
-		csrow->grain = csrow->nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_RDDR;
-		csrow->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
-		csrow->edac_mode = edac_mode;
+		dimm->grain = dimm->nr_pages << PAGE_SHIFT;
+		dimm->mtype = MEM_RDDR;
+		dimm->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
+		dimm->edac_mode = edac_mode;
 	}
 }
 
@@ -230,22 +235,29 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		EDAC_SECDED,
 		EDAC_SECDED
 	};
-	struct mem_ctl_info *mci = NULL;
+	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	u32 ems;
 	u32 ems_mode;
 	struct amd76x_error_info discard;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS, &ems);
 	ems_mode = (ems >> 10) & 0x3;
-	mci = edac_mc_alloc(0, AMD76X_NR_CSROWS, AMD76X_NR_CHANS, 0);
 
-	if (mci == NULL) {
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = AMD76X_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = 1;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
+
+	if (mci == NULL)
 		return -ENOMEM;
-	}
 
-	debugf0("%s(): mci = %p\n", __func__, mci);
-	mci->dev = &pdev->dev;
+	edac_dbg(0, "mci = %p\n", mci);
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = ems_mode ?
@@ -264,7 +276,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -280,7 +292,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 	return 0;
 
 fail:
@@ -289,10 +301,10 @@ fail:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit amd76x_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int amd76x_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	/* don't need to call pci_enable_device() */
 	return amd76x_probe1(pdev, ent->driver_data);
@@ -306,11 +318,11 @@ static int __devinit amd76x_init_one(struct pci_dev *pdev,
  *	structure for the device then delete the mci and free the
  *	resources.
  */
-static void __devexit amd76x_remove_one(struct pci_dev *pdev)
+static void amd76x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (amd76x_pci)
 		edac_pci_release_generic_ctl(amd76x_pci);
@@ -321,7 +333,7 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id amd76x_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(amd76x_pci_tbl) = {
 	{
 	 PCI_VEND_DEV(AMD, FE_GATE_700C), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 AMD762},
@@ -338,7 +350,7 @@ MODULE_DEVICE_TABLE(pci, amd76x_pci_tbl);
 static struct pci_driver amd76x_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = amd76x_init_one,
-	.remove = __devexit_p(amd76x_remove_one),
+	.remove = amd76x_remove_one,
 	.id_table = amd76x_pci_tbl,
 };
 

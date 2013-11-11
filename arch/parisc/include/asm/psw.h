@@ -59,4 +59,45 @@
 #define USER_PSW_MASK (WIDE_PSW | PSW_T | PSW_N | PSW_X | PSW_B | PSW_V | PSW_CB)
 #define USER_PSW      (PSW_C | PSW_Q | PSW_P | PSW_D | PSW_I)
 
+#ifndef __ASSEMBLY__
+
+/* The program status word as bitfields.  */
+struct pa_psw {
+	unsigned int y:1;
+	unsigned int z:1;
+	unsigned int rv:2;
+	unsigned int w:1;
+	unsigned int e:1;
+	unsigned int s:1;
+	unsigned int t:1;
+
+	unsigned int h:1;
+	unsigned int l:1;
+	unsigned int n:1;
+	unsigned int x:1;
+	unsigned int b:1;
+	unsigned int c:1;
+	unsigned int v:1;
+	unsigned int m:1;
+
+	unsigned int cb:8;
+
+	unsigned int o:1;
+	unsigned int g:1;
+	unsigned int f:1;
+	unsigned int r:1;
+	unsigned int q:1;
+	unsigned int p:1;
+	unsigned int d:1;
+	unsigned int i:1;
+};
+
+#ifdef CONFIG_64BIT
+#define pa_psw(task) ((struct pa_psw *) ((char *) (task) + TASK_PT_PSW + 4))
+#else
+#define pa_psw(task) ((struct pa_psw *) ((char *) (task) + TASK_PT_PSW))
+#endif
+
+#endif /* !__ASSEMBLY__ */
+
 #endif

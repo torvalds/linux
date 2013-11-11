@@ -3,6 +3,7 @@
  * It does not support slave mode, the register slightly moved. This PCI
  * device provides three bars, every contains a single I2C controller.
  */
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/i2c/pxa-i2c.h>
@@ -93,7 +94,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-static int __devinit ce4100_i2c_probe(struct pci_dev *dev,
+static int ce4100_i2c_probe(struct pci_dev *dev,
 		const struct pci_device_id *ent)
 {
 	int ret;
@@ -109,12 +110,15 @@ static int __devinit ce4100_i2c_probe(struct pci_dev *dev,
 		return -EINVAL;
 	}
 	sds = kzalloc(sizeof(*sds), GFP_KERNEL);
-	if (!sds)
+	if (!sds) {
+		ret = -ENOMEM;
 		goto err_mem;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(sds->pdev); i++) {
 		sds->pdev[i] = add_i2c_device(dev, i);
 		if (IS_ERR(sds->pdev[i])) {
+			ret = PTR_ERR(sds->pdev[i]);
 			while (--i >= 0)
 				platform_device_unregister(sds->pdev[i]);
 			goto err_dev_add;
@@ -124,20 +128,18 @@ static int __devinit ce4100_i2c_probe(struct pci_dev *dev,
 	return 0;
 
 err_dev_add:
-	pci_set_drvdata(dev, NULL);
 	kfree(sds);
 err_mem:
 	pci_disable_device(dev);
 	return ret;
 }
 
-static void __devexit ce4100_i2c_remove(struct pci_dev *dev)
+static void ce4100_i2c_remove(struct pci_dev *dev)
 {
 	struct ce4100_devices *sds;
 	unsigned int i;
 
 	sds = pci_get_drvdata(dev);
-	pci_set_drvdata(dev, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(sds->pdev); i++)
 		platform_device_unregister(sds->pdev[i]);
@@ -146,7 +148,7 @@ static void __devexit ce4100_i2c_remove(struct pci_dev *dev)
 	kfree(sds);
 }
 
-static struct pci_device_id ce4100_i2c_devices[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(ce4100_i2c_devices) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x2e68)},
 	{ },
 };
@@ -156,20 +158,10 @@ static struct pci_driver ce4100_i2c_driver = {
 	.name           = "ce4100_i2c",
 	.id_table       = ce4100_i2c_devices,
 	.probe          = ce4100_i2c_probe,
-	.remove         = __devexit_p(ce4100_i2c_remove),
+	.remove         = ce4100_i2c_remove,
 };
 
-static int __init ce4100_i2c_init(void)
-{
-	return pci_register_driver(&ce4100_i2c_driver);
-}
-module_init(ce4100_i2c_init);
-
-static void __exit ce4100_i2c_exit(void)
-{
-	pci_unregister_driver(&ce4100_i2c_driver);
-}
-module_exit(ce4100_i2c_exit);
+module_pci_driver(ce4100_i2c_driver);
 
 MODULE_DESCRIPTION("CE4100 PCI-I2C glue code for PXA's driver");
 MODULE_LICENSE("GPL v2");

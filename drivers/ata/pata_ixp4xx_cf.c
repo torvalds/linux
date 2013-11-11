@@ -31,7 +31,7 @@ static int ixp4xx_set_mode(struct ata_link *link, struct ata_device **error)
 	struct ata_device *dev;
 
 	ata_for_each_dev(dev, link, ENABLED) {
-		ata_dev_printk(dev, KERN_INFO, "configured for PIO0\n");
+		ata_dev_info(dev, "configured for PIO0\n");
 		dev->pio_mode = XFER_PIO_0;
 		dev->xfer_mode = XFER_PIO_0;
 		dev->xfer_shift = ATA_SHIFT_PIO;
@@ -137,7 +137,7 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", raw_cmd, raw_ctl);
 }
 
-static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
+static int ixp4xx_pata_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	struct resource *cs0, *cs1;
@@ -181,19 +181,10 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
-	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* activate host */
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);
-}
-
-static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
-{
-	struct ata_host *host = platform_get_drvdata(dev);
-
-	ata_host_detach(host);
-
-	return 0;
 }
 
 static struct platform_driver ixp4xx_pata_platform_driver = {
@@ -202,24 +193,13 @@ static struct platform_driver ixp4xx_pata_platform_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe		= ixp4xx_pata_probe,
-	.remove		= __devexit_p(ixp4xx_pata_remove),
+	.remove		= ata_platform_remove_one,
 };
 
-static int __init ixp4xx_pata_init(void)
-{
-	return platform_driver_register(&ixp4xx_pata_platform_driver);
-}
-
-static void __exit ixp4xx_pata_exit(void)
-{
-	platform_driver_unregister(&ixp4xx_pata_platform_driver);
-}
+module_platform_driver(ixp4xx_pata_platform_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("low-level driver for ixp4xx Compact Flash PATA");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:" DRV_NAME);
-
-module_init(ixp4xx_pata_init);
-module_exit(ixp4xx_pata_exit);

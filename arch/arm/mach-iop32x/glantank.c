@@ -44,10 +44,6 @@ static void __init glantank_timer_init(void)
 	iop_init_time(200000000);
 }
 
-static struct sys_timer glantank_timer = {
-	.init		= glantank_timer_init,
-};
-
 
 /*
  * GLAN Tank I/O.
@@ -77,7 +73,7 @@ void __init glantank_map_io(void)
 #define INTD	IRQ_IOP32X_XINT3
 
 static int __init
-glantank_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+glantank_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[][4] = {
 		/*
@@ -96,11 +92,10 @@ glantank_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci glantank_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
+	.ops		= &iop3xx_ops,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit,
-	.scan		= iop3xx_pci_scan_bus,
 	.map_irq	= glantank_pci_map_irq,
 };
 
@@ -184,7 +179,7 @@ static struct i2c_board_info __initdata glantank_i2c_devices[] = {
 
 static void glantank_power_off(void)
 {
-	__raw_writeb(0x01, 0xfe8d0004);
+	__raw_writeb(0x01, IOMEM(0xfe8d0004));
 
 	while (1)
 		;
@@ -207,9 +202,10 @@ static void __init glantank_init_machine(void)
 
 MACHINE_START(GLANTANK, "GLAN Tank")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= glantank_map_io,
 	.init_irq	= iop32x_init_irq,
-	.timer		= &glantank_timer,
+	.init_time	= glantank_timer_init,
 	.init_machine	= glantank_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

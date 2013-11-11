@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kmemcheck.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
@@ -88,8 +89,8 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 
 #ifdef SOCK_REFCNT_DEBUG
 	if (atomic_read(&tw->tw_refcnt) != 1) {
-		printk(KERN_DEBUG "%s timewait_sock %p refcnt=%d\n",
-		       tw->tw_prot->name, tw, atomic_read(&tw->tw_refcnt));
+		pr_debug("%s timewait_sock %p refcnt=%d\n",
+			 tw->tw_prot->name, tw, atomic_read(&tw->tw_refcnt));
 	}
 #endif
 	while (refcnt) {
@@ -183,6 +184,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 		tw->tw_daddr	    = inet->inet_daddr;
 		tw->tw_rcv_saddr    = inet->inet_rcv_saddr;
 		tw->tw_bound_dev_if = sk->sk_bound_dev_if;
+		tw->tw_tos	    = inet->tos;
 		tw->tw_num	    = inet->inet_num;
 		tw->tw_state	    = TCP_TIME_WAIT;
 		tw->tw_substate	    = state;
@@ -214,7 +216,6 @@ static int inet_twdr_do_twkill_work(struct inet_timewait_death_row *twdr,
 				    const int slot)
 {
 	struct inet_timewait_sock *tw;
-	struct hlist_node *node;
 	unsigned int killed;
 	int ret;
 
@@ -227,7 +228,7 @@ static int inet_twdr_do_twkill_work(struct inet_timewait_death_row *twdr,
 	killed = 0;
 	ret = 0;
 rescan:
-	inet_twsk_for_each_inmate(tw, node, &twdr->cells[slot]) {
+	inet_twsk_for_each_inmate(tw, &twdr->cells[slot]) {
 		__inet_twsk_del_dead_node(tw);
 		spin_unlock(&twdr->death_lock);
 		__inet_twsk_kill(tw, twdr->hashinfo);
@@ -261,7 +262,7 @@ rescan:
 void inet_twdr_hangman(unsigned long data)
 {
 	struct inet_timewait_death_row *twdr;
-	int unsigned need_timer;
+	unsigned int need_timer;
 
 	twdr = (struct inet_timewait_death_row *)data;
 	spin_lock(&twdr->death_lock);
@@ -436,10 +437,10 @@ void inet_twdr_twcal_tick(unsigned long data)
 
 	for (n = 0; n < INET_TWDR_RECYCLE_SLOTS; n++) {
 		if (time_before_eq(j, now)) {
-			struct hlist_node *node, *safe;
+			struct hlist_node *safe;
 			struct inet_timewait_sock *tw;
 
-			inet_twsk_for_each_inmate_safe(tw, node, safe,
+			inet_twsk_for_each_inmate_safe(tw, safe,
 						       &twdr->twcal_row[slot]) {
 				__inet_twsk_del_dead_node(tw);
 				__inet_twsk_kill(tw, twdr->hashinfo);

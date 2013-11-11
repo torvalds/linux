@@ -31,6 +31,7 @@
 
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/serial.h>
@@ -70,7 +71,7 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
-#define HW_BUF_SPD_THRESHOLD    9600
+#define HW_BUF_SPD_THRESHOLD    2400
 
 /*
  * Check, if transmit buffers are processed
@@ -244,7 +245,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	int i;
 	unsigned char ch;
 	u8 *cp;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	cbd_t __iomem *bdp;
 	u16 status;
@@ -275,7 +276,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if(tty_buffer_request_room(tty, i) < i) {
+		if (tty_buffer_request_room(tport, i) < i) {
 			printk(KERN_WARNING "No room in flip buffer\n");
 			return;
 		}
@@ -301,7 +302,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 			}
 #endif
 		      error_return:
-			tty_insert_flip_char(tty, ch, flg);
+			tty_insert_flip_char(tport, ch, flg);
 
 		}		/* End while (i--) */
 
@@ -321,7 +322,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	pinfo->rx_cur = bdp;
 
 	/* activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 
@@ -416,6 +417,7 @@ static int cpm_uart_startup(struct uart_port *port)
 			clrbits32(&pinfo->sccp->scc_gsmrl, SCC_GSMRL_ENR);
 			clrbits16(&pinfo->sccp->scc_sccm, UART_SCCM_RX);
 		}
+		cpm_uart_initbd(pinfo);
 		cpm_line_cr_cmd(pinfo, CPM_CR_INIT_TRX);
 	}
 	/* Install interrupt handler. */
@@ -499,15 +501,27 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	smc_t __iomem *smcp = pinfo->smcp;
 	scc_t __iomem *sccp = pinfo->sccp;
+	int maxidl;
 
 	pr_debug("CPM uart[%d]:set_termios\n", port->line);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
-	if (baud <= HW_BUF_SPD_THRESHOLD ||
-	    (pinfo->port.state && pinfo->port.state->port.tty->low_latency))
+	if (baud < HW_BUF_SPD_THRESHOLD ||
+	    (pinfo->port.state && pinfo->port.state->port.low_latency))
 		pinfo->rx_fifosize = 1;
 	else
 		pinfo->rx_fifosize = RX_BUF_SIZE;
+
+	/* MAXIDL is the timeout after which a receive buffer is closed
+	 * when not full if no more characters are received.
+	 * We calculate it from the baudrate so that the duration is
+	 * always the same at standard rates: about 4ms.
+	 */
+	maxidl = baud / 2400;
+	if (maxidl < 1)
+		maxidl = 1;
+	if (maxidl > 0x10)
+		maxidl = 0x10;
 
 	/* Character length programmed into the mode register is the
 	 * sum of: 1 start bit, number of data bits, 0 or 1 parity bit,
@@ -609,6 +623,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		 * SMC/SCC receiver is disabled.
 		 */
 		out_be16(&pinfo->smcup->smc_mrblr, pinfo->rx_fifosize);
+		out_be16(&pinfo->smcup->smc_maxidl, maxidl);
 
 		/* Set the mode register.  We want to keep a copy of the
 		 * enables, because we want to put them back if they were
@@ -621,6 +636,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		    SMCMR_SM_UART | prev_mode);
 	} else {
 		out_be16(&pinfo->sccup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
+		out_be16(&pinfo->sccup->scc_maxidl, maxidl);
 		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
 	}
 
@@ -797,7 +813,7 @@ static void cpm_uart_init_scc(struct uart_cpm_port *pinfo)
 	cpm_set_scc_fcr(sup);
 
 	out_be16(&sup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
-	out_be16(&sup->scc_maxidl, pinfo->rx_fifosize);
+	out_be16(&sup->scc_maxidl, 0x10);
 	out_be16(&sup->scc_brkcr, 1);
 	out_be16(&sup->scc_parec, 0);
 	out_be16(&sup->scc_frmec, 0);
@@ -871,7 +887,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 
 	/* Using idle character time requires some additional tuning.  */
 	out_be16(&up->smc_mrblr, pinfo->rx_fifosize);
-	out_be16(&up->smc_maxidl, pinfo->rx_fifosize);
+	out_be16(&up->smc_maxidl, 0x10);
 	out_be16(&up->smc_brklen, 0);
 	out_be16(&up->smc_brkec, 0);
 	out_be16(&up->smc_brkcr, 1);
@@ -1357,7 +1373,7 @@ static struct uart_driver cpm_reg = {
 
 static int probe_index;
 
-static int __devinit cpm_uart_probe(struct platform_device *ofdev)
+static int cpm_uart_probe(struct platform_device *ofdev)
 {
 	int index = probe_index++;
 	struct uart_cpm_port *pinfo = &cpm_uart_ports[index];
@@ -1380,7 +1396,7 @@ static int __devinit cpm_uart_probe(struct platform_device *ofdev)
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }
 
-static int __devexit cpm_uart_remove(struct platform_device *ofdev)
+static int cpm_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_cpm_port *pinfo = dev_get_drvdata(&ofdev->dev);
 	return uart_remove_one_port(&cpm_reg, &pinfo->port);

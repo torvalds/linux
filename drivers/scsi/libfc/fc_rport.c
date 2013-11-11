@@ -51,6 +51,7 @@
 #include <linux/rcupdate.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include <scsi/libfc.h>
@@ -153,18 +154,6 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 }
 
 /**
- * fc_rport_free_rcu() - Free a remote port
- * @rcu: The rcu_head structure inside the remote port
- */
-static void fc_rport_free_rcu(struct rcu_head *rcu)
-{
-	struct fc_rport_priv *rdata;
-
-	rdata = container_of(rcu, struct fc_rport_priv, rcu);
-	kfree(rdata);
-}
-
-/**
  * fc_rport_destroy() - Free a remote port after last reference is released
  * @kref: The remote port's kref
  */
@@ -173,7 +162,7 @@ static void fc_rport_destroy(struct kref *kref)
 	struct fc_rport_priv *rdata;
 
 	rdata = container_of(kref, struct fc_rport_priv, kref);
-	call_rcu(&rdata->rcu, fc_rport_free_rcu);
+	kfree_rcu(rdata, rcu);
 }
 
 /**
@@ -402,7 +391,7 @@ static void fc_rport_work(struct work_struct *work)
  * If it appears we are already logged in, ADISC is used to verify
  * the setup.
  */
-int fc_rport_login(struct fc_rport_priv *rdata)
+static int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
@@ -462,7 +451,7 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  */
-int fc_rport_logoff(struct fc_rport_priv *rdata)
+static int fc_rport_logoff(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
@@ -593,7 +582,7 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 static void fc_rport_error_retry(struct fc_rport_priv *rdata,
 				 struct fc_frame *fp)
 {
-	unsigned long delay = FC_DEF_E_D_TOV;
+	unsigned long delay = msecs_to_jiffies(FC_DEF_E_D_TOV);
 
 	/* make sure this isn't an FC_EX_CLOSED error, never retry those */
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
@@ -664,8 +653,8 @@ static int fc_rport_login_complete(struct fc_rport_priv *rdata,
  * @fp:	    The FLOGI response frame
  * @rp_arg: The remote port that received the FLOGI response
  */
-void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
-			 void *rp_arg)
+static void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
+				void *rp_arg)
 {
 	struct fc_rport_priv *rdata = rp_arg;
 	struct fc_lport *lport = rdata->local_port;
@@ -801,6 +790,20 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_INIT:
+		/*
+		 * If received the FLOGI request on RPORT which is INIT state
+		 * (means not transition to FLOGI either fc_rport timeout
+		 * function didn;t trigger or this end hasn;t received
+		 * beacon yet from other end. In that case only, allow RPORT
+		 * state machine to continue, otherwise fall through which
+		 * causes the code to send reject response.
+		 * NOTE; Not checking for FIP->state such as VNMP_UP or
+		 * VNMP_CLAIM because if FIP state is not one of those,
+		 * RPORT wouldn;t have created and 'rport_lookup' would have
+		 * failed anyway in that case.
+		 */
+		if (lport->point_to_multipoint)
+			break;
 	case RPORT_ST_DELETE:
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;
@@ -1517,7 +1520,7 @@ reject:
  *
  * Locking Note: Called with the lport lock held.
  */
-void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
+static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_seq_els_data els_data;
 
@@ -1959,7 +1962,7 @@ static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
 		rdata->flags |= FC_RP_FLAGS_RETRY;
 	rdata->supported_classes = FC_COS_CLASS3;
 
-	if (!(lport->service_params & FC_RPORT_ROLE_FCP_INITIATOR))
+	if (!(lport->service_params & FCP_SPPF_INIT_FCN))
 		return 0;
 
 	spp->spp_flags |= rspp->spp_flags & FC_SPP_EST_IMG_PAIR;

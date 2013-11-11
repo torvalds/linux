@@ -24,14 +24,14 @@
  * video device at this point.
  */
 
-static void __devinit pci_fixup_video(struct pci_dev *pdev)
+static void pci_fixup_video(struct pci_dev *pdev)
 {
 	struct pci_dev *bridge;
 	struct pci_bus *bus;
 	u16 config;
 
-	if ((strcmp(platform_name, "dig") != 0)
-	    && (strcmp(platform_name, "hpzx1")  != 0))
+	if ((strcmp(ia64_platform_name, "dig") != 0)
+	    && (strcmp(ia64_platform_name, "hpzx1")  != 0))
 		return;
 	/* Maybe, this machine supports legacy memory map. */
 

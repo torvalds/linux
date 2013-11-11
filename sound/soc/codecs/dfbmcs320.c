@@ -33,13 +33,13 @@ static struct snd_soc_dai_driver dfbmcs320_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_dfbmcs320;
 
-static int __devinit dfbmcs320_probe(struct platform_device *pdev)
+static int dfbmcs320_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_dfbmcs320,
 			&dfbmcs320_dai, 1);
 }
 
-static int __devexit dfbmcs320_remove(struct platform_device *pdev)
+static int dfbmcs320_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 
@@ -52,20 +52,10 @@ static struct platform_driver dfmcs320_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = dfbmcs320_probe,
-	.remove = __devexit_p(dfbmcs320_remove),
+	.remove = dfbmcs320_remove,
 };
 
-static int __init dfbmcs320_init(void)
-{
-	return platform_driver_register(&dfmcs320_driver);
-}
-module_init(dfbmcs320_init);
-
-static void __exit dfbmcs320_exit(void)
-{
-	platform_driver_unregister(&dfmcs320_driver);
-}
-module_exit(dfbmcs320_exit);
+module_platform_driver(dfmcs320_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ASoC DFBM-CS320 bluethooth module driver");

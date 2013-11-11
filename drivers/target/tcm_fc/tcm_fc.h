@@ -17,35 +17,11 @@
 #ifndef __TCM_FC_H__
 #define __TCM_FC_H__
 
-#define FT_VERSION "0.3"
+#define FT_VERSION "0.4"
 
 #define FT_NAMELEN 32		/* length of ASCII WWPNs including pad */
 #define FT_TPG_NAMELEN 32	/* max length of TPG name */
 #define FT_LUN_NAMELEN 32	/* max length of LUN name */
-
-/*
- * Debug options.
- */
-#define FT_DEBUG_CONF	0x01	/* configuration messages */
-#define	FT_DEBUG_SESS	0x02	/* session messages */
-#define	FT_DEBUG_TM	0x04	/* TM operations */
-#define	FT_DEBUG_IO	0x08	/* I/O commands */
-#define	FT_DEBUG_DATA	0x10	/* Data transfer */
-
-extern unsigned int ft_debug_logging;	/* debug options */
-
-#define FT_DEBUG(mask, fmt, args...)					\
-	do {								\
-		if (ft_debug_logging & (mask))				\
-			printk(KERN_INFO "tcm_fc: %s: " fmt,		\
-				__func__, ##args);			\
-	} while (0)
-
-#define	FT_CONF_DBG(fmt, args...)	FT_DEBUG(FT_DEBUG_CONF, fmt, ##args)
-#define	FT_SESS_DBG(fmt, args...)	FT_DEBUG(FT_DEBUG_SESS, fmt, ##args)
-#define	FT_TM_DBG(fmt, args...)		FT_DEBUG(FT_DEBUG_TM, fmt, ##args)
-#define	FT_IO_DBG(fmt, args...)		FT_DEBUG(FT_DEBUG_IO, fmt, ##args)
-#define	FT_DATA_DBG(fmt, args...)	FT_DEBUG(FT_DEBUG_DATA, fmt, ##args)
 
 struct ft_transport_id {
 	__u8	format;
@@ -122,8 +98,7 @@ struct ft_tpg {
 	struct list_head list;		/* linkage in ft_lport_acl tpg_list */
 	struct list_head lun_list;	/* head of LUNs */
 	struct se_portal_group se_tpg;
-	struct task_struct *thread;	/* processing thread */
-	struct se_queue_obj qobj;	/* queue for processing thread */
+	struct workqueue_struct *workqueue;
 };
 
 struct ft_lport_acl {
@@ -134,27 +109,20 @@ struct ft_lport_acl {
 	struct se_wwn fc_lport_wwn;
 };
 
-enum ft_cmd_state {
-	FC_CMD_ST_NEW = 0,
-	FC_CMD_ST_REJ
-};
-
 /*
  * Commands
  */
 struct ft_cmd {
-	enum ft_cmd_state state;
-	u32 lun;                        /* LUN from request */
 	struct ft_sess *sess;		/* session held for cmd */
 	struct fc_seq *seq;		/* sequence in exchange mgr */
 	struct se_cmd se_cmd;		/* Local TCM I/O descriptor */
 	struct fc_frame *req_frame;
-	unsigned char *cdb;		/* pointer to CDB inside frame */
 	u32 write_data_len;		/* data received on writes */
-	struct se_queue_req se_req;
+	struct work_struct work;
 	/* Local sense buffer */
 	unsigned char ft_sense_buffer[TRANSPORT_SENSE_BUFFER];
 	u32 was_ddp_setup:1;		/* Set only if ddp is setup */
+	u32 aborted:1;			/* Set if aborted by reset or timeout */
 	struct scatterlist *sg;		/* Set only if DDP is setup */
 	u32 sg_cnt;			/* No. of item in scatterlist */
 };
@@ -163,6 +131,7 @@ extern struct list_head ft_lport_list;
 extern struct mutex ft_lport_lock;
 extern struct fc4_prov ft_prov;
 extern struct target_fabric_configfs *ft_configfs;
+extern unsigned int ft_debug_logging;
 
 /*
  * Fabric methods.
@@ -174,11 +143,8 @@ extern struct target_fabric_configfs *ft_configfs;
 void ft_sess_put(struct ft_sess *);
 int ft_sess_shutdown(struct se_session *);
 void ft_sess_close(struct se_session *);
-void ft_sess_stop(struct se_session *, int, int);
-int ft_sess_logged_in(struct se_session *);
 u32 ft_sess_get_index(struct se_session *);
 u32 ft_sess_get_port_name(struct se_session *, unsigned char *, u32);
-void ft_sess_set_erl0(struct se_session *);
 
 void ft_lport_add(struct fc_lport *, void *);
 void ft_lport_del(struct fc_lport *, void *);
@@ -187,7 +153,7 @@ int ft_lport_notify(struct notifier_block *, unsigned long, void *);
 /*
  * IO methods.
  */
-void ft_check_stop_free(struct se_cmd *);
+int ft_check_stop_free(struct se_cmd *);
 void ft_release_cmd(struct se_cmd *);
 int ft_queue_status(struct se_cmd *);
 int ft_queue_data_in(struct se_cmd *);
@@ -195,14 +161,11 @@ int ft_write_pending(struct se_cmd *);
 int ft_write_pending_status(struct se_cmd *);
 u32 ft_get_task_tag(struct se_cmd *);
 int ft_get_cmd_state(struct se_cmd *);
-void ft_new_cmd_failure(struct se_cmd *);
 int ft_queue_tm_resp(struct se_cmd *);
-int ft_is_state_remove(struct se_cmd *);
 
 /*
  * other internal functions.
  */
-int ft_thread(void *);
 void ft_recv_req(struct ft_sess *, struct fc_frame *);
 struct ft_tpg *ft_lport_find_tpg(struct fc_lport *);
 struct ft_node_acl *ft_acl_get(struct ft_tpg *, struct fc_rport_priv *);
@@ -211,5 +174,10 @@ void ft_recv_write_data(struct ft_cmd *, struct fc_frame *);
 void ft_dump_cmd(struct ft_cmd *, const char *caller);
 
 ssize_t ft_format_wwn(char *, size_t, u64);
+
+/*
+ * Underlying HW specific helper function
+ */
+void ft_invl_hw_context(struct ft_cmd *);
 
 #endif /* __TCM_FC_H__ */

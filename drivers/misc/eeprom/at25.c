@@ -19,7 +19,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
-
+#include <linux/of.h>
 
 /*
  * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
@@ -50,6 +50,7 @@ struct at25_data {
 #define	AT25_SR_BP1	0x08
 #define	AT25_SR_WPEN	0x80		/* writeprotect enable */
 
+#define	AT25_INSTR_BIT3	0x08		/* Additional address bit in instr */
 
 #define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
 
@@ -75,6 +76,7 @@ at25_ee_read(
 	ssize_t			status;
 	struct spi_transfer	t[2];
 	struct spi_message	m;
+	u8			instr;
 
 	if (unlikely(offset >= at25->bin.size))
 		return 0;
@@ -84,7 +86,12 @@ at25_ee_read(
 		return count;
 
 	cp = command;
-	*cp++ = AT25_READ;
+
+	instr = AT25_READ;
+	if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
+		if (offset >= (1U << (at25->addrlen * 8)))
+			instr |= AT25_INSTR_BIT3;
+	*cp++ = instr;
 
 	/* 8/16/24-bit address is written MSB first */
 	switch (at25->addrlen) {
@@ -167,14 +174,14 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 	/* For write, rollover is within the page ... so we write at
 	 * most one page, then manually roll over to the next page.
 	 */
-	bounce[0] = AT25_WRITE;
 	mutex_lock(&at25->lock);
 	do {
 		unsigned long	timeout, retries;
 		unsigned	segment;
 		unsigned	offset = (unsigned) off;
-		u8		*cp = bounce + 1;
+		u8		*cp = bounce;
 		int		sr;
+		u8		instr;
 
 		*cp = AT25_WREN;
 		status = spi_write(at25->spi, cp, 1);
@@ -183,6 +190,12 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 					(int) status);
 			break;
 		}
+
+		instr = AT25_WRITE;
+		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
+			if (offset >= (1U << (at25->addrlen * 8)))
+				instr |= AT25_INSTR_BIT3;
+		*cp++ = instr;
 
 		/* 8/16/24-bit address is written MSB first */
 		switch (at25->addrlen) {
@@ -289,28 +302,90 @@ static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
 
 /*-------------------------------------------------------------------------*/
 
+static int at25_np_to_chip(struct device *dev,
+			   struct device_node *np,
+			   struct spi_eeprom *chip)
+{
+	u32 val;
+
+	memset(chip, 0, sizeof(*chip));
+	strncpy(chip->name, np->name, sizeof(chip->name));
+
+	if (of_property_read_u32(np, "size", &val) == 0 ||
+	    of_property_read_u32(np, "at25,byte-len", &val) == 0) {
+		chip->byte_len = val;
+	} else {
+		dev_err(dev, "Error: missing \"size\" property\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(np, "pagesize", &val) == 0 ||
+	    of_property_read_u32(np, "at25,page-size", &val) == 0) {
+		chip->page_size = (u16)val;
+	} else {
+		dev_err(dev, "Error: missing \"pagesize\" property\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(np, "at25,addr-mode", &val) == 0) {
+		chip->flags = (u16)val;
+	} else {
+		if (of_property_read_u32(np, "address-width", &val)) {
+			dev_err(dev,
+				"Error: missing \"address-width\" property\n");
+			return -ENODEV;
+		}
+		switch (val) {
+		case 8:
+			chip->flags |= EE_ADDR1;
+			break;
+		case 16:
+			chip->flags |= EE_ADDR2;
+			break;
+		case 24:
+			chip->flags |= EE_ADDR3;
+			break;
+		default:
+			dev_err(dev,
+				"Error: bad \"address-width\" property: %u\n",
+				val);
+			return -ENODEV;
+		}
+		if (of_find_property(np, "read-only", NULL))
+			chip->flags |= EE_READONLY;
+	}
+	return 0;
+}
+
 static int at25_probe(struct spi_device *spi)
 {
 	struct at25_data	*at25 = NULL;
-	const struct spi_eeprom *chip;
+	struct spi_eeprom	chip;
+	struct device_node	*np = spi->dev.of_node;
 	int			err;
 	int			sr;
 	int			addrlen;
 
 	/* Chip description */
-	chip = spi->dev.platform_data;
-	if (!chip) {
-		dev_dbg(&spi->dev, "no chip description\n");
-		err = -ENODEV;
-		goto fail;
-	}
+	if (!spi->dev.platform_data) {
+		if (np) {
+			err = at25_np_to_chip(&spi->dev, np, &chip);
+			if (err)
+				goto fail;
+		} else {
+			dev_err(&spi->dev, "Error: no chip description\n");
+			err = -ENODEV;
+			goto fail;
+		}
+	} else
+		chip = *(struct spi_eeprom *)spi->dev.platform_data;
 
 	/* For now we only support 8/16/24 bit addressing */
-	if (chip->flags & EE_ADDR1)
+	if (chip.flags & EE_ADDR1)
 		addrlen = 1;
-	else if (chip->flags & EE_ADDR2)
+	else if (chip.flags & EE_ADDR2)
 		addrlen = 2;
-	else if (chip->flags & EE_ADDR3)
+	else if (chip.flags & EE_ADDR3)
 		addrlen = 3;
 	else {
 		dev_dbg(&spi->dev, "unsupported address type\n");
@@ -335,9 +410,9 @@ static int at25_probe(struct spi_device *spi)
 	}
 
 	mutex_init(&at25->lock);
-	at25->chip = *chip;
+	at25->chip = chip;
 	at25->spi = spi_dev_get(spi);
-	dev_set_drvdata(&spi->dev, at25);
+	spi_set_drvdata(spi, at25);
 	at25->addrlen = addrlen;
 
 	/* Export the EEPROM bytes through sysfs, since that's convenient.
@@ -356,7 +431,7 @@ static int at25_probe(struct spi_device *spi)
 	at25->mem.read = at25_mem_read;
 
 	at25->bin.size = at25->chip.byte_len;
-	if (!(chip->flags & EE_READONLY)) {
+	if (!(chip.flags & EE_READONLY)) {
 		at25->bin.write = at25_bin_write;
 		at25->bin.attr.mode |= S_IWUSR;
 		at25->mem.write = at25_mem_write;
@@ -366,8 +441,8 @@ static int at25_probe(struct spi_device *spi)
 	if (err)
 		goto fail;
 
-	if (chip->setup)
-		chip->setup(&at25->mem, chip->context);
+	if (chip.setup)
+		chip.setup(&at25->mem, chip.context);
 
 	dev_info(&spi->dev, "%Zd %s %s eeprom%s, pagesize %u\n",
 		(at25->bin.size < 1024)
@@ -375,7 +450,7 @@ static int at25_probe(struct spi_device *spi)
 			: (at25->bin.size / 1024),
 		(at25->bin.size < 1024) ? "Byte" : "KByte",
 		at25->chip.name,
-		(chip->flags & EE_READONLY) ? " (readonly)" : "",
+		(chip.flags & EE_READONLY) ? " (readonly)" : "",
 		at25->chip.page_size);
 	return 0;
 fail:
@@ -384,11 +459,11 @@ fail:
 	return err;
 }
 
-static int __devexit at25_remove(struct spi_device *spi)
+static int at25_remove(struct spi_device *spi)
 {
 	struct at25_data	*at25;
 
-	at25 = dev_get_drvdata(&spi->dev);
+	at25 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &at25->bin);
 	kfree(at25);
 	return 0;
@@ -402,20 +477,10 @@ static struct spi_driver at25_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= at25_probe,
-	.remove		= __devexit_p(at25_remove),
+	.remove		= at25_remove,
 };
 
-static int __init at25_init(void)
-{
-	return spi_register_driver(&at25_driver);
-}
-module_init(at25_init);
-
-static void __exit at25_exit(void)
-{
-	spi_unregister_driver(&at25_driver);
-}
-module_exit(at25_exit);
+module_spi_driver(at25_driver);
 
 MODULE_DESCRIPTION("Driver for most SPI EEPROMs");
 MODULE_AUTHOR("David Brownell");

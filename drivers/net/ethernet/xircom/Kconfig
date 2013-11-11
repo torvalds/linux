@@ -1,0 +1,31 @@
+#
+# Xircom network device configuration
+#
+
+config NET_VENDOR_XIRCOM
+	bool "Xircom devices"
+	default y
+	depends on PCMCIA
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Xircom cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_XIRCOM
+
+config PCMCIA_XIRC2PS
+	tristate "Xircom 16-bit PCMCIA support"
+	depends on PCMCIA
+	---help---
+	  Say Y here if you intend to attach a Xircom 16-bit PCMCIA (PC-card)
+	  Ethernet or Fast Ethernet card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called xirc2ps_cs.  If unsure, say N.
+
+endif # NET_VENDOR_XIRCOM

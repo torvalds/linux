@@ -80,13 +80,11 @@
 #define WLAN_HDR_ADDR4_LEN          30
 #define WLAN_IEHDR_LEN              2
 #define WLAN_SSID_MAXLEN            32
-/*#define WLAN_RATES_MAXLEN           255*/
 #define WLAN_RATES_MAXLEN           16
 #define WLAN_RATES_MAXLEN_11B       4
 #define WLAN_RSN_MAXLEN             32
 #define WLAN_DATA_MAXLEN            2312
 #define WLAN_A3FR_MAXLEN            (WLAN_HDR_ADDR3_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)
-
 
 #define WLAN_BEACON_FR_MAXLEN       WLAN_A3FR_MAXLEN
 #define WLAN_ATIM_FR_MAXLEN         (WLAN_HDR_ADDR3_LEN + 0)
@@ -101,12 +99,10 @@
 #define WLAN_AUTHEN_FR_MAXLEN       WLAN_A3FR_MAXLEN
 #define WLAN_DEAUTHEN_FR_MAXLEN     (WLAN_HDR_ADDR3_LEN + 2)
 
-
 #define WLAN_WEP_NKEYS              4
 #define WLAN_WEP40_KEYLEN           5
 #define WLAN_WEP104_KEYLEN          13
 #define WLAN_WEP232_KEYLEN          29
-/*#define WLAN_WEPMAX_KEYLEN          29*/
 #define WLAN_WEPMAX_KEYLEN          32
 #define WLAN_CHALLENGE_IE_MAXLEN    255
 #define WLAN_CHALLENGE_IE_LEN       130
@@ -123,7 +119,6 @@
 #define WLAN_FTYPE_MGMT 0x00
 #define WLAN_FTYPE_CTL  0x01
 #define WLAN_FTYPE_DATA 0x02
-
 
 /* Frame Subtypes */
 #define WLAN_FSTYPE_ASSOCREQ        0x00
@@ -157,7 +152,6 @@
 #define WLAN_FSTYPE_CFPOLL          0x06
 #define WLAN_FSTYPE_CFACK_CFPOLL    0x07
 
-
 #ifdef __BIG_ENDIAN
 
 /* GET & SET Frame Control bit */
@@ -177,7 +171,6 @@
 #define WLAN_GET_SEQ_FRGNUM(n) (((unsigned short)(n) >> 8) & (BIT0|BIT1|BIT2|BIT3))
 #define WLAN_GET_SEQ_SEQNUM(n) ((((unsigned short)(n) >> 8) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
 
-
 /* Capability Field bit */
 #define WLAN_GET_CAP_INFO_ESS(n)           (((n) >> 8) & BIT0)
 #define WLAN_GET_CAP_INFO_IBSS(n)          ((((n) >> 8) & BIT1) >> 1)
@@ -191,7 +184,6 @@
 #define WLAN_GET_CAP_INFO_SHORTSLOTTIME(n) ((((n))      & BIT10) >> 10)
 #define WLAN_GET_CAP_INFO_DSSSOFDM(n)      ((((n))      & BIT13) >> 13)
 #define WLAN_GET_CAP_INFO_GRPACK(n)        ((((n))      & BIT14) >> 14)
-
 
 #else
 
@@ -208,11 +200,9 @@
 #define WLAN_GET_FC_ISWEP(n)    ((((unsigned short)(n)) & (BIT14)) >> 14)
 #define WLAN_GET_FC_ORDER(n)    ((((unsigned short)(n)) & (BIT15)) >> 15)
 
-
 /* Sequence Field bit */
 #define WLAN_GET_SEQ_FRGNUM(n) (((unsigned short)(n)) & (BIT0|BIT1|BIT2|BIT3))
 #define WLAN_GET_SEQ_SEQNUM(n) ((((unsigned short)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
-
 
 /* Capability Field bit */
 #define WLAN_GET_CAP_INFO_ESS(n)           ((n) & BIT0)
@@ -228,9 +218,7 @@
 #define WLAN_GET_CAP_INFO_DSSSOFDM(n)      (((n) & BIT13) >> 13)
 #define WLAN_GET_CAP_INFO_GRPACK(n)        (((n) & BIT14) >> 14)
 
-
 #endif /*#ifdef __BIG_ENDIAN */
-
 
 #define WLAN_SET_CAP_INFO_ESS(n)           (n)
 #define WLAN_SET_CAP_INFO_IBSS(n)          ((n) << 1)
@@ -244,7 +232,6 @@
 #define WLAN_SET_CAP_INFO_SHORTSLOTTIME(n) ((n) << 10)
 #define WLAN_SET_CAP_INFO_DSSSOFDM(n)      ((n) << 13)
 #define WLAN_SET_CAP_INFO_GRPACK(n)        ((n) << 14)
-
 
 #define WLAN_SET_FC_PRVER(n)    ((unsigned short)(n))
 #define WLAN_SET_FC_FTYPE(n)    (((unsigned short)(n)) << 2)
@@ -271,8 +258,6 @@
 #define WLAN_SET_ERP_USE_PROTECTION(n)     ((n) << 1)
 #define WLAN_SET_ERP_BARKER_MODE(n)        ((n) << 2)
 
-
-
 /* Support & Basic Rates field */
 #define WLAN_MGMT_IS_BASICRATE(b)    ((b) & BIT7)
 #define WLAN_MGMT_GET_RATE(b)        ((b) & ~BIT7)
@@ -290,55 +275,45 @@
 #define IEEE_ADDR_GROUP             0x01
 
 typedef struct {
-    unsigned char abyAddr[6];
+	unsigned char abyAddr[6];
 } IEEE_ADDR, *PIEEE_ADDR;
 
 /* 802.11 Header Format */
 
 typedef struct tagWLAN_80211HDR_A2 {
-
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
-
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A2, *PWLAN_80211HDR_A2;
 
 typedef struct tagWLAN_80211HDR_A3 {
-
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
-    unsigned char abyAddr3[WLAN_ADDR_LEN];
-    unsigned short wSeqCtl;
-
-}__attribute__ ((__packed__))
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
+	unsigned char abyAddr3[WLAN_ADDR_LEN];
+	unsigned short wSeqCtl;
+} __attribute__ ((__packed__))
 WLAN_80211HDR_A3, *PWLAN_80211HDR_A3;
 
 typedef struct tagWLAN_80211HDR_A4 {
-
-    unsigned short wFrameCtl;
-    unsigned short wDurationID;
-    unsigned char abyAddr1[WLAN_ADDR_LEN];
-    unsigned char abyAddr2[WLAN_ADDR_LEN];
-    unsigned char abyAddr3[WLAN_ADDR_LEN];
-    unsigned short wSeqCtl;
-    unsigned char abyAddr4[WLAN_ADDR_LEN];
-
+	unsigned short wFrameCtl;
+	unsigned short wDurationID;
+	unsigned char abyAddr1[WLAN_ADDR_LEN];
+	unsigned char abyAddr2[WLAN_ADDR_LEN];
+	unsigned char abyAddr3[WLAN_ADDR_LEN];
+	unsigned short wSeqCtl;
+	unsigned char abyAddr4[WLAN_ADDR_LEN];
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A4, *PWLAN_80211HDR_A4;
 
-
 typedef union tagUWLAN_80211HDR {
-
-    WLAN_80211HDR_A2        sA2;
-    WLAN_80211HDR_A3        sA3;
-    WLAN_80211HDR_A4        sA4;
-
+	WLAN_80211HDR_A2        sA2;
+	WLAN_80211HDR_A3        sA3;
+	WLAN_80211HDR_A4        sA4;
 } UWLAN_80211HDR, *PUWLAN_80211HDR;
-
 
 /*---------------------  Export Classes  ----------------------------*/
 
@@ -346,8 +321,4 @@ typedef union tagUWLAN_80211HDR {
 
 /*---------------------  Export Functions  --------------------------*/
 
-
-
 #endif /* __80211HDR_H__ */
-
-

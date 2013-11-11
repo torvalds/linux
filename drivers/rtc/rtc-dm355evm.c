@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/i2c/dm355evm_msp.h>
+#include <linux/module.h>
 
 
 /*
@@ -122,12 +123,12 @@ static struct rtc_class_ops dm355evm_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit dm355evm_rtc_probe(struct platform_device *pdev)
+static int dm355evm_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register(pdev->name,
-				  &pdev->dev, &dm355evm_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&dm355evm_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
 			PTR_ERR(rtc));
@@ -138,11 +139,8 @@ static int __devinit dm355evm_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit dm355evm_rtc_remove(struct platform_device *pdev)
+static int dm355evm_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
@@ -153,23 +151,13 @@ static int __devexit dm355evm_rtc_remove(struct platform_device *pdev)
  */
 static struct platform_driver rtc_dm355evm_driver = {
 	.probe		= dm355evm_rtc_probe,
-	.remove		= __devexit_p(dm355evm_rtc_remove),
+	.remove		= dm355evm_rtc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "rtc-dm355evm",
 	},
 };
 
-static int __init dm355evm_rtc_init(void)
-{
-	return platform_driver_register(&rtc_dm355evm_driver);
-}
-module_init(dm355evm_rtc_init);
-
-static void __exit dm355evm_rtc_exit(void)
-{
-	platform_driver_unregister(&rtc_dm355evm_driver);
-}
-module_exit(dm355evm_rtc_exit);
+module_platform_driver(rtc_dm355evm_driver);
 
 MODULE_LICENSE("GPL");

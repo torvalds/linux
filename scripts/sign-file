@@ -1,0 +1,421 @@
+#!/usr/bin/perl -w
+#
+# Sign a module file using the given key.
+#
+
+my $USAGE =
+"Usage: scripts/sign-file [-v] <hash algo> <key> <x509> <module> [<dest>]\n" .
+"       scripts/sign-file [-v] -s <raw sig> <hash algo> <x509> <module> [<dest>]\n";
+
+use strict;
+use FileHandle;
+use IPC::Open2;
+use Getopt::Std;
+
+my %opts;
+getopts('vs:', \%opts) or die $USAGE;
+my $verbose = $opts{'v'};
+my $signature_file = $opts{'s'};
+
+die $USAGE if ($#ARGV > 4);
+die $USAGE if (!$signature_file && $#ARGV < 3 || $signature_file && $#ARGV < 2);
+
+my $dgst = shift @ARGV;
+my $private_key;
+if (!$signature_file) {
+	$private_key = shift @ARGV;
+}
+my $x509 = shift @ARGV;
+my $module = shift @ARGV;
+my ($dest, $keep_orig);
+if (@ARGV) {
+	$dest = $ARGV[0];
+	$keep_orig = 1;
+} else {
+	$dest = $module . "~";
+}
+
+die "Can't read private key\n" if (!$signature_file && !-r $private_key);
+die "Can't read signature file\n" if ($signature_file && !-r $signature_file);
+die "Can't read X.509 certificate\n" unless (-r $x509);
+die "Can't read module\n" unless (-r $module);
+
+#
+# Function to read the contents of a file into a variable.
+#
+sub read_file($)
+{
+    my ($file) = @_;
+    my $contents;
+    my $len;
+
+    open(FD, "<$file") || die $file;
+    binmode FD;
+    my @st = stat(FD);
+    die $file if (!@st);
+    $len = read(FD, $contents, $st[7]) || die $file;
+    close(FD) || die $file;
+    die "$file: Wanted length ", $st[7], ", got ", $len, "\n"
+	if ($len != $st[7]);
+    return $contents;
+}
+
+###############################################################################
+#
+# First of all, we have to parse the X.509 certificate to find certain details
+# about it.
+#
+# We read the DER-encoded X509 certificate and parse it to extract the Subject
+# name and Subject Key Identifier.  Theis provides the data we need to build
+# the certificate identifier.
+#
+# The signer's name part of the identifier is fabricated from the commonName,
+# the organizationName or the emailAddress components of the X.509 subject
+# name.
+#
+# The subject key ID is used to select which of that signer's certificates
+# we're intending to use to sign the module.
+#
+###############################################################################
+my $x509_certificate = read_file($x509);
+
+my $UNIV = 0 << 6;
+my $APPL = 1 << 6;
+my $CONT = 2 << 6;
+my $PRIV = 3 << 6;
+
+my $CONS = 0x20;
+
+my $BOOLEAN	= 0x01;
+my $INTEGER	= 0x02;
+my $BIT_STRING	= 0x03;
+my $OCTET_STRING = 0x04;
+my $NULL	= 0x05;
+my $OBJ_ID	= 0x06;
+my $UTF8String	= 0x0c;
+my $SEQUENCE	= 0x10;
+my $SET		= 0x11;
+my $UTCTime	= 0x17;
+my $GeneralizedTime = 0x18;
+
+my %OIDs = (
+    pack("CCC", 85, 4, 3)	=> "commonName",
+    pack("CCC", 85, 4, 6)	=> "countryName",
+    pack("CCC", 85, 4, 10)	=> "organizationName",
+    pack("CCC", 85, 4, 11)	=> "organizationUnitName",
+    pack("CCCCCCCCC", 42, 134, 72, 134, 247, 13, 1, 1, 1) => "rsaEncryption",
+    pack("CCCCCCCCC", 42, 134, 72, 134, 247, 13, 1, 1, 5) => "sha1WithRSAEncryption",
+    pack("CCCCCCCCC", 42, 134, 72, 134, 247, 13, 1, 9, 1) => "emailAddress",
+    pack("CCC", 85, 29, 35)	=> "authorityKeyIdentifier",
+    pack("CCC", 85, 29, 14)	=> "subjectKeyIdentifier",
+    pack("CCC", 85, 29, 19)	=> "basicConstraints"
+);
+
+###############################################################################
+#
+# Extract an ASN.1 element from a string and return information about it.
+#
+###############################################################################
+sub asn1_extract($$@)
+{
+    my ($cursor, $expected_tag, $optional) = @_;
+
+    return [ -1 ]
+	if ($cursor->[1] == 0 && $optional);
+
+    die $x509, ": ", $cursor->[0], ": ASN.1 data underrun (elem ", $cursor->[1], ")\n"
+	if ($cursor->[1] < 2);
+
+    my ($tag, $len) = unpack("CC", substr(${$cursor->[2]}, $cursor->[0], 2));
+
+    if ($expected_tag != -1 && $tag != $expected_tag) {
+	return [ -1 ]
+	    if ($optional);
+	die $x509, ": ", $cursor->[0], ": ASN.1 unexpected tag (", $tag,
+	" not ", $expected_tag, ")\n";
+    }
+
+    $cursor->[0] += 2;
+    $cursor->[1] -= 2;
+
+    die $x509, ": ", $cursor->[0], ": ASN.1 long tag\n"
+	if (($tag & 0x1f) == 0x1f);
+    die $x509, ": ", $cursor->[0], ": ASN.1 indefinite length\n"
+	if ($len == 0x80);
+
+    if ($len > 0x80) {
+	my $l = $len - 0x80;
+	die $x509, ": ", $cursor->[0], ": ASN.1 data underrun (len len $l)\n"
+	    if ($cursor->[1] < $l);
+
+	if ($l == 0x1) {
+	    $len = unpack("C", substr(${$cursor->[2]}, $cursor->[0], 1));
+	} elsif ($l == 0x2) {
+	    $len = unpack("n", substr(${$cursor->[2]}, $cursor->[0], 2));
+	} elsif ($l == 0x3) {
+	    $len = unpack("C", substr(${$cursor->[2]}, $cursor->[0], 1)) << 16;
+	    $len = unpack("n", substr(${$cursor->[2]}, $cursor->[0] + 1, 2));
+	} elsif ($l == 0x4) {
+	    $len = unpack("N", substr(${$cursor->[2]}, $cursor->[0], 4));
+	} else {
+	    die $x509, ": ", $cursor->[0], ": ASN.1 element too long (", $l, ")\n";
+	}
+
+	$cursor->[0] += $l;
+	$cursor->[1] -= $l;
+    }
+
+    die $x509, ": ", $cursor->[0], ": ASN.1 data underrun (", $len, ")\n"
+	if ($cursor->[1] < $len);
+
+    my $ret = [ $tag, [ $cursor->[0], $len, $cursor->[2] ] ];
+    $cursor->[0] += $len;
+    $cursor->[1] -= $len;
+
+    return $ret;
+}
+
+###############################################################################
+#
+# Retrieve the data referred to by a cursor
+#
+###############################################################################
+sub asn1_retrieve($)
+{
+    my ($cursor) = @_;
+    my ($offset, $len, $data) = @$cursor;
+    return substr($$data, $offset, $len);
+}
+
+###############################################################################
+#
+# Roughly parse the X.509 certificate
+#
+###############################################################################
+my $cursor = [ 0, length($x509_certificate), \$x509_certificate ];
+
+my $cert = asn1_extract($cursor, $UNIV | $CONS | $SEQUENCE);
+my $tbs = asn1_extract($cert->[1], $UNIV | $CONS | $SEQUENCE);
+my $version = asn1_extract($tbs->[1], $CONT | $CONS | 0, 1);
+my $serial_number = asn1_extract($tbs->[1], $UNIV | $INTEGER);
+my $sig_type = asn1_extract($tbs->[1], $UNIV | $CONS | $SEQUENCE);
+my $issuer = asn1_extract($tbs->[1], $UNIV | $CONS | $SEQUENCE);
+my $validity = asn1_extract($tbs->[1], $UNIV | $CONS | $SEQUENCE);
+my $subject = asn1_extract($tbs->[1], $UNIV | $CONS | $SEQUENCE);
+my $key = asn1_extract($tbs->[1], $UNIV | $CONS | $SEQUENCE);
+my $issuer_uid = asn1_extract($tbs->[1], $CONT | $CONS | 1, 1);
+my $subject_uid = asn1_extract($tbs->[1], $CONT | $CONS | 2, 1);
+my $extension_list = asn1_extract($tbs->[1], $CONT | $CONS | 3, 1);
+
+my $subject_key_id = ();
+my $authority_key_id = ();
+
+#
+# Parse the extension list
+#
+if ($extension_list->[0] != -1) {
+    my $extensions = asn1_extract($extension_list->[1], $UNIV | $CONS | $SEQUENCE);
+
+    while ($extensions->[1]->[1] > 0) {
+	my $ext = asn1_extract($extensions->[1], $UNIV | $CONS | $SEQUENCE);
+	my $x_oid = asn1_extract($ext->[1], $UNIV | $OBJ_ID);
+	my $x_crit = asn1_extract($ext->[1], $UNIV | $BOOLEAN, 1);
+	my $x_val = asn1_extract($ext->[1], $UNIV | $OCTET_STRING);
+
+	my $raw_oid = asn1_retrieve($x_oid->[1]);
+	next if (!exists($OIDs{$raw_oid}));
+	my $x_type = $OIDs{$raw_oid};
+
+	my $raw_value = asn1_retrieve($x_val->[1]);
+
+	if ($x_type eq "subjectKeyIdentifier") {
+	    my $vcursor = [ 0, length($raw_value), \$raw_value ];
+
+	    $subject_key_id = asn1_extract($vcursor, $UNIV | $OCTET_STRING);
+	}
+    }
+}
+
+###############################################################################
+#
+# Determine what we're going to use as the signer's name.  In order of
+# preference, take one of: commonName, organizationName or emailAddress.
+#
+###############################################################################
+my $org = "";
+my $cn = "";
+my $email = "";
+
+while ($subject->[1]->[1] > 0) {
+    my $rdn = asn1_extract($subject->[1], $UNIV | $CONS | $SET);
+    my $attr = asn1_extract($rdn->[1], $UNIV | $CONS | $SEQUENCE);
+    my $n_oid = asn1_extract($attr->[1], $UNIV | $OBJ_ID);
+    my $n_val = asn1_extract($attr->[1], -1);
+
+    my $raw_oid = asn1_retrieve($n_oid->[1]);
+    next if (!exists($OIDs{$raw_oid}));
+    my $n_type = $OIDs{$raw_oid};
+
+    my $raw_value = asn1_retrieve($n_val->[1]);
+
+    if ($n_type eq "organizationName") {
+	$org = $raw_value;
+    } elsif ($n_type eq "commonName") {
+	$cn = $raw_value;
+    } elsif ($n_type eq "emailAddress") {
+	$email = $raw_value;
+    }
+}
+
+my $signers_name = $email;
+
+if ($org && $cn) {
+    # Don't use the organizationName if the commonName repeats it
+    if (length($org) <= length($cn) &&
+	substr($cn, 0, length($org)) eq $org) {
+	$signers_name = $cn;
+	goto got_id_name;
+    }
+
+    # Or a signifcant chunk of it
+    if (length($org) >= 7 &&
+	length($cn) >= 7 &&
+	substr($cn, 0, 7) eq substr($org, 0, 7)) {
+	$signers_name = $cn;
+	goto got_id_name;
+    }
+
+    $signers_name = $org . ": " . $cn;
+} elsif ($org) {
+    $signers_name = $org;
+} elsif ($cn) {
+    $signers_name = $cn;
+}
+
+got_id_name:
+
+die $x509, ": ", "X.509: Couldn't find the Subject Key Identifier extension\n"
+    if (!$subject_key_id);
+
+my $key_identifier = asn1_retrieve($subject_key_id->[1]);
+
+###############################################################################
+#
+# Create and attach the module signature
+#
+###############################################################################
+
+#
+# Signature parameters
+#
+my $algo = 1;		# Public-key crypto algorithm: RSA
+my $hash = 0;		# Digest algorithm
+my $id_type = 1;	# Identifier type: X.509
+
+#
+# Digest the data
+#
+my $prologue;
+if ($dgst eq "sha1") {
+    $prologue = pack("C*",
+		     0x30, 0x21, 0x30, 0x09, 0x06, 0x05,
+		     0x2B, 0x0E, 0x03, 0x02, 0x1A,
+		     0x05, 0x00, 0x04, 0x14);
+    $hash = 2;
+} elsif ($dgst eq "sha224") {
+    $prologue = pack("C*",
+		     0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09,
+		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04,
+		     0x05, 0x00, 0x04, 0x1C);
+    $hash = 7;
+} elsif ($dgst eq "sha256") {
+    $prologue = pack("C*",
+		     0x30, 0x31, 0x30, 0x0d, 0x06, 0x09,
+		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+		     0x05, 0x00, 0x04, 0x20);
+    $hash = 4;
+} elsif ($dgst eq "sha384") {
+    $prologue = pack("C*",
+		     0x30, 0x41, 0x30, 0x0d, 0x06, 0x09,
+		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
+		     0x05, 0x00, 0x04, 0x30);
+    $hash = 5;
+} elsif ($dgst eq "sha512") {
+    $prologue = pack("C*",
+		     0x30, 0x51, 0x30, 0x0d, 0x06, 0x09,
+		     0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+		     0x05, 0x00, 0x04, 0x40);
+    $hash = 6;
+} else {
+    die "Unknown hash algorithm: $dgst\n";
+}
+
+my $signature;
+if ($signature_file) {
+	$signature = read_file($signature_file);
+} else {
+	#
+	# Generate the digest and read from openssl's stdout
+	#
+	my $digest;
+	$digest = readpipe("openssl dgst -$dgst -binary $module") || die "openssl dgst";
+
+	#
+	# Generate the binary signature, which will be just the integer that
+	# comprises the signature with no metadata attached.
+	#
+	my $pid;
+	$pid = open2(*read_from, *write_to,
+		     "openssl rsautl -sign -inkey $private_key -keyform PEM") ||
+	    die "openssl rsautl";
+	binmode write_to;
+	print write_to $prologue . $digest || die "pipe to openssl rsautl";
+	close(write_to) || die "pipe to openssl rsautl";
+
+	binmode read_from;
+	read(read_from, $signature, 4096) || die "pipe from openssl rsautl";
+	close(read_from) || die "pipe from openssl rsautl";
+	waitpid($pid, 0) || die;
+	die "openssl rsautl died: $?" if ($? >> 8);
+}
+$signature = pack("n", length($signature)) . $signature,
+
+#
+# Build the signed binary
+#
+my $unsigned_module = read_file($module);
+
+my $magic_number = "~Module signature appended~\n";
+
+my $info = pack("CCCCCxxxN",
+		$algo, $hash, $id_type,
+		length($signers_name),
+		length($key_identifier),
+		length($signature));
+
+if ($verbose) {
+    print "Size of unsigned module: ", length($unsigned_module), "\n";
+    print "Size of signer's name  : ", length($signers_name), "\n";
+    print "Size of key identifier : ", length($key_identifier), "\n";
+    print "Size of signature      : ", length($signature), "\n";
+    print "Size of informaton     : ", length($info), "\n";
+    print "Size of magic number   : ", length($magic_number), "\n";
+    print "Signer's name          : '", $signers_name, "'\n";
+    print "Digest                 : $dgst\n";
+}
+
+open(FD, ">$dest") || die $dest;
+binmode FD;
+print FD
+    $unsigned_module,
+    $signers_name,
+    $key_identifier,
+    $signature,
+    $info,
+    $magic_number
+    ;
+close FD || die $dest;
+
+if (!$keep_orig) {
+    rename($dest, $module) || die $module;
+}

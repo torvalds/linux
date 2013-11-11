@@ -21,7 +21,7 @@
 #define NR_IRQS 32
 
 /* IRQ numbers used for linux IPIs. */
-#define IRQ_RESCHEDULE 1
+#define IRQ_RESCHEDULE 0
 
 #define irq_canonicalize(irq)   (irq)
 
@@ -73,16 +73,6 @@ enum {
  * at the PCI shim.
  */
 void tile_irq_activate(unsigned int irq, int tile_irq_type);
-
-/*
- * For onboard, non-PCI (e.g. TILE_IRQ_PERCPU) devices, drivers know
- * how to use enable/disable_percpu_irq() to manage interrupts on each
- * core.  We can't use the generic enable/disable_irq() because they
- * use a single reference count per irq, rather than per cpu per irq.
- */
-void enable_percpu_irq(unsigned int irq);
-void disable_percpu_irq(unsigned int irq);
-
 
 void setup_irq_regs(void);
 

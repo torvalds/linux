@@ -1,7 +1,7 @@
 /*
  * QE USB routines
  *
- * Copyright (c) Freescale Semicondutor, Inc. 2006.
+ * Copyright 2006 Freescale Semiconductor, Inc.
  *               Shlomi Gridish <gridish@freescale.com>
  *               Jerry Huang <Chang-Ming.Huang@freescale.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <asm/immap_qe.h>
 #include <asm/qe.h>

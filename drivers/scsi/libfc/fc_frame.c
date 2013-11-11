@@ -49,7 +49,7 @@ u32 fc_frame_crc_check(struct fc_frame *fp)
 EXPORT_SYMBOL(fc_frame_crc_check);
 
 /*
- * Allocate a frame intended to be sent via fcoe_xmit.
+ * Allocate a frame intended to be sent.
  * Get an sk_buff for the frame and set the length.
  */
 struct fc_frame *_fc_frame_alloc(size_t len)

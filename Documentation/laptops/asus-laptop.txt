@@ -45,7 +45,7 @@ Status
 Usage
 -----
 
-  Try "modprobe asus_acpi". Check your dmesg (simply type dmesg). You should
+  Try "modprobe asus-laptop". Check your dmesg (simply type dmesg). You should
   see some lines like this :
 
       Asus Laptop Extras version 0.42
@@ -151,8 +151,7 @@ Display switching
 
   Debugging:
   1) Check whether the Fn+F8 key:
-     a) does not lock the laptop (try disabling CONFIG_X86_UP_APIC or boot with
-        noapic / nolapic if it does)
+     a) does not lock the laptop (try a boot with noapic / nolapic if it does)
      b) generates events (0x6n, where n is the value corresponding to the
         configuration above)
      c) actually works

@@ -227,29 +227,18 @@ static notrace enum print_line_t					\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 			 struct trace_event *trace_event)		\
 {									\
-	struct ftrace_event_call *event;				\
 	struct trace_seq *s = &iter->seq;				\
+	struct trace_seq __maybe_unused *p = &iter->tmp_seq;		\
 	struct ftrace_raw_##call *field;				\
-	struct trace_entry *entry;					\
-	struct trace_seq *p = &iter->tmp_seq;				\
 	int ret;							\
 									\
-	event = container_of(trace_event, struct ftrace_event_call,	\
-			     event);					\
+	field = (typeof(field))iter->ent;				\
 									\
-	entry = iter->ent;						\
-									\
-	if (entry->type != event->event.type) {				\
-		WARN_ON_ONCE(1);					\
-		return TRACE_TYPE_UNHANDLED;				\
-	}								\
-									\
-	field = (typeof(field))entry;					\
-									\
-	trace_seq_init(p);						\
-	ret = trace_seq_printf(s, "%s: ", event->name);			\
+	ret = ftrace_raw_output_prep(iter, trace_event);		\
 	if (ret)							\
-		ret = trace_seq_printf(s, print);			\
+		return ret;						\
+									\
+	ret = trace_seq_printf(s, print);				\
 	if (!ret)							\
 		return TRACE_TYPE_PARTIAL_LINE;				\
 									\
@@ -335,7 +324,7 @@ static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
-static int notrace							\
+static int notrace __init						\
 ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
@@ -414,7 +403,8 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *
  * static void ftrace_raw_event_<call>(void *__data, proto)
  * {
- *	struct ftrace_event_call *event_call = __data;
+ *	struct ftrace_event_file *ftrace_file = __data;
+ *	struct ftrace_event_call *event_call = ftrace_file->event_call;
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	struct ring_buffer_event *event;
  *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
@@ -423,12 +413,16 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	int __data_size;
  *	int pc;
  *
+ *	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
+ *		     &ftrace_file->flags))
+ *		return;
+ *
  *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
  *
- *	event = trace_current_buffer_lock_reserve(&buffer,
+ *	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
  *				  event_<call>->event.type,
  *				  sizeof(*entry) + __data_size,
  *				  irq_flags, pc);
@@ -440,7 +434,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *			   __array macros.
  *
  *	if (!filter_current_check_discard(buffer, event_call, entry, event))
- *		trace_current_buffer_unlock_commit(buffer,
+ *		trace_nowake_buffer_unlock_commit(buffer,
  *						   event, irq_flags, pc);
  * }
  *
@@ -518,7 +512,8 @@ static inline notrace int ftrace_get_offsets_##call(			\
 static notrace void							\
 ftrace_raw_event_##call(void *__data, proto)				\
 {									\
-	struct ftrace_event_call *event_call = __data;			\
+	struct ftrace_event_file *ftrace_file = __data;			\
+	struct ftrace_event_call *event_call = ftrace_file->event_call;	\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
@@ -527,12 +522,16 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	int __data_size;						\
 	int pc;								\
 									\
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,			\
+		     &ftrace_file->flags))				\
+		return;							\
+									\
 	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_current_buffer_lock_reserve(&buffer,		\
+	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,	\
 				 event_call->event.type,		\
 				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
@@ -545,8 +544,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	{ assign; }							\
 									\
 	if (!filter_current_check_discard(buffer, event_call, entry, event)) \
-		trace_nowake_buffer_unlock_commit(buffer,		\
-						  event, irq_flags, pc); \
+		trace_buffer_unlock_commit(buffer, event, irq_flags, pc); \
 }
 /*
  * The ftrace_test_probe is compiled out, it is only here as a build time check
@@ -571,6 +569,7 @@ static inline void ftrace_test_probe_##call(void)			\
 
 #undef __print_flags
 #undef __print_symbolic
+#undef __print_hex
 #undef __get_dynamic_array
 #undef __get_str
 
@@ -581,7 +580,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
 static const char print_fmt_##call[] = print;				\
-static struct ftrace_event_class __used event_class_##call = {		\
+static struct ftrace_event_class __used __refdata event_class_##call = { \
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
@@ -619,79 +618,6 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
-/*
- * Define the insertion callback to perf events
- *
- * The job is very similar to ftrace_raw_event_<call> except that we don't
- * insert in the ring buffer but in a perf counter.
- *
- * static void ftrace_perf_<call>(proto)
- * {
- *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
- *	struct ftrace_event_call *event_call = &event_<call>;
- *	extern void perf_tp_event(int, u64, u64, void *, int);
- *	struct ftrace_raw_##call *entry;
- *	struct perf_trace_buf *trace_buf;
- *	u64 __addr = 0, __count = 1;
- *	unsigned long irq_flags;
- *	struct trace_entry *ent;
- *	int __entry_size;
- *	int __data_size;
- *	int __cpu
- *	int pc;
- *
- *	pc = preempt_count();
- *
- *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
- *
- *	// Below we want to get the aligned size by taking into account
- *	// the u32 field that will later store the buffer size
- *	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),
- *			     sizeof(u64));
- *	__entry_size -= sizeof(u32);
- *
- *	// Protect the non nmi buffer
- *	// This also protects the rcu read side
- *	local_irq_save(irq_flags);
- *	__cpu = smp_processor_id();
- *
- *	if (in_nmi())
- *		trace_buf = rcu_dereference_sched(perf_trace_buf_nmi);
- *	else
- *		trace_buf = rcu_dereference_sched(perf_trace_buf);
- *
- *	if (!trace_buf)
- *		goto end;
- *
- *	trace_buf = per_cpu_ptr(trace_buf, __cpu);
- *
- * 	// Avoid recursion from perf that could mess up the buffer
- * 	if (trace_buf->recursion++)
- *		goto end_recursion;
- *
- * 	raw_data = trace_buf->buf;
- *
- *	// Make recursion update visible before entering perf_tp_event
- *	// so that we protect from perf recursions.
- *
- *	barrier();
- *
- *	//zero dead bytes from alignment to avoid stack leak to userspace:
- *	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;
- *	entry = (struct ftrace_raw_<call> *)raw_data;
- *	ent = &entry->ent;
- *	tracing_generic_entry_update(ent, irq_flags, pc);
- *	ent->type = event_call->id;
- *
- *	<tstruct> <- do some jobs with dynamic arrays
- *
- *	<assign>  <- affect our values
- *
- *	perf_tp_event(event_call->id, __addr, __count, entry,
- *		     __entry_size);  <- submit them to perf counter
- *
- * }
- */
 
 #ifdef CONFIG_PERF_EVENTS
 
@@ -711,6 +637,12 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 #undef __perf_count
 #define __perf_count(c) __count = (c)
 
+#undef __perf_task
+#define __perf_task(t) __task = (t)
+
+#undef TP_perf_assign
+#define TP_perf_assign(args...) args
+
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static notrace void							\
@@ -721,6 +653,7 @@ perf_trace_##call(void *__data, proto)					\
 	struct ftrace_raw_##call *entry;				\
 	struct pt_regs __regs;						\
 	u64 __addr = 0, __count = 1;					\
+	struct task_struct *__task = NULL;				\
 	struct hlist_head *head;					\
 	int __entry_size;						\
 	int __data_size;						\
@@ -748,7 +681,7 @@ perf_trace_##call(void *__data, proto)					\
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
 	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
-		__count, &__regs, head);				\
+		__count, &__regs, head, __task);			\
 }
 
 /*
@@ -770,6 +703,4 @@ static inline void perf_test_probe_##call(void)				\
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 #endif /* CONFIG_PERF_EVENTS */
-
-#undef _TRACE_PROFILE_INIT
 

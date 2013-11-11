@@ -43,7 +43,7 @@ static const char * const bench_sched_pipe_usage[] = {
 };
 
 int bench_sched_pipe(int argc, const char **argv,
-		     const char *prefix __used)
+		     const char *prefix __maybe_unused)
 {
 	int pipe_1[2], pipe_2[2];
 	int m = 0, i;
@@ -55,14 +55,14 @@ int bench_sched_pipe(int argc, const char **argv,
 	 * discarding returned value of read(), write()
 	 * causes error in building environment for perf
 	 */
-	int __used ret, wait_stat;
-	pid_t pid, retpid;
+	int __maybe_unused ret, wait_stat;
+	pid_t pid, retpid __maybe_unused;
 
 	argc = parse_options(argc, argv, options,
 			     bench_sched_pipe_usage, 0);
 
-	assert(!pipe(pipe_1));
-	assert(!pipe(pipe_2));
+	BUG_ON(pipe(pipe_1));
+	BUG_ON(pipe(pipe_2));
 
 	pid = fork();
 	assert(pid >= 0);

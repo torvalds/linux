@@ -44,25 +44,25 @@
 static inline int pciehp_readw(struct controller *ctrl, int reg, u16 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_word(dev, reg, value);
 }
 
 static inline int pciehp_readl(struct controller *ctrl, int reg, u32 *value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_read_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_read_dword(dev, reg, value);
 }
 
 static inline int pciehp_writew(struct controller *ctrl, int reg, u16 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_word(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_word(dev, reg, value);
 }
 
 static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 {
 	struct pci_dev *dev = ctrl->pcie->port;
-	return pci_write_config_dword(dev, pci_pcie_cap(dev) + reg, value);
+	return pcie_capability_write_dword(dev, reg, value);
 }
 
 /* Power Control Command */
@@ -241,51 +241,94 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	return retval;
 }
 
-static inline int check_link_active(struct controller *ctrl)
+static bool check_link_active(struct controller *ctrl)
 {
-	u16 link_status;
+	bool ret = false;
+	u16 lnk_status;
 
-	if (pciehp_readw(ctrl, PCI_EXP_LNKSTA, &link_status))
-		return 0;
-	return !!(link_status & PCI_EXP_LNKSTA_DLLLA);
+	if (pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status))
+		return ret;
+
+	ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
+
+	if (ret)
+		ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
+
+	return ret;
 }
 
-static void pcie_wait_link_active(struct controller *ctrl)
+static void __pcie_wait_link_active(struct controller *ctrl, bool active)
 {
 	int timeout = 1000;
 
-	if (check_link_active(ctrl))
+	if (check_link_active(ctrl) == active)
 		return;
 	while (timeout > 0) {
 		msleep(10);
 		timeout -= 10;
-		if (check_link_active(ctrl))
+		if (check_link_active(ctrl) == active)
 			return;
 	}
-	ctrl_dbg(ctrl, "Data Link Layer Link Active not set in 1000 msec\n");
+	ctrl_dbg(ctrl, "Data Link Layer Link Active not %s in 1000 msec\n",
+			active ? "set" : "cleared");
+}
+
+static void pcie_wait_link_active(struct controller *ctrl)
+{
+	__pcie_wait_link_active(ctrl, true);
+}
+
+static void pcie_wait_link_not_active(struct controller *ctrl)
+{
+	__pcie_wait_link_active(ctrl, false);
+}
+
+static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
+{
+	u32 l;
+	int count = 0;
+	int delay = 1000, step = 20;
+	bool found = false;
+
+	do {
+		found = pci_bus_read_dev_vendor_id(bus, devfn, &l, 0);
+		count++;
+
+		if (found)
+			break;
+
+		msleep(step);
+		delay -= step;
+	} while (delay > 0);
+
+	if (count > 1 && pciehp_debug)
+		printk(KERN_DEBUG "pci %04x:%02x:%02x.%d id reading try %d times with interval %d ms to get %08x\n",
+			pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
+			PCI_FUNC(devfn), count, step, l);
+
+	return found;
 }
 
 int pciehp_check_link_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
+	bool found = false;
 
         /*
          * Data Link Layer Link Active Reporting must be capable for
          * hot-plug capable downstream port. But old controller might
          * not implement it. In this case, we wait for 1000 ms.
          */
-        if (ctrl->link_active_reporting){
-                /* Wait for Data Link Layer Link Active bit to be set */
+        if (ctrl->link_active_reporting)
                 pcie_wait_link_active(ctrl);
-                /*
-                 * We must wait for 100 ms after the Data Link Layer
-                 * Link Active bit reads 1b before initiating a
-                 * configuration access to the hot added device.
-                 */
-                msleep(100);
-        } else
+        else
                 msleep(1000);
+
+	/* wait 100ms before read pci conf, and try in 1s */
+	msleep(100);
+	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
+					PCI_DEVFN(0, 0));
 
 	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
 	if (retval) {
@@ -301,7 +344,48 @@ int pciehp_check_link_status(struct controller *ctrl)
 		return retval;
 	}
 
+	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
+
+	if (!found && !retval)
+		retval = -1;
+
 	return retval;
+}
+
+static int __pciehp_link_set(struct controller *ctrl, bool enable)
+{
+	u16 lnk_ctrl;
+	int retval = 0;
+
+	retval = pciehp_readw(ctrl, PCI_EXP_LNKCTL, &lnk_ctrl);
+	if (retval) {
+		ctrl_err(ctrl, "Cannot read LNKCTRL register\n");
+		return retval;
+	}
+
+	if (enable)
+		lnk_ctrl &= ~PCI_EXP_LNKCTL_LD;
+	else
+		lnk_ctrl |= PCI_EXP_LNKCTL_LD;
+
+	retval = pciehp_writew(ctrl, PCI_EXP_LNKCTL, lnk_ctrl);
+	if (retval) {
+		ctrl_err(ctrl, "Cannot write LNKCTRL register\n");
+		return retval;
+	}
+	ctrl_dbg(ctrl, "%s: lnk_ctrl = %x\n", __func__, lnk_ctrl);
+
+	return retval;
+}
+
+static int pciehp_link_enable(struct controller *ctrl)
+{
+	return __pciehp_link_set(ctrl, true);
+}
+
+static int pciehp_link_disable(struct controller *ctrl)
+{
+	return __pciehp_link_set(ctrl, false);
 }
 
 int pciehp_get_attention_status(struct slot *slot, u8 *status)
@@ -491,7 +575,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
-	u16 lnk_status;
 	int retval = 0;
 
 	/* Clear sticky power-fault bit from previous power failures */
@@ -523,13 +606,9 @@ int pciehp_power_on_slot(struct slot * slot)
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
 
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTA register\n",
-				__func__);
-		return retval;
-	}
-	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
+	retval = pciehp_link_enable(ctrl);
+	if (retval)
+		ctrl_err(ctrl, "%s: Can not enable the link!\n", __func__);
 
 	return retval;
 }
@@ -540,6 +619,14 @@ int pciehp_power_off_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int retval;
+
+	/* Disable the link at first */
+	pciehp_link_disable(ctrl);
+	/* wait the link is down */
+	if (ctrl->link_active_reporting)
+		pcie_wait_link_not_active(ctrl);
+	else
+		msleep(1000);
 
 	slot_cmd = POWER_OFF;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
@@ -618,107 +705,6 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int pciehp_get_max_lnk_width(struct slot *slot,
-				 enum pcie_link_width *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_width lnk_wdth;
-	u32	lnk_cap;
-	int retval = 0;
-
-	retval = pciehp_readl(ctrl, PCI_EXP_LNKCAP, &lnk_cap);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKCAP register\n", __func__);
-		return retval;
-	}
-
-	switch ((lnk_cap & PCI_EXP_LNKSTA_NLW) >> 4){
-	case 0:
-		lnk_wdth = PCIE_LNK_WIDTH_RESRV;
-		break;
-	case 1:
-		lnk_wdth = PCIE_LNK_X1;
-		break;
-	case 2:
-		lnk_wdth = PCIE_LNK_X2;
-		break;
-	case 4:
-		lnk_wdth = PCIE_LNK_X4;
-		break;
-	case 8:
-		lnk_wdth = PCIE_LNK_X8;
-		break;
-	case 12:
-		lnk_wdth = PCIE_LNK_X12;
-		break;
-	case 16:
-		lnk_wdth = PCIE_LNK_X16;
-		break;
-	case 32:
-		lnk_wdth = PCIE_LNK_X32;
-		break;
-	default:
-		lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_wdth;
-	ctrl_dbg(ctrl, "Max link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
-int pciehp_get_cur_lnk_width(struct slot *slot,
-				 enum pcie_link_width *value)
-{
-	struct controller *ctrl = slot->ctrl;
-	enum pcie_link_width lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-	int retval = 0;
-	u16 lnk_status;
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTATUS register\n",
-			 __func__);
-		return retval;
-	}
-
-	switch ((lnk_status & PCI_EXP_LNKSTA_NLW) >> 4){
-	case 0:
-		lnk_wdth = PCIE_LNK_WIDTH_RESRV;
-		break;
-	case 1:
-		lnk_wdth = PCIE_LNK_X1;
-		break;
-	case 2:
-		lnk_wdth = PCIE_LNK_X2;
-		break;
-	case 4:
-		lnk_wdth = PCIE_LNK_X4;
-		break;
-	case 8:
-		lnk_wdth = PCIE_LNK_X8;
-		break;
-	case 12:
-		lnk_wdth = PCIE_LNK_X12;
-		break;
-	case 16:
-		lnk_wdth = PCIE_LNK_X16;
-		break;
-	case 32:
-		lnk_wdth = PCIE_LNK_X32;
-		break;
-	default:
-		lnk_wdth = PCIE_LNK_WIDTH_UNKNOWN;
-		break;
-	}
-
-	*value = lnk_wdth;
-	ctrl_dbg(ctrl, "Current link width = %d\n", lnk_wdth);
-
-	return retval;
-}
-
 int pcie_enable_notification(struct controller *ctrl)
 {
 	u16 cmd, mask;
@@ -787,24 +773,32 @@ static void pcie_shutdown_notification(struct controller *ctrl)
 static int pcie_init_slot(struct controller *ctrl)
 {
 	struct slot *slot;
+	char name[32];
 
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
+
+	snprintf(name, sizeof(name), "pciehp-%u", PSN(ctrl));
+	slot->wq = alloc_workqueue(name, 0, 0);
+	if (!slot->wq)
+		goto abort;
 
 	slot->ctrl = ctrl;
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	ctrl->slot = slot;
 	return 0;
+abort:
+	kfree(slot);
+	return -ENOMEM;
 }
 
 static void pcie_cleanup_slot(struct controller *ctrl)
 {
 	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
-	flush_workqueue(pciehp_wq);
-	flush_workqueue(pciehp_ordered_wq);
+	destroy_workqueue(slot->wq);
 	kfree(slot);
 }
 
@@ -870,10 +864,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 		goto abort;
 	}
 	ctrl->pcie = dev;
-	if (!pci_pcie_cap(pdev)) {
-		ctrl_err(ctrl, "Cannot find PCI Express capability\n");
-		goto abort_ctrl;
-	}
 	if (pciehp_readl(ctrl, PCI_EXP_SLTCAP, &slot_cap)) {
 		ctrl_err(ctrl, "Cannot read SLOTCAP register\n");
 		goto abort_ctrl;

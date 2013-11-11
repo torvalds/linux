@@ -1,0 +1,6 @@
+# UAPI Header export list
+header-y += cld.h
+header-y += debug.h
+header-y += export.h
+header-y += nfsfh.h
+header-y += stats.h

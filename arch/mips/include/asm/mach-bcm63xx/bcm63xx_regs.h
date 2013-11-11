@@ -10,10 +10,34 @@
 #define REV_CHIPID_SHIFT		16
 #define REV_CHIPID_MASK			(0xffff << REV_CHIPID_SHIFT)
 #define REV_REVID_SHIFT			0
-#define REV_REVID_MASK			(0xffff << REV_REVID_SHIFT)
+#define REV_REVID_MASK			(0xff << REV_REVID_SHIFT)
 
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
+
+#define CKCTL_6328_PHYMIPS_EN		(1 << 0)
+#define CKCTL_6328_ADSL_QPROC_EN	(1 << 1)
+#define CKCTL_6328_ADSL_AFE_EN		(1 << 2)
+#define CKCTL_6328_ADSL_EN		(1 << 3)
+#define CKCTL_6328_MIPS_EN		(1 << 4)
+#define CKCTL_6328_SAR_EN		(1 << 5)
+#define CKCTL_6328_PCM_EN		(1 << 6)
+#define CKCTL_6328_USBD_EN		(1 << 7)
+#define CKCTL_6328_USBH_EN		(1 << 8)
+#define CKCTL_6328_HSSPI_EN		(1 << 9)
+#define CKCTL_6328_PCIE_EN		(1 << 10)
+#define CKCTL_6328_ROBOSW_EN		(1 << 11)
+
+#define CKCTL_6328_ALL_SAFE_EN		(CKCTL_6328_PHYMIPS_EN |	\
+					CKCTL_6328_ADSL_QPROC_EN |	\
+					CKCTL_6328_ADSL_AFE_EN |	\
+					CKCTL_6328_ADSL_EN |		\
+					CKCTL_6328_SAR_EN  |		\
+					CKCTL_6328_PCM_EN  |		\
+					CKCTL_6328_USBD_EN |		\
+					CKCTL_6328_USBH_EN |		\
+					CKCTL_6328_ROBOSW_EN |		\
+					CKCTL_6328_PCIE_EN)
 
 #define CKCTL_6338_ADSLPHY_EN		(1 << 0)
 #define CKCTL_6338_MPI_EN		(1 << 1)
@@ -29,13 +53,18 @@
 					CKCTL_6338_SAR_EN |		\
 					CKCTL_6338_SPI_EN)
 
-#define CKCTL_6345_CPU_EN		(1 << 0)
-#define CKCTL_6345_BUS_EN		(1 << 1)
-#define CKCTL_6345_EBI_EN		(1 << 2)
-#define CKCTL_6345_UART_EN		(1 << 3)
-#define CKCTL_6345_ADSLPHY_EN		(1 << 4)
-#define CKCTL_6345_ENET_EN		(1 << 7)
-#define CKCTL_6345_USBH_EN		(1 << 8)
+/* BCM6345 clock bits are shifted by 16 on the left, because of the test
+ * control register which is 16-bits wide. That way we do not have any
+ * specific BCM6345 code for handling clocks, and writing 0 to the test
+ * control register is fine.
+ */
+#define CKCTL_6345_CPU_EN		(1 << 16)
+#define CKCTL_6345_BUS_EN		(1 << 17)
+#define CKCTL_6345_EBI_EN		(1 << 18)
+#define CKCTL_6345_UART_EN		(1 << 19)
+#define CKCTL_6345_ADSLPHY_EN		(1 << 20)
+#define CKCTL_6345_ENET_EN		(1 << 23)
+#define CKCTL_6345_USBH_EN		(1 << 24)
 
 #define CKCTL_6345_ALL_SAFE_EN		(CKCTL_6345_ENET_EN |	\
 					CKCTL_6345_USBH_EN |	\
@@ -83,31 +112,141 @@
 					CKCTL_6358_USBSU_EN |		\
 					CKCTL_6358_EPHY_EN)
 
-/* System PLL Control register  */
+#define CKCTL_6362_ADSL_QPROC_EN	(1 << 1)
+#define CKCTL_6362_ADSL_AFE_EN		(1 << 2)
+#define CKCTL_6362_ADSL_EN		(1 << 3)
+#define CKCTL_6362_MIPS_EN		(1 << 4)
+#define CKCTL_6362_WLAN_OCP_EN		(1 << 5)
+#define CKCTL_6362_SWPKT_USB_EN		(1 << 7)
+#define CKCTL_6362_SWPKT_SAR_EN		(1 << 8)
+#define CKCTL_6362_SAR_EN		(1 << 9)
+#define CKCTL_6362_ROBOSW_EN		(1 << 10)
+#define CKCTL_6362_PCM_EN		(1 << 11)
+#define CKCTL_6362_USBD_EN		(1 << 12)
+#define CKCTL_6362_USBH_EN		(1 << 13)
+#define CKCTL_6362_IPSEC_EN		(1 << 14)
+#define CKCTL_6362_SPI_EN		(1 << 15)
+#define CKCTL_6362_HSSPI_EN		(1 << 16)
+#define CKCTL_6362_PCIE_EN		(1 << 17)
+#define CKCTL_6362_FAP_EN		(1 << 18)
+#define CKCTL_6362_PHYMIPS_EN		(1 << 19)
+#define CKCTL_6362_NAND_EN		(1 << 20)
+
+#define CKCTL_6362_ALL_SAFE_EN		(CKCTL_6362_PHYMIPS_EN |	\
+					CKCTL_6362_ADSL_QPROC_EN |	\
+					CKCTL_6362_ADSL_AFE_EN |	\
+					CKCTL_6362_ADSL_EN |		\
+					CKCTL_6362_SAR_EN  |		\
+					CKCTL_6362_PCM_EN  |		\
+					CKCTL_6362_IPSEC_EN |		\
+					CKCTL_6362_USBD_EN |		\
+					CKCTL_6362_USBH_EN |		\
+					CKCTL_6362_ROBOSW_EN |		\
+					CKCTL_6362_PCIE_EN)
+
+
+#define CKCTL_6368_VDSL_QPROC_EN	(1 << 2)
+#define CKCTL_6368_VDSL_AFE_EN		(1 << 3)
+#define CKCTL_6368_VDSL_BONDING_EN	(1 << 4)
+#define CKCTL_6368_VDSL_EN		(1 << 5)
+#define CKCTL_6368_PHYMIPS_EN		(1 << 6)
+#define CKCTL_6368_SWPKT_USB_EN		(1 << 7)
+#define CKCTL_6368_SWPKT_SAR_EN		(1 << 8)
+#define CKCTL_6368_SPI_EN		(1 << 9)
+#define CKCTL_6368_USBD_EN		(1 << 10)
+#define CKCTL_6368_SAR_EN		(1 << 11)
+#define CKCTL_6368_ROBOSW_EN		(1 << 12)
+#define CKCTL_6368_UTOPIA_EN		(1 << 13)
+#define CKCTL_6368_PCM_EN		(1 << 14)
+#define CKCTL_6368_USBH_EN		(1 << 15)
+#define CKCTL_6368_DISABLE_GLESS_EN	(1 << 16)
+#define CKCTL_6368_NAND_EN		(1 << 17)
+#define CKCTL_6368_IPSEC_EN		(1 << 18)
+
+#define CKCTL_6368_ALL_SAFE_EN		(CKCTL_6368_SWPKT_USB_EN |	\
+					CKCTL_6368_SWPKT_SAR_EN |	\
+					CKCTL_6368_SPI_EN |		\
+					CKCTL_6368_USBD_EN |		\
+					CKCTL_6368_SAR_EN |		\
+					CKCTL_6368_ROBOSW_EN |		\
+					CKCTL_6368_UTOPIA_EN |		\
+					CKCTL_6368_PCM_EN |		\
+					CKCTL_6368_USBH_EN |		\
+					CKCTL_6368_DISABLE_GLESS_EN |	\
+					CKCTL_6368_NAND_EN |		\
+					CKCTL_6368_IPSEC_EN)
+
+/* System PLL Control register	*/
 #define PERF_SYS_PLL_CTL_REG		0x8
 #define SYS_PLL_SOFT_RESET		0x1
 
 /* Interrupt Mask register */
-#define PERF_IRQMASK_REG		0xc
-#define PERF_IRQSTAT_REG		0x10
+#define PERF_IRQMASK_6328_REG		0x20
+#define PERF_IRQMASK_6338_REG		0xc
+#define PERF_IRQMASK_6345_REG		0xc
+#define PERF_IRQMASK_6348_REG		0xc
+#define PERF_IRQMASK_6358_REG		0xc
+#define PERF_IRQMASK_6362_REG		0x20
+#define PERF_IRQMASK_6368_REG		0x20
 
 /* Interrupt Status register */
-#define PERF_IRQSTAT_REG		0x10
+#define PERF_IRQSTAT_6328_REG		0x28
+#define PERF_IRQSTAT_6338_REG		0x10
+#define PERF_IRQSTAT_6345_REG		0x10
+#define PERF_IRQSTAT_6348_REG		0x10
+#define PERF_IRQSTAT_6358_REG		0x10
+#define PERF_IRQSTAT_6362_REG		0x28
+#define PERF_IRQSTAT_6368_REG		0x28
 
 /* External Interrupt Configuration register */
-#define PERF_EXTIRQ_CFG_REG		0x14
-#define EXTIRQ_CFG_SENSE(x)		(1 << (x))
-#define EXTIRQ_CFG_STAT(x)		(1 << (x + 5))
-#define EXTIRQ_CFG_CLEAR(x)		(1 << (x + 10))
-#define EXTIRQ_CFG_MASK(x)		(1 << (x + 15))
-#define EXTIRQ_CFG_BOTHEDGE(x)		(1 << (x + 20))
-#define EXTIRQ_CFG_LEVELSENSE(x)	(1 << (x + 25))
+#define PERF_EXTIRQ_CFG_REG_6328	0x18
+#define PERF_EXTIRQ_CFG_REG_6338	0x14
+#define PERF_EXTIRQ_CFG_REG_6345	0x14
+#define PERF_EXTIRQ_CFG_REG_6348	0x14
+#define PERF_EXTIRQ_CFG_REG_6358	0x14
+#define PERF_EXTIRQ_CFG_REG_6362	0x18
+#define PERF_EXTIRQ_CFG_REG_6368	0x18
 
-#define EXTIRQ_CFG_CLEAR_ALL		(0xf << 10)
-#define EXTIRQ_CFG_MASK_ALL		(0xf << 15)
+#define PERF_EXTIRQ_CFG_REG2_6368	0x1c
+
+/* for 6348 only */
+#define EXTIRQ_CFG_SENSE_6348(x)	(1 << (x))
+#define EXTIRQ_CFG_STAT_6348(x)		(1 << (x + 5))
+#define EXTIRQ_CFG_CLEAR_6348(x)	(1 << (x + 10))
+#define EXTIRQ_CFG_MASK_6348(x)		(1 << (x + 15))
+#define EXTIRQ_CFG_BOTHEDGE_6348(x)	(1 << (x + 20))
+#define EXTIRQ_CFG_LEVELSENSE_6348(x)	(1 << (x + 25))
+#define EXTIRQ_CFG_CLEAR_ALL_6348	(0xf << 10)
+#define EXTIRQ_CFG_MASK_ALL_6348	(0xf << 15)
+
+/* for all others */
+#define EXTIRQ_CFG_SENSE(x)		(1 << (x))
+#define EXTIRQ_CFG_STAT(x)		(1 << (x + 4))
+#define EXTIRQ_CFG_CLEAR(x)		(1 << (x + 8))
+#define EXTIRQ_CFG_MASK(x)		(1 << (x + 12))
+#define EXTIRQ_CFG_BOTHEDGE(x)		(1 << (x + 16))
+#define EXTIRQ_CFG_LEVELSENSE(x)	(1 << (x + 20))
+#define EXTIRQ_CFG_CLEAR_ALL		(0xf << 8)
+#define EXTIRQ_CFG_MASK_ALL		(0xf << 12)
 
 /* Soft Reset register */
 #define PERF_SOFTRESET_REG		0x28
+#define PERF_SOFTRESET_6328_REG		0x10
+#define PERF_SOFTRESET_6358_REG		0x34
+#define PERF_SOFTRESET_6362_REG		0x10
+#define PERF_SOFTRESET_6368_REG		0x10
+
+#define SOFTRESET_6328_SPI_MASK		(1 << 0)
+#define SOFTRESET_6328_EPHY_MASK	(1 << 1)
+#define SOFTRESET_6328_SAR_MASK		(1 << 2)
+#define SOFTRESET_6328_ENETSW_MASK	(1 << 3)
+#define SOFTRESET_6328_USBS_MASK	(1 << 4)
+#define SOFTRESET_6328_USBH_MASK	(1 << 5)
+#define SOFTRESET_6328_PCM_MASK		(1 << 6)
+#define SOFTRESET_6328_PCIE_CORE_MASK	(1 << 7)
+#define SOFTRESET_6328_PCIE_MASK	(1 << 8)
+#define SOFTRESET_6328_PCIE_EXT_MASK	(1 << 9)
+#define SOFTRESET_6328_PCIE_HARD_MASK	(1 << 10)
 
 #define SOFTRESET_6338_SPI_MASK		(1 << 0)
 #define SOFTRESET_6338_ENET_MASK	(1 << 2)
@@ -117,7 +256,7 @@
 #define SOFTRESET_6338_DMAMEM_MASK	(1 << 6)
 #define SOFTRESET_6338_SAR_MASK		(1 << 7)
 #define SOFTRESET_6338_ACLC_MASK	(1 << 8)
-#define SOFTRESET_6338_ADSLMIPSPLL_MASK	(1 << 10)
+#define SOFTRESET_6338_ADSLMIPSPLL_MASK (1 << 10)
 #define SOFTRESET_6338_ALL	 (SOFTRESET_6338_SPI_MASK |		\
 				  SOFTRESET_6338_ENET_MASK |		\
 				  SOFTRESET_6338_USBH_MASK |		\
@@ -136,7 +275,7 @@
 #define SOFTRESET_6348_DMAMEM_MASK	(1 << 6)
 #define SOFTRESET_6348_SAR_MASK		(1 << 7)
 #define SOFTRESET_6348_ACLC_MASK	(1 << 8)
-#define SOFTRESET_6348_ADSLMIPSPLL_MASK	(1 << 10)
+#define SOFTRESET_6348_ADSLMIPSPLL_MASK (1 << 10)
 
 #define SOFTRESET_6348_ALL	 (SOFTRESET_6348_SPI_MASK |		\
 				  SOFTRESET_6348_ENET_MASK |		\
@@ -147,6 +286,40 @@
 				  SOFTRESET_6348_SAR_MASK |		\
 				  SOFTRESET_6348_ACLC_MASK |		\
 				  SOFTRESET_6348_ADSLMIPSPLL_MASK)
+
+#define SOFTRESET_6358_SPI_MASK		(1 << 0)
+#define SOFTRESET_6358_ENET_MASK	(1 << 2)
+#define SOFTRESET_6358_MPI_MASK		(1 << 3)
+#define SOFTRESET_6358_EPHY_MASK	(1 << 6)
+#define SOFTRESET_6358_SAR_MASK		(1 << 7)
+#define SOFTRESET_6358_USBH_MASK	(1 << 12)
+#define SOFTRESET_6358_PCM_MASK		(1 << 13)
+#define SOFTRESET_6358_ADSL_MASK	(1 << 14)
+
+#define SOFTRESET_6362_SPI_MASK		(1 << 0)
+#define SOFTRESET_6362_IPSEC_MASK	(1 << 1)
+#define SOFTRESET_6362_EPHY_MASK	(1 << 2)
+#define SOFTRESET_6362_SAR_MASK		(1 << 3)
+#define SOFTRESET_6362_ENETSW_MASK	(1 << 4)
+#define SOFTRESET_6362_USBS_MASK	(1 << 5)
+#define SOFTRESET_6362_USBH_MASK	(1 << 6)
+#define SOFTRESET_6362_PCM_MASK		(1 << 7)
+#define SOFTRESET_6362_PCIE_CORE_MASK	(1 << 8)
+#define SOFTRESET_6362_PCIE_MASK	(1 << 9)
+#define SOFTRESET_6362_PCIE_EXT_MASK	(1 << 10)
+#define SOFTRESET_6362_WLAN_SHIM_MASK	(1 << 11)
+#define SOFTRESET_6362_DDR_PHY_MASK	(1 << 12)
+#define SOFTRESET_6362_FAP_MASK		(1 << 13)
+#define SOFTRESET_6362_WLAN_UBUS_MASK	(1 << 14)
+
+#define SOFTRESET_6368_SPI_MASK		(1 << 0)
+#define SOFTRESET_6368_MPI_MASK		(1 << 3)
+#define SOFTRESET_6368_EPHY_MASK	(1 << 6)
+#define SOFTRESET_6368_SAR_MASK		(1 << 7)
+#define SOFTRESET_6368_ENETSW_MASK	(1 << 10)
+#define SOFTRESET_6368_USBS_MASK	(1 << 11)
+#define SOFTRESET_6368_USBH_MASK	(1 << 12)
+#define SOFTRESET_6368_PCM_MASK		(1 << 13)
 
 /* MIPS PLL control register */
 #define PERF_MIPSPLLCTL_REG		0x34
@@ -243,6 +416,8 @@
 /* Watchdog reset length register */
 #define WDT_RSTLEN_REG			0x8
 
+/* Watchdog soft reset register (BCM6328 only) */
+#define WDT_SOFTRESET_REG		0xc
 
 /*************************************************************************
  * _REG relative to RSET_UARTx
@@ -373,6 +548,7 @@
 #define GPIO_CTL_LO_REG			0x4
 #define GPIO_DATA_HI_REG		0x8
 #define GPIO_DATA_LO_REG		0xC
+#define GPIO_DATA_LO_REG_6345		0x8
 
 /* GPIO mux registers and constants */
 #define GPIO_MODE_REG			0x18
@@ -402,6 +578,59 @@
 #define GPIO_MODE_6358_EXTRA_SPI_SS	(1 << 7)
 #define GPIO_MODE_6358_SERIAL_LED	(1 << 10)
 #define GPIO_MODE_6358_UTOPIA		(1 << 12)
+
+#define GPIO_MODE_6368_ANALOG_AFE_0	(1 << 0)
+#define GPIO_MODE_6368_ANALOG_AFE_1	(1 << 1)
+#define GPIO_MODE_6368_SYS_IRQ		(1 << 2)
+#define GPIO_MODE_6368_SERIAL_LED_DATA	(1 << 3)
+#define GPIO_MODE_6368_SERIAL_LED_CLK	(1 << 4)
+#define GPIO_MODE_6368_INET_LED		(1 << 5)
+#define GPIO_MODE_6368_EPHY0_LED	(1 << 6)
+#define GPIO_MODE_6368_EPHY1_LED	(1 << 7)
+#define GPIO_MODE_6368_EPHY2_LED	(1 << 8)
+#define GPIO_MODE_6368_EPHY3_LED	(1 << 9)
+#define GPIO_MODE_6368_ROBOSW_LED_DAT	(1 << 10)
+#define GPIO_MODE_6368_ROBOSW_LED_CLK	(1 << 11)
+#define GPIO_MODE_6368_ROBOSW_LED0	(1 << 12)
+#define GPIO_MODE_6368_ROBOSW_LED1	(1 << 13)
+#define GPIO_MODE_6368_USBD_LED		(1 << 14)
+#define GPIO_MODE_6368_NTR_PULSE	(1 << 15)
+#define GPIO_MODE_6368_PCI_REQ1		(1 << 16)
+#define GPIO_MODE_6368_PCI_GNT1		(1 << 17)
+#define GPIO_MODE_6368_PCI_INTB		(1 << 18)
+#define GPIO_MODE_6368_PCI_REQ0		(1 << 19)
+#define GPIO_MODE_6368_PCI_GNT0		(1 << 20)
+#define GPIO_MODE_6368_PCMCIA_CD1	(1 << 22)
+#define GPIO_MODE_6368_PCMCIA_CD2	(1 << 23)
+#define GPIO_MODE_6368_PCMCIA_VS1	(1 << 24)
+#define GPIO_MODE_6368_PCMCIA_VS2	(1 << 25)
+#define GPIO_MODE_6368_EBI_CS2		(1 << 26)
+#define GPIO_MODE_6368_EBI_CS3		(1 << 27)
+#define GPIO_MODE_6368_SPI_SSN2		(1 << 28)
+#define GPIO_MODE_6368_SPI_SSN3		(1 << 29)
+#define GPIO_MODE_6368_SPI_SSN4		(1 << 30)
+#define GPIO_MODE_6368_SPI_SSN5		(1 << 31)
+
+
+#define GPIO_PINMUX_OTHR_REG		0x24
+#define GPIO_PINMUX_OTHR_6328_USB_SHIFT 12
+#define GPIO_PINMUX_OTHR_6328_USB_MASK	(3 << GPIO_PINMUX_OTHR_6328_USB_SHIFT)
+#define GPIO_PINMUX_OTHR_6328_USB_HOST	(1 << GPIO_PINMUX_OTHR_6328_USB_SHIFT)
+#define GPIO_PINMUX_OTHR_6328_USB_DEV	(2 << GPIO_PINMUX_OTHR_6328_USB_SHIFT)
+
+#define GPIO_BASEMODE_6368_REG		0x38
+#define GPIO_BASEMODE_6368_UART2	0x1
+#define GPIO_BASEMODE_6368_GPIO		0x0
+#define GPIO_BASEMODE_6368_MASK		0x7
+/* those bits must be kept as read in gpio basemode register*/
+
+#define GPIO_STRAPBUS_REG		0x40
+#define STRAPBUS_6358_BOOT_SEL_PARALLEL (1 << 1)
+#define STRAPBUS_6358_BOOT_SEL_SERIAL	(0 << 1)
+#define STRAPBUS_6368_BOOT_SEL_MASK	0x3
+#define STRAPBUS_6368_BOOT_SEL_NAND	0
+#define STRAPBUS_6368_BOOT_SEL_SERIAL	1
+#define STRAPBUS_6368_BOOT_SEL_PARALLEL 3
 
 
 /*************************************************************************
@@ -516,6 +745,12 @@
 #define ENETDMA_BUFALLOC_FORCE_SHIFT	31
 #define ENETDMA_BUFALLOC_FORCE_MASK	(1 << ENETDMA_BUFALLOC_FORCE_SHIFT)
 
+/* Global interrupt status */
+#define ENETDMA_GLB_IRQSTAT_REG		(0x40)
+
+/* Global interrupt mask */
+#define ENETDMA_GLB_IRQMASK_REG		(0x44)
+
 /* Channel Configuration register */
 #define ENETDMA_CHANCFG_REG(x)		(0x100 + (x) * 0x10)
 #define ENETDMA_CHANCFG_EN_SHIFT	0
@@ -549,6 +784,58 @@
 
 
 /*************************************************************************
+ * _REG relative to RSET_ENETDMAC
+ *************************************************************************/
+
+/* Channel Configuration register */
+#define ENETDMAC_CHANCFG_REG(x)		((x) * 0x10)
+#define ENETDMAC_CHANCFG_EN_SHIFT	0
+#define ENETDMAC_CHANCFG_EN_MASK	(1 << ENETDMAC_CHANCFG_EN_SHIFT)
+#define ENETDMAC_CHANCFG_PKTHALT_SHIFT	1
+#define ENETDMAC_CHANCFG_PKTHALT_MASK	(1 << ENETDMAC_CHANCFG_PKTHALT_SHIFT)
+#define ENETDMAC_CHANCFG_BUFHALT_SHIFT	2
+#define ENETDMAC_CHANCFG_BUFHALT_MASK	(1 << ENETDMAC_CHANCFG_BUFHALT_SHIFT)
+
+/* Interrupt Control/Status register */
+#define ENETDMAC_IR_REG(x)		(0x4 + (x) * 0x10)
+#define ENETDMAC_IR_BUFDONE_MASK	(1 << 0)
+#define ENETDMAC_IR_PKTDONE_MASK	(1 << 1)
+#define ENETDMAC_IR_NOTOWNER_MASK	(1 << 2)
+
+/* Interrupt Mask register */
+#define ENETDMAC_IRMASK_REG(x)		(0x8 + (x) * 0x10)
+
+/* Maximum Burst Length */
+#define ENETDMAC_MAXBURST_REG(x)	(0xc + (x) * 0x10)
+
+
+/*************************************************************************
+ * _REG relative to RSET_ENETDMAS
+ *************************************************************************/
+
+/* Ring Start Address register */
+#define ENETDMAS_RSTART_REG(x)		((x) * 0x10)
+
+/* State Ram Word 2 */
+#define ENETDMAS_SRAM2_REG(x)		(0x4 + (x) * 0x10)
+
+/* State Ram Word 3 */
+#define ENETDMAS_SRAM3_REG(x)		(0x8 + (x) * 0x10)
+
+/* State Ram Word 4 */
+#define ENETDMAS_SRAM4_REG(x)		(0xc + (x) * 0x10)
+
+
+/*************************************************************************
+ * _REG relative to RSET_ENETSW
+ *************************************************************************/
+
+/* MIB register */
+#define ENETSW_MIB_REG(x)		(0x2800 + (x) * 4)
+#define ENETSW_MIB_REG_COUNT		47
+
+
+/*************************************************************************
  * _REG relative to RSET_OHCI_PRIV
  *************************************************************************/
 
@@ -563,7 +850,11 @@
  * _REG relative to RSET_USBH_PRIV
  *************************************************************************/
 
-#define USBH_PRIV_SWAP_REG		0x0
+#define USBH_PRIV_SWAP_6358_REG		0x0
+#define USBH_PRIV_SWAP_6368_REG		0x1c
+
+#define USBH_PRIV_SWAP_USBD_SHIFT	6
+#define USBH_PRIV_SWAP_USBD_MASK	(1 << USBH_PRIV_SWAP_USBD_SHIFT)
 #define USBH_PRIV_SWAP_EHCI_ENDN_SHIFT	4
 #define USBH_PRIV_SWAP_EHCI_ENDN_MASK	(1 << USBH_PRIV_SWAP_EHCI_ENDN_SHIFT)
 #define USBH_PRIV_SWAP_EHCI_DATA_SHIFT	3
@@ -573,7 +864,160 @@
 #define USBH_PRIV_SWAP_OHCI_DATA_SHIFT	0
 #define USBH_PRIV_SWAP_OHCI_DATA_MASK	(1 << USBH_PRIV_SWAP_OHCI_DATA_SHIFT)
 
-#define USBH_PRIV_TEST_REG		0x24
+#define USBH_PRIV_UTMI_CTL_6368_REG	0x10
+#define USBH_PRIV_UTMI_CTL_NODRIV_SHIFT 12
+#define USBH_PRIV_UTMI_CTL_NODRIV_MASK	(0xf << USBH_PRIV_UTMI_CTL_NODRIV_SHIFT)
+#define USBH_PRIV_UTMI_CTL_HOSTB_SHIFT	0
+#define USBH_PRIV_UTMI_CTL_HOSTB_MASK	(0xf << USBH_PRIV_UTMI_CTL_HOSTB_SHIFT)
+
+#define USBH_PRIV_TEST_6358_REG		0x24
+#define USBH_PRIV_TEST_6368_REG		0x14
+
+#define USBH_PRIV_SETUP_6368_REG	0x28
+#define USBH_PRIV_SETUP_IOC_SHIFT	4
+#define USBH_PRIV_SETUP_IOC_MASK	(1 << USBH_PRIV_SETUP_IOC_SHIFT)
+
+
+/*************************************************************************
+ * _REG relative to RSET_USBD
+ *************************************************************************/
+
+/* General control */
+#define USBD_CONTROL_REG		0x00
+#define USBD_CONTROL_TXZLENINS_SHIFT	14
+#define USBD_CONTROL_TXZLENINS_MASK	(1 << USBD_CONTROL_TXZLENINS_SHIFT)
+#define USBD_CONTROL_AUTO_CSRS_SHIFT	13
+#define USBD_CONTROL_AUTO_CSRS_MASK	(1 << USBD_CONTROL_AUTO_CSRS_SHIFT)
+#define USBD_CONTROL_RXZSCFG_SHIFT	12
+#define USBD_CONTROL_RXZSCFG_MASK	(1 << USBD_CONTROL_RXZSCFG_SHIFT)
+#define USBD_CONTROL_INIT_SEL_SHIFT	8
+#define USBD_CONTROL_INIT_SEL_MASK	(0xf << USBD_CONTROL_INIT_SEL_SHIFT)
+#define USBD_CONTROL_FIFO_RESET_SHIFT	6
+#define USBD_CONTROL_FIFO_RESET_MASK	(3 << USBD_CONTROL_FIFO_RESET_SHIFT)
+#define USBD_CONTROL_SETUPERRLOCK_SHIFT 5
+#define USBD_CONTROL_SETUPERRLOCK_MASK	(1 << USBD_CONTROL_SETUPERRLOCK_SHIFT)
+#define USBD_CONTROL_DONE_CSRS_SHIFT	0
+#define USBD_CONTROL_DONE_CSRS_MASK	(1 << USBD_CONTROL_DONE_CSRS_SHIFT)
+
+/* Strap options */
+#define USBD_STRAPS_REG			0x04
+#define USBD_STRAPS_APP_SELF_PWR_SHIFT	10
+#define USBD_STRAPS_APP_SELF_PWR_MASK	(1 << USBD_STRAPS_APP_SELF_PWR_SHIFT)
+#define USBD_STRAPS_APP_DISCON_SHIFT	9
+#define USBD_STRAPS_APP_DISCON_MASK	(1 << USBD_STRAPS_APP_DISCON_SHIFT)
+#define USBD_STRAPS_APP_CSRPRGSUP_SHIFT 8
+#define USBD_STRAPS_APP_CSRPRGSUP_MASK	(1 << USBD_STRAPS_APP_CSRPRGSUP_SHIFT)
+#define USBD_STRAPS_APP_RMTWKUP_SHIFT	6
+#define USBD_STRAPS_APP_RMTWKUP_MASK	(1 << USBD_STRAPS_APP_RMTWKUP_SHIFT)
+#define USBD_STRAPS_APP_RAM_IF_SHIFT	7
+#define USBD_STRAPS_APP_RAM_IF_MASK	(1 << USBD_STRAPS_APP_RAM_IF_SHIFT)
+#define USBD_STRAPS_APP_8BITPHY_SHIFT	2
+#define USBD_STRAPS_APP_8BITPHY_MASK	(1 << USBD_STRAPS_APP_8BITPHY_SHIFT)
+#define USBD_STRAPS_SPEED_SHIFT		0
+#define USBD_STRAPS_SPEED_MASK		(3 << USBD_STRAPS_SPEED_SHIFT)
+
+/* Stall control */
+#define USBD_STALL_REG			0x08
+#define USBD_STALL_UPDATE_SHIFT		7
+#define USBD_STALL_UPDATE_MASK		(1 << USBD_STALL_UPDATE_SHIFT)
+#define USBD_STALL_ENABLE_SHIFT		6
+#define USBD_STALL_ENABLE_MASK		(1 << USBD_STALL_ENABLE_SHIFT)
+#define USBD_STALL_EPNUM_SHIFT		0
+#define USBD_STALL_EPNUM_MASK		(0xf << USBD_STALL_EPNUM_SHIFT)
+
+/* General status */
+#define USBD_STATUS_REG			0x0c
+#define USBD_STATUS_SOF_SHIFT		16
+#define USBD_STATUS_SOF_MASK		(0x7ff << USBD_STATUS_SOF_SHIFT)
+#define USBD_STATUS_SPD_SHIFT		12
+#define USBD_STATUS_SPD_MASK		(3 << USBD_STATUS_SPD_SHIFT)
+#define USBD_STATUS_ALTINTF_SHIFT	8
+#define USBD_STATUS_ALTINTF_MASK	(0xf << USBD_STATUS_ALTINTF_SHIFT)
+#define USBD_STATUS_INTF_SHIFT		4
+#define USBD_STATUS_INTF_MASK		(0xf << USBD_STATUS_INTF_SHIFT)
+#define USBD_STATUS_CFG_SHIFT		0
+#define USBD_STATUS_CFG_MASK		(0xf << USBD_STATUS_CFG_SHIFT)
+
+/* Other events */
+#define USBD_EVENTS_REG			0x10
+#define USBD_EVENTS_USB_LINK_SHIFT	10
+#define USBD_EVENTS_USB_LINK_MASK	(1 << USBD_EVENTS_USB_LINK_SHIFT)
+
+/* IRQ status */
+#define USBD_EVENT_IRQ_STATUS_REG	0x14
+
+/* IRQ level (2 bits per IRQ event) */
+#define USBD_EVENT_IRQ_CFG_HI_REG	0x18
+
+#define USBD_EVENT_IRQ_CFG_LO_REG	0x1c
+
+#define USBD_EVENT_IRQ_CFG_SHIFT(x)	((x & 0xf) << 1)
+#define USBD_EVENT_IRQ_CFG_MASK(x)	(3 << USBD_EVENT_IRQ_CFG_SHIFT(x))
+#define USBD_EVENT_IRQ_CFG_RISING(x)	(0 << USBD_EVENT_IRQ_CFG_SHIFT(x))
+#define USBD_EVENT_IRQ_CFG_FALLING(x)	(1 << USBD_EVENT_IRQ_CFG_SHIFT(x))
+
+/* IRQ mask (1=unmasked) */
+#define USBD_EVENT_IRQ_MASK_REG		0x20
+
+/* IRQ bits */
+#define USBD_EVENT_IRQ_USB_LINK		10
+#define USBD_EVENT_IRQ_SETCFG		9
+#define USBD_EVENT_IRQ_SETINTF		8
+#define USBD_EVENT_IRQ_ERRATIC_ERR	7
+#define USBD_EVENT_IRQ_SET_CSRS		6
+#define USBD_EVENT_IRQ_SUSPEND		5
+#define USBD_EVENT_IRQ_EARLY_SUSPEND	4
+#define USBD_EVENT_IRQ_SOF		3
+#define USBD_EVENT_IRQ_ENUM_ON		2
+#define USBD_EVENT_IRQ_SETUP		1
+#define USBD_EVENT_IRQ_USB_RESET	0
+
+/* TX FIFO partitioning */
+#define USBD_TXFIFO_CONFIG_REG		0x40
+#define USBD_TXFIFO_CONFIG_END_SHIFT	16
+#define USBD_TXFIFO_CONFIG_END_MASK	(0xff << USBD_TXFIFO_CONFIG_END_SHIFT)
+#define USBD_TXFIFO_CONFIG_START_SHIFT	0
+#define USBD_TXFIFO_CONFIG_START_MASK	(0xff << USBD_TXFIFO_CONFIG_START_SHIFT)
+
+/* RX FIFO partitioning */
+#define USBD_RXFIFO_CONFIG_REG		0x44
+#define USBD_RXFIFO_CONFIG_END_SHIFT	16
+#define USBD_RXFIFO_CONFIG_END_MASK	(0xff << USBD_TXFIFO_CONFIG_END_SHIFT)
+#define USBD_RXFIFO_CONFIG_START_SHIFT	0
+#define USBD_RXFIFO_CONFIG_START_MASK	(0xff << USBD_TXFIFO_CONFIG_START_SHIFT)
+
+/* TX FIFO/endpoint configuration */
+#define USBD_TXFIFO_EPSIZE_REG		0x48
+
+/* RX FIFO/endpoint configuration */
+#define USBD_RXFIFO_EPSIZE_REG		0x4c
+
+/* Endpoint<->DMA mappings */
+#define USBD_EPNUM_TYPEMAP_REG		0x50
+#define USBD_EPNUM_TYPEMAP_TYPE_SHIFT	8
+#define USBD_EPNUM_TYPEMAP_TYPE_MASK	(0x3 << USBD_EPNUM_TYPEMAP_TYPE_SHIFT)
+#define USBD_EPNUM_TYPEMAP_DMA_CH_SHIFT 0
+#define USBD_EPNUM_TYPEMAP_DMA_CH_MASK	(0xf << USBD_EPNUM_TYPEMAP_DMACH_SHIFT)
+
+/* Misc per-endpoint settings */
+#define USBD_CSR_SETUPADDR_REG		0x80
+#define USBD_CSR_SETUPADDR_DEF		0xb550
+
+#define USBD_CSR_EP_REG(x)		(0x84 + (x) * 4)
+#define USBD_CSR_EP_MAXPKT_SHIFT	19
+#define USBD_CSR_EP_MAXPKT_MASK		(0x7ff << USBD_CSR_EP_MAXPKT_SHIFT)
+#define USBD_CSR_EP_ALTIFACE_SHIFT	15
+#define USBD_CSR_EP_ALTIFACE_MASK	(0xf << USBD_CSR_EP_ALTIFACE_SHIFT)
+#define USBD_CSR_EP_IFACE_SHIFT		11
+#define USBD_CSR_EP_IFACE_MASK		(0xf << USBD_CSR_EP_IFACE_SHIFT)
+#define USBD_CSR_EP_CFG_SHIFT		7
+#define USBD_CSR_EP_CFG_MASK		(0xf << USBD_CSR_EP_CFG_SHIFT)
+#define USBD_CSR_EP_TYPE_SHIFT		5
+#define USBD_CSR_EP_TYPE_MASK		(3 << USBD_CSR_EP_TYPE_SHIFT)
+#define USBD_CSR_EP_DIR_SHIFT		4
+#define USBD_CSR_EP_DIR_MASK		(1 << USBD_CSR_EP_DIR_SHIFT)
+#define USBD_CSR_EP_LOG_SHIFT		0
+#define USBD_CSR_EP_LOG_MASK		(0xf << USBD_CSR_EP_LOG_SHIFT)
 
 
 /*************************************************************************
@@ -657,8 +1101,8 @@
 #define MPI_L2PREMAP_IS_CARDBUS_MASK	(1 << 2)
 
 #define MPI_PCIMODESEL_REG		0x144
-#define MPI_PCIMODESEL_BAR1_NOSWAP_MASK	(1 << 0)
-#define MPI_PCIMODESEL_BAR2_NOSWAP_MASK	(1 << 1)
+#define MPI_PCIMODESEL_BAR1_NOSWAP_MASK (1 << 0)
+#define MPI_PCIMODESEL_BAR2_NOSWAP_MASK (1 << 1)
 #define MPI_PCIMODESEL_EXT_ARB_MASK	(1 << 2)
 #define MPI_PCIMODESEL_PREFETCH_SHIFT	4
 #define MPI_PCIMODESEL_PREFETCH_MASK	(0xf << MPI_PCIMODESEL_PREFETCH_SHIFT)
@@ -735,6 +1179,8 @@
 #define SDRAM_CFG_BANK_SHIFT		13
 #define SDRAM_CFG_BANK_MASK		(1 << SDRAM_CFG_BANK_SHIFT)
 
+#define SDRAM_MBASE_REG			0xc
+
 #define SDRAM_PRIO_REG			0x2C
 #define SDRAM_PRIO_MIPS_SHIFT		29
 #define SDRAM_PRIO_MIPS_MASK		(1 << SDRAM_PRIO_MIPS_SHIFT)
@@ -761,6 +1207,8 @@
  * _REG relative to RSET_DDR
  *************************************************************************/
 
+#define DDR_CSEND_REG			0x8
+
 #define DDR_DMIPSPLLCFG_REG		0x18
 #define DMIPSPLLCFG_M1_SHIFT		0
 #define DMIPSPLLCFG_M1_MASK		(0xff << DMIPSPLLCFG_M1_SHIFT)
@@ -768,5 +1216,222 @@
 #define DMIPSPLLCFG_N1_MASK		(0x3f << DMIPSPLLCFG_N1_SHIFT)
 #define DMIPSPLLCFG_N2_SHIFT		29
 #define DMIPSPLLCFG_N2_MASK		(0x7 << DMIPSPLLCFG_N2_SHIFT)
+
+#define DDR_DMIPSPLLCFG_6368_REG	0x20
+#define DMIPSPLLCFG_6368_P1_SHIFT	0
+#define DMIPSPLLCFG_6368_P1_MASK	(0xf << DMIPSPLLCFG_6368_P1_SHIFT)
+#define DMIPSPLLCFG_6368_P2_SHIFT	4
+#define DMIPSPLLCFG_6368_P2_MASK	(0xf << DMIPSPLLCFG_6368_P2_SHIFT)
+#define DMIPSPLLCFG_6368_NDIV_SHIFT	16
+#define DMIPSPLLCFG_6368_NDIV_MASK	(0x1ff << DMIPSPLLCFG_6368_NDIV_SHIFT)
+
+#define DDR_DMIPSPLLDIV_6368_REG	0x24
+#define DMIPSPLLDIV_6368_MDIV_SHIFT	0
+#define DMIPSPLLDIV_6368_MDIV_MASK	(0xff << DMIPSPLLDIV_6368_MDIV_SHIFT)
+
+
+/*************************************************************************
+ * _REG relative to RSET_M2M
+ *************************************************************************/
+
+#define M2M_RX				0
+#define M2M_TX				1
+
+#define M2M_SRC_REG(x)			((x) * 0x40 + 0x00)
+#define M2M_DST_REG(x)			((x) * 0x40 + 0x04)
+#define M2M_SIZE_REG(x)			((x) * 0x40 + 0x08)
+
+#define M2M_CTRL_REG(x)			((x) * 0x40 + 0x0c)
+#define M2M_CTRL_ENABLE_MASK		(1 << 0)
+#define M2M_CTRL_IRQEN_MASK		(1 << 1)
+#define M2M_CTRL_ERROR_CLR_MASK		(1 << 6)
+#define M2M_CTRL_DONE_CLR_MASK		(1 << 7)
+#define M2M_CTRL_NOINC_MASK		(1 << 8)
+#define M2M_CTRL_PCMCIASWAP_MASK	(1 << 9)
+#define M2M_CTRL_SWAPBYTE_MASK		(1 << 10)
+#define M2M_CTRL_ENDIAN_MASK		(1 << 11)
+
+#define M2M_STAT_REG(x)			((x) * 0x40 + 0x10)
+#define M2M_STAT_DONE			(1 << 0)
+#define M2M_STAT_ERROR			(1 << 1)
+
+#define M2M_SRCID_REG(x)		((x) * 0x40 + 0x14)
+#define M2M_DSTID_REG(x)		((x) * 0x40 + 0x18)
+
+/*************************************************************************
+ * _REG relative to RSET_RNG
+ *************************************************************************/
+
+#define RNG_CTRL			0x00
+#define RNG_EN				(1 << 0)
+
+#define RNG_STAT			0x04
+#define RNG_AVAIL_MASK			(0xff000000)
+
+#define RNG_DATA			0x08
+#define RNG_THRES			0x0c
+#define RNG_MASK			0x10
+
+/*************************************************************************
+ * _REG relative to RSET_SPI
+ *************************************************************************/
+
+/* BCM 6338/6348 SPI core */
+#define SPI_6348_CMD			0x00	/* 16-bits register */
+#define SPI_6348_INT_STATUS		0x02
+#define SPI_6348_INT_MASK_ST		0x03
+#define SPI_6348_INT_MASK		0x04
+#define SPI_6348_ST			0x05
+#define SPI_6348_CLK_CFG		0x06
+#define SPI_6348_FILL_BYTE		0x07
+#define SPI_6348_MSG_TAIL		0x09
+#define SPI_6348_RX_TAIL		0x0b
+#define SPI_6348_MSG_CTL		0x40	/* 8-bits register */
+#define SPI_6348_MSG_CTL_WIDTH		8
+#define SPI_6348_MSG_DATA		0x41
+#define SPI_6348_MSG_DATA_SIZE		0x3f
+#define SPI_6348_RX_DATA		0x80
+#define SPI_6348_RX_DATA_SIZE		0x3f
+
+/* BCM 6358/6262/6368 SPI core */
+#define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
+#define SPI_6358_MSG_CTL_WIDTH		16
+#define SPI_6358_MSG_DATA		0x02
+#define SPI_6358_MSG_DATA_SIZE		0x21e
+#define SPI_6358_RX_DATA		0x400
+#define SPI_6358_RX_DATA_SIZE		0x220
+#define SPI_6358_CMD			0x700	/* 16-bits register */
+#define SPI_6358_INT_STATUS		0x702
+#define SPI_6358_INT_MASK_ST		0x703
+#define SPI_6358_INT_MASK		0x704
+#define SPI_6358_ST			0x705
+#define SPI_6358_CLK_CFG		0x706
+#define SPI_6358_FILL_BYTE		0x707
+#define SPI_6358_MSG_TAIL		0x709
+#define SPI_6358_RX_TAIL		0x70B
+
+/* Shared SPI definitions */
+
+/* Message configuration */
+#define SPI_FD_RW			0x00
+#define SPI_HD_W			0x01
+#define SPI_HD_R			0x02
+#define SPI_BYTE_CNT_SHIFT		0
+#define SPI_6348_MSG_TYPE_SHIFT		6
+#define SPI_6358_MSG_TYPE_SHIFT		14
+
+/* Command */
+#define SPI_CMD_NOOP			0x00
+#define SPI_CMD_SOFT_RESET		0x01
+#define SPI_CMD_HARD_RESET		0x02
+#define SPI_CMD_START_IMMEDIATE		0x03
+#define SPI_CMD_COMMAND_SHIFT		0
+#define SPI_CMD_COMMAND_MASK		0x000f
+#define SPI_CMD_DEVICE_ID_SHIFT		4
+#define SPI_CMD_PREPEND_BYTE_CNT_SHIFT	8
+#define SPI_CMD_ONE_BYTE_SHIFT		11
+#define SPI_CMD_ONE_WIRE_SHIFT		12
+#define SPI_DEV_ID_0			0
+#define SPI_DEV_ID_1			1
+#define SPI_DEV_ID_2			2
+#define SPI_DEV_ID_3			3
+
+/* Interrupt mask */
+#define SPI_INTR_CMD_DONE		0x01
+#define SPI_INTR_RX_OVERFLOW		0x02
+#define SPI_INTR_TX_UNDERFLOW		0x04
+#define SPI_INTR_TX_OVERFLOW		0x08
+#define SPI_INTR_RX_UNDERFLOW		0x10
+#define SPI_INTR_CLEAR_ALL		0x1f
+
+/* Status */
+#define SPI_RX_EMPTY			0x02
+#define SPI_CMD_BUSY			0x04
+#define SPI_SERIAL_BUSY			0x08
+
+/* Clock configuration */
+#define SPI_CLK_20MHZ			0x00
+#define SPI_CLK_0_391MHZ		0x01
+#define SPI_CLK_0_781MHZ		0x02 /* default */
+#define SPI_CLK_1_563MHZ		0x03
+#define SPI_CLK_3_125MHZ		0x04
+#define SPI_CLK_6_250MHZ		0x05
+#define SPI_CLK_12_50MHZ		0x06
+#define SPI_CLK_MASK			0x07
+#define SPI_SSOFFTIME_MASK		0x38
+#define SPI_SSOFFTIME_SHIFT		3
+#define SPI_BYTE_SWAP			0x80
+
+/*************************************************************************
+ * _REG relative to RSET_MISC
+ *************************************************************************/
+#define MISC_SERDES_CTRL_6328_REG	0x0
+#define MISC_SERDES_CTRL_6362_REG	0x4
+#define SERDES_PCIE_EN			(1 << 0)
+#define SERDES_PCIE_EXD_EN		(1 << 15)
+
+#define MISC_STRAPBUS_6362_REG		0x14
+#define STRAPBUS_6362_FCVO_SHIFT	1
+#define STRAPBUS_6362_HSSPI_CLK_FAST	(1 << 13)
+#define STRAPBUS_6362_FCVO_MASK		(0x1f << STRAPBUS_6362_FCVO_SHIFT)
+#define STRAPBUS_6362_BOOT_SEL_SERIAL	(1 << 15)
+#define STRAPBUS_6362_BOOT_SEL_NAND	(0 << 15)
+
+#define MISC_STRAPBUS_6328_REG		0x240
+#define STRAPBUS_6328_FCVO_SHIFT	7
+#define STRAPBUS_6328_FCVO_MASK		(0x1f << STRAPBUS_6328_FCVO_SHIFT)
+#define STRAPBUS_6328_BOOT_SEL_SERIAL	(1 << 28)
+#define STRAPBUS_6328_BOOT_SEL_NAND	(0 << 28)
+
+/*************************************************************************
+ * _REG relative to RSET_PCIE
+ *************************************************************************/
+
+#define PCIE_CONFIG2_REG		0x408
+#define CONFIG2_BAR1_SIZE_EN		1
+#define CONFIG2_BAR1_SIZE_MASK		0xf
+
+#define PCIE_IDVAL3_REG			0x43c
+#define IDVAL3_CLASS_CODE_MASK		0xffffff
+#define IDVAL3_SUBCLASS_SHIFT		8
+#define IDVAL3_CLASS_SHIFT		16
+
+#define PCIE_DLSTATUS_REG		0x1048
+#define DLSTATUS_PHYLINKUP		(1 << 13)
+
+#define PCIE_BRIDGE_OPT1_REG		0x2820
+#define OPT1_RD_BE_OPT_EN		(1 << 7)
+#define OPT1_RD_REPLY_BE_FIX_EN		(1 << 9)
+#define OPT1_PCIE_BRIDGE_HOLE_DET_EN	(1 << 11)
+#define OPT1_L1_INT_STATUS_MASK_POL	(1 << 12)
+
+#define PCIE_BRIDGE_OPT2_REG		0x2824
+#define OPT2_UBUS_UR_DECODE_DIS		(1 << 2)
+#define OPT2_TX_CREDIT_CHK_EN		(1 << 4)
+#define OPT2_CFG_TYPE1_BD_SEL		(1 << 7)
+#define OPT2_CFG_TYPE1_BUS_NO_SHIFT	16
+#define OPT2_CFG_TYPE1_BUS_NO_MASK	(0xff << OPT2_CFG_TYPE1_BUS_NO_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_BASEMASK_REG	0x2828
+#define PCIE_BRIDGE_BAR1_BASEMASK_REG	0x2830
+#define BASEMASK_REMAP_EN		(1 << 0)
+#define BASEMASK_SWAP_EN		(1 << 1)
+#define BASEMASK_MASK_SHIFT		4
+#define BASEMASK_MASK_MASK		(0xfff << BASEMASK_MASK_SHIFT)
+#define BASEMASK_BASE_SHIFT		20
+#define BASEMASK_BASE_MASK		(0xfff << BASEMASK_BASE_SHIFT)
+
+#define PCIE_BRIDGE_BAR0_REBASE_ADDR_REG 0x282c
+#define PCIE_BRIDGE_BAR1_REBASE_ADDR_REG 0x2834
+#define REBASE_ADDR_BASE_SHIFT		20
+#define REBASE_ADDR_BASE_MASK		(0xfff << REBASE_ADDR_BASE_SHIFT)
+
+#define PCIE_BRIDGE_RC_INT_MASK_REG	0x2854
+#define PCIE_RC_INT_A			(1 << 0)
+#define PCIE_RC_INT_B			(1 << 1)
+#define PCIE_RC_INT_C			(1 << 2)
+#define PCIE_RC_INT_D			(1 << 3)
+
+#define PCIE_DEVICE_OFFSET		0x8000
 
 #endif /* BCM63XX_REGS_H_ */

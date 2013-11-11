@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -39,6 +39,7 @@
 #define MAX_POSTCMD_CNT			16
 
 #define RF90_PATH_MAX			4
+#define RF6052_MAX_PATH			2
 
 enum version_8192s {
 	VERSION_8192S_ACUT,

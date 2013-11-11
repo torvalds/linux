@@ -3,7 +3,7 @@
 
 #include <linux/timer.h>
 #include <linux/types.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "localpara.h"
 #include "mac_structures.h"
@@ -40,7 +40,7 @@ enum {
 
 /*
  * ================================================================
- * Configration default value
+ * Configuration default value
  * ================================================================
  */
 #define DEFAULT_MULTICASTLISTMAX	32	/* standard */

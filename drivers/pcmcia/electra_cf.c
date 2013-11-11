@@ -181,7 +181,7 @@ static struct pccard_operations electra_cf_ops = {
 	.set_mem_map		= electra_cf_set_mem_map,
 };
 
-static int __devinit electra_cf_probe(struct platform_device *ofdev)
+static int electra_cf_probe(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -209,9 +209,9 @@ static int __devinit electra_cf_probe(struct platform_device *ofdev)
 
 	cf->ofdev = ofdev;
 	cf->mem_phys = mem.start;
-	cf->mem_size = PAGE_ALIGN(mem.end - mem.start);
+	cf->mem_size = PAGE_ALIGN(resource_size(&mem));
 	cf->mem_base = ioremap(cf->mem_phys, cf->mem_size);
-	cf->io_size = PAGE_ALIGN(io.end - io.start);
+	cf->io_size = PAGE_ALIGN(resource_size(&io));
 
 	area = __get_vm_area(cf->io_size, 0, PHB_IO_BASE, PHB_IO_END);
 	if (area == NULL)
@@ -324,7 +324,7 @@ fail1:
 
 }
 
-static int __devexit electra_cf_remove(struct platform_device *ofdev)
+static int electra_cf_remove(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct electra_cf_socket *cf;
@@ -365,17 +365,7 @@ static struct platform_driver electra_cf_driver = {
 	.remove   = electra_cf_remove,
 };
 
-static int __init electra_cf_init(void)
-{
-	return platform_driver_register(&electra_cf_driver);
-}
-module_init(electra_cf_init);
-
-static void __exit electra_cf_exit(void)
-{
-	platform_driver_unregister(&electra_cf_driver);
-}
-module_exit(electra_cf_exit);
+module_platform_driver(electra_cf_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");

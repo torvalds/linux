@@ -24,7 +24,7 @@ static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
 unsigned int pci_bus0, pci_bus1;
 
-static int __init visws_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init visws_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq, bus = dev->bus->number;
 
@@ -60,11 +60,6 @@ static int __init visws_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 out:
 	printk(KERN_DEBUG "PCI: Bus %d Slot %d Line %d -> IRQ %d\n", bus, slot, pin, irq);
 	return irq;
-}
-
-void __init pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
 int __init pci_visws_init(void)

@@ -27,10 +27,10 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
+#include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/reboot.h>
-#include <asm/system.h>
 
 #define PMU_TYPE1_BASE	0x0b0000a0UL
 #define PMU_TYPE1_SIZE	0x0eUL
@@ -75,7 +75,7 @@ static inline void software_reset(void)
 		change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
 		flush_cache_all();
 		write_c0_wired(0);
-		__asm__("jr     %0"::"r"(0xbfc00000));
+		__asm__("jr	%0"::"r"(0xbfc00000));
 		break;
 	}
 }

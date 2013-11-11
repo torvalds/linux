@@ -13,7 +13,6 @@ struct task_struct;
  */
 extern void (*cpu_wait)(void);
 
-extern long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 extern void start_thread(struct pt_regs *regs,
 			unsigned long pc, unsigned long sp);
@@ -26,7 +25,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()		barrier()
 #define release_thread(thread)	do {} while (0)
-#define prepare_to_copy(tsk)	do {} while (0)
 
 /*
  * User space process size: 2GB. This is hardcoded into a few places,

@@ -20,193 +20,6 @@
 #ifndef LINUX_SERIAL_CORE_H
 #define LINUX_SERIAL_CORE_H
 
-#include <linux/serial.h>
-
-/*
- * The type definitions.  These are from Ted Ts'o's serial.h
- */
-#define PORT_UNKNOWN	0
-#define PORT_8250	1
-#define PORT_16450	2
-#define PORT_16550	3
-#define PORT_16550A	4
-#define PORT_CIRRUS	5
-#define PORT_16650	6
-#define PORT_16650V2	7
-#define PORT_16750	8
-#define PORT_STARTECH	9
-#define PORT_16C950	10
-#define PORT_16654	11
-#define PORT_16850	12
-#define PORT_RSA	13
-#define PORT_NS16550A	14
-#define PORT_XSCALE	15
-#define PORT_RM9000	16	/* PMC-Sierra RM9xxx internal UART */
-#define PORT_OCTEON	17	/* Cavium OCTEON internal UART */
-#define PORT_AR7	18	/* Texas Instruments AR7 internal UART */
-#define PORT_U6_16550A	19	/* ST-Ericsson U6xxx internal UART */
-#define PORT_TEGRA	20	/* NVIDIA Tegra internal UART */
-#define PORT_MAX_8250	20	/* max port ID */
-
-/*
- * ARM specific type numbers.  These are not currently guaranteed
- * to be implemented, and will change in the future.  These are
- * separate so any additions to the old serial.c that occur before
- * we are merged can be easily merged here.
- */
-#define PORT_PXA	31
-#define PORT_AMBA	32
-#define PORT_CLPS711X	33
-#define PORT_SA1100	34
-#define PORT_UART00	35
-#define PORT_21285	37
-
-/* Sparc type numbers.  */
-#define PORT_SUNZILOG	38
-#define PORT_SUNSAB	39
-
-/* DEC */
-#define PORT_DZ		46
-#define PORT_ZS		47
-
-/* Parisc type numbers. */
-#define PORT_MUX	48
-
-/* Atmel AT91 / AT32 SoC */
-#define PORT_ATMEL	49
-
-/* Macintosh Zilog type numbers */
-#define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
-#define PORT_PMAC_ZILOG	51
-
-/* SH-SCI */
-#define PORT_SCI	52
-#define PORT_SCIF	53
-#define PORT_IRDA	54
-
-/* Samsung S3C2410 SoC and derivatives thereof */
-#define PORT_S3C2410    55
-
-/* SGI IP22 aka Indy / Challenge S / Indigo 2 */
-#define PORT_IP22ZILOG	56
-
-/* Sharp LH7a40x -- an ARM9 SoC series */
-#define PORT_LH7A40X	57
-
-/* PPC CPM type number */
-#define PORT_CPM        58
-
-/* MPC52xx (and MPC512x) type numbers */
-#define PORT_MPC52xx	59
-
-/* IBM icom */
-#define PORT_ICOM	60
-
-/* Samsung S3C2440 SoC */
-#define PORT_S3C2440	61
-
-/* Motorola i.MX SoC */
-#define PORT_IMX	62
-
-/* Marvell MPSC */
-#define PORT_MPSC	63
-
-/* TXX9 type number */
-#define PORT_TXX9	64
-
-/* NEC VR4100 series SIU/DSIU */
-#define PORT_VR41XX_SIU		65
-#define PORT_VR41XX_DSIU	66
-
-/* Samsung S3C2400 SoC */
-#define PORT_S3C2400	67
-
-/* M32R SIO */
-#define PORT_M32R_SIO	68
-
-/*Digi jsm */
-#define PORT_JSM        69
-
-#define PORT_PNX8XXX	70
-
-/* Hilscher netx */
-#define PORT_NETX	71
-
-/* SUN4V Hypervisor Console */
-#define PORT_SUNHV	72
-
-#define PORT_S3C2412	73
-
-/* Xilinx uartlite */
-#define PORT_UARTLITE	74
-
-/* Blackfin bf5xx */
-#define PORT_BFIN	75
-
-/* Micrel KS8695 */
-#define PORT_KS8695	76
-
-/* Broadcom SB1250, etc. SOC */
-#define PORT_SB1250_DUART	77
-
-/* Freescale ColdFire */
-#define PORT_MCF	78
-
-/* Blackfin SPORT */
-#define PORT_BFIN_SPORT		79
-
-/* MN10300 on-chip UART numbers */
-#define PORT_MN10300		80
-#define PORT_MN10300_CTS	81
-
-#define PORT_SC26XX	82
-
-/* SH-SCI */
-#define PORT_SCIFA	83
-
-#define PORT_S3C6400	84
-
-/* NWPSERIAL */
-#define PORT_NWPSERIAL	85
-
-/* MAX3100 */
-#define PORT_MAX3100    86
-
-/* Timberdale UART */
-#define PORT_TIMBUART	87
-
-/* Qualcomm MSM SoCs */
-#define PORT_MSM	88
-
-/* BCM63xx family SoCs */
-#define PORT_BCM63XX	89
-
-/* Aeroflex Gaisler GRLIB APBUART */
-#define PORT_APBUART    90
-
-/* Altera UARTs */
-#define PORT_ALTERA_JTAGUART	91
-#define PORT_ALTERA_UART	92
-
-/* SH-SCI */
-#define PORT_SCIFB	93
-
-/* MAX3107 */
-#define PORT_MAX3107	94
-
-/* High Speed UART for Medfield */
-#define PORT_MFD	95
-
-/* TI OMAP-UART */
-#define PORT_OMAP	96
-
-/* VIA VT8500 SoC */
-#define PORT_VT8500	97
-
-/* Xilinx PSS UART */
-#define PORT_XUARTPS	98
-
-#ifdef __KERNEL__
 
 #include <linux/compiler.h>
 #include <linux/interrupt.h>
@@ -216,15 +29,15 @@
 #include <linux/tty.h>
 #include <linux/mutex.h>
 #include <linux/sysrq.h>
-#include <linux/pps_kernel.h>
+#include <uapi/linux/serial_core.h>
 
 struct uart_port;
 struct serial_struct;
 struct device;
 
 /*
- * This structure describes all the operations that can be
- * done on the physical hardware.
+ * This structure describes all the operations that can be done on the
+ * physical hardware.  See Documentation/serial/driver for details.
  */
 struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
@@ -232,6 +45,8 @@ struct uart_ops {
 	unsigned int	(*get_mctrl)(struct uart_port *);
 	void		(*stop_tx)(struct uart_port *);
 	void		(*start_tx)(struct uart_port *);
+	void		(*throttle)(struct uart_port *);
+	void		(*unthrottle)(struct uart_port *);
 	void		(*send_xchar)(struct uart_port *, char ch);
 	void		(*stop_rx)(struct uart_port *);
 	void		(*enable_ms)(struct uart_port *);
@@ -245,11 +60,12 @@ struct uart_ops {
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned int oldstate);
 	int		(*set_wake)(struct uart_port *, unsigned int state);
+	void		(*wake_peer)(struct uart_port *);
 
 	/*
 	 * Return a string describing the type of the port
 	 */
-	const char *(*type)(struct uart_port *);
+	const char	*(*type)(struct uart_port *);
 
 	/*
 	 * Release IO and memory resources used by the port.
@@ -266,7 +82,8 @@ struct uart_ops {
 	int		(*verify_port)(struct uart_port *, struct serial_struct *);
 	int		(*ioctl)(struct uart_port *, unsigned int, unsigned long);
 #ifdef CONFIG_CONSOLE_POLL
-	void	(*poll_put_char)(struct uart_port *, unsigned char);
+	int		(*poll_init)(struct uart_port *);
+	void		(*poll_put_char)(struct uart_port *, unsigned char);
 	int		(*poll_get_char)(struct uart_port *);
 #endif
 };
@@ -300,8 +117,10 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	int			(*handle_irq)(struct uart_port *);
 	void			(*pm)(struct uart_port *, unsigned int state,
 				      unsigned int old);
+	void			(*handle_break)(struct uart_port *);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -315,11 +134,8 @@ struct uart_port {
 #define UPIO_HUB6		(1)
 #define UPIO_MEM		(2)
 #define UPIO_MEM32		(3)
-#define UPIO_AU			(4)			/* Au1x00 type IO */
+#define UPIO_AU			(4)			/* Au1x00 and RT288x type IO */
 #define UPIO_TSI		(5)			/* Tsi108/109 type IO */
-#define UPIO_DWAPB		(6)			/* DesignWare APB UART */
-#define UPIO_RM9000		(7)			/* RM9000 type IO */
-#define UPIO_DWAPB32		(8)			/* DesignWare APB UART (32 bit accesses) */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -348,8 +164,14 @@ struct uart_port {
 #define UPF_BUGGY_UART		((__force upf_t) (1 << 14))
 #define UPF_NO_TXEN_TEST	((__force upf_t) (1 << 15))
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
+/* Port has hardware-assisted h/w flow control (iow, auto-RTS *not* auto-CTS) */
+#define UPF_HARD_FLOW		((__force upf_t) (1 << 21))
+/* Port has hardware-assisted s/w flow control */
+#define UPF_SOFT_FLOW		((__force upf_t) (1 << 22))
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
+#define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
+#define UPF_BUG_THRE		((__force upf_t) (1 << 26))
 /* The exact UART type is known and should not be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
@@ -375,16 +197,37 @@ struct uart_port {
 	void			*private_data;		/* generic platform data pointer */
 };
 
+static inline int serial_port_in(struct uart_port *up, int offset)
+{
+	return up->serial_in(up, offset);
+}
+
+static inline void serial_port_out(struct uart_port *up, int offset, int value)
+{
+	up->serial_out(up, offset, value);
+}
+
+/**
+ * enum uart_pm_state - power states for UARTs
+ * @UART_PM_STATE_ON: UART is powered, up and operational
+ * @UART_PM_STATE_OFF: UART is powered off
+ * @UART_PM_STATE_UNDEFINED: sentinel
+ */
+enum uart_pm_state {
+	UART_PM_STATE_ON = 0,
+	UART_PM_STATE_OFF = 3, /* number taken from ACPI */
+	UART_PM_STATE_UNDEFINED,
+};
+
 /*
  * This is the state information which is persistent across opens.
  */
 struct uart_state {
 	struct tty_port		port;
 
-	int			pm_state;
+	enum uart_pm_state	pm_state;
 	struct circ_buf		xmit;
 
-	struct tasklet_struct	tlet;
 	struct uart_port	*uart_port;
 };
 
@@ -483,10 +326,19 @@ static inline int uart_tx_stopped(struct uart_port *port)
 /*
  * The following are helper functions for the low level drivers.
  */
+
+extern void uart_handle_dcd_change(struct uart_port *uport,
+		unsigned int status);
+extern void uart_handle_cts_change(struct uart_port *uport,
+		unsigned int status);
+
+extern void uart_insert_char(struct uart_port *port, unsigned int status,
+		 unsigned int overrun, unsigned int ch, unsigned int flag);
+
+#ifdef SUPPORT_SYSRQ
 static inline int
 uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 {
-#ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch);
@@ -495,11 +347,10 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 		}
 		port->sysrq = 0;
 	}
-#endif
 	return 0;
 }
-#ifndef SUPPORT_SYSRQ
-#define uart_handle_sysrq_char(port,ch) uart_handle_sysrq_char(port, 0)
+#else
+#define uart_handle_sysrq_char(port,ch) ({ (void)port; 0; })
 #endif
 
 /*
@@ -508,6 +359,10 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 static inline int uart_handle_break(struct uart_port *port)
 {
 	struct uart_state *state = port->state;
+
+	if (port->handle_break)
+		port->handle_break(port);
+
 #ifdef SUPPORT_SYSRQ
 	if (port->cons && port->cons->index == port->line) {
 		if (!port->sysrq) {
@@ -522,96 +377,11 @@ static inline int uart_handle_break(struct uart_port *port)
 	return 0;
 }
 
-/**
- *	uart_handle_dcd_change - handle a change of carrier detect state
- *	@uport: uart_port structure for the open port
- *	@status: new carrier detect status, nonzero if active
- */
-static inline void
-uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
-{
-	struct uart_state *state = uport->state;
-	struct tty_port *port = &state->port;
-	struct tty_ldisc *ld = tty_ldisc_ref(port->tty);
-	struct pps_event_time ts;
-
-	if (ld && ld->ops->dcd_change)
-		pps_get_ts(&ts);
-
-	uport->icount.dcd++;
-#ifdef CONFIG_HARD_PPS
-	if ((uport->flags & UPF_HARDPPS_CD) && status)
-		hardpps();
-#endif
-
-	if (port->flags & ASYNC_CHECK_CD) {
-		if (status)
-			wake_up_interruptible(&port->open_wait);
-		else if (port->tty)
-			tty_hangup(port->tty);
-	}
-
-	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(port->tty, status, &ts);
-	if (ld)
-		tty_ldisc_deref(ld);
-}
-
-/**
- *	uart_handle_cts_change - handle a change of clear-to-send state
- *	@uport: uart_port structure for the open port
- *	@status: new clear to send status, nonzero if active
- */
-static inline void
-uart_handle_cts_change(struct uart_port *uport, unsigned int status)
-{
-	struct tty_port *port = &uport->state->port;
-	struct tty_struct *tty = port->tty;
-
-	uport->icount.cts++;
-
-	if (port->flags & ASYNC_CTS_FLOW) {
-		if (tty->hw_stopped) {
-			if (status) {
-				tty->hw_stopped = 0;
-				uport->ops->start_tx(uport);
-				uart_write_wakeup(uport);
-			}
-		} else {
-			if (!status) {
-				tty->hw_stopped = 1;
-				uport->ops->stop_tx(uport);
-			}
-		}
-	}
-}
-
-#include <linux/tty_flip.h>
-
-static inline void
-uart_insert_char(struct uart_port *port, unsigned int status,
-		 unsigned int overrun, unsigned int ch, unsigned int flag)
-{
-	struct tty_struct *tty = port->state->port.tty;
-
-	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		tty_insert_flip_char(tty, ch, flag);
-
-	/*
-	 * Overrun is special.  Since it's reported immediately,
-	 * it doesn't affect the current character.
-	 */
-	if (status & ~port->ignore_status_mask & overrun)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-}
-
 /*
  *	UART_ENABLE_MS - determine if port should enable modem status irqs
  */
 #define UART_ENABLE_MS(port,cflag)	((port)->flags & UPF_HARDPPS_CD || \
 					 (cflag) & CRTSCTS || \
 					 !((cflag) & CLOCAL))
-
-#endif
 
 #endif /* LINUX_SERIAL_CORE_H */

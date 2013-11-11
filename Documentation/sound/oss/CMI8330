@@ -143,11 +143,10 @@ CONFIG_SOUND_MSS=m
 
 
 
-Alma Chao <elysian@ethereal.torsion.org> suggests the following /etc/modprobe.conf:
+Alma Chao <elysian@ethereal.torsion.org> suggests the following in
+a /etc/modprobe.d/*conf file:
 
 alias sound ad1848
 alias synth0 opl3
 options ad1848 io=0x530 irq=7 dma=0 soundpro=1
 options opl3 io=0x388
-
-	

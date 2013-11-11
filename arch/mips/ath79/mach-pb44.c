@@ -18,6 +18,8 @@
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
+#include "dev-usb.h"
+#include "pci.h"
 
 #define PB44_GPIO_I2C_SCL	0
 #define PB44_GPIO_I2C_SDA	1
@@ -32,8 +34,8 @@
 #define PB44_KEYS_DEBOUNCE_INTERVAL	(3 * PB44_KEYS_POLL_INTERVAL)
 
 static struct i2c_gpio_platform_data pb44_i2c_gpio_data = {
-	.sda_pin        = PB44_GPIO_I2C_SDA,
-	.scl_pin        = PB44_GPIO_I2C_SCL,
+	.sda_pin	= PB44_GPIO_I2C_SDA,
+	.scl_pin	= PB44_GPIO_I2C_SCL,
 };
 
 static struct platform_device pb44_i2c_gpio_device = {
@@ -51,7 +53,7 @@ static struct pcf857x_platform_data pb44_pcf857x_data = {
 static struct i2c_board_info pb44_i2c_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
-		.platform_data  = &pb44_pcf857x_data,
+		.platform_data	= &pb44_pcf857x_data,
 	},
 };
 
@@ -112,6 +114,8 @@ static void __init pb44_init(void)
 					pb44_gpio_keys);
 	ath79_register_spi(&pb44_spi_data, pb44_spi_info,
 			   ARRAY_SIZE(pb44_spi_info));
+	ath79_register_usb();
+	ath79_register_pci();
 }
 
 MIPS_MACHINE(ATH79_MACH_PB44, "PB44", "Atheros PB44 reference board",

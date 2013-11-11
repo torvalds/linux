@@ -52,21 +52,16 @@
 /* Same for payload size. See qos.c for the smallest max data size */
 #define IRCOMM_TTY_DATA_UNINITIALISED	(64 - IRCOMM_TTY_HDR_UNINITIALISED)
 
-/* Those are really defined in include/linux/serial.h - Jean II */
-#define ASYNC_B_INITIALIZED	31	/* Serial port was initialized */
-#define ASYNC_B_NORMAL_ACTIVE	29	/* Normal device is active */
-#define ASYNC_B_CLOSING		27	/* Serial port is closing */
-
 /*
  * IrCOMM TTY driver state
  */
 struct ircomm_tty_cb {
 	irda_queue_t queue;            /* Must be first */
+	struct tty_port port;
 	magic_t magic;
 
 	int state;                /* Connect state */
 
-	struct tty_struct *tty;
 	struct ircomm_cb *ircomm; /* IrCOMM layer instance */
 
 	struct sk_buff *tx_skb;   /* Transmit buffer */
@@ -80,7 +75,6 @@ struct ircomm_tty_cb {
 	LOCAL_FLOW flow;          /* IrTTP flow status */
 
 	int line;
-	unsigned long flags;
 
 	__u8 dlsap_sel;
 	__u8 slsap_sel;
@@ -97,19 +91,10 @@ struct ircomm_tty_cb {
 	void *skey;
 	void *ckey;
 
-	wait_queue_head_t open_wait;
-	wait_queue_head_t close_wait;
 	struct timer_list watchdog_timer;
 	struct work_struct  tqueue;
 
-        unsigned short    close_delay;
-        unsigned short    closing_wait; /* time to wait before closing */
-
-	int  open_count;
-	int  blocked_open;	/* # of blocked opens */
-
 	/* Protect concurent access to :
-	 *	o self->open_count
 	 *	o self->ctrl_skb
 	 *	o self->tx_skb
 	 * Maybe other things may gain to be protected as well...

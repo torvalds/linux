@@ -329,7 +329,6 @@ static int __init init_axis_flash(void)
 	}
 #endif
 
-#ifndef CONFIG_ETRAX_VCS_SIM
 	main_mtd = flash_probe();
 	if (main_mtd)
 		printk(KERN_INFO "%s: 0x%08x bytes of NOR flash memory.\n",
@@ -404,8 +403,7 @@ static int __init init_axis_flash(void)
 		 */
 		int blockstat;
 		do {
-			blockstat = main_mtd->block_isbad(main_mtd,
-				ptable_sector);
+			blockstat = mtd_block_isbad(main_mtd, ptable_sector);
 			if (blockstat < 0)
 				ptable_sector = 0; /* read error */
 			else if (blockstat)
@@ -413,8 +411,8 @@ static int __init init_axis_flash(void)
 		} while (blockstat && ptable_sector);
 #endif
 		if (ptable_sector) {
-			main_mtd->read(main_mtd, ptable_sector, PAGESIZE,
-				&len, page);
+			mtd_read(main_mtd, ptable_sector, PAGESIZE, &len,
+				 page);
 			ptable_head = &((struct partitiontable *) page)->head;
 		}
 
@@ -604,34 +602,7 @@ static int __init init_axis_flash(void)
 					"partition %d\n", part);
 		}
 	}
-#endif /* CONFIG_EXTRAX_VCS_SIM */
 
-#ifdef CONFIG_ETRAX_VCS_SIM
-	/* For simulator, always use a RAM partition.
-	 * The rootfs will be found after the kernel in RAM,
-	 * with romfs_start and romfs_end indicating location and size.
-	 */
-	struct mtd_info *mtd_ram;
-
-	mtd_ram = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
-	if (!mtd_ram) {
-		panic("axisflashmap: Couldn't allocate memory for "
-		      "mtd_info!\n");
-	}
-
-	printk(KERN_INFO "axisflashmap: Adding RAM partition for romfs, "
-	       "at %u, size %u\n",
-	       (unsigned) romfs_start, (unsigned) romfs_length);
-
-	err = mtdram_init_device(mtd_ram, (void *)romfs_start,
-				 romfs_length, "romfs");
-	if (err) {
-		panic("axisflashmap: Could not initialize MTD RAM "
-		      "device!\n");
-	}
-#endif /* CONFIG_EXTRAX_VCS_SIM */
-
-#ifndef CONFIG_ETRAX_VCS_SIM
 	if (aux_mtd) {
 		aux_partition.size = aux_mtd->size;
 		err = mtd_device_register(aux_mtd, &aux_partition, 1);
@@ -640,7 +611,6 @@ static int __init init_axis_flash(void)
 			      "aux mtd device!\n");
 
 	}
-#endif /* CONFIG_EXTRAX_VCS_SIM */
 
 	return err;
 }

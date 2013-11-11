@@ -42,20 +42,14 @@ static struct ctl_table atalk_table[] = {
 	{ },
 };
 
-static struct ctl_path atalk_path[] = {
-	{ .procname = "net", },
-	{ .procname = "appletalk", },
-	{ }
-};
-
 static struct ctl_table_header *atalk_table_header;
 
 void atalk_register_sysctl(void)
 {
-	atalk_table_header = register_sysctl_paths(atalk_path, atalk_table);
+	atalk_table_header = register_net_sysctl(&init_net, "net/appletalk", atalk_table);
 }
 
 void atalk_unregister_sysctl(void)
 {
-	unregister_sysctl_table(atalk_table_header);
+	unregister_net_sysctl_table(atalk_table_header);
 }

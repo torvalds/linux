@@ -5,9 +5,12 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/tty.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+
+#include <video/sa1100fb.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -16,9 +19,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
-#include <mach/mcp.h>
+#include <linux/platform_data/mfd-mcp-sa11x0.h>
 #include <mach/shannon.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -46,19 +49,32 @@ static struct flash_platform_data shannon_flash_data = {
 	.nr_parts	= ARRAY_SIZE(shannon_partitions),
 };
 
-static struct resource shannon_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_4M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource shannon_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_4M);
 
 static struct mcp_plat_data shannon_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
 };
 
+static struct sa1100fb_mach_info shannon_lcd_info = {
+	.pixclock	= 152500,	.bpp		= 8,
+	.xres		= 640,		.yres		= 480,
+
+	.hsync_len	= 4,		.vsync_len	= 3,
+	.left_margin	= 2,		.upper_margin	= 0,
+	.right_margin	= 1,		.lower_margin	= 0,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+
+	.lccr0		= LCCR0_Color | LCCR0_Dual | LCCR0_Pas,
+	.lccr3		= LCCR3_ACBsDiv(512),
+};
+
 static void __init shannon_init(void)
 {
+	sa11x0_ppc_configure_mcp();
+	sa11x0_register_lcd(&shannon_lcd_info);
 	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
 	sa11x0_register_mcp(&shannon_mcp_data);
 }
@@ -82,9 +98,12 @@ static void __init shannon_map_io(void)
 }
 
 MACHINE_START(SHANNON, "Shannon (AKA: Tuxscreen)")
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= shannon_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= shannon_init,
+	.init_late	= sa11x0_init_late,
+	.restart	= sa11x0_restart,
 MACHINE_END

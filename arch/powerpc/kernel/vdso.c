@@ -9,7 +9,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -25,7 +24,6 @@
 #include <linux/memblock.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -114,6 +112,10 @@ static struct vdso_patch_def vdso_patches[] = {
 	{
 		CPU_FTR_USE_TB, 0,
 		"__kernel_get_tbfreq", NULL
+	},
+	{
+		CPU_FTR_USE_TB, 0,
+		"__kernel_time", NULL
 	},
 };
 
@@ -264,17 +266,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * the "data" page of the vDSO or you'll stop getting kernel updates
 	 * and your nice userland gettimeofday will be totally dead.
 	 * It's fine to use that for setting breakpoints in the vDSO code
-	 * pages though
-	 *
-	 * Make sure the vDSO gets into every core dump.
-	 * Dumping its contents makes post-mortem fully interpretable later
-	 * without matching up the same kernel and hardware config to see
-	 * what PC values meant.
+	 * pages though.
 	 */
 	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
 				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				     VM_ALWAYSDUMP,
+				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
 	if (rc) {
 		current->mm->context.vdso_base = 0;
@@ -714,6 +710,32 @@ static void __init vdso_setup_syscall_map(void)
 	}
 }
 
+#ifdef CONFIG_PPC64
+int __cpuinit vdso_getcpu_init(void)
+{
+	unsigned long cpu, node, val;
+
+	/*
+	 * SPRG3 contains the CPU in the bottom 16 bits and the NUMA node in
+	 * the next 16 bits. The VDSO uses this to implement getcpu().
+	 */
+	cpu = get_cpu();
+	WARN_ON_ONCE(cpu > 0xffff);
+
+	node = cpu_to_node(cpu);
+	WARN_ON_ONCE(node > 0xffff);
+
+	val = (cpu & 0xfff) | ((node & 0xffff) << 16);
+	mtspr(SPRN_SPRG3, val);
+	get_paca()->sprg3 = val;
+
+	put_cpu();
+
+	return 0;
+}
+/* We need to call this before SMP init */
+early_initcall(vdso_getcpu_init);
+#endif
 
 static int __init vdso_init(void)
 {
@@ -728,10 +750,10 @@ static int __init vdso_init(void)
 	vdso_data->version.minor = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
 	/*
-	 * Fake the old platform number for pSeries and iSeries and add
+	 * Fake the old platform number for pSeries and add
 	 * in LPAR bit if necessary
 	 */
-	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
+	vdso_data->platform = 0x100;
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();

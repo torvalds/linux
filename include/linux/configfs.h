@@ -42,7 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define CONFIGFS_ITEM_NAME_LEN	20
 
@@ -124,7 +124,7 @@ extern struct config_item *config_group_find_item(struct config_group *,
 struct configfs_attribute {
 	const char		*ca_name;
 	struct module 		*ca_owner;
-	mode_t			ca_mode;
+	umode_t			ca_mode;
 };
 
 /*

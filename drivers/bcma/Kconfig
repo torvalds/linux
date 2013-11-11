@@ -13,6 +13,11 @@ config BCMA
 	  Bus driver for Broadcom specific Advanced Microcontroller Bus
 	  Architecture.
 
+# Support for Block-I/O. SELECT this from the driver that needs it.
+config BCMA_BLOCKIO
+	bool
+	depends on BCMA
+
 config BCMA_HOST_PCI_POSSIBLE
 	bool
 	depends on BCMA && PCI = y
@@ -21,6 +26,52 @@ config BCMA_HOST_PCI_POSSIBLE
 config BCMA_HOST_PCI
 	bool "Support for BCMA on PCI-host bus"
 	depends on BCMA_HOST_PCI_POSSIBLE
+
+config BCMA_DRIVER_PCI_HOSTMODE
+	bool "Driver for PCI core working in hostmode"
+	depends on BCMA && MIPS && BCMA_HOST_PCI
+	help
+	  PCI core hostmode operation (external PCI bus).
+
+config BCMA_HOST_SOC
+	bool
+	depends on BCMA_DRIVER_MIPS
+
+config BCMA_DRIVER_MIPS
+	bool "BCMA Broadcom MIPS core driver"
+	depends on BCMA && MIPS
+	help
+	  Driver for the Broadcom MIPS core attached to Broadcom specific
+	  Advanced Microcontroller Bus.
+
+	  If unsure, say N
+
+config BCMA_SFLASH
+	bool
+	depends on BCMA_DRIVER_MIPS
+	default y
+
+config BCMA_NFLASH
+	bool
+	depends on BCMA_DRIVER_MIPS
+	default y
+
+config BCMA_DRIVER_GMAC_CMN
+	bool "BCMA Broadcom GBIT MAC COMMON core driver"
+	depends on BCMA
+	help
+	  Driver for the Broadcom GBIT MAC COMMON core attached to Broadcom
+	  specific Advanced Microcontroller Bus.
+
+	  If unsure, say N
+
+config BCMA_DRIVER_GPIO
+	bool "BCMA GPIO driver"
+	depends on BCMA && GPIOLIB
+	help
+	  Driver to provide access to the GPIO pins of the bcma bus.
+
+	  If unsure, say N
 
 config BCMA_DEBUG
 	bool "BCMA debugging"

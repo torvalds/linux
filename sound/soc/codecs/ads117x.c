@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -35,13 +36,13 @@ static struct snd_soc_dai_driver ads117x_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_ads117x;
 
-static __devinit int ads117x_probe(struct platform_device *pdev)
+static int ads117x_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_ads117x, &ads117x_dai, 1);
 }
 
-static int __devexit ads117x_remove(struct platform_device *pdev)
+static int ads117x_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -54,20 +55,10 @@ static struct platform_driver ads117x_codec_driver = {
 	},
 
 	.probe = ads117x_probe,
-	.remove = __devexit_p(ads117x_remove),
+	.remove = ads117x_remove,
 };
 
-static int __init ads117x_init(void)
-{
-	return platform_driver_register(&ads117x_codec_driver);
-}
-module_init(ads117x_init);
-
-static void __exit ads117x_exit(void)
-{
-	platform_driver_unregister(&ads117x_codec_driver);
-}
-module_exit(ads117x_exit);
+module_platform_driver(ads117x_codec_driver);
 
 MODULE_DESCRIPTION("ASoC ads117x driver");
 MODULE_AUTHOR("Graeme Gregory");

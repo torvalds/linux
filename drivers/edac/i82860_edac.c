@@ -67,7 +67,7 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * This is a mess because there is no atomic way to read all the
@@ -99,6 +99,7 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 				struct i82860_error_info *info,
 				int handle_errors)
 {
+	struct dimm_info *dimm;
 	int row;
 
 	if (!(info->errsts2 & 0x0003))
@@ -108,18 +109,25 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 		return 1;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		edac_mc_handle_ce_no_info(mci, "UE overwrote CE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
 	info->eap >>= PAGE_SHIFT;
 	row = edac_mc_find_csrow_by_page(mci, info->eap);
+	dimm = mci->csrows[row]->channels[0]->dimm;
 
 	if (info->errsts & 0x0002)
-		edac_mc_handle_ue(mci, info->eap, 0, row, "i82860 UE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+				     info->eap, 0, 0,
+				     dimm->location[0], dimm->location[1], -1,
+				     "i82860 UE", "");
 	else
-		edac_mc_handle_ce(mci, info->eap, 0, info->derrsyn, row, 0,
-				"i82860 UE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+				     info->eap, 0, info->derrsyn,
+				     dimm->location[0], dimm->location[1], -1,
+				     "i82860 CE", "");
 
 	return 1;
 }
@@ -128,7 +136,7 @@ static void i82860_check(struct mem_ctl_info *mci)
 {
 	struct i82860_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i82860_get_error_info(mci, &info);
 	i82860_process_error_info(mci, &info, 1);
 }
@@ -140,6 +148,7 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 	u16 value;
 	u32 cumul_size;
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	int index;
 
 	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
@@ -152,47 +161,56 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 	 * in all eight rows.
 	 */
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
+
 		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
 		cumul_size = (value & I82860_GBA_MASK) <<
 			(I82860_GBA_SHIFT - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
+		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
+		dimm->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
-		csrow->mtype = MEM_RMBS;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
+		dimm->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
+		dimm->mtype = MEM_RMBS;
+		dimm->dtype = DEV_UNKNOWN;
+		dimm->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
 	}
 }
 
 static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	struct i82860_error_info discard;
 
-	/* RDRAM has channels but these don't map onto the abstractions that
-	   edac uses.
-	   The device groups from the GRA registers seem to map reasonably
-	   well onto the notion of a chip select row.
-	   There are 16 GRA registers and since the name is associated with
-	   the channel and the GRA registers map to physical devices so we are
-	   going to make 1 channel for group.
+	/*
+	 * RDRAM has channels but these don't map onto the csrow abstraction.
+	 * According with the datasheet, there are 2 Rambus channels, supporting
+	 * up to 16 direct RDRAM devices.
+	 * The device groups from the GRA registers seem to map reasonably
+	 * well onto the notion of a chip select row.
+	 * There are 16 GRA registers and since the name is associated with
+	 * the channel and the GRA registers map to physical devices so we are
+	 * going to make 1 channel for group.
 	 */
-	mci = edac_mc_alloc(0, 16, 1, 0);
-
+	layers[0].type = EDAC_MC_LAYER_CHANNEL;
+	layers[0].size = 2;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_SLOT;
+	layers[1].size = 8;
+	layers[1].is_virt_csrow = true;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("%s(): init mci\n", __func__);
-	mci->dev = &pdev->dev;
+	edac_dbg(3, "init mci\n");
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	/* I"m not sure about this but I think that all RDRAM is SECDED */
@@ -210,7 +228,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -226,7 +244,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 
 	return 0;
 
@@ -236,12 +254,12 @@ fail:
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit i82860_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int i82860_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	int rc;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 	i82860_printk(KERN_INFO, "i82860 init one\n");
 
 	if (pci_enable_device(pdev) < 0)
@@ -255,11 +273,11 @@ static int __devinit i82860_init_one(struct pci_dev *pdev,
 	return rc;
 }
 
-static void __devexit i82860_remove_one(struct pci_dev *pdev)
+static void i82860_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (i82860_pci)
 		edac_pci_release_generic_ctl(i82860_pci);
@@ -270,7 +288,7 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id i82860_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(i82860_pci_tbl) = {
 	{
 	 PCI_VEND_DEV(INTEL, 82860_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 I82860},
@@ -284,7 +302,7 @@ MODULE_DEVICE_TABLE(pci, i82860_pci_tbl);
 static struct pci_driver i82860_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = i82860_init_one,
-	.remove = __devexit_p(i82860_remove_one),
+	.remove = i82860_remove_one,
 	.id_table = i82860_pci_tbl,
 };
 
@@ -292,7 +310,7 @@ static int __init i82860_init(void)
 {
 	int pci_rc;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -305,7 +323,7 @@ static int __init i82860_init(void)
 					PCI_DEVICE_ID_INTEL_82860_0, NULL);
 
 		if (mci_pdev == NULL) {
-			debugf0("860 pci_get_device fail\n");
+			edac_dbg(0, "860 pci_get_device fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -313,7 +331,7 @@ static int __init i82860_init(void)
 		pci_rc = i82860_init_one(mci_pdev, i82860_pci_tbl);
 
 		if (pci_rc < 0) {
-			debugf0("860 init fail\n");
+			edac_dbg(0, "860 init fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -333,7 +351,7 @@ fail0:
 
 static void __exit i82860_exit(void)
 {
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
 	pci_unregister_driver(&i82860_driver);
 

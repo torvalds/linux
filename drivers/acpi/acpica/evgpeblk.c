@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeblk")
-
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /* Local prototypes */
 static acpi_status
 acpi_ev_install_gpe_block(struct acpi_gpe_block_info *gpe_block,
@@ -318,7 +318,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
  * FUNCTION:    acpi_ev_create_gpe_block
  *
  * PARAMETERS:  gpe_device          - Handle to the parent GPE block
- *              gpe_block_address   - Address and space_iD
+ *              gpe_block_address   - Address and space_ID
  *              register_count      - Number of GPE register pairs in the block
  *              gpe_block_base_number - Starting GPE number for the block
  *              interrupt_number    - H/W interrupt for the block
@@ -405,13 +405,13 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		(*return_gpe_block) = gpe_block;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "GPE %02X to %02X [%4.4s] %u regs on int 0x%X\n",
-			  (u32) gpe_block->block_base_number,
-			  (u32) (gpe_block->block_base_number +
-				(gpe_block->gpe_count - 1)),
-			  gpe_device->name.ascii, gpe_block->register_count,
-			  interrupt_number));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			      "    Initialized GPE %02X to %02X [%4.4s] %u regs on interrupt 0x%X\n",
+			      (u32)gpe_block->block_base_number,
+			      (u32)(gpe_block->block_base_number +
+				    (gpe_block->gpe_count - 1)),
+			      gpe_device->name.ascii, gpe_block->register_count,
+			      interrupt_number));
 
 	/* Update global count of currently available GPEs */
 
@@ -486,7 +486,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 					"Could not enable GPE 0x%02X",
-					gpe_index + gpe_block->block_base_number));
+					gpe_index +
+					gpe_block->block_base_number));
 				continue;
 			}
 
@@ -495,12 +496,16 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	}
 
 	if (gpe_enabled_count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "Enabled %u GPEs in this block\n",
-				  gpe_enabled_count));
+		ACPI_INFO((AE_INFO,
+			   "Enabled %u GPEs in block %02X to %02X",
+			   gpe_enabled_count, (u32)gpe_block->block_base_number,
+			   (u32)(gpe_block->block_base_number +
+				 (gpe_block->gpe_count - 1))));
 	}
 
 	gpe_block->initialized = TRUE;
 
 	return_ACPI_STATUS(AE_OK);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

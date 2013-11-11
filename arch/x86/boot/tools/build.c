@@ -29,18 +29,18 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/sysmacros.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <asm/boot.h>
+#include <tools/le_byteshift.h>
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
-typedef unsigned long  u32;
+typedef unsigned int   u32;
 
 #define DEFAULT_MAJOR_ROOT 0
 #define DEFAULT_MINOR_ROOT 0
+#define DEFAULT_ROOT_DEV (DEFAULT_MAJOR_ROOT << 8 | DEFAULT_MINOR_ROOT)
 
 /* Minimal number of setup sectors */
 #define SETUP_SECT_MIN 5
@@ -49,6 +49,12 @@ typedef unsigned long  u32;
 /* This must be large enough to hold the entire setup */
 u8 buf[SETUP_SECT_MAX*512];
 int is_big_kernel;
+
+#define PECOFF_RELOC_RESERVE 0x20
+
+unsigned long efi_stub_entry;
+unsigned long efi_pe_entry;
+unsigned long startup_64;
 
 /*----------------------------------------------------------------------*/
 
@@ -130,7 +136,126 @@ static void die(const char * str, ...)
 
 static void usage(void)
 {
-	die("Usage: build setup system [rootdev] [> image]");
+	die("Usage: build setup system [zoffset.h] [> image]");
+}
+
+#ifdef CONFIG_EFI_STUB
+
+static void update_pecoff_section_header(char *section_name, u32 offset, u32 size)
+{
+	unsigned int pe_header;
+	unsigned short num_sections;
+	u8 *section;
+
+	pe_header = get_unaligned_le32(&buf[0x3c]);
+	num_sections = get_unaligned_le16(&buf[pe_header + 6]);
+
+#ifdef CONFIG_X86_32
+	section = &buf[pe_header + 0xa8];
+#else
+	section = &buf[pe_header + 0xb8];
+#endif
+
+	while (num_sections > 0) {
+		if (strncmp((char*)section, section_name, 8) == 0) {
+			/* section header size field */
+			put_unaligned_le32(size, section + 0x8);
+
+			/* section header vma field */
+			put_unaligned_le32(offset, section + 0xc);
+
+			/* section header 'size of initialised data' field */
+			put_unaligned_le32(size, section + 0x10);
+
+			/* section header 'file offset' field */
+			put_unaligned_le32(offset, section + 0x14);
+
+			break;
+		}
+		section += 0x28;
+		num_sections--;
+	}
+}
+
+static void update_pecoff_setup_and_reloc(unsigned int size)
+{
+	u32 setup_offset = 0x200;
+	u32 reloc_offset = size - PECOFF_RELOC_RESERVE;
+	u32 setup_size = reloc_offset - setup_offset;
+
+	update_pecoff_section_header(".setup", setup_offset, setup_size);
+	update_pecoff_section_header(".reloc", reloc_offset, PECOFF_RELOC_RESERVE);
+
+	/*
+	 * Modify .reloc section contents with a single entry. The
+	 * relocation is applied to offset 10 of the relocation section.
+	 */
+	put_unaligned_le32(reloc_offset + 10, &buf[reloc_offset]);
+	put_unaligned_le32(10, &buf[reloc_offset + 4]);
+}
+
+static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
+{
+	unsigned int pe_header;
+	unsigned int text_sz = file_sz - text_start;
+
+	pe_header = get_unaligned_le32(&buf[0x3c]);
+
+	/* Size of image */
+	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
+
+	/*
+	 * Size of code: Subtract the size of the first sector (512 bytes)
+	 * which includes the header.
+	 */
+	put_unaligned_le32(file_sz - 512, &buf[pe_header + 0x1c]);
+
+	/*
+	 * Address of entry point for PE/COFF executable
+	 */
+	put_unaligned_le32(text_start + efi_pe_entry, &buf[pe_header + 0x28]);
+
+	update_pecoff_section_header(".text", text_start, text_sz);
+}
+
+#endif /* CONFIG_EFI_STUB */
+
+
+/*
+ * Parse zoffset.h and find the entry points. We could just #include zoffset.h
+ * but that would mean tools/build would have to be rebuilt every time. It's
+ * not as if parsing it is hard...
+ */
+#define PARSE_ZOFS(p, sym) do { \
+	if (!strncmp(p, "#define ZO_" #sym " ", 11+sizeof(#sym)))	\
+		sym = strtoul(p + 11 + sizeof(#sym), NULL, 16);		\
+} while (0)
+
+static void parse_zoffset(char *fname)
+{
+	FILE *file;
+	char *p;
+	int c;
+
+	file = fopen(fname, "r");
+	if (!file)
+		die("Unable to open `%s': %m", fname);
+	c = fread(buf, 1, sizeof(buf) - 1, file);
+	if (ferror(file))
+		die("read-error on `zoffset.h'");
+	buf[c] = 0;
+
+	p = (char *)buf;
+
+	while (p && *p) {
+		PARSE_ZOFS(p, efi_stub_entry);
+		PARSE_ZOFS(p, efi_pe_entry);
+		PARSE_ZOFS(p, startup_64);
+
+		p = strchr(p, '\n');
+		while (p && (*p == '\r' || *p == '\n'))
+			p++;
+	}
 }
 
 int main(int argc, char ** argv)
@@ -138,39 +263,26 @@ int main(int argc, char ** argv)
 	unsigned int i, sz, setup_sectors;
 	int c;
 	u32 sys_size;
-	u8 major_root, minor_root;
 	struct stat sb;
 	FILE *file;
 	int fd;
 	void *kernel;
 	u32 crc = 0xffffffffUL;
 
-	if ((argc < 3) || (argc > 4))
+	/* Defaults for old kernel */
+#ifdef CONFIG_X86_32
+	efi_pe_entry = 0x10;
+	efi_stub_entry = 0x30;
+#else
+	efi_pe_entry = 0x210;
+	efi_stub_entry = 0x230;
+	startup_64 = 0x200;
+#endif
+
+	if (argc == 4)
+		parse_zoffset(argv[3]);
+	else if (argc != 3)
 		usage();
-	if (argc > 3) {
-		if (!strcmp(argv[3], "CURRENT")) {
-			if (stat("/", &sb)) {
-				perror("/");
-				die("Couldn't stat /");
-			}
-			major_root = major(sb.st_dev);
-			minor_root = minor(sb.st_dev);
-		} else if (strcmp(argv[3], "FLOPPY")) {
-			if (stat(argv[3], &sb)) {
-				perror(argv[3]);
-				die("Couldn't stat root device.");
-			}
-			major_root = major(sb.st_rdev);
-			minor_root = minor(sb.st_rdev);
-		} else {
-			major_root = 0;
-			minor_root = 0;
-		}
-	} else {
-		major_root = DEFAULT_MAJOR_ROOT;
-		minor_root = DEFAULT_MINOR_ROOT;
-	}
-	fprintf(stderr, "Root device is (%d, %d)\n", major_root, minor_root);
 
 	/* Copy the setup code */
 	file = fopen(argv[1], "r");
@@ -181,9 +293,15 @@ int main(int argc, char ** argv)
 		die("read-error on `setup'");
 	if (c < 1024)
 		die("The setup must be at least 1024 bytes");
-	if (buf[510] != 0x55 || buf[511] != 0xaa)
+	if (get_unaligned_le16(&buf[510]) != 0xAA55)
 		die("Boot block hasn't got boot flag (0xAA55)");
 	fclose(file);
+
+#ifdef CONFIG_EFI_STUB
+	/* Reserve 0x20 bytes for .reloc section */
+	memset(buf+c, 0, PECOFF_RELOC_RESERVE);
+	c += PECOFF_RELOC_RESERVE;
+#endif
 
 	/* Pad unused space with zeros */
 	setup_sectors = (c + 511) / 512;
@@ -192,9 +310,12 @@ int main(int argc, char ** argv)
 	i = setup_sectors*512;
 	memset(buf+c, 0, i-c);
 
+#ifdef CONFIG_EFI_STUB
+	update_pecoff_setup_and_reloc(i);
+#endif
+
 	/* Set the default root device */
-	buf[508] = minor_root;
-	buf[509] = major_root;
+	put_unaligned_le16(DEFAULT_ROOT_DEV, &buf[508]);
 
 	fprintf(stderr, "Setup is %d bytes (padded to %d bytes).\n", c, i);
 
@@ -214,10 +335,16 @@ int main(int argc, char ** argv)
 
 	/* Patch the setup code with the appropriate size parameters */
 	buf[0x1f1] = setup_sectors-1;
-	buf[0x1f4] = sys_size;
-	buf[0x1f5] = sys_size >> 8;
-	buf[0x1f6] = sys_size >> 16;
-	buf[0x1f7] = sys_size >> 24;
+	put_unaligned_le32(sys_size, &buf[0x1f4]);
+
+#ifdef CONFIG_EFI_STUB
+	update_pecoff_text(setup_sectors * 512, sz + i + ((sys_size * 16) - sz));
+
+#ifdef CONFIG_X86_64 /* Yes, this is really how we defined it :( */
+	efi_stub_entry -= 0x200;
+#endif
+	put_unaligned_le32(efi_stub_entry, &buf[0x264]);
+#endif
 
 	crc = partial_crc32(buf, i, crc);
 	if (fwrite(buf, 1, i, stdout) != i)
@@ -236,8 +363,9 @@ int main(int argc, char ** argv)
 	}
 
 	/* Write the CRC */
-	fprintf(stderr, "CRC %lx\n", crc);
-	if (fwrite(&crc, 1, 4, stdout) != 4)
+	fprintf(stderr, "CRC %x\n", crc);
+	put_unaligned_le32(crc, buf);
+	if (fwrite(buf, 1, 4, stdout) != 4)
 		die("Writing CRC failed");
 
 	close(fd);

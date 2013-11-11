@@ -15,25 +15,31 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/errno.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/wait.h>
-
-#include <mach/vt8500fb.h>
+#include <video/of_display_timing.h>
 
 #include "vt8500lcdfb.h"
 #include "wmt_ge_rops.h"
+
+#ifdef CONFIG_OF
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/memblock.h>
+#endif
+
 
 #define to_vt8500lcd_info(__info) container_of(__info, \
 						struct vt8500lcd_info, fb)
@@ -210,8 +216,8 @@ static int vt8500lcd_pan_display(struct fb_var_screeninfo *var,
 	struct vt8500lcd_info *fbi = to_vt8500lcd_info(info);
 
 	writel((1 << 31)
-		| (((var->xres_virtual - var->xres) * pixlen / 4) << 20)
-		| (off >> 2), fbi->regbase + 0x20);
+	     | (((info->var.xres_virtual - info->var.xres) * pixlen / 4) << 20)
+	     | (off >> 2), fbi->regbase + 0x20);
 	return 0;
 }
 
@@ -266,19 +272,25 @@ static irqreturn_t vt8500lcd_handle_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit vt8500lcd_probe(struct platform_device *pdev)
+static int vt8500lcd_probe(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi;
 	struct resource *res;
-	struct vt8500fb_platform_data *pdata = pdev->dev.platform_data;
+	struct display_timings *disp_timing;
 	void *addr;
 	int irq, ret;
+
+	struct fb_videomode	of_mode;
+	u32			bpp;
+	dma_addr_t fb_mem_phys;
+	unsigned long fb_mem_len;
+	void *fb_mem_virt;
 
 	ret = -ENOMEM;
 	fbi = NULL;
 
-	fbi = kzalloc(sizeof(struct vt8500lcd_info) + sizeof(u32) * 16,
-							GFP_KERNEL);
+	fbi = devm_kzalloc(&pdev->dev, sizeof(struct vt8500lcd_info)
+			+ sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
 		ret = -ENOMEM;
@@ -333,9 +345,31 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	fbi->fb.fix.smem_start	= pdata->video_mem_phys;
-	fbi->fb.fix.smem_len	= pdata->video_mem_len;
-	fbi->fb.screen_base	= pdata->video_mem_virt;
+	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	if (!disp_timing)
+		return -EINVAL;
+
+	ret = of_get_fb_videomode(pdev->dev.of_node, &of_mode,
+							OF_USE_NATIVE_MODE);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	if (ret)
+		return ret;
+
+	/* try allocating the framebuffer */
+	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
+	fb_mem_virt = dma_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
+				GFP_KERNEL);
+	if (!fb_mem_virt) {
+		pr_err("%s: Failed to allocate framebuffer\n", __func__);
+		return -ENOMEM;
+	};
+
+	fbi->fb.fix.smem_start	= fb_mem_phys;
+	fbi->fb.fix.smem_len	= fb_mem_len;
+	fbi->fb.screen_base	= fb_mem_virt;
 
 	fbi->palette_size	= PAGE_ALIGN(512);
 	fbi->palette_cpu	= dma_alloc_coherent(&pdev->dev,
@@ -355,7 +389,7 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_palette;
 	}
 
-	ret = request_irq(irq, vt8500lcd_handle_irq, IRQF_DISABLED, "LCD", fbi);
+	ret = request_irq(irq, vt8500lcd_handle_irq, 0, "LCD", fbi);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;
@@ -370,10 +404,11 @@ static int __devinit vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_irq;
 	}
 
-	fb_videomode_to_var(&fbi->fb.var, &pdata->mode);
-	fbi->fb.var.bits_per_pixel	= pdata->bpp;
-	fbi->fb.var.xres_virtual	= pdata->xres_virtual;
-	fbi->fb.var.yres_virtual	= pdata->yres_virtual;
+	fb_videomode_to_var(&fbi->fb.var, &of_mode);
+
+	fbi->fb.var.xres_virtual	= of_mode.xres;
+	fbi->fb.var.yres_virtual	= of_mode.yres * 2;
+	fbi->fb.var.bits_per_pixel	= bpp;
 
 	ret = vt8500lcd_set_par(&fbi->fb);
 	if (ret) {
@@ -419,7 +454,7 @@ failed:
 	return ret;
 }
 
-static int __devexit vt8500lcd_remove(struct platform_device *pdev)
+static int vt8500lcd_remove(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -448,28 +483,24 @@ static int __devexit vt8500lcd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id via_dt_ids[] = {
+	{ .compatible = "via,vt8500-fb", },
+	{}
+};
+
 static struct platform_driver vt8500lcd_driver = {
 	.probe		= vt8500lcd_probe,
-	.remove		= __devexit_p(vt8500lcd_remove),
+	.remove		= vt8500lcd_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "vt8500-lcd",
+		.of_match_table = of_match_ptr(via_dt_ids),
 	},
 };
 
-static int __init vt8500lcd_init(void)
-{
-	return platform_driver_register(&vt8500lcd_driver);
-}
-
-static void __exit vt8500lcd_exit(void)
-{
-	platform_driver_unregister(&vt8500lcd_driver);
-}
-
-module_init(vt8500lcd_init);
-module_exit(vt8500lcd_exit);
+module_platform_driver(vt8500lcd_driver);
 
 MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
 MODULE_DESCRIPTION("LCD controller driver for VIA VT8500");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, via_dt_ids);

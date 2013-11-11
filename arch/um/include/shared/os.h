@@ -7,10 +7,9 @@
 #define __OS_H__
 
 #include <stdarg.h>
-#include "irq_user.h"
-#include "longjmp.h"
-#include "mm_id.h"
-#include "sysdep/tls.h"
+#include <irq_user.h>
+#include <longjmp.h>
+#include <mm_id.h>
 
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
@@ -192,7 +191,6 @@ extern int os_getpid(void);
 extern int os_getpgrp(void);
 
 extern void init_new_thread_signals(void);
-extern int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
 			 unsigned long len, int r, int w, int x);
@@ -202,12 +200,7 @@ extern int os_unmap_memory(void *addr, int len);
 extern int os_drop_memory(void *addr, int length);
 extern int can_drop_memory(void);
 extern void os_flush_stdout(void);
-
-/* uaccess.c */
-extern unsigned long __do_user_copy(void *to, const void *from, int n,
-				    void **fault_addr, jmp_buf **fault_catcher,
-				    void (*op)(void *to, const void *from,
-					       int n), int *faulted_out);
+extern int os_mincore(void *addr, unsigned long len);
 
 /* execvp.c */
 extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
@@ -218,10 +211,6 @@ extern int run_helper_thread(int (*proc)(void *), void *arg,
 extern int helper_wait(int pid);
 
 
-/* tls.c */
-extern int os_set_thread_area(user_desc_t *info, int pid);
-extern int os_get_thread_area(user_desc_t *info, int pid);
-
 /* umid.c */
 extern int umid_file_name(char *name, char *buf, int len);
 extern int set_umid(char *name);
@@ -231,7 +220,7 @@ extern char *get_umid(void);
 extern void timer_init(void);
 extern void set_sigstack(void *sig_stack, int size);
 extern void remove_sigstack(void);
-extern void set_handler(int sig, void (*handler)(int), int flags, ...);
+extern void set_handler(int sig);
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);

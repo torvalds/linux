@@ -32,6 +32,7 @@
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
+#include <linux/pm_runtime.h>
 
 #include "libata.h"
 #include "libata-transport.h"
@@ -231,7 +232,7 @@ static void ata_tport_release(struct device *dev)
  * Returns:
  *	%1 if the device represents a ATA Port, %0 else
  */
-int ata_is_port(const struct device *dev)
+static int ata_is_port(const struct device *dev)
 {
 	return dev->release == ata_tport_release;
 }
@@ -279,6 +280,7 @@ int ata_tport_add(struct device *parent,
 	struct device *dev = &ap->tdev;
 
 	device_initialize(dev);
+	dev->type = &ata_port_type;
 
 	dev->parent = get_device(parent);
 	dev->release = ata_tport_release;
@@ -288,6 +290,11 @@ int ata_tport_add(struct device *parent,
 	if (error) {
 		goto tport_err;
 	}
+
+	device_enable_async_suspend(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_forbid(dev);
 
 	transport_add_device(dev);
 	transport_configure_device(dev);
@@ -348,7 +355,7 @@ static void ata_tlink_release(struct device *dev)
  * Returns:
  *	%1 if the device represents a ATA link, %0 else
  */
-int ata_is_link(const struct device *dev)
+static int ata_is_link(const struct device *dev)
 {
 	return dev->release == ata_tlink_release;
 }
@@ -565,7 +572,7 @@ static void ata_tdev_release(struct device *dev)
  * Returns:
  *	%1 if the device represents a ATA device, %0 else
  */
-int ata_is_ata_dev(const struct device *dev)
+static int ata_is_ata_dev(const struct device *dev)
 {
 	return dev->release == ata_tdev_release;
 }

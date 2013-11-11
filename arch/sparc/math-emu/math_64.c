@@ -16,6 +16,7 @@
 #include <asm/fpumacro.h>
 #include <asm/ptrace.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 #include "sfp-util_64.h"
 #include <math-emu/soft-fp.h>
@@ -162,7 +163,7 @@ typedef union {
 	u64 q[2];
 } *argp;
 
-int do_mathemu(struct pt_regs *regs, struct fpustate *f)
+int do_mathemu(struct pt_regs *regs, struct fpustate *f, bool illegal_insn_trap)
 {
 	unsigned long pc = regs->tpc;
 	unsigned long tstate = regs->tstate;
@@ -184,7 +185,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 
 	if (tstate & TSTATE_PRIV)
 		die_if_kernel("unfinished/unimplemented FPop from kernel", regs);
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, 0);
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 	if (test_thread_flag(TIF_32BIT))
 		pc = (u32)pc;
 	if (get_user(insn, (u32 __user *) pc) != -EFAULT) {
@@ -217,7 +218,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 			case FSQRTS: {
 				unsigned long x = current_thread_info()->xfsr[0];
 
-				x = (x >> 14) & 0xf;
+				x = (x >> 14) & 0x7;
 				TYPE(x,1,1,1,1,0,0);
 				break;
 			}
@@ -225,7 +226,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 			case FSQRTD: {
 				unsigned long x = current_thread_info()->xfsr[0];
 
-				x = (x >> 14) & 0xf;
+				x = (x >> 14) & 0x7;
 				TYPE(x,2,1,2,1,0,0);
 				break;
 			}
@@ -319,7 +320,7 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 					XR = 0;
 				else if (freg < 16)
 					XR = regs->u_regs[freg];
-				else if (test_thread_flag(TIF_32BIT)) {
+				else if (!test_thread_64bit_stack(regs->u_regs[UREG_FP])) {
 					struct reg_window32 __user *win32;
 					flushw_user ();
 					win32 = (struct reg_window32 __user *)((unsigned long)((u32)regs->u_regs[UREG_FP]));
@@ -356,9 +357,17 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 	if (type) {
 		argp rs1 = NULL, rs2 = NULL, rd = NULL;
 		
-		freg = (current_thread_info()->xfsr[0] >> 14) & 0xf;
-		if (freg != (type >> 9))
-			goto err;
+		/* Starting with UltraSPARC-T2, the cpu does not set the FP Trap
+		 * Type field in the %fsr to unimplemented_FPop.  Nor does it
+		 * use the fp_exception_other trap.  Instead it signals an
+		 * illegal instruction and leaves the FP trap type field of
+		 * the %fsr unchanged.
+		 */
+		if (!illegal_insn_trap) {
+			int ftt = (current_thread_info()->xfsr[0] >> 14) & 0x7;
+			if (ftt != (type >> 9))
+				goto err;
+		}
 		current_thread_info()->xfsr[0] &= ~0x1c000;
 		freg = ((insn >> 14) & 0x1f);
 		switch (type & 0x3) {

@@ -645,7 +645,8 @@ void hwarc_neep_cb(struct urb *urb)
 		dev_err(dev, "NEEP: URB error %d\n", urb->status);
 	}
 	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result < 0) {
+	if (result < 0 && result != -ENODEV && result != -EPERM) {
+		/* ignoring unrecoverable errors */
 		dev_err(dev, "NEEP: Can't resubmit URB (%d) resetting device\n",
 			result);
 		goto error;
@@ -914,17 +915,7 @@ static struct usb_driver hwarc_driver = {
 	.post_reset =   hwarc_post_reset,
 };
 
-static int __init hwarc_driver_init(void)
-{
-	return usb_register(&hwarc_driver);
-}
-module_init(hwarc_driver_init);
-
-static void __exit hwarc_driver_exit(void)
-{
-	usb_deregister(&hwarc_driver);
-}
-module_exit(hwarc_driver_exit);
+module_usb_driver(hwarc_driver);
 
 MODULE_AUTHOR("Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>");
 MODULE_DESCRIPTION("Host Wireless Adapter Radio Control Driver");

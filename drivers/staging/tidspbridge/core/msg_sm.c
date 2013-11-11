@@ -20,9 +20,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/sync.h>
 
@@ -201,8 +198,7 @@ out_err:
  */
 void bridge_msg_delete(struct msg_mgr *hmsg_mgr)
 {
-	if (hmsg_mgr)
-		delete_msg_mgr(hmsg_mgr);
+	delete_msg_mgr(hmsg_mgr);
 }
 
 /*

@@ -1,0 +1,149 @@
+config DVB_USB_V2
+	tristate "Support for various USB DVB devices v2"
+	depends on DVB_CORE && USB && I2C
+	help
+	  By enabling this you will be able to choose the various supported
+	  USB1.1 and USB2.0 DVB devices.
+
+	  Almost every USB device needs a firmware, please look into
+	  <file:Documentation/dvb/README.dvb-usb>.
+
+	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
+	  <http://www.linuxtv.org/wiki/index.php/DVB_USB>
+
+	  Say Y if you own a USB DVB device.
+
+config DVB_USB_AF9015
+	tristate "Afatech AF9015 DVB-T USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_AF9013
+	select DVB_PLL              if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MT2060   if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_QT1010   if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MC44S803 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18218 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MXL5007T if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Afatech AF9015 based DVB-T USB2.0 receiver
+
+config DVB_USB_AF9035
+	tristate "Afatech AF9035 DVB-T USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_AF9033
+	select MEDIA_TUNER_TUA9001 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_FC0011 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MXL5007T if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18218 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_FC2580 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_IT913X if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Afatech AF9035 based DVB USB receiver.
+
+config DVB_USB_ANYSEE
+	tristate "Anysee DVB-T/C USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10023 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18212 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CX24116 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV6110 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ISL6423 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CXD2820R if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Anysee E30, Anysee E30 Plus or
+	  Anysee E30 C Plus DVB USB2.0 receiver.
+
+config DVB_USB_AU6610
+	tristate "Alcor Micro AU6610 USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Sigmatek DVB-110 DVB-T USB2.0 receiver.
+
+config DVB_USB_AZ6007
+	tristate "AzureWave 6007 and clones DVB-T/C USB2.0 support"
+	depends on DVB_USB_V2
+	select CYPRESS_FIRMWARE
+	select DVB_DRXK if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MT2063 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the AZ6007 receivers like Terratec H7.
+
+config DVB_USB_CE6230
+	tristate "Intel CE6230 DVB-T USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_ZL10353
+	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Intel CE6230 DVB-T USB2.0 receiver
+
+config DVB_USB_EC168
+	tristate "E3C EC168 DVB-T USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_EC100
+	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
+
+config DVB_USB_GL861
+	tristate "Genesys Logic GL861 USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
+	  receiver with USB ID 0db0:5581.
+
+config DVB_USB_IT913X
+	tristate "ITE IT913X DVB-T USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_IT913X_FE
+	help
+	  Say Y here to support the ITE IT913X DVB-T USB2.0
+
+config DVB_USB_LME2510
+	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
+	depends on DVB_USB_V2
+	depends on RC_CORE
+	select DVB_TDA10086 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA826X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0288 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_IX2505V if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0
+
+config DVB_USB_MXL111SF
+	tristate "MxL111SF DTV USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_LGDT3305 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LG2160 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_TVEEPROM
+	help
+	  Say Y here to support the MxL111SF USB2.0 DTV receiver.
+
+config DVB_USB_RTL28XXU
+	tristate "Realtek RTL28xxU DVB USB support"
+	depends on DVB_USB_V2
+	select DVB_RTL2830
+	select DVB_RTL2832
+	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MT2060 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_MXL5005S if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_FC0012 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_FC0013 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_E4000 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_FC2580 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_R820T if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.
+

@@ -67,8 +67,8 @@ Module parameters
 =================
 
 There are several parameters which may be provided to the driver when
-its module is loaded.  These are usually placed in /etc/modprobe.conf
-(/etc/modules.conf in 2.4).  Example:
+its module is loaded.  These are usually placed in /etc/modprobe.d/*.conf
+configuretion files.  Example:
 
 options 3c59x debug=3 rx_copybreak=300
 
@@ -425,7 +425,7 @@ steps you should take:
       1) Increase the debug level.  Usually this is done via:
 
          a) modprobe driver debug=7
-         b) In /etc/modprobe.conf (or /etc/modules.conf for 2.4):
+         b) In /etc/modprobe.d/driver.conf:
             options driver debug=7
 
       2) Recreate the problem with the higher debug level,

@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/memstick.h>
+#include <linux/module.h>
 
 #define DRIVER_NAME "mspro_block"
 
@@ -203,7 +204,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 }
 
 
-static int mspro_block_disk_release(struct gendisk *disk)
+static void mspro_block_disk_release(struct gendisk *disk)
 {
 	struct mspro_block_data *msb = disk->private_data;
 	int disk_id = MINOR(disk_devt(disk)) >> MSPRO_BLOCK_PART_SHIFT;
@@ -223,13 +224,11 @@ static int mspro_block_disk_release(struct gendisk *disk)
 	}
 
 	mutex_unlock(&mspro_block_disk_lock);
-
-	return 0;
 }
 
-static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
+static void mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
-	return mspro_block_disk_release(disk);
+	mspro_block_disk_release(disk);
 }
 
 static int mspro_block_bd_getgeo(struct block_device *bdev,
@@ -1212,21 +1211,10 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	msb->page_size = be16_to_cpu(sys_info->unit_size);
 
 	mutex_lock(&mspro_block_disk_lock);
-	if (!idr_pre_get(&mspro_block_disk_idr, GFP_KERNEL)) {
-		mutex_unlock(&mspro_block_disk_lock);
-		return -ENOMEM;
-	}
-
-	rc = idr_get_new(&mspro_block_disk_idr, card, &disk_id);
+	disk_id = idr_alloc(&mspro_block_disk_idr, card, 0, 256, GFP_KERNEL);
 	mutex_unlock(&mspro_block_disk_lock);
-
-	if (rc)
-		return rc;
-
-	if ((disk_id << MSPRO_BLOCK_PART_SHIFT) > 255) {
-		rc = -ENOSPC;
-		goto out_release_id;
-	}
+	if (disk_id < 0)
+		return disk_id;
 
 	msb->disk = alloc_disk(1 << MSPRO_BLOCK_PART_SHIFT);
 	if (!msb->disk) {

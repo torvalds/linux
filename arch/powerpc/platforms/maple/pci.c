@@ -207,6 +207,54 @@ static volatile void __iomem *u3_ht_cfg_access(struct pci_controller* hose,
 		return hose->cfg_data + u3_ht_cfa1(bus, devfn, offset);
 }
 
+static int u3_ht_root_read_config(struct pci_controller *hose, u8 offset,
+				  int len, u32 *val)
+{
+	volatile void __iomem *addr;
+
+	addr = hose->cfg_addr;
+	addr += ((offset & ~3) << 2) + (4 - len - (offset & 3));
+
+	switch (len) {
+	case 1:
+		*val = in_8(addr);
+		break;
+	case 2:
+		*val = in_be16(addr);
+		break;
+	default:
+		*val = in_be32(addr);
+		break;
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int u3_ht_root_write_config(struct pci_controller *hose, u8 offset,
+				  int len, u32 val)
+{
+	volatile void __iomem *addr;
+
+	addr = hose->cfg_addr + ((offset & ~3) << 2) + (4 - len - (offset & 3));
+
+	if (offset >= PCI_BASE_ADDRESS_0 && offset < PCI_CAPABILITY_LIST)
+		return PCIBIOS_SUCCESSFUL;
+
+	switch (len) {
+	case 1:
+		out_8(addr, val);
+		break;
+	case 2:
+		out_be16(addr, val);
+		break;
+	default:
+		out_be32(addr, val);
+		break;
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 			     int offset, int len, u32 *val)
 {
@@ -216,6 +264,9 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == hose->first_busno && devfn == PCI_DEVFN(0, 0))
+		return u3_ht_root_read_config(hose, offset, len, val);
 
 	if (offset > 0xff)
 		return PCIBIOS_BAD_REGISTER_NUMBER;
@@ -251,6 +302,9 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == hose->first_busno && devfn == PCI_DEVFN(0, 0))
+		return u3_ht_root_write_config(hose, offset, len, val);
 
 	if (offset > 0xff)
 		return PCIBIOS_BAD_REGISTER_NUMBER;
@@ -428,6 +482,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * reg_property and using some accessor functions instead
 	 */
 	hose->cfg_data = ioremap(0xf2000000, 0x02000000);
+	hose->cfg_addr = ioremap(0xf8070000, 0x1000);
 
 	hose->first_busno = 0;
 	hose->last_busno = 0xef;
@@ -488,7 +543,7 @@ static int __init maple_add_bridge(struct device_node *dev)
 }
 
 
-void __devinit maple_pci_irq_fixup(struct pci_dev *dev)
+void maple_pci_irq_fixup(struct pci_dev *dev)
 {
 	DBG(" -> maple_pci_irq_fixup\n");
 
@@ -565,7 +620,7 @@ void __init maple_pci_init(void)
 	}
 
 	/* Tell pci.c to not change any resource allocations.  */
-	pci_probe_only = 1;
+	pci_add_flags(PCI_PROBE_ONLY);
 }
 
 int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
@@ -593,7 +648,7 @@ int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 	return irq;
 }
 
-static void __devinit quirk_ipr_msi(struct pci_dev *dev)
+static void quirk_ipr_msi(struct pci_dev *dev)
 {
 	/* Something prevents MSIs from the IPR from working on Bimini,
 	 * and the driver has no smarts to recover. So disable MSI

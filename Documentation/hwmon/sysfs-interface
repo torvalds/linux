@@ -139,6 +139,29 @@ in[0-*]_input	Voltage input value.
 		thumb: drivers should report the voltage values at the
 		"pins" of the chip.
 
+in[0-*]_average
+		Average voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_lowest
+		Historical minimum voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_highest
+		Historical maximum voltage
+		Unit: millivolt
+		RO
+
+in[0-*]_reset_history
+		Reset inX_lowest and inX_highest
+		WO
+
+in_reset_history
+		Reset inX_lowest and inX_highest for all sensors
+		WO
+
 in[0-*]_label	Suggested voltage channel label.
 		Text string
 		Should only be created if the driver has hints about what
@@ -281,7 +304,7 @@ value (fastest fan speed) wins.
 temp[1-*]_type	Sensor type selection.
 		Integers 1 to 6
 		RW
-		1: PII/Celeron Diode
+		1: CPU embedded diode
 		2: 3904 transistor
 		3: thermal diode
 		4: thermistor
@@ -406,6 +429,29 @@ curr[1-*]_crit	Current critical high value.
 curr[1-*]_input	Current input value
 		Unit: milliampere
 		RO
+
+curr[1-*]_average
+		Average current use
+		Unit: milliampere
+		RO
+
+curr[1-*]_lowest
+		Historical minimum current
+		Unit: milliampere
+		RO
+
+curr[1-*]_highest
+		Historical maximum current
+		Unit: milliampere
+		RO
+
+curr[1-*]_reset_history
+		Reset currX_lowest and currX_highest
+		WO
+
+curr_reset_history
+		Reset currX_lowest and currX_highest for all sensors
+		WO
 
 Also see the Alarms section for status flags associated with currents.
 
@@ -676,14 +722,14 @@ add/subtract if it has been divided before the add/subtract.
 What to do if a value is found to be invalid, depends on the type of the
 sysfs attribute that is being set. If it is a continuous setting like a
 tempX_max or inX_max attribute, then the value should be clamped to its
-limits using SENSORS_LIMIT(value, min_limit, max_limit). If it is not
-continuous like for example a tempX_type, then when an invalid value is
-written, -EINVAL should be returned.
+limits using clamp_val(value, min_limit, max_limit). If it is not continuous
+like for example a tempX_type, then when an invalid value is written,
+-EINVAL should be returned.
 
 Example1, temp1_max, register is a signed 8 bit value (-128 - 127 degrees):
 
 	long v = simple_strtol(buf, NULL, 10) / 1000;
-	v = SENSORS_LIMIT(v, -128, 127);
+	v = clamp_val(v, -128, 127);
 	/* write v to register */
 
 Example2, fan divider setting, valid values 2, 4 and 8:

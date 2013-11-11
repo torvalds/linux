@@ -255,7 +255,7 @@ Load zr36067.o. If it can't autodetect your card, use the card=X insmod
 option with X being the card number as given in the previous section.
 To have more than one card, use card=X1[,X2[,X3,[X4[..]]]]
 
-To automate this, add the following to your /etc/modprobe.conf:
+To automate this, add the following to your /etc/modprobe.d/zoran.conf:
 
 options zr36067 card=X1[,X2[,X3[,X4[..]]]]
 alias char-major-81-0 zr36067

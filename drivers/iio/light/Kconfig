@@ -1,0 +1,66 @@
+#
+# Light sensors
+#
+menu "Light sensors"
+
+config ADJD_S311
+	tristate "ADJD-S311-CR999 digital color sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	help
+	 If you say yes here you get support for the Avago ADJD-S311-CR999
+	 digital color light sensor.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called adjd_s311.
+
+config SENSORS_LM3533
+	tristate "LM3533 ambient light sensor"
+	depends on MFD_LM3533
+	help
+	  If you say yes here you get support for the ambient light sensor
+	  interface on National Semiconductor / TI LM3533 Lighting Power
+	  chips.
+
+	  The sensor interface can be used to control the LEDs and backlights
+	  of the chip through defining five light zones and three sets of
+	  corresponding output-current values.
+
+	  The driver provides raw and mean adc readings along with the current
+	  light zone through sysfs. A threshold event can be generated on zone
+	  changes. The ALS-control output values can be set per zone for the
+	  three current output channels.
+
+config SENSORS_TSL2563
+	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
+	depends on I2C
+	help
+	 If you say yes here you get support for the Taos TSL2560,
+	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tsl2563.
+
+config VCNL4000
+	tristate "VCNL4000 combined ALS and proximity sensor"
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Vishay VCNL4000
+	 combined ambient light and proximity sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called vcnl4000.
+
+config HID_SENSOR_ALS
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID ALS"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Ambient light sensor.
+
+endmenu

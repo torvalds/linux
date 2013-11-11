@@ -9,7 +9,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
@@ -23,6 +23,23 @@
 #include <asm/page.h>
 #include <asm/prom.h>
 
+static char mips_machine_name[64] = "Unknown";
+
+__init void mips_set_machine_name(const char *name)
+{
+	if (name == NULL)
+		return;
+
+	strncpy(mips_machine_name, name, sizeof(mips_machine_name));
+	pr_info("MIPS: machine is %s\n", mips_get_machine_name());
+}
+
+char *mips_get_machine_name(void)
+{
+	return mips_machine_name;
+}
+
+#ifdef CONFIG_OF
 int __init early_init_dt_scan_memory_arch(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
@@ -33,16 +50,6 @@ int __init early_init_dt_scan_memory_arch(unsigned long node,
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	return add_memory_region(base, size, BOOT_MEM_RAM);
-}
-
-int __init reserve_mem_mach(unsigned long addr, unsigned long size)
-{
-	return reserve_bootmem(addr, size, BOOTMEM_DEFAULT);
-}
-
-void __init free_mem_mach(unsigned long addr, unsigned long size)
-{
-	return free_bootmem(addr, size);
 }
 
 void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
@@ -60,19 +67,17 @@ void __init early_init_dt_setup_initrd_arch(unsigned long start,
 }
 #endif
 
-/*
- * irq_create_of_mapping - Hook to resolve OF irq specifier into a Linux irq#
- *
- * Currently the mapping mechanism is trivial; simple flat hwirq numbers are
- * mapped 1:1 onto Linux irq numbers.  Cascaded irq controllers are not
- * supported.
- */
-unsigned int irq_create_of_mapping(struct device_node *controller,
-				   const u32 *intspec, unsigned int intsize)
+int __init early_init_dt_scan_model(unsigned long node,	const char *uname,
+				    int depth, void *data)
 {
-	return intspec[0];
+	if (!depth) {
+		char *model = of_get_flat_dt_prop(node, "model", NULL);
+
+		if (model)
+			mips_set_machine_name(model);
+	}
+	return 0;
 }
-EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 
 void __init early_init_devtree(void *params)
 {
@@ -89,23 +94,21 @@ void __init early_init_devtree(void *params)
 	/* Scan memory nodes */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_arch, NULL);
+
+	/* try to load the mips machine name */
+	of_scan_flat_dt(early_init_dt_scan_model, NULL);
 }
 
-void __init device_tree_init(void)
+void __init __dt_setup_arch(struct boot_param_header *bph)
 {
-	unsigned long base, size;
+	if (be32_to_cpu(bph->magic) != OF_DT_HEADER) {
+		pr_err("DTB has bad magic, ignoring builtin OF DTB\n");
 
-	if (!initial_boot_params)
 		return;
+	}
 
-	base = virt_to_phys((void *)initial_boot_params);
-	size = be32_to_cpu(initial_boot_params->totalsize);
+	initial_boot_params = bph;
 
-	/* Before we do anything, lets reserve the dt blob */
-	reserve_mem_mach(base, size);
-
-	unflatten_device_tree();
-
-	/* free the space reserved for the dt blob */
-	free_mem_mach(base, size);
+	early_init_devtree(initial_boot_params);
 }
+#endif

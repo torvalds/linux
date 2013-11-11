@@ -63,7 +63,7 @@ static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
  */
 
 static struct dentry *
-nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	ino_t ino;
@@ -72,12 +72,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	ino = nilfs_inode_by_name(dir, &dentry->d_name);
-	inode = NULL;
-	if (ino) {
-		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
-	}
+	inode = ino ? nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino) : NULL;
 	return d_splice_alias(inode, dentry);
 }
 
@@ -89,8 +84,8 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
  * If the create succeeds, we fill in the inode information
  * with d_instantiate().
  */
-static int nilfs_create(struct inode *dir, struct dentry *dentry, int mode,
-			struct nameidata *nd)
+static int nilfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+			bool excl)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;
@@ -117,7 +112,7 @@ static int nilfs_create(struct inode *dir, struct dentry *dentry, int mode,
 }
 
 static int
-nilfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+nilfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;
@@ -198,9 +193,6 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct nilfs_transaction_info ti;
 	int err;
 
-	if (inode->i_nlink >= NILFS_LINK_MAX)
-		return -EMLINK;
-
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
 		return err;
@@ -218,14 +210,11 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 	return err;
 }
 
-static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int nilfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct nilfs_transaction_info ti;
 	int err;
-
-	if (dir->i_nlink >= NILFS_LINK_MAX)
-		return -EMLINK;
 
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
@@ -294,7 +283,7 @@ static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 		nilfs_warning(inode->i_sb, __func__,
 			      "deleting nonexistent file (%lu), %d\n",
 			      inode->i_ino, inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	err = nilfs_delete_entry(de, page);
 	if (err)
@@ -405,11 +394,6 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		drop_nlink(new_inode);
 		nilfs_mark_inode_dirty(new_inode);
 	} else {
-		if (dir_de) {
-			err = -EMLINK;
-			if (new_dir->i_nlink >= NILFS_LINK_MAX)
-				goto out_dir;
-		}
 		err = nilfs_add_link(new_dentry, old_inode);
 		if (err)
 			goto out_dir;
@@ -457,7 +441,7 @@ static struct dentry *nilfs_get_parent(struct dentry *child)
 {
 	unsigned long ino;
 	struct inode *inode;
-	struct qstr dotdot = {.name = "..", .len = 2};
+	struct qstr dotdot = QSTR_INIT("..", 2);
 	struct nilfs_root *root;
 
 	ino = nilfs_inode_by_name(child->d_inode, &dotdot);
@@ -524,31 +508,29 @@ static struct dentry *nilfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	return nilfs_get_dentry(sb, fid->cno, fid->parent_ino, fid->parent_gen);
 }
 
-static int nilfs_encode_fh(struct dentry *dentry, __u32 *fh, int *lenp,
-			   int connectable)
+static int nilfs_encode_fh(struct inode *inode, __u32 *fh, int *lenp,
+			   struct inode *parent)
 {
 	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
-	struct inode *inode = dentry->d_inode;
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	int type;
 
-	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE ||
-	    (connectable && *lenp < NILFS_FID_SIZE_CONNECTABLE))
-		return 255;
+	if (parent && *lenp < NILFS_FID_SIZE_CONNECTABLE) {
+		*lenp = NILFS_FID_SIZE_CONNECTABLE;
+		return FILEID_INVALID;
+	}
+	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE) {
+		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
+		return FILEID_INVALID;
+	}
 
 	fid->cno = root->cno;
 	fid->ino = inode->i_ino;
 	fid->gen = inode->i_generation;
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
-		struct inode *parent;
-
-		spin_lock(&dentry->d_lock);
-		parent = dentry->d_parent->d_inode;
+	if (parent) {
 		fid->parent_ino = parent->i_ino;
 		fid->parent_gen = parent->i_generation;
-		spin_unlock(&dentry->d_lock);
-
 		type = FILEID_NILFS_WITH_PARENT;
 		*lenp = NILFS_FID_SIZE_CONNECTABLE;
 	} else {

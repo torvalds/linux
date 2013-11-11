@@ -54,7 +54,7 @@ static const struct attribute_group dac7512_attr_group = {
 	.attrs = dac7512_attributes,
 };
 
-static int __devinit dac7512_probe(struct spi_device *spi)
+static int dac7512_probe(struct spi_device *spi)
 {
 	int ret;
 
@@ -67,7 +67,7 @@ static int __devinit dac7512_probe(struct spi_device *spi)
 	return sysfs_create_group(&spi->dev.kobj, &dac7512_attr_group);
 }
 
-static int __devexit dac7512_remove(struct spi_device *spi)
+static int dac7512_remove(struct spi_device *spi)
 {
 	sysfs_remove_group(&spi->dev.kobj, &dac7512_attr_group);
 	return 0;
@@ -79,23 +79,12 @@ static struct spi_driver dac7512_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= dac7512_probe,
-	.remove	= __devexit_p(dac7512_remove),
+	.remove	= dac7512_remove,
 };
 
-static int __init dac7512_init(void)
-{
-	return spi_register_driver(&dac7512_driver);
-}
-
-static void __exit dac7512_exit(void)
-{
-	spi_unregister_driver(&dac7512_driver);
-}
+module_spi_driver(dac7512_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("DAC7512 16-bit DAC");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(dac7512_init);
-module_exit(dac7512_exit);

@@ -349,3 +349,24 @@ Description:
 
 		This will be one of the same strings reported by
 		the "state" attribute.
+
+What:		/sys/class/regulator/.../bypass
+Date:		September 2012
+KernelVersion:	3.7
+Contact:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+Description:
+		Some regulator directories will contain a field called
+		bypass.  This indicates if the device is in bypass mode.
+
+		This will be one of the following strings:
+
+		'enabled'
+		'disabled'
+		'unknown'
+
+		'enabled' means the regulator is in bypass mode.
+
+		'disabled' means that the regulator is regulating.
+
+		'unknown' means software cannot determine the state, or
+		the reported state is invalid.

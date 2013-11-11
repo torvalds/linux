@@ -19,6 +19,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
@@ -166,7 +167,7 @@ int ps3stor_setup(struct ps3_storage_device *dev, irq_handler_t handler)
 		goto fail_close_device;
 	}
 
-	error = request_irq(dev->irq, handler, IRQF_DISABLED,
+	error = request_irq(dev->irq, handler, 0,
 			    dev->sbd.core.driver->name, dev);
 	if (error) {
 		dev_err(&dev->sbd.core, "%s:%u: request_irq failed %d\n",

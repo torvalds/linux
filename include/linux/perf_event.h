@@ -14,473 +14,13 @@
 #ifndef _LINUX_PERF_EVENT_H
 #define _LINUX_PERF_EVENT_H
 
-#include <linux/types.h>
-#include <linux/ioctl.h>
-#include <asm/byteorder.h>
+#include <uapi/linux/perf_event.h>
 
-/*
- * User-space ABI bits:
- */
-
-/*
- * attr.type
- */
-enum perf_type_id {
-	PERF_TYPE_HARDWARE			= 0,
-	PERF_TYPE_SOFTWARE			= 1,
-	PERF_TYPE_TRACEPOINT			= 2,
-	PERF_TYPE_HW_CACHE			= 3,
-	PERF_TYPE_RAW				= 4,
-	PERF_TYPE_BREAKPOINT			= 5,
-
-	PERF_TYPE_MAX,				/* non-ABI */
-};
-
-/*
- * Generalized performance event event_id types, used by the
- * attr.event_id parameter of the sys_perf_event_open()
- * syscall:
- */
-enum perf_hw_id {
-	/*
-	 * Common hardware events, generalized by the kernel:
-	 */
-	PERF_COUNT_HW_CPU_CYCLES		= 0,
-	PERF_COUNT_HW_INSTRUCTIONS		= 1,
-	PERF_COUNT_HW_CACHE_REFERENCES		= 2,
-	PERF_COUNT_HW_CACHE_MISSES		= 3,
-	PERF_COUNT_HW_BRANCH_INSTRUCTIONS	= 4,
-	PERF_COUNT_HW_BRANCH_MISSES		= 5,
-	PERF_COUNT_HW_BUS_CYCLES		= 6,
-	PERF_COUNT_HW_STALLED_CYCLES_FRONTEND	= 7,
-	PERF_COUNT_HW_STALLED_CYCLES_BACKEND	= 8,
-
-	PERF_COUNT_HW_MAX,			/* non-ABI */
-};
-
-/*
- * Generalized hardware cache events:
- *
- *       { L1-D, L1-I, LLC, ITLB, DTLB, BPU } x
- *       { read, write, prefetch } x
- *       { accesses, misses }
- */
-enum perf_hw_cache_id {
-	PERF_COUNT_HW_CACHE_L1D			= 0,
-	PERF_COUNT_HW_CACHE_L1I			= 1,
-	PERF_COUNT_HW_CACHE_LL			= 2,
-	PERF_COUNT_HW_CACHE_DTLB		= 3,
-	PERF_COUNT_HW_CACHE_ITLB		= 4,
-	PERF_COUNT_HW_CACHE_BPU			= 5,
-
-	PERF_COUNT_HW_CACHE_MAX,		/* non-ABI */
-};
-
-enum perf_hw_cache_op_id {
-	PERF_COUNT_HW_CACHE_OP_READ		= 0,
-	PERF_COUNT_HW_CACHE_OP_WRITE		= 1,
-	PERF_COUNT_HW_CACHE_OP_PREFETCH		= 2,
-
-	PERF_COUNT_HW_CACHE_OP_MAX,		/* non-ABI */
-};
-
-enum perf_hw_cache_op_result_id {
-	PERF_COUNT_HW_CACHE_RESULT_ACCESS	= 0,
-	PERF_COUNT_HW_CACHE_RESULT_MISS		= 1,
-
-	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* non-ABI */
-};
-
-/*
- * Special "software" events provided by the kernel, even if the hardware
- * does not support performance events. These events measure various
- * physical and sw events of the kernel (and allow the profiling of them as
- * well):
- */
-enum perf_sw_ids {
-	PERF_COUNT_SW_CPU_CLOCK			= 0,
-	PERF_COUNT_SW_TASK_CLOCK		= 1,
-	PERF_COUNT_SW_PAGE_FAULTS		= 2,
-	PERF_COUNT_SW_CONTEXT_SWITCHES		= 3,
-	PERF_COUNT_SW_CPU_MIGRATIONS		= 4,
-	PERF_COUNT_SW_PAGE_FAULTS_MIN		= 5,
-	PERF_COUNT_SW_PAGE_FAULTS_MAJ		= 6,
-	PERF_COUNT_SW_ALIGNMENT_FAULTS		= 7,
-	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
-
-	PERF_COUNT_SW_MAX,			/* non-ABI */
-};
-
-/*
- * Bits that can be set in attr.sample_type to request information
- * in the overflow packets.
- */
-enum perf_event_sample_format {
-	PERF_SAMPLE_IP				= 1U << 0,
-	PERF_SAMPLE_TID				= 1U << 1,
-	PERF_SAMPLE_TIME			= 1U << 2,
-	PERF_SAMPLE_ADDR			= 1U << 3,
-	PERF_SAMPLE_READ			= 1U << 4,
-	PERF_SAMPLE_CALLCHAIN			= 1U << 5,
-	PERF_SAMPLE_ID				= 1U << 6,
-	PERF_SAMPLE_CPU				= 1U << 7,
-	PERF_SAMPLE_PERIOD			= 1U << 8,
-	PERF_SAMPLE_STREAM_ID			= 1U << 9,
-	PERF_SAMPLE_RAW				= 1U << 10,
-
-	PERF_SAMPLE_MAX = 1U << 11,		/* non-ABI */
-};
-
-/*
- * The format of the data returned by read() on a perf event fd,
- * as specified by attr.read_format:
- *
- * struct read_format {
- *	{ u64		value;
- *	  { u64		time_enabled; } && PERF_FORMAT_TOTAL_TIME_ENABLED
- *	  { u64		time_running; } && PERF_FORMAT_TOTAL_TIME_RUNNING
- *	  { u64		id;           } && PERF_FORMAT_ID
- *	} && !PERF_FORMAT_GROUP
- *
- *	{ u64		nr;
- *	  { u64		time_enabled; } && PERF_FORMAT_TOTAL_TIME_ENABLED
- *	  { u64		time_running; } && PERF_FORMAT_TOTAL_TIME_RUNNING
- *	  { u64		value;
- *	    { u64	id;           } && PERF_FORMAT_ID
- *	  }		cntr[nr];
- *	} && PERF_FORMAT_GROUP
- * };
- */
-enum perf_event_read_format {
-	PERF_FORMAT_TOTAL_TIME_ENABLED		= 1U << 0,
-	PERF_FORMAT_TOTAL_TIME_RUNNING		= 1U << 1,
-	PERF_FORMAT_ID				= 1U << 2,
-	PERF_FORMAT_GROUP			= 1U << 3,
-
-	PERF_FORMAT_MAX = 1U << 4,		/* non-ABI */
-};
-
-#define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
-
-/*
- * Hardware event_id to monitor via a performance monitoring event:
- */
-struct perf_event_attr {
-
-	/*
-	 * Major type: hardware/software/tracepoint/etc.
-	 */
-	__u32			type;
-
-	/*
-	 * Size of the attr structure, for fwd/bwd compat.
-	 */
-	__u32			size;
-
-	/*
-	 * Type specific configuration information.
-	 */
-	__u64			config;
-
-	union {
-		__u64		sample_period;
-		__u64		sample_freq;
-	};
-
-	__u64			sample_type;
-	__u64			read_format;
-
-	__u64			disabled       :  1, /* off by default        */
-				inherit	       :  1, /* children inherit it   */
-				pinned	       :  1, /* must always be on PMU */
-				exclusive      :  1, /* only group on PMU     */
-				exclude_user   :  1, /* don't count user      */
-				exclude_kernel :  1, /* ditto kernel          */
-				exclude_hv     :  1, /* ditto hypervisor      */
-				exclude_idle   :  1, /* don't count when idle */
-				mmap           :  1, /* include mmap data     */
-				comm	       :  1, /* include comm data     */
-				freq           :  1, /* use freq, not period  */
-				inherit_stat   :  1, /* per task counts       */
-				enable_on_exec :  1, /* next exec enables     */
-				task           :  1, /* trace fork/exit       */
-				watermark      :  1, /* wakeup_watermark      */
-				/*
-				 * precise_ip:
-				 *
-				 *  0 - SAMPLE_IP can have arbitrary skid
-				 *  1 - SAMPLE_IP must have constant skid
-				 *  2 - SAMPLE_IP requested to have 0 skid
-				 *  3 - SAMPLE_IP must have 0 skid
-				 *
-				 *  See also PERF_RECORD_MISC_EXACT_IP
-				 */
-				precise_ip     :  2, /* skid constraint       */
-				mmap_data      :  1, /* non-exec mmap data    */
-				sample_id_all  :  1, /* sample_type all events */
-
-				__reserved_1   : 45;
-
-	union {
-		__u32		wakeup_events;	  /* wakeup every n events */
-		__u32		wakeup_watermark; /* bytes before wakeup   */
-	};
-
-	__u32			bp_type;
-	union {
-		__u64		bp_addr;
-		__u64		config1; /* extension of config */
-	};
-	union {
-		__u64		bp_len;
-		__u64		config2; /* extension of config1 */
-	};
-};
-
-/*
- * Ioctls that can be done on a perf event fd:
- */
-#define PERF_EVENT_IOC_ENABLE		_IO ('$', 0)
-#define PERF_EVENT_IOC_DISABLE		_IO ('$', 1)
-#define PERF_EVENT_IOC_REFRESH		_IO ('$', 2)
-#define PERF_EVENT_IOC_RESET		_IO ('$', 3)
-#define PERF_EVENT_IOC_PERIOD		_IOW('$', 4, __u64)
-#define PERF_EVENT_IOC_SET_OUTPUT	_IO ('$', 5)
-#define PERF_EVENT_IOC_SET_FILTER	_IOW('$', 6, char *)
-
-enum perf_event_ioc_flags {
-	PERF_IOC_FLAG_GROUP		= 1U << 0,
-};
-
-/*
- * Structure of the page that can be mapped via mmap
- */
-struct perf_event_mmap_page {
-	__u32	version;		/* version number of this structure */
-	__u32	compat_version;		/* lowest version this is compat with */
-
-	/*
-	 * Bits needed to read the hw events in user-space.
-	 *
-	 *   u32 seq;
-	 *   s64 count;
-	 *
-	 *   do {
-	 *     seq = pc->lock;
-	 *
-	 *     barrier()
-	 *     if (pc->index) {
-	 *       count = pmc_read(pc->index - 1);
-	 *       count += pc->offset;
-	 *     } else
-	 *       goto regular_read;
-	 *
-	 *     barrier();
-	 *   } while (pc->lock != seq);
-	 *
-	 * NOTE: for obvious reason this only works on self-monitoring
-	 *       processes.
-	 */
-	__u32	lock;			/* seqlock for synchronization */
-	__u32	index;			/* hardware event identifier */
-	__s64	offset;			/* add to hardware event value */
-	__u64	time_enabled;		/* time event active */
-	__u64	time_running;		/* time event on cpu */
-
-		/*
-		 * Hole for extension of the self monitor capabilities
-		 */
-
-	__u64	__reserved[123];	/* align to 1k */
-
-	/*
-	 * Control data for the mmap() data buffer.
-	 *
-	 * User-space reading the @data_head value should issue an rmb(), on
-	 * SMP capable platforms, after reading this value -- see
-	 * perf_event_wakeup().
-	 *
-	 * When the mapping is PROT_WRITE the @data_tail value should be
-	 * written by userspace to reflect the last read data. In this case
-	 * the kernel will not over-write unread data.
-	 */
-	__u64   data_head;		/* head in the data section */
-	__u64	data_tail;		/* user-space written tail */
-};
-
-#define PERF_RECORD_MISC_CPUMODE_MASK		(7 << 0)
-#define PERF_RECORD_MISC_CPUMODE_UNKNOWN	(0 << 0)
-#define PERF_RECORD_MISC_KERNEL			(1 << 0)
-#define PERF_RECORD_MISC_USER			(2 << 0)
-#define PERF_RECORD_MISC_HYPERVISOR		(3 << 0)
-#define PERF_RECORD_MISC_GUEST_KERNEL		(4 << 0)
-#define PERF_RECORD_MISC_GUEST_USER		(5 << 0)
-
-/*
- * Indicates that the content of PERF_SAMPLE_IP points to
- * the actual instruction that triggered the event. See also
- * perf_event_attr::precise_ip.
- */
-#define PERF_RECORD_MISC_EXACT_IP		(1 << 14)
-/*
- * Reserve the last bit to indicate some extended misc field
- */
-#define PERF_RECORD_MISC_EXT_RESERVED		(1 << 15)
-
-struct perf_event_header {
-	__u32	type;
-	__u16	misc;
-	__u16	size;
-};
-
-enum perf_event_type {
-
-	/*
-	 * If perf_event_attr.sample_id_all is set then all event types will
-	 * have the sample_type selected fields related to where/when
-	 * (identity) an event took place (TID, TIME, ID, CPU, STREAM_ID)
-	 * described in PERF_RECORD_SAMPLE below, it will be stashed just after
-	 * the perf_event_header and the fields already present for the existing
-	 * fields, i.e. at the end of the payload. That way a newer perf.data
-	 * file will be supported by older perf tools, with these new optional
-	 * fields being ignored.
-	 *
-	 * The MMAP events record the PROT_EXEC mappings so that we can
-	 * correlate userspace IPs to code. They have the following structure:
-	 *
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *
-	 *	u32				pid, tid;
-	 *	u64				addr;
-	 *	u64				len;
-	 *	u64				pgoff;
-	 *	char				filename[];
-	 * };
-	 */
-	PERF_RECORD_MMAP			= 1,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u64				id;
-	 *	u64				lost;
-	 * };
-	 */
-	PERF_RECORD_LOST			= 2,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *
-	 *	u32				pid, tid;
-	 *	char				comm[];
-	 * };
-	 */
-	PERF_RECORD_COMM			= 3,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u32				pid, ppid;
-	 *	u32				tid, ptid;
-	 *	u64				time;
-	 * };
-	 */
-	PERF_RECORD_EXIT			= 4,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u64				time;
-	 *	u64				id;
-	 *	u64				stream_id;
-	 * };
-	 */
-	PERF_RECORD_THROTTLE			= 5,
-	PERF_RECORD_UNTHROTTLE			= 6,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u32				pid, ppid;
-	 *	u32				tid, ptid;
-	 *	u64				time;
-	 * };
-	 */
-	PERF_RECORD_FORK			= 7,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *	u32				pid, tid;
-	 *
-	 *	struct read_format		values;
-	 * };
-	 */
-	PERF_RECORD_READ			= 8,
-
-	/*
-	 * struct {
-	 *	struct perf_event_header	header;
-	 *
-	 *	{ u64			ip;	  } && PERF_SAMPLE_IP
-	 *	{ u32			pid, tid; } && PERF_SAMPLE_TID
-	 *	{ u64			time;     } && PERF_SAMPLE_TIME
-	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
-	 *	{ u64			id;	  } && PERF_SAMPLE_ID
-	 *	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
-	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
-	 *	{ u64			period;   } && PERF_SAMPLE_PERIOD
-	 *
-	 *	{ struct read_format	values;	  } && PERF_SAMPLE_READ
-	 *
-	 *	{ u64			nr,
-	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
-	 *
-	 *	#
-	 *	# The RAW record below is opaque data wrt the ABI
-	 *	#
-	 *	# That is, the ABI doesn't make any promises wrt to
-	 *	# the stability of its content, it may vary depending
-	 *	# on event, hardware, kernel version and phase of
-	 *	# the moon.
-	 *	#
-	 *	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
-	 *	#
-	 *
-	 *	{ u32			size;
-	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
-	 * };
-	 */
-	PERF_RECORD_SAMPLE			= 9,
-
-	PERF_RECORD_MAX,			/* non-ABI */
-};
-
-enum perf_callchain_context {
-	PERF_CONTEXT_HV			= (__u64)-32,
-	PERF_CONTEXT_KERNEL		= (__u64)-128,
-	PERF_CONTEXT_USER		= (__u64)-512,
-
-	PERF_CONTEXT_GUEST		= (__u64)-2048,
-	PERF_CONTEXT_GUEST_KERNEL	= (__u64)-2176,
-	PERF_CONTEXT_GUEST_USER		= (__u64)-2560,
-
-	PERF_CONTEXT_MAX		= (__u64)-4095,
-};
-
-#define PERF_FLAG_FD_NO_GROUP		(1U << 0)
-#define PERF_FLAG_FD_OUTPUT		(1U << 1)
-#define PERF_FLAG_PID_CGROUP		(1U << 2) /* pid=cgroup id, per-cpu mode only */
-
-#ifdef __KERNEL__
 /*
  * Kernel-internal data types and definitions:
  */
 
 #ifdef CONFIG_PERF_EVENTS
-# include <linux/cgroup.h>
 # include <asm/perf_event.h>
 # include <asm/local64.h>
 #endif
@@ -507,11 +47,11 @@ struct perf_guest_info_callbacks {
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <linux/irq_work.h>
-#include <linux/jump_label.h>
-#include <asm/atomic.h>
+#include <linux/static_key.h>
+#include <linux/atomic.h>
+#include <linux/sysfs.h>
+#include <linux/perf_regs.h>
 #include <asm/local.h>
-
-#define PERF_MAX_STACK_DEPTH		255
 
 struct perf_callchain_entry {
 	__u64				nr;
@@ -523,18 +63,55 @@ struct perf_raw_record {
 	void				*data;
 };
 
+/*
+ * single taken branch record layout:
+ *
+ *      from: source instruction (may not always be a branch insn)
+ *        to: branch target
+ *   mispred: branch target was mispredicted
+ * predicted: branch target was predicted
+ *
+ * support for mispred, predicted is optional. In case it
+ * is not supported mispred = predicted = 0.
+ */
 struct perf_branch_entry {
-	__u64				from;
-	__u64				to;
-	__u64				flags;
+	__u64	from;
+	__u64	to;
+	__u64	mispred:1,  /* target mispredicted */
+		predicted:1,/* target predicted */
+		reserved:62;
 };
 
+/*
+ * branch stack layout:
+ *  nr: number of taken branches stored in entries[]
+ *
+ * Note that nr can vary from sample to sample
+ * branches (to, from) are stored from most recent
+ * to least recent, i.e., entries[0] contains the most
+ * recent branch.
+ */
 struct perf_branch_stack {
 	__u64				nr;
 	struct perf_branch_entry	entries[0];
 };
 
+struct perf_regs_user {
+	__u64		abi;
+	struct pt_regs	*regs;
+};
+
 struct task_struct;
+
+/*
+ * extra PMU register associated with an event
+ */
+struct hw_perf_event_extra {
+	u64		config;	/* register value */
+	unsigned int	reg;	/* register address or index */
+	int		alloc;	/* extra register already allocated */
+	int		idx;	/* index in shared_regs->regs[] */
+};
 
 /**
  * struct hw_perf_event - performance event hardware details:
@@ -547,25 +124,32 @@ struct hw_perf_event {
 			u64		last_tag;
 			unsigned long	config_base;
 			unsigned long	event_base;
+			int		event_base_rdpmc;
 			int		idx;
 			int		last_cpu;
-			unsigned int	extra_reg;
-			u64		extra_config;
-			int		extra_alloc;
+			int		flags;
+
+			struct hw_perf_event_extra extra_reg;
+			struct hw_perf_event_extra branch_reg;
 		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
+		struct { /* tracepoint */
+			struct task_struct	*tp_target;
+			/* for tp_event->class */
+			struct list_head	tp_list;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
-			struct arch_hw_breakpoint	info;
-			struct list_head		bp_list;
 			/*
 			 * Crufty hack to avoid the chicken and egg
 			 * problem hw_breakpoint has with context
 			 * creation and event initalization.
 			 */
 			struct task_struct		*bp_target;
+			struct arch_hw_breakpoint	info;
+			struct list_head		bp_list;
 		};
 #endif
 	};
@@ -574,6 +158,7 @@ struct hw_perf_event {
 	u64				sample_period;
 	u64				last_period;
 	local64_t			period_left;
+	u64                             interrupts_seq;
 	u64				interrupts;
 
 	u64				freq_time_stamp;
@@ -602,6 +187,7 @@ struct pmu {
 	struct list_head		entry;
 
 	struct device			*dev;
+	const struct attribute_group	**attr_groups;
 	char				*name;
 	int				type;
 
@@ -667,6 +253,17 @@ struct pmu {
 	 * for each successful ->add() during the transaction.
 	 */
 	void (*cancel_txn)		(struct pmu *pmu); /* optional */
+
+	/*
+	 * Will return the value for perf_event_mmap_page::index for this event,
+	 * if no implementation is provided it will default to: event->hw.idx + 1.
+	 */
+	int (*event_idx)		(struct perf_event *event); /*optional */
+
+	/*
+	 * flush branch stack on context-switches (needed in cpu-wide mode)
+	 */
+	void (*flush_branch_stack)	(void);
 };
 
 /**
@@ -680,36 +277,9 @@ enum perf_event_active_state {
 };
 
 struct file;
-
-#define PERF_BUFFER_WRITABLE		0x01
-
-struct perf_buffer {
-	atomic_t			refcount;
-	struct rcu_head			rcu_head;
-#ifdef CONFIG_PERF_USE_VMALLOC
-	struct work_struct		work;
-	int				page_order;	/* allocation order  */
-#endif
-	int				nr_pages;	/* nr of data pages  */
-	int				writable;	/* are we writable   */
-
-	atomic_t			poll;		/* POLL_ for wakeups */
-
-	local_t				head;		/* write position    */
-	local_t				nest;		/* nested writers    */
-	local_t				events;		/* event limit       */
-	local_t				wakeup;		/* wakeup stamp      */
-	local_t				lost;		/* nr records lost   */
-
-	long				watermark;	/* wakeup watermark  */
-
-	struct perf_event_mmap_page	*user_page;
-	void				*data_pages[0];
-};
-
 struct perf_sample_data;
 
-typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
+typedef void (*perf_overflow_handler_t)(struct perf_event *,
 					struct perf_sample_data *,
 					struct pt_regs *regs);
 
@@ -729,21 +299,8 @@ struct swevent_hlist {
 #define PERF_ATTACH_GROUP	0x02
 #define PERF_ATTACH_TASK	0x04
 
-#ifdef CONFIG_CGROUP_PERF
-/*
- * perf_cgroup_info keeps track of time_enabled for a cgroup.
- * This is a per-cpu dynamically allocated data structure.
- */
-struct perf_cgroup_info {
-	u64				time;
-	u64				timestamp;
-};
-
-struct perf_cgroup {
-	struct				cgroup_subsys_state css;
-	struct				perf_cgroup_info *info;	/* timing info, one per cpu */
-};
-#endif
+struct perf_cgroup;
+struct ring_buffer;
 
 /**
  * struct perf_event - performance event kernel representation:
@@ -807,7 +364,7 @@ struct perf_event {
 	struct hw_perf_event		hw;
 
 	struct perf_event_context	*ctx;
-	struct file			*filp;
+	atomic_long_t			refcount;
 
 	/*
 	 * These accumulate total time (in nanoseconds) that children
@@ -832,9 +389,9 @@ struct perf_event {
 	/* mmap bits */
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;
-	int				mmap_locked;
-	struct user_struct		*mmap_user;
-	struct perf_buffer		*buffer;
+
+	struct ring_buffer		*rb;
+	struct list_head		rb_entry;
 
 	/* poll related */
 	wait_queue_head_t		waitq;
@@ -855,10 +412,14 @@ struct perf_event {
 	u64				id;
 
 	perf_overflow_handler_t		overflow_handler;
+	void				*overflow_handler_context;
 
 #ifdef CONFIG_EVENT_TRACING
 	struct ftrace_event_call	*tp_event;
 	struct event_filter		*filter;
+#ifdef CONFIG_FUNCTION_TRACER
+	struct ftrace_ops               ftrace_ops;
+#endif
 #endif
 
 #ifdef CONFIG_CGROUP_PERF
@@ -901,6 +462,7 @@ struct perf_event_context {
 	int				nr_active;
 	int				is_active;
 	int				nr_stat;
+	int				nr_freq;
 	int				rotate_disable;
 	atomic_t			refcount;
 	struct task_struct		*task;
@@ -919,8 +481,9 @@ struct perf_event_context {
 	u64				parent_gen;
 	u64				generation;
 	int				pin_count;
+	int				nr_cgroups;	 /* cgroup evts */
+	int				nr_branch_stack; /* branch_stack evt */
 	struct rcu_head			rcu_head;
-	int				nr_cgroups; /* cgroup events present */
 };
 
 /*
@@ -939,19 +502,17 @@ struct perf_cpu_context {
 	int				exclusive;
 	struct list_head		rotation_list;
 	int				jiffies_interval;
-	struct pmu			*active_pmu;
+	struct pmu			*unique_pmu;
 	struct perf_cgroup		*cgrp;
 };
 
 struct perf_output_handle {
 	struct perf_event		*event;
-	struct perf_buffer		*buffer;
+	struct ring_buffer		*rb;
 	unsigned long			wakeup;
 	unsigned long			size;
 	void				*addr;
 	int				page;
-	int				nmi;
-	int				sample;
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -961,8 +522,10 @@ extern void perf_pmu_unregister(struct pmu *pmu);
 
 extern int perf_num_counters(void);
 extern const char *perf_pmu_name(void);
-extern void __perf_event_task_sched_in(struct task_struct *task);
-extern void __perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);
+extern void __perf_event_task_sched_in(struct task_struct *prev,
+				       struct task_struct *task);
+extern void __perf_event_task_sched_out(struct task_struct *prev,
+					struct task_struct *next);
 extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
@@ -972,15 +535,20 @@ extern void perf_pmu_disable(struct pmu *pmu);
 extern void perf_pmu_enable(struct pmu *pmu);
 extern int perf_event_task_disable(void);
 extern int perf_event_task_enable(void);
+extern int perf_event_refresh(struct perf_event *event, int refresh);
 extern void perf_event_update_userpage(struct perf_event *event);
 extern int perf_event_release_kernel(struct perf_event *event);
 extern struct perf_event *
 perf_event_create_kernel_counter(struct perf_event_attr *attr,
 				int cpu,
 				struct task_struct *task,
-				perf_overflow_handler_t callback);
+				perf_overflow_handler_t callback,
+				void *context);
+extern void perf_pmu_migrate_context(struct pmu *pmu,
+				int src_cpu, int dst_cpu);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
+
 
 struct perf_sample_data {
 	u64				type;
@@ -999,14 +567,28 @@ struct perf_sample_data {
 		u32	reserved;
 	}				cpu_entry;
 	u64				period;
+	union  perf_mem_data_src	data_src;
 	struct perf_callchain_entry	*callchain;
 	struct perf_raw_record		*raw;
+	struct perf_branch_stack	*br_stack;
+	struct perf_regs_user		regs_user;
+	u64				stack_user_size;
+	u64				weight;
 };
 
-static inline void perf_sample_data_init(struct perf_sample_data *data, u64 addr)
+static inline void perf_sample_data_init(struct perf_sample_data *data,
+					 u64 addr, u64 period)
 {
+	/* remaining struct members initialized in perf_prepare_sample() */
 	data->addr = addr;
 	data->raw  = NULL;
+	data->br_stack = NULL;
+	data->period = period;
+	data->regs_user.abi = PERF_SAMPLE_REGS_ABI_NONE;
+	data->regs_user.regs = NULL;
+	data->stack_user_size = 0;
+	data->weight = 0;
+	data->data_src.val = 0;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,
@@ -1018,7 +600,7 @@ extern void perf_prepare_sample(struct perf_event_header *header,
 				struct perf_event *event,
 				struct pt_regs *regs);
 
-extern int perf_event_overflow(struct perf_event *event, int nmi,
+extern int perf_event_overflow(struct perf_event *event,
 				 struct perf_sample_data *data,
 				 struct pt_regs *regs);
 
@@ -1035,9 +617,9 @@ static inline int is_software_event(struct perf_event *event)
 	return event->pmu->task_ctx_nr == perf_sw_context;
 }
 
-extern struct jump_label_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
+extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
-extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
+extern void __perf_sw_event(u32, u64, struct pt_regs *, u64);
 
 #ifndef perf_arch_fetch_caller_regs
 static inline void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip) { }
@@ -1059,32 +641,35 @@ static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 }
 
 static __always_inline void
-perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
 {
 	struct pt_regs hot_regs;
 
-	if (static_branch(&perf_swevent_enabled[event_id])) {
+	if (static_key_false(&perf_swevent_enabled[event_id])) {
 		if (!regs) {
 			perf_fetch_caller_regs(&hot_regs);
 			regs = &hot_regs;
 		}
-		__perf_sw_event(event_id, nr, nmi, regs, addr);
+		__perf_sw_event(event_id, nr, regs, addr);
 	}
 }
 
-extern struct jump_label_key perf_sched_events;
+extern struct static_key_deferred perf_sched_events;
 
-static inline void perf_event_task_sched_in(struct task_struct *task)
+static inline void perf_event_task_sched_in(struct task_struct *prev,
+					    struct task_struct *task)
 {
-	if (static_branch(&perf_sched_events))
-		__perf_event_task_sched_in(task);
+	if (static_key_false(&perf_sched_events.key))
+		__perf_event_task_sched_in(prev, task);
 }
 
-static inline void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
+static inline void perf_event_task_sched_out(struct task_struct *prev,
+					     struct task_struct *next)
 {
-	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
+	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, NULL, 0);
 
-	__perf_event_task_sched_out(task, next);
+	if (static_key_false(&perf_sched_events.key))
+		__perf_event_task_sched_out(prev, next);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
@@ -1133,7 +718,8 @@ static inline bool perf_paranoid_kernel(void)
 extern void perf_event_init(void);
 extern void perf_tp_event(u64 addr, u64 count, void *record,
 			  int entry_size, struct pt_regs *regs,
-			  struct hlist_head *head, int rctx);
+			  struct hlist_head *head, int rctx,
+			  struct task_struct *task);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags
@@ -1142,23 +728,31 @@ extern void perf_bp_event(struct perf_event *event, void *data);
 # define perf_instruction_pointer(regs)	instruction_pointer(regs)
 #endif
 
+static inline bool has_branch_stack(struct perf_event *event)
+{
+	return event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK;
+}
+
 extern int perf_output_begin(struct perf_output_handle *handle,
-			     struct perf_event *event, unsigned int size,
-			     int nmi, int sample);
+			     struct perf_event *event, unsigned int size);
 extern void perf_output_end(struct perf_output_handle *handle);
-extern void perf_output_copy(struct perf_output_handle *handle,
+extern unsigned int perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
+extern unsigned int perf_output_skip(struct perf_output_handle *handle,
+				     unsigned int len);
 extern int perf_swevent_get_recursion_context(void);
 extern void perf_swevent_put_recursion_context(int rctx);
 extern void perf_event_enable(struct perf_event *event);
 extern void perf_event_disable(struct perf_event *event);
+extern int __perf_event_disable(void *info);
 extern void perf_event_task_tick(void);
 #else
 static inline void
-perf_event_task_sched_in(struct task_struct *task)			{ }
+perf_event_task_sched_in(struct task_struct *prev,
+			 struct task_struct *task)			{ }
 static inline void
-perf_event_task_sched_out(struct task_struct *task,
-			    struct task_struct *next)			{ }
+perf_event_task_sched_out(struct task_struct *prev,
+			  struct task_struct *next)			{ }
 static inline int perf_event_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
@@ -1166,10 +760,13 @@ static inline void perf_event_delayed_put(struct task_struct *task)	{ }
 static inline void perf_event_print_debug(void)				{ }
 static inline int perf_event_task_disable(void)				{ return -EINVAL; }
 static inline int perf_event_task_enable(void)				{ return -EINVAL; }
+static inline int perf_event_refresh(struct perf_event *event, int refresh)
+{
+	return -EINVAL;
+}
 
 static inline void
-perf_sw_event(u32 event_id, u64 nr, int nmi,
-		     struct pt_regs *regs, u64 addr)			{ }
+perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)	{ }
 static inline void
 perf_bp_event(struct perf_event *event, void *data)			{ }
 
@@ -1186,7 +783,20 @@ static inline int  perf_swevent_get_recursion_context(void)		{ return -1; }
 static inline void perf_swevent_put_recursion_context(int rctx)		{ }
 static inline void perf_event_enable(struct perf_event *event)		{ }
 static inline void perf_event_disable(struct perf_event *event)		{ }
+static inline int __perf_event_disable(void *info)			{ return -1; }
 static inline void perf_event_task_tick(void)				{ }
+#endif
+
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_NO_HZ_FULL)
+extern bool perf_event_can_stop_tick(void);
+#else
+static inline bool perf_event_can_stop_tick(void)			{ return true; }
+#endif
+
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_INTEL)
+extern void perf_restore_debug_store(void);
+#else
+static inline void perf_restore_debug_store(void)			{ }
 #endif
 
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))
@@ -1198,14 +808,42 @@ static inline void perf_event_task_tick(void)				{ }
 do {									\
 	static struct notifier_block fn##_nb __cpuinitdata =		\
 		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
+	unsigned long cpu = smp_processor_id();				\
+	unsigned long flags;						\
 	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,			\
-		(void *)(unsigned long)smp_processor_id());		\
+		(void *)(unsigned long)cpu);				\
+	local_irq_save(flags);						\
 	fn(&fn##_nb, (unsigned long)CPU_STARTING,			\
-		(void *)(unsigned long)smp_processor_id());		\
+		(void *)(unsigned long)cpu);				\
+	local_irq_restore(flags);					\
 	fn(&fn##_nb, (unsigned long)CPU_ONLINE,				\
-		(void *)(unsigned long)smp_processor_id());		\
+		(void *)(unsigned long)cpu);				\
 	register_cpu_notifier(&fn##_nb);				\
 } while (0)
 
-#endif /* __KERNEL__ */
+
+struct perf_pmu_events_attr {
+	struct device_attribute attr;
+	u64 id;
+	const char *event_str;
+};
+
+#define PMU_EVENT_ATTR(_name, _var, _id, _show)				\
+static struct perf_pmu_events_attr _var = {				\
+	.attr = __ATTR(_name, 0444, _show, NULL),			\
+	.id   =  _id,							\
+};
+
+#define PMU_FORMAT_ATTR(_name, _format)					\
+static ssize_t								\
+_name##_show(struct device *dev,					\
+			       struct device_attribute *attr,		\
+			       char *page)				\
+{									\
+	BUILD_BUG_ON(sizeof(_format) >= PAGE_SIZE);			\
+	return sprintf(page, _format "\n");				\
+}									\
+									\
+static struct device_attribute format_attr_##_name = __ATTR_RO(_name)
+
 #endif /* _LINUX_PERF_EVENT_H */

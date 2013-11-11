@@ -10,7 +10,7 @@
 #ifndef OPROFILE_STATS_H
 #define OPROFILE_STATS_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct oprofile_stat_struct {
 	atomic_t sample_lost_no_mm;

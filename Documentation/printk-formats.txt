@@ -17,6 +17,8 @@ Symbols/Function Pointers:
 	%pF	versatile_init+0x0/0x110
 	%pf	versatile_init
 	%pS	versatile_init+0x0/0x110
+	%pSR	versatile_init+0x9/0x110
+		(with __builtin_extract_return_addr() translation)
 	%ps	versatile_init
 	%pB	prev_fn_of_versatile_init+0x88/0x88
 
@@ -53,11 +55,31 @@ Struct Resources:
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
 
+Physical addresses:
+
+	%pa	0x01234567 or 0x0123456789abcdef
+
+	For printing a phys_addr_t type (and its derivatives, such as
+	resource_size_t) which can vary based on build options, regardless of
+	the width of the CPU data path. Passed by reference.
+
+Raw buffer as a hex string:
+	%*ph	00 01 02  ...  3f
+	%*phC	00:01:02: ... :3f
+	%*phD	00-01-02- ... -3f
+	%*phN	000102 ... 3f
+
+	For printing a small buffers (up to 64 bytes long) as a hex string with
+	certain separator. For the larger buffers consider to use
+	print_hex_dump().
+
 MAC/FDDI addresses:
 
 	%pM	00:01:02:03:04:05
+	%pMR	05:04:03:02:01:00
 	%pMF	00-01-02-03-04-05
 	%pm	000102030405
+	%pmR	050403020100
 
 	For printing 6-byte MAC/FDDI addresses in hex notation. The 'M' and 'm'
 	specifiers result in a printed address with ('M') or without ('m') byte
@@ -66,6 +88,10 @@ MAC/FDDI addresses:
 	Where FDDI addresses are concerned the 'F' specifier can be used after
 	the 'M' specifier to use dash ('-') separators instead of the default
 	separator.
+
+	For Bluetooth addresses the 'R' specifier shall be used after the 'M'
+	specifier to use reversed byte order suitable for visual interpretation
+	of Bluetooth addresses which are in the little endian order.
 
 IPv4 addresses:
 
@@ -134,9 +160,9 @@ s64 SHOULD be printed with %lld/%llx, (long long):
 	printk("%lld", (long long)s64_var);
 
 If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t, phys_addr_t, resource_size_t) or is architecture-dependent
-for its size (e.g., tcflag_t), use a format specifier of its largest
-possible type and explicitly cast to it.  Example:
+blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
+format specifier of its largest possible type and explicitly cast to it.
+Example:
 
 	printk("test: sector number/total blocks: %llu/%llu\n",
 		(unsigned long long)sector, (unsigned long long)blockcount);
@@ -146,5 +172,5 @@ Reminder: sizeof() result is of type size_t.
 Thank you for your cooperation and attention.
 
 
-By Randy Dunlap <rdunlap@xenotime.net> and
+By Randy Dunlap <rdunlap@infradead.org> and
 Andrew Murray <amurray@mpc-data.co.uk>

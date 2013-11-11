@@ -43,12 +43,13 @@
 #define cpu_has_mips64r2	0
 
 #define cpu_has_dsp		0
+#define cpu_has_dsp2		0
 #define cpu_has_mipsmt		0
 
 #define cpu_has_64bits		0
 #define cpu_has_64bit_zero_reg	0
 #define cpu_has_64bit_gp_regs	0
-#define cpu_has_64bit_addresses	0
+#define cpu_has_64bit_addresses 0
 
 #define cpu_dcache_line_size()	32
 #define cpu_icache_line_size()	32

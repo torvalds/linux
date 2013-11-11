@@ -174,8 +174,8 @@ static int bcm63xx_pci_write(struct pci_bus *bus, unsigned int devfn,
 }
 
 struct pci_ops bcm63xx_pci_ops = {
-	.read   = bcm63xx_pci_read,
-	.write  = bcm63xx_pci_write
+	.read	= bcm63xx_pci_read,
+	.write	= bcm63xx_pci_write
 };
 
 #ifdef CONFIG_CARDBUS
@@ -370,8 +370,8 @@ static int bcm63xx_cb_read(struct pci_bus *bus, unsigned int devfn,
 		return fake_cb_bridge_read(where, size, val);
 	}
 
-	/* a  configuration  cycle for  the  device  behind the  cardbus
-	 * bridge is  actually done as a  type 0 cycle  on the primary
+	/* a  configuration  cycle for	the  device  behind the	 cardbus
+	 * bridge is  actually done as a  type 0 cycle	on the primary
 	 * bus. This means that only  one device can be on the cardbus
 	 * bus */
 	if (fake_cb_bridge_regs.bus_assigned &&
@@ -403,8 +403,8 @@ static int bcm63xx_cb_write(struct pci_bus *bus, unsigned int devfn,
 }
 
 struct pci_ops bcm63xx_cb_ops = {
-	.read   = bcm63xx_cb_read,
-	.write   = bcm63xx_cb_write,
+	.read	= bcm63xx_cb_read,
+	.write	 = bcm63xx_cb_write,
 };
 
 /*
@@ -465,3 +465,64 @@ static void bcm63xx_fixup(struct pci_dev *dev)
 
 DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, bcm63xx_fixup);
 #endif
+
+static int bcm63xx_pcie_can_access(struct pci_bus *bus, int devfn)
+{
+	switch (bus->number) {
+	case PCIE_BUS_BRIDGE:
+		return (PCI_SLOT(devfn) == 0);
+	case PCIE_BUS_DEVICE:
+		if (PCI_SLOT(devfn) == 0)
+			return bcm_pcie_readl(PCIE_DLSTATUS_REG)
+					& DLSTATUS_PHYLINKUP;
+	default:
+		return false;
+	}
+}
+
+static int bcm63xx_pcie_read(struct pci_bus *bus, unsigned int devfn,
+			     int where, int size, u32 *val)
+{
+	u32 data;
+	u32 reg = where & ~3;
+
+	if (!bcm63xx_pcie_can_access(bus, devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == PCIE_BUS_DEVICE)
+		reg += PCIE_DEVICE_OFFSET;
+
+	data = bcm_pcie_readl(reg);
+
+	*val = postprocess_read(data, where, size);
+
+	return PCIBIOS_SUCCESSFUL;
+
+}
+
+static int bcm63xx_pcie_write(struct pci_bus *bus, unsigned int devfn,
+			      int where, int size, u32 val)
+{
+	u32 data;
+	u32 reg = where & ~3;
+
+	if (!bcm63xx_pcie_can_access(bus, devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == PCIE_BUS_DEVICE)
+		reg += PCIE_DEVICE_OFFSET;
+
+
+	data = bcm_pcie_readl(reg);
+
+	data = preprocess_write(data, val, where, size);
+	bcm_pcie_writel(data, reg);
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+
+struct pci_ops bcm63xx_pcie_ops = {
+	.read	= bcm63xx_pcie_read,
+	.write	= bcm63xx_pcie_write
+};

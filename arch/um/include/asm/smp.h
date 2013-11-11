@@ -3,9 +3,9 @@
 
 #ifdef CONFIG_SMP
 
-#include "linux/bitops.h"
-#include "asm/current.h"
-#include "linux/cpumask.h"
+#include <linux/bitops.h>
+#include <asm/current.h>
+#include <linux/cpumask.h>
 
 #define raw_smp_processor_id() (current_thread->cpu)
 

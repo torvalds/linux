@@ -2,17 +2,17 @@
  * Belkin USB Serial Adapter Driver
  *
  *  Copyright (C) 2000		William Greathouse (wgreathouse@smva.com)
- *  Copyright (C) 2000-2001 	Greg Kroah-Hartman (greg@kroah.com)
+ *  Copyright (C) 2000-2001	Greg Kroah-Hartman (greg@kroah.com)
  *  Copyright (C) 2010		Johan Hovold (jhovold@gmail.com)
  *
  *  This program is largely derived from work by the linux-usb group
  *  and associated source files.  Please see the usb/serial files for
  *  individual credits and copyrights.
  *
- * 	This program is free software; you can redistribute it and/or modify
- * 	it under the terms of the GNU General Public License as published by
- * 	the Free Software Foundation; either version 2 of the License, or
- * 	(at your option) any later version.
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
@@ -20,50 +20,7 @@
  * TODO:
  * -- Add true modem contol line query capability.  Currently we track the
  *    states reported by the interrupt and the states we request.
- * -- Add error reporting back to application for UART error conditions.
- *    Just point me at how to implement this and I'll do it. I've put the
- *    framework in, but haven't analyzed the "tty_flip" interface yet.
  * -- Add support for flush commands
- * -- Add everything that is missing :)
- *
- * 27-Nov-2001 gkh
- * 	compressed all the differnent device entries into 1.
- *
- * 30-May-2001 gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * 08-Apr-2001 gb
- *	- Identify version on module load.
- *
- * 12-Mar-2001 gkh
- *	- Added support for the GoHubs GO-COM232 device which is the same as the
- *	  Peracom device.
- *
- * 06-Nov-2000 gkh
- *	- Added support for the old Belkin and Peracom devices.
- *	- Made the port able to be opened multiple times.
- *	- Added some defaults incase the line settings are things these devices
- *	  can't support.
- *
- * 18-Oct-2000 William Greathouse
- *    Released into the wild (linux-usb-devel)
- *
- * 17-Oct-2000 William Greathouse
- *    Add code to recognize firmware version and set hardware flow control
- *    appropriately.  Belkin states that firmware prior to 3.05 does not
- *    operate correctly in hardware handshake mode.  I have verified this
- *    on firmware 2.05 -- for both RTS and DTR input flow control, the control
- *    line is not reset.  The test performed by the Belkin Win* driver is
- *    to enable hardware flow control for firmware 2.06 or greater and
- *    for 1.00 or prior.  I am only enabling for 2.06 or greater.
- *
- * 12-Oct-2000 William Greathouse
- *    First cut at supporting Belkin USB Serial Adapter F5U103
- *    I did not have a copy of the original work to support this
- *    adapter, so pardon any stupid mistakes.  All of the information
- *    I am using to write this driver was acquired by using a modified
- *    UsbSnoop on Windows2000 and from examining the other USB drivers.
  */
 
 #include <linux/kernel.h>
@@ -80,18 +37,12 @@
 #include <linux/usb/serial.h>
 #include "belkin_sa.h"
 
-static int debug;
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.3"
 #define DRIVER_AUTHOR "William Greathouse <wgreathouse@smva.com>"
 #define DRIVER_DESC "USB Belkin Serial converter driver"
 
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
-static int  belkin_sa_startup(struct usb_serial *serial);
-static void belkin_sa_release(struct usb_serial *serial);
+static int belkin_sa_port_probe(struct usb_serial_port *port);
+static int belkin_sa_port_remove(struct usb_serial_port *port);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void belkin_sa_close(struct usb_serial_port *port);
@@ -105,7 +56,7 @@ static int  belkin_sa_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
 
 
-static const struct usb_device_id id_table_combined[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(BELKIN_SA_VID, BELKIN_SA_PID) },
 	{ USB_DEVICE(BELKIN_OLD_VID, BELKIN_OLD_PID) },
 	{ USB_DEVICE(PERACOM_VID, PERACOM_PID) },
@@ -114,15 +65,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(BELKIN_DOCKSTATION_VID, BELKIN_DOCKSTATION_PID) },
 	{ }	/* Terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, id_table_combined);
-
-static struct usb_driver belkin_driver = {
-	.name =		"belkin",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table_combined,
-	.no_dynamic_id =	1,
-};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /* All of the device info needed for the serial converters */
 static struct usb_serial_driver belkin_device = {
@@ -131,8 +74,7 @@ static struct usb_serial_driver belkin_device = {
 		.name =		"belkin",
 	},
 	.description =		"Belkin / Peracom / GoHubs USB Serial Adapter",
-	.usb_driver =		&belkin_driver,
-	.id_table =		id_table_combined,
+	.id_table =		id_table,
 	.num_ports =		1,
 	.open =			belkin_sa_open,
 	.close =		belkin_sa_close,
@@ -142,8 +84,12 @@ static struct usb_serial_driver belkin_device = {
 	.break_ctl =		belkin_sa_break_ctl,
 	.tiocmget =		belkin_sa_tiocmget,
 	.tiocmset =		belkin_sa_tiocmset,
-	.attach =		belkin_sa_startup,
-	.release =		belkin_sa_release,
+	.port_probe =		belkin_sa_port_probe,
+	.port_remove =		belkin_sa_port_remove,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&belkin_device, NULL
 };
 
 struct belkin_sa_private {
@@ -168,17 +114,15 @@ struct belkin_sa_private {
 					    (c), BELKIN_SA_SET_REQUEST_TYPE, \
 					    (v), 0, NULL, 0, WDR_TIMEOUT)
 
-/* do some startup allocations not currently performed by usb_serial_probe() */
-static int belkin_sa_startup(struct usb_serial *serial)
+static int belkin_sa_port_probe(struct usb_serial_port *port)
 {
-	struct usb_device *dev = serial->dev;
+	struct usb_device *dev = port->serial->dev;
 	struct belkin_sa_private *priv;
 
-	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct belkin_sa_private), GFP_KERNEL);
 	if (!priv)
-		return -1; /* error */
-	/* set initial values for control structures */
+		return -ENOMEM;
+
 	spin_lock_init(&priv->lock);
 	priv->control_state = 0;
 	priv->last_lsr = 0;
@@ -190,28 +134,25 @@ static int belkin_sa_startup(struct usb_serial *serial)
 					le16_to_cpu(dev->descriptor.bcdDevice),
 					priv->bad_flow_control);
 
-	init_waitqueue_head(&serial->port[0]->write_wait);
-	usb_set_serial_port_data(serial->port[0], priv);
+	usb_set_serial_port_data(port, priv);
 
 	return 0;
 }
 
-static void belkin_sa_release(struct usb_serial *serial)
+static int belkin_sa_port_remove(struct usb_serial_port *port)
 {
-	int i;
+	struct belkin_sa_private *priv;
 
-	dbg("%s", __func__);
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
 
-	for (i = 0; i < serial->num_ports; ++i)
-		kfree(usb_get_serial_port_data(serial->port[i]));
+	return 0;
 }
 
 static int belkin_sa_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
 	int retval;
-
-	dbg("%s port %d", __func__, port->number);
 
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
@@ -228,8 +169,6 @@ static int belkin_sa_open(struct tty_struct *tty,
 
 static void belkin_sa_close(struct usb_serial_port *port)
 {
-	dbg("%s port %d", __func__, port->number);
-
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 }
@@ -251,17 +190,16 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-					urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	/* Handle known interrupt data */
 	/* ignore data[0] and data[1] */
@@ -304,7 +242,6 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	unsigned char status;
@@ -321,10 +258,6 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 	if (!urb->actual_length)
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	if (status & BELKIN_SA_LSR_ERR) {
 		/* Break takes precedence over parity, which takes precedence
 		 * over framing errors. */
@@ -338,13 +271,12 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 
 		/* Overrun is special, not associated with a char. */
 		if (status & BELKIN_SA_LSR_OE)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
 
-	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void belkin_sa_set_termios(struct tty_struct *tty,
@@ -361,7 +293,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;
@@ -444,7 +376,9 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 		case CS8:
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
-		default: dbg("CSIZE was not CS5-CS8, using default of 8");
+		default:
+			dev_dbg(&port->dev,
+				"CSIZE was not CS5-CS8, using default of 8\n");
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
 		}
@@ -504,8 +438,6 @@ static int belkin_sa_tiocmget(struct tty_struct *tty)
 	unsigned long control_state;
 	unsigned long flags;
 
-	dbg("%s", __func__);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -524,8 +456,6 @@ static int belkin_sa_tiocmset(struct tty_struct *tty,
 	int retval;
 	int rts = 0;
 	int dtr = 0;
-
-	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
@@ -565,39 +495,8 @@ exit:
 	return retval;
 }
 
-
-static int __init belkin_sa_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&belkin_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&belkin_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&belkin_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-static void __exit belkin_sa_exit (void)
-{
-	usb_deregister(&belkin_driver);
-	usb_serial_deregister(&belkin_device);
-}
-
-
-module_init(belkin_sa_init);
-module_exit(belkin_sa_exit);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

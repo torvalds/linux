@@ -21,7 +21,6 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 #include <linux/io.h>
 
@@ -35,10 +34,11 @@
 
 MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= versatile_map_io,
 	.init_early	= versatile_init_early,
 	.init_irq	= versatile_init_irq,
-	.timer		= &versatile_timer,
+	.init_time	= versatile_timer_init,
 	.init_machine	= versatile_init,
+	.restart	= versatile_restart,
 MACHINE_END

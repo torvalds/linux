@@ -1,7 +1,7 @@
 /*
  * OMAP44xx PRM instance offset macros
  *
- * Copyright (C) 2009-2010 Texas Instruments, Inc.
+ * Copyright (C) 2009-2011 Texas Instruments, Inc.
  * Copyright (C) 2009-2010 Nokia Corporation
  *
  * Paul Walmsley (paul@pwsan.com)
@@ -31,7 +31,7 @@
 #define OMAP4430_PRM_BASE		0x4a306000
 
 #define OMAP44XX_PRM_REGADDR(inst, reg)				\
-	OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE +	(inst) + (reg))
+	OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE + (inst) + (reg))
 
 
 /* PRM instances */
@@ -46,36 +46,24 @@
 #define OMAP4430_PRM_CAM_INST		0x1000
 #define OMAP4430_PRM_DSS_INST		0x1100
 #define OMAP4430_PRM_GFX_INST		0x1200
-#define OMAP4430_PRM_L3INIT_INST		0x1300
+#define OMAP4430_PRM_L3INIT_INST	0x1300
 #define OMAP4430_PRM_L4PER_INST		0x1400
-#define OMAP4430_PRM_CEFUSE_INST		0x1600
+#define OMAP4430_PRM_CEFUSE_INST	0x1600
 #define OMAP4430_PRM_WKUP_INST		0x1700
 #define OMAP4430_PRM_WKUP_CM_INST	0x1800
 #define OMAP4430_PRM_EMU_INST		0x1900
-#define OMAP4430_PRM_EMU_CM_INST		0x1a00
-#define OMAP4430_PRM_DEVICE_INST		0x1b00
+#define OMAP4430_PRM_EMU_CM_INST	0x1a00
+#define OMAP4430_PRM_DEVICE_INST	0x1b00
 #define OMAP4430_PRM_INSTR_INST		0x1f00
 
 /* PRM clockdomain register offsets (from instance start) */
-#define OMAP4430_PRM_MPU_MPU_CDOFFS		0x0000
-#define OMAP4430_PRM_TESLA_TESLA_CDOFFS		0x0000
-#define OMAP4430_PRM_ABE_ABE_CDOFFS		0x0000
-#define OMAP4430_PRM_CORE_CORE_CDOFFS		0x0000
-#define OMAP4430_PRM_IVAHD_IVAHD_CDOFFS		0x0000
-#define OMAP4430_PRM_CAM_CAM_CDOFFS		0x0000
-#define OMAP4430_PRM_DSS_DSS_CDOFFS		0x0000
-#define OMAP4430_PRM_GFX_GFX_CDOFFS		0x0000
-#define OMAP4430_PRM_L3INIT_L3INIT_CDOFFS	0x0000
-#define OMAP4430_PRM_L4PER_L4PER_CDOFFS		0x0000
-#define OMAP4430_PRM_CEFUSE_CEFUSE_CDOFFS	0x0000
 #define OMAP4430_PRM_WKUP_CM_WKUP_CDOFFS	0x0000
-#define OMAP4430_PRM_EMU_EMU_CDOFFS		0x0000
 #define OMAP4430_PRM_EMU_CM_EMU_CDOFFS		0x0000
 
 /* OMAP4 specific register offsets */
 #define OMAP4_RM_RSTCTRL				0x0000
-#define OMAP4_RM_RSTTIME				0x0004
-#define OMAP4_RM_RSTST					0x0008
+#define OMAP4_RM_RSTST					0x0004
+#define OMAP4_RM_RSTTIME				0x0008
 #define OMAP4_PM_PWSTCTRL				0x0000
 #define OMAP4_PM_PWSTST					0x0004
 
@@ -247,8 +235,8 @@
 #define OMAP4430_RM_MEMIF_DLL_H_CONTEXT			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_CORE_INST, 0x0464)
 #define OMAP4_RM_D2D_SAD2D_CONTEXT_OFFSET		0x0524
 #define OMAP4430_RM_D2D_SAD2D_CONTEXT			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_CORE_INST, 0x0524)
-#define OMAP4_RM_D2D_INSTEM_ICR_CONTEXT_OFFSET		0x052c
-#define OMAP4430_RM_D2D_INSTEM_ICR_CONTEXT		OMAP44XX_PRM_REGADDR(OMAP4430_PRM_CORE_INST, 0x052c)
+#define OMAP4_RM_D2D_MODEM_ICR_CONTEXT_OFFSET		0x052c
+#define OMAP4430_RM_D2D_MODEM_ICR_CONTEXT		OMAP44XX_PRM_REGADDR(OMAP4430_PRM_CORE_INST, 0x052c)
 #define OMAP4_RM_D2D_SAD2D_FW_CONTEXT_OFFSET		0x0534
 #define OMAP4430_RM_D2D_SAD2D_FW_CONTEXT		OMAP44XX_PRM_REGADDR(OMAP4430_PRM_CORE_INST, 0x0534)
 #define OMAP4_RM_L4CFG_L4_CFG_CONTEXT_OFFSET		0x0624
@@ -713,8 +701,8 @@
 #define OMAP4430_PRM_VC_VAL_BYPASS			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00a0)
 #define OMAP4_PRM_VC_CFG_CHANNEL_OFFSET			0x00a4
 #define OMAP4430_PRM_VC_CFG_CHANNEL			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00a4)
-#define OMAP4_PRM_VC_CFG_I2C_INSTE_OFFSET		0x00a8
-#define OMAP4430_PRM_VC_CFG_I2C_INSTE			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00a8)
+#define OMAP4_PRM_VC_CFG_I2C_MODE_OFFSET		0x00a8
+#define OMAP4430_PRM_VC_CFG_I2C_MODE			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00a8)
 #define OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET			0x00ac
 #define OMAP4430_PRM_VC_CFG_I2C_CLK			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00ac)
 #define OMAP4_PRM_SRAM_COUNT_OFFSET			0x00b0
@@ -751,8 +739,8 @@
 #define OMAP4430_PRM_PHASE2A_CNDP			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00ec)
 #define OMAP4_PRM_PHASE2B_CNDP_OFFSET			0x00f0
 #define OMAP4430_PRM_PHASE2B_CNDP			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00f0)
-#define OMAP4_PRM_INSTEM_IF_CTRL_OFFSET			0x00f4
-#define OMAP4430_PRM_INSTEM_IF_CTRL			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00f4)
+#define OMAP4_PRM_MODEM_IF_CTRL_OFFSET			0x00f4
+#define OMAP4430_PRM_MODEM_IF_CTRL			OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00f4)
 #define OMAP4_PRM_VC_ERRST_OFFSET			0x00f8
 #define OMAP4430_PRM_VC_ERRST				OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_INST, 0x00f8)
 
@@ -762,16 +750,29 @@
 extern u32 omap4_prm_read_inst_reg(s16 inst, u16 idx);
 extern void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 idx);
 extern u32 omap4_prm_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
-extern u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg);
-extern u32 omap4_prm_set_inst_reg_bits(u32 bits, s16 inst, s16 idx);
-extern u32 omap4_prm_clear_inst_reg_bits(u32 bits, s16 inst, s16 idx);
-extern u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask);
 
-extern int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
-extern int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
-extern int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
+/* OMAP4-specific VP functions */
+u32 omap4_prm_vp_check_txdone(u8 vp_id);
+void omap4_prm_vp_clear_txdone(u8 vp_id);
 
-extern void omap4_prm_global_warm_sw_reset(void);
+/*
+ * OMAP4 access functions for voltage controller (VC) and
+ * voltage proccessor (VP) in the PRM.
+ */
+extern u32 omap4_prm_vcvp_read(u8 offset);
+extern void omap4_prm_vcvp_write(u32 val, u8 offset);
+extern u32 omap4_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset);
+
+extern void omap44xx_prm_reconfigure_io_chain(void);
+
+/* PRM interrupt-related functions */
+extern void omap44xx_prm_read_pending_irqs(unsigned long *events);
+extern void omap44xx_prm_ocp_barrier(void);
+extern void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
+extern void omap44xx_prm_restore_irqen(u32 *saved_mask);
+
+extern int __init omap44xx_prm_init(void);
+extern u32 omap44xx_prm_get_reset_sources(void);
 
 # endif
 

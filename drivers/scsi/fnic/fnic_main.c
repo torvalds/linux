@@ -39,6 +39,7 @@
 #include "vnic_intr.h"
 #include "vnic_stats.h"
 #include "fnic_io.h"
+#include "fnic_fip.h"
 #include "fnic.h"
 
 #define PCI_DEVICE_ID_CISCO_FNIC	0x0045
@@ -68,6 +69,10 @@ unsigned int fnic_log_level;
 module_param(fnic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
+unsigned int fnic_trace_max_pages = 16;
+module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
+					"for fnic trace buffer");
 
 static struct libfc_function_template fnic_transport_template = {
 	.frame_send = fnic_send,
@@ -288,6 +293,13 @@ static void fnic_notify_timer(unsigned long data)
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
+static void fnic_fip_notify_timer(unsigned long data)
+{
+	struct fnic *fnic = (struct fnic *)data;
+
+	fnic_handle_fip_timer(fnic);
+}
+
 static void fnic_notify_timer_start(struct fnic *fnic)
 {
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
@@ -388,17 +400,6 @@ static void fnic_iounmap(struct fnic *fnic)
 		iounmap(fnic->bar0.vaddr);
 }
 
-/*
- * Allocate element for mempools requiring GFP_DMA flag.
- * Otherwise, checks in kmem_flagcheck() hit BUG_ON().
- */
-static void *fnic_alloc_slab_dma(gfp_t gfp_mask, void *pool_data)
-{
-	struct kmem_cache *mem = pool_data;
-
-	return kmem_cache_alloc(mem, gfp_mask | GFP_ATOMIC | GFP_DMA);
-}
-
 /**
  * fnic_get_mac() - get assigned data MAC address for FIP code.
  * @lport: 	local port.
@@ -410,8 +411,13 @@ static u8 *fnic_get_mac(struct fc_lport *lport)
 	return fnic->data_src_addr;
 }
 
-static int __devinit fnic_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static void fnic_set_vlan(struct fnic *fnic, u16 vlan_id)
+{
+	u16 old_vlan;
+	old_vlan = vnic_dev_set_default_vlan(fnic->vdev, vlan_id);
+}
+
+static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct Scsi_Host *host;
 	struct fc_lport *lp;
@@ -603,14 +609,12 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	if (!fnic->io_req_pool)
 		goto err_out_free_resources;
 
-	pool = mempool_create(2, fnic_alloc_slab_dma, mempool_free_slab,
-			      fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
+	pool = mempool_create_slab_pool(2, fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	if (!pool)
 		goto err_out_free_ioreq_pool;
 	fnic->io_sgl_pool[FNIC_SGL_CACHE_DFLT] = pool;
 
-	pool = mempool_create(2, fnic_alloc_slab_dma, mempool_free_slab,
-			      fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
+	pool = mempool_create_slab_pool(2, fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
 	if (!pool)
 		goto err_out_free_dflt_pool;
 	fnic->io_sgl_pool[FNIC_SGL_CACHE_MAX] = pool;
@@ -630,13 +634,38 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
 		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
+		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
+		setup_timer(&fnic->fip_timer, fnic_fip_notify_timer,
+							(unsigned long)fnic);
+		spin_lock_init(&fnic->vlans_lock);
+		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
+		INIT_WORK(&fnic->event_work, fnic_handle_event);
+		skb_queue_head_init(&fnic->fip_frame_queue);
+		spin_lock_irqsave(&fnic_list_lock, flags);
+		if (!fnic_fip_queue) {
+			fnic_fip_queue =
+				create_singlethread_workqueue("fnic_fip_q");
+			if (!fnic_fip_queue) {
+				spin_unlock_irqrestore(&fnic_list_lock, flags);
+				printk(KERN_ERR PFX "fnic FIP work queue "
+						 "create failed\n");
+				err = -ENOMEM;
+				goto err_out_free_max_pool;
+			}
+		}
+		spin_unlock_irqrestore(&fnic_list_lock, flags);
+		INIT_LIST_HEAD(&fnic->evlist);
+		INIT_LIST_HEAD(&fnic->vlans);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
 	}
 	fnic->state = FNIC_IN_FC_MODE;
+
+	atomic_set(&fnic->in_flight, 0);
+	fnic->state_flags = FNIC_FLAGS_NONE;
 
 	/* Enable hardware stripping of vlan header on ingress */
 	fnic_set_nic_config(fnic, 0, 0, 0, 0, 0, 0, 1);
@@ -787,7 +816,7 @@ err_out:
 	return err;
 }
 
-static void __devexit fnic_remove(struct pci_dev *pdev)
+static void fnic_remove(struct pci_dev *pdev)
 {
 	struct fnic *fnic = pci_get_drvdata(pdev);
 	struct fc_lport *lp = fnic->lport;
@@ -813,6 +842,13 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	flush_workqueue(fnic_event_queue);
 	skb_queue_purge(&fnic->frame_queue);
 	skb_queue_purge(&fnic->tx_queue);
+
+	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+		del_timer_sync(&fnic->fip_timer);
+		skb_queue_purge(&fnic->fip_frame_queue);
+		fnic_fcoe_reset_vlans(fnic);
+		fnic_fcoe_evlist_free(fnic);
+	}
 
 	/*
 	 * Log off the fabric. This stops all remote ports, dns port,
@@ -862,7 +898,7 @@ static struct pci_driver fnic_driver = {
 	.name = DRV_NAME,
 	.id_table = fnic_id_table,
 	.probe = fnic_probe,
-	.remove = __devexit_p(fnic_remove),
+	.remove = fnic_remove,
 };
 
 static int __init fnic_init_module(void)
@@ -872,11 +908,19 @@ static int __init fnic_init_module(void)
 
 	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
+	/* Allocate memory for trace buffer */
+	err = fnic_trace_buf_init();
+	if (err < 0) {
+		printk(KERN_ERR PFX "Trace buffer initialization Failed "
+				  "Fnic Tracing utility is disabled\n");
+		fnic_trace_free();
+	}
+
 	/* Create a cache for allocation of default size sgls */
 	len = sizeof(struct fnic_dflt_sgl_list);
 	fnic_sgl_cache[FNIC_SGL_CACHE_DFLT] = kmem_cache_create
 		("fnic_sgl_dflt", len + FNIC_SG_DESC_ALIGN, FNIC_SG_DESC_ALIGN,
-		 SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA,
+		 SLAB_HWCACHE_ALIGN,
 		 NULL);
 	if (!fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]) {
 		printk(KERN_ERR PFX "failed to create fnic dflt sgl slab\n");
@@ -888,8 +932,8 @@ static int __init fnic_init_module(void)
 	len = sizeof(struct fnic_sgl_list);
 	fnic_sgl_cache[FNIC_SGL_CACHE_MAX] = kmem_cache_create
 		("fnic_sgl_max", len + FNIC_SG_DESC_ALIGN, FNIC_SG_DESC_ALIGN,
-		 SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA,
-		 NULL);
+		  SLAB_HWCACHE_ALIGN,
+		  NULL);
 	if (!fnic_sgl_cache[FNIC_SGL_CACHE_MAX]) {
 		printk(KERN_ERR PFX "failed to create fnic max sgl slab\n");
 		err = -ENOMEM;
@@ -942,6 +986,7 @@ err_create_fnic_ioreq_slab:
 err_create_fnic_sgl_slab_max:
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 err_create_fnic_sgl_slab_dflt:
+	fnic_trace_free();
 	return err;
 }
 
@@ -949,10 +994,15 @@ static void __exit fnic_cleanup_module(void)
 {
 	pci_unregister_driver(&fnic_driver);
 	destroy_workqueue(fnic_event_queue);
+	if (fnic_fip_queue) {
+		flush_workqueue(fnic_fip_queue);
+		destroy_workqueue(fnic_fip_queue);
+	}
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	kmem_cache_destroy(fnic_io_req_cache);
 	fc_release_transport(fnic_fc_transport);
+	fnic_trace_free();
 }
 
 module_init(fnic_init_module);

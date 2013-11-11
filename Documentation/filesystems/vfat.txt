@@ -111,6 +111,15 @@ tz=UTC        -- Interpret timestamps as UTC rather than local time.
                  useful when mounting devices (like digital cameras)
                  that are set to UTC in order to avoid the pitfalls of
                  local time.
+time_offset=minutes
+	      -- Set offset for conversion of timestamps from local time
+		 used by FAT to UTC. I.e. <minutes> minutes will be subtracted
+		 from each timestamp to convert it to UTC used internally by
+		 Linux. This is useful when time zone set in sys_tz is
+		 not the time zone used by the filesystem. Note that this
+		 option still does not provide correct time stamps in all
+		 cases in presence of DST - time stamps in a different DST
+		 setting will be off by one hour.
 
 showexec      -- If set, the execute permission bits of the file will be
 		 allowed only if the extension part of the name is .EXE,
@@ -136,6 +145,33 @@ errors=panic|continue|remount-ro
 	      -- specify FAT behavior on critical errors: panic, continue
 		 without doing anything or remount the partition in
 		 read-only mode (default behavior).
+
+discard       -- If set, issues discard/TRIM commands to the block
+		 device when blocks are freed. This is useful for SSD devices
+		 and sparse/thinly-provisoned LUNs.
+
+nfs=stale_rw|nostale_ro
+		Enable this only if you want to export the FAT filesystem
+		over NFS.
+
+		stale_rw: This option maintains an index (cache) of directory
+		inodes by i_logstart which is used by the nfs-related code to
+		improve look-ups. Full file operations (read/write) over NFS is
+		supported but with cache eviction at NFS server, this could
+		result in ESTALE issues.
+
+		nostale_ro: This option bases the inode number and filehandle
+		on the on-disk location of a file in the MS-DOS directory entry.
+		This ensures that ESTALE will not be returned after a file is
+		evicted from the inode cache. However, it means that operations
+		such as rename, create and unlink could cause filehandles that
+		previously pointed at one file to point at a different file,
+		potentially causing data corruption. For this reason, this
+		option also mounts the filesystem readonly.
+
+		To maintain backward compatibility, '-o nfs' is also accepted,
+		defaulting to stale_rw
+
 
 <bool>: 0,1,yes,no,true,false
 

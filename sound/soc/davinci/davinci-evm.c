@@ -22,10 +22,6 @@
 #include <asm/dma.h>
 #include <asm/mach-types.h>
 
-#include <mach/asp.h>
-#include <mach/edma.h>
-#include <mach/mux.h>
-
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 #include "davinci-mcasp.h"
@@ -75,6 +71,11 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
+	/* set the CPU system clock */
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, sysclk, SND_SOC_CLOCK_OUT);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -115,9 +116,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Line Out", NULL, "RLOUT"},
 
 	/* Mic connected to (MIC3L | MIC3R) */
-	{"MIC3L", NULL, "Mic Bias 2V"},
-	{"MIC3R", NULL, "Mic Bias 2V"},
-	{"Mic Bias 2V", NULL, "Mic Jack"},
+	{"MIC3L", NULL, "Mic Bias"},
+	{"MIC3R", NULL, "Mic Bias"},
+	{"Mic Bias", NULL, "Mic Jack"},
 
 	/* Line In connected to (LINE1L | LINE2L), (LINE1R | LINE2R) */
 	{"LINE1L", NULL, "Line In"},
@@ -150,8 +151,6 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_enable_pin(dapm, "Line In");
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
@@ -162,7 +161,7 @@ static struct snd_soc_dai_link dm6446_evm_dai = {
 	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.codec_name = "tlv320aic3x-codec.1-001b",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcbsp",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 };
@@ -173,7 +172,7 @@ static struct snd_soc_dai_link dm355_evm_dai = {
 	.cpu_dai_name = "davinci-mcbsp.1",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.codec_name = "tlv320aic3x-codec.1-001b",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcbsp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 };
@@ -187,14 +186,15 @@ static struct snd_soc_dai_link dm365_evm_dai = {
 	.init = evm_aic3x_init,
 	.codec_name = "tlv320aic3x-codec.1-0018",
 	.ops = &evm_ops,
+	.platform_name = "davinci-mcbsp",
 #elif defined(CONFIG_SND_DM365_VOICE_CODEC)
 	.name = "Voice Codec - CQ93VC",
 	.stream_name = "CQ93",
 	.cpu_dai_name = "davinci-vcif",
 	.codec_dai_name = "cq93vc-hifi",
 	.codec_name = "cq93vc-codec",
+	.platform_name = "davinci-vcif",
 #endif
-	.platform_name = "davinci-pcm-audio",
 };
 
 static struct snd_soc_dai_link dm6467_evm_dai[] = {
@@ -203,7 +203,7 @@ static struct snd_soc_dai_link dm6467_evm_dai[] = {
 		.stream_name = "AIC3X",
 		.cpu_dai_name= "davinci-mcasp.0",
 		.codec_dai_name = "tlv320aic3x-hifi",
-		.platform_name ="davinci-pcm-audio",
+		.platform_name = "davinci-mcasp.0",
 		.codec_name = "tlv320aic3x-codec.0-001a",
 		.init = evm_aic3x_init,
 		.ops = &evm_ops,
@@ -214,7 +214,7 @@ static struct snd_soc_dai_link dm6467_evm_dai[] = {
 		.cpu_dai_name= "davinci-mcasp.1",
 		.codec_dai_name = "dit-hifi",
 		.codec_name = "spdif_dit",
-		.platform_name = "davinci-pcm-audio",
+		.platform_name = "davinci-mcasp.1",
 		.ops = &evm_spdif_ops,
 	},
 };
@@ -225,7 +225,7 @@ static struct snd_soc_dai_link da830_evm_dai = {
 	.cpu_dai_name = "davinci-mcasp.1",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcasp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 };
@@ -236,7 +236,7 @@ static struct snd_soc_dai_link da850_evm_dai = {
 	.cpu_dai_name= "davinci-mcasp.0",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcasp.0",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 };
@@ -244,6 +244,7 @@ static struct snd_soc_dai_link da850_evm_dai = {
 /* davinci dm6446 evm audio machine driver */
 static struct snd_soc_card dm6446_snd_soc_card_evm = {
 	.name = "DaVinci DM6446 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm6446_evm_dai,
 	.num_links = 1,
 };
@@ -251,6 +252,7 @@ static struct snd_soc_card dm6446_snd_soc_card_evm = {
 /* davinci dm355 evm audio machine driver */
 static struct snd_soc_card dm355_snd_soc_card_evm = {
 	.name = "DaVinci DM355 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm355_evm_dai,
 	.num_links = 1,
 };
@@ -258,6 +260,7 @@ static struct snd_soc_card dm355_snd_soc_card_evm = {
 /* davinci dm365 evm audio machine driver */
 static struct snd_soc_card dm365_snd_soc_card_evm = {
 	.name = "DaVinci DM365 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm365_evm_dai,
 	.num_links = 1,
 };
@@ -265,18 +268,21 @@ static struct snd_soc_card dm365_snd_soc_card_evm = {
 /* davinci dm6467 evm audio machine driver */
 static struct snd_soc_card dm6467_snd_soc_card_evm = {
 	.name = "DaVinci DM6467 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = dm6467_evm_dai,
 	.num_links = ARRAY_SIZE(dm6467_evm_dai),
 };
 
 static struct snd_soc_card da830_snd_soc_card = {
 	.name = "DA830/OMAP-L137 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &da830_evm_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_card da850_snd_soc_card = {
 	.name = "DA850/OMAP-L138 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &da850_evm_dai,
 	.num_links = 1,
 };

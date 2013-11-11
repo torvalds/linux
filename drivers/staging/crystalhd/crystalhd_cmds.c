@@ -24,8 +24,7 @@
  * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  **********************************************************************/
 
-#include "crystalhd_cmds.h"
-#include "crystalhd_hw.h"
+#include "crystalhd.h"
 
 static struct crystalhd_user *bc_cproc_get_uid(struct crystalhd_cmd *ctx)
 {
@@ -309,9 +308,9 @@ static enum BC_STATUS bc_cproc_download_fw(struct crystalhd_cmd *ctx,
 	sts = crystalhd_download_fw(ctx->adp, (uint8_t *)idata->add_cdata,
 				  idata->add_cdata_sz);
 
-	if (sts != BC_STS_SUCCESS) {
+	if (sts != BC_STS_SUCCESS)
 		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts);
-	} else
+	else
 		ctx->state |= BC_LINK_INIT;
 
 	return sts;
@@ -952,7 +951,7 @@ enum BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx, struct crystalhd_
  *
  * Called at the time of driver load.
  */
-enum BC_STATUS __devinit crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
+enum BC_STATUS crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
 				    struct crystalhd_adp *adp)
 {
 	int i = 0;
@@ -987,7 +986,7 @@ enum BC_STATUS __devinit crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
  *
  * Called at the time of driver un-load.
  */
-enum BC_STATUS __devexit crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx)
+enum BC_STATUS crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx)
 {
 	BCMLOG(BCMLOG_DBG, "Deleting Command context..\n");
 

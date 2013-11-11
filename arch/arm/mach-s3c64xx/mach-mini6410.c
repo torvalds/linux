@@ -29,21 +29,23 @@
 #include <asm/mach/map.h>
 
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
-#include <mach/regs-srom.h>
-#include <mach/s3c6410.h>
 
 #include <plat/adc.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <plat/regs-serial.h>
-#include <plat/ts.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
+#include <plat/samsung-time.h>
+
+#include "common.h"
+#include "regs-modem.h"
+#include "regs-srom.h"
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB)
@@ -83,21 +85,10 @@ static struct s3c2410_uartcfg mini6410_uartcfgs[] __initdata = {
 /* DM9000AEP 10/100 ethernet controller */
 
 static struct resource mini6410_dm9k_resource[] = {
-	[0] = {
-		.start	= S3C64XX_PA_XM0CSN1,
-		.end	= S3C64XX_PA_XM0CSN1 + 1,
-		.flags	= IORESOURCE_MEM
-	},
-	[1] = {
-		.start	= S3C64XX_PA_XM0CSN1 + 4,
-		.end	= S3C64XX_PA_XM0CSN1 + 5,
-		.flags	= IORESOURCE_MEM
-	},
-	[2] = {
-		.start	= S3C_EINT(7),
-		.end	= S3C_EINT(7),
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL
-	}
+	[0] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1, 2),
+	[1] = DEFINE_RES_MEM(S3C64XX_PA_XM0CSN1 + 4, 2),
+	[2] = DEFINE_RES_NAMED(S3C_EINT(7), 1, NULL, IORESOURCE_IRQ \
+					| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct dm9000_plat_data mini6410_dm9k_pdata = {
@@ -149,41 +140,59 @@ static struct s3c2410_platform_nand mini6410_nand_info = {
 	.sets		= mini6410_nand_sets,
 };
 
-static struct s3c_fb_pd_win mini6410_fb_win[] = {
-	{
-		.win_mode	= {	/* 4.3" 480x272 */
-			.left_margin	= 3,
-			.right_margin	= 2,
-			.upper_margin	= 1,
-			.lower_margin	= 1,
-			.hsync_len	= 40,
-			.vsync_len	= 1,
-			.xres		= 480,
-			.yres		= 272,
-		},
-		.max_bpp	= 32,
-		.default_bpp	= 16,
-	}, {
-		.win_mode	= {	/* 7.0" 800x480 */
-			.left_margin	= 8,
-			.right_margin	= 13,
-			.upper_margin	= 7,
-			.lower_margin	= 5,
-			.hsync_len	= 3,
-			.vsync_len	= 1,
-			.xres		= 800,
-			.yres		= 480,
-		},
-		.max_bpp	= 32,
-		.default_bpp	= 16,
-	},
+static struct s3c_fb_pd_win mini6410_lcd_type0_fb_win = {
+	.max_bpp	= 32,
+	.default_bpp	= 16,
+	.xres		= 480,
+	.yres		= 272,
 };
 
-static struct s3c_fb_platdata mini6410_lcd_pdata __initdata = {
-	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
-	.win[0]		= &mini6410_fb_win[0],
-	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
-	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+static struct fb_videomode mini6410_lcd_type0_timing = {
+	/* 4.3" 480x272 */
+	.left_margin	= 3,
+	.right_margin	= 2,
+	.upper_margin	= 1,
+	.lower_margin	= 1,
+	.hsync_len	= 40,
+	.vsync_len	= 1,
+	.xres		= 480,
+	.yres		= 272,
+};
+
+static struct s3c_fb_pd_win mini6410_lcd_type1_fb_win = {
+	.max_bpp	= 32,
+	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode mini6410_lcd_type1_timing = {
+	/* 7.0" 800x480 */
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct s3c_fb_platdata mini6410_lcd_pdata[] __initdata = {
+	{
+		.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+		.vtiming	= &mini6410_lcd_type0_timing,
+		.win[0]		= &mini6410_lcd_type0_fb_win,
+		.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+		.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	}, {
+		.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+		.vtiming	= &mini6410_lcd_type1_timing,
+		.win[0]		= &mini6410_lcd_type1_fb_win,
+		.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+		.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	},
+	{ },
 };
 
 static void mini6410_lcd_power_set(struct plat_lcd_data *pd,
@@ -205,12 +214,6 @@ static struct platform_device mini6410_lcd_powerdev = {
 	.dev.platform_data	= &mini6410_lcd_power_data,
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
-};
-
 static struct platform_device *mini6410_devices[] __initdata = {
 	&mini6410_device_eth,
 	&s3c_device_hsmmc0,
@@ -230,6 +233,7 @@ static void __init mini6410_map_io(void)
 	s3c64xx_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini6410_uartcfgs, ARRAY_SIZE(mini6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* set the LCD type */
 	tmp = __raw_readl(S3C64XX_SPCON);
@@ -287,7 +291,7 @@ static void mini6410_parse_features(
 					"screen type already set\n", f);
 			} else {
 				int li = f - '0';
-				if (li >= ARRAY_SIZE(mini6410_fb_win))
+				if (li >= ARRAY_SIZE(mini6410_lcd_pdata))
 					printk(KERN_INFO "MINI6410: '%c' out "
 						"of range LCD mode\n", f);
 				else {
@@ -311,15 +315,13 @@ static void __init mini6410_machine_init(void)
 	/* Parse the feature string */
 	mini6410_parse_features(&features, mini6410_features_str);
 
-	mini6410_lcd_pdata.win[0] = &mini6410_fb_win[features.lcd_index];
-
 	printk(KERN_INFO "MINI6410: selected LCD display is %dx%d\n",
-		mini6410_lcd_pdata.win[0]->win_mode.xres,
-		mini6410_lcd_pdata.win[0]->win_mode.yres);
+		mini6410_lcd_pdata[features.lcd_index].win[0]->xres,
+		mini6410_lcd_pdata[features.lcd_index].win[0]->yres);
 
 	s3c_nand_set_platdata(&mini6410_nand_info);
-	s3c_fb_set_platdata(&mini6410_lcd_pdata);
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c_fb_set_platdata(&mini6410_lcd_pdata[features.lcd_index]);
+	s3c24xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -349,9 +351,11 @@ static void __init mini6410_machine_init(void)
 
 MACHINE_START(MINI6410, "MINI6410")
 	/* Maintainer: Darius Augulis <augulis.darius@gmail.com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= mini6410_map_io,
 	.init_machine	= mini6410_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_late	= s3c64xx_init_late,
+	.init_time	= samsung_timer_init,
+	.restart	= s3c64xx_restart,
 MACHINE_END

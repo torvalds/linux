@@ -1,11 +1,10 @@
 /*
- * linux/drivers/s390/crypto/ap_bus.c
- *
- * Copyright (C) 2006 IBM Corporation
+ * Copyright IBM Corp. 2006, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
  *	      Felix Beck <felix.beck@de.ibm.com>
+ *	      Holger Dengler <hd@linux.vnet.ibm.com>
  *
  * Adjunct processor bus.
  *
@@ -40,11 +39,11 @@
 #include <linux/mutex.h>
 #include <asm/reset.h>
 #include <asm/airq.h>
-#include <asm/atomic.h>
-#include <asm/system.h>
+#include <linux/atomic.h>
 #include <asm/isc.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
+#include <asm/facility.h>
 
 #include "ap_bus.h"
 
@@ -63,13 +62,14 @@ static void ap_interrupt_handler(void *unused1, void *unused2);
 static void ap_reset(struct ap_device *ap_dev);
 static void ap_config_timeout(unsigned long ptr);
 static int ap_select_domain(void);
+static void ap_query_configuration(void);
 
 /*
  * Module description.
  */
 MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("Adjunct Processor Bus driver, "
-		   "Copyright 2006 IBM Corporation");
+MODULE_DESCRIPTION("Adjunct Processor Bus driver, " \
+		   "Copyright IBM Corp. 2006, 2012");
 MODULE_LICENSE("GPL");
 
 /*
@@ -85,6 +85,7 @@ module_param_named(poll_thread, ap_thread_flag, int, 0000);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device = NULL;
+static struct ap_config_info *ap_configuration;
 static DEFINE_SPINLOCK(ap_device_list_lock);
 static LIST_HEAD(ap_device_list);
 
@@ -159,6 +160,19 @@ static int ap_interrupts_available(void)
 }
 
 /**
+ * ap_configuration_available(): Test if AP configuration
+ * information is available.
+ *
+ * Returns 1 if AP configuration information is available.
+ */
+#ifdef CONFIG_64BIT
+static int ap_configuration_available(void)
+{
+	return test_facility(2) && test_facility(12);
+}
+#endif
+
+/**
  * ap_test_queue(): Test adjunct processor queue.
  * @qid: The AP queue number
  * @queue_depth: Pointer to queue depth value
@@ -214,7 +228,7 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 	register struct ap_queue_status reg1_out asm ("1");
 	register void *reg2 asm ("2") = ind;
 	asm volatile(
-		".long 0xb2af0000"		/* PQAP(RAPQ) */
+		".long 0xb2af0000"		/* PQAP(AQIC) */
 		: "+d" (reg0), "+d" (reg1_in), "=d" (reg1_out), "+d" (reg2)
 		:
 		: "cc" );
@@ -222,47 +236,72 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 }
 #endif
 
-static inline struct ap_queue_status __ap_4096_commands_available(ap_qid_t qid,
-								  int *support)
+#ifdef CONFIG_64BIT
+static inline struct ap_queue_status
+__ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
 	register unsigned long reg0 asm ("0") = 0UL | qid | (1UL << 23);
-	register struct ap_queue_status reg1 asm ("1");
-	register unsigned long reg2 asm ("2") = 0UL;
+	register struct ap_queue_status reg1 asm ("1") = AP_QUEUE_STATUS_INVALID;
+	register unsigned long reg2 asm ("2");
 
 	asm volatile(
-		".long 0xb2af0000\n"
-		"0: la    %1,0\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (reg0), "=d" (reg1), "=d" (reg2)
+		".long 0xb2af0000\n"		/* PQAP(TAPQ) */
+		"0:\n"
+		EX_TABLE(0b, 0b)
+		: "+d" (reg0), "+d" (reg1), "=d" (reg2)
 		:
 		: "cc");
 
-	if (reg2 & 0x6000000000000000ULL)
-		*support = 1;
-	else
-		*support = 0;
+	*functions = (unsigned int)(reg2 >> 32);
+	return reg1;
+}
+#endif
+
+#ifdef CONFIG_64BIT
+static inline int __ap_query_configuration(struct ap_config_info *config)
+{
+	register unsigned long reg0 asm ("0") = 0x04000000UL;
+	register unsigned long reg1 asm ("1") = -EINVAL;
+	register unsigned char *reg2 asm ("2") = (unsigned char *)config;
+
+	asm volatile(
+		".long 0xb2af0000\n"		/* PQAP(QCI) */
+		"0: la    %1,0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (reg0), "+d" (reg1), "+d" (reg2)
+		:
+		: "cc");
 
 	return reg1;
 }
+#endif
 
 /**
- * ap_4096_commands_availablen(): Check for availability of 4096 bit RSA
- * support.
+ * ap_query_functions(): Query supported functions.
  * @qid: The AP queue number
+ * @functions: Pointer to functions field.
  *
- * Returns 1 if 4096 bit RSA keys are support fo the AP, returns 0 if not.
+ * Returns
+ *   0	     on success.
+ *   -ENODEV  if queue not valid.
+ *   -EBUSY   if device busy.
+ *   -EINVAL  if query function is not supported
  */
-int ap_4096_commands_available(ap_qid_t qid)
+static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 {
+#ifdef CONFIG_64BIT
 	struct ap_queue_status status;
-	int i, support = 0;
-	status = __ap_4096_commands_available(qid, &support);
+	int i;
+	status = __ap_query_functions(qid, functions);
 
 	for (i = 0; i < AP_MAX_RESET; i++) {
+		if (ap_queue_status_invalid_test(&status))
+			return -ENODEV;
+
 		switch (status.response_code) {
 		case AP_RESPONSE_NORMAL:
-			return support;
+			return 0;
 		case AP_RESPONSE_RESET_IN_PROGRESS:
 		case AP_RESPONSE_BUSY:
 			break;
@@ -270,7 +309,7 @@ int ap_4096_commands_available(ap_qid_t qid)
 		case AP_RESPONSE_DECONFIGURED:
 		case AP_RESPONSE_CHECKSTOPPED:
 		case AP_RESPONSE_INVALID_ADDRESS:
-			return 0;
+			return -ENODEV;
 		case AP_RESPONSE_OTHERWISE_CHANGED:
 			break;
 		default:
@@ -278,12 +317,14 @@ int ap_4096_commands_available(ap_qid_t qid)
 		}
 		if (i < AP_MAX_RESET - 1) {
 			udelay(5);
-			status = __ap_4096_commands_available(qid, &support);
+			status = __ap_query_functions(qid, functions);
 		}
 	}
-	return support;
+	return -EBUSY;
+#else
+	return -EINVAL;
+#endif
 }
-EXPORT_SYMBOL(ap_4096_commands_available);
 
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP.
@@ -311,6 +352,12 @@ static int ap_queue_enable_interruption(ap_qid_t qid, void *ind)
 			break;
 		case AP_RESPONSE_RESET_IN_PROGRESS:
 		case AP_RESPONSE_BUSY:
+			if (i < AP_MAX_RESET - 1) {
+				udelay(5);
+				status = ap_queue_interruption_control(qid,
+								       ind);
+				continue;
+			}
 			break;
 		case AP_RESPONSE_Q_NOT_AVAIL:
 		case AP_RESPONSE_DECONFIGURED:
@@ -364,7 +411,7 @@ __ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
 		reg0 |= 0x400000UL;
 
 	asm volatile (
-		"0: .long 0xb2ad0042\n"		/* DQAP */
+		"0: .long 0xb2ad0042\n"		/* NQAP */
 		"   brc   2,0b"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2), "+d" (reg3)
 		: "d" (reg4), "d" (reg5), "m" (*(msgblock *) msg)
@@ -423,7 +470,7 @@ __ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
 
 
 	asm volatile(
-		"0: .long 0xb2ae0064\n"
+		"0: .long 0xb2ae0064\n"		/* DQAP */
 		"   brc   6,0b\n"
 		: "+d" (reg0), "=d" (reg1), "+d" (reg2),
 		"+d" (reg4), "+d" (reg5), "+d" (reg6), "+d" (reg7),
@@ -626,6 +673,34 @@ static ssize_t ap_request_count_show(struct device *dev,
 
 static DEVICE_ATTR(request_count, 0444, ap_request_count_show, NULL);
 
+static ssize_t ap_requestq_count_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	int rc;
+
+	spin_lock_bh(&ap_dev->lock);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->requestq_count);
+	spin_unlock_bh(&ap_dev->lock);
+	return rc;
+}
+
+static DEVICE_ATTR(requestq_count, 0444, ap_requestq_count_show, NULL);
+
+static ssize_t ap_pendingq_count_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	int rc;
+
+	spin_lock_bh(&ap_dev->lock);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->pendingq_count);
+	spin_unlock_bh(&ap_dev->lock);
+	return rc;
+}
+
+static DEVICE_ATTR(pendingq_count, 0444, ap_pendingq_count_show, NULL);
+
 static ssize_t ap_modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -634,11 +709,23 @@ static ssize_t ap_modalias_show(struct device *dev,
 
 static DEVICE_ATTR(modalias, 0444, ap_modalias_show, NULL);
 
+static ssize_t ap_functions_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	return snprintf(buf, PAGE_SIZE, "0x%08X\n", ap_dev->functions);
+}
+
+static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
+
 static struct attribute *ap_dev_attrs[] = {
 	&dev_attr_hwtype.attr,
 	&dev_attr_depth.attr,
 	&dev_attr_request_count.attr,
+	&dev_attr_requestq_count.attr,
+	&dev_attr_pendingq_count.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_ap_functions.attr,
 	NULL
 };
 static struct attribute_group ap_dev_attr_group = {
@@ -741,6 +828,7 @@ static int ap_bus_resume(struct device *dev)
 		ap_suspend_flag = 0;
 		if (!ap_interrupts_available())
 			ap_interrupt_indicator = NULL;
+		ap_query_configuration();
 		if (!user_set_domain) {
 			ap_domain_index = -1;
 			ap_select_domain();
@@ -809,12 +897,12 @@ static void __ap_flush_queue(struct ap_device *ap_dev)
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->pendingq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->pendingq_count--;
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 	}
 	list_for_each_entry_safe(ap_msg, next, &ap_dev->requestq, list) {
 		list_del_init(&ap_msg->list);
 		ap_dev->requestq_count--;
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 	}
 }
 
@@ -863,6 +951,16 @@ void ap_driver_unregister(struct ap_driver *ap_drv)
 	driver_unregister(&ap_drv->driver);
 }
 EXPORT_SYMBOL(ap_driver_unregister);
+
+void ap_bus_force_rescan(void)
+{
+	/* reconfigure the AP bus rescan timer. */
+	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
+	/* processing a asynchronous bus rescan */
+	queue_work(ap_work_queue, &ap_config_work);
+	flush_work(&ap_config_work);
+}
+EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
  * AP bus attributes.
@@ -966,6 +1064,65 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	NULL,
 };
 
+static inline int ap_test_config(unsigned int *field, unsigned int nr)
+{
+	if (nr > 0xFFu)
+		return 0;
+	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
+}
+
+/*
+ * ap_test_config_card_id(): Test, whether an AP card ID is configured.
+ * @id AP card ID
+ *
+ * Returns 0 if the card is not configured
+ *	   1 if the card is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_card_id(unsigned int id)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->apm, id);
+}
+
+/*
+ * ap_test_config_domain(): Test, whether an AP usage domain is configured.
+ * @domain AP usage domain ID
+ *
+ * Returns 0 if the usage domain is not configured
+ *	   1 if the usage domain is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_domain(unsigned int domain)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->aqm, domain);
+}
+
+/**
+ * ap_query_configuration(): Query AP configuration information.
+ *
+ * Query information of installed cards and configured domains from AP.
+ */
+static void ap_query_configuration(void)
+{
+#ifdef CONFIG_64BIT
+	if (ap_configuration_available()) {
+		if (!ap_configuration)
+			ap_configuration =
+				kzalloc(sizeof(struct ap_config_info),
+					GFP_KERNEL);
+		if (ap_configuration)
+			__ap_query_configuration(ap_configuration);
+	} else
+		ap_configuration = NULL;
+#else
+	ap_configuration = NULL;
+#endif
+}
+
 /**
  * ap_select_domain(): Select an AP domain.
  *
@@ -974,6 +1131,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 static int ap_select_domain(void)
 {
 	int queue_depth, device_type, count, max_count, best_domain;
+	ap_qid_t qid;
 	int rc, i, j;
 
 	/*
@@ -987,9 +1145,13 @@ static int ap_select_domain(void)
 	best_domain = -1;
 	max_count = 0;
 	for (i = 0; i < AP_DOMAINS; i++) {
+		if (!ap_test_config_domain(i))
+			continue;
 		count = 0;
 		for (j = 0; j < AP_DEVICES; j++) {
-			ap_qid_t qid = AP_MKQID(j, i);
+			if (!ap_test_config_card_id(j))
+				continue;
+			qid = AP_MKQID(j, i);
 			rc = ap_query_queue(qid, &queue_depth, &device_type);
 			if (rc)
 				continue;
@@ -1106,7 +1268,7 @@ out:
 
 static void ap_interrupt_handler(void *unused1, void *unused2)
 {
-	kstat_cpu(smp_processor_id()).irqs[IOINT_APB]++;
+	inc_irq_stat(IRQIO_APB);
 	tasklet_schedule(&ap_tasklet);
 }
 
@@ -1135,16 +1297,22 @@ static void ap_scan_bus(struct work_struct *unused)
 	struct device *dev;
 	ap_qid_t qid;
 	int queue_depth, device_type;
+	unsigned int device_functions;
 	int rc, i;
 
-	if (ap_select_domain() != 0)
+	ap_query_configuration();
+	if (ap_select_domain() != 0) {
 		return;
+	}
 	for (i = 0; i < AP_DEVICES; i++) {
 		qid = AP_MKQID(i, ap_domain_index);
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
-		rc = ap_query_queue(qid, &queue_depth, &device_type);
+		if (ap_test_config_card_id(i))
+			rc = ap_query_queue(qid, &queue_depth, &device_type);
+		else
+			rc = -ENODEV;
 		if (dev) {
 			if (rc == -EBUSY) {
 				set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1183,14 +1351,23 @@ static void ap_scan_bus(struct work_struct *unused)
 		INIT_LIST_HEAD(&ap_dev->list);
 		setup_timer(&ap_dev->timeout, ap_request_timeout,
 			    (unsigned long) ap_dev);
-		if (device_type == 0) {
+		switch (device_type) {
+		case 0:
+			/* device type probing for old cards */
 			if (ap_probe_device_type(ap_dev)) {
 				kfree(ap_dev);
 				continue;
 			}
-		}
-		else
+			break;
+		default:
 			ap_dev->device_type = device_type;
+		}
+
+		rc = ap_query_functions(qid, &device_functions);
+		if (!rc)
+			ap_dev->functions = device_functions;
+		else
+			ap_dev->functions = 0u;
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
@@ -1227,18 +1404,16 @@ ap_config_timeout(unsigned long ptr)
 }
 
 /**
- * ap_schedule_poll_timer(): Schedule poll timer.
+ * __ap_schedule_poll_timer(): Schedule poll timer.
  *
  * Set up the timer to run the poll tasklet
  */
-static inline void ap_schedule_poll_timer(void)
+static inline void __ap_schedule_poll_timer(void)
 {
 	ktime_t hr_time;
 
 	spin_lock_bh(&ap_poll_timer_lock);
-	if (ap_using_interrupts() || ap_suspend_flag)
-		goto out;
-	if (hrtimer_is_queued(&ap_poll_timer))
+	if (hrtimer_is_queued(&ap_poll_timer) || ap_suspend_flag)
 		goto out;
 	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
 		hr_time = ktime_set(0, poll_timeout);
@@ -1247,6 +1422,18 @@ static inline void ap_schedule_poll_timer(void)
 	}
 out:
 	spin_unlock_bh(&ap_poll_timer_lock);
+}
+
+/**
+ * ap_schedule_poll_timer(): Schedule poll timer.
+ *
+ * Set up the timer to run the poll tasklet
+ */
+static inline void ap_schedule_poll_timer(void)
+{
+	if (ap_using_interrupts())
+		return;
+	__ap_schedule_poll_timer();
 }
 
 /**
@@ -1275,7 +1462,7 @@ static int ap_poll_read(struct ap_device *ap_dev, unsigned long *flags)
 				continue;
 			list_del_init(&ap_msg->list);
 			ap_dev->pendingq_count--;
-			ap_dev->drv->receive(ap_dev, ap_msg, ap_dev->reply);
+			ap_msg->receive(ap_dev, ap_msg, ap_dev->reply);
 			break;
 		}
 		if (ap_dev->queue_count > 0)
@@ -1330,8 +1517,9 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 			*flags |= 1;
 		*flags |= 2;
 		break;
-	case AP_RESPONSE_Q_FULL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
+		__ap_schedule_poll_timer();
+	case AP_RESPONSE_Q_FULL:
 		*flags |= 2;
 		break;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
@@ -1395,10 +1583,10 @@ static int __ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_ms
 			return -EBUSY;
 		case AP_RESPONSE_REQ_FAC_NOT_INST:
 		case AP_RESPONSE_MESSAGE_TOO_BIG:
-			ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
+			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-EINVAL));
 			return -EINVAL;
 		default:	/* Device is gone. */
-			ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+			ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 			return -ENODEV;
 		}
 	} else {
@@ -1416,6 +1604,10 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 	unsigned long flags;
 	int rc;
 
+	/* For asynchronous message handling a valid receive-callback
+	 * is required. */
+	BUG_ON(!ap_msg->receive);
+
 	spin_lock_bh(&ap_dev->lock);
 	if (!ap_dev->unregistered) {
 		/* Make room on the queue by polling for finished requests. */
@@ -1427,7 +1619,7 @@ void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg)
 		if (rc == -ENODEV)
 			ap_dev->unregistered = 1;
 	} else {
-		ap_dev->drv->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
+		ap_msg->receive(ap_dev, ap_msg, ERR_PTR(-ENODEV));
 		rc = -ENODEV;
 	}
 	spin_unlock_bh(&ap_dev->lock);
@@ -1497,6 +1689,8 @@ static void ap_reset(struct ap_device *ap_dev)
 	rc = ap_init_queue(ap_dev->qid);
 	if (rc == -ENODEV)
 		ap_dev->unregistered = 1;
+	else
+		__ap_schedule_poll_timer();
 }
 
 static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags)
@@ -1720,6 +1914,7 @@ int __init ap_module_init(void)
 		goto out_root;
 	}
 
+	ap_query_configuration();
 	if (ap_select_domain() == 0)
 		ap_scan_bus(NULL);
 
@@ -1805,7 +2000,5 @@ void ap_module_exit(void)
 	}
 }
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 module_init(ap_module_init);
 module_exit(ap_module_exit);
-#endif

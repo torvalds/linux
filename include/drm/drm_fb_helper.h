@@ -35,7 +35,6 @@ struct drm_fb_helper;
 #include <linux/kgdb.h>
 
 struct drm_fb_helper_crtc {
-	uint32_t crtc_id;
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
 };
@@ -49,6 +48,19 @@ struct drm_fb_helper_surface_size {
 	u32 surface_depth;
 };
 
+/**
+ * struct drm_fb_helper_funcs - driver callbacks for the fbdev emulation library
+ * @gamma_set: Set the given gamma lut register on the given crtc.
+ * @gamma_get: Read the given gamma lut register on the given crtc, used to
+ *             save the current lut when force-restoring the fbdev for e.g.
+ *             kdbg.
+ * @fb_probe: Driver callback to allocate and initialize the fbdev info
+ *            structure. Futhermore it also needs to allocate the drm
+ *            framebuffer used to back the fbdev.
+ * @initial_config: Setup an initial fbdev display configuration
+ *
+ * Driver callbacks used by the fbdev emulation helper library.
+ */
 struct drm_fb_helper_funcs {
 	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
 			  u16 blue, int regno);
@@ -57,6 +69,10 @@ struct drm_fb_helper_funcs {
 
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
+	bool (*initial_config)(struct drm_fb_helper *fb_helper,
+			       struct drm_fb_helper_crtc **crtcs,
+			       struct drm_display_mode **modes,
+			       bool *enabled, int width, int height);
 };
 
 struct drm_fb_helper_connector {
@@ -66,15 +82,12 @@ struct drm_fb_helper_connector {
 
 struct drm_fb_helper {
 	struct drm_framebuffer *fb;
-	struct drm_framebuffer *saved_fb;
 	struct drm_device *dev;
-	struct drm_display_mode *mode;
 	int crtc_count;
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
 	struct drm_fb_helper_connector **connector_info;
 	struct drm_fb_helper_funcs *funcs;
-	int conn_limit;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;
@@ -83,9 +96,6 @@ struct drm_fb_helper {
 	   delay until next set_par */
 	bool delayed_hotplug;
 };
-
-int drm_fb_helper_single_fb_probe(struct drm_fb_helper *helper,
-				  int preferred_bpp);
 
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *helper, int crtc_count,
@@ -97,15 +107,8 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info);
-int drm_fb_helper_setcolreg(unsigned regno,
-			    unsigned red,
-			    unsigned green,
-			    unsigned blue,
-			    unsigned transp,
-			    struct fb_info *info);
 
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_restore(void);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,

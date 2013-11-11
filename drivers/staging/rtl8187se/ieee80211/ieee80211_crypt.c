@@ -11,13 +11,14 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 //#include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/string.h>
-#include <asm/errno.h>
+#include <linux/string.h>
+#include <linux/errno.h>
 
 #include "ieee80211.h"
 
@@ -67,8 +68,7 @@ void ieee80211_crypt_deinit_handler(unsigned long data)
 	spin_lock_irqsave(&ieee->lock, flags);
 	ieee80211_crypt_deinit_entries(ieee, 0);
 	if (!list_empty(&ieee->crypt_deinit_list)) {
-		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
-		       "deletion list\n", ieee->dev->name);
+		pr_debug("entries remaining in delayed crypt deletion list\n");
 		ieee->crypt_deinit_timer.expires = jiffies + HZ;
 		add_timer(&ieee->crypt_deinit_timer);
 	}
@@ -119,8 +119,7 @@ int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops)
 	list_add(&alg->list, &hcrypt->algs);
 	spin_unlock_irqrestore(&hcrypt->lock, flags);
 
-	printk(KERN_DEBUG "ieee80211_crypt: registered algorithm '%s'\n",
-	       ops->name);
+	pr_debug("registered algorithm '%s'\n", ops->name);
 
 	return 0;
 }
@@ -147,8 +146,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	spin_unlock_irqrestore(&hcrypt->lock, flags);
 
 	if (del_alg) {
-		printk(KERN_DEBUG "ieee80211_crypt: unregistered algorithm "
-		       "'%s'\n", ops->name);
+		pr_debug("unregistered algorithm '%s'\n", ops->name);
 		kfree(del_alg);
 	}
 
@@ -156,7 +154,7 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 }
 
 
-struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name)
+struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -183,7 +181,7 @@ struct ieee80211_crypto_ops * ieee80211_get_crypto_ops(const char *name)
 }
 
 
-static void * ieee80211_crypt_null_init(int keyidx) { return (void *) 1; }
+static void *ieee80211_crypt_null_init(int keyidx) { return (void *) 1; }
 static void ieee80211_crypt_null_deinit(void *priv) {}
 
 static struct ieee80211_crypto_ops ieee80211_crypt_null = {
@@ -235,9 +233,8 @@ void ieee80211_crypto_deinit(void)
 		alg = list_entry(ptr, struct ieee80211_crypto_alg, list);
 		if (alg) {
 			list_del(ptr);
-			printk(KERN_DEBUG
-			       "ieee80211_crypt: unregistered algorithm '%s' (deinit)\n",
-			       alg->ops->name);
+			pr_debug("unregistered algorithm '%s' (deinit)\n",
+				 alg->ops->name);
 			kfree(alg);
 		}
 	}

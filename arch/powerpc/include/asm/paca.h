@@ -43,6 +43,7 @@ extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 #define get_slb_shadow()	(get_paca()->slb_shadow_ptr)
 
 struct task_struct;
+struct opal_machine_check_event;
 
 /*
  * Defines the layout of the paca.
@@ -92,22 +93,23 @@ struct paca_struct {
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
 	/* used for most interrupts/exceptions */
-	u64 exgen[11] __attribute__((aligned(0x80)));
-	u64 exmc[11];		/* used for machine checks */
-	u64 exslb[11];		/* used for SLB/segment table misses
+	u64 exgen[12] __attribute__((aligned(0x80)));
+	u64 exmc[12];		/* used for machine checks */
+	u64 exslb[12];		/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
 	u16 slb_cache_ptr;
-	u16 slb_cache[SLB_CACHE_ENTRIES];
+	u32 slb_cache[SLB_CACHE_ENTRIES];
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
-	pgd_t *pgd;			/* Current PGD */
-	pgd_t *kernel_pgd;		/* Kernel PGD */
 	u64 exgen[8] __attribute__((aligned(0x80)));
+	/* Keep pgd in the same cacheline as the start of extlb */
+	pgd_t *pgd __attribute__((aligned(0x80))); /* Current PGD */
+	pgd_t *kernel_pgd;		/* Kernel PGD */
 	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
-	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)] __attribute__((aligned(0x80)));
+	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
@@ -130,9 +132,21 @@ struct paca_struct {
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 soft_enabled;		/* irq soft-enable flag */
-	u8 hard_enabled;		/* set if irqs are enabled in MSR */
+	u8 irq_happened;		/* irq happened while soft-disabled */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
+	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
+	u64 sprg3;			/* Saved user-visible sprg */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64 tm_scratch;                 /* TM scratch area for reclaim */
+#endif
+
+#ifdef CONFIG_PPC_POWERNV
+	/* Pointer to OPAL machine check event structure set by the
+	 * early exception handler for use by high level C handler
+	 */
+	struct opal_machine_check_event *opal_mc_evt;
+#endif
 
 	/* Stuff for accurate time accounting */
 	u64 user_time;			/* accumulated usermode TB ticks */
@@ -147,13 +161,15 @@ struct paca_struct {
 	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
+#ifdef CONFIG_KVM_BOOK3S_PR
 	/* We use this to store guest state in */
 	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
+#endif
+	struct kvmppc_host_state kvm_hstate;
 #endif
 };
 
 extern struct paca_struct *paca;
-extern __initdata struct paca_struct boot_paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);
 extern void allocate_pacas(void);

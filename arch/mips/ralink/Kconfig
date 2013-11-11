@@ -1,0 +1,55 @@
+if RALINK
+
+choice
+	prompt "Ralink SoC selection"
+	default SOC_RT305X
+	help
+	  Select Ralink MIPS SoC type.
+
+	config SOC_RT288X
+		bool "RT288x"
+
+	config SOC_RT305X
+		bool "RT305x"
+		select USB_ARCH_HAS_HCD
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
+
+	config SOC_RT3883
+		bool "RT3883"
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
+
+	config SOC_MT7620
+		bool "MT7620"
+
+endchoice
+
+choice
+	prompt "Devicetree selection"
+	default DTB_RT_NONE
+	help
+	  Select the devicetree.
+
+	config DTB_RT_NONE
+		bool "None"
+
+	config DTB_RT2880_EVAL
+		bool "RT2880 eval kit"
+		depends on SOC_RT288X
+
+	config DTB_RT305X_EVAL
+		bool "RT305x eval kit"
+		depends on SOC_RT305X
+
+	config DTB_RT3883_EVAL
+		bool "RT3883 eval kit"
+		depends on SOC_RT3883
+
+	config DTB_MT7620A_EVAL
+		bool "MT7620A eval kit"
+		depends on SOC_MT7620
+
+endchoice
+
+endif

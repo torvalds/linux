@@ -24,11 +24,11 @@
 #include <linux/rtc.h>
 #include <linux/vt_kern.h>
 #include <linux/bcd.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/rtc.h>
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -40,7 +40,7 @@ extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
 extern void q40_sched_init(irq_handler_t handler);
 
-static unsigned long q40_gettimeoffset(void);
+static u32 q40_gettimeoffset(void);
 static int q40_hwclk(int, struct rtc_time *);
 static unsigned int q40_get_ss(void);
 static int q40_set_clock_mmss(unsigned long);
@@ -170,7 +170,7 @@ void __init config_q40(void)
 	mach_sched_init = q40_sched_init;
 
 	mach_init_IRQ = q40_init_IRQ;
-	mach_gettimeoffset = q40_gettimeoffset;
+	arch_gettimeoffset = q40_gettimeoffset;
 	mach_hwclk = q40_hwclk;
 	mach_get_ss = q40_get_ss;
 	mach_get_rtc_pll = q40_get_rtc_pll;
@@ -204,9 +204,9 @@ int q40_parse_bootinfo(const struct bi_record *rec)
 }
 
 
-static unsigned long q40_gettimeoffset(void)
+static u32 q40_gettimeoffset(void)
 {
-	return 5000 * (ql_ticks != 0);
+	return 5000 * (ql_ticks != 0) * 1000;
 }
 
 
@@ -329,3 +329,15 @@ static int q40_set_rtc_pll(struct rtc_pll_info *pll)
 	} else
 		return -EINVAL;
 }
+
+static __init int q40_add_kbd_device(void)
+{
+	struct platform_device *pdev;
+
+	if (!MACH_IS_Q40)
+		return -ENODEV;
+
+	pdev = platform_device_register_simple("q40kbd", -1, NULL, 0);
+	return PTR_RET(pdev);
+}
+arch_initcall(q40_add_kbd_device);

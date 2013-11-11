@@ -5,10 +5,12 @@
 
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
+#include <linux/sched.h>
 
 #include <asm/kdebug.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
+#include <asm/cacheflush.h>
 
 extern unsigned long trapbase;
 

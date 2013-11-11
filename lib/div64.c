@@ -16,7 +16,8 @@
  * assembly versions such as arch/ppc/lib/div64.S and arch/sh/lib/div64.S.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/math64.h>
 
 /* Not needed on 64bit architectures */
@@ -86,7 +87,7 @@ EXPORT_SYMBOL(div_s64_rem);
  * by the book 'Hacker's Delight'.  The original source and full proof
  * can be found here and is available for use without restriction.
  *
- * 'http://www.hackersdelight.org/HDcode/newCode/divDouble.c'
+ * 'http://www.hackersdelight.org/HDcode/newCode/divDouble.c.txt'
  */
 #ifndef div64_u64
 u64 div64_u64(u64 dividend, u64 divisor)

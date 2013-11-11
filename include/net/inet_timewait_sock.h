@@ -18,7 +18,6 @@
 
 #include <linux/kmemcheck.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -28,7 +27,7 @@
 #include <net/tcp_states.h>
 #include <net/timewait_sock.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct inet_hashinfo;
 
@@ -113,6 +112,11 @@ struct inet_timewait_sock {
 #define tw_net			__tw_common.skc_net
 #define tw_daddr        	__tw_common.skc_daddr
 #define tw_rcv_saddr    	__tw_common.skc_rcv_saddr
+#define tw_addrpair		__tw_common.skc_addrpair
+#define tw_dport		__tw_common.skc_dport
+#define tw_num			__tw_common.skc_num
+#define tw_portpair		__tw_common.skc_portpair
+
 	int			tw_timeout;
 	volatile unsigned char	tw_substate;
 	unsigned char		tw_rcv_wscale;
@@ -120,19 +124,19 @@ struct inet_timewait_sock {
 	/* Socket demultiplex comparisons on incoming packets. */
 	/* these three are in inet_sock */
 	__be16			tw_sport;
-	__be16			tw_dport;
-	__u16			tw_num;
 	kmemcheck_bitfield_begin(flags);
 	/* And these are ours. */
 	unsigned int		tw_ipv6only     : 1,
 				tw_transparent  : 1,
-				tw_pad		: 14,	/* 14 bits hole */
+				tw_pad		: 6,	/* 6 bits hole */
+				tw_tos		: 8,
 				tw_ipv6_offset  : 16;
 	kmemcheck_bitfield_end(flags);
 	unsigned long		tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
 	struct hlist_node	tw_death_node;
 };
+#define tw_tclass tw_tos
 
 static inline void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
 				      struct hlist_nulls_head *list)
@@ -174,11 +178,11 @@ static inline int inet_twsk_del_dead_node(struct inet_timewait_sock *tw)
 #define inet_twsk_for_each(tw, node, head) \
 	hlist_nulls_for_each_entry(tw, node, head, tw_node)
 
-#define inet_twsk_for_each_inmate(tw, node, jail) \
-	hlist_for_each_entry(tw, node, jail, tw_death_node)
+#define inet_twsk_for_each_inmate(tw, jail) \
+	hlist_for_each_entry(tw, jail, tw_death_node)
 
-#define inet_twsk_for_each_inmate_safe(tw, node, safe, jail) \
-	hlist_for_each_entry_safe(tw, node, safe, jail, tw_death_node)
+#define inet_twsk_for_each_inmate_safe(tw, safe, jail) \
+	hlist_for_each_entry_safe(tw, safe, jail, tw_death_node)
 
 static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 {
@@ -217,20 +221,12 @@ extern void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 static inline
 struct net *twsk_net(const struct inet_timewait_sock *twsk)
 {
-#ifdef CONFIG_NET_NS
-	return rcu_dereference_raw(twsk->tw_net); /* protected by locking, */
-						  /* reference counting, */
-						  /* initialization, or RCU. */
-#else
-	return &init_net;
-#endif
+	return read_pnet(&twsk->tw_net);
 }
 
 static inline
 void twsk_net_set(struct inet_timewait_sock *twsk, struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	rcu_assign_pointer(twsk->tw_net, net);
-#endif
+	write_pnet(&twsk->tw_net, net);
 }
 #endif	/* _INET_TIMEWAIT_SOCK_ */

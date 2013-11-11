@@ -20,6 +20,16 @@
 #ifndef __POWERPC_KVM_ASM_H__
 #define __POWERPC_KVM_ASM_H__
 
+#ifdef __ASSEMBLY__
+#ifdef CONFIG_64BIT
+#define PPC_STD(sreg, offset, areg)  std sreg, (offset)(areg)
+#define PPC_LD(treg, offset, areg)   ld treg, (offset)(areg)
+#else
+#define PPC_STD(sreg, offset, areg)  stw sreg, (offset+4)(areg)
+#define PPC_LD(treg, offset, areg)   lwz treg, (offset+4)(areg)
+#endif
+#endif
+
 /* IVPR must be 64KiB-aligned. */
 #define VCPU_SIZE_ORDER 4
 #define VCPU_SIZE_LOG   (VCPU_SIZE_ORDER + 12)
@@ -44,10 +54,26 @@
 #define BOOKE_INTERRUPT_DEBUG 15
 
 /* E500 */
-#define BOOKE_INTERRUPT_SPE_UNAVAIL 32
-#define BOOKE_INTERRUPT_SPE_FP_DATA 33
+#define BOOKE_INTERRUPT_SPE_ALTIVEC_UNAVAIL 32
+#define BOOKE_INTERRUPT_SPE_FP_DATA_ALTIVEC_ASSIST 33
+/*
+ * TODO: Unify 32-bit and 64-bit kernel exception handlers to use same defines
+ */
+#define BOOKE_INTERRUPT_SPE_UNAVAIL BOOKE_INTERRUPT_SPE_ALTIVEC_UNAVAIL
+#define BOOKE_INTERRUPT_SPE_FP_DATA BOOKE_INTERRUPT_SPE_FP_DATA_ALTIVEC_ASSIST
+#define BOOKE_INTERRUPT_ALTIVEC_UNAVAIL BOOKE_INTERRUPT_SPE_ALTIVEC_UNAVAIL
+#define BOOKE_INTERRUPT_ALTIVEC_ASSIST \
+				BOOKE_INTERRUPT_SPE_FP_DATA_ALTIVEC_ASSIST
 #define BOOKE_INTERRUPT_SPE_FP_ROUND 34
 #define BOOKE_INTERRUPT_PERFORMANCE_MONITOR 35
+#define BOOKE_INTERRUPT_DOORBELL 36
+#define BOOKE_INTERRUPT_DOORBELL_CRITICAL 37
+
+/* booke_hv */
+#define BOOKE_INTERRUPT_GUEST_DBELL 38
+#define BOOKE_INTERRUPT_GUEST_DBELL_CRIT 39
+#define BOOKE_INTERRUPT_HV_SYSCALL 40
+#define BOOKE_INTERRUPT_HV_PRIV 41
 
 /* book3s */
 
@@ -64,8 +90,12 @@
 #define BOOK3S_INTERRUPT_PROGRAM	0x700
 #define BOOK3S_INTERRUPT_FP_UNAVAIL	0x800
 #define BOOK3S_INTERRUPT_DECREMENTER	0x900
+#define BOOK3S_INTERRUPT_HV_DECREMENTER	0x980
 #define BOOK3S_INTERRUPT_SYSCALL	0xc00
 #define BOOK3S_INTERRUPT_TRACE		0xd00
+#define BOOK3S_INTERRUPT_H_DATA_STORAGE	0xe00
+#define BOOK3S_INTERRUPT_H_INST_STORAGE	0xe20
+#define BOOK3S_INTERRUPT_H_EMUL_ASSIST	0xe40
 #define BOOK3S_INTERRUPT_PERFMON	0xf00
 #define BOOK3S_INTERRUPT_ALTIVEC	0xf20
 #define BOOK3S_INTERRUPT_VSX		0xf40
@@ -96,6 +126,7 @@
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */
+#define RESUME_FLAG_ARCH1	(1<<2)
 
 #define RESUME_GUEST            0
 #define RESUME_GUEST_NV         RESUME_FLAG_NV

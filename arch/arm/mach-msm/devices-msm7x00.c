@@ -27,7 +27,38 @@
 
 #include "clock.h"
 #include "clock-pcom.h"
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-msm_sdcc.h>
+
+static struct resource msm_gpio_resources[] = {
+	{
+		.start	= 32 + 0,
+		.end	= 32 + 0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 32 + 1,
+		.end	= 32 + 1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 0xa9200800,
+		.end	= 0xa9200800 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio1"
+	},
+	{
+		.start	= 0xa9300C00,
+		.end	= 0xa9300C00 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio2"
+	},
+};
+
+struct platform_device msm_device_gpio_7201 = {
+	.name	= "gpio-msm-7201",
+	.num_resources	= ARRAY_SIZE(msm_gpio_resources),
+	.resource	= msm_gpio_resources,
+};
 
 static struct resource resources_uart1[] = {
 	{
@@ -176,12 +207,6 @@ static struct resource resources_sdc1[] = {
 		.name	= "cmd_irq",
 	},
 	{
-		.start	= INT_SDC1_1,
-		.end	= INT_SDC1_1,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "pio_irq",
-	},
-	{
 		.flags	= IORESOURCE_IRQ | IORESOURCE_DISABLED,
 		.name	= "status_irq"
 	},
@@ -203,12 +228,6 @@ static struct resource resources_sdc2[] = {
 		.end	= INT_SDC2_0,
 		.flags	= IORESOURCE_IRQ,
 		.name	= "cmd_irq",
-	},
-		{
-		.start	= INT_SDC2_1,
-		.end	= INT_SDC2_1,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "pio_irq",
 	},
 	{
 		.flags	= IORESOURCE_IRQ | IORESOURCE_DISABLED,
@@ -233,12 +252,6 @@ static struct resource resources_sdc3[] = {
 		.flags	= IORESOURCE_IRQ,
 		.name	= "cmd_irq",
 	},
-		{
-		.start	= INT_SDC3_1,
-		.end	= INT_SDC3_1,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "pio_irq",
-	},
 	{
 		.flags	= IORESOURCE_IRQ | IORESOURCE_DISABLED,
 		.name	= "status_irq"
@@ -261,12 +274,6 @@ static struct resource resources_sdc4[] = {
 		.end	= INT_SDC4_0,
 		.flags	= IORESOURCE_IRQ,
 		.name	= "cmd_irq",
-	},
-		{
-		.start	= INT_SDC4_1,
-		.end	= INT_SDC4_1,
-		.flags	= IORESOURCE_IRQ,
-		.name	= "pio_irq",
 	},
 	{
 		.flags	= IORESOURCE_IRQ | IORESOURCE_DISABLED,

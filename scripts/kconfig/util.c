@@ -5,6 +5,8 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include "lkc.h"
 
@@ -21,7 +23,7 @@ struct file *file_lookup(const char *name)
 		}
 	}
 
-	file = malloc(sizeof(*file));
+	file = xmalloc(sizeof(*file));
 	memset(file, 0, sizeof(*file));
 	file->name = file_name;
 	file->next = file_list;
@@ -79,7 +81,7 @@ int file_write_dep(const char *name)
 struct gstr str_new(void)
 {
 	struct gstr gs;
-	gs.s = malloc(sizeof(char) * 64);
+	gs.s = xmalloc(sizeof(char) * 64);
 	gs.len = 64;
 	gs.max_width = 0;
 	strcpy(gs.s, "\0");
@@ -135,4 +137,23 @@ const char *str_get(struct gstr *gs)
 {
 	return gs->s;
 }
+
+void *xmalloc(size_t size)
+{
+	void *p = malloc(size);
+	if (p)
+		return p;
+	fprintf(stderr, "Out of memory.\n");
+	exit(1);
+}
+
+void *xcalloc(size_t nmemb, size_t size)
+{
+	void *p = calloc(nmemb, size);
+	if (p)
+		return p;
+	fprintf(stderr, "Out of memory.\n");
+	exit(1);
+}
+
 

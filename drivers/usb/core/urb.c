@@ -214,9 +214,25 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * urb->interval is modified to reflect the actual transfer period used
  * (normally some power of two units).  And for isochronous urbs,
  * urb->start_frame is modified to reflect when the URB's transfers were
- * scheduled to start.  Not all isochronous transfer scheduling policies
- * will work, but most host controller drivers should easily handle ISO
- * queues going from now until 10-200 msec into the future.
+ * scheduled to start.
+ *
+ * Not all isochronous transfer scheduling policies will work, but most
+ * host controller drivers should easily handle ISO queues going from now
+ * until 10-200 msec into the future.  Drivers should try to keep at
+ * least one or two msec of data in the queue; many controllers require
+ * that new transfers start at least 1 msec in the future when they are
+ * added.  If the driver is unable to keep up and the queue empties out,
+ * the behavior for new submissions is governed by the URB_ISO_ASAP flag.
+ * If the flag is set, or if the queue is idle, then the URB is always
+ * assigned to the first available (and not yet expired) slot in the
+ * endpoint's schedule.  If the flag is not set and the queue is active
+ * then the URB is always assigned to the next slot in the schedule
+ * following the end of the endpoint's previous URB, even if that slot is
+ * in the past.  When a packet is assigned in this way to a slot that has
+ * already expired, the packet is not transmitted and the corresponding
+ * usb_iso_packet_descriptor's status field will return -EXDEV.  If this
+ * would happen to all the packets in the URB, submission fails with a
+ * -EXDEV error code.
  *
  * For control endpoints, the synchronous usb_control_msg() call is
  * often used (in non-interrupt context) instead of this call.
@@ -305,8 +321,13 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	struct usb_host_endpoint	*ep;
 	int				is_out;
 
-	if (!urb || urb->hcpriv || !urb->complete)
+	if (!urb || !urb->complete)
 		return -EINVAL;
+	if (urb->hcpriv) {
+		WARN_ONCE(1, "URB %p submitted while active\n", urb);
+		return -EBUSY;
+	}
+
 	dev = urb->dev;
 	if ((!dev) || (dev->state < USB_STATE_UNAUTHENTICATED))
 		return -ENODEV;
@@ -350,7 +371,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			dev->state < USB_STATE_CONFIGURED)
 		return -ENODEV;
 
-	max = le16_to_cpu(ep->desc.wMaxPacketSize);
+	max = usb_endpoint_maxp(&ep->desc);
 	if (max <= 0) {
 		dev_dbg(&dev->dev,
 			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
@@ -403,20 +424,17 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * cause problems in HCDs if they get it wrong.
 	 */
 	{
-	unsigned int	orig_flags = urb->transfer_flags;
 	unsigned int	allowed;
 	static int pipetypes[4] = {
 		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
 	};
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype]) {
-		dev_err(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
-		return -EPIPE;		/* The most suitable error code :-) */
-	}
 
-	/* enforce simple/standard policy */
+	/* Check against a simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |
 			URB_FREE_BUFFER);
 	switch (xfertype) {
@@ -435,14 +453,12 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		allowed |= URB_ISO_ASAP;
 		break;
 	}
-	urb->transfer_flags &= allowed;
+	allowed &= urb->transfer_flags;
 
-	/* fail if submitter gave bogus flags */
-	if (urb->transfer_flags != orig_flags) {
-		dev_err(&dev->dev, "BOGUS urb flags, %x --> %x\n",
-			orig_flags, urb->transfer_flags);
-		return -EINVAL;
-	}
+	/* warn if submitter gave bogus flags */
+	if (allowed != urb->transfer_flags)
+		dev_WARN(&dev->dev, "BOGUS urb flags, %x --> %x\n",
+			urb->transfer_flags, allowed);
 	}
 #endif
 	/*
@@ -532,14 +548,21 @@ EXPORT_SYMBOL_GPL(usb_submit_urb);
  * a driver's I/O routines to insure that all URB-related activity has
  * completed before it returns.
  *
- * This request is always asynchronous.  Success is indicated by
- * returning -EINPROGRESS, at which time the URB will probably not yet
- * have been given back to the device driver.  When it is eventually
- * called, the completion function will see @urb->status == -ECONNRESET.
+ * This request is asynchronous, however the HCD might call the ->complete()
+ * callback during unlink. Therefore when drivers call usb_unlink_urb(), they
+ * must not hold any locks that may be taken by the completion function.
+ * Success is indicated by returning -EINPROGRESS, at which time the URB will
+ * probably not yet have been given back to the device driver. When it is
+ * eventually called, the completion function will see @urb->status ==
+ * -ECONNRESET.
  * Failure is indicated by usb_unlink_urb() returning any other value.
  * Unlinking will fail when @urb is not currently "linked" (i.e., it was
  * never submitted, or it was unlinked before, or the hardware is already
  * finished with it), even if the completion handler has not yet run.
+ *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
  *
  * Unlinking and Endpoint Queues:
  *
@@ -605,6 +628,10 @@ EXPORT_SYMBOL_GPL(usb_unlink_urb);
  * with error -EPERM.  Thus even if the URB's completion handler always
  * tries to resubmit, it will not succeed and the URB will become idle.
  *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ *
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
@@ -642,6 +669,10 @@ EXPORT_SYMBOL_GPL(usb_kill_urb);
  * with error -EPERM.  Thus even if the URB's completion handler always
  * tries to resubmit, it will not succeed and the URB will become idle.
  *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ *
  * This routine may not be used in an interrupt context (such as a bottom
  * half or a completion handler), or when holding a spinlock, or in other
  * situations where the caller can't schedule().
@@ -652,9 +683,12 @@ EXPORT_SYMBOL_GPL(usb_kill_urb);
 void usb_poison_urb(struct urb *urb)
 {
 	might_sleep();
-	if (!(urb && urb->dev && urb->ep))
+	if (!urb)
 		return;
 	atomic_inc(&urb->reject);
+
+	if (!urb->dev || !urb->ep)
+		return;
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
@@ -669,6 +703,27 @@ void usb_unpoison_urb(struct urb *urb)
 	atomic_dec(&urb->reject);
 }
 EXPORT_SYMBOL_GPL(usb_unpoison_urb);
+
+/**
+ * usb_block_urb - reliably prevent further use of an URB
+ * @urb: pointer to URB to be blocked, may be NULL
+ *
+ * After the routine has run, attempts to resubmit the URB will fail
+ * with error -EPERM.  Thus even if the URB's completion handler always
+ * tries to resubmit, it will not succeed and the URB will become idle.
+ *
+ * The URB must not be deallocated while this routine is running.  In
+ * particular, when a driver calls this routine, it must insure that the
+ * completion handler cannot deallocate the URB.
+ */
+void usb_block_urb(struct urb *urb)
+{
+	if (!urb)
+		return;
+
+	atomic_inc(&urb->reject);
+}
+EXPORT_SYMBOL_GPL(usb_block_urb);
 
 /**
  * usb_kill_anchored_urbs - cancel transfer requests en masse

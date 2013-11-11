@@ -51,21 +51,25 @@ $(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
 
 targets += piggy.o
 OBJCOPYFLAGS_piggy.o := --add-section=.image=$(obj)/vmlinux.bin.z \
-                        --set-section-flags=.image=contents,alloc,load,readonly,data
+			--set-section-flags=.image=contents,alloc,load,readonly,data
 $(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
 	$(call if_changed,objcopy)
 
 # Calculate the load address of the compressed kernel image
 hostprogs-y := calc_vmlinuz_load_addr
 
+ifeq ($(CONFIG_MACH_JZ4740),y)
+VMLINUZ_LOAD_ADDRESS := 0x80600000
+else
 VMLINUZ_LOAD_ADDRESS = $(shell $(obj)/calc_vmlinuz_load_addr \
 		$(obj)/vmlinux.bin $(VMLINUX_LOAD_ADDRESS))
+endif
 
 vmlinuzobjs-y += $(obj)/piggy.o
 
-quiet_cmd_zld = LD      $@
+quiet_cmd_zld = LD	$@
       cmd_zld = $(LD) $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
-quiet_cmd_strip = STRIP   $@
+quiet_cmd_strip = STRIP	  $@
       cmd_strip = $(STRIP) -s $@
 vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
 	$(call cmd,zld)
@@ -92,7 +96,7 @@ quiet_cmd_32 = OBJCOPY $@
 vmlinuz.32: vmlinuz
 	$(call cmd,32)
 
-quiet_cmd_ecoff = ECOFF   $@
+quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $< $(VMLINUZ) $@ $(e2eflag)
 vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
 	$(call cmd,ecoff)

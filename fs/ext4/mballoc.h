@@ -37,11 +37,11 @@
 /*
  */
 #ifdef CONFIG_EXT4_DEBUG
-extern u8 mb_enable_debug;
+extern ushort ext4_mballoc_debug;
 
 #define mb_debug(n, fmt, a...)	                                        \
 	do {								\
-		if ((n) <= mb_enable_debug) {		        	\
+		if ((n) <= ext4_mballoc_debug) {		        \
 			printk(KERN_DEBUG "(%s, %d): %s: ",		\
 			       __FILE__, __LINE__, __func__);		\
 			printk(fmt, ## a);				\
@@ -63,11 +63,6 @@ extern u8 mb_enable_debug;
  * How long mballoc must look for a best extent
  */
 #define MB_DEFAULT_MIN_TO_SCAN		10
-
-/*
- * How many groups mballoc will scan looking for the best chunk
- */
-#define MB_DEFAULT_MAX_GROUPS_TO_SCAN	5
 
 /*
  * with 'ext4_mb_stats' allocator will collect stats that will be
@@ -96,21 +91,23 @@ extern u8 mb_enable_debug;
 
 
 struct ext4_free_data {
-	/* this links the free block information from group_info */
-	struct rb_node node;
+	/* MUST be the first member */
+	struct ext4_journal_cb_entry	efd_jce;
 
-	/* this links the free block information from ext4_sb_info */
-	struct list_head list;
+	/* ext4_free_data private data starts from here */
+
+	/* this links the free block information from group_info */
+	struct rb_node			efd_node;
 
 	/* group which free block extent belongs */
-	ext4_group_t group;
+	ext4_group_t			efd_group;
 
 	/* free block extent */
-	ext4_grpblk_t start_blk;
-	ext4_grpblk_t count;
+	ext4_grpblk_t			efd_start_cluster;
+	ext4_grpblk_t			efd_count;
 
 	/* transaction which freed this extent */
-	tid_t	t_tid;
+	tid_t				efd_tid;
 };
 
 struct ext4_prealloc_space {
@@ -139,9 +136,9 @@ enum {
 
 struct ext4_free_extent {
 	ext4_lblk_t fe_logical;
-	ext4_grpblk_t fe_start;
+	ext4_grpblk_t fe_start;	/* In cluster units */
 	ext4_group_t fe_group;
-	ext4_grpblk_t fe_len;
+	ext4_grpblk_t fe_len;	/* In cluster units */
 };
 
 /*
@@ -175,7 +172,7 @@ struct ext4_allocation_context {
 	/* the best found extent */
 	struct ext4_free_extent ac_b_ex;
 
-	/* copy of the bext found extent taken before preallocation efforts */
+	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
 	/* number of iterations done. we have to track to limit searching */
@@ -187,7 +184,6 @@ struct ext4_allocation_context {
 	__u16 ac_flags;		/* allocation hints */
 	__u8 ac_status;
 	__u8 ac_criteria;
-	__u8 ac_repeats;
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and
 				 * N > 0, the field stores N, otherwise 0 */
 	__u8 ac_op;		/* operation, for history only */
@@ -211,12 +207,11 @@ struct ext4_buddy {
 	__u16 bd_blkbits;
 	ext4_group_t bd_group;
 };
-#define EXT4_MB_BITMAP(e4b)	((e4b)->bd_bitmap)
-#define EXT4_MB_BUDDY(e4b)	((e4b)->bd_buddy)
 
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	return ext4_group_first_block_no(sb, fex->fe_group) + fex->fe_start;
+	return ext4_group_first_block_no(sb, fex->fe_group) +
+		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
 #endif

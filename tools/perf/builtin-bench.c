@@ -33,7 +33,19 @@ struct bench_suite {
 };
 						\
 /* sentinel: easy for help */
-#define suite_all { "all", "test all suite (pseudo suite)", NULL }
+#define suite_all { "all", "Test all benchmark suites", NULL }
+
+#ifdef LIBNUMA_SUPPORT
+static struct bench_suite numa_suites[] = {
+	{ "mem",
+	  "Benchmark for NUMA workloads",
+	  bench_numa },
+	suite_all,
+	{ NULL,
+	  NULL,
+	  NULL                  }
+};
+#endif
 
 static struct bench_suite sched_suites[] = {
 	{ "messaging",
@@ -52,6 +64,9 @@ static struct bench_suite mem_suites[] = {
 	{ "memcpy",
 	  "Simple memory copy in various ways",
 	  bench_mem_memcpy },
+	{ "memset",
+	  "Simple memory set in various ways",
+	  bench_mem_memset },
 	suite_all,
 	{ NULL,
 	  NULL,
@@ -65,6 +80,11 @@ struct bench_subsys {
 };
 
 static struct bench_subsys subsystems[] = {
+#ifdef LIBNUMA_SUPPORT
+	{ "numa",
+	  "NUMA scheduling and MM behavior",
+	  numa_suites },
+#endif
 	{ "sched",
 	  "scheduler and IPC mechanism",
 	  sched_suites },
@@ -72,7 +92,7 @@ static struct bench_subsys subsystems[] = {
 	  "memory access performance",
 	  mem_suites },
 	{ "all",		/* sentinel: easy for help */
-	  "test all subsystem (pseudo subsystem)",
+	  "all benchmark subsystem",
 	  NULL },
 	{ NULL,
 	  NULL,
@@ -156,6 +176,7 @@ static void all_suite(struct bench_subsys *subsys)	  /* FROM HERE */
 		printf("# Running %s/%s benchmark...\n",
 		       subsys->name,
 		       suites[i].name);
+		fflush(stdout);
 
 		argv[1] = suites[i].name;
 		suites[i].fn(1, argv, NULL);
@@ -170,7 +191,7 @@ static void all_subsystem(void)
 		all_suite(&subsystems[i]);
 }
 
-int cmd_bench(int argc, const char **argv, const char *prefix __used)
+int cmd_bench(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	int i, j, status = 0;
 
@@ -222,6 +243,7 @@ int cmd_bench(int argc, const char **argv, const char *prefix __used)
 				printf("# Running %s/%s benchmark...\n",
 				       subsystems[i].name,
 				       subsystems[i].suites[j].name);
+			fflush(stdout);
 			status = subsystems[i].suites[j].fn(argc - 1,
 							    argv + 1, prefix);
 			goto end;

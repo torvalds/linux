@@ -30,7 +30,6 @@
 #include <asm/sections.h>
 
 #include <asm/mach-ar7/ar7.h>
-#include <asm/mips-boards/prom.h>
 
 static int __init memsize(void)
 {

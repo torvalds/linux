@@ -36,7 +36,8 @@ struct pti_masterchannel {
 
 /* the following functions are defined in misc/pti.c */
 void pti_writedata(struct pti_masterchannel *mc, u8 *buf, int count);
-struct pti_masterchannel *pti_request_masterchannel(u8 type);
+struct pti_masterchannel *pti_request_masterchannel(u8 type,
+						    const char *thread_name);
 void pti_release_masterchannel(struct pti_masterchannel *mc);
 
 #endif /*PTI_H_*/

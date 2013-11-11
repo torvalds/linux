@@ -38,6 +38,30 @@
 #define R7XX_MAX_PIPES             8
 #define R7XX_MAX_PIPES_MASK        0xff
 
+/* discrete uvd clocks */
+#define CG_UPLL_FUNC_CNTL				0x718
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_REF_DIV(x)				((x) << 16)
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x71c
+#	define UPLL_SW_HILEN(x)				((x) << 0)
+#	define UPLL_SW_LOLEN(x)				((x) << 4)
+#	define UPLL_SW_HILEN2(x)			((x) << 8)
+#	define UPLL_SW_LOLEN2(x)			((x) << 12)
+#	define UPLL_SW_MASK				0x0000FFFF
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define CG_UPLL_FUNC_CNTL_3				0x720
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+
 /* Registers */
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044
@@ -106,10 +130,21 @@
 #define		BACKEND_MAP(x)					((x) << 16)
 
 #define GB_TILING_CONFIG				0x98F0
+#define     PIPE_TILING__SHIFT              1
+#define     PIPE_TILING__MASK               0x0000000e
+
+#define DMA_TILING_CONFIG                               0x3ec8
+#define DMA_TILING_CONFIG2                              0xd0b8
+
+/* RV730 only */
+#define UVD_UDEC_TILING_CONFIG                          0xef40
+#define UVD_UDEC_DB_TILING_CONFIG                       0xef44
+#define UVD_UDEC_DBW_TILING_CONFIG                      0xef48
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
 #define		INACTIVE_QD_PIPES_MASK				0x0000FF00
+#define		INACTIVE_QD_PIPES_SHIFT			    8
 #define		INACTIVE_SIMDS(x)				((x) << 16)
 #define		INACTIVE_SIMDS_MASK				0x00FF0000
 
@@ -121,6 +156,10 @@
 #define		CMDFIFO_AVAIL_MASK				0x0000000F
 #define		GUI_ACTIVE					(1<<31)
 #define	GRBM_STATUS2					0x8014
+
+#define CG_CLKPIN_CNTL                                    0x660
+#       define MUX_TCLK_TO_XCLK                           (1 << 8)
+#       define XTALIN_DIVIDE                              (1 << 9)
 
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
@@ -174,6 +213,7 @@
 #define	MC_VM_MD_L1_TLB0_CNTL				0x2654
 #define	MC_VM_MD_L1_TLB1_CNTL				0x2658
 #define	MC_VM_MD_L1_TLB2_CNTL				0x265C
+#define	MC_VM_MD_L1_TLB3_CNTL				0x2698
 #define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
 #define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
 #define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
@@ -207,6 +247,7 @@
 #define	SCRATCH_UMSK					0x8540
 #define	SCRATCH_ADDR					0x8544
 
+#define	SMX_SAR_CTL0					0xA008
 #define	SMX_DC_CTL0					0xA020
 #define		USE_HASH_FUNCTION				(1 << 0)
 #define		CACHE_DEPTH(x)					((x) << 1)
@@ -306,6 +347,8 @@
 #define	TCP_CNTL					0x9610
 #define	TCP_CHAN_STEER					0x9614
 
+#define	VC_ENHANCE					0x9714
+
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
 #define			VC_ONLY						0
@@ -351,7 +394,266 @@
 
 #define	WAIT_UNTIL					0x8040
 
+/* async DMA */
+#define DMA_RB_RPTR                                       0xd008
+#define DMA_RB_WPTR                                       0xd00c
+
+/* async DMA packets */
+#define DMA_PACKET(cmd, t, s, n)	((((cmd) & 0xF) << 28) |	\
+					 (((t) & 0x1) << 23) |		\
+					 (((s) & 0x1) << 22) |		\
+					 (((n) & 0xFFFF) << 0))
+/* async DMA Packet types */
+#define	DMA_PACKET_WRITE				  0x2
+#define	DMA_PACKET_COPY					  0x3
+#define	DMA_PACKET_INDIRECT_BUFFER			  0x4
+#define	DMA_PACKET_SEMAPHORE				  0x5
+#define	DMA_PACKET_FENCE				  0x6
+#define	DMA_PACKET_TRAP					  0x7
+#define	DMA_PACKET_CONSTANT_FILL			  0xd
+#define	DMA_PACKET_NOP					  0xf
+
+
 #define	SRBM_STATUS				        0x0E50
+
+/* DCE 3.2 HDMI */
+#define HDMI_CONTROL                         0x7400
+#       define HDMI_KEEPOUT_MODE             (1 << 0)
+#       define HDMI_PACKET_GEN_VERSION       (1 << 4) /* 0 = r6xx compat */
+#       define HDMI_ERROR_ACK                (1 << 8)
+#       define HDMI_ERROR_MASK               (1 << 9)
+#define HDMI_STATUS                          0x7404
+#       define HDMI_ACTIVE_AVMUTE            (1 << 0)
+#       define HDMI_AUDIO_PACKET_ERROR       (1 << 16)
+#       define HDMI_VBI_PACKET_ERROR         (1 << 20)
+#define HDMI_AUDIO_PACKET_CONTROL            0x7408
+#       define HDMI_AUDIO_DELAY_EN(x)        (((x) & 3) << 4)
+#       define HDMI_AUDIO_PACKETS_PER_LINE(x)  (((x) & 0x1f) << 16)
+#define HDMI_ACR_PACKET_CONTROL              0x740c
+#       define HDMI_ACR_SEND                 (1 << 0)
+#       define HDMI_ACR_CONT                 (1 << 1)
+#       define HDMI_ACR_SELECT(x)            (((x) & 3) << 4)
+#       define HDMI_ACR_HW                   0
+#       define HDMI_ACR_32                   1
+#       define HDMI_ACR_44                   2
+#       define HDMI_ACR_48                   3
+#       define HDMI_ACR_SOURCE               (1 << 8) /* 0 - hw; 1 - cts value */
+#       define HDMI_ACR_AUTO_SEND            (1 << 12)
+#define HDMI_VBI_PACKET_CONTROL              0x7410
+#       define HDMI_NULL_SEND                (1 << 0)
+#       define HDMI_GC_SEND                  (1 << 4)
+#       define HDMI_GC_CONT                  (1 << 5) /* 0 - once; 1 - every frame */
+#define HDMI_INFOFRAME_CONTROL0              0x7414
+#       define HDMI_AVI_INFO_SEND            (1 << 0)
+#       define HDMI_AVI_INFO_CONT            (1 << 1)
+#       define HDMI_AUDIO_INFO_SEND          (1 << 4)
+#       define HDMI_AUDIO_INFO_CONT          (1 << 5)
+#       define HDMI_MPEG_INFO_SEND           (1 << 8)
+#       define HDMI_MPEG_INFO_CONT           (1 << 9)
+#define HDMI_INFOFRAME_CONTROL1              0x7418
+#       define HDMI_AVI_INFO_LINE(x)         (((x) & 0x3f) << 0)
+#       define HDMI_AUDIO_INFO_LINE(x)       (((x) & 0x3f) << 8)
+#       define HDMI_MPEG_INFO_LINE(x)        (((x) & 0x3f) << 16)
+#define HDMI_GENERIC_PACKET_CONTROL          0x741c
+#       define HDMI_GENERIC0_SEND            (1 << 0)
+#       define HDMI_GENERIC0_CONT            (1 << 1)
+#       define HDMI_GENERIC1_SEND            (1 << 4)
+#       define HDMI_GENERIC1_CONT            (1 << 5)
+#       define HDMI_GENERIC0_LINE(x)         (((x) & 0x3f) << 16)
+#       define HDMI_GENERIC1_LINE(x)         (((x) & 0x3f) << 24)
+#define HDMI_GC                              0x7428
+#       define HDMI_GC_AVMUTE                (1 << 0)
+#define AFMT_AUDIO_PACKET_CONTROL2           0x742c
+#       define AFMT_AUDIO_LAYOUT_OVRD        (1 << 0)
+#       define AFMT_AUDIO_LAYOUT_SELECT      (1 << 1)
+#       define AFMT_60958_CS_SOURCE          (1 << 4)
+#       define AFMT_AUDIO_CHANNEL_ENABLE(x)  (((x) & 0xff) << 8)
+#       define AFMT_DP_AUDIO_STREAM_ID(x)    (((x) & 0xff) << 16)
+#define AFMT_AVI_INFO0                       0x7454
+#       define AFMT_AVI_INFO_CHECKSUM(x)     (((x) & 0xff) << 0)
+#       define AFMT_AVI_INFO_S(x)            (((x) & 3) << 8)
+#       define AFMT_AVI_INFO_B(x)            (((x) & 3) << 10)
+#       define AFMT_AVI_INFO_A(x)            (((x) & 1) << 12)
+#       define AFMT_AVI_INFO_Y(x)            (((x) & 3) << 13)
+#       define AFMT_AVI_INFO_Y_RGB           0
+#       define AFMT_AVI_INFO_Y_YCBCR422      1
+#       define AFMT_AVI_INFO_Y_YCBCR444      2
+#       define AFMT_AVI_INFO_Y_A_B_S(x)      (((x) & 0xff) << 8)
+#       define AFMT_AVI_INFO_R(x)            (((x) & 0xf) << 16)
+#       define AFMT_AVI_INFO_M(x)            (((x) & 0x3) << 20)
+#       define AFMT_AVI_INFO_C(x)            (((x) & 0x3) << 22)
+#       define AFMT_AVI_INFO_C_M_R(x)        (((x) & 0xff) << 16)
+#       define AFMT_AVI_INFO_SC(x)           (((x) & 0x3) << 24)
+#       define AFMT_AVI_INFO_Q(x)            (((x) & 0x3) << 26)
+#       define AFMT_AVI_INFO_EC(x)           (((x) & 0x3) << 28)
+#       define AFMT_AVI_INFO_ITC(x)          (((x) & 0x1) << 31)
+#       define AFMT_AVI_INFO_ITC_EC_Q_SC(x)  (((x) & 0xff) << 24)
+#define AFMT_AVI_INFO1                       0x7458
+#       define AFMT_AVI_INFO_VIC(x)          (((x) & 0x7f) << 0) /* don't use avi infoframe v1 */
+#       define AFMT_AVI_INFO_PR(x)           (((x) & 0xf) << 8) /* don't use avi infoframe v1 */
+#       define AFMT_AVI_INFO_TOP(x)          (((x) & 0xffff) << 16)
+#define AFMT_AVI_INFO2                       0x745c
+#       define AFMT_AVI_INFO_BOTTOM(x)       (((x) & 0xffff) << 0)
+#       define AFMT_AVI_INFO_LEFT(x)         (((x) & 0xffff) << 16)
+#define AFMT_AVI_INFO3                       0x7460
+#       define AFMT_AVI_INFO_RIGHT(x)        (((x) & 0xffff) << 0)
+#       define AFMT_AVI_INFO_VERSION(x)      (((x) & 3) << 24)
+#define AFMT_MPEG_INFO0                      0x7464
+#       define AFMT_MPEG_INFO_CHECKSUM(x)    (((x) & 0xff) << 0)
+#       define AFMT_MPEG_INFO_MB0(x)         (((x) & 0xff) << 8)
+#       define AFMT_MPEG_INFO_MB1(x)         (((x) & 0xff) << 16)
+#       define AFMT_MPEG_INFO_MB2(x)         (((x) & 0xff) << 24)
+#define AFMT_MPEG_INFO1                      0x7468
+#       define AFMT_MPEG_INFO_MB3(x)         (((x) & 0xff) << 0)
+#       define AFMT_MPEG_INFO_MF(x)          (((x) & 3) << 8)
+#       define AFMT_MPEG_INFO_FR(x)          (((x) & 1) << 12)
+#define AFMT_GENERIC0_HDR                    0x746c
+#define AFMT_GENERIC0_0                      0x7470
+#define AFMT_GENERIC0_1                      0x7474
+#define AFMT_GENERIC0_2                      0x7478
+#define AFMT_GENERIC0_3                      0x747c
+#define AFMT_GENERIC0_4                      0x7480
+#define AFMT_GENERIC0_5                      0x7484
+#define AFMT_GENERIC0_6                      0x7488
+#define AFMT_GENERIC1_HDR                    0x748c
+#define AFMT_GENERIC1_0                      0x7490
+#define AFMT_GENERIC1_1                      0x7494
+#define AFMT_GENERIC1_2                      0x7498
+#define AFMT_GENERIC1_3                      0x749c
+#define AFMT_GENERIC1_4                      0x74a0
+#define AFMT_GENERIC1_5                      0x74a4
+#define AFMT_GENERIC1_6                      0x74a8
+#define HDMI_ACR_32_0                        0x74ac
+#       define HDMI_ACR_CTS_32(x)            (((x) & 0xfffff) << 12)
+#define HDMI_ACR_32_1                        0x74b0
+#       define HDMI_ACR_N_32(x)              (((x) & 0xfffff) << 0)
+#define HDMI_ACR_44_0                        0x74b4
+#       define HDMI_ACR_CTS_44(x)            (((x) & 0xfffff) << 12)
+#define HDMI_ACR_44_1                        0x74b8
+#       define HDMI_ACR_N_44(x)              (((x) & 0xfffff) << 0)
+#define HDMI_ACR_48_0                        0x74bc
+#       define HDMI_ACR_CTS_48(x)            (((x) & 0xfffff) << 12)
+#define HDMI_ACR_48_1                        0x74c0
+#       define HDMI_ACR_N_48(x)              (((x) & 0xfffff) << 0)
+#define HDMI_ACR_STATUS_0                    0x74c4
+#define HDMI_ACR_STATUS_1                    0x74c8
+#define AFMT_AUDIO_INFO0                     0x74cc
+#       define AFMT_AUDIO_INFO_CHECKSUM(x)   (((x) & 0xff) << 0)
+#       define AFMT_AUDIO_INFO_CC(x)         (((x) & 7) << 8)
+#       define AFMT_AUDIO_INFO_CHECKSUM_OFFSET(x)   (((x) & 0xff) << 16)
+#define AFMT_AUDIO_INFO1                     0x74d0
+#       define AFMT_AUDIO_INFO_CA(x)         (((x) & 0xff) << 0)
+#       define AFMT_AUDIO_INFO_LSV(x)        (((x) & 0xf) << 11)
+#       define AFMT_AUDIO_INFO_DM_INH(x)     (((x) & 1) << 15)
+#       define AFMT_AUDIO_INFO_DM_INH_LSV(x) (((x) & 0xff) << 8)
+#define AFMT_60958_0                         0x74d4
+#       define AFMT_60958_CS_A(x)            (((x) & 1) << 0)
+#       define AFMT_60958_CS_B(x)            (((x) & 1) << 1)
+#       define AFMT_60958_CS_C(x)            (((x) & 1) << 2)
+#       define AFMT_60958_CS_D(x)            (((x) & 3) << 3)
+#       define AFMT_60958_CS_MODE(x)         (((x) & 3) << 6)
+#       define AFMT_60958_CS_CATEGORY_CODE(x)      (((x) & 0xff) << 8)
+#       define AFMT_60958_CS_SOURCE_NUMBER(x)      (((x) & 0xf) << 16)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_L(x)   (((x) & 0xf) << 20)
+#       define AFMT_60958_CS_SAMPLING_FREQUENCY(x) (((x) & 0xf) << 24)
+#       define AFMT_60958_CS_CLOCK_ACCURACY(x)     (((x) & 3) << 28)
+#define AFMT_60958_1                         0x74d8
+#       define AFMT_60958_CS_WORD_LENGTH(x)  (((x) & 0xf) << 0)
+#       define AFMT_60958_CS_ORIGINAL_SAMPLING_FREQUENCY(x)   (((x) & 0xf) << 4)
+#       define AFMT_60958_CS_VALID_L(x)      (((x) & 1) << 16)
+#       define AFMT_60958_CS_VALID_R(x)      (((x) & 1) << 18)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_R(x)   (((x) & 0xf) << 20)
+#define AFMT_AUDIO_CRC_CONTROL               0x74dc
+#       define AFMT_AUDIO_CRC_EN             (1 << 0)
+#define AFMT_RAMP_CONTROL0                   0x74e0
+#       define AFMT_RAMP_MAX_COUNT(x)        (((x) & 0xffffff) << 0)
+#       define AFMT_RAMP_DATA_SIGN           (1 << 31)
+#define AFMT_RAMP_CONTROL1                   0x74e4
+#       define AFMT_RAMP_MIN_COUNT(x)        (((x) & 0xffffff) << 0)
+#       define AFMT_AUDIO_TEST_CH_DISABLE(x) (((x) & 0xff) << 24)
+#define AFMT_RAMP_CONTROL2                   0x74e8
+#       define AFMT_RAMP_INC_COUNT(x)        (((x) & 0xffffff) << 0)
+#define AFMT_RAMP_CONTROL3                   0x74ec
+#       define AFMT_RAMP_DEC_COUNT(x)        (((x) & 0xffffff) << 0)
+#define AFMT_60958_2                         0x74f0
+#       define AFMT_60958_CS_CHANNEL_NUMBER_2(x)   (((x) & 0xf) << 0)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_3(x)   (((x) & 0xf) << 4)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_4(x)   (((x) & 0xf) << 8)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_5(x)   (((x) & 0xf) << 12)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_6(x)   (((x) & 0xf) << 16)
+#       define AFMT_60958_CS_CHANNEL_NUMBER_7(x)   (((x) & 0xf) << 20)
+#define AFMT_STATUS                          0x7600
+#       define AFMT_AUDIO_ENABLE             (1 << 4)
+#       define AFMT_AZ_FORMAT_WTRIG          (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_INT      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG      (1 << 30)
+#define AFMT_AUDIO_PACKET_CONTROL            0x7604
+#       define AFMT_AUDIO_SAMPLE_SEND        (1 << 0)
+#       define AFMT_AUDIO_TEST_EN            (1 << 12)
+#       define AFMT_AUDIO_CHANNEL_SWAP       (1 << 24)
+#       define AFMT_60958_CS_UPDATE          (1 << 26)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_MASK (1 << 27)
+#       define AFMT_AZ_FORMAT_WTRIG_MASK     (1 << 28)
+#       define AFMT_AZ_FORMAT_WTRIG_ACK      (1 << 29)
+#       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
+#define AFMT_VBI_PACKET_CONTROL              0x7608
+#       define AFMT_GENERIC0_UPDATE          (1 << 2)
+#define AFMT_INFOFRAME_CONTROL0              0x760c
+#       define AFMT_AUDIO_INFO_SOURCE        (1 << 6) /* 0 - sound block; 1 - hmdi regs */
+#       define AFMT_AUDIO_INFO_UPDATE        (1 << 7)
+#       define AFMT_MPEG_INFO_UPDATE         (1 << 10)
+#define AFMT_GENERIC0_7                      0x7610
+/* second instance starts at 0x7800 */
+#define HDMI_OFFSET0                      (0x7400 - 0x7400)
+#define HDMI_OFFSET1                      (0x7800 - 0x7400)
+
+/* DCE3.2 ELD audio interface */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0        0x71c8 /* LPCM */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1        0x71cc /* AC3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2        0x71d0 /* MPEG1 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR3        0x71d4 /* MP3 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR4        0x71d8 /* MPEG2 */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR5        0x71dc /* AAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR6        0x71e0 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR7        0x71e4 /* ATRAC */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR8        0x71e8 /* one bit audio - leave at 0 (default) */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR9        0x71ec /* Dolby Digital */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR10       0x71f0 /* DTS-HD */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11       0x71f4 /* MAT-MLP */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR12       0x71f8 /* DTS */
+#define AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13       0x71fc /* WMA Pro */
+#       define MAX_CHANNELS(x)                            (((x) & 0x7) << 0)
+/* max channels minus one.  7 = 8 channels */
+#       define SUPPORTED_FREQUENCIES(x)                   (((x) & 0xff) << 8)
+#       define DESCRIPTOR_BYTE_2(x)                       (((x) & 0xff) << 16)
+#       define SUPPORTED_FREQUENCIES_STEREO(x)            (((x) & 0xff) << 24) /* LPCM only */
+/* SUPPORTED_FREQUENCIES, SUPPORTED_FREQUENCIES_STEREO
+ * bit0 = 32 kHz
+ * bit1 = 44.1 kHz
+ * bit2 = 48 kHz
+ * bit3 = 88.2 kHz
+ * bit4 = 96 kHz
+ * bit5 = 176.4 kHz
+ * bit6 = 192 kHz
+ */
+
+#define AZ_HOT_PLUG_CONTROL                               0x7300
+#       define AZ_FORCE_CODEC_WAKE                        (1 << 0)
+#       define PIN0_JACK_DETECTION_ENABLE                 (1 << 4)
+#       define PIN1_JACK_DETECTION_ENABLE                 (1 << 5)
+#       define PIN2_JACK_DETECTION_ENABLE                 (1 << 6)
+#       define PIN3_JACK_DETECTION_ENABLE                 (1 << 7)
+#       define PIN0_UNSOLICITED_RESPONSE_ENABLE           (1 << 8)
+#       define PIN1_UNSOLICITED_RESPONSE_ENABLE           (1 << 9)
+#       define PIN2_UNSOLICITED_RESPONSE_ENABLE           (1 << 10)
+#       define PIN3_UNSOLICITED_RESPONSE_ENABLE           (1 << 11)
+#       define CODEC_HOT_PLUG_ENABLE                      (1 << 12)
+#       define PIN0_AUDIO_ENABLED                         (1 << 24)
+#       define PIN1_AUDIO_ENABLED                         (1 << 25)
+#       define PIN2_AUDIO_ENABLED                         (1 << 26)
+#       define PIN3_AUDIO_ENABLED                         (1 << 27)
+#       define AUDIO_ENABLED                              (1 << 31)
+
 
 #define D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
 #define D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH               0x6914
@@ -397,5 +699,19 @@
 #define LINK_CNTL2                                        0x88 /* F0 */
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+/* UVD */
+#define UVD_LMI_EXT40_ADDR				0xf498
+#define UVD_VCPU_CHIP_ID				0xf4d4
+#define UVD_VCPU_CACHE_OFFSET0				0xf4d8
+#define UVD_VCPU_CACHE_SIZE0				0xf4dc
+#define UVD_VCPU_CACHE_OFFSET1				0xf4e0
+#define UVD_VCPU_CACHE_SIZE1				0xf4e4
+#define UVD_VCPU_CACHE_OFFSET2				0xf4e8
+#define UVD_VCPU_CACHE_SIZE2				0xf4ec
+#define UVD_LMI_ADDR_EXT				0xf594
+
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
 
 #endif

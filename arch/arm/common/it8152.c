@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/export.h>
 
 #include <asm/mach/pci.h>
 #include <asm/hardware/it8152.h>
@@ -144,7 +145,7 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 }
 
 /* mapping for on-chip devices */
-int __init it8152_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init it8152_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if ((dev->vendor == PCI_VENDOR_ID_ITE) &&
 	    (dev->device == PCI_DEVICE_ID_ITE_8152)) {
@@ -221,7 +222,7 @@ static int it8152_pci_write_config(struct pci_bus *bus,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static struct pci_ops it8152_ops = {
+struct pci_ops it8152_ops = {
 	.read = it8152_pci_read_config,
 	.write = it8152_pci_write_config,
 };
@@ -243,6 +244,12 @@ static struct resource it8152_mem = {
  * ITE8152 chip can address up to 64MByte, so all the devices
  * connected to ITE8152 (PCI and USB) should have limited DMA window
  */
+static int it8152_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
+{
+	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
+		__func__, dma_addr, size);
+	return (dma_addr + size - PHYS_OFFSET) >= SZ_64M;
+}
 
 /*
  * Setup DMA mask to 64MB on devices connected to ITE8152. Ignore all
@@ -254,7 +261,7 @@ static int it8152_pci_platform_notify(struct device *dev)
 		if (dev->dma_mask)
 			*dev->dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
 		dev->coherent_dma_mask = (SZ_64M - 1) | PHYS_OFFSET;
-		dmabounce_register_dev(dev, 2048, 4096);
+		dmabounce_register_dev(dev, 2048, 4096, it8152_needs_bounce);
 	}
 	return 0;
 }
@@ -267,14 +274,6 @@ static int it8152_pci_platform_notify_remove(struct device *dev)
 	return 0;
 }
 
-int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
-{
-	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
-		__func__, dma_addr, size);
-	return (dev->bus == &pci_bus_type) &&
-		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
-}
-
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
@@ -285,11 +284,17 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 
 int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 {
-	it8152_io.start = IT8152_IO_BASE + 0x12000;
-	it8152_io.end	= IT8152_IO_BASE + 0x12000 + 0x100000;
+	/*
+	 * FIXME: use pci_ioremap_io to remap the IO space here and
+	 * move over to the generic io.h implementation.
+	 * This requires solving the same problem for PXA PCMCIA
+	 * support.
+	 */
+	it8152_io.start = (unsigned long)IT8152_IO_BASE + 0x12000;
+	it8152_io.end	= (unsigned long)IT8152_IO_BASE + 0x12000 + 0x100000;
 
 	sys->mem_offset = 0x10000000;
-	sys->io_offset  = IT8152_IO_BASE;
+	sys->io_offset  = (unsigned long)IT8152_IO_BASE;
 
 	if (request_resource(&ioport_resource, &it8152_io)) {
 		printk(KERN_ERR "PCI: unable to allocate IO region\n");
@@ -300,8 +305,8 @@ int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 		goto err1;
 	}
 
-	sys->resource[0] = &it8152_io;
-	sys->resource[1] = &it8152_mem;
+	pci_add_resource_offset(&sys->resources, &it8152_io, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &it8152_mem, sys->mem_offset);
 
 	if (platform_notify || platform_notify_remove) {
 		printk(KERN_ERR "PCI: Can't use platform_notify\n");
@@ -321,13 +326,9 @@ err0:
 	return -EBUSY;
 }
 
-/*
- * If we set up a device for bus mastering, we need to check the latency
- * timer as we don't have even crappy BIOSes to set it properly.
- * The implementation is from arch/i386/pci/i386.c
- */
-unsigned int pcibios_max_latency = 255;
-
+/* ITE bridge requires setting latency timer to avoid early bus access
+   termination by PCI bus master devices
+*/
 void pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;
@@ -350,10 +351,5 @@ void pcibios_set_master(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
 
-
-struct pci_bus * __init it8152_pci_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	return pci_scan_bus(nr, &it8152_ops, sys);
-}
 
 EXPORT_SYMBOL(dma_set_coherent_mask);

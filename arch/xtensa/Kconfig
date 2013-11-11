@@ -1,29 +1,34 @@
-config FRAME_POINTER
-	def_bool n
-
 config ZONE_DMA
 	def_bool y
 
 config XTENSA
 	def_bool y
+	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
+	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
+	select GENERIC_CPU_DEVICES
+	select MODULES_USE_ELF_RELA
+	select GENERIC_PCI_IOMAP
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select CLONE_BACKWARDS
+	select IRQ_DOMAIN
+	select HAVE_OPROFILE
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
 	  configurable and extensible.  The Linux port to the Xtensa
 	  architecture supports all processor configurations and extensions,
 	  with reasonable minimum requirements.  The Xtensa Linux project has
-	  a home page at <http://xtensa.sourceforge.net/>.
+	  a home page at <http://www.linux-xtensa.org/>.
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_GPIO
 	def_bool y
 
 config ARCH_HAS_ILOG2_U32
@@ -33,7 +38,7 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config NO_IOPORT
-	def_bool y
+	def_bool n
 
 config HZ
 	int
@@ -41,6 +46,15 @@ config HZ
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
 
 config MMU
 	def_bool n
@@ -64,6 +78,12 @@ config XTENSA_VARIANT_DC232B
 	help
 	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
+config XTENSA_VARIANT_DC233C
+	bool "dc233c - Diamond 233L Standard Core Rev.C (LE)"
+	select MMU
+	help
+	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
+
 config XTENSA_VARIANT_S6000
 	bool "s6000 - Stretch software configurable processor"
 	select VARIANT_IRQ_SWITCH
@@ -80,23 +100,41 @@ config XTENSA_UNALIGNED_USER
 
 	  Say Y here to enable unaligned memory access in user space.
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-          This option reduces the latency of the kernel when reacting to
-          real-time or interactive events by allowing a low priority process to
-          be preempted even if it is in kernel mode executing a system call.
-          Unfortunately the kernel code has some race conditions if both
-          CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
-          currently disabled if you are building an SMP kernel.
-
-          Say Y here if you are building a kernel for a desktop, embedded
-          or real-time system.  Say N if you are unsure.
+source "kernel/Kconfig.preempt"
 
 config MATH_EMULATION
 	bool "Math emulation"
 	help
 	Can we use information of configuration file?
+
+config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	default y
+	help
+	  Earlier version initialized the MMU in the exception vector
+	  before jumping to _startup in head.S and had an advantage that
+	  it was possible to place a software breakpoint at 'reset' and
+	  then enter your normal kernel breakpoints once the MMU was mapped
+	  to the kernel mappings (0XC0000000).
+
+	  This unfortunately doesn't work for U-Boot and likley also wont
+	  work for using KEXEC to have a hot kernel ready for doing a
+	  KDUMP.
+
+	  So now the MMU is initialized in head.S but it's necessary to
+	  use hardware breakpoints (gdb 'hbreak' cmd) to break at _startup.
+	  xt-gdb can't place a Software Breakpoint in the  0XD region prior
+	  to mapping the MMU and after mapping even if the area of low memory
+	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
+	  PC wouldn't match. Since Hardware Breakpoints are recommended for
+	  Linux configurations it seems reasonable to just assume they exist
+	  and leave this older mechanism for unfortunate souls that choose
+	  not to follow Tensilica's recommendation.
+
+	  Selecting this will cause U-Boot to set the KERNEL Load and Entry
+	  address at 0x00003000 instead of the mapped std of 0xD0003000.
+
+	  If in doubt, say Y.
 
 endmenu
 
@@ -136,6 +174,7 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
+	depends on TTY
 	select XTENSA_CALIBRATE_CCOUNT
 	select SERIAL_CONSOLE
 	select XTENSA_ISS_NETWORK
@@ -151,6 +190,16 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
 	select SERIAL_CONSOLE
+	select NO_IOPORT
+
+config XTENSA_PLATFORM_XTFPGA
+	bool "XTFPGA"
+	select SERIAL_CONSOLE
+	select ETHOC
+	select XTENSA_CALIBRATE_CCOUNT
+	help
+	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
+	  This hardware is capable of running a full Linux distribution.
 
 endchoice
 
@@ -179,25 +228,54 @@ config CMDLINE
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
-source "mm/Kconfig"
-
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
 	help
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
+	  Include support for flattened device tree machine descriptions.
 
-	  One well known example of this is PCMCIA- or PC-cards, credit-card
-	  size devices such as network cards, modems or hard drives which are
-	  plugged into slots found on all modern laptop computers.  Another
-	  example, used on modern desktops as well as laptops, is USB.
+config BUILTIN_DTB
+	string "DTB to build into the kernel image"
+	depends on OF
 
-	  Enable HOTPLUG and build a modular kernel.  Get agent software
-	  (from <http://linux-hotplug.sourceforge.net/>) and install it.
-	  Then your kernel will automatically call out to a user mode "policy
-	  agent" (/sbin/hotplug) to load modules and set up software needed
-	  to use devices as you hotplug them.
+config BLK_DEV_SIMDISK
+	tristate "Host file-based simulated block device support"
+	default n
+	depends on XTENSA_PLATFORM_ISS
+	help
+	  Create block devices that map to files in the host file system.
+	  Device binding to host file may be changed at runtime via proc
+	  interface provided the device is not in use.
+
+config BLK_DEV_SIMDISK_COUNT
+	int "Number of host file-based simulated block devices"
+	range 1 10
+	depends on BLK_DEV_SIMDISK
+	default 2
+	help
+	  This is the default minimal number of created block devices.
+	  Kernel/module parameter 'simdisk_count' may be used to change this
+	  value at runtime. More file names (but no more than 10) may be
+	  specified as parameters, simdisk_count grows accordingly.
+
+config SIMDISK0_FILENAME
+	string "Host filename for the first simulated device"
+	depends on BLK_DEV_SIMDISK = y
+	default ""
+	help
+	  Attach a first simdisk to a host file. Conventionally, this file
+	  contains a root file system.
+
+config SIMDISK1_FILENAME
+	string "Host filename for the second simulated device"
+	depends on BLK_DEV_SIMDISK = y && BLK_DEV_SIMDISK_COUNT != 1
+	default ""
+	help
+	  Another simulated disk in a host file for a buildroot-independent
+	  storage.
+
+source "mm/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 
@@ -206,21 +284,6 @@ source "drivers/pci/hotplug/Kconfig"
 endmenu
 
 menu "Executable file formats"
-
-# only elf supported
-config KCORE_ELF
-	def_bool y
-        depends on PROC_FS
-        help
-          If you enabled support for /proc file system then the file
-          /proc/kcore will contain the kernel core image in ELF format. This
-          can be used in gdb:
-
-          $ cd /usr/src/linux ; gdb vmlinux /proc/kcore
-
-          This is especially useful if you have compiled the kernel with the
-          "-g" option to preserve debugging information. It is mainly used
-	  for examining kernel data structures on the live kernel.
 
 source "fs/Kconfig.binfmt"
 
@@ -231,23 +294,6 @@ source "net/Kconfig"
 source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-menu "Xtensa initrd options"
-	depends on BLK_DEV_INITRD
-
-config EMBEDDED_RAMDISK
-	bool "Embed root filesystem ramdisk into the kernel"
-
-config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gzipped ramdisk image"
-	depends on EMBEDDED_RAMDISK
-	default "ramdisk.gz"
-	help
-	  This is the filename of the ramdisk image to be built into the
-	  kernel.  Relative pathnames are relative to arch/xtensa/boot/ramdisk/.
-	  The ramdisk image is not part of the kernel distribution; you must
-	  provide one yourself.
-endmenu
 
 source "arch/xtensa/Kconfig.debug"
 

@@ -21,7 +21,6 @@
 #include <linux/spinlock.h>
 #include <linux/quicklist.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -96,7 +95,7 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
  * checks at dup_mmap(), exec(), and other mmlist addition points
  * could be used. The locking scheme was chosen on the basis of
  * manfred's recommendations and having no core impact whatsoever.
- * -- wli
+ * -- nyc
  */
 DEFINE_SPINLOCK(pgd_lock);
 struct page *pgd_list;

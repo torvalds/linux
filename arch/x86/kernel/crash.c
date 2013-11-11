@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/module.h>
 
 #include <asm/processor.h>
 #include <asm/hardirq.h>
@@ -30,16 +31,34 @@
 
 int in_crash_kexec;
 
+/*
+ * This is used to VMCLEAR all VMCSs loaded on the
+ * processor. And when loading kvm_intel module, the
+ * callback function pointer will be assigned.
+ *
+ * protected by rcu.
+ */
+crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss = NULL;
+EXPORT_SYMBOL_GPL(crash_vmclear_loaded_vmcss);
+
+static inline void cpu_crash_vmclear_loaded_vmcss(void)
+{
+	crash_vmclear_fn *do_vmclear_operation = NULL;
+
+	rcu_read_lock();
+	do_vmclear_operation = rcu_dereference(crash_vmclear_loaded_vmcss);
+	if (do_vmclear_operation)
+		do_vmclear_operation();
+	rcu_read_unlock();
+}
+
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)
 
-static void kdump_nmi_callback(int cpu, struct die_args *args)
+static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 {
-	struct pt_regs *regs;
 #ifdef CONFIG_X86_32
 	struct pt_regs fixed_regs;
 #endif
-
-	regs = args->regs;
 
 #ifdef CONFIG_X86_32
 	if (!user_mode_vm(regs)) {
@@ -48,6 +67,11 @@ static void kdump_nmi_callback(int cpu, struct die_args *args)
 	}
 #endif
 	crash_save_cpu(regs, cpu);
+
+	/*
+	 * VMCLEAR VMCSs loaded on all cpus if needed.
+	 */
+	cpu_crash_vmclear_loaded_vmcss();
 
 	/* Disable VMX or SVM if needed.
 	 *
@@ -90,6 +114,11 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	local_irq_disable();
 
 	kdump_nmi_shootdown_cpus();
+
+	/*
+	 * VMCLEAR VMCSs loaded on this cpu if needed.
+	 */
+	cpu_crash_vmclear_loaded_vmcss();
 
 	/* Booting kdump kernel with VMX or SVM enabled won't work,
 	 * because (among other limitations) we can't disable paging

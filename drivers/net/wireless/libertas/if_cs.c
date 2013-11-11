@@ -738,6 +738,50 @@ done:
 	return ret;
 }
 
+static void if_cs_prog_firmware(struct lbs_private *priv, int ret,
+				 const struct firmware *helper,
+				 const struct firmware *mainfw)
+{
+	struct if_cs_card *card = priv->card;
+
+	if (ret) {
+		pr_err("failed to find firmware (%d)\n", ret);
+		return;
+	}
+
+	/* Load the firmware */
+	ret = if_cs_prog_helper(card, helper);
+	if (ret == 0 && (card->model != MODEL_8305))
+		ret = if_cs_prog_real(card, mainfw);
+	if (ret)
+		goto out;
+
+	/* Now actually get the IRQ */
+	ret = request_irq(card->p_dev->irq, if_cs_interrupt,
+		IRQF_SHARED, DRV_NAME, card);
+	if (ret) {
+		pr_err("error in request_irq\n");
+		goto out;
+	}
+
+	/*
+	 * Clear any interrupt cause that happened while sending
+	 * firmware/initializing card
+	 */
+	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, IF_CS_BIT_MASK);
+	if_cs_enable_ints(card);
+
+	/* And finally bring the card up */
+	priv->fw_ready = 1;
+	if (lbs_start_card(priv) != 0) {
+		pr_err("could not activate card\n");
+		free_irq(card->p_dev->irq, card);
+	}
+
+out:
+	release_firmware(helper);
+	release_firmware(mainfw);
+}
 
 
 /********************************************************************/
@@ -809,16 +853,13 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	unsigned int prod_id;
 	struct lbs_private *priv;
 	struct if_cs_card *card;
-	const struct firmware *helper = NULL;
-	const struct firmware *mainfw = NULL;
 
 	lbs_deb_enter(LBS_DEB_CS);
 
 	card = kzalloc(sizeof(struct if_cs_card), GFP_KERNEL);
-	if (!card) {
-		pr_err("error in kzalloc\n");
+	if (!card)
 		goto out;
-	}
+
 	card->p_dev = p_dev;
 	p_dev->priv = card;
 
@@ -859,7 +900,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	 * Most of the libertas cards can do unaligned register access, but some
 	 * weird ones cannot. That's especially true for the CF8305 card.
 	 */
-	card->align_regs = 0;
+	card->align_regs = false;
 
 	card->model = get_model(p_dev->manf_id, p_dev->card_id);
 	if (card->model == MODEL_UNKNOWN) {
@@ -871,7 +912,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	/* Check if we have a current silicon */
 	prod_id = if_cs_read8(card, IF_CS_PRODUCT_ID);
 	if (card->model == MODEL_8305) {
-		card->align_regs = 1;
+		card->align_regs = true;
 		if (prod_id < IF_CS_CF8305_B1_REV) {
 			pr_err("8305 rev B0 and older are not supported\n");
 			ret = -ENODEV;
@@ -891,20 +932,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out2;
 	}
 
-	ret = lbs_get_firmware(&p_dev->dev, NULL, NULL, card->model,
-				&fw_table[0], &helper, &mainfw);
-	if (ret) {
-		pr_err("failed to find firmware (%d)\n", ret);
-		goto out2;
-	}
-
-	/* Load the firmware early, before calling into libertas.ko */
-	ret = if_cs_prog_helper(card, helper);
-	if (ret == 0 && (card->model != MODEL_8305))
-		ret = if_cs_prog_real(card, mainfw);
-	if (ret)
-		goto out2;
-
 	/* Make this card known to the libertas driver */
 	priv = lbs_add_card(card, &p_dev->dev);
 	if (!priv) {
@@ -912,37 +939,22 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out2;
 	}
 
-	/* Finish setting up fields in lbs_private */
+	/* Set up fields in lbs_private */
 	card->priv = priv;
 	priv->card = card;
 	priv->hw_host_to_card = if_cs_host_to_card;
 	priv->enter_deep_sleep = NULL;
 	priv->exit_deep_sleep = NULL;
 	priv->reset_deep_sleep_wakeup = NULL;
-	priv->fw_ready = 1;
 
-	/* Now actually get the IRQ */
-	ret = request_irq(p_dev->irq, if_cs_interrupt,
-		IRQF_SHARED, DRV_NAME, card);
+	/* Get firmware */
+	ret = lbs_get_firmware_async(priv, &p_dev->dev, card->model, fw_table,
+				     if_cs_prog_firmware);
 	if (ret) {
-		pr_err("error in request_irq\n");
+		pr_err("failed to find firmware (%d)\n", ret);
 		goto out3;
 	}
 
-	/*
-	 * Clear any interrupt cause that happened while sending
-	 * firmware/initializing card
-	 */
-	if_cs_write16(card, IF_CS_CARD_INT_CAUSE, IF_CS_BIT_MASK);
-	if_cs_enable_ints(card);
-
-	/* And finally bring the card up */
-	if (lbs_start_card(priv) != 0) {
-		pr_err("could not activate card\n");
-		goto out3;
-	}
-
-	ret = 0;
 	goto out;
 
 out3:
@@ -952,11 +964,6 @@ out2:
 out1:
 	pcmcia_disable_device(p_dev);
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
-
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
 }
@@ -992,7 +999,6 @@ static const struct pcmcia_device_id if_cs_ids[] = {
 };
 MODULE_DEVICE_TABLE(pcmcia, if_cs_ids);
 
-
 static struct pcmcia_driver lbs_driver = {
 	.owner		= THIS_MODULE,
 	.name		= DRV_NAME,
@@ -1000,26 +1006,4 @@ static struct pcmcia_driver lbs_driver = {
 	.remove		= if_cs_detach,
 	.id_table       = if_cs_ids,
 };
-
-
-static int __init if_cs_init(void)
-{
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_CS);
-	ret = pcmcia_register_driver(&lbs_driver);
-	lbs_deb_leave(LBS_DEB_CS);
-	return ret;
-}
-
-
-static void __exit if_cs_exit(void)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-	pcmcia_unregister_driver(&lbs_driver);
-	lbs_deb_leave(LBS_DEB_CS);
-}
-
-
-module_init(if_cs_init);
-module_exit(if_cs_exit);
+module_pcmcia_driver(lbs_driver);

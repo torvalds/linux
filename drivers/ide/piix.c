@@ -297,7 +297,7 @@ static u8 piix_cable_detect(ide_hwif_t *hwif)
  *	capabilities of the hardware.
  */
 
-static void __devinit init_hwif_piix(ide_hwif_t *hwif)
+static void init_hwif_piix(ide_hwif_t *hwif)
 {
 	if (!hwif->dma_base)
 		return;
@@ -331,7 +331,7 @@ static const struct ide_port_ops ich_port_ops = {
 		.udma_mask	= udma,			\
 	}
 
-#define DECLARE_ICH_DEV(udma) \
+#define DECLARE_ICH_DEV(mwdma, udma) \
 	{ \
 		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_ich, \
@@ -340,11 +340,11 @@ static const struct ide_port_ops ich_port_ops = {
 		.port_ops	= &ich_port_ops, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \
-		.mwdma_mask	= ATA_MWDMA12_ONLY, \
+		.mwdma_mask	= mwdma, \
 		.udma_mask	= udma, \
 	}
 
-static const struct ide_port_info piix_pci_info[] __devinitdata = {
+static const struct ide_port_info piix_pci_info[] = {
 	/* 0: MPIIX */
 	{	/*
 		 * MPIIX actually has only a single IDE channel mapped to
@@ -362,13 +362,15 @@ static const struct ide_port_info piix_pci_info[] __devinitdata = {
 	/* 2: PIIX4 */
 	DECLARE_PIIX_DEV(ATA_UDMA2),
 	/* 3: ICH0 */
-	DECLARE_ICH_DEV(ATA_UDMA2),
+	DECLARE_ICH_DEV(ATA_MWDMA12_ONLY, ATA_UDMA2),
 	/* 4: ICH */
-	DECLARE_ICH_DEV(ATA_UDMA4),
+	DECLARE_ICH_DEV(ATA_MWDMA12_ONLY, ATA_UDMA4),
 	/* 5: PIIX4 */
 	DECLARE_PIIX_DEV(ATA_UDMA4),
-	/* 6: ICH[2-7]/ICH[2-3]M/C-ICH/ICH5-SATA/ESB2/ICH8M */
-	DECLARE_ICH_DEV(ATA_UDMA5),
+	/* 6: ICH[2-6]/ICH[2-3]M/C-ICH/ICH5-SATA/ESB2/ICH8M */
+	DECLARE_ICH_DEV(ATA_MWDMA12_ONLY, ATA_UDMA5),
+	/* 7: ICH7/7-R, no MWDMA1 */
+	DECLARE_ICH_DEV(ATA_MWDMA2_ONLY, ATA_UDMA5),
 };
 
 /**
@@ -380,7 +382,7 @@ static const struct ide_port_info piix_pci_info[] __devinitdata = {
  *	finds a device matching our IDE device tables.
  */
  
-static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &piix_pci_info[id->driver_data], NULL);
 }
@@ -392,7 +394,7 @@ static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_
  *	they are found, disable use of DMA IDE
  */
 
-static void __devinit piix_check_450nx(void)
+static void piix_check_450nx(void)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;
@@ -438,9 +440,9 @@ static const struct pci_device_id piix_pci_tbl[] = {
 #endif
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB_2),      6 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH6_19),    6 },
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH7_21),    6 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH7_21),    7 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801DB_1),  6 },
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB2_18),    6 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB2_18),    7 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH8_6),     6 },
 	{ 0, },
 };

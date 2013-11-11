@@ -27,7 +27,8 @@
 static inline int
 gnet_stats_copy(struct gnet_dump *d, int type, void *buf, int size)
 {
-	NLA_PUT(d->skb, type, size, buf);
+	if (nla_put(d->skb, type, size, buf))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

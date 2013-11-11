@@ -46,7 +46,7 @@ config VGACON_SOFT_SCROLLBACK_SIZE
 
 config MDA_CONSOLE
 	depends on !M68K && !PARISC && ISA
-	tristate "MDA text console (dual-headed) (EXPERIMENTAL)"
+	tristate "MDA text console (dual-headed)"
 	---help---
 	  Say Y here if you have an old MDA or monochrome Hercules graphics
 	  adapter in your system acting as a second head ( = video card). You
@@ -65,8 +65,6 @@ config SGI_NEWPORT_CONSOLE
         help
           Say Y here if you want the console on the Newport aka XL graphics
           card of your Indy.  Most people say Y here.
-
-#  bool 'IODC console' CONFIG_IODC_CONSOLE
 
 config DUMMY_CONSOLE
 	bool
@@ -225,6 +223,20 @@ config FONT_10x18
 	  This is a high resolution console font for machines with very
 	  big letters. It fits between the sun 12x22 and the normal 8x16 font.
 	  If other fonts are too big or too small for you, say Y, otherwise say N.
+
+config FONT_AUTOSELECT
+	def_bool y
+	depends on FRAMEBUFFER_CONSOLE || SGI_NEWPORT_CONSOLE || STI_CONSOLE || USB_SISUSBVGA_CON
+	depends on !FONT_8x8
+	depends on !FONT_6x11
+	depends on !FONT_7x14
+	depends on !FONT_PEARL_8x8
+	depends on !FONT_ACORN_8x8
+	depends on !FONT_MINI_4x6
+	depends on !FONT_SUN8x16
+	depends on !FONT_SUN12x22
+	depends on !FONT_10x18
+	select FONT_8x16
 
 endmenu
 

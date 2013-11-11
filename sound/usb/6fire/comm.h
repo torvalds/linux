@@ -3,7 +3,6 @@
  *
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
- * Version:	0.3.0
  * Copyright:	(C) Torsten Schenk
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,7 +24,7 @@ struct comm_runtime {
 	struct sfire_chip *chip;
 
 	struct urb receiver;
-	u8 receiver_buffer[COMM_RECEIVER_BUFSIZE];
+	u8 *receiver_buffer;
 
 	u8 serial; /* urb serial */
 
@@ -37,7 +36,7 @@ struct comm_runtime {
 			u8 vh, u8 vl);
 };
 
-int __devinit usb6fire_comm_init(struct sfire_chip *chip);
+int usb6fire_comm_init(struct sfire_chip *chip);
 void usb6fire_comm_abort(struct sfire_chip *chip);
 void usb6fire_comm_destroy(struct sfire_chip *chip);
 #endif /* USB6FIRE_COMM_H */

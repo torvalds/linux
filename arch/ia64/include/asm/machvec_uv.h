@@ -20,7 +20,7 @@ extern ia64_mv_setup_t uv_setup;
  * platform's machvec structure.  When compiling a non-generic kernel,
  * the macros are used directly.
  */
-#define platform_name			"uv"
+#define ia64_platform_name		"uv"
 #define platform_setup			uv_setup
 
 #endif /* _ASM_IA64_MACHVEC_UV_H */

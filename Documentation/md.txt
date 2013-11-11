@@ -119,7 +119,7 @@ device to add.
 The array is started with the RUN_ARRAY ioctl.
 
 Once started, new devices can be added.  They should have an
-appropriate superblock written to them, and then passed be in with
+appropriate superblock written to them, and then be passed in with
 ADD_NEW_DISK.
 
 Devices that have failed or are not yet active can be detached from an
@@ -131,7 +131,7 @@ Specific Rules that apply to format-0 super block arrays, and
 -------------------------------------------------------------
 
 An array can be 'created' by describing the array (level, chunksize
-etc) in a SET_ARRAY_INFO ioctl.  This must has major_version==0 and
+etc) in a SET_ARRAY_INFO ioctl.  This must have major_version==0 and
 raid_disks != 0.
 
 Then uninitialized devices can be added with ADD_NEW_DISK.  The
@@ -357,21 +357,30 @@ Each directory contains:
         written to, that device.
 
       state
-        A file recording the current state of the device in the array
+	A file recording the current state of the device in the array
 	which can be a comma separated list of
 	      faulty   - device has been kicked from active use due to
-                         a detected fault
+			 a detected fault, or it has unacknowledged bad
+			 blocks
 	      in_sync  - device is a fully in-sync member of the array
 	      writemostly - device will only be subject to read
-		         requests if there are no other options.
+			 requests if there are no other options.
 			 This applies only to raid1 arrays.
-	      blocked  - device has failed, metadata is "external",
-	                 and the failure hasn't been acknowledged yet.
+	      blocked  - device has failed, and the failure hasn't been
+			 acknowledged yet by the metadata handler.
 			 Writes that would write to this device if
 			 it were not faulty are blocked.
 	      spare    - device is working, but not a full member.
 			 This includes spares that are in the process
 			 of being recovered to
+	      write_error - device has ever seen a write error.
+	      want_replacement - device is (mostly) working but probably
+			 should be replaced, either due to errors or
+			 due to user request.
+	      replacement - device is a replacement for another active
+			 device with same raid_disk.
+
+
 	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
@@ -379,9 +388,18 @@ Each directory contains:
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
 	Writing "blocked" sets the "blocked" flag.
-	Writing "-blocked" clears the "blocked" flag and allows writes
-		to complete.
+	Writing "-blocked" clears the "blocked" flags and allows writes
+		to complete and possibly simulates an error.
 	Writing "in_sync" sets the in_sync flag.
+	Writing "write_error" sets writeerrorseen flag.
+	Writing "-write_error" clears writeerrorseen flag.
+	Writing "want_replacement" is allowed at any time except to a
+		replacement device or a spare.  It sets the flag.
+	Writing "-want_replacement" is allowed at any time.  It clears
+		the flag.
+	Writing "replacement" or "-replacement" is only allowed before
+		starting the array.  It sets or clears the flag.
+
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.
@@ -408,7 +426,7 @@ Each directory contains:
       offset
         This gives the location in the device (in sectors from the
         start) where data from the array will be stored.  Any part of
-        the device before this offset us not touched, unless it is
+        the device before this offset is not touched, unless it is
         used for storing metadata (Formats 1.1 and 1.2).
 
       size
@@ -419,11 +437,10 @@ Each directory contains:
         written, it will be rejected.
 
       recovery_start
-
         When the device is not 'in_sync', this records the number of
 	sectors from the start of the device which are known to be
 	correct.  This is normally zero, but during a recovery
-	operation is will steadily increase, and if the recovery is
+	operation it will steadily increase, and if the recovery is
 	interrupted, restoring this value can cause recovery to
 	avoid repeating the earlier blocks.  With v1.x metadata, this
 	value is saved and restored automatically.
@@ -435,9 +452,23 @@ Each directory contains:
 	Setting this to 'none' is equivalent to setting 'in_sync'.
 	Setting to any other value also clears the 'in_sync' flag.
 	
+      bad_blocks
+	This gives the list of all known bad blocks in the form of
+	start address and length (in sectors respectively). If output
+	is too big to fit in a page, it will be truncated. Writing
+	"sector length" to this file adds new acknowledged (i.e.
+	recorded to disk safely) bad blocks.
+
+      unacknowledged_bad_blocks
+	This gives the list of known-but-not-yet-saved-to-disk bad
+	blocks in the same form of 'bad_blocks'. If output is too big
+	to fit in a page, it will be truncated. Writing to this file
+	adds bad blocks without acknowledging them. This is largely
+	for testing.
 
 
-An active md device will also contain and entry for each active device
+
+An active md device will also contain an entry for each active device
 in the array.  These are named
 
     rdNN
@@ -451,7 +482,7 @@ will show 'in_sync' on every line.
 
 
 
-Active md devices for levels that support data redundancy (1,4,5,6)
+Active md devices for levels that support data redundancy (1,4,5,6,10)
 also have
 
    sync_action
@@ -463,7 +494,7 @@ also have
                        failed/missing device
        idle          - nothing is happening
        check         - A full check of redundancy was requested and is
-                       happening.  This reads all block and checks
+                       happening.  This reads all blocks and checks
                        them. A repair may also happen for some raid
                        levels.
        repair        - A full check and repair is happening.  This is
@@ -491,7 +522,7 @@ also have
 
    degraded
       This contains a count of the number of devices by which the
-      arrays is degraded.  So an optimal array with show '0'.  A
+      arrays is degraded.  So an optimal array will show '0'.  A
       single failed/missing drive will show '1', etc.
       This file responds to select/poll, any increase or decrease
       in the count of missing devices will trigger an event.

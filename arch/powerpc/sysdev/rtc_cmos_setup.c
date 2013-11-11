@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/mc146818rtc.h>
 
 #include <asm/prom.h>
@@ -61,10 +62,7 @@ static int  __init add_rtc(void)
 	pd = platform_device_register_simple("rtc_cmos", -1,
 					     &res[0], num_res);
 
-	if (IS_ERR(pd))
-		return PTR_ERR(pd);
-
-	return 0;
+	return PTR_RET(pd);
 }
 fs_initcall(add_rtc);
 

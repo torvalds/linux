@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 
 #include <asm/irq.h>
 #include <asm/oplib.h>
@@ -352,8 +353,8 @@ int __init pcic_probe(void)
 	strcpy(pbm->prom_name, namebuf);
 
 	{
-		extern volatile int t_nmi[1];
-		extern int pcic_nmi_trap_patch[1];
+		extern volatile int t_nmi[4];
+		extern int pcic_nmi_trap_patch[4];
 
 		t_nmi[0] = pcic_nmi_trap_patch[0];
 		t_nmi[1] = pcic_nmi_trap_patch[1];
@@ -438,8 +439,7 @@ int pcic_present(void)
 	return pcic0_up;
 }
 
-static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
-				    struct pci_dev *pdev)
+static int pdev_to_pnode(struct linux_pbm_info *pbm, struct pci_dev *pdev)
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];
 	int err;
@@ -594,7 +594,7 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 /*
  * Normally called from {do_}pci_scan_bus...
  */
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
@@ -702,31 +702,28 @@ static void pcic_clear_clock_irq(void)
 	pcic_timer_dummy = readl(pcic0.pcic_regs+PCI_SYS_LIMIT);
 }
 
-static irqreturn_t pcic_timer_handler (int irq, void *h)
-{
-	pcic_clear_clock_irq();
-	xtime_update(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-	return IRQ_HANDLED;
-}
+/* CPU frequency is 100 MHz, timer increments every 4 CPU clocks */
+#define USECS_PER_JIFFY  (1000000 / HZ)
+#define TICK_TIMER_LIMIT ((100 * 1000000 / 4) / HZ)
 
-#define USECS_PER_JIFFY  10000  /* We have 100HZ "standard" timer for sparc */
-#define TICK_TIMER_LIMIT ((100*1000000/4)/100)
-
-u32 pci_gettimeoffset(void)
+static unsigned int pcic_cycles_offset(void)
 {
+	u32 value, count;
+
+	value = readl(pcic0.pcic_regs + PCI_SYS_COUNTER);
+	count = value & ~PCI_SYS_COUNTER_OVERFLOW;
+
+	if (value & PCI_SYS_COUNTER_OVERFLOW)
+		count += TICK_TIMER_LIMIT;
 	/*
-	 * We divide all by 100
+	 * We divide all by HZ
 	 * to have microsecond resolution and to avoid overflow
 	 */
-	unsigned long count =
-	    readl(pcic0.pcic_regs+PCI_SYS_COUNTER) & ~PCI_SYS_COUNTER_OVERFLOW;
-	count = ((count/100)*USECS_PER_JIFFY) / (TICK_TIMER_LIMIT/100);
-	return count * 1000;
-}
+	count = ((count / HZ) * USECS_PER_JIFFY) / (TICK_TIMER_LIMIT / HZ);
 
+	/* Coordinate with the sparc_config.clock_rate setting */
+	return count * 2;
+}
 
 void __init pci_time_init(void)
 {
@@ -735,9 +732,16 @@ void __init pci_time_init(void)
 	int timer_irq, irq;
 	int err;
 
-	do_arch_gettimeoffset = pci_gettimeoffset;
-
-	btfixup();
+#ifndef CONFIG_SMP
+	/*
+	 * The clock_rate is in SBUS dimension.
+	 * We take into account this in pcic_cycles_offset()
+	 */
+	sparc_config.clock_rate = SBUS_CLOCK_RATE / HZ;
+	sparc_config.features |= FEAT_L10_CLOCKEVENT;
+#endif
+	sparc_config.features |= FEAT_L10_CLOCKSOURCE;
+	sparc_config.get_cycles_offset = pcic_cycles_offset;
 
 	writel (TICK_TIMER_LIMIT, pcic->pcic_regs+PCI_SYS_LIMIT);
 	/* PROM should set appropriate irq */
@@ -746,7 +750,7 @@ void __init pci_time_init(void)
 	writel (PCI_COUNTER_IRQ_SET(timer_irq, 0),
 		pcic->pcic_regs+PCI_COUNTER_IRQ);
 	irq = pcic_build_device_irq(NULL, timer_irq);
-	err = request_irq(irq, pcic_timer_handler,
+	err = request_irq(irq, timer_interrupt,
 			  IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("time_init: unable to attach IRQ%d\n", timer_irq);
@@ -761,14 +765,6 @@ static void watchdog_reset() {
 	writeb(0, pcic->pcic_regs+PCI_SYS_STATUS);
 }
 #endif
-
-/*
- * Other archs parse arguments here.
- */
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
 
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
@@ -874,24 +870,10 @@ static void pcic_load_profile_irq(int cpu, unsigned int limit)
 
 void __init sun4m_pci_init_IRQ(void)
 {
-	sparc_irq_config.build_device_irq = pcic_build_device_irq;
-
-	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
+	sparc_config.build_device_irq = pcic_build_device_irq;
+	sparc_config.clear_clock_irq  = pcic_clear_clock_irq;
+	sparc_config.load_profile_irq = pcic_load_profile_irq;
 }
-
-int pcibios_assign_resource(struct pci_dev *pdev, int resource)
-{
-	return -ENXIO;
-}
-
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	struct pcidev_cookie *pc = pdev->sysdata;
-
-	return pc->prom_node;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
 
 /*
  * This probably belongs here rather than ioport.c because

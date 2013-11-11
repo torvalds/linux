@@ -22,7 +22,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -43,7 +43,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -73,8 +73,7 @@
 // #include <linux/in.h>
 // #include <linux/delay.h>
 // #include <asm/io.h>
-// #include <asm/system.h>
-// #include <asm/bitops.h>
+// // #include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -99,8 +98,7 @@
  ******************************************************************************/
 
 /* A matrix which maps channels to frequencies */
-#define MAX_CHAN_FREQ_MAP_ENTRIES   50
-static const long chan_freq_list[][MAX_CHAN_FREQ_MAP_ENTRIES] =
+static const long chan_freq_list[][2] =
 {
     {1,2412},
     {2,2417},
@@ -847,7 +845,7 @@ int wl_is_a_valid_chan( int channel )
     }
 
     /* Iterate through the matrix and retrieve the frequency */
-    for( i = 0; i < MAX_CHAN_FREQ_MAP_ENTRIES; i++ ) {
+    for( i = 0; i < ARRAY_SIZE(chan_freq_list); i++ ) {
         if( chan_freq_list[i][0] == channel ) {
             return 1;
         }
@@ -885,7 +883,7 @@ int wl_is_a_valid_freq( long frequency )
 
 
     /* Iterate through the matrix and retrieve the channel */
-    for( i = 0; i < MAX_CHAN_FREQ_MAP_ENTRIES; i++ ) {
+    for( i = 0; i < ARRAY_SIZE(chan_freq_list); i++ ) {
         if( chan_freq_list[i][1] == frequency ) {
             return 1;
         }
@@ -928,7 +926,7 @@ long wl_get_freq_from_chan( int channel )
     }
 
     /* Iterate through the matrix and retrieve the frequency */
-    for( i = 0; i < MAX_CHAN_FREQ_MAP_ENTRIES; i++ ) {
+    for( i = 0; i < ARRAY_SIZE(chan_freq_list); i++ ) {
         if( chan_freq_list[i][0] == channel ) {
             return chan_freq_list[i][1];
         }
@@ -966,7 +964,7 @@ int wl_get_chan_from_freq( long frequency )
 
 
     /* Iterate through the matrix and retrieve the channel */
-    for( i = 0; i < MAX_CHAN_FREQ_MAP_ENTRIES; i++ ) {
+    for( i = 0; i < ARRAY_SIZE(chan_freq_list); i++ ) {
         if( chan_freq_list[i][1] == frequency ) {
             return chan_freq_list[i][0];
         }

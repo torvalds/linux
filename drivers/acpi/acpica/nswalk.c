@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,8 +60,8 @@ ACPI_MODULE_NAME("nswalk")
  * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
  *                                    none is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace.  If Handle
- *              is valid, Scope is ignored.  Otherwise, the first node
+ * DESCRIPTION: Return the next peer node within the namespace. If Handle
+ *              is valid, Scope is ignored. Otherwise, the first node
  *              within Scope is returned.
  *
  ******************************************************************************/
@@ -76,19 +76,19 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
 
 		/* It's really the parent's _scope_ that we want */
 
-		return parent_node->child;
+		return (parent_node->child);
 	}
 
 	/* Otherwise just return the next peer */
 
-	return child_node->peer;
+	return (child_node->peer);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_next_node_typed
  *
- * PARAMETERS:  Type                - Type of node to be searched for
+ * PARAMETERS:  type                - Type of node to be searched for
  *              parent_node         - Parent node whose children we are
  *                                    getting
  *              child_node          - Previous child that was found.
@@ -97,8 +97,8 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
  * RETURN:      struct acpi_namespace_node - Pointer to the NEXT child or NULL if
  *                                    none is found.
  *
- * DESCRIPTION: Return the next peer node within the namespace.  If Handle
- *              is valid, Scope is ignored.  Otherwise, the first node
+ * DESCRIPTION: Return the next peer node within the namespace. If Handle
+ *              is valid, Scope is ignored. Otherwise, the first node
  *              within Scope is returned.
  *
  ******************************************************************************/
@@ -151,16 +151,16 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
  *
  * FUNCTION:    acpi_ns_walk_namespace
  *
- * PARAMETERS:  Type                - acpi_object_type to search for
+ * PARAMETERS:  type                - acpi_object_type to search for
  *              start_node          - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
- *              Flags               - Whether to unlock the NS before invoking
+ *              flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
  *              pre_order_visit     - Called during tree pre-order visit
  *                                    when an object of "Type" is found
  *              post_order_visit    - Called during tree post-order visit
  *                                    when an object of "Type" is found
- *              Context             - Passed to user function(s) above
+ *              context             - Passed to user function(s) above
  *              return_value        - from the user_function if terminated
  *                                    early. Otherwise, returns NULL.
  * RETURNS:     Status
@@ -305,7 +305,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 
 		/*
 		 * Depth first search: Attempt to go down another level in the
-		 * namespace if we are allowed to.  Don't go any further if we have
+		 * namespace if we are allowed to. Don't go any further if we have
 		 * reached the caller specified maximum depth or if the user
 		 * function has specified that the maximum depth has been reached.
 		 */

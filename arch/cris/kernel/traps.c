@@ -17,6 +17,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
+#include <arch/system.h>
 
 extern void arch_enable_nmi(void);
 extern void stop_watchdog(void);
@@ -144,13 +145,6 @@ show_stack(void)
 	return 0;
 }
 #endif
-
-void
-dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
 
 void
 set_nmi_handler(void (*handler)(struct pt_regs *))

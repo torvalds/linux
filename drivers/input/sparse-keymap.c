@@ -15,6 +15,7 @@
 
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
@@ -179,11 +180,11 @@ int sparse_keymap_setup(struct input_dev *dev,
 	for (e = keymap; e->type != KE_END; e++)
 		map_size++;
 
-	map = kcalloc(map_size, sizeof (struct key_entry), GFP_KERNEL);
+	map = kcalloc(map_size, sizeof(struct key_entry), GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 
-	memcpy(map, keymap, map_size * sizeof (struct key_entry));
+	memcpy(map, keymap, map_size * sizeof(struct key_entry));
 
 	for (i = 0; i < map_size; i++) {
 		entry = &map[i];

@@ -1,5 +1,5 @@
 /*
- * Board support file for Nokia RM-680.
+ * Board support file for Nokia N950 (RM-680) / N9 (RM-696).
  *
  * Copyright (C) 2010 Nokia
  *
@@ -17,21 +17,20 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
+#include <linux/usb/phy.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <plat/i2c.h>
-#include <plat/mmc.h>
-#include <plat/usb.h>
-#include <plat/gpmc.h>
-#include <plat/common.h>
-#include <plat/onenand.h>
-
+#include "common.h"
 #include "mux.h"
+#include "gpmc.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
 #include "common-board-devices.h"
+#include "gpmc-onenand.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
@@ -72,28 +71,19 @@ static struct platform_device *rm680_peripherals_devices[] __initdata = {
 
 /* TWL */
 static struct twl4030_gpio_platform_data rm680_gpio_data = {
-	.gpio_base		= OMAP_MAX_GPIO_LINES,
-	.irq_base		= TWL4030_GPIO_IRQ_BASE,
-	.irq_end		= TWL4030_GPIO_IRQ_END,
 	.pullups		= BIT(0),
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };
 
-static struct twl4030_usb_data rm680_usb_data = {
-	.usb_mode		= T2_USB_MODE_ULPI,
-};
-
 static struct twl4030_platform_data rm680_twl_data = {
-	.irq_base		= TWL4030_IRQ_BASE,
-	.irq_end		= TWL4030_IRQ_END,
 	.gpio			= &rm680_gpio_data,
-	.usb			= &rm680_usb_data,
 	/* add rest of the children here */
 };
 
 static void __init rm680_i2c_init(void)
 {
-	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
+	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB, 0);
+	omap_pmic_init(1, 2900, "twl5031", 7 + OMAP_INTC_START, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 }
@@ -126,16 +116,7 @@ static void __init rm680_peripherals_init(void)
 				ARRAY_SIZE(rm680_peripherals_devices));
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
-	omap2_hsmmc_init(mmc);
-}
-
-static void __init rm680_init_early(void)
-{
-	struct omap_sdrc_params *sdrc_params;
-
-	omap2_init_common_infrastructure();
-	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_devices(sdrc_params, sdrc_params);
+	omap_hsmmc_init(mmc);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -146,24 +127,41 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init rm680_init(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+
+	sdrc_params = nokia_get_sdram_timings();
+	omap_sdrc_init(sdrc_params, sdrc_params);
+
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }
 
-static void __init rm680_map_io(void)
-{
-	omap2_set_globals_3xxx();
-	omap34xx_map_common_io();
-}
-
 MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
-	.map_io		= rm680_map_io,
-	.init_early	= rm680_init_early,
-	.init_irq	= omap_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3630_init_early,
+	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
-	.timer		= &omap_timer,
+	.init_late	= omap3630_init_late,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
+MACHINE_END
+
+MACHINE_START(NOKIA_RM696, "Nokia RM-696 board")
+	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3630_init_early,
+	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
+	.init_machine	= rm680_init,
+	.init_late	= omap3630_init_late,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

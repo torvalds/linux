@@ -44,7 +44,6 @@
  *
  * Note: Some items are also used with TIPC internal message headers
  */
-
 #define TIPC_VERSION              2
 
 /*
@@ -58,7 +57,6 @@
 /*
  * Payload message types
  */
-
 #define TIPC_CONN_MSG		0
 #define TIPC_MCAST_MSG		1
 #define TIPC_NAMED_MSG		2
@@ -67,16 +65,17 @@
 /*
  * Message header sizes
  */
-
-#define SHORT_H_SIZE              24	/* Connected, in-cluster messages */
-#define DIR_MSG_H_SIZE            32	/* Directly addressed messages */
-#define LONG_H_SIZE               40	/* Named messages */
-#define MCAST_H_SIZE              44	/* Multicast messages */
+#define SHORT_H_SIZE              24	/* In-cluster basic payload message */
+#define BASIC_H_SIZE              32	/* Basic payload message */
+#define NAMED_H_SIZE              40	/* Named payload message */
+#define MCAST_H_SIZE              44	/* Multicast payload message */
 #define INT_H_SIZE                40	/* Internal messages */
 #define MIN_H_SIZE                24	/* Smallest legal TIPC header size */
 #define MAX_H_SIZE                60	/* Largest possible TIPC header size */
 
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
+
+#define TIPC_MEDIA_ADDR_OFFSET	5
 
 
 struct tipc_msg {
@@ -119,7 +118,6 @@ static inline void msg_swap_words(struct tipc_msg *msg, u32 a, u32 b)
 /*
  * Word 0
  */
-
 static inline u32 msg_version(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 29, 7);
@@ -214,7 +212,6 @@ static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 /*
  * Word 1
  */
-
 static inline u32 msg_type(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 29, 0x7);
@@ -289,7 +286,6 @@ static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
 /*
  * Word 2
  */
-
 static inline u32 msg_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 2, 16, 0xffff);
@@ -311,30 +307,8 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 }
 
 /*
- * TIPC may utilize the "link ack #" and "link seq #" fields of a short
- * message header to hold the destination node for the message, since the
- * normal "dest node" field isn't present.  This cache is only referenced
- * when required, so populating the cache of a longer message header is
- * harmless (as long as the header has the two link sequence fields present).
- *
- * Note: Host byte order is OK here, since the info never goes off-card.
- */
-
-static inline u32 msg_destnode_cache(struct tipc_msg *m)
-{
-	return m->hdr[2];
-}
-
-static inline void msg_set_destnode_cache(struct tipc_msg *m, u32 dnode)
-{
-	m->hdr[2] = dnode;
-}
-
-/*
  * Words 3-10
  */
-
-
 static inline u32 msg_prevnode(struct tipc_msg *m)
 {
 	return msg_word(m, 3);
@@ -377,7 +351,7 @@ static inline void msg_set_mc_netid(struct tipc_msg *m, u32 p)
 
 static inline int msg_short(struct tipc_msg *m)
 {
-	return msg_hdr_sz(m) == 24;
+	return msg_hdr_sz(m) == SHORT_H_SIZE;
 }
 
 static inline u32 msg_orignode(struct tipc_msg *m)
@@ -400,11 +374,6 @@ static inline u32 msg_destnode(struct tipc_msg *m)
 static inline void msg_set_destnode(struct tipc_msg *m, u32 a)
 {
 	msg_set_word(m, 7, a);
-}
-
-static inline int msg_is_dest(struct tipc_msg *m, u32 d)
-{
-	return msg_short(m) || (msg_destnode(m) == d);
 }
 
 static inline u32 msg_nametype(struct tipc_msg *m)
@@ -457,7 +426,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 	return (struct tipc_msg *)msg_data(m);
 }
 
-
 /*
  * Constants and routines used to read and write TIPC internal message headers
  */
@@ -465,7 +433,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Internal message users
  */
-
 #define  BCAST_PROTOCOL       5
 #define  MSG_BUNDLER          6
 #define  LINK_PROTOCOL        7
@@ -479,7 +446,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  *  Connection management protocol message types
  */
-
 #define CONN_PROBE        0
 #define CONN_PROBE_REPLY  1
 #define CONN_ACK          2
@@ -487,14 +453,12 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Name distributor message types
  */
-
 #define PUBLICATION       0
 #define WITHDRAWAL        1
 
 /*
  * Segmentation message types
  */
-
 #define FIRST_FRAGMENT		0
 #define FRAGMENT		1
 #define LAST_FRAGMENT		2
@@ -502,7 +466,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Link management protocol message types
  */
-
 #define STATE_MSG		0
 #define RESET_MSG		1
 #define ACTIVATE_MSG		2
@@ -516,7 +479,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Config protocol message types
  */
-
 #define DSC_REQ_MSG		0
 #define DSC_RESP_MSG		1
 
@@ -524,7 +486,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Word 1
  */
-
 static inline u32 msg_seq_gap(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 16, 0x1fff);
@@ -535,11 +496,20 @@ static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 16, 0x1fff, n);
 }
 
+static inline u32 msg_node_sig(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
+}
+
 
 /*
  * Word 2
  */
-
 static inline u32 msg_dest_domain(struct tipc_msg *m)
 {
 	return msg_word(m, 2);
@@ -574,7 +544,6 @@ static inline void msg_set_bcgap_to(struct tipc_msg *m, u32 n)
 /*
  * Word 4
  */
-
 static inline u32 msg_last_bcast(struct tipc_msg *m)
 {
 	return msg_bits(m, 4, 16, 0xffff);
@@ -635,13 +604,12 @@ static inline u32 msg_link_selector(struct tipc_msg *m)
 
 static inline void msg_set_link_selector(struct tipc_msg *m, u32 n)
 {
-	msg_set_bits(m, 4, 0, 1, (n & 1));
+	msg_set_bits(m, 4, 0, 1, n);
 }
 
 /*
  * Word 5
  */
-
 static inline u32 msg_session(struct tipc_msg *m)
 {
 	return msg_bits(m, 5, 16, 0xffff);
@@ -659,7 +627,7 @@ static inline u32 msg_probe(struct tipc_msg *m)
 
 static inline void msg_set_probe(struct tipc_msg *m, u32 val)
 {
-	msg_set_bits(m, 5, 0, 1, (val & 1));
+	msg_set_bits(m, 5, 0, 1, val);
 }
 
 static inline char msg_net_plane(struct tipc_msg *m)
@@ -702,11 +670,14 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 	msg_set_bits(m, 5, 12, 0x1, r);
 }
 
+static inline char *msg_media_addr(struct tipc_msg *m)
+{
+	return (char *)&m->hdr[TIPC_MEDIA_ADDR_OFFSET];
+}
 
 /*
  * Word 9
  */
-
 static inline u32 msg_msgcnt(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
@@ -753,15 +724,4 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf);
-
-static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(&((int *)m)[5], a, sizeof(*a));
-}
-
-static inline void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(a, &((int *)m)[5], sizeof(*a));
-}
-
 #endif

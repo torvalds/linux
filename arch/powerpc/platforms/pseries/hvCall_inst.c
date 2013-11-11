@@ -86,7 +86,7 @@ static int hcall_inst_seq_open(struct inode *inode, struct file *file)
 
 	rc = seq_open(file, &hcall_inst_seq_ops);
 	seq = file->private_data;
-	seq->private = file->f_path.dentry->d_inode->i_private;
+	seq->private = file_inode(file)->i_private;
 
 	return rc;
 }
@@ -109,7 +109,7 @@ static void probe_hcall_entry(void *ignored, unsigned long opcode, unsigned long
 	if (opcode > MAX_HCALL_OPCODE)
 		return;
 
-	h = &get_cpu_var(hcall_stats)[opcode / 4];
+	h = &__get_cpu_var(hcall_stats)[opcode / 4];
 	h->tb_start = mftb();
 	h->purr_start = mfspr(SPRN_PURR);
 }
@@ -126,8 +126,6 @@ static void probe_hcall_exit(void *ignored, unsigned long opcode, unsigned long 
 	h->num_calls++;
 	h->tb_total += mftb() - h->tb_start;
 	h->purr_total += mfspr(SPRN_PURR) - h->purr_start;
-
-	put_cpu_var(hcall_stats);
 }
 
 static int __init hcall_inst_init(void)

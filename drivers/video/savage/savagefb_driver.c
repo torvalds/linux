@@ -56,7 +56,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -70,7 +69,7 @@
 /* --------------------------------------------------------------------- */
 
 
-static char *mode_option __devinitdata = NULL;
+static char *mode_option = NULL;
 
 #ifdef MODULE
 
@@ -663,7 +662,7 @@ static void savage_get_default_par(struct savagefb_par *par, struct savage_reg *
 	vga_out8(0x3c4, 0x18, par);
 	reg->SR18 = vga_in8(0x3c5, par);
 
-	/* Save flat panel expansion regsters. */
+	/* Save flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 
@@ -816,7 +815,7 @@ static void savage_set_default_par(struct savagefb_par *par,
 	vga_out8(0x3c4, 0x18, par);
 	vga_out8(0x3c5, reg->SR18, par);
 
-	/* Save flat panel expansion regsters. */
+	/* Save flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 
@@ -1319,7 +1318,7 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	vga_out8(0x3c4, 0x15, par);
 	vga_out8(0x3c5, reg->SR15, par);
 
-	/* Restore flat panel expansion regsters. */
+	/* Restore flat panel expansion registers. */
 	if (par->chip == S3_SAVAGE_MX) {
 		int i;
 
@@ -1352,7 +1351,7 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	/* following part not present in X11 driver */
 	cr67 = vga_in8(0x3d5, par) & 0xf;
 	vga_out8(0x3d5, 0x50 | cr67, par);
-	udelay(10000);
+	mdelay(10);
 	vga_out8(0x3d4, 0x67, par);
 	/* end of part */
 	vga_out8(0x3d5, reg->CR67 & ~0x0c, par);
@@ -1477,15 +1476,9 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	vgaHWProtect(par, 0);
 }
 
-static void savagefb_update_start(struct savagefb_par      *par,
-				  struct fb_var_screeninfo *var)
+static void savagefb_update_start(struct savagefb_par *par, int base)
 {
-	int base;
-
-	base = ((var->yoffset * var->xres_virtual + (var->xoffset & ~1))
-		* ((var->bits_per_pixel+7) / 8)) >> 2;
-
-	/* now program the start address registers */
+	/* program the start address registers */
 	vga_out16(0x3d4, (base & 0x00ff00) | 0x0c, par);
 	vga_out16(0x3d4, ((base & 0x00ff) << 8) | 0x0d, par);
 	vga_out8(0x3d4, 0x69, par);
@@ -1550,8 +1543,12 @@ static int savagefb_pan_display(struct fb_var_screeninfo *var,
 				struct fb_info           *info)
 {
 	struct savagefb_par *par = info->par;
+	int base;
 
-	savagefb_update_start(par, var);
+	base = (var->yoffset * info->fix.line_length
+	     + (var->xoffset & ~1) * ((info->var.bits_per_pixel+7) / 8)) >> 2;
+
+	savagefb_update_start(par, base);
 	return 0;
 }
 
@@ -1667,7 +1664,7 @@ static struct fb_ops savagefb_ops = {
 
 /* --------------------------------------------------------------------- */
 
-static struct fb_var_screeninfo __devinitdata savagefb_var800x600x8 = {
+static struct fb_var_screeninfo savagefb_var800x600x8 = {
 	.accel_flags =	FB_ACCELF_TEXT,
 	.xres =		800,
 	.yres =		600,
@@ -1718,7 +1715,7 @@ static void savage_disable_mmio(struct savagefb_par *par)
 }
 
 
-static int __devinit savage_map_mmio(struct fb_info *info)
+static int savage_map_mmio(struct fb_info *info)
 {
 	struct savagefb_par *par = info->par;
 	DBG("savage_map_mmio");
@@ -1764,8 +1761,7 @@ static void savage_unmap_mmio(struct fb_info *info)
 	}
 }
 
-static int __devinit savage_map_video(struct fb_info *info,
-				      int video_len)
+static int savage_map_video(struct fb_info *info, int video_len)
 {
 	struct savagefb_par *par = info->par;
 	int resource;
@@ -1907,11 +1903,11 @@ static int savage_init_hw(struct savagefb_par *par)
 	vga_out8(0x3d4, 0x66, par);
 	cr66 = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr66 | 0x02, par);
-	udelay(10000);
+	mdelay(10);
 
 	vga_out8(0x3d4, 0x66, par);
 	vga_out8(0x3d5, cr66 & ~0x02, par);	/* clear reset flag */
-	udelay(10000);
+	mdelay(10);
 
 
 	/*
@@ -1921,11 +1917,11 @@ static int savage_init_hw(struct savagefb_par *par)
 	vga_out8(0x3d4, 0x3f, par);
 	cr3f = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr3f | 0x08, par);
-	udelay(10000);
+	mdelay(10);
 
 	vga_out8(0x3d4, 0x3f, par);
 	vga_out8(0x3d5, cr3f & ~0x08, par);	/* clear reset flags */
-	udelay(10000);
+	mdelay(10);
 
 	/* Savage ramdac speeds */
 	par->numClocks = 4;
@@ -2055,9 +2051,8 @@ static int savage_init_hw(struct savagefb_par *par)
 	return videoRambytes;
 }
 
-static int __devinit savage_init_fb_info(struct fb_info *info,
-					 struct pci_dev *dev,
-					 const struct pci_device_id *id)
+static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
+			       const struct pci_device_id *id)
 {
 	struct savagefb_par *par = info->par;
 	int err = 0;
@@ -2181,8 +2176,7 @@ static int __devinit savage_init_fb_info(struct fb_info *info,
 
 /* --------------------------------------------------------------------- */
 
-static int __devinit savagefb_probe(struct pci_dev* dev,
-				    const struct pci_device_id* id)
+static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct fb_info *info;
 	struct savagefb_par *par;
@@ -2269,8 +2263,10 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 	lpitch = info->var.xres_virtual*((info->var.bits_per_pixel + 7) >> 3);
 	info->var.yres_virtual = info->fix.smem_len/lpitch;
 
-	if (info->var.yres_virtual < info->var.yres)
+	if (info->var.yres_virtual < info->var.yres) {
+		err = -ENOMEM;
 		goto failed;
+	}
 
 #if defined(CONFIG_FB_SAVAGE_ACCEL)
 	/*
@@ -2341,7 +2337,7 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 	return err;
 }
 
-static void __devexit savagefb_remove(struct pci_dev *dev)
+static void savagefb_remove(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 
@@ -2450,7 +2446,7 @@ static int savagefb_resume(struct pci_dev* dev)
 }
 
 
-static struct pci_device_id savagefb_devices[] __devinitdata = {
+static struct pci_device_id savagefb_devices[] = {
 	{PCI_VENDOR_ID_S3, PCI_CHIP_SUPSAV_MX128,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, FB_ACCEL_SUPERSAVAGE},
 
@@ -2531,7 +2527,7 @@ static struct pci_driver savagefb_driver = {
 	.probe =    savagefb_probe,
 	.suspend =  savagefb_suspend,
 	.resume =   savagefb_resume,
-	.remove =   __devexit_p(savagefb_remove)
+	.remove =   savagefb_remove,
 };
 
 /* **************************** exit-time only **************************** */

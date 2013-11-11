@@ -36,9 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
-
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #include "bfin_adv7393fb.h"
 
@@ -60,7 +58,7 @@ static const unsigned short ppi_pins[] = {
  */
 
 static struct bfin_adv7393_fb_par {
-	/* structure holding blackfin / adv7393 paramters when
+	/* structure holding blackfin / adv7393 parameters when
 	   screen is blanked */
 	struct {
 		u8 Mode;	/* ntsc/pal/? */
@@ -90,7 +88,7 @@ static struct fb_var_screeninfo bfin_adv7393_fb_defined = {
 	.transp = {0, 0, 0},
 };
 
-static struct fb_fix_screeninfo bfin_adv7393_fb_fix __devinitdata = {
+static struct fb_fix_screeninfo bfin_adv7393_fb_fix = {
 	.id = "BFIN ADV7393",
 	.smem_len = 720 * 480 * 2,
 	.type = FB_TYPE_PACKED_PIXELS,
@@ -335,45 +333,43 @@ static int proc_output(char *buf)
 	return p - buf;
 }
 
-static int
-adv7393_read_proc(char *page, char **start, off_t off,
-		  int count, int *eof, void *data)
+static ssize_t
+adv7393_read_proc(struct file *file, char __user *buf,
+		  size_t size, loff_t *ppos)
 {
-	int len;
-
-	len = proc_output(page);
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-	return len;
+	static const char message[] = "Usage:\n"
+		"echo 0x[REG][Value] > adv7393\n"
+		"example: echo 0x1234 >adv7393\n"
+		"writes 0x34 into Register 0x12\n";
+	return simple_read_from_buffer(buf, size, ppos, message,
+					sizeof(message));
 }
 
-static int
+static ssize_t
 adv7393_write_proc(struct file *file, const char __user * buffer,
-		   unsigned long count, void *data)
+		   size_t count, loff_t *ppos)
 {
-	struct adv7393fb_device *fbdev = data;
-	char line[8];
+	struct adv7393fb_device *fbdev = PDE_DATA(file_inode(file));
 	unsigned int val;
 	int ret;
 
-	ret = copy_from_user(line, buffer, count);
+	ret = kstrtouint_from_user(buffer, count, 0, &val);
 	if (ret)
 		return -EFAULT;
 
-	val = simple_strtoul(line, NULL, 0);
 	adv7393_write(fbdev->client, val >> 8, val & 0xff);
 
 	return count;
 }
 
-static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
-					   const struct i2c_device_id *id)
+static const struct file_operations fops = {
+	.read = adv7393_read_proc,
+	.write = adv7393_write_proc,
+	.llseek = default_llseek,
+};
+
+static int bfin_adv7393_fb_probe(struct i2c_client *client,
+				 const struct i2c_device_id *id)
 {
 	int ret = 0;
 	struct proc_dir_entry *entry;
@@ -411,18 +407,19 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	/* Workaround "PPI Does Not Start Properly In Specific Mode" */
 	if (ANOMALY_05000400) {
-		if (gpio_request(P_IDENT(P_PPI0_FS3), "PPI0_FS3")) {
+		ret = gpio_request_one(P_IDENT(P_PPI0_FS3), GPIOF_OUT_INIT_LOW,
+					"PPI0_FS3")
+		if (ret) {
 			dev_err(&client->dev, "PPI0_FS3 GPIO request failed\n");
 			ret = -EBUSY;
-			goto out_8;
+			goto free_fbdev;
 		}
-		gpio_direction_output(P_IDENT(P_PPI0_FS3), 0);
 	}
 
 	if (peripheral_request_list(ppi_pins, DRIVER_NAME)) {
 		dev_err(&client->dev, "requesting PPI peripheral failed\n");
 		ret = -EFAULT;
-		goto out_8;
+		goto free_gpio;
 	}
 
 	fbdev->fb_mem =
@@ -433,7 +430,7 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 		dev_err(&client->dev, "couldn't allocate dma buffer (%d bytes)\n",
 		       (u32) fbdev->fb_len);
 		ret = -ENOMEM;
-		goto out_7;
+		goto free_ppi_pins;
 	}
 
 	fbdev->info.screen_base = (void *)fbdev->fb_mem;
@@ -465,27 +462,27 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 	if (!fbdev->info.pseudo_palette) {
 		dev_err(&client->dev, "failed to allocate pseudo_palette\n");
 		ret = -ENOMEM;
-		goto out_6;
+		goto free_fb_mem;
 	}
 
 	if (fb_alloc_cmap(&fbdev->info.cmap, BFIN_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		dev_err(&client->dev, "failed to allocate colormap (%d entries)\n",
 			   BFIN_LCD_NBR_PALETTE_ENTRIES);
 		ret = -EFAULT;
-		goto out_5;
+		goto free_palette;
 	}
 
 	if (request_dma(CH_PPI, "BF5xx_PPI_DMA") < 0) {
 		dev_err(&client->dev, "unable to request PPI DMA\n");
 		ret = -EFAULT;
-		goto out_4;
+		goto free_cmap;
 	}
 
-	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, IRQF_DISABLED,
+	if (request_irq(IRQ_PPI_ERROR, ppi_irq_error, 0,
 			"PPI ERROR", fbdev) < 0) {
 		dev_err(&client->dev, "unable to request PPI ERROR IRQ\n");
 		ret = -EFAULT;
-		goto out_3;
+		goto free_ch_ppi;
 	}
 
 	fbdev->open = 0;
@@ -495,49 +492,47 @@ static int __devinit bfin_adv7393_fb_probe(struct i2c_client *client,
 
 	if (ret) {
 		dev_err(&client->dev, "i2c attach: init error\n");
-		goto out_1;
+		goto free_irq_ppi;
 	}
 
 
 	if (register_framebuffer(&fbdev->info) < 0) {
 		dev_err(&client->dev, "unable to register framebuffer\n");
 		ret = -EFAULT;
-		goto out_1;
+		goto free_irq_ppi;
 	}
 
 	dev_info(&client->dev, "fb%d: %s frame buffer device\n",
 	       fbdev->info.node, fbdev->info.fix.id);
 	dev_info(&client->dev, "fb memory address : 0x%p\n", fbdev->fb_mem);
 
-	entry = create_proc_entry("driver/adv7393", 0, NULL);
+	entry = proc_create_data("driver/adv7393", 0, NULL, &fops, fbdev);
 	if (!entry) {
 		dev_err(&client->dev, "unable to create /proc entry\n");
 		ret = -EFAULT;
-		goto out_0;
+		goto free_fb;
 	}
-
-	entry->read_proc = adv7393_read_proc;
-	entry->write_proc = adv7393_write_proc;
-	entry->data = fbdev;
-
 	return 0;
 
- out_0:
+free_fb:
 	unregister_framebuffer(&fbdev->info);
- out_1:
+free_irq_ppi:
 	free_irq(IRQ_PPI_ERROR, fbdev);
- out_3:
+free_ch_ppi:
 	free_dma(CH_PPI);
- out_4:
+free_cmap:
+	fb_dealloc_cmap(&fbdev->info.cmap);
+free_palette:
+	kfree(fbdev->info.pseudo_palette);
+free_fb_mem:
 	dma_free_coherent(NULL, fbdev->fb_len, fbdev->fb_mem,
 			  fbdev->dma_handle);
- out_5:
-	fb_dealloc_cmap(&fbdev->info.cmap);
- out_6:
-	kfree(fbdev->info.pseudo_palette);
- out_7:
+free_ppi_pins:
 	peripheral_free_list(ppi_pins);
- out_8:
+free_gpio:
+	if (ANOMALY_05000400)
+		gpio_free(P_IDENT(P_PPI0_FS3));
+free_fbdev:
 	kfree(fbdev);
 
 	return ret;
@@ -719,7 +714,7 @@ static int bfin_adv7393_fb_setcolreg(u_int regno, u_int red, u_int green,
 	return 0;
 }
 
-static int __devexit bfin_adv7393_fb_remove(struct i2c_client *client)
+static int bfin_adv7393_fb_remove(struct i2c_client *client)
 {
 	struct adv7393fb_device *fbdev = i2c_get_clientdata(client);
 
@@ -794,7 +789,7 @@ static struct i2c_driver bfin_adv7393_fb_driver = {
 #endif
 	},
 	.probe = bfin_adv7393_fb_probe,
-	.remove = __devexit_p(bfin_adv7393_fb_remove),
+	.remove = bfin_adv7393_fb_remove,
 	.id_table = bfin_adv7393_id,
 };
 

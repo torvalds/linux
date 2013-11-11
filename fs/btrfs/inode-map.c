@@ -178,7 +178,7 @@ static void start_caching(struct btrfs_root *root)
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
 			  root->root_key.objectid);
-	BUG_ON(IS_ERR(tsk));
+	BUG_ON(IS_ERR(tsk)); /* -ENOMEM */
 }
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
@@ -271,7 +271,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 			break;
 
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
-		BUG_ON(info->bitmap);
+		BUG_ON(info->bitmap); /* Logic error */
 
 		if (info->offset > root->cache_progress)
 			goto free;
@@ -398,6 +398,8 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct btrfs_path *path;
 	struct inode *inode;
+	struct btrfs_block_rsv *rsv;
+	u64 num_bytes;
 	u64 alloc_hint = 0;
 	int ret;
 	int prealloc;
@@ -421,31 +423,56 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	if (!path)
 		return -ENOMEM;
 
+	rsv = trans->block_rsv;
+	trans->block_rsv = &root->fs_info->trans_block_rsv;
+
+	num_bytes = trans->bytes_reserved;
+	/*
+	 * 1 item for inode item insertion if need
+	 * 4 items for inode item update (in the worst case)
+	 * 1 items for slack space if we need do truncation
+	 * 1 item for free space object
+	 * 3 items for pre-allocation
+	 */
+	trans->bytes_reserved = btrfs_calc_trans_metadata_size(root, 10);
+	ret = btrfs_block_rsv_add(root, trans->block_rsv,
+				  trans->bytes_reserved,
+				  BTRFS_RESERVE_NO_FLUSH);
+	if (ret)
+		goto out;
+	trace_btrfs_space_reservation(root->fs_info, "ino_cache",
+				      trans->transid, trans->bytes_reserved, 1);
 again:
 	inode = lookup_free_ino_inode(root, path);
-	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
+	if (IS_ERR(inode) && (PTR_ERR(inode) != -ENOENT || retry)) {
 		ret = PTR_ERR(inode);
-		goto out;
+		goto out_release;
 	}
 
 	if (IS_ERR(inode)) {
-		BUG_ON(retry);
+		BUG_ON(retry); /* Logic error */
 		retry = true;
 
 		ret = create_free_ino_inode(root, trans, path);
 		if (ret)
-			goto out;
+			goto out_release;
 		goto again;
 	}
 
 	BTRFS_I(inode)->generation = 0;
 	ret = btrfs_update_inode(trans, root, inode);
-	WARN_ON(ret);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto out_put;
+	}
 
 	if (i_size_read(inode) > 0) {
 		ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
-		if (ret)
+		if (ret) {
+			if (ret != -ENOSPC)
+				btrfs_abort_transaction(trans, root, ret);
 			goto out_put;
+		}
 	}
 
 	spin_lock(&root->cache_lock);
@@ -465,21 +492,28 @@ again:
 	/* Just to make sure we have enough space */
 	prealloc += 8 * PAGE_CACHE_SIZE;
 
-	ret = btrfs_check_data_free_space(inode, prealloc);
+	ret = btrfs_delalloc_reserve_space(inode, prealloc);
 	if (ret)
 		goto out_put;
 
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
-	if (ret)
+	if (ret) {
+		btrfs_delalloc_release_space(inode, prealloc);
 		goto out_put;
+	}
 	btrfs_free_reserved_data_space(inode, prealloc);
 
+	ret = btrfs_write_out_ino_cache(root, trans, path);
 out_put:
 	iput(inode);
+out_release:
+	trace_btrfs_space_reservation(root->fs_info, "ino_cache",
+				      trans->transid, trans->bytes_reserved, 0);
+	btrfs_block_rsv_release(root, trans->block_rsv, trans->bytes_reserved);
 out:
-	if (ret == 0)
-		ret = btrfs_write_out_ino_cache(root, trans, path);
+	trans->block_rsv = rsv;
+	trans->bytes_reserved = num_bytes;
 
 	btrfs_free_path(path);
 	return ret;
@@ -504,7 +538,7 @@ static int btrfs_find_highest_objectid(struct btrfs_root *root, u64 *objectid)
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto error;
-	BUG_ON(ret == 0);
+	BUG_ON(ret == 0); /* Corruption */
 	if (path->slots[0] > 0) {
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];

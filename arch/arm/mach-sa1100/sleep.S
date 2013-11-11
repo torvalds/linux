@@ -22,38 +22,42 @@
 
 		.text
 /*
- * sa1100_cpu_suspend()
+ * sa1100_finish_suspend()
  *
  * Causes sa11x0 to enter sleep state
  *
+ * Must be aligned to a cacheline.
  */
-
-ENTRY(sa1100_cpu_suspend)
-	stmfd	sp!, {r4 - r12, lr}		@ save registers on stack
-	mov	r1, r0
-	ldr	r3, =sa1100_cpu_resume		@ return function
-	bl	cpu_suspend
-
+	.balign	32
+ENTRY(sa1100_finish_suspend)
 	@ disable clock switching
 	mcr	p15, 0, r1, c15, c2, 2
 
-        @ Adjust memory timing before lowering CPU clock
-	@ Clock speed adjustment without changing memory timing makes
-	@ CPU hang in some cases
-        ldr     r0, =MDREFR
-        ldr     r1, [r0]
-        orr     r1, r1, #MDREFR_K1DB2
-        str     r1, [r0]
+	ldr	r6, =MDREFR
+	ldr	r4, [r6]
+	orr     r4, r4, #MDREFR_K1DB2
+	ldr	r5, =PPCR
+
+	@ Pre-load __loop_udelay into the I-cache
+	mov	r0, #1
+	bl	__loop_udelay
+	mov	r0, r0
+
+	@ The following must all exist in a single cache line to
+	@ avoid accessing memory until this sequence is complete,
+	@ otherwise we occasionally hang.
+
+	@ Adjust memory timing before lowering CPU clock
+	str     r4, [r6]
 
 	@ delay 90us and set CPU PLL to lowest speed
 	@ fixes resume problem on high speed SA1110
 	mov	r0, #90
-	bl	__udelay
-	ldr	r0, =PPCR
+	bl	__loop_udelay
 	mov	r1, #0
-	str	r1, [r0]
+	str	r1, [r5]
 	mov	r0, #90
-	bl	__udelay
+	bl	__loop_udelay
 
 	/*
 	 * SA1110 SDRAM controller workaround.  register values:
@@ -90,12 +94,10 @@ ENTRY(sa1100_cpu_suspend)
 	bic	r5, r5, #FMsk(MSC_RT)
 	bic	r5, r5, #FMsk(MSC_RT)<<16
 
-	ldr	r6, =MDREFR
-
 	ldr	r7, [r6]
-bic	r7, r7, #0x0000FF00
-bic	r7, r7, #0x000000F0
-orr	r8, r7, #MDREFR_SLFRSH
+	bic	r7, r7, #0x0000FF00
+	bic	r7, r7, #0x000000F0
+	orr	r8, r7, #MDREFR_SLFRSH
 
 	ldr	r9, =MDCNFG
 	ldr	r10, [r9]
@@ -139,13 +141,3 @@ sa1110_sdram_controller_fix:
 	str	r13, [r12]
 
 20:	b	20b			@ loop waiting for sleep
-
-/*
- * cpu_sa1100_resume()
- *
- * entry point from bootloader into kernel during resume
- */
-	.align 5
-sa1100_cpu_resume:
-	mcr	p15, 0, r1, c15, c1, 2		@ enable clock switching
-	ldmfd	sp!, {r4 - r12, pc}		@ return to caller

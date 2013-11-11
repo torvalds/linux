@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -51,7 +52,7 @@ static u32 qib_6120_iblink_state(u64);
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the QLogic QLogic_IB PCI-Express chip.
+ * access functions for the Intel Intel_IB PCI-Express chip.
  *
  */
 
@@ -753,8 +754,8 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 	if (!hwerrs)
 		return;
 	if (hwerrs == ~0ULL) {
-		qib_dev_err(dd, "Read of hardware error status failed "
-			    "(all bits set); ignoring\n");
+		qib_dev_err(dd,
+			"Read of hardware error status failed (all bits set); ignoring\n");
 		return;
 	}
 	qib_stats.sps_hwerrs++;
@@ -779,13 +780,14 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 	 * or it's occurred within the last 5 seconds.
 	 */
 	if (hwerrs & ~(TXE_PIO_PARITY | RXEMEMPARITYERR_EAGERTID))
-		qib_devinfo(dd->pcidev, "Hardware error: hwerr=0x%llx "
-			 "(cleared)\n", (unsigned long long) hwerrs);
+		qib_devinfo(dd->pcidev,
+			"Hardware error: hwerr=0x%llx (cleared)\n",
+			(unsigned long long) hwerrs);
 
 	if (hwerrs & ~IB_HWE_BITSEXTANT)
-		qib_dev_err(dd, "hwerror interrupt with unknown errors "
-			    "%llx set\n", (unsigned long long)
-			    (hwerrs & ~IB_HWE_BITSEXTANT));
+		qib_dev_err(dd,
+			"hwerror interrupt with unknown errors %llx set\n",
+			(unsigned long long)(hwerrs & ~IB_HWE_BITSEXTANT));
 
 	ctrl = qib_read_kreg32(dd, kr_control);
 	if ((ctrl & QLOGIC_IB_C_FREEZEMODE) && !dd->diag_client) {
@@ -815,8 +817,9 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (hwerrs & HWE_MASK(PowerOnBISTFailed)) {
 		isfatal = 1;
-		strlcat(msg, "[Memory BIST test failed, InfiniPath hardware"
-			" unusable]", msgl);
+		strlcat(msg,
+			"[Memory BIST test failed, InfiniPath hardware unusable]",
+			msgl);
 		/* ignore from now on, so disable until driver reloaded */
 		dd->cspec->hwerrmask &= ~HWE_MASK(PowerOnBISTFailed);
 		qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
@@ -868,8 +871,9 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 		*msg = 0; /* recovered from all of them */
 
 	if (isfatal && !dd->diag_client) {
-		qib_dev_err(dd, "Fatal Hardware Error, no longer"
-			    " usable, SN %.16s\n", dd->serial);
+		qib_dev_err(dd,
+			"Fatal Hardware Error, no longer usable, SN %.16s\n",
+			dd->serial);
 		/*
 		 * for /sys status file and user programs to print; if no
 		 * trailing brace is copied, we'll know it was truncated.
@@ -1017,9 +1021,9 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 				qib_inc_eeprom_err(dd, log_idx, 1);
 
 	if (errs & ~IB_E_BITSEXTANT)
-		qib_dev_err(dd, "error interrupt with unknown errors "
-			    "%llx set\n",
-			    (unsigned long long) (errs & ~IB_E_BITSEXTANT));
+		qib_dev_err(dd,
+			"error interrupt with unknown errors %llx set\n",
+			(unsigned long long) (errs & ~IB_E_BITSEXTANT));
 
 	if (errs & E_SUM_ERRS) {
 		qib_disarm_6120_senderrbufs(ppd);
@@ -1089,8 +1093,8 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 	}
 
 	if (errs & ERR_MASK(ResetNegated)) {
-		qib_dev_err(dd, "Got reset, requires re-init "
-			      "(unload and reload driver)\n");
+		qib_dev_err(dd,
+			"Got reset, requires re-init (unload and reload driver)\n");
 		dd->flags &= ~QIB_INITTED;  /* needs re-init */
 		/* mark as having had error */
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
@@ -1541,8 +1545,9 @@ static noinline void unlikely_6120_intr(struct qib_devdata *dd, u64 istat)
 		qib_stats.sps_errints++;
 		estat = qib_read_kreg64(dd, kr_errstatus);
 		if (!estat)
-			qib_devinfo(dd->pcidev, "error interrupt (%Lx), "
-				 "but no error bits set!\n", istat);
+			qib_devinfo(dd->pcidev,
+				"error interrupt (%Lx), but no error bits set!\n",
+				istat);
 		handle_6120_errors(dd, estat);
 	}
 
@@ -1715,16 +1720,16 @@ static void qib_setup_6120_interrupt(struct qib_devdata *dd)
 	}
 
 	if (!dd->cspec->irq)
-		qib_dev_err(dd, "irq is 0, BIOS error?  Interrupts won't "
-			    "work\n");
+		qib_dev_err(dd,
+			"irq is 0, BIOS error?  Interrupts won't work\n");
 	else {
 		int ret;
 		ret = request_irq(dd->cspec->irq, qib_6120intr, 0,
 				  QIB_DRV_NAME, dd);
 		if (ret)
-			qib_dev_err(dd, "Couldn't setup interrupt "
-				    "(irq=%d): %d\n", dd->cspec->irq,
-				    ret);
+			qib_dev_err(dd,
+				"Couldn't setup interrupt (irq=%d): %d\n",
+				dd->cspec->irq, ret);
 	}
 }
 
@@ -1759,8 +1764,9 @@ static void pe_boardname(struct qib_devdata *dd)
 		snprintf(dd->boardname, namelen, "%s", n);
 
 	if (dd->majrev != 4 || !dd->minrev || dd->minrev > 2)
-		qib_dev_err(dd, "Unsupported InfiniPath hardware revision "
-			    "%u.%u!\n", dd->majrev, dd->minrev);
+		qib_dev_err(dd,
+			"Unsupported InfiniPath hardware revision %u.%u!\n",
+			dd->majrev, dd->minrev);
 
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
@@ -1833,8 +1839,8 @@ static int qib_6120_setup_reset(struct qib_devdata *dd)
 bail:
 	if (ret) {
 		if (qib_pcie_params(dd, dd->lbus_width, NULL, NULL))
-			qib_dev_err(dd, "Reset failed to setup PCIe or "
-				    "interrupts; continuing anyway\n");
+			qib_dev_err(dd,
+				"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 		/* clear the reset error, init error/hwerror mask */
 		qib_6120_init_hwerrors(dd);
 		/* for Rev2 error interrupts; nop for rev 1 */
@@ -1876,8 +1882,9 @@ static void qib_6120_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		}
 		pa >>= 11;
 		if (pa & ~QLOGIC_IB_RT_ADDR_MASK) {
-			qib_dev_err(dd, "Physical page address 0x%lx "
-				    "larger than supported\n", pa);
+			qib_dev_err(dd,
+				"Physical page address 0x%lx larger than supported\n",
+				pa);
 			return;
 		}
 
@@ -1941,8 +1948,9 @@ static void qib_6120_put_tid_2(struct qib_devdata *dd, u64 __iomem *tidptr,
 		}
 		pa >>= 11;
 		if (pa & ~QLOGIC_IB_RT_ADDR_MASK) {
-			qib_dev_err(dd, "Physical page address 0x%lx "
-				    "larger than supported\n", pa);
+			qib_dev_err(dd,
+				"Physical page address 0x%lx larger than supported\n",
+				pa);
 			return;
 		}
 
@@ -2076,9 +2084,11 @@ static void qib_6120_config_ctxts(struct qib_devdata *dd)
 static void qib_update_6120_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 				    u32 updegr, u32 egrhd, u32 npkts)
 {
-	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
+	mmiowb();
+	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
+	mmiowb();
 }
 
 static u32 qib_6120_hdrqempty(struct qib_ctxtdata *rcd)
@@ -2103,7 +2113,7 @@ static void alloc_dummy_hdrq(struct qib_devdata *dd)
 	dd->cspec->dummy_hdrq = dma_alloc_coherent(&dd->pcidev->dev,
 					dd->rcd[0]->rcvhdrq_size,
 					&dd->cspec->dummy_hdrq_phys,
-					GFP_KERNEL | __GFP_COMP);
+					GFP_ATOMIC | __GFP_COMP);
 	if (!dd->cspec->dummy_hdrq) {
 		qib_devinfo(dd->pcidev, "Couldn't allocate dummy hdrq\n");
 		/* fallback to just 0'ing */
@@ -2926,8 +2936,9 @@ static int qib_6120_set_loopback(struct qib_pportdata *ppd, const char *what)
 			 ppd->dd->unit, ppd->port);
 	} else if (!strncmp(what, "off", 3)) {
 		ppd->dd->cspec->ibcctrl &= ~SYM_MASK(IBCCtrl, Loopback);
-		qib_devinfo(ppd->dd->pcidev, "Disabling IB%u:%u IBC loopback "
-			    "(normal)\n", ppd->dd->unit, ppd->port);
+		qib_devinfo(ppd->dd->pcidev,
+			"Disabling IB%u:%u IBC loopback (normal)\n",
+			ppd->dd->unit, ppd->port);
 	} else
 		ret = -EINVAL;
 	if (!ret) {
@@ -3130,6 +3141,7 @@ static void get_6120_chip_params(struct qib_devdata *dd)
 	val = qib_read_kreg64(dd, kr_sendpiobufcnt);
 	dd->piobcnt2k = val & ~0U;
 	dd->piobcnt4k = val >> 32;
+	dd->last_pio = dd->piobcnt4k + dd->piobcnt2k - 1;
 	/* these may be adjusted in init_chip_wc_pat() */
 	dd->pio2kbase = (u32 __iomem *)
 		(((char __iomem *)dd->kregbase) + dd->pio2k_bufbase);
@@ -3183,11 +3195,10 @@ static int qib_late_6120_initreg(struct qib_devdata *dd)
 	qib_write_kreg(dd, kr_sendpioavailaddr, dd->pioavailregs_phys);
 	val = qib_read_kreg64(dd, kr_sendpioavailaddr);
 	if (val != dd->pioavailregs_phys) {
-		qib_dev_err(dd, "Catastrophic software error, "
-			    "SendPIOAvailAddr written as %lx, "
-			    "read back as %llx\n",
-			    (unsigned long) dd->pioavailregs_phys,
-			    (unsigned long long) val);
+		qib_dev_err(dd,
+			"Catastrophic software error, SendPIOAvailAddr written as %lx, read back as %llx\n",
+			(unsigned long) dd->pioavailregs_phys,
+			(unsigned long long) val);
 		ret = -EINVAL;
 	}
 	return ret;
@@ -3215,8 +3226,8 @@ static int init_6120_variables(struct qib_devdata *dd)
 	dd->revision = readq(&dd->kregbase[kr_revision]);
 
 	if ((dd->revision & 0xffffffffU) == 0xffffffffU) {
-		qib_dev_err(dd, "Revision register read failure, "
-			    "giving up initialization\n");
+		qib_dev_err(dd,
+			"Revision register read failure, giving up initialization\n");
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -3273,6 +3284,8 @@ static int init_6120_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
+	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
+	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_6120_tidtemplate(dd);
 
@@ -3546,8 +3559,8 @@ struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *pdev,
 		goto bail;
 
 	if (qib_pcie_params(dd, 8, NULL, NULL))
-		qib_dev_err(dd, "Failed to setup PCIe or interrupts; "
-			    "continuing anyway\n");
+		qib_dev_err(dd,
+			"Failed to setup PCIe or interrupts; continuing anyway\n");
 	dd->cspec->irq = pdev->irq; /* save IRQ */
 
 	/* clear diagctrl register, in case diags were running and crashed */

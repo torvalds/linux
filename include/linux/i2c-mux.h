@@ -18,7 +18,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301 USA.
  */
 
 #ifndef _LINUX_I2C_MUX_H
@@ -33,13 +34,15 @@
  * mux control.
  */
 struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
-				void *mux_dev, u32 force_nr, u32 chan_id,
+				struct device *mux_dev,
+				void *mux_priv, u32 force_nr, u32 chan_id,
+				unsigned int class,
 				int (*select) (struct i2c_adapter *,
 					       void *mux_dev, u32 chan_id),
 				int (*deselect) (struct i2c_adapter *,
 						 void *mux_dev, u32 chan_id));
 
-int i2c_del_mux_adapter(struct i2c_adapter *adap);
+void i2c_del_mux_adapter(struct i2c_adapter *adap);
 
 #endif /* __KERNEL__ */
 

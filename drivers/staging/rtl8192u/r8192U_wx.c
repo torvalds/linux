@@ -13,7 +13,7 @@
 
    Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
 
-   We want to tanks the Authors of those projects and the Ndiswrapper
+   We want to thank the Authors of those projects and the Ndiswrapper
    project Authors.
 */
 
@@ -256,7 +256,7 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
 	//count the length of input ssid
 	for(name_len=0 ; ((char*)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
 
-	//search for the correspoding info which is received
+	//search for the corresponding info which is received
 	list_for_each_entry(target, &ieee->network_list, list) {
 		if ( (target->ssid_len == name_len) &&
 		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
@@ -354,8 +354,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	return ret;
 }
 
-struct  iw_range_with_scan_capa
-{
+struct  iw_range_with_scan_capa {
 	/* Informative stuff (to choose between different interface) */
 	__u32           throughput;     /* To give an idea... */
 	/* In theory this value should be the maximum benchmarked
@@ -419,7 +418,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + -98;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
@@ -711,12 +710,12 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		#define CONF_WEP104 0x14
 
 		switch(wrqu->encoding.flags & IW_ENCODE_INDEX){
-			case 0: key_idx = ieee->tx_keyidx; break;
-			case 1:	key_idx = 0; break;
-			case 2:	key_idx = 1; break;
-			case 3:	key_idx = 2; break;
-			case 4:	key_idx	= 3; break;
-			default: break;
+		case 0: key_idx = ieee->tx_keyidx; break;
+		case 1:	key_idx = 0; break;
+		case 2:	key_idx = 1; break;
+		case 3:	key_idx = 2; break;
+		case 4:	key_idx	= 3; break;
+		default: break;
 		}
 
 		if(wrqu->encoding.length==0x5){
@@ -1021,7 +1020,7 @@ static int dummy(struct net_device *dev, struct iw_request_info *a,
 static iw_handler r8192_wx_handlers[] =
 {
 	NULL,                     /* SIOCSIWCOMMIT */
-	r8192_wx_get_name,   	  /* SIOCGIWNAME */
+	r8192_wx_get_name,	  /* SIOCGIWNAME */
 	dummy,                    /* SIOCSIWNWID */
 	dummy,                    /* SIOCGIWNWID */
 	r8192_wx_set_freq,        /* SIOCSIWFREQ */
@@ -1040,14 +1039,14 @@ static iw_handler r8192_wx_handlers[] =
 	dummy,                    /* SIOCGIWSPY */
 	NULL,                     /* SIOCGIWTHRSPY */
 	NULL,                     /* SIOCWIWTHRSPY */
-	r8192_wx_set_wap,      	  /* SIOCSIWAP */
+	r8192_wx_set_wap,	  /* SIOCSIWAP */
 	r8192_wx_get_wap,         /* SIOCGIWAP */
 #if (WIRELESS_EXT >= 18)
 	r8192_wx_set_mlme,                     /* MLME-- */
 #else
 	 NULL,
 #endif
-	dummy,                     /* SIOCGIWAPLIST -- depricated */
+	dummy,                     /* SIOCGIWAPLIST -- deprecated */
 	r8192_wx_set_scan,        /* SIOCSIWSCAN */
 	r8192_wx_get_scan,        /* SIOCGIWSCAN */
 	r8192_wx_set_essid,       /* SIOCSIWESSID */
@@ -1071,23 +1070,23 @@ static iw_handler r8192_wx_handlers[] =
 	r8192_wx_set_power,                    /* SIOCSIWPOWER */
 	r8192_wx_get_power,                    /* SIOCGIWPOWER */
 	NULL,			/*---hole---*/
-	NULL, 			/*---hole---*/
-	r8192_wx_set_gen_ie,//NULL, 			/* SIOCSIWGENIE */
-	NULL, 			/* SIOCSIWGENIE */
+	NULL,			/*---hole---*/
+	r8192_wx_set_gen_ie,//NULL,			/* SIOCSIWGENIE */
+	NULL,			/* SIOCSIWGENIE */
 
 #if (WIRELESS_EXT >= 18)
-	r8192_wx_set_auth,//NULL, 			/* SIOCSIWAUTH */
-	NULL,//r8192_wx_get_auth,//NULL, 			/* SIOCSIWAUTH */
-	r8192_wx_set_enc_ext, 			/* SIOCSIWENCODEEXT */
-	NULL,//r8192_wx_get_enc_ext,//NULL, 			/* SIOCSIWENCODEEXT */
+	r8192_wx_set_auth,//NULL,			/* SIOCSIWAUTH */
+	NULL,//r8192_wx_get_auth,//NULL,			/* SIOCSIWAUTH */
+	r8192_wx_set_enc_ext,			/* SIOCSIWENCODEEXT */
+	NULL,//r8192_wx_get_enc_ext,//NULL,			/* SIOCSIWENCODEEXT */
 #else
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 #endif
-	NULL, 			/* SIOCSIWPMKSA */
-	NULL, 			 /*---hole---*/
+	NULL,			/* SIOCSIWPMKSA */
+	NULL,			 /*---hole---*/
 
 };
 
@@ -1211,9 +1210,9 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def  r8192_wx_handlers_def={
 	.standard = r8192_wx_handlers,
-	.num_standard = sizeof(r8192_wx_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,
-	.num_private = sizeof(r8192_private_handler) / sizeof(iw_handler),
+	.num_private = ARRAY_SIZE(r8192_private_handler),
 	.num_private_args = sizeof(r8192_private_args) / sizeof(struct iw_priv_args),
 #if WIRELESS_EXT >= 17
 	.get_wireless_stats = r8192_get_wireless_stats,

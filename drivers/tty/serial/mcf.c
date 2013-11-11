@@ -23,6 +23,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
@@ -55,6 +56,7 @@ struct mcf_uart {
 	struct uart_port	port;
 	unsigned int		sigs;		/* Local copy of line sigs */
 	unsigned char		imr;		/* Local IMR mirror */
+	struct serial_rs485	rs485;		/* RS485 settings */
 };
 
 /****************************************************************************/
@@ -101,6 +103,12 @@ static void mcf_start_tx(struct uart_port *port)
 {
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 
+	if (pp->rs485.flags & SER_RS485_ENABLED) {
+		/* Enable Transmitter */
+		writeb(MCFUART_UCR_TXENABLE, port->membase + MCFUART_UCR);
+		/* Manually assert RTS */
+		writeb(MCFUART_UOP_RTS, port->membase + MCFUART_UOP1);
+	}
 	pp->imr |= MCFUART_UIR_TXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 }
@@ -196,6 +204,7 @@ static void mcf_shutdown(struct uart_port *port)
 static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct ktermios *old)
 {
+	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned long flags;
 	unsigned int baud, baudclk;
 #if defined(CONFIG_M5272)
@@ -246,6 +255,11 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_cflag & CRTSCTS) {
 		mr1 |= MCFUART_MR1_RXRTS;
 		mr2 |= MCFUART_MR2_TXCTS;
+	}
+
+	if (pp->rs485.flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		mr2 |= MCFUART_MR2_TXRTS;
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -310,7 +324,7 @@ static void mcf_rx_chars(struct mcf_uart *pp)
 		uart_insert_char(port, status, MCFUART_USR_RXOVERRUN, ch, flag);
 	}
 
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 /****************************************************************************/
@@ -342,6 +356,10 @@ static void mcf_tx_chars(struct mcf_uart *pp)
 	if (xmit->head == xmit->tail) {
 		pp->imr &= ~MCFUART_UIR_TXREADY;
 		writeb(pp->imr, port->membase + MCFUART_UIMR);
+		/* Disable TX to negate RTS automatically */
+		if (pp->rs485.flags & SER_RS485_ENABLED)
+			writeb(MCFUART_UCR_TXDISABLE,
+				port->membase + MCFUART_UCR);
 	}
 }
 
@@ -380,7 +398,7 @@ static void mcf_config_port(struct uart_port *port, int flags)
 	/* Clear mask, so no surprise interrupts. */
 	writeb(0, port->membase + MCFUART_UIMR);
 
-	if (request_irq(port->irq, mcf_interrupt, IRQF_DISABLED, "UART", port))
+	if (request_irq(port->irq, mcf_interrupt, 0, "UART", port))
 		printk(KERN_ERR "MCF: unable to attach ColdFire UART %d "
 			"interrupt vector=%d\n", port->line, port->irq);
 }
@@ -418,6 +436,58 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 
 /****************************************************************************/
 
+/* Enable or disable the RS485 support */
+static void mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+{
+	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
+	unsigned long flags;
+	unsigned char mr1, mr2;
+
+	spin_lock_irqsave(&port->lock, flags);
+	/* Get mode registers */
+	mr1 = readb(port->membase + MCFUART_UMR);
+	mr2 = readb(port->membase + MCFUART_UMR);
+	if (rs485->flags & SER_RS485_ENABLED) {
+		dev_dbg(port->dev, "Setting UART to RS485\n");
+		/* Automatically negate RTS after TX completes */
+		mr2 |= MCFUART_MR2_TXRTS;
+	} else {
+		dev_dbg(port->dev, "Setting UART to RS232\n");
+		mr2 &= ~MCFUART_MR2_TXRTS;
+	}
+	writeb(mr1, port->membase + MCFUART_UMR);
+	writeb(mr2, port->membase + MCFUART_UMR);
+	pp->rs485 = *rs485;
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static int mcf_ioctl(struct uart_port *port, unsigned int cmd,
+		unsigned long arg)
+{
+	switch (cmd) {
+	case TIOCSRS485: {
+		struct serial_rs485 rs485;
+		if (copy_from_user(&rs485, (struct serial_rs485 *)arg,
+				sizeof(struct serial_rs485)))
+			return -EFAULT;
+		mcf_config_rs485(port, &rs485);
+		break;
+	}
+	case TIOCGRS485: {
+		struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
+		if (copy_to_user((struct serial_rs485 *)arg, &pp->rs485,
+				sizeof(struct serial_rs485)))
+			return -EFAULT;
+		break;
+	}
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+
+/****************************************************************************/
+
 /*
  *	Define the basic serial functions we support.
  */
@@ -438,6 +508,7 @@ static const struct uart_ops mcf_uart_ops = {
 	.release_port	= mcf_release_port,
 	.config_port	= mcf_config_port,
 	.verify_port	= mcf_verify_port,
+	.ioctl		= mcf_ioctl,
 };
 
 static struct mcf_uart mcf_ports[4];
@@ -571,7 +642,7 @@ static struct uart_driver mcf_driver = {
 
 /****************************************************************************/
 
-static int __devinit mcf_probe(struct platform_device *pdev)
+static int mcf_probe(struct platform_device *pdev)
 {
 	struct mcf_platform_uart *platp = pdev->dev.platform_data;
 	struct uart_port *port;
@@ -599,7 +670,7 @@ static int __devinit mcf_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int __devexit mcf_remove(struct platform_device *pdev)
+static int mcf_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;
@@ -617,7 +688,7 @@ static int __devexit mcf_remove(struct platform_device *pdev)
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove		= __devexit_p(mcf_remove),
+	.remove		= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 		.owner	= THIS_MODULE,
@@ -636,8 +707,10 @@ static int __init mcf_init(void)
 	if (rc)
 		return rc;
 	rc = platform_driver_register(&mcf_platform_driver);
-	if (rc)
+	if (rc) {
+		uart_unregister_driver(&mcf_driver);
 		return rc;
+	}
 	return 0;
 }
 

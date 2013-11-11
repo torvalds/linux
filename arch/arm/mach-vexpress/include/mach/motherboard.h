@@ -39,34 +39,6 @@
 #define V2M_CF			(V2M_PA_CS7 + 0x0001a000)
 #define V2M_CLCD		(V2M_PA_CS7 + 0x0001f000)
 
-#define V2M_SYS_ID		(V2M_SYSREGS + 0x000)
-#define V2M_SYS_SW		(V2M_SYSREGS + 0x004)
-#define V2M_SYS_LED		(V2M_SYSREGS + 0x008)
-#define V2M_SYS_100HZ		(V2M_SYSREGS + 0x024)
-#define V2M_SYS_FLAGS		(V2M_SYSREGS + 0x030)
-#define V2M_SYS_FLAGSSET	(V2M_SYSREGS + 0x030)
-#define V2M_SYS_FLAGSCLR	(V2M_SYSREGS + 0x034)
-#define V2M_SYS_NVFLAGS		(V2M_SYSREGS + 0x038)
-#define V2M_SYS_NVFLAGSSET	(V2M_SYSREGS + 0x038)
-#define V2M_SYS_NVFLAGSCLR	(V2M_SYSREGS + 0x03c)
-#define V2M_SYS_MCI		(V2M_SYSREGS + 0x048)
-#define V2M_SYS_FLASH		(V2M_SYSREGS + 0x03c)
-#define V2M_SYS_CFGSW		(V2M_SYSREGS + 0x058)
-#define V2M_SYS_24MHZ		(V2M_SYSREGS + 0x05c)
-#define V2M_SYS_MISC		(V2M_SYSREGS + 0x060)
-#define V2M_SYS_DMA		(V2M_SYSREGS + 0x064)
-#define V2M_SYS_PROCID0		(V2M_SYSREGS + 0x084)
-#define V2M_SYS_PROCID1		(V2M_SYSREGS + 0x088)
-#define V2M_SYS_CFGDATA		(V2M_SYSREGS + 0x0a0)
-#define V2M_SYS_CFGCTRL		(V2M_SYSREGS + 0x0a4)
-#define V2M_SYS_CFGSTAT		(V2M_SYSREGS + 0x0a8)
-
-#define V2M_TIMER0		(V2M_TIMER01 + 0x000)
-#define V2M_TIMER1		(V2M_TIMER01 + 0x020)
-
-#define V2M_TIMER2		(V2M_TIMER23 + 0x000)
-#define V2M_TIMER3		(V2M_TIMER23 + 0x020)
-
 
 /*
  * Interrupts.  Those in {} are for AMBA devices
@@ -90,33 +62,6 @@
 #define IRQ_V2M_ISP1761		(32 + 16)
 #define IRQ_V2M_PCIE		(32 + 17)
 
-
-/*
- * Configuration
- */
-#define SYS_CFG_START		(1 << 31)
-#define SYS_CFG_WRITE		(1 << 30)
-#define SYS_CFG_OSC		(1 << 20)
-#define SYS_CFG_VOLT		(2 << 20)
-#define SYS_CFG_AMP		(3 << 20)
-#define SYS_CFG_TEMP		(4 << 20)
-#define SYS_CFG_RESET		(5 << 20)
-#define SYS_CFG_SCC		(6 << 20)
-#define SYS_CFG_MUXFPGA		(7 << 20)
-#define SYS_CFG_SHUTDOWN	(8 << 20)
-#define SYS_CFG_REBOOT		(9 << 20)
-#define SYS_CFG_DVIMODE		(11 << 20)
-#define SYS_CFG_POWER		(12 << 20)
-#define SYS_CFG_SITE_MB		(0 << 16)
-#define SYS_CFG_SITE_DB1	(1 << 16)
-#define SYS_CFG_SITE_DB2	(2 << 16)
-#define SYS_CFG_STACK(n)	((n) << 12)
-
-#define SYS_CFG_ERR		(1 << 1)
-#define SYS_CFG_COMPLETE	(1 << 0)
-
-int v2m_cfg_write(u32 devfn, u32 data);
-int v2m_cfg_read(u32 devfn, u32 *data);
 
 /*
  * Core tile IDs

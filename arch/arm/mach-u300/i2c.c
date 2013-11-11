@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-u300/i2c.c
  *
- * Copyright (C) 2009 ST-Ericsson AB
+ * Copyright (C) 2009-2012 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  *
  * Register board i2c devices
@@ -9,7 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/mfd/abx500.h>
+#include <linux/mfd/ab3100.h>
 #include <linux/regulator/machine.h>
 #include <linux/amba/bus.h>
 #include <mach/irqs.h>
@@ -60,7 +60,6 @@ static struct regulator_consumer_supply supply_ldo_c[] = {
  */
 static struct regulator_consumer_supply supply_ldo_d[] = {
 	{
-		.dev = NULL,
 		.supply = "vana15", /* Powers the SoC (CPU etc) */
 	},
 };
@@ -92,7 +91,6 @@ static struct regulator_consumer_supply supply_ldo_k[] = {
  */
 static struct regulator_consumer_supply supply_ldo_ext[] = {
 	{
-		.dev = NULL,
 		.supply = "vext", /* External power */
 	},
 };
@@ -148,9 +146,6 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.min_uV = 1800000,
 				.max_uV = 1800000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
-				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
 				.always_on = 1,
 				.boot_on = 1,
 			},
@@ -162,9 +157,6 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.min_uV = 2500000,
 				.max_uV = 2500000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
-				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
 				.always_on = 1,
 				.boot_on = 1,
 			},
@@ -232,8 +224,7 @@ static struct ab3100_platform_data ab3100_plf_data = {
 				.max_uV = 1800000,
 				.valid_modes_mask = REGULATOR_MODE_NORMAL,
 				.valid_ops_mask =
-				REGULATOR_CHANGE_VOLTAGE |
-				REGULATOR_CHANGE_STATUS,
+				REGULATOR_CHANGE_VOLTAGE,
 				.always_on = 1,
 				.boot_on = 1,
 			},
@@ -256,57 +247,8 @@ static struct ab3100_platform_data ab3100_plf_data = {
 };
 #endif
 
-#ifdef CONFIG_AB3550_CORE
-static struct abx500_init_settings ab3550_init_settings[] = {
-	{
-		.bank = 0,
-		.reg = AB3550_IMR1,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR2,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR3,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR4,
-		.setting = 0xff
-	},
-	{
-		.bank = 0,
-		.reg = AB3550_IMR5,
-		/* The two most significant bits are not used */
-		.setting = 0x3f
-	},
-};
-
-static struct ab3550_platform_data ab3550_plf_data = {
-	.irq = {
-		.base = IRQ_AB3550_BASE,
-		.count = (IRQ_AB3550_END - IRQ_AB3550_BASE + 1),
-	},
-	.dev_data = {
-	},
-	.init_settings = ab3550_init_settings,
-	.init_settings_sz = ARRAY_SIZE(ab3550_init_settings),
-};
-#endif
-
 static struct i2c_board_info __initdata bus0_i2c_board_info[] = {
-#if defined(CONFIG_AB3550_CORE)
-	{
-		.type = "ab3550",
-		.addr = 0x4A,
-		.irq = IRQ_U300_IRQ0_EXT,
-		.platform_data = &ab3550_plf_data,
-	},
-#elif defined(CONFIG_AB3100_CORE)
+#ifdef CONFIG_AB3100_CORE
 	{
 		.type = "ab3100",
 		.addr = 0x48,
@@ -319,7 +261,6 @@ static struct i2c_board_info __initdata bus0_i2c_board_info[] = {
 };
 
 static struct i2c_board_info __initdata bus1_i2c_board_info[] = {
-#ifdef CONFIG_MACH_U300_BS335
 	{
 		.type = "fwcam",
 		.addr = 0x10,
@@ -328,9 +269,6 @@ static struct i2c_board_info __initdata bus1_i2c_board_info[] = {
 		.type = "fwcam",
 		.addr = 0x5d,
 	},
-#else
-	{ },
-#endif
 };
 
 void __init u300_i2c_register_board_devices(void)

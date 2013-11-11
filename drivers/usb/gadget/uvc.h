@@ -8,7 +8,6 @@
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
- *
  */
 
 #ifndef _UVC_GADGET_H_
@@ -29,7 +28,7 @@
 
 struct uvc_request_data
 {
-	unsigned int length;
+	__s32 length;
 	__u8 data[60];
 };
 
@@ -56,6 +55,7 @@ struct uvc_event
 #include <linux/usb.h>	/* For usb_endpoint_* */
 #include <linux/usb/gadget.h>
 #include <linux/videodev2.h>
+#include <linux/version.h>
 #include <media/v4l2-fh.h>
 
 #include "uvc_queue.h"
@@ -97,8 +97,6 @@ extern unsigned int uvc_gadget_trace_param;
 
 #define DRIVER_VERSION				"0.1.0"
 #define DRIVER_VERSION_NUMBER			KERNEL_VERSION(0, 1, 0)
-
-#define DMA_ADDR_INVALID			(~(dma_addr_t)0)
 
 #define UVC_NUM_REQUESTS			4
 #define UVC_MAX_REQUEST_SIZE			64
@@ -153,9 +151,11 @@ struct uvc_device
 
 	/* Descriptors */
 	struct {
-		const struct uvc_descriptor_header * const *control;
+		const struct uvc_descriptor_header * const *fs_control;
+		const struct uvc_descriptor_header * const *ss_control;
 		const struct uvc_descriptor_header * const *fs_streaming;
 		const struct uvc_descriptor_header * const *hs_streaming;
+		const struct uvc_descriptor_header * const *ss_streaming;
 	} desc;
 
 	unsigned int control_intf;
@@ -188,6 +188,7 @@ struct uvc_file_handle
  * Functions
  */
 
+extern void uvc_function_setup_continue(struct uvc_device *uvc);
 extern void uvc_endpoint_stream(struct uvc_device *dev);
 
 extern void uvc_function_connect(struct uvc_device *uvc);

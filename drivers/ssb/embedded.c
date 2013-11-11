@@ -3,11 +3,14 @@
  * Embedded systems support code
  *
  * Copyright 2005-2008, Broadcom Corporation
- * Copyright 2006-2008, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2006-2008, Michael Buesch <m@bues.ch>
+ * Copyright 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include <linux/export.h>
+#include <linux/platform_device.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_embedded.h>
 #include <linux/ssb/ssb_driver_pci.h>
@@ -30,6 +33,38 @@ int ssb_watchdog_timer_set(struct ssb_bus *bus, u32 ticks)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(ssb_watchdog_timer_set);
+
+int ssb_watchdog_register(struct ssb_bus *bus)
+{
+	struct bcm47xx_wdt wdt = {};
+	struct platform_device *pdev;
+
+	if (ssb_chipco_available(&bus->chipco)) {
+		wdt.driver_data = &bus->chipco;
+		wdt.timer_set = ssb_chipco_watchdog_timer_set_wdt;
+		wdt.timer_set_ms = ssb_chipco_watchdog_timer_set_ms;
+		wdt.max_timer_ms = bus->chipco.max_timer_ms;
+	} else if (ssb_extif_available(&bus->extif)) {
+		wdt.driver_data = &bus->extif;
+		wdt.timer_set = ssb_extif_watchdog_timer_set_wdt;
+		wdt.timer_set_ms = ssb_extif_watchdog_timer_set_ms;
+		wdt.max_timer_ms = SSB_EXTIF_WATCHDOG_MAX_TIMER_MS;
+	} else {
+		return -ENODEV;
+	}
+
+	pdev = platform_device_register_data(NULL, "bcm47xx-wdt",
+					     bus->busnumber, &wdt,
+					     sizeof(wdt));
+	if (IS_ERR(pdev)) {
+		ssb_dbg("can not register watchdog device, err: %li\n",
+			PTR_ERR(pdev));
+		return PTR_ERR(pdev);
+	}
+
+	bus->watchdog = pdev;
+	return 0;
+}
 
 u32 ssb_gpio_in(struct ssb_bus *bus, u32 mask)
 {

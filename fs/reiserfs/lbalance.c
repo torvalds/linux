@@ -5,7 +5,7 @@
 #include <asm/uaccess.h>
 #include <linux/string.h>
 #include <linux/time.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/buffer_head.h>
 
 /* these are used in do_balance.c */
@@ -975,7 +975,7 @@ static int leaf_cut_entries(struct buffer_head *bh,
 	   remove */
 	RFALSE(!is_direntry_le_ih(ih), "10180: item is not directory item");
 	RFALSE(I_ENTRY_COUNT(ih) < from + del_count,
-	       "10185: item contains not enough entries: entry_cout = %d, from = %d, to delete = %d",
+	       "10185: item contains not enough entries: entry_count = %d, from = %d, to delete = %d",
 	       I_ENTRY_COUNT(ih), from, del_count);
 
 	if (del_count == 0)

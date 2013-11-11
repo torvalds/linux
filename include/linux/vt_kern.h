@@ -36,7 +36,7 @@ extern int fg_console, last_console, want_console;
 int vc_allocate(unsigned int console);
 int vc_cons_allocated(unsigned int console);
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
-void vc_deallocate(unsigned int console);
+struct vc_data *vc_deallocate(unsigned int console);
 void reset_palette(struct vc_data *vc);
 void do_blank_screen(int entering_gfx);
 void do_unblank_screen(int leaving_gfx);
@@ -47,6 +47,7 @@ int con_set_cmap(unsigned char __user *cmap);
 int con_get_cmap(unsigned char __user *cmap);
 void scrollback(struct vc_data *vc, int lines);
 void scrollfront(struct vc_data *vc, int lines);
+void clear_buffer_attributes(struct vc_data *vc);
 void update_region(struct vc_data *vc, unsigned long start, int count);
 void redraw_screen(struct vc_data *vc, int is_switch);
 #define update_screen(x) redraw_screen(x, 0)
@@ -70,7 +71,6 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list);
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list);
 int con_set_default_unimap(struct vc_data *vc);
 void con_free_unimap(struct vc_data *vc);
-void con_protect_unimap(struct vc_data *vc, int rdonly);
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 
 #define vc_translate(vc, c) ((vc)->vc_translate[(c) |			\
@@ -131,13 +131,15 @@ void vt_event_post(unsigned int event, unsigned int old, unsigned int new);
 int vt_waitactive(int n);
 void change_console(struct vc_data *new_vc);
 void reset_vc(struct vc_data *vc);
+extern int do_unbind_con_driver(const struct consw *csw, int first, int last,
+			     int deflt);
 extern int unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt);
 int vty_init(const struct file_operations *console_fops);
 
 static inline bool vt_force_oops_output(struct vc_data *vc)
 {
-	if (oops_in_progress && vc->vc_panic_force_write)
+	if (oops_in_progress && vc->vc_panic_force_write  && panic_timeout >= 0)
 		return true;
 	return false;
 }
@@ -166,5 +168,31 @@ extern int register_vt_notifier(struct notifier_block *nb);
 extern int unregister_vt_notifier(struct notifier_block *nb);
 
 extern void hide_boot_cursor(bool hide);
+
+/* keyboard  provided interfaces */
+extern int vt_do_diacrit(unsigned int cmd, void __user *up, int eperm);
+extern int vt_do_kdskbmode(int console, unsigned int arg);
+extern int vt_do_kdskbmeta(int console, unsigned int arg);
+extern int vt_do_kbkeycode_ioctl(int cmd, struct kbkeycode __user *user_kbkc,
+								int perm);
+extern int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe,
+					int perm, int console);
+extern int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb,
+                                        int perm);
+extern int vt_do_kdskled(int console, int cmd, unsigned long arg, int perm);
+extern int vt_do_kdgkbmode(int console);
+extern int vt_do_kdgkbmeta(int console);
+extern void vt_reset_unicode(int console);
+extern int vt_get_shift_state(void);
+extern void vt_reset_keyboard(int console);
+extern int vt_get_leds(int console, int flag);
+extern int vt_get_kbd_mode_bit(int console, int bit);
+extern void vt_set_kbd_mode_bit(int console, int bit);
+extern void vt_clr_kbd_mode_bit(int console, int bit);
+extern void vt_set_led_state(int console, int leds);
+extern void vt_set_led_state(int console, int leds);
+extern void vt_kbd_con_start(int console);
+extern void vt_kbd_con_stop(int console);
+
 
 #endif /* _VT_KERN_H */

@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2012 Broadcom Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation version 2.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "BCM11351 SoC";
+	compatible = "bcm,bcm11351";
+	interrupt-parent = <&gic>;
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	gic: interrupt-controller@3ff00100 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x3ff01000 0x1000>,
+		      <0x3ff00100 0x100>;
+	};
+
+	smc@0x3404c000 {
+		compatible = "bcm,bcm11351-smc", "bcm,kona-smc";
+		reg = <0x3404c000 0x400>; //1 KiB in SRAM
+	};
+
+	uart@3e000000 {
+		compatible = "bcm,bcm11351-dw-apb-uart", "snps,dw-apb-uart";
+		status = "disabled";
+		reg = <0x3e000000 0x1000>;
+		clock-frequency = <13000000>;
+		interrupts = <0x0 67 0x4>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	L2: l2-cache {
+		    compatible = "arm,pl310-cache";
+		    reg = <0x3ff20000 0x1000>;
+		    cache-unified;
+		    cache-level = <2>;
+	};
+
+	timer@35006000 {
+		compatible = "bcm,kona-timer";
+		reg = <0x35006000 0x1000>;
+		interrupts = <0x0 7 0x4>;
+		clock-frequency = <32768>;
+	};
+
+};

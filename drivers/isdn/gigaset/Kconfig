@@ -1,5 +1,6 @@
 menuconfig ISDN_DRV_GIGASET
 	tristate "Siemens Gigaset support"
+	depends on TTY
 	select CRC_CCITT
 	select BITREVERSE
 	help

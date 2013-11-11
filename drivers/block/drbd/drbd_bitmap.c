@@ -119,13 +119,9 @@ static void __bm_print_lock_info(struct drbd_conf *mdev, const char *func)
 	if (!__ratelimit(&drbd_ratelimit_state))
 		return;
 	dev_err(DEV, "FIXME %s in %s, bitmap locked for '%s' by %s\n",
-	    current == mdev->receiver.task ? "receiver" :
-	    current == mdev->asender.task  ? "asender"  :
-	    current == mdev->worker.task   ? "worker"   : current->comm,
-	    func, b->bm_why ?: "?",
-	    b->bm_task == mdev->receiver.task ? "receiver" :
-	    b->bm_task == mdev->asender.task  ? "asender"  :
-	    b->bm_task == mdev->worker.task   ? "worker"   : "?");
+		drbd_task_to_thread_name(mdev->tconn, current),
+		func, b->bm_why ?: "?",
+		drbd_task_to_thread_name(mdev->tconn, b->bm_task));
 }
 
 void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
@@ -142,13 +138,9 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why, enum bm_flag flags)
 
 	if (trylock_failed) {
 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
-		    current == mdev->receiver.task ? "receiver" :
-		    current == mdev->asender.task  ? "asender"  :
-		    current == mdev->worker.task   ? "worker"   : current->comm,
-		    why, b->bm_why ?: "?",
-		    b->bm_task == mdev->receiver.task ? "receiver" :
-		    b->bm_task == mdev->asender.task  ? "asender"  :
-		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
+			 drbd_task_to_thread_name(mdev->tconn, current),
+			 why, b->bm_why ?: "?",
+			 drbd_task_to_thread_name(mdev->tconn, b->bm_task));
 		mutex_lock(&b->bm_change);
 	}
 	if (BM_LOCKED_MASK & b->bm_flags)
@@ -196,6 +188,9 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 /* to mark for lazy writeout once syncer cleared all clearable bits,
  * we if bits have been cleared since last IO. */
 #define BM_PAGE_LAZY_WRITEOUT	28
+/* pages marked with this "HINT" will be considered for writeout
+ * on activity log transactions */
+#define BM_PAGE_HINT_WRITEOUT	27
 
 /* store_page_idx uses non-atomic assignment. It is only used directly after
  * allocating the page.  All other bm_set_page_* and bm_clear_page_* need to
@@ -205,7 +200,7 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 static void bm_store_page_idx(struct page *page, unsigned long idx)
 {
 	BUG_ON(0 != (idx & ~BM_PAGE_IDX_MASK));
-	page_private(page) |= idx;
+	set_page_private(page, idx);
 }
 
 static unsigned long bm_page_to_idx(struct page *page)
@@ -227,8 +222,7 @@ static void bm_page_unlock_io(struct drbd_conf *mdev, int page_nr)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	void *addr = &page_private(b->bm_pages[page_nr]);
-	clear_bit(BM_PAGE_IO_LOCK, addr);
-	smp_mb__after_clear_bit();
+	clear_bit_unlock(BM_PAGE_IO_LOCK, addr);
 	wake_up(&mdev->bitmap->bm_io_wait);
 }
 
@@ -244,6 +238,27 @@ static void bm_set_page_unchanged(struct page *page)
 static void bm_set_page_need_writeout(struct page *page)
 {
 	set_bit(BM_PAGE_NEED_WRITEOUT, &page_private(page));
+}
+
+/**
+ * drbd_bm_mark_for_writeout() - mark a page with a "hint" to be considered for writeout
+ * @mdev:	DRBD device.
+ * @page_nr:	the bitmap page to mark with the "hint" flag
+ *
+ * From within an activity log transaction, we mark a few pages with these
+ * hints, then call drbd_bm_write_hinted(), which will only write out changed
+ * pages which are flagged with this mark.
+ */
+void drbd_bm_mark_for_writeout(struct drbd_conf *mdev, int page_nr)
+{
+	struct page *page;
+	if (page_nr >= mdev->bitmap->bm_number_of_pages) {
+		dev_warn(DEV, "BAD: page_nr: %u, number_of_pages: %u\n",
+			 page_nr, (int)mdev->bitmap->bm_number_of_pages);
+		return;
+	}
+	page = mdev->bitmap->bm_pages[page_nr];
+	set_bit(BM_PAGE_HINT_WRITEOUT, &page_private(page));
 }
 
 static int bm_test_page_unchanged(struct page *page)
@@ -289,25 +304,25 @@ static unsigned int bm_bit_to_page_idx(struct drbd_bitmap *b, u64 bitnr)
 	return page_nr;
 }
 
-static unsigned long *__bm_map_pidx(struct drbd_bitmap *b, unsigned int idx, const enum km_type km)
+static unsigned long *__bm_map_pidx(struct drbd_bitmap *b, unsigned int idx)
 {
 	struct page *page = b->bm_pages[idx];
-	return (unsigned long *) kmap_atomic(page, km);
+	return (unsigned long *) kmap_atomic(page);
 }
 
 static unsigned long *bm_map_pidx(struct drbd_bitmap *b, unsigned int idx)
 {
-	return __bm_map_pidx(b, idx, KM_IRQ1);
+	return __bm_map_pidx(b, idx);
 }
 
-static void __bm_unmap(unsigned long *p_addr, const enum km_type km)
+static void __bm_unmap(unsigned long *p_addr)
 {
-	kunmap_atomic(p_addr, km);
+	kunmap_atomic(p_addr);
 };
 
 static void bm_unmap(unsigned long *p_addr)
 {
-	return __bm_unmap(p_addr, KM_IRQ1);
+	return __bm_unmap(p_addr);
 }
 
 /* long word offset of _bitmap_ sector */
@@ -373,25 +388,26 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 		return old_pages;
 
 	/* Trying kmalloc first, falling back to vmalloc.
-	 * GFP_KERNEL is ok, as this is done when a lower level disk is
-	 * "attached" to the drbd.  Context is receiver thread or cqueue
-	 * thread.  As we have no disk yet, we are not in the IO path,
-	 * not even the IO path of the peer. */
+	 * GFP_NOIO, as this is called while drbd IO is "suspended",
+	 * and during resize or attach on diskless Primary,
+	 * we must not block on IO to ourselves.
+	 * Context is receiver thread or dmsetup. */
 	bytes = sizeof(struct page *)*want;
-	new_pages = kmalloc(bytes, GFP_KERNEL);
+	new_pages = kzalloc(bytes, GFP_NOIO);
 	if (!new_pages) {
-		new_pages = vmalloc(bytes);
+		new_pages = __vmalloc(bytes,
+				GFP_NOIO | __GFP_HIGHMEM | __GFP_ZERO,
+				PAGE_KERNEL);
 		if (!new_pages)
 			return NULL;
 		vmalloced = 1;
 	}
 
-	memset(new_pages, 0, bytes);
 	if (want >= have) {
 		for (i = 0; i < have; i++)
 			new_pages[i] = old_pages[i];
 		for (; i < want; i++) {
-			page = alloc_page(GFP_HIGHUSER);
+			page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
 			if (!page) {
 				bm_free_pages(new_pages + have, i - have);
 				bm_vk_free(new_pages, vmalloced);
@@ -440,7 +456,8 @@ int drbd_bm_init(struct drbd_conf *mdev)
 
 sector_t drbd_bm_capacity(struct drbd_conf *mdev)
 {
-	ERR_IF(!mdev->bitmap) return 0;
+	if (!expect(mdev->bitmap))
+		return 0;
 	return mdev->bitmap->bm_dev_capacity;
 }
 
@@ -448,7 +465,8 @@ sector_t drbd_bm_capacity(struct drbd_conf *mdev)
  */
 void drbd_bm_cleanup(struct drbd_conf *mdev)
 {
-	ERR_IF (!mdev->bitmap) return;
+	if (!expect(mdev->bitmap))
+		return;
 	bm_free_pages(mdev->bitmap->bm_pages, mdev->bitmap->bm_number_of_pages);
 	bm_vk_free(mdev->bitmap->bm_pages, (BM_P_VMALLOCED & mdev->bitmap->bm_flags));
 	kfree(mdev->bitmap);
@@ -544,15 +562,15 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 
 	/* all but last page */
 	for (idx = 0; idx < b->bm_number_of_pages - 1; idx++) {
-		p_addr = __bm_map_pidx(b, idx, KM_USER0);
+		p_addr = __bm_map_pidx(b, idx);
 		for (i = 0; i < LWPP; i++)
 			bits += hweight_long(p_addr[i]);
-		__bm_unmap(p_addr, KM_USER0);
+		__bm_unmap(p_addr);
 		cond_resched();
 	}
 	/* last (or only) page */
 	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
-	p_addr = __bm_map_pidx(b, idx, KM_USER0);
+	p_addr = __bm_map_pidx(b, idx);
 	for (i = 0; i < last_word; i++)
 		bits += hweight_long(p_addr[i]);
 	p_addr[last_word] &= cpu_to_lel(mask);
@@ -560,7 +578,7 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 	/* 32bit arch, may have an unused padding long */
 	if (BITS_PER_LONG == 32 && (last_word & 1) == 0)
 		p_addr[last_word+1] = 0;
-	__bm_unmap(p_addr, KM_USER0);
+	__bm_unmap(p_addr);
 	return bits;
 }
 
@@ -594,6 +612,17 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
 	}
 }
 
+/* For the layout, see comment above drbd_md_set_sector_offsets(). */
+static u64 drbd_md_on_disk_bits(struct drbd_backing_dev *ldev)
+{
+	u64 bitmap_sectors;
+	if (ldev->md.al_offset == 8)
+		bitmap_sectors = ldev->md.md_size_sect - ldev->md.bm_offset;
+	else
+		bitmap_sectors = ldev->md.al_offset - ldev->md.bm_offset;
+	return bitmap_sectors << (9 + 3);
+}
+
 /*
  * make sure the bitmap has enough room for the attached storage,
  * if necessary, resize.
@@ -611,7 +640,8 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	int err = 0, growing;
 	int opages_vmalloced;
 
-	ERR_IF(!b) return -ENOMEM;
+	if (!expect(b))
+		return -ENOMEM;
 
 	drbd_bm_lock(mdev, "resize", BM_LOCKED_MASK);
 
@@ -649,7 +679,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	words = ALIGN(bits, 64) >> LN2_BPL;
 
 	if (get_ldev(mdev)) {
-		u64 bits_on_disk = ((u64)mdev->ldev->md.md_size_sect-MD_BM_OFFSET) << 12;
+		u64 bits_on_disk = drbd_md_on_disk_bits(mdev->ldev);
 		put_ldev(mdev);
 		if (bits > bits_on_disk) {
 			dev_info(DEV, "bits = %lu\n", bits);
@@ -733,8 +763,10 @@ unsigned long _drbd_bm_total_weight(struct drbd_conf *mdev)
 	unsigned long s;
 	unsigned long flags;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	s = b->bm_set;
@@ -757,8 +789,10 @@ unsigned long drbd_bm_total_weight(struct drbd_conf *mdev)
 size_t drbd_bm_words(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	return b->bm_words;
 }
@@ -766,7 +800,8 @@ size_t drbd_bm_words(struct drbd_conf *mdev)
 unsigned long drbd_bm_bits(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return 0;
+	if (!expect(b))
+		return 0;
 
 	return b->bm_bits;
 }
@@ -787,8 +822,10 @@ void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 
 	end = offset + number;
 
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 	if (number == 0)
 		return;
 	WARN_ON(offset >= b->bm_words);
@@ -832,8 +869,10 @@ void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 
 	end = offset + number;
 
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	if ((offset >= b->bm_words) ||
@@ -861,8 +900,10 @@ void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 void drbd_bm_set_all(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	bm_memset(b, 0, 0xff, b->bm_words);
@@ -875,8 +916,10 @@ void drbd_bm_set_all(struct drbd_conf *mdev)
 void drbd_bm_clear_all(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	bm_memset(b, 0, 0, b->bm_words);
@@ -887,11 +930,22 @@ void drbd_bm_clear_all(struct drbd_conf *mdev)
 struct bm_aio_ctx {
 	struct drbd_conf *mdev;
 	atomic_t in_flight;
-	struct completion done;
+	unsigned int done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
+#define BM_AIO_WRITE_HINTED	2
+#define BM_WRITE_ALL_PAGES	4
 	int error;
+	struct kref kref;
 };
+
+static void bm_aio_ctx_destroy(struct kref *kref)
+{
+	struct bm_aio_ctx *ctx = container_of(kref, struct bm_aio_ctx, kref);
+
+	put_ldev(ctx->mdev);
+	kfree(ctx);
+}
 
 /* bv_page may be a copy, or may be the original */
 static void bm_async_io_complete(struct bio *bio, int error)
@@ -931,20 +985,21 @@ static void bm_async_io_complete(struct bio *bio, int error)
 
 	bm_page_unlock_io(mdev, idx);
 
-	/* FIXME give back to page pool */
 	if (ctx->flags & BM_AIO_COPY_PAGES)
-		put_page(bio->bi_io_vec[0].bv_page);
+		mempool_free(bio->bi_io_vec[0].bv_page, drbd_md_io_page_pool);
 
 	bio_put(bio);
 
-	if (atomic_dec_and_test(&ctx->in_flight))
-		complete(&ctx->done);
+	if (atomic_dec_and_test(&ctx->in_flight)) {
+		ctx->done = 1;
+		wake_up(&mdev->misc_wait);
+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
+	}
 }
 
 static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
 {
-	/* we are process context. we always get a bio */
-	struct bio *bio = bio_alloc(GFP_KERNEL, 1);
+	struct bio *bio = bio_alloc_drbd(GFP_NOIO);
 	struct drbd_conf *mdev = ctx->mdev;
 	struct drbd_bitmap *b = mdev->bitmap;
 	struct page *page;
@@ -967,21 +1022,15 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 	bm_set_page_unchanged(b->bm_pages[page_nr]);
 
 	if (ctx->flags & BM_AIO_COPY_PAGES) {
-		/* FIXME alloc_page is good enough for now, but actually needs
-		 * to use pre-allocated page pool */
-		void *src, *dest;
-		page = alloc_page(__GFP_HIGHMEM|__GFP_WAIT);
-		dest = kmap_atomic(page, KM_USER0);
-		src = kmap_atomic(b->bm_pages[page_nr], KM_USER1);
-		memcpy(dest, src, PAGE_SIZE);
-		kunmap_atomic(src, KM_USER1);
-		kunmap_atomic(dest, KM_USER0);
+		page = mempool_alloc(drbd_md_io_page_pool, __GFP_HIGHMEM|__GFP_WAIT);
+		copy_highpage(page, b->bm_pages[page_nr]);
 		bm_store_page_idx(page, page_nr);
 	} else
 		page = b->bm_pages[page_nr];
-
 	bio->bi_bdev = mdev->ldev->md_bdev;
 	bio->bi_sector = on_disk_sector;
+	/* bio_add_page of a single page to an empty bio will always succeed,
+	 * according to api.  Do we want to assert that? */
 	bio_add_page(bio, page, len, 0);
 	bio->bi_private = ctx;
 	bio->bi_end_io = bm_async_io_complete;
@@ -1000,14 +1049,9 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 /*
  * bm_rw: read/write the whole bitmap from/to its on disk location.
  */
-static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_idx) __must_hold(local)
+static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx = {
-		.mdev = mdev,
-		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-		.flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0,
-	};
+	struct bm_aio_ctx *ctx;
 	struct drbd_bitmap *b = mdev->bitmap;
 	int num_pages, i, count = 0;
 	unsigned long now;
@@ -1022,7 +1066,27 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	 * For lazy writeout, we don't care for ongoing changes to the bitmap,
 	 * as we submit copies of pages anyways.
 	 */
-	if (!ctx.flags)
+
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
+	if (!ctx)
+		return -ENOMEM;
+
+	*ctx = (struct bm_aio_ctx) {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = 0,
+		.flags = flags,
+		.error = 0,
+		.kref = { ATOMIC_INIT(2) },
+	};
+
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in bm_rw()\n");
+		kfree(ctx);
+		return -ENODEV;
+	}
+
+	if (!ctx->flags)
 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
 
 	num_pages = b->bm_number_of_pages;
@@ -1035,7 +1099,13 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
 			break;
 		if (rw & WRITE) {
-			if (bm_test_page_unchanged(b->bm_pages[i])) {
+			if ((flags & BM_AIO_WRITE_HINTED) &&
+			    !test_and_clear_bit(BM_PAGE_HINT_WRITEOUT,
+				    &page_private(b->bm_pages[i])))
+				continue;
+
+			if (!(flags & BM_WRITE_ALL_PAGES) &&
+			    bm_test_page_unchanged(b->bm_pages[i])) {
 				dynamic_dev_dbg(DEV, "skipped bm write for idx %u\n", i);
 				continue;
 			}
@@ -1047,28 +1117,39 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 				continue;
 			}
 		}
-		atomic_inc(&ctx.in_flight);
-		bm_page_io_async(&ctx, i, rw);
+		atomic_inc(&ctx->in_flight);
+		bm_page_io_async(ctx, i, rw);
 		++count;
 		cond_resched();
 	}
 
 	/*
-	 * We initialize ctx.in_flight to one to make sure bm_async_io_complete
-	 * will not complete() early, and decrement / test it here.  If there
+	 * We initialize ctx->in_flight to one to make sure bm_async_io_complete
+	 * will not set ctx->done early, and decrement / test it here.  If there
 	 * are still some bios in flight, we need to wait for them here.
+	 * If all IO is done already (or nothing had been submitted), there is
+	 * no need to wait.  Still, we need to put the kref associated with the
+	 * "in_flight reached zero, all done" event.
 	 */
-	if (!atomic_dec_and_test(&ctx.in_flight))
-		wait_for_completion(&ctx.done);
-	dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
-			rw == WRITE ? "WRITE" : "READ",
-			count, jiffies - now);
+	if (!atomic_dec_and_test(&ctx->in_flight))
+		wait_until_done_or_force_detached(mdev, mdev->ldev, &ctx->done);
+	else
+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 
-	if (ctx.error) {
+	/* summary for global bitmap IO */
+	if (flags == 0)
+		dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
+			 rw == WRITE ? "WRITE" : "READ",
+			 count, jiffies - now);
+
+	if (ctx->error) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
-		drbd_chk_io_error(mdev, 1, true);
-		err = -EIO; /* ctx.error ? */
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
+		err = -EIO; /* ctx->error ? */
 	}
+
+	if (atomic_read(&ctx->in_flight))
+		err = -EIO; /* Disk timeout/force-detach during IO... */
 
 	now = jiffies;
 	if (rw == WRITE) {
@@ -1080,9 +1161,11 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	}
 	now = b->bm_set;
 
-	dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
-	     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
+	if (flags == 0)
+		dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
+		     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
 
+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 	return err;
 }
 
@@ -1092,7 +1175,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
  */
 int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, READ, 0);
+	return bm_rw(mdev, READ, 0, 0);
 }
 
 /**
@@ -1103,7 +1186,18 @@ int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, 0);
+	return bm_rw(mdev, WRITE, 0, 0);
+}
+
+/**
+ * drbd_bm_write_all() - Write the whole bitmap to its on disk location.
+ * @mdev:	DRBD device.
+ *
+ * Will write all pages.
+ */
+int drbd_bm_write_all(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_WRITE_ALL_PAGES, 0);
 }
 
 /**
@@ -1113,12 +1207,36 @@ int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, upper_idx);
+	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, upper_idx);
 }
 
+/**
+ * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
+ * @mdev:	DRBD device.
+ *
+ * Will only write pages that have changed since last IO.
+ * In contrast to drbd_bm_write(), this will copy the bitmap pages
+ * to temporary writeout pages. It is intended to trigger a full write-out
+ * while still allowing the bitmap to change, for example if a resync or online
+ * verify is aborted due to a failed peer disk, while local IO continues, or
+ * pending resync acks are still being processed.
+ */
+int drbd_bm_write_copy_pages(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, 0);
+}
 
 /**
- * drbd_bm_write_page: Writes a PAGE_SIZE aligned piece of bitmap
+ * drbd_bm_write_hinted() - Write bitmap pages with "hint" marks, if they have changed.
+ * @mdev:	DRBD device.
+ */
+int drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_AIO_WRITE_HINTED | BM_AIO_COPY_PAGES, 0);
+}
+
+/**
+ * drbd_bm_write_page() - Writes a PAGE_SIZE aligned piece of bitmap
  * @mdev:	DRBD device.
  * @idx:	bitmap page index
  *
@@ -1131,28 +1249,45 @@ int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(l
  */
 int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx = {
-		.mdev = mdev,
-		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-		.flags = BM_AIO_COPY_PAGES,
-	};
+	struct bm_aio_ctx *ctx;
+	int err;
 
 	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
 		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
 		return 0;
 	}
 
-	bm_page_io_async(&ctx, idx, WRITE_SYNC);
-	wait_for_completion(&ctx.done);
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
+	if (!ctx)
+		return -ENOMEM;
 
-	if (ctx.error)
-		drbd_chk_io_error(mdev, 1, true);
-		/* that should force detach, so the in memory bitmap will be
+	*ctx = (struct bm_aio_ctx) {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = 0,
+		.flags = BM_AIO_COPY_PAGES,
+		.error = 0,
+		.kref = { ATOMIC_INIT(2) },
+	};
+
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
+		kfree(ctx);
+		return -ENODEV;
+	}
+
+	bm_page_io_async(ctx, idx, WRITE_SYNC);
+	wait_until_done_or_force_detached(mdev, mdev->ldev, &ctx->done);
+
+	if (ctx->error)
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
+		/* that causes us to detach, so the in memory bitmap will be
 		 * gone in a moment as well. */
 
 	mdev->bm_writ_cnt++;
-	return ctx.error;
+	err = atomic_read(&ctx->in_flight) ? -EIO : ctx->error;
+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
+	return err;
 }
 
 /* NOTE
@@ -1164,7 +1299,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
  * this returns a bit number, NOT a sector!
  */
 static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
-	const int find_zero_bit, const enum km_type km)
+	const int find_zero_bit)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long *p_addr;
@@ -1179,7 +1314,7 @@ static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
 		while (bm_fo < b->bm_bits) {
 			/* bit offset of the first bit in the page */
 			bit_offset = bm_fo & ~BITS_PER_PAGE_MASK;
-			p_addr = __bm_map_pidx(b, bm_bit_to_page_idx(b, bm_fo), km);
+			p_addr = __bm_map_pidx(b, bm_bit_to_page_idx(b, bm_fo));
 
 			if (find_zero_bit)
 				i = find_next_zero_bit_le(p_addr,
@@ -1188,7 +1323,7 @@ static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
 				i = find_next_bit_le(p_addr,
 						PAGE_SIZE*8, bm_fo & BITS_PER_PAGE_MASK);
 
-			__bm_unmap(p_addr, km);
+			__bm_unmap(p_addr);
 			if (i < PAGE_SIZE*8) {
 				bm_fo = bit_offset + i;
 				if (bm_fo >= b->bm_bits)
@@ -1209,14 +1344,16 @@ static unsigned long bm_find_next(struct drbd_conf *mdev,
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long i = DRBD_END_OF_BITMAP;
 
-	ERR_IF(!b) return i;
-	ERR_IF(!b->bm_pages) return i;
+	if (!expect(b))
+		return i;
+	if (!expect(b->bm_pages))
+		return i;
 
 	spin_lock_irq(&b->bm_lock);
 	if (BM_DONT_TEST & b->bm_flags)
 		bm_print_lock_info(mdev);
 
-	i = __bm_find_next(mdev, bm_fo, find_zero_bit, KM_IRQ1);
+	i = __bm_find_next(mdev, bm_fo, find_zero_bit);
 
 	spin_unlock_irq(&b->bm_lock);
 	return i;
@@ -1240,13 +1377,13 @@ unsigned long drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo
 unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo)
 {
 	/* WARN_ON(!(BM_DONT_SET & mdev->b->bm_flags)); */
-	return __bm_find_next(mdev, bm_fo, 0, KM_USER1);
+	return __bm_find_next(mdev, bm_fo, 0);
 }
 
 unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_fo)
 {
 	/* WARN_ON(!(BM_DONT_SET & mdev->b->bm_flags)); */
-	return __bm_find_next(mdev, bm_fo, 1, KM_USER1);
+	return __bm_find_next(mdev, bm_fo, 1);
 }
 
 /* returns number of bits actually changed.
@@ -1274,14 +1411,14 @@ static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 		unsigned int page_nr = bm_bit_to_page_idx(b, bitnr);
 		if (page_nr != last_page_nr) {
 			if (p_addr)
-				__bm_unmap(p_addr, KM_IRQ1);
+				__bm_unmap(p_addr);
 			if (c < 0)
 				bm_set_page_lazy_writeout(b->bm_pages[last_page_nr]);
 			else if (c > 0)
 				bm_set_page_need_writeout(b->bm_pages[last_page_nr]);
 			changed_total += c;
 			c = 0;
-			p_addr = __bm_map_pidx(b, page_nr, KM_IRQ1);
+			p_addr = __bm_map_pidx(b, page_nr);
 			last_page_nr = page_nr;
 		}
 		if (val)
@@ -1290,7 +1427,7 @@ static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 			c -= (0 != __test_and_clear_bit_le(bitnr & BITS_PER_PAGE_MASK, p_addr));
 	}
 	if (p_addr)
-		__bm_unmap(p_addr, KM_IRQ1);
+		__bm_unmap(p_addr);
 	if (c < 0)
 		bm_set_page_lazy_writeout(b->bm_pages[last_page_nr]);
 	else if (c > 0)
@@ -1311,8 +1448,10 @@ static int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 	struct drbd_bitmap *b = mdev->bitmap;
 	int c = 0;
 
-	ERR_IF(!b) return 1;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 1;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if ((val ? BM_DONT_SET : BM_DONT_CLEAR) & b->bm_flags)
@@ -1343,13 +1482,21 @@ static inline void bm_set_full_words_within_one_page(struct drbd_bitmap *b,
 {
 	int i;
 	int bits;
-	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr], KM_IRQ1);
+	int changed = 0;
+	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr]);
 	for (i = first_word; i < last_word; i++) {
 		bits = hweight_long(paddr[i]);
 		paddr[i] = ~0UL;
-		b->bm_set += BITS_PER_LONG - bits;
+		changed += BITS_PER_LONG - bits;
 	}
-	kunmap_atomic(paddr, KM_IRQ1);
+	kunmap_atomic(paddr);
+	if (changed) {
+		/* We only need lazy writeout, the information is still in the
+		 * remote bitmap as well, and is reconstructed during the next
+		 * bitmap exchange, if lost locally due to a crash. */
+		bm_set_page_lazy_writeout(b->bm_pages[page_nr]);
+		b->bm_set += changed;
+	}
 }
 
 /* Same thing as drbd_bm_set_bits,
@@ -1408,10 +1555,17 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 		first_word = 0;
 		spin_lock_irq(&b->bm_lock);
 	}
-
 	/* last page (respectively only page, for first page == last page) */
 	last_word = MLPP(el >> LN2_BPL);
-	bm_set_full_words_within_one_page(mdev->bitmap, last_page, first_word, last_word);
+
+	/* consider bitmap->bm_bits = 32768, bitmap->bm_number_of_pages = 1. (or multiples).
+	 * ==> e = 32767, el = 32768, last_page = 2,
+	 * and now last_word = 0.
+	 * We do not want to touch last_page in this case,
+	 * as we did not allocate it, it is not present in bitmap->bm_pages.
+	 */
+	if (last_word)
+		bm_set_full_words_within_one_page(mdev->bitmap, last_page, first_word, last_word);
 
 	/* possibly trailing bits.
 	 * example: (e & 63) == 63, el will be e+1.
@@ -1437,8 +1591,10 @@ int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
 	unsigned long *p_addr;
 	int i;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1472,8 +1628,10 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 	 * robust in case we screwed up elsewhere, in that case pretend there
 	 * was one dirty bit in the requested area, so we won't try to do a
 	 * local read there (no bitmap probably implies no disk) */
-	ERR_IF(!b) return 1;
-	ERR_IF(!b->bm_pages) return 1;
+	if (!expect(b))
+		return 1;
+	if (!expect(b->bm_pages))
+		return 1;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1486,11 +1644,10 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 				bm_unmap(p_addr);
 			p_addr = bm_map_pidx(b, idx);
 		}
-		ERR_IF (bitnr >= b->bm_bits) {
-			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
-		} else {
+		if (expect(bitnr < b->bm_bits))
 			c += (0 != test_bit_le(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
-		}
+		else
+			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
 	}
 	if (p_addr)
 		bm_unmap(p_addr);
@@ -1520,8 +1677,10 @@ int drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr)
 	unsigned long flags;
 	unsigned long *p_addr, *bm;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1542,48 +1701,4 @@ int drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr)
 	}
 	spin_unlock_irqrestore(&b->bm_lock, flags);
 	return count;
-}
-
-/* Set all bits covered by the AL-extent al_enr.
- * Returns number of bits changed. */
-unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev, unsigned long al_enr)
-{
-	struct drbd_bitmap *b = mdev->bitmap;
-	unsigned long *p_addr, *bm;
-	unsigned long weight;
-	unsigned long s, e;
-	int count, i, do_now;
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
-
-	spin_lock_irq(&b->bm_lock);
-	if (BM_DONT_SET & b->bm_flags)
-		bm_print_lock_info(mdev);
-	weight = b->bm_set;
-
-	s = al_enr * BM_WORDS_PER_AL_EXT;
-	e = min_t(size_t, s + BM_WORDS_PER_AL_EXT, b->bm_words);
-	/* assert that s and e are on the same page */
-	D_ASSERT((e-1) >> (PAGE_SHIFT - LN2_BPL + 3)
-	      ==  s    >> (PAGE_SHIFT - LN2_BPL + 3));
-	count = 0;
-	if (s < b->bm_words) {
-		i = do_now = e-s;
-		p_addr = bm_map_pidx(b, bm_word_to_page_idx(b, s));
-		bm = p_addr + MLPP(s);
-		while (i--) {
-			count += hweight_long(*bm);
-			*bm = -1UL;
-			bm++;
-		}
-		bm_unmap(p_addr);
-		b->bm_set += do_now*BITS_PER_LONG - count;
-		if (e == b->bm_words)
-			b->bm_set -= bm_clear_surplus(b);
-	} else {
-		dev_err(DEV, "start offset (%lu) too large in drbd_bm_ALe_set_all\n", s);
-	}
-	weight = b->bm_set - weight;
-	spin_unlock_irq(&b->bm_lock);
-	return weight;
 }

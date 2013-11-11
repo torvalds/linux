@@ -1,6 +1,4 @@
 /*
- *  drivers/s390/net/qeth_core_mpc.h
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,
@@ -68,16 +66,6 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_LANE_ETH1000 = 0x83,
 	QETH_LINK_TYPE_LANE         = 0x88,
 	QETH_LINK_TYPE_ATM_NATIVE   = 0x90,
-};
-
-enum qeth_tr_macaddr_modes {
-	QETH_TR_MACADDR_NONCANONICAL = 0,
-	QETH_TR_MACADDR_CANONICAL    = 1,
-};
-
-enum qeth_tr_broadcast_modes {
-	QETH_TR_BROADCAST_ALLRINGS = 0,
-	QETH_TR_BROADCAST_LOCAL    = 1,
 };
 
 /*
@@ -189,7 +177,9 @@ enum qeth_ipa_return_codes {
 	IPA_RC_INVALID_SETRTG_INDICATOR	= 0xe012,
 	IPA_RC_MC_ADDR_ALREADY_DEFINED	= 0xe013,
 	IPA_RC_LAN_OFFLINE		= 0xe080,
+	IPA_RC_VEPA_TO_VEB_TRANSITION	= 0xe090,
 	IPA_RC_INVALID_IP_VERSION2	= 0xf001,
+	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
 /* for DELIP */
@@ -249,6 +239,7 @@ enum qeth_ipa_setadp_cmd {
 	IPA_SETADP_SET_PROMISC_MODE		= 0x00000800L,
 	IPA_SETADP_SET_DIAG_ASSIST		= 0x00002000L,
 	IPA_SETADP_SET_ACCESS_CONTROL		= 0x00010000L,
+	IPA_SETADP_QUERY_OAT			= 0x00080000L,
 };
 enum qeth_ipa_mac_ops {
 	CHANGE_ADDR_READ_MAC		= 0,
@@ -279,6 +270,9 @@ enum qeth_ipa_set_access_mode_rc {
 	SET_ACCESS_CTRL_RC_ALREADY_ISOLATED	= 0x0010,
 	SET_ACCESS_CTRL_RC_NONE_SHARED_ADAPTER	= 0x0014,
 	SET_ACCESS_CTRL_RC_ACTIVE_CHECKSUM_OFF	= 0x0018,
+	SET_ACCESS_CTRL_RC_REFLREL_UNSUPPORTED	= 0x0022,
+	SET_ACCESS_CTRL_RC_REFLREL_FAILED	= 0x0024,
+	SET_ACCESS_CTRL_RC_REFLREL_DEACT_FAILED	= 0x0028,
 };
 
 
@@ -396,7 +390,19 @@ struct qeth_snmp_ureq {
 /* SET_ACCESS_CONTROL: same format for request and reply */
 struct qeth_set_access_ctrl {
 	__u32 subcmd_code;
+	__u8 reserved[8];
 } __attribute__((packed));
+
+struct qeth_query_oat {
+	__u32 subcmd_code;
+	__u8 reserved[12];
+} __packed;
+
+struct qeth_qoat_priv {
+	__u32 buffer_len;
+	__u32 response_len;
+	char *buffer;
+};
 
 struct qeth_ipacmd_setadpparms_hdr {
 	__u32 supp_hw_cmds;
@@ -417,6 +423,7 @@ struct qeth_ipacmd_setadpparms {
 		struct qeth_change_addr change_addr;
 		struct qeth_snmp_cmd snmp;
 		struct qeth_set_access_ctrl set_access_ctrl;
+		struct qeth_query_oat query_oat;
 		__u32 mode;
 	} data;
 } __attribute__ ((packed));

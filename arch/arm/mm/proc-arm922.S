@@ -87,6 +87,7 @@ ENTRY(cpu_arm922_proc_fin)
  * loc: location to jump to for soft reset
  */
 	.align	5
+	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm922_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
@@ -99,6 +100,8 @@ ENTRY(cpu_arm922_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	mov	pc, r0
+ENDPROC(cpu_arm922_reset)
+	.popsection
 
 /*
  * cpu_arm922_do_idle()
@@ -209,6 +212,7 @@ ENTRY(arm922_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
+	mov	r0, #0
 	mov	pc, lr
 
 /*
@@ -317,18 +321,11 @@ ENTRY(arm922_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(arm922_dma_unmap_area)
 
-ENTRY(arm922_cache_fns)
-	.long	arm922_flush_icache_all
-	.long	arm922_flush_kern_cache_all
-	.long	arm922_flush_user_cache_all
-	.long	arm922_flush_user_cache_range
-	.long	arm922_coherent_kern_range
-	.long	arm922_coherent_user_range
-	.long	arm922_flush_kern_dcache_area
-	.long	arm922_dma_map_area
-	.long	arm922_dma_unmap_area
-	.long	arm922_dma_flush_range
+	.globl	arm922_flush_kern_cache_louis
+	.equ	arm922_flush_kern_cache_louis, arm922_flush_kern_cache_all
 
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions arm922
 #endif
 
 
@@ -420,43 +417,14 @@ arm922_crval:
 	crval	clear=0x00003f3f, mmuset=0x00003135, ucset=0x00001130
 
 	__INITDATA
-
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-	.type	arm922_processor_functions, #object
-arm922_processor_functions:
-	.word	v4t_early_abort
-	.word	legacy_pabort
-	.word	cpu_arm922_proc_init
-	.word	cpu_arm922_proc_fin
-	.word	cpu_arm922_reset
-	.word   cpu_arm922_do_idle
-	.word	cpu_arm922_dcache_clean_area
-	.word	cpu_arm922_switch_mm
-	.word	cpu_arm922_set_pte_ext
-	.word	0
-	.word	0
-	.word	0
-	.size	arm922_processor_functions, . - arm922_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions arm922, dabort=v4t_early_abort, pabort=legacy_pabort
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4t"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_arm922_name, #object
-cpu_arm922_name:
-	.asciz	"ARM922T"
-	.size	cpu_arm922_name, . - cpu_arm922_name
+	string	cpu_arch_name, "armv4t"
+	string	cpu_elf_name, "v4"
+	string	cpu_arm922_name, "ARM922T"
 
 	.align
 

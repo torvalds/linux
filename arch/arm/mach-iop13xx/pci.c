@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include <linux/export.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/sizes.h>
@@ -35,12 +36,10 @@ u32 iop13xx_atux_pmmr_offset; /* This offset can change based on strapping */
 u32 iop13xx_atue_pmmr_offset; /* This offset can change based on strapping */
 static struct pci_bus *pci_bus_atux = 0;
 static struct pci_bus *pci_bus_atue = 0;
-u32 iop13xx_atue_mem_base;
-u32 iop13xx_atux_mem_base;
+void __iomem *iop13xx_atue_mem_base;
+void __iomem *iop13xx_atux_mem_base;
 size_t iop13xx_atue_mem_size;
 size_t iop13xx_atux_mem_size;
-unsigned long iop13xx_pcibios_min_io = 0;
-unsigned long iop13xx_pcibios_min_mem = 0;
 
 EXPORT_SYMBOL(iop13xx_atue_mem_base);
 EXPORT_SYMBOL(iop13xx_atux_mem_base);
@@ -89,8 +88,7 @@ void iop13xx_map_pci_memory(void)
 				}
 
 				if (end) {
-					iop13xx_atux_mem_base =
-					(u32) __arm_ioremap_pfn(
+					iop13xx_atux_mem_base = __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIX_LOWER_MEM_PA)
 					, 0, iop13xx_atux_mem_size, MT_DEVICE);
 					if (!iop13xx_atux_mem_base) {
@@ -100,7 +98,7 @@ void iop13xx_map_pci_memory(void)
 					}
 				} else
 					iop13xx_atux_mem_size = 0;
-				PRINTK("%s: atu: %d bus_size: %d mem_base: %x\n",
+				PRINTK("%s: atu: %d bus_size: %d mem_base: %p\n",
 				__func__, atu, iop13xx_atux_mem_size,
 				iop13xx_atux_mem_base);
 				break;
@@ -115,8 +113,7 @@ void iop13xx_map_pci_memory(void)
 				}
 
 				if (end) {
-					iop13xx_atue_mem_base =
-					(u32) __arm_ioremap_pfn(
+					iop13xx_atue_mem_base = __arm_ioremap_pfn(
 					__phys_to_pfn(IOP13XX_PCIE_LOWER_MEM_PA)
 					, 0, iop13xx_atue_mem_size, MT_DEVICE);
 					if (!iop13xx_atue_mem_base) {
@@ -126,13 +123,13 @@ void iop13xx_map_pci_memory(void)
 					}
 				} else
 					iop13xx_atue_mem_size = 0;
-				PRINTK("%s: atu: %d bus_size: %d mem_base: %x\n",
+				PRINTK("%s: atu: %d bus_size: %d mem_base: %p\n",
 				__func__, atu, iop13xx_atue_mem_size,
 				iop13xx_atue_mem_base);
 				break;
 			}
 
-			printk("%s: Initialized (%uM @ resource/virtual: %08lx/%08x)\n",
+			printk("%s: Initialized (%uM @ resource/virtual: %08lx/%p)\n",
 			atu ? "ATUE" : "ATUX",
 			(atu ? iop13xx_atue_mem_size : iop13xx_atux_mem_size) /
 			SZ_1M,
@@ -390,7 +387,7 @@ static int iop13xx_atue_pci_status(int clear)
 }
 
 static int
-iop13xx_pcie_map_irq(struct pci_dev *dev, u8 idsel, u8 pin)
+iop13xx_pcie_map_irq(const struct pci_dev *dev, u8 idsel, u8 pin)
 {
 	WARN_ON(idsel != 0);
 
@@ -538,14 +535,14 @@ struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
 			while(time_before(jiffies, atux_trhfa_timeout))
 				udelay(100);
 
-		bus = pci_bus_atux = pci_scan_bus(sys->busnr,
-						  &iop13xx_atux_ops,
-						  sys);
+		bus = pci_bus_atux = pci_scan_root_bus(NULL, sys->busnr,
+						       &iop13xx_atux_ops,
+						       sys, &sys->resources);
 		break;
 	case IOP13XX_INIT_ATU_ATUE:
-		bus = pci_bus_atue = pci_scan_bus(sys->busnr,
-						  &iop13xx_atue_ops,
-						  sys);
+		bus = pci_bus_atue = pci_scan_root_bus(NULL, sys->busnr,
+						       &iop13xx_atue_ops,
+						       sys, &sys->resources);
 		break;
 	}
 
@@ -971,7 +968,7 @@ void __init iop13xx_pci_init(void)
 	__raw_writel(__raw_readl(IOP13XX_XBG_BECSR) & 3, IOP13XX_XBG_BECSR);
 
 	/* Setup the Min Address for PCI memory... */
-	iop13xx_pcibios_min_mem = IOP13XX_PCIX_LOWER_MEM_BA;
+	pcibios_min_mem = IOP13XX_PCIX_LOWER_MEM_BA;
 
 	/* if Linux is given control of an ATU
 	 * clear out its prior configuration,
@@ -1003,7 +1000,7 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr > 1)
 		return 0;
 
-	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("PCI: unable to alloc resources");
 
@@ -1042,17 +1039,13 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 				  << IOP13XX_ATUX_PCIXSR_FUNC_NUM;
 		__raw_writel(pcixsr, IOP13XX_ATUX_PCIXSR);
 
-		res[0].start = IOP13XX_PCIX_LOWER_IO_PA + IOP13XX_PCIX_IO_BUS_OFFSET;
-		res[0].end   = IOP13XX_PCIX_UPPER_IO_PA;
-		res[0].name  = "IQ81340 ATUX PCI I/O Space";
-		res[0].flags = IORESOURCE_IO;
+		pci_ioremap_io(0, IOP13XX_PCIX_LOWER_IO_PA);
 
-		res[1].start = IOP13XX_PCIX_LOWER_MEM_RA;
-		res[1].end   = IOP13XX_PCIX_UPPER_MEM_RA;
-		res[1].name  = "IQ81340 ATUX PCI Memory Space";
-		res[1].flags = IORESOURCE_MEM;
+		res->start = IOP13XX_PCIX_LOWER_MEM_RA;
+		res->end   = IOP13XX_PCIX_UPPER_MEM_RA;
+		res->name  = "IQ81340 ATUX PCI Memory Space";
+		res->flags = IORESOURCE_MEM;
 		sys->mem_offset = IOP13XX_PCIX_MEM_OFFSET;
-		sys->io_offset = IOP13XX_PCIX_LOWER_IO_PA;
 		break;
 	case IOP13XX_INIT_ATU_ATUE:
 		/* Note: the function number field in the PCSR is ro */
@@ -1063,17 +1056,13 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 
 		__raw_writel(pcsr, IOP13XX_ATUE_PCSR);
 
-		res[0].start = IOP13XX_PCIE_LOWER_IO_PA + IOP13XX_PCIE_IO_BUS_OFFSET;
-		res[0].end   = IOP13XX_PCIE_UPPER_IO_PA;
-		res[0].name  = "IQ81340 ATUE PCI I/O Space";
-		res[0].flags = IORESOURCE_IO;
+		pci_ioremap_io(SZ_64K, IOP13XX_PCIE_LOWER_IO_PA);
 
-		res[1].start = IOP13XX_PCIE_LOWER_MEM_RA;
-		res[1].end   = IOP13XX_PCIE_UPPER_MEM_RA;
-		res[1].name  = "IQ81340 ATUE PCI Memory Space";
-		res[1].flags = IORESOURCE_MEM;
+		res->start = IOP13XX_PCIE_LOWER_MEM_RA;
+		res->end   = IOP13XX_PCIE_UPPER_MEM_RA;
+		res->name  = "IQ81340 ATUE PCI Memory Space";
+		res->flags = IORESOURCE_MEM;
 		sys->mem_offset = IOP13XX_PCIE_MEM_OFFSET;
-		sys->io_offset = IOP13XX_PCIE_LOWER_IO_PA;
 		sys->map_irq = iop13xx_pcie_map_irq;
 		break;
 	default:
@@ -1081,12 +1070,9 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 	}
 
-	request_resource(&ioport_resource, &res[0]);
-	request_resource(&iomem_resource, &res[1]);
+	request_resource(&iomem_resource, res);
 
-	sys->resource[0] = &res[0];
-	sys->resource[1] = &res[1];
-	sys->resource[2] = NULL;
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }

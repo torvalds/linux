@@ -21,7 +21,6 @@
 #include <asm/setup.h>
 #include <asm/prom.h>
 
-static u32 early_console_initialized;
 static u32 base_addr;
 
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
@@ -35,7 +34,7 @@ static void early_printk_uartlite_putc(char c)
 	 * we'll never timeout on a working UART.
 	 */
 
-	unsigned retries = 10000;
+	unsigned retries = 1000000;
 	/* read status bit - 0x8 offset */
 	while (--retries && (in_be32(base_addr + 8) & (1 << 3)))
 		;
@@ -50,9 +49,9 @@ static void early_printk_uartlite_write(struct console *unused,
 					const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_printk_uartlite_putc(*s);
 		if (*s == '\n')
 			early_printk_uartlite_putc('\r');
+		early_printk_uartlite_putc(*s);
 		s++;
 	}
 }
@@ -60,7 +59,7 @@ static void early_printk_uartlite_write(struct console *unused,
 static struct console early_serial_uartlite_console = {
 	.name = "earlyser",
 	.write = early_printk_uartlite_write,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1,
 };
 #endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
@@ -94,9 +93,9 @@ static void early_printk_uart16550_write(struct console *unused,
 					const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_printk_uart16550_putc(*s);
 		if (*s == '\n')
 			early_printk_uart16550_putc('\r');
+		early_printk_uart16550_putc(*s);
 		s++;
 	}
 }
@@ -104,76 +103,82 @@ static void early_printk_uart16550_write(struct console *unused,
 static struct console early_serial_uart16550_console = {
 	.name = "earlyser",
 	.write = early_printk_uart16550_write,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_BOOT,
 	.index = -1,
 };
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
 
-static struct console *early_console;
-
-void early_printk(const char *fmt, ...)
-{
-	char buf[512];
-	int n;
-	va_list ap;
-
-	if (early_console_initialized) {
-		va_start(ap, fmt);
-		n = vscnprintf(buf, 512, fmt, ap);
-		early_console->write(early_console, buf, n);
-		va_end(ap);
-	}
-}
-
 int __init setup_early_printk(char *opt)
 {
-	if (early_console_initialized)
+	int version = 0;
+
+	if (early_console)
 		return 1;
 
+	base_addr = of_early_console(&version);
+	if (base_addr) {
+#ifdef CONFIG_MMU
+		early_console_reg_tlb_alloc(base_addr);
+#endif
+		switch (version) {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
-	base_addr = early_uartlite_console();
-	if (base_addr) {
-		early_console_initialized = 1;
-#ifdef CONFIG_MMU
-		early_console_reg_tlb_alloc(base_addr);
+		case UARTLITE:
+			pr_info("Early console on uartlite at 0x%08x\n",
+								base_addr);
+			early_console = &early_serial_uartlite_console;
+			break;
 #endif
-		early_console = &early_serial_uartlite_console;
-		early_printk("early_printk_console is enabled at 0x%08x\n",
-							base_addr);
-
-		/* register_console(early_console); */
-
-		return 0;
-	}
-#endif /* CONFIG_SERIAL_UARTLITE_CONSOLE */
-
 #ifdef CONFIG_SERIAL_8250_CONSOLE
-	base_addr = early_uart16550_console();
-	base_addr &= ~3; /* clear register offset */
-	if (base_addr) {
-		early_console_initialized = 1;
-#ifdef CONFIG_MMU
-		early_console_reg_tlb_alloc(base_addr);
+		case UART16550:
+			pr_info("Early console on uart16650 at 0x%08x\n",
+								base_addr);
+			early_console = &early_serial_uart16550_console;
+			break;
 #endif
-		early_console = &early_serial_uart16550_console;
+		default:
+			pr_info("Unsupported early console %d\n",
+								version);
+			return 1;
+		}
 
-		early_printk("early_printk_console is enabled at 0x%08x\n",
-							base_addr);
-
-		/* register_console(early_console); */
-
+		register_console(early_console);
 		return 0;
 	}
-#endif /* CONFIG_SERIAL_8250_CONSOLE */
-
 	return 1;
+}
+
+/* Remap early console to virtual address and do not allocate one TLB
+ * only for early console because of performance degression */
+void __init remap_early_printk(void)
+{
+	if (!early_console)
+		return;
+	pr_info("early_printk_console remapping from 0x%x to ", base_addr);
+	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
+	pr_cont("0x%x\n", base_addr);
+
+#ifdef CONFIG_MMU
+	/*
+	 * Early console is on the top of skipped TLB entries
+	 * decrease tlb_skip size ensure that hardcoded TLB entry will be
+	 * used by generic algorithm
+	 * FIXME check if early console mapping is on the top by rereading
+	 * TLB entry and compare baseaddr
+	 *  mts  rtlbx, (tlb_skip - 1)
+	 *  nop
+	 *  mfs  rX, rtlblo
+	 *  nop
+	 *  cmp rX, orig_base_addr
+	 */
+	tlb_skip -= 1;
+#endif
 }
 
 void __init disable_early_printk(void)
 {
-	if (!early_console_initialized || !early_console)
+	if (!early_console)
 		return;
-	printk(KERN_WARNING "disabling early console\n");
+	pr_warn("disabling early console\n");
 	unregister_console(early_console);
-	early_console_initialized = 0;
+	early_console = NULL;
 }

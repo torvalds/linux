@@ -4,7 +4,7 @@
  * Author:       Michael Hennerich <hennerich@blackfin.uclinux.org>
  *
  * Created:
- * Description:  ADSP-BF54x Framebufer driver
+ * Description:  ADSP-BF54x Framebuffer driver
  *
  *
  * Modified:
@@ -240,7 +240,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 	u16 eppi_req_18[] = EPPI0_18;
 	u16 disp = fbi->mach_info->disp;
 
-	if (gpio_request(disp, DRIVER_NAME)) {
+	if (gpio_request_one(disp, GPIOF_OUT_INIT_HIGH, DRIVER_NAME)) {
 		printk(KERN_ERR "Requesting GPIO %d failed\n", disp);
 		return -EFAULT;
 	}
@@ -262,8 +262,6 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 			return -EFAULT;
 		}
 	}
-
-	gpio_direction_output(disp, 1);
 
 	return 0;
 }
@@ -499,7 +497,7 @@ static irqreturn_t bfin_bf54x_irq_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
+static int bfin_bf54x_probe(struct platform_device *pdev)
 {
 #ifndef NO_BL_SUPPORT
 	struct backlight_properties props;
@@ -527,6 +525,7 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 	info = fbinfo->par;
 	info->fb = fbinfo;
 	info->dev = &pdev->dev;
+	spin_lock_init(&info->lock);
 
 	platform_set_drvdata(pdev, fbinfo);
 
@@ -603,7 +602,8 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 
 	fbinfo->fbops = &bfin_bf54x_fb_ops;
 
-	fbinfo->pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL);
+	fbinfo->pseudo_palette = devm_kzalloc(&pdev->dev, sizeof(u32) * 16,
+					      GFP_KERNEL);
 	if (!fbinfo->pseudo_palette) {
 		printk(KERN_ERR DRIVER_NAME
 		       "Fail to allocate pseudo_palette\n");
@@ -618,7 +618,7 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 		       "Fail to allocate colormap (%d entries)\n",
 		       BFIN_LCD_NBR_PALETTE_ENTRIES);
 		ret = -EFAULT;
-		goto out5;
+		goto out4;
 	}
 
 	if (request_ports(info)) {
@@ -633,7 +633,7 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 		goto out7;
 	}
 
-	if (request_irq(info->irq, bfin_bf54x_irq_error, IRQF_DISABLED,
+	if (request_irq(info->irq, bfin_bf54x_irq_error, 0,
 			"PPI ERROR", info) < 0) {
 		printk(KERN_ERR DRIVER_NAME
 		       ": unable to request PPI ERROR IRQ\n");
@@ -673,8 +673,6 @@ out7:
 	free_ports(info);
 out6:
 	fb_dealloc_cmap(&fbinfo->cmap);
-out5:
-	kfree(fbinfo->pseudo_palette);
 out4:
 	dma_free_coherent(NULL, fbinfo->fix.smem_len, info->fb_buffer,
 			  info->dma_handle);
@@ -688,7 +686,7 @@ out1:
 	return ret;
 }
 
-static int __devexit bfin_bf54x_remove(struct platform_device *pdev)
+static int bfin_bf54x_remove(struct platform_device *pdev)
 {
 
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
@@ -701,7 +699,6 @@ static int __devexit bfin_bf54x_remove(struct platform_device *pdev)
 		dma_free_coherent(NULL, fbinfo->fix.smem_len, info->fb_buffer,
 				  info->dma_handle);
 
-	kfree(fbinfo->pseudo_palette);
 	fb_dealloc_cmap(&fbinfo->cmap);
 
 #ifndef NO_BL_SUPPORT
@@ -757,7 +754,7 @@ static int bfin_bf54x_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_bf54x_driver = {
 	.probe = bfin_bf54x_probe,
-	.remove = __devexit_p(bfin_bf54x_remove),
+	.remove = bfin_bf54x_remove,
 	.suspend = bfin_bf54x_suspend,
 	.resume = bfin_bf54x_resume,
 	.driver = {

@@ -19,14 +19,14 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <sound/initval.h>
 
 // module parameters (see "Module Parameters")
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static int pcifix[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 255 };
 
 module_param_array(index, int, NULL, 0444);
@@ -78,7 +78,7 @@ static void vortex_fix_agp_bridge(struct pci_dev *via)
 	}
 }
 
-static void __devinit snd_vortex_workaround(struct pci_dev *vortex, int fix)
+static void snd_vortex_workaround(struct pci_dev *vortex, int fix)
 {
 	struct pci_dev *via = NULL;
 
@@ -137,7 +137,7 @@ static int snd_vortex_dev_free(struct snd_device *device)
 
 // chip-specific constructor
 // (see "Management of Cards and Components")
-static int __devinit
+static int
 snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 {
 	vortex_t *chip;
@@ -196,7 +196,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	}
 
 	if ((err = request_irq(pci->irq, vortex_interrupt,
-	                       IRQF_SHARED, CARD_NAME_SHORT,
+			       IRQF_SHARED, KBUILD_MODNAME,
 	                       chip)) != 0) {
 		printk(KERN_ERR "cannot grab irq\n");
 		goto irq_out;
@@ -234,7 +234,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 }
 
 // constructor -- see "Constructor" sub-section
-static int __devinit
+static int
 snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -268,8 +268,14 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		card->shortname, chip->io, chip->irq);
 
 	// (4) Alloc components.
+	err = snd_vortex_mixer(chip);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
 	// ADB pcm.
-	if ((err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_ADB)) < 0) {
+	err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_PCM);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -299,11 +305,6 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	}
 #endif
-	// snd_ac97_mixer and Vortex mixer.
-	if ((err = snd_vortex_mixer(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
 	if ((err = snd_vortex_midi(chip)) < 0) {
 		snd_card_free(card);
 		return err;
@@ -367,31 +368,18 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 }
 
 // destructor -- see "Destructor" sub-section
-static void __devexit snd_vortex_remove(struct pci_dev *pci)
+static void snd_vortex_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
 // pci_driver definition
-static struct pci_driver driver = {
-	.name = CARD_NAME_SHORT,
+static struct pci_driver vortex_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_vortex_ids,
 	.probe = snd_vortex_probe,
-	.remove = __devexit_p(snd_vortex_remove),
+	.remove = snd_vortex_remove,
 };
 
-// initialization of the module
-static int __init alsa_card_vortex_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-// clean up the module
-static void __exit alsa_card_vortex_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_vortex_init)
-module_exit(alsa_card_vortex_exit)
+module_pci_driver(vortex_driver);

@@ -149,10 +149,10 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, 0xffffffff);
 	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, 0xffffffff);
 
-	/* Accept asyncronous transfer requests from all nodes for now */
+	/* Accept asynchronous transfer requests from all nodes for now */
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
 
-	/* Specify asyncronous transfer retries */
+	/* Specify asynchronous transfer retries */
 	reg_write(ohci, OHCI1394_ATRetries,
 		  OHCI1394_MAX_AT_REQ_RETRIES |
 		  (OHCI1394_MAX_AT_RESP_RETRIES<<4) |

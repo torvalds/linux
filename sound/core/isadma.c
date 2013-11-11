@@ -26,6 +26,7 @@
 
 #undef HAVE_REALLY_SLOW_DMA_CONTROLLER
 
+#include <linux/export.h>
 #include <sound/core.h>
 #include <asm/dma.h>
 
@@ -80,7 +81,7 @@ EXPORT_SYMBOL(snd_dma_disable);
  * @dma: the dma number
  * @size: the dma transfer size
  *
- * Returns the current pointer in DMA tranfer buffer in bytes
+ * Return: The current pointer in DMA transfer buffer in bytes.
  */
 unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 {

@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/kobject_ns.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct kobject;
 struct module;
@@ -25,8 +25,9 @@ enum kobj_ns_type;
 
 struct attribute {
 	const char		*name;
-	mode_t			mode;
+	umode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+	bool			ignore_lockdep:1;
 	struct lock_class_key	*key;
 	struct lock_class_key	skey;
 #endif
@@ -55,7 +56,7 @@ do {							\
 
 struct attribute_group {
 	const char		*name;
-	mode_t			(*is_visible)(struct kobject *,
+	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
 	struct attribute	**attrs;
 };
@@ -79,6 +80,17 @@ struct attribute_group {
 }
 
 #define __ATTR_NULL { .attr = { .name = NULL } }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define __ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) {	\
+	.attr = {.name = __stringify(_name), .mode = _mode,	\
+			.ignore_lockdep = true },		\
+	.show		= _show,				\
+	.store		= _store,				\
+}
+#else
+#define __ATTR_IGNORE_LOCKDEP	__ATTR
+#endif
 
 #define attr_name(_attr) (_attr).attr.name
 
@@ -112,6 +124,7 @@ struct bin_attribute {
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
+	const void *(*namespace)(struct kobject *, const struct attribute *);
 };
 
 struct sysfs_dirent;
@@ -132,7 +145,7 @@ int __must_check sysfs_create_file(struct kobject *kobj,
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
-				  const struct attribute *attr, mode_t mode);
+				  const struct attribute *attr, umode_t mode);
 void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
@@ -168,6 +181,10 @@ int sysfs_merge_group(struct kobject *kobj,
 		       const struct attribute_group *grp);
 void sysfs_unmerge_group(struct kobject *kobj,
 		       const struct attribute_group *grp);
+int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
+			    struct kobject *target, const char *link_name);
+void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
+				  const char *link_name);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 void sysfs_notify_dirent(struct sysfs_dirent *sd);
@@ -220,7 +237,7 @@ static inline int sysfs_create_files(struct kobject *kobj,
 }
 
 static inline int sysfs_chmod_file(struct kobject *kobj,
-				   const struct attribute *attr, mode_t mode)
+				   const struct attribute *attr, umode_t mode)
 {
 	return 0;
 }
@@ -310,6 +327,18 @@ static inline int sysfs_merge_group(struct kobject *kobj,
 
 static inline void sysfs_unmerge_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
+{
+}
+
+static inline int sysfs_add_link_to_group(struct kobject *kobj,
+		const char *group_name, struct kobject *target,
+		const char *link_name)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_link_from_group(struct kobject *kobj,
+		const char *group_name, const char *link_name)
 {
 }
 

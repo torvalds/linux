@@ -5,8 +5,8 @@
  *
  * Copyright 2001, 2003-2005 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
- *         ahennessy@mvista.com
- *         source@mvista.com
+ *	   ahennessy@mvista.com
+ *	   source@mvista.com
  * Copyright (C) 2000-2001,2005-2007 Toshiba Corporation
  *
  * This file is subject to the terms and conditions of the GNU General Public

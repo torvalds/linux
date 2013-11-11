@@ -86,13 +86,14 @@ static struct snd_soc_dai_link sffsdr_dai = {
 	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "pcm3008-hifi",
 	.codec_name = "pcm3008-codec",
-	.platform_name = "davinci-pcm-audio",
+	.platform_name = "davinci-mcbsp",
 	.ops = &sffsdr_ops,
 };
 
 /* davinci-sffsdr audio machine driver */
 static struct snd_soc_card snd_soc_sffsdr = {
 	.name = "DaVinci SFFSDR",
+	.owner = THIS_MODULE,
 	.dai_link = &sffsdr_dai,
 	.num_links = 1,
 };

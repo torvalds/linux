@@ -14,6 +14,8 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
+#include <linux/scatterlist.h>
 #include <linux/sfi.h>
 #include <linux/intel_pmic_gpio.h>
 #include <linux/spi/spi.h>
@@ -24,6 +26,10 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
+#include <linux/mfd/intel_msic.h>
+#include <linux/gpio.h>
+#include <linux/i2c/tc35876x.h>
 
 #include <asm/setup.h>
 #include <asm/mpspec_def.h>
@@ -71,6 +77,15 @@ int sfi_mtimer_num;
 struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 int sfi_mrtc_num;
+
+static void mrst_power_off(void)
+{
+}
+
+static void mrst_reboot(void)
+{
+	intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
+}
 
 /* parse all the mtimer info to a static mtimer array */
 static int __init sfi_parse_mtmr(struct sfi_table_header *table)
@@ -182,12 +197,29 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 
 static unsigned long __init mrst_calibrate_tsc(void)
 {
-	unsigned long flags, fast_calibrate;
+	unsigned long fast_calibrate;
+	u32 lo, hi, ratio, fsb;
 
-	local_irq_save(flags);
-	fast_calibrate = apbt_quick_calibrate();
-	local_irq_restore(flags);
-
+	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
+	pr_debug("IA32 perf status is 0x%x, 0x%0x\n", lo, hi);
+	ratio = (hi >> 8) & 0x1f;
+	pr_debug("ratio is %d\n", ratio);
+	if (!ratio) {
+		pr_err("read a zero ratio, should be incorrect!\n");
+		pr_err("force tsc ratio to 16 ...\n");
+		ratio = 16;
+	}
+	rdmsr(MSR_FSB_FREQ, lo, hi);
+	if ((lo & 0x7) == 0x7)
+		fsb = PENWELL_FSB_FREQ_83SKU;
+	else
+		fsb = PENWELL_FSB_FREQ_100SKU;
+	fast_calibrate = ratio * fsb;
+	pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
+	lapic_timer_frequency = fsb * 1000 / HZ;
+	/* mark tsc clocksource as reliable */
+	set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
+	
 	if (fast_calibrate)
 		return fast_calibrate;
 
@@ -220,16 +252,11 @@ static void __cpuinit mrst_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
 		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
-	else if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x26)
-		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
 	else {
-		pr_err("Unknown Moorestown CPU (%d:%d), default to Lincroft\n",
+		pr_err("Unknown Intel MID CPU (%d:%d), default to Penwell\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
 	}
-	pr_debug("Moorestown CPU %s identified\n",
-		(__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
-		"Lincroft" : "Penwell");
 }
 
 /* MID systems don't have i8042 controller */
@@ -238,15 +265,15 @@ static int mrst_i8042_detect(void)
 	return 0;
 }
 
-/* Reboot and power off are handled by the SCU on a MID device */
-static void mrst_power_off(void)
+/*
+ * Moorestown does not have external NMI source nor port 0x61 to report
+ * NMI status. The possible NMI sources are from pmu as a result of NMI
+ * watchdog or lock debug. Reading io port 0x61 results in 0xff which
+ * misled NMI handler.
+ */
+static unsigned char mrst_get_nmi_reason(void)
 {
-	intel_scu_ipc_simple_command(0xf1, 1);
-}
-
-static void mrst_reboot(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 0);
+	return 0;
 }
 
 /*
@@ -270,6 +297,8 @@ void __init x86_mrst_early_setup(void)
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
 	x86_init.timers.wallclock_init = mrst_rtc_init;
+	x86_platform.get_nmi_reason = mrst_get_nmi_reason;
+
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
@@ -327,8 +356,7 @@ static int __init sfi_parse_gpio(struct sfi_table_header *table)
 	num = SFI_GET_NUM_ENTRIES(sb, struct sfi_gpio_table_entry);
 	pentry = (struct sfi_gpio_table_entry *)sb->pentry;
 
-	gpio_table = (struct sfi_gpio_table_entry *)
-				kmalloc(num * sizeof(*pentry), GFP_KERNEL);
+	gpio_table = kmalloc(num * sizeof(*pentry), GFP_KERNEL);
 	if (!gpio_table)
 		return -1;
 	memcpy(gpio_table, pentry, num * sizeof(*pentry));
@@ -392,6 +420,7 @@ static void __init *max3111_platform_data(void *info)
 	struct spi_board_info *spi_info = info;
 	int intr = get_gpio_by_name("max3111_int");
 
+	spi_info->mode = SPI_MODE_0;
 	if (intr == -1)
 		return NULL;
 	spi_info->irq = intr + MRST_IRQ_OFFSET;
@@ -443,6 +472,46 @@ static void __init *max7315_platform_data(void *info)
 	return max7315;
 }
 
+static void *tca6416_platform_data(void *info)
+{
+	static struct pca953x_platform_data tca6416;
+	struct i2c_board_info *i2c_info = info;
+	int gpio_base, intr;
+	char base_pin_name[SFI_NAME_LEN + 1];
+	char intr_pin_name[SFI_NAME_LEN + 1];
+
+	strcpy(i2c_info->type, "tca6416");
+	strcpy(base_pin_name, "tca6416_base");
+	strcpy(intr_pin_name, "tca6416_int");
+
+	gpio_base = get_gpio_by_name(base_pin_name);
+	intr = get_gpio_by_name(intr_pin_name);
+
+	if (gpio_base == -1)
+		return NULL;
+	tca6416.gpio_base = gpio_base;
+	if (intr != -1) {
+		i2c_info->irq = intr + MRST_IRQ_OFFSET;
+		tca6416.irq_base = gpio_base + MRST_IRQ_OFFSET;
+	} else {
+		i2c_info->irq = -1;
+		tca6416.irq_base = -1;
+	}
+	return &tca6416;
+}
+
+static void *mpu3050_platform_data(void *info)
+{
+	struct i2c_board_info *i2c_info = info;
+	int intr = get_gpio_by_name("mpu3050_int");
+
+	if (intr == -1)
+		return NULL;
+
+	i2c_info->irq = intr + MRST_IRQ_OFFSET;
+	return NULL;
+}
+
 static void __init *emc1403_platform_data(void *info)
 {
 	static short intr2nd_pdata;
@@ -480,15 +549,168 @@ static void __init *no_platform_data(void *info)
 	return NULL;
 }
 
+static struct resource msic_resources[] = {
+	{
+		.start	= INTEL_MSIC_IRQ_PHYS_BASE,
+		.end	= INTEL_MSIC_IRQ_PHYS_BASE + 64 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct intel_msic_platform_data msic_pdata;
+
+static struct platform_device msic_device = {
+	.name		= "intel_msic",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &msic_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(msic_resources),
+	.resource	= msic_resources,
+};
+
+static inline bool mrst_has_msic(void)
+{
+	return mrst_identify_cpu() == MRST_CPU_CHIP_PENWELL;
+}
+
+static int msic_scu_status_change(struct notifier_block *nb,
+				  unsigned long code, void *data)
+{
+	if (code == SCU_DOWN) {
+		platform_device_unregister(&msic_device);
+		return 0;
+	}
+
+	return platform_device_register(&msic_device);
+}
+
+static int __init msic_init(void)
+{
+	static struct notifier_block msic_scu_notifier = {
+		.notifier_call	= msic_scu_status_change,
+	};
+
+	/*
+	 * We need to be sure that the SCU IPC is ready before MSIC device
+	 * can be registered.
+	 */
+	if (mrst_has_msic())
+		intel_scu_notifier_add(&msic_scu_notifier);
+
+	return 0;
+}
+arch_initcall(msic_init);
+
+/*
+ * msic_generic_platform_data - sets generic platform data for the block
+ * @info: pointer to the SFI device table entry for this block
+ * @block: MSIC block
+ *
+ * Function sets IRQ number from the SFI table entry for given device to
+ * the MSIC platform data.
+ */
+static void *msic_generic_platform_data(void *info, enum intel_msic_block block)
+{
+	struct sfi_device_table_entry *entry = info;
+
+	BUG_ON(block < 0 || block >= INTEL_MSIC_BLOCK_LAST);
+	msic_pdata.irq[block] = entry->irq;
+
+	return no_platform_data(info);
+}
+
+static void *msic_battery_platform_data(void *info)
+{
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_BATTERY);
+}
+
+static void *msic_gpio_platform_data(void *info)
+{
+	static struct intel_msic_gpio_pdata pdata;
+	int gpio = get_gpio_by_name("msic_gpio_base");
+
+	if (gpio < 0)
+		return NULL;
+
+	pdata.gpio_base = gpio;
+	msic_pdata.gpio = &pdata;
+
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_GPIO);
+}
+
+static void *msic_audio_platform_data(void *info)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_register_simple("sst-platform", -1, NULL, 0);
+	if (IS_ERR(pdev)) {
+		pr_err("failed to create audio platform device\n");
+		return NULL;
+	}
+
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_AUDIO);
+}
+
+static void *msic_power_btn_platform_data(void *info)
+{
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_POWER_BTN);
+}
+
+static void *msic_ocd_platform_data(void *info)
+{
+	static struct intel_msic_ocd_pdata pdata;
+	int gpio = get_gpio_by_name("ocd_gpio");
+
+	if (gpio < 0)
+		return NULL;
+
+	pdata.gpio = gpio;
+	msic_pdata.ocd = &pdata;
+
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_OCD);
+}
+
+static void *msic_thermal_platform_data(void *info)
+{
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_THERMAL);
+}
+
+/* tc35876x DSI-LVDS bridge chip and panel platform data */
+static void *tc35876x_platform_data(void *data)
+{
+       static struct tc35876x_platform_data pdata;
+
+       /* gpio pins set to -1 will not be used by the driver */
+       pdata.gpio_bridge_reset = get_gpio_by_name("LCMB_RXEN");
+       pdata.gpio_panel_bl_en = get_gpio_by_name("6S6P_BL_EN");
+       pdata.gpio_panel_vadd = get_gpio_by_name("EN_VREG_LCD_V3P3");
+
+       return &pdata;
+}
+
 static const struct devs_id __initconst device_ids[] = {
+	{"bma023", SFI_DEV_TYPE_I2C, 1, &no_platform_data},
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
+	{"pmic_gpio", SFI_DEV_TYPE_IPC, 1, &pmic_gpio_platform_data},
 	{"spi_max3111", SFI_DEV_TYPE_SPI, 0, &max3111_platform_data},
 	{"i2c_max7315", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
 	{"i2c_max7315_2", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
+	{"tca6416", SFI_DEV_TYPE_I2C, 1, &tca6416_platform_data},
 	{"emc1403", SFI_DEV_TYPE_I2C, 1, &emc1403_platform_data},
 	{"i2c_accel", SFI_DEV_TYPE_I2C, 0, &lis331dl_platform_data},
 	{"pmic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
-	{"msic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
+	{"mpu3050", SFI_DEV_TYPE_I2C, 1, &mpu3050_platform_data},
+	{"i2c_disp_brig", SFI_DEV_TYPE_I2C, 0, &tc35876x_platform_data},
+
+	/* MSIC subdevices */
+	{"msic_battery", SFI_DEV_TYPE_IPC, 1, &msic_battery_platform_data},
+	{"msic_gpio", SFI_DEV_TYPE_IPC, 1, &msic_gpio_platform_data},
+	{"msic_audio", SFI_DEV_TYPE_IPC, 1, &msic_audio_platform_data},
+	{"msic_power_btn", SFI_DEV_TYPE_IPC, 1, &msic_power_btn_platform_data},
+	{"msic_ocd", SFI_DEV_TYPE_IPC, 1, &msic_ocd_platform_data},
+	{"msic_thermal", SFI_DEV_TYPE_IPC, 1, &msic_thermal_platform_data},
+
 	{},
 };
 
@@ -555,6 +777,9 @@ static void __init intel_scu_i2c_device_register(int bus,
 	i2c_devs[i2c_next_dev++] = new_dev;
 }
 
+BLOCKING_NOTIFIER_HEAD(intel_scu_notifier);
+EXPORT_SYMBOL_GPL(intel_scu_notifier);
+
 /* Called by IPC driver */
 void intel_scu_devices_create(void)
 {
@@ -579,6 +804,7 @@ void intel_scu_devices_create(void)
 		} else
 			i2c_register_board_info(i2c_bus[i], i2c_devs[i], 1);
 	}
+	intel_scu_notifier_post(SCU_AVAILABLE, NULL);
 }
 EXPORT_SYMBOL_GPL(intel_scu_devices_create);
 
@@ -586,6 +812,8 @@ EXPORT_SYMBOL_GPL(intel_scu_devices_create);
 void intel_scu_devices_destroy(void)
 {
 	int i;
+
+	intel_scu_notifier_post(SCU_DOWN, NULL);
 
 	for (i = 0; i < ipc_next_dev; i++)
 		platform_device_del(ipc_devs[i]);
@@ -603,19 +831,36 @@ static void __init install_irq_resource(struct platform_device *pdev, int irq)
 	platform_device_add_resources(pdev, &res, 1);
 }
 
-static void __init sfi_handle_ipc_dev(struct platform_device *pdev)
+static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
 {
 	const struct devs_id *dev = device_ids;
+	struct platform_device *pdev;
 	void *pdata = NULL;
 
 	while (dev->name[0]) {
 		if (dev->type == SFI_DEV_TYPE_IPC &&
-			!strncmp(dev->name, pdev->name, SFI_NAME_LEN)) {
-			pdata = dev->get_platform_data(pdev);
+			!strncmp(dev->name, entry->name, SFI_NAME_LEN)) {
+			pdata = dev->get_platform_data(entry);
 			break;
 		}
 		dev++;
 	}
+
+	/*
+	 * On Medfield the platform device creation is handled by the MSIC
+	 * MFD driver so we don't need to do it here.
+	 */
+	if (mrst_has_msic())
+		return;
+
+	pdev = platform_device_alloc(entry->name, 0);
+	if (pdev == NULL) {
+		pr_err("out of memory for SFI platform device '%s'.\n",
+			entry->name);
+		return;
+	}
+	install_irq_resource(pdev, entry->irq);
+
 	pdev->dev.platform_data = pdata;
 	intel_scu_device_register(pdev);
 }
@@ -668,7 +913,6 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	struct sfi_device_table_entry *pentry;
 	struct spi_board_info spi_info;
 	struct i2c_board_info i2c_info;
-	struct platform_device *pdev;
 	int num, i, bus;
 	int ioapic;
 	struct io_apic_irq_attr irq_attr;
@@ -678,36 +922,32 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	pentry = (struct sfi_device_table_entry *)sb->pentry;
 
 	for (i = 0; i < num; i++, pentry++) {
-		if (pentry->irq != (u8)0xff) { /* native RTE case */
+		int irq = pentry->irq;
+
+		if (irq != (u8)0xff) { /* native RTE case */
 			/* these SPI2 devices are not exposed to system as PCI
 			 * devices, but they have separate RTE entry in IOAPIC
 			 * so we have to enable them one by one here
 			 */
-			ioapic = mp_find_ioapic(pentry->irq);
+			ioapic = mp_find_ioapic(irq);
 			irq_attr.ioapic = ioapic;
-			irq_attr.ioapic_pin = pentry->irq;
+			irq_attr.ioapic_pin = irq;
 			irq_attr.trigger = 1;
 			irq_attr.polarity = 1;
-			io_apic_set_pci_routing(NULL, pentry->irq, &irq_attr);
-		}
+			io_apic_set_pci_routing(NULL, irq, &irq_attr);
+		} else
+			irq = 0; /* No irq */
+
 		switch (pentry->type) {
 		case SFI_DEV_TYPE_IPC:
-			/* ID as IRQ is a hack that will go away */
-			pdev = platform_device_alloc(pentry->name, pentry->irq);
-			if (pdev == NULL) {
-				pr_err("out of memory for SFI platform device '%s'.\n",
-							pentry->name);
-				continue;
-			}
-			install_irq_resource(pdev, pentry->irq);
 			pr_debug("info[%2d]: IPC bus, name = %16.16s, "
 				"irq = 0x%2x\n", i, pentry->name, pentry->irq);
-			sfi_handle_ipc_dev(pdev);
+			sfi_handle_ipc_dev(pentry);
 			break;
 		case SFI_DEV_TYPE_SPI:
 			memset(&spi_info, 0, sizeof(spi_info));
 			strncpy(spi_info.modalias, pentry->name, SFI_NAME_LEN);
-			spi_info.irq = pentry->irq;
+			spi_info.irq = irq;
 			spi_info.bus_num = pentry->host_num;
 			spi_info.chip_select = pentry->addr;
 			spi_info.max_speed_hz = pentry->max_freq;
@@ -724,7 +964,7 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			memset(&i2c_info, 0, sizeof(i2c_info));
 			bus = pentry->host_num;
 			strncpy(i2c_info.type, pentry->name, SFI_NAME_LEN);
-			i2c_info.irq = pentry->irq;
+			i2c_info.irq = irq;
 			i2c_info.addr = pentry->addr;
 			pr_debug("info[%2d]: I2C bus = %d, name = %16.16s, "
 				"irq = 0x%2x, addr = 0x%x\n", i, bus,
@@ -794,6 +1034,7 @@ static int __init pb_keys_init(void)
 	num = sizeof(gpio_button) / sizeof(struct gpio_keys_button);
 	for (i = 0; i < num; i++) {
 		gb[i].gpio = get_gpio_by_name(gb[i].desc);
+		pr_debug("info[%2d]: name = %s, gpio = %d\n", i, gb[i].desc, gb[i].gpio);
 		if (gb[i].gpio == -1)
 			continue;
 

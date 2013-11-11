@@ -324,7 +324,7 @@ static const struct file_operations gru_fops = {
 
 static struct proc_entry {
 	char *name;
-	int mode;
+	umode_t mode;
 	const struct file_operations *fops;
 	struct proc_dir_entry *entry;
 } proc_files[] = {
@@ -355,7 +355,7 @@ static void delete_proc_files(void)
 		for (p = proc_files; p->name; p++)
 			if (p->entry)
 				remove_proc_entry(p->name, proc_gru);
-		remove_proc_entry("gru", proc_gru->parent);
+		proc_remove(proc_gru);
 	}
 }
 

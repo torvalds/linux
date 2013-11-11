@@ -47,7 +47,7 @@ static int ad73311_probe(struct platform_device *pdev)
 			&soc_codec_dev_ad73311, &ad73311_dai, 1);
 }
 
-static int __devexit ad73311_remove(struct platform_device *pdev)
+static int ad73311_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -60,20 +60,10 @@ static struct platform_driver ad73311_codec_driver = {
 	},
 
 	.probe = ad73311_probe,
-	.remove = __devexit_p(ad73311_remove),
+	.remove = ad73311_remove,
 };
 
-static int __init ad73311_init(void)
-{
-	return platform_driver_register(&ad73311_codec_driver);
-}
-module_init(ad73311_init);
-
-static void __exit ad73311_exit(void)
-{
-	platform_driver_unregister(&ad73311_codec_driver);
-}
-module_exit(ad73311_exit);
+module_platform_driver(ad73311_codec_driver);
 
 MODULE_DESCRIPTION("ASoC ad73311 driver");
 MODULE_AUTHOR("Cliff Cai ");

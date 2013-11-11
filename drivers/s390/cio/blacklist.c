@@ -1,9 +1,7 @@
 /*
- *  drivers/s390/cio/blacklist.c
  *   S/390 common I/O routines -- blacklisting of specific devices
  *
- *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
- *			      IBM Corporation
+ *    Copyright IBM Corp. 1999, 2013
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -19,8 +17,9 @@
 #include <linux/ctype.h>
 #include <linux/device.h>
 
-#include <asm/cio.h>
 #include <asm/uaccess.h>
+#include <asm/cio.h>
+#include <asm/ipl.h>
 
 #include "blacklist.h"
 #include "cio.h"
@@ -174,6 +173,29 @@ static int blacklist_parse_parameters(char *str, range_action action,
 			to_cssid = __MAX_CSSID;
 			to_ssid = __MAX_SSID;
 			to = __MAX_SUBCHANNEL;
+		} else if (strcmp(parm, "ipldev") == 0) {
+			if (ipl_info.type == IPL_TYPE_CCW) {
+				from_cssid = 0;
+				from_ssid = ipl_info.data.ccw.dev_id.ssid;
+				from = ipl_info.data.ccw.dev_id.devno;
+			} else if (ipl_info.type == IPL_TYPE_FCP ||
+				   ipl_info.type == IPL_TYPE_FCP_DUMP) {
+				from_cssid = 0;
+				from_ssid = ipl_info.data.fcp.dev_id.ssid;
+				from = ipl_info.data.fcp.dev_id.devno;
+			} else {
+				continue;
+			}
+			to_cssid = from_cssid;
+			to_ssid = from_ssid;
+			to = from;
+		} else if (strcmp(parm, "condev") == 0) {
+			if (console_devno == -1)
+				continue;
+
+			from_cssid = to_cssid = 0;
+			from_ssid = to_ssid = 0;
+			from = to = console_devno;
 		} else {
 			rc = parse_busid(strsep(&parm, "-"), &from_cssid,
 					 &from_ssid, &from, msgtrigger);
@@ -335,10 +357,9 @@ cio_ignore_write(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 	if (user_len > 65536)
 		user_len = 65536;
-	buf = vmalloc (user_len + 1); /* maybe better use the stack? */
+	buf = vzalloc(user_len + 1); /* maybe better use the stack? */
 	if (buf == NULL)
 		return -ENOMEM;
-	memset(buf, 0, user_len + 1);
 
 	if (strncpy_from_user (buf, user_buf, user_len) < 0) {
 		rc = -EFAULT;

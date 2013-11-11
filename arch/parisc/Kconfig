@@ -1,20 +1,32 @@
 config PARISC
 	def_bool y
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_FUNCTION_TRACER if 64BIT
 	select HAVE_FUNCTION_GRAPH_TRACER if 64BIT
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST if 64BIT
+	select ARCH_WANT_FRAME_POINTERS
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
 	select BUG
-	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select GENERIC_ATOMIC64 if !64BIT
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_GENERIC_HARDIRQS
+	select BROKEN_RODATA
 	select GENERIC_IRQ_PROBE
-	select IRQ_PER_CPU
+	select GENERIC_PCI_IOMAP
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_STRNCPY_FROM_USER
+	select SYSCTL_ARCH_UNALIGN_ALLOW
+	select HAVE_MOD_ARCH_SPECIFIC
+	select VIRT_TO_BUS
+	select MODULES_USE_ELF_RELA
+	select CLONE_BACKWARDS
+	select TTY # Needed for pdc_cons.c
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -153,6 +165,23 @@ config PREFETCH
 	def_bool y
 	depends on PA8X00 || PA7200
 
+config MLONGCALLS
+	bool "Enable the -mlong-calls compiler option for big kernels"
+	def_bool y if (!MODULES)
+	depends on PA8X00
+	help
+	  If you configure the kernel to include many drivers built-in instead
+	  as modules, the kernel executable may become too big, so that the
+	  linker will not be able to resolve some long branches and fails to link
+	  your vmlinux kernel. In that case enabling this option will help you
+	  to overcome this limit by using the -mlong-calls compiler option.
+
+	  Usually you want to say N here, unless you e.g. want to build
+	  a kernel which includes all necessary drivers built-in and which can
+	  be used for TFTP booting without the need to have an initrd ramdisk.
+
+	  Enabling this option will probably slow down your kernel.
+
 config 64BIT
 	bool "64-bit kernel"
 	depends on PA8X00
@@ -168,9 +197,7 @@ config 64BIT
 
 choice
 	prompt "Kernel page size"
-	default PARISC_PAGE_SIZE_4KB  if !64BIT
-	default PARISC_PAGE_SIZE_4KB  if 64BIT
-#	default PARISC_PAGE_SIZE_16KB if 64BIT
+	default PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_4KB
 	bool "4KB"
@@ -188,12 +215,12 @@ config PARISC_PAGE_SIZE_4KB
 	  If you don't know what to do, choose 4KB.
 
 config PARISC_PAGE_SIZE_16KB
-	bool "16KB (EXPERIMENTAL)"
-	depends on PA8X00 && EXPERIMENTAL
+	bool "16KB"
+	depends on PA8X00
 
 config PARISC_PAGE_SIZE_64KB
-	bool "64KB (EXPERIMENTAL)"
-	depends on PA8X00 && EXPERIMENTAL
+	bool "64KB"
+	depends on PA8X00
 
 endchoice
 
@@ -215,6 +242,14 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	default y
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
 
 config HOTPLUG_CPU
 	bool
@@ -248,6 +283,10 @@ source "mm/Kconfig"
 config COMPAT
 	def_bool y
 	depends on 64BIT
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
 
 config HPUX
 	bool "Support for HP-UX binaries"

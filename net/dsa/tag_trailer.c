@@ -114,20 +114,7 @@ out:
 	return 0;
 }
 
-static struct packet_type trailer_packet_type __read_mostly = {
+struct packet_type trailer_packet_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_TRAILER),
 	.func	= trailer_rcv,
 };
-
-static int __init trailer_init_module(void)
-{
-	dev_add_pack(&trailer_packet_type);
-	return 0;
-}
-module_init(trailer_init_module);
-
-static void __exit trailer_cleanup_module(void)
-{
-	dev_remove_pack(&trailer_packet_type);
-}
-module_exit(trailer_cleanup_module);

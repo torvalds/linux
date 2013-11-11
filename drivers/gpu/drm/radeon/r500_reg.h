@@ -351,11 +351,16 @@
 #define AVIVO_D1CRTC_BLANK_CONTROL                              0x6084
 #define AVIVO_D1CRTC_INTERLACE_CONTROL                          0x6088
 #define AVIVO_D1CRTC_INTERLACE_STATUS                           0x608c
+#define AVIVO_D1CRTC_STATUS                                     0x609c
+#       define AVIVO_D1CRTC_V_BLANK                             (1 << 0)
 #define AVIVO_D1CRTC_STATUS_POSITION                            0x60a0
 #define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
+#define AVIVO_D1CRTC_STATUS_HV_COUNT                            0x60ac
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
+#define AVIVO_D1MODE_MASTER_UPDATE_LOCK                         0x60e0
 #define AVIVO_D1MODE_MASTER_UPDATE_MODE                         0x60e4
+#define AVIVO_D1CRTC_UPDATE_LOCK                                0x60e8
 
 /* master controls */
 #define AVIVO_DC_CRTC_MASTER_EN                                 0x60f8
@@ -573,6 +578,7 @@
 
 #define AVIVO_TMDSA_CNTL                    0x7880
 #   define AVIVO_TMDSA_CNTL_ENABLE               (1 << 0)
+#   define AVIVO_TMDSA_CNTL_HDMI_EN              (1 << 2)
 #   define AVIVO_TMDSA_CNTL_HPD_MASK             (1 << 4)
 #   define AVIVO_TMDSA_CNTL_HPD_SELECT           (1 << 8)
 #   define AVIVO_TMDSA_CNTL_SYNC_PHASE           (1 << 12)
@@ -633,6 +639,7 @@
 
 #define AVIVO_LVTMA_CNTL					0x7a80
 #   define AVIVO_LVTMA_CNTL_ENABLE               (1 << 0)
+#   define AVIVO_LVTMA_CNTL_HDMI_EN              (1 << 2)
 #   define AVIVO_LVTMA_CNTL_HPD_MASK             (1 << 4)
 #   define AVIVO_LVTMA_CNTL_HPD_SELECT           (1 << 8)
 #   define AVIVO_LVTMA_CNTL_SYNC_PHASE           (1 << 12)

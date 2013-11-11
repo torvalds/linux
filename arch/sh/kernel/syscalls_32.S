@@ -185,7 +185,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* vm86 */
 	.long sys_ni_syscall	/* old "query_module" */
 	.long sys_poll
-	.long sys_nfsservctl
+	.long sys_ni_syscall	/* was nfsservctl */
 	.long sys_setresgid16	/* 170 */
 	.long sys_getresgid16
 	.long sys_prctl
@@ -204,8 +204,8 @@ ENTRY(sys_call_table)
 	.long sys_capset           /* 185 */
 	.long sys_sigaltstack
 	.long sys_sendfile
-	.long sys_ni_syscall	/* streams1 */
-	.long sys_ni_syscall	/* streams2 */
+	.long sys_ni_syscall	/* getpmsg */
+	.long sys_ni_syscall	/* putpmsg */
 	.long sys_vfork            /* 190 */
 	.long sys_getrlimit
 	.long sys_mmap2
@@ -259,8 +259,8 @@ ENTRY(sys_call_table)
 	.long sys_futex		/* 240 */
 	.long sys_sched_setaffinity
 	.long sys_sched_getaffinity
-	.long sys_ni_syscall
-	.long sys_ni_syscall
+	.long sys_ni_syscall	/* reserved for set_thread_area */
+	.long sys_ni_syscall	/* reserved for get_thread_area */
 	.long sys_io_setup	/* 245 */
 	.long sys_io_destroy
 	.long sys_io_getevents
@@ -382,3 +382,7 @@ ENTRY(sys_call_table)
 	.long sys_syncfs
 	.long sys_sendmmsg
 	.long sys_setns
+	.long sys_process_vm_readv	/* 365 */
+	.long sys_process_vm_writev
+	.long sys_kcmp
+	.long sys_finit_module

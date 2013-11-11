@@ -1,0 +1,171 @@
+#
+# Ethernet LAN device configuration
+#
+
+menuconfig ETHERNET
+	bool "Ethernet driver support"
+	depends on NET
+	default y
+	---help---
+	  This section contains all the Ethernet device drivers.
+
+if ETHERNET
+
+config MDIO
+	tristate
+
+config SUNGEM_PHY
+	tristate
+
+source "drivers/net/ethernet/3com/Kconfig"
+source "drivers/net/ethernet/adaptec/Kconfig"
+source "drivers/net/ethernet/aeroflex/Kconfig"
+source "drivers/net/ethernet/alteon/Kconfig"
+source "drivers/net/ethernet/amd/Kconfig"
+source "drivers/net/ethernet/apple/Kconfig"
+source "drivers/net/ethernet/atheros/Kconfig"
+source "drivers/net/ethernet/cadence/Kconfig"
+source "drivers/net/ethernet/adi/Kconfig"
+source "drivers/net/ethernet/broadcom/Kconfig"
+source "drivers/net/ethernet/brocade/Kconfig"
+source "drivers/net/ethernet/calxeda/Kconfig"
+source "drivers/net/ethernet/chelsio/Kconfig"
+source "drivers/net/ethernet/cirrus/Kconfig"
+source "drivers/net/ethernet/cisco/Kconfig"
+source "drivers/net/ethernet/davicom/Kconfig"
+
+config DNET
+	tristate "Dave ethernet support (DNET)"
+	depends on HAS_IOMEM
+	select PHYLIB
+	---help---
+	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
+	  Say Y to include support for the DNET chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dnet.
+
+source "drivers/net/ethernet/dec/Kconfig"
+source "drivers/net/ethernet/dlink/Kconfig"
+source "drivers/net/ethernet/emulex/Kconfig"
+source "drivers/net/ethernet/neterion/Kconfig"
+source "drivers/net/ethernet/faraday/Kconfig"
+source "drivers/net/ethernet/freescale/Kconfig"
+source "drivers/net/ethernet/fujitsu/Kconfig"
+source "drivers/net/ethernet/hp/Kconfig"
+source "drivers/net/ethernet/ibm/Kconfig"
+source "drivers/net/ethernet/intel/Kconfig"
+source "drivers/net/ethernet/i825xx/Kconfig"
+source "drivers/net/ethernet/xscale/Kconfig"
+source "drivers/net/ethernet/icplus/Kconfig"
+
+config JME
+	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  This driver supports the PCI-Express gigabit ethernet adapters
+	  based on JMicron JMC250 chipset.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called jme.
+
+config KORINA
+	tristate "Korina (IDT RC32434) Ethernet support"
+	depends on MIKROTIK_RB532
+	---help---
+	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
+	  based system say Y. Otherwise say N.
+
+config LANTIQ_ETOP
+	tristate "Lantiq SoC ETOP driver"
+	depends on SOC_TYPE_XWAY
+	---help---
+	  Support for the MII0 inside the Lantiq SoC
+
+source "drivers/net/ethernet/marvell/Kconfig"
+source "drivers/net/ethernet/mellanox/Kconfig"
+source "drivers/net/ethernet/micrel/Kconfig"
+source "drivers/net/ethernet/microchip/Kconfig"
+source "drivers/net/ethernet/myricom/Kconfig"
+
+config FEALNX
+	tristate "Myson MTD-8xx PCI Ethernet support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
+	  cards. <http://www.myson.com.tw/>
+
+source "drivers/net/ethernet/natsemi/Kconfig"
+source "drivers/net/ethernet/8390/Kconfig"
+
+config NET_NETX
+	tristate "NetX Ethernet support"
+	select NET_CORE
+	select MII
+	depends on ARCH_NETX
+	---help---
+	  This is support for the Hilscher netX builtin Ethernet ports
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called netx-eth.
+
+source "drivers/net/ethernet/nuvoton/Kconfig"
+source "drivers/net/ethernet/nvidia/Kconfig"
+source "drivers/net/ethernet/nxp/Kconfig"
+source "drivers/net/ethernet/octeon/Kconfig"
+source "drivers/net/ethernet/oki-semi/Kconfig"
+
+config ETHOC
+	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
+	depends on HAS_IOMEM && HAS_DMA
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	select BITREVERSE
+	---help---
+	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
+
+source "drivers/net/ethernet/packetengines/Kconfig"
+source "drivers/net/ethernet/pasemi/Kconfig"
+source "drivers/net/ethernet/qlogic/Kconfig"
+source "drivers/net/ethernet/realtek/Kconfig"
+source "drivers/net/ethernet/renesas/Kconfig"
+source "drivers/net/ethernet/rdc/Kconfig"
+
+config S6GMAC
+	tristate "S6105 GMAC ethernet support"
+	depends on XTENSA_VARIANT_S6000
+	select PHYLIB
+	---help---
+	  This driver supports the on chip ethernet device on the
+	  S6105 xtensa processor.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called s6gmac.
+
+source "drivers/net/ethernet/seeq/Kconfig"
+source "drivers/net/ethernet/silan/Kconfig"
+source "drivers/net/ethernet/sis/Kconfig"
+source "drivers/net/ethernet/sfc/Kconfig"
+source "drivers/net/ethernet/sgi/Kconfig"
+source "drivers/net/ethernet/smsc/Kconfig"
+source "drivers/net/ethernet/stmicro/Kconfig"
+source "drivers/net/ethernet/sun/Kconfig"
+source "drivers/net/ethernet/tehuti/Kconfig"
+source "drivers/net/ethernet/ti/Kconfig"
+source "drivers/net/ethernet/tile/Kconfig"
+source "drivers/net/ethernet/toshiba/Kconfig"
+source "drivers/net/ethernet/tundra/Kconfig"
+source "drivers/net/ethernet/via/Kconfig"
+source "drivers/net/ethernet/wiznet/Kconfig"
+source "drivers/net/ethernet/xilinx/Kconfig"
+source "drivers/net/ethernet/xircom/Kconfig"
+
+endif # ETHERNET

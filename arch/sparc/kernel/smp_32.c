@@ -20,9 +20,10 @@
 #include <linux/seq_file.h>
 #include <linux/cache.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -32,13 +33,17 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/cpudata.h>
+#include <asm/timer.h>
 #include <asm/leon.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
 
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
+
+const struct sparc32_ipi_ops *sparc32_ipi_ops;
 
 /* The only guaranteed locking primitive available on all Sparc
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
@@ -85,14 +90,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		(bogosum/(5000/HZ))%100);
 
 	switch(sparc_cpu_model) {
-	case sun4:
-		printk("SUN4\n");
-		BUG();
-		break;
-	case sun4c:
-		printk("SUN4C\n");
-		BUG();
-		break;
 	case sun4m:
 		smp4m_smp_done();
 		break;
@@ -132,7 +129,7 @@ void smp_send_reschedule(int cpu)
 	 * a single CPU. The trap handler needs only to do trap entry/return
 	 * to call schedule.
 	 */
-	BTFIXUP_CALL(smp_ipi_resched)(cpu);
+	sparc32_ipi_ops->resched(cpu);
 }
 
 void smp_send_stop(void)
@@ -142,7 +139,7 @@ void smp_send_stop(void)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	/* trigger one IPI single call on one CPU */
-	BTFIXUP_CALL(smp_ipi_single)(cpu);
+	sparc32_ipi_ops->single(cpu);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -151,7 +148,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 
 	/* trigger IPI mask call on each CPU */
 	for_each_cpu(cpu, mask)
-		BTFIXUP_CALL(smp_ipi_mask_one)(cpu);
+		sparc32_ipi_ops->mask_one(cpu);
 }
 
 void smp_resched_interrupt(void)
@@ -179,150 +176,9 @@ void smp_call_function_interrupt(void)
 	irq_exit();
 }
 
-void smp_flush_cache_all(void)
-{
-	xc0((smpfunc_t) BTFIXUP_CALL(local_flush_cache_all));
-	local_flush_cache_all();
-}
-
-void smp_flush_tlb_all(void)
-{
-	xc0((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_all));
-	local_flush_tlb_all();
-}
-
-void smp_flush_cache_mm(struct mm_struct *mm)
-{
-	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask))
-			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_cache_mm), (unsigned long) mm);
-		local_flush_cache_mm(mm);
-	}
-}
-
-void smp_flush_tlb_mm(struct mm_struct *mm)
-{
-	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask)) {
-			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_mm), (unsigned long) mm);
-			if(atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
-				cpumask_copy(mm_cpumask(mm),
-					     cpumask_of(smp_processor_id()));
-		}
-		local_flush_tlb_mm(mm);
-	}
-}
-
-void smp_flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-			   unsigned long end)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask))
-			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_cache_range), (unsigned long) vma, start, end);
-		local_flush_cache_range(vma, start, end);
-	}
-}
-
-void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-			 unsigned long end)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask))
-			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_range), (unsigned long) vma, start, end);
-		local_flush_tlb_range(vma, start, end);
-	}
-}
-
-void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask))
-			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_cache_page), (unsigned long) vma, page);
-		local_flush_cache_page(vma, page);
-	}
-}
-
-void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask;
-		cpumask_copy(&cpu_mask, mm_cpumask(mm));
-		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-		if (!cpumask_empty(&cpu_mask))
-			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_page), (unsigned long) vma, page);
-		local_flush_tlb_page(vma, page);
-	}
-}
-
-void smp_flush_page_to_ram(unsigned long page)
-{
-	/* Current theory is that those who call this are the one's
-	 * who have just dirtied their cache with the pages contents
-	 * in kernel space, therefore we only run this on local cpu.
-	 *
-	 * XXX This experiment failed, research further... -DaveM
-	 */
-#if 1
-	xc1((smpfunc_t) BTFIXUP_CALL(local_flush_page_to_ram), page);
-#endif
-	local_flush_page_to_ram(page);
-}
-
-void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
-{
-	cpumask_t cpu_mask;
-	cpumask_copy(&cpu_mask, mm_cpumask(mm));
-	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
-	if (!cpumask_empty(&cpu_mask))
-		xc2((smpfunc_t) BTFIXUP_CALL(local_flush_sig_insns), (unsigned long) mm, insn_addr);
-	local_flush_sig_insns(mm, insn_addr);
-}
-
-extern unsigned int lvl14_resolution;
-
-/* /proc/profile writes can call this, don't __init it please. */
-static DEFINE_SPINLOCK(prof_setup_lock);
-
 int setup_profiling_timer(unsigned int multiplier)
 {
-	int i;
-	unsigned long flags;
-
-	/* Prevent level14 ticker IRQ flooding. */
-	if((!multiplier) || (lvl14_resolution / multiplier) < 500)
-		return -EINVAL;
-
-	spin_lock_irqsave(&prof_setup_lock, flags);
-	for_each_possible_cpu(i) {
-		load_profile_irq(i, lvl14_resolution / multiplier);
-		prof_multiplier(i) = multiplier;
-	}
-	spin_unlock_irqrestore(&prof_setup_lock, flags);
-
-	return 0;
+	return -EINVAL;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -345,14 +201,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(boot_cpu_id);
 
 	switch(sparc_cpu_model) {
-	case sun4:
-		printk("SUN4\n");
-		BUG();
-		break;
-	case sun4c:
-		printk("SUN4C\n");
-		BUG();
-		break;
 	case sun4m:
 		smp4m_boot_cpus();
 		break;
@@ -411,29 +259,21 @@ void __init smp_prepare_boot_cpu(void)
 	set_cpu_possible(cpuid, true);
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	extern int __cpuinit smp4m_boot_one_cpu(int);
-	extern int __cpuinit smp4d_boot_one_cpu(int);
+	extern int __cpuinit smp4m_boot_one_cpu(int, struct task_struct *);
+	extern int __cpuinit smp4d_boot_one_cpu(int, struct task_struct *);
 	int ret=0;
 
 	switch(sparc_cpu_model) {
-	case sun4:
-		printk("SUN4\n");
-		BUG();
-		break;
-	case sun4c:
-		printk("SUN4C\n");
-		BUG();
-		break;
 	case sun4m:
-		ret = smp4m_boot_one_cpu(cpu);
+		ret = smp4m_boot_one_cpu(cpu, tidle);
 		break;
 	case sun4d:
-		ret = smp4d_boot_one_cpu(cpu);
+		ret = smp4d_boot_one_cpu(cpu, tidle);
 		break;
 	case sparc_leon:
-		ret = leon_boot_one_cpu(cpu);
+		ret = leon_boot_one_cpu(cpu, tidle);
 		break;
 	case sun4e:
 		printk("SUN4E\n");
@@ -455,6 +295,89 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			mb();
 	}
 	return ret;
+}
+
+void __cpuinit arch_cpu_pre_starting(void *arg)
+{
+	local_ops->cache_all();
+	local_ops->tlb_all();
+
+	switch(sparc_cpu_model) {
+	case sun4m:
+		sun4m_cpu_pre_starting(arg);
+		break;
+	case sun4d:
+		sun4d_cpu_pre_starting(arg);
+		break;
+	case sparc_leon:
+		leon_cpu_pre_starting(arg);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void __cpuinit arch_cpu_pre_online(void *arg)
+{
+	unsigned int cpuid = hard_smp_processor_id();
+
+	register_percpu_ce(cpuid);
+
+	calibrate_delay();
+	smp_store_cpu_info(cpuid);
+
+	local_ops->cache_all();
+	local_ops->tlb_all();
+
+	switch(sparc_cpu_model) {
+	case sun4m:
+		sun4m_cpu_pre_online(arg);
+		break;
+	case sun4d:
+		sun4d_cpu_pre_online(arg);
+		break;
+	case sparc_leon:
+		leon_cpu_pre_online(arg);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void __cpuinit sparc_start_secondary(void *arg)
+{
+	unsigned int cpu;
+
+	/*
+	 * SMP booting is extremely fragile in some architectures. So run
+	 * the cpu initialization code first before anything else.
+	 */
+	arch_cpu_pre_starting(arg);
+
+	preempt_disable();
+	cpu = smp_processor_id();
+
+	/* Invoke the CPU_STARTING notifier callbacks */
+	notify_cpu_starting(cpu);
+
+	arch_cpu_pre_online(arg);
+
+	/* Set the CPU in the cpu_online_mask */
+	set_cpu_online(cpu, true);
+
+	/* Enable local interrupts now */
+	local_irq_enable();
+
+	wmb();
+	cpu_startup_entry(CPUHP_ONLINE);
+
+	/* We should never reach here! */
+	BUG();
+}
+
+void __cpuinit smp_callin(void)
+{
+	sparc_start_secondary(NULL);
 }
 
 void smp_bogo(struct seq_file *m)

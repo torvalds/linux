@@ -37,12 +37,12 @@ static const char *verstr = "20101219";
 #include <linux/blkdev.h>
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
+#include <linux/idr.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
@@ -75,17 +75,14 @@ static const char *verstr = "20101219";
 #include "st_options.h"
 #include "st.h"
 
-static DEFINE_MUTEX(st_mutex);
 static int buffer_kbs;
 static int max_sg_segs;
 static int try_direct_io = TRY_DIRECT_IO;
 static int try_rdio = 1;
 static int try_wdio = 1;
 
-static int st_dev_max;
-static int st_nr_dev;
-
-static struct class *st_sysfs_class;
+static struct class st_sysfs_class;
+static struct device_attribute st_dev_attrs[];
 
 MODULE_AUTHOR("Kai Makisara");
 MODULE_DESCRIPTION("SCSI tape (st) driver");
@@ -174,12 +171,8 @@ static int debugging = DEBUG;
    24 bits) */
 #define SET_DENS_AND_BLK 0x10001
 
-static DEFINE_RWLOCK(st_dev_arr_lock);
-
 static int st_fixed_buffer_size = ST_FIXED_BUFFER_SIZE;
 static int st_max_sg_segs = ST_MAX_SG;
-
-static struct scsi_tape **scsi_tapes = NULL;
 
 static int modes_defined;
 
@@ -199,7 +192,6 @@ static int st_remove(struct device *);
 
 static int do_create_sysfs_files(void);
 static void do_remove_sysfs_files(void);
-static int do_create_class_files(struct scsi_tape *, int, int);
 
 static struct scsi_driver st_template = {
 	.owner			= THIS_MODULE,
@@ -222,6 +214,10 @@ static void scsi_tape_release(struct kref *);
 #define to_scsi_tape(obj) container_of(obj, struct scsi_tape, kref)
 
 static DEFINE_MUTEX(st_ref_mutex);
+static DEFINE_SPINLOCK(st_index_lock);
+static DEFINE_SPINLOCK(st_use_lock);
+static DEFINE_IDR(st_index_idr);
+
 
 
 #include "osst_detect.h"
@@ -239,10 +235,9 @@ static struct scsi_tape *scsi_tape_get(int dev)
 	struct scsi_tape *STp = NULL;
 
 	mutex_lock(&st_ref_mutex);
-	write_lock(&st_dev_arr_lock);
+	spin_lock(&st_index_lock);
 
-	if (dev < st_dev_max && scsi_tapes != NULL)
-		STp = scsi_tapes[dev];
+	STp = idr_find(&st_index_idr, dev);
 	if (!STp) goto out;
 
 	kref_get(&STp->kref);
@@ -259,7 +254,7 @@ out_put:
 	kref_put(&STp->kref, scsi_tape_release);
 	STp = NULL;
 out:
-	write_unlock(&st_dev_arr_lock);
+	spin_unlock(&st_index_lock);
 	mutex_unlock(&st_ref_mutex);
 	return STp;
 }
@@ -462,14 +457,16 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 {
 	struct st_request *SRpnt = req->end_io_data;
 	struct scsi_tape *STp = SRpnt->stp;
+	struct bio *tmp;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
 	STp->buffer->cmdstat.residual = req->resid_len;
 
+	tmp = SRpnt->bio;
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);
 
-	blk_rq_unmap_user(SRpnt->bio);
+	blk_rq_unmap_user(tmp);
 	__blk_put_request(req->q, req);
 }
 
@@ -980,7 +977,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 	struct st_modedef *STm;
 	struct st_partstat *STps;
 	char *name = tape_name(STp);
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int mode = TAPE_MODE(inode);
 
 	STp->ready = ST_READY;
@@ -1104,6 +1101,12 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
                                     STp->drv_buffer));
 		}
 		STp->drv_write_prot = ((STp->buffer)->b_data[2] & 0x80) != 0;
+		if (!STp->drv_buffer && STp->immediate_filemark) {
+			printk(KERN_WARNING
+			    "%s: non-buffered tape: disabling writing immediate filemarks\n",
+			    name);
+			STp->immediate_filemark = 0;
+		}
 	}
 	st_release_request(SRpnt);
 	SRpnt = NULL;
@@ -1175,12 +1178,12 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 static int st_open(struct inode *inode, struct file *filp)
 {
 	int i, retval = (-EIO);
+	int resumed = 0;
 	struct scsi_tape *STp;
 	struct st_partstat *STps;
 	int dev = TAPE_NR(inode);
 	char *name;
 
-	mutex_lock(&st_mutex);
 	/*
 	 * We really want to do nonseekable_open(inode, filp); here, but some
 	 * versions of tar incorrectly call lseek on tapes and bail out if that
@@ -1189,26 +1192,29 @@ static int st_open(struct inode *inode, struct file *filp)
 	filp->f_mode &= ~(FMODE_PREAD | FMODE_PWRITE);
 
 	if (!(STp = scsi_tape_get(dev))) {
-		mutex_unlock(&st_mutex);
 		return -ENXIO;
 	}
 
-	write_lock(&st_dev_arr_lock);
 	filp->private_data = STp;
 	name = tape_name(STp);
 
+	spin_lock(&st_use_lock);
 	if (STp->in_use) {
-		write_unlock(&st_dev_arr_lock);
+		spin_unlock(&st_use_lock);
 		scsi_tape_put(STp);
-		mutex_unlock(&st_mutex);
 		DEB( printk(ST_DEB_MSG "%s: Device already in use.\n", name); )
 		return (-EBUSY);
 	}
 
 	STp->in_use = 1;
-	write_unlock(&st_dev_arr_lock);
+	spin_unlock(&st_use_lock);
 	STp->rew_at_close = STp->autorew_dev = (iminor(inode) & 0x80) == 0;
 
+	if (scsi_autopm_get_device(STp->device) < 0) {
+		retval = -EIO;
+		goto err_out;
+	}
+	resumed = 1;
 	if (!scsi_block_when_processing_errors(STp->device)) {
 		retval = (-ENXIO);
 		goto err_out;
@@ -1249,14 +1255,16 @@ static int st_open(struct inode *inode, struct file *filp)
 			retval = (-EIO);
 		goto err_out;
 	}
-	mutex_unlock(&st_mutex);
 	return 0;
 
  err_out:
 	normalize_buffer(STp->buffer);
+	spin_lock(&st_use_lock);
 	STp->in_use = 0;
+	spin_unlock(&st_use_lock);
 	scsi_tape_put(STp);
-	mutex_unlock(&st_mutex);
+	if (resumed)
+		scsi_autopm_put_device(STp->device);
 	return retval;
 
 }
@@ -1304,6 +1312,8 @@ static int st_flush(struct file *filp, fl_owner_t id)
 
 		memset(cmd, 0, MAX_COMMAND_SIZE);
 		cmd[0] = WRITE_FILEMARKS;
+		if (STp->immediate_filemark)
+			cmd[1] = 1;
 		cmd[4] = 1 + STp->two_fm;
 
 		SRpnt = st_do_scsi(NULL, STp, cmd, 0, DMA_NONE,
@@ -1386,9 +1396,10 @@ static int st_release(struct inode *inode, struct file *filp)
 		do_door_lock(STp, 0);
 
 	normalize_buffer(STp->buffer);
-	write_lock(&st_dev_arr_lock);
+	spin_lock(&st_use_lock);
 	STp->in_use = 0;
-	write_unlock(&st_dev_arr_lock);
+	spin_unlock(&st_use_lock);
+	scsi_autopm_put_device(STp->device);
 	scsi_tape_put(STp);
 
 	return result;
@@ -2170,8 +2181,9 @@ static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm, char
 		       name, STm->defaults_for_writes, STp->omit_blklims, STp->can_partitions,
 		       STp->scsi2_logical);
 		printk(KERN_INFO
-		       "%s:    sysv: %d nowait: %d sili: %d\n", name, STm->sysv, STp->immediate,
-			STp->sili);
+		       "%s:    sysv: %d nowait: %d sili: %d nowait_filemark: %d\n",
+		       name, STm->sysv, STp->immediate, STp->sili,
+		       STp->immediate_filemark);
 		printk(KERN_INFO "%s:    debugging: %d\n",
 		       name, debugging);
 	}
@@ -2213,6 +2225,7 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->can_partitions = (options & MT_ST_CAN_PARTITIONS) != 0;
 		STp->scsi2_logical = (options & MT_ST_SCSI2LOGICAL) != 0;
 		STp->immediate = (options & MT_ST_NOWAIT) != 0;
+		STp->immediate_filemark = (options & MT_ST_NOWAIT_EOF) != 0;
 		STm->sysv = (options & MT_ST_SYSV) != 0;
 		STp->sili = (options & MT_ST_SILI) != 0;
 		DEB( debugging = (options & MT_ST_DEBUGGING) != 0;
@@ -2244,6 +2257,8 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->scsi2_logical = value;
 		if ((options & MT_ST_NOWAIT) != 0)
 			STp->immediate = value;
+		if ((options & MT_ST_NOWAIT_EOF) != 0)
+			STp->immediate_filemark = value;
 		if ((options & MT_ST_SYSV) != 0)
 			STm->sysv = value;
 		if ((options & MT_ST_SILI) != 0)
@@ -2703,7 +2718,8 @@ static int st_int_ioctl(struct scsi_tape *STp, unsigned int cmd_in, unsigned lon
 		cmd[0] = WRITE_FILEMARKS;
 		if (cmd_in == MTWSM)
 			cmd[1] = 2;
-		if (cmd_in == MTWEOFI)
+		if (cmd_in == MTWEOFI ||
+		    (cmd_in == MTWEOF && STp->immediate_filemark))
 			cmd[1] |= 1;
 		cmd[2] = (arg >> 16);
 		cmd[3] = (arg >> 8);
@@ -3969,16 +3985,98 @@ static const struct file_operations st_fops =
 	.llseek =	noop_llseek,
 };
 
+static int create_one_cdev(struct scsi_tape *tape, int mode, int rew)
+{
+	int i, error;
+	dev_t cdev_devno;
+	struct cdev *cdev;
+	struct device *dev;
+	struct st_modedef *STm = &(tape->modes[mode]);
+	char name[10];
+	int dev_num = tape->index;
+
+	cdev_devno = MKDEV(SCSI_TAPE_MAJOR, TAPE_MINOR(dev_num, mode, rew));
+
+	cdev = cdev_alloc();
+	if (!cdev) {
+		pr_err("st%d: out of memory. Device not attached.\n", dev_num);
+		error = -ENOMEM;
+		goto out;
+	}
+	cdev->owner = THIS_MODULE;
+	cdev->ops = &st_fops;
+
+	error = cdev_add(cdev, cdev_devno, 1);
+	if (error) {
+		pr_err("st%d: Can't add %s-rewind mode %d\n", dev_num,
+		       rew ? "non" : "auto", mode);
+		pr_err("st%d: Device not attached.\n", dev_num);
+		goto out_free;
+	}
+	STm->cdevs[rew] = cdev;
+
+	i = mode << (4 - ST_NBR_MODE_BITS);
+	snprintf(name, 10, "%s%s%s", rew ? "n" : "",
+		 tape->disk->disk_name, st_formats[i]);
+
+	dev = device_create(&st_sysfs_class, &tape->device->sdev_gendev,
+			    cdev_devno, &tape->modes[mode], "%s", name);
+	if (IS_ERR(dev)) {
+		pr_err("st%d: device_create failed\n", dev_num);
+		error = PTR_ERR(dev);
+		goto out_free;
+	}
+
+	STm->devs[rew] = dev;
+
+	return 0;
+out_free:
+	cdev_del(STm->cdevs[rew]);
+	STm->cdevs[rew] = NULL;
+out:
+	return error;
+}
+
+static int create_cdevs(struct scsi_tape *tape)
+{
+	int mode, error;
+	for (mode = 0; mode < ST_NBR_MODES; ++mode) {
+		error = create_one_cdev(tape, mode, 0);
+		if (error)
+			return error;
+		error = create_one_cdev(tape, mode, 1);
+		if (error)
+			return error;
+	}
+
+	return sysfs_create_link(&tape->device->sdev_gendev.kobj,
+				 &tape->modes[0].devs[0]->kobj, "tape");
+}
+
+static void remove_cdevs(struct scsi_tape *tape)
+{
+	int mode, rew;
+	sysfs_remove_link(&tape->device->sdev_gendev.kobj, "tape");
+	for (mode = 0; mode < ST_NBR_MODES; mode++) {
+		struct st_modedef *STm = &(tape->modes[mode]);
+		for (rew = 0; rew < 2; rew++) {
+			if (STm->cdevs[rew])
+				cdev_del(STm->cdevs[rew]);
+			if (STm->devs[rew])
+				device_unregister(STm->devs[rew]);
+		}
+	}
+}
+
 static int st_probe(struct device *dev)
 {
 	struct scsi_device *SDp = to_scsi_device(dev);
 	struct gendisk *disk = NULL;
-	struct cdev *cdev = NULL;
 	struct scsi_tape *tpnt = NULL;
 	struct st_modedef *STm;
 	struct st_partstat *STps;
 	struct st_buffer *buffer;
-	int i, j, mode, dev_num, error;
+	int i, error;
 	char *stp;
 
 	if (SDp->type != TYPE_TAPE)
@@ -4005,58 +4103,20 @@ static int st_probe(struct device *dev)
 		goto out_buffer_free;
 	}
 
-	write_lock(&st_dev_arr_lock);
-	if (st_nr_dev >= st_dev_max) {
-		struct scsi_tape **tmp_da;
-		int tmp_dev_max;
-
-		tmp_dev_max = max(st_nr_dev * 2, 8);
-		if (tmp_dev_max > ST_MAX_TAPES)
-			tmp_dev_max = ST_MAX_TAPES;
-		if (tmp_dev_max <= st_nr_dev) {
-			write_unlock(&st_dev_arr_lock);
-			printk(KERN_ERR "st: Too many tape devices (max. %d).\n",
-			       ST_MAX_TAPES);
-			goto out_put_disk;
-		}
-
-		tmp_da = kzalloc(tmp_dev_max * sizeof(struct scsi_tape *), GFP_ATOMIC);
-		if (tmp_da == NULL) {
-			write_unlock(&st_dev_arr_lock);
-			printk(KERN_ERR "st: Can't extend device array.\n");
-			goto out_put_disk;
-		}
-
-		if (scsi_tapes != NULL) {
-			memcpy(tmp_da, scsi_tapes,
-			       st_dev_max * sizeof(struct scsi_tape *));
-			kfree(scsi_tapes);
-		}
-		scsi_tapes = tmp_da;
-
-		st_dev_max = tmp_dev_max;
-	}
-
-	for (i = 0; i < st_dev_max; i++)
-		if (scsi_tapes[i] == NULL)
-			break;
-	if (i >= st_dev_max)
-		panic("scsi_devices corrupt (st)");
-
 	tpnt = kzalloc(sizeof(struct scsi_tape), GFP_ATOMIC);
 	if (tpnt == NULL) {
-		write_unlock(&st_dev_arr_lock);
 		printk(KERN_ERR "st: Can't allocate device descriptor.\n");
 		goto out_put_disk;
 	}
 	kref_init(&tpnt->kref);
 	tpnt->disk = disk;
-	sprintf(disk->disk_name, "st%d", i);
 	disk->private_data = &tpnt->driver;
 	disk->queue = SDp->request_queue;
+	/* SCSI tape doesn't register this gendisk via add_disk().  Manually
+	 * take queue reference that release_disk() expects. */
+	if (!blk_get_queue(disk->queue))
+		goto out_put_disk;
 	tpnt->driver = &st_template;
-	scsi_tapes[i] = tpnt;
-	dev_num = i;
 
 	tpnt->device = SDp;
 	if (SDp->scsi_level <= 2)
@@ -4082,6 +4142,7 @@ static int st_probe(struct device *dev)
 	tpnt->scsi2_logical = ST_SCSI2LOGICAL;
 	tpnt->sili = ST_SILI;
 	tpnt->immediate = ST_NOWAIT;
+	tpnt->immediate_filemark = 0;
 	tpnt->default_drvbuffer = 0xff;		/* No forced buffering */
 	tpnt->partition = 0;
 	tpnt->new_partition = 0;
@@ -4101,6 +4162,7 @@ static int st_probe(struct device *dev)
 		STm->default_compression = ST_DONT_TOUCH;
 		STm->default_blksize = (-1);	/* No forced size */
 		STm->default_density = (-1);	/* No forced density */
+		STm->tape = tpnt;
 	}
 
 	for (i = 0; i < ST_NBR_PARTITIONS; i++) {
@@ -4120,38 +4182,25 @@ static int st_probe(struct device *dev)
 	    tpnt->blksize_changed = 0;
 	mutex_init(&tpnt->lock);
 
-	st_nr_dev++;
-	write_unlock(&st_dev_arr_lock);
-
-	for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-		STm = &(tpnt->modes[mode]);
-		for (j=0; j < 2; j++) {
-			cdev = cdev_alloc();
-			if (!cdev) {
-				printk(KERN_ERR
-				       "st%d: out of memory. Device not attached.\n",
-				       dev_num);
-				goto out_free_tape;
-			}
-			cdev->owner = THIS_MODULE;
-			cdev->ops = &st_fops;
-
-			error = cdev_add(cdev,
-					 MKDEV(SCSI_TAPE_MAJOR, TAPE_MINOR(dev_num, mode, j)),
-					 1);
-			if (error) {
-				printk(KERN_ERR "st%d: Can't add %s-rewind mode %d\n",
-				       dev_num, j ? "non" : "auto", mode);
-				printk(KERN_ERR "st%d: Device not attached.\n", dev_num);
-				goto out_free_tape;
-			}
-			STm->cdevs[j] = cdev;
-
-		}
-		error = do_create_class_files(tpnt, dev_num, mode);
-		if (error)
-			goto out_free_tape;
+	idr_preload(GFP_KERNEL);
+	spin_lock(&st_index_lock);
+	error = idr_alloc(&st_index_idr, tpnt, 0, ST_MAX_TAPES + 1, GFP_NOWAIT);
+	spin_unlock(&st_index_lock);
+	idr_preload_end();
+	if (error < 0) {
+		pr_warn("st: idr allocation failed: %d\n", error);
+		goto out_put_queue;
 	}
+	tpnt->index = error;
+	sprintf(disk->disk_name, "st%d", tpnt->index);
+
+	dev_set_drvdata(dev, tpnt);
+
+
+	error = create_cdevs(tpnt);
+	if (error)
+		goto out_remove_devs;
+	scsi_autopm_put_device(SDp);
 
 	sdev_printk(KERN_NOTICE, SDp,
 		    "Attached scsi tape %s\n", tape_name(tpnt));
@@ -4161,28 +4210,13 @@ static int st_probe(struct device *dev)
 
 	return 0;
 
-out_free_tape:
-	for (mode=0; mode < ST_NBR_MODES; mode++) {
-		STm = &(tpnt->modes[mode]);
-		sysfs_remove_link(&tpnt->device->sdev_gendev.kobj,
-				  "tape");
-		for (j=0; j < 2; j++) {
-			if (STm->cdevs[j]) {
-				if (cdev == STm->cdevs[j])
-					cdev = NULL;
-					device_destroy(st_sysfs_class,
-						       MKDEV(SCSI_TAPE_MAJOR,
-							     TAPE_MINOR(i, mode, j)));
-				cdev_del(STm->cdevs[j]);
-			}
-		}
-	}
-	if (cdev)
-		cdev_del(cdev);
-	write_lock(&st_dev_arr_lock);
-	scsi_tapes[dev_num] = NULL;
-	st_nr_dev--;
-	write_unlock(&st_dev_arr_lock);
+out_remove_devs:
+	remove_cdevs(tpnt);
+	spin_lock(&st_index_lock);
+	idr_remove(&st_index_idr, tpnt->index);
+	spin_unlock(&st_index_lock);
+out_put_queue:
+	blk_put_queue(disk->queue);
 out_put_disk:
 	put_disk(disk);
 	kfree(tpnt);
@@ -4195,37 +4229,18 @@ out:
 
 static int st_remove(struct device *dev)
 {
-	struct scsi_device *SDp = to_scsi_device(dev);
-	struct scsi_tape *tpnt;
-	int i, j, mode;
+	struct scsi_tape *tpnt = dev_get_drvdata(dev);
+	int index = tpnt->index;
 
-	write_lock(&st_dev_arr_lock);
-	for (i = 0; i < st_dev_max; i++) {
-		tpnt = scsi_tapes[i];
-		if (tpnt != NULL && tpnt->device == SDp) {
-			scsi_tapes[i] = NULL;
-			st_nr_dev--;
-			write_unlock(&st_dev_arr_lock);
-			sysfs_remove_link(&tpnt->device->sdev_gendev.kobj,
-					  "tape");
-			for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-				for (j=0; j < 2; j++) {
-					device_destroy(st_sysfs_class,
-						       MKDEV(SCSI_TAPE_MAJOR,
-							     TAPE_MINOR(i, mode, j)));
-					cdev_del(tpnt->modes[mode].cdevs[j]);
-					tpnt->modes[mode].cdevs[j] = NULL;
-				}
-			}
+	scsi_autopm_get_device(to_scsi_device(dev));
+	remove_cdevs(tpnt);
 
-			mutex_lock(&st_ref_mutex);
-			kref_put(&tpnt->kref, scsi_tape_release);
-			mutex_unlock(&st_ref_mutex);
-			return 0;
-		}
-	}
-
-	write_unlock(&st_dev_arr_lock);
+	mutex_lock(&st_ref_mutex);
+	kref_put(&tpnt->kref, scsi_tape_release);
+	mutex_unlock(&st_ref_mutex);
+	spin_lock(&st_index_lock);
+	idr_remove(&st_index_idr, index);
+	spin_unlock(&st_index_lock);
 	return 0;
 }
 
@@ -4257,6 +4272,11 @@ static void scsi_tape_release(struct kref *kref)
 	return;
 }
 
+static struct class st_sysfs_class = {
+	.name = "scsi_tape",
+	.dev_attrs = st_dev_attrs,
+};
+
 static int __init init_st(void)
 {
 	int err;
@@ -4266,10 +4286,10 @@ static int __init init_st(void)
 	printk(KERN_INFO "st: Version %s, fixed bufsize %d, s/g segs %d\n",
 		verstr, st_fixed_buffer_size, st_max_sg_segs);
 
-	st_sysfs_class = class_create(THIS_MODULE, "scsi_tape");
-	if (IS_ERR(st_sysfs_class)) {
-		printk(KERN_ERR "Unable create sysfs class for SCSI tapes\n");
-		return PTR_ERR(st_sysfs_class);
+	err = class_register(&st_sysfs_class);
+	if (err) {
+		pr_err("Unable register sysfs class for SCSI tapes\n");
+		return err;
 	}
 
 	err = register_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
@@ -4296,7 +4316,7 @@ err_chrdev:
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
 err_class:
-	class_destroy(st_sysfs_class);
+	class_unregister(&st_sysfs_class);
 	return err;
 }
 
@@ -4306,8 +4326,7 @@ static void __exit exit_st(void)
 	scsi_unregister_driver(&st_template.gendrv);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
-	class_destroy(st_sysfs_class);
-	kfree(scsi_tapes);
+	class_unregister(&st_sysfs_class);
 	printk(KERN_INFO "st: Unloaded.\n");
 }
 
@@ -4379,10 +4398,9 @@ static void do_remove_sysfs_files(void)
 	driver_remove_file(sysfs, &driver_attr_try_direct_io);
 }
 
-
 /* The sysfs simple class interface */
 static ssize_t
-st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
+defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4391,10 +4409,9 @@ st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(defined, S_IRUGO, st_defined_show, NULL);
-
 static ssize_t
-st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
+default_blksize_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4403,10 +4420,10 @@ st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(default_blksize, S_IRUGO, st_defblk_show, NULL);
 
 static ssize_t
-st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
+default_density_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4417,11 +4434,9 @@ st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return l;
 }
 
-DEVICE_ATTR(default_density, S_IRUGO, st_defdensity_show, NULL);
-
 static ssize_t
-st_defcompression_show(struct device *dev, struct device_attribute *attr,
-		       char *buf)
+default_compression_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
 	ssize_t l = 0;
@@ -4430,27 +4445,13 @@ st_defcompression_show(struct device *dev, struct device_attribute *attr,
 	return l;
 }
 
-DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
-
 static ssize_t
-st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
+options_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct st_modedef *STm = dev_get_drvdata(dev);
-	struct scsi_tape *STp;
-	int i, j, options;
+	struct scsi_tape *STp = STm->tape;
+	int options;
 	ssize_t l = 0;
-
-	for (i=0; i < st_dev_max; i++) {
-		for (j=0; j < ST_NBR_MODES; j++)
-			if (&scsi_tapes[i]->modes[j] == STm)
-				break;
-		if (j < ST_NBR_MODES)
-			break;
-	}
-	if (i == st_dev_max)
-		return 0;  /* should never happen */
-
-	STp = scsi_tapes[i];
 
 	options = STm->do_buffer_writes ? MT_ST_BUFFER_WRITES : 0;
 	options |= STm->do_async_writes ? MT_ST_ASYNC_WRITES : 0;
@@ -4465,72 +4466,21 @@ st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
 	options |= STp->scsi2_logical ? MT_ST_SCSI2LOGICAL : 0;
 	options |= STm->sysv ? MT_ST_SYSV : 0;
 	options |= STp->immediate ? MT_ST_NOWAIT : 0;
+	options |= STp->immediate_filemark ? MT_ST_NOWAIT_EOF : 0;
 	options |= STp->sili ? MT_ST_SILI : 0;
 
 	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
 	return l;
 }
 
-DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
-
-static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
-{
-	int i, rew, error;
-	char name[10];
-	struct device *st_class_member;
-
-	for (rew=0; rew < 2; rew++) {
-		/* Make sure that the minor numbers corresponding to the four
-		   first modes always get the same names */
-		i = mode << (4 - ST_NBR_MODE_BITS);
-		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
-			 STp->disk->disk_name, st_formats[i]);
-		st_class_member =
-			device_create(st_sysfs_class, &STp->device->sdev_gendev,
-				      MKDEV(SCSI_TAPE_MAJOR,
-					    TAPE_MINOR(dev_num, mode, rew)),
-				      &STp->modes[mode], "%s", name);
-		if (IS_ERR(st_class_member)) {
-			printk(KERN_WARNING "st%d: device_create failed\n",
-			       dev_num);
-			error = PTR_ERR(st_class_member);
-			goto out;
-		}
-
-		error = device_create_file(st_class_member,
-					   &dev_attr_defined);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_blksize);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_density);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_default_compression);
-		if (error) goto out;
-		error = device_create_file(st_class_member,
-					   &dev_attr_options);
-		if (error) goto out;
-
-		if (mode == 0 && rew == 0) {
-			error = sysfs_create_link(&STp->device->sdev_gendev.kobj,
-						  &st_class_member->kobj,
-						  "tape");
-			if (error) {
-				printk(KERN_ERR
-				       "st%d: Can't create sysfs link from SCSI device.\n",
-				       dev_num);
-				goto out;
-			}
-		}
-	}
-
-	return 0;
-
-out:
-	return error;
-}
+static struct device_attribute st_dev_attrs[] = {
+	__ATTR_RO(defined),
+	__ATTR_RO(default_blksize),
+	__ATTR_RO(default_density),
+	__ATTR_RO(default_compression),
+	__ATTR_RO(options),
+	__ATTR_NULL,
+};
 
 /* The following functions may be useful for a larger audience. */
 static int sgl_map_user_pages(struct st_buffer *STbp,

@@ -1,0 +1,339 @@
+  <title>Raw VBI Data Interface</title>
+
+  <para>VBI is an abbreviation of Vertical Blanking Interval, a gap
+in the sequence of lines of an analog video signal. During VBI
+no picture information is transmitted, allowing some time while the
+electron beam of a cathode ray tube TV returns to the top of the
+screen. Using an oscilloscope you will find here the vertical
+synchronization pulses and short data packages ASK
+modulated<footnote><para>ASK: Amplitude-Shift Keying. A high signal
+level represents a '1' bit, a low level a '0' bit.</para></footnote>
+onto the video signal. These are transmissions of services such as
+Teletext or Closed Caption.</para>
+
+  <para>Subject of this interface type is raw VBI data, as sampled off
+a video signal, or to be added to a signal for output.
+The data format is similar to uncompressed video images, a number of
+lines times a number of samples per line, we call this a VBI image.</para>
+
+  <para>Conventionally V4L2 VBI devices are accessed through character
+device special files named <filename>/dev/vbi</filename> and
+<filename>/dev/vbi0</filename> to <filename>/dev/vbi31</filename> with
+major number 81 and minor numbers 224 to 255.
+<filename>/dev/vbi</filename> is typically a symbolic link to the
+preferred VBI device. This convention applies to both input and output
+devices.</para>
+
+  <para>To address the problems of finding related video and VBI
+devices VBI capturing and output is also available as device function
+under <filename>/dev/video</filename>. To capture or output raw VBI
+data with these devices applications must call the &VIDIOC-S-FMT;
+ioctl. Accessed as <filename>/dev/vbi</filename>, raw VBI capturing
+or output is the default device function.</para>
+
+    <section>
+      <title>Querying Capabilities</title>
+
+      <para>Devices supporting the raw VBI capturing or output API set
+the <constant>V4L2_CAP_VBI_CAPTURE</constant> or
+<constant>V4L2_CAP_VBI_OUTPUT</constant> flags, respectively, in the
+<structfield>capabilities</structfield> field of &v4l2-capability;
+returned by the &VIDIOC-QUERYCAP; ioctl. At least one of the
+read/write, streaming or asynchronous I/O methods must be
+supported. VBI devices may or may not have a tuner or modulator.</para>
+    </section>
+
+    <section>
+      <title>Supplemental Functions</title>
+
+      <para>VBI devices shall support <link linkend="video">video
+input or output</link>, <link linkend="tuner">tuner or
+modulator</link>, and <link linkend="control">controls</link> ioctls
+as needed. The <link linkend="standard">video standard</link> ioctls provide
+information vital to program a VBI device, therefore must be
+supported.</para>
+    </section>
+
+    <section>
+      <title>Raw VBI Format Negotiation</title>
+
+      <para>Raw VBI sampling abilities can vary, in particular the
+sampling frequency. To properly interpret the data V4L2 specifies an
+ioctl to query the sampling parameters. Moreover, to allow for some
+flexibility applications can also suggest different parameters.</para>
+
+      <para>As usual these parameters are <emphasis>not</emphasis>
+reset at &func-open; time to permit Unix tool chains, programming a
+device and then reading from it as if it was a plain file. Well
+written V4L2 applications should always ensure they really get what
+they want, requesting reasonable parameters and then checking if the
+actual parameters are suitable.</para>
+
+      <para>To query the current raw VBI capture parameters
+applications set the <structfield>type</structfield> field of a
+&v4l2-format; to <constant>V4L2_BUF_TYPE_VBI_CAPTURE</constant> or
+<constant>V4L2_BUF_TYPE_VBI_OUTPUT</constant>, and call the
+&VIDIOC-G-FMT; ioctl with a pointer to this structure. Drivers fill
+the &v4l2-vbi-format; <structfield>vbi</structfield> member of the
+<structfield>fmt</structfield> union.</para>
+
+      <para>To request different parameters applications set the
+<structfield>type</structfield> field of a &v4l2-format; as above and
+initialize all fields of the &v4l2-vbi-format;
+<structfield>vbi</structfield> member of the
+<structfield>fmt</structfield> union, or better just modify the
+results of <constant>VIDIOC_G_FMT</constant>, and call the
+&VIDIOC-S-FMT; ioctl with a pointer to this structure. Drivers return
+an &EINVAL; only when the given parameters are ambiguous, otherwise
+they modify the parameters according to the hardware capabilites and
+return the actual parameters. When the driver allocates resources at
+this point, it may return an &EBUSY; to indicate the returned
+parameters are valid but the required resources are currently not
+available. That may happen for instance when the video and VBI areas
+to capture would overlap, or when the driver supports multiple opens
+and another process already requested VBI capturing or output. Anyway,
+applications must expect other resource allocation points which may
+return <errorcode>EBUSY</errorcode>, at the &VIDIOC-STREAMON; ioctl
+and the first read(), write() and select() call.</para>
+
+      <para>VBI devices must implement both the
+<constant>VIDIOC_G_FMT</constant> and
+<constant>VIDIOC_S_FMT</constant> ioctl, even if
+<constant>VIDIOC_S_FMT</constant> ignores all requests and always
+returns default parameters as <constant>VIDIOC_G_FMT</constant> does.
+<constant>VIDIOC_TRY_FMT</constant> is optional.</para>
+
+      <table pgwide="1" frame="none" id="v4l2-vbi-format">
+	<title>struct <structname>v4l2_vbi_format</structname></title>
+	<tgroup cols="3">
+	  &cs-str;
+	  <tbody valign="top">
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>sampling_rate</structfield></entry>
+	      <entry>Samples per second, i.&nbsp;e. unit 1 Hz.</entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>offset</structfield></entry>
+	      <entry><para>Horizontal offset of the VBI image,
+relative to the leading edge of the line synchronization pulse and
+counted in samples: The first sample in the VBI image will be located
+<structfield>offset</structfield> /
+<structfield>sampling_rate</structfield> seconds following the leading
+edge. See also <xref linkend="vbi-hsync" />.</para></entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>samples_per_line</structfield></entry>
+	      <entry></entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>sample_format</structfield></entry>
+	      <entry><para>Defines the sample format as in <xref
+linkend="pixfmt" />, a four-character-code.<footnote>
+		    <para>A few devices may be unable to
+sample VBI data at all but can extend the video capture window to the
+VBI region.</para>
+		  </footnote> Usually this is
+<constant>V4L2_PIX_FMT_GREY</constant>, i.&nbsp;e. each sample
+consists of 8 bits with lower values oriented towards the black level.
+Do not assume any other correlation of values with the signal level.
+For example, the MSB does not necessarily indicate if the signal is
+'high' or 'low' because 128 may not be the mean value of the
+signal. Drivers shall not convert the sample format by software.</para></entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>start</structfield>[2]</entry>
+	      <entry>This is the scanning system line number
+associated with the first line of the VBI image, of the first and the
+second field respectively. See <xref linkend="vbi-525" /> and
+<xref linkend="vbi-625" /> for valid values. VBI input drivers can
+return start values 0 if the hardware cannot reliable identify
+scanning lines, VBI acquisition may not require this
+information.</entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>count</structfield>[2]</entry>
+	      <entry>The number of lines in the first and second
+field image, respectively.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="hspan"><para>Drivers should be as
+flexibility as possible. For example, it may be possible to extend or
+move the VBI capture window down to the picture area, implementing a
+'full field mode' to capture data service transmissions embedded in
+the picture.</para><para>An application can set the first or second
+<structfield>count</structfield> value to zero if no data is required
+from the respective field; <structfield>count</structfield>[1] if the
+scanning system is progressive, &ie; not interlaced. The
+corresponding start value shall be ignored by the application and
+driver. Anyway, drivers may not support single field capturing and
+return both count values non-zero.</para><para>Both
+<structfield>count</structfield> values set to zero, or line numbers
+outside the bounds depicted in <xref linkend="vbi-525" /> and <xref
+		    linkend="vbi-625" />, or a field image covering
+lines of two fields, are invalid and shall not be returned by the
+driver.</para><para>To initialize the <structfield>start</structfield>
+and <structfield>count</structfield> fields, applications must first
+determine the current video standard selection. The &v4l2-std-id; or
+the <structfield>framelines</structfield> field of &v4l2-standard; can
+be evaluated for this purpose.</para></entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>flags</structfield></entry>
+	      <entry>See <xref linkend="vbifmt-flags" /> below. Currently
+only drivers set flags, applications must set this field to
+zero.</entry>
+	    </row>
+	    <row>
+	      <entry>__u32</entry>
+	      <entry><structfield>reserved</structfield>[2]</entry>
+	      <entry>This array is reserved for future extensions.
+Drivers and applications must set it to zero.</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+
+      <table pgwide="1" frame="none" id="vbifmt-flags">
+	<title>Raw VBI Format Flags</title>
+	<tgroup cols="3">
+	  &cs-def;
+	  <tbody valign="top">
+	    <row>
+	      <entry><constant>V4L2_VBI_UNSYNC</constant></entry>
+	      <entry>0x0001</entry>
+	      <entry><para>This flag indicates hardware which does not
+properly distinguish between fields. Normally the VBI image stores the
+first field (lower scanning line numbers) first in memory. This may be
+a top or bottom field depending on the video standard. When this flag
+is set the first or second field may be stored first, however the
+fields are still in correct temporal order with the older field first
+in memory.<footnote>
+		  <para>Most VBI services transmit on both fields, but
+some have different semantics depending on the field number. These
+cannot be reliable decoded or encoded when
+<constant>V4L2_VBI_UNSYNC</constant> is set.</para>
+		</footnote></para></entry>
+	    </row>
+	    <row>
+	      <entry><constant>V4L2_VBI_INTERLACED</constant></entry>
+	      <entry>0x0002</entry>
+	      <entry>By default the two field images will be passed
+sequentially; all lines of the first field followed by all lines of
+the second field (compare <xref linkend="field-order" />
+<constant>V4L2_FIELD_SEQ_TB</constant> and
+<constant>V4L2_FIELD_SEQ_BT</constant>, whether the top or bottom
+field is first in memory depends on the video standard). When this
+flag is set, the two fields are interlaced (cf.
+<constant>V4L2_FIELD_INTERLACED</constant>). The first line of the
+first field followed by the first line of the second field, then the
+two second lines, and so on. Such a layout may be necessary when the
+hardware has been programmed to capture or output interlaced video
+images and is unable to separate the fields for VBI capturing at
+the same time. For simplicity setting this flag implies that both
+<structfield>count</structfield> values are equal and non-zero.</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+
+      <figure id="vbi-hsync">
+	<title>Line synchronization</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_hsync.pdf" format="PS" />
+	  </imageobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_hsync.gif" format="GIF" />
+	  </imageobject>
+	  <textobject>
+	    <phrase>Line synchronization diagram</phrase>
+	  </textobject>
+	</mediaobject>
+      </figure>
+
+      <figure id="vbi-525">
+	<title>ITU-R 525 line numbering (M/NTSC and M/PAL)</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_525.pdf" format="PS" />
+	  </imageobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_525.gif" format="GIF" />
+	  </imageobject>
+	  <textobject>
+	    <phrase>NTSC field synchronization diagram</phrase>
+	  </textobject>
+	  <caption>
+	    <para>(1) For the purpose of this specification field 2
+starts in line 264 and not 263.5 because half line capturing is not
+supported.</para>
+	  </caption>
+	</mediaobject>
+      </figure>
+
+      <figure id="vbi-625">
+	<title>ITU-R 625 line numbering</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_625.pdf" format="PS" />
+	  </imageobject>
+	  <imageobject>
+	    <imagedata fileref="vbi_625.gif" format="GIF" />
+	  </imageobject>
+	  <textobject>
+	    <phrase>PAL/SECAM field synchronization diagram</phrase>
+	  </textobject>
+	  <caption>
+	    <para>(1) For the purpose of this specification field 2
+starts in line 314 and not 313.5 because half line capturing is not
+supported.</para>
+	  </caption>
+	</mediaobject>
+      </figure>
+
+      <para>Remember the VBI image format depends on the selected
+video standard, therefore the application must choose a new standard or
+query the current standard first. Attempts to read or write data ahead
+of format negotiation, or after switching the video standard which may
+invalidate the negotiated VBI parameters, should be refused by the
+driver. A format change during active I/O is not permitted.</para>
+    </section>
+
+    <section>
+      <title>Reading and writing VBI images</title>
+
+      <para>To assure synchronization with the field number and easier
+implementation, the smallest unit of data passed at a time is one
+frame, consisting of two fields of VBI images immediately following in
+memory.</para>
+
+      <para>The total size of a frame computes as follows:</para>
+
+      <programlisting>
+(<structfield>count</structfield>[0] + <structfield>count</structfield>[1]) *
+<structfield>samples_per_line</structfield> * sample size in bytes</programlisting>
+
+      <para>The sample size is most likely always one byte,
+applications must check the <structfield>sample_format</structfield>
+field though, to function properly with other drivers.</para>
+
+      <para>A VBI device may support <link
+      linkend="rw">read/write</link> and/or streaming (<link
+      linkend="mmap">memory mapping</link> or <link
+      linkend="userp">user pointer</link>) I/O. The latter bears the
+possibility of synchronizing video and
+VBI data by using buffer timestamps.</para>
+
+      <para>Remember the &VIDIOC-STREAMON; ioctl and the first read(),
+write() and select() call can be resource allocation points returning
+an &EBUSY; if the required hardware resources are temporarily
+unavailable, for example the device is already in use by another
+process.</para>
+  </section>

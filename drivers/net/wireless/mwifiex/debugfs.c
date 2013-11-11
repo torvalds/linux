@@ -26,10 +26,17 @@
 static struct dentry *mwifiex_dfs_dir;
 
 static char *bss_modes[] = {
-	"Unknown",
-	"Managed",
-	"Ad-hoc",
-	"Auto"
+	"UNSPECIFIED",
+	"ADHOC",
+	"STATION",
+	"AP",
+	"AP_VLAN",
+	"WDS",
+	"MONITOR",
+	"MESH_POINT",
+	"P2P_CLIENT",
+	"P2P_GO",
+	"P2P_DEVICE",
 };
 
 /* size/addr for mwifiex_debug_info */
@@ -58,8 +65,6 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(packets_out[WMM_AC_BE]), 1},
 	{"wmm_ac_bk", item_size(packets_out[WMM_AC_BK]),
 	 item_addr(packets_out[WMM_AC_BK]), 1},
-	{"max_tx_buf_size", item_size(max_tx_buf_size),
-	 item_addr(max_tx_buf_size), 1},
 	{"tx_buf_size", item_size(tx_buf_size),
 	 item_addr(tx_buf_size), 1},
 	{"curr_tx_buf_size", item_size(curr_tx_buf_size),
@@ -140,18 +145,6 @@ static struct mwifiex_debug_data items[] = {
 static int num_of_items = ARRAY_SIZE(items);
 
 /*
- * Generic proc file open handler.
- *
- * This function is called every time a file is accessed for read or write.
- */
-static int
-mwifiex_open_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-/*
  * Proc info file read handler.
  *
  * This function is called when the 'info' file is opened for reading.
@@ -190,6 +183,7 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 		(struct mwifiex_private *) file->private_data;
 	struct net_device *netdev = priv->netdev;
 	struct netdev_hw_addr *ha;
+	struct netdev_queue *txq;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page, fmt[64];
 	struct mwifiex_bss_info info;
@@ -213,31 +207,27 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	p += sprintf(p, "driver_version = %s", fmt);
 	p += sprintf(p, "\nverext = %s", priv->version_str);
 	p += sprintf(p, "\ninterface_name=\"%s\"\n", netdev->name);
-	p += sprintf(p, "bss_mode=\"%s\"\n", bss_modes[info.bss_mode]);
+
+	if (info.bss_mode >= ARRAY_SIZE(bss_modes))
+		p += sprintf(p, "bss_mode=\"%d\"\n", info.bss_mode);
+	else
+		p += sprintf(p, "bss_mode=\"%s\"\n", bss_modes[info.bss_mode]);
+
 	p += sprintf(p, "media_state=\"%s\"\n",
 		     (!priv->media_connected ? "Disconnected" : "Connected"));
-	p += sprintf(p, "mac_address=\"%02x:%02x:%02x:%02x:%02x:%02x\"\n",
-		     netdev->dev_addr[0], netdev->dev_addr[1],
-		     netdev->dev_addr[2], netdev->dev_addr[3],
-		     netdev->dev_addr[4], netdev->dev_addr[5]);
+	p += sprintf(p, "mac_address=\"%pM\"\n", netdev->dev_addr);
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
 		p += sprintf(p, "multicast_count=\"%d\"\n",
 			     netdev_mc_count(netdev));
 		p += sprintf(p, "essid=\"%s\"\n", info.ssid.ssid);
-		p += sprintf(p, "bssid=\"%02x:%02x:%02x:%02x:%02x:%02x\"\n",
-			     info.bssid[0], info.bssid[1],
-			     info.bssid[2], info.bssid[3],
-			     info.bssid[4], info.bssid[5]);
+		p += sprintf(p, "bssid=\"%pM\"\n", info.bssid);
 		p += sprintf(p, "channel=\"%d\"\n", (int) info.bss_chan);
-		p += sprintf(p, "region_code = \"%02x\"\n", info.region_code);
+		p += sprintf(p, "country_code = \"%s\"\n", info.country_code);
 
 		netdev_for_each_mc_addr(ha, netdev)
-			p += sprintf(p, "multicast_address[%d]="
-				     "\"%02x:%02x:%02x:%02x:%02x:%02x\"\n", i++,
-				     ha->addr[0], ha->addr[1],
-				     ha->addr[2], ha->addr[3],
-				     ha->addr[4], ha->addr[5]);
+			p += sprintf(p, "multicast_address[%d]=\"%pM\"\n",
+					i++, ha->addr);
 	}
 
 	p += sprintf(p, "num_tx_bytes = %lu\n", priv->stats.tx_bytes);
@@ -250,8 +240,13 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	p += sprintf(p, "num_rx_pkts_err = %lu\n", priv->stats.rx_errors);
 	p += sprintf(p, "carrier %s\n", ((netif_carrier_ok(priv->netdev))
 					 ? "on" : "off"));
-	p += sprintf(p, "tx queue %s\n", ((netif_queue_stopped(priv->netdev))
-					  ? "stopped" : "started"));
+	p += sprintf(p, "tx queue");
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		txq = netdev_get_tx_queue(netdev, i);
+		p += sprintf(p, " %d:%s", i, netif_tx_queue_stopped(txq) ?
+			     "stopped" : "started");
+	}
+	p += sprintf(p, "\n");
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
 				      (unsigned long) p - page);
@@ -451,26 +446,18 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 	if (info.tx_tbl_num) {
 		p += sprintf(p, "Tx BA stream table:\n");
 		for (i = 0; i < info.tx_tbl_num; i++)
-			p += sprintf(p, "tid = %d, "
-				     "ra = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				     info.tx_tbl[i].tid, info.tx_tbl[i].ra[0],
-				     info.tx_tbl[i].ra[1], info.tx_tbl[i].ra[2],
-				     info.tx_tbl[i].ra[3], info.tx_tbl[i].ra[4],
-				     info.tx_tbl[i].ra[5]);
+			p += sprintf(p, "tid = %d, ra = %pM\n",
+				     info.tx_tbl[i].tid, info.tx_tbl[i].ra);
 	}
 
 	if (info.rx_tbl_num) {
 		p += sprintf(p, "Rx reorder table:\n");
 		for (i = 0; i < info.rx_tbl_num; i++) {
-
-			p += sprintf(p, "tid = %d, "
-				     "ta = %02x:%02x:%02x:%02x:%02x:%02x, "
+			p += sprintf(p, "tid = %d, ta = %pM, "
 				     "start_win = %d, "
 				     "win_size = %d, buffer: ",
 				     info.rx_tbl[i].tid,
-				     info.rx_tbl[i].ta[0], info.rx_tbl[i].ta[1],
-				     info.rx_tbl[i].ta[2], info.rx_tbl[i].ta[3],
-				     info.rx_tbl[i].ta[4], info.rx_tbl[i].ta[5],
+				     info.rx_tbl[i].ta,
 				     info.rx_tbl[i].start_win,
 				     info.rx_tbl[i].win_size);
 
@@ -693,19 +680,19 @@ done:
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_READ_OPS(name)                                 \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_WRITE_OPS(name)                                \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 

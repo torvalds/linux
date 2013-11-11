@@ -82,7 +82,7 @@ void
 ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 {
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	struct nf_conntrack_tuple new_tuple;
 
 	if (ct == NULL || nf_ct_is_confirmed(ct) || nf_ct_is_untracked(ct) ||
@@ -127,7 +127,7 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 	nf_conntrack_alter_reply(ct, &new_tuple);
 }
 
-int ip_vs_confirm_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp)
+int ip_vs_confirm_conntrack(struct sk_buff *skb)
 {
 	return nf_conntrack_confirm(skb);
 }

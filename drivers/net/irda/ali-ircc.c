@@ -31,6 +31,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/rtnetlink.h>
 #include <linux/serial_reg.h>
 #include <linux/dma-mapping.h>
@@ -351,21 +352,19 @@ static int ali_ircc_open(int i, chipio_t *info)
 	/* Allocate memory if needed */
 	self->rx_buff.head =
 		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
+				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
-	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
 	
 	self->tx_buff.head =
 		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
+				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;
 	}
-	memset(self->tx_buff.head, 0, self->tx_buff.truesize);
 
 	self->rx_buff.in_frame = FALSE;
 	self->rx_buff.state = OUTSIDE_FRAME;
@@ -992,7 +991,7 @@ static void ali_ircc_change_speed(struct ali_ircc_cb *self, __u32 baud)
 		/* Enable Interuupt */
 		self->ier = IER_EOM; // benjamin 2000/11/20 07:24PM					
 				
-		/* Be ready for incomming frames */
+		/* Be ready for incoming frames */
 		ali_ircc_dma_receive(self);	// benajmin 2000/11/8 07:46PM not complete
 	}	
 	/* Go to SIR Speed */
@@ -1016,7 +1015,7 @@ static void ali_ircc_fir_change_speed(struct ali_ircc_cb *priv, __u32 baud)
 {
 		
 	int iobase; 
-	struct ali_ircc_cb *self = (struct ali_ircc_cb *) priv;
+	struct ali_ircc_cb *self = priv;
 	struct net_device *dev;
 
 	IRDA_DEBUG(1, "%s(), ---------------- Start ----------------\n", __func__ );
@@ -1051,7 +1050,7 @@ static void ali_ircc_fir_change_speed(struct ali_ircc_cb *priv, __u32 baud)
  */
 static void ali_ircc_sir_change_speed(struct ali_ircc_cb *priv, __u32 speed)
 {
-	struct ali_ircc_cb *self = (struct ali_ircc_cb *) priv;
+	struct ali_ircc_cb *self = priv;
 	unsigned long flags;
 	int iobase; 
 	int fcr;    /* FIFO control reg */
@@ -1120,7 +1119,7 @@ static void ali_ircc_sir_change_speed(struct ali_ircc_cb *priv, __u32 speed)
 static void ali_ircc_change_dongle_speed(struct ali_ircc_cb *priv, int speed)
 {
 	
-	struct ali_ircc_cb *self = (struct ali_ircc_cb *) priv;
+	struct ali_ircc_cb *self = priv;
 	int iobase,dongle_id;
 	int tmp = 0;
 			
@@ -1367,7 +1366,7 @@ static int ali_ircc_net_open(struct net_device *dev)
 		IRDA_WARNING("%s, unable to allocate dma=%d\n",
 			     ALI_IRCC_DRIVER_NAME,
 			     self->io.dma);
-		free_irq(self->io.irq, self);
+		free_irq(self->io.irq, dev);
 		return -EAGAIN;
 	}
 	

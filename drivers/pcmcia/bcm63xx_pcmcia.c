@@ -323,7 +323,7 @@ static struct pccard_operations bcm63xx_pcmcia_operations = {
 /*
  * register pcmcia socket to core
  */
-static int __devinit bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
+static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 {
 	struct bcm63xx_pcmcia_socket *skt;
 	struct pcmcia_socket *sock;
@@ -436,7 +436,7 @@ err:
 	return ret;
 }
 
-static int __devexit bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
+static int bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_pcmcia_socket *skt;
 	struct resource *res;
@@ -453,7 +453,7 @@ static int __devexit bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
 
 struct platform_driver bcm63xx_pcmcia_driver = {
 	.probe	= bcm63xx_drv_pcmcia_probe,
-	.remove	= __devexit_p(bcm63xx_drv_pcmcia_remove),
+	.remove	= bcm63xx_drv_pcmcia_remove,
 	.driver	= {
 		.name	= "bcm63xx_pcmcia",
 		.owner  = THIS_MODULE,
@@ -461,7 +461,7 @@ struct platform_driver bcm63xx_pcmcia_driver = {
 };
 
 #ifdef CONFIG_CARDBUS
-static int __devinit bcm63xx_cb_probe(struct pci_dev *dev,
+static int bcm63xx_cb_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	/* keep pci device */
@@ -469,13 +469,13 @@ static int __devinit bcm63xx_cb_probe(struct pci_dev *dev,
 	return platform_driver_register(&bcm63xx_pcmcia_driver);
 }
 
-static void __devexit bcm63xx_cb_exit(struct pci_dev *dev)
+static void bcm63xx_cb_exit(struct pci_dev *dev)
 {
 	platform_driver_unregister(&bcm63xx_pcmcia_driver);
 	bcm63xx_cb_dev = NULL;
 }
 
-static struct pci_device_id bcm63xx_cb_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(bcm63xx_cb_table) = {
 	{
 		.vendor		= PCI_VENDOR_ID_BROADCOM,
 		.device		= BCM6348_CPU_ID,
@@ -503,7 +503,7 @@ static struct pci_driver bcm63xx_cardbus_driver = {
 	.name		= "bcm63xx_cardbus",
 	.id_table	= bcm63xx_cb_table,
 	.probe		= bcm63xx_cb_probe,
-	.remove		= __devexit_p(bcm63xx_cb_exit),
+	.remove		= bcm63xx_cb_exit,
 };
 #endif
 

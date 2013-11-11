@@ -65,7 +65,11 @@ extern struct processor {
 	 * Set a possibly extended PTE.  Non-extended PTEs should
 	 * ignore 'ext'.
 	 */
+#ifdef CONFIG_ARM_LPAE
+	void (*set_pte_ext)(pte_t *ptep, pte_t pte);
+#else
 	void (*set_pte_ext)(pte_t *ptep, pte_t pte, unsigned int ext);
+#endif
 
 	/* Suspend/resume */
 	unsigned int suspend_size;
@@ -79,16 +83,28 @@ extern void cpu_proc_fin(void);
 extern int cpu_do_idle(void);
 extern void cpu_dcache_clean_area(void *, int);
 extern void cpu_do_switch_mm(unsigned long pgd_phys, struct mm_struct *mm);
-extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext);
-extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
+#ifdef CONFIG_ARM_LPAE
+extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte);
 #else
-#define cpu_proc_init()			processor._proc_init()
-#define cpu_proc_fin()			processor._proc_fin()
-#define cpu_reset(addr)			processor.reset(addr)
-#define cpu_do_idle()			processor._do_idle()
-#define cpu_dcache_clean_area(addr,sz)	processor.dcache_clean_area(addr,sz)
-#define cpu_set_pte_ext(ptep,pte,ext)	processor.set_pte_ext(ptep,pte,ext)
-#define cpu_do_switch_mm(pgd,mm)	processor.switch_mm(pgd,mm)
+extern void cpu_set_pte_ext(pte_t *ptep, pte_t pte, unsigned int ext);
+#endif
+extern void cpu_reset(unsigned long addr) __attribute__((noreturn));
+
+/* These three are private to arch/arm/kernel/suspend.c */
+extern void cpu_do_suspend(void *);
+extern void cpu_do_resume(void *);
+#else
+#define cpu_proc_init			processor._proc_init
+#define cpu_proc_fin			processor._proc_fin
+#define cpu_reset			processor.reset
+#define cpu_do_idle			processor._do_idle
+#define cpu_dcache_clean_area		processor.dcache_clean_area
+#define cpu_set_pte_ext			processor.set_pte_ext
+#define cpu_do_switch_mm		processor.switch_mm
+
+/* These three are private to arch/arm/kernel/suspend.c */
+#define cpu_do_suspend			processor.do_suspend
+#define cpu_do_resume			processor.do_resume
 #endif
 
 extern void cpu_resume(void);
@@ -99,6 +115,18 @@ extern void cpu_resume(void);
 
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
 
+#ifdef CONFIG_ARM_LPAE
+#define cpu_get_pgd()	\
+	({						\
+		unsigned long pg, pg2;			\
+		__asm__("mrrc	p15, 0, %0, %1, c2"	\
+			: "=r" (pg), "=r" (pg2)		\
+			:				\
+			: "cc");			\
+		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
+		(pgd_t *)phys_to_virt(pg);		\
+	})
+#else
 #define cpu_get_pgd()	\
 	({						\
 		unsigned long pg;			\
@@ -107,6 +135,7 @@ extern void cpu_resume(void);
 		pg &= ~0x3fff;				\
 		(pgd_t *)phys_to_virt(pg);		\
 	})
+#endif
 
 #endif
 

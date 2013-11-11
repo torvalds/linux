@@ -69,6 +69,7 @@ struct max8925_rtc_info {
 	struct max8925_chip	*chip;
 	struct i2c_client	*rtc;
 	struct device		*dev;
+	int			irq;
 };
 
 static irqreturn_t rtc_update_handler(int irq, void *data)
@@ -193,10 +194,17 @@ static int max8925_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ret = max8925_reg_read(info->rtc, MAX8925_RTC_IRQ_MASK);
 	if (ret < 0)
 		goto out;
-	if ((ret & ALARM0_IRQ) == 0)
-		alrm->enabled = 1;
-	else
+	if (ret & ALARM0_IRQ) {
 		alrm->enabled = 0;
+	} else {
+		ret = max8925_reg_read(info->rtc, MAX8925_ALARM0_CNTL);
+		if (ret < 0)
+			goto out;
+		if (!ret)
+			alrm->enabled = 0;
+		else
+			alrm->enabled = 1;
+	}
 	ret = max8925_reg_read(info->rtc, MAX8925_RTC_STATUS);
 	if (ret < 0)
 		goto out;
@@ -204,6 +212,7 @@ static int max8925_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		alrm->pending = 1;
 	else
 		alrm->pending = 0;
+	return 0;
 out:
 	return ret;
 }
@@ -220,8 +229,11 @@ static int max8925_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ret = max8925_bulk_write(info->rtc, MAX8925_ALARM0_SEC, TIME_NUM, buf);
 	if (ret < 0)
 		goto out;
-	/* only enable alarm on year/month/day/hour/min/sec */
-	ret = max8925_reg_write(info->rtc, MAX8925_ALARM0_CNTL, 0x77);
+	if (alrm->enabled)
+		/* only enable alarm on year/month/day/hour/min/sec */
+		ret = max8925_reg_write(info->rtc, MAX8925_ALARM0_CNTL, 0x77);
+	else
+		ret = max8925_reg_write(info->rtc, MAX8925_ALARM0_CNTL, 0x0);
 	if (ret < 0)
 		goto out;
 out:
@@ -235,81 +247,89 @@ static const struct rtc_class_ops max8925_rtc_ops = {
 	.set_alarm	= max8925_rtc_set_alarm,
 };
 
-static int __devinit max8925_rtc_probe(struct platform_device *pdev)
+static int max8925_rtc_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_rtc_info *info;
-	int irq, ret;
+	int ret;
 
-	info = kzalloc(sizeof(struct max8925_rtc_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_rtc_info),
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	info->chip = chip;
 	info->rtc = chip->rtc;
 	info->dev = &pdev->dev;
-	irq = chip->irq_base + MAX8925_IRQ_RTC_ALARM0;
+	info->irq = platform_get_irq(pdev, 0);
 
-	ret = request_threaded_irq(irq, NULL, rtc_update_handler,
-				   IRQF_ONESHOT, "rtc-alarm0", info);
+	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
+					rtc_update_handler, IRQF_ONESHOT,
+					"rtc-alarm0", info);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to request IRQ: #%d: %d\n",
-			irq, ret);
-		goto out_irq;
+			info->irq, ret);
+		goto err;
 	}
 
 	dev_set_drvdata(&pdev->dev, info);
 	/* XXX - isn't this redundant? */
 	platform_set_drvdata(pdev, info);
 
-	info->rtc_dev = rtc_device_register("max8925-rtc", &pdev->dev,
+	device_init_wakeup(&pdev->dev, 1);
+
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8925-rtc",
 					&max8925_rtc_ops, THIS_MODULE);
 	ret = PTR_ERR(info->rtc_dev);
 	if (IS_ERR(info->rtc_dev)) {
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
-		goto out_rtc;
+		goto err;
 	}
 
 	return 0;
-out_rtc:
+err:
 	platform_set_drvdata(pdev, NULL);
-	free_irq(chip->irq_base + MAX8925_IRQ_RTC_ALARM0, info);
-out_irq:
-	kfree(info);
 	return ret;
 }
 
-static int __devexit max8925_rtc_remove(struct platform_device *pdev)
+static int max8925_rtc_remove(struct platform_device *pdev)
 {
-	struct max8925_rtc_info *info = platform_get_drvdata(pdev);
-
-	if (info) {
-		free_irq(info->chip->irq_base + MAX8925_IRQ_RTC_ALARM0, info);
-		rtc_device_unregister(info->rtc_dev);
-		kfree(info);
-	}
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int max8925_rtc_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
+
+	if (device_may_wakeup(dev))
+		chip->wakeup_flag |= 1 << MAX8925_IRQ_RTC_ALARM0;
+	return 0;
+}
+static int max8925_rtc_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
+
+	if (device_may_wakeup(dev))
+		chip->wakeup_flag &= ~(1 << MAX8925_IRQ_RTC_ALARM0);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(max8925_rtc_pm_ops, max8925_rtc_suspend, max8925_rtc_resume);
 
 static struct platform_driver max8925_rtc_driver = {
 	.driver		= {
 		.name	= "max8925-rtc",
 		.owner	= THIS_MODULE,
+		.pm     = &max8925_rtc_pm_ops,
 	},
 	.probe		= max8925_rtc_probe,
-	.remove		= __devexit_p(max8925_rtc_remove),
+	.remove		= max8925_rtc_remove,
 };
 
-static int __init max8925_rtc_init(void)
-{
-	return platform_driver_register(&max8925_rtc_driver);
-}
-module_init(max8925_rtc_init);
-
-static void __exit max8925_rtc_exit(void)
-{
-	platform_driver_unregister(&max8925_rtc_driver);
-}
-module_exit(max8925_rtc_exit);
+module_platform_driver(max8925_rtc_driver);
 
 MODULE_DESCRIPTION("Maxim MAX8925 RTC driver");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

@@ -1,0 +1,45 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-98dx4122.dtsi"
+
+/ {
+	model = "Keymile Kirkwood Reference Design";
+	compatible = "keymile,km_kirkwood", "marvell,kirkwood-98DX4122", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand &pmx_i2c_gpio_sda
+				&pmx_i2c_gpio_scl >;
+			pinctrl-names = "default";
+
+			pmx_i2c_gpio_sda: pmx-gpio-sda {
+				marvell,pins = "mpp8";
+				marvell,function = "gpio";
+			};
+			pmx_i2c_gpio_scl: pmx-gpio-scl {
+				marvell,pins = "mpp9";
+				marvell,function = "gpio";
+			};
+		};
+
+		serial@12000 {
+			status = "ok";
+		};
+
+		nand@3000000 {
+			status = "ok";
+			chip-delay = <25>;
+		};
+	};
+};

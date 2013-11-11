@@ -2,147 +2,160 @@
  * Copyright (C) ST-Ericsson SA 2010
  *
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
+ * Author: Lee Jones <lee.jones@linaro.org> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/clk.h>
-#include <linux/mfd/db8500-prcmu.h>
-#include <linux/mfd/db5500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
+#include <linux/clksrc-dbx500-prcmu.h>
+#include <linux/sys_soc.h>
+#include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
+#include <linux/platform_data/clk-ux500.h>
+#include <linux/platform_data/arm-ux500-pm.h>
 
-#include <asm/cacheflush.h>
-#include <asm/hardware/cache-l2x0.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
-#include <asm/localtimer.h>
 
-#include <plat/mtu.h>
-#include <mach/hardware.h>
-#include <mach/setup.h>
-#include <mach/devices.h>
+#include "setup.h"
+#include "devices.h"
 
-#include "clock.h"
+#include "board-mop500.h"
+#include "db8500-regs.h"
+#include "id.h"
 
-void __iomem *_PRCMU_BASE;
-
-#ifdef CONFIG_CACHE_L2X0
-static void __iomem *l2x0_base;
-#endif
-
+/*
+ * FIXME: Should we set up the GPIO domain here?
+ *
+ * The problem is that we cannot put the interrupt resources into the platform
+ * device until the irqdomain has been added. Right now, we set the GIC interrupt
+ * domain from init_irq(), then load the gpio driver from
+ * core_initcall(nmk_gpio_init) and add the platform devices from
+ * arch_initcall(customize_machine).
+ *
+ * This feels fragile because it depends on the gpio device getting probed
+ * _before_ any device uses the gpio interrupts.
+*/
 void __init ux500_init_irq(void)
 {
 	void __iomem *dist_base;
 	void __iomem *cpu_base;
 
-	if (cpu_is_u5500()) {
-		dist_base = __io_address(U5500_GIC_DIST_BASE);
-		cpu_base = __io_address(U5500_GIC_CPU_BASE);
-	} else if (cpu_is_u8500()) {
+	gic_arch_extn.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
+
+	if (cpu_is_u8500_family() || cpu_is_ux540_family()) {
 		dist_base = __io_address(U8500_GIC_DIST_BASE);
 		cpu_base = __io_address(U8500_GIC_CPU_BASE);
 	} else
 		ux500_unknown_soc();
 
-	gic_init(0, 29, dist_base, cpu_base);
+#ifdef CONFIG_OF
+	if (of_have_populated_dt())
+		irqchip_init();
+	else
+#endif
+		gic_init(0, 29, dist_base, cpu_base);
 
 	/*
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	if (cpu_is_u5500())
-		db5500_prcmu_early_init();
-	if (cpu_is_u8500())
-		prcmu_early_init();
-	clk_init();
+	if (cpu_is_u8500_family()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		u8500_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
+			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
+			       U8500_CLKRST6_BASE);
+	} else if (cpu_is_u9540()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K - 1);
+		u8500_clk_init(U8500_CLKRST1_BASE, U8500_CLKRST2_BASE,
+			       U8500_CLKRST3_BASE, U8500_CLKRST5_BASE,
+			       U8500_CLKRST6_BASE);
+	} else if (cpu_is_u8540()) {
+		prcmu_early_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
+		ux500_pm_init(U8500_PRCMU_BASE, SZ_8K + SZ_4K - 1);
+		u8540_clk_init();
+	}
 }
 
-#ifdef CONFIG_CACHE_L2X0
-static inline void ux500_cache_wait(void __iomem *reg, unsigned long mask)
+void __init ux500_init_late(void)
 {
-	/* wait for the operation to complete */
-	while (readl_relaxed(reg) & mask)
-		;
+	mop500_uib_init();
 }
 
-static inline void ux500_cache_sync(void)
+static const char * __init ux500_get_machine(void)
 {
-	void __iomem *base = l2x0_base;
-
-	writel_relaxed(0, base + L2X0_CACHE_SYNC);
-	ux500_cache_wait(base + L2X0_CACHE_SYNC, 1);
+	return kasprintf(GFP_KERNEL, "DB%4x", dbx500_partnumber());
 }
 
-/*
- * The L2 cache cannot be turned off in the non-secure world.
- * Dummy until a secure service is in place.
- */
-static void ux500_l2x0_disable(void)
+static const char * __init ux500_get_family(void)
 {
+	return kasprintf(GFP_KERNEL, "ux500");
 }
 
-/*
- * This is only called when doing a kexec, just after turning off the L2
- * and L1 cache, and it is surrounded by a spinlock in the generic version.
- * However, we're not really turning off the L2 cache right now and the
- * PL310 does not support exclusive accesses (used to implement the spinlock).
- * So, the invalidation needs to be done without the spinlock.
- */
-static void ux500_l2x0_inv_all(void)
+static const char * __init ux500_get_revision(void)
 {
-	void __iomem *base = l2x0_base;
-	uint32_t l2x0_way_mask = (1<<16) - 1;	/* Bitmask of active ways */
+	unsigned int rev = dbx500_revision();
 
-	/* invalidate all ways */
-	writel_relaxed(l2x0_way_mask, base + L2X0_INV_WAY);
-	ux500_cache_wait(base + L2X0_INV_WAY, l2x0_way_mask);
-	ux500_cache_sync();
+	if (rev == 0x01)
+		return kasprintf(GFP_KERNEL, "%s", "ED");
+	else if (rev >= 0xA0)
+		return kasprintf(GFP_KERNEL, "%d.%d",
+				 (rev >> 4) - 0xA + 1, rev & 0xf);
+
+	return kasprintf(GFP_KERNEL, "%s", "Unknown");
 }
 
-static int ux500_l2x0_init(void)
+static ssize_t ux500_get_process(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
-	if (cpu_is_u5500())
-		l2x0_base = __io_address(U5500_L2CC_BASE);
-	else if (cpu_is_u8500())
-		l2x0_base = __io_address(U8500_L2CC_BASE);
-	else
-		ux500_unknown_soc();
+	if (dbx500_id.process == 0x00)
+		return sprintf(buf, "Standard\n");
 
-	/* 64KB way size, 8 way associativity, force WA */
-	l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
-
-	/* Override invalidate function */
-	outer_cache.disable = ux500_l2x0_disable;
-	outer_cache.inv_all = ux500_l2x0_inv_all;
-
-	return 0;
+	return sprintf(buf, "%02xnm\n", dbx500_id.process);
 }
-early_initcall(ux500_l2x0_init);
-#endif
 
-static void __init ux500_timer_init(void)
+static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
+				     const char *soc_id)
 {
-#ifdef CONFIG_LOCAL_TIMERS
-	/* Setup the local timer base */
-	if (cpu_is_u5500())
-		twd_base = __io_address(U5500_TWD_BASE);
-	else if (cpu_is_u8500())
-		twd_base = __io_address(U8500_TWD_BASE);
-	else
-		ux500_unknown_soc();
-#endif
-	if (cpu_is_u5500())
-		mtu_base = __io_address(U5500_MTU0_BASE);
-	else if (cpu_is_u8500ed())
-		mtu_base = __io_address(U8500_MTU0_BASE_ED);
-	else if (cpu_is_u8500())
-		mtu_base = __io_address(U8500_MTU0_BASE);
-	else
-		ux500_unknown_soc();
-
-	nmdk_timer_init();
+	soc_dev_attr->soc_id   = soc_id;
+	soc_dev_attr->machine  = ux500_get_machine();
+	soc_dev_attr->family   = ux500_get_family();
+	soc_dev_attr->revision = ux500_get_revision();
 }
 
-struct sys_timer ux500_timer = {
-	.init	= ux500_timer_init,
-};
+struct device_attribute ux500_soc_attr =
+	__ATTR(process,  S_IRUGO, ux500_get_process,  NULL);
+
+struct device * __init ux500_soc_device_init(const char *soc_id)
+{
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return ERR_PTR(-ENOMEM);
+
+	soc_info_populate(soc_dev_attr, soc_id);
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+	        kfree(soc_dev_attr);
+		return NULL;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+	device_create_file(parent, &ux500_soc_attr);
+
+	return parent;
+}

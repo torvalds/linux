@@ -226,7 +226,7 @@ static int bf5xx_tdm_resume(struct snd_soc_dai *dai)
 #define bf5xx_tdm_resume       NULL
 #endif
 
-static struct snd_soc_dai_ops bf5xx_tdm_dai_ops = {
+static const struct snd_soc_dai_ops bf5xx_tdm_dai_ops = {
 	.hw_params      = bf5xx_tdm_hw_params,
 	.set_fmt        = bf5xx_tdm_set_dai_fmt,
 	.shutdown       = bf5xx_tdm_shutdown,
@@ -249,7 +249,11 @@ static struct snd_soc_dai_driver bf5xx_tdm_dai = {
 	.ops = &bf5xx_tdm_dai_ops,
 };
 
-static int __devinit bfin_tdm_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver bf5xx_tdm_component = {
+	.name		= "bf5xx-tdm",
+};
+
+static int bfin_tdm_probe(struct platform_device *pdev)
 {
 	struct sport_device *sport_handle;
 	int ret;
@@ -282,7 +286,8 @@ static int __devinit bfin_tdm_probe(struct platform_device *pdev)
 		goto sport_config_err;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &bf5xx_tdm_dai);
+	ret = snd_soc_register_component(&pdev->dev, &bf5xx_tdm_component,
+					 &bf5xx_tdm_dai, 1);
 	if (ret) {
 		pr_err("Failed to register DAI: %d\n", ret);
 		goto sport_config_err;
@@ -295,11 +300,11 @@ sport_config_err:
 	return ret;
 }
 
-static int __devexit bfin_tdm_remove(struct platform_device *pdev)
+static int bfin_tdm_remove(struct platform_device *pdev)
 {
 	struct sport_device *sport_handle = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	sport_done(sport_handle);
 
 	return 0;
@@ -307,24 +312,14 @@ static int __devexit bfin_tdm_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_tdm_driver = {
 	.probe  = bfin_tdm_probe,
-	.remove = __devexit_p(bfin_tdm_remove),
+	.remove = bfin_tdm_remove,
 	.driver = {
 		.name   = "bfin-tdm",
 		.owner  = THIS_MODULE,
 	},
 };
 
-static int __init bfin_tdm_init(void)
-{
-	return platform_driver_register(&bfin_tdm_driver);
-}
-module_init(bfin_tdm_init);
-
-static void __exit bfin_tdm_exit(void)
-{
-	platform_driver_unregister(&bfin_tdm_driver);
-}
-module_exit(bfin_tdm_exit);
+module_platform_driver(bfin_tdm_driver);
 
 /* Module information */
 MODULE_AUTHOR("Barry Song");

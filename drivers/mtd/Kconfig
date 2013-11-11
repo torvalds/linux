@@ -1,6 +1,6 @@
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
-	depends on HAS_IOMEM
+	depends on GENERIC_IO
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option
@@ -12,26 +12,16 @@ menuconfig MTD
 
 if MTD
 
-config MTD_DEBUG
-	bool "Debugging"
-	help
-	  This turns on low-level debugging for the entire MTD sub-system.
-	  Normally, you should say 'N'.
-
-config MTD_DEBUG_VERBOSE
-	int "Debugging verbosity (0 = quiet, 3 = noisy)"
-	depends on MTD_DEBUG
-	default "0"
-	help
-	  Determines the verbosity level of the MTD debugging messages.
-
 config MTD_TESTS
-	tristate "MTD tests support"
+	tristate "MTD tests support (DANGEROUS)"
 	depends on m
 	help
 	  This option includes various MTD tests into compilation. The tests
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
+
+	  WARNING: some of the tests will ERASE entire MTD device which they
+	  test. Do not use these tests unless you really know what you do.
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
@@ -84,8 +74,8 @@ config MTD_REDBOOT_PARTS_READONLY
 endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
-	bool "Command line partition table parsing"
-	depends on MTD = "y"
+	tristate "Command line partition table parsing"
+	depends on MTD
 	---help---
 	  Allow generic configuration of the MTD partition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
@@ -137,32 +127,35 @@ config MTD_AFS_PARTS
 	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
 config MTD_OF_PARTS
-	def_bool y
+	tristate "OpenFirmware partitioning information support"
+	default y
 	depends on OF
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
-	  as described in Documentation/powerpc/booting-without-of.txt.
+	  as described in Documentation/devicetree/booting-without-of.txt.
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
 	---help---
 	  TI AR7 partitioning support
 
+config MTD_BCM63XX_PARTS
+	tristate "BCM63XX CFE partitioning support"
+	depends on BCM63XX
+	select CRC32
+	help
+	  This provides partions parsing for BCM63xx devices with CFE
+	  bootloaders.
+
+config MTD_BCM47XX_PARTS
+	tristate "BCM47XX partitioning support"
+	depends on BCM47XX
+	help
+	  This provides partitions parser for devices based on BCM47xx
+	  boards.
+
 comment "User Modules And Translation Layers"
-
-config MTD_CHAR
-	tristate "Direct char device access to MTD devices"
-	help
-	  This provides a character device for each MTD device present in
-	  the system, allowing the user to read and write directly to the
-	  memory chips, and also use ioctl() to obtain information about
-	  the device, or to erase parts of it.
-
-config HAVE_MTD_OTP
-	bool
-	help
-	  Enable access to OTP regions using MTD_CHAR.
 
 config MTD_BLKDEVS
 	tristate "Common interface to block layer for MTD 'translation layers'"
@@ -285,7 +278,7 @@ config SSFDC
 
 config SM_FTL
 	tristate "SmartMedia/xD new translation layer"
-	depends on EXPERIMENTAL && BLOCK
+	depends on BLOCK
 	select MTD_BLKDEVS
 	select MTD_NAND_ECC
 	help
@@ -304,9 +297,6 @@ config MTD_OOPS
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in a flash partition where it can be read back at some
 	  later point.
-
-	  To use, add console=ttyMTDx to the kernel command line,
-	  where x is the MTD device number to use.
 
 config MTD_SWAP
 	tristate "Swap on MTD device support"

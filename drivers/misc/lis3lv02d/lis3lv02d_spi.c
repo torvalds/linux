@@ -17,6 +17,9 @@
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
 #include <linux/pm.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
 #include "lis3lv02d.h"
 
@@ -58,7 +61,15 @@ static int lis3_spi_init(struct lis3lv02d *lis3)
 static union axis_conversion lis3lv02d_axis_normal =
 	{ .as_array = { 1, 2, 3 } };
 
-static int __devinit lis302dl_spi_probe(struct spi_device *spi)
+#ifdef CONFIG_OF
+static struct of_device_id lis302dl_spi_dt_ids[] = {
+	{ .compatible = "st,lis302dl-spi" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, lis302dl_spi_dt_ids);
+#endif
+
+static int lis302dl_spi_probe(struct spi_device *spi)
 {
 	int ret;
 
@@ -75,15 +86,24 @@ static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 	lis3_dev.irq		= spi->irq;
 	lis3_dev.ac		= lis3lv02d_axis_normal;
 	lis3_dev.pdata		= spi->dev.platform_data;
+
+#ifdef CONFIG_OF
+	if (of_match_device(lis302dl_spi_dt_ids, &spi->dev)) {
+		lis3_dev.of_node = spi->dev.of_node;
+		ret = lis3lv02d_init_dt(&lis3_dev);
+		if (ret)
+			return ret;
+	}
+#endif
 	spi_set_drvdata(spi, &lis3_dev);
 
 	return lis3lv02d_init_device(&lis3_dev);
 }
 
-static int __devexit lis302dl_spi_remove(struct spi_device *spi)
+static int lis302dl_spi_remove(struct spi_device *spi)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
-	lis3lv02d_joystick_disable();
+	lis3lv02d_joystick_disable(lis3);
 	lis3lv02d_poweroff(lis3);
 
 	return lis3lv02d_remove_fs(&lis3_dev);
@@ -121,23 +141,13 @@ static struct spi_driver lis302dl_spi_driver = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
 		.pm	= &lis3lv02d_spi_pm,
+		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},
 	.probe	= lis302dl_spi_probe,
-	.remove	= __devexit_p(lis302dl_spi_remove),
+	.remove	= lis302dl_spi_remove,
 };
 
-static int __init lis302dl_init(void)
-{
-	return spi_register_driver(&lis302dl_spi_driver);
-}
-
-static void __exit lis302dl_exit(void)
-{
-	spi_unregister_driver(&lis302dl_spi_driver);
-}
-
-module_init(lis302dl_init);
-module_exit(lis302dl_exit);
+module_spi_driver(lis302dl_spi_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("lis3lv02d SPI glue layer");

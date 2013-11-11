@@ -26,7 +26,6 @@
 #include <asm/mac_via.h>
 #endif
 #include <asm/io.h>
-#include <asm/system.h>
 #include <linux/init.h>
 
 static volatile unsigned char __iomem *via;

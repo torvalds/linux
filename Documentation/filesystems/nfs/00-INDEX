@@ -2,6 +2,8 @@
 	- this file (nfs-related documentation).
 Exporting
 	- explanation of how to make filesystems exportable.
+fault_injection.txt
+	- information for using fault injection on the server
 knfsd-stats.txt
 	- statistics which the NFS server makes available to user space.
 nfs.txt
@@ -18,3 +20,5 @@ rpc-cache.txt
 	- introduction to the caching mechanisms in the sunrpc layer.
 idmapper.txt
 	- information for configuring request-keys to be used by idmapper
+knfsd-rpcgss.txt
+	- Information on GSS authentication support in the NFS Server

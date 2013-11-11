@@ -14,6 +14,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <linux/atalk.h>
+#include <linux/export.h>
 
 
 static __inline__ struct atalk_iface *atalk_get_interface_idx(loff_t pos)
@@ -182,7 +183,8 @@ static int atalk_seq_socket_show(struct seq_file *seq, void *v)
 		   ntohs(at->dest_net), at->dest_node, at->dest_port,
 		   sk_wmem_alloc_get(s),
 		   sk_rmem_alloc_get(s),
-		   s->sk_state, SOCK_INODE(s->sk_socket)->i_uid);
+		   s->sk_state,
+		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(s)));
 out:
 	return 0;
 }

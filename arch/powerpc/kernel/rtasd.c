@@ -27,8 +27,9 @@
 #include <asm/rtas.h>
 #include <asm/prom.h>
 #include <asm/nvram.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/machdep.h>
+#include <asm/topology.h>
 
 
 static DEFINE_SPINLOCK(rtasd_log_lock);
@@ -87,6 +88,8 @@ static char *rtas_event_type(int type)
 			return "Resource Deallocation Event";
 		case RTAS_TYPE_DUMP:
 			return "Dump Notification Event";
+		case RTAS_TYPE_PRRN:
+			return "Platform Resource Reassignment Event";
 	}
 
 	return rtas_type[0];
@@ -265,8 +268,50 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 		spin_unlock_irqrestore(&rtasd_log_lock, s);
 		return;
 	}
-
 }
+
+#ifdef CONFIG_PPC_PSERIES
+static s32 prrn_update_scope;
+
+static void prrn_work_fn(struct work_struct *work)
+{
+	/*
+	 * For PRRN, we must pass the negative of the scope value in
+	 * the RTAS event.
+	 */
+	pseries_devicetree_update(-prrn_update_scope);
+}
+
+static DECLARE_WORK(prrn_work, prrn_work_fn);
+
+void prrn_schedule_update(u32 scope)
+{
+	flush_work(&prrn_work);
+	prrn_update_scope = scope;
+	schedule_work(&prrn_work);
+}
+
+static void handle_rtas_event(const struct rtas_error_log *log)
+{
+	if (log->type == RTAS_TYPE_PRRN) {
+		/* For PRRN Events the extended log length is used to denote
+		 * the scope for calling rtas update-nodes.
+		 */
+		if (prrn_is_enabled())
+			prrn_schedule_update(log->extended_log_length);
+	}
+
+	return;
+}
+
+#else
+
+static void handle_rtas_event(const struct rtas_error_log *log)
+{
+	return;
+}
+
+#endif
 
 static int rtas_log_open(struct inode * inode, struct file * file)
 {
@@ -388,8 +433,10 @@ static void do_event_scan(void)
 			break;
 		}
 
-		if (error == 0)
+		if (error == 0) {
 			pSeries_log_error(logdata, ERR_TYPE_RTAS_LOG, 0);
+			handle_rtas_event((struct rtas_error_log *)logdata);
+		}
 
 	} while(error == 0);
 }
@@ -471,6 +518,13 @@ static void start_event_scan(void)
 	schedule_delayed_work_on(cpumask_first(cpu_online_mask),
 				 &event_scan_work, event_scan_delay);
 }
+
+/* Cancel the rtas event scan work */
+void rtas_cancel_event_scan(void)
+{
+	cancel_delayed_work_sync(&event_scan_work);
+}
+EXPORT_SYMBOL_GPL(rtas_cancel_event_scan);
 
 static int __init rtas_init(void)
 {

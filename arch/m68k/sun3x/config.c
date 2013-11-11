@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <linux/init.h>
 
-#include <asm/system.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/sun3xprom.h>
@@ -49,7 +48,7 @@ void __init config_sun3x(void)
 	mach_sched_init      = sun3x_sched_init;
 	mach_init_IRQ        = sun3_init_IRQ;
 
-	mach_gettimeoffset   = sun3x_gettimeoffset;
+	arch_gettimeoffset   = sun3x_gettimeoffset;
 	mach_reset           = sun3x_reboot;
 
 	mach_hwclk           = sun3x_hwclk;

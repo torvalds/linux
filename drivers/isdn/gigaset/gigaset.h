@@ -34,7 +34,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/list.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define GIG_VERSION {0, 5, 0, 0}
 #define GIG_COMPAT  {0, 4, 0, 0}
@@ -91,11 +91,11 @@ enum debuglevel {
 
 #ifdef CONFIG_GIGASET_DEBUG
 
-#define gig_dbg(level, format, arg...) \
-	do { \
+#define gig_dbg(level, format, arg...)					\
+	do {								\
 		if (unlikely(((enum debuglevel)gigaset_debuglevel) & (level))) \
 			printk(KERN_DEBUG KBUILD_MODNAME ": " format "\n", \
-			       ## arg); \
+			       ## arg);					\
 	} while (0)
 #define DEBUG_DEFAULT (DEBUG_TRANSCMD | DEBUG_CMD | DEBUG_USBREQ)
 
@@ -111,11 +111,10 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 
 /* connection state */
 #define ZSAU_NONE			0
-#define ZSAU_DISCONNECT_IND		4
-#define ZSAU_OUTGOING_CALL_PROCEEDING	1
 #define ZSAU_PROCEEDING			1
 #define ZSAU_CALL_DELIVERED		2
 #define ZSAU_ACTIVE			3
+#define ZSAU_DISCONNECT_IND		4
 #define ZSAU_NULL			5
 #define ZSAU_DISCONNECT_REQ		6
 #define ZSAU_UNKNOWN			-1
@@ -163,8 +162,8 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define BAS_LOWFRAME	5	/* "    "    with negative flow control */
 #define BAS_CORRFRAMES	4	/* flow control multiplicator */
 
-#define BAS_INBUFSIZE	(BAS_MAXFRAME * BAS_NUMFRAMES)
-					/* size of isoc in buf per URB */
+#define BAS_INBUFSIZE	(BAS_MAXFRAME * BAS_NUMFRAMES)	/* size of isoc in buf
+							 * per URB */
 #define BAS_OUTBUFSIZE	4096		/* size of common isoc out buffer */
 #define BAS_OUTBUFPAD	BAS_MAXFRAME	/* size of pad area for isoc out buf */
 
@@ -183,18 +182,22 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_NUM		7
 
 /* variables in struct at_state_t */
+/* - numeric */
 #define VAR_ZSAU	0
 #define VAR_ZDLE	1
 #define VAR_ZCTP	2
+/* total number */
 #define VAR_NUM		3
-
+/* - string */
 #define STR_NMBR	0
 #define STR_ZCPN	1
 #define STR_ZCON	2
 #define STR_ZBC		3
 #define STR_ZHLC	4
+/* total number */
 #define STR_NUM		5
 
+/* event types */
 #define EV_TIMEOUT	-105
 #define EV_IF_VER	-106
 #define EV_PROC_CIDMODE	-107
@@ -433,8 +436,7 @@ struct cardstate {
 	spinlock_t cmdlock;
 	unsigned curlen, cmdbytes;
 
-	unsigned open_count;
-	struct tty_struct *tty;
+	struct tty_port port;
 	struct tasklet_struct if_wake_tasklet;
 	unsigned control_state;
 
@@ -472,8 +474,8 @@ struct cardstate {
 					   for */
 	int commands_pending;		/* flag(s) in xxx.commands_pending have
 					   been set */
-	struct tasklet_struct event_tasklet;
-					/* tasklet for serializing AT commands.
+	struct tasklet_struct
+		event_tasklet;		/* tasklet for serializing AT commands.
 					 * Scheduled
 					 *   -> for modem reponses (and
 					 *      incoming data for M10x)
@@ -481,8 +483,8 @@ struct cardstate {
 					 *   -> after setting bits in
 					 *      xxx.at_state.pending_command
 					 *      (e.g. command from LL) */
-	struct tasklet_struct write_tasklet;
-					/* tasklet for serial output
+	struct tasklet_struct
+		write_tasklet;		/* tasklet for serial output
 					 * (not used in base driver) */
 
 	/* event queue */
@@ -491,7 +493,7 @@ struct cardstate {
 	spinlock_t ev_lock;
 
 	/* current modem response */
-	unsigned char respdata[MAX_RESP_SIZE+1];
+	unsigned char respdata[MAX_RESP_SIZE + 1];
 	unsigned cbytes;
 
 	/* private data of hardware drivers */
@@ -584,7 +586,7 @@ struct gigaset_ops {
 	int (*initbcshw)(struct bc_state *bcs);
 
 	/* Called by gigaset_freecs() for freeing bcs->hw.xxx */
-	int (*freebcshw)(struct bc_state *bcs);
+	void (*freebcshw)(struct bc_state *bcs);
 
 	/* Called by gigaset_bchannel_down() for resetting bcs->hw.xxx */
 	void (*reinitbcshw)(struct bc_state *bcs);

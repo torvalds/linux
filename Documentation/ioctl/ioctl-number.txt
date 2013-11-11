@@ -88,6 +88,7 @@ Code  Seq#(hex)	Include File		Comments
 		and kernel/power/user.c
 '8'	all				SNP8023 advanced NIC card
 					<mailto:mcr@solidum.com>
+';'	64-7F	linux/vfio.h
 '@'	00-0F	linux/radeonfb.h	conflict!
 '@'	00-0F	drivers/video/aty/aty128fb.c	conflict!
 'A'	00-1F	linux/apm_bios.h	conflict!
@@ -120,6 +121,7 @@ Code  Seq#(hex)	Include File		Comments
 'G'	00-0F	linux/gigaset_dev.h	conflict!
 'H'	00-7F	linux/hiddev.h		conflict!
 'H'	00-0F	linux/hidraw.h		conflict!
+'H'	01	linux/mei.h		conflict!
 'H'	00-0F	sound/asound.h		conflict!
 'H'	20-40	sound/asound_fm.h	conflict!
 'H'	80-8F	sound/sfnt_info.h	conflict!
@@ -129,6 +131,7 @@ Code  Seq#(hex)	Include File		Comments
 'H'	40-4F	sound/hdspm.h		conflict!
 'H'	40-4F	sound/hdsp.h		conflict!
 'H'	90	sound/usb/usx2y/usb_stream.h
+'H'	A0	uapi/linux/usb/cdc-wdm.h
 'H'	C0-F0	net/bluetooth/hci.h	conflict!
 'H'	C0-DF	net/bluetooth/hidp/hidp.h	conflict!
 'H'	C0-DF	net/bluetooth/cmtp/cmtp.h	conflict!
@@ -149,6 +152,7 @@ Code  Seq#(hex)	Include File		Comments
 'M'	01-03	drivers/scsi/megaraid/megaraid_sas.h
 'M'	00-0F	drivers/video/fsl-diu-fb.h	conflict!
 'N'	00-1F	drivers/usb/scanner.h
+'N'	40-7F	drivers/block/nvme.c
 'O'     00-06   mtd/ubi-user.h		UBI
 'P'	all	linux/soundcard.h	conflict!
 'P'	60-6F	sound/sscape_ioctl.h	conflict!
@@ -175,9 +179,8 @@ Code  Seq#(hex)	Include File		Comments
 'V'	C0	linux/ivtv.h		conflict!
 'V'	C0	media/davinci/vpfe_capture.h	conflict!
 'V'	C0	media/si4713.h		conflict!
-'V'	C0-CF	drivers/media/video/mxb.h	conflict!
 'W'	00-1F	linux/watchdog.h	conflict!
-'W'	00-1F	linux/wanrouter.h	conflict!
+'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h
@@ -188,7 +191,7 @@ Code  Seq#(hex)	Include File		Comments
 'Y'	all	linux/cyclades.h
 'Z'	14-15	drivers/message/fusion/mptctl.h
 '['	00-07	linux/usb/tmc.h		USB Test and Measurement Devices
-					<mailto:gregkh@suse.de>
+					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
 'b'	00-FF				conflict! bit3 vme host bridge
@@ -201,8 +204,6 @@ Code  Seq#(hex)	Include File		Comments
 'c'	A0-AF   arch/x86/include/asm/msr.h	conflict!
 'd'	00-FF	linux/char/drm/drm/h	conflict!
 'd'	02-40	pcmcia/ds.h		conflict!
-'d'	10-3F	drivers/media/video/dabusb.h	conflict!
-'d'	C0-CF	drivers/media/video/saa7191.h	conflict!
 'd'	F0-FF	linux/digi1.h
 'e'	all	linux/digi1.h		conflict!
 'e'	00-1F	drivers/net/irda/irtty-sir.h	conflict!
@@ -217,12 +218,14 @@ Code  Seq#(hex)	Include File		Comments
 'h'	00-7F				conflict! Charon filesystem
 					<mailto:zapman@interlan.net>
 'h'	00-1F	linux/hpet.h		conflict!
+'h'	80-8F	fs/hfsplus/ioctl.c
 'i'	00-3F	linux/i2o-dev.h		conflict!
 'i'	0B-1F	linux/ipmi.h		conflict!
 'i'	80-8F	linux/i8k.h
 'j'	00-3F	linux/joystick.h
 'k'	00-0F	linux/spi/spidev.h	conflict!
 'k'	00-05	video/kyro.h		conflict!
+'k'	10-17	linux/hsi/hsi_char.h	HSI character device
 'l'	00-3F	linux/tcfs_fs.h		transparent cryptographic file system
 					<http://web.archive.org/web/*/http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:
@@ -254,7 +257,7 @@ Code  Seq#(hex)	Include File		Comments
 		linux/ixjuser.h		<http://web.archive.org/web/*/http://www.quicknet.net>
 'r'	00-1F	linux/msdos_fs.h and fs/fat/dir.c
 's'	all	linux/cdk.h
-'t'	00-7F	linux/if_ppp.h
+'t'	00-7F	linux/ppp-ioctl.h
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
 'u'	00-1F	linux/smb_fs.h		gone
@@ -262,9 +265,7 @@ Code  Seq#(hex)	Include File		Comments
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
-'v'	C0-DF	media/pwc-ioctl.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
-'v'	D0-DF	drivers/media/video/cpia2/cpia2dev.h	conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
 					<mailto:zapman@interlan.net>
@@ -292,6 +293,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:buk@buks.ipn.de>
 0xA0	all	linux/sdp/sdp.h		Industrial Device Project
 					<mailto:kenji@bitgate.com>
+0xA2	00-0F	arch/tile/include/asm/hardwall.h
 0xA3	80-8F	Port ACL		in development:
 					<mailto:tlewis@mindspring.com>
 0xA3	90-9F	linux/dtlk.h
@@ -301,6 +303,7 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:rusty@rustcorp.com.au>
 0xAE	all	linux/kvm.h		Kernel-based Virtual Machine
 					<mailto:kvm@vger.kernel.org>
+0xAF	00-1F	linux/fsl_hypervisor.h	Freescale hypervisor
 0xB0	all	RATIO devices		in development:
 					<mailto:vgo@ratio.de>
 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
@@ -317,4 +320,6 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:thomas@winischhofer.net>
 0xF4	00-1F	video/mbxfb.h		mbxfb
 					<mailto:raph@8d.com>
+0xF6	all	LTTng			Linux Trace Toolkit Next Generation
+					<mailto:mathieu.desnoyers@efficios.com>
 0xFD	all	linux/dm-ioctl.h

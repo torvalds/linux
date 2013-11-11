@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -35,8 +37,9 @@
 #include <linux/notifier.h>
 #include <asm/cacheflush.h>
 #endif /* CONFIG_HPWDT_NMI_DECODING */
+#include <asm/nmi.h>
 
-#define HPWDT_VERSION			"1.2.0"
+#define HPWDT_VERSION			"1.3.1"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -44,7 +47,7 @@
 
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
 static unsigned int reload;			/* the computed soft_margin */
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static char expect_release;
 static unsigned long hpwdt_is_open;
 
@@ -86,6 +89,19 @@ struct smbios_cru64_info {
 	u32 double_offset;
 };
 #define SMBIOS_CRU64_INFORMATION	212
+
+/* type 219 */
+struct smbios_proliant_info {
+	u8 type;
+	u8 byte_length;
+	u16 handle;
+	u32 power_features;
+	u32 omega_features;
+	u32 reserved;
+	u32 misc_features;
+};
+#define SMBIOS_ICRU_INFORMATION		219
+
 
 struct cmn_registers {
 	union {
@@ -130,8 +146,8 @@ struct cmn_registers {
 }  __attribute__((packed));
 
 static unsigned int hpwdt_nmi_decoding;
-static unsigned int allow_kdump;
-static unsigned int priority;		/* hpwdt at end of die_notify list */
+static unsigned int allow_kdump = 1;
+static unsigned int is_icru;
 static DEFINE_SPINLOCK(rom_lock);
 static void *cru_rom_addr;
 static struct cmn_registers cmn_regs;
@@ -196,7 +212,7 @@ asm(".text                          \n\t"
  *	0        :  SUCCESS
  *	<0       :  FAILURE
  */
-static int __devinit cru_detect(unsigned long map_entry,
+static int cru_detect(unsigned long map_entry,
 	unsigned long map_offset)
 {
 	void *bios32_map;
@@ -216,11 +232,11 @@ static int __devinit cru_detect(unsigned long map_entry,
 
 	cmn_regs.u1.reax = CRU_BIOS_SIGNATURE_VALUE;
 
+	set_memory_x((unsigned long)bios32_map, 2);
 	asminline_call(&cmn_regs, bios32_entrypoint);
 
 	if (cmn_regs.u1.ral != 0) {
-		printk(KERN_WARNING
-			"hpwdt: Call succeeded but with an error: 0x%x\n",
+		pr_warn("Call succeeded but with an error: 0x%x\n",
 			cmn_regs.u1.ral);
 	} else {
 		physical_bios_base = cmn_regs.u2.rebx;
@@ -233,18 +249,17 @@ static int __devinit cru_detect(unsigned long map_entry,
 		if ((physical_bios_base + physical_bios_offset)) {
 			cru_rom_addr =
 				ioremap(cru_physical_address, cru_length);
-			if (cru_rom_addr)
+			if (cru_rom_addr) {
+				set_memory_x((unsigned long)cru_rom_addr & PAGE_MASK,
+					(cru_length + PAGE_SIZE - 1) >> PAGE_SHIFT);
 				retval = 0;
+			}
 		}
 
-		printk(KERN_DEBUG "hpwdt: CRU Base Address:   0x%lx\n",
-			physical_bios_base);
-		printk(KERN_DEBUG "hpwdt: CRU Offset Address: 0x%lx\n",
-			physical_bios_offset);
-		printk(KERN_DEBUG "hpwdt: CRU Length:         0x%lx\n",
-			cru_length);
-		printk(KERN_DEBUG "hpwdt: CRU Mapped Address: %p\n",
-			&cru_rom_addr);
+		pr_debug("CRU Base Address:   0x%lx\n", physical_bios_base);
+		pr_debug("CRU Offset Address: 0x%lx\n", physical_bios_offset);
+		pr_debug("CRU Length:         0x%lx\n", cru_length);
+		pr_debug("CRU Mapped Address: %p\n", &cru_rom_addr);
 	}
 	iounmap(bios32_map);
 	return retval;
@@ -253,7 +268,7 @@ static int __devinit cru_detect(unsigned long map_entry,
 /*
  *	bios_checksum
  */
-static int __devinit bios_checksum(const char __iomem *ptr, int len)
+static int bios_checksum(const char __iomem *ptr, int len)
 {
 	char sum = 0;
 	int i;
@@ -278,7 +293,7 @@ static int __devinit bios_checksum(const char __iomem *ptr, int len)
  *	0        :  SUCCESS
  *	<0       :  FAILURE
  */
-static int __devinit bios32_present(const char __iomem *p)
+static int bios32_present(const char __iomem *p)
 {
 	struct bios32_service_dir *bios_32_ptr;
 	int length;
@@ -308,7 +323,7 @@ static int __devinit bios32_present(const char __iomem *p)
 	return -ENODEV;
 }
 
-static int __devinit detect_cru_service(void)
+static int detect_cru_service(void)
 {
 	char __iomem *p, *q;
 	int rc = -1;
@@ -380,7 +395,7 @@ asm(".text                      \n\t"
  *	This function checks whether or not a SMBIOS/DMI record is
  *	the 64bit CRU info or not
  */
-static void __devinit dmi_find_cru(const struct dmi_header *dm, void *dummy)
+static void dmi_find_cru(const struct dmi_header *dm, void *dummy)
 {
 	struct smbios_cru64_info *smbios_cru64_ptr;
 	unsigned long cru_physical_address;
@@ -399,7 +414,7 @@ static void __devinit dmi_find_cru(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-static int __devinit detect_cru_service(void)
+static int detect_cru_service(void)
 {
 	cru_rom_addr = NULL;
 
@@ -419,16 +434,16 @@ static void hpwdt_start(void)
 {
 	reload = SECS_TO_TICKS(soft_margin);
 	iowrite16(reload, hpwdt_timer_reg);
-	iowrite16(0x85, hpwdt_timer_con);
+	iowrite8(0x85, hpwdt_timer_con);
 }
 
 static void hpwdt_stop(void)
 {
 	unsigned long data;
 
-	data = ioread16(hpwdt_timer_con);
+	data = ioread8(hpwdt_timer_con);
 	data &= 0xFE;
-	iowrite16(data, hpwdt_timer_con);
+	iowrite8(data, hpwdt_timer_con);
 }
 
 static void hpwdt_ping(void)
@@ -439,16 +454,13 @@ static void hpwdt_ping(void)
 static int hpwdt_change_timer(int new_margin)
 {
 	if (new_margin < 1 || new_margin > HPWDT_MAX_TIMER) {
-		printk(KERN_WARNING
-			"hpwdt: New value passed in is invalid: %d seconds.\n",
+		pr_warn("New value passed in is invalid: %d seconds\n",
 			new_margin);
 		return -EINVAL;
 	}
 
 	soft_margin = new_margin;
-	printk(KERN_DEBUG
-		"hpwdt: New timer passed in is %d seconds.\n",
-		new_margin);
+	pr_debug("New timer passed in is %d seconds\n", new_margin);
 	reload = SECS_TO_TICKS(soft_margin);
 
 	return 0;
@@ -463,34 +475,34 @@ static int hpwdt_time_left(void)
 /*
  *	NMI Handler
  */
-static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
-				void *data)
+static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 {
 	unsigned long rom_pl;
 	static int die_nmi_called;
-
-	if (ulReason != DIE_NMIUNKNOWN)
-		goto out;
 
 	if (!hpwdt_nmi_decoding)
 		goto out;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called)
+	if (!die_nmi_called && !is_icru)
 		asminline_call(&cmn_regs, cru_rom_addr);
 	die_nmi_called = 1;
 	spin_unlock_irqrestore(&rom_lock, rom_pl);
-	if (cmn_regs.u1.ral == 0) {
-		printk(KERN_WARNING "hpwdt: An NMI occurred, "
-			"but unable to determine source.\n");
-	} else {
-		if (allow_kdump)
-			hpwdt_stop();
-		panic("An NMI occurred, please see the Integrated "
-			"Management Log for details.\n");
+
+	if (allow_kdump)
+		hpwdt_stop();
+
+	if (!is_icru) {
+		if (cmn_regs.u1.ral == 0) {
+			panic("An NMI occurred, "
+				"but unable to determine source.\n");
+		}
 	}
+	panic("An NMI occurred, please see the Integrated "
+		"Management Log for details.\n");
+
 out:
-	return NOTIFY_OK;
+	return NMI_DONE;
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
@@ -516,8 +528,7 @@ static int hpwdt_release(struct inode *inode, struct file *file)
 	if (expect_release == 42) {
 		hpwdt_stop();
 	} else {
-		printk(KERN_CRIT
-			"hpwdt: Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		hpwdt_ping();
 	}
 
@@ -630,20 +641,13 @@ static struct miscdevice hpwdt_miscdev = {
 	.fops = &hpwdt_fops,
 };
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
-static struct notifier_block die_notifier = {
-	.notifier_call = hpwdt_pretimeout,
-	.priority = 0,
-};
-#endif /* CONFIG_HPWDT_NMI_DECODING */
-
 /*
  *	Init & Exit
  */
 
 #ifdef CONFIG_HPWDT_NMI_DECODING
 #ifdef CONFIG_X86_LOCAL_APIC
-static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
+static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 	/*
 	 * If nmi_watchdog is turned off then we can turn on
@@ -652,76 +656,117 @@ static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 	hpwdt_nmi_decoding = 1;
 }
 #else
-static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
+static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 	dev_warn(&dev->dev, "NMI decoding is disabled. "
 		"Your kernel does not support a NMI Watchdog.\n");
 }
 #endif /* CONFIG_X86_LOCAL_APIC */
 
-static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
+/*
+ *	dmi_find_icru
+ *
+ *	Routine Description:
+ *	This function checks whether or not we are on an iCRU-based server.
+ *	This check is independent of architecture and needs to be made for
+ *	any ProLiant system.
+ */
+static void dmi_find_icru(const struct dmi_header *dm, void *dummy)
+{
+	struct smbios_proliant_info *smbios_proliant_ptr;
+
+	if (dm->type == SMBIOS_ICRU_INFORMATION) {
+		smbios_proliant_ptr = (struct smbios_proliant_info *) dm;
+		if (smbios_proliant_ptr->misc_features & 0x01)
+			is_icru = 1;
+	}
+}
+
+static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {
 	int retval;
 
 	/*
-	 * We need to map the ROM to get the CRU service.
-	 * For 32 bit Operating Systems we need to go through the 32 Bit
-	 * BIOS Service Directory
-	 * For 64 bit Operating Systems we get that service through SMBIOS.
+	 * On typical CRU-based systems we need to map that service in
+	 * the BIOS. For 32 bit Operating Systems we need to go through
+	 * the 32 Bit BIOS Service Directory. For 64 bit Operating
+	 * Systems we get that service through SMBIOS.
+	 *
+	 * On systems that support the new iCRU service all we need to
+	 * do is call dmi_walk to get the supported flag value and skip
+	 * the old cru detect code.
 	 */
-	retval = detect_cru_service();
-	if (retval < 0) {
-		dev_warn(&dev->dev,
-			"Unable to detect the %d Bit CRU Service.\n",
-			HPWDT_ARCH);
-		return retval;
+	dmi_walk(dmi_find_icru, NULL);
+	if (!is_icru) {
+
+		/*
+		* We need to map the ROM to get the CRU service.
+		* For 32 bit Operating Systems we need to go through the 32 Bit
+		* BIOS Service Directory
+		* For 64 bit Operating Systems we get that service through SMBIOS.
+		*/
+		retval = detect_cru_service();
+		if (retval < 0) {
+			dev_warn(&dev->dev,
+				"Unable to detect the %d Bit CRU Service.\n",
+				HPWDT_ARCH);
+			return retval;
+		}
+
+		/*
+		* We know this is the only CRU call we need to make so lets keep as
+		* few instructions as possible once the NMI comes in.
+		*/
+		cmn_regs.u1.rah = 0x0D;
+		cmn_regs.u1.ral = 0x02;
 	}
 
 	/*
-	 * We know this is the only CRU call we need to make so lets keep as
-	 * few instructions as possible once the NMI comes in.
+	 * Only one function can register for NMI_UNKNOWN
 	 */
-	cmn_regs.u1.rah = 0x0D;
-	cmn_regs.u1.ral = 0x02;
-
-	/*
-	 * If the priority is set to 1, then we will be put first on the
-	 * die notify list to handle a critical NMI. The default is to
-	 * be last so other users of the NMI signal can function.
-	 */
-	if (priority)
-		die_notifier.priority = 0x7FFFFFFF;
-
-	retval = register_die_notifier(&die_notifier);
-	if (retval != 0) {
-		dev_warn(&dev->dev,
-			"Unable to register a die notifier (err=%d).\n",
-			retval);
-		if (cru_rom_addr)
-			iounmap(cru_rom_addr);
-	}
+	retval = register_nmi_handler(NMI_UNKNOWN, hpwdt_pretimeout, 0, "hpwdt");
+	if (retval)
+		goto error;
+	retval = register_nmi_handler(NMI_SERR, hpwdt_pretimeout, 0, "hpwdt");
+	if (retval)
+		goto error1;
+	retval = register_nmi_handler(NMI_IO_CHECK, hpwdt_pretimeout, 0, "hpwdt");
+	if (retval)
+		goto error2;
 
 	dev_info(&dev->dev,
 			"HP Watchdog Timer Driver: NMI decoding initialized"
-			", allow kernel dump: %s (default = 0/OFF)"
-			", priority: %s (default = 0/LAST).\n",
-			(allow_kdump == 0) ? "OFF" : "ON",
-			(priority == 0) ? "LAST" : "FIRST");
+			", allow kernel dump: %s (default = 0/OFF)\n",
+			(allow_kdump == 0) ? "OFF" : "ON");
 	return 0;
+
+error2:
+	unregister_nmi_handler(NMI_SERR, "hpwdt");
+error1:
+	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+error:
+	dev_warn(&dev->dev,
+		"Unable to register a die notifier (err=%d).\n",
+		retval);
+	if (cru_rom_addr)
+		iounmap(cru_rom_addr);
+	return retval;
 }
 
 static void hpwdt_exit_nmi_decoding(void)
 {
-	unregister_die_notifier(&die_notifier);
+	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_SERR, "hpwdt");
+	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }
 #else /* !CONFIG_HPWDT_NMI_DECODING */
-static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
+static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 }
 
-static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
+static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {
 	return 0;
 }
@@ -731,7 +776,7 @@ static void hpwdt_exit_nmi_decoding(void)
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
-static int __devinit hpwdt_init_one(struct pci_dev *dev,
+static int hpwdt_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	int retval;
@@ -769,6 +814,9 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	hpwdt_timer_reg = pci_mem_addr + 0x70;
 	hpwdt_timer_con = pci_mem_addr + 0x72;
 
+	/* Make sure that timer is disabled until /dev/watchdog is opened */
+	hpwdt_stop();
+
 	/* Make sure that we have a valid soft_margin */
 	if (hpwdt_change_timer(soft_margin))
 		hpwdt_change_timer(DEFAULT_MARGIN);
@@ -800,7 +848,7 @@ error_pci_iomap:
 	return retval;
 }
 
-static void __devexit hpwdt_exit(struct pci_dev *dev)
+static void hpwdt_exit(struct pci_dev *dev)
 {
 	if (!nowayout)
 		hpwdt_stop();
@@ -815,18 +863,8 @@ static struct pci_driver hpwdt_driver = {
 	.name = "hpwdt",
 	.id_table = hpwdt_devices,
 	.probe = hpwdt_init_one,
-	.remove = __devexit_p(hpwdt_exit),
+	.remove = hpwdt_exit,
 };
-
-static void __exit hpwdt_cleanup(void)
-{
-	pci_unregister_driver(&hpwdt_driver);
-}
-
-static int __init hpwdt_init(void)
-{
-	return pci_register_driver(&hpwdt_driver);
-}
 
 MODULE_AUTHOR("Tom Mingarelli");
 MODULE_DESCRIPTION("hp watchdog driver");
@@ -837,18 +875,13 @@ MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 module_param(soft_margin, int, 0);
 MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #ifdef CONFIG_HPWDT_NMI_DECODING
 module_param(allow_kdump, int, 0);
 MODULE_PARM_DESC(allow_kdump, "Start a kernel dump after NMI occurs");
-
-module_param(priority, int, 0);
-MODULE_PARM_DESC(priority, "The hpwdt driver handles NMIs first or last"
-		" (default = 0/Last)\n");
 #endif /* !CONFIG_HPWDT_NMI_DECODING */
 
-module_init(hpwdt_init);
-module_exit(hpwdt_cleanup);
+module_pci_driver(hpwdt_driver);

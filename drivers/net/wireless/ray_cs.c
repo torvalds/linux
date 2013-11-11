@@ -53,7 +53,6 @@
 #include <net/iw_handler.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
@@ -145,7 +144,7 @@ static int psm;
 static char *essid;
 
 /* Default to encapsulation unless translation requested */
-static int translate = 1;
+static bool translate = 1;
 
 static int country = USA;
 
@@ -179,7 +178,7 @@ module_param(hop_dwell, int, 0);
 module_param(beacon_period, int, 0);
 module_param(psm, int, 0);
 module_param(essid, charp, 0);
-module_param(translate, int, 0);
+module_param(translate, bool, 0);
 module_param(country, int, 0);
 module_param(sniffer, int, 0);
 module_param(bc, int, 0);
@@ -273,7 +272,7 @@ static const struct net_device_ops ray_netdev_ops = {
 	.ndo_start_xmit		= ray_dev_start_xmit,
 	.ndo_set_config		= ray_dev_config,
 	.ndo_get_stats		= ray_get_stats,
-	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -954,7 +953,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 			   unsigned char *data, int len)
 {
 	__be16 proto = ((struct ethhdr *)data)->h_proto;
-	if (ntohs(proto) >= 1536) { /* DIX II ethernet frame */
+	if (ntohs(proto) >= ETH_P_802_3_MIN) { /* DIX II ethernet frame */
 		pr_debug("ray_cs translate_frame DIX II\n");
 		/* Copy LLC header to card buffer */
 		memcpy_toio(&ptx->var, eth2_llc, sizeof(eth2_llc));
@@ -1108,12 +1107,15 @@ static int ray_get_essid(struct net_device *dev, struct iw_request_info *info,
 			 union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
+	UCHAR tmp[IW_ESSID_MAX_SIZE + 1];
 
 	/* Get the essid that was set */
 	memcpy(extra, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
+	memcpy(tmp, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
+	tmp[IW_ESSID_MAX_SIZE] = '\0';
 
 	/* Push it out ! */
-	wrqu->essid.length = strlen(extra);
+	wrqu->essid.length = strlen(tmp);
 	wrqu->essid.flags = 1;	/* active */
 
 	return 0;
@@ -1351,7 +1353,7 @@ static int ray_get_range(struct net_device *dev, struct iw_request_info *info,
 static int ray_set_framing(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
-	translate = *(extra);	/* Set framing mode */
+	translate = !!*(extra);	/* Set framing mode */
 
 	return 0;
 }
@@ -1843,6 +1845,8 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	UCHAR tmp;
 	UCHAR cmd;
 	UCHAR status;
+	UCHAR memtmp[ESSID_SIZE + 1];
+
 
 	if (dev == NULL)	/* Note that we want interrupts with dev->start == 0 */
 		return IRQ_NONE;
@@ -1850,7 +1854,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	pr_debug("ray_cs: interrupt for *dev=%p\n", dev);
 
 	local = netdev_priv(dev);
-	link = (struct pcmcia_device *)local->finder;
+	link = local->finder;
 	if (!pcmcia_dev_present(link)) {
 		pr_debug(
 			"ray_cs interrupt from device not present or suspended.\n");
@@ -1902,17 +1906,21 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 			break;
 		case CCS_START_NETWORK:
 		case CCS_JOIN_NETWORK:
+			memcpy(memtmp, local->sparm.b4.a_current_ess_id,
+								ESSID_SIZE);
+			memtmp[ESSID_SIZE] = '\0';
+
 			if (status == CCS_COMMAND_COMPLETE) {
 				if (readb
 				    (&pccs->var.start_network.net_initiated) ==
 				    1) {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" started\n",
-					      local->sparm.b4.a_current_ess_id);
+					      memtmp);
 				} else {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" joined\n",
-					      local->sparm.b4.a_current_ess_id);
+					      memtmp);
 				}
 				memcpy_fromio(&local->bss_id,
 					      pccs->var.start_network.bssid,
@@ -1940,12 +1948,12 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 				if (status == CCS_START_NETWORK) {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" start failed\n",
-					      local->sparm.b4.a_current_ess_id);
+					      memtmp);
 					local->timer.function = start_net;
 				} else {
 					dev_dbg(&link->dev,
 					      "ray_cs interrupt network \"%s\" join failed\n",
-					      local->sparm.b4.a_current_ess_id);
+					      memtmp);
 					local->timer.function = join_net;
 				}
 				add_timer(&local->timer);
@@ -2426,7 +2434,7 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 			    unsigned int pkt_addr, int rx_len)
 {
 	UCHAR buff[256];
-	struct rx_msg *msg = (struct rx_msg *)buff;
+	struct ray_rx_msg *msg = (struct ray_rx_msg *) buff;
 
 	del_timer(&local->timer);
 
@@ -2513,7 +2521,7 @@ static void rx_deauthenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 			      unsigned int pkt_addr, int rx_len)
 {
 /*  UCHAR buff[256];
-    struct rx_msg *msg = (struct rx_msg *)buff;
+    struct ray_rx_msg *msg = (struct ray_rx_msg *) buff;
 */
 	pr_debug("Deauthentication frame received\n");
 	local->authentication_state = UNAUTHENTICATED;
@@ -2770,7 +2778,7 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 		nr = nr * 10 + c;
 		p++;
 	} while (--len);
-	*(int *)PDE(file->f_path.dentry->d_inode)->data = nr;
+	*(int *)PDE_DATA(file_inode(file)) = nr;
 	return count;
 }
 

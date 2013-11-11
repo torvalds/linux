@@ -67,8 +67,8 @@
 #define CSUM_BIGCHUNK1(src, offset, sum, _t0, _t1, _t2, _t3)	\
 	LOAD	_t0, (offset + UNIT(0))(src);			\
 	LOAD	_t1, (offset + UNIT(1))(src);			\
-	LOAD	_t2, (offset + UNIT(2))(src); 			\
-	LOAD	_t3, (offset + UNIT(3))(src); 			\
+	LOAD	_t2, (offset + UNIT(2))(src);			\
+	LOAD	_t3, (offset + UNIT(3))(src);			\
 	ADDC(sum, _t0);						\
 	ADDC(sum, _t1);						\
 	ADDC(sum, _t2);						\
@@ -270,7 +270,7 @@ LEAF(csum_partial)
 #endif
 
 	/* odd buffer alignment? */
-#ifdef CPU_MIPSR2
+#ifdef CONFIG_CPU_MIPSR2
 	wsbh	v1, sum
 	movn	sum, v1, t7
 #else
@@ -285,7 +285,7 @@ LEAF(csum_partial)
 1:
 #endif
 	.set	reorder
-	/* Add the passed partial csum.  */
+	/* Add the passed partial csum.	 */
 	ADDC32(sum, a2)
 	jr	ra
 	.set	noreorder
@@ -298,7 +298,7 @@ LEAF(csum_partial)
  *	csum_partial_copy_nocheck(src, dst, len, sum)
  *	__csum_partial_copy_user(src, dst, len, sum, errp)
  *
- * See "Spec" in memcpy.S for details.  Unlike __copy_user, all
+ * See "Spec" in memcpy.S for details.	Unlike __copy_user, all
  * function in this file use the standard calling convention.
  */
 
@@ -371,16 +371,16 @@ LEAF(csum_partial)
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 #define LDFIRST LOADR
-#define LDREST  LOADL
+#define LDREST	LOADL
 #define STFIRST STORER
-#define STREST  STOREL
+#define STREST	STOREL
 #define SHIFT_DISCARD SLLV
 #define SHIFT_DISCARD_REVERT SRLV
 #else
 #define LDFIRST LOADL
-#define LDREST  LOADR
+#define LDREST	LOADR
 #define STFIRST STOREL
-#define STREST  STORER
+#define STREST	STORER
 #define SHIFT_DISCARD SRLV
 #define SHIFT_DISCARD_REVERT SLLV
 #endif
@@ -430,7 +430,7 @@ FEXPORT(csum_partial_copy_nocheck)
 	 * src and dst are aligned; need to compute rem
 	 */
 .Lboth_aligned:
-	 SRL	t0, len, LOG_NBYTES+3    # +3 for 8 units/iter
+	 SRL	t0, len, LOG_NBYTES+3	 # +3 for 8 units/iter
 	beqz	t0, .Lcleanup_both_aligned # len < 8*NBYTES
 	 nop
 	SUB	len, 8*NBYTES		# subtract here for bgez loop
@@ -518,7 +518,7 @@ EXC(	STORE	t0, 0(dst),		.Ls_exc)
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
 	 * A loop would do only a byte at a time with possible branch
-	 * mispredicts.  Can't do an explicit LOAD dst,mask,or,STORE
+	 * mispredicts.	 Can't do an explicit LOAD dst,mask,or,STORE
 	 * because can't assume read-access to dst.  Instead, use
 	 * STREST dst, which doesn't require read access to dst.
 	 *
@@ -532,7 +532,7 @@ EXC(	STORE	t0, 0(dst),		.Ls_exc)
 	li	bits, 8*NBYTES
 	SLL	rem, len, 3	# rem = number of bits to keep
 EXC(	LOAD	t0, 0(src),		.Ll_exc)
-	SUB	bits, bits, rem	# bits = number of bits to discard
+	SUB	bits, bits, rem # bits = number of bits to discard
 	SHIFT_DISCARD t0, t0, bits
 EXC(	STREST	t0, -1(t1),		.Ls_exc)
 	SHIFT_DISCARD_REVERT t0, t0, bits
@@ -551,7 +551,7 @@ EXC(	STREST	t0, -1(t1),		.Ls_exc)
 	 * Set match = (src and dst have same alignment)
 	 */
 #define match rem
-EXC(	LDFIRST	t3, FIRST(0)(src),	.Ll_exc)
+EXC(	LDFIRST t3, FIRST(0)(src),	.Ll_exc)
 	ADD	t2, zero, NBYTES
 EXC(	LDREST	t3, REST(0)(src),	.Ll_exc_copy)
 	SUB	t2, t2, t1	# t2 = number of bytes copied
@@ -568,9 +568,9 @@ EXC(	STFIRST t3, FIRST(0)(dst),	.Ls_exc)
 	 ADD	src, src, t2
 
 .Lsrc_unaligned_dst_aligned:
-	SRL	t0, len, LOG_NBYTES+2    # +2 for 4 units/iter
+	SRL	t0, len, LOG_NBYTES+2	 # +2 for 4 units/iter
 	beqz	t0, .Lcleanup_src_unaligned
-	 and	rem, len, (4*NBYTES-1)   # rem = len % 4*NBYTES
+	 and	rem, len, (4*NBYTES-1)	 # rem = len % 4*NBYTES
 1:
 /*
  * Avoid consecutive LD*'s to the same register since some mips
@@ -578,13 +578,13 @@ EXC(	STFIRST t3, FIRST(0)(dst),	.Ls_exc)
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
  * are to the same unit (unless src is aligned, but it's not).
  */
-EXC(	LDFIRST	t0, FIRST(0)(src),	.Ll_exc)
-EXC(	LDFIRST	t1, FIRST(1)(src),	.Ll_exc_copy)
-	SUB     len, len, 4*NBYTES
+EXC(	LDFIRST t0, FIRST(0)(src),	.Ll_exc)
+EXC(	LDFIRST t1, FIRST(1)(src),	.Ll_exc_copy)
+	SUB	len, len, 4*NBYTES
 EXC(	LDREST	t0, REST(0)(src),	.Ll_exc_copy)
 EXC(	LDREST	t1, REST(1)(src),	.Ll_exc_copy)
-EXC(	LDFIRST	t2, FIRST(2)(src),	.Ll_exc_copy)
-EXC(	LDFIRST	t3, FIRST(3)(src),	.Ll_exc_copy)
+EXC(	LDFIRST t2, FIRST(2)(src),	.Ll_exc_copy)
+EXC(	LDFIRST t3, FIRST(3)(src),	.Ll_exc_copy)
 EXC(	LDREST	t2, REST(2)(src),	.Ll_exc_copy)
 EXC(	LDREST	t3, REST(3)(src),	.Ll_exc_copy)
 	ADD	src, src, 4*NBYTES
@@ -634,7 +634,7 @@ EXC(	STORE	t0, 0(dst),		.Ls_exc)
 #define SHIFT_INC -8
 #endif
 	move	t2, zero	# partial word
-	li	t3, SHIFT_START	# shift
+	li	t3, SHIFT_START # shift
 /* use .Ll_exc_copy here to return correct sum on fault */
 #define COPY_BYTE(N)			\
 EXC(	lbu	t0, N(src), .Ll_exc_copy);	\
@@ -642,7 +642,7 @@ EXC(	lbu	t0, N(src), .Ll_exc_copy);	\
 EXC(	sb	t0, N(dst), .Ls_exc);	\
 	SLLV	t0, t0, t3;		\
 	addu	t3, SHIFT_INC;		\
-	beqz	len, .Lcopy_bytes_done;	\
+	beqz	len, .Lcopy_bytes_done; \
 	 or	t2, t0
 
 	COPY_BYTE(0)
@@ -670,7 +670,7 @@ EXC(	sb	t0, NBYTES-2(dst), .Ls_exc)
 	addu	sum, v1
 #endif
 
-#ifdef CPU_MIPSR2
+#ifdef CONFIG_CPU_MIPSR2
 	wsbh	v1, sum
 	movn	sum, v1, odd
 #else

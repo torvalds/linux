@@ -38,7 +38,7 @@ void __init nslu2_pci_preinit(void)
 	ixp4xx_pci_preinit();
 }
 
-static int __init nslu2_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init nslu2_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[IRQ_LINES] = {
 		IXP4XX_GPIO_IRQ(INTA),
@@ -54,10 +54,9 @@ static int __init nslu2_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 struct hw_pci __initdata nslu2_pci = {
 	.nr_controllers = 1,
+	.ops		= &ixp4xx_ops,
 	.preinit	= nslu2_pci_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= ixp4xx_setup,
-	.scan		= ixp4xx_scan_bus,
 	.map_irq	= nslu2_map_irq,
 };
 

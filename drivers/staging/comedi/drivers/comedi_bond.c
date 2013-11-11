@@ -59,51 +59,6 @@ Configuration Options:
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
-#define MODULE_NAME "comedi_bond"
-MODULE_LICENSE("GPL");
-#ifndef STR
-#  define STR1(x) #x
-#  define STR(x) STR1(x)
-#endif
-
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful"
-		 "only to developers.");
-
-#define LOG_MSG(x...) printk(KERN_INFO MODULE_NAME": "x)
-#define DEBUG(x...)							\
-	do {								\
-		if (debug)						\
-			printk(KERN_DEBUG MODULE_NAME": DEBUG: "x);	\
-	} while (0)
-#define WARNING(x...)  printk(KERN_WARNING MODULE_NAME ": WARNING: "x)
-#define ERROR(x...)  printk(KERN_ERR MODULE_NAME ": INTERNAL ERROR: "x)
-MODULE_AUTHOR("Calin A. Culianu");
-MODULE_DESCRIPTION(MODULE_NAME "A driver for COMEDI to bond multiple COMEDI "
-		   "devices together as one.  In the words of John Lennon: "
-		   "'And the world will live as one...'");
-
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
-struct BondingBoard {
-	const char *name;
-};
-
-static const struct BondingBoard bondingBoards[] = {
-	{
-	 .name = MODULE_NAME,
-	 },
-};
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct BondingBoard *)dev->board_ptr)
-
 struct BondedDevice {
 	struct comedi_device *dev;
 	unsigned minor;
@@ -118,7 +73,7 @@ struct BondedDevice {
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-struct Private {
+struct comedi_bond_private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
 	struct BondedDevice **devs;
@@ -126,135 +81,6 @@ struct Private {
 	struct BondedDevice *chanIdDevMap[MAX_CHANS];
 	unsigned nchans;
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct Private *)dev->private)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int bonding_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int bonding_detach(struct comedi_device *dev);
-/** Build Private array of all devices.. */
-static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it);
-static void doDevUnconfig(struct comedi_device *dev);
-/* Ugly implementation of realloc that always copies memory around -- I'm lazy,
- * what can I say?  I like to do wasteful memcopies.. :) */
-static void *Realloc(const void *ptr, size_t len, size_t old_len);
-
-static struct comedi_driver driver_bonding = {
-	.driver_name = MODULE_NAME,
-	.module = THIS_MODULE,
-	.attach = bonding_attach,
-	.detach = bonding_detach,
-	/* It is not necessary to implement the following members if you are
-	 * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in skel_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	.board_name = &bondingBoards[0].name,
-	.offset = sizeof(struct BondingBoard),
-	.num_names = ARRAY_SIZE(bondingBoards),
-};
-
-static int bonding_dio_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
-static int bonding_dio_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data);
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int bonding_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-
-	LOG_MSG("comedi%d\n", dev->minor);
-
-	/*
-	 * Allocate the private structure area.  alloc_private() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_private(dev, sizeof(struct Private)) < 0)
-		return -ENOMEM;
-
-	/*
-	 * Setup our bonding from config params.. sets up our Private struct..
-	 */
-	if (!doDevConfig(dev, it))
-		return -EINVAL;
-
-	/*
-	 * Initialize dev->board_name.  Note that we can use the "thisboard"
-	 * macro now, since we just initialized it in the last line.
-	 */
-	dev->board_name = devpriv->name;
-
-	/*
-	 * Allocate the subdevice structures.  alloc_subdevice() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
-
-	s = dev->subdevices + 0;
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = devpriv->nchans;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = bonding_dio_insn_bits;
-	s->insn_config = bonding_dio_insn_config;
-
-	LOG_MSG("attached with %u DIO channels coming from %u different "
-		"subdevices all bonded together.  "
-		"John Lennon would be proud!\n",
-		devpriv->nchans, devpriv->ndevs);
-
-	return 1;
-}
-
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int bonding_detach(struct comedi_device *dev)
-{
-	LOG_MSG("comedi%d: remove\n", dev->minor);
-	doDevUnconfig(dev);
-	return 0;
-}
 
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
@@ -265,10 +91,9 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
-	if (insn->n != 2)
-		return -EINVAL;
 
 	if (devpriv->nchans < nchans)
 		nchans = devpriv->nchans;
@@ -313,6 +138,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
 	struct BondedDevice *bdev;
@@ -366,6 +192,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int i;
 	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
@@ -381,15 +208,18 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		struct BondedDevice *bdev = NULL;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
-			ERROR("Minor %d is invalid!\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %d is invalid!\n", minor);
 			return 0;
 		}
 		if (minor == dev->minor) {
-			ERROR("Cannot bond this driver to itself!\n");
+			dev_err(dev->class_dev,
+				"Cannot bond this driver to itself!\n");
 			return 0;
 		}
 		if (devs_opened[minor]) {
-			ERROR("Minor %d specified more than once!\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %d specified more than once!\n", minor);
 			return 0;
 		}
 
@@ -399,7 +229,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		d = devs_opened[minor] = comedi_open(file);
 
 		if (!d) {
-			ERROR("Minor %u could not be opened\n", minor);
+			dev_err(dev->class_dev,
+				"Minor %u could not be opened\n", minor);
 			return 0;
 		}
 
@@ -408,16 +239,15 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
-				ERROR("comedi_get_n_channels() returned %d "
-				      "on minor %u subdev %d!\n",
-				      nchans, minor, sdev);
+				dev_err(dev->class_dev,
+					"comedi_get_n_channels() returned %d on minor %u subdev %d!\n",
+					nchans, minor, sdev);
 				return 0;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
-			if (!bdev) {
-				ERROR("Out of memory.\n");
+			if (!bdev)
 				return 0;
-			}
+
 			bdev->dev = d;
 			bdev->minor = minor;
 			bdev->subdev = sdev;
@@ -438,8 +268,8 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			    Realloc(devpriv->devs,
 				    ++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
-				ERROR("Could not allocate memory. "
-				      "Out of memory?");
+				dev_err(dev->class_dev,
+					"Could not allocate memory. Out of memory?\n");
 				return 0;
 			}
 
@@ -459,15 +289,57 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	if (!devpriv->nchans) {
-		ERROR("No channels found!\n");
+		dev_err(dev->class_dev, "No channels found!\n");
 		return 0;
 	}
 
 	return 1;
 }
 
-static void doDevUnconfig(struct comedi_device *dev)
+static int bonding_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv;
+	struct comedi_subdevice *s;
+	int ret;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	/*
+	 * Setup our bonding from config params.. sets up our private struct..
+	 */
+	if (!doDevConfig(dev, it))
+		return -EINVAL;
+
+	dev->board_name = devpriv->name;
+
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
+
+	s = &dev->subdevices[0];
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = devpriv->nchans;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = bonding_dio_insn_bits;
+	s->insn_config = bonding_dio_insn_config;
+
+	dev_info(dev->class_dev,
+		"%s: %s attached, %u channels from %u devices\n",
+		dev->driver->driver_name, dev->board_name,
+		devpriv->nchans, devpriv->ndevs);
+
+	return 1;
+}
+
+static void bonding_detach(struct comedi_device *dev)
+{
+	struct comedi_bond_private *devpriv = dev->private;
 	unsigned long devs_closed = 0;
 
 	if (devpriv) {
@@ -490,15 +362,16 @@ static void doDevUnconfig(struct comedi_device *dev)
 	}
 }
 
-static int __init init(void)
-{
-	return comedi_driver_register(&driver_bonding);
-}
+static struct comedi_driver bonding_driver = {
+	.driver_name	= "comedi_bond",
+	.module		= THIS_MODULE,
+	.attach		= bonding_attach,
+	.detach		= bonding_detach,
+};
+module_comedi_driver(bonding_driver);
 
-static void __exit cleanup(void)
-{
-	comedi_driver_unregister(&driver_bonding);
-}
-
-module_init(init);
-module_exit(cleanup);
+MODULE_AUTHOR("Calin A. Culianu");
+MODULE_DESCRIPTION("comedi_bond: A driver for COMEDI to bond multiple COMEDI "
+		   "devices together as one.  In the words of John Lennon: "
+		   "'And the world will live as one...'");
+MODULE_LICENSE("GPL");

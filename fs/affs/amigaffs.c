@@ -122,22 +122,15 @@ affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh)
 }
 
 static void
-affs_fix_dcache(struct dentry *dentry, u32 entry_ino)
+affs_fix_dcache(struct inode *inode, u32 entry_ino)
 {
-	struct inode *inode = dentry->d_inode;
-	void *data = dentry->d_fsdata;
-	struct list_head *head, *next;
-
+	struct dentry *dentry;
 	spin_lock(&inode->i_lock);
-	head = &inode->i_dentry;
-	next = head->next;
-	while (next != head) {
-		dentry = list_entry(next, struct dentry, d_alias);
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		if (entry_ino == (u32)(long)dentry->d_fsdata) {
-			dentry->d_fsdata = data;
+			dentry->d_fsdata = (void *)inode->i_ino;
 			break;
 		}
-		next = next->next;
 	}
 	spin_unlock(&inode->i_lock);
 }
@@ -177,7 +170,11 @@ affs_remove_link(struct dentry *dentry)
 		}
 
 		affs_lock_dir(dir);
-		affs_fix_dcache(dentry, link_ino);
+		/*
+		 * if there's a dentry for that block, make it
+		 * refer to inode itself.
+		 */
+		affs_fix_dcache(inode, link_ino);
 		retval = affs_remove_hash(dir, link_bh);
 		if (retval) {
 			affs_unlock_dir(dir);
@@ -215,7 +212,7 @@ affs_remove_link(struct dentry *dentry)
 				break;
 			default:
 				if (!AFFS_TAIL(sb, bh)->link_chain)
-					inode->i_nlink = 1;
+					set_nlink(inode, 1);
 			}
 			affs_free_block(sb, link_ino);
 			goto done;
@@ -316,7 +313,7 @@ affs_remove_header(struct dentry *dentry)
 	if (inode->i_nlink > 1)
 		retval = affs_remove_link(dentry);
 	else
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 	affs_unlock_link(inode);
 	inode->i_ctime = CURRENT_TIME_SEC;
 	mark_inode_dirty(inode);
@@ -390,10 +387,10 @@ secs_to_datestamp(time_t secs, struct affs_date *ds)
 	ds->ticks = cpu_to_be32(secs * 50);
 }
 
-mode_t
+umode_t
 prot_to_mode(u32 prot)
 {
-	int mode = 0;
+	umode_t mode = 0;
 
 	if (!(prot & FIBF_NOWRITE))
 		mode |= S_IWUSR;
@@ -421,7 +418,7 @@ void
 mode_to_prot(struct inode *inode)
 {
 	u32 prot = AFFS_I(inode)->i_protect;
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 
 	if (!(mode & S_IXUSR))
 		prot |= FIBF_NOEXECUTE;

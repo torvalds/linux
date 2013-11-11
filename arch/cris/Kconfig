@@ -13,16 +13,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
-config GENERIC_CMOS_UPDATE
-	def_bool y
-
-config ARCH_USES_GETTIMEOFFSET
-	def_bool n
-
-config GENERIC_IOMAP
-       bool
-       default y
-
 config ARCH_HAS_ILOG2_U32
 	bool
 	default n
@@ -50,8 +40,19 @@ config CRIS
 	bool
 	default y
 	select HAVE_IDE
+	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_UID16
+	select VIRT_TO_BUS
+	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
+	select GENERIC_IOMAP
+	select GENERIC_SMP_IDLE_THREAD if ETRAX_ARCH_V32
+	select GENERIC_CMOS_UPDATE
+	select MODULES_USE_ELF_RELA
+	select CLONE_BACKWARDS2
+	select OLD_SIGSUSPEND
+	select OLD_SIGACTION
 
 config HZ
 	int
@@ -142,11 +143,6 @@ config CRIS_MACH_ARTPEC3
           Support Axis ARTPEC-3.
 
 endchoice
-
-config ETRAX_VCS_SIM
-	bool "VCS Simulator"
-	help
-	  Setup hardware to be run in the VCS simulator.
 
 config ETRAX_ARCH_V10
        bool
@@ -268,7 +264,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CFI
 	select MTD_CFI_AMDSTD
 	select MTD_JEDECPROBE if ETRAX_ARCH_V32
-	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
 	help
@@ -282,8 +277,8 @@ config ETRAX_RTC
 	  Enables drivers for the Real-Time Clock battery-backed chips on
 	  some products. The kernel reads the time when booting, and
 	  the date can be set using ioctl(fd, RTC_SET_TIME, &rt) with rt a
-	  rtc_time struct (see <file:include/asm-cris/rtc.h>) on the /dev/rtc
-	  device.  You can check the time with cat /proc/rtc, but
+	  rtc_time struct (see <file:arch/cris/include/asm/rtc.h>) on the
+	  /dev/rtc device.  You can check the time with cat /proc/rtc, but
 	  normal time reading should be done using libc function time and
 	  friends.
 

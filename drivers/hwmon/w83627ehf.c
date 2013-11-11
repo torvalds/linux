@@ -1,49 +1,49 @@
 /*
-    w83627ehf - Driver for the hardware monitoring functionality of
-		the Winbond W83627EHF Super-I/O chip
-    Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
-    Copyright (C) 2006  Yuan Mu (Winbond),
-			Rudolf Marek <r.marek@assembler.cz>
-			David Hubbard <david.c.hubbard@gmail.com>
-			Daniel J Blueman <daniel.blueman@gmail.com>
-    Copyright (C) 2010  Sheng-Yuan Huang (Nuvoton) (PS00)
-
-    Shamelessly ripped from the w83627hf driver
-    Copyright (C) 2003  Mark Studebaker
-
-    Thanks to Leon Moonen, Steve Cliffe and Grant Coady for their help
-    in testing and debugging this driver.
-
-    This driver also supports the W83627EHG, which is the lead-free
-    version of the W83627EHF.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-
-    Supports the following chips:
-
-    Chip        #vin    #fan    #pwm    #temp  chip IDs       man ID
-    w83627ehf   10      5       4       3      0x8850 0x88    0x5ca3
-					       0x8860 0xa1
-    w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
-    w83627dhg-p  9      5       4       3      0xb070 0xc1    0x5ca3
-    w83667hg     9      5       3       3      0xa510 0xc1    0x5ca3
-    w83667hg-b   9      5       3       4      0xb350 0xc1    0x5ca3
-    nct6775f     9      4       3       9      0xb470 0xc1    0x5ca3
-    nct6776f     9      5       3       9      0xC330 0xc1    0x5ca3
-*/
+ *  w83627ehf - Driver for the hardware monitoring functionality of
+ *		the Winbond W83627EHF Super-I/O chip
+ *  Copyright (C) 2005-2012  Jean Delvare <khali@linux-fr.org>
+ *  Copyright (C) 2006  Yuan Mu (Winbond),
+ *			Rudolf Marek <r.marek@assembler.cz>
+ *			David Hubbard <david.c.hubbard@gmail.com>
+ *			Daniel J Blueman <daniel.blueman@gmail.com>
+ *  Copyright (C) 2010  Sheng-Yuan Huang (Nuvoton) (PS00)
+ *
+ *  Shamelessly ripped from the w83627hf driver
+ *  Copyright (C) 2003  Mark Studebaker
+ *
+ *  Thanks to Leon Moonen, Steve Cliffe and Grant Coady for their help
+ *  in testing and debugging this driver.
+ *
+ *  This driver also supports the W83627EHG, which is the lead-free
+ *  version of the W83627EHF.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *  Supports the following chips:
+ *
+ *  Chip        #vin    #fan    #pwm    #temp  chip IDs       man ID
+ *  w83627ehf   10      5       4       3      0x8850 0x88    0x5ca3
+ *					       0x8860 0xa1
+ *  w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
+ *  w83627dhg-p  9      5       4       3      0xb070 0xc1    0x5ca3
+ *  w83627uhg    8      2       2       3      0xa230 0xc1    0x5ca3
+ *  w83667hg     9      5       3       3      0xa510 0xc1    0x5ca3
+ *  w83667hg-b   9      5       3       4      0xb350 0xc1    0x5ca3
+ *  nct6775f     9      4       3       9      0xb470 0xc1    0x5ca3
+ *  nct6776f     9      5       3       9      0xC330 0xc1    0x5ca3
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -61,14 +61,17 @@
 #include <linux/io.h>
 #include "lm75.h"
 
-enum kinds { w83627ehf, w83627dhg, w83627dhg_p, w83667hg, w83667hg_b, nct6775,
-	nct6776 };
+enum kinds {
+	w83627ehf, w83627dhg, w83627dhg_p, w83627uhg,
+	w83667hg, w83667hg_b, nct6775, nct6776,
+};
 
 /* used to set data->name = w83627ehf_device_names[data->sio_kind] */
 static const char * const w83627ehf_device_names[] = {
 	"w83627ehf",
 	"w83627dhg",
 	"w83627dhg",
+	"w83627uhg",
 	"w83667hg",
 	"w83667hg",
 	"nct6775",
@@ -104,6 +107,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_W83627EHG_ID	0x8860
 #define SIO_W83627DHG_ID	0xa020
 #define SIO_W83627DHG_P_ID	0xb070
+#define SIO_W83627UHG_ID	0xa230
 #define SIO_W83667HG_ID		0xa510
 #define SIO_W83667HG_B_ID	0xb350
 #define SIO_NCT6775_ID		0xb470
@@ -159,11 +163,13 @@ superio_exit(int ioreg)
 #define W83627EHF_REG_BANK		0x4E
 #define W83627EHF_REG_CONFIG		0x40
 
-/* Not currently used:
+/*
+ * Not currently used:
  * REG_MAN_ID has the value 0x5ca3 for all supported chips.
  * REG_CHIP_ID == 0x88/0xa1/0xc1 depending on chip model.
  * REG_MAN_ID is at port 0x4f
- * REG_CHIP_ID is at port 0x58 */
+ * REG_CHIP_ID is at port 0x58
+ */
 
 static const u16 W83627EHF_REG_FAN[] = { 0x28, 0x29, 0x2a, 0x3f, 0x553 };
 static const u16 W83627EHF_REG_FAN_MIN[] = { 0x3b, 0x3c, 0x3d, 0x3e, 0x55c };
@@ -196,6 +202,9 @@ static const u16 W83627EHF_REG_TEMP_CONFIG[] = { 0, 0x152, 0x252, 0 };
 #define W83627EHF_REG_ALARM1		0x459
 #define W83627EHF_REG_ALARM2		0x45A
 #define W83627EHF_REG_ALARM3		0x45B
+
+#define W83627EHF_REG_CASEOPEN_DET	0x42 /* SMI STATUS #2 */
+#define W83627EHF_REG_CASEOPEN_CLR	0x46 /* SMI MASK #3 */
 
 /* SmartFan registers */
 #define W83627EHF_REG_FAN_STEPUP_TIME 0x0f
@@ -230,6 +239,8 @@ static const u16 W83627EHF_REG_FAN_STEP_OUTPUT_COMMON[]
 static const u16 W83627EHF_REG_FAN_MAX_OUTPUT_W83667_B[] = { 0x67, 0x69, 0x6b };
 static const u16 W83627EHF_REG_FAN_STEP_OUTPUT_W83667_B[]
 						= { 0x68, 0x6a, 0x6c };
+
+static const u16 W83627EHF_REG_TEMP_OFFSET[] = { 0x454, 0x455, 0x456 };
 
 static const u16 NCT6775_REG_TARGET[] = { 0x101, 0x201, 0x301 };
 static const u16 NCT6775_REG_FAN_MODE[] = { 0x102, 0x202, 0x302 };
@@ -316,7 +327,7 @@ static const char *const nct6776_temp_label[] = {
 
 #define NUM_REG_TEMP	ARRAY_SIZE(NCT6775_REG_TEMP)
 
-static inline int is_word_sized(u16 reg)
+static int is_word_sized(u16 reg)
 {
 	return ((((reg & 0xff00) == 0x100
 	      || (reg & 0xff00) == 0x200)
@@ -343,8 +354,8 @@ static inline unsigned int step_time_from_reg(u8 reg, u8 mode)
 
 static inline u8 step_time_to_reg(unsigned int msec, u8 mode)
 {
-	return SENSORS_LIMIT((mode ? (msec + 50) / 100 :
-						(msec + 200) / 400), 1, 255);
+	return clamp_val((mode ? (msec + 50) / 100 : (msec + 200) / 400),
+			 1, 255);
 }
 
 static unsigned int fan_from_reg8(u16 reg, unsigned int divreg)
@@ -385,35 +396,25 @@ div_from_reg(u8 reg)
 	return 1 << reg;
 }
 
-static inline int
-temp_from_reg(u16 reg, s16 regval)
+/*
+ * Some of the voltage inputs have internal scaling, the tables below
+ * contain 8 (the ADC LSB in mV) * scaling factor * 100
+ */
+static const u16 scale_in_common[10] = {
+	800, 800, 1600, 1600, 800, 800, 800, 1600, 1600, 800
+};
+static const u16 scale_in_w83627uhg[9] = {
+	800, 800, 3328, 3424, 800, 800, 0, 3328, 3400
+};
+
+static inline long in_from_reg(u8 reg, u8 nr, const u16 *scale_in)
 {
-	if (is_word_sized(reg))
-		return LM75_TEMP_FROM_REG(regval);
-	return regval * 1000;
+	return DIV_ROUND_CLOSEST(reg * scale_in[nr], 100);
 }
 
-static inline u16
-temp_to_reg(u16 reg, long temp)
+static inline u8 in_to_reg(u32 val, u8 nr, const u16 *scale_in)
 {
-	if (is_word_sized(reg))
-		return LM75_TEMP_TO_REG(temp);
-	return DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, -127000, 128000), 1000);
-}
-
-/* Some of analog inputs have internal scaling (2x), 8mV is ADC LSB */
-
-static u8 scale_in[10] = { 8, 8, 16, 16, 8, 8, 8, 16, 16, 8 };
-
-static inline long in_from_reg(u8 reg, u8 nr)
-{
-	return reg * scale_in[nr];
-}
-
-static inline u8 in_to_reg(u32 val, u8 nr)
-{
-	return SENSORS_LIMIT(((val + (scale_in[nr] / 2)) / scale_in[nr]), 0,
-			     255);
+	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
 }
 
 /*
@@ -443,6 +444,7 @@ struct w83627ehf_data {
 	const u16 *REG_FAN_STOP_TIME;
 	const u16 *REG_FAN_MAX_OUTPUT;
 	const u16 *REG_FAN_STEP_OUTPUT;
+	const u16 *scale_in;
 
 	unsigned int (*fan_from_reg)(u16 reg, unsigned int divreg);
 	unsigned int (*fan_from_reg_min)(u16 reg, unsigned int divreg);
@@ -464,19 +466,22 @@ struct w83627ehf_data {
 	u8 has_fan_min;		/* some fans don't have min register */
 	bool has_fan_div;
 	u8 temp_type[3];
+	s8 temp_offset[3];
 	s16 temp[9];
 	s16 temp_max[9];
 	s16 temp_max_hyst[9];
 	u32 alarms;
+	u8 caseopen;
 
 	u8 pwm_mode[4]; /* 0->DC variable voltage, 1->PWM variable duty cycle */
 	u8 pwm_enable[4]; /* 1->manual
-			     2->thermal cruise mode (also called SmartFan I)
-			     3->fan speed cruise mode
-			     4->variable thermal cruise (also called
-				SmartFan III)
-			     5->enhanced variable thermal cruise (also called
-				SmartFan IV) */
+			   * 2->thermal cruise mode (also called SmartFan I)
+			   * 3->fan speed cruise mode
+			   * 4->variable thermal cruise (also called
+			   * SmartFan III)
+			   * 5->enhanced variable thermal cruise (also called
+			   * SmartFan IV)
+			   */
 	u8 pwm_enable_orig[4];	/* original value of pwm_enable */
 	u8 pwm_num;		/* number of pwm */
 	u8 pwm[4];
@@ -493,7 +498,16 @@ struct w83627ehf_data {
 	u8 vrm;
 
 	u16 have_temp;
-	u8 in6_skip;
+	u16 have_temp_offset;
+	u8 in6_skip:1;
+	u8 temp3_val_only:1;
+
+#ifdef CONFIG_PM
+	/* Remember extra register values over suspend/resume */
+	u8 vbat;
+	u8 fandiv1;
+	u8 fandiv2;
+#endif
 };
 
 struct w83627ehf_sio_data {
@@ -556,6 +570,26 @@ static int w83627ehf_write_value(struct w83627ehf_data *data, u16 reg,
 	return 0;
 }
 
+/* We left-align 8-bit temperature values to make the code simpler */
+static u16 w83627ehf_read_temp(struct w83627ehf_data *data, u16 reg)
+{
+	u16 res;
+
+	res = w83627ehf_read_value(data, reg);
+	if (!is_word_sized(reg))
+		res <<= 8;
+
+	return res;
+}
+
+static int w83627ehf_write_temp(struct w83627ehf_data *data, u16 reg,
+				       u16 value)
+{
+	if (!is_word_sized(reg))
+		value >>= 8;
+	return w83627ehf_write_value(data, reg, value);
+}
+
 /* This function assumes that the caller holds data->update_lock */
 static void nct6775_write_fan_div(struct w83627ehf_data *data, int nr)
 {
@@ -571,6 +605,7 @@ static void nct6775_write_fan_div(struct w83627ehf_data *data, int nr)
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV1) & 0x7)
 		    | ((data->fan_div[1] << 4) & 0x70);
 		w83627ehf_write_value(data, NCT6775_REG_FANDIV1, reg);
+		break;
 	case 2:
 		reg = (w83627ehf_read_value(data, NCT6775_REG_FANDIV2) & 0x70)
 		    | (data->fan_div[2] & 0x7);
@@ -770,6 +805,9 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 
 		/* Measured voltages and limits */
 		for (i = 0; i < data->in_num; i++) {
+			if ((i == 6) && data->in6_skip)
+				continue;
+
 			data->in[i] = w83627ehf_read_value(data,
 				      W83627EHF_REG_IN(i));
 			data->in_min[i] = w83627ehf_read_value(data,
@@ -793,15 +831,17 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 				data->fan_min[i] = w83627ehf_read_value(data,
 					   data->REG_FAN_MIN[i]);
 
-			/* If we failed to measure the fan speed and clock
-			   divider can be increased, let's try that for next
-			   time */
+			/*
+			 * If we failed to measure the fan speed and clock
+			 * divider can be increased, let's try that for next
+			 * time
+			 */
 			if (data->has_fan_div
 			    && (reg >= 0xff || (sio_data->kind == nct6775
 						&& reg == 0x00))
 			    && data->fan_div[i] < 0x07) {
-				dev_dbg(dev, "Increasing fan%d "
-					"clock divider from %u to %u\n",
+				dev_dbg(dev,
+					"Increasing fan%d clock divider from %u to %u\n",
 					i + 1, div_from_reg(data->fan_div[i]),
 					div_from_reg(data->fan_div[i] + 1));
 				data->fan_div[i]++;
@@ -854,16 +894,22 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		for (i = 0; i < NUM_REG_TEMP; i++) {
 			if (!(data->have_temp & (1 << i)))
 				continue;
-			data->temp[i] = w83627ehf_read_value(data,
+			data->temp[i] = w83627ehf_read_temp(data,
 						data->reg_temp[i]);
 			if (data->reg_temp_over[i])
 				data->temp_max[i]
-				  = w83627ehf_read_value(data,
+				  = w83627ehf_read_temp(data,
 						data->reg_temp_over[i]);
 			if (data->reg_temp_hyst[i])
 				data->temp_max_hyst[i]
-				  = w83627ehf_read_value(data,
+				  = w83627ehf_read_temp(data,
 						data->reg_temp_hyst[i]);
+			if (i > 2)
+				continue;
+			if (data->have_temp_offset & (1 << i))
+				data->temp_offset[i]
+				  = w83627ehf_read_value(data,
+						W83627EHF_REG_TEMP_OFFSET[i]);
 		}
 
 		data->alarms = w83627ehf_read_value(data,
@@ -872,6 +918,9 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 					W83627EHF_REG_ALARM2) << 8) |
 			       (w83627ehf_read_value(data,
 					W83627EHF_REG_ALARM3) << 16);
+
+		data->caseopen = w83627ehf_read_value(data,
+						W83627EHF_REG_CASEOPEN_DET);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -893,7 +942,8 @@ show_##reg(struct device *dev, struct device_attribute *attr, \
 	struct sensor_device_attribute *sensor_attr = \
 		to_sensor_dev_attr(attr); \
 	int nr = sensor_attr->index; \
-	return sprintf(buf, "%ld\n", in_from_reg(data->reg[nr], nr)); \
+	return sprintf(buf, "%ld\n", in_from_reg(data->reg[nr], nr, \
+		       data->scale_in)); \
 }
 show_in_reg(in)
 show_in_reg(in_min)
@@ -910,11 +960,11 @@ store_in_##reg(struct device *dev, struct device_attribute *attr, \
 	int nr = sensor_attr->index; \
 	unsigned long val; \
 	int err; \
-	err = strict_strtoul(buf, 10, &val); \
+	err = kstrtoul(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
 	mutex_lock(&data->update_lock); \
-	data->in_##reg[nr] = in_to_reg(val, nr); \
+	data->in_##reg[nr] = in_to_reg(val, nr, data->scale_in); \
 	w83627ehf_write_value(data, W83627EHF_REG_IN_##REG(nr), \
 			      data->in_##reg[nr]); \
 	mutex_unlock(&data->update_lock); \
@@ -1027,7 +1077,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	unsigned int reg;
 	u8 new_div;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 
@@ -1054,25 +1104,31 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 		new_div = data->fan_div[nr]; /* No change */
 		dev_info(dev, "fan%u low limit and alarm disabled\n", nr + 1);
 	} else if ((reg = 1350000U / val) >= 128 * 255) {
-		/* Speed below this value cannot possibly be represented,
-		   even with the highest divider (128) */
+		/*
+		 * Speed below this value cannot possibly be represented,
+		 * even with the highest divider (128)
+		 */
 		data->fan_min[nr] = 254;
 		new_div = 7; /* 128 == (1 << 7) */
-		dev_warn(dev, "fan%u low limit %lu below minimum %u, set to "
-			 "minimum\n", nr + 1, val,
-			 data->fan_from_reg_min(254, 7));
+		dev_warn(dev,
+			 "fan%u low limit %lu below minimum %u, set to minimum\n",
+			 nr + 1, val, data->fan_from_reg_min(254, 7));
 	} else if (!reg) {
-		/* Speed above this value cannot possibly be represented,
-		   even with the lowest divider (1) */
+		/*
+		 * Speed above this value cannot possibly be represented,
+		 * even with the lowest divider (1)
+		 */
 		data->fan_min[nr] = 1;
 		new_div = 0; /* 1 == (1 << 0) */
-		dev_warn(dev, "fan%u low limit %lu above maximum %u, set to "
-			 "maximum\n", nr + 1, val,
-			 data->fan_from_reg_min(1, 0));
+		dev_warn(dev,
+			 "fan%u low limit %lu above maximum %u, set to maximum\n",
+			 nr + 1, val, data->fan_from_reg_min(1, 0));
 	} else {
-		/* Automatically pick the best divider, i.e. the one such
-		   that the min limit will correspond to a register value
-		   in the 96..192 range */
+		/*
+		 * Automatically pick the best divider, i.e. the one such
+		 * that the min limit will correspond to a register value
+		 * in the 96..192 range
+		 */
 		new_div = 0;
 		while (reg > 192 && new_div < 7) {
 			reg >>= 1;
@@ -1081,8 +1137,10 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 		data->fan_min[nr] = reg;
 	}
 
-	/* Write both the fan clock divider (if it changed) and the new
-	   fan min (unconditionally) */
+	/*
+	 * Write both the fan clock divider (if it changed) and the new
+	 * fan min (unconditionally)
+	 */
 	if (new_div != data->fan_div[nr]) {
 		dev_dbg(dev, "fan%u clock divider changed from %u to %u\n",
 			nr + 1, div_from_reg(data->fan_div[nr]),
@@ -1155,8 +1213,7 @@ show_##reg(struct device *dev, struct device_attribute *attr, \
 	struct sensor_device_attribute *sensor_attr = \
 		to_sensor_dev_attr(attr); \
 	int nr = sensor_attr->index; \
-	return sprintf(buf, "%d\n", \
-		       temp_from_reg(data->addr[nr], data->reg[nr])); \
+	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->reg[nr])); \
 }
 show_temp_reg(reg_temp, temp);
 show_temp_reg(reg_temp_over, temp_max);
@@ -1173,18 +1230,50 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	int nr = sensor_attr->index; \
 	int err; \
 	long val; \
-	err = strict_strtol(buf, 10, &val); \
+	err = kstrtol(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
 	mutex_lock(&data->update_lock); \
-	data->reg[nr] = temp_to_reg(data->addr[nr], val); \
-	w83627ehf_write_value(data, data->addr[nr], \
-			      data->reg[nr]); \
+	data->reg[nr] = LM75_TEMP_TO_REG(val); \
+	w83627ehf_write_temp(data, data->addr[nr], data->reg[nr]); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp_reg(reg_temp_over, temp_max);
 store_temp_reg(reg_temp_hyst, temp_max_hyst);
+
+static ssize_t
+show_temp_offset(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+
+	return sprintf(buf, "%d\n",
+		       data->temp_offset[sensor_attr->index] * 1000);
+}
+
+static ssize_t
+store_temp_offset(struct device *dev, struct device_attribute *attr,
+		  const char *buf, size_t count)
+{
+	struct w83627ehf_data *data = dev_get_drvdata(dev);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	long val;
+	int err;
+
+	err = kstrtol(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), -128, 127);
+
+	mutex_lock(&data->update_lock);
+	data->temp_offset[nr] = val;
+	w83627ehf_write_value(data, W83627EHF_REG_TEMP_OFFSET[nr], val);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
 
 static ssize_t
 show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1273,6 +1362,15 @@ static struct sensor_device_attribute sda_temp_type[] = {
 	SENSOR_ATTR(temp3_type, S_IRUGO, show_temp_type, NULL, 2),
 };
 
+static struct sensor_device_attribute sda_temp_offset[] = {
+	SENSOR_ATTR(temp1_offset, S_IRUGO | S_IWUSR, show_temp_offset,
+		    store_temp_offset, 0),
+	SENSOR_ATTR(temp2_offset, S_IRUGO | S_IWUSR, show_temp_offset,
+		    store_temp_offset, 1),
+	SENSOR_ATTR(temp3_offset, S_IRUGO | S_IWUSR, show_temp_offset,
+		    store_temp_offset, 2),
+};
+
 #define show_pwm_reg(reg) \
 static ssize_t show_##reg(struct device *dev, struct device_attribute *attr, \
 			  char *buf) \
@@ -1294,17 +1392,23 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83627ehf_sio_data *sio_data = dev->platform_data;
 	int nr = sensor_attr->index;
 	unsigned long val;
 	int err;
 	u16 reg;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 
 	if (val > 1)
 		return -EINVAL;
+
+	/* On NCT67766F, DC mode is only supported for pwm1 */
+	if (sio_data->kind == nct6776 && nr && val != 1)
+		return -EINVAL;
+
 	mutex_lock(&data->update_lock);
 	reg = w83627ehf_read_value(data, W83627EHF_REG_PWM_ENABLE[nr]);
 	data->pwm_mode[nr] = val;
@@ -1326,11 +1430,11 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int err;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(val, 0, 255);
+	val = clamp_val(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->pwm[nr] = val;
@@ -1351,7 +1455,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	int err;
 	u16 reg;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 
@@ -1405,11 +1509,11 @@ store_target_temp(struct device *dev, struct device_attribute *attr,
 	long val;
 	int err;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err < 0)
 		return err;
 
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 127);
 
 	mutex_lock(&data->update_lock);
 	data->target_temp[nr] = val;
@@ -1430,12 +1534,12 @@ store_tolerance(struct device *dev, struct device_attribute *attr,
 	long val;
 	int err;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err < 0)
 		return err;
 
 	/* Limit the temp to 0C - 15C */
-	val = SENSORS_LIMIT(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 0, 15);
 
 	mutex_lock(&data->update_lock);
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -1531,10 +1635,10 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	int nr = sensor_attr->index; \
 	unsigned long val; \
 	int err; \
-	err = strict_strtoul(buf, 10, &val); \
+	err = kstrtoul(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
-	val = SENSORS_LIMIT(val, 1, 255); \
+	val = clamp_val(val, 1, 255); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
 	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
@@ -1570,13 +1674,13 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	int nr = sensor_attr->index; \
 	unsigned long val; \
 	int err; \
-	err = strict_strtoul(buf, 10, &val); \
+	err = kstrtoul(buf, 10, &val); \
 	if (err < 0) \
 		return err; \
 	val = step_time_to_reg(val, data->pwm_mode[nr]); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
-	w83627ehf_write_value(data, W83627EHF_REG_##REG[nr], val); \
+	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 } \
@@ -1605,25 +1709,28 @@ static struct sensor_device_attribute sda_sf3_arrays_fan4[] = {
 		    store_fan_step_output, 3),
 };
 
+static struct sensor_device_attribute sda_sf3_arrays_fan3[] = {
+	SENSOR_ATTR(pwm3_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
+		    store_fan_stop_time, 2),
+	SENSOR_ATTR(pwm3_start_output, S_IWUSR | S_IRUGO, show_fan_start_output,
+		    store_fan_start_output, 2),
+	SENSOR_ATTR(pwm3_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
+		    store_fan_stop_output, 2),
+};
+
 static struct sensor_device_attribute sda_sf3_arrays[] = {
 	SENSOR_ATTR(pwm1_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
 		    store_fan_stop_time, 0),
 	SENSOR_ATTR(pwm2_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
 		    store_fan_stop_time, 1),
-	SENSOR_ATTR(pwm3_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
-		    store_fan_stop_time, 2),
 	SENSOR_ATTR(pwm1_start_output, S_IWUSR | S_IRUGO, show_fan_start_output,
 		    store_fan_start_output, 0),
 	SENSOR_ATTR(pwm2_start_output, S_IWUSR | S_IRUGO, show_fan_start_output,
 		    store_fan_start_output, 1),
-	SENSOR_ATTR(pwm3_start_output, S_IWUSR | S_IRUGO, show_fan_start_output,
-		    store_fan_start_output, 2),
 	SENSOR_ATTR(pwm1_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
 		    store_fan_stop_output, 0),
 	SENSOR_ATTR(pwm2_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
 		    store_fan_stop_output, 1),
-	SENSOR_ATTR(pwm3_stop_output, S_IWUSR | S_IRUGO, show_fan_stop_output,
-		    store_fan_stop_output, 2),
 };
 
 
@@ -1654,14 +1761,58 @@ show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 
+
+/* Case open detection */
+
+static ssize_t
+show_caseopen(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+
+	return sprintf(buf, "%d\n",
+		!!(data->caseopen & to_sensor_dev_attr_2(attr)->index));
+}
+
+static ssize_t
+clear_caseopen(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct w83627ehf_data *data = dev_get_drvdata(dev);
+	unsigned long val;
+	u16 reg, mask;
+
+	if (kstrtoul(buf, 10, &val) || val != 0)
+		return -EINVAL;
+
+	mask = to_sensor_dev_attr_2(attr)->nr;
+
+	mutex_lock(&data->update_lock);
+	reg = w83627ehf_read_value(data, W83627EHF_REG_CASEOPEN_CLR);
+	w83627ehf_write_value(data, W83627EHF_REG_CASEOPEN_CLR, reg | mask);
+	w83627ehf_write_value(data, W83627EHF_REG_CASEOPEN_CLR, reg & ~mask);
+	data->valid = 0;	/* Force cache refresh */
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
+static struct sensor_device_attribute_2 sda_caseopen[] = {
+	SENSOR_ATTR_2(intrusion0_alarm, S_IWUSR | S_IRUGO, show_caseopen,
+			clear_caseopen, 0x80, 0x10),
+	SENSOR_ATTR_2(intrusion1_alarm, S_IWUSR | S_IRUGO, show_caseopen,
+			clear_caseopen, 0x40, 0x40),
+};
+
 /*
  * Driver and device management
  */
 
 static void w83627ehf_device_remove_files(struct device *dev)
 {
-	/* some entries in the following arrays may not have been used in
-	 * device_create_file(), but device_remove_file() will ignore them */
+	/*
+	 * some entries in the following arrays may not have been used in
+	 * device_create_file(), but device_remove_file() will ignore them
+	 */
 	int i;
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 
@@ -1674,6 +1825,8 @@ static void w83627ehf_device_remove_files(struct device *dev)
 		    data->REG_FAN_STEP_OUTPUT[attr->index] != 0xff)
 			device_remove_file(dev, &attr->dev_attr);
 	}
+	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan3); i++)
+		device_remove_file(dev, &sda_sf3_arrays_fan3[i].dev_attr);
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++)
 		device_remove_file(dev, &sda_sf3_arrays_fan4[i].dev_attr);
 	for (i = 0; i < data->in_num; i++) {
@@ -1702,20 +1855,27 @@ static void w83627ehf_device_remove_files(struct device *dev)
 			continue;
 		device_remove_file(dev, &sda_temp_input[i].dev_attr);
 		device_remove_file(dev, &sda_temp_label[i].dev_attr);
+		if (i == 2 && data->temp3_val_only)
+			continue;
 		device_remove_file(dev, &sda_temp_max[i].dev_attr);
 		device_remove_file(dev, &sda_temp_max_hyst[i].dev_attr);
 		if (i > 2)
 			continue;
 		device_remove_file(dev, &sda_temp_alarm[i].dev_attr);
 		device_remove_file(dev, &sda_temp_type[i].dev_attr);
+		device_remove_file(dev, &sda_temp_offset[i].dev_attr);
 	}
+
+	device_remove_file(dev, &sda_caseopen[0].dev_attr);
+	device_remove_file(dev, &sda_caseopen[1].dev_attr);
 
 	device_remove_file(dev, &dev_attr_name);
 	device_remove_file(dev, &dev_attr_cpu0_vid);
 }
 
 /* Get the monitoring functions started */
-static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data)
+static inline void w83627ehf_init_device(struct w83627ehf_data *data,
+						   enum kinds kind)
 {
 	int i;
 	u8 tmp, diode;
@@ -1746,10 +1906,29 @@ static inline void __devinit w83627ehf_init_device(struct w83627ehf_data *data)
 		w83627ehf_write_value(data, W83627EHF_REG_VBAT, tmp | 0x01);
 
 	/* Get thermal sensor types */
-	diode = w83627ehf_read_value(data, W83627EHF_REG_DIODE);
+	switch (kind) {
+	case w83627ehf:
+		diode = w83627ehf_read_value(data, W83627EHF_REG_DIODE);
+		break;
+	case w83627uhg:
+		diode = 0x00;
+		break;
+	default:
+		diode = 0x70;
+	}
 	for (i = 0; i < 3; i++) {
-		if ((tmp & (0x02 << i)))
-			data->temp_type[i] = (diode & (0x10 << i)) ? 1 : 2;
+		const char *label = NULL;
+
+		if (data->temp_label)
+			label = data->temp_label[data->temp_src[i]];
+
+		/* Digital source overrides analog type */
+		if (label && strncmp(label, "PECI", 4) == 0)
+			data->temp_type[i] = 6;
+		else if (label && strncmp(label, "AMD", 3) == 0)
+			data->temp_type[i] = 5;
+		else if ((tmp & (0x02 << i)))
+			data->temp_type[i] = (diode & (0x10 << i)) ? 1 : 3;
 		else
 			data->temp_type[i] = 4; /* thermistor */
 	}
@@ -1781,13 +1960,115 @@ static void w82627ehf_swap_tempreg(struct w83627ehf_data *data,
 	data->reg_temp_config[r2] = tmp;
 }
 
-static int __devinit w83627ehf_probe(struct platform_device *pdev)
+static void
+w83627ehf_set_temp_reg_ehf(struct w83627ehf_data *data, int n_temp)
+{
+	int i;
+
+	for (i = 0; i < n_temp; i++) {
+		data->reg_temp[i] = W83627EHF_REG_TEMP[i];
+		data->reg_temp_over[i] = W83627EHF_REG_TEMP_OVER[i];
+		data->reg_temp_hyst[i] = W83627EHF_REG_TEMP_HYST[i];
+		data->reg_temp_config[i] = W83627EHF_REG_TEMP_CONFIG[i];
+	}
+}
+
+static void
+w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
+			   struct w83627ehf_data *data)
+{
+	int fan3pin, fan4pin, fan4min, fan5pin, regval;
+
+	/* The W83627UHG is simple, only two fan inputs, no config */
+	if (sio_data->kind == w83627uhg) {
+		data->has_fan = 0x03; /* fan1 and fan2 */
+		data->has_fan_min = 0x03;
+		return;
+	}
+
+	superio_enter(sio_data->sioreg);
+
+	/* fan4 and fan5 share some pins with the GPIO and serial flash */
+	if (sio_data->kind == nct6775) {
+		/* On NCT6775, fan4 shares pins with the fdc interface */
+		fan3pin = 1;
+		fan4pin = !(superio_inb(sio_data->sioreg, 0x2A) & 0x80);
+		fan4min = 0;
+		fan5pin = 0;
+	} else if (sio_data->kind == nct6776) {
+		bool gpok = superio_inb(sio_data->sioreg, 0x27) & 0x80;
+
+		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
+		regval = superio_inb(sio_data->sioreg, SIO_REG_ENABLE);
+
+		if (regval & 0x80)
+			fan3pin = gpok;
+		else
+			fan3pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x40);
+
+		if (regval & 0x40)
+			fan4pin = gpok;
+		else
+			fan4pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x01);
+
+		if (regval & 0x20)
+			fan5pin = gpok;
+		else
+			fan5pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x02);
+
+		fan4min = fan4pin;
+	} else if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
+		fan3pin = 1;
+		fan4pin = superio_inb(sio_data->sioreg, 0x27) & 0x40;
+		fan5pin = superio_inb(sio_data->sioreg, 0x27) & 0x20;
+		fan4min = fan4pin;
+	} else {
+		fan3pin = 1;
+		fan4pin = !(superio_inb(sio_data->sioreg, 0x29) & 0x06);
+		fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x02);
+		fan4min = fan4pin;
+	}
+
+	superio_exit(sio_data->sioreg);
+
+	data->has_fan = data->has_fan_min = 0x03; /* fan1 and fan2 */
+	data->has_fan |= (fan3pin << 2);
+	data->has_fan_min |= (fan3pin << 2);
+
+	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
+		/*
+		 * NCT6775F and NCT6776F don't have the W83627EHF_REG_FANDIV1
+		 * register
+		 */
+		data->has_fan |= (fan4pin << 3) | (fan5pin << 4);
+		data->has_fan_min |= (fan4min << 3) | (fan5pin << 4);
+	} else {
+		/*
+		 * It looks like fan4 and fan5 pins can be alternatively used
+		 * as fan on/off switches, but fan5 control is write only :/
+		 * We assume that if the serial interface is disabled, designers
+		 * connected fan5 as input unless they are emitting log 1, which
+		 * is not the default.
+		 */
+		regval = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
+		if ((regval & (1 << 2)) && fan4pin) {
+			data->has_fan |= (1 << 3);
+			data->has_fan_min |= (1 << 3);
+		}
+		if (!(regval & (1 << 1)) && fan5pin) {
+			data->has_fan |= (1 << 4);
+			data->has_fan_min |= (1 << 4);
+		}
+	}
+}
+
+static int w83627ehf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct w83627ehf_sio_data *sio_data = dev->platform_data;
 	struct w83627ehf_data *data;
 	struct resource *res;
-	u8 fan3pin, fan4pin, fan4min, fan5pin, en_vrm10;
+	u8 en_vrm10;
 	int i, err = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -1799,7 +2080,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	data = kzalloc(sizeof(struct w83627ehf_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct w83627ehf_data),
+			    GFP_KERNEL);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit_release;
@@ -1809,27 +2091,29 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 	data->name = w83627ehf_device_names[sio_data->kind];
+	data->bank = 0xff;		/* Force initial bank selection */
 	platform_set_drvdata(pdev, data);
 
 	/* 627EHG and 627EHF have 10 voltage inputs; 627DHG and 667HG have 9 */
 	data->in_num = (sio_data->kind == w83627ehf) ? 10 : 9;
-	/* 667HG, NCT6775F, and NCT6776F have 3 pwms */
-	data->pwm_num = (sio_data->kind == w83667hg
-			 || sio_data->kind == w83667hg_b
-			 || sio_data->kind == nct6775
-			 || sio_data->kind == nct6776) ? 3 : 4;
-
-	data->have_temp = 0x07;
-	/* Check temp3 configuration bit for 667HG */
-	if (sio_data->kind == w83667hg) {
-		u8 reg;
-
-		reg = w83627ehf_read_value(data, W83627EHF_REG_TEMP_CONFIG[2]);
-		if (reg & 0x01)
-			data->have_temp &= ~(1 << 2);
-		else
-			data->in6_skip = 1;	/* either temp3 or in6 */
+	/* 667HG, NCT6775F, and NCT6776F have 3 pwms, and 627UHG has only 2 */
+	switch (sio_data->kind) {
+	default:
+		data->pwm_num = 4;
+		break;
+	case w83667hg:
+	case w83667hg_b:
+	case nct6775:
+	case nct6776:
+		data->pwm_num = 3;
+		break;
+	case w83627uhg:
+		data->pwm_num = 2;
+		break;
 	}
+
+	/* Default to 3 temperature inputs, code below will adjust as needed */
+	data->have_temp = 0x07;
 
 	/* Deal with temperature register setup first. */
 	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -1903,19 +2187,20 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		} else {
 			data->temp_label = nct6775_temp_label;
 		}
+		data->have_temp_offset = data->have_temp & 0x07;
+		for (i = 0; i < 3; i++) {
+			if (data->temp_src[i] > 3)
+				data->have_temp_offset &= ~(1 << i);
+		}
 	} else if (sio_data->kind == w83667hg_b) {
 		u8 reg;
+
+		w83627ehf_set_temp_reg_ehf(data, 4);
 
 		/*
 		 * Temperature sources are selected with bank 0, registers 0x49
 		 * and 0x4a.
 		 */
-		for (i = 0; i < ARRAY_SIZE(W83627EHF_REG_TEMP); i++) {
-			data->reg_temp[i] = W83627EHF_REG_TEMP[i];
-			data->reg_temp_over[i] = W83627EHF_REG_TEMP_OVER[i];
-			data->reg_temp_hyst[i] = W83627EHF_REG_TEMP_HYST[i];
-			data->reg_temp_config[i] = W83627EHF_REG_TEMP_CONFIG[i];
-		}
 		reg = w83627ehf_read_value(data, 0x4a);
 		data->temp_src[0] = reg >> 5;
 		reg = w83627ehf_read_value(data, 0x49);
@@ -1949,14 +2234,72 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			data->in6_skip = 1;
 
 		data->temp_label = w83667hg_b_temp_label;
-	} else {
-		/* Temperature sources are fixed */
+		data->have_temp_offset = data->have_temp & 0x07;
 		for (i = 0; i < 3; i++) {
-			data->reg_temp[i] = W83627EHF_REG_TEMP[i];
-			data->reg_temp_over[i] = W83627EHF_REG_TEMP_OVER[i];
-			data->reg_temp_hyst[i] = W83627EHF_REG_TEMP_HYST[i];
-			data->reg_temp_config[i] = W83627EHF_REG_TEMP_CONFIG[i];
+			if (data->temp_src[i] > 2)
+				data->have_temp_offset &= ~(1 << i);
 		}
+	} else if (sio_data->kind == w83627uhg) {
+		u8 reg;
+
+		w83627ehf_set_temp_reg_ehf(data, 3);
+
+		/*
+		 * Temperature sources for temp2 and temp3 are selected with
+		 * bank 0, registers 0x49 and 0x4a.
+		 */
+		data->temp_src[0] = 0;	/* SYSTIN */
+		reg = w83627ehf_read_value(data, 0x49) & 0x07;
+		/* Adjust to have the same mapping as other source registers */
+		if (reg == 0)
+			data->temp_src[1] = 1;
+		else if (reg >= 2 && reg <= 5)
+			data->temp_src[1] = reg + 2;
+		else	/* should never happen */
+			data->have_temp &= ~(1 << 1);
+		reg = w83627ehf_read_value(data, 0x4a);
+		data->temp_src[2] = reg >> 5;
+
+		/*
+		 * Skip temp3 if source is invalid or the same as temp1
+		 * or temp2.
+		 */
+		if (data->temp_src[2] == 2 || data->temp_src[2] == 3 ||
+		    data->temp_src[2] == data->temp_src[0] ||
+		    ((data->have_temp & (1 << 1)) &&
+		     data->temp_src[2] == data->temp_src[1]))
+			data->have_temp &= ~(1 << 2);
+		else
+			data->temp3_val_only = 1;	/* No limit regs */
+
+		data->in6_skip = 1;			/* No VIN3 */
+
+		data->temp_label = w83667hg_b_temp_label;
+		data->have_temp_offset = data->have_temp & 0x03;
+		for (i = 0; i < 3; i++) {
+			if (data->temp_src[i] > 1)
+				data->have_temp_offset &= ~(1 << i);
+		}
+	} else {
+		w83627ehf_set_temp_reg_ehf(data, 3);
+
+		/* Temperature sources are fixed */
+
+		if (sio_data->kind == w83667hg) {
+			u8 reg;
+
+			/*
+			 * Chip supports either AUXTIN or VIN3. Try to find
+			 * out which one.
+			 */
+			reg = w83627ehf_read_value(data,
+						W83627EHF_REG_TEMP_CONFIG[2]);
+			if (reg & 0x01)
+				data->have_temp &= ~(1 << 2);
+			else
+				data->in6_skip = 1;
+		}
+		data->have_temp_offset = data->have_temp & 0x07;
 	}
 
 	if (sio_data->kind == nct6775) {
@@ -2015,43 +2358,53 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		  W83627EHF_REG_FAN_STEP_OUTPUT_COMMON;
 	}
 
+	/* Setup input voltage scaling factors */
+	if (sio_data->kind == w83627uhg)
+		data->scale_in = scale_in_w83627uhg;
+	else
+		data->scale_in = scale_in_common;
+
 	/* Initialize the chip */
-	w83627ehf_init_device(data);
+	w83627ehf_init_device(data, sio_data->kind);
 
 	data->vrm = vid_which_vrm();
 	superio_enter(sio_data->sioreg);
 	/* Read VID value */
 	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b ||
 	    sio_data->kind == nct6775 || sio_data->kind == nct6776) {
-		/* W83667HG has different pins for VID input and output, so
-		we can get the VID input values directly at logical device D
-		0xe3. */
+		/*
+		 * W83667HG has different pins for VID input and output, so
+		 * we can get the VID input values directly at logical device D
+		 * 0xe3.
+		 */
 		superio_select(sio_data->sioreg, W83667HG_LD_VID);
 		data->vid = superio_inb(sio_data->sioreg, 0xe3);
 		err = device_create_file(dev, &dev_attr_cpu0_vid);
 		if (err)
 			goto exit_release;
-	} else {
+	} else if (sio_data->kind != w83627uhg) {
 		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
 		if (superio_inb(sio_data->sioreg, SIO_REG_VID_CTRL) & 0x80) {
-			/* Set VID input sensibility if needed. In theory the
-			   BIOS should have set it, but in practice it's not
-			   always the case. We only do it for the W83627EHF/EHG
-			   because the W83627DHG is more complex in this
-			   respect. */
+			/*
+			 * Set VID input sensibility if needed. In theory the
+			 * BIOS should have set it, but in practice it's not
+			 * always the case. We only do it for the W83627EHF/EHG
+			 * because the W83627DHG is more complex in this
+			 * respect.
+			 */
 			if (sio_data->kind == w83627ehf) {
 				en_vrm10 = superio_inb(sio_data->sioreg,
 						       SIO_REG_EN_VRM10);
 				if ((en_vrm10 & 0x08) && data->vrm == 90) {
-					dev_warn(dev, "Setting VID input "
-						 "voltage to TTL\n");
+					dev_warn(dev,
+						 "Setting VID input voltage to TTL\n");
 					superio_outb(sio_data->sioreg,
 						     SIO_REG_EN_VRM10,
 						     en_vrm10 & ~0x08);
 				} else if (!(en_vrm10 & 0x08)
 					   && data->vrm == 100) {
-					dev_warn(dev, "Setting VID input "
-						 "voltage to VRM10\n");
+					dev_warn(dev,
+						 "Setting VID input voltage to VRM10\n");
 					superio_outb(sio_data->sioreg,
 						     SIO_REG_EN_VRM10,
 						     en_vrm10 | 0x08);
@@ -2067,33 +2420,9 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			if (err)
 				goto exit_release;
 		} else {
-			dev_info(dev, "VID pins in output mode, CPU VID not "
-				 "available\n");
+			dev_info(dev,
+				 "VID pins in output mode, CPU VID not available\n");
 		}
-	}
-
-	/* fan4 and fan5 share some pins with the GPIO and serial flash */
-	if (sio_data->kind == nct6775) {
-		/* On NCT6775, fan4 shares pins with the fdc interface */
-		fan3pin = 1;
-		fan4pin = !(superio_inb(sio_data->sioreg, 0x2A) & 0x80);
-		fan4min = 0;
-		fan5pin = 0;
-	} else if (sio_data->kind == nct6776) {
-		fan3pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x40);
-		fan4pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x01);
-		fan5pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x02);
-		fan4min = fan4pin;
-	} else if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
-		fan3pin = 1;
-		fan4pin = superio_inb(sio_data->sioreg, 0x27) & 0x40;
-		fan5pin = superio_inb(sio_data->sioreg, 0x27) & 0x20;
-		fan4min = fan4pin;
-	} else {
-		fan3pin = 1;
-		fan4pin = !(superio_inb(sio_data->sioreg, 0x29) & 0x06);
-		fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x02);
-		fan4min = fan4pin;
 	}
 
 	if (fan_debounce &&
@@ -2113,42 +2442,10 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 
 	superio_exit(sio_data->sioreg);
 
-	/* It looks like fan4 and fan5 pins can be alternatively used
-	   as fan on/off switches, but fan5 control is write only :/
-	   We assume that if the serial interface is disabled, designers
-	   connected fan5 as input unless they are emitting log 1, which
-	   is not the default. */
-
-	data->has_fan = data->has_fan_min = 0x03; /* fan1 and fan2 */
-
-	data->has_fan |= (fan3pin << 2);
-	data->has_fan_min |= (fan3pin << 2);
-
-	/*
-	 * NCT6775F and NCT6776F don't have the W83627EHF_REG_FANDIV1 register
-	 */
-	if (sio_data->kind == nct6775 || sio_data->kind == nct6776) {
-		data->has_fan |= (fan4pin << 3) | (fan5pin << 4);
-		data->has_fan_min |= (fan4min << 3) | (fan5pin << 4);
-	} else {
-		i = w83627ehf_read_value(data, W83627EHF_REG_FANDIV1);
-		if ((i & (1 << 2)) && fan4pin) {
-			data->has_fan |= (1 << 3);
-			data->has_fan_min |= (1 << 3);
-		}
-		if (!(i & (1 << 1)) && fan5pin) {
-			data->has_fan |= (1 << 4);
-			data->has_fan_min |= (1 << 4);
-		}
-	}
+	w83627ehf_check_fan_inputs(sio_data, data);
 
 	/* Read fan clock dividers immediately */
 	w83627ehf_update_fan_div_common(dev, data);
-
-	/* Read pwm data to save original values */
-	w83627ehf_update_pwm_common(dev, data);
-	for (i = 0; i < data->pwm_num; i++)
-		data->pwm_enable_orig[i] = data->pwm_enable[i];
 
 	/* Read pwm data to save original values */
 	w83627ehf_update_pwm_common(dev, data);
@@ -2172,7 +2469,14 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 				goto exit_remove;
 		}
 	}
-	/* if fan4 is enabled create the sf3 files for it */
+	/* if fan3 and fan4 are enabled create the sf3 files for them */
+	if ((data->has_fan & (1 << 2)) && data->pwm_num >= 3)
+		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan3); i++) {
+			err = device_create_file(dev,
+					&sda_sf3_arrays_fan3[i].dev_attr);
+			if (err)
+				goto exit_remove;
+		}
 	if ((data->has_fan & (1 << 3)) && data->pwm_num >= 4)
 		for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays_fan4); i++) {
 			err = device_create_file(dev,
@@ -2240,6 +2544,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			if (err)
 				goto exit_remove;
 		}
+		if (i == 2 && data->temp3_val_only)
+			continue;
 		if (data->reg_temp_over[i]) {
 			err = device_create_file(dev,
 				&sda_temp_max[i].dev_attr);
@@ -2259,6 +2565,22 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			|| (err = device_create_file(dev,
 				&sda_temp_type[i].dev_attr)))
 			goto exit_remove;
+		if (data->have_temp_offset & (1 << i)) {
+			err = device_create_file(dev,
+						 &sda_temp_offset[i].dev_attr);
+			if (err)
+				goto exit_remove;
+		}
+	}
+
+	err = device_create_file(dev, &sda_caseopen[0].dev_attr);
+	if (err)
+		goto exit_remove;
+
+	if (sio_data->kind == nct6776) {
+		err = device_create_file(dev, &sda_caseopen[1].dev_attr);
+		if (err)
+			goto exit_remove;
 	}
 
 	err = device_create_file(dev, &dev_attr_name);
@@ -2275,15 +2597,14 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 
 exit_remove:
 	w83627ehf_device_remove_files(dev);
-	kfree(data);
-	platform_set_drvdata(pdev, NULL);
 exit_release:
+	platform_set_drvdata(pdev, NULL);
 	release_region(res->start, IOREGION_LENGTH);
 exit:
 	return err;
 }
 
-static int __devexit w83627ehf_remove(struct platform_device *pdev)
+static int w83627ehf_remove(struct platform_device *pdev)
 {
 	struct w83627ehf_data *data = platform_get_drvdata(pdev);
 
@@ -2291,32 +2612,120 @@ static int __devexit w83627ehf_remove(struct platform_device *pdev)
 	w83627ehf_device_remove_files(&pdev->dev);
 	release_region(data->addr, IOREGION_LENGTH);
 	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int w83627ehf_suspend(struct device *dev)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+
+	mutex_lock(&data->update_lock);
+	data->vbat = w83627ehf_read_value(data, W83627EHF_REG_VBAT);
+	if (sio_data->kind == nct6775) {
+		data->fandiv1 = w83627ehf_read_value(data, NCT6775_REG_FANDIV1);
+		data->fandiv2 = w83627ehf_read_value(data, NCT6775_REG_FANDIV2);
+	}
+	mutex_unlock(&data->update_lock);
+
+	return 0;
+}
+
+static int w83627ehf_resume(struct device *dev)
+{
+	struct w83627ehf_data *data = dev_get_drvdata(dev);
+	struct w83627ehf_sio_data *sio_data = dev->platform_data;
+	int i;
+
+	mutex_lock(&data->update_lock);
+	data->bank = 0xff;		/* Force initial bank selection */
+
+	/* Restore limits */
+	for (i = 0; i < data->in_num; i++) {
+		if ((i == 6) && data->in6_skip)
+			continue;
+
+		w83627ehf_write_value(data, W83627EHF_REG_IN_MIN(i),
+				      data->in_min[i]);
+		w83627ehf_write_value(data, W83627EHF_REG_IN_MAX(i),
+				      data->in_max[i]);
+	}
+
+	for (i = 0; i < 5; i++) {
+		if (!(data->has_fan_min & (1 << i)))
+			continue;
+
+		w83627ehf_write_value(data, data->REG_FAN_MIN[i],
+				      data->fan_min[i]);
+	}
+
+	for (i = 0; i < NUM_REG_TEMP; i++) {
+		if (!(data->have_temp & (1 << i)))
+			continue;
+
+		if (data->reg_temp_over[i])
+			w83627ehf_write_temp(data, data->reg_temp_over[i],
+					     data->temp_max[i]);
+		if (data->reg_temp_hyst[i])
+			w83627ehf_write_temp(data, data->reg_temp_hyst[i],
+					     data->temp_max_hyst[i]);
+		if (i > 2)
+			continue;
+		if (data->have_temp_offset & (1 << i))
+			w83627ehf_write_value(data,
+					      W83627EHF_REG_TEMP_OFFSET[i],
+					      data->temp_offset[i]);
+	}
+
+	/* Restore other settings */
+	w83627ehf_write_value(data, W83627EHF_REG_VBAT, data->vbat);
+	if (sio_data->kind == nct6775) {
+		w83627ehf_write_value(data, NCT6775_REG_FANDIV1, data->fandiv1);
+		w83627ehf_write_value(data, NCT6775_REG_FANDIV2, data->fandiv2);
+	}
+
+	/* Force re-reading all values */
+	data->valid = 0;
+	mutex_unlock(&data->update_lock);
+
+	return 0;
+}
+
+static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
+	.suspend = w83627ehf_suspend,
+	.resume = w83627ehf_resume,
+};
+
+#define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
+#else
+#define W83627EHF_DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
+		.pm	= W83627EHF_DEV_PM_OPS,
 	},
 	.probe		= w83627ehf_probe,
-	.remove		= __devexit_p(w83627ehf_remove),
+	.remove		= w83627ehf_remove,
 };
 
 /* w83627ehf_find() looks for a '627 in the Super-I/O config space */
 static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 				 struct w83627ehf_sio_data *sio_data)
 {
-	static const char __initdata sio_name_W83627EHF[] = "W83627EHF";
-	static const char __initdata sio_name_W83627EHG[] = "W83627EHG";
-	static const char __initdata sio_name_W83627DHG[] = "W83627DHG";
-	static const char __initdata sio_name_W83627DHG_P[] = "W83627DHG-P";
-	static const char __initdata sio_name_W83667HG[] = "W83667HG";
-	static const char __initdata sio_name_W83667HG_B[] = "W83667HG-B";
-	static const char __initdata sio_name_NCT6775[] = "NCT6775F";
-	static const char __initdata sio_name_NCT6776[] = "NCT6776F";
+	static const char sio_name_W83627EHF[] __initconst = "W83627EHF";
+	static const char sio_name_W83627EHG[] __initconst = "W83627EHG";
+	static const char sio_name_W83627DHG[] __initconst = "W83627DHG";
+	static const char sio_name_W83627DHG_P[] __initconst = "W83627DHG-P";
+	static const char sio_name_W83627UHG[] __initconst = "W83627UHG";
+	static const char sio_name_W83667HG[] __initconst = "W83667HG";
+	static const char sio_name_W83667HG_B[] __initconst = "W83667HG-B";
+	static const char sio_name_NCT6775[] __initconst = "NCT6775F";
+	static const char sio_name_NCT6776[] __initconst = "NCT6776F";
 
 	u16 val;
 	const char *sio_name;
@@ -2344,6 +2753,10 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	case SIO_W83627DHG_P_ID:
 		sio_data->kind = w83627dhg_p;
 		sio_name = sio_name_W83627DHG_P;
+		break;
+	case SIO_W83627UHG_ID:
+		sio_data->kind = w83627uhg;
+		sio_name = sio_name_W83627UHG;
 		break;
 	case SIO_W83667HG_ID:
 		sio_data->kind = w83667hg;
@@ -2382,8 +2795,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
 	if (!(val & 0x01)) {
-		pr_warn("Forcibly enabling Super-I/O. "
-			"Sensor is probably unusable.\n");
+		pr_warn("Forcibly enabling Super-I/O. Sensor is probably unusable.\n");
 		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
@@ -2394,10 +2806,12 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	return 0;
 }
 
-/* when Super-I/O functions move to a separate file, the Super-I/O
+/*
+ * when Super-I/O functions move to a separate file, the Super-I/O
  * bus will manage the lifetime of the device and this module will only keep
  * track of the w83627ehf driver. But since we platform_device_alloc(), we
- * must keep track of the device */
+ * must keep track of the device
+ */
 static struct platform_device *pdev;
 
 static int __init sensors_w83627ehf_init(void)
@@ -2407,11 +2821,13 @@ static int __init sensors_w83627ehf_init(void)
 	struct resource res;
 	struct w83627ehf_sio_data sio_data;
 
-	/* initialize sio_data->kind and sio_data->sioreg.
+	/*
+	 * initialize sio_data->kind and sio_data->sioreg.
 	 *
 	 * when Super-I/O functions move to a separate file, the Super-I/O
 	 * driver will probe 0x2e and 0x4e and auto-detect the presence of a
-	 * w83627ehf hardware monitor, and call probe() */
+	 * w83627ehf hardware monitor, and call probe()
+	 */
 	if (w83627ehf_find(0x2e, &address, &sio_data) &&
 	    w83627ehf_find(0x4e, &address, &sio_data))
 		return -ENODEV;

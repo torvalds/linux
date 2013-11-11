@@ -58,13 +58,6 @@ union ktime {
 
 typedef union ktime ktime_t;		/* Kill this */
 
-#define KTIME_MAX			((s64)~((u64)1 << 63))
-#if (BITS_PER_LONG == 64)
-# define KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
-#else
-# define KTIME_SEC_MAX			LONG_MAX
-#endif
-
 /*
  * ktime_t definitions when using the 64-bit scalar representation:
  */
@@ -289,6 +282,25 @@ static inline int ktime_equal(const ktime_t cmp1, const ktime_t cmp2)
 	return cmp1.tv64 == cmp2.tv64;
 }
 
+/**
+ * ktime_compare - Compares two ktime_t variables for less, greater or equal
+ * @cmp1:	comparable1
+ * @cmp2:	comparable2
+ *
+ * Returns ...
+ *   cmp1  < cmp2: return <0
+ *   cmp1 == cmp2: return 0
+ *   cmp1  > cmp2: return >0
+ */
+static inline int ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
+{
+	if (cmp1.tv64 < cmp2.tv64)
+		return -1;
+	if (cmp1.tv64 > cmp2.tv64)
+		return 1;
+	return 0;
+}
+
 static inline s64 ktime_to_us(const ktime_t kt)
 {
 	struct timeval tv = ktime_to_timeval(kt);
@@ -317,6 +329,24 @@ static inline ktime_t ktime_sub_us(const ktime_t kt, const u64 usec)
 }
 
 extern ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs);
+
+/**
+ * ktime_to_timespec_cond - convert a ktime_t variable to timespec
+ *			    format only if the variable contains data
+ * @kt:		the ktime_t variable to convert
+ * @ts:		the timespec variable to store the result in
+ *
+ * Returns true if there was a successful conversion, false if kt was 0.
+ */
+static inline bool ktime_to_timespec_cond(const ktime_t kt, struct timespec *ts)
+{
+	if (kt.tv64) {
+		*ts = ktime_to_timespec(kt);
+		return true;
+	} else {
+		return false;
+	}
+}
 
 /*
  * The resolution of the clocks. The resolution value is returned in

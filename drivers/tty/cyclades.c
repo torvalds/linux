@@ -45,7 +45,6 @@
 #undef	CY_DEBUG_IO
 #undef	CY_DEBUG_COUNT
 #undef	CY_DEBUG_DTR
-#undef	CY_DEBUG_WAIT_UNTIL_SENT
 #undef	CY_DEBUG_INTERRUPTS
 #undef	CY_16Y_HACK
 #undef	CY_ENABLE_MONITORING
@@ -442,7 +441,7 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		void __iomem *base_addr)
 {
 	struct cyclades_port *info;
-	struct tty_struct *tty;
+	struct tty_port *port;
 	int len, index = cinfo->bus_index;
 	u8 ivr, save_xir, channel, save_car, data, char_count;
 
@@ -453,22 +452,11 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 	save_xir = readb(base_addr + (CyRIR << index));
 	channel = save_xir & CyIRChannel;
 	info = &cinfo->ports[channel + chip * 4];
+	port = &info->port;
 	save_car = cyy_readb(info, CyCAR);
 	cyy_writeb(info, CyCAR, save_xir);
 	ivr = cyy_readb(info, CyRIVR) & CyIVRMask;
 
-	tty = tty_port_tty_get(&info->port);
-	/* if there is nowhere to put the data, discard it */
-	if (tty == NULL) {
-		if (ivr == CyIVRRxEx) {	/* exception */
-			data = cyy_readb(info, CyRDSR);
-		} else {	/* normal character reception */
-			char_count = cyy_readb(info, CyRDCR);
-			while (char_count--)
-				data = cyy_readb(info, CyRDSR);
-		}
-		goto end;
-	}
 	/* there is an open port for this data */
 	if (ivr == CyIVRRxEx) {	/* exception */
 		data = cyy_readb(info, CyRDSR);
@@ -485,40 +473,45 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 
 		if (data & info->ignore_status_mask) {
 			info->icount.rx++;
-			tty_kref_put(tty);
 			return;
 		}
-		if (tty_buffer_request_room(tty, 1)) {
+		if (tty_buffer_request_room(port, 1)) {
 			if (data & info->read_status_mask) {
 				if (data & CyBREAK) {
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_BREAK);
 					info->icount.rx++;
-					if (info->port.flags & ASYNC_SAK)
-						do_SAK(tty);
+					if (port->flags & ASYNC_SAK) {
+						struct tty_struct *tty =
+							tty_port_tty_get(port);
+						if (tty) {
+							do_SAK(tty);
+							tty_kref_put(tty);
+						}
+					}
 				} else if (data & CyFRAME) {
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_FRAME);
 					info->icount.rx++;
 					info->idle_stats.frame_errs++;
 				} else if (data & CyPARITY) {
 					/* Pieces of seven... */
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_PARITY);
 					info->icount.rx++;
 					info->idle_stats.parity_errs++;
 				} else if (data & CyOVERRUN) {
-					tty_insert_flip_char(tty, 0,
+					tty_insert_flip_char(port, 0,
 							TTY_OVERRUN);
 					info->icount.rx++;
 					/* If the flip buffer itself is
 					   overflowing, we still lose
 					   the next incoming character.
 					 */
-					tty_insert_flip_char(tty,
+					tty_insert_flip_char(port,
 						cyy_readb(info, CyRDSR),
 						TTY_FRAME);
 					info->icount.rx++;
@@ -528,12 +521,12 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 				/* } else if(data & CyTIMEOUT) { */
 				/* } else if(data & CySPECHAR) { */
 				} else {
-					tty_insert_flip_char(tty, 0,
+					tty_insert_flip_char(port, 0,
 							TTY_NORMAL);
 					info->icount.rx++;
 				}
 			} else {
-				tty_insert_flip_char(tty, 0, TTY_NORMAL);
+				tty_insert_flip_char(port, 0, TTY_NORMAL);
 				info->icount.rx++;
 			}
 		} else {
@@ -553,10 +546,10 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 			info->mon.char_max = char_count;
 		info->mon.char_last = char_count;
 #endif
-		len = tty_buffer_request_room(tty, char_count);
+		len = tty_buffer_request_room(port, char_count);
 		while (len--) {
 			data = cyy_readb(info, CyRDSR);
-			tty_insert_flip_char(tty, data, TTY_NORMAL);
+			tty_insert_flip_char(port, data, TTY_NORMAL);
 			info->idle_stats.recv_bytes++;
 			info->icount.rx++;
 #ifdef CY_16Y_HACK
@@ -565,9 +558,8 @@ static void cyy_chip_rx(struct cyclades_card *cinfo, int chip,
 		}
 		info->idle_stats.recv_idle = jiffies;
 	}
-	tty_schedule_flip(tty);
-	tty_kref_put(tty);
-end:
+	tty_schedule_flip(port);
+
 	/* end of service */
 	cyy_writeb(info, CyRIR, save_xir & 0x3f);
 	cyy_writeb(info, CyCAR, save_car);
@@ -728,7 +720,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		else
 			tty_hangup(tty);
 	}
-	if ((mdm_change & CyCTS) && (info->port.flags & ASYNC_CTS_FLOW)) {
+	if ((mdm_change & CyCTS) && tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (mdm_status & CyCTS) {
 				/* cy_start isn't used
@@ -925,10 +917,11 @@ cyz_issue_cmd(struct cyclades_card *cinfo,
 	return 0;
 }				/* cyz_issue_cmd */
 
-static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
+static void cyz_handle_rx(struct cyclades_port *info)
 {
 	struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 	struct cyclades_card *cinfo = info->card;
+	struct tty_port *port = &info->port;
 	unsigned int char_count;
 	int len;
 #ifdef BLOCKMOVE
@@ -947,80 +940,77 @@ static void cyz_handle_rx(struct cyclades_port *info, struct tty_struct *tty)
 	else
 		char_count = rx_put - rx_get + rx_bufsize;
 
-	if (char_count) {
+	if (!char_count)
+		return;
+
 #ifdef CY_ENABLE_MONITORING
-		info->mon.int_count++;
-		info->mon.char_count += char_count;
-		if (char_count > info->mon.char_max)
-			info->mon.char_max = char_count;
-		info->mon.char_last = char_count;
+	info->mon.int_count++;
+	info->mon.char_count += char_count;
+	if (char_count > info->mon.char_max)
+		info->mon.char_max = char_count;
+	info->mon.char_last = char_count;
 #endif
-		if (tty == NULL) {
-			/* flush received characters */
-			new_rx_get = (new_rx_get + char_count) &
-					(rx_bufsize - 1);
-			info->rflush_count++;
-		} else {
+
 #ifdef BLOCKMOVE
-		/* we'd like to use memcpy(t, f, n) and memset(s, c, count)
-		   for performance, but because of buffer boundaries, there
-		   may be several steps to the operation */
-			while (1) {
-				len = tty_prepare_flip_string(tty, &buf,
-						char_count);
-				if (!len)
-					break;
+	/* we'd like to use memcpy(t, f, n) and memset(s, c, count)
+	   for performance, but because of buffer boundaries, there
+	   may be several steps to the operation */
+	while (1) {
+		len = tty_prepare_flip_string(port, &buf,
+				char_count);
+		if (!len)
+			break;
 
-				len = min_t(unsigned int, min(len, char_count),
-						rx_bufsize - new_rx_get);
+		len = min_t(unsigned int, min(len, char_count),
+				rx_bufsize - new_rx_get);
 
-				memcpy_fromio(buf, cinfo->base_addr +
-						rx_bufaddr + new_rx_get, len);
+		memcpy_fromio(buf, cinfo->base_addr +
+				rx_bufaddr + new_rx_get, len);
 
-				new_rx_get = (new_rx_get + len) &
-						(rx_bufsize - 1);
-				char_count -= len;
-				info->icount.rx += len;
-				info->idle_stats.recv_bytes += len;
-			}
+		new_rx_get = (new_rx_get + len) &
+				(rx_bufsize - 1);
+		char_count -= len;
+		info->icount.rx += len;
+		info->idle_stats.recv_bytes += len;
+	}
 #else
-			len = tty_buffer_request_room(tty, char_count);
-			while (len--) {
-				data = readb(cinfo->base_addr + rx_bufaddr +
-						new_rx_get);
-				new_rx_get = (new_rx_get + 1) &
-							(rx_bufsize - 1);
-				tty_insert_flip_char(tty, data, TTY_NORMAL);
-				info->idle_stats.recv_bytes++;
-				info->icount.rx++;
-			}
+	len = tty_buffer_request_room(port, char_count);
+	while (len--) {
+		data = readb(cinfo->base_addr + rx_bufaddr +
+				new_rx_get);
+		new_rx_get = (new_rx_get + 1) &
+					(rx_bufsize - 1);
+		tty_insert_flip_char(port, data, TTY_NORMAL);
+		info->idle_stats.recv_bytes++;
+		info->icount.rx++;
+	}
 #endif
 #ifdef CONFIG_CYZ_INTR
-		/* Recalculate the number of chars in the RX buffer and issue
-		   a cmd in case it's higher than the RX high water mark */
-			rx_put = readl(&buf_ctrl->rx_put);
-			if (rx_put >= rx_get)
-				char_count = rx_put - rx_get;
-			else
-				char_count = rx_put - rx_get + rx_bufsize;
-			if (char_count >= readl(&buf_ctrl->rx_threshold) &&
-					!timer_pending(&cyz_rx_full_timer[
-							info->line]))
-				mod_timer(&cyz_rx_full_timer[info->line],
-						jiffies + 1);
+	/* Recalculate the number of chars in the RX buffer and issue
+	   a cmd in case it's higher than the RX high water mark */
+	rx_put = readl(&buf_ctrl->rx_put);
+	if (rx_put >= rx_get)
+		char_count = rx_put - rx_get;
+	else
+		char_count = rx_put - rx_get + rx_bufsize;
+	if (char_count >= readl(&buf_ctrl->rx_threshold) &&
+			!timer_pending(&cyz_rx_full_timer[
+					info->line]))
+		mod_timer(&cyz_rx_full_timer[info->line],
+				jiffies + 1);
 #endif
-			info->idle_stats.recv_idle = jiffies;
-			tty_schedule_flip(tty);
-		}
-		/* Update rx_get */
-		cy_writel(&buf_ctrl->rx_get, new_rx_get);
-	}
+	info->idle_stats.recv_idle = jiffies;
+	tty_schedule_flip(&info->port);
+
+	/* Update rx_get */
+	cy_writel(&buf_ctrl->rx_get, new_rx_get);
 }
 
-static void cyz_handle_tx(struct cyclades_port *info, struct tty_struct *tty)
+static void cyz_handle_tx(struct cyclades_port *info)
 {
 	struct BUF_CTRL __iomem *buf_ctrl = info->u.cyz.buf_ctrl;
 	struct cyclades_card *cinfo = info->card;
+	struct tty_struct *tty;
 	u8 data;
 	unsigned int char_count;
 #ifdef BLOCKMOVE
@@ -1040,63 +1030,63 @@ static void cyz_handle_tx(struct cyclades_port *info, struct tty_struct *tty)
 	else
 		char_count = tx_get - tx_put - 1;
 
-	if (char_count) {
+	if (!char_count)
+		return;
+		
+	tty = tty_port_tty_get(&info->port);
+	if (tty == NULL)
+		goto ztxdone;
 
-		if (tty == NULL)
-			goto ztxdone;
+	if (info->x_char) {	/* send special char */
+		data = info->x_char;
 
-		if (info->x_char) {	/* send special char */
-			data = info->x_char;
-
-			cy_writeb(cinfo->base_addr + tx_bufaddr + tx_put, data);
-			tx_put = (tx_put + 1) & (tx_bufsize - 1);
-			info->x_char = 0;
-			char_count--;
-			info->icount.tx++;
-		}
-#ifdef BLOCKMOVE
-		while (0 < (small_count = min_t(unsigned int,
-				tx_bufsize - tx_put, min_t(unsigned int,
-					(SERIAL_XMIT_SIZE - info->xmit_tail),
-					min_t(unsigned int, info->xmit_cnt,
-						char_count))))) {
-
-			memcpy_toio((char *)(cinfo->base_addr + tx_bufaddr +
-					tx_put),
-					&info->port.xmit_buf[info->xmit_tail],
-					small_count);
-
-			tx_put = (tx_put + small_count) & (tx_bufsize - 1);
-			char_count -= small_count;
-			info->icount.tx += small_count;
-			info->xmit_cnt -= small_count;
-			info->xmit_tail = (info->xmit_tail + small_count) &
-					(SERIAL_XMIT_SIZE - 1);
-		}
-#else
-		while (info->xmit_cnt && char_count) {
-			data = info->port.xmit_buf[info->xmit_tail];
-			info->xmit_cnt--;
-			info->xmit_tail = (info->xmit_tail + 1) &
-					(SERIAL_XMIT_SIZE - 1);
-
-			cy_writeb(cinfo->base_addr + tx_bufaddr + tx_put, data);
-			tx_put = (tx_put + 1) & (tx_bufsize - 1);
-			char_count--;
-			info->icount.tx++;
-		}
-#endif
-		tty_wakeup(tty);
-ztxdone:
-		/* Update tx_put */
-		cy_writel(&buf_ctrl->tx_put, tx_put);
+		cy_writeb(cinfo->base_addr + tx_bufaddr + tx_put, data);
+		tx_put = (tx_put + 1) & (tx_bufsize - 1);
+		info->x_char = 0;
+		char_count--;
+		info->icount.tx++;
 	}
+#ifdef BLOCKMOVE
+	while (0 < (small_count = min_t(unsigned int,
+			tx_bufsize - tx_put, min_t(unsigned int,
+				(SERIAL_XMIT_SIZE - info->xmit_tail),
+				min_t(unsigned int, info->xmit_cnt,
+					char_count))))) {
+
+		memcpy_toio((char *)(cinfo->base_addr + tx_bufaddr + tx_put),
+				&info->port.xmit_buf[info->xmit_tail],
+				small_count);
+
+		tx_put = (tx_put + small_count) & (tx_bufsize - 1);
+		char_count -= small_count;
+		info->icount.tx += small_count;
+		info->xmit_cnt -= small_count;
+		info->xmit_tail = (info->xmit_tail + small_count) &
+				(SERIAL_XMIT_SIZE - 1);
+	}
+#else
+	while (info->xmit_cnt && char_count) {
+		data = info->port.xmit_buf[info->xmit_tail];
+		info->xmit_cnt--;
+		info->xmit_tail = (info->xmit_tail + 1) &
+				(SERIAL_XMIT_SIZE - 1);
+
+		cy_writeb(cinfo->base_addr + tx_bufaddr + tx_put, data);
+		tx_put = (tx_put + 1) & (tx_bufsize - 1);
+		char_count--;
+		info->icount.tx++;
+	}
+#endif
+	tty_wakeup(tty);
+	tty_kref_put(tty);
+ztxdone:
+	/* Update tx_put */
+	cy_writel(&buf_ctrl->tx_put, tx_put);
 }
 
 static void cyz_handle_cmd(struct cyclades_card *cinfo)
 {
 	struct BOARD_CTRL __iomem *board_ctrl = cinfo->board_ctrl;
-	struct tty_struct *tty;
 	struct cyclades_port *info;
 	__u32 channel, param, fw_ver;
 	__u8 cmd;
@@ -1109,23 +1099,20 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		special_count = 0;
 		delta_count = 0;
 		info = &cinfo->ports[channel];
-		tty = tty_port_tty_get(&info->port);
-		if (tty == NULL)
-			continue;
 
 		switch (cmd) {
 		case C_CM_PR_ERROR:
-			tty_insert_flip_char(tty, 0, TTY_PARITY);
+			tty_insert_flip_char(&info->port, 0, TTY_PARITY);
 			info->icount.rx++;
 			special_count++;
 			break;
 		case C_CM_FR_ERROR:
-			tty_insert_flip_char(tty, 0, TTY_FRAME);
+			tty_insert_flip_char(&info->port, 0, TTY_FRAME);
 			info->icount.rx++;
 			special_count++;
 			break;
 		case C_CM_RXBRK:
-			tty_insert_flip_char(tty, 0, TTY_BREAK);
+			tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 			info->icount.rx++;
 			special_count++;
 			break;
@@ -1138,7 +1125,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 				if (dcd & C_RS_DCD)
 					wake_up_interruptible(&info->port.open_wait);
 				else
-					tty_hangup(tty);
+					tty_port_tty_hangup(&info->port, false);
 			}
 			break;
 		case C_CM_MCTS:
@@ -1167,7 +1154,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			printk(KERN_DEBUG "cyz_interrupt: rcvd intr, card %d, "
 					"port %ld\n", info->card, channel);
 #endif
-			cyz_handle_rx(info, tty);
+			cyz_handle_rx(info);
 			break;
 		case C_CM_TXBEMPTY:
 		case C_CM_TXLOWWM:
@@ -1177,7 +1164,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 			printk(KERN_DEBUG "cyz_interrupt: xmit intr, card %d, "
 					"port %ld\n", info->card, channel);
 #endif
-			cyz_handle_tx(info, tty);
+			cyz_handle_tx(info);
 			break;
 #endif				/* CONFIG_CYZ_INTR */
 		case C_CM_FATAL:
@@ -1189,8 +1176,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		if (delta_count)
 			wake_up_interruptible(&info->port.delta_msr_wait);
 		if (special_count)
-			tty_schedule_flip(tty);
-		tty_kref_put(tty);
+			tty_schedule_flip(&info->port);
 	}
 }
 
@@ -1256,17 +1242,11 @@ static void cyz_poll(unsigned long arg)
 		cyz_handle_cmd(cinfo);
 
 		for (port = 0; port < cinfo->nports; port++) {
-			struct tty_struct *tty;
-
 			info = &cinfo->ports[port];
-			tty = tty_port_tty_get(&info->port);
-			/* OK to pass NULL to the handle functions below.
-			   They need to drop the data in that case. */
 
 			if (!info->throttle)
-				cyz_handle_rx(info, tty);
-			cyz_handle_tx(info, tty);
-			tty_kref_put(tty);
+				cyz_handle_rx(info);
+			cyz_handle_tx(info);
 		}
 		/* poll every 'cyz_polling_cycle' period */
 		expires = jiffies + cyz_polling_cycle;
@@ -1460,7 +1440,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			info->port.xmit_buf = NULL;
 			free_page((unsigned long)temp);
 		}
-		if (tty->termios->c_cflag & HUPCL)
+		if (tty->termios.c_cflag & HUPCL)
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS | TIOCM_DTR);
 
 		cyy_issue_cmd(info, CyCHAN_CTL | CyDIS_RCVR);
@@ -1489,7 +1469,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			free_page((unsigned long)temp);
 		}
 
-		if (tty->termios->c_cflag & HUPCL)
+		if (tty->termios.c_cflag & HUPCL)
 			tty_port_lower_dtr_rts(&info->port);
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
@@ -1516,12 +1496,8 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 static int cy_open(struct tty_struct *tty, struct file *filp)
 {
 	struct cyclades_port *info;
-	unsigned int i, line;
+	unsigned int i, line = tty->index;
 	int retval;
-
-	line = tty->index;
-	if (tty->index < 0 || NR_PORTS <= line)
-		return -ENODEV;
 
 	for (i = 0; i < NR_CARDS; i++)
 		if (line < cy_card[i].first_line + cy_card[i].nports &&
@@ -1604,7 +1580,7 @@ static int cy_open(struct tty_struct *tty, struct file *filp)
 	 * If the port is the middle of closing, bail out now
 	 */
 	if (tty_hung_up_p(filp) || (info->port.flags & ASYNC_CLOSING)) {
-		wait_event_interruptible_tty(info->port.close_wait,
+		wait_event_interruptible_tty(tty, info->port.close_wait,
 				!(info->port.flags & ASYNC_CLOSING));
 		return (info->port.flags & ASYNC_HUP_NOTIFY) ? -EAGAIN: -ERESTARTSYS;
 	}
@@ -1678,16 +1654,10 @@ static void cy_wait_until_sent(struct tty_struct *tty, int timeout)
 	 */
 	if (!timeout || timeout > 2 * info->timeout)
 		timeout = 2 * info->timeout;
-#ifdef CY_DEBUG_WAIT_UNTIL_SENT
-	printk(KERN_DEBUG "In cy_wait_until_sent(%d) check=%d, jiff=%lu...",
-		timeout, char_time, jiffies);
-#endif
+
 	card = info->card;
 	if (!cy_is_Z(card)) {
 		while (cyy_readb(info, CySRER) & CyTxRdy) {
-#ifdef CY_DEBUG_WAIT_UNTIL_SENT
-			printk(KERN_DEBUG "Not clean (jiff=%lu)...", jiffies);
-#endif
 			if (msleep_interruptible(jiffies_to_msecs(char_time)))
 				break;
 			if (timeout && time_after(jiffies, orig_jiffies +
@@ -1697,9 +1667,6 @@ static void cy_wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 	/* Run one more char cycle */
 	msleep_interruptible(jiffies_to_msecs(char_time * 5));
-#ifdef CY_DEBUG_WAIT_UNTIL_SENT
-	printk(KERN_DEBUG "Clean (jiff=%lu)...done\n", jiffies);
-#endif
 }
 
 static void cy_flush_buffer(struct tty_struct *tty)
@@ -2013,14 +1980,11 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	int baud, baud_rate = 0;
 	int i;
 
-	if (!tty->termios) /* XXX can this happen at all? */
-		return;
-
 	if (info->line == -1)
 		return;
 
-	cflag = tty->termios->c_cflag;
-	iflag = tty->termios->c_iflag;
+	cflag = tty->termios.c_cflag;
+	iflag = tty->termios.c_iflag;
 
 	/*
 	 * Set up the tty->alt_speed kludge
@@ -2423,7 +2387,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 		/* Not supported yet */
 		return -EINVAL;
 	}
-	return put_user(result, (unsigned long __user *)value);
+	return put_user(result, value);
 }
 
 static int cy_tiocmget(struct tty_struct *tty)
@@ -2839,7 +2803,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	cy_set_line_char(info, tty);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios->c_cflag & CRTSCTS)) {
+			!(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		cy_start(tty);
 	}
@@ -2851,7 +2815,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	 * or not.  Hence, this may change.....
 	 */
 	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios->c_cflag & CLOCAL))
+	    (tty->termios.c_cflag & CLOCAL))
 		wake_up_interruptible(&info->port.open_wait);
 #endif
 }				/* cy_set_termios */
@@ -2913,7 +2877,7 @@ static void cy_throttle(struct tty_struct *tty)
 			info->throttle = 1;
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS);
@@ -2952,7 +2916,7 @@ static void cy_unthrottle(struct tty_struct *tty)
 			cy_send_xchar(tty, START_CHAR(tty));
 	}
 
-	if (tty->termios->c_cflag & CRTSCTS) {
+	if (tty->termios.c_cflag & CRTSCTS) {
 		card = info->card;
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
@@ -3116,7 +3080,7 @@ static const struct tty_port_operations cyz_port_ops = {
  * ---------------------------------------------------------------------
  */
 
-static int __devinit cy_init_card(struct cyclades_card *cinfo)
+static int cy_init_card(struct cyclades_card *cinfo)
 {
 	struct cyclades_port *info;
 	unsigned int channel, port;
@@ -3213,7 +3177,7 @@ static int __devinit cy_init_card(struct cyclades_card *cinfo)
 
 /* initialize chips on Cyclom-Y card -- return number of valid
    chips (which is number of ports/4) */
-static unsigned short __devinit cyy_init_card(void __iomem *true_base_addr,
+static unsigned short cyy_init_card(void __iomem *true_base_addr,
 		int index)
 {
 	unsigned int chip_number;
@@ -3303,9 +3267,10 @@ static unsigned short __devinit cyy_init_card(void __iomem *true_base_addr,
 static int __init cy_detect_isa(void)
 {
 #ifdef CONFIG_ISA
+	struct cyclades_card *card;
 	unsigned short cy_isa_irq, nboard;
 	void __iomem *cy_isa_address;
-	unsigned short i, j, cy_isa_nchan;
+	unsigned short i, j, k, cy_isa_nchan;
 	int isparam = 0;
 
 	nboard = 0;
@@ -3363,7 +3328,8 @@ static int __init cy_detect_isa(void)
 		}
 		/* fill the next cy_card structure available */
 		for (j = 0; j < NR_CARDS; j++) {
-			if (cy_card[j].base_addr == NULL)
+			card = &cy_card[j];
+			if (card->base_addr == NULL)
 				break;
 		}
 		if (j == NR_CARDS) {	/* no more cy_cards available */
@@ -3377,7 +3343,7 @@ static int __init cy_detect_isa(void)
 
 		/* allocate IRQ */
 		if (request_irq(cy_isa_irq, cyy_interrupt,
-				IRQF_DISABLED, "Cyclom-Y", &cy_card[j])) {
+				0, "Cyclom-Y", card)) {
 			printk(KERN_ERR "Cyclom-Y/ISA found at 0x%lx, but "
 				"could not allocate IRQ#%d.\n",
 				(unsigned long)cy_isa_address, cy_isa_irq);
@@ -3386,16 +3352,16 @@ static int __init cy_detect_isa(void)
 		}
 
 		/* set cy_card */
-		cy_card[j].base_addr = cy_isa_address;
-		cy_card[j].ctl_addr.p9050 = NULL;
-		cy_card[j].irq = (int)cy_isa_irq;
-		cy_card[j].bus_index = 0;
-		cy_card[j].first_line = cy_next_channel;
-		cy_card[j].num_chips = cy_isa_nchan / CyPORTS_PER_CHIP;
-		cy_card[j].nports = cy_isa_nchan;
-		if (cy_init_card(&cy_card[j])) {
-			cy_card[j].base_addr = NULL;
-			free_irq(cy_isa_irq, &cy_card[j]);
+		card->base_addr = cy_isa_address;
+		card->ctl_addr.p9050 = NULL;
+		card->irq = (int)cy_isa_irq;
+		card->bus_index = 0;
+		card->first_line = cy_next_channel;
+		card->num_chips = cy_isa_nchan / CyPORTS_PER_CHIP;
+		card->nports = cy_isa_nchan;
+		if (cy_init_card(card)) {
+			card->base_addr = NULL;
+			free_irq(cy_isa_irq, card);
 			iounmap(cy_isa_address);
 			continue;
 		}
@@ -3407,9 +3373,10 @@ static int __init cy_detect_isa(void)
 			(unsigned long)(cy_isa_address + (CyISA_Ywin - 1)),
 			cy_isa_irq, cy_isa_nchan, cy_next_channel);
 
-		for (j = cy_next_channel;
-				j < cy_next_channel + cy_isa_nchan; j++)
-			tty_register_device(cy_serial_driver, j, NULL);
+		for (k = 0, j = cy_next_channel;
+				j < cy_next_channel + cy_isa_nchan; j++, k++)
+			tty_port_register_device(&card->ports[k].port,
+					cy_serial_driver, j, NULL);
 		cy_next_channel += cy_isa_nchan;
 	}
 	return nboard;
@@ -3419,7 +3386,7 @@ static int __init cy_detect_isa(void)
 }				/* cy_detect_isa */
 
 #ifdef CONFIG_PCI
-static inline int __devinit cyc_isfwstr(const char *str, unsigned int size)
+static inline int cyc_isfwstr(const char *str, unsigned int size)
 {
 	unsigned int a;
 
@@ -3434,7 +3401,7 @@ static inline int __devinit cyc_isfwstr(const char *str, unsigned int size)
 	return 0;
 }
 
-static inline void __devinit cyz_fpga_copy(void __iomem *fpga, const u8 *data,
+static inline void cyz_fpga_copy(void __iomem *fpga, const u8 *data,
 		unsigned int size)
 {
 	for (; size > 0; size--) {
@@ -3443,7 +3410,7 @@ static inline void __devinit cyz_fpga_copy(void __iomem *fpga, const u8 *data,
 	}
 }
 
-static void __devinit plx_init(struct pci_dev *pdev, int irq,
+static void plx_init(struct pci_dev *pdev, int irq,
 		struct RUNTIME_9060 __iomem *addr)
 {
 	/* Reset PLX */
@@ -3463,7 +3430,7 @@ static void __devinit plx_init(struct pci_dev *pdev, int irq,
 	pci_write_config_byte(pdev, PCI_INTERRUPT_LINE, irq);
 }
 
-static int __devinit __cyz_load_fw(const struct firmware *fw,
+static int __cyz_load_fw(const struct firmware *fw,
 		const char *name, const u32 mailbox, void __iomem *base,
 		void __iomem *fpga)
 {
@@ -3540,7 +3507,7 @@ static int __devinit __cyz_load_fw(const struct firmware *fw,
 	return 0;
 }
 
-static int __devinit cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
+static int cyz_load_fw(struct pci_dev *pdev, void __iomem *base_addr,
 		struct RUNTIME_9060 __iomem *ctl_addr, int irq)
 {
 	const struct firmware *fw;
@@ -3706,13 +3673,14 @@ err:
 	return retval;
 }
 
-static int __devinit cy_pci_probe(struct pci_dev *pdev,
+static int cy_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
+	struct cyclades_card *card;
 	void __iomem *addr0 = NULL, *addr2 = NULL;
 	char *card_name = NULL;
 	u32 uninitialized_var(mailbox);
-	unsigned int device_id, nchan = 0, card_no, i;
+	unsigned int device_id, nchan = 0, card_no, i, j;
 	unsigned char plx_ver;
 	int retval, irq;
 
@@ -3843,7 +3811,8 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 	}
 	/* fill the next cy_card structure available */
 	for (card_no = 0; card_no < NR_CARDS; card_no++) {
-		if (cy_card[card_no].base_addr == NULL)
+		card = &cy_card[card_no];
+		if (card->base_addr == NULL)
 			break;
 	}
 	if (card_no == NR_CARDS) {	/* no more cy_cards available */
@@ -3857,27 +3826,26 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
 		/* allocate IRQ */
 		retval = request_irq(irq, cyy_interrupt,
-				IRQF_SHARED, "Cyclom-Y", &cy_card[card_no]);
+				IRQF_SHARED, "Cyclom-Y", card);
 		if (retval) {
 			dev_err(&pdev->dev, "could not allocate IRQ\n");
 			goto err_unmap;
 		}
-		cy_card[card_no].num_chips = nchan / CyPORTS_PER_CHIP;
+		card->num_chips = nchan / CyPORTS_PER_CHIP;
 	} else {
 		struct FIRM_ID __iomem *firm_id = addr2 + ID_ADDRESS;
 		struct ZFW_CTRL __iomem *zfw_ctrl;
 
 		zfw_ctrl = addr2 + (readl(&firm_id->zfwctrl_addr) & 0xfffff);
 
-		cy_card[card_no].hw_ver = mailbox;
-		cy_card[card_no].num_chips = (unsigned int)-1;
-		cy_card[card_no].board_ctrl = &zfw_ctrl->board_ctrl;
+		card->hw_ver = mailbox;
+		card->num_chips = (unsigned int)-1;
+		card->board_ctrl = &zfw_ctrl->board_ctrl;
 #ifdef CONFIG_CYZ_INTR
 		/* allocate IRQ only if board has an IRQ */
 		if (irq != 0 && irq != 255) {
 			retval = request_irq(irq, cyz_interrupt,
-					IRQF_SHARED, "Cyclades-Z",
-					&cy_card[card_no]);
+					IRQF_SHARED, "Cyclades-Z", card);
 			if (retval) {
 				dev_err(&pdev->dev, "could not allocate IRQ\n");
 				goto err_unmap;
@@ -3887,17 +3855,17 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* set cy_card */
-	cy_card[card_no].base_addr = addr2;
-	cy_card[card_no].ctl_addr.p9050 = addr0;
-	cy_card[card_no].irq = irq;
-	cy_card[card_no].bus_index = 1;
-	cy_card[card_no].first_line = cy_next_channel;
-	cy_card[card_no].nports = nchan;
-	retval = cy_init_card(&cy_card[card_no]);
+	card->base_addr = addr2;
+	card->ctl_addr.p9050 = addr0;
+	card->irq = irq;
+	card->bus_index = 1;
+	card->first_line = cy_next_channel;
+	card->nports = nchan;
+	retval = cy_init_card(card);
 	if (retval)
 		goto err_null;
 
-	pci_set_drvdata(pdev, &cy_card[card_no]);
+	pci_set_drvdata(pdev, card);
 
 	if (device_id == PCI_DEVICE_ID_CYCLOM_Y_Lo ||
 			device_id == PCI_DEVICE_ID_CYCLOM_Y_Hi) {
@@ -3923,14 +3891,15 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "%s/PCI #%d found: %d channels starting from "
 		"port %d.\n", card_name, card_no + 1, nchan, cy_next_channel);
-	for (i = cy_next_channel; i < cy_next_channel + nchan; i++)
-		tty_register_device(cy_serial_driver, i, &pdev->dev);
+	for (j = 0, i = cy_next_channel; i < cy_next_channel + nchan; i++, j++)
+		tty_port_register_device(&card->ports[j].port,
+				cy_serial_driver, i, &pdev->dev);
 	cy_next_channel += nchan;
 
 	return 0;
 err_null:
-	cy_card[card_no].base_addr = NULL;
-	free_irq(irq, &cy_card[card_no]);
+	card->base_addr = NULL;
+	free_irq(irq, card);
 err_unmap:
 	iounmap(addr0);
 	if (addr2)
@@ -3943,10 +3912,10 @@ err:
 	return retval;
 }
 
-static void __devexit cy_pci_remove(struct pci_dev *pdev)
+static void cy_pci_remove(struct pci_dev *pdev)
 {
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
-	unsigned int i;
+	unsigned int i, channel;
 
 	/* non-Z with old PLX */
 	if (!cy_is_Z(cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
@@ -3972,9 +3941,11 @@ static void __devexit cy_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	cinfo->base_addr = NULL;
-	for (i = cinfo->first_line; i < cinfo->first_line +
-			cinfo->nports; i++)
+	for (channel = 0, i = cinfo->first_line; i < cinfo->first_line +
+			cinfo->nports; i++, channel++) {
 		tty_unregister_device(cy_serial_driver, i);
+		tty_port_destroy(&cinfo->ports[channel].port);
+	}
 	cinfo->nports = 0;
 	kfree(cinfo->ports);
 }
@@ -3983,7 +3954,7 @@ static struct pci_driver cy_pci_driver = {
 	.name = "cyclades",
 	.id_table = cy_pci_dev_id,
 	.probe = cy_pci_probe,
-	.remove = __devexit_p(cy_pci_remove)
+	.remove = cy_pci_remove
 };
 #endif
 
@@ -4100,7 +4071,6 @@ static int __init cy_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	cy_serial_driver->owner = THIS_MODULE;
 	cy_serial_driver->driver_name = "cyclades";
 	cy_serial_driver->name = "ttyC";
 	cy_serial_driver->major = CYCLADES_MAJOR;

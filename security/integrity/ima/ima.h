@@ -24,21 +24,23 @@
 #include <linux/tpm.h>
 #include <linux/audit.h>
 
+#include "../integrity.h"
+
 enum ima_show_type { IMA_SHOW_BINARY, IMA_SHOW_ASCII };
 enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 
 /* digest size for IMA, fits SHA1 or MD5 */
-#define IMA_DIGEST_SIZE		20
+#define IMA_DIGEST_SIZE		SHA1_DIGEST_SIZE
 #define IMA_EVENT_NAME_LEN_MAX	255
 
 #define IMA_HASH_BITS 9
 #define IMA_MEASURE_HTABLE_SIZE (1 << IMA_HASH_BITS)
 
 /* set during initialization */
-extern int iint_initialized;
 extern int ima_initialized;
 extern int ima_used_chip;
 extern char *ima_hash;
+extern int ima_appraise;
 
 /* IMA inode template definition */
 struct ima_template_data {
@@ -60,10 +62,19 @@ struct ima_queue_entry {
 };
 extern struct list_head ima_measurements;	/* list of all measurements */
 
+#ifdef CONFIG_IMA_AUDIT
 /* declarations */
 void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 const unsigned char *fname, const char *op,
 			 const char *cause, int result, int info);
+#else
+static inline void integrity_audit_msg(int audit_msgno, struct inode *inode,
+				       const unsigned char *fname,
+				       const char *op, const char *cause,
+				       int result, int info)
+{
+}
+#endif
 
 /* Internal IMA function definitions */
 int ima_init(void);
@@ -73,11 +84,12 @@ void ima_fs_cleanup(void);
 int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode);
-int ima_calc_hash(struct file *file, char *digest);
-int ima_calc_template_hash(int template_len, void *template, char *digest);
+int ima_calc_file_hash(struct file *file, char *digest);
+int ima_calc_buffer_hash(const void *data, int len, char *digest);
 int ima_calc_boot_aggregate(char *digest);
 void ima_add_violation(struct inode *inode, const unsigned char *filename,
 		       const char *op, const char *cause);
+int ima_init_crypto(void);
 
 /*
  * used to protect h_table and sha_table
@@ -96,43 +108,75 @@ static inline unsigned long ima_hash_key(u8 *digest)
 	return hash_long(*digest, IMA_HASH_BITS);
 }
 
-/* iint cache flags */
-#define IMA_MEASURED		0x01
-
-/* integrity data associated with an inode */
-struct ima_iint_cache {
-	struct rb_node rb_node; /* rooted in ima_iint_tree */
-	struct inode *inode;	/* back pointer to inode in question */
-	u64 version;		/* track inode changes */
-	unsigned char flags;
-	u8 digest[IMA_DIGEST_SIZE];
-	struct mutex mutex;	/* protects: version, flags, digest */
-};
-
 /* LIM API function definitions */
+int ima_get_action(struct inode *inode, int mask, int function);
 int ima_must_measure(struct inode *inode, int mask, int function);
-int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file);
-void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
+int ima_collect_measurement(struct integrity_iint_cache *iint,
+			    struct file *file);
+void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
+			   const unsigned char *filename);
+void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
-void ima_template_show(struct seq_file *m, void *e,
-		       enum ima_show_type show);
+void ima_template_show(struct seq_file *m, void *e, enum ima_show_type show);
+const char *ima_d_path(struct path *path, char **pathbuf);
 
 /* rbtree tree calls to lookup, insert, delete
  * integrity data associated with an inode.
  */
-struct ima_iint_cache *ima_iint_insert(struct inode *inode);
-struct ima_iint_cache *ima_iint_find(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
+struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
-enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
+enum ima_hooks { FILE_CHECK = 1, MMAP_CHECK, BPRM_CHECK, MODULE_CHECK, POST_SETATTR };
 
-int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
+int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
+		     int flags);
 void ima_init_policy(void);
 void ima_update_policy(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
+
+/* Appraise integrity measurements */
+#define IMA_APPRAISE_ENFORCE	0x01
+#define IMA_APPRAISE_FIX	0x02
+#define IMA_APPRAISE_MODULES	0x04
+
+#ifdef CONFIG_IMA_APPRAISE
+int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
+			     struct file *file, const unsigned char *filename);
+int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
+void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
+enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
+					   int func);
+
+#else
+static inline int ima_appraise_measurement(int func,
+					   struct integrity_iint_cache *iint,
+					   struct file *file,
+					   const unsigned char *filename)
+{
+	return INTEGRITY_UNKNOWN;
+}
+
+static inline int ima_must_appraise(struct inode *inode, int mask,
+				    enum ima_hooks func)
+{
+	return 0;
+}
+
+static inline void ima_update_xattr(struct integrity_iint_cache *iint,
+				    struct file *file)
+{
+}
+
+static inline enum integrity_status ima_get_cache_status(struct integrity_iint_cache
+							 *iint, int func)
+{
+	return INTEGRITY_UNKNOWN;
+}
+#endif
 
 /* LSM based policy rules require audit */
 #ifdef CONFIG_IMA_LSM_RULES

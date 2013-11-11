@@ -199,7 +199,7 @@ static void pcf50633_adc_irq(int irq, void *data)
 	kfree(req);
 }
 
-static int __devinit pcf50633_adc_probe(struct platform_device *pdev)
+static int pcf50633_adc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_adc *adc;
 
@@ -218,7 +218,7 @@ static int __devinit pcf50633_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_adc_remove(struct platform_device *pdev)
+static int pcf50633_adc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_adc *adc = platform_get_drvdata(pdev);
 	int i, head;
@@ -246,20 +246,10 @@ static struct platform_driver pcf50633_adc_driver = {
 		.name = "pcf50633-adc",
 	},
 	.probe = pcf50633_adc_probe,
-	.remove = __devexit_p(pcf50633_adc_remove),
+	.remove = pcf50633_adc_remove,
 };
 
-static int __init pcf50633_adc_init(void)
-{
-	return platform_driver_register(&pcf50633_adc_driver);
-}
-module_init(pcf50633_adc_init);
-
-static void __exit pcf50633_adc_exit(void)
-{
-	platform_driver_unregister(&pcf50633_adc_driver);
-}
-module_exit(pcf50633_adc_exit);
+module_platform_driver(pcf50633_adc_driver);
 
 MODULE_AUTHOR("Balaji Rao <balajirrao@openmoko.org>");
 MODULE_DESCRIPTION("PCF50633 adc driver");

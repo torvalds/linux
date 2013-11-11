@@ -8,18 +8,11 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <mach/io.h>
 #include <mach/irqs.h>
-
-		.macro	disable_fiq
-		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
 		ldr \base, =davinci_intc_base
 		ldr \base, [\base]
-		.endm
-
-		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
 
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
@@ -37,15 +30,10 @@
 #endif
 #if defined(CONFIG_CP_INTC)
 1001:		ldr \irqnr, [\base, #0x80] /* get irq number */
+		mov \tmp, \irqnr, lsr #31
 		and \irqnr, \irqnr, #0xff  /* irq is in bits 0-9 */
-		mov \tmp, \irqnr, lsr #3
-		and \tmp, \tmp, #0xfc
-		add \tmp, \tmp, #0x280 /* get the register offset */
-		ldr \irqstat, [\base, \tmp] /* get the intc status */
-		cmp \irqstat, #0x0
+		and \tmp, \tmp, #0x1
+		cmp \tmp, #0x1
 #endif
 1002:
-		.endm
-
-		.macro	irq_prio_table
 		.endm

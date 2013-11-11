@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/io.h>
 
 #define CAFE_NAND_CTRL1		0x00
@@ -57,7 +58,6 @@
 
 struct cafe_priv {
 	struct nand_chip nand;
-	struct mtd_partition *parts;
 	struct pci_dev *pdev;
 	void __iomem *mmio;
 	struct rs_control *rs;
@@ -102,7 +102,7 @@ static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 static int cafe_device_ready(struct mtd_info *mtd)
 {
 	struct cafe_priv *cafe = mtd->priv;
-	int result = !!(cafe_readl(cafe, NAND_STATUS) | 0x40000000);
+	int result = !!(cafe_readl(cafe, NAND_STATUS) & 0x40000000);
 	uint32_t irqs = cafe_readl(cafe, NAND_IRQ);
 
 	cafe_writel(cafe, irqs, NAND_IRQ);
@@ -303,13 +303,7 @@ static void cafe_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
-	case NAND_CMD_DEPLETE1:
 	case NAND_CMD_RNDOUT:
-	case NAND_CMD_STATUS_ERROR:
-	case NAND_CMD_STATUS_ERROR0:
-	case NAND_CMD_STATUS_ERROR1:
-	case NAND_CMD_STATUS_ERROR2:
-	case NAND_CMD_STATUS_ERROR3:
 		cafe_writel(cafe, cafe->ctl2, NAND_CTRL2);
 		return;
 	}
@@ -364,25 +358,27 @@ static int cafe_nand_write_oob(struct mtd_info *mtd,
 
 /* Don't use -- use nand_read_oob_std for now */
 static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			      int page, int sndcmd)
+			      int page)
 {
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 1;
+	return 0;
 }
 /**
- * cafe_nand_read_page_syndrome - {REPLACABLE] hardware ecc syndrom based page read
+ * cafe_nand_read_page_syndrome - [REPLACEABLE] hardware ecc syndrome based page read
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @oob_required:	caller expects OOB data read to chip->oob_poi
  *
- * The hw generator calculates the error syndrome automatically. Therefor
+ * The hw generator calculates the error syndrome automatically. Therefore
  * we need a special oob layout and handling.
  */
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf, int page)
+			       uint8_t *buf, int oob_required, int page)
 {
 	struct cafe_priv *cafe = mtd->priv;
+	unsigned int max_bitflips = 0;
 
 	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n",
 		     cafe_readl(cafe, NAND_ECC_RESULT),
@@ -449,10 +445,11 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		} else {
 			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", n);
 			mtd->ecc_stats.corrected += n;
+			max_bitflips = max_t(unsigned int, max_bitflips, n);
 		}
 	}
 
-	return 0;
+	return max_bitflips;
 }
 
 static struct nand_ecclayout cafe_oobinfo_2048 = {
@@ -517,8 +514,9 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 };
 
 
-static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
-					  struct nand_chip *chip, const uint8_t *buf)
+static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
+					  struct nand_chip *chip,
+					  const uint8_t *buf, int oob_required)
 {
 	struct cafe_priv *cafe = mtd->priv;
 
@@ -527,19 +525,25 @@ static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
+
+	return 0;
 }
 
 static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int page, int cached, int raw)
+			uint32_t offset, int data_len, const uint8_t *buf,
+			int oob_required, int page, int cached, int raw)
 {
 	int status;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
 	if (unlikely(raw))
-		chip->ecc.write_page_raw(mtd, chip, buf);
+		status = chip->ecc.write_page_raw(mtd, chip, buf, oob_required);
 	else
-		chip->ecc.write_page(mtd, chip, buf);
+		status = chip->ecc.write_page(mtd, chip, buf, oob_required);
+
+	if (status < 0)
+		return status;
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
@@ -566,13 +570,6 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		status = chip->waitfunc(mtd, chip);
 	}
 
-#ifdef CONFIG_MTD_NAND_VERIFY_WRITE
-	/* Send command to read back the data */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-
-	if (chip->verify_buf(mtd, buf, mtd->writesize))
-		return -EIO;
-#endif
 	return 0;
 }
 
@@ -582,7 +579,7 @@ static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 }
 
 /* F_2[X]/(X**6+X+1)  */
-static unsigned short __devinit gf64_mul(u8 a, u8 b)
+static unsigned short gf64_mul(u8 a, u8 b)
 {
 	u8 c;
 	unsigned int i;
@@ -601,7 +598,7 @@ static unsigned short __devinit gf64_mul(u8 a, u8 b)
 }
 
 /* F_64[X]/(X**2+X+A**-1) with A the generator of F_64[X]  */
-static u16 __devinit gf4096_mul(u16 a, u16 b)
+static u16 gf4096_mul(u16 a, u16 b)
 {
 	u8 ah, al, bh, bl, ch, cl;
 
@@ -616,22 +613,20 @@ static u16 __devinit gf4096_mul(u16 a, u16 b)
 	return (ch << 6) ^ cl;
 }
 
-static int __devinit cafe_mul(int x)
+static int cafe_mul(int x)
 {
 	if (x == 0)
 		return 1;
 	return gf4096_mul(x, 0xe01);
 }
 
-static int __devinit cafe_nand_probe(struct pci_dev *pdev,
+static int cafe_nand_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
 	struct mtd_info *mtd;
 	struct cafe_priv *cafe;
 	uint32_t ctrl;
 	int err = 0;
-	struct mtd_partition *parts;
-	int nr_parts;
 
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */
@@ -686,7 +681,8 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.chip_delay = 0;
 
 	/* Enable the following for a flash based bad block table */
-	cafe->nand.options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR | NAND_OWN_BUFFERS;
+	cafe->nand.bbt_options = NAND_BBT_USE_FLASH;
+	cafe->nand.options = NAND_OWN_BUFFERS;
 
 	if (skipbbt) {
 		cafe->nand.options |= NAND_SKIP_BBTSCAN;
@@ -784,6 +780,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 	cafe->nand.ecc.size = mtd->writesize;
 	cafe->nand.ecc.bytes = 14;
+	cafe->nand.ecc.strength = 4;
 	cafe->nand.ecc.hwctl  = (void *)cafe_nand_bug;
 	cafe->nand.ecc.calculate = (void *)cafe_nand_bug;
 	cafe->nand.ecc.correct  = (void *)cafe_nand_bug;
@@ -799,18 +796,9 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, mtd);
 
-	/* We register the whole device first, separate from the partitions */
-	mtd_device_register(mtd, NULL, 0);
-
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "cafe_nand";
-#endif
-	nr_parts = parse_mtd_partitions(mtd, part_probes, &parts, 0);
-	if (nr_parts > 0) {
-		cafe->parts = parts;
-		dev_info(&cafe->pdev->dev, "%d partitions found\n", nr_parts);
-		mtd_device_register(mtd, parts, nr_parts);
-	}
+	mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
+
 	goto out;
 
  out_irq:
@@ -827,7 +815,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit cafe_nand_remove(struct pci_dev *pdev)
+static void cafe_nand_remove(struct pci_dev *pdev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(pdev);
 	struct cafe_priv *cafe = mtd->priv;
@@ -893,21 +881,11 @@ static struct pci_driver cafe_nand_pci_driver = {
 	.name = "CAFÉ NAND",
 	.id_table = cafe_nand_tbl,
 	.probe = cafe_nand_probe,
-	.remove = __devexit_p(cafe_nand_remove),
+	.remove = cafe_nand_remove,
 	.resume = cafe_nand_resume,
 };
 
-static int __init cafe_nand_init(void)
-{
-	return pci_register_driver(&cafe_nand_pci_driver);
-}
-
-static void __exit cafe_nand_exit(void)
-{
-	pci_unregister_driver(&cafe_nand_pci_driver);
-}
-module_init(cafe_nand_init);
-module_exit(cafe_nand_exit);
+module_pci_driver(cafe_nand_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

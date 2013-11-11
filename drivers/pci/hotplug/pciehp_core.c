@@ -38,12 +38,10 @@
 #include <linux/time.h>
 
 /* Global variables */
-int pciehp_debug;
-int pciehp_poll_mode;
+bool pciehp_debug;
+bool pciehp_poll_mode;
 int pciehp_poll_time;
-int pciehp_force;
-struct workqueue_struct *pciehp_wq;
-struct workqueue_struct *pciehp_ordered_wq;
+bool pciehp_force;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -295,30 +293,28 @@ static void pciehp_remove(struct pcie_device *dev)
 #ifdef CONFIG_PM
 static int pciehp_suspend (struct pcie_device *dev)
 {
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
 	return 0;
 }
 
 static int pciehp_resume (struct pcie_device *dev)
 {
-	dev_info(&dev->device, "%s ENTRY\n", __func__);
-	if (pciehp_force) {
-		struct controller *ctrl = get_service_data(dev);
-		struct slot *slot;
-		u8 status;
+	struct controller *ctrl;
+	struct slot *slot;
+	u8 status;
 
-		/* reinitialize the chipset's event detection logic */
-		pcie_enable_notification(ctrl);
+	ctrl = get_service_data(dev);
 
-		slot = ctrl->slot;
+	/* reinitialize the chipset's event detection logic */
+	pcie_enable_notification(ctrl);
 
-		/* Check if slot is occupied */
-		pciehp_get_adapter_status(slot, &status);
-		if (status)
-			pciehp_enable_slot(slot);
-		else
-			pciehp_disable_slot(slot);
-	}
+	slot = ctrl->slot;
+
+	/* Check if slot is occupied */
+	pciehp_get_adapter_status(slot, &status);
+	if (status)
+		pciehp_enable_slot(slot);
+	else
+		pciehp_disable_slot(slot);
 	return 0;
 }
 #endif /* PM */
@@ -341,33 +337,19 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
-	pciehp_wq = alloc_workqueue("pciehp", 0, 0);
-	if (!pciehp_wq)
-		return -ENOMEM;
-
-	pciehp_ordered_wq = alloc_ordered_workqueue("pciehp_ordered", 0);
-	if (!pciehp_ordered_wq) {
-		destroy_workqueue(pciehp_wq);
-		return -ENOMEM;
-	}
-
 	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);
   	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
- 	if (retval) {
-		destroy_workqueue(pciehp_ordered_wq);
-		destroy_workqueue(pciehp_wq);
+	if (retval)
 		dbg("Failure to register service\n");
-	}
+
 	return retval;
 }
 
 static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
-	destroy_workqueue(pciehp_ordered_wq);
-	destroy_workqueue(pciehp_wq);
 	pcie_port_service_unregister(&hpdriver_portdrv);
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }

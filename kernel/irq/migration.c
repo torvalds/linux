@@ -42,13 +42,8 @@ void irq_move_masked_irq(struct irq_data *idata)
 	 * For correct operation this depends on the caller
 	 * masking the irqs.
 	 */
-	if (likely(cpumask_any_and(desc->pending_mask, cpu_online_mask)
-		   < nr_cpu_ids))
-		if (!chip->irq_set_affinity(&desc->irq_data,
-					    desc->pending_mask, false)) {
-			cpumask_copy(desc->irq_data.affinity, desc->pending_mask);
-			irq_set_thread_affinity(desc);
-		}
+	if (cpumask_any_and(desc->pending_mask, cpu_online_mask) < nr_cpu_ids)
+		irq_do_set_affinity(&desc->irq_data, desc->pending_mask, false);
 
 	cpumask_clear(desc->pending_mask);
 }

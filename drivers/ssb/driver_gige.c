@@ -3,13 +3,14 @@
  * Broadcom Gigabit Ethernet core driver
  *
  * Copyright 2008, Broadcom Corporation
- * Copyright 2008, Michael Buesch <mb@bu3sch.de>
+ * Copyright 2008, Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_driver_gige.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
 #include <linux/slab.h>
@@ -166,7 +167,8 @@ static int ssb_gige_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int ssb_gige_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
+static int ssb_gige_probe(struct ssb_device *sdev,
+			  const struct ssb_device_id *id)
 {
 	struct ssb_gige *dev;
 	u32 base, tmslow, tmshigh;

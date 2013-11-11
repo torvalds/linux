@@ -41,9 +41,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
 #include <mach/at91sam9_smc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -60,58 +61,16 @@
 static void __init foxg20_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91SAM9260_ID_US0, 1,
-				ATMEL_UART_CTS
-				| ATMEL_UART_RTS
-				| ATMEL_UART_DTR
-				| ATMEL_UART_DSR
-				| ATMEL_UART_DCD
-				| ATMEL_UART_RI);
-
-	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9260_ID_US1, 2,
-		ATMEL_UART_CTS
-		| ATMEL_UART_RTS);
-
-	/* USART2 on ttyS3. (Rx & Tx only) */
-	at91_register_uart(AT91SAM9260_ID_US2, 3, 0);
-
-	/* USART3 on ttyS4. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9260_ID_US3, 4,
-		ATMEL_UART_CTS
-		| ATMEL_UART_RTS);
-
-	/* USART4 on ttyS5. (Rx & Tx only) */
-	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
-
-	/* USART5 on ttyS6. (Rx & Tx only) */
-	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-
-	/* Set the internal pull-up resistor on DRXD */
-	at91_set_A_periph(AT91_PIN_PB14, 1);
-
+	at91_initialize(18432000);
 }
-
-static void __init foxg20_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
  */
 static struct at91_usbh_data __initdata foxg20_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -119,7 +78,7 @@ static struct at91_usbh_data __initdata foxg20_usbh_data = {
  */
 static struct at91_udc_data __initdata foxg20_udc_data = {
 	.vbus_pin	= AT91_PIN_PC6,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 
@@ -127,7 +86,7 @@ static struct at91_udc_data __initdata foxg20_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info foxg20_spi_devices[] = {
-#if !defined(CONFIG_MMC_AT91)
+#if !IS_ENABLED(CONFIG_MMC_ATMELMCI)
 	{
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 1,
@@ -141,7 +100,7 @@ static struct spi_board_info foxg20_spi_devices[] = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata foxg20_macb_data = {
+static struct macb_platform_data __initdata foxg20_macb_data = {
 	.phy_irq_pin	= AT91_PIN_PA7,
 	.is_rmii	= 1,
 };
@@ -150,9 +109,12 @@ static struct at91_eth_data __initdata foxg20_macb_data = {
  * MCI (SD/MMC)
  * det_pin, wp_pin and vcc_pin are not connected
  */
-static struct at91_mmc_data __initdata foxg20_mmc_data = {
-	.slot_b		= 1,
-	.wire4		= 1,
+static struct mci_platform_data __initdata foxg20_mci0_data = {
+	.slot[1] = {
+		.bus_width	= 4,
+		.detect_pin	= -EINVAL,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 
@@ -214,6 +176,7 @@ static struct w1_gpio_platform_data w1_gpio_pdata = {
 	/* If you choose to use a pin other than PB16 it needs to be 3.3V */
 	.pin		= AT91_PIN_PB16,
 	.is_open_drain  = 1,
+	.ext_pullup_enable_pin	= -EINVAL,
 };
 
 static struct platform_device w1_device = {
@@ -242,6 +205,39 @@ static struct i2c_board_info __initdata foxg20_i2c_devices[] = {
 static void __init foxg20_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1,
+				ATMEL_UART_CTS
+				| ATMEL_UART_RTS
+				| ATMEL_UART_DTR
+				| ATMEL_UART_DSR
+				| ATMEL_UART_DCD
+				| ATMEL_UART_RI);
+
+	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9260_ID_US1, 2,
+		ATMEL_UART_CTS
+		| ATMEL_UART_RTS);
+
+	/* USART2 on ttyS3. (Rx & Tx only) */
+	at91_register_uart(AT91SAM9260_ID_US2, 3, 0);
+
+	/* USART3 on ttyS4. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9260_ID_US3, 4,
+		ATMEL_UART_CTS
+		| ATMEL_UART_RTS);
+
+	/* USART4 on ttyS5. (Rx & Tx only) */
+	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
+
+	/* USART5 on ttyS6. (Rx & Tx only) */
+	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
+
+	/* Set the internal pull-up resistor on DRXD */
+	at91_set_A_periph(AT91_PIN_PB14, 1);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&foxg20_usbh_data);
@@ -252,7 +248,7 @@ static void __init foxg20_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&foxg20_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &foxg20_mmc_data);
+	at91_add_device_mci(0, &foxg20_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(foxg20_i2c_devices, ARRAY_SIZE(foxg20_i2c_devices));
 	/* LEDs */
@@ -266,9 +262,10 @@ static void __init foxg20_board_init(void)
 
 MACHINE_START(ACMENETUSFOXG20, "Acme Systems srl FOX Board G20")
 	/* Maintainer: Sergio Tanzilli */
-	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.init_time	= at91sam926x_pit_init,
+	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= foxg20_init_early,
-	.init_irq	= foxg20_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= foxg20_board_init,
 MACHINE_END

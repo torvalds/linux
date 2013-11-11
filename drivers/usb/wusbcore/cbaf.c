@@ -298,7 +298,7 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 	if (result < needed) {
 		dev_err(dev, "Not enough data in DEVICE_INFO reply (%zu vs "
 			"%zu bytes needed)\n", (size_t)result, needed);
-		return result;
+		return -ENOENT;
 	}
 
 	strlcpy(cbaf->device_name, di->DeviceFriendlyName, CBA_NAME_LEN);
@@ -350,7 +350,7 @@ static ssize_t cbaf_wusb_chid_store(struct device *dev,
 		return result;
 	result = cbaf_cdid_get(cbaf);
 	if (result < 0)
-		return -result;
+		return result;
 	return size;
 }
 static DEVICE_ATTR(wusb_chid, 0600, cbaf_wusb_chid_show, cbaf_wusb_chid_store);
@@ -655,17 +655,7 @@ static struct usb_driver cbaf_driver = {
 	.disconnect =	cbaf_disconnect,
 };
 
-static int __init cbaf_driver_init(void)
-{
-	return usb_register(&cbaf_driver);
-}
-module_init(cbaf_driver_init);
-
-static void __exit cbaf_driver_exit(void)
-{
-	usb_deregister(&cbaf_driver);
-}
-module_exit(cbaf_driver_exit);
+module_usb_driver(cbaf_driver);
 
 MODULE_AUTHOR("Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>");
 MODULE_DESCRIPTION("Wireless USB Cable Based Association");

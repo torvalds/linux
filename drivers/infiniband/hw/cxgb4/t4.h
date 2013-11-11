@@ -62,6 +62,10 @@ struct t4_status_page {
 	__be16 pidx;
 	u8 qp_err;	/* flit 1 - sw owns */
 	u8 db_off;
+	u8 pad;
+	u16 host_wq_pidx;
+	u16 host_cidx;
+	u16 host_pidx;
 };
 
 #define T4_EQ_ENTRY_SIZE 64
@@ -80,7 +84,7 @@ struct t4_status_page {
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
 			sizeof(struct fw_ri_immd)) & ~31UL)
-#define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
+#define T4_MAX_FR_DEPTH (1024 / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
 #define T4_RQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_RQ_NUM_SLOTS)
@@ -276,15 +280,6 @@ static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
 #endif
 }
 
-static inline int t4_ocqp_supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
-	return 1;
-#else
-	return 0;
-#endif
-}
-
 enum {
 	T4_SQ_ONCHIP = (1<<0),
 };
@@ -375,6 +370,16 @@ static inline void t4_rq_consume(struct t4_wq *wq)
 		wq->rq.cidx = 0;
 }
 
+static inline u16 t4_rq_host_wq_pidx(struct t4_wq *wq)
+{
+	return wq->rq.queue[wq->rq.size].status.host_wq_pidx;
+}
+
+static inline u16 t4_rq_wq_size(struct t4_wq *wq)
+{
+		return wq->rq.size * T4_RQ_NUM_SLOTS;
+}
+
 static inline int t4_sq_onchip(struct t4_sq *sq)
 {
 	return sq->flags & T4_SQ_ONCHIP;
@@ -410,6 +415,16 @@ static inline void t4_sq_consume(struct t4_wq *wq)
 	wq->sq.in_use--;
 	if (++wq->sq.cidx == wq->sq.size)
 		wq->sq.cidx = 0;
+}
+
+static inline u16 t4_sq_host_wq_pidx(struct t4_wq *wq)
+{
+	return wq->sq.queue[wq->sq.size].status.host_wq_pidx;
+}
+
+static inline u16 t4_sq_wq_size(struct t4_wq *wq)
+{
+		return wq->sq.size * T4_SQ_NUM_SLOTS;
 }
 
 static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc)

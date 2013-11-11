@@ -6,7 +6,7 @@
 #ifndef __DRIVERS_UMCAST_H
 #define __DRIVERS_UMCAST_H
 
-#include "net_user.h"
+#include <net_user.h>
 
 struct umcast_data {
 	char *addr;

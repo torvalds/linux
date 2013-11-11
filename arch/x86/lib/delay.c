@@ -48,9 +48,9 @@ static void delay_loop(unsigned long loops)
 }
 
 /* TSC based delay: */
-static void delay_tsc(unsigned long loops)
+static void delay_tsc(unsigned long __loops)
 {
-	unsigned long bclock, now;
+	u32 bclock, now, loops = __loops;
 	int cpu;
 
 	preempt_disable();
@@ -98,7 +98,7 @@ void use_tsc_delay(void)
 	delay_fn = delay_tsc;
 }
 
-int __devinit read_current_timer(unsigned long *timer_val)
+int read_current_timer(unsigned long *timer_val)
 {
 	if (delay_fn == delay_tsc) {
 		rdtscll(*timer_val);

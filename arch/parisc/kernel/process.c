@@ -48,36 +48,16 @@
 #include <linux/unistd.h>
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
+#include <linux/rcupdate.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
+#include <asm/assembly.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		while (!need_resched())
-			barrier();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-		check_pgt_cache();
-	}
-}
-
 
 #define COMMAND_GLOBAL  F_EXTEND(0xfffe0030)
 #define CMD_RESET       5       /* reset any module */
@@ -164,23 +144,6 @@ void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
- * Create a kernel thread
- */
-
-extern pid_t __kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-
-	/*
-	 * FIXME: Once we are sure we don't need any debug here,
-	 *	  kernel_thread can become a #define.
-	 */
-
-	return __kernel_thread(fn, arg, flags);
-}
-EXPORT_SYMBOL(kernel_thread);
-
-/*
  * Free current thread data structures etc..
  */
 void exit_thread(void)
@@ -192,7 +155,6 @@ void flush_thread(void)
 	/* Only needs to handle fpu stuff or perf monitors.
 	** REVISIT: several arches implement a "lazy fpu state".
 	*/
-	set_fs(USER_DS);
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -218,48 +180,11 @@ int dump_task_fpu (struct task_struct *tsk, elf_fpregset_t *r)
 	return 1;
 }
 
-/* Note that "fork()" is implemented in terms of clone, with
-   parameters (SIGCHLD, regs->gr[30], regs). */
-int
-sys_clone(unsigned long clone_flags, unsigned long usp,
-	  struct pt_regs *regs)
-{
-  	/* Arugments from userspace are:
-	   r26 = Clone flags.
-	   r25 = Child stack.
-	   r24 = parent_tidptr.
-	   r23 = Is the TLS storage descriptor 
-	   r22 = child_tidptr 
-	   
-	   However, these last 3 args are only examined
-	   if the proper flags are set. */
-	int __user *parent_tidptr = (int __user *)regs->gr[24];
-	int __user *child_tidptr  = (int __user *)regs->gr[22];
-
-	/* usp must be word aligned.  This also prevents users from
-	 * passing in the value 1 (which is the signal for a special
-	 * return for a kernel thread) */
-	usp = ALIGN(usp, 4);
-
-	/* A zero value for usp means use the current stack */
-	if (usp == 0)
-	  usp = regs->gr[30];
-
-	return do_fork(clone_flags, usp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-int
-sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->gr[30], regs, 0, NULL, NULL);
-}
-
 int
 copy_thread(unsigned long clone_flags, unsigned long usp,
-	    unsigned long unused,	/* in ia64 this is "user_stack_size" */
-	    struct task_struct * p, struct pt_regs * pregs)
+	    unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs * cregs = &(p->thread.regs);
+	struct pt_regs *cregs = &(p->thread.regs);
 	void *stack = task_stack_page(p);
 	
 	/* We have to use void * instead of a function pointer, because
@@ -270,49 +195,40 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_HPUX
 	extern void * const hpux_child_return;
 #endif
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(cregs, 0, sizeof(struct pt_regs));
+		if (!usp) /* idle thread */
+			return 0;
 
-	*cregs = *pregs;
-
-	/* Set the return value for the child.  Note that this is not
-           actually restored by the syscall exit path, but we put it
-           here for consistency in case of signals. */
-	cregs->gr[28] = 0; /* child */
-
-	/*
-	 * We need to differentiate between a user fork and a
-	 * kernel fork. We can't use user_mode, because the
-	 * the syscall path doesn't save iaoq. Right now
-	 * We rely on the fact that kernel_thread passes
-	 * in zero for usp.
-	 */
-	if (usp == 1) {
 		/* kernel thread */
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN;
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
+		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &ret_from_kernel_thread;
 		/*
 		 * Copy function and argument to be called from
 		 * ret_from_kernel_thread.
 		 */
 #ifdef CONFIG_64BIT
-		cregs->gr[27] = pregs->gr[27];
+		cregs->gr[27] = ((unsigned long *)usp)[3];
+		cregs->gr[26] = ((unsigned long *)usp)[2];
+#else
+		cregs->gr[26] = usp;
 #endif
-		cregs->gr[26] = pregs->gr[26];
-		cregs->gr[25] = pregs->gr[25];
+		cregs->gr[25] = arg;
 	} else {
 		/* user thread */
-		/*
-		 * Note that the fork wrappers are responsible
-		 * for setting gr[21].
-		 */
-
-		/* Use same stack depth as parent */
-		cregs->ksp = (unsigned long)stack
-			+ (pregs->gr[21] & (THREAD_SIZE - 1));
-		cregs->gr[30] = usp;
-		if (p->personality == PER_HPUX) {
+		/* usp must be word aligned.  This also prevents users from
+		 * passing in the value 1 (which is the signal for a special
+		 * return for a kernel thread) */
+		if (usp) {
+			usp = ALIGN(usp, 4);
+			if (likely(usp))
+				cregs->gr[30] = usp;
+		}
+		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
+		if (personality(p->personality) == PER_HPUX) {
 #ifdef CONFIG_HPUX
 			cregs->kpc = (unsigned long) &hpux_child_return;
 #else
@@ -323,8 +239,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		}
 		/* Setup thread TLS area from the 4th parameter in clone */
 		if (clone_flags & CLONE_SETTLS)
-		  cregs->cr27 = pregs->gr[23];
-	
+			cregs->cr27 = cregs->gr[23];
 	}
 
 	return 0;
@@ -333,39 +248,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 unsigned long thread_saved_pc(struct task_struct *t)
 {
 	return t->thread.regs.kpc;
-}
-
-/*
- * sys_execve() executes a new program.
- */
-
-asmlinkage int sys_execve(struct pt_regs *regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname((const char __user *) regs->gr[26]);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename,
-			  (const char __user *const __user *) regs->gr[25],
-			  (const char __user *const __user *) regs->gr[24],
-			  regs);
-	putname(filename);
-out:
-
-	return error;
-}
-
-extern int __execve(const char *filename,
-		    const char *const argv[],
-		    const char *const envp[], struct task_struct *task);
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	return __execve(filename, argv, envp, current);
 }
 
 unsigned long

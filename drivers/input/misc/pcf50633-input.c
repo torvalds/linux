@@ -53,7 +53,7 @@ pcf50633_input_irq(int irq, void *data)
 	input_sync(input->input_dev);
 }
 
-static int __devinit pcf50633_input_probe(struct platform_device *pdev)
+static int pcf50633_input_probe(struct platform_device *pdev)
 {
 	struct pcf50633_input *input;
 	struct input_dev *input_dev;
@@ -93,7 +93,7 @@ static int __devinit pcf50633_input_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_input_remove(struct platform_device *pdev)
+static int pcf50633_input_remove(struct platform_device *pdev)
 {
 	struct pcf50633_input *input  = platform_get_drvdata(pdev);
 
@@ -111,20 +111,9 @@ static struct platform_driver pcf50633_input_driver = {
 		.name = "pcf50633-input",
 	},
 	.probe = pcf50633_input_probe,
-	.remove = __devexit_p(pcf50633_input_remove),
+	.remove = pcf50633_input_remove,
 };
-
-static int __init pcf50633_input_init(void)
-{
-	return platform_driver_register(&pcf50633_input_driver);
-}
-module_init(pcf50633_input_init);
-
-static void __exit pcf50633_input_exit(void)
-{
-	platform_driver_unregister(&pcf50633_input_driver);
-}
-module_exit(pcf50633_input_exit);
+module_platform_driver(pcf50633_input_driver);
 
 MODULE_AUTHOR("Balaji Rao <balajirrao@openmoko.org>");
 MODULE_DESCRIPTION("PCF50633 input driver");

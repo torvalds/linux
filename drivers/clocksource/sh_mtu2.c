@@ -30,6 +30,9 @@
 #include <linux/clockchips.h>
 #include <linux/sh_timer.h>
 #include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 
 struct sh_mtu2_priv {
 	void __iomem *mapbase;
@@ -41,7 +44,7 @@ struct sh_mtu2_priv {
 	struct clock_event_device ced;
 };
 
-static DEFINE_SPINLOCK(sh_mtu2_lock);
+static DEFINE_RAW_SPINLOCK(sh_mtu2_lock);
 
 #define TSTR -1 /* shared register */
 #define TCR  0 /* channel register */
@@ -105,7 +108,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_priv *p, int start)
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
-	spin_lock_irqsave(&sh_mtu2_lock, flags);
+	raw_spin_lock_irqsave(&sh_mtu2_lock, flags);
 	value = sh_mtu2_read(p, TSTR);
 
 	if (start)
@@ -114,12 +117,15 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_priv *p, int start)
 		value &= ~(1 << cfg->timer_bit);
 
 	sh_mtu2_write(p, TSTR, value);
-	spin_unlock_irqrestore(&sh_mtu2_lock, flags);
+	raw_spin_unlock_irqrestore(&sh_mtu2_lock, flags);
 }
 
 static int sh_mtu2_enable(struct sh_mtu2_priv *p)
 {
 	int ret;
+
+	pm_runtime_get_sync(&p->pdev->dev);
+	dev_pm_syscore_device(&p->pdev->dev, true);
 
 	/* enable clock */
 	ret = clk_enable(p->clk);
@@ -155,6 +161,9 @@ static void sh_mtu2_disable(struct sh_mtu2_priv *p)
 
 	/* stop clock */
 	clk_disable(p->clk);
+
+	dev_pm_syscore_device(&p->pdev->dev, false);
+	pm_runtime_put(&p->pdev->dev);
 }
 
 static irqreturn_t sh_mtu2_interrupt(int irq, void *dev_id)
@@ -206,6 +215,16 @@ static void sh_mtu2_clock_event_mode(enum clock_event_mode mode,
 	}
 }
 
+static void sh_mtu2_clock_event_suspend(struct clock_event_device *ced)
+{
+	pm_genpd_syscore_poweroff(&ced_to_sh_mtu2(ced)->pdev->dev);
+}
+
+static void sh_mtu2_clock_event_resume(struct clock_event_device *ced)
+{
+	pm_genpd_syscore_poweron(&ced_to_sh_mtu2(ced)->pdev->dev);
+}
+
 static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 				       char *name, unsigned long rating)
 {
@@ -219,6 +238,8 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 	ced->rating = rating;
 	ced->cpumask = cpumask_of(0);
 	ced->set_mode = sh_mtu2_clock_event_mode;
+	ced->suspend = sh_mtu2_clock_event_suspend;
+	ced->resume = sh_mtu2_clock_event_resume;
 
 	dev_info(&p->pdev->dev, "used for clock events\n");
 	clockevents_register_device(ced);
@@ -300,14 +321,20 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 	return ret;
 }
 
-static int __devinit sh_mtu2_probe(struct platform_device *pdev)
+static int sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
+
+	if (!is_early_platform_device(pdev)) {
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+	}
 
 	if (p) {
 		dev_info(&pdev->dev, "kept as earlytimer\n");
-		return 0;
+		goto out;
 	}
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
@@ -320,18 +347,29 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 	if (ret) {
 		kfree(p);
 		platform_set_drvdata(pdev, NULL);
+		pm_runtime_idle(&pdev->dev);
+		return ret;
 	}
-	return ret;
+	if (is_early_platform_device(pdev))
+		return 0;
+
+ out:
+	if (cfg->clockevent_rating)
+		pm_runtime_irq_safe(&pdev->dev);
+	else
+		pm_runtime_idle(&pdev->dev);
+
+	return 0;
 }
 
-static int __devexit sh_mtu2_remove(struct platform_device *pdev)
+static int sh_mtu2_remove(struct platform_device *pdev)
 {
 	return -EBUSY; /* cannot unregister clockevent */
 }
 
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
-	.remove		= __devexit_p(sh_mtu2_remove),
+	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
 	}
@@ -348,7 +386,7 @@ static void __exit sh_mtu2_exit(void)
 }
 
 early_platform_init("earlytimer", &sh_mtu2_device_driver);
-module_init(sh_mtu2_init);
+subsys_initcall(sh_mtu2_init);
 module_exit(sh_mtu2_exit);
 
 MODULE_AUTHOR("Magnus Damm");

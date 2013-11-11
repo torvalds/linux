@@ -430,7 +430,7 @@ static ssize_t mwave_write(struct file *file, const char __user *buf,
 
 static int register_serial_portandirq(unsigned int port, int irq)
 {
-	struct uart_port uart;
+	struct uart_8250_port uart;
 	
 	switch ( port ) {
 		case 0x3f8:
@@ -462,14 +462,14 @@ static int register_serial_portandirq(unsigned int port, int irq)
 	} /* switch */
 	/* irq is okay */
 
-	memset(&uart, 0, sizeof(struct uart_port));
+	memset(&uart, 0, sizeof(uart));
 	
-	uart.uartclk =  1843200;
-	uart.iobase = port;
-	uart.irq = irq;
-	uart.iotype = UPIO_PORT;
-	uart.flags =  UPF_SHARE_IRQ;
-	return serial8250_register_port(&uart);
+	uart.port.uartclk =  1843200;
+	uart.port.iobase = port;
+	uart.port.irq = irq;
+	uart.port.iotype = UPIO_PORT;
+	uart.port.flags =  UPF_SHARE_IRQ;
+	return serial8250_register_8250_port(&uart);
 }
 
 

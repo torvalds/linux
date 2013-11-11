@@ -14,8 +14,10 @@
 #define __LOCK_DOT_H__
 
 void dlm_dump_rsb(struct dlm_rsb *r);
+void dlm_dump_rsb_name(struct dlm_ls *ls, char *name, int len);
 void dlm_print_lkb(struct dlm_lkb *lkb);
-void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms);
+void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms,
+			       uint32_t saved_seq);
 void dlm_receive_buffer(union dlm_packet *p, int nodeid);
 int dlm_modes_compat(int mode1, int mode2);
 void dlm_put_rsb(struct dlm_rsb *r);
@@ -27,10 +29,15 @@ void dlm_unlock_recovery(struct dlm_ls *ls);
 void dlm_scan_waiters(struct dlm_ls *ls);
 void dlm_scan_timeout(struct dlm_ls *ls);
 void dlm_adjust_timeouts(struct dlm_ls *ls);
+int dlm_master_lookup(struct dlm_ls *ls, int nodeid, char *name, int len,
+		      unsigned int flags, int *r_nodeid, int *result);
 
-int dlm_purge_locks(struct dlm_ls *ls);
+int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
+			struct dlm_rsb **r_ret);
+
+void dlm_recover_purge(struct dlm_ls *ls);
 void dlm_purge_mstcpy_locks(struct dlm_rsb *r);
-void dlm_grant_after_purge(struct dlm_ls *ls);
+void dlm_recover_grant(struct dlm_ls *ls);
 int dlm_recover_waiters_post(struct dlm_ls *ls);
 void dlm_recover_waiters_pre(struct dlm_ls *ls);
 int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc);

@@ -1,100 +1,90 @@
-if ARCH_TEGRA
+config ARCH_TEGRA
+	bool "NVIDIA Tegra" if ARCH_MULTI_V7
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_CLK
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select SOC_BUS
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for NVIDIA Tegra based systems.
 
-comment "NVIDIA Tegra options"
-
-choice
-	prompt "Select Tegra processor family for target system"
+menu "NVIDIA Tegra options"
+	depends on ARCH_TEGRA
 
 config ARCH_TEGRA_2x_SOC
-	bool "Tegra 2 family"
-	select CPU_V7
+	bool "Enable support for Tegra20 family"
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_754327 if SMP
+	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
-	select ARCH_REQUIRE_GPIOLIB
+	select CPU_FREQ_TABLE if CPU_FREQ
+	select CPU_V7
+	select PINCTRL
+	select PINCTRL_TEGRA20
+	select PL310_ERRATA_727915 if CACHE_L2X0
+	select PL310_ERRATA_769419 if CACHE_L2X0
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB_SUPPORT
-	select USB_ULPI_VIEWPORT if USB_SUPPORT
+	select USB_ULPI if USB_PHY
+	select USB_ULPI_VIEWPORT if USB_PHY
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
 
-endchoice
+config ARCH_TEGRA_3x_SOC
+	bool "Enable support for Tegra30 family"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369 if SMP
+	select ARM_GIC
+	select CPU_FREQ_TABLE if CPU_FREQ
+	select CPU_V7
+	select PINCTRL
+	select PINCTRL_TEGRA30
+	select PL310_ERRATA_769419 if CACHE_L2X0
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select USB_ULPI if USB_PHY
+	select USB_ULPI_VIEWPORT if USB_PHY
+	help
+	  Support for NVIDIA Tegra T30 processor family, based on the
+	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
+
+config ARCH_TEGRA_114_SOC
+	bool "Enable support for Tegra114 family"
+	select ARM_ARCH_TIMER
+	select ARM_GIC
+	select ARM_L1_CACHE_SHIFT_6
+	select CPU_FREQ_TABLE if CPU_FREQ
+	select CPU_V7
+	select PINCTRL
+	select PINCTRL_TEGRA114
+	help
+	  Support for NVIDIA Tegra T114 processor family, based on the
+	  ARM CortexA15MP CPU
 
 config TEGRA_PCI
 	bool "PCI Express support"
+	depends on ARCH_TEGRA_2x_SOC
 	select PCI
 
-comment "Tegra board type"
-
-config MACH_HARMONY
-       bool "Harmony board"
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
-       help
-         Support for nVidia Harmony development platform
-
-config MACH_KAEN
-       bool "Kaen board"
-       select MACH_SEABOARD
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
-       help
-         Support for the Kaen version of Seaboard
-
-config MACH_PAZ00
-       bool "Paz00 board"
-       help
-         Support for the Toshiba AC100/Dynabook AZ netbook
-
-config MACH_SEABOARD
-       bool "Seaboard board"
-       select MACH_HAS_SND_SOC_TEGRA_WM8903
-       help
-         Support for nVidia Seaboard development platform. It will
-	 also be included for some of the derivative boards that
-	 have large similarities with the seaboard design.
-
-config MACH_TRIMSLICE
-       bool "TrimSlice board"
-       select TEGRA_PCI
-       help
-         Support for CompuLab TrimSlice platform
-
-config MACH_WARIO
-       bool "Wario board"
-       select MACH_SEABOARD
-       help
-         Support for the Wario version of Seaboard
-
-choice
-        prompt "Low-level debug console UART"
-        default TEGRA_DEBUG_UART_NONE
-
-config TEGRA_DEBUG_UART_NONE
-        bool "None"
-
-config TEGRA_DEBUG_UARTA
-        bool "UART-A"
-
-config TEGRA_DEBUG_UARTB
-        bool "UART-B"
-
-config TEGRA_DEBUG_UARTC
-        bool "UART-C"
-
-config TEGRA_DEBUG_UARTD
-        bool "UART-D"
-
-config TEGRA_DEBUG_UARTE
-        bool "UART-E"
-
-endchoice
-
-config TEGRA_SYSTEM_DMA
-	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
+config TEGRA_AHB
+	bool "Enable AHB driver for NVIDIA Tegra SoCs"
 	default y
 	help
-	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
-	  several Tegra device drivers
+	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
+	  which controls AHB bus master arbitration and some
+	  performance parameters(priority, prefech size).
 
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"
 
-endif
+endmenu

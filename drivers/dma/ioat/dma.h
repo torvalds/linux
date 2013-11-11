@@ -39,6 +39,7 @@
 #define to_ioat_desc(lh) container_of(lh, struct ioat_desc_sw, node)
 #define tx_to_ioat_desc(tx) container_of(tx, struct ioat_desc_sw, txd)
 #define to_dev(ioat_chan) (&(ioat_chan)->device->pdev->dev)
+#define to_pdev(ioat_chan) ((ioat_chan)->device->pdev)
 
 #define chan_num(ch) ((int)((ch)->reg_base - (ch)->device->reg_base) / 0x80)
 
@@ -47,6 +48,14 @@
  * (channel returns error when size is 0)
  */
 #define NULL_DESC_BUFFER_SIZE 1
+
+enum ioat_irq_mode {
+	IOAT_NOIRQ = 0,
+	IOAT_MSIX,
+	IOAT_MSIX_SINGLE,
+	IOAT_MSI,
+	IOAT_INTX
+};
 
 /**
  * struct ioatdma_device - internal representation of a IOAT device
@@ -72,11 +81,16 @@ struct ioatdma_device {
 	void __iomem *reg_base;
 	struct pci_pool *dma_pool;
 	struct pci_pool *completion_pool;
+#define MAX_SED_POOLS	5
+	struct dma_pool *sed_hw_pool[MAX_SED_POOLS];
+	struct kmem_cache *sed_pool;
 	struct dma_device common;
 	u8 version;
 	struct msix_entry msix_entries[4];
 	struct ioat_chan_common *idx[4];
 	struct dca_provider *dca;
+	enum ioat_irq_mode irq_mode;
+	u32 cap;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
 	int (*reset_hw)(struct ioat_chan_common *chan);
@@ -88,9 +102,8 @@ struct ioatdma_device {
 struct ioat_chan_common {
 	struct dma_chan common;
 	void __iomem *reg_base;
-	unsigned long last_completion;
+	dma_addr_t last_completion;
 	spinlock_t cleanup_lock;
-	dma_cookie_t completed_cookie;
 	unsigned long state;
 	#define IOAT_COMPLETION_PENDING 0
 	#define IOAT_COMPLETION_ACK 1
@@ -98,6 +111,7 @@ struct ioat_chan_common {
 	#define IOAT_KOBJ_INIT_FAIL 3
 	#define IOAT_RESHAPE_PENDING 4
 	#define IOAT_RUN 5
+	#define IOAT_CHAN_ACTIVE 6
 	struct timer_list timer;
 	#define COMPLETION_TIMEOUT msecs_to_jiffies(100)
 	#define IDLE_TIMEOUT msecs_to_jiffies(2000)
@@ -131,6 +145,20 @@ struct ioat_dma_chan {
 	u16 active;
 };
 
+/**
+ * struct ioat_sed_ent - wrapper around super extended hardware descriptor
+ * @hw: hardware SED
+ * @sed_dma: dma address for the SED
+ * @list: list member
+ * @parent: point to the dma descriptor that's the parent
+ */
+struct ioat_sed_ent {
+	struct ioat_sed_raw_descriptor *hw;
+	dma_addr_t dma;
+	struct ioat_ring_ent *parent;
+	unsigned int hw_pool;
+};
+
 static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
 {
 	return container_of(c, struct ioat_chan_common, common);
@@ -141,28 +169,6 @@ static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
 	struct ioat_chan_common *chan = to_chan_common(c);
 
 	return container_of(chan, struct ioat_dma_chan, base);
-}
-
-/**
- * ioat_tx_status - poll the status of an ioat transaction
- * @c: channel handle
- * @cookie: transaction identifier
- * @txstate: if set, updated with the transaction state
- */
-static inline enum dma_status
-ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
-		 struct dma_tx_state *txstate)
-{
-	struct ioat_chan_common *chan = to_chan_common(c);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
-
-	last_used = c->cookie;
-	last_complete = chan->completed_cookie;
-
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
-	return dma_async_is_complete(cookie, last_complete, last_used);
 }
 
 /* wrapper around hardware descriptor format + additional software fields */
@@ -201,7 +207,7 @@ __dump_desc_dbg(struct ioat_chan_common *chan, struct ioat_dma_descriptor *hw,
 	struct device *dev = to_dev(chan);
 
 	dev_dbg(dev, "desc[%d]: (%#llx->%#llx) cookie: %d flags: %#x"
-		" ctl: %#x (op: %d int_en: %d compl: %d)\n", id,
+		" ctl: %#10.8x (op: %#x int_en: %d compl: %d)\n", id,
 		(unsigned long long) tx->phys,
 		(unsigned long long) hw->next, tx->cookie, tx->flags,
 		hw->ctl, hw->ctl_f.op, hw->ctl_f.int_en, hw->ctl_f.compl_write);
@@ -223,7 +229,7 @@ ioat_chan_by_index(struct ioatdma_device *device, int index)
 	return device->idx[index];
 }
 
-static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+static inline u64 ioat_chansts_32(struct ioat_chan_common *chan)
 {
 	u8 ver = chan->device->version;
 	u64 status;
@@ -239,6 +245,26 @@ static inline u64 ioat_chansts(struct ioat_chan_common *chan)
 
 	return status;
 }
+
+#if BITS_PER_LONG == 64
+
+static inline u64 ioat_chansts(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+	u64 status;
+
+	 /* With IOAT v3.3 the status register is 64bit.  */
+	if (ver >= IOAT_VER_3_3)
+		status = readq(chan->reg_base + IOAT_CHANSTS_OFFSET(ver));
+	else
+		status = ioat_chansts_32(chan);
+
+	return status;
+}
+
+#else
+#define ioat_chansts ioat_chansts_32
+#endif
 
 static inline void ioat_start(struct ioat_chan_common *chan)
 {
@@ -326,14 +352,13 @@ static inline void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,
 		pci_unmap_page(pdev, addr, len, direction);
 }
 
-int __devinit ioat_probe(struct ioatdma_device *device);
-int __devinit ioat_register(struct ioatdma_device *device);
-int __devinit ioat1_dma_probe(struct ioatdma_device *dev, int dca);
-int __devinit ioat_dma_self_test(struct ioatdma_device *device);
-void __devexit ioat_dma_remove(struct ioatdma_device *device);
-struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
-					      void __iomem *iobase);
-unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
+int ioat_probe(struct ioatdma_device *device);
+int ioat_register(struct ioatdma_device *device);
+int ioat1_dma_probe(struct ioatdma_device *dev, int dca);
+int ioat_dma_self_test(struct ioatdma_device *device);
+void ioat_dma_remove(struct ioatdma_device *device);
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
 		       struct ioat_chan_common *chan, int idx);
 enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
@@ -341,9 +366,10 @@ enum dma_status ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
-			   unsigned long *phys_complete);
+			   dma_addr_t *phys_complete);
 void ioat_kobject_add(struct ioatdma_device *device, struct kobj_type *type);
 void ioat_kobject_del(struct ioatdma_device *device);
+int ioat_dma_setup_interrupts(struct ioatdma_device *device);
 extern const struct sysfs_ops ioat_sysfs_ops;
 extern struct ioat_sysfs_entry ioat_version_attr;
 extern struct ioat_sysfs_entry ioat_cap_attr;

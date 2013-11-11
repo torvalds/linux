@@ -15,6 +15,7 @@
 
 menuconfig USB_GADGET
 	tristate "USB Gadget Support"
+	select NLS
 	help
 	   USB is a master/slave protocol, organized with one master
 	   host (such as a PC) controlling up to 127 peripheral devices.
@@ -96,8 +97,21 @@ config USB_GADGET_VBUS_DRAW
 	   This value will be used except for system-specific gadget
 	   drivers that have more specific information.
 
-config	USB_GADGET_SELECTED
-	boolean
+config USB_GADGET_STORAGE_NUM_BUFFERS
+	int "Number of storage pipeline buffers"
+	range 2 4
+	default 2
+	help
+	   Usually 2 buffers are enough to establish a good buffering
+	   pipeline. The number may be increased in order to compensate
+	   for a bursty VFS behaviour. For instance there may be CPU wake up
+	   latencies that makes the VFS to appear bursty in a system with
+	   an CPU on-demand governor. Especially if DMA is doing IO to
+	   offload the CPU. In this case the CPU will go into power
+	   save often and spin up occasionally to move data within VFS.
+	   If selecting USB_GADGET_DEBUG_FILES this value may be set by
+	   a module parameter as well.
+	   If unsure, say 2.
 
 #
 # USB Peripheral Controller Support
@@ -109,23 +123,15 @@ config	USB_GADGET_SELECTED
 #   - discrete ones (including all PCI-only controllers)
 #   - debug/dummy gadget+hcd is last.
 #
-choice
-	prompt "USB Peripheral Controller"
-	depends on USB_GADGET
-	help
-	   A USB device uses a controller to talk to its host.
-	   Systems should have only one such upstream link.
-	   Many controller drivers are platform-specific; these
-	   often need board-specific hooks.
+menu "USB Peripheral Controller"
 
 #
 # Integrated controllers
 #
 
-config USB_GADGET_AT91
-	boolean "Atmel AT91 USB Device Port"
-	depends on ARCH_AT91 && !ARCH_AT91SAM9RL && !ARCH_AT91CAP9 && !ARCH_AT91SAM9G45
-	select USB_GADGET_SELECTED
+config USB_AT91
+	tristate "Atmel AT91 USB Device Port"
+	depends on ARCH_AT91
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -135,32 +141,42 @@ config USB_GADGET_AT91
 	   dynamically linked module called "at91_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_AT91
-	tristate
-	depends on USB_GADGET_AT91
-	default USB_GADGET
+config USB_LPC32XX
+	tristate "LPC32XX USB Peripheral Controller"
+	depends on ARCH_LPC32XX
+	depends on USB_PHY
+	select USB_ISP1301
+	help
+	   This option selects the USB device controller in the LPC32xx SoC.
 
-config USB_GADGET_ATMEL_USBA
-	boolean "Atmel USBA"
-	select USB_GADGET_DUALSPEED
-	depends on AVR32 || ARCH_AT91CAP9 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "lpc32xx_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_ATMEL_USBA
+	tristate "Atmel USBA"
+	depends on AVR32 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
 
-config USB_ATMEL_USBA
-	tristate
-	depends on USB_GADGET_ATMEL_USBA
-	default USB_GADGET
-	select USB_GADGET_SELECTED
+config USB_BCM63XX_UDC
+	tristate "Broadcom BCM63xx Peripheral Controller"
+	depends on BCM63XX
+	help
+	   Many Broadcom BCM63xx chipsets (such as the BCM6328) have a
+	   high speed USB Device Port with support for four fixed endpoints
+	   (plus endpoint zero).
 
-config USB_GADGET_FSL_USB2
-	boolean "Freescale Highspeed USB DR Peripheral Controller"
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "bcm63xx_udc".
+
+config USB_FSL_USB2
+	tristate "Freescale Highspeed USB DR Peripheral Controller"
 	depends on FSL_SOC || ARCH_MXC
-	select USB_GADGET_DUALSPEED
 	select USB_FSL_MPH_DR_OF if OF
 	help
-	   Some of Freescale PowerPC processors have a High Speed
+	   Some of Freescale PowerPC and i.MX processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
 
 	   The number of programmable endpoints is different through
@@ -170,29 +186,17 @@ config USB_GADGET_FSL_USB2
 	   dynamically linked module called "fsl_usb2_udc" and force
 	   all gadget drivers to also be dynamically linked.
 
-config USB_FSL_USB2
-	tristate
-	depends on USB_GADGET_FSL_USB2
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_FUSB300
-	boolean "Faraday FUSB300 USB Peripheral Controller"
-	select USB_GADGET_DUALSPEED
+config USB_FUSB300
+	tristate "Faraday FUSB300 USB Peripheral Controller"
+	depends on !PHYS_ADDR_T_64BIT
 	help
 	   Faraday usb device controller FUSB300 driver
 
-config USB_FUSB300
-	tristate
-	depends on USB_GADGET_FUSB300
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_OMAP
-	boolean "OMAP USB Device Controller"
-	depends on ARCH_OMAP
+config USB_OMAP
+	tristate "OMAP USB Device Controller"
+	depends on ARCH_OMAP1
+	depends on USB_PHY
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
-	select USB_OTG_UTILS if ARCH_OMAP
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -204,16 +208,9 @@ config USB_GADGET_OMAP
 	   dynamically linked module called "omap_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_OMAP
-	tristate
-	depends on USB_GADGET_OMAP
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_PXA25X
-	boolean "PXA 25x or IXP 4xx"
+config USB_PXA25X
+	tristate "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
-	select USB_OTG_UTILS
 	help
 	   Intel's PXA 25x series XScale ARM-5TE processors include
 	   an integrated full speed USB 1.1 device controller.  The
@@ -226,25 +223,18 @@ config USB_GADGET_PXA25X
 	   dynamically linked module called "pxa25x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_PXA25X
-	tristate
-	depends on USB_GADGET_PXA25X
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 # if there's only one gadget driver, using only two bulk endpoints,
 # don't waste memory for the other endpoints
 config USB_PXA25X_SMALL
-	depends on USB_GADGET_PXA25X
+	depends on USB_PXA25X
 	bool
 	default n if USB_ETH_RNDIS
 	default y if USB_ZERO
 	default y if USB_ETH
 	default y if USB_G_SERIAL
 
-config USB_GADGET_R8A66597
-	boolean "Renesas R8A66597 USB Peripheral Controller"
-	select USB_GADGET_DUALSPEED
+config USB_R8A66597
+	tristate "Renesas R8A66597 USB Peripheral Controller"
 	help
 	   R8A66597 is a discrete USB host and peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -254,34 +244,20 @@ config USB_GADGET_R8A66597
 	   dynamically linked module called "r8a66597_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_R8A66597
-	tristate
-	depends on USB_GADGET_R8A66597
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_RENESAS_USBHS
-	boolean "Renesas USBHS"
-	depends on USB_RENESAS_USBHS
-	select USB_GADGET_DUALSPEED
-	help
-	   Renesas USBHS is a discrete USB host and peripheral controller
-	   chip that supports both full and high speed USB 2.0 data transfers.
-	   platform is able to configure endpoint (pipe) style
-
-	   Say "y" to enable the gadget specific portion of the USBHS driver.
-
-
 config USB_RENESAS_USBHS_UDC
-	tristate
-	depends on USB_GADGET_RENESAS_USBHS
-	default USB_GADGET
-	select USB_GADGET_SELECTED
+	tristate 'Renesas USBHS controller'
+	depends on USB_RENESAS_USBHS
+	help
+	   Renesas USBHS is a discrete USB host and peripheral controller chip
+	   that supports both full and high speed USB 2.0 data transfers.
+	   It has nine or more configurable endpoints, and endpoint zero.
 
-config USB_GADGET_PXA27X
-	boolean "PXA 27x"
-	depends on ARCH_PXA && (PXA27x || PXA3xx)
-	select USB_OTG_UTILS
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usbhs" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_PXA27X
+	tristate "PXA 27x"
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
@@ -293,34 +269,20 @@ config USB_GADGET_PXA27X
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_PXA27X
-	tristate
-	depends on USB_GADGET_PXA27X
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_S3C_HSOTG
-	boolean "S3C HS/OtG USB Device controller"
+config USB_S3C_HSOTG
+	tristate "S3C HS/OtG USB Device controller"
 	depends on S3C_DEV_USB_HSOTG
-	select USB_GADGET_S3C_HSOTG_PIO
-	select USB_GADGET_DUALSPEED
 	help
 	  The Samsung S3C64XX USB2.0 high-speed gadget controller
 	  integrated into the S3C64XX series SoC.
 
-config USB_S3C_HSOTG
-	tristate
-	depends on USB_GADGET_S3C_HSOTG
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_IMX
-	boolean "Freescale IMX USB Peripheral Controller"
-	depends on ARCH_MX1
+config USB_IMX
+	tristate "Freescale i.MX1 USB Peripheral Controller"
+	depends on ARCH_MXC
+	depends on BROKEN
 	help
-	   Freescale's IMX series include an integrated full speed
-	   USB 1.1 device controller.  The controller in the IMX series
-	   is register-compatible.
+	   Freescale's i.MX1 includes an integrated full speed
+	   USB 1.1 device controller.
 
 	   It has Six fixed-function endpoints, as well as endpoint
 	   zero (for control transfers).
@@ -329,15 +291,9 @@ config USB_GADGET_IMX
 	   dynamically linked module called "imx_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_IMX
-	tristate
-	depends on USB_GADGET_IMX
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_S3C2410
-	boolean "S3C2410 USB Device Controller"
-	depends on ARCH_S3C2410
+config USB_S3C2410
+	tristate "S3C2410 USB Device Controller"
+	depends on ARCH_S3C24XX
 	help
 	  Samsung's S3C2410 is an ARM-4 processor with an integrated
 	  full speed USB 1.1 device controller.  It has 4 configurable
@@ -346,20 +302,13 @@ config USB_GADGET_S3C2410
 	  This driver has been tested on the S3C2410, S3C2412, and
 	  S3C2440 processors.
 
-config USB_S3C2410
-	tristate
-	depends on USB_GADGET_S3C2410
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 config USB_S3C2410_DEBUG
 	boolean "S3C2410 udc debug messages"
-	depends on USB_GADGET_S3C2410
+	depends on USB_S3C2410
 
-config USB_GADGET_S3C_HSUDC
-	boolean "S3C2416, S3C2443 and S3C2450 USB Device Controller"
-	depends on ARCH_S3C2410
-	select USB_GADGET_DUALSPEED
+config USB_S3C_HSUDC
+	tristate "S3C2416, S3C2443 and S3C2450 USB Device Controller"
+	depends on ARCH_S3C24XX
 	help
 	  Samsung's S3C2416, S3C2443 and S3C2450 is an ARM9 based SoC
 	  integrated with dual speed USB 2.0 device controller. It has
@@ -367,24 +316,19 @@ config USB_GADGET_S3C_HSUDC
 
 	  This driver has been tested on S3C2416 and S3C2450 processors.
 
-config USB_S3C_HSUDC
-	tristate
-	depends on USB_GADGET_S3C_HSUDC
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_PXA_U2O
-	boolean "PXA9xx Processor USB2.0 controller"
-	select USB_GADGET_DUALSPEED
+config USB_MV_UDC
+	tristate "Marvell USB2.0 Device Controller"
+	depends on GENERIC_HARDIRQS
 	help
-	  PXA9xx Processor series include a high speed USB2.0 device
-	  controller, which support high speed and full speed USB peripheral.
+	  Marvell Socs (including PXA and MMP series) include a high speed
+	  USB2.0 OTG controller, which can be configured as high speed or
+	  full speed USB peripheral.
 
-config USB_PXA_U2O
-	tristate
-	depends on USB_GADGET_PXA_U2O
-	default USB_GADGET
-	select USB_GADGET_SELECTED
+config USB_MV_U3D
+	tristate "MARVELL PXA2128 USB 3.0 controller"
+	help
+	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
+	  controller, which support super speed USB peripheral.
 
 #
 # Controllers available in both integrated and discrete versions
@@ -392,17 +336,14 @@ config USB_PXA_U2O
 
 # musb builds in ../musb along with host support
 config USB_GADGET_MUSB_HDRC
-	boolean "Inventra HDRC USB Peripheral (TI, ADI, ...)"
-	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SELECTED
+	tristate "Inventra HDRC USB Peripheral (TI, ADI, ...)"
+	depends on USB_MUSB_HDRC
 	help
 	  This OTG-capable silicon IP is used in dual designs including
 	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
 
-config USB_GADGET_M66592
-	boolean "Renesas M66592 USB Peripheral Controller"
-	select USB_GADGET_DUALSPEED
+config USB_M66592
+	tristate "Renesas M66592 USB Peripheral Controller"
 	help
 	   M66592 is a discrete USB peripheral controller chip that
 	   supports both full and high speed USB 2.0 data transfers.
@@ -412,20 +353,13 @@ config USB_GADGET_M66592
 	   dynamically linked module called "m66592_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_M66592
-	tristate
-	depends on USB_GADGET_M66592
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 #
 # Controllers available only in discrete form (and all PCI controllers)
 #
 
-config USB_GADGET_AMD5536UDC
-	boolean "AMD5536 UDC"
+config USB_AMD5536UDC
+	tristate "AMD5536 UDC"
 	depends on PCI
-	select USB_GADGET_DUALSPEED
 	help
 	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
 	   It is a USB Highspeed DMA capable USB device controller. Beside ep0
@@ -437,14 +371,8 @@ config USB_GADGET_AMD5536UDC
 	   dynamically linked module called "amd5536udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_AMD5536UDC
-	tristate
-	depends on USB_GADGET_AMD5536UDC
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_FSL_QE
-	boolean "Freescale QE/CPM USB Device Controller"
+config USB_FSL_QE
+	tristate "Freescale QE/CPM USB Device Controller"
 	depends on FSL_SOC && (QUICC_ENGINE || CPM)
 	help
 	   Some of Freescale PowerPC processors have a Full Speed
@@ -456,34 +384,31 @@ config USB_GADGET_FSL_QE
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
 	   dynamically linked module called "fsl_qe_udc".
 
-config USB_FSL_QE
-	tristate
-	depends on USB_GADGET_FSL_QE
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_CI13XXX_PCI
-	boolean "MIPS USB CI13xxx PCI UDC"
-	depends on PCI
-	select USB_GADGET_DUALSPEED
+config USB_NET2272
+	tristate "PLX NET2272"
 	help
-	  MIPS USB IP core family device controller
-	  Currently it only supports IP part number CI13412
+	  PLX NET2272 is a USB peripheral controller which supports
+	  both full and high speed USB 2.0 data transfers.
 
+	  It has three configurable endpoints, as well as endpoint zero
+	  (for control transfer).
 	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_udc" and force all
+	  dynamically linked module called "net2272" and force all
 	  gadget drivers to also be dynamically linked.
 
-config USB_CI13XXX_PCI
-	tristate
-	depends on USB_GADGET_CI13XXX_PCI
-	default USB_GADGET
-	select USB_GADGET_SELECTED
+config USB_NET2272_DMA
+	boolean "Support external DMA controller"
+	depends on USB_NET2272
+	help
+	  The NET2272 part can optionally support an external DMA
+	  controller, but your board has to have support in the
+	  driver itself.
 
-config USB_GADGET_NET2280
-	boolean "NetChip 228x"
+	  If unsure, say "N" here.  The driver works fine in PIO mode.
+
+config USB_NET2280
+	tristate "NetChip 228x"
 	depends on PCI
-	select USB_GADGET_DUALSPEED
 	help
 	   NetChip 2280 / 2282 is a PCI based USB peripheral controller which
 	   supports both full and high speed USB 2.0 data transfers.
@@ -496,14 +421,8 @@ config USB_GADGET_NET2280
 	   dynamically linked module called "net2280" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_NET2280
-	tristate
-	depends on USB_GADGET_NET2280
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_GOKU
-	boolean "Toshiba TC86C001 'Goku-S'"
+config USB_GOKU
+	tristate "Toshiba TC86C001 'Goku-S'"
 	depends on PCI
 	help
 	   The Toshiba TC86C001 is a PCI device which includes controllers
@@ -516,37 +435,9 @@ config USB_GADGET_GOKU
 	   dynamically linked module called "goku_udc" and to force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_GOKU
-	tristate
-	depends on USB_GADGET_GOKU
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_LANGWELL
-	boolean "Intel Langwell USB Device Controller"
-	depends on PCI
-	select USB_GADGET_DUALSPEED
-	help
-	   Intel Langwell USB Device Controller is a High-Speed USB
-	   On-The-Go device controller.
-
-	   The number of programmable endpoints is different through
-	   controller revision.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "langwell_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
-config USB_LANGWELL
-	tristate
-	depends on USB_GADGET_LANGWELL
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_EG20T
-	boolean "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH UDC"
-	depends on PCI
-	select USB_GADGET_DUALSPEED
+config USB_EG20T
+	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
+	depends on PCI && GENERIC_HARDIRQS
 	help
 	  This is a USB device driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's
@@ -560,59 +451,30 @@ config USB_GADGET_EG20T
 	  This driver dose not support interrupt transfer or isochronous
 	  transfer modes.
 
-	  This driver also can be used for OKI SEMICONDUCTOR's ML7213 which is
+	  This driver also can be used for LAPIS Semiconductor's ML7213 which is
 	  for IVI(In-Vehicle Infotainment) use.
-	  ML7213 is companion chip for Intel Atom E6xx series.
-	  ML7213 is completely compatible for Intel EG20T PCH.
-
-config USB_EG20T
-	tristate
-	depends on USB_GADGET_EG20T
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
-config USB_GADGET_CI13XXX_MSM
-	boolean "MIPS USB CI13xxx for MSM"
-	depends on ARCH_MSM
-	select USB_GADGET_DUALSPEED
-	select USB_MSM_OTG
-	help
-	  MSM SoC has chipidea USB controller.  This driver uses
-	  ci13xxx_udc core.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_msm" and force all
-	  gadget drivers to also be dynamically linked.
-
-config USB_CI13XXX_MSM
-	tristate
-	depends on USB_GADGET_CI13XXX_MSM
-	default USB_GADGET
-	select USB_GADGET_SELECTED
+	  ML7831 is for general purpose use.
+	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
 
 #
 # LAST -- dummy/emulated controller
 #
 
-config USB_GADGET_DUMMY_HCD
-	boolean "Dummy HCD (DEVELOPMENT)"
+config USB_DUMMY_HCD
+	tristate "Dummy HCD (DEVELOPMENT)"
 	depends on USB=y || (USB=m && USB_GADGET=m)
-	select USB_GADGET_DUALSPEED
 	help
 	  This host controller driver emulates USB, looping all data transfer
 	  requests back to a USB "gadget driver" in the same host.  The host
 	  side is the master; the gadget side is the slave.  Gadget drivers
 	  can be high, full, or low speed; and they have access to endpoints
 	  like those from NET2280, PXA2xx, or SA1100 hardware.
-	  
+
 	  This may help in some stages of creating a driver to embed in a
 	  Linux device, since it lets you debug several parts of the gadget
 	  driver without its hardware or drivers being involved.
-	  
+
 	  Since such a gadget side driver needs to interoperate with a host
 	  side Linux-USB device driver, this may help to debug both sides
 	  of a USB protocol stack.
@@ -621,28 +483,38 @@ config USB_GADGET_DUMMY_HCD
 	  dynamically linked module called "dummy_hcd" and force all
 	  gadget drivers to also be dynamically linked.
 
-config USB_DUMMY_HCD
-	tristate
-	depends on USB_GADGET_DUMMY_HCD
-	default USB_GADGET
-	select USB_GADGET_SELECTED
-
 # NOTE:  Please keep dummy_hcd LAST so that "real hardware" appears
 # first and will be selected by default.
 
-endchoice
-
-# Selected by UDC drivers that support high-speed operation.
-config USB_GADGET_DUALSPEED
-	bool
-	depends on USB_GADGET
+endmenu
 
 #
 # USB Gadget Drivers
 #
+
+# composite based drivers
+config USB_LIBCOMPOSITE
+	tristate
+	select CONFIGFS_FS
+	depends on USB_GADGET
+
+config USB_F_ACM
+	tristate
+
+config USB_F_SS_LB
+	tristate
+
+config USB_U_SERIAL
+	tristate
+
+config USB_F_SERIAL
+	tristate
+
+config USB_F_OBEX
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
-	depends on USB_GADGET && USB_GADGET_SELECTED
 	default USB_ETH
 	help
 	  A Linux "Gadget Driver" talks to the USB Peripheral Controller
@@ -664,6 +536,8 @@ choice
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
+	select USB_LIBCOMPOSITE
+	select USB_F_SS_LB
 	help
 	  Gadget Zero is a two-configuration device.  It either sinks and
 	  sources bulk data; or it loops back a configurable number of
@@ -697,23 +571,38 @@ config USB_ZERO_HNPTEST
 	  one serve as the USB host instead (in the "B-Host" role).
 
 config USB_AUDIO
-	tristate "Audio Gadget (EXPERIMENTAL)"
+	tristate "Audio Gadget"
 	depends on SND
+	select USB_LIBCOMPOSITE
 	select SND_PCM
 	help
-	  Gadget Audio is compatible with USB Audio Class specification 1.0.
-	  It will include at least one AudioControl interface, zero or more
-	  AudioStream interface and zero or more MIDIStream interface.
-
-	  Gadget Audio will use on-board ALSA (CONFIG_SND) audio card to
-	  playback or capture audio stream.
+	  This Gadget Audio driver is compatible with USB Audio Class
+	  specification 2.0. It implements 1 AudioControl interface,
+	  1 AudioStreaming Interface each for USB-OUT and USB-IN.
+	  Number of channels, sample rate and sample size can be
+	  specified as module parameters.
+	  This driver doesn't expect any real Audio codec to be present
+	  on the device - the audio streams are simply sinked to and
+	  sourced from a virtual ALSA sound card created. The user-space
+	  application may choose to do whatever it wants with the data
+	  received from the USB Host and choose to provide whatever it
+	  wants as audio data to the USB Host.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_audio".
 
+config GADGET_UAC1
+	bool "UAC 1.0 (Legacy)"
+	depends on USB_AUDIO
+	help
+	  If you instead want older UAC Spec-1.0 driver that also has audio
+	  paths hardwired to the Audio codec chip on-board and doesn't work
+	  without one.
+
 config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET
+	select USB_LIBCOMPOSITE
 	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
@@ -749,6 +638,7 @@ config USB_ETH
 config USB_ETH_RNDIS
 	bool "RNDIS support"
 	depends on USB_ETH
+	select USB_LIBCOMPOSITE
 	default y
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
@@ -767,6 +657,7 @@ config USB_ETH_RNDIS
 config USB_ETH_EEM
        bool "Ethernet Emulation Model (EEM) support"
        depends on USB_ETH
+	select USB_LIBCOMPOSITE
        default n
        help
          CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
@@ -783,19 +674,19 @@ config USB_ETH_EEM
 config USB_G_NCM
 	tristate "Network Control Model (NCM) support"
 	depends on NET
+	select USB_LIBCOMPOSITE
 	select CRC32
 	help
 	  This driver implements USB CDC NCM subclass standard. NCM is
 	  an advanced protocol for Ethernet encapsulation, allows grouping
-	  of several ethernet frames into one USB transfer and diffferent
+	  of several ethernet frames into one USB transfer and different
 	  alignment possibilities.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_ncm".
 
 config USB_GADGETFS
-	tristate "Gadget Filesystem (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Gadget Filesystem"
 	help
 	  This driver provides a filesystem based API that lets user mode
 	  programs implement a single-configuration USB device, including
@@ -803,15 +694,12 @@ config USB_GADGETFS
 	  All endpoints, transfer speeds, and transfer types supported by
 	  the hardware are available, through read() and write() calls.
 
-	  Currently, this option is still labelled as EXPERIMENTAL because
-	  of existing race conditions in the underlying in-kernel AIO core.
-
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "gadgetfs".
 
 config USB_FUNCTIONFS
-	tristate "Function Filesystem (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Function Filesystem"
+	select USB_LIBCOMPOSITE
 	select USB_FUNCTIONFS_GENERIC if !(USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
 	help
 	  The Function Filesystem (FunctionFS) lets one create USB
@@ -847,48 +735,41 @@ config USB_FUNCTIONFS_GENERIC
 	  Include a configuration with the Function Filesystem alone with
 	  no Ethernet interface.
 
-config USB_FILE_STORAGE
-	tristate "File-backed Storage Gadget"
-	depends on BLOCK
-	help
-	  The File-backed Storage Gadget acts as a USB Mass Storage
-	  disk drive.  As its storage repository it can use a regular
-	  file or a block device (in much the same way as the "loop"
-	  device driver), specified as a module parameter.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "g_file_storage".
-
-config USB_FILE_STORAGE_TEST
-	bool "File-backed Storage Gadget testing version"
-	depends on USB_FILE_STORAGE
-	default n
-	help
-	  Say "y" to generate the larger testing version of the
-	  File-backed Storage Gadget, useful for probing the
-	  behavior of USB Mass Storage hosts.  Not needed for
-	  normal operation.
-
 config USB_MASS_STORAGE
 	tristate "Mass Storage Gadget"
 	depends on BLOCK
+	select USB_LIBCOMPOSITE
 	help
 	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
 	  As its storage repository it can use a regular file or a block
 	  device (in much the same way as the "loop" device driver),
 	  specified as a module parameter or sysfs option.
 
-	  This is heavily based on File-backed Storage Gadget and in most
-	  cases you will want to use FSG instead.  This gadget is mostly
-	  here to test the functionality of the Mass Storage Function
-	  which may be used with composite framework.
+	  This driver is a replacement for now removed File-backed
+	  Storage Gadget (g_file_storage).
 
 	  Say "y" to link the driver statically, or "m" to build
-	  a dynamically linked module called "g_mass_storage".  If unsure,
-	  consider File-backed Storage Gadget.
+	  a dynamically linked module called "g_mass_storage".
+
+config USB_GADGET_TARGET
+	tristate "USB Gadget Target Fabric Module"
+	depends on TARGET_CORE
+	select USB_LIBCOMPOSITE
+	help
+	  This fabric is an USB gadget. Two USB protocols are supported that is
+	  BBB or BOT (Bulk Only Transport) and UAS (USB Attached SCSI). BOT is
+	  advertised on alternative interface 0 (primary) and UAS is on
+	  alternative interface 1. Both protocols can work on USB2.0 and USB3.0.
+	  UAS utilizes the USB 3.0 feature called streams support.
 
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
+	select USB_F_SERIAL
+	select USB_F_OBEX
+	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
 	  This driver supports a CDC-ACM module option, which can be used
@@ -907,8 +788,9 @@ config USB_G_SERIAL
 	  make MS-Windows work with CDC ACM.
 
 config USB_MIDI_GADGET
-	tristate "MIDI Gadget (EXPERIMENTAL)"
-	depends on SND && EXPERIMENTAL
+	tristate "MIDI Gadget"
+	depends on SND
+	select USB_LIBCOMPOSITE
 	select SND_RAWMIDI
 	help
 	  The MIDI Gadget acts as a USB Audio device, with one MIDI
@@ -922,6 +804,7 @@ config USB_MIDI_GADGET
 
 config USB_G_PRINTER
 	tristate "Printer Gadget"
+	select USB_LIBCOMPOSITE
 	help
 	  The Printer Gadget channels data between the USB host and a
 	  userspace program driving the print engine. The user space
@@ -935,9 +818,32 @@ config USB_G_PRINTER
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
 
+config USB_G_ANDROID
+	boolean "Android Composite Gadget"
+	select USB_F_ACM
+	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	help
+	  The Android Composite Gadget supports multiple USB
+	  functions: adb, acm, mass storage, mtp, accessory
+	  and rndis.
+	  Each function can be configured and enabled/disabled
+	  dynamically from userspace through a sysfs interface.
+
+config USB_ANDROID_RNDIS_DWORD_ALIGNED
+	boolean "Use double word aligned"
+	depends on USB_G_ANDROID
+	help
+		Provides dword aligned for DMA controller.
+
+if TTY
+
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
 	depends on NET
+	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
@@ -952,6 +858,9 @@ config USB_CDC_COMPOSITE
 config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
+	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -959,10 +868,26 @@ config USB_G_NOKIA
 	  It's only really useful for N900 hardware. If you're building
 	  a kernel for N900, say Y or M here. If unsure, say N.
 
+config USB_G_ACM_MS
+	tristate "CDC Composite Device (ACM and mass storage)"
+	depends on BLOCK
+	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
+	help
+	  This driver provides two functions in one configuration:
+	  a mass storage, and a CDC ACM (serial port) link.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_acm_ms".
+
 config USB_G_MULTI
-	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
+	tristate "Multifunction Composite Gadget"
 	depends on BLOCK && NET
 	select USB_G_MULTI_CDC if !USB_G_MULTI_RNDIS
+	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
@@ -1001,8 +926,11 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+endif # TTY
+
 config USB_G_HID
 	tristate "HID Gadget"
+	select USB_LIBCOMPOSITE
 	help
 	  The HID gadget driver provides generic emulation of USB
 	  Human Interface Devices (HID).
@@ -1013,8 +941,11 @@ config USB_G_HID
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_hid".
 
+# Standalone / single function gadgets
 config USB_G_DBGP
 	tristate "EHCI Debug Device Gadget"
+	depends on TTY
+	select USB_LIBCOMPOSITE
 	help
 	  This gadget emulates an EHCI Debug device. This is useful when you want
 	  to interact with an EHCI Debug Port.
@@ -1035,6 +966,7 @@ config USB_G_DBGP_PRINTK
 
 config USB_G_DBGP_SERIAL
 	depends on USB_G_DBGP
+	select USB_U_SERIAL
 	bool "serial"
 	help
 	  Userland can interact using /dev/ttyGSxxx.
@@ -1046,6 +978,8 @@ endif
 config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
 	depends on VIDEO_DEV
+	select USB_LIBCOMPOSITE
+	select VIDEOBUF2_VMALLOC
 	help
 	  The Webcam Gadget acts as a composite USB Audio and Video Class
 	  device. It provides a userspace API to process UVC control requests

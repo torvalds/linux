@@ -98,7 +98,8 @@ Your cooperation is appreciated.
 		  8 = /dev/random	Nondeterministic random number gen.
 		  9 = /dev/urandom	Faster, less secure random number gen.
 		 10 = /dev/aio		Asynchronous I/O notification interface
-		 11 = /dev/kmsg		Writes to this come out as printk's
+		 11 = /dev/kmsg		Writes to this come out as printk's, reads
+					export the buffered printk records.
 		 12 = /dev/oldmem	Used by crashdump kernels to access
 					the memory of the kernel that crashed.
 
@@ -379,7 +380,7 @@ Your cooperation is appreciated.
 		162 = /dev/smbus	System Management Bus
 		163 = /dev/lik		Logitech Internet Keyboard
 		164 = /dev/ipmo		Intel Intelligent Platform Management
-		165 = /dev/vmmon	VMWare virtual machine monitor
+		165 = /dev/vmmon	VMware virtual machine monitor
 		166 = /dev/i2o/ctl	I2O configuration manager
 		167 = /dev/specialix_sxctl Specialix serial control
 		168 = /dev/tcldrv	Technology Concepts serial control
@@ -447,6 +448,9 @@ Your cooperation is appreciated.
 		234 = /dev/btrfs-control	Btrfs control device
 		235 = /dev/autofs	Autofs control device
 		236 = /dev/mapper/control	Device-Mapper control device
+		237 = /dev/loop-control Loopback control device
+		238 = /dev/vhost-net	Host kernel accelerator for virtio net
+
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
@@ -494,12 +498,8 @@ Your cooperation is appreciated.
 
 		Each device type has 5 bits (32 minors).
 
- 13 block	8-bit MFM/RLL/IDE controller
-		  0 = /dev/xda		First XT disk whole disk
-		 64 = /dev/xdb		Second XT disk whole disk
-
-		Partitions are handled in the same way as IDE disks
-		(see major number 3).
+ 13 block	Previously used for the XT disk (/dev/xdN)
+		Deleted in kernel v3.9.
 
  14 char	Open Sound System (OSS)
 		  0 = /dev/mixer	Mixer control
@@ -843,13 +843,7 @@ Your cooperation is appreciated.
 		    ...
 		 31 = /dev/tap15	16th Ethertap device
 
- 36 block	MCA ESDI hard disk
-		  0 = /dev/eda		First ESDI disk whole disk
-		 64 = /dev/edb		Second ESDI disk whole disk
-		    ...
-
-		Partitions are handled in the same way as IDE disks
-		(see major number 3).
+ 36 block	OBSOLETE (was MCA ESDI hard disk)
 
  37 char	IDE tape
 		  0 = /dev/ht0		First IDE tape
@@ -2418,6 +2412,8 @@ Your cooperation is appreciated.
 		  1 = /dev/raw/raw1	First raw I/O device
 		  2 = /dev/raw/raw2	Second raw I/O device
 		    ...
+                 max minor number of raw device is set by kernel config
+                 MAX_RAW_DEVS or raw module parameter 'max_raw_devs'
 
 163 char
 
@@ -2561,9 +2557,6 @@ Your cooperation is appreciated.
 		192 = /dev/usb/yurex1	First USB Yurex device
 		   ...
 		209 = /dev/usb/yurex16	16th USB Yurex device
-		240 = /dev/usb/dabusb0	First daubusb device
-		    ...
-		243 = /dev/usb/dabusb3	Fourth dabusb device
 
 180 block	USB block devices
 		  0 = /dev/uba		First USB block device

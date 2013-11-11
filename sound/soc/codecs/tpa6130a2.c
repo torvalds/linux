@@ -33,6 +33,11 @@
 
 #include "tpa6130a2.h"
 
+enum tpa_model {
+	TPA6130A2,
+	TPA6140A2,
+};
+
 static struct i2c_client *tpa6130a2_client;
 
 /* This struct is used to save the context */
@@ -346,16 +351,16 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (data->id == TPA6140A2)
-		return snd_soc_add_controls(codec, tpa6140a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6140a2_controls,
 						ARRAY_SIZE(tpa6140a2_controls));
 	else
-		return snd_soc_add_controls(codec, tpa6130a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6130a2_controls,
 						ARRAY_SIZE(tpa6130a2_controls));
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
 
-static int __devinit tpa6130a2_probe(struct i2c_client *client,
-				     const struct i2c_device_id *id)
+static int tpa6130a2_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct device *dev;
 	struct tpa6130a2_data *data;
@@ -371,7 +376,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Can not allocate memory\n");
 		return -ENOMEM;
@@ -383,7 +388,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 	data->power_gpio = pdata->power_gpio;
-	data->id = pdata->id;
+	data->id = id->driver_data;
 
 	mutex_init(&data->mutex);
 
@@ -393,7 +398,8 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 						TPA6130A2_MUTE_L;
 
 	if (data->power_gpio >= 0) {
-		ret = gpio_request(data->power_gpio, "tpa6130a2 enable");
+		ret = devm_gpio_request(dev, data->power_gpio,
+					"tpa6130a2 enable");
 		if (ret < 0) {
 			dev_err(dev, "Failed to request power GPIO (%d)\n",
 				data->power_gpio);
@@ -405,7 +411,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	switch (data->id) {
 	default:
 		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
-			 pdata->id);
+			 data->id);
 	case TPA6130A2:
 		regulator = "Vdd";
 		break;
@@ -414,16 +420,16 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 		break;
 	}
 
-	data->supply = regulator_get(dev, regulator);
+	data->supply = devm_regulator_get(dev, regulator);
 	if (IS_ERR(data->supply)) {
 		ret = PTR_ERR(data->supply);
 		dev_err(dev, "Failed to request supply: %d\n", ret);
-		goto err_regulator;
+		goto err_gpio;
 	}
 
 	ret = tpa6130a2_power(1);
 	if (ret != 0)
-		goto err_power;
+		goto err_gpio;
 
 
 	/* Read version */
@@ -435,42 +441,27 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	/* Disable the chip */
 	ret = tpa6130a2_power(0);
 	if (ret != 0)
-		goto err_power;
+		goto err_gpio;
 
 	return 0;
 
-err_power:
-	regulator_put(data->supply);
-err_regulator:
-	if (data->power_gpio >= 0)
-		gpio_free(data->power_gpio);
 err_gpio:
-	kfree(data);
-	i2c_set_clientdata(tpa6130a2_client, NULL);
 	tpa6130a2_client = NULL;
 
 	return ret;
 }
 
-static int __devexit tpa6130a2_remove(struct i2c_client *client)
+static int tpa6130a2_remove(struct i2c_client *client)
 {
-	struct tpa6130a2_data *data = i2c_get_clientdata(client);
-
 	tpa6130a2_power(0);
-
-	if (data->power_gpio >= 0)
-		gpio_free(data->power_gpio);
-
-	regulator_put(data->supply);
-
-	kfree(data);
 	tpa6130a2_client = NULL;
 
 	return 0;
 }
 
 static const struct i2c_device_id tpa6130a2_id[] = {
-	{ "tpa6130a2", 0 },
+	{ "tpa6130a2", TPA6130A2 },
+	{ "tpa6140a2", TPA6140A2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tpa6130a2_id);
@@ -481,23 +472,12 @@ static struct i2c_driver tpa6130a2_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tpa6130a2_probe,
-	.remove = __devexit_p(tpa6130a2_remove),
+	.remove = tpa6130a2_remove,
 	.id_table = tpa6130a2_id,
 };
 
-static int __init tpa6130a2_init(void)
-{
-	return i2c_add_driver(&tpa6130a2_i2c_driver);
-}
-
-static void __exit tpa6130a2_exit(void)
-{
-	i2c_del_driver(&tpa6130a2_i2c_driver);
-}
+module_i2c_driver(tpa6130a2_i2c_driver);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_DESCRIPTION("TPA6130A2 Headphone amplifier driver");
 MODULE_LICENSE("GPL");
-
-module_init(tpa6130a2_init);
-module_exit(tpa6130a2_exit);

@@ -10,4 +10,4 @@ tipc-y	+= addr.o bcast.o bearer.o config.o \
 	   netlink.o node.o node_subscr.o port.o ref.o  \
 	   socket.o log.o eth_media.o
 
-# End of file
+tipc-$(CONFIG_TIPC_MEDIA_IB)	+= ib_media.o

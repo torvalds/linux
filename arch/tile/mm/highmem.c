@@ -93,7 +93,7 @@ static DEFINE_PER_CPU(struct kmap_amps, amps);
  * If we examine it earlier we are exposed to a race where it looks
  * writable earlier, but becomes immutable before we write the PTE.
  */
-static void kmap_atomic_register(struct page *page, enum km_type type,
+static void kmap_atomic_register(struct page *page, int type,
 				 unsigned long va, pte_t *ptep, pte_t pteval)
 {
 	unsigned long flags;
@@ -224,12 +224,12 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 }
 EXPORT_SYMBOL(kmap_atomic_prot);
 
-void *__kmap_atomic(struct page *page)
+void *kmap_atomic(struct page *page)
 {
 	/* PAGE_NONE is a magic value that tells us to check immutability. */
 	return kmap_atomic_prot(page, PAGE_NONE);
 }
-EXPORT_SYMBOL(__kmap_atomic);
+EXPORT_SYMBOL(kmap_atomic);
 
 void __kunmap_atomic(void *kvaddr)
 {

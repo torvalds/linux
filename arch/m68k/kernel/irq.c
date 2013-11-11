@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
@@ -27,4 +26,14 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 	irq_exit();
 
 	set_irq_regs(oldregs);
+}
+
+
+/* The number of spurious interrupts */
+atomic_t irq_err_count;
+
+int arch_show_interrupts(struct seq_file *p, int prec)
+{
+	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
+	return 0;
 }

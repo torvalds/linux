@@ -22,10 +22,11 @@
  *
  * Authors:
  *     Alex Deucher <alexander.deucher@amd.com>
+ *
+ * ------------------------ This file is DEPRECATED! -------------------------
  */
-#include "drmP.h"
-#include "drm.h"
-#include "radeon_drm.h"
+#include <drm/drmP.h>
+#include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 
 #include "r600_blit_shaders.h"
@@ -41,7 +42,7 @@
 #define COLOR_5_6_5           0x8
 #define COLOR_8_8_8_8         0x1a
 
-static inline void
+static void
 set_render_target(drm_radeon_private_t *dev_priv, int format, int w, int h, u64 gpu_addr)
 {
 	u32 cb_color_info;
@@ -99,7 +100,7 @@ set_render_target(drm_radeon_private_t *dev_priv, int format, int w, int h, u64 
 	ADVANCE_RING();
 }
 
-static inline void
+static void
 cp_set_surface_sync(drm_radeon_private_t *dev_priv,
 		    u32 sync_type, u32 size, u64 mc_addr)
 {
@@ -121,7 +122,7 @@ cp_set_surface_sync(drm_radeon_private_t *dev_priv,
 	ADVANCE_RING();
 }
 
-static inline void
+static void
 set_shaders(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -184,7 +185,7 @@ set_shaders(struct drm_device *dev)
 			    R600_SH_ACTION_ENA, 512, gpu_addr);
 }
 
-static inline void
+static void
 set_vtx_resource(drm_radeon_private_t *dev_priv, u64 gpu_addr)
 {
 	uint32_t sq_vtx_constant_word2;
@@ -220,7 +221,7 @@ set_vtx_resource(drm_radeon_private_t *dev_priv, u64 gpu_addr)
 				    R600_VC_ACTION_ENA, 48, gpu_addr);
 }
 
-static inline void
+static void
 set_tex_resource(drm_radeon_private_t *dev_priv,
 		 int format, int w, int h, int pitch, u64 gpu_addr)
 {
@@ -258,7 +259,7 @@ set_tex_resource(drm_radeon_private_t *dev_priv,
 
 }
 
-static inline void
+static void
 set_scissors(drm_radeon_private_t *dev_priv, int x1, int y1, int x2, int y2)
 {
 	RING_LOCALS;
@@ -282,7 +283,7 @@ set_scissors(drm_radeon_private_t *dev_priv, int x1, int y1, int x2, int y2)
 	ADVANCE_RING();
 }
 
-static inline void
+static void
 draw_auto(drm_radeon_private_t *dev_priv)
 {
 	RING_LOCALS;
@@ -311,7 +312,7 @@ draw_auto(drm_radeon_private_t *dev_priv)
 	COMMIT_RING();
 }
 
-static inline void
+static void
 set_default_state(drm_radeon_private_t *dev_priv)
 {
 	int i;
@@ -489,33 +490,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	ADVANCE_RING();
 }
 
-static inline uint32_t i2f(uint32_t input)
-{
-	u32 result, i, exponent, fraction;
-
-	if ((input & 0x3fff) == 0)
-		result = 0; /* 0 is a special case */
-	else {
-		exponent = 140; /* exponent biased by 127; */
-		fraction = (input & 0x3fff) << 10; /* cheat and only
-						      handle numbers below 2^^15 */
-		for (i = 0; i < 14; i++) {
-			if (fraction & 0x800000)
-				break;
-			else {
-				fraction = fraction << 1; /* keep
-							     shifting left until top bit = 1 */
-				exponent = exponent - 1;
-			}
-		}
-		result = exponent << 23 | (fraction & 0x7fffff); /* mask
-								    off top bit; assumed 1 */
-	}
-	return result;
-}
-
-
-static inline int r600_nomm_get_vb(struct drm_device *dev)
+static int r600_nomm_get_vb(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	dev_priv->blit_vb = radeon_freelist_get(dev);
@@ -526,7 +501,7 @@ static inline int r600_nomm_get_vb(struct drm_device *dev)
 	return 0;
 }
 
-static inline void r600_nomm_put_vb(struct drm_device *dev)
+static void r600_nomm_put_vb(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
@@ -534,7 +509,7 @@ static inline void r600_nomm_put_vb(struct drm_device *dev)
 	radeon_cp_discard_buffer(dev, dev_priv->blit_vb->file_priv->master, dev_priv->blit_vb);
 }
 
-static inline void *r600_nomm_get_vb_ptr(struct drm_device *dev)
+static void *r600_nomm_get_vb_ptr(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	return (((char *)dev->agp_buffer_map->handle +
@@ -632,20 +607,20 @@ r600_blit_copy(struct drm_device *dev,
 				vb = r600_nomm_get_vb_ptr(dev);
 			}
 
-			vb[0] = i2f(dst_x);
+			vb[0] = int2float(dst_x);
 			vb[1] = 0;
-			vb[2] = i2f(src_x);
+			vb[2] = int2float(src_x);
 			vb[3] = 0;
 
-			vb[4] = i2f(dst_x);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x);
-			vb[7] = i2f(h);
+			vb[4] = int2float(dst_x);
+			vb[5] = int2float(h);
+			vb[6] = int2float(src_x);
+			vb[7] = int2float(h);
 
-			vb[8] = i2f(dst_x + cur_size);
-			vb[9] = i2f(h);
-			vb[10] = i2f(src_x + cur_size);
-			vb[11] = i2f(h);
+			vb[8] = int2float(dst_x + cur_size);
+			vb[9] = int2float(h);
+			vb[10] = int2float(src_x + cur_size);
+			vb[11] = int2float(h);
 
 			/* src */
 			set_tex_resource(dev_priv, FMT_8,
@@ -721,20 +696,20 @@ r600_blit_copy(struct drm_device *dev,
 				vb = r600_nomm_get_vb_ptr(dev);
 			}
 
-			vb[0] = i2f(dst_x / 4);
+			vb[0] = int2float(dst_x / 4);
 			vb[1] = 0;
-			vb[2] = i2f(src_x / 4);
+			vb[2] = int2float(src_x / 4);
 			vb[3] = 0;
 
-			vb[4] = i2f(dst_x / 4);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x / 4);
-			vb[7] = i2f(h);
+			vb[4] = int2float(dst_x / 4);
+			vb[5] = int2float(h);
+			vb[6] = int2float(src_x / 4);
+			vb[7] = int2float(h);
 
-			vb[8] = i2f((dst_x + cur_size) / 4);
-			vb[9] = i2f(h);
-			vb[10] = i2f((src_x + cur_size) / 4);
-			vb[11] = i2f(h);
+			vb[8] = int2float((dst_x + cur_size) / 4);
+			vb[9] = int2float(h);
+			vb[10] = int2float((src_x + cur_size) / 4);
+			vb[11] = int2float(h);
 
 			/* src */
 			set_tex_resource(dev_priv, FMT_8_8_8_8,
@@ -804,20 +779,20 @@ r600_blit_swap(struct drm_device *dev,
 	dx2 = dx + w;
 	dy2 = dy + h;
 
-	vb[0] = i2f(dx);
-	vb[1] = i2f(dy);
-	vb[2] = i2f(sx);
-	vb[3] = i2f(sy);
+	vb[0] = int2float(dx);
+	vb[1] = int2float(dy);
+	vb[2] = int2float(sx);
+	vb[3] = int2float(sy);
 
-	vb[4] = i2f(dx);
-	vb[5] = i2f(dy2);
-	vb[6] = i2f(sx);
-	vb[7] = i2f(sy2);
+	vb[4] = int2float(dx);
+	vb[5] = int2float(dy2);
+	vb[6] = int2float(sx);
+	vb[7] = int2float(sy2);
 
-	vb[8] = i2f(dx2);
-	vb[9] = i2f(dy2);
-	vb[10] = i2f(sx2);
-	vb[11] = i2f(sy2);
+	vb[8] = int2float(dx2);
+	vb[9] = int2float(dy2);
+	vb[10] = int2float(sx2);
+	vb[11] = int2float(sy2);
 
 	switch(cpp) {
 	case 4:

@@ -1,8 +1,7 @@
 /*
- *  drivers/s390/cio/chsc.c
  *   S/390 common I/O routines -- channel subsystem call
  *
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999,2012
  *    Author(s): Ingo Adlung (adlung@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Arnd Bergmann (arndb@de.ibm.com)
@@ -15,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/pci.h>
 
 #include <asm/cio.h>
 #include <asm/chpid.h>
@@ -53,6 +53,11 @@ int chsc_error_from_response(int response)
 		return -EINVAL;
 	case 0x0004:
 		return -EOPNOTSUPP;
+	case 0x000b:
+		return -EBUSY;
+	case 0x0100:
+	case 0x0102:
+		return -ENOMEM;
 	default:
 		return -EIO;
 	}
@@ -256,26 +261,46 @@ __get_chpid_from_lir(void *data)
 	return (u16) (lir->indesc[0]&0x000000ff);
 }
 
-struct chsc_sei_area {
-	struct chsc_header request;
+struct chsc_sei_nt0_area {
+	u8  flags;
+	u8  vf;				/* validity flags */
+	u8  rs;				/* reporting source */
+	u8  cc;				/* content code */
+	u16 fla;			/* full link address */
+	u16 rsid;			/* reporting source id */
 	u32 reserved1;
 	u32 reserved2;
-	u32 reserved3;
-	struct chsc_header response;
-	u32 reserved4;
-	u8  flags;
-	u8  vf;		/* validity flags */
-	u8  rs;		/* reporting source */
-	u8  cc;		/* content code */
-	u16 fla;	/* full link address */
-	u16 rsid;	/* reporting source id */
-	u32 reserved5;
-	u32 reserved6;
-	u8 ccdf[4096 - 16 - 24];	/* content-code dependent field */
 	/* ccdf has to be big enough for a link-incident record */
-} __attribute__ ((packed));
+	u8  ccdf[PAGE_SIZE - 24 - 16];	/* content-code dependent field */
+} __packed;
 
-static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
+struct chsc_sei_nt2_area {
+	u8  flags;			/* p and v bit */
+	u8  reserved1;
+	u8  reserved2;
+	u8  cc;				/* content code */
+	u32 reserved3[13];
+	u8  ccdf[PAGE_SIZE - 24 - 56];	/* content-code dependent field */
+} __packed;
+
+#define CHSC_SEI_NT0	(1ULL << 63)
+#define CHSC_SEI_NT2	(1ULL << 61)
+
+struct chsc_sei {
+	struct chsc_header request;
+	u32 reserved1;
+	u64 ntsm;			/* notification type mask */
+	struct chsc_header response;
+	u32 :24;
+	u8 nt;
+	union {
+		struct chsc_sei_nt0_area nt0_area;
+		struct chsc_sei_nt2_area nt2_area;
+		u8 nt_area[PAGE_SIZE - 24];
+	} u;
+} __packed;
+
+static void chsc_process_sei_link_incident(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_id chpid;
 	int id;
@@ -294,7 +319,7 @@ static void chsc_process_sei_link_incident(struct chsc_sei_area *sei_area)
 	}
 }
 
-static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_res_acc(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_link link;
 	struct chp_id chpid;
@@ -326,7 +351,7 @@ static void chsc_process_sei_res_acc(struct chsc_sei_area *sei_area)
 	s390_process_res_acc(&link);
 }
 
-static void chsc_process_sei_chp_avail(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_chp_avail(struct chsc_sei_nt0_area *sei_area)
 {
 	struct channel_path *chp;
 	struct chp_id chpid;
@@ -351,7 +376,7 @@ static void chsc_process_sei_chp_avail(struct chsc_sei_area *sei_area)
 			continue;
 		}
 		mutex_lock(&chp->lock);
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		chp_update_desc(chp);
 		mutex_unlock(&chp->lock);
 	}
 }
@@ -362,7 +387,7 @@ struct chp_config_data {
 	u8 pc;
 };
 
-static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_chp_config(struct chsc_sei_nt0_area *sei_area)
 {
 	struct chp_config_data *data;
 	struct chp_id chpid;
@@ -394,13 +419,52 @@ static void chsc_process_sei_chp_config(struct chsc_sei_area *sei_area)
 	}
 }
 
-static void chsc_process_sei(struct chsc_sei_area *sei_area)
+static void chsc_process_sei_scm_change(struct chsc_sei_nt0_area *sei_area)
 {
-	/* Check if we might have lost some information. */
-	if (sei_area->flags & 0x40) {
-		CIO_CRW_EVENT(2, "chsc: event overflow\n");
-		css_schedule_eval_all();
+	int ret;
+
+	CIO_CRW_EVENT(4, "chsc: scm change notification\n");
+	if (sei_area->rs != 7)
+		return;
+
+	ret = scm_update_information();
+	if (ret)
+		CIO_CRW_EVENT(0, "chsc: updating change notification"
+			      " failed (rc=%d).\n", ret);
+}
+
+static void chsc_process_sei_scm_avail(struct chsc_sei_nt0_area *sei_area)
+{
+	int ret;
+
+	CIO_CRW_EVENT(4, "chsc: scm available information\n");
+	if (sei_area->rs != 7)
+		return;
+
+	ret = scm_process_availability_information();
+	if (ret)
+		CIO_CRW_EVENT(0, "chsc: process availability information"
+			      " failed (rc=%d).\n", ret);
+}
+
+static void chsc_process_sei_nt2(struct chsc_sei_nt2_area *sei_area)
+{
+	switch (sei_area->cc) {
+	case 1:
+		zpci_event_error(sei_area->ccdf);
+		break;
+	case 2:
+		zpci_event_availability(sei_area->ccdf);
+		break;
+	default:
+		CIO_CRW_EVENT(2, "chsc: sei nt2 unhandled cc=%d\n",
+			      sei_area->cc);
+		break;
 	}
+}
+
+static void chsc_process_sei_nt0(struct chsc_sei_nt0_area *sei_area)
+{
 	/* which kind of information was stored? */
 	switch (sei_area->cc) {
 	case 1: /* link incident*/
@@ -415,16 +479,67 @@ static void chsc_process_sei(struct chsc_sei_area *sei_area)
 	case 8: /* channel-path-configuration notification */
 		chsc_process_sei_chp_config(sei_area);
 		break;
+	case 12: /* scm change notification */
+		chsc_process_sei_scm_change(sei_area);
+		break;
+	case 14: /* scm available notification */
+		chsc_process_sei_scm_avail(sei_area);
+		break;
 	default: /* other stuff */
-		CIO_CRW_EVENT(4, "chsc: unhandled sei content code %d\n",
+		CIO_CRW_EVENT(2, "chsc: sei nt0 unhandled cc=%d\n",
 			      sei_area->cc);
 		break;
 	}
+
+	/* Check if we might have lost some information. */
+	if (sei_area->flags & 0x40) {
+		CIO_CRW_EVENT(2, "chsc: event overflow\n");
+		css_schedule_eval_all();
+	}
 }
 
+static void chsc_process_event_information(struct chsc_sei *sei, u64 ntsm)
+{
+	do {
+		memset(sei, 0, sizeof(*sei));
+		sei->request.length = 0x0010;
+		sei->request.code = 0x000e;
+		sei->ntsm = ntsm;
+
+		if (chsc(sei))
+			break;
+
+		if (sei->response.code != 0x0001) {
+			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
+				      sei->response.code);
+			break;
+		}
+
+		CIO_CRW_EVENT(2, "chsc: sei successful (nt=%d)\n", sei->nt);
+		switch (sei->nt) {
+		case 0:
+			chsc_process_sei_nt0(&sei->u.nt0_area);
+			break;
+		case 2:
+			chsc_process_sei_nt2(&sei->u.nt2_area);
+			break;
+		default:
+			CIO_CRW_EVENT(2, "chsc: unhandled nt: %d\n", sei->nt);
+			break;
+		}
+	} while (sei->u.nt0_area.flags & 0x80);
+}
+
+/*
+ * Handle channel subsystem related CRWs.
+ * Use store event information to find out what's going on.
+ *
+ * Note: Access to sei_page is serialized through machine check handler
+ * thread, so no need for locking.
+ */
 static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 {
-	struct chsc_sei_area *sei_area;
+	struct chsc_sei *sei = sei_page;
 
 	if (overflow) {
 		css_schedule_eval_all();
@@ -434,29 +549,9 @@ static void chsc_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 		      "chn=%d, rsc=%X, anc=%d, erc=%X, rsid=%X\n",
 		      crw0->slct, crw0->oflw, crw0->chn, crw0->rsc, crw0->anc,
 		      crw0->erc, crw0->rsid);
-	if (!sei_page)
-		return;
-	/* Access to sei_page is serialized through machine check handler
-	 * thread, so no need for locking. */
-	sei_area = sei_page;
 
 	CIO_TRACE_EVENT(2, "prcss");
-	do {
-		memset(sei_area, 0, sizeof(*sei_area));
-		sei_area->request.length = 0x0010;
-		sei_area->request.code = 0x000e;
-		if (chsc(sei_area))
-			break;
-
-		if (sei_area->response.code == 0x0001) {
-			CIO_CRW_EVENT(4, "chsc: sei successful\n");
-			chsc_process_sei(sei_area);
-		} else {
-			CIO_CRW_EVENT(2, "chsc: sei failed (rc=%04x)\n",
-				      sei_area->response.code);
-			break;
-		}
-	} while (sei_area->flags & 0x80);
+	chsc_process_event_information(sei, CHSC_SEI_NT0 | CHSC_SEI_NT2);
 }
 
 void chsc_chp_online(struct chp_id chpid)
@@ -529,23 +624,20 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
 int chsc_chp_vary(struct chp_id chpid, int on)
 {
 	struct channel_path *chp = chpid_to_chp(chpid);
-	struct chp_link link;
 
-	memset(&link, 0, sizeof(struct chp_link));
-	link.chpid = chpid;
 	/* Wait until previous actions have settled. */
 	css_wait_for_slow_path();
 	/*
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
 	if (on) {
-		/* Try to update the channel path descritor. */
-		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+		/* Try to update the channel path description. */
+		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
-					   __s390_vary_chpid_on, &link);
+					   __s390_vary_chpid_on, &chpid);
 	} else
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
-					   NULL, &link);
+					   NULL, &chpid);
 
 	return 0;
 }
@@ -733,9 +825,10 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 {
 	struct chsc_response_struct *chsc_resp;
 	struct chsc_scpd *scpd_area;
+	unsigned long flags;
 	int ret;
 
-	spin_lock_irq(&chsc_page_lock);
+	spin_lock_irqsave(&chsc_page_lock, flags);
 	scpd_area = chsc_page;
 	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 1, 0, scpd_area);
 	if (ret)
@@ -743,7 +836,7 @@ int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
 	chsc_resp = (void *)&scpd_area->response;
 	memcpy(desc, &chsc_resp->data, sizeof(*desc));
 out:
-	spin_unlock_irq(&chsc_page_lock);
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
@@ -1051,3 +1144,33 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(chsc_siosl);
+
+/**
+ * chsc_scm_info() - store SCM information (SSI)
+ * @scm_area: request and response block for SSI
+ * @token: continuation token
+ *
+ * Returns 0 on success.
+ */
+int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token)
+{
+	int ccode, ret;
+
+	memset(scm_area, 0, sizeof(*scm_area));
+	scm_area->request.length = 0x0020;
+	scm_area->request.code = 0x004C;
+	scm_area->reqtok = token;
+
+	ccode = chsc(scm_area);
+	if (ccode > 0) {
+		ret = (ccode == 3) ? -ENODEV : -EBUSY;
+		goto out;
+	}
+	ret = chsc_error_from_response(scm_area->response.code);
+	if (ret != 0)
+		CIO_MSG_EVENT(2, "chsc: scm info failed (rc=%04x)\n",
+			      scm_area->response.code);
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(chsc_scm_info);

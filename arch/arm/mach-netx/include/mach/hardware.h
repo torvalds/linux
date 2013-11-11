@@ -33,7 +33,7 @@
 #define XMAC_MEM_SIZE 0x1000
 #define SRAM_MEM_SIZE 0x8000
 
-#define io_p2v(x) ((x) - NETX_IO_PHYS + NETX_IO_VIRT)
+#define io_p2v(x) IOMEM((x) - NETX_IO_PHYS + NETX_IO_VIRT)
 #define io_v2p(x) ((x) - NETX_IO_VIRT + NETX_IO_PHYS)
 
 #endif

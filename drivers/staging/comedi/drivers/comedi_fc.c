@@ -53,7 +53,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
 
 	retval = comedi_buf_write_alloc(async, num_bytes);
 	if (retval != num_bytes) {
-		printk(KERN_WARNING "comedi: buffer overrun\n");
+		dev_warn(subd->device->class_dev, "comedi: buffer overrun\n");
 		async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
@@ -65,7 +65,7 @@ unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
 
 	return num_bytes;
 }
-EXPORT_SYMBOL(cfc_write_array_to_buffer);
+EXPORT_SYMBOL_GPL(cfc_write_array_to_buffer);
 
 unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
 					void *data, unsigned int num_bytes)
@@ -83,7 +83,7 @@ unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
 
 	return num_bytes;
 }
-EXPORT_SYMBOL(cfc_read_array_from_buffer);
+EXPORT_SYMBOL_GPL(cfc_read_array_from_buffer);
 
 unsigned int cfc_handle_events(struct comedi_device *dev,
 			       struct comedi_subdevice *subd)
@@ -100,7 +100,7 @@ unsigned int cfc_handle_events(struct comedi_device *dev,
 
 	return events;
 }
-EXPORT_SYMBOL(cfc_handle_events);
+EXPORT_SYMBOL_GPL(cfc_handle_events);
 
 MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
 MODULE_DESCRIPTION("Shared functions for Comedi low-level drivers");

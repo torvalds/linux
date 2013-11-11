@@ -16,10 +16,11 @@
 #include <linux/kdev_t.h>
 #include <linux/gfp.h>
 #include <linux/err.h>
+#include <linux/export.h>
 
-#include "drm_sysfs.h"
-#include "drm_core.h"
-#include "drmP.h"
+#include <drm/drm_sysfs.h>
+#include <drm/drm_core.h>
+#include <drm/drmP.h>
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
@@ -71,7 +72,7 @@ static int drm_class_resume(struct device *dev)
 	return 0;
 }
 
-static char *drm_devnode(struct device *dev, mode_t *mode)
+static char *drm_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -133,6 +134,7 @@ void drm_sysfs_destroy(void)
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
+	drm_class = NULL;
 }
 
 /**
@@ -180,7 +182,7 @@ static ssize_t dpms_show(struct device *device,
 	uint64_t dpms_status;
 	int ret;
 
-	ret = drm_connector_property_get_value(connector,
+	ret = drm_object_property_get_value(&connector->base,
 					    dev->mode_config.dpms_property,
 					    &dpms_status);
 	if (ret)
@@ -275,7 +277,7 @@ static ssize_t subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -316,7 +318,7 @@ static ssize_t select_subconnector_show(struct device *device,
 		return 0;
 	}
 
-	ret = drm_connector_property_get_value(connector, prop, &subconnector);
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
 	if (ret)
 		return 0;
 
@@ -346,17 +348,17 @@ static struct bin_attribute edid_attr = {
 };
 
 /**
- * drm_sysfs_connector_add - add an connector to sysfs
+ * drm_sysfs_connector_add - add a connector to sysfs
  * @connector: connector to add
  *
- * Create an connector device in sysfs, along with its associated connector
+ * Create a connector device in sysfs, along with its associated connector
  * properties (so far, connection status, dpms, mode list & edid) and
  * generate a hotplug event so userspace knows there's a new connector
  * available.
  *
  * Note:
- * This routine should only be called *once* for each DRM minor registered.
- * A second call for an already registered device will trigger the BUG_ON
+ * This routine should only be called *once* for each registered connector.
+ * A second call for an already registered connector will trigger the BUG_ON
  * below.
  */
 int drm_sysfs_connector_add(struct drm_connector *connector)
@@ -365,7 +367,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	int attr_cnt = 0;
 	int opt_cnt = 0;
 	int i;
-	int ret = 0;
+	int ret;
 
 	/* We shouldn't get called more than once for the same connector */
 	BUG_ON(device_is_registered(&connector->kdev));
@@ -453,6 +455,8 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	int i;
 
+	if (!connector->kdev.parent)
+		return;
 	DRM_DEBUG("removing \"%s\" from sysfs\n",
 		  drm_get_connector_name(connector));
 
@@ -460,6 +464,7 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 		device_remove_file(&connector->kdev, &connector_attrs[i]);
 	sysfs_remove_bin_file(&connector->kdev.kobj, &edid_attr);
 	device_unregister(&connector->kdev);
+	connector->kdev.parent = NULL;
 }
 EXPORT_SYMBOL(drm_sysfs_connector_remove);
 
@@ -532,7 +537,9 @@ err_out:
  */
 void drm_sysfs_device_remove(struct drm_minor *minor)
 {
-	device_unregister(&minor->kdev);
+	if (minor->kdev.parent)
+		device_unregister(&minor->kdev);
+	minor->kdev.parent = NULL;
 }
 
 
@@ -548,6 +555,9 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 
 int drm_class_device_register(struct device *dev)
 {
+	if (!drm_class || IS_ERR(drm_class))
+		return -ENOENT;
+
 	dev->class = drm_class;
 	return device_register(dev);
 }

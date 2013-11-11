@@ -24,10 +24,160 @@
 #include <linux/wait.h>
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/devinfo.h>
 
 #include "base.h"
 #include "power/power.h"
 
+/*
+ * Deferred Probe infrastructure.
+ *
+ * Sometimes driver probe order matters, but the kernel doesn't always have
+ * dependency information which means some drivers will get probed before a
+ * resource it depends on is available.  For example, an SDHCI driver may
+ * first need a GPIO line from an i2c GPIO controller before it can be
+ * initialized.  If a required resource is not available yet, a driver can
+ * request probing to be deferred by returning -EPROBE_DEFER from its probe hook
+ *
+ * Deferred probe maintains two lists of devices, a pending list and an active
+ * list.  A driver returning -EPROBE_DEFER causes the device to be added to the
+ * pending list.  A successful driver probe will trigger moving all devices
+ * from the pending to the active list so that the workqueue will eventually
+ * retry them.
+ *
+ * The deferred_probe_mutex must be held any time the deferred_probe_*_list
+ * of the (struct device*)->p->deferred_probe pointers are manipulated
+ */
+static DEFINE_MUTEX(deferred_probe_mutex);
+static LIST_HEAD(deferred_probe_pending_list);
+static LIST_HEAD(deferred_probe_active_list);
+static struct workqueue_struct *deferred_wq;
+
+/**
+ * deferred_probe_work_func() - Retry probing devices in the active list.
+ */
+static void deferred_probe_work_func(struct work_struct *work)
+{
+	struct device *dev;
+	struct device_private *private;
+	/*
+	 * This block processes every device in the deferred 'active' list.
+	 * Each device is removed from the active list and passed to
+	 * bus_probe_device() to re-attempt the probe.  The loop continues
+	 * until every device in the active list is removed and retried.
+	 *
+	 * Note: Once the device is removed from the list and the mutex is
+	 * released, it is possible for the device get freed by another thread
+	 * and cause a illegal pointer dereference.  This code uses
+	 * get/put_device() to ensure the device structure cannot disappear
+	 * from under our feet.
+	 */
+	mutex_lock(&deferred_probe_mutex);
+	while (!list_empty(&deferred_probe_active_list)) {
+		private = list_first_entry(&deferred_probe_active_list,
+					typeof(*dev->p), deferred_probe);
+		dev = private->device;
+		list_del_init(&private->deferred_probe);
+
+		get_device(dev);
+
+		/*
+		 * Drop the mutex while probing each device; the probe path may
+		 * manipulate the deferred list
+		 */
+		mutex_unlock(&deferred_probe_mutex);
+
+		/*
+		 * Force the device to the end of the dpm_list since
+		 * the PM code assumes that the order we add things to
+		 * the list is a good order for suspend but deferred
+		 * probe makes that very unsafe.
+		 */
+		device_pm_lock();
+		device_pm_move_last(dev);
+		device_pm_unlock();
+
+		dev_dbg(dev, "Retrying from deferred list\n");
+		bus_probe_device(dev);
+
+		mutex_lock(&deferred_probe_mutex);
+
+		put_device(dev);
+	}
+	mutex_unlock(&deferred_probe_mutex);
+}
+static DECLARE_WORK(deferred_probe_work, deferred_probe_work_func);
+
+static void driver_deferred_probe_add(struct device *dev)
+{
+	mutex_lock(&deferred_probe_mutex);
+	if (list_empty(&dev->p->deferred_probe)) {
+		dev_dbg(dev, "Added to deferred list\n");
+		list_add_tail(&dev->p->deferred_probe, &deferred_probe_pending_list);
+	}
+	mutex_unlock(&deferred_probe_mutex);
+}
+
+void driver_deferred_probe_del(struct device *dev)
+{
+	mutex_lock(&deferred_probe_mutex);
+	if (!list_empty(&dev->p->deferred_probe)) {
+		dev_dbg(dev, "Removed from deferred list\n");
+		list_del_init(&dev->p->deferred_probe);
+	}
+	mutex_unlock(&deferred_probe_mutex);
+}
+
+static bool driver_deferred_probe_enable = false;
+/**
+ * driver_deferred_probe_trigger() - Kick off re-probing deferred devices
+ *
+ * This functions moves all devices from the pending list to the active
+ * list and schedules the deferred probe workqueue to process them.  It
+ * should be called anytime a driver is successfully bound to a device.
+ */
+static void driver_deferred_probe_trigger(void)
+{
+	if (!driver_deferred_probe_enable)
+		return;
+
+	/*
+	 * A successful probe means that all the devices in the pending list
+	 * should be triggered to be reprobed.  Move all the deferred devices
+	 * into the active list so they can be retried by the workqueue
+	 */
+	mutex_lock(&deferred_probe_mutex);
+	list_splice_tail_init(&deferred_probe_pending_list,
+			      &deferred_probe_active_list);
+	mutex_unlock(&deferred_probe_mutex);
+
+	/*
+	 * Kick the re-probe thread.  It may already be scheduled, but it is
+	 * safe to kick it again.
+	 */
+	queue_work(deferred_wq, &deferred_probe_work);
+}
+
+/**
+ * deferred_probe_initcall() - Enable probing of deferred devices
+ *
+ * We don't want to get in the way when the bulk of drivers are getting probed.
+ * Instead, this initcall makes sure that deferred probing is delayed until
+ * late_initcall time.
+ */
+static int deferred_probe_initcall(void)
+{
+	deferred_wq = create_singlethread_workqueue("deferwq");
+	if (WARN_ON(!deferred_wq))
+		return -ENOMEM;
+
+	driver_deferred_probe_enable = true;
+	driver_deferred_probe_trigger();
+	/* Sort as many dependencies as possible before exiting initcalls */
+	flush_workqueue(deferred_wq);
+	return 0;
+}
+late_initcall(deferred_probe_initcall);
 
 static void driver_bound(struct device *dev)
 {
@@ -41,6 +191,13 @@ static void driver_bound(struct device *dev)
 		 __func__, dev->driver->name);
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
+
+	/*
+	 * Make sure the device is no longer in one of the deferred lists and
+	 * kick off retrying all pending devices
+	 */
+	driver_deferred_probe_del(dev);
+	driver_deferred_probe_trigger();
 
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -115,6 +272,12 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	WARN_ON(!list_empty(&dev->devres_head));
 
 	dev->driver = drv;
+
+	/* If using pinctrl, bind pins now before probing */
+	ret = pinctrl_bind_pins(dev);
+	if (ret)
+		goto probe_failed;
+
 	if (driver_sysfs_add(dev)) {
 		printk(KERN_ERR "%s: driver_sysfs_add(%s) failed\n",
 			__func__, dev_name(dev));
@@ -141,11 +304,19 @@ probe_failed:
 	devres_release_all(dev);
 	driver_sysfs_remove(dev);
 	dev->driver = NULL;
+	dev_set_drvdata(dev, NULL);
 
-	if (ret != -ENODEV && ret != -ENXIO) {
+	if (ret == -EPROBE_DEFER) {
+		/* Driver requested deferred probing */
+		dev_info(dev, "Driver %s requests probe deferral\n", drv->name);
+		driver_deferred_probe_add(dev);
+	} else if (ret != -ENODEV && ret != -ENXIO) {
 		/* driver matched but the probe failed */
 		printk(KERN_WARNING
 		       "%s: probe of %s failed with error %d\n",
+		       drv->name, dev_name(dev), ret);
+	} else {
+		pr_debug("%s: probe of %s rejects match %d\n",
 		       drv->name, dev_name(dev), ret);
 	}
 	/*
@@ -207,10 +378,9 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
-	pm_runtime_get_noresume(dev);
 	pm_runtime_barrier(dev);
 	ret = really_probe(dev, drv);
-	pm_runtime_put_sync(dev);
+	pm_request_idle(dev);
 
 	return ret;
 }
@@ -257,9 +427,8 @@ int device_attach(struct device *dev)
 			ret = 0;
 		}
 	} else {
-		pm_runtime_get_noresume(dev);
 		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
-		pm_runtime_put_sync(dev);
+		pm_request_idle(dev);
 	}
 out_unlock:
 	device_unlock(dev);
@@ -330,7 +499,7 @@ static void __device_release_driver(struct device *dev)
 						     BUS_NOTIFY_UNBIND_DRIVER,
 						     dev);
 
-		pm_runtime_put_sync(dev);
+		pm_runtime_put(dev);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);
@@ -338,6 +507,7 @@ static void __device_release_driver(struct device *dev)
 			drv->remove(dev);
 		devres_release_all(dev);
 		dev->driver = NULL;
+		dev_set_drvdata(dev, NULL);
 		klist_remove(&dev->p->knode_driver);
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,

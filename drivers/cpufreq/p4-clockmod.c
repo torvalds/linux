@@ -31,6 +31,7 @@
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/timer.h>
+#include <asm/cpu_device_id.h>
 
 #include "speedstep-lib.h"
 
@@ -57,8 +58,7 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 {
 	u32 l, h;
 
-	if (!cpu_online(cpu) ||
-	    (newstate > DC_DISABLE) || (newstate == DC_RESV))
+	if ((newstate > DC_DISABLE) || (newstate == DC_RESV))
 		return -EINVAL;
 
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_STATUS, &l, &h);
@@ -124,10 +124,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		return 0;
 
 	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* run on each logical CPU,
 	 * see section 13.15.3 of IA32 Intel Architecture Software
@@ -137,10 +134,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		cpufreq_p4_setdc(i, p4clockmod_table[newstate].index);
 
 	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
@@ -289,21 +283,25 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.attr		= p4clockmod_attr,
 };
 
+static const struct x86_cpu_id cpufreq_p4_id[] = {
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ACC },
+	{}
+};
+
+/*
+ * Intentionally no MODULE_DEVICE_TABLE here: this driver should not
+ * be auto loaded.  Please don't add one.
+ */
 
 static int __init cpufreq_p4_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
 	int ret;
 
 	/*
 	 * THERM_CONTROL is architectural for IA32 now, so
 	 * we can rely on the capability checks
 	 */
-	if (c->x86_vendor != X86_VENDOR_INTEL)
-		return -ENODEV;
-
-	if (!test_cpu_cap(c, X86_FEATURE_ACPI) ||
-				!test_cpu_cap(c, X86_FEATURE_ACC))
+	if (!x86_match_cpu(cpufreq_p4_id) || !boot_cpu_has(X86_FEATURE_ACPI))
 		return -ENODEV;
 
 	ret = cpufreq_register_driver(&p4clockmod_driver);

@@ -71,7 +71,7 @@ void sctp_auth_key_put(struct sctp_auth_bytes *key)
 		return;
 
 	if (atomic_dec_and_test(&key->refcnt)) {
-		kfree(key);
+		kzfree(key);
 		SCTP_DBG_OBJCNT_DEC(keys);
 	}
 }
@@ -82,7 +82,7 @@ static struct sctp_auth_bytes *sctp_auth_create_key(__u32 key_len, gfp_t gfp)
 	struct sctp_auth_bytes *key;
 
 	/* Verify that we are not going to overflow INT_MAX */
-	if ((INT_MAX - key_len) < sizeof(struct sctp_auth_bytes))
+	if (key_len > (INT_MAX - sizeof(struct sctp_auth_bytes)))
 		return NULL;
 
 	/* Allocate the shared key */
@@ -200,27 +200,28 @@ static struct sctp_auth_bytes *sctp_auth_make_key_vector(
 	struct sctp_auth_bytes *new;
 	__u32	len;
 	__u32	offset = 0;
+	__u16	random_len, hmacs_len, chunks_len = 0;
 
-	len = ntohs(random->param_hdr.length) + ntohs(hmacs->param_hdr.length);
-        if (chunks)
-		len += ntohs(chunks->param_hdr.length);
+	random_len = ntohs(random->param_hdr.length);
+	hmacs_len = ntohs(hmacs->param_hdr.length);
+	if (chunks)
+		chunks_len = ntohs(chunks->param_hdr.length);
 
-	new = kmalloc(sizeof(struct sctp_auth_bytes) + len, gfp);
+	len = random_len + hmacs_len + chunks_len;
+
+	new = sctp_auth_create_key(len, gfp);
 	if (!new)
 		return NULL;
 
-	new->len = len;
-
-	memcpy(new->data, random, ntohs(random->param_hdr.length));
-	offset += ntohs(random->param_hdr.length);
+	memcpy(new->data, random, random_len);
+	offset += random_len;
 
 	if (chunks) {
-		memcpy(new->data + offset, chunks,
-			ntohs(chunks->param_hdr.length));
-		offset += ntohs(chunks->param_hdr.length);
+		memcpy(new->data + offset, chunks, chunks_len);
+		offset += chunks_len;
 	}
 
-	memcpy(new->data + offset, hmacs, ntohs(hmacs->param_hdr.length));
+	memcpy(new->data + offset, hmacs, hmacs_len);
 
 	return new;
 }
@@ -350,8 +351,8 @@ static struct sctp_auth_bytes *sctp_auth_asoc_create_secret(
 	secret = sctp_auth_asoc_set_secret(ep_key, first_vector, last_vector,
 					    gfp);
 out:
-	kfree(local_key_vector);
-	kfree(peer_key_vector);
+	sctp_auth_key_put(local_key_vector);
+	sctp_auth_key_put(peer_key_vector);
 
 	return secret;
 }
@@ -392,13 +393,14 @@ nomem:
  */
 int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 {
+	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_auth_bytes	*secret;
 	struct sctp_shared_key *ep_key;
 
 	/* If we don't support AUTH, or peer is not capable
 	 * we don't need to do anything.
 	 */
-	if (!sctp_auth_enable || !asoc->peer.auth_capable)
+	if (!net->sctp.auth_enable || !asoc->peer.auth_capable)
 		return 0;
 
 	/* If the key_id is non-zero and we couldn't find an
@@ -445,11 +447,12 @@ struct sctp_shared_key *sctp_auth_get_shkey(
  */
 int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 {
+	struct net *net = sock_net(ep->base.sk);
 	struct crypto_hash *tfm = NULL;
 	__u16   id;
 
 	/* if the transforms are already allocted, we are done */
-	if (!sctp_auth_enable) {
+	if (!net->sctp.auth_enable) {
 		ep->auth_hmacs = NULL;
 		return 0;
 	}
@@ -674,7 +677,12 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 /* Check if peer requested that this chunk is authenticated */
 int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 {
-	if (!sctp_auth_enable || !asoc || !asoc->peer.auth_capable)
+	struct net  *net;
+	if (!asoc)
+		return 0;
+
+	net = sock_net(asoc->base.sk);
+	if (!net->sctp.auth_enable || !asoc->peer.auth_capable)
 		return 0;
 
 	return __sctp_auth_cid(chunk, asoc->peer.peer_chunks);
@@ -683,7 +691,12 @@ int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 /* Check if we requested that peer authenticate this chunk. */
 int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 {
-	if (!sctp_auth_enable || !asoc)
+	struct net *net;
+	if (!asoc)
+		return 0;
+
+	net = sock_net(asoc->base.sk);
+	if (!net->sctp.auth_enable)
 		return 0;
 
 	return __sctp_auth_cid(chunk,

@@ -12,14 +12,15 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/gpio-pxa.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8649.h>
 #include <linux/mfd/max8925.h>
 #include <linux/interrupt.h>
 
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/addr-map.h>
@@ -28,7 +29,7 @@
 
 #include "common.h"
 
-#define JASPER_NR_IRQS		(IRQ_BOARD_START + 48)
+#define JASPER_NR_IRQS		(MMP_NR_IRQS + 48)
 
 static unsigned long jasper_pin_config[] __initdata = {
 	/* UART1 */
@@ -99,6 +100,10 @@ static unsigned long jasper_pin_config[] __initdata = {
 	GPIO151_MMC3_CLK,
 };
 
+static struct pxa_gpio_platform_data mmp2_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
+};
+
 static struct regulator_consumer_supply max8649_supply[] = {
 	REGULATOR_SUPPLY("vcc_core", NULL),
 };
@@ -136,7 +141,7 @@ static struct max8925_power_pdata jasper_power_data = {
 static struct max8925_platform_data jasper_max8925_info = {
 	.backlight		= &jasper_backlight_data,
 	.power			= &jasper_power_data,
-	.irq_base		= IRQ_BOARD_START,
+	.irq_base		= MMP_NR_IRQS,
 };
 
 static struct i2c_board_info jasper_twsi1_info[] = {
@@ -154,7 +159,7 @@ static struct i2c_board_info jasper_twsi1_info[] = {
 };
 
 static struct sdhci_pxa_platdata mmp2_sdh_platdata_mmc0 = {
-	.max_speed	= 25000000,
+	.clk_delay_cycles = 0x1f,
 };
 
 static void __init jasper_init(void)
@@ -165,6 +170,9 @@ static void __init jasper_init(void)
 	mmp2_add_uart(1);
 	mmp2_add_uart(3);
 	mmp2_add_twsi(1, NULL, ARRAY_AND_SIZE(jasper_twsi1_info));
+	platform_device_add_data(&mmp2_device_gpio, &mmp2_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
+	platform_device_register(&mmp2_device_gpio);
 	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
 
 	regulator_has_full_constraints();
@@ -174,6 +182,7 @@ MACHINE_START(MARVELL_JASPER, "Jasper Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= JASPER_NR_IRQS,
 	.init_irq       = mmp2_init_irq,
-	.timer          = &mmp2_timer,
+	.init_time	= mmp2_timer_init,
 	.init_machine   = jasper_init,
+	.restart	= mmp_restart,
 MACHINE_END

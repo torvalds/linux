@@ -21,27 +21,10 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 
-void * __iomem __iop13xx_io(unsigned long io_addr)
-{
-	void __iomem * io_virt;
+#include "pci.h"
 
-	switch (io_addr) {
-	case IOP13XX_PCIE_LOWER_IO_PA ... IOP13XX_PCIE_UPPER_IO_PA:
-		io_virt = (void *) IOP13XX_PCIE_IO_PHYS_TO_VIRT(io_addr);
-		break;
-	case IOP13XX_PCIX_LOWER_IO_PA ... IOP13XX_PCIX_UPPER_IO_PA:
-		io_virt = (void *) IOP13XX_PCIX_IO_PHYS_TO_VIRT(io_addr);
-		break;
-	default:
-		BUG();
-	}
-
-	return io_virt;
-}
-EXPORT_SYMBOL(__iop13xx_io);
-
-void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
-	unsigned int mtype)
+static void __iomem *__iop13xx_ioremap_caller(unsigned long cookie,
+	size_t size, unsigned int mtype, void *caller)
 {
 	void __iomem * retval;
 
@@ -50,14 +33,14 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
 		if (unlikely(!iop13xx_atux_mem_base))
 			retval = NULL;
 		else
-			retval = (void *)(iop13xx_atux_mem_base +
+			retval = (iop13xx_atux_mem_base +
 			         (cookie - IOP13XX_PCIX_LOWER_MEM_RA));
 		break;
 	case IOP13XX_PCIE_LOWER_MEM_RA ... IOP13XX_PCIE_UPPER_MEM_RA:
 		if (unlikely(!iop13xx_atue_mem_base))
 			retval = NULL;
 		else
-			retval = (void *)(iop13xx_atue_mem_base +
+			retval = (iop13xx_atue_mem_base +
 			         (cookie - IOP13XX_PCIE_LOWER_MEM_RA));
 		break;
 	case IOP13XX_PBI_LOWER_MEM_RA ... IOP13XX_PBI_UPPER_MEM_RA:
@@ -65,28 +48,19 @@ void * __iomem __iop13xx_ioremap(unsigned long cookie, size_t size,
 				       (cookie - IOP13XX_PBI_LOWER_MEM_RA),
 				       size, mtype, __builtin_return_address(0));
 		break;
-	case IOP13XX_PCIE_LOWER_IO_PA ... IOP13XX_PCIE_UPPER_IO_PA:
-		retval = (void *) IOP13XX_PCIE_IO_PHYS_TO_VIRT(cookie);
-		break;
-	case IOP13XX_PCIX_LOWER_IO_PA ... IOP13XX_PCIX_UPPER_IO_PA:
-		retval = (void *) IOP13XX_PCIX_IO_PHYS_TO_VIRT(cookie);
-		break;
 	case IOP13XX_PMMR_PHYS_MEM_BASE ... IOP13XX_PMMR_UPPER_MEM_PA:
-		retval = (void *) IOP13XX_PMMR_PHYS_TO_VIRT(cookie);
+		retval = IOP13XX_PMMR_PHYS_TO_VIRT(cookie);
 		break;
 	default:
 		retval = __arm_ioremap_caller(cookie, size, mtype,
-				__builtin_return_address(0));
+				caller);
 	}
 
 	return retval;
 }
-EXPORT_SYMBOL(__iop13xx_ioremap);
 
-void __iop13xx_iounmap(void __iomem *addr)
+static void __iop13xx_iounmap(volatile void __iomem *addr)
 {
-	extern void __iounmap(volatile void __iomem *addr);
-
 	if (iop13xx_atue_mem_base)
 		if (addr >= (void __iomem *) iop13xx_atue_mem_base &&
 	 	    addr < (void __iomem *) (iop13xx_atue_mem_base +
@@ -100,9 +74,7 @@ void __iop13xx_iounmap(void __iomem *addr)
 		    goto skip;
 
 	switch ((u32) addr) {
-	case IOP13XX_PCIE_LOWER_IO_VA ... IOP13XX_PCIE_UPPER_IO_VA:
-	case IOP13XX_PCIX_LOWER_IO_VA ... IOP13XX_PCIX_UPPER_IO_VA:
-	case IOP13XX_PMMR_VIRT_MEM_BASE ... IOP13XX_PMMR_UPPER_MEM_VA:
+	case (u32)IOP13XX_PMMR_VIRT_MEM_BASE ... (u32)IOP13XX_PMMR_UPPER_MEM_VA:
 		goto skip;
 	}
 	__iounmap(addr);
@@ -110,4 +82,9 @@ void __iop13xx_iounmap(void __iomem *addr)
 skip:
 	return;
 }
-EXPORT_SYMBOL(__iop13xx_iounmap);
+
+void __init iop13xx_init_early(void)
+{
+	arch_ioremap_caller = __iop13xx_ioremap_caller;
+	arch_iounmap = __iop13xx_iounmap;
+}

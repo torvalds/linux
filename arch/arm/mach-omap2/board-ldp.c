@@ -10,7 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -22,27 +22,26 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/mmc/host.h>
+#include <linux/usb/phy.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mcspi.h>
-#include <mach/gpio.h>
-#include <plat/board.h>
-#include <plat/common.h>
-#include <plat/gpmc.h>
-#include <mach/board-zoom.h>
+#include "common.h"
+#include "board-zoom.h"
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
-#include <asm/delay.h>
-#include <plat/usb.h>
-#include <plat/gpmc-smsc911x.h>
+#include <video/omapdss.h>
+#include <video/omap-panel-data.h>
 
 #include "board-flash.h"
 #include "mux.h"
@@ -180,41 +179,60 @@ static inline void __init ldp_init_smsc911x(void)
 	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
-static struct platform_device ldp_lcd_device = {
-	.name		= "ldp_lcd",
-	.id		= -1,
+/* LCD */
+
+#define LCD_PANEL_RESET_GPIO		55
+#define LCD_PANEL_QVGA_GPIO		56
+
+static struct panel_generic_dpi_data ldp_panel_data = {
+	.name			= "nec_nl2432dr22-11b",
+	.num_gpios		= 4,
+	/* gpios filled in code */
 };
 
-static struct omap_lcd_config ldp_lcd_config __initdata = {
-	.ctrl_name	= "internal",
+static struct omap_dss_device ldp_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "generic_dpi_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 18,
+	.data			= &ldp_panel_data,
 };
 
-static struct omap_board_config_kernel ldp_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&ldp_lcd_config },
+static struct omap_dss_device *ldp_dss_devices[] = {
+	&ldp_lcd_device,
 };
 
-static void __init omap_ldp_init_early(void)
+static struct omap_dss_board_info ldp_dss_data = {
+	.num_devices	= ARRAY_SIZE(ldp_dss_devices),
+	.devices	= ldp_dss_devices,
+	.default_device	= &ldp_lcd_device,
+};
+
+static void __init ldp_display_init(void)
 {
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
+	ldp_panel_data.gpios[2] = LCD_PANEL_RESET_GPIO;
+	ldp_panel_data.gpios[3] = LCD_PANEL_QVGA_GPIO;
+
+	omap_display_init(&ldp_dss_data);
 }
 
-static struct twl4030_usb_data ldp_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
+static int ldp_twl_gpio_setup(struct device *dev, unsigned gpio, unsigned ngpio)
+{
+	ldp_panel_data.gpios[0] = gpio + 7;
+	ldp_panel_data.gpio_invert[0] = true;
+
+	ldp_panel_data.gpios[1] = gpio + 15;
+	ldp_panel_data.gpio_invert[1] = true;
+
+	return 0;
+}
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
+	.setup		= ldp_twl_gpio_setup,
 };
 
-static struct twl4030_madc_platform_data ldp_madc_data = {
-	.irq_line	= 1,
-};
-
-static struct regulator_consumer_supply ldp_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply ldp_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -228,8 +246,8 @@ static struct regulator_init_data ldp_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &ldp_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(ldp_vmmc1_supply),
+	.consumer_supplies	= ldp_vmmc1_supply,
 };
 
 /* ads7846 on SPI */
@@ -252,21 +270,39 @@ static struct regulator_init_data ldp_vaux1 = {
 	.consumer_supplies		= ldp_vaux1_supplies,
 };
 
-static struct twl4030_platform_data ldp_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
+static struct regulator_consumer_supply ldp_vpll2_supplies[] = {
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+};
 
+static struct regulator_init_data ldp_vpll2 = {
+	.constraints = {
+		.name			= "VDVI",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(ldp_vpll2_supplies),
+	.consumer_supplies	= ldp_vpll2_supplies,
+};
+
+static struct twl4030_platform_data ldp_twldata = {
 	/* platform_data for children goes here */
-	.madc		= &ldp_madc_data,
-	.usb		= &ldp_usb_data,
 	.vmmc1		= &ldp_vmmc1,
 	.vaux1		= &ldp_vaux1,
+	.vpll2		= &ldp_vpll2,
 	.gpio		= &ldp_gpio_data,
 	.keypad		= &ldp_kp_twl4030_data,
 };
 
 static int __init omap_i2c_init(void)
 {
+	omap3_pmic_get_config(&ldp_twldata,
+			  TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC, 0);
 	omap3_pmic_init("twl4030", &ldp_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -284,7 +320,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 };
 
 static struct platform_device *ldp_devices[] __initdata = {
-	&ldp_lcd_device,
 	&ldp_gpio_keys_device,
 };
 
@@ -326,31 +361,39 @@ static struct mtd_partition ldp_nand_partitions[] = {
 
 };
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 static void __init omap_ldp_init(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_board_config = ldp_config;
-	omap_board_config_size = ARRAY_SIZE(ldp_config);
 	ldp_init_smsc911x();
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
 	omap_ads7846_init(1, 54, 310, NULL);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
+	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
-	board_nand_init(ldp_nand_partitions,
-		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
+	board_nand_init(ldp_nand_partitions, ARRAY_SIZE(ldp_nand_partitions),
+			ZOOM_NAND_CS, 0, nand_default_timings);
 
-	omap2_hsmmc_init(mmc);
-	/* link regulators to MMC adapters */
-	ldp_vmmc1_supply.dev = mmc[0].dev;
+	omap_hsmmc_init(mmc);
+	ldp_display_init();
 }
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_ldp_init_early,
-	.init_irq	= omap_init_irq,
+	.init_early	= omap3430_init_early,
+	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_ldp_init,
-	.timer		= &omap_timer,
+	.init_late	= omap3430_init_late,
+	.init_time	= omap3_sync32k_timer_init,
+	.restart	= omap3xxx_restart,
 MACHINE_END

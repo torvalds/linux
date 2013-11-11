@@ -26,10 +26,7 @@
 #ifndef __R8A66597_H__
 #define __R8A66597_H__
 
-#ifdef CONFIG_HAVE_CLK
 #include <linux/clk.h>
-#endif
-
 #include <linux/usb/r8a66597.h>
 
 #define R8A66597_MAX_NUM_PIPE		10
@@ -113,9 +110,7 @@ struct r8a66597_root_hub {
 struct r8a66597 {
 	spinlock_t lock;
 	void __iomem *reg;
-#ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
-#endif
 	struct r8a66597_platdata	*pdata;
 	struct r8a66597_device		device0;
 	struct r8a66597_root_hub	root_hub[R8A66597_MAX_ROOT_HUB];
@@ -201,11 +196,26 @@ static inline void r8a66597_write(struct r8a66597 *r8a66597, u16 val,
 	iowrite16(val, r8a66597->reg + offset);
 }
 
+static inline void r8a66597_mdfy(struct r8a66597 *r8a66597,
+				 u16 val, u16 pat, unsigned long offset)
+{
+	u16 tmp;
+	tmp = r8a66597_read(r8a66597, offset);
+	tmp = tmp & (~pat);
+	tmp = tmp | val;
+	r8a66597_write(r8a66597, tmp, offset);
+}
+
+#define r8a66597_bclr(r8a66597, val, offset)	\
+			r8a66597_mdfy(r8a66597, 0, val, offset)
+#define r8a66597_bset(r8a66597, val, offset)	\
+			r8a66597_mdfy(r8a66597, val, 0, offset)
+
 static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
-				       unsigned long offset, u16 *buf,
+				       struct r8a66597_pipe *pipe, u16 *buf,
 				       int len)
 {
-	void __iomem *fifoaddr = r8a66597->reg + offset;
+	void __iomem *fifoaddr = r8a66597->reg + pipe->fifoaddr;
 	unsigned long count;
 	unsigned char *pb;
 	int i;
@@ -230,25 +240,14 @@ static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
 		iowrite16_rep(fifoaddr, buf, len);
 		if (unlikely(odd)) {
 			buf = &buf[len];
+			if (r8a66597->pdata->wr0_shorted_to_wr1)
+				r8a66597_bclr(r8a66597, MBW_16, pipe->fifosel);
 			iowrite8((unsigned char)*buf, fifoaddr);
+			if (r8a66597->pdata->wr0_shorted_to_wr1)
+				r8a66597_bset(r8a66597, MBW_16, pipe->fifosel);
 		}
 	}
 }
-
-static inline void r8a66597_mdfy(struct r8a66597 *r8a66597,
-				 u16 val, u16 pat, unsigned long offset)
-{
-	u16 tmp;
-	tmp = r8a66597_read(r8a66597, offset);
-	tmp = tmp & (~pat);
-	tmp = tmp | val;
-	r8a66597_write(r8a66597, tmp, offset);
-}
-
-#define r8a66597_bclr(r8a66597, val, offset)	\
-			r8a66597_mdfy(r8a66597, 0, val, offset)
-#define r8a66597_bset(r8a66597, val, offset)	\
-			r8a66597_mdfy(r8a66597, val, 0, offset)
 
 static inline unsigned long get_syscfg_reg(int port)
 {

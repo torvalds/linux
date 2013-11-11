@@ -284,6 +284,7 @@ struct vio_dev {
 };
 
 struct vio_driver {
+	const char			*name;
 	struct list_head		node;
 	const struct vio_device_id	*id_table;
 	int (*probe)(struct vio_dev *dev, const struct vio_device_id *id);
@@ -371,7 +372,13 @@ do {	if (vio->debug & VIO_DEBUG_##TYPE) \
 		       vio->vdev->channel_id, ## a); \
 } while (0)
 
-extern int vio_register_driver(struct vio_driver *drv);
+extern int __vio_register_driver(struct vio_driver *drv, struct module *owner,
+				 const char *mod_name);
+/*
+ * vio_register_driver must be a macro so that KBUILD_MODNAME can be expanded
+ */
+#define vio_register_driver(driver)		\
+	__vio_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 extern void vio_unregister_driver(struct vio_driver *drv);
 
 static inline struct vio_driver *to_vio_driver(struct device_driver *drv)

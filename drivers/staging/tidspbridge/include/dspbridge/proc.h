@@ -23,8 +23,6 @@
 #include <dspbridge/devdefs.h>
 #include <dspbridge/drv.h>
 
-extern char *iva_img;
-
 /*
  *  ======== proc_attach ========
  *  Purpose:
@@ -189,20 +187,6 @@ extern int proc_get_resource_info(void *hprocessor,
 					 u32 resource_info_size);
 
 /*
- *  ======== proc_exit ========
- *  Purpose:
- *      Decrement reference count, and free resources when reference count is
- *      0.
- *  Parameters:
- *  Returns:
- *  Requires:
- *      PROC is initialized.
- *  Ensures:
- *      When reference count == 0, PROC's private resources are freed.
- */
-extern void proc_exit(void);
-
-/*
  * ======== proc_get_dev_object =========
  *  Purpose:
  *      Returns the DEV Hanlde for a given Processor handle
@@ -221,20 +205,6 @@ extern void proc_exit(void);
  */
 extern int proc_get_dev_object(void *hprocessor,
 				      struct dev_object **device_obj);
-
-/*
- *  ======== proc_init ========
- *  Purpose:
- *      Initialize PROC's private state, keeping a reference count on each
- *      call.
- *  Parameters:
- *  Returns:
- *      TRUE if initialized; FALSE if error occurred.
- *  Requires:
- *  Ensures:
- *      TRUE: A requirement for the other public PROC functions.
- */
-extern bool proc_init(void);
 
 /*
  *  ======== proc_get_state ========
@@ -291,7 +261,7 @@ extern int proc_get_processor_id(void *proc, u32 * proc_id);
  *  Returns:
  *      0     :   Success.
  *      -EFAULT :   Invalid processor handle.
- *      -EPERM   :   General failure while retireving processor trace
+ *      -EPERM   :   General failure while retrieving processor trace
  *		      Buffer.
  *  Requires:
  *      pbuf is not NULL

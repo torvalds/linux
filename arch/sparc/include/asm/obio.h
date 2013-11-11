@@ -220,19 +220,6 @@ static inline void cc_set_igen(unsigned gen)
 			      "i" (ASI_M_MXCC));
 }
 
-/* +-------+-------------+-----------+------------------------------------+
- * | bcast |  devid      |   sid     |              levels mask           |
- * +-------+-------------+-----------+------------------------------------+
- *  31      30         23 22       15 14                                 0
- */
-#define IGEN_MESSAGE(bcast, devid, sid, levels) \
-	(((bcast) << 31) | ((devid) << 23) | ((sid) << 15) | (levels))
-            
-static inline void sun4d_send_ipi(int cpu, int level)
-{
-	cc_set_igen(IGEN_MESSAGE(0, cpu << 3, 6 + ((level >> 1) & 7), 1 << (level - 1)));
-}
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* !(_SPARC_OBIO_H) */

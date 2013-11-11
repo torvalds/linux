@@ -48,9 +48,6 @@
 #define DBG(LEVEL, ...)
 #endif
 	
-
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* gcc will complain if a pointer is cast to an integer of different
  * size.  If you really need to do this (and we do for an ELF32 user
  * application in an ELF64 kernel) then you have to do a cast to an
@@ -109,11 +106,14 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	/* Unwind the user stack to get the rt_sigframe structure. */
 	frame = (struct rt_sigframe __user *)
 		(usp - sigframe_size);
 	DBG(2,"sys_rt_sigreturn: frame is %p\n", frame);
+
+	regs->orig_r28 = 1; /* no restarts for sigreturn */
 
 #ifdef CONFIG_64BIT
 	compat_frame = (struct compat_rt_sigframe __user *)frame;
@@ -130,11 +130,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 	}
 		
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	/* Good thing we saved the old gr[30], eh? */
 #ifdef CONFIG_64BIT
@@ -147,7 +143,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 		DBG(1,"sys_rt_sigreturn: usp %#08lx stack 0x%p\n", 
 				usp, &compat_frame->uc.uc_stack);
-		if (do_sigaltstack32(&compat_frame->uc.uc_stack, NULL, usp) == -EFAULT)
+		if (compat_restore_altstack(&compat_frame->uc.uc_stack))
 			goto give_sigsegv;
 	} else
 #endif
@@ -158,7 +154,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 		DBG(1,"sys_rt_sigreturn: usp %#08lx stack 0x%p\n", 
 				usp, &frame->uc.uc_stack);
-		if (do_sigaltstack(&frame->uc.uc_stack, NULL, usp) == -EFAULT)
+		if (restore_altstack(&frame->uc.uc_stack))
 			goto give_sigsegv;
 	}
 		
@@ -194,8 +190,10 @@ get_sigframe(struct k_sigaction *ka, unsigned long sp, size_t frame_size)
 	DBG(1,"get_sigframe: ka = %#lx, sp = %#lx, frame_size = %#lx\n",
 			(unsigned long)ka, sp, frame_size);
 	
+	/* Align alternate stack and reserve 64 bytes for the signal
+	   handler's frame marker.  */
 	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && ! sas_ss_flags(sp))
-		sp = current->sas_ss_sp; /* Stacks grow up! */
+		sp = (current->sas_ss_sp + 0x7f) & ~0x3f; /* Stacks grow up! */
 
 	DBG(1,"get_sigframe: Returning sp = %#lx\n", (unsigned long)sp);
 	return (void __user *) sp; /* Stacks grow up.  Fun. */
@@ -244,7 +242,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	unsigned long haddr, sigframe_size;
 	int err = 0;
 #ifdef CONFIG_64BIT
-	compat_int_t compat_val;
 	struct compat_rt_sigframe __user * compat_frame;
 	compat_sigset_t compat_set;
 #endif
@@ -264,15 +261,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (is_compat_task()) {
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &compat_frame->info);
 		err |= copy_siginfo_to_user32(&compat_frame->info, info);
-		DBG(1,"SETUP_RT_FRAME: 1\n");
-		compat_val = (compat_int_t)current->sas_ss_sp;
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_sp);
-		DBG(1,"SETUP_RT_FRAME: 2\n");
-		compat_val = (compat_int_t)current->sas_ss_size;
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_size);
-		DBG(1,"SETUP_RT_FRAME: 3\n");
-		compat_val = sas_ss_flags(regs->gr[30]);		
-		err |= __put_user(compat_val, &compat_frame->uc.uc_stack.ss_flags);		
+		err |= __compat_save_altstack( &compat_frame->uc.uc_stack, regs->gr[30]);
 		DBG(1,"setup_rt_frame: frame->uc = 0x%p\n", &compat_frame->uc);
 		DBG(1,"setup_rt_frame: frame->uc.uc_mcontext = 0x%p\n", &compat_frame->uc.uc_mcontext);
 		err |= setup_sigcontext32(&compat_frame->uc.uc_mcontext, 
@@ -284,10 +273,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	{	
 		DBG(1,"setup_rt_frame: frame->info = 0x%p\n", &frame->info);
 		err |= copy_siginfo_to_user(&frame->info, info);
-		err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-		err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-		err |= __put_user(sas_ss_flags(regs->gr[30]),
-				  &frame->uc.uc_stack.ss_flags);
+		err |= __save_altstack(&frame->uc.uc_stack, regs->gr[30]);
 		DBG(1,"setup_rt_frame: frame->uc = 0x%p\n", &frame->uc);
 		DBG(1,"setup_rt_frame: frame->uc.uc_mcontext = 0x%p\n", &frame->uc.uc_mcontext);
 		err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, in_syscall);
@@ -314,7 +300,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #if DEBUG_SIG
 	/* Assert that we're flushing in the correct space... */
 	{
-		int sid;
+		unsigned long sid;
 		asm ("mfsp %%sr3,%0" : "=r" (sid));
 		DBG(1,"setup_rt_frame: Flushing 64 bytes at space %#x offset %p\n",
 		       sid, frame->tramp);
@@ -443,39 +429,35 @@ give_sigsegv:
  * OK, we're invoking a handler.
  */	
 
-static long
+static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-		sigset_t *oldset, struct pt_regs *regs, int in_syscall)
+		struct pt_regs *regs, int in_syscall)
 {
+	sigset_t *oldset = sigmask_to_save();
 	DBG(1,"handle_signal: sig=%ld, ka=%p, info=%p, oldset=%p, regs=%p\n",
 	       sig, ka, info, oldset, regs);
 	
 	/* Set up the stack frame */
 	if (!setup_rt_frame(sig, ka, info, oldset, regs, in_syscall))
-		return 0;
+		return;
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked,sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	tracehook_signal_handler(sig, info, ka, regs, 
+	signal_delivered(sig, info, ka, regs, 
 		test_thread_flag(TIF_SINGLESTEP) ||
 		test_thread_flag(TIF_BLOCKSTEP));
 
-	return 1;
+	DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
+		regs->gr[28]);
 }
 
 static inline void
 syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 {
+	if (regs->orig_r28)
+		return;
+	regs->orig_r28 = 1; /* no more restarts */
 	/* Check the return code */
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK:
-		current_thread_info()->restart_block.fn =
-			do_no_restart_syscall;
 	case -ERESTARTNOHAND:
 		DBG(1,"ERESTARTNOHAND: returning -EINTR\n");
 		regs->gr[28] = -EINTR;
@@ -493,8 +475,6 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 * we have to do is fiddle the return pointer.
 		 */
 		regs->gr[31] -= 8; /* delayed branching */
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
 		break;
 	}
 }
@@ -502,6 +482,9 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 static inline void
 insert_restart_trampoline(struct pt_regs *regs)
 {
+	if (regs->orig_r28)
+		return;
+	regs->orig_r28 = 1; /* no more restarts */
 	switch(regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK: {
 		/* Restart the system call - no handlers present */
@@ -536,9 +519,6 @@ insert_restart_trampoline(struct pt_regs *regs)
 		flush_user_icache_range(regs->gr[30], regs->gr[30] + 4);
 
 		regs->gr[31] = regs->gr[30] + 8;
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
-
 		return;
 	}
 	case -ERESTARTNOHAND:
@@ -550,9 +530,6 @@ insert_restart_trampoline(struct pt_regs *regs)
 		 * slot of the branch external instruction.
 		 */
 		regs->gr[31] -= 8;
-		/* Preserve original r28. */
-		regs->gr[28] = regs->orig_r28;
-
 		return;
 	}
 	default:
@@ -577,51 +554,21 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
-	sigset_t *oldset;
 
-	DBG(1,"\ndo_signal: oldset=0x%p, regs=0x%p, sr7 %#lx, in_syscall=%d\n",
-	       oldset, regs, regs->sr[7], in_syscall);
+	DBG(1,"\ndo_signal: regs=0x%p, sr7 %#lx, in_syscall=%d\n",
+	       regs, regs->sr[7], in_syscall);
 
-	/* Everyone else checks to see if they are in kernel mode at
-	   this point and exits if that's the case.  I'm not sure why
-	   we would be called in that case, but for some reason we
-	   are. */
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
-	DBG(1,"do_signal: oldset %08lx / %08lx\n", 
-		oldset->sig[0], oldset->sig[1]);
-
-
-	/* May need to force signal if handle_signal failed to deliver */
-	while (1) {
-	  
-		signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-		DBG(3,"do_signal: signr = %d, regs->gr[28] = %ld\n", signr, regs->gr[28]); 
+	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
+	DBG(3,"do_signal: signr = %d, regs->gr[28] = %ld\n", signr, regs->gr[28]); 
 	
-		if (signr <= 0)
-		  break;
-		
+	if (signr > 0) {
 		/* Restart a system call if necessary. */
 		if (in_syscall)
 			syscall_restart(regs, &ka);
 
-		/* Whee!  Actually deliver the signal.  If the
-		   delivery failed, we need to continue to iterate in
-		   this loop so we can deliver the SIGSEGV... */
-		if (handle_signal(signr, &info, &ka, oldset,
-				  regs, in_syscall)) {
-			DBG(1,KERN_DEBUG "do_signal: Exit (success), regs->gr[28] = %ld\n",
-				regs->gr[28]);
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-			return;
-		}
+		handle_signal(signr, &info, &ka, regs, in_syscall);
+		return;
 	}
-	/* end of while(1) looping forever if we can't force a signal */
 
 	/* Did we come from a system call? */
 	if (in_syscall)
@@ -630,24 +577,16 @@ do_signal(struct pt_regs *regs, long in_syscall)
 	DBG(1,"do_signal: Exit (not delivered), regs->gr[28] = %ld\n", 
 		regs->gr[28]);
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return;
+	restore_saved_sigmask();
 }
 
 void do_notify_resume(struct pt_regs *regs, long in_syscall)
 {
-	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }

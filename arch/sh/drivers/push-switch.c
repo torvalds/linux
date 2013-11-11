@@ -63,7 +63,7 @@ static int switch_drv_probe(struct platform_device *pdev)
 	BUG_ON(!psw_info);
 
 	ret = request_irq(irq, psw_info->irq_handler,
-			  IRQF_DISABLED | psw_info->irq_flags,
+			  psw_info->irq_flags,
 			  psw_info->name ? psw_info->name : DRV_NAME, pdev);
 	if (unlikely(ret < 0))
 		goto err;
@@ -107,7 +107,7 @@ static int switch_drv_remove(struct platform_device *pdev)
 		device_remove_file(&pdev->dev, &dev_attr_switch);
 
 	platform_set_drvdata(pdev, NULL);
-	flush_work_sync(&psw->work);
+	flush_work(&psw->work);
 	del_timer_sync(&psw->debounce);
 	free_irq(irq, pdev);
 

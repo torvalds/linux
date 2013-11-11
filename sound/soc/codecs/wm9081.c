@@ -3,7 +3,7 @@
  *
  * Author: Mark Brown
  *
- * Copyright 2009 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -30,69 +30,60 @@
 #include <sound/wm9081.h>
 #include "wm9081.h"
 
-static u16 wm9081_reg_defaults[] = {
-	0x0000,     /* R0  - Software Reset */
-	0x0000,     /* R1 */
-	0x00B9,     /* R2  - Analogue Lineout */
-	0x00B9,     /* R3  - Analogue Speaker PGA */
-	0x0001,     /* R4  - VMID Control */
-	0x0068,     /* R5  - Bias Control 1 */
-	0x0000,     /* R6 */
-	0x0000,     /* R7  - Analogue Mixer */
-	0x0000,     /* R8  - Anti Pop Control */
-	0x01DB,     /* R9  - Analogue Speaker 1 */
-	0x0018,     /* R10 - Analogue Speaker 2 */
-	0x0180,     /* R11 - Power Management */
-	0x0000,     /* R12 - Clock Control 1 */
-	0x0038,     /* R13 - Clock Control 2 */
-	0x4000,     /* R14 - Clock Control 3 */
-	0x0000,     /* R15 */
-	0x0000,     /* R16 - FLL Control 1 */
-	0x0200,     /* R17 - FLL Control 2 */
-	0x0000,     /* R18 - FLL Control 3 */
-	0x0204,     /* R19 - FLL Control 4 */
-	0x0000,     /* R20 - FLL Control 5 */
-	0x0000,     /* R21 */
-	0x0000,     /* R22 - Audio Interface 1 */
-	0x0002,     /* R23 - Audio Interface 2 */
-	0x0008,     /* R24 - Audio Interface 3 */
-	0x0022,     /* R25 - Audio Interface 4 */
-	0x0000,     /* R26 - Interrupt Status */
-	0x0006,     /* R27 - Interrupt Status Mask */
-	0x0000,     /* R28 - Interrupt Polarity */
-	0x0000,     /* R29 - Interrupt Control */
-	0x00C0,     /* R30 - DAC Digital 1 */
-	0x0008,     /* R31 - DAC Digital 2 */
-	0x09AF,     /* R32 - DRC 1 */
-	0x4201,     /* R33 - DRC 2 */
-	0x0000,     /* R34 - DRC 3 */
-	0x0000,     /* R35 - DRC 4 */
-	0x0000,     /* R36 */
-	0x0000,     /* R37 */
-	0x0000,     /* R38 - Write Sequencer 1 */
-	0x0000,     /* R39 - Write Sequencer 2 */
-	0x0002,     /* R40 - MW Slave 1 */
-	0x0000,     /* R41 */
-	0x0000,     /* R42 - EQ 1 */
-	0x0000,     /* R43 - EQ 2 */
-	0x0FCA,     /* R44 - EQ 3 */
-	0x0400,     /* R45 - EQ 4 */
-	0x00B8,     /* R46 - EQ 5 */
-	0x1EB5,     /* R47 - EQ 6 */
-	0xF145,     /* R48 - EQ 7 */
-	0x0B75,     /* R49 - EQ 8 */
-	0x01C5,     /* R50 - EQ 9 */
-	0x169E,     /* R51 - EQ 10 */
-	0xF829,     /* R52 - EQ 11 */
-	0x07AD,     /* R53 - EQ 12 */
-	0x1103,     /* R54 - EQ 13 */
-	0x1C58,     /* R55 - EQ 14 */
-	0xF373,     /* R56 - EQ 15 */
-	0x0A54,     /* R57 - EQ 16 */
-	0x0558,     /* R58 - EQ 17 */
-	0x0564,     /* R59 - EQ 18 */
-	0x0559,     /* R60 - EQ 19 */
-	0x4000,     /* R61 - EQ 20 */
+static struct reg_default wm9081_reg[] = {
+	{  2, 0x00B9 },     /* R2  - Analogue Lineout */
+	{  3, 0x00B9 },     /* R3  - Analogue Speaker PGA */
+	{  4, 0x0001 },     /* R4  - VMID Control */
+	{  5, 0x0068 },     /* R5  - Bias Control 1 */
+	{  7, 0x0000 },     /* R7  - Analogue Mixer */
+	{  8, 0x0000 },     /* R8  - Anti Pop Control */
+	{  9, 0x01DB },     /* R9  - Analogue Speaker 1 */
+	{ 10, 0x0018 },     /* R10 - Analogue Speaker 2 */
+	{ 11, 0x0180 },     /* R11 - Power Management */
+	{ 12, 0x0000 },     /* R12 - Clock Control 1 */
+	{ 13, 0x0038 },     /* R13 - Clock Control 2 */
+	{ 14, 0x4000 },     /* R14 - Clock Control 3 */
+	{ 16, 0x0000 },     /* R16 - FLL Control 1 */
+	{ 17, 0x0200 },     /* R17 - FLL Control 2 */
+	{ 18, 0x0000 },     /* R18 - FLL Control 3 */
+	{ 19, 0x0204 },     /* R19 - FLL Control 4 */
+	{ 20, 0x0000 },     /* R20 - FLL Control 5 */
+	{ 22, 0x0000 },     /* R22 - Audio Interface 1 */
+	{ 23, 0x0002 },     /* R23 - Audio Interface 2 */
+	{ 24, 0x0008 },     /* R24 - Audio Interface 3 */
+	{ 25, 0x0022 },     /* R25 - Audio Interface 4 */
+	{ 27, 0x0006 },     /* R27 - Interrupt Status Mask */
+	{ 28, 0x0000 },     /* R28 - Interrupt Polarity */
+	{ 29, 0x0000 },     /* R29 - Interrupt Control */
+	{ 30, 0x00C0 },     /* R30 - DAC Digital 1 */
+	{ 31, 0x0008 },     /* R31 - DAC Digital 2 */
+	{ 32, 0x09AF },     /* R32 - DRC 1 */
+	{ 33, 0x4201 },     /* R33 - DRC 2 */
+	{ 34, 0x0000 },     /* R34 - DRC 3 */
+	{ 35, 0x0000 },     /* R35 - DRC 4 */
+	{ 38, 0x0000 },     /* R38 - Write Sequencer 1 */
+	{ 39, 0x0000 },     /* R39 - Write Sequencer 2 */
+	{ 40, 0x0002 },     /* R40 - MW Slave 1 */
+	{ 42, 0x0000 },     /* R42 - EQ 1 */
+	{ 43, 0x0000 },     /* R43 - EQ 2 */
+	{ 44, 0x0FCA },     /* R44 - EQ 3 */
+	{ 45, 0x0400 },     /* R45 - EQ 4 */
+	{ 46, 0x00B8 },     /* R46 - EQ 5 */
+	{ 47, 0x1EB5 },     /* R47 - EQ 6 */
+	{ 48, 0xF145 },     /* R48 - EQ 7 */
+	{ 49, 0x0B75 },     /* R49 - EQ 8 */
+	{ 50, 0x01C5 },     /* R50 - EQ 9 */
+	{ 51, 0x169E },     /* R51 - EQ 10 */
+	{ 52, 0xF829 },     /* R52 - EQ 11 */
+	{ 53, 0x07AD },     /* R53 - EQ 12 */
+	{ 54, 0x1103 },     /* R54 - EQ 13 */
+	{ 55, 0x1C58 },     /* R55 - EQ 14 */
+	{ 56, 0xF373 },     /* R56 - EQ 15 */
+	{ 57, 0x0A54 },     /* R57 - EQ 16 */
+	{ 58, 0x0558 },     /* R58 - EQ 17 */
+	{ 59, 0x0564 },     /* R59 - EQ 18 */
+	{ 60, 0x0559 },     /* R60 - EQ 19 */
+	{ 61, 0x4000 },     /* R61 - EQ 20 */
 };
 
 static struct {
@@ -156,8 +147,7 @@ static struct {
 };
 
 struct wm9081_priv {
-	enum snd_soc_control_type control_type;
-	void *control_data;
+	struct regmap *regmap;
 	int sysclk_source;
 	int mclk_rate;
 	int sysclk_rate;
@@ -170,19 +160,84 @@ struct wm9081_priv {
 	struct wm9081_pdata pdata;
 };
 
-static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
+static bool wm9081_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM9081_SOFTWARE_RESET:
-		return 1;
+	case WM9081_INTERRUPT_STATUS:
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
-static int wm9081_reset(struct snd_soc_codec *codec)
+static bool wm9081_readable_register(struct device *dev, unsigned int reg)
 {
-	return snd_soc_write(codec, WM9081_SOFTWARE_RESET, 0);
+	switch (reg) {
+	case WM9081_SOFTWARE_RESET:
+	case WM9081_ANALOGUE_LINEOUT:
+	case WM9081_ANALOGUE_SPEAKER_PGA:
+	case WM9081_VMID_CONTROL:
+	case WM9081_BIAS_CONTROL_1:
+	case WM9081_ANALOGUE_MIXER:
+	case WM9081_ANTI_POP_CONTROL:
+	case WM9081_ANALOGUE_SPEAKER_1:
+	case WM9081_ANALOGUE_SPEAKER_2:
+	case WM9081_POWER_MANAGEMENT:
+	case WM9081_CLOCK_CONTROL_1:
+	case WM9081_CLOCK_CONTROL_2:
+	case WM9081_CLOCK_CONTROL_3:
+	case WM9081_FLL_CONTROL_1:
+	case WM9081_FLL_CONTROL_2:
+	case WM9081_FLL_CONTROL_3:
+	case WM9081_FLL_CONTROL_4:
+	case WM9081_FLL_CONTROL_5:
+	case WM9081_AUDIO_INTERFACE_1:
+	case WM9081_AUDIO_INTERFACE_2:
+	case WM9081_AUDIO_INTERFACE_3:
+	case WM9081_AUDIO_INTERFACE_4:
+	case WM9081_INTERRUPT_STATUS:
+	case WM9081_INTERRUPT_STATUS_MASK:
+	case WM9081_INTERRUPT_POLARITY:
+	case WM9081_INTERRUPT_CONTROL:
+	case WM9081_DAC_DIGITAL_1:
+	case WM9081_DAC_DIGITAL_2:
+	case WM9081_DRC_1:
+	case WM9081_DRC_2:
+	case WM9081_DRC_3:
+	case WM9081_DRC_4:
+	case WM9081_WRITE_SEQUENCER_1:
+	case WM9081_WRITE_SEQUENCER_2:
+	case WM9081_MW_SLAVE_1:
+	case WM9081_EQ_1:
+	case WM9081_EQ_2:
+	case WM9081_EQ_3:
+	case WM9081_EQ_4:
+	case WM9081_EQ_5:
+	case WM9081_EQ_6:
+	case WM9081_EQ_7:
+	case WM9081_EQ_8:
+	case WM9081_EQ_9:
+	case WM9081_EQ_10:
+	case WM9081_EQ_11:
+	case WM9081_EQ_12:
+	case WM9081_EQ_13:
+	case WM9081_EQ_14:
+	case WM9081_EQ_15:
+	case WM9081_EQ_16:
+	case WM9081_EQ_17:
+	case WM9081_EQ_18:
+	case WM9081_EQ_19:
+	case WM9081_EQ_20:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int wm9081_reset(struct regmap *map)
+{
+	return regmap_write(map, WM9081_SOFTWARE_RESET, 0x9081);
 }
 
 static const DECLARE_TLV_DB_SCALE(drc_in_tlv, -4500, 75, 0);
@@ -719,7 +774,7 @@ static const struct snd_soc_dapm_widget wm9081_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("IN1"),
 SND_SOC_DAPM_INPUT("IN2"),
 
-SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM9081_POWER_MANAGEMENT, 0, 0),
+SND_SOC_DAPM_DAC("DAC", NULL, WM9081_POWER_MANAGEMENT, 0, 0),
 
 SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
 			     mixer, ARRAY_SIZE(mixer)),
@@ -727,7 +782,7 @@ SND_SOC_DAPM_MIXER_NAMED_CTL("Mixer", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_PGA("LINEOUT PGA", WM9081_POWER_MANAGEMENT, 4, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA("Speaker PGA", WM9081_POWER_MANAGEMENT, 2, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Speaker", WM9081_POWER_MANAGEMENT, 1, 0, NULL, 0),
+SND_SOC_DAPM_OUT_DRV("Speaker", WM9081_POWER_MANAGEMENT, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_OUTPUT("LINEOUT"),
 SND_SOC_DAPM_OUTPUT("SPKN"),
@@ -737,12 +792,14 @@ SND_SOC_DAPM_SUPPLY("CLK_SYS", WM9081_CLOCK_CONTROL_3, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM9081_CLOCK_CONTROL_3, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM9081_CLOCK_CONTROL_3, 2, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("TSENSE", WM9081_POWER_MANAGEMENT, 7, 0, NULL, 0),
 };
 
 
 static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "DAC", NULL, "CLK_SYS" },
 	{ "DAC", NULL, "CLK_DSP" },
+	{ "DAC", NULL, "AIF" },
 
 	{ "Mixer", "IN1 Switch", "IN1" },
 	{ "Mixer", "IN2 Switch", "IN2" },
@@ -759,6 +816,7 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 	{ "Speaker PGA", NULL, "CLK_SYS" },
 
 	{ "Speaker", NULL, "Speaker PGA" },
+	{ "Speaker", NULL, "TSENSE" },
 
 	{ "SPKN", NULL, "Speaker" },
 	{ "SPKP", NULL, "Speaker" },
@@ -767,7 +825,7 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -775,76 +833,73 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VMID=2*40k */
-		reg = snd_soc_read(codec, WM9081_VMID_CONTROL);
-		reg &= ~WM9081_VMID_SEL_MASK;
-		reg |= 0x2;
-		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
+		snd_soc_update_bits(codec, WM9081_VMID_CONTROL,
+				    WM9081_VMID_SEL_MASK, 0x2);
 
 		/* Normal bias current */
-		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-		reg &= ~WM9081_STBY_BIAS_ENA;
-		snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
+		snd_soc_update_bits(codec, WM9081_BIAS_CONTROL_1,
+				    WM9081_STBY_BIAS_ENA, 0);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			regcache_cache_only(wm9081->regmap, false);
+			regcache_sync(wm9081->regmap);
+
 			/* Disable LINEOUT discharge */
-			reg = snd_soc_read(codec, WM9081_ANTI_POP_CONTROL);
-			reg &= ~WM9081_LINEOUT_DISCH;
-			snd_soc_write(codec, WM9081_ANTI_POP_CONTROL, reg);
+			snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
+					    WM9081_LINEOUT_DISCH, 0);
 
 			/* Select startup bias source */
-			reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-			reg |= WM9081_BIAS_SRC | WM9081_BIAS_ENA;
-			snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
+			snd_soc_update_bits(codec, WM9081_BIAS_CONTROL_1,
+					    WM9081_BIAS_SRC | WM9081_BIAS_ENA,
+					    WM9081_BIAS_SRC | WM9081_BIAS_ENA);
 
 			/* VMID 2*4k; Soft VMID ramp enable */
-			reg = snd_soc_read(codec, WM9081_VMID_CONTROL);
-			reg |= WM9081_VMID_RAMP | 0x6;
-			snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
+			snd_soc_update_bits(codec, WM9081_VMID_CONTROL,
+					    WM9081_VMID_RAMP |
+					    WM9081_VMID_SEL_MASK,
+					    WM9081_VMID_RAMP | 0x6);
 
 			mdelay(100);
 
 			/* Normal bias enable & soft start off */
-			reg |= WM9081_BIAS_ENA;
-			reg &= ~WM9081_VMID_RAMP;
-			snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
+			snd_soc_update_bits(codec, WM9081_VMID_CONTROL,
+					    WM9081_VMID_RAMP, 0);
 
 			/* Standard bias source */
-			reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-			reg &= ~WM9081_BIAS_SRC;
-			snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
+			snd_soc_update_bits(codec, WM9081_BIAS_CONTROL_1,
+					    WM9081_BIAS_SRC, 0);
 		}
 
 		/* VMID 2*240k */
-		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-		reg &= ~WM9081_VMID_SEL_MASK;
-		reg |= 0x40;
-		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
+		snd_soc_update_bits(codec, WM9081_VMID_CONTROL,
+				    WM9081_VMID_SEL_MASK, 0x04);
 
 		/* Standby bias current on */
-		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-		reg |= WM9081_STBY_BIAS_ENA;
-		snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
+		snd_soc_update_bits(codec, WM9081_BIAS_CONTROL_1,
+				    WM9081_STBY_BIAS_ENA,
+				    WM9081_STBY_BIAS_ENA);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		/* Startup bias source */
-		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
-		reg |= WM9081_BIAS_SRC;
-		snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
+		/* Startup bias source and disable bias */
+		snd_soc_update_bits(codec, WM9081_BIAS_CONTROL_1,
+				    WM9081_BIAS_SRC | WM9081_BIAS_ENA,
+				    WM9081_BIAS_SRC);
 
-		/* Disable VMID and biases with soft ramping */
-		reg = snd_soc_read(codec, WM9081_VMID_CONTROL);
-		reg &= ~(WM9081_VMID_SEL_MASK | WM9081_BIAS_ENA);
-		reg |= WM9081_VMID_RAMP;
-		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
+		/* Disable VMID with soft ramping */
+		snd_soc_update_bits(codec, WM9081_VMID_CONTROL,
+				    WM9081_VMID_RAMP | WM9081_VMID_SEL_MASK,
+				    WM9081_VMID_RAMP);
 
 		/* Actively discharge LINEOUT */
-		reg = snd_soc_read(codec, WM9081_ANTI_POP_CONTROL);
-		reg |= WM9081_LINEOUT_DISCH;
-		snd_soc_write(codec, WM9081_ANTI_POP_CONTROL, reg);
+		snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
+				    WM9081_LINEOUT_DISCH,
+				    WM9081_LINEOUT_DISCH);
+
+		regcache_cache_only(wm9081->regmap, true);
 		break;
 	}
 
@@ -1120,8 +1175,8 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm9081_set_sysclk(struct snd_soc_codec *codec,
-			     int clk_id, unsigned int freq, int dir)
+static int wm9081_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+			     int source, unsigned int freq, int dir)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
@@ -1185,7 +1240,7 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm9081_dai_ops = {
+static const struct snd_soc_dai_ops wm9081_dai_ops = {
 	.hw_params = wm9081_hw_params,
 	.set_fmt = wm9081_set_dai_fmt,
 	.digital_mute = wm9081_digital_mute,
@@ -1198,7 +1253,7 @@ static struct snd_soc_dai_ops wm9081_dai_ops = {
 static struct snd_soc_dai_driver wm9081_dai = {
 	.name = "wm9081-hifi",
 	.playback = {
-		.stream_name = "HiFi Playback",
+		.stream_name = "AIF",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM9081_RATES,
@@ -1211,51 +1266,25 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	u16 reg;
 
-	codec->control_data = wm9081->control_data;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm9081->control_type);
+	codec->control_data = wm9081->regmap;
+
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
 
-	reg = snd_soc_read(codec, WM9081_SOFTWARE_RESET);
-	if (reg != 0x9081) {
-		dev_err(codec->dev, "Device is not a WM9081: ID=0x%x\n", reg);
-		ret = -EINVAL;
-		return ret;
-	}
-
-	ret = wm9081_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
-	}
-
-	reg = 0;
-	if (wm9081->pdata.irq_high)
-		reg |= WM9081_IRQ_POL;
-	if (!wm9081->pdata.irq_cmos)
-		reg |= WM9081_IRQ_OP_CTRL;
-	snd_soc_update_bits(codec, WM9081_INTERRUPT_CONTROL,
-			    WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	/* Enable zero cross by default */
-	reg = snd_soc_read(codec, WM9081_ANALOGUE_LINEOUT);
-	snd_soc_write(codec, WM9081_ANALOGUE_LINEOUT, reg | WM9081_LINEOUTZC);
-	reg = snd_soc_read(codec, WM9081_ANALOGUE_SPEAKER_PGA);
-	snd_soc_write(codec, WM9081_ANALOGUE_SPEAKER_PGA,
-		     reg | WM9081_SPKPGAZC);
+	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
+			    WM9081_LINEOUTZC, WM9081_LINEOUTZC);
+	snd_soc_update_bits(codec, WM9081_ANALOGUE_SPEAKER_PGA,
+			    WM9081_SPKPGAZC, WM9081_SPKPGAZC);
 
-	snd_soc_add_controls(codec, wm9081_snd_controls,
-			     ARRAY_SIZE(wm9081_snd_controls));
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
-		snd_soc_add_controls(codec, wm9081_eq_controls,
+		snd_soc_add_codec_controls(codec, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 
@@ -1268,85 +1297,98 @@ static int wm9081_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm9081_suspend(struct snd_soc_codec *codec, pm_message_t state)
-{
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9081_resume(struct snd_soc_codec *codec)
-{
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		if (i == WM9081_SOFTWARE_RESET)
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9081_suspend NULL
-#define wm9081_resume NULL
-#endif
-
 static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
 	.remove = 	wm9081_remove,
-	.suspend =	wm9081_suspend,
-	.resume =	wm9081_resume,
 
 	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
 
-	.reg_cache_size = ARRAY_SIZE(wm9081_reg_defaults),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_default = wm9081_reg_defaults,
-	.volatile_register = wm9081_volatile_register,
+	.idle_bias_off = true,
 
+	.controls         = wm9081_snd_controls,
+	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
 	.dapm_widgets	  = wm9081_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
 	.dapm_routes     = wm9081_audio_paths,
 	.num_dapm_routes = ARRAY_SIZE(wm9081_audio_paths),
 };
 
+static const struct regmap_config wm9081_regmap = {
+	.reg_bits = 8,
+	.val_bits = 16,
+
+	.max_register = WM9081_MAX_REGISTER,
+	.reg_defaults = wm9081_reg,
+	.num_reg_defaults = ARRAY_SIZE(wm9081_reg),
+	.volatile_reg = wm9081_volatile_register,
+	.readable_reg = wm9081_readable_register,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int wm9081_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct wm9081_priv *wm9081;
+	unsigned int reg;
 	int ret;
 
-	wm9081 = kzalloc(sizeof(struct wm9081_priv), GFP_KERNEL);
+	wm9081 = devm_kzalloc(&i2c->dev, sizeof(struct wm9081_priv),
+			      GFP_KERNEL);
 	if (wm9081 == NULL)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm9081);
-	wm9081->control_type = SND_SOC_I2C;
-	wm9081->control_data = i2c;
+
+	wm9081->regmap = devm_regmap_init_i2c(i2c, &wm9081_regmap);
+	if (IS_ERR(wm9081->regmap)) {
+		ret = PTR_ERR(wm9081->regmap);
+		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_read(wm9081->regmap, WM9081_SOFTWARE_RESET, &reg);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read chip ID: %d\n", ret);
+		return ret;
+	}
+	if (reg != 0x9081) {
+		dev_err(&i2c->dev, "Device is not a WM9081: ID=0x%x\n", reg);
+		return -EINVAL;
+	}
+
+	ret = wm9081_reset(wm9081->regmap);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to issue reset\n");
+		return ret;
+	}
 
 	if (dev_get_platdata(&i2c->dev))
 		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),
 		       sizeof(wm9081->pdata));
 
+	reg = 0;
+	if (wm9081->pdata.irq_high)
+		reg |= WM9081_IRQ_POL;
+	if (!wm9081->pdata.irq_cmos)
+		reg |= WM9081_IRQ_OP_CTRL;
+	regmap_update_bits(wm9081->regmap, WM9081_INTERRUPT_CONTROL,
+			   WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
+
+	regcache_cache_only(wm9081->regmap, true);
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
 	if (ret < 0)
-		kfree(wm9081);
-	return ret;
+		return ret;
+
+	return 0;
 }
 
-static __devexit int wm9081_i2c_remove(struct i2c_client *client)
+static int wm9081_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -1362,33 +1404,12 @@ static struct i2c_driver wm9081_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm9081_i2c_probe,
-	.remove =   __devexit_p(wm9081_i2c_remove),
+	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
 #endif
 
-static int __init wm9081_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm9081_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM9081 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm9081_modinit);
-
-static void __exit wm9081_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm9081_i2c_driver);
-#endif
-}
-module_exit(wm9081_exit);
-
+module_i2c_driver(wm9081_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM9081 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

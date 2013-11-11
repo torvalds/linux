@@ -13,6 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
 #include <asm/io.h>
@@ -61,14 +62,14 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	dampr2 = __get_DAMPR(2);
 
 	for (i = 0; i < nents; i++) {
-		vaddr = kmap_atomic_primary(sg_page(&sg[i]), __KM_CACHE);
+		vaddr = kmap_atomic_primary(sg_page(&sg[i]));
 
 		frv_dcache_writeback((unsigned long) vaddr,
 				     (unsigned long) vaddr + PAGE_SIZE);
 
 	}
 
-	kunmap_atomic_primary(vaddr, __KM_CACHE);
+	kunmap_atomic_primary(vaddr);
 	if (dampr2) {
 		__set_DAMPR(2, dampr2);
 		__set_IAMPR(2, dampr2);

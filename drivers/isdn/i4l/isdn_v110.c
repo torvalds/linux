@@ -26,8 +26,8 @@ char *isdn_v110_revision = "$Revision: 1.1.2.2 $";
 #define V110_19200  15
 #define V110_9600    3
 
-/* 
- * The following data are precoded matrices, online and offline matrix 
+/*
+ * The following data are precoded matrices, online and offline matrix
  * for 9600, 19200 und 38400, respectively
  */
 static unsigned char V110_OnMatrix_9600[] =
@@ -56,7 +56,7 @@ static unsigned char V110_OnMatrix_38400[] =
 static unsigned char V110_OffMatrix_38400[] =
 {0x00, 0xff, 0xff, 0xff, 0xff, 0xfd, 0xff, 0xff, 0xff, 0xff};
 
-/* 
+/*
  * FlipBits reorders sequences of keylen bits in one byte.
  * E.g. source order 7654321 will be converted to 45670123 when keylen = 4,
  * and to 67452301 when keylen = 2. This is necessary because ordering on
@@ -103,18 +103,18 @@ isdn_v110_open(unsigned char key, int hdrlen, int maxsize)
 	v->decodelen = 0;
 
 	switch (key) {
-		case V110_38400:
-			v->OnlineFrame = V110_OnMatrix_38400;
-			v->OfflineFrame = V110_OffMatrix_38400;
-			break;
-		case V110_19200:
-			v->OnlineFrame = V110_OnMatrix_19200;
-			v->OfflineFrame = V110_OffMatrix_19200;
-			break;
-		default:
-			v->OnlineFrame = V110_OnMatrix_9600;
-			v->OfflineFrame = V110_OffMatrix_9600;
-			break;
+	case V110_38400:
+		v->OnlineFrame = V110_OnMatrix_38400;
+		v->OfflineFrame = V110_OffMatrix_38400;
+		break;
+	case V110_19200:
+		v->OnlineFrame = V110_OnMatrix_19200;
+		v->OfflineFrame = V110_OffMatrix_19200;
+		break;
+	default:
+		v->OnlineFrame = V110_OnMatrix_9600;
+		v->OfflineFrame = V110_OffMatrix_9600;
+		break;
 	}
 	v->framelen = v->nbytes * 10;
 	v->SyncInit = 5;
@@ -132,7 +132,7 @@ isdn_v110_open(unsigned char key, int hdrlen, int maxsize)
 
 /* isdn_v110_close frees private V.110 data structures */
 void
-isdn_v110_close(isdn_v110_stream * v)
+isdn_v110_close(isdn_v110_stream *v)
 {
 	if (v == NULL)
 		return;
@@ -144,11 +144,11 @@ isdn_v110_close(isdn_v110_stream * v)
 }
 
 
-/* 
- * ValidHeaderBytes return the number of valid bytes in v->decodebuf 
+/*
+ * ValidHeaderBytes return the number of valid bytes in v->decodebuf
  */
 static int
-ValidHeaderBytes(isdn_v110_stream * v)
+ValidHeaderBytes(isdn_v110_stream *v)
 {
 	int i;
 	for (i = 0; (i < v->decodelen) && (i < v->nbytes); i++)
@@ -157,11 +157,11 @@ ValidHeaderBytes(isdn_v110_stream * v)
 	return i;
 }
 
-/* 
- * SyncHeader moves the decodebuf ptr to the next valid header 
+/*
+ * SyncHeader moves the decodebuf ptr to the next valid header
  */
 static void
-SyncHeader(isdn_v110_stream * v)
+SyncHeader(isdn_v110_stream *v)
 {
 	unsigned char *rbuf = v->decodebuf;
 	int len = v->decodelen;
@@ -185,9 +185,9 @@ SyncHeader(isdn_v110_stream * v)
    only complete matices must be given.
    From these, netto data is extracted and returned in buf. The return-value
    is the bytecount of the decoded data.
- */
+*/
 static int
-DecodeMatrix(isdn_v110_stream * v, unsigned char *m, int len, unsigned char *buf)
+DecodeMatrix(isdn_v110_stream *v, unsigned char *m, int len, unsigned char *buf)
 {
 	int line = 0;
 	int buflen = 0;
@@ -203,7 +203,7 @@ DecodeMatrix(isdn_v110_stream * v, unsigned char *m, int len, unsigned char *buf
 				printk(KERN_DEBUG "isdn_v110: DecodeMatrix, V110 Bad Header\n");
 				/* returning now is not the right thing, though :-( */
 #endif
-			} 
+			}
 			line++; /* next line of matrix */
 			continue;
 		} else if ((line % 10) == 5) {	/* in line 5 there's only e-bits ! */
@@ -217,7 +217,7 @@ DecodeMatrix(isdn_v110_stream * v, unsigned char *m, int len, unsigned char *buf
 			continue;
 		} else if (!introducer) {	/* every byte starts with 10 (stopbit, startbit) */
 			introducer = (m[line] & mbit) ? 0 : 1;	/* current bit of the matrix */
-		      next_byte:
+		next_byte:
 			if (mbit > 2) {	/* was it the last bit in this line ? */
 				mbit >>= 1;	/* no -> take next */
 				continue;
@@ -246,13 +246,13 @@ DecodeMatrix(isdn_v110_stream * v, unsigned char *m, int len, unsigned char *buf
 	return buflen;          /* return number of bytes in the output buffer */
 }
 
-/* 
- * DecodeStream receives V.110 coded data from the input stream. It recovers the 
+/*
+ * DecodeStream receives V.110 coded data from the input stream. It recovers the
  * original frames.
  * The input stream doesn't need to be framed
  */
 struct sk_buff *
-isdn_v110_decode(isdn_v110_stream * v, struct sk_buff *skb)
+isdn_v110_decode(isdn_v110_stream *v, struct sk_buff *skb)
 {
 	int i;
 	int j;
@@ -283,7 +283,7 @@ isdn_v110_decode(isdn_v110_stream * v, struct sk_buff *skb)
 	/* copy new data to decode-buffer */
 	memcpy(&(v->decodebuf[v->decodelen]), rbuf, len);
 	v->decodelen += len;
-      ReSync:
+ReSync:
 	if (v->decodelen < v->nbytes) {	/* got a new header ? */
 		dev_kfree_skb(skb);
 		return NULL;    /* no, try later      */
@@ -320,7 +320,7 @@ isdn_v110_decode(isdn_v110_stream * v, struct sk_buff *skb)
 /* EncodeMatrix takes input data in buf, len is the bytecount.
    Data is encoded into v110 frames in m. Return value is the number of
    matrix-lines generated.
- */
+*/
 static int
 EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 {
@@ -333,14 +333,14 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 
 	while ((i < len) && (line < mlen)) {	/* while we still have input data */
 		switch (line % 10) {	/* in which line of the matrix are we? */
-			case 0:
-				m[line++] = 0x00;	/* line 0 is always 0 */
-				mbit = 128;	/* go on with the 7th bit */
-				break;
-			case 5:
-				m[line++] = 0xbf;	/* line 5 is always 10111111 */
-				mbit = 128;	/* go on with the 7th bit */
-				break;
+		case 0:
+			m[line++] = 0x00;	/* line 0 is always 0 */
+			mbit = 128;	/* go on with the 7th bit */
+			break;
+		case 5:
+			m[line++] = 0xbf;	/* line 5 is always 10111111 */
+			mbit = 128;	/* go on with the 7th bit */
+			break;
 		}
 		if (line >= mlen) {
 			printk(KERN_WARNING "isdn_v110 (EncodeMatrix): buffer full!\n");
@@ -348,16 +348,16 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 		}
 	next_bit:
 		switch (mbit) { /* leftmost or rightmost bit ? */
-			case 1:
-				line++;	/* rightmost -> go to next line */
-				if (line >= mlen) {
-					printk(KERN_WARNING "isdn_v110 (EncodeMatrix): buffer full!\n");
-					return line;
-				}
-			case 128:
-				m[line] = 128;	/* leftmost -> set byte to 1000000 */
-				mbit = 64;	/* current bit in the matrix line */
-				continue;
+		case 1:
+			line++;	/* rightmost -> go to next line */
+			if (line >= mlen) {
+				printk(KERN_WARNING "isdn_v110 (EncodeMatrix): buffer full!\n");
+				return line;
+			}
+		case 128:
+			m[line] = 128;	/* leftmost -> set byte to 1000000 */
+			mbit = 64;	/* current bit in the matrix line */
+			continue;
 		}
 		if (introducer) {	/* set 110 sequence ? */
 			introducer--;	/* set on digit less */
@@ -384,24 +384,24 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 	/* if necessary, generate remaining lines of the matrix... */
 	if ((line) && ((line + 10) < mlen))
 		switch (++line % 10) {
-			case 1:
-				m[line++] = 0xfe;
-			case 2:
-				m[line++] = 0xfe;
-			case 3:
-				m[line++] = 0xfe;
-			case 4:
-				m[line++] = 0xfe;
-			case 5:
-				m[line++] = 0xbf;
-			case 6:
-				m[line++] = 0xfe;
-			case 7:
-				m[line++] = 0xfe;
-			case 8:
-				m[line++] = 0xfe;
-			case 9:
-				m[line++] = 0xfe;
+		case 1:
+			m[line++] = 0xfe;
+		case 2:
+			m[line++] = 0xfe;
+		case 3:
+			m[line++] = 0xfe;
+		case 4:
+			m[line++] = 0xfe;
+		case 5:
+			m[line++] = 0xbf;
+		case 6:
+			m[line++] = 0xfe;
+		case 7:
+			m[line++] = 0xfe;
+		case 8:
+			m[line++] = 0xfe;
+		case 9:
+			m[line++] = 0xfe;
 		}
 	return line;            /* that's how many lines we have */
 }
@@ -447,7 +447,7 @@ isdn_v110_idle(isdn_v110_stream *v)
 }
 
 struct sk_buff *
-isdn_v110_encode(isdn_v110_stream * v, struct sk_buff *skb)
+isdn_v110_encode(isdn_v110_stream *v, struct sk_buff *skb)
 {
 	int i;
 	int j;
@@ -524,93 +524,93 @@ isdn_v110_stat_callback(int idx, isdn_ctrl *c)
 	if (idx < 0)
 		return 0;
 	switch (c->command) {
-		case ISDN_STAT_BSENT:
-                        /* Keep the send-queue of the driver filled
-			 * with frames:
-			 * If number of outstanding frames < 3,
-			 * send down an Idle-Frame (or an Sync-Frame, if
-			 * v->SyncInit != 0). 
-			 */
-			if (!(v = dev->v110[idx]))
-				return 0;
-			atomic_inc(&dev->v110use[idx]);
-			for (i=0; i * v->framelen < c->parm.length; i++) {
-				if (v->skbidle > 0) {
-					v->skbidle--;
-					ret = 1;
-				} else {
-					if (v->skbuser > 0)
-						v->skbuser--;
-					ret = 0;
-				}
+	case ISDN_STAT_BSENT:
+		/* Keep the send-queue of the driver filled
+		 * with frames:
+		 * If number of outstanding frames < 3,
+		 * send down an Idle-Frame (or an Sync-Frame, if
+		 * v->SyncInit != 0).
+		 */
+		if (!(v = dev->v110[idx]))
+			return 0;
+		atomic_inc(&dev->v110use[idx]);
+		for (i = 0; i * v->framelen < c->parm.length; i++) {
+			if (v->skbidle > 0) {
+				v->skbidle--;
+				ret = 1;
+			} else {
+				if (v->skbuser > 0)
+					v->skbuser--;
+				ret = 0;
 			}
-			for (i = v->skbuser + v->skbidle; i < 2; i++) {
-				struct sk_buff *skb;
-				if (v->SyncInit > 0)
-					skb = isdn_v110_sync(v);
-				else
-					skb = isdn_v110_idle(v);
-				if (skb) {
+		}
+		for (i = v->skbuser + v->skbidle; i < 2; i++) {
+			struct sk_buff *skb;
+			if (v->SyncInit > 0)
+				skb = isdn_v110_sync(v);
+			else
+				skb = isdn_v110_idle(v);
+			if (skb) {
+				if (dev->drv[c->driver]->interface->writebuf_skb(c->driver, c->arg, 1, skb) <= 0) {
+					dev_kfree_skb(skb);
+					break;
+				} else {
+					if (v->SyncInit)
+						v->SyncInit--;
+					v->skbidle++;
+				}
+			} else
+				break;
+		}
+		atomic_dec(&dev->v110use[idx]);
+		return ret;
+	case ISDN_STAT_DHUP:
+	case ISDN_STAT_BHUP:
+		while (1) {
+			atomic_inc(&dev->v110use[idx]);
+			if (atomic_dec_and_test(&dev->v110use[idx])) {
+				isdn_v110_close(dev->v110[idx]);
+				dev->v110[idx] = NULL;
+				break;
+			}
+			mdelay(1);
+		}
+		break;
+	case ISDN_STAT_BCONN:
+		if (dev->v110emu[idx] && (dev->v110[idx] == NULL)) {
+			int hdrlen = dev->drv[c->driver]->interface->hl_hdrlen;
+			int maxsize = dev->drv[c->driver]->interface->maxbufsize;
+			atomic_inc(&dev->v110use[idx]);
+			switch (dev->v110emu[idx]) {
+			case ISDN_PROTO_L2_V11096:
+				dev->v110[idx] = isdn_v110_open(V110_9600, hdrlen, maxsize);
+				break;
+			case ISDN_PROTO_L2_V11019:
+				dev->v110[idx] = isdn_v110_open(V110_19200, hdrlen, maxsize);
+				break;
+			case ISDN_PROTO_L2_V11038:
+				dev->v110[idx] = isdn_v110_open(V110_38400, hdrlen, maxsize);
+				break;
+			default:;
+			}
+			if ((v = dev->v110[idx])) {
+				while (v->SyncInit) {
+					struct sk_buff *skb = isdn_v110_sync(v);
 					if (dev->drv[c->driver]->interface->writebuf_skb(c->driver, c->arg, 1, skb) <= 0) {
 						dev_kfree_skb(skb);
+						/* Unable to send, try later */
 						break;
-					} else {
-						if (v->SyncInit)
-							v->SyncInit--;
-						v->skbidle++;
 					}
-				} else
-					break;
-			}
+					v->SyncInit--;
+					v->skbidle++;
+				}
+			} else
+				printk(KERN_WARNING "isdn_v110: Couldn't open stream for chan %d\n", idx);
 			atomic_dec(&dev->v110use[idx]);
-			return ret;
-		case ISDN_STAT_DHUP:
-		case ISDN_STAT_BHUP:
-			while (1) {
-				atomic_inc(&dev->v110use[idx]);
-				if (atomic_dec_and_test(&dev->v110use[idx])) {
-					isdn_v110_close(dev->v110[idx]);
-					dev->v110[idx] = NULL;
-					break;
-				}
-				mdelay(1);
-			}
-			break;
-		case ISDN_STAT_BCONN:
-			if (dev->v110emu[idx] && (dev->v110[idx] == NULL)) {
-				int hdrlen = dev->drv[c->driver]->interface->hl_hdrlen;
-				int maxsize = dev->drv[c->driver]->interface->maxbufsize;
-				atomic_inc(&dev->v110use[idx]);
-				switch (dev->v110emu[idx]) {
-					case ISDN_PROTO_L2_V11096:
-						dev->v110[idx] = isdn_v110_open(V110_9600, hdrlen, maxsize);
-						break;
-					case ISDN_PROTO_L2_V11019:
-						dev->v110[idx] = isdn_v110_open(V110_19200, hdrlen, maxsize);
-						break;
-					case ISDN_PROTO_L2_V11038:
-						dev->v110[idx] = isdn_v110_open(V110_38400, hdrlen, maxsize);
-						break;
-					default:;
-				}
-				if ((v = dev->v110[idx])) {
-					while (v->SyncInit) {
-						struct sk_buff *skb = isdn_v110_sync(v);
-						if (dev->drv[c->driver]->interface->writebuf_skb(c->driver, c->arg, 1, skb) <= 0) {
-							dev_kfree_skb(skb);
-							/* Unable to send, try later */
-							break;
-						}
-						v->SyncInit--;
-						v->skbidle++;
-					}
-				} else
-					printk(KERN_WARNING "isdn_v110: Couldn't open stream for chan %d\n", idx);
-				atomic_dec(&dev->v110use[idx]);
-			}
-			break;
-		default:
-			return 0;
+		}
+		break;
+	default:
+		return 0;
 	}
 	return 0;
 }

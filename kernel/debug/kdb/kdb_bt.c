@@ -15,7 +15,6 @@
 #include <linux/sched.h>
 #include <linux/kdb.h>
 #include <linux/nmi.h>
-#include <asm/system.h>
 #include "kdb_private.h"
 
 
@@ -112,9 +111,8 @@ kdb_bt(int argc, const char **argv)
 	unsigned long addr;
 	long offset;
 
-	kdbgetintenv("BTARGS", &argcount);	/* Arguments to print */
-	kdbgetintenv("BTAPROMPT", &btaprompt);	/* Prompt after each
-						 * proc in bta */
+	/* Prompt after each proc in bta */
+	kdbgetintenv("BTAPROMPT", &btaprompt);
 
 	if (strcmp(argv[0], "bta") == 0) {
 		struct task_struct *g, *p;
@@ -131,6 +129,8 @@ kdb_bt(int argc, const char **argv)
 		}
 		/* Now the inactive tasks */
 		kdb_do_each_thread(g, p) {
+			if (KDB_FLAG(CMD_INTERRUPT))
+				return 0;
 			if (task_curr(p))
 				continue;
 			if (kdb_bt1(p, mask, argcount, btaprompt))

@@ -3,7 +3,8 @@ if ETRAX_ARCH_V32
 config ETRAX_ETHERNET
 	bool "Ethernet support"
 	depends on ETRAX_ARCH_V32
-	select NET_ETHERNET
+	select ETHERNET
+	select NET_CORE
 	select MII
 	help
 	  This option enables the ETRAX FS built-in 10/100Mbit Ethernet
@@ -403,7 +404,6 @@ config ETRAX_AXISFLASHMAP
 	select MTD_CFI
 	select MTD_CFI_AMDSTD
 	select MTD_JEDECPROBE
-	select MTD_CHAR
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
 	help
@@ -679,7 +679,7 @@ config ETRAX_SPI_MMC_BOARD
 
 config SPI_ETRAX_SSER
 	tristate
-	depends on SPI_MASTER && ETRAX_ARCH_V32 && EXPERIMENTAL
+	depends on SPI_MASTER && ETRAX_ARCH_V32
 	select SPI_BITBANG
 	help
 	  This enables using an synchronous serial (sser) port as a
@@ -688,7 +688,7 @@ config SPI_ETRAX_SSER
 
 config SPI_ETRAX_GPIO
 	tristate
-	depends on SPI_MASTER && ETRAX_ARCH_V32 && EXPERIMENTAL
+	depends on SPI_MASTER && ETRAX_ARCH_V32
 	select SPI_BITBANG
 	help
 	  This enables using GPIO pins port as a SPI master controller

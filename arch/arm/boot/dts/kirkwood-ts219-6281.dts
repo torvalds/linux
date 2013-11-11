@@ -1,0 +1,52 @@
+/dts-v1/;
+
+/include/ "kirkwood-ts219.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_uart0 &pmx_uart1 &pmx_spi
+				      &pmx_twsi0 &pmx_sata0 &pmx_sata1
+				      &pmx_ram_size &pmx_reset_button
+				      &pmx_USB_copy_button &pmx_board_id>;
+			pinctrl-names = "default";
+
+			pmx_ram_size: pmx-ram-size {
+				/* RAM: 0: 256 MB, 1: 512 MB */
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_USB_copy_button: pmx-USB-copy-button {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+			pmx_reset_button: pmx-reset-button {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+			pmx_board_id: pmx-board-id {
+				/* 0: TS-11x, 1: TS-21x */
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "USB Copy";
+			linux,code = <133>;
+			gpios = <&gpio0 15 1>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 16 1>;
+		};
+	};
+};

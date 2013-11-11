@@ -76,6 +76,7 @@ config MISDN_NETJET
 	tristate "Support for NETJet cards"
 	depends on MISDN
 	depends on PCI
+	depends on TTY
 	select MISDN_IPAC
 	select ISDN_HDLC
 	select ISDN_I4L

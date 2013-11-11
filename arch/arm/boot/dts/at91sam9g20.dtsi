@@ -1,0 +1,30 @@
+/*
+ * at91sam9g20.dtsi - Device Tree Include file for AT91SAM9G20 family SoC
+ *
+ *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+/include/ "at91sam9260.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G20 family SoC";
+	compatible = "atmel,at91sam9g20";
+
+	memory {
+		reg = <0x20000000 0x08000000>;
+	};
+
+	ahb {
+		apb {
+			i2c0: i2c@fffac000 {
+				compatible = "atmel,at91sam9g20-i2c";
+			};
+
+			adc0: adc@fffe0000 {
+				atmel,adc-startup-time = <40>;
+			};
+		};
+	};
+};

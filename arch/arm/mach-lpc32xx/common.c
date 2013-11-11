@@ -26,74 +26,11 @@
 #include <linux/io.h>
 
 #include <asm/mach/map.h>
+#include <asm/system_info.h>
 
-#include <mach/i2c.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include "common.h"
-
-/*
- * Watchdog timer
- */
-static struct resource watchdog_resources[] = {
-	[0] = {
-		.start = LPC32XX_WDTIM_BASE,
-		.end = LPC32XX_WDTIM_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device lpc32xx_watchdog_device = {
-	.name = "pnx4008-watchdog",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(watchdog_resources),
-	.resource = watchdog_resources,
-};
-
-/*
- * I2C busses
- */
-static struct i2c_pnx_data i2c0_data = {
-	.name = I2C_CHIP_NAME "1",
-	.base = LPC32XX_I2C1_BASE,
-	.irq = IRQ_LPC32XX_I2C_1,
-};
-
-static struct i2c_pnx_data i2c1_data = {
-	.name = I2C_CHIP_NAME "2",
-	.base = LPC32XX_I2C2_BASE,
-	.irq = IRQ_LPC32XX_I2C_2,
-};
-
-static struct i2c_pnx_data i2c2_data = {
-	.name = "USB-I2C",
-	.base = LPC32XX_OTG_I2C_BASE,
-	.irq = IRQ_LPC32XX_USB_I2C,
-};
-
-struct platform_device lpc32xx_i2c0_device = {
-	.name = "pnx-i2c",
-	.id = 0,
-	.dev = {
-		.platform_data = &i2c0_data,
-	},
-};
-
-struct platform_device lpc32xx_i2c1_device = {
-	.name = "pnx-i2c",
-	.id = 1,
-	.dev = {
-		.platform_data = &i2c1_data,
-	},
-};
-
-struct platform_device lpc32xx_i2c2_device = {
-	.name = "pnx-i2c",
-	.id = 2,
-	.dev = {
-		.platform_data = &i2c2_data,
-	},
-};
 
 /*
  * Returns the unique ID for the device
@@ -122,7 +59,7 @@ int clk_is_sysclk_mainosc(void)
 /*
  * System reset via the watchdog timer
  */
-void lpc32xx_watchdog_reset(void)
+static void lpc32xx_watchdog_reset(void)
 {
 	/* Make sure WDT clocks are enabled */
 	__raw_writel(LPC32XX_CLKPWR_PWMCLK_WDOG_EN,
@@ -240,25 +177,25 @@ u32 clk_get_pclk_div(void)
 
 static struct map_desc lpc32xx_io_desc[] __initdata = {
 	{
-		.virtual	= IO_ADDRESS(LPC32XX_AHB0_START),
+		.virtual	= (unsigned long)IO_ADDRESS(LPC32XX_AHB0_START),
 		.pfn		= __phys_to_pfn(LPC32XX_AHB0_START),
 		.length		= LPC32XX_AHB0_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= IO_ADDRESS(LPC32XX_AHB1_START),
+		.virtual	= (unsigned long)IO_ADDRESS(LPC32XX_AHB1_START),
 		.pfn		= __phys_to_pfn(LPC32XX_AHB1_START),
 		.length		= LPC32XX_AHB1_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= IO_ADDRESS(LPC32XX_FABAPB_START),
+		.virtual	= (unsigned long)IO_ADDRESS(LPC32XX_FABAPB_START),
 		.pfn		= __phys_to_pfn(LPC32XX_FABAPB_START),
 		.length		= LPC32XX_FABAPB_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= IO_ADDRESS(LPC32XX_IRAM_BASE),
+		.virtual	= (unsigned long)IO_ADDRESS(LPC32XX_IRAM_BASE),
 		.pfn		= __phys_to_pfn(LPC32XX_IRAM_BASE),
 		.length		= (LPC32XX_IRAM_BANK_SIZE * 2),
 		.type		= MT_DEVICE
@@ -269,3 +206,39 @@ void __init lpc32xx_map_io(void)
 {
 	iotable_init(lpc32xx_io_desc, ARRAY_SIZE(lpc32xx_io_desc));
 }
+
+void lpc23xx_restart(char mode, const char *cmd)
+{
+	switch (mode) {
+	case 's':
+	case 'h':
+		lpc32xx_watchdog_reset();
+		break;
+
+	default:
+		/* Do nothing */
+		break;
+	}
+
+	/* Wait for watchdog to reset system */
+	while (1)
+		;
+}
+
+static int __init lpc32xx_check_uid(void)
+{
+	u32 uid[4];
+
+	lpc32xx_get_uid(uid);
+
+	printk(KERN_INFO "LPC32XX unique ID: %08x%08x%08x%08x\n",
+		uid[3], uid[2], uid[1], uid[0]);
+
+	if (!system_serial_low && !system_serial_high) {
+		system_serial_low = uid[0];
+		system_serial_high = uid[1];
+	}
+
+	return 1;
+}
+arch_initcall(lpc32xx_check_uid);

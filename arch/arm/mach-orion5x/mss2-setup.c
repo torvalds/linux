@@ -73,7 +73,7 @@ static struct platform_device mss2_nor_flash = {
 /****************************************************************************
  * PCI setup
  ****************************************************************************/
-static int __init mss2_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init mss2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -89,7 +89,6 @@ static int __init mss2_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 static struct hw_pci mss2_pci __initdata = {
 	.nr_controllers = 2,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= mss2_pci_map_irq,
@@ -242,7 +241,8 @@ static void __init mss2_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(MSS2_NOR_BOOT_BASE, MSS2_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", MSS2_NOR_BOOT_BASE,
+			      MSS2_NOR_BOOT_SIZE);
 	platform_device_register(&mss2_nor_flash);
 
 	platform_device_register(&mss2_button_device);
@@ -261,11 +261,12 @@ static void __init mss2_init(void)
 
 MACHINE_START(MSS2, "Maxtor Shared Storage II")
 	/* Maintainer: Sylver Bruneau <sylver.bruneau@googlemail.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= mss2_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
-	.fixup		= tag_fixup_mem32
+	.init_time	= orion5x_timer_init,
+	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END

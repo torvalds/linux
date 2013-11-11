@@ -96,6 +96,15 @@
 #define R600_CONFIG_F0_BASE                                     0x542C
 #define R600_CONFIG_APER_SIZE                                   0x5430
 
+#define	R600_BIF_FB_EN						0x5490
+#define		R600_FB_READ_EN					(1 << 0)
+#define		R600_FB_WRITE_EN				(1 << 1)
+
+#define R600_CITF_CNTL           				0x200c
+#define		R600_BLACKOUT_MASK				0x00000003
+
+#define R700_MC_CITF_CNTL           				0x25c0
+
 #define R600_ROM_CNTL                              0x1600
 #       define R600_SCK_OVERWRITE                  (1 << 1)
 #       define R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT 28
@@ -156,45 +165,10 @@
 #define R600_AUDIO_PIN_WIDGET_CNTL        0x73d4
 #define R600_AUDIO_STATUS_BITS            0x73d8
 
-/* HDMI base register addresses */
-#define R600_HDMI_BLOCK1                  0x7400
-#define R600_HDMI_BLOCK2                  0x7700
-#define R600_HDMI_BLOCK3                  0x7800
-
-/* HDMI registers */
-#define R600_HDMI_ENABLE                0x00
-#define R600_HDMI_STATUS                0x04
-#       define R600_HDMI_INT_PENDING    (1 << 29)
-#define R600_HDMI_CNTL                  0x08
-#       define R600_HDMI_INT_EN         (1 << 28)
-#       define R600_HDMI_INT_ACK        (1 << 29)
-#define R600_HDMI_UNKNOWN_0             0x0C
-#define R600_HDMI_AUDIOCNTL             0x10
-#define R600_HDMI_VIDEOCNTL             0x14
-#define R600_HDMI_VERSION               0x18
-#define R600_HDMI_UNKNOWN_1             0x28
-#define R600_HDMI_VIDEOINFOFRAME_0      0x54
-#define R600_HDMI_VIDEOINFOFRAME_1      0x58
-#define R600_HDMI_VIDEOINFOFRAME_2      0x5c
-#define R600_HDMI_VIDEOINFOFRAME_3      0x60
-#define R600_HDMI_32kHz_CTS             0xac
-#define R600_HDMI_32kHz_N               0xb0
-#define R600_HDMI_44_1kHz_CTS           0xb4
-#define R600_HDMI_44_1kHz_N             0xb8
-#define R600_HDMI_48kHz_CTS             0xbc
-#define R600_HDMI_48kHz_N               0xc0
-#define R600_HDMI_AUDIOINFOFRAME_0      0xcc
-#define R600_HDMI_AUDIOINFOFRAME_1      0xd0
-#define R600_HDMI_IEC60958_1            0xd4
-#define R600_HDMI_IEC60958_2            0xd8
-#define R600_HDMI_UNKNOWN_2             0xdc
-#define R600_HDMI_AUDIO_DEBUG_0         0xe0
-#define R600_HDMI_AUDIO_DEBUG_1         0xe4
-#define R600_HDMI_AUDIO_DEBUG_2         0xe8
-#define R600_HDMI_AUDIO_DEBUG_3         0xec
-
-/* HDMI additional config base register addresses */
-#define R600_HDMI_CONFIG1                 0x7600
-#define R600_HDMI_CONFIG2                 0x7a00
+#define DCE2_HDMI_OFFSET0		(0x7400 - 0x7400)
+#define DCE2_HDMI_OFFSET1		(0x7700 - 0x7400)
+/* DCE3.2 second instance starts at 0x7800 */
+#define DCE3_HDMI_OFFSET0		(0x7400 - 0x7400)
+#define DCE3_HDMI_OFFSET1		(0x7800 - 0x7400)
 
 #endif

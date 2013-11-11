@@ -26,7 +26,7 @@ arch/arm/mach-ep93xx/ts72xx.c:
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 
-#include <mach/ep93xx_spi.h>
+#include <linux/platform_data/spi-ep93xx.h>
 
 /* this is our GPIO line used for chip select */
 #define MMC_CHIP_SELECT_GPIO EP93XX_GPIO_LINE_EGPIO9
@@ -87,6 +87,16 @@ static void __init ts72xx_init_machine(void)
 	ep93xx_register_spi(&ts72xx_spi_info, ts72xx_spi_devices,
 			    ARRAY_SIZE(ts72xx_spi_devices));
 }
+
+The driver can use DMA for the transfers also. In this case ts72xx_spi_info
+becomes:
+
+static struct ep93xx_spi_info ts72xx_spi_info = {
+	.num_chipselect	= ARRAY_SIZE(ts72xx_spi_devices),
+	.use_dma	= true;
+};
+
+Note that CONFIG_EP93XX_DMA should be enabled as well.
 
 Thanks to
 =========

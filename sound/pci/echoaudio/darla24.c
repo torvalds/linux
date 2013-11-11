@@ -44,7 +44,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -56,7 +56,7 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "echoaudio.h"
 
 MODULE_FIRMWARE("ea/darla24_dsp.fw");

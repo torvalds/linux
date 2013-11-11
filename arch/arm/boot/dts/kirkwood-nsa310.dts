@@ -1,0 +1,269 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+
+/ {
+	model = "ZyXEL NSA310";
+	compatible = "zyxel,nsa310", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = < &pmx_led_esata_green
+				      &pmx_led_esata_red
+				      &pmx_led_usb_green
+				      &pmx_led_usb_red
+				      &pmx_usb_power_off
+				      &pmx_led_sys_green
+				      &pmx_led_sys_red
+				      &pmx_btn_reset
+				      &pmx_btn_copy
+				      &pmx_led_copy_green
+				      &pmx_led_copy_red
+				      &pmx_led_hdd_green
+				      &pmx_led_hdd_red
+				      &pmx_unknown
+				      &pmx_btn_power
+				      &pmx_pwr_off >;
+			pinctrl-names = "default";
+
+			pmx_led_esata_green: pmx-led-esata-green {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_esata_red: pmx-led-esata-red {
+				marvell,pins = "mpp13";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_usb_green: pmx-led-usb-green {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_usb_red: pmx-led-usb-red {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+
+			pmx_usb_power_off: pmx-usb-power-off {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_green: pmx-led-sys-green {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_red: pmx-led-sys-red {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_reset: pmx-btn-reset {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_copy: pmx-btn-copy {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_green: pmx-led-copy-green {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_copy_red: pmx-led-copy-red {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd_green: pmx-led-hdd-green {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd_red: pmx-led-hdd-red {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+
+			pmx_unknown: pmx-unknown {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_btn_power: pmx-btn-power {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+
+			pmx_pwr_off: pmx-pwr-off {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+		};
+
+		serial@12000 {
+			status = "ok";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		i2c@11000 {
+			status = "okay";
+
+			adt7476: adt7476a@2e {
+				compatible = "adt7476";
+				reg = <0x2e>;
+			};
+		};
+
+		nand@3000000 {
+			status = "okay";
+			chip-delay = <35>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0x0100000>;
+				read-only;
+			};
+			partition@100000 {
+				label = "uboot_env";
+				reg = <0x0100000 0x0080000>;
+			};
+			partition@180000 {
+				label = "key_store";
+				reg = <0x0180000 0x0080000>;
+			};
+			partition@200000 {
+				label = "info";
+				reg = <0x0200000 0x0080000>;
+			};
+			partition@280000 {
+				label = "etc";
+				reg = <0x0280000 0x0a00000>;
+			};
+			partition@c80000 {
+				label = "kernel_1";
+				reg = <0x0c80000 0x0a00000>;
+			};
+			partition@1680000 {
+				label = "rootfs1";
+				reg = <0x1680000 0x2fc0000>;
+			};
+			partition@4640000 {
+				label = "kernel_2";
+				reg = <0x4640000 0x0a00000>;
+			};
+			partition@5040000 {
+				label = "rootfs2";
+				reg = <0x5040000 0x2fc0000>;
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Power Button";
+			linux,code = <116>;
+			gpios = <&gpio1 14 0>;
+		};
+		button@2 {
+			label = "Copy Button";
+			linux,code = <133>;
+			gpios = <&gpio1 5 1>;
+		};
+		button@3 {
+			label = "Reset Button";
+			linux,code = <0x198>;
+			gpios = <&gpio1 4 1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-sys {
+			label = "nsa310:green:sys";
+			gpios = <&gpio0 28 0>;
+		};
+		red-sys {
+			label = "nsa310:red:sys";
+			gpios = <&gpio0 29 0>;
+		};
+		green-hdd {
+			label = "nsa310:green:hdd";
+			gpios = <&gpio1 9 0>;
+		};
+		red-hdd {
+			label = "nsa310:red:hdd";
+			gpios = <&gpio1 10 0>;
+		};
+		green-esata {
+			label = "nsa310:green:esata";
+			gpios = <&gpio0 12 0>;
+		};
+		red-esata {
+			label = "nsa310:red:esata";
+			gpios = <&gpio0 13 0>;
+		};
+		green-usb {
+			label = "nsa310:green:usb";
+			gpios = <&gpio0 15 0>;
+		};
+		red-usb {
+			label = "nsa310:red:usb";
+			gpios = <&gpio0 16 0>;
+		};
+		green-copy {
+			label = "nsa310:green:copy";
+			gpios = <&gpio1 7 0>;
+		};
+		red-copy {
+			label = "nsa310:red:copy";
+			gpios = <&gpio1 8 0>;
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 16 0>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb0_power_off: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power Off";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 21 0>;
+		};
+	};
+};

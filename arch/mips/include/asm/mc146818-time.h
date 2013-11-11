@@ -26,7 +26,7 @@
  * MC146818A or Dallas DS12887 data sheet for details.
  *
  * BUG: This routine does not handle hour overflow properly; it just
- *      sets the minutes. Usually you'll only notice that after reboot!
+ *	sets the minutes. Usually you'll only notice that after reboot!
  */
 static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 {
@@ -77,7 +77,7 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 	 * battery and quartz) will not reset the oscillator and will not
 	 * update precisely 500 ms later. You won't find this mentioned in
 	 * the Dallas Semiconductor data sheets, but who believes data
-	 * sheets anyway ...                           -- Markus Kuhn
+	 * sheets anyway ...			       -- Markus Kuhn
 	 */
 	CMOS_WRITE(save_control, RTC_CONTROL);
 	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);

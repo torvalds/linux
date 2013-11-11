@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,6 +118,7 @@ acpi_tb_check_xsdt(acpi_physical_address address)
 		return AE_OK;
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_initialize_facs
@@ -135,12 +136,20 @@ acpi_status acpi_tb_initialize_facs(void)
 {
 	acpi_status status;
 
+	/* If Hardware Reduced flag is set, there is no FACS */
+
+	if (acpi_gbl_reduced_hardware) {
+		acpi_gbl_FACS = NULL;
+		return (AE_OK);
+	}
+
 	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
 					 ACPI_CAST_INDIRECT_PTR(struct
 								acpi_table_header,
 								&acpi_gbl_FACS));
-	return status;
+	return (status);
 }
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*******************************************************************************
  *
@@ -169,8 +178,8 @@ u8 acpi_tb_tables_loaded(void)
  *
  * FUNCTION:    acpi_tb_fix_string
  *
- * PARAMETERS:  String              - String to be repaired
- *              Length              - Maximum length
+ * PARAMETERS:  string              - String to be repaired
+ *              length              - Maximum length
  *
  * RETURN:      None
  *
@@ -196,7 +205,7 @@ static void acpi_tb_fix_string(char *string, acpi_size length)
  * FUNCTION:    acpi_tb_cleanup_table_header
  *
  * PARAMETERS:  out_header          - Where the cleaned header is returned
- *              Header              - Input ACPI table header
+ *              header              - Input ACPI table header
  *
  * RETURN:      Returns the cleaned header in out_header
  *
@@ -222,8 +231,8 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
  *
  * FUNCTION:    acpi_tb_print_table_header
  *
- * PARAMETERS:  Address             - Table physical address
- *              Header              - Table header
+ * PARAMETERS:  address             - Table physical address
+ *              header              - Table header
  *
  * RETURN:      None
  *
@@ -287,8 +296,8 @@ acpi_tb_print_table_header(acpi_physical_address address,
  *
  * FUNCTION:    acpi_tb_validate_checksum
  *
- * PARAMETERS:  Table               - ACPI table to verify
- *              Length              - Length of entire table
+ * PARAMETERS:  table               - ACPI table to verify
+ *              length              - Length of entire table
  *
  * RETURN:      Status
  *
@@ -308,10 +317,11 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
 	/* Checksum ok? (should be zero) */
 
 	if (checksum) {
-		ACPI_WARNING((AE_INFO,
-			      "Incorrect checksum in table [%4.4s] - 0x%2.2X, should be 0x%2.2X",
-			      table->signature, table->checksum,
-			      (u8) (table->checksum - checksum)));
+		ACPI_BIOS_WARNING((AE_INFO,
+				   "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+				   "should be 0x%2.2X",
+				   table->signature, table->checksum,
+				   (u8)(table->checksum - checksum)));
 
 #if (ACPI_CHECKSUM_ABORT)
 
@@ -326,8 +336,8 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
  *
  * FUNCTION:    acpi_tb_checksum
  *
- * PARAMETERS:  Buffer          - Pointer to memory region to be checked
- *              Length          - Length of this memory region
+ * PARAMETERS:  buffer          - Pointer to memory region to be checked
+ *              length          - Length of this memory region
  *
  * RETURN:      Checksum (u8)
  *
@@ -344,7 +354,7 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
 		sum = (u8) (sum + *(buffer++));
 	}
 
-	return sum;
+	return (sum);
 }
 
 /*******************************************************************************
@@ -368,8 +378,9 @@ void acpi_tb_check_dsdt_header(void)
 
 	if (acpi_gbl_original_dsdt_header.length != acpi_gbl_DSDT->length ||
 	    acpi_gbl_original_dsdt_header.checksum != acpi_gbl_DSDT->checksum) {
-		ACPI_ERROR((AE_INFO,
-			    "The DSDT has been corrupted or replaced - old, new headers below"));
+		ACPI_BIOS_ERROR((AE_INFO,
+				 "The DSDT has been corrupted or replaced - "
+				 "old, new headers below"));
 		acpi_tb_print_table_header(0, &acpi_gbl_original_dsdt_header);
 		acpi_tb_print_table_header(0, acpi_gbl_DSDT);
 
@@ -429,15 +440,15 @@ struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index)
  *
  * FUNCTION:    acpi_tb_install_table
  *
- * PARAMETERS:  Address                 - Physical address of DSDT or FACS
- *              Signature               - Table signature, NULL if no need to
+ * PARAMETERS:  address                 - Physical address of DSDT or FACS
+ *              signature               - Table signature, NULL if no need to
  *                                        match
  *              table_index             - Index into root table array
  *
  * RETURN:      None
  *
  * DESCRIPTION: Install an ACPI table into the global data structure. The
- *              table override mechanism is implemented here to allow the host
+ *              table override mechanism is called to allow the host
  *              OS to replace any table before it is installed in the root
  *              table array.
  *
@@ -447,11 +458,9 @@ void
 acpi_tb_install_table(acpi_physical_address address,
 		      char *signature, u32 table_index)
 {
-	u8 flags;
-	acpi_status status;
-	struct acpi_table_header *table_to_install;
-	struct acpi_table_header *mapped_table;
-	struct acpi_table_header *override_table = NULL;
+	struct acpi_table_header *table;
+	struct acpi_table_header *final_table;
+	struct acpi_table_desc *table_desc;
 
 	if (!address) {
 		ACPI_ERROR((AE_INFO,
@@ -462,21 +471,35 @@ acpi_tb_install_table(acpi_physical_address address,
 
 	/* Map just the table header */
 
-	mapped_table =
-	    acpi_os_map_memory(address, sizeof(struct acpi_table_header));
-	if (!mapped_table) {
+	table = acpi_os_map_memory(address, sizeof(struct acpi_table_header));
+	if (!table) {
+		ACPI_ERROR((AE_INFO,
+			    "Could not map memory for table [%s] at %p",
+			    signature, ACPI_CAST_PTR(void, address)));
 		return;
 	}
 
 	/* If a particular signature is expected (DSDT/FACS), it must match */
 
-	if (signature && !ACPI_COMPARE_NAME(mapped_table->signature, signature)) {
-		ACPI_ERROR((AE_INFO,
-			    "Invalid signature 0x%X for ACPI table, expected [%s]",
-			    *ACPI_CAST_PTR(u32, mapped_table->signature),
-			    signature));
+	if (signature && !ACPI_COMPARE_NAME(table->signature, signature)) {
+		ACPI_BIOS_ERROR((AE_INFO,
+				 "Invalid signature 0x%X for ACPI table, expected [%s]",
+				 *ACPI_CAST_PTR(u32, table->signature),
+				 signature));
 		goto unmap_and_exit;
 	}
+
+	/*
+	 * Initialize the table entry. Set the pointer to NULL, since the
+	 * table is not fully mapped at this time.
+	 */
+	table_desc = &acpi_gbl_root_table_list.tables[table_index];
+
+	table_desc->address = address;
+	table_desc->pointer = NULL;
+	table_desc->length = table->length;
+	table_desc->flags = ACPI_TABLE_ORIGIN_MAPPED;
+	ACPI_MOVE_32_TO_32(table_desc->signature.ascii, table->signature);
 
 	/*
 	 * ACPI Table Override:
@@ -484,47 +507,43 @@ acpi_tb_install_table(acpi_physical_address address,
 	 * Before we install the table, let the host OS override it with a new
 	 * one if desired. Any table within the RSDT/XSDT can be replaced,
 	 * including the DSDT which is pointed to by the FADT.
+	 *
+	 * NOTE: If the table is overridden, then final_table will contain a
+	 * mapped pointer to the full new table. If the table is not overridden,
+	 * or if there has been a physical override, then the table will be
+	 * fully mapped later (in verify table). In any case, we must
+	 * unmap the header that was mapped above.
 	 */
-	status = acpi_os_table_override(mapped_table, &override_table);
-	if (ACPI_SUCCESS(status) && override_table) {
-		ACPI_INFO((AE_INFO,
-			   "%4.4s @ 0x%p Table override, replaced with:",
-			   mapped_table->signature, ACPI_CAST_PTR(void,
-								  address)));
-
-		acpi_gbl_root_table_list.tables[table_index].pointer =
-		    override_table;
-		address = ACPI_PTR_TO_PHYSADDR(override_table);
-
-		table_to_install = override_table;
-		flags = ACPI_TABLE_ORIGIN_OVERRIDE;
-	} else {
-		table_to_install = mapped_table;
-		flags = ACPI_TABLE_ORIGIN_MAPPED;
+	final_table = acpi_tb_table_override(table, table_desc);
+	if (!final_table) {
+		final_table = table;	/* There was no override */
 	}
 
-	/* Initialize the table entry */
+	acpi_tb_print_table_header(table_desc->address, final_table);
 
-	acpi_gbl_root_table_list.tables[table_index].address = address;
-	acpi_gbl_root_table_list.tables[table_index].length =
-	    table_to_install->length;
-	acpi_gbl_root_table_list.tables[table_index].flags = flags;
-
-	ACPI_MOVE_32_TO_32(&
-			   (acpi_gbl_root_table_list.tables[table_index].
-			    signature), table_to_install->signature);
-
-	acpi_tb_print_table_header(address, table_to_install);
+	/* Set the global integer width (based upon revision of the DSDT) */
 
 	if (table_index == ACPI_TABLE_INDEX_DSDT) {
+		acpi_ut_set_integer_width(final_table->revision);
+	}
 
-		/* Global integer width is based upon revision of the DSDT */
-
-		acpi_ut_set_integer_width(table_to_install->revision);
+	/*
+	 * If we have a physical override during this early loading of the ACPI
+	 * tables, unmap the table for now. It will be mapped again later when
+	 * it is actually used. This supports very early loading of ACPI tables,
+	 * before virtual memory is fully initialized and running within the
+	 * host OS. Note: A logical override has the ACPI_TABLE_ORIGIN_OVERRIDE
+	 * flag set and will not be deleted below.
+	 */
+	if (final_table != table) {
+		acpi_tb_delete_table(table_desc);
 	}
 
       unmap_and_exit:
-	acpi_os_unmap_memory(mapped_table, sizeof(struct acpi_table_header));
+
+	/* Always unmap the table header that we mapped above */
+
+	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
 }
 
 /*******************************************************************************
@@ -573,10 +592,10 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 
 			/* Will truncate 64-bit address to 32 bits, issue warning */
 
-			ACPI_WARNING((AE_INFO,
-				      "64-bit Physical Address in XSDT is too large (0x%8.8X%8.8X),"
-				      " truncating",
-				      ACPI_FORMAT_UINT64(address64)));
+			ACPI_BIOS_WARNING((AE_INFO,
+					   "64-bit Physical Address in XSDT is too large (0x%8.8X%8.8X),"
+					   " truncating",
+					   ACPI_FORMAT_UINT64(address64)));
 		}
 #endif
 		return ((acpi_physical_address) (address64));
@@ -587,7 +606,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  *
  * FUNCTION:    acpi_tb_parse_root_table
  *
- * PARAMETERS:  Rsdp                    - Pointer to the RSDP
+ * PARAMETERS:  rsdp                    - Pointer to the RSDP
  *
  * RETURN:      Status
  *
@@ -678,8 +697,9 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
 
 	if (length < sizeof(struct acpi_table_header)) {
-		ACPI_ERROR((AE_INFO, "Invalid length 0x%X in RSDT/XSDT",
-			    length));
+		ACPI_BIOS_ERROR((AE_INFO,
+				 "Invalid table length 0x%X in RSDT/XSDT",
+				 length));
 		return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 	}
 

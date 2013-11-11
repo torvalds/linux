@@ -414,7 +414,7 @@ static int alauda_bounce_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 	err = 0;
 	if (corrected)
-		err = -EUCLEAN;
+		err = 1;	/* return max_bitflips per ecc step */
 	if (uncorrected)
 		err = -EBADMSG;
 out:
@@ -446,7 +446,7 @@ static int alauda_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 	err = 0;
 	if (corrected)
-		err = -EUCLEAN;
+		err = 1;	/* return max_bitflips per ecc step */
 	if (uncorrected)
 		err = -EBADMSG;
 	return err;
@@ -585,12 +585,13 @@ static int alauda_init_media(struct alauda *al)
 	mtd->writesize = 1<<card->pageshift;
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->read = alauda_read;
-	mtd->write = alauda_write;
-	mtd->erase = alauda_erase;
-	mtd->block_isbad = alauda_isbad;
+	mtd->_read = alauda_read;
+	mtd->_write = alauda_write;
+	mtd->_erase = alauda_erase;
+	mtd->_block_isbad = alauda_isbad;
 	mtd->priv = al;
 	mtd->owner = THIS_MODULE;
+	mtd->ecc_strength = 1;
 
 	err = mtd_device_register(mtd, NULL, 0);
 	if (err) {
@@ -717,17 +718,6 @@ static struct usb_driver alauda_driver = {
 	.id_table =	alauda_table,
 };
 
-static int __init alauda_init(void)
-{
-	return usb_register(&alauda_driver);
-}
-
-static void __exit alauda_exit(void)
-{
-	usb_deregister(&alauda_driver);
-}
-
-module_init(alauda_init);
-module_exit(alauda_exit);
+module_usb_driver(alauda_driver);
 
 MODULE_LICENSE("GPL");

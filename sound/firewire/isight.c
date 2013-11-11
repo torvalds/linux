@@ -51,7 +51,6 @@ struct isight {
 	struct fw_unit *unit;
 	struct fw_device *device;
 	u64 audio_base;
-	struct fw_address_handler iris_handler;
 	struct snd_pcm_substream *pcm;
 	struct mutex mutex;
 	struct iso_packets_buffer buffer;
@@ -612,7 +611,6 @@ static void isight_card_free(struct snd_card *card)
 
 	fw_iso_resources_destroy(&isight->resources);
 	fw_unit_put(isight->unit);
-	fw_device_put(isight->device);
 	mutex_destroy(&isight->mutex);
 }
 
@@ -645,7 +643,7 @@ static int isight_probe(struct device *unit_dev)
 	isight->card = card;
 	mutex_init(&isight->mutex);
 	isight->unit = fw_unit_get(unit);
-	isight->device = fw_device_get(fw_dev);
+	isight->device = fw_dev;
 	isight->audio_base = get_unit_base(unit);
 	if (!isight->audio_base) {
 		dev_err(&unit->device, "audio unit base not found\n");
@@ -682,7 +680,6 @@ static int isight_probe(struct device *unit_dev)
 
 err_unit:
 	fw_unit_put(isight->unit);
-	fw_device_put(isight->device);
 	mutex_destroy(&isight->mutex);
 error:
 	snd_card_free(card);

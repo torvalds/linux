@@ -6,7 +6,7 @@
  *
  * Copyright 2004-2009 Analog Devices Inc.
  *
- * Licensed under the ADI BSD license or the GPL-2 (or later)
+ * Licensed under the Clear BSD license or the GPL-2 (or later)
  */
 
 .global ___modsi3;

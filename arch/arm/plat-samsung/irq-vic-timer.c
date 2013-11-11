@@ -16,15 +16,21 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
+#include <plat/cpu.h>
 #include <plat/irq-vic-timer.h>
 #include <plat/regs-timer.h>
 
 static void s3c_irq_demux_vic_timer(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_get_chip(irq);
+	chained_irq_enter(chip, desc);
 	generic_handle_irq((int)desc->irq_data.handler_data);
+	chained_irq_exit(chip, desc);
 }
 
 /* We assume the IRQ_TIMER0..IRQ_TIMER4 range is continuous. */
@@ -52,6 +58,21 @@ void __init s3c_init_vic_timer_irq(unsigned int num, unsigned int timer_irq)
 	struct irq_chip_type *ct;
 	unsigned int i;
 
+#ifdef CONFIG_ARCH_EXYNOS
+	if (soc_is_exynos5250()) {
+		pirq[0] = EXYNOS5_IRQ_TIMER0_VIC;
+		pirq[1] = EXYNOS5_IRQ_TIMER1_VIC;
+		pirq[2] = EXYNOS5_IRQ_TIMER2_VIC;
+		pirq[3] = EXYNOS5_IRQ_TIMER3_VIC;
+		pirq[4] = EXYNOS5_IRQ_TIMER4_VIC;
+	} else {
+		pirq[0] = EXYNOS4_IRQ_TIMER0_VIC;
+		pirq[1] = EXYNOS4_IRQ_TIMER1_VIC;
+		pirq[2] = EXYNOS4_IRQ_TIMER2_VIC;
+		pirq[3] = EXYNOS4_IRQ_TIMER3_VIC;
+		pirq[4] = EXYNOS4_IRQ_TIMER4_VIC;
+	}
+#endif
 	s3c_tgc = irq_alloc_generic_chip("s3c-timer", 1, timer_irq,
 					 S3C64XX_TINT_CSTAT, handle_level_irq);
 

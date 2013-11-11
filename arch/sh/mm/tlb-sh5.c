@@ -17,7 +17,7 @@
 /**
  * sh64_tlb_init - Perform initial setup for the DTLB and ITLB.
  */
-int __init sh64_tlb_init(void)
+int __cpuinit sh64_tlb_init(void)
 {
 	/* Assign some sane DTLB defaults */
 	cpu_data->dtlb.entries	= 64;
@@ -181,4 +181,44 @@ void tlb_unwire_entry(void)
 	sh64_put_wired_dtlb_entry(entry);
 
 	local_irq_restore(flags);
+}
+
+void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+{
+	unsigned long long ptel;
+	unsigned long long pteh=0;
+	struct tlb_info *tlbp;
+	unsigned long long next;
+	unsigned int fault_code = get_thread_fault_code();
+
+	/* Get PTEL first */
+	ptel = pte.pte_low;
+
+	/*
+	 * Set PTEH register
+	 */
+	pteh = neff_sign_extend(address & MMU_VPN_MASK);
+
+	/* Set the ASID. */
+	pteh |= get_asid() << PTEH_ASID_SHIFT;
+	pteh |= PTEH_VALID;
+
+	/* Set PTEL register, set_pte has performed the sign extension */
+	ptel &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
+
+	if (fault_code & FAULT_CODE_ITLB)
+		tlbp = &cpu_data->itlb;
+	else
+		tlbp = &cpu_data->dtlb;
+
+	next = tlbp->next;
+	__flush_tlb_slot(next);
+	asm volatile ("putcfg %0,1,%2\n\n\t"
+		      "putcfg %0,0,%1\n"
+		      :  : "r" (next), "r" (pteh), "r" (ptel) );
+
+	next += TLB_STEP;
+	if (next > tlbp->last)
+		next = tlbp->first;
+	tlbp->next = next;
 }

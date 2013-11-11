@@ -4,7 +4,7 @@
 
 menuconfig USB_ATM
 	tristate "USB DSL modem support"
-	depends on USB && ATM
+	depends on ATM
 	select CRC32
 	default n
 	help

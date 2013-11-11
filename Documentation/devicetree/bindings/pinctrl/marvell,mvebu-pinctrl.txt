@@ -1,0 +1,46 @@
+* Marvell SoC pinctrl core driver for mpp
+
+The pinctrl driver enables Marvell SoCs to configure the multi-purpose pins
+(mpp) to a specific function. For each SoC family there is a SoC specific
+driver using this core driver.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+A Marvell SoC pin configuration node is a node of a group of pins which can
+be used for a specific device or function. Each node requires one or more
+mpp pins or group of pins and a mpp function common to all pins.
+
+Required properties for pinctrl driver:
+- compatible: "marvell,<soc>-pinctrl"
+  Please refer to each marvell,<soc>-pinctrl.txt binding doc for supported SoCs.
+
+Required properties for pin configuration node:
+- marvell,pins: string array of mpp pins or group of pins to be muxed.
+- marvell,function: string representing a function to mux to for all
+    marvell,pins given in this pin configuration node. The function has to be
+    common for all marvell,pins. Please refer to marvell,<soc>-pinctrl.txt for
+    valid pin/pin group names and available function names for each SoC.
+
+Examples:
+
+uart1: serial@12100 {
+	compatible = "ns16550a";
+	reg = <0x12100 0x100>;
+	reg-shift = <2>;
+	interrupts = <7>;
+
+	pinctrl-0 = <&pmx_uart1_sw>;
+	pinctrl-names = "default";
+};
+
+pinctrl: pinctrl@d0200 {
+	compatible = "marvell,dove-pinctrl";
+	reg = <0xd0200 0x20>;
+
+	pmx_uart1_sw: pmx-uart1-sw {
+		marvell,pins = "mpp_uart1";
+		marvell,function = "uart1";
+	};
+};

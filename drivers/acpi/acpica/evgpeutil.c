@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,13 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeutil")
 
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ev_walk_gpe_list
  *
  * PARAMETERS:  gpe_walk_callback   - Routine called for each GPE block
- *              Context             - Value passed to callback
+ *              context             - Value passed to callback
  *
  * RETURN:      Status
  *
@@ -346,6 +347,8 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			    void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info;
+	struct acpi_gpe_notify_info *notify;
+	struct acpi_gpe_notify_info *next;
 	u32 i;
 	u32 j;
 
@@ -364,8 +367,27 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
+
+				/* Delete an installed handler block */
+
 				ACPI_FREE(gpe_event_info->dispatch.handler);
 				gpe_event_info->dispatch.handler = NULL;
+				gpe_event_info->flags &=
+				    ~ACPI_GPE_DISPATCH_MASK;
+			} else
+			    if ((gpe_event_info->
+				 flags & ACPI_GPE_DISPATCH_MASK) ==
+				ACPI_GPE_DISPATCH_NOTIFY) {
+
+				/* Delete the implicit notification device list */
+
+				notify = gpe_event_info->dispatch.notify_list;
+				while (notify) {
+					next = notify->next;
+					ACPI_FREE(notify);
+					notify = next;
+				}
+				gpe_event_info->dispatch.notify_list = NULL;
 				gpe_event_info->flags &=
 				    ~ACPI_GPE_DISPATCH_MASK;
 			}
@@ -374,3 +396,5 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 	return_ACPI_STATUS(AE_OK);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

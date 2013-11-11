@@ -23,11 +23,10 @@
 #ifndef __ASM_KVM_HOST_H
 #define __ASM_KVM_HOST_H
 
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
+#define KVM_USER_MEM_SLOTS 32
 
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#define KVM_IRQCHIP_NUM_PINS  KVM_IOAPIC_NUM_PINS
 
 /* define exit reasons from vmm to kvm*/
 #define EXIT_REASON_VM_PANIC		0
@@ -365,6 +364,7 @@ struct thash_cb {
 };
 
 struct kvm_vcpu_stat {
+	u32 halt_wakeup;
 };
 
 struct kvm_vcpu_arch {
@@ -448,6 +448,8 @@ struct kvm_vcpu_arch {
 	char log_buf[VMM_LOG_LEN];
 	union context host;
 	union context guest;
+
+	char mmio_data[8];
 };
 
 struct kvm_vm_stat {
@@ -457,6 +459,9 @@ struct kvm_vm_stat {
 struct kvm_sal_data {
 	unsigned long boot_ip;
 	unsigned long boot_gp;
+};
+
+struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {

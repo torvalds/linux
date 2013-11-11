@@ -18,13 +18,15 @@
 #include <asm/e820.h>
 #include <asm/time.h>
 #include <asm/irq.h>
+#include <asm/io_apic.h>
+#include <asm/hpet.h>
 #include <asm/pat.h>
 #include <asm/tsc.h>
 #include <asm/iommu.h>
+#include <asm/mach_traps.h>
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
-void __init x86_init_pgd_noop(pgd_t *unused) { }
 int __init iommu_init_noop(void) { return 0; }
 void iommu_shutdown_noop(void) { }
 
@@ -61,13 +63,8 @@ struct x86_init_ops x86_init __initdata = {
 		.banner			= default_banner,
 	},
 
-	.mapping = {
-		.pagetable_reserve		= native_pagetable_reserve,
-	},
-
 	.paging = {
-		.pagetable_setup_start	= native_pagetable_setup_start,
-		.pagetable_setup_done	= native_pagetable_setup_done,
+		.pagetable_init		= native_pagetable_init,
 	},
 
 	.timers = {
@@ -89,6 +86,7 @@ struct x86_init_ops x86_init __initdata = {
 };
 
 struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
+	.early_percpu_clock_init	= x86_init_noop,
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 };
 
@@ -102,12 +100,30 @@ struct x86_platform_ops x86_platform = {
 	.iommu_shutdown			= iommu_shutdown_noop,
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
-	.i8042_detect			= default_i8042_detect
+	.get_nmi_reason			= default_get_nmi_reason,
+	.i8042_detect			= default_i8042_detect,
+	.save_sched_clock_state 	= tsc_save_sched_clock_state,
+	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);
 struct x86_msi_ops x86_msi = {
-	.setup_msi_irqs = native_setup_msi_irqs,
-	.teardown_msi_irq = native_teardown_msi_irq,
-	.teardown_msi_irqs = default_teardown_msi_irqs,
+	.setup_msi_irqs		= native_setup_msi_irqs,
+	.compose_msi_msg	= native_compose_msi_msg,
+	.teardown_msi_irq	= native_teardown_msi_irq,
+	.teardown_msi_irqs	= default_teardown_msi_irqs,
+	.restore_msi_irqs	= default_restore_msi_irqs,
+	.setup_hpet_msi		= default_setup_hpet_msi,
+};
+
+struct x86_io_apic_ops x86_io_apic_ops = {
+	.init			= native_io_apic_init_mappings,
+	.read			= native_io_apic_read,
+	.write			= native_io_apic_write,
+	.modify			= native_io_apic_modify,
+	.disable		= native_disable_io_apic,
+	.print_entries		= native_io_apic_print_entries,
+	.set_affinity		= native_ioapic_set_affinity,
+	.setup_entry		= native_setup_ioapic_entry,
+	.eoi_ioapic_pin		= native_eoi_ioapic_pin,
 };

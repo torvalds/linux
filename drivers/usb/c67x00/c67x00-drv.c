@@ -38,6 +38,7 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/usb/c67x00.h>
 
@@ -115,7 +116,7 @@ static irqreturn_t c67x00_irq(int irq, void *__dev)
 
 /* ------------------------------------------------------------------------- */
 
-static int __devinit c67x00_drv_probe(struct platform_device *pdev)
+static int c67x00_drv_probe(struct platform_device *pdev)
 {
 	struct c67x00_device *c67x00;
 	struct c67x00_platform_data *pdata;
@@ -190,7 +191,7 @@ static int __devinit c67x00_drv_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit c67x00_drv_remove(struct platform_device *pdev)
+static int c67x00_drv_remove(struct platform_device *pdev)
 {
 	struct c67x00_device *c67x00 = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -218,27 +219,16 @@ static int __devexit c67x00_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver c67x00_driver = {
 	.probe	= c67x00_drv_probe,
-	.remove	= __devexit_p(c67x00_drv_remove),
+	.remove	= c67x00_drv_remove,
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name = "c67x00",
 	},
 };
-MODULE_ALIAS("platform:c67x00");
 
-static int __init c67x00_init(void)
-{
-	return platform_driver_register(&c67x00_driver);
-}
-
-static void __exit c67x00_exit(void)
-{
-	platform_driver_unregister(&c67x00_driver);
-}
-
-module_init(c67x00_init);
-module_exit(c67x00_exit);
+module_platform_driver(c67x00_driver);
 
 MODULE_AUTHOR("Peter Korsgaard, Jan Veldeman, Grant Likely");
 MODULE_DESCRIPTION("Cypress C67X00 USB Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:c67x00");

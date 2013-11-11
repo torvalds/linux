@@ -36,4 +36,5 @@ do {								\
 #endif /* !CONFIG_BUG */
 
 #include <asm-generic/bug.h>
+
 #endif /* _ASM_X86_BUG_H */

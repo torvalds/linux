@@ -62,7 +62,7 @@ enum {
 #define SPIDER_IRQ_INVALID	63
 
 struct spider_pic {
-	struct irq_host		*host;
+	struct irq_domain		*host;
 	void __iomem		*regs;
 	unsigned int		node_id;
 };
@@ -148,7 +148,7 @@ static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 
 	/* Configure the source. One gross hack that was there before and
 	 * that I've kept around is the priority to the BE which I set to
-	 * be the same as the interrupt source number. I don't know wether
+	 * be the same as the interrupt source number. I don't know whether
 	 * that's supposed to make any kind of sense however, we'll have to
 	 * decide that, but for now, I'm not changing the behaviour.
 	 */
@@ -168,7 +168,7 @@ static struct irq_chip spider_pic = {
 	.irq_set_type = spider_set_irq_type,
 };
 
-static int spider_host_map(struct irq_host *h, unsigned int virq,
+static int spider_host_map(struct irq_domain *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
 	irq_set_chip_data(virq, h->host_data);
@@ -180,7 +180,7 @@ static int spider_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int spider_host_xlate(struct irq_host *h, struct device_node *ct,
+static int spider_host_xlate(struct irq_domain *h, struct device_node *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -194,7 +194,7 @@ static int spider_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops spider_host_ops = {
+static const struct irq_domain_ops spider_host_ops = {
 	.map = spider_host_map,
 	.xlate = spider_host_xlate,
 };
@@ -220,7 +220,7 @@ static void spider_irq_cascade(unsigned int irq, struct irq_desc *desc)
 /* For hooking up the cascace we have a problem. Our device-tree is
  * crap and we don't know on which BE iic interrupt we are hooked on at
  * least not the "standard" way. We can reconstitute it based on two
- * informations though: which BE node we are connected to and wether
+ * informations though: which BE node we are connected to and whether
  * we are connected to IOIF0 or IOIF1. Right now, we really only care
  * about the IBM cell blade and we know that its firmware gives us an
  * interrupt-map property which is pretty strange.
@@ -232,7 +232,7 @@ static unsigned int __init spider_find_cascade_and_node(struct spider_pic *pic)
 	int imaplen, intsize, unit;
 	struct device_node *iic;
 
-	/* First, we check wether we have a real "interrupts" in the device
+	/* First, we check whether we have a real "interrupts" in the device
 	 * tree in case the device-tree is ever fixed
 	 */
 	struct of_irq oirq;
@@ -299,12 +299,10 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 		panic("spider_pic: can't map registers !");
 
 	/* Allocate a host */
-	pic->host = irq_alloc_host(of_node, IRQ_HOST_MAP_LINEAR,
-				   SPIDER_SRC_COUNT, &spider_host_ops,
-				   SPIDER_IRQ_INVALID);
+	pic->host = irq_domain_add_linear(of_node, SPIDER_SRC_COUNT,
+					  &spider_host_ops, pic);
 	if (pic->host == NULL)
 		panic("spider_pic: can't allocate irq host !");
-	pic->host->host_data = pic;
 
 	/* Go through all sources and disable them */
 	for (i = 0; i < SPIDER_SRC_COUNT; i++) {

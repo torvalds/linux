@@ -14,6 +14,7 @@
 
 #include <linux/mfd/asic3.h>
 #include <linux/mfd/core.h>
+#include <linux/module.h>
 
 /*
  *	The HTC ASIC3 LED GPIOs are inputs, not outputs.
@@ -91,75 +92,91 @@ static int blink_set(struct led_classdev *cdev,
 	return 0;
 }
 
-static int __devinit asic3_led_probe(struct platform_device *pdev)
+static int asic3_led_probe(struct platform_device *pdev)
 {
 	struct asic3_led *led = pdev->dev.platform_data;
 	int ret;
 
 	ret = mfd_cell_enable(pdev);
 	if (ret < 0)
-		goto ret0;
+		return ret;
 
-	led->cdev = kzalloc(sizeof(struct led_classdev), GFP_KERNEL);
+	led->cdev = devm_kzalloc(&pdev->dev, sizeof(struct led_classdev),
+				GFP_KERNEL);
 	if (!led->cdev) {
 		ret = -ENOMEM;
-		goto ret1;
+		goto out;
 	}
 
 	led->cdev->name = led->name;
-	led->cdev->default_trigger = led->default_trigger;
+	led->cdev->flags = LED_CORE_SUSPENDRESUME;
 	led->cdev->brightness_set = brightness_set;
 	led->cdev->blink_set = blink_set;
+	led->cdev->default_trigger = led->default_trigger;
 
 	ret = led_classdev_register(&pdev->dev, led->cdev);
 	if (ret < 0)
-		goto ret2;
+		goto out;
 
 	return 0;
 
-ret2:
-	kfree(led->cdev);
-ret1:
+out:
 	(void) mfd_cell_disable(pdev);
-ret0:
 	return ret;
 }
 
-static int __devexit asic3_led_remove(struct platform_device *pdev)
+static int asic3_led_remove(struct platform_device *pdev)
 {
 	struct asic3_led *led = pdev->dev.platform_data;
 
 	led_classdev_unregister(led->cdev);
 
-	kfree(led->cdev);
-
 	return mfd_cell_disable(pdev);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int asic3_led_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	int ret;
+
+	ret = 0;
+	if (cell->suspend)
+		ret = (*cell->suspend)(pdev);
+
+	return ret;
+}
+
+static int asic3_led_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	int ret;
+
+	ret = 0;
+	if (cell->resume)
+		ret = (*cell->resume)(pdev);
+
+	return ret;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(asic3_led_pm_ops, asic3_led_suspend, asic3_led_resume);
+
 static struct platform_driver asic3_led_driver = {
 	.probe		= asic3_led_probe,
-	.remove		= __devexit_p(asic3_led_remove),
+	.remove		= asic3_led_remove,
 	.driver		= {
 		.name	= "leds-asic3",
 		.owner	= THIS_MODULE,
+		.pm	= &asic3_led_pm_ops,
 	},
 };
 
-MODULE_ALIAS("platform:leds-asic3");
-
-static int __init asic3_led_init(void)
-{
-	return platform_driver_register(&asic3_led_driver);
-}
-
-static void __exit asic3_led_exit(void)
-{
-	platform_driver_unregister(&asic3_led_driver);
-}
-
-module_init(asic3_led_init);
-module_exit(asic3_led_exit);
+module_platform_driver(asic3_led_driver);
 
 MODULE_AUTHOR("Paul Parsons <lost.distance@yahoo.com>");
 MODULE_DESCRIPTION("HTC ASIC3 LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-asic3");

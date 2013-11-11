@@ -16,14 +16,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/platform_data/davinci_asp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-
-#include <mach/asp.h>
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
@@ -265,6 +264,7 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int pcr;
 	unsigned int srgr;
+	bool inv_fs = false;
 	/* Attention srgr is updated by hw_params! */
 	srgr = DAVINCI_MCBSP_SRGR_FSGM |
 		DAVINCI_MCBSP_SRGR_FPER(DEFAULT_BITPERSAMPLE * 2 - 1) |
@@ -330,7 +330,7 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		 * more empty bit clock slots between channels as the sample
 		 * rate is lowered.
 		 */
-		fmt ^= SND_SOC_DAIFMT_NB_IF;
+		inv_fs = true;
 	case SND_SOC_DAIFMT_DSP_A:
 		dev->mode = MOD_DSP_A;
 		break;
@@ -394,6 +394,8 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	default:
 		return -EINVAL;
 	}
+	if (inv_fs == true)
+		pcr ^= (DAVINCI_MCBSP_PCR_FSXP | DAVINCI_MCBSP_PCR_FSRP);
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SRGR_REG, srgr);
 	dev->pcr = pcr;
 	davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_PCR_REG, pcr);
@@ -617,7 +619,7 @@ static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
-static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
+static const struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.startup	= davinci_i2s_startup,
 	.shutdown	= davinci_i2s_shutdown,
 	.prepare	= davinci_i2s_prepare,
@@ -643,6 +645,10 @@ static struct snd_soc_dai_driver davinci_i2s_dai = {
 
 };
 
+static const struct snd_soc_component_driver davinci_i2s_component = {
+	.name		= "davinci-i2s",
+};
+
 static int davinci_i2s_probe(struct platform_device *pdev)
 {
 	struct snd_platform_data *pdata = pdev->dev.platform_data;
@@ -658,18 +664,18 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ioarea = request_mem_region(mem->start, resource_size(mem),
-				    pdev->name);
+	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
+					 resource_size(mem),
+					 pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "McBSP region already claimed\n");
 		return -EBUSY;
 	}
 
-	dev = kzalloc(sizeof(struct davinci_mcbsp_dev), GFP_KERNEL);
-	if (!dev) {
-		ret = -ENOMEM;
-		goto err_release_region;
-	}
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_mcbsp_dev),
+			   GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 	if (pdata) {
 		dev->enable_channel_combine = pdata->enable_channel_combine;
 		dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].sram_size =
@@ -688,13 +694,11 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].ram_chan_q	= ram_chan_q;
 
 	dev->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dev->clk)) {
-		ret = -ENODEV;
-		goto err_free_mem;
-	}
+	if (IS_ERR(dev->clk))
+		return -ENODEV;
 	clk_enable(dev->clk);
 
-	dev->base = ioremap(mem->start, resource_size(mem));
+	dev->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!dev->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -712,7 +716,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENXIO;
-		goto err_iounmap;
+		goto err_release_clk;
 	}
 	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].channel = res->start;
 
@@ -720,44 +724,44 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENXIO;
-		goto err_iounmap;
+		goto err_release_clk;
 	}
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].channel = res->start;
 	dev->dev = &pdev->dev;
 
 	dev_set_drvdata(&pdev->dev, dev);
 
-	ret = snd_soc_register_dai(&pdev->dev, &davinci_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &davinci_i2s_component,
+					 &davinci_i2s_dai, 1);
 	if (ret != 0)
-		goto err_iounmap;
+		goto err_release_clk;
+
+	ret = davinci_soc_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		goto err_unregister_component;
+	}
 
 	return 0;
 
-err_iounmap:
-	iounmap(dev->base);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_release_clk:
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
-err_free_mem:
-	kfree(dev);
-err_release_region:
-	release_mem_region(mem->start, resource_size(mem));
-
 	return ret;
 }
 
 static int davinci_i2s_remove(struct platform_device *pdev)
 {
 	struct davinci_mcbsp_dev *dev = dev_get_drvdata(&pdev->dev);
-	struct resource *mem;
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
+	davinci_soc_platform_unregister(&pdev->dev);
+
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
-	kfree(dev);
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
 
 	return 0;
 }
@@ -771,17 +775,7 @@ static struct platform_driver davinci_mcbsp_driver = {
 	},
 };
 
-static int __init davinci_i2s_init(void)
-{
-	return platform_driver_register(&davinci_mcbsp_driver);
-}
-module_init(davinci_i2s_init);
-
-static void __exit davinci_i2s_exit(void)
-{
-	platform_driver_unregister(&davinci_mcbsp_driver);
-}
-module_exit(davinci_i2s_exit);
+module_platform_driver(davinci_mcbsp_driver);
 
 MODULE_AUTHOR("Vladimir Barinov");
 MODULE_DESCRIPTION("TI DAVINCI I2S (McBSP) SoC Interface");

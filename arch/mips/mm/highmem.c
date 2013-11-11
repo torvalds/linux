@@ -1,3 +1,4 @@
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/sched.h>
@@ -41,7 +42,7 @@ EXPORT_SYMBOL(kunmap);
  * kmaps are appropriate for short, tight code paths only.
  */
 
-void *__kmap_atomic(struct page *page)
+void *kmap_atomic(struct page *page)
 {
 	unsigned long vaddr;
 	int idx, type;
@@ -62,12 +63,12 @@ void *__kmap_atomic(struct page *page)
 
 	return (void*) vaddr;
 }
-EXPORT_SYMBOL(__kmap_atomic);
+EXPORT_SYMBOL(kmap_atomic);
 
 void __kunmap_atomic(void *kvaddr)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	int type;
+	int type __maybe_unused;
 
 	if (vaddr < FIXADDR_START) { // FIXME
 		pagefault_enable();

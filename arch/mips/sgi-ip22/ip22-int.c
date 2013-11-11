@@ -1,12 +1,12 @@
 /*
  * ip22-int.c: Routines for generic manipulation of the INT[23] ASIC
- *             found on INDY and Indigo2 workstations.
+ *	       found on INDY and Indigo2 workstations.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1998 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999 Andrew R. Baker (andrewb@uab.edu)
- *                    - Indigo2 changes
- *                    - Interrupt handling fixes
+ *		      - Indigo2 changes
+ *		      - Interrupt handling fixes
  * Copyright (C) 2001, 2003 Ladislav Michl (ladis@linux-mips.org)
  */
 #include <linux/types.h>
@@ -155,32 +155,32 @@ static void __irq_entry indy_buserror_irq(void)
 
 static struct irqaction local0_cascade = {
 	.handler	= no_action,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "local0 cascade",
 };
 
 static struct irqaction local1_cascade = {
 	.handler	= no_action,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "local1 cascade",
 };
 
 static struct irqaction buserr = {
 	.handler	= no_action,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "Bus Error",
 };
 
 static struct irqaction map0_cascade = {
 	.handler	= no_action,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "mapable0 cascade",
 };
 
 #ifdef USE_LIO3_IRQ
 static struct irqaction map1_cascade = {
 	.handler	= no_action,
-	.flags		= IRQF_DISABLED,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "mapable1 cascade",
 };
 #define SGI_INTERRUPTS	SGINT_END
@@ -195,24 +195,24 @@ extern void indy_8254timer_irq(void);
  * at all) like:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        Local IRQ level zero
- *             3        Local IRQ level one
- *             4        8254 Timer zero
- *             5        8254 Timer one
- *             6        Bus Error
- *             7        R4k timer (what we use)
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	Local IRQ level zero
+ *	       3	Local IRQ level one
+ *	       4	8254 Timer zero
+ *	       5	8254 Timer one
+ *	       6	Bus Error
+ *	       7	R4k timer (what we use)
  *
  * We handle the IRQ according to _our_ priority which is:
  *
- * Highest ----     R4k Timer
- *                  Local IRQ zero
- *                  Local IRQ one
- *                  Bus Error
- *                  8254 Timer zero
- * Lowest  ----     8254 Timer one
+ * Highest ----	    R4k Timer
+ *		    Local IRQ zero
+ *		    Local IRQ one
+ *		    Bus Error
+ *		    8254 Timer zero
+ * Lowest  ----	    8254 Timer one
  *
  * then we just return, if multiple IRQs are pending then we will just take
  * another exception, big deal.

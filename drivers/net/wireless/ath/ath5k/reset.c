@@ -19,29 +19,52 @@
  *
  */
 
-/*****************************\
-  Reset functions and helpers
-\*****************************/
+/****************************\
+  Reset function and helpers
+\****************************/
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/unaligned.h>
 
-#include <linux/pci.h> 		/* To determine if a card is pci-e */
+#include <linux/pci.h>		/* To determine if a card is pci-e */
 #include <linux/log2.h>
 #include <linux/platform_device.h>
 #include "ath5k.h"
 #include "reg.h"
-#include "base.h"
 #include "debug.h"
+
+
+/**
+ * DOC: Reset function and helpers
+ *
+ * Here we implement the main reset routine, used to bring the card
+ * to a working state and ready to receive. We also handle routines
+ * that don't fit on other places such as clock, sleep and power control
+ */
 
 
 /******************\
 * Helper functions *
 \******************/
 
-/*
- * Check if a register write has been completed
+/**
+ * ath5k_hw_register_timeout() - Poll a register for a flag/field change
+ * @ah: The &struct ath5k_hw
+ * @reg: The register to read
+ * @flag: The flag/field to check on the register
+ * @val: The field value we expect (if we check a field)
+ * @is_set: Instead of checking if the flag got cleared, check if it got set
+ *
+ * Some registers contain flags that indicate that an operation is
+ * running. We use this function to poll these registers and check
+ * if these flags get cleared. We also use it to poll a register
+ * field (containing multiple flags) until it gets a specific value.
+ *
+ * Returns -EAGAIN if we exceeded AR5K_TUNE_REGISTER_TIMEOUT * 15us or 0
  */
-int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
+int
+ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
 			      bool is_set)
 {
 	int i;
@@ -65,35 +88,48 @@ int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
 \*************************/
 
 /**
- * ath5k_hw_htoclock - Translate usec to hw clock units
- *
+ * ath5k_hw_htoclock() - Translate usec to hw clock units
  * @ah: The &struct ath5k_hw
  * @usec: value in microseconds
+ *
+ * Translate usecs to hw clock units based on the current
+ * hw clock rate.
+ *
+ * Returns number of clock units
  */
-unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
+unsigned int
+ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	return usec * common->clockrate;
 }
 
 /**
- * ath5k_hw_clocktoh - Translate hw clock units to usec
+ * ath5k_hw_clocktoh() - Translate hw clock units to usec
+ * @ah: The &struct ath5k_hw
  * @clock: value in hw clock units
+ *
+ * Translate hw clock units to usecs based on the current
+ * hw clock rate.
+ *
+ * Returns number of usecs
  */
-unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock)
+unsigned int
+ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	return clock / common->clockrate;
 }
 
 /**
- * ath5k_hw_init_core_clock - Initialize core clock
+ * ath5k_hw_init_core_clock() - Initialize core clock
+ * @ah: The &struct ath5k_hw
  *
- * @ah The &struct ath5k_hw
- *
- * Initialize core clock parameters (usec, usec32, latencies etc).
+ * Initialize core clock parameters (usec, usec32, latencies etc),
+ * based on current bwmode and chipset properties.
  */
-static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
+static void
+ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	struct ath_common *common = ath5k_hw_common(ah);
@@ -102,12 +138,18 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	/*
 	 * Set core clock frequency
 	 */
-	if (channel->hw_value & CHANNEL_5GHZ)
-		clock = 40; /* 802.11a */
-	else if (channel->hw_value & CHANNEL_CCK)
-		clock = 22; /* 802.11b */
-	else
-		clock = 44; /* 802.11g */
+	switch (channel->hw_value) {
+	case AR5K_MODE_11A:
+		clock = 40;
+		break;
+	case AR5K_MODE_11B:
+		clock = 22;
+		break;
+	case AR5K_MODE_11G:
+	default:
+		clock = 44;
+		break;
+	}
 
 	/* Use clock multiplier for non-default
 	 * bwmode */
@@ -142,10 +184,11 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 
 	/* Set 32MHz USEC counter */
 	if ((ah->ah_radio == AR5K_RF5112) ||
-		(ah->ah_radio == AR5K_RF5413) ||
-		(ah->ah_radio == AR5K_RF2316) ||
-		(ah->ah_radio == AR5K_RF2317))
-	/* Remain on 40MHz clock ? */
+	    (ah->ah_radio == AR5K_RF2413) ||
+	    (ah->ah_radio == AR5K_RF5413) ||
+	    (ah->ah_radio == AR5K_RF2316) ||
+	    (ah->ah_radio == AR5K_RF2317))
+		/* Remain on 40MHz clock ? */
 		sclock = 40 - 1;
 	else
 		sclock = 32 - 1;
@@ -213,7 +256,7 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	usec_reg = (usec | sclock | txlat | rxlat);
 	ath5k_hw_reg_write(ah, usec_reg, AR5K_USEC);
 
-	/* On 5112 set tx frane to tx data start delay */
+	/* On 5112 set tx frame to tx data start delay */
 	if (ah->ah_radio == AR5K_RF5112) {
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_RF_CTL2,
 					AR5K_PHY_RF_CTL2_TXF2TXD_START,
@@ -221,19 +264,24 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	}
 }
 
-/*
+/**
+ * ath5k_hw_set_sleep_clock() - Setup sleep clock operation
+ * @ah: The &struct ath5k_hw
+ * @enable: Enable sleep clock operation (false to disable)
+ *
  * If there is an external 32KHz crystal available, use it
  * as ref. clock instead of 32/40MHz clock and baseband clocks
  * to save power during sleep or restore normal 32/40MHz
  * operation.
  *
- * XXX: When operating on 32KHz certain PHY registers (27 - 31,
- *	123 - 127) require delay on access.
+ * NOTE: When operating on 32KHz certain PHY registers (27 - 31,
+ * 123 - 127) require delay on access.
  */
-static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
+static void
+ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 scal, spending;
+	u32 scal, spending, sclock;
 
 	/* Only set 32KHz settings if we have an external
 	 * 32KHz crystal present */
@@ -317,6 +365,15 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		/* Set up tsf increment on each cycle */
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
+
+		if ((ah->ah_radio == AR5K_RF5112) ||
+			(ah->ah_radio == AR5K_RF5413) ||
+			(ah->ah_radio == AR5K_RF2316) ||
+			(ah->ah_radio == AR5K_RF2317))
+			sclock = 40 - 1;
+		else
+			sclock = 32 - 1;
+		AR5K_REG_WRITE_BITS(ah, AR5K_USEC_5211, AR5K_USEC_32, sclock);
 	}
 }
 
@@ -325,10 +382,19 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 * Reset/Sleep control *
 \*********************/
 
-/*
- * Reset chipset
+/**
+ * ath5k_hw_nic_reset() - Reset the various chipset units
+ * @ah: The &struct ath5k_hw
+ * @val: Mask to indicate what units to reset
+ *
+ * To reset the various chipset units we need to write
+ * the mask to AR5K_RESET_CTL and poll the register until
+ * all flags are cleared.
+ *
+ * Returns 0 if we are O.K. or -EAGAIN (from athk5_hw_register_timeout)
  */
-static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
+static int
+ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 {
 	int ret;
 	u32 mask = val ? val : ~0U;
@@ -342,7 +408,7 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 	ath5k_hw_reg_write(ah, val, AR5K_RESET_CTL);
 
 	/* Wait at least 128 PCI clocks */
-	udelay(15);
+	usleep_range(15, 20);
 
 	if (ah->ah_version == AR5K_AR5210) {
 		val &= AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_DMA
@@ -367,28 +433,33 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 	return ret;
 }
 
-/*
- * Reset AHB chipset
- * AR5K_RESET_CTL_PCU flag resets WMAC
- * AR5K_RESET_CTL_BASEBAND flag resets WBB
+/**
+ * ath5k_hw_wisoc_reset() -  Reset AHB chipset
+ * @ah: The &struct ath5k_hw
+ * @flags: Mask to indicate what units to reset
+ *
+ * Same as ath5k_hw_nic_reset but for AHB based devices
+ *
+ * Returns 0 if we are O.K. or -EAGAIN (from athk5_hw_register_timeout)
  */
-static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
+static int
+ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 {
 	u32 mask = flags ? flags : ~0U;
-	volatile u32 *reg;
+	u32 __iomem *reg;
 	u32 regval;
 	u32 val = 0;
 
 	/* ah->ah_mac_srev is not available at this point yet */
-	if (ah->ah_sc->devid >= AR5K_SREV_AR2315_R6) {
-		reg = (u32 *) AR5K_AR2315_RESET;
+	if (ah->devid >= AR5K_SREV_AR2315_R6) {
+		reg = (u32 __iomem *) AR5K_AR2315_RESET;
 		if (mask & AR5K_RESET_CTL_PCU)
 			val |= AR5K_AR2315_RESET_WMAC;
 		if (mask & AR5K_RESET_CTL_BASEBAND)
 			val |= AR5K_AR2315_RESET_BB_WARM;
 	} else {
-		reg = (u32 *) AR5K_AR5312_RESET;
-		if (to_platform_device(ah->ah_sc->dev)->id == 0) {
+		reg = (u32 __iomem *) AR5K_AR5312_RESET;
+		if (to_platform_device(ah->dev)->id == 0) {
 			if (mask & AR5K_RESET_CTL_PCU)
 				val |= AR5K_AR5312_RESET_WMAC0;
 			if (mask & AR5K_RESET_CTL_BASEBAND)
@@ -404,14 +475,14 @@ static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 	}
 
 	/* Put BB/MAC into reset */
-	regval = __raw_readl(reg);
-	__raw_writel(regval | val, reg);
-	regval = __raw_readl(reg);
-	udelay(100);
+	regval = ioread32(reg);
+	iowrite32(regval | val, reg);
+	regval = ioread32(reg);
+	usleep_range(100, 150);
 
 	/* Bring BB/MAC out of reset */
-	__raw_writel(regval & ~val, reg);
-	regval = __raw_readl(reg);
+	iowrite32(regval & ~val, reg);
+	regval = ioread32(reg);
 
 	/*
 	 * Reset configuration register (for hw byte-swap). Note that this
@@ -424,11 +495,23 @@ static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 	return 0;
 }
 
-
-/*
- * Sleep control
+/**
+ * ath5k_hw_set_power_mode() - Set power mode
+ * @ah: The &struct ath5k_hw
+ * @mode: One of enum ath5k_power_mode
+ * @set_chip: Set to true to write sleep control register
+ * @sleep_duration: How much time the device is allowed to sleep
+ * when sleep logic is enabled (in 128 microsecond increments).
+ *
+ * This function is used to configure sleep policy and allowed
+ * sleep modes. For more information check out the sleep control
+ * register on reg.h and STA_ID1.
+ *
+ * Returns 0 on success, -EIO if chip didn't wake up or -EINVAL if an invalid
+ * mode is requested.
  */
-static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
+static int
+ath5k_hw_set_power_mode(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 			      bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
@@ -478,7 +561,7 @@ static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 
 		ath5k_hw_reg_write(ah, data | AR5K_SLEEP_CTL_SLE_WAKE,
 							AR5K_SLEEP_CTL);
-		udelay(15);
+		usleep_range(15, 20);
 
 		for (i = 200; i > 0; i--) {
 			/* Check if the chip did wake up */
@@ -487,7 +570,7 @@ static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 				break;
 
 			/* Wait a bit and retry */
-			udelay(50);
+			usleep_range(50, 75);
 			ath5k_hw_reg_write(ah, data | AR5K_SLEEP_CTL_SLE_WAKE,
 							AR5K_SLEEP_CTL);
 		}
@@ -508,19 +591,22 @@ commit:
 	return 0;
 }
 
-/*
- * Put device on hold
+/**
+ * ath5k_hw_on_hold() - Put device on hold
+ * @ah: The &struct ath5k_hw
  *
- * Put MAC and Baseband on warm reset and
- * keep that state (don't clean sleep control
- * register). After this MAC and Baseband are
- * disabled and a full reset is needed to come
- * back. This way we save as much power as possible
+ * Put MAC and Baseband on warm reset and keep that state
+ * (don't clean sleep control register). After this MAC
+ * and Baseband are disabled and a full reset is needed
+ * to come back. This way we save as much power as possible
  * without putting the card on full sleep.
+ *
+ * Returns 0 on success or -EIO on error
  */
-int ath5k_hw_on_hold(struct ath5k_hw *ah)
+int
+ath5k_hw_on_hold(struct ath5k_hw *ah)
 {
-	struct pci_dev *pdev = ah->ah_sc->pdev;
+	struct pci_dev *pdev = ah->pdev;
 	u32 bus_flags;
 	int ret;
 
@@ -528,9 +614,9 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 		return 0;
 
 	/* Make sure device is awake */
-	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	ret = ath5k_hw_set_power_mode(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to wakeup the MAC Chip\n");
 		return ret;
 	}
 
@@ -539,7 +625,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * we ignore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -548,33 +634,41 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
 			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
 			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
-			mdelay(2);
+			usleep_range(2000, 2500);
 	} else {
 		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
 			AR5K_RESET_CTL_BASEBAND | bus_flags);
 	}
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to put device on warm reset\n");
+		ATH5K_ERR(ah, "failed to put device on warm reset\n");
 		return -EIO;
 	}
 
 	/* ...wakeup again!*/
-	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	ret = ath5k_hw_set_power_mode(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to put device on hold\n");
+		ATH5K_ERR(ah, "failed to put device on hold\n");
 		return ret;
 	}
 
 	return ret;
 }
 
-/*
+/**
+ * ath5k_hw_nic_wakeup() - Force card out of sleep
+ * @ah: The &struct ath5k_hw
+ * @channel: The &struct ieee80211_channel
+ *
  * Bring up MAC + PHY Chips and program PLL
+ * NOTE: Channel is NULL for the initial wakeup.
+ *
+ * Returns 0 on success, -EIO on hw failure or -EINVAL for false channel infos
  */
-int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
+int
+ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 {
-	struct pci_dev *pdev = ah->ah_sc->pdev;
+	struct pci_dev *pdev = ah->pdev;
 	u32 turbo, mode, clock, bus_flags;
 	int ret;
 
@@ -582,11 +676,11 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	mode = 0;
 	clock = 0;
 
-	if ((ath5k_get_bus_type(ah) != ATH_AHB) || !initial) {
+	if ((ath5k_get_bus_type(ah) != ATH_AHB) || channel) {
 		/* Wakeup the device */
-		ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+		ret = ath5k_hw_set_power_mode(ah, AR5K_PM_AWAKE, true, 0);
 		if (ret) {
-			ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
+			ATH5K_ERR(ah, "failed to wakeup the MAC Chip\n");
 			return ret;
 		}
 	}
@@ -596,7 +690,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * we ignore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -605,7 +699,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
 			AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_DMA |
 			AR5K_RESET_CTL_PHY | AR5K_RESET_CTL_PCI);
-			mdelay(2);
+			usleep_range(2000, 2500);
 	} else {
 		if (ath5k_get_bus_type(ah) == ATH_AHB)
 			ret = ath5k_hw_wisoc_reset(ah, AR5K_RESET_CTL_PCU |
@@ -616,18 +710,18 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	}
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to reset the MAC Chip\n");
 		return -EIO;
 	}
 
 	/* ...wakeup again!...*/
-	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
+	ret = ath5k_hw_set_power_mode(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to resume the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to resume the MAC Chip\n");
 		return ret;
 	}
 
-	/* ...reset configuration regiter on Wisoc ...
+	/* ...reset configuration register on Wisoc ...
 	 * ...clear reset control register and pull device out of
 	 * warm reset on others */
 	if (ath5k_get_bus_type(ah) == ATH_AHB)
@@ -636,13 +730,13 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		ret = ath5k_hw_nic_reset(ah, 0);
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to warm reset the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to warm reset the MAC Chip\n");
 		return -EIO;
 	}
 
 	/* On initialization skip PLL programming since we don't have
 	 * a channel / mode set yet */
-	if (initial)
+	if (!channel)
 		return 0;
 
 	if (ah->ah_version != AR5K_AR5210) {
@@ -658,13 +752,13 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 			clock = AR5K_PHY_PLL_RF5111;		/*Zero*/
 		}
 
-		if (flags & CHANNEL_2GHZ) {
+		if (channel->band == IEEE80211_BAND_2GHZ) {
 			mode |= AR5K_PHY_MODE_FREQ_2GHZ;
 			clock |= AR5K_PHY_PLL_44MHZ;
 
-			if (flags & CHANNEL_CCK) {
+			if (channel->hw_value == AR5K_MODE_11B) {
 				mode |= AR5K_PHY_MODE_MOD_CCK;
-			} else if (flags & CHANNEL_OFDM) {
+			} else {
 				/* XXX Dynamic OFDM/CCK is not supported by the
 				 * AR5211 so we set MOD_OFDM for plain g (no
 				 * CCK headers) operation. We need to test
@@ -676,39 +770,28 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 					mode |= AR5K_PHY_MODE_MOD_OFDM;
 				else
 					mode |= AR5K_PHY_MODE_MOD_DYN;
-			} else {
-				ATH5K_ERR(ah->ah_sc,
-					"invalid radio modulation mode\n");
-				return -EINVAL;
 			}
-		} else if (flags & CHANNEL_5GHZ) {
-			mode |= AR5K_PHY_MODE_FREQ_5GHZ;
+		} else if (channel->band == IEEE80211_BAND_5GHZ) {
+			mode |= (AR5K_PHY_MODE_FREQ_5GHZ |
+				 AR5K_PHY_MODE_MOD_OFDM);
 
 			/* Different PLL setting for 5413 */
 			if (ah->ah_radio == AR5K_RF5413)
 				clock = AR5K_PHY_PLL_40MHZ_5413;
 			else
 				clock |= AR5K_PHY_PLL_40MHZ;
-
-			if (flags & CHANNEL_OFDM)
-				mode |= AR5K_PHY_MODE_MOD_OFDM;
-			else {
-				ATH5K_ERR(ah->ah_sc,
-					"invalid radio modulation mode\n");
-				return -EINVAL;
-			}
 		} else {
-			ATH5K_ERR(ah->ah_sc, "invalid radio frequency mode\n");
+			ATH5K_ERR(ah, "invalid radio frequency mode\n");
 			return -EINVAL;
 		}
 
 		/*XXX: Can bwmode be used with dynamic mode ?
 		 * (I don't think it supports 44MHz) */
-		/* On 2425 initvals TURBO_SHORT is not pressent */
+		/* On 2425 initvals TURBO_SHORT is not present */
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
-			turbo = AR5K_PHY_TURBO_MODE |
-				(ah->ah_radio == AR5K_RF2425) ? 0 :
-				AR5K_PHY_TURBO_SHORT;
+			turbo = AR5K_PHY_TURBO_MODE;
+			if (ah->ah_radio != AR5K_RF2425)
+				turbo |= AR5K_PHY_TURBO_SHORT;
 		} else if (ah->ah_bwmode != AR5K_BWMODE_DEFAULT) {
 			if (ah->ah_radio == AR5K_RF5413) {
 				mode |= (ah->ah_bwmode == AR5K_BWMODE_10MHZ) ?
@@ -734,7 +817,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		/* ...update PLL if needed */
 		if (ath5k_hw_reg_read(ah, AR5K_PHY_PLL) != clock) {
 			ath5k_hw_reg_write(ah, clock, AR5K_PHY_PLL);
-			udelay(300);
+			usleep_range(300, 350);
 		}
 
 		/* ...set the PHY operating mode */
@@ -750,8 +833,19 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 * Post-initvals register modifications *
 \**************************************/
 
-/* TODO: Half/Quarter rate */
-static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
+/**
+ * ath5k_hw_tweak_initval_settings() - Tweak initial settings
+ * @ah: The &struct ath5k_hw
+ * @channel: The &struct ieee80211_channel
+ *
+ * Some settings are not handled on initvals, e.g. bwmode
+ * settings, some phy settings, workarounds etc that in general
+ * don't fit anywhere else or are too small to introduce a separate
+ * function for each one. So we have this function to handle
+ * them all during reset and complete card's initialization.
+ */
+static void
+ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 				struct ieee80211_channel *channel)
 {
 	if (ah->ah_version == AR5K_AR5212 &&
@@ -812,7 +906,7 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		u32 data;
 		ath5k_hw_reg_write(ah, AR5K_PHY_CCKTXCTL_WORLD,
 				AR5K_PHY_CCKTXCTL);
-		if (channel->hw_value & CHANNEL_5GHZ)
+		if (channel->band == IEEE80211_BAND_5GHZ)
 			data = 0xffb81020;
 		else
 			data = 0xffb80d20;
@@ -870,7 +964,16 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 	}
 }
 
-static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
+/**
+ * ath5k_hw_commit_eeprom_settings() - Commit settings from EEPROM
+ * @ah: The &struct ath5k_hw
+ * @channel: The &struct ieee80211_channel
+ *
+ * Use settings stored on EEPROM to properly initialize the card
+ * based on various infos and per-mode calibration data.
+ */
+static void
+ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
@@ -881,7 +984,7 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	if (ah->ah_version == AR5K_AR5210)
 		return;
 
-	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	ee_mode = ath5k_eeprom_mode_from_channel(ah, channel);
 
 	/* Adjust power delta for channel 14 */
 	if (channel->center_freq == 2484)
@@ -895,7 +998,7 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	/* Set CCK to OFDM power delta on tx power
 	 * adjustment register */
 	if (ah->ah_phy_revision >= AR5K_SREV_PHY_5212A) {
-		if (channel->hw_value == CHANNEL_G)
+		if (channel->hw_value == AR5K_MODE_11G)
 			ath5k_hw_reg_write(ah,
 			AR5K_REG_SM((ee->ee_cck_ofdm_gain_delta * -1),
 				AR5K_PHY_TX_PWR_ADJ_CCK_GAIN_DELTA) |
@@ -1024,7 +1127,23 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 * Main reset function *
 \*********************/
 
-int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
+/**
+ * ath5k_hw_reset() - The main reset function
+ * @ah: The &struct ath5k_hw
+ * @op_mode: One of enum nl80211_iftype
+ * @channel: The &struct ieee80211_channel
+ * @fast: Enable fast channel switching
+ * @skip_pcu: Skip pcu initialization
+ *
+ * This is the function we call each time we want to (re)initialize the
+ * card and pass new settings to hw. We also call it when hw runs into
+ * trouble to make it come back to a working state.
+ *
+ * Returns 0 on success, -EINVAL on false op_mode or channel infos, or -EIO
+ * on failure.
+ */
+int
+ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		struct ieee80211_channel *channel, bool fast, bool skip_pcu)
 {
 	u32 s_seq[10], s_led[3], tsf_up, tsf_lo;
@@ -1042,7 +1161,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	if (fast && (ah->ah_radio != AR5K_RF2413) &&
 	(ah->ah_radio != AR5K_RF5413))
-		fast = 0;
+		fast = false;
 
 	/* Disable sleep clock operation
 	 * to avoid register access delay on certain
@@ -1066,48 +1185,34 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* RF Bus grant won't work if we have pending
 	 * frames */
 	if (ret && fast) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 			"DMA didn't stop, falling back to normal reset\n");
-		fast = 0;
+		fast = false;
 		/* Non fatal, just continue with
 		 * normal reset */
 		ret = 0;
 	}
 
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-		mode = AR5K_MODE_11A;
+	mode = channel->hw_value;
+	switch (mode) {
+	case AR5K_MODE_11A:
 		break;
-	case CHANNEL_G:
-
+	case AR5K_MODE_11G:
 		if (ah->ah_version <= AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"G mode not available on 5210/5211");
 			return -EINVAL;
 		}
-
-		mode = AR5K_MODE_11G;
 		break;
-	case CHANNEL_B:
-
+	case AR5K_MODE_11B:
 		if (ah->ah_version < AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"B mode not available on 5210");
 			return -EINVAL;
 		}
-
-		mode = AR5K_MODE_11B;
-		break;
-	case CHANNEL_XR:
-		if (ah->ah_version == AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
-				"XR mode not available on 5211");
-			return -EINVAL;
-		}
-		mode = AR5K_MODE_XR;
 		break;
 	default:
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"invalid channel: %d\n", channel->center_freq);
 		return -EINVAL;
 	}
@@ -1119,13 +1224,13 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	if (fast) {
 		ret = ath5k_hw_phy_init(ah, channel, mode, true);
 		if (ret) {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				"fast chan change failed, falling back to normal reset\n");
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
 		} else {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				"fast chan change successful\n");
 			return 0;
 		}
@@ -1190,7 +1295,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	}
 
 	/* Wakeup the device */
-	ret = ath5k_hw_nic_wakeup(ah, channel->hw_value, false);
+	ret = ath5k_hw_nic_wakeup(ah, channel);
 	if (ret)
 		return ret;
 
@@ -1251,14 +1356,14 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/*
 	 * Initialize PCU
 	 */
-	ath5k_hw_pcu_init(ah, op_mode, mode);
+	ath5k_hw_pcu_init(ah, op_mode);
 
 	/*
 	 * Initialize PHY
 	 */
 	ret = ath5k_hw_phy_init(ah, channel, mode, false);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"failed to initialize PHY (%i) !\n", ret);
 		return ret;
 	}
@@ -1277,11 +1382,16 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_dma_init(ah);
 
 
-	/* Enable 32KHz clock function for AR5212+ chips
+	/*
+	 * Enable 32KHz clock function for AR5212+ chips
 	 * Set clocks to 32KHz operation and use an
 	 * external 32KHz crystal when sleeping if one
-	 * exists */
-	if (ah->ah_version == AR5K_AR5212 &&
+	 * exists.
+	 * Disabled by default because it is also disabled in
+	 * other drivers and it is known to cause stability
+	 * issues on some devices
+	 */
+	if (ah->ah_use_32khz_clock && ah->ah_version == AR5K_AR5212 &&
 	    op_mode != NL80211_IFTYPE_AP)
 		ath5k_hw_set_sleep_clock(ah, true);
 

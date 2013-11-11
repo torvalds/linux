@@ -14,6 +14,8 @@
  */
 
 
+#include <linux/etherdevice.h>
+
 #include "ieee80211.h"
 #include "dot11d.h"
 /* FIXME: add A freqs */
@@ -136,7 +138,6 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 {
 
 	int ret = 0;
-	u8 zero[] = {0,0,0,0,0,0};
 	unsigned long flags;
 
 	short ifup = ieee->proto_started;//dev->flags & IFF_UP;
@@ -165,7 +166,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
-	ieee->wap_set = memcmp(temp->sa_data, zero,ETH_ALEN)!=0;
+	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
@@ -301,7 +302,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	HT_EXTCHNL_OFFSET chan_offset=0;
 	HT_CHANNEL_WIDTH bandwidth=0;
 	int b40M = 0;
-	static int count = 0;
+	static int count;
 	chan = ieee->current_network.channel;
 	netif_carrier_off(ieee->dev);
 
@@ -481,22 +482,23 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	strcpy(wrqu->name, "802.11");
-	if(ieee->modulation & IEEE80211_CCK_MODULATION){
-		strcat(wrqu->name, "b");
-		if(ieee->modulation & IEEE80211_OFDM_MODULATION)
-			strcat(wrqu->name, "/g");
-	}else if(ieee->modulation & IEEE80211_OFDM_MODULATION)
-		strcat(wrqu->name, "g");
+	strlcpy(wrqu->name, "802.11", IFNAMSIZ);
+	if (ieee->modulation & IEEE80211_CCK_MODULATION) {
+		strlcat(wrqu->name, "b", IFNAMSIZ);
+		if (ieee->modulation & IEEE80211_OFDM_MODULATION)
+			strlcat(wrqu->name, "/g", IFNAMSIZ);
+	} else if (ieee->modulation & IEEE80211_OFDM_MODULATION) {
+		strlcat(wrqu->name, "g", IFNAMSIZ);
+	}
+
 	if (ieee->mode & (IEEE_N_24G | IEEE_N_5G))
-		strcat(wrqu->name, "/n");
+		strlcat(wrqu->name, "/n", IFNAMSIZ);
 
-	if((ieee->state == IEEE80211_LINKED) ||
-		(ieee->state == IEEE80211_LINKED_SCANNING))
-		strcat(wrqu->name," linked");
-	else if(ieee->state != IEEE80211_NOLINK)
-		strcat(wrqu->name," link..");
-
+	if ((ieee->state == IEEE80211_LINKED) ||
+	    (ieee->state == IEEE80211_LINKED_SCANNING))
+		strlcat(wrqu->name, " linked", IFNAMSIZ);
+	else if (ieee->state != IEEE80211_NOLINK)
+		strlcat(wrqu->name, " link..", IFNAMSIZ);
 
 	return 0;
 }

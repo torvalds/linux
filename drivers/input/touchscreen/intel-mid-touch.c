@@ -427,7 +427,7 @@ out:
 }
 
 /* Utility to read PMIC ID */
-static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
+static int mrstouch_read_pmic_id(uint *vendor, uint *rev)
 {
 	int err;
 	u8 r;
@@ -446,17 +446,13 @@ static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
  * Parse ADC channels to find end of the channel configured by other ADC user
  * NEC and MAXIM requires 4 channels and FreeScale needs 18 channels
  */
-static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
+static int mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 {
-	int err, i, found;
+	int found = 0;
+	int err, i;
 	u8 r8;
 
-	found = -1;
-
 	for (i = 0; i < MRSTOUCH_MAX_CHANNELS; i++) {
-		if (found >= 0)
-			break;
-
 		err = intel_scu_ipc_ioread8(PMICADDR0 + i, &r8);
 		if (err)
 			return err;
@@ -466,16 +462,15 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 			break;
 		}
 	}
-	if (found < 0)
-		return 0;
 
 	if (tsdev->vendor == PMIC_VENDOR_FS) {
-		if (found && found > (MRSTOUCH_MAX_CHANNELS - 18))
+		if (found > MRSTOUCH_MAX_CHANNELS - 18)
 			return -ENOSPC;
 	} else {
-		if (found && found > (MRSTOUCH_MAX_CHANNELS - 4))
+		if (found > MRSTOUCH_MAX_CHANNELS - 4)
 			return -ENOSPC;
 	}
+
 	return found;
 }
 
@@ -483,7 +478,7 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 /*
  * Writes touch screen channels to ADC address selection registers
  */
-static int __devinit mrstouch_ts_chan_set(uint offset)
+static int mrstouch_ts_chan_set(uint offset)
 {
 	u16 chan;
 
@@ -499,7 +494,7 @@ static int __devinit mrstouch_ts_chan_set(uint offset)
 }
 
 /* Initialize ADC */
-static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
+static int mrstouch_adc_init(struct mrstouch_dev *tsdev)
 {
 	int err, start;
 	u8 ra, rm;
@@ -573,7 +568,7 @@ static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
 
 
 /* Probe function for touch screen driver */
-static int __devinit mrstouch_probe(struct platform_device *pdev)
+static int mrstouch_probe(struct platform_device *pdev)
 {
 	struct mrstouch_dev *tsdev;
 	struct input_dev *input;
@@ -625,7 +620,7 @@ static int __devinit mrstouch_probe(struct platform_device *pdev)
 			     MRST_PRESSURE_MIN, MRST_PRESSURE_MAX, 0, 0);
 
 	err = request_threaded_irq(tsdev->irq, NULL, mrstouch_pendet_irq,
-				   0, "mrstouch", tsdev);
+				   IRQF_ONESHOT, "mrstouch", tsdev);
 	if (err) {
 		dev_err(tsdev->dev, "unable to allocate irq\n");
 		goto err_free_mem;
@@ -648,7 +643,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit mrstouch_remove(struct platform_device *pdev)
+static int mrstouch_remove(struct platform_device *pdev)
 {
 	struct mrstouch_dev *tsdev = platform_get_drvdata(pdev);
 
@@ -667,20 +662,9 @@ static struct platform_driver mrstouch_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= mrstouch_probe,
-	.remove		= __devexit_p(mrstouch_remove),
+	.remove		= mrstouch_remove,
 };
-
-static int __init mrstouch_init(void)
-{
-	return platform_driver_register(&mrstouch_driver);
-}
-module_init(mrstouch_init);
-
-static void __exit mrstouch_exit(void)
-{
-	platform_driver_unregister(&mrstouch_driver);
-}
-module_exit(mrstouch_exit);
+module_platform_driver(mrstouch_driver);
 
 MODULE_AUTHOR("Sreedhara Murthy. D.S, sreedhara.ds@intel.com");
 MODULE_DESCRIPTION("Intel Moorestown Resistive Touch Screen Driver");

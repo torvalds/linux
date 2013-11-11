@@ -24,7 +24,8 @@
 
 unsigned long hp300_model;
 unsigned long hp300_uart_scode = -1;
-unsigned char ledstate;
+unsigned char hp300_ledstate;
+EXPORT_SYMBOL(hp300_ledstate);
 
 static char s_hp330[] __initdata = "330";
 static char s_hp340[] __initdata = "340";
@@ -250,7 +251,7 @@ void __init config_hp300(void)
 	mach_sched_init      = hp300_sched_init;
 	mach_init_IRQ        = hp300_init_IRQ;
 	mach_get_model       = hp300_get_model;
-	mach_gettimeoffset   = hp300_gettimeoffset;
+	arch_gettimeoffset   = hp300_gettimeoffset;
 	mach_hwclk	     = hp300_hwclk;
 	mach_get_ss	     = hp300_get_ss;
 	mach_reset           = hp300_reset;

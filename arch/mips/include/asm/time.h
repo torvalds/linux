@@ -6,8 +6,8 @@
  * include/asm-mips/time.h
  *     header file for the new style time.c file and time services.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -50,17 +50,17 @@ extern int (*perf_irq)(void);
 /*
  * Initialize the calling CPU's compare interrupt as clockevent device
  */
-#ifdef CONFIG_CEVT_R4K_LIB
 extern unsigned int __weak get_c0_compare_int(void);
 extern int r4k_clockevent_init(void);
-#endif
+extern int smtc_clockevent_init(void);
+extern int gic_clockevent_init(void);
 
 static inline int mips_clockevent_init(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
-	extern int smtc_clockevent_init(void);
-
 	return smtc_clockevent_init();
+#elif defined(CONFIG_CEVT_GIC)
+	return (gic_clockevent_init() | r4k_clockevent_init());
 #elif defined(CONFIG_CEVT_R4K)
 	return r4k_clockevent_init();
 #else
@@ -71,13 +71,11 @@ static inline int mips_clockevent_init(void)
 /*
  * Initialize the count register as a clocksource
  */
-#ifdef CONFIG_CSRC_R4K_LIB
 extern int init_r4k_clocksource(void);
-#endif
 
 static inline int init_mips_clocksource(void)
 {
-#ifdef CONFIG_CSRC_R4K
+#if defined(CONFIG_CSRC_R4K) && !defined(CONFIG_CSRC_GIC)
 	return init_r4k_clocksource();
 #else
 	return 0;

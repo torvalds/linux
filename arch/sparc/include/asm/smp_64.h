@@ -27,7 +27,7 @@
  */
 
 #include <linux/bitops.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/percpu.h>
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
@@ -48,6 +48,7 @@ extern void smp_fill_in_sib_core_maps(void);
 extern void cpu_play_dead(void);
 
 extern void smp_fetch_global_regs(void);
+extern void smp_fetch_global_pmu(void);
 
 struct seq_file;
 void smp_bogo(struct seq_file *);
@@ -65,6 +66,7 @@ extern void __cpu_die(unsigned int cpu);
 #define hard_smp_processor_id()		0
 #define smp_fill_in_sib_core_maps() do { } while (0)
 #define smp_fetch_global_regs() do { } while (0)
+#define smp_fetch_global_pmu() do { } while (0)
 
 #endif /* !(CONFIG_SMP) */
 

@@ -16,8 +16,14 @@
 
 #include <linux/err.h>
 #include <linux/cpufreq.h>
+#include <linux/notifier.h>
 
 struct opp;
+struct device;
+
+enum opp_event {
+	OPP_EVENT_ADD, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,
+};
 
 #if defined(CONFIG_PM_OPP)
 
@@ -40,6 +46,7 @@ int opp_enable(struct device *dev, unsigned long freq);
 
 int opp_disable(struct device *dev, unsigned long freq);
 
+struct srcu_notifier_head *opp_get_notifier(struct device *dev);
 #else
 static inline unsigned long opp_get_voltage(struct opp *opp)
 {
@@ -89,16 +96,38 @@ static inline int opp_disable(struct device *dev, unsigned long freq)
 {
 	return 0;
 }
-#endif		/* CONFIG_PM */
+
+static inline struct srcu_notifier_head *opp_get_notifier(struct device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif		/* CONFIG_PM_OPP */
+
+#if defined(CONFIG_PM_OPP) && defined(CONFIG_OF)
+int of_init_opp_table(struct device *dev);
+#else
+static inline int of_init_opp_table(struct device *dev)
+{
+	return -EINVAL;
+}
+#endif
 
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_PM_OPP)
 int opp_init_cpufreq_table(struct device *dev,
 			    struct cpufreq_frequency_table **table);
+void opp_free_cpufreq_table(struct device *dev,
+				struct cpufreq_frequency_table **table);
 #else
 static inline int opp_init_cpufreq_table(struct device *dev,
 			    struct cpufreq_frequency_table **table)
 {
 	return -EINVAL;
+}
+
+static inline
+void opp_free_cpufreq_table(struct device *dev,
+				struct cpufreq_frequency_table **table)
+{
 }
 #endif		/* CONFIG_CPU_FREQ */
 

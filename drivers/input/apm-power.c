@@ -33,7 +33,7 @@ static void system_power_event(unsigned int keycode)
 }
 
 static void apmpower_event(struct input_handle *handle, unsigned int type,
-		        unsigned int code, int value)
+			   unsigned int code, int value)
 {
 	/* only react on key down events */
 	if (value != 1)

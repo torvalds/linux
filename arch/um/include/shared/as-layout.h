@@ -6,7 +6,7 @@
 #ifndef __START_H__
 #define __START_H__
 
-#include "kern_constants.h"
+#include <generated/asm-offsets.h>
 
 /*
  * Stolen from linux/const.h, which can't be directly included since
@@ -35,7 +35,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 struct cpu_task {
 	int pid;
@@ -60,7 +60,8 @@ extern unsigned long host_task_size;
 
 extern int linux_main(int argc, char **argv);
 
-extern void (*sig_info[])(int, struct uml_pt_regs *);
+struct siginfo;
+extern void (*sig_info[])(int, struct siginfo *si, struct uml_pt_regs *);
 
 #endif
 

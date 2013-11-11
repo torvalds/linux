@@ -10,10 +10,9 @@
 #include <asm/dpmc.h>
 
 .section .l1.text
-
 ENTRY(_sleep_mode)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
+	[--SP] = (R7:4, P5:3);
+	[--SP] = RETS;
 
 	call _set_sic_iwr;
 
@@ -43,18 +42,32 @@ ENTRY(_sleep_mode)
 	BITCLR (R7, 5);
 	w[p0] = R7.L;
 	IDLE;
+
+	bfin_init_pm_bench_cycles;
+
 	call _test_pll_locked;
 
 	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	(R7:4, P5:3) = [SP++];
 	RTS;
 ENDPROC(_sleep_mode)
 
-ENTRY(_hibernate_mode)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
+/*
+ * This func never returns as it puts the part into hibernate, and
+ * is only called from do_hibernate, so we don't bother saving or
+ * restoring any of the normal C runtime state.  When we wake up,
+ * the entry point will be in do_hibernate and not here.
+ *
+ * We accept just one argument -- the value to write to VR_CTL.
+ */
 
-	R3 = R0;
+ENTRY(_hibernate_mode)
+	/* Save/setup the regs we need early for minor pipeline optimization */
+	R4 = R0;
+
+	P3.H = hi(VR_CTL);
+	P3.L = lo(VR_CTL);
+	/* Disable all wakeup sources */
 	R0 = IWR_DISABLE_ALL;
 	R1 = IWR_DISABLE_ALL;
 	R2 = IWR_DISABLE_ALL;
@@ -62,10 +75,11 @@ ENTRY(_hibernate_mode)
 	call _set_dram_srfs;
 	SSYNC;
 
-	P0.H = hi(VR_CTL);
-	P0.L = lo(VR_CTL);
+	/* Finally, we climb into our cave to hibernate */
+	W[P3] = R4.L;
 
-	W[P0] = R3.L;
+	bfin_init_pm_bench_cycles;
+
 	CLI R2;
 	IDLE;
 .Lforever:
@@ -73,8 +87,8 @@ ENTRY(_hibernate_mode)
 ENDPROC(_hibernate_mode)
 
 ENTRY(_sleep_deeper)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
+	[--SP] = (R7:4, P5:3);
+	[--SP] = RETS;
 
 	CLI R4;
 
@@ -150,6 +164,8 @@ ENTRY(_sleep_deeper)
 	SSYNC;
 	IDLE;
 
+	bfin_init_pm_bench_cycles;
+
 	call _test_pll_locked;
 
 	P0.H = hi(PLL_DIV);
@@ -167,7 +183,7 @@ ENTRY(_sleep_deeper)
 	STI R4;
 
 	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	(R7:4, P5:3) = [SP++];
 	RTS;
 ENDPROC(_sleep_deeper)
 
@@ -188,21 +204,20 @@ ENTRY(_set_dram_srfs)
 #else 				/* SDRAM */
 	P0.L = lo(EBIU_SDGCTL);
 	P0.H = hi(EBIU_SDGCTL);
+	P1.L = lo(EBIU_SDSTAT);
+	P1.H = hi(EBIU_SDSTAT);
+
 	R2 = [P0];
 	BITSET(R2, 24); /* SRFS enter self-refresh mode */
 	[P0] = R2;
 	SSYNC;
 
-	P0.L = lo(EBIU_SDSTAT);
-	P0.H = hi(EBIU_SDSTAT);
 1:
-	R2 = w[P0];
+	R2 = w[P1];
 	SSYNC;
 	cc = BITTST(R2, 1); /* SDSRA poll self-refresh status */
 	if !cc jump 1b;
 
-	P0.L = lo(EBIU_SDGCTL);
-	P0.H = hi(EBIU_SDGCTL);
 	R2 = [P0];
 	BITCLR(R2, 0); /* SCTLE disable CLKOUT */
 	[P0] = R2;
@@ -212,6 +227,7 @@ ENDPROC(_set_dram_srfs)
 
 ENTRY(_unset_dram_srfs)
 	/*  set the dram out of self refresh mode */
+
 #if defined(EBIU_RSTCTL)	/* DDR */
 	P0.H = hi(EBIU_RSTCTL);
 	P0.L = lo(EBIU_RSTCTL);
@@ -219,42 +235,39 @@ ENTRY(_unset_dram_srfs)
 	BITCLR(R2, 3); /* clear SRREQ bit */
 	[P0] = R2;
 #elif defined(EBIU_SDGCTL)	/* SDRAM */
-
-	P0.L = lo(EBIU_SDGCTL); /* release CLKOUT from self-refresh */
+	/* release CLKOUT from self-refresh */
+	P0.L = lo(EBIU_SDGCTL);
 	P0.H = hi(EBIU_SDGCTL);
+
 	R2 = [P0];
 	BITSET(R2, 0); /* SCTLE enable CLKOUT */
 	[P0] = R2
 	SSYNC;
 
-	P0.L = lo(EBIU_SDGCTL); /* release SDRAM from self-refresh */
-	P0.H = hi(EBIU_SDGCTL);
+	/* release SDRAM from self-refresh */
 	R2 = [P0];
 	BITCLR(R2, 24); /* clear SRFS bit */
 	[P0] = R2
 #endif
+
 	SSYNC;
 	RTS;
 ENDPROC(_unset_dram_srfs)
 
 ENTRY(_set_sic_iwr)
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) || \
-	defined(CONFIG_BF538) || defined(CONFIG_BF539) || defined(CONFIG_BF51x)
-	P0.H = hi(SIC_IWR0);
-	P0.L = lo(SIC_IWR0);
-	P1.H = hi(SIC_IWR1);
-	P1.L = lo(SIC_IWR1);
-	[P1] = R1;
-#if defined(CONFIG_BF54x)
-	P1.H = hi(SIC_IWR2);
-	P1.L = lo(SIC_IWR2);
-	[P1] = R2;
-#endif
+#ifdef SIC_IWR0
+	P0.H = hi(SYSMMR_BASE);
+	P0.L = lo(SYSMMR_BASE);
+	[P0 + (SIC_IWR0 - SYSMMR_BASE)] = R0;
+	[P0 + (SIC_IWR1 - SYSMMR_BASE)] = R1;
+# ifdef SIC_IWR2
+	[P0 + (SIC_IWR2 - SYSMMR_BASE)] = R2;
+# endif
 #else
 	P0.H = hi(SIC_IWR);
 	P0.L = lo(SIC_IWR);
-#endif
 	[P0] = R0;
+#endif
 
 	SSYNC;
 	RTS;
@@ -271,514 +284,37 @@ ENTRY(_test_pll_locked)
 ENDPROC(_test_pll_locked)
 
 .section .text
-
 ENTRY(_do_hibernate)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
-	/* Save System MMRs */
-	R2 = R0;
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
+	bfin_cpu_reg_save;
+	bfin_sys_mmr_save;
+	bfin_core_mmr_save;
 
-#ifdef SIC_IMASK0
-	PM_SYS_PUSH(SIC_IMASK0)
-#endif
-#ifdef SIC_IMASK1
-	PM_SYS_PUSH(SIC_IMASK1)
-#endif
-#ifdef SIC_IMASK2
-	PM_SYS_PUSH(SIC_IMASK2)
-#endif
-#ifdef SIC_IMASK
-	PM_SYS_PUSH(SIC_IMASK)
-#endif
-#ifdef SIC_IAR0
-	PM_SYS_PUSH(SIC_IAR0)
-	PM_SYS_PUSH(SIC_IAR1)
-	PM_SYS_PUSH(SIC_IAR2)
-#endif
-#ifdef SIC_IAR3
-	PM_SYS_PUSH(SIC_IAR3)
-#endif
-#ifdef SIC_IAR4
-	PM_SYS_PUSH(SIC_IAR4)
-	PM_SYS_PUSH(SIC_IAR5)
-	PM_SYS_PUSH(SIC_IAR6)
-#endif
-#ifdef SIC_IAR7
-	PM_SYS_PUSH(SIC_IAR7)
-#endif
-#ifdef SIC_IAR8
-	PM_SYS_PUSH(SIC_IAR8)
-	PM_SYS_PUSH(SIC_IAR9)
-	PM_SYS_PUSH(SIC_IAR10)
-	PM_SYS_PUSH(SIC_IAR11)
-#endif
-
-#ifdef SIC_IWR
-	PM_SYS_PUSH(SIC_IWR)
-#endif
-#ifdef SIC_IWR0
-	PM_SYS_PUSH(SIC_IWR0)
-#endif
-#ifdef SIC_IWR1
-	PM_SYS_PUSH(SIC_IWR1)
-#endif
-#ifdef SIC_IWR2
-	PM_SYS_PUSH(SIC_IWR2)
-#endif
-
-#ifdef PINT0_ASSIGN
-	PM_SYS_PUSH(PINT0_MASK_SET)
-	PM_SYS_PUSH(PINT1_MASK_SET)
-	PM_SYS_PUSH(PINT2_MASK_SET)
-	PM_SYS_PUSH(PINT3_MASK_SET)
-	PM_SYS_PUSH(PINT0_ASSIGN)
-	PM_SYS_PUSH(PINT1_ASSIGN)
-	PM_SYS_PUSH(PINT2_ASSIGN)
-	PM_SYS_PUSH(PINT3_ASSIGN)
-	PM_SYS_PUSH(PINT0_INVERT_SET)
-	PM_SYS_PUSH(PINT1_INVERT_SET)
-	PM_SYS_PUSH(PINT2_INVERT_SET)
-	PM_SYS_PUSH(PINT3_INVERT_SET)
-	PM_SYS_PUSH(PINT0_EDGE_SET)
-	PM_SYS_PUSH(PINT1_EDGE_SET)
-	PM_SYS_PUSH(PINT2_EDGE_SET)
-	PM_SYS_PUSH(PINT3_EDGE_SET)
-#endif
-
-	PM_SYS_PUSH(EBIU_AMBCTL0)
-	PM_SYS_PUSH(EBIU_AMBCTL1)
-	PM_SYS_PUSH16(EBIU_AMGCTL)
-
-#ifdef EBIU_FCTL
-	PM_SYS_PUSH(EBIU_MBSCTL)
-	PM_SYS_PUSH(EBIU_MODE)
-	PM_SYS_PUSH(EBIU_FCTL)
-#endif
-
-#ifdef PORTCIO_FER
-	PM_SYS_PUSH16(PORTCIO_DIR)
-	PM_SYS_PUSH16(PORTCIO_INEN)
-	PM_SYS_PUSH16(PORTCIO)
-	PM_SYS_PUSH16(PORTCIO_FER)
-	PM_SYS_PUSH16(PORTDIO_DIR)
-	PM_SYS_PUSH16(PORTDIO_INEN)
-	PM_SYS_PUSH16(PORTDIO)
-	PM_SYS_PUSH16(PORTDIO_FER)
-	PM_SYS_PUSH16(PORTEIO_DIR)
-	PM_SYS_PUSH16(PORTEIO_INEN)
-	PM_SYS_PUSH16(PORTEIO)
-	PM_SYS_PUSH16(PORTEIO_FER)
-#endif
-
-	PM_SYS_PUSH16(SYSCR)
-
-	/* Save Core MMRs */
-	P0.H = hi(SRAM_BASE_ADDRESS);
-	P0.L = lo(SRAM_BASE_ADDRESS);
-
-	PM_PUSH(DMEM_CONTROL)
-	PM_PUSH(DCPLB_ADDR0)
-	PM_PUSH(DCPLB_ADDR1)
-	PM_PUSH(DCPLB_ADDR2)
-	PM_PUSH(DCPLB_ADDR3)
-	PM_PUSH(DCPLB_ADDR4)
-	PM_PUSH(DCPLB_ADDR5)
-	PM_PUSH(DCPLB_ADDR6)
-	PM_PUSH(DCPLB_ADDR7)
-	PM_PUSH(DCPLB_ADDR8)
-	PM_PUSH(DCPLB_ADDR9)
-	PM_PUSH(DCPLB_ADDR10)
-	PM_PUSH(DCPLB_ADDR11)
-	PM_PUSH(DCPLB_ADDR12)
-	PM_PUSH(DCPLB_ADDR13)
-	PM_PUSH(DCPLB_ADDR14)
-	PM_PUSH(DCPLB_ADDR15)
-	PM_PUSH(DCPLB_DATA0)
-	PM_PUSH(DCPLB_DATA1)
-	PM_PUSH(DCPLB_DATA2)
-	PM_PUSH(DCPLB_DATA3)
-	PM_PUSH(DCPLB_DATA4)
-	PM_PUSH(DCPLB_DATA5)
-	PM_PUSH(DCPLB_DATA6)
-	PM_PUSH(DCPLB_DATA7)
-	PM_PUSH(DCPLB_DATA8)
-	PM_PUSH(DCPLB_DATA9)
-	PM_PUSH(DCPLB_DATA10)
-	PM_PUSH(DCPLB_DATA11)
-	PM_PUSH(DCPLB_DATA12)
-	PM_PUSH(DCPLB_DATA13)
-	PM_PUSH(DCPLB_DATA14)
-	PM_PUSH(DCPLB_DATA15)
-	PM_PUSH(IMEM_CONTROL)
-	PM_PUSH(ICPLB_ADDR0)
-	PM_PUSH(ICPLB_ADDR1)
-	PM_PUSH(ICPLB_ADDR2)
-	PM_PUSH(ICPLB_ADDR3)
-	PM_PUSH(ICPLB_ADDR4)
-	PM_PUSH(ICPLB_ADDR5)
-	PM_PUSH(ICPLB_ADDR6)
-	PM_PUSH(ICPLB_ADDR7)
-	PM_PUSH(ICPLB_ADDR8)
-	PM_PUSH(ICPLB_ADDR9)
-	PM_PUSH(ICPLB_ADDR10)
-	PM_PUSH(ICPLB_ADDR11)
-	PM_PUSH(ICPLB_ADDR12)
-	PM_PUSH(ICPLB_ADDR13)
-	PM_PUSH(ICPLB_ADDR14)
-	PM_PUSH(ICPLB_ADDR15)
-	PM_PUSH(ICPLB_DATA0)
-	PM_PUSH(ICPLB_DATA1)
-	PM_PUSH(ICPLB_DATA2)
-	PM_PUSH(ICPLB_DATA3)
-	PM_PUSH(ICPLB_DATA4)
-	PM_PUSH(ICPLB_DATA5)
-	PM_PUSH(ICPLB_DATA6)
-	PM_PUSH(ICPLB_DATA7)
-	PM_PUSH(ICPLB_DATA8)
-	PM_PUSH(ICPLB_DATA9)
-	PM_PUSH(ICPLB_DATA10)
-	PM_PUSH(ICPLB_DATA11)
-	PM_PUSH(ICPLB_DATA12)
-	PM_PUSH(ICPLB_DATA13)
-	PM_PUSH(ICPLB_DATA14)
-	PM_PUSH(ICPLB_DATA15)
-	PM_PUSH(EVT0)
-	PM_PUSH(EVT1)
-	PM_PUSH(EVT2)
-	PM_PUSH(EVT3)
-	PM_PUSH(EVT4)
-	PM_PUSH(EVT5)
-	PM_PUSH(EVT6)
-	PM_PUSH(EVT7)
-	PM_PUSH(EVT8)
-	PM_PUSH(EVT9)
-	PM_PUSH(EVT10)
-	PM_PUSH(EVT11)
-	PM_PUSH(EVT12)
-	PM_PUSH(EVT13)
-	PM_PUSH(EVT14)
-	PM_PUSH(EVT15)
-	PM_PUSH(IMASK)
-	PM_PUSH(ILAT)
-	PM_PUSH(IPRIO)
-	PM_PUSH(TCNTL)
-	PM_PUSH(TPERIOD)
-	PM_PUSH(TSCALE)
-	PM_PUSH(TCOUNT)
-	PM_PUSH(TBUFCTL)
-
-	/* Save Core Registers */
-	[--sp] = SYSCFG;
-	[--sp] = ( R7:0, P5:0 );
-	[--sp] = fp;
-	[--sp] = usp;
-
-	[--sp] = i0;
-	[--sp] = i1;
-	[--sp] = i2;
-	[--sp] = i3;
-
-	[--sp] = m0;
-	[--sp] = m1;
-	[--sp] = m2;
-	[--sp] = m3;
-
-	[--sp] = l0;
-	[--sp] = l1;
-	[--sp] = l2;
-	[--sp] = l3;
-
-	[--sp] = b0;
-	[--sp] = b1;
-	[--sp] = b2;
-	[--sp] = b3;
-	[--sp] = a0.x;
-	[--sp] = a0.w;
-	[--sp] = a1.x;
-	[--sp] = a1.w;
-
-	[--sp] = LC0;
-	[--sp] = LC1;
-	[--sp] = LT0;
-	[--sp] = LT1;
-	[--sp] = LB0;
-	[--sp] = LB1;
-
-	[--sp] = ASTAT;
-	[--sp] = CYCLES;
-	[--sp] = CYCLES2;
-
-	[--sp] = RETS;
-	r0 = RETI;
-	[--sp] = r0;
-	[--sp] = RETX;
-	[--sp] = RETN;
-	[--sp] = RETE;
-	[--sp] = SEQSTAT;
+	/* Setup args to hibernate mode early for pipeline optimization */
+	R0 = M3;
+	P1.H = _hibernate_mode;
+	P1.L = _hibernate_mode;
 
 	/* Save Magic, return address and Stack Pointer */
-	P0.H = 0;
-	P0.L = 0;
-	R0.H = 0xDEAD;	/* Hibernate Magic */
-	R0.L = 0xBEEF;
-	[P0++] = R0;	/* Store Hibernate Magic */
-	R0.H = .Lpm_resume_here;
-	R0.L = .Lpm_resume_here;
-	[P0++] = R0;	/* Save Return Address */
+	P0 = 0;
+	R1.H = 0xDEAD;	/* Hibernate Magic */
+	R1.L = 0xBEEF;
+	R2.H = .Lpm_resume_here;
+	R2.L = .Lpm_resume_here;
+	[P0++] = R1;	/* Store Hibernate Magic */
+	[P0++] = R2;	/* Save Return Address */
 	[P0++] = SP;	/* Save Stack Pointer */
-	P0.H = _hibernate_mode;
-	P0.L = _hibernate_mode;
-	R0 = R2;
-	call (P0); /* Goodbye */
+
+	/* Must use an indirect call as we need to jump to L1 */
+	call (P1); /* Goodbye */
 
 .Lpm_resume_here:
 
-	/* Restore Core Registers */
-	SEQSTAT = [sp++];
-	RETE = [sp++];
-	RETN = [sp++];
-	RETX = [sp++];
-	r0 = [sp++];
-	RETI = r0;
-	RETS = [sp++];
-
-	CYCLES2 = [sp++];
-	CYCLES = [sp++];
-	ASTAT = [sp++];
-
-	LB1 = [sp++];
-	LB0 = [sp++];
-	LT1 = [sp++];
-	LT0 = [sp++];
-	LC1 = [sp++];
-	LC0 = [sp++];
-
-	a1.w = [sp++];
-	a1.x = [sp++];
-	a0.w = [sp++];
-	a0.x = [sp++];
-	b3 = [sp++];
-	b2 = [sp++];
-	b1 = [sp++];
-	b0 = [sp++];
-
-	l3 = [sp++];
-	l2 = [sp++];
-	l1 = [sp++];
-	l0 = [sp++];
-
-	m3 = [sp++];
-	m2 = [sp++];
-	m1 = [sp++];
-	m0 = [sp++];
-
-	i3 = [sp++];
-	i2 = [sp++];
-	i1 = [sp++];
-	i0 = [sp++];
-
-	usp = [sp++];
-	fp = [sp++];
-
-	( R7 : 0, P5 : 0) = [ SP ++ ];
-	SYSCFG = [sp++];
-
-	/* Restore Core MMRs */
-
-	PM_POP(TBUFCTL)
-	PM_POP(TCOUNT)
-	PM_POP(TSCALE)
-	PM_POP(TPERIOD)
-	PM_POP(TCNTL)
-	PM_POP(IPRIO)
-	PM_POP(ILAT)
-	PM_POP(IMASK)
-	PM_POP(EVT15)
-	PM_POP(EVT14)
-	PM_POP(EVT13)
-	PM_POP(EVT12)
-	PM_POP(EVT11)
-	PM_POP(EVT10)
-	PM_POP(EVT9)
-	PM_POP(EVT8)
-	PM_POP(EVT7)
-	PM_POP(EVT6)
-	PM_POP(EVT5)
-	PM_POP(EVT4)
-	PM_POP(EVT3)
-	PM_POP(EVT2)
-	PM_POP(EVT1)
-	PM_POP(EVT0)
-	PM_POP(ICPLB_DATA15)
-	PM_POP(ICPLB_DATA14)
-	PM_POP(ICPLB_DATA13)
-	PM_POP(ICPLB_DATA12)
-	PM_POP(ICPLB_DATA11)
-	PM_POP(ICPLB_DATA10)
-	PM_POP(ICPLB_DATA9)
-	PM_POP(ICPLB_DATA8)
-	PM_POP(ICPLB_DATA7)
-	PM_POP(ICPLB_DATA6)
-	PM_POP(ICPLB_DATA5)
-	PM_POP(ICPLB_DATA4)
-	PM_POP(ICPLB_DATA3)
-	PM_POP(ICPLB_DATA2)
-	PM_POP(ICPLB_DATA1)
-	PM_POP(ICPLB_DATA0)
-	PM_POP(ICPLB_ADDR15)
-	PM_POP(ICPLB_ADDR14)
-	PM_POP(ICPLB_ADDR13)
-	PM_POP(ICPLB_ADDR12)
-	PM_POP(ICPLB_ADDR11)
-	PM_POP(ICPLB_ADDR10)
-	PM_POP(ICPLB_ADDR9)
-	PM_POP(ICPLB_ADDR8)
-	PM_POP(ICPLB_ADDR7)
-	PM_POP(ICPLB_ADDR6)
-	PM_POP(ICPLB_ADDR5)
-	PM_POP(ICPLB_ADDR4)
-	PM_POP(ICPLB_ADDR3)
-	PM_POP(ICPLB_ADDR2)
-	PM_POP(ICPLB_ADDR1)
-	PM_POP(ICPLB_ADDR0)
-	PM_POP(IMEM_CONTROL)
-	PM_POP(DCPLB_DATA15)
-	PM_POP(DCPLB_DATA14)
-	PM_POP(DCPLB_DATA13)
-	PM_POP(DCPLB_DATA12)
-	PM_POP(DCPLB_DATA11)
-	PM_POP(DCPLB_DATA10)
-	PM_POP(DCPLB_DATA9)
-	PM_POP(DCPLB_DATA8)
-	PM_POP(DCPLB_DATA7)
-	PM_POP(DCPLB_DATA6)
-	PM_POP(DCPLB_DATA5)
-	PM_POP(DCPLB_DATA4)
-	PM_POP(DCPLB_DATA3)
-	PM_POP(DCPLB_DATA2)
-	PM_POP(DCPLB_DATA1)
-	PM_POP(DCPLB_DATA0)
-	PM_POP(DCPLB_ADDR15)
-	PM_POP(DCPLB_ADDR14)
-	PM_POP(DCPLB_ADDR13)
-	PM_POP(DCPLB_ADDR12)
-	PM_POP(DCPLB_ADDR11)
-	PM_POP(DCPLB_ADDR10)
-	PM_POP(DCPLB_ADDR9)
-	PM_POP(DCPLB_ADDR8)
-	PM_POP(DCPLB_ADDR7)
-	PM_POP(DCPLB_ADDR6)
-	PM_POP(DCPLB_ADDR5)
-	PM_POP(DCPLB_ADDR4)
-	PM_POP(DCPLB_ADDR3)
-	PM_POP(DCPLB_ADDR2)
-	PM_POP(DCPLB_ADDR1)
-	PM_POP(DCPLB_ADDR0)
-	PM_POP(DMEM_CONTROL)
-
-	/* Restore System MMRs */
-
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
-	PM_SYS_POP16(SYSCR)
-
-#ifdef PORTCIO_FER
-	PM_SYS_POP16(PORTEIO_FER)
-	PM_SYS_POP16(PORTEIO)
-	PM_SYS_POP16(PORTEIO_INEN)
-	PM_SYS_POP16(PORTEIO_DIR)
-	PM_SYS_POP16(PORTDIO_FER)
-	PM_SYS_POP16(PORTDIO)
-	PM_SYS_POP16(PORTDIO_INEN)
-	PM_SYS_POP16(PORTDIO_DIR)
-	PM_SYS_POP16(PORTCIO_FER)
-	PM_SYS_POP16(PORTCIO)
-	PM_SYS_POP16(PORTCIO_INEN)
-	PM_SYS_POP16(PORTCIO_DIR)
-#endif
-
-#ifdef EBIU_FCTL
-	PM_SYS_POP(EBIU_FCTL)
-	PM_SYS_POP(EBIU_MODE)
-	PM_SYS_POP(EBIU_MBSCTL)
-#endif
-	PM_SYS_POP16(EBIU_AMGCTL)
-	PM_SYS_POP(EBIU_AMBCTL1)
-	PM_SYS_POP(EBIU_AMBCTL0)
-
-#ifdef PINT0_ASSIGN
-	PM_SYS_POP(PINT3_EDGE_SET)
-	PM_SYS_POP(PINT2_EDGE_SET)
-	PM_SYS_POP(PINT1_EDGE_SET)
-	PM_SYS_POP(PINT0_EDGE_SET)
-	PM_SYS_POP(PINT3_INVERT_SET)
-	PM_SYS_POP(PINT2_INVERT_SET)
-	PM_SYS_POP(PINT1_INVERT_SET)
-	PM_SYS_POP(PINT0_INVERT_SET)
-	PM_SYS_POP(PINT3_ASSIGN)
-	PM_SYS_POP(PINT2_ASSIGN)
-	PM_SYS_POP(PINT1_ASSIGN)
-	PM_SYS_POP(PINT0_ASSIGN)
-	PM_SYS_POP(PINT3_MASK_SET)
-	PM_SYS_POP(PINT2_MASK_SET)
-	PM_SYS_POP(PINT1_MASK_SET)
-	PM_SYS_POP(PINT0_MASK_SET)
-#endif
-
-#ifdef SIC_IWR2
-	PM_SYS_POP(SIC_IWR2)
-#endif
-#ifdef SIC_IWR1
-	PM_SYS_POP(SIC_IWR1)
-#endif
-#ifdef SIC_IWR0
-	PM_SYS_POP(SIC_IWR0)
-#endif
-#ifdef SIC_IWR
-	PM_SYS_POP(SIC_IWR)
-#endif
-
-#ifdef SIC_IAR8
-	PM_SYS_POP(SIC_IAR11)
-	PM_SYS_POP(SIC_IAR10)
-	PM_SYS_POP(SIC_IAR9)
-	PM_SYS_POP(SIC_IAR8)
-#endif
-#ifdef SIC_IAR7
-	PM_SYS_POP(SIC_IAR7)
-#endif
-#ifdef SIC_IAR6
-	PM_SYS_POP(SIC_IAR6)
-	PM_SYS_POP(SIC_IAR5)
-	PM_SYS_POP(SIC_IAR4)
-#endif
-#ifdef SIC_IAR3
-	PM_SYS_POP(SIC_IAR3)
-#endif
-#ifdef SIC_IAR0
-	PM_SYS_POP(SIC_IAR2)
-	PM_SYS_POP(SIC_IAR1)
-	PM_SYS_POP(SIC_IAR0)
-#endif
-#ifdef SIC_IMASK
-	PM_SYS_POP(SIC_IMASK)
-#endif
-#ifdef SIC_IMASK2
-	PM_SYS_POP(SIC_IMASK2)
-#endif
-#ifdef SIC_IMASK1
-	PM_SYS_POP(SIC_IMASK1)
-#endif
-#ifdef SIC_IMASK0
-	PM_SYS_POP(SIC_IMASK0)
-#endif
+	bfin_core_mmr_restore;
+	bfin_sys_mmr_restore;
+	bfin_cpu_reg_restore;
 
 	[--sp] = RETI;	/* Clear Global Interrupt Disable */
 	SP += 4;
 
-	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
 	RTS;
 ENDPROC(_do_hibernate)

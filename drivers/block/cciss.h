@@ -92,6 +92,7 @@ struct ctlr_info
 	unsigned int intr[4];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
+	int	intr_mode;
 	int 	cciss_max_sectors;
 	BYTE	cciss_read;
 	BYTE	cciss_write;
@@ -223,7 +224,7 @@ static void SA5_submit_command( ctlr_info_t *h, CommandList_struct *c)
 			h->ctlr, c->busaddr);
 #endif /* CCISS_DEBUG */
          writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
-	readl(h->vaddr + SA5_REQUEST_PORT_OFFSET);
+	readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 	 h->commands_outstanding++;
 	 if ( h->commands_outstanding > h->max_outstanding)
 		h->max_outstanding = h->commands_outstanding;

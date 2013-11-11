@@ -5,7 +5,6 @@
  * Copyright (C) 1998  Jakub Jelinek    (jj@ultra.linux.cz)
  */
 
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/linkage.h>
 #include <linux/ptrace.h>
@@ -26,8 +25,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
-#include <asm/atomic.h>
-#include <asm/system.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
@@ -801,7 +799,7 @@ static void kill_prom_timer(void)
 	prom_limit0 = prom_timers->limit0;
 	prom_limit1 = prom_timers->limit1;
 
-	/* Just as in sun4c/sun4m PROM uses timer which ticks at IRQ 14.
+	/* Just as in sun4c PROM uses timer which ticks at IRQ 14.
 	 * We turn both off here just to be paranoid.
 	 */
 	prom_timers->limit0 = 0;

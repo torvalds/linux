@@ -9,15 +9,14 @@ devices in parallel.
 
 Parameters: <num devs> <chunk size> [<dev path> <offset>]+
     <num devs>: Number of underlying devices.
-    <chunk size>: Size of each chunk of data. Must be a power-of-2 and at
-                  least as large as the system's PAGE_SIZE.
+    <chunk size>: Size of each chunk of data. Must be at least as
+                  large as the system's PAGE_SIZE.
     <dev path>: Full pathname to the underlying block-device, or a
                 "major:minor" device-number.
     <offset>: Starting sector within the device.
 
 One or more underlying devices can be specified. The striped device size must
-be a multiple of the chunk size and a multiple of the number of underlying
-devices.
+be a multiple of the chunk size multiplied by the number of underlying devices.
 
 
 Example scripts

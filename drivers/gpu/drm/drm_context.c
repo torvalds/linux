@@ -40,7 +40,7 @@
  *		needed by SiS driver's memory management.
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 /******************************************************************/
 /** \name Context bitmap support */
@@ -74,23 +74,13 @@ void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
  */
 static int drm_ctxbitmap_next(struct drm_device * dev)
 {
-	int new_id;
 	int ret;
 
-again:
-	if (idr_pre_get(&dev->ctx_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("Out of memory expanding drawable idr\n");
-		return -ENOMEM;
-	}
 	mutex_lock(&dev->struct_mutex);
-	ret = idr_get_new_above(&dev->ctx_idr, NULL,
-				DRM_RESERVED_CONTEXTS, &new_id);
-	if (ret == -EAGAIN) {
-		mutex_unlock(&dev->struct_mutex);
-		goto again;
-	}
+	ret = idr_alloc(&dev->ctx_idr, NULL, DRM_RESERVED_CONTEXTS, 0,
+			GFP_KERNEL);
 	mutex_unlock(&dev->struct_mutex);
-	return new_id;
+	return ret;
 }
 
 /**
@@ -117,7 +107,7 @@ int drm_ctxbitmap_init(struct drm_device * dev)
 void drm_ctxbitmap_cleanup(struct drm_device * dev)
 {
 	mutex_lock(&dev->struct_mutex);
-	idr_remove_all(&dev->ctx_idr);
+	idr_destroy(&dev->ctx_idr);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -154,8 +144,6 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	mutex_unlock(&dev->struct_mutex);
-
 	request->handle = NULL;
 	list_for_each_entry(_entry, &dev->maplist, head) {
 		if (_entry->map == map) {
@@ -164,6 +152,9 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 			break;
 		}
 	}
+
+	mutex_unlock(&dev->struct_mutex);
+
 	if (request->handle == NULL)
 		return -EINVAL;
 

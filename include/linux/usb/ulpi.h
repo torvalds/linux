@@ -181,12 +181,20 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct otg_transceiver *otg_ulpi_create(struct otg_io_access_ops *ops,
+#if IS_ENABLED(CONFIG_USB_ULPI)
+struct usb_phy *otg_ulpi_create(struct usb_phy_io_ops *ops,
 					unsigned int flags);
+#else
+static inline struct usb_phy *otg_ulpi_create(struct usb_phy_io_ops *ops,
+					      unsigned int flags)
+{
+	return NULL;
+}
+#endif
 
 #ifdef CONFIG_USB_ULPI_VIEWPORT
 /* access ops for controllers with a viewport register */
-extern struct otg_io_access_ops ulpi_viewport_access_ops;
+extern struct usb_phy_io_ops ulpi_viewport_access_ops;
 #endif
 
 #endif /* __LINUX_USB_ULPI_H */

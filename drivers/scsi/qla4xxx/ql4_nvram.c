@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -154,6 +154,27 @@ u16 rd_nvram_word(struct scsi_qla_host * ha, int offset)
 	/* NOTE: NVRAM uses half-word addresses */
 	eeprom_readword(offset, &val, ha);
 	return val;
+}
+
+u8 rd_nvram_byte(struct scsi_qla_host *ha, int offset)
+{
+	u16 val = 0;
+	u8 rval = 0;
+	int index = 0;
+
+	if (offset & 0x1)
+		index = (offset - 1) / 2;
+	else
+		index = offset / 2;
+
+	val = le16_to_cpu(rd_nvram_word(ha, index));
+
+	if (offset & 0x1)
+		rval = (u8)((val & 0xff00) >> 8);
+	else
+		rval = (u8)((val & 0x00ff));
+
+	return rval;
 }
 
 int qla4xxx_is_nvram_configuration_valid(struct scsi_qla_host * ha)

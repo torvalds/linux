@@ -21,6 +21,7 @@
  */
 
 #include "rc-core-priv.h"
+#include <linux/module.h>
 
 #define RC5_SZ_NBITS		15
 #define RC5_UNIT		888888 /* ns */
@@ -47,8 +48,8 @@ static int ir_rc5_sz_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 toggle, command, system;
 	u32 scancode;
 
-        if (!(dev->raw->enabled_protocols & RC_TYPE_RC5_SZ))
-                return 0;
+	if (!(dev->enabled_protocols & RC_BIT_RC5_SZ))
+		return 0;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -127,7 +128,7 @@ out:
 }
 
 static struct ir_raw_handler rc5_sz_handler = {
-	.protocols	= RC_TYPE_RC5_SZ,
+	.protocols	= RC_BIT_RC5_SZ,
 	.decode		= ir_rc5_sz_decode,
 };
 

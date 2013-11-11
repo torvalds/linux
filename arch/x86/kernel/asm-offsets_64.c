@@ -1,11 +1,18 @@
 #include <asm/ia32.h>
 
-#define __NO_STUBS 1
-#undef __SYSCALL
-#undef _ASM_X86_UNISTD_64_H
-#define __SYSCALL(nr, sym) [nr] = 1,
-static char syscalls[] = {
-#include <asm/unistd.h>
+#define __SYSCALL_64(nr, sym, compat) [nr] = 1,
+#define __SYSCALL_COMMON(nr, sym, compat) [nr] = 1,
+#ifdef CONFIG_X86_X32_ABI
+# define __SYSCALL_X32(nr, sym, compat) [nr] = 1,
+#else
+# define __SYSCALL_X32(nr, sym, compat) /* nothing */
+#endif
+static char syscalls_64[] = {
+#include <asm/syscalls_64.h>
+};
+#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+static char syscalls_ia32[] = {
+#include <asm/syscalls_32.h>
 };
 
 int main(void)
@@ -66,13 +73,18 @@ int main(void)
 	ENTRY(cr3);
 	ENTRY(cr4);
 	ENTRY(cr8);
+	ENTRY(gdt_desc);
 	BLANK();
 #undef ENTRY
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
 	BLANK();
 
-	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
+	DEFINE(__NR_syscall_max, sizeof(syscalls_64) - 1);
+	DEFINE(NR_syscalls, sizeof(syscalls_64));
+
+	DEFINE(__NR_ia32_syscall_max, sizeof(syscalls_ia32) - 1);
+	DEFINE(IA32_NR_syscalls, sizeof(syscalls_ia32));
 
 	return 0;
 }

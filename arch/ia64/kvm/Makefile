@@ -49,10 +49,10 @@ ccflags-y := -Ivirt/kvm -Iarch/ia64/kvm/
 asflags-y := -Ivirt/kvm -Iarch/ia64/kvm/
 
 common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
-		coalesced_mmio.o irq_comm.o assigned-dev.o)
+		coalesced_mmio.o irq_comm.o)
 
-ifeq ($(CONFIG_IOMMU_API),y)
-common-objs += $(addprefix ../../../virt/kvm/, iommu.o)
+ifeq ($(CONFIG_KVM_DEVICE_ASSIGNMENT),y)
+common-objs += $(addprefix ../../../virt/kvm/, assigned-dev.o iommu.o)
 endif
 
 kvm-objs := $(common-objs) kvm-ia64.o kvm_fw.o

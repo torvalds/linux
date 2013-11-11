@@ -29,6 +29,6 @@
 #define MPP_OUTPUT_MASK		GENERIC_MPP(0, 0x0, 0, 1)
 
 void __init orion_mpp_conf(unsigned int *mpp_list, unsigned int variant_mask,
-			   unsigned int mpp_max, unsigned int dev_bus);
+			   unsigned int mpp_max, void __iomem *dev_bus);
 
 #endif

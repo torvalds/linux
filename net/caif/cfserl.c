@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -29,21 +29,17 @@ struct cfserl {
 static int cfserl_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfserl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid);
+			   int phyid);
 
-struct cflayer *cfserl_create(int type, int instance, bool use_stx)
+struct cflayer *cfserl_create(int instance, bool use_stx)
 {
-	struct cfserl *this = kmalloc(sizeof(struct cfserl), GFP_ATOMIC);
-	if (!this) {
-		pr_warn("Out of memory\n");
+	struct cfserl *this = kzalloc(sizeof(struct cfserl), GFP_ATOMIC);
+	if (!this)
 		return NULL;
-	}
 	caif_assert(offsetof(struct cfserl, layer) == 0);
-	memset(this, 0, sizeof(struct cfserl));
 	this->layer.receive = cfserl_receive;
 	this->layer.transmit = cfserl_transmit;
 	this->layer.ctrlcmd = cfserl_ctrlcmd;
-	this->layer.type = type;
 	this->usestx = use_stx;
 	spin_lock_init(&this->sync);
 	snprintf(this->layer.name, CAIF_LAYER_NAME_SZ, "ser1");
@@ -186,7 +182,7 @@ static int cfserl_transmit(struct cflayer *layer, struct cfpkt *newpkt)
 }
 
 static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-				int phyid)
+			   int phyid)
 {
 	layr->up->ctrlcmd(layr->up, ctrl, phyid);
 }

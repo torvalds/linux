@@ -9,7 +9,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -21,11 +21,10 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -215,7 +214,7 @@ void __init db88f5281_pci_preinit(void)
 		if (gpio_direction_input(pin) == 0) {
 			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
-			printk(KERN_ERR "db88f5281_pci_preinit faield to "
+			printk(KERN_ERR "db88f5281_pci_preinit failed to "
 					"set_irq_type pin %d\n", pin);
 			gpio_free(pin);
 		}
@@ -228,7 +227,7 @@ void __init db88f5281_pci_preinit(void)
 		if (gpio_direction_input(pin) == 0) {
 			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
-			printk(KERN_ERR "db88f5281_pci_preinit faield "
+			printk(KERN_ERR "db88f5281_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
 			gpio_free(pin);
 		}
@@ -237,7 +236,8 @@ void __init db88f5281_pci_preinit(void)
 	}
 }
 
-static int __init db88f5281_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init db88f5281_pci_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	int irq;
 
@@ -265,7 +265,6 @@ static int __init db88f5281_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 static struct hw_pci db88f5281_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= db88f5281_pci_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= orion5x_pci_sys_setup,
 	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= db88f5281_pci_map_irq,
@@ -341,16 +340,19 @@ static void __init db88f5281_init(void)
 	orion5x_uart0_init();
 	orion5x_uart1_init();
 
-	orion5x_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
-				DB88F5281_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", DB88F5281_NOR_BOOT_BASE,
+			      DB88F5281_NOR_BOOT_SIZE);
 	platform_device_register(&db88f5281_boot_flash);
 
-	orion5x_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
+	mvebu_mbus_add_window("devbus-cs0", DB88F5281_7SEG_BASE,
+			      DB88F5281_7SEG_SIZE);
 
-	orion5x_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
+	mvebu_mbus_add_window("devbus-cs1", DB88F5281_NOR_BASE,
+			      DB88F5281_NOR_SIZE);
 	platform_device_register(&db88f5281_nor_flash);
 
-	orion5x_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
+	mvebu_mbus_add_window("devbus-cs2", DB88F5281_NAND_BASE,
+			      DB88F5281_NAND_SIZE);
 	platform_device_register(&db88f5281_nand_flash);
 
 	i2c_register_board_info(0, &db88f5281_i2c_rtc, 1);
@@ -358,10 +360,11 @@ static void __init db88f5281_init(void)
 
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= db88f5281_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
+	.restart	= orion5x_restart,
 MACHINE_END

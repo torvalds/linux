@@ -14,6 +14,9 @@
 
 #include <linux/sched.h>
 #include <linux/key-type.h>
+#include <linux/task_work.h>
+
+struct iovec;
 
 #ifdef __KDEBUG
 #define kenter(FMT, ...) \
@@ -31,7 +34,9 @@
 	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
 #endif
 
+extern struct key_type key_type_dead;
 extern struct key_type key_type_user;
+extern struct key_type key_type_logon;
 
 /*****************************************************************************/
 /*
@@ -49,8 +54,7 @@ struct key_user {
 	atomic_t		usage;		/* for accessing qnkeys & qnbytes */
 	atomic_t		nkeys;		/* number of keys */
 	atomic_t		nikeys;		/* number of instantiated keys */
-	uid_t			uid;
-	struct user_namespace	*user_ns;
+	kuid_t			uid;
 	int			qnkeys;		/* number of keys allocated to this user */
 	int			qnbytes;	/* number of bytes allocated to this user */
 };
@@ -59,8 +63,7 @@ extern struct rb_root	key_user_tree;
 extern spinlock_t	key_user_lock;
 extern struct key_user	root_key_user;
 
-extern struct key_user *key_user_lookup(uid_t uid,
-					struct user_namespace *user_ns);
+extern struct key_user *key_user_lookup(kuid_t uid);
 extern void key_user_put(struct key_user *user);
 
 /*
@@ -75,6 +78,7 @@ extern unsigned key_quota_maxbytes;
 #define KEYQUOTA_LINK_BYTES	4		/* a link in a keyring is worth 4 bytes */
 
 
+extern struct kmem_cache *key_jar;
 extern struct rb_root key_serial_tree;
 extern spinlock_t key_serial_lock;
 extern struct mutex key_construction_mutex;
@@ -145,10 +149,14 @@ extern key_ref_t lookup_user_key(key_serial_t id, unsigned long flags,
 #define KEY_LOOKUP_FOR_UNLINK	0x04
 
 extern long join_session_keyring(const char *name);
+extern void key_change_session_keyring(struct callback_head *twork);
 
+extern struct work_struct key_gc_work;
 extern unsigned key_gc_delay;
 extern void keyring_gc(struct key *keyring, time_t limit);
-extern void key_schedule_gc(time_t expiry_at);
+extern void key_schedule_gc(time_t gc_at);
+extern void key_schedule_gc_links(void);
+extern void key_gc_keytype(struct key_type *ktype);
 
 extern int key_task_permission(const key_ref_t key_ref,
 			       const struct cred *cred,
@@ -192,6 +200,17 @@ extern struct key *request_key_auth_new(struct key *target,
 extern struct key *key_get_instantiation_authkey(key_serial_t target_id);
 
 /*
+ * Determine whether a key is dead.
+ */
+static inline bool key_is_dead(struct key *key, time_t limit)
+{
+	return
+		key->flags & ((1 << KEY_FLAG_DEAD) |
+			      (1 << KEY_FLAG_INVALIDATED)) ||
+		(key->expiry > 0 && key->expiry <= limit);
+}
+
+/*
  * keyctl() functions
  */
 extern long keyctl_get_keyring_ID(key_serial_t, int);
@@ -220,9 +239,10 @@ extern long keyctl_reject_key(key_serial_t, unsigned, unsigned, key_serial_t);
 extern long keyctl_instantiate_key_iov(key_serial_t,
 				       const struct iovec __user *,
 				       unsigned, key_serial_t);
+extern long keyctl_invalidate_key(key_serial_t);
 
 extern long keyctl_instantiate_key_common(key_serial_t,
-					  const struct iovec __user *,
+					  const struct iovec *,
 					  unsigned, size_t, key_serial_t);
 
 /*

@@ -14,23 +14,19 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/posix_acl.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <linux/errno.h>
 
 EXPORT_SYMBOL(posix_acl_init);
 EXPORT_SYMBOL(posix_acl_alloc);
-EXPORT_SYMBOL(posix_acl_clone);
 EXPORT_SYMBOL(posix_acl_valid);
 EXPORT_SYMBOL(posix_acl_equiv_mode);
 EXPORT_SYMBOL(posix_acl_from_mode);
-EXPORT_SYMBOL(posix_acl_create_masq);
-EXPORT_SYMBOL(posix_acl_chmod_masq);
-EXPORT_SYMBOL(posix_acl_permission);
 
 /*
  * Init a fresh posix_acl
@@ -59,7 +55,7 @@ posix_acl_alloc(int count, gfp_t flags)
 /*
  * Clone an ACL.
  */
-struct posix_acl *
+static struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -82,7 +78,8 @@ posix_acl_valid(const struct posix_acl *acl)
 {
 	const struct posix_acl_entry *pa, *pe;
 	int state = ACL_USER_OBJ;
-	unsigned int id = 0;  /* keep gcc happy */
+	kuid_t prev_uid = INVALID_UID;
+	kgid_t prev_gid = INVALID_GID;
 	int needs_mask = 0;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
@@ -91,7 +88,6 @@ posix_acl_valid(const struct posix_acl *acl)
 		switch (pa->e_tag) {
 			case ACL_USER_OBJ:
 				if (state == ACL_USER_OBJ) {
-					id = 0;
 					state = ACL_USER;
 					break;
 				}
@@ -100,16 +96,17 @@ posix_acl_valid(const struct posix_acl *acl)
 			case ACL_USER:
 				if (state != ACL_USER)
 					return -EINVAL;
-				if (pa->e_id == ACL_UNDEFINED_ID ||
-				    pa->e_id < id)
+				if (!uid_valid(pa->e_uid))
 					return -EINVAL;
-				id = pa->e_id + 1;
+				if (uid_valid(prev_uid) &&
+				    uid_lte(pa->e_uid, prev_uid))
+					return -EINVAL;
+				prev_uid = pa->e_uid;
 				needs_mask = 1;
 				break;
 
 			case ACL_GROUP_OBJ:
 				if (state == ACL_USER) {
-					id = 0;
 					state = ACL_GROUP;
 					break;
 				}
@@ -118,10 +115,12 @@ posix_acl_valid(const struct posix_acl *acl)
 			case ACL_GROUP:
 				if (state != ACL_GROUP)
 					return -EINVAL;
-				if (pa->e_id == ACL_UNDEFINED_ID ||
-				    pa->e_id < id)
+				if (!gid_valid(pa->e_gid))
 					return -EINVAL;
-				id = pa->e_id + 1;
+				if (gid_valid(prev_gid) &&
+				    gid_lte(pa->e_gid, prev_gid))
+					return -EINVAL;
+				prev_gid = pa->e_gid;
 				needs_mask = 1;
 				break;
 
@@ -153,10 +152,10 @@ posix_acl_valid(const struct posix_acl *acl)
  * file mode permission bits, or else 1. Returns -E... on error.
  */
 int
-posix_acl_equiv_mode(const struct posix_acl *acl, mode_t *mode_p)
+posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
 {
 	const struct posix_acl_entry *pa, *pe;
-	mode_t mode = 0;
+	umode_t mode = 0;
 	int not_equiv = 0;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
@@ -192,22 +191,19 @@ posix_acl_equiv_mode(const struct posix_acl *acl, mode_t *mode_p)
  * Create an ACL representing the file mode permission bits of an inode.
  */
 struct posix_acl *
-posix_acl_from_mode(mode_t mode, gfp_t flags)
+posix_acl_from_mode(umode_t mode, gfp_t flags)
 {
 	struct posix_acl *acl = posix_acl_alloc(3, flags);
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
 
 	acl->a_entries[0].e_tag  = ACL_USER_OBJ;
-	acl->a_entries[0].e_id   = ACL_UNDEFINED_ID;
 	acl->a_entries[0].e_perm = (mode & S_IRWXU) >> 6;
 
 	acl->a_entries[1].e_tag  = ACL_GROUP_OBJ;
-	acl->a_entries[1].e_id   = ACL_UNDEFINED_ID;
 	acl->a_entries[1].e_perm = (mode & S_IRWXG) >> 3;
 
 	acl->a_entries[2].e_tag  = ACL_OTHER;
-	acl->a_entries[2].e_id   = ACL_UNDEFINED_ID;
 	acl->a_entries[2].e_perm = (mode & S_IRWXO);
 	return acl;
 }
@@ -222,15 +218,17 @@ posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
 	int found = 0;
 
+	want &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
+
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				if (inode->i_uid == current_fsuid())
+				if (uid_eq(inode->i_uid, current_fsuid()))
                                         goto check_perm;
                                 break;
                         case ACL_USER:
-				if (pa->e_id == current_fsuid())
+				if (uid_eq(pa->e_uid, current_fsuid()))
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
@@ -241,7 +239,7 @@ posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
                                 }
 				break;
                         case ACL_GROUP:
-                                if (in_group_p(pa->e_id)) {
+				if (in_group_p(pa->e_gid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
@@ -283,12 +281,11 @@ check_perm:
  * system calls. All permissions that are not granted by the acl are removed.
  * The permissions in the acl are changed to reflect the mode_p parameter.
  */
-int
-posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
+static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 {
 	struct posix_acl_entry *pa, *pe;
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
-	mode_t mode = *mode_p;
+	umode_t mode = *mode_p;
 	int not_equiv = 0;
 
 	/* assert(atomic_read(acl->a_refcount) == 1); */
@@ -341,8 +338,7 @@ posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
 /*
  * Modify the ACL for the chmod syscall.
  */
-int
-posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
+static int posix_acl_chmod_masq(struct posix_acl *acl, umode_t mode)
 {
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
 	struct posix_acl_entry *pa, *pe;
@@ -386,3 +382,39 @@ posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
 
 	return 0;
 }
+
+int
+posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
+{
+	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
+	int err = -ENOMEM;
+	if (clone) {
+		err = posix_acl_create_masq(clone, mode_p);
+		if (err < 0) {
+			posix_acl_release(clone);
+			clone = NULL;
+		}
+	}
+	posix_acl_release(*acl);
+	*acl = clone;
+	return err;
+}
+EXPORT_SYMBOL(posix_acl_create);
+
+int
+posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
+{
+	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
+	int err = -ENOMEM;
+	if (clone) {
+		err = posix_acl_chmod_masq(clone, mode);
+		if (err) {
+			posix_acl_release(clone);
+			clone = NULL;
+		}
+	}
+	posix_acl_release(*acl);
+	*acl = clone;
+	return err;
+}
+EXPORT_SYMBOL(posix_acl_chmod);

@@ -8,7 +8,7 @@
 #define DEFAULT_RATELIMIT_BURST		10
 
 struct ratelimit_state {
-	spinlock_t	lock;		/* protect the state */
+	raw_spinlock_t	lock;		/* protect the state */
 
 	int		interval;
 	int		burst;
@@ -20,7 +20,7 @@ struct ratelimit_state {
 #define DEFINE_RATELIMIT_STATE(name, interval_init, burst_init)		\
 									\
 	struct ratelimit_state name = {					\
-		.lock		= __SPIN_LOCK_UNLOCKED(name.lock),	\
+		.lock		= __RAW_SPIN_LOCK_UNLOCKED(name.lock),	\
 		.interval	= interval_init,			\
 		.burst		= burst_init,				\
 	}
@@ -28,7 +28,7 @@ struct ratelimit_state {
 static inline void ratelimit_state_init(struct ratelimit_state *rs,
 					int interval, int burst)
 {
-	spin_lock_init(&rs->lock);
+	raw_spin_lock_init(&rs->lock);
 	rs->interval = interval;
 	rs->burst = burst;
 	rs->printed = 0;
@@ -46,20 +46,17 @@ extern int ___ratelimit(struct ratelimit_state *rs, const char *func);
 #define WARN_ON_RATELIMIT(condition, state)			\
 		WARN_ON((condition) && __ratelimit(state))
 
-#define __WARN_RATELIMIT(condition, state, format...)		\
-({								\
-	int rtn = 0;						\
-	if (unlikely(__ratelimit(state)))			\
-		rtn = WARN(condition, format);			\
-	rtn;							\
-})
-
-#define WARN_RATELIMIT(condition, format...)			\
+#define WARN_RATELIMIT(condition, format, ...)			\
 ({								\
 	static DEFINE_RATELIMIT_STATE(_rs,			\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);	\
-	__WARN_RATELIMIT(condition, &_rs, format);		\
+	int rtn = !!(condition);				\
+								\
+	if (unlikely(rtn && __ratelimit(&_rs)))			\
+		WARN(rtn, format, ##__VA_ARGS__);		\
+								\
+	rtn;							\
 })
 
 #else
@@ -67,15 +64,9 @@ extern int ___ratelimit(struct ratelimit_state *rs, const char *func);
 #define WARN_ON_RATELIMIT(condition, state)			\
 	WARN_ON(condition)
 
-#define __WARN_RATELIMIT(condition, state, format...)		\
+#define WARN_RATELIMIT(condition, format, ...)			\
 ({								\
-	int rtn = WARN(condition, format);			\
-	rtn;							\
-})
-
-#define WARN_RATELIMIT(condition, format...)			\
-({								\
-	int rtn = WARN(condition, format);			\
+	int rtn = WARN(condition, format, ##__VA_ARGS__);	\
 	rtn;							\
 })
 

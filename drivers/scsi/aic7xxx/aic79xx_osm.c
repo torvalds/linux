@@ -341,10 +341,10 @@ MODULE_PARM_DESC(aic79xx,
 "				(0/256ms,1/128ms,2/64ms,3/32ms)\n"
 "	slowcrc			Turn on the SLOWCRC bit (Rev B only)\n"		 
 "\n"
-"	Sample /etc/modprobe.conf line:\n"
-"		Enable verbose logging\n"
-"		Set tag depth on Controller 2/Target 2 to 10 tags\n"
-"		Shorten the selection timeout to 128ms\n"
+"	Sample modprobe configuration file:\n"
+"	#	Enable verbose logging\n"
+"	#	Set tag depth on Controller 2/Target 2 to 10 tags\n"
+"	#	Shorten the selection timeout to 128ms\n"
 "\n"
 "	options aic79xx 'aic79xx=verbose.tag_info:{{}.{}.{..10}}.seltime:1'\n"
 );
@@ -906,7 +906,8 @@ struct scsi_host_template aic79xx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "aic79xx",
 	.proc_name		= "aic79xx",
-	.proc_info		= ahd_linux_proc_info,
+	.show_info		= ahd_linux_show_info,
+	.write_info	 	= ahd_proc_write_seeprom,
 	.info			= ahd_linux_info,
 	.queuecommand		= ahd_linux_queue,
 	.eh_abort_handler	= ahd_linux_abort,
@@ -1702,19 +1703,13 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 	switch (code) {
 	case AC_TRANSFER_NEG:
 	{
-		char	buf[80];
 		struct  scsi_target *starget;
-		struct	info_str info;
 		struct	ahd_initiator_tinfo *tinfo;
 		struct	ahd_tmode_tstate *tstate;
 		unsigned int target_ppr_options;
 
 		BUG_ON(target == CAM_TARGET_WILDCARD);
 
-		info.buffer = buf;
-		info.length = sizeof(buf);
-		info.offset = 0;
-		info.pos = 0;
 		tinfo = ahd_fetch_transinfo(ahd, channel, ahd->our_id,
 					    target, &tstate);
 

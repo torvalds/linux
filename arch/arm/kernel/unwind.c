@@ -39,7 +39,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -67,7 +67,7 @@ EXPORT_SYMBOL(__aeabi_unwind_cpp_pr2);
 
 struct unwind_ctrl_block {
 	unsigned long vrs[16];		/* virtual register set */
-	unsigned long *insn;		/* pointer to the current instructions word */
+	const unsigned long *insn;	/* pointer to the current instructions word */
 	int entries;			/* number of entries left to interpret */
 	int byte;			/* current byte number in the instructions word */
 };
@@ -83,8 +83,9 @@ enum regs {
 	PC = 15
 };
 
-extern struct unwind_idx __start_unwind_idx[];
-extern struct unwind_idx __stop_unwind_idx[];
+extern const struct unwind_idx __start_unwind_idx[];
+static const struct unwind_idx *__origin_unwind_idx;
+extern const struct unwind_idx __stop_unwind_idx[];
 
 static DEFINE_SPINLOCK(unwind_lock);
 static LIST_HEAD(unwind_tables);
@@ -98,45 +99,99 @@ static LIST_HEAD(unwind_tables);
 })
 
 /*
- * Binary search in the unwind index. The entries entries are
+ * Binary search in the unwind index. The entries are
  * guaranteed to be sorted in ascending order by the linker.
+ *
+ * start = first entry
+ * origin = first entry with positive offset (or stop if there is no such entry)
+ * stop - 1 = last entry
  */
-static struct unwind_idx *search_index(unsigned long addr,
-				       struct unwind_idx *first,
-				       struct unwind_idx *last)
+static const struct unwind_idx *search_index(unsigned long addr,
+				       const struct unwind_idx *start,
+				       const struct unwind_idx *origin,
+				       const struct unwind_idx *stop)
 {
-	pr_debug("%s(%08lx, %p, %p)\n", __func__, addr, first, last);
+	unsigned long addr_prel31;
 
-	if (addr < first->addr) {
-		pr_warning("unwind: Unknown symbol address %08lx\n", addr);
-		return NULL;
-	} else if (addr >= last->addr)
-		return last;
+	pr_debug("%s(%08lx, %p, %p, %p)\n",
+			__func__, addr, start, origin, stop);
 
-	while (first < last - 1) {
-		struct unwind_idx *mid = first + ((last - first + 1) >> 1);
+	/*
+	 * only search in the section with the matching sign. This way the
+	 * prel31 numbers can be compared as unsigned longs.
+	 */
+	if (addr < (unsigned long)start)
+		/* negative offsets: [start; origin) */
+		stop = origin;
+	else
+		/* positive offsets: [origin; stop) */
+		start = origin;
 
-		if (addr < mid->addr)
-			last = mid;
-		else
-			first = mid;
+	/* prel31 for address relavive to start */
+	addr_prel31 = (addr - (unsigned long)start) & 0x7fffffff;
+
+	while (start < stop - 1) {
+		const struct unwind_idx *mid = start + ((stop - start) >> 1);
+
+		/*
+		 * As addr_prel31 is relative to start an offset is needed to
+		 * make it relative to mid.
+		 */
+		if (addr_prel31 - ((unsigned long)mid - (unsigned long)start) <
+				mid->addr_offset)
+			stop = mid;
+		else {
+			/* keep addr_prel31 relative to start */
+			addr_prel31 -= ((unsigned long)mid -
+					(unsigned long)start);
+			start = mid;
+		}
 	}
 
-	return first;
+	if (likely(start->addr_offset <= addr_prel31))
+		return start;
+	else {
+		pr_warning("unwind: Unknown symbol address %08lx\n", addr);
+		return NULL;
+	}
 }
 
-static struct unwind_idx *unwind_find_idx(unsigned long addr)
+static const struct unwind_idx *unwind_find_origin(
+		const struct unwind_idx *start, const struct unwind_idx *stop)
 {
-	struct unwind_idx *idx = NULL;
+	pr_debug("%s(%p, %p)\n", __func__, start, stop);
+	while (start < stop) {
+		const struct unwind_idx *mid = start + ((stop - start) >> 1);
+
+		if (mid->addr_offset >= 0x40000000)
+			/* negative offset */
+			start = mid + 1;
+		else
+			/* positive offset */
+			stop = mid;
+	}
+	pr_debug("%s -> %p\n", __func__, stop);
+	return stop;
+}
+
+static const struct unwind_idx *unwind_find_idx(unsigned long addr)
+{
+	const struct unwind_idx *idx = NULL;
 	unsigned long flags;
 
 	pr_debug("%s(%08lx)\n", __func__, addr);
 
-	if (core_kernel_text(addr))
+	if (core_kernel_text(addr)) {
+		if (unlikely(!__origin_unwind_idx))
+			__origin_unwind_idx =
+				unwind_find_origin(__start_unwind_idx,
+						__stop_unwind_idx);
+
 		/* main unwind table */
 		idx = search_index(addr, __start_unwind_idx,
-				   __stop_unwind_idx - 1);
-	else {
+				   __origin_unwind_idx,
+				   __stop_unwind_idx);
+	} else {
 		/* module unwind tables */
 		struct unwind_table *table;
 
@@ -145,7 +200,8 @@ static struct unwind_idx *unwind_find_idx(unsigned long addr)
 			if (addr >= table->begin_addr &&
 			    addr < table->end_addr) {
 				idx = search_index(addr, table->start,
-						   table->stop - 1);
+						   table->origin,
+						   table->stop);
 				/* Move-to-front to exploit common traces */
 				list_move(&table->list, &unwind_tables);
 				break;
@@ -274,7 +330,7 @@ static int unwind_exec_insn(struct unwind_ctrl_block *ctrl)
 int unwind_frame(struct stackframe *frame)
 {
 	unsigned long high, low;
-	struct unwind_idx *idx;
+	const struct unwind_idx *idx;
 	struct unwind_ctrl_block ctrl;
 
 	/* only go to a higher address on the stack */
@@ -399,7 +455,6 @@ struct unwind_table *unwind_table_add(unsigned long start, unsigned long size,
 				      unsigned long text_size)
 {
 	unsigned long flags;
-	struct unwind_idx *idx;
 	struct unwind_table *tab = kmalloc(sizeof(*tab), GFP_KERNEL);
 
 	pr_debug("%s(%08lx, %08lx, %08lx, %08lx)\n", __func__, start, size,
@@ -408,14 +463,11 @@ struct unwind_table *unwind_table_add(unsigned long start, unsigned long size,
 	if (!tab)
 		return tab;
 
-	tab->start = (struct unwind_idx *)start;
-	tab->stop = (struct unwind_idx *)(start + size);
+	tab->start = (const struct unwind_idx *)start;
+	tab->stop = (const struct unwind_idx *)(start + size);
+	tab->origin = unwind_find_origin(tab->start, tab->stop);
 	tab->begin_addr = text_addr;
 	tab->end_addr = text_addr + text_size;
-
-	/* Convert the symbol addresses to absolute values */
-	for (idx = tab->start; idx < tab->stop; idx++)
-		idx->addr = prel31_to_addr(&idx->addr);
 
 	spin_lock_irqsave(&unwind_lock, flags);
 	list_add_tail(&tab->list, &unwind_tables);
@@ -436,17 +488,4 @@ void unwind_table_del(struct unwind_table *tab)
 	spin_unlock_irqrestore(&unwind_lock, flags);
 
 	kfree(tab);
-}
-
-int __init unwind_init(void)
-{
-	struct unwind_idx *idx;
-
-	/* Convert the symbol addresses to absolute values */
-	for (idx = __start_unwind_idx; idx < __stop_unwind_idx; idx++)
-		idx->addr = prel31_to_addr(&idx->addr);
-
-	pr_debug("unwind: ARM stack unwinding initialised\n");
-
-	return 0;
 }

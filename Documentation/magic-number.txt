@@ -66,7 +66,7 @@ MKISS_DRIVER_MAGIC    0x04bf      mkiss_channel     drivers/net/mkiss.h
 RISCOM8_MAGIC         0x0907      riscom_port       drivers/char/riscom8.h
 SPECIALIX_MAGIC       0x0907      specialix_port    drivers/char/specialix_io8.h
 HDLC_MAGIC            0x239e      n_hdlc            drivers/char/n_hdlc.c
-APM_BIOS_MAGIC        0x4101      apm_user          arch/i386/kernel/apm.c
+APM_BIOS_MAGIC        0x4101      apm_user          arch/x86/kernel/apm_32.c
 CYCLADES_MAGIC        0x4359      cyclades_port     include/linux/cyclades.h
 DB_MAGIC              0x4442      fc_info           drivers/net/iph5526_novram.c
 DL_MAGIC              0x444d      fc_info           drivers/net/iph5526_novram.c
@@ -89,7 +89,7 @@ TTY_DRIVER_MAGIC      0x5402      tty_driver        include/linux/tty_driver.h
 MGSLPC_MAGIC          0x5402      mgslpc_info       drivers/char/pcmcia/synclink_cs.c
 TTY_LDISC_MAGIC       0x5403      tty_ldisc         include/linux/tty_ldisc.h
 USB_SERIAL_MAGIC      0x6702      usb_serial        drivers/usb/serial/usb-serial.h
-FULL_DUPLEX_MAGIC     0x6969                        drivers/net/tulip/de2104x.c
+FULL_DUPLEX_MAGIC     0x6969                        drivers/net/ethernet/dec/tulip/de2104x.c
 USB_BLUETOOTH_MAGIC   0x6d02      usb_bluetooth     drivers/usb/class/bluetty.c
 RFCOMM_TTY_MAGIC      0x6d02                        net/bluetooth/rfcomm/tty.c
 USB_SERIAL_PORT_MAGIC 0x7301      usb_serial_port   drivers/usb/serial/usb-serial.h
@@ -122,7 +122,7 @@ SLAB_C_MAGIC          0x4f17a36d  kmem_cache        mm/slab.c
 COW_MAGIC             0x4f4f4f4d  cow_header_v1     arch/um/drivers/ubd_user.c
 I810_CARD_MAGIC       0x5072696E  i810_card         sound/oss/i810_audio.c
 TRIDENT_CARD_MAGIC    0x5072696E  trident_card      sound/oss/trident.c
-ROUTER_MAGIC          0x524d4157  wan_device        include/linux/wanrouter.h
+ROUTER_MAGIC          0x524d4157  wan_device        [in wanrouter.h pre 3.9]
 SCC_MAGIC             0x52696368  gs_port           drivers/char/scc.h
 SAVEKMSG_MAGIC1       0x53415645  savekmsg          arch/*/amiga/config.c
 GDA_MAGIC             0x58464552  gda               arch/mips/include/asm/sn/gda.h

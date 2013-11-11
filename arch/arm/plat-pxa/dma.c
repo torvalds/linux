@@ -20,7 +20,6 @@
 #include <linux/errno.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/memory.h>
 #include <mach/hardware.h>

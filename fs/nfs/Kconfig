@@ -29,9 +29,20 @@ config NFS_FS
 
 	  If unsure, say N.
 
-config NFS_V3
-	bool "NFS client support for NFS version 3"
+config NFS_V2
+	tristate "NFS client support for NFS version 2"
 	depends on NFS_FS
+	default y
+	help
+	  This option enables support for version 2 of the NFS protocol
+	  (RFC 1094) in the kernel's NFS client.
+
+	  If unsure, say Y.
+
+config NFS_V3
+	tristate "NFS client support for NFS version 3"
+	depends on NFS_FS
+	default y
 	help
 	  This option enables support for version 3 of the NFS protocol
 	  (RFC 1813) in the kernel's NFS client.
@@ -61,9 +72,10 @@ config NFS_V3_ACL
 	  If unsure, say N.
 
 config NFS_V4
-	bool "NFS client support for NFS version 4"
+	tristate "NFS client support for NFS version 4"
 	depends on NFS_FS
 	select SUNRPC_GSS
+	select KEYS
 	help
 	  This option enables support for version 4 of the NFS protocol
 	  (RFC 3530) in the kernel's NFS client.
@@ -74,10 +86,18 @@ config NFS_V4
 
 	  If unsure, say Y.
 
+config NFS_SWAP
+	bool "Provide swap over NFS support"
+	default n
+	depends on NFS_FS
+	select SUNRPC_SWAP
+	help
+	  This option enables swapon to work on files located on NFS mounts.
+
 config NFS_V4_1
-	bool "NFS client support for NFSv4.1 (EXPERIMENTAL)"
-	depends on NFS_FS && NFS_V4 && EXPERIMENTAL
-	select PNFS_FILE_LAYOUT
+	bool "NFS client support for NFSv4.1"
+	depends on NFS_V4
+	select SUNRPC_BACKCHANNEL
 	help
 	  This option enables support for minor version 1 of the NFSv4 protocol
 	  (RFC 5661) in the kernel's NFS client.
@@ -86,16 +106,30 @@ config NFS_V4_1
 
 config PNFS_FILE_LAYOUT
 	tristate
+	depends on NFS_V4_1
+	default m
+
+config PNFS_BLOCK
+	tristate
+	depends on NFS_V4_1 && BLK_DEV_DM
+	default m
 
 config PNFS_OBJLAYOUT
-	tristate "Provide support for the pNFS Objects Layout Driver for NFSv4.1 pNFS (EXPERIMENTAL)"
-	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
-	help
-	  Say M here if you want your pNFS client to support the Objects Layout Driver.
-	  Requires the SCSI osd initiator library (SCSI_OSD_INITIATOR) and
-	  upper level driver (SCSI_OSD_ULD).
+	tristate
+	depends on NFS_V4_1 && SCSI_OSD_ULD
+	default m
 
-	  If unsure, say N.
+config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
+	string "NFSv4.1 Implementation ID Domain"
+	depends on NFS_V4_1
+	default "kernel.org"
+	help
+	  This option defines the domain portion of the implementation ID that
+	  may be sent in the NFS exchange_id operation.  The value must be in
+	  the format of a DNS domain name and should be set to the DNS domain
+	  name of the distribution.
+	  If the NFS client is unchanged from the upstream kernel, this
+	  option should be set to the default "kernel.org".
 
 config ROOT_NFS
 	bool "Root file system on NFS"
@@ -129,16 +163,10 @@ config NFS_USE_KERNEL_DNS
 	bool
 	depends on NFS_V4 && !NFS_USE_LEGACY_DNS
 	select DNS_RESOLVER
-	select KEYS
 	default y
 
-config NFS_USE_NEW_IDMAPPER
-	bool "Use the new idmapper upcall routine"
-	depends on NFS_V4 && KEYS
-	help
-	  Say Y here if you want NFS to use the new idmapper upcall functions.
-	  You will need /sbin/request-key (usually provided by the keyutils
-	  package).  For details, read
-	  <file:Documentation/filesystems/nfs/idmapper.txt>.
-
-	  If you are unsure, say N.
+config NFS_DEBUG
+	bool
+	depends on NFS_FS && SUNRPC_DEBUG
+	select CRC32
+	default y

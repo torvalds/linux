@@ -18,22 +18,27 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/cpufreq.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/serial_core.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/tty.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
+#include <linux/platform_device.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/irq.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
-#include <asm/mach/serial_sa1100.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -179,15 +184,40 @@ static struct flash_platform_data hackkit_flash_data = {
 	.nr_parts	= ARRAY_SIZE(hackkit_partitions),
 };
 
-static struct resource hackkit_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M,
-	.flags		= IORESOURCE_MEM,
+static struct resource hackkit_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
+
+/* LEDs */
+struct gpio_led hackkit_gpio_leds[] = {
+	{
+		.name			= "hackkit:red",
+		.default_trigger	= "cpu0",
+		.gpio			= 22,
+	},
+	{
+		.name			= "hackkit:green",
+		.default_trigger	= "heartbeat",
+		.gpio			= 23,
+	},
+};
+
+static struct gpio_led_platform_data hackkit_gpio_led_info = {
+	.leds		= hackkit_gpio_leds,
+	.num_leds	= ARRAY_SIZE(hackkit_gpio_leds),
+};
+
+static struct platform_device hackkit_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &hackkit_gpio_led_info,
+	}
 };
 
 static void __init hackkit_init(void)
 {
 	sa11x0_register_mtd(&hackkit_flash_data, &hackkit_flash_resource, 1);
+	platform_device_register(&hackkit_leds);
 }
 
 /**********************************************************************
@@ -195,9 +225,12 @@ static void __init hackkit_init(void)
  */
 
 MACHINE_START(HACKKIT, "HackKit Cpu Board")
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= hackkit_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= hackkit_init,
+	.init_late	= sa11x0_init_late,
+	.restart	= sa11x0_restart,
 MACHINE_END

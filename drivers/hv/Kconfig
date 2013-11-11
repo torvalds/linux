@@ -1,0 +1,22 @@
+menu "Microsoft Hyper-V guest support"
+
+config HYPERV
+	tristate "Microsoft Hyper-V client drivers"
+	depends on X86 && ACPI && PCI && X86_LOCAL_APIC && HYPERVISOR_GUEST
+	help
+	  Select this option to run Linux as a Hyper-V client operating
+	  system.
+
+config HYPERV_UTILS
+	tristate "Microsoft Hyper-V Utilities driver"
+	depends on HYPERV && CONNECTOR && NLS
+	help
+	  Select this option to enable the Hyper-V Utilities.
+
+config HYPERV_BALLOON
+	tristate "Microsoft Hyper-V Balloon driver"
+	depends on HYPERV
+	help
+	  Select this option to enable Hyper-V Balloon driver.
+
+endmenu

@@ -54,7 +54,7 @@
  * @QID_RX: RX queue
  * @QID_OTHER: None of the above (don't use, only present for completeness)
  * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
- * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
+ * @QID_ATIM: Atim queue (value unspecified, don't send it to device)
  */
 enum data_queue_qid {
 	QID_AC_VO = 0,
@@ -288,8 +288,8 @@ enum txentry_desc_flags {
  * @signal: PLCP signal.
  * @service: PLCP service.
  * @msc: MCS.
- * @stbc: STBC.
- * @ba_size: BA size.
+ * @stbc: Use Space Time Block Coding (only available for MCS rates < 8).
+ * @ba_size: Size of the recepients RX reorder buffer - 1.
  * @rate_mode: Rate mode (See @enum rate_modulation).
  * @mpdu_density: MDPU density.
  * @retry_limit: Max number of retries.
@@ -321,6 +321,7 @@ struct txentry_desc {
 			u8 ba_size;
 			u8 mpdu_density;
 			enum txop txop;
+			int wcid;
 		} ht;
 	} u;
 
@@ -358,6 +359,7 @@ enum queue_entry_flags {
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
 	ENTRY_DATA_STATUS_PENDING,
+	ENTRY_DATA_STATUS_SET,
 };
 
 /**
@@ -371,6 +373,7 @@ enum queue_entry_flags {
  * @entry_idx: The entry index number.
  * @priv_data: Private data belonging to this queue entry. The pointer
  *	points to data specific to a particular driver and queue type.
+ * @status: Device specific status
  */
 struct queue_entry {
 	unsigned long flags;
@@ -381,6 +384,8 @@ struct queue_entry {
 	struct sk_buff *skb;
 
 	unsigned int entry_idx;
+
+	u32 status;
 
 	void *priv_data;
 };
@@ -432,6 +437,7 @@ enum data_queue_flags {
  * @flags: Entry flags, see &enum queue_entry_flags.
  * @status_lock: The mutex for protecting the start/stop/flush
  *	handling on this queue.
+ * @tx_lock: Spinlock to serialize tx operations on this queue.
  * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
@@ -458,6 +464,7 @@ struct data_queue {
 	unsigned long flags;
 
 	struct mutex status_lock;
+	spinlock_t tx_lock;
 	spinlock_t index_lock;
 
 	unsigned int count;
@@ -472,7 +479,8 @@ struct data_queue {
 	unsigned short cw_max;
 
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 
 	unsigned short usb_endpoint;
 	unsigned short usb_maxpacket;
@@ -492,7 +500,8 @@ struct data_queue {
 struct data_queue_desc {
 	unsigned short entry_num;
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 	unsigned short priv_size;
 };
 
@@ -633,18 +642,6 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
 }
-
-/**
- * rt2x00queue_status_timeout - Check if a timeout occurred for STATUS reports
- * @entry: Queue entry to check.
- */
-static inline int rt2x00queue_status_timeout(struct queue_entry *entry)
-{
-	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return false;
-	return time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
-}
-
 /**
  * rt2x00queue_dma_timeout - Check if a timeout occurred for DMA transfers
  * @entry: Queue entry to check.

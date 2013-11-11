@@ -49,7 +49,6 @@
 
 /* A structure to carry information to the ULP (e.g. Sockets API) */
 struct sctp_ulpq {
-	char malloced;
 	char pd_mode;
 	struct sctp_association *asoc;
 	struct sk_buff_head reasm;
@@ -72,7 +71,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sctp_ulpevent *ev);
 void sctp_ulpq_renege(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
 
 /* Perform partial delivery. */
-void sctp_ulpq_partial_delivery(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
+void sctp_ulpq_partial_delivery(struct sctp_ulpq *, gfp_t);
 
 /* Abort the partial delivery. */
 void sctp_ulpq_abort_pd(struct sctp_ulpq *, gfp_t);

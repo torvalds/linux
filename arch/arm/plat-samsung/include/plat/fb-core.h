@@ -26,4 +26,19 @@ static inline void s3c_fb_setname(char *name)
 #endif
 }
 
+/* Re-define device name depending on support. */
+static inline void s5p_fb_setname(int id, char *name)
+{
+	switch (id) {
+#ifdef CONFIG_S5P_DEV_FIMD0
+	case 0:
+		s5p_device_fimd0.name = name;
+	break;
+#endif
+	default:
+		printk(KERN_ERR "%s: invalid device id(%d)\n", __func__, id);
+	break;
+	}
+}
+
 #endif /* __ASM_PLAT_FB_CORE_H */

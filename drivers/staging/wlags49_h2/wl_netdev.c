@@ -23,7 +23,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -44,7 +44,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -79,8 +79,7 @@
 // #include <linux/delay.h>
 // #include <linux/skbuff.h>
 // #include <asm/io.h>
-// #include <asm/system.h>
-// #include <asm/bitops.h>
+// // #include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
@@ -217,7 +216,7 @@ int wl_config( struct net_device *dev, struct ifmap *map )
 
     /* The only thing we care about here is a port change. Since this not needed,
        ignore the request. */
-    DBG_TRACE( DbgInfo, "%s: %s called.\n", dev->name, __FUNC__ );
+    DBG_TRACE(DbgInfo, "%s: %s called.\n", dev->name, __func__);
 
     DBG_LEAVE( DbgInfo );
     return 0;
@@ -458,17 +457,17 @@ int wl_close( struct net_device *dev )
 
 static void wl_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-    strncpy(info->driver, DRIVER_NAME, sizeof(info->driver) - 1);
-    strncpy(info->version, DRV_VERSION_STR, sizeof(info->version) - 1);
-//	strncpy(info.fw_version, priv->fw_name,
-//	sizeof(info.fw_version) - 1);
+    strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+    strlcpy(info->version, DRV_VERSION_STR, sizeof(info->version));
+//	strlcpy(info.fw_version, priv->fw_name,
+//	sizeof(info.fw_version));
 
     if (dev->dev.parent) {
     	dev_set_name(dev->dev.parent, "%s", info->bus_info);
-	//strncpy(info->bus_info, dev->dev.parent->bus_id,
-	//	sizeof(info->bus_info) - 1);
+	//strlcpy(info->bus_info, dev->dev.parent->bus_id,
+	//	sizeof(info->bus_info));
     } else {
-	snprintf(info->bus_info, sizeof(info->bus_info) - 1,
+	snprintf(info->bus_info, sizeof(info->bus_info),
 		"PCMCIA FIXME");
 //		    "PCMCIA 0x%lx", priv->hw.iobase);
     }
@@ -653,7 +652,6 @@ void wl_tx_timeout( struct net_device *dev )
     wl_unlock( lp, &flags );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_tx_timeout
 /*============================================================================*/
 
@@ -837,8 +835,7 @@ int wl_tx( struct sk_buff *skb, struct net_device *dev, int port )
         txF->frame.port = port;
         /* Move the frame to the txQ */
         /* NOTE: Here's where we would do priority queueing */
-        list_del( &( txF->node ));
-        list_add( &( txF->node ), &( lp->txQ[0] ));
+        list_move(&(txF->node), &(lp->txQ[0]));
 
         lp->txQ_count++;
         if( lp->txQ_count >= DEFAULT_NUM_TX_FRAMES ) {
@@ -1064,7 +1061,7 @@ void wl_multicast( struct net_device *dev )
 #if DBG
     if( DBG_FLAGS( DbgInfo ) & DBG_PARAM_ON ) {
         DBG_PRINT("  flags: %s%s%s\n",
-            ( dev->flags & IFF_PROMISC ) ? "Promiscous " : "",
+            ( dev->flags & IFF_PROMISC ) ? "Promiscuous " : "",
             ( dev->flags & IFF_MULTICAST ) ? "Multicast " : "",
             ( dev->flags & IFF_ALLMULTI ) ? "All-Multicast" : "" );
 
@@ -1179,7 +1176,7 @@ static const struct net_device_ops wl_netdev_ops =
 
     .ndo_set_config         = &wl_config,
     .ndo_get_stats          = &wl_stats,
-    .ndo_set_multicast_list = &wl_multicast,
+    .ndo_set_rx_mode        = &wl_multicast,
 
     .ndo_init               = &wl_insert,
     .ndo_open               = &wl_adapter_open,
@@ -1253,7 +1250,7 @@ struct net_device * wl_device_alloc( void )
 
     netif_stop_queue( dev );
 
-    /* Allocate virutal devices for WDS support if needed */
+    /* Allocate virtual devices for WDS support if needed */
     WL_WDS_DEVICE_ALLOC( lp );
 
     DBG_LEAVE( DbgInfo );
@@ -1293,7 +1290,6 @@ void wl_device_dealloc( struct net_device *dev )
     free_netdev( dev );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_device_dealloc
 /*============================================================================*/
 
@@ -1511,8 +1507,11 @@ void wl_wds_device_alloc( struct wl_private *lp )
     for( count = 0; count < NUM_WDS_PORTS; count++ ) {
         struct net_device *dev_wds = NULL;
 
-        dev_wds = kmalloc( sizeof( struct net_device ), GFP_KERNEL );
-        memset( dev_wds, 0, sizeof( struct net_device ));
+	dev_wds = kzalloc(sizeof(struct net_device), GFP_KERNEL);
+	if (!dev_wds) {
+		DBG_LEAVE(DbgInfo);
+		return;
+	}
 
         ether_setup( dev_wds );
 
@@ -1545,7 +1544,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
     WL_WDS_NETIF_STOP_QUEUE( lp );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_alloc
 /*============================================================================*/
 
@@ -1591,7 +1589,6 @@ void wl_wds_device_dealloc( struct wl_private *lp )
     }
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_dealloc
 /*============================================================================*/
 
@@ -1602,7 +1599,7 @@ void wl_wds_device_dealloc( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to start the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1627,8 +1624,6 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_start_queue
 /*============================================================================*/
 
@@ -1639,7 +1634,7 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to stop the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1664,8 +1659,6 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_stop_queue
 /*============================================================================*/
 
@@ -1676,7 +1669,7 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to wake the netif queues of all the "virtual" network devices
- *      which repesent the WDS ports.
+ *      which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1701,8 +1694,6 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_wake_queue
 /*============================================================================*/
 
@@ -1713,7 +1704,7 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is present on all of the
- *      "virtual" network devices which repesent the WDS ports.
+ *      "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1736,8 +1727,6 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_carrier_on
 /*============================================================================*/
 
@@ -1748,7 +1737,7 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  *  DESCRIPTION:
  *
  *      Used to signal the network layer that carrier is NOT present on all of
- *      the "virtual" network devices which repesent the WDS ports.
+ *      the "virtual" network devices which represent the WDS ports.
  *
  *  PARAMETERS:
  *
@@ -1761,18 +1750,15 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  ******************************************************************************/
 void wl_wds_netif_carrier_off( struct wl_private *lp )
 {
-    int count;
-    /*------------------------------------------------------------------------*/
+	int count;
 
-    if( lp != NULL ) {
-        for( count = 0; count < NUM_WDS_PORTS; count++ ) {
-            if( lp->wds_port[count].is_registered ) {
-                netif_carrier_off( lp->wds_port[count].dev );
-            }
-        }
-    }
+	if(lp != NULL) {
+		for(count = 0; count < NUM_WDS_PORTS; count++) {
+			if(lp->wds_port[count].is_registered)
+				netif_carrier_off(lp->wds_port[count].dev);
+		}
+	}
 
-    return;
 } // wl_wds_netif_carrier_off
 /*============================================================================*/
 
@@ -1808,22 +1794,19 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     DBG_FUNC( "wl_send_dma" );
 
-    if( lp == NULL )
-    {
+    if( lp == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct is NULL\n" );
         return FALSE;
     }
 
-    if( lp->dev == NULL )
-    {
+    if( lp->dev == NULL ) {
         DBG_ERROR( DbgInfo, "net_device struct in wl_private is NULL\n" );
         return FALSE;
     }
 
     /* AGAIN, ALL THE QUEUEING DONE HERE IN I/O MODE IS NOT PERFORMED */
 
-    if( skb == NULL )
-    {
+    if( skb == NULL ) {
         DBG_WARNING (DbgInfo, "Nothing to send.\n");
         return FALSE;
     }
@@ -1833,8 +1816,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
     /* Get a free descriptor */
     desc = wl_pci_dma_get_tx_packet( lp );
 
-    if( desc == NULL )
-    {
+    if( desc == NULL ) {
         if( lp->netif_queue_on == TRUE ) {
             netif_stop_queue( lp->dev );
             WL_WDS_NETIF_STOP_QUEUE( lp );
@@ -1850,8 +1832,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     desc_next = desc->next_desc_addr;
 
-    if( desc_next->buf_addr == NULL )
-    {
+    if( desc_next->buf_addr == NULL ) {
         DBG_ERROR( DbgInfo, "DMA descriptor buf_addr is NULL\n" );
         return FALSE;
     }

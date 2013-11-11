@@ -1,0 +1,20 @@
+SMSC USB3503 High-Speed Hub Controller
+
+Required properties:
+- compatible: Should be "smsc,usb3503".
+- reg: Specifies the i2c slave address, it should be 0x08.
+- connect-gpios: Should specify GPIO for connect.
+- intn-gpios: Should specify GPIO for interrupt.
+- reset-gpios: Should specify GPIO for reset.
+- initial-mode: Should specify initial mode.
+                (1 for HUB mode, 2 for STANDBY mode)
+
+Examples:
+	usb3503@08 {
+		compatible = "smsc,usb3503";
+		reg = <0x08>;
+		connect-gpios = <&gpx3 0 1>;
+		intn-gpios = <&gpx3 4 1>;
+		reset-gpios = <&gpx3 5 1>;
+		initial-mode = <1>;
+	};

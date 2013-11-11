@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/export.h>
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -44,6 +45,12 @@ enum {
 	dma_debug_coherent,
 };
 
+enum map_err_types {
+	MAP_ERR_CHECK_NOT_APPLICABLE,
+	MAP_ERR_NOT_CHECKED,
+	MAP_ERR_CHECKED,
+};
+
 #define DMA_DEBUG_STACKTRACE_ENTRIES 5
 
 struct dma_debug_entry {
@@ -56,11 +63,14 @@ struct dma_debug_entry {
 	int              direction;
 	int		 sg_call_ents;
 	int		 sg_mapped_ents;
+	enum map_err_types  map_err_type;
 #ifdef CONFIG_STACKTRACE
 	struct		 stack_trace stacktrace;
 	unsigned long	 st_entries[DMA_DEBUG_STACKTRACE_ENTRIES];
 #endif
 };
+
+typedef bool (*match_fn)(struct dma_debug_entry *, struct dma_debug_entry *);
 
 struct hash_bucket {
 	struct list_head list;
@@ -75,7 +85,7 @@ static LIST_HEAD(free_entries);
 static DEFINE_SPINLOCK(free_entries_lock);
 
 /* Global disable flag - will be set in case of an error */
-static bool global_disable __read_mostly;
+static u32 global_disable __read_mostly;
 
 /* Global error count */
 static u32 error_count;
@@ -111,16 +121,17 @@ static struct device_driver *current_driver                    __read_mostly;
 
 static DEFINE_RWLOCK(driver_name_lock);
 
+static const char *const maperr2str[] = {
+	[MAP_ERR_CHECK_NOT_APPLICABLE] = "dma map error check not applicable",
+	[MAP_ERR_NOT_CHECKED] = "dma map error not checked",
+	[MAP_ERR_CHECKED] = "dma map error checked",
+};
+
 static const char *type2name[4] = { "single", "page",
 				    "scather-gather", "coherent" };
 
 static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
 				   "DMA_FROM_DEVICE", "DMA_NONE" };
-
-/* little merge helper - remove it after the merge window */
-#ifndef BUS_NOTIFY_UNBOUND_DRIVER
-#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
-#endif
 
 /*
  * The access to some variables in this macro is racy. We can't use atomic_t
@@ -167,7 +178,7 @@ static bool driver_filter(struct device *dev)
 		return false;
 
 	/* driver filter on but not yet initialized */
-	drv = get_driver(dev->driver);
+	drv = dev->driver;
 	if (!drv)
 		return false;
 
@@ -182,7 +193,6 @@ static bool driver_filter(struct device *dev)
 	}
 
 	read_unlock_irqrestore(&driver_name_lock, flags);
-	put_driver(drv);
 
 	return ret;
 }
@@ -240,18 +250,37 @@ static void put_hash_bucket(struct hash_bucket *bucket,
 	spin_unlock_irqrestore(&bucket->lock, __flags);
 }
 
+static bool exact_match(struct dma_debug_entry *a, struct dma_debug_entry *b)
+{
+	return ((a->dev_addr == b->dev_addr) &&
+		(a->dev == b->dev)) ? true : false;
+}
+
+static bool containing_match(struct dma_debug_entry *a,
+			     struct dma_debug_entry *b)
+{
+	if (a->dev != b->dev)
+		return false;
+
+	if ((b->dev_addr <= a->dev_addr) &&
+	    ((b->dev_addr + b->size) >= (a->dev_addr + a->size)))
+		return true;
+
+	return false;
+}
+
 /*
  * Search a given entry in the hash bucket list
  */
-static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
-						struct dma_debug_entry *ref)
+static struct dma_debug_entry *__hash_bucket_find(struct hash_bucket *bucket,
+						  struct dma_debug_entry *ref,
+						  match_fn match)
 {
 	struct dma_debug_entry *entry, *ret = NULL;
-	int matches = 0, match_lvl, last_lvl = 0;
+	int matches = 0, match_lvl, last_lvl = -1;
 
 	list_for_each_entry(entry, &bucket->list, list) {
-		if ((entry->dev_addr != ref->dev_addr) ||
-		    (entry->dev != ref->dev))
+		if (!match(ref, entry))
 			continue;
 
 		/*
@@ -277,7 +306,7 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 		} else if (match_lvl > last_lvl) {
 			/*
 			 * We found an entry that fits better then the
-			 * previous one
+			 * previous one or it is the 1st match.
 			 */
 			last_lvl = match_lvl;
 			ret      = entry;
@@ -291,6 +320,39 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 	ret = (matches == 1) ? ret : NULL;
 
 	return ret;
+}
+
+static struct dma_debug_entry *bucket_find_exact(struct hash_bucket *bucket,
+						 struct dma_debug_entry *ref)
+{
+	return __hash_bucket_find(bucket, ref, exact_match);
+}
+
+static struct dma_debug_entry *bucket_find_contain(struct hash_bucket **bucket,
+						   struct dma_debug_entry *ref,
+						   unsigned long *flags)
+{
+
+	unsigned int max_range = dma_get_max_seg_size(ref->dev);
+	struct dma_debug_entry *entry, index = *ref;
+	unsigned int range = 0;
+
+	while (range <= max_range) {
+		entry = __hash_bucket_find(*bucket, &index, containing_match);
+
+		if (entry)
+			return entry;
+
+		/*
+		 * Nothing found, go back a hash bucket
+		 */
+		put_hash_bucket(*bucket, flags);
+		range          += (1 << HASH_FN_SHIFT);
+		index.dev_addr -= (1 << HASH_FN_SHIFT);
+		*bucket = get_hash_bucket(&index, flags);
+	}
+
+	return NULL;
 }
 
 /*
@@ -327,11 +389,12 @@ void debug_dma_dump_mappings(struct device *dev)
 		list_for_each_entry(entry, &bucket->list, list) {
 			if (!dev || dev == entry->dev) {
 				dev_info(entry->dev,
-					 "%s idx %d P=%Lx D=%Lx L=%Lx %s\n",
+					 "%s idx %d P=%Lx D=%Lx L=%Lx %s %s\n",
 					 type2name[entry->type], idx,
 					 (unsigned long long)entry->paddr,
 					 entry->dev_addr, entry->size,
-					 dir2name[entry->direction]);
+					 dir2name[entry->direction],
+					 maperr2str[entry->map_err_type]);
 			}
 		}
 
@@ -376,7 +439,7 @@ static struct dma_debug_entry *__dma_entry_alloc(void)
  */
 static struct dma_debug_entry *dma_entry_alloc(void)
 {
-	struct dma_debug_entry *entry = NULL;
+	struct dma_debug_entry *entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&free_entries_lock, flags);
@@ -384,10 +447,13 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 	if (list_empty(&free_entries)) {
 		pr_err("DMA-API: debugging out of memory - disabling\n");
 		global_disable = true;
-		goto out;
+		spin_unlock_irqrestore(&free_entries_lock, flags);
+		return NULL;
 	}
 
 	entry = __dma_entry_alloc();
+
+	spin_unlock_irqrestore(&free_entries_lock, flags);
 
 #ifdef CONFIG_STACKTRACE
 	entry->stacktrace.max_entries = DMA_DEBUG_STACKTRACE_ENTRIES;
@@ -395,9 +461,6 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 	entry->stacktrace.skip = 2;
 	save_stack_trace(&entry->stacktrace);
 #endif
-
-out:
-	spin_unlock_irqrestore(&free_entries_lock, flags);
 
 	return entry;
 }
@@ -603,7 +666,7 @@ static int dma_debug_fs_init(void)
 
 	global_disable_dent = debugfs_create_bool("disabled", 0444,
 			dma_debug_dent,
-			(u32 *)&global_disable);
+			&global_disable);
 	if (!global_disable_dent)
 		goto out_err;
 
@@ -795,21 +858,25 @@ static void check_unmap(struct dma_debug_entry *ref)
 	struct hash_bucket *bucket;
 	unsigned long flags;
 
-	if (dma_mapping_error(ref->dev, ref->dev_addr)) {
-		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
-			   "to free an invalid DMA memory address\n");
-		return;
-	}
-
 	bucket = get_hash_bucket(ref, &flags);
-	entry = hash_bucket_find(bucket, ref);
+	entry = bucket_find_exact(bucket, ref);
 
 	if (!entry) {
-		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
-			   "to free DMA memory it has not allocated "
-			   "[device address=0x%016llx] [size=%llu bytes]\n",
-			   ref->dev_addr, ref->size);
-		goto out;
+		/* must drop lock before calling dma_mapping_error */
+		put_hash_bucket(bucket, &flags);
+
+		if (dma_mapping_error(ref->dev, ref->dev_addr)) {
+			err_printk(ref->dev, NULL,
+				   "DMA-API: device driver tries to free an "
+				   "invalid DMA memory address\n");
+		} else {
+			err_printk(ref->dev, NULL,
+				   "DMA-API: device driver tries to free DMA "
+				   "memory it has not allocated [device "
+				   "address=0x%016llx] [size=%llu bytes]\n",
+				   ref->dev_addr, ref->size);
+		}
+		return;
 	}
 
 	if (ref->size != entry->size) {
@@ -861,10 +928,18 @@ static void check_unmap(struct dma_debug_entry *ref)
 			   dir2name[ref->direction]);
 	}
 
+	if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+		err_printk(ref->dev, entry,
+			   "DMA-API: device driver failed to check map error"
+			   "[device address=0x%016llx] [size=%llu bytes] "
+			   "[mapped as %s]",
+			   ref->dev_addr, ref->size,
+			   type2name[entry->type]);
+	}
+
 	hash_bucket_del(entry);
 	dma_entry_free(entry);
 
-out:
 	put_hash_bucket(bucket, &flags);
 }
 
@@ -902,7 +977,7 @@ static void check_sync(struct device *dev,
 
 	bucket = get_hash_bucket(ref, &flags);
 
-	entry = hash_bucket_find(bucket, ref);
+	entry = bucket_find_contain(&bucket, ref, &flags);
 
 	if (!entry) {
 		err_printk(dev, NULL, "DMA-API: device driver tries "
@@ -968,7 +1043,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	if (unlikely(global_disable))
 		return;
 
-	if (unlikely(dma_mapping_error(dev, dma_addr)))
+	if (dma_mapping_error(dev, dma_addr))
 		return;
 
 	entry = dma_entry_alloc();
@@ -981,6 +1056,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	entry->dev_addr  = dma_addr;
 	entry->size      = size;
 	entry->direction = direction;
+	entry->map_err_type = MAP_ERR_NOT_CHECKED;
 
 	if (map_single)
 		entry->type = dma_debug_single;
@@ -995,6 +1071,44 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	add_dma_entry(entry);
 }
 EXPORT_SYMBOL(debug_dma_map_page);
+
+void debug_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	struct dma_debug_entry ref;
+	struct dma_debug_entry *entry;
+	struct hash_bucket *bucket;
+	unsigned long flags;
+
+	if (unlikely(global_disable))
+		return;
+
+	ref.dev = dev;
+	ref.dev_addr = dma_addr;
+	bucket = get_hash_bucket(&ref, &flags);
+
+	list_for_each_entry(entry, &bucket->list, list) {
+		if (!exact_match(&ref, entry))
+			continue;
+
+		/*
+		 * The same physical address can be mapped multiple
+		 * times. Without a hardware IOMMU this results in the
+		 * same device addresses being put into the dma-debug
+		 * hash multiple times too. This can result in false
+		 * positives being reported. Therefore we implement a
+		 * best-fit algorithm here which updates the first entry
+		 * from the hash which fits the reference value and is
+		 * not currently listed as being checked.
+		 */
+		if (entry->map_err_type == MAP_ERR_NOT_CHECKED) {
+			entry->map_err_type = MAP_ERR_CHECKED;
+			break;
+		}
+	}
+
+	put_hash_bucket(bucket, &flags);
+}
+EXPORT_SYMBOL(debug_dma_mapping_error);
 
 void debug_dma_unmap_page(struct device *dev, dma_addr_t addr,
 			  size_t size, int direction, bool map_single)
@@ -1060,7 +1174,7 @@ static int get_nr_mapped_entries(struct device *dev,
 	int mapped_ents;
 
 	bucket       = get_hash_bucket(ref, &flags);
-	entry        = hash_bucket_find(bucket, ref);
+	entry        = bucket_find_exact(bucket, ref);
 	mapped_ents  = 0;
 
 	if (entry)

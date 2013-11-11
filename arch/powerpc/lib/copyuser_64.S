@@ -11,6 +11,12 @@
 
 	.align	7
 _GLOBAL(__copy_tofrom_user)
+BEGIN_FTR_SECTION
+	nop
+FTR_SECTION_ELSE
+	b	__copy_tofrom_user_power7
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
+_GLOBAL(__copy_tofrom_user_base)
 	/* first check for a whole page copy on a page boundary */
 	cmpldi	cr1,r5,16
 	cmpdi	cr6,r5,4096
@@ -24,7 +30,7 @@ _GLOBAL(__copy_tofrom_user)
 	dcbt	0,r4
 	beq	.Lcopy_page_4K
 	andi.	r6,r6,7
-	PPC_MTOCRF	0x01,r5
+	PPC_MTOCRF(0x01,r5)
 	blt	cr1,.Lshort_copy
 /* Below we want to nop out the bne if we're on a CPU that has the
  * CPU_FTR_UNALIGNED_LD_STD bit set and the CPU_FTR_CP_USE_DCBTZ bit
@@ -180,7 +186,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 	blr
 
 .Ldst_unaligned:
-	PPC_MTOCRF	0x01,r6		/* put #bytes to 8B bdry into cr7 */
+	PPC_MTOCRF(0x01,r6)		/* put #bytes to 8B bdry into cr7 */
 	subf	r5,r6,r5
 	li	r7,0
 	cmpldi	cr1,r5,16
@@ -195,7 +201,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
 2:	bf	cr7*4+1,3f
 37:	lwzx	r0,r7,r4
 83:	stwx	r0,r7,r3
-3:	PPC_MTOCRF	0x01,r5
+3:	PPC_MTOCRF(0x01,r5)
 	add	r4,r6,r4
 	add	r3,r6,r3
 	b	.Ldst_aligned

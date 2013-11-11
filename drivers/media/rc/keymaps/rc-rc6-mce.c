@@ -13,6 +13,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table rc6_mce[] = {
 
@@ -29,7 +30,7 @@ static struct rc_map_table rc6_mce[] = {
 
 	{ 0x800f040a, KEY_DELETE },
 	{ 0x800f040b, KEY_ENTER },
-	{ 0x800f040c, KEY_POWER },		/* PC Power */
+	{ 0x800f040c, KEY_SLEEP },		/* Formerly PC Power */
 	{ 0x800f040d, KEY_MEDIA },		/* Windows MCE button */
 	{ 0x800f040e, KEY_MUTE },
 	{ 0x800f040f, KEY_INFO },
@@ -44,7 +45,6 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f0416, KEY_PLAY },
 	{ 0x800f0417, KEY_RECORD },
 	{ 0x800f0418, KEY_PAUSE },
-	{ 0x800f046e, KEY_PLAYPAUSE },
 	{ 0x800f0419, KEY_STOP },
 	{ 0x800f041a, KEY_NEXT },
 	{ 0x800f041b, KEY_PREVIOUS },
@@ -97,7 +97,7 @@ static struct rc_map_list rc6_mce_map = {
 	.map = {
 		.scan    = rc6_mce,
 		.size    = ARRAY_SIZE(rc6_mce),
-		.rc_type = RC_TYPE_RC6,
+		.rc_type = RC_TYPE_RC6_MCE,
 		.name    = RC_MAP_RC6_MCE,
 	}
 };

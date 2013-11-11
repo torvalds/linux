@@ -39,6 +39,7 @@ struct twl4030_madc_conversion_method {
  * @do_avgP:	sample the input channel for 4 consecutive cycles
  * @method:	RT, SW1, SW2
  * @type:	Polling or interrupt based method
+ * @raw:	Return raw value, do not convert it
  */
 
 struct twl4030_madc_request {
@@ -48,6 +49,7 @@ struct twl4030_madc_request {
 	u16 type;
 	bool active;
 	bool result_pending;
+	bool raw;
 	int rbuf[TWL4030_MADC_MAX_CHANNELS];
 	void (*func_cb)(int len, int channels, int *buf);
 };
@@ -128,6 +130,10 @@ enum sample_type {
 
 #define REG_BCICTL2             0x024
 #define TWL4030_BCI_ITHSENS	0x007
+
+/* Register and bits for GPBR1 register */
+#define TWL4030_REG_GPBR1		0x0c
+#define TWL4030_GPBR1_MADC_HFCLK_EN	(1 << 7)
 
 struct twl4030_madc_user_parms {
 	int channel;

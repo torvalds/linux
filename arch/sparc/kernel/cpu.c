@@ -6,7 +6,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
@@ -121,7 +121,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		FPU(-1, NULL)
 	}
 },{
-	4,
+	PSR_IMPL_TI,
 	.cpu_info = {
 		CPU(0, "Texas Instruments, Inc. - SuperSparc-(II)"),
 		/* SparcClassic  --  borned STP1010TAB-50*/
@@ -191,7 +191,7 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		FPU(-1, NULL)
 	}
 },{
-	0xF,		/* Aeroflex Gaisler */
+	PSR_IMPL_LEON,		/* Aeroflex Gaisler */
 	.cpu_info = {
 		CPU(3, "LEON"),
 		CPU(-1, NULL)
@@ -396,6 +396,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   , cpu_data(0).clock_tick
 #endif
 		);
+	cpucap_info(m);
 #ifdef CONFIG_SMP
 	smp_bogo(m);
 #endif
@@ -439,16 +440,16 @@ static int __init cpu_type_probe(void)
 	int psr_impl, psr_vers, fpu_vers;
 	int psr;
 
-	psr_impl = ((get_psr() >> 28) & 0xf);
-	psr_vers = ((get_psr() >> 24) & 0xf);
+	psr_impl = ((get_psr() >> PSR_IMPL_SHIFT) & PSR_IMPL_SHIFTED_MASK);
+	psr_vers = ((get_psr() >> PSR_VERS_SHIFT) & PSR_VERS_SHIFTED_MASK);
 
 	psr = get_psr();
 	put_psr(psr | PSR_EF);
-#ifdef CONFIG_SPARC_LEON
-	fpu_vers = get_psr() & PSR_EF ? ((get_fsr() >> 17) & 0x7) : 7;
-#else
-	fpu_vers = ((get_fsr() >> 17) & 0x7);
-#endif
+
+	if (psr_impl == PSR_IMPL_LEON)
+		fpu_vers = get_psr() & PSR_EF ? ((get_fsr() >> 17) & 0x7) : 7;
+	else
+		fpu_vers = ((get_fsr() >> 17) & 0x7);
 
 	put_psr(psr);
 
@@ -474,11 +475,36 @@ static void __init sun4v_cpu_probe(void)
 		sparc_pmu_type = "niagara2";
 		break;
 
+	case SUN4V_CHIP_NIAGARA3:
+		sparc_cpu_type = "UltraSparc T3 (Niagara3)";
+		sparc_fpu_type = "UltraSparc T3 integrated FPU";
+		sparc_pmu_type = "niagara3";
+		break;
+
+	case SUN4V_CHIP_NIAGARA4:
+		sparc_cpu_type = "UltraSparc T4 (Niagara4)";
+		sparc_fpu_type = "UltraSparc T4 integrated FPU";
+		sparc_pmu_type = "niagara4";
+		break;
+
+	case SUN4V_CHIP_NIAGARA5:
+		sparc_cpu_type = "UltraSparc T5 (Niagara5)";
+		sparc_fpu_type = "UltraSparc T5 integrated FPU";
+		sparc_pmu_type = "niagara5";
+		break;
+
+	case SUN4V_CHIP_SPARC64X:
+		sparc_cpu_type = "SPARC64-X";
+		sparc_fpu_type = "SPARC64-X integrated FPU";
+		sparc_pmu_type = "sparc64-x";
+		break;
+
 	default:
 		printk(KERN_WARNING "CPU: Unknown sun4v cpu type [%s]\n",
 		       prom_cpu_compatible);
 		sparc_cpu_type = "Unknown SUN4V CPU";
 		sparc_fpu_type = "Unknown SUN4V FPU";
+		sparc_pmu_type = "Unknown SUN4V PMU";
 		break;
 	}
 }

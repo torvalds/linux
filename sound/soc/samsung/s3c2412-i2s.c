@@ -20,11 +20,11 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/regs-gpio.h>
 #include <mach/dma.h>
 
 #include "dma.h"
@@ -69,10 +69,10 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	s3c2412_i2s.dma_playback = &s3c2412_i2s_pcm_stereo_out;
 
 	s3c2412_i2s.iis_cclk = clk_get(dai->dev, "i2sclk");
-	if (s3c2412_i2s.iis_cclk == NULL) {
+	if (IS_ERR(s3c2412_i2s.iis_cclk)) {
 		pr_err("failed to get i2sclk clock\n");
 		iounmap(s3c2412_i2s.regs);
-		return -ENODEV;
+		return PTR_ERR(s3c2412_i2s.iis_cclk);
 	}
 
 	/* Set MPLL as the source for IIS CLK */
@@ -82,12 +82,9 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 
 	s3c2412_i2s.iis_cclk = s3c2412_i2s.iis_pclk;
 
-	/* Configure the I2S pins in correct mode */
-	s3c2410_gpio_cfgpin(S3C2410_GPE0, S3C2410_GPE0_I2SLRCK);
-	s3c2410_gpio_cfgpin(S3C2410_GPE1, S3C2410_GPE1_I2SSCLK);
-	s3c2410_gpio_cfgpin(S3C2410_GPE2, S3C2410_GPE2_CDCLK);
-	s3c2410_gpio_cfgpin(S3C2410_GPE3, S3C2410_GPE3_I2SSDI);
-	s3c2410_gpio_cfgpin(S3C2410_GPE4, S3C2410_GPE4_I2SSDO);
+	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
+	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
+			      S3C_GPIO_PULL_NONE);
 
 	return 0;
 }
@@ -141,7 +138,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-static struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
+static const struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
 	.hw_params	= s3c2412_i2s_hw_params,
 };
 
@@ -163,14 +160,38 @@ static struct snd_soc_dai_driver s3c2412_i2s_dai = {
 	.ops = &s3c2412_i2s_dai_ops,
 };
 
-static __devinit int s3c2412_iis_dev_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver s3c2412_i2s_component = {
+	.name		= "s3c2412-i2s",
+};
+
+static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dai(&pdev->dev, &s3c2412_i2s_dai);
+	int ret = 0;
+
+	ret = s3c_i2sv2_register_component(&pdev->dev, -1,
+					   &s3c2412_i2s_component,
+					   &s3c2412_i2s_dai);
+	if (ret) {
+		pr_err("failed to register the dai\n");
+		return ret;
+	}
+
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		pr_err("failed to register the DMA: %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	snd_soc_unregister_component(&pdev->dev);
+	return ret;
 }
 
-static __devexit int s3c2412_iis_dev_remove(struct platform_device *pdev)
+static int s3c2412_iis_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	asoc_dma_platform_unregister(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
@@ -183,17 +204,7 @@ static struct platform_driver s3c2412_iis_driver = {
 	},
 };
 
-static int __init s3c2412_i2s_init(void)
-{
-	return platform_driver_register(&s3c2412_iis_driver);
-}
-module_init(s3c2412_i2s_init);
-
-static void __exit s3c2412_i2s_exit(void)
-{
-	platform_driver_unregister(&s3c2412_iis_driver);
-}
-module_exit(s3c2412_i2s_exit);
+module_platform_driver(s3c2412_iis_driver);
 
 /* Module information */
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");

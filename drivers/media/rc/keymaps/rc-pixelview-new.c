@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /*
    Mauro Carvalho Chehab <mchehab@infradead.org>

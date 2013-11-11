@@ -15,8 +15,8 @@
 #include <linux/module.h>
 
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/time.h>
+#include <asm/setup.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -55,7 +55,7 @@ static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 
 /**
  * Cause the function described by call_data to be executed on the passed
- * cpu.  When the function has finished, increment the finished field of
+ * cpu.	 When the function has finished, increment the finished field of
  * call_data.
  */
 void octeon_send_ipi_single(int cpu, unsigned int action)
@@ -78,7 +78,7 @@ static inline void octeon_send_ipi_mask(const struct cpumask *mask,
 }
 
 /**
- * Detect available CPUs, populate cpu_possible_map
+ * Detect available CPUs, populate cpu_possible_mask
  */
 static void octeon_smp_hotplug_setup(void)
 {
@@ -126,8 +126,8 @@ static void octeon_smp_setup(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/*
-	 * The possible CPUs are all those present on the chip.  We
-	 * will assign CPU numbers for possible cores as well.  Cores
+	 * The possible CPUs are all those present on the chip.	 We
+	 * will assign CPU numbers for possible cores as well.	Cores
 	 * are always consecutively numberd from 0.
 	 */
 	for (id = 0; id < num_cores && id < NR_CPUS; id++) {
@@ -185,7 +185,6 @@ static void __cpuinit octeon_init_secondary(void)
 	octeon_init_cvmcount();
 
 	octeon_irq_setup_secondary();
-	raw_local_irq_enable();
 }
 
 /**
@@ -207,9 +206,10 @@ void octeon_prepare_cpus(unsigned int max_cpus)
 	 * the other bits alone.
 	 */
 	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffff);
-	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt, IRQF_DISABLED,
-			"SMP-IPI", mailbox_interrupt)) {
-		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)\n");
+	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt,
+			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-IPI",
+			mailbox_interrupt)) {
+		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)");
 	}
 }
 
@@ -232,6 +232,7 @@ static void octeon_smp_finish(void)
 
 	/* to generate the first CPU timer interrupt */
 	write_c0_compare(read_c0_count() + mips_hpt_frequency / HZ);
+	local_irq_enable();
 }
 
 /**
@@ -256,8 +257,6 @@ DEFINE_PER_CPU(int, cpu_state);
 
 extern void fixup_irqs(void);
 
-static DEFINE_SPINLOCK(smp_reserve_lock);
-
 static int octeon_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -265,9 +264,7 @@ static int octeon_cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	spin_lock(&smp_reserve_lock);
-
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
 	local_irq_disable();
 	fixup_irqs();
@@ -275,8 +272,6 @@ static int octeon_cpu_disable(void)
 
 	flush_cache_all();
 	local_flush_tlb_all();
-
-	spin_unlock(&smp_reserve_lock);
 
 	return 0;
 }
@@ -337,7 +332,7 @@ extern void kernel_entry(unsigned long arg1, ...);
 
 static void start_after_reset(void)
 {
-	kernel_entry(0, 0, 0);  /* set a2 = 0 for secondary core */
+	kernel_entry(0, 0, 0);	/* set a2 = 0 for secondary core */
 }
 
 static int octeon_update_boot_vector(unsigned int cpu)
@@ -406,7 +401,7 @@ static int __cpuinit register_cavium_notifier(void)
 }
 late_initcall(register_cavium_notifier);
 
-#endif  /* CONFIG_HOTPLUG_CPU */
+#endif	/* CONFIG_HOTPLUG_CPU */
 
 struct plat_smp_ops octeon_smp_ops = {
 	.send_ipi_single	= octeon_send_ipi_single,

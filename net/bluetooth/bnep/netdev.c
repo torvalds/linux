@@ -25,16 +25,7 @@
    SOFTWARE IS DISCLAIMED.
 */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-
-#include <linux/socket.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/wait.h>
-
-#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -128,7 +119,7 @@ static void bnep_net_timeout(struct net_device *dev)
 }
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
-static inline int bnep_net_mc_filter(struct sk_buff *skb, struct bnep_session *s)
+static int bnep_net_mc_filter(struct sk_buff *skb, struct bnep_session *s)
 {
 	struct ethhdr *eh = (void *) skb->data;
 
@@ -140,12 +131,12 @@ static inline int bnep_net_mc_filter(struct sk_buff *skb, struct bnep_session *s
 
 #ifdef CONFIG_BT_BNEP_PROTO_FILTER
 /* Determine ether protocol. Based on eth_type_trans. */
-static inline u16 bnep_net_eth_proto(struct sk_buff *skb)
+static u16 bnep_net_eth_proto(struct sk_buff *skb)
 {
 	struct ethhdr *eh = (void *) skb->data;
 	u16 proto = ntohs(eh->h_proto);
 
-	if (proto >= 1536)
+	if (proto >= ETH_P_802_3_MIN)
 		return proto;
 
 	if (get_unaligned((__be16 *) skb->data) == htons(0xFFFF))
@@ -154,7 +145,7 @@ static inline u16 bnep_net_eth_proto(struct sk_buff *skb)
 	return ETH_P_802_2;
 }
 
-static inline int bnep_net_proto_filter(struct sk_buff *skb, struct bnep_session *s)
+static int bnep_net_proto_filter(struct sk_buff *skb, struct bnep_session *s)
 {
 	u16 proto = bnep_net_eth_proto(skb);
 	struct bnep_proto_filter *f = s->proto_filter;
@@ -217,7 +208,7 @@ static const struct net_device_ops bnep_netdev_ops = {
 	.ndo_stop            = bnep_net_close,
 	.ndo_start_xmit	     = bnep_net_xmit,
 	.ndo_validate_addr   = eth_validate_addr,
-	.ndo_set_multicast_list = bnep_net_set_mc_list,
+	.ndo_set_rx_mode     = bnep_net_set_mc_list,
 	.ndo_set_mac_address = bnep_net_set_mac_addr,
 	.ndo_tx_timeout      = bnep_net_timeout,
 	.ndo_change_mtu	     = eth_change_mtu,
@@ -231,6 +222,7 @@ void bnep_net_setup(struct net_device *dev)
 	dev->addr_len = ETH_ALEN;
 
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &bnep_netdev_ops;
 
 	dev->watchdog_timeo  = HZ * 2;

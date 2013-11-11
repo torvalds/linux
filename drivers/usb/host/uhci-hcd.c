@@ -45,7 +45,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include "uhci-hcd.h"
 
@@ -59,7 +58,7 @@
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
 /* for flakey hardware, ignore overcurrent indicators */
-static int ignore_oc;
+static bool ignore_oc;
 module_param(ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
 
@@ -294,50 +293,50 @@ __acquires(uhci->lock)
 	 * and that remote wakeups should be enabled.
 	 */
 	egsm_enable = USBCMD_EGSM;
-	uhci->RD_enable = 1;
 	int_enable = USBINTR_RESUME;
 	wakeup_enable = 1;
 
-	/* In auto-stop mode wakeups must always be detected, but
-	 * Resume-Detect interrupts may be prohibited.  (In the absence
-	 * of CONFIG_PM, they are always disallowed.)
+	/*
+	 * In auto-stop mode, we must be able to detect new connections.
+	 * The user can force us to poll by disabling remote wakeup;
+	 * otherwise we will use the EGSM/RD mechanism.
 	 */
 	if (auto_stop) {
 		if (!device_may_wakeup(&rhdev->dev))
-			int_enable = 0;
-
-	/* In bus-suspend mode wakeups may be disabled, but if they are
-	 * allowed then so are Resume-Detect interrupts.
-	 */
-	} else {
-#ifdef CONFIG_PM
-		if (!rhdev->do_remote_wakeup)
-			wakeup_enable = 0;
-#endif
+			egsm_enable = int_enable = 0;
 	}
 
-	/* EGSM causes the root hub to echo a 'K' signal (resume) out any
-	 * port which requests a remote wakeup.  According to the USB spec,
-	 * every hub is supposed to do this.  But if we are ignoring
-	 * remote-wakeup requests anyway then there's no point to it.
-	 * We also shouldn't enable EGSM if it's broken.
+#ifdef CONFIG_PM
+	/*
+	 * In bus-suspend mode, we use the wakeup setting specified
+	 * for the root hub.
 	 */
-	if (!wakeup_enable || global_suspend_mode_is_broken(uhci))
-		egsm_enable = 0;
+	else {
+		if (!rhdev->do_remote_wakeup)
+			wakeup_enable = 0;
+	}
+#endif
 
-	/* If we're ignoring wakeup events then there's no reason to
-	 * enable Resume-Detect interrupts.  We also shouldn't enable
-	 * them if they are broken or disallowed.
+	/*
+	 * UHCI doesn't distinguish between wakeup requests from downstream
+	 * devices and local connect/disconnect events.  There's no way to
+	 * enable one without the other; both are controlled by EGSM.  Thus
+	 * if wakeups are disallowed then EGSM must be turned off -- in which
+	 * case remote wakeup requests from downstream during system sleep
+	 * will be lost.
 	 *
-	 * This logic may lead us to enabling RD but not EGSM.  The UHCI
-	 * spec foolishly says that RD works only when EGSM is on, but
-	 * there's no harm in enabling it anyway -- perhaps some chips
-	 * will implement it!
+	 * In addition, if EGSM is broken then we can't use it.  Likewise,
+	 * if Resume-Detect interrupts are broken then we can't use them.
+	 *
+	 * Finally, neither EGSM nor RD is useful by itself.  Without EGSM,
+	 * the RD status bit will never get set.  Without RD, the controller
+	 * won't generate interrupts to tell the system about wakeup events.
 	 */
-	if (!wakeup_enable || resume_detect_interrupts_are_broken(uhci) ||
-			!int_enable)
-		uhci->RD_enable = int_enable = 0;
+	if (!wakeup_enable || global_suspend_mode_is_broken(uhci) ||
+			resume_detect_interrupts_are_broken(uhci))
+		egsm_enable = int_enable = 0;
 
+	uhci->RD_enable = !!int_enable;
 	uhci_writew(uhci, int_enable, USBINTR);
 	uhci_writew(uhci, egsm_enable | USBCMD_CF, USBCMD);
 	mb();
@@ -364,10 +363,12 @@ __acquires(uhci->lock)
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 
-	/* If interrupts don't work and remote wakeup is enabled then
-	 * the suspended root hub needs to be polled.
+	/*
+	 * If remote wakeup is enabled but either EGSM or RD interrupts
+	 * doesn't work, then we won't get an interrupt when a wakeup event
+	 * occurs.  Thus the suspended root hub needs to be polled.
 	 */
-	if (!int_enable && wakeup_enable)
+	if (wakeup_enable && (!int_enable || !egsm_enable))
 		set_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
 	else
 		clear_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
@@ -446,23 +447,25 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 		return IRQ_NONE;
 	uhci_writew(uhci, status, USBSTS);		/* Clear it */
 
+	spin_lock(&uhci->lock);
+	if (unlikely(!uhci->is_initialized))	/* not yet configured */
+		goto done;
+
 	if (status & ~(USBSTS_USBINT | USBSTS_ERROR | USBSTS_RD)) {
 		if (status & USBSTS_HSE)
-			dev_err(uhci_dev(uhci), "host system error, "
-					"PCI problems?\n");
+			dev_err(uhci_dev(uhci),
+				"host system error, PCI problems?\n");
 		if (status & USBSTS_HCPE)
-			dev_err(uhci_dev(uhci), "host controller process "
-					"error, something bad happened!\n");
+			dev_err(uhci_dev(uhci),
+				"host controller process error, something bad happened!\n");
 		if (status & USBSTS_HCH) {
-			spin_lock(&uhci->lock);
 			if (uhci->rh_state >= UHCI_RH_RUNNING) {
 				dev_err(uhci_dev(uhci),
-					"host controller halted, "
-					"very bad!\n");
+					"host controller halted, very bad!\n");
 				if (debug > 1 && errbuf) {
 					/* Print the schedule for debugging */
-					uhci_sprint_schedule(uhci,
-							errbuf, ERRBUF_LEN);
+					uhci_sprint_schedule(uhci, errbuf,
+						ERRBUF_LEN - EXTRA_SPACE);
 					lprintk(errbuf);
 				}
 				uhci_hc_died(uhci);
@@ -472,15 +475,15 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd)
 				 * pending unlinks */
 				mod_timer(&hcd->rh_timer, jiffies);
 			}
-			spin_unlock(&uhci->lock);
 		}
 	}
 
-	if (status & USBSTS_RD)
+	if (status & USBSTS_RD) {
+		spin_unlock(&uhci->lock);
 		usb_hcd_poll_rh_status(hcd);
-	else {
-		spin_lock(&uhci->lock);
+	} else {
 		uhci_scan_schedule(uhci);
+ done:
 		spin_unlock(&uhci->lock);
 	}
 
@@ -563,6 +566,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry __maybe_unused *dentry;
 
 	hcd->uses_new_polling = 1;
+	/* Accept arbitrarily long scatter-gather lists */
+	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
 	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
@@ -585,8 +591,8 @@ static int uhci_start(struct usb_hcd *hcd)
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
 			&uhci->frame_dma_handle, 0);
 	if (!uhci->frame) {
-		dev_err(uhci_dev(uhci), "unable to allocate "
-				"consistent memory for frame list\n");
+		dev_err(uhci_dev(uhci),
+			"unable to allocate consistent memory for frame list\n");
 		goto err_alloc_frame;
 	}
 	memset(uhci->frame, 0, UHCI_NUMFRAMES * sizeof(*uhci->frame));
@@ -594,8 +600,8 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->frame_cpu = kcalloc(UHCI_NUMFRAMES, sizeof(*uhci->frame_cpu),
 			GFP_KERNEL);
 	if (!uhci->frame_cpu) {
-		dev_err(uhci_dev(uhci), "unable to allocate "
-				"memory for frame pointers\n");
+		dev_err(uhci_dev(uhci),
+			"unable to allocate memory for frame pointers\n");
 		goto err_alloc_frame_cpu;
 	}
 
@@ -658,9 +664,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	 */
 	mb();
 
+	spin_lock_irq(&uhci->lock);
 	configure_hc(uhci);
 	uhci->is_initialized = 1;
-	spin_lock_irq(&uhci->lock);
 	start_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return 0;
@@ -730,8 +736,8 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 	 */
 	else if (hcd->self.root_hub->do_remote_wakeup &&
 			uhci->resuming_ports) {
-		dev_dbg(uhci_dev(uhci), "suspend failed because a port "
-				"is resuming\n");
+		dev_dbg(uhci_dev(uhci),
+			"suspend failed because a port is resuming\n");
 		rc = -EBUSY;
 	} else
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
@@ -822,8 +828,8 @@ static int uhci_count_ports(struct usb_hcd *hcd)
 
 	/* Anything greater than 7 is weird so we'll ignore it. */
 	if (port > UHCI_RH_MAXCHILD) {
-		dev_info(uhci_dev(uhci), "port count misdetected? "
-				"forcing to 2 ports\n");
+		dev_info(uhci_dev(uhci),
+			"port count misdetected? forcing to 2 ports\n");
 		port = 2;
 	}
 
@@ -840,6 +846,11 @@ static const char hcd_name[] = "uhci_hcd";
 #ifdef CONFIG_SPARC_LEON
 #include "uhci-grlib.c"
 #define PLATFORM_DRIVER		uhci_grlib_driver
+#endif
+
+#ifdef CONFIG_USB_UHCI_PLATFORM
+#include "uhci-platform.c"
+#define PLATFORM_DRIVER		uhci_platform_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER)

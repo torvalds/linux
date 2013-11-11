@@ -10,6 +10,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
@@ -36,6 +37,8 @@ struct link_master {
 	struct link_ctl_info info;
 	int val;		/* the master value */
 	unsigned int tlv[4];
+	void (*hook)(void *private_data, int);
+	void *hook_private_data;
 };
 
 /*
@@ -51,6 +54,7 @@ struct link_slave {
 	struct link_ctl_info info;
 	int vals[2];		/* current values */
 	unsigned int flags;
+	struct snd_kcontrol *kctl; /* original kcontrol pointer */
 	struct snd_kcontrol slave; /* the copy of original control entry */
 };
 
@@ -124,7 +128,9 @@ static int master_init(struct link_master *master)
 		master->info.count = 1; /* always mono */
 		/* set full volume as default (= no attenuation) */
 		master->val = master->info.max_val;
-		return 0;
+		if (master->hook)
+			master->hook(master->hook_private_data, master->val);
+		return 1;
 	}
 	return -ENOENT;
 }
@@ -207,7 +213,10 @@ static int slave_put(struct snd_kcontrol *kcontrol,
 	}
 	if (!changed)
 		return 0;
-	return slave_put_val(slave, ucontrol);
+	err = slave_put_val(slave, ucontrol);
+	if (err < 0)
+		return err;
+	return 1;
 }
 
 static int slave_tlv_cmd(struct snd_kcontrol *kcontrol,
@@ -251,6 +260,7 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
 		       slave->count * sizeof(*slave->vd), GFP_KERNEL);
 	if (!srec)
 		return -ENOMEM;
+	srec->kctl = slave;
 	srec->slave = *slave;
 	memcpy(srec->slave.vd, slave->vd, slave->count * sizeof(*slave->vd));
 	srec->master = master_link;
@@ -326,16 +336,26 @@ static int master_put(struct snd_kcontrol *kcontrol,
 		slave_put_val(slave, uval);
 	}
 	kfree(uval);
+	if (master->hook && !err)
+		master->hook(master->hook_private_data, master->val);
 	return 1;
 }
 
 static void master_free(struct snd_kcontrol *kcontrol)
 {
 	struct link_master *master = snd_kcontrol_chip(kcontrol);
-	struct link_slave *slave;
+	struct link_slave *slave, *n;
 
-	list_for_each_entry(slave, &master->slaves, list)
-		slave->master = NULL;
+	/* free all slave links and retore the original slave kctls */
+	list_for_each_entry_safe(slave, n, &master->slaves, list) {
+		struct snd_kcontrol *sctl = slave->kctl;
+		struct list_head olist = sctl->list;
+		memcpy(sctl, &slave->slave, sizeof(*sctl));
+		memcpy(sctl->vd, slave->slave.vd,
+		       sctl->count * sizeof(*sctl->vd));
+		sctl->list = olist; /* keep the current linked-list */
+		kfree(slave);
+	}
 	kfree(master);
 }
 
@@ -345,8 +365,7 @@ static void master_free(struct snd_kcontrol *kcontrol)
  * @name: name string of the control element to create
  * @tlv: optional TLV int array for dB information
  *
- * Creates a virtual matster control with the given name string.
- * Returns the created control element, or NULL for errors (ENOMEM).
+ * Creates a virtual master control with the given name string.
  *
  * After creating a vmaster element, you can add the slave controls
  * via snd_ctl_add_slave() or snd_ctl_add_slave_uncached().
@@ -355,6 +374,8 @@ static void master_free(struct snd_kcontrol *kcontrol)
  * for dB scale of the master control.  It should be a single element
  * with #SNDRV_CTL_TLVT_DB_SCALE, #SNDRV_CTL_TLV_DB_MINMAX or
  * #SNDRV_CTL_TLVT_DB_MINMAX_MUTE type, and should be the max 0dB.
+ *
+ * Return: The created control element, or %NULL for errors (ENOMEM).
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv)
@@ -397,3 +418,44 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	return kctl;
 }
 EXPORT_SYMBOL(snd_ctl_make_virtual_master);
+
+/**
+ * snd_ctl_add_vmaster_hook - Add a hook to a vmaster control
+ * @kcontrol: vmaster kctl element
+ * @hook: the hook function
+ * @private_data: the private_data pointer to be saved
+ *
+ * Adds the given hook to the vmaster control element so that it's called
+ * at each time when the value is changed.
+ *
+ * Return: Zero.
+ */
+int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kcontrol,
+			     void (*hook)(void *private_data, int),
+			     void *private_data)
+{
+	struct link_master *master = snd_kcontrol_chip(kcontrol);
+	master->hook = hook;
+	master->hook_private_data = private_data;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_add_vmaster_hook);
+
+/**
+ * snd_ctl_sync_vmaster_hook - Sync the vmaster hook
+ * @kcontrol: vmaster kctl element
+ *
+ * Call the hook function to synchronize with the current value of the given
+ * vmaster element.  NOP when NULL is passed to @kcontrol or the hook doesn't
+ * exist.
+ */
+void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kcontrol)
+{
+	struct link_master *master;
+	if (!kcontrol)
+		return;
+	master = snd_kcontrol_chip(kcontrol);
+	if (master->hook)
+		master->hook(master->hook_private_data, master->val);
+}
+EXPORT_SYMBOL_GPL(snd_ctl_sync_vmaster_hook);

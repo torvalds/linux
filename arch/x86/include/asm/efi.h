@@ -3,6 +3,8 @@
 
 #ifdef CONFIG_X86_32
 
+#define EFI_LOADER_SIGNATURE	"EL32"
+
 extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 #define efi_call_phys0(f)		efi_call_phys(f)
@@ -33,9 +35,11 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 #define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)	\
 	efi_call_virt(f, a1, a2, a3, a4, a5, a6)
 
-#define efi_ioremap(addr, size, type)		ioremap_cache(addr, size)
+#define efi_ioremap(addr, size, type, attr)	ioremap_cache(addr, size)
 
 #else /* !CONFIG_X86_32 */
+
+#define EFI_LOADER_SIGNATURE	"EL64"
 
 extern u64 efi_call0(void *fp);
 extern u64 efi_call1(void *fp, u64 arg1);
@@ -85,17 +89,27 @@ extern u64 efi_call6(void *fp, u64 arg1, u64 arg2, u64 arg3,
 		  (u64)(a3), (u64)(a4), (u64)(a5), (u64)(a6))
 
 extern void __iomem *efi_ioremap(unsigned long addr, unsigned long size,
-				 u32 type);
+				 u32 type, u64 attribute);
 
 #endif /* CONFIG_X86_32 */
 
 extern int add_efi_memmap;
+extern unsigned long x86_efi_facility;
 extern void efi_set_executable(efi_memory_desc_t *md, bool executable);
-extern void efi_memblock_x86_reserve_range(void);
+extern int efi_memblock_x86_reserve_range(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
+extern void efi_unmap_memmap(void);
+extern void efi_memory_uc(u64 addr, unsigned long size);
 
-#ifndef CONFIG_EFI
+#ifdef CONFIG_EFI
+
+static inline bool efi_is_native(void)
+{
+	return IS_ENABLED(CONFIG_X86_64) == efi_enabled(EFI_64BIT);
+}
+
+#else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.
  */

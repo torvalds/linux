@@ -1,0 +1,175 @@
+/*
+ *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/include/ "pxa910.dtsi"
+
+/ {
+	model = "Marvell PXA910 DKB Development Board";
+	compatible = "mrvl,pxa910-dkb", "mrvl,pxa910";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 root=/dev/nfs nfsroot=192.168.1.100:/nfsroot/ ip=192.168.1.101:192.168.1.100::255.255.255.0::eth0:on";
+	};
+
+	memory {
+		reg = <0x00000000 0x10000000>;
+	};
+
+	soc {
+		apb@d4000000 {
+			uart1: uart@d4017000 {
+				status = "okay";
+			};
+			twsi1: i2c@d4011000 {
+				status = "okay";
+
+				pmic: 88pm860x@34 {
+					compatible = "marvell,88pm860x";
+					reg = <0x34>;
+					interrupts = <4>;
+					interrupt-parent = <&intc>;
+					interrupt-controller;
+					#interrupt-cells = <1>;
+
+					marvell,88pm860x-irq-read-clr;
+					marvell,88pm860x-slave-addr = <0x11>;
+
+					regulators {
+						BUCK1 {
+							regulator-min-microvolt = <1000000>;
+							regulator-max-microvolt = <1500000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						BUCK2 {
+							regulator-min-microvolt = <1000000>;
+							regulator-max-microvolt = <1500000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						BUCK3 {
+							regulator-min-microvolt = <1000000>;
+							regulator-max-microvolt = <3000000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO1 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <2800000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO2 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO3 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO4 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+						LDO5 {
+							regulator-min-microvolt = <2900000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO6 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO7 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <2900000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO8 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <2900000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO9 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO10 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-boot-on;
+							regulator-always-on;
+						};
+						LDO12 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+						LDO13 {
+							regulator-min-microvolt = <1200000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+						LDO14 {
+							regulator-min-microvolt = <1800000>;
+							regulator-max-microvolt = <3300000>;
+							regulator-always-on;
+						};
+					};
+					rtc {
+						marvell,88pm860x-vrtc = <1>;
+					};
+					touch {
+						marvell,88pm860x-gpadc-prebias = <1>;
+						marvell,88pm860x-gpadc-slot-cycle = <1>;
+						marvell,88pm860x-tsi-prebias = <6>;
+						marvell,88pm860x-pen-prebias = <16>;
+						marvell,88pm860x-pen-prechg = <2>;
+						marvell,88pm860x-resistor-X = <300>;
+					};
+					backlights {
+						backlight-0 {
+							marvell,88pm860x-iset = <4>;
+							marvell,88pm860x-pwm = <3>;
+						};
+						backlight-2 {
+						};
+					};
+					leds {
+						led0-red {
+							marvell,88pm860x-iset = <12>;
+						};
+						led0-green {
+							marvell,88pm860x-iset = <12>;
+						};
+						led0-blue {
+							marvell,88pm860x-iset = <12>;
+						};
+					};
+				};
+			};
+			rtc: rtc@d4010000 {
+				status = "okay";
+			};
+		};
+	};
+};

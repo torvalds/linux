@@ -17,12 +17,12 @@
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/h3xxx.h>
 
@@ -109,11 +109,8 @@ static struct flash_platform_data h3xxx_flash_data = {
 	.nr_parts	= ARRAY_SIZE(h3xxx_partitions),
 };
 
-static struct resource h3xxx_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource h3xxx_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
 
 
 /*
@@ -186,11 +183,7 @@ static struct sa1100_port_fns h3xxx_port_fns __initdata = {
  */
 
 static struct resource egpio_resources[] = {
-	[0] = {
-		.start	= H3600_EGPIO_PHYS,
-		.end	= H3600_EGPIO_PHYS + 0x4 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(H3600_EGPIO_PHYS, 0x4),
 };
 
 static struct htc_egpio_chip egpio_chips[] = {

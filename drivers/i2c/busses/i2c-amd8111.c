@@ -415,15 +415,14 @@ static const struct i2c_algorithm smbus_algorithm = {
 };
 
 
-static const struct pci_device_id amd8111_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(amd8111_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS2) },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE (pci, amd8111_ids);
 
-static int __devinit amd8111_probe(struct pci_dev *dev,
-		const struct pci_device_id *id)
+static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct amd_smbus *smbus;
 	int error;
@@ -475,7 +474,7 @@ static int __devinit amd8111_probe(struct pci_dev *dev,
 	return error;
 }
 
-static void __devexit amd8111_remove(struct pci_dev *dev)
+static void amd8111_remove(struct pci_dev *dev)
 {
 	struct amd_smbus *smbus = pci_get_drvdata(dev);
 
@@ -488,18 +487,7 @@ static struct pci_driver amd8111_driver = {
 	.name		= "amd8111_smbus2",
 	.id_table	= amd8111_ids,
 	.probe		= amd8111_probe,
-	.remove		= __devexit_p(amd8111_remove),
+	.remove		= amd8111_remove,
 };
 
-static int __init i2c_amd8111_init(void)
-{
-	return pci_register_driver(&amd8111_driver);
-}
-
-static void __exit i2c_amd8111_exit(void)
-{
-	pci_unregister_driver(&amd8111_driver);
-}
-
-module_init(i2c_amd8111_init);
-module_exit(i2c_amd8111_exit);
+module_pci_driver(amd8111_driver);

@@ -23,14 +23,14 @@
 #include <asm/spitfire.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
+#include <asm/setup.h>
 
 #if defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
 #include <linux/serial_core.h>
-
-#include "suncore.h"
+#include <linux/sunserialcore.h>
 
 #define CON_BREAK	((long)-1)
 #define CON_HUP		((long)-2)
@@ -72,7 +72,7 @@ static void transmit_chars_write(struct uart_port *port, struct circ_buf *xmit)
 	}
 }
 
-static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
+static int receive_chars_getchar(struct uart_port *port)
 {
 	int saw_console_brk = 0;
 	int limit = 10000;
@@ -99,7 +99,7 @@ static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
 			uart_handle_dcd_change(port, 1);
 		}
 
-		if (tty == NULL) {
+		if (port->state == NULL) {
 			uart_handle_sysrq_char(port, c);
 			continue;
 		}
@@ -109,13 +109,13 @@ static int receive_chars_getchar(struct uart_port *port, struct tty_struct *tty)
 		if (uart_handle_sysrq_char(port, c))
 			continue;
 
-		tty_insert_flip_char(tty, c, TTY_NORMAL);
+		tty_insert_flip_char(&port->state->port, c, TTY_NORMAL);
 	}
 
 	return saw_console_brk;
 }
 
-static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
+static int receive_chars_read(struct uart_port *port)
 {
 	int saw_console_brk = 0;
 	int limit = 10000;
@@ -152,12 +152,13 @@ static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
 		for (i = 0; i < bytes_read; i++)
 			uart_handle_sysrq_char(port, con_read_page[i]);
 
-		if (tty == NULL)
+		if (port->state == NULL)
 			continue;
 
 		port->icount.rx += bytes_read;
 
-		tty_insert_flip_string(tty, con_read_page, bytes_read);
+		tty_insert_flip_string(&port->state->port, con_read_page,
+				bytes_read);
 	}
 
 	return saw_console_brk;
@@ -165,7 +166,7 @@ static int receive_chars_read(struct uart_port *port, struct tty_struct *tty)
 
 struct sunhv_ops {
 	void (*transmit_chars)(struct uart_port *port, struct circ_buf *xmit);
-	int (*receive_chars)(struct uart_port *port, struct tty_struct *tty);
+	int (*receive_chars)(struct uart_port *port);
 };
 
 static struct sunhv_ops bychar_ops = {
@@ -180,17 +181,17 @@ static struct sunhv_ops bywrite_ops = {
 
 static struct sunhv_ops *sunhv_ops = &bychar_ops;
 
-static struct tty_struct *receive_chars(struct uart_port *port)
+static struct tty_port *receive_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = NULL;
+	struct tty_port *tport = NULL;
 
 	if (port->state != NULL)		/* Unopened serial console */
-		tty = port->state->port.tty;
+		tport = &port->state->port;
 
-	if (sunhv_ops->receive_chars(port, tty))
+	if (sunhv_ops->receive_chars(port))
 		sun_do_break();
 
-	return tty;
+	return tport;
 }
 
 static void transmit_chars(struct uart_port *port)
@@ -213,16 +214,16 @@ static void transmit_chars(struct uart_port *port)
 static irqreturn_t sunhv_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty;
+	struct tty_port *tport;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	tty = receive_chars(port);
+	tport = receive_chars(port);
 	transmit_chars(port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (tty)
-		tty_flip_buffer_push(tty);
+	if (tport)
+		tty_flip_buffer_push(tport);
 
 	return IRQ_HANDLED;
 }
@@ -519,7 +520,7 @@ static struct console sunhv_console = {
 	.data	=	&sunhv_reg,
 };
 
-static int __devinit hv_probe(struct platform_device *op)
+static int hv_probe(struct platform_device *op)
 {
 	struct uart_port *port;
 	unsigned long minor;
@@ -598,7 +599,7 @@ out_free_port:
 	return err;
 }
 
-static int __devexit hv_remove(struct platform_device *dev)
+static int hv_remove(struct platform_device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(&dev->dev);
 
@@ -636,7 +637,7 @@ static struct platform_driver hv_driver = {
 		.of_match_table = hv_match,
 	},
 	.probe		= hv_probe,
-	.remove		= __devexit_p(hv_remove),
+	.remove		= hv_remove,
 };
 
 static int __init sunhv_init(void)

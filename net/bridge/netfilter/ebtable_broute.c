@@ -64,9 +64,7 @@ static int ebt_broute(struct sk_buff *skb)
 static int __net_init broute_net_init(struct net *net)
 {
 	net->xt.broute_table = ebt_register_table(net, &broute_table);
-	if (IS_ERR(net->xt.broute_table))
-		return PTR_ERR(net->xt.broute_table);
-	return 0;
+	return PTR_RET(net->xt.broute_table);
 }
 
 static void __net_exit broute_net_exit(struct net *net)
@@ -87,14 +85,14 @@ static int __init ebtable_broute_init(void)
 	if (ret < 0)
 		return ret;
 	/* see br_input.c */
-	rcu_assign_pointer(br_should_route_hook,
+	RCU_INIT_POINTER(br_should_route_hook,
 			   (br_should_route_hook_t *)ebt_broute);
 	return 0;
 }
 
 static void __exit ebtable_broute_fini(void)
 {
-	rcu_assign_pointer(br_should_route_hook, NULL);
+	RCU_INIT_POINTER(br_should_route_hook, NULL);
 	synchronize_net();
 	unregister_pernet_subsys(&broute_net_ops);
 }

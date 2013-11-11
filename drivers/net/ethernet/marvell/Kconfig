@@ -1,0 +1,133 @@
+#
+# Marvell device configuration
+#
+
+config NET_VENDOR_MARVELL
+	bool "Marvell devices"
+	default y
+	depends on PCI || CPU_PXA168 || MV64X60 || PPC32 || PLAT_ORION || INET
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Marvell devices. If you say Y, you will be
+	  asked for your specific card in the following questions.
+
+if NET_VENDOR_MARVELL
+
+config MV643XX_ETH
+	tristate "Marvell Discovery (643XX) and Orion ethernet support"
+	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
+	select PHYLIB
+	select MVMDIO
+	---help---
+	  This driver supports the gigabit ethernet MACs in the
+	  Marvell Discovery PPC/MIPS chipset family (MV643XX) and
+	  in the Marvell Orion ARM SoC family.
+
+	  Some boards that use the Discovery chipset are the Momenco
+	  Ocelot C and Jaguar ATX and Pegasos II.
+
+config MVMDIO
+	tristate "Marvell MDIO interface support"
+	select PHYLIB
+	---help---
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Marvell EBU SoCs (Kirkwood, Orion5x,
+	  Dove, Armada 370 and Armada XP).
+
+	  This driver is used by the MV643XX_ETH and MVNETA drivers.
+
+config MVNETA
+	tristate "Marvell Armada 370/XP network interface support"
+	depends on MACH_ARMADA_370_XP
+	select MVMDIO
+	---help---
+	  This driver supports the network interface units in the
+	  Marvell ARMADA XP and ARMADA 370 SoC family.
+
+	  Note that this driver is distinct from the mv643xx_eth
+	  driver, which should be used for the older Marvell SoCs
+	  (Dove, Orion, Discovery, Kirkwood).
+
+config PXA168_ETH
+	tristate "Marvell pxa168 ethernet support"
+	depends on CPU_PXA168
+	select PHYLIB
+	---help---
+	  This driver supports the pxa168 Ethernet ports.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pxa168_eth.
+
+config SKGE
+	tristate "Marvell Yukon Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	---help---
+	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
+	  and related Gigabit Ethernet adapters. It is a new smaller driver
+	  with better performance and more complete ethtool support.
+
+	  It does not support the link failover and network management
+	  features that "portable" vendor supplied sk98lin driver does.
+
+	  This driver supports adapters based on the original Yukon chipset:
+	  Marvell 88E8001, Belkin F5D5005, CNet GigaCard, DLink DGE-530T,
+	  Linksys EG1032/EG1064, 3Com 3C940/3C940B, SysKonnect SK-9871/9872.
+
+	  It does not support the newer Yukon2 chipset: a separate driver,
+	  sky2, is provided for these adapters.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called skge.  This is recommended.
+
+config SKGE_DEBUG
+	bool "Debugging interface"
+	depends on SKGE && DEBUG_FS
+	---help---
+	  This option adds the ability to dump driver state for debugging.
+	  The file /sys/kernel/debug/skge/ethX displays the state of the internal
+	  transmit and receive rings.
+
+	  If unsure, say N.
+
+config SKGE_GENESIS
+	bool "Support for older SysKonnect Genesis boards"
+	depends on SKGE
+	---help---
+	 This enables support for the older and uncommon SysKonnect Genesis
+	 chips, which support MII via an external transceiver, instead of
+	 an internal one. Disabling this option will save some memory
+	 by making code smaller. If unsure say Y.
+
+config SKY2
+	tristate "Marvell Yukon 2 support"
+	depends on PCI
+	select CRC32
+	---help---
+	  This driver supports Gigabit Ethernet adapters based on the
+	  Marvell Yukon 2 chipset:
+	  Marvell 88E8021/88E8022/88E8035/88E8036/88E8038/88E8050/88E8052/
+	  88E8053/88E8055/88E8061/88E8062, SysKonnect SK-9E21D/SK-9S21
+
+	  There is companion driver for the older Marvell Yukon and
+	  SysKonnect Genesis based adapters: skge.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sky2.  This is recommended.
+
+config SKY2_DEBUG
+	bool "Debugging interface"
+	depends on SKY2 && DEBUG_FS
+	---help---
+	  This option adds the ability to dump driver state for debugging.
+	  The file /sys/kernel/debug/sky2/ethX displays the state of the internal
+	  transmit and receive rings.
+
+	  If unsure, say N.
+
+endif # NET_VENDOR_MARVELL

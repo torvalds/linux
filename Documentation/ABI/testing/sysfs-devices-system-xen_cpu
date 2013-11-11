@@ -1,0 +1,20 @@
+What:		/sys/devices/system/xen_cpu/
+Date:		May 2012
+Contact:	Liu, Jinsong <jinsong.liu@intel.com>
+Description:
+		A collection of global/individual Xen physical cpu attributes
+
+		Individual physical cpu attributes are contained in
+		subdirectories named by the Xen's logical cpu number, e.g.:
+		/sys/devices/system/xen_cpu/xen_cpu#/
+
+
+What:		/sys/devices/system/xen_cpu/xen_cpu#/online
+Date:		May 2012
+Contact:	Liu, Jinsong <jinsong.liu@intel.com>
+Description:
+		Interface to online/offline Xen physical cpus
+
+		When running under Xen platform, it provide user interface
+		to online/offline physical cpus, except cpu0 due to several
+		logic restrictions and assumptions.

@@ -424,15 +424,4 @@ static struct gameport_driver grip_drv = {
 	.disconnect	= grip_disconnect,
 };
 
-static int __init grip_init(void)
-{
-	return gameport_register_driver(&grip_drv);
-}
-
-static void __exit grip_exit(void)
-{
-	gameport_unregister_driver(&grip_drv);
-}
-
-module_init(grip_init);
-module_exit(grip_exit);
+module_gameport_driver(grip_drv);

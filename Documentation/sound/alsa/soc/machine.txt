@@ -50,8 +50,7 @@ Machine DAI Configuration
 The machine DAI configuration glues all the codec and CPU DAIs together. It can
 also be used to set up the DAI system clock and for any machine related DAI
 initialisation e.g. the machine audio map can be connected to the codec audio
-map, unconnected codec pins can be set as such. Please see corgi.c, spitz.c
-for examples.
+map, unconnected codec pins can be set as such.
 
 struct snd_soc_dai_link is used to set up each DAI in your machine. e.g.
 
@@ -83,8 +82,7 @@ Machine Power Map
 The machine driver can optionally extend the codec power map and to become an
 audio power map of the audio subsystem. This allows for automatic power up/down
 of speaker/HP amplifiers, etc. Codec pins can be connected to the machines jack
-sockets in the machine init function. See soc/pxa/spitz.c and dapm.txt for
-details.
+sockets in the machine init function.
 
 
 Machine Controls

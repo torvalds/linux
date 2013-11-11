@@ -179,7 +179,7 @@ static void jornadakbd680_poll(struct input_polled_dev *dev)
 	memcpy(jornadakbd->old_scan, jornadakbd->new_scan, JORNADA_SCAN_SIZE);
 }
 
-static int __devinit jornada680kbd_probe(struct platform_device *pdev)
+static int jornada680kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_polled_dev *poll_dev;
@@ -240,7 +240,7 @@ static int __devinit jornada680kbd_probe(struct platform_device *pdev)
 
 }
 
-static int __devexit jornada680kbd_remove(struct platform_device *pdev)
+static int jornada680kbd_remove(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 
@@ -258,21 +258,9 @@ static struct platform_driver jornada680kbd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= jornada680kbd_probe,
-	.remove	= __devexit_p(jornada680kbd_remove),
+	.remove	= jornada680kbd_remove,
 };
-
-static int __init jornada680kbd_init(void)
-{
-	return platform_driver_register(&jornada680kbd_driver);
-}
-
-static void __exit jornada680kbd_exit(void)
-{
-	platform_driver_unregister(&jornada680kbd_driver);
-}
-
-module_init(jornada680kbd_init);
-module_exit(jornada680kbd_exit);
+module_platform_driver(jornada680kbd_driver);
 
 MODULE_AUTHOR("Kristoffer Ericson <kristoffer.ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 620/660/680/690 Keyboard Driver");

@@ -7,6 +7,8 @@
  * 	implementations.
  */
 
+#include <asm/mce.h>
+
 union el_timestamp;
 struct el_subpacket;
 struct ev7_lf_subpackets;

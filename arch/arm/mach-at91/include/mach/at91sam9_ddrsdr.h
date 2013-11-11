@@ -46,10 +46,10 @@
 #define			AT91_DDRSDRC_CAS_25	(6 << 4)
 #define		AT91_DDRSDRC_RST_DLL	(1 << 7)		/* Reset DLL */
 #define		AT91_DDRSDRC_DICDS	(1 << 8)		/* Output impedance control */
-#define		AT91_DDRSDRC_DIS_DLL	(1 << 9)		/* Disable DLL */
-#define		AT91_DDRSDRC_OCD	(1 << 12)		/* Off-Chip Driver */
-#define		AT91_DDRSDRC_DQMS	(1 << 16)		/* Mask Data is Shared */
-#define		AT91_DDRSDRC_ACTBST	(1 << 18)		/* Active Bank X to Burst Stop Read Access Bank Y */
+#define		AT91_DDRSDRC_DIS_DLL	(1 << 9)		/* Disable DLL [SAM9 Only] */
+#define		AT91_DDRSDRC_OCD	(1 << 12)		/* Off-Chip Driver [SAM9 Only] */
+#define		AT91_DDRSDRC_DQMS	(1 << 16)		/* Mask Data is Shared [SAM9 Only] */
+#define		AT91_DDRSDRC_ACTBST	(1 << 18)		/* Active Bank X to Burst Stop Read Access Bank Y [SAM9 Only] */
 
 #define AT91_DDRSDRC_T0PR	0x0C	/* Timing 0 Register */
 #define		AT91_DDRSDRC_TRAS	(0xf <<  0)		/* Active to Precharge delay */
@@ -59,7 +59,7 @@
 #define		AT91_DDRSDRC_TRP	(0xf << 16)		/* Row precharge delay */
 #define		AT91_DDRSDRC_TRRD	(0xf << 20)		/* Active BankA to BankB */
 #define		AT91_DDRSDRC_TWTR	(0x7 << 24)		/* Internal Write to Read delay */
-#define		AT91_DDRSDRC_RED_WRRD	(0x1 << 27)		/* Reduce Write to Read Delay */
+#define		AT91_DDRSDRC_RED_WRRD	(0x1 << 27)		/* Reduce Write to Read Delay [SAM9 Only] */
 #define		AT91_DDRSDRC_TMRD	(0xf << 28)		/* Load mode to active/refresh delay */
 
 #define AT91_DDRSDRC_T1PR	0x10	/* Timing 1 Register */
@@ -68,7 +68,7 @@
 #define		AT91_DDRSDRC_TXSRD	(0xff << 16)		/* Exit self-refresh to read */
 #define		AT91_DDRSDRC_TXP	(0xf  << 24)		/* Exit power-down delay */
 
-#define AT91_DDRSDRC_T2PR	0x14	/* Timing 2 Register */
+#define AT91_DDRSDRC_T2PR	0x14	/* Timing 2 Register [SAM9 Only] */
 #define		AT91_DDRSDRC_TXARD	(0xf  << 0)		/* Exit active power down delay to read command in mode "Fast Exit" */
 #define		AT91_DDRSDRC_TXARDS	(0xf  << 4)		/* Exit active power down delay to read command in mode "Slow Exit" */
 #define		AT91_DDRSDRC_TRPA	(0xf  << 8)		/* Row Precharge All delay */
@@ -96,7 +96,7 @@
 #define			AT91_DDRSDRC_MD_SDR		0
 #define			AT91_DDRSDRC_MD_LOW_POWER_SDR	1
 #define			AT91_DDRSDRC_MD_LOW_POWER_DDR	3
-#define			AT91_DDRSDRC_MD_DDR2		6
+#define			AT91_DDRSDRC_MD_DDR2		6	/* [SAM9 Only] */
 #define		AT91_DDRSDRC_DBW	(1 << 4)		/* Data Bus Width */
 #define			AT91_DDRSDRC_DBW_32BITS		(0 <<  4)
 #define			AT91_DDRSDRC_DBW_16BITS		(1 <<  4)
@@ -107,24 +107,18 @@
 #define		AT91_DDRSDRC_MDOVF	(1 << 2)		/* Master Delay Overflow */
 #define		AT91_DDRSDRC_MDVAL	(0xff <<  8)		/* Master Delay value */
 
-#define AT91_DDRSDRC_HS		0x2C	/* High Speed Register */
+#define AT91_DDRSDRC_HS		0x2C	/* High Speed Register [SAM9 Only] */
 #define		AT91_DDRSDRC_DIS_ATCP_RD	(1 << 2)	/* Anticip read access is disabled */
 
 #define AT91_DDRSDRC_DELAY(n)	(0x30 + (0x4 * (n)))	/* Delay I/O Register n */
 
-#define AT91_DDRSDRC_WPMR	0xE4	/* Write Protect Mode Register */
+#define AT91_DDRSDRC_WPMR	0xE4	/* Write Protect Mode Register [SAM9 Only] */
 #define		AT91_DDRSDRC_WP		(1 << 0)		/* Write protect enable */
 #define		AT91_DDRSDRC_WPKEY	(0xffffff << 8)		/* Write protect key */
 #define		AT91_DDRSDRC_KEY	(0x444452 << 8)		/* Write protect key = "DDR" */
 
-#define AT91_DDRSDRC_WPSR	0xE8	/* Write Protect Status Register */
+#define AT91_DDRSDRC_WPSR	0xE8	/* Write Protect Status Register [SAM9 Only] */
 #define		AT91_DDRSDRC_WPVS	(1 << 0)		/* Write protect violation status */
 #define		AT91_DDRSDRC_WPVSRC	(0xffff << 8)		/* Write protect violation source */
-
-/* Register access macros */
-#define at91_ramc_read(num, reg) \
-	at91_sys_read(AT91_DDRSDRC##num + reg)
-#define at91_ramc_write(num, reg, value) \
-	at91_sys_write(AT91_DDRSDRC##num + reg, value)
 
 #endif

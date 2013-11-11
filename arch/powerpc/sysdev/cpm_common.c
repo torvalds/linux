@@ -3,7 +3,7 @@
  *
  * Author: Scott Wood <scottwood@freescale.com>
  *
- * Copyright 2007 Freescale Semiconductor, Inc.
+ * Copyright 2007-2008,2010 Freescale Semiconductor, Inc.
  *
  * Some parts derived from commproc.c/cpm2_common.c, which is:
  * Copyright (c) 1997 Dan error_act (dmalek@jlc.net)
@@ -20,12 +20,12 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 
 #include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/rheap.h>
 #include <asm/cpm.h>
 
@@ -115,7 +115,7 @@ int cpm_muram_init(void)
 			max = r.end;
 
 		rh_attach_region(&cpm_muram_info, r.start - muram_pbase,
-		                 r.end - r.start + 1);
+				 resource_size(&r));
 	}
 
 	muram_vbase = ioremap(muram_pbase, max - muram_pbase + 1);
@@ -146,6 +146,7 @@ unsigned long cpm_muram_alloc(unsigned long size, unsigned long align)
 	spin_lock_irqsave(&cpm_muram_lock, flags);
 	cpm_muram_info.alignment = align;
 	start = rh_alloc(&cpm_muram_info, size, "commproc");
+	memset(cpm_muram_addr(start), 0, size);
 	spin_unlock_irqrestore(&cpm_muram_lock, flags);
 
 	return start;

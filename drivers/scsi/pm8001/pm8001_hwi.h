@@ -131,6 +131,8 @@
 #define LINKRATE_30			(0x02 << 8)
 #define LINKRATE_60			(0x04 << 8)
 
+/* for new SPC controllers MEMBASE III is shared between BIOS and DATA */
+#define GSM_SM_BASE			0x4F0000
 struct mpi_msg_hdr{
 	__le32	header;	/* Bits [11:0]  - Message operation code */
 	/* Bits [15:12] - Message Category */
@@ -298,7 +300,7 @@ struct local_phy_ctl_resp {
 
 
 #define OP_BITS 0x0000FF00
-#define ID_BITS 0x0000000F
+#define ID_BITS 0x000000FF
 
 /*
  * brief the data structure of PORT Control Command
@@ -599,7 +601,7 @@ struct fw_flash_Update_req {
  *
  */
 struct fw_flash_Update_resp {
-	dma_addr_t	tag;
+	__le32	tag;
 	__le32	status;
 	u32	reserved[13];
 } __attribute__((packed, aligned(4)));
@@ -625,7 +627,7 @@ struct set_nvm_data_req {
 	__le32	tag;
 	__le32	len_ir_vpdd;
 	__le32	vpd_offset;
-	u32	reserved[8];
+	__le32	reserved[8];
 	__le32	resp_addr_lo;
 	__le32	resp_addr_hi;
 	__le32	resp_len;

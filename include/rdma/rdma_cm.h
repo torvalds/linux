@@ -65,6 +65,7 @@ enum rdma_cm_event_type {
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
 	RDMA_PS_IPOIB = 0x0002,
+	RDMA_PS_IB    = 0x013F,
 	RDMA_PS_TCP   = 0x0106,
 	RDMA_PS_UDP   = 0x0111,
 };
@@ -355,5 +356,15 @@ void rdma_set_service_type(struct rdma_cm_id *id, int tos);
  * Reuse must be set before an address is bound to the id.
  */
 int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
+
+/**
+ * rdma_set_afonly - Specify that listens are restricted to the
+ *    bound address family only.
+ * @id: Communication identifer to configure.
+ * @afonly: Value indicating if listens are restricted.
+ *
+ * Must be set before identifier is in the listening state.
+ */
+int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
 
 #endif /* RDMA_CM_H */

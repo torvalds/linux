@@ -214,8 +214,6 @@ static inline int reassemble_22(int as22)
 
 void *module_alloc(unsigned long size)
 {
-	if (size == 0)
-		return NULL;
 	/* using RWX means less protection for modules, but it's
 	 * easier than trying to map the text, data, init_text and
 	 * init_data correctly */
@@ -538,18 +536,6 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 #endif
 
 	return (Elf_Addr)stub;
-}
-
-int apply_relocate(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *me)
-{
-	/* parisc should not need this ... */
-	printk(KERN_ERR "module %s: RELOCATION unsupported\n",
-	       me->name);
-	return -ENOEXEC;
 }
 
 #ifndef CONFIG_64BIT

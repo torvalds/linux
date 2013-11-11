@@ -3,12 +3,13 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corporation 2002, 2010
+ * Copyright IBM Corp. 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
@@ -158,6 +159,62 @@ void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
 	rec->fsf_cmd = req->fsf_command;
 	memcpy(&rec->u.be, &sr_buf->payload.bit_error,
 	       sizeof(struct fsf_bit_error_payload));
+
+	debug_event(dbf->hba, 1, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_def_err - trace event for deferred error messages
+ * @adapter: pointer to struct zfcp_adapter
+ * @req_id: request id which caused the deferred error message
+ * @scount: number of sbals incl. the signaling sbal
+ * @pl: array of all involved sbals
+ */
+void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
+			  void **pl)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_pay *payload = &dbf->pay_buf;
+	unsigned long flags;
+	u16 length;
+
+	if (!pl)
+		return;
+
+	spin_lock_irqsave(&dbf->pay_lock, flags);
+	memset(payload, 0, sizeof(*payload));
+
+	memcpy(payload->area, "def_err", 7);
+	payload->fsf_req_id = req_id;
+	payload->counter = 0;
+	length = min((u16)sizeof(struct qdio_buffer),
+		     (u16)ZFCP_DBF_PAY_MAX_REC);
+
+	while (payload->counter < scount && (char *)pl[payload->counter]) {
+		memcpy(payload->data, (char *)pl[payload->counter], length);
+		debug_event(dbf->pay, 1, payload, zfcp_dbf_plen(length));
+		payload->counter++;
+	}
+
+	spin_unlock_irqrestore(&dbf->pay_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_basic - trace event for basic adapter events
+ * @adapter: pointer to struct zfcp_adapter
+ */
+void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_HBA_BASIC;
 
 	debug_event(dbf->hba, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);

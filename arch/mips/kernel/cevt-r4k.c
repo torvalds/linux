@@ -15,6 +15,7 @@
 #include <asm/smtc_ipi.h>
 #include <asm/time.h>
 #include <asm/cevt-r4k.h>
+#include <asm/gic.h>
 
 /*
  * The SMTC Kernel for the 34K, 1004K, et. al. replaces several
@@ -22,9 +23,8 @@
  */
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 static int mips_next_event(unsigned long delta,
-                           struct clock_event_device *evt)
+			   struct clock_event_device *evt)
 {
 	unsigned int cnt;
 	int res;
@@ -48,7 +48,6 @@ DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
 	const int r2 = cpu_has_mips_r2;
@@ -65,7 +64,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		goto out;
 
 	/*
-	 * The same applies to performance counter interrupts.  But with the
+	 * The same applies to performance counter interrupts.	But with the
 	 * above we now know that the reason we got here must be a timer
 	 * interrupt.  Being the paranoiacs we are we check anyway.
 	 */
@@ -73,6 +72,9 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		/* Clear Count/Compare Interrupt */
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
+#ifdef CONFIG_CEVT_GIC
+		if (!gic_present)
+#endif
 		cd->event_handler(cd);
 	}
 
@@ -84,7 +86,7 @@ out:
 
 struct irqaction c0_compare_irqaction = {
 	.handler = c0_compare_interrupt,
-	.flags = IRQF_DISABLED | IRQF_PERCPU | IRQF_TIMER,
+	.flags = IRQF_PERCPU | IRQF_TIMER,
 	.name = "timer",
 };
 
@@ -98,36 +100,39 @@ void mips_event_handler(struct clock_event_device *dev)
  */
 static int c0_compare_int_pending(void)
 {
+#ifdef CONFIG_IRQ_GIC
+	if (cpu_has_veic)
+		return gic_get_timer_pending();
+#endif
 	return (read_c0_cause() >> cp0_compare_irq_shift) & (1ul << CAUSEB_IP);
 }
 
 /*
  * Compare interrupt can be routed and latched outside the core,
- * so a single execution hazard barrier may not be enough to give
- * it time to clear as seen in the Cause register.  4 time the
- * pipeline depth seems reasonably conservative, and empirically
- * works better in configurations with high CPU/bus clock ratios.
+ * so wait up to worst case number of cycle counter ticks for timer interrupt
+ * changes to propagate to the cause register.
  */
-
-#define compare_change_hazard() \
-	do { \
-		irq_disable_hazard(); \
-		irq_disable_hazard(); \
-		irq_disable_hazard(); \
-		irq_disable_hazard(); \
-	} while (0)
+#define COMPARE_INT_SEEN_TICKS 50
 
 int c0_compare_int_usable(void)
 {
 	unsigned int delta;
 	unsigned int cnt;
 
+#ifdef CONFIG_KVM_GUEST
+    return 1;
+#endif
+
 	/*
-	 * IP7 already pending?  Try to clear it by acking the timer.
+	 * IP7 already pending?	 Try to clear it by acking the timer.
 	 */
 	if (c0_compare_int_pending()) {
-		write_c0_compare(read_c0_count());
-		compare_change_hazard();
+		cnt = read_c0_count();
+		write_c0_compare(cnt);
+		back_to_back_c0_hazard();
+		while (read_c0_count() < (cnt  + COMPARE_INT_SEEN_TICKS))
+			if (!c0_compare_int_pending())
+				break;
 		if (c0_compare_int_pending())
 			return 0;
 	}
@@ -136,7 +141,7 @@ int c0_compare_int_usable(void)
 		cnt = read_c0_count();
 		cnt += delta;
 		write_c0_compare(cnt);
-		compare_change_hazard();
+		back_to_back_c0_hazard();
 		if ((int)(read_c0_count() - cnt) < 0)
 		    break;
 		/* increase delta if the timer was already expired */
@@ -145,12 +150,17 @@ int c0_compare_int_usable(void)
 	while ((int)(read_c0_count() - cnt) <= 0)
 		;	/* Wait for expiry  */
 
-	compare_change_hazard();
+	while (read_c0_count() < (cnt + COMPARE_INT_SEEN_TICKS))
+		if (c0_compare_int_pending())
+			break;
 	if (!c0_compare_int_pending())
 		return 0;
-
-	write_c0_compare(read_c0_count());
-	compare_change_hazard();
+	cnt = read_c0_count();
+	write_c0_compare(cnt);
+	back_to_back_c0_hazard();
+	while (read_c0_count() < (cnt + COMPARE_INT_SEEN_TICKS))
+		if (!c0_compare_int_pending())
+			break;
 	if (c0_compare_int_pending())
 		return 0;
 
@@ -161,7 +171,6 @@ int c0_compare_int_usable(void)
 }
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 int __cpuinit r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -201,6 +210,9 @@ int __cpuinit r4k_clockevent_init(void)
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;
 
+#ifdef CONFIG_CEVT_GIC
+	if (!gic_present)
+#endif
 	clockevents_register_device(cd);
 
 	if (cp0_timer_irq_installed)

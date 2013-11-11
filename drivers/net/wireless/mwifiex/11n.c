@@ -44,16 +44,18 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 
 	ht_cap->ht_cap.ampdu_params_info =
 		(sband->ht_cap.ampdu_factor &
-		 IEEE80211_HT_AMPDU_PARM_FACTOR)|
+		 IEEE80211_HT_AMPDU_PARM_FACTOR) |
 		((sband->ht_cap.ampdu_density <<
 		 IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT) &
 		 IEEE80211_HT_AMPDU_PARM_DENSITY);
 
 	memcpy((u8 *) &ht_cap->ht_cap.mcs, &sband->ht_cap.mcs,
-						sizeof(sband->ht_cap.mcs));
+	       sizeof(sband->ht_cap.mcs));
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
-			(sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+	    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	     (priv->adapter->sec_chan_offset !=
+					IEEE80211_HT_PARAM_CHA_SEC_NONE)))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
@@ -69,8 +71,8 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
  * table which matches the requested BA status.
  */
 static struct mwifiex_tx_ba_stream_tbl *
-mwifiex_11n_get_tx_ba_stream_status(struct mwifiex_private *priv,
-				  enum mwifiex_ba_status ba_status)
+mwifiex_get_ba_status(struct mwifiex_private *priv,
+		      enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
 	unsigned long flags;
@@ -101,18 +103,16 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 {
 	int tid;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
-	struct host_cmd_ds_11n_delba *del_ba =
-		(struct host_cmd_ds_11n_delba *) &resp->params.del_ba;
+	struct host_cmd_ds_11n_delba *del_ba = &resp->params.del_ba;
 	uint16_t del_ba_param_set = le16_to_cpu(del_ba->del_ba_param_set);
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
 	if (del_ba->del_result == BA_RESULT_SUCCESS) {
-		mwifiex_11n_delete_ba_stream_tbl(priv, tid,
-				del_ba->peer_mac_addr, TYPE_DELBA_SENT,
-				INITIATOR_BIT(del_ba_param_set));
+		mwifiex_del_ba_tbl(priv, tid, del_ba->peer_mac_addr,
+				   TYPE_DELBA_SENT,
+				   INITIATOR_BIT(del_ba_param_set));
 
-		tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_status(priv,
-						BA_STREAM_SETUP_INPROGRESS);
+		tx_ba_tbl = mwifiex_get_ba_status(priv, BA_SETUP_INPROGRESS);
 		if (tx_ba_tbl)
 			mwifiex_send_addba(priv, tx_ba_tbl->tid,
 					   tx_ba_tbl->ra);
@@ -120,18 +120,17 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 		  * In case of failure, recreate the deleted stream in case
 		  * we initiated the ADDBA
 		  */
-		if (INITIATOR_BIT(del_ba_param_set)) {
-			mwifiex_11n_create_tx_ba_stream_tbl(priv,
-					del_ba->peer_mac_addr, tid,
-					BA_STREAM_SETUP_INPROGRESS);
+		if (!INITIATOR_BIT(del_ba_param_set))
+			return 0;
 
-			tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_status(priv,
-					BA_STREAM_SETUP_INPROGRESS);
-			if (tx_ba_tbl)
-				mwifiex_11n_delete_ba_stream_tbl(priv,
-						tx_ba_tbl->tid, tx_ba_tbl->ra,
-						TYPE_DELBA_SENT, true);
-		}
+		mwifiex_create_ba_tbl(priv, del_ba->peer_mac_addr, tid,
+				      BA_SETUP_INPROGRESS);
+
+		tx_ba_tbl = mwifiex_get_ba_status(priv, BA_SETUP_INPROGRESS);
+
+		if (tx_ba_tbl)
+			mwifiex_del_ba_tbl(priv, tx_ba_tbl->tid, tx_ba_tbl->ra,
+					   TYPE_DELBA_SENT, true);
 	}
 
 	return 0;
@@ -149,8 +148,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
 {
 	int tid;
-	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp =
-		(struct host_cmd_ds_11n_addba_rsp *) &resp->params.add_ba_rsp;
+	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
 
 	add_ba_rsp->ssn = cpu_to_le16((le16_to_cpu(add_ba_rsp->ssn))
@@ -160,41 +158,22 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 		& IEEE80211_ADDBA_PARAM_TID_MASK)
 		>> BLOCKACKPARAM_TID_POS;
 	if (le16_to_cpu(add_ba_rsp->status_code) == BA_RESULT_SUCCESS) {
-		tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_tbl(priv, tid,
+		tx_ba_tbl = mwifiex_get_ba_tbl(priv, tid,
 						add_ba_rsp->peer_mac_addr);
 		if (tx_ba_tbl) {
 			dev_dbg(priv->adapter->dev, "info: BA stream complete\n");
-			tx_ba_tbl->ba_status = BA_STREAM_SETUP_COMPLETE;
+			tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
 		} else {
 			dev_err(priv->adapter->dev, "BA stream not created\n");
 		}
 	} else {
-		mwifiex_11n_delete_ba_stream_tbl(priv, tid,
-						add_ba_rsp->peer_mac_addr,
-						TYPE_DELBA_SENT, true);
+		mwifiex_del_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr,
+				   TYPE_DELBA_SENT, true);
 		if (add_ba_rsp->add_rsp_result != BA_RESULT_TIMEOUT)
 			priv->aggr_prio_tbl[tid].ampdu_ap =
 				BA_STREAM_NOT_ALLOWED;
 	}
 
-	return 0;
-}
-
-/*
- * This function handles the command response of 11n configuration request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp, void *data_buf)
-{
-	struct mwifiex_ds_11n_tx_cfg *tx_cfg;
-	struct host_cmd_ds_11n_cfg *htcfg = &resp->params.htcfg;
-
-	if (data_buf) {
-		tx_cfg = (struct mwifiex_ds_11n_tx_cfg *) data_buf;
-		tx_cfg->tx_htcap = le16_to_cpu(htcfg->ht_tx_cap);
-		tx_cfg->tx_htinfo = le16_to_cpu(htcfg->ht_tx_info);
-	}
 	return 0;
 }
 
@@ -208,11 +187,10 @@ int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp, void *data_buf)
  */
 int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 			     struct host_cmd_ds_command *cmd, int cmd_action,
-			     void *data_buf)
+			     u16 *buf_size)
 {
 	struct host_cmd_ds_txbuf_cfg *tx_buf = &cmd->params.tx_buf;
 	u16 action = (u16) cmd_action;
-	u16 buf_size = *((u16 *) data_buf);
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_RECONFIGURE_TX_BUFF);
 	cmd->size =
@@ -220,8 +198,8 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 	tx_buf->action = cpu_to_le16(action);
 	switch (action) {
 	case HostCmd_ACT_GEN_SET:
-		dev_dbg(priv->adapter->dev, "cmd: set tx_buf=%d\n", buf_size);
-		tx_buf->buff_size = cpu_to_le16(buf_size);
+		dev_dbg(priv->adapter->dev, "cmd: set tx_buf=%d\n", *buf_size);
+		tx_buf->buff_size = cpu_to_le16(*buf_size);
 		break;
 	case HostCmd_ACT_GEN_GET:
 	default:
@@ -240,13 +218,12 @@ int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
  *      - Ensuring correct endian-ness
  */
 int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
-				int cmd_action, void *data_buf)
+				int cmd_action,
+				struct mwifiex_ds_11n_amsdu_aggr_ctrl *aa_ctrl)
 {
 	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
 		&cmd->params.amsdu_aggr_ctrl;
 	u16 action = (u16) cmd_action;
-	struct mwifiex_ds_11n_amsdu_aggr_ctrl *aa_ctrl =
-		(struct mwifiex_ds_11n_amsdu_aggr_ctrl *) data_buf;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_AMSDU_AGGR_CTRL);
 	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_amsdu_aggr_ctrl)
@@ -266,29 +243,6 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 }
 
 /*
- * This function handles the command response of AMSDU aggregation
- * control request.
- *
- * Handling includes changing the header fields into CPU format.
- */
-int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
-				void *data_buf)
-{
-	struct mwifiex_ds_11n_amsdu_aggr_ctrl *amsdu_aggr_ctrl;
-	struct host_cmd_ds_amsdu_aggr_ctrl *amsdu_ctrl =
-		&resp->params.amsdu_aggr_ctrl;
-
-	if (data_buf) {
-		amsdu_aggr_ctrl =
-			(struct mwifiex_ds_11n_amsdu_aggr_ctrl *) data_buf;
-		amsdu_aggr_ctrl->enable = le16_to_cpu(amsdu_ctrl->enable);
-		amsdu_aggr_ctrl->curr_buf_size =
-			le16_to_cpu(amsdu_ctrl->curr_buf_size);
-	}
-	return 0;
-}
-
-/*
  * This function prepares 11n configuration command.
  *
  * Preparation includes -
@@ -296,18 +250,21 @@ int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
  *      - Setting HT Tx capability and HT Tx information fields
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd,
-			u16 cmd_action, void *data_buf)
+int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
+			struct host_cmd_ds_command *cmd, u16 cmd_action,
+			struct mwifiex_ds_11n_tx_cfg *txcfg)
 {
 	struct host_cmd_ds_11n_cfg *htcfg = &cmd->params.htcfg;
-	struct mwifiex_ds_11n_tx_cfg *txcfg =
-		(struct mwifiex_ds_11n_tx_cfg *) data_buf;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_11N_CFG);
 	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_11n_cfg) + S_DS_GEN);
 	htcfg->action = cpu_to_le16(cmd_action);
 	htcfg->ht_tx_cap = cpu_to_le16(txcfg->tx_htcap);
 	htcfg->ht_tx_info = cpu_to_le16(txcfg->tx_htinfo);
+
+	if (priv->adapter->is_hw_11ac_capable)
+		htcfg->misc_config = cpu_to_le16(txcfg->misc_config);
+
 	return 0;
 }
 
@@ -360,25 +317,26 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		ret_len += sizeof(struct mwifiex_ie_types_htcap);
 	}
 
-	if (bss_desc->bcn_ht_info) {
+	if (bss_desc->bcn_ht_oper) {
 		if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 			ht_info = (struct mwifiex_ie_types_htinfo *) *buffer;
 			memset(ht_info, 0,
 			       sizeof(struct mwifiex_ie_types_htinfo));
 			ht_info->header.type =
-					cpu_to_le16(WLAN_EID_HT_INFORMATION);
+					cpu_to_le16(WLAN_EID_HT_OPERATION);
 			ht_info->header.len =
-				cpu_to_le16(sizeof(struct ieee80211_ht_info));
+				cpu_to_le16(
+					sizeof(struct ieee80211_ht_operation));
 
 			memcpy((u8 *) ht_info +
 			       sizeof(struct mwifiex_ie_types_header),
-			       (u8 *) bss_desc->bcn_ht_info +
+			       (u8 *) bss_desc->bcn_ht_oper +
 			       sizeof(struct ieee_types_header),
 			       le16_to_cpu(ht_info->header.len));
 
 			if (!(sband->ht_cap.cap &
 					IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-				ht_info->ht_info.ht_param &=
+				ht_info->ht_oper.ht_param &=
 					~(IEEE80211_HT_PARAM_CHAN_WIDTH_ANY |
 					IEEE80211_HT_PARAM_CHA_SEC_OFFSET);
 
@@ -395,16 +353,16 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 			sizeof(struct mwifiex_ie_types_chan_list_param_set) -
 			sizeof(struct mwifiex_ie_types_header));
 		chan_list->chan_scan_param[0].chan_number =
-			bss_desc->bcn_ht_info->control_chan;
+			bss_desc->bcn_ht_oper->primary_chan;
 		chan_list->chan_scan_param[0].radio_type =
 			mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
 
-		if ((sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-			&& (bss_desc->bcn_ht_info->ht_param &
-				IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
+		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+		    bss_desc->bcn_ht_oper->ht_param &
+		    IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)
 			SET_SECONDARYCHAN(chan_list->chan_scan_param[0].
 					  radio_type,
-					  (bss_desc->bcn_ht_info->ht_param &
+					  (bss_desc->bcn_ht_oper->ht_param &
 					  IEEE80211_HT_PARAM_CHA_SEC_OFFSET));
 
 		*buffer += sizeof(struct mwifiex_ie_types_chan_list_param_set);
@@ -421,7 +379,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 		memcpy((u8 *) bss_co_2040 +
 		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_bss_co_2040 +
+		       bss_desc->bcn_bss_co_2040 +
 		       sizeof(struct ieee_types_header),
 		       le16_to_cpu(bss_co_2040->header.len));
 
@@ -435,10 +393,8 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		ext_cap->header.type = cpu_to_le16(WLAN_EID_EXT_CAPABILITY);
 		ext_cap->header.len = cpu_to_le16(sizeof(ext_cap->ext_cap));
 
-		memcpy((u8 *) ext_cap +
-		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_ext_cap +
-		       sizeof(struct ieee_types_header),
+		memcpy((u8 *)ext_cap + sizeof(struct mwifiex_ie_types_header),
+		       bss_desc->bcn_ext_cap + sizeof(struct ieee_types_header),
 		       le16_to_cpu(ext_cap->header.len));
 
 		*buffer += sizeof(struct mwifiex_ie_types_extcap);
@@ -446,45 +402,6 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 	}
 
 	return ret_len;
-}
-
-/*
- * This function reconfigures the Tx buffer size in firmware.
- *
- * This function prepares a firmware command and issues it, if
- * the current Tx buffer size is different from the one requested.
- * Maximum configurable Tx buffer size is limited by the HT capability
- * field value.
- */
-void
-mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
-		   struct mwifiex_bssdescriptor *bss_desc)
-{
-	u16 max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_2K;
-	u16 tx_buf, curr_tx_buf_size = 0;
-
-	if (bss_desc->bcn_ht_cap) {
-		if (le16_to_cpu(bss_desc->bcn_ht_cap->cap_info) &
-				IEEE80211_HT_CAP_MAX_AMSDU)
-			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_8K;
-		else
-			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_4K;
-	}
-
-	tx_buf = min(priv->adapter->max_tx_buf_size, max_amsdu);
-
-	dev_dbg(priv->adapter->dev, "info: max_amsdu=%d, max_tx_buf=%d\n",
-			max_amsdu, priv->adapter->max_tx_buf_size);
-
-	if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_2K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
-	else if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_4K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
-	else if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_8K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_8K;
-	if (curr_tx_buf_size != tx_buf)
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
-				       HostCmd_ACT_GEN_SET, 0, &tx_buf);
 }
 
 /*
@@ -514,7 +431,7 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 				struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl)
 {
 	if (!tx_ba_tsr_tbl &&
-			mwifiex_is_tx_ba_stream_ptr_valid(priv, tx_ba_tsr_tbl))
+	    mwifiex_is_tx_ba_stream_ptr_valid(priv, tx_ba_tsr_tbl))
 		return;
 
 	dev_dbg(priv->adapter->dev, "info: tx_ba_tsr_tbl %p\n", tx_ba_tsr_tbl);
@@ -551,16 +468,15 @@ void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv)
  * table which matches the given RA/TID pair.
  */
 struct mwifiex_tx_ba_stream_tbl *
-mwifiex_11n_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
-				 int tid, u8 *ra)
+mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
-		if ((!memcmp(tx_ba_tsr_tbl->ra, ra, ETH_ALEN))
-		    && (tx_ba_tsr_tbl->tid == tid)) {
+		if (!memcmp(tx_ba_tsr_tbl->ra, ra, ETH_ALEN) &&
+		    tx_ba_tsr_tbl->tid == tid) {
 			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
 					       flags);
 			return tx_ba_tsr_tbl;
@@ -574,21 +490,17 @@ mwifiex_11n_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
  * This function creates an entry in Tx BA stream table for the
  * given RA/TID pair.
  */
-void mwifiex_11n_create_tx_ba_stream_tbl(struct mwifiex_private *priv,
-					 u8 *ra, int tid,
-					 enum mwifiex_ba_status ba_status)
+void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
+			   enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *new_node;
 	unsigned long flags;
 
-	if (!mwifiex_11n_get_tx_ba_stream_tbl(priv, tid, ra)) {
+	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
 		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
-		if (!new_node) {
-			dev_err(priv->adapter->dev,
-				"%s: failed to alloc new_node\n", __func__);
+		if (!new_node)
 			return;
-		}
 
 		INIT_LIST_HEAD(&new_node->list);
 
@@ -675,9 +587,8 @@ void mwifiex_11n_delete_ba_stream(struct mwifiex_private *priv, u8 *del_ba)
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
 
-	mwifiex_11n_delete_ba_stream_tbl(priv, tid, cmd_del_ba->peer_mac_addr,
-					 TYPE_DELBA_RECEIVE,
-					 INITIATOR_BIT(del_ba_param_set));
+	mwifiex_del_ba_tbl(priv, tid, cmd_del_ba->peer_mac_addr,
+			   TYPE_DELBA_RECEIVE, INITIATOR_BIT(del_ba_param_set));
 }
 
 /*
@@ -731,7 +642,7 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		rx_reo_tbl->tid = (u16) tx_ba_tsr_tbl->tid;
 		dev_dbg(priv->adapter->dev, "data: %s tid=%d\n",
-						__func__, rx_reo_tbl->tid);
+			__func__, rx_reo_tbl->tid);
 		memcpy(rx_reo_tbl->ra, tx_ba_tsr_tbl->ra, ETH_ALEN);
 		rx_reo_tbl++;
 		count++;
@@ -741,4 +652,52 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
 
 	return count;
+}
+
+/*
+ * This function retrieves the entry for specific tx BA stream table by RA and
+ * deletes it.
+ */
+void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra)
+{
+	struct mwifiex_tx_ba_stream_tbl *tbl, *tmp;
+	unsigned long flags;
+
+	if (!ra)
+		return;
+
+	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	list_for_each_entry_safe(tbl, tmp, &priv->tx_ba_stream_tbl_ptr, list) {
+		if (!memcmp(tbl->ra, ra, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
+					       flags);
+			mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, tbl);
+			spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+
+	return;
+}
+
+/* This function initializes the BlockACK setup information for given
+ * mwifiex_private structure.
+ */
+void mwifiex_set_ba_params(struct mwifiex_private *priv)
+{
+	priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->add_ba_param.tx_win_size =
+						MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+						MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE;
+	} else {
+		priv->add_ba_param.tx_win_size =
+						MWIFIEX_STA_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+						MWIFIEX_STA_AMPDU_DEF_RXWINSIZE;
+	}
+
+	return;
 }

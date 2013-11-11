@@ -14,17 +14,16 @@
 #include <linux/mtd/physmap.h>
 #include <linux/interrupt.h>
 #include <linux/dm9000.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/iomux-mx1.h>
-
+#include "common.h"
 #include "devices-imx1.h"
+#include "hardware.h"
+#include "iomux-mx1.h"
 
 /*
  * This scb9328 has a 32MiB flash
@@ -78,8 +77,7 @@ static struct resource dm9000x_resources[] = {
 		.end	= MX1_CS5_PHYS + 5,
 		.flags	= IORESOURCE_MEM,	/* data access */
 	}, {
-		.start	= IRQ_GPIOC(3),
-		.end	= IRQ_GPIOC(3),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -101,21 +99,7 @@ static const int mxc_uart1_pins[] = {
 	PC12_PF_UART1_RXD,
 };
 
-static int uart1_mxc_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins), "UART1");
-}
-
-static void uart1_mxc_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins));
-}
-
 static const struct imxuart_platform_data uart_pdata __initconst = {
-	.init = uart1_mxc_init,
-	.exit = uart1_mxc_exit,
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -129,9 +113,16 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init scb9328_init(void)
 {
+	imx1_soc_init();
+
+	mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
+			ARRAY_SIZE(mxc_uart1_pins), "UART1");
+
 	imx1_add_imx_uart0(&uart_pdata);
 
 	printk(KERN_INFO"Scb9328: Adding devices\n");
+	dm9000x_resources[2].start = gpio_to_irq(IMX_GPIO_NR(3, 3));
+	dm9000x_resources[2].end = gpio_to_irq(IMX_GPIO_NR(3, 3));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
@@ -140,16 +131,14 @@ static void __init scb9328_timer_init(void)
 	mx1_clocks_init(32000);
 }
 
-static struct sys_timer scb9328_timer = {
-	.init	= scb9328_timer_init,
-};
-
 MACHINE_START(SCB9328, "Synertronixx scb9328")
 	/* Sascha Hauer */
-	.boot_params = 0x08000100,
+	.atag_offset = 100,
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
-	.timer = &scb9328_timer,
+	.handle_irq = imx1_handle_irq,
+	.init_time	= scb9328_timer_init,
 	.init_machine = scb9328_init,
+	.restart	= mxc_restart,
 MACHINE_END

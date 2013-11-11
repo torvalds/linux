@@ -34,6 +34,7 @@
 #include <sound/core.h>
 #include "au88x0.h"
 #include <linux/gameport.h>
+#include <linux/export.h>
 
 #if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
 
@@ -91,7 +92,7 @@ static int vortex_game_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit vortex_gameport_register(vortex_t * vortex)
+static int vortex_gameport_register(vortex_t *vortex)
 {
 	struct gameport *gp;
 
@@ -99,7 +100,7 @@ static int __devinit vortex_gameport_register(vortex_t * vortex)
 	if (!gp) {
 		printk(KERN_ERR "vortex: cannot allocate memory for gameport\n");
 		return -ENOMEM;
-	};
+	}
 
 	gameport_set_name(gp, "AU88x0 Gameport");
 	gameport_set_phys(gp, "pci%s/gameport0", pci_name(vortex->pci_dev));

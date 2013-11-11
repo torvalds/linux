@@ -61,7 +61,7 @@ int ocfs2_zero_extend(struct inode *inode, struct buffer_head *di_bh,
 int ocfs2_setattr(struct dentry *dentry, struct iattr *attr);
 int ocfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
-int ocfs2_permission(struct inode *inode, int mask, unsigned int flags);
+int ocfs2_permission(struct inode *inode, int mask);
 
 int ocfs2_should_update_atime(struct inode *inode,
 			      struct vfsmount *vfsmnt);

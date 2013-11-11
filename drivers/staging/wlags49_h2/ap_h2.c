@@ -25,10 +25,10 @@
  */
 
 
-#include "hcfcfg.h"				/* to get hcf_16 etc defined as well as */
+#include "hcfcfg.h"			/* to get hcf_16 etc defined as well as */
 					/* possible settings which inluence mdd.h or dhf.h */
-#include "mdd.h"   				/* to get COMP_ID_STA etc defined */
-#include "dhf.h"   				/* used to be "fhfmem.h", to get memblock,plugrecord, */
+#include "mdd.h"			/* to get COMP_ID_STA etc defined */
+#include "dhf.h"			/* used to be "fhfmem.h", to get memblock,plugrecord, */
 
 static const hcf_8 fw_image_1_data[] = {
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -3256,7 +3256,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x0146,		/* sizeof(fw_image_1_data), */
 		0x00000060,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR *) fw_image_1_data
+		(hcf_8 *)fw_image_1_data
 	},
 	{
 		8,
@@ -3265,7 +3265,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x1918,		/* sizeof(fw_image_2_data), */
 		0x00000C16,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR *) fw_image_2_data
+		(hcf_8 *)fw_image_2_data
 	},
 	{
 		8,
@@ -3274,7 +3274,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x01bc,		/* sizeof(fw_image_3_data), */
 		0x001E252E,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR *) fw_image_3_data
+		(hcf_8 *)fw_image_3_data
 	},
 	{
 		8,
@@ -3283,7 +3283,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0xab28,		/* sizeof(fw_image_4_data), */
 		0x001F4000,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR *) fw_image_4_data
+		(hcf_8 *)fw_image_4_data
 	},
 	{
 		5,
@@ -3301,7 +3301,7 @@ static const CFG_RANGE20_STRCT fw_image_infocompat[] = {
 		COMP_ROLE_SUPL,
 		COMP_ID_APF,
 		{
-			{ 2, 2, 4 }  				/* variant, bottom, top */
+			{ 2, 2, 4 }				/* variant, bottom, top */
 		}
 	},
 	{	3 + ((20 * sizeof(CFG_RANGE_SPEC_STRCT)) / sizeof(hcf_16)),
@@ -3309,9 +3309,9 @@ static const CFG_RANGE20_STRCT fw_image_infocompat[] = {
 		COMP_ROLE_ACT,
 		COMP_ID_MFI,
 		{
-			{ 4, 6, 7 }, 				/* variant, bottom, top */
-			{ 5, 6, 7 }, 				/* variant, bottom, top */
-			{ 6, 6, 7 }  				/* variant, bottom, top */
+			{ 4, 6, 7 },				/* variant, bottom, top */
+			{ 5, 6, 7 },				/* variant, bottom, top */
+			{ 6, 6, 7 }				/* variant, bottom, top */
 		}
 	},
 	{	3 + ((20 * sizeof(CFG_RANGE_SPEC_STRCT)) / sizeof(hcf_16)),
@@ -3319,7 +3319,7 @@ static const CFG_RANGE20_STRCT fw_image_infocompat[] = {
 		COMP_ROLE_ACT,
 		COMP_ID_CFI,
 		{
-			{ 2, 1, 2 }  				/* variant, bottom, top */
+			{ 2, 1, 2 }				/* variant, bottom, top */
 		}
 	},
 	{ 0000, 0000, 0000, 0000, { { 0000, 0000, 0000 } } }			/* endsentinel */

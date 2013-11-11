@@ -24,6 +24,7 @@ typedef u64 wwn_t;
 
 #define WWN_NULL	(0)
 #define FC_SYMNAME_MAX	256	/*  max name server symbolic name size */
+#define FC_ALPA_MAX	128
 
 #pragma pack(1)
 
@@ -1015,13 +1016,17 @@ struct fc_symname_s {
 	u8         symname[FC_SYMNAME_MAX];
 };
 
+struct fc_alpabm_s {
+	u8	alpa_bm[FC_ALPA_MAX / 8];
+};
+
 /*
  * protocol default timeout values
  */
 #define FC_ED_TOV	2
 #define FC_REC_TOV	(FC_ED_TOV + 1)
 #define FC_RA_TOV	10
-#define FC_ELS_TOV	(2 * FC_RA_TOV)
+#define FC_ELS_TOV	((2 * FC_RA_TOV) + 1)
 #define FC_FCCT_TOV	(3 * FC_RA_TOV)
 
 /*
@@ -1046,15 +1051,6 @@ struct fc_vft_s {
 	u32        res_b:1;
 	u32        hopct:8;
 	u32        res_c:24;
-};
-
-/*
- * FCP
- */
-enum {
-	FCP_RJT		= 0x01000000,	/* SRR reject */
-	FCP_SRR_ACCEPT	= 0x02000000,	/* SRR accept */
-	FCP_SRR		= 0x14000000,	/* Sequence Retransmission Request */
 };
 
 /*
@@ -1288,6 +1284,7 @@ enum {
 	GS_GSPN_ID	= 0x0118,	/* Get symbolic PN on ID */
 	GS_RFT_ID	= 0x0217,	/* Register fc4type on ID */
 	GS_RSPN_ID	= 0x0218,	/* Register symbolic PN on ID */
+	GS_RSNN_NN	= 0x0239,	/* Register symbolic NN on NN */
 	GS_RPN_ID	= 0x0212,	/* Register port name */
 	GS_RNN_ID	= 0x0213,	/* Register node name */
 	GS_RCS_ID	= 0x0214,	/* Register class of service */
@@ -1363,6 +1360,15 @@ struct fcgs_rspnid_req_s {
 	u32	dap:24;		/* port identifier */
 	u8	spn_len;	/* symbolic port name length */
 	u8	spn[256];	/* symbolic port name */
+};
+
+/*
+ * RSNN_NN
+ */
+struct fcgs_rsnn_nn_req_s {
+	wwn_t	node_name;	/* Node name */
+	u8	snn_len;	/* symbolic node name length */
+	u8	snn[256];	/* symbolic node name */
 };
 
 /*

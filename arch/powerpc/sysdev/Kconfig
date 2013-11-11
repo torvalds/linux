@@ -19,6 +19,7 @@ config PPC_MSI_BITMAP
 	default y if MPIC
 	default y if FSL_PCI
 	default y if PPC4xx_MSI
+	default y if POWERNV_MSI
 
 source "arch/powerpc/sysdev/xics/Kconfig"
 
@@ -28,4 +29,8 @@ config PPC_SCOM
 config SCOM_DEBUGFS
 	bool "Expose SCOM controllers via debugfs"
 	depends on PPC_SCOM
+	default n
+
+config GE_FPGA
+	bool
 	default n

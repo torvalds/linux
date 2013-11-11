@@ -3,22 +3,13 @@
  *
  * Copyright (C) 2003-2008 Alan Stern
  * Copyright (C) 2009 Samsung Electronics
- *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ *                    Author: Michal Nazarewicz <mina86@mina86.com>
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 
@@ -38,9 +29,8 @@
 
 
 #include <linux/kernel.h>
-#include <linux/utsname.h>
 #include <linux/usb/ch9.h>
-
+#include <linux/module.h>
 
 /*-------------------------------------------------------------------------*/
 
@@ -56,14 +46,10 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-
-#include "composite.c"
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
 #include "f_mass_storage.c"
 
 /*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 static struct usb_device_descriptor msg_device_desc = {
 	.bLength =		sizeof msg_device_desc,
@@ -94,6 +80,22 @@ static const struct usb_descriptor_header *otg_desc[] = {
 	NULL,
 };
 
+static struct usb_string strings_dev[] = {
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = DRIVER_DESC,
+	[USB_GADGET_SERIAL_IDX].s = "",
+	{  } /* end of list */
+};
+
+static struct usb_gadget_strings stringtab_dev = {
+	.language       = 0x0409,       /* en-us */
+	.strings        = strings_dev,
+};
+
+static struct usb_gadget_strings *dev_strings[] = {
+	&stringtab_dev,
+	NULL,
+};
 
 /****************************** Configurations ******************************/
 
@@ -152,10 +154,15 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 {
 	int status;
 
+	status = usb_string_ids_tab(cdev, strings_dev);
+	if (status < 0)
+		return status;
+	msg_device_desc.iProduct = strings_dev[USB_GADGET_PRODUCT_IDX].id;
+
 	status = usb_add_config(cdev, &msg_config_driver, msg_do_config);
 	if (status < 0)
 		return status;
-
+	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&cdev->gadget->dev,
 		 DRIVER_DESC ", version: " DRIVER_VERSION "\n");
 	set_bit(0, &msg_registered);
@@ -165,11 +172,13 @@ static int __init msg_bind(struct usb_composite_dev *cdev)
 
 /****************************** Some noise ******************************/
 
-static struct usb_composite_driver msg_driver = {
+static __refdata struct usb_composite_driver msg_driver = {
 	.name		= "g_mass_storage",
 	.dev		= &msg_device_desc,
-	.iProduct	= DRIVER_DESC,
+	.max_speed	= USB_SPEED_SUPER,
 	.needs_serial	= 1,
+	.strings	= dev_strings,
+	.bind		= msg_bind,
 };
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -178,7 +187,7 @@ MODULE_LICENSE("GPL");
 
 static int __init msg_init(void)
 {
-	return usb_composite_probe(&msg_driver, msg_bind);
+	return usb_composite_probe(&msg_driver);
 }
 module_init(msg_init);
 

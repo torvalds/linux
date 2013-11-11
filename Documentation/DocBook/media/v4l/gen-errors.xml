@@ -1,0 +1,77 @@
+<title>Generic Error Codes</title>
+
+<table frame="none" pgwide="1" id="gen-errors">
+  <title>Generic error codes</title>
+  <tgroup cols="2">
+    &cs-str;
+    <tbody valign="top">
+	<!-- Keep it ordered alphabetically -->
+      <row>
+	<entry>EAGAIN (aka EWOULDBLOCK)</entry>
+	<entry>The ioctl can't be handled because the device is in state where
+	       it can't perform it. This could happen for example in case where
+	       device is sleeping and ioctl is performed to query statistics.
+	       It is also returned when the ioctl would need to wait
+	       for an event, but the device was opened in non-blocking mode.
+	</entry>
+      </row>
+      <row>
+	<entry>EBADF</entry>
+	<entry>The file descriptor is not a valid.</entry>
+      </row>
+      <row>
+	<entry>EBUSY</entry>
+	<entry>The ioctl can't be handled because the device is busy. This is
+	       typically return while device is streaming, and an ioctl tried to
+	       change something that would affect the stream, or would require the
+	       usage of a hardware resource that was already allocated. The ioctl
+	       must not be retried without performing another action to fix the
+	       problem first (typically: stop the stream before retrying).</entry>
+      </row>
+      <row>
+	<entry>EFAULT</entry>
+	<entry>There was a failure while copying data from/to userspace,
+	       probably caused by an invalid pointer reference.</entry>
+      </row>
+      <row>
+	<entry>EINVAL</entry>
+	<entry>One or more of the ioctl parameters are invalid or out of the
+	       allowed range. This is a widely used error code. See the individual
+	       ioctl requests for specific causes.</entry>
+      </row>
+      <row>
+        <entry>ENODEV</entry>
+	<entry>Device not found or was removed.</entry>
+      </row>
+      <row>
+	<entry>ENOMEM</entry>
+	<entry>There's not enough memory to handle the desired operation.</entry>
+      </row>
+      <row>
+	<entry>ENOTTY</entry>
+	<entry>The ioctl is not supported by the driver, actually meaning that
+	       the required functionality is not available, or the file
+	       descriptor is not for a media device.</entry>
+      </row>
+      <row>
+	<entry>ENOSPC</entry>
+	<entry>On USB devices, the stream ioctl's can return this error, meaning
+	       that this request would overcommit the usb bandwidth reserved
+	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
+      </row>
+      <row>
+	<entry>EPERM</entry>
+	<entry>Permission denied. Can be returned if the device needs write
+		permission, or some special capabilities is needed
+		(e. g. root)</entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>
+
+<para>Note 1: ioctls may return other error codes. Since errors may have side
+effects such as a driver reset, applications should abort on unexpected errors.
+</para>
+
+<para>Note 2: Request-specific error codes are listed in the individual
+requests descriptions.</para>

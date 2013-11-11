@@ -18,7 +18,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/isadep.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
@@ -34,9 +33,9 @@ extern int r3k_have_wired_reg;	/* in r3k-tlb.c */
 /* This sequence is required to ensure icache is disabled immediately */
 #define TX39_STOP_STREAMING() \
 __asm__ __volatile__( \
-	".set    push\n\t" \
-	".set    noreorder\n\t" \
-	"b       1f\n\t" \
+	".set	 push\n\t" \
+	".set	 noreorder\n\t" \
+	"b	 1f\n\t" \
 	"nop\n\t" \
 	"1:\n\t" \
 	".set pop" \
@@ -253,6 +252,11 @@ static void tx39_flush_icache_range(unsigned long start, unsigned long end)
 	}
 }
 
+static void tx39_flush_kernel_vmap_range(unsigned long vaddr, int size)
+{
+	BUG();
+}
+
 static void tx39_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 {
 	unsigned long end;
@@ -357,7 +361,7 @@ void __cpuinit tx39_cache_init(void)
 		/* TX39/H core (writethru direct-map cache) */
 		__flush_cache_vmap	= tx39__flush_cache_vmap;
 		__flush_cache_vunmap	= tx39__flush_cache_vunmap;
-		flush_cache_all	= tx39h_flush_icache_all;
+		flush_cache_all = tx39h_flush_icache_all;
 		__flush_cache_all	= tx39h_flush_icache_all;
 		flush_cache_mm		= (void *) tx39h_flush_icache_all;
 		flush_cache_range	= (void *) tx39h_flush_icache_all;
@@ -394,6 +398,8 @@ void __cpuinit tx39_cache_init(void)
 		flush_icache_range = tx39_flush_icache_range;
 		local_flush_icache_range = tx39_flush_icache_range;
 
+		__flush_kernel_vmap_range = tx39_flush_kernel_vmap_range;
+
 		flush_cache_sigtramp = tx39_flush_cache_sigtramp;
 		local_flush_data_cache_page = local_tx39_flush_data_cache_page;
 		flush_data_cache_page = tx39_flush_data_cache_page;
@@ -403,8 +409,8 @@ void __cpuinit tx39_cache_init(void)
 		_dma_cache_inv = tx39_dma_cache_inv;
 
 		shm_align_mask = max_t(unsigned long,
-		                       (dcache_size / current_cpu_data.dcache.ways) - 1,
-		                       PAGE_SIZE - 1);
+				       (dcache_size / current_cpu_data.dcache.ways) - 1,
+				       PAGE_SIZE - 1);
 
 		break;
 	}

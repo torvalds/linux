@@ -112,7 +112,7 @@ struct acpi_battery {
 	u8 have_sysfs_alarm:1;
 };
 
-#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat);
+#define to_acpi_battery(x) container_of(x, struct acpi_battery, bat)
 
 struct acpi_sbs {
 	struct power_supply charger;
@@ -129,6 +129,9 @@ struct acpi_sbs {
 };
 
 #define to_acpi_sbs(x) container_of(x, struct acpi_sbs, charger)
+
+static int acpi_sbs_remove(struct acpi_device *device);
+static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static inline int battery_scale(int log)
 {
@@ -195,6 +198,8 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 
 	if ((!battery->present) && psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
+
+	acpi_battery_get_state(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->rate_now < 0)
@@ -225,11 +230,17 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_POWER_NOW:
 		val->intval = abs(battery->rate_now) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = battery->state_of_charge;
@@ -510,19 +521,6 @@ acpi_sbs_add_fs(struct proc_dir_entry **dir,
 	return 0;
 }
 
-static void
-acpi_sbs_remove_fs(struct proc_dir_entry **dir,
-			   struct proc_dir_entry *parent_dir)
-{
-	if (*dir) {
-		remove_proc_entry(ACPI_SBS_FILE_INFO, *dir);
-		remove_proc_entry(ACPI_SBS_FILE_STATE, *dir);
-		remove_proc_entry(ACPI_SBS_FILE_ALARM, *dir);
-		remove_proc_entry((*dir)->name, parent_dir);
-		*dir = NULL;
-	}
-}
-
 /* Smart Battery Interface */
 static struct proc_dir_entry *acpi_battery_dir = NULL;
 
@@ -573,7 +571,7 @@ static int acpi_battery_read_info(struct seq_file *seq, void *offset)
 
 static int acpi_battery_info_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_info, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_info, PDE_DATA(inode));
 }
 
 static int acpi_battery_read_state(struct seq_file *seq, void *offset)
@@ -612,7 +610,7 @@ static int acpi_battery_read_state(struct seq_file *seq, void *offset)
 
 static int acpi_battery_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_state, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_state, PDE_DATA(inode));
 }
 
 static int acpi_battery_read_alarm(struct seq_file *seq, void *offset)
@@ -677,7 +675,7 @@ acpi_battery_write_alarm(struct file *file, const char __user * buffer,
 
 static int acpi_battery_alarm_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_battery_read_alarm, PDE(inode)->data);
+	return single_open(file, acpi_battery_read_alarm, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_battery_info_fops = {
@@ -725,7 +723,7 @@ static int acpi_ac_read_state(struct seq_file *seq, void *offset)
 
 static int acpi_ac_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_ac_read_state, PDE(inode)->data);
+	return single_open(file, acpi_ac_read_state, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_ac_state_fops = {
@@ -825,8 +823,8 @@ static void acpi_battery_remove(struct acpi_sbs *sbs, int id)
 		power_supply_unregister(&battery->bat);
 	}
 #ifdef CONFIG_ACPI_PROCFS_POWER
-	if (battery->proc_entry)
-		acpi_sbs_remove_fs(&battery->proc_entry, acpi_battery_dir);
+	proc_remove(battery->proc_entry);
+	battery->proc_entry = NULL;
 #endif
 }
 
@@ -862,8 +860,8 @@ static void acpi_charger_remove(struct acpi_sbs *sbs)
 	if (sbs->charger.dev)
 		power_supply_unregister(&sbs->charger);
 #ifdef CONFIG_ACPI_PROCFS_POWER
-	if (sbs->charger_entry)
-		acpi_sbs_remove_fs(&sbs->charger_entry, acpi_ac_dir);
+	proc_remove(sbs->charger_entry);
+	sbs->charger_entry = NULL;
 #endif
 }
 
@@ -903,8 +901,6 @@ static void acpi_sbs_callback(void *context)
 	}
 }
 
-static int acpi_sbs_remove(struct acpi_device *device, int type);
-
 static int acpi_sbs_add(struct acpi_device *device)
 {
 	struct acpi_sbs *sbs;
@@ -940,11 +936,11 @@ static int acpi_sbs_add(struct acpi_device *device)
 	acpi_smbus_register_callback(sbs->hc, acpi_sbs_callback, sbs);
       end:
 	if (result)
-		acpi_sbs_remove(device, 0);
+		acpi_sbs_remove(device);
 	return result;
 }
 
-static int acpi_sbs_remove(struct acpi_device *device, int type)
+static int acpi_sbs_remove(struct acpi_device *device)
 {
 	struct acpi_sbs *sbs;
 	int id;
@@ -979,15 +975,19 @@ static void acpi_sbs_rmdirs(void)
 #endif
 }
 
-static int acpi_sbs_resume(struct acpi_device *device)
+#ifdef CONFIG_PM_SLEEP
+static int acpi_sbs_resume(struct device *dev)
 {
 	struct acpi_sbs *sbs;
-	if (!device)
+	if (!dev)
 		return -EINVAL;
-	sbs = device->driver_data;
+	sbs = to_acpi_device(dev)->driver_data;
 	acpi_sbs_callback(sbs);
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(acpi_sbs_pm, NULL, acpi_sbs_resume);
 
 static struct acpi_driver acpi_sbs_driver = {
 	.name = "sbs",
@@ -996,8 +996,8 @@ static struct acpi_driver acpi_sbs_driver = {
 	.ops = {
 		.add = acpi_sbs_add,
 		.remove = acpi_sbs_remove,
-		.resume = acpi_sbs_resume,
 		},
+	.drv.pm = &acpi_sbs_pm,
 };
 
 static int __init acpi_sbs_init(void)

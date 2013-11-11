@@ -1,0 +1,26 @@
+config EVM
+	boolean "EVM support"
+	depends on SECURITY && KEYS && (TRUSTED_KEYS=y || TRUSTED_KEYS=n)
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select ENCRYPTED_KEYS
+	default n
+	help
+	  EVM protects a file's security extended attributes against
+	  integrity attacks.
+
+	  If you are unsure how to answer this question, answer N.
+
+config EVM_HMAC_VERSION
+	int "EVM HMAC version"
+	depends on EVM
+	default 2
+	help
+	  This options adds EVM HMAC version support.
+	  1 - original version
+	  2 - add per filesystem unique identifier (UUID) (default)
+
+	  WARNING: changing the HMAC calculation method or adding 
+	  additional info to the calculation, requires existing EVM
+	  labeled file systems to be relabeled.  

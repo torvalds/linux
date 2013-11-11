@@ -114,16 +114,20 @@ typedef struct xfs_efd_log_format_64 {
  * Define EFI flag bits. Manipulated by set/clear/test_bit operators.
  */
 #define	XFS_EFI_RECOVERED	1
-#define	XFS_EFI_COMMITTED	2
 
 /*
- * This is the "extent free intention" log item.  It is used
- * to log the fact that some extents need to be free.  It is
- * used in conjunction with the "extent free done" log item
- * described below.
+ * This is the "extent free intention" log item.  It is used to log the fact
+ * that some extents need to be free.  It is used in conjunction with the
+ * "extent free done" log item described below.
+ *
+ * The EFI is reference counted so that it is not freed prior to both the EFI
+ * and EFD being committed and unpinned. This ensures that when the last
+ * reference goes away the EFI will always be in the AIL as it has been
+ * unpinned, regardless of whether the EFD is processed before or after the EFI.
  */
 typedef struct xfs_efi_log_item {
 	xfs_log_item_t		efi_item;
+	atomic_t		efi_refcount;
 	atomic_t		efi_next_extent;
 	unsigned long		efi_flags;	/* misc flags */
 	xfs_efi_log_format_t	efi_format;

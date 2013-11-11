@@ -154,7 +154,7 @@ MODULE_SUPPORTED_DEVICE("{{TASCAM(0x1604), "NAME_ALLCAPS"(0x8001)(0x8005)(0x8007
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for "NAME_ALLCAPS".");
@@ -459,15 +459,4 @@ static void usX2Y_usb_disconnect(struct usb_device *device, void* ptr)
 	}
 }
 
-static int __init snd_usX2Y_module_init(void)
-{
-	return usb_register(&snd_usX2Y_usb_driver);
-}
-
-static void __exit snd_usX2Y_module_exit(void)
-{
-	usb_deregister(&snd_usX2Y_usb_driver);
-}
-
-module_init(snd_usX2Y_module_init)
-module_exit(snd_usX2Y_module_exit)
+module_usb_driver(snd_usX2Y_usb_driver);

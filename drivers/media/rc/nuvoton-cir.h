@@ -67,7 +67,6 @@ static int debug;
 struct nvt_dev {
 	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
-	struct ir_raw_event rawir;
 
 	spinlock_t nvt_lock;
 
@@ -104,7 +103,6 @@ struct nvt_dev {
 
 	/* rx settings */
 	bool learning_enabled;
-	bool carrier_detect_enabled;
 
 	/* track cir wake state */
 	u8 wake_state;

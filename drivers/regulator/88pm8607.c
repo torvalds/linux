@@ -12,27 +12,24 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/module.h>
 
 struct pm8607_regulator_info {
 	struct regulator_desc	desc;
 	struct pm860x_chip	*chip;
 	struct regulator_dev	*regulator;
 	struct i2c_client	*i2c;
+	struct i2c_client	*i2c_8606;
 
 	unsigned int	*vol_table;
 	unsigned int	*vol_suspend;
 
-	int	vol_reg;
-	int	vol_shift;
-	int	vol_nbits;
-	int	update_reg;
-	int	update_bit;
-	int	enable_reg;
-	int	enable_bit;
 	int	slope_double;
 };
 
@@ -195,7 +192,7 @@ static const unsigned int LDO12_suspend_table[] = {
 };
 
 static const unsigned int LDO13_table[] = {
-	1300000, 1800000, 2000000, 2500000, 2800000, 3000000, 0, 0,
+	1200000, 1300000, 1800000, 2000000, 2500000, 2800000, 3000000, 0,
 };
 
 static const unsigned int LDO13_suspend_table[] = {
@@ -215,7 +212,7 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret = -EINVAL;
 
-	if (info->vol_table && (index < (1 << info->vol_nbits))) {
+	if (info->vol_table && (index < rdev->desc->n_voltages)) {
 		ret = info->vol_table[index];
 		if (info->slope_double)
 			ret <<= 1;
@@ -223,118 +220,36 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return ret;
 }
 
-static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int i, ret = -ENOENT;
-
-	if (info->slope_double) {
-		min_uV = min_uV >> 1;
-		max_uV = max_uV >> 1;
-	}
-	if (info->vol_table) {
-		for (i = 0; i < (1 << info->vol_nbits); i++) {
-			if (!info->vol_table[i])
-				break;
-			if ((min_uV <= info->vol_table[i])
-				&& (max_uV >= info->vol_table[i])) {
-				ret = i;
-				break;
-			}
-		}
-	}
-	if (ret < 0)
-		pr_err("invalid voltage range (%d %d) uV\n", min_uV, max_uV);
-	return ret;
-}
-
-static int pm8607_set_voltage(struct regulator_dev *rdev,
-			      int min_uV, int max_uV, unsigned *selector)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	uint8_t val, mask;
-	int ret;
-
-	if (min_uV > max_uV) {
-		pr_err("invalid voltage range (%d, %d) uV\n", min_uV, max_uV);
-		return -EINVAL;
-	}
-
-	ret = choose_voltage(rdev, min_uV, max_uV);
-	if (ret < 0)
-		return -EINVAL;
-	*selector = ret;
-	val = (uint8_t)(ret << info->vol_shift);
-	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
-
-	ret = pm860x_set_bits(info->i2c, info->vol_reg, mask, val);
-	if (ret)
-		return ret;
-	switch (info->desc.id) {
-	case PM8607_ID_BUCK1:
-	case PM8607_ID_BUCK3:
-		ret = pm860x_set_bits(info->i2c, info->update_reg,
-				      1 << info->update_bit,
-				      1 << info->update_bit);
-		break;
-	}
-	return ret;
-}
-
-static int pm8607_get_voltage(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	uint8_t val, mask;
-	int ret;
-
-	ret = pm860x_reg_read(info->i2c, info->vol_reg);
-	if (ret < 0)
-		return ret;
-
-	mask = ((1 << info->vol_nbits) - 1)  << info->vol_shift;
-	val = ((unsigned char)ret & mask) >> info->vol_shift;
-
-	return pm8607_list_voltage(rdev, val);
-}
-
-static int pm8607_enable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, info->enable_reg,
-			       1 << info->enable_bit,
-			       1 << info->enable_bit);
-}
-
-static int pm8607_disable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, info->enable_reg,
-			       1 << info->enable_bit, 0);
-}
-
-static int pm8607_is_enabled(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
-
-	ret = pm860x_reg_read(info->i2c, info->enable_reg);
-	if (ret < 0)
-		return ret;
-
-	return !!((unsigned char)ret & (1 << info->enable_bit));
-}
-
 static struct regulator_ops pm8607_regulator_ops = {
-	.set_voltage	= pm8607_set_voltage,
-	.get_voltage	= pm8607_get_voltage,
-	.enable		= pm8607_enable,
-	.disable	= pm8607_disable,
-	.is_enabled	= pm8607_is_enabled,
+	.list_voltage	= pm8607_list_voltage,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 };
 
-#define PM8607_DVC(vreg, nbits, ureg, ubit, ereg, ebit)			\
+static struct regulator_ops pm8606_preg_ops = {
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
+};
+
+#define PM8606_PREG(ereg, ebit)						\
+{									\
+	.desc	= {							\
+		.name	= "PREG",					\
+		.ops	= &pm8606_preg_ops,				\
+		.type	= REGULATOR_CURRENT,				\
+		.id	= PM8606_ID_PREG,				\
+		.owner	= THIS_MODULE,					\
+		.enable_reg = PM8606_##ereg,				\
+		.enable_mask = (ebit),					\
+		.enable_is_inverted = true,				\
+	},								\
+}
+
+#define PM8607_DVC(vreg, ureg, ubit, ereg, ebit)			\
 {									\
 	.desc	= {							\
 		.name	= #vreg,					\
@@ -342,20 +257,20 @@ static struct regulator_ops pm8607_regulator_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_##vreg,				\
 		.owner	= THIS_MODULE,					\
+		.n_voltages = ARRAY_SIZE(vreg##_table),			\
+		.vsel_reg = PM8607_##vreg,				\
+		.vsel_mask = ARRAY_SIZE(vreg##_table) - 1,		\
+		.apply_reg = PM8607_##ureg,				\
+		.apply_bit = (ubit),					\
+		.enable_reg = PM8607_##ereg,				\
+		.enable_mask = 1 << (ebit),				\
 	},								\
-	.vol_reg	= PM8607_##vreg,				\
-	.vol_shift	= (0),						\
-	.vol_nbits	= (nbits),					\
-	.update_reg	= PM8607_##ureg,				\
-	.update_bit	= (ubit),					\
-	.enable_reg	= PM8607_##ereg,				\
-	.enable_bit	= (ebit),					\
 	.slope_double	= (0),						\
 	.vol_table	= (unsigned int *)&vreg##_table,		\
 	.vol_suspend	= (unsigned int *)&vreg##_suspend_table,	\
 }
 
-#define PM8607_LDO(_id, vreg, shift, nbits, ereg, ebit)			\
+#define PM8607_LDO(_id, vreg, shift, ereg, ebit)			\
 {									\
 	.desc	= {							\
 		.name	= "LDO" #_id,					\
@@ -363,70 +278,120 @@ static struct regulator_ops pm8607_regulator_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_LDO##_id,				\
 		.owner	= THIS_MODULE,					\
+		.n_voltages = ARRAY_SIZE(LDO##_id##_table),		\
+		.vsel_reg = PM8607_##vreg,				\
+		.vsel_mask = (ARRAY_SIZE(LDO##_id##_table) - 1) << (shift), \
+		.enable_reg = PM8607_##ereg,				\
+		.enable_mask = 1 << (ebit),				\
 	},								\
-	.vol_reg	= PM8607_##vreg,				\
-	.vol_shift	= (shift),					\
-	.vol_nbits	= (nbits),					\
-	.enable_reg	= PM8607_##ereg,				\
-	.enable_bit	= (ebit),					\
 	.slope_double	= (0),						\
 	.vol_table	= (unsigned int *)&LDO##_id##_table,		\
 	.vol_suspend	= (unsigned int *)&LDO##_id##_suspend_table,	\
 }
 
 static struct pm8607_regulator_info pm8607_regulator_info[] = {
-	PM8607_DVC(BUCK1, 6, GO, 0, SUPPLIES_EN11, 0),
-	PM8607_DVC(BUCK2, 6, GO, 1, SUPPLIES_EN11, 1),
-	PM8607_DVC(BUCK3, 6, GO, 2, SUPPLIES_EN11, 2),
+	PM8607_DVC(BUCK1, GO, BIT(0), SUPPLIES_EN11, 0),
+	PM8607_DVC(BUCK2, GO, BIT(1), SUPPLIES_EN11, 1),
+	PM8607_DVC(BUCK3, GO, BIT(2), SUPPLIES_EN11, 2),
 
-	PM8607_LDO( 1,         LDO1, 0, 2, SUPPLIES_EN11, 3),
-	PM8607_LDO( 2,         LDO2, 0, 3, SUPPLIES_EN11, 4),
-	PM8607_LDO( 3,         LDO3, 0, 3, SUPPLIES_EN11, 5),
-	PM8607_LDO( 4,         LDO4, 0, 3, SUPPLIES_EN11, 6),
-	PM8607_LDO( 5,         LDO5, 0, 2, SUPPLIES_EN11, 7),
-	PM8607_LDO( 6,         LDO6, 0, 3, SUPPLIES_EN12, 0),
-	PM8607_LDO( 7,         LDO7, 0, 3, SUPPLIES_EN12, 1),
-	PM8607_LDO( 8,         LDO8, 0, 3, SUPPLIES_EN12, 2),
-	PM8607_LDO( 9,         LDO9, 0, 3, SUPPLIES_EN12, 3),
-	PM8607_LDO(10,        LDO10, 0, 3, SUPPLIES_EN12, 4),
-	PM8607_LDO(12,        LDO12, 0, 4, SUPPLIES_EN12, 5),
-	PM8607_LDO(13, VIBRATOR_SET, 1, 3,  VIBRATOR_SET, 0),
-	PM8607_LDO(14,        LDO14, 0, 4, SUPPLIES_EN12, 6),
+	PM8607_LDO(1,         LDO1, 0, SUPPLIES_EN11, 3),
+	PM8607_LDO(2,         LDO2, 0, SUPPLIES_EN11, 4),
+	PM8607_LDO(3,         LDO3, 0, SUPPLIES_EN11, 5),
+	PM8607_LDO(4,         LDO4, 0, SUPPLIES_EN11, 6),
+	PM8607_LDO(5,         LDO5, 0, SUPPLIES_EN11, 7),
+	PM8607_LDO(6,         LDO6, 0, SUPPLIES_EN12, 0),
+	PM8607_LDO(7,         LDO7, 0, SUPPLIES_EN12, 1),
+	PM8607_LDO(8,         LDO8, 0, SUPPLIES_EN12, 2),
+	PM8607_LDO(9,         LDO9, 0, SUPPLIES_EN12, 3),
+	PM8607_LDO(10,        LDO10, 0, SUPPLIES_EN12, 4),
+	PM8607_LDO(12,        LDO12, 0, SUPPLIES_EN12, 5),
+	PM8607_LDO(13, VIBRATOR_SET, 1, VIBRATOR_SET, 0),
+	PM8607_LDO(14,        LDO14, 0, SUPPLIES_EN12, 6),
 };
 
-static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
+static struct pm8607_regulator_info pm8606_regulator_info[] = {
+	PM8606_PREG(PREREGULATORB, 5),
+};
+
+#ifdef CONFIG_OF
+static int pm8607_regulator_dt_init(struct platform_device *pdev,
+				    struct pm8607_regulator_info *info,
+				    struct regulator_config *config)
+{
+	struct device_node *nproot, *np;
+	nproot = of_node_get(pdev->dev.parent->of_node);
+	if (!nproot)
+		return -ENODEV;
+	nproot = of_find_node_by_name(nproot, "regulators");
+	if (!nproot) {
+		dev_err(&pdev->dev, "failed to find regulators node\n");
+		return -ENODEV;
+	}
+	for_each_child_of_node(nproot, np) {
+		if (!of_node_cmp(np->name, info->desc.name)) {
+			config->init_data =
+				of_get_regulator_init_data(&pdev->dev, np);
+			config->of_node = np;
+			break;
+		}
+	}
+	of_node_put(nproot);
+	return 0;
+}
+#else
+#define pm8607_regulator_dt_init(x, y, z)	(-1)
+#endif
+
+static int pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;
 	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct regulator_config config = { };
 	struct resource *res;
 	int i;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource!\n");
-		return -EINVAL;
-	}
-	for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
-		info = &pm8607_regulator_info[i];
-		if (info->desc.id == res->start)
-			break;
-	}
-	if ((i < 0) || (i > PM8607_ID_RG_MAX)) {
-		dev_err(&pdev->dev, "Failed to find regulator %llu\n",
-			(unsigned long long)res->start);
-		return -EINVAL;
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
+	if (res) {
+		/* There're resources in 88PM8607 regulator driver */
+		for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
+			info = &pm8607_regulator_info[i];
+			if (info->desc.vsel_reg == res->start)
+				break;
+		}
+		if (i == ARRAY_SIZE(pm8607_regulator_info)) {
+			dev_err(&pdev->dev, "Failed to find regulator %llu\n",
+				(unsigned long long)res->start);
+			return -EINVAL;
+		}
+	} else {
+		/* There's no resource in 88PM8606 PREG regulator driver */
+		info = &pm8606_regulator_info[0];
+		/* i is used to check regulator ID */
+		i = -1;
 	}
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
+	info->i2c_8606 = (chip->id == CHIP_PM8607) ? chip->companion :
+			chip->client;
 	info->chip = chip;
 
 	/* check DVC ramp slope double */
 	if ((i == PM8607_ID_BUCK3) && info->chip->buck3_double)
 		info->slope_double = 1;
 
-	/* replace driver_data with info */
-	info->regulator = regulator_register(&info->desc, &pdev->dev,
-					     pdata, info);
+	config.dev = &pdev->dev;
+	config.driver_data = info;
+
+	if (pm8607_regulator_dt_init(pdev, info, &config))
+		if (pdata)
+			config.init_data = pdata;
+
+	if (chip->id == CHIP_PM8607)
+		config.regmap = chip->regmap;
+	else
+		config.regmap = chip->regmap_companion;
+
+	info->regulator = regulator_register(&info->desc, &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
@@ -437,7 +402,7 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pm8607_regulator_remove(struct platform_device *pdev)
+static int pm8607_regulator_remove(struct platform_device *pdev)
 {
 	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
 
@@ -446,13 +411,26 @@ static int __devexit pm8607_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id pm8607_regulator_driver_ids[] = {
+	{
+		.name	= "88pm860x-regulator",
+		.driver_data	= 0,
+	}, {
+		.name	= "88pm860x-preg",
+		.driver_data	= 0,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, pm8607_regulator_driver_ids);
+
 static struct platform_driver pm8607_regulator_driver = {
 	.driver		= {
 		.name	= "88pm860x-regulator",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pm8607_regulator_probe,
-	.remove		= __devexit_p(pm8607_regulator_remove),
+	.remove		= pm8607_regulator_remove,
+	.id_table	= pm8607_regulator_driver_ids,
 };
 
 static int __init pm8607_regulator_init(void)

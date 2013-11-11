@@ -215,7 +215,6 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/sections.h>
 #include <asm/smu.h>
 
@@ -988,7 +987,7 @@ static int pm121_probe(struct platform_device *ddev)
 	return 0;
 }
 
-static int __devexit pm121_remove(struct platform_device *ddev)
+static int pm121_remove(struct platform_device *ddev)
 {
 	wf_unregister_client(&pm121_events);
 	return 0;
@@ -996,7 +995,7 @@ static int __devexit pm121_remove(struct platform_device *ddev)
 
 static struct platform_driver pm121_driver = {
 	.probe = pm121_probe,
-	.remove = __devexit_p(pm121_remove),
+	.remove = pm121_remove,
 	.driver = {
 		.name = "windfarm",
 		.bus = &platform_bus_type,

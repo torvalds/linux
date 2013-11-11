@@ -18,6 +18,7 @@
 
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/userspace-consumer.h>
@@ -114,7 +115,9 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	drvdata = kzalloc(sizeof(struct userspace_consumer_data), GFP_KERNEL);
+	drvdata = devm_kzalloc(&pdev->dev,
+			       sizeof(struct userspace_consumer_data),
+			       GFP_KERNEL);
 	if (drvdata == NULL)
 		return -ENOMEM;
 
@@ -124,16 +127,16 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 
 	mutex_init(&drvdata->lock);
 
-	ret = regulator_bulk_get(&pdev->dev, drvdata->num_supplies,
-				 drvdata->supplies);
+	ret = devm_regulator_bulk_get(&pdev->dev, drvdata->num_supplies,
+				      drvdata->supplies);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get supplies: %d\n", ret);
-		goto err_alloc_supplies;
+		return ret;
 	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &attr_group);
 	if (ret != 0)
-		goto err_create_attrs;
+		return ret;
 
 	if (pdata->init_on) {
 		ret = regulator_bulk_enable(drvdata->num_supplies,
@@ -153,11 +156,6 @@ static int regulator_userspace_consumer_probe(struct platform_device *pdev)
 err_enable:
 	sysfs_remove_group(&pdev->dev.kobj, &attr_group);
 
-err_create_attrs:
-	regulator_bulk_free(drvdata->num_supplies, drvdata->supplies);
-
-err_alloc_supplies:
-	kfree(drvdata);
 	return ret;
 }
 
@@ -170,9 +168,6 @@ static int regulator_userspace_consumer_remove(struct platform_device *pdev)
 	if (data->enabled)
 		regulator_bulk_disable(data->num_supplies, data->supplies);
 
-	regulator_bulk_free(data->num_supplies, data->supplies);
-	kfree(data);
-
 	return 0;
 }
 
@@ -184,18 +179,7 @@ static struct platform_driver regulator_userspace_consumer_driver = {
 	},
 };
 
-
-static int __init regulator_userspace_consumer_init(void)
-{
-	return platform_driver_register(&regulator_userspace_consumer_driver);
-}
-module_init(regulator_userspace_consumer_init);
-
-static void __exit regulator_userspace_consumer_exit(void)
-{
-	platform_driver_unregister(&regulator_userspace_consumer_driver);
-}
-module_exit(regulator_userspace_consumer_exit);
+module_platform_driver(regulator_userspace_consumer_driver);
 
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_DESCRIPTION("Userspace consumer for voltage and current regulators");

@@ -19,6 +19,8 @@
  * Author: Adrian Hunter <adrian.hunter@nokia.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -26,10 +28,9 @@
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/random.h>
 
-#define PRINT_PREF KERN_INFO "mtd_speedtest: "
-
-static int dev;
+static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
 
@@ -47,26 +48,7 @@ static int ebcnt;
 static int pgcnt;
 static int goodebcnt;
 static struct timeval start, finish;
-static unsigned long next = 1;
 
-static inline unsigned int simple_rand(void)
-{
-	next = next * 1103515245 + 12345;
-	return (unsigned int)((next / 65536) % 32768);
-}
-
-static inline void simple_srand(unsigned long seed)
-{
-	next = seed;
-}
-
-static void set_random_data(unsigned char *buf, size_t len)
-{
-	size_t i;
-
-	for (i = 0; i < len; ++i)
-		buf[i] = simple_rand();
-}
 
 static int erase_eraseblock(int ebnum)
 {
@@ -79,14 +61,14 @@ static int erase_eraseblock(int ebnum)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (err) {
-		printk(PRINT_PREF "error %d while erasing EB %d\n", err, ebnum);
+		pr_err("error %d while erasing EB %d\n", err, ebnum);
 		return err;
 	}
 
 	if (ei.state == MTD_ERASE_FAILED) {
-		printk(PRINT_PREF "some erase error occurred at EB %d\n",
+		pr_err("some erase error occurred at EB %d\n",
 		       ebnum);
 		return -EIO;
 	}
@@ -105,15 +87,15 @@ static int multiblock_erase(int ebnum, int blocks)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize * blocks;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (err) {
-		printk(PRINT_PREF "error %d while erasing EB %d, blocks %d\n",
+		pr_err("error %d while erasing EB %d, blocks %d\n",
 		       err, ebnum, blocks);
 		return err;
 	}
 
 	if (ei.state == MTD_ERASE_FAILED) {
-		printk(PRINT_PREF "some erase error occurred at EB %d,"
+		pr_err("some erase error occurred at EB %d,"
 		       "blocks %d\n", ebnum, blocks);
 		return -EIO;
 	}
@@ -139,13 +121,13 @@ static int erase_whole_device(void)
 
 static int write_eraseblock(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
-	err = mtd->write(mtd, addr, mtd->erasesize, &written, iobuf);
+	err = mtd_write(mtd, addr, mtd->erasesize, &written, iobuf);
 	if (err || written != mtd->erasesize) {
-		printk(PRINT_PREF "error: write failed at %#llx\n", addr);
+		pr_err("error: write failed at %#llx\n", addr);
 		if (!err)
 			err = -EINVAL;
 	}
@@ -155,15 +137,15 @@ static int write_eraseblock(int ebnum)
 
 static int write_eraseblock_by_page(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int i, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < pgcnt; i++) {
-		err = mtd->write(mtd, addr, pgsize, &written, buf);
+		err = mtd_write(mtd, addr, pgsize, &written, buf);
 		if (err || written != pgsize) {
-			printk(PRINT_PREF "error: write failed at %#llx\n",
+			pr_err("error: write failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -178,15 +160,15 @@ static int write_eraseblock_by_page(int ebnum)
 
 static int write_eraseblock_by_2pages(int ebnum)
 {
-	size_t written = 0, sz = pgsize * 2;
+	size_t written, sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < n; i++) {
-		err = mtd->write(mtd, addr, sz, &written, buf);
+		err = mtd_write(mtd, addr, sz, &written, buf);
 		if (err || written != sz) {
-			printk(PRINT_PREF "error: write failed at %#llx\n",
+			pr_err("error: write failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -196,9 +178,9 @@ static int write_eraseblock_by_2pages(int ebnum)
 		buf += sz;
 	}
 	if (pgcnt % 2) {
-		err = mtd->write(mtd, addr, pgsize, &written, buf);
+		err = mtd_write(mtd, addr, pgsize, &written, buf);
 		if (err || written != pgsize) {
-			printk(PRINT_PREF "error: write failed at %#llx\n",
+			pr_err("error: write failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -210,16 +192,16 @@ static int write_eraseblock_by_2pages(int ebnum)
 
 static int read_eraseblock(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
-	err = mtd->read(mtd, addr, mtd->erasesize, &read, iobuf);
+	err = mtd_read(mtd, addr, mtd->erasesize, &read, iobuf);
 	/* Ignore corrected ECC errors */
-	if (err == -EUCLEAN)
+	if (mtd_is_bitflip(err))
 		err = 0;
 	if (err || read != mtd->erasesize) {
-		printk(PRINT_PREF "error: read failed at %#llx\n", addr);
+		pr_err("error: read failed at %#llx\n", addr);
 		if (!err)
 			err = -EINVAL;
 	}
@@ -229,18 +211,18 @@ static int read_eraseblock(int ebnum)
 
 static int read_eraseblock_by_page(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int i, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < pgcnt; i++) {
-		err = mtd->read(mtd, addr, pgsize, &read, buf);
+		err = mtd_read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
-			printk(PRINT_PREF "error: read failed at %#llx\n",
+			pr_err("error: read failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -255,18 +237,18 @@ static int read_eraseblock_by_page(int ebnum)
 
 static int read_eraseblock_by_2pages(int ebnum)
 {
-	size_t read = 0, sz = pgsize * 2;
+	size_t read, sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
 
 	for (i = 0; i < n; i++) {
-		err = mtd->read(mtd, addr, sz, &read, buf);
+		err = mtd_read(mtd, addr, sz, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != sz) {
-			printk(PRINT_PREF "error: read failed at %#llx\n",
+			pr_err("error: read failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -276,12 +258,12 @@ static int read_eraseblock_by_2pages(int ebnum)
 		buf += sz;
 	}
 	if (pgcnt % 2) {
-		err = mtd->read(mtd, addr, pgsize, &read, buf);
+		err = mtd_read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
-			printk(PRINT_PREF "error: read failed at %#llx\n",
+			pr_err("error: read failed at %#llx\n",
 			       addr);
 			if (!err)
 				err = -EINVAL;
@@ -296,9 +278,9 @@ static int is_block_bad(int ebnum)
 	loff_t addr = ebnum * mtd->erasesize;
 	int ret;
 
-	ret = mtd->block_isbad(mtd, addr);
+	ret = mtd_block_isbad(mtd, addr);
 	if (ret)
-		printk(PRINT_PREF "block %d is bad\n", ebnum);
+		pr_info("block %d is bad\n", ebnum);
 	return ret;
 }
 
@@ -332,22 +314,21 @@ static int scan_for_bad_eraseblocks(void)
 
 	bbt = kzalloc(ebcnt, GFP_KERNEL);
 	if (!bbt) {
-		printk(PRINT_PREF "error: cannot allocate memory\n");
+		pr_err("error: cannot allocate memory\n");
 		return -ENOMEM;
 	}
 
-	/* NOR flash does not implement block_isbad */
-	if (mtd->block_isbad == NULL)
+	if (!mtd_can_have_bb(mtd))
 		goto out;
 
-	printk(PRINT_PREF "scanning for bad eraseblocks\n");
+	pr_info("scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
 		bbt[i] = is_block_bad(i) ? 1 : 0;
 		if (bbt[i])
 			bad += 1;
 		cond_resched();
 	}
-	printk(PRINT_PREF "scanned %d eraseblocks, %d are bad\n", i, bad);
+	pr_info("scanned %d eraseblocks, %d are bad\n", i, bad);
 out:
 	goodebcnt = ebcnt - bad;
 	return 0;
@@ -361,20 +342,27 @@ static int __init mtd_speedtest_init(void)
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
+
+	if (dev < 0) {
+		pr_info("Please specify a valid mtd-device via module parameter\n");
+		pr_crit("CAREFUL: This test wipes all data on the specified MTD device!\n");
+		return -EINVAL;
+	}
+
 	if (count)
-		printk(PRINT_PREF "MTD device: %d    count: %d\n", dev, count);
+		pr_info("MTD device: %d    count: %d\n", dev, count);
 	else
-		printk(PRINT_PREF "MTD device: %d\n", dev);
+		pr_info("MTD device: %d\n", dev);
 
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		printk(PRINT_PREF "error: cannot get MTD device\n");
+		pr_err("error: cannot get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		printk(PRINT_PREF "not NAND flash, assume page size is 512 "
+		pr_info("not NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else
@@ -385,7 +373,7 @@ static int __init mtd_speedtest_init(void)
 	ebcnt = tmp;
 	pgcnt = mtd->erasesize / pgsize;
 
-	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
+	pr_info("MTD device size %llu, eraseblock size %u, "
 	       "page size %u, count of eraseblocks %u, pages per "
 	       "eraseblock %u, OOB size %u\n",
 	       (unsigned long long)mtd->size, mtd->erasesize,
@@ -397,12 +385,11 @@ static int __init mtd_speedtest_init(void)
 	err = -ENOMEM;
 	iobuf = kmalloc(mtd->erasesize, GFP_KERNEL);
 	if (!iobuf) {
-		printk(PRINT_PREF "error: cannot allocate memory\n");
+		pr_err("error: cannot allocate memory\n");
 		goto out;
 	}
 
-	simple_srand(1);
-	set_random_data(iobuf, mtd->erasesize);
+	prandom_bytes(iobuf, mtd->erasesize);
 
 	err = scan_for_bad_eraseblocks();
 	if (err)
@@ -413,7 +400,7 @@ static int __init mtd_speedtest_init(void)
 		goto out;
 
 	/* Write all eraseblocks, 1 eraseblock at a time */
-	printk(PRINT_PREF "testing eraseblock write speed\n");
+	pr_info("testing eraseblock write speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -425,10 +412,10 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "eraseblock write speed is %ld KiB/s\n", speed);
+	pr_info("eraseblock write speed is %ld KiB/s\n", speed);
 
 	/* Read all eraseblocks, 1 eraseblock at a time */
-	printk(PRINT_PREF "testing eraseblock read speed\n");
+	pr_info("testing eraseblock read speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -440,14 +427,14 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "eraseblock read speed is %ld KiB/s\n", speed);
+	pr_info("eraseblock read speed is %ld KiB/s\n", speed);
 
 	err = erase_whole_device();
 	if (err)
 		goto out;
 
 	/* Write all eraseblocks, 1 page at a time */
-	printk(PRINT_PREF "testing page write speed\n");
+	pr_info("testing page write speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -459,10 +446,10 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "page write speed is %ld KiB/s\n", speed);
+	pr_info("page write speed is %ld KiB/s\n", speed);
 
 	/* Read all eraseblocks, 1 page at a time */
-	printk(PRINT_PREF "testing page read speed\n");
+	pr_info("testing page read speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -474,14 +461,14 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "page read speed is %ld KiB/s\n", speed);
+	pr_info("page read speed is %ld KiB/s\n", speed);
 
 	err = erase_whole_device();
 	if (err)
 		goto out;
 
 	/* Write all eraseblocks, 2 pages at a time */
-	printk(PRINT_PREF "testing 2 page write speed\n");
+	pr_info("testing 2 page write speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -493,10 +480,10 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "2 page write speed is %ld KiB/s\n", speed);
+	pr_info("2 page write speed is %ld KiB/s\n", speed);
 
 	/* Read all eraseblocks, 2 pages at a time */
-	printk(PRINT_PREF "testing 2 page read speed\n");
+	pr_info("testing 2 page read speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -508,10 +495,10 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "2 page read speed is %ld KiB/s\n", speed);
+	pr_info("2 page read speed is %ld KiB/s\n", speed);
 
 	/* Erase all eraseblocks */
-	printk(PRINT_PREF "Testing erase speed\n");
+	pr_info("Testing erase speed\n");
 	start_timing();
 	for (i = 0; i < ebcnt; ++i) {
 		if (bbt[i])
@@ -523,12 +510,12 @@ static int __init mtd_speedtest_init(void)
 	}
 	stop_timing();
 	speed = calc_speed();
-	printk(PRINT_PREF "erase speed is %ld KiB/s\n", speed);
+	pr_info("erase speed is %ld KiB/s\n", speed);
 
 	/* Multi-block erase all eraseblocks */
 	for (k = 1; k < 7; k++) {
 		blocks = 1 << k;
-		printk(PRINT_PREF "Testing %dx multi-block erase speed\n",
+		pr_info("Testing %dx multi-block erase speed\n",
 		       blocks);
 		start_timing();
 		for (i = 0; i < ebcnt; ) {
@@ -547,16 +534,16 @@ static int __init mtd_speedtest_init(void)
 		}
 		stop_timing();
 		speed = calc_speed();
-		printk(PRINT_PREF "%dx multi-block erase speed is %ld KiB/s\n",
+		pr_info("%dx multi-block erase speed is %ld KiB/s\n",
 		       blocks, speed);
 	}
-	printk(PRINT_PREF "finished\n");
+	pr_info("finished\n");
 out:
 	kfree(iobuf);
 	kfree(bbt);
 	put_mtd_device(mtd);
 	if (err)
-		printk(PRINT_PREF "error %d occurred\n", err);
+		pr_info("error %d occurred\n", err);
 	printk(KERN_INFO "=================================================\n");
 	return err;
 }

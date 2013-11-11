@@ -3,7 +3,6 @@
 #
 config USB_DEBUG
 	bool "USB verbose debug messages"
-	depends on USB
 	help
 	  Say Y here if you want the USB core & hub drivers to produce a bunch
 	  of debug messages to the system log. Select this if you are having a
@@ -11,7 +10,6 @@ config USB_DEBUG
 
 config USB_ANNOUNCE_NEW_DEVICES
 	bool "USB announce new devices"
-	depends on USB
 	default N
 	help
 	  Say Y here if you want the USB core to always announce the
@@ -25,63 +23,24 @@ config USB_ANNOUNCE_NEW_DEVICES
 	  log, or have any doubts about this, say N here.
 
 comment "Miscellaneous USB options"
-	depends on USB
 
-config USB_DEVICEFS
-	bool "USB device filesystem (DEPRECATED)"
-	depends on USB
-	---help---
-	  If you say Y here (and to "/proc file system support" in the "File
-	  systems" section, above), you will get a file /proc/bus/usb/devices
-	  which lists the devices currently connected to your USB bus or
-	  busses, and for every connected device a file named
-	  "/proc/bus/usb/xxx/yyy", where xxx is the bus number and yyy the
-	  device number; the latter files can be used by user space programs
-	  to talk directly to the device. These files are "virtual", meaning
-	  they are generated on the fly and not stored on the hard drive.
-
-	  You may need to mount the usbfs file system to see the files, use
-	  mount -t usbfs none /proc/bus/usb
-
-	  For the format of the various /proc/bus/usb/ files, please read
-	  <file:Documentation/usb/proc_usb_info.txt>.
-
-	  Modern Linux systems do not use this.
-
-	  Usbfs entries are files and not character devices; usbfs can't
-	  handle Access Control Lists (ACL) which are the default way to
-	  grant access to USB devices for untrusted users of a desktop
-	  system.
-
-	  The usbfs functionality is replaced by real device-nodes managed by
-	  udev.  These nodes lived in /dev/bus/usb and are used by libusb.
-
-config USB_DEVICE_CLASS
-	bool "USB device class-devices (DEPRECATED)"
-	depends on USB
+config USB_DEFAULT_PERSIST
+	bool "Enable USB persist by default"
 	default y
-	---help---
-	  Userspace access to USB devices is granted by device-nodes exported
-	  directly from the usbdev in sysfs. Old versions of the driver
-	  core and udev needed additional class devices to export device nodes.
+	help
+	  Say N here if you don't want USB power session persistance
+	  enabled by default.  If you say N it will make suspended USB
+	  devices that lose power get reenumerated as if they had been
+	  unplugged, causing any mounted filesystems to be lost.  The
+	  persist feature can still be enabled for individual devices
+	  through the power/persist sysfs node. See
+	  Documentation/usb/persist.txt for more info.
 
-	  These additional devices are difficult to handle in userspace, if
-	  information about USB interfaces must be available. One device
-	  contains the device node, the other device contains the interface
-	  data. Both devices are at the same level in sysfs (siblings) and one
-	  can't access the other. The device node created directly by the
-	  usb device is the parent device of the interface and therefore
-	  easily accessible from the interface event.
-
-	  This option provides backward compatibility for libusb device
-	  nodes (lsusb) when usbfs is not used, and the following udev rule
-	  doesn't exist:
-	    SUBSYSTEM=="usb", ACTION=="add", ENV{DEVTYPE}=="usb_device", \
-	    NAME="bus/usb/$env{BUSNUM}/$env{DEVNUM}", MODE="0644"
+	  If you have any questions about this, say Y here, only say N
+	  if you know exactly what you are doing.
 
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation"
-	depends on USB
 	help
 	  If you say Y here, the USB subsystem will use dynamic minor
 	  allocation for any device that uses the USB major number.
@@ -90,26 +49,9 @@ config USB_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
-config USB_SUSPEND
-	bool "USB runtime power management (autosuspend) and wakeup"
-	depends on USB && PM_RUNTIME
-	help
-	  If you say Y here, you can use driver calls or the sysfs
-	  "power/control" file to enable or disable autosuspend for
-	  individual USB peripherals (see
-	  Documentation/usb/power-management.txt for more details).
-
-	  Also, USB "remote wakeup" signaling is supported, whereby some
-	  USB devices (like keyboards and network adapters) can wake up
-	  their parent hub.  That wakeup cascades up the USB tree, and
-	  could wake the system from states like suspend-to-RAM.
-
-	  If you are unsure about this, say N here.
-
 config USB_OTG
 	bool "OTG support"
-	depends on USB && EXPERIMENTAL
-	depends on USB_SUSPEND
+	depends on PM_RUNTIME
 	default n
 	help
 	  The most notable feature of USB OTG is support for a
@@ -125,7 +67,6 @@ config USB_OTG_WHITELIST
 	bool "Rely on OTG Targeted Peripherals List"
 	depends on USB_OTG || EXPERT
 	default y if USB_OTG
-	default n if EXPERT
 	help
 	  If you say Y here, the "otg_whitelist.h" file will be used as a
 	  product whitelist, so USB peripherals not listed there will be

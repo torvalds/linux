@@ -45,4 +45,9 @@ extern struct platform_device pxa_device_asoc_ssp2;
 extern struct platform_device pxa_device_asoc_ssp3;
 extern struct platform_device pxa_device_asoc_ssp4;
 
+extern struct platform_device pxa25x_device_gpio;
+extern struct platform_device pxa27x_device_gpio;
+extern struct platform_device pxa3xx_device_gpio;
+extern struct platform_device pxa93x_device_gpio;
+
 void __init pxa_register_device(struct platform_device *dev, void *data);

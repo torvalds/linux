@@ -14,24 +14,15 @@
 
 #include <linux/types.h>
 
-struct pyra_b {
-	uint8_t command; /* PYRA_COMMAND_B */
-	uint8_t size; /* always 3 */
-	uint8_t unknown; /* 1 */
-} __attribute__ ((__packed__));
-
-struct pyra_control {
-	uint8_t command; /* PYRA_COMMAND_CONTROL */
-	/*
-	 * value is profile number for request_settings and request_buttons
-	 * 1 if status ok for request_status
-	 */
-	uint8_t value; /* Range 0-4 */
-	uint8_t request;
-} __attribute__ ((__packed__));
+enum {
+	PYRA_SIZE_CONTROL = 0x03,
+	PYRA_SIZE_INFO = 0x06,
+	PYRA_SIZE_PROFILE_SETTINGS = 0x0d,
+	PYRA_SIZE_PROFILE_BUTTONS = 0x13,
+	PYRA_SIZE_SETTINGS = 0x03,
+};
 
 enum pyra_control_requests {
-	PYRA_CONTROL_REQUEST_STATUS = 0x00,
 	PYRA_CONTROL_REQUEST_PROFILE_SETTINGS = 0x10,
 	PYRA_CONTROL_REQUEST_PROFILE_BUTTONS = 0x20
 };
@@ -57,14 +48,6 @@ struct pyra_profile_settings {
 	uint16_t checksum; /* byte sum */
 } __attribute__ ((__packed__));
 
-struct pyra_profile_buttons {
-	uint8_t command; /* PYRA_COMMAND_PROFILE_BUTTONS */
-	uint8_t size; /* always 0x13 */
-	uint8_t number; /* Range 0-4 */
-	uint8_t buttons[14];
-	uint16_t checksum; /* byte sum */
-} __attribute__ ((__packed__));
-
 struct pyra_info {
 	uint8_t command; /* PYRA_COMMAND_INFO */
 	uint8_t size; /* always 6 */
@@ -81,15 +64,6 @@ enum pyra_commands {
 	PYRA_COMMAND_PROFILE_BUTTONS = 0x7,
 	PYRA_COMMAND_INFO = 0x9,
 	PYRA_COMMAND_B = 0xb
-};
-
-enum pyra_usb_commands {
-	PYRA_USB_COMMAND_CONTROL = 0x304,
-	PYRA_USB_COMMAND_SETTINGS = 0x305,
-	PYRA_USB_COMMAND_PROFILE_SETTINGS = 0x306,
-	PYRA_USB_COMMAND_PROFILE_BUTTONS = 0x307,
-	PYRA_USB_COMMAND_INFO = 0x309,
-	PYRA_USB_COMMAND_B = 0x30b /* writes 3 bytes */
 };
 
 enum pyra_mouse_report_numbers {
@@ -169,13 +143,10 @@ struct pyra_roccat_report {
 struct pyra_device {
 	int actual_profile;
 	int actual_cpi;
-	int firmware_version;
 	int roccat_claimed;
 	int chrdev_minor;
 	struct mutex pyra_lock;
-	struct pyra_settings settings;
 	struct pyra_profile_settings profile_settings[5];
-	struct pyra_profile_buttons profile_buttons[5];
 };
 
 #endif

@@ -1,68 +1,32 @@
-if ARCH_MXS
-
-source "arch/arm/mach-mxs/devices/Kconfig"
-
-config MXS_OCOTP
-	bool
-
 config SOC_IMX23
 	bool
+	select ARM_AMBA
+	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
 	select HAVE_PWM
+	select PINCTRL_IMX23
 
 config SOC_IMX28
 	bool
+	select ARM_AMBA
+	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
+	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_PWM
+	select PINCTRL_IMX28
 
-comment "MXS platforms:"
-
-config MACH_STMP378X_DEVB
-	bool "Support STMP378x_devb Platform"
+config ARCH_MXS
+	bool "Freescale MXS (i.MX23, i.MX28) support"
+	depends on ARCH_MULTI_V5
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK_PREPARE
+	select PINCTRL
 	select SOC_IMX23
-	select MXS_HAVE_AMBA_DUART
-	select MXS_HAVE_PLATFORM_AUART
-	select MXS_HAVE_PLATFORM_MXS_MMC
-	help
-	  Include support for STMP378x-devb platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_MX23EVK
-	bool "Support MX23EVK Platform"
-	select SOC_IMX23
-	select MXS_HAVE_AMBA_DUART
-	select MXS_HAVE_PLATFORM_AUART
-	select MXS_HAVE_PLATFORM_MXS_MMC
-	select MXS_HAVE_PLATFORM_MXSFB
-	help
-	  Include support for MX23EVK platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_MX28EVK
-	bool "Support MX28EVK Platform"
 	select SOC_IMX28
-	select MXS_HAVE_AMBA_DUART
-	select MXS_HAVE_PLATFORM_AUART
-	select MXS_HAVE_PLATFORM_FEC
-	select MXS_HAVE_PLATFORM_FLEXCAN
-	select MXS_HAVE_PLATFORM_MXS_MMC
-	select MXS_HAVE_PLATFORM_MXSFB
-	select MXS_OCOTP
+	select STMP_DEVICE
 	help
-	  Include support for MX28EVK platform. This includes specific
-	  configurations for the board and its peripherals.
-
-config MODULE_TX28
-	bool
-	select SOC_IMX28
-	select MXS_HAVE_AMBA_DUART
-	select MXS_HAVE_PLATFORM_AUART
-	select MXS_HAVE_PLATFORM_FEC
-	select MXS_HAVE_PLATFORM_MXS_I2C
-	select MXS_HAVE_PLATFORM_MXS_PWM
-
-config MACH_TX28
-	bool "Ka-Ro TX28 module"
-	select MODULE_TX28
-
-endif
+	  Support for Freescale MXS-based family of processors

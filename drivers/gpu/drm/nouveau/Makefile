@@ -3,40 +3,245 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 ccflags-y := -Iinclude/drm
-nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
-             nouveau_object.o nouveau_irq.o nouveau_notifier.o \
-             nouveau_sgdma.o nouveau_dma.o nouveau_util.o \
-             nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
-             nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
-             nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
-             nouveau_dp.o nouveau_ramht.o \
-	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
-	     nouveau_mm.o nouveau_vm.o \
-             nv04_timer.o \
-             nv04_mc.o nv40_mc.o nv50_mc.o \
-             nv04_fb.o nv10_fb.o nv30_fb.o nv40_fb.o nv50_fb.o nvc0_fb.o \
-             nv04_fifo.o nv10_fifo.o nv40_fifo.o nv50_fifo.o nvc0_fifo.o \
-             nv04_graph.o nv10_graph.o nv20_graph.o \
-             nv40_graph.o nv50_graph.o nvc0_graph.o \
-             nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
-             nv84_crypt.o \
-             nva3_copy.o nvc0_copy.o \
-             nv40_mpeg.o nv50_mpeg.o \
-             nv04_instmem.o nv50_instmem.o nvc0_instmem.o \
-             nv50_evo.o nv50_crtc.o nv50_dac.o nv50_sor.o \
-             nv50_cursor.o nv50_display.o \
-             nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
-             nv04_crtc.o nv04_display.o nv04_cursor.o \
-             nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o \
-             nv10_gpio.o nv50_gpio.o \
-	     nv50_calc.o \
-	     nv04_pm.o nv50_pm.o nva3_pm.o \
-	     nv50_vram.o nvc0_vram.o \
-	     nv50_vm.o nvc0_vm.o
+ccflags-y += -I$(src)/core/include
+ccflags-y += -I$(src)/core
+ccflags-y += -I$(src)
 
-nouveau-$(CONFIG_DRM_NOUVEAU_DEBUG) += nouveau_debugfs.o
+nouveau-y := core/core/client.o
+nouveau-y += core/core/engctx.o
+nouveau-y += core/core/engine.o
+nouveau-y += core/core/enum.o
+nouveau-y += core/core/event.o
+nouveau-y += core/core/falcon.o
+nouveau-y += core/core/gpuobj.o
+nouveau-y += core/core/handle.o
+nouveau-y += core/core/mm.o
+nouveau-y += core/core/namedb.o
+nouveau-y += core/core/object.o
+nouveau-y += core/core/option.o
+nouveau-y += core/core/parent.o
+nouveau-y += core/core/printk.o
+nouveau-y += core/core/ramht.o
+nouveau-y += core/core/subdev.o
+
+nouveau-y += core/subdev/bar/base.o
+nouveau-y += core/subdev/bar/nv50.o
+nouveau-y += core/subdev/bar/nvc0.o
+nouveau-y += core/subdev/bios/base.o
+nouveau-y += core/subdev/bios/bit.o
+nouveau-y += core/subdev/bios/conn.o
+nouveau-y += core/subdev/bios/dcb.o
+nouveau-y += core/subdev/bios/disp.o
+nouveau-y += core/subdev/bios/dp.o
+nouveau-y += core/subdev/bios/extdev.o
+nouveau-y += core/subdev/bios/gpio.o
+nouveau-y += core/subdev/bios/i2c.o
+nouveau-y += core/subdev/bios/init.o
+nouveau-y += core/subdev/bios/mxm.o
+nouveau-y += core/subdev/bios/perf.o
+nouveau-y += core/subdev/bios/pll.o
+nouveau-y += core/subdev/bios/therm.o
+nouveau-y += core/subdev/bios/xpio.o
+nouveau-y += core/subdev/bus/nv04.o
+nouveau-y += core/subdev/bus/nv31.o
+nouveau-y += core/subdev/bus/nv50.o
+nouveau-y += core/subdev/bus/nvc0.o
+nouveau-y += core/subdev/clock/nv04.o
+nouveau-y += core/subdev/clock/nv40.o
+nouveau-y += core/subdev/clock/nv50.o
+nouveau-y += core/subdev/clock/nva3.o
+nouveau-y += core/subdev/clock/nvc0.o
+nouveau-y += core/subdev/clock/pllnv04.o
+nouveau-y += core/subdev/clock/pllnva3.o
+nouveau-y += core/subdev/devinit/base.o
+nouveau-y += core/subdev/devinit/nv04.o
+nouveau-y += core/subdev/devinit/nv05.o
+nouveau-y += core/subdev/devinit/nv10.o
+nouveau-y += core/subdev/devinit/nv1a.o
+nouveau-y += core/subdev/devinit/nv20.o
+nouveau-y += core/subdev/devinit/nv50.o
+nouveau-y += core/subdev/fb/base.o
+nouveau-y += core/subdev/fb/nv04.o
+nouveau-y += core/subdev/fb/nv10.o
+nouveau-y += core/subdev/fb/nv1a.o
+nouveau-y += core/subdev/fb/nv20.o
+nouveau-y += core/subdev/fb/nv25.o
+nouveau-y += core/subdev/fb/nv30.o
+nouveau-y += core/subdev/fb/nv35.o
+nouveau-y += core/subdev/fb/nv36.o
+nouveau-y += core/subdev/fb/nv40.o
+nouveau-y += core/subdev/fb/nv41.o
+nouveau-y += core/subdev/fb/nv44.o
+nouveau-y += core/subdev/fb/nv46.o
+nouveau-y += core/subdev/fb/nv47.o
+nouveau-y += core/subdev/fb/nv49.o
+nouveau-y += core/subdev/fb/nv4e.o
+nouveau-y += core/subdev/fb/nv50.o
+nouveau-y += core/subdev/fb/nvc0.o
+nouveau-y += core/subdev/gpio/base.o
+nouveau-y += core/subdev/gpio/nv10.o
+nouveau-y += core/subdev/gpio/nv50.o
+nouveau-y += core/subdev/gpio/nvd0.o
+nouveau-y += core/subdev/gpio/nve0.o
+nouveau-y += core/subdev/i2c/base.o
+nouveau-y += core/subdev/i2c/anx9805.o
+nouveau-y += core/subdev/i2c/aux.o
+nouveau-y += core/subdev/i2c/bit.o
+nouveau-y += core/subdev/i2c/nv04.o
+nouveau-y += core/subdev/i2c/nv4e.o
+nouveau-y += core/subdev/i2c/nv50.o
+nouveau-y += core/subdev/i2c/nv94.o
+nouveau-y += core/subdev/i2c/nvd0.o
+nouveau-y += core/subdev/ibus/nvc0.o
+nouveau-y += core/subdev/ibus/nve0.o
+nouveau-y += core/subdev/instmem/base.o
+nouveau-y += core/subdev/instmem/nv04.o
+nouveau-y += core/subdev/instmem/nv40.o
+nouveau-y += core/subdev/instmem/nv50.o
+nouveau-y += core/subdev/ltcg/nvc0.o
+nouveau-y += core/subdev/mc/base.o
+nouveau-y += core/subdev/mc/nv04.o
+nouveau-y += core/subdev/mc/nv44.o
+nouveau-y += core/subdev/mc/nv50.o
+nouveau-y += core/subdev/mc/nv98.o
+nouveau-y += core/subdev/mc/nvc0.o
+nouveau-y += core/subdev/mxm/base.o
+nouveau-y += core/subdev/mxm/mxms.o
+nouveau-y += core/subdev/mxm/nv50.o
+nouveau-y += core/subdev/therm/base.o
+nouveau-y += core/subdev/therm/fan.o
+nouveau-y += core/subdev/therm/fannil.o
+nouveau-y += core/subdev/therm/fanpwm.o
+nouveau-y += core/subdev/therm/fantog.o
+nouveau-y += core/subdev/therm/ic.o
+nouveau-y += core/subdev/therm/temp.o
+nouveau-y += core/subdev/therm/nv40.o
+nouveau-y += core/subdev/therm/nv50.o
+nouveau-y += core/subdev/therm/nv84.o
+nouveau-y += core/subdev/therm/nva3.o
+nouveau-y += core/subdev/therm/nvd0.o
+nouveau-y += core/subdev/timer/base.o
+nouveau-y += core/subdev/timer/nv04.o
+nouveau-y += core/subdev/vm/base.o
+nouveau-y += core/subdev/vm/nv04.o
+nouveau-y += core/subdev/vm/nv41.o
+nouveau-y += core/subdev/vm/nv44.o
+nouveau-y += core/subdev/vm/nv50.o
+nouveau-y += core/subdev/vm/nvc0.o
+
+nouveau-y += core/engine/dmaobj/base.o
+nouveau-y += core/engine/dmaobj/nv04.o
+nouveau-y += core/engine/dmaobj/nv50.o
+nouveau-y += core/engine/dmaobj/nvc0.o
+nouveau-y += core/engine/dmaobj/nvd0.o
+nouveau-y += core/engine/bsp/nv84.o
+nouveau-y += core/engine/bsp/nvc0.o
+nouveau-y += core/engine/bsp/nve0.o
+nouveau-y += core/engine/copy/nva3.o
+nouveau-y += core/engine/copy/nvc0.o
+nouveau-y += core/engine/copy/nve0.o
+nouveau-y += core/engine/crypt/nv84.o
+nouveau-y += core/engine/crypt/nv98.o
+nouveau-y += core/engine/device/base.o
+nouveau-y += core/engine/device/nv04.o
+nouveau-y += core/engine/device/nv10.o
+nouveau-y += core/engine/device/nv20.o
+nouveau-y += core/engine/device/nv30.o
+nouveau-y += core/engine/device/nv40.o
+nouveau-y += core/engine/device/nv50.o
+nouveau-y += core/engine/device/nvc0.o
+nouveau-y += core/engine/device/nve0.o
+nouveau-y += core/engine/disp/base.o
+nouveau-y += core/engine/disp/nv04.o
+nouveau-y += core/engine/disp/nv50.o
+nouveau-y += core/engine/disp/nv84.o
+nouveau-y += core/engine/disp/nv94.o
+nouveau-y += core/engine/disp/nva0.o
+nouveau-y += core/engine/disp/nva3.o
+nouveau-y += core/engine/disp/nvd0.o
+nouveau-y += core/engine/disp/nve0.o
+nouveau-y += core/engine/disp/nvf0.o
+nouveau-y += core/engine/disp/dacnv50.o
+nouveau-y += core/engine/disp/dport.o
+nouveau-y += core/engine/disp/hdanva3.o
+nouveau-y += core/engine/disp/hdanvd0.o
+nouveau-y += core/engine/disp/hdminv84.o
+nouveau-y += core/engine/disp/hdminva3.o
+nouveau-y += core/engine/disp/hdminvd0.o
+nouveau-y += core/engine/disp/piornv50.o
+nouveau-y += core/engine/disp/sornv50.o
+nouveau-y += core/engine/disp/sornv94.o
+nouveau-y += core/engine/disp/sornvd0.o
+nouveau-y += core/engine/disp/vga.o
+nouveau-y += core/engine/fifo/base.o
+nouveau-y += core/engine/fifo/nv04.o
+nouveau-y += core/engine/fifo/nv10.o
+nouveau-y += core/engine/fifo/nv17.o
+nouveau-y += core/engine/fifo/nv40.o
+nouveau-y += core/engine/fifo/nv50.o
+nouveau-y += core/engine/fifo/nv84.o
+nouveau-y += core/engine/fifo/nvc0.o
+nouveau-y += core/engine/fifo/nve0.o
+nouveau-y += core/engine/graph/ctxnv40.o
+nouveau-y += core/engine/graph/ctxnv50.o
+nouveau-y += core/engine/graph/ctxnvc0.o
+nouveau-y += core/engine/graph/ctxnve0.o
+nouveau-y += core/engine/graph/nv04.o
+nouveau-y += core/engine/graph/nv10.o
+nouveau-y += core/engine/graph/nv20.o
+nouveau-y += core/engine/graph/nv25.o
+nouveau-y += core/engine/graph/nv2a.o
+nouveau-y += core/engine/graph/nv30.o
+nouveau-y += core/engine/graph/nv34.o
+nouveau-y += core/engine/graph/nv35.o
+nouveau-y += core/engine/graph/nv40.o
+nouveau-y += core/engine/graph/nv50.o
+nouveau-y += core/engine/graph/nvc0.o
+nouveau-y += core/engine/graph/nve0.o
+nouveau-y += core/engine/mpeg/nv31.o
+nouveau-y += core/engine/mpeg/nv40.o
+nouveau-y += core/engine/mpeg/nv50.o
+nouveau-y += core/engine/mpeg/nv84.o
+nouveau-y += core/engine/ppp/nv98.o
+nouveau-y += core/engine/ppp/nvc0.o
+nouveau-y += core/engine/software/nv04.o
+nouveau-y += core/engine/software/nv10.o
+nouveau-y += core/engine/software/nv50.o
+nouveau-y += core/engine/software/nvc0.o
+nouveau-y += core/engine/vp/nv84.o
+nouveau-y += core/engine/vp/nvc0.o
+nouveau-y += core/engine/vp/nve0.o
+
+# drm/core
+nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o
+nouveau-y += nouveau_vga.o nouveau_agp.o
+nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
+nouveau-y += nouveau_prime.o nouveau_abi16.o
+nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
+nouveau-y += nv50_fence.o nv84_fence.o nvc0_fence.o
+
+# drm/kms
+nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o
+nouveau-y += nouveau_connector.o nouveau_dp.o
+nouveau-y += nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o
+
+# drm/kms/nv04:nv50
+include $(src)/dispnv04/Makefile
+
+# drm/kms/nv50-
+nouveau-y += nv50_display.o
+
+# drm/pm
+nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o
+nouveau-y += nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o
+nouveau-y += nouveau_mem.o
+
+# other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
-nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
+ifdef CONFIG_X86
 nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+endif
+nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
+nouveau-$(CONFIG_DEBUG_FS) += nouveau_debugfs.o
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o

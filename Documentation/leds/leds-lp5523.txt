@@ -10,28 +10,25 @@ Contact: Samu Onkalo (samu.p.onkalo-at-nokia.com)
 Description
 -----------
 LP5523 can drive up to 9 channels. Leds can be controlled directly via
-the led class control interface. Channels have generic names:
-lp5523:channelx where x is 0...8
+the led class control interface.
+The name of each channel is configurable in the platform data - name and label.
+There are three options to make the channel name.
 
-The chip provides 3 engines. Each engine can control channels without
-interaction from the main CPU. Details of the micro engine code can be found
-from the public data sheet. Leds can be muxed to different channels.
+a) Define the 'name' in the platform data
+To make specific channel name, then use 'name' platform data.
+/sys/class/leds/R1               (name: 'R1')
+/sys/class/leds/B1               (name: 'B1')
 
-Control interface for the engines:
-x is 1 .. 3
-enginex_mode : disabled, load, run
-enginex_load : microcode load (visible only in load mode)
-enginex_leds : led mux control (visible only in load mode)
+b) Use the 'label' with no 'name' field
+For one device name with channel number, then use 'label'.
+/sys/class/leds/RGB:channelN     (label: 'RGB', N: 0 ~ 8)
 
-cd /sys/class/leds/lp5523:channel2/device
-echo "load" > engine3_mode
-echo "9d80400004ff05ff437f0000" > engine3_load
-echo "111111111" > engine3_leds
-echo "run" > engine3_mode
+c) Default
+If both fields are NULL, 'lp5523' is used by default.
+/sys/class/leds/lp5523:channelN  (N: 0 ~ 8)
 
-sysfs contains a selftest entry. It measures each channel
-voltage level and checks if it looks reasonable. If the level is too high,
-the led is missing; if the level is too low, there is a short circuit.
+LP5523 has the internal program memory for running various LED patterns.
+For the details, please refer to 'firmware' section in leds-lp55xx.txt
 
 Selftest uses always the current from the platform data.
 
@@ -44,14 +41,15 @@ Example platform data:
 
 Note - chan_nr can have values between 0 and 8.
 
-static struct lp5523_led_config lp5523_led_config[] = {
+static struct lp55xx_led_config lp5523_led_config[] = {
         {
+		.name		= "D1",
                 .chan_nr        = 0,
                 .led_current    = 50,
 		.max_current    = 130,
         },
 ...
-        }, {
+        {
                 .chan_nr        = 8,
                 .led_current    = 50,
 		.max_current    = 130,
@@ -73,10 +71,10 @@ static void lp5523_enable(bool state)
 	/* Control chip enable signal */
 }
 
-static struct lp5523_platform_data lp5523_platform_data = {
+static struct lp55xx_platform_data lp5523_platform_data = {
         .led_config     = lp5523_led_config,
         .num_channels   = ARRAY_SIZE(lp5523_led_config),
-        .clock_mode     = LP5523_CLOCK_EXT,
+        .clock_mode     = LP55XX_CLOCK_EXT,
         .setup_resources   = lp5523_setup,
         .release_resources = lp5523_release,
         .enable            = lp5523_enable,

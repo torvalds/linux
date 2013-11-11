@@ -32,12 +32,12 @@
 #include <asm/mach-rc32434/rc32434.h>
 #include <asm/mach-rc32434/irq.h>
 
-static int __devinitdata irq_map[2][12] = {
+static int irq_map[2][12] = {
 	{0, 0, 2, 3, 2, 3, 0, 0, 0, 0, 0, 1},
 	{0, 0, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3}
 };
 
-int __devinit pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq = 0;
 

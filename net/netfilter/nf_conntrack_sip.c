@@ -52,15 +52,17 @@ module_param(sip_direct_media, int, 0600);
 MODULE_PARM_DESC(sip_direct_media, "Expect Media streams between signalling "
 				   "endpoints only (default 1)");
 
-unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb, unsigned int dataoff,
-				const char **dptr,
+unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb, unsigned int protoff,
+				unsigned int dataoff, const char **dptr,
 				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_hook);
 
-void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, s16 off) __read_mostly;
+void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, unsigned int protoff,
+				   s16 off) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_seq_adjust_hook);
 
 unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
+				       unsigned int protoff,
 				       unsigned int dataoff,
 				       const char **dptr,
 				       unsigned int *datalen,
@@ -69,7 +71,8 @@ unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 				       unsigned int matchlen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_expect_hook);
 
-unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb, unsigned int dataoff,
+unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb, unsigned int protoff,
+				     unsigned int dataoff,
 				     const char **dptr,
 				     unsigned int *datalen,
 				     unsigned int sdpoff,
@@ -79,7 +82,8 @@ unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb, unsigned int dataoff,
 				     __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_addr_hook);
 
-unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb, unsigned int dataoff,
+unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb, unsigned int protoff,
+				     unsigned int dataoff,
 				     const char **dptr,
 				     unsigned int *datalen,
 				     unsigned int matchoff,
@@ -88,6 +92,7 @@ unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb, unsigned int dataoff,
 EXPORT_SYMBOL_GPL(nf_nat_sdp_port_hook);
 
 unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
+					unsigned int protoff,
 					unsigned int dataoff,
 					const char **dptr,
 					unsigned int *datalen,
@@ -96,7 +101,8 @@ unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
 					__read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_session_hook);
 
-unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb, unsigned int dataoff,
+unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb, unsigned int protoff,
+				      unsigned int dataoff,
 				      const char **dptr,
 				      unsigned int *datalen,
 				      struct nf_conntrack_expect *rtp_exp,
@@ -183,12 +189,12 @@ static int media_len(const struct nf_conn *ct, const char *dptr,
 	return len + digits_len(ct, dptr, limit, shift);
 }
 
-static int parse_addr(const struct nf_conn *ct, const char *cp,
-                      const char **endp, union nf_inet_addr *addr,
-                      const char *limit)
+static int sip_parse_addr(const struct nf_conn *ct, const char *cp,
+			  const char **endp, union nf_inet_addr *addr,
+			  const char *limit, bool delim)
 {
 	const char *end;
-	int ret = 0;
+	int ret;
 
 	if (!ct)
 		return 0;
@@ -197,16 +203,28 @@ static int parse_addr(const struct nf_conn *ct, const char *cp,
 	switch (nf_ct_l3num(ct)) {
 	case AF_INET:
 		ret = in4_pton(cp, limit - cp, (u8 *)&addr->ip, -1, &end);
+		if (ret == 0)
+			return 0;
 		break;
 	case AF_INET6:
+		if (cp < limit && *cp == '[')
+			cp++;
+		else if (delim)
+			return 0;
+
 		ret = in6_pton(cp, limit - cp, (u8 *)&addr->ip6, -1, &end);
+		if (ret == 0)
+			return 0;
+
+		if (end < limit && *end == ']')
+			end++;
+		else if (delim)
+			return 0;
 		break;
 	default:
 		BUG();
 	}
 
-	if (ret == 0 || end == cp)
-		return 0;
 	if (endp)
 		*endp = end;
 	return 1;
@@ -219,7 +237,7 @@ static int epaddr_len(const struct nf_conn *ct, const char *dptr,
 	union nf_inet_addr addr;
 	const char *aux = dptr;
 
-	if (!parse_addr(ct, dptr, &dptr, &addr, limit)) {
+	if (!sip_parse_addr(ct, dptr, &dptr, &addr, limit, true)) {
 		pr_debug("ip: %s parse failed.!\n", dptr);
 		return 0;
 	}
@@ -296,7 +314,7 @@ int ct_sip_parse_request(const struct nf_conn *ct,
 		return 0;
 	dptr += shift;
 
-	if (!parse_addr(ct, dptr, &end, addr, limit))
+	if (!sip_parse_addr(ct, dptr, &end, addr, limit, true))
 		return -1;
 	if (end < limit && *end == ':') {
 		end++;
@@ -550,7 +568,7 @@ int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
 	if (ret == 0)
 		return ret;
 
-	if (!parse_addr(ct, dptr + *matchoff, &c, addr, limit))
+	if (!sip_parse_addr(ct, dptr + *matchoff, &c, addr, limit, true))
 		return -1;
 	if (*c == ':') {
 		c++;
@@ -599,7 +617,7 @@ int ct_sip_parse_address_param(const struct nf_conn *ct, const char *dptr,
 			       unsigned int dataoff, unsigned int datalen,
 			       const char *name,
 			       unsigned int *matchoff, unsigned int *matchlen,
-			       union nf_inet_addr *addr)
+			       union nf_inet_addr *addr, bool delim)
 {
 	const char *limit = dptr + datalen;
 	const char *start, *end;
@@ -613,7 +631,7 @@ int ct_sip_parse_address_param(const struct nf_conn *ct, const char *dptr,
 		return 0;
 
 	start += strlen(name);
-	if (!parse_addr(ct, start, &end, addr, limit))
+	if (!sip_parse_addr(ct, start, &end, addr, limit, delim))
 		return 0;
 	*matchoff = start - dptr;
 	*matchlen = end - start;
@@ -675,6 +693,47 @@ static int ct_sip_parse_transport(struct nf_conn *ct, const char *dptr,
 	return 1;
 }
 
+static int sdp_parse_addr(const struct nf_conn *ct, const char *cp,
+			  const char **endp, union nf_inet_addr *addr,
+			  const char *limit)
+{
+	const char *end;
+	int ret;
+
+	memset(addr, 0, sizeof(*addr));
+	switch (nf_ct_l3num(ct)) {
+	case AF_INET:
+		ret = in4_pton(cp, limit - cp, (u8 *)&addr->ip, -1, &end);
+		break;
+	case AF_INET6:
+		ret = in6_pton(cp, limit - cp, (u8 *)&addr->ip6, -1, &end);
+		break;
+	default:
+		BUG();
+	}
+
+	if (ret == 0)
+		return 0;
+	if (endp)
+		*endp = end;
+	return 1;
+}
+
+/* skip ip address. returns its length. */
+static int sdp_addr_len(const struct nf_conn *ct, const char *dptr,
+			const char *limit, int *shift)
+{
+	union nf_inet_addr addr;
+	const char *aux = dptr;
+
+	if (!sdp_parse_addr(ct, dptr, &dptr, &addr, limit)) {
+		pr_debug("ip: %s parse failed.!\n", dptr);
+		return 0;
+	}
+
+	return dptr - aux;
+}
+
 /* SDP header parsing: a SDP session description contains an ordered set of
  * headers, starting with a section containing general session parameters,
  * optionally followed by multiple media descriptions.
@@ -684,13 +743,18 @@ static int ct_sip_parse_transport(struct nf_conn *ct, const char *dptr,
  * be tolerant and also accept records terminated with a single newline
  * character". We handle both cases.
  */
-static const struct sip_header ct_sdp_hdrs[] = {
-	[SDP_HDR_VERSION]		= SDP_HDR("v=", NULL, digits_len),
-	[SDP_HDR_OWNER_IP4]		= SDP_HDR("o=", "IN IP4 ", epaddr_len),
-	[SDP_HDR_CONNECTION_IP4]	= SDP_HDR("c=", "IN IP4 ", epaddr_len),
-	[SDP_HDR_OWNER_IP6]		= SDP_HDR("o=", "IN IP6 ", epaddr_len),
-	[SDP_HDR_CONNECTION_IP6]	= SDP_HDR("c=", "IN IP6 ", epaddr_len),
-	[SDP_HDR_MEDIA]			= SDP_HDR("m=", NULL, media_len),
+static const struct sip_header ct_sdp_hdrs_v4[] = {
+	[SDP_HDR_VERSION]	= SDP_HDR("v=", NULL, digits_len),
+	[SDP_HDR_OWNER]		= SDP_HDR("o=", "IN IP4 ", sdp_addr_len),
+	[SDP_HDR_CONNECTION]	= SDP_HDR("c=", "IN IP4 ", sdp_addr_len),
+	[SDP_HDR_MEDIA]		= SDP_HDR("m=", NULL, media_len),
+};
+
+static const struct sip_header ct_sdp_hdrs_v6[] = {
+	[SDP_HDR_VERSION]	= SDP_HDR("v=", NULL, digits_len),
+	[SDP_HDR_OWNER]		= SDP_HDR("o=", "IN IP6 ", sdp_addr_len),
+	[SDP_HDR_CONNECTION]	= SDP_HDR("c=", "IN IP6 ", sdp_addr_len),
+	[SDP_HDR_MEDIA]		= SDP_HDR("m=", NULL, media_len),
 };
 
 /* Linear string search within SDP header values */
@@ -716,10 +780,13 @@ int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 			  enum sdp_header_types term,
 			  unsigned int *matchoff, unsigned int *matchlen)
 {
-	const struct sip_header *hdr = &ct_sdp_hdrs[type];
-	const struct sip_header *thdr = &ct_sdp_hdrs[term];
+	const struct sip_header *hdrs, *hdr, *thdr;
 	const char *start = dptr, *limit = dptr + datalen;
 	int shift = 0;
+
+	hdrs = nf_ct_l3num(ct) == NFPROTO_IPV4 ? ct_sdp_hdrs_v4 : ct_sdp_hdrs_v6;
+	hdr = &hdrs[type];
+	thdr = &hdrs[term];
 
 	for (dptr += dataoff; dptr < limit; dptr++) {
 		/* Find beginning of line */
@@ -775,8 +842,8 @@ static int ct_sip_parse_sdp_addr(const struct nf_conn *ct, const char *dptr,
 	if (ret <= 0)
 		return ret;
 
-	if (!parse_addr(ct, dptr + *matchoff, NULL, addr,
-			dptr + *matchoff + *matchlen))
+	if (!sdp_parse_addr(ct, dptr + *matchoff, NULL, addr,
+			    dptr + *matchoff + *matchlen))
 		return -1;
 	return 1;
 }
@@ -788,11 +855,11 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 	int found = 0;
 
 	spin_lock_bh(&nf_conntrack_lock);
-	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if (exp->class != SIP_EXPECT_SIGNALLING ||
 		    !nf_inet_addr_cmp(&exp->tuple.dst.u3, addr) ||
 		    exp->tuple.dst.protonum != proto ||
@@ -814,10 +881,10 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *n, *next;
+	struct hlist_node *next;
 
 	spin_lock_bh(&nf_conntrack_lock);
-	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
 		if ((exp->class != SIP_EXPECT_SIGNALLING) ^ media)
 			continue;
 		if (!del_timer(&exp->timeout))
@@ -830,7 +897,8 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	spin_unlock_bh(&nf_conntrack_lock);
 }
 
-static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
+static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
+				 unsigned int dataoff,
 				 const char **dptr, unsigned int *datalen,
 				 union nf_inet_addr *daddr, __be16 port,
 				 enum sip_expectation_classes class,
@@ -886,12 +954,12 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
 		    exp->class != class)
 			break;
 #ifdef CONFIG_NF_NAT_NEEDED
-		if (exp->tuple.src.l3num == AF_INET && !direct_rtp &&
-		    (exp->saved_ip != exp->tuple.dst.u3.ip ||
+		if (!direct_rtp &&
+		    (!nf_inet_addr_cmp(&exp->saved_addr, &exp->tuple.dst.u3) ||
 		     exp->saved_proto.udp.port != exp->tuple.dst.u.udp.port) &&
 		    ct->status & IPS_NAT_MASK) {
-			daddr->ip		= exp->saved_ip;
-			tuple.dst.u3.ip		= exp->saved_ip;
+			*daddr			= exp->saved_addr;
+			tuple.dst.u3		= exp->saved_addr;
 			tuple.dst.u.udp.port	= exp->saved_proto.udp.port;
 			direct_rtp = 1;
 		} else
@@ -907,7 +975,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
 	if (direct_rtp) {
 		nf_nat_sdp_port = rcu_dereference(nf_nat_sdp_port_hook);
 		if (nf_nat_sdp_port &&
-		    !nf_nat_sdp_port(skb, dataoff, dptr, datalen,
+		    !nf_nat_sdp_port(skb, protoff, dataoff, dptr, datalen,
 				     mediaoff, medialen, ntohs(rtp_port)))
 			goto err1;
 	}
@@ -929,7 +997,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
 	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK && !direct_rtp)
-		ret = nf_nat_sdp_media(skb, dataoff, dptr, datalen,
+		ret = nf_nat_sdp_media(skb, protoff, dataoff, dptr, datalen,
 				       rtp_exp, rtcp_exp,
 				       mediaoff, medialen, daddr);
 	else {
@@ -970,7 +1038,8 @@ static const struct sdp_media_type *sdp_media_type(const char *dptr,
 	return NULL;
 }
 
-static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
+static int process_sdp(struct sk_buff *skb, unsigned int protoff,
+		       unsigned int dataoff,
 		       const char **dptr, unsigned int *datalen,
 		       unsigned int cseq)
 {
@@ -983,15 +1052,12 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 	unsigned int i;
 	union nf_inet_addr caddr, maddr, rtp_addr;
 	unsigned int port;
-	enum sdp_header_types c_hdr;
 	const struct sdp_media_type *t;
 	int ret = NF_ACCEPT;
 	typeof(nf_nat_sdp_addr_hook) nf_nat_sdp_addr;
 	typeof(nf_nat_sdp_session_hook) nf_nat_sdp_session;
 
 	nf_nat_sdp_addr = rcu_dereference(nf_nat_sdp_addr_hook);
-	c_hdr = nf_ct_l3num(ct) == AF_INET ? SDP_HDR_CONNECTION_IP4 :
-					     SDP_HDR_CONNECTION_IP6;
 
 	/* Find beginning of session description */
 	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
@@ -1005,7 +1071,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 	 * the end of the session description. */
 	caddr_len = 0;
 	if (ct_sip_parse_sdp_addr(ct, *dptr, sdpoff, *datalen,
-				  c_hdr, SDP_HDR_MEDIA,
+				  SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 				  &matchoff, &matchlen, &caddr) > 0)
 		caddr_len = matchlen;
 
@@ -1029,34 +1095,45 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 		port = simple_strtoul(*dptr + mediaoff, NULL, 10);
 		if (port == 0)
 			continue;
-		if (port < 1024 || port > 65535)
+		if (port < 1024 || port > 65535) {
+			nf_ct_helper_log(skb, ct, "wrong port %u", port);
 			return NF_DROP;
+		}
 
 		/* The media description overrides the session description. */
 		maddr_len = 0;
 		if (ct_sip_parse_sdp_addr(ct, *dptr, mediaoff, *datalen,
-					  c_hdr, SDP_HDR_MEDIA,
+					  SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 					  &matchoff, &matchlen, &maddr) > 0) {
 			maddr_len = matchlen;
 			memcpy(&rtp_addr, &maddr, sizeof(rtp_addr));
 		} else if (caddr_len)
 			memcpy(&rtp_addr, &caddr, sizeof(rtp_addr));
-		else
+		else {
+			nf_ct_helper_log(skb, ct, "cannot parse SDP message");
 			return NF_DROP;
+		}
 
-		ret = set_expected_rtp_rtcp(skb, dataoff, dptr, datalen,
+		ret = set_expected_rtp_rtcp(skb, protoff, dataoff,
+					    dptr, datalen,
 					    &rtp_addr, htons(port), t->class,
 					    mediaoff, medialen);
-		if (ret != NF_ACCEPT)
+		if (ret != NF_ACCEPT) {
+			nf_ct_helper_log(skb, ct,
+					 "cannot add expectation for voice");
 			return ret;
+		}
 
 		/* Update media connection address if present */
 		if (maddr_len && nf_nat_sdp_addr && ct->status & IPS_NAT_MASK) {
-			ret = nf_nat_sdp_addr(skb, dataoff, dptr, datalen,
-					      mediaoff, c_hdr, SDP_HDR_MEDIA,
+			ret = nf_nat_sdp_addr(skb, protoff, dataoff,
+					      dptr, datalen, mediaoff,
+					      SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 					      &rtp_addr);
-			if (ret != NF_ACCEPT)
+			if (ret != NF_ACCEPT) {
+				nf_ct_helper_log(skb, ct, "cannot mangle SDP");
 				return ret;
+			}
 		}
 		i++;
 	}
@@ -1064,76 +1141,81 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 	/* Update session connection and owner addresses */
 	nf_nat_sdp_session = rcu_dereference(nf_nat_sdp_session_hook);
 	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sdp_session(skb, dataoff, dptr, datalen, sdpoff,
-					 &rtp_addr);
+		ret = nf_nat_sdp_session(skb, protoff, dataoff,
+					 dptr, datalen, sdpoff, &rtp_addr);
 
 	return ret;
 }
-static int process_invite_response(struct sk_buff *skb, unsigned int dataoff,
+static int process_invite_response(struct sk_buff *skb, unsigned int protoff,
+				   unsigned int dataoff,
 				   const char **dptr, unsigned int *datalen,
 				   unsigned int cseq, unsigned int code)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dataoff, dptr, datalen, cseq);
-	else if (help->help.ct_sip_info.invite_cseq == cseq)
+		return process_sdp(skb, protoff, dataoff, dptr, datalen, cseq);
+	else if (ct_sip_info->invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_update_response(struct sk_buff *skb, unsigned int dataoff,
+static int process_update_response(struct sk_buff *skb, unsigned int protoff,
+				   unsigned int dataoff,
 				   const char **dptr, unsigned int *datalen,
 				   unsigned int cseq, unsigned int code)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dataoff, dptr, datalen, cseq);
-	else if (help->help.ct_sip_info.invite_cseq == cseq)
+		return process_sdp(skb, protoff, dataoff, dptr, datalen, cseq);
+	else if (ct_sip_info->invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_prack_response(struct sk_buff *skb, unsigned int dataoff,
+static int process_prack_response(struct sk_buff *skb, unsigned int protoff,
+				  unsigned int dataoff,
 				  const char **dptr, unsigned int *datalen,
 				  unsigned int cseq, unsigned int code)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dataoff, dptr, datalen, cseq);
-	else if (help->help.ct_sip_info.invite_cseq == cseq)
+		return process_sdp(skb, protoff, dataoff, dptr, datalen, cseq);
+	else if (ct_sip_info->invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_invite_request(struct sk_buff *skb, unsigned int dataoff,
+static int process_invite_request(struct sk_buff *skb, unsigned int protoff,
+				  unsigned int dataoff,
 				  const char **dptr, unsigned int *datalen,
 				  unsigned int cseq)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 	unsigned int ret;
 
 	flush_expectations(ct, true);
-	ret = process_sdp(skb, dataoff, dptr, datalen, cseq);
+	ret = process_sdp(skb, protoff, dataoff, dptr, datalen, cseq);
 	if (ret == NF_ACCEPT)
-		help->help.ct_sip_info.invite_cseq = cseq;
+		ct_sip_info->invite_cseq = cseq;
 	return ret;
 }
 
-static int process_bye_request(struct sk_buff *skb, unsigned int dataoff,
+static int process_bye_request(struct sk_buff *skb, unsigned int protoff,
+			       unsigned int dataoff,
 			       const char **dptr, unsigned int *datalen,
 			       unsigned int cseq)
 {
@@ -1148,13 +1230,14 @@ static int process_bye_request(struct sk_buff *skb, unsigned int dataoff,
  * signalling connections. The expectation is marked inactive and is activated
  * when receiving a response indicating success from the registrar.
  */
-static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
+static int process_register_request(struct sk_buff *skb, unsigned int protoff,
+				    unsigned int dataoff,
 				    const char **dptr, unsigned int *datalen,
 				    unsigned int cseq)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned int matchoff, matchlen;
 	struct nf_conntrack_expect *exp;
@@ -1184,9 +1267,10 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 	ret = ct_sip_parse_header_uri(ct, *dptr, NULL, *datalen,
 				      SIP_HDR_CONTACT, NULL,
 				      &matchoff, &matchlen, &daddr, &port);
-	if (ret < 0)
+	if (ret < 0) {
+		nf_ct_helper_log(skb, ct, "cannot parse contact");
 		return NF_DROP;
-	else if (ret == 0)
+	} else if (ret == 0)
 		return NF_ACCEPT;
 
 	/* We don't support third-party registrations */
@@ -1199,8 +1283,10 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 
 	if (ct_sip_parse_numerical_param(ct, *dptr,
 					 matchoff + matchlen, *datalen,
-					 "expires=", NULL, NULL, &expires) < 0)
+					 "expires=", NULL, NULL, &expires) < 0) {
+		nf_ct_helper_log(skb, ct, "cannot parse expires");
 		return NF_DROP;
+	}
 
 	if (expires == 0) {
 		ret = NF_ACCEPT;
@@ -1208,8 +1294,10 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 	}
 
 	exp = nf_ct_expect_alloc(ct);
-	if (!exp)
+	if (!exp) {
+		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
 		return NF_DROP;
+	}
 
 	saddr = NULL;
 	if (sip_direct_signalling)
@@ -1223,29 +1311,31 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 
 	nf_nat_sip_expect = rcu_dereference(nf_nat_sip_expect_hook);
 	if (nf_nat_sip_expect && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sip_expect(skb, dataoff, dptr, datalen, exp,
-					matchoff, matchlen);
+		ret = nf_nat_sip_expect(skb, protoff, dataoff, dptr, datalen,
+					exp, matchoff, matchlen);
 	else {
-		if (nf_ct_expect_related(exp) != 0)
+		if (nf_ct_expect_related(exp) != 0) {
+			nf_ct_helper_log(skb, ct, "cannot add expectation");
 			ret = NF_DROP;
-		else
+		} else
 			ret = NF_ACCEPT;
 	}
 	nf_ct_expect_put(exp);
 
 store_cseq:
 	if (ret == NF_ACCEPT)
-		help->help.ct_sip_info.register_cseq = cseq;
+		ct_sip_info->register_cseq = cseq;
 	return ret;
 }
 
-static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
+static int process_register_response(struct sk_buff *skb, unsigned int protoff,
+				     unsigned int dataoff,
 				     const char **dptr, unsigned int *datalen,
 				     unsigned int cseq, unsigned int code)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	union nf_inet_addr addr;
 	__be16 port;
@@ -1262,7 +1352,7 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 	 * responses, so we store the sequence number of the last valid
 	 * request and compare it here.
 	 */
-	if (help->help.ct_sip_info.register_cseq != cseq)
+	if (ct_sip_info->register_cseq != cseq)
 		return NF_ACCEPT;
 
 	if (code >= 100 && code <= 199)
@@ -1281,9 +1371,10 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 					      SIP_HDR_CONTACT, &in_contact,
 					      &matchoff, &matchlen,
 					      &addr, &port);
-		if (ret < 0)
+		if (ret < 0) {
+			nf_ct_helper_log(skb, ct, "cannot parse contact");
 			return NF_DROP;
-		else if (ret == 0)
+		} else if (ret == 0)
 			break;
 
 		/* We don't support third-party registrations */
@@ -1298,8 +1389,10 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 						   matchoff + matchlen,
 						   *datalen, "expires=",
 						   NULL, NULL, &c_expires);
-		if (ret < 0)
+		if (ret < 0) {
+			nf_ct_helper_log(skb, ct, "cannot parse expires");
 			return NF_DROP;
+		}
 		if (c_expires == 0)
 			break;
 		if (refresh_signalling_expectation(ct, &addr, proto, port,
@@ -1321,7 +1414,8 @@ static const struct sip_handler sip_handlers[] = {
 	SIP_HANDLER("REGISTER", process_register_request, process_register_response),
 };
 
-static int process_sip_response(struct sk_buff *skb, unsigned int dataoff,
+static int process_sip_response(struct sk_buff *skb, unsigned int protoff,
+				unsigned int dataoff,
 				const char **dptr, unsigned int *datalen)
 {
 	enum ip_conntrack_info ctinfo;
@@ -1332,15 +1426,21 @@ static int process_sip_response(struct sk_buff *skb, unsigned int dataoff,
 	if (*datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
 	code = simple_strtoul(*dptr + strlen("SIP/2.0 "), NULL, 10);
-	if (!code)
+	if (!code) {
+		nf_ct_helper_log(skb, ct, "cannot get code");
 		return NF_DROP;
+	}
 
 	if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
-			      &matchoff, &matchlen) <= 0)
+			      &matchoff, &matchlen) <= 0) {
+		nf_ct_helper_log(skb, ct, "cannot parse cseq");
 		return NF_DROP;
+	}
 	cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
-	if (!cseq)
+	if (!cseq) {
+		nf_ct_helper_log(skb, ct, "cannot get cseq");
 		return NF_DROP;
+	}
 	matchend = matchoff + matchlen + 1;
 
 	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
@@ -1352,19 +1452,37 @@ static int process_sip_response(struct sk_buff *skb, unsigned int dataoff,
 		if (*datalen < matchend + handler->len ||
 		    strnicmp(*dptr + matchend, handler->method, handler->len))
 			continue;
-		return handler->response(skb, dataoff, dptr, datalen,
+		return handler->response(skb, protoff, dataoff, dptr, datalen,
 					 cseq, code);
 	}
 	return NF_ACCEPT;
 }
 
-static int process_sip_request(struct sk_buff *skb, unsigned int dataoff,
+static int process_sip_request(struct sk_buff *skb, unsigned int protoff,
+			       unsigned int dataoff,
 			       const char **dptr, unsigned int *datalen)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_ct_sip_master *ct_sip_info = nfct_help_data(ct);
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned int matchoff, matchlen;
 	unsigned int cseq, i;
+	union nf_inet_addr addr;
+	__be16 port;
+
+	/* Many Cisco IP phones use a high source port for SIP requests, but
+	 * listen for the response on port 5060.  If we are the local
+	 * router for one of these phones, save the port number from the
+	 * Via: header so that nf_nat_sip can redirect the responses to
+	 * the correct port.
+	 */
+	if (ct_sip_parse_header_uri(ct, *dptr, NULL, *datalen,
+				    SIP_HDR_VIA_UDP, NULL, &matchoff,
+				    &matchlen, &addr, &port) > 0 &&
+	    port != ct->tuplehash[dir].tuple.src.u.udp.port &&
+	    nf_inet_addr_cmp(&addr, &ct->tuplehash[dir].tuple.src.u3))
+		ct_sip_info->forced_dport = port;
 
 	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
 		const struct sip_handler *handler;
@@ -1377,33 +1495,41 @@ static int process_sip_request(struct sk_buff *skb, unsigned int dataoff,
 			continue;
 
 		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
-				      &matchoff, &matchlen) <= 0)
+				      &matchoff, &matchlen) <= 0) {
+			nf_ct_helper_log(skb, ct, "cannot parse cseq");
 			return NF_DROP;
+		}
 		cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
-		if (!cseq)
+		if (!cseq) {
+			nf_ct_helper_log(skb, ct, "cannot get cseq");
 			return NF_DROP;
+		}
 
-		return handler->request(skb, dataoff, dptr, datalen, cseq);
+		return handler->request(skb, protoff, dataoff, dptr, datalen,
+					cseq);
 	}
 	return NF_ACCEPT;
 }
 
 static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
-			   unsigned int dataoff, const char **dptr,
-			   unsigned int *datalen)
+			   unsigned int protoff, unsigned int dataoff,
+			   const char **dptr, unsigned int *datalen)
 {
 	typeof(nf_nat_sip_hook) nf_nat_sip;
 	int ret;
 
 	if (strnicmp(*dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
-		ret = process_sip_request(skb, dataoff, dptr, datalen);
+		ret = process_sip_request(skb, protoff, dataoff, dptr, datalen);
 	else
-		ret = process_sip_response(skb, dataoff, dptr, datalen);
+		ret = process_sip_response(skb, protoff, dataoff, dptr, datalen);
 
 	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
 		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
-		if (nf_nat_sip && !nf_nat_sip(skb, dataoff, dptr, datalen))
+		if (nf_nat_sip && !nf_nat_sip(skb, protoff, dataoff,
+					      dptr, datalen)) {
+			nf_ct_helper_log(skb, ct, "cannot NAT SIP message");
 			ret = NF_DROP;
+		}
 	}
 
 	return ret;
@@ -1468,9 +1594,11 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 
 		msglen = origlen = end - dptr;
 		if (msglen > datalen)
-			return NF_DROP;
+			return NF_ACCEPT;
 
-		ret = process_sip_msg(skb, ct, dataoff, &dptr, &msglen);
+		ret = process_sip_msg(skb, ct, protoff, dataoff,
+				      &dptr, &msglen);
+		/* process_sip_* functions report why this packet is dropped */
 		if (ret != NF_ACCEPT)
 			break;
 		diff     = msglen - origlen;
@@ -1484,7 +1612,7 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
 		nf_nat_sip_seq_adjust = rcu_dereference(nf_nat_sip_seq_adjust_hook);
 		if (nf_nat_sip_seq_adjust)
-			nf_nat_sip_seq_adjust(skb, tdiff);
+			nf_nat_sip_seq_adjust(skb, protoff, tdiff);
 	}
 
 	return ret;
@@ -1511,11 +1639,10 @@ static int sip_help_udp(struct sk_buff *skb, unsigned int protoff,
 	if (datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
 
-	return process_sip_msg(skb, ct, dataoff, &dptr, &datalen);
+	return process_sip_msg(skb, ct, protoff, dataoff, &dptr, &datalen);
 }
 
 static struct nf_conntrack_helper sip[MAX_PORTS][4] __read_mostly;
-static char sip_names[MAX_PORTS][4][sizeof("sip-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1] = {
 	[SIP_EXPECT_SIGNALLING] = {
@@ -1556,7 +1683,6 @@ static void nf_conntrack_sip_fini(void)
 static int __init nf_conntrack_sip_init(void)
 {
 	int i, j, ret;
-	char *tmpname;
 
 	if (ports_c == 0)
 		ports[ports_c++] = SIP_PORT;
@@ -1579,17 +1705,16 @@ static int __init nf_conntrack_sip_init(void)
 		sip[i][3].help = sip_help_tcp;
 
 		for (j = 0; j < ARRAY_SIZE(sip[i]); j++) {
+			sip[i][j].data_len = sizeof(struct nf_ct_sip_master);
 			sip[i][j].tuple.src.u.udp.port = htons(ports[i]);
 			sip[i][j].expect_policy = sip_exp_policy;
 			sip[i][j].expect_class_max = SIP_EXPECT_MAX;
 			sip[i][j].me = THIS_MODULE;
 
-			tmpname = &sip_names[i][j][0];
 			if (ports[i] == SIP_PORT)
-				sprintf(tmpname, "sip");
+				sprintf(sip[i][j].name, "sip");
 			else
-				sprintf(tmpname, "sip-%u", i);
-			sip[i][j].name = tmpname;
+				sprintf(sip[i][j].name, "sip-%u", i);
 
 			pr_debug("port #%u: %u\n", i, ports[i]);
 

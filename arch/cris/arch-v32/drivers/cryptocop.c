@@ -16,7 +16,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -1394,11 +1394,10 @@ static int create_md5_pad(int alloc_flag, unsigned long long hashed_length, char
 
 	if (padlen < MD5_MIN_PAD_LENGTH) padlen += MD5_BLOCK_LENGTH;
 
-	p = kmalloc(padlen, alloc_flag);
+	p = kzalloc(padlen, alloc_flag);
 	if (!p) return -ENOMEM;
 
 	*p = 0x80;
-	memset(p+1, 0, padlen - 1);
 
 	DEBUG(printk("create_md5_pad: hashed_length=%lld bits == %lld bytes\n", bit_length, hashed_length));
 
@@ -1426,11 +1425,10 @@ static int create_sha1_pad(int alloc_flag, unsigned long long hashed_length, cha
 
 	if (padlen < SHA1_MIN_PAD_LENGTH) padlen += SHA1_BLOCK_LENGTH;
 
-	p = kmalloc(padlen, alloc_flag);
+	p = kzalloc(padlen, alloc_flag);
 	if (!p) return -ENOMEM;
 
 	*p = 0x80;
-	memset(p+1, 0, padlen - 1);
 
 	DEBUG(printk("create_sha1_pad: hashed_length=%lld bits == %lld bytes\n", bit_length, hashed_length));
 
@@ -3137,11 +3135,10 @@ static long cryptocop_ioctl_unlocked(struct inode *inode,
 static long
 cryptocop_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-       struct inode *inode = file->f_path.dentry->d_inode;
        long ret;
 
        mutex_lock(&cryptocop_mutex);
-       ret = cryptocop_ioctl_unlocked(inode, filp, cmd, arg);
+       ret = cryptocop_ioctl_unlocked(file_inode(filp), filp, cmd, arg);
        mutex_unlock(&cryptocop_mutex);
 
        return ret;

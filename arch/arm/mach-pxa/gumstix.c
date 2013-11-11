@@ -41,7 +41,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa25x.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
 #include <mach/gumstix.h>
 
@@ -106,7 +106,7 @@ static void __init gumstix_mmc_init(void)
 }
 #endif
 
-#ifdef CONFIG_USB_GADGET_PXA25X
+#ifdef CONFIG_USB_PXA25X
 static struct gpio_vbus_mach_info gumstix_udc_info = {
 	.gpio_vbus		= GPIO_GUMSTIX_USB_GPIOn,
 	.gpio_pullup		= GPIO_GUMSTIX_USB_GPIOx,
@@ -233,9 +233,12 @@ static void __init gumstix_init(void)
 }
 
 MACHINE_START(GUMSTIX, "Gumstix")
-	.boot_params	= 0xa0000100, /* match u-boot bi_boot_params */
+	.atag_offset	= 0x100, /* match u-boot bi_boot_params */
 	.map_io		= pxa25x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
-	.timer		= &pxa_timer,
+	.handle_irq	= pxa25x_handle_irq,
+	.init_time	= pxa_timer_init,
 	.init_machine	= gumstix_init,
+	.restart	= pxa_restart,
 MACHINE_END

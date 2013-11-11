@@ -1,0 +1,66 @@
+    <refentry>
+      <refmeta>
+	<refentrytitle>V4L2_PIX_FMT_NV12MT ('TM12')</refentrytitle>
+	&manvol;
+      </refmeta>
+      <refnamediv>
+	<refname id="V4L2-PIX-FMT-NV12MT"><constant>V4L2_PIX_FMT_NV12MT
+</constant></refname>
+	<refpurpose>Formats with &frac12; horizontal and vertical
+chroma resolution. This format has two planes - one for luminance and one for
+chrominance. Chroma samples are interleaved. The difference to
+<constant>V4L2_PIX_FMT_NV12</constant> is the memory layout. Pixels are
+grouped in macroblocks of 64x32 size. The order of macroblocks in memory is
+also not standard.
+	</refpurpose>
+      </refnamediv>
+      <refsect1>
+	<title>Description</title>
+
+	<para>This is the two-plane versions of the YUV 4:2:0 format where data
+is grouped into 64x32 macroblocks. The three components are separated into two
+sub-images or planes. The Y plane has one byte per pixel and pixels are grouped
+into 64x32 macroblocks. The CbCr plane has the same width, in bytes, as the Y
+plane (and the image), but is half as tall in pixels. The chroma plane is also
+grouped into 64x32 macroblocks.</para>
+	<para>Width of the buffer has to be aligned to the multiple of 128, and
+height alignment is 32. Every four adjactent buffers - two horizontally and two
+vertically are grouped together and are located in memory in Z or flipped Z
+order. </para>
+	<para>Layout of macroblocks in memory is presented in the following
+figure.</para>
+	<para><figure id="nv12mt">
+	    <title><constant>V4L2_PIX_FMT_NV12MT</constant> macroblock Z shape
+memory layout</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="nv12mt.gif" format="GIF" />
+	      </imageobject>
+	    </mediaobject>
+	</figure>
+	The requirement that width is multiple of 128 is implemented because,
+the Z shape cannot be cut in half horizontally. In case the vertical resolution
+of macroblocks is odd then the last row of macroblocks is arranged in a linear
+order.  </para>
+	<para>In case of chroma the layout is identical. Cb and Cr samples are
+interleaved. Height of the buffer is aligned to 32.
+	</para>
+	<example>
+	  <title>Memory layout of macroblocks in <constant>V4L2_PIX_FMT_NV12
+</constant> format pixel image - extreme case</title>
+	<para>
+	<figure id="nv12mt_ex">
+	    <title>Example <constant>V4L2_PIX_FMT_NV12MT</constant> memory
+layout of macroblocks</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="nv12mt_example.gif" format="GIF" />
+	      </imageobject>
+	    </mediaobject>
+	</figure>
+	Memory layout of macroblocks of <constant>V4L2_PIX_FMT_NV12MT
+</constant> format in most extreme case.
+	</para>
+	</example>
+      </refsect1>
+    </refentry>

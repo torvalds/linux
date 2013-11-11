@@ -13,7 +13,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <scsi/scsi_host.h>
@@ -107,25 +106,7 @@ static struct iscsi_transport cxgb4i_iscsi_transport = {
 	.caps		= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST |
 				CAP_DATADGST | CAP_DIGEST_OFFLOAD |
 				CAP_PADDING_OFFLOAD | CAP_TEXT_NEGO,
-	.param_mask	= ISCSI_MAX_RECV_DLENGTH | ISCSI_MAX_XMIT_DLENGTH |
-				ISCSI_HDRDGST_EN | ISCSI_DATADGST_EN |
-				ISCSI_INITIAL_R2T_EN | ISCSI_MAX_R2T |
-				ISCSI_IMM_DATA_EN | ISCSI_FIRST_BURST |
-				ISCSI_MAX_BURST | ISCSI_PDU_INORDER_EN |
-				ISCSI_DATASEQ_INORDER_EN | ISCSI_ERL |
-				ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
-				ISCSI_EXP_STATSN | ISCSI_PERSISTENT_PORT |
-				ISCSI_PERSISTENT_ADDRESS |
-				ISCSI_TARGET_NAME | ISCSI_TPGT |
-				ISCSI_USERNAME | ISCSI_PASSWORD |
-				ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
-				ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-				ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
-				ISCSI_PING_TMO | ISCSI_RECV_TMO |
-				ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				ISCSI_HOST_INITIATOR_NAME |
-				ISCSI_HOST_NETDEV_NAME,
+	.attr_is_visible	= cxgbi_attr_is_visible,
 	.get_host_param	= cxgbi_get_host_param,
 	.set_host_param	= cxgbi_set_host_param,
 	/* session management */
@@ -457,8 +438,8 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 	if (submode)
 		wr_ulp_mode = FW_OFLD_TX_DATA_WR_ULPMODE(ULP2_MODE_ISCSI) |
 				FW_OFLD_TX_DATA_WR_ULPSUBMODE(submode);
-	req->tunnel_to_proxy = htonl(wr_ulp_mode) |
-		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1);
+	req->tunnel_to_proxy = htonl(wr_ulp_mode |
+		 FW_OFLD_TX_DATA_WR_SHOVE(skb_peek(&csk->write_queue) ? 0 : 1));
 	req->plen = htonl(len);
 	if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT))
 		cxgbi_sock_set_flag(csk, CTPF_TX_DATA_SENT);
@@ -1146,6 +1127,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	struct net_device *ndev = cdev->ports[csk->port_id];
 	struct port_info *pi = netdev_priv(ndev);
 	struct sk_buff *skb = NULL;
+	struct neighbour *n;
 	unsigned int step;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
@@ -1160,7 +1142,12 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
-	csk->l2t = cxgb4_l2t_get(lldi->l2t, csk->dst->neighbour, ndev, 0);
+	n = dst_neigh_lookup(csk->dst, &csk->daddr.sin_addr.s_addr);
+	if (!n) {
+		pr_err("%s, can't get neighbour of csk->dst.\n", ndev->name);
+		goto rel_resource;
+	}
+	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
 	if (!csk->l2t) {
 		pr_err("%s, cannot alloc l2t.\n", ndev->name);
 		goto rel_resource;
@@ -1195,9 +1182,12 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	cxgbi_sock_set_state(csk, CTP_ACTIVE_OPEN);
 	send_act_open_req(csk, skb, csk->l2t);
+	neigh_release(n);
 	return 0;
 
 rel_resource:
+	if (n)
+		neigh_release(n);
 	if (skb)
 		__kfree_skb(skb);
 	return -EINVAL;
@@ -1574,6 +1564,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 		break;
 	case CXGB4_STATE_DETACH:
 		pr_info("cdev 0x%p, DETACH.\n", cdev);
+		cxgbi_device_unregister(cdev);
 		break;
 	default:
 		pr_info("cdev 0x%p, unknown state %d.\n", cdev, state);

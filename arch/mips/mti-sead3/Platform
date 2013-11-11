@@ -1,0 +1,7 @@
+#
+# MIPS SEAD-3 board
+#
+platform-$(CONFIG_MIPS_SEAD3)	+= mti-sead3/
+cflags-$(CONFIG_MIPS_SEAD3)	+= -I$(srctree)/arch/mips/include/asm/mach-sead3
+load-$(CONFIG_MIPS_SEAD3)	+= 0xffffffff80100000
+all-$(CONFIG_MIPS_SEAD3)	:= $(COMPRESSION_FNAME).srec

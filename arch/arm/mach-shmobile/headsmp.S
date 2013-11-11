@@ -14,7 +14,12 @@
 #include <linux/init.h>
 #include <asm/memory.h>
 
-	__INIT
+	__CPUINIT
+
+ENTRY(shmobile_invalidate_start)
+	bl	v7_invalidate_l1
+	b	secondary_startup
+ENDPROC(shmobile_invalidate_start)
 
 /*
  * Reset vector for secondary CPUs.
@@ -24,4 +29,5 @@
 	.align  12
 ENTRY(shmobile_secondary_vector)
 	ldr     pc, 1f
-1:	.long   secondary_startup - PAGE_OFFSET + PLAT_PHYS_OFFSET
+1:	.long   shmobile_invalidate_start - PAGE_OFFSET + PLAT_PHYS_OFFSET
+ENDPROC(shmobile_secondary_vector)

@@ -4,6 +4,7 @@
 #include <linux/io.h>
 #include <linux/atmel_pwm.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 
 struct pwmled {
@@ -34,7 +35,7 @@ static void pwmled_brightness(struct led_classdev *cdev, enum led_brightness b)
  * NOTE:  we reuse the platform_data structure of GPIO leds,
  * but repurpose its "gpio" number as a PWM channel number.
  */
-static int __init pwmled_probe(struct platform_device *pdev)
+static int pwmled_probe(struct platform_device *pdev)
 {
 	const struct gpio_led_platform_data	*pdata;
 	struct pwmled				*leds;
@@ -45,7 +46,8 @@ static int __init pwmled_probe(struct platform_device *pdev)
 	if (!pdata || pdata->num_leds < 1)
 		return -ENODEV;
 
-	leds = kcalloc(pdata->num_leds, sizeof(*leds), GFP_KERNEL);
+	leds = devm_kzalloc(&pdev->dev, pdata->num_leds * sizeof(*leds),
+			GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
@@ -107,12 +109,11 @@ err:
 			pwm_channel_free(&leds[i].pwmc);
 		}
 	}
-	kfree(leds);
 
 	return status;
 }
 
-static int __exit pwmled_remove(struct platform_device *pdev)
+static int pwmled_remove(struct platform_device *pdev)
 {
 	const struct gpio_led_platform_data	*pdata;
 	struct pwmled				*leds;
@@ -128,13 +129,9 @@ static int __exit pwmled_remove(struct platform_device *pdev)
 		pwm_channel_free(&led->pwmc);
 	}
 
-	kfree(leds);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:leds-atmel-pwm");
 
 static struct platform_driver pwmled_driver = {
 	.driver = {
@@ -142,20 +139,12 @@ static struct platform_driver pwmled_driver = {
 		.owner =	THIS_MODULE,
 	},
 	/* REVISIT add suspend() and resume() methods */
-	.remove =	__exit_p(pwmled_remove),
+	.probe =	pwmled_probe,
+	.remove =	pwmled_remove,
 };
 
-static int __init modinit(void)
-{
-	return platform_driver_probe(&pwmled_driver, pwmled_probe);
-}
-module_init(modinit);
-
-static void __exit modexit(void)
-{
-	platform_driver_unregister(&pwmled_driver);
-}
-module_exit(modexit);
+module_platform_driver(pwmled_driver);
 
 MODULE_DESCRIPTION("Driver for LEDs with PWM-controlled brightness");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-atmel-pwm");

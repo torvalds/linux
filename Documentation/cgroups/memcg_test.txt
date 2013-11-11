@@ -399,8 +399,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
  9.10 Memory thresholds
 	Memory controller implements memory thresholds using cgroups notification
-	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
-	it.
+	API. You can use tools/cgroup/cgroup_event_listener.c to test it.
 
 	(Shell-A) Create cgroup and run event listener
 	# mkdir /cgroup/A

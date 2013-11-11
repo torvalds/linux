@@ -1,0 +1,80 @@
+Device tree bindings for GPMC connected NANDs
+
+GPMC connected NAND (found on OMAP boards) are represented as child nodes of
+the GPMC controller with a name of "nand".
+
+All timing relevant properties as well as generic gpmc child properties are
+explained in a separate documents - please refer to
+Documentation/devicetree/bindings/bus/ti-gpmc.txt
+
+For NAND specific properties such as ECC modes or bus width, please refer to
+Documentation/devicetree/bindings/mtd/nand.txt
+
+
+Required properties:
+
+ - reg:		The CS line the peripheral is connected to
+
+Optional properties:
+
+ - nand-bus-width: 		Set this numeric value to 16 if the hardware
+				is wired that way. If not specified, a bus
+				width of 8 is assumed.
+
+ - ti,nand-ecc-opt:		A string setting the ECC layout to use. One of:
+
+		"sw"		Software method (default)
+		"hw"		Hardware method
+		"hw-romcode"	gpmc hamming mode method & romcode layout
+		"bch4"		4-bit BCH ecc code
+		"bch8"		8-bit BCH ecc code
+
+ - elm_id:	Specifies elm device node. This is required to support BCH
+ 		error correction using ELM module.
+
+For inline partiton table parsing (optional):
+
+ - #address-cells: should be set to 1
+ - #size-cells: should be set to 1
+
+Example for an AM33xx board:
+
+	gpmc: gpmc@50000000 {
+		compatible = "ti,am3352-gpmc";
+		ti,hwmods = "gpmc";
+		reg = <0x50000000 0x1000000>;
+		interrupts = <100>;
+		gpmc,num-cs = <8>;
+		gpmc,num-waitpins = <2>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0x08000000 0x2000>;	/* CS0: NAND */
+		elm_id = <&elm>;
+
+		nand@0,0 {
+			reg = <0 0 0>; /* CS0, offset 0 */
+			nand-bus-width = <16>;
+			ti,nand-ecc-opt = "bch8";
+
+			gpmc,sync-clk-ps = <0>;
+			gpmc,cs-on-ns = <0>;
+			gpmc,cs-rd-off-ns = <44>;
+			gpmc,cs-wr-off-ns = <44>;
+			gpmc,adv-on-ns = <6>;
+			gpmc,adv-rd-off-ns = <34>;
+			gpmc,adv-wr-off-ns = <44>;
+			gpmc,we-off-ns = <40>;
+			gpmc,oe-off-ns = <54>;
+			gpmc,access-ns = <64>;
+			gpmc,rd-cycle-ns = <82>;
+			gpmc,wr-cycle-ns = <82>;
+			gpmc,wr-access-ns = <40>;
+			gpmc,wr-data-mux-bus-ns = <0>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* partitions go here */
+		};
+	};
+

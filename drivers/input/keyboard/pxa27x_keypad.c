@@ -32,7 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 /*
  * Keypad Controller registers
  */
@@ -311,7 +311,15 @@ static void pxa27x_keypad_scan_direct(struct pxa27x_keypad *keypad)
 	if (pdata->enable_rotary0 || pdata->enable_rotary1)
 		pxa27x_keypad_scan_rotary(keypad);
 
-	new_state = KPDK_DK(kpdk) & keypad->direct_key_mask;
+	/*
+	 * The KPDR_DK only output the key pin level, so it relates to board,
+	 * and low level may be active.
+	 */
+	if (pdata->direct_key_low_active)
+		new_state = ~KPDK_DK(kpdk) & keypad->direct_key_mask;
+	else
+		new_state = KPDK_DK(kpdk) & keypad->direct_key_mask;
+
 	bits_changed = keypad->direct_key_state ^ new_state;
 
 	if (bits_changed == 0)
@@ -360,6 +368,9 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 	unsigned int mask = 0, direct_key_num = 0;
 	unsigned long kpc = 0;
 
+	/* clear pending interrupt bit */
+	keypad_readl(KPC);
+
 	/* enable matrix keys with automatic scan */
 	if (pdata->matrix_key_rows && pdata->matrix_key_cols) {
 		kpc |= KPC_ASACT | KPC_MIE | KPC_ME | KPC_MS_ALL;
@@ -383,7 +394,14 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 	if (pdata->direct_key_num > direct_key_num)
 		direct_key_num = pdata->direct_key_num;
 
-	keypad->direct_key_mask = ((2 << direct_key_num) - 1) & ~mask;
+	/*
+	 * Direct keys usage may not start from KP_DKIN0, check the platfrom
+	 * mask data to config the specific.
+	 */
+	if (pdata->direct_key_mask)
+		keypad->direct_key_mask = pdata->direct_key_mask;
+	else
+		keypad->direct_key_mask = ((1 << direct_key_num) - 1) & ~mask;
 
 	/* enable direct key */
 	if (direct_key_num)
@@ -399,7 +417,7 @@ static int pxa27x_keypad_open(struct input_dev *dev)
 	struct pxa27x_keypad *keypad = input_get_drvdata(dev);
 
 	/* Enable unit clock */
-	clk_enable(keypad->clk);
+	clk_prepare_enable(keypad->clk);
 	pxa27x_keypad_config(keypad);
 
 	return 0;
@@ -410,7 +428,7 @@ static void pxa27x_keypad_close(struct input_dev *dev)
 	struct pxa27x_keypad *keypad = input_get_drvdata(dev);
 
 	/* Disable clock unit */
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
 }
 
 #ifdef CONFIG_PM
@@ -419,10 +437,14 @@ static int pxa27x_keypad_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 
-	clk_disable(keypad->clk);
-
+	/*
+	 * If the keypad is used a wake up source, clock can not be disabled.
+	 * Or it can not detect the key pressing.
+	 */
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(keypad->irq);
+	else
+		clk_disable_unprepare(keypad->clk);
 
 	return 0;
 }
@@ -433,18 +455,23 @@ static int pxa27x_keypad_resume(struct device *dev)
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
 
-	if (device_may_wakeup(&pdev->dev))
+	/*
+	 * If the keypad is used as wake up source, the clock is not turned
+	 * off. So do not need configure it again.
+	 */
+	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(keypad->irq);
+	} else {
+		mutex_lock(&input_dev->mutex);
 
-	mutex_lock(&input_dev->mutex);
+		if (input_dev->users) {
+			/* Enable unit clock */
+			clk_prepare_enable(keypad->clk);
+			pxa27x_keypad_config(keypad);
+		}
 
-	if (input_dev->users) {
-		/* Enable unit clock */
-		clk_enable(keypad->clk);
-		pxa27x_keypad_config(keypad);
+		mutex_unlock(&input_dev->mutex);
 	}
-
-	mutex_unlock(&input_dev->mutex);
 
 	return 0;
 }
@@ -455,7 +482,7 @@ static const struct dev_pm_ops pxa27x_keypad_pm_ops = {
 };
 #endif
 
-static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
+static int pxa27x_keypad_probe(struct platform_device *pdev)
 {
 	struct pxa27x_keypad_platform_data *pdata = pdev->dev.platform_data;
 	struct pxa27x_keypad *keypad;
@@ -535,7 +562,7 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 		input_dev->evbit[0] |= BIT_MASK(EV_REL);
 	}
 
-	error = request_irq(irq, pxa27x_keypad_irq_handler, IRQF_DISABLED,
+	error = request_irq(irq, pxa27x_keypad_irq_handler, 0,
 			    pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
@@ -568,7 +595,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
+static int pxa27x_keypad_remove(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -593,7 +620,7 @@ MODULE_ALIAS("platform:pxa27x-keypad");
 
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
-	.remove		= __devexit_p(pxa27x_keypad_remove),
+	.remove		= pxa27x_keypad_remove,
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.owner	= THIS_MODULE,
@@ -602,19 +629,7 @@ static struct platform_driver pxa27x_keypad_driver = {
 #endif
 	},
 };
-
-static int __init pxa27x_keypad_init(void)
-{
-	return platform_driver_register(&pxa27x_keypad_driver);
-}
-
-static void __exit pxa27x_keypad_exit(void)
-{
-	platform_driver_unregister(&pxa27x_keypad_driver);
-}
-
-module_init(pxa27x_keypad_init);
-module_exit(pxa27x_keypad_exit);
+module_platform_driver(pxa27x_keypad_driver);
 
 MODULE_DESCRIPTION("PXA27x Keypad Controller Driver");
 MODULE_LICENSE("GPL");

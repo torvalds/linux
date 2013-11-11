@@ -89,18 +89,6 @@ Licence: Allegedly GPLv2+, but no source visible. Marked:
   Copyright (C) 2001 Qlogic Corporation (www.qlogic.com)
 
 --------------------------------------------------------------------------
-Driver: smctr -- SMC ISA/MCA Token Ring adapter
-
-File: tr_smctr.bin
-Info: MCT.BIN v6.3C1 03/01/95
-
-Original licence info:
-
- * This firmware is licensed to you strictly for use in conjunction
- * with the use of SMC TokenRing adapters. There is no waranty
- * expressed or implied about its fitness for any purpose.
-
---------------------------------------------------------------------------
 
 Driver: kaweth -- USB KLSI KL5USB101-based Ethernet device
 
@@ -562,32 +550,6 @@ File: yam/9600.bin
 
 Licence:
  * (C) F6FBB 1998
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
-Driver: 3C359 - 3Com 3C359 Token Link Velocity XL adapter
-
-File: 3com/3C359.bin
-
-Licence:
-/*
- * The firmware this driver downloads into the tokenring card is a
- * separate program and is not GPL'd source code, even though the Linux
- * side driver and the routine that loads this data into the card are.
- *
- * This firmware is licensed to you strictly for use in conjunction
- * with the use of 3Com 3C359 TokenRing adapters. There is no
- * waranty expressed or implied about its fitness for any purpose.
- */
-/* 3c359_microcode.mac: 3Com 3C359 Tokenring microcode.
- *
- * Notes:
- *  - Loaded from xl_init upon adapter initialization.
- *
- * Available from 3Com as part of their standard 3C359 driver.
- */
 
 Found in hex form in kernel source.
 

@@ -53,7 +53,6 @@
 #include <linux/gfp.h>
 
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include "scsi.h"
@@ -107,33 +106,14 @@ static inline dma_addr_t ecb_cpu_to_dma (struct Scsi_Host *host, void *cpu)
 	return hdata->ecb_dma_addr + offset;
 }
 
-static int aha1740_proc_info(struct Scsi_Host *shpnt, char *buffer,
-			     char **start, off_t offset,
-			     int length, int inout)
+static int aha1740_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 {
-	int len;
-	struct aha1740_hostdata *host;
-
-	if (inout)
-		return-ENOSYS;
-
-	host = HOSTDATA(shpnt);
-
-	len = sprintf(buffer, "aha174x at IO:%lx, IRQ %d, SLOT %d.\n"
+	struct aha1740_hostdata *host = HOSTDATA(shpnt);
+	seq_printf(m, "aha174x at IO:%lx, IRQ %d, SLOT %d.\n"
 		      "Extended translation %sabled.\n",
 		      shpnt->io_port, shpnt->irq, host->edev->slot,
 		      host->translation ? "en" : "dis");
-
-	if (offset > len) {
-		*start = buffer;
-		return 0;
-	}
-
-	*start = buffer + offset;
-	len -= offset;
-	if (len > length)
-		len = length;
-	return len;
+	return 0;
 }
 
 static int aha1740_makecode(unchar *sense, unchar *status)
@@ -557,7 +537,7 @@ static int aha1740_eh_abort_handler (Scsi_Cmnd *dummy)
 static struct scsi_host_template aha1740_template = {
 	.module           = THIS_MODULE,
 	.proc_name        = "aha1740",
-	.proc_info        = aha1740_proc_info,
+	.show_info        = aha1740_show_info,
 	.name             = "Adaptec 174x (EISA)",
 	.queuecommand     = aha1740_queuecommand,
 	.bios_param       = aha1740_biosparam,
@@ -647,7 +627,7 @@ static int aha1740_probe (struct device *dev)
 	return -ENODEV;
 }
 
-static __devexit int aha1740_remove (struct device *dev)
+static int aha1740_remove (struct device *dev)
 {
 	struct Scsi_Host *shpnt = dev_get_drvdata(dev);
 	struct aha1740_hostdata *host = HOSTDATA (shpnt);
@@ -678,7 +658,7 @@ static struct eisa_driver aha1740_driver = {
 	.driver   = {
 		.name    = "aha1740",
 		.probe   = aha1740_probe,
-		.remove  = __devexit_p (aha1740_remove),
+		.remove  = aha1740_remove,
 	},
 };
 

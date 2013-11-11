@@ -62,6 +62,7 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -81,11 +82,9 @@
 #define CONFIG_USB_SERIAL_SAFE_PADDED 0
 #endif
 
-static int debug;
-static int safe = 1;
-static int padded = CONFIG_USB_SERIAL_SAFE_PADDED;
+static bool safe = 1;
+static bool padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
-#define DRIVER_VERSION "v0.1"
 #define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB Safe Encapsulated Serial"
 
@@ -99,9 +98,6 @@ module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified USB idVendor (required)");
 module_param(product, ushort, 0);
 MODULE_PARM_DESC(product, "User specified USB idProduct (required)");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 module_param(safe, bool, 0);
 MODULE_PARM_DESC(safe, "Turn Safe Encapsulation On/Off");
@@ -150,14 +146,6 @@ static struct usb_device_id id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver safe_driver = {
-	.name =		"safe_serial",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-	.no_dynamic_id = 	1,
-};
 
 static const __u16 crc10_table[256] = {
 	0x000, 0x233, 0x255, 0x066, 0x299, 0x0aa, 0x0cc, 0x2ff,
@@ -219,14 +207,9 @@ static void safe_process_read_urb(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
 	int actual_length;
-	struct tty_struct *tty;
 	__u16 fcs;
 
 	if (!length)
-		return;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
 		return;
 
 	if (!safe)
@@ -235,22 +218,20 @@ static void safe_process_read_urb(struct urb *urb)
 	fcs = fcs_compute10(data, length, CRC10_INITFCS);
 	if (fcs) {
 		dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
-		goto err;
+		return;
 	}
 
 	actual_length = data[length - 2] >> 2;
 	if (actual_length > (length - 2)) {
 		dev_err(&port->dev, "%s - inconsistent lengths %d:%d\n",
 				__func__, actual_length, length);
-		goto err;
+		return;
 	}
 	dev_info(&urb->dev->dev, "%s - actual: %d\n", __func__, actual_length);
 	length = actual_length;
 out:
-	tty_insert_flip_string(tty, data, length);
-	tty_flip_buffer_push(tty);
-err:
-	tty_kref_put(tty);
+	tty_insert_flip_string(&port->port, data, length);
+	tty_flip_buffer_push(&port->port);
 }
 
 static int safe_prepare_write_buffer(struct usb_serial_port *port,
@@ -309,24 +290,23 @@ static struct usb_serial_driver safe_device = {
 		.name =		"safe_serial",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&safe_driver,
 	.num_ports =		1,
 	.process_read_urb =	safe_process_read_urb,
 	.prepare_write_buffer =	safe_prepare_write_buffer,
 	.attach =		safe_startup,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&safe_device, NULL
+};
+
 static int __init safe_init(void)
 {
-	int i, retval;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
+	int i;
 
 	/* if we have vendor / product parameters patch them into id list */
 	if (vendor || product) {
-		printk(KERN_INFO KBUILD_MODNAME ": vendor: %x product: %x\n",
-		       vendor, product);
+		pr_info("vendor: %x product: %x\n", vendor, product);
 
 		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {
@@ -337,24 +317,12 @@ static int __init safe_init(void)
 		}
 	}
 
-	retval = usb_serial_register(&safe_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&safe_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&safe_device);
-failed_usb_serial_register:
-	return retval;
+	return usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, id_table);
 }
 
 static void __exit safe_exit(void)
 {
-	usb_deregister(&safe_driver);
-	usb_serial_deregister(&safe_device);
+	usb_serial_deregister_drivers(serial_drivers);
 }
 
 module_init(safe_init);

@@ -1092,7 +1092,7 @@ static const unsigned char fontdata_mini_4x6[FONTDATAMAX] = {
 	/*{*/ 	/*   Char 124: '|' */
 	0x44,	/*=   [ *  ]        */
 	0x44,	/*=   [ *  ]        */
-	0x00,	/*=   [    ]        */
+	0x44,	/*=   [ *  ]        */
 	0x44,	/*=   [ *  ]        */
 	0x44,	/*=   [ *  ]        */
 	0x00,	/*=   [    ]        */

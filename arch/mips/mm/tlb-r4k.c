@@ -13,12 +13,13 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
+#include <asm/tlbmisc.h>
 
 extern void build_tlb_refill_handler(void);
 
@@ -94,6 +95,7 @@ void local_flush_tlb_all(void)
 	FLUSH_ITLB;
 	EXIT_CRITICAL(flags);
 }
+EXPORT_SYMBOL(local_flush_tlb_all);
 
 /* All entries common to a mm share an asid.  To effectively flush
    these entries, we just bump the asid. */
@@ -122,15 +124,13 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		unsigned long size, flags;
 
 		ENTER_CRITICAL(flags);
-		size = (end - start + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-		size = (size + 1) >> 1;
+		start = round_down(start, PAGE_SIZE << 1);
+		end = round_up(end, PAGE_SIZE << 1);
+		size = (end - start) >> (PAGE_SHIFT + 1);
 		if (size <= current_cpu_data.tlbsize/2) {
 			int oldpid = read_c0_entryhi();
 			int newpid = cpu_asid(cpu, mm);
 
-			start &= (PAGE_MASK << 1);
-			end += ((PAGE_SIZE << 1) - 1);
-			end &= (PAGE_MASK << 1);
 			while (start < end) {
 				int idx;
 
@@ -297,7 +297,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	pudp = pud_offset(pgdp, address);
 	pmdp = pmd_offset(pudp, address);
 	idx = read_c0_index();
-#ifdef CONFIG_HUGETLB_PAGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	/* this could be a huge page  */
 	if (pmd_huge(*pmdp)) {
 		unsigned long lo;
@@ -312,6 +312,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 			tlb_write_random();
 		else
 			tlb_write_indexed();
+		tlbw_use_hazard();
 		write_c0_pagemask(PM_DEFAULT_MASK);
 	} else
 #endif
@@ -337,8 +338,8 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	EXIT_CRITICAL(flags);
 }
 
-void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
-	unsigned long entryhi, unsigned long pagemask)
+void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
+		     unsigned long entryhi, unsigned long pagemask)
 {
 	unsigned long flags;
 	unsigned long wired;
@@ -368,50 +369,25 @@ void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	EXIT_CRITICAL(flags);
 }
 
-/*
- * Used for loading TLB entries before trap_init() has started, when we
- * don't actually want to add a wired entry which remains throughout the
- * lifetime of the system
- */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
-static int temp_tlb_entry __cpuinitdata;
-
-__init int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
-			       unsigned long entryhi, unsigned long pagemask)
+int __init has_transparent_hugepage(void)
 {
-	int ret = 0;
+	unsigned int mask;
 	unsigned long flags;
-	unsigned long wired;
-	unsigned long old_pagemask;
-	unsigned long old_ctx;
 
 	ENTER_CRITICAL(flags);
-	/* Save old context and create impossible VPN2 value */
-	old_ctx = read_c0_entryhi();
-	old_pagemask = read_c0_pagemask();
-	wired = read_c0_wired();
-	if (--temp_tlb_entry < wired) {
-		printk(KERN_WARNING
-		       "No TLB space left for add_temporary_entry\n");
-		ret = -ENOSPC;
-		goto out;
-	}
+	write_c0_pagemask(PM_HUGE_MASK);
+	back_to_back_c0_hazard();
+	mask = read_c0_pagemask();
+	write_c0_pagemask(PM_DEFAULT_MASK);
 
-	write_c0_index(temp_tlb_entry);
-	write_c0_pagemask(pagemask);
-	write_c0_entryhi(entryhi);
-	write_c0_entrylo0(entrylo0);
-	write_c0_entrylo1(entrylo1);
-	mtc0_tlbw_hazard();
-	tlb_write_indexed();
-	tlbw_use_hazard();
-
-	write_c0_entryhi(old_ctx);
-	write_c0_pagemask(old_pagemask);
-out:
 	EXIT_CRITICAL(flags);
-	return ret;
+
+	return mask == PM_HUGE_MASK;
 }
+
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
 
 static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)
@@ -438,7 +414,7 @@ void __cpuinit tlb_init(void)
 	    current_cpu_type() == CPU_R14000)
 		write_c0_framemask(0);
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		/*
 		 * Enable the no read, no exec bits, and enable large virtual
 		 * address.
@@ -450,9 +426,7 @@ void __cpuinit tlb_init(void)
 		write_c0_pagegrain(pg);
 	}
 
-	temp_tlb_entry = current_cpu_data.tlbsize - 1;
-
-        /* From this point on the ARC firmware is dead.  */
+	/* From this point on the ARC firmware is dead.	 */
 	local_flush_tlb_all();
 
 	/* Did I tell you that ARC SUCKS?  */

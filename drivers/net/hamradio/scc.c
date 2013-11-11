@@ -177,13 +177,12 @@
 #include <net/ax25.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
 #include "z8530.h"
 
-static const char banner[] __initdata = KERN_INFO \
+static const char banner[] __initconst = KERN_INFO \
 	"AX.25: Z8530 SCC driver version "VERSION".dl1bke\n";
 
 static void t_dwait(unsigned long);
@@ -2119,7 +2118,7 @@ static int __init scc_init_driver (void)
 	}
 	rtnl_unlock();
 
-	proc_net_fops_create(&init_net, "z8530drv", 0, &scc_net_seq_fops);
+	proc_create("z8530drv", 0, init_net.proc_net, &scc_net_seq_fops);
 
 	return 0;
 }
@@ -2174,7 +2173,7 @@ static void __exit scc_cleanup_driver(void)
 	if (Vector_Latch)
 		release_region(Vector_Latch, 1);
 
-	proc_net_remove(&init_net, "z8530drv");
+	remove_proc_entry("z8530drv", init_net.proc_net);
 }
 
 MODULE_AUTHOR("Joerg Reuter <jreuter@yaina.de>");

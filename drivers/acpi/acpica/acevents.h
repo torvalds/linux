@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,11 +69,10 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
  */
 acpi_status acpi_ev_init_global_lock_handler(void);
 
-acpi_status acpi_ev_acquire_global_lock(u16 timeout);
-
-acpi_status acpi_ev_release_global_lock(void);
-
-acpi_status acpi_ev_remove_global_lock_handler(void);
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
+			    acpi_ev_acquire_global_lock(u16 timeout))
+ ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+ acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
  * evgpe - Low-level GPE support
@@ -85,9 +84,11 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
-acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
+acpi_status
+acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
 
-acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
+acpi_status
+acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
 
 struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 						       u32 gpe_number);
@@ -114,7 +115,9 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			     struct acpi_gpe_block_info *gpe_block,
 			     void *context);
 
-acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block);
+ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
+			    acpi_ev_delete_gpe_block(struct acpi_gpe_block_info
+						     *gpe_block))
 
 u32
 acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
@@ -126,9 +129,10 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
  */
 acpi_status acpi_ev_gpe_initialize(void);
 
-void acpi_ev_update_gpes(acpi_owner_id table_owner_id);
+ACPI_HW_DEPENDENT_RETURN_VOID(void
+			      acpi_ev_update_gpes(acpi_owner_id table_owner_id))
 
-acpi_status
+ acpi_status
 acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			 u32 level, void *context, void **return_value);
 
@@ -154,14 +158,28 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			    void *context);
 
 /*
- * evregion - Address Space handling
+ * evhandler - Address space handling
  */
+u8
+acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+			    acpi_adr_space_type space_id);
+
 acpi_status acpi_ev_install_region_handlers(void);
 
+acpi_status
+acpi_ev_install_space_handler(struct acpi_namespace_node *node,
+			      acpi_adr_space_type space_id,
+			      acpi_adr_space_handler handler,
+			      acpi_adr_space_setup setup, void *context);
+
+/*
+ * evregion - Operation region support
+ */
 acpi_status acpi_ev_initialize_op_regions(void);
 
 acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
+			       union acpi_operand_object *field_obj,
 			       u32 function,
 			       u32 region_offset, u32 bit_width, u64 *value);
 
@@ -173,12 +191,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
-
-acpi_status
-acpi_ev_install_space_handler(struct acpi_namespace_node *node,
-			      acpi_adr_space_type space_id,
-			      acpi_adr_space_handler handler,
-			      acpi_adr_space_setup setup, void *context);
 
 acpi_status
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
@@ -234,8 +246,7 @@ u32 acpi_ev_install_sci_handler(void);
 
 acpi_status acpi_ev_remove_sci_handler(void);
 
-u32 acpi_ev_initialize_sCI(u32 program_sCI);
+u32 acpi_ev_initialize_SCI(u32 program_SCI);
 
-void acpi_ev_terminate(void);
-
+ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_ev_terminate(void))
 #endif				/* __ACEVENTS_H__  */

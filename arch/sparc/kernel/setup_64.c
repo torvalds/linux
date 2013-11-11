@@ -29,8 +29,8 @@
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/initrd.h>
+#include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/oplib.h>
@@ -46,6 +46,9 @@
 #include <asm/mmu.h>
 #include <asm/ns87303.h>
 #include <asm/btext.h>
+#include <asm/elf.h>
+#include <asm/mdesc.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>
@@ -103,7 +106,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Just ignore, this behavior is now the default.  */
+		prom_early_console.flags &= ~CON_BOOT;
 		break;
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
@@ -112,7 +115,7 @@ static void __init process_switch(char c)
 			break;
 		}
 		cheetah_pcache_forced_on = 1;
-		add_taint(TAINT_MACHINE_CHECK);
+		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 		cheetah_enable_pcache();
 		break;
 
@@ -231,42 +234,105 @@ void __init per_cpu_patch(void)
 	}
 }
 
+void sun4v_patch_1insn_range(struct sun4v_1insn_patch_entry *start,
+			     struct sun4v_1insn_patch_entry *end)
+{
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *) (addr +  0) = start->insn;
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		start++;
+	}
+}
+
+void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
+			     struct sun4v_2insn_patch_entry *end)
+{
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *) (addr +  0) = start->insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = start->insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		start++;
+	}
+}
+
 void __init sun4v_patch(void)
 {
 	extern void sun4v_hvapi_init(void);
-	struct sun4v_1insn_patch_entry *p1;
-	struct sun4v_2insn_patch_entry *p2;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	p1 = &__sun4v_1insn_patch;
-	while (p1 < &__sun4v_1insn_patch_end) {
-		unsigned long addr = p1->addr;
+	sun4v_patch_1insn_range(&__sun4v_1insn_patch,
+				&__sun4v_1insn_patch_end);
 
-		*(unsigned int *) (addr +  0) = p1->insn;
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
-
-		p1++;
-	}
-
-	p2 = &__sun4v_2insn_patch;
-	while (p2 < &__sun4v_2insn_patch_end) {
-		unsigned long addr = p2->addr;
-
-		*(unsigned int *) (addr +  0) = p2->insns[0];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
-
-		*(unsigned int *) (addr +  4) = p2->insns[1];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
-
-		p2++;
-	}
+	sun4v_patch_2insn_range(&__sun4v_2insn_patch,
+				&__sun4v_2insn_patch_end);
 
 	sun4v_hvapi_init();
+}
+
+static void __init popc_patch(void)
+{
+	struct popc_3insn_patch_entry *p3;
+	struct popc_6insn_patch_entry *p6;
+
+	p3 = &__popc_3insn_patch;
+	while (p3 < &__popc_3insn_patch_end) {
+		unsigned long i, addr = p3->addr;
+
+		for (i = 0; i < 3; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p3->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p3++;
+	}
+
+	p6 = &__popc_6insn_patch;
+	while (p6 < &__popc_6insn_patch_end) {
+		unsigned long i, addr = p6->addr;
+
+		for (i = 0; i < 6; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p6->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p6++;
+	}
+}
+
+static void __init pause_patch(void)
+{
+	struct pause_patch_entry *p;
+
+	p = &__pause_3insn_patch;
+	while (p < &__pause_3insn_patch_end) {
+		unsigned long i, addr = p->addr;
+
+		for (i = 0; i < 3; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p++;
+	}
 }
 
 #ifdef CONFIG_SMP
@@ -278,11 +344,218 @@ void __init boot_cpu_id_too_large(int cpu)
 }
 #endif
 
+/* On Ultra, we support all of the v8 capabilities. */
+unsigned long sparc64_elf_hwcap = (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR |
+				   HWCAP_SPARC_SWAP | HWCAP_SPARC_MULDIV |
+				   HWCAP_SPARC_V9);
+EXPORT_SYMBOL(sparc64_elf_hwcap);
+
+static const char *hwcaps[] = {
+	"flush", "stbar", "swap", "muldiv", "v9",
+	"ultra3", "blkinit", "n2",
+
+	/* These strings are as they appear in the machine description
+	 * 'hwcap-list' property for cpu nodes.
+	 */
+	"mul32", "div32", "fsmuld", "v8plus", "popc", "vis", "vis2",
+	"ASIBlkInit", "fmaf", "vis3", "hpc", "random", "trans", "fjfmau",
+	"ima", "cspare", "pause", "cbcond",
+};
+
+static const char *crypto_hwcaps[] = {
+	"aes", "des", "kasumi", "camellia", "md5", "sha1", "sha256",
+	"sha512", "mpmul", "montmul", "montsqr", "crc32c",
+};
+
+void cpucap_info(struct seq_file *m)
+{
+	unsigned long caps = sparc64_elf_hwcap;
+	int i, printed = 0;
+
+	seq_puts(m, "cpucaps\t\t: ");
+	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
+		unsigned long bit = 1UL << i;
+		if (caps & bit) {
+			seq_printf(m, "%s%s",
+				   printed ? "," : "", hwcaps[i]);
+			printed++;
+		}
+	}
+	if (caps & HWCAP_SPARC_CRYPTO) {
+		unsigned long cfr;
+
+		__asm__ __volatile__("rd %%asr26, %0" : "=r" (cfr));
+		for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+			unsigned long bit = 1UL << i;
+			if (cfr & bit) {
+				seq_printf(m, "%s%s",
+					   printed ? "," : "", crypto_hwcaps[i]);
+				printed++;
+			}
+		}
+	}
+	seq_putc(m, '\n');
+}
+
+static void __init report_one_hwcap(int *printed, const char *name)
+{
+	if ((*printed) == 0)
+		printk(KERN_INFO "CPU CAPS: [");
+	printk(KERN_CONT "%s%s",
+	       (*printed) ? "," : "", name);
+	if (++(*printed) == 8) {
+		printk(KERN_CONT "]\n");
+		*printed = 0;
+	}
+}
+
+static void __init report_crypto_hwcaps(int *printed)
+{
+	unsigned long cfr;
+	int i;
+
+	__asm__ __volatile__("rd %%asr26, %0" : "=r" (cfr));
+
+	for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+		unsigned long bit = 1UL << i;
+		if (cfr & bit)
+			report_one_hwcap(printed, crypto_hwcaps[i]);
+	}
+}
+
+static void __init report_hwcaps(unsigned long caps)
+{
+	int i, printed = 0;
+
+	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
+		unsigned long bit = 1UL << i;
+		if (caps & bit)
+			report_one_hwcap(&printed, hwcaps[i]);
+	}
+	if (caps & HWCAP_SPARC_CRYPTO)
+		report_crypto_hwcaps(&printed);
+	if (printed != 0)
+		printk(KERN_CONT "]\n");
+}
+
+static unsigned long __init mdesc_cpu_hwcap_list(void)
+{
+	struct mdesc_handle *hp;
+	unsigned long caps = 0;
+	const char *prop;
+	int len;
+	u64 pn;
+
+	hp = mdesc_grab();
+	if (!hp)
+		return 0;
+
+	pn = mdesc_node_by_name(hp, MDESC_NODE_NULL, "cpu");
+	if (pn == MDESC_NODE_NULL)
+		goto out;
+
+	prop = mdesc_get_property(hp, pn, "hwcap-list", &len);
+	if (!prop)
+		goto out;
+
+	while (len) {
+		int i, plen;
+
+		for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
+			unsigned long bit = 1UL << i;
+
+			if (!strcmp(prop, hwcaps[i])) {
+				caps |= bit;
+				break;
+			}
+		}
+		for (i = 0; i < ARRAY_SIZE(crypto_hwcaps); i++) {
+			if (!strcmp(prop, crypto_hwcaps[i]))
+				caps |= HWCAP_SPARC_CRYPTO;
+		}
+
+		plen = strlen(prop) + 1;
+		prop += plen;
+		len -= plen;
+	}
+
+out:
+	mdesc_release(hp);
+	return caps;
+}
+
+/* This yields a mask that user programs can use to figure out what
+ * instruction set this cpu supports.
+ */
+static void __init init_sparc64_elf_hwcap(void)
+{
+	unsigned long cap = sparc64_elf_hwcap;
+	unsigned long mdesc_caps;
+
+	if (tlb_type == cheetah || tlb_type == cheetah_plus)
+		cap |= HWCAP_SPARC_ULTRA3;
+	else if (tlb_type == hypervisor) {
+		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
+			cap |= HWCAP_SPARC_BLKINIT;
+		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
+			cap |= HWCAP_SPARC_N2;
+	}
+
+	cap |= (AV_SPARC_MUL32 | AV_SPARC_DIV32 | AV_SPARC_V8PLUS);
+
+	mdesc_caps = mdesc_cpu_hwcap_list();
+	if (!mdesc_caps) {
+		if (tlb_type == spitfire)
+			cap |= AV_SPARC_VIS;
+		if (tlb_type == cheetah || tlb_type == cheetah_plus)
+			cap |= AV_SPARC_VIS | AV_SPARC_VIS2;
+		if (tlb_type == cheetah_plus) {
+			unsigned long impl, ver;
+
+			__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+			impl = ((ver >> 32) & 0xffff);
+			if (impl == PANTHER_IMPL)
+				cap |= AV_SPARC_POPC;
+		}
+		if (tlb_type == hypervisor) {
+			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1)
+				cap |= AV_SPARC_ASI_BLK_INIT;
+			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
+				cap |= (AV_SPARC_VIS | AV_SPARC_VIS2 |
+					AV_SPARC_ASI_BLK_INIT |
+					AV_SPARC_POPC);
+			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
+				cap |= (AV_SPARC_VIS3 | AV_SPARC_HPC |
+					AV_SPARC_FMAF);
+		}
+	}
+	sparc64_elf_hwcap = cap | mdesc_caps;
+
+	report_hwcaps(sparc64_elf_hwcap);
+
+	if (sparc64_elf_hwcap & AV_SPARC_POPC)
+		popc_patch();
+	if (sparc64_elf_hwcap & AV_SPARC_PAUSE)
+		pause_patch();
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
-	strcpy(boot_command_line, *cmdline_p);
+	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
 	parse_early_param();
 
 	boot_flags_init(*cmdline_p);
@@ -337,6 +610,7 @@ void __init setup_arch(char **cmdline_p)
 	init_cur_cpu_trap(current_thread_info());
 
 	paging_init();
+	init_sparc64_elf_hwcap();
 }
 
 extern int stop_a_enabled;

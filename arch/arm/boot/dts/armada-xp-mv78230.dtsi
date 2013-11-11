@@ -1,0 +1,186 @@
+/*
+ * Device Tree Include file for Marvell Armada XP family SoC
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * Contains definitions specific to the Armada XP MV78230 SoC that are not
+ * common to all Armada XP SoCs.
+ */
+
+/include/ "armada-xp.dtsi"
+
+/ {
+	model = "Marvell Armada XP MV78230 SoC";
+	compatible = "marvell,armadaxp-mv78230", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "marvell,sheeva-v7";
+			reg = <0>;
+			clocks = <&cpuclk 0>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "marvell,sheeva-v7";
+			reg = <1>;
+			clocks = <&cpuclk 1>;
+		};
+	};
+
+	soc {
+		internal-regs {
+			pinctrl {
+				compatible = "marvell,mv78230-pinctrl";
+				reg = <0x18000 0x38>;
+
+				sdio_pins: sdio-pins {
+					marvell,pins = "mpp30", "mpp31", "mpp32",
+						       "mpp33", "mpp34", "mpp35";
+					marvell,function = "sd0";
+				};
+			};
+
+			gpio0: gpio@18100 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18100 0x40>;
+				ngpios = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupts-cells = <2>;
+				interrupts = <82>, <83>, <84>, <85>;
+			};
+
+			gpio1: gpio@18140 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18140 0x40>;
+				ngpios = <17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupts-cells = <2>;
+				interrupts = <87>, <88>, <89>;
+			};
+
+			/*
+			 * MV78230 has 2 PCIe units Gen2.0: One unit can be
+			 * configured as x4 or quad x1 lanes. One unit is
+			 * x4/x1.
+			 */
+			pcie-controller {
+				compatible = "marvell,armada-xp-pcie";
+				status = "disabled";
+				device_type = "pci";
+
+#address-cells = <3>;
+#size-cells = <2>;
+
+				bus-range = <0x00 0xff>;
+
+				ranges = <0x82000000 0 0x40000 0x40000 0 0x00002000   /* Port 0.0 registers */
+					0x82000000 0 0x42000 0x42000 0 0x00002000   /* Port 2.0 registers */
+					0x82000000 0 0x44000 0x44000 0 0x00002000   /* Port 0.1 registers */
+					0x82000000 0 0x48000 0x48000 0 0x00002000   /* Port 0.2 registers */
+					0x82000000 0 0x4c000 0x4c000 0 0x00002000   /* Port 0.3 registers */
+					0x82000000 0 0xe0000000 0xe0000000 0 0x08000000   /* non-prefetchable memory */
+					0x81000000 0 0	  0xe8000000 0 0x00100000>; /* downstream I/O */
+
+				pcie@1,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+					reg = <0x0800 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 58>;
+					marvell,pcie-port = <0>;
+					marvell,pcie-lane = <0>;
+					clocks = <&gateclk 5>;
+					status = "disabled";
+				};
+
+				pcie@2,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
+					reg = <0x1000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 59>;
+					marvell,pcie-port = <0>;
+					marvell,pcie-lane = <1>;
+					clocks = <&gateclk 6>;
+					status = "disabled";
+				};
+
+				pcie@3,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
+					reg = <0x1800 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 60>;
+					marvell,pcie-port = <0>;
+					marvell,pcie-lane = <2>;
+					clocks = <&gateclk 7>;
+					status = "disabled";
+				};
+
+				pcie@4,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x4c000 0 0x2000>;
+					reg = <0x2000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 61>;
+					marvell,pcie-port = <0>;
+					marvell,pcie-lane = <3>;
+					clocks = <&gateclk 8>;
+					status = "disabled";
+				};
+
+				pcie@9,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x42000 0 0x2000>;
+					reg = <0x4800 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 99>;
+					marvell,pcie-port = <2>;
+					marvell,pcie-lane = <0>;
+					clocks = <&gateclk 26>;
+					status = "disabled";
+				};
+			};
+		};
+	};
+};

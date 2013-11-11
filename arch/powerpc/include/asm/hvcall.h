@@ -29,6 +29,10 @@
 #define H_LONG_BUSY_ORDER_100_SEC	9905  /* Long busy, hint that 100sec \
 						 is a good time to retry */
 #define H_LONG_BUSY_END_RANGE		9905  /* End of long busy range */
+
+/* Internal value used in book3s_hv kvm support; not returned to guests */
+#define H_TOO_HARD	9999
+
 #define H_HARDWARE	-1	/* Hardware error */
 #define H_FUNCTION	-2	/* Function not supported */
 #define H_PRIVILEGE	-3	/* Caller not privileged */
@@ -73,8 +77,27 @@
 #define H_MR_CONDITION  -43
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE       -45
-#define H_RESCINDEND    -46
-#define H_MULTI_THREADS_ACTIVE -9005
+#define H_RESCINDED     -46
+#define H_P2		-55
+#define H_P3		-56
+#define H_P4		-57
+#define H_P5		-58
+#define H_P6		-59
+#define H_P7		-60
+#define H_P8		-61
+#define H_P9		-62
+#define H_TOO_BIG	-64
+#define H_OVERLAP	-68
+#define H_INTERRUPT	-69
+#define H_BAD_DATA	-70
+#define H_NOT_ACTIVE	-71
+#define H_SG_LIST	-72
+#define H_OP_MODE	-73
+#define H_COP_HW	-74
+#define H_UNSUPPORTED_FLAG_START	-256
+#define H_UNSUPPORTED_FLAG_END		-511
+#define H_MULTI_THREADS_ACTIVE	-9005
+#define H_OUTSTANDING_COP_OPS	-9006
 
 
 /* Long Busy is a condition that can be returned by the firmware
@@ -100,6 +123,7 @@
 #define H_PAGE_SET_ACTIVE	H_PAGE_STATE_CHANGE
 #define H_AVPN			(1UL<<(63-32))	/* An avpn is provided as a sanity test */
 #define H_ANDCOND		(1UL<<(63-33))
+#define H_LOCAL			(1UL<<(63-35))
 #define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (ignored for IO pages) */
 #define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (ignored for IO pages */
 #define H_COALESCE_CAND	(1UL<<(63-42))	/* page is a good candidate for coalescing */
@@ -109,6 +133,16 @@
 #define H_PP1			(1UL<<(63-62))
 #define H_PP2			(1UL<<(63-63))
 
+/* Flags for H_REGISTER_VPA subfunction field */
+#define H_VPA_FUNC_SHIFT	(63-18)	/* Bit posn of subfunction code */
+#define H_VPA_FUNC_MASK		7UL
+#define H_VPA_REG_VPA		1UL	/* Register Virtual Processor Area */
+#define H_VPA_REG_DTL		2UL	/* Register Dispatch Trace Log */
+#define H_VPA_REG_SLB		3UL	/* Register SLB shadow buffer */
+#define H_VPA_DEREG_VPA		5UL	/* Deregister Virtual Processor Area */
+#define H_VPA_DEREG_DTL		6UL	/* Deregister Dispatch Trace Log */
+#define H_VPA_DEREG_SLB		7UL	/* Deregister SLB shadow buffer */
+
 /* VASI States */
 #define H_VASI_INVALID          0
 #define H_VASI_ENABLED          1
@@ -117,11 +151,6 @@
 #define H_VASI_SUSPENDED        4
 #define H_VASI_RESUMED          5
 #define H_VASI_COMPLETED        6
-
-/* DABRX flags */
-#define H_DABRX_HYPERVISOR	(1UL<<(63-61))
-#define H_DABRX_KERNEL		(1UL<<(63-62))
-#define H_DABRX_USER		(1UL<<(63-63))
 
 /* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
@@ -235,8 +264,15 @@
 #define H_GET_MPP		0x2D4
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
 #define H_BEST_ENERGY		0x2F4
+#define H_XIRR_X		0x2FC
+#define H_RANDOM		0x300
+#define H_COP			0x304
 #define H_GET_MPP_X		0x314
-#define MAX_HCALL_OPCODE	H_GET_MPP_X
+#define H_SET_MODE		0x31C
+#define MAX_HCALL_OPCODE	H_SET_MODE
+
+/* Platform specific hcalls, used by KVM */
+#define H_RTAS			0xf000
 
 #ifndef __ASSEMBLY__
 
@@ -324,6 +360,26 @@ struct hvcall_mpp_x_data {
 
 int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data);
 
+static inline unsigned int get_longbusy_msecs(int longbusy_rc)
+{
+	switch (longbusy_rc) {
+	case H_LONG_BUSY_ORDER_1_MSEC:
+		return 1;
+	case H_LONG_BUSY_ORDER_10_MSEC:
+		return 10;
+	case H_LONG_BUSY_ORDER_100_MSEC:
+		return 100;
+	case H_LONG_BUSY_ORDER_1_SEC:
+		return 1000;
+	case H_LONG_BUSY_ORDER_10_SEC:
+		return 10000;
+	case H_LONG_BUSY_ORDER_100_SEC:
+		return 100000;
+	default:
+		return 1;
+	}
+}
+
 #ifdef CONFIG_PPC_PSERIES
 extern int CMO_PrPSP;
 extern int CMO_SecPSP;
@@ -343,6 +399,15 @@ static inline unsigned long cmo_get_page_size(void)
 {
 	return CMO_PageSize;
 }
+
+extern long pSeries_enable_reloc_on_exc(void);
+extern long pSeries_disable_reloc_on_exc(void);
+
+#else
+
+#define pSeries_enable_reloc_on_exc()  do {} while (0)
+#define pSeries_disable_reloc_on_exc() do {} while (0)
+
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */

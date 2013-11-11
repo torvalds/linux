@@ -40,12 +40,12 @@
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/palmtx.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <mach/irda.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/udc.h>
-#include <mach/palmasoc.h>
+#include <linux/platform_data/asoc-palm27x.h>
 #include <mach/palm27x.h>
 
 #include "generic.h"
@@ -247,7 +247,7 @@ static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 				 unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
-	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+	char __iomem *nandaddr = this->IO_ADDR_W;
 
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -268,8 +268,6 @@ static struct mtd_partition palmtx_partition_info[] = {
 	},
 };
 
-static const char *palmtx_part_probes[] = { "cmdlinepart", NULL };
-
 struct platform_nand_data palmtx_nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
@@ -277,7 +275,6 @@ struct platform_nand_data palmtx_nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(palmtx_partition_info),
 		.partitions		= palmtx_partition_info,
 		.chip_delay		= 20,
-		.part_probe_types 	= palmtx_part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= palmtx_nand_cmd_ctl,
@@ -315,17 +312,17 @@ static inline void palmtx_nand_init(void) {}
  ******************************************************************************/
 static struct map_desc palmtx_io_desc[] __initdata = {
 {
-	.virtual	= PALMTX_PCMCIA_VIRT,
+	.virtual	= (unsigned long)PALMTX_PCMCIA_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_PCMCIA_PHYS),
 	.length		= PALMTX_PCMCIA_SIZE,
 	.type		= MT_DEVICE,
 }, {
-	.virtual	= PALMTX_NAND_ALE_VIRT,
+	.virtual	= (unsigned long)PALMTX_NAND_ALE_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_NAND_ALE_PHYS),
 	.length		= SZ_1M,
 	.type		= MT_DEVICE,
 }, {
-	.virtual	= PALMTX_NAND_CLE_VIRT,
+	.virtual	= (unsigned long)PALMTX_NAND_CLE_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_NAND_CLE_PHYS),
 	.length		= SZ_1M,
 	.type		= MT_DEVICE,
@@ -364,9 +361,12 @@ static void __init palmtx_init(void)
 }
 
 MACHINE_START(PALMTX, "Palm T|X")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= palmtx_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.timer		= &pxa_timer,
-	.init_machine	= palmtx_init
+	.handle_irq	= pxa27x_handle_irq,
+	.init_time	= pxa_timer_init,
+	.init_machine	= palmtx_init,
+	.restart	= pxa_restart,
 MACHINE_END

@@ -1,0 +1,4 @@
+RSAPublicKey ::= SEQUENCE {
+	modulus			INTEGER ({ rsa_extract_mpi }),	-- n
+	publicExponent		INTEGER ({ rsa_extract_mpi })	-- e
+	}

@@ -21,10 +21,10 @@
 /******/
 
 static const int subtype_txq_to_hwq[] = {
-	[WME_AC_BE] = ATH_TXQ_AC_BE,
-	[WME_AC_BK] = ATH_TXQ_AC_BK,
-	[WME_AC_VI] = ATH_TXQ_AC_VI,
-	[WME_AC_VO] = ATH_TXQ_AC_VO,
+	[IEEE80211_AC_BE] = ATH_TXQ_AC_BE,
+	[IEEE80211_AC_BK] = ATH_TXQ_AC_BK,
+	[IEEE80211_AC_VI] = ATH_TXQ_AC_VI,
+	[IEEE80211_AC_VO] = ATH_TXQ_AC_VO,
 };
 
 #define ATH9K_HTC_INIT_TXQ(subtype) do {			\
@@ -41,15 +41,15 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 {
 	switch (queue) {
 	case 0:
-		return hwq_map[WME_AC_VO];
+		return hwq_map[IEEE80211_AC_VO];
 	case 1:
-		return hwq_map[WME_AC_VI];
+		return hwq_map[IEEE80211_AC_VI];
 	case 2:
-		return hwq_map[WME_AC_BE];
+		return hwq_map[IEEE80211_AC_BE];
 	case 3:
-		return hwq_map[WME_AC_BK];
+		return hwq_map[IEEE80211_AC_BK];
 	default:
-		return hwq_map[WME_AC_BE];
+		return hwq_map[IEEE80211_AC_BE];
 	}
 }
 
@@ -106,20 +106,20 @@ static inline enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
 
 	switch (qnum) {
 	case 0:
-		TX_QSTAT_INC(WME_AC_VO);
+		TX_QSTAT_INC(IEEE80211_AC_VO);
 		epid = priv->data_vo_ep;
 		break;
 	case 1:
-		TX_QSTAT_INC(WME_AC_VI);
+		TX_QSTAT_INC(IEEE80211_AC_VI);
 		epid = priv->data_vi_ep;
 		break;
 	case 2:
-		TX_QSTAT_INC(WME_AC_BE);
+		TX_QSTAT_INC(IEEE80211_AC_BE);
 		epid = priv->data_be_ep;
 		break;
 	case 3:
 	default:
-		TX_QSTAT_INC(WME_AC_BK);
+		TX_QSTAT_INC(IEEE80211_AC_BK);
 		epid = priv->data_bk_ep;
 		break;
 	}
@@ -333,12 +333,12 @@ static void ath9k_htc_tx_data(struct ath9k_htc_priv *priv,
 }
 
 int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
+		       struct ieee80211_sta *sta,
 		       struct sk_buff *skb,
 		       u8 slot, bool is_cab)
 {
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_sta *sta = tx_info->control.sta;
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	struct ath9k_htc_sta *ista;
 	struct ath9k_htc_vif *avp = NULL;
@@ -355,7 +355,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		vif_idx = avp->index;
 	} else {
 		if (!priv->ah->is_monitoring) {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			ath_dbg(ath9k_hw_common(priv->ah), XMIT,
 				"VIF is null, but no monitor interface !\n");
 			return -EINVAL;
 		}
@@ -448,6 +448,7 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 	struct ieee80211_conf *cur_conf = &priv->hw->conf;
 	bool txok;
 	int slot;
+	int hdrlen, padsize;
 
 	slot = strip_drv_header(priv, skb);
 	if (slot < 0) {
@@ -490,7 +491,7 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 		if (txs->ts_flags & ATH9K_HTC_TXSTAT_SGI)
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	} else {
-		if (cur_conf->channel->band == IEEE80211_BAND_5GHZ)
+		if (cur_conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
 			rate->idx += 4; /* No CCK rates */
 	}
 
@@ -503,6 +504,15 @@ send_mac80211:
 	spin_unlock_bh(&priv->tx.tx_lock);
 
 	ath9k_htc_tx_clear_slot(priv, slot);
+
+	/* Remove padding before handing frame back to mac80211 */
+	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+
+	padsize = hdrlen & 3;
+	if (padsize && skb->len > hdrlen + padsize) {
+		memmove(skb->data + padsize, skb->data, hdrlen);
+		skb_pull(skb, padsize);
+	}
 
 	/* Send status to mac80211 */
 	ieee80211_tx_status(priv->hw, skb);
@@ -620,8 +630,7 @@ static struct sk_buff* ath9k_htc_tx_get_packet(struct ath9k_htc_priv *priv,
 	}
 	spin_unlock_irqrestore(&epid_queue->lock, flags);
 
-	ath_dbg(common, ATH_DBG_XMIT,
-		"No matching packet for cookie: %d, epid: %d\n",
+	ath_dbg(common, XMIT, "No matching packet for cookie: %d, epid: %d\n",
 		txs->cookie, epid);
 
 	return NULL;
@@ -705,8 +714,7 @@ static inline bool check_packet(struct ath9k_htc_priv *priv, struct sk_buff *skb
 	if (time_after(jiffies,
 		       tx_ctl->timestamp +
 		       msecs_to_jiffies(ATH9K_HTC_TX_TIMEOUT_INTERVAL))) {
-		ath_dbg(common, ATH_DBG_XMIT,
-			"Dropping a packet due to TX timeout\n");
+		ath_dbg(common, XMIT, "Dropping a packet due to TX timeout\n");
 		return true;
 	}
 
@@ -753,7 +761,7 @@ void ath9k_htc_tx_cleanup_timer(unsigned long data)
 
 		skb = ath9k_htc_tx_get_packet(priv, &event->txs);
 		if (skb) {
-			ath_dbg(common, ATH_DBG_XMIT,
+			ath_dbg(common, XMIT,
 				"Found packet for cookie: %d, epid: %d\n",
 				event->txs.cookie,
 				MS(event->txs.ts_rate, ATH9K_HTC_TXSTAT_EPID));
@@ -918,7 +926,7 @@ void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 {
 	ath9k_hw_rxena(priv->ah);
 	ath9k_htc_opmode_init(priv);
-	ath9k_hw_startpcureceive(priv->ah, (priv->op_flags & OP_SCANNING));
+	ath9k_hw_startpcureceive(priv->ah, test_bit(OP_SCANNING, &priv->op_flags));
 	priv->rx.last_rssi = ATH_RSSI_DUMMY_MARKER;
 }
 
@@ -941,7 +949,7 @@ static void ath9k_process_rate(struct ieee80211_hw *hw,
 		return;
 	}
 
-	band = hw->conf.channel->band;
+	band = hw->conf.chandef.chan->band;
 	sband = hw->wiphy->bands[band];
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -968,7 +976,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath_htc_rx_status *rxstatus;
-	int hdrlen, padpos, padsize;
+	int hdrlen, padsize;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
 
@@ -998,11 +1006,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 
-	padpos = ath9k_cmn_padpos(fc);
-
-	padsize = padpos & 3;
-	if (padsize && skb->len >= padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
+	padsize = hdrlen & 3;
+	if (padsize && skb->len >= hdrlen+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
 	}
 
@@ -1069,22 +1075,26 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	last_rssi = priv->rx.last_rssi;
 
-	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-						     ATH_RSSI_EP_MULTIPLIER);
+	if (ieee80211_is_beacon(hdr->frame_control) &&
+	    !is_zero_ether_addr(common->curbssid) &&
+	    ether_addr_equal(hdr->addr3, common->curbssid)) {
+		s8 rssi = rxbuf->rxstatus.rs_rssi;
 
-	if (rxbuf->rxstatus.rs_rssi < 0)
-		rxbuf->rxstatus.rs_rssi = 0;
+		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
 
-	if (ieee80211_is_beacon(fc))
-		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
+		if (rssi < 0)
+			rssi = 0;
+
+		priv->ah->stats.avgbrssi = rssi;
+	}
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
-	rx_status->band = hw->conf.channel->band;
-	rx_status->freq = hw->conf.channel->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
 	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_END;
 
 	return true;
 
@@ -1167,8 +1177,7 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock(&priv->rx.rxbuflock);
 
 	if (rxbuf == NULL) {
-		ath_dbg(common, ATH_DBG_ANY,
-			"No free RX buffer\n");
+		ath_dbg(common, ANY, "No free RX buffer\n");
 		goto err;
 	}
 
@@ -1199,20 +1208,17 @@ void ath9k_rx_cleanup(struct ath9k_htc_priv *priv)
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv)
 {
-	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_rxbuf *rxbuf;
 	int i = 0;
 
 	INIT_LIST_HEAD(&priv->rx.rxbuf);
 	spin_lock_init(&priv->rx.rxbuflock);
 
 	for (i = 0; i < ATH9K_HTC_RXBUF; i++) {
-		rxbuf = kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
-		if (rxbuf == NULL) {
-			ath_err(common, "Unable to allocate RX buffers\n");
+		struct ath9k_htc_rxbuf *rxbuf =
+			kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
+		if (rxbuf == NULL)
 			goto err;
-		}
+
 		list_add_tail(&rxbuf->list, &priv->rx.rxbuf);
 	}
 

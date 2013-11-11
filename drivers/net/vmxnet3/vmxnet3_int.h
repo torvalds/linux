@@ -27,6 +27,7 @@
 #ifndef _VMXNET3_INT_H
 #define _VMXNET3_INT_H
 
+#include <linux/bitops.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -69,10 +70,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.1.18.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.1.30.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01011200
+#define VMXNET3_DRIVER_VERSION_NUM      0x01011E00
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -275,8 +276,6 @@ struct vmxnet3_rx_queue {
 	struct vmxnet3_rx_ctx     rx_ctx;
 	u32 qid;            /* rqID in RCD for buffer from 1st ring */
 	u32 qid2;           /* rqID in RCD for buffer from 2nd ring */
-	u32 uncommitted[2]; /* # of buffers allocated since last RXPROD
-				* update */
 	struct vmxnet3_rx_buf_info     *buf_info[2];
 	struct Vmxnet3_RxQueueCtrl            *shared;
 	struct vmxnet3_rq_driver_stats  stats;
@@ -316,7 +315,7 @@ struct vmxnet3_intr {
 struct vmxnet3_adapter {
 	struct vmxnet3_tx_queue		tx_queue[VMXNET3_DEVICE_MAX_TX_QUEUES];
 	struct vmxnet3_rx_queue		rx_queue[VMXNET3_DEVICE_MAX_RX_QUEUES];
-	struct vlan_group		*vlan_grp;
+	unsigned long			active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct vmxnet3_intr		intr;
 	spinlock_t			cmd_lock;
 	struct Vmxnet3_DriverShared	*shared;
@@ -324,7 +323,6 @@ struct vmxnet3_adapter {
 	struct Vmxnet3_TxQueueDesc	*tqd_start;     /* all tx queue desc */
 	struct Vmxnet3_RxQueueDesc	*rqd_start;	/* all rx queue desc */
 	struct net_device		*netdev;
-	struct net_device_stats		net_stats;
 	struct pci_dev			*pdev;
 
 	u8			__iomem *hw_addr0; /* for BAR 0 */
@@ -354,7 +352,6 @@ struct vmxnet3_adapter {
 
 	unsigned long  state;    /* VMXNET3_STATE_BIT_xxx */
 
-	int dev_number;
 	int share_intr;
 };
 
@@ -401,14 +398,16 @@ void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 
 int
-vmxnet3_set_features(struct net_device *netdev, u32 features);
+vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter,
 		      u32 tx_ring_size, u32 rx_ring_size, u32 rx_ring2_size);
 
 extern void vmxnet3_set_ethtool_ops(struct net_device *netdev);
-extern struct net_device_stats *vmxnet3_get_stats(struct net_device *netdev);
+
+extern struct rtnl_link_stats64 *
+vmxnet3_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 extern char vmxnet3_driver_name[];
 #endif

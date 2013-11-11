@@ -15,153 +15,122 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 
 #include <linux/ioport.h>
 
-#define ACL7225_SIZE   8	/* Requires 8 ioports, but only 4 are used */
-#define P16R16DIO_SIZE 4
 #define ACL7225_RIO_LO 0	/* Relays input/output low byte (R0-R7) */
 #define ACL7225_RIO_HI 1	/* Relays input/output high byte (R8-R15) */
 #define ACL7225_DI_LO  2	/* Digital input low byte (DI0-DI7) */
 #define ACL7225_DI_HI  3	/* Digital input high byte (DI8-DI15) */
 
-static int acl7225b_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int acl7225b_detach(struct comedi_device *dev);
-
-struct boardtype {
-	const char *name;	/*  driver name */
-	int io_range;		/*  len of I/O space */
+struct acl7225b_boardinfo {
+	const char *name;
+	int io_range;
 };
 
-static const struct boardtype boardtypes[] = {
-	{"acl7225b", ACL7225_SIZE,},
-	{"p16r16dio", P16R16DIO_SIZE,},
+static const struct acl7225b_boardinfo acl7225b_boards[] = {
+	{
+		.name		= "acl7225b",
+		.io_range	= 8,		/* only 4 are used */
+	}, {
+		.name		= "p16r16dio",
+		.io_range	= 4,
+	},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-#define this_board ((const struct boardtype *)dev->board_ptr)
-
-static struct comedi_driver driver_acl7225b = {
-	.driver_name = "acl7225b",
-	.module = THIS_MODULE,
-	.attach = acl7225b_attach,
-	.detach = acl7225b_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct boardtype),
-};
-
-static int __init driver_acl7225b_init_module(void)
+static int acl7225b_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	return comedi_driver_register(&driver_acl7225b);
-}
+	unsigned long reg = (unsigned long)s->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-static void __exit driver_acl7225b_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_acl7225b);
-}
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-module_init(driver_acl7225b_init_module);
-module_exit(driver_acl7225b_cleanup_module);
-
-static int acl7225b_do_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	if (insn->n != 2)
-		return -EINVAL;
-
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+		if (mask & 0x00ff)
+			outb(s->state & 0xff, dev->iobase + reg);
+		if (mask & 0xff00)
+			outb((s->state >> 8), dev->iobase + reg + 1);
 	}
-	if (data[0] & 0x00ff)
-		outb(s->state & 0xff, dev->iobase + (unsigned long)s->private);
-	if (data[0] & 0xff00)
-		outb((s->state >> 8),
-		     dev->iobase + (unsigned long)s->private + 1);
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
-static int acl7225b_di_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int acl7225b_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
+	unsigned long reg = (unsigned long)s->private;
 
-	data[1] = inb(dev->iobase + (unsigned long)s->private) |
-	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
+	data[1] = inb(dev->iobase + reg) |
+		  (inb(dev->iobase + reg + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int acl7225b_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct acl7225b_boardinfo *board = comedi_board(dev);
 	struct comedi_subdevice *s;
-	int iobase, iorange;
+	int ret;
 
-	iobase = it->options[0];
-	iorange = this_board->io_range;
-	printk(KERN_INFO "comedi%d: acl7225b: board=%s 0x%04x\n", dev->minor,
-	       this_board->name, iobase);
-	if (!request_region(iobase, iorange, "acl7225b")) {
-		printk(KERN_ERR "comedi%d: request_region failed - I/O port conflict\n",
-			dev->minor);
-		return -EIO;
-	}
-	dev->board_name = this_board->name;
-	dev->iobase = iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Relays outputs */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_do_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_RIO_LO;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_do_insn_bits;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_RIO_LO;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* Relays status */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_di_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_RIO_LO;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_di_insn_bits;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_RIO_LO;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* Isolated digital inputs */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_di_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_DI_LO;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_di_insn_bits;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_DI_LO;
 
 	return 0;
 }
 
-static int acl7225b_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO "comedi%d: acl7225b: remove\n", dev->minor);
+static struct comedi_driver acl7225b_driver = {
+	.driver_name	= "acl7225b",
+	.module		= THIS_MODULE,
+	.attach		= acl7225b_attach,
+	.detach		= comedi_legacy_detach,
+	.board_name	= &acl7225b_boards[0].name,
+	.num_names	= ARRAY_SIZE(acl7225b_boards),
+	.offset		= sizeof(struct acl7225b_boardinfo),
+};
+module_comedi_driver(acl7225b_driver);
 
-	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
-}
-
+MODULE_DESCRIPTION("Comedi: NuDAQ ACL-7225B, 16 Relay & 16 Isolated DI Card");
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/swiotlb.h>
+#include <linux/export.h>
 #include <asm/machvec.h>
 
 extern struct dma_map_ops sba_dma_ops, swiotlb_dma_ops;

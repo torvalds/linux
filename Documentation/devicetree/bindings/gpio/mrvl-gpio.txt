@@ -1,0 +1,55 @@
+* Marvell PXA GPIO controller
+
+Required properties:
+- compatible : Should be "intel,pxa25x-gpio", "intel,pxa26x-gpio",
+		"intel,pxa27x-gpio", "intel,pxa3xx-gpio",
+		"marvell,pxa93x-gpio", "marvell,mmp-gpio" or
+		"marvell,mmp2-gpio".
+- reg : Address and length of the register set for the device
+- interrupts : Should be the port interrupt shared by all gpio pins.
+  There're three gpio interrupts in arch-pxa, and they're gpio0,
+  gpio1 and gpio_mux. There're only one gpio interrupt in arch-mmp,
+  gpio_mux.
+- interrupt-name : Should be the name of irq resource. Each interrupt
+  binds its interrupt-name.
+- interrupt-controller : Identifies the node as an interrupt controller.
+- #interrupt-cells: Specifies the number of cells needed to encode an
+  interrupt source.
+- gpio-controller : Marks the device node as a gpio controller.
+- #gpio-cells : Should be one.  It is the pin number.
+
+Example:
+
+	gpio: gpio@d4019000 {
+		compatible = "marvell,mmp-gpio";
+		reg = <0xd4019000 0x1000>;
+		interrupts = <49>;
+		interrupt-name = "gpio_mux";
+		gpio-controller;
+		#gpio-cells = <1>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+      };
+
+* Marvell Orion GPIO Controller
+
+Required properties:
+- compatible         : Should be "marvell,orion-gpio"
+- reg                : Address and length of the register set for controller.
+- gpio-controller    : So we know this is a gpio controller.
+- ngpio              : How many gpios this controller has.
+- interrupts	     : Up to 4 Interrupts for the controller.
+
+Optional properties:
+- mask-offset        : For SMP Orions, offset for Nth CPU
+
+Example:
+
+		gpio0: gpio@10100 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0x10100 0x40>;
+			ngpio = <32>;
+			interrupts = <35>, <36>, <37>, <38>;
+		};

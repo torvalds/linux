@@ -1,0 +1,12 @@
+#!/bin/bash
+
+echo "--------------------"
+echo "running socket test"
+echo "--------------------"
+./socket
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi
+

@@ -58,6 +58,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include "imx21-hcd.h"
 
@@ -473,7 +474,7 @@ static void free_epdmem(struct imx21 *imx21, struct usb_host_endpoint *ep)
 /* End handling 				*/
 /* ===========================================	*/
 
-/* Endpoint now idle - release it's ETD(s) or asssign to queued request */
+/* Endpoint now idle - release its ETD(s) or assign to queued request */
 static void ep_idle(struct imx21 *imx21, struct ep_priv *ep_priv)
 {
 	int i;
@@ -1680,7 +1681,7 @@ static int imx21_hc_reset(struct usb_hcd *hcd)
 	return 0;
 }
 
-static int __devinit imx21_hc_start(struct usb_hcd *hcd)
+static int imx21_hc_start(struct usb_hcd *hcd)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
 	unsigned long flags;
@@ -1811,7 +1812,7 @@ static int imx21_remove(struct platform_device *pdev)
 	usb_remove_hcd(hcd);
 
 	if (res != NULL) {
-		clk_disable(imx21->clk);
+		clk_disable_unprepare(imx21->clk);
 		clk_put(imx21->clk);
 		iounmap(imx21->regs);
 		release_mem_region(res->start, resource_size(res));
@@ -1884,14 +1885,14 @@ static int imx21_probe(struct platform_device *pdev)
 	ret = clk_set_rate(imx21->clk, clk_round_rate(imx21->clk, 48000000));
 	if (ret)
 		goto failed_clock_set;
-	ret = clk_enable(imx21->clk);
+	ret = clk_prepare_enable(imx21->clk);
 	if (ret)
 		goto failed_clock_enable;
 
 	dev_info(imx21->dev, "Hardware HC revision: 0x%02X\n",
 		(readl(imx21->regs + USBOTG_HWMODE) >> 16) & 0xFF);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret != 0) {
 		dev_err(imx21->dev, "usb_add_hcd() returned %d\n", ret);
 		goto failed_add_hcd;
@@ -1900,7 +1901,7 @@ static int imx21_probe(struct platform_device *pdev)
 	return 0;
 
 failed_add_hcd:
-	clk_disable(imx21->clk);
+	clk_disable_unprepare(imx21->clk);
 failed_clock_enable:
 failed_clock_set:
 	clk_put(imx21->clk);
@@ -1924,18 +1925,7 @@ static struct platform_driver imx21_hcd_driver = {
 	.resume = NULL,
 };
 
-static int __init imx21_hcd_init(void)
-{
-	return platform_driver_register(&imx21_hcd_driver);
-}
-
-static void __exit imx21_hcd_cleanup(void)
-{
-	platform_driver_unregister(&imx21_hcd_driver);
-}
-
-module_init(imx21_hcd_init);
-module_exit(imx21_hcd_cleanup);
+module_platform_driver(imx21_hcd_driver);
 
 MODULE_DESCRIPTION("i.MX21 USB Host controller");
 MODULE_AUTHOR("Martin Fuzzey");

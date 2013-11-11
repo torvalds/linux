@@ -21,7 +21,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
 #include <linux/mm.h>
@@ -222,7 +222,7 @@ static int spu_map_resource(struct spu *spu, int nr,
 		return ret;
 	if (phys)
 		*phys = resource.start;
-	len = resource.end - resource.start + 1;
+	len = resource_size(&resource);
 	*virt = ioremap(resource.start, len);
 	if (!*virt)
 		return -EINVAL;

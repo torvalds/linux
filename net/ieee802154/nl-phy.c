@@ -24,6 +24,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/if_arp.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 #include <net/wpan-phy.h>
@@ -34,7 +35,7 @@
 
 #include "ieee802154.h"
 
-static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
+static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 portid,
 	u32 seq, int flags, struct wpan_phy *phy)
 {
 	void *hdr;
@@ -52,18 +53,18 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
 		goto out;
 
 	mutex_lock(&phy->pib_lock);
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-
-	NLA_PUT_U8(msg, IEEE802154_ATTR_PAGE, phy->current_page);
-	NLA_PUT_U8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel);
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
+		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
 			buf[pages++] = phy->channels_supported[i] | (i << 27);
 	}
-	if (pages)
-		NLA_PUT(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
-				pages * sizeof(uint32_t), buf);
-
+	if (pages &&
+	    nla_put(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
+		    pages * sizeof(uint32_t), buf))
+		goto nla_put_failure;
 	mutex_unlock(&phy->pib_lock);
 	kfree(buf);
 	return genlmsg_end(msg, hdr);
@@ -100,11 +101,11 @@ static int ieee802154_list_phy(struct sk_buff *skb,
 	if (!phy)
 		return -ENODEV;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_phy(msg, info->snd_pid, info->snd_seq,
+	rc = ieee802154_nl_fill_phy(msg, info->snd_portid, info->snd_seq,
 			0, phy);
 	if (rc < 0)
 		goto out_free;
@@ -137,7 +138,7 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 		return 0;
 
 	rc = ieee802154_nl_fill_phy(data->skb,
-			NETLINK_CB(data->cb->skb).pid,
+			NETLINK_CB(data->cb->skb).portid,
 			data->cb->nlh->nlmsg_seq,
 			NLM_F_MULTI,
 			phy);
@@ -178,6 +179,7 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 	const char *devname;
 	int rc = -ENOBUFS;
 	struct net_device *dev;
+	int type = __IEEE802154_DEV_INVALID;
 
 	pr_debug("%s\n", __func__);
 
@@ -213,21 +215,57 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	dev = phy->add_iface(phy, devname);
+	if (info->attrs[IEEE802154_ATTR_HW_ADDR] &&
+	    nla_len(info->attrs[IEEE802154_ATTR_HW_ADDR]) !=
+			IEEE802154_ADDR_LEN) {
+		rc = -EINVAL;
+		goto nla_put_failure;
+	}
+
+	if (info->attrs[IEEE802154_ATTR_DEV_TYPE]) {
+		type = nla_get_u8(info->attrs[IEEE802154_ATTR_DEV_TYPE]);
+		if (type >= __IEEE802154_DEV_MAX)
+			return -EINVAL;
+	}
+
+	dev = phy->add_iface(phy, devname, type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;
 	}
 
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, dev->name);
+	if (info->attrs[IEEE802154_ATTR_HW_ADDR]) {
+		struct sockaddr addr;
 
+		addr.sa_family = ARPHRD_IEEE802154;
+		nla_memcpy(&addr.sa_data, info->attrs[IEEE802154_ATTR_HW_ADDR],
+				IEEE802154_ADDR_LEN);
+
+		/*
+		 * strangely enough, some callbacks (inetdev_event) from
+		 * dev_set_mac_address require RTNL_LOCK
+		 */
+		rtnl_lock();
+		rc = dev_set_mac_address(dev, &addr);
+		rtnl_unlock();
+		if (rc)
+			goto dev_unregister;
+	}
+
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name))
+		goto nla_put_failure;
 	dev_put(dev);
 
 	wpan_phy_put(phy);
 
 	return ieee802154_nl_reply(msg, info);
 
+dev_unregister:
+	rtnl_lock(); /* del_iface must be called with RTNL lock */
+	phy->del_iface(phy, dev);
+	dev_put(dev);
+	rtnl_unlock();
 nla_put_failure:
 	nlmsg_free(msg);
 out_dev:
@@ -302,10 +340,9 @@ static int ieee802154_del_iface(struct sk_buff *skb,
 
 	rtnl_unlock();
 
-
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, name);
-
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, name))
+		goto nla_put_failure;
 	wpan_phy_put(phy);
 
 	return ieee802154_nl_reply(msg, info);

@@ -19,7 +19,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
-#include <plat/mvsdio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -93,7 +92,7 @@ static void __init dockstar_init(void)
 
 	if (gpio_request(29, "USB Power Enable") != 0 ||
 	    gpio_direction_output(29, 1) != 0)
-		printk(KERN_ERR "can't set up GPIO 29 (USB Power Enable)\n");
+		pr_err("can't set up GPIO 29 (USB Power Enable)\n");
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&dockstar_ge00_data);
@@ -102,10 +101,11 @@ static void __init dockstar_init(void)
 }
 
 MACHINE_START(DOCKSTAR, "Seagate FreeAgent DockStar")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= dockstar_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
+	.restart	= kirkwood_restart,
 MACHINE_END

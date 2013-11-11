@@ -31,7 +31,7 @@
 
 #include <asm/hwrpb.h>
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -68,7 +68,7 @@ enum ipi_message_type {
 };
 
 /* Set to a secondary's cpuid when it comes online.  */
-static int smp_secondary_alive __devinitdata = 0;
+static int smp_secondary_alive = 0;
 
 int smp_num_probed;		/* Internal processor count */
 int smp_num_cpus = 1;		/* Number that came online.  */
@@ -166,12 +166,12 @@ smp_callin(void)
 	DBGS(("smp_callin: commencing CPU %d current %p active_mm %p\n",
 	      cpuid, current, current->active_mm));
 
-	/* Do nothing.  */
-	cpu_idle();
+	preempt_disable();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Wait until hwrpb->txrdy is clear for cpu.  Return -1 on timeout.  */
-static int __devinit
+static int
 wait_for_txrdy (unsigned long cpumask)
 {
 	unsigned long timeout;
@@ -357,23 +357,9 @@ secondary_cpu_start(int cpuid, struct task_struct *idle)
  * Bring one cpu online.
  */
 static int __cpuinit
-smp_boot_one_cpu(int cpuid)
+smp_boot_one_cpu(int cpuid, struct task_struct *idle)
 {
-	struct task_struct *idle;
 	unsigned long timeout;
-
-	/* Cook up an idler for this guy.  Note that the address we
-	   give to kernel_thread is irrelevant -- it's going to start
-	   where HWRPB.CPU_restart says to start.  But this gets all
-	   the other task-y sort of data structures set up like we
-	   wish.  We can't use kernel_thread since we must avoid
-	   rescheduling the child.  */
-	idle = fork_idle(cpuid);
-	if (IS_ERR(idle))
-		panic("failed fork for CPU %d", cpuid);
-
-	DBGS(("smp_boot_one_cpu: CPU %d state 0x%lx flags 0x%lx\n",
-	      cpuid, idle->state, idle->flags));
 
 	/* Signal the secondary to wait a moment.  */
 	smp_secondary_alive = -1;
@@ -450,7 +436,7 @@ setup_smp(void)
 		smp_num_probed = 1;
 	}
 
-	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_map = %lx\n",
+	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
 	       smp_num_probed, cpumask_bits(cpu_present_mask)[0]);
 }
 
@@ -481,15 +467,15 @@ smp_prepare_cpus(unsigned int max_cpus)
 	smp_num_cpus = smp_num_probed;
 }
 
-void __devinit
+void
 smp_prepare_boot_cpu(void)
 {
 }
 
 int __cpuinit
-__cpu_up(unsigned int cpu)
+__cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	smp_boot_one_cpu(cpu);
+	smp_boot_one_cpu(cpu, tidle);
 
 	return cpu_online(cpu) ? 0 : -ENOSYS;
 }

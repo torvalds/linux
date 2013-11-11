@@ -32,11 +32,15 @@
  */
 
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
+#include <linux/suspend.h>
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 
 #include "twl-core.h"
 
@@ -49,8 +53,8 @@
  *
  * We set up IRQs starting at a platform-specified base. An interrupt map table,
  * specifies mapping between interrupt number and the associated module.
- *
  */
+#define TWL6030_NR_IRQS    20
 
 static int twl6030_interrupt_mapping[24] = {
 	PWR_INTR_OFFSET,	/* Bit 0	PWRON			*/
@@ -83,8 +87,48 @@ static int twl6030_interrupt_mapping[24] = {
 /*----------------------------------------------------------------------*/
 
 static unsigned twl6030_irq_base;
+static int twl_irq;
+static bool twl_irq_wake_enabled;
 
 static struct completion irq_event;
+static atomic_t twl6030_wakeirqs = ATOMIC_INIT(0);
+
+static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
+				   unsigned long pm_event, void *unused)
+{
+	int chained_wakeups;
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		chained_wakeups = atomic_read(&twl6030_wakeirqs);
+
+		if (chained_wakeups && !twl_irq_wake_enabled) {
+			if (enable_irq_wake(twl_irq))
+				pr_err("twl6030 IRQ wake enable failed\n");
+			else
+				twl_irq_wake_enabled = true;
+		} else if (!chained_wakeups && twl_irq_wake_enabled) {
+			disable_irq_wake(twl_irq);
+			twl_irq_wake_enabled = false;
+		}
+
+		disable_irq(twl_irq);
+		break;
+
+	case PM_POST_SUSPEND:
+		enable_irq(twl_irq);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block twl6030_irq_pm_notifier_block = {
+	.notifier_call = twl6030_irq_pm_notifier,
+};
 
 /*
  * This thread processes interrupts reported by the Primary Interrupt Handler.
@@ -95,8 +139,6 @@ static int twl6030_irq_thread(void *data)
 	static unsigned i2c_errors;
 	static const unsigned max_i2c_errors = 100;
 	int ret;
-
-	current->flags |= PF_NOFREEZE;
 
 	while (!kthread_should_stop()) {
 		int i;
@@ -145,8 +187,17 @@ static int twl6030_irq_thread(void *data)
 			}
 		local_irq_enable();
 		}
-		ret = twl_i2c_write(TWL_MODULE_PIH, sts.bytes,
-				REG_INT_STS_A, 3); /* clear INT_STS_A */
+
+		/*
+		 * NOTE:
+		 * Simulation confirms that documentation is wrong w.r.t the
+		 * interrupt status clear operation. A single *byte* write to
+		 * any one of STS_A to STS_C register results in all three
+		 * STS registers being reset. Since it does not matter which
+		 * value is written, all three registers are cleared on a
+		 * single byte write, so we just use 0x0 to clear.
+		 */
+		ret = twl_i2c_write_u8(TWL_MODULE_PIH, 0x00, REG_INT_STS_A);
 		if (ret)
 			pr_warning("twl6030: I2C error in clearing PIH ISR\n");
 
@@ -187,11 +238,16 @@ static inline void activate_irq(int irq)
 #endif
 }
 
-/*----------------------------------------------------------------------*/
+static int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	if (on)
+		atomic_inc(&twl6030_wakeirqs);
+	else
+		atomic_dec(&twl6030_wakeirqs);
 
-static unsigned twl6030_irq_next;
+	return 0;
+}
 
-/*----------------------------------------------------------------------*/
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset)
 {
 	int ret;
@@ -261,7 +317,8 @@ int twl6030_mmc_card_detect_config(void)
 									ret);
 		return ret;
 	}
-	return 0;
+
+	return twl6030_irq_base + MMCDETECT_INTR_OFFSET;
 }
 EXPORT_SYMBOL(twl6030_mmc_card_detect_config);
 
@@ -290,72 +347,95 @@ int twl6030_mmc_card_detect(struct device *dev, int slot)
 }
 EXPORT_SYMBOL(twl6030_mmc_card_detect);
 
-int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
+int twl6030_init_irq(struct device *dev, int irq_num)
 {
-
-	int	status = 0;
-	int	i;
+	struct			device_node *node = dev->of_node;
+	int			nr_irqs, irq_base, irq_end;
 	struct task_struct	*task;
-	int ret;
-	u8 mask[4];
+	static struct irq_chip  twl6030_irq_chip;
+	int			status = 0;
+	int			i;
+	u8			mask[3];
 
-	static struct irq_chip	twl6030_irq_chip;
+	nr_irqs = TWL6030_NR_IRQS;
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		dev_err(dev, "Fail to allocate IRQ descs\n");
+		return irq_base;
+	}
+
+	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
+
+	irq_end = irq_base + nr_irqs;
+
+	mask[0] = 0xFF;
 	mask[1] = 0xFF;
 	mask[2] = 0xFF;
-	mask[3] = 0xFF;
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_MSK_LINE_A, 3); /* MASK ALL INT LINES */
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_MSK_STS_A, 3); /* MASK ALL INT STS */
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_STS_A, 3); /* clear INT_STS_A,B,C */
+
+	/* mask all int lines */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_MSK_LINE_A, 3);
+	/* mask all int sts */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_MSK_STS_A, 3);
+	/* clear INT_STS_A,B,C */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_STS_A, 3);
 
 	twl6030_irq_base = irq_base;
 
-	/* install an irq handler for each of the modules;
+	/*
+	 * install an irq handler for each of the modules;
 	 * clone dummy irq_chip since PIH can't *do* anything
 	 */
 	twl6030_irq_chip = dummy_irq_chip;
 	twl6030_irq_chip.name = "twl6030";
 	twl6030_irq_chip.irq_set_type = NULL;
+	twl6030_irq_chip.irq_set_wake = twl6030_irq_set_wake;
 
 	for (i = irq_base; i < irq_end; i++) {
 		irq_set_chip_and_handler(i, &twl6030_irq_chip,
 					 handle_simple_irq);
+		irq_set_chip_data(i, (void *)irq_num);
 		activate_irq(i);
 	}
 
-	twl6030_irq_next = i;
-	pr_info("twl6030: %s (irq %d) chaining IRQs %d..%d\n", "PIH",
-			irq_num, irq_base, twl6030_irq_next - 1);
+	dev_info(dev, "PIH (irq %d) chaining IRQs %d..%d\n",
+			irq_num, irq_base, irq_end);
 
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
 	init_completion(&irq_event);
+
+	status = request_irq(irq_num, handle_twl6030_pih, 0, "TWL6030-PIH",
+			     &irq_event);
+	if (status < 0) {
+		dev_err(dev, "could not claim irq %d: %d\n", irq_num, status);
+		goto fail_irq;
+	}
+
 	task = kthread_run(twl6030_irq_thread, (void *)irq_num, "twl6030-irq");
 	if (IS_ERR(task)) {
-		pr_err("twl6030: could not create irq %d thread!\n", irq_num);
+		dev_err(dev, "could not create irq %d thread!\n", irq_num);
 		status = PTR_ERR(task);
 		goto fail_kthread;
 	}
 
-	status = request_irq(irq_num, handle_twl6030_pih, IRQF_DISABLED,
-				"TWL6030-PIH", &irq_event);
-	if (status < 0) {
-		pr_err("twl6030: could not claim irq%d: %d\n", irq_num, status);
-		goto fail_irq;
-	}
-	return status;
-fail_irq:
-	free_irq(irq_num, &irq_event);
+	twl_irq = irq_num;
+	register_pm_notifier(&twl6030_irq_pm_notifier_block);
+	return irq_base;
 
 fail_kthread:
+	free_irq(irq_num, &irq_event);
+
+fail_irq:
 	for (i = irq_base; i < irq_end; i++)
 		irq_set_chip_and_handler(i, NULL, NULL);
+
 	return status;
 }
 
 int twl6030_exit_irq(void)
 {
+	unregister_pm_notifier(&twl6030_irq_pm_notifier_block);
 
 	if (twl6030_irq_base) {
 		pr_err("twl6030: can't yet clean up IRQs?\n");

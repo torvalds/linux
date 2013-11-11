@@ -18,7 +18,6 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
@@ -35,6 +34,7 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 STATIC int
 xfs_internal_inum(
@@ -62,7 +62,6 @@ xfs_bulkstat_one_int(
 {
 	struct xfs_icdinode	*dic;		/* dinode core info pointer */
 	struct xfs_inode	*ip;		/* incore inode pointer */
-	struct inode		*inode;
 	struct xfs_bstat	*buf;		/* return buffer */
 	int			error = 0;	/* error value */
 
@@ -76,7 +75,8 @@ xfs_bulkstat_one_int(
 		return XFS_ERROR(ENOMEM);
 
 	error = xfs_iget(mp, NULL, ino,
-			 XFS_IGET_UNTRUSTED, XFS_ILOCK_SHARED, &ip);
+			 (XFS_IGET_DONTCACHE | XFS_IGET_UNTRUSTED),
+			 XFS_ILOCK_SHARED, &ip);
 	if (error) {
 		*stat = BULKSTAT_RV_NOTHING;
 		goto out_free;
@@ -86,7 +86,6 @@ xfs_bulkstat_one_int(
 	ASSERT(ip->i_imap.im_blkno != 0);
 
 	dic = &ip->i_d;
-	inode = VFS_I(ip);
 
 	/* xfs_iget returns the following without needing
 	 * further change.
@@ -99,19 +98,12 @@ xfs_bulkstat_one_int(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-
-	/*
-	 * We need to read the timestamps from the Linux inode because
-	 * the VFS keeps writing directly into the inode structure instead
-	 * of telling us about the updates.
-	 */
-	buf->bs_atime.tv_sec = inode->i_atime.tv_sec;
-	buf->bs_atime.tv_nsec = inode->i_atime.tv_nsec;
-	buf->bs_mtime.tv_sec = inode->i_mtime.tv_sec;
-	buf->bs_mtime.tv_nsec = inode->i_mtime.tv_nsec;
-	buf->bs_ctime.tv_sec = inode->i_ctime.tv_sec;
-	buf->bs_ctime.tv_nsec = inode->i_ctime.tv_nsec;
-
+	buf->bs_atime.tv_sec = dic->di_atime.t_sec;
+	buf->bs_atime.tv_nsec = dic->di_atime.t_nsec;
+	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
+	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
+	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;
+	buf->bs_ctime.tv_nsec = dic->di_ctime.t_nsec;
 	buf->bs_xflags = xfs_ip2xflags(ip);
 	buf->bs_extsize = dic->di_extsize << mp->m_sb.sb_blocklog;
 	buf->bs_extents = dic->di_nextents;
@@ -404,7 +396,8 @@ xfs_bulkstat(
 					if (xfs_inobt_maskn(chunkidx, nicluster)
 							& ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
-							agbno, nbcluster);
+							agbno, nbcluster,
+							&xfs_inode_buf_ops);
 				}
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;
@@ -564,7 +557,7 @@ xfs_bulkstat_single(
 
 	/*
 	 * note that requesting valid inode numbers which are not allocated
-	 * to inodes will most likely cause xfs_itobp to generate warning
+	 * to inodes will most likely cause xfs_imap_to_bp to generate warning
 	 * messages about bad magic numbers. This is ok. The fact that
 	 * the inode isn't actually an inode is handled by the
 	 * error check below. Done this way to make the usual case faster

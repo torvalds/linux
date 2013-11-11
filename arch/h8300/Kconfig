@@ -3,11 +3,16 @@ config H8300
 	default y
 	select HAVE_IDE
 	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_ATOMIC64
+	select HAVE_UID16
+	select VIRT_TO_BUS
+	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
-
-config SYMBOL_PREFIX
-	string
-	default "_"
+	select GENERIC_CPU_DEVICES
+	select MODULES_USE_ELF_RELA
+	select OLD_SIGSUSPEND3
+	select OLD_SIGACTION
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 
 config MMU
 	bool
@@ -160,7 +165,7 @@ config VT_CONSOLE
 
 config HW_CONSOLE
 	bool
-	depends on VT && !S390 && !UM
+	depends on VT
 	default y
 
 comment "Unix98 PTY support"
@@ -195,7 +200,7 @@ config UNIX98_PTYS
 
 source "drivers/char/pcmcia/Kconfig"
 
-source "drivers/serial/Kconfig"
+source "drivers/tty/serial/Kconfig"
 
 source "drivers/i2c/Kconfig"
 

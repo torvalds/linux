@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -64,18 +64,26 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	int i;
 
-	if (phba->sli_rev == LPFC_SLI_REV4)
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		/* Calculate alignment */
+		if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
+			i = phba->cfg_sg_dma_buf_size;
+		else
+			i = SLI4_PAGE_SIZE;
+
 		phba->lpfc_scsi_dma_buf_pool =
 			pci_pool_create("lpfc_scsi_dma_buf_pool",
 				phba->pcidev,
 				phba->cfg_sg_dma_buf_size,
-				phba->cfg_sg_dma_buf_size,
+				i,
 				0);
-	else
+	} else {
 		phba->lpfc_scsi_dma_buf_pool =
 			pci_pool_create("lpfc_scsi_dma_buf_pool",
 				phba->pcidev, phba->cfg_sg_dma_buf_size,
 				align, 0);
+	}
+
 	if (!phba->lpfc_scsi_dma_buf_pool)
 		goto fail;
 
@@ -193,6 +201,10 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	if (phba->lpfc_hbq_pool)
 		pci_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
+
+	if (phba->rrq_pool)
+		mempool_destroy(phba->rrq_pool);
+	phba->rrq_pool = NULL;
 
 	/* Free NLP memory pool */
 	mempool_destroy(phba->nlp_mem_pool);
@@ -389,7 +401,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 {
 	struct hbq_dmabuf *hbqbp;
 
-	hbqbp = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	hbqbp = kzalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
 	if (!hbqbp)
 		return NULL;
 
@@ -441,7 +453,7 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 {
 	struct hbq_dmabuf *dma_buf;
 
-	dma_buf = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	dma_buf = kzalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
 	if (!dma_buf)
 		return NULL;
 

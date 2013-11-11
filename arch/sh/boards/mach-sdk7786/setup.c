@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
@@ -36,6 +38,12 @@ static struct platform_device heartbeat_device = {
 	.id		= -1,
 	.num_resources	= 1,
 	.resource	= &heartbeat_resource,
+};
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
 static struct resource smsc911x_resources[] = {
@@ -167,7 +175,7 @@ static void sdk7786_pcie_clk_disable(struct clk *clk)
 	fpga_write_reg(fpga_read_reg(PCIECR) & ~PCIECR_CLKEN, PCIECR);
 }
 
-static struct clk_ops sdk7786_pcie_clk_ops = {
+static struct sh_clk_ops sdk7786_pcie_clk_ops = {
 	.enable		= sdk7786_pcie_clk_enable,
 	.disable	= sdk7786_pcie_clk_disable,
 };
@@ -194,7 +202,7 @@ static int sdk7786_clk_init(void)
 		return -EINVAL;
 
 	clk = clk_get(NULL, "extal");
-	if (!clk || IS_ERR(clk))
+	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	ret = clk_set_rate(clk, 33333333);
 	clk_put(clk);
@@ -235,6 +243,8 @@ static void sdk7786_power_off(void)
 static void __init sdk7786_setup(char **cmdline_p)
 {
 	pr_info("Renesas Technology Europe SDK7786 support:\n");
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	sdk7786_fpga_init();
 	sdk7786_nmi_init();

@@ -50,7 +50,7 @@ fp_fsqrt(struct fp_ext *dest, struct fp_ext *src)
 	 * sqrt(m*2^e) =
 	 *		 sqrt(2*m) * 2^(p)	, if e = 2*p + 1
 	 *
-	 * So we use the last bit of the exponent to decide wether to
+	 * So we use the last bit of the exponent to decide whether to
 	 * use the m or 2*m.
 	 *
 	 * Since only the fractional part of the mantissa is stored and
@@ -104,9 +104,6 @@ fp_fetoxm1(struct fp_ext *dest, struct fp_ext *src)
 	uprint("fetoxm1\n");
 
 	fp_monadic_check(dest, src);
-
-	if (IS_ZERO(dest))
-		return dest;
 
 	return dest;
 }

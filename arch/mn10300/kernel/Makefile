@@ -1,14 +1,14 @@
 #
 # Makefile for the MN10300-specific core kernel code
 #
-extra-y := head.o init_task.o vmlinux.lds
+extra-y := head.o vmlinux.lds
 
 fpu-obj-y := fpu-nofpu.o fpu-nofpu-low.o
 fpu-obj-$(CONFIG_FPU) := fpu.o fpu-low.o
 
 obj-y   := process.o signal.o entry.o traps.o irq.o \
-	   ptrace.o setup.o time.o sys_mn10300.o io.o kthread.o \
-	   switch_to.o mn10300_ksyms.o kernel_execve.o $(fpu-obj-y) \
+	   ptrace.o setup.o time.o sys_mn10300.o io.o \
+	   switch_to.o mn10300_ksyms.o $(fpu-obj-y) \
 	   csrc-mn10300.o cevt-mn10300.o
 
 obj-$(CONFIG_SMP) += smp.o smp-low.o

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland / sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -121,9 +121,7 @@ enum caif_direction {
  * @transmit:	Packet transmit funciton.
  * @ctrlcmd:	Used for control signalling upwards in the stack.
  * @modemcmd:	Used for control signaling downwards in the stack.
- * @prio:	Priority of this layer.
  * @id:		The identity of this layer
- * @type:	The type of this layer
  * @name:	Name of the layer.
  *
  *  This structure defines the layered structure in CAIF.
@@ -230,9 +228,7 @@ struct cflayer {
 	 */
 	int (*modemcmd) (struct cflayer *layr, enum caif_modemcmd ctrl);
 
-	unsigned short prio;
 	unsigned int id;
-	unsigned int type;
 	char name[CAIF_LAYER_NAME_SZ];
 };
 

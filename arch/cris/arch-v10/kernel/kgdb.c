@@ -264,7 +264,7 @@ static int write_register (int regno, char *val);
 
 /* Write a value to a specified register in the stack of a thread other
    than the current thread. */
-static write_stack_register (int thread_id, int regno, char *valptr);
+static int write_stack_register(int thread_id, int regno, char *valptr);
 
 /* Read a value from a specified register in the register image. Returns the
    status of the read operation. The register value is returned in valptr. */
@@ -694,7 +694,7 @@ mem2hex(char *buf, unsigned char *mem, int count)
                 /* Valid mem address. */
                 for (i = 0; i < count; i++) {
                         ch = *mem++;
-			buf = pack_hex_byte(buf, ch);
+			buf = hex_byte_pack(buf, ch);
                 }
         }
         
@@ -868,7 +868,7 @@ stub_is_stopped(int sigval)
 	/* Send trap type (converted to signal) */
 
 	*ptr++ = 'T';
-	ptr = pack_hex_byte(ptr, sigval);
+	ptr = hex_byte_pack(ptr, sigval);
 
 	/* Send register contents. We probably only need to send the
 	 * PC, frame pointer and stack pointer here. Other registers will be
@@ -881,7 +881,7 @@ stub_is_stopped(int sigval)
                 status = read_register (regno, &reg_cont);
                 
 		if (status == SUCCESS) {
-			ptr = pack_hex_byte(ptr, regno);
+			ptr = hex_byte_pack(ptr, regno);
                         *ptr++ = ':';
 
                         ptr = mem2hex(ptr, (unsigned char *)&reg_cont,

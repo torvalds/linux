@@ -63,10 +63,12 @@
  */
 struct guest_walker {
 	int level;
+	unsigned max_level;
 	gfn_t table_gfn[PT_MAX_FULL_LEVELS];
 	pt_element_t ptes[PT_MAX_FULL_LEVELS];
 	pt_element_t prefetch_ptes[PTE_PREFETCH_NUM];
 	gpa_t pte_gpa[PT_MAX_FULL_LEVELS];
+	pt_element_t __user *ptep_user[PT_MAX_FULL_LEVELS];
 	unsigned pt_access;
 	unsigned pte_access;
 	gfn_t gfn;
@@ -92,25 +94,50 @@ static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	if (unlikely(npages != 1))
 		return -EFAULT;
 
-	table = kmap_atomic(page, KM_USER0);
+	table = kmap_atomic(page);
 	ret = CMPXCHG(&table[index], orig_pte, new_pte);
-	kunmap_atomic(table, KM_USER0);
+	kunmap_atomic(table);
 
 	kvm_release_page_dirty(page);
 
 	return (ret != orig_pte);
 }
 
-static unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, pt_element_t gpte)
+static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
+					     struct kvm_mmu *mmu,
+					     struct guest_walker *walker,
+					     int write_fault)
 {
-	unsigned access;
+	unsigned level, index;
+	pt_element_t pte, orig_pte;
+	pt_element_t __user *ptep_user;
+	gfn_t table_gfn;
+	int ret;
 
-	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
-#if PTTYPE == 64
-	if (vcpu->arch.mmu.nx)
-		access &= ~(gpte >> PT64_NX_SHIFT);
-#endif
-	return access;
+	for (level = walker->max_level; level >= walker->level; --level) {
+		pte = orig_pte = walker->ptes[level - 1];
+		table_gfn = walker->table_gfn[level - 1];
+		ptep_user = walker->ptep_user[level - 1];
+		index = offset_in_page(ptep_user) / sizeof(pt_element_t);
+		if (!(pte & PT_ACCESSED_MASK)) {
+			trace_kvm_mmu_set_accessed_bit(table_gfn, index, sizeof(pte));
+			pte |= PT_ACCESSED_MASK;
+		}
+		if (level == walker->level && write_fault && !is_dirty_gpte(pte)) {
+			trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
+			pte |= PT_DIRTY_MASK;
+		}
+		if (pte == orig_pte)
+			continue;
+
+		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index, orig_pte, pte);
+		if (ret)
+			return ret;
+
+		mark_page_dirty(vcpu->kvm, table_gfn);
+		walker->ptes[level] = pte;
+	}
+	return 0;
 }
 
 /*
@@ -120,45 +147,48 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 				    struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				    gva_t addr, u32 access)
 {
+	int ret;
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, uninitialized_var(pte_access);
+	unsigned index, pt_access, pte_access, accessed_dirty;
 	gpa_t pte_gpa;
-	bool eperm, present, rsvd_fault;
-	int offset, write_fault, user_fault, fetch_fault;
+	int offset;
+	const int write_fault = access & PFERR_WRITE_MASK;
+	const int user_fault  = access & PFERR_USER_MASK;
+	const int fetch_fault = access & PFERR_FETCH_MASK;
+	u16 errcode = 0;
+	gpa_t real_gpa;
+	gfn_t gfn;
 
-	write_fault = access & PFERR_WRITE_MASK;
-	user_fault = access & PFERR_USER_MASK;
-	fetch_fault = access & PFERR_FETCH_MASK;
-
-	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
-				     fetch_fault);
-walk:
-	present = true;
-	eperm = rsvd_fault = false;
+	trace_kvm_mmu_pagetable_walk(addr, access);
+retry_walk:
 	walker->level = mmu->root_level;
 	pte           = mmu->get_cr3(vcpu);
 
 #if PTTYPE == 64
 	if (walker->level == PT32E_ROOT_LEVEL) {
-		pte = kvm_pdptr_read_mmu(vcpu, mmu, (addr >> 30) & 3);
+		pte = mmu->get_pdptr(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
-		if (!is_present_gpte(pte)) {
-			present = false;
+		if (!is_present_gpte(pte))
 			goto error;
-		}
 		--walker->level;
 	}
 #endif
+	walker->max_level = walker->level;
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
 	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
 
-	pt_access = ACC_ALL;
+	accessed_dirty = PT_ACCESSED_MASK;
+	pt_access = pte_access = ACC_ALL;
+	++walker->level;
 
-	for (;;) {
+	do {
 		gfn_t real_gfn;
 		unsigned long host_addr;
+
+		pt_access &= pte_access;
+		--walker->level;
 
 		index = PT_INDEX(addr, walker->level);
 
@@ -170,124 +200,68 @@ walk:
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
 					      PFERR_USER_MASK|PFERR_WRITE_MASK);
-		if (unlikely(real_gfn == UNMAPPED_GVA)) {
-			present = false;
-			break;
-		}
+		if (unlikely(real_gfn == UNMAPPED_GVA))
+			goto error;
 		real_gfn = gpa_to_gfn(real_gfn);
 
 		host_addr = gfn_to_hva(vcpu->kvm, real_gfn);
-		if (unlikely(kvm_is_error_hva(host_addr))) {
-			present = false;
-			break;
-		}
+		if (unlikely(kvm_is_error_hva(host_addr)))
+			goto error;
 
 		ptep_user = (pt_element_t __user *)((void *)host_addr + offset);
-		if (unlikely(__copy_from_user(&pte, ptep_user, sizeof(pte)))) {
-			present = false;
-			break;
-		}
+		if (unlikely(__copy_from_user(&pte, ptep_user, sizeof(pte))))
+			goto error;
+		walker->ptep_user[walker->level - 1] = ptep_user;
 
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
-		if (unlikely(!is_present_gpte(pte))) {
-			present = false;
-			break;
-		}
+		if (unlikely(!is_present_gpte(pte)))
+			goto error;
 
 		if (unlikely(is_rsvd_bits_set(&vcpu->arch.mmu, pte,
 					      walker->level))) {
-			rsvd_fault = true;
-			break;
+			errcode |= PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
+			goto error;
 		}
 
-		if (unlikely(write_fault && !is_writable_pte(pte)
-			     && (user_fault || is_write_protection(vcpu))))
-			eperm = true;
-
-		if (unlikely(user_fault && !(pte & PT_USER_MASK)))
-			eperm = true;
-
-#if PTTYPE == 64
-		if (unlikely(fetch_fault && (pte & PT64_NX_MASK)))
-			eperm = true;
-#endif
-
-		if (!eperm && !rsvd_fault
-		    && unlikely(!(pte & PT_ACCESSED_MASK))) {
-			int ret;
-			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
-						       sizeof(pte));
-			ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
-						  pte, pte|PT_ACCESSED_MASK);
-			if (unlikely(ret < 0)) {
-				present = false;
-				break;
-			} else if (ret)
-				goto walk;
-
-			mark_page_dirty(vcpu->kvm, table_gfn);
-			pte |= PT_ACCESSED_MASK;
-		}
-
-		pte_access = pt_access & FNAME(gpte_access)(vcpu, pte);
+		accessed_dirty &= pte;
+		pte_access = pt_access & gpte_access(vcpu, pte);
 
 		walker->ptes[walker->level - 1] = pte;
+	} while (!is_last_gpte(mmu, walker->level, pte));
 
-		if ((walker->level == PT_PAGE_TABLE_LEVEL) ||
-		    ((walker->level == PT_DIRECTORY_LEVEL) &&
-				is_large_pte(pte) &&
-				(PTTYPE == 64 || is_pse(vcpu))) ||
-		    ((walker->level == PT_PDPE_LEVEL) &&
-				is_large_pte(pte) &&
-				mmu->root_level == PT64_ROOT_LEVEL)) {
-			int lvl = walker->level;
-			gpa_t real_gpa;
-			gfn_t gfn;
-			u32 ac;
-
-			gfn = gpte_to_gfn_lvl(pte, lvl);
-			gfn += (addr & PT_LVL_OFFSET_MASK(lvl)) >> PAGE_SHIFT;
-
-			if (PTTYPE == 32 &&
-			    walker->level == PT_DIRECTORY_LEVEL &&
-			    is_cpuid_PSE36())
-				gfn += pse36_gfn_delta(pte);
-
-			ac = write_fault | fetch_fault | user_fault;
-
-			real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn),
-						      ac);
-			if (real_gpa == UNMAPPED_GVA)
-				return 0;
-
-			walker->gfn = real_gpa >> PAGE_SHIFT;
-
-			break;
-		}
-
-		pt_access = pte_access;
-		--walker->level;
+	if (unlikely(permission_fault(mmu, pte_access, access))) {
+		errcode |= PFERR_PRESENT_MASK;
+		goto error;
 	}
 
-	if (unlikely(!present || eperm || rsvd_fault))
-		goto error;
+	gfn = gpte_to_gfn_lvl(pte, walker->level);
+	gfn += (addr & PT_LVL_OFFSET_MASK(walker->level)) >> PAGE_SHIFT;
 
-	if (write_fault && unlikely(!is_dirty_gpte(pte))) {
-		int ret;
+	if (PTTYPE == 32 && walker->level == PT_DIRECTORY_LEVEL && is_cpuid_PSE36())
+		gfn += pse36_gfn_delta(pte);
 
-		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
-		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
-					  pte, pte|PT_DIRTY_MASK);
-		if (unlikely(ret < 0)) {
-			present = false;
+	real_gpa = mmu->translate_gpa(vcpu, gfn_to_gpa(gfn), access);
+	if (real_gpa == UNMAPPED_GVA)
+		return 0;
+
+	walker->gfn = real_gpa >> PAGE_SHIFT;
+
+	if (!write_fault)
+		protect_clean_gpte(&pte_access, pte);
+	else
+		/*
+		 * On a write fault, fold the dirty bit into accessed_dirty by
+		 * shifting it one place right.
+		 */
+		accessed_dirty &= pte >> (PT_DIRTY_SHIFT - PT_ACCESSED_SHIFT);
+
+	if (unlikely(!accessed_dirty)) {
+		ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker, write_fault);
+		if (unlikely(ret < 0))
 			goto error;
-		} else if (ret)
-			goto walk;
-
-		mark_page_dirty(vcpu->kvm, table_gfn);
-		pte |= PT_DIRTY_MASK;
-		walker->ptes[walker->level - 1] = pte;
+		else if (ret)
+			goto retry_walk;
 	}
 
 	walker->pt_access = pt_access;
@@ -297,19 +271,14 @@ walk:
 	return 1;
 
 error:
+	errcode |= write_fault | user_fault;
+	if (fetch_fault && (mmu->nx ||
+			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))
+		errcode |= PFERR_FETCH_MASK;
+
 	walker->fault.vector = PF_VECTOR;
 	walker->fault.error_code_valid = true;
-	walker->fault.error_code = 0;
-	if (present)
-		walker->fault.error_code |= PFERR_PRESENT_MASK;
-
-	walker->fault.error_code |= write_fault | user_fault;
-
-	if (fetch_fault && mmu->nx)
-		walker->fault.error_code |= PFERR_FETCH_MASK;
-	if (rsvd_fault)
-		walker->fault.error_code |= PFERR_RSVD_MASK;
-
+	walker->fault.error_code = errcode;
 	walker->fault.address = addr;
 	walker->fault.nested_page_fault = mmu != vcpu->arch.walk_mmu;
 
@@ -332,57 +301,43 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 					addr, access);
 }
 
-static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
-				    struct kvm_mmu_page *sp, u64 *spte,
-				    pt_element_t gpte)
+static bool
+FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+		     u64 *spte, pt_element_t gpte, bool no_dirty_log)
 {
-	u64 nonpresent = shadow_trap_nonpresent_pte;
+	unsigned pte_access;
+	gfn_t gfn;
+	pfn_t pfn;
 
-	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
-		goto no_present;
+	if (prefetch_invalid_gpte(vcpu, sp, spte, gpte))
+		return false;
 
-	if (!is_present_gpte(gpte)) {
-		if (!sp->unsync)
-			nonpresent = shadow_notrap_nonpresent_pte;
-		goto no_present;
-	}
+	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 
-	if (!(gpte & PT_ACCESSED_MASK))
-		goto no_present;
+	gfn = gpte_to_gfn(gpte);
+	pte_access = sp->role.access & gpte_access(vcpu, gpte);
+	protect_clean_gpte(&pte_access, gpte);
+	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
+			no_dirty_log && (pte_access & ACC_WRITE_MASK));
+	if (is_error_pfn(pfn))
+		return false;
 
-	return false;
+	/*
+	 * we call mmu_set_spte() with host_writable = true because
+	 * pte_prefetch_gfn_to_pfn always gets a writable pfn.
+	 */
+	mmu_set_spte(vcpu, spte, pte_access, 0, NULL, PT_PAGE_TABLE_LEVEL,
+		     gfn, pfn, true, true);
 
-no_present:
-	drop_spte(vcpu->kvm, spte, nonpresent);
 	return true;
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			      u64 *spte, const void *pte)
 {
-	pt_element_t gpte;
-	unsigned pte_access;
-	pfn_t pfn;
+	pt_element_t gpte = *(const pt_element_t *)pte;
 
-	gpte = *(const pt_element_t *)pte;
-	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
-		return;
-
-	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
-	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
-		return;
-	}
-
-	/*
-	 * we call mmu_set_spte() with host_writable = true because that
-	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
-	 */
-	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
-		     is_dirty_gpte(gpte), NULL, PT_PAGE_TABLE_LEVEL,
-		     gpte_to_gfn(gpte), pfn, true, true);
+	FNAME(prefetch_gpte)(vcpu, sp, spte, gpte, false);
 }
 
 static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
@@ -428,61 +383,33 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 	spte = sp->spt + i;
 
 	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
-		pt_element_t gpte;
-		unsigned pte_access;
-		gfn_t gfn;
-		pfn_t pfn;
-		bool dirty;
-
 		if (spte == sptep)
 			continue;
 
-		if (*spte != shadow_trap_nonpresent_pte)
+		if (is_shadow_present_pte(*spte))
 			continue;
 
-		gpte = gptep[i];
-
-		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
-			continue;
-
-		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-		gfn = gpte_to_gfn(gpte);
-		dirty = is_dirty_gpte(gpte);
-		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
-				      (pte_access & ACC_WRITE_MASK) && dirty);
-		if (is_error_pfn(pfn)) {
-			kvm_release_pfn_clean(pfn);
+		if (!FNAME(prefetch_gpte)(vcpu, sp, spte, gptep[i], true))
 			break;
-		}
-
-		mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
-			     dirty, NULL, PT_PAGE_TABLE_LEVEL, gfn,
-			     pfn, true, true);
 	}
 }
 
 /*
  * Fetch a shadow pte for a specific level in the paging hierarchy.
+ * If the guest tries to write a write-protected page, we need to
+ * emulate this operation, return 1 to indicate this case.
  */
-static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
+static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *gw,
-			 int user_fault, int write_fault, int hlevel,
-			 int *ptwrite, pfn_t pfn, bool map_writable,
-			 bool prefault)
+			 int write_fault, int hlevel,
+			 pfn_t pfn, bool map_writable, bool prefault)
 {
-	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *sp = NULL;
-	bool dirty = is_dirty_gpte(gw->ptes[gw->level - 1]);
-	int top_level;
-	unsigned direct_access;
 	struct kvm_shadow_walk_iterator it;
+	unsigned direct_access, access = gw->pt_access;
+	int top_level, emulate = 0;
 
-	if (!is_present_gpte(gw->ptes[gw->level - 1]))
-		return NULL;
-
-	direct_access = gw->pt_access & gw->pte_access;
-	if (!dirty)
-		direct_access &= ~ACC_WRITE_MASK;
+	direct_access = gw->pte_access;
 
 	top_level = vcpu->arch.mmu.root_level;
 	if (top_level == PT32E_ROOT_LEVEL)
@@ -501,6 +428,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	     shadow_walk_next(&it)) {
 		gfn_t table_gfn;
 
+		clear_sp_write_flooding_count(it.sptep);
 		drop_large_spte(vcpu, it.sptep);
 
 		sp = NULL;
@@ -526,6 +454,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	     shadow_walk_next(&it)) {
 		gfn_t direct_gfn;
 
+		clear_sp_write_flooding_count(it.sptep);
 		validate_direct_spte(vcpu, it.sptep, direct_access);
 
 		drop_large_spte(vcpu, it.sptep);
@@ -540,18 +469,58 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		link_shadow_page(it.sptep, sp);
 	}
 
-	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
-		     user_fault, write_fault, dirty, ptwrite, it.level,
-		     gw->gfn, pfn, prefault, map_writable);
+	clear_sp_write_flooding_count(it.sptep);
+	mmu_set_spte(vcpu, it.sptep, gw->pte_access, write_fault, &emulate,
+		     it.level, gw->gfn, pfn, prefault, map_writable);
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 
-	return it.sptep;
+	return emulate;
 
 out_gpte_changed:
 	if (sp)
 		kvm_mmu_put_page(sp, it.sptep);
 	kvm_release_pfn_clean(pfn);
-	return NULL;
+	return 0;
+}
+
+ /*
+ * To see whether the mapped gfn can write its page table in the current
+ * mapping.
+ *
+ * It is the helper function of FNAME(page_fault). When guest uses large page
+ * size to map the writable gfn which is used as current page table, we should
+ * force kvm to use small page size to map it because new shadow page will be
+ * created when kvm establishes shadow page table that stop kvm using large
+ * page size. Do it early can avoid unnecessary #PF and emulation.
+ *
+ * @write_fault_to_shadow_pgtable will return true if the fault gfn is
+ * currently used as its page table.
+ *
+ * Note: the PDPT page table is not checked for PAE-32 bit guest. It is ok
+ * since the PDPT is always shadowed, that means, we can not use large page
+ * size to map the gfn which is used as PDPT.
+ */
+static bool
+FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
+			      struct guest_walker *walker, int user_fault,
+			      bool *write_fault_to_shadow_pgtable)
+{
+	int level;
+	gfn_t mask = ~(KVM_PAGES_PER_HPAGE(walker->level) - 1);
+	bool self_changed = false;
+
+	if (!(walker->pte_access & ACC_WRITE_MASK ||
+	      (!is_write_protection(vcpu) && !user_fault)))
+		return false;
+
+	for (level = walker->level; level <= walker->max_level; level++) {
+		gfn_t gfn = walker->gfn ^ walker->table_gfn[level - 1];
+
+		self_changed |= !(gfn & mask);
+		*write_fault_to_shadow_pgtable |= !gfn;
+	}
+
+	return self_changed;
 }
 
 /*
@@ -574,16 +543,18 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	int write_fault = error_code & PFERR_WRITE_MASK;
 	int user_fault = error_code & PFERR_USER_MASK;
 	struct guest_walker walker;
-	u64 *sptep;
-	int write_pt = 0;
 	int r;
 	pfn_t pfn;
 	int level = PT_PAGE_TABLE_LEVEL;
 	int force_pt_level;
 	unsigned long mmu_seq;
-	bool map_writable;
+	bool map_writable, is_self_change_mapping;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
+
+	if (unlikely(error_code & PFERR_RSVD_MASK))
+		return handle_mmio_page_fault(vcpu, addr, error_code,
+					      mmu_is_nested(vcpu));
 
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
@@ -599,16 +570,20 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	 */
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __func__);
-		if (!prefault) {
+		if (!prefault)
 			inject_page_fault(vcpu, &walker.fault);
-			/* reset fork detector */
-			vcpu->arch.last_pt_write_count = 0;
-		}
+
 		return 0;
 	}
 
+	vcpu->arch.write_fault_to_shadow_pgtable = false;
+
+	is_self_change_mapping = FNAME(is_self_change_mapping)(vcpu,
+	      &walker, user_fault, &vcpu->arch.write_fault_to_shadow_pgtable);
+
 	if (walker.level >= PT_DIRECTORY_LEVEL)
-		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn);
+		force_pt_level = mapping_level_dirty_bitmap(vcpu, walker.gfn)
+		   || is_self_change_mapping;
 	else
 		force_pt_level = 1;
 	if (!force_pt_level) {
@@ -623,32 +598,45 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 			 &map_writable))
 		return 0;
 
-	/* mmio */
-	if (is_error_pfn(pfn))
-		return kvm_handle_bad_page(vcpu->kvm, walker.gfn, pfn);
+	if (handle_abnormal_pfn(vcpu, mmu_is_nested(vcpu) ? 0 : addr,
+				walker.gfn, pfn, walker.pte_access, &r))
+		return r;
+
+	/*
+	 * Do not change pte_access if the pfn is a mmio page, otherwise
+	 * we will cache the incorrect access into mmio spte.
+	 */
+	if (write_fault && !(walker.pte_access & ACC_WRITE_MASK) &&
+	     !is_write_protection(vcpu) && !user_fault &&
+	      !is_noslot_pfn(pfn)) {
+		walker.pte_access |= ACC_WRITE_MASK;
+		walker.pte_access &= ~ACC_USER_MASK;
+
+		/*
+		 * If we converted a user page to a kernel page,
+		 * so that the kernel can write to it when cr0.wp=0,
+		 * then we should prevent the kernel from executing it
+		 * if SMEP is enabled.
+		 */
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
+			walker.pte_access &= ~ACC_EXEC_MASK;
+	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-	if (mmu_notifier_retry(vcpu, mmu_seq))
+	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 
-	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
-	kvm_mmu_free_some_pages(vcpu);
+	kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
+	make_mmu_pages_available(vcpu);
 	if (!force_pt_level)
 		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
-	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-			     level, &write_pt, pfn, map_writable, prefault);
-	(void)sptep;
-	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
-		 sptep, *sptep, write_pt);
-
-	if (!write_pt)
-		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
-
+	r = FNAME(fetch)(vcpu, addr, &walker, write_fault,
+			 level, pfn, map_writable, prefault);
 	++vcpu->stat.pf_fixed;
-	trace_kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);
+	kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
-	return write_pt;
+	return r;
 
 out_unlock:
 	spin_unlock(&vcpu->kvm->mmu_lock);
@@ -656,63 +644,66 @@ out_unlock:
 	return 0;
 }
 
+static gpa_t FNAME(get_level1_sp_gpa)(struct kvm_mmu_page *sp)
+{
+	int offset = 0;
+
+	WARN_ON(sp->role.level != PT_PAGE_TABLE_LEVEL);
+
+	if (PTTYPE == 32)
+		offset = sp->role.quadrant << PT64_LEVEL_BITS;
+
+	return gfn_to_gpa(sp->gfn) + offset * sizeof(pt_element_t);
+}
+
 static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
-	gpa_t pte_gpa = -1;
 	int level;
 	u64 *sptep;
-	int need_flush = 0;
+
+	vcpu_clear_mmio_info(vcpu, gva);
+
+	/*
+	 * No need to check return value here, rmap_can_add() can
+	 * help us to skip pte prefetch later.
+	 */
+	mmu_topup_memory_caches(vcpu);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
-
 	for_each_shadow_entry(vcpu, gva, iterator) {
 		level = iterator.level;
 		sptep = iterator.sptep;
 
 		sp = page_header(__pa(sptep));
 		if (is_last_spte(*sptep, level)) {
-			int offset, shift;
+			pt_element_t gpte;
+			gpa_t pte_gpa;
 
 			if (!sp->unsync)
 				break;
 
-			shift = PAGE_SHIFT -
-				  (PT_LEVEL_BITS - PT64_LEVEL_BITS) * level;
-			offset = sp->role.quadrant << shift;
-
-			pte_gpa = (sp->gfn << PAGE_SHIFT) + offset;
+			pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
-			if (is_shadow_present_pte(*sptep)) {
-				if (is_large_pte(*sptep))
-					--vcpu->kvm->stat.lpages;
-				drop_spte(vcpu->kvm, sptep,
-					  shadow_trap_nonpresent_pte);
-				need_flush = 1;
-			} else
-				__set_spte(sptep, shadow_trap_nonpresent_pte);
-			break;
+			if (mmu_page_zap_pte(vcpu->kvm, sp, sptep))
+				kvm_flush_remote_tlbs(vcpu->kvm);
+
+			if (!rmap_can_add(vcpu))
+				break;
+
+			if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
+						  sizeof(pt_element_t)))
+				break;
+
+			FNAME(update_pte)(vcpu, sp, sptep, &gpte);
 		}
 
 		if (!is_shadow_present_pte(*sptep) || !sp->unsync_children)
 			break;
 	}
-
-	if (need_flush)
-		kvm_flush_remote_tlbs(vcpu->kvm);
-
-	atomic_inc(&vcpu->kvm->arch.invlpg_counter);
-
 	spin_unlock(&vcpu->kvm->mmu_lock);
-
-	if (pte_gpa == -1)
-		return;
-
-	if (mmu_topup_memory_caches(vcpu))
-		return;
-	kvm_mmu_pte_write(vcpu, pte_gpa, NULL, sizeof(pt_element_t), 0);
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
@@ -752,36 +743,6 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 	return gpa;
 }
 
-static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
-				 struct kvm_mmu_page *sp)
-{
-	int i, j, offset, r;
-	pt_element_t pt[256 / sizeof(pt_element_t)];
-	gpa_t pte_gpa;
-
-	if (sp->role.direct
-	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
-		nonpaging_prefetch_page(vcpu, sp);
-		return;
-	}
-
-	pte_gpa = gfn_to_gpa(sp->gfn);
-	if (PTTYPE == 32) {
-		offset = sp->role.quadrant << PT64_LEVEL_BITS;
-		pte_gpa += offset * sizeof(pt_element_t);
-	}
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; i += ARRAY_SIZE(pt)) {
-		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, pt, sizeof pt);
-		pte_gpa += ARRAY_SIZE(pt) * sizeof(pt_element_t);
-		for (j = 0; j < ARRAY_SIZE(pt); ++j)
-			if (r || is_present_gpte(pt[j]))
-				sp->spt[i+j] = shadow_trap_nonpresent_pte;
-			else
-				sp->spt[i+j] = shadow_notrap_nonpresent_pte;
-	}
-}
-
 /*
  * Using the cached information from sp->gfns is safe because:
  * - The spte has a reference to the struct page, so the pfn for a given gfn
@@ -797,19 +758,14 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
-	int i, offset, nr_present;
+	int i, nr_present = 0;
 	bool host_writable;
 	gpa_t first_pte_gpa;
-
-	offset = nr_present = 0;
 
 	/* direct kvm_mmu_page can not be unsync. */
 	BUG_ON(sp->role.direct);
 
-	if (PTTYPE == 32)
-		offset = sp->role.quadrant << PT64_LEVEL_BITS;
-
-	first_pte_gpa = gfn_to_gpa(sp->gfn) + offset * sizeof(pt_element_t);
+	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
 		unsigned pte_access;
@@ -817,7 +773,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		gpa_t pte_gpa;
 		gfn_t gfn;
 
-		if (!is_shadow_present_pte(sp->spt[i]))
+		if (!sp->spt[i])
 			continue;
 
 		pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
@@ -826,26 +782,31 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					  sizeof(pt_element_t)))
 			return -EINVAL;
 
-		gfn = gpte_to_gfn(gpte);
-
-		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+		if (prefetch_invalid_gpte(vcpu, sp, &sp->spt[i], gpte)) {
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 
+		gfn = gpte_to_gfn(gpte);
+		pte_access = sp->role.access;
+		pte_access &= gpte_access(vcpu, gpte);
+		protect_clean_gpte(&pte_access, gpte);
+
+		if (sync_mmio_spte(&sp->spt[i], gfn, pte_access, &nr_present))
+			continue;
+
 		if (gfn != sp->gfns[i]) {
-			drop_spte(vcpu->kvm, &sp->spt[i],
-				      shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, &sp->spt[i]);
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 
 		nr_present++;
-		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
+
 		host_writable = sp->spt[i] & SPTE_HOST_WRITEABLE;
 
-		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_gpte(gpte), PT_PAGE_TABLE_LEVEL, gfn,
+		set_spte(vcpu, &sp->spt[i], pte_access,
+			 PT_PAGE_TABLE_LEVEL, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false,
 			 host_writable);
 	}

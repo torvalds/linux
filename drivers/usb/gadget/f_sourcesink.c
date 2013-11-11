@@ -8,15 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /* #define VERBOSE_DEBUG */
@@ -24,10 +15,12 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
+#include <linux/usb/composite.h>
+#include <linux/err.h>
 
 #include "g_zero.h"
 #include "gadget_chips.h"
-
 
 /*
  * SOURCE/SINK FUNCTION ... a primary testing vehicle for USB peripheral
@@ -59,6 +52,9 @@ struct f_sourcesink {
 
 	struct usb_ep		*in_ep;
 	struct usb_ep		*out_ep;
+	struct usb_ep		*iso_in_ep;
+	struct usb_ep		*iso_out_ep;
+	int			cur_alt;
 };
 
 static inline struct f_sourcesink *func_to_ss(struct usb_function *f)
@@ -67,18 +63,32 @@ static inline struct f_sourcesink *func_to_ss(struct usb_function *f)
 }
 
 static unsigned pattern;
-module_param(pattern, uint, 0);
-MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63 ");
+static unsigned isoc_interval;
+static unsigned isoc_maxpacket;
+static unsigned isoc_mult;
+static unsigned isoc_maxburst;
+static unsigned buflen;
 
 /*-------------------------------------------------------------------------*/
 
-static struct usb_interface_descriptor source_sink_intf = {
-	.bLength =		sizeof source_sink_intf,
+static struct usb_interface_descriptor source_sink_intf_alt0 = {
+	.bLength =		USB_DT_INTERFACE_SIZE,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
+	.bAlternateSetting =	0,
 	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
-	/* .iInterface = DYNAMIC */
+	/* .iInterface		= DYNAMIC */
+};
+
+static struct usb_interface_descriptor source_sink_intf_alt1 = {
+	.bLength =		USB_DT_INTERFACE_SIZE,
+	.bDescriptorType =	USB_DT_INTERFACE,
+
+	.bAlternateSetting =	1,
+	.bNumEndpoints =	4,
+	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
+	/* .iInterface		= DYNAMIC */
 };
 
 /* full speed support: */
@@ -99,10 +109,36 @@ static struct usb_endpoint_descriptor fs_sink_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
+static struct usb_endpoint_descriptor fs_iso_source_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bEndpointAddress =	USB_DIR_IN,
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1023),
+	.bInterval =		4,
+};
+
+static struct usb_endpoint_descriptor fs_iso_sink_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bEndpointAddress =	USB_DIR_OUT,
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1023),
+	.bInterval =		4,
+};
+
 static struct usb_descriptor_header *fs_source_sink_descs[] = {
-	(struct usb_descriptor_header *) &source_sink_intf,
+	(struct usb_descriptor_header *) &source_sink_intf_alt0,
 	(struct usb_descriptor_header *) &fs_sink_desc,
 	(struct usb_descriptor_header *) &fs_source_desc,
+	(struct usb_descriptor_header *) &source_sink_intf_alt1,
+#define FS_ALT_IFC_1_OFFSET	3
+	(struct usb_descriptor_header *) &fs_sink_desc,
+	(struct usb_descriptor_header *) &fs_source_desc,
+	(struct usb_descriptor_header *) &fs_iso_sink_desc,
+	(struct usb_descriptor_header *) &fs_iso_source_desc,
 	NULL,
 };
 
@@ -124,10 +160,125 @@ static struct usb_endpoint_descriptor hs_sink_desc = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
+static struct usb_endpoint_descriptor hs_iso_source_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+	.bInterval =		4,
+};
+
+static struct usb_endpoint_descriptor hs_iso_sink_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+	.bInterval =		4,
+};
+
 static struct usb_descriptor_header *hs_source_sink_descs[] = {
-	(struct usb_descriptor_header *) &source_sink_intf,
+	(struct usb_descriptor_header *) &source_sink_intf_alt0,
 	(struct usb_descriptor_header *) &hs_source_desc,
 	(struct usb_descriptor_header *) &hs_sink_desc,
+	(struct usb_descriptor_header *) &source_sink_intf_alt1,
+#define HS_ALT_IFC_1_OFFSET	3
+	(struct usb_descriptor_header *) &hs_source_desc,
+	(struct usb_descriptor_header *) &hs_sink_desc,
+	(struct usb_descriptor_header *) &hs_iso_source_desc,
+	(struct usb_descriptor_header *) &hs_iso_sink_desc,
+	NULL,
+};
+
+/* super speed support: */
+
+static struct usb_endpoint_descriptor ss_source_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor ss_source_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	0,
+};
+
+static struct usb_endpoint_descriptor ss_sink_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor ss_sink_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	0,
+};
+
+static struct usb_endpoint_descriptor ss_iso_source_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+	.bInterval =		4,
+};
+
+struct usb_ss_ep_comp_descriptor ss_iso_source_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	cpu_to_le16(1024),
+};
+
+static struct usb_endpoint_descriptor ss_iso_sink_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_ISOC,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+	.bInterval =		4,
+};
+
+struct usb_ss_ep_comp_descriptor ss_iso_sink_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	cpu_to_le16(1024),
+};
+
+static struct usb_descriptor_header *ss_source_sink_descs[] = {
+	(struct usb_descriptor_header *) &source_sink_intf_alt0,
+	(struct usb_descriptor_header *) &ss_source_desc,
+	(struct usb_descriptor_header *) &ss_source_comp_desc,
+	(struct usb_descriptor_header *) &ss_sink_desc,
+	(struct usb_descriptor_header *) &ss_sink_comp_desc,
+	(struct usb_descriptor_header *) &source_sink_intf_alt1,
+#define SS_ALT_IFC_1_OFFSET	5
+	(struct usb_descriptor_header *) &ss_source_desc,
+	(struct usb_descriptor_header *) &ss_source_comp_desc,
+	(struct usb_descriptor_header *) &ss_sink_desc,
+	(struct usb_descriptor_header *) &ss_sink_comp_desc,
+	(struct usb_descriptor_header *) &ss_iso_source_desc,
+	(struct usb_descriptor_header *) &ss_iso_source_comp_desc,
+	(struct usb_descriptor_header *) &ss_iso_sink_desc,
+	(struct usb_descriptor_header *) &ss_iso_sink_comp_desc,
 	NULL,
 };
 
@@ -150,20 +301,72 @@ static struct usb_gadget_strings *sourcesink_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init
+struct usb_request *alloc_ep_req(struct usb_ep *ep, int len)
+{
+	struct usb_request      *req;
+
+	req = usb_ep_alloc_request(ep, GFP_ATOMIC);
+	if (req) {
+		if (len)
+			req->length = len;
+		else
+			req->length = buflen;
+		req->buf = kmalloc(req->length, GFP_ATOMIC);
+		if (!req->buf) {
+			usb_ep_free_request(ep, req);
+			req = NULL;
+		}
+	}
+	return req;
+}
+
+void free_ep_req(struct usb_ep *ep, struct usb_request *req)
+{
+	kfree(req->buf);
+	usb_ep_free_request(ep, req);
+}
+
+static void disable_ep(struct usb_composite_dev *cdev, struct usb_ep *ep)
+{
+	int			value;
+
+	if (ep->driver_data) {
+		value = usb_ep_disable(ep);
+		if (value < 0)
+			DBG(cdev, "disable %s --> %d\n",
+					ep->name, value);
+		ep->driver_data = NULL;
+	}
+}
+
+void disable_endpoints(struct usb_composite_dev *cdev,
+		struct usb_ep *in, struct usb_ep *out,
+		struct usb_ep *iso_in, struct usb_ep *iso_out)
+{
+	disable_ep(cdev, in);
+	disable_ep(cdev, out);
+	if (iso_in)
+		disable_ep(cdev, iso_in);
+	if (iso_out)
+		disable_ep(cdev, iso_out);
+}
+
+static int
 sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_sourcesink	*ss = func_to_ss(f);
 	int	id;
+	int ret;
 
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
 	if (id < 0)
 		return id;
-	source_sink_intf.bInterfaceNumber = id;
+	source_sink_intf_alt0.bInterfaceNumber = id;
+	source_sink_intf_alt1.bInterfaceNumber = id;
 
-	/* allocate endpoints */
+	/* allocate bulk endpoints */
 	ss->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_source_desc);
 	if (!ss->in_ep) {
 autoconf_fail:
@@ -178,24 +381,116 @@ autoconf_fail:
 		goto autoconf_fail;
 	ss->out_ep->driver_data = cdev;	/* claim */
 
-	/* support high speed hardware */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_source_desc.bEndpointAddress =
-				fs_source_desc.bEndpointAddress;
-		hs_sink_desc.bEndpointAddress =
-				fs_sink_desc.bEndpointAddress;
-		f->hs_descriptors = hs_source_sink_descs;
+	/* sanity check the isoc module parameters */
+	if (isoc_interval < 1)
+		isoc_interval = 1;
+	if (isoc_interval > 16)
+		isoc_interval = 16;
+	if (isoc_mult > 2)
+		isoc_mult = 2;
+	if (isoc_maxburst > 15)
+		isoc_maxburst = 15;
+
+	/* fill in the FS isoc descriptors from the module parameters */
+	fs_iso_source_desc.wMaxPacketSize = isoc_maxpacket > 1023 ?
+						1023 : isoc_maxpacket;
+	fs_iso_source_desc.bInterval = isoc_interval;
+	fs_iso_sink_desc.wMaxPacketSize = isoc_maxpacket > 1023 ?
+						1023 : isoc_maxpacket;
+	fs_iso_sink_desc.bInterval = isoc_interval;
+
+	/* allocate iso endpoints */
+	ss->iso_in_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_source_desc);
+	if (!ss->iso_in_ep)
+		goto no_iso;
+	ss->iso_in_ep->driver_data = cdev;	/* claim */
+
+	ss->iso_out_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_sink_desc);
+	if (ss->iso_out_ep) {
+		ss->iso_out_ep->driver_data = cdev;	/* claim */
+	} else {
+		ss->iso_in_ep->driver_data = NULL;
+		ss->iso_in_ep = NULL;
+no_iso:
+		/*
+		 * We still want to work even if the UDC doesn't have isoc
+		 * endpoints, so null out the alt interface that contains
+		 * them and continue.
+		 */
+		fs_source_sink_descs[FS_ALT_IFC_1_OFFSET] = NULL;
+		hs_source_sink_descs[HS_ALT_IFC_1_OFFSET] = NULL;
+		ss_source_sink_descs[SS_ALT_IFC_1_OFFSET] = NULL;
 	}
 
-	DBG(cdev, "%s speed %s: IN/%s, OUT/%s\n",
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
-			f->name, ss->in_ep->name, ss->out_ep->name);
+	if (isoc_maxpacket > 1024)
+		isoc_maxpacket = 1024;
+
+	/* support high speed hardware */
+	hs_source_desc.bEndpointAddress = fs_source_desc.bEndpointAddress;
+	hs_sink_desc.bEndpointAddress = fs_sink_desc.bEndpointAddress;
+
+	/*
+	 * Fill in the HS isoc descriptors from the module parameters.
+	 * We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	hs_iso_source_desc.wMaxPacketSize = isoc_maxpacket;
+	hs_iso_source_desc.wMaxPacketSize |= isoc_mult << 11;
+	hs_iso_source_desc.bInterval = isoc_interval;
+	hs_iso_source_desc.bEndpointAddress =
+		fs_iso_source_desc.bEndpointAddress;
+
+	hs_iso_sink_desc.wMaxPacketSize = isoc_maxpacket;
+	hs_iso_sink_desc.wMaxPacketSize |= isoc_mult << 11;
+	hs_iso_sink_desc.bInterval = isoc_interval;
+	hs_iso_sink_desc.bEndpointAddress = fs_iso_sink_desc.bEndpointAddress;
+
+	/* support super speed hardware */
+	ss_source_desc.bEndpointAddress =
+		fs_source_desc.bEndpointAddress;
+	ss_sink_desc.bEndpointAddress =
+		fs_sink_desc.bEndpointAddress;
+
+	/*
+	 * Fill in the SS isoc descriptors from the module parameters.
+	 * We assume that the user knows what they are doing and won't
+	 * give parameters that their UDC doesn't support.
+	 */
+	ss_iso_source_desc.wMaxPacketSize = isoc_maxpacket;
+	ss_iso_source_desc.bInterval = isoc_interval;
+	ss_iso_source_comp_desc.bmAttributes = isoc_mult;
+	ss_iso_source_comp_desc.bMaxBurst = isoc_maxburst;
+	ss_iso_source_comp_desc.wBytesPerInterval =
+		isoc_maxpacket * (isoc_mult + 1) * (isoc_maxburst + 1);
+	ss_iso_source_desc.bEndpointAddress =
+		fs_iso_source_desc.bEndpointAddress;
+
+	ss_iso_sink_desc.wMaxPacketSize = isoc_maxpacket;
+	ss_iso_sink_desc.bInterval = isoc_interval;
+	ss_iso_sink_comp_desc.bmAttributes = isoc_mult;
+	ss_iso_sink_comp_desc.bMaxBurst = isoc_maxburst;
+	ss_iso_sink_comp_desc.wBytesPerInterval =
+		isoc_maxpacket * (isoc_mult + 1) * (isoc_maxburst + 1);
+	ss_iso_sink_desc.bEndpointAddress = fs_iso_sink_desc.bEndpointAddress;
+
+	ret = usb_assign_descriptors(f, fs_source_sink_descs,
+			hs_source_sink_descs, ss_source_sink_descs);
+	if (ret)
+		return ret;
+
+	DBG(cdev, "%s speed %s: IN/%s, OUT/%s, ISO-IN/%s, ISO-OUT/%s\n",
+	    (gadget_is_superspeed(c->cdev->gadget) ? "super" :
+	     (gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full")),
+			f->name, ss->in_ep->name, ss->out_ep->name,
+			ss->iso_in_ep ? ss->iso_in_ep->name : "<none>",
+			ss->iso_out_ep ? ss->iso_out_ep->name : "<none>");
 	return 0;
 }
 
 static void
-sourcesink_unbind(struct usb_configuration *c, struct usb_function *f)
+sourcesink_free_func(struct usb_function *f)
 {
+	usb_free_all_descriptors(f);
 	kfree(func_to_ss(f));
 }
 
@@ -205,6 +500,9 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 	unsigned		i;
 	u8			*buf = req->buf;
 	struct usb_composite_dev *cdev = ss->function.config->cdev;
+
+	if (pattern == 2)
+		return 0;
 
 	for (i = 0; i < req->actual; i++, buf++) {
 		switch (pattern) {
@@ -220,7 +518,7 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 		 * each usb transfer request should be.  Resync is done
 		 * with set_interface or set_config.  (We *WANT* it to
 		 * get quickly out of sync if controllers or their drivers
-		 * stutter for any reason, including buffer duplcation...)
+		 * stutter for any reason, including buffer duplication...)
 		 */
 		case 1:
 			if (*buf == (u8)(i % 63))
@@ -247,23 +545,31 @@ static void reinit_write_data(struct usb_ep *ep, struct usb_request *req)
 		for  (i = 0; i < req->length; i++)
 			*buf++ = (u8) (i % 63);
 		break;
+	case 2:
+		break;
 	}
 }
 
 static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	struct f_sourcesink	*ss = ep->driver_data;
-	struct usb_composite_dev *cdev = ss->function.config->cdev;
-	int			status = req->status;
+	struct usb_composite_dev	*cdev;
+	struct f_sourcesink		*ss = ep->driver_data;
+	int				status = req->status;
+
+	/* driver_data will be null if ep has been disabled */
+	if (!ss)
+		return;
+
+	cdev = ss->function.config->cdev;
 
 	switch (status) {
 
 	case 0:				/* normal completion? */
 		if (ep == ss->out_ep) {
 			check_read_data(ss, req);
-			memset(req->buf, 0x55, req->length);
-		} else
-			reinit_write_data(ep, req);
+			if (pattern != 2)
+				memset(req->buf, 0x55, req->length);
+		}
 		break;
 
 	/* this endpoint is normally active while we're configured */
@@ -299,32 +605,57 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
-static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in)
+static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
+		bool is_iso, int speed)
 {
 	struct usb_ep		*ep;
 	struct usb_request	*req;
-	int			status;
+	int			i, size, status;
 
-	ep = is_in ? ss->in_ep : ss->out_ep;
-	req = alloc_ep_req(ep);
-	if (!req)
-		return -ENOMEM;
+	for (i = 0; i < 8; i++) {
+		if (is_iso) {
+			switch (speed) {
+			case USB_SPEED_SUPER:
+				size = isoc_maxpacket * (isoc_mult + 1) *
+						(isoc_maxburst + 1);
+				break;
+			case USB_SPEED_HIGH:
+				size = isoc_maxpacket * (isoc_mult + 1);
+				break;
+			default:
+				size = isoc_maxpacket > 1023 ?
+						1023 : isoc_maxpacket;
+				break;
+			}
+			ep = is_in ? ss->iso_in_ep : ss->iso_out_ep;
+			req = alloc_ep_req(ep, size);
+		} else {
+			ep = is_in ? ss->in_ep : ss->out_ep;
+			req = alloc_ep_req(ep, 0);
+		}
 
-	req->complete = source_sink_complete;
-	if (is_in)
-		reinit_write_data(ep, req);
-	else
-		memset(req->buf, 0x55, req->length);
+		if (!req)
+			return -ENOMEM;
 
-	status = usb_ep_queue(ep, req, GFP_ATOMIC);
-	if (status) {
-		struct usb_composite_dev	*cdev;
+		req->complete = source_sink_complete;
+		if (is_in)
+			reinit_write_data(ep, req);
+		else if (pattern != 2)
+			memset(req->buf, 0x55, req->length);
 
-		cdev = ss->function.config->cdev;
-		ERROR(cdev, "start %s %s --> %d\n",
-				is_in ? "IN" : "OUT",
-				ep->name, status);
-		free_ep_req(ep, req);
+		status = usb_ep_queue(ep, req, GFP_ATOMIC);
+		if (status) {
+			struct usb_composite_dev	*cdev;
+
+			cdev = ss->function.config->cdev;
+			ERROR(cdev, "start %s%s %s --> %d\n",
+			      is_iso ? "ISO-" : "", is_in ? "IN" : "OUT",
+			      ep->name, status);
+			free_ep_req(ep, req);
+		}
+
+		if (!is_iso)
+			break;
 	}
 
 	return status;
@@ -335,28 +666,30 @@ static void disable_source_sink(struct f_sourcesink *ss)
 	struct usb_composite_dev	*cdev;
 
 	cdev = ss->function.config->cdev;
-	disable_endpoints(cdev, ss->in_ep, ss->out_ep);
+	disable_endpoints(cdev, ss->in_ep, ss->out_ep, ss->iso_in_ep,
+			ss->iso_out_ep);
 	VDBG(cdev, "%s disabled\n", ss->function.name);
 }
 
 static int
-enable_source_sink(struct usb_composite_dev *cdev, struct f_sourcesink *ss)
+enable_source_sink(struct usb_composite_dev *cdev, struct f_sourcesink *ss,
+		int alt)
 {
 	int					result = 0;
-	const struct usb_endpoint_descriptor	*src, *sink;
+	int					speed = cdev->gadget->speed;
 	struct usb_ep				*ep;
 
-	src = ep_choose(cdev->gadget, &hs_source_desc, &fs_source_desc);
-	sink = ep_choose(cdev->gadget, &hs_sink_desc, &fs_sink_desc);
-
-	/* one endpoint writes (sources) zeroes IN (to the host) */
+	/* one bulk endpoint writes (sources) zeroes IN (to the host) */
 	ep = ss->in_ep;
-	result = usb_ep_enable(ep, src);
+	result = config_ep_by_speed(cdev->gadget, &(ss->function), ep);
+	if (result)
+		return result;
+	result = usb_ep_enable(ep);
 	if (result < 0)
 		return result;
 	ep->driver_data = ss;
 
-	result = source_sink_start_ep(ss, true);
+	result = source_sink_start_ep(ss, true, false, speed);
 	if (result < 0) {
 fail:
 		ep = ss->in_ep;
@@ -365,34 +698,92 @@ fail:
 		return result;
 	}
 
-	/* one endpoint reads (sinks) anything OUT (from the host) */
+	/* one bulk endpoint reads (sinks) anything OUT (from the host) */
 	ep = ss->out_ep;
-	result = usb_ep_enable(ep, sink);
+	result = config_ep_by_speed(cdev->gadget, &(ss->function), ep);
+	if (result)
+		goto fail;
+	result = usb_ep_enable(ep);
 	if (result < 0)
 		goto fail;
 	ep->driver_data = ss;
 
-	result = source_sink_start_ep(ss, false);
+	result = source_sink_start_ep(ss, false, false, speed);
 	if (result < 0) {
+fail2:
+		ep = ss->out_ep;
 		usb_ep_disable(ep);
 		ep->driver_data = NULL;
 		goto fail;
 	}
 
-	DBG(cdev, "%s enabled\n", ss->function.name);
+	if (alt == 0)
+		goto out;
+
+	/* one iso endpoint writes (sources) zeroes IN (to the host) */
+	ep = ss->iso_in_ep;
+	if (ep) {
+		result = config_ep_by_speed(cdev->gadget, &(ss->function), ep);
+		if (result)
+			goto fail2;
+		result = usb_ep_enable(ep);
+		if (result < 0)
+			goto fail2;
+		ep->driver_data = ss;
+
+		result = source_sink_start_ep(ss, true, true, speed);
+		if (result < 0) {
+fail3:
+			ep = ss->iso_in_ep;
+			if (ep) {
+				usb_ep_disable(ep);
+				ep->driver_data = NULL;
+			}
+			goto fail2;
+		}
+	}
+
+	/* one iso endpoint reads (sinks) anything OUT (from the host) */
+	ep = ss->iso_out_ep;
+	if (ep) {
+		result = config_ep_by_speed(cdev->gadget, &(ss->function), ep);
+		if (result)
+			goto fail3;
+		result = usb_ep_enable(ep);
+		if (result < 0)
+			goto fail3;
+		ep->driver_data = ss;
+
+		result = source_sink_start_ep(ss, false, true, speed);
+		if (result < 0) {
+			usb_ep_disable(ep);
+			ep->driver_data = NULL;
+			goto fail3;
+		}
+	}
+out:
+	ss->cur_alt = alt;
+
+	DBG(cdev, "%s enabled, alt intf %d\n", ss->function.name, alt);
 	return result;
 }
 
 static int sourcesink_set_alt(struct usb_function *f,
 		unsigned intf, unsigned alt)
 {
-	struct f_sourcesink	*ss = func_to_ss(f);
-	struct usb_composite_dev *cdev = f->config->cdev;
+	struct f_sourcesink		*ss = func_to_ss(f);
+	struct usb_composite_dev	*cdev = f->config->cdev;
 
-	/* we know alt is zero */
 	if (ss->in_ep->driver_data)
 		disable_source_sink(ss);
-	return enable_source_sink(cdev, ss);
+	return enable_source_sink(cdev, ss, alt);
+}
+
+static int sourcesink_get_alt(struct usb_function *f, unsigned intf)
+{
+	struct f_sourcesink		*ss = func_to_ss(f);
+
+	return ss->cur_alt;
 }
 
 static void sourcesink_disable(struct usb_function *f)
@@ -404,36 +795,17 @@ static void sourcesink_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init sourcesink_bind_config(struct usb_configuration *c)
-{
-	struct f_sourcesink	*ss;
-	int			status;
-
-	ss = kzalloc(sizeof *ss, GFP_KERNEL);
-	if (!ss)
-		return -ENOMEM;
-
-	ss->function.name = "source/sink";
-	ss->function.descriptors = fs_source_sink_descs;
-	ss->function.bind = sourcesink_bind;
-	ss->function.unbind = sourcesink_unbind;
-	ss->function.set_alt = sourcesink_set_alt;
-	ss->function.disable = sourcesink_disable;
-
-	status = usb_add_function(c, &ss->function);
-	if (status)
-		kfree(ss);
-	return status;
-}
-
-static int sourcesink_setup(struct usb_configuration *c,
+static int sourcesink_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
+	struct usb_configuration        *c = f->config;
 	struct usb_request	*req = c->cdev->req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
+
+	req->length = USB_COMP_EP0_BUFSIZ;
 
 	/* composite driver infrastructure handles everything except
 	 * the two control test requests.
@@ -487,7 +859,7 @@ unknown:
 		req->length = value;
 		value = usb_ep_queue(c->cdev->gadget->ep0, req, GFP_ATOMIC);
 		if (value < 0)
-			ERROR(c->cdev, "source/sinkc response, err %d\n",
+			ERROR(c->cdev, "source/sink response, err %d\n",
 					value);
 	}
 
@@ -495,41 +867,76 @@ unknown:
 	return value;
 }
 
-static struct usb_configuration sourcesink_driver = {
-	.label		= "source/sink",
-	.strings	= sourcesink_strings,
-	.setup		= sourcesink_setup,
-	.bConfigurationValue = 3,
-	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	/* .iConfiguration = DYNAMIC */
-};
-
-/**
- * sourcesink_add - add a source/sink testing configuration to a device
- * @cdev: the device to support the configuration
- */
-int __init sourcesink_add(struct usb_composite_dev *cdev, bool autoresume)
+static struct usb_function *source_sink_alloc_func(
+		struct usb_function_instance *fi)
 {
-	int id;
+	struct f_sourcesink     *ss;
+	struct f_ss_opts	*ss_opts;
 
-	/* allocate string ID(s) */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_sourcesink[0].id = id;
+	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
+	if (!ss)
+		return NULL;
 
-	source_sink_intf.iInterface = id;
-	sourcesink_driver.iConfiguration = id;
+	ss_opts =  container_of(fi, struct f_ss_opts, func_inst);
+	pattern = ss_opts->pattern;
+	isoc_interval = ss_opts->isoc_interval;
+	isoc_maxpacket = ss_opts->isoc_maxpacket;
+	isoc_mult = ss_opts->isoc_mult;
+	isoc_maxburst = ss_opts->isoc_maxburst;
+	buflen = ss_opts->bulk_buflen;
 
-	/* support autoresume for remote wakeup testing */
-	if (autoresume)
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+	ss->function.name = "source/sink";
+	ss->function.bind = sourcesink_bind;
+	ss->function.set_alt = sourcesink_set_alt;
+	ss->function.get_alt = sourcesink_get_alt;
+	ss->function.disable = sourcesink_disable;
+	ss->function.setup = sourcesink_setup;
+	ss->function.strings = sourcesink_strings;
 
-	/* support OTG systems */
-	if (gadget_is_otg(cdev->gadget)) {
-		sourcesink_driver.descriptors = otg_desc;
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
+	ss->function.free_func = sourcesink_free_func;
 
-	return usb_add_config(cdev, &sourcesink_driver, sourcesink_bind_config);
+	return &ss->function;
 }
+
+static void source_sink_free_instance(struct usb_function_instance *fi)
+{
+	struct f_ss_opts *ss_opts;
+
+	ss_opts = container_of(fi, struct f_ss_opts, func_inst);
+	kfree(ss_opts);
+}
+
+static struct usb_function_instance *source_sink_alloc_inst(void)
+{
+	struct f_ss_opts *ss_opts;
+
+	ss_opts = kzalloc(sizeof(*ss_opts), GFP_KERNEL);
+	if (!ss_opts)
+		return ERR_PTR(-ENOMEM);
+	ss_opts->func_inst.free_func_inst = source_sink_free_instance;
+	return &ss_opts->func_inst;
+}
+DECLARE_USB_FUNCTION(SourceSink, source_sink_alloc_inst,
+		source_sink_alloc_func);
+
+static int __init sslb_modinit(void)
+{
+	int ret;
+
+	ret = usb_function_register(&SourceSinkusb_func);
+	if (ret)
+		return ret;
+	ret = lb_modinit();
+	if (ret)
+		usb_function_unregister(&SourceSinkusb_func);
+	return ret;
+}
+static void __exit sslb_modexit(void)
+{
+	usb_function_unregister(&SourceSinkusb_func);
+	lb_modexit();
+}
+module_init(sslb_modinit);
+module_exit(sslb_modexit);
+
+MODULE_LICENSE("GPL");

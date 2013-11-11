@@ -1,0 +1,233 @@
+/*
+ * Copyright 2012 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	arm {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		intc: interrupt-controller {
+			compatible = "ti,cp-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,intc-size = <100>;
+			reg = <0xfffee000 0x2000>;
+		};
+	};
+	soc {
+		compatible = "simple-bus";
+		model = "da850";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x01c00000 0x400000>;
+		interrupt-parent = <&intc>;
+
+		pmx_core: pinmux@1c14120 {
+			compatible = "pinctrl-single";
+			reg = <0x14120 0x50>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			pinctrl-single,bit-per-mux;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0xffffffff>;
+			status = "disabled";
+
+			nand_cs3_pins: pinmux_nand_pins {
+				pinctrl-single,bits = <
+					/* EMA_OE, EMA_WE */
+					0x1c 0x00110000  0x00ff0000
+					/* EMA_CS[4],EMA_CS[3]*/
+					0x1c 0x00000110  0x00000ff0
+					/*
+					 * EMA_D[0], EMA_D[1], EMA_D[2],
+					 * EMA_D[3], EMA_D[4], EMA_D[5],
+					 * EMA_D[6], EMA_D[7]
+					 */
+					0x24 0x11111111  0xffffffff
+					/* EMA_A[1], EMA_A[2] */
+					0x30 0x01100000  0x0ff00000
+				>;
+			};
+			i2c0_pins: pinmux_i2c0_pins {
+				pinctrl-single,bits = <
+					/* I2C0_SDA,I2C0_SCL */
+					0x10 0x00002200 0x0000ff00
+				>;
+			};
+			mmc0_pins: pinmux_mmc_pins {
+				pinctrl-single,bits = <
+					/* MMCSD0_DAT[3] MMCSD0_DAT[2]
+					 * MMCSD0_DAT[1] MMCSD0_DAT[0]
+					 * MMCSD0_CMD    MMCSD0_CLK
+					 */
+					0x28 0x00222222  0x00ffffff
+				>;
+			};
+			ehrpwm0a_pins: pinmux_ehrpwm0a_pins {
+				pinctrl-single,bits = <
+					/* EPWM0A */
+					0xc 0x00000002 0x0000000f
+				>;
+			};
+			ehrpwm0b_pins: pinmux_ehrpwm0b_pins {
+				pinctrl-single,bits = <
+					/* EPWM0B */
+					0xc 0x00000020 0x000000f0
+				>;
+			};
+			ehrpwm1a_pins: pinmux_ehrpwm1a_pins {
+				pinctrl-single,bits = <
+					/* EPWM1A */
+					0x14 0x00000002 0x0000000f
+				>;
+			};
+			ehrpwm1b_pins: pinmux_ehrpwm1b_pins {
+				pinctrl-single,bits = <
+					/* EPWM1B */
+					0x14 0x00000020 0x000000f0
+				>;
+			};
+			ecap0_pins: pinmux_ecap0_pins {
+				pinctrl-single,bits = <
+					/* ECAP0_APWM0 */
+					0x8 0x20000000 0xf0000000
+				>;
+			};
+			ecap1_pins: pinmux_ecap1_pins {
+				pinctrl-single,bits = <
+					/* ECAP1_APWM1 */
+					0x4 0x40000000 0xf0000000
+				>;
+			};
+			ecap2_pins: pinmux_ecap2_pins {
+				pinctrl-single,bits = <
+					/* ECAP2_APWM2 */
+					0x4 0x00000004 0x0000000f
+				>;
+			};
+			spi1_pins: pinmux_spi_pins {
+				pinctrl-single,bits = <
+					/* SIMO, SOMI, CLK */
+					0x14 0x00110100 0x00ff0f00
+				>;
+			};
+			spi1_cs0_pin: pinmux_spi1_cs0 {
+				pinctrl-single,bits = <
+					/* CS0 */
+					0x14 0x00000010 0x000000f0
+				>;
+			};
+		};
+		serial0: serial@1c42000 {
+			compatible = "ns16550a";
+			reg = <0x42000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <25>;
+			status = "disabled";
+		};
+		serial1: serial@1d0c000 {
+			compatible = "ns16550a";
+			reg = <0x10c000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <53>;
+			status = "disabled";
+		};
+		serial2: serial@1d0d000 {
+			compatible = "ns16550a";
+			reg = <0x10d000 0x100>;
+			clock-frequency = <150000000>;
+			reg-shift = <2>;
+			interrupts = <61>;
+			status = "disabled";
+		};
+		rtc0: rtc@1c23000 {
+			compatible = "ti,da830-rtc";
+			reg = <0x23000 0x1000>;
+			interrupts = <19
+				      19>;
+			status = "disabled";
+		};
+		i2c0: i2c@1c22000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x22000 0x1000>;
+			interrupts = <15>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+		wdt: wdt@1c21000 {
+			compatible = "ti,davinci-wdt";
+			reg = <0x21000 0x1000>;
+			status = "disabled";
+		};
+		mmc0: mmc@1c40000 {
+			compatible = "ti,da830-mmc";
+			reg = <0x40000 0x1000>;
+			interrupts = <16>;
+			status = "disabled";
+		};
+		ehrpwm0: ehrpwm@01f00000 {
+			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			#pwm-cells = <3>;
+			reg = <0x300000 0x2000>;
+			status = "disabled";
+		};
+		ehrpwm1: ehrpwm@01f02000 {
+			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			#pwm-cells = <3>;
+			reg = <0x302000 0x2000>;
+			status = "disabled";
+		};
+		ecap0: ecap@01f06000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x306000 0x80>;
+			status = "disabled";
+		};
+		ecap1: ecap@01f07000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x307000 0x80>;
+			status = "disabled";
+		};
+		ecap2: ecap@01f08000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x308000 0x80>;
+			status = "disabled";
+		};
+		spi1: spi@1f0e000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,da830-spi";
+			reg = <0x30e000 0x1000>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <1>;
+			interrupts = <56>;
+			status = "disabled";
+		};
+	};
+	nand_cs3@62000000 {
+		compatible = "ti,davinci-nand";
+		reg = <0x62000000 0x807ff
+		       0x68000000 0x8000>;
+		ti,davinci-chipselect = <1>;
+		ti,davinci-mask-ale = <0>;
+		ti,davinci-mask-cle = <0>;
+		ti,davinci-mask-chipsel = <0>;
+		ti,davinci-ecc-mode = "hw";
+		ti,davinci-ecc-bits = <4>;
+		ti,davinci-nand-use-bbt;
+		status = "disabled";
+	};
+};

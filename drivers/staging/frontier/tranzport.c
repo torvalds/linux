@@ -199,7 +199,7 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 		struct usb_interface *intf = to_usb_interface(dev);	\
 		struct usb_tranzport *t = usb_get_intfdata(intf);	\
 		unsigned long temp;	\
-		if (strict_strtoul(buf, 10, &temp))	\
+		if (kstrtoul(buf, 10, &temp))	\
 			return -EINVAL;	\
 		t->value = temp;	\
 		return count;	\
@@ -353,8 +353,8 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&usb_tranzport_driver, subminor);
 
 	if (!interface) {
-		err("%s - error, can't find device for minor %d\n",
-			__func__, subminor);
+		pr_err("%s - error, can't find device for minor %d\n",
+		       __func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
 	}
@@ -471,7 +471,7 @@ exit:
 /**
  *	usb_tranzport_poll
  */
-static unsigned int usb_tranzport_poll(struct file *file, poll_table * wait)
+static unsigned int usb_tranzport_poll(struct file *file, poll_table *wait)
 {
 	struct usb_tranzport *dev;
 	unsigned int mask = 0;
@@ -517,9 +517,11 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
 		goto exit;
 	}
 
-	/* verify that the device wasn't unplugged */ if (dev->intf == NULL) {
+	/* verify that the device wasn't unplugged */
+	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d\n", retval);
+		pr_err("%s: No device or device unplugged %d\n",
+		       __func__, retval);
 		goto unlock_exit;
 	}
 
@@ -691,7 +693,8 @@ static ssize_t usb_tranzport_write(struct file *file,
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d\n", retval);
+		pr_err("%s: No device or device unplugged %d\n",
+		       __func__, retval);
 		goto unlock_exit;
 	}
 
@@ -726,7 +729,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		err("Endpoint should not be be null!\n");
+		dev_err(&dev->intf->dev, "Endpoint should not be be null!\n");
 		goto unlock_exit;
 	}
 
@@ -746,7 +749,8 @@ static ssize_t usb_tranzport_write(struct file *file,
 	retval = usb_submit_urb(dev->interrupt_out_urb, GFP_KERNEL);
 	if (retval) {
 		dev->interrupt_out_busy = 0;
-		err("Couldn't submit interrupt_out_urb %d\n", retval);
+		dev_err(&dev->intf->dev,
+			"Couldn't submit interrupt_out_urb %d\n", retval);
 		goto unlock_exit;
 	}
 	retval = bytes_to_write;
@@ -799,10 +803,9 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 	/* allocate memory for our device state and initialize it */
 
 	 dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&intf->dev, "Out of memory\n");
+	if (dev == NULL)
 		goto exit;
-	}
+
 	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
@@ -844,18 +847,14 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 
 	dev->ring_buffer =
 	    kmalloc((true_size * sizeof(struct tranzport_cmd)) + 8, GFP_KERNEL);
-
-	if (!dev->ring_buffer) {
-		dev_err(&intf->dev,
-			"Couldn't allocate ring_buffer size %d\n", true_size);
+	if (!dev->ring_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_buffer =
 	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_in_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
@@ -871,12 +870,11 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 			 "Interrupt out endpoint size is not 8!)\n");
 
 	dev->interrupt_out_buffer =
-	    kmalloc(write_buffer_size * dev->interrupt_out_endpoint_size,
-		    GFP_KERNEL);
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
+		kmalloc_array(write_buffer_size,
+			      dev->interrupt_out_endpoint_size, GFP_KERNEL);
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
+
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_urb\n");
@@ -971,29 +969,4 @@ static struct usb_driver usb_tranzport_driver = {
 	.id_table = usb_tranzport_table,
 };
 
-/**
- *	usb_tranzport_init
- */
-static int __init usb_tranzport_init(void)
-{
-	int retval;
-
-	/* register this driver with the USB subsystem */
-	retval = usb_register(&usb_tranzport_driver);
-	if (retval)
-		err("usb_register failed for the " __FILE__
-			" driver. Error number %d\n", retval);
-	return retval;
-}
-/**
- *	usb_tranzport_exit
- */
-
-static void __exit usb_tranzport_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&usb_tranzport_driver);
-}
-
-module_init(usb_tranzport_init);
-module_exit(usb_tranzport_exit);
+module_usb_driver(usb_tranzport_driver);

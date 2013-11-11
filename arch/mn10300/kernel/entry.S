@@ -15,7 +15,6 @@
 #include <linux/sys.h>
 #include <linux/linkage.h>
 #include <asm/smp.h>
-#include <asm/system.h>
 #include <asm/irqflags.h>
 #include <asm/thread_info.h>
 #include <asm/intctl-regs.h>
@@ -52,6 +51,16 @@ ENTRY(ret_from_fork)
 	GET_THREAD_INFO a2
 
 	# return 0 to indicate child process
+	clr	d0
+	mov	d0,(REG_D0,fp)
+	jmp	syscall_exit
+
+ENTRY(ret_from_kernel_thread)
+	call	schedule_tail[],0
+	mov	(REG_D0,fp),d0
+	mov	(REG_A0,fp),a0
+	calls	(a0)
+	GET_THREAD_INFO a2		# A2 must be set on return from sys_exit()
 	clr	d0
 	mov	d0,(REG_D0,fp)
 	jmp	syscall_exit
@@ -95,10 +104,14 @@ restore_all:
 ###############################################################################
 	ALIGN
 syscall_exit_work:
-	btst	_TIF_SYSCALL_TRACE,d2
-	beq	work_pending
+	mov	(REG_EPSW,fp),d0
+	and	EPSW_nSL,d0
+	beq	resume_kernel		# returning to supervisor mode
+
 	LOCAL_IRQ_ENABLE		# could let syscall_trace_exit() call
 					# schedule() instead
+	btst	_TIF_SYSCALL_TRACE,d2
+	beq	work_pending
 	mov	fp,d0
 	call	syscall_trace_exit[],0	# do_syscall_trace(regs)
 	jmp	resume_userspace
@@ -111,6 +124,7 @@ work_pending:
 work_resched:
 	call	schedule[],0
 
+resume_userspace:
 	# make sure we don't miss an interrupt setting need_resched or
 	# sigpending between sampling and the rti
 	LOCAL_IRQ_DISABLE
@@ -119,6 +133,8 @@ work_resched:
 	mov	(TI_flags,a2),d2
 	btst	_TIF_WORK_MASK,d2
 	beq	restore_all
+
+	LOCAL_IRQ_ENABLE
 	btst	_TIF_NEED_RESCHED,d2
 	bne	work_resched
 
@@ -156,17 +172,6 @@ ret_from_intr:
 					# returning to userspace
 	and	EPSW_nSL,d0
 	beq	resume_kernel		# returning to supervisor mode
-
-ENTRY(resume_userspace)
-	# make sure we don't miss an interrupt setting need_resched or
-	# sigpending between sampling and the rti
-	LOCAL_IRQ_DISABLE
-
-	# is there any work to be done on int/exception return?
-	mov	(TI_flags,a2),d2
-	btst	_TIF_WORK_MASK,d2
-	bne	work_pending
-	jmp	restore_all
 
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
@@ -589,7 +594,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* vm86 */
 	.long sys_ni_syscall	/* Old sys_query_module */
 	.long sys_poll
-	.long sys_nfsservctl
+	.long sys_ni_syscall	/* was nfsservctl */
 	.long sys_setresgid16	/* 170 */
 	.long sys_getresgid16
 	.long sys_prctl

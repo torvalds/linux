@@ -92,24 +92,24 @@ futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		__futex_atomic_op("move	$1, %z5", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("move $1, %z5", ret, oldval, uaddr, oparg);
 		break;
 
 	case FUTEX_OP_ADD:
-		__futex_atomic_op("addu	$1, %1, %z5",
-		                  ret, oldval, uaddr, oparg);
+		__futex_atomic_op("addu $1, %1, %z5",
+				  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
 		__futex_atomic_op("or	$1, %1, %z5",
-		                  ret, oldval, uaddr, oparg);
+				  ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
 		__futex_atomic_op("and	$1, %1, %z5",
-		                  ret, oldval, uaddr, ~oparg);
+				  ret, oldval, uaddr, ~oparg);
 		break;
 	case FUTEX_OP_XOR:
 		__futex_atomic_op("xor	$1, %1, %z5",
-		                  ret, oldval, uaddr, oparg);
+				  ret, oldval, uaddr, oparg);
 		break;
 	default:
 		ret = -ENOSYS;

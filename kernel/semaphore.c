@@ -27,7 +27,7 @@
 
 #include <linux/compiler.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
@@ -54,12 +54,12 @@ void down(struct semaphore *sem)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;
 	else
 		__down(sem);
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 }
 EXPORT_SYMBOL(down);
 
@@ -77,12 +77,12 @@ int down_interruptible(struct semaphore *sem)
 	unsigned long flags;
 	int result = 0;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;
 	else
 		result = __down_interruptible(sem);
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 
 	return result;
 }
@@ -103,12 +103,12 @@ int down_killable(struct semaphore *sem)
 	unsigned long flags;
 	int result = 0;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;
 	else
 		result = __down_killable(sem);
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 
 	return result;
 }
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(down_killable);
  * down_trylock - try to acquire the semaphore, without waiting
  * @sem: the semaphore to be acquired
  *
- * Try to acquire the semaphore atomically.  Returns 0 if the mutex has
+ * Try to acquire the semaphore atomically.  Returns 0 if the semaphore has
  * been acquired successfully or 1 if it it cannot be acquired.
  *
  * NOTE: This return value is inverted from both spin_trylock and
@@ -132,11 +132,11 @@ int down_trylock(struct semaphore *sem)
 	unsigned long flags;
 	int count;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	count = sem->count - 1;
 	if (likely(count >= 0))
 		sem->count = count;
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 
 	return (count < 0);
 }
@@ -157,12 +157,12 @@ int down_timeout(struct semaphore *sem, long jiffies)
 	unsigned long flags;
 	int result = 0;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	if (likely(sem->count > 0))
 		sem->count--;
 	else
 		result = __down_timeout(sem, jiffies);
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 
 	return result;
 }
@@ -179,12 +179,12 @@ void up(struct semaphore *sem)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sem->lock, flags);
+	raw_spin_lock_irqsave(&sem->lock, flags);
 	if (likely(list_empty(&sem->wait_list)))
 		sem->count++;
 	else
 		__up(sem);
-	spin_unlock_irqrestore(&sem->lock, flags);
+	raw_spin_unlock_irqrestore(&sem->lock, flags);
 }
 EXPORT_SYMBOL(up);
 
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(up);
 struct semaphore_waiter {
 	struct list_head list;
 	struct task_struct *task;
-	int up;
+	bool up;
 };
 
 /*
@@ -209,17 +209,17 @@ static inline int __sched __down_common(struct semaphore *sem, long state,
 
 	list_add_tail(&waiter.list, &sem->wait_list);
 	waiter.task = task;
-	waiter.up = 0;
+	waiter.up = false;
 
 	for (;;) {
 		if (signal_pending_state(state, task))
 			goto interrupted;
-		if (timeout <= 0)
+		if (unlikely(timeout <= 0))
 			goto timed_out;
 		__set_task_state(task, state);
-		spin_unlock_irq(&sem->lock);
+		raw_spin_unlock_irq(&sem->lock);
 		timeout = schedule_timeout(timeout);
-		spin_lock_irq(&sem->lock);
+		raw_spin_lock_irq(&sem->lock);
 		if (waiter.up)
 			return 0;
 	}
@@ -258,6 +258,6 @@ static noinline void __sched __up(struct semaphore *sem)
 	struct semaphore_waiter *waiter = list_first_entry(&sem->wait_list,
 						struct semaphore_waiter, list);
 	list_del(&waiter->list);
-	waiter->up = 1;
+	waiter->up = true;
 	wake_up_process(waiter->task);
 }

@@ -28,18 +28,6 @@ config NFSD
 
 	  If unsure, say N.
 
-config NFSD_DEPRECATED
-	bool "Include support for deprecated syscall interface to NFSD"
-	depends on NFSD
-	default y
-	help
-	  The syscall interface to nfsd was obsoleted in 2.6.0 by a new
-	  filesystem based interface.  The old interface is due for removal
-	  in 2.6.40.  If you wish to remove the interface before then
-	  say N.
-
-	  In unsure, say Y.
-
 config NFSD_V2_ACL
 	bool
 	depends on NFSD
@@ -77,8 +65,8 @@ config NFSD_V3_ACL
 	  If unsure, say N.
 
 config NFSD_V4
-	bool "NFS server support for NFS version 4 (EXPERIMENTAL)"
-	depends on NFSD && PROC_FS && EXPERIMENTAL
+	bool "NFS server support for NFS version 4"
+	depends on NFSD && PROC_FS
 	select NFSD_V3
 	select FS_POSIX_ACL
 	select SUNRPC_GSS
@@ -90,5 +78,15 @@ config NFSD_V4
 	  To export files using NFSv4, you need to install additional user
 	  space programs which can be found in the Linux nfs-utils package,
 	  available from http://linux-nfs.org/.
+
+	  If unsure, say N.
+
+config NFSD_FAULT_INJECTION
+	bool "NFS server manual fault injection"
+	depends on NFSD_V4 && DEBUG_KERNEL
+	help
+	  This option enables support for manually injecting faults
+	  into the NFS server.  This is intended to be used for
+	  testing error recovery on the NFS client.
 
 	  If unsure, say N.

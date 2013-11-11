@@ -1,4 +1,4 @@
-First of all, the best thing would be that this driver becomes obsolte by
+First of all, the best thing would be that this driver becomes obsolete by
 adding support for Hermes II and Hermes II.5 cards to the existing orinoco
 driver. The orinoco driver currently only supports Hermes I based cards.
 Since this will not happen by magic and has not happened until now this
@@ -10,11 +10,11 @@ list.
 
 TODO:
 	- verify against a Hermes II.5 card
-	- verify with WPA encription (both with H2 and H2.5 cards)
+	- verify with WPA encryption (both with H2 and H2.5 cards)
 	- sometimes the card does not initialize correctly, retry mechanisms
-	  are build in to catch most cases but not all
+	  are built in to catch most cases but not all
 	- once the driver runs it is very stable, but I have the impression
-	  some the crittical sections take to long
+	  that some of the critical sections take some time.
 	- the driver is split into a Hermes II and a Hermes II.5 part, it
 	  would be nice to handle both with one module instead of two
 	- review by the wireless developer community
@@ -25,7 +25,7 @@ TODO:
 DONE:
 	- verified against a Hermes II card (Thomson Speedtouch 110 PCMCIA
 	  card)
-	- verified with WEP encription
+	- verified with WEP encryption
 
 Please send any patches or complaints about this driver to Greg
 Kroah-Hartman <greg@kroah.com> and Cc: Henk de Groot <pe1dnn@amsat.org>

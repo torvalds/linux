@@ -23,6 +23,8 @@
 #define __LINUX_MFD_MAX8997_PRIV_H
 
 #include <linux/i2c.h>
+#include <linux/export.h>
+#include <linux/irqdomain.h>
 
 #define MAX8997_REG_INVALID	(0xff)
 
@@ -192,6 +194,70 @@ enum max8997_muic_reg {
 	MAX8997_MUIC_REG_END		= 0xf,
 };
 
+/* MAX8997-MUIC STATUS1 register */
+#define STATUS1_ADC_SHIFT		0
+#define STATUS1_ADCLOW_SHIFT		5
+#define STATUS1_ADCERR_SHIFT		6
+#define STATUS1_ADC_MASK		(0x1f << STATUS1_ADC_SHIFT)
+#define STATUS1_ADCLOW_MASK		(0x1 << STATUS1_ADCLOW_SHIFT)
+#define STATUS1_ADCERR_MASK		(0x1 << STATUS1_ADCERR_SHIFT)
+
+/* MAX8997-MUIC STATUS2 register */
+#define STATUS2_CHGTYP_SHIFT		0
+#define STATUS2_CHGDETRUN_SHIFT		3
+#define STATUS2_DCDTMR_SHIFT		4
+#define STATUS2_DBCHG_SHIFT		5
+#define STATUS2_VBVOLT_SHIFT		6
+#define STATUS2_CHGTYP_MASK		(0x7 << STATUS2_CHGTYP_SHIFT)
+#define STATUS2_CHGDETRUN_MASK		(0x1 << STATUS2_CHGDETRUN_SHIFT)
+#define STATUS2_DCDTMR_MASK		(0x1 << STATUS2_DCDTMR_SHIFT)
+#define STATUS2_DBCHG_MASK		(0x1 << STATUS2_DBCHG_SHIFT)
+#define STATUS2_VBVOLT_MASK		(0x1 << STATUS2_VBVOLT_SHIFT)
+
+/* MAX8997-MUIC STATUS3 register */
+#define STATUS3_OVP_SHIFT		2
+#define STATUS3_OVP_MASK		(0x1 << STATUS3_OVP_SHIFT)
+
+/* MAX8997-MUIC CONTROL1 register */
+#define COMN1SW_SHIFT			0
+#define COMP2SW_SHIFT			3
+#define COMN1SW_MASK			(0x7 << COMN1SW_SHIFT)
+#define COMP2SW_MASK			(0x7 << COMP2SW_SHIFT)
+#define COMP_SW_MASK		(COMP2SW_MASK | COMN1SW_MASK)
+
+#define CONTROL1_SW_USB			((1 << COMP2SW_SHIFT) \
+						| (1 << COMN1SW_SHIFT))
+#define CONTROL1_SW_AUDIO		((2 << COMP2SW_SHIFT) \
+						| (2 << COMN1SW_SHIFT))
+#define CONTROL1_SW_UART		((3 << COMP2SW_SHIFT) \
+						| (3 << COMN1SW_SHIFT))
+#define CONTROL1_SW_OPEN		((0 << COMP2SW_SHIFT) \
+						| (0 << COMN1SW_SHIFT))
+
+#define CONTROL2_LOWPWR_SHIFT		(0)
+#define CONTROL2_ADCEN_SHIFT		(1)
+#define CONTROL2_CPEN_SHIFT		(2)
+#define CONTROL2_SFOUTASRT_SHIFT	(3)
+#define CONTROL2_SFOUTORD_SHIFT		(4)
+#define CONTROL2_ACCDET_SHIFT		(5)
+#define CONTROL2_USBCPINT_SHIFT		(6)
+#define CONTROL2_RCPS_SHIFT		(7)
+#define CONTROL2_LOWPWR_MASK		(0x1 << CONTROL2_LOWPWR_SHIFT)
+#define CONTROL2_ADCEN_MASK		(0x1 << CONTROL2_ADCEN_SHIFT)
+#define CONTROL2_CPEN_MASK		(0x1 << CONTROL2_CPEN_SHIFT)
+#define CONTROL2_SFOUTASRT_MASK		(0x1 << CONTROL2_SFOUTASRT_SHIFT)
+#define CONTROL2_SFOUTORD_MASK		(0x1 << CONTROL2_SFOUTORD_SHIFT)
+#define CONTROL2_ACCDET_MASK		(0x1 << CONTROL2_ACCDET_SHIFT)
+#define CONTROL2_USBCPINT_MASK		(0x1 << CONTROL2_USBCPINT_SHIFT)
+#define CONTROL2_RCPS_MASK		(0x1 << CONTROL2_RCPS_SHIFT)
+
+#define CONTROL3_JIGSET_SHIFT		(0)
+#define CONTROL3_BTLDSET_SHIFT		(2)
+#define CONTROL3_ADCDBSET_SHIFT		(4)
+#define CONTROL3_JIGSET_MASK		(0x3 << CONTROL3_JIGSET_SHIFT)
+#define CONTROL3_BTLDSET_MASK		(0x3 << CONTROL3_BTLDSET_SHIFT)
+#define CONTROL3_ADCDBSET_MASK		(0x3 << CONTROL3_ADCDBSET_SHIFT)
+
 enum max8997_haptic_reg {
 	MAX8997_HAPTIC_REG_GENERAL	= 0x00,
 	MAX8997_HAPTIC_REG_CONF1	= 0x01,
@@ -314,6 +380,7 @@ enum max8997_irq {
 #define MAX8997_NUM_GPIO	12
 struct max8997_dev {
 	struct device *dev;
+	struct max8997_platform_data *pdata;
 	struct i2c_client *i2c; /* 0xcc / PMIC, Battery Control, and FLASH */
 	struct i2c_client *rtc; /* slave addr 0x0c */
 	struct i2c_client *haptic; /* slave addr 0x90 */
@@ -325,8 +392,7 @@ struct max8997_dev {
 
 	int irq;
 	int ono;
-	int irq_base;
-	bool wakeup;
+	struct irq_domain *irq_domain;
 	struct mutex irqlock;
 	int irq_masks_cur[MAX8997_IRQ_GROUP_NR];
 	int irq_masks_cache[MAX8997_IRQ_GROUP_NR];

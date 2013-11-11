@@ -21,7 +21,6 @@
 #include <linux/err.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
-#include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
 #include <linux/mm.h>
@@ -60,6 +59,22 @@ struct calling_interface_structure {
 	struct calling_interface_token tokens[];
 } __packed;
 
+struct quirk_entry {
+	u8 touchpad_led;
+};
+
+static struct quirk_entry *quirks;
+
+static struct quirk_entry quirk_dell_vostro_v130 = {
+	.touchpad_led = 1,
+};
+
+static int dmi_matched(const struct dmi_system_id *dmi)
+{
+	quirks = dmi->driver_data;
+	return 1;
+}
+
 static int da_command_address;
 static int da_command_code;
 static int da_num_tokens;
@@ -74,11 +89,8 @@ static struct platform_driver platform_driver = {
 
 static struct platform_device *platform_device;
 static struct backlight_device *dell_backlight_device;
-static struct rfkill *wifi_rfkill;
-static struct rfkill *bluetooth_rfkill;
-static struct rfkill *wwan_rfkill;
 
-static const struct dmi_system_id __initdata dell_device_table[] = {
+static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
 		.ident = "Dell laptop",
 		.matches = {
@@ -101,52 +113,154 @@ static const struct dmi_system_id __initdata dell_device_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, dell_device_table);
 
-static struct dmi_system_id __devinitdata dell_blacklist[] = {
-	/* Supported by compal-laptop */
+static struct dmi_system_id dell_quirks[] = {
 	{
-		.ident = "Dell Mini 9",
+		.callback = dmi_matched,
+		.ident = "Dell Vostro V130",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 910"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V130"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
 	{
-		.ident = "Dell Mini 10",
+		.callback = dmi_matched,
+		.ident = "Dell Vostro V131",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1010"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V131"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
 	{
-		.ident = "Dell Mini 10v",
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3350",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1011"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3350"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
 	{
-		.ident = "Dell Mini 1012",
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3555",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1012"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3555"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
 	{
-		.ident = "Dell Inspiron 11z",
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron N311z",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1110"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron N311z"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
 	{
-		.ident = "Dell Mini 12",
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron M5110",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1210"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron M5110"),
 		},
+		.driver_data = &quirk_dell_vostro_v130,
 	},
-	{}
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3360"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3460",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3460"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3560",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 3560"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro 3450",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell System Vostro 3450"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 5420",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5420"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 5520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5520"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 5720",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 5720"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 7420",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7420"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 7520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7520"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inspiron 7720",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7720"),
+		},
+		.driver_data = &quirk_dell_vostro_v130,
+	},
+	{ }
 };
 
 static struct calling_interface_buffer *buffer;
@@ -170,6 +284,7 @@ static void __init parse_da_table(const struct dmi_header *dm)
 {
 	/* Final token is a terminator, so we don't want to copy it */
 	int tokens = (dm->length-11)/sizeof(struct calling_interface_token)-1;
+	struct calling_interface_token *new_da_tokens;
 	struct calling_interface_structure *table =
 		container_of(dm, struct calling_interface_structure, header);
 
@@ -182,12 +297,13 @@ static void __init parse_da_table(const struct dmi_header *dm)
 	da_command_address = table->cmdIOAddress;
 	da_command_code = table->cmdIOCode;
 
-	da_tokens = krealloc(da_tokens, (da_num_tokens + tokens) *
-			     sizeof(struct calling_interface_token),
-			     GFP_KERNEL);
+	new_da_tokens = krealloc(da_tokens, (da_num_tokens + tokens) *
+				 sizeof(struct calling_interface_token),
+				 GFP_KERNEL);
 
-	if (!da_tokens)
+	if (!new_da_tokens)
 		return;
+	da_tokens = new_da_tokens;
 
 	memcpy(da_tokens+da_num_tokens, table->tokens,
 	       sizeof(struct calling_interface_token) * tokens);
@@ -199,9 +315,7 @@ static void __init find_tokens(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xd4: /* Indexed IO */
-		break;
 	case 0xd5: /* Protected Area Type 1 */
-		break;
 	case 0xd6: /* Protected Area Type 2 */
 		break;
 	case 0xda: /* Calling interface */
@@ -240,94 +354,6 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
 
 	return buffer;
 }
-
-/* Derived from information in DellWirelessCtl.cpp:
-   Class 17, select 11 is radio control. It returns an array of 32-bit values.
-
-   Input byte 0 = 0: Wireless information
-
-   result[0]: return code
-   result[1]:
-     Bit 0:      Hardware switch supported
-     Bit 1:      Wifi locator supported
-     Bit 2:      Wifi is supported
-     Bit 3:      Bluetooth is supported
-     Bit 4:      WWAN is supported
-     Bit 5:      Wireless keyboard supported
-     Bits 6-7:   Reserved
-     Bit 8:      Wifi is installed
-     Bit 9:      Bluetooth is installed
-     Bit 10:     WWAN is installed
-     Bits 11-15: Reserved
-     Bit 16:     Hardware switch is on
-     Bit 17:     Wifi is blocked
-     Bit 18:     Bluetooth is blocked
-     Bit 19:     WWAN is blocked
-     Bits 20-31: Reserved
-   result[2]: NVRAM size in bytes
-   result[3]: NVRAM format version number
-
-   Input byte 0 = 2: Wireless switch configuration
-   result[0]: return code
-   result[1]:
-     Bit 0:      Wifi controlled by switch
-     Bit 1:      Bluetooth controlled by switch
-     Bit 2:      WWAN controlled by switch
-     Bits 3-6:   Reserved
-     Bit 7:      Wireless switch config locked
-     Bit 8:      Wifi locator enabled
-     Bits 9-14:  Reserved
-     Bit 15:     Wifi locator setting locked
-     Bits 16-31: Reserved
-*/
-
-static int dell_rfkill_set(void *data, bool blocked)
-{
-	int disable = blocked ? 1 : 0;
-	unsigned long radio = (unsigned long)data;
-	int hwswitch_bit = (unsigned long)data - 1;
-	int ret = 0;
-
-	get_buffer();
-	dell_send_request(buffer, 17, 11);
-
-	/* If the hardware switch controls this radio, and the hardware
-	   switch is disabled, don't allow changing the software state */
-	if ((hwswitch_state & BIT(hwswitch_bit)) &&
-	    !(buffer->output[1] & BIT(16))) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
-	dell_send_request(buffer, 17, 11);
-
-out:
-	release_buffer();
-	return ret;
-}
-
-static void dell_rfkill_query(struct rfkill *rfkill, void *data)
-{
-	int status;
-	int bit = (unsigned long)data + 16;
-	int hwswitch_bit = (unsigned long)data - 1;
-
-	get_buffer();
-	dell_send_request(buffer, 17, 11);
-	status = buffer->output[1];
-	release_buffer();
-
-	rfkill_set_sw_state(rfkill, !!(status & BIT(bit)));
-
-	if (hwswitch_state & (BIT(hwswitch_bit)))
-		rfkill_set_hw_state(rfkill, !(status & BIT(16)));
-}
-
-static const struct rfkill_ops dell_rfkill_ops = {
-	.set_block = dell_rfkill_set,
-	.query = dell_rfkill_query,
-};
 
 static struct dentry *dell_laptop_dir;
 
@@ -398,108 +424,6 @@ static const struct file_operations dell_debugfs_fops = {
 	.release = single_release,
 };
 
-static void dell_update_rfkill(struct work_struct *ignored)
-{
-	if (wifi_rfkill)
-		dell_rfkill_query(wifi_rfkill, (void *)1);
-	if (bluetooth_rfkill)
-		dell_rfkill_query(bluetooth_rfkill, (void *)2);
-	if (wwan_rfkill)
-		dell_rfkill_query(wwan_rfkill, (void *)3);
-}
-static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
-
-
-static int __init dell_setup_rfkill(void)
-{
-	int status;
-	int ret;
-
-	if (dmi_check_system(dell_blacklist)) {
-		pr_info("Blacklisted hardware detected - not enabling rfkill\n");
-		return 0;
-	}
-
-	get_buffer();
-	dell_send_request(buffer, 17, 11);
-	status = buffer->output[1];
-	buffer->input[0] = 0x2;
-	dell_send_request(buffer, 17, 11);
-	hwswitch_state = buffer->output[1];
-	release_buffer();
-
-	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
-		wifi_rfkill = rfkill_alloc("dell-wifi", &platform_device->dev,
-					   RFKILL_TYPE_WLAN,
-					   &dell_rfkill_ops, (void *) 1);
-		if (!wifi_rfkill) {
-			ret = -ENOMEM;
-			goto err_wifi;
-		}
-		ret = rfkill_register(wifi_rfkill);
-		if (ret)
-			goto err_wifi;
-	}
-
-	if ((status & (1<<3|1<<9)) == (1<<3|1<<9)) {
-		bluetooth_rfkill = rfkill_alloc("dell-bluetooth",
-						&platform_device->dev,
-						RFKILL_TYPE_BLUETOOTH,
-						&dell_rfkill_ops, (void *) 2);
-		if (!bluetooth_rfkill) {
-			ret = -ENOMEM;
-			goto err_bluetooth;
-		}
-		ret = rfkill_register(bluetooth_rfkill);
-		if (ret)
-			goto err_bluetooth;
-	}
-
-	if ((status & (1<<4|1<<10)) == (1<<4|1<<10)) {
-		wwan_rfkill = rfkill_alloc("dell-wwan",
-					   &platform_device->dev,
-					   RFKILL_TYPE_WWAN,
-					   &dell_rfkill_ops, (void *) 3);
-		if (!wwan_rfkill) {
-			ret = -ENOMEM;
-			goto err_wwan;
-		}
-		ret = rfkill_register(wwan_rfkill);
-		if (ret)
-			goto err_wwan;
-	}
-
-	return 0;
-err_wwan:
-	rfkill_destroy(wwan_rfkill);
-	if (bluetooth_rfkill)
-		rfkill_unregister(bluetooth_rfkill);
-err_bluetooth:
-	rfkill_destroy(bluetooth_rfkill);
-	if (wifi_rfkill)
-		rfkill_unregister(wifi_rfkill);
-err_wifi:
-	rfkill_destroy(wifi_rfkill);
-
-	return ret;
-}
-
-static void dell_cleanup_rfkill(void)
-{
-	if (wifi_rfkill) {
-		rfkill_unregister(wifi_rfkill);
-		rfkill_destroy(wifi_rfkill);
-	}
-	if (bluetooth_rfkill) {
-		rfkill_unregister(bluetooth_rfkill);
-		rfkill_destroy(bluetooth_rfkill);
-	}
-	if (wwan_rfkill) {
-		rfkill_unregister(wwan_rfkill);
-		rfkill_destroy(wwan_rfkill);
-	}
-}
-
 static int dell_send_intensity(struct backlight_device *bd)
 {
 	int ret = 0;
@@ -552,28 +476,43 @@ static const struct backlight_ops dell_ops = {
 	.update_status  = dell_send_intensity,
 };
 
-static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
+static void touchpad_led_on(void)
 {
-	static bool extended;
+	int command = 0x97;
+	char data = 1;
+	i8042_command(&data, command | 1 << 12);
+}
 
-	if (str & 0x20)
-		return false;
+static void touchpad_led_off(void)
+{
+	int command = 0x97;
+	char data = 2;
+	i8042_command(&data, command | 1 << 12);
+}
 
-	if (unlikely(data == 0xe0)) {
-		extended = true;
-		return false;
-	} else if (unlikely(extended)) {
-		switch (data) {
-		case 0x8:
-			schedule_delayed_work(&dell_rfkill_work,
-					      round_jiffies_relative(HZ));
-			break;
-		}
-		extended = false;
-	}
+static void touchpad_led_set(struct led_classdev *led_cdev,
+	enum led_brightness value)
+{
+	if (value > 0)
+		touchpad_led_on();
+	else
+		touchpad_led_off();
+}
 
-	return false;
+static struct led_classdev touchpad_led = {
+	.name = "dell-laptop::touchpad",
+	.brightness_set = touchpad_led_set,
+	.flags = LED_CORE_SUSPENDRESUME,
+};
+
+static int touchpad_led_init(struct device *dev)
+{
+	return led_classdev_register(dev, &touchpad_led);
+}
+
+static void touchpad_led_exit(void)
+{
+	led_classdev_unregister(&touchpad_led);
 }
 
 static int __init dell_init(void)
@@ -583,6 +522,10 @@ static int __init dell_init(void)
 
 	if (!dmi_check_system(dell_device_table))
 		return -ENODEV;
+
+	quirks = NULL;
+	/* find if this machine support other functions */
+	dmi_check_system(dell_quirks);
 
 	dmi_walk(find_tokens, NULL);
 
@@ -612,25 +555,11 @@ static int __init dell_init(void)
 	if (!bufferpage)
 		goto fail_buffer;
 	buffer = page_address(bufferpage);
-	mutex_init(&buffer_mutex);
 
-	ret = dell_setup_rfkill();
-
-	if (ret) {
-		pr_warn("Unable to setup rfkill\n");
-		goto fail_rfkill;
-	}
-
-	ret = i8042_install_filter(dell_laptop_i8042_filter);
-	if (ret) {
-		pr_warn("Unable to install key filter\n");
-		goto fail_filter;
-	}
+	if (quirks && quirks->touchpad_led)
+		touchpad_led_init(&platform_device->dev);
 
 	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
-	if (dell_laptop_dir != NULL)
-		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
-				    &dell_debugfs_fops);
 
 #ifdef CONFIG_ACPI
 	/* In the event of an ACPI backlight being available, don't
@@ -673,11 +602,6 @@ static int __init dell_init(void)
 	return 0;
 
 fail_backlight:
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
-fail_filter:
-	dell_cleanup_rfkill();
-fail_rfkill:
 	free_page((unsigned long)bufferpage);
 fail_buffer:
 	platform_device_del(platform_device);
@@ -693,10 +617,9 @@ fail_platform_driver:
 static void __exit dell_exit(void)
 {
 	debugfs_remove_recursive(dell_laptop_dir);
-	i8042_remove_filter(dell_laptop_i8042_filter);
-	cancel_delayed_work_sync(&dell_rfkill_work);
+	if (quirks && quirks->touchpad_led)
+		touchpad_led_exit();
 	backlight_device_unregister(dell_backlight_device);
-	dell_cleanup_rfkill();
 	if (platform_device) {
 		platform_device_unregister(platform_device);
 		platform_driver_unregister(&platform_driver);
@@ -711,6 +634,3 @@ module_exit(dell_exit);
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_DESCRIPTION("Dell laptop driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("dmi:*svnDellInc.:*:ct8:*");
-MODULE_ALIAS("dmi:*svnDellInc.:*:ct9:*");
-MODULE_ALIAS("dmi:*svnDellComputerCorporation.:*:ct8:*");

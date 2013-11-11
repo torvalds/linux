@@ -24,6 +24,8 @@
  * capabilities) a kernel-based watchdog.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
@@ -68,8 +70,8 @@ static unsigned int bus_clk;
 static char expect_close;
 static DEFINE_SPINLOCK(gef_wdt_spinlock);
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -110,7 +112,7 @@ static void gef_wdt_handler_enable(void)
 	if (gef_wdt_toggle_wdc(GEF_WDC_ENABLED_FALSE,
 				   GEF_WDC_ENABLE_SHIFT)) {
 		gef_wdt_service();
-		printk(KERN_NOTICE "gef_wdt: watchdog activated\n");
+		pr_notice("watchdog activated\n");
 	}
 }
 
@@ -118,7 +120,7 @@ static void gef_wdt_handler_disable(void)
 {
 	if (gef_wdt_toggle_wdc(GEF_WDC_ENABLED_TRUE,
 				   GEF_WDC_ENABLE_SHIFT))
-		printk(KERN_NOTICE "gef_wdt: watchdog deactivated\n");
+		pr_notice("watchdog deactivated\n");
 }
 
 static void gef_wdt_set_timeout(unsigned int timeout)
@@ -234,8 +236,7 @@ static int gef_wdt_release(struct inode *inode, struct file *file)
 	if (expect_close == 42)
 		gef_wdt_handler_disable();
 	else {
-		printk(KERN_CRIT
-		       "gef_wdt: unexpected close, not stopping timer!\n");
+		pr_crit("unexpected close, not stopping timer!\n");
 		gef_wdt_service();
 	}
 	expect_close = 0;
@@ -261,7 +262,7 @@ static struct miscdevice gef_wdt_miscdev = {
 };
 
 
-static int __devinit gef_wdt_probe(struct platform_device *dev)
+static int gef_wdt_probe(struct platform_device *dev)
 {
 	int timeout = 10;
 	u32 freq;
@@ -284,7 +285,7 @@ static int __devinit gef_wdt_probe(struct platform_device *dev)
 	return misc_register(&gef_wdt_miscdev);
 }
 
-static int __devexit gef_wdt_remove(struct platform_device *dev)
+static int gef_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&gef_wdt_miscdev);
 
@@ -309,11 +310,12 @@ static struct platform_driver gef_wdt_driver = {
 		.of_match_table = gef_wdt_ids,
 	},
 	.probe		= gef_wdt_probe,
+	.remove		= gef_wdt_remove,
 };
 
 static int __init gef_wdt_init(void)
 {
-	printk(KERN_INFO "GE watchdog driver\n");
+	pr_info("GE watchdog driver\n");
 	return platform_driver_register(&gef_wdt_driver);
 }
 

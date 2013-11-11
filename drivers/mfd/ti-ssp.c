@@ -315,7 +315,7 @@ static irqreturn_t ti_ssp_interrupt(int irq, void *dev_data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ti_ssp_probe(struct platform_device *pdev)
+static int ti_ssp_probe(struct platform_device *pdev)
 {
 	static struct ti_ssp *ssp;
 	const struct ti_ssp_data *pdata = pdev->dev.platform_data;
@@ -412,7 +412,7 @@ static int __devinit ti_ssp_probe(struct platform_device *pdev)
 		cells[id].data_size	= data->pdata_size;
 	}
 
-	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0);
+	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0, NULL);
 	if (error < 0) {
 		dev_err(dev, "cannot add mfd cells\n");
 		goto error_enable;
@@ -433,7 +433,7 @@ error_res:
 	return error;
 }
 
-static int __devexit ti_ssp_remove(struct platform_device *pdev)
+static int ti_ssp_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ti_ssp *ssp = dev_get_drvdata(dev);
@@ -451,24 +451,14 @@ static int __devexit ti_ssp_remove(struct platform_device *pdev)
 
 static struct platform_driver ti_ssp_driver = {
 	.probe		= ti_ssp_probe,
-	.remove		= __devexit_p(ti_ssp_remove),
+	.remove		= ti_ssp_remove,
 	.driver		= {
 		.name	= "ti-ssp",
 		.owner	= THIS_MODULE,
 	}
 };
 
-static int __init ti_ssp_init(void)
-{
-	return platform_driver_register(&ti_ssp_driver);
-}
-module_init(ti_ssp_init);
-
-static void __exit ti_ssp_exit(void)
-{
-	platform_driver_unregister(&ti_ssp_driver);
-}
-module_exit(ti_ssp_exit);
+module_platform_driver(ti_ssp_driver);
 
 MODULE_DESCRIPTION("Sequencer Serial Port (SSP) Driver");
 MODULE_AUTHOR("Cyril Chemparathy");

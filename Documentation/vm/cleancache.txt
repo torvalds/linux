@@ -46,10 +46,11 @@ a negative return value indicates failure.  A "put_page" will copy a
 the pool id, a file key, and a page index into the file.  (The combination
 of a pool id, a file key, and an index is sometimes called a "handle".)
 A "get_page" will copy the page, if found, from cleancache into kernel memory.
-A "flush_page" will ensure the page no longer is present in cleancache;
-a "flush_inode" will flush all pages associated with the specified file;
-and, when a filesystem is unmounted, a "flush_fs" will flush all pages in
-all files specified by the given pool id and also surrender the pool id.
+An "invalidate_page" will ensure the page no longer is present in cleancache;
+an "invalidate_inode" will invalidate all pages associated with the specified
+file; and, when a filesystem is unmounted, an "invalidate_fs" will invalidate
+all pages in all files specified by the given pool id and also surrender
+the pool id.
 
 An "init_shared_fs", like init_fs, obtains a pool id but tells cleancache
 to treat the pool as shared using a 128-bit UUID as a key.  On systems
@@ -62,12 +63,12 @@ of the kernel (e.g. by "tools" that control cleancache).  Or a
 cleancache implementation can simply disable shared_init by always
 returning a negative value.
 
-If a get_page is successful on a non-shared pool, the page is flushed (thus
-making cleancache an "exclusive" cache).  On a shared pool, the page
-is NOT flushed on a successful get_page so that it remains accessible to
+If a get_page is successful on a non-shared pool, the page is invalidated
+(thus making cleancache an "exclusive" cache).  On a shared pool, the page
+is NOT invalidated on a successful get_page so that it remains accessible to
 other sharers.  The kernel is responsible for ensuring coherency between
 cleancache (shared or not), the page cache, and the filesystem, using
-cleancache flush operations as required.
+cleancache invalidate operations as required.
 
 Note that cleancache must enforce put-put-get coherency and get-get
 coherency.  For the former, if two puts are made to the same handle but
@@ -77,22 +78,22 @@ if a get for a given handle fails, subsequent gets for that handle will
 never succeed unless preceded by a successful put with that handle.
 
 Last, cleancache provides no SMP serialization guarantees; if two
-different Linux threads are simultaneously putting and flushing a page
+different Linux threads are simultaneously putting and invalidating a page
 with the same handle, the results are indeterminate.  Callers must
 lock the page to ensure serial behavior.
 
 CLEANCACHE PERFORMANCE METRICS
 
-Cleancache monitoring is done by sysfs files in the
-/sys/kernel/mm/cleancache directory.  The effectiveness of cleancache
+If properly configured, monitoring of cleancache is done via debugfs in
+the /sys/kernel/debug/mm/cleancache directory.  The effectiveness of cleancache
 can be measured (across all filesystems) with:
 
 succ_gets	- number of gets that were successful
 failed_gets	- number of gets that failed
 puts		- number of puts attempted (all "succeed")
-flushes		- number of flushes attempted
+invalidates	- number of invalidates attempted
 
-A backend implementatation may provide additional metrics.
+A backend implementation may provide additional metrics.
 
 FAQ
 
@@ -143,7 +144,7 @@ systems.
 
 The core hooks for cleancache in VFS are in most cases a single line
 and the minimum set are placed precisely where needed to maintain
-coherency (via cleancache_flush operations) between cleancache,
+coherency (via cleancache_invalidate operations) between cleancache,
 the page cache, and disk.  All hooks compile into nothingness if
 cleancache is config'ed off and turn into a function-pointer-
 compare-to-NULL if config'ed on but no backend claims the ops
@@ -184,15 +185,15 @@ or for real kernel-addressable RAM, it makes perfect sense for
 transcendent memory.
 
 4) Why is non-shared cleancache "exclusive"?  And where is the
-   page "flushed" after a "get"? (Minchan Kim)
+   page "invalidated" after a "get"? (Minchan Kim)
 
 The main reason is to free up space in transcendent memory and
-to avoid unnecessary cleancache_flush calls.  If you want inclusive,
+to avoid unnecessary cleancache_invalidate calls.  If you want inclusive,
 the page can be "put" immediately following the "get".  If
 put-after-get for inclusive becomes common, the interface could
-be easily extended to add a "get_no_flush" call.
+be easily extended to add a "get_no_invalidate" call.
 
-The flush is done by the cleancache backend implementation.
+The invalidate is done by the cleancache backend implementation.
 
 5) What's the performance impact?
 
@@ -222,7 +223,7 @@ Some points for a filesystem to consider:
   as tmpfs should not enable cleancache)
 - To ensure coherency/correctness, the FS must ensure that all
   file removal or truncation operations either go through VFS or
-  add hooks to do the equivalent cleancache "flush" operations
+  add hooks to do the equivalent cleancache "invalidate" operations
 - To ensure coherency/correctness, either inode numbers must
   be unique across the lifetime of the on-disk file OR the
   FS must provide an "encode_fh" function.
@@ -243,11 +244,11 @@ If cleancache would use the inode virtual address instead of
 inode/filehandle, the pool id could be eliminated.  But, this
 won't work because cleancache retains pagecache data pages
 persistently even when the inode has been pruned from the
-inode unused list, and only flushes the data page if the file
+inode unused list, and only invalidates the data page if the file
 gets removed/truncated.  So if cleancache used the inode kva,
 there would be potential coherency issues if/when the inode
 kva is reused for a different file.  Alternately, if cleancache
-flushed the pages when the inode kva was freed, much of the value
+invalidated the pages when the inode kva was freed, much of the value
 of cleancache would be lost because the cache of pages in cleanache
 is potentially much larger than the kernel pagecache and is most
 useful if the pages survive inode cache removal.

@@ -194,6 +194,8 @@ struct b43_phy_a;
 struct b43_phy_g;
 struct b43_phy_n;
 struct b43_phy_lp;
+struct b43_phy_ht;
+struct b43_phy_lcn;
 
 struct b43_phy {
 	/* Hardware operation callbacks. */
@@ -216,6 +218,10 @@ struct b43_phy {
 		struct b43_phy_n *n;
 		/* LP-PHY specific information */
 		struct b43_phy_lp *lp;
+		/* HT-PHY specific information */
+		struct b43_phy_ht *ht;
+		/* LCN-PHY specific information */
+		struct b43_phy_lcn *lcn;
 	};
 
 	/* Band support flags. */
@@ -359,6 +365,12 @@ void b43_radio_set(struct b43_wldev *dev, u16 offset, u16 set);
 void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
 
 /**
+ * b43_radio_wait_value - Waits for a given value in masked register read
+ */
+bool b43_radio_wait_value(struct b43_wldev *dev, u16 offset, u16 mask,
+			  u16 value, int delay, int timeout);
+
+/**
  * b43_radio_lock - Lock firmware radio register access
  */
 void b43_radio_lock(struct b43_wldev *dev);
@@ -437,6 +449,8 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
 void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
 
 bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type);
+
+void b43_phy_force_clock(struct b43_wldev *dev, bool force);
 
 struct b43_c32 b43_cordic(int theta);
 

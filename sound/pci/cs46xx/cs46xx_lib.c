@@ -53,6 +53,7 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 
 
 #include <sound/core.h>
@@ -60,7 +61,7 @@
 #include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/cs46xx.h>
+#include "cs46xx.h"
 
 #include <asm/io.h>
 
@@ -93,7 +94,7 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 
 	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
-		return -EINVAL;
+		return 0xffff;
 
 	chip->active_ctrl(chip, 1);
 
@@ -1589,7 +1590,7 @@ static struct snd_pcm_ops snd_cs46xx_capture_indirect_ops = {
 #define MAX_PLAYBACK_CHANNELS	1
 #endif
 
-int __devinit snd_cs46xx_pcm(struct snd_cs46xx *chip, int device, struct snd_pcm ** rpcm)
+int snd_cs46xx_pcm(struct snd_cs46xx *chip, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1620,7 +1621,8 @@ int __devinit snd_cs46xx_pcm(struct snd_cs46xx *chip, int device, struct snd_pcm
 
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-int __devinit snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device, struct snd_pcm ** rpcm)
+int snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device,
+			struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1649,7 +1651,8 @@ int __devinit snd_cs46xx_pcm_rear(struct snd_cs46xx *chip, int device, struct sn
 	return 0;
 }
 
-int __devinit snd_cs46xx_pcm_center_lfe(struct snd_cs46xx *chip, int device, struct snd_pcm ** rpcm)
+int snd_cs46xx_pcm_center_lfe(struct snd_cs46xx *chip, int device,
+			      struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1678,7 +1681,8 @@ int __devinit snd_cs46xx_pcm_center_lfe(struct snd_cs46xx *chip, int device, str
 	return 0;
 }
 
-int __devinit snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device, struct snd_pcm ** rpcm)
+int snd_cs46xx_pcm_iec958(struct snd_cs46xx *chip, int device,
+			  struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -2091,7 +2095,7 @@ static int snd_cs46xx_spdif_stream_put(struct snd_kcontrol *kcontrol,
 #endif /* CONFIG_SND_CS46XX_NEW_DSP */
 
 
-static struct snd_kcontrol_new snd_cs46xx_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_cs46xx_controls[] = {
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DAC Volume",
@@ -2277,7 +2281,7 @@ static void snd_cs46xx_codec_reset (struct snd_ac97 * ac97)
 }
 #endif
 
-static int __devinit cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
+static int cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 {
 	int idx, err;
 	struct snd_ac97_template ac97;
@@ -2310,7 +2314,7 @@ static int __devinit cs46xx_detect_codec(struct snd_cs46xx *chip, int codec)
 	return -ENXIO;
 }
 
-int __devinit snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
+int snd_cs46xx_mixer(struct snd_cs46xx *chip, int spdif_device)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id;
@@ -2530,7 +2534,7 @@ static struct snd_rawmidi_ops snd_cs46xx_midi_input =
 	.trigger =	snd_cs46xx_midi_input_trigger,
 };
 
-int __devinit snd_cs46xx_midi(struct snd_cs46xx *chip, int device, struct snd_rawmidi **rrawmidi)
+int snd_cs46xx_midi(struct snd_cs46xx *chip, int device, struct snd_rawmidi **rrawmidi)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
@@ -2612,7 +2616,7 @@ static int snd_cs46xx_gameport_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-int __devinit snd_cs46xx_gameport(struct snd_cs46xx *chip)
+int snd_cs46xx_gameport(struct snd_cs46xx *chip)
 {
 	struct gameport *gp;
 
@@ -2648,7 +2652,7 @@ static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip)
 	}
 }
 #else
-int __devinit snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -ENOSYS; }
+int snd_cs46xx_gameport(struct snd_cs46xx *chip) { return -ENOSYS; }
 static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip) { }
 #endif /* CONFIG_GAMEPORT */
 
@@ -2673,7 +2677,7 @@ static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {
 	.read = snd_cs46xx_io_read,
 };
 
-static int __devinit snd_cs46xx_proc_init(struct snd_card *card, struct snd_cs46xx *chip)
+static int snd_cs46xx_proc_init(struct snd_card *card, struct snd_cs46xx *chip)
 {
 	struct snd_info_entry *entry;
 	int idx;
@@ -2796,7 +2800,7 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 	}
 #endif
 	
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	kfree(chip->saved_regs);
 #endif
 
@@ -3060,7 +3064,7 @@ static void cs46xx_enable_stream_irqs(struct snd_cs46xx *chip)
 	snd_cs46xx_poke(chip, BA1_CIE, tmp);	/* capture interrupt enable */
 }
 
-int __devinit snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
+int snd_cs46xx_start_dsp(struct snd_cs46xx *chip)
 {	
 	unsigned int tmp;
 	/*
@@ -3476,7 +3480,7 @@ struct cs_card_type
 	void (*mixer_init)(struct snd_cs46xx *);
 };
 
-static struct cs_card_type __devinitdata cards[] = {
+static struct cs_card_type cards[] = {
 	{
 		.vendor = 0x1489,
 		.id = 0x7001,
@@ -3589,7 +3593,7 @@ static struct cs_card_type __devinitdata cards[] = {
 /*
  * APM support
  */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static unsigned int saved_regs[] = {
 	BA0_ACOSV,
 	/*BA0_ASER_FADDR,*/
@@ -3598,9 +3602,10 @@ static unsigned int saved_regs[] = {
 	BA1_CVOL,
 };
 
-int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_cs46xx_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int i, amp_saved;
 
@@ -3627,13 +3632,14 @@ int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-int snd_cs46xx_resume(struct pci_dev *pci)
+static int snd_cs46xx_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -3706,16 +3712,18 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+SIMPLE_DEV_PM_OPS(snd_cs46xx_pm, snd_cs46xx_suspend, snd_cs46xx_resume);
+#endif /* CONFIG_PM_SLEEP */
 
 
 /*
  */
 
-int __devinit snd_cs46xx_create(struct snd_card *card,
-		      struct pci_dev * pci,
+int snd_cs46xx_create(struct snd_card *card,
+		      struct pci_dev *pci,
 		      int external_amp, int thinkpad,
-		      struct snd_cs46xx ** rchip)
+		      struct snd_cs46xx **rchip)
 {
 	struct snd_cs46xx *chip;
 	int err, idx;
@@ -3835,7 +3843,7 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_cs46xx_interrupt, IRQF_SHARED,
-			"CS46XX", chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs46xx_free(chip);
 		return -EBUSY;
@@ -3863,7 +3871,7 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 	
 	snd_cs46xx_proc_init(card, chip);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->saved_regs = kmalloc(sizeof(*chip->saved_regs) *
 				   ARRAY_SIZE(saved_regs), GFP_KERNEL);
 	if (!chip->saved_regs) {

@@ -53,12 +53,6 @@
 #ifdef CONFIG_AMIGA
 #include <asm/amigahw.h>
 #endif
-#ifdef CONFIG_PPC_PREP
-#include <asm/machdep.h>
-#define isPReP machine_is(prep)
-#else
-#define isPReP 0
-#endif
 
 #include <video/vga.h>
 #include <video/cirrus.h>
@@ -280,52 +274,74 @@ MODULE_DEVICE_TABLE(pci, cirrusfb_pci_table);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
+struct zorrocl {
+	enum cirrus_board type;	/* Board type */
+	u32 regoffset;		/* Offset of registers in first Zorro device */
+	u32 ramsize;		/* Size of video RAM in first Zorro device */
+				/* If zero, use autoprobe on RAM device */
+	u32 ramoffset;		/* Offset of video RAM in first Zorro device */
+	zorro_id ramid;		/* Zorro ID of RAM device */
+	zorro_id ramid2;	/* Zorro ID of optional second RAM device */
+};
+
+static const struct zorrocl zcl_sd64 = {
+	.type		= BT_SD64,
+	.ramid		= ZORRO_PROD_HELFRICH_SD64_RAM,
+};
+
+static const struct zorrocl zcl_piccolo = {
+	.type		= BT_PICCOLO,
+	.ramid		= ZORRO_PROD_HELFRICH_PICCOLO_RAM,
+};
+
+static const struct zorrocl zcl_picasso = {
+	.type		= BT_PICASSO,
+	.ramid		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_II_II_PLUS_RAM,
+};
+
+static const struct zorrocl zcl_spectrum = {
+	.type		= BT_SPECTRUM,
+	.ramid		= ZORRO_PROD_GVP_EGS_28_24_SPECTRUM_RAM,
+};
+
+static const struct zorrocl zcl_picasso4_z3 = {
+	.type		= BT_PICASSO4,
+	.regoffset	= 0x00600000,
+	.ramsize	= 4 * MB_,
+	.ramoffset	= 0x01000000,	/* 0x02000000 for 64 MiB boards */
+};
+
+static const struct zorrocl zcl_picasso4_z2 = {
+	.type		= BT_PICASSO4,
+	.regoffset	= 0x10000,
+	.ramid		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_RAM1,
+	.ramid2		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_RAM2,
+};
+
+
 static const struct zorro_device_id cirrusfb_zorro_table[] = {
 	{
-		.id		= ZORRO_PROD_HELFRICH_SD64_RAM,
-		.driver_data	= BT_SD64,
+		.id		= ZORRO_PROD_HELFRICH_SD64_REG,
+		.driver_data	= (unsigned long)&zcl_sd64,
 	}, {
-		.id		= ZORRO_PROD_HELFRICH_PICCOLO_RAM,
-		.driver_data	= BT_PICCOLO,
+		.id		= ZORRO_PROD_HELFRICH_PICCOLO_REG,
+		.driver_data	= (unsigned long)&zcl_piccolo,
 	}, {
-		.id	= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_II_II_PLUS_RAM,
-		.driver_data	= BT_PICASSO,
+		.id	= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_II_II_PLUS_REG,
+		.driver_data	= (unsigned long)&zcl_picasso,
 	}, {
-		.id		= ZORRO_PROD_GVP_EGS_28_24_SPECTRUM_RAM,
-		.driver_data	= BT_SPECTRUM,
+		.id		= ZORRO_PROD_GVP_EGS_28_24_SPECTRUM_REG,
+		.driver_data	= (unsigned long)&zcl_spectrum,
 	}, {
 		.id		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z3,
-		.driver_data	= BT_PICASSO4,
+		.driver_data	= (unsigned long)&zcl_picasso4_z3,
+	}, {
+		.id		= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_IV_Z2_REG,
+		.driver_data	= (unsigned long)&zcl_picasso4_z2,
 	},
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(zorro, cirrusfb_zorro_table);
-
-static const struct {
-	zorro_id id2;
-	unsigned long size;
-} cirrusfb_zorro_table2[] = {
-	[BT_SD64] = {
-		.id2	= ZORRO_PROD_HELFRICH_SD64_REG,
-		.size	= 0x400000
-	},
-	[BT_PICCOLO] = {
-		.id2	= ZORRO_PROD_HELFRICH_PICCOLO_REG,
-		.size	= 0x200000
-	},
-	[BT_PICASSO] = {
-		.id2	= ZORRO_PROD_VILLAGE_TRONIC_PICASSO_II_II_PLUS_REG,
-		.size	= 0x200000
-	},
-	[BT_SPECTRUM] = {
-		.id2	= ZORRO_PROD_GVP_EGS_28_24_SPECTRUM_REG,
-		.size	= 0x200000
-	},
-	[BT_PICASSO4] = {
-		.id2	= 0,
-		.size	= 0x400000
-	}
-};
 #endif /* CONFIG_ZORRO */
 
 #ifdef CIRRUSFB_DEBUG
@@ -350,8 +366,8 @@ struct cirrusfb_info {
 	void (*unmap)(struct fb_info *info);
 };
 
-static int noaccel __devinitdata;
-static char *mode_option __devinitdata = "640x480@60";
+static bool noaccel;
+static char *mode_option = "640x480@60";
 
 /****************************************************************************/
 /**** BEGIN PROTOTYPES ******************************************************/
@@ -535,30 +551,18 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		break;
 
 	case 16:
-		if (isPReP) {
-			var->red.offset = 2;
-			var->green.offset = -3;
-			var->blue.offset = 8;
-		} else {
-			var->red.offset = 11;
-			var->green.offset = 5;
-			var->blue.offset = 0;
-		}
+		var->red.offset = 11;
+		var->green.offset = 5;
+		var->blue.offset = 0;
 		var->red.length = 5;
 		var->green.length = 6;
 		var->blue.length = 5;
 		break;
 
 	case 24:
-		if (isPReP) {
-			var->red.offset = 0;
-			var->green.offset = 8;
-			var->blue.offset = 16;
-		} else {
-			var->red.offset = 16;
-			var->green.offset = 8;
-			var->blue.offset = 0;
-		}
+		var->red.offset = 16;
+		var->green.offset = 8;
+		var->blue.offset = 0;
 		var->red.length = 8;
 		var->green.length = 8;
 		var->blue.length = 8;
@@ -1589,7 +1593,7 @@ static void init_vgachip(struct fb_info *info)
 	/* ext. display controls: ext.adr. wrap */
 	vga_wcrt(cinfo->regbase, CL_CRT1B, 0x02);
 
-	/* Set/Reset registes: - */
+	/* Set/Reset registers: - */
 	vga_wgfx(cinfo->regbase, VGA_GFX_SR_VALUE, 0x00);
 	/* Set/Reset enable: - */
 	vga_wgfx(cinfo->regbase, VGA_GFX_SR_ENABLE, 0x00);
@@ -1852,17 +1856,6 @@ static void cirrusfb_imageblit(struct fb_info *info,
 	}
 }
 
-#ifdef CONFIG_PPC_PREP
-#define PREP_VIDEO_BASE ((volatile unsigned long) 0xC0000000)
-#define PREP_IO_BASE    ((volatile unsigned char *) 0x80000000)
-static void get_prep_addrs(unsigned long *display, unsigned long *registers)
-{
-	*display = PREP_VIDEO_BASE;
-	*registers = (unsigned long) PREP_IO_BASE;
-}
-
-#endif				/* CONFIG_PPC_PREP */
-
 #ifdef CONFIG_PCI
 static int release_io_ports;
 
@@ -1870,8 +1863,8 @@ static int release_io_ports;
  * based on the DRAM bandwidth bit and DRAM bank switching bit.  This
  * works with 1MB, 2MB and 4MB configurations (which the Motorola boards
  * seem to have. */
-static unsigned int __devinit cirrusfb_get_memsize(struct fb_info *info,
-						   u8 __iomem *regbase)
+static unsigned int cirrusfb_get_memsize(struct fb_info *info,
+					 u8 __iomem *regbase)
 {
 	unsigned long mem;
 	struct cirrusfb_info *cinfo = info->par;
@@ -1956,16 +1949,12 @@ static void cirrusfb_zorro_unmap(struct fb_info *info)
 	struct cirrusfb_info *cinfo = info->par;
 	struct zorro_dev *zdev = to_zorro_dev(info->device);
 
-	zorro_release_device(zdev);
-
-	if (cinfo->btype == BT_PICASSO4) {
-		cinfo->regbase -= 0x600000;
-		iounmap((void *)cinfo->regbase);
+	if (info->fix.smem_start > 16 * MB_)
 		iounmap(info->screen_base);
-	} else {
-		if (zorro_resource_start(zdev) > 0x01000000)
-			iounmap(info->screen_base);
-	}
+	if (info->fix.mmio_start > 16 * MB_)
+		iounmap(cinfo->regbase);
+
+	zorro_release_device(zdev);
 }
 #endif /* CONFIG_ZORRO */
 
@@ -1985,7 +1974,7 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_imageblit	= cirrusfb_imageblit,
 };
 
-static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
+static int cirrusfb_set_fbinfo(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_var_screeninfo *var = &info->var;
@@ -2034,7 +2023,7 @@ static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int __devinit cirrusfb_register(struct fb_info *info)
+static int cirrusfb_register(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	int err;
@@ -2078,7 +2067,7 @@ err_dealloc_cmap:
 	return err;
 }
 
-static void __devexit cirrusfb_cleanup(struct fb_info *info)
+static void cirrusfb_cleanup(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 
@@ -2091,8 +2080,8 @@ static void __devexit cirrusfb_cleanup(struct fb_info *info)
 }
 
 #ifdef CONFIG_PCI
-static int __devinit cirrusfb_pci_register(struct pci_dev *pdev,
-					   const struct pci_device_id *ent)
+static int cirrusfb_pci_register(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
@@ -2121,21 +2110,12 @@ static int __devinit cirrusfb_pci_register(struct pci_dev *pdev,
 	dev_dbg(info->device, " base address 1 is 0x%Lx\n",
 		(unsigned long long)pdev->resource[1].start);
 
-	if (isPReP) {
-		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, 0x00000000);
-#ifdef CONFIG_PPC_PREP
-		get_prep_addrs(&board_addr, &info->fix.mmio_start);
-#endif
-	/* PReP dies if we ioremap the IO registers, but it works w/out... */
-		cinfo->regbase = (char __iomem *) info->fix.mmio_start;
-	} else {
-		dev_dbg(info->device,
-			"Attempt to get PCI info for Cirrus Graphics Card\n");
-		get_pci_addrs(pdev, &board_addr, &info->fix.mmio_start);
-		/* FIXME: this forces VGA.  alternatives? */
-		cinfo->regbase = NULL;
-		cinfo->laguna_mmio = ioremap(info->fix.mmio_start, 0x1000);
-	}
+	dev_dbg(info->device,
+		"Attempt to get PCI info for Cirrus Graphics Card\n");
+	get_pci_addrs(pdev, &board_addr, &info->fix.mmio_start);
+	/* FIXME: this forces VGA.  alternatives? */
+	cinfo->regbase = NULL;
+	cinfo->laguna_mmio = ioremap(info->fix.mmio_start, 0x1000);
 
 	dev_dbg(info->device, "Board address: 0x%lx, register address: 0x%lx\n",
 		board_addr, info->fix.mmio_start);
@@ -2197,7 +2177,7 @@ err_out:
 	return ret;
 }
 
-static void __devexit cirrusfb_pci_unregister(struct pci_dev *pdev)
+static void cirrusfb_pci_unregister(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 
@@ -2208,7 +2188,7 @@ static struct pci_driver cirrusfb_pci_driver = {
 	.name		= "cirrusfb",
 	.id_table	= cirrusfb_pci_table,
 	.probe		= cirrusfb_pci_register,
-	.remove		= __devexit_p(cirrusfb_pci_unregister),
+	.remove		= cirrusfb_pci_unregister,
 #ifdef CONFIG_PM
 #if 0
 	.suspend	= cirrusfb_pci_suspend,
@@ -2219,132 +2199,134 @@ static struct pci_driver cirrusfb_pci_driver = {
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
-					     const struct zorro_device_id *ent)
+static int cirrusfb_zorro_register(struct zorro_dev *z,
+				   const struct zorro_device_id *ent)
 {
-	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
+	int error;
+	const struct zorrocl *zcl;
 	enum cirrus_board btype;
-	struct zorro_dev *z2 = NULL;
-	unsigned long board_addr, board_size, size;
-	int ret;
-
-	btype = ent->driver_data;
-	if (cirrusfb_zorro_table2[btype].id2)
-		z2 = zorro_find_device(cirrusfb_zorro_table2[btype].id2, NULL);
-	size = cirrusfb_zorro_table2[btype].size;
+	unsigned long regbase, ramsize, rambase;
+	struct cirrusfb_info *cinfo;
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &z->dev);
 	if (!info) {
 		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
-		ret = -ENOMEM;
-		goto err_out;
+		return -ENOMEM;
 	}
 
-	dev_info(info->device, "%s board detected\n",
-		 cirrusfb_board_info[btype].name);
+	zcl = (const struct zorrocl *)ent->driver_data;
+	btype = zcl->type;
+	regbase = zorro_resource_start(z) + zcl->regoffset;
+	ramsize = zcl->ramsize;
+	if (ramsize) {
+		rambase = zorro_resource_start(z) + zcl->ramoffset;
+		if (zorro_resource_len(z) == 64 * MB_) {
+			/* Quirk for 64 MiB Picasso IV */
+			rambase += zcl->ramoffset;
+		}
+	} else {
+		struct zorro_dev *ram = zorro_find_device(zcl->ramid, NULL);
+		if (!ram || !zorro_resource_len(ram)) {
+			dev_err(info->device, "No video RAM found\n");
+			error = -ENODEV;
+			goto err_release_fb;
+		}
+		rambase = zorro_resource_start(ram);
+		ramsize = zorro_resource_len(ram);
+		if (zcl->ramid2 &&
+		    (ram = zorro_find_device(zcl->ramid2, NULL))) {
+			if (zorro_resource_start(ram) != rambase + ramsize) {
+				dev_warn(info->device,
+					 "Skipping non-contiguous RAM at %pR\n",
+					 &ram->resource);
+			} else {
+				ramsize += zorro_resource_len(ram);
+			}
+		}
+	}
+
+	dev_info(info->device,
+		 "%s board detected, REG at 0x%lx, %lu MiB RAM at 0x%lx\n",
+		 cirrusfb_board_info[btype].name, regbase, ramsize / MB_,
+		 rambase);
+
+	if (!zorro_request_device(z, "cirrusfb")) {
+		dev_err(info->device, "Cannot reserve %pR\n", &z->resource);
+		error = -EBUSY;
+		goto err_release_fb;
+	}
 
 	cinfo = info->par;
 	cinfo->btype = btype;
 
-	assert(z);
-	assert(btype != BT_NONE);
-
-	board_addr = zorro_resource_start(z);
-	board_size = zorro_resource_len(z);
-	info->screen_size = size;
-
-	if (!zorro_request_device(z, "cirrusfb")) {
-		dev_err(info->device, "cannot reserve region 0x%lx, abort\n",
-			board_addr);
-		ret = -EBUSY;
-		goto err_release_fb;
+	info->fix.mmio_start = regbase;
+	cinfo->regbase = regbase > 16 * MB_ ? ioremap(regbase, 64 * 1024)
+					    : (caddr_t)ZTWO_VADDR(regbase);
+	if (!cinfo->regbase) {
+		dev_err(info->device, "Cannot map registers\n");
+		error = -EIO;
+		goto err_release_dev;
 	}
 
-	ret = -EIO;
-
-	if (btype == BT_PICASSO4) {
-		dev_info(info->device, " REG at $%lx\n", board_addr + 0x600000);
-
-		/* To be precise, for the P4 this is not the */
-		/* begin of the board, but the begin of RAM. */
-		/* for P4, map in its address space in 2 chunks (### TEST! ) */
-		/* (note the ugly hardcoded 16M number) */
-		cinfo->regbase = ioremap(board_addr, 16777216);
-		if (!cinfo->regbase)
-			goto err_release_region;
-
-		dev_dbg(info->device, "Virtual address for board set to: $%p\n",
-			cinfo->regbase);
-		cinfo->regbase += 0x600000;
-		info->fix.mmio_start = board_addr + 0x600000;
-
-		info->fix.smem_start = board_addr + 16777216;
-		info->screen_base = ioremap(info->fix.smem_start, 16777216);
-		if (!info->screen_base)
-			goto err_unmap_regbase;
-	} else {
-		dev_info(info->device, " REG at $%lx\n",
-			 (unsigned long) z2->resource.start);
-
-		info->fix.smem_start = board_addr;
-		if (board_addr > 0x01000000)
-			info->screen_base = ioremap(board_addr, board_size);
-		else
-			info->screen_base = (caddr_t) ZTWO_VADDR(board_addr);
-		if (!info->screen_base)
-			goto err_release_region;
-
-		/* set address for REG area of board */
-		cinfo->regbase = (caddr_t) ZTWO_VADDR(z2->resource.start);
-		info->fix.mmio_start = z2->resource.start;
-
-		dev_dbg(info->device, "Virtual address for board set to: $%p\n",
-			cinfo->regbase);
+	info->fix.smem_start = rambase;
+	info->screen_size = ramsize;
+	info->screen_base = rambase > 16 * MB_ ? ioremap(rambase, ramsize)
+					       : (caddr_t)ZTWO_VADDR(rambase);
+	if (!info->screen_base) {
+		dev_err(info->device, "Cannot map video RAM\n");
+		error = -EIO;
+		goto err_unmap_reg;
 	}
+
 	cinfo->unmap = cirrusfb_zorro_unmap;
 
 	dev_info(info->device,
-		 "Cirrus Logic chipset on Zorro bus, RAM (%lu MB) at $%lx\n",
-		 board_size / MB_, board_addr);
-
-	zorro_set_drvdata(z, info);
+		 "Cirrus Logic chipset on Zorro bus, RAM (%lu MiB) at 0x%lx\n",
+		 ramsize / MB_, rambase);
 
 	/* MCLK select etc. */
 	if (cirrusfb_board_info[btype].init_sr1f)
 		vga_wseq(cinfo->regbase, CL_SEQR1F,
 			 cirrusfb_board_info[btype].sr1f);
 
-	ret = cirrusfb_register(info);
-	if (!ret)
-		return 0;
+	error = cirrusfb_register(info);
+	if (error) {
+		dev_err(info->device, "Failed to register device, error %d\n",
+			error);
+		goto err_unmap_ram;
+	}
 
-	if (btype == BT_PICASSO4 || board_addr > 0x01000000)
+	zorro_set_drvdata(z, info);
+	return 0;
+
+err_unmap_ram:
+	if (rambase > 16 * MB_)
 		iounmap(info->screen_base);
 
-err_unmap_regbase:
-	if (btype == BT_PICASSO4)
-		iounmap(cinfo->regbase - 0x600000);
-err_release_region:
-	release_region(board_addr, board_size);
+err_unmap_reg:
+	if (regbase > 16 * MB_)
+		iounmap(cinfo->regbase);
+err_release_dev:
+	zorro_release_device(z);
 err_release_fb:
 	framebuffer_release(info);
-err_out:
-	return ret;
+	return error;
 }
 
-void __devexit cirrusfb_zorro_unregister(struct zorro_dev *z)
+void cirrusfb_zorro_unregister(struct zorro_dev *z)
 {
 	struct fb_info *info = zorro_get_drvdata(z);
 
 	cirrusfb_cleanup(info);
+	zorro_set_drvdata(z, NULL);
 }
 
 static struct zorro_driver cirrusfb_zorro_driver = {
 	.name		= "cirrusfb",
 	.id_table	= cirrusfb_zorro_table,
 	.probe		= cirrusfb_zorro_register,
-	.remove		= __devexit_p(cirrusfb_zorro_unregister),
+	.remove		= cirrusfb_zorro_unregister,
 };
 #endif /* CONFIG_ZORRO */
 

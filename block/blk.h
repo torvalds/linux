@@ -1,6 +1,8 @@
 #ifndef BLK_INTERNAL_H
 #define BLK_INTERNAL_H
 
+#include <linux/idr.h>
+
 /* Amount of time in which a process may batch requests */
 #define BLK_BATCH_TIME	(HZ/50UL)
 
@@ -9,19 +11,31 @@
 
 extern struct kmem_cache *blk_requestq_cachep;
 extern struct kobj_type blk_queue_ktype;
+extern struct ida blk_queue_ida;
 
+static inline void __blk_get_queue(struct request_queue *q)
+{
+	kobject_get(&q->kobj);
+}
+
+int blk_init_rl(struct request_list *rl, struct request_queue *q,
+		gfp_t gfp_mask);
+void blk_exit_rl(struct request_list *rl);
 void init_request_from_bio(struct request *req, struct bio *bio);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		      struct bio *bio);
+void blk_queue_bypass_start(struct request_queue *q);
+void blk_queue_bypass_end(struct request_queue *q);
 void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
+bool __blk_end_bidi_request(struct request *rq, int error,
+			    unsigned int nr_bytes, unsigned int bidi_bytes);
 
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
-void __generic_unplug_device(struct request_queue *);
 
 /*
  * Internal atomic flags for request handling
@@ -47,7 +61,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
 /*
  * Internal elevator interface
  */
-#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
+#define ELV_ON_HASH(rq) hash_hashed(&(rq)->hash)
 
 void blk_insert_flush(struct request *rq);
 void blk_abort_flushes(struct request_queue *q);
@@ -82,8 +96,8 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 			q->flush_queue_delayed = 1;
 			return NULL;
 		}
-		if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags) ||
-		    !q->elevator->ops->elevator_dispatch_fn(q, 0))
+		if (unlikely(blk_queue_dying(q)) ||
+		    !q->elevator->type->ops.elevator_dispatch_fn(q, 0))
 			return NULL;
 	}
 }
@@ -92,16 +106,16 @@ static inline void elv_activate_rq(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->ops->elevator_activate_req_fn)
-		e->ops->elevator_activate_req_fn(q, rq);
+	if (e->type->ops.elevator_activate_req_fn)
+		e->type->ops.elevator_activate_req_fn(q, rq);
 }
 
 static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
 
-	if (e->ops->elevator_deactivate_req_fn)
-		e->ops->elevator_deactivate_req_fn(q, rq);
+	if (e->type->ops.elevator_deactivate_req_fn)
+		e->type->ops.elevator_deactivate_req_fn(q, rq);
 }
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
@@ -116,8 +130,6 @@ static inline int blk_should_fake_timeout(struct request_queue *q)
 }
 #endif
 
-struct io_context *current_io_context(gfp_t gfp_flags, int node);
-
 int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		     struct bio *bio);
 int ll_front_merge_fn(struct request_queue *q, struct request *req, 
@@ -128,13 +140,14 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 				struct request *next);
 void blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
+bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
+int blk_try_merge(struct request *rq, struct bio *bio);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 
-int blk_dev_init(void);
+void __blk_run_queue_uncond(struct request_queue *q);
 
-void elv_quiesce_start(struct request_queue *q);
-void elv_quiesce_end(struct request_queue *q);
+int blk_dev_init(void);
 
 
 /*
@@ -155,35 +168,67 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 	return q->nr_congestion_off;
 }
 
-static inline int blk_cpu_to_group(int cpu)
-{
-	int group = NR_CPUS;
-#ifdef CONFIG_SCHED_MC
-	const struct cpumask *mask = cpu_coregroup_mask(cpu);
-	group = cpumask_first(mask);
-#elif defined(CONFIG_SCHED_SMT)
-	group = cpumask_first(topology_thread_cpumask(cpu));
-#else
-	return cpu;
-#endif
-	if (likely(group < NR_CPUS))
-		return group;
-	return cpu;
-}
-
 /*
  * Contribute to IO statistics IFF:
  *
  *	a) it's attached to a gendisk, and
  *	b) the queue had IO stats enabled when this request was started, and
- *	c) it's a file system request or a discard request
+ *	c) it's a file system request
  */
 static inline int blk_do_io_stat(struct request *rq)
 {
 	return rq->rq_disk &&
 	       (rq->cmd_flags & REQ_IO_STAT) &&
-	       (rq->cmd_type == REQ_TYPE_FS ||
-	        (rq->cmd_flags & REQ_DISCARD));
+		(rq->cmd_type == REQ_TYPE_FS);
 }
 
-#endif
+/*
+ * Internal io_context interface
+ */
+void get_io_context(struct io_context *ioc);
+struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q);
+struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+			     gfp_t gfp_mask);
+void ioc_clear_queue(struct request_queue *q);
+
+int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
+
+/**
+ * create_io_context - try to create task->io_context
+ * @gfp_mask: allocation mask
+ * @node: allocation node
+ *
+ * If %current->io_context is %NULL, allocate a new io_context and install
+ * it.  Returns the current %current->io_context which may be %NULL if
+ * allocation failed.
+ *
+ * Note that this function can't be called with IRQ disabled because
+ * task_lock which protects %current->io_context is IRQ-unsafe.
+ */
+static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
+{
+	WARN_ON_ONCE(irqs_disabled());
+	if (unlikely(!current->io_context))
+		create_task_io_context(current, gfp_mask, node);
+	return current->io_context;
+}
+
+/*
+ * Internal throttling interface
+ */
+#ifdef CONFIG_BLK_DEV_THROTTLING
+extern bool blk_throtl_bio(struct request_queue *q, struct bio *bio);
+extern void blk_throtl_drain(struct request_queue *q);
+extern int blk_throtl_init(struct request_queue *q);
+extern void blk_throtl_exit(struct request_queue *q);
+#else /* CONFIG_BLK_DEV_THROTTLING */
+static inline bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
+{
+	return false;
+}
+static inline void blk_throtl_drain(struct request_queue *q) { }
+static inline int blk_throtl_init(struct request_queue *q) { return 0; }
+static inline void blk_throtl_exit(struct request_queue *q) { }
+#endif /* CONFIG_BLK_DEV_THROTTLING */
+
+#endif /* BLK_INTERNAL_H */

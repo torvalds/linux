@@ -24,8 +24,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/mfp-pxa25x.h>
-#include <mach/hardware.h>
+#include <mach/pxa25x.h>
 
 #include "generic.h"
 
@@ -159,9 +158,12 @@ static void __init himalaya_init(void)
 
 
 MACHINE_START(HIMALAYA, "HTC Himalaya")
-	.boot_params = 0xa0000100,
+	.atag_offset = 0x100,
 	.map_io = pxa25x_map_io,
+	.nr_irqs = PXA_NR_IRQS,
 	.init_irq = pxa25x_init_irq,
+	.handle_irq = pxa25x_handle_irq,
 	.init_machine = himalaya_init,
-	.timer = &pxa_timer,
+	.init_time	= pxa_timer_init,
+	.restart	= pxa_restart,
 MACHINE_END

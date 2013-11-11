@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 

@@ -16,21 +16,11 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 
-static int debug;
-
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1404, 0xcddc) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver funsoft_driver = {
-	.name =		"funsoft",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-	.no_dynamic_id = 	1,
-};
 
 static struct usb_serial_driver funsoft_device = {
 	.driver = {
@@ -38,32 +28,13 @@ static struct usb_serial_driver funsoft_device = {
 		.name =		"funsoft",
 	},
 	.id_table =		id_table,
-	.usb_driver = 		&funsoft_driver,
 	.num_ports =		1,
 };
 
-static int __init funsoft_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&funsoft_device, NULL
+};
 
-	retval = usb_serial_register(&funsoft_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&funsoft_driver);
-	if (retval)
-		usb_serial_deregister(&funsoft_device);
-	return retval;
-}
+module_usb_serial_driver(serial_drivers, id_table);
 
-static void __exit funsoft_exit(void)
-{
-	usb_deregister(&funsoft_driver);
-	usb_serial_deregister(&funsoft_device);
-}
-
-module_init(funsoft_init);
-module_exit(funsoft_exit);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

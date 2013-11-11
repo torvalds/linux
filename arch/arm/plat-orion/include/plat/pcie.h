@@ -20,8 +20,7 @@ int orion_pcie_x4_mode(void __iomem *base);
 int orion_pcie_get_local_bus_nr(void __iomem *base);
 void orion_pcie_set_local_bus_nr(void __iomem *base, int nr);
 void orion_pcie_reset(void __iomem *base);
-void orion_pcie_setup(void __iomem *base,
-		      struct mbus_dram_target_info *dram);
+void orion_pcie_setup(void __iomem *base);
 int orion_pcie_rd_conf(void __iomem *base, struct pci_bus *bus,
 		       u32 devfn, int where, int size, u32 *val);
 int orion_pcie_rd_conf_tlp(void __iomem *base, struct pci_bus *bus,

@@ -10,7 +10,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/security.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/uaccess.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
@@ -42,7 +42,7 @@ static long vfs_ioctl(struct file *filp, unsigned int cmd,
 
 	error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
 	if (error == -ENOIOCTLCMD)
-		error = -EINVAL;
+		error = -ENOTTY;
  out:
 	return error;
 }
@@ -175,7 +175,7 @@ static int ioctl_fiemap(struct file *filp, unsigned long arg)
 	struct fiemap fiemap;
 	struct fiemap __user *ufiemap = (struct fiemap __user *) arg;
 	struct fiemap_extent_info fieinfo = { 0, };
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	u64 len;
 	int error;
@@ -424,7 +424,7 @@ EXPORT_SYMBOL(generic_block_fiemap);
  */
 int ioctl_preallocate(struct file *filp, void __user *argp)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct space_resv sr;
 
 	if (copy_from_user(&sr, argp, sizeof(sr)))
@@ -449,7 +449,7 @@ int ioctl_preallocate(struct file *filp, void __user *argp)
 static int file_ioctl(struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int __user *p = (int __user *)arg;
 
 	switch (cmd) {
@@ -512,7 +512,7 @@ static int ioctl_fioasync(unsigned int fd, struct file *filp,
 
 static int ioctl_fsfreeze(struct file *filp)
 {
-	struct super_block *sb = filp->f_path.dentry->d_inode->i_sb;
+	struct super_block *sb = file_inode(filp)->i_sb;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -527,7 +527,7 @@ static int ioctl_fsfreeze(struct file *filp)
 
 static int ioctl_fsthaw(struct file *filp)
 {
-	struct super_block *sb = filp->f_path.dentry->d_inode->i_sb;
+	struct super_block *sb = file_inode(filp)->i_sb;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -548,7 +548,7 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 {
 	int error = 0;
 	int __user *argp = (int __user *)arg;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	switch (cmd) {
 	case FIOCLEX:
@@ -603,21 +603,14 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 
 SYSCALL_DEFINE3(ioctl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {
-	struct file *filp;
-	int error = -EBADF;
-	int fput_needed;
+	int error;
+	struct fd f = fdget(fd);
 
-	filp = fget_light(fd, &fput_needed);
-	if (!filp)
-		goto out;
-
-	error = security_file_ioctl(filp, cmd, arg);
-	if (error)
-		goto out_fput;
-
-	error = do_vfs_ioctl(filp, fd, cmd, arg);
- out_fput:
-	fput_light(filp, fput_needed);
- out:
+	if (!f.file)
+		return -EBADF;
+	error = security_file_ioctl(f.file, cmd, arg);
+	if (!error)
+		error = do_vfs_ioctl(f.file, fd, cmd, arg);
+	fdput(f);
 	return error;
 }

@@ -34,6 +34,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
@@ -261,8 +262,9 @@ static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 				  port->uartclk / 4);
 	divisor = (port->uartclk + 2 * baud) / (4 * baud);
 
-	/* select the proper prescaler and set the divisor */
-	if (divisor > 0xffff) {
+	/* select the proper prescaler and set the divisor
+	 * prefer high prescaler for more tolerance on low baudrates */
+	if (divisor > 0xffff || baud <= 115200) {
 		divisor = (divisor + 4) / 8;
 		prescaler = 0xdd00; /* /32 */
 	} else
@@ -273,7 +275,7 @@ static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 
 static void mpc52xx_psc_get_irq(struct uart_port *port, struct device_node *np)
 {
-	port->irqflags = IRQF_DISABLED;
+	port->irqflags = 0;
 	port->irq = irq_of_parse_and_map(np, 0);
 }
 
@@ -506,7 +508,7 @@ static int __init mpc512x_psc_fifoc_init(void)
 
 	psc_fifoc_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if (psc_fifoc_irq == NO_IRQ) {
+	if (psc_fifoc_irq == 0) {
 		pr_err("%s: Can't get FIFOC irq\n", __func__);
 		iounmap(psc_fifoc);
 		return -ENODEV;
@@ -548,7 +550,7 @@ static int mpc512x_psc_clock(struct uart_port *port, int enable)
 		return 0;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_clk", psc_num);
+	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
 	psc_clk = clk_get(port->dev, clk_name);
 	if (IS_ERR(psc_clk)) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");
@@ -596,7 +598,7 @@ static struct psc_ops mpc512x_psc_ops = {
 };
 #endif
 
-static struct psc_ops *psc_ops;
+static const struct psc_ops *psc_ops;
 
 /* ======================================================================== */
 /* UART operations                                                          */
@@ -773,11 +775,15 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	}
 
 	if (new->c_cflag & PARENB) {
+		if (new->c_cflag & CMSPAR)
+			mr1 |= MPC52xx_PSC_MODE_PARFORCE;
+
+		/* With CMSPAR, PARODD also means high parity (same as termios) */
 		mr1 |= (new->c_cflag & PARODD) ?
 			MPC52xx_PSC_MODE_PARODD : MPC52xx_PSC_MODE_PAREVEN;
-	} else
+	} else {
 		mr1 |= MPC52xx_PSC_MODE_PARNONE;
-
+	}
 
 	mr2 = 0;
 
@@ -935,7 +941,7 @@ static struct uart_ops mpc52xx_uart_ops = {
 static inline int
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned char ch, flag;
 	unsigned short status;
 
@@ -980,20 +986,20 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 			out_8(&PSC(port)->command, MPC52xx_PSC_RST_ERR_STAT);
 
 		}
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(tport, ch, flag);
 		if (status & MPC52xx_PSC_SR_OE) {
 			/*
 			 * Overrun is special, since it's
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 			port->icount.overrun++;
 		}
 	}
 
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 	spin_lock(&port->lock);
 
 	return psc_ops->raw_rx_rdy(port);
@@ -1302,7 +1308,7 @@ static struct of_device_id mpc52xx_uart_of_match[] = {
 	{},
 };
 
-static int __devinit mpc52xx_uart_of_probe(struct platform_device *op)
+static int mpc52xx_uart_of_probe(struct platform_device *op)
 {
 	int idx = -1;
 	unsigned int uartclk;
@@ -1353,7 +1359,7 @@ static int __devinit mpc52xx_uart_of_probe(struct platform_device *op)
 	}
 
 	psc_ops->get_irq(port, op->dev.of_node);
-	if (port->irq == NO_IRQ) {
+	if (port->irq == 0) {
 		dev_dbg(&op->dev, "Could not get irq\n");
 		return -EINVAL;
 	}
@@ -1491,18 +1497,23 @@ mpc52xx_uart_init(void)
 	if (psc_ops && psc_ops->fifoc_init) {
 		ret = psc_ops->fifoc_init();
 		if (ret)
-			return ret;
+			goto err_init;
 	}
 
 	ret = platform_driver_register(&mpc52xx_uart_of_driver);
 	if (ret) {
 		printk(KERN_ERR "%s: platform_driver_register failed (%i)\n",
 		       __FILE__, ret);
-		uart_unregister_driver(&mpc52xx_uart_driver);
-		return ret;
+		goto err_reg;
 	}
 
 	return 0;
+err_reg:
+	if (psc_ops && psc_ops->fifoc_uninit)
+		psc_ops->fifoc_uninit();
+err_init:
+	uart_unregister_driver(&mpc52xx_uart_driver);
+	return ret;
 }
 
 static void __exit

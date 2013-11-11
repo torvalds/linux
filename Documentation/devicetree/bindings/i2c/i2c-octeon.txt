@@ -1,0 +1,34 @@
+* Two Wire Serial Interface (TWSI) / I2C
+
+- compatible: "cavium,octeon-3860-twsi"
+
+  Compatibility with all cn3XXX, cn5XXX and cn6XXX SOCs.
+
+- reg: The base address of the TWSI/I2C bus controller register bank.
+
+- #address-cells: Must be <1>.
+
+- #size-cells: Must be <0>.  I2C addresses have no size component.
+
+- interrupts: A single interrupt specifier.
+
+- clock-frequency: The I2C bus clock rate in Hz.
+
+Example:
+	twsi0: i2c@1180000001000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "cavium,octeon-3860-twsi";
+		reg = <0x11800 0x00001000 0x0 0x200>;
+		interrupts = <0 45>;
+		clock-frequency = <100000>;
+
+		rtc@68 {
+			compatible = "dallas,ds1337";
+			reg = <0x68>;
+		};
+		tmp@4c {
+			compatible = "ti,tmp421";
+			reg = <0x4c>;
+		};
+	};

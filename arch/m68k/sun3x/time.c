@@ -15,7 +15,6 @@
 
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/sun3x.h>
 #include <asm/sun3ints.h>
@@ -72,7 +71,7 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 	return 0;
 }
 /* Not much we can do here */
-unsigned long sun3x_gettimeoffset (void)
+u32 sun3x_gettimeoffset(void)
 {
     return 0L;
 }

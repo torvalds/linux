@@ -179,6 +179,7 @@ static void print_SCp(struct scsi_pointer *SCp, const char *prefix, const char *
 		SCp->buffers_residual, suffix);
 }
 
+#ifdef CHECK_STRUCTURE
 static void fas216_dumpinfo(FAS216_Info *info)
 {
 	static int used = 0;
@@ -223,7 +224,6 @@ static void fas216_dumpinfo(FAS216_Info *info)
 		info->internal_done, info->magic_end);
 }
 
-#ifdef CHECK_STRUCTURE
 static void __fas216_checkmagic(FAS216_Info *info, const char *func)
 {
 	int corruption = 0;
@@ -2176,7 +2176,7 @@ static void fas216_done(FAS216_Info *info, unsigned int result)
 	fn = (void (*)(FAS216_Info *, struct scsi_cmnd *, unsigned int))SCpnt->host_scribble;
 	fn(info, SCpnt, result);
 
-	if (info->scsi.irq != NO_IRQ) {
+	if (info->scsi.irq) {
 		spin_lock_irqsave(&info->host_lock, flags);
 		if (info->scsi.phase == PHASE_IDLE)
 			fas216_kick(info);
@@ -2276,7 +2276,7 @@ static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
 	 * We should only be using this if we don't have an interrupt.
 	 * Provide some "incentive" to use the queueing code.
 	 */
-	BUG_ON(info->scsi.irq != NO_IRQ);
+	BUG_ON(info->scsi.irq);
 
 	info->internal_done = 0;
 	fas216_queue_command_lck(SCpnt, fas216_internal_done);
@@ -2958,9 +2958,9 @@ void fas216_release(struct Scsi_Host *host)
 	queue_free(&info->queues.issue);
 }
 
-int fas216_print_host(FAS216_Info *info, char *buffer)
+void fas216_print_host(FAS216_Info *info, struct seq_file *m)
 {
-	return sprintf(buffer,
+	seq_printf(m,
 			"\n"
 			"Chip    : %s\n"
 			" Address: 0x%p\n"
@@ -2970,11 +2970,9 @@ int fas216_print_host(FAS216_Info *info, char *buffer)
 			info->scsi.irq, info->scsi.dma);
 }
 
-int fas216_print_stats(FAS216_Info *info, char *buffer)
+void fas216_print_stats(FAS216_Info *info, struct seq_file *m)
 {
-	char *p = buffer;
-
-	p += sprintf(p, "\n"
+	seq_printf(m, "\n"
 			"Command Statistics:\n"
 			" Queued     : %u\n"
 			" Issued     : %u\n"
@@ -2991,38 +2989,33 @@ int fas216_print_stats(FAS216_Info *info, char *buffer)
 			info->stats.writes,	 info->stats.miscs,
 			info->stats.disconnects, info->stats.aborts,
 			info->stats.bus_resets,	 info->stats.host_resets);
-
-	return p - buffer;
 }
 
-int fas216_print_devices(FAS216_Info *info, char *buffer)
+void fas216_print_devices(FAS216_Info *info, struct seq_file *m)
 {
 	struct fas216_device *dev;
 	struct scsi_device *scd;
-	char *p = buffer;
 
-	p += sprintf(p, "Device/Lun TaggedQ       Parity   Sync\n");
+	seq_printf(m, "Device/Lun TaggedQ       Parity   Sync\n");
 
 	shost_for_each_device(scd, info->host) {
 		dev = &info->device[scd->id];
-		p += sprintf(p, "     %d/%d   ", scd->id, scd->lun);
+		seq_printf(m, "     %d/%d   ", scd->id, scd->lun);
 		if (scd->tagged_supported)
-			p += sprintf(p, "%3sabled(%3d) ",
+			seq_printf(m, "%3sabled(%3d) ",
 				     scd->simple_tags ? "en" : "dis",
 				     scd->current_tag);
 		else
-			p += sprintf(p, "unsupported   ");
+			seq_printf(m, "unsupported   ");
 
-		p += sprintf(p, "%3sabled ", dev->parity_enabled ? "en" : "dis");
+		seq_printf(m, "%3sabled ", dev->parity_enabled ? "en" : "dis");
 
 		if (dev->sof)
-			p += sprintf(p, "offset %d, %d ns\n",
+			seq_printf(m, "offset %d, %d ns\n",
 				     dev->sof, dev->period * 4);
 		else
-			p += sprintf(p, "async\n");
+			seq_printf(m, "async\n");
 	}
-
-	return p - buffer;
 }
 
 EXPORT_SYMBOL(fas216_init);

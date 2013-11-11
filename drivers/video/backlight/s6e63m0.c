@@ -9,27 +9,19 @@
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
  * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include <linux/wait.h>
-#include <linux/fb.h>
+#include <linux/backlight.h>
 #include <linux/delay.h>
+#include <linux/fb.h>
 #include <linux/gpio.h>
-#include <linux/spi/spi.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/lcd.h>
-#include <linux/backlight.h>
+#include <linux/module.h>
+#include <linux/spi/spi.h>
+#include <linux/wait.h>
 
 #include "s6e63m0_gamma.h"
 
@@ -41,8 +33,6 @@
 
 #define MIN_BRIGHTNESS		0
 #define MAX_BRIGHTNESS		10
-
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
 
 struct s6e63m0 {
 	struct device			*dev;
@@ -56,7 +46,7 @@ struct s6e63m0 {
 	struct lcd_platform_data	*lcd_pd;
 };
 
-static const unsigned short SEQ_PANEL_CONDITION_SET[] = {
+static const unsigned short seq_panel_condition_set[] = {
 	0xF8, 0x01,
 	DATA_ONLY, 0x27,
 	DATA_ONLY, 0x27,
@@ -75,7 +65,7 @@ static const unsigned short SEQ_PANEL_CONDITION_SET[] = {
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_DISPLAY_CONDITION_SET[] = {
+static const unsigned short seq_display_condition_set[] = {
 	0xf2, 0x02,
 	DATA_ONLY, 0x03,
 	DATA_ONLY, 0x1c,
@@ -89,7 +79,7 @@ static const unsigned short SEQ_DISPLAY_CONDITION_SET[] = {
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_GAMMA_SETTING[] = {
+static const unsigned short seq_gamma_setting[] = {
 	0xfa, 0x00,
 	DATA_ONLY, 0x18,
 	DATA_ONLY, 0x08,
@@ -118,7 +108,7 @@ static const unsigned short SEQ_GAMMA_SETTING[] = {
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_ETC_CONDITION_SET[] = {
+static const unsigned short seq_etc_condition_set[] = {
 	0xf6, 0x00,
 	DATA_ONLY, 0x8c,
 	DATA_ONLY, 0x07,
@@ -317,47 +307,47 @@ static const unsigned short SEQ_ETC_CONDITION_SET[] = {
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_ACL_ON[] = {
+static const unsigned short seq_acl_on[] = {
 	/* ACL on */
 	0xc0, 0x01,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_ACL_OFF[] = {
+static const unsigned short seq_acl_off[] = {
 	/* ACL off */
 	0xc0, 0x00,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_ELVSS_ON[] = {
+static const unsigned short seq_elvss_on[] = {
 	/* ELVSS on */
 	0xb1, 0x0b,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_ELVSS_OFF[] = {
+static const unsigned short seq_elvss_off[] = {
 	/* ELVSS off */
 	0xb1, 0x0a,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_STAND_BY_OFF[] = {
+static const unsigned short seq_stand_by_off[] = {
 	0x11, COMMAND_ONLY,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_STAND_BY_ON[] = {
+static const unsigned short seq_stand_by_on[] = {
 	0x10, COMMAND_ONLY,
 
 	ENDDEF, 0x0000
 };
 
-static const unsigned short SEQ_DISPLAY_ON[] = {
+static const unsigned short seq_display_on[] = {
 	0x29, COMMAND_ONLY,
 
 	ENDDEF, 0x0000
@@ -405,8 +395,9 @@ static int s6e63m0_panel_send_sequence(struct s6e63m0 *lcd,
 			ret = s6e63m0_spi_write(lcd, wbuf[i], wbuf[i+1]);
 			if (ret)
 				break;
-		} else
-			udelay(wbuf[i+1]*1000);
+		} else {
+			msleep(wbuf[i+1]);
+		}
 		i += 2;
 	}
 
@@ -456,12 +447,12 @@ static int s6e63m0_ldi_init(struct s6e63m0 *lcd)
 {
 	int ret, i;
 	const unsigned short *init_seq[] = {
-		SEQ_PANEL_CONDITION_SET,
-		SEQ_DISPLAY_CONDITION_SET,
-		SEQ_GAMMA_SETTING,
-		SEQ_ETC_CONDITION_SET,
-		SEQ_ACL_ON,
-		SEQ_ELVSS_ON,
+		seq_panel_condition_set,
+		seq_display_condition_set,
+		seq_gamma_setting,
+		seq_etc_condition_set,
+		seq_acl_on,
+		seq_elvss_on,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(init_seq); i++) {
@@ -477,8 +468,8 @@ static int s6e63m0_ldi_enable(struct s6e63m0 *lcd)
 {
 	int ret = 0, i;
 	const unsigned short *enable_seq[] = {
-		SEQ_STAND_BY_OFF,
-		SEQ_DISPLAY_ON,
+		seq_stand_by_off,
+		seq_display_on,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(enable_seq); i++) {
@@ -494,43 +485,39 @@ static int s6e63m0_ldi_disable(struct s6e63m0 *lcd)
 {
 	int ret;
 
-	ret = s6e63m0_panel_send_sequence(lcd, SEQ_STAND_BY_ON);
+	ret = s6e63m0_panel_send_sequence(lcd, seq_stand_by_on);
 
 	return ret;
+}
+
+static int s6e63m0_power_is_on(int power)
+{
+	return power <= FB_BLANK_NORMAL;
 }
 
 static int s6e63m0_power_on(struct s6e63m0 *lcd)
 {
 	int ret = 0;
-	struct lcd_platform_data *pd = NULL;
-	struct backlight_device *bd = NULL;
+	struct lcd_platform_data *pd;
+	struct backlight_device *bd;
 
 	pd = lcd->lcd_pd;
-	if (!pd) {
-		dev_err(lcd->dev, "platform data is NULL.\n");
-		return -EFAULT;
-	}
-
 	bd = lcd->bd;
-	if (!bd) {
-		dev_err(lcd->dev, "backlight device is NULL.\n");
-		return -EFAULT;
-	}
 
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
-		return -EFAULT;
+		return -EINVAL;
 	} else {
 		pd->power_on(lcd->ld, 1);
-		mdelay(pd->power_on_delay);
+		msleep(pd->power_on_delay);
 	}
 
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
-		return -EFAULT;
+		return -EINVAL;
 	} else {
 		pd->reset(lcd->ld);
-		mdelay(pd->reset_delay);
+		msleep(pd->reset_delay);
 	}
 
 	ret = s6e63m0_ldi_init(lcd);
@@ -557,14 +544,10 @@ static int s6e63m0_power_on(struct s6e63m0 *lcd)
 
 static int s6e63m0_power_off(struct s6e63m0 *lcd)
 {
-	int ret = 0;
-	struct lcd_platform_data *pd = NULL;
+	int ret;
+	struct lcd_platform_data *pd;
 
 	pd = lcd->lcd_pd;
-	if (!pd) {
-		dev_err(lcd->dev, "platform data is NULL.\n");
-		return -EFAULT;
-	}
 
 	ret = s6e63m0_ldi_disable(lcd);
 	if (ret) {
@@ -572,13 +555,9 @@ static int s6e63m0_power_off(struct s6e63m0 *lcd)
 		return -EIO;
 	}
 
-	mdelay(pd->power_off_delay);
+	msleep(pd->power_off_delay);
 
-	if (!pd->power_on) {
-		dev_err(lcd->dev, "power_on is NULL.\n");
-		return -EFAULT;
-	} else
-		pd->power_on(lcd->ld, 0);
+	pd->power_on(lcd->ld, 0);
 
 	return 0;
 }
@@ -587,9 +566,9 @@ static int s6e63m0_power(struct s6e63m0 *lcd, int power)
 {
 	int ret = 0;
 
-	if (POWER_IS_ON(power) && !POWER_IS_ON(lcd->power))
+	if (s6e63m0_power_is_on(power) && !s6e63m0_power_is_on(lcd->power))
 		ret = s6e63m0_power_on(lcd);
-	else if (!POWER_IS_ON(power) && POWER_IS_ON(lcd->power))
+	else if (!s6e63m0_power_is_on(power) && s6e63m0_power_is_on(lcd->power))
 		ret = s6e63m0_power_off(lcd);
 
 	if (!ret)
@@ -689,7 +668,7 @@ static ssize_t s6e63m0_sysfs_store_gamma_mode(struct device *dev,
 	struct backlight_device *bd = NULL;
 	int brightness, rc;
 
-	rc = strict_strtoul(buf, 0, (unsigned long *)&lcd->gamma_mode);
+	rc = kstrtouint(buf, 0, &lcd->gamma_mode);
 	if (rc < 0)
 		return rc;
 
@@ -732,14 +711,15 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 static DEVICE_ATTR(gamma_table, 0444,
 		s6e63m0_sysfs_show_gamma_table, NULL);
 
-static int __devinit s6e63m0_probe(struct spi_device *spi)
+static int s6e63m0_probe(struct spi_device *spi)
 {
 	int ret = 0;
 	struct s6e63m0 *lcd = NULL;
 	struct lcd_device *ld = NULL;
 	struct backlight_device *bd = NULL;
+	struct backlight_properties props;
 
-	lcd = kzalloc(sizeof(struct s6e63m0), GFP_KERNEL);
+	lcd = devm_kzalloc(&spi->dev, sizeof(struct s6e63m0), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
@@ -749,36 +729,36 @@ static int __devinit s6e63m0_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(&spi->dev, "spi setup failed.\n");
-		goto out_free_lcd;
+		return ret;
 	}
 
 	lcd->spi = spi;
 	lcd->dev = &spi->dev;
 
-	lcd->lcd_pd = (struct lcd_platform_data *)spi->dev.platform_data;
+	lcd->lcd_pd = spi->dev.platform_data;
 	if (!lcd->lcd_pd) {
 		dev_err(&spi->dev, "platform data is NULL.\n");
-		goto out_free_lcd;
+		return -EINVAL;
 	}
 
 	ld = lcd_device_register("s6e63m0", &spi->dev, lcd, &s6e63m0_lcd_ops);
-	if (IS_ERR(ld)) {
-		ret = PTR_ERR(ld);
-		goto out_free_lcd;
-	}
+	if (IS_ERR(ld))
+		return PTR_ERR(ld);
 
 	lcd->ld = ld;
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = MAX_BRIGHTNESS;
+
 	bd = backlight_device_register("s6e63m0bl-bl", &spi->dev, lcd,
-		&s6e63m0_backlight_ops, NULL);
+		&s6e63m0_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		ret =  PTR_ERR(bd);
 		goto out_lcd_unregister;
 	}
 
-	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = MAX_BRIGHTNESS;
-	bd->props.type = BACKLIGHT_RAW;
 	lcd->bd = bd;
 
 	/*
@@ -786,7 +766,7 @@ static int __devinit s6e63m0_probe(struct spi_device *spi)
 	 * know that.
 	 */
 	lcd->gamma_table_count =
-	    sizeof(gamma_table) / (MAX_GAMMA_LEVEL * sizeof(int));
+	    sizeof(gamma_table) / (MAX_GAMMA_LEVEL * sizeof(int *));
 
 	ret = device_create_file(&(spi->dev), &dev_attr_gamma_mode);
 	if (ret < 0)
@@ -809,10 +789,11 @@ static int __devinit s6e63m0_probe(struct spi_device *spi)
 		lcd->power = FB_BLANK_POWERDOWN;
 
 		s6e63m0_power(lcd, FB_BLANK_UNBLANK);
-	} else
+	} else {
 		lcd->power = FB_BLANK_UNBLANK;
+	}
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 
 	dev_info(&spi->dev, "s6e63m0 panel driver has been probed.\n");
 
@@ -820,74 +801,52 @@ static int __devinit s6e63m0_probe(struct spi_device *spi)
 
 out_lcd_unregister:
 	lcd_device_unregister(ld);
-out_free_lcd:
-	kfree(lcd);
 	return ret;
 }
 
-static int __devexit s6e63m0_remove(struct spi_device *spi)
+static int s6e63m0_remove(struct spi_device *spi)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 	device_remove_file(&spi->dev, &dev_attr_gamma_table);
 	device_remove_file(&spi->dev, &dev_attr_gamma_mode);
 	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
-	kfree(lcd);
 
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-unsigned int before_power;
-
-static int s6e63m0_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int s6e63m0_suspend(struct device *dev)
 {
-	int ret = 0;
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
-
-	before_power = lcd->power;
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
 	 * regardless of status.
 	 */
-	ret = s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
-
-	return ret;
+	return s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int s6e63m0_resume(struct spi_device *spi)
+static int s6e63m0_resume(struct device *dev)
 {
-	int ret = 0;
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = dev_get_drvdata(dev);
 
-	/*
-	 * after suspended, if lcd panel status is FB_BLANK_UNBLANK
-	 * (at that time, before_power is FB_BLANK_UNBLANK) then
-	 * it changes that status to FB_BLANK_POWERDOWN to get lcd on.
-	 */
-	if (before_power == FB_BLANK_UNBLANK)
-		lcd->power = FB_BLANK_POWERDOWN;
+	lcd->power = FB_BLANK_POWERDOWN;
 
-	dev_dbg(&spi->dev, "before_power = %d\n", before_power);
-
-	ret = s6e63m0_power(lcd, before_power);
-
-	return ret;
+	return s6e63m0_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define s6e63m0_suspend		NULL
-#define s6e63m0_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(s6e63m0_pm_ops, s6e63m0_suspend, s6e63m0_resume);
 
 /* Power down all displays on reboot, poweroff or halt. */
 static void s6e63m0_shutdown(struct spi_device *spi)
 {
-	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
+	struct s6e63m0 *lcd = spi_get_drvdata(spi);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
 }
@@ -895,28 +854,15 @@ static void s6e63m0_shutdown(struct spi_device *spi)
 static struct spi_driver s6e63m0_driver = {
 	.driver = {
 		.name	= "s6e63m0",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &s6e63m0_pm_ops,
 	},
 	.probe		= s6e63m0_probe,
-	.remove		= __devexit_p(s6e63m0_remove),
+	.remove		= s6e63m0_remove,
 	.shutdown	= s6e63m0_shutdown,
-	.suspend	= s6e63m0_suspend,
-	.resume		= s6e63m0_resume,
 };
 
-static int __init s6e63m0_init(void)
-{
-	return spi_register_driver(&s6e63m0_driver);
-}
-
-static void __exit s6e63m0_exit(void)
-{
-	spi_unregister_driver(&s6e63m0_driver);
-}
-
-module_init(s6e63m0_init);
-module_exit(s6e63m0_exit);
+module_spi_driver(s6e63m0_driver);
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
 MODULE_DESCRIPTION("S6E63M0 LCD Driver");

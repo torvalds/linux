@@ -43,10 +43,6 @@ static void __init iq80321_timer_init(void)
 	iop_init_time(200000000);
 }
 
-static struct sys_timer iq80321_timer = {
-	.init		= iq80321_timer_init,
-};
-
 
 /*
  * IQ80321 I/O.
@@ -71,7 +67,7 @@ void __init iq80321_map_io(void)
  * IQ80321 PCI.
  */
 static int __init
-iq80321_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+iq80321_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -101,11 +97,10 @@ iq80321_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci iq80321_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
+	.ops		= &iop3xx_ops,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit_cond,
-	.scan		= iop3xx_pci_scan_bus,
 	.map_irq	= iq80321_pci_map_irq,
 };
 
@@ -186,9 +181,10 @@ static void __init iq80321_init_machine(void)
 
 MACHINE_START(IQ80321, "Intel IQ80321")
 	/* Maintainer: Intel Corp. */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= iq80321_map_io,
 	.init_irq	= iop32x_init_irq,
-	.timer		= &iq80321_timer,
+	.init_time	= iq80321_timer_init,
 	.init_machine	= iq80321_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

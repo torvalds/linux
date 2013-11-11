@@ -36,30 +36,23 @@
  * (LS_RECOVERY_STOP set due to failure of a node in ls_nodes).  When another
  * function thinks it could have completed the waited-on task, they should wake
  * up ls_wait_general to get an immediate response rather than waiting for the
- * timer to detect the result.  A timer wakes us up periodically while waiting
- * to see if we should abort due to a node failure.  This should only be called
- * by the dlm_recoverd thread.
+ * timeout.  This uses a timeout so it can check periodically if the wait
+ * should abort due to node failure (which doesn't cause a wake_up).
+ * This should only be called by the dlm_recoverd thread.
  */
-
-static void dlm_wait_timer_fn(unsigned long data)
-{
-	struct dlm_ls *ls = (struct dlm_ls *) data;
-	mod_timer(&ls->ls_timer, jiffies + (dlm_config.ci_recover_timer * HZ));
-	wake_up(&ls->ls_wait_general);
-}
 
 int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 {
 	int error = 0;
+	int rv;
 
-	init_timer(&ls->ls_timer);
-	ls->ls_timer.function = dlm_wait_timer_fn;
-	ls->ls_timer.data = (long) ls;
-	ls->ls_timer.expires = jiffies + (dlm_config.ci_recover_timer * HZ);
-	add_timer(&ls->ls_timer);
-
-	wait_event(ls->ls_wait_general, testfn(ls) || dlm_recovery_stopped(ls));
-	del_timer_sync(&ls->ls_timer);
+	while (1) {
+		rv = wait_event_timeout(ls->ls_wait_general,
+					testfn(ls) || dlm_recovery_stopped(ls),
+					dlm_config.ci_recover_timer * HZ);
+		if (rv)
+			break;
+	}
 
 	if (dlm_recovery_stopped(ls)) {
 		log_debug(ls, "dlm_wait_function aborted");
@@ -85,14 +78,20 @@ uint32_t dlm_recover_status(struct dlm_ls *ls)
 	return status;
 }
 
+static void _set_recover_status(struct dlm_ls *ls, uint32_t status)
+{
+	ls->ls_recover_status |= status;
+}
+
 void dlm_set_recover_status(struct dlm_ls *ls, uint32_t status)
 {
 	spin_lock(&ls->ls_recover_lock);
-	ls->ls_recover_status |= status;
+	_set_recover_status(ls, status);
 	spin_unlock(&ls->ls_recover_lock);
 }
 
-static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status)
+static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
+			   int save_slots)
 {
 	struct dlm_rcom *rc = ls->ls_recover_buf;
 	struct dlm_member *memb;
@@ -106,9 +105,12 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status)
 				goto out;
 			}
 
-			error = dlm_rcom_status(ls, memb->nodeid);
+			error = dlm_rcom_status(ls, memb->nodeid, 0);
 			if (error)
 				goto out;
+
+			if (save_slots)
+				dlm_slot_save(ls, rc, memb);
 
 			if (rc->rc_result & wait_status)
 				break;
@@ -121,7 +123,8 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status)
 	return error;
 }
 
-static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status)
+static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
+			   uint32_t status_flags)
 {
 	struct dlm_rcom *rc = ls->ls_recover_buf;
 	int error = 0, delay = 0, nodeid = ls->ls_low_nodeid;
@@ -132,7 +135,7 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status)
 			goto out;
 		}
 
-		error = dlm_rcom_status(ls, nodeid);
+		error = dlm_rcom_status(ls, nodeid, status_flags);
 		if (error)
 			break;
 
@@ -152,18 +155,56 @@ static int wait_status(struct dlm_ls *ls, uint32_t status)
 	int error;
 
 	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
-		error = wait_status_all(ls, status);
+		error = wait_status_all(ls, status, 0);
 		if (!error)
 			dlm_set_recover_status(ls, status_all);
 	} else
-		error = wait_status_low(ls, status_all);
+		error = wait_status_low(ls, status_all, 0);
 
 	return error;
 }
 
 int dlm_recover_members_wait(struct dlm_ls *ls)
 {
-	return wait_status(ls, DLM_RS_NODES);
+	struct dlm_member *memb;
+	struct dlm_slot *slots;
+	int num_slots, slots_size;
+	int error, rv;
+	uint32_t gen;
+
+	list_for_each_entry(memb, &ls->ls_nodes, list) {
+		memb->slot = -1;
+		memb->generation = 0;
+	}
+
+	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
+		error = wait_status_all(ls, DLM_RS_NODES, 1);
+		if (error)
+			goto out;
+
+		/* slots array is sparse, slots_size may be > num_slots */
+
+		rv = dlm_slots_assign(ls, &num_slots, &slots_size, &slots, &gen);
+		if (!rv) {
+			spin_lock(&ls->ls_recover_lock);
+			_set_recover_status(ls, DLM_RS_NODES_ALL);
+			ls->ls_num_slots = num_slots;
+			ls->ls_slots_size = slots_size;
+			ls->ls_slots = slots;
+			ls->ls_generation = gen;
+			spin_unlock(&ls->ls_recover_lock);
+		} else {
+			dlm_set_recover_status(ls, DLM_RS_NODES_ALL);
+		}
+	} else {
+		error = wait_status_low(ls, DLM_RS_NODES_ALL, DLM_RSF_NEED_SLOTS);
+		if (error)
+			goto out;
+
+		dlm_slots_copy_in(ls);
+	}
+ out:
+	return error;
 }
 
 int dlm_recover_directory_wait(struct dlm_ls *ls)
@@ -229,22 +270,6 @@ static void recover_list_del(struct dlm_rsb *r)
 	dlm_put_rsb(r);
 }
 
-static struct dlm_rsb *recover_list_find(struct dlm_ls *ls, uint64_t id)
-{
-	struct dlm_rsb *r = NULL;
-
-	spin_lock(&ls->ls_recover_list_lock);
-
-	list_for_each_entry(r, &ls->ls_recover_list, res_recover_list) {
-		if (id == (unsigned long) r)
-			goto out;
-	}
-	r = NULL;
- out:
-	spin_unlock(&ls->ls_recover_list_lock);
-	return r;
-}
-
 static void recover_list_clear(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r, *s;
@@ -263,6 +288,90 @@ static void recover_list_clear(struct dlm_ls *ls)
 		ls->ls_recover_list_count = 0;
 	}
 	spin_unlock(&ls->ls_recover_list_lock);
+}
+
+static int recover_idr_empty(struct dlm_ls *ls)
+{
+	int empty = 1;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	if (ls->ls_recover_list_count)
+		empty = 0;
+	spin_unlock(&ls->ls_recover_idr_lock);
+
+	return empty;
+}
+
+static int recover_idr_add(struct dlm_rsb *r)
+{
+	struct dlm_ls *ls = r->res_ls;
+	int rv;
+
+	idr_preload(GFP_NOFS);
+	spin_lock(&ls->ls_recover_idr_lock);
+	if (r->res_id) {
+		rv = -1;
+		goto out_unlock;
+	}
+	rv = idr_alloc(&ls->ls_recover_idr, r, 1, 0, GFP_NOWAIT);
+	if (rv < 0)
+		goto out_unlock;
+
+	r->res_id = rv;
+	ls->ls_recover_list_count++;
+	dlm_hold_rsb(r);
+	rv = 0;
+out_unlock:
+	spin_unlock(&ls->ls_recover_idr_lock);
+	idr_preload_end();
+	return rv;
+}
+
+static void recover_idr_del(struct dlm_rsb *r)
+{
+	struct dlm_ls *ls = r->res_ls;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	idr_remove(&ls->ls_recover_idr, r->res_id);
+	r->res_id = 0;
+	ls->ls_recover_list_count--;
+	spin_unlock(&ls->ls_recover_idr_lock);
+
+	dlm_put_rsb(r);
+}
+
+static struct dlm_rsb *recover_idr_find(struct dlm_ls *ls, uint64_t id)
+{
+	struct dlm_rsb *r;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+	r = idr_find(&ls->ls_recover_idr, (int)id);
+	spin_unlock(&ls->ls_recover_idr_lock);
+	return r;
+}
+
+static void recover_idr_clear(struct dlm_ls *ls)
+{
+	struct dlm_rsb *r;
+	int id;
+
+	spin_lock(&ls->ls_recover_idr_lock);
+
+	idr_for_each_entry(&ls->ls_recover_idr, r, id) {
+		idr_remove(&ls->ls_recover_idr, id);
+		r->res_id = 0;
+		r->res_recover_locks_count = 0;
+		ls->ls_recover_list_count--;
+
+		dlm_put_rsb(r);
+	}
+
+	if (ls->ls_recover_list_count != 0) {
+		log_error(ls, "warning: recover_list_count %d",
+			  ls->ls_recover_list_count);
+		ls->ls_recover_list_count = 0;
+	}
+	spin_unlock(&ls->ls_recover_idr_lock);
 }
 
 
@@ -291,9 +400,12 @@ static void set_lock_master(struct list_head *queue, int nodeid)
 {
 	struct dlm_lkb *lkb;
 
-	list_for_each_entry(lkb, queue, lkb_statequeue)
-		if (!(lkb->lkb_flags & DLM_IFL_MSTCPY))
+	list_for_each_entry(lkb, queue, lkb_statequeue) {
+		if (!(lkb->lkb_flags & DLM_IFL_MSTCPY)) {
 			lkb->lkb_nodeid = nodeid;
+			lkb->lkb_remid = 0;
+		}
+	}
 }
 
 static void set_master_lkbs(struct dlm_rsb *r)
@@ -306,67 +418,93 @@ static void set_master_lkbs(struct dlm_rsb *r)
 /*
  * Propagate the new master nodeid to locks
  * The NEW_MASTER flag tells dlm_recover_locks() which rsb's to consider.
- * The NEW_MASTER2 flag tells recover_lvb() and set_locks_purged() which
+ * The NEW_MASTER2 flag tells recover_lvb() and recover_grant() which
  * rsb's to consider.
  */
 
-static void set_new_master(struct dlm_rsb *r, int nodeid)
+static void set_new_master(struct dlm_rsb *r)
 {
-	lock_rsb(r);
-	r->res_nodeid = nodeid;
 	set_master_lkbs(r);
 	rsb_set_flag(r, RSB_NEW_MASTER);
 	rsb_set_flag(r, RSB_NEW_MASTER2);
-	unlock_rsb(r);
 }
 
 /*
  * We do async lookups on rsb's that need new masters.  The rsb's
  * waiting for a lookup reply are kept on the recover_list.
+ *
+ * Another node recovering the master may have sent us a rcom lookup,
+ * and our dlm_master_lookup() set it as the new master, along with
+ * NEW_MASTER so that we'll recover it here (this implies dir_nodeid
+ * equals our_nodeid below).
  */
 
-static int recover_master(struct dlm_rsb *r)
+static int recover_master(struct dlm_rsb *r, unsigned int *count)
 {
 	struct dlm_ls *ls = r->res_ls;
-	int error, dir_nodeid, ret_nodeid, our_nodeid = dlm_our_nodeid();
+	int our_nodeid, dir_nodeid;
+	int is_removed = 0;
+	int error;
 
+	if (is_master(r))
+		return 0;
+
+	is_removed = dlm_is_removed(ls, r->res_nodeid);
+
+	if (!is_removed && !rsb_flag(r, RSB_NEW_MASTER))
+		return 0;
+
+	our_nodeid = dlm_our_nodeid();
 	dir_nodeid = dlm_dir_nodeid(r);
 
 	if (dir_nodeid == our_nodeid) {
-		error = dlm_dir_lookup(ls, our_nodeid, r->res_name,
-				       r->res_length, &ret_nodeid);
-		if (error)
-			log_error(ls, "recover dir lookup error %d", error);
+		if (is_removed) {
+			r->res_master_nodeid = our_nodeid;
+			r->res_nodeid = 0;
+		}
 
-		if (ret_nodeid == our_nodeid)
-			ret_nodeid = 0;
-		set_new_master(r, ret_nodeid);
+		/* set master of lkbs to ourself when is_removed, or to
+		   another new master which we set along with NEW_MASTER
+		   in dlm_master_lookup */
+		set_new_master(r);
+		error = 0;
 	} else {
-		recover_list_add(r);
+		recover_idr_add(r);
 		error = dlm_send_rcom_lookup(r, dir_nodeid);
 	}
 
+	(*count)++;
 	return error;
 }
 
 /*
- * When not using a directory, most resource names will hash to a new static
- * master nodeid and the resource will need to be remastered.
+ * All MSTCPY locks are purged and rebuilt, even if the master stayed the same.
+ * This is necessary because recovery can be started, aborted and restarted,
+ * causing the master nodeid to briefly change during the aborted recovery, and
+ * change back to the original value in the second recovery.  The MSTCPY locks
+ * may or may not have been purged during the aborted recovery.  Another node
+ * with an outstanding request in waiters list and a request reply saved in the
+ * requestqueue, cannot know whether it should ignore the reply and resend the
+ * request, or accept the reply and complete the request.  It must do the
+ * former if the remote node purged MSTCPY locks, and it must do the later if
+ * the remote node did not.  This is solved by always purging MSTCPY locks, in
+ * which case, the request reply would always be ignored and the request
+ * resent.
  */
 
-static int recover_master_static(struct dlm_rsb *r)
+static int recover_master_static(struct dlm_rsb *r, unsigned int *count)
 {
-	int master = dlm_dir_nodeid(r);
+	int dir_nodeid = dlm_dir_nodeid(r);
+	int new_master = dir_nodeid;
 
-	if (master == dlm_our_nodeid())
-		master = 0;
+	if (dir_nodeid == dlm_our_nodeid())
+		new_master = 0;
 
-	if (r->res_nodeid != master) {
-		if (is_master(r))
-			dlm_purge_mstcpy_locks(r);
-		set_new_master(r, master);
-		return 1;
-	}
+	dlm_purge_mstcpy_locks(r);
+	r->res_master_nodeid = dir_nodeid;
+	r->res_nodeid = new_master;
+	set_new_master(r);
+	(*count)++;
 	return 0;
 }
 
@@ -383,7 +521,10 @@ static int recover_master_static(struct dlm_rsb *r)
 int dlm_recover_masters(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
-	int error = 0, count = 0;
+	unsigned int total = 0;
+	unsigned int count = 0;
+	int nodir = dlm_no_directory(ls);
+	int error;
 
 	log_debug(ls, "dlm_recover_masters");
 
@@ -395,48 +536,58 @@ int dlm_recover_masters(struct dlm_ls *ls)
 			goto out;
 		}
 
-		if (dlm_no_directory(ls))
-			count += recover_master_static(r);
-		else if (!is_master(r) &&
-			 (dlm_is_removed(ls, r->res_nodeid) ||
-			  rsb_flag(r, RSB_NEW_MASTER))) {
-			recover_master(r);
-			count++;
-		}
+		lock_rsb(r);
+		if (nodir)
+			error = recover_master_static(r, &count);
+		else
+			error = recover_master(r, &count);
+		unlock_rsb(r);
+		cond_resched();
+		total++;
 
-		schedule();
+		if (error) {
+			up_read(&ls->ls_root_sem);
+			goto out;
+		}
 	}
 	up_read(&ls->ls_root_sem);
 
-	log_debug(ls, "dlm_recover_masters %d resources", count);
+	log_debug(ls, "dlm_recover_masters %u of %u", count, total);
 
-	error = dlm_wait_function(ls, &recover_list_empty);
+	error = dlm_wait_function(ls, &recover_idr_empty);
  out:
 	if (error)
-		recover_list_clear(ls);
+		recover_idr_clear(ls);
 	return error;
 }
 
 int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 {
 	struct dlm_rsb *r;
-	int nodeid;
+	int ret_nodeid, new_master;
 
-	r = recover_list_find(ls, rc->rc_id);
+	r = recover_idr_find(ls, rc->rc_id);
 	if (!r) {
 		log_error(ls, "dlm_recover_master_reply no id %llx",
 			  (unsigned long long)rc->rc_id);
 		goto out;
 	}
 
-	nodeid = rc->rc_result;
-	if (nodeid == dlm_our_nodeid())
-		nodeid = 0;
+	ret_nodeid = rc->rc_result;
 
-	set_new_master(r, nodeid);
-	recover_list_del(r);
+	if (ret_nodeid == dlm_our_nodeid())
+		new_master = 0;
+	else
+		new_master = ret_nodeid;
 
-	if (recover_list_empty(ls))
+	lock_rsb(r);
+	r->res_master_nodeid = ret_nodeid;
+	r->res_nodeid = new_master;
+	set_new_master(r);
+	unlock_rsb(r);
+	recover_idr_del(r);
+
+	if (recover_idr_empty(ls))
 		wake_up(&ls->ls_wait_general);
  out:
 	return 0;
@@ -508,8 +659,6 @@ int dlm_recover_locks(struct dlm_ls *ls)
 	struct dlm_rsb *r;
 	int error, count = 0;
 
-	log_debug(ls, "dlm_recover_locks");
-
 	down_read(&ls->ls_root_sem);
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
 		if (is_master(r)) {
@@ -536,14 +685,12 @@ int dlm_recover_locks(struct dlm_ls *ls)
 	}
 	up_read(&ls->ls_root_sem);
 
-	log_debug(ls, "dlm_recover_locks %d locks", count);
+	log_debug(ls, "dlm_recover_locks %d out", count);
 
 	error = dlm_wait_function(ls, &recover_list_empty);
  out:
 	if (error)
 		recover_list_clear(ls);
-	else
-		dlm_set_recover_status(ls, DLM_RS_LOCKS);
 	return error;
 }
 
@@ -566,8 +713,14 @@ void dlm_recovered_lock(struct dlm_rsb *r)
  * the VALNOTVALID flag if necessary, and determining the correct lvb contents
  * based on the lvb's of the locks held on the rsb.
  *
- * RSB_VALNOTVALID is set if there are only NL/CR locks on the rsb.  If it
- * was already set prior to recovery, it's not cleared, regardless of locks.
+ * RSB_VALNOTVALID is set in two cases:
+ *
+ * 1. we are master, but not new, and we purged an EX/PW lock held by a
+ * failed node (in dlm_recover_purge which set RSB_RECOVER_LVB_INVAL)
+ *
+ * 2. we are a new master, and there are only NL/CR locks left.
+ * (We could probably improve this by only invaliding in this way when
+ * the previous master left uncleanly.  VMS docs mention that.)
  *
  * The LVB contents are only considered for changing when this is a new master
  * of the rsb (NEW_MASTER2).  Then, the rsb's lvb is taken from any lkb with
@@ -582,6 +735,19 @@ static void recover_lvb(struct dlm_rsb *r)
 	int lock_lvb_exists = 0;
 	int big_lock_exists = 0;
 	int lvblen = r->res_ls->ls_lvblen;
+
+	if (!rsb_flag(r, RSB_NEW_MASTER2) &&
+	    rsb_flag(r, RSB_RECOVER_LVB_INVAL)) {
+		/* case 1 above */
+		rsb_set_flag(r, RSB_VALNOTVALID);
+		return;
+	}
+
+	if (!rsb_flag(r, RSB_NEW_MASTER2))
+		return;
+
+	/* we are the new master, so figure out if VALNOTVALID should
+	   be set, and set the rsb lvb from the best lkb available. */
 
 	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue) {
 		if (!(lkb->lkb_exflags & DLM_LKF_VALBLK))
@@ -621,12 +787,9 @@ static void recover_lvb(struct dlm_rsb *r)
 	if (!lock_lvb_exists)
 		goto out;
 
+	/* lvb is invalidated if only NL/CR locks remain */
 	if (!big_lock_exists)
 		rsb_set_flag(r, RSB_VALNOTVALID);
-
-	/* don't mess with the lvb unless we're the new master */
-	if (!rsb_flag(r, RSB_NEW_MASTER2))
-		goto out;
 
 	if (!r->res_lvbptr) {
 		r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
@@ -653,6 +816,7 @@ static void recover_lvb(struct dlm_rsb *r)
 
 static void recover_conversion(struct dlm_rsb *r)
 {
+	struct dlm_ls *ls = r->res_ls;
 	struct dlm_lkb *lkb;
 	int grmode = -1;
 
@@ -667,29 +831,32 @@ static void recover_conversion(struct dlm_rsb *r)
 	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue) {
 		if (lkb->lkb_grmode != DLM_LOCK_IV)
 			continue;
-		if (grmode == -1)
+		if (grmode == -1) {
+			log_debug(ls, "recover_conversion %x set gr to rq %d",
+				  lkb->lkb_id, lkb->lkb_rqmode);
 			lkb->lkb_grmode = lkb->lkb_rqmode;
-		else
+		} else {
+			log_debug(ls, "recover_conversion %x set gr %d",
+				  lkb->lkb_id, grmode);
 			lkb->lkb_grmode = grmode;
+		}
 	}
 }
 
 /* We've become the new master for this rsb and waiting/converting locks may
-   need to be granted in dlm_grant_after_purge() due to locks that may have
+   need to be granted in dlm_recover_grant() due to locks that may have
    existed from a removed node. */
 
-static void set_locks_purged(struct dlm_rsb *r)
+static void recover_grant(struct dlm_rsb *r)
 {
 	if (!list_empty(&r->res_waitqueue) || !list_empty(&r->res_convertqueue))
-		rsb_set_flag(r, RSB_LOCKS_PURGED);
+		rsb_set_flag(r, RSB_RECOVER_GRANT);
 }
 
 void dlm_recover_rsbs(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
-	int count = 0;
-
-	log_debug(ls, "dlm_recover_rsbs");
+	unsigned int count = 0;
 
 	down_read(&ls->ls_root_sem);
 	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
@@ -697,24 +864,33 @@ void dlm_recover_rsbs(struct dlm_ls *ls)
 		if (is_master(r)) {
 			if (rsb_flag(r, RSB_RECOVER_CONVERT))
 				recover_conversion(r);
-			if (rsb_flag(r, RSB_NEW_MASTER2))
-				set_locks_purged(r);
+
+			/* recover lvb before granting locks so the updated
+			   lvb/VALNOTVALID is presented in the completion */
 			recover_lvb(r);
+
+			if (rsb_flag(r, RSB_NEW_MASTER2))
+				recover_grant(r);
 			count++;
+		} else {
+			rsb_clear_flag(r, RSB_VALNOTVALID);
 		}
 		rsb_clear_flag(r, RSB_RECOVER_CONVERT);
+		rsb_clear_flag(r, RSB_RECOVER_LVB_INVAL);
 		rsb_clear_flag(r, RSB_NEW_MASTER2);
 		unlock_rsb(r);
 	}
 	up_read(&ls->ls_root_sem);
 
-	log_debug(ls, "dlm_recover_rsbs %d rsbs", count);
+	if (count)
+		log_debug(ls, "dlm_recover_rsbs %d done", count);
 }
 
 /* Create a single list of all root rsb's to be used during recovery */
 
 int dlm_create_root_list(struct dlm_ls *ls)
 {
+	struct rb_node *n;
 	struct dlm_rsb *r;
 	int i, error = 0;
 
@@ -727,24 +903,14 @@ int dlm_create_root_list(struct dlm_ls *ls)
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		spin_lock(&ls->ls_rsbtbl[i].lock);
-		list_for_each_entry(r, &ls->ls_rsbtbl[i].list, res_hashchain) {
+		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
+			r = rb_entry(n, struct dlm_rsb, res_hashnode);
 			list_add(&r->res_root_list, &ls->ls_root_list);
 			dlm_hold_rsb(r);
 		}
 
-		/* If we're using a directory, add tossed rsbs to the root
-		   list; they'll have entries created in the new directory,
-		   but no other recovery steps should do anything with them. */
-
-		if (dlm_no_directory(ls)) {
-			spin_unlock(&ls->ls_rsbtbl[i].lock);
-			continue;
-		}
-
-		list_for_each_entry(r, &ls->ls_rsbtbl[i].toss, res_hashchain) {
-			list_add(&r->res_root_list, &ls->ls_root_list);
-			dlm_hold_rsb(r);
-		}
+		if (!RB_EMPTY_ROOT(&ls->ls_rsbtbl[i].toss))
+			log_error(ls, "dlm_create_root_list toss not empty");
 		spin_unlock(&ls->ls_rsbtbl[i].lock);
 	}
  out:
@@ -764,26 +930,26 @@ void dlm_release_root_list(struct dlm_ls *ls)
 	up_write(&ls->ls_root_sem);
 }
 
-/* If not using a directory, clear the entire toss list, there's no benefit to
-   caching the master value since it's fixed.  If we are using a dir, keep the
-   rsb's we're the master of.  Recovery will add them to the root list and from
-   there they'll be entered in the rebuilt directory. */
-
-void dlm_clear_toss_list(struct dlm_ls *ls)
+void dlm_clear_toss(struct dlm_ls *ls)
 {
-	struct dlm_rsb *r, *safe;
+	struct rb_node *n, *next;
+	struct dlm_rsb *r;
+	unsigned int count = 0;
 	int i;
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		spin_lock(&ls->ls_rsbtbl[i].lock);
-		list_for_each_entry_safe(r, safe, &ls->ls_rsbtbl[i].toss,
-					 res_hashchain) {
-			if (dlm_no_directory(ls) || !is_master(r)) {
-				list_del(&r->res_hashchain);
-				dlm_free_rsb(r);
-			}
+		for (n = rb_first(&ls->ls_rsbtbl[i].toss); n; n = next) {
+			next = rb_next(n);
+			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			rb_erase(n, &ls->ls_rsbtbl[i].toss);
+			dlm_free_rsb(r);
+			count++;
 		}
 		spin_unlock(&ls->ls_rsbtbl[i].lock);
 	}
+
+	if (count)
+		log_debug(ls, "dlm_clear_toss %u done", count);
 }
 

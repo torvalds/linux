@@ -31,6 +31,7 @@
 	.globl system_call
 	.globl ret_from_intr
 	.globl ret_from_fork
+	.globl ret_from_kernel_thread
 	.globl resume
 	.globl multiple_interrupt
 	.globl nmi_interrupt
@@ -83,6 +84,18 @@ ret_from_fork:
 	ba  ret_from_sys_call
 	nop
 	.size	ret_from_fork, . - ret_from_fork
+
+	.type	ret_from_kernel_thread,@function
+ret_from_kernel_thread:
+	jsr schedule_tail
+	nop
+	move.d	$r2, $r10
+	jsr	$r1
+	nop
+	moveq	0, $r9			; no syscall restarts, TYVM...
+	ba  ret_from_sys_call
+	nop
+	.size	ret_from_kernel_thread, . - ret_from_kernel_thread
 
 	.type	ret_from_intr,@function
 ret_from_intr:
@@ -531,15 +544,6 @@ _ugdb_handle_exception:
 	ba	do_sigtrap		; SIGTRAP the offending process.
 	move.d	[$sp+], $r0		; Restore R0 in delay slot.
 
-	.global kernel_execve
-	.type	kernel_execve,@function
-kernel_execve:
-	move.d __NR_execve, $r9
-	break 13
-	ret
-	nop
-	.size	kernel_execve, . - kernel_execve
-
 	.data
 
 	.section .rodata,"a"
@@ -714,7 +718,7 @@ sys_call_table:
 	.long sys_ni_syscall	/* sys_vm86 */
 	.long sys_ni_syscall	/* Old sys_query_module */
 	.long sys_poll
-	.long sys_nfsservctl
+	.long sys_ni_syscall	/* Old nfsservctl */
 	.long sys_setresgid16	/* 170 */
 	.long sys_getresgid16
 	.long sys_prctl

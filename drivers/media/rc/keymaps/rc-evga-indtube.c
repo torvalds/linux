@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* EVGA inDtube
    Devin Heitmueller <devin.heitmueller@gmail.com>

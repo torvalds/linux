@@ -20,6 +20,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -34,11 +35,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/cpu.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 
@@ -48,11 +50,73 @@ static void __init kb9202_init_early(void)
 	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
 
 	/* Initialize processor: 10 MHz crystal */
-	at91rm9200_initialize(10000000);
+	at91_initialize(10000000);
+}
 
-	/* Set up the LEDs */
-	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
+static struct macb_platform_data __initdata kb9202_eth_data = {
+	.phy_irq_pin	= AT91_PIN_PB29,
+	.is_rmii	= 0,
+};
 
+static struct at91_usbh_data __initdata kb9202_usbh_data = {
+	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
+};
+
+static struct at91_udc_data __initdata kb9202_udc_data = {
+	.vbus_pin	= AT91_PIN_PB24,
+	.pullup_pin	= AT91_PIN_PB22,
+};
+
+static struct mci_platform_data __initdata kb9202_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PB2,
+		.wp_pin		= -EINVAL,
+	},
+};
+
+static struct mtd_partition __initdata kb9202_nand_partition[] = {
+	{
+		.name	= "nand_fs",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct atmel_nand_data __initdata kb9202_nand_data = {
+	.ale		= 22,
+	.cle		= 21,
+	.det_pin	= -EINVAL,
+	.rdy_pin	= AT91_PIN_PC29,
+	.enable_pin	= AT91_PIN_PC28,
+	.ecc_mode	= NAND_ECC_SOFT,
+	.parts		= kb9202_nand_partition,
+	.num_parts	= ARRAY_SIZE(kb9202_nand_partition),
+};
+
+/*
+ * LEDs
+ */
+static struct gpio_led kb9202_leds[] = {
+	{	/* D1 */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PC19,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* D2 */
+		.name			= "led2",
+		.gpio			= AT91_PIN_PC18,
+		.active_low		= 1,
+		.default_trigger	= "timer",
+	}
+};
+
+static void __init kb9202_board_init(void)
+{
+	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
@@ -64,62 +128,6 @@ static void __init kb9202_init_early(void)
 
 	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
 	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-}
-
-static void __init kb9202_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
-}
-
-static struct at91_eth_data __initdata kb9202_eth_data = {
-	.phy_irq_pin	= AT91_PIN_PB29,
-	.is_rmii	= 0,
-};
-
-static struct at91_usbh_data __initdata kb9202_usbh_data = {
-	.ports		= 1,
-};
-
-static struct at91_udc_data __initdata kb9202_udc_data = {
-	.vbus_pin	= AT91_PIN_PB24,
-	.pullup_pin	= AT91_PIN_PB22,
-};
-
-static struct at91_mmc_data __initdata kb9202_mmc_data = {
-	.det_pin	= AT91_PIN_PB2,
-	.slot_b		= 0,
-	.wire4		= 1,
-};
-
-static struct mtd_partition __initdata kb9202_nand_partition[] = {
-	{
-		.name	= "nand_fs",
-		.offset	= 0,
-		.size	= MTDPART_SIZ_FULL,
-	},
-};
-
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(kb9202_nand_partition);
-	return kb9202_nand_partition;
-}
-
-static struct atmel_nand_data __initdata kb9202_nand_data = {
-	.ale		= 22,
-	.cle		= 21,
-	// .det_pin	= ... not there
-	.rdy_pin	= AT91_PIN_PC29,
-	.enable_pin	= AT91_PIN_PC28,
-	.partition_info	= nand_partitions,
-};
-
-static void __init kb9202_board_init(void)
-{
-	/* Serial */
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&kb9202_eth_data);
@@ -128,20 +136,23 @@ static void __init kb9202_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&kb9202_udc_data);
 	/* MMC */
-	at91_add_device_mmc(0, &kb9202_mmc_data);
+	at91_add_device_mci(0, &kb9202_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 	/* NAND */
 	at91_add_device_nand(&kb9202_nand_data);
+	/* LEDs */
+	at91_gpio_leds(kb9202_leds, ARRAY_SIZE(kb9202_leds));
 }
 
 MACHINE_START(KB9200, "KB920x")
 	/* Maintainer: KwikByte, Inc. */
-	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.init_time	= at91rm9200_timer_init,
+	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= kb9202_init_early,
-	.init_irq	= kb9202_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= kb9202_board_init,
 MACHINE_END

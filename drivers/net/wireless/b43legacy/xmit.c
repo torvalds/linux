@@ -6,7 +6,7 @@
 
   Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
   Copyright (C) 2005 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (C) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+  Copyright (C) 2005, 2006 Michael Buesch <m@bues.ch>
   Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
   Copyright (C) 2007 Larry Finger <Larry.Finger@lwfinger.net>
@@ -228,6 +228,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
 							 info->control.vif,
+							 info->band,
 							 fragment_len,
 							 rate_fb);
 	}
@@ -268,8 +269,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 				    (&txhdr->plcp), plcp_fragment_len,
 				    rate);
-	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-				    (&txhdr->plcp_fb), plcp_fragment_len,
+	b43legacy_generate_plcp_hdr(&txhdr->plcp_fb, plcp_fragment_len,
 				    rate_fb->hw_value);
 
 	/* PHY TX Control word */
@@ -277,19 +277,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		phy_ctl |= B43legacy_TX4_PHY_ENC_OFDM;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		phy_ctl |= B43legacy_TX4_PHY_SHORTPRMBL;
-	switch (info->antenna_sel_tx) {
-	case 0:
-		phy_ctl |= B43legacy_TX4_PHY_ANTLAST;
-		break;
-	case 1:
-		phy_ctl |= B43legacy_TX4_PHY_ANT0;
-		break;
-	case 2:
-		phy_ctl |= B43legacy_TX4_PHY_ANT1;
-		break;
-	default:
-		B43legacy_BUG_ON(1);
-	}
+	phy_ctl |= B43legacy_TX4_PHY_ANTLAST;
 
 	/* MAC control */
 	rates = info->control.rates;
@@ -321,11 +309,9 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		struct ieee80211_hdr *hdr;
 		int rts_rate;
 		int rts_rate_fb;
-		int rts_rate_ofdm;
 		int rts_rate_fb_ofdm;
 
 		rts_rate = ieee80211_get_rts_cts_rate(dev->wl->hw, info)->hw_value;
-		rts_rate_ofdm = b43legacy_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43legacy_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43legacy_is_ofdm_rate(rts_rate_fb);
 		if (rts_rate_fb_ofdm)
@@ -353,8 +339,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 					    (&txhdr->rts_plcp),
 					    len, rts_rate);
-		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-					    (&txhdr->rts_plcp_fb),
+		b43legacy_generate_plcp_hdr(&txhdr->rts_plcp_fb,
 					    len, rts_rate_fb);
 		hdr = (struct ieee80211_hdr *)(&txhdr->rts_frame);
 		txhdr->rts_dur_fb = hdr->duration_id;
@@ -572,7 +557,7 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		status.mactime += mactime;
 		if (low_mactime_now <= mactime)
 			status.mactime -= 0x10000;
-		status.flag |= RX_FLAG_MACTIME_MPDU;
+		status.flag |= RX_FLAG_MACTIME_START;
 	}
 
 	chanid = (chanstat & B43legacy_RX_CHAN_ID) >>

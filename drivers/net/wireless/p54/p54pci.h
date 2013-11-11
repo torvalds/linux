@@ -1,5 +1,6 @@
 #ifndef P54PCI_H
 #define P54PCI_H
+#include <linux/interrupt.h>
 
 /*
  * Defines for PCI based mac80211 Prism54 driver
@@ -104,6 +105,7 @@ struct p54p_priv {
 	struct sk_buff *tx_buf_data[32];
 	struct sk_buff *tx_buf_mgmt[4];
 	struct completion boot_comp;
+	struct completion fw_loaded;
 };
 
 #endif /* P54USB_H */

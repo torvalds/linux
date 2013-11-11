@@ -27,17 +27,21 @@ static struct mtd_info *mymtd;
 
 
 /* Is this really the vpp port? */
+static DEFINE_SPINLOCK(l440gx_vpp_lock);
+static int l440gx_vpp_refcnt;
 static void l440gx_set_vpp(struct map_info *map, int vpp)
 {
-	unsigned long l;
+	unsigned long flags;
 
-	l = inl(VPP_PORT);
+	spin_lock_irqsave(&l440gx_vpp_lock, flags);
 	if (vpp) {
-		l |= 1;
+		if (++l440gx_vpp_refcnt == 1)   /* first nested 'on' */
+			outl(inl(VPP_PORT) | 1, VPP_PORT);
 	} else {
-		l &= ~1;
+		if (--l440gx_vpp_refcnt == 0)   /* last nested 'off' */
+			outl(inl(VPP_PORT) & ~1, VPP_PORT);
 	}
-	outl(l, VPP_PORT);
+	spin_unlock_irqrestore(&l440gx_vpp_lock, flags);
 }
 
 static struct map_info l440gx_map = {

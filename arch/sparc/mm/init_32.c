@@ -27,8 +27,6 @@
 #include <linux/gfp.h>
 
 #include <asm/sections.h>
-#include <asm/system.h>
-#include <asm/vac-ops.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/vaddrs.h>
@@ -46,13 +44,7 @@ EXPORT_SYMBOL(phys_base);
 unsigned long pfn_base;
 EXPORT_SYMBOL(pfn_base);
 
-unsigned long page_kernel;
-EXPORT_SYMBOL(page_kernel);
-
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
-unsigned long sparc_unmapped_base;
-
-struct pgtable_cache_struct pgt_quicklists;
 
 /* Initial ramdisk setup */
 extern unsigned int sparc_ramdisk_image;
@@ -60,54 +52,16 @@ extern unsigned int sparc_ramdisk_size;
 
 unsigned long highstart_pfn, highend_pfn;
 
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-#define kmap_get_fixmap_pte(vaddr) \
-	pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr))
-
-void __init kmap_init(void)
-{
-	/* cache the first kmap pte */
-	kmap_pte = kmap_get_fixmap_pte(__fix_to_virt(FIX_KMAP_BEGIN));
-	kmap_prot = __pgprot(SRMMU_ET_PTE | SRMMU_PRIV | SRMMU_CACHE);
-}
-
 void show_mem(unsigned int filter)
 {
 	printk("Mem-info:\n");
 	show_free_areas(filter);
 	printk("Free swap:       %6ldkB\n",
-	       nr_swap_pages << (PAGE_SHIFT-10));
+	       get_nr_swap_pages() << (PAGE_SHIFT-10));
 	printk("%ld pages of RAM\n", totalram_pages);
 	printk("%ld free pages\n", nr_free_pages());
-#if 0 /* undefined pgtable_cache_size, pgd_cache_size */
-	printk("%ld pages in page table cache\n",pgtable_cache_size);
-#ifndef CONFIG_SMP
-	if (sparc_cpu_model == sun4m || sparc_cpu_model == sun4d)
-		printk("%ld entries in page dir cache\n",pgd_cache_size);
-#endif	
-#endif
 }
 
-void __init sparc_context_init(int numctx)
-{
-	int ctx;
-
-	ctx_list_pool = __alloc_bootmem(numctx * sizeof(struct ctx_list), SMP_CACHE_BYTES, 0UL);
-
-	for(ctx = 0; ctx < numctx; ctx++) {
-		struct ctx_list *clist;
-
-		clist = (ctx_list_pool + ctx);
-		clist->ctx_number = ctx;
-		clist->ctx_mm = NULL;
-	}
-	ctx_free.next = ctx_free.prev = &ctx_free;
-	ctx_used.next = ctx_used.prev = &ctx_used;
-	for(ctx = 0; ctx < numctx; ctx++)
-		add_to_free_ctxlist(ctx_list_pool + ctx);
-}
 
 extern unsigned long cmdline_memory_size;
 unsigned long last_valid_pfn;
@@ -288,78 +242,16 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 }
 
 /*
- * check_pgt_cache
- *
- * This is called at the end of unmapping of VMA (zap_page_range),
- * to rescan the page cache for architecture specific things,
- * presumably something like sun4/sun4c PMEGs. Most architectures
- * define check_pgt_cache empty.
- *
- * We simply copy the 2.4 implementation for now.
- */
-static int pgt_cache_water[2] = { 25, 50 };
-
-void check_pgt_cache(void)
-{
-	do_check_pgt_cache(pgt_cache_water[0], pgt_cache_water[1]);
-}
-
-/*
  * paging_init() sets up the page tables: We call the MMU specific
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void sun4c_paging_init(void);
 extern void srmmu_paging_init(void);
 extern void device_scan(void);
 
-pgprot_t PAGE_SHARED __read_mostly;
-EXPORT_SYMBOL(PAGE_SHARED);
-
 void __init paging_init(void)
 {
-	switch(sparc_cpu_model) {
-	case sun4c:
-	case sun4e:
-	case sun4:
-		sun4c_paging_init();
-		sparc_unmapped_base = 0xe0000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0xe0000000);
-		break;
-	case sparc_leon:
-		leon_init();
-		/* fall through */
-	case sun4m:
-	case sun4d:
-		srmmu_paging_init();
-		sparc_unmapped_base = 0x50000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0x50000000);
-		break;
-	default:
-		prom_printf("paging_init: Cannot init paging on this Sparc\n");
-		prom_printf("paging_init: sparc_cpu_model = %d\n", sparc_cpu_model);
-		prom_printf("paging_init: Halting...\n");
-		prom_halt();
-	}
-
-	/* Initialize the protection map with non-constant, MMU dependent values. */
-	protection_map[0] = PAGE_NONE;
-	protection_map[1] = PAGE_READONLY;
-	protection_map[2] = PAGE_COPY;
-	protection_map[3] = PAGE_COPY;
-	protection_map[4] = PAGE_READONLY;
-	protection_map[5] = PAGE_READONLY;
-	protection_map[6] = PAGE_COPY;
-	protection_map[7] = PAGE_COPY;
-	protection_map[8] = PAGE_NONE;
-	protection_map[9] = PAGE_READONLY;
-	protection_map[10] = PAGE_SHARED;
-	protection_map[11] = PAGE_SHARED;
-	protection_map[12] = PAGE_READONLY;
-	protection_map[13] = PAGE_READONLY;
-	protection_map[14] = PAGE_SHARED;
-	protection_map[15] = PAGE_SHARED;
-	btfixup();
+	srmmu_paging_init();
 	prom_build_devicetree();
 	of_fill_in_cpu_data();
 	device_scan();
@@ -390,14 +282,8 @@ static void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 	printk("mapping high region %08lx - %08lx\n", start_pfn, end_pfn);
 #endif
 
-	for (tmp = start_pfn; tmp < end_pfn; tmp++) {
-		struct page *page = pfn_to_page(tmp);
-
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-	}
+	for (tmp = start_pfn; tmp < end_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
 }
 
 void __init mem_init(void)
@@ -455,8 +341,6 @@ void __init mem_init(void)
 		map_high_region(start_pfn, end_pfn);
 	}
 	
-	totalram_pages += totalhigh_pages;
-
 	codepages = (((unsigned long) &_etext) - ((unsigned long)&_start));
 	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
 	datapages = (((unsigned long) &_edata) - ((unsigned long)&_etext));
@@ -482,45 +366,14 @@ void __init mem_init(void)
 
 void free_initmem (void)
 {
-	unsigned long addr;
-	unsigned long freed;
-
-	addr = (unsigned long)(&__init_begin);
-	freed = (unsigned long)(&__init_end) - addr;
-	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
-		struct page *p;
-
-		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(addr);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		totalram_pages++;
-		num_physpages++;
-	}
-	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
-		freed >> 10);
+	num_physpages += free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	if (start < end)
-		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
-			(end - start) >> 10);
-	for (; start < end; start += PAGE_SIZE) {
-		struct page *p;
-
-		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(start);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		totalram_pages++;
-		num_physpages++;
-	}
+	num_physpages += free_reserved_area(start, end, POISON_FREE_INITMEM,
+					    "initrd");
 }
 #endif
 

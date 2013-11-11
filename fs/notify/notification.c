@@ -18,7 +18,7 @@
 
 /*
  * Basic idea behind the notification queue: An fsnotify group (like inotify)
- * sends the userspace notification about events asyncronously some time after
+ * sends the userspace notification about events asynchronously some time after
  * the event happened.  When inotify gets an event it will need to add that
  * event to the group notify queue.  Since a single event might need to be on
  * multiple group's notification queues we can't add the event directly to each
@@ -43,7 +43,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
@@ -225,6 +225,7 @@ alloc_holder:
 	mutex_unlock(&group->notification_mutex);
 
 	wake_up(&group->notification_waitq);
+	kill_fasync(&group->fsn_fa, SIGIO, POLL_IN);
 	return return_event;
 }
 
@@ -447,7 +448,7 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, 
 	return event;
 }
 
-__init int fsnotify_notification_init(void)
+static __init int fsnotify_notification_init(void)
 {
 	fsnotify_event_cachep = KMEM_CACHE(fsnotify_event, SLAB_PANIC);
 	fsnotify_event_holder_cachep = KMEM_CACHE(fsnotify_event_holder, SLAB_PANIC);
@@ -461,4 +462,3 @@ __init int fsnotify_notification_init(void)
 	return 0;
 }
 subsys_initcall(fsnotify_notification_init);
-

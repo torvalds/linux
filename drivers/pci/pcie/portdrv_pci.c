@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/init.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
@@ -63,14 +64,7 @@ __setup("pcie_ports=", pcie_port_setup);
  */
 void pcie_clear_root_pme_status(struct pci_dev *dev)
 {
-	int rtsta_pos;
-	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
-
-	pci_read_config_dword(dev, rtsta_pos, &rtsta);
-	rtsta |= PCI_EXP_RTSTA_PME;
-	pci_write_config_dword(dev, rtsta_pos, rtsta);
+	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
 }
 
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
@@ -94,10 +88,81 @@ static int pcie_port_resume_noirq(struct device *dev)
 	 * which breaks ACPI-based runtime wakeup on PCI Express, so clear those
 	 * bits now just in case (shouldn't hurt).
 	 */
-	if(pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ROOT_PORT)
 		pcie_clear_root_pme_status(pdev);
 	return 0;
 }
+
+#ifdef CONFIG_PM_RUNTIME
+struct d3cold_info {
+	bool no_d3cold;
+	unsigned int d3cold_delay;
+};
+
+static int pci_dev_d3cold_info(struct pci_dev *pdev, void *data)
+{
+	struct d3cold_info *info = data;
+
+	info->d3cold_delay = max_t(unsigned int, pdev->d3cold_delay,
+				   info->d3cold_delay);
+	if (pdev->no_d3cold)
+		info->no_d3cold = true;
+	return 0;
+}
+
+static int pcie_port_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct d3cold_info d3cold_info = {
+		.no_d3cold	= false,
+		.d3cold_delay	= PCI_PM_D3_WAIT,
+	};
+
+	/*
+	 * If any subordinate device disable D3cold, we should not put
+	 * the port into D3cold.  The D3cold delay of port should be
+	 * the max of that of all subordinate devices.
+	 */
+	pci_walk_bus(pdev->subordinate, pci_dev_d3cold_info, &d3cold_info);
+	pdev->no_d3cold = d3cold_info.no_d3cold;
+	pdev->d3cold_delay = d3cold_info.d3cold_delay;
+	return 0;
+}
+
+static int pcie_port_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+static int pci_dev_pme_poll(struct pci_dev *pdev, void *data)
+{
+	bool *pme_poll = data;
+
+	if (pdev->pme_poll)
+		*pme_poll = true;
+	return 0;
+}
+
+static int pcie_port_runtime_idle(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	bool pme_poll = false;
+
+	/*
+	 * If any subordinate device needs pme poll, we should keep
+	 * the port in D0, because we need port in D0 to poll it.
+	 */
+	pci_walk_bus(pdev->subordinate, pci_dev_pme_poll, &pme_poll);
+	/* Delay for a short while to prevent too frequent suspend/resume */
+	if (!pme_poll)
+		pm_schedule_suspend(dev, 10);
+	return -EBUSY;
+}
+#else
+#define pcie_port_runtime_suspend	NULL
+#define pcie_port_runtime_resume	NULL
+#define pcie_port_runtime_idle		NULL
+#endif
 
 static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
@@ -107,6 +172,9 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.poweroff	= pcie_port_device_suspend,
 	.restore	= pcie_port_device_resume,
 	.resume_noirq	= pcie_port_resume_noirq,
+	.runtime_suspend = pcie_port_runtime_suspend,
+	.runtime_resume = pcie_port_runtime_resume,
+	.runtime_idle	= pcie_port_runtime_idle,
 };
 
 #define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
@@ -124,15 +192,15 @@ static const struct dev_pm_ops pcie_portdrv_pm_ops = {
  * this port device.
  *
  */
-static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
+static int pcie_portdrv_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	int status;
 
 	if (!pci_is_pcie(dev) ||
-	    ((dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_UPSTREAM) &&
-	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
+	    ((pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM) &&
+	     (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
 	if (!dev->irq && dev->pin) {
@@ -144,7 +212,11 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
-
+	/*
+	 * D3cold may not work properly on some PCIe port, so disable
+	 * it by default.
+	 */
+	dev->d3cold_allowed = false;
 	return 0;
 }
 
@@ -187,11 +259,9 @@ static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 					enum pci_channel_state error)
 {
 	struct aer_broadcast_data data = {error, PCI_ERS_RESULT_CAN_RECOVER};
-	int ret;
 
-	/* can not fail */
-	ret = device_for_each_child(&dev->dev, &data, error_detected_iter);
-
+	/* get true return value from &data */
+	device_for_each_child(&dev->dev, &data, error_detected_iter);
 	return data.result;
 }
 
@@ -223,10 +293,9 @@ static int mmio_enabled_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int retval;
 
 	/* get true return value from &status */
-	retval = device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
+	device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
 	return status;
 }
 
@@ -258,7 +327,6 @@ static int slot_reset_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int retval;
 
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
@@ -269,8 +337,7 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 	}
 
 	/* get true return value from &status */
-	retval = device_for_each_child(&dev->dev, &status, slot_reset_iter);
-
+	device_for_each_child(&dev->dev, &status, slot_reset_iter);
 	return status;
 }
 
@@ -296,9 +363,7 @@ static int resume_iter(struct device *device, void *data)
 
 static void pcie_portdrv_err_resume(struct pci_dev *dev)
 {
-	int retval;
-	/* nothing to do with error value, if it ever happens */
-	retval = device_for_each_child(&dev->dev, NULL, resume_iter);
+	device_for_each_child(&dev->dev, NULL, resume_iter);
 }
 
 /*
@@ -311,11 +376,11 @@ static const struct pci_device_id port_pci_ids[] = { {
 };
 MODULE_DEVICE_TABLE(pci, port_pci_ids);
 
-static struct pci_error_handlers pcie_portdrv_err_handler = {
-		.error_detected = pcie_portdrv_error_detected,
-		.mmio_enabled = pcie_portdrv_mmio_enabled,
-		.slot_reset = pcie_portdrv_slot_reset,
-		.resume = pcie_portdrv_err_resume,
+static const struct pci_error_handlers pcie_portdrv_err_handler = {
+	.error_detected = pcie_portdrv_error_detected,
+	.mmio_enabled = pcie_portdrv_mmio_enabled,
+	.slot_reset = pcie_portdrv_slot_reset,
+	.resume = pcie_portdrv_err_resume,
 };
 
 static struct pci_driver pcie_portdriver = {

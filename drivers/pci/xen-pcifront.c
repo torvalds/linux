@@ -16,11 +16,12 @@
 #include <xen/interface/io/pciif.h>
 #include <asm/xen/pci.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
 
+#include <asm/xen/swiotlb-xen.h>
 #define INVALID_GRANT_REF (0)
 #define INVALID_EVTCHN    (-1)
 
@@ -189,7 +190,7 @@ static int pcifront_bus_read(struct pci_bus *bus, unsigned int devfn,
 
 	if (verbose_request)
 		dev_info(&pdev->xdev->dev,
-			 "read dev=%04x:%02x:%02x.%01x - offset %x size %d\n",
+			 "read dev=%04x:%02x:%02x.%d - offset %x size %d\n",
 			 pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
 			 PCI_FUNC(devfn), where, size);
 
@@ -228,7 +229,7 @@ static int pcifront_bus_write(struct pci_bus *bus, unsigned int devfn,
 
 	if (verbose_request)
 		dev_info(&pdev->xdev->dev,
-			 "write dev=%04x:%02x:%02x.%01x - "
+			 "write dev=%04x:%02x:%02x.%d - "
 			 "offset %x size %d val %x\n",
 			 pci_domain_nr(bus), bus->number,
 			 PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
@@ -236,7 +237,7 @@ static int pcifront_bus_write(struct pci_bus *bus, unsigned int devfn,
 	return errno_to_pcibios_err(do_pci_op(pdev, &op));
 }
 
-struct pci_ops pcifront_bus_ops = {
+static struct pci_ops pcifront_bus_ops = {
 	.read = pcifront_bus_read,
 	.write = pcifront_bus_write,
 };
@@ -290,6 +291,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 		} else {
 			printk(KERN_DEBUG "enable msix get value %x\n",
 				op.value);
+			err = op.value;
 		}
 	} else {
 		dev_err(&dev->dev, "enable msix get err %x\n", err);
@@ -400,9 +402,8 @@ static int pcifront_claim_resource(struct pci_dev *dev, void *data)
 			dev_info(&pdev->xdev->dev, "claiming resource %s/%d\n",
 				pci_name(dev), i);
 			if (pci_claim_resource(dev, i)) {
-				dev_err(&pdev->xdev->dev, "Could not claim "
-					"resource %s/%d! Device offline. Try "
-					"giving less than 4GB to domain.\n",
+				dev_err(&pdev->xdev->dev, "Could not claim resource %s/%d! "
+					"Device offline. Try using e820_host=1 in the guest config.\n",
 					pci_name(dev), i);
 			}
 		}
@@ -411,7 +412,7 @@ static int pcifront_claim_resource(struct pci_dev *dev, void *data)
 	return 0;
 }
 
-static int __devinit pcifront_scan_bus(struct pcifront_device *pdev,
+static int pcifront_scan_bus(struct pcifront_device *pdev,
 				unsigned int domain, unsigned int bus,
 				struct pci_bus *b)
 {
@@ -433,14 +434,14 @@ static int __devinit pcifront_scan_bus(struct pcifront_device *pdev,
 		d = pci_scan_single_device(b, devfn);
 		if (d)
 			dev_info(&pdev->xdev->dev, "New device on "
-				 "%04x:%02x:%02x.%02x found.\n", domain, bus,
+				 "%04x:%02x:%02x.%d found.\n", domain, bus,
 				 PCI_SLOT(devfn), PCI_FUNC(devfn));
 	}
 
 	return 0;
 }
 
-static int __devinit pcifront_scan_root(struct pcifront_device *pdev,
+static int pcifront_scan_root(struct pcifront_device *pdev,
 				 unsigned int domain, unsigned int bus)
 {
 	struct pci_bus *b;
@@ -502,7 +503,7 @@ err_out:
 	return err;
 }
 
-static int __devinit pcifront_rescan_root(struct pcifront_device *pdev,
+static int pcifront_rescan_root(struct pcifront_device *pdev,
 				   unsigned int domain, unsigned int bus)
 {
 	int err;
@@ -545,7 +546,7 @@ static void free_root_bus_devs(struct pci_bus *bus)
 		dev = container_of(bus->devices.next, struct pci_dev,
 				   bus_list);
 		dev_dbg(&dev->dev, "removing device\n");
-		pci_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(dev);
 	}
 }
 
@@ -594,7 +595,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 	}
 	pdrv = pcidev->driver;
 
-	if (get_driver(&pdrv->driver)) {
+	if (pdrv) {
 		if (pdrv->err_handler && pdrv->err_handler->error_detected) {
 			dev_dbg(&pcidev->dev,
 				"trying to call AER service\n");
@@ -624,7 +625,6 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 				}
 			}
 		}
-		put_driver(&pdrv->driver);
 	}
 	if (!flag)
 		result = PCI_ERS_RESULT_NONE;
@@ -669,7 +669,7 @@ static irqreturn_t pcifront_handler_aer(int irq, void *dev)
 	schedule_pcifront_aer_op(pdev);
 	return IRQ_HANDLED;
 }
-static int pcifront_connect(struct pcifront_device *pdev)
+static int pcifront_connect_and_init_dma(struct pcifront_device *pdev)
 {
 	int err = 0;
 
@@ -678,13 +678,16 @@ static int pcifront_connect(struct pcifront_device *pdev)
 	if (!pcifront_dev) {
 		dev_info(&pdev->xdev->dev, "Installing PCI frontend\n");
 		pcifront_dev = pdev;
-	} else {
-		dev_err(&pdev->xdev->dev, "PCI frontend already installed!\n");
+	} else
 		err = -EEXIST;
-	}
 
 	spin_unlock(&pcifront_dev_lock);
 
+	if (!err && !swiotlb_nr_tbl()) {
+		err = pci_xen_swiotlb_init_late();
+		if (err)
+			dev_err(&pdev->xdev->dev, "Could not setup SWIOTLB!\n");
+	}
 	return err;
 }
 
@@ -830,7 +833,7 @@ out:
 	return err;
 }
 
-static int __devinit pcifront_try_connect(struct pcifront_device *pdev)
+static int pcifront_try_connect(struct pcifront_device *pdev)
 {
 	int err = -EFAULT;
 	int i, num_roots, len;
@@ -843,10 +846,10 @@ static int __devinit pcifront_try_connect(struct pcifront_device *pdev)
 	    XenbusStateInitialised)
 		goto out;
 
-	err = pcifront_connect(pdev);
-	if (err) {
+	err = pcifront_connect_and_init_dma(pdev);
+	if (err && err != -EEXIST) {
 		xenbus_dev_fatal(pdev->xdev, err,
-				 "Error connecting PCI Frontend");
+				 "Error setting up PCI Frontend");
 		goto out;
 	}
 
@@ -920,7 +923,7 @@ out:
 	return err;
 }
 
-static int __devinit pcifront_attach_devices(struct pcifront_device *pdev)
+static int pcifront_attach_devices(struct pcifront_device *pdev)
 {
 	int err = -EFAULT;
 	int i, num_roots, len;
@@ -983,7 +986,6 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 	int err = 0;
 	int i, num_devs;
 	unsigned int domain, bus, slot, func;
-	struct pci_bus *pci_bus;
 	struct pci_dev *pci_dev;
 	char str[64];
 
@@ -1033,24 +1035,19 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			goto out;
 		}
 
-		pci_bus = pci_find_bus(domain, bus);
-		if (!pci_bus) {
-			dev_dbg(&pdev->xdev->dev, "Cannot get bus %04x:%02x\n",
-				domain, bus);
-			continue;
-		}
-		pci_dev = pci_get_slot(pci_bus, PCI_DEVFN(slot, func));
+		pci_dev = pci_get_domain_bus_and_slot(domain, bus,
+				PCI_DEVFN(slot, func));
 		if (!pci_dev) {
 			dev_dbg(&pdev->xdev->dev,
-				"Cannot get PCI device %04x:%02x:%02x.%02x\n",
+				"Cannot get PCI device %04x:%02x:%02x.%d\n",
 				domain, bus, slot, func);
 			continue;
 		}
-		pci_remove_bus_device(pci_dev);
+		pci_stop_and_remove_bus_device(pci_dev);
 		pci_dev_put(pci_dev);
 
 		dev_dbg(&pdev->xdev->dev,
-			"PCI device %04x:%02x:%02x.%02x removed.\n",
+			"PCI device %04x:%02x:%02x.%d removed.\n",
 			domain, bus, slot, func);
 	}
 
@@ -1070,13 +1067,16 @@ static void __init_refok pcifront_backend_changed(struct xenbus_device *xdev,
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
-	case XenbusStateClosed:
 		break;
 
 	case XenbusStateConnected:
 		pcifront_try_connect(pdev);
 		break;
 
+	case XenbusStateClosed:
+		if (xdev->state == XenbusStateClosed)
+			break;
+		/* Missed the backend's CLOSING state -- fallthrough */
 	case XenbusStateClosing:
 		dev_warn(&xdev->dev, "backend going away!\n");
 		pcifront_try_disconnect(pdev);
@@ -1127,14 +1127,11 @@ static const struct xenbus_device_id xenpci_ids[] = {
 	{""},
 };
 
-static struct xenbus_driver xenbus_pcifront_driver = {
-	.name			= "pcifront",
-	.owner			= THIS_MODULE,
-	.ids			= xenpci_ids,
+static DEFINE_XENBUS_DRIVER(xenpci, "pcifront",
 	.probe			= pcifront_xenbus_probe,
 	.remove			= pcifront_xenbus_remove,
 	.otherend_changed	= pcifront_backend_changed,
-};
+);
 
 static int __init pcifront_init(void)
 {
@@ -1143,12 +1140,12 @@ static int __init pcifront_init(void)
 
 	pci_frontend_registrar(1 /* enable */);
 
-	return xenbus_register_frontend(&xenbus_pcifront_driver);
+	return xenbus_register_frontend(&xenpci_driver);
 }
 
 static void __exit pcifront_cleanup(void)
 {
-	xenbus_unregister_driver(&xenbus_pcifront_driver);
+	xenbus_unregister_driver(&xenpci_driver);
 	pci_frontend_registrar(0 /* disable */);
 }
 module_init(pcifront_init);

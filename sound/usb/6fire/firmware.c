@@ -5,7 +5,6 @@
  *
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
- * Version:	0.3.0
  * Copyright:	(C) Torsten Schenk
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,7 +14,9 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <linux/bitrev.h>
+#include <linux/kernel.h>
 
 #include "firmware.h"
 #include "chip.h"
@@ -41,8 +42,8 @@ static const u8 ep_w_max_packet_size[] = {
 	0x94, 0x01, 0x5c, 0x02  /* alt 3: 404 EP2 and 604 EP6 (25 fpp) */
 };
 
-static const u8 known_fw_versions[][4] = {
-	{ 0x03, 0x01, 0x0b, 0x00 }
+static const u8 known_fw_versions[][2] = {
+	{ 0x03, 0x01 }
 };
 
 struct ihex_record {
@@ -59,21 +60,19 @@ struct ihex_record {
 	unsigned int txt_offset; /* current position in txt_data */
 };
 
-static u8 usb6fire_fw_ihex_nibble(const u8 n)
-{
-	if (n >= '0' && n <= '9')
-		return n - '0';
-	else if (n >= 'A' && n <= 'F')
-		return n - ('A' - 10);
-	else if (n >= 'a' && n <= 'f')
-		return n - ('a' - 10);
-	return 0;
-}
-
 static u8 usb6fire_fw_ihex_hex(const u8 *data, u8 *crc)
 {
-	u8 val = (usb6fire_fw_ihex_nibble(data[0]) << 4) |
-			usb6fire_fw_ihex_nibble(data[1]);
+	u8 val = 0;
+	int hval;
+
+	hval = hex_to_bin(data[0]);
+	if (hval >= 0)
+		val |= (hval << 4);
+
+	hval = hex_to_bin(data[1]);
+	if (hval >= 0)
+		val |= hval;
+
 	*crc += val;
 	return val;
 }
@@ -210,7 +209,7 @@ static int usb6fire_fw_ezusb_upload(
 	int ret;
 	u8 data;
 	struct usb_device *device = interface_to_usbdev(intf);
-	const struct firmware *fw = 0;
+	const struct firmware *fw = NULL;
 	struct ihex_record *rec = kmalloc(sizeof(struct ihex_record),
 			GFP_KERNEL);
 
@@ -344,14 +343,13 @@ static int usb6fire_fw_check(u8 *version)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(known_fw_versions); i++)
-		if (!memcmp(version, known_fw_versions + i, 4))
+		if (!memcmp(version, known_fw_versions + i, 2))
 			return 0;
 
-	snd_printk(KERN_ERR PREFIX "invalid fimware version in device: "
-			"%02x %02x %02x %02x. "
+	snd_printk(KERN_ERR PREFIX "invalid fimware version in device: %*ph. "
 			"please reconnect to power. if this failure "
 			"still happens, check your firmware installation.",
-			version[0], version[1], version[2], version[3]);
+			4, version);
 	return -EINVAL;
 }
 

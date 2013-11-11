@@ -2,23 +2,39 @@ Kernel driver pmbus
 ====================
 
 Supported chips:
-  * Ericsson BMR45X series
-    DC/DC Converter
-    Prefixes: 'bmr450', 'bmr451', 'bmr453', 'bmr454'
+  * Ericsson BMR453, BMR454
+    Prefixes: 'bmr453', 'bmr454'
     Addresses scanned: -
     Datasheet:
  http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146395
-  * Linear Technology LTC2978
-    Octal PMBus Power Supply Monitor and Controller
-    Prefix: 'ltc2978'
+  * ON Semiconductor ADP4000, NCP4200, NCP4208
+    Prefixes: 'adp4000', 'ncp4200', 'ncp4208'
     Addresses scanned: -
-    Datasheet: http://cds.linear.com/docs/Datasheet/2978fa.pdf
+    Datasheets:
+	http://www.onsemi.com/pub_link/Collateral/ADP4000-D.PDF
+	http://www.onsemi.com/pub_link/Collateral/NCP4200-D.PDF
+	http://www.onsemi.com/pub_link/Collateral/JUNE%202009-%20REV.%200.PDF
+  * Lineage Power
+    Prefixes: 'mdt040', 'pdt003', 'pdt006', 'pdt012', 'udt020'
+    Addresses scanned: -
+    Datasheets:
+	http://www.lineagepower.com/oem/pdf/PDT003A0X.pdf
+	http://www.lineagepower.com/oem/pdf/PDT006A0X.pdf
+	http://www.lineagepower.com/oem/pdf/PDT012A0X.pdf
+	http://www.lineagepower.com/oem/pdf/UDT020A0X.pdf
+	http://www.lineagepower.com/oem/pdf/MDT040A0X.pdf
+  * Texas Instruments TPS40400, TPS40422
+    Prefixes: 'tps40400', 'tps40422'
+    Addresses scanned: -
+    Datasheets:
+	http://www.ti.com/lit/gpn/tps40400
+	http://www.ti.com/lit/gpn/tps40422
   * Generic PMBus devices
     Prefix: 'pmbus'
     Addresses scanned: -
     Datasheet: n.a.
 
-Author: Guenter Roeck <guenter.roeck@ericsson.com>
+Author: Guenter Roeck <linux@roeck-us.net>
 
 
 Description
@@ -122,7 +138,7 @@ Sysfs entries
 
 When probing the chip, the driver identifies which PMBus registers are
 supported, and determines available sensors from this information.
-Attribute files only exist if respective sensors are suported by the chip.
+Attribute files only exist if respective sensors are supported by the chip.
 Labels are provided to inform the user about the sensor associated with
 a given sysfs entry.
 

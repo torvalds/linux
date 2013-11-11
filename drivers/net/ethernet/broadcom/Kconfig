@@ -1,0 +1,142 @@
+#
+# Broadcom device configuration
+#
+
+config NET_VENDOR_BROADCOM
+	bool "Broadcom devices"
+	default y
+	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
+		   SIBYTE_SB1xxx_SOC
+	---help---
+	  If you have a network (Ethernet) chipset belonging to this class,
+	  say Y.
+
+	  Note that the answer to this question does not directly affect
+	  the kernel: saying N will just case the configurator to skip all
+	  the questions regarding AMD chipsets. If you say Y, you will be asked
+	  for your specific chipset/driver in the following questions.
+
+if NET_VENDOR_BROADCOM
+
+config B44
+	tristate "Broadcom 440x/47xx ethernet support"
+	depends on SSB_POSSIBLE && HAS_DMA
+	select SSB
+	select NET_CORE
+	select MII
+	---help---
+	  If you have a network (Ethernet) controller of this type, say Y
+	  or M and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called b44.
+
+# Auto-select SSB PCI-HOST support, if possible
+config B44_PCI_AUTOSELECT
+	bool
+	depends on B44 && SSB_PCIHOST_POSSIBLE
+	select SSB_PCIHOST
+	default y
+
+# Auto-select SSB PCICORE driver, if possible
+config B44_PCICORE_AUTOSELECT
+	bool
+	depends on B44 && SSB_DRIVER_PCICORE_POSSIBLE
+	select SSB_DRIVER_PCICORE
+	default y
+
+config B44_PCI
+	bool
+	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
+	default y
+
+config BCM63XX_ENET
+	tristate "Broadcom 63xx internal mac support"
+	depends on BCM63XX
+	select NET_CORE
+	select MII
+	select PHYLIB
+	help
+	  This driver supports the ethernet MACs in the Broadcom 63xx
+	  MIPS chipset family (BCM63XX).
+
+config BNX2
+	tristate "Broadcom NetXtremeII support"
+	depends on PCI
+	select CRC32
+	select FW_LOADER
+	---help---
+	  This driver supports Broadcom NetXtremeII gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2.  This is recommended.
+
+config CNIC
+	tristate "Broadcom CNIC support"
+	depends on PCI
+	select BNX2
+	select UIO
+	---help---
+	  This driver supports offload features of Broadcom NetXtremeII
+	  gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cnic.  This is recommended.
+
+config SB1250_MAC
+	tristate "SB1250 Gigabit Ethernet support"
+	depends on SIBYTE_SB1xxx_SOC
+	select PHYLIB
+	---help---
+	  This driver supports Gigabit Ethernet interfaces based on the
+	  Broadcom SiByte family of System-On-a-Chip parts.  They include
+	  the BCM1120, BCM1125, BCM1125H, BCM1250, BCM1255, BCM1280, BCM1455
+	  and BCM1480 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sb1250-mac.
+
+config TIGON3
+	tristate "Broadcom Tigon3 support"
+	depends on PCI
+	select PHYLIB
+	select HWMON
+	select PTP_1588_CLOCK
+	---help---
+	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tg3.  This is recommended.
+
+config BNX2X
+	tristate "Broadcom NetXtremeII 10Gb support"
+	depends on PCI
+	select FW_LOADER
+	select ZLIB_INFLATE
+	select LIBCRC32C
+	select MDIO
+	---help---
+	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2x.  This is recommended.
+
+config BNX2X_SRIOV
+	bool "Broadcom 578xx and 57712 SR-IOV support"
+	depends on BNX2X && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support in the 578xx and 57712 products. This
+	  allows for virtual function acceleration in virtual environments.
+
+config BGMAC
+	tristate "BCMA bus GBit core support"
+	depends on BCMA_HOST_SOC && HAS_DMA
+	---help---
+	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
+	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
+	  In case of using this driver on BCM4706 it's also requires to enable
+	  BCMA_DRIVER_GMAC_CMN to make it work.
+
+endif # NET_VENDOR_BROADCOM

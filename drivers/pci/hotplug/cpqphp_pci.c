@@ -83,7 +83,6 @@ static void __iomem *detect_HRT_floating_pointer(void __iomem *begin, void __iom
 
 int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 {
-	unsigned char bus;
 	struct pci_bus *child;
 	int num;
 
@@ -106,9 +105,10 @@ int cpqhp_configure_device (struct controller* ctrl, struct pci_func* func)
 	}
 
 	if (func->pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		pci_read_config_byte(func->pci_dev, PCI_SECONDARY_BUS, &bus);
-		child = (struct pci_bus*) pci_add_new_bus(func->pci_dev->bus, (func->pci_dev), bus);
-		pci_do_scan_bus(child);
+		pci_hp_add_bridge(func->pci_dev);
+		child = func->pci_dev->subordinate;
+		if (child)
+			pci_bus_add_devices(child);
 	}
 
 	pci_dev_put(func->pci_dev);
@@ -127,7 +127,7 @@ int cpqhp_unconfigure_device(struct pci_func* func)
 		struct pci_dev* temp = pci_get_bus_and_slot(func->bus, PCI_DEVFN(func->device, j));
 		if (temp) {
 			pci_dev_put(temp);
-			pci_remove_bus_device(temp);
+			pci_stop_and_remove_bus_device(temp);
 		}
 	}
 	return 0;

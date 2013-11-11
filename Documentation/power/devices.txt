@@ -96,6 +96,12 @@ struct dev_pm_ops {
 	int (*thaw)(struct device *dev);
 	int (*poweroff)(struct device *dev);
 	int (*restore)(struct device *dev);
+	int (*suspend_late)(struct device *dev);
+	int (*resume_early)(struct device *dev);
+	int (*freeze_late)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
+	int (*poweroff_late)(struct device *dev);
+	int (*restore_early)(struct device *dev);
 	int (*suspend_noirq)(struct device *dev);
 	int (*resume_noirq)(struct device *dev);
 	int (*freeze_noirq)(struct device *dev);
@@ -123,9 +129,12 @@ please refer directly to the source code for more information about it.
 Subsystem-Level Methods
 -----------------------
 The core methods to suspend and resume devices reside in struct dev_pm_ops
-pointed to by the pm member of struct bus_type, struct device_type and
-struct class.  They are mostly of interest to the people writing infrastructure
-for buses, like PCI or USB, or device type and device class drivers.
+pointed to by the ops member of struct dev_pm_domain, or by the pm member of
+struct bus_type, struct device_type and struct class.  They are mostly of
+interest to the people writing infrastructure for platforms and buses, like PCI
+or USB, or device type and device class drivers.  They also are relevant to the
+writers of device drivers whose subsystems (PM domains, device types, device
+classes and bus types) don't provide all power management methods.
 
 Bus drivers implement these methods as appropriate for the hardware and the
 drivers using it; PCI works differently from USB, and so on.  Not many people
@@ -139,39 +148,57 @@ sequencing in the driver model tree.
 
 /sys/devices/.../power/wakeup files
 -----------------------------------
-All devices in the driver model have two flags to control handling of wakeup
-events (hardware signals that can force the device and/or system out of a low
-power state).  These flags are initialized by bus or device driver code using
+All device objects in the driver model contain fields that control the handling
+of system wakeup events (hardware signals that can force the system out of a
+sleep state).  These fields are initialized by bus or device driver code using
 device_set_wakeup_capable() and device_set_wakeup_enable(), defined in
 include/linux/pm_wakeup.h.
 
-The "can_wakeup" flag just records whether the device (and its driver) can
+The "power.can_wakeup" flag just records whether the device (and its driver) can
 physically support wakeup events.  The device_set_wakeup_capable() routine
-affects this flag.  The "should_wakeup" flag controls whether the device should
-try to use its wakeup mechanism.  device_set_wakeup_enable() affects this flag;
-for the most part drivers should not change its value.  The initial value of
-should_wakeup is supposed to be false for the majority of devices; the major
-exceptions are power buttons, keyboards, and Ethernet adapters whose WoL
-(wake-on-LAN) feature has been set up with ethtool.
+affects this flag.  The "power.wakeup" field is a pointer to an object of type
+struct wakeup_source used for controlling whether or not the device should use
+its system wakeup mechanism and for notifying the PM core of system wakeup
+events signaled by the device.  This object is only present for wakeup-capable
+devices (i.e. devices whose "can_wakeup" flags are set) and is created (or
+removed) by device_set_wakeup_capable().
 
 Whether or not a device is capable of issuing wakeup events is a hardware
 matter, and the kernel is responsible for keeping track of it.  By contrast,
 whether or not a wakeup-capable device should issue wakeup events is a policy
 decision, and it is managed by user space through a sysfs attribute: the
-power/wakeup file.  User space can write the strings "enabled" or "disabled" to
-set or clear the "should_wakeup" flag, respectively.  This file is only present
-for wakeup-capable devices (i.e. devices whose "can_wakeup" flags are set)
-and is created (or removed) by device_set_wakeup_capable().  Reads from the
-file will return the corresponding string.
+"power/wakeup" file.  User space can write the strings "enabled" or "disabled"
+to it to indicate whether or not, respectively, the device is supposed to signal
+system wakeup.  This file is only present if the "power.wakeup" object exists
+for the given device and is created (or removed) along with that object, by
+device_set_wakeup_capable().  Reads from the file will return the corresponding
+string.
 
-The device_may_wakeup() routine returns true only if both flags are set.
+The "power/wakeup" file is supposed to contain the "disabled" string initially
+for the majority of devices; the major exceptions are power buttons, keyboards,
+and Ethernet adapters whose WoL (wake-on-LAN) feature has been set up with
+ethtool.  It should also default to "enabled" for devices that don't generate
+wakeup requests on their own but merely forward wakeup requests from one bus to
+another (like PCI Express ports).
+
+The device_may_wakeup() routine returns true only if the "power.wakeup" object
+exists and the corresponding "power/wakeup" file contains the string "enabled".
 This information is used by subsystems, like the PCI bus type code, to see
 whether or not to enable the devices' wakeup mechanisms.  If device wakeup
 mechanisms are enabled or disabled directly by drivers, they also should use
 device_may_wakeup() to decide what to do during a system sleep transition.
-However for runtime power management, wakeup events should be enabled whenever
-the device and driver both support them, regardless of the should_wakeup flag.
+Device drivers, however, are not supposed to call device_set_wakeup_enable()
+directly in any case.
 
+It ought to be noted that system wakeup is conceptually different from "remote
+wakeup" used by runtime power management, although it may be supported by the
+same physical mechanism.  Remote wakeup is a feature allowing devices in
+low-power states to trigger specific interrupts to signal conditions in which
+they should be put into the full-power state.  Those interrupts may or may not
+be used to signal system wakeup events, depending on the hardware design.  On
+some systems it is impossible to trigger them from system sleep states.  In any
+case, remote wakeup should always be enabled for runtime power management for
+all devices and drivers that support it.
 
 /sys/devices/.../power/control files
 ------------------------------------
@@ -241,36 +268,51 @@ situations.
 System Power Management Phases
 ------------------------------
 Suspending or resuming the system is done in several phases.  Different phases
-are used for standby or memory sleep states ("suspend-to-RAM") and the
+are used for freeze, standby, and memory sleep states ("suspend-to-RAM") and the
 hibernation state ("suspend-to-disk").  Each phase involves executing callbacks
 for every device before the next phase begins.  Not all busses or classes
 support all these callbacks and not all drivers use all the callbacks.  The
 various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
-been disabled (except for those marked with the IRQ_WAKEUP flag).
+been disabled (except for those marked with the IRQF_NO_SUSPEND flag).
 
-All phases use bus, type, or class callbacks (that is, methods defined in
-dev->bus->pm, dev->type->pm, or dev->class->pm).  These callbacks are mutually
-exclusive, so if the device type provides a struct dev_pm_ops object pointed to
-by its pm field (i.e. both dev->type and dev->type->pm are defined), the
-callbacks included in that object (i.e. dev->type->pm) will be used.  Otherwise,
-if the class provides a struct dev_pm_ops object pointed to by its pm field
-(i.e. both dev->class and dev->class->pm are defined), the PM core will use the
-callbacks from that object (i.e. dev->class->pm).  Finally, if the pm fields of
-both the device type and class objects are NULL (or those objects do not exist),
-the callbacks provided by the bus (that is, the callbacks from dev->bus->pm)
-will be used (this allows device types to override callbacks provided by bus
-types or classes if necessary).
+All phases use PM domain, bus, type, class or driver callbacks (that is, methods
+defined in dev->pm_domain->ops, dev->bus->pm, dev->type->pm, dev->class->pm or
+dev->driver->pm).  These callbacks are regarded by the PM core as mutually
+exclusive.  Moreover, PM domain callbacks always take precedence over all of the
+other callbacks and, for example, type callbacks take precedence over bus, class
+and driver callbacks.  To be precise, the following rules are used to determine
+which callback to execute in the given phase:
 
-These callbacks may in turn invoke device- or driver-specific methods stored in
-dev->driver->pm, but they don't have to.
+    1.	If dev->pm_domain is present, the PM core will choose the callback
+	included in dev->pm_domain->ops for execution
+
+    2.	Otherwise, if both dev->type and dev->type->pm are present, the callback
+	included in dev->type->pm will be chosen for execution.
+
+    3.	Otherwise, if both dev->class and dev->class->pm are present, the
+	callback included in dev->class->pm will be chosen for execution.
+
+    4.	Otherwise, if both dev->bus and dev->bus->pm are present, the callback
+	included in dev->bus->pm will be chosen for execution.
+
+This allows PM domains and device types to override callbacks provided by bus
+types or device classes if necessary.
+
+The PM domain, type, class and bus callbacks may in turn invoke device- or
+driver-specific methods stored in dev->driver->pm, but they don't have to do
+that.
+
+If the subsystem callback chosen for execution is not present, the PM core will
+execute the corresponding method from dev->driver->pm instead if there is one.
 
 
 Entering System Suspend
 -----------------------
-When the system goes into the standby or memory sleep state, the phases are:
+When the system goes into the freeze, standby or memory sleep state,
+the phases are:
 
-		prepare, suspend, suspend_noirq.
+		prepare, suspend, suspend_late, suspend_noirq.
 
     1.	The prepare phase is meant to prevent races by preventing new devices
 	from being registered; the PM core would never know that all the
@@ -279,22 +321,22 @@ When the system goes into the standby or memory sleep state, the phases are:
 	time.)  Unlike the other suspend-related phases, during the prepare
 	phase the device tree is traversed top-down.
 
-	In addition to that, if device drivers need to allocate additional
-	memory to be able to hadle device suspend correctly, that should be
-	done in the prepare phase.
-
 	After the prepare callback method returns, no new children may be
 	registered below the device.  The method may also prepare the device or
-	driver in some way for the upcoming system power transition (for
-	example, by allocating additional memory required for this purpose), but
-	it should not put the device into a low-power state.
+	driver in some way for the upcoming system power transition, but it
+	should not put the device into a low-power state.
 
     2.	The suspend methods should quiesce the device to stop it from performing
 	I/O.  They also may save the device registers and put it into the
 	appropriate low-power state, depending on the bus type the device is on,
 	and they may enable wakeup events.
 
-    3.	The suspend_noirq phase occurs after IRQ handlers have been disabled,
+    3	For a number of devices it is convenient to split suspend into the
+	"quiesce device" and "save device state" phases, in which cases
+	suspend_late is meant to do the latter.  It is always executed after
+	runtime power management has been disabled for all devices.
+
+    4.	The suspend_noirq phase occurs after IRQ handlers have been disabled,
 	which means that the driver's interrupt handler will not be called while
 	the callback method is running.  The methods should save the values of
 	the device's registers that weren't saved previously and finally put the
@@ -327,9 +369,9 @@ the devices that were suspended.
 
 Leaving System Suspend
 ----------------------
-When resuming from standby or memory sleep, the phases are:
+When resuming from freeze, standby or memory sleep, the phases are:
 
-		resume_noirq, resume, complete.
+		resume_noirq, resume_early, resume, complete.
 
     1.	The resume_noirq callback methods should perform any actions needed
 	before the driver's interrupt handlers are invoked.  This generally
@@ -345,14 +387,18 @@ When resuming from standby or memory sleep, the phases are:
 	device driver's ->pm.resume_noirq() method to perform device-specific
 	actions.
 
-    2.	The resume methods should bring the the device back to its operating
+    2.	The resume_early methods should prepare devices for the execution of
+	the resume methods.  This generally involves undoing the actions of the
+	preceding suspend_late phase.
+
+    3	The resume methods should bring the the device back to its operating
 	state, so that it can perform normal I/O.  This generally involves
 	undoing the actions of the suspend phase.
 
-    3.	The complete phase uses only a bus callback.  The method should undo the
-	actions of the prepare phase.  Note, however, that new children may be
-	registered below the device as soon as the resume callbacks occur; it's
-	not necessary to wait until the complete phase.
+    4.	The complete phase should undo the actions of the prepare phase.  Note,
+	however, that new children may be registered below the device as soon as
+	the resume callbacks occur; it's not necessary to wait until the
+	complete phase.
 
 At the end of these phases, drivers should be as functional as they were before
 suspending: I/O can be performed using DMA and IRQs, and the relevant clocks are
@@ -388,8 +434,8 @@ the system log.
 
 Entering Hibernation
 --------------------
-Hibernating the system is more complicated than putting it into the standby or
-memory sleep state, because it involves creating and saving a system image.
+Hibernating the system is more complicated than putting it into the other
+sleep states, because it involves creating and saving a system image.
 Therefore there are more phases for hibernation, with a different set of
 callbacks.  These phases always run after tasks have been frozen and memory has
 been freed.
@@ -399,8 +445,8 @@ an image of the system memory while everything is stable, reactivate all
 devices (thaw), write the image to permanent storage, and finally shut down the
 system (poweroff).  The phases used to accomplish this are:
 
-	prepare, freeze, freeze_noirq, thaw_noirq, thaw, complete,
-	prepare, poweroff, poweroff_noirq
+	prepare, freeze, freeze_late, freeze_noirq, thaw_noirq, thaw_early,
+	thaw, complete, prepare, poweroff, poweroff_late, poweroff_noirq
 
     1.	The prepare phase is discussed in the "Entering System Suspend" section
 	above.
@@ -411,7 +457,11 @@ system (poweroff).  The phases used to accomplish this are:
 	save time it's best not to do so.  Also, the device should not be
 	prepared to generate wakeup events.
 
-    3.	The freeze_noirq phase is analogous to the suspend_noirq phase discussed
+    3.	The freeze_late phase is analogous to the suspend_late phase described
+	above, except that the device should not be put in a low-power state and
+	should not be allowed to generate wakeup events by it.
+
+    4.	The freeze_noirq phase is analogous to the suspend_noirq phase discussed
 	above, except again that the device should not be put in a low-power
 	state and should not be allowed to generate wakeup events.
 
@@ -419,32 +469,39 @@ At this point the system image is created.  All devices should be inactive and
 the contents of memory should remain undisturbed while this happens, so that the
 image forms an atomic snapshot of the system state.
 
-    4.	The thaw_noirq phase is analogous to the resume_noirq phase discussed
+    5.	The thaw_noirq phase is analogous to the resume_noirq phase discussed
 	above.  The main difference is that its methods can assume the device is
 	in the same state as at the end of the freeze_noirq phase.
 
-    5.	The thaw phase is analogous to the resume phase discussed above.  Its
+    6.	The thaw_early phase is analogous to the resume_early phase described
+	above.  Its methods should undo the actions of the preceding
+	freeze_late, if necessary.
+
+    7.	The thaw phase is analogous to the resume phase discussed above.  Its
 	methods should bring the device back to an operating state, so that it
 	can be used for saving the image if necessary.
 
-    6.	The complete phase is discussed in the "Leaving System Suspend" section
+    8.	The complete phase is discussed in the "Leaving System Suspend" section
 	above.
 
 At this point the system image is saved, and the devices then need to be
 prepared for the upcoming system shutdown.  This is much like suspending them
-before putting the system into the standby or memory sleep state, and the phases
-are similar.
+before putting the system into the freeze, standby or memory sleep state,
+and the phases are similar.
 
-    7.	The prepare phase is discussed above.
+    9.	The prepare phase is discussed above.
 
-    8.	The poweroff phase is analogous to the suspend phase.
+    10.	The poweroff phase is analogous to the suspend phase.
 
-    9.	The poweroff_noirq phase is analogous to the suspend_noirq phase.
+    11.	The poweroff_late phase is analogous to the suspend_late phase.
 
-The poweroff and poweroff_noirq callbacks should do essentially the same things
-as the suspend and suspend_noirq callbacks.  The only notable difference is that
-they need not store the device register values, because the registers should
-already have been stored during the freeze or freeze_noirq phases.
+    12.	The poweroff_noirq phase is analogous to the suspend_noirq phase.
+
+The poweroff, poweroff_late and poweroff_noirq callbacks should do essentially
+the same things as the suspend, suspend_late and suspend_noirq callbacks,
+respectively.  The only notable difference is that they need not store the
+device register values, because the registers should already have been stored
+during the freeze, freeze_late or freeze_noirq phases.
 
 
 Leaving Hibernation
@@ -488,26 +545,29 @@ To achieve this, the image kernel must restore the devices' pre-hibernation
 functionality.  The operation is much like waking up from the memory sleep
 state, although it involves different phases:
 
-	restore_noirq, restore, complete
+	restore_noirq, restore_early, restore, complete
 
     1.	The restore_noirq phase is analogous to the resume_noirq phase.
 
-    2.	The restore phase is analogous to the resume phase.
+    2.	The restore_early phase is analogous to the resume_early phase.
 
-    3.	The complete phase is discussed above.
+    3.	The restore phase is analogous to the resume phase.
 
-The main difference from resume[_noirq] is that restore[_noirq] must assume the
-device has been accessed and reconfigured by the boot loader or the boot kernel.
-Consequently the state of the device may be different from the state remembered
-from the freeze and freeze_noirq phases.  The device may even need to be reset
-and completely re-initialized.  In many cases this difference doesn't matter, so
-the resume[_noirq] and restore[_norq] method pointers can be set to the same
-routines.  Nevertheless, different callback pointers are used in case there is a
-situation where it actually matters.
+    4.	The complete phase is discussed above.
+
+The main difference from resume[_early|_noirq] is that restore[_early|_noirq]
+must assume the device has been accessed and reconfigured by the boot loader or
+the boot kernel.  Consequently the state of the device may be different from the
+state remembered from the freeze, freeze_late and freeze_noirq phases.  The
+device may even need to be reset and completely re-initialized.  In many cases
+this difference doesn't matter, so the resume[_early|_noirq] and
+restore[_early|_norq] method pointers can be set to the same routines.
+Nevertheless, different callback pointers are used in case there is a situation
+where it actually does matter.
 
 
-Device Power Domains
---------------------
+Device Power Management Domains
+-------------------------------
 Sometimes devices share reference clocks or other power resources.  In those
 cases it generally is not possible to put devices into low-power states
 individually.  Instead, a set of devices sharing a power resource can be put
@@ -516,17 +576,18 @@ power resource.  Of course, they also need to be put into the full-power state
 together, by turning the shared power resource on.  A set of devices with this
 property is often referred to as a power domain.
 
-Support for power domains is provided through the pwr_domain field of struct
-device.  This field is a pointer to an object of type struct dev_power_domain,
+Support for power domains is provided through the pm_domain field of struct
+device.  This field is a pointer to an object of type struct dev_pm_domain,
 defined in include/linux/pm.h, providing a set of power management callbacks
 analogous to the subsystem-level and device driver callbacks that are executed
 for the given device during all power transitions, instead of the respective
 subsystem-level callbacks.  Specifically, if a device's pm_domain pointer is
 not NULL, the ->suspend() callback from the object pointed to by it will be
 executed instead of its subsystem's (e.g. bus type's) ->suspend() callback and
-anlogously for all of the remaining callbacks.  In other words, power management
-domain callbacks, if defined for the given device, always take precedence over
-the callbacks provided by the device's subsystem (e.g. bus type).
+analogously for all of the remaining callbacks.  In other words, power
+management domain callbacks, if defined for the given device, always take
+precedence over the callbacks provided by the device's subsystem (e.g. bus
+type).
 
 The support for device power management domains is only relevant to platforms
 needing to use the same device driver power management callbacks in many
@@ -539,7 +600,7 @@ it into account in any way.
 Device Low Power (suspend) States
 ---------------------------------
 Device low-power states aren't standard.  One device might only handle
-"on" and "off, while another might support a dozen different versions of
+"on" and "off", while another might support a dozen different versions of
 "on" (how many engines are active?), plus a state that gets back to "on"
 faster than from a full "off".
 
@@ -604,7 +665,7 @@ state temporarily, for example so that its system wakeup capability can be
 disabled.  This all depends on the hardware and the design of the subsystem and
 device driver in question.
 
-During system-wide resume from a sleep state it's best to put devices into the
-full-power state, as explained in Documentation/power/runtime_pm.txt.  Refer to
-that document for more information regarding this particular issue as well as
+During system-wide resume from a sleep state it's easiest to put devices into
+the full-power state, as explained in Documentation/power/runtime_pm.txt.  Refer
+to that document for more information regarding this particular issue as well as
 for information on the device runtime power management framework in general.

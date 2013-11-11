@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+#include <acpi/button.h>
 
 #define PREFIX "ACPI: "
 
@@ -75,9 +76,13 @@ static const struct acpi_device_id button_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, button_device_ids);
 
 static int acpi_button_add(struct acpi_device *device);
-static int acpi_button_remove(struct acpi_device *device, int type);
-static int acpi_button_resume(struct acpi_device *device);
+static int acpi_button_remove(struct acpi_device *device);
 static void acpi_button_notify(struct acpi_device *device, u32 event);
+
+#ifdef CONFIG_PM_SLEEP
+static int acpi_button_resume(struct device *dev);
+#endif
+static SIMPLE_DEV_PM_OPS(acpi_button_pm, NULL, acpi_button_resume);
 
 static struct acpi_driver acpi_button_driver = {
 	.name = "button",
@@ -85,10 +90,10 @@ static struct acpi_driver acpi_button_driver = {
 	.ids = button_device_ids,
 	.ops = {
 		.add = acpi_button_add,
-		.resume = acpi_button_resume,
 		.remove = acpi_button_remove,
 		.notify = acpi_button_notify,
 	},
+	.drv.pm = &acpi_button_pm,
 };
 
 struct acpi_button {
@@ -124,7 +129,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_button_state_seq_show, PDE(inode)->data);
+	return single_open(file, acpi_button_state_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations acpi_button_state_fops = {
@@ -308,14 +313,17 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	}
 }
 
-static int acpi_button_resume(struct acpi_device *device)
+#ifdef CONFIG_PM_SLEEP
+static int acpi_button_resume(struct device *dev)
 {
+	struct acpi_device *device = to_acpi_device(dev);
 	struct acpi_button *button = acpi_driver_data(device);
 
 	if (button->type == ACPI_BUTTON_TYPE_LID)
 		return acpi_lid_send_state(device);
 	return 0;
 }
+#endif
 
 static int acpi_button_add(struct acpi_device *device)
 {
@@ -426,7 +434,7 @@ static int acpi_button_add(struct acpi_device *device)
 	return error;
 }
 
-static int acpi_button_remove(struct acpi_device *device, int type)
+static int acpi_button_remove(struct acpi_device *device)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 
@@ -443,15 +451,4 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int __init acpi_button_init(void)
-{
-	return acpi_bus_register_driver(&acpi_button_driver);
-}
-
-static void __exit acpi_button_exit(void)
-{
-	acpi_bus_unregister_driver(&acpi_button_driver);
-}
-
-module_init(acpi_button_init);
-module_exit(acpi_button_exit);
+module_acpi_driver(acpi_button_driver);

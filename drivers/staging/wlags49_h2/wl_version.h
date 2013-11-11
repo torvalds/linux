@@ -23,7 +23,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -44,7 +44,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -66,7 +66,6 @@
  *  include files
  ******************************************************************************/
 //#include <linux/config.h>
-#include <linux/version.h>
 
 #ifndef CONFIG_MODVERSIONS
 #define __NO_VERSION__
@@ -144,7 +143,8 @@ err: define bus type;
 							" for " BUS_TYPE ", " 											   	 \
 							MODULE_DATE " by " VENDOR_NAME
 
-#define WIRELESS_SUPPORT    15  // The version of wireless extensions we support
+/* The version of wireless extensions we support */
+#define WIRELESS_SUPPORT    21
 
 //#define DBG_MOD_NAME         DRIVER_NAME ":" BUS_TYPE ":" HW_TYPE ":" FW_TYPE
 #define DBG_MOD_NAME        MODULE_NAME
@@ -152,15 +152,12 @@ err: define bus type;
 
 
 /*******************************************************************************
- *  bus architechture specific defines, includes, etc.
+ *  bus architecture specific defines, includes, etc.
  ******************************************************************************/
 /*
  * There doesn't seem to be a difference for PCMCIA and PCI anymore, at least
  * for PCMCIA the same defines are needed now as previously only used for PCI
  */
-#if USE_WEXT
-#define HAS_WIRELESS_EXTENSIONS
-#endif  // USE_WEXT
 
 #define NEW_MULTICAST
 #define ALLOC_SKB(len)   dev_alloc_skb(len+2)

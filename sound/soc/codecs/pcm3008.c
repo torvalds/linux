@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -117,7 +118,7 @@ static int pcm3008_soc_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int pcm3008_soc_suspend(struct snd_soc_codec *codec, pm_message_t msg)
+static int pcm3008_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 
@@ -148,13 +149,13 @@ static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
 	.resume =	pcm3008_soc_resume,
 };
 
-static int __devinit pcm3008_codec_probe(struct platform_device *pdev)
+static int pcm3008_codec_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_pcm3008, &pcm3008_dai, 1);
 }
 
-static int __devexit pcm3008_codec_remove(struct platform_device *pdev)
+static int pcm3008_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -164,24 +165,14 @@ MODULE_ALIAS("platform:pcm3008-codec");
 
 static struct platform_driver pcm3008_codec_driver = {
 	.probe		= pcm3008_codec_probe,
-	.remove		= __devexit_p(pcm3008_codec_remove),
+	.remove		= pcm3008_codec_remove,
 	.driver		= {
 		.name	= "pcm3008-codec",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init pcm3008_modinit(void)
-{
-	return platform_driver_register(&pcm3008_codec_driver);
-}
-module_init(pcm3008_modinit);
-
-static void __exit pcm3008_exit(void)
-{
-	platform_driver_unregister(&pcm3008_codec_driver);
-}
-module_exit(pcm3008_exit);
+module_platform_driver(pcm3008_codec_driver);
 
 MODULE_DESCRIPTION("Soc PCM3008 driver");
 MODULE_AUTHOR("Hugo Villeneuve");

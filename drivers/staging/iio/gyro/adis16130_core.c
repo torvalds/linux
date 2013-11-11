@@ -14,11 +14,10 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "gyro.h"
-#include "../adc/adc.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #define ADIS16130_CON         0x0
 #define ADIS16130_CON_RD      (1 << 6)
@@ -41,181 +40,115 @@
 /**
  * struct adis16130_state - device instance specific data
  * @us:			actual spi_device to write data
- * @indio_dev:		industrial I/O device structure
- * @mode:		24 bits (1) or 16 bits (0)
  * @buf_lock:		mutex to protect tx and rx
  * @buf:		unified tx/rx buffer
  **/
 struct adis16130_state {
 	struct spi_device		*us;
-	struct iio_dev			*indio_dev;
-	u32                             mode;
 	struct mutex			buf_lock;
 	u8				buf[4] ____cacheline_aligned;
 };
 
-static int adis16130_spi_write(struct device *dev, u8 reg_addr,
-		u8 val)
+static int adis16130_spi_read(struct iio_dev *indio_dev, u8 reg_addr, u32 *val)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adis16130_state *st = iio_dev_get_devdata(indio_dev);
-
-	mutex_lock(&st->buf_lock);
-	st->buf[0] = reg_addr;
-	st->buf[1] = val;
-
-	ret = spi_write(st->us, st->buf, 2);
-	mutex_unlock(&st->buf_lock);
-
-	return ret;
-}
-
-static int adis16130_spi_read(struct device *dev, u8 reg_addr,
-		u32 *val)
-{
-	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adis16130_state *st = iio_dev_get_devdata(indio_dev);
+	struct adis16130_state *st = iio_priv(indio_dev);
+	struct spi_message msg;
+	struct spi_transfer xfer = {
+		.tx_buf = st->buf,
+		.rx_buf = st->buf,
+		.len = 4,
+	};
 
 	mutex_lock(&st->buf_lock);
 
 	st->buf[0] = ADIS16130_CON_RD | reg_addr;
-	if (st->mode)
-		ret = spi_read(st->us, st->buf, 4);
-	else
-		ret = spi_read(st->us, st->buf, 3);
+	st->buf[1] = st->buf[2] = st->buf[3] = 0;
 
-	if (ret == 0) {
-		if (st->mode)
-			*val = (st->buf[1] << 16) |
-				(st->buf[2] << 8) |
-				st->buf[3];
-		else
-			*val = (st->buf[1] << 8) | st->buf[2];
-	}
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfer, &msg);
+	ret = spi_sync(st->us, &msg);
+	ret = spi_read(st->us, st->buf, 4);
 
+	if (ret == 0)
+		*val = (st->buf[1] << 16) | (st->buf[2] << 8) | st->buf[3];
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
 }
 
-static ssize_t adis16130_val_read(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+static int adis16130_read_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int *val, int *val2,
+			      long mask)
 {
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	u32 val;
-	ssize_t ret;
+	int ret;
+	u32 temp;
 
 	/* Take the iio_dev status lock */
 	mutex_lock(&indio_dev->mlock);
-	ret =  adis16130_spi_read(dev, this_attr->address, &val);
+	ret =  adis16130_spi_read(indio_dev, chan->address, &temp);
 	mutex_unlock(&indio_dev->mlock);
-
-	if (ret == 0)
-		return sprintf(buf, "%d\n", val);
-	else
+	if (ret)
 		return ret;
+	*val = temp;
+	return IIO_VAL_INT;
 }
 
-static ssize_t adis16130_bitsmode_read(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adis16130_state *st = iio_dev_get_devdata(indio_dev);
-
-	if (st->mode == 1)
-		return sprintf(buf, "s24\n");
-	else
-		return sprintf(buf, "s16\n");
-}
-
-static ssize_t adis16130_bitsmode_write(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
-{
-	int ret;
-	u8 val;
-
-	if (sysfs_streq(buf, "s16"))
-		val = 0;
-	else if (sysfs_streq(buf, "s24"))
-		val = 1;
-	else
-		return -EINVAL;
-
-	ret = adis16130_spi_write(dev, ADIS16130_MODE, val);
-
-	return ret ? ret : len;
-}
-static IIO_DEVICE_ATTR(temp_raw, S_IRUGO, adis16130_val_read, NULL,
-		      ADIS16130_TEMPDATA);
-
-static IIO_DEV_ATTR_GYRO_Z(adis16130_val_read, ADIS16130_RATEDATA);
-
-static IIO_DEVICE_ATTR(gyro_z_type, S_IWUSR | S_IRUGO, adis16130_bitsmode_read,
-			adis16130_bitsmode_write,
-			ADIS16130_MODE);
-
-static IIO_CONST_ATTR(gyro_z_type_available, "s16 s24");
-
-static struct attribute *adis16130_attributes[] = {
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
-	&iio_dev_attr_gyro_z_type.dev_attr.attr,
-	&iio_const_attr_gyro_z_type_available.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group adis16130_attribute_group = {
-	.attrs = adis16130_attributes,
+static const struct iio_chan_spec adis16130_channels[] = {
+	{
+		.type = IIO_ANGL_VEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_Z,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.address = ADIS16130_RATEDATA,
+	}, {
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.channel = 0,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.address = ADIS16130_TEMPDATA,
+	}
 };
 
 static const struct iio_info adis16130_info = {
-	.attrs = &adis16130_attribute_group,
+	.read_raw = &adis16130_read_raw,
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit adis16130_probe(struct spi_device *spi)
+static int adis16130_probe(struct spi_device *spi)
 {
 	int ret;
-	struct adis16130_state *st = kzalloc(sizeof *st, GFP_KERNEL);
-	if (!st) {
-		ret =  -ENOMEM;
+	struct adis16130_state *st;
+	struct iio_dev *indio_dev;
+
+	/* setup the industrialio driver allocated elements */
+	indio_dev = iio_device_alloc(sizeof(*st));
+	if (indio_dev == NULL) {
+		ret = -ENOMEM;
 		goto error_ret;
 	}
+	st = iio_priv(indio_dev);
 	/* this is only used for removal purposes */
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 	st->us = spi;
 	mutex_init(&st->buf_lock);
-	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_free_st;
-	}
+	indio_dev->name = spi->dev.driver->name;
+	indio_dev->channels = adis16130_channels;
+	indio_dev->num_channels = ARRAY_SIZE(adis16130_channels);
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &adis16130_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	st->indio_dev->name = spi->dev.driver->name;
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->info = &adis16130_info;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
-	st->mode = 1;
-
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
 	return 0;
 
 error_free_dev:
-	iio_free_device(st->indio_dev);
-error_free_st:
-	kfree(st);
+	iio_device_free(indio_dev);
+
 error_ret:
 	return ret;
 }
@@ -223,11 +156,8 @@ error_ret:
 /* fixme, confirm ordering in this function */
 static int adis16130_remove(struct spi_device *spi)
 {
-	struct adis16130_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
-
-	iio_device_unregister(indio_dev);
-	kfree(st);
+	iio_device_unregister(spi_get_drvdata(spi));
+	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }
@@ -238,21 +168,11 @@ static struct spi_driver adis16130_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16130_probe,
-	.remove = __devexit_p(adis16130_remove),
+	.remove = adis16130_remove,
 };
-
-static __init int adis16130_init(void)
-{
-	return spi_register_driver(&adis16130_driver);
-}
-module_init(adis16130_init);
-
-static __exit void adis16130_exit(void)
-{
-	spi_unregister_driver(&adis16130_driver);
-}
-module_exit(adis16130_exit);
+module_spi_driver(adis16130_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16130 High Precision Angular Rate");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16130");

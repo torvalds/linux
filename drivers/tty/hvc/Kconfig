@@ -1,3 +1,5 @@
+if TTY
+
 config HVC_DRIVER
 	bool
 	help
@@ -19,15 +21,19 @@ config HVC_CONSOLE
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
 
-config HVC_ISERIES
-	bool "iSeries Hypervisor Virtual Console support"
-	depends on PPC_ISERIES
-	default y
+config HVC_OLD_HVSI
+	bool "Old driver for pSeries serial port (/dev/hvsi*)"
+	depends on HVC_CONSOLE
+	default n
+
+config HVC_OPAL
+	bool "OPAL Console support"
+	depends on PPC_POWERNV
 	select HVC_DRIVER
 	select HVC_IRQ
-	select VIOPATH
+	default y
 	help
-	  iSeries machines support a hypervisor virtual console.
+	  PowerNV machines running under OPAL need that driver to get a console
 
 config HVC_RTAS
 	bool "IBM RTAS Console support"
@@ -62,11 +68,23 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config HVC_XEN_FRONTEND
+	bool "Xen Hypervisor Multiple Consoles support"
+	depends on HVC_XEN
+	select XEN_XENBUS_FRONTEND
+	default y
+	help
+	  Xen driver for secondary virtual consoles
+
 config HVC_UDBG
        bool "udbg based fake hypervisor console"
-       depends on PPC && EXPERIMENTAL
+       depends on PPC
        select HVC_DRIVER
        default n
+       help
+         This is meant to be used during HW bring up or debugging when
+	 no other console mechanism exist but udbg, to get you a quick
+	 console for userspace. Do NOT enable in production kernels. 
 
 config HVC_DCC
        bool "ARM JTAG DCC console"
@@ -103,3 +121,4 @@ config HVCS
 	  which will also be compiled when this driver is built as a
 	  module.
 
+endif # TTY

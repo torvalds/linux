@@ -35,8 +35,6 @@ static struct clk *onchip_clocks[] = {
 	&cpu_clk,
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("master_clk", &master_clk),

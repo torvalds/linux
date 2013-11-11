@@ -15,14 +15,15 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 #include <mach/irqs.h>
 #include <mach/cputype.h>
 #include <mach/mux.h>
 #include <mach/edma.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-davinci.h>
 #include <mach/time.h>
 
+#include "davinci.h"
 #include "clock.h"
 
 #define DAVINCI_I2C_BASE	     0x01C21000
@@ -33,8 +34,19 @@
 #define DM365_MMCSD0_BASE	     0x01D11000
 #define DM365_MMCSD1_BASE	     0x01D00000
 
-/* System control register offsets */
-#define DM64XX_VDD3P3V_PWDN	0x48
+void __iomem  *davinci_sysmod_base;
+
+void davinci_map_sysmod(void)
+{
+	davinci_sysmod_base = ioremap_nocache(DAVINCI_SYSTEM_MODULE_BASE,
+					      0x800);
+	/*
+	 * Throw a bug since a lot of board initialization code depends
+	 * on system module availability. ioremap() failing this early
+	 * need careful looking into anyway.
+	 */
+	BUG_ON(!davinci_sysmod_base);
+}
 
 static struct resource i2c_resources[] = {
 	{
@@ -107,7 +119,7 @@ void __init davinci_init_ide(void)
 	platform_device_register(&ide_device);
 }
 
-#if	defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 static u64 mmcsd0_dma_mask = DMA_BIT_MASK(32);
 
@@ -138,7 +150,7 @@ static struct resource mmcsd0_resources[] = {
 };
 
 static struct platform_device davinci_mmcsd0_device = {
-	.name = "davinci_mmc",
+	.name = "dm6441-mmc",
 	.id = 0,
 	.dev = {
 		.dma_mask = &mmcsd0_dma_mask,
@@ -175,7 +187,7 @@ static struct resource mmcsd1_resources[] = {
 };
 
 static struct platform_device davinci_mmcsd1_device = {
-	.name = "davinci_mmc",
+	.name = "dm6441-mmc",
 	.id = 1,
 	.dev = {
 		.dma_mask = &mmcsd1_dma_mask,
@@ -212,17 +224,18 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 			davinci_cfg_reg(DM355_SD1_DATA2);
 			davinci_cfg_reg(DM355_SD1_DATA3);
 		} else if (cpu_is_davinci_dm365()) {
-			void __iomem *pupdctl1 =
-				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE + 0x7c);
-
 			/* Configure pull down control */
-			__raw_writel((__raw_readl(pupdctl1) & ~0xfc0),
-					pupdctl1);
+			unsigned v;
+
+			v = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_PUPDCTL1));
+			__raw_writel(v & ~0xfc0,
+					DAVINCI_SYSMOD_VIRT(SYSMOD_PUPDCTL1));
 
 			mmcsd1_resources[0].start = DM365_MMCSD1_BASE;
 			mmcsd1_resources[0].end = DM365_MMCSD1_BASE +
 							SZ_4K - 1;
 			mmcsd1_resources[2].start = IRQ_DM365_SDIOINT1;
+			davinci_mmcsd1_device.name = "da830-mmc";
 		} else
 			break;
 
@@ -244,13 +257,12 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 			mmcsd0_resources[0].end = DM365_MMCSD0_BASE +
 							SZ_4K - 1;
 			mmcsd0_resources[2].start = IRQ_DM365_SDIOINT0;
+			davinci_mmcsd0_device.name = "da830-mmc";
 		} else if (cpu_is_davinci_dm644x()) {
 			/* REVISIT: should this be in board-init code? */
-			void __iomem *base =
-				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
-
 			/* Power-on 3.3V IO cells */
-			__raw_writel(0, base + DM64XX_VDD3P3V_PWDN);
+			__raw_writel(0,
+				DAVINCI_SYSMOD_VIRT(SYSMOD_VDD3P3VPWDN));
 			/*Set up the pull regiter for MMC */
 			davinci_cfg_reg(DM644X_MSTK);
 		}
@@ -291,22 +303,17 @@ struct platform_device davinci_wdt_device = {
 	.resource	= wdt_resources,
 };
 
+void davinci_restart(char mode, const char *cmd)
+{
+	davinci_watchdog_reset(&davinci_wdt_device);
+}
+
 static void davinci_init_wdt(void)
 {
 	platform_device_register(&davinci_wdt_device);
 }
 
 /*-------------------------------------------------------------------------*/
-
-static struct platform_device davinci_pcm_device = {
-	.name		= "davinci-pcm-audio",
-	.id		= -1,
-};
-
-static void davinci_init_pcm(void)
-{
-	platform_device_register(&davinci_pcm_device);
-}
 
 /*-------------------------------------------------------------------------*/
 
@@ -330,7 +337,6 @@ static int __init davinci_init_devices(void)
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	davinci_init_pcm();
 	davinci_init_wdt();
 
 	return 0;

@@ -26,7 +26,7 @@
 
 #include <asm/mips-boards/bonito64.h>
 
-#define PCI_ACCESS_READ  0
+#define PCI_ACCESS_READ	 0
 #define PCI_ACCESS_WRITE 1
 
 #define CFG_SPACE_REG(offset) (void *)CKSEG1ADDR(_pcictrl_bonito_pcicfg + (offset))
@@ -137,7 +137,7 @@ static int bonito64_pcibios_write(struct pci_bus *bus, unsigned int devfn,
 		data = val;
 	else {
 		if (bonito64_pcibios_config_access(PCI_ACCESS_READ, bus, devfn,
-		                               where, &data))
+					       where, &data))
 			return -1;
 
 		if (size == 1)

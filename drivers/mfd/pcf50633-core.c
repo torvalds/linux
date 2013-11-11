@@ -23,33 +23,10 @@
 #include <linux/i2c.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/regmap.h>
+#include <linux/err.h>
 
 #include <linux/mfd/pcf50633/core.h>
-
-static int __pcf50633_read(struct pcf50633 *pcf, u8 reg, int num, u8 *data)
-{
-	int ret;
-
-	ret = i2c_smbus_read_i2c_block_data(pcf->i2c_client, reg,
-				num, data);
-	if (ret < 0)
-		dev_err(pcf->dev, "Error reading %d regs at %d\n", num, reg);
-
-	return ret;
-}
-
-static int __pcf50633_write(struct pcf50633 *pcf, u8 reg, int num, u8 *data)
-{
-	int ret;
-
-	ret = i2c_smbus_write_i2c_block_data(pcf->i2c_client, reg,
-				num, data);
-	if (ret < 0)
-		dev_err(pcf->dev, "Error writing %d regs at %d\n", num, reg);
-
-	return ret;
-
-}
 
 /* Read a block of up to 32 regs  */
 int pcf50633_read_block(struct pcf50633 *pcf, u8 reg,
@@ -57,11 +34,11 @@ int pcf50633_read_block(struct pcf50633 *pcf, u8 reg,
 {
 	int ret;
 
-	mutex_lock(&pcf->lock);
-	ret = __pcf50633_read(pcf, reg, nr_regs, data);
-	mutex_unlock(&pcf->lock);
+	ret = regmap_raw_read(pcf->regmap, reg, data, nr_regs);
+	if (ret != 0)
+		return ret;
 
-	return ret;
+	return nr_regs;
 }
 EXPORT_SYMBOL_GPL(pcf50633_read_block);
 
@@ -69,23 +46,18 @@ EXPORT_SYMBOL_GPL(pcf50633_read_block);
 int pcf50633_write_block(struct pcf50633 *pcf , u8 reg,
 					int nr_regs, u8 *data)
 {
-	int ret;
-
-	mutex_lock(&pcf->lock);
-	ret = __pcf50633_write(pcf, reg, nr_regs, data);
-	mutex_unlock(&pcf->lock);
-
-	return ret;
+	return regmap_raw_write(pcf->regmap, reg, data, nr_regs);
 }
 EXPORT_SYMBOL_GPL(pcf50633_write_block);
 
 u8 pcf50633_reg_read(struct pcf50633 *pcf, u8 reg)
 {
-	u8 val;
+	unsigned int val;
+	int ret;
 
-	mutex_lock(&pcf->lock);
-	__pcf50633_read(pcf, reg, 1, &val);
-	mutex_unlock(&pcf->lock);
+	ret = regmap_read(pcf->regmap, reg, &val);
+	if (ret < 0)
+		return -1;
 
 	return val;
 }
@@ -93,56 +65,19 @@ EXPORT_SYMBOL_GPL(pcf50633_reg_read);
 
 int pcf50633_reg_write(struct pcf50633 *pcf, u8 reg, u8 val)
 {
-	int ret;
-
-	mutex_lock(&pcf->lock);
-	ret = __pcf50633_write(pcf, reg, 1, &val);
-	mutex_unlock(&pcf->lock);
-
-	return ret;
+	return regmap_write(pcf->regmap, reg, val);
 }
 EXPORT_SYMBOL_GPL(pcf50633_reg_write);
 
 int pcf50633_reg_set_bit_mask(struct pcf50633 *pcf, u8 reg, u8 mask, u8 val)
 {
-	int ret;
-	u8 tmp;
-
-	val &= mask;
-
-	mutex_lock(&pcf->lock);
-	ret = __pcf50633_read(pcf, reg, 1, &tmp);
-	if (ret < 0)
-		goto out;
-
-	tmp &= ~mask;
-	tmp |= val;
-	ret = __pcf50633_write(pcf, reg, 1, &tmp);
-
-out:
-	mutex_unlock(&pcf->lock);
-
-	return ret;
+	return regmap_update_bits(pcf->regmap, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(pcf50633_reg_set_bit_mask);
 
 int pcf50633_reg_clear_bits(struct pcf50633 *pcf, u8 reg, u8 val)
 {
-	int ret;
-	u8 tmp;
-
-	mutex_lock(&pcf->lock);
-	ret = __pcf50633_read(pcf, reg, 1, &tmp);
-	if (ret < 0)
-		goto out;
-
-	tmp &= ~val;
-	ret = __pcf50633_write(pcf, reg, 1, &tmp);
-
-out:
-	mutex_unlock(&pcf->lock);
-
-	return ret;
+	return regmap_update_bits(pcf->regmap, reg, val, 0);
 }
 EXPORT_SYMBOL_GPL(pcf50633_reg_clear_bits);
 
@@ -251,7 +186,12 @@ static int pcf50633_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pcf50633_pm, pcf50633_suspend, pcf50633_resume);
 
-static int __devinit pcf50633_probe(struct i2c_client *client,
+static struct regmap_config pcf50633_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
+static int pcf50633_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct pcf50633 *pcf;
@@ -264,24 +204,29 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		return -ENOENT;
 	}
 
-	pcf = kzalloc(sizeof(*pcf), GFP_KERNEL);
+	pcf = devm_kzalloc(&client->dev, sizeof(*pcf), GFP_KERNEL);
 	if (!pcf)
 		return -ENOMEM;
 
+	i2c_set_clientdata(client, pcf);
+	pcf->dev = &client->dev;
 	pcf->pdata = pdata;
 
 	mutex_init(&pcf->lock);
 
-	i2c_set_clientdata(client, pcf);
-	pcf->dev = &client->dev;
-	pcf->i2c_client = client;
+	pcf->regmap = devm_regmap_init_i2c(client, &pcf50633_regmap_config);
+	if (IS_ERR(pcf->regmap)) {
+		ret = PTR_ERR(pcf->regmap);
+		dev_err(pcf->dev, "Failed to allocate register map: %d\n", ret);
+		return ret;
+	}
 
 	version = pcf50633_reg_read(pcf, 0);
 	variant = pcf50633_reg_read(pcf, 1);
 	if (version < 0 || variant < 0) {
 		dev_err(pcf->dev, "Unable to probe pcf50633\n");
 		ret = -ENODEV;
-		goto err_free;
+		return ret;
 	}
 
 	dev_info(pcf->dev, "Probed device version %d variant %d\n",
@@ -290,16 +235,11 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 	pcf50633_irq_init(pcf, client->irq);
 
 	/* Create sub devices */
-	pcf50633_client_dev_register(pcf, "pcf50633-input",
-						&pcf->input_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-rtc",
-						&pcf->rtc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-mbc",
-						&pcf->mbc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-adc",
-						&pcf->adc_pdev);
-	pcf50633_client_dev_register(pcf, "pcf50633-backlight",
-						&pcf->bl_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-input", &pcf->input_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-rtc", &pcf->rtc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-mbc", &pcf->mbc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-adc", &pcf->adc_pdev);
+	pcf50633_client_dev_register(pcf, "pcf50633-backlight", &pcf->bl_pdev);
 
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
@@ -312,8 +252,13 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		}
 
 		pdev->dev.parent = pcf->dev;
-		platform_device_add_data(pdev, &pdata->reg_init_data[i],
-					sizeof(pdata->reg_init_data[i]));
+		if (platform_device_add_data(pdev, &pdata->reg_init_data[i],
+					sizeof(pdata->reg_init_data[i])) < 0) {
+			platform_device_put(pdev);
+			dev_err(pcf->dev, "Out of memory for regulator parameters %d\n",
+									i);
+			continue;
+		}
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);
@@ -327,14 +272,9 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		pdata->probe_done(pcf);
 
 	return 0;
-
-err_free:
-	kfree(pcf);
-
-	return ret;
 }
 
-static int __devexit pcf50633_remove(struct i2c_client *client)
+static int pcf50633_remove(struct i2c_client *client)
 {
 	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int i;
@@ -350,8 +290,6 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++)
 		platform_device_unregister(pcf->regulator_pdev[i]);
-
-	kfree(pcf);
 
 	return 0;
 }
@@ -369,7 +307,7 @@ static struct i2c_driver pcf50633_driver = {
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
-	.remove = __devexit_p(pcf50633_remove),
+	.remove = pcf50633_remove,
 };
 
 static int __init pcf50633_init(void)

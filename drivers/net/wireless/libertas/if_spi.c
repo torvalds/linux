@@ -19,7 +19,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/moduleparam.h>
+#include <linux/hardirq.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
@@ -529,10 +531,6 @@ static int if_spi_prog_helper_firmware(struct if_spi_card *card,
 		goto out;
 	err = spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG,
 				IF_SPI_CIC_CMD_DOWNLOAD_OVER);
-		goto out;
-
-	lbs_deb_spi("waiting for helper to boot...\n");
-
 out:
 	if (err)
 		pr_err("failed to load helper firmware (err=%d)\n", err);
@@ -997,6 +995,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 		spin_unlock_irqrestore(&card->buffer_lock, flags);
 		break;
 	default:
+		kfree(packet);
 		netdev_err(priv->dev, "can't transfer buffer of type %d\n",
 			   type);
 		err = -EINVAL;
@@ -1032,7 +1031,6 @@ static irqreturn_t if_spi_host_interrupt(int irq, void *dev_id)
 static int if_spi_init_card(struct if_spi_card *card)
 {
 	struct lbs_private *priv = card->priv;
-	struct spi_device *spi = card->spi;
 	int err, i;
 	u32 scratch;
 	const struct firmware *helper = NULL;
@@ -1066,9 +1064,8 @@ static int if_spi_init_card(struct if_spi_card *card)
 			goto out;
 		}
 
-		err = lbs_get_firmware(&card->spi->dev, NULL, NULL,
-					card->card_id, &fw_table[0], &helper,
-					&mainfw);
+		err = lbs_get_firmware(&card->spi->dev, card->card_id,
+					&fw_table[0], &helper, &mainfw);
 		if (err) {
 			netdev_err(priv->dev, "failed to find firmware (%d)\n",
 				   err);
@@ -1080,8 +1077,9 @@ static int if_spi_init_card(struct if_spi_card *card)
 				"attached to SPI bus_num %d, chip_select %d. "
 				"spi->max_speed_hz=%d\n",
 				card->card_id, card->card_rev,
-				spi->master->bus_num, spi->chip_select,
-				spi->max_speed_hz);
+				card->spi->master->bus_num,
+				card->spi->chip_select,
+				card->spi->max_speed_hz);
 		err = if_spi_prog_helper_firmware(card, helper);
 		if (err)
 			goto out;
@@ -1096,10 +1094,8 @@ static int if_spi_init_card(struct if_spi_card *card)
 		goto out;
 
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
+	release_firmware(helper);
+	release_firmware(mainfw);
 
 	lbs_deb_leave_args(LBS_DEB_SPI, "err %d\n", err);
 
@@ -1128,7 +1124,7 @@ static void if_spi_resume_worker(struct work_struct *work)
 	}
 }
 
-static int __devinit if_spi_probe(struct spi_device *spi)
+static int if_spi_probe(struct spi_device *spi)
 {
 	struct if_spi_card *card;
 	struct lbs_private *priv = NULL;
@@ -1230,7 +1226,7 @@ out:
 	return err;
 }
 
-static int __devexit libertas_spi_remove(struct spi_device *spi)
+static int libertas_spi_remove(struct spi_device *spi)
 {
 	struct if_spi_card *card = spi_get_drvdata(spi);
 	struct lbs_private *priv = card->priv;
@@ -1289,10 +1285,9 @@ static const struct dev_pm_ops if_spi_pm_ops = {
 
 static struct spi_driver libertas_spi_driver = {
 	.probe	= if_spi_probe,
-	.remove = __devexit_p(libertas_spi_remove),
+	.remove = libertas_spi_remove,
 	.driver = {
 		.name	= "libertas_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &if_spi_pm_ops,
 	},

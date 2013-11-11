@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>
@@ -57,12 +57,12 @@ static int index = SNDRV_DEFAULT_IDX1;	/* Index */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int playback_bufsize = 16;
 static int capture_bufsize = 16;
-static int force_ac97;			/* disabled as default */
+static bool force_ac97;			/* disabled as default */
 static int buffer_top;			/* not specified */
-static int use_cache;			/* disabled */
-static int vaio_hack;			/* disabled */
-static int reset_workaround;
-static int reset_workaround_2;
+static bool use_cache;			/* disabled */
+static bool vaio_hack;			/* disabled */
+static bool reset_workaround;
+static bool reset_workaround_2;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
@@ -86,7 +86,7 @@ module_param(reset_workaround_2, bool, 0444);
 MODULE_PARM_DESC(reset_workaround_2, "Enable extended AC97 RESET workaround for some other laptops.");
 
 /* just for backward compatibility */
-static int enable;
+static bool enable;
 module_param(enable, bool, 0444);
 
 
@@ -465,7 +465,7 @@ static int snd_nm256_acquire_irq(struct nm256 *chip)
 	mutex_lock(&chip->irq_mutex);
 	if (chip->irq < 0) {
 		if (request_irq(chip->pci->irq, chip->interrupt, IRQF_SHARED,
-				chip->card->driver, chip)) {
+				KBUILD_MODNAME, chip)) {
 			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->pci->irq);
 			mutex_unlock(&chip->irq_mutex);
 			return -EBUSY;
@@ -928,7 +928,7 @@ static struct snd_pcm_ops snd_nm256_capture_ops = {
 	.mmap =		snd_pcm_lib_mmap_iomem,
 };
 
-static int __devinit
+static int
 snd_nm256_pcm(struct nm256 *chip, int device)
 {
 	struct snd_pcm *pcm;
@@ -1295,7 +1295,7 @@ snd_nm256_ac97_reset(struct snd_ac97 *ac97)
 }
 
 /* create an ac97 mixer interface */
-static int __devinit
+static int
 snd_nm256_mixer(struct nm256 *chip)
 {
 	struct snd_ac97_bus *pbus;
@@ -1336,7 +1336,7 @@ snd_nm256_mixer(struct nm256 *chip)
  * RAM.
  */
 
-static int __devinit
+static int
 snd_nm256_peek_for_sig(struct nm256 *chip)
 {
 	/* The signature is located 1K below the end of video RAM.  */
@@ -1377,14 +1377,15 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * APM event handler, so the card is properly reinitialized after a power
  * event.
  */
-static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
+static int nm256_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -1393,13 +1394,14 @@ static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
 	chip->coeffs_current = 0;
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int nm256_resume(struct pci_dev *pci)
+static int nm256_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 	int i;
 
@@ -1434,7 +1436,12 @@ static int nm256_resume(struct pci_dev *pci)
 	chip->in_resume = 0;
 	return 0;
 }
-#endif /* CONFIG_PM */
+
+static SIMPLE_DEV_PM_OPS(nm256_pm, nm256_suspend, nm256_resume);
+#define NM256_PM_OPS	&nm256_pm
+#else
+#define NM256_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static int snd_nm256_free(struct nm256 *chip)
 {
@@ -1465,7 +1472,7 @@ static int snd_nm256_dev_free(struct snd_device *device)
 	return snd_nm256_free(chip);
 }
 
-static int __devinit
+static int
 snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 		 struct nm256 **chip_ret)
 {
@@ -1632,7 +1639,7 @@ __error:
 
 enum { NM_BLACKLISTED, NM_RESET_WORKAROUND, NM_RESET_WORKAROUND_2 };
 
-static struct snd_pci_quirk nm256_quirks[] __devinitdata = {
+static struct snd_pci_quirk nm256_quirks[] = {
 	/* HP omnibook 4150 has cs4232 codec internally */
 	SND_PCI_QUIRK(0x103c, 0x0007, "HP omnibook 4150", NM_BLACKLISTED),
 	/* Reset workarounds to avoid lock-ups */
@@ -1643,8 +1650,8 @@ static struct snd_pci_quirk nm256_quirks[] __devinitdata = {
 };
 
 
-static int __devinit snd_nm256_probe(struct pci_dev *pci,
-				     const struct pci_device_id *pci_id)
+static int snd_nm256_probe(struct pci_dev *pci,
+			   const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct nm256 *chip;
@@ -1653,7 +1660,8 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 
 	q = snd_pci_quirk_lookup(pci, nm256_quirks);
 	if (q) {
-		snd_printdd(KERN_INFO "nm256: Enabled quirk for %s.\n", q->name);
+		snd_printdd(KERN_INFO "nm256: Enabled quirk for %s.\n",
+			    snd_pci_quirk_name(q));
 		switch (q->value) {
 		case NM_BLACKLISTED:
 			printk(KERN_INFO "nm256: The device is blacklisted. "
@@ -1735,34 +1743,21 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_nm256_remove(struct pci_dev *pci)
+static void snd_nm256_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
 }
 
 
-static struct pci_driver driver = {
-	.name = "NeoMagic 256",
+static struct pci_driver nm256_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
-	.remove = __devexit_p(snd_nm256_remove),
-#ifdef CONFIG_PM
-	.suspend = nm256_suspend,
-	.resume = nm256_resume,
-#endif
+	.remove = snd_nm256_remove,
+	.driver = {
+		.pm = NM256_PM_OPS,
+	},
 };
 
-
-static int __init alsa_card_nm256_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_nm256_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_nm256_init)
-module_exit(alsa_card_nm256_exit)
+module_pci_driver(nm256_driver);

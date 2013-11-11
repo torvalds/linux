@@ -1,75 +1,77 @@
 if ARCH_MSM
 
+comment "Qualcomm MSM SoC Type"
+	depends on (ARCH_MSM8X60 || ARCH_MSM8960)
+
 choice
 	prompt "Qualcomm MSM SoC Type"
 	default ARCH_MSM7X00A
+	depends on !(ARCH_MSM8X60 || ARCH_MSM8960)
 
 config ARCH_MSM7X00A
 	bool "MSM7x00A / MSM7x01A"
-	select MACH_TROUT if !MACH_HALIBUT
 	select ARCH_MSM_ARM11
+	select CPU_V6
+	select GPIO_MSM_V1
+	select MACH_TROUT if !MACH_HALIBUT
+	select MSM_PROC_COMM
 	select MSM_SMD
 	select MSM_SMD_PKG3
-	select CPU_V6
-	select MSM_PROC_COMM
-	select HAS_MSM_DEBUG_UART_PHYS
 
 config ARCH_MSM7X30
 	bool "MSM7x30"
-	select MACH_MSM7X30_SURF # if !
 	select ARCH_MSM_SCORPION
-	select MSM_SMD
-	select MSM_VIC
 	select CPU_V7
+	select GPIO_MSM_V1
+	select MACH_MSM7X30_SURF # if !
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
-	select HAS_MSM_DEBUG_UART_PHYS
+	select MSM_SMD
+	select MSM_VIC
 
 config ARCH_QSD8X50
 	bool "QSD8X50"
-	select MACH_QSD8X50_SURF if !MACH_QSD8X50A_ST1_5
 	select ARCH_MSM_SCORPION
-	select MSM_SMD
-	select MSM_VIC
 	select CPU_V7
+	select GPIO_MSM_V1
+	select MACH_QSD8X50_SURF if !MACH_QSD8X50A_ST1_5
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
-	select HAS_MSM_DEBUG_UART_PHYS
-
-config ARCH_MSM8X60
-	bool "MSM8X60"
-	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3 && !MACH_MSM8X60_SIM \
-				  && !MACH_MSM8X60_FFA)
-	select ARCH_MSM_SCORPIONMP
-	select ARM_GIC
-	select CPU_V7
-	select MSM_V2_TLMM
-	select MSM_GPIOMUX
-	select MSM_SCM if SMP
-
-config ARCH_MSM8960
-	bool "MSM8960"
-	select ARCH_MSM_SCORPIONMP
-	select MACH_MSM8960_SIM if (!MACH_MSM8960_RUMI3)
-	select ARM_GIC
-	select CPU_V7
-	select MSM_V2_TLMM
-	select MSM_GPIOMUX
-	select MSM_SCM if SMP
+	select MSM_SMD
+	select MSM_VIC
 
 endchoice
 
-config MSM_SOC_REV_A
+config ARCH_MSM8X60
+	bool "MSM8X60"
+	select ARM_GIC
+	select CPU_V7
+	select GPIO_MSM_V2
+	select HAVE_SMP
+	select MSM_GPIOMUX
+	select MSM_SCM if SMP
+	select MSM_V2_TLMM
+	select USE_OF
+
+config ARCH_MSM8960
+	bool "MSM8960"
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select MSM_GPIOMUX
+	select MSM_SCM if SMP
+	select MSM_V2_TLMM
+	select USE_OF
+
+config MSM_HAS_DEBUG_UART_HS
 	bool
-config  ARCH_MSM_SCORPIONMP
+
+config MSM_SOC_REV_A
 	bool
 
 config  ARCH_MSM_ARM11
 	bool
 config  ARCH_MSM_SCORPION
-	bool
-
-config HAS_MSM_DEBUG_UART_PHYS
 	bool
 
 config  MSM_VIC
@@ -105,90 +107,12 @@ config MACH_QSD8X50_SURF
 
 config MACH_QSD8X50A_ST1_5
 	depends on ARCH_QSD8X50
-	select MSM_SOC_REV_A
 	bool "QSD8x50A ST1.5"
+	select MSM_SOC_REV_A
 	help
 	  Support for the Qualcomm ST1.5.
 
-config MACH_MSM8X60_RUMI3
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 RUMI3"
-	help
-	  Support for the Qualcomm MSM8x60 RUMI3 emulator.
-
-config MACH_MSM8X60_SURF
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 SURF"
-	help
-	  Support for the Qualcomm MSM8x60 SURF eval board.
-
-config MACH_MSM8X60_SIM
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 Simulator"
-	help
-	  Support for the Qualcomm MSM8x60 simulator.
-
-config MACH_MSM8X60_FFA
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 FFA"
-	help
-	  Support for the Qualcomm MSM8x60 FFA eval board.
-
-config MACH_MSM8960_SIM
-	depends on ARCH_MSM8960
-	bool "MSM8960 Simulator"
-	help
-	  Support for the Qualcomm MSM8960 simulator.
-
-config MACH_MSM8960_RUMI3
-	depends on ARCH_MSM8960
-	bool "MSM8960 RUMI3"
-	help
-	  Support for the Qualcomm MSM8960 RUMI3 emulator.
-
 endmenu
-
-config MSM_IOMMU
-	bool "MSM IOMMU Support"
-	depends on ARCH_MSM8X60 || ARCH_MSM8960
-	select IOMMU_API
-	default n
-	help
-	  Support for the IOMMUs found on certain Qualcomm SOCs.
-	  These IOMMUs allow virtualization of the address space used by most
-	  cores within the multimedia subsystem.
-
-	  If unsure, say N here.
-
-config IOMMU_PGTABLES_L2
-	def_bool y
-	depends on MSM_IOMMU && MMU && SMP && CPU_DCACHE_DISABLE=n
-
-config MSM_DEBUG_UART
-	int
-	default 1 if MSM_DEBUG_UART1
-	default 2 if MSM_DEBUG_UART2
-	default 3 if MSM_DEBUG_UART3
-
-if HAS_MSM_DEBUG_UART_PHYS
-choice
-	prompt "Debug UART"
-
-	default MSM_DEBUG_UART_NONE
-
-	config MSM_DEBUG_UART_NONE
-		bool "None"
-
-	config MSM_DEBUG_UART1
-		bool "UART1"
-
-	config MSM_DEBUG_UART2
-		bool "UART2"
-
-	config MSM_DEBUG_UART3
-		bool "UART3"
-endchoice
-endif
 
 config MSM_SMD_PKG3
 	bool
@@ -203,9 +127,6 @@ config MSM_GPIOMUX
 	bool
 
 config MSM_V2_TLMM
-	bool
-
-config IOMMU_API
 	bool
 
 config MSM_SCM

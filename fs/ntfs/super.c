@@ -1,7 +1,7 @@
 /*
  * super.c - NTFS kernel super block handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
+ * Copyright (c) 2001-2012 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2001,2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -102,9 +102,9 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	char *p, *v, *ov;
 	static char *utf8 = "utf8";
 	int errors = 0, sloppy = 0;
-	uid_t uid = (uid_t)-1;
-	gid_t gid = (gid_t)-1;
-	mode_t fmask = (mode_t)-1, dmask = (mode_t)-1;
+	kuid_t uid = INVALID_UID;
+	kgid_t gid = INVALID_GID;
+	umode_t fmask = (umode_t)-1, dmask = (umode_t)-1;
 	int mft_zone_multiplier = -1, on_errors = -1;
 	int show_sys_files = -1, case_sensitive = -1, disable_sparse = -1;
 	struct nls_table *nls_map = NULL, *old_nls;
@@ -126,6 +126,30 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 			goto needs_arg;					\
 		variable = simple_strtoul(ov = v, &v, 0);		\
 		if (*v)							\
+			goto needs_val;					\
+	}
+#define NTFS_GETOPT_UID(option, variable)				\
+	if (!strcmp(p, option)) {					\
+		uid_t uid_value;					\
+		if (!v || !*v)						\
+			goto needs_arg;					\
+		uid_value = simple_strtoul(ov = v, &v, 0);		\
+		if (*v)							\
+			goto needs_val;					\
+		variable = make_kuid(current_user_ns(), uid_value);	\
+		if (!uid_valid(variable))				\
+			goto needs_val;					\
+	}
+#define NTFS_GETOPT_GID(option, variable)				\
+	if (!strcmp(p, option)) {					\
+		gid_t gid_value;					\
+		if (!v || !*v)						\
+			goto needs_arg;					\
+		gid_value = simple_strtoul(ov = v, &v, 0);		\
+		if (*v)							\
+			goto needs_val;					\
+		variable = make_kgid(current_user_ns(), gid_value);	\
+		if (!gid_valid(variable))				\
 			goto needs_val;					\
 	}
 #define NTFS_GETOPT_OCTAL(option, variable)				\
@@ -165,8 +189,8 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	while ((p = strsep(&opt, ","))) {
 		if ((v = strchr(p, '=')))
 			*v++ = 0;
-		NTFS_GETOPT("uid", uid)
-		else NTFS_GETOPT("gid", gid)
+		NTFS_GETOPT_UID("uid", uid)
+		else NTFS_GETOPT_GID("gid", gid)
 		else NTFS_GETOPT_OCTAL("umask", fmask = dmask)
 		else NTFS_GETOPT_OCTAL("fmask", fmask)
 		else NTFS_GETOPT_OCTAL("dmask", dmask)
@@ -283,13 +307,13 @@ no_mount_options:
 		vol->on_errors = on_errors;
 	if (!vol->on_errors || vol->on_errors == ON_ERRORS_RECOVER)
 		vol->on_errors |= ON_ERRORS_CONTINUE;
-	if (uid != (uid_t)-1)
+	if (uid_valid(uid))
 		vol->uid = uid;
-	if (gid != (gid_t)-1)
+	if (gid_valid(gid))
 		vol->gid = gid;
-	if (fmask != (mode_t)-1)
+	if (fmask != (umode_t)-1)
 		vol->fmask = fmask;
-	if (dmask != (mode_t)-1)
+	if (dmask != (umode_t)-1)
 		vol->dmask = dmask;
 	if (show_sys_files != -1) {
 		if (show_sys_files)
@@ -1023,7 +1047,8 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
 	 * ntfs_read_inode() will have set up the default ones.
 	 */
 	/* Set uid and gid to root. */
-	tmp_ino->i_uid = tmp_ino->i_gid = 0;
+	tmp_ino->i_uid = GLOBAL_ROOT_UID;
+	tmp_ino->i_gid = GLOBAL_ROOT_GID;
 	/* Regular file.  No access for anyone. */
 	tmp_ino->i_mode = S_IFREG;
 	/* No VFS initiated operations allowed for $MFTMirr. */
@@ -1239,7 +1264,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 {
 	MFT_REF mref;
 	struct inode *vi;
-	ntfs_inode *ni;
 	struct page *page;
 	u32 *kaddr, *kend;
 	ntfs_name *name = NULL;
@@ -1290,7 +1314,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 				"is not the system volume.", i_size_read(vi));
 		goto iput_out;
 	}
-	ni = NTFS_I(vi);
 	page = ntfs_map_page(vi->i_mapping, 0);
 	if (IS_ERR(page)) {
 		ntfs_error(vol->sb, "Failed to read from hiberfil.sys.");
@@ -2475,7 +2498,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		/*
 		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
@@ -2485,7 +2508,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 */
 		nr_free -= bitmap_weight(kaddr,
 					PAGE_CACHE_SIZE * BITS_PER_BYTE);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		page_cache_release(page);
 	}
 	ntfs_debug("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
@@ -2546,7 +2569,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		/*
 		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
@@ -2556,7 +2579,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 */
 		nr_free -= bitmap_weight(kaddr,
 					PAGE_CACHE_SIZE * BITS_PER_BYTE);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		page_cache_release(page);
 	}
 	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
@@ -2662,31 +2685,14 @@ static const struct super_operations ntfs_sops = {
 	.alloc_inode	= ntfs_alloc_big_inode,	  /* VFS: Allocate new inode. */
 	.destroy_inode	= ntfs_destroy_big_inode, /* VFS: Deallocate inode. */
 #ifdef NTFS_RW
-	//.dirty_inode	= NULL,			/* VFS: Called from
-	//					   __mark_inode_dirty(). */
 	.write_inode	= ntfs_write_inode,	/* VFS: Write dirty inode to
 						   disk. */
-	//.drop_inode	= NULL,			/* VFS: Called just after the
-	//					   inode reference count has
-	//					   been decreased to zero.
-	//					   NOTE: The inode lock is
-	//					   held. See fs/inode.c::
-	//					   generic_drop_inode(). */
-	//.delete_inode	= NULL,			/* VFS: Delete inode from disk.
-	//					   Called when i_count becomes
-	//					   0 and i_nlink is also 0. */
-	//.write_super	= NULL,			/* Flush dirty super block to
-	//					   disk. */
-	//.sync_fs	= NULL,			/* ? */
-	//.write_super_lockfs	= NULL,		/* ? */
-	//.unlockfs	= NULL,			/* ? */
 #endif /* NTFS_RW */
 	.put_super	= ntfs_put_super,	/* Syscall: umount. */
 	.statfs		= ntfs_statfs,		/* Syscall: statfs */
 	.remount_fs	= ntfs_remount,		/* Syscall: mount -o remount. */
 	.evict_inode	= ntfs_evict_big_inode,	/* VFS: Called when an inode is
 						   removed from memory. */
-	//.umount_begin	= NULL,			/* Forced umount. */
 	.show_options	= ntfs_show_options,	/* Show mount options in
 						   proc. */
 };
@@ -2910,9 +2916,10 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		ntfs_error(sb, "Failed to load system files.");
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
-	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We grab a reference, simulating an ntfs_iget(). */
-		ihold(vol->root_ino);
+
+	/* We grab a reference, simulating an ntfs_iget(). */
+	ihold(vol->root_ino);
+	if ((sb->s_root = d_make_root(vol->root_ino))) {
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
@@ -3072,6 +3079,7 @@ static struct file_system_type ntfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("ntfs");
 
 /* Stable names for the slab caches. */
 static const char ntfs_index_ctx_cache_name[] = "ntfs_index_ctx_cache";
@@ -3160,6 +3168,8 @@ static int __init init_ntfs_fs(void)
 	}
 	printk(KERN_CRIT "NTFS: Failed to register NTFS filesystem driver!\n");
 
+	/* Unregister the ntfs sysctls. */
+	ntfs_sysctl(0);
 sysctl_err_out:
 	kmem_cache_destroy(ntfs_big_inode_cache);
 big_inode_err_out:
@@ -3184,6 +3194,12 @@ static void __exit exit_ntfs_fs(void)
 	ntfs_debug("Unregistering NTFS driver.");
 
 	unregister_filesystem(&ntfs_fs_type);
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ntfs_big_inode_cache);
 	kmem_cache_destroy(ntfs_inode_cache);
 	kmem_cache_destroy(ntfs_name_cache);
@@ -3198,7 +3214,7 @@ MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2011 Anton Altaparm
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG
-module_param(debug_msgs, bool, 0);
+module_param(debug_msgs, bint, 0);
 MODULE_PARM_DESC(debug_msgs, "Enable debug messages.");
 #endif
 

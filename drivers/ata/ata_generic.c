@@ -81,14 +81,13 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 				xfer_mask |= ata_xfer_mode2mask(XFER_MW_DMA_0);
 			}
 
-			ata_dev_printk(dev, KERN_INFO, "configured for %s\n",
-				       name);
+			ata_dev_info(dev, "configured for %s\n", name);
 
 			dev->xfer_mode = ata_xfer_mask2mode(xfer_mask);
 			dev->xfer_shift = ata_xfer_mode2shift(dev->xfer_mode);
 			dev->flags &= ~ATA_DFLAG_PIO;
 		} else {
-			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
+			ata_dev_info(dev, "configured for PIO\n");
 			dev->xfer_mode = XFER_PIO_0;
 			dev->xfer_shift = ATA_SHIFT_PIO;
 			dev->flags |= ATA_DFLAG_PIO;
@@ -178,7 +177,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	if ((id->driver_data & ATA_GEN_CLASS_MATCH) && all_generic_ide == 0)
 		return -ENODEV;
 
-	if (id->driver_data & ATA_GEN_INTEL_IDER)
+	if ((id->driver_data & ATA_GEN_INTEL_IDER) && !all_generic_ide)
 		if (!is_intel_ider(dev))
 			return -ENODEV;
 
@@ -256,25 +255,12 @@ static struct pci_driver ata_generic_pci_driver = {
 #endif
 };
 
-static int __init ata_generic_init(void)
-{
-	return pci_register_driver(&ata_generic_pci_driver);
-}
-
-
-static void __exit ata_generic_exit(void)
-{
-	pci_unregister_driver(&ata_generic_pci_driver);
-}
-
+module_pci_driver(ata_generic_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for generic ATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ata_generic);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ata_generic_init);
-module_exit(ata_generic_exit);
 
 module_param(all_generic_ide, int, 0);

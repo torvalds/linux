@@ -19,12 +19,16 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/platform_data/st1232_pdata.h>
 
 #define ST1232_TS_NAME	"st1232-ts"
 
@@ -46,6 +50,8 @@ struct st1232_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct st1232_ts_finger finger[MAX_FINGERS];
+	struct dev_pm_qos_request low_latency_req;
+	int reset_gpio;
 };
 
 static int st1232_ts_read_data(struct st1232_ts_data *ts)
@@ -118,8 +124,17 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	}
 
 	/* SYN_MT_REPORT only if no contact */
-	if (!count)
+	if (!count) {
 		input_mt_sync(input_dev);
+		if (ts->low_latency_req.dev) {
+			dev_pm_qos_remove_request(&ts->low_latency_req);
+			ts->low_latency_req.dev = NULL;
+		}
+	} else if (!ts->low_latency_req.dev) {
+		/* First contact, request 100 us latency. */
+		dev_pm_qos_add_ancestor_request(&ts->client->dev,
+						&ts->low_latency_req, 100);
+	}
 
 	/* SYN_REPORT */
 	input_sync(input_dev);
@@ -128,10 +143,17 @@ end:
 	return IRQ_HANDLED;
 }
 
-static int __devinit st1232_ts_probe(struct i2c_client *client,
+static void st1232_ts_power(struct st1232_ts_data *ts, bool poweron)
+{
+	if (gpio_is_valid(ts->reset_gpio))
+		gpio_direction_output(ts->reset_gpio, poweron);
+}
+
+static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;
+	struct st1232_pdata *pdata = client->dev.platform_data;
 	struct input_dev *input_dev;
 	int error;
 
@@ -145,16 +167,35 @@ static int __devinit st1232_ts_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	if (!ts)
+		return -ENOMEM;
 
-	ts = kzalloc(sizeof(struct st1232_ts_data), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ts || !input_dev) {
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	ts->client = client;
 	ts->input_dev = input_dev;
+
+	if (pdata)
+		ts->reset_gpio = pdata->reset_gpio;
+	else if (client->dev.of_node)
+		ts->reset_gpio = of_get_gpio(client->dev.of_node, 0);
+	else
+		ts->reset_gpio = -ENODEV;
+
+	if (gpio_is_valid(ts->reset_gpio)) {
+		error = devm_gpio_request(&client->dev, ts->reset_gpio, NULL);
+		if (error) {
+			dev_err(&client->dev,
+				"Unable to request GPIO pin %d.\n",
+				ts->reset_gpio);
+				return error;
+		}
+	}
+
+	st1232_ts_power(ts, true);
 
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
@@ -168,54 +209,50 @@ static int __devinit st1232_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, MIN_X, MAX_X, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, MIN_Y, MAX_Y, 0, 0);
 
-	error = request_threaded_irq(client->irq, NULL, st1232_ts_irq_handler,
-				     IRQF_ONESHOT, client->name, ts);
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, st1232_ts_irq_handler,
+					  IRQF_ONESHOT,
+					  client->name, ts);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_mem;
+		return error;
 	}
 
 	error = input_register_device(ts->input_dev);
 	if (error) {
 		dev_err(&client->dev, "Unable to register %s input device\n",
 			input_dev->name);
-		goto err_free_irq;
+		return error;
 	}
 
 	i2c_set_clientdata(client, ts);
 	device_init_wakeup(&client->dev, 1);
 
 	return 0;
-
-err_free_irq:
-	free_irq(client->irq, ts);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(ts);
-	return error;
 }
 
-static int __devexit st1232_ts_remove(struct i2c_client *client)
+static int st1232_ts_remove(struct i2c_client *client)
 {
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
 	device_init_wakeup(&client->dev, 0);
-	free_irq(client->irq, ts);
-	input_unregister_device(ts->input_dev);
-	kfree(ts);
+	st1232_ts_power(ts, false);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int st1232_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
-	if (device_may_wakeup(&client->dev))
+	if (device_may_wakeup(&client->dev)) {
 		enable_irq_wake(client->irq);
-	else
+	} else {
 		disable_irq(client->irq);
+		st1232_ts_power(ts, false);
+	}
 
 	return 0;
 }
@@ -223,20 +260,22 @@ static int st1232_ts_suspend(struct device *dev)
 static int st1232_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
-	if (device_may_wakeup(&client->dev))
+	if (device_may_wakeup(&client->dev)) {
 		disable_irq_wake(client->irq);
-	else
+	} else {
+		st1232_ts_power(ts, true);
 		enable_irq(client->irq);
+	}
 
 	return 0;
 }
 
-static const struct dev_pm_ops st1232_ts_pm_ops = {
-	.suspend	= st1232_ts_suspend,
-	.resume		= st1232_ts_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(st1232_ts_pm_ops,
+			 st1232_ts_suspend, st1232_ts_resume);
 
 static const struct i2c_device_id st1232_ts_id[] = {
 	{ ST1232_TS_NAME, 0 },
@@ -244,30 +283,27 @@ static const struct i2c_device_id st1232_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id st1232_ts_dt_ids[] = {
+	{ .compatible = "sitronix,st1232", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
+#endif
+
 static struct i2c_driver st1232_ts_driver = {
 	.probe		= st1232_ts_probe,
-	.remove		= __devexit_p(st1232_ts_remove),
+	.remove		= st1232_ts_remove,
 	.id_table	= st1232_ts_id,
 	.driver = {
 		.name	= ST1232_TS_NAME,
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
+		.of_match_table = of_match_ptr(st1232_ts_dt_ids),
 		.pm	= &st1232_ts_pm_ops,
-#endif
 	},
 };
 
-static int __init st1232_ts_init(void)
-{
-	return i2c_add_driver(&st1232_ts_driver);
-}
-module_init(st1232_ts_init);
-
-static void __exit st1232_ts_exit(void)
-{
-	i2c_del_driver(&st1232_ts_driver);
-}
-module_exit(st1232_ts_exit);
+module_i2c_driver(st1232_ts_driver);
 
 MODULE_AUTHOR("Tony SIM <chinyeow.sim.xt@renesas.com>");
 MODULE_DESCRIPTION("SITRONIX ST1232 Touchscreen Controller Driver");

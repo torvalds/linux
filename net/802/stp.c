@@ -12,6 +12,7 @@
 #include <linux/etherdevice.h>
 #include <linux/llc.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/stp.h>
@@ -45,7 +46,7 @@ static int stp_pdu_rcv(struct sk_buff *skb, struct net_device *dev,
 		proto = rcu_dereference(garp_protos[eh->h_dest[5] -
 						    GARP_ADDR_MIN]);
 		if (proto &&
-		    compare_ether_addr(eh->h_dest, proto->group_address))
+		    !ether_addr_equal(eh->h_dest, proto->group_address))
 			goto err;
 	} else
 		proto = rcu_dereference(stp_proto);
@@ -88,9 +89,9 @@ void stp_proto_unregister(const struct stp_proto *proto)
 {
 	mutex_lock(&stp_proto_mutex);
 	if (is_zero_ether_addr(proto->group_address))
-		rcu_assign_pointer(stp_proto, NULL);
+		RCU_INIT_POINTER(stp_proto, NULL);
 	else
-		rcu_assign_pointer(garp_protos[proto->group_address[5] -
+		RCU_INIT_POINTER(garp_protos[proto->group_address[5] -
 					       GARP_ADDR_MIN], NULL);
 	synchronize_rcu();
 

@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/moduleloader.h>
 #include <linux/kernel.h>
 #include <linux/elf.h>
@@ -17,37 +17,6 @@
 
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
-
-void *module_alloc(unsigned long size)
-{
-	void *ret;
-	ret = (size == 0) ? NULL : vmalloc(size);
-	pr_debug("module_alloc (%08lx@%08lx)\n", size, (unsigned long int)ret);
-	return ret;
-}
-
-void module_free(struct module *module, void *region)
-{
-	pr_debug("module_free(%s,%08lx)\n", module->name,
-					(unsigned long)region);
-	vfree(region);
-}
-
-int module_frob_arch_sections(Elf_Ehdr *hdr,
-				Elf_Shdr *sechdrs,
-				char *secstrings,
-				struct module *mod)
-{
-	return 0;
-}
-
-int apply_relocate(Elf32_Shdr *sechdrs, const char *strtab,
-	unsigned int symindex, unsigned int relsec, struct module *module)
-{
-	printk(KERN_ERR "module %s: ADD RELOCATION unsupported\n",
-		module->name);
-	return -ENOEXEC;
-}
 
 int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 	unsigned int symindex, unsigned int relsec, struct module *module)
@@ -131,7 +100,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		case R_MICROBLAZE_64_NONE:
-			pr_debug("R_MICROBLAZE_NONE\n");
+			pr_debug("R_MICROBLAZE_64_NONE\n");
 			break;
 
 		case R_MICROBLAZE_NONE:
@@ -139,8 +108,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: "
-				"Unknown relocation: %u\n",
+			pr_err("module %s: Unknown relocation: %u\n",
 				module->name,
 				ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;
@@ -154,8 +122,4 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 {
 	flush_dcache();
 	return 0;
-}
-
-void module_arch_cleanup(struct module *mod)
-{
 }

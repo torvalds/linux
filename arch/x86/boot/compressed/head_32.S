@@ -32,6 +32,48 @@
 
 	__HEAD
 ENTRY(startup_32)
+#ifdef CONFIG_EFI_STUB
+	jmp	preferred_addr
+
+	/*
+	 * We don't need the return address, so set up the stack so
+	 * efi_main() can find its arguments.
+	 */
+ENTRY(efi_pe_entry)
+	add	$0x4, %esp
+
+	call	make_boot_params
+	cmpl	$0, %eax
+	je	1f
+	movl	0x4(%esp), %esi
+	movl	(%esp), %ecx
+	pushl	%eax
+	pushl	%esi
+	pushl	%ecx
+	sub	$0x4, %esp
+
+ENTRY(efi_stub_entry)
+	add	$0x4, %esp
+	call	efi_main
+	cmpl	$0, %eax
+	movl	%eax, %esi
+	jne	2f
+1:
+	/* EFI init failed, so hang. */
+	hlt
+	jmp	1b
+2:
+	call	3f
+3:
+	popl	%eax
+	subl	$3b, %eax
+	subl	BP_pref_address(%esi), %eax
+	add	BP_code32_start(%esi), %eax
+	leal	preferred_addr(%eax), %eax
+	jmp	*%eax
+
+preferred_addr:
+#endif
 	cld
 	/*
 	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking

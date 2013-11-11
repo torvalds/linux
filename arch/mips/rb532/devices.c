@@ -15,6 +15,7 @@
  *  GNU General Public License for more details.
  */
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -214,9 +215,9 @@ static struct resource rb532_wdt_res[] = {
 };
 
 static struct platform_device rb532_wdt = {
-	.name 		= "rc32434_wdt",
-	.id 		= -1,
-	.resource 	= rb532_wdt_res,
+	.name		= "rc32434_wdt",
+	.id		= -1,
+	.resource	= rb532_wdt_res,
 	.num_resources	= ARRAY_SIZE(rb532_wdt_res),
 };
 
@@ -234,8 +235,8 @@ static struct plat_serial8250_port rb532_uart_res[] = {
 };
 
 static struct platform_device rb532_uart = {
-	.name              = "serial8250",
-	.id                = PLAT8250_DEV_PLATFORM,
+	.name		   = "serial8250",
+	.id		   = PLAT8250_DEV_PLATFORM,
 	.dev.platform_data = &rb532_uart_res,
 };
 
@@ -251,34 +252,28 @@ static struct platform_device *rb532_devs[] = {
 
 static void __init parse_mac_addr(char *macstr)
 {
-	int i, j;
-	unsigned char result, value;
+	int i, h, l;
 
 	for (i = 0; i < 6; i++) {
-		result = 0;
-
 		if (i != 5 && *(macstr + 2) != ':')
 			return;
 
-		for (j = 0; j < 2; j++) {
-			if (isxdigit(*macstr)
-			    && (value =
-				isdigit(*macstr) ? *macstr -
-				'0' : toupper(*macstr) - 'A' + 10) < 16) {
-				result = result * 16 + value;
-				macstr++;
-			} else
-				return;
-		}
+		h = hex_to_bin(*macstr++);
+		if (h == -1)
+			return;
+
+		l = hex_to_bin(*macstr++);
+		if (l == -1)
+			return;
 
 		macstr++;
-		korina_dev0_data.mac[i] = result;
+		korina_dev0_data.mac[i] = (h << 4) + l;
 	}
 }
 
 
 /* NAND definitions */
-#define NAND_CHIP_DELAY	25
+#define NAND_CHIP_DELAY 25
 
 static void __init rb532_nand_setup(void)
 {
@@ -298,7 +293,6 @@ static void __init rb532_nand_setup(void)
 	rb532_nand_data.chip.nr_partitions = ARRAY_SIZE(rb532_partition_info);
 	rb532_nand_data.chip.partitions = rb532_partition_info;
 	rb532_nand_data.chip.chip_delay = NAND_CHIP_DELAY;
-	rb532_nand_data.chip.options = NAND_NO_AUTOINCR;
 }
 
 

@@ -46,7 +46,7 @@ static inline int exofs_add_nondir(struct dentry *dentry, struct inode *inode)
 }
 
 static struct dentry *exofs_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	struct inode *inode;
 	ino_t ino;
@@ -55,17 +55,12 @@ static struct dentry *exofs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	ino = exofs_inode_by_name(dir, dentry);
-	inode = NULL;
-	if (ino) {
-		inode = exofs_iget(dir->i_sb, ino);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
-	}
+	inode = ino ? exofs_iget(dir->i_sb, ino) : NULL;
 	return d_splice_alias(inode, dentry);
 }
 
-static int exofs_create(struct inode *dir, struct dentry *dentry, int mode,
-			 struct nameidata *nd)
+static int exofs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+			 bool excl)
 {
 	struct inode *inode = exofs_new_inode(dir, mode);
 	int err = PTR_ERR(inode);
@@ -79,7 +74,7 @@ static int exofs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return err;
 }
 
-static int exofs_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int exofs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       dev_t rdev)
 {
 	struct inode *inode;
@@ -148,9 +143,6 @@ static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct inode *inode = old_dentry->d_inode;
 
-	if (inode->i_nlink >= EXOFS_LINK_MAX)
-		return -EMLINK;
-
 	inode->i_ctime = CURRENT_TIME;
 	inode_inc_link_count(inode);
 	ihold(inode);
@@ -158,13 +150,10 @@ static int exofs_link(struct dentry *old_dentry, struct inode *dir,
 	return exofs_add_nondir(dentry, inode);
 }
 
-static int exofs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int exofs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
-	int err = -EMLINK;
-
-	if (dir->i_nlink >= EXOFS_LINK_MAX)
-		goto out;
+	int err;
 
 	inode_inc_link_count(dir);
 
@@ -280,11 +269,6 @@ static int exofs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (err)
 			goto out_dir;
 	} else {
-		if (dir_de) {
-			err = -EMLINK;
-			if (new_dir->i_nlink >= EXOFS_LINK_MAX)
-				goto out_dir;
-		}
 		err = exofs_add_link(new_dentry, old_inode);
 		if (err)
 			goto out_dir;

@@ -110,19 +110,16 @@ static struct kmsg_dumper dw_dumper;
 static int dumper_registered;
 
 static void dw_kmsg_dump(struct kmsg_dumper *dumper,
-			enum kmsg_dump_reason reason,
-			const char *s1, unsigned long l1,
-			const char *s2, unsigned long l2)
+			 enum kmsg_dump_reason reason)
 {
-	int i;
+	static char line[1024];
+	size_t len;
 
 	/* When run to this, we'd better re-init the HW */
 	mrst_early_console_init();
 
-	for (i = 0; i < l1; i++)
-		early_mrst_console.write(&early_mrst_console, s1 + i, 1);
-	for (i = 0; i < l2; i++)
-		early_mrst_console.write(&early_mrst_console, s2 + i, 1);
+	while (kmsg_dump_get_line(dumper, true, line, sizeof(line), &len))
+		early_mrst_console.write(&early_mrst_console, line, len);
 }
 
 /* Set the ratio rate to 115200, 8n1, IRQ disabled */
@@ -245,16 +242,24 @@ struct console early_mrst_console = {
  * Following is the early console based on Medfield HSU (High
  * Speed UART) device.
  */
-#define HSU_PORT2_PADDR		0xffa28180
+#define HSU_PORT_BASE		0xffa28080
 
 static void __iomem *phsu;
 
-void hsu_early_console_init(void)
+void hsu_early_console_init(const char *s)
 {
+	unsigned long paddr, port = 0;
 	u8 lcr;
 
-	phsu = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE,
-							HSU_PORT2_PADDR);
+	/*
+	 * Select the early HSU console port if specified by user in the
+	 * kernel command line.
+	 */
+	if (*s && !kstrtoul(s, 10, &port))
+		port = clamp_val(port, 0, 2);
+
+	paddr = HSU_PORT_BASE + port * 0x80;
+	phsu = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE, paddr);
 
 	/* Disable FIFO */
 	writeb(0x0, phsu + UART_FCR);

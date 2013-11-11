@@ -1,0 +1,325 @@
+<section id="selection-api">
+
+  <title>Experimental API for cropping, composing and scaling</title>
+
+      <note>
+	<title>Experimental</title>
+
+	<para>This is an <link linkend="experimental">experimental</link>
+interface and may change in the future.</para>
+      </note>
+
+  <section>
+    <title>Introduction</title>
+
+<para>Some video capture devices can sample a subsection of a picture and
+shrink or enlarge it to an image of arbitrary size. Next, the devices can
+insert the image into larger one. Some video output devices can crop part of an
+input image, scale it up or down and insert it at an arbitrary scan line and
+horizontal offset into a video signal. We call these abilities cropping,
+scaling and composing.</para>
+
+<para>On a video <emphasis>capture</emphasis> device the source is a video
+signal, and the cropping target determine the area actually sampled. The sink
+is an image stored in a memory buffer.  The composing area specifies which part
+of the buffer is actually written to by the hardware. </para>
+
+<para>On a video <emphasis>output</emphasis> device the source is an image in a
+memory buffer, and the cropping target is a part of an image to be shown on a
+display. The sink is the display or the graphics screen. The application may
+select the part of display where the image should be displayed. The size and
+position of such a window is controlled by the compose target.</para>
+
+<para>Rectangles for all cropping and composing targets are defined even if the
+device does supports neither cropping nor composing. Their size and position
+will be fixed in such a case. If the device does not support scaling then the
+cropping and composing rectangles have the same size.</para>
+
+  </section>
+
+    <section>
+      <title>Selection targets</title>
+
+      <para>
+      <figure id="sel-targets-capture">
+	<title>Cropping and composing targets</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="selection.png" format="PNG" />
+	  </imageobject>
+	  <textobject>
+	    <phrase>Targets used by a cropping, composing and scaling
+            process</phrase>
+	  </textobject>
+	</mediaobject>
+      </figure>
+      </para>
+
+      <para>See <xref linkend="v4l2-selection-targets" /> for more
+    information.</para>
+    </section>
+
+  <section>
+
+  <title>Configuration</title>
+
+<para>Applications can use the <link linkend="vidioc-g-selection">selection
+API</link> to select an area in a video signal or a buffer, and to query for
+default settings and hardware limits.</para>
+
+<para>Video hardware can have various cropping, composing and scaling
+limitations. It may only scale up or down, support only discrete scaling
+factors, or have different scaling abilities in the horizontal and vertical
+directions. Also it may not support scaling at all. At the same time the
+cropping/composing rectangles may have to be aligned, and both the source and
+the sink may have arbitrary upper and lower size limits. Therefore, as usual,
+drivers are expected to adjust the requested parameters and return the actual
+values selected. An application can control the rounding behaviour using <link
+linkend="v4l2-selection-flags"> constraint flags </link>.</para>
+
+   <section>
+
+   <title>Configuration of video capture</title>
+
+<para>See figure <xref linkend="sel-targets-capture" /> for examples of the
+selection targets available for a video capture device.  It is recommended to
+configure the cropping targets before to the composing targets.</para>
+
+<para>The range of coordinates of the top left corner, width and height of
+areas that can be sampled is given by the <constant> V4L2_SEL_TGT_CROP_BOUNDS
+</constant> target. It is recommended for the driver developers to put the
+top/left corner at position <constant> (0,0) </constant>.  The rectangle's
+coordinates are expressed in pixels.</para>
+
+<para>The top left corner, width and height of the source rectangle, that is
+the area actually sampled, is given by the <constant> V4L2_SEL_TGT_CROP
+</constant> target. It uses the same coordinate system as <constant>
+V4L2_SEL_TGT_CROP_BOUNDS </constant>. The active cropping area must lie
+completely inside the capture boundaries. The driver may further adjust the
+requested size and/or position according to hardware limitations.</para>
+
+<para>Each capture device has a default source rectangle, given by the
+<constant> V4L2_SEL_TGT_CROP_DEFAULT </constant> target. This rectangle shall
+over what the driver writer considers the complete picture.  Drivers shall set
+the active crop rectangle to the default when the driver is first loaded, but
+not later.</para>
+
+<para>The composing targets refer to a memory buffer. The limits of composing
+coordinates are obtained using <constant> V4L2_SEL_TGT_COMPOSE_BOUNDS
+</constant>.  All coordinates are expressed in pixels. The rectangle's top/left
+corner must be located at position <constant> (0,0) </constant>. The width and
+height are equal to the image size set by <constant> VIDIOC_S_FMT </constant>.
+</para>
+
+<para>The part of a buffer into which the image is inserted by the hardware is
+controlled by the <constant> V4L2_SEL_TGT_COMPOSE </constant> target.
+The rectangle's coordinates are also expressed in the same coordinate system as
+the bounds rectangle. The composing rectangle must lie completely inside bounds
+rectangle. The driver must adjust the composing rectangle to fit to the
+bounding limits. Moreover, the driver can perform other adjustments according
+to hardware limitations. The application can control rounding behaviour using
+<link linkend="v4l2-selection-flags"> constraint flags </link>.</para>
+
+<para>For capture devices the default composing rectangle is queried using
+<constant> V4L2_SEL_TGT_COMPOSE_DEFAULT </constant>. It is usually equal to the
+bounding rectangle.</para>
+
+<para>The part of a buffer that is modified by the hardware is given by
+<constant> V4L2_SEL_TGT_COMPOSE_PADDED </constant>. It contains all pixels
+defined using <constant> V4L2_SEL_TGT_COMPOSE </constant> plus all
+padding data modified by hardware during insertion process. All pixels outside
+this rectangle <emphasis>must not</emphasis> be changed by the hardware. The
+content of pixels that lie inside the padded area but outside active area is
+undefined. The application can use the padded and active rectangles to detect
+where the rubbish pixels are located and remove them if needed.</para>
+
+   </section>
+
+   <section>
+
+   <title>Configuration of video output</title>
+
+<para>For output devices targets and ioctls are used similarly to the video
+capture case. The <emphasis> composing </emphasis> rectangle refers to the
+insertion of an image into a video signal. The cropping rectangles refer to a
+memory buffer. It is recommended to configure the composing targets before to
+the cropping targets.</para>
+
+<para>The cropping targets refer to the memory buffer that contains an image to
+be inserted into a video signal or graphical screen. The limits of cropping
+coordinates are obtained using <constant> V4L2_SEL_TGT_CROP_BOUNDS </constant>.
+All coordinates are expressed in pixels. The top/left corner is always point
+<constant> (0,0) </constant>.  The width and height is equal to the image size
+specified using <constant> VIDIOC_S_FMT </constant> ioctl.</para>
+
+<para>The top left corner, width and height of the source rectangle, that is
+the area from which image date are processed by the hardware, is given by the
+<constant> V4L2_SEL_TGT_CROP </constant>. Its coordinates are expressed
+in in the same coordinate system as the bounds rectangle. The active cropping
+area must lie completely inside the crop boundaries and the driver may further
+adjust the requested size and/or position according to hardware
+limitations.</para>
+
+<para>For output devices the default cropping rectangle is queried using
+<constant> V4L2_SEL_TGT_CROP_DEFAULT </constant>. It is usually equal to the
+bounding rectangle.</para>
+
+<para>The part of a video signal or graphics display where the image is
+inserted by the hardware is controlled by <constant>
+V4L2_SEL_TGT_COMPOSE </constant> target.  The rectangle's coordinates
+are expressed in pixels. The composing rectangle must lie completely inside the
+bounds rectangle.  The driver must adjust the area to fit to the bounding
+limits.  Moreover, the driver can perform other adjustments according to
+hardware limitations. </para>
+
+<para>The device has a default composing rectangle, given by the <constant>
+V4L2_SEL_TGT_COMPOSE_DEFAULT </constant> target. This rectangle shall cover what
+the driver writer considers the complete picture. It is recommended for the
+driver developers to put the top/left corner at position <constant> (0,0)
+</constant>. Drivers shall set the active composing rectangle to the default
+one when the driver is first loaded.</para>
+
+<para>The devices may introduce additional content to video signal other than
+an image from memory buffers.  It includes borders around an image. However,
+such a padded area is driver-dependent feature not covered by this document.
+Driver developers are encouraged to keep padded rectangle equal to active one.
+The padded target is accessed by the <constant> V4L2_SEL_TGT_COMPOSE_PADDED
+</constant> identifier.  It must contain all pixels from the <constant>
+V4L2_SEL_TGT_COMPOSE </constant> target.</para>
+
+   </section>
+
+   <section>
+
+     <title>Scaling control</title>
+
+<para>An application can detect if scaling is performed by comparing the width
+and the height of rectangles obtained using <constant> V4L2_SEL_TGT_CROP
+</constant> and <constant> V4L2_SEL_TGT_COMPOSE </constant> targets. If
+these are not equal then the scaling is applied. The application can compute
+the scaling ratios using these values.</para>
+
+   </section>
+
+  </section>
+
+  <section>
+
+    <title>Comparison with old cropping API</title>
+
+<para>The selection API was introduced to cope with deficiencies of previous
+<link linkend="crop"> API </link>, that was designed to control simple capture
+devices. Later the cropping API was adopted by video output drivers. The ioctls
+are used to select a part of the display were the video signal is inserted. It
+should be considered as an API abuse because the described operation is
+actually the composing.  The selection API makes a clear distinction between
+composing and cropping operations by setting the appropriate targets.  The V4L2
+API lacks any support for composing to and cropping from an image inside a
+memory buffer.  The application could configure a capture device to fill only a
+part of an image by abusing V4L2 API.  Cropping a smaller image from a larger
+one is achieved by setting the field
+&v4l2-pix-format;<structfield>::bytesperline</structfield>.  Introducing an image offsets
+could be done by modifying field &v4l2-buffer;<structfield>::m_userptr</structfield>
+before calling <constant> VIDIOC_QBUF </constant>. Those
+operations should be avoided because they are not portable (endianness), and do
+not work for macroblock and Bayer formats and mmap buffers.  The selection API
+deals with configuration of buffer cropping/composing in a clear, intuitive and
+portable way.  Next, with the selection API the concepts of the padded target
+and constraints flags are introduced.  Finally, &v4l2-crop; and &v4l2-cropcap;
+have no reserved fields. Therefore there is no way to extend their functionality.
+The new &v4l2-selection; provides a lot of place for future
+extensions.  Driver developers are encouraged to implement only selection API.
+The former cropping API would be simulated using the new one. </para>
+
+  </section>
+
+   <section>
+      <title>Examples</title>
+      <example>
+	<title>Resetting the cropping parameters</title>
+
+	<para>(A video capture device is assumed; change <constant>
+V4L2_BUF_TYPE_VIDEO_CAPTURE </constant> for other devices; change target to
+<constant> V4L2_SEL_TGT_COMPOSE_* </constant> family to configure composing
+area)</para>
+
+	<programlisting>
+
+	&v4l2-selection; sel = {
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.target = V4L2_SEL_TGT_CROP_DEFAULT,
+	};
+	ret = ioctl(fd, &VIDIOC-G-SELECTION;, &amp;sel);
+	if (ret)
+		exit(-1);
+	sel.target = V4L2_SEL_TGT_CROP;
+	ret = ioctl(fd, &VIDIOC-S-SELECTION;, &amp;sel);
+	if (ret)
+		exit(-1);
+
+        </programlisting>
+      </example>
+
+      <example>
+	<title>Simple downscaling</title>
+	<para>Setting a composing area on output of size of <emphasis> at most
+</emphasis> half of limit placed at a center of a display.</para>
+	<programlisting>
+
+	&v4l2-selection; sel = {
+		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+		.target = V4L2_SEL_TGT_COMPOSE_BOUNDS,
+	};
+	struct v4l2_rect r;
+
+	ret = ioctl(fd, &VIDIOC-G-SELECTION;, &amp;sel);
+	if (ret)
+		exit(-1);
+	/* setting smaller compose rectangle */
+	r.width = sel.r.width / 2;
+	r.height = sel.r.height / 2;
+	r.left = sel.r.width / 4;
+	r.top = sel.r.height / 4;
+	sel.r = r;
+	sel.target = V4L2_SEL_TGT_COMPOSE;
+	sel.flags = V4L2_SEL_FLAG_LE;
+	ret = ioctl(fd, &VIDIOC-S-SELECTION;, &amp;sel);
+	if (ret)
+		exit(-1);
+
+        </programlisting>
+      </example>
+
+      <example>
+	<title>Querying for scaling factors</title>
+	<para>A video output device is assumed; change <constant>
+V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> for other devices</para>
+	<programlisting>
+
+	&v4l2-selection; compose = {
+		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+		.target = V4L2_SEL_TGT_COMPOSE,
+	};
+	&v4l2-selection; crop = {
+		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+		.target = V4L2_SEL_TGT_CROP,
+	};
+	double hscale, vscale;
+
+	ret = ioctl(fd, &VIDIOC-G-SELECTION;, &amp;compose);
+	if (ret)
+		exit(-1);
+	ret = ioctl(fd, &VIDIOC-G-SELECTION;, &amp;crop);
+	if (ret)
+		exit(-1);
+
+	/* computing scaling factors */
+	hscale = (double)compose.r.width / crop.r.width;
+	vscale = (double)compose.r.height / crop.r.height;
+
+	</programlisting>
+      </example>
+
+   </section>
+
+</section>

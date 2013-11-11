@@ -62,7 +62,7 @@
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
 
 /* local variables */
-static int debug;
+static bool debug;
 static char *bridge;
 static u8 bridge_busnr;
 static u8 bridge_slot;
@@ -154,12 +154,8 @@ static int __init cpcihp_generic_init(void)
 	if(!r)
 		return -EBUSY;
 
-	bus = pci_find_bus(0, bridge_busnr);
-	if (!bus) {
-		err("Invalid bus number %d", bridge_busnr);
-		return -EINVAL;
-	}
-	dev = pci_get_slot(bus, PCI_DEVFN(bridge_slot, 0));
+	dev = pci_get_domain_bus_and_slot(0, bridge_busnr,
+					  PCI_DEVFN(bridge_slot, 0));
 	if(!dev || dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 		err("Invalid bridge device %s", bridge);
 		pci_dev_put(dev);

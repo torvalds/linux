@@ -251,13 +251,15 @@ syscall_badsys:
 	.global ret_from_fork
 ret_from_fork:
 	call   schedule_tail
+	mov	r12, 0
+	rjmp	syscall_return
 
-	/* check for syscall tracing */
-	get_thread_info r0
-	ld.w	r1, r0[TI_flags]
-	andl	r1, _TIF_ALLWORK_MASK, COH
-	brne	syscall_exit_work
-	rjmp    syscall_exit_cont
+	.global ret_from_kernel_thread
+ret_from_kernel_thread:
+	call   schedule_tail
+	mov	r12, r0
+	mov	lr, r2	/* syscall_return */
+	mov	pc, r1
 
 syscall_trace_enter:
 	pushm	r8-r12
@@ -281,7 +283,7 @@ syscall_exit_work:
 	ld.w	r1, r0[TI_flags]
 	rjmp	1b
 
-2:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NOTIFY_RESUME
+2:	mov	r2, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	tst	r1, r2
 	breq	3f
 	unmask_interrupts
@@ -587,7 +589,7 @@ fault_exit_work:
 	ld.w	r1, r0[TI_flags]
 	rjmp	fault_exit_work
 
-1:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK
+1:	mov	r2, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	tst	r1, r2
 	breq	2f
 	unmask_interrupts

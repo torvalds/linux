@@ -26,11 +26,6 @@
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
 
-/* TokenRing if needed */
-#ifdef CONFIG_TR
-#include <linux/trdevice.h>
-#endif
-
 /* And atm device */
 #include <linux/atmdev.h>
 #include <linux/atmlec.h>
@@ -163,50 +158,6 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 #endif /* defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE) */
 
 /*
- * Modelled after tr_type_trans
- * All multicast and ARE or STE frames go to BUS.
- * Non source routed frames go by destination address.
- * Last hop source routed frames go by destination address.
- * Not last hop source routed frames go by _next_ route descriptor.
- * Returns pointer to destination MAC address or fills in rdesc
- * and returns NULL.
- */
-#ifdef CONFIG_TR
-static unsigned char *get_tr_dst(unsigned char *packet, unsigned char *rdesc)
-{
-	struct trh_hdr *trh;
-	unsigned int riflen, num_rdsc;
-
-	trh = (struct trh_hdr *)packet;
-	if (trh->daddr[0] & (uint8_t) 0x80)
-		return bus_mac;	/* multicast */
-
-	if (trh->saddr[0] & TR_RII) {
-		riflen = (ntohs(trh->rcf) & TR_RCF_LEN_MASK) >> 8;
-		if ((ntohs(trh->rcf) >> 13) != 0)
-			return bus_mac;	/* ARE or STE */
-	} else
-		return trh->daddr;	/* not source routed */
-
-	if (riflen < 6)
-		return trh->daddr;	/* last hop, source routed */
-
-	/* riflen is 6 or more, packet has more than one route descriptor */
-	num_rdsc = (riflen / 2) - 1;
-	memset(rdesc, 0, ETH_ALEN);
-	/* offset 4 comes from LAN destination field in LE control frames */
-	if (trh->rcf & htons((uint16_t) TR_RCF_DIR_BIT))
-		memcpy(&rdesc[4], &trh->rseg[num_rdsc - 2], sizeof(__be16));
-	else {
-		memcpy(&rdesc[4], &trh->rseg[1], sizeof(__be16));
-		rdesc[5] = ((ntohs(trh->rseg[0]) & 0x000f) | (rdesc[5] & 0xf0));
-	}
-
-	return NULL;
-}
-#endif /* CONFIG_TR */
-
-/*
  * Open/initialize the netdevice. This is called (in the current kernel)
  * sometime after booting when the 'ifconfig' program is run.
  *
@@ -257,9 +208,6 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 	struct lec_arp_table *entry;
 	unsigned char *dst;
 	int min_frame_size;
-#ifdef CONFIG_TR
-	unsigned char rdesc[ETH_ALEN];	/* Token Ring route descriptor */
-#endif
 	int is_rdesc;
 
 	pr_debug("called\n");
@@ -283,30 +231,18 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 	if (skb_headroom(skb) < 2) {
 		pr_debug("reallocating skb\n");
 		skb2 = skb_realloc_headroom(skb, LEC_HEADER_LEN);
-		kfree_skb(skb);
-		if (skb2 == NULL)
+		if (unlikely(!skb2)) {
+			kfree_skb(skb);
 			return NETDEV_TX_OK;
+		}
+		consume_skb(skb);
 		skb = skb2;
 	}
 	skb_push(skb, 2);
 
-	/* Put le header to place, works for TokenRing too */
+	/* Put le header to place */
 	lec_h = (struct lecdatahdr_8023 *)skb->data;
 	lec_h->le_header = htons(priv->lecid);
-
-#ifdef CONFIG_TR
-	/*
-	 * Ugly. Use this to realign Token Ring packets for
-	 * e.g. PCA-200E driver.
-	 */
-	if (priv->is_trdev) {
-		skb2 = skb_realloc_headroom(skb, LEC_HEADER_LEN);
-		kfree_skb(skb);
-		if (skb2 == NULL)
-			return NETDEV_TX_OK;
-		skb = skb2;
-	}
-#endif
 
 #if DUMP_PACKETS >= 2
 #define MAX_DUMP_SKB 99
@@ -321,12 +257,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 #endif /* DUMP_PACKETS >= 1 */
 
 	/* Minimum ethernet-frame size */
-#ifdef CONFIG_TR
-	if (priv->is_trdev)
-		min_frame_size = LEC_MINIMUM_8025_SIZE;
-	else
-#endif
-		min_frame_size = LEC_MINIMUM_8023_SIZE;
+	min_frame_size = LEC_MINIMUM_8023_SIZE;
 	if (skb->len < min_frame_size) {
 		if ((skb->len + skb_tailroom(skb)) < min_frame_size) {
 			skb2 = skb_copy_expand(skb, 0,
@@ -345,15 +276,6 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 	/* Send to right vcc */
 	is_rdesc = 0;
 	dst = lec_h->h_dest;
-#ifdef CONFIG_TR
-	if (priv->is_trdev) {
-		dst = get_tr_dst(skb->data + 2, rdesc);
-		if (dst == NULL) {
-			dst = rdesc;
-			is_rdesc = 1;
-		}
-	}
-#endif
 	entry = NULL;
 	vcc = lec_arp_resolve(priv, dst, is_rdesc, &entry);
 	pr_debug("%s:vcc:%p vcc_flags:%lx, entry:%p\n",
@@ -643,7 +565,7 @@ static const struct net_device_ops lec_netdev_ops = {
 	.ndo_start_xmit		= lec_start_xmit,
 	.ndo_change_mtu		= lec_change_mtu,
 	.ndo_tx_timeout		= lec_tx_timeout,
-	.ndo_set_multicast_list	= lec_set_multicast_list,
+	.ndo_set_rx_mode	= lec_set_multicast_list,
 };
 
 static const unsigned char lec_ctrl_magic[] = {
@@ -710,12 +632,7 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 			dev_kfree_skb(skb);
 			return;
 		}
-#ifdef CONFIG_TR
-		if (priv->is_trdev)
-			dst = ((struct lecdatahdr_8025 *)skb->data)->h_dest;
-		else
-#endif
-			dst = ((struct lecdatahdr_8023 *)skb->data)->h_dest;
+		dst = ((struct lecdatahdr_8023 *)skb->data)->h_dest;
 
 		/*
 		 * If this is a Data Direct VCC, and the VCC does not match
@@ -723,16 +640,7 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		 */
 		spin_lock_irqsave(&priv->lec_arp_lock, flags);
 		if (lec_is_data_direct(vcc)) {
-#ifdef CONFIG_TR
-			if (priv->is_trdev)
-				src =
-				    ((struct lecdatahdr_8025 *)skb->data)->
-				    h_source;
-			else
-#endif
-				src =
-				    ((struct lecdatahdr_8023 *)skb->data)->
-				    h_source;
+			src = ((struct lecdatahdr_8023 *)skb->data)->h_source;
 			entry = lec_arp_find(priv, src);
 			if (entry && entry->vcc != vcc) {
 				lec_arp_remove(priv, entry);
@@ -750,12 +658,7 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 		if (!hlist_empty(&priv->lec_arp_empty_ones))
 			lec_arp_check_empties(priv, vcc, skb);
 		skb_pull(skb, 2);	/* skip lec_id */
-#ifdef CONFIG_TR
-		if (priv->is_trdev)
-			skb->protocol = tr_type_trans(skb, dev);
-		else
-#endif
-			skb->protocol = eth_type_trans(skb, dev);
+		skb->protocol = eth_type_trans(skb, dev);
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += skb->len;
 		memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));
@@ -827,27 +730,13 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		i = 0;
 	else
 		i = arg;
-#ifdef CONFIG_TR
 	if (arg >= MAX_LEC_ITF)
 		return -EINVAL;
-#else				/* Reserve the top NUM_TR_DEVS for TR */
-	if (arg >= (MAX_LEC_ITF - NUM_TR_DEVS))
-		return -EINVAL;
-#endif
 	if (!dev_lec[i]) {
-		int is_trdev, size;
-
-		is_trdev = 0;
-		if (i >= (MAX_LEC_ITF - NUM_TR_DEVS))
-			is_trdev = 1;
+		int size;
 
 		size = sizeof(struct lec_priv);
-#ifdef CONFIG_TR
-		if (is_trdev)
-			dev_lec[i] = alloc_trdev(size);
-		else
-#endif
-			dev_lec[i] = alloc_etherdev(size);
+		dev_lec[i] = alloc_etherdev(size);
 		if (!dev_lec[i])
 			return -ENOMEM;
 		dev_lec[i]->netdev_ops = &lec_netdev_ops;
@@ -858,7 +747,6 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		}
 
 		priv = netdev_priv(dev_lec[i]);
-		priv->is_trdev = is_trdev;
 	} else {
 		priv = netdev_priv(dev_lec[i]);
 		if (priv->lecd)
@@ -954,7 +842,9 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 		--*l;
 	}
 
-	hlist_for_each_entry_from(tmp, e, next) {
+	tmp = container_of(e, struct lec_arp_table, next);
+
+	hlist_for_each_entry_from(tmp, next) {
 		if (--*l < 0)
 			break;
 	}
@@ -1255,7 +1145,7 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 	struct sk_buff *skb;
 	struct lec_priv *priv = netdev_priv(dev);
 
-	if (compare_ether_addr(lan_dst, dev->dev_addr))
+	if (!ether_addr_equal(lan_dst, dev->dev_addr))
 		return 0;	/* not our mac address */
 
 	kfree(priv->tlvs);	/* NULL if there was no previous association */
@@ -1335,7 +1225,7 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/param.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/inetdevice.h>
 #include <net/route.h>
 
@@ -1419,7 +1309,6 @@ lec_arp_add(struct lec_priv *priv, struct lec_arp_table *entry)
 static int
 lec_arp_remove(struct lec_priv *priv, struct lec_arp_table *to_remove)
 {
-	struct hlist_node *node;
 	struct lec_arp_table *entry;
 	int i, remove_vcc = 1;
 
@@ -1438,7 +1327,7 @@ lec_arp_remove(struct lec_priv *priv, struct lec_arp_table *to_remove)
 		 * ESI_FLUSH_PENDING, ESI_FORWARD_DIRECT
 		 */
 		for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-			hlist_for_each_entry(entry, node,
+			hlist_for_each_entry(entry,
 					     &priv->lec_arp_tables[i], next) {
 				if (memcmp(to_remove->atm_addr,
 					   entry->atm_addr, ATM_ESA_LEN) == 0) {
@@ -1476,14 +1365,13 @@ static const char *get_status_string(unsigned char st)
 
 static void dump_arp_table(struct lec_priv *priv)
 {
-	struct hlist_node *node;
 	struct lec_arp_table *rulla;
 	char buf[256];
 	int i, j, offset;
 
 	pr_info("Dump %p:\n", priv);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry(rulla, node,
+		hlist_for_each_entry(rulla,
 				     &priv->lec_arp_tables[i], next) {
 			offset = 0;
 			offset += sprintf(buf, "%d: %p\n", i, rulla);
@@ -1515,7 +1403,7 @@ static void dump_arp_table(struct lec_priv *priv)
 
 	if (!hlist_empty(&priv->lec_no_forward))
 		pr_info("No forward\n");
-	hlist_for_each_entry(rulla, node, &priv->lec_no_forward, next) {
+	hlist_for_each_entry(rulla, &priv->lec_no_forward, next) {
 		offset = 0;
 		offset += sprintf(buf + offset, "Mac: %pM", rulla->mac_addr);
 		offset += sprintf(buf + offset, " Atm:");
@@ -1540,7 +1428,7 @@ static void dump_arp_table(struct lec_priv *priv)
 
 	if (!hlist_empty(&priv->lec_arp_empty_ones))
 		pr_info("Empty ones\n");
-	hlist_for_each_entry(rulla, node, &priv->lec_arp_empty_ones, next) {
+	hlist_for_each_entry(rulla, &priv->lec_arp_empty_ones, next) {
 		offset = 0;
 		offset += sprintf(buf + offset, "Mac: %pM", rulla->mac_addr);
 		offset += sprintf(buf + offset, " Atm:");
@@ -1565,7 +1453,7 @@ static void dump_arp_table(struct lec_priv *priv)
 
 	if (!hlist_empty(&priv->mcast_fwds))
 		pr_info("Multicast Forward VCCs\n");
-	hlist_for_each_entry(rulla, node, &priv->mcast_fwds, next) {
+	hlist_for_each_entry(rulla, &priv->mcast_fwds, next) {
 		offset = 0;
 		offset += sprintf(buf + offset, "Mac: %pM", rulla->mac_addr);
 		offset += sprintf(buf + offset, " Atm:");
@@ -1599,7 +1487,7 @@ static void dump_arp_table(struct lec_priv *priv)
 static void lec_arp_destroy(struct lec_priv *priv)
 {
 	unsigned long flags;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -1611,7 +1499,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(entry, node, next,
+		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
 			lec_arp_remove(priv, entry);
 			lec_arp_put(entry);
@@ -1619,7 +1507,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 		INIT_HLIST_HEAD(&priv->lec_arp_tables[i]);
 	}
 
-	hlist_for_each_entry_safe(entry, node, next,
+	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_arp_empty_ones, next) {
 		del_timer_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
@@ -1628,7 +1516,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	}
 	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
 
-	hlist_for_each_entry_safe(entry, node, next,
+	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_no_forward, next) {
 		del_timer_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
@@ -1637,7 +1525,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	}
 	INIT_HLIST_HEAD(&priv->lec_no_forward);
 
-	hlist_for_each_entry_safe(entry, node, next, &priv->mcast_fwds, next) {
+	hlist_for_each_entry_safe(entry, next, &priv->mcast_fwds, next) {
 		/* No timer, LANEv2 7.1.20 and 2.3.5.3 */
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
@@ -1654,15 +1542,14 @@ static void lec_arp_destroy(struct lec_priv *priv)
 static struct lec_arp_table *lec_arp_find(struct lec_priv *priv,
 					  const unsigned char *mac_addr)
 {
-	struct hlist_node *node;
 	struct hlist_head *head;
 	struct lec_arp_table *entry;
 
 	pr_debug("%pM\n", mac_addr);
 
 	head = &priv->lec_arp_tables[HASH(mac_addr[ETH_ALEN - 1])];
-	hlist_for_each_entry(entry, node, head, next) {
-		if (!compare_ether_addr(mac_addr, entry->mac_addr))
+	hlist_for_each_entry(entry, head, next) {
+		if (ether_addr_equal(mac_addr, entry->mac_addr))
 			return entry;
 	}
 	return NULL;
@@ -1716,7 +1603,7 @@ static void lec_arp_expire_vcc(unsigned long data)
 {
 	unsigned long flags;
 	struct lec_arp_table *to_remove = (struct lec_arp_table *)data;
-	struct lec_priv *priv = (struct lec_priv *)to_remove->priv;
+	struct lec_priv *priv = to_remove->priv;
 
 	del_timer(&to_remove->timer);
 
@@ -1798,7 +1685,7 @@ static void lec_arp_check_expire(struct work_struct *work)
 	unsigned long flags;
 	struct lec_priv *priv =
 		container_of(work, struct lec_priv, lec_arp_work.work);
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry;
 	unsigned long now;
 	int i;
@@ -1808,7 +1695,7 @@ static void lec_arp_check_expire(struct work_struct *work)
 restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(entry, node, next,
+		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
 			if (__lec_arp_check_expire(entry, now, priv)) {
 				struct sk_buff *skb;
@@ -1849,7 +1736,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		case 1:
 			return priv->mcast_vcc;
 		case 2:	/* LANE2 wants arp for multicast addresses */
-			if (!compare_ether_addr(mac_to_find, bus_mac))
+			if (ether_addr_equal(mac_to_find, bus_mac))
 				return priv->mcast_vcc;
 			break;
 		default:
@@ -1935,14 +1822,14 @@ lec_addr_delete(struct lec_priv *priv, const unsigned char *atm_addr,
 		unsigned long permanent)
 {
 	unsigned long flags;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry;
 	int i;
 
 	pr_debug("\n");
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(entry, node, next,
+		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
 			if (!memcmp(atm_addr, entry->atm_addr, ATM_ESA_LEN) &&
 			    (permanent ||
@@ -1967,7 +1854,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	       unsigned int targetless_le_arp)
 {
 	unsigned long flags;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry, *tmp;
 	int i;
 
@@ -1982,7 +1869,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 				 * we have no entry in the cache. 7.1.30
 				 */
 	if (!hlist_empty(&priv->lec_arp_empty_ones)) {
-		hlist_for_each_entry_safe(entry, node, next,
+		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_empty_ones, next) {
 			if (memcmp(entry->atm_addr, atm_addr, ATM_ESA_LEN) == 0) {
 				hlist_del(&entry->next);
@@ -2027,7 +1914,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	memcpy(entry->atm_addr, atm_addr, ATM_ESA_LEN);
 	del_timer(&entry->timer);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry(tmp, node,
+		hlist_for_each_entry(tmp,
 				     &priv->lec_arp_tables[i], next) {
 			if (entry != tmp &&
 			    !memcmp(tmp->atm_addr, atm_addr, ATM_ESA_LEN)) {
@@ -2068,7 +1955,6 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 	      void (*old_push) (struct atm_vcc *vcc, struct sk_buff *skb))
 {
 	unsigned long flags;
-	struct hlist_node *node;
 	struct lec_arp_table *entry;
 	int i, found_entry = 0;
 
@@ -2138,7 +2024,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		 ioc_data->atm_addr[16], ioc_data->atm_addr[17],
 		 ioc_data->atm_addr[18], ioc_data->atm_addr[19]);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry(entry, node,
+		hlist_for_each_entry(entry,
 				     &priv->lec_arp_tables[i], next) {
 			if (memcmp
 			    (ioc_data->atm_addr, entry->atm_addr,
@@ -2215,7 +2101,6 @@ out:
 static void lec_flush_complete(struct lec_priv *priv, unsigned long tran_id)
 {
 	unsigned long flags;
-	struct hlist_node *node;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -2223,7 +2108,7 @@ static void lec_flush_complete(struct lec_priv *priv, unsigned long tran_id)
 restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry(entry, node,
+		hlist_for_each_entry(entry,
 				     &priv->lec_arp_tables[i], next) {
 			if (entry->flush_tran_id == tran_id &&
 			    entry->status == ESI_FLUSH_PENDING) {
@@ -2252,13 +2137,12 @@ lec_set_flush_tran_id(struct lec_priv *priv,
 		      const unsigned char *atm_addr, unsigned long tran_id)
 {
 	unsigned long flags;
-	struct hlist_node *node;
 	struct lec_arp_table *entry;
 	int i;
 
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++)
-		hlist_for_each_entry(entry, node,
+		hlist_for_each_entry(entry,
 				     &priv->lec_arp_tables[i], next) {
 			if (!memcmp(atm_addr, entry->atm_addr, ATM_ESA_LEN)) {
 				entry->flush_tran_id = tran_id;
@@ -2310,7 +2194,7 @@ out:
 static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 {
 	unsigned long flags;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -2320,7 +2204,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
-		hlist_for_each_entry_safe(entry, node, next,
+		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
 			if (vcc == entry->vcc) {
 				lec_arp_remove(priv, entry);
@@ -2331,7 +2215,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 		}
 	}
 
-	hlist_for_each_entry_safe(entry, node, next,
+	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_arp_empty_ones, next) {
 		if (entry->vcc == vcc) {
 			lec_arp_clear_vccs(entry);
@@ -2341,7 +2225,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 		}
 	}
 
-	hlist_for_each_entry_safe(entry, node, next,
+	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_no_forward, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
@@ -2351,7 +2235,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 		}
 	}
 
-	hlist_for_each_entry_safe(entry, node, next, &priv->mcast_fwds, next) {
+	hlist_for_each_entry_safe(entry, next, &priv->mcast_fwds, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
 			/* No timer, LANEv2 7.1.20 and 2.3.5.3 */
@@ -2369,21 +2253,13 @@ lec_arp_check_empties(struct lec_priv *priv,
 		      struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	unsigned long flags;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	struct lec_arp_table *entry, *tmp;
 	struct lecdatahdr_8023 *hdr = (struct lecdatahdr_8023 *)skb->data;
-	unsigned char *src;
-#ifdef CONFIG_TR
-	struct lecdatahdr_8025 *tr_hdr = (struct lecdatahdr_8025 *)skb->data;
-
-	if (priv->is_trdev)
-		src = tr_hdr->h_source;
-	else
-#endif
-		src = hdr->h_source;
+	unsigned char *src = hdr->h_source;
 
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
-	hlist_for_each_entry_safe(entry, node, next,
+	hlist_for_each_entry_safe(entry, next,
 				  &priv->lec_arp_empty_ones, next) {
 		if (vcc == entry->vcc) {
 			del_timer(&entry->timer);

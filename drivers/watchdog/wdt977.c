@@ -23,6 +23,8 @@
  *				    Netwinders only
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -37,13 +39,10 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 #include <asm/mach-types.h>
 
 #define WATCHDOG_VERSION  "0.04"
 #define WATCHDOG_NAME     "Wdt977"
-#define PFX WATCHDOG_NAME ": "
-#define DRIVER_VERSION    WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
 
 #define IO_INDEX_PORT	0x370		/* on some systems it can be 0x3F0 */
 #define IO_DATA_PORT	(IO_INDEX_PORT + 1)
@@ -68,8 +67,8 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds (60..15300, default="
 module_param(testmode, int, 0);
 MODULE_PARM_DESC(testmode, "Watchdog testmode (1 = no reboot), default=0");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -119,7 +118,7 @@ static int wdt977_start(void)
 	outb_p(LOCK_DATA, IO_INDEX_PORT);
 
 	spin_unlock_irqrestore(&spinlock, flags);
-	printk(KERN_INFO PFX "activated.\n");
+	pr_info("activated\n");
 
 	return 0;
 }
@@ -164,7 +163,7 @@ static int wdt977_stop(void)
 	outb_p(LOCK_DATA, IO_INDEX_PORT);
 
 	spin_unlock_irqrestore(&spinlock, flags);
-	printk(KERN_INFO PFX "shutdown.\n");
+	pr_info("shutdown\n");
 
 	return 0;
 }
@@ -288,8 +287,7 @@ static int wdt977_release(struct inode *inode, struct file *file)
 		clear_bit(0, &timer_alive);
 	} else {
 		wdt977_keepalive();
-		printk(KERN_CRIT PFX
-			"Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 	}
 	expect_close = 0;
 	return 0;
@@ -446,15 +444,14 @@ static int __init wd977_init(void)
 {
 	int rc;
 
-	printk(KERN_INFO PFX DRIVER_VERSION);
+	pr_info("driver v%s\n", WATCHDOG_VERSION);
 
 	/* Check that the timeout value is within its range;
 	   if not reset to the default */
 	if (wdt977_set_timeout(timeout)) {
 		wdt977_set_timeout(DEFAULT_TIMEOUT);
-		printk(KERN_INFO PFX
-		      "timeout value must be 60 < timeout < 15300, using %d\n",
-							DEFAULT_TIMEOUT);
+		pr_info("timeout value must be 60 < timeout < 15300, using %d\n",
+			DEFAULT_TIMEOUT);
 	}
 
 	/* on Netwinder the IOports are already reserved by
@@ -462,9 +459,8 @@ static int __init wd977_init(void)
 	 */
 	if (!machine_is_netwinder()) {
 		if (!request_region(IO_INDEX_PORT, 2, WATCHDOG_NAME)) {
-			printk(KERN_ERR PFX
-				"I/O address 0x%04x already in use\n",
-								IO_INDEX_PORT);
+			pr_err("I/O address 0x%04x already in use\n",
+			       IO_INDEX_PORT);
 			rc = -EIO;
 			goto err_out;
 		}
@@ -472,22 +468,19 @@ static int __init wd977_init(void)
 
 	rc = register_reboot_notifier(&wdt977_notifier);
 	if (rc) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cannot register reboot notifier (err=%d)\n", rc);
 		goto err_out_region;
 	}
 
 	rc = misc_register(&wdt977_miscdev);
 	if (rc) {
-		printk(KERN_ERR PFX
-			"cannot register miscdev on minor=%d (err=%d)\n",
-						wdt977_miscdev.minor, rc);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       wdt977_miscdev.minor, rc);
 		goto err_out_reboot;
 	}
 
-	printk(KERN_INFO PFX
-		"initialized. timeout=%d sec (nowayout=%d, testmode=%i)\n",
-						timeout, nowayout, testmode);
+	pr_info("initialized. timeout=%d sec (nowayout=%d, testmode=%i)\n",
+		timeout, nowayout, testmode);
 
 	return 0;
 

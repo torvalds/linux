@@ -16,7 +16,7 @@ config W1_CON
 	depends on CONNECTOR
 	bool "Userspace communication over connector"
 	default y
-	--- help ---
+	---help---
 	  This allows to communicate with userspace using connector. For more
 	  information see <file:Documentation/connector/connector.txt>.
 	  There are three types of messages between w1 core and userspace:

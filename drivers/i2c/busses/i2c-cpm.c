@@ -426,7 +426,7 @@ static const struct i2c_adapter cpm_ops = {
 	.algo		= &cpm_i2c_algo,
 };
 
-static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)
+static int cpm_i2c_setup(struct cpm_i2c *cpm)
 {
 	struct platform_device *ofdev = cpm->ofdev;
 	const u32 *data;
@@ -634,7 +634,7 @@ static void cpm_i2c_shutdown(struct cpm_i2c *cpm)
 		cpm_muram_free(cpm->i2c_addr);
 }
 
-static int __devinit cpm_i2c_probe(struct platform_device *ofdev)
+static int cpm_i2c_probe(struct platform_device *ofdev)
 {
 	int result, len;
 	struct cpm_i2c *cpm;
@@ -662,11 +662,8 @@ static int __devinit cpm_i2c_probe(struct platform_device *ofdev)
 	/* register new adapter to i2c module... */
 
 	data = of_get_property(ofdev->dev.of_node, "linux,i2c-index", &len);
-	if (data && len == 4) {
-		cpm->adap.nr = *data;
-		result = i2c_add_numbered_adapter(&cpm->adap);
-	} else
-		result = i2c_add_adapter(&cpm->adap);
+	cpm->adap.nr = (data && len == 4) ? be32_to_cpup(data) : -1;
+	result = i2c_add_numbered_adapter(&cpm->adap);
 
 	if (result < 0) {
 		dev_err(&ofdev->dev, "Unable to register with I2C\n");
@@ -685,13 +682,12 @@ static int __devinit cpm_i2c_probe(struct platform_device *ofdev)
 out_shut:
 	cpm_i2c_shutdown(cpm);
 out_free:
-	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(cpm);
 
 	return result;
 }
 
-static int __devexit cpm_i2c_remove(struct platform_device *ofdev)
+static int cpm_i2c_remove(struct platform_device *ofdev)
 {
 	struct cpm_i2c *cpm = dev_get_drvdata(&ofdev->dev);
 
@@ -699,7 +695,6 @@ static int __devexit cpm_i2c_remove(struct platform_device *ofdev)
 
 	cpm_i2c_shutdown(cpm);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(cpm);
 
 	return 0;
@@ -719,7 +714,7 @@ MODULE_DEVICE_TABLE(of, cpm_i2c_match);
 
 static struct platform_driver cpm_i2c_driver = {
 	.probe		= cpm_i2c_probe,
-	.remove		= __devexit_p(cpm_i2c_remove),
+	.remove		= cpm_i2c_remove,
 	.driver = {
 		.name = "fsl-i2c-cpm",
 		.owner = THIS_MODULE,
@@ -727,18 +722,7 @@ static struct platform_driver cpm_i2c_driver = {
 	},
 };
 
-static int __init cpm_i2c_init(void)
-{
-	return platform_driver_register(&cpm_i2c_driver);
-}
-
-static void __exit cpm_i2c_exit(void)
-{
-	platform_driver_unregister(&cpm_i2c_driver);
-}
-
-module_init(cpm_i2c_init);
-module_exit(cpm_i2c_exit);
+module_platform_driver(cpm_i2c_driver);
 
 MODULE_AUTHOR("Jochen Friedrich <jochen@scram.de>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for CPM boards");

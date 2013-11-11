@@ -8,15 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -31,7 +22,6 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/utsname.h>
 #include <linux/device.h>
 #include <linux/moduleparam.h>
 #include <linux/fs.h>
@@ -43,29 +33,17 @@
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <linux/usb/ch9.h>
+#include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/g_printer.h>
 
 #include "gadget_chips.h"
 
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "usbstring.c"
-#include "config.c"
-#include "epautoconf.c"
-
-/*-------------------------------------------------------------------------*/
+USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_DESC		"Printer Gadget"
 #define DRIVER_VERSION		"2007 OCT 06"
@@ -85,12 +63,9 @@ struct printer_dev {
 	/* lock buffer lists during read/write calls */
 	struct mutex		lock_printer_io;
 	struct usb_gadget	*gadget;
-	struct usb_request	*req;		/* for control responses */
-	u8			config;
 	s8			interface;
 	struct usb_ep		*in_ep, *out_ep;
-	const struct usb_endpoint_descriptor
-				*in, *out;
+
 	struct list_head	rx_reqs;	/* List of free RX structs */
 	struct list_head	rx_reqs_active;	/* List of Active RX xfers */
 	struct list_head	rx_buffers;	/* List of completed xfers */
@@ -111,6 +86,7 @@ struct printer_dev {
 	struct device		*pdev;
 	u8			printer_cdev_open;
 	wait_queue_head_t	wait;
+	struct usb_function	function;
 };
 
 static struct printer_dev usb_printer_gadget;
@@ -131,28 +107,7 @@ static struct printer_dev usb_printer_gadget;
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
 
-static ushort idVendor;
-module_param(idVendor, ushort, S_IRUGO);
-MODULE_PARM_DESC(idVendor, "USB Vendor ID");
-
-static ushort idProduct;
-module_param(idProduct, ushort, S_IRUGO);
-MODULE_PARM_DESC(idProduct, "USB Product ID");
-
-static ushort bcdDevice;
-module_param(bcdDevice, ushort, S_IRUGO);
-MODULE_PARM_DESC(bcdDevice, "USB Device version (BCD)");
-
-static char *iManufacturer;
-module_param(iManufacturer, charp, S_IRUGO);
-MODULE_PARM_DESC(iManufacturer, "USB Manufacturer string");
-
-static char *iProduct;
-module_param(iProduct, charp, S_IRUGO);
-MODULE_PARM_DESC(iProduct, "USB Product string");
-
-static char *iSerialNum;
-module_param(iSerialNum, charp, S_IRUGO);
+module_param_named(iSerialNum, coverwrite.serial_number, charp, S_IRUGO);
 MODULE_PARM_DESC(iSerialNum, "1");
 
 static char *iPNPstring;
@@ -165,63 +120,16 @@ module_param(qlen, uint, S_IRUGO|S_IWUSR);
 
 #define QLEN	qlen
 
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-#define DEVSPEED	USB_SPEED_HIGH
-#else   /* full speed (low speed doesn't do bulk) */
-#define DEVSPEED        USB_SPEED_FULL
-#endif
-
 /*-------------------------------------------------------------------------*/
-
-#define xprintk(d, level, fmt, args...) \
-	printk(level "%s: " fmt, DRIVER_DESC, ## args)
-
-#ifdef DEBUG
-#define DBG(dev, fmt, args...) \
-	xprintk(dev, KERN_DEBUG, fmt, ## args)
-#else
-#define DBG(dev, fmt, args...) \
-	do { } while (0)
-#endif /* DEBUG */
-
-#ifdef VERBOSE
-#define VDBG(dev, fmt, args...) \
-	xprintk(dev, KERN_DEBUG, fmt, ## args)
-#else
-#define VDBG(dev, fmt, args...) \
-	do { } while (0)
-#endif /* VERBOSE */
-
-#define ERROR(dev, fmt, args...) \
-	xprintk(dev, KERN_ERR, fmt, ## args)
-#define WARNING(dev, fmt, args...) \
-	xprintk(dev, KERN_WARNING, fmt, ## args)
-#define INFO(dev, fmt, args...) \
-	xprintk(dev, KERN_INFO, fmt, ## args)
-
-/*-------------------------------------------------------------------------*/
-
-/* USB DRIVER HOOKUP (to the hardware driver, below us), mostly
- * ep0 implementation:  descriptors, config management, setup().
- * also optional class-specific notification interrupt transfer.
- */
 
 /*
  * DESCRIPTORS ... most are static, but strings and (full) configuration
  * descriptors are built on demand.
  */
 
-#define STRING_MANUFACTURER		1
-#define STRING_PRODUCT			2
-#define STRING_SERIALNUM		3
-
 /* holds our biggest descriptor */
 #define USB_DESC_BUFSIZE		256
 #define USB_BUFSIZE			8192
-
-/* This device advertises one configuration. */
-#define DEV_CONFIG_VALUE		1
-#define	PRINTER_INTERFACE		0
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
@@ -232,34 +140,12 @@ static struct usb_device_descriptor device_desc = {
 	.bDeviceProtocol =	0,
 	.idVendor =		cpu_to_le16(PRINTER_VENDOR_NUM),
 	.idProduct =		cpu_to_le16(PRINTER_PRODUCT_NUM),
-	.iManufacturer =	STRING_MANUFACTURER,
-	.iProduct =		STRING_PRODUCT,
-	.iSerialNumber =	STRING_SERIALNUM,
 	.bNumConfigurations =	1
-};
-
-static struct usb_otg_descriptor otg_desc = {
-	.bLength =		sizeof otg_desc,
-	.bDescriptorType =	USB_DT_OTG,
-	.bmAttributes =		USB_OTG_SRP
-};
-
-static struct usb_config_descriptor config_desc = {
-	.bLength =		sizeof config_desc,
-	.bDescriptorType =	USB_DT_CONFIG,
-
-	/* compute wTotalLength on the fly */
-	.bNumInterfaces =	1,
-	.bConfigurationValue =	DEV_CONFIG_VALUE,
-	.iConfiguration =	0,
-	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
 };
 
 static struct usb_interface_descriptor intf_desc = {
 	.bLength =		sizeof intf_desc,
 	.bDescriptorType =	USB_DT_INTERFACE,
-	.bInterfaceNumber =	PRINTER_INTERFACE,
 	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_PRINTER,
 	.bInterfaceSubClass =	1,	/* Printer Sub-Class */
@@ -281,15 +167,12 @@ static struct usb_endpoint_descriptor fs_ep_out_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK
 };
 
-static const struct usb_descriptor_header *fs_printer_function [11] = {
-	(struct usb_descriptor_header *) &otg_desc,
+static struct usb_descriptor_header *fs_printer_function[] = {
 	(struct usb_descriptor_header *) &intf_desc,
 	(struct usb_descriptor_header *) &fs_ep_in_desc,
 	(struct usb_descriptor_header *) &fs_ep_out_desc,
 	NULL
 };
-
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
 
 /*
  * usb 2.0 devices need to expose both high speed and full speed
@@ -318,29 +201,31 @@ static struct usb_qualifier_descriptor dev_qualifier = {
 	.bNumConfigurations =	1
 };
 
-static const struct usb_descriptor_header *hs_printer_function [11] = {
-	(struct usb_descriptor_header *) &otg_desc,
+static struct usb_descriptor_header *hs_printer_function[] = {
 	(struct usb_descriptor_header *) &intf_desc,
 	(struct usb_descriptor_header *) &hs_ep_in_desc,
 	(struct usb_descriptor_header *) &hs_ep_out_desc,
 	NULL
 };
 
+static struct usb_otg_descriptor otg_descriptor = {
+	.bLength =              sizeof otg_descriptor,
+	.bDescriptorType =      USB_DT_OTG,
+	.bmAttributes =         USB_OTG_SRP,
+};
+
+static const struct usb_descriptor_header *otg_desc[] = {
+	(struct usb_descriptor_header *) &otg_descriptor,
+	NULL,
+};
+
 /* maxpacket and other transfer characteristics vary by speed. */
 #define ep_desc(g, hs, fs) (((g)->speed == USB_SPEED_HIGH)?(hs):(fs))
-
-#else
-
-/* if there's no high speed support, maxpacket doesn't change. */
-#define ep_desc(g, hs, fs) (((void)(g)), (fs))
-
-#endif	/* !CONFIG_USB_GADGET_DUALSPEED */
 
 /*-------------------------------------------------------------------------*/
 
 /* descriptors that are built on-demand */
 
-static char				manufacturer [50];
 static char				product_desc [40] = DRIVER_DESC;
 static char				serial_num [40] = "1";
 static char				pnp_string [1024] =
@@ -348,15 +233,20 @@ static char				pnp_string [1024] =
 
 /* static strings, in UTF-8 */
 static struct usb_string		strings [] = {
-	{ STRING_MANUFACTURER,	manufacturer, },
-	{ STRING_PRODUCT,	product_desc, },
-	{ STRING_SERIALNUM,	serial_num, },
+	[USB_GADGET_MANUFACTURER_IDX].s = "",
+	[USB_GADGET_PRODUCT_IDX].s = product_desc,
+	[USB_GADGET_SERIAL_IDX].s =	serial_num,
 	{  }		/* end of list */
 };
 
-static struct usb_gadget_strings	stringtab = {
+static struct usb_gadget_strings	stringtab_dev = {
 	.language	= 0x0409,	/* en-us */
 	.strings	= strings,
+};
+
+static struct usb_gadget_strings *dev_strings[] = {
+	&stringtab_dev,
+	NULL,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -795,12 +685,14 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 }
 
 static int
-printer_fsync(struct file *fd, int datasync)
+printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 {
 	struct printer_dev	*dev = fd->private_data;
+	struct inode *inode = file_inode(fd);
 	unsigned long		flags;
 	int			tx_list_empty;
 
+	mutex_lock(&inode->i_mutex);
 	spin_lock_irqsave(&dev->lock, flags);
 	tx_list_empty = (likely(list_empty(&dev->tx_reqs)));
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -810,6 +702,7 @@ printer_fsync(struct file *fd, int datasync)
 		wait_event_interruptible(dev->tx_flush_wait,
 				(likely(list_empty(&dev->tx_reqs_active))));
 	}
+	mutex_unlock(&inode->i_mutex);
 
 	return 0;
 }
@@ -895,19 +788,20 @@ set_printer_interface(struct printer_dev *dev)
 {
 	int			result = 0;
 
-	dev->in = ep_desc(dev->gadget, &hs_ep_in_desc, &fs_ep_in_desc);
+	dev->in_ep->desc = ep_desc(dev->gadget, &hs_ep_in_desc, &fs_ep_in_desc);
 	dev->in_ep->driver_data = dev;
 
-	dev->out = ep_desc(dev->gadget, &hs_ep_out_desc, &fs_ep_out_desc);
+	dev->out_ep->desc = ep_desc(dev->gadget, &hs_ep_out_desc,
+				    &fs_ep_out_desc);
 	dev->out_ep->driver_data = dev;
 
-	result = usb_ep_enable(dev->in_ep, dev->in);
+	result = usb_ep_enable(dev->in_ep);
 	if (result != 0) {
 		DBG(dev, "enable %s --> %d\n", dev->in_ep->name, result);
 		goto done;
 	}
 
-	result = usb_ep_enable(dev->out_ep, dev->out);
+	result = usb_ep_enable(dev->out_ep);
 	if (result != 0) {
 		DBG(dev, "enable %s --> %d\n", dev->in_ep->name, result);
 		goto done;
@@ -918,8 +812,8 @@ done:
 	if (result != 0) {
 		(void) usb_ep_disable(dev->in_ep);
 		(void) usb_ep_disable(dev->out_ep);
-		dev->in = NULL;
-		dev->out = NULL;
+		dev->in_ep->desc = NULL;
+		dev->out_ep->desc = NULL;
 	}
 
 	/* caller is responsible for cleanup on error */
@@ -933,135 +827,35 @@ static void printer_reset_interface(struct printer_dev *dev)
 
 	DBG(dev, "%s\n", __func__);
 
-	if (dev->in)
+	if (dev->in_ep->desc)
 		usb_ep_disable(dev->in_ep);
 
-	if (dev->out)
+	if (dev->out_ep->desc)
 		usb_ep_disable(dev->out_ep);
 
+	dev->in_ep->desc = NULL;
+	dev->out_ep->desc = NULL;
 	dev->interface = -1;
 }
 
-/* change our operational config.  must agree with the code
- * that returns config descriptors, and altsetting code.
- */
-static int
-printer_set_config(struct printer_dev *dev, unsigned number)
-{
-	int			result = 0;
-	struct usb_gadget	*gadget = dev->gadget;
-
-	switch (number) {
-	case DEV_CONFIG_VALUE:
-		result = 0;
-		break;
-	default:
-		result = -EINVAL;
-		/* FALL THROUGH */
-	case 0:
-		break;
-	}
-
-	if (result) {
-		usb_gadget_vbus_draw(dev->gadget,
-				dev->gadget->is_otg ? 8 : 100);
-	} else {
-		char *speed;
-		unsigned power;
-
-		power = 2 * config_desc.bMaxPower;
-		usb_gadget_vbus_draw(dev->gadget, power);
-
-		switch (gadget->speed) {
-		case USB_SPEED_FULL:	speed = "full"; break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-		case USB_SPEED_HIGH:	speed = "high"; break;
-#endif
-		default:		speed = "?"; break;
-		}
-
-		dev->config = number;
-		INFO(dev, "%s speed config #%d: %d mA, %s\n",
-				speed, number, power, driver_desc);
-	}
-	return result;
-}
-
-static int
-config_buf(enum usb_device_speed speed, u8 *buf, u8 type, unsigned index,
-		int is_otg)
-{
-	int					len;
-	const struct usb_descriptor_header	**function;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	int					hs = (speed == USB_SPEED_HIGH);
-
-	if (type == USB_DT_OTHER_SPEED_CONFIG)
-		hs = !hs;
-
-	if (hs) {
-		function = hs_printer_function;
-	} else {
-		function = fs_printer_function;
-	}
-#else
-	function = fs_printer_function;
-#endif
-
-	if (index >= device_desc.bNumConfigurations)
-		return -EINVAL;
-
-	/* for now, don't advertise srp-only devices */
-	if (!is_otg)
-		function++;
-
-	len = usb_gadget_config_buf(&config_desc, buf, USB_DESC_BUFSIZE,
-			function);
-	if (len < 0)
-		return len;
-	((struct usb_config_descriptor *) buf)->bDescriptorType = type;
-	return len;
-}
-
 /* Change our operational Interface. */
-static int
-set_interface(struct printer_dev *dev, unsigned number)
+static int set_interface(struct printer_dev *dev, unsigned number)
 {
 	int			result = 0;
 
 	/* Free the current interface */
-	switch (dev->interface) {
-	case PRINTER_INTERFACE:
-		printer_reset_interface(dev);
-		break;
-	}
+	printer_reset_interface(dev);
 
-	switch (number) {
-	case PRINTER_INTERFACE:
-		result = set_printer_interface(dev);
-		if (result) {
-			printer_reset_interface(dev);
-		} else {
-			dev->interface = PRINTER_INTERFACE;
-		}
-		break;
-	default:
-		result = -EINVAL;
-		/* FALL THROUGH */
-	}
+	result = set_printer_interface(dev);
+	if (result)
+		printer_reset_interface(dev);
+	else
+		dev->interface = number;
 
 	if (!result)
 		INFO(dev, "Using interface %x\n", number);
 
 	return result;
-}
-
-static void printer_setup_complete(struct usb_ep *ep, struct usb_request *req)
-{
-	if (req->status || req->actual != req->length)
-		DBG((struct printer_dev *) ep->driver_data,
-				"setup complete --> %d, %d/%d\n",
-				req->status, req->actual, req->length);
 }
 
 static void printer_soft_reset(struct printer_dev *dev)
@@ -1104,9 +898,9 @@ static void printer_soft_reset(struct printer_dev *dev)
 		list_add(&req->list, &dev->tx_reqs);
 	}
 
-	if (usb_ep_enable(dev->in_ep, dev->in))
+	if (usb_ep_enable(dev->in_ep))
 		DBG(dev, "Failed to enable USB in_ep\n");
-	if (usb_ep_enable(dev->out_ep, dev->out))
+	if (usb_ep_enable(dev->out_ep))
 		DBG(dev, "Failed to enable USB out_ep\n");
 
 	wake_up_interruptible(&dev->rx_wait);
@@ -1120,11 +914,12 @@ static void printer_soft_reset(struct printer_dev *dev)
  * The setup() callback implements all the ep0 functionality that's not
  * handled lower down.
  */
-static int
-printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
+static int printer_func_setup(struct usb_function *f,
+		const struct usb_ctrlrequest *ctrl)
 {
-	struct printer_dev	*dev = get_gadget_data(gadget);
-	struct usb_request	*req = dev->req;
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct usb_composite_dev *cdev = f->config->cdev;
+	struct usb_request	*req = cdev->req;
 	int			value = -EOPNOTSUPP;
 	u16			wIndex = le16_to_cpu(ctrl->wIndex);
 	u16			wValue = le16_to_cpu(ctrl->wValue);
@@ -1133,99 +928,12 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	DBG(dev, "ctrl req%02x.%02x v%04x i%04x l%d\n",
 		ctrl->bRequestType, ctrl->bRequest, wValue, wIndex, wLength);
 
-	req->complete = printer_setup_complete;
-
 	switch (ctrl->bRequestType&USB_TYPE_MASK) {
-
-	case USB_TYPE_STANDARD:
-		switch (ctrl->bRequest) {
-
-		case USB_REQ_GET_DESCRIPTOR:
-			if (ctrl->bRequestType != USB_DIR_IN)
-				break;
-			switch (wValue >> 8) {
-
-			case USB_DT_DEVICE:
-				value = min(wLength, (u16) sizeof device_desc);
-				memcpy(req->buf, &device_desc, value);
-				break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-			case USB_DT_DEVICE_QUALIFIER:
-				if (!gadget->is_dualspeed)
-					break;
-				value = min(wLength,
-						(u16) sizeof dev_qualifier);
-				memcpy(req->buf, &dev_qualifier, value);
-				break;
-
-			case USB_DT_OTHER_SPEED_CONFIG:
-				if (!gadget->is_dualspeed)
-					break;
-				/* FALLTHROUGH */
-#endif /* CONFIG_USB_GADGET_DUALSPEED */
-			case USB_DT_CONFIG:
-				value = config_buf(gadget->speed, req->buf,
-						wValue >> 8,
-						wValue & 0xff,
-						gadget->is_otg);
-				if (value >= 0)
-					value = min(wLength, (u16) value);
-				break;
-
-			case USB_DT_STRING:
-				value = usb_gadget_get_string(&stringtab,
-						wValue & 0xff, req->buf);
-				if (value >= 0)
-					value = min(wLength, (u16) value);
-				break;
-			}
-			break;
-
-		case USB_REQ_SET_CONFIGURATION:
-			if (ctrl->bRequestType != 0)
-				break;
-			if (gadget->a_hnp_support)
-				DBG(dev, "HNP available\n");
-			else if (gadget->a_alt_hnp_support)
-				DBG(dev, "HNP needs a different root port\n");
-			value = printer_set_config(dev, wValue);
-			if (!value)
-				value = set_interface(dev, PRINTER_INTERFACE);
-			break;
-		case USB_REQ_GET_CONFIGURATION:
-			if (ctrl->bRequestType != USB_DIR_IN)
-				break;
-			*(u8 *)req->buf = dev->config;
-			value = min(wLength, (u16) 1);
-			break;
-
-		case USB_REQ_SET_INTERFACE:
-			if (ctrl->bRequestType != USB_RECIP_INTERFACE ||
-					!dev->config)
-				break;
-
-			value = set_interface(dev, PRINTER_INTERFACE);
-			break;
-		case USB_REQ_GET_INTERFACE:
-			if (ctrl->bRequestType !=
-					(USB_DIR_IN|USB_RECIP_INTERFACE)
-					|| !dev->config)
-				break;
-
-			*(u8 *)req->buf = dev->interface;
-			value = min(wLength, (u16) 1);
-			break;
-
-		default:
-			goto unknown;
-		}
-		break;
-
 	case USB_TYPE_CLASS:
 		switch (ctrl->bRequest) {
 		case 0: /* Get the IEEE-1284 PNP String */
 			/* Only one printer interface is supported. */
-			if ((wIndex>>8) != PRINTER_INTERFACE)
+			if ((wIndex>>8) != dev->interface)
 				break;
 
 			value = (pnp_string[0]<<8)|pnp_string[1];
@@ -1236,7 +944,7 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 		case 1: /* Get Port Status */
 			/* Only one printer interface is supported. */
-			if (wIndex != PRINTER_INTERFACE)
+			if (wIndex != dev->interface)
 				break;
 
 			*(u8 *)req->buf = dev->printer_status;
@@ -1245,7 +953,7 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 
 		case 2: /* Soft Reset */
 			/* Only one printer interface is supported. */
-			if (wIndex != PRINTER_INTERFACE)
+			if (wIndex != dev->interface)
 				break;
 
 			printer_soft_reset(dev);
@@ -1266,44 +974,90 @@ unknown:
 			wValue, wIndex, wLength);
 		break;
 	}
-
-	/* respond with data transfer before status phase? */
-	if (value >= 0) {
-		req->length = value;
-		req->zero = value < wLength;
-		value = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
-		if (value < 0) {
-			DBG(dev, "ep_queue --> %d\n", value);
-			req->status = 0;
-			printer_setup_complete(gadget->ep0, req);
-		}
-	}
-
 	/* host either stalls (value < 0) or reports success */
 	return value;
 }
 
-static void
-printer_disconnect(struct usb_gadget *gadget)
+static int __init printer_func_bind(struct usb_configuration *c,
+		struct usb_function *f)
 {
-	struct printer_dev	*dev = get_gadget_data(gadget);
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct usb_composite_dev *cdev = c->cdev;
+	struct usb_ep *in_ep;
+	struct usb_ep *out_ep = NULL;
+	int id;
+	int ret;
+
+	id = usb_interface_id(c, f);
+	if (id < 0)
+		return id;
+	intf_desc.bInterfaceNumber = id;
+
+	/* all we really need is bulk IN/OUT */
+	in_ep = usb_ep_autoconfig(cdev->gadget, &fs_ep_in_desc);
+	if (!in_ep) {
+autoconf_fail:
+		dev_err(&cdev->gadget->dev, "can't autoconfigure on %s\n",
+			cdev->gadget->name);
+		return -ENODEV;
+	}
+	in_ep->driver_data = in_ep;	/* claim */
+
+	out_ep = usb_ep_autoconfig(cdev->gadget, &fs_ep_out_desc);
+	if (!out_ep)
+		goto autoconf_fail;
+	out_ep->driver_data = out_ep;	/* claim */
+
+	/* assumes that all endpoints are dual-speed */
+	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
+	hs_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
+
+	ret = usb_assign_descriptors(f, fs_printer_function,
+			hs_printer_function, NULL);
+	if (ret)
+		return ret;
+
+	dev->in_ep = in_ep;
+	dev->out_ep = out_ep;
+	return 0;
+}
+
+static void printer_func_unbind(struct usb_configuration *c,
+		struct usb_function *f)
+{
+	usb_free_all_descriptors(f);
+}
+
+static int printer_func_set_alt(struct usb_function *f,
+		unsigned intf, unsigned alt)
+{
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	int ret = -ENOTSUPP;
+
+	if (!alt)
+		ret = set_interface(dev, intf);
+
+	return ret;
+}
+
+static void printer_func_disable(struct usb_function *f)
+{
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
 	unsigned long		flags;
 
 	DBG(dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&dev->lock, flags);
-
 	printer_reset_interface(dev);
-
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-static void
-printer_unbind(struct usb_gadget *gadget)
+static void printer_cfg_unbind(struct usb_configuration *c)
 {
-	struct printer_dev	*dev = get_gadget_data(gadget);
+	struct printer_dev	*dev;
 	struct usb_request	*req;
 
+	dev = &usb_printer_gadget;
 
 	DBG(dev, "%s\n", __func__);
 
@@ -1341,28 +1095,38 @@ printer_unbind(struct usb_gadget *gadget)
 		list_del(&req->list);
 		printer_req_free(dev->out_ep, req);
 	}
-
-	if (dev->req) {
-		printer_req_free(gadget->ep0, dev->req);
-		dev->req = NULL;
-	}
-
-	set_gadget_data(gadget, NULL);
 }
 
-static int __init
-printer_bind(struct usb_gadget *gadget)
+static struct usb_configuration printer_cfg_driver = {
+	.label			= "printer",
+	.unbind			= printer_cfg_unbind,
+	.bConfigurationValue	= 1,
+	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
+};
+
+static int __init printer_bind_config(struct usb_configuration *c)
 {
+	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct printer_dev	*dev;
-	struct usb_ep		*in_ep, *out_ep;
 	int			status = -ENOMEM;
-	int			gcnum;
 	size_t			len;
 	u32			i;
 	struct usb_request	*req;
 
+	usb_ep_autoconfig_reset(gadget);
+
 	dev = &usb_printer_gadget;
 
+	dev->function.name = shortname;
+	dev->function.bind = printer_func_bind;
+	dev->function.setup = printer_func_setup;
+	dev->function.unbind = printer_func_unbind;
+	dev->function.set_alt = printer_func_set_alt;
+	dev->function.disable = printer_func_disable;
+
+	status = usb_add_function(c, &dev->function);
+	if (status)
+		return status;
 
 	/* Setup the sysfs files for the printer gadget. */
 	dev->pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
@@ -1384,46 +1148,6 @@ printer_bind(struct usb_gadget *gadget)
 		goto fail;
 	}
 
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0) {
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	} else {
-		dev_warn(&gadget->dev, "controller '%s' not recognized\n",
-			gadget->name);
-		/* unrecognized, but safe unless bulk is REALLY quirky */
-		device_desc.bcdDevice =
-			cpu_to_le16(0xFFFF);
-	}
-	snprintf(manufacturer, sizeof(manufacturer), "%s %s with %s",
-		init_utsname()->sysname, init_utsname()->release,
-		gadget->name);
-
-	device_desc.idVendor =
-		cpu_to_le16(PRINTER_VENDOR_NUM);
-	device_desc.idProduct =
-		cpu_to_le16(PRINTER_PRODUCT_NUM);
-
-	/* support optional vendor/distro customization */
-	if (idVendor) {
-		if (!idProduct) {
-			dev_err(&gadget->dev, "idVendor needs idProduct!\n");
-			return -ENODEV;
-		}
-		device_desc.idVendor = cpu_to_le16(idVendor);
-		device_desc.idProduct = cpu_to_le16(idProduct);
-		if (bcdDevice)
-			device_desc.bcdDevice = cpu_to_le16(bcdDevice);
-	}
-
-	if (iManufacturer)
-		strlcpy(manufacturer, iManufacturer, sizeof manufacturer);
-
-	if (iProduct)
-		strlcpy(product_desc, iProduct, sizeof product_desc);
-
-	if (iSerialNum)
-		strlcpy(serial_num, iSerialNum, sizeof serial_num);
-
 	if (iPNPstring)
 		strlcpy(&pnp_string[2], iPNPstring, (sizeof pnp_string)-2);
 
@@ -1431,37 +1155,12 @@ printer_bind(struct usb_gadget *gadget)
 	pnp_string[0] = (len >> 8) & 0xFF;
 	pnp_string[1] = len & 0xFF;
 
-	/* all we really need is bulk IN/OUT */
-	usb_ep_autoconfig_reset(gadget);
-	in_ep = usb_ep_autoconfig(gadget, &fs_ep_in_desc);
-	if (!in_ep) {
-autoconf_fail:
-		dev_err(&gadget->dev, "can't autoconfigure on %s\n",
-			gadget->name);
-		return -ENODEV;
-	}
-	in_ep->driver_data = in_ep;	/* claim */
-
-	out_ep = usb_ep_autoconfig(gadget, &fs_ep_out_desc);
-	if (!out_ep)
-		goto autoconf_fail;
-	out_ep->driver_data = out_ep;	/* claim */
-
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-	/* assumes ep0 uses the same value for both speeds ... */
-	dev_qualifier.bMaxPacketSize0 = device_desc.bMaxPacketSize0;
-
-	/* and that all endpoints are dual-speed */
-	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
-	hs_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
-#endif	/* DUALSPEED */
-
-	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 	usb_gadget_set_selfpowered(gadget);
 
 	if (gadget->is_otg) {
-		otg_desc.bmAttributes |= USB_OTG_HNP,
-		config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+		otg_descriptor.bmAttributes |= USB_OTG_HNP;
+		printer_cfg_driver.descriptors = otg_desc;
+		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
 	spin_lock_init(&dev->lock);
@@ -1475,24 +1174,12 @@ autoconf_fail:
 	init_waitqueue_head(&dev->tx_wait);
 	init_waitqueue_head(&dev->tx_flush_wait);
 
-	dev->config = 0;
 	dev->interface = -1;
 	dev->printer_cdev_open = 0;
 	dev->printer_status = PRINTER_NOT_ERROR;
 	dev->current_rx_req = NULL;
 	dev->current_rx_bytes = 0;
 	dev->current_rx_buf = NULL;
-
-	dev->in_ep = in_ep;
-	dev->out_ep = out_ep;
-
-	/* preallocate control message data and buffer */
-	dev->req = printer_req_alloc(gadget->ep0, USB_DESC_BUFSIZE,
-			GFP_KERNEL);
-	if (!dev->req) {
-		status = -ENOMEM;
-		goto fail;
-	}
 
 	for (i = 0; i < QLEN; i++) {
 		req = printer_req_alloc(dev->in_ep, USB_BUFSIZE, GFP_KERNEL);
@@ -1522,44 +1209,48 @@ autoconf_fail:
 		list_add(&req->list, &dev->rx_reqs);
 	}
 
-	dev->req->complete = printer_setup_complete;
-
 	/* finish hookup to lower layer ... */
 	dev->gadget = gadget;
-	set_gadget_data(gadget, dev);
-	gadget->ep0->driver_data = dev;
 
 	INFO(dev, "%s, version: " DRIVER_VERSION "\n", driver_desc);
-	INFO(dev, "using %s, OUT %s IN %s\n", gadget->name, out_ep->name,
-			in_ep->name);
-
 	return 0;
 
 fail:
-	printer_unbind(gadget);
+	printer_cfg_unbind(c);
 	return status;
 }
 
-/*-------------------------------------------------------------------------*/
+static int printer_unbind(struct usb_composite_dev *cdev)
+{
+	return 0;
+}
 
-static struct usb_gadget_driver printer_driver = {
-	.speed		= DEVSPEED,
+static int __init printer_bind(struct usb_composite_dev *cdev)
+{
+	int ret;
 
-	.function	= (char *) driver_desc,
+	ret = usb_string_ids_tab(cdev, strings);
+	if (ret < 0)
+		return ret;
+	device_desc.iManufacturer = strings[USB_GADGET_MANUFACTURER_IDX].id;
+	device_desc.iProduct = strings[USB_GADGET_PRODUCT_IDX].id;
+	device_desc.iSerialNumber = strings[USB_GADGET_SERIAL_IDX].id;
+
+	ret = usb_add_config(cdev, &printer_cfg_driver, printer_bind_config);
+	if (ret)
+		return ret;
+	usb_composite_overwrite_options(cdev, &coverwrite);
+	return ret;
+}
+
+static __refdata struct usb_composite_driver printer_driver = {
+	.name           = shortname,
+	.dev            = &device_desc,
+	.strings        = dev_strings,
+	.max_speed      = USB_SPEED_HIGH,
+	.bind		= printer_bind,
 	.unbind		= printer_unbind,
-
-	.setup		= printer_setup,
-	.disconnect	= printer_disconnect,
-
-	.driver		= {
-		.name		= (char *) shortname,
-		.owner		= THIS_MODULE,
-	},
 };
-
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_AUTHOR("Craig Nadler");
-MODULE_LICENSE("GPL");
 
 static int __init
 init(void)
@@ -1569,23 +1260,23 @@ init(void)
 	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
 	if (IS_ERR(usb_gadget_class)) {
 		status = PTR_ERR(usb_gadget_class);
-		ERROR(dev, "unable to create usb_gadget class %d\n", status);
+		pr_err("unable to create usb_gadget class %d\n", status);
 		return status;
 	}
 
 	status = alloc_chrdev_region(&g_printer_devno, 0, 1,
 			"USB printer gadget");
 	if (status) {
-		ERROR(dev, "alloc_chrdev_region %d\n", status);
+		pr_err("alloc_chrdev_region %d\n", status);
 		class_destroy(usb_gadget_class);
 		return status;
 	}
 
-	status = usb_gadget_probe_driver(&printer_driver, printer_bind);
+	status = usb_composite_probe(&printer_driver);
 	if (status) {
 		class_destroy(usb_gadget_class);
 		unregister_chrdev_region(g_printer_devno, 1);
-		DBG(dev, "usb_gadget_probe_driver %x\n", status);
+		pr_err("usb_gadget_probe_driver %x\n", status);
 	}
 
 	return status;
@@ -1595,15 +1286,14 @@ module_init(init);
 static void __exit
 cleanup(void)
 {
-	int status;
-
 	mutex_lock(&usb_printer_gadget.lock_printer_io);
-	status = usb_gadget_unregister_driver(&printer_driver);
-	if (status)
-		ERROR(dev, "usb_gadget_unregister_driver %x\n", status);
-
-	unregister_chrdev_region(g_printer_devno, 2);
+	usb_composite_unregister(&printer_driver);
+	unregister_chrdev_region(g_printer_devno, 1);
 	class_destroy(usb_gadget_class);
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Craig Nadler");
+MODULE_LICENSE("GPL");

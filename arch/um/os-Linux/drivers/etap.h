@@ -6,7 +6,7 @@
 #ifndef __DRIVERS_ETAP_H
 #define __DRIVERS_ETAP_H
 
-#include "net_user.h"
+#include <net_user.h>
 
 struct ethertap_data {
 	char *dev_name;

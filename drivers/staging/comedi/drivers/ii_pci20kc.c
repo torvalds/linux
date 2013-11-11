@@ -77,9 +77,6 @@ options for PCI-20341M:
 	     3  200
 */
 
-/* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
- * check_mem_region() etc. - fmhess */
-
 #include "../comedidev.h"
 
 #define PCI20000_ID			0x1d
@@ -135,15 +132,15 @@ options for PCI-20341M:
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
 union pci20xxx_subdev_private {
-	void *iobase;
+	void __iomem *iobase;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		const struct comedi_lrange *ao_range_list[2];
 					/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;
@@ -152,23 +149,11 @@ union pci20xxx_subdev_private {
 
 struct pci20xxx_private {
 
-	void *ioaddr;
+	void __iomem *ioaddr;
 	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
-#define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
-
-static int pci20xxx_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int pci20xxx_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_pci20xxx = {
-	.driver_name = "ii_pci20kc",
-	.module = THIS_MODULE,
-	.attach = pci20xxx_attach,
-	.detach = pci20xxx_detach,
-};
 
 static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int opt0, int opt1);
@@ -207,35 +192,36 @@ static int pci20xxx_dio_init(struct comedi_device *dev,
 static int pci20xxx_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	struct pci20xxx_private *devpriv;
 	unsigned char i;
 	int ret;
 	int id;
 	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
 
-	ret = alloc_subdevices(dev, 1 + PCI20000_MODULES);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct pci20xxx_private));
-	if (ret < 0)
-		return ret;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
-	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
-	dev->board_name = "pci20kc";
+	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
 	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
-		printk(KERN_WARNING "comedi%d: ii_pci20kc PCI-20001"
-		       " C-2A Carrier Board at base=0x%p not found !\n",
-		       dev->minor, devpriv->ioaddr);
+		dev_warn(dev->class_dev,
+			 "PCI-20001 C-2A Carrier Board at base=0x%p not found !\n",
+			 devpriv->ioaddr);
 		return -EINVAL;
 	}
-	printk(KERN_INFO "comedi%d: ii_pci20kc: PCI-20001 C-2A at base=0x%p\n",
-	       dev->minor, devpriv->ioaddr);
+	dev_info(dev->class_dev, "PCI-20001 C-2A at base=0x%p\n",
+		 devpriv->ioaddr);
 
 	for (i = 0; i < PCI20000_MODULES; i++) {
-		s = dev->subdevices + i;
+		s = &dev->subdevices[i];
 		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
 		s->private = devpriv->subdev_private + i;
 		sdp = s->private;
@@ -245,23 +231,21 @@ static int pci20xxx_attach(struct comedi_device *dev,
 			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
 			pci20006_init(dev, s, it->options[2 * i + 2],
 				      it->options[2 * i + 3]);
-			printk(KERN_INFO "comedi%d: "
-			       "ii_pci20kc PCI-20006 module in slot %d\n",
-			       dev->minor, i + 1);
+			dev_info(dev->class_dev,
+				 "PCI-20006 module in slot %d\n", i + 1);
 			break;
 		case PCI20341_ID:
 			sdp->pci20341.iobase =
 			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
 			pci20341_init(dev, s, it->options[2 * i + 2],
 				      it->options[2 * i + 3]);
-			printk(KERN_INFO "comedi%d: "
-			       "ii_pci20kc PCI-20341 module in slot %d\n",
-			       dev->minor, i + 1);
+			dev_info(dev->class_dev,
+				 "PCI-20341 module in slot %d\n", i + 1);
 			break;
 		default:
-			printk(KERN_WARNING "ii_pci20kc: unknown module "
-			       "code 0x%02x in slot %d: module disabled\n",
-			       id, i); /* XXX this looks like a bug! i + 1 ?? */
+			dev_warn(dev->class_dev,
+				 "unknown module code 0x%02x in slot %d: module disabled\n",
+				 id, i); /* XXX this looks like a bug! i + 1 ?? */
 			/* fall through */
 		case PCI20xxx_EMPTY_ID:
 			s->type = COMEDI_SUBD_UNUSED;
@@ -270,16 +254,14 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	}
 
 	/* initialize struct pci20xxx_private */
-	pci20xxx_dio_init(dev, dev->subdevices + PCI20000_MODULES);
+	pci20xxx_dio_init(dev, &dev->subdevices[PCI20000_MODULES]);
 
 	return 1;
 }
 
-static int pci20xxx_detach(struct comedi_device *dev)
+static void pci20xxx_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci20xxx: remove\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 /* pci20006m */
@@ -359,8 +341,7 @@ static int pci20006_insn_write(struct comedi_device *dev,
 		writeb(0x00, sdp->iobase + PCI20006_STROBE1);
 		break;
 	default:
-		printk(KERN_WARNING
-		       " comedi%d: pci20xxx: ao channel Error!\n", dev->minor);
+		dev_warn(dev->class_dev, "ao channel Error!\n");
 		return -EINVAL;
 	}
 
@@ -475,10 +456,8 @@ static int pci20341_insn_read(struct comedi_device *dev,
 			eoc = readb(sdp->iobase + PCI20341_STATUS_REG);
 		}
 		if (j >= 100) {
-			printk(KERN_WARNING
-			       "comedi%d:  pci20xxx: "
-			       "AI interrupt channel %i polling exit !\n",
-			       dev->minor, i);
+			dev_warn(dev->class_dev,
+				 "AI interrupt channel %i polling exit !\n", i);
 			return -EINVAL;
 		}
 		lo = readb(sdp->iobase + PCI20341_LDATA);
@@ -554,6 +533,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 
 	s->state &= ~mask;
@@ -578,12 +558,13 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
 
-	return 2;
+	return insn->n;
 }
 
 static void pci20xxx_dio_config(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned char control_01;
 	unsigned char control_23;
 	unsigned char buffer;
@@ -640,6 +621,8 @@ static void pci20xxx_dio_config(struct comedi_device *dev,
 #if 0
 static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct pci20xxx_private *devpriv = dev->private;
+
 	/* XXX if the channel is configured for input, does this
 	   do bad things? */
 	/* XXX it would be a good idea to only update the registers
@@ -654,9 +637,10 @@ static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
 static unsigned int pci20xxx_di(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	/* XXX same note as above */
+	struct pci20xxx_private *devpriv = dev->private;
 	unsigned int bits;
 
+	/* XXX same note as above */
 	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
 	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
 	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
@@ -666,18 +650,13 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 }
 #endif
 
-static int __init driver_pci20xxx_init_module(void)
-{
-	return comedi_driver_register(&driver_pci20xxx);
-}
-
-static void __exit driver_pci20xxx_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pci20xxx);
-}
-
-module_init(driver_pci20xxx_init_module);
-module_exit(driver_pci20xxx_cleanup_module);
+static struct comedi_driver pci20xxx_driver = {
+	.driver_name	= "ii_pci20kc",
+	.module		= THIS_MODULE,
+	.attach		= pci20xxx_attach,
+	.detach		= pci20xxx_detach,
+};
+module_comedi_driver(pci20xxx_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

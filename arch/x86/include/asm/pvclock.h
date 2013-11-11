@@ -6,6 +6,7 @@
 
 /* some helper functions for xen and kvm pv clock sources */
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
+u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
 void pvclock_set_flags(u8 flags);
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src);
 void pvclock_read_wallclock(struct pvclock_wall_clock *wall,
@@ -44,7 +45,7 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 		: "a" ((u32)delta), "1" ((u32)(delta >> 32)), "2" (mul_frac) );
 #elif defined(__x86_64__)
 	__asm__ (
-		"mul %[mul_frac] ; shrd $32, %[hi], %[lo]"
+		"mulq %[mul_frac] ; shrd $32, %[hi], %[lo]"
 		: [lo]"=a"(product),
 		  [hi]"=d"(tmp)
 		: "0"(delta),
@@ -55,5 +56,51 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 
 	return product;
 }
+
+static __always_inline
+u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
+{
+	u64 delta = __native_read_tsc() - src->tsc_timestamp;
+	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
+				   src->tsc_shift);
+}
+
+static __always_inline
+unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
+			       cycle_t *cycles, u8 *flags)
+{
+	unsigned version;
+	cycle_t ret, offset;
+	u8 ret_flags;
+
+	version = src->version;
+	/* Note: emulated platforms which do not advertise SSE2 support
+	 * result in kvmclock not using the necessary RDTSC barriers.
+	 * Without barriers, it is possible that RDTSC instruction reads from
+	 * the time stamp counter outside rdtsc_barrier protected section
+	 * below, resulting in violation of monotonicity.
+	 */
+	rdtsc_barrier();
+	offset = pvclock_get_nsec_offset(src);
+	ret = src->system_time + offset;
+	ret_flags = src->flags;
+	rdtsc_barrier();
+
+	*cycles = ret;
+	*flags = ret_flags;
+	return version;
+}
+
+struct pvclock_vsyscall_time_info {
+	struct pvclock_vcpu_time_info pvti;
+	u32 migrate_count;
+} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+
+#define PVTI_SIZE sizeof(struct pvclock_vsyscall_time_info)
+#define PVCLOCK_VSYSCALL_NR_PAGES (((NR_CPUS-1)/(PAGE_SIZE/PVTI_SIZE))+1)
+
+int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
+				 int size);
+struct pvclock_vcpu_time_info *pvclock_get_vsyscall_time_info(int cpu);
 
 #endif /* _ASM_X86_PVCLOCK_H */

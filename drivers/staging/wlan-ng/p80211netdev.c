@@ -150,7 +150,7 @@ static int p80211knetdev_init(netdevice_t *netdev)
 * Returns:
 *	the address of the statistics structure
 ----------------------------------------------------------------*/
-static struct net_device_stats *p80211knetdev_get_stats(netdevice_t * netdev)
+static struct net_device_stats *p80211knetdev_get_stats(netdevice_t *netdev)
 {
 	wlandevice_t *wlandev = netdev->ml_priv;
 
@@ -240,10 +240,7 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
 	/* Enqueue for post-irq processing */
 	skb_queue_tail(&wlandev->nsd_rxq, skb);
-
 	tasklet_schedule(&wlandev->rx_bh);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -353,6 +350,8 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	wlandevice_t *wlandev = netdev->ml_priv;
 	union p80211_hdr p80211_hdr;
 	struct p80211_metawep p80211_wep;
+
+	p80211_wep.data = NULL;
 
 	if (skb == NULL)
 		return NETDEV_TX_OK;
@@ -464,7 +463,7 @@ failed:
 /*----------------------------------------------------------------
 * p80211knetdev_set_multicast_list
 *
-* Called from higher lavers whenever there's a need to set/clear
+* Called from higher layers whenever there's a need to set/clear
 * promiscuous mode or rewrite the multicast list.
 *
 * Arguments:
@@ -644,7 +643,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	p80211item_unk392_t *mibattr;
 	p80211item_pstr6_t *macaddr;
 	p80211item_uint32_t *resultcode;
-	int result = 0;
+	int result;
 
 	/* If we're running, we don't allow MAC address changes */
 	if (netif_running(dev))
@@ -715,7 +714,7 @@ static const struct net_device_ops p80211_netdev_ops = {
 	.ndo_stop = p80211knetdev_stop,
 	.ndo_get_stats = p80211knetdev_get_stats,
 	.ndo_start_xmit = p80211knetdev_hard_start_xmit,
-	.ndo_set_multicast_list = p80211knetdev_set_multicast_list,
+	.ndo_set_rx_mode = p80211knetdev_set_multicast_list,
 	.ndo_do_ioctl = p80211knetdev_do_ioctl,
 	.ndo_set_mac_address = p80211knetdev_set_mac_address,
 	.ndo_tx_timeout = p80211knetdev_tx_timeout,
@@ -806,15 +805,13 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 * Arguments:
 *	wlandev		ptr to the wlandev structure for the
 *			interface.
-* Returns:
-*	zero on success, non-zero otherwise.
 * Call Context:
 *	Should be process thread.  We'll assume it might be
 *	interrupt though.  When we add support for statically
 *	compiled drivers, this function will be called in the
 *	context of the kernel startup code.
 ----------------------------------------------------------------*/
-int wlan_unsetup(wlandevice_t *wlandev)
+void wlan_unsetup(wlandevice_t *wlandev)
 {
 	struct wireless_dev *wdev;
 
@@ -827,8 +824,6 @@ int wlan_unsetup(wlandevice_t *wlandev)
 		free_netdev(wlandev->netdev);
 		wlandev->netdev = NULL;
 	}
-
-	return 0;
 }
 
 /*----------------------------------------------------------------
@@ -852,13 +847,7 @@ int wlan_unsetup(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 int register_wlandev(wlandevice_t *wlandev)
 {
-	int i = 0;
-
-	i = register_netdev(wlandev->netdev);
-	if (i)
-		return i;
-
-	return 0;
+	return register_netdev(wlandev->netdev);
 }
 
 /*----------------------------------------------------------------

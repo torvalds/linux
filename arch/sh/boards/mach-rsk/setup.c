@@ -15,11 +15,19 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-#ifdef CONFIG_MTD
 #include <linux/mtd/map.h>
-#endif
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
+
+static const char *part_probes[] = { "cmdlinepart", NULL };
 
 static struct mtd_partition rsk_partitions[] = {
 	{
@@ -39,9 +47,10 @@ static struct mtd_partition rsk_partitions[] = {
 };
 
 static struct physmap_flash_data flash_data = {
-	.parts		= rsk_partitions,
-	.nr_parts	= ARRAY_SIZE(rsk_partitions),
-	.width		= 2,
+	.parts			= rsk_partitions,
+	.nr_parts		= ARRAY_SIZE(rsk_partitions),
+	.width			= 2,
+	.part_probe_types	= part_probes,
 };
 
 static struct resource flash_resource = {
@@ -60,44 +69,14 @@ static struct platform_device flash_device = {
 	},
 };
 
-#ifdef CONFIG_MTD
-static const char *probes[] = { "cmdlinepart", NULL };
-
-static struct map_info rsk_flash_map = {
-	.name		= "RSK+ Flash",
-	.size		= 0x400000,
-	.bankwidth	= 2,
-};
-
-static struct mtd_info *flash_mtd;
-
-static struct mtd_partition *parsed_partitions;
-
-static void __init set_mtd_partitions(void)
-{
-	int nr_parts = 0;
-
-	simple_map_init(&rsk_flash_map);
-	flash_mtd = do_map_probe("cfi_probe", &rsk_flash_map);
-	nr_parts = parse_mtd_partitions(flash_mtd, probes,
-					&parsed_partitions, 0);
-	/* If there is no partition table, used the hard coded table */
-	if (nr_parts > 0) {
-		flash_data.nr_parts = nr_parts;
-		flash_data.parts = parsed_partitions;
-	}
-}
-#else
-static inline void set_mtd_partitions(void) {}
-#endif
-
 static struct platform_device *rsk_devices[] __initdata = {
 	&flash_device,
 };
 
 static int __init rsk_devices_setup(void)
 {
-	set_mtd_partitions();
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	return platform_add_devices(rsk_devices,
 				    ARRAY_SIZE(rsk_devices));
 }

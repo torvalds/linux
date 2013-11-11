@@ -37,10 +37,10 @@ static const struct {
 } versatile_leds[] = {
 	{ "versatile:0", "heartbeat", },
 	{ "versatile:1", "mmc0", },
-	{ "versatile:2", },
-	{ "versatile:3", },
-	{ "versatile:4", },
-	{ "versatile:5", },
+	{ "versatile:2", "cpu0" },
+	{ "versatile:3", "cpu1" },
+	{ "versatile:4", "cpu2" },
+	{ "versatile:5", "cpu3" },
 	{ "versatile:6", },
 	{ "versatile:7", },
 };

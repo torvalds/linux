@@ -51,6 +51,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <sound/ac97_codec.h>
 #include <sound/control.h>
 #include <sound/core.h>
@@ -73,7 +74,7 @@ MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8786}"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "card index");
@@ -93,6 +94,7 @@ enum {
 	MODEL_2CH_OUTPUT,
 	MODEL_HG2PCI,
 	MODEL_XONAR_DG,
+	MODEL_XONAR_DGX,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
@@ -108,6 +110,8 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
 	/* Asus Xonar DG */
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8467), .driver_data = MODEL_XONAR_DG },
+	/* Asus Xonar DGX */
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8521), .driver_data = MODEL_XONAR_DGX },
 	/* PCI 2.0 HD Audio */
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8782), .driver_data = MODEL_2CH_OUTPUT },
 	/* Kuroutoshikou CMI8787-HG2PCI */
@@ -752,8 +756,8 @@ static const struct oxygen_model model_generic = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
-static int __devinit get_oxygen_model(struct oxygen *chip,
-				      const struct pci_device_id *id)
+static int get_oxygen_model(struct oxygen *chip,
+			    const struct pci_device_id *id)
 {
 	static const char *const names[] = {
 		[MODEL_MERIDIAN]	= "AuzenTech X-Meridian",
@@ -826,6 +830,11 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		break;
 	case MODEL_XONAR_DG:
 		chip->model = model_xonar_dg;
+		chip->model.shortname = "Xonar DG";
+		break;
+	case MODEL_XONAR_DGX:
+		chip->model = model_xonar_dg;
+		chip->model.shortname = "Xonar DGX";
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||
@@ -839,8 +848,8 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 	return 0;
 }
 
-static int __devinit generic_oxygen_probe(struct pci_dev *pci,
-					  const struct pci_device_id *pci_id)
+static int generic_oxygen_probe(struct pci_dev *pci,
+				const struct pci_device_id *pci_id)
 {
 	static int dev;
 	int err;
@@ -859,25 +868,15 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 }
 
 static struct pci_driver oxygen_driver = {
-	.name = "CMI8788",
+	.name = KBUILD_MODNAME,
 	.id_table = oxygen_ids,
 	.probe = generic_oxygen_probe,
-	.remove = __devexit_p(oxygen_pci_remove),
-#ifdef CONFIG_PM
-	.suspend = oxygen_pci_suspend,
-	.resume = oxygen_pci_resume,
+	.remove = oxygen_pci_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver = {
+		.pm = &oxygen_pci_pm,
+	},
 #endif
 };
 
-static int __init alsa_card_oxygen_init(void)
-{
-	return pci_register_driver(&oxygen_driver);
-}
-
-static void __exit alsa_card_oxygen_exit(void)
-{
-	pci_unregister_driver(&oxygen_driver);
-}
-
-module_init(alsa_card_oxygen_init)
-module_exit(alsa_card_oxygen_exit)
+module_pci_driver(oxygen_driver);

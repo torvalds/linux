@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
  *
  * FUNCTION:    acpi_tb_validate_rsdp
  *
- * PARAMETERS:  Rsdp                - Pointer to unvalidated RSDP
+ * PARAMETERS:  rsdp                - Pointer to unvalidated RSDP
  *
  * RETURN:      Status
  *
@@ -67,7 +67,6 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
 
 static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 {
-	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * The signature and checksum must both be correct
@@ -107,10 +106,10 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
  *
  * RETURN:      Status, RSDP physical address
  *
- * DESCRIPTION: Search lower 1_mbyte of memory for the root system descriptor
- *              pointer structure.  If it is found, set *RSDP to point to it.
+ * DESCRIPTION: Search lower 1Mbyte of memory for the root system descriptor
+ *              pointer structure. If it is found, set *RSDP to point to it.
  *
- * NOTE1:       The RSDP must be either in the first 1_k of the Extended
+ * NOTE1:       The RSDP must be either in the first 1K of the Extended
  *              BIOS Data Area or between E0000 and FFFFF (From ACPI Spec.)
  *              Only a 32-bit physical address is necessary.
  *
@@ -152,7 +151,7 @@ acpi_status acpi_find_root_pointer(acpi_size *table_address)
 	if (physical_address > 0x400) {
 		/*
 		 * 1b) Search EBDA paragraphs (EBDA is required to be a
-		 *     minimum of 1_k length)
+		 *     minimum of 1K length)
 		 */
 		table_ptr = acpi_os_map_memory((acpi_physical_address)
 					       physical_address,
@@ -216,7 +215,7 @@ acpi_status acpi_find_root_pointer(acpi_size *table_address)
 
 	/* A valid RSDP was not found */
 
-	ACPI_ERROR((AE_INFO, "A valid RSDP was not found"));
+	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was not found"));
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
 
@@ -225,7 +224,7 @@ acpi_status acpi_find_root_pointer(acpi_size *table_address)
  * FUNCTION:    acpi_tb_scan_memory_for_rsdp
  *
  * PARAMETERS:  start_address       - Starting pointer for search
- *              Length              - Maximum length to search
+ *              length              - Maximum length to search
  *
  * RETURN:      Pointer to the RSDP if found, otherwise NULL.
  *

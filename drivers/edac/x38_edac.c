@@ -103,10 +103,10 @@ static int how_many_channel(struct pci_dev *pdev)
 
 	pci_read_config_byte(pdev, X38_CAPID0 + 8, &capid0_8b);
 	if (capid0_8b & 0x20) {	/* check DCD: Dual Channel Disable */
-		debugf0("In single channel mode.\n");
+		edac_dbg(0, "In single channel mode\n");
 		x38_channel_num = 1;
 	} else {
-		debugf0("In dual channel mode.\n");
+		edac_dbg(0, "In dual channel mode\n");
 		x38_channel_num = 2;
 	}
 
@@ -151,7 +151,7 @@ static void x38_clear_error_info(struct mem_ctl_info *mci)
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * Clear any error bits.
@@ -172,7 +172,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	struct pci_dev *pdev;
 	void __iomem *window = mci->pvt_info;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * This is a mess because there is no atomic way to read all the
@@ -215,19 +215,26 @@ static void x38_process_error_info(struct mem_ctl_info *mci,
 		return;
 
 	if ((info->errsts ^ info->errsts2) & X38_ERRSTS_BITS) {
-		edac_mc_handle_ce_no_info(mci, "UE overwrote CE");
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1,
+				     "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
 	for (channel = 0; channel < x38_channel_num; channel++) {
 		log = info->eccerrlog[channel];
 		if (log & X38_ECCERRLOG_UE) {
-			edac_mc_handle_ue(mci, 0, 0,
-				eccerrlog_row(channel, log), "x38 UE");
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
+					     0, 0, 0,
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "x38 UE", "");
 		} else if (log & X38_ECCERRLOG_CE) {
-			edac_mc_handle_ce(mci, 0, 0,
-				eccerrlog_syndrome(log),
-				eccerrlog_row(channel, log), 0, "x38 CE");
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
+					     0, 0, eccerrlog_syndrome(log),
+					     eccerrlog_row(channel, log),
+					     -1, -1,
+					     "x38 CE", "");
 		}
 	}
 }
@@ -236,7 +243,7 @@ static void x38_check(struct mem_ctl_info *mci)
 {
 	struct x38_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	x38_get_and_clear_error_info(mci, &info);
 	x38_process_error_info(mci, &info);
 }
@@ -317,14 +324,14 @@ static unsigned long drb_to_nr_pages(
 static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc;
-	int i;
+	int i, j;
 	struct mem_ctl_info *mci = NULL;
-	unsigned long last_page;
+	struct edac_mc_layer layers[2];
 	u16 drbs[X38_CHANNELS][X38_RANKS_PER_CHANNEL];
 	bool stacked;
 	void __iomem *window;
 
-	debugf0("MC: %s()\n", __func__);
+	edac_dbg(0, "MC:\n");
 
 	window = x38_map_mchbar(pdev);
 	if (!window)
@@ -335,13 +342,19 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	how_many_channel(pdev);
 
 	/* FIXME: unconventional pvt_info usage */
-	mci = edac_mc_alloc(0, X38_RANKS, x38_channel_num, 0);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = X38_RANKS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = x38_channel_num;
+	layers[1].is_virt_csrow = false;
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("MC: %s(): init mci\n", __func__);
+	edac_dbg(3, "MC: init mci\n");
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
 
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
@@ -363,41 +376,38 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	 * cumulative; the last one will contain the total memory
 	 * contained in all ranks.
 	 */
-	last_page = -1UL;
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
-		struct csrow_info *csrow = &mci->csrows[i];
+		struct csrow_info *csrow = mci->csrows[i];
 
 		nr_pages = drb_to_nr_pages(drbs, stacked,
 			i / X38_RANKS_PER_CHANNEL,
 			i % X38_RANKS_PER_CHANNEL);
 
-		if (nr_pages == 0) {
-			csrow->mtype = MEM_EMPTY;
+		if (nr_pages == 0)
 			continue;
+
+		for (j = 0; j < x38_channel_num; j++) {
+			struct dimm_info *dimm = csrow->channels[j]->dimm;
+
+			dimm->nr_pages = nr_pages / x38_channel_num;
+			dimm->grain = nr_pages << PAGE_SHIFT;
+			dimm->mtype = MEM_DDR2;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = EDAC_UNKNOWN;
 		}
-
-		csrow->first_page = last_page + 1;
-		last_page += nr_pages;
-		csrow->last_page = last_page;
-		csrow->nr_pages = nr_pages;
-
-		csrow->grain = nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_DDR2;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = EDAC_UNKNOWN;
 	}
 
 	x38_clear_error_info(mci);
 
 	rc = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: %s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: %s(): success\n", __func__);
+	edac_dbg(3, "MC: success\n");
 	return 0;
 
 fail:
@@ -408,12 +418,11 @@ fail:
 	return rc;
 }
 
-static int __devinit x38_init_one(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int x38_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
 
-	debugf0("MC: %s()\n", __func__);
+	edac_dbg(0, "MC:\n");
 
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
@@ -425,11 +434,11 @@ static int __devinit x38_init_one(struct pci_dev *pdev,
 	return rc;
 }
 
-static void __devexit x38_remove_one(struct pci_dev *pdev)
+static void x38_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
@@ -440,7 +449,7 @@ static void __devexit x38_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id x38_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(x38_pci_tbl) = {
 	{
 	 PCI_VEND_DEV(INTEL, X38_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 X38},
@@ -454,7 +463,7 @@ MODULE_DEVICE_TABLE(pci, x38_pci_tbl);
 static struct pci_driver x38_driver = {
 	.name = EDAC_MOD_STR,
 	.probe = x38_init_one,
-	.remove = __devexit_p(x38_remove_one),
+	.remove = x38_remove_one,
 	.id_table = x38_pci_tbl,
 };
 
@@ -462,7 +471,7 @@ static int __init x38_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC: %s()\n", __func__);
+	edac_dbg(3, "MC:\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -476,14 +485,14 @@ static int __init x38_init(void)
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					PCI_DEVICE_ID_INTEL_X38_HB, NULL);
 		if (!mci_pdev) {
-			debugf0("x38 pci_get_device fail\n");
+			edac_dbg(0, "x38 pci_get_device fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
 
 		pci_rc = x38_init_one(mci_pdev, x38_pci_tbl);
 		if (pci_rc < 0) {
-			debugf0("x38 init fail\n");
+			edac_dbg(0, "x38 init fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -503,7 +512,7 @@ fail0:
 
 static void __exit x38_exit(void)
 {
-	debugf3("MC: %s()\n", __func__);
+	edac_dbg(3, "MC:\n");
 
 	pci_unregister_driver(&x38_driver);
 	if (!x38_registered) {

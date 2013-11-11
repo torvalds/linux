@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
+#include <linux/export.h>
 
 struct ttyprintk_port {
 	struct tty_port port;
@@ -66,7 +67,7 @@ static int tpk_printk(const unsigned char *buf, int count)
 				tmp[tpk_curr + 1] = '\0';
 				printk(KERN_INFO "%s%s", tpk_tag, tmp);
 				tpk_curr = 0;
-				if (buf[i + 1] == '\n')
+				if ((i + 1) < count && buf[i + 1] == '\n')
 					i++;
 				break;
 			case '\n':
@@ -170,31 +171,35 @@ static const struct tty_operations ttyprintk_ops = {
 	.ioctl = tpk_ioctl,
 };
 
-struct tty_port_operations null_ops = { };
+static struct tty_port_operations null_ops = { };
 
 static struct tty_driver *ttyprintk_driver;
 
 static int __init ttyprintk_init(void)
 {
 	int ret = -ENOMEM;
-	void *rp;
 
-	ttyprintk_driver = alloc_tty_driver(1);
-	if (!ttyprintk_driver)
-		return ret;
+	mutex_init(&tpk_port.port_write_mutex);
 
-	ttyprintk_driver->owner = THIS_MODULE;
+	ttyprintk_driver = tty_alloc_driver(1,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_UNNUMBERED_NODE);
+	if (IS_ERR(ttyprintk_driver))
+		return PTR_ERR(ttyprintk_driver);
+
+	tty_port_init(&tpk_port.port);
+	tpk_port.port.ops = &null_ops;
+
 	ttyprintk_driver->driver_name = "ttyprintk";
 	ttyprintk_driver->name = "ttyprintk";
 	ttyprintk_driver->major = TTYAUX_MAJOR;
 	ttyprintk_driver->minor_start = 3;
-	ttyprintk_driver->num = 1;
 	ttyprintk_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	ttyprintk_driver->init_termios = tty_std_termios;
 	ttyprintk_driver->init_termios.c_oflag = OPOST | OCRNL | ONOCR | ONLRET;
-	ttyprintk_driver->flags = TTY_DRIVER_RESET_TERMIOS |
-		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(ttyprintk_driver, &ttyprintk_ops);
+	tty_port_link_device(&tpk_port.port, ttyprintk_driver, 0);
 
 	ret = tty_register_driver(ttyprintk_driver);
 	if (ret < 0) {
@@ -202,23 +207,12 @@ static int __init ttyprintk_init(void)
 		goto error;
 	}
 
-	/* create our unnumbered device */
-	rp = device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 3), NULL,
-				ttyprintk_driver->name);
-	if (IS_ERR(rp)) {
-		printk(KERN_ERR "Couldn't create ttyprintk device\n");
-		ret = PTR_ERR(rp);
-		goto error;
-	}
-
-	tty_port_init(&tpk_port.port);
-	tpk_port.port.ops = &null_ops;
-	mutex_init(&tpk_port.port_write_mutex);
-
 	return 0;
 
 error:
+	tty_unregister_driver(ttyprintk_driver);
 	put_tty_driver(ttyprintk_driver);
+	tty_port_destroy(&tpk_port.port);
 	ttyprintk_driver = NULL;
 	return ret;
 }

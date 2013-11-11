@@ -11,7 +11,7 @@
  */
 #include <mach/ep93xx-regs.h>
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =EP93XX_APB_PHYS_BASE	@ Physical base
 		ldr	\rv, =EP93XX_APB_VIRT_BASE	@ virtual base
 		orr	\rp, \rp, #0x000c0000

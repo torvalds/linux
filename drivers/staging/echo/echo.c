@@ -118,7 +118,7 @@
 #ifdef __bfin__
 static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
-	int i, j;
+	int i;
 	int offset1;
 	int offset2;
 	int factor;
@@ -141,7 +141,7 @@ static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 
 	/* asm("st:"); */
 	n = ec->taps;
-	for (i = 0, j = offset2; i < n; i++, j++) {
+	for (i = 0; i < n; i++) {
 		exp = *phist++ * factor;
 		ec->fir_taps16[1][i] += (int16_t) ((exp + (1 << 14)) >> 15);
 	}
@@ -229,6 +229,7 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 {
 	struct oslec_state *ec;
 	int i;
+	const int16_t *history;
 
 	ec = kzalloc(sizeof(*ec), GFP_KERNEL);
 	if (!ec)
@@ -238,15 +239,22 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 	ec->log2taps = top_bit(len);
 	ec->curr_pos = ec->taps - 1;
 
-	for (i = 0; i < 2; i++) {
-		ec->fir_taps16[i] =
-		    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
-		if (!ec->fir_taps16[i])
-			goto error_oom;
-	}
+	ec->fir_taps16[0] =
+	    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+	if (!ec->fir_taps16[0])
+		goto error_oom_0;
 
-	fir16_create(&ec->fir_state, ec->fir_taps16[0], ec->taps);
-	fir16_create(&ec->fir_state_bg, ec->fir_taps16[1], ec->taps);
+	ec->fir_taps16[1] =
+	    kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+	if (!ec->fir_taps16[1])
+		goto error_oom_1;
+
+	history = fir16_create(&ec->fir_state, ec->fir_taps16[0], ec->taps);
+	if (!history)
+		goto error_state;
+	history = fir16_create(&ec->fir_state_bg, ec->fir_taps16[1], ec->taps);
+	if (!history)
+		goto error_state_bg;
 
 	for (i = 0; i < 5; i++)
 		ec->xvtx[i] = ec->yvtx[i] = ec->xvrx[i] = ec->yvrx[i] = 0;
@@ -256,7 +264,7 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 
 	ec->snapshot = kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
 	if (!ec->snapshot)
-		goto error_oom;
+		goto error_snap;
 
 	ec->cond_met = 0;
 	ec->Pstates = 0;
@@ -269,14 +277,18 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 
 	return ec;
 
-error_oom:
-	for (i = 0; i < 2; i++)
-		kfree(ec->fir_taps16[i]);
-
+error_snap:
+	fir16_free(&ec->fir_state_bg);
+error_state_bg:
+	fir16_free(&ec->fir_state);
+error_state:
+	kfree(ec->fir_taps16[1]);
+error_oom_1:
+	kfree(ec->fir_taps16[0]);
+error_oom_0:
 	kfree(ec);
 	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(oslec_create);
 
 void oslec_free(struct oslec_state *ec)
@@ -290,14 +302,12 @@ void oslec_free(struct oslec_state *ec)
 	kfree(ec->snapshot);
 	kfree(ec);
 }
-
 EXPORT_SYMBOL_GPL(oslec_free);
 
 void oslec_adaption_mode(struct oslec_state *ec, int adaption_mode)
 {
 	ec->adaption_mode = adaption_mode;
 }
-
 EXPORT_SYMBOL_GPL(oslec_adaption_mode);
 
 void oslec_flush(struct oslec_state *ec)
@@ -324,14 +334,12 @@ void oslec_flush(struct oslec_state *ec)
 	ec->curr_pos = ec->taps - 1;
 	ec->Pstates = 0;
 }
-
 EXPORT_SYMBOL_GPL(oslec_flush);
 
 void oslec_snapshot(struct oslec_state *ec)
 {
 	memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps * sizeof(int16_t));
 }
-
 EXPORT_SYMBOL_GPL(oslec_snapshot);
 
 /* Dual Path Echo Canceller */
@@ -340,7 +348,8 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 {
 	int32_t echo_value;
 	int clean_bg;
-	int tmp, tmp1;
+	int tmp;
+	int tmp1;
 
 	/*
 	 * Input scaling was found be required to prevent problems when tx
@@ -406,7 +415,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		/* efficient "out with the old and in with the new" algorithm so
 		   we don't have to recalculate over the whole block of
 		   samples. */
-		new = (int)tx *(int)tx;
+		new = (int)tx * (int)tx;
 		old = (int)ec->fir_state.history[ec->fir_state.curr_pos] *
 		    (int)ec->fir_state.history[ec->fir_state.curr_pos];
 		ec->Pstates +=
@@ -603,7 +612,6 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	return (int16_t) ec->clean_nlp << 1;
 }
-
 EXPORT_SYMBOL_GPL(oslec_update);
 
 /* This function is separated from the echo canceller is it is usually called
@@ -628,9 +636,10 @@ EXPORT_SYMBOL_GPL(oslec_update);
    giving very clean DC removal.
 */
 
-int16_t oslec_hpf_tx(struct oslec_state * ec, int16_t tx)
+int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 {
-	int tmp, tmp1;
+	int tmp;
+	int tmp1;
 
 	if (ec->adaption_mode & ECHO_CAN_USE_TX_HPF) {
 		tmp = tx << 15;
@@ -657,7 +666,6 @@ int16_t oslec_hpf_tx(struct oslec_state * ec, int16_t tx)
 
 	return tx;
 }
-
 EXPORT_SYMBOL_GPL(oslec_hpf_tx);
 
 MODULE_LICENSE("GPL");

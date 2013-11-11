@@ -19,15 +19,18 @@
  */
 
 #include <linux/err.h>
-#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include <linux/dma-mapping.h>
+#include <linux/omap-dma.h>
+#include <mach/tc.h>
 
-#include <plat/dma.h>
-#include <plat/tc.h>
-#include <plat/irqs.h>
+#include <mach/irqs.h>
+
+#include "dma.h"
 
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
@@ -267,11 +270,17 @@ static u32 configure_dma_errata(void)
 	return errata;
 }
 
+static const struct platform_device_info omap_dma_dev_info = {
+	.name = "omap-dma-engine",
+	.id = -1,
+	.dma_mask = DMA_BIT_MASK(32),
+};
+
 static int __init omap1_system_dma_init(void)
 {
 	struct omap_system_dma_plat_info	*p;
 	struct omap_dma_dev_attr		*d;
-	struct platform_device			*pdev;
+	struct platform_device			*pdev, *dma_pdev;
 	int ret;
 
 	pdev = platform_device_alloc("omap_dma_system", 0);
@@ -292,7 +301,7 @@ static int __init omap1_system_dma_init(void)
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
-		goto exit_device_put;
+		goto exit_iounmap;
 	}
 
 	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
@@ -300,7 +309,7 @@ static int __init omap1_system_dma_init(void)
 		dev_err(&pdev->dev, "%s: Unable to allocate 'p' for %s\n",
 			__func__, pdev->name);
 		ret = -ENOMEM;
-		goto exit_device_del;
+		goto exit_iounmap;
 	}
 
 	d = kzalloc(sizeof(struct omap_dma_dev_attr), GFP_KERNEL);
@@ -318,6 +327,9 @@ static int __init omap1_system_dma_init(void)
 		d->dev_caps = ENABLE_1510_MODE;
 	enable_1510_mode = d->dev_caps & ENABLE_1510_MODE;
 
+	if (cpu_is_omap16xx())
+		d->dev_caps = ENABLE_16XX_MODE;
+
 	d->dev_caps		|= SRC_PORT;
 	d->dev_caps		|= DST_PORT;
 	d->dev_caps		|= SRC_INDEX;
@@ -330,8 +342,10 @@ static int __init omap1_system_dma_init(void)
 	d->chan = kzalloc(sizeof(struct omap_dma_lch) *
 					(d->lch_count), GFP_KERNEL);
 	if (!d->chan) {
-		dev_err(&pdev->dev, "%s: Memory allocation failed"
-					"for d->chan!!!\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: Memory allocation failed for d->chan!\n",
+			__func__);
+		ret = -ENOMEM;
 		goto exit_release_d;
 	}
 
@@ -373,16 +387,24 @@ static int __init omap1_system_dma_init(void)
 	dma_common_ch_start	= CPC;
 	dma_common_ch_end	= COLOR;
 
+	dma_pdev = platform_device_register_full(&omap_dma_dev_info);
+	if (IS_ERR(dma_pdev)) {
+		ret = PTR_ERR(dma_pdev);
+		goto exit_release_pdev;
+	}
+
 	return ret;
 
+exit_release_pdev:
+	platform_device_del(pdev);
 exit_release_chan:
 	kfree(d->chan);
 exit_release_d:
 	kfree(d);
 exit_release_p:
 	kfree(p);
-exit_device_del:
-	platform_device_del(pdev);
+exit_iounmap:
+	iounmap(dma_base);
 exit_device_put:
 	platform_device_put(pdev);
 

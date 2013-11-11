@@ -27,6 +27,7 @@
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/spi/spi.h>
 #include <video/platform_lcd.h>
 #include <linux/i2c.h>
 
@@ -35,12 +36,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx35.h>
-#include <mach/audmux.h>
-
+#include "common.h"
 #include "devices-imx35.h"
+#include "hardware.h"
+#include "iomux-mx35.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{
@@ -93,10 +92,6 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
 	},
-};
-
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
 };
 
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
@@ -159,12 +154,22 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 	/* SD1 CD */
 	MX35_PAD_LD18__GPIO3_24,
+	/* SPI */
+	MX35_PAD_CSPI1_MOSI__CSPI1_MOSI,
+	MX35_PAD_CSPI1_MISO__CSPI1_MISO,
+	MX35_PAD_CSPI1_SS0__GPIO1_18,
+	MX35_PAD_CSPI1_SS1__GPIO1_19,
+	MX35_PAD_CSPI1_SCLK__CSPI1_SCLK,
+	MX35_PAD_CSPI1_SPI_RDY__GPIO3_5,
 };
 
 #define GPIO_LED1	IMX_GPIO_NR(3, 29)
 #define GPIO_SWITCH1	IMX_GPIO_NR(3, 25)
 #define GPIO_LCDPWR	IMX_GPIO_NR(1, 4)
 #define GPIO_SD1CD	IMX_GPIO_NR(3, 24)
+#define	GPIO_SPI1_SS0	IMX_GPIO_NR(1, 18)
+#define	GPIO_SPI1_SS1	IMX_GPIO_NR(1, 19)
+#define	GPIO_SPI1_IRQ	IMX_GPIO_NR(3, 5)
 
 static void eukrea_mbimxsd_lcd_power_set(struct plat_lcd_data *pd,
 				   unsigned int power)
@@ -193,17 +198,10 @@ static struct gpio_led eukrea_mbimxsd_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data eukrea_mbimxsd_led_info = {
+static const struct gpio_led_platform_data
+		eukrea_mbimxsd_led_info __initconst = {
 	.leds		= eukrea_mbimxsd_leds,
 	.num_leds	= ARRAY_SIZE(eukrea_mbimxsd_leds),
-};
-
-static struct platform_device eukrea_mbimxsd_leds_gpio = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &eukrea_mbimxsd_led_info,
-	},
 };
 
 static struct gpio_keys_button eukrea_mbimxsd_gpio_buttons[] = {
@@ -223,7 +221,6 @@ static const struct gpio_keys_platform_data
 };
 
 static struct platform_device *platform_devices[] __initdata = {
-	&eukrea_mbimxsd_leds_gpio,
 	&eukrea_mbimxsd_lcd_powerdev,
 };
 
@@ -244,7 +241,32 @@ struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 
 static struct esdhc_platform_data sd1_pdata = {
 	.cd_gpio = GPIO_SD1CD,
-	.wp_gpio = -EINVAL,
+	.cd_type = ESDHC_CD_GPIO,
+	.wp_type = ESDHC_WP_NONE,
+};
+
+static struct spi_board_info eukrea_mbimxsd35_spi_board_info[] __initdata = {
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 20000000,
+		.bus_num = 0,
+		.chip_select = 0,
+		.mode = SPI_MODE_0,
+	},
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 20000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.mode = SPI_MODE_0,
+	},
+};
+
+static int eukrea_mbimxsd35_spi_cs[] = {GPIO_SPI1_SS0, GPIO_SPI1_SS1};
+
+static const struct spi_imx_master eukrea_mbimxsd35_spi0_data __initconst = {
+	.chipselect     = eukrea_mbimxsd35_spi_cs,
+	.num_chipselect = ARRAY_SIZE(eukrea_mbimxsd35_spi_cs),
 };
 
 /*
@@ -259,24 +281,8 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 			ARRAY_SIZE(eukrea_mbimxsd_pads)))
 		printk(KERN_ERR "error setting mbimxsd pads !\n");
 
-#if defined(CONFIG_SND_SOC_EUKREA_TLV320)
-	/* SSI unit master I2S codec connected to SSI_AUD4 */
-	mxc_audmux_v2_configure_port(0,
-			MXC_AUDMUX_V2_PTCR_SYN |
-			MXC_AUDMUX_V2_PTCR_TFSDIR |
-			MXC_AUDMUX_V2_PTCR_TFSEL(3) |
-			MXC_AUDMUX_V2_PTCR_TCLKDIR |
-			MXC_AUDMUX_V2_PTCR_TCSEL(3),
-			MXC_AUDMUX_V2_PDCR_RXDSEL(3)
-	);
-	mxc_audmux_v2_configure_port(3,
-			MXC_AUDMUX_V2_PTCR_SYN,
-			MXC_AUDMUX_V2_PDCR_RXDSEL(0)
-	);
-#endif
-
 	imx35_add_imx_uart1(&uart_pdata);
-	imx35_add_ipu_core(&mx3_ipu_data);
+	imx35_add_ipu_core();
 	imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
@@ -298,6 +304,15 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	i2c_register_board_info(0, eukrea_mbimxsd_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimxsd_i2c_devices));
 
+	gpio_request(GPIO_SPI1_IRQ, "SPI1_IRQ");
+	gpio_direction_input(GPIO_SPI1_IRQ);
+	gpio_free(GPIO_SPI1_IRQ);
+	imx35_add_spi_imx0(&eukrea_mbimxsd35_spi0_data);
+	spi_register_board_info(eukrea_mbimxsd35_spi_board_info,
+		ARRAY_SIZE(eukrea_mbimxsd35_spi_board_info));
+
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	gpio_led_register_device(-1, &eukrea_mbimxsd_led_info);
 	imx_add_gpio_keys(&eukrea_mbimxsd_button_data);
+	imx_add_platform_device("eukrea_tlv320", 0, NULL, 0, NULL, 0);
 }

@@ -15,21 +15,30 @@
 int swiotlb __read_mostly;
 
 static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
-					dma_addr_t *dma_handle, gfp_t flags)
+					dma_addr_t *dma_handle, gfp_t flags,
+					struct dma_attrs *attrs)
 {
 	void *vaddr;
 
-	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags);
+	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags,
+					   attrs);
 	if (vaddr)
 		return vaddr;
 
 	return swiotlb_alloc_coherent(hwdev, size, dma_handle, flags);
 }
 
+static void x86_swiotlb_free_coherent(struct device *dev, size_t size,
+				      void *vaddr, dma_addr_t dma_addr,
+				      struct dma_attrs *attrs)
+{
+	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
+}
+
 static struct dma_map_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
-	.alloc_coherent = x86_swiotlb_alloc_coherent,
-	.free_coherent = swiotlb_free_coherent,
+	.alloc = x86_swiotlb_alloc_coherent,
+	.free = x86_swiotlb_free_coherent,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,

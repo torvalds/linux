@@ -1,7 +1,5 @@
 menu "Processor type and features"
 
-source "kernel/time/Kconfig"
-
 choice
 	prompt "H8/300 platform"
 	default H8300H_GENERIC
@@ -162,9 +160,7 @@ config H8300_TPU_CH
 	int "TPU channel"
 	depends on H8300_TPU
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	default n
+source "kernel/Kconfig.preempt"
 
 source "mm/Kconfig"
 

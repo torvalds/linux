@@ -29,7 +29,6 @@
 #include <linux/blkdev.h>
 #include <linux/ide.h>
 #include <linux/init.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #define DRV_NAME "qd65xx"
@@ -336,7 +335,7 @@ static const struct ide_port_ops qd6580_port_ops = {
 	.set_pio_mode		= qd6580_set_pio_mode,
 };
 
-static const struct ide_port_info qd65xx_port_info __initdata = {
+static const struct ide_port_info qd65xx_port_info __initconst = {
 	.name			= DRV_NAME,
 	.tp_ops 		= &qd65xx_tp_ops,
 	.chipset		= ide_qd65xx,
@@ -417,7 +416,7 @@ static int __init qd_probe(int base)
 	return rc;
 }
 
-static int probe_qd65xx;
+static bool probe_qd65xx;
 
 module_param_named(probe, probe_qd65xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for QD65xx chipsets");

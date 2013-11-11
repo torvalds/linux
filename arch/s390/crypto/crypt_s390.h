@@ -3,7 +3,7 @@
  *
  * Support for s390 cryptographic instructions.
  *
- *   Copyright IBM Corp. 2003,2007
+ *   Copyright IBM Corp. 2003, 2007
  *   Author(s): Thomas Spatzier
  *		Jan Glauber (jan.glauber@de.ibm.com)
  *
@@ -17,6 +17,7 @@
 #define _CRYPTO_ARCH_S390_CRYPT_S390_H
 
 #include <asm/errno.h>
+#include <asm/facility.h>
 
 #define CRYPT_S390_OP_MASK 0xFF00
 #define CRYPT_S390_FUNC_MASK 0x00FF
@@ -368,9 +369,12 @@ static inline int crypt_s390_func_available(int func,
 
 	if (facility_mask & CRYPT_S390_MSA && !test_facility(17))
 		return 0;
-	if (facility_mask & CRYPT_S390_MSA3 && !test_facility(76))
+
+	if (facility_mask & CRYPT_S390_MSA3 &&
+	    (!test_facility(2) || !test_facility(76)))
 		return 0;
-	if (facility_mask & CRYPT_S390_MSA4 && !test_facility(77))
+	if (facility_mask & CRYPT_S390_MSA4 &&
+	    (!test_facility(2) || !test_facility(77)))
 		return 0;
 
 	switch (func & CRYPT_S390_OP_MASK) {

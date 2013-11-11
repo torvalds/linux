@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/hash.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/gss_api.h>
 #include <linux/spinlock.h>
 
 #ifdef RPC_DEBUG
@@ -81,7 +82,7 @@ MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
 
 static u32
 pseudoflavor_to_flavor(u32 flavor) {
-	if (flavor >= RPC_AUTH_MAXFLAVOR)
+	if (flavor > RPC_AUTH_MAXFLAVOR)
 		return RPC_AUTH_GSS;
 	return flavor;
 }
@@ -121,6 +122,132 @@ rpcauth_unregister(const struct rpc_authops *ops)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpcauth_unregister);
+
+/**
+ * rpcauth_get_pseudoflavor - check if security flavor is supported
+ * @flavor: a security flavor
+ * @info: a GSS mech OID, quality of protection, and service value
+ *
+ * Verifies that an appropriate kernel module is available or already loaded.
+ * Returns an equivalent pseudoflavor, or RPC_AUTH_MAXFLAVOR if "flavor" is
+ * not supported locally.
+ */
+rpc_authflavor_t
+rpcauth_get_pseudoflavor(rpc_authflavor_t flavor, struct rpcsec_gss_info *info)
+{
+	const struct rpc_authops *ops;
+	rpc_authflavor_t pseudoflavor;
+
+	ops = auth_flavors[flavor];
+	if (ops == NULL)
+		request_module("rpc-auth-%u", flavor);
+	spin_lock(&rpc_authflavor_lock);
+	ops = auth_flavors[flavor];
+	if (ops == NULL || !try_module_get(ops->owner)) {
+		spin_unlock(&rpc_authflavor_lock);
+		return RPC_AUTH_MAXFLAVOR;
+	}
+	spin_unlock(&rpc_authflavor_lock);
+
+	pseudoflavor = flavor;
+	if (ops->info2flavor != NULL)
+		pseudoflavor = ops->info2flavor(info);
+
+	module_put(ops->owner);
+	return pseudoflavor;
+}
+EXPORT_SYMBOL_GPL(rpcauth_get_pseudoflavor);
+
+/**
+ * rpcauth_get_gssinfo - find GSS tuple matching a GSS pseudoflavor
+ * @pseudoflavor: GSS pseudoflavor to match
+ * @info: rpcsec_gss_info structure to fill in
+ *
+ * Returns zero and fills in "info" if pseudoflavor matches a
+ * supported mechanism.
+ */
+int
+rpcauth_get_gssinfo(rpc_authflavor_t pseudoflavor, struct rpcsec_gss_info *info)
+{
+	rpc_authflavor_t flavor = pseudoflavor_to_flavor(pseudoflavor);
+	const struct rpc_authops *ops;
+	int result;
+
+	if (flavor >= RPC_AUTH_MAXFLAVOR)
+		return -EINVAL;
+
+	ops = auth_flavors[flavor];
+	if (ops == NULL)
+		request_module("rpc-auth-%u", flavor);
+	spin_lock(&rpc_authflavor_lock);
+	ops = auth_flavors[flavor];
+	if (ops == NULL || !try_module_get(ops->owner)) {
+		spin_unlock(&rpc_authflavor_lock);
+		return -ENOENT;
+	}
+	spin_unlock(&rpc_authflavor_lock);
+
+	result = -ENOENT;
+	if (ops->flavor2info != NULL)
+		result = ops->flavor2info(pseudoflavor, info);
+
+	module_put(ops->owner);
+	return result;
+}
+EXPORT_SYMBOL_GPL(rpcauth_get_gssinfo);
+
+/**
+ * rpcauth_list_flavors - discover registered flavors and pseudoflavors
+ * @array: array to fill in
+ * @size: size of "array"
+ *
+ * Returns the number of array items filled in, or a negative errno.
+ *
+ * The returned array is not sorted by any policy.  Callers should not
+ * rely on the order of the items in the returned array.
+ */
+int
+rpcauth_list_flavors(rpc_authflavor_t *array, int size)
+{
+	rpc_authflavor_t flavor;
+	int result = 0;
+
+	spin_lock(&rpc_authflavor_lock);
+	for (flavor = 0; flavor < RPC_AUTH_MAXFLAVOR; flavor++) {
+		const struct rpc_authops *ops = auth_flavors[flavor];
+		rpc_authflavor_t pseudos[4];
+		int i, len;
+
+		if (result >= size) {
+			result = -ENOMEM;
+			break;
+		}
+
+		if (ops == NULL)
+			continue;
+		if (ops->list_pseudoflavors == NULL) {
+			array[result++] = ops->au_flavor;
+			continue;
+		}
+		len = ops->list_pseudoflavors(pseudos, ARRAY_SIZE(pseudos));
+		if (len < 0) {
+			result = len;
+			break;
+		}
+		for (i = 0; i < len; i++) {
+			if (result >= size) {
+				result = -ENOMEM;
+				break;
+			}
+			array[result++] = pseudos[i];
+		}
+	}
+	spin_unlock(&rpc_authflavor_lock);
+
+	dprintk("RPC:       %s returns %d\n", __func__, result);
+	return result;
+}
+EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
 
 struct rpc_auth *
 rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
@@ -353,15 +480,14 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 {
 	LIST_HEAD(free);
 	struct rpc_cred_cache *cache = auth->au_credcache;
-	struct hlist_node *pos;
 	struct rpc_cred	*cred = NULL,
 			*entry, *new;
 	unsigned int nr;
 
-	nr = hash_long(acred->uid, cache->hashbits);
+	nr = hash_long(from_kuid(&init_user_ns, acred->uid), cache->hashbits);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {
+	hlist_for_each_entry_rcu(entry, &cache->hashtable[nr], cr_hash) {
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
 			continue;
 		spin_lock(&cache->lock);
@@ -385,7 +511,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	}
 
 	spin_lock(&cache->lock);
-	hlist_for_each_entry(entry, pos, &cache->hashtable[nr], cr_hash) {
+	hlist_for_each_entry(entry, &cache->hashtable[nr], cr_hash) {
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
 			continue;
 		cred = get_rpccred(entry);
@@ -465,8 +591,8 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct auth_cred acred = {
-		.uid = 0,
-		.gid = 0,
+		.uid = GLOBAL_ROOT_UID,
+		.gid = GLOBAL_ROOT_GID,
 	};
 
 	dprintk("RPC: %5u looking up %s cred\n",
@@ -626,7 +752,7 @@ rpcauth_refreshcred(struct rpc_task *task)
 		if (err < 0)
 			goto out;
 		cred = task->tk_rqstp->rq_cred;
-	};
+	}
 	dprintk("RPC: %5u refreshing %s cred %p\n",
 		task->tk_pid, cred->cr_auth->au_ops->au_name, cred);
 

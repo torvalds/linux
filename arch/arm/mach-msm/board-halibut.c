@@ -36,6 +36,7 @@
 #include <linux/mtd/partitions.h>
 
 #include "devices.h"
+#include "common.h"
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -58,6 +59,7 @@ static struct platform_device smc91x_device = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_device_gpio_7201,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_nand,
@@ -66,7 +68,10 @@ static struct platform_device *devices[] __initdata = {
 	&smc91x_device,
 };
 
-extern struct sys_timer msm_timer;
+static void __init halibut_init_early(void)
+{
+	arch_ioremap_caller = __msm_ioremap_caller;
+}
 
 static void __init halibut_init_irq(void)
 {
@@ -78,12 +83,9 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init halibut_fixup(struct machine_desc *desc, struct tag *tags,
-				 char **cmdline, struct meminfo *mi)
+static void __init halibut_fixup(struct tag *tags, char **cmdline,
+				 struct meminfo *mi)
 {
-	mi->nr_banks=1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].size = (101*1024*1024);
 }
 
 static void __init halibut_map_io(void)
@@ -92,11 +94,18 @@ static void __init halibut_map_io(void)
 	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
+static void __init halibut_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.fixup		= halibut_fixup,
 	.map_io		= halibut_map_io,
+	.init_early	= halibut_init_early,
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
-	.timer		= &msm_timer,
+	.init_late	= halibut_init_late,
+	.init_time	= msm7x01_timer_init,
 MACHINE_END

@@ -16,12 +16,6 @@
 
 #include "htc.h"
 
-static int ath9k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
@@ -75,7 +69,7 @@ static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_tgt_int_stats = {
 	.read = read_file_tgt_int_stats,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -145,7 +139,7 @@ static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_tgt_tx_stats = {
 	.read = read_file_tgt_tx_stats,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -191,7 +185,7 @@ static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_tgt_rx_stats = {
 	.read = read_file_tgt_rx_stats,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -224,16 +218,16 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "BE queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BE]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BE]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "BK queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_BK]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BK]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "VI queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VI]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VI]);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%20s : %10u\n", "VO queued",
-			priv->debug.tx_stats.queue_stats[WME_AC_VO]);
+			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VO]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -243,7 +237,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -364,7 +358,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_recv = {
 	.read = read_file_recv,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -399,7 +393,7 @@ static ssize_t read_file_slot(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_slot = {
 	.read = read_file_slot,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -446,7 +440,7 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_queue = {
 	.read = read_file_queue,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -487,7 +481,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 static const struct file_operations fops_debug = {
 	.read = read_file_debug,
 	.write = write_file_debug,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -623,11 +617,8 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 				pBase9287->openLoopPwrCntl);
 	}
 
-	len += snprintf(buf + len, size - len,
-			"%20s : %02X:%02X:%02X:%02X:%02X:%02X\n",
-			"MacAddress",
-			pBase->macAddr[0], pBase->macAddr[1], pBase->macAddr[2],
-			pBase->macAddr[3], pBase->macAddr[4], pBase->macAddr[5]);
+	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			pBase->macAddr);
 	if (len > size)
 		len = size;
 
@@ -639,7 +630,7 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_base_eeprom = {
 	.read = read_file_base_eeprom,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -920,7 +911,7 @@ static ssize_t read_file_modal_eeprom(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_modal_eeprom = {
 	.read = read_file_modal_eeprom,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };

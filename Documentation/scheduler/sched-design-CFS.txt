@@ -130,7 +130,7 @@ CFS implements three scheduling policies:
     idle timer scheduler in order to avoid to get into priority
     inversion problems which would deadlock the machine.
 
-SCHED_FIFO/_RR are implemented in sched_rt.c and are as specified by
+SCHED_FIFO/_RR are implemented in sched/rt.c and are as specified by
 POSIX.
 
 The command chrt from util-linux-ng 2.13.1.1 can set all of these except
@@ -145,9 +145,9 @@ Classes," an extensible hierarchy of scheduler modules.  These modules
 encapsulate scheduling policy details and are handled by the scheduler core
 without the core code assuming too much about them.
 
-sched_fair.c implements the CFS scheduler described above.
+sched/fair.c implements the CFS scheduler described above.
 
-sched_rt.c implements SCHED_FIFO and SCHED_RR semantics, in a simpler way than
+sched/rt.c implements SCHED_FIFO and SCHED_RR semantics, in a simpler way than
 the previous vanilla scheduler did.  It uses 100 runqueues (for all 100 RT
 priority levels, instead of 140 in the previous scheduler) and it needs no
 expired array.

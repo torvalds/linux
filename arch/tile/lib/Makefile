@@ -7,6 +7,7 @@ lib-y = cacheflush.o checksum.o cpumask.o delay.o uaccess.o \
 	strchr_$(BITS).o strlen_$(BITS).o
 
 ifeq ($(CONFIG_TILEGX),y)
+CFLAGS_REMOVE_memcpy_user_64.o = -fno-omit-frame-pointer
 lib-y += memcpy_user_64.o
 else
 lib-y += atomic_32.o atomic_asm_32.o memcpy_tile64.o

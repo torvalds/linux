@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <linux/uwb/umc.h>
 #include <linux/pci.h>
 
@@ -62,7 +63,7 @@ int umc_controller_reset(struct umc_dev *umc)
 	struct device *parent = umc->dev.parent;
 	int ret = 0;
 
-	if (device_trylock(parent))
+	if (!device_trylock(parent))
 		return -EAGAIN;
 	ret = device_for_each_child(parent, parent, umc_bus_pre_reset_helper);
 	if (ret >= 0)

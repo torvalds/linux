@@ -73,7 +73,7 @@ static void handle_buttons(struct input_polled_dev *dev)
 	}
 }
 
-static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
+static int cobalt_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
 	struct input_polled_dev *poll_dev;
@@ -135,7 +135,7 @@ static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit cobalt_buttons_remove(struct platform_device *pdev)
+static int cobalt_buttons_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct buttons_dev *bdev = dev_get_drvdata(dev);
@@ -157,22 +157,10 @@ MODULE_ALIAS("platform:Cobalt buttons");
 
 static struct platform_driver cobalt_buttons_driver = {
 	.probe	= cobalt_buttons_probe,
-	.remove	= __devexit_p(cobalt_buttons_remove),
+	.remove	= cobalt_buttons_remove,
 	.driver	= {
 		.name	= "Cobalt buttons",
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init cobalt_buttons_init(void)
-{
-	return platform_driver_register(&cobalt_buttons_driver);
-}
-
-static void __exit cobalt_buttons_exit(void)
-{
-	platform_driver_unregister(&cobalt_buttons_driver);
-}
-
-module_init(cobalt_buttons_init);
-module_exit(cobalt_buttons_exit);
+module_platform_driver(cobalt_buttons_driver);

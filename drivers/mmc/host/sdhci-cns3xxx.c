@@ -15,9 +15,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sdhci-pltfm.h>
-#include <mach/cns3xxx.h>
-#include "sdhci.h"
+#include <linux/module.h>
 #include "sdhci-pltfm.h"
 
 static unsigned int sdhci_cns3xxx_get_max_clk(struct sdhci_host *host)
@@ -81,12 +79,12 @@ out:
 	host->clock = clock;
 }
 
-static struct sdhci_ops sdhci_cns3xxx_ops = {
+static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
 };
 
-struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
+static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 	.ops = &sdhci_cns3xxx_ops,
 	.quirks = SDHCI_QUIRK_BROKEN_DMA |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
@@ -95,3 +93,30 @@ struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		  SDHCI_QUIRK_NONSTANDARD_CLOCK,
 };
+
+static int sdhci_cns3xxx_probe(struct platform_device *pdev)
+{
+	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
+}
+
+static int sdhci_cns3xxx_remove(struct platform_device *pdev)
+{
+	return sdhci_pltfm_unregister(pdev);
+}
+
+static struct platform_driver sdhci_cns3xxx_driver = {
+	.driver		= {
+		.name	= "sdhci-cns3xxx",
+		.owner	= THIS_MODULE,
+		.pm	= SDHCI_PLTFM_PMOPS,
+	},
+	.probe		= sdhci_cns3xxx_probe,
+	.remove		= sdhci_cns3xxx_remove,
+};
+
+module_platform_driver(sdhci_cns3xxx_driver);
+
+MODULE_DESCRIPTION("SDHCI driver for CNS3xxx");
+MODULE_AUTHOR("Scott Shu, "
+	      "Anton Vorontsov <avorontsov@mvista.com>");
+MODULE_LICENSE("GPL v2");

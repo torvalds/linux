@@ -5,10 +5,7 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <mach/ep93xx-regs.h>
 #include <mach/platform.h>
-
-#define pcibios_assign_all_busses()	0
 
 /*
  * The EP93xx has two external crystal oscillators.  To generate the

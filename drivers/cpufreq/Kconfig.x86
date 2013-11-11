@@ -2,6 +2,19 @@
 # x86 CPU Frequency scaling drivers
 #
 
+config X86_INTEL_PSTATE
+       bool "Intel P state control"
+       depends on X86
+       help
+          This driver provides a P state for Intel core processors.
+	  The driver implements an internal governor and will become
+          the scaling driver and governor for Sandy bridge processors.
+
+	  When this driver is enabled it will become the perferred
+          scaling driver for Sandy bridge processors.
+
+	  If in doubt, say N.
+
 config X86_PCC_CPUFREQ
 	tristate "Processor Clocking Control interface driver"
 	depends on ACPI && ACPI_PROCESSOR
@@ -23,7 +36,8 @@ config X86_ACPI_CPUFREQ
 	help
 	  This driver adds a CPUFreq driver which utilizes the ACPI
 	  Processor Performance States.
-	  This driver also supports Intel Enhanced Speedstep.
+	  This driver also supports Intel Enhanced Speedstep and newer
+	  AMD CPUs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called acpi-cpufreq.
@@ -31,6 +45,18 @@ config X86_ACPI_CPUFREQ
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
 	  If in doubt, say N.
+
+config X86_ACPI_CPUFREQ_CPB
+	default y
+	bool "Legacy cpb sysfs knob support for AMD CPUs"
+	depends on X86_ACPI_CPUFREQ && CPU_SUP_AMD
+	help
+	  The powernow-k8 driver used to provide a sysfs knob called "cpb"
+	  to disable the Core Performance Boosting feature of AMD CPUs. This
+	  file has now been superseeded by the more generic "boost" entry.
+
+	  By enabling this option the acpi_cpufreq driver provides the old
+	  entry in addition to the new boost ones, for compatibility reasons.
 
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
@@ -93,14 +119,32 @@ config X86_POWERNOW_K7_ACPI
 config X86_POWERNOW_K8
 	tristate "AMD Opteron/Athlon64 PowerNow!"
 	select CPU_FREQ_TABLE
-	depends on ACPI && ACPI_PROCESSOR
+	depends on ACPI && ACPI_PROCESSOR && X86_ACPI_CPUFREQ
 	help
-	  This adds the CPUFreq driver for K8/K10 Opteron/Athlon64 processors.
+	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
+	  Support for K10 and newer processors is now in acpi-cpufreq.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called powernow-k8.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+config X86_AMD_FREQ_SENSITIVITY
+	tristate "AMD frequency sensitivity feedback powersave bias"
+	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
+	help
+	  This adds AMD-specific powersave bias function to the ondemand
+	  governor, which allows it to make more power-conscious frequency
+	  change decisions based on feedback from hardware (availble on AMD
+	  Family 16h and above).
+
+	  Hardware feedback tells software how "sensitive" to frequency changes
+	  the CPUs' workloads are. CPU-bound workloads will be more sensitive
+	  -- they will perform better as frequency increases. Memory/IO-bound
+	  workloads will be less sensitive -- they will not necessarily perform
+	  better as frequency increases.
+
+	  If in doubt, say N.
 
 config X86_GX_SUSPMOD
 	tristate "Cyrix MediaGX/NatSemi Geode Suspend Modulation"
@@ -160,7 +204,7 @@ config X86_SPEEDSTEP_ICH
 config X86_SPEEDSTEP_SMI
 	tristate "Intel SpeedStep on 440BX/ZX/MX chipsets (SMI interface)"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
 	  (Coppermine), all mobile Intel Pentium III-M (Tualatin)
@@ -192,7 +236,7 @@ config X86_P4_CLOCKMOD
 
 config X86_CPUFREQ_NFORCE2
 	tristate "nVidia nForce2 FSB changing"
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32
 	help
 	  This adds the CPUFreq driver for FSB changing on nVidia nForce2
 	  platforms.
@@ -228,7 +272,7 @@ config X86_LONGHAUL
 config X86_E_POWERSAVER
 	tristate "VIA C7 Enhanced PowerSaver (DANGEROUS)"
 	select CPU_FREQ_TABLE
-	depends on X86_32 && EXPERIMENTAL
+	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
 	  does not have any safeguards to prevent operating the CPU out of spec

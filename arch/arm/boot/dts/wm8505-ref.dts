@@ -1,0 +1,32 @@
+/*
+ * wm8505-ref.dts - Device tree file for Wondermedia WM8505 reference netbook
+ *
+ * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
+ *
+ * Licensed under GPLv2 or later
+ */
+
+/dts-v1/;
+/include/ "wm8505.dtsi"
+
+/ {
+	model = "Wondermedia WM8505 Netbook";
+};
+
+&fb {
+	bits-per-pixel = <32>;
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: 800x480 {
+			clock-frequency = <0>; /* unused but required */
+			hactive = <800>;
+			vactive = <480>;
+			hfront-porch = <40>;
+			hback-porch = <88>;
+			hsync-len = <0>;
+			vback-porch = <32>;
+			vfront-porch = <11>;
+			vsync-len = <1>;
+		};
+	};
+};

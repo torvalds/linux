@@ -52,12 +52,8 @@
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	smp_mb()
 
-#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
-#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
-#define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
-
 /* Macro for generating the ***_bits() functions */
-#define DEFINE_BITOP(fn, op, prefix, postfix)	\
+#define DEFINE_BITOP(fn, op, prefix)		\
 static __inline__ void fn(unsigned long mask,	\
 		volatile unsigned long *_p)	\
 {						\
@@ -70,35 +66,34 @@ static __inline__ void fn(unsigned long mask,	\
 	PPC405_ERR77(0,%3)			\
 	PPC_STLCX "%0,0,%3\n"			\
 	"bne- 1b\n"				\
-	postfix					\
 	: "=&r" (old), "+m" (*p)		\
 	: "r" (mask), "r" (p)			\
 	: "cc", "memory");			\
 }
 
-DEFINE_BITOP(set_bits, or, "", "")
-DEFINE_BITOP(clear_bits, andc, "", "")
-DEFINE_BITOP(clear_bits_unlock, andc, PPC_RELEASE_BARRIER, "")
-DEFINE_BITOP(change_bits, xor, "", "")
+DEFINE_BITOP(set_bits, or, "")
+DEFINE_BITOP(clear_bits, andc, "")
+DEFINE_BITOP(clear_bits_unlock, andc, PPC_RELEASE_BARRIER)
+DEFINE_BITOP(change_bits, xor, "")
 
 static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 {
-	set_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	set_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void clear_bit(int nr, volatile unsigned long *addr)
 {
-	clear_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	clear_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void clear_bit_unlock(int nr, volatile unsigned long *addr)
 {
-	clear_bits_unlock(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	clear_bits_unlock(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 {
-	change_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	change_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 /* Like DEFINE_BITOP(), with changes to the arguments to 'op' and the output
@@ -124,38 +119,38 @@ static __inline__ unsigned long fn(			\
 	return (old & mask);				\
 }
 
-DEFINE_TESTOP(test_and_set_bits, or, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_set_bits, or, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
 DEFINE_TESTOP(test_and_set_bits_lock, or, "",
 	      PPC_ACQUIRE_BARRIER, 1)
-DEFINE_TESTOP(test_and_clear_bits, andc, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
-DEFINE_TESTOP(test_and_change_bits, xor, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_clear_bits, andc, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
+DEFINE_TESTOP(test_and_change_bits, xor, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
 
 static __inline__ int test_and_set_bit(unsigned long nr,
 				       volatile unsigned long *addr)
 {
-	return test_and_set_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_set_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_set_bit_lock(unsigned long nr,
 				       volatile unsigned long *addr)
 {
-	return test_and_set_bits_lock(BITOP_MASK(nr),
-				addr + BITOP_WORD(nr)) != 0;
+	return test_and_set_bits_lock(BIT_MASK(nr),
+				addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_clear_bit(unsigned long nr,
 					 volatile unsigned long *addr)
 {
-	return test_and_clear_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_clear_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_change_bit(unsigned long nr,
 					  volatile unsigned long *addr)
 {
-	return test_and_change_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_change_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 #include <asm-generic/bitops/non-atomic.h>
@@ -280,57 +275,11 @@ unsigned long __arch_hweight64(__u64 w);
 #include <asm-generic/bitops/find.h>
 
 /* Little-endian versions */
+#include <asm-generic/bitops/le.h>
 
-static __inline__ int test_bit_le(unsigned long nr,
-				  __const__ void *addr)
-{
-	__const__ unsigned char	*tmp = (__const__ unsigned char *) addr;
-	return (tmp[nr >> 3] >> (nr & 7)) & 1;
-}
-
-static inline void __set_bit_le(int nr, void *addr)
-{
-	__set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline void __clear_bit_le(int nr, void *addr)
-{
-	__clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int test_and_set_bit_le(int nr, void *addr)
-{
-	return test_and_set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int test_and_clear_bit_le(int nr, void *addr)
-{
-	return test_and_clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int __test_and_set_bit_le(int nr, void *addr)
-{
-	return __test_and_set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int __test_and_clear_bit_le(int nr, void *addr)
-{
-	return __test_and_clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-#define find_first_zero_bit_le(addr, size) \
-	find_next_zero_bit_le((addr), (size), 0)
-unsigned long find_next_zero_bit_le(const void *addr,
-				    unsigned long size, unsigned long offset);
-
-unsigned long find_next_bit_le(const void *addr,
-				    unsigned long size, unsigned long offset);
 /* Bitmap functions for the ext2 filesystem */
 
-#define ext2_set_bit_atomic(lock, nr, addr) \
-	test_and_set_bit_le((nr), (unsigned long*)addr)
-#define ext2_clear_bit_atomic(lock, nr, addr) \
-	test_and_clear_bit_le((nr), (unsigned long*)addr)
+#include <asm-generic/bitops/ext2-atomic-setbit.h>
 
 #include <asm-generic/bitops/sched.h>
 

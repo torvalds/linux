@@ -1,0 +1,43 @@
+#
+# Memory devices
+#
+
+menuconfig MEMORY
+	bool "Memory Controller drivers"
+
+if MEMORY
+
+config TI_EMIF
+	tristate "Texas Instruments EMIF driver"
+	depends on ARCH_OMAP2PLUS
+	select DDR
+	help
+	  This driver is for the EMIF module available in Texas Instruments
+	  SoCs. EMIF is an SDRAM controller that, based on its revision,
+	  supports one or more of DDR2, DDR3, and LPDDR2 SDRAM protocols.
+	  This driver takes care of only LPDDR2 memories presently. The
+	  functions of the driver includes re-configuring AC timing
+	  parameters and other settings during frequency, voltage and
+	  temperature changes
+
+config TEGRA20_MC
+	bool "Tegra20 Memory Controller(MC) driver"
+	default y
+	depends on ARCH_TEGRA_2x_SOC
+	help
+	  This driver is for the Memory Controller(MC) module available
+	  in Tegra20 SoCs, mainly for a address translation fault
+	  analysis, especially for IOMMU/GART(Graphics Address
+	  Relocation Table) module.
+
+config TEGRA30_MC
+	bool "Tegra30 Memory Controller(MC) driver"
+	default y
+	depends on ARCH_TEGRA_3x_SOC
+	help
+	  This driver is for the Memory Controller(MC) module available
+	  in Tegra30 SoCs, mainly for a address translation fault
+	  analysis, especially for IOMMU/SMMU(System Memory Management
+	  Unit) module.
+
+endif

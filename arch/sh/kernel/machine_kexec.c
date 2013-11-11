@@ -157,9 +157,6 @@ void __init reserve_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
-	/* this is necessary because of memblock_phys_mem_size() */
-	memblock_analyze();
-
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size > 0) {
@@ -170,7 +167,7 @@ void __init reserve_crashkernel(void)
 	if (crashk_res.end == crashk_res.start)
 		goto disable;
 
-	crash_size = PAGE_ALIGN(crashk_res.end - crashk_res.start + 1);
+	crash_size = PAGE_ALIGN(resource_size(&crashk_res));
 	if (!crashk_res.start) {
 		unsigned long max = memblock_end_of_DRAM() - memory_limit;
 		crashk_res.start = __memblock_alloc_base(crash_size, PAGE_SIZE, max);

@@ -21,7 +21,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <mach/w90p910_keypad.h>
+#include <linux/platform_data/keypad-w90p910.h>
 
 /* Keypad Interface Control Registers */
 #define KPI_CONF		0x00
@@ -42,7 +42,8 @@
 #define KGET_RAW(n)		(((n) & KEY0R) >> 3)
 #define KGET_COLUMN(n)		((n) & KEY0C)
 
-#define W90P910_MAX_KEY_NUM	(8 * 8)
+#define W90P910_NUM_ROWS	8
+#define W90P910_NUM_COLS	8
 #define W90P910_ROW_SHIFT	3
 
 struct w90p910_keypad {
@@ -51,7 +52,7 @@ struct w90p910_keypad {
 	struct input_dev *input_dev;
 	void __iomem *mmio_base;
 	int irq;
-	unsigned short keymap[W90P910_MAX_KEY_NUM];
+	unsigned short keymap[W90P910_NUM_ROWS * W90P910_NUM_COLS];
 };
 
 static void w90p910_keypad_scan_matrix(struct w90p910_keypad *keypad,
@@ -117,7 +118,7 @@ static void w90p910_keypad_close(struct input_dev *dev)
 	clk_disable(keypad->clk);
 }
 
-static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
+static int w90p910_keypad_probe(struct platform_device *pdev)
 {
 	const struct w90p910_keypad_platform_data *pdata =
 						pdev->dev.platform_data;
@@ -190,24 +191,24 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 	input_dev->close = w90p910_keypad_close;
 	input_dev->dev.parent = &pdev->dev;
 
-	input_dev->keycode = keypad->keymap;
-	input_dev->keycodesize = sizeof(keypad->keymap[0]);
-	input_dev->keycodemax = ARRAY_SIZE(keypad->keymap);
-
-	input_set_drvdata(input_dev, keypad);
-
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-
-	matrix_keypad_build_keymap(keymap_data, W90P910_ROW_SHIFT,
-				   input_dev->keycode, input_dev->keybit);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   W90P910_NUM_ROWS, W90P910_NUM_COLS,
+					   keypad->keymap, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto failed_put_clk;
+	}
 
 	error = request_irq(keypad->irq, w90p910_keypad_irq_handler,
-			    IRQF_DISABLED, pdev->name, keypad);
+			    0, pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto failed_put_clk;
 	}
+
+	__set_bit(EV_REP, input_dev->evbit);
+	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
+	input_set_drvdata(input_dev, keypad);
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
@@ -233,7 +234,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
+static int w90p910_keypad_remove(struct platform_device *pdev)
 {
 	struct w90p910_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -256,25 +257,13 @@ static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver w90p910_keypad_driver = {
 	.probe		= w90p910_keypad_probe,
-	.remove		= __devexit_p(w90p910_keypad_remove),
+	.remove		= w90p910_keypad_remove,
 	.driver		= {
 		.name	= "nuc900-kpi",
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init w90p910_keypad_init(void)
-{
-	return platform_driver_register(&w90p910_keypad_driver);
-}
-
-static void __exit w90p910_keypad_exit(void)
-{
-	platform_driver_unregister(&w90p910_keypad_driver);
-}
-
-module_init(w90p910_keypad_init);
-module_exit(w90p910_keypad_exit);
+module_platform_driver(w90p910_keypad_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 keypad driver");

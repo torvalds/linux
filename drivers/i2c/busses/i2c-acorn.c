@@ -19,7 +19,6 @@
 
 #include <mach/hardware.h>
 #include <asm/hardware/ioc.h>
-#include <asm/system.h>
 
 #define FORCE_ONES	0xdc
 #define SCL		0x02

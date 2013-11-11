@@ -45,11 +45,11 @@
 #include "cifs_debug.h"
 #include "cifsfs.h"
 
-#ifdef CIFS_NFSD_EXPORT
+#ifdef CONFIG_CIFS_NFSD_EXPORT
 static struct dentry *cifs_get_parent(struct dentry *dentry)
 {
 	/* BB need to add code here eventually to enable export via NFSD */
-	cFYI(1, "get parent for %p", dentry);
+	cifs_dbg(FYI, "get parent for %p\n", dentry);
 	return ERR_PTR(-EACCES);
 }
 
@@ -63,5 +63,5 @@ const struct export_operations cifs_export_ops = {
 	.encode_fs =  */
 };
 
-#endif /* CIFS_NFSD_EXPORT */
+#endif /* CONFIG_CIFS_NFSD_EXPORT */
 

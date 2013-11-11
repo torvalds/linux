@@ -3,7 +3,7 @@
  *	JZ4740 SoC power management support
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -21,11 +21,9 @@
 #include <asm/mach-jz4740/clock.h>
 
 #include "clock.h"
-#include "irq.h"
 
 static int jz4740_pm_enter(suspend_state_t state)
 {
-	jz4740_intc_suspend();
 	jz4740_clock_suspend();
 
 	jz4740_clock_set_wait_mode(JZ4740_WAIT_MODE_SLEEP);
@@ -37,7 +35,6 @@ static int jz4740_pm_enter(suspend_state_t state)
 	jz4740_clock_set_wait_mode(JZ4740_WAIT_MODE_IDLE);
 
 	jz4740_clock_resume();
-	jz4740_intc_resume();
 
 	return 0;
 }

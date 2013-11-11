@@ -334,8 +334,8 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&ld_usb_driver, subminor);
 
 	if (!interface) {
-		err("%s - error, can't find device for minor %d\n",
-		     __func__, subminor);
+		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
+		       __func__, subminor);
 		return -ENODEV;
 	}
 
@@ -485,7 +485,7 @@ static ssize_t ld_usb_read(struct file *file, char __user *buffer, size_t count,
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d\n", retval);
+		printk(KERN_ERR "ldusb: No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -565,7 +565,7 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d\n", retval);
+		printk(KERN_ERR "ldusb: No device or device unplugged %d\n", retval);
 		goto unlock_exit;
 	}
 
@@ -603,7 +603,9 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 					 bytes_to_write,
 					 USB_CTRL_SET_TIMEOUT * HZ);
 		if (retval < 0)
-			err("Couldn't submit HID_REQ_SET_REPORT %d\n", retval);
+			dev_err(&dev->intf->dev,
+				"Couldn't submit HID_REQ_SET_REPORT %d\n",
+				retval);
 		goto unlock_exit;
 	}
 
@@ -624,7 +626,8 @@ static ssize_t ld_usb_write(struct file *file, const char __user *buffer,
 	retval = usb_submit_urb(dev->interrupt_out_urb, GFP_KERNEL);
 	if (retval) {
 		dev->interrupt_out_busy = 0;
-		err("Couldn't submit interrupt_out_urb %d\n", retval);
+		dev_err(&dev->intf->dev,
+			"Couldn't submit interrupt_out_urb %d\n", retval);
 		goto unlock_exit;
 	}
 	retval = bytes_to_write;
@@ -721,7 +724,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (dev->interrupt_out_endpoint == NULL)
 		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
 
-	dev->interrupt_in_endpoint_size = le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
+	dev->interrupt_in_endpoint_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);
 	dev->ring_buffer = kmalloc(ring_buffer_size*(sizeof(size_t)+dev->interrupt_in_endpoint_size), GFP_KERNEL);
 	if (!dev->ring_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate ring_buffer\n");
@@ -737,7 +740,7 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
 		goto error;
 	}
-	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize) :
+	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? usb_endpoint_maxp(dev->interrupt_out_endpoint) :
 									 udev->descriptor.bMaxPacketSize0;
 	dev->interrupt_out_buffer = kmalloc(write_buffer_size*dev->interrupt_out_endpoint_size, GFP_KERNEL);
 	if (!dev->interrupt_out_buffer) {
@@ -821,30 +824,5 @@ static struct usb_driver ld_usb_driver = {
 	.id_table =	ld_usb_table,
 };
 
-/**
- *	ld_usb_init
- */
-static int __init ld_usb_init(void)
-{
-	int retval;
-
-	/* register this driver with the USB subsystem */
-	retval = usb_register(&ld_usb_driver);
-	if (retval)
-		err("usb_register failed for the %s driver. Error number %d\n", __FILE__, retval);
-
-	return retval;
-}
-
-/**
- *	ld_usb_exit
- */
-static void __exit ld_usb_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&ld_usb_driver);
-}
-
-module_init(ld_usb_init);
-module_exit(ld_usb_exit);
+module_usb_driver(ld_usb_driver);
 

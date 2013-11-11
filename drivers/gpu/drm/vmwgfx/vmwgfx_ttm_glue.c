@@ -25,7 +25,7 @@
  *
  **************************************************************************/
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 
 int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -34,9 +34,8 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct vmw_private *dev_priv;
 
 	if (unlikely(vma->vm_pgoff < VMWGFX_FILE_PAGE_OFFSET)) {
-		if (vmw_fifo_mmap(filp, vma) == 0)
-			return 0;
-		return drm_mmap(filp, vma);
+		DRM_ERROR("Illegal attempt to mmap old fifo space.\n");
+		return -EINVAL;
 	}
 
 	file_priv = filp->private_data;

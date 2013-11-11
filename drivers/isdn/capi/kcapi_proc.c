@@ -1,9 +1,9 @@
 /*
  * Kernel CAPI 2.0 Module - /proc/capi handling
- * 
+ *
  * Copyright 1999 by Carsten Paeth <calle@calle.de>
  * Copyright 2002 by Kai Germaschewski <kai@germaschewski.name>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/export.h>
 
 static char *state2str(unsigned short state)
 {
@@ -28,7 +29,7 @@ static char *state2str(unsigned short state)
 // /proc/capi
 // ===========================================================================
 
-// /proc/capi/controller: 
+// /proc/capi/controller:
 //      cnr driver cardstate name driverinfo
 // /proc/capi/contrstats:
 //      cnr nrecvctlpkt nrecvdatapkt nsentctlpkt nsentdatapkt
@@ -84,7 +85,7 @@ static int contrstats_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq, "%d %lu %lu %lu %lu\n",
-		   ctr->cnr, 
+		   ctr->cnr,
 		   ctr->nrecvctlpkt,
 		   ctr->nrecvdatapkt,
 		   ctr->nsentctlpkt,
@@ -133,9 +134,9 @@ static const struct file_operations proc_contrstats_ops = {
 	.release	= seq_release,
 };
 
-// /proc/capi/applications: 
+// /proc/capi/applications:
 //      applid l3cnt dblkcnt dblklen #ncci recvqueuelen
-// /proc/capi/applstats: 
+// /proc/capi/applstats:
 //      applid nrecvctlpkt nrecvdatapkt nsentctlpkt nsentdatapkt
 // ---------------------------------------------------------------------------
 
@@ -296,7 +297,7 @@ static const struct file_operations proc_driver_ops = {
 
 // ---------------------------------------------------------------------------
 
-void __init 
+void __init
 kcapi_proc_init(void)
 {
 	proc_mkdir("capi",             NULL);

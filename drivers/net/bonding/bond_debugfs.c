@@ -6,7 +6,7 @@
 #include "bonding.h"
 #include "bond_alb.h"
 
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_NET_NS)
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -31,8 +31,9 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 
 	spin_lock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
 
-	hash_index = bond_info->rx_hashtbl_head;
-	for (; hash_index != RLB_NULL_INDEX; hash_index = client_info->next) {
+	hash_index = bond_info->rx_hashtbl_used_head;
+	for (; hash_index != RLB_NULL_INDEX;
+	     hash_index = client_info->used_next) {
 		client_info = &(bond_info->rx_hashtbl[hash_index]);
 		seq_printf(m, "%-15pI4 %-15pI4 %-17pM %s\n",
 			&client_info->ip_src,

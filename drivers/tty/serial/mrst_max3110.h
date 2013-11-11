@@ -7,6 +7,7 @@
 /* status bits for all 4 MAX3110 operate modes */
 #define MAX3110_READ_DATA_AVAILABLE	(1 << 15)
 #define MAX3110_WRITE_BUF_EMPTY		(1 << 14)
+#define MAX3110_BREAK			(1 << 10)
 
 #define WC_TAG			(3 << 14)
 #define RC_TAG			(1 << 14)

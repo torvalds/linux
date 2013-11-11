@@ -1,11 +1,9 @@
 /*
- * arch/s390/appldata/appldata_net_sum.c
- *
  * Data gathering module for Linux-VM Monitor Stream, Stage 1.
  * Collects accumulated network statistics (Packets received/transmitted,
  * dropped, errors, ...).
  *
- * Copyright (C) 2003,2006 IBM Corporation, IBM Deutschland Entwicklung GmbH.
+ * Copyright IBM Corp. 2003, 2006
  *
  * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
@@ -113,7 +111,7 @@ static void appldata_get_net_sum_data(void *data)
 	net_data->tx_dropped = tx_dropped;
 	net_data->collisions = collisions;
 
-	net_data->timestamp = get_clock();
+	net_data->timestamp = get_tod_clock();
 	net_data->sync_count_2++;
 }
 

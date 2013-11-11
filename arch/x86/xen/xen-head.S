@@ -28,9 +28,61 @@ ENTRY(startup_xen)
 	__FINIT
 
 .pushsection .text
-	.align PAGE_SIZE
+	.balign PAGE_SIZE
 ENTRY(hypercall_page)
-	.skip PAGE_SIZE
+#define NEXT_HYPERCALL(x) \
+	ENTRY(xen_hypercall_##x) \
+	.skip 32
+
+NEXT_HYPERCALL(set_trap_table)
+NEXT_HYPERCALL(mmu_update)
+NEXT_HYPERCALL(set_gdt)
+NEXT_HYPERCALL(stack_switch)
+NEXT_HYPERCALL(set_callbacks)
+NEXT_HYPERCALL(fpu_taskswitch)
+NEXT_HYPERCALL(sched_op_compat)
+NEXT_HYPERCALL(platform_op)
+NEXT_HYPERCALL(set_debugreg)
+NEXT_HYPERCALL(get_debugreg)
+NEXT_HYPERCALL(update_descriptor)
+NEXT_HYPERCALL(ni)
+NEXT_HYPERCALL(memory_op)
+NEXT_HYPERCALL(multicall)
+NEXT_HYPERCALL(update_va_mapping)
+NEXT_HYPERCALL(set_timer_op)
+NEXT_HYPERCALL(event_channel_op_compat)
+NEXT_HYPERCALL(xen_version)
+NEXT_HYPERCALL(console_io)
+NEXT_HYPERCALL(physdev_op_compat)
+NEXT_HYPERCALL(grant_table_op)
+NEXT_HYPERCALL(vm_assist)
+NEXT_HYPERCALL(update_va_mapping_otherdomain)
+NEXT_HYPERCALL(iret)
+NEXT_HYPERCALL(vcpu_op)
+NEXT_HYPERCALL(set_segment_base)
+NEXT_HYPERCALL(mmuext_op)
+NEXT_HYPERCALL(xsm_op)
+NEXT_HYPERCALL(nmi_op)
+NEXT_HYPERCALL(sched_op)
+NEXT_HYPERCALL(callback_op)
+NEXT_HYPERCALL(xenoprof_op)
+NEXT_HYPERCALL(event_channel_op)
+NEXT_HYPERCALL(physdev_op)
+NEXT_HYPERCALL(hvm_op)
+NEXT_HYPERCALL(sysctl)
+NEXT_HYPERCALL(domctl)
+NEXT_HYPERCALL(kexec_op)
+NEXT_HYPERCALL(tmem_op) /* 38 */
+ENTRY(xen_hypercall_rsvr)
+	.skip 320
+NEXT_HYPERCALL(mca) /* 48 */
+NEXT_HYPERCALL(arch_1)
+NEXT_HYPERCALL(arch_2)
+NEXT_HYPERCALL(arch_3)
+NEXT_HYPERCALL(arch_4)
+NEXT_HYPERCALL(arch_5)
+NEXT_HYPERCALL(arch_6)
+	.balign PAGE_SIZE
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")

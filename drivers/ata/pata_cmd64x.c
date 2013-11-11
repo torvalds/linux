@@ -3,6 +3,7 @@
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *			  (C) 2009-2010 Bartlomiej Zolnierkiewicz
+ *			  (C) 2012 MontaVista Software, LLC <source@mvista.com>
  *
  * Based upon
  * linux/drivers/ide/pci/cmd64x.c		Version 1.30	Sept 10, 2002
@@ -32,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd64x"
-#define DRV_VERSION "0.2.5"
+#define DRV_VERSION "0.2.18"
 
 /*
  * CMD64x specific registers definition.
@@ -82,7 +83,7 @@ static int cmd648_cable_detect(struct ata_port *ap)
 }
 
 /**
- *	cmd64x_set_piomode	-	set PIO and MWDMA timing
+ *	cmd64x_set_timing	-	set PIO and MWDMA timing
  *	@ap: ATA interface
  *	@adev: ATA device
  *	@mode: mode
@@ -229,28 +230,85 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	cmd648_dma_stop	-	DMA stop callback
- *	@qc: Command in progress
+ *	cmd64x_sff_irq_check	-	check IDE interrupt
+ *	@ap: ATA interface
  *
- *	DMA has completed.
+ *	Check IDE interrupt in CFR/ARTTIM23 registers.
  */
 
-static void cmd648_bmdma_stop(struct ata_queued_cmd *qc)
+static bool cmd64x_sff_irq_check(struct ata_port *ap)
 {
-	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u8 dma_intr;
-	int dma_mask = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
-	int dma_reg = ap->port_no ? ARTTIM23 : CFR;
+	int irq_mask = ap->port_no ? ARTTIM23_INTR_CH1 : CFR_INTR_CH0;
+	int irq_reg  = ap->port_no ? ARTTIM23 : CFR;
+	u8 irq_stat;
 
-	ata_bmdma_stop(qc);
+	/* NOTE: reading the register should clear the interrupt */
+	pci_read_config_byte(pdev, irq_reg, &irq_stat);
 
-	pci_read_config_byte(pdev, dma_reg, &dma_intr);
-	pci_write_config_byte(pdev, dma_reg, dma_intr | dma_mask);
+	return irq_stat & irq_mask;
 }
 
 /**
- *	cmd646r1_dma_stop	-	DMA stop callback
+ *	cmd64x_sff_irq_clear	-	clear IDE interrupt
+ *	@ap: ATA interface
+ *
+ *	Clear IDE interrupt in CFR/ARTTIM23 and DMA status registers.
+ */
+
+static void cmd64x_sff_irq_clear(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	int irq_reg = ap->port_no ? ARTTIM23 : CFR;
+	u8 irq_stat;
+
+	ata_bmdma_irq_clear(ap);
+
+	/* Reading the register should be enough to clear the interrupt */
+	pci_read_config_byte(pdev, irq_reg, &irq_stat);
+}
+
+/**
+ *	cmd648_sff_irq_check	-	check IDE interrupt
+ *	@ap: ATA interface
+ *
+ *	Check IDE interrupt in MRDMODE register.
+ */
+
+static bool cmd648_sff_irq_check(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	unsigned long base = pci_resource_start(pdev, 4);
+	int irq_mask = ap->port_no ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
+	u8 mrdmode = inb(base + 1);
+
+	return mrdmode & irq_mask;
+}
+
+/**
+ *	cmd648_sff_irq_clear	-	clear IDE interrupt
+ *	@ap: ATA interface
+ *
+ *	Clear IDE interrupt in MRDMODE and DMA status registers.
+ */
+
+static void cmd648_sff_irq_clear(struct ata_port *ap)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	unsigned long base = pci_resource_start(pdev, 4);
+	int irq_mask = ap->port_no ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
+	u8 mrdmode;
+
+	ata_bmdma_irq_clear(ap);
+
+	/* Clear this port's interrupt bit (leaving the other port alone) */
+	mrdmode  = inb(base + 1);
+	mrdmode &= ~(MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1);
+	outb(mrdmode | irq_mask, base + 1);
+}
+
+/**
+ *	cmd646r1_bmdma_stop	-	DMA stop callback
  *	@qc: Command in progress
  *
  *	Stub for now while investigating the r1 quirk in the old driver.
@@ -273,24 +331,52 @@ static const struct ata_port_operations cmd64x_base_ops = {
 
 static struct ata_port_operations cmd64x_port_ops = {
 	.inherits	= &cmd64x_base_ops,
+	.sff_irq_check	= cmd64x_sff_irq_check,
+	.sff_irq_clear	= cmd64x_sff_irq_clear,
 	.cable_detect	= ata_cable_40wire,
 };
 
 static struct ata_port_operations cmd646r1_port_ops = {
 	.inherits	= &cmd64x_base_ops,
+	.sff_irq_check	= cmd64x_sff_irq_check,
+	.sff_irq_clear	= cmd64x_sff_irq_clear,
 	.bmdma_stop	= cmd646r1_bmdma_stop,
+	.cable_detect	= ata_cable_40wire,
+};
+
+static struct ata_port_operations cmd646r3_port_ops = {
+	.inherits	= &cmd64x_base_ops,
+	.sff_irq_check	= cmd648_sff_irq_check,
+	.sff_irq_clear	= cmd648_sff_irq_clear,
 	.cable_detect	= ata_cable_40wire,
 };
 
 static struct ata_port_operations cmd648_port_ops = {
 	.inherits	= &cmd64x_base_ops,
-	.bmdma_stop	= cmd648_bmdma_stop,
+	.sff_irq_check	= cmd648_sff_irq_check,
+	.sff_irq_clear	= cmd648_sff_irq_clear,
 	.cable_detect	= cmd648_cable_detect,
 };
 
+static void cmd64x_fixup(struct pci_dev *pdev)
+{
+	u8 mrdmode;
+
+	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
+	pci_read_config_byte(pdev, MRDMODE, &mrdmode);
+	mrdmode &= ~0x30;	/* IRQ set up */
+	mrdmode |= 0x02;	/* Memory read line enable */
+	pci_write_config_byte(pdev, MRDMODE, mrdmode);
+
+	/* PPC specific fixup copied from old driver */
+#ifdef CONFIG_PPC
+	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
+#endif
+}
+
 static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static const struct ata_port_info cmd_info[6] = {
+	static const struct ata_port_info cmd_info[7] = {
 		{	/* CMD 643 - no UDMA */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
@@ -303,12 +389,18 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.mwdma_mask = ATA_MWDMA2,
 			.port_ops = &cmd64x_port_ops
 		},
-		{	/* CMD 646 with working UDMA */
+		{	/* CMD 646U with broken UDMA */
+			.flags = ATA_FLAG_SLAVE_POSS,
+			.pio_mask = ATA_PIO4,
+			.mwdma_mask = ATA_MWDMA2,
+			.port_ops = &cmd646r3_port_ops
+		},
+		{	/* CMD 646U2 with working UDMA */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA2,
-			.port_ops = &cmd64x_port_ops
+			.port_ops = &cmd646r3_port_ops
 		},
 		{	/* CMD 646 rev 1  */
 			.flags = ATA_FLAG_SLAVE_POSS,
@@ -331,12 +423,12 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.port_ops = &cmd648_port_ops
 		}
 	};
-	const struct ata_port_info *ppi[] = { 
+	const struct ata_port_info *ppi[] = {
 		&cmd_info[id->driver_data],
 		&cmd_info[id->driver_data],
 		NULL
 	};
-	u8 mrdmode, reg;
+	u8 reg;
 	int rc;
 	struct pci_dev *bridge = pdev->bus->self;
 	/* mobility split bridges don't report enabled ports correctly */
@@ -352,48 +444,46 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (id->driver_data == 0)	/* 643 */
 		ata_pci_bmdma_clear_simplex(pdev);
 
-	if (pdev->device == PCI_DEVICE_ID_CMD_646) {
-		/* Does UDMA work ? */
-		if (pdev->revision > 4) {
-			ppi[0] = &cmd_info[2];
-			ppi[1] = &cmd_info[2];
-		}
-		/* Early rev with other problems ? */
-		else if (pdev->revision == 1) {
+	if (pdev->device == PCI_DEVICE_ID_CMD_646)
+		switch (pdev->revision) {
+		/* UDMA works since rev 5 */
+		default:
 			ppi[0] = &cmd_info[3];
 			ppi[1] = &cmd_info[3];
-		}
-		/* revs 1,2 have no CNTRL_CH0 */
-		if (pdev->revision < 3)
+			break;
+		/* Interrupts in MRDMODE since rev 3 */
+		case 3:
+		case 4:
+			ppi[0] = &cmd_info[2];
+			ppi[1] = &cmd_info[2];
+			break;
+		/* Rev 1 with other problems? */
+		case 1:
+			ppi[0] = &cmd_info[4];
+			ppi[1] = &cmd_info[4];
+			/* FALL THRU */
+		/* Early revs have no CNTRL_CH0 */
+		case 2:
+		case 0:
 			cntrl_ch0_ok = 0;
-	}
+			break;
+		}
 
-	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
-	pci_read_config_byte(pdev, MRDMODE, &mrdmode);
-	mrdmode &= ~ 0x30;	/* IRQ set up */
-	mrdmode |= 0x02;	/* Memory read line enable */
-	pci_write_config_byte(pdev, MRDMODE, mrdmode);
+	cmd64x_fixup(pdev);
 
 	/* check for enabled ports */
 	pci_read_config_byte(pdev, CNTRL, &reg);
 	if (!port_ok)
-		dev_printk(KERN_NOTICE, &pdev->dev, "Mobility Bridge detected, ignoring CNTRL port enable/disable\n");
+		dev_notice(&pdev->dev, "Mobility Bridge detected, ignoring CNTRL port enable/disable\n");
 	if (port_ok && cntrl_ch0_ok && !(reg & CNTRL_CH0)) {
-		dev_printk(KERN_NOTICE, &pdev->dev, "Primary port is disabled\n");
+		dev_notice(&pdev->dev, "Primary port is disabled\n");
 		ppi[0] = &ata_dummy_port_info;
-		
+
 	}
 	if (port_ok && !(reg & CNTRL_CH1)) {
-		dev_printk(KERN_NOTICE, &pdev->dev, "Secondary port is disabled\n");
+		dev_notice(&pdev->dev, "Secondary port is disabled\n");
 		ppi[1] = &ata_dummy_port_info;
 	}
-
-	/* Force PIO 0 here.. */
-
-	/* PPC specific fixup copied from old driver */
-#ifdef CONFIG_PPC
-	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
-#endif
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &cmd64x_sht, NULL, 0);
 }
@@ -402,21 +492,14 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 static int cmd64x_reinit_one(struct pci_dev *pdev)
 {
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
-	u8 mrdmode;
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
 	if (rc)
 		return rc;
 
-	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
-	pci_read_config_byte(pdev, MRDMODE, &mrdmode);
-	mrdmode &= ~ 0x30;	/* IRQ set up */
-	mrdmode |= 0x02;	/* Memory read line enable */
-	pci_write_config_byte(pdev, MRDMODE, mrdmode);
-#ifdef CONFIG_PPC
-	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
-#endif
+	cmd64x_fixup(pdev);
+
 	ata_host_resume(host);
 	return 0;
 }
@@ -425,8 +508,8 @@ static int cmd64x_reinit_one(struct pci_dev *pdev)
 static const struct pci_device_id cmd64x[] = {
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), 0 },
 	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_646), 1 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), 4 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), 5 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), 5 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), 6 },
 
 	{ },
 };
@@ -442,21 +525,10 @@ static struct pci_driver cmd64x_pci_driver = {
 #endif
 };
 
-static int __init cmd64x_init(void)
-{
-	return pci_register_driver(&cmd64x_pci_driver);
-}
-
-static void __exit cmd64x_exit(void)
-{
-	pci_unregister_driver(&cmd64x_pci_driver);
-}
+module_pci_driver(cmd64x_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for CMD64x series PATA controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cmd64x);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cmd64x_init);
-module_exit(cmd64x_exit);

@@ -21,15 +21,17 @@
 
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/jack.h>
 #include <sound/core.h>
 
-static int jack_switch_types[] = {
+static int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
 	SW_HEADPHONE_INSERT,
 	SW_MICROPHONE_INSERT,
 	SW_LINEOUT_INSERT,
 	SW_JACK_PHYSICAL_INSERT,
 	SW_VIDEOOUT_INSERT,
+	SW_LINEIN_INSERT,
 };
 
 static int snd_jack_dev_free(struct snd_device *device)
@@ -96,8 +98,8 @@ static int snd_jack_dev_register(struct snd_device *device)
  *
  * Creates a new jack object.
  *
- * Returns zero if successful, or a negative error code on failure.
- * On success jjack will be initialised.
+ * Return: Zero if successful, or a negative error code on failure.
+ * On success @jjack will be initialised.
  */
 int snd_jack_new(struct snd_card *card, const char *id, int type,
 		 struct snd_jack **jjack)
@@ -126,7 +128,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 	jack->type = type;
 
-	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++)
+	for (i = 0; i < SND_JACK_SWITCH_TYPES; i++)
 		if (type & (1 << i))
 			input_set_capability(jack->input_dev, EV_SW,
 					     jack_switch_types[i]);
@@ -153,7 +155,7 @@ EXPORT_SYMBOL(snd_jack_new);
  * @jack:   The jack to configure
  * @parent: The device to set as parent for the jack.
  *
- * Set the parent for the jack input device in the device tree.  This
+ * Set the parent for the jack devices in the device tree.  This
  * function is only valid prior to registration of the jack.  If no
  * parent is configured then the parent device will be the sound card.
  */
@@ -177,6 +179,9 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * mapping is provided but keys are enabled in the jack type then
  * BTN_n numeric buttons will be reported.
  *
+ * If jacks are not reporting via the input API this call will have no
+ * effect.
+ *
  * Note that this is intended to be use by simple devices with small
  * numbers of keys that can be reported.  It is also possible to
  * access the input device directly - devices with complex input
@@ -184,6 +189,8 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  * using this abstraction.
  *
  * This function may only be called prior to registration of the jack.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
 		     int keytype)

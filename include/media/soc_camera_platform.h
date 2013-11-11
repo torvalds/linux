@@ -13,6 +13,7 @@
 
 #include <linux/videodev2.h>
 #include <media/soc_camera.h>
+#include <media/v4l2-mediabus.h>
 
 struct device;
 
@@ -20,8 +21,9 @@ struct soc_camera_platform_info {
 	const char *format_name;
 	unsigned long format_depth;
 	struct v4l2_mbus_framefmt format;
-	unsigned long bus_param;
-	struct device *dev;
+	unsigned long mbus_param;
+	enum v4l2_mbus_type mbus_type;
+	struct soc_camera_device *icd;
 	int (*set_capture)(struct soc_camera_platform_info *info, int enable);
 };
 
@@ -30,17 +32,18 @@ static inline void soc_camera_platform_release(struct platform_device **pdev)
 	*pdev = NULL;
 }
 
-static inline int soc_camera_platform_add(const struct soc_camera_link *icl,
-					  struct device *dev,
+static inline int soc_camera_platform_add(struct soc_camera_device *icd,
 					  struct platform_device **pdev,
 					  struct soc_camera_link *plink,
 					  void (*release)(struct device *dev),
 					  int id)
 {
-	struct soc_camera_platform_info *info = plink->priv;
+	struct soc_camera_subdev_desc *ssdd =
+		(struct soc_camera_subdev_desc *)plink;
+	struct soc_camera_platform_info *info = ssdd->drv_priv;
 	int ret;
 
-	if (icl != plink)
+	if (&icd->sdesc->subdev_desc != ssdd)
 		return -ENODEV;
 
 	if (*pdev)
@@ -50,7 +53,7 @@ static inline int soc_camera_platform_add(const struct soc_camera_link *icl,
 	if (!*pdev)
 		return -ENOMEM;
 
-	info->dev = dev;
+	info->icd = icd;
 
 	(*pdev)->dev.platform_data = info;
 	(*pdev)->dev.release = release;
@@ -59,17 +62,19 @@ static inline int soc_camera_platform_add(const struct soc_camera_link *icl,
 	if (ret < 0) {
 		platform_device_put(*pdev);
 		*pdev = NULL;
-		info->dev = NULL;
+		info->icd = NULL;
 	}
 
 	return ret;
 }
 
-static inline void soc_camera_platform_del(const struct soc_camera_link *icl,
+static inline void soc_camera_platform_del(const struct soc_camera_device *icd,
 					   struct platform_device *pdev,
 					   const struct soc_camera_link *plink)
 {
-	if (icl != plink || !pdev)
+	const struct soc_camera_subdev_desc *ssdd =
+		(const struct soc_camera_subdev_desc *)plink;
+	if (&icd->sdesc->subdev_desc != ssdd || !pdev)
 		return;
 
 	platform_device_unregister(pdev);

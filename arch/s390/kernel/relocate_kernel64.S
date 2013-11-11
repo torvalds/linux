@@ -1,12 +1,13 @@
 /*
- * arch/s390/kernel/relocate_kernel64.S
- *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Rolf Adelsberger,
  *	      Heiko Carstens <heiko.carstens@de.ibm.com>
  *
  */
+
+#include <linux/linkage.h>
+#include <asm/sigp.h>
 
 /*
  * moves the new kernel to its destination...
@@ -23,8 +24,7 @@
  */
 
 	.text
-	.globl		relocate_kernel
-	relocate_kernel:
+ENTRY(relocate_kernel)
 		basr	%r13,0		# base address
 	.base:
 		stnsm	sys_msk-.base(%r13),0xfb	# disable DAT
@@ -44,7 +44,7 @@
 		diag	%r0,%r0,0x308
 	.back:
 		lhi	%r1,1		# mode 1 = esame
-		sigp	%r1,%r0,0x12	# switch to esame mode
+		sigp	%r1,%r0,SIGP_SET_ARCHITECTURE # switch to esame mode
 		sam64			# switch to 64 bit addressing mode
 		basr	%r13,0
 	.back_base:
@@ -95,7 +95,7 @@
 		sam31			# 31 bit mode
 		sr	%r1,%r1		# erase register r1
 		sr	%r2,%r2		# erase register r2
-		sigp	%r1,%r2,0x12	# set cpuid to zero
+		sigp	%r1,%r2,SIGP_SET_ARCHITECTURE # set cpuid to zero
 		lpsw	0		# hopefully start new kernel...
 
 		.align	8
@@ -115,6 +115,7 @@
 		.byte	0
 		.align	8
 	relocate_kernel_end:
+	.align 8
 	.globl	relocate_kernel_len
 	relocate_kernel_len:
 		.quad	relocate_kernel_end - relocate_kernel

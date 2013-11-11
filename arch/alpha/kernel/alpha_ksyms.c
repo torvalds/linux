@@ -50,10 +50,6 @@ EXPORT_SYMBOL(alpha_read_fp_reg_s);
 EXPORT_SYMBOL(alpha_write_fp_reg);
 EXPORT_SYMBOL(alpha_write_fp_reg_s);
 
-/* entry.S */
-EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(kernel_execve);
-
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_tcpudp_magic);
 EXPORT_SYMBOL(ip_compute_csum);
@@ -74,8 +70,6 @@ EXPORT_SYMBOL(alpha_fp_emul);
  */
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(__do_clear_user);
-EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__strnlen_user);
 
 /* 
  * SMP-specific symbols.

@@ -1,5 +1,5 @@
 /*
- * ZigBee socket interface
+ * IEEE 802.15.4 dgram socket interface
  *
  * Copyright 2007, 2008 Siemens AG
  *
@@ -44,8 +44,8 @@ struct dgram_sock {
 	struct ieee802154_addr src_addr;
 	struct ieee802154_addr dst_addr;
 
-	unsigned bound:1;
-	unsigned want_ack:1;
+	unsigned int bound:1;
+	unsigned int want_ack:1;
 };
 
 static inline struct dgram_sock *dgram_sk(const struct sock *sk)
@@ -206,9 +206,10 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 		struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
-	unsigned mtu;
+	unsigned int mtu;
 	struct sk_buff *skb;
 	struct dgram_sock *ro = dgram_sk(sk);
+	int hlen, tlen;
 	int err;
 
 	if (msg->msg_flags & MSG_OOB) {
@@ -229,13 +230,21 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	mtu = dev->mtu;
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
-	skb = sock_alloc_send_skb(sk, LL_ALLOCATED_SPACE(dev) + size,
+	if (size > mtu) {
+		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
+		err = -EINVAL;
+		goto out_dev;
+	}
+
+	hlen = LL_RESERVED_SPACE(dev);
+	tlen = dev->needed_tailroom;
+	skb = sock_alloc_send_skb(sk, hlen + tlen + size,
 			msg->msg_flags & MSG_DONTWAIT,
 			&err);
 	if (!skb)
 		goto out_dev;
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 
 	skb_reset_network_header(skb);
 
@@ -254,12 +263,6 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
 	if (err < 0)
 		goto out_skb;
-
-	if (size > mtu) {
-		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
-		err = -EINVAL;
-		goto out_skb;
-	}
 
 	skb->dev = dev;
 	skb->sk  = sk;
@@ -288,6 +291,9 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
 	struct sk_buff *skb;
+	struct sockaddr_ieee802154 *saddr;
+
+	saddr = (struct sockaddr_ieee802154 *)msg->msg_name;
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)
@@ -305,6 +311,13 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 		goto done;
 
 	sock_recv_ts_and_drops(msg, sk, skb);
+
+	if (saddr) {
+		saddr->family = AF_IEEE802154;
+		saddr->addr = mac_cb(skb)->sa;
+	}
+	if (addr_len)
+		*addr_len = sizeof(*saddr);
 
 	if (flags & MSG_TRUNC)
 		copied = skb->len;
@@ -347,7 +360,6 @@ static inline int ieee802154_match_sock(u8 *hw_addr, u16 pan_id,
 int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 {
 	struct sock *sk, *prev = NULL;
-	struct hlist_node *node;
 	int ret = NET_RX_SUCCESS;
 	u16 pan_id, short_addr;
 
@@ -358,7 +370,7 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
 
 	read_lock(&dgram_lock);
-	sk_for_each(sk, node, &dgram_head) {
+	sk_for_each(sk, &dgram_head) {
 		if (ieee802154_match_sock(dev->dev_addr, pan_id, short_addr,
 					dgram_sk(sk))) {
 			if (prev) {

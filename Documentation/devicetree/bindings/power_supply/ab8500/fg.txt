@@ -1,0 +1,58 @@
+=== AB8500 Fuel Gauge Driver ===
+
+AB8500 is a mixed signal multimedia and power management
+device comprising: power and energy-management-module,
+wall-charger, usb-charger, audio codec, general purpose adc,
+tvout, clock management and sim card interface.
+
+Fuelgauge support is part of energy-management-modules, other
+components of this module are:
+main-charger, usb-combo-charger and battery-temperature-monitoring.
+
+The properties below describes the node for fuelgauge driver.
+
+Required Properties:
+- compatible = This shall be: "stericsson,ab8500-fg"
+- battery = Shall be battery specific information
+	Example:
+	ab8500_fg {
+		compatible = "stericsson,ab8500-fg";
+		battery	   = <&ab8500_battery>;
+	};
+
+dependent node:
+	ab8500_battery: ab8500_battery {
+	};
+	This node will provide information on 'thermistor interface' and
+	'battery technology type' used.
+
+Properties of this node are:
+thermistor-on-batctrl:
+	A boolean value indicating thermistor interface	to battery
+
+	Note:
+	'btemp' and 'batctrl' are the pins interfaced for battery temperature
+	measurement, 'btemp' signal is used when NTC(negative temperature
+	coefficient) resister is interfaced external to battery whereas
+	'batctrl' pin is used when NTC resister is internal to battery.
+
+	Example:
+	ab8500_battery: ab8500_battery {
+		thermistor-on-batctrl;
+	};
+	indicates: NTC resister is internal to battery, 'batctrl' is used
+		for thermal measurement.
+
+	The absence of property 'thermal-on-batctrl' indicates
+	NTC resister is external to battery and  'btemp' signal is used
+	for thermal measurement.
+
+battery-type:
+	This shall be the battery manufacturing technology type,
+	allowed types are:
+		"UNKNOWN" "NiMH" "LION" "LIPO" "LiFe" "NiCd" "LiMn"
+	Example:
+	ab8500_battery: ab8500_battery {
+		stericsson,battery-type = "LIPO";
+	}
+

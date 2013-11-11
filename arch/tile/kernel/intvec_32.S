@@ -21,7 +21,7 @@
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/irqflags.h>
-#include <asm/atomic.h>
+#include <asm/atomic_32.h>
 #include <asm/asm-offsets.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>
@@ -799,6 +799,10 @@ handle_interrupt:
  * This routine takes a boolean in r30 indicating if this is an NMI.
  * If so, we also expect a boolean in r31 indicating whether to
  * re-enable the oprofile interrupts.
+ *
+ * Note that .Lresume_userspace is jumped to directly in several
+ * places, and we need to make sure r30 is set correctly in those
+ * callers as well.
  */
 STD_ENTRY(interrupt_return)
 	/* If we're resuming to kernel space, don't check thread flags. */
@@ -835,6 +839,18 @@ STD_ENTRY(interrupt_return)
 	FEEDBACK_REENTER(interrupt_return)
 
 	/*
+	 * Use r33 to hold whether we have already loaded the callee-saves
+	 * into ptregs.  We don't want to do it twice in this loop, since
+	 * then we'd clobber whatever changes are made by ptrace, etc.
+	 * Get base of stack in r32.
+	 */
+	{
+	 GET_THREAD_INFO(r32)
+	 movei  r33, 0
+	}
+
+.Lretry_work_pending:
+	/*
 	 * Disable interrupts so as to make sure we don't
 	 * miss an interrupt that sets any of the thread flags (like
 	 * need_resched or sigpending) between sampling and the iret.
@@ -843,9 +859,6 @@ STD_ENTRY(interrupt_return)
 	 */
 	IRQ_DISABLE(r20, r21)
 	TRACE_IRQS_OFF  /* Note: clobbers registers r0-r29 */
-
-	/* Get base of stack in r32; note r30/31 are used as arguments here. */
-	GET_THREAD_INFO(r32)
 
 
 	/* Check to see if there is any work to do before returning to user. */
@@ -862,16 +875,18 @@ STD_ENTRY(interrupt_return)
 
 	/*
 	 * Make sure we have all the registers saved for signal
-	 * handling or single-step.  Call out to C code to figure out
-	 * exactly what we need to do for each flag bit, then if
-	 * necessary, reload the flags and recheck.
+	 * handling, notify-resume, or single-step.  Call out to C
+	 * code to figure out exactly what we need to do for each flag bit,
+	 * then if necessary, reload the flags and recheck.
 	 */
-	push_extra_callee_saves r0
 	{
 	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	 jal    do_work_pending
+	 bnz    r33, 1f
 	}
-	bnz     r0, .Lresume_userspace
+	push_extra_callee_saves r0
+	movei   r33, 1
+1:	jal     do_work_pending
+	bnz     r0, .Lretry_work_pending
 
 	/*
 	 * In the NMI case we
@@ -1176,15 +1191,20 @@ handle_syscall:
 	add     r20, r20, tp
 	lw      r21, r20
 	addi    r21, r21, 1
-	sw      r20, r21
+	{
+	 sw     r20, r21
+	 GET_THREAD_INFO(r31)
+	}
 
 	/* Trace syscalls, if requested. */
-	GET_THREAD_INFO(r31)
 	addi	r31, r31, THREAD_INFO_FLAGS_OFFSET
 	lw	r30, r31
 	andi    r30, r30, _TIF_SYSCALL_TRACE
 	bzt	r30, .Lrestore_syscall_regs
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_enter
+	}
 	FEEDBACK_REENTER(handle_syscall)
 
 	/*
@@ -1235,9 +1255,15 @@ handle_syscall:
 	lw	r30, r31
 	andi    r30, r30, _TIF_SYSCALL_TRACE
 	bzt     r30, 1f
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_exit
+	}
 	FEEDBACK_REENTER(handle_syscall)
-1:	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+1:	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 
 .Linvalid_syscall:
 	/* Report an invalid syscall back to the user program */
@@ -1246,7 +1272,10 @@ handle_syscall:
 	 movei  r28, -ENOSYS
 	}
 	sw      r29, r28
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(handle_syscall)
 
 	/* Return the address for oprofile to suppress in backtraces. */
@@ -1262,8 +1291,26 @@ STD_ENTRY(ret_from_fork)
 	jal     sim_notify_fork
 	jal     schedule_tail
 	FEEDBACK_REENTER(ret_from_fork)
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(ret_from_fork)
+
+STD_ENTRY(ret_from_kernel_thread)
+	jal     sim_notify_fork
+	jal     schedule_tail
+	FEEDBACK_REENTER(ret_from_fork)
+	{
+	 move   r0, r31
+	 jalr   r30
+	}
+	FEEDBACK_REENTER(ret_from_kernel_thread)
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
+	STD_ENDPROC(ret_from_kernel_thread)
 
 	/*
 	 * Code for ill interrupt.
@@ -1349,7 +1396,10 @@ handle_ill:
 3:
 	/* set PC and continue */
 	lw      r26, r24
-	sw      r28, r26
+	{
+	 sw     r28, r26
+	 GET_THREAD_INFO(r0)
+	}
 
 	/*
 	 * Clear TIF_SINGLESTEP to prevent recursion if we execute an ill.
@@ -1357,7 +1407,6 @@ handle_ill:
 	 * need to clear it here and can't really impose on all other arches.
 	 * So what's another write between friends?
 	 */
-	GET_THREAD_INFO(r0)
 
 	addi    r1, r0, THREAD_INFO_FLAGS_OFFSET
 	{
@@ -1376,7 +1425,10 @@ handle_ill:
 
 	jal     send_sigtrap    /* issue a SIGTRAP */
 	FEEDBACK_REENTER(handle_ill)
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 
 .Ldispatch_normal_ill:
 	{
@@ -1406,15 +1458,6 @@ STD_ENTRY_LOCAL(bad_intr)
 	panic   "Unhandled interrupt %#x: PC %#lx"
 	STD_ENDPROC(bad_intr)
 
-/* Put address of pt_regs in reg and jump. */
-#define PTREGS_SYSCALL(x, reg)                          \
-	STD_ENTRY(_##x);                                \
-	{                                               \
-	 PTREGS_PTR(reg, PTREGS_OFFSET_BASE);           \
-	 j      x                                       \
-	};                                              \
-	STD_ENDPROC(_##x)
-
 /*
  * Special-case sigreturn to not write r0 to the stack on return.
  * This is technically more efficient, but it also avoids difficulties
@@ -1430,12 +1473,9 @@ STD_ENTRY_LOCAL(bad_intr)
 	};                                              \
 	STD_ENDPROC(_##x)
 
-PTREGS_SYSCALL(sys_execve, r3)
-PTREGS_SYSCALL(sys_sigaltstack, r2)
 PTREGS_SYSCALL_SIGRETURN(sys_rt_sigreturn, r0)
-PTREGS_SYSCALL(sys_cmpxchg_badaddr, r1)
 
-/* Save additional callee-saves to pt_regs, put address in r4 and jump. */
+/* Save additional callee-saves to pt_regs and jump to standard function. */
 STD_ENTRY(_sys_clone)
 	push_extra_callee_saves r4
 	j       sys_clone

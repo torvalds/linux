@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,8 +85,8 @@ void acpi_ds_scope_stack_clear(struct acpi_walk_state *walk_state)
  *
  * FUNCTION:    acpi_ds_scope_stack_push
  *
- * PARAMETERS:  Node            - Name to be made current
- *              Type            - Type of frame being pushed
+ * PARAMETERS:  node            - Name to be made current
+ *              type            - Type of frame being pushed
  *              walk_state      - Current state
  *
  * RETURN:      Status

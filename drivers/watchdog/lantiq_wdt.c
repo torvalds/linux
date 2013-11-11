@@ -7,18 +7,21 @@
  *  Based on EP93xx wdt driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <lantiq.h>
+#include <lantiq_soc.h>
 
-/* Section 3.4 of the datasheet
+/*
+ * Section 3.4 of the datasheet
  * The password sequence protects the WDT control register from unintended
  * write actions, which might cause malfunction of the WDT.
  *
@@ -38,7 +41,7 @@
 #define LTQ_WDT_DIVIDER		0x40000
 #define LTQ_MAX_TIMEOUT		((1 << 16) - 1)	/* the reload field is 16 bit */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 
 static void __iomem *ltq_wdt_membase;
 static unsigned long ltq_io_region_clk_rate;
@@ -51,16 +54,16 @@ static int ltq_wdt_ok_to_close;
 static void
 ltq_wdt_enable(void)
 {
-	ltq_wdt_timeout = ltq_wdt_timeout *
+	unsigned long int timeout = ltq_wdt_timeout *
 			(ltq_io_region_clk_rate / LTQ_WDT_DIVIDER) + 0x1000;
-	if (ltq_wdt_timeout > LTQ_MAX_TIMEOUT)
-		ltq_wdt_timeout = LTQ_MAX_TIMEOUT;
+	if (timeout > LTQ_MAX_TIMEOUT)
+		timeout = LTQ_MAX_TIMEOUT;
 
 	/* write the first password magic */
 	ltq_w32(LTQ_WDT_PW1, ltq_wdt_membase + LTQ_WDT_CR);
 	/* write the second magic plus the configuration and new timeout */
 	ltq_w32(LTQ_WDT_SR_EN | LTQ_WDT_SR_PWD | LTQ_WDT_SR_CLKDIV |
-		LTQ_WDT_PW2 | ltq_wdt_timeout, ltq_wdt_membase + LTQ_WDT_CR);
+		LTQ_WDT_PW2 | timeout, ltq_wdt_membase + LTQ_WDT_CR);
 }
 
 static void
@@ -68,7 +71,8 @@ ltq_wdt_disable(void)
 {
 	/* write the first password magic */
 	ltq_w32(LTQ_WDT_PW1, ltq_wdt_membase + LTQ_WDT_CR);
-	/* write the second password magic with no config
+	/*
+	 * write the second password magic with no config
 	 * this turns the watchdog off
 	 */
 	ltq_w32(LTQ_WDT_PW2, ltq_wdt_membase + LTQ_WDT_CR);
@@ -160,7 +164,7 @@ ltq_wdt_release(struct inode *inode, struct file *file)
 	if (ltq_wdt_ok_to_close)
 		ltq_wdt_disable();
 	else
-		pr_err("ltq_wdt: watchdog closed without warning\n");
+		pr_err("watchdog closed without warning\n");
 	ltq_wdt_ok_to_close = 0;
 	clear_bit(0, &ltq_wdt_in_use);
 
@@ -182,7 +186,7 @@ static struct miscdevice ltq_wdt_miscdev = {
 	.fops	= &ltq_wdt_fops,
 };
 
-static int __init
+static int
 ltq_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -192,69 +196,56 @@ ltq_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot obtain I/O memory region");
 		return -ENOENT;
 	}
-	res = devm_request_mem_region(&pdev->dev, res->start,
-		resource_size(res), dev_name(&pdev->dev));
-	if (!res) {
-		dev_err(&pdev->dev, "cannot request I/O memory region");
-		return -EBUSY;
-	}
-	ltq_wdt_membase = devm_ioremap_nocache(&pdev->dev, res->start,
-		resource_size(res));
-	if (!ltq_wdt_membase) {
-		dev_err(&pdev->dev, "cannot remap I/O memory region\n");
-		return -ENOMEM;
-	}
+
+	ltq_wdt_membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ltq_wdt_membase))
+		return PTR_ERR(ltq_wdt_membase);
 
 	/* we do not need to enable the clock as it is always running */
-	clk = clk_get(&pdev->dev, "io");
-	WARN_ON(!clk);
+	clk = clk_get_io();
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Failed to get clock\n");
+		return -ENOENT;
+	}
 	ltq_io_region_clk_rate = clk_get_rate(clk);
 	clk_put(clk);
 
+	/* find out if the watchdog caused the last reboot */
 	if (ltq_reset_cause() == LTQ_RST_CAUSE_WDTRST)
 		ltq_wdt_bootstatus = WDIOF_CARDRESET;
 
+	dev_info(&pdev->dev, "Init done\n");
 	return misc_register(&ltq_wdt_miscdev);
 }
 
-static int __devexit
+static int
 ltq_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ltq_wdt_miscdev);
 
-	if (ltq_wdt_membase)
-		iounmap(ltq_wdt_membase);
-
 	return 0;
 }
 
+static const struct of_device_id ltq_wdt_match[] = {
+	{ .compatible = "lantiq,wdt" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ltq_wdt_match);
 
 static struct platform_driver ltq_wdt_driver = {
-	.remove = __devexit_p(ltq_wdt_remove),
+	.probe = ltq_wdt_probe,
+	.remove = ltq_wdt_remove,
 	.driver = {
-		.name = "ltq_wdt",
+		.name = "wdt",
 		.owner = THIS_MODULE,
+		.of_match_table = ltq_wdt_match,
 	},
 };
 
-static int __init
-init_ltq_wdt(void)
-{
-	return platform_driver_probe(&ltq_wdt_driver, ltq_wdt_probe);
-}
+module_platform_driver(ltq_wdt_driver);
 
-static void __exit
-exit_ltq_wdt(void)
-{
-	return platform_driver_unregister(&ltq_wdt_driver);
-}
-
-module_init(init_ltq_wdt);
-module_exit(exit_ltq_wdt);
-
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
-
 MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");
 MODULE_DESCRIPTION("Lantiq SoC Watchdog");
 MODULE_LICENSE("GPL");

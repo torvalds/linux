@@ -3,10 +3,12 @@
  * It prepares command and sends it to firmware when it is ready.
  */
 
+#include <linux/hardirq.h>
 #include <linux/kfifo.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/if_arp.h>
+#include <linux/export.h>
 
 #include "decl.h"
 #include "cfg.h"
@@ -731,15 +733,13 @@ int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
  *  to the firmware
  *
  *  @priv:	pointer to &struct lbs_private
- *  @request:	cfg80211 regulatory request structure
- *  @bands:	the device's supported bands and channels
  *
  *  returns:	0 on success, error code on failure
 */
-int lbs_set_11d_domain_info(struct lbs_private *priv,
-			    struct regulatory_request *request,
-			    struct ieee80211_supported_band **bands)
+int lbs_set_11d_domain_info(struct lbs_private *priv)
 {
+	struct wiphy *wiphy = priv->wdev->wiphy;
+	struct ieee80211_supported_band **bands = wiphy->bands;
 	struct cmd_ds_802_11d_domain_info cmd;
 	struct mrvl_ie_domain_param_set *domain = &cmd.domain;
 	struct ieee80211_country_ie_triplet *t;
@@ -750,21 +750,23 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 	u8 first_channel = 0, next_chan = 0, max_pwr = 0;
 	u8 i, flag = 0;
 	size_t triplet_size;
-	int ret;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_11D);
+	if (!priv->country_code[0])
+		goto out;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
 
 	lbs_deb_11d("Setting country code '%c%c'\n",
-		    request->alpha2[0], request->alpha2[1]);
+		    priv->country_code[0], priv->country_code[1]);
 
 	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
 
 	/* Set country code */
-	domain->country_code[0] = request->alpha2[0];
-	domain->country_code[1] = request->alpha2[1];
+	domain->country_code[0] = priv->country_code[0];
+	domain->country_code[1] = priv->country_code[1];
 	domain->country_code[2] = ' ';
 
 	/* Now set up the channel triplets; firmware is somewhat picky here
@@ -846,6 +848,7 @@ int lbs_set_11d_domain_info(struct lbs_private *priv,
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11D_DOMAIN_INFO, &cmd);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
 	return ret;
 }
@@ -873,6 +876,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg != CMD_MAC_REG_ACCESS &&
 	    reg != CMD_BBP_REG_ACCESS &&
@@ -882,7 +886,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	}
 
 	ret = lbs_cmd_with_response(priv, reg, &cmd);
-	if (ret) {
+	if (!ret) {
 		if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 			*value = cmd.value.bbp_rf;
 		else if (reg == CMD_MAC_REG_ACCESS)
@@ -915,6 +919,7 @@ int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 		cmd.value.bbp_rf = (u8) (value & 0xFF);
@@ -1015,9 +1020,9 @@ static void lbs_submit_command(struct lbs_private *priv,
 	if (ret) {
 		netdev_info(priv->dev, "DNLD_CMD: hw_host_to_card failed: %d\n",
 			    ret);
-		/* Let the timer kick in and retry, and potentially reset
-		   the whole thing if the condition persists */
-		timeo = HZ/4;
+		/* Reset dnld state machine, report failure */
+		priv->dnld_sent = DNLD_RES_RECEIVED;
+		lbs_complete_command(priv, cmdnode, ret);
 	}
 
 	if (command == CMD_802_11_DEEP_SLEEP) {
@@ -1067,16 +1072,34 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
-			  int result)
+void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			    int result)
 {
+	/*
+	 * Normally, commands are removed from cmdpendingq before being
+	 * submitted. However, we can arrive here on alternative codepaths
+	 * where the command is still pending. Make sure the command really
+	 * isn't part of a list at this point.
+	 */
+	list_del_init(&cmd->list);
+
 	cmd->result = result;
 	cmd->cmdwaitqwoken = 1;
-	wake_up_interruptible(&cmd->cmdwait_q);
+	wake_up(&cmd->cmdwait_q);
 
 	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
+	wake_up(&priv->waitq);
+}
+
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			  int result)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	__lbs_complete_command(priv, cmd, result);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on)
@@ -1134,6 +1157,22 @@ void lbs_set_mac_control(struct lbs_private *priv)
 	lbs_cmd_async(priv, CMD_MAC_CONTROL, &cmd.hdr, sizeof(cmd));
 
 	lbs_deb_leave(LBS_DEB_CMD);
+}
+
+int lbs_set_mac_control_sync(struct lbs_private *priv)
+{
+	struct cmd_ds_mac_control cmd;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(priv->mac_control);
+	cmd.reserved = 0;
+	ret = lbs_cmd_with_response(priv, CMD_MAC_CONTROL, &cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
 }
 
 /**
@@ -1248,7 +1287,7 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 	if (!list_empty(&priv->cmdfreeq)) {
 		tempnode = list_first_entry(&priv->cmdfreeq,
 					    struct cmd_ctrl_node, list);
-		list_del(&tempnode->list);
+		list_del_init(&tempnode->list);
 	} else {
 		lbs_deb_host("GET_CMD_NODE: cmd_ctrl_node is not available\n");
 		tempnode = NULL;
@@ -1356,10 +1395,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
-					spin_lock_irqsave(&priv->driver_lock, flags);
-					list_del(&cmdnode->list);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 					ret = 0;
 					goto done;
@@ -1369,10 +1405,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
-					spin_lock_irqsave(&priv->driver_lock, flags);
-					list_del(&cmdnode->list);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 					priv->needtowakeup = 1;
 
 					ret = 0;
@@ -1384,7 +1417,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			}
 		}
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		list_del(&cmdnode->list);
+		list_del_init(&cmdnode->list);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		lbs_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
 			    le16_to_cpu(cmd->command));
@@ -1612,7 +1645,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
 
 		/* Wake up main thread to execute next command */
-		wake_up_interruptible(&priv->waitq);
+		wake_up(&priv->waitq);
 		cmdnode = ERR_PTR(-ENOBUFS);
 		goto done;
 	}
@@ -1632,7 +1665,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 
 	cmdnode->cmdwaitqwoken = 0;
 	lbs_queue_cmd(priv, cmdnode);
-	wake_up_interruptible(&priv->waitq);
+	wake_up(&priv->waitq);
 
  done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %p", cmdnode);
@@ -1667,7 +1700,13 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	}
 
 	might_sleep();
-	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
+
+	/*
+	 * Be careful with signals here. A signal may be received as the system
+	 * goes into suspend or resume. We do not want this to interrupt the
+	 * command, so we perform an uninterruptible sleep.
+	 */
+	wait_event(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	ret = cmdnode->result;

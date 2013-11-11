@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -165,7 +166,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct pxa2xx_pcm_dma_params *dma_data;
 
 	BUG_ON(IS_ERR(clk_i2s));
-	clk_enable(clk_i2s);
+	clk_prepare_enable(clk_i2s);
 	clk_ena = 1;
 	pxa_i2s_wait();
 
@@ -258,7 +259,7 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
 		if (clk_ena) {
-			clk_disable(clk_i2s);
+			clk_disable_unprepare(clk_i2s);
 			clk_ena = 0;
 		}
 	}
@@ -331,7 +332,7 @@ static int  pxa2xx_i2s_remove(struct snd_soc_dai *dai)
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-static struct snd_soc_dai_ops pxa_i2s_dai_ops = {
+static const struct snd_soc_dai_ops pxa_i2s_dai_ops = {
 	.startup	= pxa2xx_i2s_startup,
 	.shutdown	= pxa2xx_i2s_shutdown,
 	.trigger	= pxa2xx_i2s_trigger,
@@ -359,20 +360,25 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 	.symmetric_rates = 1,
 };
 
+static const struct snd_soc_component_driver pxa_i2s_component = {
+	.name		= "pxa-i2s",
+};
+
 static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_dai(&pdev->dev, &pxa_i2s_dai);
+	return snd_soc_register_component(&pdev->dev, &pxa_i2s_component,
+					  &pxa_i2s_dai, 1);
 }
 
-static int __devexit pxa2xx_i2s_drv_remove(struct platform_device *pdev)
+static int pxa2xx_i2s_drv_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
 static struct platform_driver pxa2xx_i2s_driver = {
 	.probe = pxa2xx_i2s_drv_probe,
-	.remove = __devexit_p(pxa2xx_i2s_drv_remove),
+	.remove = pxa2xx_i2s_drv_remove,
 
 	.driver = {
 		.name = "pxa2xx-i2s",

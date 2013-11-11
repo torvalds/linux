@@ -11,7 +11,8 @@ extern const char VDSO32_PRELINK[];
 #define VDSO32_SYMBOL(base, name)					\
 ({									\
 	extern const char VDSO32_##name[];				\
-	(void *)(VDSO32_##name - VDSO32_PRELINK + (unsigned long)(base)); \
+	(void __user *)(VDSO32_##name - VDSO32_PRELINK +		\
+			(unsigned long)(base));				\
 })
 #endif
 

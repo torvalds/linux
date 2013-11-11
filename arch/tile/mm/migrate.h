@@ -24,6 +24,9 @@
 /*
  * This function is used as a helper when setting up the initial
  * page table (swapper_pg_dir).
+ *
+ * You must mask ALL interrupts prior to invoking this code, since
+ * you can't legally touch the stack during the cache flush.
  */
 extern int flush_and_install_context(HV_PhysAddr page_table, HV_PTE access,
 				     HV_ASID asid,
@@ -39,6 +42,9 @@ extern int flush_and_install_context(HV_PhysAddr page_table, HV_PTE access,
  *
  * Note that any non-NULL pointers must not point to the page that
  * is handled by the stack_pte itself.
+ *
+ * You must mask ALL interrupts prior to invoking this code, since
+ * you can't legally touch the stack during the cache flush.
  */
 extern int homecache_migrate_stack_and_flush(pte_t stack_pte, unsigned long va,
 				     size_t length, pte_t *stack_ptep,

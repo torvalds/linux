@@ -16,6 +16,14 @@
 #include <asm/page.h>
 
 /*
+ * This is necessary to get the definition of PGTABLE_RANGE which we
+ * need for various slices related matters. Note that this isn't the
+ * complete pgtable.h but only a portion of it.
+ */
+#include <asm/pgtable-ppc64.h>
+#include <asm/bug.h>
+
+/*
  * Segment table
  */
 
@@ -90,23 +98,39 @@ extern char initial_stab[];
 
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
+#define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
 #define HPTE_R_RPN_SHIFT	12
-#define HPTE_R_RPN		ASM_CONST(0x3ffffffffffff000)
-#define HPTE_R_FLAGS		ASM_CONST(0x00000000000003ff)
+#define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
 #define HPTE_R_N		ASM_CONST(0x0000000000000004)
+#define HPTE_R_G		ASM_CONST(0x0000000000000008)
+#define HPTE_R_M		ASM_CONST(0x0000000000000010)
+#define HPTE_R_I		ASM_CONST(0x0000000000000020)
+#define HPTE_R_W		ASM_CONST(0x0000000000000040)
+#define HPTE_R_WIMG		ASM_CONST(0x0000000000000078)
 #define HPTE_R_C		ASM_CONST(0x0000000000000080)
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
+#define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
 
 #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
 #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
-/* pp0 will always be 0 for linux     */
 #define PP_RWXX	0	/* Supervisor read/write, User none */
 #define PP_RWRX 1	/* Supervisor read/write, User read */
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
+#define PP_RXXX	(HPTE_R_PP0 | 2)	/* Supervisor read, user none */
+
+/* Fields for tlbiel instruction in architecture 2.06 */
+#define TLBIEL_INVAL_SEL_MASK	0xc00	/* invalidation selector */
+#define  TLBIEL_INVAL_PAGE	0x000	/* invalidate a single page */
+#define  TLBIEL_INVAL_SET_LPID	0x800	/* invalidate a set for current LPID */
+#define  TLBIEL_INVAL_SET	0xc00	/* invalidate a set for all LPIDs */
+#define TLBIEL_INVAL_SET_MASK	0xfff000	/* set number to inval. */
+#define TLBIEL_INVAL_SET_SHIFT	12
+
+#define POWER7_TLB_SETS		128	/* # sets in POWER7 TLB */
 
 #ifndef __ASSEMBLY__
 
@@ -131,11 +155,29 @@ extern unsigned long htab_hash_mask;
 struct mmu_psize_def
 {
 	unsigned int	shift;	/* number of bits */
-	unsigned int	penc;	/* HPTE encoding */
+	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
 	unsigned int	tlbiel;	/* tlbiel supported for that page size */
 	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
 	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
 };
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+static inline int shift_to_mmu_psize(unsigned int shift)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
+	return -1;
+}
+
+static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
+{
+	if (mmu_psize_defs[mmu_psize].shift)
+		return mmu_psize_defs[mmu_psize].shift;
+	BUG();
+}
 
 #endif /* __ASSEMBLY__ */
 
@@ -148,13 +190,35 @@ struct mmu_psize_def
 #define MMU_SEGSIZE_256M	0
 #define MMU_SEGSIZE_1T		1
 
+/*
+ * encode page number shift.
+ * in order to fit the 78 bit va in a 64 bit variable we shift the va by
+ * 12 bits. This enable us to address upto 76 bit va.
+ * For hpt hash from a va we can ignore the page size bits of va and for
+ * hpte encoding we ignore up to 23 bits of va. So ignoring lower 12 bits ensure
+ * we work in all cases including 4k page size.
+ */
+#define VPN_SHIFT	12
+
+/*
+ * HPTE Large Page (LP) details
+ */
+#define LP_SHIFT	12
+#define LP_BITS		8
+#define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
 
 #ifndef __ASSEMBLY__
+
+static inline int segment_shift(int ssize)
+{
+	if (ssize == MMU_SEGSIZE_256M)
+		return SID_SHIFT;
+	return SID_SHIFT_1T;
+}
 
 /*
  * The current system page and segment sizes
  */
-extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
@@ -174,18 +238,39 @@ extern unsigned long tce_alloc_start, tce_alloc_end;
 extern int mmu_ci_restrictions;
 
 /*
- * This function sets the AVPN and L fields of the HPTE  appropriately
- * for the page size
+ * This computes the AVPN and B fields of the first dword of a HPTE,
+ * for use when we want to match an existing PTE.  The bottom 7 bits
+ * of the returned value are zero.
  */
-static inline unsigned long hpte_encode_v(unsigned long va, int psize,
-					  int ssize)
+static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
+					     int ssize)
 {
 	unsigned long v;
-	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
+	/*
+	 * The AVA field omits the low-order 23 bits of the 78 bits VA.
+	 * These bits are not needed in the PTE, because the
+	 * low-order b of these bits are part of the byte offset
+	 * into the virtual page and, if b < 23, the high-order
+	 * 23-b of these bits are always used in selecting the
+	 * PTEGs to be searched
+	 */
+	v = (vpn >> (23 - VPN_SHIFT)) & ~(mmu_psize_defs[psize].avpnm);
 	v <<= HPTE_V_AVPN_SHIFT;
-	if (psize != MMU_PAGE_4K)
-		v |= HPTE_V_LARGE;
 	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
+	return v;
+}
+
+/*
+ * This function sets the AVPN and L fields of the HPTE  appropriately
+ * using the base page size and actual page size.
+ */
+static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
+					  int actual_psize, int ssize)
+{
+	unsigned long v;
+	v = hpte_encode_avpn(vpn, base_psize, ssize);
+	if (actual_psize != MMU_PAGE_4K)
+		v |= HPTE_V_LARGE;
 	return v;
 }
 
@@ -194,46 +279,51 @@ static inline unsigned long hpte_encode_v(unsigned long va, int psize,
  * for the page size. We assume the pa is already "clean" that is properly
  * aligned for the requested page size
  */
-static inline unsigned long hpte_encode_r(unsigned long pa, int psize)
+static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
+					  int actual_psize)
 {
-	unsigned long r;
-
 	/* A 4K page needs no special encoding */
-	if (psize == MMU_PAGE_4K)
+	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
 	else {
-		unsigned int penc = mmu_psize_defs[psize].penc;
-		unsigned int shift = mmu_psize_defs[psize].shift;
-		return (pa & ~((1ul << shift) - 1)) | (penc << 12);
+		unsigned int penc = mmu_psize_defs[base_psize].penc[actual_psize];
+		unsigned int shift = mmu_psize_defs[actual_psize].shift;
+		return (pa & ~((1ul << shift) - 1)) | (penc << LP_SHIFT);
 	}
-	return r;
 }
 
 /*
- * Build a VA given VSID, EA and segment size
+ * Build a VPN_SHIFT bit shifted va given VSID, EA and segment size.
  */
-static inline unsigned long hpt_va(unsigned long ea, unsigned long vsid,
-				   int ssize)
+static inline unsigned long hpt_vpn(unsigned long ea,
+				    unsigned long vsid, int ssize)
 {
-	if (ssize == MMU_SEGSIZE_256M)
-		return (vsid << 28) | (ea & 0xfffffffUL);
-	return (vsid << 40) | (ea & 0xffffffffffUL);
+	unsigned long mask;
+	int s_shift = segment_shift(ssize);
+
+	mask = (1ul << (s_shift - VPN_SHIFT)) - 1;
+	return (vsid << (s_shift - VPN_SHIFT)) | ((ea >> VPN_SHIFT) & mask);
 }
 
 /*
  * This hashes a virtual address
  */
-
-static inline unsigned long hpt_hash(unsigned long va, unsigned int shift,
-				     int ssize)
+static inline unsigned long hpt_hash(unsigned long vpn,
+				     unsigned int shift, int ssize)
 {
+	int mask;
 	unsigned long hash, vsid;
 
+	/* VPN_SHIFT can be atmost 12 */
 	if (ssize == MMU_SEGSIZE_256M) {
-		hash = (va >> 28) ^ ((va & 0x0fffffffUL) >> shift);
+		mask = (1ul << (SID_SHIFT - VPN_SHIFT)) - 1;
+		hash = (vpn >> (SID_SHIFT - VPN_SHIFT)) ^
+			((vpn & mask) >> (shift - VPN_SHIFT));
 	} else {
-		vsid = va >> 40;
-		hash = vsid ^ (vsid << 25) ^ ((va & 0xffffffffffUL) >> shift);
+		mask = (1ul << (SID_SHIFT_1T - VPN_SHIFT)) - 1;
+		vsid = vpn >> (SID_SHIFT_1T - VPN_SHIFT);
+		hash = vsid ^ (vsid << 25) ^
+			((vpn & mask) >> (shift - VPN_SHIFT)) ;
 	}
 	return hash & 0x7fffffffffUL;
 }
@@ -252,17 +342,16 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     unsigned int shift, unsigned int mmu_psize);
 extern void hash_failure_debug(unsigned long ea, unsigned long access,
 			       unsigned long vsid, unsigned long trap,
-			       int ssize, int psize, unsigned long pte);
+			       int ssize, int psize, int lpsize,
+			       unsigned long pte);
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
-extern void add_gpage(unsigned long addr, unsigned long page_size,
-			  unsigned long number_of_pages);
+extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
-extern void hpte_init_iSeries(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 
@@ -276,69 +365,70 @@ extern void slb_set_size(u16 size);
 #endif /* __ASSEMBLY__ */
 
 /*
- * VSID allocation
+ * VSID allocation (256MB segment)
  *
- * We first generate a 36-bit "proto-VSID".  For kernel addresses this
- * is equal to the ESID, for user addresses it is:
- *	(context << 15) | (esid & 0x7fff)
+ * We first generate a 37-bit "proto-VSID". Proto-VSIDs are generated
+ * from mmu context id and effective segment id of the address.
  *
- * The two forms are distinguishable because the top bit is 0 for user
- * addresses, whereas the top two bits are 1 for kernel addresses.
- * Proto-VSIDs with the top two bits equal to 0b10 are reserved for
- * now.
+ * For user processes max context id is limited to ((1ul << 19) - 5)
+ * for kernel space, we use the top 4 context ids to map address as below
+ * NOTE: each context only support 64TB now.
+ * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+ * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+ * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+ * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
  *
  *	VSID = (proto-VSID * VSID_MULTIPLIER) % VSID_MODULUS
- *	where	VSID_MULTIPLIER = 268435399 = 0xFFFFFC7
- *		VSID_MODULUS = 2^36-1 = 0xFFFFFFFFF
  *
- * This scramble is only well defined for proto-VSIDs below
- * 0xFFFFFFFFF, so both proto-VSID and actual VSID 0xFFFFFFFFF are
- * reserved.  VSID_MULTIPLIER is prime, so in particular it is
+ * VSID_MULTIPLIER is prime, so in particular it is
  * co-prime to VSID_MODULUS, making this a 1:1 scrambling function.
  * Because the modulus is 2^n-1 we can compute it efficiently without
- * a divide or extra multiply (see below).
+ * a divide or extra multiply (see below). The scramble function gives
+ * robust scattering in the hash table (at least based on some initial
+ * results).
  *
- * This scheme has several advantages over older methods:
+ * We also consider VSID 0 special. We use VSID 0 for slb entries mapping
+ * bad address. This enables us to consolidate bad address handling in
+ * hash_page.
  *
- * 	- We have VSIDs allocated for every kernel address
- * (i.e. everything above 0xC000000000000000), except the very top
- * segment, which simplifies several things.
- *
- * 	- We allow for 15 significant bits of ESID and 20 bits of
- * context for user addresses.  i.e. 8T (43 bits) of address space for
- * up to 1M contexts (although the page table structure and context
- * allocation will need changes to take advantage of this).
- *
- * 	- The scramble function gives robust scattering in the hash
- * table (at least based on some initial results).  The previous
- * method was more susceptible to pathological cases giving excessive
- * hash collisions.
- */
-/*
- * WARNING - If you change these you must make sure the asm
- * implementations in slb_allocate (slb_low.S), do_stab_bolted
- * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
- *
- * You'll also need to change the precomputed VSID values in head.S
- * which are used by the iSeries firmware.
+ * We also need to avoid the last segment of the last context, because that
+ * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
+ * because of the modulo operation in vsid scramble. But the vmemmap
+ * (which is what uses region 0xf) will never be close to 64TB in size
+ * (it's 56 bytes per page of system memory).
  */
 
-#define VSID_MULTIPLIER_256M	ASM_CONST(200730139)	/* 28-bit prime */
-#define VSID_BITS_256M		36
+#define CONTEXT_BITS		19
+#define ESID_BITS		18
+#define ESID_BITS_1T		6
+
+/*
+ * 256MB segment
+ * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
+ * available for user + kernel mapping. The top 4 contexts are used for
+ * kernel mapping. Each segment contains 2^28 bytes. Each
+ * context maps 2^46 bytes (64TB) so we can support 2^19-1 contexts
+ * (19 == 37 + 28 - 46).
+ */
+#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 5)
+
+/*
+ * This should be computed such that protovosid * vsid_mulitplier
+ * doesn't overflow 64 bits. It should also be co-prime to vsid_modulus
+ */
+#define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
+#define VSID_BITS_256M		(CONTEXT_BITS + ESID_BITS)
 #define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_1T		24
+#define VSID_BITS_1T		(CONTEXT_BITS + ESID_BITS_1T)
 #define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
 
-#define CONTEXT_BITS		19
-#define USER_ESID_BITS		16
-#define USER_ESID_BITS_1T	4
 
-#define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
+#define USER_VSID_RANGE	(1UL << (ESID_BITS + SID_SHIFT))
 
 /*
  * This macro generates asm code to compute the VSID scramble
@@ -362,7 +452,8 @@ extern void slb_set_size(u16 size);
 	srdi	rx,rt,VSID_BITS_##size;					\
 	clrldi	rt,rt,(64-VSID_BITS_##size);				\
 	add	rt,rt,rx;		/* add high and low bits */	\
-	/* Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
+	/* NOTE: explanation based on VSID_BITS_##size = 36		\
+	 * Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
 	 * 2^36-1+2^28-1.  That in particular means that if r3 >=	\
 	 * 2^36-1, then r3+1 has the 2^36 bit set.  So, if r3+1 has	\
 	 * the bit clear, r3 already has the answer we want, if it	\
@@ -372,6 +463,8 @@ extern void slb_set_size(u16 size);
 	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
 	add	rt,rt,rx
 
+/* 4 bits per slice and we have one slice per 1TB */
+#define SLICE_ARRAY_SIZE  (PGTABLE_RANGE >> 41)
 
 #ifndef __ASSEMBLY__
 
@@ -416,7 +509,7 @@ typedef struct {
 
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 low_slices_psize;	/* SLB page size encodings */
-	u64 high_slices_psize;  /* 4 bits per slice for now */
+	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif
@@ -429,6 +522,10 @@ typedef struct {
 	unsigned long acop;	/* mask of enabled coprocessor types */
 	unsigned int cop_pid;	/* pid value used with coprocessors */
 #endif /* CONFIG_PPC_ICSWX */
+#ifdef CONFIG_PPC_64K_PAGES
+	/* for 4K PTE fragment support */
+	void *pte_frag;
+#endif
 } mm_context_t;
 
 
@@ -452,14 +549,6 @@ typedef struct {
 	})
 #endif /* 1 */
 
-/* This is only valid for addresses >= PAGE_OFFSET */
-static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
-{
-	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble(ea >> SID_SHIFT, 256M);
-	return vsid_scramble(ea >> SID_SHIFT_1T, 1T);
-}
-
 /* Returns the segment size indicator for a user address */
 static inline int user_segment_size(unsigned long addr)
 {
@@ -469,25 +558,41 @@ static inline int user_segment_size(unsigned long addr)
 	return MMU_SEGSIZE_256M;
 }
 
-/* This is only valid for user addresses (which are below 2^44) */
 static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 				     int ssize)
 {
+	/*
+	 * Bad address. We return VSID 0 for that
+	 */
+	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE)
+		return 0;
+
 	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble((context << USER_ESID_BITS)
+		return vsid_scramble((context << ESID_BITS)
 				     | (ea >> SID_SHIFT), 256M);
-	return vsid_scramble((context << USER_ESID_BITS_1T)
+	return vsid_scramble((context << ESID_BITS_1T)
 			     | (ea >> SID_SHIFT_1T), 1T);
 }
 
 /*
- * This is only used on legacy iSeries in lparmap.c,
- * hence the 256MB segment assumption.
+ * This is only valid for addresses >= PAGE_OFFSET
+ *
+ * For kernel space, we use the top 4 context ids to map address as below
+ * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
+ * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
+ * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
+ * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  */
-#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER_256M) %	\
-				 VSID_MODULUS_256M)
-#define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
+static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
+{
+	unsigned long context;
 
+	/*
+	 * kernel take the top 4 context from the available range
+	 */
+	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
+	return get_vsid(context, ea, ssize);
+}
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_HASH64_H_ */

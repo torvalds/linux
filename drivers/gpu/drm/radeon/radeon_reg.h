@@ -56,6 +56,7 @@
 #include "r600_reg.h"
 #include "evergreen_reg.h"
 #include "ni_reg.h"
+#include "si_reg.h"
 
 #define RADEON_MC_AGP_LOCATION		0x014c
 #define		RADEON_MC_AGP_START_MASK	0x0000FFFF
@@ -539,9 +540,11 @@
 
 #define RADEON_CRTC2_PITCH                  0x032c
 #define RADEON_CRTC_STATUS                  0x005c
+#       define RADEON_CRTC_VBLANK_CUR       (1 <<  0)
 #       define RADEON_CRTC_VBLANK_SAVE      (1 <<  1)
 #       define RADEON_CRTC_VBLANK_SAVE_CLEAR  (1 <<  1)
 #define RADEON_CRTC2_STATUS                  0x03fc
+#       define RADEON_CRTC2_VBLANK_CUR       (1 <<  0)
 #       define RADEON_CRTC2_VBLANK_SAVE      (1 <<  1)
 #       define RADEON_CRTC2_VBLANK_SAVE_CLEAR  (1 <<  1)
 #define RADEON_CRTC_V_SYNC_STRT_WID         0x020c
@@ -3295,7 +3298,7 @@
 #	define RADEON_RB_BUFSZ_MASK		(0x3f << 0)
 #	define RADEON_RB_BLKSZ_SHIFT		8
 #	define RADEON_RB_BLKSZ_MASK		(0x3f << 8)
-#	define RADEON_BUF_SWAP_32BIT		(1 << 17)
+#	define RADEON_BUF_SWAP_32BIT		(2 << 16)
 #	define RADEON_MAX_FETCH_SHIFT		18
 #	define RADEON_MAX_FETCH_MASK		(0x3 << 18)
 #	define RADEON_RB_NO_UPDATE		(1 << 27)
@@ -3702,5 +3705,20 @@
 #define RADEON_SCRATCH_REG5		0x15f4
 
 #define RV530_GB_PIPE_SELECT2           0x4124
+
+#define RADEON_CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
+#define RADEON_CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
+#define RADEON_CP_PACKET0_GET_ONE_REG_WR(h) (((h) >> 15) & 1)
+#define RADEON_CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
+#define R100_CP_PACKET0_GET_REG(h) (((h) & 0x1FFF) << 2)
+#define R600_CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
+#define RADEON_PACKET_TYPE0 0
+#define RADEON_PACKET_TYPE1 1
+#define RADEON_PACKET_TYPE2 2
+#define RADEON_PACKET_TYPE3 3
+
+#define RADEON_PACKET3_NOP 0x10
+
+#define RADEON_VLINE_STAT (1 << 12)
 
 #endif

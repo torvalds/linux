@@ -20,7 +20,7 @@
  * Debug output is hardcoded to standard UART 5
 */
 
-	.macro	addruart, rp, rv
+	.macro	addruart, rp, rv, tmp
 	ldreq	\rp, =0x40090000
 	ldrne	\rv, =0xF4090000
 	.endm

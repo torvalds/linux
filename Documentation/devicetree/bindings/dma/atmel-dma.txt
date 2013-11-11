@@ -1,0 +1,39 @@
+* Atmel Direct Memory Access Controller (DMA)
+
+Required properties:
+- compatible: Should be "atmel,<chip>-dma".
+- reg: Should contain DMA registers location and length.
+- interrupts: Should contain DMA interrupt.
+- #dma-cells: Must be <2>, used to represent the number of integer cells in
+the dmas property of client devices.
+
+Example:
+
+dma0: dma@ffffec00 {
+	compatible = "atmel,at91sam9g45-dma";
+	reg = <0xffffec00 0x200>;
+	interrupts = <21>;
+	#dma-cells = <2>;
+};
+
+DMA clients connected to the Atmel DMA controller must use the format
+described in the dma.txt file, using a three-cell specifier for each channel:
+a phandle plus two interger cells.
+The three cells in order are:
+
+1. A phandle pointing to the DMA controller.
+2. The memory interface (16 most significant bits), the peripheral interface
+(16 less significant bits).
+3. The peripheral identifier for the hardware handshaking interface. The
+identifier can be different for tx and rx.
+
+Example:
+
+i2c0@i2c@f8010000 {
+	compatible = "atmel,at91sam9x5-i2c";
+	reg = <0xf8010000 0x100>;
+	interrupts = <9 4 6>;
+	dmas = <&dma0 1 7>,
+	       <&dma0 1 8>;
+	dma-names = "tx", "rx";
+};

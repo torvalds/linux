@@ -47,6 +47,27 @@
 
 struct omapfb_device;
 
+#define OMAPFB_PLANE_NUM		1
+
+struct omapfb_mem_region {
+	u32		paddr;
+	void __iomem	*vaddr;
+	unsigned long	size;
+	u8		type;		/* OMAPFB_PLANE_MEM_* */
+	enum omapfb_color_format format;/* OMAPFB_COLOR_* */
+	unsigned	format_used:1;	/* Must be set when format is set.
+					 * Needed b/c of the badly chosen 0
+					 * base for OMAPFB_COLOR_* values
+					 */
+	unsigned	alloc:1;	/* allocated by the driver */
+	unsigned	map:1;		/* kernel mapped by the driver */
+};
+
+struct omapfb_mem_desc {
+	int				region_cnt;
+	struct omapfb_mem_region	region[OMAPFB_PLANE_NUM];
+};
+
 struct lcd_panel {
 	const char	*name;
 	int		config;		/* TFT/STN, signal inversion */
@@ -207,11 +228,7 @@ struct omapfb_device {
 	struct platform_device	*dssdev;	/* dummy dev for clocks */
 };
 
-#ifdef CONFIG_ARCH_OMAP1
 extern struct lcd_ctrl omap1_lcd_ctrl;
-#else
-extern struct lcd_ctrl omap2_disp_ctrl;
-#endif
 
 extern void omapfb_register_panel(struct lcd_panel *panel);
 extern void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval);

@@ -18,7 +18,7 @@
  History:
 	Data		Who		Remark
 
-	05/06/2008  amy    	Create initial version porting from windows driver.
+	05/06/2008  amy		Create initial version porting from windows driver.
 
 ******************************************************************************/
 #include "r8192U.h"
@@ -41,7 +41,7 @@
 rt_status
 SendTxCommandPacket(
 	struct net_device *dev,
-	void* 			pData,
+	void*			pData,
 	u32				DataLen
 	)
 {
@@ -106,7 +106,7 @@ SendTxCommandPacket(
 	u32	buffer_len)
 {
 
-	bool 	    rt_status = true;
+	bool	    rt_status = true;
 #ifdef RTL8192U
 	return rt_status;
 #else
@@ -157,7 +157,7 @@ SendTxCommandPacket(
 		seg_ptr = skb_put(skb, buffer_len);
 		/*
 		 * Transform from little endian to big endian
-		 * and pending  zero
+		 * and pending zero
 		 */
 		memcpy(seg_ptr,codevirtualaddress,buffer_len);
 		tcb_desc->txbuf_size= (u16)buffer_len;
@@ -188,7 +188,7 @@ SendTxCommandPacket(
  *
  * Overview:
  *
- * Input:       PADAPTER 	pAdapter		-	.
+ * Input:       PADAPTER	pAdapter		-	.
  *				CMPK_TXFB_T *psTx_FB	-	.
  *
  * Output:      NONE
@@ -197,7 +197,7 @@ SendTxCommandPacket(
  *
  * Revised History:
  *  When		Who		Remark
- *  05/12/2008	amy 	Create Version 0 porting from windows code.
+ *  05/12/2008	amy	Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
 static	void
@@ -289,7 +289,7 @@ cmpk_count_txstatistic(
  *				in the command packet.
  *
  * Input:       struct net_device *    dev
- *				u8 	*	pmsg		-	Msg Ptr of the command packet.
+ *				u8	*	pmsg		-	Msg Ptr of the command packet.
  *
  * Output:      NONE
  *
@@ -369,7 +369,7 @@ cmdpkt_beacontimerinterrupt_819xusb(
  * Overview:    The function is responsible for extract the message from
  *				firmware. It will contain dedicated info in
  *				ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
- * 				Please refer to chapter "Interrupt Status Element".
+ *				Please refer to chapter "Interrupt Status Element".
  *
  * Input:       struct net_device *dev,
  *			u8*	pmsg		-	Message Pointer of the command packet.
@@ -400,8 +400,8 @@ cmpk_handle_interrupt_status(
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_bcn_state.Element_ID 	= pMsg[0];
-	//rx_bcn_state.Length 		= pMsg[1];
+	//rx_bcn_state.Element_ID	= pMsg[0];
+	//rx_bcn_state.Length		= pMsg[1];
 	rx_intr_status.length = pmsg[1];
 	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
 	{
@@ -478,16 +478,16 @@ cmpk_handle_query_config_rx(
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
 	   endian type before copy the message copy. */
-	//rx_query_cfg.Element_ID 	= pMsg[0];
-	//rx_query_cfg.Length 		= pMsg[1];
-	rx_query_cfg.cfg_action 	= (pmsg[4] & 0x80000000)>>31;
-	rx_query_cfg.cfg_type 		= (pmsg[4] & 0x60) >> 5;
-	rx_query_cfg.cfg_size 		= (pmsg[4] & 0x18) >> 3;
-	rx_query_cfg.cfg_page 		= (pmsg[6] & 0x0F) >> 0;
-	rx_query_cfg.cfg_offset 		= pmsg[7];
-	rx_query_cfg.value 			= (pmsg[8] << 24) | (pmsg[9] << 16) |
+	//rx_query_cfg.Element_ID	= pMsg[0];
+	//rx_query_cfg.Length		= pMsg[1];
+	rx_query_cfg.cfg_action		= (pmsg[4] & 0x80000000)>>31;
+	rx_query_cfg.cfg_type		= (pmsg[4] & 0x60) >> 5;
+	rx_query_cfg.cfg_size		= (pmsg[4] & 0x18) >> 3;
+	rx_query_cfg.cfg_page		= (pmsg[6] & 0x0F) >> 0;
+	rx_query_cfg.cfg_offset			= pmsg[7];
+	rx_query_cfg.value			= (pmsg[8] << 24) | (pmsg[9] << 16) |
 								  (pmsg[10] << 8) | (pmsg[11] << 0);
-	rx_query_cfg.mask 			= (pmsg[12] << 24) | (pmsg[13] << 16) |
+	rx_query_cfg.mask			= (pmsg[12] << 24) | (pmsg[13] << 16) |
 								  (pmsg[14] << 8) | (pmsg[15] << 0);
 
 }	/* cmpk_Handle_Query_Config_Rx */
@@ -511,7 +511,7 @@ cmpk_handle_query_config_rx(
  *
  *---------------------------------------------------------------------------*/
 static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t 	*pstx_status)
+									cmpk_tx_status_t	*pstx_status)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -697,7 +697,6 @@ cmpk_message_handle_rx(
 	struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -719,15 +718,15 @@ cmpk_message_handle_rx(
 	/* 2. Read virtual address from RFD. */
 	pcmd_buff = pstats->virtual_address;
 
-	/* 3. Read command pakcet element id and length. */
+	/* 3. Read command packet element id and length. */
 	element_id = pcmd_buff[0];
 	/*RT_TRACE(COMP_SEND, DebugLevel,
 			("\n\r[CMPK]-->element ID=%d Len=%d", element_id, total_length));*/
 
-	/* 4. Check every received command packet conent according to different
+	/* 4. Check every received command packet content according to different
 	      element type. Because FW may aggregate RX command packet to minimize
 	      transmit time between DRV and FW.*/
-	// Add a counter to prevent to locked in the loop too long
+	// Add a counter to prevent the lock in the loop from being held too long
 	while (total_length > 0 || exe_cnt++ >100)
 	{
 		/* 2007/01/17 MH We support aggregation of different cmd in the same packet. */
@@ -778,9 +777,6 @@ cmpk_message_handle_rx(
 
 		// 2007/01/22 MH Add to display tx statistic.
 		//cmpk_DisplayTxStatistic(pAdapter);
-
-		/* 2007/03/09 MH Collect sidderent cmd element pkt num. */
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;

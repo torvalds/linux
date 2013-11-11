@@ -27,8 +27,7 @@ void xen_setup_mfn_list_list(void);
 void xen_setup_shared_info(void);
 void xen_build_mfn_list_list(void);
 void xen_setup_machphys_mapping(void);
-pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
-void xen_ident_map_ISA(void);
+void xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
 void xen_reserve_top(void);
 extern unsigned long xen_max_p2m_pfn;
 
@@ -36,7 +35,6 @@ void xen_set_pat(u64);
 
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
-void __init xen_init_IRQ(void);
 void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
 void xen_vcpu_restore(void);
@@ -46,6 +44,7 @@ void xen_hvm_init_shared_info(void);
 void xen_unplug_emulated_devices(void);
 
 void __init xen_build_dynamic_phys_to_machine(void);
+unsigned long __init xen_revector_p2m_tree(void);
 
 void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
@@ -84,6 +83,21 @@ static inline void xen_init_lock_cpu(int cpu)
 {
 }
 static inline void xen_uninit_lock_cpu(int cpu)
+{
+}
+#endif
+
+struct dom0_vga_console_info;
+
+#ifdef CONFIG_XEN_DOM0
+void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size);
+void __init xen_init_apic(void);
+#else
+static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
+				       size_t size)
+{
+}
+static inline void __init xen_init_apic(void)
 {
 }
 #endif

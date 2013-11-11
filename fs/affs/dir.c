@@ -42,7 +42,7 @@ const struct inode_operations affs_dir_inode_operations = {
 static int
 affs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode		*inode = filp->f_path.dentry->d_inode;
+	struct inode		*inode = file_inode(filp);
 	struct super_block	*sb = inode->i_sb;
 	struct buffer_head	*dir_bh;
 	struct buffer_head	*fh_bh;

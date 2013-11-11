@@ -25,7 +25,6 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      ETHbyGetHashIndexByCrc32 - Caculate multicast hash value by CRC32
  *      ETHbIsBufferCrc32Ok - Check CRC value of the buffer if Ok or not
  *
  * Revision History:
@@ -37,52 +36,6 @@
 #include "tcrc.h"
 #include "tether.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-
-
-/*
- * Description: Caculate multicast hash value by CRC32
- *
- * Parameters:
- *  In:
- *		pbyMultiAddr    - Multicast Address
- *  Out:
- *      none
- *
- * Return Value: Hash value
- *
- */
-BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr)
-{
-	int     ii;
-	BYTE    byTmpHash;
-	BYTE    byHash = 0;
-
-	/* get the least 6-bits from CRC generator */
-	byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
-			0xFFFFFFFFL) & 0x3F);
-	/* reverse most bit to least bit */
-	for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {
-		byHash <<= 1;
-		if (byTmpHash & 0x01)
-			byHash |= 1;
-		byTmpHash >>= 1;
-	}
-
-	/* adjust 6-bits to the right most */
-	return byHash >> 2;
-}
-
-
 /*
  * Description: Check CRC value of the buffer if Ok or not
  *
@@ -93,16 +46,16 @@ BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr)
  *  Out:
  *      none
  *
- * Return Value: TRUE if ok; FALSE if error.
+ * Return Value: true if ok; false if error.
  *
  */
-BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength)
+bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength)
 {
-	DWORD dwCRC;
+	u32 dwCRC;
 
 	dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
-	if (cpu_to_le32(*((PDWORD)(pbyBuffer + cbFrameLength - 4))) != dwCRC)
-		return FALSE;
-	return TRUE;
+	if (cpu_to_le32(*((u32 *)(pbyBuffer + cbFrameLength - 4))) != dwCRC)
+		return false;
+	return true;
 }
 

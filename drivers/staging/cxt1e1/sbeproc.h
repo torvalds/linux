@@ -1,7 +1,3 @@
-/*
- * $Id: sbeproc.h,v 1.2 2005/10/17 23:55:28 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_SBEPROC_H_
 #define _INC_SBEPROC_H_
 
@@ -23,30 +19,24 @@
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.2 $
- * Last changed on $Date: 2005/10/17 23:55:28 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: sbeproc.h,v $
- * Revision 1.2  2005/10/17 23:55:28  rickd
- * sbecom_proc_brd_init() is an declared an __init function.
- *
- * Revision 1.1  2005/09/28 00:10:09  rickd
- * Remove unneeded inclusion of c4_private.h.
- *
- * Revision 1.0  2005/05/10 22:21:46  rickd
- * Initial check-in.
- *
- *-----------------------------------------------------------------------------
  */
 
 
 #ifdef CONFIG_PROC_FS
-#ifdef __KERNEL__
 void        sbecom_proc_brd_cleanup (ci_t *);
 int __init  sbecom_proc_brd_init (ci_t *);
 
-#endif                          /*** __KERNEL__ ***/
+#else
+
+static inline void sbecom_proc_brd_cleanup(ci_t * ci)
+{
+}
+
+static inline int __init sbecom_proc_brd_init(ci_t * ci)
+{
+	return 0;
+}
+
 #endif                          /*** CONFIG_PROC_FS ***/
+
 #endif                          /*** _INC_SBEPROC_H_ ***/

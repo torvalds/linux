@@ -58,13 +58,7 @@
 _ENTRY(_stext);
 _ENTRY(_start);
 
-	/* Save parameters we are passed.
-	*/
-	mr	r31,r3
-	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
+	mr	r31,r3			/* save device tree ptr */
 
 	/* We have to turn on the MMU right away so we get cache modes
 	 * set correctly.
@@ -400,7 +394,7 @@ label:
 	NORMAL_EXCEPTION_PROLOG
 	mr	r4,r12			/* Pass SRR0 as arg2 */
 	li	r5,0			/* Pass zero as arg3 */
-	EXC_XFER_EE_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* 0x0500 - External Interrupt Exception */
 	EXCEPTION(0x0500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -436,30 +430,18 @@ label:
 	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_EE)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
-	START_EXCEPTION(0x1000, Decrementer)
-	NORMAL_EXCEPTION_PROLOG
-	lis	r0,TSR_PIS@h
-	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_LITE(0x1000, timer_interrupt)
-
-#if 0
-/* NOTE:
- * FIT and WDT handlers are not implemented yet.
- */
+	. = 0x1000
+	b Decrementer
 
 /* 0x1010 - Fixed Interval Timer (FIT) Exception
 */
-	STND_EXCEPTION(0x1010,	FITException,		unknown_exception)
+	. = 0x1010
+	b FITException
 
 /* 0x1020 - Watchdog Timer (WDT) Exception
 */
-#ifdef CONFIG_BOOKE_WDT
-	CRITICAL_EXCEPTION(0x1020, WDTException, WatchdogException)
-#else
-	CRITICAL_EXCEPTION(0x1020, WDTException, unknown_exception)
-#endif
-#endif
+	. = 0x1020
+	b WDTException
 
 /* 0x1100 - Data TLB Miss Exception
  * As the name implies, translation is not in the MMU, so search the
@@ -744,6 +726,29 @@ label:
 		(MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 		NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
 
+	/* Programmable Interval Timer (PIT) Exception. (from 0x1000) */
+Decrementer:
+	NORMAL_EXCEPTION_PROLOG
+	lis	r0,TSR_PIS@h
+	mtspr	SPRN_TSR,r0		/* Clear the PIT exception */
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	EXC_XFER_LITE(0x1000, timer_interrupt)
+
+	/* Fixed Interval Timer (FIT) Exception. (from 0x1010) */
+FITException:
+	NORMAL_EXCEPTION_PROLOG
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	EXC_XFER_EE(0x1010, unknown_exception)
+
+	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
+WDTException:
+	CRITICAL_EXCEPTION_PROLOG;
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
+	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),
+			  NOCOPY, crit_transfer_to_handler,
+			  ret_from_crit_exc)
+
 /*
  * The other Data TLB exceptions bail out to this point
  * if they can't resolve the lightweight TLB fault.
@@ -753,7 +758,7 @@ DataAccess:
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
-	EXC_XFER_EE_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /* Other PowerPC processors, namely those derived from the 6xx-series
  * have vectors from 0x2100 through 0x2F00 defined, but marked as reserved.
@@ -849,11 +854,8 @@ start_here:
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
-	mr	r3,r31
-	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
+	li	r3,0
+	mr	r4,r31
 	bl	machine_init
 	bl	MMU_init
 

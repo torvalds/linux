@@ -22,7 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/system.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -30,10 +30,7 @@
 
 #include <asm/mach/time.h>
 
-#define IRQ_MASK		0xfe000000	/* read */
-#define IRQ_MSET		0xfe000000	/* write */
-#define IRQ_STAT		0xff000000	/* read */
-#define IRQ_MCLR		0xff000000	/* write */
+#include "core.h"
 
 static void ebsa110_mask_irq(struct irq_data *d)
 {
@@ -77,24 +74,24 @@ static struct map_desc ebsa110_io_desc[] __initdata = {
 	 * sparse external-decode ISAIO space
 	 */
 	{	/* IRQ_STAT/IRQ_MCLR */
-		.virtual	= IRQ_STAT,
+		.virtual	= (unsigned long)IRQ_STAT,
 		.pfn		= __phys_to_pfn(TRICK4_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK4_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* IRQ_MASK/IRQ_MSET */
-		.virtual	= IRQ_MASK,
+		.virtual	= (unsigned long)IRQ_MASK,
 		.pfn		= __phys_to_pfn(TRICK3_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK3_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* SOFT_BASE */
-		.virtual	= SOFT_BASE,
+		.virtual	= (unsigned long)SOFT_BASE,
 		.pfn		= __phys_to_pfn(TRICK1_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK1_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* PIT_BASE */
-		.virtual	= PIT_BASE,
+		.virtual	= (unsigned long)PIT_BASE,
 		.pfn		= __phys_to_pfn(TRICK0_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK0_SIZE,
 		.type		= MT_DEVICE
 	},
 
@@ -119,6 +116,20 @@ static void __init ebsa110_map_io(void)
 	iotable_init(ebsa110_io_desc, ARRAY_SIZE(ebsa110_io_desc));
 }
 
+static void __iomem *ebsa110_ioremap_caller(unsigned long cookie, size_t size,
+					    unsigned int flags, void *caller)
+{
+	return (void __iomem *)cookie;
+}
+
+static void ebsa110_iounmap(volatile void __iomem *io_addr)
+{}
+
+static void __init ebsa110_init_early(void)
+{
+	arch_ioremap_caller = ebsa110_ioremap_caller;
+	arch_iounmap = ebsa110_iounmap;
+}
 
 #define PIT_CTRL		(PIT_BASE + 0x0d)
 #define PIT_T2			(PIT_BASE + 0x09)
@@ -147,7 +158,7 @@ static void __init ebsa110_map_io(void)
  * interrupt, then the PIT counter will roll over (ie, be negative).
  * This actually works out to be convenient.
  */
-static unsigned long ebsa110_gettimeoffset(void)
+static u32 ebsa110_gettimeoffset(void)
 {
 	unsigned long offset, count;
 
@@ -170,7 +181,7 @@ static unsigned long ebsa110_gettimeoffset(void)
 	 */
 	offset = offset * (1000000 / HZ) / COUNT;
 
-	return offset;
+	return offset * 1000;
 }
 
 static irqreturn_t
@@ -202,8 +213,10 @@ static struct irqaction ebsa110_timer_irq = {
 /*
  * Set up timer interrupt.
  */
-static void __init ebsa110_timer_init(void)
+void __init ebsa110_timer_init(void)
 {
+	arch_gettimeoffset = ebsa110_gettimeoffset;
+
 	/*
 	 * Timer 1, mode 2, LSB/MSB
 	 */
@@ -213,11 +226,6 @@ static void __init ebsa110_timer_init(void)
 
 	setup_irq(IRQ_EBSA110_TIMER0, &ebsa110_timer_irq);
 }
-
-static struct sys_timer ebsa110_timer = {
-	.init		= ebsa110_timer_init,
-	.offset		= ebsa110_gettimeoffset,
-};
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
@@ -271,20 +279,52 @@ static struct platform_device *ebsa110_devices[] = {
 	&am79c961_device,
 };
 
+/*
+ * EBSA110 idling methodology:
+ *
+ * We can not execute the "wait for interrupt" instruction since that
+ * will stop our MCLK signal (which provides the clock for the glue
+ * logic, and therefore the timer interrupt).
+ *
+ * Instead, we spin, polling the IRQ_STAT register for the occurrence
+ * of any interrupt with core clock down to the memory clock.
+ */
+static void ebsa110_idle(void)
+{
+	const char *irq_stat = (char *)0xff000000;
+
+	/* disable clock switching */
+	asm volatile ("mcr p15, 0, ip, c15, c2, 2" : : : "cc");
+
+	/* wait for an interrupt to occur */
+	while (!*irq_stat);
+
+	/* enable clock switching */
+	asm volatile ("mcr p15, 0, ip, c15, c1, 2" : : : "cc");
+}
+
 static int __init ebsa110_init(void)
 {
+	arm_pm_idle = ebsa110_idle;
 	return platform_add_devices(ebsa110_devices, ARRAY_SIZE(ebsa110_devices));
 }
 
 arch_initcall(ebsa110_init);
 
+static void ebsa110_restart(char mode, const char *cmd)
+{
+	soft_restart(0x80000000);
+}
+
 MACHINE_START(EBSA110, "EBSA110")
 	/* Maintainer: Russell King */
-	.boot_params	= 0x00000400,
+	.atag_offset	= 0x400,
 	.reserve_lp0	= 1,
 	.reserve_lp2	= 1,
-	.soft_reboot	= 1,
+	.restart_mode	= 's',
 	.map_io		= ebsa110_map_io,
+	.init_early	= ebsa110_init_early,
 	.init_irq	= ebsa110_init_irq,
-	.timer		= &ebsa110_timer,
+	.init_time	= ebsa110_timer_init,
+	.restart	= ebsa110_restart,
 MACHINE_END

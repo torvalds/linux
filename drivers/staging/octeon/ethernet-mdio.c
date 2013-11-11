@@ -27,6 +27,8 @@
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
+#include <linux/ratelimit.h>
+#include <linux/of_mdio.h>
 
 #include <net/dst.h>
 
@@ -37,16 +39,16 @@
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
 
-#include "cvmx-helper-board.h"
+#include <asm/octeon/cvmx-helper-board.h>
 
-#include "cvmx-smix-defs.h"
+#include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "cavium-ethernet");
-	strcpy(info->version, OCTEON_ETHERNET_VERSION);
-	strcpy(info->bus_info, "Builtin");
+	strlcpy(info->driver, "cavium-ethernet", sizeof(info->driver));
+	strlcpy(info->version, OCTEON_ETHERNET_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, "Builtin", sizeof(info->bus_info));
 }
 
 static int cvm_oct_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -129,22 +131,22 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 		if (priv->last_link) {
 			netif_carrier_on(dev);
 			if (priv->queue != -1)
-				DEBUGPRINT("%s: %u Mbps %s duplex, "
-					   "port %2d, queue %2d\n",
-					   dev->name, priv->phydev->speed,
-					   priv->phydev->duplex ?
-						"Full" : "Half",
-					   priv->port, priv->queue);
+				printk_ratelimited("%s: %u Mbps %s duplex, "
+						   "port %2d, queue %2d\n",
+						   dev->name, priv->phydev->speed,
+						   priv->phydev->duplex ?
+						   "Full" : "Half",
+						   priv->port, priv->queue);
 			else
-				DEBUGPRINT("%s: %u Mbps %s duplex, "
-					   "port %2d, POW\n",
-					   dev->name, priv->phydev->speed,
-					   priv->phydev->duplex ?
-						"Full" : "Half",
-					   priv->port);
+				printk_ratelimited("%s: %u Mbps %s duplex, "
+						   "port %2d, POW\n",
+						   dev->name, priv->phydev->speed,
+						   priv->phydev->duplex ?
+						   "Full" : "Half",
+						   priv->port);
 		} else {
 			netif_carrier_off(dev);
-			DEBUGPRINT("%s: Link down\n", dev->name);
+			printk_ratelimited("%s: Link down\n", dev->name);
 		}
 	}
 }
@@ -160,22 +162,23 @@ static void cvm_oct_adjust_link(struct net_device *dev)
 int cvm_oct_phy_setup_device(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
+	struct device_node *phy_node;
 
-	int phy_addr = cvmx_helper_board_get_mii_address(priv->port);
-	if (phy_addr != -1) {
-		char phy_id[20];
+	if (!priv->of_node)
+		return 0;
 
-		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, "0", phy_addr);
+	phy_node = of_parse_phandle(priv->of_node, "phy-handle", 0);
+	if (!phy_node)
+		return 0;
 
-		priv->phydev = phy_connect(dev, phy_id, cvm_oct_adjust_link, 0,
-					PHY_INTERFACE_MODE_GMII);
+	priv->phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
+				      PHY_INTERFACE_MODE_GMII);
 
-		if (IS_ERR(priv->phydev)) {
-			priv->phydev = NULL;
-			return -1;
-		}
-		priv->last_link = 0;
-		phy_start_aneg(priv->phydev);
-	}
+	if (priv->phydev == NULL)
+		return -ENODEV;
+
+	priv->last_link = 0;
+	phy_start_aneg(priv->phydev);
+
 	return 0;
 }

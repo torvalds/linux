@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
 #include "htc.h"
 
 /* identify firmware images */
@@ -37,6 +38,8 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
 	{ USB_DEVICE(0x040D, 0x3801) }, /* VIA */
 	{ USB_DEVICE(0x0cf3, 0xb003) }, /* Ubiquiti WifiStation Ext */
+	{ USB_DEVICE(0x0cf3, 0xb002) }, /* Ubiquiti WifiStation */
+	{ USB_DEVICE(0x057c, 0x8403) }, /* AVM FRITZ!WLAN 11N v2 USB */
 
 	{ USB_DEVICE(0x0cf3, 0x7015),
 	  .driver_info = AR9287_USB },  /* Atheros */
@@ -49,6 +52,10 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	  .driver_info = AR9280_USB },  /* Netgear WNDA3200 */
 	{ USB_DEVICE(0x083A, 0xA704),
 	  .driver_info = AR9280_USB },  /* SMC Networks */
+	{ USB_DEVICE(0x0411, 0x017f),
+	  .driver_info = AR9280_USB },  /* Sony UWA-BR100 */
+	{ USB_DEVICE(0x04da, 0x3904),
+	  .driver_info = AR9280_USB },
 
 	{ USB_DEVICE(0x0cf3, 0x20ff),
 	  .driver_info = STORAGE_DEVICE },
@@ -127,11 +134,13 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 static void hif_usb_mgmt_cb(struct urb *urb)
 {
 	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
-	struct hif_device_usb *hif_dev = cmd->hif_dev;
+	struct hif_device_usb *hif_dev;
 	bool txok = true;
 
 	if (!cmd || !cmd->skb || !cmd->hif_dev)
 		return;
+
+	hif_dev = cmd->hif_dev;
 
 	switch (urb->status) {
 	case 0:
@@ -555,8 +564,8 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 		ptr = (u8 *) skb->data;
 
-		pkt_len = ptr[index] + (ptr[index+1] << 8);
-		pkt_tag = ptr[index+2] + (ptr[index+3] << 8);
+		pkt_len = get_unaligned_le16(ptr + index);
+		pkt_tag = get_unaligned_le16(ptr + index + 2);
 
 		if (pkt_tag != ATH_USB_RX_STREAM_MODE_TAG) {
 			RX_STAT_INC(skb_dropped);
@@ -962,12 +971,11 @@ static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
 	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
 }
 
-static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
-				     u32 drv_info)
+static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 {
 	int transfer, err;
-	const void *data = hif_dev->firmware->data;
-	size_t len = hif_dev->firmware->size;
+	const void *data = hif_dev->fw_data;
+	size_t len = hif_dev->fw_size;
 	u32 addr = AR9271_FIRMWARE;
 	u8 *buf = kzalloc(4096, GFP_KERNEL);
 	u32 firm_offset;
@@ -976,7 +984,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
 		return -ENOMEM;
 
 	while (len) {
-		transfer = min_t(int, len, 4096);
+		transfer = min_t(size_t, len, 4096);
 		memcpy(buf, data, transfer);
 
 		err = usb_control_msg(hif_dev->udev,
@@ -994,7 +1002,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
 	}
 	kfree(buf);
 
-	if (IS_AR7010_DEVICE(drv_info))
+	if (IS_AR7010_DEVICE(hif_dev->usb_device_id->driver_info))
 		firm_offset = AR7010_FIRMWARE_TEXT;
 	else
 		firm_offset = AR9271_FIRMWARE_TEXT;
@@ -1010,33 +1018,23 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
 		return -EIO;
 
 	dev_info(&hif_dev->udev->dev, "ath9k_htc: Transferred FW: %s, size: %ld\n",
-		 hif_dev->fw_name, (unsigned long) hif_dev->firmware->size);
+		 hif_dev->fw_name, (unsigned long) hif_dev->fw_size);
 
 	return 0;
 }
 
-static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
+static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
-	int ret, idx;
 	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
 	struct usb_endpoint_descriptor *endp;
+	int ret, idx;
 
-	/* Request firmware */
-	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
-			       &hif_dev->udev->dev);
-	if (ret) {
-		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s not found\n", hif_dev->fw_name);
-		goto err_fw_req;
-	}
-
-	/* Download firmware */
-	ret = ath9k_hif_usb_download_fw(hif_dev, drv_info);
+	ret = ath9k_hif_usb_download_fw(hif_dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
 			"ath9k_htc: Firmware - %s download failed\n",
 			hif_dev->fw_name);
-		goto err_fw_download;
+		return ret;
 	}
 
 	/* On downloading the firmware to the target, the USB descriptor of EP4
@@ -1058,23 +1056,87 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
 			"ath9k_htc: Unable to allocate URBs\n");
-		goto err_fw_download;
+		return ret;
 	}
 
 	return 0;
-
-err_fw_download:
-	release_firmware(hif_dev->firmware);
-err_fw_req:
-	hif_dev->firmware = NULL;
-	return ret;
 }
 
 static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
 {
 	ath9k_hif_usb_dealloc_urbs(hif_dev);
-	if (hif_dev->firmware)
-		release_firmware(hif_dev->firmware);
+}
+
+/*
+ * If initialization fails or the FW cannot be retrieved,
+ * detach the device.
+ */
+static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
+{
+	struct device *dev = &hif_dev->udev->dev;
+	struct device *parent = dev->parent;
+
+	complete(&hif_dev->fw_done);
+
+	if (parent)
+		device_lock(parent);
+
+	device_release_driver(dev);
+
+	if (parent)
+		device_unlock(parent);
+}
+
+static void ath9k_hif_usb_firmware_cb(const struct firmware *fw, void *context)
+{
+	struct hif_device_usb *hif_dev = context;
+	int ret;
+
+	if (!fw) {
+		dev_err(&hif_dev->udev->dev,
+			"ath9k_htc: Failed to get firmware %s\n",
+			hif_dev->fw_name);
+		goto err_fw;
+	}
+
+	hif_dev->htc_handle = ath9k_htc_hw_alloc(hif_dev, &hif_usb,
+						 &hif_dev->udev->dev);
+	if (hif_dev->htc_handle == NULL)
+		goto err_dev_alloc;
+
+	hif_dev->fw_data = fw->data;
+	hif_dev->fw_size = fw->size;
+
+	/* Proceed with initialization */
+
+	ret = ath9k_hif_usb_dev_init(hif_dev);
+	if (ret)
+		goto err_dev_init;
+
+	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
+				&hif_dev->interface->dev,
+				hif_dev->usb_device_id->idProduct,
+				hif_dev->udev->product,
+				hif_dev->usb_device_id->driver_info);
+	if (ret) {
+		ret = -EINVAL;
+		goto err_htc_hw_init;
+	}
+
+	release_firmware(fw);
+	hif_dev->flags |= HIF_USB_READY;
+	complete(&hif_dev->fw_done);
+
+	return;
+
+err_htc_hw_init:
+	ath9k_hif_usb_dev_deinit(hif_dev);
+err_dev_init:
+	ath9k_htc_hw_free(hif_dev->htc_handle);
+err_dev_alloc:
+	release_firmware(fw);
+err_fw:
+	ath9k_hif_usb_firmware_fail(hif_dev);
 }
 
 /*
@@ -1149,20 +1211,16 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	}
 
 	usb_get_dev(udev);
+
 	hif_dev->udev = udev;
 	hif_dev->interface = interface;
-	hif_dev->device_id = id->idProduct;
+	hif_dev->usb_device_id = id;
 #ifdef CONFIG_PM
 	udev->reset_resume = 1;
 #endif
 	usb_set_intfdata(interface, hif_dev);
 
-	hif_dev->htc_handle = ath9k_htc_hw_alloc(hif_dev, &hif_usb,
-						 &hif_dev->udev->dev);
-	if (hif_dev->htc_handle == NULL) {
-		ret = -ENOMEM;
-		goto err_htc_hw_alloc;
-	}
+	init_completion(&hif_dev->fw_done);
 
 	/* Find out which firmware to load */
 
@@ -1171,29 +1229,22 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	else
 		hif_dev->fw_name = FIRMWARE_AR9271;
 
-	ret = ath9k_hif_usb_dev_init(hif_dev, id->driver_info);
+	ret = request_firmware_nowait(THIS_MODULE, true, hif_dev->fw_name,
+				      &hif_dev->udev->dev, GFP_KERNEL,
+				      hif_dev, ath9k_hif_usb_firmware_cb);
 	if (ret) {
-		ret = -EINVAL;
-		goto err_hif_init_usb;
+		dev_err(&hif_dev->udev->dev,
+			"ath9k_htc: Async request for firmware %s failed\n",
+			hif_dev->fw_name);
+		goto err_fw_req;
 	}
 
-	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
-				&interface->dev, hif_dev->device_id,
-				hif_dev->udev->product, id->driver_info);
-	if (ret) {
-		ret = -EINVAL;
-		goto err_htc_hw_init;
-	}
-
-	dev_info(&hif_dev->udev->dev, "ath9k_htc: USB layer initialized\n");
+	dev_info(&hif_dev->udev->dev, "ath9k_htc: Firmware %s requested\n",
+		 hif_dev->fw_name);
 
 	return 0;
 
-err_htc_hw_init:
-	ath9k_hif_usb_dev_deinit(hif_dev);
-err_hif_init_usb:
-	ath9k_htc_hw_free(hif_dev->htc_handle);
-err_htc_hw_alloc:
+err_fw_req:
 	usb_set_intfdata(interface, NULL);
 	kfree(hif_dev);
 	usb_put_dev(udev);
@@ -1228,12 +1279,19 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 	if (!hif_dev)
 		return;
 
-	ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
-	ath9k_htc_hw_free(hif_dev->htc_handle);
-	ath9k_hif_usb_dev_deinit(hif_dev);
+	wait_for_completion(&hif_dev->fw_done);
+
+	if (hif_dev->flags & HIF_USB_READY) {
+		ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
+		ath9k_htc_hw_free(hif_dev->htc_handle);
+		ath9k_hif_usb_dev_deinit(hif_dev);
+	}
+
 	usb_set_intfdata(interface, NULL);
 
-	if (!unplugged && (hif_dev->flags & HIF_USB_START))
+	/* If firmware was loaded we should drop it
+	 * go back to first stage bootloader. */
+	if (!unplugged && (hif_dev->flags & HIF_USB_READY))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);
@@ -1264,14 +1322,23 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
 	struct htc_target *htc_handle = hif_dev->htc_handle;
 	int ret;
+	const struct firmware *fw;
 
 	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
 	if (ret)
 		return ret;
 
-	if (hif_dev->firmware) {
-		ret = ath9k_hif_usb_download_fw(hif_dev,
-				htc_handle->drv_priv->ah->hw_version.usbdev);
+	if (hif_dev->flags & HIF_USB_READY) {
+		/* request cached firmware during suspend/resume cycle */
+		ret = request_firmware(&fw, hif_dev->fw_name,
+				       &hif_dev->udev->dev);
+		if (ret)
+			goto fail_resume;
+
+		hif_dev->fw_data = fw->data;
+		hif_dev->fw_size = fw->size;
+		ret = ath9k_hif_usb_download_fw(hif_dev);
+		release_firmware(fw);
 		if (ret)
 			goto fail_resume;
 	} else {
@@ -1306,6 +1373,7 @@ static struct usb_driver ath9k_hif_usb_driver = {
 #endif
 	.id_table = ath9k_hif_usb_ids,
 	.soft_unbind = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 int ath9k_hif_usb_init(void)

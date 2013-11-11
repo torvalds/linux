@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/sysdev.h>
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
@@ -43,13 +42,13 @@ struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 						const char *edac_pci_name)
 {
 	struct edac_pci_ctl_info *pci;
-	void *pvt;
+	void *p = NULL, *pvt;
 	unsigned int size;
 
-	debugf1("%s()\n", __func__);
+	edac_dbg(1, "\n");
 
-	pci = (struct edac_pci_ctl_info *)0;
-	pvt = edac_align_ptr(&pci[1], sz_pvt);
+	pci = edac_align_ptr(&p, sizeof(*pci), 1);
+	pvt = edac_align_ptr(&p, 1, sz_pvt);
 	size = ((unsigned long)pvt) + sz_pvt;
 
 	/* Alloc the needed control struct memory */
@@ -81,7 +80,7 @@ EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
  */
 void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci)
 {
-	debugf1("%s()\n", __func__);
+	edac_dbg(1, "\n");
 
 	edac_pci_remove_sysfs(pci);
 }
@@ -98,7 +97,7 @@ static struct edac_pci_ctl_info *find_edac_pci_by_dev(struct device *dev)
 	struct edac_pci_ctl_info *pci;
 	struct list_head *item;
 
-	debugf1("%s()\n", __func__);
+	edac_dbg(1, "\n");
 
 	list_for_each(item, &edac_pci_list) {
 		pci = list_entry(item, struct edac_pci_ctl_info, link);
@@ -123,7 +122,7 @@ static int add_edac_pci_to_global_list(struct edac_pci_ctl_info *pci)
 	struct list_head *item, *insert_before;
 	struct edac_pci_ctl_info *rover;
 
-	debugf1("%s()\n", __func__);
+	edac_dbg(1, "\n");
 
 	insert_before = &edac_pci_list;
 
@@ -227,7 +226,7 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 	int msec;
 	unsigned long delay;
 
-	debugf3("%s() checking\n", __func__);
+	edac_dbg(3, "checking\n");
 
 	mutex_lock(&edac_pci_ctls_mutex);
 
@@ -262,7 +261,7 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 				 unsigned int msec)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
 	queue_delayed_work(edac_workqueue, &pci->work,
@@ -277,7 +276,7 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 {
 	int status;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	status = cancel_delayed_work(&pci->work);
 	if (status == 0)
@@ -294,7 +293,7 @@ static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
 				 unsigned long value)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	edac_pci_workq_teardown(pci);
 
@@ -334,7 +333,7 @@ EXPORT_SYMBOL_GPL(edac_pci_alloc_index);
  */
 int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx)
 {
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	pci->pci_idx = edac_idx;
 	pci->start_time = jiffies;
@@ -394,7 +393,7 @@ struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev)
 {
 	struct edac_pci_ctl_info *pci;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	mutex_lock(&edac_pci_ctls_mutex);
 
@@ -431,7 +430,7 @@ EXPORT_SYMBOL_GPL(edac_pci_del_device);
  */
 static void edac_pci_generic_check(struct edac_pci_ctl_info *pci)
 {
-	debugf4("%s()\n", __func__);
+	edac_dbg(4, "\n");
 	edac_pci_do_parity_check();
 }
 
@@ -471,12 +470,13 @@ struct edac_pci_ctl_info *edac_pci_create_generic_ctl(struct device *dev,
 
 	pci->mod_name = mod_name;
 	pci->ctl_name = EDAC_PCI_GENCTL_NAME;
-	pci->edac_check = edac_pci_generic_check;
+	if (edac_op_state == EDAC_OPSTATE_POLL)
+		pci->edac_check = edac_pci_generic_check;
 
 	pdata->edac_idx = edac_pci_idx++;
 
 	if (edac_pci_add_device(pci, pdata->edac_idx) > 0) {
-		debugf3("%s(): failed edac_pci_add_device()\n", __func__);
+		edac_dbg(3, "failed edac_pci_add_device()\n");
 		edac_pci_free_ctl_info(pci);
 		return NULL;
 	}
@@ -492,7 +492,7 @@ EXPORT_SYMBOL_GPL(edac_pci_create_generic_ctl);
  */
 void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci)
 {
-	debugf0("%s() pci mod=%s\n", __func__, pci->mod_name);
+	edac_dbg(0, "pci mod=%s\n", pci->mod_name);
 
 	edac_pci_del_device(pci->dev);
 	edac_pci_free_ctl_info(pci);

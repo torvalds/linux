@@ -32,20 +32,18 @@
 
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 #include <linux/delay.h>
 
 #include <asm/m32r.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define PORT_M32R_BASE	PORT_M32R_SIO
-#define PORT_INDEX(x)	(x - PORT_M32R_BASE + 1)
 #define BAUD_RATE	115200
 
 #include <linux/serial_core.h>
@@ -68,13 +66,6 @@
 #endif
 
 #define PASS_LIMIT	256
-
-/*
- * We default to IRQ0 for the "no irq" hack.   Some
- * machine types want others as well - they're free
- * to redefine this in their header file.
- */
-#define is_real_interrupt(irq)	((irq) != 0)
 
 #define BASE_BAUD	115200
 
@@ -138,22 +129,6 @@ struct irq_info {
 };
 
 static struct irq_info irq_lists[NR_IRQS];
-
-/*
- * Here we define the default xmit fifo size used for each type of UART.
- */
-static const struct serial_uart_config uart_config[] = {
-	[PORT_UNKNOWN] = {
-		.name			= "unknown",
-		.dfl_xmit_fifo_size	= 1,
-		.flags			= 0,
-	},
-	[PORT_INDEX(PORT_M32R_SIO)] = {
-		.name			= "M32RSIO",
-		.dfl_xmit_fifo_size	= 1,
-		.flags			= 0,
-	},
-};
 
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 
@@ -325,7 +300,7 @@ static void m32r_sio_enable_ms(struct uart_port *port)
 
 static void receive_chars(struct uart_sio_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
+	struct tty_port *port = &up->port.state->port;
 	unsigned char ch;
 	unsigned char flag;
 	int max_count = 256;
@@ -380,7 +355,7 @@ static void receive_chars(struct uart_sio_port *up, int *status)
 		if (uart_handle_sysrq_char(&up->port, ch))
 			goto ignore_char;
 		if ((*status & up->port.ignore_status_mask) == 0)
-			tty_insert_flip_char(tty, ch, flag);
+			tty_insert_flip_char(port, ch, flag);
 
 		if (*status & UART_LSR_OE) {
 			/*
@@ -388,12 +363,12 @@ static void receive_chars(struct uart_sio_port *up, int *status)
 			 * immediately, and doesn't affect the current
 			 * character.
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 		}
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 static void transmit_chars(struct uart_sio_port *up)
@@ -639,7 +614,7 @@ static int m32r_sio_startup(struct uart_port *port)
 	 * hardware interrupt, we use a timer-based system.  The original
 	 * driver used to do this with IRQ0.
 	 */
-	if (!is_real_interrupt(up->port.irq)) {
+	if (!up->port.irq) {
 		unsigned int timeout = up->port.timeout;
 
 		timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
@@ -686,7 +661,7 @@ static void m32r_sio_shutdown(struct uart_port *port)
 
 	sio_init();
 
-	if (!is_real_interrupt(up->port.irq))
+	if (!up->port.irq)
 		del_timer_sync(&up->timer);
 	else
 		serial_unlink_irq_chain(up);
@@ -892,7 +867,7 @@ static int m32r_sio_request_port(struct uart_port *port)
 	 * If we have a mapbase, then request that as well.
 	 */
 	if (ret == 0 && up->port.flags & UPF_IOREMAP) {
-		int size = res->end - res->start + 1;
+		int size = resource_size(res);
 
 		up->port.membase = ioremap(up->port.mapbase, size);
 		if (!up->port.membase)
@@ -914,8 +889,7 @@ static void m32r_sio_config_port(struct uart_port *port, int unused)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	up->port.type = (PORT_M32R_SIO - PORT_M32R_BASE + 1);
-	up->port.fifosize = uart_config[up->port.type].dfl_xmit_fifo_size;
+	up->port.fifosize = 1;
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
@@ -923,21 +897,9 @@ static void m32r_sio_config_port(struct uart_port *port, int unused)
 static int
 m32r_sio_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (ser->irq >= nr_irqs || ser->irq < 0 ||
-	    ser->baud_base < 9600 || ser->type < PORT_UNKNOWN ||
-	    ser->type >= ARRAY_SIZE(uart_config))
+	if (ser->irq >= nr_irqs || ser->irq < 0 || ser->baud_base < 9600)
 		return -EINVAL;
 	return 0;
-}
-
-static const char *
-m32r_sio_type(struct uart_port *port)
-{
-	int type = port->type;
-
-	if (type >= ARRAY_SIZE(uart_config))
-		type = 0;
-	return uart_config[type].name;
 }
 
 static struct uart_ops m32r_sio_pops = {
@@ -953,7 +915,6 @@ static struct uart_ops m32r_sio_pops = {
 	.shutdown	= m32r_sio_shutdown,
 	.set_termios	= m32r_sio_set_termios,
 	.pm		= m32r_sio_pm,
-	.type		= m32r_sio_type,
 	.release_port	= m32r_sio_release_port,
 	.request_port	= m32r_sio_request_port,
 	.config_port	= m32r_sio_config_port,
@@ -999,11 +960,8 @@ static void __init m32r_sio_register_ports(struct uart_driver *drv)
 		init_timer(&up->timer);
 		up->timer.function = m32r_sio_timeout;
 
-		/*
-		 * ALPHA_KLUDGE_MCR needs to be killed.
-		 */
-		up->mcr_mask = ~ALPHA_KLUDGE_MCR;
-		up->mcr_force = ALPHA_KLUDGE_MCR;
+		up->mcr_mask = ~0;
+		up->mcr_force = 0;
 
 		uart_add_one_port(drv, &up->port);
 	}

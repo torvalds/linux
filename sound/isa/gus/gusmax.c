@@ -24,7 +24,7 @@
 #include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
@@ -40,7 +40,7 @@ MODULE_SUPPORTED_DEVICE("{{Gravis,UltraSound MAX}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	/* Enable this card */
 static long port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* 0x220,0x230,0x240,0x250,0x260 */
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 2,3,5,9,11,12,15 */
 static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 1,3,5,6,7 */
@@ -82,7 +82,7 @@ struct snd_gusmax {
 
 #define PFX	"gusmax: "
 
-static int __devinit snd_gusmax_detect(struct snd_gus_card * gus)
+static int snd_gusmax_detect(struct snd_gus_card *gus)
 {
 	unsigned char d;
 
@@ -124,8 +124,8 @@ static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static void __devinit snd_gusmax_init(int dev, struct snd_card *card,
-				      struct snd_gus_card * gus)
+static void snd_gusmax_init(int dev, struct snd_card *card,
+			    struct snd_gus_card *gus)
 {
 	gus->equal_irq = 1;
 	gus->codec_flag = 1;
@@ -140,7 +140,7 @@ static void __devinit snd_gusmax_init(int dev, struct snd_card *card,
 	outb(gus->max_cntrl_val, GUSP(gus, MAXCNTRLPORT));
 }
 
-static int __devinit snd_gusmax_mixer(struct snd_wss *chip)
+static int snd_gusmax_mixer(struct snd_wss *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -199,12 +199,12 @@ static void snd_gusmax_free(struct snd_card *card)
 		free_irq(maxcard->irq, (void *)maxcard);
 }
 
-static int __devinit snd_gusmax_match(struct device *pdev, unsigned int dev)
+static int snd_gusmax_match(struct device *pdev, unsigned int dev)
 {
 	return enable[dev];
 }
 
-static int __devinit snd_gusmax_probe(struct device *pdev, unsigned int dev)
+static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 {
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
@@ -291,7 +291,7 @@ static int __devinit snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 	}
 
-	if (request_irq(xirq, snd_gusmax_interrupt, IRQF_DISABLED, "GUS MAX", (void *)maxcard)) {
+	if (request_irq(xirq, snd_gusmax_interrupt, 0, "GUS MAX", (void *)maxcard)) {
 		snd_printk(KERN_ERR PFX "unable to grab IRQ %d\n", xirq);
 		err = -EBUSY;
 		goto _err;
@@ -354,7 +354,7 @@ static int __devinit snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	return err;
 }
 
-static int __devexit snd_gusmax_remove(struct device *devptr, unsigned int dev)
+static int snd_gusmax_remove(struct device *devptr, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
 	dev_set_drvdata(devptr, NULL);
@@ -366,7 +366,7 @@ static int __devexit snd_gusmax_remove(struct device *devptr, unsigned int dev)
 static struct isa_driver snd_gusmax_driver = {
 	.match		= snd_gusmax_match,
 	.probe		= snd_gusmax_probe,
-	.remove		= __devexit_p(snd_gusmax_remove),
+	.remove		= snd_gusmax_remove,
 	/* FIXME: suspend/resume */
 	.driver		= {
 		.name	= DEV_NAME

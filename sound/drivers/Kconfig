@@ -14,6 +14,7 @@ config SND_OPL4_LIB
 
 config SND_VX_LIB
 	tristate
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_PCM
 
@@ -35,7 +36,6 @@ config SND_PCSP
 	tristate "PC-Speaker support (READ HELP!)"
 	depends on PCSPKR_PLATFORM && X86 && HIGH_RES_TIMERS
 	depends on INPUT
-	depends on EXPERIMENTAL
 	select SND_PCM
 	help
 	  If you don't have a sound card in your computer, you can include a
@@ -50,7 +50,8 @@ config SND_PCSP
 	  before the other sound driver of yours, making the
 	  pc-speaker a default sound device. Which is likely not
 	  what you want. To make this driver play nicely with other
-	  sound driver, you can add this into your /etc/modprobe.conf:
+	  sound driver, you can add this in a configuration file under
+	  /etc/modprobe.d/ directory:
 	  options snd-pcsp index=2
 
 	  You don't need this driver if you only want your pc-speaker to beep.
@@ -86,7 +87,7 @@ config SND_ALOOP
 	  configured number of substreams (see the pcm_substreams module
           parameter).
 
-	  The looback device allow time sychronization with an external
+	  The loopback device allows time sychronization with an external
 	  timing source using the time shift universal control (+-20%
 	  of system time).
 

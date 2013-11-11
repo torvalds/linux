@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,8 +77,8 @@ union acpi_parse_object *acpi_ps_create_scope_op(void)
  *
  * FUNCTION:    acpi_ps_init_op
  *
- * PARAMETERS:  Op              - A newly allocated Op object
- *              Opcode          - Opcode to store in the Op
+ * PARAMETERS:  op              - A newly allocated Op object
+ *              opcode          - Opcode to store in the Op
  *
  * RETURN:      None
  *
@@ -103,12 +103,12 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
  *
  * FUNCTION:    acpi_ps_alloc_op
  *
- * PARAMETERS:  Opcode          - Opcode that will be stored in the new Op
+ * PARAMETERS:  opcode          - Opcode that will be stored in the new Op
  *
  * RETURN:      Pointer to the new Op, null on failure
  *
  * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
- *              opcode.  A cache of opcodes is available for the pure
+ *              opcode. A cache of opcodes is available for the pure
  *              GENERIC_OP, since this is by far the most commonly used.
  *
  ******************************************************************************/
@@ -160,11 +160,11 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode)
  *
  * FUNCTION:    acpi_ps_free_op
  *
- * PARAMETERS:  Op              - Op to be freed
+ * PARAMETERS:  op              - Op to be freed
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Free an Op object.  Either put it on the GENERIC_OP cache list
+ * DESCRIPTION: Free an Op object. Either put it on the GENERIC_OP cache list
  *              or actually free it.
  *
  ******************************************************************************/
@@ -199,14 +199,6 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 u8 acpi_ps_is_leading_char(u32 c)
 {
 	return ((u8) (c == '_' || (c >= 'A' && c <= 'Z')));
-}
-
-/*
- * Is "c" a namestring prefix character?
- */
-u8 acpi_ps_is_prefix_char(u32 c)
-{
-	return ((u8) (c == '\\' || c == '^'));
 }
 
 /*

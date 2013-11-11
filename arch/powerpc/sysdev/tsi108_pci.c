@@ -51,7 +51,7 @@
 u32 tsi108_pci_cfg_base;
 static u32 tsi108_pci_cfg_phys;
 u32 tsi108_csr_vir_base;
-static struct irq_host *pci_irq_host;
+static struct irq_domain *pci_irq_host;
 
 extern u32 get_vir_csrbase(void);
 extern u32 tsi108_read_reg(u32 reg_offset);
@@ -376,7 +376,7 @@ static struct irq_chip tsi108_pci_irq = {
 	.irq_unmask = tsi108_pci_irq_unmask,
 };
 
-static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
+static int pci_irq_host_xlate(struct irq_domain *h, struct device_node *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -385,7 +385,7 @@ static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
+static int pci_irq_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {	unsigned int irq;
 	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
@@ -397,7 +397,7 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_host_ops pci_irq_host_ops = {
+static struct irq_domain_ops pci_irq_domain_ops = {
 	.map = pci_irq_host_map,
 	.xlate = pci_irq_host_xlate,
 };
@@ -419,10 +419,9 @@ void __init tsi108_pci_int_init(struct device_node *node)
 {
 	DBG("Tsi108_pci_int_init: initializing PCI interrupts\n");
 
-	pci_irq_host = irq_alloc_host(node, IRQ_HOST_MAP_LEGACY,
-				      0, &pci_irq_host_ops, 0);
+	pci_irq_host = irq_domain_add_legacy_isa(node, &pci_irq_domain_ops, NULL);
 	if (pci_irq_host == NULL) {
-		printk(KERN_ERR "pci_irq_host: failed to allocate irq host !\n");
+		printk(KERN_ERR "pci_irq_host: failed to allocate irq domain!\n");
 		return;
 	}
 

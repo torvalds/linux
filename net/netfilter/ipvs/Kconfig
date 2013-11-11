@@ -28,12 +28,11 @@ if IP_VS
 config	IP_VS_IPV6
 	bool "IPv6 support for IPVS"
 	depends on IPV6 = y || IP_VS = IPV6
+	select IP6_NF_IPTABLES
 	---help---
-	  Add IPv6 support to IPVS. This is incomplete and might be dangerous.
+	  Add IPv6 support to IPVS.
 
-	  See http://www.mindbasket.com/ipvs for more information.
-
-	  Say N if unsure.
+	  Say Y if unsure.
 
 config	IP_VS_DEBUG
 	bool "IP virtual server debugging"
@@ -122,7 +121,6 @@ config	IP_VS_RR
  
 config	IP_VS_WRR
 	tristate "weighted round-robin scheduling"
-	select GCD
 	---help---
 	  The weighted robin-robin scheduling algorithm directs network
 	  connections to different real servers based on server weights
@@ -232,11 +230,27 @@ config	IP_VS_NQ
 	  If you want to compile it in kernel, say Y. To compile it as a
 	  module, choose M here. If unsure, say N.
 
+comment 'IPVS SH scheduler'
+
+config IP_VS_SH_TAB_BITS
+	int "IPVS source hashing table size (the Nth power of 2)"
+	range 4 20
+	default 8
+	---help---
+	  The source hashing scheduler maps source IPs to destinations
+	  stored in a hash table. This table is tiled by each destination
+	  until all slots in the table are filled. When using weights to
+	  allow destinations to receive more connections, the table is
+	  tiled an amount proportional to the weights specified. The table
+	  needs to be large enough to effectively fit all the destinations
+	  multiplied by their respective weights.
+
 comment 'IPVS application helper'
 
 config	IP_VS_FTP
   	tristate "FTP protocol helper"
-        depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT
+	depends on IP_VS_PROTO_TCP && NF_CONNTRACK && NF_NAT && \
+		NF_CONNTRACK_FTP
 	select IP_VS_NFCT
 	---help---
 	  FTP is a protocol that transfers IP address and/or port number in

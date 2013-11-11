@@ -11,9 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mbus.h>
+#include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <mach/mv78xx0.h>
 #include "common.h"
 
 struct pcie_port {
@@ -22,119 +24,78 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*base;
 	spinlock_t		conf_lock;
-	char			io_space_name[16];
 	char			mem_space_name[16];
-	struct resource		res[2];
+	struct resource		res;
 };
 
 static struct pcie_port pcie_port[8];
 static int num_pcie_ports;
 static struct resource pcie_io_space;
-static struct resource pcie_mem_space;
-
 
 void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
 {
-	*dev = orion_pcie_dev_id((void __iomem *)PCIE00_VIRT_BASE);
-	*rev = orion_pcie_rev((void __iomem *)PCIE00_VIRT_BASE);
+	*dev = orion_pcie_dev_id(PCIE00_VIRT_BASE);
+	*rev = orion_pcie_rev(PCIE00_VIRT_BASE);
 }
+
+u32 pcie_port_size[8] = {
+	0,
+	0x30000000,
+	0x10000000,
+	0x10000000,
+	0x08000000,
+	0x08000000,
+	0x08000000,
+	0x04000000,
+};
 
 static void __init mv78xx0_pcie_preinit(void)
 {
 	int i;
 	u32 size_each;
 	u32 start;
-	int win;
 
 	pcie_io_space.name = "PCIe I/O Space";
 	pcie_io_space.start = MV78XX0_PCIE_IO_PHYS_BASE(0);
 	pcie_io_space.end =
 		MV78XX0_PCIE_IO_PHYS_BASE(0) + MV78XX0_PCIE_IO_SIZE * 8 - 1;
-	pcie_io_space.flags = IORESOURCE_IO;
+	pcie_io_space.flags = IORESOURCE_MEM;
 	if (request_resource(&iomem_resource, &pcie_io_space))
 		panic("can't allocate PCIe I/O space");
 
-	pcie_mem_space.name = "PCIe MEM Space";
-	pcie_mem_space.start = MV78XX0_PCIE_MEM_PHYS_BASE;
-	pcie_mem_space.end =
-		MV78XX0_PCIE_MEM_PHYS_BASE + MV78XX0_PCIE_MEM_SIZE - 1;
-	pcie_mem_space.flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, &pcie_mem_space))
-		panic("can't allocate PCIe MEM space");
-
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
-
-		snprintf(pp->io_space_name, sizeof(pp->io_space_name),
-			"PCIe %d.%d I/O", pp->maj, pp->min);
-		pp->io_space_name[sizeof(pp->io_space_name) - 1] = 0;
-		pp->res[0].name = pp->io_space_name;
-		pp->res[0].start = MV78XX0_PCIE_IO_PHYS_BASE(i);
-		pp->res[0].end = pp->res[0].start + MV78XX0_PCIE_IO_SIZE - 1;
-		pp->res[0].flags = IORESOURCE_IO;
-
-		snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
-			"PCIe %d.%d MEM", pp->maj, pp->min);
-		pp->mem_space_name[sizeof(pp->mem_space_name) - 1] = 0;
-		pp->res[1].name = pp->mem_space_name;
-		pp->res[1].flags = IORESOURCE_MEM;
-	}
-
-	switch (num_pcie_ports) {
-	case 0:
-		size_each = 0;
-		break;
-
-	case 1:
-		size_each = 0x30000000;
-		break;
-
-	case 2 ... 3:
-		size_each = 0x10000000;
-		break;
-
-	case 4 ... 6:
-		size_each = 0x08000000;
-		break;
-
-	case 7:
-		size_each = 0x04000000;
-		break;
-
-	default:
+	if (num_pcie_ports > 7)
 		panic("invalid number of PCIe ports");
-	}
+
+	size_each = pcie_port_size[num_pcie_ports];
 
 	start = MV78XX0_PCIE_MEM_PHYS_BASE;
 	for (i = 0; i < num_pcie_ports; i++) {
 		struct pcie_port *pp = pcie_port + i;
+		char winname[MVEBU_MBUS_MAX_WINNAME_SZ];
 
-		pp->res[1].start = start;
-		pp->res[1].end = start + size_each - 1;
+		snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
+			"PCIe %d.%d MEM", pp->maj, pp->min);
+		pp->mem_space_name[sizeof(pp->mem_space_name) - 1] = 0;
+		pp->res.name = pp->mem_space_name;
+		pp->res.flags = IORESOURCE_MEM;
+		pp->res.start = start;
+		pp->res.end = start + size_each - 1;
 		start += size_each;
-	}
 
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
-
-		if (request_resource(&pcie_io_space, &pp->res[0]))
-			panic("can't allocate PCIe I/O sub-space");
-
-		if (request_resource(&pcie_mem_space, &pp->res[1]))
+		if (request_resource(&iomem_resource, &pp->res))
 			panic("can't allocate PCIe MEM sub-space");
-	}
 
-	win = 0;
-	for (i = 0; i < num_pcie_ports; i++) {
-		struct pcie_port *pp = pcie_port + i;
+		snprintf(winname, sizeof(winname), "pcie%d.%d",
+			 pp->maj, pp->min);
 
-		mv78xx0_setup_pcie_io_win(win++, pp->res[0].start,
-			pp->res[0].end - pp->res[0].start + 1,
-			pp->maj, pp->min);
-
-		mv78xx0_setup_pcie_mem_win(win++, pp->res[1].start,
-			pp->res[1].end - pp->res[1].start + 1,
-			pp->maj, pp->min);
+		mvebu_mbus_add_window_remap_flags(winname,
+						  pp->res.start,
+						  resource_size(&pp->res),
+						  MVEBU_MBUS_NO_REMAP,
+						  MVEBU_MBUS_PCI_MEM);
+		mvebu_mbus_add_window_remap_flags(winname,
+						  i * SZ_64K, SZ_64K,
+						  0, MVEBU_MBUS_PCI_IO);
 	}
 }
 
@@ -146,32 +107,20 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 
 	pp = &pcie_port[nr];
+	sys->private_data = pp;
 	pp->root_bus_nr = sys->busnr;
 
 	/*
 	 * Generic PCIe unit setup.
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
-	orion_pcie_setup(pp->base, &mv78xx0_mbus_dram_info);
+	orion_pcie_setup(pp->base);
 
-	sys->resource[0] = &pp->res[0];
-	sys->resource[1] = &pp->res[1];
-	sys->resource[2] = NULL;
+	pci_ioremap_io(nr * SZ_64K, MV78XX0_PCIE_IO_PHYS_BASE(nr));
+
+	pci_add_resource_offset(&sys->resources, &pp->res, sys->mem_offset);
 
 	return 1;
-}
-
-static struct pcie_port *bus_to_port(int bus)
-{
-	int i;
-
-	for (i = num_pcie_ports - 1; i >= 0; i--) {
-		int rbus = pcie_port[i].root_bus_nr;
-		if (rbus != -1 && rbus <= bus)
-			break;
-	}
-
-	return i >= 0 ? pcie_port + i : NULL;
 }
 
 static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
@@ -189,7 +138,8 @@ static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			int size, u32 *val)
 {
-	struct pcie_port *pp = bus_to_port(bus->number);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -208,7 +158,8 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 			int where, int size, u32 val)
 {
-	struct pcie_port *pp = bus_to_port(bus->number);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -227,7 +178,7 @@ static struct pci_ops pcie_ops = {
 	.write = pcie_wr_conf,
 };
 
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	/*
 	 * Prevent enumeration of root complex.
@@ -250,7 +201,8 @@ mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pci_bus *bus;
 
 	if (nr < num_pcie_ports) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();
@@ -259,9 +211,11 @@ mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	return bus;
 }
 
-static int __init mv78xx0_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init mv78xx0_pcie_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
-	struct pcie_port *pp = bus_to_port(dev->bus->number);
+	struct pci_sys_data *sys = dev->bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 
 	return IRQ_MV78XX0_PCIE_00 + (pp->maj << 2) + pp->min;
 }
@@ -269,17 +223,16 @@ static int __init mv78xx0_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 static struct hw_pci mv78xx0_pci __initdata = {
 	.nr_controllers	= 8,
 	.preinit	= mv78xx0_pcie_preinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= mv78xx0_pcie_setup,
 	.scan		= mv78xx0_pcie_scan_bus,
 	.map_irq	= mv78xx0_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int maj, int min, unsigned long base)
+static void __init add_pcie_port(int maj, int min, void __iomem *base)
 {
 	printk(KERN_INFO "MV78xx0 PCIe port %d.%d: ", maj, min);
 
-	if (orion_pcie_link_up((void __iomem *)base)) {
+	if (orion_pcie_link_up(base)) {
 		struct pcie_port *pp = &pcie_port[num_pcie_ports++];
 
 		printk("link up\n");
@@ -287,9 +240,9 @@ static void __init add_pcie_port(int maj, int min, unsigned long base)
 		pp->maj = maj;
 		pp->min = min;
 		pp->root_bus_nr = -1;
-		pp->base = (void __iomem *)base;
+		pp->base = base;
 		spin_lock_init(&pp->conf_lock);
-		memset(pp->res, 0, sizeof(pp->res));
+		memset(&pp->res, 0, sizeof(pp->res));
 	} else {
 		printk("link down, ignoring\n");
 	}
@@ -297,9 +250,11 @@ static void __init add_pcie_port(int maj, int min, unsigned long base)
 
 void __init mv78xx0_pcie_init(int init_port0, int init_port1)
 {
+	vga_base = MV78XX0_PCIE_MEM_PHYS_BASE;
+
 	if (init_port0) {
 		add_pcie_port(0, 0, PCIE00_VIRT_BASE);
-		if (!orion_pcie_x4_mode((void __iomem *)PCIE00_VIRT_BASE)) {
+		if (!orion_pcie_x4_mode(PCIE00_VIRT_BASE)) {
 			add_pcie_port(0, 1, PCIE01_VIRT_BASE);
 			add_pcie_port(0, 2, PCIE02_VIRT_BASE);
 			add_pcie_port(0, 3, PCIE03_VIRT_BASE);

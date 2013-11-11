@@ -2,7 +2,6 @@
 #define TARGET_CORE_PSCSI_H
 
 #define PSCSI_VERSION		"v4.0"
-#define PSCSI_VIRTUAL_HBA_DEPTH	2048
 
 /* used in pscsi_find_alloc_len() */
 #ifndef INQUIRY_DATA_SIZE
@@ -23,14 +22,11 @@
 #include <linux/kobject.h>
 
 struct pscsi_plugin_task {
-	struct se_task pscsi_task;
-	unsigned char *pscsi_cdb;
-	unsigned char __pscsi_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned char pscsi_sense[SCSI_SENSE_BUFFERSIZE];
 	int	pscsi_direction;
 	int	pscsi_result;
 	u32	pscsi_resid;
-	struct request *pscsi_req;
+	unsigned char pscsi_cdb[0];
 } ____cacheline_aligned;
 
 #define PDF_HAS_CHANNEL_ID	0x01
@@ -41,6 +37,7 @@ struct pscsi_plugin_task {
 #define PDF_HAS_VIRT_HOST_ID	0x20
 
 struct pscsi_dev_virt {
+	struct se_device dev;
 	int	pdv_flags;
 	int	pdv_host_id;
 	int	pdv_channel_id;
@@ -48,11 +45,10 @@ struct pscsi_dev_virt {
 	int	pdv_lun_id;
 	struct block_device *pdv_bd;
 	struct scsi_device *pdv_sd;
-	struct se_hba *pdv_se_hba;
 } ____cacheline_aligned;
 
 typedef enum phv_modes {
-	PHV_VIRUTAL_HOST_ID,
+	PHV_VIRTUAL_HOST_ID,
 	PHV_LLD_SCSI_HOST_NO
 } phv_modes_t;
 

@@ -410,7 +410,6 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>

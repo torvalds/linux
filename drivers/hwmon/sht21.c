@@ -29,6 +29,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
 
 /* I2C command bytes */
 #define SHT21_TRIG_T_MEASUREMENT_HM  0xe3
@@ -83,25 +84,6 @@ static inline int sht21_rh_ticks_to_per_cent_mille(int ticks)
 }
 
 /**
- * sht21_read_word_data() - read word from register
- * @client: I2C client device
- * @reg: I2C command byte
- *
- * Returns value, negative errno on error.
- */
-static inline int sht21_read_word_data(struct i2c_client *client, u8 reg)
-{
-	int ret = i2c_smbus_read_word_data(client, reg);
-	if (ret < 0)
-		return ret;
-	/*
-	 * SMBus specifies low byte first, but the SHT21 returns MSB
-	 * first, so we have to swab16 the values
-	 */
-	return swab16(ret);
-}
-
-/**
  * sht21_update_measurements() - get updated measurements from device
  * @client: I2C client device
  *
@@ -119,12 +101,13 @@ static int sht21_update_measurements(struct i2c_client *client)
 	 * maximum two measurements per second at 12bit accuracy shall be made.
 	 */
 	if (time_after(jiffies, sht21->last_update + HZ / 2) || !sht21->valid) {
-		ret = sht21_read_word_data(client, SHT21_TRIG_T_MEASUREMENT_HM);
+		ret = i2c_smbus_read_word_swapped(client,
+						  SHT21_TRIG_T_MEASUREMENT_HM);
 		if (ret < 0)
 			goto out;
 		sht21->temperature = sht21_temp_ticks_to_millicelsius(ret);
-		ret = sht21_read_word_data(client,
-					SHT21_TRIG_RH_MEASUREMENT_HM);
+		ret = i2c_smbus_read_word_swapped(client,
+						  SHT21_TRIG_RH_MEASUREMENT_HM);
 		if (ret < 0)
 			goto out;
 		sht21->humidity = sht21_rh_ticks_to_per_cent_mille(ret);
@@ -204,7 +187,7 @@ static const struct attribute_group sht21_attr_group = {
  * device's name.
  * Returns 0 on success.
  */
-static int __devinit sht21_probe(struct i2c_client *client,
+static int sht21_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sht21 *sht21;
@@ -217,11 +200,10 @@ static int __devinit sht21_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	sht21 = kzalloc(sizeof(*sht21), GFP_KERNEL);
-	if (!sht21) {
-		dev_dbg(&client->dev, "kzalloc failed\n");
+	sht21 = devm_kzalloc(&client->dev, sizeof(*sht21), GFP_KERNEL);
+	if (!sht21)
 		return -ENOMEM;
-	}
+
 	i2c_set_clientdata(client, sht21);
 
 	mutex_init(&sht21->lock);
@@ -229,7 +211,7 @@ static int __devinit sht21_probe(struct i2c_client *client,
 	err = sysfs_create_group(&client->dev.kobj, &sht21_attr_group);
 	if (err) {
 		dev_dbg(&client->dev, "could not create sysfs files\n");
-		goto fail_free;
+		return err;
 	}
 	sht21->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(sht21->hwmon_dev)) {
@@ -244,9 +226,6 @@ static int __devinit sht21_probe(struct i2c_client *client,
 
 fail_remove_sysfs:
 	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-fail_free:
-	kfree(sht21);
-
 	return err;
 }
 
@@ -254,13 +233,12 @@ fail_free:
  * sht21_remove() - remove device
  * @client: I2C client device
  */
-static int __devexit sht21_remove(struct i2c_client *client)
+static int sht21_remove(struct i2c_client *client)
 {
 	struct sht21 *sht21 = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(sht21->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-	kfree(sht21);
 
 	return 0;
 }
@@ -275,32 +253,11 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
 	.probe       = sht21_probe,
-	.remove      = __devexit_p(sht21_remove),
+	.remove      = sht21_remove,
 	.id_table    = sht21_id,
 };
 
-/**
- * sht21_init() - initialize driver
- *
- * Called when kernel is booted or module is inserted.
- * Returns 0 on success.
- */
-static int __init sht21_init(void)
-{
-	return i2c_add_driver(&sht21_driver);
-}
-module_init(sht21_init);
-
-/**
- * sht21_init() - clean up driver
- *
- * Called when module is removed.
- */
-static void __exit sht21_exit(void)
-{
-	i2c_del_driver(&sht21_driver);
-}
-module_exit(sht21_exit);
+module_i2c_driver(sht21_driver);
 
 MODULE_AUTHOR("Urs Fleisch <urs.fleisch@sensirion.com>");
 MODULE_DESCRIPTION("Sensirion SHT21 humidity and temperature sensor driver");

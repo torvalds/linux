@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/export.h>
 
 #include <loongson.h>
 
@@ -23,7 +24,7 @@
 #include <cs5536/cs5536.h>
 #endif
 
-#define PCI_ACCESS_READ  0
+#define PCI_ACCESS_READ	 0
 #define PCI_ACCESS_WRITE 1
 
 #define CFG_SPACE_REG(offset) \

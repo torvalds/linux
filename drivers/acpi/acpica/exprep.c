@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +46,7 @@
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
+#include "acdispat.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exprep")
@@ -77,8 +77,8 @@ acpi_ex_generate_access(u32 field_bit_offset,
  *              any_acc keyword.
  *
  * NOTE: Need to have the region_length in order to check for boundary
- *       conditions (end-of-region).  However, the region_length is a deferred
- *       operation.  Therefore, to complete this implementation, the generation
+ *       conditions (end-of-region). However, the region_length is a deferred
+ *       operation. Therefore, to complete this implementation, the generation
  *       of this access width must be deferred until the region length has
  *       been evaluated.
  *
@@ -307,7 +307,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the areas of the field object that are common
- *              to the various types of fields.  Note: This is very "sensitive"
+ *              to the various types of fields. Note: This is very "sensitive"
  *              code because we are solving the general case for field
  *              alignment.
  *
@@ -335,13 +335,13 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	obj_desc->common_field.bit_length = field_bit_length;
 
 	/*
-	 * Decode the access type so we can compute offsets.  The access type gives
+	 * Decode the access type so we can compute offsets. The access type gives
 	 * two pieces of information - the width of each field access and the
 	 * necessary byte_alignment (address granularity) of the access.
 	 *
 	 * For any_acc, the access_bit_width is the largest width that is both
 	 * necessary and possible in an attempt to access the whole field in one
-	 * I/O operation.  However, for any_acc, the byte_alignment is always one
+	 * I/O operation. However, for any_acc, the byte_alignment is always one
 	 * byte.
 	 *
 	 * For all Buffer Fields, the byte_alignment is always one byte.
@@ -362,7 +362,7 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 
 	/*
 	 * base_byte_offset is the address of the start of the field within the
-	 * region.  It is the byte address of the first *datum* (field-width data
+	 * region. It is the byte address of the first *datum* (field-width data
 	 * unit) of the field. (i.e., the first datum that contains at least the
 	 * first *bit* of the field.)
 	 *
@@ -390,12 +390,12 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_prep_field_value
  *
- * PARAMETERS:  Info    - Contains all field creation info
+ * PARAMETERS:  info    - Contains all field creation info
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Construct a union acpi_operand_object of type def_field and
- *              connect it to the parent Node.
+ * DESCRIPTION: Construct an object of type union acpi_operand_object with a
+ *              subtype of def_field and connect it to the parent Node.
  *
  ******************************************************************************/
 
@@ -454,6 +454,30 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 		obj_desc->field.region_obj =
 		    acpi_ns_get_attached_object(info->region_node);
+
+		/* Fields specific to generic_serial_bus fields */
+
+		obj_desc->field.access_length = info->access_length;
+
+		if (info->connection_node) {
+			second_desc = info->connection_node->object;
+			if (!(second_desc->common.flags & AOPOBJ_DATA_VALID)) {
+				status =
+				    acpi_ds_get_buffer_arguments(second_desc);
+				if (ACPI_FAILURE(status)) {
+					acpi_ut_delete_object_desc(obj_desc);
+					return_ACPI_STATUS(status);
+				}
+			}
+
+			obj_desc->field.resource_buffer =
+			    second_desc->buffer.pointer;
+			obj_desc->field.resource_length =
+			    (u16)second_desc->buffer.length;
+		} else if (info->resource_buffer) {
+			obj_desc->field.resource_buffer = info->resource_buffer;
+			obj_desc->field.resource_length = info->resource_length;
+		}
 
 		/* Allow full data read from EC address space */
 

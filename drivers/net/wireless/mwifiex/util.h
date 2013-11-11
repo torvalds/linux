@@ -22,11 +22,16 @@
 
 static inline struct mwifiex_rxinfo *MWIFIEX_SKB_RXCB(struct sk_buff *skb)
 {
-	return (struct mwifiex_rxinfo *)skb->cb;
+	return (struct mwifiex_rxinfo *)(skb->cb + sizeof(dma_addr_t));
 }
 
 static inline struct mwifiex_txinfo *MWIFIEX_SKB_TXCB(struct sk_buff *skb)
 {
-	return (struct mwifiex_txinfo *)skb->cb;
+	return (struct mwifiex_txinfo *)(skb->cb + sizeof(dma_addr_t));
+}
+
+static inline void MWIFIEX_SKB_PACB(struct sk_buff *skb, dma_addr_t *buf_pa)
+{
+	memcpy(buf_pa, skb->cb, sizeof(dma_addr_t));
 }
 #endif /* !_MWIFIEX_UTIL_H_ */

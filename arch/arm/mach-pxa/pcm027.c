@@ -258,10 +258,12 @@ static void __init pcm027_map_io(void)
 
 MACHINE_START(PCM027, "Phytec Messtechnik GmbH phyCORE-PXA270")
 	/* Maintainer: Pengutronix */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pcm027_map_io,
 	.nr_irqs	= PCM027_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
-	.timer		= &pxa_timer,
+	.handle_irq	= pxa27x_handle_irq,
+	.init_time	= pxa_timer_init,
 	.init_machine	= pcm027_init,
+	.restart	= pxa_restart,
 MACHINE_END

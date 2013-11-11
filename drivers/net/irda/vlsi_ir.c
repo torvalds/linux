@@ -36,6 +36,7 @@ MODULE_LICENSE("GPL");
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
@@ -382,7 +383,7 @@ static int vlsi_seq_show(struct seq_file *seq, void *v)
 
 static int vlsi_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, vlsi_seq_show, PDE(inode)->data);
+	return single_open(file, vlsi_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations vlsi_proc_fops = {
@@ -1626,7 +1627,7 @@ static int vlsi_irda_init(struct net_device *ndev)
 
 /**************************************************************/
 
-static int __devinit
+static int
 vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net_device	*ndev;
@@ -1677,7 +1678,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			IRDA_WARNING("%s: failed to create proc entry\n",
 				     __func__);
 		} else {
-			ent->size = 0;
+			proc_set_size(ent, 0);
 		}
 		idev->proc_entry = ent;
 	}
@@ -1698,7 +1699,7 @@ out:
 	return -ENODEV;
 }
 
-static void __devexit vlsi_irda_remove(struct pci_dev *pdev)
+static void vlsi_irda_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	vlsi_irda_dev_t *idev;
@@ -1831,7 +1832,7 @@ static struct pci_driver vlsi_irda_driver = {
 	.name		= drivername,
 	.id_table	= vlsi_irda_table,
 	.probe		= vlsi_irda_probe,
-	.remove		= __devexit_p(vlsi_irda_remove),
+	.remove		= vlsi_irda_remove,
 #ifdef CONFIG_PM
 	.suspend	= vlsi_irda_suspend,
 	.resume		= vlsi_irda_resume,

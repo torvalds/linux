@@ -93,7 +93,7 @@
 /* root profile namespace */
 struct aa_namespace *root_ns;
 
-const char *profile_mode_names[] = {
+const char *const profile_mode_names[] = {
 	"enforce",
 	"complain",
 	"kill",
@@ -724,6 +724,8 @@ fail:
  */
 static void free_profile(struct aa_profile *profile)
 {
+	struct aa_profile *p;
+
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
 	if (!profile)
@@ -749,8 +751,29 @@ static void free_profile(struct aa_profile *profile)
 
 	aa_free_sid(profile->sid);
 	aa_put_dfa(profile->xmatch);
+	aa_put_dfa(profile->policy.dfa);
 
-	aa_put_profile(profile->replacedby);
+	/* put the profile reference for replacedby, but not via
+	 * put_profile(kref_put).
+	 * replacedby can form a long chain that can result in cascading
+	 * frees that blows the stack because kref_put makes a nested fn
+	 * call (it looks like recursion, with free_profile calling
+	 * free_profile) for each profile in the chain lp#1056078.
+	 */
+	for (p = profile->replacedby; p; ) {
+		if (atomic_dec_and_test(&p->base.count.refcount)) {
+			/* no more refs on p, grab its replacedby */
+			struct aa_profile *next = p->replacedby;
+			/* break the chain */
+			p->replacedby = NULL;
+			/* now free p, chain is broken */
+			free_profile(p);
+
+			/* follow up with next profile in the chain */
+			p = next;
+		} else
+			break;
+	}
 
 	kzfree(profile);
 }
@@ -902,6 +925,10 @@ struct aa_profile *aa_lookup_profile(struct aa_namespace *ns, const char *hname)
 	profile = aa_get_profile(__lookup_profile(&ns->base, hname));
 	read_unlock(&ns->lock);
 
+	/* the unconfined profile is not in the regular profile list */
+	if (!profile && strcmp(hname, "unconfined") == 0)
+		profile = aa_get_profile(ns->unconfined);
+
 	/* refcount released by caller */
 	return profile;
 }
@@ -963,11 +990,13 @@ static int audit_policy(int op, gfp_t gfp, const char *name, const char *info,
 			int error)
 {
 	struct common_audit_data sa;
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.op = op;
-	sa.aad.name = name;
-	sa.aad.info = info;
-	sa.aad.error = error;
+	struct apparmor_audit_data aad = {0,};
+	sa.type = LSM_AUDIT_DATA_NONE;
+	sa.aad = &aad;
+	aad.op = op;
+	aad.name = name;
+	aad.info = info;
+	aad.error = error;
 
 	return aa_audit(AUDIT_APPARMOR_STATUS, __aa_current_profile(), gfp,
 			&sa, NULL);

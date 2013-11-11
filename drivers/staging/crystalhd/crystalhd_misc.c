@@ -24,10 +24,9 @@
  * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  **********************************************************************/
 
-#include <linux/slab.h>
+#include "crystalhd.h"
 
-#include "crystalhd_misc.h"
-#include "crystalhd_lnx.h"
+#include <linux/slab.h>
 
 uint32_t g_linklog_level;
 
@@ -961,7 +960,7 @@ void crystalhd_destroy_dio_pool(struct crystalhd_adp *adp)
  * Create general purpose list element pool to hold pending,
  * and active requests.
  */
-int __devinit crystalhd_create_elem_pool(struct crystalhd_adp *adp,
+int crystalhd_create_elem_pool(struct crystalhd_adp *adp,
 		uint32_t pool_size)
 {
 	uint32_t i;

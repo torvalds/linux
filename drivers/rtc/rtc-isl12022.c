@@ -15,6 +15,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DRV_VERSION "0.1"
 
@@ -226,7 +227,7 @@ static int isl12022_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 					 buf[ISL12022_REG_SC + i]);
 		if (ret)
 			return -EIO;
-	};
+	}
 
 	return 0;
 }
@@ -251,12 +252,11 @@ static int isl12022_probe(struct i2c_client *client,
 {
 	struct isl12022 *isl12022;
 
-	int ret = 0;
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
-	isl12022 = kzalloc(sizeof(struct isl12022), GFP_KERNEL);
+	isl12022 = devm_kzalloc(&client->dev, sizeof(struct isl12022),
+				GFP_KERNEL);
 	if (!isl12022)
 		return -ENOMEM;
 
@@ -264,37 +264,22 @@ static int isl12022_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, isl12022);
 
-	isl12022->rtc = rtc_device_register(isl12022_driver.driver.name,
-					    &client->dev,
-					    &isl12022_rtc_ops,
-					    THIS_MODULE);
-
-	if (IS_ERR(isl12022->rtc)) {
-		ret = PTR_ERR(isl12022->rtc);
-		goto exit_kfree;
-	}
+	isl12022->rtc = devm_rtc_device_register(&client->dev,
+					isl12022_driver.driver.name,
+					&isl12022_rtc_ops, THIS_MODULE);
+	if (IS_ERR(isl12022->rtc))
+		return PTR_ERR(isl12022->rtc);
 
 	return 0;
-
-exit_kfree:
-	kfree(isl12022);
-
-	return ret;
 }
 
 static int isl12022_remove(struct i2c_client *client)
 {
-	struct isl12022 *isl12022 = i2c_get_clientdata(client);
-
-	rtc_device_unregister(isl12022->rtc);
-	kfree(isl12022);
-
 	return 0;
 }
 
 static const struct i2c_device_id isl12022_id[] = {
 	{ "isl12022", 0 },
-	{ "rtc8564", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl12022_id);
@@ -308,18 +293,7 @@ static struct i2c_driver isl12022_driver = {
 	.id_table	= isl12022_id,
 };
 
-static int __init isl12022_init(void)
-{
-	return i2c_add_driver(&isl12022_driver);
-}
-
-static void __exit isl12022_exit(void)
-{
-	i2c_del_driver(&isl12022_driver);
-}
-
-module_init(isl12022_init);
-module_exit(isl12022_exit);
+module_i2c_driver(isl12022_driver);
 
 MODULE_AUTHOR("roman.fietze@telemotive.de");
 MODULE_DESCRIPTION("ISL 12022 RTC driver");

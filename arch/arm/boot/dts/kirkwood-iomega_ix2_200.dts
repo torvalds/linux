@@ -1,0 +1,193 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	model = "Iomega StorCenter ix2-200";
+	compatible = "iom,ix2-200", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_button_reset &pmx_button_power
+				      &pmx_led_backup &pmx_led_power
+				      &pmx_button_otb &pmx_led_rebuild
+				      &pmx_led_health
+				      &pmx_led_sata_brt_ctrl_1
+				      &pmx_led_sata_brt_ctrl_2
+				      &pmx_led_backup_brt_ctrl_1
+				      &pmx_led_backup_brt_ctrl_2
+				      &pmx_led_power_brt_ctrl_1
+				      &pmx_led_power_brt_ctrl_2
+				      &pmx_led_health_brt_ctrl_1
+				      &pmx_led_health_brt_ctrl_2
+				      &pmx_led_rebuild_brt_ctrl_1
+				      &pmx_led_rebuild_brt_ctrl_2 >;
+			pinctrl-names = "default";
+
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+			pmx_button_power: pmx-button-power {
+				marvell,pins = "mpp14";
+				marvell,function = "gpio";
+			};
+			pmx_led_backup: pmx-led-backup {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+			pmx_button_otb: pmx-button-otb {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+			pmx_led_rebuild: pmx-led-rebuild {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_led_health: pmx-led_health {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_led_sata_brt_ctrl_1: pmx-led-sata-brt-ctrl-1 {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_sata_brt_ctrl_2: pmx-led-sata-brt-ctrl-2 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_led_backup_brt_ctrl_1: pmx-led-backup-brt-ctrl-1 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_led_backup_brt_ctrl_2: pmx-led-backup-brt-ctrl-2 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_led_power_brt_ctrl_1: pmx-led-power-brt-ctrl-1 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_led_power_brt_ctrl_2: pmx-led-power-brt-ctrl-2 {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_led_health_brt_ctrl_1: pmx-led-health-brt-ctrl-1 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_led_health_brt_ctrl_2: pmx-led-health-brt-ctrl-2 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_led_rebuild_brt_ctrl_1: pmx-led-rebuild-brt-ctrl-1 {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_led_rebuild_brt_ctrl_2: pmx-led-rebuild-brt-ctrl-2 {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+
+		};
+		i2c@11000 {
+			status = "okay";
+
+			lm63: lm63@4c {
+				compatible = "national,lm63";
+				reg = <0x4c>;
+			};
+		};
+
+		serial@12000 {
+			status = "ok";
+		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+
+			partition@a0000 {
+				label = "env";
+				reg = <0xa0000 0x20000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x100000 0x300000>;
+			};
+
+			partition@400000 {
+				label = "uInitrd";
+				reg = <0x540000 0x1000000>;
+			};
+		};
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power_led {
+			label = "status:white:power_led";
+			gpios = <&gpio0 16 0>;
+			linux,default-trigger = "default-on";
+		};
+		rebuild_led {
+			label = "status:white:rebuild_led";
+			gpios = <&gpio1 4 0>;
+		};
+		health_led {
+			label = "status:red:health_led";
+			gpios = <&gpio1 5 0>;
+		};
+		backup_led {
+			label = "status:blue:backup_led";
+			gpios = <&gpio0 15 0>;
+		};
+	};
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		Power {
+			label = "Power Button";
+			linux,code = <116>;
+			gpios = <&gpio0 14 1>;
+		};
+		Reset {
+			label = "Reset Button";
+			linux,code = <0x198>;
+			gpios = <&gpio0 12 1>;
+		};
+		OTB {
+			label = "OTB Button";
+			linux,code = <133>;
+			gpios = <&gpio1 3 1>;
+		};
+	};
+};

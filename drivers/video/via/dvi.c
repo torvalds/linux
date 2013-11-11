@@ -25,7 +25,7 @@
 static void tmds_register_write(int index, u8 data);
 static int tmds_register_read(int index);
 static int tmds_register_read_bytes(int index, u8 *buff, int buff_len);
-static void __devinit dvi_get_panel_size_from_DDCv1(
+static void dvi_get_panel_size_from_DDCv1(
 	struct tmds_chip_information *tmds_chip,
 	struct tmds_setting_information *tmds_setting);
 static int viafb_dvi_query_EDID(void);
@@ -35,8 +35,8 @@ static inline bool check_tmds_chip(int device_id_subaddr, int device_id)
 	return tmds_register_read(device_id_subaddr) == device_id;
 }
 
-void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
-	struct tmds_setting_information *tmds_setting)
+void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
+			 struct tmds_setting_information *tmds_setting)
 {
 	DEBUG_MSG(KERN_INFO "viafb_init_dvi_size()\n");
 
@@ -47,7 +47,7 @@ void __devinit viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
 	return;
 }
 
-bool __devinit viafb_tmds_trasmitter_identify(void)
+bool viafb_tmds_trasmitter_identify(void)
 {
 	unsigned char sr2a = 0, sr1e = 0, sr3e = 0;
 
@@ -172,30 +172,21 @@ static int tmds_register_read_bytes(int index, u8 *buff, int buff_len)
 }
 
 /* DVI Set Mode */
-void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
-	int set_iga)
+void viafb_dvi_set_mode(const struct fb_var_screeninfo *var,
+	u16 cxres, u16 cyres, int iga)
 {
-	struct VideoModeTable *rb_mode;
-	struct crt_mode_table *pDviTiming;
-	unsigned long desirePixelClock, maxPixelClock;
-	pDviTiming = mode->crtc;
-	desirePixelClock = pDviTiming->refresh_rate
-		* pDviTiming->crtc.hor_total * pDviTiming->crtc.ver_total
-		/ 1000000;
-	maxPixelClock = (unsigned long)viaparinfo->
-		tmds_setting_info->max_pixel_clock;
+	struct fb_var_screeninfo dvi_var = *var;
+	const struct fb_videomode *rb_mode;
+	int maxPixelClock;
 
-	DEBUG_MSG(KERN_INFO "\nDVI_set_mode!!\n");
-
-	if ((maxPixelClock != 0) && (desirePixelClock > maxPixelClock)) {
-		rb_mode = viafb_get_rb_mode(mode->crtc[0].crtc.hor_addr,
-			mode->crtc[0].crtc.ver_addr);
-		if (rb_mode) {
-			mode = rb_mode;
-			pDviTiming = rb_mode->crtc;
-		}
+	maxPixelClock = viaparinfo->shared->tmds_setting_info.max_pixel_clock;
+	if (maxPixelClock && PICOS2KHZ(var->pixclock) / 1000 > maxPixelClock) {
+		rb_mode = viafb_get_best_rb_mode(var->xres, var->yres, 60);
+		if (rb_mode)
+			viafb_fill_var_timing_info(&dvi_var, rb_mode);
 	}
-	viafb_fill_crtc_timing(pDviTiming, mode, mode_bpp / 8, set_iga);
+
+	viafb_fill_crtc_timing(&dvi_var, cxres, cyres, iga);
 }
 
 /* Sense DVI Connector */
@@ -294,7 +285,7 @@ static int viafb_dvi_query_EDID(void)
 }
 
 /* Get Panel Size Using EDID1 Table */
-static void __devinit dvi_get_panel_size_from_DDCv1(
+static void dvi_get_panel_size_from_DDCv1(
 	struct tmds_chip_information *tmds_chip,
 	struct tmds_setting_information *tmds_setting)
 {

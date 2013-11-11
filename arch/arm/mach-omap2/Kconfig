@@ -1,3 +1,27 @@
+config ARCH_OMAP
+	bool
+
+config ARCH_OMAP2PLUS
+	bool "TI OMAP2/3/4/5 SoCs with device tree support" if (ARCH_MULTI_V6 || ARCH_MULTI_V7)
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_OMAP
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select HAVE_CLK
+	select OMAP_DM_TIMER
+	select PINCTRL
+	select PROC_DEVICETREE if PROC_FS
+	select SOC_BUS
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
+
+
 if ARCH_OMAP2PLUS
 
 menu "TI OMAP2/3/4 Specific Features"
@@ -6,51 +30,88 @@ config ARCH_OMAP2PLUS_TYPICAL
 	bool "Typical OMAP configuration"
 	default y
 	select AEABI
-	select REGULATOR
-	select PM
-	select PM_RUNTIME
-	select VFP
-	select NEON if ARCH_OMAP3 || ARCH_OMAP4
-	select SERIAL_OMAP
-	select SERIAL_OMAP_CONSOLE
+	select HIGHMEM
 	select I2C
 	select I2C_OMAP
-	select MFD_SUPPORT
 	select MENELAUS if ARCH_OMAP2
+	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
+	select PM_RUNTIME
+	select REGULATOR
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
+	select VFP
 	help
 	  Compile a kernel suitable for booting most boards
+
+config SOC_HAS_OMAP2_SDRC
+	bool "OMAP2 SDRAM Controller support"
+
+config SOC_HAS_REALTIME_COUNTER
+	bool "Real time free running counter"
+	depends on SOC_OMAP5
+	default y
 
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V6
 	default y
 	select CPU_V6
+	select MULTI_IRQ_HANDLER
+	select SOC_HAS_OMAP2_SDRC
+	select COMMON_CLK
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V7
 	default y
-	select CPU_V7
-	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 	select ARCH_HAS_OPP
+	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select OMAP_INTERCONNECT
 	select PM_OPP if PM
+	select PM_RUNTIME if CPU_IDLE
+	select SOC_HAS_OMAP2_SDRC
+	select COMMON_CLK
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
-	select CPU_V7
+	depends on ARCH_MULTI_V7
+	select ARCH_HAS_OPP
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_CPU_SUSPEND if PM
+	select ARM_ERRATA_720789
 	select ARM_GIC
+	select CACHE_L2X0
+	select CPU_V7
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
+	select OMAP_INTERCONNECT
 	select PL310_ERRATA_588369
 	select PL310_ERRATA_727915
-	select ARM_ERRATA_720789
-	select ARCH_HAS_OPP
 	select PM_OPP if PM
-	select USB_ARCH_HAS_EHCI
+	select PM_RUNTIME if CPU_IDLE
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select COMMON_CLK
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+
+config SOC_OMAP5
+	bool "TI OMAP5"
+	depends on ARCH_MULTI_V7
+	select ARM_CPU_SUSPEND if PM
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_SMP
+	select COMMON_CLK
+	select HAVE_ARM_ARCH_TIMER
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -60,24 +121,33 @@ config SOC_OMAP2420
 	depends on ARCH_OMAP2
 	default y
 	select OMAP_DM_TIMER
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
 	default y
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
 	depends on ARCH_OMAP3
 	default y
-	select ARCH_OMAP_OTG
+	select SOC_HAS_OMAP2_SDRC
 
-config SOC_OMAPTI816X
-	bool "TI816X support"
+config SOC_TI81XX
+	bool "TI81XX support"
 	depends on ARCH_OMAP3
 	default y
+
+config SOC_AM33XX
+	bool "AM33XX support"
+	depends on ARCH_MULTI_V7
+	default y
+	select ARM_CPU_SUSPEND if PM
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select COMMON_CLK
 
 config OMAP_PACKAGE_ZAF
        bool
@@ -107,9 +177,12 @@ comment "OMAP Board Type"
 	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
-	bool "Generic OMAP board"
-	depends on ARCH_OMAP2
+	bool "Generic OMAP2+ board"
+	depends on ARCH_OMAP2PLUS
 	default y
+	help
+	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
+	  More information at Documentation/devicetree
 
 config MACH_OMAP2_TUSB6010
 	bool
@@ -120,14 +193,8 @@ config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
 	depends on SOC_OMAP2420
 	default y
-	select OMAP_PACKAGE_ZAF
 	select OMAP_DEBUG_DEVICES
-
-config MACH_OMAP_APOLLON
-	bool "OMAP 2420 Apollon board"
-	depends on SOC_OMAP2420
-	default y
-	select OMAP_PACKAGE_ZAC
+	select OMAP_PACKAGE_ZAF
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
@@ -156,8 +223,8 @@ config MACH_OMAP_LDP
 config MACH_OMAP3530_LV_SOM
 	bool "OMAP3 Logic 3530 LV SOM board"
 	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 	default y
+	select OMAP_PACKAGE_CBB
 	help
 	 Support for the LogicPD OMAP3530 SOM Development kit
 	 for full description please see the products webpage at
@@ -166,8 +233,8 @@ config MACH_OMAP3530_LV_SOM
 config MACH_OMAP3_TORPEDO
 	bool "OMAP3 Logic 35x Torpedo board"
 	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 	default y
+	select OMAP_PACKAGE_CBB
 	help
 	 Support for the LogicPD OMAP35x Torpedo Development kit
 	 for full description please see the products webpage at
@@ -201,13 +268,13 @@ config MACH_OMAP3_PANDORA
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-config MACH_OMAP3_TOUCHBOOK
+config MACH_TOUCHBOOK
 	bool "OMAP3 Touch Book"
 	depends on ARCH_OMAP3
 	default y
-	select BACKLIGHT_CLASS_DEVICE
+	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP_3430SDP
 	bool "OMAP 3430 SDP board"
@@ -228,19 +295,20 @@ config MACH_NOKIA_N8X0
 	bool "Nokia N800/N810"
 	depends on SOC_OMAP2420
 	default y
-	select OMAP_PACKAGE_ZAC
 	select MACH_NOKIA_N800
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
+	select OMAP_PACKAGE_ZAC
 
 config MACH_NOKIA_RM680
-	bool "Nokia RM-680 board"
+	bool "Nokia N950 (RM-680) / N9 (RM-696) phones"
 	depends on ARCH_OMAP3
 	default y
+	select MACH_NOKIA_RM696
 	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_RX51
-	bool "Nokia RX-51 board"
+	bool "Nokia N900 (RX-51) phone"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
@@ -250,25 +318,20 @@ config MACH_OMAP_ZOOM2
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_CM_T35
-	bool "CompuLab CM-T35 module"
+	bool "CompuLab CM-T35/CM-T3730 modules"
 	depends on ARCH_OMAP3
 	default y
+	select MACH_CM_T3730
 	select OMAP_PACKAGE_CUS
 
 config MACH_CM_T3517
@@ -276,6 +339,9 @@ config MACH_CM_T3517
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+
+config MACH_CM_T3730
+       bool
 
 config MACH_IGEP0020
 	bool "IGEP v2 board"
@@ -287,8 +353,8 @@ config MACH_IGEP0030
 	bool "IGEP OMAP3 module"
 	depends on ARCH_OMAP3
 	default y
-	select OMAP_PACKAGE_CBB
 	select MACH_IGEP0020
+	select OMAP_PACKAGE_CBB
 
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"
@@ -304,7 +370,12 @@ config MACH_OMAP_3630SDP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
-	depends on SOC_OMAPTI816X
+	depends on SOC_TI81XX
+	default y
+
+config MACH_TI8148EVM
+	bool "TI8148 Evaluation Module"
+	depends on SOC_TI81XX
 	default y
 
 config MACH_OMAP_4430SDP
@@ -313,7 +384,7 @@ config MACH_OMAP_4430SDP
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
@@ -321,11 +392,12 @@ config MACH_OMAP4_PANDA
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
 	depends on ARCH_OMAP3
+	select ARM_AMBA
 	select OC_ETM
 	help
 	  Say Y here to enable debugging hardware of omap3
@@ -342,6 +414,27 @@ config OMAP3_SDRC_AC_TIMING
 	  wish to say no.  Selecting yes without understanding what is
 	  going on could result in system crashes;
 
+config OMAP4_ERRATA_I688
+	bool "OMAP4 errata: Async Bridge Corruption"
+	depends on (ARCH_OMAP4 || SOC_OMAP5) && !ARCH_MULTIPLATFORM
+	select ARCH_HAS_BARRIERS
+	help
+	  If a data is stalled inside asynchronous bridge because of back
+	  pressure, it may be accepted multiple times, creating pointer
+	  misalignment that will corrupt next transfers on that data path
+	  until next reset of the system (No recovery procedure once the
+	  issue is hit, the path remains consistently broken). Async bridge
+	  can be found on path between MPU to EMIF and MPU to L3 interconnect.
+	  This situation can happen only when the idle is initiated by a
+	  Master Request Disconnection (which is trigged by software when
+	  executing WFI on CPU).
+	  The work-around for this errata needs all the initiators connected
+	  through async bridge must ensure that data path is properly drained
+	  before issuing WFI. This condition will be met if one Strongly ordered
+	  access is performed to the target right before executing the WFI.
+	  In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
+	  IO barrier ensure that there is no synchronisation loss on initiators
+	  operating on both interconnect port simultaneously.
 endmenu
 
 endif

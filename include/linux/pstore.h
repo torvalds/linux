@@ -22,40 +22,63 @@
 #ifndef _LINUX_PSTORE_H
 #define _LINUX_PSTORE_H
 
+#include <linux/time.h>
+#include <linux/kmsg_dump.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/errno.h>
+
 /* types */
 enum pstore_type_id {
 	PSTORE_TYPE_DMESG	= 0,
 	PSTORE_TYPE_MCE		= 1,
+	PSTORE_TYPE_CONSOLE	= 2,
+	PSTORE_TYPE_FTRACE	= 3,
 	PSTORE_TYPE_UNKNOWN	= 255
 };
+
+struct module;
 
 struct pstore_info {
 	struct module	*owner;
 	char		*name;
-	struct mutex	buf_mutex;	/* serialize access to 'buf' */
+	spinlock_t	buf_lock;	/* serialize access to 'buf' */
 	char		*buf;
 	size_t		bufsize;
+	struct mutex	read_mutex;	/* serialize open/read/close */
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
-			struct timespec *time);
-	u64		(*write)(enum pstore_type_id type, size_t size);
-	int		(*erase)(u64 id);
+			int *count, struct timespec *time, char **buf,
+			struct pstore_info *psi);
+	int		(*write)(enum pstore_type_id type,
+			enum kmsg_dump_reason reason, u64 *id,
+			unsigned int part, int count, size_t size,
+			struct pstore_info *psi);
+	int		(*write_buf)(enum pstore_type_id type,
+			enum kmsg_dump_reason reason, u64 *id,
+			unsigned int part, const char *buf, size_t size,
+			struct pstore_info *psi);
+	int		(*erase)(enum pstore_type_id type, u64 id,
+			int count, struct timespec time,
+			struct pstore_info *psi);
+	void		*data;
 };
 
 #ifdef CONFIG_PSTORE
 extern int pstore_register(struct pstore_info *);
-extern int pstore_write(enum pstore_type_id type, char *buf, size_t size);
+extern bool pstore_cannot_block_path(enum kmsg_dump_reason reason);
 #else
 static inline int
 pstore_register(struct pstore_info *psi)
 {
 	return -ENODEV;
 }
-static inline int
-pstore_write(enum pstore_type_id type, char *buf, size_t size)
+static inline bool
+pstore_cannot_block_path(enum kmsg_dump_reason reason)
 {
-	return -ENODEV;
+	return false;
 }
 #endif
 

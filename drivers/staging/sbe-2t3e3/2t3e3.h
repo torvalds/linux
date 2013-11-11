@@ -789,7 +789,6 @@ void dc_restart(struct channel *);
 void dc_receiver_onoff(struct channel *, u32);
 void dc_transmitter_onoff(struct channel *, u32);
 void dc_set_loopback(struct channel *, u32);
-u32 dc_init_descriptor_list(struct channel *);
 void dc_clear_descriptor_list(struct channel *);
 void dc_drop_descriptor_list(struct channel *);
 void dc_set_output_port(struct channel *);
@@ -801,9 +800,6 @@ u32 cpld_read(struct channel *sc, u32 reg);
 void cpld_set_crc(struct channel *, u32);
 void cpld_start_intr(struct channel *);
 void cpld_stop_intr(struct channel *);
-#if 0
-void cpld_led_onoff(struct channel *, u32, u32, u32, u32);
-#endif
 void cpld_set_clock(struct channel *sc, u32 mode);
 void cpld_set_scrambler(struct channel *, u32);
 void cpld_select_panel(struct channel *, u32);

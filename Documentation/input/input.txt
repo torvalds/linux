@@ -111,7 +111,7 @@ LCDs and many other purposes.
 
  The monitor and speaker controls should be easy to add to the hid/input
 interface, but for the UPSs and LCDs it doesn't make much sense. For this,
-the hiddev interface was designed. See Documentation/usb/hiddev.txt
+the hiddev interface was designed. See Documentation/hid/hiddev.txt
 for more information about it.
 
   The usage of the usbhid module is very simple, it takes no parameters,
@@ -250,8 +250,8 @@ And so on up to event31.
 a USB keyboard works and is correctly connected to the kernel keyboard
 driver. 
 
-  Doing a cat /dev/input/mouse0 (c, 13, 32) will verify that a mouse
-is also emulated, characters should appear if you move it.
+  Doing a "cat /dev/input/mouse0" (c, 13, 32) will verify that a mouse
+is also emulated; characters should appear if you move it.
 
   You can test the joystick emulation with the 'jstest' utility,
 available in the joystick package (see Documentation/input/joystick.txt).

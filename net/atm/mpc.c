@@ -592,8 +592,7 @@ static netdev_tx_t mpc_send_packet(struct sk_buff *skb,
 		goto non_ip;
 
 	while (i < mpc->number_of_mps_macs) {
-		if (!compare_ether_addr(eth->h_dest,
-					(mpc->mps_macs + i*ETH_ALEN)))
+		if (ether_addr_equal(eth->h_dest, mpc->mps_macs + i * ETH_ALEN))
 			if (send_via_shortcut(skb, mpc) == 0) /* try shortcut */
 				return NETDEV_TX_OK;
 		i++;
@@ -1005,7 +1004,7 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier,
 	struct mpoa_client *mpc;
 	struct lec_priv *priv;
 
-	dev = (struct net_device *)dev_ptr;
+	dev = dev_ptr;
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;

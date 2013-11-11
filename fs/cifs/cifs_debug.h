@@ -18,68 +18,49 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
 */
-#define CIFS_DEBUG		/* BB temporary */
 
 #ifndef _H_CIFS_DEBUG
 #define _H_CIFS_DEBUG
 
 void cifs_dump_mem(char *label, void *data, int length);
-#ifdef CONFIG_CIFS_DEBUG2
-#define DBG2 2
-void cifs_dump_detail(struct smb_hdr *);
+void cifs_dump_detail(void *);
 void cifs_dump_mids(struct TCP_Server_Info *);
-#else
-#define DBG2 0
-#endif
 extern int traceSMB;		/* flag which enables the function below */
-void dump_smb(struct smb_hdr *, int);
+void dump_smb(void *, int);
 #define CIFS_INFO	0x01
 #define CIFS_RC		0x02
 #define CIFS_TIMER	0x04
+
+#define VFS 1
+#define FYI 2
+extern int cifsFYI;
+#ifdef CONFIG_CIFS_DEBUG2
+#define NOISY 4
+#else
+#define NOISY 0
+#endif
 
 /*
  *	debug ON
  *	--------
  */
-#ifdef CIFS_DEBUG
+#ifdef CONFIG_CIFS_DEBUG
+
+__printf(1, 2) void cifs_vfs_err(const char *fmt, ...);
 
 /* information message: e.g., configuration, major event */
-extern int cifsFYI;
-#define cifsfyi(fmt, arg...)						\
+#define cifs_dbg(type, fmt, ...)					\
 do {									\
-	if (cifsFYI & CIFS_INFO)					\
-		printk(KERN_DEBUG "%s: " fmt "\n", __FILE__, ##arg);	\
-} while (0)
-
-#define cFYI(set, fmt, arg...)			\
-do {						\
-	if (set)				\
-		cifsfyi(fmt, ##arg);		\
-} while (0)
-
-#define cifswarn(fmt, arg...)			\
-	printk(KERN_WARNING fmt "\n", ##arg)
-
-/* debug event message: */
-extern int cifsERROR;
-
-#define cEVENT(fmt, arg...)						\
-do {									\
-	if (cifsERROR)							\
-		printk(KERN_EVENT "%s: " fmt "\n", __FILE__, ##arg);	\
-} while (0)
-
-/* error event message: e.g., i/o error */
-#define cifserror(fmt, arg...)					\
-do {								\
-	if (cifsERROR)						\
-		printk(KERN_ERR "CIFS VFS: " fmt "\n", ##arg);	\
-} while (0)
-
-#define cERROR(set, fmt, arg...)		\
-do {						\
-	if (set)				\
-		cifserror(fmt, ##arg);		\
+	if (type == FYI) {						\
+		if (cifsFYI & CIFS_INFO) {				\
+			printk(KERN_DEBUG "%s: " fmt,			\
+			       __FILE__, ##__VA_ARGS__);		\
+		}							\
+	} else if (type == VFS) {					\
+		cifs_vfs_err(fmt, ##__VA_ARGS__);			\
+	} else if (type == NOISY && type != 0) {			\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+	}								\
 } while (0)
 
 /*
@@ -87,10 +68,11 @@ do {						\
  *	---------
  */
 #else		/* _CIFS_DEBUG */
-#define cERROR(set, fmt, arg...)
-#define cEVENT(fmt, arg...)
-#define cFYI(set, fmt, arg...)
-#define cifserror(fmt, arg...)
-#endif		/* _CIFS_DEBUG */
+#define cifs_dbg(type, fmt, ...)					\
+do {									\
+	if (0)								\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+} while (0)
+#endif
 
 #endif				/* _H_CIFS_DEBUG */

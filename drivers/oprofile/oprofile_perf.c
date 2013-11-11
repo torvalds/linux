@@ -1,5 +1,6 @@
 /*
  * Copyright 2010 ARM Ltd.
+ * Copyright 2012 Advanced Micro Devices, Inc., Robert Richter
  *
  * Perf-events backend for OProfile.
  */
@@ -25,20 +26,20 @@ static int oprofile_perf_enabled;
 static DEFINE_MUTEX(oprofile_perf_mutex);
 
 static struct op_counter_config *counter_config;
-static struct perf_event **perf_events[nr_cpumask_bits];
+static DEFINE_PER_CPU(struct perf_event **, perf_events);
 static int num_counters;
 
 /*
  * Overflow callback for oprofile.
  */
-static void op_overflow_handler(struct perf_event *event, int unused,
+static void op_overflow_handler(struct perf_event *event,
 			struct perf_sample_data *data, struct pt_regs *regs)
 {
 	int id;
 	u32 cpu = smp_processor_id();
 
 	for (id = 0; id < num_counters; ++id)
-		if (perf_events[cpu][id] == event)
+		if (per_cpu(perf_events, cpu)[id] == event)
 			break;
 
 	if (id != num_counters)
@@ -74,12 +75,12 @@ static int op_create_counter(int cpu, int event)
 {
 	struct perf_event *pevent;
 
-	if (!counter_config[event].enabled || perf_events[cpu][event])
+	if (!counter_config[event].enabled || per_cpu(perf_events, cpu)[event])
 		return 0;
 
 	pevent = perf_event_create_kernel_counter(&counter_config[event].attr,
 						  cpu, NULL,
-						  op_overflow_handler);
+						  op_overflow_handler, NULL);
 
 	if (IS_ERR(pevent))
 		return PTR_ERR(pevent);
@@ -91,18 +92,18 @@ static int op_create_counter(int cpu, int event)
 		return -EBUSY;
 	}
 
-	perf_events[cpu][event] = pevent;
+	per_cpu(perf_events, cpu)[event] = pevent;
 
 	return 0;
 }
 
 static void op_destroy_counter(int cpu, int event)
 {
-	struct perf_event *pevent = perf_events[cpu][event];
+	struct perf_event *pevent = per_cpu(perf_events, cpu)[event];
 
 	if (pevent) {
 		perf_event_release_kernel(pevent);
-		perf_events[cpu][event] = NULL;
+		per_cpu(perf_events, cpu)[event] = NULL;
 	}
 }
 
@@ -160,9 +161,9 @@ static int oprofile_perf_create_files(struct super_block *sb, struct dentry *roo
 
 static int oprofile_perf_setup(void)
 {
-	spin_lock(&oprofilefs_lock);
+	raw_spin_lock(&oprofilefs_lock);
 	op_perf_setup();
-	spin_unlock(&oprofilefs_lock);
+	raw_spin_unlock(&oprofilefs_lock);
 	return 0;
 }
 
@@ -257,12 +258,12 @@ void oprofile_perf_exit(void)
 
 	for_each_possible_cpu(cpu) {
 		for (id = 0; id < num_counters; ++id) {
-			event = perf_events[cpu][id];
+			event = per_cpu(perf_events, cpu)[id];
 			if (event)
 				perf_event_release_kernel(event);
 		}
 
-		kfree(perf_events[cpu]);
+		kfree(per_cpu(perf_events, cpu));
 	}
 
 	kfree(counter_config);
@@ -276,8 +277,6 @@ int __init oprofile_perf_init(struct oprofile_operations *ops)
 	ret = init_driverfs();
 	if (ret)
 		return ret;
-
-	memset(&perf_events, 0, sizeof(perf_events));
 
 	num_counters = perf_num_counters();
 	if (num_counters <= 0) {
@@ -298,9 +297,9 @@ int __init oprofile_perf_init(struct oprofile_operations *ops)
 	}
 
 	for_each_possible_cpu(cpu) {
-		perf_events[cpu] = kcalloc(num_counters,
+		per_cpu(perf_events, cpu) = kcalloc(num_counters,
 				sizeof(struct perf_event *), GFP_KERNEL);
-		if (!perf_events[cpu]) {
+		if (!per_cpu(perf_events, cpu)) {
 			pr_info("oprofile: failed to allocate %d perf events "
 					"for cpu %d\n", num_counters, cpu);
 			ret = -ENOMEM;

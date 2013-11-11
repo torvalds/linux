@@ -25,6 +25,8 @@
 #ifndef TI_WILINK_ST_H
 #define TI_WILINK_ST_H
 
+#include <linux/skbuff.h>
+
 /**
  * enum proto-type - The protocol on WiLink chips which share a
  *	common physical interface like UART.
@@ -279,9 +281,10 @@ struct kim_data_s {
 long st_kim_start(void *);
 long st_kim_stop(void *);
 
-void st_kim_recv(void *, const unsigned char *, long count);
 void st_kim_complete(void *);
 void kim_st_list_protocols(struct st_data_s *, void *);
+void st_kim_recv(void *, const unsigned char *, long);
+
 
 /*
  * BTS headers
@@ -410,7 +413,28 @@ struct gps_event_hdr {
 	u16 plen;
 } __attribute__ ((packed));
 
-/* platform data */
+/**
+ * struct ti_st_plat_data - platform data shared between ST driver and
+ *	platform specific board file which adds the ST device.
+ * @nshutdown_gpio: Host's GPIO line to which chip's BT_EN is connected.
+ * @dev_name: The UART/TTY name to which chip is interfaced. (eg: /dev/ttyS1)
+ * @flow_cntrl: Should always be 1, since UART's CTS/RTS is used for PM
+ *	purposes.
+ * @baud_rate: The baud rate supported by the Host UART controller, this will
+ *	be shared across with the chip via a HCI VS command from User-Space Init
+ *	Mgr application.
+ * @suspend:
+ * @resume: legacy PM routines hooked to platform specific board file, so as
+ *	to take chip-host interface specific action.
+ * @chip_enable:
+ * @chip_disable: Platform/Interface specific mux mode setting, GPIO
+ *	configuring, Host side PM disabling etc.. can be done here.
+ * @chip_asleep:
+ * @chip_awake: Chip specific deep sleep states is communicated to Host
+ *	specific board-xx.c to take actions such as cut UART clocks when chip
+ *	asleep or run host faster when chip awake etc..
+ *
+ */
 struct ti_st_plat_data {
 	long nshutdown_gpio;
 	unsigned char dev_name[UART_DEV_NAME_LEN]; /* uart name */
@@ -418,6 +442,10 @@ struct ti_st_plat_data {
 	unsigned long baud_rate;
 	int (*suspend)(struct platform_device *, pm_message_t);
 	int (*resume)(struct platform_device *);
+	int (*chip_enable) (struct kim_data_s *);
+	int (*chip_disable) (struct kim_data_s *);
+	int (*chip_asleep) (struct kim_data_s *);
+	int (*chip_awake) (struct kim_data_s *);
 };
 
 #endif /* TI_WILINK_ST_H */

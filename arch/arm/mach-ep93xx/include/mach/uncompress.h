@@ -49,8 +49,8 @@ static inline void putc(int c)
 {
 	int i;
 
-	for (i = 0; i < 1000; i++) {
-		/* Transmit fifo not full?  */
+	for (i = 0; i < 10000; i++) {
+		/* Transmit fifo not full? */
 		if (!(__raw_readb(PHYS_UART_FLAG) & UART_FLAG_TXFF))
 			break;
 	}
@@ -90,5 +90,3 @@ static void arch_decomp_setup(void)
 {
 	ethernet_reset();
 }
-
-#define arch_decomp_wdog()

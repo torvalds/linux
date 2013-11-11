@@ -666,7 +666,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	if (rtc->carry_irq <= 0) {
 		/* register shared periodic/carry/alarm irq */
 		ret = request_irq(rtc->periodic_irq, sh_rtc_shared,
-				  IRQF_DISABLED, "sh-rtc", rtc);
+				  0, "sh-rtc", rtc);
 		if (unlikely(ret)) {
 			dev_err(&pdev->dev,
 				"request IRQ failed with %d, IRQ %d\n", ret,
@@ -676,7 +676,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	} else {
 		/* register periodic/carry/alarm irqs */
 		ret = request_irq(rtc->periodic_irq, sh_rtc_periodic,
-				  IRQF_DISABLED, "sh-rtc period", rtc);
+				  0, "sh-rtc period", rtc);
 		if (unlikely(ret)) {
 			dev_err(&pdev->dev,
 				"request period IRQ failed with %d, IRQ %d\n",
@@ -685,7 +685,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 		}
 
 		ret = request_irq(rtc->carry_irq, sh_rtc_interrupt,
-				  IRQF_DISABLED, "sh-rtc carry", rtc);
+				  0, "sh-rtc carry", rtc);
 		if (unlikely(ret)) {
 			dev_err(&pdev->dev,
 				"request carry IRQ failed with %d, IRQ %d\n",
@@ -695,7 +695,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 		}
 
 		ret = request_irq(rtc->alarm_irq, sh_rtc_alarm,
-				  IRQF_DISABLED, "sh-rtc alarm", rtc);
+				  0, "sh-rtc alarm", rtc);
 		if (unlikely(ret)) {
 			dev_err(&pdev->dev,
 				"request alarm IRQ failed with %d, IRQ %d\n",
@@ -790,6 +790,7 @@ static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sh_rtc_suspend(struct device *dev)
 {
 	if (device_may_wakeup(dev))
@@ -805,33 +806,20 @@ static int sh_rtc_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops sh_rtc_dev_pm_ops = {
-	.suspend = sh_rtc_suspend,
-	.resume = sh_rtc_resume,
-};
+static SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
 
 static struct platform_driver sh_rtc_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
-		.pm	= &sh_rtc_dev_pm_ops,
+		.pm	= &sh_rtc_pm_ops,
 	},
 	.remove		= __exit_p(sh_rtc_remove),
 };
 
-static int __init sh_rtc_init(void)
-{
-	return platform_driver_probe(&sh_rtc_platform_driver, sh_rtc_probe);
-}
-
-static void __exit sh_rtc_exit(void)
-{
-	platform_driver_unregister(&sh_rtc_platform_driver);
-}
-
-module_init(sh_rtc_init);
-module_exit(sh_rtc_exit);
+module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
 MODULE_VERSION(DRV_VERSION);

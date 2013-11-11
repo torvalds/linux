@@ -24,8 +24,6 @@
 
 #include "main.h"
 
-int mwifiex_register_cfg80211(struct net_device *, u8 *,
-				struct mwifiex_private *);
+int mwifiex_register_cfg80211(struct mwifiex_adapter *);
 
-void mwifiex_cfg80211_results(struct work_struct *work);
 #endif

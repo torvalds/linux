@@ -48,16 +48,9 @@ TODO:
 3. Implement calibration.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
-
-#include "comedi_pci.h"
-
-#define PCI_VENDOR_ID_ADVANTECH		0x13fe	/* Advantech PCI vendor ID */
-
-/* hardware types of the cards */
-#define TYPE_PCI1723 0
-
-#define IORANGE_1723  0x2A
 
 /* all the registers for the pci1723 board */
 #define PCI1723_DA(N)   ((N)<<1)	/* W: D/A register N (0 to 7) */
@@ -114,94 +107,18 @@ TODO:
 
 #define PCI1723_SELECT_CALIBRATION 0x28	/* Select the calibration Ref_V */
 
-/* static unsigned short pci_list_builded=0;      =1 list of card is know */
-
-static const struct comedi_lrange range_pci1723 = { 1, {
-							BIP_RANGE(10)
-							}
-};
-
-/*
- * Board descriptions for pci1723 boards.
- */
-struct pci1723_board {
-	const char *name;
-	int vendor_id;		/* PCI vendor a device ID of card */
-	int device_id;
-	int iorange;
-	char cardtype;
-	int n_aochan;		/* num of D/A chans */
-	int n_diochan;		/* num of DIO chans */
-	int ao_maxdata;		/* resolution of D/A */
-	const struct comedi_lrange *rangelist_ao;	/* rangelist for D/A */
-};
-
-static const struct pci1723_board boardtypes[] = {
-	{
-	 .name = "pci1723",
-	 .vendor_id = PCI_VENDOR_ID_ADVANTECH,
-	 .device_id = 0x1723,
-	 .iorange = IORANGE_1723,
-	 .cardtype = TYPE_PCI1723,
-	 .n_aochan = 8,
-	 .n_diochan = 16,
-	 .ao_maxdata = 0xffff,
-	 .rangelist_ao = &range_pci1723,
-	 },
-};
-
-/*
- * This is used by modprobe to translate PCI IDs to drivers.
- * Should only be used for PCI and ISA-PnP devices
- */
-static DEFINE_PCI_DEVICE_TABLE(pci1723_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1723) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci1723_pci_table);
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci1723_detach(struct comedi_device *dev);
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
-
-static struct comedi_driver driver_pci1723 = {
-	.driver_name = "adv_pci1723",
-	.module = THIS_MODULE,
-	.attach = pci1723_attach,
-	.detach = pci1723_detach,
-};
-
-/* This structure is for data unique to this hardware driver. */
 struct pci1723_private {
-	int valid;		/* card is usable; */
-
-	struct pci_dev *pcidev;
 	unsigned char da_range[8];	/* D/A output range for each channel */
-
 	short ao_data[8];	/* data output buffer */
 };
-
-/* The following macro to make it easy to access the private structure. */
-#define devpriv ((struct pci1723_private *)dev->private)
-
-#define this_board boardtypes
 
 /*
  * The pci1723 card reset;
  */
 static int pci1723_reset(struct comedi_device *dev)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int i;
-	DPRINTK("adv_pci1723 EDBG: BGN: pci1723_reset(...)\n");
 
 	outw(0x01, dev->iobase + PCI1723_SYN_SET);
 					       /* set synchronous output mode */
@@ -223,7 +140,6 @@ static int pci1723_reset(struct comedi_device *dev)
 	/* set asynchronous output mode */
 	outw(0, dev->iobase + PCI1723_SYN_SET);
 
-	DPRINTK("adv_pci1723 EDBG: END: pci1723_reset(...)\n");
 	return 0;
 }
 
@@ -231,10 +147,10 @@ static int pci1723_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	DPRINTK(" adv_PCI1723 DEBUG: pci1723_insn_read_ao() ----- \n");
 	for (n = 0; n < insn->n; n++)
 		data[n] = devpriv->ao_data[chan];
 
@@ -248,10 +164,9 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
-
-	DPRINTK("PCI1723: the pci1723_ao_write_winsn() ------\n");
 
 	for (n = 0; n < insn->n; n++) {
 
@@ -316,222 +231,111 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 		outw(s->state, dev->iobase + PCI1723_WRITE_DIGITAL_OUTPUT_CMD);
 	}
 	data[1] = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
-	return 2;
+	return insn->n;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a pci1723 board.
- */
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci1723_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, subdev, n_subdevices;
-	struct pci_dev *pcidev;
-	unsigned int iobase;
-	unsigned char pci_bus, pci_slot, pci_func;
-	int opt_bus, opt_slot;
-	const char *errstr;
+	int ret;
 
-	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
-						dev->minor, this_board->name);
-
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
-
-	ret = alloc_private(dev, sizeof(struct pci1723_private));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	}
+	dev->private = devpriv;
 
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev =
-			pci_get_device(PCI_VENDOR_ID_ADVANTECH,
-				       this_board->device_id, pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adv_pci1723")) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
-			continue;
-		}
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = pci_resource_start(pcidev, 2);
+
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
+
+	s = &dev->subdevices[0];
+	dev->write_subdev = s;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan	= 8;
+	s->maxdata	= 0xffff;
+	s->len_chanlist	= 8;
+	s->range_table	= &range_bipolar10;
+	s->insn_write	= pci1723_ao_write_winsn;
+	s->insn_read	= pci1723_insn_read_ao;
+
+	s = &dev->subdevices[1];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->len_chanlist	= 16;
+	s->range_table	= &range_digital;
+	s->insn_config	= pci1723_dio_insn_config;
+	s->insn_bits	= pci1723_dio_insn_bits;
+
+	/* read DIO config */
+	switch (inw(dev->iobase + PCI1723_DIGITAL_IO_PORT_MODE) & 0x03) {
+	case 0x00:	/* low byte output, high byte output */
+		s->io_bits = 0xFFFF;
+		break;
+	case 0x01:	/* low byte input, high byte output */
+		s->io_bits = 0xFF00;
+		break;
+	case 0x02:	/* low byte output, high byte input */
+		s->io_bits = 0x00FF;
+		break;
+	case 0x03:	/* low byte input, high byte input */
+		s->io_bits = 0x0000;
 		break;
 	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
-						     opt_bus, opt_slot, errstr);
-		} else {
-			printk(KERN_ERR " - Card %s\n", errstr);
-		}
-		return -EIO;
-	}
-
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
-	iobase = pci_resource_start(pcidev, 2);
-
-	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4x",
-					   pci_bus, pci_slot, pci_func, iobase);
-
-	dev->iobase = iobase;
-
-	dev->board_name = this_board->name;
-	devpriv->pcidev = pcidev;
-
-	n_subdevices = 0;
-
-	if (this_board->n_aochan)
-		n_subdevices++;
-	if (this_board->n_diochan)
-		n_subdevices++;
-
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return ret;
-	}
+	/* read DIO port state */
+	s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
 
 	pci1723_reset(dev);
-	subdev = 0;
-	if (this_board->n_aochan) {
-		s = dev->subdevices + subdev;
-		dev->write_subdev = s;
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_aochan;
-		s->maxdata = this_board->ao_maxdata;
-		s->len_chanlist = this_board->n_aochan;
-		s->range_table = this_board->rangelist_ao;
 
-		s->insn_write = pci1723_ao_write_winsn;
-		s->insn_read = pci1723_insn_read_ao;
-
-		/* read DIO config */
-		switch (inw(dev->iobase + PCI1723_DIGITAL_IO_PORT_MODE)
-								       & 0x03) {
-		case 0x00:	/* low byte output, high byte output */
-			s->io_bits = 0xFFFF;
-			break;
-		case 0x01:	/* low byte input, high byte output */
-			s->io_bits = 0xFF00;
-			break;
-		case 0x02:	/* low byte output, high byte input */
-			s->io_bits = 0x00FF;
-			break;
-		case 0x03:	/* low byte input, high byte input */
-			s->io_bits = 0x0000;
-			break;
-		}
-		/* read DIO port state */
-		s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
-
-		subdev++;
-	}
-
-	if (this_board->n_diochan) {
-		s = dev->subdevices + subdev;
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_diochan;
-		s->maxdata = 1;
-		s->len_chanlist = this_board->n_diochan;
-		s->range_table = &range_digital;
-		s->insn_config = pci1723_dio_insn_config;
-		s->insn_bits = pci1723_dio_insn_bits;
-		subdev++;
-	}
-
-	devpriv->valid = 1;
-
-	pci1723_reset(dev);
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int pci1723_detach(struct comedi_device *dev)
+static void pci1723_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: pci1723: remove\n", dev->minor);
-
-	if (dev->private) {
-		if (devpriv->valid)
-			pci1723_reset(dev);
-
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-			pci_dev_put(devpriv->pcidev);
-		}
-	}
-
-	return 0;
+	if (dev->iobase)
+		pci1723_reset(dev);
+	comedi_pci_disable(dev);
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __devinit driver_pci1723_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_pci1723.driver_name);
-}
-
-static void __devexit driver_pci1723_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_pci1723_pci_driver = {
-	.id_table = pci1723_pci_table,
-	.probe = &driver_pci1723_pci_probe,
-	.remove = __devexit_p(&driver_pci1723_pci_remove)
+static struct comedi_driver adv_pci1723_driver = {
+	.driver_name	= "adv_pci1723",
+	.module		= THIS_MODULE,
+	.auto_attach	= pci1723_auto_attach,
+	.detach		= pci1723_detach,
 };
 
-static int __init driver_pci1723_init_module(void)
+static int adv_pci1723_pci_probe(struct pci_dev *dev,
+				 const struct pci_device_id *id)
 {
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci1723);
-	if (retval < 0)
-		return retval;
-
-	driver_pci1723_pci_driver.name = (char *)driver_pci1723.driver_name;
-	return pci_register_driver(&driver_pci1723_pci_driver);
+	return comedi_pci_auto_config(dev, &adv_pci1723_driver,
+				      id->driver_data);
 }
 
-static void __exit driver_pci1723_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci1723_pci_driver);
-	comedi_driver_unregister(&driver_pci1723);
-}
+static DEFINE_PCI_DEVICE_TABLE(adv_pci1723_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1723) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, adv_pci1723_pci_table);
 
-module_init(driver_pci1723_init_module);
-module_exit(driver_pci1723_cleanup_module);
+static struct pci_driver adv_pci1723_pci_driver = {
+	.name		= "adv_pci1723",
+	.id_table	= adv_pci1723_pci_table,
+	.probe		= adv_pci1723_pci_probe,
+	.remove		= comedi_pci_auto_unconfig,
+};
+module_comedi_pci_driver(adv_pci1723_driver, adv_pci1723_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -2,16 +2,11 @@
 #define _LINUX_NAMEI_H
 
 #include <linux/dcache.h>
+#include <linux/errno.h>
 #include <linux/linkage.h>
 #include <linux/path.h>
 
 struct vfsmount;
-
-struct open_intent {
-	int	flags;
-	int	create_mode;
-	struct file *file;
-};
 
 enum { MAX_NESTED_LINKS = 8 };
 
@@ -25,11 +20,6 @@ struct nameidata {
 	int		last_type;
 	unsigned	depth;
 	char *saved_names[MAX_NESTED_LINKS + 1];
-
-	/* Intent data */
-	union {
-		struct open_intent open;
-	} intent;
 };
 
 /*
@@ -48,12 +38,12 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  */
 #define LOOKUP_FOLLOW		0x0001
 #define LOOKUP_DIRECTORY	0x0002
-#define LOOKUP_CONTINUE		0x0004
+#define LOOKUP_AUTOMOUNT	0x0004
 
 #define LOOKUP_PARENT		0x0010
 #define LOOKUP_REVAL		0x0020
 #define LOOKUP_RCU		0x0040
-#define LOOKUP_NO_AUTOMOUNT	0x0080
+
 /*
  * Intent data
  */
@@ -67,6 +57,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_EMPTY		0x4000
 
 extern int user_path_at(int, const char __user *, unsigned, struct path *);
+extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
 #define user_path(name, path) user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW, path)
 #define user_lpath(name, path) user_path_at(AT_FDCWD, name, 0, path)
@@ -75,12 +66,12 @@ extern int user_path_at(int, const char __user *, unsigned, struct path *);
 
 extern int kern_path(const char *, unsigned, struct path *);
 
-extern int kern_path_parent(const char *, struct nameidata *);
+extern struct dentry *kern_path_create(int, const char *, struct path *, unsigned int);
+extern struct dentry *user_path_create(int, const char __user *, struct path *, unsigned int);
+extern void done_path_create(struct path *, struct dentry *);
+extern struct dentry *kern_path_locked(const char *, struct path *);
 extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
-			   const char *, unsigned int, struct nameidata *);
-
-extern struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry,
-		int (*open)(struct inode *, struct file *));
+			   const char *, unsigned int, struct path *);
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 
@@ -90,6 +81,8 @@ extern int follow_up(struct path *);
 
 extern struct dentry *lock_rename(struct dentry *, struct dentry *);
 extern void unlock_rename(struct dentry *, struct dentry *);
+
+extern void nd_jump_link(struct nameidata *nd, struct path *path);
 
 static inline void nd_set_link(struct nameidata *nd, char *path)
 {
@@ -104,6 +97,22 @@ static inline char *nd_get_link(struct nameidata *nd)
 static inline void nd_terminate_link(void *name, size_t len, size_t maxlen)
 {
 	((char *) name)[min(len, maxlen)] = '\0';
+}
+
+/**
+ * retry_estale - determine whether the caller should retry an operation
+ * @error: the error that would currently be returned
+ * @flags: flags being used for next lookup attempt
+ *
+ * Check to see if the error code was -ESTALE, and then determine whether
+ * to retry the call based on whether "flags" already has LOOKUP_REVAL set.
+ *
+ * Returns true if the caller should try the operation again.
+ */
+static inline bool
+retry_estale(const long error, const unsigned int flags)
+{
+	return error == -ESTALE && !(flags & LOOKUP_REVAL);
 }
 
 #endif /* _LINUX_NAMEI_H */

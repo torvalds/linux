@@ -20,6 +20,11 @@
 #ifndef __ASM_KVM_BOOK3S_ASM_H__
 #define __ASM_KVM_BOOK3S_ASM_H__
 
+/* XICS ICP register offsets */
+#define XICS_XIRR		4
+#define XICS_MFRR		0xc
+#define XICS_IPI		2	/* interrupt source # for IPIs */
+
 #ifdef __ASSEMBLY__
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
@@ -60,6 +65,45 @@ kvmppc_resume_\intno:
 
 #else  /*__ASSEMBLY__ */
 
+/*
+ * This struct goes in the PACA on 64-bit processors.  It is used
+ * to store host state that needs to be saved when we enter a guest
+ * and restored when we exit, but isn't specific to any particular
+ * guest or vcpu.  It also has some scratch fields used by the guest
+ * exit code.
+ */
+struct kvmppc_host_state {
+	ulong host_r1;
+	ulong host_r2;
+	ulong host_msr;
+	ulong vmhandler;
+	ulong scratch0;
+	ulong scratch1;
+	u8 in_guest;
+	u8 restore_hid5;
+	u8 napping;
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	u8 hwthread_req;
+	u8 hwthread_state;
+	u8 host_ipi;
+	struct kvm_vcpu *kvm_vcpu;
+	struct kvmppc_vcore *kvm_vcore;
+	unsigned long xics_phys;
+	u32 saved_xirr;
+	u64 dabr;
+	u64 host_mmcr[3];
+	u32 host_pmc[8];
+	u64 host_purr;
+	u64 host_spurr;
+	u64 host_dscr;
+	u64 dec_expires;
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	u64 cfar;
+#endif
+};
+
 struct kvmppc_book3s_shadow_vcpu {
 	ulong gpr[14];
 	u32 cr;
@@ -73,17 +117,12 @@ struct kvmppc_book3s_shadow_vcpu {
 	ulong shadow_srr1;
 	ulong fault_dar;
 
-	ulong host_r1;
-	ulong host_r2;
-	ulong handler;
-	ulong scratch0;
-	ulong scratch1;
-	ulong vmhandler;
-	u8 in_guest;
-
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32     sr[16];			/* Guest SRs */
+
+	struct kvmppc_host_state hstate;
 #endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 	u8 slb_max;			/* highest used guest slb entry */
 	struct  {
@@ -94,5 +133,10 @@ struct kvmppc_book3s_shadow_vcpu {
 };
 
 #endif /*__ASSEMBLY__ */
+
+/* Values for kvm_state */
+#define KVM_HWTHREAD_IN_KERNEL	0
+#define KVM_HWTHREAD_IN_NAP	1
+#define KVM_HWTHREAD_IN_KVM	2
 
 #endif /* __ASM_KVM_BOOK3S_ASM_H__ */

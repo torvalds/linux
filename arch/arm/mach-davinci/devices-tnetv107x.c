@@ -80,6 +80,7 @@ static struct edma_soc_info edma_cc0_info = {
 	.n_cc			= 1,
 	.queue_tc_mapping	= edma_tc_mapping,
 	.queue_priority_mapping	= edma_priority_mapping,
+	.default_queue		= EVENTQ_1,
 };
 
 static struct edma_soc_info *tnetv107x_edma_info[EDMA_MAX_CC] = {
@@ -217,7 +218,7 @@ static u64 mmc1_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device mmc_devices[2] = {
 	{
-		.name		= "davinci_mmc",
+		.name		= "dm6441-mmc",
 		.id		= 0,
 		.dev		= {
 			.dma_mask		= &mmc0_dma_mask,
@@ -227,7 +228,7 @@ static struct platform_device mmc_devices[2] = {
 		.resource	= mmc0_resources
 	},
 	{
-		.name		= "davinci_mmc",
+		.name		= "dm6441-mmc",
 		.id		= 1,
 		.dev		= {
 			.dma_mask		= &mmc1_dma_mask,
@@ -373,7 +374,7 @@ void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 	 * complete sample conversion in time.
 	 */
 	tsc_clk = clk_get(NULL, "sys_tsc_clk");
-	if (tsc_clk) {
+	if (!IS_ERR(tsc_clk)) {
 		error = clk_set_rate(tsc_clk, 5000000);
 		WARN_ON(error < 0);
 		clk_put(tsc_clk);

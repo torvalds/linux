@@ -21,6 +21,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -39,51 +40,19 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91sam9260_matrix.h>
+#include <mach/at91_matrix.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
 static void __init cpu9krea_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91sam9260_initialize(18432000);
-
-	/* DGBU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS |
-		ATMEL_UART_RTS | ATMEL_UART_DTR | ATMEL_UART_DSR |
-		ATMEL_UART_DCD | ATMEL_UART_RI);
-
-	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS |
-		ATMEL_UART_RTS);
-
-	/* USART2 on ttyS3. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9260_ID_US2, 3, ATMEL_UART_CTS |
-		ATMEL_UART_RTS);
-
-	/* USART3 on ttyS4. (Rx, Tx) */
-	at91_register_uart(AT91SAM9260_ID_US3, 4, 0);
-
-	/* USART4 on ttyS5. (Rx, Tx) */
-	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
-
-	/* USART5 on ttyS6. (Rx, Tx) */
-	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-}
-
-static void __init cpu9krea_init_irq(void)
-{
-	at91sam9260_init_interrupts(NULL);
+	at91_initialize(18432000);
 }
 
 /*
@@ -91,6 +60,8 @@ static void __init cpu9krea_init_irq(void)
  */
 static struct at91_usbh_data __initdata cpu9krea_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -98,13 +69,14 @@ static struct at91_usbh_data __initdata cpu9krea_usbh_data = {
  */
 static struct at91_udc_data __initdata cpu9krea_udc_data = {
 	.vbus_pin	= AT91_PIN_PC8,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata cpu9krea_macb_data = {
+static struct macb_platform_data __initdata cpu9krea_macb_data = {
+	.phy_irq_pin	= -EINVAL,
 	.is_rmii	= 1,
 };
 
@@ -117,6 +89,8 @@ static struct atmel_nand_data __initdata cpu9krea_nand_data = {
 	.rdy_pin	= AT91_PIN_PC13,
 	.enable_pin	= AT91_PIN_PC14,
 	.bus_width_16	= 0,
+	.det_pin	= -EINVAL,
+	.ecc_mode	= NAND_ECC_SOFT,
 };
 
 #ifdef CONFIG_MACH_CPU9260
@@ -161,7 +135,7 @@ static struct sam9_smc_config __initdata cpu9krea_nand_smc_config = {
 
 static void __init cpu9krea_add_device_nand(void)
 {
-	sam9_smc_configure(3, &cpu9krea_nand_smc_config);
+	sam9_smc_configure(0, 3, &cpu9krea_nand_smc_config);
 	at91_add_device_nand(&cpu9krea_nand_data);
 }
 
@@ -239,11 +213,11 @@ static __init void cpu9krea_add_device_nor(void)
 {
 	unsigned long csa;
 
-	csa = at91_sys_read(AT91_MATRIX_EBICSA);
-	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
+	csa = at91_matrix_read(AT91_MATRIX_EBICSA);
+	at91_matrix_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
 
 	/* configure chip-select 0 (NOR) */
-	sam9_smc_configure(0, &cpu9krea_nor_smc_config);
+	sam9_smc_configure(0, 0, &cpu9krea_nor_smc_config);
 
 	platform_device_register(&cpu9krea_nor_flash);
 }
@@ -280,8 +254,7 @@ static struct gpio_led cpu9krea_leds[] = {
 
 static struct i2c_board_info __initdata cpu9krea_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("rtc-ds1307", 0x68),
-		.type	= "ds1339",
+		I2C_BOARD_INFO("ds1339", 0x68),
 	},
 };
 
@@ -338,10 +311,12 @@ static void __init cpu9krea_add_device_buttons(void)
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata cpu9krea_mmc_data = {
-	.slot_b		= 0,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PA29,
+static struct mci_platform_data __initdata cpu9krea_mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PA29,
+		.wp_pin		= -EINVAL,
+	},
 };
 
 static void __init cpu9krea_board_init(void)
@@ -349,6 +324,30 @@ static void __init cpu9krea_board_init(void)
 	/* NOR */
 	cpu9krea_add_device_nor();
 	/* Serial */
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS |
+		ATMEL_UART_RTS | ATMEL_UART_DTR | ATMEL_UART_DSR |
+		ATMEL_UART_DCD | ATMEL_UART_RI);
+
+	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS |
+		ATMEL_UART_RTS);
+
+	/* USART2 on ttyS3. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9260_ID_US2, 3, ATMEL_UART_CTS |
+		ATMEL_UART_RTS);
+
+	/* USART3 on ttyS4. (Rx, Tx) */
+	at91_register_uart(AT91SAM9260_ID_US3, 4, 0);
+
+	/* USART4 on ttyS5. (Rx, Tx) */
+	at91_register_uart(AT91SAM9260_ID_US4, 5, 0);
+
+	/* USART5 on ttyS6. (Rx, Tx) */
+	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&cpu9krea_usbh_data);
@@ -359,7 +358,7 @@ static void __init cpu9krea_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&cpu9krea_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &cpu9krea_mmc_data);
+	at91_add_device_mci(0, &cpu9krea_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(cpu9krea_i2c_devices,
 		ARRAY_SIZE(cpu9krea_i2c_devices));
@@ -375,9 +374,10 @@ MACHINE_START(CPUAT9260, "Eukrea CPU9260")
 MACHINE_START(CPUAT9G20, "Eukrea CPU9G20")
 #endif
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.timer		= &at91sam926x_timer,
-	.map_io		= at91sam9260_map_io,
+	.init_time	= at91sam926x_pit_init,
+	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= cpu9krea_init_early,
-	.init_irq	= cpu9krea_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= cpu9krea_board_init,
 MACHINE_END

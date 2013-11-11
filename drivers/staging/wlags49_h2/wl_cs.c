@@ -74,7 +74,6 @@
 #include <linux/in.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/bitops.h>
 
 #include <linux/netdevice.h>
@@ -82,6 +81,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
+#include <linux/module.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -177,9 +177,8 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 	if (dev) {
 		unregister_wlags_sysfs(dev);
 		unregister_netdev(dev);
+		wl_device_dealloc(dev);
 	}
-
-	wl_device_dealloc(dev);
 
 	DBG_LEAVE(DbgInfo);
 } /* wl_adapter_detach */
@@ -228,7 +227,6 @@ static int wl_adapter_resume(struct pcmcia_device *link)
 void wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;
-	int i;
 	int ret;
 	/*--------------------------------------------------------------------*/
 
@@ -265,10 +263,8 @@ void wl_adapter_insert(struct pcmcia_device *link)
 
 	register_wlags_sysfs(dev);
 
-	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, ""mac_address ",
-		dev->name, dev->base_addr, dev->irq);
-	for (i = 0; i < ETH_ALEN; i++)
-		printk("%02X%c", dev->dev_addr[i], ((i < (ETH_ALEN-1)) ? ':' : '\n'));
+	printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, mac_address"
+		" %pM\n", dev->name, dev->base_addr, dev->irq, dev->dev_addr);
 
 	DBG_LEAVE(DbgInfo);
 	return;
@@ -501,117 +497,3 @@ int wl_adapter_is_open(struct net_device *dev)
 	return link->open;
 } /* wl_adapter_is_open */
 /*============================================================================*/
-
-
-#if DBG
-
-/*******************************************************************************
- *	DbgEvent()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Converts the card serivces events to text for debugging.
- *
- *  PARAMETERS:
- *
- *      mask    - a integer representing the error(s) being reported by Card
- *                Services.
- *
- *  RETURNS:
- *
- *      a pointer to a string describing the error(s)
- *
- ******************************************************************************/
-const char *DbgEvent(int mask)
-{
-	static char DbgBuffer[256];
-	char *pBuf;
-	/*--------------------------------------------------------------------*/
-
-	pBuf    = DbgBuffer;
-	*pBuf   = '\0';
-
-
-	if (mask & CS_EVENT_WRITE_PROTECT)
-		strcat(pBuf, "WRITE_PROTECT ");
-
-	if (mask & CS_EVENT_CARD_LOCK)
-		strcat(pBuf, "CARD_LOCK ");
-
-	if (mask & CS_EVENT_CARD_INSERTION)
-		strcat(pBuf, "CARD_INSERTION ");
-
-	if (mask & CS_EVENT_CARD_REMOVAL)
-		strcat(pBuf, "CARD_REMOVAL ");
-
-	if (mask & CS_EVENT_BATTERY_DEAD)
-		strcat(pBuf, "BATTERY_DEAD ");
-
-	if (mask & CS_EVENT_BATTERY_LOW)
-		strcat(pBuf, "BATTERY_LOW ");
-
-	if (mask & CS_EVENT_READY_CHANGE)
-		strcat(pBuf, "READY_CHANGE ");
-
-	if (mask & CS_EVENT_CARD_DETECT)
-		strcat(pBuf, "CARD_DETECT ");
-
-	if (mask & CS_EVENT_RESET_REQUEST)
-		strcat(pBuf, "RESET_REQUEST ");
-
-	if (mask & CS_EVENT_RESET_PHYSICAL)
-		strcat(pBuf, "RESET_PHYSICAL ");
-
-	if (mask & CS_EVENT_CARD_RESET)
-		strcat(pBuf, "CARD_RESET ");
-
-	if (mask & CS_EVENT_REGISTRATION_COMPLETE)
-		strcat(pBuf, "REGISTRATION_COMPLETE ");
-
-	/* if (mask & CS_EVENT_RESET_COMPLETE)
-		strcat(pBuf, "RESET_COMPLETE "); */
-
-	if (mask & CS_EVENT_PM_SUSPEND)
-		strcat(pBuf, "PM_SUSPEND ");
-
-	if (mask & CS_EVENT_PM_RESUME)
-		strcat(pBuf, "PM_RESUME ");
-
-	if (mask & CS_EVENT_INSERTION_REQUEST)
-		strcat(pBuf, "INSERTION_REQUEST ");
-
-	if (mask & CS_EVENT_EJECTION_REQUEST)
-		strcat(pBuf, "EJECTION_REQUEST ");
-
-	if (mask & CS_EVENT_MTD_REQUEST)
-		strcat(pBuf, "MTD_REQUEST ");
-
-	if (mask & CS_EVENT_ERASE_COMPLETE)
-		strcat(pBuf, "ERASE_COMPLETE ");
-
-	if (mask & CS_EVENT_REQUEST_ATTENTION)
-		strcat(pBuf, "REQUEST_ATTENTION ");
-
-	if (mask & CS_EVENT_CB_DETECT)
-		strcat(pBuf, "CB_DETECT ");
-
-	if (mask & CS_EVENT_3VCARD)
-		strcat(pBuf, "3VCARD ");
-
-	if (mask & CS_EVENT_XVCARD)
-		strcat(pBuf, "XVCARD ");
-
-
-	if (*pBuf) {
-		pBuf[strlen(pBuf) - 1] = '\0';
-	} else {
-		if (mask != 0x0)
-			sprintf(pBuf, "<<0x%08x>>", mask);
-	}
-
-	return pBuf;
-} /* DbgEvent */
-/*============================================================================*/
-
-#endif  /* DBG */

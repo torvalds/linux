@@ -1,4 +1,5 @@
 #include "cache.h"
+#include <linux/kernel.h>
 
 int prefixcmp(const char *str, const char *prefix)
 {
@@ -99,7 +100,7 @@ void strbuf_addf(struct strbuf *sb, const char *fmt, ...)
 		len = vsnprintf(sb->buf + sb->len, sb->alloc - sb->len, fmt, ap);
 		va_end(ap);
 		if (len > strbuf_avail(sb)) {
-			die("this should not happen, your snprintf is broken");
+			die("this should not happen, your vsnprintf is broken");
 		}
 	}
 	strbuf_setlen(sb, sb->len + len);

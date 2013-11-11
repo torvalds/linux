@@ -19,7 +19,41 @@
 #ifndef __ASM_BCM47XX_H
 #define __ASM_BCM47XX_H
 
-/* SSB bus */
-extern struct ssb_bus ssb_bcm47xx;
+#include <linux/ssb/ssb.h>
+#include <linux/bcma/bcma.h>
+#include <linux/bcma/bcma_soc.h>
+
+enum bcm47xx_bus_type {
+#ifdef CONFIG_BCM47XX_SSB
+	BCM47XX_BUS_TYPE_SSB,
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	BCM47XX_BUS_TYPE_BCMA,
+#endif
+};
+
+union bcm47xx_bus {
+#ifdef CONFIG_BCM47XX_SSB
+	struct ssb_bus ssb;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	struct bcma_soc bcma;
+#endif
+};
+
+extern union bcm47xx_bus bcm47xx_bus;
+extern enum bcm47xx_bus_type bcm47xx_bus_type;
+
+void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix,
+			bool fallback);
+
+#ifdef CONFIG_BCM47XX_SSB
+void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
+				const char *prefix);
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
+				 const char *prefix);
+#endif
 
 #endif /* __ASM_BCM47XX_H */

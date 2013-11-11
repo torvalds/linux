@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,8 +40,8 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=131, default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -100,7 +101,7 @@ static int geodewdt_release(struct inode *inode, struct file *file)
 		geodewdt_disable();
 		module_put(THIS_MODULE);
 	} else {
-		printk(KERN_CRIT "Unexpected close - watchdog is not stopping.\n");
+		pr_crit("Unexpected close - watchdog is not stopping\n");
 		geodewdt_ping();
 
 		set_bit(WDT_FLAGS_ORPHAN, &wdt_flags);
@@ -214,13 +215,13 @@ static struct miscdevice geodewdt_miscdev = {
 	.fops = &geodewdt_fops,
 };
 
-static int __devinit geodewdt_probe(struct platform_device *dev)
+static int geodewdt_probe(struct platform_device *dev)
 {
 	int ret;
 
 	wdt_timer = cs5535_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (!wdt_timer) {
-		printk(KERN_ERR "geodewdt:  No timers were available\n");
+		pr_err("No timers were available\n");
 		return -ENODEV;
 	}
 
@@ -242,7 +243,7 @@ static int __devinit geodewdt_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit geodewdt_remove(struct platform_device *dev)
+static int geodewdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&geodewdt_miscdev);
 	return 0;
@@ -255,7 +256,7 @@ static void geodewdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver geodewdt_driver = {
 	.probe		= geodewdt_probe,
-	.remove		= __devexit_p(geodewdt_remove),
+	.remove		= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

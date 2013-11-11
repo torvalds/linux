@@ -24,12 +24,11 @@
 
 */
 
-#define __NO_VERSION__
 #include <linux/uaccess.h>
+#include <linux/compat.h>
+#include <linux/fs.h>
 #include "comedi.h"
 #include "comedi_compat32.h"
-
-#ifdef CONFIG_COMPAT
 
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
@@ -459,5 +458,3 @@ long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
 }
-
-#endif /* CONFIG_COMPAT */

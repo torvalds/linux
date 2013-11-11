@@ -1,0 +1,182 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx53.dtsi"
+
+/ {
+	model = "Freescale i.MX53 Smart Mobile Reference Design Board";
+	compatible = "fsl,imx53-smd", "fsl,imx53";
+
+	memory {
+		reg = <0x70000000 0x40000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio2 14 0>;
+			linux,code = <115>; /* KEY_VOLUMEUP */
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio2 15 0>;
+			linux,code = <114>; /* KEY_VOLUMEDOWN */
+		};
+	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1_1>;
+	cd-gpios = <&gpio3 13 0>;
+	wp-gpios = <&gpio4 11 0>;
+	status = "okay";
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2_1>;
+	non-removable;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3_1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
+	status = "okay";
+
+	zigbee: mc1323@0 {
+		compatible = "fsl,mc1323";
+		spi-max-frequency = <8000000>;
+		reg = <0>;
+	};
+
+	flash: m25p32@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p32", "st,m25p";
+		spi-max-frequency = <20000000>;
+		reg = <1>;
+
+		partition@0 {
+			label = "U-Boot";
+			reg = <0x0 0x40000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "Kernel";
+			reg = <0x40000 0x3c0000>;
+		};
+	};
+};
+
+&esdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc3_1>;
+	non-removable;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX53_PAD_PATA_DATA14__GPIO2_14 0x80000000
+				MX53_PAD_PATA_DATA15__GPIO2_15 0x80000000
+				MX53_PAD_EIM_EB2__GPIO2_30     0x80000000
+				MX53_PAD_EIM_DA13__GPIO3_13    0x80000000
+				MX53_PAD_EIM_D19__GPIO3_19     0x80000000
+				MX53_PAD_KEY_ROW2__GPIO4_11    0x80000000
+				MX53_PAD_PATA_DA_0__GPIO7_6    0x80000000
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2_1>;
+	status = "okay";
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+	};
+
+	magnetometer: mag3110@0e {
+		compatible = "fsl,mag3110";
+		reg = <0x0e>;
+	};
+
+	touchkey: mpr121@5a {
+		compatible = "fsl,mpr121";
+		reg = <0x5a>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1_1>;
+	status = "okay";
+
+	accelerometer: mma8450@1c {
+		compatible = "fsl,mma8450";
+		reg = <0x1c>;
+	};
+
+	camera: ov5642@3c {
+		compatible = "ovti,ov5642";
+		reg = <0x3c>;
+	};
+
+	pmic: dialog@48 {
+		compatible = "dialog,da9053", "dialog,da9052";
+		reg = <0x48>;
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec_1>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio7 6 0>;
+	status = "okay";
+};

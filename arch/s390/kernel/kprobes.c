@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
- * Copyright (C) IBM Corporation, 2002, 2006
+ * Copyright IBM Corp. 2002, 2006
  *
  * s390 port, used ppc64 as template. Mike Grundy <grundym@us.ibm.com>
  */
@@ -354,7 +354,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 {
 	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *tmp;
 	unsigned long flags, orig_ret_address;
 	unsigned long trampoline_address;
 	kprobe_opcode_t *correct_ret_addr;
@@ -379,7 +379,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	orig_ret_address = 0;
 	correct_ret_addr = NULL;
 	trampoline_address = (unsigned long) &kretprobe_trampoline;
-	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
@@ -398,7 +398,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 
 	correct_ret_addr = ri->ret_addr;
-	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
@@ -427,7 +427,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
-	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
 		kfree(ri);
 	}
@@ -547,7 +547,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 */
 		entry = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 		if (entry) {
-			regs->psw.addr = entry->fixup | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(entry) | PSW_ADDR_AMODE;
 			return 1;
 		}
 
@@ -635,7 +635,7 @@ void __kprobes jprobe_return(void)
 	asm volatile(".word 0x0002");
 }
 
-void __kprobes jprobe_return_end(void)
+static void __used __kprobes jprobe_return_end(void)
 {
 	asm volatile("bcr 0,0");
 }

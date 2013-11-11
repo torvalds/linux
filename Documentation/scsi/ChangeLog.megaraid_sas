@@ -1,3 +1,76 @@
+Release Date    : Sat. Feb 9, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 06.506.00.00-rc1
+Old Version     : 06.504.01.00-rc1
+    1. Add 4k FastPath DIF support.
+    2. Dont load DevHandle unless FastPath enabled.
+    3. Version and Changelog update.
+-------------------------------------------------------------------------------
+Release Date    : Mon. Oct 1, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 06.504.01.00-rc1
+Old Version     : 00.00.06.18-rc1
+    1. Removed un-needed completion_lock spinlock calls.
+    2. Add module param for configurable MSI-X vector count.
+    3. Load io_request DataLength in bytes.
+    4. Add array boundary check for SystemPD.
+    5. Add SystemPD FastPath support.
+    6. Remove duplicate code.
+    7. Version, Changelog, Copyright update.
+-------------------------------------------------------------------------------
+Release Date    : Tue. Jun 17, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford/Kashyap Desai
+Current Version : 00.00.06.18-rc1
+Old Version     : 00.00.06.15-rc1
+    1. Fix Copyright dates.
+    2. Add throttlequeuedepth module parameter.
+    3. Add resetwaittime module parameter.
+    4. Move poll_aen_lock initializer.
+-------------------------------------------------------------------------------
+Release Date    : Mon. Mar 19, 2012 17:00:00 PST 2012 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.06.15-rc1
+Old Version     : 00.00.06.14-rc1
+    1. Optimize HostMSIxVectors setting.
+    2. Add fpRead/WriteCapable, fpRead/WriteAcrossStripe checks.
+-------------------------------------------------------------------------------
+Release Date    : Fri. Jan 6, 2012 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.06.14-rc1
+Old Version     : 00.00.06.12-rc1
+    1. Fix reglockFlags for degraded raid5/6 for MR 9360/9380.
+    2. Mask off flags in ioctl path to prevent memory scribble with older
+       MegaCLI versions.
+    3. Remove poll_mode_io module paramater, sysfs node, and associated code.
+-------------------------------------------------------------------------------
+Release Date    : Wed. Oct 5, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.06.12-rc1
+Old Version     : 00.00.05.40-rc1
+    1. Continue booting immediately if FW in FAULT at driver load time.
+    2. Increase default cmds per lun to 256.
+    3. Fix mismatch in megasas_reset_fusion() mutex lock-unlock.
+    4. Remove some un-necessary code.
+    5. Clear state change interrupts for Fusion/Invader.
+    6. Clear FUSION_IN_RESET before enabling interrupts.
+    7. Add support for MegaRAID 9360/9380 12GB/s controllers.
+    8. Add multiple MSI-X vector/multiple reply queue support.
+    9. Add driver workaround for PERC5/1068 kdump kernel panic.
+-------------------------------------------------------------------------------
+Release Date    : Tue. Jul 26, 2011 17:00:00 PST 2010 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 00.00.05.40-rc1
+Old Version     : 00.00.05.38-rc1
+    1. Fix FastPath I/O to work with degraded RAID 1.
+    2. Add .change_queue_depth support.
+-------------------------------------------------------------------------------
 Release Date    : Wed. May 11, 2011 17:00:00 PST 2010 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford
@@ -477,7 +550,7 @@ i.	Support for 1078 type (ppc IOP) controller, device id : 0x60 added.
 3 Older Version   : 00.00.02.02 
 i.	Register 16 byte CDB capability with scsi midlayer 
 
-	"Ths patch properly registers the 16 byte command length capability of the 
+	"This patch properly registers the 16 byte command length capability of the 
 	megaraid_sas controlled hardware with the scsi midlayer. All megaraid_sas 
 	hardware supports 16 byte CDB's."
 

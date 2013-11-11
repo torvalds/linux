@@ -7,7 +7,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -182,11 +182,19 @@
 
 /*
  * Combination opcodes (actually two one-byte opcodes)
- * Used by the disassembler and i_aSL compiler
+ * Used by the disassembler and iASL compiler
  */
 #define AML_LGREATEREQUAL_OP        (u16) 0x9295
 #define AML_LLESSEQUAL_OP           (u16) 0x9294
 #define AML_LNOTEQUAL_OP            (u16) 0x9293
+
+/*
+ * Opcodes for "Field" operators
+ */
+#define AML_FIELD_OFFSET_OP         (u8) 0x00
+#define AML_FIELD_ACCESS_OP         (u8) 0x01
+#define AML_FIELD_CONNECTION_OP     (u8) 0x02	/* ACPI 5.0 */
+#define AML_FIELD_EXT_ACCESS_OP     (u8) 0x03	/* ACPI 5.0 */
 
 /*
  * Internal opcodes
@@ -202,6 +210,8 @@
 #define AML_INT_METHODCALL_OP       (u16) 0x0035
 #define AML_INT_RETURN_VALUE_OP     (u16) 0x0036
 #define AML_INT_EVAL_SUBTREE_OP     (u16) 0x0037
+#define AML_INT_CONNECTION_OP       (u16) 0x0038
+#define AML_INT_EXTACCESSFIELD_OP   (u16) 0x0039
 
 #define ARG_NONE                    0x0
 
@@ -270,7 +280,7 @@
 
 /* Multiple/complex types */
 
-#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a Node - Used only by size_of operator */
+#define ARGI_DATAOBJECT             0x12	/* Buffer, String, package or reference to a node - Used only by size_of operator */
 #define ARGI_COMPLEXOBJ             0x13	/* Buffer, String, or package (Used by INDEX op only) */
 #define ARGI_REF_OR_STRING          0x14	/* Reference or String (Used by DEREFOF op only) */
 #define ARGI_REGION_OR_BUFFER       0x15	/* Used by LOAD op only */
@@ -456,13 +466,16 @@ typedef enum {
  * access_as keyword
  */
 typedef enum {
-	AML_FIELD_ATTRIB_SMB_QUICK = 0x02,
-	AML_FIELD_ATTRIB_SMB_SEND_RCV = 0x04,
-	AML_FIELD_ATTRIB_SMB_BYTE = 0x06,
-	AML_FIELD_ATTRIB_SMB_WORD = 0x08,
-	AML_FIELD_ATTRIB_SMB_BLOCK = 0x0A,
-	AML_FIELD_ATTRIB_SMB_WORD_CALL = 0x0C,
-	AML_FIELD_ATTRIB_SMB_BLOCK_CALL = 0x0D
+	AML_FIELD_ATTRIB_QUICK = 0x02,
+	AML_FIELD_ATTRIB_SEND_RCV = 0x04,
+	AML_FIELD_ATTRIB_BYTE = 0x06,
+	AML_FIELD_ATTRIB_WORD = 0x08,
+	AML_FIELD_ATTRIB_BLOCK = 0x0A,
+	AML_FIELD_ATTRIB_MULTIBYTE = 0x0B,
+	AML_FIELD_ATTRIB_WORD_CALL = 0x0C,
+	AML_FIELD_ATTRIB_BLOCK_CALL = 0x0D,
+	AML_FIELD_ATTRIB_RAW_BYTES = 0x0E,
+	AML_FIELD_ATTRIB_RAW_PROCESS = 0x0F
 } AML_ACCESS_ATTRIBUTE;
 
 /* Bit fields in the AML method_flags byte */

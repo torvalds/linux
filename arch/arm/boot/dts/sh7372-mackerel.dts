@@ -1,0 +1,26 @@
+/*
+ * Device Tree Source for the mackerel board
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "sh7372.dtsi"
+
+/ {
+	model = "Mackerel (AP4 EVM 2nd)";
+	compatible = "renesas,mackerel";
+
+	chosen {
+		bootargs = "console=tty0, console=ttySC0,115200 earlyprintk=sh-sci.0,115200 root=/dev/nfs nfsroot=,tcp,v3 ip=dhcp mem=240m rw";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x10000000>;
+	};
+};

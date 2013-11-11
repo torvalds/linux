@@ -1,0 +1,62 @@
+Voltage/Current Regulators
+
+Optional properties:
+- regulator-name: A string used as a descriptive name for regulator outputs
+- regulator-min-microvolt: smallest voltage consumers may set
+- regulator-max-microvolt: largest voltage consumers may set
+- regulator-microvolt-offset: Offset applied to voltages to compensate for voltage drops
+- regulator-min-microamp: smallest current consumers may set
+- regulator-max-microamp: largest current consumers may set
+- regulator-always-on: boolean, regulator should never be disabled
+- regulator-boot-on: bootloader/firmware enabled regulator
+- <name>-supply: phandle to the parent supply/regulator node
+- regulator-ramp-delay: ramp delay for regulator(in uV/uS)
+
+Deprecated properties:
+- regulator-compatible: If a regulator chip contains multiple
+  regulators, and if the chip's binding contains a child node that
+  describes each regulator, then this property indicates which regulator
+  this child node is intended to configure. If this property is missing,
+  the node's name will be used instead.
+
+Example:
+
+	xyzreg: regulator@0 {
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+		vin-supply = <&vin>;
+	};
+
+Regulator Consumers:
+Consumer nodes can reference one or more of its supplies/
+regulators using the below bindings.
+
+- <name>-supply: phandle to the regulator node
+
+These are the same bindings that a regulator in the above
+example used to reference its own supply, in which case
+its just seen as a special case of a regulator being a
+consumer itself.
+
+Example of a consumer device node (mmc) referencing two
+regulators (twl_reg1 and twl_reg2),
+
+	twl_reg1: regulator@0 {
+		...
+		...
+		...
+	};
+
+	twl_reg2: regulator@1 {
+		...
+		...
+		...
+	};
+
+	mmc: mmc@0x0 {
+		...
+		...
+		vmmc-supply = <&twl_reg1>;
+		vmmcaux-supply = <&twl_reg2>;
+	};

@@ -214,11 +214,6 @@ static int max6900_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 static int max6900_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	if (rtc)
-		rtc_device_unregister(rtc);
-
 	return 0;
 }
 
@@ -237,8 +232,8 @@ max6900_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(max6900_driver.driver.name,
-				  &client->dev, &max6900_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, max6900_driver.driver.name,
+					&max6900_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
@@ -261,20 +256,9 @@ static struct i2c_driver max6900_driver = {
 	.id_table = max6900_id,
 };
 
-static int __init max6900_init(void)
-{
-	return i2c_add_driver(&max6900_driver);
-}
-
-static void __exit max6900_exit(void)
-{
-	i2c_del_driver(&max6900_driver);
-}
+module_i2c_driver(max6900_driver);
 
 MODULE_DESCRIPTION("Maxim MAX6900 RTC driver");
 MODULE_AUTHOR("Dale Farnsworth <dale@farnsworth.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(max6900_init);
-module_exit(max6900_exit);

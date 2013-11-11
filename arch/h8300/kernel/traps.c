@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/bug.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/page.h>
@@ -165,10 +164,3 @@ void show_trace_task(struct task_struct *tsk)
 {
 	show_stack(tsk,(unsigned long *)tsk->thread.esp0);
 }
-
-void dump_stack(void)
-{
-	show_stack(NULL,NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);

@@ -183,7 +183,7 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* for vm86 */
 	.long SYMBOL_NAME(sys_ni_syscall)	/* sys_query_module */
 	.long SYMBOL_NAME(sys_poll)
-	.long SYMBOL_NAME(sys_nfsservctl)
+	.long SYMBOL_NAME(sys_ni_syscall)	/* old nfsservctl */
 	.long SYMBOL_NAME(sys_setresgid16)	/* 170 */
 	.long SYMBOL_NAME(sys_getresgid16)
 	.long SYMBOL_NAME(sys_prctl)
@@ -334,33 +334,3 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_getcpu)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* sys_epoll_pwait */
 	.long SYMBOL_NAME(sys_setns)		/* 320 */
-
-	.macro	call_sp addr
-	mov.l	#SYMBOL_NAME(\addr),er6
-	bra	SYMBOL_NAME(syscall_trampoline):8
-	.endm
-
-SYMBOL_NAME_LABEL(sys_clone)	
-	call_sp	h8300_clone
-	
-SYMBOL_NAME_LABEL(sys_sigsuspend)
-	call_sp	do_sigsuspend
-
-SYMBOL_NAME_LABEL(sys_rt_sigsuspend)
-	call_sp	do_rt_sigsuspend
-
-SYMBOL_NAME_LABEL(sys_sigreturn)
-	call_sp	do_sigreturn
-
-SYMBOL_NAME_LABEL(sys_rt_sigreturn)
-	call_sp	do_rt_sigreturn
-
-SYMBOL_NAME_LABEL(sys_fork)
-	call_sp	h8300_fork
-
-SYMBOL_NAME_LABEL(sys_vfork)
-	call_sp	h8300_vfork
-
-SYMBOL_NAME_LABEL(syscall_trampoline)
-	mov.l	sp,er0
-	jmp	@er6

@@ -686,13 +686,12 @@ static int hilse_donode(hil_mlc *mlc)
 		write_lock_irqsave(&mlc->lock, flags);
 		pack = node->object.packet;
 	out:
-		if (mlc->istarted)
-			goto out2;
-		/* Prepare to receive input */
-		if ((node + 1)->act & HILSE_IN)
-			hilse_setup_input(mlc, node + 1);
+		if (!mlc->istarted) {
+			/* Prepare to receive input */
+			if ((node + 1)->act & HILSE_IN)
+				hilse_setup_input(mlc, node + 1);
+		}
 
-	out2:
 		write_unlock_irqrestore(&mlc->lock, flags);
 
 		if (down_trylock(&mlc->osem)) {
@@ -1010,8 +1009,6 @@ static int __init hil_mlc_init(void)
 static void __exit hil_mlc_exit(void)
 {
 	del_timer_sync(&hil_mlcs_kicker);
-
-	tasklet_disable(&hil_mlcs_tasklet);
 	tasklet_kill(&hil_mlcs_tasklet);
 }
 

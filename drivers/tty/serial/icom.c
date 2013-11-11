@@ -52,7 +52,6 @@
 #include <linux/firmware.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -176,7 +175,7 @@ static void free_port_memory(struct icom_port *icom_port)
 	}
 }
 
-static int __devinit get_port_memory(struct icom_port *icom_port)
+static int get_port_memory(struct icom_port *icom_port)
 {
 	int index;
 	unsigned long stgAddr;
@@ -506,7 +505,7 @@ static void load_code(struct icom_port *icom_port)
 		/* Stop processor */
 		stop_processor(icom_port);
 
-		dev_err(&icom_port->adapter->pci_dev->dev,"Port not opertional\n");
+		dev_err(&icom_port->adapter->pci_dev->dev,"Port not operational\n");
 	}
 
 	if (new_page != NULL)
@@ -735,7 +734,7 @@ static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 {
 	short int count, rcv_buff;
-	struct tty_struct *tty = icom_port->uart_port.state->port.tty;
+	struct tty_port *port = &icom_port->uart_port.state->port;
 	unsigned short int status;
 	struct uart_icount *icount;
 	unsigned long offset;
@@ -762,7 +761,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		/* Block copy all but the last byte as this may have status */
 		if (count > 0) {
 			first = icom_port->recv_buf[offset];
-			tty_insert_flip_string(tty, icom_port->recv_buf + offset, count - 1);
+			tty_insert_flip_string(port, icom_port->recv_buf + offset, count - 1);
 		}
 
 		icount = &icom_port->uart_port.icount;
@@ -813,7 +812,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 
 		}
 
-		tty_insert_flip_char(tty, *(icom_port->recv_buf + offset + count - 1), flag);
+		tty_insert_flip_char(port, *(icom_port->recv_buf + offset + count - 1), flag);
 
 		if (status & SA_FLAGS_OVERRUN)
 			/*
@@ -821,7 +820,7 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 			 * reported immediately, and doesn't
 			 * affect the current character
 			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 ignore_char:
 		icom_port->statStg->rcv[rcv_buff].flags = 0;
 		icom_port->statStg->rcv[rcv_buff].leLength = 0;
@@ -835,7 +834,7 @@ ignore_char:
 		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }
 
 static void process_interrupt(u16 port_int_reg,
@@ -1315,7 +1314,7 @@ static struct uart_driver icom_uart_driver = {
 	.cons = ICOM_CONSOLE,
 };
 
-static int __devinit icom_init_ports(struct icom_adapter *icom_adapter)
+static int icom_init_ports(struct icom_adapter *icom_adapter)
 {
 	u32 subsystem_id = icom_adapter->subsystem_id;
 	int i;
@@ -1382,7 +1381,7 @@ static void icom_port_active(struct icom_port *icom_port, struct icom_adapter *i
 			    0x8024 + 2 - 2 * (icom_port->port - 2);
 	}
 }
-static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
+static int icom_load_ports(struct icom_adapter *icom_adapter)
 {
 	struct icom_port *icom_port;
 	int port_num;
@@ -1408,7 +1407,7 @@ static int __devinit icom_load_ports(struct icom_adapter *icom_adapter)
 	return 0;
 }
 
-static int __devinit icom_alloc_adapter(struct icom_adapter
+static int icom_alloc_adapter(struct icom_adapter
 					**icom_adapter_ref)
 {
 	int adapter_count = 0;
@@ -1416,8 +1415,7 @@ static int __devinit icom_alloc_adapter(struct icom_adapter
 	struct icom_adapter *cur_adapter_entry;
 	struct list_head *tmp;
 
-	icom_adapter = (struct icom_adapter *)
-	    kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
+	icom_adapter = kzalloc(sizeof(struct icom_adapter), GFP_KERNEL);
 
 	if (!icom_adapter) {
 		return -ENOMEM;
@@ -1488,7 +1486,7 @@ static void icom_kref_release(struct kref *kref)
 	icom_remove_adapter(icom_adapter);
 }
 
-static int __devinit icom_probe(struct pci_dev *dev,
+static int icom_probe(struct pci_dev *dev,
 				const struct pci_device_id *ent)
 {
 	int index;
@@ -1554,7 +1552,7 @@ static int __devinit icom_probe(struct pci_dev *dev,
 
 	 /* save off irq and request irq line */
 	 if ( (retval = request_irq(dev->irq, icom_interrupt,
-				   IRQF_DISABLED | IRQF_SHARED, ICOM_DRIVER_NAME,
+				   IRQF_SHARED, ICOM_DRIVER_NAME,
 				   (void *) icom_adapter))) {
 		  goto probe_exit2;
 	 }
@@ -1597,7 +1595,7 @@ probe_exit0:
 	return retval;
 }
 
-static void __devexit icom_remove(struct pci_dev *dev)
+static void icom_remove(struct pci_dev *dev)
 {
 	struct icom_adapter *icom_adapter;
 	struct list_head *tmp;
@@ -1618,7 +1616,7 @@ static struct pci_driver icom_pci_driver = {
 	.name = ICOM_DRIVER_NAME,
 	.id_table = icom_pci_table,
 	.probe = icom_probe,
-	.remove = __devexit_p(icom_remove),
+	.remove = icom_remove,
 };
 
 static int __init icom_init(void)

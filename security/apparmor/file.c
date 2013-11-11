@@ -65,24 +65,26 @@ static void audit_file_mask(struct audit_buffer *ab, u32 mask)
 static void file_audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
-	uid_t fsuid = current_fsuid();
+	kuid_t fsuid = current_fsuid();
 
-	if (sa->aad.fs.request & AA_AUDIT_FILE_MASK) {
+	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " requested_mask=");
-		audit_file_mask(ab, sa->aad.fs.request);
+		audit_file_mask(ab, sa->aad->fs.request);
 	}
-	if (sa->aad.fs.denied & AA_AUDIT_FILE_MASK) {
+	if (sa->aad->fs.denied & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " denied_mask=");
-		audit_file_mask(ab, sa->aad.fs.denied);
+		audit_file_mask(ab, sa->aad->fs.denied);
 	}
-	if (sa->aad.fs.request & AA_AUDIT_FILE_MASK) {
-		audit_log_format(ab, " fsuid=%d", fsuid);
-		audit_log_format(ab, " ouid=%d", sa->aad.fs.ouid);
+	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
+		audit_log_format(ab, " fsuid=%d",
+				 from_kuid(&init_user_ns, fsuid));
+		audit_log_format(ab, " ouid=%d",
+				 from_kuid(&init_user_ns, sa->aad->fs.ouid));
 	}
 
-	if (sa->aad.fs.target) {
+	if (sa->aad->fs.target) {
 		audit_log_format(ab, " target=");
-		audit_log_untrustedstring(ab, sa->aad.fs.target);
+		audit_log_untrustedstring(ab, sa->aad->fs.target);
 	}
 }
 
@@ -103,49 +105,51 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  */
 int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
 		  gfp_t gfp, int op, u32 request, const char *name,
-		  const char *target, uid_t ouid, const char *info, int error)
+		  const char *target, kuid_t ouid, const char *info, int error)
 {
 	int type = AUDIT_APPARMOR_AUTO;
 	struct common_audit_data sa;
-	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.op = op,
-	sa.aad.fs.request = request;
-	sa.aad.name = name;
-	sa.aad.fs.target = target;
-	sa.aad.fs.ouid = ouid;
-	sa.aad.info = info;
-	sa.aad.error = error;
+	struct apparmor_audit_data aad = {0,};
+	sa.type = LSM_AUDIT_DATA_NONE;
+	sa.aad = &aad;
+	aad.op = op,
+	aad.fs.request = request;
+	aad.name = name;
+	aad.fs.target = target;
+	aad.fs.ouid = ouid;
+	aad.info = info;
+	aad.error = error;
 
-	if (likely(!sa.aad.error)) {
+	if (likely(!sa.aad->error)) {
 		u32 mask = perms->audit;
 
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
 		/* mask off perms that are not being force audited */
-		sa.aad.fs.request &= mask;
+		sa.aad->fs.request &= mask;
 
-		if (likely(!sa.aad.fs.request))
+		if (likely(!sa.aad->fs.request))
 			return 0;
 		type = AUDIT_APPARMOR_AUDIT;
 	} else {
 		/* only report permissions that were denied */
-		sa.aad.fs.request = sa.aad.fs.request & ~perms->allow;
+		sa.aad->fs.request = sa.aad->fs.request & ~perms->allow;
 
-		if (sa.aad.fs.request & perms->kill)
+		if (sa.aad->fs.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
 		/* quiet known rejects, assumes quiet and kill do not overlap */
-		if ((sa.aad.fs.request & perms->quiet) &&
+		if ((sa.aad->fs.request & perms->quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
-			sa.aad.fs.request &= ~perms->quiet;
+			sa.aad->fs.request &= ~perms->quiet;
 
-		if (!sa.aad.fs.request)
-			return COMPLAIN_MODE(profile) ? 0 : sa.aad.error;
+		if (!sa.aad->fs.request)
+			return COMPLAIN_MODE(profile) ? 0 : sa.aad->error;
 	}
 
-	sa.aad.fs.denied = sa.aad.fs.request & ~perms->allow;
+	sa.aad->fs.denied = sa.aad->fs.request & ~perms->allow;
 	return aa_audit(type, profile, gfp, &sa, file_audit_cb);
 }
 
@@ -173,8 +177,6 @@ static u32 map_old_perms(u32 old)
 	if (old & 0x40)	/* AA_EXEC_MMAP */
 		new |= AA_EXEC_MMAP;
 
-	new |= AA_MAY_META_READ;
-
 	return new;
 }
 
@@ -201,7 +203,7 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 	 */
 	perms.kill = 0;
 
-	if (current_fsuid() == cond->uid) {
+	if (uid_eq(current_fsuid(), cond->uid)) {
 		perms.allow = map_old_perms(dfa_user_allow(dfa, state));
 		perms.audit = map_old_perms(dfa_user_audit(dfa, state));
 		perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));
@@ -212,10 +214,13 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 		perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
 		perms.xindex = dfa_other_xindex(dfa, state);
 	}
+	perms.allow |= AA_MAY_META_READ;
 
 	/* change_profile wasn't determined by ownership in old mapping */
 	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
 		perms.allow |= AA_MAY_CHANGE_PROFILE;
+	if (ACCEPT_TABLE(dfa)[state] & 0x40000000)
+		perms.allow |= AA_MAY_ONEXEC;
 
 	return perms;
 }
@@ -279,22 +284,16 @@ int aa_path_perm(int op, struct aa_profile *profile, struct path *path,
 	int error;
 
 	flags |= profile->path_flags | (S_ISDIR(cond->mode) ? PATH_IS_DIR : 0);
-	error = aa_get_name(path, flags, &buffer, &name);
+	error = aa_path_name(path, flags, &buffer, &name, &info);
 	if (error) {
 		if (error == -ENOENT && is_deleted(path->dentry)) {
 			/* Access to open files that are deleted are
 			 * give a pass (implicit delegation)
 			 */
 			error = 0;
+			info = NULL;
 			perms.allow = request;
-		} else if (error == -ENOENT)
-			info = "Failed name lookup - deleted entry";
-		else if (error == -ESTALE)
-			info = "Failed name lookup - disconnected path";
-		else if (error == -ENAMETOOLONG)
-			info = "Failed name lookup - name too long";
-		else
-			info = "Failed name lookup";
+		}
 	} else {
 		aa_str_perms(profile->file.dfa, profile->file.start, name, cond,
 			     &perms);
@@ -365,12 +364,14 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 	lperms = nullperms;
 
 	/* buffer freed below, lname is pointer in buffer */
-	error = aa_get_name(&link, profile->path_flags, &buffer, &lname);
+	error = aa_path_name(&link, profile->path_flags, &buffer, &lname,
+			     &info);
 	if (error)
 		goto audit;
 
 	/* buffer2 freed below, tname is pointer in buffer2 */
-	error = aa_get_name(&target, profile->path_flags, &buffer2, &tname);
+	error = aa_path_name(&target, profile->path_flags, &buffer2, &tname,
+			     &info);
 	if (error)
 		goto audit;
 
@@ -448,8 +449,8 @@ int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
 		 u32 request)
 {
 	struct path_cond cond = {
-		.uid = file->f_path.dentry->d_inode->i_uid,
-		.mode = file->f_path.dentry->d_inode->i_mode
+		.uid = file_inode(file)->i_uid,
+		.mode = file_inode(file)->i_mode
 	};
 
 	return aa_path_perm(op, profile, &file->f_path, PATH_DELEGATE_DELETED,

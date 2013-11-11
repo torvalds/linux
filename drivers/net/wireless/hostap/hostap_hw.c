@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/if_arp.h>
 #include <linux/delay.h>
 #include <linux/random.h>
@@ -129,8 +130,7 @@ static void prism2_check_sta_fw_version(local_info_t *local);
 
 #ifdef PRISM2_DOWNLOAD_SUPPORT
 /* hostap_download.c */
-static int prism2_download_aux_dump(struct net_device *dev,
-				    unsigned int addr, int len, u8 *buf);
+static const struct file_operations prism2_download_aux_dump_proc_fops;
 static u8 * prism2_read_pda(struct net_device *dev);
 static int prism2_download(local_info_t *local,
 			   struct prism2_download_param *param);
@@ -347,11 +347,9 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 		return -EINTR;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd - kmalloc failed\n",
-		       dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_SLEEP;
 	entry->cmd = cmd;
@@ -515,11 +513,9 @@ static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd_callback - kmalloc "
-		       "failed\n", dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_CALLBACK;
 	entry->cmd = cmd;
@@ -1470,7 +1466,7 @@ static int prism2_hw_enable(struct net_device *dev, int initial)
 	 * before it starts acting as an AP, so reset port automatically
 	 * here just in case */
 	if (initial && prism2_reset_port(dev)) {
-		printk("%s: MAC port 0 reseting failed\n", dev->name);
+		printk("%s: MAC port 0 resetting failed\n", dev->name);
 		return 1;
 	}
 
@@ -1561,7 +1557,7 @@ static void prism2_hw_reset(struct net_device *dev)
 	static long last_reset = 0;
 
 	/* do not reset card more than once per second to avoid ending up in a
-	 * busy loop reseting the card */
+	 * busy loop resetting the card */
 	if (time_before_eq(jiffies, last_reset + HZ))
 		return;
 	last_reset = jiffies;
@@ -2898,19 +2894,12 @@ static void hostap_tick_timer(unsigned long data)
 
 
 #ifndef PRISM2_NO_PROCFS_DEBUG
-static int prism2_registers_proc_read(char *page, char **start, off_t off,
-				      int count, int *eof, void *data)
+static int prism2_registers_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	local_info_t *local = (local_info_t *) data;
-
-	if (off != 0) {
-		*eof = 1;
-		return 0;
-	}
+	local_info_t *local = m->private;
 
 #define SHOW_REG(n) \
-p += sprintf(p, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
+  seq_printf(m, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
 
 	SHOW_REG(CMD);
 	SHOW_REG(PARAM0);
@@ -2956,8 +2945,21 @@ p += sprintf(p, #n "=%04x\n", hfa384x_read_reg(local->dev, HFA384X_##n##_OFF))
 	SHOW_REG(PCI_M1_CTL);
 #endif /* PRISM2_PCI */
 
-	return (p - page);
+	return 0;
 }
+
+static int prism2_registers_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, prism2_registers_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations prism2_registers_proc_fops = {
+	.open		= prism2_registers_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 
 
@@ -2978,11 +2980,9 @@ static int prism2_set_tim(struct net_device *dev, int aid, int set)
 	local = iface->local;
 
 	new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
-	if (new_entry == NULL) {
-		printk(KERN_DEBUG "%s: prism2_set_tim: kmalloc failed\n",
-		       local->dev->name);
+	if (new_entry == NULL)
 		return -ENOMEM;
-	}
+
 	new_entry->aid = aid;
 	new_entry->set = set;
 
@@ -3134,7 +3134,7 @@ prism2_init_local_data(struct prism2_helper_functions *funcs, int card_idx,
 	local->func->reset_port = prism2_reset_port;
 	local->func->schedule_reset = prism2_schedule_reset;
 #ifdef PRISM2_DOWNLOAD_SUPPORT
-	local->func->read_aux = prism2_download_aux_dump;
+	local->func->read_aux_fops = &prism2_download_aux_dump_proc_fops;
 	local->func->download = prism2_download;
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
 	local->func->tx = prism2_tx_80211;
@@ -3280,8 +3280,8 @@ static int hostap_hw_ready(struct net_device *dev)
 		}
 		hostap_init_proc(local);
 #ifndef PRISM2_NO_PROCFS_DEBUG
-		create_proc_read_entry("registers", 0, local->proc,
-				       prism2_registers_proc_read, local);
+		proc_create_data("registers", 0, local->proc,
+				 &prism2_registers_proc_fops, local);
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 		hostap_init_ap_proc(local);
 		return 0;
@@ -3317,13 +3317,13 @@ static void prism2_free_local_data(struct net_device *dev)
 
 	unregister_netdev(local->dev);
 
-	flush_work_sync(&local->reset_queue);
-	flush_work_sync(&local->set_multicast_list_queue);
-	flush_work_sync(&local->set_tim_queue);
+	flush_work(&local->reset_queue);
+	flush_work(&local->set_multicast_list_queue);
+	flush_work(&local->set_tim_queue);
 #ifndef PRISM2_NO_STATION_MODES
-	flush_work_sync(&local->info_queue);
+	flush_work(&local->info_queue);
 #endif
-	flush_work_sync(&local->comms_qual_update);
+	flush_work(&local->comms_qual_update);
 
 	lib80211_crypt_info_free(&local->crypt_info);
 

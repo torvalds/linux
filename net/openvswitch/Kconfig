@@ -1,0 +1,28 @@
+#
+# Open vSwitch
+#
+
+config OPENVSWITCH
+	tristate "Open vSwitch"
+	---help---
+	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized
+	  environments.  In addition to supporting a variety of features
+	  expected in a traditional hardware switch, it enables fine-grained
+	  programmatic extension and flow-based control of the network.  This
+	  control is useful in a wide variety of applications but is
+	  particularly important in multi-server virtualization deployments,
+	  which are often characterized by highly dynamic endpoints and the
+	  need to maintain logical abstractions for multiple tenants.
+
+	  The Open vSwitch datapath provides an in-kernel fast path for packet
+	  forwarding.  It is complemented by a userspace daemon, ovs-vswitchd,
+	  which is able to accept configuration from a variety of sources and
+	  translate it into packet processing rules.
+
+	  See http://openvswitch.org for more information and userspace
+	  utilities.
+
+	  To compile this code as a module, choose M here: the module will be
+	  called openvswitch.
+
+	  If unsure, say N.

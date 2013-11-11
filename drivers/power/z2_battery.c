@@ -180,7 +180,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	return 0;
 }
 
-static int __devinit z2_batt_probe(struct i2c_client *client,
+static int z2_batt_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -218,7 +218,7 @@ static int __devinit z2_batt_probe(struct i2c_client *client,
 		irq_set_irq_type(gpio_to_irq(info->charge_gpio),
 				 IRQ_TYPE_EDGE_BOTH);
 		ret = request_irq(gpio_to_irq(info->charge_gpio),
-				z2_charge_switch_irq, IRQF_DISABLED,
+				z2_charge_switch_irq, 0,
 				"AC Detect", charger);
 		if (ret)
 			goto err3;
@@ -251,7 +251,7 @@ err:
 	return ret;
 }
 
-static int __devexit z2_batt_remove(struct i2c_client *client)
+static int z2_batt_remove(struct i2c_client *client)
 {
 	struct z2_charger *charger = i2c_get_clientdata(client);
 	struct z2_battery_info *info = charger->info;
@@ -276,7 +276,7 @@ static int z2_batt_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct z2_charger *charger = i2c_get_clientdata(client);
 
-	flush_work_sync(&charger->bat_work);
+	flush_work(&charger->bat_work);
 	return 0;
 }
 
@@ -316,19 +316,7 @@ static struct i2c_driver z2_batt_driver = {
 	.remove		= z2_batt_remove,
 	.id_table	= z2_batt_id,
 };
-
-static int __init z2_batt_init(void)
-{
-	return i2c_add_driver(&z2_batt_driver);
-}
-
-static void __exit z2_batt_exit(void)
-{
-	i2c_del_driver(&z2_batt_driver);
-}
-
-module_init(z2_batt_init);
-module_exit(z2_batt_exit);
+module_i2c_driver(z2_batt_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Peter Edwards <sweetlilmre@gmail.com>");

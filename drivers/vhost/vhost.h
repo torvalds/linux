@@ -7,11 +7,10 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/skbuff.h>
 #include <linux/uio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct vhost_device;
 
@@ -38,9 +37,12 @@ struct vhost_poll {
 	struct vhost_dev	 *dev;
 };
 
+void vhost_work_init(struct vhost_work *work, vhost_work_fn_t fn);
+void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work);
+
 void vhost_poll_init(struct vhost_poll *poll, vhost_work_fn_t fn,
 		     unsigned long mask, struct vhost_dev *dev);
-void vhost_poll_start(struct vhost_poll *poll, struct file *file);
+int vhost_poll_start(struct vhost_poll *poll, struct file *file);
 void vhost_poll_stop(struct vhost_poll *poll);
 void vhost_poll_flush(struct vhost_poll *poll);
 void vhost_poll_queue(struct vhost_poll *poll);
@@ -49,6 +51,8 @@ struct vhost_log {
 	u64 addr;
 	u64 len;
 };
+
+struct vhost_virtqueue;
 
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
@@ -95,13 +99,7 @@ struct vhost_virtqueue {
 	u64 log_addr;
 
 	struct iovec iov[UIO_MAXIOV];
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	struct iovec *indirect;
-	size_t vhost_hlen;
-	size_t sock_hlen;
 	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
 	 * All readers access it from worker, which makes it possible to
@@ -124,7 +122,7 @@ struct vhost_dev {
 	struct mm_struct *mm;
 	struct mutex mutex;
 	unsigned acked_features;
-	struct vhost_virtqueue *vqs;
+	struct vhost_virtqueue **vqs;
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
@@ -133,11 +131,16 @@ struct vhost_dev {
 	struct task_struct *worker;
 };
 
-long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
+long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
+long vhost_dev_set_owner(struct vhost_dev *dev);
+bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
-long vhost_dev_reset_owner(struct vhost_dev *);
-void vhost_dev_cleanup(struct vhost_dev *);
-long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, unsigned long arg);
+struct vhost_memory *vhost_dev_reset_owner_prepare(void);
+void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);
+void vhost_dev_cleanup(struct vhost_dev *, bool locked);
+void vhost_dev_stop(struct vhost_dev *);
+long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);
 int vhost_vq_access_ok(struct vhost_virtqueue *vq);
 int vhost_log_access_ok(struct vhost_dev *);
 
@@ -147,6 +150,7 @@ int vhost_get_vq_desc(struct vhost_dev *, struct vhost_virtqueue *,
 		      struct vhost_log *log, unsigned int *log_num);
 void vhost_discard_vq_desc(struct vhost_virtqueue *, int n);
 
+int vhost_init_used(struct vhost_virtqueue *);
 int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
 int vhost_add_used_n(struct vhost_virtqueue *, struct vring_used_elem *heads,
 		     unsigned count);
@@ -171,9 +175,7 @@ enum {
 	VHOST_FEATURES = (1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
-			 (1ULL << VHOST_F_LOG_ALL) |
-			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
+			 (1ULL << VHOST_F_LOG_ALL),
 };
 
 static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
@@ -185,5 +187,4 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
-
 #endif

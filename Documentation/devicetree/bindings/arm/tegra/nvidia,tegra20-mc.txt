@@ -1,0 +1,16 @@
+NVIDIA Tegra20 MC(Memory Controller)
+
+Required properties:
+- compatible : "nvidia,tegra20-mc"
+- reg : Should contain 2 register ranges(address and length); see the
+  example below. Note that the MC registers are interleaved with the
+  GART registers, and hence must be represented as multiple ranges.
+- interrupts : Should contain MC General interrupt.
+
+Example:
+	memory-controller@0x7000f000 {
+		compatible = "nvidia,tegra20-mc";
+		reg = <0x7000f000 0x024
+		       0x7000f03c 0x3c4>;
+		interrupts = <0 77 0x04>;
+	};

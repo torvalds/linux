@@ -244,8 +244,7 @@ u16 hostap_tx_callback_register(local_info_t *local,
 	unsigned long flags;
 	struct hostap_tx_callback_info *entry;
 
-	entry = kmalloc(sizeof(*entry),
-							   GFP_ATOMIC);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return 0;
 
@@ -816,7 +815,7 @@ static const struct net_device_ops hostap_netdev_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -829,7 +828,7 @@ static const struct net_device_ops hostap_mgmt_netdev_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -842,7 +841,7 @@ static const struct net_device_ops hostap_master_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -855,6 +854,7 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 
 	iface = netdev_priv(dev);
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	/* kernel callbacks */
 	if (iface) {
@@ -1084,7 +1084,7 @@ int prism2_sta_deauth(local_info_t *local, u16 reason)
 	__le16 val = cpu_to_le16(reason);
 
 	if (local->iw_mode != IW_MODE_INFRA ||
-	    memcmp(local->bssid, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0 ||
+	    is_zero_ether_addr(local->bssid) ||
 	    memcmp(local->bssid, "\x44\x44\x44\x44\x44\x44", ETH_ALEN) == 0)
 		return 0;
 

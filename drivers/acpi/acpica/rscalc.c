@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 		bit_field &= (u16) (bit_field - 1);
 	}
 
-	return bits_set;
+	return (bits_set);
 }
 
 /*******************************************************************************
@@ -173,7 +173,7 @@ acpi_rs_stream_option_length(u32 resource_length,
  *
  * FUNCTION:    acpi_rs_get_aml_length
  *
- * PARAMETERS:  Resource            - Pointer to the resource linked list
+ * PARAMETERS:  resource            - Pointer to the resource linked list
  *              size_needed         - Where the required size is returned
  *
  * RETURN:      Status
@@ -200,6 +200,12 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
 			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
+		}
+
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
 		}
 
 		/* Get the base size of the (external stream) resource descriptor */
@@ -313,6 +319,38 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 							  resource_source));
 			break;
 
+		case ACPI_RESOURCE_TYPE_GPIO:
+
+			total_size =
+			    (acpi_rs_length) (total_size +
+					      (resource->data.gpio.
+					       pin_table_length * 2) +
+					      resource->data.gpio.
+					      resource_source.string_length +
+					      resource->data.gpio.
+					      vendor_length);
+
+			break;
+
+		case ACPI_RESOURCE_TYPE_SERIAL_BUS:
+
+			total_size =
+			    acpi_gbl_aml_resource_serial_bus_sizes[resource->
+								   data.
+								   common_serial_bus.
+								   type];
+
+			total_size = (acpi_rs_length) (total_size +
+						       resource->data.
+						       i2c_serial_bus.
+						       resource_source.
+						       string_length +
+						       resource->data.
+						       i2c_serial_bus.
+						       vendor_length);
+
+			break;
+
 		default:
 			break;
 		}
@@ -362,10 +400,11 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 	u32 extra_struct_bytes;
 	u8 resource_index;
 	u8 minimum_aml_resource_length;
+	union aml_resource *aml_resource;
 
 	ACPI_FUNCTION_TRACE(rs_get_list_length);
 
-	*size_needed = 0;
+	*size_needed = ACPI_RS_SIZE_MIN;	/* Minimum size is one end_tag */
 	end_aml = aml_buffer + aml_buffer_length;
 
 	/* Walk the list of AML resource descriptors */
@@ -374,10 +413,18 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		/* Validate the Resource Type and Resource Length */
 
-		status = acpi_ut_validate_resource(aml_buffer, &resource_index);
+		status =
+		    acpi_ut_validate_resource(NULL, aml_buffer,
+					      &resource_index);
 		if (ACPI_FAILURE(status)) {
+			/*
+			 * Exit on failure. Cannot continue because the descriptor length
+			 * may be bogus also.
+			 */
 			return_ACPI_STATUS(status);
 		}
+
+		aml_resource = (void *)aml_buffer;
 
 		/* Get the resource length and base (minimum) AML size */
 
@@ -418,14 +465,21 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Get the number of vendor data bytes
 			 */
 			extra_struct_bytes = resource_length;
+
+			/*
+			 * There is already one byte included in the minimum
+			 * descriptor size. If there are extra struct bytes,
+			 * subtract one from the count.
+			 */
+			if (extra_struct_bytes) {
+				extra_struct_bytes--;
+			}
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
 			/*
-			 * End Tag:
-			 * This is the normal exit, add size of end_tag
+			 * End Tag: This is the normal exit
 			 */
-			*size_needed += ACPI_RS_SIZE_MIN;
 			return_ACPI_STATUS(AE_OK);
 
 		case ACPI_RESOURCE_NAME_ADDRESS32:
@@ -457,6 +511,33 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 							 minimum_aml_resource_length);
 			break;
 
+		case ACPI_RESOURCE_NAME_GPIO:
+
+			/* Vendor data is optional */
+
+			if (aml_resource->gpio.vendor_length) {
+				extra_struct_bytes +=
+				    aml_resource->gpio.vendor_offset -
+				    aml_resource->gpio.pin_table_offset +
+				    aml_resource->gpio.vendor_length;
+			} else {
+				extra_struct_bytes +=
+				    aml_resource->large_header.resource_length +
+				    sizeof(struct aml_resource_large_header) -
+				    aml_resource->gpio.pin_table_offset;
+			}
+			break;
+
+		case ACPI_RESOURCE_NAME_SERIAL_BUS:
+
+			minimum_aml_resource_length =
+			    acpi_gbl_resource_aml_serial_bus_sizes
+			    [aml_resource->common_serial_bus.type];
+			extra_struct_bytes +=
+			    aml_resource->common_serial_bus.resource_length -
+			    minimum_aml_resource_length;
+			break;
+
 		default:
 			break;
 		}
@@ -467,9 +548,18 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 		 * Important: Round the size up for the appropriate alignment. This
 		 * is a requirement on IA64.
 		 */
-		buffer_size = acpi_gbl_resource_struct_sizes[resource_index] +
-		    extra_struct_bytes;
-		buffer_size = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(buffer_size);
+		if (acpi_ut_get_resource_type(aml_buffer) ==
+		    ACPI_RESOURCE_NAME_SERIAL_BUS) {
+			buffer_size =
+			    acpi_gbl_resource_struct_serial_bus_sizes
+			    [aml_resource->common_serial_bus.type] +
+			    extra_struct_bytes;
+		} else {
+			buffer_size =
+			    acpi_gbl_resource_struct_sizes[resource_index] +
+			    extra_struct_bytes;
+		}
+		buffer_size = (u32)ACPI_ROUND_UP_TO_NATIVE_WORD(buffer_size);
 
 		*size_needed += buffer_size;
 
@@ -528,7 +618,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	/*
 	 * Calculate the size of the return buffer.
 	 * The base size is the number of elements * the sizes of the
-	 * structures.  Additional space for the strings is added below.
+	 * structures. Additional space for the strings is added below.
 	 * The minus one is to subtract the size of the u8 Source[1]
 	 * member because it is added below.
 	 *
@@ -591,8 +681,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 						     (*sub_object_list)->string.
 						     length + 1);
 			} else {
-				temp_size_needed +=
-				    acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				temp_size_needed += acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
 			}
 		} else {
 			/*

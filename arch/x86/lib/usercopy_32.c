@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <asm/uaccess.h>
 #include <asm/mmx.h>
+#include <asm/asm.h>
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
 /*
@@ -33,93 +34,6 @@ static inline int __movsl_is_ok(unsigned long a1, unsigned long a2, unsigned lon
 	__movsl_is_ok((unsigned long)(a1), (unsigned long)(a2), (n))
 
 /*
- * Copy a null terminated string from userspace.
- */
-
-#define __do_strncpy_from_user(dst, src, count, res)			   \
-do {									   \
-	int __d0, __d1, __d2;						   \
-	might_fault();							   \
-	__asm__ __volatile__(						   \
-		"	testl %1,%1\n"					   \
-		"	jz 2f\n"					   \
-		"0:	lodsb\n"					   \
-		"	stosb\n"					   \
-		"	testb %%al,%%al\n"				   \
-		"	jz 1f\n"					   \
-		"	decl %1\n"					   \
-		"	jnz 0b\n"					   \
-		"1:	subl %1,%0\n"					   \
-		"2:\n"							   \
-		".section .fixup,\"ax\"\n"				   \
-		"3:	movl %5,%0\n"					   \
-		"	jmp 2b\n"					   \
-		".previous\n"						   \
-		_ASM_EXTABLE(0b,3b)					   \
-		: "=&d"(res), "=&c"(count), "=&a" (__d0), "=&S" (__d1),	   \
-		  "=&D" (__d2)						   \
-		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), "4"(dst) \
-		: "memory");						   \
-} while (0)
-
-/**
- * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- * Caller must check the specified block with access_ok() before calling
- * this function.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-EXPORT_SYMBOL(__strncpy_from_user);
-
-/**
- * strncpy_from_user: - Copy a NUL terminated string from userspace.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @src:   Source address, in user space.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from userspace to kernel space.
- *
- * On success, returns the length of the string (not including the trailing
- * NUL).
- *
- * If access to userspace fails, returns -EFAULT (some data may have been
- * copied).
- *
- * If @count is smaller than the length of the string, copies @count bytes
- * and returns @count.
- */
-long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res = -EFAULT;
-	if (access_ok(VERIFY_READ, src, 1))
-		__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-EXPORT_SYMBOL(strncpy_from_user);
-
-/*
  * Zero Userspace
  */
 
@@ -128,10 +42,11 @@ do {									\
 	int __d0;							\
 	might_fault();							\
 	__asm__ __volatile__(						\
+		ASM_STAC "\n"						\
 		"0:	rep; stosl\n"					\
 		"	movl %2,%0\n"					\
 		"1:	rep; stosb\n"					\
-		"2:\n"							\
+		"2: " ASM_CLAC "\n"					\
 		".section .fixup,\"ax\"\n"				\
 		"3:	lea 0(%2,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
@@ -180,50 +95,6 @@ __clear_user(void __user *to, unsigned long n)
 	return n;
 }
 EXPORT_SYMBOL(__clear_user);
-
-/**
- * strnlen_user: - Get the size of a string in user space.
- * @s: The string to measure.
- * @n: The maximum valid length
- *
- * Get the size of a NUL-terminated string in user space.
- *
- * Returns the size of the string INCLUDING the terminating NUL.
- * On exception, returns 0.
- * If the string is too long, returns a value greater than @n.
- */
-long strnlen_user(const char __user *s, long n)
-{
-	unsigned long mask = -__addr_ok(s);
-	unsigned long res, tmp;
-
-	might_fault();
-
-	__asm__ __volatile__(
-		"	testl %0, %0\n"
-		"	jz 3f\n"
-		"	andl %0,%%ecx\n"
-		"0:	repne; scasb\n"
-		"	setne %%al\n"
-		"	subl %%ecx,%0\n"
-		"	addl %0,%%eax\n"
-		"1:\n"
-		".section .fixup,\"ax\"\n"
-		"2:	xorl %%eax,%%eax\n"
-		"	jmp 1b\n"
-		"3:	movb $1,%%al\n"
-		"	jmp 1b\n"
-		".previous\n"
-		".section __ex_table,\"a\"\n"
-		"	.align 4\n"
-		"	.long 0b,2b\n"
-		".previous"
-		:"=&r" (n), "=&D" (s), "=&a" (res), "=&c" (tmp)
-		:"0" (n), "1" (s), "2" (0), "3" (mask)
-		:"cc");
-	return res & mask;
-}
-EXPORT_SYMBOL(strnlen_user);
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
 static unsigned long
@@ -286,47 +157,44 @@ __copy_user_intel(void __user *to, const void *from, unsigned long size)
 		       "101:   lea 0(%%eax,%0,4),%0\n"
 		       "       jmp 100b\n"
 		       ".previous\n"
-		       ".section __ex_table,\"a\"\n"
-		       "       .align 4\n"
-		       "       .long 1b,100b\n"
-		       "       .long 2b,100b\n"
-		       "       .long 3b,100b\n"
-		       "       .long 4b,100b\n"
-		       "       .long 5b,100b\n"
-		       "       .long 6b,100b\n"
-		       "       .long 7b,100b\n"
-		       "       .long 8b,100b\n"
-		       "       .long 9b,100b\n"
-		       "       .long 10b,100b\n"
-		       "       .long 11b,100b\n"
-		       "       .long 12b,100b\n"
-		       "       .long 13b,100b\n"
-		       "       .long 14b,100b\n"
-		       "       .long 15b,100b\n"
-		       "       .long 16b,100b\n"
-		       "       .long 17b,100b\n"
-		       "       .long 18b,100b\n"
-		       "       .long 19b,100b\n"
-		       "       .long 20b,100b\n"
-		       "       .long 21b,100b\n"
-		       "       .long 22b,100b\n"
-		       "       .long 23b,100b\n"
-		       "       .long 24b,100b\n"
-		       "       .long 25b,100b\n"
-		       "       .long 26b,100b\n"
-		       "       .long 27b,100b\n"
-		       "       .long 28b,100b\n"
-		       "       .long 29b,100b\n"
-		       "       .long 30b,100b\n"
-		       "       .long 31b,100b\n"
-		       "       .long 32b,100b\n"
-		       "       .long 33b,100b\n"
-		       "       .long 34b,100b\n"
-		       "       .long 35b,100b\n"
-		       "       .long 36b,100b\n"
-		       "       .long 37b,100b\n"
-		       "       .long 99b,101b\n"
-		       ".previous"
+		       _ASM_EXTABLE(1b,100b)
+		       _ASM_EXTABLE(2b,100b)
+		       _ASM_EXTABLE(3b,100b)
+		       _ASM_EXTABLE(4b,100b)
+		       _ASM_EXTABLE(5b,100b)
+		       _ASM_EXTABLE(6b,100b)
+		       _ASM_EXTABLE(7b,100b)
+		       _ASM_EXTABLE(8b,100b)
+		       _ASM_EXTABLE(9b,100b)
+		       _ASM_EXTABLE(10b,100b)
+		       _ASM_EXTABLE(11b,100b)
+		       _ASM_EXTABLE(12b,100b)
+		       _ASM_EXTABLE(13b,100b)
+		       _ASM_EXTABLE(14b,100b)
+		       _ASM_EXTABLE(15b,100b)
+		       _ASM_EXTABLE(16b,100b)
+		       _ASM_EXTABLE(17b,100b)
+		       _ASM_EXTABLE(18b,100b)
+		       _ASM_EXTABLE(19b,100b)
+		       _ASM_EXTABLE(20b,100b)
+		       _ASM_EXTABLE(21b,100b)
+		       _ASM_EXTABLE(22b,100b)
+		       _ASM_EXTABLE(23b,100b)
+		       _ASM_EXTABLE(24b,100b)
+		       _ASM_EXTABLE(25b,100b)
+		       _ASM_EXTABLE(26b,100b)
+		       _ASM_EXTABLE(27b,100b)
+		       _ASM_EXTABLE(28b,100b)
+		       _ASM_EXTABLE(29b,100b)
+		       _ASM_EXTABLE(30b,100b)
+		       _ASM_EXTABLE(31b,100b)
+		       _ASM_EXTABLE(32b,100b)
+		       _ASM_EXTABLE(33b,100b)
+		       _ASM_EXTABLE(34b,100b)
+		       _ASM_EXTABLE(35b,100b)
+		       _ASM_EXTABLE(36b,100b)
+		       _ASM_EXTABLE(37b,100b)
+		       _ASM_EXTABLE(99b,101b)
 		       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 		       :  "1"(to), "2"(from), "0"(size)
 		       : "eax", "edx", "memory");
@@ -399,29 +267,26 @@ __copy_user_zeroing_intel(void *to, const void __user *from, unsigned long size)
 		       "        popl %0\n"
 		       "        jmp 8b\n"
 		       ".previous\n"
-		       ".section __ex_table,\"a\"\n"
-		       "	.align 4\n"
-		       "	.long 0b,16b\n"
-		       "	.long 1b,16b\n"
-		       "	.long 2b,16b\n"
-		       "	.long 21b,16b\n"
-		       "	.long 3b,16b\n"
-		       "	.long 31b,16b\n"
-		       "	.long 4b,16b\n"
-		       "	.long 41b,16b\n"
-		       "	.long 10b,16b\n"
-		       "	.long 51b,16b\n"
-		       "	.long 11b,16b\n"
-		       "	.long 61b,16b\n"
-		       "	.long 12b,16b\n"
-		       "	.long 71b,16b\n"
-		       "	.long 13b,16b\n"
-		       "	.long 81b,16b\n"
-		       "	.long 14b,16b\n"
-		       "	.long 91b,16b\n"
-		       "	.long 6b,9b\n"
-		       "        .long 7b,16b\n"
-		       ".previous"
+		       _ASM_EXTABLE(0b,16b)
+		       _ASM_EXTABLE(1b,16b)
+		       _ASM_EXTABLE(2b,16b)
+		       _ASM_EXTABLE(21b,16b)
+		       _ASM_EXTABLE(3b,16b)
+		       _ASM_EXTABLE(31b,16b)
+		       _ASM_EXTABLE(4b,16b)
+		       _ASM_EXTABLE(41b,16b)
+		       _ASM_EXTABLE(10b,16b)
+		       _ASM_EXTABLE(51b,16b)
+		       _ASM_EXTABLE(11b,16b)
+		       _ASM_EXTABLE(61b,16b)
+		       _ASM_EXTABLE(12b,16b)
+		       _ASM_EXTABLE(71b,16b)
+		       _ASM_EXTABLE(13b,16b)
+		       _ASM_EXTABLE(81b,16b)
+		       _ASM_EXTABLE(14b,16b)
+		       _ASM_EXTABLE(91b,16b)
+		       _ASM_EXTABLE(6b,9b)
+		       _ASM_EXTABLE(7b,16b)
 		       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 		       :  "1"(to), "2"(from), "0"(size)
 		       : "eax", "edx", "memory");
@@ -501,29 +366,26 @@ static unsigned long __copy_user_zeroing_intel_nocache(void *to,
 	       "        popl %0\n"
 	       "        jmp 8b\n"
 	       ".previous\n"
-	       ".section __ex_table,\"a\"\n"
-	       "	.align 4\n"
-	       "	.long 0b,16b\n"
-	       "	.long 1b,16b\n"
-	       "	.long 2b,16b\n"
-	       "	.long 21b,16b\n"
-	       "	.long 3b,16b\n"
-	       "	.long 31b,16b\n"
-	       "	.long 4b,16b\n"
-	       "	.long 41b,16b\n"
-	       "	.long 10b,16b\n"
-	       "	.long 51b,16b\n"
-	       "	.long 11b,16b\n"
-	       "	.long 61b,16b\n"
-	       "	.long 12b,16b\n"
-	       "	.long 71b,16b\n"
-	       "	.long 13b,16b\n"
-	       "	.long 81b,16b\n"
-	       "	.long 14b,16b\n"
-	       "	.long 91b,16b\n"
-	       "	.long 6b,9b\n"
-	       "        .long 7b,16b\n"
-	       ".previous"
+	       _ASM_EXTABLE(0b,16b)
+	       _ASM_EXTABLE(1b,16b)
+	       _ASM_EXTABLE(2b,16b)
+	       _ASM_EXTABLE(21b,16b)
+	       _ASM_EXTABLE(3b,16b)
+	       _ASM_EXTABLE(31b,16b)
+	       _ASM_EXTABLE(4b,16b)
+	       _ASM_EXTABLE(41b,16b)
+	       _ASM_EXTABLE(10b,16b)
+	       _ASM_EXTABLE(51b,16b)
+	       _ASM_EXTABLE(11b,16b)
+	       _ASM_EXTABLE(61b,16b)
+	       _ASM_EXTABLE(12b,16b)
+	       _ASM_EXTABLE(71b,16b)
+	       _ASM_EXTABLE(13b,16b)
+	       _ASM_EXTABLE(81b,16b)
+	       _ASM_EXTABLE(14b,16b)
+	       _ASM_EXTABLE(91b,16b)
+	       _ASM_EXTABLE(6b,9b)
+	       _ASM_EXTABLE(7b,16b)
 	       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 	       :  "1"(to), "2"(from), "0"(size)
 	       : "eax", "edx", "memory");
@@ -592,29 +454,26 @@ static unsigned long __copy_user_intel_nocache(void *to,
 	       "9:      lea 0(%%eax,%0,4),%0\n"
 	       "16:     jmp 8b\n"
 	       ".previous\n"
-	       ".section __ex_table,\"a\"\n"
-	       "	.align 4\n"
-	       "	.long 0b,16b\n"
-	       "	.long 1b,16b\n"
-	       "	.long 2b,16b\n"
-	       "	.long 21b,16b\n"
-	       "	.long 3b,16b\n"
-	       "	.long 31b,16b\n"
-	       "	.long 4b,16b\n"
-	       "	.long 41b,16b\n"
-	       "	.long 10b,16b\n"
-	       "	.long 51b,16b\n"
-	       "	.long 11b,16b\n"
-	       "	.long 61b,16b\n"
-	       "	.long 12b,16b\n"
-	       "	.long 71b,16b\n"
-	       "	.long 13b,16b\n"
-	       "	.long 81b,16b\n"
-	       "	.long 14b,16b\n"
-	       "	.long 91b,16b\n"
-	       "	.long 6b,9b\n"
-	       "        .long 7b,16b\n"
-	       ".previous"
+	       _ASM_EXTABLE(0b,16b)
+	       _ASM_EXTABLE(1b,16b)
+	       _ASM_EXTABLE(2b,16b)
+	       _ASM_EXTABLE(21b,16b)
+	       _ASM_EXTABLE(3b,16b)
+	       _ASM_EXTABLE(31b,16b)
+	       _ASM_EXTABLE(4b,16b)
+	       _ASM_EXTABLE(41b,16b)
+	       _ASM_EXTABLE(10b,16b)
+	       _ASM_EXTABLE(51b,16b)
+	       _ASM_EXTABLE(11b,16b)
+	       _ASM_EXTABLE(61b,16b)
+	       _ASM_EXTABLE(12b,16b)
+	       _ASM_EXTABLE(71b,16b)
+	       _ASM_EXTABLE(13b,16b)
+	       _ASM_EXTABLE(81b,16b)
+	       _ASM_EXTABLE(14b,16b)
+	       _ASM_EXTABLE(91b,16b)
+	       _ASM_EXTABLE(6b,9b)
+	       _ASM_EXTABLE(7b,16b)
 	       : "=&c"(size), "=&D" (d0), "=&S" (d1)
 	       :  "1"(to), "2"(from), "0"(size)
 	       : "eax", "edx", "memory");
@@ -661,12 +520,9 @@ do {									\
 		"3:	lea 0(%3,%0,4),%0\n"				\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.align 4\n"					\
-		"	.long 4b,5b\n"					\
-		"	.long 0b,3b\n"					\
-		"	.long 1b,2b\n"					\
-		".previous"						\
+		_ASM_EXTABLE(4b,5b)					\
+		_ASM_EXTABLE(0b,3b)					\
+		_ASM_EXTABLE(1b,2b)					\
 		: "=&c"(size), "=&D" (__d0), "=&S" (__d1), "=r"(__d2)	\
 		: "3"(size), "0"(size), "1"(to), "2"(from)		\
 		: "memory");						\
@@ -703,12 +559,9 @@ do {									\
 		"	popl %0\n"					\
 		"	jmp 2b\n"					\
 		".previous\n"						\
-		".section __ex_table,\"a\"\n"				\
-		"	.align 4\n"					\
-		"	.long 4b,5b\n"					\
-		"	.long 0b,3b\n"					\
-		"	.long 1b,6b\n"					\
-		".previous"						\
+		_ASM_EXTABLE(4b,5b)					\
+		_ASM_EXTABLE(0b,3b)					\
+		_ASM_EXTABLE(1b,6b)					\
 		: "=&c"(size), "=&D" (__d0), "=&S" (__d1), "=r"(__d2)	\
 		: "3"(size), "0"(size), "1"(to), "2"(from)		\
 		: "memory");						\
@@ -717,67 +570,12 @@ do {									\
 unsigned long __copy_to_user_ll(void __user *to, const void *from,
 				unsigned long n)
 {
-#ifndef CONFIG_X86_WP_WORKS_OK
-	if (unlikely(boot_cpu_data.wp_works_ok == 0) &&
-			((unsigned long)to) < TASK_SIZE) {
-		/*
-		 * When we are in an atomic section (see
-		 * mm/filemap.c:file_read_actor), return the full
-		 * length to take the slow path.
-		 */
-		if (in_atomic())
-			return n;
-
-		/*
-		 * CPU does not honor the WP bit when writing
-		 * from supervisory mode, and due to preemption or SMP,
-		 * the page tables can change at any time.
-		 * Do it manually.	Manfred <manfred@colorfullife.com>
-		 */
-		while (n) {
-			unsigned long offset = ((unsigned long)to)%PAGE_SIZE;
-			unsigned long len = PAGE_SIZE - offset;
-			int retval;
-			struct page *pg;
-			void *maddr;
-
-			if (len > n)
-				len = n;
-
-survive:
-			down_read(&current->mm->mmap_sem);
-			retval = get_user_pages(current, current->mm,
-					(unsigned long)to, 1, 1, 0, &pg, NULL);
-
-			if (retval == -ENOMEM && is_global_init(current)) {
-				up_read(&current->mm->mmap_sem);
-				congestion_wait(BLK_RW_ASYNC, HZ/50);
-				goto survive;
-			}
-
-			if (retval != 1) {
-				up_read(&current->mm->mmap_sem);
-				break;
-			}
-
-			maddr = kmap_atomic(pg, KM_USER0);
-			memcpy(maddr + offset, from, len);
-			kunmap_atomic(maddr, KM_USER0);
-			set_page_dirty_lock(pg);
-			put_page(pg);
-			up_read(&current->mm->mmap_sem);
-
-			from += len;
-			to += len;
-			n -= len;
-		}
-		return n;
-	}
-#endif
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);
 	else
 		n = __copy_user_intel(to, from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_to_user_ll);
@@ -785,10 +583,12 @@ EXPORT_SYMBOL(__copy_to_user_ll);
 unsigned long __copy_from_user_ll(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user_zeroing(to, from, n);
 	else
 		n = __copy_user_zeroing_intel(to, from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll);
@@ -796,11 +596,13 @@ EXPORT_SYMBOL(__copy_from_user_ll);
 unsigned long __copy_from_user_ll_nozero(void *to, const void __user *from,
 					 unsigned long n)
 {
+	stac();
 	if (movsl_is_ok(to, from, n))
 		__copy_user(to, from, n);
 	else
 		n = __copy_user_intel((void __user *)to,
 				      (const void *)from, n);
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nozero);
@@ -808,6 +610,7 @@ EXPORT_SYMBOL(__copy_from_user_ll_nozero);
 unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 #ifdef CONFIG_X86_INTEL_USERCOPY
 	if (n > 64 && cpu_has_xmm2)
 		n = __copy_user_zeroing_intel_nocache(to, from, n);
@@ -816,6 +619,7 @@ unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 #else
 	__copy_user_zeroing(to, from, n);
 #endif
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nocache);
@@ -823,6 +627,7 @@ EXPORT_SYMBOL(__copy_from_user_ll_nocache);
 unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *from,
 					unsigned long n)
 {
+	stac();
 #ifdef CONFIG_X86_INTEL_USERCOPY
 	if (n > 64 && cpu_has_xmm2)
 		n = __copy_user_intel_nocache(to, from, n);
@@ -831,6 +636,7 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 #else
 	__copy_user(to, from, n);
 #endif
+	clac();
 	return n;
 }
 EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);
@@ -883,9 +689,3 @@ _copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 EXPORT_SYMBOL(_copy_from_user);
-
-void copy_from_user_overflow(void)
-{
-	WARN(1, "Buffer overflow detected!\n");
-}
-EXPORT_SYMBOL(copy_from_user_overflow);

@@ -11,6 +11,7 @@
 #include <linux/inetdevice.h>
 #include <linux/inet.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 #include <linux/netpoll.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -28,6 +29,8 @@
 #include <trace/events/skb.h>
 #include <trace/events/net.h>
 #include <trace/events/napi.h>
+#include <trace/events/sock.h>
+#include <trace/events/udp.h>
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kfree_skb);
 

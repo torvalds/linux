@@ -18,53 +18,18 @@
 #ifndef _LINUX_NET_H
 #define _LINUX_NET_H
 
-#include <linux/socket.h>
-#include <asm/socket.h>
-
-#define NPROTO		AF_MAX
-
-#define SYS_SOCKET	1		/* sys_socket(2)		*/
-#define SYS_BIND	2		/* sys_bind(2)			*/
-#define SYS_CONNECT	3		/* sys_connect(2)		*/
-#define SYS_LISTEN	4		/* sys_listen(2)		*/
-#define SYS_ACCEPT	5		/* sys_accept(2)		*/
-#define SYS_GETSOCKNAME	6		/* sys_getsockname(2)		*/
-#define SYS_GETPEERNAME	7		/* sys_getpeername(2)		*/
-#define SYS_SOCKETPAIR	8		/* sys_socketpair(2)		*/
-#define SYS_SEND	9		/* sys_send(2)			*/
-#define SYS_RECV	10		/* sys_recv(2)			*/
-#define SYS_SENDTO	11		/* sys_sendto(2)		*/
-#define SYS_RECVFROM	12		/* sys_recvfrom(2)		*/
-#define SYS_SHUTDOWN	13		/* sys_shutdown(2)		*/
-#define SYS_SETSOCKOPT	14		/* sys_setsockopt(2)		*/
-#define SYS_GETSOCKOPT	15		/* sys_getsockopt(2)		*/
-#define SYS_SENDMSG	16		/* sys_sendmsg(2)		*/
-#define SYS_RECVMSG	17		/* sys_recvmsg(2)		*/
-#define SYS_ACCEPT4	18		/* sys_accept4(2)		*/
-#define SYS_RECVMMSG	19		/* sys_recvmmsg(2)		*/
-#define SYS_SENDMMSG	20		/* sys_sendmmsg(2)		*/
-
-typedef enum {
-	SS_FREE = 0,			/* not allocated		*/
-	SS_UNCONNECTED,			/* unconnected to any socket	*/
-	SS_CONNECTING,			/* in process of connecting	*/
-	SS_CONNECTED,			/* connected to socket		*/
-	SS_DISCONNECTING		/* in process of disconnecting	*/
-} socket_state;
-
-#define __SO_ACCEPTCON	(1 << 16)	/* performed a listen		*/
-
-#ifdef __KERNEL__
 #include <linux/stringify.h>
 #include <linux/random.h>
 #include <linux/wait.h>
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/kmemcheck.h>
 #include <linux/rcupdate.h>
+#include <uapi/linux/net.h>
 
 struct poll_table_struct;
 struct pipe_inode_info;
 struct inode;
+struct file;
 struct net;
 
 #define SOCK_ASYNC_NOSPACE	0
@@ -72,6 +37,7 @@ struct net;
 #define SOCK_NOSPACE		2
 #define SOCK_PASSCRED		3
 #define SOCK_PASSSEC		4
+#define SOCK_EXTERNALLY_ALLOCATED 5
 
 #ifndef ARCH_HAS_SOCKET_TYPES
 /**
@@ -206,6 +172,7 @@ struct proto_ops {
 				      int offset, size_t size, int flags);
 	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos,
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+	void		(*set_peek_off)(struct sock *sk, int val);
 };
 
 #define DECLARE_SOCKADDR(type, dst, src)	\
@@ -244,13 +211,37 @@ extern int   	     sock_sendmsg(struct socket *sock, struct msghdr *msg,
 				  size_t len);
 extern int	     sock_recvmsg(struct socket *sock, struct msghdr *msg,
 				  size_t size, int flags);
-extern int 	     sock_map_fd(struct socket *sock, int flags);
+extern struct file  *sock_alloc_file(struct socket *sock, int flags, const char *dname);
 extern struct socket *sockfd_lookup(int fd, int *err);
+extern struct socket *sock_from_file(struct file *file, int *err);
 #define		     sockfd_put(sock) fput(sock->file)
 extern int	     net_ratelimit(void);
 
-#define net_random()		random32()
-#define net_srandom(seed)	srandom32((__force u32)seed)
+#define net_ratelimited_function(function, ...)			\
+do {								\
+	if (net_ratelimit())					\
+		function(__VA_ARGS__);				\
+} while (0)
+
+#define net_emerg_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_emerg, fmt, ##__VA_ARGS__)
+#define net_alert_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_alert, fmt, ##__VA_ARGS__)
+#define net_crit_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_crit, fmt, ##__VA_ARGS__)
+#define net_err_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_err, fmt, ##__VA_ARGS__)
+#define net_notice_ratelimited(fmt, ...)			\
+	net_ratelimited_function(pr_notice, fmt, ##__VA_ARGS__)
+#define net_warn_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
+#define net_info_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_info, fmt, ##__VA_ARGS__)
+#define net_dbg_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
+
+#define net_random()		prandom_u32()
+#define net_srandom(seed)	prandom_seed((__force u32)(seed))
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 				    struct kvec *vec, size_t num, size_t len);
@@ -289,5 +280,7 @@ extern int kernel_sock_shutdown(struct socket *sock,
 	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
 		     "-type-" __stringify(type))
 
-#endif /* __KERNEL__ */
+#define MODULE_ALIAS_NET_PF_PROTO_NAME(pf, proto, name) \
+	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
+		     name)
 #endif	/* _LINUX_NET_H */

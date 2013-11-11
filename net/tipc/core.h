@@ -37,6 +37,8 @@
 #ifndef _TIPC_CORE_H
 #define _TIPC_CORE_H
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
 #include <linux/types.h>
@@ -47,7 +49,7 @@
 #include <linux/string.h>
 #include <asm/uaccess.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/in.h>
@@ -58,114 +60,35 @@
 
 #define TIPC_MOD_VER "2.0.0"
 
+#define ULTRA_STRING_MAX_LEN	32768
+#define TIPC_MAX_SUBSCRIPTIONS	65535
+#define TIPC_MAX_PUBLICATIONS	65535
+
 struct tipc_msg;	/* msg.h */
-struct print_buf;	/* log.h */
 
-/*
- * TIPC sanity test macros
- */
-
-#define assert(i)  BUG_ON(!(i))
-
-/*
- * TIPC system monitoring code
- */
-
-/*
- * TIPC's print buffer subsystem supports the following print buffers:
- *
- * TIPC_NULL : null buffer (i.e. print nowhere)
- * TIPC_CONS : system console
- * TIPC_LOG  : TIPC log buffer
- * &buf	     : user-defined buffer (struct print_buf *)
- *
- * Note: TIPC_LOG is configured to echo its output to the system console;
- *       user-defined buffers can be configured to do the same thing.
- */
-extern struct print_buf *const TIPC_NULL;
-extern struct print_buf *const TIPC_CONS;
-extern struct print_buf *const TIPC_LOG;
-
-void tipc_printf(struct print_buf *, const char *fmt, ...);
-
-/*
- * TIPC_OUTPUT is the destination print buffer for system messages.
- */
-
-#ifndef TIPC_OUTPUT
-#define TIPC_OUTPUT TIPC_LOG
-#endif
-
-#define err(fmt, arg...)  tipc_printf(TIPC_OUTPUT, \
-				      KERN_ERR "TIPC: " fmt, ## arg)
-#define warn(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-				      KERN_WARNING "TIPC: " fmt, ## arg)
-#define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-				      KERN_NOTICE "TIPC: " fmt, ## arg)
-
-#ifdef CONFIG_TIPC_DEBUG
-
-/*
- * DBG_OUTPUT is the destination print buffer for debug messages.
- */
-
-#ifndef DBG_OUTPUT
-#define DBG_OUTPUT TIPC_LOG
-#endif
-
-#define dbg(fmt, arg...)  tipc_printf(DBG_OUTPUT, KERN_DEBUG fmt, ## arg);
-
-#define msg_dbg(msg, txt) tipc_msg_dbg(DBG_OUTPUT, msg, txt);
-
-void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
-
-#else
-
-#define dbg(fmt, arg...)	do {} while (0)
-#define msg_dbg(msg, txt)	do {} while (0)
-
-#define tipc_msg_dbg(buf, msg, txt) do {} while (0)
-
-#endif
-
+int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 
 /*
  * TIPC-specific error codes
  */
-
 #define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
-
-/*
- * TIPC operating mode routines
- */
-#define TIPC_NOT_RUNNING  0
-#define TIPC_NODE_MODE    1
-#define TIPC_NET_MODE     2
 
 /*
  * Global configuration variables
  */
-
-extern u32 tipc_own_addr;
-extern int tipc_max_ports;
-extern int tipc_max_subscriptions;
-extern int tipc_max_publications;
-extern int tipc_net_id;
-extern int tipc_remote_management;
+extern u32 tipc_own_addr __read_mostly;
+extern int tipc_max_ports __read_mostly;
+extern int tipc_net_id __read_mostly;
+extern int tipc_remote_management __read_mostly;
 
 /*
  * Other global variables
  */
-
-extern int tipc_mode;
-extern int tipc_random;
-extern const char tipc_alphabet[];
-
+extern int tipc_random __read_mostly;
 
 /*
  * Routines available to privileged subsystems
  */
-
 extern int tipc_core_start_net(unsigned long);
 extern int  tipc_handler_start(void);
 extern void tipc_handler_stop(void);
@@ -174,20 +97,9 @@ extern void tipc_netlink_stop(void);
 extern int  tipc_socket_init(void);
 extern void tipc_socket_stop(void);
 
-static inline int delimit(int val, int min, int max)
-{
-	if (val > max)
-		return max;
-	if (val < min)
-		return min;
-	return val;
-}
-
-
 /*
  * TIPC timer and signal code
  */
-
 typedef void (*Handler) (unsigned long);
 
 u32 tipc_k_signal(Handler routine, unsigned long argument);
@@ -200,7 +112,6 @@ u32 tipc_k_signal(Handler routine, unsigned long argument);
  *
  * Timer must be initialized before use (and terminated when no longer needed).
  */
-
 static inline void k_init_timer(struct timer_list *timer, Handler routine,
 				unsigned long argument)
 {
@@ -220,7 +131,6 @@ static inline void k_init_timer(struct timer_list *timer, Handler routine,
  * then an additional jiffy is added to account for the fact that
  * the starting time may be in the middle of the current jiffy.
  */
-
 static inline void k_start_timer(struct timer_list *timer, unsigned long msec)
 {
 	mod_timer(timer, jiffies + msecs_to_jiffies(msec) + 1);
@@ -236,7 +146,6 @@ static inline void k_start_timer(struct timer_list *timer, unsigned long msec)
  * WARNING: Must not be called when holding locks required by the timer's
  *          timeout routine, otherwise deadlock can occur on SMP systems!
  */
-
 static inline void k_cancel_timer(struct timer_list *timer)
 {
 	del_timer_sync(timer);
@@ -253,11 +162,9 @@ static inline void k_cancel_timer(struct timer_list *timer)
  * (Do not "enhance" this routine to automatically cancel an active timer,
  * otherwise deadlock can arise when a timeout routine calls k_term_timer.)
  */
-
 static inline void k_term_timer(struct timer_list *timer)
 {
 }
-
 
 /*
  * TIPC message buffer code
@@ -268,7 +175,6 @@ static inline void k_term_timer(struct timer_list *timer)
  * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
  *       are word aligned for quicker access
  */
-
 #define BUF_HEADROOM LL_MAX_HEADER
 
 struct tipc_skb_cb {
@@ -277,36 +183,11 @@ struct tipc_skb_cb {
 
 #define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
 
-
 static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 {
 	return (struct tipc_msg *)skb->data;
 }
 
 extern struct sk_buff *tipc_buf_acquire(u32 size);
-
-/**
- * buf_discard - frees a TIPC message buffer
- * @skb: message buffer
- *
- * Frees a message buffer.  If passed NULL, just returns.
- */
-
-static inline void buf_discard(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-}
-
-/**
- * buf_linearize - convert a TIPC message buffer into a single contiguous piece
- * @skb: message buffer
- *
- * Returns 0 on success.
- */
-
-static inline int buf_linearize(struct sk_buff *skb)
-{
-	return skb_linearize(skb);
-}
 
 #endif

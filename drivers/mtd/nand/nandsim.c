@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -42,6 +42,8 @@
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \
@@ -105,7 +107,6 @@ static char *weakblocks = NULL;
 static char *weakpages = NULL;
 static unsigned int bitflips = 0;
 static char *gravepages = NULL;
-static unsigned int rptwear = 0;
 static unsigned int overridesize = 0;
 static char *cache_file = NULL;
 static unsigned int bbt;
@@ -130,7 +131,6 @@ module_param(weakblocks,     charp, 0400);
 module_param(weakpages,      charp, 0400);
 module_param(bitflips,       uint, 0400);
 module_param(gravepages,     charp, 0400);
-module_param(rptwear,        uint, 0400);
 module_param(overridesize,   uint, 0400);
 module_param(cache_file,     charp, 0400);
 module_param(bbt,	     uint, 0400);
@@ -162,7 +162,6 @@ MODULE_PARM_DESC(bitflips,       "Maximum number of random bit flips per page (z
 MODULE_PARM_DESC(gravepages,     "Pages that lose data [: maximum reads (defaults to 3)]"
 				 " separated by commas e.g. 1401:2 means page 1401"
 				 " can be read only twice before failing");
-MODULE_PARM_DESC(rptwear,        "Number of erases between reporting wear, if not zero");
 MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the ID bytes. "
 				 "The size is specified in erase blocks and as the exponent of a power of two"
 				 " e.g. 5 means a size of 32 erase blocks");
@@ -219,7 +218,6 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 #define STATE_CMD_READOOB      0x00000005 /* read OOB area */
 #define STATE_CMD_ERASE1       0x00000006 /* sector erase first command */
 #define STATE_CMD_STATUS       0x00000007 /* read status */
-#define STATE_CMD_STATUS_M     0x00000008 /* read multi-plane status (isn't implemented) */
 #define STATE_CMD_SEQIN        0x00000009 /* sequential data input */
 #define STATE_CMD_READID       0x0000000A /* read ID */
 #define STATE_CMD_ERASE2       0x0000000B /* sector erase second command */
@@ -264,15 +262,13 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 #define NS_OPER_STATES   6  /* Maximum number of states in operation */
 
 #define OPT_ANY          0xFFFFFFFF /* any chip supports this operation */
-#define OPT_PAGE256      0x00000001 /* 256-byte  page chips */
 #define OPT_PAGE512      0x00000002 /* 512-byte  page chips */
 #define OPT_PAGE2048     0x00000008 /* 2048-byte page chips */
 #define OPT_SMARTMEDIA   0x00000010 /* SmartMedia technology chips */
-#define OPT_AUTOINCR     0x00000020 /* page number auto incrementation is possible */
 #define OPT_PAGE512_8BIT 0x00000040 /* 512-byte page chips with 8-bit bus width */
 #define OPT_PAGE4096     0x00000080 /* 4096-byte page chips */
 #define OPT_LARGEPAGE    (OPT_PAGE2048 | OPT_PAGE4096) /* 2048 & 4096-byte page chips */
-#define OPT_SMALLPAGE    (OPT_PAGE256  | OPT_PAGE512)  /* 256 and 512-byte page chips */
+#define OPT_SMALLPAGE    (OPT_PAGE512) /* 512-byte page chips */
 
 /* Remove action bits from state */
 #define NS_STATE(x) ((x) & ~ACTION_MASK)
@@ -286,6 +282,11 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 
 /* Maximum page cache pages needed to read or write a NAND page to the cache_file */
 #define NS_MAX_HELD_PAGES 16
+
+struct nandsim_debug_info {
+	struct dentry *dfs_root;
+	struct dentry *dfs_wear_report;
+};
 
 /*
  * A union to represent flash memory contents and flash buffer.
@@ -366,6 +367,8 @@ struct nandsim {
 	void *file_buf;
 	struct page *held_pages[NS_MAX_HELD_PAGES];
 	int held_cnt;
+
+	struct nandsim_debug_info dbg;
 };
 
 /*
@@ -401,8 +404,6 @@ static struct nandsim_operations {
 	{OPT_ANY, {STATE_CMD_ERASE1, STATE_ADDR_SEC, STATE_CMD_ERASE2 | ACTION_SECERASE, STATE_READY}},
 	/* Read status */
 	{OPT_ANY, {STATE_CMD_STATUS, STATE_DATAOUT_STATUS, STATE_READY}},
-	/* Read multi-plane status */
-	{OPT_SMARTMEDIA, {STATE_CMD_STATUS_M, STATE_DATAOUT_STATUS_M, STATE_READY}},
 	/* Read ID */
 	{OPT_ANY, {STATE_CMD_READID, STATE_ADDR_ZERO, STATE_DATAOUT_ID, STATE_READY}},
 	/* Large page devices read page */
@@ -443,12 +444,122 @@ static LIST_HEAD(grave_pages);
 static unsigned long *erase_block_wear = NULL;
 static unsigned int wear_eb_count = 0;
 static unsigned long total_wear = 0;
-static unsigned int rptwear_cnt = 0;
 
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
-static u_char ns_verify_buf[NS_LARGEST_PAGE_SIZE];
+static int nandsim_debugfs_show(struct seq_file *m, void *private)
+{
+	unsigned long wmin = -1, wmax = 0, avg;
+	unsigned long deciles[10], decile_max[10], tot = 0;
+	unsigned int i;
+
+	/* Calc wear stats */
+	for (i = 0; i < wear_eb_count; ++i) {
+		unsigned long wear = erase_block_wear[i];
+		if (wear < wmin)
+			wmin = wear;
+		if (wear > wmax)
+			wmax = wear;
+		tot += wear;
+	}
+
+	for (i = 0; i < 9; ++i) {
+		deciles[i] = 0;
+		decile_max[i] = (wmax * (i + 1) + 5) / 10;
+	}
+	deciles[9] = 0;
+	decile_max[9] = wmax;
+	for (i = 0; i < wear_eb_count; ++i) {
+		int d;
+		unsigned long wear = erase_block_wear[i];
+		for (d = 0; d < 10; ++d)
+			if (wear <= decile_max[d]) {
+				deciles[d] += 1;
+				break;
+			}
+	}
+	avg = tot / wear_eb_count;
+
+	/* Output wear report */
+	seq_printf(m, "Total numbers of erases:  %lu\n", tot);
+	seq_printf(m, "Number of erase blocks:   %u\n", wear_eb_count);
+	seq_printf(m, "Average number of erases: %lu\n", avg);
+	seq_printf(m, "Maximum number of erases: %lu\n", wmax);
+	seq_printf(m, "Minimum number of erases: %lu\n", wmin);
+	for (i = 0; i < 10; ++i) {
+		unsigned long from = (i ? decile_max[i - 1] + 1 : 0);
+		if (from > decile_max[i])
+			continue;
+		seq_printf(m, "Number of ebs with erase counts from %lu to %lu : %lu\n",
+			from,
+			decile_max[i],
+			deciles[i]);
+	}
+
+	return 0;
+}
+
+static int nandsim_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nandsim_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations dfs_fops = {
+	.open		= nandsim_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/**
+ * nandsim_debugfs_create - initialize debugfs
+ * @dev: nandsim device description object
+ *
+ * This function creates all debugfs files for UBI device @ubi. Returns zero in
+ * case of success and a negative error code in case of failure.
+ */
+static int nandsim_debugfs_create(struct nandsim *dev)
+{
+	struct nandsim_debug_info *dbg = &dev->dbg;
+	struct dentry *dent;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return 0;
+
+	dent = debugfs_create_dir("nandsim", NULL);
+	if (IS_ERR_OR_NULL(dent)) {
+		int err = dent ? -ENODEV : PTR_ERR(dent);
+
+		NS_ERR("cannot create \"nandsim\" debugfs directory, err %d\n",
+			err);
+		return err;
+	}
+	dbg->dfs_root = dent;
+
+	dent = debugfs_create_file("wear_report", S_IRUSR,
+				   dbg->dfs_root, dev, &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dbg->dfs_wear_report = dent;
+
+	return 0;
+
+out_remove:
+	debugfs_remove_recursive(dbg->dfs_root);
+	err = dent ? PTR_ERR(dent) : -ENODEV;
+	return err;
+}
+
+/**
+ * nandsim_debugfs_remove - destroy all debugfs files
+ */
+static void nandsim_debugfs_remove(struct nandsim *ns)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		debugfs_remove_recursive(ns->dbg.dfs_root);
+}
 
 /*
  * Allocate array of page pointers, create slab allocation for an array
@@ -547,12 +658,6 @@ static char *get_partition_name(int i)
 	return kstrdup(buf, GFP_KERNEL);
 }
 
-static uint64_t divide(uint64_t n, uint32_t d)
-{
-	do_div(n, d);
-	return n;
-}
-
 /*
  * Initialize the nandsim structure.
  *
@@ -581,7 +686,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.oobsz    = mtd->oobsize;
 	ns->geom.secsz    = mtd->erasesize;
 	ns->geom.pgszoob  = ns->geom.pgsz + ns->geom.oobsz;
-	ns->geom.pgnum    = divide(ns->geom.totsz, ns->geom.pgsz);
+	ns->geom.pgnum    = div_u64(ns->geom.totsz, ns->geom.pgsz);
 	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
@@ -590,11 +695,8 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.secszoob = ns->geom.secsz + ns->geom.oobsz * ns->geom.pgsec;
 	ns->options = 0;
 
-	if (ns->geom.pgsz == 256) {
-		ns->options |= OPT_PAGE256;
-	}
-	else if (ns->geom.pgsz == 512) {
-		ns->options |= (OPT_PAGE512 | OPT_AUTOINCR);
+	if (ns->geom.pgsz == 512) {
+		ns->options |= OPT_PAGE512;
 		if (ns->busw == 8)
 			ns->options |= OPT_PAGE512_8BIT;
 	} else if (ns->geom.pgsz == 2048) {
@@ -660,11 +762,9 @@ static int init_nandsim(struct mtd_info *mtd)
 	}
 
 	/* Detect how many ID bytes the NAND chip outputs */
-        for (i = 0; nand_flash_ids[i].name != NULL; i++) {
-                if (second_id_byte != nand_flash_ids[i].id)
-                        continue;
-		if (!(nand_flash_ids[i].options & NAND_NO_AUTOINCR))
-			ns->options |= OPT_AUTOINCR;
+	for (i = 0; nand_flash_ids[i].name != NULL; i++) {
+		if (second_id_byte != nand_flash_ids[i].dev_id)
+			continue;
 	}
 
 	if (ns->busw == 16)
@@ -737,7 +837,7 @@ static int parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 			return -EINVAL;
 		}
 		offset = erase_block_no * ns->geom.secsz;
-		if (mtd->block_markbad(mtd, offset)) {
+		if (mtd_block_markbad(mtd, offset)) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
 		}
@@ -922,9 +1022,7 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 {
 	size_t mem;
 
-	if (!rptwear)
-		return 0;
-	wear_eb_count = divide(mtd->size, mtd->erasesize);
+	wear_eb_count = div_u64(mtd->size, mtd->erasesize);
 	mem = wear_eb_count * sizeof(unsigned long);
 	if (mem / sizeof(unsigned long) != wear_eb_count) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
@@ -940,64 +1038,18 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 
 static void update_wear(unsigned int erase_block_no)
 {
-	unsigned long wmin = -1, wmax = 0, avg;
-	unsigned long deciles[10], decile_max[10], tot = 0;
-	unsigned int i;
-
 	if (!erase_block_wear)
 		return;
 	total_wear += 1;
+	/*
+	 * TODO: Notify this through a debugfs entry,
+	 * instead of showing an error message.
+	 */
 	if (total_wear == 0)
 		NS_ERR("Erase counter total overflow\n");
 	erase_block_wear[erase_block_no] += 1;
 	if (erase_block_wear[erase_block_no] == 0)
 		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_no);
-	rptwear_cnt += 1;
-	if (rptwear_cnt < rptwear)
-		return;
-	rptwear_cnt = 0;
-	/* Calc wear stats */
-	for (i = 0; i < wear_eb_count; ++i) {
-		unsigned long wear = erase_block_wear[i];
-		if (wear < wmin)
-			wmin = wear;
-		if (wear > wmax)
-			wmax = wear;
-		tot += wear;
-	}
-	for (i = 0; i < 9; ++i) {
-		deciles[i] = 0;
-		decile_max[i] = (wmax * (i + 1) + 5) / 10;
-	}
-	deciles[9] = 0;
-	decile_max[9] = wmax;
-	for (i = 0; i < wear_eb_count; ++i) {
-		int d;
-		unsigned long wear = erase_block_wear[i];
-		for (d = 0; d < 10; ++d)
-			if (wear <= decile_max[d]) {
-				deciles[d] += 1;
-				break;
-			}
-	}
-	avg = tot / wear_eb_count;
-	/* Output wear report */
-	NS_INFO("*** Wear Report ***\n");
-	NS_INFO("Total numbers of erases:  %lu\n", tot);
-	NS_INFO("Number of erase blocks:   %u\n", wear_eb_count);
-	NS_INFO("Average number of erases: %lu\n", avg);
-	NS_INFO("Maximum number of erases: %lu\n", wmax);
-	NS_INFO("Minimum number of erases: %lu\n", wmin);
-	for (i = 0; i < 10; ++i) {
-		unsigned long from = (i ? decile_max[i - 1] + 1 : 0);
-		if (from > decile_max[i])
-			continue;
-		NS_INFO("Number of ebs with erase counts from %lu to %lu : %lu\n",
-			from,
-			decile_max[i],
-			deciles[i]);
-	}
-	NS_INFO("*** End of Wear Report ***\n");
 }
 
 /*
@@ -1020,8 +1072,6 @@ static char *get_state_name(uint32_t state)
 			return "STATE_CMD_ERASE1";
 		case STATE_CMD_STATUS:
 			return "STATE_CMD_STATUS";
-		case STATE_CMD_STATUS_M:
-			return "STATE_CMD_STATUS_M";
 		case STATE_CMD_SEQIN:
 			return "STATE_CMD_SEQIN";
 		case STATE_CMD_READID:
@@ -1086,7 +1136,6 @@ static int check_command(int cmd)
 	case NAND_CMD_RNDOUTSTART:
 		return 0;
 
-	case NAND_CMD_STATUS_MULTI:
 	default:
 		return 1;
 	}
@@ -1112,8 +1161,6 @@ static uint32_t get_state_by_command(unsigned command)
 			return STATE_CMD_ERASE1;
 		case NAND_CMD_STATUS:
 			return STATE_CMD_STATUS;
-		case NAND_CMD_STATUS_MULTI:
-			return STATE_CMD_STATUS_M;
 		case NAND_CMD_SEQIN:
 			return STATE_CMD_SEQIN;
 		case NAND_CMD_READID:
@@ -1349,40 +1396,32 @@ static void clear_memalloc(int memalloc)
 		current->flags &= ~PF_MEMALLOC;
 }
 
-static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t *pos)
+static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
-	mm_segment_t old_fs;
 	ssize_t tx;
 	int err, memalloc;
 
-	err = get_pages(ns, file, count, *pos);
+	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	old_fs = get_fs();
-	set_fs(get_ds());
 	memalloc = set_memalloc();
-	tx = vfs_read(file, (char __user *)buf, count, pos);
+	tx = kernel_read(file, pos, buf, count);
 	clear_memalloc(memalloc);
-	set_fs(old_fs);
 	put_pages(ns);
 	return tx;
 }
 
-static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t *pos)
+static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size_t count, loff_t pos)
 {
-	mm_segment_t old_fs;
 	ssize_t tx;
 	int err, memalloc;
 
-	err = get_pages(ns, file, count, *pos);
+	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	old_fs = get_fs();
-	set_fs(get_ds());
 	memalloc = set_memalloc();
-	tx = vfs_write(file, (char __user *)buf, count, pos);
+	tx = kernel_write(file, buf, count, pos);
 	clear_memalloc(memalloc);
-	set_fs(old_fs);
 	put_pages(ns);
 	return tx;
 }
@@ -1408,10 +1447,7 @@ int do_read_error(struct nandsim *ns, int num)
 	unsigned int page_no = ns->regs.row;
 
 	if (read_error(page_no)) {
-		int i;
-		memset(ns->buf.byte, 0xFF, num);
-		for (i = 0; i < num; ++i)
-			ns->buf.byte[i] = random32();
+		prandom_bytes(ns->buf.byte, num);
 		NS_WARN("simulating read error in page %u\n", page_no);
 		return 1;
 	}
@@ -1420,12 +1456,12 @@ int do_read_error(struct nandsim *ns, int num)
 
 void do_bit_flips(struct nandsim *ns, int num)
 {
-	if (bitflips && random32() < (1 << 22)) {
+	if (bitflips && prandom_u32() < (1 << 22)) {
 		int flips = 1;
 		if (bitflips > 1)
-			flips = (random32() % (int) bitflips) + 1;
+			flips = (prandom_u32() % (int) bitflips) + 1;
 		while (flips--) {
-			int pos = random32() % (num * 8);
+			int pos = prandom_u32() % (num * 8);
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
 			NS_WARN("read_page: flipping bit %d in page %d "
 				"reading from %d ecc: corrected=%u failed=%u\n",
@@ -1455,7 +1491,7 @@ static void read_page(struct nandsim *ns, int num)
 			if (do_read_error(ns, num))
 				return;
 			pos = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
-			tx = read_file(ns, ns->cfile, ns->buf.byte, num, &pos);
+			tx = read_file(ns, ns->cfile, ns->buf.byte, num, pos);
 			if (tx != num) {
 				NS_ERR("read_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return;
@@ -1517,7 +1553,7 @@ static int prog_page(struct nandsim *ns, int num)
 	u_char *pg_off;
 
 	if (ns->cfile) {
-		loff_t off, pos;
+		loff_t off;
 		ssize_t tx;
 		int all;
 
@@ -1529,8 +1565,7 @@ static int prog_page(struct nandsim *ns, int num)
 			memset(ns->file_buf, 0xff, ns->geom.pgszoob);
 		} else {
 			all = 0;
-			pos = off;
-			tx = read_file(ns, ns->cfile, pg_off, num, &pos);
+			tx = read_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {
 				NS_ERR("prog_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
@@ -1539,16 +1574,15 @@ static int prog_page(struct nandsim *ns, int num)
 		for (i = 0; i < num; i++)
 			pg_off[i] &= ns->buf.byte[i];
 		if (all) {
-			pos = (loff_t)ns->regs.row * ns->geom.pgszoob;
-			tx = write_file(ns, ns->cfile, ns->file_buf, ns->geom.pgszoob, &pos);
+			loff_t pos = (loff_t)ns->regs.row * ns->geom.pgszoob;
+			tx = write_file(ns, ns->cfile, ns->file_buf, ns->geom.pgszoob, pos);
 			if (tx != ns->geom.pgszoob) {
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
 			}
 			ns->pages_written[ns->regs.row] = 1;
 		} else {
-			pos = off;
-			tx = write_file(ns, ns->cfile, pg_off, num, &pos);
+			tx = write_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
@@ -1936,20 +1970,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 	if (ns->regs.count == ns->regs.num) {
 		NS_DBG("read_byte: all bytes were read\n");
 
-		/*
-		 * The OPT_AUTOINCR allows to read next consecutive pages without
-		 * new read operation cycle.
-		 */
-		if ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT) {
-			ns->regs.count = 0;
-			if (ns->regs.row + 1 < ns->geom.pgnum)
-				ns->regs.row += 1;
-			NS_DBG("read_byte: switch to the next page (%#x)\n", ns->regs.row);
-			do_state_action(ns, ACTION_CPY);
-		}
-		else if (NS_STATE(ns->nxstate) == STATE_READY)
+		if (NS_STATE(ns->nxstate) == STATE_READY)
 			switch_state(ns);
-
 	}
 
 	return outb;
@@ -2203,31 +2225,11 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	ns->regs.count += len;
 
 	if (ns->regs.count == ns->regs.num) {
-		if ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT) {
-			ns->regs.count = 0;
-			if (ns->regs.row + 1 < ns->geom.pgnum)
-				ns->regs.row += 1;
-			NS_DBG("read_buf: switch to the next page (%#x)\n", ns->regs.row);
-			do_state_action(ns, ACTION_CPY);
-		}
-		else if (NS_STATE(ns->nxstate) == STATE_READY)
+		if (NS_STATE(ns->nxstate) == STATE_READY)
 			switch_state(ns);
 	}
 
 	return;
-}
-
-static int ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	ns_nand_read_buf(mtd, (u_char *)&ns_verify_buf[0], len);
-
-	if (!memcmp(buf, &ns_verify_buf[0], len)) {
-		NS_DBG("verify_buf: the buffer is OK\n");
-		return 0;
-	} else {
-		NS_DBG("verify_buf: the buffer is wrong\n");
-		return -EFAULT;
-	}
 }
 
 /*
@@ -2264,7 +2266,6 @@ static int __init ns_init_module(void)
 	chip->dev_ready  = ns_device_ready;
 	chip->write_buf  = ns_nand_write_buf;
 	chip->read_buf   = ns_nand_read_buf;
-	chip->verify_buf = ns_nand_verify_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
@@ -2273,9 +2274,9 @@ static int __init ns_init_module(void)
 
 	switch (bbt) {
 	case 2:
-		 chip->options |= NAND_USE_FLASH_BBT_NO_OOB;
+		 chip->bbt_options |= NAND_BBT_NO_OOB;
 	case 1:
-		 chip->options |= NAND_USE_FLASH_BBT;
+		 chip->bbt_options |= NAND_BBT_USE_FLASH;
 	case 0:
 		break;
 	default:
@@ -2293,7 +2294,7 @@ static int __init ns_init_module(void)
 		nand->geom.idbytes = 2;
 	nand->regs.status = NS_STATUS_OK(nand);
 	nand->nxstate = STATE_UNKNOWN;
-	nand->options |= OPT_PAGE256; /* temporary value */
+	nand->options |= OPT_PAGE512; /* temporary value */
 	nand->ids[0] = first_id_byte;
 	nand->ids[1] = second_id_byte;
 	nand->ids[2] = third_id_byte;
@@ -2361,6 +2362,7 @@ static int __init ns_init_module(void)
 		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
+			retval = -EINVAL;
 			goto err_exit;
 		}
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
@@ -2371,6 +2373,9 @@ static int __init ns_init_module(void)
 	}
 
 	if ((retval = setup_wear_reporting(nsmtd)) != 0)
+		goto err_exit;
+
+	if ((retval = nandsim_debugfs_create(nand)) != 0)
 		goto err_exit;
 
 	if ((retval = init_nandsim(nsmtd)) != 0)
@@ -2412,6 +2417,7 @@ static void __exit ns_cleanup_module(void)
 	struct nandsim *ns = ((struct nand_chip *)nsmtd->priv)->priv;
 	int i;
 
+	nandsim_debugfs_remove(ns);
 	free_nandsim(ns);    /* Free nandsim private resources */
 	nand_release(nsmtd); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)

@@ -24,6 +24,7 @@
 #include <asm/sysinfo.h>
 #include <asm/hwrpb.h>
 #include <asm/mmu_context.h>
+#include <asm/special_insns.h>
 
 #include "proto.h"
 
@@ -168,13 +169,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	dik_show_trace(sp);
 }
 
-void dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 void
 die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 {
@@ -185,7 +179,7 @@ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
 #endif
 	printk("%s(%d): %s %ld\n", current->comm, task_pid_nr(current), str, err);
 	dik_show_regs(regs, r9_15);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	dik_show_trace((unsigned long *)(regs+1));
 	dik_show_code((unsigned int *)regs->pc);
 
@@ -779,17 +773,17 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	/* Check the UAC bits to decide what the user wants us to do
 	   with the unaliged access.  */
 
-	if (!test_thread_flag (TIF_UAC_NOPRINT)) {
+	if (!(current_thread_info()->status & TS_UAC_NOPRINT)) {
 		if (__ratelimit(&ratelimit)) {
 			printk("%s(%d): unaligned trap at %016lx: %p %lx %ld\n",
 			       current->comm, task_pid_nr(current),
 			       regs->pc - 4, va, opcode, reg);
 		}
 	}
-	if (test_thread_flag (TIF_UAC_SIGBUS))
+	if ((current_thread_info()->status & TS_UAC_SIGBUS))
 		goto give_sigbus;
 	/* Not sure why you'd want to use this, but... */
-	if (test_thread_flag (TIF_UAC_NOFIX))
+	if ((current_thread_info()->status & TS_UAC_NOFIX))
 		return;
 
 	/* Don't bother reading ds in the access check since we already

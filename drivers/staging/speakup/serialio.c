@@ -8,21 +8,20 @@
 
 static void start_serial_interrupt(int irq);
 
-static struct serial_state rs_table[] = {
+static const struct old_serial_port rs_table[] = {
 	SERIAL_PORT_DFNS
 };
-static struct serial_state *serstate;
+static const struct old_serial_port *serstate;
 static int timeouts;
 
-struct serial_state *spk_serial_init(int index)
+const struct old_serial_port *spk_serial_init(int index)
 {
 	int baud = 9600, quot = 0;
 	unsigned int cval = 0;
 	int cflag = CREAD | HUPCL | CLOCAL | B9600 | CS8;
-	struct serial_state *ser = NULL;
+	const struct old_serial_port *ser = rs_table + index;
 	int err;
 
-	ser = rs_table + index;
 	/*	Divisor, bytesize and parity */
 	quot = ser->baud_base / baud;
 	cval = cflag & (CSIZE | CSTOPB);
@@ -41,7 +40,7 @@ struct serial_state *spk_serial_init(int index)
 		__release_region(&ioport_resource, ser->port, 8);
 		err = synth_request_region(ser->port, 8);
 		if (err) {
-			pr_warn("Unable to allocate port at %lx, errno %i",
+			pr_warn("Unable to allocate port at %x, errno %i",
 				ser->port, err);
 			return NULL;
 		}
@@ -117,7 +116,7 @@ static void start_serial_interrupt(int irq)
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
 }
 
-void stop_serial_interrupt(void)
+void spk_stop_serial_interrupt(void)
 {
 	if (speakup_info.port_tts == 0)
 		return;
@@ -131,7 +130,7 @@ void stop_serial_interrupt(void)
 	free_irq(serstate->irq, (void *) synth_readbuf_handler);
 }
 
-int wait_for_xmitr(void)
+int spk_wait_for_xmitr(void)
 {
 	int tmout = SPK_XMITR_TIMEOUT;
 	if ((synth->alive) && (timeouts >= NUM_DISABLE_TIMEOUTS)) {
@@ -196,7 +195,7 @@ EXPORT_SYMBOL_GPL(spk_serial_in_nowait);
 
 int spk_serial_out(const char ch)
 {
-	if (synth->alive && wait_for_xmitr()) {
+	if (synth->alive && spk_wait_for_xmitr()) {
 		outb_p(ch, speakup_info.port_tts);
 		return 1;
 	}

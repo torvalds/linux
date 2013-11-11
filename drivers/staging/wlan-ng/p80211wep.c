@@ -134,10 +134,8 @@ int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen)
 		return -1;
 
 #ifdef WEP_DEBUG
-	printk(KERN_DEBUG
-	       "WEP key %d len %d = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-	       keynum, keylen, key[0], key[1], key[2], key[3], key[4], key[5],
-	       key[6], key[7]);
+	printk(KERN_DEBUG "WEP key %d len %d = %*phC\n", keynum, keylen,
+			  8, key);
 #endif
 
 	wlandev->wep_keylens[keynum] = keylen;
@@ -184,10 +182,8 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 	keylen += 3;		/* add in IV bytes */
 
 #ifdef WEP_DEBUG
-	printk(KERN_DEBUG
-	       "D %d: %02x %02x %02x (%d %d) %02x:%02x:%02x:%02x:%02x\n", len,
-	       key[0], key[1], key[2], keyidx, keylen, key[3], key[4], key[5],
-	       key[6], key[7]);
+	printk(KERN_DEBUG "D %d: %*ph (%d %d) %*phC\n", len, 3, key,
+			  keyidx, keylen, 5, key + 3);
 #endif
 
 	/* set up the RC4 state */
@@ -263,10 +259,8 @@ int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 	keylen += 3;		/* add in IV bytes */
 
 #ifdef WEP_DEBUG
-	printk(KERN_DEBUG
-	       "E %d (%d/%d %d) %02x %02x %02x %02x:%02x:%02x:%02x:%02x\n", len,
-	       iv[3], keynum, keylen, key[0], key[1], key[2], key[3], key[4],
-	       key[5], key[6], key[7]);
+	printk(KERN_DEBUG "E %d (%d/%d %d) %*ph %*phC\n", len,
+			  iv[3], keynum, keylen, 3, key, 5, key + 3);
 #endif
 
 	/* set up the RC4 state */

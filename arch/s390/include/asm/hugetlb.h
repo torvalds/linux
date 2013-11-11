@@ -33,6 +33,7 @@ static inline int prepare_hugepage_range(struct file *file,
 }
 
 #define hugetlb_prefault_arch_hook(mm)		do { } while (0)
+#define arch_clear_hugepage_flags(page)		do { } while (0)
 
 int arch_prepare_hugepage(struct page *page);
 void arch_release_hugepage(struct page *page);
@@ -66,16 +67,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
 	return pte;
 }
 
-static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-					    unsigned long addr, pte_t *ptep)
-{
-	pte_t pte = huge_ptep_get(ptep);
-
-	mm->context.flush_mm = 1;
-	pmd_clear((pmd_t *) ptep);
-	return pte;
-}
-
 static inline void __pmd_csp(pmd_t *pmdp)
 {
 	register unsigned long reg2 asm("2") = pmd_val(*pmdp);
@@ -87,23 +78,6 @@ static inline void __pmd_csp(pmd_t *pmdp)
 		"	csp %1,%3"
 		: "=m" (*pmdp)
 		: "d" (reg2), "d" (reg3), "d" (reg4), "m" (*pmdp) : "cc");
-	pmd_val(*pmdp) = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY;
-}
-
-static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
-{
-	unsigned long sto = (unsigned long) pmdp -
-				pmd_index(address) * sizeof(pmd_t);
-
-	if (!(pmd_val(*pmdp) & _SEGMENT_ENTRY_INV)) {
-		asm volatile(
-			"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-			: "=m" (*pmdp)
-			: "m" (*pmdp), "a" (sto),
-			  "a" ((address & HPAGE_MASK))
-		);
-	}
-	pmd_val(*pmdp) = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY;
 }
 
 static inline void huge_ptep_invalidate(struct mm_struct *mm,
@@ -115,6 +89,16 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 		__pmd_idte(address, pmdp);
 	else
 		__pmd_csp(pmdp);
+	pmd_val(*pmdp) = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY;
+}
+
+static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+					    unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = huge_ptep_get(ptep);
+
+	huge_ptep_invalidate(mm, addr, ptep);
+	return pte;
 }
 
 #define huge_ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty) \
@@ -130,11 +114,8 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 #define huge_ptep_set_wrprotect(__mm, __addr, __ptep)			\
 ({									\
 	pte_t __pte = huge_ptep_get(__ptep);				\
-	if (pte_write(__pte)) {						\
-		(__mm)->context.flush_mm = 1;				\
-		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
-		    (__mm) != current->active_mm)			\
-			huge_ptep_invalidate(__mm, __addr, __ptep);	\
+	if (huge_pte_write(__pte)) {					\
+		huge_ptep_invalidate(__mm, __addr, __ptep);		\
 		set_huge_pte_at(__mm, __addr, __ptep,			\
 				huge_pte_wrprotect(__pte));		\
 	}								\
@@ -144,6 +125,60 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 					 unsigned long address, pte_t *ptep)
 {
 	huge_ptep_invalidate(vma->vm_mm, address, ptep);
+}
+
+static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
+{
+	pte_t pte;
+	pmd_t pmd;
+
+	pmd = mk_pmd_phys(page_to_phys(page), pgprot);
+	pte_val(pte) = pmd_val(pmd);
+	return pte;
+}
+
+static inline int huge_pte_write(pte_t pte)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	return pmd_write(pmd);
+}
+
+static inline int huge_pte_dirty(pte_t pte)
+{
+	/* No dirty bit in the segment table entry. */
+	return 0;
+}
+
+static inline pte_t huge_pte_mkwrite(pte_t pte)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	pte_val(pte) = pmd_val(pmd_mkwrite(pmd));
+	return pte;
+}
+
+static inline pte_t huge_pte_mkdirty(pte_t pte)
+{
+	/* No dirty bit in the segment table entry. */
+	return pte;
+}
+
+static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	pte_val(pte) = pmd_val(pmd_modify(pmd, newprot));
+	return pte;
+}
+
+static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+				  pte_t *ptep)
+{
+	pmd_clear((pmd_t *) ptep);
 }
 
 #endif /* _ASM_S390_HUGETLB_H */

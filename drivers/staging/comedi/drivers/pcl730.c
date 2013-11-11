@@ -26,54 +26,15 @@ The ACL-7130 card have an 8254 timer/counter not supported by this driver.
 #define PCL730_DIO_LO	2	/* TTL Digital I/O low byte (D0-D7) */
 #define PCL730_DIO_HI	3	/* TTL Digital I/O high byte (D8-D15) */
 
-static int pcl730_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl730_detach(struct comedi_device *dev);
-
 struct pcl730_board {
 
 	const char *name;	/*  board name */
 	unsigned int io_range;	/*  len of I/O space */
 };
 
-static const struct pcl730_board boardtypes[] = {
-	{"pcl730", PCL730_SIZE,},
-	{"iso730", PCL730_SIZE,},
-	{"acl7130", ACL7130_SIZE,},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl730_board))
-#define this_board ((const struct pcl730_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcl730 = {
-	.driver_name = "pcl730",
-	.module = THIS_MODULE,
-	.attach = pcl730_attach,
-	.detach = pcl730_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcl730_board),
-};
-
-static int __init driver_pcl730_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl730);
-}
-
-static void __exit driver_pcl730_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl730);
-}
-
-module_init(driver_pcl730_init_module);
-module_exit(driver_pcl730_cleanup_module);
-
 static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -87,43 +48,33 @@ static int pcl730_do_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = inb(dev->iobase + ((unsigned long)s->private)) |
 	    (inb(dev->iobase + ((unsigned long)s->private) + 1) << 8);
 
-	return 2;
+	return insn->n;
 }
 
 static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl730_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iorange;
+	int ret;
 
-	iobase = it->options[0];
-	iorange = this_board->io_range;
-	printk(KERN_INFO "comedi%d: pcl730: board=%s 0x%04lx ", dev->minor,
-	       this_board->name, iobase);
-	if (!request_region(iobase, iorange, "pcl730")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->board_name = this_board->name;
-	dev->iobase = iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
-	if (alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Isolated do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -133,7 +84,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* Isolated di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -143,7 +94,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_IDIO_LO;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* TTL do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -153,7 +104,7 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->private = (void *)PCL730_DIO_LO;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* TTL di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -168,15 +119,22 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int pcl730_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO "comedi%d: pcl730: remove\n", dev->minor);
+static const struct pcl730_board boardtypes[] = {
+	{ "pcl730", PCL730_SIZE, },
+	{ "iso730", PCL730_SIZE, },
+	{ "acl7130", ACL7130_SIZE, },
+};
 
-	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
-}
+static struct comedi_driver pcl730_driver = {
+	.driver_name	= "pcl730",
+	.module		= THIS_MODULE,
+	.attach		= pcl730_attach,
+	.detach		= comedi_legacy_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl730_board),
+};
+module_comedi_driver(pcl730_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

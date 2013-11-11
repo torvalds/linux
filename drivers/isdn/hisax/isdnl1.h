@@ -21,7 +21,7 @@
 #define B_XMTBUFREADY	1
 #define B_ACKPENDING	2
 
-__attribute__((format(printf, 2, 3)))
+__printf(2, 3)
 void debugl1(struct IsdnCardState *cs, char *fmt, ...);
 void DChannel_proc_xmt(struct IsdnCardState *cs);
 void DChannel_proc_rcv(struct IsdnCardState *cs);

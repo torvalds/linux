@@ -121,7 +121,7 @@ static const struct rtc_class_ops ds1390_rtc_ops = {
 	.set_time	= ds1390_set_time,
 };
 
-static int __devinit ds1390_probe(struct spi_device *spi)
+static int ds1390_probe(struct spi_device *spi)
 {
 	unsigned char tmp;
 	struct ds1390 *chip;
@@ -131,38 +131,31 @@ static int __devinit ds1390_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
+	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip) {
 		dev_err(&spi->dev, "unable to allocate device memory\n");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(&spi->dev, chip);
+	spi_set_drvdata(spi, chip);
 
 	res = ds1390_get_reg(&spi->dev, DS1390_REG_SECONDS, &tmp);
 	if (res != 0) {
 		dev_err(&spi->dev, "unable to read device\n");
-		kfree(chip);
 		return res;
 	}
 
-	chip->rtc = rtc_device_register("ds1390",
-				&spi->dev, &ds1390_rtc_ops, THIS_MODULE);
+	chip->rtc = devm_rtc_device_register(&spi->dev, "ds1390",
+					&ds1390_rtc_ops, THIS_MODULE);
 	if (IS_ERR(chip->rtc)) {
 		dev_err(&spi->dev, "unable to register device\n");
 		res = PTR_ERR(chip->rtc);
-		kfree(chip);
 	}
 
 	return res;
 }
 
-static int __devexit ds1390_remove(struct spi_device *spi)
+static int ds1390_remove(struct spi_device *spi)
 {
-	struct ds1390 *chip = spi_get_drvdata(spi);
-
-	rtc_device_unregister(chip->rtc);
-	kfree(chip);
-
 	return 0;
 }
 
@@ -172,20 +165,10 @@ static struct spi_driver ds1390_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= ds1390_probe,
-	.remove = __devexit_p(ds1390_remove),
+	.remove = ds1390_remove,
 };
 
-static __init int ds1390_init(void)
-{
-	return spi_register_driver(&ds1390_driver);
-}
-module_init(ds1390_init);
-
-static __exit void ds1390_exit(void)
-{
-	spi_unregister_driver(&ds1390_driver);
-}
-module_exit(ds1390_exit);
+module_spi_driver(ds1390_driver);
 
 MODULE_DESCRIPTION("Dallas/Maxim DS1390/93/94 SPI RTC driver");
 MODULE_AUTHOR("Mark Jackson <mpfj@mimc.co.uk>");

@@ -12,6 +12,7 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/lp3972.h>
@@ -73,54 +74,40 @@ struct lp3972 {
 #define LP3972_OVER2_LDO4_EN	BIT(4)
 #define LP3972_OVER1_S_EN	BIT(2)
 
-static const int ldo1_voltage_map[] = {
-	1700, 1725, 1750, 1775, 1800, 1825, 1850, 1875,
-	1900, 1925, 1950, 1975, 2000,
+static const unsigned int ldo1_voltage_map[] = {
+	1700000, 1725000, 1750000, 1775000, 1800000, 1825000, 1850000, 1875000,
+	1900000, 1925000, 1950000, 1975000, 2000000,
 };
 
-static const int ldo23_voltage_map[] = {
-	1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500,
-	2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300,
+static const unsigned int ldo23_voltage_map[] = {
+	1800000, 1900000, 2000000, 2100000, 2200000, 2300000, 2400000, 2500000,
+	2600000, 2700000, 2800000, 2900000, 3000000, 3100000, 3200000, 3300000,
 };
 
-static const int ldo4_voltage_map[] = {
-	1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350,
-	1400, 1500, 1800, 1900, 2500, 2800, 3000, 3300,
+static const unsigned int ldo4_voltage_map[] = {
+	1000000, 1050000, 1100000, 1150000, 1200000, 1250000, 1300000, 1350000,
+	1400000, 1500000, 1800000, 1900000, 2500000, 2800000, 3000000, 3300000,
 };
 
-static const int ldo5_voltage_map[] = {
-	   0,    0,    0,    0,    0,  850,  875,  900,
-	 925,  950,  975, 1000, 1025, 1050, 1075, 1100,
-	1125, 1150, 1175, 1200, 1225, 1250, 1275, 1300,
-	1325, 1350, 1375, 1400, 1425, 1450, 1475, 1500,
+static const unsigned int ldo5_voltage_map[] = {
+	      0,       0,       0,       0,       0,  850000,  875000,  900000,
+	 925000,  950000,  975000, 1000000, 1025000, 1050000, 1075000, 1100000,
+	1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000,
+	1325000, 1350000, 1375000, 1400000, 1425000, 1450000, 1475000, 1500000,
 };
 
-static const int buck1_voltage_map[] = {
-	 725,  750,  775,  800,  825,  850,  875,  900,
-	 925,  950,  975, 1000, 1025, 1050, 1075, 1100,
-	1125, 1150, 1175, 1200, 1225, 1250, 1275, 1300,
-	1325, 1350, 1375, 1400, 1425, 1450, 1475, 1500,
+static const unsigned int buck1_voltage_map[] = {
+	 725000,  750000,  775000,  800000,  825000,  850000,  875000,  900000,
+	 925000,  950000,  975000, 1000000, 1025000, 1050000, 1075000, 1100000,
+	1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000,
+	1325000, 1350000, 1375000, 1400000, 1425000, 1450000, 1475000, 1500000,
 };
 
-static const int buck23_voltage_map[] = {
-	   0,  800,  850,  900,  950, 1000, 1050, 1100,
-	1150, 1200, 1250, 1300, 1350, 1400, 1450, 1500,
-	1550, 1600, 1650, 1700, 1800, 1900, 2500, 2800,
-	3000, 3300,
-};
-
-static const int *ldo_voltage_map[] = {
-	ldo1_voltage_map,
-	ldo23_voltage_map,
-	ldo23_voltage_map,
-	ldo4_voltage_map,
-	ldo5_voltage_map,
-};
-
-static const int *buck_voltage_map[] = {
-	buck1_voltage_map,
-	buck23_voltage_map,
-	buck23_voltage_map,
+static const unsigned int buck23_voltage_map[] = {
+	      0,  800000,  850000,  900000,  950000, 1000000, 1050000, 1100000,
+	1150000, 1200000, 1250000, 1300000, 1350000, 1400000, 1450000, 1500000,
+	1550000, 1600000, 1650000, 1700000, 1800000, 1900000, 2500000, 2800000,
+	3000000, 3300000,
 };
 
 static const int ldo_output_enable_mask[] = {
@@ -159,7 +146,6 @@ static const int buck_base_addr[] = {
 	LP3972_B3TV_REG,
 };
 
-#define LP3972_LDO_VOL_VALUE_MAP(x) (ldo_voltage_map[x])
 #define LP3972_LDO_OUTPUT_ENABLE_MASK(x) (ldo_output_enable_mask[x])
 #define LP3972_LDO_OUTPUT_ENABLE_REG(x) (ldo_output_enable_addr[x])
 
@@ -176,12 +162,9 @@ static const int buck_base_addr[] = {
 #define LP3972_LDO_VOL_MIN_IDX(x) (((x) == 4) ? 0x05 : 0x00)
 #define LP3972_LDO_VOL_MAX_IDX(x) ((x) ? (((x) == 4) ? 0x1f : 0x0f) : 0x0c)
 
-#define LP3972_BUCK_VOL_VALUE_MAP(x) (buck_voltage_map[x])
 #define LP3972_BUCK_VOL_ENABLE_REG(x) (buck_vol_enable_addr[x])
 #define LP3972_BUCK_VOL1_REG(x) (buck_base_addr[x])
 #define LP3972_BUCK_VOL_MASK 0x1f
-#define LP3972_BUCK_VOL_MIN_IDX(x) ((x) ? 0x01 : 0x00)
-#define LP3972_BUCK_VOL_MAX_IDX(x) ((x) ? 0x19 : 0x1f)
 
 static int lp3972_i2c_read(struct i2c_client *i2c, char reg, int count,
 	u16 *dest)
@@ -241,12 +224,6 @@ static int lp3972_set_bits(struct lp3972 *lp3972, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int lp3972_ldo_list_voltage(struct regulator_dev *dev, unsigned index)
-{
-	int ldo = rdev_get_id(dev) - LP3972_LDO1;
-	return 1000 * LP3972_LDO_VOL_VALUE_MAP(ldo)[index];
-}
-
 static int lp3972_ldo_is_enabled(struct regulator_dev *dev)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
@@ -278,7 +255,7 @@ static int lp3972_ldo_disable(struct regulator_dev *dev)
 				mask, 0);
 }
 
-static int lp3972_ldo_get_voltage(struct regulator_dev *dev)
+static int lp3972_ldo_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3972_LDO1;
@@ -288,37 +265,19 @@ static int lp3972_ldo_get_voltage(struct regulator_dev *dev)
 	reg = lp3972_reg_read(lp3972, LP3972_LDO_VOL_CONTR_REG(ldo));
 	val = (reg >> LP3972_LDO_VOL_CONTR_SHIFT(ldo)) & mask;
 
-	return 1000 * LP3972_LDO_VOL_VALUE_MAP(ldo)[val];
+	return val;
 }
 
-static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
-				  int min_uV, int max_uV,
-				  unsigned int *selector)
+static int lp3972_ldo_set_voltage_sel(struct regulator_dev *dev,
+				      unsigned int selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3972_LDO1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = LP3972_LDO_VOL_VALUE_MAP(ldo);
-	u16 val;
 	int shift, ret;
-
-	if (min_vol < vol_map[LP3972_LDO_VOL_MIN_IDX(ldo)] ||
-	    min_vol > vol_map[LP3972_LDO_VOL_MAX_IDX(ldo)])
-		return -EINVAL;
-
-	for (val = LP3972_LDO_VOL_MIN_IDX(ldo);
-		val <= LP3972_LDO_VOL_MAX_IDX(ldo); val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > LP3972_LDO_VOL_MAX_IDX(ldo) || vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
 
 	shift = LP3972_LDO_VOL_CONTR_SHIFT(ldo);
 	ret = lp3972_set_bits(lp3972, LP3972_LDO_VOL_CONTR_REG(ldo),
-		LP3972_LDO_VOL_MASK(ldo) << shift, val << shift);
+		LP3972_LDO_VOL_MASK(ldo) << shift, selector << shift);
 
 	if (ret)
 		return ret;
@@ -349,19 +308,14 @@ static int lp3972_ldo_set_voltage(struct regulator_dev *dev,
 }
 
 static struct regulator_ops lp3972_ldo_ops = {
-	.list_voltage = lp3972_ldo_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3972_ldo_is_enabled,
 	.enable = lp3972_ldo_enable,
 	.disable = lp3972_ldo_disable,
-	.get_voltage = lp3972_ldo_get_voltage,
-	.set_voltage = lp3972_ldo_set_voltage,
+	.get_voltage_sel = lp3972_ldo_get_voltage_sel,
+	.set_voltage_sel = lp3972_ldo_set_voltage_sel,
 };
-
-static int lp3972_dcdc_list_voltage(struct regulator_dev *dev, unsigned index)
-{
-	int buck = rdev_get_id(dev) - LP3972_DCDC1;
-	return 1000 * buck_voltage_map[buck][index];
-}
 
 static int lp3972_dcdc_is_enabled(struct regulator_dev *dev)
 {
@@ -398,54 +352,27 @@ static int lp3972_dcdc_disable(struct regulator_dev *dev)
 	return val;
 }
 
-static int lp3972_dcdc_get_voltage(struct regulator_dev *dev)
+static int lp3972_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3972_DCDC1;
 	u16 reg;
-	int val;
 
 	reg = lp3972_reg_read(lp3972, LP3972_BUCK_VOL1_REG(buck));
 	reg &= LP3972_BUCK_VOL_MASK;
-	if (reg <= LP3972_BUCK_VOL_MAX_IDX(buck))
-		val = 1000 * buck_voltage_map[buck][reg];
-	else {
-		val = 0;
-		dev_warn(&dev->dev, "chip reported incorrect voltage value."
-				    " reg = %d\n", reg);
-	}
 
-	return val;
+	return reg;
 }
 
-static int lp3972_dcdc_set_voltage(struct regulator_dev *dev,
-				   int min_uV, int max_uV,
-				   unsigned int *selector)
+static int lp3972_dcdc_set_voltage_sel(struct regulator_dev *dev,
+				       unsigned int selector)
 {
 	struct lp3972 *lp3972 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3972_DCDC1;
-	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
-	const int *vol_map = buck_voltage_map[buck];
-	u16 val;
 	int ret;
 
-	if (min_vol < vol_map[LP3972_BUCK_VOL_MIN_IDX(buck)] ||
-	    min_vol > vol_map[LP3972_BUCK_VOL_MAX_IDX(buck)])
-		return -EINVAL;
-
-	for (val = LP3972_BUCK_VOL_MIN_IDX(buck);
-		val <= LP3972_BUCK_VOL_MAX_IDX(buck); val++)
-		if (vol_map[val] >= min_vol)
-			break;
-
-	if (val > LP3972_BUCK_VOL_MAX_IDX(buck) ||
-	    vol_map[val] > max_vol)
-		return -EINVAL;
-
-	*selector = val;
-
 	ret = lp3972_set_bits(lp3972, LP3972_BUCK_VOL1_REG(buck),
-				LP3972_BUCK_VOL_MASK, val);
+				LP3972_BUCK_VOL_MASK, selector);
 	if (ret)
 		return ret;
 
@@ -462,20 +389,22 @@ static int lp3972_dcdc_set_voltage(struct regulator_dev *dev,
 }
 
 static struct regulator_ops lp3972_dcdc_ops = {
-	.list_voltage = lp3972_dcdc_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3972_dcdc_is_enabled,
 	.enable = lp3972_dcdc_enable,
 	.disable = lp3972_dcdc_disable,
-	.get_voltage = lp3972_dcdc_get_voltage,
-	.set_voltage = lp3972_dcdc_set_voltage,
+	.get_voltage_sel = lp3972_dcdc_get_voltage_sel,
+	.set_voltage_sel = lp3972_dcdc_set_voltage_sel,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	{
 		.name = "LDO1",
 		.id = LP3972_LDO1,
 		.ops = &lp3972_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo1_voltage_map),
+		.volt_table = ldo1_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -484,6 +413,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_LDO2,
 		.ops = &lp3972_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo23_voltage_map),
+		.volt_table = ldo23_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -492,6 +422,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_LDO3,
 		.ops = &lp3972_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo23_voltage_map),
+		.volt_table = ldo23_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -500,6 +431,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_LDO4,
 		.ops = &lp3972_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo4_voltage_map),
+		.volt_table = ldo4_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -508,6 +440,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_LDO5,
 		.ops = &lp3972_ldo_ops,
 		.n_voltages = ARRAY_SIZE(ldo5_voltage_map),
+		.volt_table = ldo5_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -516,6 +449,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_DCDC1,
 		.ops = &lp3972_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck1_voltage_map),
+		.volt_table = buck1_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -524,6 +458,7 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_DCDC2,
 		.ops = &lp3972_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck23_voltage_map),
+		.volt_table = buck23_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
@@ -532,12 +467,13 @@ static struct regulator_desc regulators[] = {
 		.id = LP3972_DCDC3,
 		.ops = &lp3972_dcdc_ops,
 		.n_voltages = ARRAY_SIZE(buck23_voltage_map),
+		.volt_table = buck23_voltage_map,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __devinit setup_regulators(struct lp3972 *lp3972,
+static int setup_regulators(struct lp3972 *lp3972,
 	struct lp3972_platform_data *pdata)
 {
 	int i, err;
@@ -553,9 +489,14 @@ static int __devinit setup_regulators(struct lp3972 *lp3972,
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
 		struct lp3972_regulator_subdev *reg = &pdata->regulators[i];
-		lp3972->rdev[i] = regulator_register(&regulators[reg->id],
-					lp3972->dev, reg->initdata, lp3972);
+		struct regulator_config config = { };
 
+		config.dev = lp3972->dev;
+		config.init_data = reg->initdata;
+		config.driver_data = lp3972;
+
+		lp3972->rdev[i] = regulator_register(&regulators[reg->id],
+						     &config);
 		if (IS_ERR(lp3972->rdev[i])) {
 			err = PTR_ERR(lp3972->rdev[i]);
 			dev_err(lp3972->dev, "regulator init failed: %d\n",
@@ -574,7 +515,7 @@ err_nomem:
 	return err;
 }
 
-static int __devinit lp3972_i2c_probe(struct i2c_client *i2c,
+static int lp3972_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3972 *lp3972;
@@ -620,7 +561,7 @@ err_detect:
 	return ret;
 }
 
-static int __devexit lp3972_i2c_remove(struct i2c_client *i2c)
+static int lp3972_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3972 *lp3972 = i2c_get_clientdata(i2c);
 	int i;
@@ -645,7 +586,7 @@ static struct i2c_driver lp3972_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = lp3972_i2c_probe,
-	.remove   = __devexit_p(lp3972_i2c_remove),
+	.remove   = lp3972_i2c_remove,
 	.id_table = lp3972_i2c_id,
 };
 

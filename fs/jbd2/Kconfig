@@ -1,6 +1,8 @@
 config JBD2
 	tristate
 	select CRC32
+	select CRYPTO
+	select CRYPTO_CRC32C
 	help
 	  This is a generic journaling layer for block devices that support
 	  both 32-bit and 64-bit block numbers.  It is currently used by

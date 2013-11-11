@@ -11,7 +11,7 @@ extern ia64_mv_dma_init			pci_iommu_alloc;
  * platform's machvec structure.  When compiling a non-generic kernel,
  * the macros are used directly.
  */
-#define platform_name				"dig_vtd"
+#define ia64_platform_name			"dig_vtd"
 #define platform_setup				dig_setup
 #define platform_dma_init			pci_iommu_alloc
 

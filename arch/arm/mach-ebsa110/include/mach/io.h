@@ -13,8 +13,6 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
-#define IO_SPACE_LIMIT 0xffff
-
 u8 __inb8(unsigned int port);
 void __outb8(u8  val, unsigned int port);
 
@@ -63,15 +61,6 @@ void __writel(u32 val, void __iomem *addr);
 #define writeb(v,b)		__writeb(v,b)
 #define writew(v,b)		__writew(v,b)
 #define writel(v,b)		__writel(v,b)
-
-static inline void __iomem *__arch_ioremap(unsigned long cookie, size_t size,
-					   unsigned int flags)
-{
-	return (void __iomem *)cookie;
-}
-
-#define __arch_ioremap		__arch_ioremap
-#define __arch_iounmap(cookie)	do { } while (0)
 
 extern void insb(unsigned int port, void *buf, int sz);
 extern void insw(unsigned int port, void *buf, int sz);

@@ -2,270 +2,12 @@
 # Serial device configuration
 #
 
+if TTY
+
 menu "Serial drivers"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && GENERIC_HARDIRQS
 
-#
-# The new 8250/16550 serial drivers
-config SERIAL_8250
-	tristate "8250/16550 and compatible serial support"
-	select SERIAL_CORE
-	---help---
-	  This selects whether you want to include the driver for the standard
-	  serial ports.  The standard answer is Y.  People who might say N
-	  here are those that are setting up dedicated Ethernet WWW/FTP
-	  servers, or users that have one of the various bus mice instead of a
-	  serial mouse and don't intend to use their machine's standard serial
-	  port for anything.  (Note that the Cyclades and Stallion multi
-	  serial port drivers do not need this driver built in for them to
-	  work.)
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called 8250.
-	  [WARNING: Do not compile this driver as a module if you are using
-	  non-standard serial ports, since the configuration information will
-	  be lost when the driver is unloaded.  This limitation may be lifted
-	  in the future.]
-
-	  BTW1: If you have a mouseman serial mouse which is not recognized by
-	  the X window system, try running gpm first.
-
-	  BTW2: If you intend to use a software modem (also called Winmodem)
-	  under Linux, forget it.  These modems are crippled and require
-	  proprietary drivers which are only available under Windows.
-
-	  Most people will say Y or M here, so that they can use serial mice,
-	  modems and similar devices connecting to the standard serial ports.
-
-config SERIAL_8250_CONSOLE
-	bool "Console on 8250/16550 and compatible serial port"
-	depends on SERIAL_8250=y
-	select SERIAL_CORE_CONSOLE
-	---help---
-	  If you say Y here, it will be possible to use a serial port as the
-	  system console (the system console is the device which receives all
-	  kernel messages and warnings and which allows logins in single user
-	  mode). This could be useful if some terminal or printer is connected
-	  to that serial port.
-
-	  Even if you say Y here, the currently visible virtual console
-	  (/dev/tty0) will still be used as the system console by default, but
-	  you can alter that using a kernel command line option such as
-	  "console=ttyS1". (Try "man bootparam" or see the documentation of
-	  your boot loader (grub or lilo or loadlin) about how to pass options
-	  to the kernel at boot time.)
-
-	  If you don't have a VGA card installed and you say Y here, the
-	  kernel will automatically use the first serial line, /dev/ttyS0, as
-	  system console.
-
-	  You can set that using a kernel command line option such as
-	  "console=uart8250,io,0x3f8,9600n8"
-	  "console=uart8250,mmio,0xff5e0000,115200n8".
-	  and it will switch to normal serial console when the corresponding 
-	  port is ready.
-	  "earlycon=uart8250,io,0x3f8,9600n8"
-	  "earlycon=uart8250,mmio,0xff5e0000,115200n8".
-	  it will not only setup early console.
-
-	  If unsure, say N.
-
-config FIX_EARLYCON_MEM
-	bool
-	depends on X86
-	default y
-
-config SERIAL_8250_GSC
-	tristate
-	depends on SERIAL_8250 && GSC
-	default SERIAL_8250
-
-config SERIAL_8250_PCI
-	tristate "8250/16550 PCI device support" if EXPERT
-	depends on SERIAL_8250 && PCI
-	default SERIAL_8250
-	help
-	  This builds standard PCI serial support. You may be able to
-	  disable this feature if you only need legacy serial support.
-	  Saves about 9K.
-
-config SERIAL_8250_PNP
-	tristate "8250/16550 PNP device support" if EXPERT
-	depends on SERIAL_8250 && PNP
-	default SERIAL_8250
-	help
-	  This builds standard PNP serial support. You may be able to
-	  disable this feature if you only need legacy serial support.
-
-config SERIAL_8250_HP300
-	tristate
-	depends on SERIAL_8250 && HP300
-	default SERIAL_8250
-
-config SERIAL_8250_CS
-	tristate "8250/16550 PCMCIA device support"
-	depends on PCMCIA && SERIAL_8250
-	---help---
-	  Say Y here to enable support for 16-bit PCMCIA serial devices,
-	  including serial port cards, modems, and the modem functions of
-	  multi-function Ethernet/modem cards. (PCMCIA- or PC-cards are
-	  credit-card size devices often used with laptops.)
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called serial_cs.
-
-	  If unsure, say N.
-
-config SERIAL_8250_NR_UARTS
-	int "Maximum number of 8250/16550 serial ports"
-	depends on SERIAL_8250
-	default "4"
-	help
-	  Set this to the number of serial ports you want the driver
-	  to support.  This includes any ports discovered via ACPI or
-	  PCI enumeration and any ports that may be added at run-time
-	  via hot-plug, or any ISA multi-port serial cards.
-
-config SERIAL_8250_RUNTIME_UARTS
-	int "Number of 8250/16550 serial ports to register at runtime"
-	depends on SERIAL_8250
-	range 0 SERIAL_8250_NR_UARTS
-	default "4"
-	help
-	  Set this to the maximum number of serial ports you want
-	  the kernel to register at boot time.  This can be overridden
-	  with the module parameter "nr_uarts", or boot-time parameter
-	  8250.nr_uarts
-
-config SERIAL_8250_EXTENDED
-	bool "Extended 8250/16550 serial driver options"
-	depends on SERIAL_8250
-	help
-	  If you wish to use any non-standard features of the standard "dumb"
-	  driver, say Y here. This includes HUB6 support, shared serial
-	  interrupts, special multiport support, support for more than the
-	  four COM 1/2/3/4 boards, etc.
-
-	  Note that the answer to this question won't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about serial driver options. If unsure, say N.
-
-config SERIAL_8250_MANY_PORTS
-	bool "Support more than 4 legacy serial ports"
-	depends on SERIAL_8250_EXTENDED && !IA64
-	help
-	  Say Y here if you have dumb serial boards other than the four
-	  standard COM 1/2/3/4 ports. This may happen if you have an AST
-	  FourPort, Accent Async, Boca (read the Boca mini-HOWTO, available
-	  from <http://www.tldp.org/docs.html#howto>), or other custom
-	  serial port hardware which acts similar to standard serial port
-	  hardware. If you only use the standard COM 1/2/3/4 ports, you can
-	  say N here to save some memory. You can also say Y if you have an
-	  "intelligent" multiport card such as Cyclades, Digiboards, etc.
-
-#
-# Multi-port serial cards
-#
-
-config SERIAL_8250_FOURPORT
-	tristate "Support Fourport cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have an AST FourPort serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_fourport.
-
-config SERIAL_8250_ACCENT
-	tristate "Support Accent cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have an Accent Async serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_accent.
-
-config SERIAL_8250_BOCA
-	tristate "Support Boca cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have a Boca serial board.  Please read the Boca
-	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_boca.
-
-config SERIAL_8250_EXAR_ST16C554
-	tristate "Support Exar ST16C554/554D Quad UART"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  The Uplogix Envoy TU301 uses this Exar Quad UART.  If you are
-	  tinkering with your Envoy TU301, or have a machine with this UART,
-	  say Y here.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_exar_st16c554.
-
-config SERIAL_8250_HUB6
-	tristate "Support Hub6 cards"
-	depends on SERIAL_8250 != n && ISA && SERIAL_8250_MANY_PORTS
-	help
-	  Say Y here if you have a HUB6 serial board.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_hub6.
-
-config SERIAL_8250_SHARE_IRQ
-	bool "Support for sharing serial interrupts"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Some serial boards have hardware support which allows multiple dumb
-	  serial ports on the same board to share a single IRQ. To enable
-	  support for this in the serial driver, say Y here.
-
-config SERIAL_8250_DETECT_IRQ
-	bool "Autodetect IRQ on standard ports (unsafe)"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Say Y here if you want the kernel to try to guess which IRQ
-	  to use for your serial port.
-
-	  This is considered unsafe; it is far better to configure the IRQ in
-	  a boot script using the setserial command.
-
-	  If unsure, say N.
-
-config SERIAL_8250_RSA
-	bool "Support RSA serial ports"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  ::: To be written :::
-
-config SERIAL_8250_MCA
-	tristate "Support 8250-type ports on MCA buses"
-	depends on SERIAL_8250 != n && MCA
-	help
-	  Say Y here if you have a MCA serial ports.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called 8250_mca.
-
-config SERIAL_8250_ACORN
-	tristate "Acorn expansion card serial port support"
-	depends on ARCH_ACORN && SERIAL_8250
-	help
-	  If you have an Atomwide Serial card or Serial Port card for an Acorn
-	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
-	  cards.  If unsure, say N.
-
-config SERIAL_8250_RM9K
-	bool "Support for MIPS RM9xxx integrated serial port"
-	depends on SERIAL_8250 != n && SERIAL_RM9000
-	select SERIAL_8250_SHARE_IRQ
-	help
-	  Selecting this option will add support for the integrated serial
-	  port hardware found on MIPS RM9122 and similar processors.
-	  If unsure, say N.
+source "drivers/tty/serial/8250/Kconfig"
 
 comment "Non-8250 serial port support"
 
@@ -353,7 +95,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
-	depends on (ARM && ARCH_AT91) || AVR32
+	depends on ARCH_AT91 || AVR32
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
@@ -401,6 +143,25 @@ config SERIAL_ATMEL_TTYAT
 
 	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
 
+config SERIAL_KGDB_NMI
+	bool "Serial console over KGDB NMI debugger port"
+	depends on KGDB_SERIAL_CONSOLE
+	help
+	  This special driver allows you to temporary use NMI debugger port
+	  as a normal console (assuming that the port is attached to KGDB).
+
+	  Unlike KDB's disable_nmi command, with this driver you are always
+	  able to go back to the debugger using KGDB escape sequence ($3#33).
+	  This is because this console driver processes the input in NMI
+	  context, and thus is able to intercept the magic sequence.
+
+	  Note that since the console interprets input and uses polling
+	  communication methods, for things like PPP you still must fully
+	  detach debugger port from the KGDB NMI (i.e. disable_nmi), and
+	  use raw console.
+
+	  If unsure, say N.
+
 config SERIAL_KS8695
 	bool "Micrel KS8695 (Centaur) serial port support"
 	depends on ARCH_KS8695
@@ -420,10 +181,12 @@ config SERIAL_KS8695_CONSOLE
 
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
-	depends on ARM && ARCH_CLPS711X
+	depends on ARCH_CLPS711X
 	select SERIAL_CORE
+	default y
 	help
-	  ::: To be written :::
+	  This enables the driver for the on-chip UARTs of the Cirrus
+	  Logic EP711x/EP721x/EP731x processors.
 
 config SERIAL_CLPS711X_CONSOLE
 	bool "Support for console on CLPS711X serial port"
@@ -433,13 +196,11 @@ config SERIAL_CLPS711X_CONSOLE
 	  Even if you say Y here, the currently visible virtual console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
-	  "console=ttyCL1". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
+	  "console=ttyCL1".
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on ARM && PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -449,17 +210,16 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
-	depends on ARM && PLAT_SAMSUNG
-	default y if CPU_S3C2443
+	depends on PLAT_SAMSUNG
+	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on ARM && PLAT_SAMSUNG
-	default 2 if ARCH_S3C2400
-	default 6 if ARCH_S5P6450
-	default 4 if SERIAL_SAMSUNG_UARTS_4
+	depends on PLAT_SAMSUNG
+	default 6 if CPU_S5P6450
+	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
 	default 3
 	help
 	  Select the number of available UART ports for the Samsung S3C
@@ -489,60 +249,38 @@ config SERIAL_SAMSUNG_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
-config SERIAL_S3C2400
-	tristate "Samsung S3C2410 Serial port support"
-	depends on ARM && SERIAL_SAMSUNG && CPU_S3C2400
-	default y if CPU_S3C2400
-	help
-	  Serial port support for the Samsung S3C2400 SoC
+config SERIAL_SIRFSOC
+        tristate "SiRF SoC Platform Serial port support"
+        depends on ARCH_PRIMA2
+        select SERIAL_CORE
+        help
+          Support for the on-chip UART on the CSR SiRFprimaII series,
+          providing /dev/ttySiRF0, 1 and 2 (note, some machines may not
+          provide all of these ports, depending on how the serial port
+          pins are configured).
 
-config SERIAL_S3C2410
-	tristate "Samsung S3C2410 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C2410
-	default y if CPU_S3C2410
-	help
-	  Serial port support for the Samsung S3C2410 SoC
+config SERIAL_SIRFSOC_CONSOLE
+        bool "Support for console on SiRF SoC serial port"
+        depends on SERIAL_SIRFSOC=y
+        select SERIAL_CORE_CONSOLE
+        help
+          Even if you say Y here, the currently visible virtual console
+          (/dev/tty0) will still be used as the system console by default, but
+          you can alter that using a kernel command line option such as
+          "console=ttySiRFx". (Try "man bootparam" or see the documentation of
+          your boot loader about how to pass options to the kernel at
+          boot time.)
 
-config SERIAL_S3C2412
-	tristate "Samsung S3C2412/S3C2413 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C2412
-	default y if CPU_S3C2412
+config SERIAL_TEGRA
+	tristate "NVIDIA Tegra20/30 SoC serial controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	select SERIAL_CORE
 	help
-	  Serial port support for the Samsung S3C2412 and S3C2413 SoC
-
-config SERIAL_S3C2440
-	tristate "Samsung S3C2440/S3C2442/S3C2416 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C2440 || CPU_S3C2442 || CPU_S3C2416)
-	default y if CPU_S3C2440
-	default y if CPU_S3C2442
-	select SERIAL_SAMSUNG_UARTS_4 if CPU_S3C2416
-	help
-	  Serial port support for the Samsung S3C2440, S3C2416 and S3C2442 SoC
-
-config SERIAL_S3C24A0
-	tristate "Samsung S3C24A0 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C24A0
-	default y if CPU_S3C24A0
-	help
-	  Serial port support for the Samsung S3C24A0 SoC
-
-config SERIAL_S3C6400
-	tristate "Samsung S3C6400/S3C6410/S5P6440/S5P6450/S5PC100 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440 || CPU_S5P6450 || CPU_S5PC100)
-	select SERIAL_SAMSUNG_UARTS_4
-	default y
-	help
-	  Serial port support for the Samsung S3C6400, S3C6410, S5P6440, S5P6450
-	  and S5PC100 SoCs
-
-config SERIAL_S5PV210
-	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_EXYNOS4210)
-	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210)
-	default y
-	help
-	  Serial port support for Samsung's S5P Family of SoC's
-
+	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
+	  providing /dev/ttyHS0, 1, 2, 3 and 4 (note, some machines may not
+	  provide all of these ports, depending on how the serial port
+	  are enabled). This driver uses the APB DMA to achieve higher baudrate
+	  and better performance.
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
@@ -551,21 +289,19 @@ config SERIAL_MAX3100
 	help
 	  MAX3100 chip support
 
-config SERIAL_MAX3107
-	tristate "MAX3107 support"
+config SERIAL_MAX310X
+	bool "MAX310X support"
 	depends on SPI
 	select SERIAL_CORE
+	select REGMAP_SPI if SPI
+	default n
 	help
-	  MAX3107 chip support
+	  This selects support for an advanced UART from Maxim (Dallas).
+	  Supported ICs are MAX3107, MAX3108.
+	  Each IC contains 128 words each of receive and transmit FIFO
+	  that can be controlled through I2C or high-speed SPI.
 
-config SERIAL_MAX3107_AAVA
-	tristate "MAX3107 AAVA platform support"
-	depends on X86_MRST && SERIAL_MAX3107 && GPIOLIB
-	select SERIAL_CORE
-	help
-	  Support for the MAX3107 chip configuration found on the AAVA
-	  platform. Includes the extra initialisation and GPIO support
-	  neded for this device.
+	  Say Y here if you want to support this ICs.
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
@@ -624,7 +360,7 @@ config SERIAL_ZS_CONSOLE
 
 config SERIAL_21285
 	tristate "DC21285 serial port support"
-	depends on ARM && FOOTBRIDGE
+	depends on FOOTBRIDGE
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a 21285 (Footbridge) StrongARM(R)/
@@ -648,7 +384,7 @@ config SERIAL_21285_CONSOLE
 
 config SERIAL_MPSC
 	bool "Marvell MPSC serial port support"
-	depends on PPC32 && MV64X60
+	depends on MV64X60
 	select SERIAL_CORE
 	help
 	  Say Y here if you want to use the Marvell MPSC serial controller.
@@ -685,7 +421,7 @@ config SERIAL_PXA_CONSOLE
 
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
-	depends on ARM && ARCH_SA1100
+	depends on ARCH_SA1100
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
@@ -737,7 +473,7 @@ config SERIAL_BFIN
 	  Add support for the built-in UARTs on the Blackfin.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_5xx.
+	  module is named bfin_uart.ko.
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
@@ -816,7 +552,7 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	bool "IMX serial port support"
-	depends on ARM && (ARCH_IMX || ARCH_MXC)
+	depends on ARCH_MXC
 	select SERIAL_CORE
 	select RATIONAL
 	help
@@ -974,7 +710,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on HAVE_CLK && (SUPERH || H8300 || ARCH_SHMOBILE)
+	depends on HAVE_CLK && (SUPERH || ARCH_SHMOBILE)
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS
@@ -989,23 +725,42 @@ config SERIAL_SH_SCI_CONSOLE
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
-	depends on SERIAL_SH_SCI && SH_DMAE && EXPERIMENTAL
+	depends on SERIAL_SH_SCI && SH_DMAE
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
-	depends on MIPS && (SOC_PNX8550 || SOC_PNX833X)
+	depends on SOC_PNX833X
 	select SERIAL_CORE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial ports, say Y.  Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial ports, say Y.  Otherwise, say N.
 
 config SERIAL_PNX8XXX_CONSOLE
 	bool "Enable PNX8XX0 serial console"
 	depends on SERIAL_PNX8XXX
 	select SERIAL_CORE_CONSOLE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial console, say Y. Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial console, say Y. Otherwise, say N.
+
+config SERIAL_HS_LPC32XX
+	tristate "LPC32XX high speed serial port support"
+	depends on ARCH_LPC32XX && OF
+	select SERIAL_CORE
+	help
+	  Support for the LPC32XX high speed serial ports (up to 900kbps).
+	  Those are UARTs completely different from the Standard UARTs on the
+	  LPC32XX SoC.
+	  Choose M or Y here to build this driver.
+
+config SERIAL_HS_LPC32XX_CONSOLE
+	bool "Enable LPC32XX high speed UART serial console"
+	depends on SERIAL_HS_LPC32XX
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you would like to be able to use one of the high speed serial
+	  ports on the LPC32XX as the console, you can do so by answering
+	  Y to this option.
 
 config SERIAL_CORE
 	tristate
@@ -1049,23 +804,6 @@ config SERIAL_MCF_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
 	  Enable a ColdFire internal serial port to be the system console.
-
-config SERIAL_68360_SMC
-	bool "68360 SMC uart support"
-	depends on M68360
-	help
-	  This driver supports the SMC serial ports of the Motorola 68360 CPU.
-
-config SERIAL_68360_SCC
-	bool "68360 SCC uart support"
-	depends on M68360
-	help
-	  This driver supports the SCC serial ports of the Motorola 68360 CPU.
-
-config SERIAL_68360
-	bool
-	depends on SERIAL_68360_SMC || SERIAL_68360_SCC
-	default y
 
 config SERIAL_PMACZILOG
 	tristate "Mac or PowerMac z85c30 ESCC support"
@@ -1173,7 +911,7 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
+	depends on PCI && PPC_PSERIES
 	select SERIAL_CORE
 	select FW_LOADER
 	help
@@ -1288,7 +1026,7 @@ config SERIAL_SGI_IOC3
 
 config SERIAL_MSM
 	bool "MSM on-chip serial port support"
-	depends on ARM && ARCH_MSM
+	depends on ARCH_MSM
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
@@ -1310,7 +1048,7 @@ config SERIAL_MSM_HS
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
-	depends on ARM && ARCH_VT8500
+	depends on ARCH_VT8500
 	select SERIAL_CORE
 
 config SERIAL_VT8500_CONSOLE
@@ -1320,7 +1058,7 @@ config SERIAL_VT8500_CONSOLE
 
 config SERIAL_NETX
 	tristate "NetX serial port support"
-	depends on ARM && ARCH_NETX
+	depends on ARCH_NETX
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a Hilscher NetX SoC you
@@ -1349,7 +1087,7 @@ config SERIAL_OF_PLATFORM
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
-	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS
 	select SERIAL_CORE
 	help
 	  If you have a machine based on an Texas Instruments OMAP CPU you
@@ -1361,7 +1099,7 @@ config SERIAL_OMAP
 
 config SERIAL_OMAP_CONSOLE
 	bool "Console on OMAP serial port"
-	depends on SERIAL_OMAP
+	depends on SERIAL_OMAP=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Select this option if you would like to use omap serial port as
@@ -1419,10 +1157,28 @@ config SERIAL_SC26XX
 
 config SERIAL_SC26XX_CONSOLE
 	bool "Console on SC2681/SC2692 serial port"
-	depends on SERIAL_SC26XX
+	depends on SERIAL_SC26XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Support for Console on SC2681/SC2692 serial ports.
+
+config SERIAL_SCCNXP
+	tristate "SCCNXP serial port support"
+	depends on !SERIAL_SC26XX
+	select SERIAL_CORE
+	default n
+	help
+	  This selects support for an advanced UART from NXP (Philips).
+	  Supported ICs are SCC2681, SCC2691, SCC2692, SC28L91, SC28L92,
+	  SC28L202, SCC68681 and SCC68692.
+	  Positioned as a replacement for the driver SC26XX.
+
+config SERIAL_SCCNXP_CONSOLE
+	bool "Console on SCCNXP serial port"
+	depends on SERIAL_SCCNXP=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for console on SCCNXP serial ports.
 
 config SERIAL_BFIN_SPORT
 	tristate "Blackfin SPORT emulate UART"
@@ -1580,12 +1336,12 @@ config SERIAL_ALTERA_UART_CONSOLE
 
 config SERIAL_IFX6X60
         tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && SPI && EXPERIMENTAL
+	depends on GPIOLIB && SPI
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
 config SERIAL_PCH_UART
-	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) UART"
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) UART"
 	depends on PCI
 	select SERIAL_CORE
 	help
@@ -1593,12 +1349,21 @@ config SERIAL_PCH_UART
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
 
-	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
-	  Output Hub), ML7213 and ML7223.
-	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
-	  for MP(Media Phone) use.
-	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for LAPIS Semiconductor IOH(Input/
+	  Output Hub), ML7213, ML7223 and ML7831.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use, ML7223 IOH is
+	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+
+config SERIAL_PCH_UART_CONSOLE
+	bool "Support for console on Intel EG20T PCH UART/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on SERIAL_PCH_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use the PCH UART as the system console
+	  (the system  console is the device which receives all kernel messages and
+	  warnings and which allows logins in single user mode).
 
 config SERIAL_MSM_SMD
 	bool "Enable tty device interface for some SMD ports"
@@ -1624,6 +1389,7 @@ config SERIAL_MXS_AUART_CONSOLE
 
 config SERIAL_XILINX_PS_UART
 	tristate "Xilinx PS UART support"
+	depends on OF
 	select SERIAL_CORE
 	help
 	  This driver supports the Xilinx PS UART port.
@@ -1635,4 +1401,89 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	help
 	  Enable a Xilinx PS UART port to be the system console.
 
+config SERIAL_AR933X
+	bool "AR933X serial port support"
+	depends on SOC_AR933X
+	select SERIAL_CORE
+	help
+	  If you have an Atheros AR933X SOC based board and want to use the
+	  built-in UART of the SoC, say Y to this option.
+
+config SERIAL_AR933X_CONSOLE
+	bool "Console on AR933X serial port"
+	depends on SERIAL_AR933X=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a built-in UART port of the AR933X to be the system console.
+
+config SERIAL_AR933X_NR_UARTS
+	int "Maximum number of AR933X serial ports"
+	depends on SERIAL_AR933X
+	default "2"
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.
+
+config SERIAL_EFM32_UART
+	tristate "EFM32 UART/USART port."
+	depends on ARCH_EFM32
+	select SERIAL_CORE
+	help
+	  This driver support the USART and UART ports on
+	  Energy Micro's efm32 SoCs.
+
+config SERIAL_EFM32_UART_CONSOLE
+	bool "EFM32 UART/USART console support"
+	depends on SERIAL_EFM32_UART=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_ARC
+	tristate "ARC UART driver support"
+	select SERIAL_CORE
+	help
+	  Driver for on-chip UART for ARC(Synopsys) for the legacy
+	  FPGA Boards (ML50x/ARCAngel4)
+
+config SERIAL_ARC_CONSOLE
+	bool "Console on ARC UART"
+	depends on SERIAL_ARC=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable system Console on ARC UART
+
+config SERIAL_ARC_NR_PORTS
+	int "Number of ARC UART ports"
+	depends on SERIAL_ARC
+	range 1 3
+	default "1"
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.
+
+config SERIAL_RP2
+	tristate "Comtrol RocketPort EXPRESS/INFINITY support"
+	depends on PCI
+	select SERIAL_CORE
+	help
+	  This driver supports the Comtrol RocketPort EXPRESS and
+	  RocketPort INFINITY families of PCI/PCIe multiport serial adapters.
+	  These adapters use a "RocketPort 2" ASIC that is not compatible
+	  with the original RocketPort driver (CONFIG_ROCKETPORT).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rp2.
+
+	  If you want to compile this driver into the kernel, say Y here.  If
+	  you don't have a suitable RocketPort card installed, say N.
+
+config SERIAL_RP2_NR_UARTS
+	int "Maximum number of RocketPort EXPRESS/INFINITY ports"
+	depends on SERIAL_RP2
+	default "32"
+	help
+	  If multiple cards are present, the default limit of 32 ports may
+	  need to be increased.
+
 endmenu
+
+endif # TTY

@@ -19,23 +19,24 @@
 	"	.long	1b, 4f, 2b, 4f\n"			\
 	"	.popsection\n"					\
 	"	.pushsection .fixup,\"ax\"\n"			\
+	"	.align	2\n"					\
 	"4:	mov	%0, " err_reg "\n"			\
 	"	b	3b\n"					\
 	"	.popsection"
 
 #ifdef CONFIG_SMP
 
-#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
+#define __futex_atomic_op(insn, ret, oldval, tmp, uaddr, oparg)	\
 	smp_mb();						\
 	__asm__ __volatile__(					\
-	"1:	ldrex	%1, [%2]\n"				\
+	"1:	ldrex	%1, [%3]\n"				\
 	"	" insn "\n"					\
-	"2:	strex	%1, %0, [%2]\n"				\
-	"	teq	%1, #0\n"				\
+	"2:	strex	%2, %0, [%3]\n"				\
+	"	teq	%2, #0\n"				\
 	"	bne	1b\n"					\
 	"	mov	%0, #0\n"				\
-	__futex_atomic_ex_table("%4")				\
-	: "=&r" (ret), "=&r" (oldval)				\
+	__futex_atomic_ex_table("%5")				\
+	: "=&r" (ret), "=&r" (oldval), "=&r" (tmp)		\
 	: "r" (uaddr), "r" (oparg), "Ir" (-EFAULT)		\
 	: "cc", "memory")
 
@@ -73,14 +74,14 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 #include <linux/preempt.h>
 #include <asm/domain.h>
 
-#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
+#define __futex_atomic_op(insn, ret, oldval, tmp, uaddr, oparg)	\
 	__asm__ __volatile__(					\
-	"1:	" T(ldr) "	%1, [%2]\n"			\
+	"1:	" TUSER(ldr) "	%1, [%3]\n"			\
 	"	" insn "\n"					\
-	"2:	" T(str) "	%0, [%2]\n"			\
+	"2:	" TUSER(str) "	%0, [%3]\n"			\
 	"	mov	%0, #0\n"				\
-	__futex_atomic_ex_table("%4")				\
-	: "=&r" (ret), "=&r" (oldval)				\
+	__futex_atomic_ex_table("%5")				\
+	: "=&r" (ret), "=&r" (oldval), "=&r" (tmp)		\
 	: "r" (uaddr), "r" (oparg), "Ir" (-EFAULT)		\
 	: "cc", "memory")
 
@@ -95,10 +96,10 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
-	"1:	" T(ldr) "	%1, [%4]\n"
+	"1:	" TUSER(ldr) "	%1, [%4]\n"
 	"	teq	%1, %2\n"
 	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" T(streq) "	%3, [%4]\n"
+	"2:	" TUSER(streq) "	%3, [%4]\n"
 	__futex_atomic_ex_table("%5")
 	: "+r" (ret), "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
@@ -117,7 +118,7 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 	int cmp = (encoded_op >> 24) & 15;
 	int oparg = (encoded_op << 8) >> 20;
 	int cmparg = (encoded_op << 20) >> 20;
-	int oldval = 0, ret;
+	int oldval = 0, ret, tmp;
 
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
@@ -129,19 +130,19 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		__futex_atomic_op("mov	%0, %3", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("mov	%0, %4", ret, oldval, tmp, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
-		__futex_atomic_op("add	%0, %1, %3", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("add	%0, %1, %4", ret, oldval, tmp, uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
-		__futex_atomic_op("orr	%0, %1, %3", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("orr	%0, %1, %4", ret, oldval, tmp, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("and	%0, %1, %3", ret, oldval, uaddr, ~oparg);
+		__futex_atomic_op("and	%0, %1, %4", ret, oldval, tmp, uaddr, ~oparg);
 		break;
 	case FUTEX_OP_XOR:
-		__futex_atomic_op("eor	%0, %1, %3", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("eor	%0, %1, %4", ret, oldval, tmp, uaddr, oparg);
 		break;
 	default:
 		ret = -ENOSYS;

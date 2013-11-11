@@ -22,13 +22,14 @@
 
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
 #include <linux/platform_device.h>
 #include <linux/power/max8903_charger.h>
 
 struct max8903_data {
-	struct max8903_pdata *pdata;
+	struct max8903_pdata pdata;
 	struct device *dev;
 	struct power_supply psy;
 	bool fault;
@@ -52,8 +53,8 @@ static int max8903_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
-		if (data->pdata->chg) {
-			if (gpio_get_value(data->pdata->chg) == 0)
+		if (data->pdata.chg) {
+			if (gpio_get_value(data->pdata.chg) == 0)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (data->usb_in || data->ta_in)
 				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -80,7 +81,7 @@ static int max8903_get_property(struct power_supply *psy,
 static irqreturn_t max8903_dcin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool ta_in;
 	enum power_supply_type old_type;
 
@@ -121,7 +122,7 @@ static irqreturn_t max8903_dcin(int irq, void *_data)
 static irqreturn_t max8903_usbin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool usb_in;
 	enum power_supply_type old_type;
 
@@ -160,7 +161,7 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 static irqreturn_t max8903_fault(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool fault;
 
 	fault = gpio_get_value(pdata->flt) ? false : true;
@@ -178,7 +179,7 @@ static irqreturn_t max8903_fault(int irq, void *_data)
 	return IRQ_HANDLED;
 }
 
-static __devinit int max8903_probe(struct platform_device *pdev)
+static int max8903_probe(struct platform_device *pdev)
 {
 	struct max8903_data *data;
 	struct device *dev = &pdev->dev;
@@ -188,12 +189,12 @@ static __devinit int max8903_probe(struct platform_device *pdev)
 	int ta_in = 0;
 	int usb_in = 0;
 
-	data = kzalloc(sizeof(struct max8903_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct max8903_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Cannot allocate memory.\n");
 		return -ENOMEM;
 	}
-	data->pdata = pdata;
+	memcpy(&data->pdata, pdata, sizeof(struct max8903_pdata));
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
@@ -340,16 +341,15 @@ err_dc_irq:
 err_psy:
 	power_supply_unregister(&data->psy);
 err:
-	kfree(data);
 	return ret;
 }
 
-static __devexit int max8903_remove(struct platform_device *pdev)
+static int max8903_remove(struct platform_device *pdev)
 {
 	struct max8903_data *data = platform_get_drvdata(pdev);
 
 	if (data) {
-		struct max8903_pdata *pdata = data->pdata;
+		struct max8903_pdata *pdata = &data->pdata;
 
 		if (pdata->flt)
 			free_irq(gpio_to_irq(pdata->flt), data);
@@ -358,7 +358,6 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 		if (pdata->dc_valid)
 			free_irq(gpio_to_irq(pdata->dok), data);
 		power_supply_unregister(&data->psy);
-		kfree(data);
 	}
 
 	return 0;
@@ -366,26 +365,16 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 
 static struct platform_driver max8903_driver = {
 	.probe	= max8903_probe,
-	.remove	= __devexit_p(max8903_remove),
+	.remove	= max8903_remove,
 	.driver = {
 		.name	= "max8903-charger",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init max8903_init(void)
-{
-	return platform_driver_register(&max8903_driver);
-}
-module_init(max8903_init);
-
-static void __exit max8903_exit(void)
-{
-	platform_driver_unregister(&max8903_driver);
-}
-module_exit(max8903_exit);
+module_platform_driver(max8903_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MAX8903 Charger Driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_ALIAS("max8903-charger");
+MODULE_ALIAS("platform:max8903-charger");

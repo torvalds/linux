@@ -1,0 +1,219 @@
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	model = "D-Link DNS NASes (kirkwood-based)";
+	compatible = "dlink,dns-kirkwood", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Power button";
+			linux,code = <116>;
+			gpios = <&gpio1 2 1>;
+		};
+		button@2 {
+			label = "USB unmount button";
+			linux,code = <161>;
+			gpios = <&gpio1 15 1>;
+		};
+		button@3 {
+			label = "Reset button";
+			linux,code = <0x198>;
+			gpios = <&gpio1 16 1>;
+		};
+	};
+
+	gpio_fan {
+		/* Fan: ADDA AD045HB-G73 40mm 6000rpm@5v */
+		compatible = "gpio-fan";
+		gpios = <&gpio1 14 1
+			 &gpio1 13 1>;
+		gpio-fan,speed-map = <0    0
+				      3000 1
+				      6000 2>;
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 4 0>;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand &pmx_uart1
+				      &pmx_sata0 &pmx_sata1
+				      &pmx_led_power
+				      &pmx_led_red_right_hdd
+				      &pmx_led_red_left_hdd
+				      &pmx_led_red_usb_325
+				      &pmx_button_power
+				      &pmx_led_red_usb_320
+				      &pmx_power_off &pmx_power_back_on
+				      &pmx_power_sata0 &pmx_power_sata1
+				      &pmx_present_sata0 &pmx_present_sata1
+				      &pmx_led_white_usb &pmx_fan_tacho
+				      &pmx_fan_high_speed &pmx_fan_low_speed
+				      &pmx_button_unmount &pmx_button_reset
+				      &pmx_temp_alarm >;
+			pinctrl-names = "default";
+
+			pmx_sata0: pmx-sata0 {
+				marvell,pins = "mpp20";
+				marvell,function = "sata1";
+			};
+			pmx_sata1: pmx-sata1 {
+				marvell,pins = "mpp21";
+				marvell,function = "sata0";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp26";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_right_hdd: pmx-led-red-right-hdd {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_left_hdd: pmx-led-red-left-hdd {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_usb_325: pmx-led-red-usb-325 {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_button_power: pmx-button-power {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_usb_320: pmx-led-red-usb-320 {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+			pmx_power_off: pmx-power-off {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_power_back_on: pmx-power-back-on {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_power_sata0: pmx-power-sata0 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_power_sata1: pmx-power-sata1 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_present_sata0: pmx-present-sata0 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_present_sata1: pmx-present-sata1 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_led_white_usb: pmx-led-white-usb {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_fan_tacho: pmx-fan-tacho {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_fan_high_speed: pmx-fan-high-speed {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_fan_low_speed: pmx-fan-low-speed {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_button_unmount: pmx-button-unmount {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+			pmx_temp_alarm: pmx-temp-alarm {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+		};
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		nand@3000000 {
+			status = "okay";
+			chip-delay = <35>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x0100000 0x500000>;
+			};
+
+			partition@600000 {
+				label = "ramdisk";
+				reg = <0x0600000 0x500000>;
+			};
+
+			partition@b00000 {
+				label = "image";
+				reg = <0x0b00000 0x6600000>;
+			};
+
+			partition@7100000 {
+				label = "mini firmware";
+				reg = <0x7100000 0xa00000>;
+			};
+
+			partition@7b00000 {
+				label = "config";
+				reg = <0x7b00000 0x500000>;
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sata0_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA0 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 7 0>;
+		};
+		sata1_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "SATA1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 8 0>;
+		};
+	};
+};

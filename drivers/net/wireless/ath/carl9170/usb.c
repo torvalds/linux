@@ -295,6 +295,13 @@ static void carl9170_usb_rx_irq_complete(struct urb *urb)
 		goto resubmit;
 	}
 
+	/*
+	 * While the carl9170 firmware does not use this EP, the
+	 * firmware loader in the EEPROM unfortunately does.
+	 * Therefore we need to be ready to handle out-of-band
+	 * responses and traps in case the firmware crashed and
+	 * the loader took over again.
+	 */
 	carl9170_handle_command_response(ar, urb->transfer_buffer,
 					 urb->actual_length);
 
@@ -1159,17 +1166,7 @@ static struct usb_driver carl9170_driver = {
 	.resume = carl9170_usb_resume,
 	.reset_resume = carl9170_usb_resume,
 #endif /* CONFIG_PM */
+	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init carl9170_usb_init(void)
-{
-	return usb_register(&carl9170_driver);
-}
-
-static void __exit carl9170_usb_exit(void)
-{
-	usb_deregister(&carl9170_driver);
-}
-
-module_init(carl9170_usb_init);
-module_exit(carl9170_usb_exit);
+module_usb_driver(carl9170_driver);

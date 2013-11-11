@@ -23,7 +23,6 @@
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/memory.h>
 #include <mach/hardware.h>
 #include <asm/hardware/iop3xx.h>

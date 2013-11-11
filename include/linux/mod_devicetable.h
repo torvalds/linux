@@ -9,6 +9,7 @@
 
 #ifdef __KERNEL__
 #include <linux/types.h>
+#include <linux/uuid.h>
 typedef unsigned long kernel_ulong_t;
 #endif
 
@@ -33,8 +34,7 @@ struct ieee1394_device_id {
 	__u32 model_id;
 	__u32 specifier_id;
 	__u32 version;
-	kernel_ulong_t driver_data
-		__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;
 };
 
 
@@ -78,6 +78,9 @@ struct ieee1394_device_id {
  *	of a given interface; other interfaces may support other classes.
  * @bInterfaceSubClass: Subclass of interface; associated with bInterfaceClass.
  * @bInterfaceProtocol: Protocol of interface; associated with bInterfaceClass.
+ * @bInterfaceNumber: Number of interface; composite devices may use
+ *	fixed interface numbers to differentiate between vendor-specific
+ *	interfaces.
  * @driver_info: Holds information used by the driver.  Usually it holds
  *	a pointer to a descriptor understood by the driver, or perhaps
  *	device flags.
@@ -115,8 +118,12 @@ struct usb_device_id {
 	__u8		bInterfaceSubClass;
 	__u8		bInterfaceProtocol;
 
+	/* Used for vendor-specific interface matches */
+	__u8		bInterfaceNumber;
+
 	/* not matched against */
-	kernel_ulong_t	driver_info;
+	kernel_ulong_t	driver_info
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
 /* Some useful macros to use to create struct usb_device_id */
@@ -130,16 +137,18 @@ struct usb_device_id {
 #define USB_DEVICE_ID_MATCH_INT_CLASS		0x0080
 #define USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
+#define USB_DEVICE_ID_MATCH_INT_NUMBER		0x0400
 
 #define HID_ANY_ID				(~0)
+#define HID_BUS_ANY				0xffff
+#define HID_GROUP_ANY				0x0000
 
 struct hid_device_id {
 	__u16 bus;
-	__u16 pad1;
+	__u16 group;
 	__u32 vendor;
 	__u32 product;
-	kernel_ulong_t driver_data
-		__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;
 };
 
 /* s390 CCW devices */
@@ -163,8 +172,6 @@ struct ccw_device_id {
 struct ap_device_id {
 	__u16 match_flags;	/* which fields to match against */
 	__u8 dev_type;		/* device type */
-	__u8 pad1;
-	__u32 pad2;
 	kernel_ulong_t driver_info;
 };
 
@@ -174,13 +181,10 @@ struct ap_device_id {
 struct css_device_id {
 	__u8 match_flags;
 	__u8 type; /* subchannel type */
-	__u16 pad2;
-	__u32 pad3;
 	kernel_ulong_t driver_data;
 };
 
-#define ACPI_ID_LEN	16 /* only 9 bytes needed here, 16 bytes are used */
-			   /* to workaround crosscompile issues */
+#define ACPI_ID_LEN	9
 
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
@@ -221,11 +225,7 @@ struct of_device_id
 	char	name[32];
 	char	type[32];
 	char	compatible[128];
-#ifdef __KERNEL__
-	void	*data;
-#else
-	kernel_ulong_t data;
-#endif
+	const void *data;
 };
 
 /* VIO */
@@ -250,24 +250,14 @@ struct pcmcia_device_id {
 	/* for pseudo multi-function devices */
 	__u8  		device_no;
 
-	__u32 		prod_id_hash[4]
-		__attribute__((aligned(sizeof(__u32))));
+	__u32 		prod_id_hash[4];
 
 	/* not matched against in kernelspace*/
-#ifdef __KERNEL__
 	const char *	prod_id[4];
-#else
-	kernel_ulong_t	prod_id[4]
-		__attribute__((aligned(sizeof(kernel_ulong_t))));
-#endif
 
 	/* not matched against */
 	kernel_ulong_t	driver_info;
-#ifdef __KERNEL__
 	char *		cisfile;
-#else
-	kernel_ulong_t	cisfile;
-#endif
 };
 
 #define PCMCIA_DEV_ID_MATCH_MANF_ID	0x0001
@@ -363,8 +353,7 @@ struct sdio_device_id {
 	__u8	class;			/* Standard interface or SDIO_ANY_ID */
 	__u16	vendor;			/* Vendor or SDIO_ANY_ID */
 	__u16	device;			/* Device ID or SDIO_ANY_ID */
-	kernel_ulong_t driver_data	/* Data private to the driver */
-		__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
 /* SSB core, see drivers/ssb/ */
@@ -405,6 +394,23 @@ struct virtio_device_id {
 };
 #define VIRTIO_DEV_ANY_ID	0xffffffff
 
+/*
+ * For Hyper-V devices we use the device guid as the id.
+ */
+struct hv_vmbus_device_id {
+	__u8 guid[16];
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
+/* rpmsg */
+
+#define RPMSG_NAME_SIZE			32
+#define RPMSG_DEVICE_MODALIAS_FMT	"rpmsg:%s"
+
+struct rpmsg_device_id {
+	char name[RPMSG_NAME_SIZE];
+};
+
 /* i2c */
 
 #define I2C_NAME_SIZE	20
@@ -412,8 +418,7 @@ struct virtio_device_id {
 
 struct i2c_device_id {
 	char name[I2C_NAME_SIZE];
-	kernel_ulong_t driver_data	/* Data private to the driver */
-			__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
 /* spi */
@@ -423,8 +428,7 @@ struct i2c_device_id {
 
 struct spi_device_id {
 	char name[SPI_NAME_SIZE];
-	kernel_ulong_t driver_data	/* Data private to the driver */
-			__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
 /* dmi */
@@ -456,15 +460,6 @@ struct dmi_strmatch {
 	char substr[79];
 };
 
-#ifndef __KERNEL__
-struct dmi_system_id {
-	kernel_ulong_t callback;
-	kernel_ulong_t ident;
-	struct dmi_strmatch matches[4];
-	kernel_ulong_t driver_data
-			__attribute__((aligned(sizeof(kernel_ulong_t))));
-};
-#else
 struct dmi_system_id {
 	int (*callback)(const struct dmi_system_id *);
 	const char *ident;
@@ -478,7 +473,6 @@ struct dmi_system_id {
  *	error: storage size of '__mod_dmi_device_table' isn't known
  */
 #define dmi_device_id dmi_system_id
-#endif
 
 #define DMI_MATCH(a, b)	{ a, b }
 
@@ -487,8 +481,7 @@ struct dmi_system_id {
 
 struct platform_device_id {
 	char name[PLATFORM_NAME_SIZE];
-	kernel_ulong_t driver_data
-			__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t driver_data;
 };
 
 #define MDIO_MODULE_PREFIX	"mdio:"
@@ -531,6 +524,57 @@ struct isapnp_device_id {
 	unsigned short card_vendor, card_device;
 	unsigned short vendor, function;
 	kernel_ulong_t driver_data;	/* data private to the driver */
+};
+
+/**
+ * struct amba_id - identifies a device on an AMBA bus
+ * @id: The significant bits if the hardware device ID
+ * @mask: Bitmask specifying which bits of the id field are significant when
+ *	matching.  A driver binds to a device when ((hardware device ID) & mask)
+ *	== id.
+ * @data: Private data used by the driver.
+ */
+struct amba_id {
+	unsigned int		id;
+	unsigned int		mask;
+	void			*data;
+};
+
+/*
+ * Match x86 CPUs for CPU specific drivers.
+ * See documentation of "x86_match_cpu" for details.
+ */
+
+struct x86_cpu_id {
+	__u16 vendor;
+	__u16 family;
+	__u16 model;
+	__u16 feature;	/* bit index */
+	kernel_ulong_t driver_data;
+};
+
+#define X86_FEATURE_MATCH(x) \
+	{ X86_VENDOR_ANY, X86_FAMILY_ANY, X86_MODEL_ANY, x }
+
+#define X86_VENDOR_ANY 0xffff
+#define X86_FAMILY_ANY 0
+#define X86_MODEL_ANY  0
+#define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
+
+#define IPACK_ANY_FORMAT 0xff
+#define IPACK_ANY_ID (~0)
+struct ipack_device_id {
+	__u8  format;			/* Format version or IPACK_ANY_ID */
+	__u32 vendor;			/* Vendor ID or IPACK_ANY_ID */
+	__u32 device;			/* Device ID or IPACK_ANY_ID */
+};
+
+#define MEI_CL_MODULE_PREFIX "mei:"
+#define MEI_CL_NAME_SIZE 32
+
+struct mei_cl_device_id {
+	char name[MEI_CL_NAME_SIZE];
+	kernel_ulong_t driver_info;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

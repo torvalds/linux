@@ -43,6 +43,7 @@
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <linux/log2.h>
+#include <linux/export.h>
 
 extern struct atomic_notifier_head panic_notifier_list;
 static int alpha_panic_event(struct notifier_block *, unsigned long, void *);
@@ -54,7 +55,6 @@ static struct notifier_block alpha_panic_block = {
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/hwrpb.h>
 #include <asm/dma.h>
 #include <asm/mmu_context.h>

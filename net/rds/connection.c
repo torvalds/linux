@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/inet_hashtables.h>
 
 #include "rds.h"
@@ -68,9 +69,8 @@ static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
 					      struct rds_transport *trans)
 {
 	struct rds_connection *conn, *ret = NULL;
-	struct hlist_node *pos;
 
-	hlist_for_each_entry_rcu(conn, pos, head, c_hash_node) {
+	hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 		if (conn->c_faddr == faddr && conn->c_laddr == laddr &&
 				conn->c_trans == trans) {
 			ret = conn;
@@ -375,7 +375,6 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 				  int want_send)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct list_head *list;
 	struct rds_connection *conn;
 	struct rds_message *rm;
@@ -389,7 +388,7 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 
 	for (i = 0, head = rds_conn_hash; i < ARRAY_SIZE(rds_conn_hash);
 	     i++, head++) {
-		hlist_for_each_entry_rcu(conn, pos, head, c_hash_node) {
+		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 			if (want_send)
 				list = &conn->c_send_queue;
 			else
@@ -438,7 +437,6 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 {
 	uint64_t buffer[(item_len + 7) / 8];
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct rds_connection *conn;
 	size_t i;
 
@@ -449,7 +447,7 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 
 	for (i = 0, head = rds_conn_hash; i < ARRAY_SIZE(rds_conn_hash);
 	     i++, head++) {
-		hlist_for_each_entry_rcu(conn, pos, head, c_hash_node) {
+		hlist_for_each_entry_rcu(conn, head, c_hash_node) {
 
 			/* XXX no c_lock usage.. */
 			if (!visitor(conn, buffer))

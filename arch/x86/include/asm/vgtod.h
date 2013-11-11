@@ -5,23 +5,25 @@
 #include <linux/clocksource.h>
 
 struct vsyscall_gtod_data {
-	seqlock_t	lock;
+	seqcount_t	seq;
 
-	/* open coded 'struct timespec' */
-	time_t		wall_time_sec;
-	u32		wall_time_nsec;
-
-	int		sysctl_enabled;
-	struct timezone sys_tz;
 	struct { /* extract of a clocksource struct */
-		cycle_t (*vread)(void);
+		int vclock_mode;
 		cycle_t	cycle_last;
 		cycle_t	mask;
 		u32	mult;
 		u32	shift;
 	} clock;
-	struct timespec wall_to_monotonic;
+
+	/* open coded 'struct timespec' */
+	time_t		wall_time_sec;
+	u64		wall_time_snsec;
+	u64		monotonic_time_snsec;
+	time_t		monotonic_time_sec;
+
+	struct timezone sys_tz;
 	struct timespec wall_time_coarse;
+	struct timespec monotonic_time_coarse;
 };
 extern struct vsyscall_gtod_data vsyscall_gtod_data;
 

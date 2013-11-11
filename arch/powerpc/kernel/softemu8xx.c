@@ -26,7 +26,6 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 /* Eventually we may need a look-up table, but this works for now.

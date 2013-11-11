@@ -19,7 +19,14 @@
 #include <linux/kprobes.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/regset.h>
+#include <linux/elf.h>
+#include <linux/tracehook.h>
 #include <asm/traps.h>
+#include <arch/chip.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -45,6 +52,100 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
+/*
+ * Get registers from task and ready the result for userspace.
+ * Note that we localize the API issues to getregs() and putregs() at
+ * some cost in performance, e.g. we need a full pt_regs copy for
+ * PEEKUSR, and two copies for POKEUSR.  But in general we expect
+ * GETREGS/PUTREGS to be the API of choice anyway.
+ */
+static char *getregs(struct task_struct *child, struct pt_regs *uregs)
+{
+	*uregs = *task_pt_regs(child);
+
+	/* Set up flags ABI bits. */
+	uregs->flags = 0;
+#ifdef CONFIG_COMPAT
+	if (task_thread_info(child)->status & TS_COMPAT)
+		uregs->flags |= PT_FLAGS_COMPAT;
+#endif
+
+	return (char *)uregs;
+}
+
+/* Put registers back to task. */
+static void putregs(struct task_struct *child, struct pt_regs *uregs)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+
+	/* Don't allow overwriting the kernel-internal flags word. */
+	uregs->flags = regs->flags;
+
+	/* Only allow setting the ICS bit in the ex1 word. */
+	uregs->ex1 = PL_ICS_EX1(USER_PL, EX1_ICS(uregs->ex1));
+
+	*regs = *uregs;
+}
+
+enum tile_regset {
+	REGSET_GPR,
+};
+
+static int tile_gpr_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  void *kbuf, void __user *ubuf)
+{
+	struct pt_regs regs;
+
+	getregs(target, &regs);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &regs, 0,
+				   sizeof(regs));
+}
+
+static int tile_gpr_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+	struct pt_regs regs;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &regs, 0,
+				 sizeof(regs));
+	if (ret)
+		return ret;
+
+	putregs(target, &regs);
+
+	return 0;
+}
+
+static const struct user_regset tile_user_regset[] = {
+	[REGSET_GPR] = {
+		.core_note_type = NT_PRSTATUS,
+		.n = ELF_NGREG,
+		.size = sizeof(elf_greg_t),
+		.align = sizeof(elf_greg_t),
+		.get = tile_gpr_get,
+		.set = tile_gpr_set,
+	},
+};
+
+static const struct user_regset_view tile_user_regset_view = {
+	.name = CHIP_ARCH_NAME,
+	.e_machine = ELF_ARCH,
+	.ei_osabi = ELF_OSABI,
+	.regsets = tile_user_regset,
+	.n = ARRAY_SIZE(tile_user_regset),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &tile_user_regset_view;
+}
+
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
@@ -53,14 +154,13 @@ long arch_ptrace(struct task_struct *child, long request,
 	long ret = -EIO;
 	char *childreg;
 	struct pt_regs copyregs;
-	int ex1_offset;
 
 	switch (request) {
 
 	case PTRACE_PEEKUSR:  /* Read register from pt_regs. */
 		if (addr >= PTREGS_SIZE)
 			break;
-		childreg = (char *)task_pt_regs(child) + addr;
+		childreg = getregs(child, &copyregs) + addr;
 #ifdef CONFIG_COMPAT
 		if (is_compat_task()) {
 			if (addr & (sizeof(compat_long_t)-1))
@@ -79,17 +179,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_POKEUSR:  /* Write register in pt_regs. */
 		if (addr >= PTREGS_SIZE)
 			break;
-		childreg = (char *)task_pt_regs(child) + addr;
-
-		/* Guard against overwrites of the privilege level. */
-		ex1_offset = PTREGS_OFFSET_EX1;
-#if defined(CONFIG_COMPAT) && defined(__BIG_ENDIAN)
-		if (is_compat_task())   /* point at low word */
-			ex1_offset += sizeof(compat_long_t);
-#endif
-		if (addr == ex1_offset)
-			data = PL_ICS_EX1(USER_PL, EX1_ICS(data));
-
+		childreg = getregs(child, &copyregs) + addr;
 #ifdef CONFIG_COMPAT
 		if (is_compat_task()) {
 			if (addr & (sizeof(compat_long_t)-1))
@@ -102,24 +192,20 @@ long arch_ptrace(struct task_struct *child, long request,
 				break;
 			*(long *)childreg = data;
 		}
+		putregs(child, &copyregs);
 		ret = 0;
 		break;
 
 	case PTRACE_GETREGS:  /* Get all registers from the child. */
-		if (copy_to_user(datap, task_pt_regs(child),
-				 sizeof(struct pt_regs)) == 0) {
-			ret = 0;
-		}
+		ret = copy_regset_to_user(child, &tile_user_regset_view,
+					  REGSET_GPR, 0,
+					  sizeof(struct pt_regs), datap);
 		break;
 
 	case PTRACE_SETREGS:  /* Set all registers in the child. */
-		if (copy_from_user(&copyregs, datap,
-				   sizeof(struct pt_regs)) == 0) {
-			copyregs.ex1 =
-				PL_ICS_EX1(USER_PL, EX1_ICS(copyregs.ex1));
-			*task_pt_regs(child) = copyregs;
-			ret = 0;
-		}
+		ret = copy_regset_from_user(child, &tile_user_regset_view,
+					    REGSET_GPR, 0,
+					    sizeof(struct pt_regs), datap);
 		break;
 
 	case PTRACE_GETFPREGS:  /* Get the child FPU state. */
@@ -128,12 +214,16 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_SETOPTIONS:
 		/* Support TILE-specific ptrace options. */
-		child->ptrace &= ~PT_TRACE_MASK_TILE;
+		BUILD_BUG_ON(PTRACE_O_MASK_TILE & PTRACE_O_MASK);
 		tmp = data & PTRACE_O_MASK_TILE;
 		data &= ~PTRACE_O_MASK_TILE;
 		ret = ptrace_request(child, request, addr, data);
-		if (tmp & PTRACE_O_TRACEMIGRATE)
-			child->ptrace |= PT_TRACE_MIGRATE;
+		if (ret == 0) {
+			unsigned int flags = child->ptrace;
+			flags &= ~(PTRACE_O_MASK_TILE << PT_OPT_FLAG_SHIFT);
+			flags |= (tmp << PT_OPT_FLAG_SHIFT);
+			child->ptrace = flags;
+		}
 		break;
 
 	default:
@@ -160,29 +250,26 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 }
 #endif
 
-void do_syscall_trace(void)
+int do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
-	/*
-	 * The 0x80 provides a way for the tracing parent to distinguish
-	 * between a syscall stop and SIGTRAP delivery
-	 */
-	ptrace_notify(SIGTRAP|((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (tracehook_report_syscall_entry(regs))
+			regs->regs[TREG_SYSCALL_NR] = -1;
 	}
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_enter(regs, regs->regs[TREG_SYSCALL_NR]);
+
+	return regs->regs[TREG_SYSCALL_NR];
+}
+
+void do_syscall_trace_exit(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, regs->regs[0]);
 }
 
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)

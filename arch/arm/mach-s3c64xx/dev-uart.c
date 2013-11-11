@@ -31,99 +31,23 @@
 /* 64xx uarts are closer together */
 
 static struct resource s3c64xx_uart0_resource[] = {
-	[0] = {
-		.start	= S3C_PA_UART0,
-		.end	= S3C_PA_UART0 + 0x100,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_S3CUART_RX0,
-		.end	= IRQ_S3CUART_RX0,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= IRQ_S3CUART_TX0,
-		.end	= IRQ_S3CUART_TX0,
-		.flags	= IORESOURCE_IRQ,
-
-	},
-	[3] = {
-		.start	= IRQ_S3CUART_ERR0,
-		.end	= IRQ_S3CUART_ERR0,
-		.flags	= IORESOURCE_IRQ,
-	}
+	[0] = DEFINE_RES_MEM(S3C_PA_UART0, SZ_256),
+	[1] = DEFINE_RES_IRQ(IRQ_UART0),
 };
 
 static struct resource s3c64xx_uart1_resource[] = {
-	[0] = {
-		.start = S3C_PA_UART1,
-		.end   = S3C_PA_UART1 + 0x100,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_S3CUART_RX1,
-		.end	= IRQ_S3CUART_RX1,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= IRQ_S3CUART_TX1,
-		.end	= IRQ_S3CUART_TX1,
-		.flags	= IORESOURCE_IRQ,
-
-	},
-	[3] = {
-		.start	= IRQ_S3CUART_ERR1,
-		.end	= IRQ_S3CUART_ERR1,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S3C_PA_UART1, SZ_256),
+	[1] = DEFINE_RES_IRQ(IRQ_UART1),
 };
 
 static struct resource s3c6xx_uart2_resource[] = {
-	[0] = {
-		.start = S3C_PA_UART2,
-		.end   = S3C_PA_UART2 + 0x100,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_S3CUART_RX2,
-		.end	= IRQ_S3CUART_RX2,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= IRQ_S3CUART_TX2,
-		.end	= IRQ_S3CUART_TX2,
-		.flags	= IORESOURCE_IRQ,
-
-	},
-	[3] = {
-		.start	= IRQ_S3CUART_ERR2,
-		.end	= IRQ_S3CUART_ERR2,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S3C_PA_UART2, SZ_256),
+	[1] = DEFINE_RES_IRQ(IRQ_UART2),
 };
 
 static struct resource s3c64xx_uart3_resource[] = {
-	[0] = {
-		.start = S3C_PA_UART3,
-		.end   = S3C_PA_UART3 + 0x100,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_S3CUART_RX3,
-		.end	= IRQ_S3CUART_RX3,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= IRQ_S3CUART_TX3,
-		.end	= IRQ_S3CUART_TX3,
-		.flags	= IORESOURCE_IRQ,
-
-	},
-	[3] = {
-		.start	= IRQ_S3CUART_ERR3,
-		.end	= IRQ_S3CUART_ERR3,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(S3C_PA_UART3, SZ_256),
+	[1] = DEFINE_RES_IRQ(IRQ_UART3),
 };
 
 

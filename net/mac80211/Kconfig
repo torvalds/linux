@@ -81,7 +81,7 @@ comment "Some wireless drivers require a rate control algorithm"
 
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
-	depends on MAC80211 && EXPERIMENTAL
+	depends on MAC80211
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
 	 The implementation is based on Draft 2.08 of the Mesh Networking
@@ -106,6 +106,19 @@ config MAC80211_DEBUGFS
 	  the internal state of mac80211 in debugfs.
 
 	  Say N unless you know you need this.
+
+config MAC80211_MESSAGE_TRACING
+	bool "Trace all mac80211 debug messages"
+	depends on MAC80211
+	---help---
+	  Select this option to have mac80211 register the
+	  mac80211_msg trace subsystem with tracepoints to
+	  collect all debugging messages, independent of
+	  printing them into the kernel log.
+
+	  The overhead in this option is that all the messages
+	  need to be present in the binary and formatted at
+	  runtime for tracing.
 
 menuconfig MAC80211_DEBUG_MENU
 	bool "Select mac80211 debugging features"
@@ -140,6 +153,26 @@ config MAC80211_VERBOSE_DEBUG
 
 	  Do not select this option.
 
+config MAC80211_MLME_DEBUG
+	bool "Verbose managed MLME output"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for the managed-mode MLME. It
+	  should not be selected on production systems as some
+	  of the messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_STA_DEBUG
+	bool "Verbose station debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out
+	  debugging messages for station addition/removal.
+
+	  Do not select this option.
+
 config MAC80211_HT_DEBUG
 	bool "Verbose HT debugging"
 	depends on MAC80211_DEBUG_MENU
@@ -149,17 +182,6 @@ config MAC80211_HT_DEBUG
 
 	  It should not be selected on production systems as some
 	  of the messages are remotely triggerable.
-
-	  Do not select this option.
-
-config MAC80211_TKIP_DEBUG
-	bool "Verbose TKIP debugging"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  Selecting this option causes mac80211 to print out
-	  very verbose TKIP debugging messages. It should not
-	  be selected on production systems as those messages
-	  are remotely triggerable.
 
 	  Do not select this option.
 
@@ -174,7 +196,7 @@ config MAC80211_IBSS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_PS_DEBUG
+config MAC80211_PS_DEBUG
 	bool "Verbose powersave mode debugging"
 	depends on MAC80211_DEBUG_MENU
 	---help---
@@ -186,7 +208,7 @@ config MAC80211_VERBOSE_PS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MPL_DEBUG
+config MAC80211_MPL_DEBUG
 	bool "Verbose mesh peer link debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -199,7 +221,20 @@ config MAC80211_VERBOSE_MPL_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_VERBOSE_MHWMP_DEBUG
+config MAC80211_MPATH_DEBUG
+	bool "Verbose mesh path debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose mesh path selection debugging messages (when mac80211
+	  is taking part in a mesh network).
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_MHWMP_DEBUG
 	bool "Verbose mesh HWMP routing debugging"
 	depends on MAC80211_DEBUG_MENU
 	depends on MAC80211_MESH
@@ -207,6 +242,40 @@ config MAC80211_VERBOSE_MHWMP_DEBUG
 	  Selecting this option causes mac80211 to print out very
 	  verbose mesh routing (HWMP) debugging messages (when mac80211
 	  is taking part in a mesh network).
+	  It should not be selected on production systems as those
+	  messages are remotely triggerable.
+
+	  Do not select this option.
+
+config MAC80211_MESH_SYNC_DEBUG
+	bool "Verbose mesh synchronization debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  synchronization debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_MESH_PS_DEBUG
+	bool "Verbose mesh powersave debugging"
+	depends on MAC80211_DEBUG_MENU
+	depends on MAC80211_MESH
+	---help---
+	  Selecting this option causes mac80211 to print out very verbose mesh
+	  powersave debugging messages (when mac80211 is taking part in a
+	  mesh network).
+
+	  Do not select this option.
+
+config MAC80211_TDLS_DEBUG
+	bool "Verbose TDLS debugging"
+	depends on MAC80211_DEBUG_MENU
+	---help---
+	  Selecting this option causes mac80211 to print out very
+	  verbose TDLS selection debugging messages (when mac80211
+	  is a TDLS STA).
 	  It should not be selected on production systems as those
 	  messages are remotely triggerable.
 
@@ -222,15 +291,3 @@ config MAC80211_DEBUG_COUNTERS
 	  and show them in debugfs.
 
 	  If unsure, say N.
-
-config MAC80211_DRIVER_API_TRACER
-	bool "Driver API tracer"
-	depends on MAC80211_DEBUG_MENU
-	depends on EVENT_TRACING
-	help
-	  Say Y here to make mac80211 register with the ftrace
-	  framework for the driver API -- you can then see which
-	  driver methods it is calling and which API functions
-	  drivers are calling by looking at the trace.
-
-	  If unsure, say Y.

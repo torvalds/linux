@@ -17,7 +17,6 @@
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>
-#include <linux/device.h>
 #include <linux/string.h>
 #include <linux/rio.h>
 
@@ -366,6 +365,11 @@ void rio_release_regions(struct rio_dev *);
 int rio_request_region(struct rio_dev *, int, char *);
 void rio_release_region(struct rio_dev *, int);
 
+/* Memory mapping functions */
+extern int rio_map_inb_region(struct rio_mport *mport, dma_addr_t local,
+			u64 rbase, u32 size, u32 rflags);
+extern void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart);
+
 /* Port-Write management */
 extern int rio_request_inb_pwrite(struct rio_dev *,
 			int (*)(struct rio_dev *, union rio_pw_msg*, int));
@@ -377,6 +381,15 @@ int rio_register_driver(struct rio_driver *);
 void rio_unregister_driver(struct rio_driver *);
 struct rio_dev *rio_dev_get(struct rio_dev *);
 void rio_dev_put(struct rio_dev *);
+
+#ifdef CONFIG_RAPIDIO_DMA_ENGINE
+extern struct dma_chan *rio_request_dma(struct rio_dev *rdev);
+extern void rio_release_dma(struct dma_chan *dchan);
+extern struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(
+		struct rio_dev *rdev, struct dma_chan *dchan,
+		struct rio_dma_data *data,
+		enum dma_transfer_direction direction, unsigned long flags);
+#endif
 
 /**
  * rio_name - Get the unique RIO device identifier
@@ -420,5 +433,6 @@ extern u16 rio_local_get_device_id(struct rio_mport *port);
 extern struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from);
 extern struct rio_dev *rio_get_asm(u16 vid, u16 did, u16 asm_vid, u16 asm_did,
 				   struct rio_dev *from);
+extern int rio_init_mports(void);
 
 #endif				/* LINUX_RIO_DRV_H */

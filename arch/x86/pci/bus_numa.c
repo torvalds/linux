@@ -4,55 +4,100 @@
 
 #include "bus_numa.h"
 
-int pci_root_num;
-struct pci_root_info pci_root_info[PCI_ROOT_NR];
+LIST_HEAD(pci_root_infos);
 
-void x86_pci_root_bus_res_quirks(struct pci_bus *b)
+static struct pci_root_info *x86_find_pci_root_info(int bus)
 {
-	int i;
-	int j;
 	struct pci_root_info *info;
 
-	/* don't go for it if _CRS is used already */
-	if (b->resource[0] != &ioport_resource ||
-	    b->resource[1] != &iomem_resource)
-		return;
+	if (list_empty(&pci_root_infos))
+		return NULL;
 
-	if (!pci_root_num)
-		return;
+	list_for_each_entry(info, &pci_root_infos, list)
+		if (info->busn.start == bus)
+			return info;
 
-	for (i = 0; i < pci_root_num; i++) {
-		if (pci_root_info[i].bus_min == b->number)
+	return NULL;
+}
+
+void x86_pci_root_bus_resources(int bus, struct list_head *resources)
+{
+	struct pci_root_info *info = x86_find_pci_root_info(bus);
+	struct pci_root_res *root_res;
+	struct pci_host_bridge_window *window;
+	bool found = false;
+
+	if (!info)
+		goto default_resources;
+
+	printk(KERN_DEBUG "PCI: root bus %02x: hardware-probed resources\n",
+	       bus);
+
+	/* already added by acpi ? */
+	list_for_each_entry(window, resources, list)
+		if (window->res->flags & IORESOURCE_BUS) {
+			found = true;
 			break;
-	}
+		}
 
-	if (i == pci_root_num)
-		return;
+	if (!found)
+		pci_add_resource(resources, &info->busn);
 
-	printk(KERN_DEBUG "PCI: peer root bus %02x res updated from pci conf\n",
-			b->number);
-
-	pci_bus_remove_resources(b);
-	info = &pci_root_info[i];
-	for (j = 0; j < info->res_num; j++) {
+	list_for_each_entry(root_res, &info->resources, list) {
 		struct resource *res;
 		struct resource *root;
 
-		res = &info->res[j];
-		pci_bus_add_resource(b, res, 0);
+		res = &root_res->res;
+		pci_add_resource(resources, res);
 		if (res->flags & IORESOURCE_IO)
 			root = &ioport_resource;
 		else
 			root = &iomem_resource;
 		insert_resource(root, res);
 	}
+	return;
+
+default_resources:
+	/*
+	 * We don't have any host bridge aperture information from the
+	 * "native host bridge drivers," e.g., amd_bus or broadcom_bus,
+	 * so fall back to the defaults historically used by pci_create_bus().
+	 */
+	printk(KERN_DEBUG "PCI: root bus %02x: using default resources\n", bus);
+	pci_add_resource(resources, &ioport_resource);
+	pci_add_resource(resources, &iomem_resource);
 }
 
-void __devinit update_res(struct pci_root_info *info, resource_size_t start,
-			  resource_size_t end, unsigned long flags, int merge)
+struct pci_root_info __init *alloc_pci_root_info(int bus_min, int bus_max,
+						 int node, int link)
 {
-	int i;
+	struct pci_root_info *info;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+
+	if (!info)
+		return info;
+
+	sprintf(info->name, "PCI Bus #%02x", bus_min);
+
+	INIT_LIST_HEAD(&info->resources);
+	info->busn.name  = info->name;
+	info->busn.start = bus_min;
+	info->busn.end   = bus_max;
+	info->busn.flags = IORESOURCE_BUS;
+	info->node = node;
+	info->link = link;
+
+	list_add_tail(&info->list, &pci_root_infos);
+
+	return info;
+}
+
+void update_res(struct pci_root_info *info, resource_size_t start,
+		resource_size_t end, unsigned long flags, int merge)
+{
 	struct resource *res;
+	struct pci_root_res *root_res;
 
 	if (start > end)
 		return;
@@ -64,11 +109,11 @@ void __devinit update_res(struct pci_root_info *info, resource_size_t start,
 		goto addit;
 
 	/* try to merge it with old one */
-	for (i = 0; i < info->res_num; i++) {
+	list_for_each_entry(root_res, &info->resources, list) {
 		resource_size_t final_start, final_end;
 		resource_size_t common_start, common_end;
 
-		res = &info->res[i];
+		res = &root_res->res;
 		if (res->flags != flags)
 			continue;
 
@@ -88,14 +133,15 @@ void __devinit update_res(struct pci_root_info *info, resource_size_t start,
 addit:
 
 	/* need to add that */
-	if (info->res_num >= RES_NUM)
+	root_res = kzalloc(sizeof(*root_res), GFP_KERNEL);
+	if (!root_res)
 		return;
 
-	res = &info->res[info->res_num];
+	res = &root_res->res;
 	res->name = info->name;
 	res->flags = flags;
 	res->start = start;
 	res->end = end;
-	res->child = NULL;
-	info->res_num++;
+
+	list_add_tail(&root_res->list, &info->resources);
 }

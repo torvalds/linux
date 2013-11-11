@@ -29,28 +29,30 @@
 #include <linux/dm9000.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/regs-fb.h>
 #include <mach/map.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 
-#include <mach/s3c6410.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
+#include <plat/samsung-time.h>
+
+#include "common.h"
+#include "regs-modem.h"
 
 /* DM9000 */
 #define ANW6410_PA_DM9000	(0x18000000)
@@ -132,24 +134,27 @@ static struct platform_device anw6410_lcd_powerdev = {
 };
 
 static struct s3c_fb_pd_win anw6410_fb_win0 = {
-	/* this is to ensure we use win0 */
-	.win_mode	= {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode anw6410_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 /* 405566 clocks per frame => 60Hz refresh requires 24333960Hz clock */
 static struct s3c_fb_platdata anw6410_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+	.vtiming	= &anw6410_lcd_timing,
 	.win[0]		= &anw6410_fb_win0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
@@ -163,21 +168,10 @@ static void __init anw6410_dm9000_enable(void)
 }
 
 static struct resource anw6410_dm9000_resource[] = {
-	[0] = {
-		.start = ANW6410_PA_DM9000,
-		.end   = ANW6410_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = ANW6410_PA_DM9000 + 4,
-		.end   = ANW6410_PA_DM9000 + 4 + 500,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
-		.start = IRQ_EINT(15),
-		.end   = IRQ_EINT(15),
-		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
-	},
+	[0] = DEFINE_RES_MEM(ANW6410_PA_DM9000, 4),
+	[1] = DEFINE_RES_MEM(ANW6410_PA_DM9000 + 4, 501),
+	[2] = DEFINE_RES_NAMED(IRQ_EINT(15), 1, NULL, IORESOURCE_IRQ \
+					| IRQF_TRIGGER_HIGH),
 };
 
 static struct dm9000_plat_data anw6410_dm9000_pdata = {
@@ -215,6 +209,7 @@ static void __init anw6410_map_io(void)
 	s3c64xx_init_io(anw6410_iodesc, ARRAY_SIZE(anw6410_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(anw6410_uartcfgs, ARRAY_SIZE(anw6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	anw6410_lcd_mode_set();
 }
@@ -233,10 +228,12 @@ static void __init anw6410_machine_init(void)
 
 MACHINE_START(ANW6410, "A&W6410")
 	/* Maintainer: Kwangwoo Lee <kwangwoo.lee@gmail.com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_late	= s3c64xx_init_late,
+	.init_time	= samsung_timer_init,
+	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -27,12 +27,6 @@
 #include <sound/hwdep.h>
 #include <linux/interrupt.h>
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#if !defined(CONFIG_USE_VXLOADER) && !defined(CONFIG_SND_VX_LIB) /* built-in kernel */
-#define SND_VX_FW_LOADER	/* use the standard firmware loader */
-#endif
-#endif
-
 struct firmware;
 struct device;
 
@@ -341,7 +335,7 @@ int vx_change_frequency(struct vx_core *chip);
 /*
  * PM
  */
-int snd_vx_suspend(struct vx_core *card, pm_message_t state);
+int snd_vx_suspend(struct vx_core *card);
 int snd_vx_resume(struct vx_core *card);
 
 /*

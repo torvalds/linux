@@ -1,0 +1,62 @@
+External Memory Interface
+-------------------------
+
+The emifa node describes a simple external bus controller found on some C6X
+SoCs. This interface provides external busses with a number of chip selects.
+
+Required properties:
+
+- compatible: must be "ti,c64x+emifa", "simple-bus"
+- reg: register area base and size
+- #address-cells: must be 2 (chip-select + offset)
+- #size-cells: must be 1
+- ranges: mapping from EMIFA space to parent space
+
+
+Optional properties:
+
+- ti,dscr-dev-enable: Device ID if EMIF is enabled/disabled from DSCR
+
+- ti,emifa-burst-priority:
+      Number of memory transfers after which the EMIF will elevate the priority
+      of the oldest command in the command FIFO. Setting this field to 255
+      disables this feature, thereby allowing old commands to stay in the FIFO
+      indefinitely.
+
+- ti,emifa-ce-config:
+      Configuration values for each of the supported chip selects.
+
+Example:
+
+	emifa@70000000 {
+		compatible = "ti,c64x+emifa", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x70000000 0x100>;
+		ranges = <0x2 0x0 0xa0000000 0x00000008
+		          0x3 0x0 0xb0000000 0x00400000
+			  0x4 0x0 0xc0000000 0x10000000
+			  0x5 0x0 0xD0000000 0x10000000>;
+
+		ti,dscr-dev-enable = <13>;
+		ti,emifa-burst-priority = <255>;
+		ti,emifa-ce-config = <0x00240120
+				      0x00240120
+				      0x00240122
+				      0x00240122>;
+
+		flash@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x3 0x0 0x400000>;
+			bank-width = <1>;
+			device-width = <1>;
+			partition@0 {
+				reg = <0x0 0x400000>;
+				label = "NOR";
+			};
+		};
+	};
+
+This shows a flash chip attached to chip select 3.

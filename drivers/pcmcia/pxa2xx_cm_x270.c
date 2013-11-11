@@ -14,22 +14,13 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
-
-#include <asm/mach-types.h>
+#include <linux/export.h>
 
 #include "soc_common.h"
 
 #define GPIO_PCMCIA_S0_CD_VALID	(84)
 #define GPIO_PCMCIA_S0_RDYINT	(82)
 #define GPIO_PCMCIA_RESET	(53)
-
-#define PCMCIA_S0_CD_VALID	IRQ_GPIO(GPIO_PCMCIA_S0_CD_VALID)
-#define PCMCIA_S0_RDYINT	IRQ_GPIO(GPIO_PCMCIA_S0_RDYINT)
-
-
-static struct pcmcia_irqs irqs[] = {
-	{ 0, PCMCIA_S0_CD_VALID, "PCMCIA0 CD" },
-};
 
 static int cmx270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
@@ -38,17 +29,16 @@ static int cmx270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		return ret;
 	gpio_direction_output(GPIO_PCMCIA_RESET, 0);
 
-	skt->socket.pci_irq = PCMCIA_S0_RDYINT;
-	ret = soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
-	if (!ret)
-		gpio_free(GPIO_PCMCIA_RESET);
+	skt->stat[SOC_STAT_CD].gpio = GPIO_PCMCIA_S0_CD_VALID;
+	skt->stat[SOC_STAT_CD].name = "PCMCIA0 CD";
+	skt->stat[SOC_STAT_RDY].gpio = GPIO_PCMCIA_S0_RDYINT;
+	skt->stat[SOC_STAT_RDY].name = "PCMCIA0 RDY";
 
 	return ret;
 }
 
 static void cmx270_pcmcia_shutdown(struct soc_pcmcia_socket *skt)
 {
-	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
 	gpio_free(GPIO_PCMCIA_RESET);
 }
 
@@ -56,13 +46,8 @@ static void cmx270_pcmcia_shutdown(struct soc_pcmcia_socket *skt)
 static void cmx270_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 				       struct pcmcia_state *state)
 {
-	state->detect = (gpio_get_value(GPIO_PCMCIA_S0_CD_VALID) == 0) ? 1 : 0;
-	state->ready  = (gpio_get_value(GPIO_PCMCIA_S0_RDYINT) == 0) ? 0 : 1;
-	state->bvd1   = 1;
-	state->bvd2   = 1;
 	state->vs_3v  = 0;
 	state->vs_Xv  = 0;
-	state->wrprot = 0;  /* not available */
 }
 
 
@@ -82,23 +67,12 @@ static int cmx270_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	return 0;
 }
 
-static void cmx270_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-}
-
-static void cmx270_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
-{
-}
-
-
 static struct pcmcia_low_level cmx270_pcmcia_ops __initdata = {
 	.owner			= THIS_MODULE,
 	.hw_init		= cmx270_pcmcia_hw_init,
 	.hw_shutdown		= cmx270_pcmcia_shutdown,
 	.socket_state		= cmx270_pcmcia_socket_state,
 	.configure_socket	= cmx270_pcmcia_configure_socket,
-	.socket_init		= cmx270_pcmcia_socket_init,
-	.socket_suspend		= cmx270_pcmcia_socket_suspend,
 	.nr			= 1,
 };
 

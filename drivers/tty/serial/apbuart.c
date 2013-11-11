@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/serial.h>
@@ -77,7 +78,6 @@ static void apbuart_enable_ms(struct uart_port *port)
 
 static void apbuart_rx_chars(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int status, ch, rsr, flag;
 	unsigned int max_chars = port->fifosize;
 
@@ -125,7 +125,7 @@ static void apbuart_rx_chars(struct uart_port *port)
 		status = UART_GET_STATUS(port);
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 }
 
 static void apbuart_tx_chars(struct uart_port *port)
@@ -553,7 +553,7 @@ static struct uart_driver grlib_apbuart_driver = {
 /* OF Platform Driver                                                       */
 /* ======================================================================== */
 
-static int __devinit apbuart_probe(struct platform_device *op)
+static int apbuart_probe(struct platform_device *op)
 {
 	int i;
 	struct uart_port *port = NULL;
@@ -576,7 +576,7 @@ static int __devinit apbuart_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id __initdata apbuart_match[] = {
+static struct of_device_id apbuart_match[] = {
 	{
 	 .name = "GAISLER_APBUART",
 	 },
@@ -596,7 +596,7 @@ static struct platform_driver grlib_apbuart_of_driver = {
 };
 
 
-static int grlib_apbuart_configure(void)
+static int __init grlib_apbuart_configure(void)
 {
 	struct device_node *np;
 	int line = 0;

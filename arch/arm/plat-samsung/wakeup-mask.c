@@ -11,7 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/types.h>
 #include <linux/irq.h>
 #include <linux/io.h>

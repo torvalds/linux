@@ -1,0 +1,200 @@
+  <title>V4L2 Driver Programming</title>
+
+  <!-- This part defines the interface between the "videodev"
+    module and individual drivers. -->
+
+  <para>to do</para>
+<!--
+  <para>V4L2 is a two-layer driver system. The top layer is the "videodev"
+kernel module. When videodev initializes it registers as character device
+with major number 81, and it registers a set of file operations. All V4L2
+drivers are really clients of videodev, which calls V4L2 drivers through
+driver method functions. V4L2 drivers are also written as kernel modules.
+After probing the hardware they register one or more devices with
+videodev.</para>
+
+  <section id="driver-modules">
+    <title>Driver Modules</title>
+
+    <para>V4L2 driver modules must have an initialization function which is
+called after the module was loaded into kernel, an exit function whis is
+called before the module is removed.  When the driver is compiled into the
+kernel these functions called at system boot and shutdown time.</para>
+
+    <informalexample>
+      <programlisting>
+#include &lt;linux/module.h&gt;
+
+/* Export information about this module. For details and other useful
+   macros see <filename>linux/module.h</filename>. */
+MODULE_DESCRIPTION("my - driver for my hardware");
+MODULE_AUTHOR("Your name here");
+MODULE_LICENSE("GPL");
+
+static void
+my_module_exit (void)
+{
+	/* Free all resources allocated by my_module_init(). */
+}
+
+static int
+my_module_init (void)
+{
+	/* Bind the driver to the supported hardware, see
+	   <link linkend="driver-pci"> and
+	   <link linkend="driver-usb"> for examples. */
+
+	return 0; /* a negative value on error, 0 on success. */
+}
+
+/* Export module functions. */
+module_init (my_module_init);
+module_exit (my_module_exit);
+</programlisting>
+    </informalexample>
+
+    <para>Users can add parameters when kernel modules are inserted:</para>
+
+    <informalexample>
+      <programlisting>
+include &lt;linux/moduleparam.h&gt;
+
+static int my_option = 123;
+static int my_option_array[47];
+
+/* Export the symbol, an int, with access permissions 0664.
+   See <filename>linux/moduleparam.h</filename> for other types. */
+module_param (my_option, int, 0644);
+module_param_array (my_option_array, int, NULL, 0644);
+
+MODULE_PARM_DESC (my_option, "Does magic things, default 123");
+</programlisting>
+    </informalexample>
+
+    <para>One parameter should be supported by all V4L2 drivers, the minor
+number of the device it will register. Purpose is to predictably link V4L2
+drivers to device nodes if more than one video device is installed. Use the
+name of the device node followed by a "_nr" suffix, for example "video_nr"
+for <filename>/dev/video</filename>.</para>
+
+    <informalexample>
+      <programlisting>
+/* Minor number of the device, -1 to allocate the first unused. */
+static int video_nr = -1;
+
+module_param (video_nr, int, 0444);
+</programlisting>
+    </informalexample>
+  </section>
+
+  <section id="driver-pci">
+    <title>PCI Devices</title>
+
+    <para>PCI devices are initialized like this:</para>
+
+    <informalexample>
+      <programlisting>
+typedef struct {
+	/* State of one physical device. */
+} my_device;
+
+static int
+my_resume               (struct pci_dev *               pci_dev)
+{
+	/* Restore the suspended device to working state. */
+}
+
+static int
+my_suspend              (struct pci_dev *               pci_dev,
+			 pm_message_t                   state)
+{
+	/* This function is called before the system goes to sleep.
+	   Stop all DMAs and disable interrupts, then put the device
+	   into a low power state. For details see the kernel
+	   sources under <filename>Documentation/power</filename>. */
+
+	return 0; /* a negative value on error, 0 on success. */
+}
+
+static void
+my_remove               (struct pci_dev *               pci_dev)
+{
+	my_device *my = pci_get_drvdata (pci_dev);
+
+	/* Describe me. */
+}
+
+static int
+my_probe                (struct pci_dev *               pci_dev,
+			 const struct pci_device_id *   pci_id)
+{
+	my_device *my;
+
+	/* Describe me. */
+
+	/* You can allocate per-device data here and store a pointer
+	   to it in the pci_dev structure. */
+	my = ...;
+	pci_set_drvdata (pci_dev, my);
+
+	return 0; /* a negative value on error, 0 on success. */
+}
+
+/* A list of supported PCI devices. */
+static struct pci_device_id
+my_pci_device_ids [] = {
+	{ PCI_VENDOR_ID_FOO, PCI_DEVICE_ID_BAR,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0 } /* end of list */
+};
+
+/* Load our module if supported PCI devices are installed. */
+MODULE_DEVICE_TABLE (pci, my_pci_device_ids);
+
+static struct pci_driver
+my_pci_driver = {
+	.name     = "my",
+	.id_table = my_pci_device_ids,
+
+	.probe    = my_probe,
+	.remove   = my_remove,
+
+	/* Power management functions. */
+	.suspend  = my_suspend,
+	.resume   = my_resume,
+};
+
+static void
+my_module_exit          (void)
+{
+	pci_unregister_driver (&my_pci_driver);
+}
+
+static int
+my_module_init          (void)
+{
+	return pci_register_driver (&my_pci_driver);
+}
+</programlisting>
+    </informalexample>
+  </section>
+
+  <section id="driver-usb">
+    <title>USB Devices</title>
+    <para>to do</para>
+  </section>
+  <section id="driver-registering">
+    <title>Registering V4L2 Drivers</title>
+
+    <para>After a V4L2 driver probed the hardware it registers one or more
+devices with the videodev module.</para>
+  </section>
+  <section id="driver-file-ops">
+    <title>File Operations</title>
+    <para>to do</para>
+  </section>
+  <section id="driver-internal-api">
+    <title>Internal API</title>
+    <para>to do</para>
+  </section>
+-->

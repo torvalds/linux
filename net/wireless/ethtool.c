@@ -2,6 +2,7 @@
 #include <net/cfg80211.h>
 #include "core.h"
 #include "ethtool.h"
+#include "rdev-ops.h"
 
 static void cfg80211_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
@@ -14,10 +15,10 @@ static void cfg80211_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, init_utsname()->release, sizeof(info->version));
 
 	if (wdev->wiphy->fw_version[0])
-		strncpy(info->fw_version, wdev->wiphy->fw_version,
+		strlcpy(info->fw_version, wdev->wiphy->fw_version,
 			sizeof(info->fw_version));
 	else
-		strncpy(info->fw_version, "N/A", sizeof(info->fw_version));
+		strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 
 	strlcpy(info->bus_info, dev_name(wiphy_dev(wdev->wiphy)),
 		sizeof(info->bus_info));
@@ -47,9 +48,8 @@ static void cfg80211_get_ringparam(struct net_device *dev,
 	memset(rp, 0, sizeof(*rp));
 
 	if (rdev->ops->get_ringparam)
-		rdev->ops->get_ringparam(wdev->wiphy,
-					 &rp->tx_pending, &rp->tx_max_pending,
-					 &rp->rx_pending, &rp->rx_max_pending);
+		rdev_get_ringparam(rdev, &rp->tx_pending, &rp->tx_max_pending,
+				   &rp->rx_pending, &rp->rx_max_pending);
 }
 
 static int cfg80211_set_ringparam(struct net_device *dev,
@@ -62,10 +62,35 @@ static int cfg80211_set_ringparam(struct net_device *dev,
 		return -EINVAL;
 
 	if (rdev->ops->set_ringparam)
-		return rdev->ops->set_ringparam(wdev->wiphy,
-						rp->tx_pending, rp->rx_pending);
+		return rdev_set_ringparam(rdev, rp->tx_pending, rp->rx_pending);
 
 	return -ENOTSUPP;
+}
+
+static int cfg80211_get_sset_count(struct net_device *dev, int sset)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	if (rdev->ops->get_et_sset_count)
+		return rdev_get_et_sset_count(rdev, dev, sset);
+	return -EOPNOTSUPP;
+}
+
+static void cfg80211_get_stats(struct net_device *dev,
+			       struct ethtool_stats *stats, u64 *data)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	if (rdev->ops->get_et_stats)
+		rdev_get_et_stats(rdev, dev, stats, data);
+}
+
+static void cfg80211_get_strings(struct net_device *dev, u32 sset, u8 *data)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	if (rdev->ops->get_et_strings)
+		rdev_get_et_strings(rdev, dev, sset, data);
 }
 
 const struct ethtool_ops cfg80211_ethtool_ops = {
@@ -75,4 +100,7 @@ const struct ethtool_ops cfg80211_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = cfg80211_get_ringparam,
 	.set_ringparam = cfg80211_set_ringparam,
+	.get_strings = cfg80211_get_strings,
+	.get_ethtool_stats = cfg80211_get_stats,
+	.get_sset_count = cfg80211_get_sset_count,
 };

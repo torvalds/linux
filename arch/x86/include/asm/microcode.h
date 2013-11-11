@@ -15,8 +15,8 @@ struct microcode_ops {
 	enum ucode_state (*request_microcode_user) (int cpu,
 				const void __user *buf, size_t size);
 
-	enum ucode_state (*request_microcode_fw) (int cpu,
-				struct device *device);
+	enum ucode_state (*request_microcode_fw) (int cpu, struct device *,
+						  bool refresh_fw);
 
 	void (*microcode_fini_cpu) (int cpu);
 
@@ -48,16 +48,26 @@ static inline struct microcode_ops * __init init_intel_microcode(void)
 
 #ifdef CONFIG_MICROCODE_AMD
 extern struct microcode_ops * __init init_amd_microcode(void);
-
-static inline void get_ucode_data(void *to, const u8 *from, size_t n)
-{
-	memcpy(to, from, n);
-}
-
+extern void __exit exit_amd_microcode(void);
 #else
 static inline struct microcode_ops * __init init_amd_microcode(void)
 {
 	return NULL;
+}
+static inline void __exit exit_amd_microcode(void) {}
+#endif
+
+#ifdef CONFIG_MICROCODE_EARLY
+#define MAX_UCODE_COUNT 128
+extern void __init load_ucode_bsp(void);
+extern void __cpuinit load_ucode_ap(void);
+extern int __init save_microcode_in_initrd(void);
+#else
+static inline void __init load_ucode_bsp(void) {}
+static inline void __cpuinit load_ucode_ap(void) {}
+static inline int __init save_microcode_in_initrd(void)
+{
+	return 0;
 }
 #endif
 

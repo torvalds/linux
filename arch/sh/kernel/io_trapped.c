@@ -15,7 +15,6 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -58,7 +57,7 @@ int register_trapped_io(struct trapped_io *tiop)
 
 	for (k = 0; k < tiop->num_resources; k++) {
 		res = tiop->resource + k;
-		len += roundup((res->end - res->start) + 1, PAGE_SIZE);
+		len += roundup(resource_size(res), PAGE_SIZE);
 		flags |= res->flags;
 	}
 
@@ -85,7 +84,7 @@ int register_trapped_io(struct trapped_io *tiop)
 		       (unsigned long)(tiop->virt_base + len),
 		       res->flags & IORESOURCE_IO ? "io" : "mmio",
 		       (unsigned long)res->start);
-		len += roundup((res->end - res->start) + 1, PAGE_SIZE);
+		len += roundup(resource_size(res), PAGE_SIZE);
 	}
 
 	tiop->magic = IO_TRAPPED_MAGIC;
@@ -128,7 +127,7 @@ void __iomem *match_trapped_io_handler(struct list_head *list,
 				return tiop->virt_base + voffs;
 			}
 
-			len = (res->end - res->start) + 1;
+			len = resource_size(res);
 			voffs += roundup(len, PAGE_SIZE);
 		}
 	}
@@ -173,7 +172,7 @@ static unsigned long lookup_address(struct trapped_io *tiop,
 
 	for (k = 0; k < tiop->num_resources; k++) {
 		res = tiop->resource + k;
-		len = roundup((res->end - res->start) + 1, PAGE_SIZE);
+		len = roundup(resource_size(res), PAGE_SIZE);
 		if (address < (vaddr + len))
 			return res->start + (address - vaddr);
 		vaddr += len;

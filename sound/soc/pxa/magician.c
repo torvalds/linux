@@ -92,11 +92,10 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int acps, acds, width, rate;
+	unsigned int acps, acds, width;
 	unsigned int div4 = PXA_SSP_CLK_SCDB_4;
 	int ret = 0;
 
-	rate = params_rate(params);
 	width = snd_pcm_format_physical_width(params_format(params));
 
 	/*
@@ -412,7 +411,7 @@ static int magician_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "VINR");
 
 	/* Add magician specific controls */
-	err = snd_soc_add_controls(codec, uda1380_magician_controls,
+	err = snd_soc_add_codec_controls(codec, uda1380_magician_controls,
 				ARRAY_SIZE(uda1380_magician_controls));
 	if (err < 0)
 		return err;
@@ -424,7 +423,6 @@ static int magician_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up magician specific audio path interconnects */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 
@@ -454,6 +452,7 @@ static struct snd_soc_dai_link magician_dai[] = {
 /* magician audio machine driver */
 static struct snd_soc_card snd_soc_card_magician = {
 	.name = "Magician",
+	.owner = THIS_MODULE,
 	.dai_link = magician_dai,
 	.num_links = ARRAY_SIZE(magician_dai),
 

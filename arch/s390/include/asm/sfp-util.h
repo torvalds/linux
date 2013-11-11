@@ -51,7 +51,7 @@
 	wl = __wl;					\
 })
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 #define udiv_qrnnd(q, r, n1, n0, d)			\
   do { unsigned long __n;				\
        unsigned int __r, __d;				\
@@ -72,6 +72,6 @@ extern unsigned long __udiv_qrnnd (unsigned int *, unsigned int,
 
 #define UDIV_NEEDS_NORMALIZATION 0
 
-#define abort() return 0
+#define abort() BUG()
 
 #define __BYTE_ORDER __BIG_ENDIAN

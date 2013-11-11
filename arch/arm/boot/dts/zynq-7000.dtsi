@@ -1,0 +1,147 @@
+/*
+ *  Copyright (C) 2011 Xilinx
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "xlnx,zynq-7000";
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 5 4>, <0 6 4>;
+		interrupt-parent = <&intc>;
+		reg = < 0xf8891000 0x1000 0xf8893000 0x1000 >;
+	};
+
+	amba {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+		ranges;
+
+		intc: interrupt-controller@f8f01000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <1>;
+			interrupt-controller;
+			reg = <0xF8F01000 0x1000>,
+			      <0xF8F00100 0x100>;
+		};
+
+		L2: cache-controller {
+			compatible = "arm,pl310-cache";
+			reg = <0xF8F02000 0x1000>;
+			arm,data-latency = <2 3 2>;
+			arm,tag-latency = <2 3 2>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		uart0: uart@e0000000 {
+			compatible = "xlnx,xuartps";
+			reg = <0xE0000000 0x1000>;
+			interrupts = <0 27 4>;
+			clocks = <&uart_clk 0>;
+		};
+
+		uart1: uart@e0001000 {
+			compatible = "xlnx,xuartps";
+			reg = <0xE0001000 0x1000>;
+			interrupts = <0 50 4>;
+			clocks = <&uart_clk 1>;
+		};
+
+		slcr: slcr@f8000000 {
+			compatible = "xlnx,zynq-slcr";
+			reg = <0xF8000000 0x1000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ps_clk: ps_clk {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					/* clock-frequency set in board-specific file */
+					clock-output-names = "ps_clk";
+				};
+				armpll: armpll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x100 0x110>;
+					clock-output-names = "armpll";
+				};
+				ddrpll: ddrpll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x104 0x114>;
+					clock-output-names = "ddrpll";
+				};
+				iopll: iopll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x108 0x118>;
+					clock-output-names = "iopll";
+				};
+				uart_clk: uart_clk {
+					#clock-cells = <1>;
+					compatible = "xlnx,zynq-periph-clock";
+					clocks = <&iopll &armpll &ddrpll>;
+					reg = <0x154>;
+					clock-output-names = "uart0_ref_clk",
+							     "uart1_ref_clk";
+				};
+				cpu_clk: cpu_clk {
+					#clock-cells = <1>;
+					compatible = "xlnx,zynq-cpu-clock";
+					clocks = <&iopll &armpll &ddrpll>;
+					reg = <0x120 0x1C4>;
+					clock-output-names = "cpu_6x4x",
+							     "cpu_3x2x",
+							     "cpu_2x",
+							     "cpu_1x";
+				};
+			};
+		};
+
+		ttc0: ttc0@f8001000 {
+			interrupt-parent = <&intc>;
+			interrupts = < 0 10 4 0 11 4 0 12 4 >;
+			compatible = "cdns,ttc";
+			reg = <0xF8001000 0x1000>;
+			clocks = <&cpu_clk 3>;
+			clock-names = "cpu_1x";
+			clock-ranges;
+		};
+
+		ttc1: ttc1@f8002000 {
+			interrupt-parent = <&intc>;
+			interrupts = < 0 37 4 0 38 4 0 39 4 >;
+			compatible = "cdns,ttc";
+			reg = <0xF8002000 0x1000>;
+			clocks = <&cpu_clk 3>;
+			clock-names = "cpu_1x";
+			clock-ranges;
+		};
+		scutimer: scutimer@f8f00600 {
+			interrupt-parent = <&intc>;
+			interrupts = < 1 13 0x301 >;
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = < 0xf8f00600 0x20 >;
+			clocks = <&cpu_clk 1>;
+		} ;
+	};
+};

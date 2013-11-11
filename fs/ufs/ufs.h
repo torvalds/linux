@@ -20,6 +20,11 @@ struct ufs_sb_info {
 	unsigned s_mount_opt;
 	struct mutex mutex;
 	struct task_struct *mutex_owner;
+	struct super_block *sb;
+	int work_queued; /* non-zero if the delayed work is queued */
+	struct delayed_work sync_work; /* FS sync delayed work */
+	spinlock_t work_lock; /* protects sync_work and work_queued */
+	struct mutex s_lock;
 };
 
 struct ufs_inode_info {
@@ -104,7 +109,7 @@ extern const struct address_space_operations ufs_aops;
 
 /* ialloc.c */
 extern void ufs_free_inode (struct inode *inode);
-extern struct inode * ufs_new_inode (struct inode *, int);
+extern struct inode * ufs_new_inode (struct inode *, umode_t);
 
 /* inode.c */
 extern struct inode *ufs_iget(struct super_block *, unsigned long);
@@ -117,9 +122,13 @@ extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buf
 extern const struct file_operations ufs_dir_operations;
 
 /* super.c */
-extern void ufs_warning (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
-extern void ufs_error (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
-extern void ufs_panic (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));
+extern __printf(3, 4)
+void ufs_warning(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ufs_error(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ufs_panic(struct super_block *, const char *, const char *, ...);
+void ufs_mark_sb_dirty(struct super_block *sb);
 
 /* symlink.c */
 extern const struct inode_operations ufs_fast_symlink_inode_operations;

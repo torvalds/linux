@@ -40,7 +40,7 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "wm831x\n");
 }
 
-static const char *input_names[] = {
+static const char * const input_names[] = {
 	[WM831X_AUX_SYSVDD]    = "SYSVDD",
 	[WM831X_AUX_USB]       = "USB",
 	[WM831X_AUX_BKUP_BATT] = "Backup battery",
@@ -117,8 +117,10 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_chip_temp, NULL,
 			  WM831X_AUX_CHIP_TEMP);
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_label, NULL,
 			  WM831X_AUX_CHIP_TEMP);
-/* Report as a voltage since conversion depends on external components
- * and that's what the ABI wants. */
+/*
+ * Report as a voltage since conversion depends on external components
+ * and that's what the ABI wants.
+ */
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_voltage, NULL,
 			  WM831X_AUX_BATT_TEMP);
 static SENSOR_DEVICE_ATTR(temp2_label, S_IRUGO, show_label, NULL,
@@ -155,13 +157,14 @@ static const struct attribute_group wm831x_attr_group = {
 	.attrs	= wm831x_attributes,
 };
 
-static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
+static int wm831x_hwmon_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_hwmon *hwmon;
 	int ret;
 
-	hwmon = kzalloc(sizeof(struct wm831x_hwmon), GFP_KERNEL);
+	hwmon = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_hwmon),
+			     GFP_KERNEL);
 	if (!hwmon)
 		return -ENOMEM;
 
@@ -169,7 +172,7 @@ static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &wm831x_attr_group);
 	if (ret)
-		goto err;
+		return ret;
 
 	hwmon->classdev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(hwmon->classdev)) {
@@ -183,43 +186,29 @@ static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
 
 err_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &wm831x_attr_group);
-err:
-	kfree(hwmon);
 	return ret;
 }
 
-static int __devexit wm831x_hwmon_remove(struct platform_device *pdev)
+static int wm831x_hwmon_remove(struct platform_device *pdev)
 {
 	struct wm831x_hwmon *hwmon = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(hwmon->classdev);
 	sysfs_remove_group(&pdev->dev.kobj, &wm831x_attr_group);
-	platform_set_drvdata(pdev, NULL);
-	kfree(hwmon);
 
 	return 0;
 }
 
 static struct platform_driver wm831x_hwmon_driver = {
 	.probe = wm831x_hwmon_probe,
-	.remove = __devexit_p(wm831x_hwmon_remove),
+	.remove = wm831x_hwmon_remove,
 	.driver = {
 		.name = "wm831x-hwmon",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init wm831x_hwmon_init(void)
-{
-	return platform_driver_register(&wm831x_hwmon_driver);
-}
-module_init(wm831x_hwmon_init);
-
-static void __exit wm831x_hwmon_exit(void)
-{
-	platform_driver_unregister(&wm831x_hwmon_driver);
-}
-module_exit(wm831x_hwmon_exit);
+module_platform_driver(wm831x_hwmon_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("WM831x Hardware Monitoring");

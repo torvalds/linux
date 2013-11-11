@@ -26,15 +26,14 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <video/mbxfb.h>
 
 #include "regs.h"
 #include "reg_bits.h"
 
-static unsigned long virt_base_2700;
+static void __iomem *virt_base_2700;
 
 #define write_reg(val, reg) do { writel((val), (reg)); } while(0)
 
@@ -80,7 +79,7 @@ struct mbxfb_info {
 
 };
 
-static struct fb_var_screeninfo mbxfb_default __devinitdata = {
+static struct fb_var_screeninfo mbxfb_default = {
 	.xres = 640,
 	.yres = 480,
 	.xres_virtual = 640,
@@ -103,7 +102,7 @@ static struct fb_var_screeninfo mbxfb_default __devinitdata = {
 	.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 };
 
-static struct fb_fix_screeninfo mbxfb_fix  __devinitdata = {
+static struct fb_fix_screeninfo mbxfb_fix = {
 	.id = "MBX",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_TRUECOLOR,
@@ -688,7 +687,7 @@ static struct fb_ops mbxfb_ops = {
   Enable external SDRAM controller. Assume that all clocks are active
   by now.
 */
-static void __devinit setup_memc(struct fb_info *fbi)
+static void setup_memc(struct fb_info *fbi)
 {
 	unsigned long tmp;
 	int i;
@@ -748,7 +747,7 @@ static void enable_clocks(struct fb_info *fbi)
 	write_reg_dly(0x00000001, PIXCLKDIV);
 }
 
-static void __devinit setup_graphics(struct fb_info *fbi)
+static void setup_graphics(struct fb_info *fbi)
 {
 	unsigned long gsctrl;
 	unsigned long vscadr;
@@ -782,7 +781,7 @@ static void __devinit setup_graphics(struct fb_info *fbi)
 	write_reg_dly(vscadr, VSCADR);
 }
 
-static void __devinit setup_display(struct fb_info *fbi)
+static void setup_display(struct fb_info *fbi)
 {
 	unsigned long dsctrl = 0;
 
@@ -796,7 +795,7 @@ static void __devinit setup_display(struct fb_info *fbi)
 	write_reg_dly((readl(DSCTRL) | DSCTRL_SYNCGEN_EN), DSCTRL);
 }
 
-static void __devinit enable_controller(struct fb_info *fbi)
+static void enable_controller(struct fb_info *fbi)
 {
 	u32 svctrl, shctrl;
 
@@ -850,7 +849,7 @@ static int mbxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/* make frame buffer memory enter self-refresh mode */
 	write_reg_dly(LMPWR_MC_PWR_SRM, LMPWR);
-	while (LMPWRSTAT != LMPWRSTAT_MC_PWR_SRM)
+	while (readl(LMPWRSTAT) != LMPWRSTAT_MC_PWR_SRM)
 		; /* empty statement */
 
 	/* reset the device, since it's initial state is 'mostly sleeping' */
@@ -882,7 +881,7 @@ static int mbxfb_resume(struct platform_device *dev)
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
 
-static int __devinit mbxfb_probe(struct platform_device *dev)
+static int mbxfb_probe(struct platform_device *dev)
 {
 	int ret;
 	struct fb_info *fbi;
@@ -939,21 +938,22 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	}
 	mfbi->reg_phys_addr = mfbi->reg_res->start;
 
-	mfbi->reg_virt_addr = ioremap_nocache(mfbi->reg_phys_addr,
-					      res_size(mfbi->reg_req));
+	mfbi->reg_virt_addr = devm_ioremap_nocache(&dev->dev,
+						   mfbi->reg_phys_addr,
+						   res_size(mfbi->reg_req));
 	if (!mfbi->reg_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap Marathon registers\n");
 		ret = -EINVAL;
 		goto err3;
 	}
-	virt_base_2700 = (unsigned long)mfbi->reg_virt_addr;
+	virt_base_2700 = mfbi->reg_virt_addr;
 
-	mfbi->fb_virt_addr = ioremap_nocache(mfbi->fb_phys_addr,
-					     res_size(mfbi->fb_req));
-	if (!mfbi->reg_virt_addr) {
+	mfbi->fb_virt_addr = devm_ioremap_nocache(&dev->dev, mfbi->fb_phys_addr,
+						  res_size(mfbi->fb_req));
+	if (!mfbi->fb_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap frame buffer\n");
 		ret = -EINVAL;
-		goto err4;
+		goto err3;
 	}
 
 	fbi->screen_base = (char __iomem *)(mfbi->fb_virt_addr + 0x60000);
@@ -971,7 +971,7 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	if (ret < 0) {
 		dev_err(&dev->dev, "fb_alloc_cmap failed\n");
 		ret = -EINVAL;
-		goto err5;
+		goto err3;
 	}
 
 	platform_set_drvdata(dev, fbi);
@@ -996,10 +996,6 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 
 err6:
 	fb_dealloc_cmap(&fbi->cmap);
-err5:
-	iounmap(mfbi->fb_virt_addr);
-err4:
-	iounmap(mfbi->reg_virt_addr);
 err3:
 	release_mem_region(mfbi->reg_res->start, res_size(mfbi->reg_res));
 err2:
@@ -1010,7 +1006,7 @@ err1:
 	return ret;
 }
 
-static int __devexit mbxfb_remove(struct platform_device *dev)
+static int mbxfb_remove(struct platform_device *dev)
 {
 	struct fb_info *fbi = platform_get_drvdata(dev);
 
@@ -1026,10 +1022,7 @@ static int __devexit mbxfb_remove(struct platform_device *dev)
 			if (mfbi->platform_remove)
 				mfbi->platform_remove(fbi);
 
-			if (mfbi->fb_virt_addr)
-				iounmap(mfbi->fb_virt_addr);
-			if (mfbi->reg_virt_addr)
-				iounmap(mfbi->reg_virt_addr);
+
 			if (mfbi->reg_req)
 				release_mem_region(mfbi->reg_req->start,
 						   res_size(mfbi->reg_req));
@@ -1053,18 +1046,7 @@ static struct platform_driver mbxfb_driver = {
 	},
 };
 
-int __devinit mbxfb_init(void)
-{
-	return platform_driver_register(&mbxfb_driver);
-}
-
-static void __devexit mbxfb_exit(void)
-{
-	platform_driver_unregister(&mbxfb_driver);
-}
-
-module_init(mbxfb_init);
-module_exit(mbxfb_exit);
+module_platform_driver(mbxfb_driver);
 
 MODULE_DESCRIPTION("loadable framebuffer driver for Marathon device");
 MODULE_AUTHOR("Mike Rapoport, Compulab");

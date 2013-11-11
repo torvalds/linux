@@ -12,7 +12,7 @@ typedef enum configclass {
 	SystemClass,
 	ProcessorClass,
 	CacheClass,
-#ifndef	_NT_PROM
+#ifndef _NT_PROM
 	MemoryClass,
 	AdapterClass,
 	ControllerClass,
@@ -34,7 +34,7 @@ typedef enum configtype {
 	SecondaryICache,
 	SecondaryDCache,
 	SecondaryCache,
-#ifndef	_NT_PROM
+#ifndef _NT_PROM
 	Memory,
 #endif
 	EISAAdapter,
@@ -93,7 +93,7 @@ typedef enum {
 } IDENTIFIERFLAG;
 
 #ifndef NULL			/* for GetChild(NULL); */
-#define	NULL	0
+#define NULL	0
 #endif
 
 union key_u {
@@ -125,7 +125,7 @@ typedef struct component {
 	IDENTIFIERFLAG	Flags;
 	USHORT		Version;
 	USHORT		Revision;
-	ULONG 		Key;
+	ULONG		Key;
 	ULONG		AffinityMask;
 	ULONG		ConfigurationDataSize;
 	ULONG		IdentifierLength;
@@ -149,7 +149,7 @@ typedef struct systemid {
 typedef enum memorytype {
 	ExceptionBlock,
 	SPBPage,			/* ARCS == SystemParameterBlock */
-#ifndef	_NT_PROM
+#ifndef _NT_PROM
 	FreeContiguous,
 	FreeMemory,
 	BadMemory,

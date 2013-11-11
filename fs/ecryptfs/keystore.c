@@ -109,7 +109,7 @@ int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 		(*size) += ((unsigned char)(data[1]) + 192);
 		(*length_size) = 2;
 	} else if (data[0] == 255) {
-		/* Five-byte length; we're not supposed to see this */
+		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
 		ecryptfs_printk(KERN_ERR, "Five-byte packet length not "
 				"supported\n");
 		rc = -EINVAL;
@@ -126,7 +126,7 @@ out:
 /**
  * ecryptfs_write_packet_length
  * @dest: The byte array target into which to write the length. Must
- *        have at least 5 bytes allocated.
+ *        have at least ECRYPTFS_MAX_PKT_LEN_SIZE bytes allocated.
  * @size: The length to write.
  * @packet_size_length: The number of bytes used to encode the packet
  *                      length is written to this address.
@@ -146,6 +146,7 @@ int ecryptfs_write_packet_length(char *dest, size_t size,
 		dest[1] = ((size - 192) % 256);
 		(*packet_size_length) = 2;
 	} else {
+		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING,
 				"Unsupported packet size: [%zd]\n", size);
@@ -678,10 +679,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	 * Octets N3-N4: Block-aligned encrypted filename
 	 *  - Consists of a minimum number of random characters, a \0
 	 *    separator, and then the filename */
-	s->max_packet_size = (1                   /* Tag 70 identifier */
-			      + 3                 /* Max Tag 70 packet size */
-			      + ECRYPTFS_SIG_SIZE /* FNEK sig */
-			      + 1                 /* Cipher identifier */
+	s->max_packet_size = (ECRYPTFS_TAG_70_MAX_METADATA_SIZE
 			      + s->block_aligned_filename_size);
 	if (dest == NULL) {
 		(*packet_size) = s->max_packet_size;
@@ -933,10 +931,10 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	if (max_packet_size < (1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1)) {
+	if (max_packet_size < ECRYPTFS_TAG_70_MIN_METADATA_SIZE) {
 		printk(KERN_WARNING "%s: max_packet_size is [%zd]; it must be "
 		       "at least [%d]\n", __func__, max_packet_size,
-			(1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1));
+		       ECRYPTFS_TAG_70_MIN_METADATA_SIZE);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -1152,7 +1150,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	struct ecryptfs_message *msg = NULL;
 	char *auth_tok_sig;
 	char *payload;
-	size_t payload_len;
+	size_t payload_len = 0;
 	int rc;
 
 	rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok);
@@ -1170,7 +1168,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error sending message to "
-				"ecryptfsd\n");
+				"ecryptfsd: %d\n", rc);
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -1204,8 +1202,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 				  crypt_stat->key_size);
 	}
 out:
-	if (msg)
-		kfree(msg);
+	kfree(msg);
 	return rc;
 }
 
@@ -1635,11 +1632,14 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 
 	(*auth_tok_key) = request_key(&key_type_user, sig, NULL);
 	if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
-		printk(KERN_ERR "Could not find key with description: [%s]\n",
-		       sig);
-		rc = process_request_key_err(PTR_ERR(*auth_tok_key));
-		(*auth_tok_key) = NULL;
-		goto out;
+		(*auth_tok_key) = ecryptfs_get_encrypted_key(sig);
+		if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
+			printk(KERN_ERR "Could not find key with description: [%s]\n",
+			      sig);
+			rc = process_request_key_err(PTR_ERR(*auth_tok_key));
+			(*auth_tok_key) = NULL;
+			goto out;
+		}
 	}
 	down_write(&(*auth_tok_key)->sem);
 	rc = ecryptfs_verify_auth_tok_from_key(*auth_tok_key, auth_tok);
@@ -1868,11 +1868,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	 * just one will be sufficient to decrypt to get the FEK. */
 find_next_matching_auth_tok:
 	found_auth_tok = 0;
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-		auth_tok_key = NULL;
-	}
 	list_for_each_entry(auth_tok_list_item, &auth_tok_list, list) {
 		candidate_auth_tok = &auth_tok_list_item->auth_tok;
 		if (unlikely(ecryptfs_verbosity > 0)) {
@@ -1909,14 +1904,22 @@ found_matching_auth_tok:
 		memcpy(&(candidate_auth_tok->token.private_key),
 		       &(matching_auth_tok->token.private_key),
 		       sizeof(struct ecryptfs_private_key));
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		rc = decrypt_pki_encrypted_session_key(candidate_auth_tok,
 						       crypt_stat);
 	} else if (candidate_auth_tok->token_type == ECRYPTFS_PASSWORD) {
 		memcpy(&(candidate_auth_tok->token.password),
 		       &(matching_auth_tok->token.password),
 		       sizeof(struct ecryptfs_password));
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		rc = decrypt_passphrase_encrypted_session_key(
 			candidate_auth_tok, crypt_stat);
+	} else {
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
+		rc = -EINVAL;
 	}
 	if (rc) {
 		struct ecryptfs_auth_tok_list_item *auth_tok_list_item_tmp;
@@ -1956,21 +1959,18 @@ found_matching_auth_tok:
 out_wipe_list:
 	wipe_auth_tok_list(&auth_tok_list);
 out:
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-	}
 	return rc;
 }
 
 static int
-pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
+pki_encrypt_session_key(struct key *auth_tok_key,
+			struct ecryptfs_auth_tok *auth_tok,
 			struct ecryptfs_crypt_stat *crypt_stat,
 			struct ecryptfs_key_record *key_rec)
 {
 	struct ecryptfs_msg_ctx *msg_ctx = NULL;
 	char *payload = NULL;
-	size_t payload_len;
+	size_t payload_len = 0;
 	struct ecryptfs_message *msg;
 	int rc;
 
@@ -1979,6 +1979,8 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 					 crypt_stat->cipher,
 					 crypt_stat->key_size),
 				 crypt_stat, &payload, &payload_len);
+	up_write(&(auth_tok_key->sem));
+	key_put(auth_tok_key);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet\n");
 		goto out;
@@ -1986,7 +1988,7 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error sending message to "
-				"ecryptfsd\n");
+				"ecryptfsd: %d\n", rc);
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -2008,6 +2010,8 @@ out:
  * write_tag_1_packet - Write an RFC2440-compatible tag 1 (public key) packet
  * @dest: Buffer into which to write the packet
  * @remaining_bytes: Maximum number of bytes that can be writtn
+ * @auth_tok_key: The authentication token key to unlock and put when done with
+ *                @auth_tok
  * @auth_tok: The authentication token used for generating the tag 1 packet
  * @crypt_stat: The cryptographic context
  * @key_rec: The key record struct for the tag 1 packet
@@ -2018,7 +2022,7 @@ out:
  */
 static int
 write_tag_1_packet(char *dest, size_t *remaining_bytes,
-		   struct ecryptfs_auth_tok *auth_tok,
+		   struct key *auth_tok_key, struct ecryptfs_auth_tok *auth_tok,
 		   struct ecryptfs_crypt_stat *crypt_stat,
 		   struct ecryptfs_key_record *key_rec, size_t *packet_size)
 {
@@ -2039,12 +2043,15 @@ write_tag_1_packet(char *dest, size_t *remaining_bytes,
 		memcpy(key_rec->enc_key,
 		       auth_tok->session_key.encrypted_key,
 		       auth_tok->session_key.encrypted_key_size);
+		up_write(&(auth_tok_key->sem));
+		key_put(auth_tok_key);
 		goto encrypted_session_key_set;
 	}
 	if (auth_tok->session_key.encrypted_key_size == 0)
 		auth_tok->session_key.encrypted_key_size =
 			auth_tok->token.private_key.key_size;
-	rc = pki_encrypt_session_key(auth_tok, crypt_stat, key_rec);
+	rc = pki_encrypt_session_key(auth_tok_key, auth_tok, crypt_stat,
+				     key_rec);
 	if (rc) {
 		printk(KERN_ERR "Failed to encrypt session key via a key "
 		       "module; rc = [%d]\n", rc);
@@ -2248,7 +2255,7 @@ write_tag_3_packet(char *dest, size_t *remaining_bytes,
 		       auth_tok->token.password.session_key_encryption_key,
 		       crypt_stat->key_size);
 		ecryptfs_printk(KERN_DEBUG,
-				"Cached session key " "encryption key: \n");
+				"Cached session key encryption key:\n");
 		if (ecryptfs_verbosity > 0)
 			ecryptfs_dump_hex(session_key_encryption_key, 16);
 	}
@@ -2421,6 +2428,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 						&max, auth_tok,
 						crypt_stat, key_rec,
 						&written);
+			up_write(&(auth_tok_key->sem));
+			key_put(auth_tok_key);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
 						"writing tag 3 packet\n");
@@ -2438,8 +2447,8 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			}
 			(*len) += written;
 		} else if (auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
-			rc = write_tag_1_packet(dest_base + (*len),
-						&max, auth_tok,
+			rc = write_tag_1_packet(dest_base + (*len), &max,
+						auth_tok_key, auth_tok,
 						crypt_stat, key_rec, &written);
 			if (rc) {
 				ecryptfs_printk(KERN_WARNING, "Error "
@@ -2448,14 +2457,13 @@ ecryptfs_generate_key_packet_set(char *dest_base,
 			}
 			(*len) += written;
 		} else {
+			up_write(&(auth_tok_key->sem));
+			key_put(auth_tok_key);
 			ecryptfs_printk(KERN_WARNING, "Unsupported "
 					"authentication token type\n");
 			rc = -EINVAL;
 			goto out_free;
 		}
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-		auth_tok_key = NULL;
 	}
 	if (likely(max > 0)) {
 		dest_base[(*len)] = 0x00;
@@ -2468,11 +2476,6 @@ out_free:
 out:
 	if (rc)
 		(*len) = 0;
-	if (auth_tok_key) {
-		up_write(&(auth_tok_key->sem));
-		key_put(auth_tok_key);
-	}
-
 	mutex_unlock(&crypt_stat->keysig_list_mutex);
 	return rc;
 }

@@ -16,7 +16,7 @@
 #include <asm/mach-rc32434/rb.h>
 
 static void rb532_led_set(struct led_classdev *cdev,
-                          enum led_brightness brightness)
+			  enum led_brightness brightness)
 {
 	if (brightness)
 		set_latch_u5(LO_ULED, 0);
@@ -37,12 +37,12 @@ static struct led_classdev rb532_uled = {
 	.default_trigger = "nand-disk",
 };
 
-static int __devinit rb532_led_probe(struct platform_device *pdev)
+static int rb532_led_probe(struct platform_device *pdev)
 {
 	return led_classdev_register(&pdev->dev, &rb532_uled);
 }
 
-static int __devexit rb532_led_remove(struct platform_device *pdev)
+static int rb532_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&rb532_uled);
 	return 0;
@@ -50,28 +50,16 @@ static int __devexit rb532_led_remove(struct platform_device *pdev)
 
 static struct platform_driver rb532_led_driver = {
 	.probe = rb532_led_probe,
-	.remove = __devexit_p(rb532_led_remove),
+	.remove = rb532_led_remove,
 	.driver = {
 		.name = "rb532-led",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init rb532_led_init(void)
-{
-	return platform_driver_register(&rb532_led_driver);
-}
-
-static void __exit rb532_led_exit(void)
-{
-	platform_driver_unregister(&rb532_led_driver);
-}
-
-module_init(rb532_led_init);
-module_exit(rb532_led_exit);
-
-MODULE_ALIAS("platform:rb532-led");
+module_platform_driver(rb532_led_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("User LED support for Routerboard532");
 MODULE_AUTHOR("Phil Sutter <n0-1@freewrt.org>");
+MODULE_ALIAS("platform:rb532-led");

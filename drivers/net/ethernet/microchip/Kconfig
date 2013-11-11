@@ -1,0 +1,38 @@
+#
+# Microchip network device configuration
+#
+
+config NET_VENDOR_MICROCHIP
+	bool "Microchip devices"
+	default y
+	depends on SPI
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Microchip cards. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_MICROCHIP
+
+config ENC28J60
+	tristate "ENC28J60 support"
+	depends on SPI
+	select CRC32
+	---help---
+	  Support for the Microchip EN28J60 ethernet chip.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called enc28j60.
+
+config ENC28J60_WRITEVERIFY
+	bool "Enable write verify"
+	depends on ENC28J60
+	---help---
+	  Enable the verify after the buffer write useful for debugging purpose.
+	  If unsure, say N.
+
+endif # NET_VENDOR_MICROCHIP

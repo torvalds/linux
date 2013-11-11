@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -32,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/writeback.h>
-#include <linux/buffer_head.h>		/* for fsync_bdev() */
 #include <linux/swap.h>
 #include <linux/spinlock.h>
 #include <linux/vt_kern.h>
@@ -41,6 +41,9 @@
 #include <linux/oom.h>
 #include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/uaccess.h>
+#include <linux/moduleparam.h>
+#include <linux/jiffies.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -48,6 +51,9 @@
 /* Whether we react on sysrq keys or just ignore them */
 static int __read_mostly sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
+
+unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
+int sysrq_reset_downtime_ms __weak;
 
 static bool sysrq_on(void)
 {
@@ -99,7 +105,7 @@ static void sysrq_handle_SAK(int key)
 }
 static struct sysrq_key_op sysrq_SAK_op = {
 	.handler	= sysrq_handle_SAK,
-	.help_msg	= "saK",
+	.help_msg	= "sak(k)",
 	.action_msg	= "SAK",
 	.enable_mask	= SYSRQ_ENABLE_KEYBOARD,
 };
@@ -110,14 +116,12 @@ static struct sysrq_key_op sysrq_SAK_op = {
 #ifdef CONFIG_VT
 static void sysrq_handle_unraw(int key)
 {
-	struct kbd_struct *kbd = &kbd_table[fg_console];
-
-	if (kbd)
-		kbd->kbdmode = default_utf8 ? VC_UNICODE : VC_XLATE;
+	vt_reset_unicode(fg_console);
 }
+
 static struct sysrq_key_op sysrq_unraw_op = {
 	.handler	= sysrq_handle_unraw,
-	.help_msg	= "unRaw",
+	.help_msg	= "unraw(r)",
 	.action_msg	= "Keyboard mode set to system default",
 	.enable_mask	= SYSRQ_ENABLE_KEYBOARD,
 };
@@ -135,7 +139,7 @@ static void sysrq_handle_crash(int key)
 }
 static struct sysrq_key_op sysrq_crash_op = {
 	.handler	= sysrq_handle_crash,
-	.help_msg	= "Crash",
+	.help_msg	= "crash(c)",
 	.action_msg	= "Trigger a crash",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -148,7 +152,7 @@ static void sysrq_handle_reboot(int key)
 }
 static struct sysrq_key_op sysrq_reboot_op = {
 	.handler	= sysrq_handle_reboot,
-	.help_msg	= "reBoot",
+	.help_msg	= "reboot(b)",
 	.action_msg	= "Resetting",
 	.enable_mask	= SYSRQ_ENABLE_BOOT,
 };
@@ -159,7 +163,7 @@ static void sysrq_handle_sync(int key)
 }
 static struct sysrq_key_op sysrq_sync_op = {
 	.handler	= sysrq_handle_sync,
-	.help_msg	= "Sync",
+	.help_msg	= "sync(s)",
 	.action_msg	= "Emergency Sync",
 	.enable_mask	= SYSRQ_ENABLE_SYNC,
 };
@@ -171,7 +175,7 @@ static void sysrq_handle_show_timers(int key)
 
 static struct sysrq_key_op sysrq_show_timers_op = {
 	.handler	= sysrq_handle_show_timers,
-	.help_msg	= "show-all-timers(Q)",
+	.help_msg	= "show-all-timers(q)",
 	.action_msg	= "Show clockevent devices & pending hrtimers (no others)",
 };
 
@@ -181,7 +185,7 @@ static void sysrq_handle_mountro(int key)
 }
 static struct sysrq_key_op sysrq_mountro_op = {
 	.handler	= sysrq_handle_mountro,
-	.help_msg	= "Unmount",
+	.help_msg	= "unmount(u)",
 	.action_msg	= "Emergency Remount R/O",
 	.enable_mask	= SYSRQ_ENABLE_REMOUNT,
 };
@@ -194,7 +198,7 @@ static void sysrq_handle_showlocks(int key)
 
 static struct sysrq_key_op sysrq_showlocks_op = {
 	.handler	= sysrq_handle_showlocks,
-	.help_msg	= "show-all-locks(D)",
+	.help_msg	= "show-all-locks(d)",
 	.action_msg	= "Show Locks Held",
 };
 #else
@@ -245,7 +249,7 @@ static void sysrq_handle_showallcpus(int key)
 
 static struct sysrq_key_op sysrq_showallcpus_op = {
 	.handler	= sysrq_handle_showallcpus,
-	.help_msg	= "show-backtrace-all-active-cpus(L)",
+	.help_msg	= "show-backtrace-all-active-cpus(l)",
 	.action_msg	= "Show backtrace of all active CPUs",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -260,7 +264,7 @@ static void sysrq_handle_showregs(int key)
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,
-	.help_msg	= "show-registers(P)",
+	.help_msg	= "show-registers(p)",
 	.action_msg	= "Show Regs",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -271,7 +275,7 @@ static void sysrq_handle_showstate(int key)
 }
 static struct sysrq_key_op sysrq_showstate_op = {
 	.handler	= sysrq_handle_showstate,
-	.help_msg	= "show-task-states(T)",
+	.help_msg	= "show-task-states(t)",
 	.action_msg	= "Show State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -282,7 +286,7 @@ static void sysrq_handle_showstate_blocked(int key)
 }
 static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,
-	.help_msg	= "show-blocked-tasks(W)",
+	.help_msg	= "show-blocked-tasks(w)",
 	.action_msg	= "Show Blocked State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -296,7 +300,7 @@ static void sysrq_ftrace_dump(int key)
 }
 static struct sysrq_key_op sysrq_ftrace_dump_op = {
 	.handler	= sysrq_ftrace_dump,
-	.help_msg	= "dump-ftrace-buffer(Z)",
+	.help_msg	= "dump-ftrace-buffer(z)",
 	.action_msg	= "Dump ftrace buffer",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -310,7 +314,7 @@ static void sysrq_handle_showmem(int key)
 }
 static struct sysrq_key_op sysrq_showmem_op = {
 	.handler	= sysrq_handle_showmem,
-	.help_msg	= "show-memory-usage(M)",
+	.help_msg	= "show-memory-usage(m)",
 	.action_msg	= "Show Memory",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -322,11 +326,16 @@ static void send_sig_all(int sig)
 {
 	struct task_struct *p;
 
+	read_lock(&tasklist_lock);
 	for_each_process(p) {
-		if (p->mm && !is_global_init(p))
-			/* Not swapper, init nor kernel thread */
-			force_sig(sig, p);
+		if (p->flags & PF_KTHREAD)
+			continue;
+		if (is_global_init(p))
+			continue;
+
+		do_send_sig_info(sig, SEND_SIG_FORCED, p, true);
 	}
+	read_unlock(&tasklist_lock);
 }
 
 static void sysrq_handle_term(int key)
@@ -336,14 +345,15 @@ static void sysrq_handle_term(int key)
 }
 static struct sysrq_key_op sysrq_term_op = {
 	.handler	= sysrq_handle_term,
-	.help_msg	= "terminate-all-tasks(E)",
+	.help_msg	= "terminate-all-tasks(e)",
 	.action_msg	= "Terminate All Tasks",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
 
 static void moom_callback(struct work_struct *ignored)
 {
-	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0, NULL);
+	out_of_memory(node_zonelist(first_online_node, GFP_KERNEL), GFP_KERNEL,
+		      0, NULL, true);
 }
 
 static DECLARE_WORK(moom_work, moom_callback);
@@ -354,7 +364,7 @@ static void sysrq_handle_moom(int key)
 }
 static struct sysrq_key_op sysrq_moom_op = {
 	.handler	= sysrq_handle_moom,
-	.help_msg	= "memory-full-oom-kill(F)",
+	.help_msg	= "memory-full-oom-kill(f)",
 	.action_msg	= "Manual OOM execution",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -366,7 +376,7 @@ static void sysrq_handle_thaw(int key)
 }
 static struct sysrq_key_op sysrq_thaw_op = {
 	.handler	= sysrq_handle_thaw,
-	.help_msg	= "thaw-filesystems(J)",
+	.help_msg	= "thaw-filesystems(j)",
 	.action_msg	= "Emergency Thaw of all frozen filesystems",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -379,7 +389,7 @@ static void sysrq_handle_kill(int key)
 }
 static struct sysrq_key_op sysrq_kill_op = {
 	.handler	= sysrq_handle_kill,
-	.help_msg	= "kill-all-tasks(I)",
+	.help_msg	= "kill-all-tasks(i)",
 	.action_msg	= "Kill All Tasks",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -390,7 +400,7 @@ static void sysrq_handle_unrt(int key)
 }
 static struct sysrq_key_op sysrq_unrt_op = {
 	.handler	= sysrq_handle_unrt,
-	.help_msg	= "nice-all-RT-tasks(N)",
+	.help_msg	= "nice-all-RT-tasks(n)",
 	.action_msg	= "Nice All RT Tasks",
 	.enable_mask	= SYSRQ_ENABLE_RTNICE,
 };
@@ -449,6 +459,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* v */
 	&sysrq_showstate_blocked_op,	/* w */
 	/* x: May be registered on ppc/powerpc for xmon */
+	/* x: May be registered on sparc64 for global PMU dump */
 	NULL,				/* x */
 	/* y: May be registered on sparc64 for global register dump */
 	NULL,				/* y */
@@ -572,7 +583,93 @@ struct sysrq_state {
 	bool active;
 	bool need_reinject;
 	bool reinjecting;
+
+	/* reset sequence handling */
+	bool reset_canceled;
+	unsigned long reset_keybit[BITS_TO_LONGS(KEY_CNT)];
+	int reset_seq_len;
+	int reset_seq_cnt;
+	int reset_seq_version;
+	struct timer_list keyreset_timer;
 };
+
+#define SYSRQ_KEY_RESET_MAX	20 /* Should be plenty */
+static unsigned short sysrq_reset_seq[SYSRQ_KEY_RESET_MAX];
+static unsigned int sysrq_reset_seq_len;
+static unsigned int sysrq_reset_seq_version = 1;
+
+static void sysrq_parse_reset_sequence(struct sysrq_state *state)
+{
+	int i;
+	unsigned short key;
+
+	state->reset_seq_cnt = 0;
+
+	for (i = 0; i < sysrq_reset_seq_len; i++) {
+		key = sysrq_reset_seq[i];
+
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
+
+		__set_bit(key, state->reset_keybit);
+		state->reset_seq_len++;
+
+		if (test_bit(key, state->key_down))
+			state->reset_seq_cnt++;
+	}
+
+	/* Disable reset until old keys are not released */
+	state->reset_canceled = state->reset_seq_cnt != 0;
+
+	state->reset_seq_version = sysrq_reset_seq_version;
+}
+
+static void sysrq_do_reset(unsigned long dummy)
+{
+	__handle_sysrq(sysrq_xlate[KEY_B], false);
+}
+
+static void sysrq_handle_reset_request(struct sysrq_state *state)
+{
+	if (sysrq_reset_downtime_ms)
+		mod_timer(&state->keyreset_timer,
+			jiffies + msecs_to_jiffies(sysrq_reset_downtime_ms));
+	else
+		sysrq_do_reset(0);
+}
+
+static void sysrq_detect_reset_sequence(struct sysrq_state *state,
+					unsigned int code, int value)
+{
+	if (!test_bit(code, state->reset_keybit)) {
+		/*
+		 * Pressing any key _not_ in reset sequence cancels
+		 * the reset sequence.  Also cancelling the timer in
+		 * case additional keys were pressed after a reset
+		 * has been requested.
+		 */
+		if (value && state->reset_seq_cnt) {
+			state->reset_canceled = true;
+			del_timer(&state->keyreset_timer);
+		}
+	} else if (value == 0) {
+		/*
+		 * Key release - all keys in the reset sequence need
+		 * to be pressed and held for the reset timeout
+		 * to hold.
+		 */
+		del_timer(&state->keyreset_timer);
+
+		if (--state->reset_seq_cnt == 0)
+			state->reset_canceled = false;
+	} else if (value == 1) {
+		/* key press, not autorepeat */
+		if (++state->reset_seq_cnt == state->reset_seq_len &&
+		    !state->reset_canceled) {
+			sysrq_handle_reset_request(state);
+		}
+	}
+}
 
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 {
@@ -600,11 +697,102 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 	}
 }
 
+static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
+				  unsigned int code, int value)
+{
+	bool was_active = sysrq->active;
+	bool suppress;
+
+	switch (code) {
+
+	case KEY_LEFTALT:
+	case KEY_RIGHTALT:
+		if (!value) {
+			/* One of ALTs is being released */
+			if (sysrq->active && code == sysrq->alt_use)
+				sysrq->active = false;
+
+			sysrq->alt = KEY_RESERVED;
+
+		} else if (value != 2) {
+			sysrq->alt = code;
+			sysrq->need_reinject = false;
+		}
+		break;
+
+	case KEY_SYSRQ:
+		if (value == 1 && sysrq->alt != KEY_RESERVED) {
+			sysrq->active = true;
+			sysrq->alt_use = sysrq->alt;
+			/*
+			 * If nothing else will be pressed we'll need
+			 * to re-inject Alt-SysRq keysroke.
+			 */
+			sysrq->need_reinject = true;
+		}
+
+		/*
+		 * Pretend that sysrq was never pressed at all. This
+		 * is needed to properly handle KGDB which will try
+		 * to release all keys after exiting debugger. If we
+		 * do not clear key bit it KGDB will end up sending
+		 * release events for Alt and SysRq, potentially
+		 * triggering print screen function.
+		 */
+		if (sysrq->active)
+			clear_bit(KEY_SYSRQ, sysrq->handle.dev->key);
+
+		break;
+
+	default:
+		if (sysrq->active && value && value != 2) {
+			sysrq->need_reinject = false;
+			__handle_sysrq(sysrq_xlate[code], true);
+		}
+		break;
+	}
+
+	suppress = sysrq->active;
+
+	if (!sysrq->active) {
+
+		/*
+		 * See if reset sequence has changed since the last time.
+		 */
+		if (sysrq->reset_seq_version != sysrq_reset_seq_version)
+			sysrq_parse_reset_sequence(sysrq);
+
+		/*
+		 * If we are not suppressing key presses keep track of
+		 * keyboard state so we can release keys that have been
+		 * pressed before entering SysRq mode.
+		 */
+		if (value)
+			set_bit(code, sysrq->key_down);
+		else
+			clear_bit(code, sysrq->key_down);
+
+		if (was_active)
+			schedule_work(&sysrq->reinject_work);
+
+		/* Check for reset sequence */
+		sysrq_detect_reset_sequence(sysrq, code, value);
+
+	} else if (value == 0 && test_and_clear_bit(code, sysrq->key_down)) {
+		/*
+		 * Pass on release events for keys that was pressed before
+		 * entering SysRq mode.
+		 */
+		suppress = false;
+	}
+
+	return suppress;
+}
+
 static bool sysrq_filter(struct input_handle *handle,
 			 unsigned int type, unsigned int code, int value)
 {
 	struct sysrq_state *sysrq = handle->private;
-	bool was_active = sysrq->active;
 	bool suppress;
 
 	/*
@@ -621,79 +809,7 @@ static bool sysrq_filter(struct input_handle *handle,
 		break;
 
 	case EV_KEY:
-		switch (code) {
-
-		case KEY_LEFTALT:
-		case KEY_RIGHTALT:
-			if (!value) {
-				/* One of ALTs is being released */
-				if (sysrq->active && code == sysrq->alt_use)
-					sysrq->active = false;
-
-				sysrq->alt = KEY_RESERVED;
-
-			} else if (value != 2) {
-				sysrq->alt = code;
-				sysrq->need_reinject = false;
-			}
-			break;
-
-		case KEY_SYSRQ:
-			if (value == 1 && sysrq->alt != KEY_RESERVED) {
-				sysrq->active = true;
-				sysrq->alt_use = sysrq->alt;
-				/*
-				 * If nothing else will be pressed we'll need
-				 * to re-inject Alt-SysRq keysroke.
-				 */
-				sysrq->need_reinject = true;
-			}
-
-			/*
-			 * Pretend that sysrq was never pressed at all. This
-			 * is needed to properly handle KGDB which will try
-			 * to release all keys after exiting debugger. If we
-			 * do not clear key bit it KGDB will end up sending
-			 * release events for Alt and SysRq, potentially
-			 * triggering print screen function.
-			 */
-			if (sysrq->active)
-				clear_bit(KEY_SYSRQ, handle->dev->key);
-
-			break;
-
-		default:
-			if (sysrq->active && value && value != 2) {
-				sysrq->need_reinject = false;
-				__handle_sysrq(sysrq_xlate[code], true);
-			}
-			break;
-		}
-
-		suppress = sysrq->active;
-
-		if (!sysrq->active) {
-			/*
-			 * If we are not suppressing key presses keep track of
-			 * keyboard state so we can release keys that have been
-			 * pressed before entering SysRq mode.
-			 */
-			if (value)
-				set_bit(code, sysrq->key_down);
-			else
-				clear_bit(code, sysrq->key_down);
-
-			if (was_active)
-				schedule_work(&sysrq->reinject_work);
-
-		} else if (value == 0 &&
-			   test_and_clear_bit(code, sysrq->key_down)) {
-			/*
-			 * Pass on release events for keys that was pressed before
-			 * entering SysRq mode.
-			 */
-			suppress = false;
-		}
+		suppress = sysrq_handle_keypress(sysrq, code, value);
 		break;
 
 	default:
@@ -721,6 +837,7 @@ static int sysrq_connect(struct input_handler *handler,
 	sysrq->handle.handler = handler;
 	sysrq->handle.name = "sysrq";
 	sysrq->handle.private = sysrq;
+	setup_timer(&sysrq->keyreset_timer, sysrq_do_reset, 0);
 
 	error = input_register_handle(&sysrq->handle);
 	if (error) {
@@ -750,6 +867,7 @@ static void sysrq_disconnect(struct input_handle *handle)
 
 	input_close_device(handle);
 	cancel_work_sync(&sysrq->reinject_work);
+	del_timer_sync(&sysrq->keyreset_timer);
 	input_unregister_handle(handle);
 	kfree(sysrq);
 }
@@ -781,7 +899,17 @@ static bool sysrq_handler_registered;
 
 static inline void sysrq_register_handler(void)
 {
+	unsigned short key;
 	int error;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
+		key = platform_sysrq_reset_seq[i];
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
+
+		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
+	}
 
 	error = input_register_handler(&sysrq_handler);
 	if (error)
@@ -797,6 +925,38 @@ static inline void sysrq_unregister_handler(void)
 		sysrq_handler_registered = false;
 	}
 }
+
+static int sysrq_reset_seq_param_set(const char *buffer,
+				     const struct kernel_param *kp)
+{
+	unsigned long val;
+	int error;
+
+	error = strict_strtoul(buffer, 0, &val);
+	if (error < 0)
+		return error;
+
+	if (val > KEY_MAX)
+		return -EINVAL;
+
+	*((unsigned short *)kp->arg) = val;
+	sysrq_reset_seq_version++;
+
+	return 0;
+}
+
+static struct kernel_param_ops param_ops_sysrq_reset_seq = {
+	.get	= param_get_ushort,
+	.set	= sysrq_reset_seq_param_set,
+};
+
+#define param_check_sysrq_reset_seq(name, p)	\
+	__param_check(name, p, unsigned short)
+
+module_param_array_named(reset_seq, sysrq_reset_seq, sysrq_reset_seq,
+			 &sysrq_reset_seq_len, 0644);
+
+module_param_named(sysrq_downtime_ms, sysrq_reset_downtime_ms, int, 0644);
 
 #else
 

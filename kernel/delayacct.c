@@ -19,8 +19,10 @@
 #include <linux/time.h>
 #include <linux/sysctl.h>
 #include <linux/delayacct.h>
+#include <linux/module.h>
 
 int delayacct_on __read_mostly = 1;	/* Delay accounting turned on/off */
+EXPORT_SYMBOL_GPL(delayacct_on);
 struct kmem_cache *delayacct_cache;
 
 static int __init delayacct_setup_disable(char *str)
@@ -104,6 +106,7 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	unsigned long long t2, t3;
 	unsigned long flags;
 	struct timespec ts;
+	cputime_t utime, stime, stimescaled, utimescaled;
 
 	/* Though tsk->delays accessed later, early exit avoids
 	 * unnecessary returning of other data
@@ -112,12 +115,14 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 		goto done;
 
 	tmp = (s64)d->cpu_run_real_total;
-	cputime_to_timespec(tsk->utime + tsk->stime, &ts);
+	task_cputime(tsk, &utime, &stime);
+	cputime_to_timespec(utime + stime, &ts);
 	tmp += timespec_to_ns(&ts);
 	d->cpu_run_real_total = (tmp < (s64)d->cpu_run_real_total) ? 0 : tmp;
 
 	tmp = (s64)d->cpu_scaled_run_real_total;
-	cputime_to_timespec(tsk->utimescaled + tsk->stimescaled, &ts);
+	task_cputime_scaled(tsk, &utimescaled, &stimescaled);
+	cputime_to_timespec(utimescaled + stimescaled, &ts);
 	tmp += timespec_to_ns(&ts);
 	d->cpu_scaled_run_real_total =
 		(tmp < (s64)d->cpu_scaled_run_real_total) ? 0 : tmp;

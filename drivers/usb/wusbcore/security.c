@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/usb/ch9.h>
 #include <linux/random.h>
+#include <linux/export.h>
 #include "wusbhc.h"
 
 static void wusbhc_set_gtk_callback(struct urb *urb);
@@ -201,7 +202,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 {
 	int result, bytes, secd_size;
 	struct device *dev = &usb_dev->dev;
-	struct usb_security_descriptor *secd;
+	struct usb_security_descriptor *secd, *new_secd;
 	const struct usb_encryption_descriptor *etd, *ccm1_etd = NULL;
 	const void *itr, *top;
 	char buf[64];
@@ -220,11 +221,12 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 		goto out;
 	}
 	secd_size = le16_to_cpu(secd->wTotalLength);
-	secd = krealloc(secd, secd_size, GFP_KERNEL);
-	if (secd == NULL) {
+	new_secd = krealloc(secd, secd_size, GFP_KERNEL);
+	if (new_secd == NULL) {
 		dev_err(dev, "Can't allocate space for security descriptors\n");
 		goto out;
 	}
+	secd = new_secd;
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
 				    0, secd, secd_size);
 	if (result < secd_size) {
@@ -353,7 +355,7 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	struct wusb_keydvt_in keydvt_in;
 	struct wusb_keydvt_out keydvt_out;
 
-	hs = kzalloc(3*sizeof(hs[0]), GFP_KERNEL);
+	hs = kcalloc(3, sizeof(hs[0]), GFP_KERNEL);
 	if (hs == NULL) {
 		dev_err(dev, "can't allocate handshake data\n");
 		goto error_kzalloc;

@@ -5,7 +5,6 @@
  *
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
- * Version:	0.3.0
  * Copyright:	(C) Torsten Schenk
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +18,10 @@
 #include "midi.h"
 #include "chip.h"
 #include "comm.h"
+
+enum {
+	MIDI_BUFSIZE = 64
+};
 
 static void usb6fire_midi_out_handler(struct urb *urb)
 {
@@ -147,7 +150,7 @@ static struct snd_rawmidi_ops in_ops = {
 	.trigger = usb6fire_midi_in_trigger
 };
 
-int __devinit usb6fire_midi_init(struct sfire_chip *chip)
+int usb6fire_midi_init(struct sfire_chip *chip)
 {
 	int ret;
 	struct midi_runtime *rt = kzalloc(sizeof(struct midi_runtime),
@@ -156,6 +159,12 @@ int __devinit usb6fire_midi_init(struct sfire_chip *chip)
 
 	if (!rt)
 		return -ENOMEM;
+
+	rt->out_buffer = kzalloc(MIDI_BUFSIZE, GFP_KERNEL);
+	if (!rt->out_buffer) {
+		kfree(rt);
+		return -ENOMEM;
+	}
 
 	rt->chip = chip;
 	rt->in_received = usb6fire_midi_in_received;
@@ -170,6 +179,7 @@ int __devinit usb6fire_midi_init(struct sfire_chip *chip)
 
 	ret = snd_rawmidi_new(chip->card, "6FireUSB", 0, 1, 1, &rt->instance);
 	if (ret < 0) {
+		kfree(rt->out_buffer);
 		kfree(rt);
 		snd_printk(KERN_ERR PREFIX "unable to create midi.\n");
 		return ret;
@@ -198,6 +208,9 @@ void usb6fire_midi_abort(struct sfire_chip *chip)
 
 void usb6fire_midi_destroy(struct sfire_chip *chip)
 {
-	kfree(chip->midi);
+	struct midi_runtime *rt = chip->midi;
+
+	kfree(rt->out_buffer);
+	kfree(rt);
 	chip->midi = NULL;
 }

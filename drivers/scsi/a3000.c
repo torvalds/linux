@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -180,7 +181,8 @@ static int a3000_bus_reset(struct scsi_cmnd *cmd)
 static struct scsi_host_template amiga_a3000_scsi_template = {
 	.module			= THIS_MODULE,
 	.name			= "Amiga 3000 built-in SCSI",
-	.proc_info		= wd33c93_proc_info,
+	.show_info		= wd33c93_show_info,
+	.write_info		= wd33c93_write_info,
 	.proc_name		= "A3000",
 	.queuecommand		= wd33c93_queuecommand,
 	.eh_abort_handler	= wd33c93_abort,

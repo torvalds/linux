@@ -10,7 +10,11 @@ static inline void smpboot_clear_io_apic_irqs(void)
 
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(0xa, 0xf);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	local_flush_tlb();
 	pr_debug("1.\n");
 	*((volatile unsigned short *)phys_to_virt(apic->trampoline_phys_high)) =
@@ -23,6 +27,8 @@ static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 
 static inline void smpboot_restore_warm_reset_vector(void)
 {
+	unsigned long flags;
+
 	/*
 	 * Install writable page 0 entry to set BIOS data area.
 	 */
@@ -32,7 +38,9 @@ static inline void smpboot_restore_warm_reset_vector(void)
 	 * Paranoid:  Set warm reset code and vector here back
 	 * to default values.
 	 */
+	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(0, 0xf);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	*((volatile u32 *)phys_to_virt(apic->trampoline_phys_low)) = 0;
 }

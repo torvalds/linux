@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table tbs_nec[] = {
 	{ 0x84, KEY_POWER2},		/* power */

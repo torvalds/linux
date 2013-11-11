@@ -23,7 +23,11 @@
  */
 #ifdef CONFIG_32BIT
 
-#define __UA_LIMIT	0x80000000UL
+#ifdef CONFIG_KVM_GUEST
+#define __UA_LIMIT 0x40000000UL
+#else
+#define __UA_LIMIT 0x80000000UL
+#endif
 
 #define __UA_ADDR	".word"
 #define __UA_LA		"la"
@@ -55,8 +59,13 @@ extern u64 __ua_limit;
  * address in this range it's the process's problem, not ours :-)
  */
 
+#ifdef CONFIG_KVM_GUEST
+#define KERNEL_DS	((mm_segment_t) { 0x80000000UL })
+#define USER_DS		((mm_segment_t) { 0xC0000000UL })
+#else
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
+#endif
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
@@ -87,12 +96,12 @@ extern u64 __ua_limit;
 /*
  * access_ok: - Checks if a user space pointer is valid
  * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
+ *	  %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
+ *	  to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
@@ -124,10 +133,10 @@ extern u64 __ua_limit;
 
 /*
  * put_user: - Write a simple value into user space.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -138,15 +147,15 @@ extern u64 __ua_limit;
  *
  * Returns zero on success, or -EFAULT on error.
  */
-#define put_user(x,ptr)	\
+#define put_user(x,ptr) \
 	__put_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * get_user: - Get a simple variable from user space.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -163,10 +172,10 @@ extern u64 __ua_limit;
 
 /*
  * __put_user: - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -185,10 +194,10 @@ extern u64 __ua_limit;
 
 /*
  * __get_user: - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -261,6 +270,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -287,7 +297,9 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	lw	%1, (%3)				\n"	\
 	"2:	lw	%D1, 4(%3)				\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -355,6 +367,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%z2, %3		# __put_user_asm\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -373,6 +386,7 @@ do {									\
 	"1:	sw	%2, (%3)	# __put_user_asm_ll32	\n"	\
 	"2:	sw	%D2, 4(%3)				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\
@@ -390,10 +404,10 @@ extern void __put_user_unknown(void);
 
 /*
  * put_user_unaligned: - Write a simple value into user space.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -409,10 +423,10 @@ extern void __put_user_unknown(void);
 
 /*
  * get_user_unaligned: - Get a simple variable from user space.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -429,10 +443,10 @@ extern void __put_user_unknown(void);
 
 /*
  * __put_user_unaligned: - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
+ * @x:	 Value to copy to user space.
  * @ptr: Destination address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
  * space.  It supports simple types like char and int, but not larger
@@ -451,10 +465,10 @@ extern void __put_user_unknown(void);
 
 /*
  * __get_user_unaligned: - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
+ * @x:	 Variable to store result.
  * @ptr: Source address, in user space.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
  * space.  It supports simple types like char and int, but not larger
@@ -524,6 +538,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -543,13 +558,15 @@ do {									\
  */
 #define __get_user_unaligned_asm_ll32(val, addr)			\
 {									\
-        unsigned long long __gu_tmp;					\
+	unsigned long long __gu_tmp;					\
 									\
 	__asm__ __volatile__(						\
 	"1:	ulw	%1, (%3)				\n"	\
 	"2:	ulw	%D1, 4(%3)				\n"	\
 	"	move	%0, $0					\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -616,6 +633,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%z2, %3		# __put_user_unaligned_asm\n" \
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -631,9 +649,10 @@ do {									\
 #define __put_user_unaligned_asm_ll32(ptr)				\
 {									\
 	__asm__ __volatile__(						\
-	"1:	sw	%2, (%3)	# __put_user_unaligned_asm_ll32	\n" \
+	"1:	sw	%2, (%3)	# __put_user_unaligned_asm_ll32 \n" \
 	"2:	sw	%D2, 4(%3)				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\
@@ -658,7 +677,7 @@ extern void __put_user_unaligned_unknown(void);
 #ifdef MODULE
 #define __MODULE_JAL(destination)					\
 	".set\tnoat\n\t"						\
-	__UA_LA "\t$1, " #destination "\n\t" 				\
+	__UA_LA "\t$1, " #destination "\n\t"				\
 	"jalr\t$1\n\t"							\
 	".set\tat\n\t"
 #else
@@ -687,18 +706,18 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__MODULE_JAL(__copy_user)					\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
 /*
  * __copy_to_user: - Copy a block of data into user space, with less checking.
- * @to:   Destination address, in user space.
+ * @to:	  Destination address, in user space.
  * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from kernel space to user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -716,7 +735,7 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_from = (from);						\
 	__cu_len = (n);							\
 	might_fault();							\
-	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len);	\
+	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len); \
 	__cu_len;							\
 })
 
@@ -731,7 +750,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len);	\
+	__cu_len = __invoke_copy_to_user(__cu_to, __cu_from, __cu_len); \
 	__cu_len;							\
 })
 
@@ -744,18 +763,18 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_to = (to);							\
 	__cu_from = (from);						\
 	__cu_len = (n);							\
-	__cu_len = __invoke_copy_from_user_inatomic(__cu_to, __cu_from,	\
-	                                            __cu_len);		\
+	__cu_len = __invoke_copy_from_user_inatomic(__cu_to, __cu_from, \
+						    __cu_len);		\
 	__cu_len;							\
 })
 
 /*
  * copy_to_user: - Copy a block of data into user space.
- * @to:   Destination address, in user space.
+ * @to:	  Destination address, in user space.
  * @from: Source address, in kernel space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from kernel space to user space.
  *
@@ -774,7 +793,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	if (access_ok(VERIFY_WRITE, __cu_to, __cu_len)) {		\
 		might_fault();						\
 		__cu_len = __invoke_copy_to_user(__cu_to, __cu_from,	\
-		                                 __cu_len);		\
+						 __cu_len);		\
 	}								\
 	__cu_len;							\
 })
@@ -797,7 +816,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\treorder"							\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
@@ -820,18 +839,18 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	".set\treorder"							\
 	: "+r" (__cu_to_r), "+r" (__cu_from_r), "+r" (__cu_len_r)	\
 	:								\
-	: "$8", "$9", "$10", "$11", "$12", "$15", "$24", "$31",		\
+	: "$8", "$9", "$10", "$11", "$12", "$14", "$15", "$24", "$31",	\
 	  DADDI_SCRATCH, "memory");					\
 	__cu_len_r;							\
 })
 
 /*
  * __copy_from_user: - Copy a block of data from user space, with less checking.
- * @to:   Destination address, in kernel space.
+ * @to:	  Destination address, in kernel space.
  * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from user space to kernel space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -853,17 +872,17 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len = (n);							\
 	might_fault();							\
 	__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,		\
-	                                   __cu_len);			\
+					   __cu_len);			\
 	__cu_len;							\
 })
 
 /*
  * copy_from_user: - Copy a block of data from user space.
- * @to:   Destination address, in kernel space.
+ * @to:	  Destination address, in kernel space.
  * @from: Source address, in user space.
- * @n:    Number of bytes to copy.
+ * @n:	  Number of bytes to copy.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Copy data from user space to kernel space.
  *
@@ -885,7 +904,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	if (access_ok(VERIFY_READ, __cu_from, __cu_len)) {		\
 		might_fault();						\
 		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
-		                                   __cu_len);		\
+						   __cu_len);		\
 	}								\
 	__cu_len;							\
 })
@@ -901,7 +920,7 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len = (n);							\
 	might_fault();							\
 	__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,		\
-	                                   __cu_len);			\
+					   __cu_len);			\
 	__cu_len;							\
 })
 
@@ -915,18 +934,18 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_from = (from);						\
 	__cu_len = (n);							\
 	if (likely(access_ok(VERIFY_READ, __cu_from, __cu_len) &&	\
-	           access_ok(VERIFY_WRITE, __cu_to, __cu_len))) {	\
+		   access_ok(VERIFY_WRITE, __cu_to, __cu_len))) {	\
 		might_fault();						\
 		__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,	\
-		                                   __cu_len);		\
+						   __cu_len);		\
 	}								\
 	__cu_len;							\
 })
 
 /*
  * __clear_user: - Zero a block of memory in user space, with less checking.
- * @to:   Destination address, in user space.
- * @n:    Number of bytes to zero.
+ * @to:	  Destination address, in user space.
+ * @n:	  Number of bytes to zero.
  *
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
@@ -966,7 +985,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 /*
  * __strncpy_from_user: - Copy a NUL terminated string from userspace, with less checking.
  * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
+ *	   least @count bytes long.
  * @src:   Source address, in user space.
  * @count: Maximum number of bytes to copy, including the trailing NUL.
  *
@@ -1005,7 +1024,7 @@ __strncpy_from_user(char *__to, const char __user *__from, long __len)
 /*
  * strncpy_from_user: - Copy a NUL terminated string from userspace.
  * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
+ *	   least @count bytes long.
  * @src:   Source address, in user space.
  * @count: Maximum number of bytes to copy, including the trailing NUL.
  *
@@ -1060,7 +1079,7 @@ static inline long __strlen_user(const char __user *s)
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Get the size of a NUL-terminated string in user space.
  *
@@ -1108,7 +1127,7 @@ static inline long __strnlen_user(const char __user *s, long n)
  * strlen_user: - Get the size of a string in user space.
  * @str: The string to measure.
  *
- * Context: User context only.  This function may sleep.
+ * Context: User context only.	This function may sleep.
  *
  * Get the size of a NUL-terminated string in user space.
  *

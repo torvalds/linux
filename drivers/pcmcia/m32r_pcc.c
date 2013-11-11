@@ -24,7 +24,6 @@
 #include <linux/bitops.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/addrspace.h>
 
 #include <pcmcia/ss.h>

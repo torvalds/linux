@@ -9,9 +9,11 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/hardirq.h>
 #include <linux/slab.h>
 
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include "libertas_tf.h"
 
 #define DRIVER_RELEASE_VERSION "004.p0"
@@ -225,7 +227,9 @@ static void lbtf_free_adapter(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
-static void lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void lbtf_op_tx(struct ieee80211_hw *hw,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -408,9 +412,9 @@ static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
-	if (conf->channel->center_freq != priv->cur_freq) {
-		priv->cur_freq = conf->channel->center_freq;
-		lbtf_set_channel(priv, conf->channel->hw_value);
+	if (conf->chandef.chan->center_freq != priv->cur_freq) {
+		priv->cur_freq = conf->chandef.chan->center_freq;
+		lbtf_set_channel(priv, conf->chandef.chan->hw_value);
 	}
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
@@ -533,7 +537,7 @@ static int lbtf_op_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = priv->noise;
 
@@ -585,7 +589,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	need_padding ^= ieee80211_has_a4(hdr->frame_control);
 	need_padding ^= ieee80211_is_data_qos(hdr->frame_control) &&
 			(*ieee80211_get_qos_ctl(hdr) &
-			 IEEE80211_QOS_CONTROL_A_MSDU_PRESENT);
+			 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
 
 	if (need_padding) {
 		memmove(skb->data + 2, skb->data, skb->len);
@@ -717,11 +721,11 @@ void lbtf_bcn_sent(struct lbtf_private *priv)
 		return;
 
 	if (skb_queue_empty(&priv->bc_ps_buf)) {
-		bool tx_buff_bc = 0;
+		bool tx_buff_bc = false;
 
 		while ((skb = ieee80211_get_buffered_bc(priv->hw, priv->vif))) {
 			skb_queue_tail(&priv->bc_ps_buf, skb);
-			tx_buff_bc = 1;
+			tx_buff_bc = true;
 		}
 		if (tx_buff_bc) {
 			ieee80211_stop_queues(priv->hw);

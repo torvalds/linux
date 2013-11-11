@@ -148,7 +148,7 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 		struct cs5535audio_dma_desc *desc =
 			&((struct cs5535audio_dma_desc *) dma->desc_buf.area)[i];
 		desc->addr = cpu_to_le32(addr);
-		desc->size = cpu_to_le32(period_bytes);
+		desc->size = cpu_to_le16(period_bytes);
 		desc->ctlreserved = cpu_to_le16(PRD_EOP);
 		desc_addr += sizeof(struct cs5535audio_dma_desc);
 		addr += period_bytes;
@@ -422,7 +422,7 @@ static struct cs5535audio_dma_ops snd_cs5535audio_capture_dma_ops = {
         .read_dma_pntr = cs5535audio_capture_read_dma_pntr,
 };
 
-int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
+int snd_cs5535audio_pcm(struct cs5535audio *cs5535au)
 {
 	struct snd_pcm *pcm;
 	int err;

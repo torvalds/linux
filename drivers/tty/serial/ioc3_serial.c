@@ -13,6 +13,7 @@
  */
 #include <linux/errno.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/serial.h>
 #include <linux/circ_buf.h>
 #include <linux/serial_reg.h>
@@ -999,7 +1000,7 @@ ioc3_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	state->port.tty->low_latency = 1;
+	state->port.low_latency = 1;
 
 	if (iflag & IGNPAR)
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR
@@ -1119,13 +1120,14 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
 	struct ioc3_port *port = get_ioc3_port(the_port);
 	struct ring *inring;
 	struct ring_entry *entry;
-	struct port_hooks *hooks = port->ip_hooks;
+	struct port_hooks *hooks;
 	int byte_num;
 	char *sc;
 	int loop_counter;
 
 	BUG_ON(!(len >= 0));
 	BUG_ON(!port);
+	hooks = port->ip_hooks;
 
 	/* There is a nasty timing issue in the IOC3. When the rx_timer
 	 * expires or the rx_high condition arises, we take an interrupt.
@@ -1391,7 +1393,6 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
  */
 static int receive_chars(struct uart_port *the_port)
 {
-	struct tty_struct *tty;
 	unsigned char ch[MAX_CHARS];
 	int read_count = 0, read_room, flip = 0;
 	struct uart_state *state = the_port->state;
@@ -1401,25 +1402,23 @@ static int receive_chars(struct uart_port *the_port)
 	/* Make sure all the pointers are "good" ones */
 	if (!state)
 		return 0;
-	if (!state->port.tty)
-		return 0;
 
 	if (!(port->ip_flags & INPUT_ENABLE))
 		return 0;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = state->port.tty;
 
 	read_count = do_read(the_port, ch, MAX_CHARS);
 	if (read_count > 0) {
 		flip = 1;
-		read_room = tty_insert_flip_string(tty, ch, read_count);
+		read_room = tty_insert_flip_string(&state->port, ch,
+				read_count);
 		the_port->icount.rx += read_count;
 	}
 	spin_unlock_irqrestore(&the_port->lock, pflags);
 
 	if (flip)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&state->port);
 
 	return read_count;
 }
@@ -2008,7 +2007,7 @@ static int ioc3uart_remove(struct ioc3_submodule *is,
  * @idd: ioc3 driver data for this card
  */
 
-static int __devinit
+static int
 ioc3uart_probe(struct ioc3_submodule *is, struct ioc3_driver_data *idd)
 {
 	struct pci_dev *pdev = idd->pdev;

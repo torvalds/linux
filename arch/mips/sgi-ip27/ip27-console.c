@@ -31,7 +31,7 @@ static inline struct ioc3_uartregs *console_uart(void)
 	return &ioc3->sregs.uarta;
 }
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	struct ioc3_uartregs *uart = console_uart();
 

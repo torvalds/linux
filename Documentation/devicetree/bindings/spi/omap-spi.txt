@@ -1,0 +1,22 @@
+OMAP2+ McSPI device
+
+Required properties:
+- compatible :
+  - "ti,omap2-spi" for OMAP2 & OMAP3.
+  - "ti,omap4-spi" for OMAP4+.
+- ti,spi-num-cs : Number of chipselect supported  by the instance.
+- ti,hwmods: Name of the hwmod associated to the McSPI
+- ti,pindir-d0-out-d1-in: Select the D0 pin as output and D1 as
+			  input. The default is D0 as input and
+			  D1 as output.
+
+Example:
+
+mcspi1: mcspi@1 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    compatible = "ti,omap4-mcspi";
+    ti,hwmods = "mcspi1";
+    ti,spi-num-cs = <4>;
+};
+

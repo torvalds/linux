@@ -1,0 +1,56 @@
+menuconfig EXTCON
+	tristate "External Connector Class (extcon) support"
+	help
+	  Say Y here to enable external connector class (extcon) support.
+	  This allows monitoring external connectors by userspace
+	  via sysfs and uevent and supports external connectors with
+	  multiple states; i.e., an extcon that may have multiple
+	  cables attached. For example, an external connector of a device
+	  may be used to connect an HDMI cable and a AC adaptor, and to
+	  host USB ports. Many of 30-pin connectors including PDMI are
+	  also good examples.
+
+if EXTCON
+
+comment "Extcon Device Drivers"
+
+config EXTCON_GPIO
+	tristate "GPIO extcon support"
+	depends on GPIOLIB
+	help
+	  Say Y here to enable GPIO based extcon support. Note that GPIO
+	  extcon supports single state per extcon instance.
+
+config EXTCON_ADC_JACK
+	tristate "ADC Jack extcon support"
+	depends on IIO
+	help
+	  Say Y here to enable extcon device driver based on ADC values.
+
+config EXTCON_MAX77693
+	tristate "MAX77693 EXTCON Support"
+	depends on MFD_MAX77693 && INPUT
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX77693 PMIC. The MAX77693 MUIC is a USB port accessory
+	  detector and switch.
+
+config EXTCON_MAX8997
+	tristate "MAX8997 EXTCON Support"
+	depends on MFD_MAX8997 && IRQ_DOMAIN
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX8997 PMIC. The MAX8997 MUIC is a USB port accessory
+	  detector and switch.
+
+config EXTCON_ARIZONA
+	tristate "Wolfson Arizona EXTCON support"
+	depends on MFD_ARIZONA && INPUT && SND_SOC
+	help
+	  Say Y here to enable support for external accessory detection
+	  with Wolfson Arizona devices. These are audio CODECs with
+	  advanced audio accessory detection support.
+
+endif # MULTISTATE_SWITCH

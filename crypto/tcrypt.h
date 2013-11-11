@@ -47,11 +47,15 @@ static struct cipher_speed_template des3_speed_template[] = {
  */
 static u8 speed_template_8[] = {8, 0};
 static u8 speed_template_24[] = {24, 0};
+static u8 speed_template_8_16[] = {8, 16, 0};
 static u8 speed_template_8_32[] = {8, 32, 0};
 static u8 speed_template_16_32[] = {16, 32, 0};
 static u8 speed_template_16_24_32[] = {16, 24, 32, 0};
+static u8 speed_template_20_28_36[] = {20, 28, 36, 0};
 static u8 speed_template_32_40_48[] = {32, 40, 48, 0};
+static u8 speed_template_32_48[] = {32, 48, 0};
 static u8 speed_template_32_48_64[] = {32, 48, 64, 0};
+static u8 speed_template_32_64[] = {32, 64, 0};
 
 /*
  * Digest speed tests

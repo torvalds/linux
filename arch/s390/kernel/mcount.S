@@ -1,25 +1,24 @@
 /*
- * Copyright IBM Corp. 2008,2009
+ * Copyright IBM Corp. 2008, 2009
  *
  *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/ftrace.h>
 
 	.section .kprobes.text, "ax"
 
-	.globl ftrace_stub
-ftrace_stub:
+ENTRY(ftrace_stub)
 	br	%r14
 
-	.globl _mcount
-_mcount:
+ENTRY(_mcount)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	br	%r14
 
-	.globl ftrace_caller
-ftrace_caller:
+ENTRY(ftrace_caller)
 #endif
 	stm	%r2,%r5,16(%r15)
 	bras	%r1,2f
@@ -35,14 +34,14 @@ ftrace_caller:
 	la	%r2,0(%r14)
 	st	%r0,__SF_BACKCHAIN(%r15)
 	la	%r3,0(%r3)
+	ahi	%r2,-MCOUNT_INSN_SIZE
 	l	%r14,0b-0b(%r1)
 	l	%r14,0(%r14)
 	basr	%r14,%r14
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	l	%r2,100(%r15)
 	l	%r3,152(%r15)
-	.globl	ftrace_graph_caller
-ftrace_graph_caller:
+ENTRY(ftrace_graph_caller)
 # The bras instruction gets runtime patched to call prepare_ftrace_return.
 # See ftrace_enable_ftrace_graph_caller. The patched instruction is:
 #	bras	%r14,prepare_ftrace_return
@@ -56,8 +55,7 @@ ftrace_graph_caller:
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-	.globl	return_to_handler
-return_to_handler:
+ENTRY(return_to_handler)
 	stm	%r2,%r5,16(%r15)
 	st	%r14,56(%r15)
 	lr	%r0,%r15

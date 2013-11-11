@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/clock.h>
 #include <asm/siu.h>
@@ -111,9 +112,6 @@ static void siu_dai_start(struct siu_port *port_info)
 
 	dev_dbg(port_info->pcm->card->dev, "%s\n", __func__);
 
-	/* Turn on SIU clock */
-	pm_runtime_get_sync(info->dev);
-
 	/* Issue software reset to siu */
 	siu_write32(base + SIU_SRCTL, 0);
 
@@ -157,9 +155,6 @@ static void siu_dai_stop(struct siu_port *port_info)
 
 	/* SIU software reset */
 	siu_write32(base + SIU_SRCTL, 0);
-
-	/* Turn off SIU clock */
-	pm_runtime_put_sync(info->dev);
 }
 
 static void siu_dai_spbAselect(struct siu_port *port_info)
@@ -706,7 +701,7 @@ epclkget:
 	return ret;
 }
 
-static struct snd_soc_dai_ops siu_dai_ops = {
+static const struct snd_soc_dai_ops siu_dai_ops = {
 	.startup	= siu_dai_startup,
 	.shutdown	= siu_dai_shutdown,
 	.prepare	= siu_dai_prepare,
@@ -731,7 +726,11 @@ static struct snd_soc_dai_driver siu_i2s_dai = {
 	.ops = &siu_dai_ops,
 };
 
-static int __devinit siu_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver siu_i2s_component = {
+	.name		= "siu-i2s",
+};
+
+static int siu_probe(struct platform_device *pdev)
 {
 	const struct firmware *fw_entry;
 	struct resource *res, *region;
@@ -788,7 +787,8 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	/* register using ARRAY version so we can keep dai name */
-	ret = snd_soc_register_dais(&pdev->dev, &siu_i2s_dai, 1);
+	ret = snd_soc_register_component(&pdev->dev, &siu_i2s_component,
+					 &siu_i2s_dai, 1);
 	if (ret < 0)
 		goto edaiinit;
 
@@ -801,7 +801,7 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	return ret;
 
 esocregp:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 edaiinit:
 	iounmap(info->reg);
 emapreg:
@@ -820,7 +820,7 @@ ereqfw:
 	return ret;
 }
 
-static int __devexit siu_remove(struct platform_device *pdev)
+static int siu_remove(struct platform_device *pdev)
 {
 	struct siu_info *info = dev_get_drvdata(&pdev->dev);
 	struct resource *res;
@@ -828,7 +828,7 @@ static int __devexit siu_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	iounmap(info->reg);
 	iounmap(info->yram);
@@ -848,21 +848,10 @@ static struct platform_driver siu_driver = {
 		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,
-	.remove		= __devexit_p(siu_remove),
+	.remove		= siu_remove,
 };
 
-static int __init siu_init(void)
-{
-	return platform_driver_register(&siu_driver);
-}
-
-static void __exit siu_exit(void)
-{
-	platform_driver_unregister(&siu_driver);
-}
-
-module_init(siu_init)
-module_exit(siu_exit)
+module_platform_driver(siu_driver);
 
 MODULE_AUTHOR("Carlos Munoz <carlos@kenati.com>");
 MODULE_DESCRIPTION("ALSA SoC SH7722 SIU driver");

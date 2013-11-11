@@ -45,8 +45,8 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool IEEE11hbMSRRepTx (
-    void *pMgmtHandle
-    );
+bool IEEE11hbMSRRepTx(
+	void *pMgmtHandle
+);
 
 #endif // __IEEE11h_H__

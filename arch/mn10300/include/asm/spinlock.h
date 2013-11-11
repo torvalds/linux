@@ -11,7 +11,7 @@
 #ifndef _ASM_SPINLOCK_H
 #define _ASM_SPINLOCK_H
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/rwlock.h>
 #include <asm/page.h>
 

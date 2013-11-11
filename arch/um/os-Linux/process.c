@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -12,13 +13,10 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
-#include "init.h"
-#include "kern_constants.h"
-#include "longjmp.h"
-#include "os.h"
-#include "process.h"
-#include "skas_ptrace.h"
-#include "user.h"
+#include <init.h>
+#include <longjmp.h>
+#include <os.h>
+#include <skas_ptrace.h>
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -235,36 +233,66 @@ out:
 	return ok;
 }
 
-void init_new_thread_signals(void)
+static int os_page_mincore(void *addr)
 {
-	set_handler(SIGSEGV, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGTRAP, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGFPE, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGILL, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	set_handler(SIGBUS, (__sighandler_t) sig_handler, SA_ONSTACK,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGVTALRM, -1);
-	signal(SIGHUP, SIG_IGN);
+	char vec[2];
+	int ret;
 
-	set_handler(SIGIO, (__sighandler_t) sig_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGALRM,
-		    SIGVTALRM, -1);
-	signal(SIGWINCH, SIG_IGN);
-	signal(SIGTERM, SIG_DFL);
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			return 0;
+		else
+			return -errno;
+	}
+
+	return vec[0] & 1;
 }
 
-int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr)
+int os_mincore(void *addr, unsigned long len)
 {
-	jmp_buf buf;
-	int n;
+	char *vec;
+	int ret, i;
 
-	*jmp_ptr = &buf;
-	n = UML_SETJMP(&buf);
-	if (n != 0)
-		return n;
-	(*fn)(arg);
-	return 0;
+	if (len <= UM_KERN_PAGE_SIZE)
+		return os_page_mincore(addr);
+
+	vec = calloc(1, (len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE);
+	if (!vec)
+		return -ENOMEM;
+
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			ret = 0;
+		else
+			ret = -errno;
+
+		goto out;
+	}
+
+	for (i = 0; i < ((len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE); i++) {
+		if (!(vec[i] & 1)) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = 1;
+out:
+	free(vec);
+	return ret;
+}
+
+void init_new_thread_signals(void)
+{
+	set_handler(SIGSEGV);
+	set_handler(SIGTRAP);
+	set_handler(SIGFPE);
+	set_handler(SIGILL);
+	set_handler(SIGBUS);
+	signal(SIGHUP, SIG_IGN);
+	set_handler(SIGIO);
+	signal(SIGWINCH, SIG_IGN);
+	signal(SIGTERM, SIG_DFL);
 }

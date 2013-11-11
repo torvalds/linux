@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Contact: Remi Denis-Courmont <remi.denis-courmont@nokia.com>
- * Original author: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ *          Rémi Denis-Courmont
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +44,7 @@ struct phonet_net {
 	struct phonet_routes routes;
 };
 
-int phonet_net_id __read_mostly;
+static int phonet_net_id __read_mostly;
 
 static struct phonet_net *phonet_pernet(struct net *net)
 {
@@ -268,7 +268,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 static void phonet_route_autodel(struct net_device *dev)
 {
 	struct phonet_net *pnn = phonet_pernet(dev_net(dev));
-	unsigned i;
+	unsigned int i;
 	DECLARE_BITMAP(deleted, 64);
 
 	/* Remove left-over Phonet routes */
@@ -276,7 +276,7 @@ static void phonet_route_autodel(struct net_device *dev)
 	mutex_lock(&pnn->routes.lock);
 	for (i = 0; i < 64; i++)
 		if (dev == pnn->routes.table[i]) {
-			rcu_assign_pointer(pnn->routes.table[i], NULL);
+			RCU_INIT_POINTER(pnn->routes.table[i], NULL);
 			set_bit(i, deleted);
 		}
 	mutex_unlock(&pnn->routes.lock);
@@ -320,7 +320,7 @@ static int __net_init phonet_init_net(struct net *net)
 {
 	struct phonet_net *pnn = phonet_pernet(net);
 
-	if (!proc_net_fops_create(net, "phonet", 0, &pn_sock_seq_fops))
+	if (!proc_create("phonet", 0, net->proc_net, &pn_sock_seq_fops))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
@@ -331,24 +331,7 @@ static int __net_init phonet_init_net(struct net *net)
 
 static void __net_exit phonet_exit_net(struct net *net)
 {
-	struct phonet_net *pnn = phonet_pernet(net);
-	struct net_device *dev;
-	unsigned i;
-
-	rtnl_lock();
-	for_each_netdev(net, dev)
-		phonet_device_destroy(dev);
-
-	for (i = 0; i < 64; i++) {
-		dev = pnn->routes.table[i];
-		if (dev) {
-			rtm_phonet_notify(RTM_DELROUTE, dev, i);
-			dev_put(dev);
-		}
-	}
-	rtnl_unlock();
-
-	proc_net_remove(net, "phonet");
+	remove_proc_entry("phonet", net->proc_net);
 }
 
 static struct pernet_operations phonet_net_ops = {
@@ -361,11 +344,11 @@ static struct pernet_operations phonet_net_ops = {
 /* Initialize Phonet devices list */
 int __init phonet_device_init(void)
 {
-	int err = register_pernet_device(&phonet_net_ops);
+	int err = register_pernet_subsys(&phonet_net_ops);
 	if (err)
 		return err;
 
-	proc_net_fops_create(&init_net, "pnresource", 0, &pn_res_seq_fops);
+	proc_create("pnresource", 0, init_net.proc_net, &pn_res_seq_fops);
 	register_netdevice_notifier(&phonet_device_notifier);
 	err = phonet_netlink_register();
 	if (err)
@@ -377,8 +360,8 @@ void phonet_device_exit(void)
 {
 	rtnl_unregister_all(PF_PHONET);
 	unregister_netdevice_notifier(&phonet_device_notifier);
-	unregister_pernet_device(&phonet_net_ops);
-	proc_net_remove(&init_net, "pnresource");
+	unregister_pernet_subsys(&phonet_net_ops);
+	remove_proc_entry("pnresource", init_net.proc_net);
 }
 
 int phonet_route_add(struct net_device *dev, u8 daddr)
@@ -406,7 +389,7 @@ int phonet_route_del(struct net_device *dev, u8 daddr)
 	daddr = daddr >> 2;
 	mutex_lock(&routes->lock);
 	if (dev == routes->table[daddr])
-		rcu_assign_pointer(routes->table[daddr], NULL);
+		RCU_INIT_POINTER(routes->table[daddr], NULL);
 	else
 		dev = NULL;
 	mutex_unlock(&routes->lock);

@@ -17,11 +17,11 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx27.h>
 
+#include "hardware.h"
+#include "common.h"
 #include "devices-imx27.h"
+#include "iomux-mx27.h"
 
 static const int mx27ipcam_pins[] __initconst = {
 	/* UART1 */
@@ -50,12 +50,14 @@ static const int mx27ipcam_pins[] __initconst = {
 
 static void __init mx27ipcam_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx27ipcam_pins, ARRAY_SIZE(mx27ipcam_pins),
 		"mx27ipcam");
 
 	imx27_add_imx_uart0(NULL);
 	imx27_add_fec(NULL);
-	imx27_add_imx2_wdt(NULL);
+	imx27_add_imx2_wdt();
 }
 
 static void __init mx27ipcam_timer_init(void)
@@ -63,16 +65,14 @@ static void __init mx27ipcam_timer_init(void)
 	mx27_clocks_init(25000000);
 }
 
-static struct sys_timer mx27ipcam_timer = {
-	.init	= mx27ipcam_timer_init,
-};
-
 MACHINE_START(IMX27IPCAM, "Freescale IMX27IPCAM")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.timer = &mx27ipcam_timer,
+	.handle_irq = imx27_handle_irq,
+	.init_time	= mx27ipcam_timer_init,
 	.init_machine = mx27ipcam_init,
+	.restart	= mxc_restart,
 MACHINE_END

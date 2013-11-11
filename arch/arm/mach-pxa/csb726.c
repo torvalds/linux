@@ -22,10 +22,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/csb726.h>
-#include <mach/mfp-pxa27x.h>
-#include <mach/mmc.h>
-#include <mach/ohci.h>
-#include <mach/pxa2xx-regs.h>
+#include <mach/pxa27x.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/audio.h>
 #include <mach/smemc.h>
 
@@ -273,9 +272,12 @@ static void __init csb726_init(void)
 }
 
 MACHINE_START(CSB726, "Cogent CSB726")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io         = pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
+	.handle_irq       = pxa27x_handle_irq,
 	.init_machine   = csb726_init,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
+	.restart	= pxa_restart,
 MACHINE_END

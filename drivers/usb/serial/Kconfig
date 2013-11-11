@@ -4,7 +4,7 @@
 
 menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
-	depends on USB
+	depends on TTY
 	---help---
 	  Say Y here if you have a USB device that provides normal serial
 	  ports, or acts like a serial device, and you want to connect it to
@@ -41,11 +41,6 @@ config USB_SERIAL_CONSOLE
 	  port, /dev/ttyUSB0, as system console.
 
 	  If unsure, say N.
-
-config USB_EZUSB
-	bool "Functions for loading firmware on EZUSB chips"
-	help
-	    Say Y here if you need EZUSB device support.
 
 config USB_SERIAL_GENERIC
 	bool "USB Generic Serial Driver"
@@ -94,7 +89,7 @@ config USB_SERIAL_CH341
 
 config USB_SERIAL_WHITEHEAT
 	tristate "USB ConnectTech WhiteHEAT Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a ConnectTech WhiteHEAT 4 port
 	  USB to serial converter device.
@@ -238,6 +233,15 @@ config USB_SERIAL_EDGEPORT_TI
 	  To compile this driver as a module, choose M here: the
 	  module will be called io_ti.
 
+config USB_SERIAL_F81232
+	tristate "USB Fintek F81232 Single Port Serial Driver"
+	help
+	  Say Y here if you want to use the Fintek F81232 single
+	  port usb to serial adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called f81232.
+
 config USB_SERIAL_GARMIN
        tristate "USB Garmin GPS driver"
        help
@@ -252,6 +256,7 @@ config USB_SERIAL_GARMIN
 
 config USB_SERIAL_IPW
         tristate "USB IPWireless (3G UMTS TDD) Driver"
+	select USB_SERIAL_WWAN
 	help
 	  Say Y here if you want to use a IPWireless USB modem such as
 	  the ones supplied by Axity3G/Sentech South Africa.
@@ -271,7 +276,7 @@ config USB_SERIAL_IUU
 
 config USB_SERIAL_KEYSPAN_PDA
 	tristate "USB Keyspan PDA Single Port Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a Keyspan PDA single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -282,7 +287,7 @@ config USB_SERIAL_KEYSPAN_PDA
 
 config USB_SERIAL_KEYSPAN
 	tristate "USB Keyspan USA-xxx Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	---help---
 	  Say Y here if you want to use Keyspan USB to serial converter
 	  devices.  This driver makes use of Keyspan's official firmware
@@ -415,6 +420,14 @@ config USB_SERIAL_MCT_U232
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
+
+config USB_SERIAL_METRO
+	tristate "USB Metrologic Instruments USB-POS Barcode Scanner Driver"
+	---help---
+	  Say Y here if you want to use a USB POS Metrologic barcode scanner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called metro-usb.
 
 config USB_SERIAL_MOS7720
 	tristate "USB Moschip 7720 Serial Driver"
@@ -578,7 +591,7 @@ config USB_SERIAL_CYBERJACK
 
 config USB_SERIAL_XIRCOM
 	tristate "USB Xircom / Entregra Single Port Serial Driver"
-	select USB_EZUSB
+	select USB_EZUSB_FX2
 	help
 	  Say Y here if you want to use a Xircom or Entregra single port USB to
 	  serial converter device.  This driver makes use of firmware
@@ -634,6 +647,18 @@ config USB_SERIAL_VIVOPAY_SERIAL
           To compile this driver as a module, choose M here: the
           module will be called vivopay-serial.
 
+config USB_SERIAL_XSENS_MT
+	tristate "Xsens motion tracker serial interface driver"
+	help
+	  Say Y here if you want to use Xsens motion trackers.
+
+	  This driver supports the new generation of motion trackers
+	  by Xsens. Older devices can be accessed using the FTDI_SIO
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xsens_mt.
+
 config USB_SERIAL_ZIO
 	tristate "ZIO Motherboard USB serial interface driver"
 	help
@@ -641,6 +666,31 @@ config USB_SERIAL_ZIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zio.
+
+config USB_SERIAL_WISHBONE
+	tristate "USB-Wishbone adapter interface driver"
+	help
+	  Say Y here if you want to use a USB attached Wishbone bus.
+
+	  Wishbone is an open hardware SoC bus commonly used in FPGA
+	  designs. Bus access can be serialized using the Etherbone
+	  protocol <http://www.ohwr.org/projects/etherbone-core>.
+
+	  This driver is intended to be used with devices which attach
+	  their internal Wishbone bus to a USB serial interface using
+	  the Etherbone protocol. A userspace library is required to
+	  speak the protocol made available by this driver as ttyUSBx.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wishbone-serial.
+
+config USB_SERIAL_ZTE
+	tristate "ZTE USB serial driver"
+	help
+	  Say Y here if you want to use a ZTE USB to serial device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zte.
 
 config USB_SERIAL_SSU100
 	tristate "USB Quatech SSU-100 Single Port Serial Driver"
@@ -650,6 +700,15 @@ config USB_SERIAL_SSU100
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ssu100.
+
+config USB_SERIAL_QT2
+	tristate "USB Quatech Serial Driver for USB 2 devices"
+	help
+	  Say Y here if you want to use the Quatech USB 2
+	  serial adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called quatech-serial.
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"

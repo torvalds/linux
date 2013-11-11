@@ -30,16 +30,6 @@ static const char dm_snapshot_merge_target_name[] = "snapshot-merge";
 	((ti)->type->name == dm_snapshot_merge_target_name)
 
 /*
- * The percentage increment we will wake up users at
- */
-#define WAKE_UP_PERCENT 5
-
-/*
- * kcopyd priority of snapshot operations
- */
-#define SNAPSHOT_COPY_PRIORITY 2
-
-/*
  * The size of the mempool used to track chunks in use.
  */
 #define MIN_IOS 256
@@ -89,7 +79,6 @@ struct dm_snapshot {
 
 	/* Chunks with outstanding reads */
 	spinlock_t tracked_chunk_lock;
-	mempool_t *tracked_chunk_pool;
 	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
 
 	/* The on disk metadata handler */
@@ -134,6 +123,9 @@ struct dm_snapshot {
  */
 #define RUNNING_MERGE          0
 #define SHUTDOWN_MERGE         1
+
+DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
+		"A percentage of time allocated for copy on write");
 
 struct dm_dev *dm_snap_origin(struct dm_snapshot *s)
 {
@@ -180,6 +172,13 @@ struct dm_snap_pending_exception {
 	 * kcopyd.
 	 */
 	int started;
+
+	/*
+	 * For writing a complete chunk, bypassing the copy.
+	 */
+	struct bio *full_bio;
+	bio_end_io_t *full_bio_end_io;
+	void *full_bio_private;
 };
 
 /*
@@ -194,46 +193,48 @@ struct dm_snap_tracked_chunk {
 	chunk_t chunk;
 };
 
-static struct kmem_cache *tracked_chunk_cache;
-
-static struct dm_snap_tracked_chunk *track_chunk(struct dm_snapshot *s,
-						 chunk_t chunk)
+static void init_tracked_chunk(struct bio *bio)
 {
-	struct dm_snap_tracked_chunk *c = mempool_alloc(s->tracked_chunk_pool,
-							GFP_NOIO);
-	unsigned long flags;
+	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
+	INIT_HLIST_NODE(&c->node);
+}
+
+static bool is_bio_tracked(struct bio *bio)
+{
+	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
+	return !hlist_unhashed(&c->node);
+}
+
+static void track_chunk(struct dm_snapshot *s, struct bio *bio, chunk_t chunk)
+{
+	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
 
 	c->chunk = chunk;
 
-	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
+	spin_lock_irq(&s->tracked_chunk_lock);
 	hlist_add_head(&c->node,
 		       &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)]);
-	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
-
-	return c;
+	spin_unlock_irq(&s->tracked_chunk_lock);
 }
 
-static void stop_tracking_chunk(struct dm_snapshot *s,
-				struct dm_snap_tracked_chunk *c)
+static void stop_tracking_chunk(struct dm_snapshot *s, struct bio *bio)
 {
+	struct dm_snap_tracked_chunk *c = dm_per_bio_data(bio, sizeof(struct dm_snap_tracked_chunk));
 	unsigned long flags;
 
 	spin_lock_irqsave(&s->tracked_chunk_lock, flags);
 	hlist_del(&c->node);
 	spin_unlock_irqrestore(&s->tracked_chunk_lock, flags);
-
-	mempool_free(c, s->tracked_chunk_pool);
 }
 
 static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
 {
 	struct dm_snap_tracked_chunk *c;
-	struct hlist_node *hn;
 	int found = 0;
 
 	spin_lock_irq(&s->tracked_chunk_lock);
 
-	hlist_for_each_entry(c, hn,
+	hlist_for_each_entry(c,
 	    &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)], node) {
 		if (c->chunk == chunk) {
 			found = 1;
@@ -694,7 +695,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
  * Return a minimum chunk size of all snapshots that have the specified origin.
  * Return zero if the origin has no snapshots.
  */
-static sector_t __minimum_chunk_size(struct origin *o)
+static uint32_t __minimum_chunk_size(struct origin *o)
 {
 	struct dm_snapshot *snap;
 	unsigned chunk_size = 0;
@@ -704,7 +705,7 @@ static sector_t __minimum_chunk_size(struct origin *o)
 			chunk_size = min_not_zero(chunk_size,
 						  snap->store->chunk_size);
 
-	return chunk_size;
+	return (uint32_t) chunk_size;
 }
 
 /*
@@ -724,17 +725,16 @@ static int calc_max_buckets(void)
  */
 static int init_hash_tables(struct dm_snapshot *s)
 {
-	sector_t hash_size, cow_dev_size, origin_dev_size, max_buckets;
+	sector_t hash_size, cow_dev_size, max_buckets;
 
 	/*
 	 * Calculate based on the size of the original volume or
 	 * the COW volume...
 	 */
 	cow_dev_size = get_dev_size(s->cow->bdev);
-	origin_dev_size = get_dev_size(s->origin->bdev);
 	max_buckets = calc_max_buckets();
 
-	hash_size = min(origin_dev_size, cow_dev_size) >> s->store->chunk_shift;
+	hash_size = cow_dev_size >> s->store->chunk_shift;
 	hash_size = min(hash_size, max_buckets);
 
 	if (hash_size < 64)
@@ -1039,7 +1039,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
-	unsigned args_used, num_flush_requests = 1;
+	unsigned args_used, num_flush_bios = 1;
 	fmode_t origin_mode = FMODE_READ;
 
 	if (argc != 4) {
@@ -1049,14 +1049,13 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	if (dm_target_is_snapshot_merge(ti)) {
-		num_flush_requests = 2;
+		num_flush_bios = 2;
 		origin_mode = FMODE_WRITE;
 	}
 
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
-		ti->error = "Cannot allocate snapshot context private "
-		    "structure";
+		ti->error = "Cannot allocate private snapshot structure";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -1111,7 +1110,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_hash_tables;
 	}
 
-	s->kcopyd_client = dm_kcopyd_client_create();
+	s->kcopyd_client = dm_kcopyd_client_create(&dm_kcopyd_throttle);
 	if (IS_ERR(s->kcopyd_client)) {
 		r = PTR_ERR(s->kcopyd_client);
 		ti->error = "Could not create kcopyd client";
@@ -1121,15 +1120,8 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->pending_pool = mempool_create_slab_pool(MIN_IOS, pending_cache);
 	if (!s->pending_pool) {
 		ti->error = "Could not allocate mempool for pending exceptions";
+		r = -ENOMEM;
 		goto bad_pending_pool;
-	}
-
-	s->tracked_chunk_pool = mempool_create_slab_pool(MIN_IOS,
-							 tracked_chunk_cache);
-	if (!s->tracked_chunk_pool) {
-		ti->error = "Could not allocate tracked_chunk mempool for "
-			    "tracking reads";
-		goto bad_tracked_chunk_pool;
 	}
 
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
@@ -1138,7 +1130,8 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->tracked_chunk_lock);
 
 	ti->private = s;
-	ti->num_flush_requests = num_flush_requests;
+	ti->num_flush_bios = num_flush_bios;
+	ti->per_bio_data_size = sizeof(struct dm_snap_tracked_chunk);
 
 	/* Add snapshot to the list of snapshots for this origin */
 	/* Exceptions aren't triggered till snapshot_resume() is called */
@@ -1176,7 +1169,10 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Chunk size not set";
 		goto bad_read_metadata;
 	}
-	ti->split_io = s->store->chunk_size;
+
+	r = dm_set_target_max_io_len(ti, s->store->chunk_size);
+	if (r)
+		goto bad_read_metadata;
 
 	return 0;
 
@@ -1184,9 +1180,6 @@ bad_read_metadata:
 	unregister_snapshot(s);
 
 bad_load_and_register:
-	mempool_destroy(s->tracked_chunk_pool);
-
-bad_tracked_chunk_pool:
 	mempool_destroy(s->pending_pool);
 
 bad_pending_pool:
@@ -1243,7 +1236,7 @@ static void __handover_exceptions(struct dm_snapshot *snap_src,
 	snap_dest->store->snap = snap_dest;
 	snap_src->store->snap = snap_src;
 
-	snap_dest->ti->split_io = snap_dest->store->chunk_size;
+	snap_dest->ti->max_io_len = snap_dest->store->chunk_size;
 	snap_dest->valid = snap_src->valid;
 
 	/*
@@ -1290,8 +1283,6 @@ static void snapshot_dtr(struct dm_target *ti)
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
 		BUG_ON(!hlist_empty(&s->tracked_chunk_hash[i]));
 #endif
-
-	mempool_destroy(s->tracked_chunk_pool);
 
 	__free_exceptions(s);
 
@@ -1380,6 +1371,7 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	struct dm_snapshot *s = pe->snap;
 	struct bio *origin_bios = NULL;
 	struct bio *snapshot_bios = NULL;
+	struct bio *full_bio = NULL;
 	int error = 0;
 
 	if (!success) {
@@ -1415,10 +1407,15 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	 */
 	dm_insert_exception(&s->complete, e);
 
- out:
+out:
 	dm_remove_exception(&pe->e);
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
+	full_bio = pe->full_bio;
+	if (full_bio) {
+		full_bio->bi_end_io = pe->full_bio_end_io;
+		full_bio->bi_private = pe->full_bio_private;
+	}
 	free_pending_exception(pe);
 
 	increment_pending_exceptions_done_count();
@@ -1426,10 +1423,15 @@ static void pending_complete(struct dm_snap_pending_exception *pe, int success)
 	up_write(&s->lock);
 
 	/* Submit any pending write bios */
-	if (error)
+	if (error) {
+		if (full_bio)
+			bio_io_error(full_bio);
 		error_bios(snapshot_bios);
-	else
+	} else {
+		if (full_bio)
+			bio_endio(full_bio, 0);
 		flush_bios(snapshot_bios);
+	}
 
 	retry_origin_bios(s, origin_bios);
 }
@@ -1480,8 +1482,33 @@ static void start_copy(struct dm_snap_pending_exception *pe)
 	dest.count = src.count;
 
 	/* Hand over to kcopyd */
-	dm_kcopyd_copy(s->kcopyd_client,
-		    &src, 1, &dest, 0, copy_callback, pe);
+	dm_kcopyd_copy(s->kcopyd_client, &src, 1, &dest, 0, copy_callback, pe);
+}
+
+static void full_bio_end_io(struct bio *bio, int error)
+{
+	void *callback_data = bio->bi_private;
+
+	dm_kcopyd_do_callback(callback_data, 0, error ? 1 : 0);
+}
+
+static void start_full_bio(struct dm_snap_pending_exception *pe,
+			   struct bio *bio)
+{
+	struct dm_snapshot *s = pe->snap;
+	void *callback_data;
+
+	pe->full_bio = bio;
+	pe->full_bio_end_io = bio->bi_end_io;
+	pe->full_bio_private = bio->bi_private;
+
+	callback_data = dm_kcopyd_prepare_callback(s->kcopyd_client,
+						   copy_callback, pe);
+
+	bio->bi_end_io = full_bio_end_io;
+	bio->bi_private = callback_data;
+
+	generic_make_request(bio);
 }
 
 static struct dm_snap_pending_exception *
@@ -1519,6 +1546,7 @@ __find_pending_exception(struct dm_snapshot *s,
 	bio_list_init(&pe->origin_bios);
 	bio_list_init(&pe->snapshot_bios);
 	pe->started = 0;
+	pe->full_bio = NULL;
 
 	if (s->store->type->prepare_exception(s->store, &pe->e)) {
 		free_pending_exception(pe);
@@ -1541,14 +1569,15 @@ static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
 					  s->store->chunk_mask);
 }
 
-static int snapshot_map(struct dm_target *ti, struct bio *bio,
-			union map_info *map_context)
+static int snapshot_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_exception *e;
 	struct dm_snapshot *s = ti->private;
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
+
+	init_tracked_chunk(bio);
 
 	if (bio->bi_rw & REQ_FLUSH) {
 		bio->bi_bdev = s->cow->bdev;
@@ -1612,9 +1641,18 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		}
 
 		remap_exception(s, &pe->e, bio, chunk);
-		bio_list_add(&pe->snapshot_bios, bio);
 
 		r = DM_MAPIO_SUBMITTED;
+
+		if (!pe->started &&
+		    bio->bi_size == (s->store->chunk_size << SECTOR_SHIFT)) {
+			pe->started = 1;
+			up_write(&s->lock);
+			start_full_bio(pe, bio);
+			goto out;
+		}
+
+		bio_list_add(&pe->snapshot_bios, bio);
 
 		if (!pe->started) {
 			/* this is protected by snap->lock */
@@ -1625,12 +1663,12 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		}
 	} else {
 		bio->bi_bdev = s->origin->bdev;
-		map_context->ptr = track_chunk(s, chunk);
+		track_chunk(s, bio, chunk);
 	}
 
- out_unlock:
+out_unlock:
 	up_write(&s->lock);
- out:
+out:
 	return r;
 }
 
@@ -1646,20 +1684,20 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
  * If merging is currently taking place on the chunk in question, the
  * I/O is deferred by adding it to s->bios_queued_during_merge.
  */
-static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
-			      union map_info *map_context)
+static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_exception *e;
 	struct dm_snapshot *s = ti->private;
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
 
+	init_tracked_chunk(bio);
+
 	if (bio->bi_rw & REQ_FLUSH) {
-		if (!map_context->target_request_nr)
+		if (!dm_bio_get_target_bio_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;
-		map_context->ptr = NULL;
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1688,7 +1726,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 		remap_exception(s, e, bio, chunk);
 
 		if (bio_rw(bio) == WRITE)
-			map_context->ptr = track_chunk(s, chunk);
+			track_chunk(s, bio, chunk);
 		goto out_unlock;
 	}
 
@@ -1706,14 +1744,12 @@ out_unlock:
 	return r;
 }
 
-static int snapshot_end_io(struct dm_target *ti, struct bio *bio,
-			   int error, union map_info *map_context)
+static int snapshot_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	struct dm_snapshot *s = ti->private;
-	struct dm_snap_tracked_chunk *c = map_context->ptr;
 
-	if (c)
-		stop_tracking_chunk(s, c);
+	if (is_bio_tracked(bio))
+		stop_tracking_chunk(s, bio);
 
 	return 0;
 }
@@ -1775,9 +1811,9 @@ static void snapshot_resume(struct dm_target *ti)
 	up_write(&s->lock);
 }
 
-static sector_t get_origin_minimum_chunksize(struct block_device *bdev)
+static uint32_t get_origin_minimum_chunksize(struct block_device *bdev)
 {
-	sector_t min_chunksize;
+	uint32_t min_chunksize;
 
 	down_read(&_origins_lock);
 	min_chunksize = __minimum_chunk_size(__lookup_origin(bdev));
@@ -1796,15 +1832,15 @@ static void snapshot_merge_resume(struct dm_target *ti)
 	snapshot_resume(ti);
 
 	/*
-	 * snapshot-merge acts as an origin, so set ti->split_io
+	 * snapshot-merge acts as an origin, so set ti->max_io_len
 	 */
-	ti->split_io = get_origin_minimum_chunksize(s->origin->bdev);
+	ti->max_io_len = get_origin_minimum_chunksize(s->origin->bdev);
 
 	start_merge(s);
 }
 
-static int snapshot_status(struct dm_target *ti, status_type_t type,
-			   char *result, unsigned int maxlen)
+static void snapshot_status(struct dm_target *ti, status_type_t type,
+			    unsigned status_flags, char *result, unsigned maxlen)
 {
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
@@ -1850,8 +1886,6 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 					  maxlen - sz);
 		break;
 	}
-
-	return 0;
 }
 
 static int snapshot_iterate_devices(struct dm_target *ti,
@@ -1974,7 +2008,7 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 			pe_to_start_now = pe;
 		}
 
- next_snapshot:
+next_snapshot:
 		up_write(&snap->lock);
 
 		if (pe_to_start_now) {
@@ -2031,12 +2065,12 @@ static int origin_write_extent(struct dm_snapshot *merging_snap,
 	struct origin *o;
 
 	/*
-	 * The origin's __minimum_chunk_size() got stored in split_io
+	 * The origin's __minimum_chunk_size() got stored in max_io_len
 	 * by snapshot_merge_resume().
 	 */
 	down_read(&_origins_lock);
 	o = __lookup_origin(merging_snap->origin->bdev);
-	for (n = 0; n < size; n += merging_snap->ti->split_io)
+	for (n = 0; n < size; n += merging_snap->ti->max_io_len)
 		if (__origin_write(&o->snapshots, sector + n, NULL) ==
 		    DM_MAPIO_SUBMITTED)
 			must_wait = 1;
@@ -2071,7 +2105,7 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = dev;
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 
 	return 0;
 }
@@ -2082,8 +2116,7 @@ static void origin_dtr(struct dm_target *ti)
 	dm_put_device(ti, dev);
 }
 
-static int origin_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int origin_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
@@ -2096,18 +2129,18 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 }
 
 /*
- * Set the target "split_io" field to the minimum of all the snapshots'
+ * Set the target "max_io_len" field to the minimum of all the snapshots'
  * chunk sizes.
  */
 static void origin_resume(struct dm_target *ti)
 {
 	struct dm_dev *dev = ti->private;
 
-	ti->split_io = get_origin_minimum_chunksize(dev->bdev);
+	ti->max_io_len = get_origin_minimum_chunksize(dev->bdev);
 }
 
-static int origin_status(struct dm_target *ti, status_type_t type, char *result,
-			 unsigned int maxlen)
+static void origin_status(struct dm_target *ti, status_type_t type,
+			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_dev *dev = ti->private;
 
@@ -2120,8 +2153,6 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 		snprintf(result, maxlen, "%s", dev->name);
 		break;
 	}
-
-	return 0;
 }
 
 static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
@@ -2134,7 +2165,6 @@ static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 		return max_size;
 
 	bvm->bi_bdev = dev->bdev;
-	bvm->bi_sector = bvm->bi_sector;
 
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
@@ -2149,7 +2179,7 @@ static int origin_iterate_devices(struct dm_target *ti,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 7, 1},
+	.version = {1, 8, 1},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -2162,7 +2192,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 10, 0},
+	.version = {1, 11, 1},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2176,7 +2206,7 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2237,17 +2267,8 @@ static int __init dm_snapshot_init(void)
 		goto bad_pending_cache;
 	}
 
-	tracked_chunk_cache = KMEM_CACHE(dm_snap_tracked_chunk, 0);
-	if (!tracked_chunk_cache) {
-		DMERR("Couldn't create cache to track chunks in use.");
-		r = -ENOMEM;
-		goto bad_tracked_chunk_cache;
-	}
-
 	return 0;
 
-bad_tracked_chunk_cache:
-	kmem_cache_destroy(pending_cache);
 bad_pending_cache:
 	kmem_cache_destroy(exception_cache);
 bad_exception_cache:
@@ -2273,7 +2294,6 @@ static void __exit dm_snapshot_exit(void)
 	exit_origin_hash();
 	kmem_cache_destroy(pending_cache);
 	kmem_cache_destroy(exception_cache);
-	kmem_cache_destroy(tracked_chunk_cache);
 
 	dm_exception_store_exit();
 }
@@ -2285,3 +2305,5 @@ module_exit(dm_snapshot_exit);
 MODULE_DESCRIPTION(DM_NAME " snapshot target");
 MODULE_AUTHOR("Joe Thornber");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("dm-snapshot-origin");
+MODULE_ALIAS("dm-snapshot-merge");

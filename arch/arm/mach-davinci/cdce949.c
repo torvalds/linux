@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include <mach/clock.h>
 #include <mach/cdce949.h>
@@ -255,7 +256,7 @@ static int cdce_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit cdce_remove(struct i2c_client *client)
+static int cdce_remove(struct i2c_client *client)
 {
 	cdce_i2c_client = NULL;
 	return 0;
@@ -273,7 +274,7 @@ static struct i2c_driver cdce_driver = {
 		.name	= "cdce949",
 	},
 	.probe		= cdce_probe,
-	.remove		= __devexit_p(cdce_remove),
+	.remove		= cdce_remove,
 	.id_table	= cdce_id,
 };
 

@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
+#include <linux/export.h>
 #include "core.h"
 #include "dsp.h"
 
@@ -60,7 +61,7 @@ static inline unsigned char linear2alaw(short int linear)
 	}
 
 	/* Convert the scaled magnitude to segment number. */
-	for (seg = 0;  seg < 8;  seg++) {
+	for (seg = 0; seg < 8; seg++) {
 		if (pcm_val <= seg_end[seg])
 			break;
 	}
@@ -262,7 +263,7 @@ dsp_audio_generate_mix_table(void)
 				sample = 32767;
 			if (sample < -32768)
 				sample = -32768;
-			dsp_audio_mix_law[(i<<8)|j] =
+			dsp_audio_mix_law[(i << 8) | j] =
 				dsp_audio_s16_to_law[sample & 0xffff];
 			j++;
 		}
@@ -430,4 +431,3 @@ dsp_change_volume(struct sk_buff *skb, int volume)
 		i++;
 	}
 }
-

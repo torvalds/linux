@@ -1,0 +1,54 @@
+config USB_DWC3
+	tristate "DesignWare USB3 DRD Core Support"
+	depends on (USB || USB_GADGET) && GENERIC_HARDIRQS
+	select USB_XHCI_PLATFORM if USB_SUPPORT && USB_XHCI_HCD
+	help
+	  Say Y or M here if your system has a Dual Role SuperSpeed
+	  USB controller based on the DesignWare USB3 IP Core.
+
+	  If you choose to build this driver is a dynamically linked
+	  module, the module will be called dwc3.ko.
+
+if USB_DWC3
+
+choice
+	bool "DWC3 Mode Selection"
+	default USB_DWC3_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_DWC3_HOST if (USB && !USB_GADGET)
+	default USB_DWC3_GADGET if (!USB && USB_GADGET)
+
+config USB_DWC3_HOST
+	bool "Host only mode"
+	depends on USB=y || USB=USB_DWC3
+	help
+	  Select this when you want to use DWC3 in host mode only,
+	  thereby the gadget feature will be regressed.
+
+config USB_DWC3_GADGET
+	bool "Gadget only mode"
+	depends on USB_GADGET=y || USB_GADGET=USB_DWC3
+	help
+	  Select this when you want to use DWC3 in gadget mode only,
+	  thereby the host feature will be regressed.
+
+config USB_DWC3_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on ((USB=y || USB=USB_DWC3) && (USB_GADGET=y || USB_GADGET=USB_DWC3))
+	help
+	  This is the default mode of working of DWC3 controller where
+	  both host and gadget features are enabled.
+
+endchoice
+
+config USB_DWC3_DEBUG
+	bool "Enable Debugging Messages"
+	help
+	  Say Y here to enable debugging messages on DWC3 Driver.
+
+config USB_DWC3_VERBOSE
+	bool "Enable Verbose Debugging Messages"
+	depends on USB_DWC3_DEBUG
+	help
+	  Say Y here to enable verbose debugging messages on DWC3 Driver.
+
+endif

@@ -1,0 +1,31 @@
+* FSMC NAND
+
+Required properties:
+- compatible : "st,spear600-fsmc-nand", "stericsson,fsmc-nand"
+- reg : Address range of the mtd chip
+- reg-names: Should contain the reg names "fsmc_regs", "nand_data", "nand_addr" and "nand_cmd"
+
+Optional properties:
+- bank-width : Width (in bytes) of the device.  If not present, the width
+  defaults to 1 byte
+- nand-skip-bbtscan: Indicates the the BBT scanning should be skipped
+
+Example:
+
+	fsmc: flash@d1800000 {
+		compatible = "st,spear600-fsmc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0xd1800000 0x1000	/* FSMC Register */
+		       0xd2000000 0x0010	/* NAND Base DATA */
+		       0xd2020000 0x0010	/* NAND Base ADDR */
+		       0xd2010000 0x0010>;	/* NAND Base CMD */
+		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+
+		bank-width = <1>;
+		nand-skip-bbtscan;
+
+		partition@0 {
+			...
+		};
+	};

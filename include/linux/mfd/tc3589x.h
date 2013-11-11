@@ -7,7 +7,7 @@
 #ifndef __LINUX_MFD_TC3589x_H
 #define __LINUX_MFD_TC3589x_H
 
-#include <linux/device.h>
+struct device;
 
 enum tx3589x_block {
 	TC3589x_BLOCK_GPIO        = 1 << 0,
@@ -117,6 +117,7 @@ struct tc3589x {
 	struct mutex lock;
 	struct device *dev;
 	struct i2c_client *i2c;
+	struct irq_domain *domain;
 
 	int irq_base;
 	int num_gpio;

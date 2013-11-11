@@ -3,7 +3,7 @@
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <linux/debugfs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 
 

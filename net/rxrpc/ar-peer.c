@@ -229,7 +229,7 @@ found_UDP_peer:
 	return peer;
 
 new_UDP_peer:
-	_net("Rx UDP DGRAM from NEW peer %d", peer->debug_id);
+	_net("Rx UDP DGRAM from NEW peer");
 	read_unlock_bh(&rxrpc_peer_lock);
 	_leave(" = -EBUSY [new]");
 	return ERR_PTR(-EBUSY);

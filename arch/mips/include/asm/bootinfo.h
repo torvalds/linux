@@ -44,19 +44,19 @@
 /*
  * Valid machtype for group PMC-MSP
  */
-#define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
-#define MACH_MSP4200_GW         1	/* PMC-Sierra MSP4200 Gateway demo */
-#define MACH_MSP4200_FPGA       2	/* PMC-Sierra MSP4200 Emulation */
-#define MACH_MSP7120_EVAL       3	/* PMC-Sierra MSP7120 Evaluation */
-#define MACH_MSP7120_GW         4	/* PMC-Sierra MSP7120 Residential GW */
-#define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
-#define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
+#define MACH_MSP4200_EVAL	0	/* PMC-Sierra MSP4200 Evaluation */
+#define MACH_MSP4200_GW		1	/* PMC-Sierra MSP4200 Gateway demo */
+#define MACH_MSP4200_FPGA	2	/* PMC-Sierra MSP4200 Emulation */
+#define MACH_MSP7120_EVAL	3	/* PMC-Sierra MSP7120 Evaluation */
+#define MACH_MSP7120_GW		4	/* PMC-Sierra MSP7120 Residential GW */
+#define MACH_MSP7120_FPGA	5	/* PMC-Sierra MSP7120 Emulation */
+#define MACH_MSP_OTHER	      255	/* PMC-Sierra unknown board type */
 
 /*
  * Valid machtype for group Mikrotik
  */
-#define	MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532 	*/
-#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A 	*/
+#define MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532	*/
+#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A	*/
 
 /*
  * Valid machtype for Loongson family
@@ -67,7 +67,7 @@
 #define MACH_LEMOTE_ML2F7      3
 #define MACH_LEMOTE_YL2F89     4
 #define MACH_DEXXON_GDIUM2F10  5
-#define MACH_LEMOTE_NAS        6
+#define MACH_LEMOTE_NAS	       6
 #define MACH_LEMOTE_LL2F       7
 #define MACH_LOONGSON_END      8
 
@@ -86,6 +86,7 @@ extern unsigned long mips_machtype;
 #define BOOT_MEM_RAM		1
 #define BOOT_MEM_ROM_DATA	2
 #define BOOT_MEM_RESERVED	3
+#define BOOT_MEM_INIT_RAM	4
 
 /*
  * A memory map that's built upon what was determined
@@ -103,6 +104,7 @@ struct boot_mem_map {
 extern struct boot_mem_map boot_mem_map;
 
 extern void add_memory_region(phys_t start, phys_t size, long type);
+extern void detect_memory_region(phys_t start, phys_t sz_min,  phys_t sz_max);
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);

@@ -558,7 +558,7 @@ static void bf5xx_nand_dma_write_buf(struct mtd_info *mtd,
 }
 
 static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-		uint8_t *buf, int page)
+		uint8_t *buf, int oob_required, int page)
 {
 	bf5xx_nand_read_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -566,11 +566,13 @@ static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip
 	return 0;
 }
 
-static void bf5xx_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-		const uint8_t *buf)
+static int bf5xx_nand_write_page_raw(struct mtd_info *mtd,
+		struct nand_chip *chip,	const uint8_t *buf, int oob_required)
 {
 	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
 	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
 }
 
 /*
@@ -656,7 +658,7 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
 /*
  * Device management interface
  */
-static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
+static int bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 {
 	struct mtd_info *mtd = &info->mtd;
 	struct mtd_partition *parts = info->platform->partitions;
@@ -665,7 +667,7 @@ static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 	return mtd_device_register(mtd, parts, nr);
 }
 
-static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
+static int bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
 
@@ -702,9 +704,11 @@ static int bf5xx_nand_scan(struct mtd_info *mtd)
 		if (likely(mtd->writesize >= 512)) {
 			chip->ecc.size = 512;
 			chip->ecc.bytes = 6;
+			chip->ecc.strength = 2;
 		} else {
 			chip->ecc.size = 256;
 			chip->ecc.bytes = 3;
+			chip->ecc.strength = 1;
 			bfin_write_NFC_CTL(bfin_read_NFC_CTL() & ~(1 << NFC_PG_SIZE_OFFSET));
 			SSYNC();
 		}
@@ -721,7 +725,7 @@ static int bf5xx_nand_scan(struct mtd_info *mtd)
  * it can allocate all necessary resources then calls the
  * nand layer to look for devices
  */
-static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
+static int bf5xx_nand_probe(struct platform_device *pdev)
 {
 	struct bf5xx_nand_platform *plat = to_nand_plat(pdev);
 	struct bf5xx_nand_info *info = NULL;
@@ -861,7 +865,7 @@ static int bf5xx_nand_resume(struct platform_device *dev)
 /* driver device registration */
 static struct platform_driver bf5xx_nand_driver = {
 	.probe		= bf5xx_nand_probe,
-	.remove		= __devexit_p(bf5xx_nand_remove),
+	.remove		= bf5xx_nand_remove,
 	.suspend	= bf5xx_nand_suspend,
 	.resume		= bf5xx_nand_resume,
 	.driver		= {
@@ -870,21 +874,7 @@ static struct platform_driver bf5xx_nand_driver = {
 	},
 };
 
-static int __init bf5xx_nand_init(void)
-{
-	printk(KERN_INFO "%s, Version %s (c) 2007 Analog Devices, Inc.\n",
-		DRV_DESC, DRV_VERSION);
-
-	return platform_driver_register(&bf5xx_nand_driver);
-}
-
-static void __exit bf5xx_nand_exit(void)
-{
-	platform_driver_unregister(&bf5xx_nand_driver);
-}
-
-module_init(bf5xx_nand_init);
-module_exit(bf5xx_nand_exit);
+module_platform_driver(bf5xx_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRV_AUTHOR);

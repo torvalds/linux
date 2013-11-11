@@ -50,9 +50,12 @@
 #define UDF_SPARABLE_MAP15		0x1522U
 #define UDF_METADATA_MAP25		0x2511U
 
-#define UDF_INVALID_MODE		((mode_t)-1)
+#define UDF_INVALID_MODE		((umode_t)-1)
 
 #pragma pack(1) /* XXX(hch): Why?  This file just defines in-core structures */
+
+#define MF_DUPLICATE_MD		0x01
+#define MF_MIRROR_FE_LOADED	0x02
 
 struct udf_meta_data {
 	__u32	s_meta_file_loc;
@@ -60,7 +63,7 @@ struct udf_meta_data {
 	__u32	s_bitmap_file_loc;
 	__u32	s_alloc_unit_size;
 	__u16	s_align_unit_size;
-	__u8 	s_dup_md_flag;
+	int	s_flags;
 	struct inode *s_metadata_fe;
 	struct inode *s_mirror_fe;
 	struct inode *s_bitmap_fe;
@@ -77,10 +80,9 @@ struct udf_virtual_data {
 };
 
 struct udf_bitmap {
-	__u32			s_extLength;
 	__u32			s_extPosition;
-	__u16			s_nr_groups;
-	struct buffer_head 	**s_block_bitmap;
+	int			s_nr_groups;
+	struct buffer_head 	*s_block_bitmap[0];
 };
 
 struct udf_part_map {
@@ -124,11 +126,11 @@ struct udf_sb_info {
 	struct buffer_head	*s_lvid_bh;
 
 	/* Default permissions */
-	mode_t			s_umask;
-	gid_t			s_gid;
-	uid_t			s_uid;
-	mode_t			s_fmode;
-	mode_t			s_dmode;
+	umode_t			s_umask;
+	kgid_t			s_gid;
+	kuid_t			s_uid;
+	umode_t			s_fmode;
+	umode_t			s_dmode;
 	/* Lock protecting consistency of above permission settings */
 	rwlock_t		s_cred_lock;
 

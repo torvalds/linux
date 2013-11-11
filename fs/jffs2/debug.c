@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -261,12 +263,15 @@ void __jffs2_dbg_superblock_counts(struct jffs2_sb_info *c)
 		bad += c->sector_size;
 	}
 
-#define check(sz) \
-	if (sz != c->sz##_size) {			\
-		printk(KERN_WARNING #sz "_size mismatch counted 0x%x, c->" #sz "_size 0x%x\n", \
-		       sz, c->sz##_size);		\
-		dump = 1;				\
-	}
+#define check(sz)							\
+do {									\
+	if (sz != c->sz##_size) {					\
+		pr_warn("%s_size mismatch counted 0x%x, c->%s_size 0x%x\n", \
+			#sz, sz, #sz, c->sz##_size);			\
+		dump = 1;						\
+	}								\
+} while (0)
+
 	check(free);
 	check(dirty);
 	check(used);
@@ -274,11 +279,12 @@ void __jffs2_dbg_superblock_counts(struct jffs2_sb_info *c)
 	check(unchecked);
 	check(bad);
 	check(erasing);
+
 #undef check
 
 	if (nr_counted != c->nr_blocks) {
-		printk(KERN_WARNING "%s counted only 0x%x blocks of 0x%x. Where are the others?\n",
-		       __func__, nr_counted, c->nr_blocks);
+		pr_warn("%s counted only 0x%x blocks of 0x%x. Where are the others?\n",
+			__func__, nr_counted, c->nr_blocks);
 		dump = 1;
 	}
 

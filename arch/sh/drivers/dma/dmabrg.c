@@ -174,23 +174,23 @@ static int __init dmabrg_init(void)
 	or = __raw_readl(DMAOR);
 	__raw_writel(or | DMAOR_BRG | DMAOR_DMEN, DMAOR);
 
-	ret = request_irq(DMABRGI0, dmabrg_irq, IRQF_DISABLED,
+	ret = request_irq(DMABRGI0, dmabrg_irq, 0,
 			"DMABRG USB address error", NULL);
 	if (ret)
 		goto out0;
 
-	ret = request_irq(DMABRGI1, dmabrg_irq, IRQF_DISABLED,
+	ret = request_irq(DMABRGI1, dmabrg_irq, 0,
 			"DMABRG Transfer End", NULL);
 	if (ret)
 		goto out1;
 
-	ret = request_irq(DMABRGI2, dmabrg_irq, IRQF_DISABLED,
+	ret = request_irq(DMABRGI2, dmabrg_irq, 0,
 			"DMABRG Transfer Half", NULL);
 	if (ret == 0)
 		return ret;
 
-	free_irq(DMABRGI1, 0);
-out1:	free_irq(DMABRGI0, 0);
+	free_irq(DMABRGI1, NULL);
+out1:	free_irq(DMABRGI0, NULL);
 out0:	kfree(dmabrg_handlers);
 	return ret;
 }

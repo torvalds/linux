@@ -75,11 +75,108 @@ enum max8998_regulators {
 struct max8997_regulator_data {
 	int id;
 	struct regulator_init_data *initdata;
+	struct device_node *reg_node;
+};
+
+struct max8997_muic_reg_data {
+	u8 addr;
+	u8 data;
+};
+
+/**
+ * struct max8997_muic_platform_data
+ * @init_data: array of max8997_muic_reg_data
+ *	       used for initializing registers of MAX8997 MUIC device
+ * @num_init_data: array size of init_data
+ */
+struct max8997_muic_platform_data {
+	struct max8997_muic_reg_data *init_data;
+	int num_init_data;
+
+	/* Check cable state after certain delay */
+	int detcable_delay_ms;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
+};
+
+enum max8997_haptic_motor_type {
+	MAX8997_HAPTIC_ERM,
+	MAX8997_HAPTIC_LRA,
+};
+
+enum max8997_haptic_pulse_mode {
+	MAX8997_EXTERNAL_MODE,
+	MAX8997_INTERNAL_MODE,
+};
+
+enum max8997_haptic_pwm_divisor {
+	MAX8997_PWM_DIVISOR_32,
+	MAX8997_PWM_DIVISOR_64,
+	MAX8997_PWM_DIVISOR_128,
+	MAX8997_PWM_DIVISOR_256,
+};
+
+/**
+ * max8997_haptic_platform_data
+ * @pwm_channel_id: channel number of PWM device
+ *		    valid for MAX8997_EXTERNAL_MODE
+ * @pwm_period: period in nano second for PWM device
+ *		valid for MAX8997_EXTERNAL_MODE
+ * @type: motor type
+ * @mode: pulse mode
+ *     MAX8997_EXTERNAL_MODE: external PWM device is used to control motor
+ *     MAX8997_INTERNAL_MODE: internal pulse generator is used to control motor
+ * @pwm_divisor: divisor for external PWM device
+ * @internal_mode_pattern: internal mode pattern for internal mode
+ *     [0 - 3]: valid pattern number
+ * @pattern_cycle: the number of cycles of the waveform
+ *		   for the internal mode pattern
+ *     [0 - 15]: available cycles
+ * @pattern_signal_period: period of the waveform for the internal mode pattern
+ *     [0 - 255]: available period
+ */
+struct max8997_haptic_platform_data {
+	unsigned int pwm_channel_id;
+	unsigned int pwm_period;
+
+	enum max8997_haptic_motor_type type;
+	enum max8997_haptic_pulse_mode mode;
+	enum max8997_haptic_pwm_divisor pwm_divisor;
+
+	unsigned int internal_mode_pattern;
+	unsigned int pattern_cycle;
+	unsigned int pattern_signal_period;
+};
+
+enum max8997_led_mode {
+	MAX8997_NONE,
+	MAX8997_FLASH_MODE,
+	MAX8997_MOVIE_MODE,
+	MAX8997_FLASH_PIN_CONTROL_MODE,
+	MAX8997_MOVIE_PIN_CONTROL_MODE,
+};
+
+/**
+ *  struct max8997_led_platform_data
+ *  The number of LED devices for MAX8997 is two
+ *  @mode: LED mode for each LED device
+ *  @brightness: initial brightness for each LED device
+ *	range:
+ *	[0 - 31]: MAX8997_FLASH_MODE and MAX8997_FLASH_PIN_CONTROL_MODE
+ *	[0 - 15]: MAX8997_MOVIE_MODE and MAX8997_MOVIE_PIN_CONTROL_MODE
+ */
+struct max8997_led_platform_data {
+	enum max8997_led_mode mode[2];
+	u8 brightness[2];
 };
 
 struct max8997_platform_data {
 	/* IRQ */
-	int irq_base;
 	int ono;
 	int wakeup;
 
@@ -107,11 +204,21 @@ struct max8997_platform_data {
 	unsigned int buck5_voltage[8];
 	bool buck5_gpiodvs;
 
-	/* MUIC: Not implemented */
-	/* HAPTIC: Not implemented */
+	/* ---- Charger control ---- */
+	/* eoc stands for 'end of charge' */
+	int eoc_mA; /* 50 ~ 200mA by 10mA step */
+	/* charge Full Timeout */
+	int timeout; /* 0 (no timeout), 5, 6, 7 hours */
+
+	/* ---- MUIC ---- */
+	struct max8997_muic_platform_data *muic_pdata;
+
+	/* ---- HAPTIC ---- */
+	struct max8997_haptic_platform_data *haptic_pdata;
+
 	/* RTC: Not implemented */
-	/* Flash: Not implemented */
-	/* Charger control: Not implemented */
+	/* ---- LED ---- */
+	struct max8997_led_platform_data *led_pdata;
 };
 
 #endif /* __LINUX_MFD_MAX8998_H */

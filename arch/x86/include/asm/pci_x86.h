@@ -7,9 +7,13 @@
 #undef DEBUG
 
 #ifdef DEBUG
-#define DBG(x...) printk(x)
+#define DBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
-#define DBG(x...)
+#define DBG(fmt, ...)				\
+do {						\
+	if (0)					\
+		printk(fmt, ##__VA_ARGS__);	\
+} while (0)
 #endif
 
 #define PCI_PROBE_BIOS		0x0001
@@ -44,15 +48,12 @@ enum pci_bf_sort_state {
 
 /* pci-i386.c */
 
-extern unsigned int pcibios_max_latency;
-
 void pcibios_resource_survey(void);
 void pcibios_set_cache_line_size(void);
 
 /* pci-pc.c */
 
 extern int pcibios_last_bus;
-extern struct pci_bus *pci_root_bus;
 extern struct pci_ops pci_root_ops;
 
 void pcibios_scan_specific_bus(int busn);
@@ -99,10 +100,11 @@ struct pci_raw_ops {
 						int reg, int len, u32 val);
 };
 
-extern struct pci_raw_ops *raw_pci_ops;
-extern struct pci_raw_ops *raw_pci_ext_ops;
+extern const struct pci_raw_ops *raw_pci_ops;
+extern const struct pci_raw_ops *raw_pci_ext_ops;
 
-extern struct pci_raw_ops pci_direct_conf1;
+extern const struct pci_raw_ops pci_mmcfg;
+extern const struct pci_raw_ops pci_direct_conf1;
 extern bool port_cf9_safe;
 
 /* arch_initcall level */
@@ -137,6 +139,11 @@ struct pci_mmcfg_region {
 
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
+extern int pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg);
+extern void pci_mmcfg_arch_unmap(struct pci_mmcfg_region *cfg);
+extern int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
+			       phys_addr_t addr);
+extern int pci_mmconfig_delete(u16 seg, u8 start, u8 end);
 extern struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus);
 
 extern struct list_head pci_mmcfg_list;

@@ -18,6 +18,7 @@ files can be found in mm/swap.c.
 
 Currently, these files are in /proc/sys/vm:
 
+- admin_reserve_kbytes
 - block_dump
 - compact_memory
 - dirty_background_bytes
@@ -28,6 +29,7 @@ Currently, these files are in /proc/sys/vm:
 - dirty_writeback_centisecs
 - drop_caches
 - extfrag_threshold
+- extra_free_kbytes
 - hugepages_treat_as_movable
 - hugetlb_shm_group
 - laptop_mode
@@ -42,7 +44,6 @@ Currently, these files are in /proc/sys/vm:
 - mmap_min_addr
 - nr_hugepages
 - nr_overcommit_hugepages
-- nr_pdflush_threads
 - nr_trim_pages         (only if CONFIG_MMU=n)
 - numa_zonelist_order
 - oom_dump_tasks
@@ -54,8 +55,38 @@ Currently, these files are in /proc/sys/vm:
 - percpu_pagelist_fraction
 - stat_interval
 - swappiness
+- user_reserve_kbytes
 - vfs_cache_pressure
 - zone_reclaim_mode
+
+==============================================================
+
+admin_reserve_kbytes
+
+The amount of free memory in the system that should be reserved for users
+with the capability cap_sys_admin.
+
+admin_reserve_kbytes defaults to min(3% of free pages, 8MB)
+
+That should provide enough for the admin to log in and kill a process,
+if necessary, under the default overcommit 'guess' mode.
+
+Systems running under overcommit 'never' should increase this to account
+for the full Virtual Memory Size of programs used to recover. Otherwise,
+root may not be able to log in to recover the system.
+
+How do you calculate a minimum useful reserve?
+
+sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
+
+For overcommit 'guess', we can sum resident set sizes (RSS).
+On x86_64 this is about 8MB.
+
+For overcommit 'never', we can take the max of their virtual sizes (VSZ)
+and add the sum of their RSS.
+On x86_64 this is about 128MB.
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 
@@ -77,8 +108,8 @@ huge pages although processes will also directly compact memory as required.
 
 dirty_background_bytes
 
-Contains the amount of dirty memory at which the pdflush background writeback
-daemon will start writeback.
+Contains the amount of dirty memory at which the background kernel
+flusher threads will start writeback.
 
 Note: dirty_background_bytes is the counterpart of dirty_background_ratio. Only
 one of them may be specified at a time. When one sysctl is written it is
@@ -90,7 +121,7 @@ other appears as 0 when read.
 dirty_background_ratio
 
 Contains, as a percentage of total system memory, the number of pages at which
-the pdflush background writeback daemon will start writing out dirty data.
+the background kernel flusher threads will start writing out dirty data.
 
 ==============================================================
 
@@ -113,9 +144,9 @@ retained.
 dirty_expire_centisecs
 
 This tunable is used to define when dirty data is old enough to be eligible
-for writeout by the pdflush daemons.  It is expressed in 100'ths of a second.
-Data which has been dirty in-memory for longer than this interval will be
-written out next time a pdflush daemon wakes up.
+for writeout by the kernel flusher threads.  It is expressed in 100'ths
+of a second.  Data which has been dirty in-memory for longer than this
+interval will be written out next time a flusher thread wakes up.
 
 ==============================================================
 
@@ -129,7 +160,7 @@ data.
 
 dirty_writeback_centisecs
 
-The pdflush writeback daemons will periodically wake up and write `old' data
+The kernel flusher threads will periodically wake up and write `old' data
 out to disk.  This tunable expresses the interval between those wakeups, in
 100'ths of a second.
 
@@ -165,6 +196,21 @@ that the allocation will succeed as long as watermarks are met.
 
 The kernel will not compact memory in a zone if the
 fragmentation index is <= extfrag_threshold. The default value is 500.
+
+==============================================================
+
+extra_free_kbytes
+
+This parameter tells the VM to keep extra free memory between the threshold
+where background reclaim (kswapd) kicks in, and the threshold where direct
+reclaim (by allocating processes) kicks in.
+
+This is useful for workloads that require low latency memory allocations
+and have a bounded burstiness in memory allocations, for example a
+realtime application that receives and transmits network traffic
+(causing in-kernel memory allocations) with a maximum total message burst
+size of 200MB may need 200MB of extra free memory to avoid direct reclaim
+related latencies.
 
 ==============================================================
 
@@ -426,16 +472,6 @@ See Documentation/vm/hugetlbpage.txt
 
 ==============================================================
 
-nr_pdflush_threads
-
-The current number of pdflush threads.  This value is read-only.
-The value changes according to the number of dirty pages in the system.
-
-When necessary, additional pdflush threads are created, one per second, up to
-nr_pdflush_threads_max.
-
-==============================================================
-
 nr_trim_pages
 
 This is available only on NOMMU kernels.
@@ -502,9 +538,10 @@ oom_dump_tasks
 
 Enables a system-wide task dump (excluding kernel threads) to be
 produced when the kernel performs an OOM-killing and includes such
-information as pid, uid, tgid, vm size, rss, cpu, oom_adj score, and
-name.  This is helpful to determine why the OOM killer was invoked
-and to identify the rogue task that caused it.
+information as pid, uid, tgid, vm size, rss, nr_ptes, swapents,
+oom_score_adj score, and name.  This is helpful to determine why the
+OOM killer was invoked, to identify the rogue task that caused it,
+and to determine why the OOM killer chose the task it did to kill.
 
 If this is set to zero, this information is suppressed.  On very
 large systems with thousands of tasks it may not be feasible to dump
@@ -552,6 +589,7 @@ memory until it actually runs out.
 
 When this flag is 2, the kernel uses a "never overcommit"
 policy that attempts to prevent any overcommit of memory.
+Note that user_reserve_kbytes affects this policy.
 
 This feature can be very useful because there are a lot of
 programs that malloc() huge amounts of memory "just-in-case"
@@ -574,15 +612,23 @@ of physical RAM.  See above.
 
 page-cluster
 
-page-cluster controls the number of pages which are written to swap in
-a single attempt.  The swap I/O size.
+page-cluster controls the number of pages up to which consecutive pages
+are read in from swap in a single attempt. This is the swap counterpart
+to page cache readahead.
+The mentioned consecutivity is not in terms of virtual/physical addresses,
+but consecutive on swap space - that means they were swapped out together.
 
 It is a logarithmic value - setting it to zero means "1 page", setting
 it to 1 means "2 pages", setting it to 2 means "4 pages", etc.
+Zero disables swap readahead completely.
 
 The default value is three (eight pages at a time).  There may be some
 small benefits in tuning this to a different value if your workload is
 swap-intensive.
+
+Lower values mean lower latencies for initial faults, but at the same time
+extra faults and I/O delays for following faults if they would have been part of
+that consecutive pages readahead would have brought in.
 
 =============================================================
 
@@ -644,6 +690,24 @@ memory pages.  Higher values will increase agressiveness, lower values
 decrease the amount of swap.
 
 The default value is 60.
+
+==============================================================
+
+- user_reserve_kbytes
+
+When overcommit_memory is set to 2, "never overommit" mode, reserve
+min(3% of current process size, user_reserve_kbytes) of free memory.
+This is intended to prevent a user from starting a single memory hogging
+process, such that they cannot recover (kill the hog).
+
+user_reserve_kbytes defaults to min(3% of the current process size, 128MB).
+
+If this is reduced to zero, then the user will be allowed to allocate
+all free memory with a single process, minus admin_reserve_kbytes.
+Any subsequent attempts to execute a command will result in
+"fork: Cannot allocate memory".
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 

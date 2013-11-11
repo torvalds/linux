@@ -76,35 +76,24 @@
 #define AT91SAM9260_BASE_TC4		0xfffdc040
 #define AT91SAM9260_BASE_TC5		0xfffdc080
 #define AT91SAM9260_BASE_ADC		0xfffe0000
-#define AT91_BASE_SYS			0xffffe800
 
 /*
- * System Peripherals (offset from AT91_BASE_SYS)
+ * System Peripherals
  */
-#define AT91_ECC	(0xffffe800 - AT91_BASE_SYS)
-#define AT91_SDRAMC0	(0xffffea00 - AT91_BASE_SYS)
-#define AT91_SMC	(0xffffec00 - AT91_BASE_SYS)
-#define AT91_MATRIX	(0xffffee00 - AT91_BASE_SYS)
-#define AT91_CCFG	(0xffffef10 - AT91_BASE_SYS)
-#define AT91_AIC	(0xfffff000 - AT91_BASE_SYS)
-#define AT91_DBGU	(0xfffff200 - AT91_BASE_SYS)
-#define AT91_PIOA	(0xfffff400 - AT91_BASE_SYS)
-#define AT91_PIOB	(0xfffff600 - AT91_BASE_SYS)
-#define AT91_PIOC	(0xfffff800 - AT91_BASE_SYS)
-#define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
-#define AT91_RSTC	(0xfffffd00 - AT91_BASE_SYS)
-#define AT91_SHDWC	(0xfffffd10 - AT91_BASE_SYS)
-#define AT91_RTT	(0xfffffd20 - AT91_BASE_SYS)
-#define AT91_PIT	(0xfffffd30 - AT91_BASE_SYS)
-#define AT91_WDT	(0xfffffd40 - AT91_BASE_SYS)
-#define AT91_GPBR	(0xfffffd50 - AT91_BASE_SYS)
-
-#define AT91_USART0	AT91SAM9260_BASE_US0
-#define AT91_USART1	AT91SAM9260_BASE_US1
-#define AT91_USART2	AT91SAM9260_BASE_US2
-#define AT91_USART3	AT91SAM9260_BASE_US3
-#define AT91_USART4	AT91SAM9260_BASE_US4
-#define AT91_USART5	AT91SAM9260_BASE_US5
+#define AT91SAM9260_BASE_ECC	0xffffe800
+#define AT91SAM9260_BASE_SDRAMC	0xffffea00
+#define AT91SAM9260_BASE_SMC	0xffffec00
+#define AT91SAM9260_BASE_MATRIX	0xffffee00
+#define AT91SAM9260_BASE_DBGU	AT91_BASE_DBGU0
+#define AT91SAM9260_BASE_PIOA	0xfffff400
+#define AT91SAM9260_BASE_PIOB	0xfffff600
+#define AT91SAM9260_BASE_PIOC	0xfffff800
+#define AT91SAM9260_BASE_RSTC	0xfffffd00
+#define AT91SAM9260_BASE_SHDWC	0xfffffd10
+#define AT91SAM9260_BASE_RTT	0xfffffd20
+#define AT91SAM9260_BASE_PIT	0xfffffd30
+#define AT91SAM9260_BASE_WDT	0xfffffd40
+#define AT91SAM9260_BASE_GPBR	0xfffffd50
 
 
 /*
@@ -117,6 +106,8 @@
 #define AT91SAM9260_SRAM0_SIZE	SZ_4K		/* Internal SRAM 0 size (4Kb) */
 #define AT91SAM9260_SRAM1_BASE	0x00300000	/* Internal SRAM 1 base address */
 #define AT91SAM9260_SRAM1_SIZE	SZ_4K		/* Internal SRAM 1 size (4Kb) */
+#define AT91SAM9260_SRAM_BASE	0x002FF000	/* Internal SRAM base address */
+#define AT91SAM9260_SRAM_SIZE	SZ_8K		/* Internal SRAM size (8Kb) */
 
 #define AT91SAM9260_UHP_BASE	0x00500000	/* USB Host controller */
 
@@ -130,6 +121,8 @@
 #define AT91SAM9G20_SRAM0_SIZE	SZ_16K		/* Internal SRAM 0 size (16Kb) */
 #define AT91SAM9G20_SRAM1_BASE	0x00300000	/* Internal SRAM 1 base address */
 #define AT91SAM9G20_SRAM1_SIZE	SZ_16K		/* Internal SRAM 1 size (16Kb) */
+#define AT91SAM9G20_SRAM_BASE	0x002FC000	/* Internal SRAM base address */
+#define AT91SAM9G20_SRAM_SIZE	SZ_32K		/* Internal SRAM size (32Kb) */
 
 #define AT91SAM9G20_UHP_BASE	0x00500000	/* USB Host controller */
 

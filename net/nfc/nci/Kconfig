@@ -1,0 +1,10 @@
+config NFC_NCI
+	depends on NFC
+	tristate "NCI protocol support"
+	default n
+	help
+	  NCI (NFC Controller Interface) is a communication protocol between
+	  an NFC Controller (NFCC) and a Device Host (DH).
+
+	  Say Y here to compile NCI support into the kernel or say M to
+	  compile it as module (nci).

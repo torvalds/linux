@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,47 +41,13 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdecode")
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_format_exception
- *
- * PARAMETERS:  Status       - The acpi_status code to be formatted
- *
- * RETURN:      A string containing the exception text. A valid pointer is
- *              always returned.
- *
- * DESCRIPTION: This function translates an ACPI exception into an ASCII string
- *              It is here instead of utxface.c so it is always present.
- *
- ******************************************************************************/
-const char *acpi_format_exception(acpi_status status)
-{
-	const char *exception = NULL;
-
-	ACPI_FUNCTION_ENTRY();
-
-	exception = acpi_ut_validate_exception(status);
-	if (!exception) {
-
-		/* Exception code was not recognized */
-
-		ACPI_ERROR((AE_INFO,
-			    "Unknown exception code: 0x%8.8X", status));
-
-		exception = "UNKNOWN_STATUS_CODE";
-	}
-
-	return (ACPI_CAST_PTR(const char, exception));
-}
-
-ACPI_EXPORT_SYMBOL(acpi_format_exception)
 
 /*
  * Properties of the ACPI Object Types, both internal and external.
@@ -125,8 +91,8 @@ const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES] = {
  *
  * FUNCTION:    acpi_ut_hex_to_ascii_char
  *
- * PARAMETERS:  Integer             - Contains the hex digit
- *              Position            - bit position of the digit within the
+ * PARAMETERS:  integer             - Contains the hex digit
+ *              position            - bit position of the digit within the
  *                                    integer (multiple of 4)
  *
  * RETURN:      The converted Ascii character
@@ -163,14 +129,17 @@ char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
 /* Region type decoding */
 
 const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
-	"SystemMemory",
-	"SystemIO",
-	"PCI_Config",
-	"EmbeddedControl",
-	"SMBus",
-	"SystemCMOS",
-	"PCIBARTarget",
-	"IPMI"
+	"SystemMemory",		/* 0x00 */
+	"SystemIO",		/* 0x01 */
+	"PCI_Config",		/* 0x02 */
+	"EmbeddedControl",	/* 0x03 */
+	"SMBus",		/* 0x04 */
+	"SystemCMOS",		/* 0x05 */
+	"PCIBARTarget",		/* 0x06 */
+	"IPMI",			/* 0x07 */
+	"GeneralPurposeIo",	/* 0x08 */
+	"GenericSerialBus",	/* 0x09 */
+	"PCC"			/* 0x0A */
 };
 
 char *acpi_ut_get_region_name(u8 space_id)
@@ -225,7 +194,7 @@ char *acpi_ut_get_event_name(u32 event_id)
  *
  * FUNCTION:    acpi_ut_get_type_name
  *
- * PARAMETERS:  Type                - An ACPI object type
+ * PARAMETERS:  type                - An ACPI object type
  *
  * RETURN:      Decoded ACPI object type name
  *
@@ -303,7 +272,7 @@ char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
  *
  * FUNCTION:    acpi_ut_get_node_name
  *
- * PARAMETERS:  Object               - A namespace node
+ * PARAMETERS:  object               - A namespace node
  *
  * RETURN:      ASCII name of the node
  *
@@ -348,7 +317,7 @@ char *acpi_ut_get_node_name(void *object)
  *
  * FUNCTION:    acpi_ut_get_descriptor_name
  *
- * PARAMETERS:  Object               - An ACPI object
+ * PARAMETERS:  object               - An ACPI object
  *
  * RETURN:      Decoded name of the descriptor type
  *
@@ -398,7 +367,7 @@ char *acpi_ut_get_descriptor_name(void *object)
  *
  * FUNCTION:    acpi_ut_get_reference_name
  *
- * PARAMETERS:  Object               - An ACPI reference object
+ * PARAMETERS:  object               - An ACPI reference object
  *
  * RETURN:      Decoded name of the type of reference
  *
@@ -494,19 +463,20 @@ char *acpi_ut_get_mutex_name(u32 mutex_id)
 
 /* Names for Notify() values, used for debug output */
 
-static const char *acpi_gbl_notify_value_names[] = {
-	"Bus Check",
-	"Device Check",
-	"Device Wake",
-	"Eject Request",
-	"Device Check Light",
-	"Frequency Mismatch",
-	"Bus Mode Mismatch",
-	"Power Fault",
-	"Capabilities Check",
-	"Device PLD Check",
-	"Reserved",
-	"System Locality Update"
+static const char *acpi_gbl_notify_value_names[ACPI_NOTIFY_MAX + 1] = {
+	/* 00 */ "Bus Check",
+	/* 01 */ "Device Check",
+	/* 02 */ "Device Wake",
+	/* 03 */ "Eject Request",
+	/* 04 */ "Device Check Light",
+	/* 05 */ "Frequency Mismatch",
+	/* 06 */ "Bus Mode Mismatch",
+	/* 07 */ "Power Fault",
+	/* 08 */ "Capabilities Check",
+	/* 09 */ "Device PLD Check",
+	/* 10 */ "Reserved",
+	/* 11 */ "System Locality Update",
+	/* 12 */ "Shutdown Request"
 };
 
 const char *acpi_ut_get_notify_name(u32 notify_value)
@@ -516,9 +486,10 @@ const char *acpi_ut_get_notify_name(u32 notify_value)
 		return (acpi_gbl_notify_value_names[notify_value]);
 	} else if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
 		return ("Reserved");
-	} else {		/* Greater or equal to 0x80 */
-
-		return ("**Device Specific**");
+	} else if (notify_value <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY) {
+		return ("Device Specific");
+	} else {
+		return ("Hardware Specific");
 	}
 }
 #endif
@@ -527,7 +498,7 @@ const char *acpi_ut_get_notify_name(u32 notify_value)
  *
  * FUNCTION:    acpi_ut_valid_object_type
  *
- * PARAMETERS:  Type            - Object type to be validated
+ * PARAMETERS:  type            - Object type to be validated
  *
  * RETURN:      TRUE if valid object type, FALSE otherwise
  *

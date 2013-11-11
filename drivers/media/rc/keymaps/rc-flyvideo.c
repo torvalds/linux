@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table flyvideo[] = {
 	{ 0x0f, KEY_0 },

@@ -11,7 +11,6 @@
 #include <asm/patch.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 #include <asm/unistd.h>
 
 /*

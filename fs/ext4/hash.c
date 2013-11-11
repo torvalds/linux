@@ -155,11 +155,11 @@ int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 	/* Check to see if the seed is all zero's */
 	if (hinfo->seed) {
 		for (i = 0; i < 4; i++) {
-			if (hinfo->seed[i])
+			if (hinfo->seed[i]) {
+				memcpy(buf, hinfo->seed, sizeof(buf));
 				break;
+			}
 		}
-		if (i < 4)
-			memcpy(buf, hinfo->seed, sizeof(buf));
 	}
 
 	switch (hinfo->hash_version) {
@@ -200,8 +200,8 @@ int ext4fs_dirhash(const char *name, int len, struct dx_hash_info *hinfo)
 		return -1;
 	}
 	hash = hash & ~1;
-	if (hash == (EXT4_HTREE_EOF << 1))
-		hash = (EXT4_HTREE_EOF-1) << 1;
+	if (hash == (EXT4_HTREE_EOF_32BIT << 1))
+		hash = (EXT4_HTREE_EOF_32BIT - 1) << 1;
 	hinfo->hash = hash;
 	hinfo->minor_hash = minor_hash;
 	return 0;

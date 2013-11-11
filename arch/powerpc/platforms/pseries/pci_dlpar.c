@@ -26,6 +26,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
@@ -64,6 +65,35 @@ pcibios_find_pci_bus(struct device_node *dn)
 EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
 
 /**
+ * __pcibios_remove_pci_devices - remove all devices under this bus
+ * @bus: the indicated PCI bus
+ * @purge_pe: destroy the PE on removal of PCI devices
+ *
+ * Remove all of the PCI devices under this bus both from the
+ * linux pci device tree, and from the powerpc EEH address cache.
+ * By default, the corresponding PE will be destroied during the
+ * normal PCI hotplug path. For PCI hotplug during EEH recovery,
+ * the corresponding PE won't be destroied and deallocated.
+ */
+void __pcibios_remove_pci_devices(struct pci_bus *bus, int purge_pe)
+{
+	struct pci_dev *dev, *tmp;
+	struct pci_bus *child_bus;
+
+	/* First go down child busses */
+	list_for_each_entry(child_bus, &bus->children, node)
+		__pcibios_remove_pci_devices(child_bus, purge_pe);
+
+	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
+		pci_domain_nr(bus),  bus->number);
+	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
+		pr_debug("     * Removing %s...\n", pci_name(dev));
+		eeh_remove_bus_device(dev, purge_pe);
+		pci_stop_and_remove_bus_device(dev);
+	}
+}
+
+/**
  * pcibios_remove_pci_devices - remove all devices under this bus
  *
  * Remove all of the PCI devices under this bus both from the
@@ -71,20 +101,7 @@ EXPORT_SYMBOL_GPL(pcibios_find_pci_bus);
  */
 void pcibios_remove_pci_devices(struct pci_bus *bus)
 {
- 	struct pci_dev *dev, *tmp;
-	struct pci_bus *child_bus;
-
-	/* First go down child busses */
-	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_remove_pci_devices(child_bus);
-
-	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
-		 pci_domain_nr(bus),  bus->number);
-	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
-		pr_debug("     * Removing %s...\n", pci_name(dev));
-		eeh_remove_bus_device(dev);
- 		pci_remove_bus_device(dev);
- 	}
+	__pcibios_remove_pci_devices(bus, 1);
 }
 EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
 
@@ -120,7 +137,7 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 		if (!num)
 			return;
 		pcibios_setup_bus_devices(bus);
-		max = bus->secondary;
+		max = bus->busn_res.start;
 		for (pass=0; pass < 2; pass++)
 			list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
@@ -132,7 +149,7 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
 
-struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
+struct pci_controller *init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
 
@@ -145,6 +162,9 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	pci_process_bridge_OF_ranges(phb, dn, 0);
 
 	pci_devs_phb_init_dynamic(phb);
+
+	/* Create EEH devices for the PHB */
+	eeh_dev_phb_init_dynamic(phb);
 
 	if (dn->child)
 		eeh_add_device_tree_early(dn);

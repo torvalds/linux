@@ -58,10 +58,6 @@ struct xenvif {
 	u8               fe_dev_addr[6];
 
 	/* Physical parameters of the comms window. */
-	grant_handle_t   tx_shmem_handle;
-	grant_ref_t      tx_shmem_ref;
-	grant_handle_t   rx_shmem_handle;
-	grant_ref_t      rx_shmem_ref;
 	unsigned int     irq;
 
 	/* List of frontends to notify after a batch of frames sent. */
@@ -70,8 +66,6 @@ struct xenvif {
 	/* The shared rings and indexes. */
 	struct xen_netif_tx_back_ring tx;
 	struct xen_netif_rx_back_ring rx;
-	struct vm_struct *tx_comms_area;
-	struct vm_struct *rx_comms_area;
 
 	/* Frontend feature information. */
 	u8 can_sg:1;
@@ -106,6 +100,11 @@ struct xenvif {
 	wait_queue_head_t waiting_to_free;
 };
 
+static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
+{
+	return to_xenbus_device(vif->dev->dev.parent);
+}
+
 #define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
 #define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
 
@@ -116,6 +115,7 @@ struct xenvif *xenvif_alloc(struct device *parent,
 int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int evtchn);
 void xenvif_disconnect(struct xenvif *vif);
+void xenvif_free(struct xenvif *vif);
 
 void xenvif_get(struct xenvif *vif);
 void xenvif_put(struct xenvif *vif);
@@ -151,6 +151,9 @@ void xenvif_receive_skb(struct xenvif *vif, struct sk_buff *skb);
 void xen_netbk_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
 /* Notify xenvif that ring now has space to send an skb to the frontend */
 void xenvif_notify_tx_completion(struct xenvif *vif);
+
+/* Prevent the device from generating any further traffic. */
+void xenvif_carrier_off(struct xenvif *vif);
 
 /* Returns number of ring slots required to send an skb to the frontend */
 unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);

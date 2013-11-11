@@ -26,8 +26,9 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
 static uint32_t vram_placement_flags = TTM_PL_FLAG_VRAM |
 	TTM_PL_FLAG_CACHED;
@@ -41,6 +42,10 @@ static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
 
 static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
 	TTM_PL_FLAG_CACHED;
+
+static uint32_t gmr_ne_placement_flags = VMW_PL_FLAG_GMR |
+	TTM_PL_FLAG_CACHED |
+	TTM_PL_FLAG_NO_EVICT;
 
 struct ttm_placement vmw_vram_placement = {
 	.fpfn = 0,
@@ -56,6 +61,11 @@ static uint32_t vram_gmr_placement_flags[] = {
 	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
 };
 
+static uint32_t gmr_vram_placement_flags[] = {
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+};
+
 struct ttm_placement vmw_vram_gmr_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -63,6 +73,20 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.placement = vram_gmr_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &gmr_placement_flags
+};
+
+static uint32_t vram_gmr_ne_placement_flags[] = {
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+struct ttm_placement vmw_vram_gmr_ne_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 2,
+	.placement = vram_gmr_ne_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &gmr_ne_placement_flags
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
@@ -92,85 +116,87 @@ struct ttm_placement vmw_sys_placement = {
 	.busy_placement = &sys_placement_flags
 };
 
-struct vmw_ttm_backend {
-	struct ttm_backend backend;
-	struct page **pages;
-	unsigned long num_pages;
+static uint32_t evictable_placement_flags[] = {
+	TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+};
+
+struct ttm_placement vmw_evictable_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 3,
+	.placement = evictable_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
+};
+
+struct ttm_placement vmw_srf_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.num_busy_placement = 2,
+	.placement = &gmr_placement_flags,
+	.busy_placement = gmr_vram_placement_flags
+};
+
+struct vmw_ttm_tt {
+	struct ttm_tt ttm;
 	struct vmw_private *dev_priv;
 	int gmr_id;
 };
 
-static int vmw_ttm_populate(struct ttm_backend *backend,
-			    unsigned long num_pages, struct page **pages,
-			    struct page *dummy_read_page,
-			    dma_addr_t *dma_addrs)
+static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
-
-	vmw_be->pages = pages;
-	vmw_be->num_pages = num_pages;
-
-	return 0;
-}
-
-static int vmw_ttm_bind(struct ttm_backend *backend, struct ttm_mem_reg *bo_mem)
-{
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
 	vmw_be->gmr_id = bo_mem->start;
 
-	return vmw_gmr_bind(vmw_be->dev_priv, vmw_be->pages,
-			    vmw_be->num_pages, vmw_be->gmr_id);
+	return vmw_gmr_bind(vmw_be->dev_priv, ttm->pages,
+			    ttm->num_pages, vmw_be->gmr_id);
 }
 
-static int vmw_ttm_unbind(struct ttm_backend *backend)
+static int vmw_ttm_unbind(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
 	vmw_gmr_unbind(vmw_be->dev_priv, vmw_be->gmr_id);
 	return 0;
 }
 
-static void vmw_ttm_clear(struct ttm_backend *backend)
+static void vmw_ttm_destroy(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_backend *vmw_be =
-		container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
-	vmw_be->pages = NULL;
-	vmw_be->num_pages = 0;
-}
-
-static void vmw_ttm_destroy(struct ttm_backend *backend)
-{
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
-
+	ttm_tt_fini(ttm);
 	kfree(vmw_be);
 }
 
 static struct ttm_backend_func vmw_ttm_func = {
-	.populate = vmw_ttm_populate,
-	.clear = vmw_ttm_clear,
 	.bind = vmw_ttm_bind,
 	.unbind = vmw_ttm_unbind,
 	.destroy = vmw_ttm_destroy,
 };
 
-struct ttm_backend *vmw_ttm_backend_init(struct ttm_bo_device *bdev)
+struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
+				 unsigned long size, uint32_t page_flags,
+				 struct page *dummy_read_page)
 {
-	struct vmw_ttm_backend *vmw_be;
+	struct vmw_ttm_tt *vmw_be;
 
 	vmw_be = kmalloc(sizeof(*vmw_be), GFP_KERNEL);
 	if (!vmw_be)
 		return NULL;
 
-	vmw_be->backend.func = &vmw_ttm_func;
+	vmw_be->ttm.func = &vmw_ttm_func;
 	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
 
-	return &vmw_be->backend;
+	if (ttm_tt_init(&vmw_be->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(vmw_be);
+		return NULL;
+	}
+
+	return &vmw_be->ttm;
 }
 
 int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
@@ -222,13 +248,12 @@ void vmw_evict_flags(struct ttm_buffer_object *bo,
 	*placement = vmw_sys_placement;
 }
 
-/**
- * FIXME: Proper access checks on buffers.
- */
-
 static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct ttm_object_file *tfile =
+		vmw_fpriv((struct drm_file *)filp->private_data)->tfile;
+
+	return vmw_user_dmabuf_verify_access(bo, tfile);
 }
 
 static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
@@ -274,43 +299,41 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 static void *vmw_sync_obj_ref(void *sync_obj)
 {
-	return sync_obj;
+
+	return (void *)
+		vmw_fence_obj_reference((struct vmw_fence_obj *) sync_obj);
 }
 
 static void vmw_sync_obj_unref(void **sync_obj)
 {
-	*sync_obj = NULL;
+	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
 }
 
-static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
+static int vmw_sync_obj_flush(void *sync_obj)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-
-	mutex_lock(&dev_priv->hw_mutex);
-	vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
-	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
 	return 0;
 }
 
-static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
+static bool vmw_sync_obj_signaled(void *sync_obj)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
+	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
+				       DRM_VMW_FENCE_FLAG_EXEC);
 
-	return vmw_fence_signaled(dev_priv, sequence);
 }
 
-static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
-			     bool lazy, bool interruptible)
+static int vmw_sync_obj_wait(void *sync_obj, bool lazy, bool interruptible)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
-
-	return vmw_wait_fence(dev_priv, false, sequence, false, 3*HZ);
+	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
+				  DRM_VMW_FENCE_FLAG_EXEC,
+				  lazy, interruptible,
+				  VMW_FENCE_WAIT_TIMEOUT);
 }
 
 struct ttm_bo_driver vmw_bo_driver = {
-	.create_ttm_backend_entry = vmw_ttm_backend_init,
+	.ttm_tt_create = &vmw_ttm_tt_create,
+	.ttm_tt_populate = &ttm_pool_populate,
+	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
 	.invalidate_caches = vmw_invalidate_caches,
 	.init_mem_type = vmw_init_mem_type,
 	.evict_flags = vmw_evict_flags,

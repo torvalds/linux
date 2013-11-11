@@ -29,6 +29,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -350,7 +351,7 @@ static int irttp_param_max_sdu_size(void *instance, irda_param_t *param,
 {
 	struct tsap_cb *self;
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return -1;);
@@ -439,7 +440,8 @@ struct tsap_cb *irttp_open_tsap(__u8 stsap_sel, int credit, notify_t *notify)
 	 */
 	lsap = irlmp_open_lsap(stsap_sel, &ttp_notify, 0);
 	if (lsap == NULL) {
-		IRDA_WARNING("%s: unable to allocate LSAP!!\n", __func__);
+		IRDA_DEBUG(0, "%s: unable to allocate LSAP!!\n", __func__);
+		__irttp_close_tsap(self);
 		return NULL;
 	}
 
@@ -879,7 +881,7 @@ static int irttp_udata_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s()\n", __func__);
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return -1;);
@@ -914,7 +916,7 @@ static int irttp_data_indication(void *instance, void *sap,
 	unsigned long flags;
 	int n;
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	n = skb->data[0] & 0x7f;     /* Extract the credits */
 
@@ -996,7 +998,7 @@ static void irttp_status_indication(void *instance,
 
 	IRDA_DEBUG(4, "%s()\n", __func__);
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return;);
@@ -1025,7 +1027,7 @@ static void irttp_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
 {
 	struct tsap_cb *self;
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return;);
@@ -1208,7 +1210,7 @@ static void irttp_connect_confirm(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s()\n", __func__);
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return;);
@@ -1292,13 +1294,13 @@ static void irttp_connect_indication(void *instance, void *sap,
 	__u8 plen;
 	__u8 n;
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return;);
 	IRDA_ASSERT(skb != NULL, return;);
 
-	lsap = (struct lsap_cb *) sap;
+	lsap = sap;
 
 	self->max_seg_size = max_seg_size - TTP_HEADER;
 	self->max_header_size = max_header_size+TTP_HEADER;
@@ -1460,14 +1462,12 @@ struct tsap_cb *irttp_dup(struct tsap_cb *orig, void *instance)
 	}
 
 	/* Allocate a new instance */
-	new = kmalloc(sizeof(struct tsap_cb), GFP_ATOMIC);
+	new = kmemdup(orig, sizeof(struct tsap_cb), GFP_ATOMIC);
 	if (!new) {
 		IRDA_DEBUG(0, "%s(), unable to kmalloc\n", __func__);
 		spin_unlock_irqrestore(&irttp->tsaps->hb_spinlock, flags);
 		return NULL;
 	}
-	/* Dup */
-	memcpy(new, orig, sizeof(struct tsap_cb));
 	spin_lock_init(&new->lock);
 
 	/* We don't need the old instance any more */
@@ -1602,7 +1602,7 @@ static void irttp_disconnect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s()\n", __func__);
 
-	self = (struct tsap_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return;);

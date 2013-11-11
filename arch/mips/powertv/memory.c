@@ -29,7 +29,6 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 
-#include <asm/mips-boards/prom.h>
 #include <asm/mach-powertv/asic.h>
 #include <asm/mach-powertv/ioremap.h>
 
@@ -60,7 +59,7 @@ unsigned long ptv_memsize;
  * struct low_mem_reserved - Items in low memory that are reserved
  * @start:	Physical address of item
  * @size:	Size, in bytes, of this item
- * @is_aliased:	True if this is RAM aliased from another location. If false,
+ * @is_aliased: True if this is RAM aliased from another location. If false,
  *		it is something other than aliased RAM and the RAM in the
  *		unaliased address is still visible outside of low memory.
  */

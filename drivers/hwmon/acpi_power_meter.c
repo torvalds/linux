@@ -29,6 +29,7 @@
 #include <linux/kdev_t.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/err.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
@@ -58,7 +59,7 @@ ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
 #define POWER_ALARM_NAME	"power1_alarm"
 
 static int cap_in_hardware;
-static int force_cap_on;
+static bool force_cap_on;
 
 static int can_cap_in_hardware(void)
 {
@@ -101,21 +102,13 @@ struct acpi_power_meter_resource {
 	unsigned long		sensors_last_updated;
 	struct sensor_device_attribute	sensors[NUM_SENSORS];
 	int			num_sensors;
-	int			trip[2];
+	s64			trip[2];
 	int			num_domain_devices;
 	struct acpi_device	**domain_devices;
 	struct kobject		*holders_dir;
 };
 
-struct ro_sensor_template {
-	char *label;
-	ssize_t (*show)(struct device *dev,
-			struct device_attribute *devattr,
-			char *buf);
-	int index;
-};
-
-struct rw_sensor_template {
+struct sensor_template {
 	char *label;
 	ssize_t (*show)(struct device *dev,
 			struct device_attribute *devattr,
@@ -170,7 +163,7 @@ static ssize_t set_avg_interval(struct device *dev,
 	unsigned long long data;
 	acpi_status status;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 
@@ -241,11 +234,11 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	unsigned long long data;
 	acpi_status status;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 
-	temp /= 1000;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	if (temp > resource->caps.max_cap || temp < resource->caps.min_cap)
 		return -EINVAL;
 	arg0.integer.value = temp;
@@ -311,13 +304,11 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	int res;
 	unsigned long temp;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 
-	temp /= 1000;
-	if (temp < 0)
-		return -EINVAL;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 
 	mutex_lock(&resource->lock);
 	resource->trip[attr->index - 7] = temp;
@@ -391,6 +382,7 @@ static ssize_t show_str(struct device *dev,
 		break;
 	default:
 		BUG();
+		val = "";
 	}
 
 	return sprintf(buf, "%s\n", val);
@@ -468,52 +460,67 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "%s\n", ACPI_POWER_METER_NAME);
 }
 
+#define RO_SENSOR_TEMPLATE(_label, _show, _index)	\
+	{						\
+		.label = _label,			\
+		.show  = _show,				\
+		.index = _index,			\
+	}
+
+#define RW_SENSOR_TEMPLATE(_label, _show, _set, _index)	\
+	{						\
+		.label = _label,			\
+		.show  = _show,				\
+		.set   = _set,				\
+		.index = _index,			\
+	}
+
 /* Sensor descriptions.  If you add a sensor, update NUM_SENSORS above! */
-static struct ro_sensor_template meter_ro_attrs[] = {
-{POWER_AVERAGE_NAME, show_power, 0},
-{"power1_accuracy", show_accuracy, 0},
-{"power1_average_interval_min", show_val, 0},
-{"power1_average_interval_max", show_val, 1},
-{"power1_is_battery", show_val, 5},
-{NULL, NULL, 0},
+static struct sensor_template meter_attrs[] = {
+	RO_SENSOR_TEMPLATE(POWER_AVERAGE_NAME, show_power, 0),
+	RO_SENSOR_TEMPLATE("power1_accuracy", show_accuracy, 0),
+	RO_SENSOR_TEMPLATE("power1_average_interval_min", show_val, 0),
+	RO_SENSOR_TEMPLATE("power1_average_interval_max", show_val, 1),
+	RO_SENSOR_TEMPLATE("power1_is_battery", show_val, 5),
+	RW_SENSOR_TEMPLATE(POWER_AVG_INTERVAL_NAME, show_avg_interval,
+		set_avg_interval, 0),
+	{},
 };
 
-static struct rw_sensor_template meter_rw_attrs[] = {
-{POWER_AVG_INTERVAL_NAME, show_avg_interval, set_avg_interval, 0},
-{NULL, NULL, NULL, 0},
+static struct sensor_template misc_cap_attrs[] = {
+	RO_SENSOR_TEMPLATE("power1_cap_min", show_val, 2),
+	RO_SENSOR_TEMPLATE("power1_cap_max", show_val, 3),
+	RO_SENSOR_TEMPLATE("power1_cap_hyst", show_val, 4),
+	RO_SENSOR_TEMPLATE(POWER_ALARM_NAME, show_val, 6),
+	{},
 };
 
-static struct ro_sensor_template misc_cap_attrs[] = {
-{"power1_cap_min", show_val, 2},
-{"power1_cap_max", show_val, 3},
-{"power1_cap_hyst", show_val, 4},
-{POWER_ALARM_NAME, show_val, 6},
-{NULL, NULL, 0},
+static struct sensor_template ro_cap_attrs[] = {
+	RO_SENSOR_TEMPLATE(POWER_CAP_NAME, show_cap, 0),
+	{},
 };
 
-static struct ro_sensor_template ro_cap_attrs[] = {
-{POWER_CAP_NAME, show_cap, 0},
-{NULL, NULL, 0},
+static struct sensor_template rw_cap_attrs[] = {
+	RW_SENSOR_TEMPLATE(POWER_CAP_NAME, show_cap, set_cap, 0),
+	{},
 };
 
-static struct rw_sensor_template rw_cap_attrs[] = {
-{POWER_CAP_NAME, show_cap, set_cap, 0},
-{NULL, NULL, NULL, 0},
+static struct sensor_template trip_attrs[] = {
+	RW_SENSOR_TEMPLATE("power1_average_min", show_val, set_trip, 7),
+	RW_SENSOR_TEMPLATE("power1_average_max", show_val, set_trip, 8),
+	{},
 };
 
-static struct rw_sensor_template trip_attrs[] = {
-{"power1_average_min", show_val, set_trip, 7},
-{"power1_average_max", show_val, set_trip, 8},
-{NULL, NULL, NULL, 0},
+static struct sensor_template misc_attrs[] = {
+	RO_SENSOR_TEMPLATE("name", show_name, 0),
+	RO_SENSOR_TEMPLATE("power1_model_number", show_str, 0),
+	RO_SENSOR_TEMPLATE("power1_oem_info", show_str, 2),
+	RO_SENSOR_TEMPLATE("power1_serial_number", show_str, 1),
+	{},
 };
 
-static struct ro_sensor_template misc_attrs[] = {
-{"name", show_name, 0},
-{"power1_model_number", show_str, 0},
-{"power1_oem_info", show_str, 2},
-{"power1_serial_number", show_str, 1},
-{NULL, NULL, 0},
-};
+#undef RO_SENSOR_TEMPLATE
+#undef RW_SENSOR_TEMPLATE
 
 /* Read power domain data */
 static void remove_domain_devices(struct acpi_power_meter_resource *resource)
@@ -618,20 +625,26 @@ end:
 }
 
 /* Registration and deregistration */
-static int register_ro_attrs(struct acpi_power_meter_resource *resource,
-			     struct ro_sensor_template *ro)
+static int register_attrs(struct acpi_power_meter_resource *resource,
+			  struct sensor_template *attrs)
 {
 	struct device *dev = &resource->acpi_dev->dev;
 	struct sensor_device_attribute *sensors =
 		&resource->sensors[resource->num_sensors];
 	int res = 0;
 
-	while (ro->label) {
-		sensors->dev_attr.attr.name = ro->label;
+	while (attrs->label) {
+		sensors->dev_attr.attr.name = attrs->label;
 		sensors->dev_attr.attr.mode = S_IRUGO;
-		sensors->dev_attr.show = ro->show;
-		sensors->index = ro->index;
+		sensors->dev_attr.show = attrs->show;
+		sensors->index = attrs->index;
 
+		if (attrs->set) {
+			sensors->dev_attr.attr.mode |= S_IWUSR;
+			sensors->dev_attr.store = attrs->set;
+		}
+
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		res = device_create_file(dev, &sensors->dev_attr);
 		if (res) {
 			sensors->dev_attr.attr.name = NULL;
@@ -639,36 +652,7 @@ static int register_ro_attrs(struct acpi_power_meter_resource *resource,
 		}
 		sensors++;
 		resource->num_sensors++;
-		ro++;
-	}
-
-error:
-	return res;
-}
-
-static int register_rw_attrs(struct acpi_power_meter_resource *resource,
-			     struct rw_sensor_template *rw)
-{
-	struct device *dev = &resource->acpi_dev->dev;
-	struct sensor_device_attribute *sensors =
-		&resource->sensors[resource->num_sensors];
-	int res = 0;
-
-	while (rw->label) {
-		sensors->dev_attr.attr.name = rw->label;
-		sensors->dev_attr.attr.mode = S_IRUGO | S_IWUSR;
-		sensors->dev_attr.show = rw->show;
-		sensors->dev_attr.store = rw->set;
-		sensors->index = rw->index;
-
-		res = device_create_file(dev, &sensors->dev_attr);
-		if (res) {
-			sensors->dev_attr.attr.name = NULL;
-			goto error;
-		}
-		sensors++;
-		resource->num_sensors++;
-		rw++;
+		attrs++;
 	}
 
 error:
@@ -700,10 +684,7 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 		return res;
 
 	if (resource->caps.flags & POWER_METER_CAN_MEASURE) {
-		res = register_ro_attrs(resource, meter_ro_attrs);
-		if (res)
-			goto error;
-		res = register_rw_attrs(resource, meter_rw_attrs);
+		res = register_attrs(resource, meter_attrs);
 		if (res)
 			goto error;
 	}
@@ -715,28 +696,27 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 			goto skip_unsafe_cap;
 		}
 
-		if (resource->caps.configurable_cap) {
-			res = register_rw_attrs(resource, rw_cap_attrs);
-			if (res)
-				goto error;
-		} else {
-			res = register_ro_attrs(resource, ro_cap_attrs);
-			if (res)
-				goto error;
-		}
-		res = register_ro_attrs(resource, misc_cap_attrs);
+		if (resource->caps.configurable_cap)
+			res = register_attrs(resource, rw_cap_attrs);
+		else
+			res = register_attrs(resource, ro_cap_attrs);
+
+		if (res)
+			goto error;
+
+		res = register_attrs(resource, misc_cap_attrs);
 		if (res)
 			goto error;
 	}
+
 skip_unsafe_cap:
-
 	if (resource->caps.flags & POWER_METER_CAN_TRIP) {
-		res = register_rw_attrs(resource, trip_attrs);
+		res = register_attrs(resource, trip_attrs);
 		if (res)
 			goto error;
 	}
 
-	res = register_ro_attrs(resource, misc_attrs);
+	res = register_attrs(resource, misc_attrs);
 	if (res)
 		goto error;
 
@@ -931,7 +911,7 @@ exit:
 	return res;
 }
 
-static int acpi_power_meter_remove(struct acpi_device *device, int type)
+static int acpi_power_meter_remove(struct acpi_device *device)
 {
 	struct acpi_power_meter_resource *resource;
 
@@ -948,19 +928,28 @@ static int acpi_power_meter_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_power_meter_resume(struct acpi_device *device)
+#ifdef CONFIG_PM_SLEEP
+
+static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource;
 
-	if (!device || !acpi_driver_data(device))
+	if (!dev)
 		return -EINVAL;
 
-	resource = acpi_driver_data(device);
+	resource = acpi_driver_data(to_acpi_device(dev));
+	if (!resource)
+		return -EINVAL;
+
 	free_capabilities(resource);
 	read_capabilities(resource);
 
 	return 0;
 }
+
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(acpi_power_meter_pm, NULL, acpi_power_meter_resume);
 
 static struct acpi_driver acpi_power_meter_driver = {
 	.name = "power_meter",
@@ -969,9 +958,9 @@ static struct acpi_driver acpi_power_meter_driver = {
 	.ops = {
 		.add = acpi_power_meter_add,
 		.remove = acpi_power_meter_remove,
-		.resume = acpi_power_meter_resume,
 		.notify = acpi_power_meter_notify,
 		},
+	.drv.pm = &acpi_power_meter_pm,
 };
 
 /* Module init/exit routines */

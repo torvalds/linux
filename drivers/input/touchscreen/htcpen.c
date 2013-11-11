@@ -40,18 +40,12 @@ MODULE_LICENSE("GPL");
 #define X_AXIS_MAX		2040
 #define Y_AXIS_MAX		2040
 
-static int invert_x;
+static bool invert_x;
 module_param(invert_x, bool, 0644);
 MODULE_PARM_DESC(invert_x, "If set, X axis is inverted");
-static int invert_y;
+static bool invert_y;
 module_param(invert_y, bool, 0644);
 MODULE_PARM_DESC(invert_y, "If set, Y axis is inverted");
-
-static struct pnp_device_id pnp_ids[] = {
-	{ .id = "PNP0cc0" },
-	{ .id = "" }
-};
-MODULE_DEVICE_TABLE(pnp, pnp_ids);
 
 static irqreturn_t htcpen_interrupt(int irq, void *handle)
 {
@@ -108,7 +102,7 @@ static void htcpen_close(struct input_dev *dev)
 	synchronize_irq(HTCPEN_IRQ);
 }
 
-static int __devinit htcpen_isa_probe(struct device *dev, unsigned int id)
+static int htcpen_isa_probe(struct device *dev, unsigned int id)
 {
 	struct input_dev *htcpen_dev;
 	int err = -EBUSY;
@@ -180,7 +174,7 @@ static int __devinit htcpen_isa_probe(struct device *dev, unsigned int id)
 	return err;
 }
 
-static int __devexit htcpen_isa_remove(struct device *dev, unsigned int id)
+static int htcpen_isa_remove(struct device *dev, unsigned int id)
 {
 	struct input_dev *htcpen_dev = dev_get_drvdata(dev);
 
@@ -216,7 +210,7 @@ static int htcpen_isa_resume(struct device *dev, unsigned int n)
 
 static struct isa_driver htcpen_isa_driver = {
 	.probe		= htcpen_isa_probe,
-	.remove		= __devexit_p(htcpen_isa_remove),
+	.remove		= htcpen_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= htcpen_isa_suspend,
 	.resume		= htcpen_isa_resume,
@@ -237,6 +231,7 @@ static struct dmi_system_id __initdata htcshift_dmi_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, htcshift_dmi_table);
 
 static int __init htcpen_isa_init(void)
 {

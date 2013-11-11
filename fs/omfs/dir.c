@@ -93,7 +93,7 @@ int omfs_make_empty(struct inode *inode, struct super_block *sb)
 
 	memset(bh->b_data, 0, sizeof(struct omfs_inode));
 
-	if (inode->i_mode & S_IFDIR) {
+	if (S_ISDIR(inode->i_mode)) {
 		memset(&bh->b_data[OMFS_DIR_START], 0xff,
 			sbi->s_sys_blocksize - OMFS_DIR_START);
 	} else
@@ -255,7 +255,7 @@ static int omfs_remove(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static int omfs_add_node(struct inode *dir, struct dentry *dentry, int mode)
+static int omfs_add_node(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 	struct inode *inode = omfs_new_inode(dir, mode);
@@ -279,19 +279,19 @@ out_free_inode:
 	return err;
 }
 
-static int omfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int omfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFDIR);
 }
 
-static int omfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+static int omfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+		bool excl)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFREG);
 }
 
 static struct dentry *omfs_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct buffer_head *bh;
 	struct inode *inode = NULL;
@@ -330,7 +330,7 @@ int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
 static int omfs_fill_chain(struct file *filp, void *dirent, filldir_t filldir,
 		u64 fsblock, int hindex)
 {
-	struct inode *dir = filp->f_dentry->d_inode;
+	struct inode *dir = file_inode(filp);
 	struct buffer_head *bh;
 	struct omfs_inode *oi;
 	u64 self;
@@ -405,7 +405,7 @@ out:
 
 static int omfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *dir = filp->f_dentry->d_inode;
+	struct inode *dir = file_inode(filp);
 	struct buffer_head *bh;
 	loff_t offset, res;
 	unsigned int hchain, hindex;

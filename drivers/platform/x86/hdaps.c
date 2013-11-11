@@ -2,7 +2,7 @@
  * hdaps.c - driver for IBM's Hard Drive Active Protection System
  *
  * Copyright (C) 2005 Robert Love <rml@novell.com>
- * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
+ * Copyright (C) 2005 Jesper Juhl <jj@chaosbits.net>
  *
  * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
  * starting with the R40, T41, and X40.  It provides a basic two-axis
@@ -305,17 +305,21 @@ static int hdaps_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int hdaps_resume(struct platform_device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int hdaps_resume(struct device *dev)
 {
 	return hdaps_device_init();
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(hdaps_pm, NULL, hdaps_resume);
 
 static struct platform_driver hdaps_driver = {
 	.probe = hdaps_probe,
-	.resume = hdaps_resume,
 	.driver	= {
 		.name = "hdaps",
 		.owner = THIS_MODULE,
+		.pm = &hdaps_pm,
 	},
 };
 
@@ -375,11 +379,11 @@ static ssize_t hdaps_variance_show(struct device *dev,
 static ssize_t hdaps_temp1_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	u8 temp;
+	u8 uninitialized_var(temp);
 	int ret;
 
 	ret = hdaps_readb_one(HDAPS_PORT_TEMP1, &temp);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return sprintf(buf, "%u\n", temp);
@@ -388,11 +392,11 @@ static ssize_t hdaps_temp1_show(struct device *dev,
 static ssize_t hdaps_temp2_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	u8 temp;
+	u8 uninitialized_var(temp);
 	int ret;
 
 	ret = hdaps_readb_one(HDAPS_PORT_TEMP2, &temp);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return sprintf(buf, "%u\n", temp);

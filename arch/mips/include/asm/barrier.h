@@ -8,6 +8,8 @@
 #ifndef __ASM_BARRIER_H
 #define __ASM_BARRIER_H
 
+#include <asm/addrspace.h>
+
 /*
  * read_barrier_depends - Flush all pending reads that subsequents reads
  * depend on.
@@ -16,7 +18,7 @@
  * over this barrier.  All reads preceding this primitive are guaranteed
  * to access memory (but not necessarily other CPUs' caches) before any
  * reads following this primitive that depend on the data return by
- * any of the preceding reads.  This primitive is much lighter weight than
+ * any of the preceding reads.	This primitive is much lighter weight than
  * rmb() on most CPUs, and is never heavier weight than is
  * rmb().
  *
@@ -41,7 +43,7 @@
  * </programlisting>
  *
  * because the read of "*q" depends on the read of "p" and these
- * two reads are separated by a read_barrier_depends().  However,
+ * two reads are separated by a read_barrier_depends().	 However,
  * the following code, with the same initial values for "a" and "b":
  *
  * <programlisting>
@@ -55,7 +57,7 @@
  * </programlisting>
  *
  * does not enforce ordering, since there is no data dependency between
- * the read of "a" and the read of "b".  Therefore, on some CPUs, such
+ * the read of "a" and the read of "b".	 Therefore, on some CPUs, such
  * as Alpha, "y" could be set to 3 and "x" to 0.  Use rmb()
  * in cases like this where there are no data dependencies.
  */
@@ -90,7 +92,7 @@
 		: "memory")
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 # define OCTEON_SYNCW_STR	".set push\n.set arch=octeon\nsyncw\nsyncw\n.set pop\n"
-# define __syncw() 	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
+# define __syncw()	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
 
 # define fast_wmb()	__syncw()
 # define fast_rmb()	barrier()
@@ -156,7 +158,7 @@
 #endif
 
 #if defined(CONFIG_WEAK_REORDERING_BEYOND_LLSC) && defined(CONFIG_SMP)
-#define __WEAK_LLSC_MB		"       sync	\n"
+#define __WEAK_LLSC_MB		"	sync	\n"
 #else
 #define __WEAK_LLSC_MB		"		\n"
 #endif

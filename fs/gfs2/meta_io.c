@@ -37,7 +37,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 {
 	struct buffer_head *bh, *head;
 	int nr_underway = 0;
-	int write_op = REQ_META |
+	int write_op = REQ_META | REQ_PRIO |
 		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
 
 	BUG_ON(!PageLocked(page));
@@ -52,7 +52,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 		/*
 		 * If it's a fully non-blocking write attempt and we cannot
 		 * lock the buffer then redirty the page.  Note that this can
-		 * potentially cause a busy-wait loop from pdflush and kswapd
+		 * potentially cause a busy-wait loop from flusher thread and kswapd
 		 * activity, but those code paths have their own higher-level
 		 * throttling.
 		 */
@@ -213,8 +213,10 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct buffer_head *bh;
 
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) {
+		*bhp = NULL;
 		return -EIO;
+	}
 
 	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
 
@@ -225,7 +227,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	}
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(READ_SYNC | REQ_META, bh);
+	submit_bh(READ_SYNC | REQ_META | REQ_PRIO, bh);
 	if (!(flags & DIO_WAIT))
 		return 0;
 
@@ -235,6 +237,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		if (tr && tr->tr_touched)
 			gfs2_io_error_bh(sdp, bh);
 		brelse(bh);
+		*bhp = NULL;
 		return -EIO;
 	}
 
@@ -268,42 +271,6 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	return 0;
 }
 
-/**
- * gfs2_attach_bufdata - attach a struct gfs2_bufdata structure to a buffer
- * @gl: the glock the buffer belongs to
- * @bh: The buffer to be attached to
- * @meta: Flag to indicate whether its metadata or not
- */
-
-void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
-			 int meta)
-{
-	struct gfs2_bufdata *bd;
-
-	if (meta)
-		lock_page(bh->b_page);
-
-	if (bh->b_private) {
-		if (meta)
-			unlock_page(bh->b_page);
-		return;
-	}
-
-	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
-	bd->bd_bh = bh;
-	bd->bd_gl = gl;
-
-	INIT_LIST_HEAD(&bd->bd_list_tr);
-	if (meta)
-		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
-	else
-		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
-	bh->b_private = bd;
-
-	if (meta)
-		unlock_page(bh->b_page);
-}
-
 void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int meta)
 {
 	struct address_space *mapping = bh->b_page->mapping;
@@ -313,7 +280,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	if (test_clear_buffer_pinned(bh)) {
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
-		list_del_init(&bd->bd_le.le_list);
+		list_del_init(&bd->bd_list);
 		if (meta) {
 			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 			sdp->sd_log_num_buf--;
@@ -328,7 +295,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	}
 	if (bd) {
 		spin_lock(&sdp->sd_ail_lock);
-		if (bd->bd_ail) {
+		if (bd->bd_tr) {
 			gfs2_remove_from_ail(bd);
 			bh->b_private = NULL;
 			bd->bd_bh = NULL;
@@ -375,33 +342,24 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
  * @ip: The GFS2 inode
  * @height: The level of this buf in the metadata (indir addr) tree (if any)
  * @num: The block number (device relative) of the buffer
- * @new: Non-zero if we may create a new buffer
  * @bhp: the buffer is returned here
  *
  * Returns: errno
  */
 
 int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
-			      int new, struct buffer_head **bhp)
+			      struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	int ret = 0;
+	u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
 
-	if (new) {
-		BUG_ON(height == 0);
-		bh = gfs2_meta_new(gl, num);
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
-		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
-		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
-	} else {
-		u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
-		ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
-		if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
-			brelse(bh);
-			ret = -EIO;
-		}
+	ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
+	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
+		brelse(bh);
+		ret = -EIO;
 	}
 	*bhp = bh;
 	return ret;
@@ -444,7 +402,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 		bh = gfs2_getbuf(gl, dblock, CREATE);
 
 		if (!buffer_uptodate(bh) && !buffer_locked(bh))
-			ll_rw_block(READA, 1, &bh);
+			ll_rw_block(READA | REQ_META, 1, &bh);
 		brelse(bh);
 		dblock++;
 		extlen--;

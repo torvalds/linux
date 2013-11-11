@@ -1,0 +1,209 @@
+/*
+ * Samsung's Exynos4210 based SMDKV310 board device tree source
+ *
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ * Copyright (c) 2010-2011 Linaro Ltd.
+ *		www.linaro.org
+ *
+ * Device tree source file for Samsung's SMDKV310 board which is based on
+ * Samsung's Exynos4210 SoC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos4210.dtsi"
+
+/ {
+	model = "Samsung smdkv310 evaluation board based on Exynos4210";
+	compatible = "samsung,smdkv310", "samsung,exynos4210";
+
+	memory {
+		reg = <0x40000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC1,115200 init=/linuxrc";
+	};
+
+	sdhci@12530000 {
+		bus-width = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+		status = "okay";
+	};
+
+	g2d@12800000 {
+		status = "okay";
+	};
+
+	codec@13400000 {
+		samsung,mfc-r = <0x43000000 0x800000>;
+		samsung,mfc-l = <0x51000000 0x800000>;
+		status = "okay";
+	};
+
+	serial@13800000 {
+		status = "okay";
+	};
+
+	serial@13810000 {
+		status = "okay";
+	};
+
+	serial@13820000 {
+		status = "okay";
+	};
+
+	serial@13830000 {
+		status = "okay";
+	};
+
+	pinctrl@11000000 {
+		keypad_rows: keypad-rows {
+			samsung,pins = "gpx2-0", "gpx2-1";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		keypad_cols: keypad-cols {
+			samsung,pins = "gpx1-0", "gpx1-1", "gpx1-2", "gpx1-3",
+				       "gpx1-4", "gpx1-5", "gpx1-6", "gpx1-7";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <0>;
+		};
+	};
+
+	keypad@100A0000 {
+		samsung,keypad-num-rows = <2>;
+		samsung,keypad-num-columns = <8>;
+		linux,keypad-no-autorepeat;
+		linux,keypad-wakeup;
+		pinctrl-names = "default";
+		pinctrl-0 = <&keypad_rows &keypad_cols>;
+		status = "okay";
+
+		key_1 {
+			keypad,row = <0>;
+			keypad,column = <3>;
+			linux,code = <2>;
+		};
+
+		key_2 {
+			keypad,row = <0>;
+			keypad,column = <4>;
+			linux,code = <3>;
+		};
+
+		key_3 {
+			keypad,row = <0>;
+			keypad,column = <5>;
+			linux,code = <4>;
+		};
+
+		key_4 {
+			keypad,row = <0>;
+			keypad,column = <6>;
+			linux,code = <5>;
+		};
+
+		key_5 {
+			keypad,row = <0>;
+			keypad,column = <7>;
+			linux,code = <6>;
+		};
+
+		key_a {
+			keypad,row = <1>;
+			keypad,column = <3>;
+			linux,code = <30>;
+		};
+
+		key_b {
+			keypad,row = <1>;
+			keypad,column = <4>;
+			linux,code = <48>;
+		};
+
+		key_c {
+			keypad,row = <1>;
+			keypad,column = <5>;
+			linux,code = <46>;
+		};
+
+		key_d {
+			keypad,row = <1>;
+			keypad,column = <6>;
+			linux,code = <32>;
+		};
+
+		key_e {
+			keypad,row = <1>;
+			keypad,column = <7>;
+			linux,code = <18>;
+		};
+	};
+
+	i2c@13860000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <100000>;
+		status = "okay";
+
+		eeprom@50 {
+			compatible = "samsung,24ad0xd1";
+			reg = <0x50>;
+		};
+
+		eeprom@52 {
+			compatible = "samsung,24ad0xd1";
+			reg = <0x52>;
+		};
+	};
+
+	spi_2: spi@13940000 {
+		status = "okay";
+
+		w25x80@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "w25x80";
+			reg = <0>;
+			spi-max-frequency = <1000000>;
+
+			controller-data {
+				cs-gpio = <&gpc1 2 0>;
+				samsung,spi-feedback-delay = <0>;
+			};
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x0 0x40000>;
+				read-only;
+			};
+
+			partition@40000 {
+				label = "Kernel";
+				reg = <0x40000 0xc0000>;
+			};
+		};
+	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <12000000>;
+		};
+
+		xusbxti {
+			compatible = "samsung,clock-xusbxti";
+			clock-frequency = <24000000>;
+		};
+	};
+};

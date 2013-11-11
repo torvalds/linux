@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
- *  Copyright (C) 2007-2010 Bartlomiej Zolnierkiewicz
+ *  Copyright (C) 2007-2011 Bartlomiej Zolnierkiewicz
  *
  * CYPRESS CY82C693 chipset IDE controller
  *
@@ -90,7 +90,7 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	u8 time_16, time_8;
 
 	/* select primary or secondary channel */
-	if (hwif->index > 0) {  /* drive is on the secondary channel */
+	if (drive->dn > 1) {  /* drive is on the secondary channel */
 		dev = pci_get_slot(dev->bus, dev->devfn+1);
 		if (!dev) {
 			printk(KERN_ERR "%s: tune_drive: "
@@ -141,9 +141,11 @@ static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOW, time_16);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_8BIT, time_8);
 	}
+	if (drive->dn > 1)
+		pci_dev_put(dev);
 }
 
-static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
+static void init_iops_cy82c693(ide_hwif_t *hwif)
 {
 	static ide_hwif_t *primary;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -161,7 +163,7 @@ static const struct ide_port_ops cy82c693_port_ops = {
 	.set_dma_mode		= cy82c693_set_dma_mode,
 };
 
-static const struct ide_port_info cy82c693_chipset __devinitdata = {
+static const struct ide_port_info cy82c693_chipset = {
 	.name		= DRV_NAME,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,
@@ -171,7 +173,8 @@ static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.mwdma_mask	= ATA_MWDMA2,
 };
 
-static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int cy82c693_init_one(struct pci_dev *dev,
+			     const struct pci_device_id *id)
 {
 	struct pci_dev *dev2;
 	int ret = -ENODEV;
@@ -188,7 +191,7 @@ static int __devinit cy82c693_init_one(struct pci_dev *dev, const struct pci_dev
 	return ret;
 }
 
-static void __devexit cy82c693_remove(struct pci_dev *dev)
+static void cy82c693_remove(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
@@ -207,7 +210,7 @@ static struct pci_driver cy82c693_pci_driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
-	.remove		= __devexit_p(cy82c693_remove),
+	.remove		= cy82c693_remove,
 	.suspend	= ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };

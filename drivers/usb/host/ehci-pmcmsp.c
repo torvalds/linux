@@ -78,32 +78,18 @@ static int ehci_msp_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	int			retval;
+
 	ehci->big_endian_mmio = 1;
 	ehci->big_endian_desc = 1;
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 	hcd->has_tt = 1;
 
-	retval = ehci_halt(ehci);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
-
-	/* data structure init */
-	retval = ehci_init(hcd);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
 	usb_hcd_tdi_set_mode(ehci);
-	ehci_port_power(ehci, 0);
 
 	return retval;
 }
@@ -124,7 +110,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL)
 		return -ENOMEM;
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	if (!request_mem_region(res->start, res_len, "mab regs"))
 		return -EBUSY;
 
@@ -140,7 +126,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 		retval = -ENOMEM;
 		goto err2;
 	}
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	if (!request_mem_region(res->start, res_len, "usbid regs")) {
 		retval = -EBUSY;
 		goto err2;
@@ -154,13 +140,13 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	return 0;
 err3:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	release_mem_region(res->start, res_len);
 err2:
 	iounmap(dev->mab_regs);
 err1:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	release_mem_region(res->start, res_len);
 	dev_err(&pdev->dev, "Failed to map non-EHCI regs.\n");
 	return retval;
@@ -194,7 +180,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 		goto err1;
 	}
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, dev->name)) {
 		retval = -EBUSY;
 		goto err1;

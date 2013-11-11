@@ -71,9 +71,7 @@ struct ath_regulatory {
 	char alpha2[2];
 	u16 country_code;
 	u16 max_power_level;
-	u32 tp_scale;
 	u16 current_rd;
-	u16 current_rd_ext;
 	int16_t power_limit;
 	struct reg_dmn_pair_mapping *regpair;
 };
@@ -140,14 +138,12 @@ struct ath_common {
 	u8 curbssid[ETH_ALEN];
 	u8 bssidmask[ETH_ALEN];
 
-	u8 tx_chainmask;
-	u8 rx_chainmask;
-
 	u32 rx_bufsize;
 
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);
 	DECLARE_BITMAP(tkip_keymap, ATH_KEYMAX);
+	DECLARE_BITMAP(ccmp_keymap, ATH_KEYMAX);
 	enum ath_crypt_caps crypt_caps;
 
 	unsigned int clockrate;
@@ -157,10 +153,13 @@ struct ath_common {
 	struct ath_cycle_counters cc_survey;
 
 	struct ath_regulatory regulatory;
+	struct ath_regulatory reg_world_copy;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
 
 	bool btcoex_enabled;
+	bool disable_ani;
+	bool antenna_diversity;
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
@@ -177,8 +176,9 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 void ath_hw_cycle_counters_update(struct ath_common *common);
 int32_t ath_hw_get_listen_time(struct ath_common *common);
 
-extern __attribute__ ((format (printf, 3, 4))) int
-ath_printk(const char *level, struct ath_common *common, const char *fmt, ...);
+__printf(3, 4)
+void ath_printk(const char *level, const struct ath_common *common,
+		const char *fmt, ...);
 
 #define ath_emerg(common, fmt, ...)				\
 	ath_printk(KERN_EMERG, common, fmt, ##__VA_ARGS__)
@@ -213,6 +213,11 @@ ath_printk(const char *level, struct ath_common *common, const char *fmt, ...);
  * @ATH_DBG_HWTIMER: hardware timer handling
  * @ATH_DBG_BTCOEX: bluetooth coexistance
  * @ATH_DBG_BSTUCK: stuck beacons
+ * @ATH_DBG_MCI: Message Coexistence Interface, a private protocol
+ *	used exclusively for WLAN-BT coexistence starting from
+ *	AR9462.
+ * @ATH_DBG_DFS: radar datection
+ * @ATH_DBG_WOW: Wake on Wireless
  * @ATH_DBG_ANY: enable all debugging
  *
  * The debug level is used to control the amount and type of debugging output
@@ -238,6 +243,9 @@ enum ATH_DEBUG {
 	ATH_DBG_BTCOEX		= 0x00002000,
 	ATH_DBG_WMI		= 0x00004000,
 	ATH_DBG_BSTUCK		= 0x00008000,
+	ATH_DBG_MCI		= 0x00010000,
+	ATH_DBG_DFS		= 0x00020000,
+	ATH_DBG_WOW		= 0x00040000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 
@@ -245,28 +253,25 @@ enum ATH_DEBUG {
 
 #ifdef CONFIG_ATH_DEBUG
 
-#define ath_dbg(common, dbg_mask, fmt, ...)			\
-({								\
-	int rtn;						\
-	if ((common)->debug_mask & dbg_mask)			\
-		rtn = ath_printk(KERN_DEBUG, common, fmt,	\
-				 ##__VA_ARGS__);		\
-	else							\
-		rtn = 0;					\
-								\
-	rtn;							\
-})
+#define ath_dbg(common, dbg_mask, fmt, ...)				\
+do {									\
+	if ((common)->debug_mask & ATH_DBG_##dbg_mask)			\
+		ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
+} while (0)
+
 #define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)
 #define ATH_DBG_WARN_ON_ONCE(foo) WARN_ON_ONCE(foo)
 
 #else
 
-static inline  __attribute__ ((format (printf, 3, 4))) int
-ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
-	const char *fmt, ...)
+static inline  __attribute__ ((format (printf, 3, 4)))
+void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
+	     const char *fmt, ...)
 {
-	return 0;
 }
+#define ath_dbg(common, dbg_mask, fmt, ...)				\
+	_ath_dbg(common, ATH_DBG_##dbg_mask, fmt, ##__VA_ARGS__)
+
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
 #define ATH_DBG_WARN_ON_ONCE(foo) ({				\
 	int __ret_warn_once = !!(foo);				\

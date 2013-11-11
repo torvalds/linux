@@ -17,27 +17,11 @@
 #include <linux/skbuff.h>
 #include <linux/cgroup.h>
 #include <linux/rcupdate.h>
+#include <linux/fdtable.h>
 #include <net/rtnetlink.h>
 #include <net/pkt_cls.h>
 #include <net/sock.h>
 #include <net/cls_cgroup.h>
-
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-					       struct cgroup *cgrp);
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp);
-
-struct cgroup_subsys net_cls_subsys = {
-	.name		= "net_cls",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
-	.populate	= cgrp_populate,
-#ifdef CONFIG_NET_CLS_CGROUP
-	.subsys_id	= net_cls_subsys_id,
-#endif
-	.module		= THIS_MODULE,
-};
-
 
 static inline struct cgroup_cls_state *cgrp_cls_state(struct cgroup *cgrp)
 {
@@ -51,24 +35,49 @@ static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 			    struct cgroup_cls_state, css);
 }
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-						 struct cgroup *cgrp)
+static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_cls_state *cs;
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
-
-	if (cgrp->parent)
-		cs->classid = cgrp_cls_state(cgrp->parent)->classid;
-
 	return &cs->css;
 }
 
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
+static int cgrp_css_online(struct cgroup *cgrp)
+{
+	if (cgrp->parent)
+		cgrp_cls_state(cgrp)->classid =
+			cgrp_cls_state(cgrp->parent)->classid;
+	return 0;
+}
+
+static void cgrp_css_free(struct cgroup *cgrp)
 {
 	kfree(cgrp_cls_state(cgrp));
+}
+
+static int update_classid(const void *v, struct file *file, unsigned n)
+{
+	int err;
+	struct socket *sock = sock_from_file(file, &err);
+	if (sock)
+		sock->sk->sk_classid = (u32)(unsigned long)v;
+	return 0;
+}
+
+static void cgrp_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+{
+	struct task_struct *p;
+	void *v;
+
+	cgroup_taskset_for_each(p, cgrp, tset) {
+		task_lock(p);
+		v = (void *)(unsigned long)task_cls_classid(p);
+		iterate_fd(p->files, 0, update_classid, v);
+		task_unlock(p);
+	}
 }
 
 static u64 read_classid(struct cgroup *cgrp, struct cftype *cft)
@@ -88,12 +97,19 @@ static struct cftype ss_files[] = {
 		.read_u64 = read_classid,
 		.write_u64 = write_classid,
 	},
+	{ }	/* terminate */
 };
 
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
-{
-	return cgroup_add_files(cgrp, ss, ss_files, ARRAY_SIZE(ss_files));
-}
+struct cgroup_subsys net_cls_subsys = {
+	.name		= "net_cls",
+	.css_alloc	= cgrp_css_alloc,
+	.css_online	= cgrp_css_online,
+	.css_free	= cgrp_css_free,
+	.attach		= cgrp_attach,
+	.subsys_id	= net_cls_subsys_id,
+	.base_cftypes	= ss_files,
+	.module		= THIS_MODULE,
+};
 
 struct cls_cgroup_head {
 	u32			handle;
@@ -101,7 +117,7 @@ struct cls_cgroup_head {
 	struct tcf_ematch_tree	ematches;
 };
 
-static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			       struct tcf_result *res)
 {
 	struct cls_cgroup_head *head = tp->root;
@@ -162,7 +178,8 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
-static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
+static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
+			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
 			     unsigned long *arg)
 {
@@ -198,7 +215,8 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_validate(tp, tb, tca[TCA_RATE], &e, &cgroup_ext_map);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e,
+				&cgroup_ext_map);
 	if (err < 0)
 		return err;
 
@@ -294,12 +312,6 @@ static int __init init_cgroup_cls(void)
 	if (ret)
 		goto out;
 
-#ifndef CONFIG_NET_CLS_CGROUP
-	/* We can't use rcu_assign_pointer because this is an int. */
-	smp_wmb();
-	net_cls_subsys_id = net_cls_subsys.subsys_id;
-#endif
-
 	ret = register_tcf_proto_ops(&cls_cgroup_ops);
 	if (ret)
 		cgroup_unload_subsys(&net_cls_subsys);
@@ -311,11 +323,6 @@ out:
 static void __exit exit_cgroup_cls(void)
 {
 	unregister_tcf_proto_ops(&cls_cgroup_ops);
-
-#ifndef CONFIG_NET_CLS_CGROUP
-	net_cls_subsys_id = -1;
-	synchronize_rcu();
-#endif
 
 	cgroup_unload_subsys(&net_cls_subsys);
 }

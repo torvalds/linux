@@ -27,7 +27,7 @@
 #include <net/atmclip.h>
 #include <linux/uaccess.h>
 #include <linux/param.h> /* for HZ */
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "resources.h"
 #include "common.h" /* atm_proc_init prototype */
 #include "signaling.h" /* to get sigd - ugly too */
@@ -385,7 +385,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
-	dev = PDE(file->f_path.dentry->d_inode)->data;
+	dev = PDE_DATA(file_inode(file));
 	if (!dev->ops->proc_read)
 		length = -EINVAL;
 	else {
@@ -460,7 +460,7 @@ static void atm_proc_dirs_remove(void)
 		if (e->dirent)
 			remove_proc_entry(e->name, atm_proc_root);
 	}
-	proc_net_remove(&init_net, "atm");
+	remove_proc_entry("atm", init_net.proc_net);
 }
 
 int __init atm_proc_init(void)

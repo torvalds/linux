@@ -66,6 +66,24 @@ Description:
 		re-discover previously removed devices.
 		Depends on CONFIG_HOTPLUG.
 
+What:		/sys/bus/pci/devices/.../msi_irqs/
+Date:		September, 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		The /sys/devices/.../msi_irqs directory contains a variable set
+		of sub-directories, with each sub-directory being named after a
+		corresponding msi irq vector allocated to that device.  Each
+		numbered sub-directory N contains attributes of that irq.
+		Note that this directory is not created for device drivers which
+		do not support msi irqs
+
+What:		/sys/bus/pci/devices/.../msi_irqs/<N>/mode
+Date:		September 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		This attribute indicates the mode that the irq vector named by
+		the parent directory is in (msi vs. msix)
+
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
@@ -192,3 +210,49 @@ Users:
 		firmware assigned instance number of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.
+
+What:		/sys/bus/pci/devices/.../d3cold_allowed
+Date:		July 2012
+Contact:	Huang Ying <ying.huang@intel.com>
+Description:
+		d3cold_allowed is bit to control whether the corresponding PCI
+		device can be put into D3Cold state.  If it is cleared, the
+		device will never be put into D3Cold state.  If it is set, the
+		device may be put into D3Cold state if other requirements are
+		satisfied too.  Reading this attribute will show the current
+		value of d3cold_allowed bit.  Writing this attribute will set
+		the value of d3cold_allowed bit.
+
+What:		/sys/bus/pci/devices/.../sriov_totalvfs
+Date:		November 2012
+Contact:	Donald Dutile <ddutile@redhat.com>
+Description:
+		This file appears when a physical PCIe device supports SR-IOV.
+		Userspace applications can read this file to determine the
+		maximum number of Virtual Functions (VFs) a PCIe physical
+		function (PF) can support. Typically, this is the value reported
+		in the PF's SR-IOV extended capability structure's TotalVFs
+		element.  Drivers have the ability at probe time to reduce the
+		value read from this file via the pci_sriov_set_totalvfs()
+		function.
+
+What:		/sys/bus/pci/devices/.../sriov_numvfs
+Date:		November 2012
+Contact:	Donald Dutile <ddutile@redhat.com>
+Description:
+		This file appears when a physical PCIe device supports SR-IOV.
+		Userspace applications can read and write to this file to
+		determine and control the enablement or disablement of Virtual
+		Functions (VFs) on the physical function (PF). A read of this
+		file will return the number of VFs that are enabled on this PF.
+		A number written to this file will enable the specified
+		number of VFs. A userspace application would typically read the
+		file and check that the value is zero, and then write the number
+		of VFs that should be enabled on the PF; the value written
+		should be less than or equal to the value in the sriov_totalvfs
+		file. A userspace application wanting to disable the VFs would
+		write a zero to this file. The core ensures that valid values
+		are written to this file, and returns errors when values are not
+		valid.  For example, writing a 2 to this file when sriov_numvfs
+		is not 0 and not 2 already will return an error. Writing a 10
+		when the value of sriov_totalvfs is 8 will return an error.

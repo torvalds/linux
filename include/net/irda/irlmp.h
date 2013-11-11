@@ -134,7 +134,7 @@ typedef struct {
 } CACHE_ENTRY;
 
 /*
- *  Information about each registred IrLAP layer
+ *  Information about each registered IrLAP layer
  */
 struct lap_cb {
 	irda_queue_t queue; /* Must be first */
@@ -256,7 +256,8 @@ static inline __u32 irlmp_get_daddr(const struct lsap_cb *self)
 	return (self && self->lap) ? self->lap->daddr : 0;
 }
 
-extern const char *irlmp_reasons[];
+const char *irlmp_reason_str(LM_REASON reason);
+
 extern int sysctl_discovery_timeout;
 extern int sysctl_discovery_slots;
 extern int sysctl_discovery;
@@ -278,7 +279,7 @@ static inline int irlmp_lap_tx_queue_full(struct lsap_cb *self)
 }
 
 /* After doing a irlmp_dup(), this get one of the two socket back into
- * a state where it's waiting incomming connections.
+ * a state where it's waiting incoming connections.
  * Note : this can be used *only* if the socket is not yet connected
  * (i.e. NO irlmp_connect_response() done on this socket).
  * - Jean II */

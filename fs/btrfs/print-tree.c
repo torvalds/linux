@@ -158,8 +158,7 @@ static void print_extent_ref_v0(struct extent_buffer *eb, int slot)
 void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 {
 	int i;
-	u32 type;
-	u32 nr = btrfs_header_nritems(l);
+	u32 type, nr;
 	struct btrfs_item *item;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
@@ -172,7 +171,12 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 
-	printk(KERN_INFO "leaf %llu total ptrs %d free space %d\n",
+	if (!l)
+		return;
+
+	nr = btrfs_header_nritems(l);
+
+	btrfs_info(root->fs_info, "leaf %llu total ptrs %d free space %d",
 		(unsigned long long)btrfs_header_bytenr(l), nr,
 		btrfs_leaf_free_space(root, l));
 	for (i = 0 ; i < nr ; i++) {
@@ -290,6 +294,13 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			       btrfs_dev_extent_chunk_offset(l, dev_extent),
 			       (unsigned long long)
 			       btrfs_dev_extent_length(l, dev_extent));
+			break;
+		case BTRFS_DEV_STATS_KEY:
+			printk(KERN_INFO "\t\tdevice stats\n");
+			break;
+		case BTRFS_DEV_REPLACE_KEY:
+			printk(KERN_INFO "\t\tdev replace\n");
+			break;
 		};
 	}
 }
@@ -308,10 +319,9 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 		btrfs_print_leaf(root, c);
 		return;
 	}
-	printk(KERN_INFO "node %llu level %d total ptrs %d free spc %u\n",
-	       (unsigned long long)btrfs_header_bytenr(c),
-	      level, nr,
-	       (u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
+	btrfs_info(root->fs_info, "node %llu level %d total ptrs %d free spc %u",
+		(unsigned long long)btrfs_header_bytenr(c),
+		level, nr, (u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
 		printk(KERN_INFO "\tkey %d (%llu %u %llu) block %llu\n",

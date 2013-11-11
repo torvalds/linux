@@ -41,10 +41,15 @@ _GLOBAL(__setup_cpu_a2)
 	 * core local but doing it always won't hurt
 	 */
 
-#ifdef CONFIG_PPC_WSP_COPRO
+#ifdef CONFIG_PPC_ICSWX
 	/* Make sure ACOP starts out as zero */
 	li	r3,0
 	mtspr   SPRN_ACOP,r3
+
+	/* Skip the following if we are in Guest mode */
+	mfmsr	r3
+	andis.	r0,r3,MSR_GS@h
+	bne	_icswx_skip_guest
 
 	/* Enable icswx instruction */
 	mfspr   r3,SPRN_A2_CCR2
@@ -54,7 +59,8 @@ _GLOBAL(__setup_cpu_a2)
 	/* Unmask all CTs in HACOP */
 	li      r3,-1
 	mtspr   SPRN_HACOP,r3
-#endif /* CONFIG_PPC_WSP_COPRO */
+_icswx_skip_guest:
+#endif /* CONFIG_PPC_ICSWX */
 
 	/* Enable doorbell */
 	mfspr   r3,SPRN_A2_CCR2
@@ -94,19 +100,19 @@ _GLOBAL(__setup_cpu_a2)
 	lis	r4,(MMUCR0_TLBSEL_I|MMUCR0_ECL)@h
 	mtspr	SPRN_MMUCR0, r4
 	li	r4,A2_IERAT_SIZE-1
-	PPC_ERATWE(r4,r4,3)
+	PPC_ERATWE(R4,R4,3)
 
 	/* Now set the D-ERAT watermark to 31 */
 	lis	r4,(MMUCR0_TLBSEL_D|MMUCR0_ECL)@h
 	mtspr	SPRN_MMUCR0, r4
 	li	r4,A2_DERAT_SIZE-1
-	PPC_ERATWE(r4,r4,3)
+	PPC_ERATWE(R4,R4,3)
 
 	/* And invalidate the beast just in case. That won't get rid of
 	 * a bolted entry though it will be in LRU and so will go away eventually
 	 * but let's not bother for now
 	 */
-	PPC_ERATILX(0,0,0)
+	PPC_ERATILX(0,0,R0)
 1:
 	blr
 

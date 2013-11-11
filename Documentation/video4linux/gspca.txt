@@ -8,6 +8,7 @@ xxxx		vend:prod
 ----
 spca501		0000:0000	MystFromOri Unknown Camera
 spca508		0130:0130	Clone Digital Webcam 11043
+zc3xx		03f0:1b07	HP Premium Starter Cam
 m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
@@ -188,8 +189,10 @@ ov519		05a9:0511	Video Blaster WebCam 3/WebCam Plus, D-Link USB Digital Video Ca
 ov519		05a9:0518	Creative WebCam
 ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
+ov534_9		05a9:1550	OmniVision VEHO Filmscanner
 ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
+ov534_9		05a9:8065	OmniVision test kit ov538+ov9712
 ov519		05a9:8519	OmniVision
 ov519		05a9:a511	D-Link USB Digital Video Camera
 ov519		05a9:a518	D-Link DSB-C310 Webcam
@@ -199,6 +202,8 @@ gl860		05e3:0503	Genesys Logic PC Camera
 gl860		05e3:f191	Genesys Logic PC Camera
 spca561		060b:a001	Maxell Compact Pc PM3
 zc3xx		0698:2003	CTX M730V built in
+topro		06a2:0003	TP6800 PC Camera, CmoX CX0342 webcam
+topro		06a2:6810	Creative Qmax
 nw80x		06a5:0000	Typhoon Webcam 100 USB
 nw80x		06a5:d001	Divio based webcams
 nw80x		06a5:d800	Divio Chicony TwinkleCam, Trust SpaceCam
@@ -212,6 +217,7 @@ ov534_9		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
 sonixj		06f8:3008	Hercules Deluxe Optical Glass
 pac7302		06f8:3009	Hercules Classic Link
+pac7302		06f8:301b	Hercules Link
 nw80x		0728:d001	AVerMedia Camguard
 spca508		0733:0110	ViewQuest VQ110
 spca501		0733:0401	Intel Create and Share
@@ -270,10 +276,12 @@ pac7302		093a:2622	Genius Eye 312
 pac7302		093a:2624	PAC7302
 pac7302		093a:2625	Genius iSlim 310
 pac7302		093a:2626	Labtec 2200
+pac7302		093a:2627	Genius FaceCam 300
 pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k
 pac7302		093a:262c	Philips SPC 230 NC
+jl2005bcd	0979:0227	Various brands, 19 known cameras supported
 jeilinj		0979:0280	Sakar 57379
 jeilinj		0979:0280	Sportscam DV15
 zc3xx		0ac8:0302	Z-star Vimicro zc0302

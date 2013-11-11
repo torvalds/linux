@@ -346,7 +346,7 @@ static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 
 	/* Playback */
 	dma_config = &i2s->pcm_config_playback.dma_config;
-	dma_config->src_width = JZ4740_DMA_WIDTH_32BIT,
+	dma_config->src_width = JZ4740_DMA_WIDTH_32BIT;
 	dma_config->transfer_size = JZ4740_DMA_TRANSFER_SIZE_16BYTE;
 	dma_config->request_type = JZ4740_DMA_TYPE_AIC_TRANSMIT;
 	dma_config->flags = JZ4740_DMA_SRC_AUTOINC;
@@ -355,7 +355,7 @@ static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 
 	/* Capture */
 	dma_config = &i2s->pcm_config_capture.dma_config;
-	dma_config->dst_width = JZ4740_DMA_WIDTH_32BIT,
+	dma_config->dst_width = JZ4740_DMA_WIDTH_32BIT;
 	dma_config->transfer_size = JZ4740_DMA_TRANSFER_SIZE_16BYTE;
 	dma_config->request_type = JZ4740_DMA_TYPE_AIC_RECEIVE;
 	dma_config->flags = JZ4740_DMA_DST_AUTOINC;
@@ -392,7 +392,7 @@ static int jz4740_i2s_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 	.startup = jz4740_i2s_startup,
 	.shutdown = jz4740_i2s_shutdown,
 	.trigger = jz4740_i2s_trigger,
@@ -425,7 +425,11 @@ static struct snd_soc_dai_driver jz4740_i2s_dai = {
 	.resume = jz4740_i2s_resume,
 };
 
-static int __devinit jz4740_i2s_dev_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver jz4740_i2s_component = {
+	.name		= "jz4740-i2s",
+};
+
+static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s;
 	int ret;
@@ -469,7 +473,8 @@ static int __devinit jz4740_i2s_dev_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, i2s);
-	ret = snd_soc_register_dai(&pdev->dev, &jz4740_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &jz4740_i2s_component,
+					 &jz4740_i2s_dai, 1);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register DAI\n");
@@ -492,11 +497,11 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz4740_i2s_dev_remove(struct platform_device *pdev)
+static int jz4740_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct jz4740_i2s *i2s = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(i2s->clk_i2s);
 	clk_put(i2s->clk_aic);
@@ -512,24 +517,14 @@ static int __devexit jz4740_i2s_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
-	.remove = __devexit_p(jz4740_i2s_dev_remove),
+	.remove = jz4740_i2s_dev_remove,
 	.driver = {
 		.name = "jz4740-i2s",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init jz4740_i2s_init(void)
-{
-	return platform_driver_register(&jz4740_i2s_driver);
-}
-module_init(jz4740_i2s_init);
-
-static void __exit jz4740_i2s_exit(void)
-{
-	platform_driver_unregister(&jz4740_i2s_driver);
-}
-module_exit(jz4740_i2s_exit);
+module_platform_driver(jz4740_i2s_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen, <lars@metafoo.de>");
 MODULE_DESCRIPTION("Ingenic JZ4740 SoC I2S driver");

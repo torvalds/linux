@@ -13,8 +13,11 @@
 #include <linux/security.h>
 #include <linux/slab.h>
 #include <linux/ipc.h>
+#include <linux/msg.h>
 #include <linux/ipc_namespace.h>
-#include <asm/uaccess.h>
+#include <linux/utsname.h>
+#include <linux/proc_ns.h>
+#include <linux/uaccess.h>
 
 #include "util.h"
 
@@ -27,70 +30,77 @@ DEFINE_SPINLOCK(mq_lock);
  */
 struct ipc_namespace init_ipc_ns = {
 	.count		= ATOMIC_INIT(1),
-#ifdef CONFIG_POSIX_MQUEUE
-	.mq_queues_max   = DFLT_QUEUESMAX,
-	.mq_msg_max      = DFLT_MSGMAX,
-	.mq_msgsize_max  = DFLT_MSGSIZEMAX,
-#endif
 	.user_ns = &init_user_ns,
+	.proc_inum = PROC_IPC_INIT_INO,
 };
 
 atomic_t nr_ipc_ns = ATOMIC_INIT(1);
 
 struct msg_msgseg {
-	struct msg_msgseg* next;
+	struct msg_msgseg *next;
 	/* the next part of the message follows immediately */
 };
 
-#define DATALEN_MSG	(PAGE_SIZE-sizeof(struct msg_msg))
-#define DATALEN_SEG	(PAGE_SIZE-sizeof(struct msg_msgseg))
+#define DATALEN_MSG	(int)(PAGE_SIZE-sizeof(struct msg_msg))
+#define DATALEN_SEG	(int)(PAGE_SIZE-sizeof(struct msg_msgseg))
 
-struct msg_msg *load_msg(const void __user *src, int len)
+
+static struct msg_msg *alloc_msg(int len)
 {
 	struct msg_msg *msg;
 	struct msg_msgseg **pseg;
-	int err;
 	int alen;
 
-	alen = len;
-	if (alen > DATALEN_MSG)
-		alen = DATALEN_MSG;
-
+	alen = min(len, DATALEN_MSG);
 	msg = kmalloc(sizeof(*msg) + alen, GFP_KERNEL);
 	if (msg == NULL)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	msg->next = NULL;
 	msg->security = NULL;
 
-	if (copy_from_user(msg + 1, src, alen)) {
-		err = -EFAULT;
-		goto out_err;
-	}
-
 	len -= alen;
-	src = ((char __user *)src) + alen;
 	pseg = &msg->next;
 	while (len > 0) {
 		struct msg_msgseg *seg;
-		alen = len;
-		if (alen > DATALEN_SEG)
-			alen = DATALEN_SEG;
-		seg = kmalloc(sizeof(*seg) + alen,
-						 GFP_KERNEL);
-		if (seg == NULL) {
-			err = -ENOMEM;
+		alen = min(len, DATALEN_SEG);
+		seg = kmalloc(sizeof(*seg) + alen, GFP_KERNEL);
+		if (seg == NULL)
 			goto out_err;
-		}
 		*pseg = seg;
 		seg->next = NULL;
-		if (copy_from_user(seg + 1, src, alen)) {
-			err = -EFAULT;
-			goto out_err;
-		}
 		pseg = &seg->next;
 		len -= alen;
-		src = ((char __user *)src) + alen;
+	}
+
+	return msg;
+
+out_err:
+	free_msg(msg);
+	return NULL;
+}
+
+struct msg_msg *load_msg(const void __user *src, int len)
+{
+	struct msg_msg *msg;
+	struct msg_msgseg *seg;
+	int err = -EFAULT;
+	int alen;
+
+	msg = alloc_msg(len);
+	if (msg == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	alen = min(len, DATALEN_MSG);
+	if (copy_from_user(msg + 1, src, alen))
+		goto out_err;
+
+	for (seg = msg->next; seg != NULL; seg = seg->next) {
+		len -= alen;
+		src = (char __user *)src + alen;
+		alen = min(len, DATALEN_SEG);
+		if (copy_from_user(seg + 1, src, alen))
+			goto out_err;
 	}
 
 	err = security_msg_msg_alloc(msg);
@@ -103,30 +113,55 @@ out_err:
 	free_msg(msg);
 	return ERR_PTR(err);
 }
+#ifdef CONFIG_CHECKPOINT_RESTORE
+struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
+{
+	struct msg_msgseg *dst_pseg, *src_pseg;
+	int len = src->m_ts;
+	int alen;
 
+	BUG_ON(dst == NULL);
+	if (src->m_ts > dst->m_ts)
+		return ERR_PTR(-EINVAL);
+
+	alen = min(len, DATALEN_MSG);
+	memcpy(dst + 1, src + 1, alen);
+
+	for (dst_pseg = dst->next, src_pseg = src->next;
+	     src_pseg != NULL;
+	     dst_pseg = dst_pseg->next, src_pseg = src_pseg->next) {
+
+		len -= alen;
+		alen = min(len, DATALEN_SEG);
+		memcpy(dst_pseg + 1, src_pseg + 1, alen);
+	}
+
+	dst->m_type = src->m_type;
+	dst->m_ts = src->m_ts;
+
+	return dst;
+}
+#else
+struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
+{
+	return ERR_PTR(-ENOSYS);
+}
+#endif
 int store_msg(void __user *dest, struct msg_msg *msg, int len)
 {
 	int alen;
 	struct msg_msgseg *seg;
 
-	alen = len;
-	if (alen > DATALEN_MSG)
-		alen = DATALEN_MSG;
+	alen = min(len, DATALEN_MSG);
 	if (copy_to_user(dest, msg + 1, alen))
 		return -1;
 
-	len -= alen;
-	dest = ((char __user *)dest) + alen;
-	seg = msg->next;
-	while (len > 0) {
-		alen = len;
-		if (alen > DATALEN_SEG)
-			alen = DATALEN_SEG;
+	for (seg = msg->next; seg != NULL; seg = seg->next) {
+		len -= alen;
+		dest = (char __user *)dest + alen;
+		alen = min(len, DATALEN_SEG);
 		if (copy_to_user(dest, seg + 1, alen))
 			return -1;
-		len -= alen;
-		dest = ((char __user *)dest) + alen;
-		seg = seg->next;
 	}
 	return 0;
 }

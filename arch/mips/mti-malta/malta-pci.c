@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Technologies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -127,7 +127,7 @@ void __init mips_pcibios_init(void)
 			map = map1;
 		}
 		mask = ~(start ^ end);
-                /* We don't support remapping with a discontiguous mask.  */
+		/* We don't support remapping with a discontiguous mask.  */
 		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_mem_resource.start = start;
@@ -144,7 +144,7 @@ void __init mips_pcibios_init(void)
 		map = GT_READ(GT_PCI0IOREMAP_OFS);
 		end = (end & GT_PCI_HD_MSK) | (start & ~GT_PCI_HD_MSK);
 		mask = ~(start ^ end);
-                /* We don't support remapping with a discontiguous mask.  */
+		/* We don't support remapping with a discontiguous mask.  */
 		BUG_ON((start & GT_PCI_HD_MSK) != (map & GT_PCI_HD_MSK) &&
 		       mask != ~((mask & -mask) - 1));
 		gt64120_io_resource.start = map & mask;
@@ -241,8 +241,9 @@ void __init mips_pcibios_init(void)
 		return;
 	}
 
-	if (controller->io_resource->start < 0x00001000UL)	/* FIXME */
-		controller->io_resource->start = 0x00001000UL;
+	/* Change start address to avoid conflicts with ACPI and SMB devices */
+	if (controller->io_resource->start < 0x00002000UL)
+		controller->io_resource->start = 0x00002000UL;
 
 	iomem_resource.end &= 0xfffffffffULL;			/* 64 GB */
 	ioport_resource.end = controller->io_resource->end;
@@ -251,16 +252,3 @@ void __init mips_pcibios_init(void)
 
 	register_pci_controller(controller);
 }
-
-/* Enable PCI 2.1 compatibility in PIIX4 */
-static void __init quirk_dlcsetup(struct pci_dev *dev)
-{
-	u8 odlc, ndlc;
-	(void) pci_read_config_byte(dev, 0x82, &odlc);
-	/* Enable passive releases and delayed transaction */
-	ndlc = odlc | 7;
-	(void) pci_write_config_byte(dev, 0x82, ndlc);
-}
-
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_0,
-	quirk_dlcsetup);

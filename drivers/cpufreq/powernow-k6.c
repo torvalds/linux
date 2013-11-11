@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/io.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 
 #define POWERNOW_IOPORT 0xfff0          /* it doesn't matter where, as long
@@ -67,7 +68,8 @@ static int powernow_k6_get_cpu_multiplier(void)
  *
  *   Tries to change the PowerNow! multiplier
  */
-static void powernow_k6_set_state(unsigned int best_i)
+static void powernow_k6_set_state(struct cpufreq_policy *policy,
+		unsigned int best_i)
 {
 	unsigned long outvalue = 0, invalue = 0;
 	unsigned long msrval;
@@ -80,9 +82,8 @@ static void powernow_k6_set_state(unsigned int best_i)
 
 	freqs.old = busfreq * powernow_k6_get_cpu_multiplier();
 	freqs.new = busfreq * clock_ratio[best_i].index;
-	freqs.cpu = 0; /* powernow-k6.c is UP only driver */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* we now need to transform best_i to the BVC format, see AMD#23446 */
 
@@ -97,7 +98,7 @@ static void powernow_k6_set_state(unsigned int best_i)
 	msrval = POWERNOW_IOPORT + 0x0;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return;
 }
@@ -135,7 +136,7 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 				target_freq, relation, &newstate))
 		return -EINVAL;
 
-	powernow_k6_set_state(newstate);
+	powernow_k6_set_state(policy, newstate);
 
 	return 0;
 }
@@ -181,7 +182,7 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 	unsigned int i;
 	for (i = 0; i < 8; i++) {
 		if (i == max_multiplier)
-			powernow_k6_set_state(i);
+			powernow_k6_set_state(policy, i);
 	}
 	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
@@ -210,6 +211,12 @@ static struct cpufreq_driver powernow_k6_driver = {
 	.attr		= powernow_k6_attr,
 };
 
+static const struct x86_cpu_id powernow_k6_ids[] = {
+	{ X86_VENDOR_AMD, 5, 12 },
+	{ X86_VENDOR_AMD, 5, 13 },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, powernow_k6_ids);
 
 /**
  * powernow_k6_init - initializes the k6 PowerNow! CPUFreq driver
@@ -220,10 +227,7 @@ static struct cpufreq_driver powernow_k6_driver = {
  */
 static int __init powernow_k6_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||
-		((c->x86_model != 12) && (c->x86_model != 13)))
+	if (!x86_match_cpu(powernow_k6_ids))
 		return -ENODEV;
 
 	if (!request_region(POWERNOW_IOPORT, 16, "PowerNow!")) {

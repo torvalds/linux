@@ -17,13 +17,9 @@
 #ifndef _MACH_TEGRA_BOARD_PAZ00_H
 #define _MACH_TEGRA_BOARD_PAZ00_H
 
-#define TEGRA_GPIO_SD1_CD               TEGRA_GPIO_PV5
-#define TEGRA_GPIO_SD1_WP               TEGRA_GPIO_PH1
-#define TEGRA_GPIO_SD1_POWER            TEGRA_GPIO_PT3
-#define TEGRA_GPIO_SD4_CD               TEGRA_GPIO_PH2
-#define TEGRA_GPIO_SD4_WP               TEGRA_GPIO_PH3
-#define TEGRA_GPIO_SD4_POWER            TEGRA_GPIO_PI6
+#include "gpio-names.h"
 
-void paz00_pinmux_init(void);
+#define TEGRA_WIFI_PWRN			TEGRA_GPIO_PK5
+#define TEGRA_WIFI_RST			TEGRA_GPIO_PD1
 
 #endif

@@ -9,8 +9,8 @@
 #ifndef __XEN_PUBLIC_IO_BLKIF_H__
 #define __XEN_PUBLIC_IO_BLKIF_H__
 
-#include "ring.h"
-#include "../grant_table.h"
+#include <xen/interface/io/ring.h>
+#include <xen/interface/grant_table.h>
 
 /*
  * Front->back notifications: When enqueuing a new request, sending a
@@ -57,6 +57,51 @@ typedef uint64_t blkif_sector_t;
  * "feature-flush-cache" node!
  */
 #define BLKIF_OP_FLUSH_DISKCACHE   3
+
+/*
+ * Recognised only if "feature-discard" is present in backend xenbus info.
+ * The "feature-discard" node contains a boolean indicating whether trim
+ * (ATA) or unmap (SCSI) - conviently called discard requests are likely
+ * to succeed or fail. Either way, a discard request
+ * may fail at any time with BLKIF_RSP_EOPNOTSUPP if it is unsupported by
+ * the underlying block-device hardware. The boolean simply indicates whether
+ * or not it is worthwhile for the frontend to attempt discard requests.
+ * If a backend does not recognise BLKIF_OP_DISCARD, it should *not*
+ * create the "feature-discard" node!
+ *
+ * Discard operation is a request for the underlying block device to mark
+ * extents to be erased. However, discard does not guarantee that the blocks
+ * will be erased from the device - it is just a hint to the device
+ * controller that these blocks are no longer in use. What the device
+ * controller does with that information is left to the controller.
+ * Discard operations are passed with sector_number as the
+ * sector index to begin discard operations at and nr_sectors as the number of
+ * sectors to be discarded. The specified sectors should be discarded if the
+ * underlying block device supports trim (ATA) or unmap (SCSI) operations,
+ * or a BLKIF_RSP_EOPNOTSUPP  should be returned.
+ * More information about trim/unmap operations at:
+ * http://t13.org/Documents/UploadedDocuments/docs2008/
+ *     e07154r6-Data_Set_Management_Proposal_for_ATA-ACS2.doc
+ * http://www.seagate.com/staticfiles/support/disc/manuals/
+ *     Interface%20manuals/100293068c.pdf
+ * The backend can optionally provide three extra XenBus attributes to
+ * further optimize the discard functionality:
+ * 'discard-aligment' - Devices that support discard functionality may
+ * internally allocate space in units that are bigger than the exported
+ * logical block size. The discard-alignment parameter indicates how many bytes
+ * the beginning of the partition is offset from the internal allocation unit's
+ * natural alignment.
+ * 'discard-granularity'  - Devices that support discard functionality may
+ * internally allocate space using units that are bigger than the logical block
+ * size. The discard-granularity parameter indicates the size of the internal
+ * allocation unit in bytes if reported by the device. Otherwise the
+ * discard-granularity will be set to match the device's physical block size.
+ * 'discard-secure' - All copies of the discarded sectors (potentially created
+ * by garbage collection) must also be erased.  To use this feature, the flag
+ * BLKIF_DISCARD_SECURE must be set in the blkif_request_trim.
+ */
+#define BLKIF_OP_DISCARD           5
+
 /*
  * Maximum scatter/gather segments per request.
  * This is carefully chosen so that sizeof(struct blkif_ring) <= PAGE_SIZE.
@@ -65,6 +110,12 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
 struct blkif_request_rw {
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   handle;       /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad1;	     /* offsetof(blkif_request,u.rw.id) == 8 */
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
 	struct blkif_request_segment {
 		grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -72,17 +123,38 @@ struct blkif_request_rw {
 		/* @last_sect: last sector in frame to transfer (inclusive).     */
 		uint8_t     first_sect, last_sect;
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-};
+} __attribute__((__packed__));
+
+struct blkif_request_discard {
+	uint8_t        flag;         /* BLKIF_DISCARD_SECURE or zero.        */
+#define BLKIF_DISCARD_SECURE (1<<0)  /* ignored if discard-secure=0          */
+	blkif_vdev_t   _pad1;        /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
+	blkif_sector_t sector_number;
+	uint64_t       nr_sectors;
+	uint8_t        _pad3;
+} __attribute__((__packed__));
+
+struct blkif_request_other {
+	uint8_t      _pad1;
+	blkif_vdev_t _pad2;        /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t     _pad3;        /* offsetof(blkif_req..,u.other.id)==8*/
+#endif
+	uint64_t     id;           /* private guest value, echoed in resp  */
+} __attribute__((__packed__));
 
 struct blkif_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
-	uint64_t       id;           /* private guest value, echoed in resp  */
 	union {
 		struct blkif_request_rw rw;
+		struct blkif_request_discard discard;
+		struct blkif_request_other other;
 	} u;
-};
+} __attribute__((__packed__));
 
 struct blkif_response {
 	uint64_t        id;              /* copied from request */

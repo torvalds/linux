@@ -32,7 +32,7 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		If CONFIG_PM_RUNTIME is enabled then this file
 		is present.  When read, it returns the total time (in msec)
 		that the USB device has been connected to the machine.  This
 		file is read-only.
@@ -45,7 +45,7 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		If CONFIG_PM_RUNTIME is enabled then this file
 		is present.  When read, it returns the total time (in msec)
 		that the USB device has been active, i.e. not in a suspended
 		state.  This file is read-only.
@@ -119,6 +119,42 @@ Description:
 		Write a 1 to force the device to disconnect
 		(equivalent to unplugging a wired USB device).
 
+What:		/sys/bus/usb/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Writing a device ID to this file will attempt to
+		dynamically add a new device ID to a USB device driver.
+		This may allow the driver to support more hardware than
+		was included in the driver's static device ID support
+		table at compile time. The format for the device ID is:
+		idVendor idProduct bInterfaceClass.
+		The vendor ID and device ID fields are required, the
+		interface class is optional.
+		Upon successfully adding an ID, the driver will probe
+		for the device and attempt to bind to it.  For example:
+		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+
+		Reading from this file will list all dynamically added
+		device IDs in the same format, with one entry per
+		line. For example:
+		# cat /sys/bus/usb/drivers/foo/new_id
+		8086 10f5
+		dead beef 06
+		f00d cafe
+
+		The list will be truncated at PAGE_SIZE bytes due to
+		sysfs restrictions.
+
+What:		/sys/bus/usb-serial/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		For serial USB drivers, this attribute appears under the
+		extra bus folder "usb-serial" in sysfs; apart from that
+		difference, all descriptions from the entry
+		"/sys/bus/usb/drivers/.../new_id" apply.
+
 What:		/sys/bus/usb/drivers/.../remove_id
 Date:		November 2009
 Contact:	CHENG Renquan <rqcheng@smu.edu.sg>
@@ -132,6 +168,10 @@ Description:
 		match the driver to the device.  For example:
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
 
+		Reading from this file will list the dynamically added
+		device IDs, exactly like reading from the entry
+		"/sys/bus/usb/drivers/.../new_id"
+
 What:		/sys/bus/usb/device/.../avoid_reset_quirk
 Date:		December 2009
 Contact:	Oliver Neukum <oliver@neukum.org>
@@ -142,3 +182,57 @@ Description:
 		such devices.
 Users:
 		usb_modeswitch
+
+What:		/sys/bus/usb/devices/.../power/usb2_hardware_lpm
+Date:		September 2011
+Contact:	Andiry Xu <andiry.xu@amd.com>
+Description:
+		If CONFIG_PM_RUNTIME is set and a USB 2.0 lpm-capable device
+		is plugged in to a xHCI host which support link PM, it will
+		perform a LPM test; if the test is passed and host supports
+		USB2 hardware LPM (xHCI 1.0 feature), USB2 hardware LPM will
+		be enabled for the device and the USB device directory will
+		contain a file named power/usb2_hardware_lpm.  The file holds
+		a string value (enable or disable) indicating whether or not
+		USB2 hardware LPM is enabled for the device. Developer can
+		write y/Y/1 or n/N/0 to the file to enable/disable the
+		feature.
+
+What:		/sys/bus/usb/devices/.../removable
+Date:		February 2012
+Contact:	Matthew Garrett <mjg@redhat.com>
+Description:
+		Some information about whether a given USB device is
+		physically fixed to the platform can be inferred from a
+		combination of hub descriptor bits and platform-specific data
+		such as ACPI. This file will read either "removable" or
+		"fixed" if the information is available, and "unknown"
+		otherwise.
+
+What:		/sys/bus/usb/devices/.../ltm_capable
+Date:		July 2012
+Contact:	Sarah Sharp <sarah.a.sharp@linux.intel.com>
+Description:
+		USB 3.0 devices may optionally support Latency Tolerance
+		Messaging (LTM).  They indicate their support by setting a bit
+		in the bmAttributes field of their SuperSpeed BOS descriptors.
+		If that bit is set for the device, ltm_capable will read "yes".
+		If the device doesn't support LTM, the file will read "no".
+		The file will be present for all speeds of USB devices, and will
+		always read "no" for USB 1.1 and USB 2.0 devices.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX
+Date:		August 2012
+Contact:	Lan Tianyu <tianyu.lan@intel.com>
+Description:
+		The /sys/bus/usb/devices/.../(hub interface)/portX
+		is usb port device's sysfs directory.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/connect_type
+Date:		January 2013
+Contact:	Lan Tianyu <tianyu.lan@intel.com>
+Description:
+		Some platforms provide usb port connect types through ACPI.
+		This attribute is to expose these information to user space.
+		The file will read "hotplug", "wired" and "not used" if the
+		information is available, and "unknown" otherwise.

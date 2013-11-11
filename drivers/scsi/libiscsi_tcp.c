@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/kfifo.h>
 #include <linux/scatterlist.h>
+#include <linux/module.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -134,7 +135,7 @@ static void iscsi_tcp_segment_map(struct iscsi_segment *segment, int recv)
 
 	if (recv) {
 		segment->atomic_mapped = true;
-		segment->sg_mapped = kmap_atomic(sg_page(sg), KM_SOFTIRQ0);
+		segment->sg_mapped = kmap_atomic(sg_page(sg));
 	} else {
 		segment->atomic_mapped = false;
 		/* the xmit path can sleep with the page mapped so use kmap */
@@ -148,7 +149,7 @@ void iscsi_tcp_segment_unmap(struct iscsi_segment *segment)
 {
 	if (segment->sg_mapped) {
 		if (segment->atomic_mapped)
-			kunmap_atomic(segment->sg_mapped, KM_SOFTIRQ0);
+			kunmap_atomic(segment->sg_mapped);
 		else
 			kunmap(sg_page(segment->sg));
 		segment->sg_mapped = NULL;
@@ -1084,7 +1085,8 @@ iscsi_tcp_conn_setup(struct iscsi_cls_session *cls_session, int dd_data_size,
 	struct iscsi_cls_conn *cls_conn;
 	struct iscsi_tcp_conn *tcp_conn;
 
-	cls_conn = iscsi_conn_setup(cls_session, sizeof(*tcp_conn), conn_idx);
+	cls_conn = iscsi_conn_setup(cls_session,
+				    sizeof(*tcp_conn) + dd_data_size, conn_idx);
 	if (!cls_conn)
 		return NULL;
 	conn = cls_conn->dd_data;
@@ -1096,22 +1098,13 @@ iscsi_tcp_conn_setup(struct iscsi_cls_session *cls_session, int dd_data_size,
 
 	tcp_conn = conn->dd_data;
 	tcp_conn->iscsi_conn = conn;
-
-	tcp_conn->dd_data = kzalloc(dd_data_size, GFP_KERNEL);
-	if (!tcp_conn->dd_data) {
-		iscsi_conn_teardown(cls_conn);
-		return NULL;
-	}
+	tcp_conn->dd_data = conn->dd_data + sizeof(*tcp_conn);
 	return cls_conn;
 }
 EXPORT_SYMBOL_GPL(iscsi_tcp_conn_setup);
 
 void iscsi_tcp_conn_teardown(struct iscsi_cls_conn *cls_conn)
 {
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
-
-	kfree(tcp_conn->dd_data);
 	iscsi_conn_teardown(cls_conn);
 }
 EXPORT_SYMBOL_GPL(iscsi_tcp_conn_teardown);
@@ -1176,6 +1169,24 @@ void iscsi_tcp_r2tpool_free(struct iscsi_session *session)
 	}
 }
 EXPORT_SYMBOL_GPL(iscsi_tcp_r2tpool_free);
+
+int iscsi_tcp_set_max_r2t(struct iscsi_conn *conn, char *buf)
+{
+	struct iscsi_session *session = conn->session;
+	unsigned short r2ts = 0;
+
+	sscanf(buf, "%hu", &r2ts);
+	if (session->max_r2t == r2ts)
+		return 0;
+
+	if (!r2ts || !is_power_of_2(r2ts))
+		return -EINVAL;
+
+	session->max_r2t = r2ts;
+	iscsi_tcp_r2tpool_free(session);
+	return iscsi_tcp_r2tpool_alloc(session);
+}
+EXPORT_SYMBOL_GPL(iscsi_tcp_set_max_r2t);
 
 void iscsi_tcp_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 			      struct iscsi_stats *stats)

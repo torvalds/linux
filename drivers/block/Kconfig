@@ -63,19 +63,6 @@ config AMIGA_Z2RAM
 	  To compile this driver as a module, choose M here: the
 	  module will be called z2ram.
 
-config BLK_DEV_XD
-	tristate "XT hard disk support"
-	depends on ISA && ISA_DMA_API
-	select CHECK_SIGNATURE
-	help
-	  Very old 8 bit hard disk controllers used in the IBM XT computer
-	  will be supported if you say Y here.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called xd.
-
-	  It's pretty unlikely that you have one of these: say N.
-
 config GDROM
 	tristate "SEGA Dreamcast GD-ROM drive"
 	depends on SH_DREAMCAST
@@ -116,6 +103,8 @@ config PARIDE
 
 source "drivers/block/paride/Kconfig"
 
+source "drivers/block/mtip32xx/Kconfig"
+
 config BLK_CPQ_DA
 	tristate "Compaq SMART2 support"
 	depends on PCI && VIRT_TO_BUS
@@ -129,6 +118,7 @@ config BLK_CPQ_DA
 config BLK_CPQ_CISS_DA
 	tristate "Compaq Smart Array 5xxx support"
 	depends on PCI
+	select CHECK_SIGNATURE
 	help
 	  This is the driver for Compaq Smart Array 5xxx controllers.
 	  Everyone using these boards should say Y here.
@@ -164,8 +154,8 @@ config BLK_DEV_DAC960
 	  module will be called DAC960.
 
 config BLK_DEV_UMEM
-	tristate "Micro Memory MM5415 Battery Backed RAM support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Micro Memory MM5415 Battery Backed RAM support"
+	depends on PCI
 	---help---
 	  Saying Y here will include support for the MM5415 family of
 	  battery backed (Non-volatile) RAM cards.
@@ -256,6 +246,21 @@ config BLK_DEV_LOOP
 
 	  Most users will answer N here.
 
+config BLK_DEV_LOOP_MIN_COUNT
+	int "Number of loop devices to pre-create at init time"
+	depends on BLK_DEV_LOOP
+	default 8
+	help
+	  Static number of loop devices to be unconditionally pre-created
+	  at init time.
+
+	  This default value can be overwritten on the kernel command
+	  line or with module-parameter loop.max_loop.
+
+	  The historic default is 8. If a late 2011 version of losetup(8)
+	  is used, it can be set to 0, since needed loop devices can be
+	  dynamically allocated with the /dev/loop-control interface.
+
 config BLK_DEV_CRYPTOLOOP
 	tristate "Cryptoloop Support"
 	select CRYPTO
@@ -300,6 +305,17 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
+config BLK_DEV_NVME
+	tristate "NVM Express block device"
+	depends on PCI
+	---help---
+	  The NVM Express driver is for solid state drives directly
+	  connected to the PCI or PCI Express bus.  If you know you
+	  don't have one of these, it is safe to answer N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvme.
+
 config BLK_DEV_OSD
 	tristate "OSD object-as-blkdev support"
 	depends on SCSI_OSD_ULD
@@ -324,18 +340,6 @@ config BLK_DEV_SX8
 	  Promise SATA SX8 controllers.
 
 	  Use devices /dev/sx8/$N and /dev/sx8/$Np$M.
-
-config BLK_DEV_UB
-	tristate "Low Performance USB Block driver"
-	depends on USB
-	help
-	  This driver supports certain USB attached storage devices
-	  such as flash keys.
-
-	  If you enable this driver, it is recommended to avoid conflicts
-	  with usb-storage by enabling USB_LIBUSUAL.
-
-	  If unsure, say N.
 
 config BLK_DEV_RAM
 	tristate "RAM block device support"
@@ -414,8 +418,8 @@ config CDROM_PKTCDVD_BUFFERS
 	  a disc is opened for writing.
 
 config CDROM_PKTCDVD_WCACHE
-	bool "Enable write caching (EXPERIMENTAL)"
-	depends on CDROM_PKTCDVD && EXPERIMENTAL
+	bool "Enable write caching"
+	depends on CDROM_PKTCDVD
 	help
 	  If enabled, write caching will be set for the CD-R/W device. For now
 	  this option is dangerous unless the CD-RW media is known good, as we
@@ -471,7 +475,7 @@ config XEN_BLKDEV_FRONTEND
 	  in another domain which drives the actual block device.
 
 config XEN_BLKDEV_BACKEND
-	tristate "Block-device backend driver"
+	tristate "Xen block-device backend driver"
 	depends on XEN_BACKEND
 	help
 	  The block-device backend driver allows the kernel to export its
@@ -492,8 +496,8 @@ config XEN_BLKDEV_BACKEND
 
 
 config VIRTIO_BLK
-	tristate "Virtio block driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "Virtio block driver"
+	depends on VIRTIO
 	---help---
 	  This is the virtual block driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -512,7 +516,7 @@ config BLK_DEV_HD
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
-	depends on INET && EXPERIMENTAL && BLOCK
+	depends on INET && BLOCK
 	select CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
@@ -526,5 +530,15 @@ config BLK_DEV_RBD
 	  More information at http://ceph.newdream.net/.
 
 	  If unsure, say N.
+
+config BLK_DEV_RSXX
+	tristate "IBM FlashSystem 70/80 PCIe SSD Device Driver"
+	depends on PCI
+	help
+	  Device driver for IBM's high speed PCIe SSD
+	  storage devices: FlashSystem-70 and FlashSystem-80.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rsxx.
 
 endif # BLK_DEV

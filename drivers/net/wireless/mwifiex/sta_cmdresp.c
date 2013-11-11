@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 
 /*
@@ -49,7 +50,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	unsigned long flags;
 
 	dev_err(adapter->dev, "CMD_RESP: cmd %#x error, result=%#x\n",
-			resp->command, resp->result);
+		resp->command, resp->result);
 
 	if (adapter->curr_cmd->wait_q_enabled)
 		adapter->cmd_wait_q.status = -1;
@@ -57,13 +58,13 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 	switch (le16_to_cpu(resp->command)) {
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		pm = &resp->params.psmode_enh;
-		dev_err(adapter->dev, "PS_MODE_ENH cmd failed: "
-					"result=0x%x action=0x%X\n",
-				resp->result, le16_to_cpu(pm->action));
+		dev_err(adapter->dev,
+			"PS_MODE_ENH cmd failed: result=0x%x action=0x%X\n",
+			resp->result, le16_to_cpu(pm->action));
 		/* We do not re-try enter-ps command in ad-hoc mode. */
 		if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
-			(le16_to_cpu(pm->params.ps_bitmap) & BITMAP_STA_PS) &&
-				priv->bss_mode == NL80211_IFTYPE_ADHOC)
+		    (le16_to_cpu(pm->params.ps_bitmap) & BITMAP_STA_PS) &&
+		    priv->bss_mode == NL80211_IFTYPE_ADHOC)
 			adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_CAM;
 
 		break;
@@ -85,10 +86,6 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
-		if (priv->scan_pending_on_block) {
-			priv->scan_pending_on_block = false;
-			up(&priv->async_sem);
-		}
 		break;
 
 	case HostCmd_CMD_MAC_CONTROL:
@@ -98,7 +95,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 	}
 	/* Handling errors here */
-	mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+	mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = NULL;
@@ -119,12 +116,12 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
  * calculated SNR values.
  */
 static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
-					struct host_cmd_ds_command *resp,
-					void *data_buf)
+					struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
-		&resp->params.rssi_info_rsp;
-	struct mwifiex_ds_get_signal *signal;
+						&resp->params.rssi_info_rsp;
+	struct mwifiex_ds_misc_subsc_evt *subsc_evt =
+						&priv->async_subsc_evt_storage;
 
 	priv->data_rssi_last = le16_to_cpu(rssi_info_rsp->data_rssi_last);
 	priv->data_nf_last = le16_to_cpu(rssi_info_rsp->data_nf_last);
@@ -138,35 +135,30 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 	priv->bcn_rssi_avg = le16_to_cpu(rssi_info_rsp->bcn_rssi_avg);
 	priv->bcn_nf_avg = le16_to_cpu(rssi_info_rsp->bcn_nf_avg);
 
-	/* Need to indicate IOCTL complete */
-	if (data_buf) {
-		signal = (struct mwifiex_ds_get_signal *) data_buf;
-		memset(signal, 0, sizeof(struct mwifiex_ds_get_signal));
+	if (priv->subsc_evt_rssi_state == EVENT_HANDLED)
+		return 0;
 
-		signal->selector = ALL_RSSI_INFO_MASK;
+	memset(subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
 
-		/* RSSI */
-		signal->bcn_rssi_last = priv->bcn_rssi_last;
-		signal->bcn_rssi_avg = priv->bcn_rssi_avg;
-		signal->data_rssi_last = priv->data_rssi_last;
-		signal->data_rssi_avg = priv->data_rssi_avg;
-
-		/* SNR */
-		signal->bcn_snr_last =
-			CAL_SNR(priv->bcn_rssi_last, priv->bcn_nf_last);
-		signal->bcn_snr_avg =
-			CAL_SNR(priv->bcn_rssi_avg, priv->bcn_nf_avg);
-		signal->data_snr_last =
-			CAL_SNR(priv->data_rssi_last, priv->data_nf_last);
-		signal->data_snr_avg =
-			CAL_SNR(priv->data_rssi_avg, priv->data_nf_avg);
-
-		/* NF */
-		signal->bcn_nf_last = priv->bcn_nf_last;
-		signal->bcn_nf_avg = priv->bcn_nf_avg;
-		signal->data_nf_last = priv->data_nf_last;
-		signal->data_nf_avg = priv->data_nf_avg;
+	/* Resubscribe low and high rssi events with new thresholds */
+	subsc_evt->events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+	subsc_evt->action = HostCmd_ACT_BITWISE_SET;
+	if (priv->subsc_evt_rssi_state == RSSI_LOW_RECVD) {
+		subsc_evt->bcn_l_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg -
+				priv->cqm_rssi_hyst);
+		subsc_evt->bcn_h_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+	} else if (priv->subsc_evt_rssi_state == RSSI_HIGH_RECVD) {
+		subsc_evt->bcn_l_rssi_cfg.abs_value = abs(priv->cqm_rssi_thold);
+		subsc_evt->bcn_h_rssi_cfg.abs_value = abs(priv->bcn_rssi_avg +
+				priv->cqm_rssi_hyst);
 	}
+	subsc_evt->bcn_l_rssi_cfg.evt_freq = 1;
+	subsc_evt->bcn_h_rssi_cfg.evt_freq = 1;
+
+	priv->subsc_evt_rssi_state = EVENT_HANDLED;
+
+	mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+			       0, 0, subsc_evt);
 
 	return 0;
 }
@@ -185,7 +177,7 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 				       struct host_cmd_ds_command *resp,
-				       void *data_buf)
+				       u32 *data_buf)
 {
 	struct host_cmd_ds_802_11_snmp_mib *smib = &resp->params.smib;
 	u16 oid = le16_to_cpu(smib->oid);
@@ -193,12 +185,12 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 	u32 ul_temp;
 
 	dev_dbg(priv->adapter->dev, "info: SNMP_RESP: oid value = %#x,"
-			" query_type = %#x, buf size = %#x\n",
-			oid, query_type, le16_to_cpu(smib->buf_size));
+		" query_type = %#x, buf size = %#x\n",
+		oid, query_type, le16_to_cpu(smib->buf_size));
 	if (query_type == HostCmd_ACT_GEN_GET) {
 		ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
 		if (data_buf)
-			*(u32 *)data_buf = ul_temp;
+			*data_buf = ul_temp;
 		switch (oid) {
 		case FRAG_THRESH_I:
 			dev_dbg(priv->adapter->dev,
@@ -212,6 +204,9 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 			dev_dbg(priv->adapter->dev,
 				"info: SNMP_RESP: TxRetryCount=%u\n", ul_temp);
 			break;
+		case DTIM_PERIOD_I:
+			dev_dbg(priv->adapter->dev,
+				"info: SNMP_RESP: DTIM period=%u\n", ul_temp);
 		default:
 			break;
 		}
@@ -228,14 +223,12 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp,
-			       void *data_buf)
+			       struct mwifiex_ds_get_stats *stats)
 {
 	struct host_cmd_ds_802_11_get_log *get_log =
-		(struct host_cmd_ds_802_11_get_log *) &resp->params.get_log;
-	struct mwifiex_ds_get_stats *stats;
+		&resp->params.get_log;
 
-	if (data_buf) {
-		stats = (struct mwifiex_ds_get_stats *) data_buf;
+	if (stats) {
 		stats->mcast_tx_frame = le32_to_cpu(get_log->mcast_tx_frame);
 		stats->failed = le32_to_cpu(get_log->failed);
 		stats->retry = le32_to_cpu(get_log->retry);
@@ -273,23 +266,19 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
  *
  * Based on the new rate bitmaps, the function re-evaluates if
  * auto data rate has been activated. If not, it sends another
- * query to the firmware to get the current Tx data rate and updates
- * the driver value.
+ * query to the firmware to get the current Tx data rate.
  */
 static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
-				   struct host_cmd_ds_command *resp,
-				   void *data_buf)
+				   struct host_cmd_ds_command *resp)
 {
-	struct mwifiex_rate_cfg *ds_rate;
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
 	struct mwifiex_ie_types_header *head;
 	u16 tlv, tlv_buf_len;
 	u8 *tlv_buf;
 	u32 i;
-	int ret = 0;
 
-	tlv_buf = (u8 *) ((u8 *) rate_cfg) +
+	tlv_buf = ((u8 *)rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
 	tlv_buf_len = *(u16 *) (tlv_buf + sizeof(u16));
 
@@ -325,39 +314,11 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 	if (priv->is_data_rate_auto)
 		priv->data_rate = 0;
 	else
-		ret = mwifiex_send_cmd_async(priv,
-					  HostCmd_CMD_802_11_TX_RATE_QUERY,
-					  HostCmd_ACT_GEN_GET, 0, NULL);
+		return mwifiex_send_cmd_async(priv,
+					      HostCmd_CMD_802_11_TX_RATE_QUERY,
+					      HostCmd_ACT_GEN_GET, 0, NULL);
 
-	if (data_buf) {
-		ds_rate = (struct mwifiex_rate_cfg *) data_buf;
-		if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
-			if (priv->is_data_rate_auto) {
-				ds_rate->is_rate_auto = 1;
-			} else {
-				ds_rate->rate = mwifiex_get_rate_index(priv->
-							       bitmap_rates,
-							       sizeof(priv->
-							       bitmap_rates));
-				if (ds_rate->rate >=
-				    MWIFIEX_RATE_BITMAP_OFDM0
-				    && ds_rate->rate <=
-				    MWIFIEX_RATE_BITMAP_OFDM7)
-					ds_rate->rate -=
-						(MWIFIEX_RATE_BITMAP_OFDM0 -
-						 MWIFIEX_RATE_INDEX_OFDM0);
-				if (ds_rate->rate >=
-				    MWIFIEX_RATE_BITMAP_MCS0
-				    && ds_rate->rate <=
-				    MWIFIEX_RATE_BITMAP_MCS127)
-					ds_rate->rate -=
-						(MWIFIEX_RATE_BITMAP_MCS0 -
-						 MWIFIEX_RATE_INDEX_MCS0);
-			}
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -372,34 +333,32 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	struct mwifiex_types_power_group *pg_tlv_hdr;
 	struct mwifiex_power_group *pg;
 
-	if (data_buf) {
-		pg_tlv_hdr =
-			(struct mwifiex_types_power_group *) ((u8 *) data_buf
-					+ sizeof(struct host_cmd_ds_txpwr_cfg));
-		pg = (struct mwifiex_power_group *) ((u8 *) pg_tlv_hdr +
-				sizeof(struct mwifiex_types_power_group));
-		length = pg_tlv_hdr->length;
-		if (length > 0) {
-			max_power = pg->power_max;
-			min_power = pg->power_min;
-			length -= sizeof(struct mwifiex_power_group);
-		}
-		while (length) {
-			pg++;
-			if (max_power < pg->power_max)
-				max_power = pg->power_max;
-
-			if (min_power > pg->power_min)
-				min_power = pg->power_min;
-
-			length -= sizeof(struct mwifiex_power_group);
-		}
-		if (pg_tlv_hdr->length > 0) {
-			priv->min_tx_power_level = (u8) min_power;
-			priv->max_tx_power_level = (u8) max_power;
-		}
-	} else {
+	if (!data_buf)
 		return -1;
+
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)
+		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
+	pg = (struct mwifiex_power_group *)
+		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
+	length = pg_tlv_hdr->length;
+	if (length > 0) {
+		max_power = pg->power_max;
+		min_power = pg->power_min;
+		length -= sizeof(struct mwifiex_power_group);
+	}
+	while (length) {
+		pg++;
+		if (max_power < pg->power_max)
+			max_power = pg->power_max;
+
+		if (min_power > pg->power_min)
+			min_power = pg->power_min;
+
+		length -= sizeof(struct mwifiex_power_group);
+	}
+	if (pg_tlv_hdr->length > 0) {
+		priv->min_tx_power_level = (u8) min_power;
+		priv->max_tx_power_level = (u8) max_power;
 	}
 
 	return 0;
@@ -413,8 +372,7 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
  * and saving the current Tx power level in driver.
  */
 static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
-				    struct host_cmd_ds_command *resp,
-				    void *data_buf)
+				    struct host_cmd_ds_command *resp)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_txpwr_cfg *txp_cfg = &resp->params.txp_cfg;
@@ -424,48 +382,95 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 
 	switch (action) {
 	case HostCmd_ACT_GEN_GET:
-		{
-			pg_tlv_hdr =
-				(struct mwifiex_types_power_group *) ((u8 *)
-						txp_cfg +
-						sizeof
-						(struct
-						 host_cmd_ds_txpwr_cfg));
-			pg = (struct mwifiex_power_group *) ((u8 *)
-						pg_tlv_hdr +
-						sizeof(struct
-						mwifiex_types_power_group));
-			if (adapter->hw_status ==
-			    MWIFIEX_HW_STATUS_INITIALIZING)
-				mwifiex_get_power_level(priv, txp_cfg);
-			priv->tx_power_level = (u16) pg->power_min;
-			break;
-		}
+		pg_tlv_hdr = (struct mwifiex_types_power_group *)
+			((u8 *) txp_cfg +
+			 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+		pg = (struct mwifiex_power_group *)
+			((u8 *) pg_tlv_hdr +
+			 sizeof(struct mwifiex_types_power_group));
+
+		if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
+			mwifiex_get_power_level(priv, txp_cfg);
+
+		priv->tx_power_level = (u16) pg->power_min;
+		break;
+
 	case HostCmd_ACT_GEN_SET:
-		if (le32_to_cpu(txp_cfg->mode)) {
-			pg_tlv_hdr =
-				(struct mwifiex_types_power_group *) ((u8 *)
-						txp_cfg +
-						sizeof
-						(struct
-						 host_cmd_ds_txpwr_cfg));
-			pg = (struct mwifiex_power_group *) ((u8 *) pg_tlv_hdr
-						+
-						sizeof(struct
-						mwifiex_types_power_group));
-			if (pg->power_max == pg->power_min)
-				priv->tx_power_level = (u16) pg->power_min;
-		}
+		if (!le32_to_cpu(txp_cfg->mode))
+			break;
+
+		pg_tlv_hdr = (struct mwifiex_types_power_group *)
+			((u8 *) txp_cfg +
+			 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+		pg = (struct mwifiex_power_group *)
+			((u8 *) pg_tlv_hdr +
+			 sizeof(struct mwifiex_types_power_group));
+
+		if (pg->power_max == pg->power_min)
+			priv->tx_power_level = (u16) pg->power_min;
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd action %d\n",
-				action);
+			action);
 		return 0;
 	}
 	dev_dbg(adapter->dev,
 		"info: Current TxPower Level = %d, Max Power=%d, Min Power=%d\n",
 	       priv->tx_power_level, priv->max_tx_power_level,
 	       priv->min_tx_power_level);
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of get RF Tx power.
+ */
+static int mwifiex_ret_rf_tx_power(struct mwifiex_private *priv,
+				   struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_tx_pwr *txp = &resp->params.txp;
+	u16 action = le16_to_cpu(txp->action);
+
+	priv->tx_power_level = le16_to_cpu(txp->cur_level);
+
+	if (action == HostCmd_ACT_GEN_GET) {
+		priv->max_tx_power_level = txp->max_power;
+		priv->min_tx_power_level = txp->min_power;
+	}
+
+	dev_dbg(priv->adapter->dev,
+		"Current TxPower Level=%d, Max Power=%d, Min Power=%d\n",
+		priv->tx_power_level, priv->max_tx_power_level,
+		priv->min_tx_power_level);
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of set rf antenna
+ */
+static int mwifiex_ret_rf_antenna(struct mwifiex_private *priv,
+				  struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_rf_ant_mimo *ant_mimo = &resp->params.ant_mimo;
+	struct host_cmd_ds_rf_ant_siso *ant_siso = &resp->params.ant_siso;
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->hw_dev_mcs_support == HT_STREAM_2X2)
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: Tx action = 0x%x, Tx Mode = 0x%04x"
+			" Rx action = 0x%x, Rx Mode = 0x%04x\n",
+			le16_to_cpu(ant_mimo->action_tx),
+			le16_to_cpu(ant_mimo->tx_ant_mode),
+			le16_to_cpu(ant_mimo->action_rx),
+			le16_to_cpu(ant_mimo->rx_ant_mode));
+	else
+		dev_dbg(adapter->dev,
+			"RF_ANT_RESP: action = 0x%x, Mode = 0x%04x\n",
+			le16_to_cpu(ant_siso->action),
+			le16_to_cpu(ant_siso->ant_mode));
 
 	return 0;
 }
@@ -479,7 +484,7 @@ static int mwifiex_ret_802_11_mac_address(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_mac_address *cmd_mac_addr =
-		&resp->params.mac_addr;
+							&resp->params.mac_addr;
 
 	memcpy(priv->curr_addr, cmd_mac_addr->mac_addr, ETH_ALEN);
 
@@ -515,7 +520,7 @@ static int mwifiex_ret_802_11_tx_rate_query(struct mwifiex_private *priv,
 	priv->tx_htinfo = resp->params.tx_rate.ht_info;
 	if (!priv->is_data_rate_auto)
 		priv->data_rate =
-			mwifiex_index_to_data_rate(priv->tx_rate,
+			mwifiex_index_to_data_rate(priv, priv->tx_rate,
 						   priv->tx_htinfo);
 
 	return 0;
@@ -537,7 +542,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 	if (!memcmp(resp->params.deauth.mac_addr,
 		    &priv->curr_bss_params.bss_descriptor.mac_address,
 		    sizeof(resp->params.deauth.mac_addr)))
-		mwifiex_reset_connect_state(priv);
+		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 
 	return 0;
 }
@@ -550,7 +555,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
-	mwifiex_reset_connect_state(priv);
+	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 	return 0;
 }
 
@@ -564,7 +569,7 @@ static int mwifiex_ret_802_11_key_material(struct mwifiex_private *priv,
 					   struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_key_material *key =
-		&resp->params.key_material;
+						&resp->params.key_material;
 
 	if (le16_to_cpu(key->action) == HostCmd_ACT_GEN_SET) {
 		if ((le16_to_cpu(key->key_param_set.key_info) & KEY_MCAST)) {
@@ -595,17 +600,18 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 	u16 action = le16_to_cpu(domain_info->action);
 	u8 no_of_triplet;
 
-	no_of_triplet = (u8) ((le16_to_cpu(domain->header.len) -
-					IEEE80211_COUNTRY_STRING_LEN) /
-				sizeof(struct ieee80211_country_ie_triplet));
+	no_of_triplet = (u8) ((le16_to_cpu(domain->header.len)
+				- IEEE80211_COUNTRY_STRING_LEN)
+			      / sizeof(struct ieee80211_country_ie_triplet));
 
-	dev_dbg(priv->adapter->dev, "info: 11D Domain Info Resp:"
-			" no_of_triplet=%d\n", no_of_triplet);
+	dev_dbg(priv->adapter->dev,
+		"info: 11D Domain Info Resp: no_of_triplet=%d\n",
+		no_of_triplet);
 
 	if (no_of_triplet > MWIFIEX_MAX_TRIPLET_802_11D) {
 		dev_warn(priv->adapter->dev,
-			"11D: invalid number of triplets %d "
-			"returned!!\n", no_of_triplet);
+			 "11D: invalid number of triplets %d returned\n",
+			 no_of_triplet);
 		return -1;
 	}
 
@@ -624,33 +630,6 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 }
 
 /*
- * This function handles the command response of get RF channel.
- *
- * Handling includes changing the header fields into CPU format
- * and saving the new channel in driver.
- */
-static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
-					 struct host_cmd_ds_command *resp,
-					 void *data_buf)
-{
-	struct host_cmd_ds_802_11_rf_channel *rf_channel =
-		&resp->params.rf_channel;
-	u16 new_channel = le16_to_cpu(rf_channel->current_channel);
-
-	if (priv->curr_bss_params.bss_descriptor.channel != new_channel) {
-		dev_dbg(priv->adapter->dev, "cmd: Channel Switch: %d to %d\n",
-		       priv->curr_bss_params.bss_descriptor.channel,
-		       new_channel);
-		/* Update the channel again */
-		priv->curr_bss_params.bss_descriptor.channel = new_channel;
-	}
-	if (data_buf)
-		*((u16 *)data_buf) = new_channel;
-
-	return 0;
-}
-
-/*
  * This function handles the command response of get extended version.
  *
  * Handling includes forming the extended version string and sending it
@@ -658,18 +637,48 @@ static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp,
-			       void *data_buf)
+			       struct host_cmd_ds_version_ext *version_ext)
 {
 	struct host_cmd_ds_version_ext *ver_ext = &resp->params.verext;
-	struct host_cmd_ds_version_ext *version_ext;
 
-	if (data_buf) {
-		version_ext = (struct host_cmd_ds_version_ext *)data_buf;
+	if (version_ext) {
 		version_ext->version_str_sel = ver_ext->version_str_sel;
 		memcpy(version_ext->version_str, ver_ext->version_str,
 		       sizeof(char) * 128);
 		memcpy(priv->version_str, ver_ext->version_str, 128);
 	}
+	return 0;
+}
+
+/*
+ * This function handles the command response of remain on channel.
+ */
+static int
+mwifiex_ret_remain_on_chan(struct mwifiex_private *priv,
+			   struct host_cmd_ds_command *resp,
+			   struct host_cmd_ds_remain_on_chan *roc_cfg)
+{
+	struct host_cmd_ds_remain_on_chan *resp_cfg = &resp->params.roc_cfg;
+
+	if (roc_cfg)
+		memcpy(roc_cfg, resp_cfg, sizeof(*roc_cfg));
+
+	return 0;
+}
+
+/*
+ * This function handles the command response of P2P mode cfg.
+ */
+static int
+mwifiex_ret_p2p_mode_cfg(struct mwifiex_private *priv,
+			 struct host_cmd_ds_command *resp,
+			 void *data_buf)
+{
+	struct host_cmd_ds_p2p_mode_cfg *mode_cfg = &resp->params.mode_cfg;
+
+	if (data_buf)
+		*((u16 *)data_buf) = le16_to_cpu(mode_cfg->mode);
+
 	return 0;
 }
 
@@ -684,90 +693,64 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 {
 	struct mwifiex_ds_reg_rw *reg_rw;
 	struct mwifiex_ds_read_eeprom *eeprom;
+	union reg {
+		struct host_cmd_ds_mac_reg_access *mac;
+		struct host_cmd_ds_bbp_reg_access *bbp;
+		struct host_cmd_ds_rf_reg_access *rf;
+		struct host_cmd_ds_pmic_reg_access *pmic;
+		struct host_cmd_ds_802_11_eeprom_access *eeprom;
+	} r;
 
-	if (data_buf) {
-		reg_rw = (struct mwifiex_ds_reg_rw *) data_buf;
-		eeprom = (struct mwifiex_ds_read_eeprom *) data_buf;
-		switch (type) {
-		case HostCmd_CMD_MAC_REG_ACCESS:
-			{
-				struct host_cmd_ds_mac_reg_access *reg;
-				reg = (struct host_cmd_ds_mac_reg_access *)
-					&resp->params.mac_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = reg->value;
-				break;
-			}
-		case HostCmd_CMD_BBP_REG_ACCESS:
-			{
-				struct host_cmd_ds_bbp_reg_access *reg;
-				reg = (struct host_cmd_ds_bbp_reg_access *)
-					&resp->params.bbp_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
+	if (!data_buf)
+		return 0;
 
-		case HostCmd_CMD_RF_REG_ACCESS:
-			{
-				struct host_cmd_ds_rf_reg_access *reg;
-				reg = (struct host_cmd_ds_rf_reg_access *)
-					&resp->params.rf_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_PMIC_REG_ACCESS:
-			{
-				struct host_cmd_ds_pmic_reg_access *reg;
-				reg = (struct host_cmd_ds_pmic_reg_access *)
-					&resp->params.pmic_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_CAU_REG_ACCESS:
-			{
-				struct host_cmd_ds_rf_reg_access *reg;
-				reg = (struct host_cmd_ds_rf_reg_access *)
-					&resp->params.rf_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_802_11_EEPROM_ACCESS:
-			{
-				struct host_cmd_ds_802_11_eeprom_access
-					*cmd_eeprom =
-					(struct host_cmd_ds_802_11_eeprom_access
-					 *) &resp->params.eeprom;
-				pr_debug("info: EEPROM read len=%x\n",
-				       cmd_eeprom->byte_count);
-				if (le16_to_cpu(eeprom->byte_count) <
-						le16_to_cpu(
-						cmd_eeprom->byte_count)) {
-					eeprom->byte_count = cpu_to_le16(0);
-					pr_debug("info: EEPROM read "
-							"length is too big\n");
-					return -1;
-				}
-				eeprom->offset = cmd_eeprom->offset;
-				eeprom->byte_count = cmd_eeprom->byte_count;
-				if (le16_to_cpu(eeprom->byte_count) > 0)
-					memcpy(&eeprom->value,
-					       &cmd_eeprom->value,
-					       le16_to_cpu(eeprom->byte_count));
+	reg_rw = data_buf;
+	eeprom = data_buf;
+	switch (type) {
+	case HostCmd_CMD_MAC_REG_ACCESS:
+		r.mac = &resp->params.mac_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
+		reg_rw->value = r.mac->value;
+		break;
+	case HostCmd_CMD_BBP_REG_ACCESS:
+		r.bbp = &resp->params.bbp_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
+		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		break;
 
-				break;
-			}
-		default:
+	case HostCmd_CMD_RF_REG_ACCESS:
+		r.rf = &resp->params.rf_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
+		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		break;
+	case HostCmd_CMD_PMIC_REG_ACCESS:
+		r.pmic = &resp->params.pmic_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
+		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
+		break;
+	case HostCmd_CMD_CAU_REG_ACCESS:
+		r.rf = &resp->params.rf_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
+		reg_rw->value = cpu_to_le32((u32) r.rf->value);
+		break;
+	case HostCmd_CMD_802_11_EEPROM_ACCESS:
+		r.eeprom = &resp->params.eeprom;
+		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
+		if (le16_to_cpu(eeprom->byte_count) <
+		    le16_to_cpu(r.eeprom->byte_count)) {
+			eeprom->byte_count = cpu_to_le16(0);
+			pr_debug("info: EEPROM read length is too big\n");
 			return -1;
 		}
+		eeprom->offset = r.eeprom->offset;
+		eeprom->byte_count = r.eeprom->byte_count;
+		if (le16_to_cpu(eeprom->byte_count) > 0)
+			memcpy(&eeprom->value, &r.eeprom->value,
+			       le16_to_cpu(r.eeprom->byte_count));
+
+		break;
+	default:
+		return -1;
 	}
 	return 0;
 }
@@ -783,8 +766,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 					      struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_ibss_status *ibss_coal_resp =
-		&(resp->params.ibss_coalescing);
-	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
+					&(resp->params.ibss_coalescing);
 
 	if (le16_to_cpu(ibss_coal_resp->action) == HostCmd_ACT_GEN_SET)
 		return 0;
@@ -793,7 +775,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 		"info: new BSSID %pM\n", ibss_coal_resp->bssid);
 
 	/* If rsp has NULL BSSID, Just return..... No Action */
-	if (!memcmp(ibss_coal_resp->bssid, zero_mac, ETH_ALEN)) {
+	if (is_zero_ether_addr(ibss_coal_resp->bssid)) {
 		dev_warn(priv->adapter->dev, "new BSSID is NULL\n");
 		return 0;
 	}
@@ -820,18 +802,33 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 }
 
 /*
+ * This function handles the command response for subscribe event command.
+ */
+static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
+				 struct host_cmd_ds_command *resp)
+{
+	struct host_cmd_ds_802_11_subsc_evt *cmd_sub_event =
+		&resp->params.subsc_evt;
+
+	/* For every subscribe event command (Get/Set/Clear), FW reports the
+	 * current set of subscribed events*/
+	dev_dbg(priv->adapter->dev, "Bitmap of currently subscribed events: %16x\n",
+		le16_to_cpu(cmd_sub_event->events));
+
+	return 0;
+}
+
+/*
  * This function handles the command responses.
  *
  * This is a generic function, which calls command specific
  * response handlers based on the command ID.
  */
-int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
-				u16 cmdresp_no, void *cmd_buf)
+int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
+				struct host_cmd_ds_command *resp)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct host_cmd_ds_command *resp =
-		(struct host_cmd_ds_command *) cmd_buf;
 	void *data_buf = adapter->curr_cmd->data_buf;
 
 	/* If the command is not successful, cleanup and return failure */
@@ -853,7 +850,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 		ret = mwifiex_ret_mac_multicast_adr(priv, resp);
 		break;
 	case HostCmd_CMD_TX_RATE_CFG:
-		ret = mwifiex_ret_tx_rate_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_tx_rate_cfg(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SCAN:
 		ret = mwifiex_ret_802_11_scan(priv, resp);
@@ -865,7 +862,13 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 			"info: CMD_RESP: BG_SCAN result is ready!\n");
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
-		ret = mwifiex_ret_tx_power_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_tx_power_cfg(priv, resp);
+		break;
+	case HostCmd_CMD_RF_TX_PWR:
+		ret = mwifiex_ret_rf_tx_power(priv, resp);
+		break;
+	case HostCmd_CMD_RF_ANTENNA:
+		ret = mwifiex_ret_rf_antenna(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_ret_enh_power_mode(priv, resp, data_buf);
@@ -890,7 +893,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 		ret = mwifiex_ret_get_log(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_RSSI_INFO:
-		ret = mwifiex_ret_802_11_rssi_info(priv, resp, data_buf);
+		ret = mwifiex_ret_802_11_rssi_info(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SNMP_MIB:
 		ret = mwifiex_ret_802_11_snmp_mib(priv, resp, data_buf);
@@ -898,12 +901,18 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 	case HostCmd_CMD_802_11_TX_RATE_QUERY:
 		ret = mwifiex_ret_802_11_tx_rate_query(priv, resp);
 		break;
-	case HostCmd_CMD_802_11_RF_CHANNEL:
-		ret = mwifiex_ret_802_11_rf_channel(priv, resp, data_buf);
-		break;
 	case HostCmd_CMD_VERSION_EXT:
 		ret = mwifiex_ret_ver_ext(priv, resp, data_buf);
 		break;
+	case HostCmd_CMD_REMAIN_ON_CHAN:
+		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_11AC_CFG:
+		break;
+	case HostCmd_CMD_P2P_MODE_CFG:
+		ret = mwifiex_ret_p2p_mode_cfg(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_MGMT_FRAME_REG:
 	case HostCmd_CMD_FUNC_INIT:
 	case HostCmd_CMD_FUNC_SHUTDOWN:
 		break;
@@ -925,23 +934,18 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 	case HostCmd_CMD_RECONFIGURE_TX_BUFF:
 		adapter->tx_buf_size = (u16) le16_to_cpu(resp->params.
 							     tx_buf.buff_size);
-		adapter->tx_buf_size = (adapter->tx_buf_size /
-						MWIFIEX_SDIO_BLOCK_SIZE) *
-						MWIFIEX_SDIO_BLOCK_SIZE;
+		adapter->tx_buf_size = (adapter->tx_buf_size
+					/ MWIFIEX_SDIO_BLOCK_SIZE)
+				       * MWIFIEX_SDIO_BLOCK_SIZE;
 		adapter->curr_tx_buf_size = adapter->tx_buf_size;
-		dev_dbg(adapter->dev,
-			"cmd: max_tx_buf_size=%d, tx_buf_size=%d\n",
-		       adapter->max_tx_buf_size, adapter->tx_buf_size);
+		dev_dbg(adapter->dev, "cmd: curr_tx_buf_size=%d\n",
+			adapter->curr_tx_buf_size);
 
 		if (adapter->if_ops.update_mp_end_port)
 			adapter->if_ops.update_mp_end_port(adapter,
-					le16_to_cpu(resp->
-						params.
-						tx_buf.
-						mp_end_port));
+				le16_to_cpu(resp->params.tx_buf.mp_end_port));
 		break;
 	case HostCmd_CMD_AMSDU_AGGR_CTRL:
-		ret = mwifiex_ret_amsdu_aggr_ctrl(resp, data_buf);
 		break;
 	case HostCmd_CMD_WMM_GET_STATUS:
 		ret = mwifiex_ret_wmm_get_status(priv, resp);
@@ -960,11 +964,25 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 	case HostCmd_CMD_SET_BSS_MODE:
 		break;
 	case HostCmd_CMD_11N_CFG:
-		ret = mwifiex_ret_11n_cfg(resp, data_buf);
+		break;
+	case HostCmd_CMD_PCIE_DESC_DETAILS:
+		break;
+	case HostCmd_CMD_802_11_SUBSCRIBE_EVENT:
+		ret = mwifiex_ret_subsc_evt(priv, resp);
+		break;
+	case HostCmd_CMD_UAP_SYS_CONFIG:
+		break;
+	case HostCmd_CMD_UAP_BSS_START:
+		priv->bss_started = 1;
+		break;
+	case HostCmd_CMD_UAP_BSS_STOP:
+		priv->bss_started = 0;
+		break;
+	case HostCmd_CMD_MEF_CFG:
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",
-		       resp->command);
+			resp->command);
 		break;
 	}
 

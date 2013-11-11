@@ -1,6 +1,6 @@
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -47,7 +47,7 @@ static long do_spu_run(struct file *filp,
 	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
-	i = SPUFS_I(filp->f_path.dentry->d_inode);
+	i = SPUFS_I(file_inode(filp));
 	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))
@@ -60,23 +60,17 @@ out:
 }
 
 static long do_spu_create(const char __user *pathname, unsigned int flags,
-		mode_t mode, struct file *neighbor)
+		umode_t mode, struct file *neighbor)
 {
-	char *tmp;
+	struct path path;
+	struct dentry *dentry;
 	int ret;
 
-	tmp = getname(pathname);
-	ret = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
-		struct nameidata nd;
-
-		ret = kern_path_parent(tmp, &nd);
-		if (!ret) {
-			nd.flags |= LOOKUP_OPEN | LOOKUP_CREATE;
-			ret = spufs_create(&nd, flags, mode, neighbor);
-			path_put(&nd.path);
-		}
-		putname(tmp);
+	dentry = user_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
+	ret = PTR_ERR(dentry);
+	if (!IS_ERR(dentry)) {
+		ret = spufs_create(&path, dentry, flags, mode, neighbor);
+		done_path_create(&path, dentry);
 	}
 
 	return ret;

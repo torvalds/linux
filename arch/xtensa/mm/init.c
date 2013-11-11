@@ -26,11 +26,7 @@
 
 #include <asm/bootparam.h>
 #include <asm/page.h>
-
-/* References to section boundaries */
-
-extern char _ftext, _etext, _fdata, _edata, _rodata_end;
-extern char __init_begin, __init_end;
+#include <asm/sections.h>
 
 /*
  * mem_reserve(start, end, must_exist)
@@ -79,15 +75,15 @@ int __init mem_reserve(unsigned long start, unsigned long end, int must_exist)
 			sysmem.nr_banks++;
 		}
 		sysmem.bank[i].end = start;
+
+	} else if (end < sysmem.bank[i].end) {
+		sysmem.bank[i].start = end;
+
 	} else {
-		if (end < sysmem.bank[i].end)
-			sysmem.bank[i].start = end;
-		else {
-			/* remove entry */
-			sysmem.nr_banks--;
-			sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
-			sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
-		}
+		/* remove entry */
+		sysmem.nr_banks--;
+		sysmem.bank[i].start = sysmem.bank[sysmem.nr_banks].start;
+		sysmem.bank[i].end   = sysmem.bank[sysmem.nr_banks].end;
 	}
 	return -1;
 }
@@ -197,9 +193,9 @@ void __init mem_init(void)
 			reservedpages++;
 	}
 
-	codesize =  (unsigned long) &_etext - (unsigned long) &_ftext;
-	datasize =  (unsigned long) &_edata - (unsigned long) &_fdata;
-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+	codesize =  (unsigned long) _etext - (unsigned long) _stext;
+	datasize =  (unsigned long) _edata - (unsigned long) _sdata;
+	initsize =  (unsigned long) __init_end - (unsigned long) __init_begin;
 
 	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, "
 	       "%ldk data, %ldk init %ldk highmem)\n",
@@ -212,32 +208,17 @@ void __init mem_init(void)
 	       highmemsize >> 10);
 }
 
-void
-free_reserved_mem(void *start, void *end)
-{
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page((unsigned long)start);
-		totalram_pages++;
-	}
-}
-
 #ifdef CONFIG_BLK_DEV_INITRD
 extern int initrd_is_mapped;
 
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	if (initrd_is_mapped) {
-		free_reserved_mem((void*)start, (void*)end);
-		printk ("Freeing initrd memory: %ldk freed\n",(end-start)>>10);
-	}
+	if (initrd_is_mapped)
+		free_reserved_area(start, end, 0, "initrd");
 }
 #endif
 
 void free_initmem(void)
 {
-	free_reserved_mem(&__init_begin, &__init_end);
-	printk("Freeing unused kernel memory: %dk freed\n",
-	       (&__init_end - &__init_begin) >> 10);
+	free_initmem_default(0);
 }

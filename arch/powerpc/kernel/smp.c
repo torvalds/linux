@@ -18,7 +18,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -27,13 +27,13 @@
 #include <linux/spinlock.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/topology.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -43,12 +43,13 @@
 #include <asm/machdep.h>
 #include <asm/cputhreads.h>
 #include <asm/cputable.h>
-#include <asm/system.h>
 #include <asm/mpic.h>
 #include <asm/vdso_datapage.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
+#include <asm/vdso.h>
+#include <asm/debug.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -57,23 +58,9 @@
 #define DBG(fmt...)
 #endif
 
-
-/* Store all idle threads, this can be reused instead of creating
-* a new thread. Also avoids complicated thread destroy functionality
-* for idle threads.
-*/
 #ifdef CONFIG_HOTPLUG_CPU
-/*
- * Needed only for CONFIG_HOTPLUG_CPU because __cpuinitdata is
- * removed after init for !CONFIG_HOTPLUG_CPU.
- */
-static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
-#define get_idle_for_cpu(x)      (per_cpu(idle_thread_array, x))
-#define set_idle_for_cpu(x, p)   (per_cpu(idle_thread_array, x) = (p))
-#else
-static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
-#define get_idle_for_cpu(x)      (idle_thread_array[(x)])
-#define set_idle_for_cpu(x, p)   (idle_thread_array[(x)] = (p))
+/* State of each CPU during hotplug phases */
+static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 #endif
 
 struct thread_info *secondary_ti;
@@ -95,7 +82,7 @@ int smt_enabled_at_boot = 1;
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
 #ifdef CONFIG_PPC64
-int __devinit smp_generic_kick_cpu(int nr)
+int smp_generic_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
@@ -104,12 +91,25 @@ int __devinit smp_generic_kick_cpu(int nr)
 	 * cpu_start field to become non-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
-	paca[nr].cpu_start = 1;
-	smp_mb();
+	if (!paca[nr].cpu_start) {
+		paca[nr].cpu_start = 1;
+		smp_mb();
+		return 0;
+	}
+
+#ifdef CONFIG_HOTPLUG_CPU
+	/*
+	 * Ok it's not there, so it might be soft-unplugged, let's
+	 * try to bring it back
+	 */
+	generic_set_cpu_up(nr);
+	smp_wmb();
+	smp_send_reschedule(nr);
+#endif /* CONFIG_HOTPLUG_CPU */
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_PPC64 */
 
 static irqreturn_t call_function_action(int irq, void *data)
 {
@@ -170,7 +170,8 @@ int smp_request_message_ipi(int virq, int msg)
 		return 1;
 	}
 #endif
-	err = request_irq(virq, smp_ipi_action[msg], IRQF_DISABLED|IRQF_PERCPU,
+	err = request_irq(virq, smp_ipi_action[msg],
+			  IRQF_PERCPU | IRQF_NO_THREAD | IRQF_NO_SUSPEND,
 			  smp_ipi_name[msg], 0);
 	WARN(err < 0, "unable to request_irq %d for %s (rc %d)\n",
 		virq, smp_ipi_name[msg], err);
@@ -197,17 +198,16 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 	struct cpu_messages *info = &per_cpu(ipi_message, cpu);
 	char *message = (char *)&info->messages;
 
+	/*
+	 * Order previous accesses before accesses in the IPI handler.
+	 */
+	smp_mb();
 	message[msg] = 1;
-	mb();
+	/*
+	 * cause_ipi functions are required to include a full barrier
+	 * before doing whatever causes the IPI.
+	 */
 	smp_ops->cause_ipi(cpu, info->data);
-}
-
-void smp_muxed_ipi_resend(void)
-{
-	struct cpu_messages *info = &__get_cpu_var(ipi_message);
-
-	if (info->messages)
-		smp_ops->cause_ipi(smp_processor_id(), info->data);
 }
 
 irqreturn_t smp_ipi_demux(void)
@@ -218,7 +218,7 @@ irqreturn_t smp_ipi_demux(void)
 	mb();	/* order any irq clear */
 
 	do {
-		all = xchg_local(&info->messages, 0);
+		all = xchg(&info->messages, 0);
 
 #ifdef __BIG_ENDIAN
 		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNCTION)))
@@ -238,15 +238,26 @@ irqreturn_t smp_ipi_demux(void)
 }
 #endif /* CONFIG_PPC_SMP_MUXED_IPI */
 
+static inline void do_message_pass(int cpu, int msg)
+{
+	if (smp_ops->message_pass)
+		smp_ops->message_pass(cpu, msg);
+#ifdef CONFIG_PPC_SMP_MUXED_IPI
+	else
+		smp_muxed_ipi_message_pass(cpu, msg);
+#endif
+}
+
 void smp_send_reschedule(int cpu)
 {
 	if (likely(smp_ops))
-		smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
+		do_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
+	do_message_pass(cpu, PPC_MSG_CALL_FUNC_SINGLE);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -254,7 +265,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	unsigned int cpu;
 
 	for_each_cpu(cpu, mask)
-		smp_ops->message_pass(cpu, PPC_MSG_CALL_FUNCTION);
+		do_message_pass(cpu, PPC_MSG_CALL_FUNCTION);
 }
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -268,7 +279,7 @@ void smp_send_debugger_break(void)
 
 	for_each_online_cpu(cpu)
 		if (cpu != me)
-			smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+			do_message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
 }
 #endif
 
@@ -300,9 +311,13 @@ void smp_send_stop(void)
 
 struct thread_info *current_set[NR_CPUS];
 
-static void __devinit smp_store_cpu_info(int id)
+static void smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	per_cpu(next_tlbcam_idx, id)
+		= (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
+#endif
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -340,7 +355,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = 1;
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != boot_cpuid);
 #ifdef CONFIG_PPC64
@@ -350,8 +365,6 @@ void __devinit smp_prepare_boot_cpu(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-/* State of each CPU during hotplug phases */
-static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 int generic_cpu_disable(void)
 {
@@ -399,75 +412,90 @@ void generic_set_cpu_dead(unsigned int cpu)
 {
 	per_cpu(cpu_state, cpu) = CPU_DEAD;
 }
-#endif
 
-struct create_idle {
-	struct work_struct work;
-	struct task_struct *idle;
-	struct completion done;
-	int cpu;
-};
-
-static void __cpuinit do_fork_idle(struct work_struct *work)
+/*
+ * The cpu_state should be set to CPU_UP_PREPARE in kick_cpu(), otherwise
+ * the cpu_state is always CPU_DEAD after calling generic_set_cpu_dead(),
+ * which makes the delay in generic_cpu_die() not happen.
+ */
+void generic_set_cpu_up(unsigned int cpu)
 {
-	struct create_idle *c_idle =
-		container_of(work, struct create_idle, work);
-
-	c_idle->idle = fork_idle(c_idle->cpu);
-	complete(&c_idle->done);
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 }
 
-static int __cpuinit create_idle(unsigned int cpu)
+int generic_check_cpu_restart(unsigned int cpu)
 {
-	struct thread_info *ti;
-	struct create_idle c_idle = {
-		.cpu	= cpu,
-		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
-	};
-	INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
+	return per_cpu(cpu_state, cpu) == CPU_UP_PREPARE;
+}
 
-	c_idle.idle = get_idle_for_cpu(cpu);
+static atomic_t secondary_inhibit_count;
 
-	/* We can't use kernel_thread since we must avoid to
-	 * reschedule the child. We use a workqueue because
-	 * we want to fork from a kernel thread, not whatever
-	 * userspace process happens to be trying to online us.
+/*
+ * Don't allow secondary CPU threads to come online
+ */
+void inhibit_secondary_onlining(void)
+{
+	/*
+	 * This makes secondary_inhibit_count stable during cpu
+	 * online/offline operations.
 	 */
-	if (!c_idle.idle) {
-		schedule_work(&c_idle.work);
-		wait_for_completion(&c_idle.done);
-	} else
-		init_idle(c_idle.idle, cpu);
-	if (IS_ERR(c_idle.idle)) {		
-		pr_err("Failed fork for CPU %u: %li", cpu, PTR_ERR(c_idle.idle));
-		return PTR_ERR(c_idle.idle);
-	}
-	ti = task_thread_info(c_idle.idle);
+	get_online_cpus();
+
+	atomic_inc(&secondary_inhibit_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(inhibit_secondary_onlining);
+
+/*
+ * Allow secondary CPU threads to come online again
+ */
+void uninhibit_secondary_onlining(void)
+{
+	get_online_cpus();
+	atomic_dec(&secondary_inhibit_count);
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(uninhibit_secondary_onlining);
+
+static int secondaries_inhibited(void)
+{
+	return atomic_read(&secondary_inhibit_count);
+}
+
+#else /* HOTPLUG_CPU */
+
+#define secondaries_inhibited()		0
+
+#endif
+
+static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
+{
+	struct thread_info *ti = task_thread_info(idle);
 
 #ifdef CONFIG_PPC64
-	paca[cpu].__current = c_idle.idle;
+	paca[cpu].__current = idle;
 	paca[cpu].kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
 #endif
 	ti->cpu = cpu;
-	current_set[cpu] = ti;
-
-	return 0;
+	secondary_ti = current_set[cpu] = ti;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc, c;
+
+	/*
+	 * Don't allow secondary threads to come online if inhibited
+	 */
+	if (threads_per_core > 1 && secondaries_inhibited() &&
+	    cpu % threads_per_core != 0)
+		return -EBUSY;
 
 	if (smp_ops == NULL ||
 	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
 		return -EINVAL;
 
-	/* Make sure we have an idle thread */
-	rc = create_idle(cpu);
-	if (rc)
-		return rc;
-
-	secondary_ti = current_set[cpu];
+	cpu_idle_thread_init(cpu, tidle);
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
@@ -582,7 +610,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 }
 
 /* Activate a secondary processor. */
-void __devinit start_secondary(void *unused)
+__cpuinit void start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
 	struct device_node *l2_cache;
@@ -606,8 +634,9 @@ void __devinit start_secondary(void *unused)
 #ifdef CONFIG_PPC64
 	if (system_state == SYSTEM_RUNNING)
 		vdso_data->processorCount++;
+
+	vdso_getcpu_init();
 #endif
-	ipi_call_lock();
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 	/* Update sibling maps */
@@ -637,11 +666,10 @@ void __devinit start_secondary(void *unused)
 		of_node_put(np);
 	}
 	of_node_put(l2_cache);
-	ipi_call_unlock();
 
 	local_irq_enable();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 
 	BUG();
 }

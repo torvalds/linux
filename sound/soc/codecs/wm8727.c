@@ -45,13 +45,13 @@ static struct snd_soc_dai_driver wm8727_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8727;
 
-static __devinit int wm8727_probe(struct platform_device *pdev)
+static int wm8727_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm8727, &wm8727_dai, 1);
 }
 
-static int __devexit wm8727_remove(struct platform_device *pdev)
+static int wm8727_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -59,25 +59,15 @@ static int __devexit wm8727_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8727_codec_driver = {
 	.driver = {
-			.name = "wm8727-codec",
+			.name = "wm8727",
 			.owner = THIS_MODULE,
 	},
 
 	.probe = wm8727_probe,
-	.remove = __devexit_p(wm8727_remove),
+	.remove = wm8727_remove,
 };
 
-static int __init wm8727_init(void)
-{
-	return platform_driver_register(&wm8727_codec_driver);
-}
-module_init(wm8727_init);
-
-static void __exit wm8727_exit(void)
-{
-	platform_driver_unregister(&wm8727_codec_driver);
-}
-module_exit(wm8727_exit);
+module_platform_driver(wm8727_codec_driver);
 
 MODULE_DESCRIPTION("ASoC wm8727 driver");
 MODULE_AUTHOR("Neil Jones");

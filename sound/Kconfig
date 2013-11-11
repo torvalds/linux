@@ -52,14 +52,11 @@ config SOUND_OSS_CORE_PRECLAIM
 
 	  Disabling this allows alternative OSS implementations.
 
-	  Please read Documentation/feature-removal-schedule.txt for
-	  details.
-
 	  If unsure, say Y.
 
 source "sound/oss/dmasound/Kconfig"
 
-if !M68K
+if !M68K && !UML
 
 menuconfig SND
 	tristate "Advanced Linux Sound Architecture"

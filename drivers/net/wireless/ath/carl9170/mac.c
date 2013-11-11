@@ -48,7 +48,7 @@ int carl9170_set_dyn_sifs_ack(struct ar9170 *ar)
 	if (conf_is_ht40(&ar->hw->conf))
 		val = 0x010a;
 	else {
-		if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+		if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
 			val = 0x105;
 		else
 			val = 0x104;
@@ -66,7 +66,7 @@ int carl9170_set_rts_cts_rate(struct ar9170 *ar)
 		rts_rate = 0x1da;
 		cts_rate = 0x10a;
 	} else {
-		if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
+		if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
 			/* 11 mbit CCK */
 			rts_rate = 033;
 			cts_rate = 003;
@@ -93,7 +93,7 @@ int carl9170_set_slot_time(struct ar9170 *ar)
 		return 0;
 	}
 
-	if ((ar->hw->conf.channel->band == IEEE80211_BAND_5GHZ) ||
+	if ((ar->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ) ||
 	    vif->bss_conf.use_short_slot)
 		slottime = 9;
 
@@ -120,7 +120,7 @@ int carl9170_set_mac_rates(struct ar9170 *ar)
 	basic |= (vif->bss_conf.basic_rates & 0xff0) << 4;
 	rcu_read_unlock();
 
-	if (ar->hw->conf.channel->band == IEEE80211_BAND_5GHZ)
+	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ)
 		mandatory = 0xff00; /* OFDM 6/9/12/18/24/36/48/54 */
 	else
 		mandatory = 0xff0f; /* OFDM (6/9../54) + CCK (1/2/5.5/11) */
@@ -304,7 +304,8 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 	struct ath_common *common = &ar->common;
 	u8 *mac_addr, *bssid;
 	u32 cam_mode = AR9170_MAC_CAM_DEFAULTS;
-	u32 enc_mode = AR9170_MAC_ENCRYPTION_DEFAULTS;
+	u32 enc_mode = AR9170_MAC_ENCRYPTION_DEFAULTS |
+		AR9170_MAC_ENCRYPTION_MGMT_RX_SOFTWARE;
 	u32 rx_ctrl = AR9170_MAC_RX_CTRL_DEAGG |
 		      AR9170_MAC_RX_CTRL_SHORT_FILTER;
 	u32 sniffer = AR9170_MAC_SNIFFER_DEFAULTS;
@@ -318,10 +319,10 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 		bssid = common->curbssid;
 
 		switch (vif->type) {
-		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_ADHOC:
 			cam_mode |= AR9170_MAC_CAM_IBSS;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			cam_mode |= AR9170_MAC_CAM_AP;
 
@@ -342,7 +343,24 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 			break;
 		}
 	} else {
-		mac_addr = NULL;
+		/*
+		 * Enable monitor mode
+		 *
+		 * rx_ctrl |= AR9170_MAC_RX_CTRL_ACK_IN_SNIFFER;
+		 * sniffer |= AR9170_MAC_SNIFFER_ENABLE_PROMISC;
+		 *
+		 * When the hardware is in SNIFFER_PROMISC mode,
+		 * it generates spurious ACKs for every incoming
+		 * frame. This confuses every peer in the
+		 * vicinity and the network throughput will suffer
+		 * badly.
+		 *
+		 * Hence, the hardware will be put into station
+		 * mode and just the rx filters are disabled.
+		 */
+		cam_mode |= AR9170_MAC_CAM_STA;
+		rx_ctrl |= AR9170_MAC_RX_CTRL_PASS_TO_HOST;
+		mac_addr = common->macaddr;
 		bssid = NULL;
 	}
 	rcu_read_unlock();
@@ -354,8 +372,6 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 		enc_mode |= AR9170_MAC_ENCRYPTION_RX_SOFTWARE;
 
 	if (ar->sniffer_enabled) {
-		rx_ctrl |= AR9170_MAC_RX_CTRL_ACK_IN_SNIFFER;
-		sniffer |= AR9170_MAC_SNIFFER_ENABLE_PROMISC;
 		enc_mode |= AR9170_MAC_ENCRYPTION_RX_SOFTWARE;
 	}
 
@@ -455,135 +471,6 @@ int carl9170_set_beacon_timers(struct ar9170 *ar)
 	return carl9170_regwrite_result();
 }
 
-int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
-{
-	struct sk_buff *skb = NULL;
-	struct carl9170_vif_info *cvif;
-	struct ieee80211_tx_info *txinfo;
-	__le32 *data, *old = NULL;
-	u32 word, off, addr, len;
-	int i = 0, err = 0;
-
-	rcu_read_lock();
-	cvif = rcu_dereference(ar->beacon_iter);
-retry:
-	if (ar->vifs == 0 || !cvif)
-		goto out_unlock;
-
-	list_for_each_entry_continue_rcu(cvif, &ar->vif_list, list) {
-		if (cvif->active && cvif->enable_beacon)
-			goto found;
-	}
-
-	if (!ar->beacon_enabled || i++)
-		goto out_unlock;
-
-	goto retry;
-
-found:
-	rcu_assign_pointer(ar->beacon_iter, cvif);
-
-	skb = ieee80211_beacon_get_tim(ar->hw, carl9170_get_vif(cvif),
-		NULL, NULL);
-
-	if (!skb) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
-	txinfo = IEEE80211_SKB_CB(skb);
-	if (txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS) {
-		err = -EINVAL;
-		goto err_free;
-	}
-
-	spin_lock_bh(&ar->beacon_lock);
-	data = (__le32 *)skb->data;
-	if (cvif->beacon)
-		old = (__le32 *)cvif->beacon->data;
-
-	off = cvif->id * AR9170_MAC_BCN_LENGTH_MAX;
-	addr = ar->fw.beacon_addr + off;
-	len = roundup(skb->len + FCS_LEN, 4);
-
-	if ((off + len) > ar->fw.beacon_max_len) {
-		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "beacon does not "
-				  "fit into device memory!\n");
-		}
-		err = -EINVAL;
-		goto err_unlock;
-	}
-
-	if (len > AR9170_MAC_BCN_LENGTH_MAX) {
-		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "no support for beacons "
-				"bigger than %d (yours:%d).\n",
-				 AR9170_MAC_BCN_LENGTH_MAX, len);
-		}
-
-		err = -EMSGSIZE;
-		goto err_unlock;
-	}
-
-	i = txinfo->control.rates[0].idx;
-	if (txinfo->band != IEEE80211_BAND_2GHZ)
-		i += 4;
-
-	word = __carl9170_ratetable[i].hw_value & 0xf;
-	if (i < 4)
-		word |= ((skb->len + FCS_LEN) << (3 + 16)) + 0x0400;
-	else
-		word |= ((skb->len + FCS_LEN) << 16) + 0x0010;
-
-	carl9170_async_regwrite_begin(ar);
-	carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP, word);
-
-	for (i = 0; i < DIV_ROUND_UP(skb->len, 4); i++) {
-		/*
-		 * XXX: This accesses beyond skb data for up
-		 *	to the last 3 bytes!!
-		 */
-
-		if (old && (data[i] == old[i]))
-			continue;
-
-		word = le32_to_cpu(data[i]);
-		carl9170_async_regwrite(addr + 4 * i, word);
-	}
-	carl9170_async_regwrite_finish();
-
-	dev_kfree_skb_any(cvif->beacon);
-	cvif->beacon = NULL;
-
-	err = carl9170_async_regwrite_result();
-	if (!err)
-		cvif->beacon = skb;
-	spin_unlock_bh(&ar->beacon_lock);
-	if (err)
-		goto err_free;
-
-	if (submit) {
-		err = carl9170_bcn_ctrl(ar, cvif->id,
-					CARL9170_BCN_CTRL_CAB_TRIGGER,
-					addr, skb->len + FCS_LEN);
-
-		if (err)
-			goto err_free;
-	}
-out_unlock:
-	rcu_read_unlock();
-	return 0;
-
-err_unlock:
-	spin_unlock_bh(&ar->beacon_lock);
-
-err_free:
-	rcu_read_unlock();
-	dev_kfree_skb_any(skb);
-	return err;
-}
-
 int carl9170_upload_key(struct ar9170 *ar, const u8 id, const u8 *mac,
 			const u8 ktype, const u8 keyidx, const u8 *keydata,
 			const int keylen)
@@ -613,4 +500,39 @@ int carl9170_disable_key(struct ar9170 *ar, const u8 id)
 
 	return carl9170_exec_cmd(ar, CARL9170_CMD_DKEY,
 		sizeof(key), (u8 *)&key, 0, NULL);
+}
+
+int carl9170_set_mac_tpc(struct ar9170 *ar, struct ieee80211_channel *channel)
+{
+	unsigned int power, chains;
+
+	if (ar->eeprom.tx_mask != 1)
+		chains = AR9170_TX_PHY_TXCHAIN_2;
+	else
+		chains = AR9170_TX_PHY_TXCHAIN_1;
+
+	switch (channel->band) {
+	case IEEE80211_BAND_2GHZ:
+		power = ar->power_2G_ofdm[0] & 0x3f;
+		break;
+	case IEEE80211_BAND_5GHZ:
+		power = ar->power_5G_leg[0] & 0x3f;
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	power = min_t(unsigned int, power, ar->hw->conf.power_level * 2);
+
+	carl9170_regwrite_begin(ar);
+	carl9170_regwrite(AR9170_MAC_REG_ACK_TPC,
+			  0x3c1e | power << 20 | chains << 26);
+	carl9170_regwrite(AR9170_MAC_REG_RTS_CTS_TPC,
+			  power << 5 | chains << 11 |
+			  power << 21 | chains << 27);
+	carl9170_regwrite(AR9170_MAC_REG_CFEND_QOSNULL_TPC,
+			  power << 5 | chains << 11 |
+			  power << 21 | chains << 27);
+	carl9170_regwrite_finish();
+	return carl9170_regwrite_result();
 }

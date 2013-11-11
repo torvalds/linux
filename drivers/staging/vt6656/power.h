@@ -29,33 +29,19 @@
 #ifndef __POWER_H__
 #define __POWER_H__
 
-
-/*---------------------  Export Definitions -------------------------*/
 #define     C_PWBT                   1000      // micro sec. power up before TBTT
 #define     PS_FAST_INTERVAL         1         // Fast power saving listen interval
 #define     PS_MAX_INTERVAL          4         // MAX power saving listen interval
 
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-
-/*---------------------  Export Types  ------------------------------*/
-
-
-/*---------------------  Export Functions  --------------------------*/
-
 /*  PSDevice pDevice */
 /*  PSDevice hDeviceContext */
 
-BOOL PSbConsiderPowerDown(void *hDeviceContext,
-			  BOOL bCheckRxDMA,
-			  BOOL bCheckCountToWakeUp);
-
-void PSvDisablePowerSaving(void *hDeviceContext);
-void PSvEnablePowerSaving(void *hDeviceContext, WORD wListenInterval);
-void PSvSendPSPOLL(void *hDeviceContext);
-BOOL PSbSendNullPacket(void *hDeviceContext);
-BOOL PSbIsNextTBTTWakeUp(void *hDeviceContext);
+int PSbConsiderPowerDown(struct vnt_private *, int bCheckRxDMA,
+	int bCheckCountToWakeUp);
+void PSvDisablePowerSaving(struct vnt_private *);
+void PSvEnablePowerSaving(struct vnt_private *, u16 wListenInterval);
+void PSvSendPSPOLL(struct vnt_private *);
+int PSbSendNullPacket(struct vnt_private *);
+int PSbIsNextTBTTWakeUp(struct vnt_private *);
 
 #endif /* __POWER_H__ */

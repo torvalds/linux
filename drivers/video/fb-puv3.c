@@ -624,8 +624,8 @@ static int unifb_pan_display(struct fb_var_screeninfo *var,
 		    || var->xoffset)
 			return -EINVAL;
 	} else {
-		if (var->xoffset + var->xres > info->var.xres_virtual ||
-		    var->yoffset + var->yres > info->var.yres_virtual)
+		if (var->xoffset + info->var.xres > info->var.xres_virtual ||
+		    var->yoffset + info->var.yres > info->var.yres_virtual)
 			return -EINVAL;
 	}
 	info->var.xoffset = var->xoffset;
@@ -640,22 +640,9 @@ static int unifb_pan_display(struct fb_var_screeninfo *var,
 int unifb_mmap(struct fb_info *info,
 		    struct vm_area_struct *vma)
 {
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long pos = info->fix.smem_start + offset;
-
-	if (offset + size > info->fix.smem_len)
-		return -EINVAL;
-
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (io_remap_pfn_range(vma, vma->vm_start, pos >> PAGE_SHIFT, size,
-				vma->vm_page_prot))
-		return -EAGAIN;
-
-	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
-	return 0;
-
+	return vm_iomap_memory(vma, info->fix.smem_start, info->fix.smem_len);
 }
 
 static struct fb_ops unifb_ops = {

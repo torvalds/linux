@@ -11,7 +11,7 @@
  *
  * Essentially rewritten for the Xtensa architecture port.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2013 Tensilica Inc.
  *
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
  * Chris Zankel	<chris@zankel.net>
@@ -32,11 +32,13 @@
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 
+#include <asm/stacktrace.h>
 #include <asm/ptrace.h>
 #include <asm/timex.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/traps.h>
 
 #ifdef CONFIG_KGDB
 extern int gdb_enter;
@@ -97,7 +99,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 /* EXCCAUSE_INTEGER_DIVIDE_BY_ZERO unhandled */
 /* EXCCAUSE_PRIVILEGED unhandled */
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-#ifdef CONFIG_UNALIGNED_USER
+#ifdef CONFIG_XTENSA_UNALIGNED_USER
 { EXCCAUSE_UNALIGNED,		USER,	   fast_unaligned },
 #else
 { EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
@@ -193,28 +195,51 @@ void do_multihit(struct pt_regs *regs, unsigned long exccause)
 }
 
 /*
- * Level-1 interrupt.
- * We currently have no priority encoding.
+ * IRQ handler.
  */
 
-unsigned long ignored_level1_interrupts;
 extern void do_IRQ(int, struct pt_regs *);
 
-void do_interrupt (struct pt_regs *regs)
+void do_interrupt(struct pt_regs *regs)
 {
-	unsigned long intread = get_sr (INTREAD);
-	unsigned long intenable = get_sr (INTENABLE);
-	int i, mask;
+	static const unsigned int_level_mask[] = {
+		0,
+		XCHAL_INTLEVEL1_MASK,
+		XCHAL_INTLEVEL2_MASK,
+		XCHAL_INTLEVEL3_MASK,
+		XCHAL_INTLEVEL4_MASK,
+		XCHAL_INTLEVEL5_MASK,
+		XCHAL_INTLEVEL6_MASK,
+		XCHAL_INTLEVEL7_MASK,
+	};
 
-	/* Handle all interrupts (no priorities).
-	 * (Clear the interrupt before processing, in case it's
-	 *  edge-triggered or software-generated)
-	 */
+	for (;;) {
+		unsigned intread = get_sr(interrupt);
+		unsigned intenable = get_sr(intenable);
+		unsigned int_at_level = intread & intenable;
+		unsigned level;
 
-	for (i=0, mask = 1; i < XCHAL_NUM_INTERRUPTS; i++, mask <<= 1) {
-		if (mask & (intread & intenable)) {
-			set_sr (mask, INTCLEAR);
-			do_IRQ (i,regs);
+		for (level = LOCKLEVEL; level > 0; --level) {
+			if (int_at_level & int_level_mask[level]) {
+				int_at_level &= int_level_mask[level];
+				break;
+			}
+		}
+
+		if (level == 0)
+			return;
+
+		/*
+		 * Clear the interrupt before processing, in case it's
+		 *  edge-triggered or software-generated
+		 */
+		while (int_at_level) {
+			unsigned i = __ffs(int_at_level);
+			unsigned mask = 1 << i;
+
+			int_at_level ^= mask;
+			set_sr(mask, intclear);
+			do_IRQ(i, regs);
 		}
 	}
 }
@@ -244,7 +269,7 @@ do_illegal_instruction(struct pt_regs *regs)
  */
 
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-#ifndef CONFIG_UNALIGNED_USER
+#ifndef CONFIG_XTENSA_UNALIGNED_USER
 void
 do_unaligned_user (struct pt_regs *regs)
 {
@@ -290,6 +315,17 @@ do_debug(struct pt_regs *regs)
 	/* If in user mode, send SIGTRAP signal to current process */
 
 	force_sig(SIGTRAP, current);
+}
+
+
+/* Set exception C handler - for temporary use when probing exceptions */
+
+void * __init trap_set_handler(int cause, void *handler)
+{
+	unsigned long *entry = &exc_table[EXC_TABLE_DEFAULT / 4 + cause];
+	void *previous = (void *)*entry;
+	*entry = (unsigned long)handler;
+	return previous;
 }
 
 
@@ -339,7 +375,7 @@ void __init trap_init(void)
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */
 
 	i = (unsigned long)exc_table;
-	__asm__ __volatile__("wsr  %0, "__stringify(EXCSAVE_1)"\n" : : "a" (i));
+	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (i));
 }
 
 /*
@@ -349,6 +385,8 @@ void __init trap_init(void)
 void show_regs(struct pt_regs * regs)
 {
 	int i, wmask;
+
+	show_regs_print_info(KERN_DEFAULT);
 
 	wmask = regs->wmask & ~1;
 
@@ -369,53 +407,25 @@ void show_regs(struct pt_regs * regs)
 		       regs->syscall);
 }
 
-static __always_inline unsigned long *stack_pointer(struct task_struct *task)
+static int show_trace_cb(struct stackframe *frame, void *data)
 {
-	unsigned long *sp;
-
-	if (!task || task == current)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(sp));
-	else
-		sp = (unsigned long *)task->thread.sp;
-
-	return sp;
+	if (kernel_text_address(frame->pc)) {
+		printk(" [<%08lx>] ", frame->pc);
+		print_symbol("%s\n", frame->pc);
+	}
+	return 0;
 }
 
 void show_trace(struct task_struct *task, unsigned long *sp)
 {
-	unsigned long a0, a1, pc;
-	unsigned long sp_start, sp_end;
-
-	if (sp)
-		a1 = (unsigned long)sp;
-	else
-		a1 = (unsigned long)stack_pointer(task);
-
-	sp_start = a1 & ~(THREAD_SIZE-1);
-	sp_end = sp_start + THREAD_SIZE;
+	if (!sp)
+		sp = stack_pointer(task);
 
 	printk("Call Trace:");
 #ifdef CONFIG_KALLSYMS
 	printk("\n");
 #endif
-	spill_registers();
-
-	while (a1 > sp_start && a1 < sp_end) {
-		sp = (unsigned long*)a1;
-
-		a0 = *(sp - 4);
-		a1 = *(sp - 3);
-
-		if (a1 <= (unsigned long) sp)
-			break;
-
-		pc = MAKE_PC_FROM_RA(a0, a1);
-
-		if (kernel_text_address(pc)) {
-			printk(" [<%08lx>] ", pc);
-			print_symbol("%s\n", pc);
-		}
-	}
+	walk_stackframe(sp, show_trace_cb, NULL);
 	printk("\n");
 }
 
@@ -433,7 +443,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 
 	if (!sp)
 		sp = stack_pointer(task);
- 	stack = sp;
+	stack = sp;
 
 	printk("\nStack: ");
 
@@ -447,14 +457,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	printk("\n");
 	show_trace(task, stack);
 }
-
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 
 void show_code(unsigned int *pc)
 {
@@ -493,7 +495,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);
 
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())
@@ -504,5 +506,3 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	do_exit(err);
 }
-
-

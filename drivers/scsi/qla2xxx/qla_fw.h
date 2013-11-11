@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -300,7 +300,8 @@ struct init_cb_24xx {
 	uint32_t prio_request_q_address[2];
 
 	uint16_t msix;
-	uint8_t reserved_2[6];
+	uint16_t msix_atio;
+	uint8_t reserved_2[4];
 
 	uint16_t atio_q_inpointer;
 	uint16_t atio_q_length;
@@ -381,6 +382,44 @@ struct init_cb_24xx {
 /*
  * ISP queue - command entry structure definition.
  */
+#define COMMAND_BIDIRECTIONAL 0x75
+struct cmd_bidir {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined */
+	uint8_t entry_status;		/* Entry status. */
+
+	uint32_t handle;		/* System handle. */
+
+	uint16_t nport_handle;		/* N_PORT hanlde. */
+
+	uint16_t timeout;		/* Commnad timeout. */
+
+	uint16_t wr_dseg_count;		/* Write Data segment count. */
+	uint16_t rd_dseg_count;		/* Read Data segment count. */
+
+	struct scsi_lun lun;		/* FCP LUN (BE). */
+
+	uint16_t control_flags;		/* Control flags. */
+#define BD_WRAP_BACK			BIT_3
+#define BD_READ_DATA			BIT_1
+#define BD_WRITE_DATA			BIT_0
+
+	uint16_t fcp_cmnd_dseg_len;		/* Data segment length. */
+	uint32_t fcp_cmnd_dseg_address[2];	/* Data segment address. */
+
+	uint16_t reserved[2];			/* Reserved */
+
+	uint32_t rd_byte_count;			/* Total Byte count Read. */
+	uint32_t wr_byte_count;			/* Total Byte count write. */
+
+	uint8_t port_id[3];			/* PortID of destination port.*/
+	uint8_t vp_index;
+
+	uint32_t fcp_data_dseg_address[2];	/* Data segment address. */
+	uint16_t fcp_data_dseg_len;		/* Data segment length. */
+};
+
 #define COMMAND_TYPE_6	0x48		/* Command Type 6 entry */
 struct cmd_type_6 {
 	uint8_t entry_type;		/* Entry type. */
@@ -537,6 +576,11 @@ struct sts_entry_24xx {
 	/*
 	 * If DIF Error is set in comp_status, these additional fields are
 	 * defined:
+	 *
+	 * !!! NOTE: Firmware sends expected/actual DIF data in big endian
+	 * format; but all of the "data" field gets swab32-d in the beginning
+	 * of qla2x00_status_entry().
+	 *
 	 * &data[10] : uint8_t report_runt_bg[2];	- computed guard
 	 * &data[12] : uint8_t actual_dif[8];		- DIF Data received
 	 * &data[20] : uint8_t expected_dif[8];		- DIF Data computed
@@ -1049,6 +1093,27 @@ struct device_reg_24xx {
 	uint32_t unused_6[2];		/* Gap. */
 	uint32_t iobase_sdata;
 };
+/* RISC-RISC semaphore register PCI offet */
+#define RISC_REGISTER_BASE_OFFSET	0x7010
+#define RISC_REGISTER_WINDOW_OFFET	0x6
+
+/* RISC-RISC semaphore/flag register (risc address 0x7016) */
+
+#define RISC_SEMAPHORE		0x1UL
+#define RISC_SEMAPHORE_WE	(RISC_SEMAPHORE << 16)
+#define RISC_SEMAPHORE_CLR	(RISC_SEMAPHORE_WE | 0x0UL)
+#define RISC_SEMAPHORE_SET	(RISC_SEMAPHORE_WE | RISC_SEMAPHORE)
+
+#define RISC_SEMAPHORE_FORCE		0x8000UL
+#define RISC_SEMAPHORE_FORCE_WE		(RISC_SEMAPHORE_FORCE << 16)
+#define RISC_SEMAPHORE_FORCE_CLR	(RISC_SEMAPHORE_FORCE_WE | 0x0UL)
+#define RISC_SEMAPHORE_FORCE_SET	\
+		(RISC_SEMAPHORE_FORCE_WE | RISC_SEMAPHORE_FORCE)
+
+/* RISC semaphore timeouts (ms) */
+#define TIMEOUT_SEMAPHORE		2500
+#define TIMEOUT_SEMAPHORE_FORCE		2000
+#define TIMEOUT_TOTAL_ELAPSED		4500
 
 /* Trace Control *************************************************************/
 
@@ -1125,7 +1190,7 @@ struct mid_db_entry_24xx {
 /*
  * Virtual Port Control IOCB
  */
-#define VP_CTRL_IOCB_TYPE	0x30	/* Vitual Port Control entry. */
+#define VP_CTRL_IOCB_TYPE	0x30	/* Virtual Port Control entry. */
 struct vp_ctrl_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -1161,7 +1226,7 @@ struct vp_ctrl_entry_24xx {
 /*
  * Modify Virtual Port Configuration IOCB
  */
-#define VP_CONFIG_IOCB_TYPE	0x31	/* Vitual Port Config entry. */
+#define VP_CONFIG_IOCB_TYPE	0x31	/* Virtual Port Config entry. */
 struct vp_config_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -1322,6 +1387,9 @@ struct qla_flt_header {
 #define FLT_REG_GOLD_FW		0x2f
 #define FLT_REG_FCP_PRIO_0	0x87
 #define FLT_REG_FCP_PRIO_1	0x88
+#define FLT_REG_FCOE_FW		0xA4
+#define FLT_REG_FCOE_NVRAM_0	0xAA
+#define FLT_REG_FCOE_NVRAM_1	0xAC
 
 struct qla_flt_region {
 	uint32_t code;
@@ -1488,6 +1556,14 @@ struct access_chip_rsp_84xx {
 #define MBC_FLASH_ACCESS_CTRL	0x3e	/* Control flash access. */
 #define MBC_GET_XGMAC_STATS	0x7a
 #define MBC_GET_DCBX_PARAMS	0x51
+
+/*
+ * ISP83xx mailbox commands
+ */
+#define MBC_WRITE_REMOTE_REG		0x0001 /* Write remote register */
+#define MBC_READ_REMOTE_REG		0x0009 /* Read remote register */
+#define MBC_RESTART_NIC_FIRMWARE	0x003d /* Restart NIC firmware */
+#define MBC_SET_ACCESS_CONTROL		0x003e /* Access control command */
 
 /* Flash access control option field bit definitions */
 #define FAC_OPT_FORCE_SEMAPHORE		BIT_15
@@ -1869,5 +1945,8 @@ struct qla_fcp_prio_cfg {
 #define FA_HW_EVENT1_ADDR_81	0xDC400
 #define FA_NPIV_CONF0_ADDR_81	0xD1000
 #define FA_NPIV_CONF1_ADDR_81	0xD2000
+
+/* 83XX Flash locations -- occupies second 8MB region. */
+#define FA_FLASH_LAYOUT_ADDR_83	0xFC400
 
 #endif

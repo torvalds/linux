@@ -1,0 +1,14 @@
+* Freescale i.MX non-core registers
+
+Required properties:
+- #index-cells: Cells used to descibe usb controller index. Should be <1>
+- compatible: Should be one of below:
+	"fsl,imx6q-usbmisc" for imx6q
+- reg: Should contain registers location and length
+
+Examples:
+usbmisc@02184800 {
+	#index-cells = <1>;
+	compatible = "fsl,imx6q-usbmisc";
+	reg = <0x02184800 0x200>;
+};

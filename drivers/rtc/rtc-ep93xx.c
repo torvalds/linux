@@ -36,6 +36,7 @@
  */
 struct ep93xx_rtc {
 	void __iomem	*mmio_base;
+	struct rtc_device *rtc;
 };
 
 static int ep93xx_rtc_get_swcomp(struct device *dev, unsigned short *preload,
@@ -126,11 +127,10 @@ static const struct attribute_group ep93xx_rtc_sysfs_files = {
 	.attrs	= ep93xx_rtc_attrs,
 };
 
-static int __init ep93xx_rtc_probe(struct platform_device *pdev)
+static int ep93xx_rtc_probe(struct platform_device *pdev)
 {
 	struct ep93xx_rtc *ep93xx_rtc;
 	struct resource *res;
-	struct rtc_device *rtc;
 	int err;
 
 	ep93xx_rtc = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_rtc), GFP_KERNEL);
@@ -151,66 +151,49 @@ static int __init ep93xx_rtc_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	pdev->dev.platform_data = ep93xx_rtc;
-	platform_set_drvdata(pdev, rtc);
+	platform_set_drvdata(pdev, ep93xx_rtc);
 
-	rtc = rtc_device_register(pdev->name,
-				&pdev->dev, &ep93xx_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		err = PTR_ERR(rtc);
+	ep93xx_rtc->rtc = devm_rtc_device_register(&pdev->dev,
+				pdev->name, &ep93xx_rtc_ops, THIS_MODULE);
+	if (IS_ERR(ep93xx_rtc->rtc)) {
+		err = PTR_ERR(ep93xx_rtc->rtc);
 		goto exit;
 	}
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
-		goto fail;
+		goto exit;
 
 	return 0;
 
-fail:
-	rtc_device_unregister(rtc);
 exit:
 	platform_set_drvdata(pdev, NULL);
 	pdev->dev.platform_data = NULL;
 	return err;
 }
 
-static int __exit ep93xx_rtc_remove(struct platform_device *pdev)
+static int ep93xx_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(rtc);
 	pdev->dev.platform_data = NULL;
 
 	return 0;
 }
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:ep93xx-rtc");
 
 static struct platform_driver ep93xx_rtc_driver = {
 	.driver		= {
 		.name	= "ep93xx-rtc",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ep93xx_rtc_remove),
+	.probe		= ep93xx_rtc_probe,
+	.remove		= ep93xx_rtc_remove,
 };
 
-static int __init ep93xx_rtc_init(void)
-{
-        return platform_driver_probe(&ep93xx_rtc_driver, ep93xx_rtc_probe);
-}
-
-static void __exit ep93xx_rtc_exit(void)
-{
-	platform_driver_unregister(&ep93xx_rtc_driver);
-}
+module_platform_driver(ep93xx_rtc_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("EP93XX RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ep93xx_rtc_init);
-module_exit(ep93xx_rtc_exit);
+MODULE_ALIAS("platform:ep93xx-rtc");

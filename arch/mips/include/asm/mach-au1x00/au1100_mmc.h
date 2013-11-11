@@ -130,8 +130,10 @@ struct au1xmmc_platform_data {
 #define SD_CONFIG2_DF	(0x00000008)
 #define SD_CONFIG2_DC	(0x00000010)
 #define SD_CONFIG2_xx2	(0x000000e0)
+#define SD_CONFIG2_BB	(0x00000080)
 #define SD_CONFIG2_WB	(0x00000100)
 #define SD_CONFIG2_RW	(0x00000200)
+#define SD_CONFIG2_DP	(0x00000400)
 
 
 /*
@@ -146,7 +148,7 @@ struct au1xmmc_platform_data {
 /*
  *  SD_STATUS bit definitions.
  */
-#define SD_STATUS_DCRCW	(0x00000007)
+#define SD_STATUS_DCRCW (0x00000007)
 #define SD_STATUS_xx1	(0x00000008)
 #define SD_STATUS_CB	(0x00000010)
 #define SD_STATUS_DB	(0x00000020)

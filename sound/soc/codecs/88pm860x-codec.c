@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/88pm860x.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -349,6 +350,9 @@ static int snd_soc_put_volsw_2r_st(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 	val2 = ucontrol->value.integer.value[1];
+
+	if (val >= ARRAY_SIZE(st_table) || val2 >= ARRAY_SIZE(st_table))
+		return -EINVAL;
 
 	err = snd_soc_update_bits(codec, reg, 0x3f, st_table[val].m);
 	if (err < 0)
@@ -772,11 +776,12 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 
 
 	SND_SOC_DAPM_AIF_IN("I2S DIN", "I2S Playback", 0,
-			    PM860X_DAC_EN_2, 0, 0),
+			    SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("I2S DIN1", "I2S Playback", 0,
-			    PM860X_DAC_EN_2, 0, 0),
+			    SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("I2S DOUT", "I2S Capture", 0,
 			     PM860X_I2S_IFACE_3, 5, 1),
+	SND_SOC_DAPM_SUPPLY("I2S CLK", PM860X_DAC_EN_2, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MUX("I2S Mic Mux", SND_SOC_NOPM, 0, 0, &i2s_mic_mux),
 	SND_SOC_DAPM_MUX("ADC Left Mux", SND_SOC_NOPM, 0, 0, &adcl_mux),
 	SND_SOC_DAPM_MUX("ADC Right Mux", SND_SOC_NOPM, 0, 0, &adcr_mux),
@@ -859,7 +864,7 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 	PM860X_DAPM_OUTPUT("RSYNC", pm860x_rsync_event),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route pm860x_dapm_routes[] = {
 	/* supply */
 	{"Left DAC", NULL, "VCODEC"},
 	{"Right DAC", NULL, "VCODEC"},
@@ -867,6 +872,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Right ADC", NULL, "VCODEC"},
 	{"Left ADC", NULL, "Left ADC MOD"},
 	{"Right ADC", NULL, "Right ADC MOD"},
+
+	/* I2S Clock */
+	{"I2S DIN", NULL, "I2S CLK"},
+	{"I2S DIN1", NULL, "I2S CLK"},
+	{"I2S DOUT", NULL, "I2S CLK"},
 
 	/* PCM/AIF1 Inputs */
 	{"PCM SDO", NULL, "ADC Left Mux"},
@@ -1173,6 +1183,9 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable Audio PLL & Audio section */
+			data = AUDIO_PLL | AUDIO_SECTION_ON;
+			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			udelay(300);
 			data = AUDIO_PLL | AUDIO_SECTION_RESET
 				| AUDIO_SECTION_ON;
 			pm860x_reg_write(codec->control_data, REG_MISC2, data);
@@ -1188,14 +1201,14 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
+static const struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
 	.digital_mute	= pm860x_digital_mute,
 	.hw_params	= pm860x_pcm_hw_params,
 	.set_fmt	= pm860x_pcm_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
 };
 
-static struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
+static const struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
 	.digital_mute	= pm860x_digital_mute,
 	.hw_params	= pm860x_i2s_hw_params,
 	.set_fmt	= pm860x_i2s_set_dai_fmt,
@@ -1351,7 +1364,6 @@ EXPORT_SYMBOL_GPL(pm860x_mic_jack_detect);
 static int pm860x_probe(struct snd_soc_codec *codec)
 {
 	struct pm860x_priv *pm860x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int i, ret;
 
 	pm860x->codec = codec;
@@ -1378,11 +1390,6 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 		goto out;
 	}
 
-	snd_soc_add_controls(codec, pm860x_snd_controls,
-			     ARRAY_SIZE(pm860x_snd_controls));
-	snd_soc_dapm_new_controls(dapm, pm860x_dapm_widgets,
-				  ARRAY_SIZE(pm860x_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	return 0;
 
 out:
@@ -1410,16 +1417,24 @@ static struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.reg_cache_size	= REG_CACHE_SIZE,
 	.reg_word_size	= sizeof(u8),
 	.set_bias_level	= pm860x_set_bias_level,
+
+	.controls = pm860x_snd_controls,
+	.num_controls = ARRAY_SIZE(pm860x_snd_controls),
+	.dapm_widgets = pm860x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(pm860x_dapm_widgets),
+	.dapm_routes = pm860x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(pm860x_dapm_routes),
 };
 
-static int __devinit pm860x_codec_probe(struct platform_device *pdev)
+static int pm860x_codec_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_priv *pm860x;
 	struct resource *res;
 	int i, ret;
 
-	pm860x = kzalloc(sizeof(struct pm860x_priv), GFP_KERNEL);
+	pm860x = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_priv),
+			      GFP_KERNEL);
 	if (pm860x == NULL)
 		return -ENOMEM;
 
@@ -1448,17 +1463,13 @@ static int __devinit pm860x_codec_probe(struct platform_device *pdev)
 
 out:
 	platform_set_drvdata(pdev, NULL);
-	kfree(pm860x);
 	return -EINVAL;
 }
 
-static int __devexit pm860x_codec_remove(struct platform_device *pdev)
+static int pm860x_codec_remove(struct platform_device *pdev)
 {
-	struct pm860x_priv *pm860x = platform_get_drvdata(pdev);
-
 	snd_soc_unregister_codec(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(pm860x);
 	return 0;
 }
 
@@ -1468,20 +1479,10 @@ static struct platform_driver pm860x_codec_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pm860x_codec_probe,
-	.remove	= __devexit_p(pm860x_codec_remove),
+	.remove	= pm860x_codec_remove,
 };
 
-static __init int pm860x_init(void)
-{
-	return platform_driver_register(&pm860x_codec_driver);
-}
-module_init(pm860x_init);
-
-static __exit void pm860x_exit(void)
-{
-	platform_driver_unregister(&pm860x_codec_driver);
-}
-module_exit(pm860x_exit);
+module_platform_driver(pm860x_codec_driver);
 
 MODULE_DESCRIPTION("ASoC 88PM860x driver");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

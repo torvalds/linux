@@ -27,7 +27,7 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "rv515d.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -35,10 +35,16 @@
 #include "rv515_reg_safe.h"
 
 /* This files gather functions specifics to: rv515 */
-int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
-int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
-void rv515_gpu_init(struct radeon_device *rdev);
+static int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
+static int rv515_debugfs_ga_info_init(struct radeon_device *rdev);
+static void rv515_gpu_init(struct radeon_device *rdev);
 int rv515_mc_wait_for_idle(struct radeon_device *rdev);
+
+static const u32 crtc_offsets[2] =
+{
+	0,
+	AVIVO_D2CRTC_H_TOTAL - AVIVO_D1CRTC_H_TOTAL
+};
 
 void rv515_debugfs(struct radeon_device *rdev)
 {
@@ -53,46 +59,46 @@ void rv515_debugfs(struct radeon_device *rdev)
 	}
 }
 
-void rv515_ring_start(struct radeon_device *rdev)
+void rv515_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	int r;
 
-	r = radeon_ring_lock(rdev, 64);
+	r = radeon_ring_lock(rdev, ring, 64);
 	if (r) {
 		return;
 	}
-	radeon_ring_write(rdev, PACKET0(ISYNC_CNTL, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(ring, PACKET0(ISYNC_CNTL, 0));
+	radeon_ring_write(ring,
 			  ISYNC_ANY2D_IDLE3D |
 			  ISYNC_ANY3D_IDLE2D |
 			  ISYNC_WAIT_IDLEGUI |
 			  ISYNC_CPSCRATCH_IDLEGUI);
-	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(R300_DST_PIPE_CONFIG, 0));
-	radeon_ring_write(rdev, R300_PIPE_AUTO_CONFIG);
-	radeon_ring_write(rdev, PACKET0(GB_SELECT, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(GB_ENABLE, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(R500_SU_REG_DEST, 0));
-	radeon_ring_write(rdev, (1 << rdev->num_gb_pipes) - 1);
-	radeon_ring_write(rdev, PACKET0(VAP_INDEX_OFFSET, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RB3D_DC_FLUSH | RB3D_DC_FREE);
-	radeon_ring_write(rdev, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, ZC_FLUSH | ZC_FREE);
-	radeon_ring_write(rdev, PACKET0(WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(GB_AA_CONFIG, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, RB3D_DC_FLUSH | RB3D_DC_FREE);
-	radeon_ring_write(rdev, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
-	radeon_ring_write(rdev, ZC_FLUSH | ZC_FREE);
-	radeon_ring_write(rdev, PACKET0(GB_MSPOS0, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(ring, PACKET0(WAIT_UNTIL, 0));
+	radeon_ring_write(ring, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
+	radeon_ring_write(ring, PACKET0(R300_DST_PIPE_CONFIG, 0));
+	radeon_ring_write(ring, R300_PIPE_AUTO_CONFIG);
+	radeon_ring_write(ring, PACKET0(GB_SELECT, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(GB_ENABLE, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(R500_SU_REG_DEST, 0));
+	radeon_ring_write(ring, (1 << rdev->num_gb_pipes) - 1);
+	radeon_ring_write(ring, PACKET0(VAP_INDEX_OFFSET, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(ring, RB3D_DC_FLUSH | RB3D_DC_FREE);
+	radeon_ring_write(ring, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(ring, ZC_FLUSH | ZC_FREE);
+	radeon_ring_write(ring, PACKET0(WAIT_UNTIL, 0));
+	radeon_ring_write(ring, WAIT_2D_IDLECLEAN | WAIT_3D_IDLECLEAN);
+	radeon_ring_write(ring, PACKET0(GB_AA_CONFIG, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(ring, RB3D_DC_FLUSH | RB3D_DC_FREE);
+	radeon_ring_write(ring, PACKET0(ZB_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(ring, ZC_FLUSH | ZC_FREE);
+	radeon_ring_write(ring, PACKET0(GB_MSPOS0, 0));
+	radeon_ring_write(ring,
 			  ((6 << MS_X0_SHIFT) |
 			   (6 << MS_Y0_SHIFT) |
 			   (6 << MS_X1_SHIFT) |
@@ -101,8 +107,8 @@ void rv515_ring_start(struct radeon_device *rdev)
 			   (6 << MS_Y2_SHIFT) |
 			   (6 << MSBD0_Y_SHIFT) |
 			   (6 << MSBD0_X_SHIFT)));
-	radeon_ring_write(rdev, PACKET0(GB_MSPOS1, 0));
-	radeon_ring_write(rdev,
+	radeon_ring_write(ring, PACKET0(GB_MSPOS1, 0));
+	radeon_ring_write(ring,
 			  ((6 << MS_X3_SHIFT) |
 			   (6 << MS_Y3_SHIFT) |
 			   (6 << MS_X4_SHIFT) |
@@ -110,15 +116,15 @@ void rv515_ring_start(struct radeon_device *rdev)
 			   (6 << MS_X5_SHIFT) |
 			   (6 << MS_Y5_SHIFT) |
 			   (6 << MSBD1_SHIFT)));
-	radeon_ring_write(rdev, PACKET0(GA_ENHANCE, 0));
-	radeon_ring_write(rdev, GA_DEADLOCK_CNTL | GA_FASTSYNC_CNTL);
-	radeon_ring_write(rdev, PACKET0(GA_POLY_MODE, 0));
-	radeon_ring_write(rdev, FRONT_PTYPE_TRIANGE | BACK_PTYPE_TRIANGE);
-	radeon_ring_write(rdev, PACKET0(GA_ROUND_MODE, 0));
-	radeon_ring_write(rdev, GEOMETRY_ROUND_NEAREST | COLOR_ROUND_NEAREST);
-	radeon_ring_write(rdev, PACKET0(0x20C8, 0));
-	radeon_ring_write(rdev, 0);
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_write(ring, PACKET0(GA_ENHANCE, 0));
+	radeon_ring_write(ring, GA_DEADLOCK_CNTL | GA_FASTSYNC_CNTL);
+	radeon_ring_write(ring, PACKET0(GA_POLY_MODE, 0));
+	radeon_ring_write(ring, FRONT_PTYPE_TRIANGE | BACK_PTYPE_TRIANGE);
+	radeon_ring_write(ring, PACKET0(GA_ROUND_MODE, 0));
+	radeon_ring_write(ring, GEOMETRY_ROUND_NEAREST | COLOR_ROUND_NEAREST);
+	radeon_ring_write(ring, PACKET0(0x20C8, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_unlock_commit(rdev, ring);
 }
 
 int rv515_mc_wait_for_idle(struct radeon_device *rdev)
@@ -143,13 +149,13 @@ void rv515_vga_render_disable(struct radeon_device *rdev)
 		RREG32(R_000300_VGA_RENDER_CONTROL) & C_000300_VGA_VSTATUS_CNTL);
 }
 
-void rv515_gpu_init(struct radeon_device *rdev)
+static void rv515_gpu_init(struct radeon_device *rdev)
 {
 	unsigned pipe_select_current, gb_pipe_select, tmp;
 
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "reseting GPU. Bad things might happen.\n");
+		       "resetting GPU. Bad things might happen.\n");
 	}
 	rv515_vga_render_disable(rdev);
 	r420_pipes_init(rdev);
@@ -161,7 +167,7 @@ void rv515_gpu_init(struct radeon_device *rdev)
 	WREG32_PLL(0x000D, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "reseting GPU. Bad things might happen.\n");
+		       "resetting GPU. Bad things might happen.\n");
 	}
 	if (rv515_mc_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait MC idle while "
@@ -189,7 +195,7 @@ static void rv515_vram_get_type(struct radeon_device *rdev)
 	}
 }
 
-void rv515_mc_init(struct radeon_device *rdev)
+static void rv515_mc_init(struct radeon_device *rdev)
 {
 
 	rv515_vram_get_type(rdev);
@@ -261,7 +267,7 @@ static struct drm_info_list rv515_ga_info_list[] = {
 };
 #endif
 
-int rv515_debugfs_pipes_info_init(struct radeon_device *rdev)
+static int rv515_debugfs_pipes_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return radeon_debugfs_add_files(rdev, rv515_pipes_info_list, 1);
@@ -270,7 +276,7 @@ int rv515_debugfs_pipes_info_init(struct radeon_device *rdev)
 #endif
 }
 
-int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
+static int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return radeon_debugfs_add_files(rdev, rv515_ga_info_list, 1);
@@ -281,49 +287,176 @@ int rv515_debugfs_ga_info_init(struct radeon_device *rdev)
 
 void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 {
-	save->d1vga_control = RREG32(R_000330_D1VGA_CONTROL);
-	save->d2vga_control = RREG32(R_000338_D2VGA_CONTROL);
+	u32 crtc_enabled, tmp, frame_count, blackout;
+	int i, j;
+
 	save->vga_render_control = RREG32(R_000300_VGA_RENDER_CONTROL);
 	save->vga_hdp_control = RREG32(R_000328_VGA_HDP_CONTROL);
-	save->d1crtc_control = RREG32(R_006080_D1CRTC_CONTROL);
-	save->d2crtc_control = RREG32(R_006880_D2CRTC_CONTROL);
 
-	/* Stop all video */
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
+	/* disable VGA render */
 	WREG32(R_000300_VGA_RENDER_CONTROL, 0);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
-	WREG32(R_006080_D1CRTC_CONTROL, 0);
-	WREG32(R_006880_D2CRTC_CONTROL, 0);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
-	WREG32(R_000330_D1VGA_CONTROL, 0);
-	WREG32(R_000338_D2VGA_CONTROL, 0);
+	/* blank the display controllers */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		crtc_enabled = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]) & AVIVO_CRTC_EN;
+		if (crtc_enabled) {
+			save->crtc_enabled[i] = true;
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			if (!(tmp & AVIVO_CRTC_DISP_READ_REQUEST_DISABLE)) {
+				radeon_wait_for_vblank(rdev, i);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+				tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+				WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			}
+			/* wait for the next frame */
+			frame_count = radeon_get_vblank_counter(rdev, i);
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				if (radeon_get_vblank_counter(rdev, i) != frame_count)
+					break;
+				udelay(1);
+			}
+
+			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_EN;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			save->crtc_enabled[i] = false;
+			/* ***** */
+		} else {
+			save->crtc_enabled[i] = false;
+		}
+	}
+
+	radeon_mc_wait_for_idle(rdev);
+
+	if (rdev->family >= CHIP_R600) {
+		if (rdev->family >= CHIP_RV770)
+			blackout = RREG32(R700_MC_CITF_CNTL);
+		else
+			blackout = RREG32(R600_CITF_CNTL);
+		if ((blackout & R600_BLACKOUT_MASK) != R600_BLACKOUT_MASK) {
+			/* Block CPU access */
+			WREG32(R600_BIF_FB_EN, 0);
+			/* blackout the MC */
+			blackout |= R600_BLACKOUT_MASK;
+			if (rdev->family >= CHIP_RV770)
+				WREG32(R700_MC_CITF_CNTL, blackout);
+			else
+				WREG32(R600_CITF_CNTL, blackout);
+		}
+	}
+	/* wait for the MC to settle */
+	udelay(100);
+
+	/* lock double buffered regs */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (!(tmp & AVIVO_D1GRPH_UPDATE_LOCK)) {
+				tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (!(tmp & 1)) {
+				tmp |= 1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+		}
+	}
 }
 
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 {
-	WREG32(R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006910_D2GRPH_PRIMARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_006918_D2GRPH_SECONDARY_SURFACE_ADDRESS, rdev->mc.vram_start);
-	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, rdev->mc.vram_start);
-	/* Unlock host access */
+	u32 tmp, frame_count;
+	int i, j;
+
+	/* update crtc base addresses */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->family >= CHIP_RV770) {
+			if (i == 0) {
+				WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+				WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+			} else {
+				WREG32(R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+				WREG32(R700_D2GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
+				       upper_32_bits(rdev->mc.vram_start));
+			}
+		}
+		WREG32(R_006110_D1GRPH_PRIMARY_SURFACE_ADDRESS + crtc_offsets[i],
+		       (u32)rdev->mc.vram_start);
+		WREG32(R_006118_D1GRPH_SECONDARY_SURFACE_ADDRESS + crtc_offsets[i],
+		       (u32)rdev->mc.vram_start);
+	}
+	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	/* unlock regs and wait for update */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i]);
+			if ((tmp & 0x3) != 0) {
+				tmp &= ~0x3;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (tmp & AVIVO_D1GRPH_UPDATE_LOCK) {
+				tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (tmp & 1) {
+				tmp &= ~1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+				if ((tmp & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING) == 0)
+					break;
+				udelay(1);
+			}
+		}
+	}
+
+	if (rdev->family >= CHIP_R600) {
+		/* unblackout the MC */
+		if (rdev->family >= CHIP_RV770)
+			tmp = RREG32(R700_MC_CITF_CNTL);
+		else
+			tmp = RREG32(R600_CITF_CNTL);
+		tmp &= ~R600_BLACKOUT_MASK;
+		if (rdev->family >= CHIP_RV770)
+			WREG32(R700_MC_CITF_CNTL, tmp);
+		else
+			WREG32(R600_CITF_CNTL, tmp);
+		/* allow CPU access */
+		WREG32(R600_BIF_FB_EN, R600_FB_READ_EN | R600_FB_WRITE_EN);
+	}
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			/* wait for the next frame */
+			frame_count = radeon_get_vblank_counter(rdev, i);
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				if (radeon_get_vblank_counter(rdev, i) != frame_count)
+					break;
+				udelay(1);
+			}
+		}
+	}
+	/* Unlock vga access */
 	WREG32(R_000328_VGA_HDP_CONTROL, save->vga_hdp_control);
 	mdelay(1);
-	/* Restore video state */
-	WREG32(R_000330_D1VGA_CONTROL, save->d1vga_control);
-	WREG32(R_000338_D2VGA_CONTROL, save->d2vga_control);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 1);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 1);
-	WREG32(R_006080_D1CRTC_CONTROL, save->d1crtc_control);
-	WREG32(R_006880_D2CRTC_CONTROL, save->d2crtc_control);
-	WREG32(R_0060E8_D1CRTC_UPDATE_LOCK, 0);
-	WREG32(R_0068E8_D2CRTC_UPDATE_LOCK, 0);
 	WREG32(R_000300_VGA_RENDER_CONTROL, save->vga_render_control);
 }
 
-void rv515_mc_program(struct radeon_device *rdev)
+static void rv515_mc_program(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
 
@@ -392,7 +525,19 @@ static int rv515_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_fence_driver_start_ring(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	rs600_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -401,16 +546,20 @@ static int rv515_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_ib_init(rdev);
+
+	r = radeon_ib_pool_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "failed initializing IB (%d).\n", r);
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 		return r;
 	}
+
 	return 0;
 }
 
 int rv515_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -428,7 +577,13 @@ int rv515_resume(struct radeon_device *rdev)
 	rv515_clock_startup(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
-	return rv515_startup(rdev);
+
+	rdev->accel_working = true;
+	r =  rv515_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rv515_suspend(struct radeon_device *rdev)
@@ -451,7 +606,7 @@ void rv515_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
-	r100_ib_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_gem_fini(rdev);
 	rv370_pcie_gart_fini(rdev);
 	radeon_agp_fini(rdev);
@@ -513,9 +668,6 @@ int rv515_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
-	r = radeon_irq_kms_init(rdev);
-	if (r)
-		return r;
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r)
@@ -524,6 +676,7 @@ int rv515_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rv515_set_safe_registers(rdev);
+
 	rdev->accel_working = true;
 	r = rv515_startup(rdev);
 	if (r) {
@@ -531,7 +684,7 @@ int rv515_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);
-		r100_ib_fini(rdev);
+		radeon_ib_pool_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv370_pcie_gart_fini(rdev);
 		radeon_agp_fini(rdev);
@@ -783,7 +936,7 @@ struct rv515_watermark {
 	fixed20_12 sclk;
 };
 
-void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
+static void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 				  struct radeon_crtc *crtc,
 				  struct rv515_watermark *wm)
 {

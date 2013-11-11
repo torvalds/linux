@@ -43,23 +43,6 @@ void exar7300_set_loopback(struct channel *sc, u32 mode)
 	val &= ~(SBE_2T3E3_LIU_VAL_LOCAL_LOOPBACK | SBE_2T3E3_LIU_VAL_REMOTE_LOOPBACK);
 	val |= mode;
 	exar7300_write(sc, SBE_2T3E3_LIU_REG_REG4, val);
-
-#if 0
-	/* TODO - is it necessary? idea from 2T3E3_HW_Test_code */
-	switch (mode) {
-	case SBE_2T3E3_LIU_VAL_LOOPBACK_OFF:
-		break;
-	case SBE_2T3E3_LIU_VAL_LOOPBACK_REMOTE:
-		exar7300_receive_equalization_onoff(sc, SBE_2T3E3_ON);
-		break;
-	case SBE_2T3E3_LIU_VAL_LOOPBACK_ANALOG:
-		exar7300_receive_equalization_onoff(sc, SBE_2T3E3_OFF);
-		break;
-	case SBE_2T3E3_LIU_VAL_LOOPBACK_DIGITAL:
-		exar7300_receive_equalization_onoff(sc, SBE_2T3E3_ON);
-		break;
-	}
-#endif
 }
 
 void exar7300_set_frame_type(struct channel *sc, u32 type)

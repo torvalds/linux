@@ -24,6 +24,7 @@
 
 #include <net/mac80211.h>
 #include <linux/crc-ccitt.h>
+#include <linux/export.h>
 
 #include "p54.h"
 #include "eeprom.h"
@@ -75,6 +76,7 @@ struct p54_channel_entry {
 	u16 freq;
 	u16 data;
 	int index;
+	int max_power;
 	enum ieee80211_band band;
 };
 
@@ -145,6 +147,7 @@ static int p54_fill_band_bitrates(struct ieee80211_hw *dev,
 
 static int p54_generate_band(struct ieee80211_hw *dev,
 			     struct p54_channel_list *list,
+			     unsigned int *chan_num,
 			     enum ieee80211_band band)
 {
 	struct p54_common *priv = dev->priv;
@@ -171,6 +174,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 	for (i = 0, j = 0; (j < list->band_channel_num[band]) &&
 			   (i < list->entries); i++) {
 		struct p54_channel_entry *chan = &list->channels[i];
+		struct ieee80211_channel *dest = &tmp->channels[j];
 
 		if (chan->band != band)
 			continue;
@@ -188,9 +192,17 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 			continue;
 		}
 
-		tmp->channels[j].band = chan->band;
-		tmp->channels[j].center_freq = chan->freq;
+		dest->band = chan->band;
+		dest->center_freq = chan->freq;
+		dest->max_power = chan->max_power;
+		priv->survey[*chan_num].channel = &tmp->channels[j];
+		priv->survey[*chan_num].filled = SURVEY_INFO_NOISE_DBM |
+			SURVEY_INFO_CHANNEL_TIME |
+			SURVEY_INFO_CHANNEL_TIME_BUSY |
+			SURVEY_INFO_CHANNEL_TIME_TX;
+		dest->hw_value = (*chan_num);
 		j++;
+		(*chan_num)++;
 	}
 
 	if (j == 0) {
@@ -220,10 +232,11 @@ err_out:
 	return ret;
 }
 
-static void p54_update_channel_param(struct p54_channel_list *list,
-				     u16 freq, u16 data)
+static struct p54_channel_entry *p54_update_channel_param(struct p54_channel_list *list,
+							  u16 freq, u16 data)
 {
-	int band, i;
+	int i;
+	struct p54_channel_entry *entry = NULL;
 
 	/*
 	 * usually all lists in the eeprom are mostly sorted.
@@ -232,30 +245,78 @@ static void p54_update_channel_param(struct p54_channel_list *list,
 	 */
 	for (i = list->entries; i >= 0; i--) {
 		if (freq == list->channels[i].freq) {
-			list->channels[i].data |= data;
+			entry = &list->channels[i];
 			break;
 		}
 	}
 
 	if ((i < 0) && (list->entries < list->max_entries)) {
 		/* entry does not exist yet. Initialize a new one. */
-		band = p54_get_band_from_freq(freq);
+		int band = p54_get_band_from_freq(freq);
 
 		/*
 		 * filter out frequencies which don't belong into
 		 * any supported band.
 		 */
-		if (band < 0)
-			return ;
+		if (band >= 0) {
+			i = list->entries++;
+			list->band_channel_num[band]++;
 
-		i = list->entries++;
-		list->band_channel_num[band]++;
+			entry = &list->channels[i];
+			entry->freq = freq;
+			entry->band = band;
+			entry->index = ieee80211_frequency_to_channel(freq);
+			entry->max_power = 0;
+			entry->data = 0;
+		}
+	}
 
-		list->channels[i].freq = freq;
-		list->channels[i].data = data;
-		list->channels[i].band = band;
-		list->channels[i].index = ieee80211_frequency_to_channel(freq);
-		/* TODO: parse output_limit and fill max_power */
+	if (entry)
+		entry->data |= data;
+
+	return entry;
+}
+
+static int p54_get_maxpower(struct p54_common *priv, void *data)
+{
+	switch (priv->rxhw & PDR_SYNTH_FRONTEND_MASK) {
+	case PDR_SYNTH_FRONTEND_LONGBOW: {
+		struct pda_channel_output_limit_longbow *pda = data;
+		int j;
+		u16 rawpower = 0;
+		pda = data;
+		for (j = 0; j < ARRAY_SIZE(pda->point); j++) {
+			struct pda_channel_output_limit_point_longbow *point =
+				&pda->point[j];
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_qpsk));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_bpsk));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_16qam));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_64qam));
+		}
+		/* longbow seems to use 1/16 dBm units */
+		return rawpower / 16;
+		}
+
+	case PDR_SYNTH_FRONTEND_DUETTE3:
+	case PDR_SYNTH_FRONTEND_DUETTE2:
+	case PDR_SYNTH_FRONTEND_FRISBEE:
+	case PDR_SYNTH_FRONTEND_XBOW: {
+		struct pda_channel_output_limit *pda = data;
+		u8 rawpower = 0;
+		rawpower = max(rawpower, pda->val_qpsk);
+		rawpower = max(rawpower, pda->val_bpsk);
+		rawpower = max(rawpower, pda->val_16qam);
+		rawpower = max(rawpower, pda->val_64qam);
+		/* raw values are in 1/4 dBm units */
+		return rawpower / 4;
+		}
+
+	default:
+		return 20;
 	}
 }
 
@@ -263,7 +324,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	struct p54_channel_list *list;
-	unsigned int i, j, max_channel_num;
+	unsigned int i, j, k, max_channel_num;
 	int ret = 0;
 	u16 freq;
 
@@ -283,6 +344,13 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 		ret = -ENOMEM;
 		goto free;
 	}
+	priv->chan_num = max_channel_num;
+	priv->survey = kzalloc(sizeof(struct survey_info) * max_channel_num,
+			       GFP_KERNEL);
+	if (!priv->survey) {
+		ret = -ENOMEM;
+		goto free;
+	}
 
 	list->max_entries = max_channel_num;
 	list->channels = kzalloc(sizeof(struct p54_channel_entry) *
@@ -299,12 +367,19 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 		}
 
 		if (i < priv->output_limit->entries) {
-			freq = le16_to_cpup((__le16 *) (i *
-					    priv->output_limit->entry_size +
-					    priv->output_limit->offset +
-					    priv->output_limit->data));
+			struct p54_channel_entry *tmp;
 
-			p54_update_channel_param(list, freq, CHAN_HAS_LIMIT);
+			void *data = (void *) ((unsigned long) i *
+				priv->output_limit->entry_size +
+				priv->output_limit->offset +
+				priv->output_limit->data);
+
+			freq = le16_to_cpup((__le16 *) data);
+			tmp = p54_update_channel_param(list, freq,
+						       CHAN_HAS_LIMIT);
+			if (tmp) {
+				tmp->max_power = p54_get_maxpower(priv, data);
+			}
 		}
 
 		if (i < priv->curve_data->entries) {
@@ -321,8 +396,9 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	sort(list->channels, list->entries, sizeof(struct p54_channel_entry),
 	     p54_compare_channels, NULL);
 
+	k = 0;
 	for (i = 0, j = 0; i < IEEE80211_NUM_BANDS; i++) {
-		if (p54_generate_band(dev, list, i) == 0)
+		if (p54_generate_band(dev, list, &k, i) == 0)
 			j++;
 	}
 	if (j == 0) {
@@ -334,6 +410,10 @@ free:
 	if (list) {
 		kfree(list->channels);
 		kfree(list);
+	}
+	if (ret) {
+		kfree(priv->survey);
+		priv->survey = NULL;
 	}
 
 	return ret;
@@ -461,8 +541,9 @@ static int p54_parse_rssical(struct ieee80211_hw *dev,
 		entries = (len - offset) /
 			sizeof(struct pda_rssi_cal_ext_entry);
 
-		if ((len - offset) % sizeof(struct pda_rssi_cal_ext_entry) ||
-		    entries <= 0) {
+		if (len < offset ||
+		    (len - offset) % sizeof(struct pda_rssi_cal_ext_entry) ||
+		    entries == 0) {
 			wiphy_err(dev->wiphy, "invalid rssi database.\n");
 			goto err_data;
 		}
@@ -813,11 +894,12 @@ good_eeprom:
 		goto err;
 	}
 
+	priv->rxhw = synth & PDR_SYNTH_FRONTEND_MASK;
+
 	err = p54_generate_channel_lists(dev);
 	if (err)
 		goto err;
 
-	priv->rxhw = synth & PDR_SYNTH_FRONTEND_MASK;
 	if (priv->rxhw == PDR_SYNTH_FRONTEND_XBOW)
 		p54_init_xbow_synth(priv);
 	if (!(synth & PDR_SYNTH_24_GHZ_DISABLED))
@@ -836,7 +918,7 @@ good_eeprom:
 
 		wiphy_warn(dev->wiphy,
 			   "Invalid hwaddr! Using randomly generated MAC addr\n");
-		random_ether_addr(perm_addr);
+		eth_random_addr(perm_addr);
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
@@ -853,10 +935,12 @@ err:
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
+	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
 	priv->curve_data = NULL;
 	priv->rssi_db = NULL;
+	priv->survey = NULL;
 
 	wiphy_err(dev->wiphy, "eeprom parse failed!\n");
 	return err;
@@ -882,7 +966,7 @@ int p54_read_eeprom(struct ieee80211_hw *dev)
 
 	while (eeprom_size) {
 		blocksize = min(eeprom_size, maxblocksize);
-		ret = p54_download_eeprom(priv, (void *) (eeprom + offset),
+		ret = p54_download_eeprom(priv, eeprom + offset,
 					  offset, blocksize);
 		if (unlikely(ret))
 			goto free;

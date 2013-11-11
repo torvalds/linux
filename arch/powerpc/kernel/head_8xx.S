@@ -76,11 +76,7 @@ _ENTRY(_start);
  */
 	.globl	__start
 __start:
-	mr	r31,r3			/* save parameters */
-	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
+	mr	r31,r3			/* save device tree ptr */
 
 	/* We have to turn on the MMU right away so we get cache modes
 	 * set correctly.
@@ -224,7 +220,7 @@ DataAccess:
 	mfspr	r4,SPRN_DAR
 	li	r10,0x00f0
 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
-	EXC_XFER_EE_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /* Instruction access exception.
  * This is "never generated" by the MPC8xx.  We jump to it for other
@@ -235,7 +231,7 @@ InstructionAccess:
 	EXCEPTION_PROLOG
 	mr	r4,r12
 	mr	r5,r9
-	EXC_XFER_EE_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -723,11 +719,8 @@ start_here:
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
-	mr	r3,r31
-	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
+	li	r3,0
+	mr	r4,r31
 	bl	machine_init
 	bl	MMU_init
 

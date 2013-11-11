@@ -151,7 +151,6 @@ static int mioa701_wm9713_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Front Mic");
 	snd_soc_dapm_enable_pin(dapm, "GSM Line In");
 	snd_soc_dapm_enable_pin(dapm, "GSM Line Out");
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
@@ -182,64 +181,45 @@ static struct snd_soc_dai_link mioa701_dai[] = {
 
 static struct snd_soc_card mioa701 = {
 	.name = "MioA701",
+	.owner = THIS_MODULE,
 	.dai_link = mioa701_dai,
 	.num_links = ARRAY_SIZE(mioa701_dai),
 };
 
-static struct platform_device *mioa701_snd_device;
-
 static int mioa701_wm9713_probe(struct platform_device *pdev)
 {
-	int ret;
+	int rc;
 
 	if (!machine_is_mioa701())
 		return -ENODEV;
 
-	dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
-		 "lead to overheating and possible destruction of your device."
-		 "Do not use without a good knowledge of mio's board design!\n");
-
-	mioa701_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!mioa701_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(mioa701_snd_device, &mioa701);
-
-	ret = platform_device_add(mioa701_snd_device);
-	if (!ret)
-		return 0;
-
-	platform_device_put(mioa701_snd_device);
-	return ret;
+	mioa701.dev = &pdev->dev;
+	rc =  snd_soc_register_card(&mioa701);
+	if (!rc)
+		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
+			 "lead to overheating and possible destruction of your device."
+			 " Do not use without a good knowledge of mio's board design!\n");
+	return rc;
 }
 
-static int __devexit mioa701_wm9713_remove(struct platform_device *pdev)
+static int mioa701_wm9713_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(mioa701_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
 	return 0;
 }
 
 static struct platform_driver mioa701_wm9713_driver = {
 	.probe		= mioa701_wm9713_probe,
-	.remove		= __devexit_p(mioa701_wm9713_remove),
+	.remove		= mioa701_wm9713_remove,
 	.driver		= {
 		.name		= "mioa701-wm9713",
 		.owner		= THIS_MODULE,
 	},
 };
 
-static int __init mioa701_asoc_init(void)
-{
-	return platform_driver_register(&mioa701_wm9713_driver);
-}
-
-static void __exit mioa701_asoc_exit(void)
-{
-	platform_driver_unregister(&mioa701_wm9713_driver);
-}
-
-module_init(mioa701_asoc_init);
-module_exit(mioa701_asoc_exit);
+module_platform_driver(mioa701_wm9713_driver);
 
 /* Module information */
 MODULE_AUTHOR("Robert Jarzmik (rjarzmik@free.fr)");

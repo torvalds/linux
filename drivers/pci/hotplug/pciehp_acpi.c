@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "pciehp.h"
 
 #define PCIEHP_DETECT_PCIE	(0)
@@ -80,20 +81,16 @@ static struct list_head __initdata dummy_slots = LIST_HEAD_INIT(dummy_slots);
 /* Dummy driver for dumplicate name detection */
 static int __init dummy_probe(struct pcie_device *dev)
 {
-	int pos;
 	u32 slot_cap;
 	acpi_handle handle;
 	struct dummy_slot *slot, *tmp;
 	struct pci_dev *pdev = dev->port;
 
-	pos = pci_pcie_cap(pdev);
-	if (!pos)
-		return -ENODEV;
-	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &slot_cap);
+	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &slot_cap);
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
-	slot->number = slot_cap >> 19;
+	slot->number = (slot_cap & PCI_EXP_SLTCAP_PSN) >> 19;
 	list_for_each_entry(tmp, &dummy_slots, list) {
 		if (tmp->number == slot->number)
 			dup_slot_id++;

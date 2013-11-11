@@ -28,14 +28,17 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-ebi.h>
+#include <mach/regs-timer.h>
 
 #include "cpu.h"
 #include "clock.h"
+#include "nuc9xx.h"
 
 /* Initial IO mappings */
 
@@ -60,7 +63,7 @@ static DEFINE_CLK(emc, 7);
 static DEFINE_SUBCLK(rmii, 2);
 static DEFINE_CLK(usbd, 8);
 static DEFINE_CLK(usbh, 9);
-static DEFINE_CLK(g2d, 10);;
+static DEFINE_CLK(g2d, 10);
 static DEFINE_CLK(pwm, 18);
 static DEFINE_CLK(ps2, 24);
 static DEFINE_CLK(kpi, 25);
@@ -77,7 +80,7 @@ static DEFINE_CLK(timer4, 23);
 
 static struct clk_lookup nuc900_clkregs[] = {
 	DEF_CLKLOOK(&clk_lcd, "nuc900-lcd", NULL),
-	DEF_CLKLOOK(&clk_audio, "nuc900-audio", NULL),
+	DEF_CLKLOOK(&clk_audio, "nuc900-ac97", NULL),
 	DEF_CLKLOOK(&clk_fmi, "nuc900-fmi", NULL),
 	DEF_CLKLOOK(&clk_ms, "nuc900-fmi", "MS"),
 	DEF_CLKLOOK(&clk_sd, "nuc900-fmi", "SD"),
@@ -222,3 +225,17 @@ void __init nuc900_init_clocks(void)
 	clkdev_add_table(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
 }
 
+#define	WTCR	(TMR_BA + 0x1C)
+#define	WTCLK	(1 << 10)
+#define	WTE	(1 << 7)
+#define	WTRE	(1 << 1)
+
+void nuc9xx_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into ROM at address 0 */
+		soft_restart(0);
+	} else {
+		__raw_writel(WTE | WTRE | WTCLK, WTCR);
+	}
+}

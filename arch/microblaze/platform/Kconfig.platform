@@ -20,7 +20,7 @@ endchoice
 
 config SELFMOD
 	bool "Use self modified code for intc/timer"
-	depends on EXPERIMENTAL && NO_MMU
+	depends on NO_MMU
 	default n
 	help
 	  This choice enables self-modified code for interrupt controller

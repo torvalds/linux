@@ -97,7 +97,7 @@
 #define SCU_MAX_COMPLETION_QUEUE_SHIFT	  (ilog2(SCU_MAX_COMPLETION_QUEUE_ENTRIES))
 
 #define SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES (4096)
-#define SCU_UNSOLICITED_FRAME_BUFFER_SIZE   (1024)
+#define SCU_UNSOLICITED_FRAME_BUFFER_SIZE   (1024U)
 #define SCU_INVALID_FRAME_INDEX             (0xFFFF)
 
 #define SCU_IO_REQUEST_MAX_SGE_SIZE         (0x00FFFFFF)
@@ -480,6 +480,7 @@ extern u16 ssp_inactive_to;
 extern u16 stp_inactive_to;
 extern unsigned char phy_gen;
 extern unsigned char max_concurr_spinup;
+extern uint cable_selection_override;
 
 irqreturn_t isci_msix_isr(int vec, void *data);
 irqreturn_t isci_intx_isr(int vec, void *data);

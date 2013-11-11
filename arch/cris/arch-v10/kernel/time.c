@@ -19,15 +19,11 @@
 #include <asm/signal.h>
 #include <asm/io.h>
 #include <asm/delay.h>
-#include <asm/rtc.h>
 #include <asm/irq_regs.h>
 
 /* define this if you need to use print_timestamp */
 /* it will make jiffies at 96 hz instead of 100 hz though */
 #undef USE_CASCADE_TIMERS
-
-extern int set_rtc_mmss(unsigned long nowtime);
-extern int have_rtc;
 
 unsigned long get_ns_in_jiffie(void)
 {
@@ -59,9 +55,9 @@ unsigned long get_ns_in_jiffie(void)
 	return ns;
 }
 
-unsigned long do_slow_gettimeoffset(void)
+static u32 cris_v10_gettimeoffset(void)
 {
-	unsigned long count;
+	u32 count;
 
 	/* The timer interrupt comes from Etrax timer 0. In order to get
 	 * better precision, we check the current value. It might have
@@ -69,8 +65,8 @@ unsigned long do_slow_gettimeoffset(void)
 	 */
 	count = *R_TIMER0_DATA;
 
-	/* Convert timer value to usec */
-	return (TIMER0_DIV - count) * ((NSEC_PER_SEC/1000)/HZ)/TIMER0_DIV;
+	/* Convert timer value to nsec */
+	return (TIMER0_DIV - count) * (NSEC_PER_SEC/HZ)/TIMER0_DIV;
 }
 
 /* Excerpt from the Etrax100 HSDD about the built-in watchdog:
@@ -195,6 +191,8 @@ static struct irqaction irq2  = {
 void __init
 time_init(void)
 {	
+	arch_gettimeoffset = cris_v10_gettimeoffset;
+
 	/* probe for the RTC and read it if it exists 
 	 * Before the RTC can be probed the loops_per_usec variable needs 
 	 * to be initialized to make usleep work. A better value for 
@@ -202,11 +200,6 @@ time_init(void)
 	 * clock has started.  
 	 */
 	loops_per_usec = 50;
-
-	if(RTC_INIT() < 0)
-		have_rtc = 0;
-	else
-		have_rtc = 1;
 
 	/* Setup the etrax timers
 	 * Base frequency is 25000 hz, divider 250 -> 100 HZ

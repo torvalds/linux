@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/sysfs.h>
 #include <linux/ctype.h>
 
@@ -41,7 +42,7 @@ static ssize_t chars_chartab_show(struct kobject *kobj,
 			break;
 		if (strcmp("characters", attr->attr.name) == 0) {
 			len = scnprintf(buf_pointer, bufsize, "%d\t%s\n",
-					i, characters[i]);
+					i, spk_characters[i]);
 		} else {	/* show chartab entry */
 			if (IS_TYPE(i, B_CTL))
 				cp = "B_CTL";
@@ -185,12 +186,12 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 		outptr[desc_length] = '\0';
 
 		if (do_characters) {
-			if (characters[index] != default_chars[index])
-				kfree(characters[index]);
-			characters[index] = desc;
+			if (spk_characters[index] != spk_default_chars[index])
+				kfree(spk_characters[index]);
+			spk_characters[index] = desc;
 			used++;
 		} else {
-			charclass = chartab_get_value(keyword);
+			charclass = spk_chartab_get_value(keyword);
 			if (charclass == 0) {
 				rejected++;
 				cp = linefeed + 1;
@@ -206,9 +207,9 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 
 	if (reset) {
 		if (do_characters)
-			reset_default_chars();
+			spk_reset_default_chars();
 		else
-			reset_default_chartab();
+			spk_reset_default_chartab();
 	}
 
 	spk_unlock(flags);
@@ -232,7 +233,7 @@ static ssize_t keymap_show(struct kobject *kobj, struct kobj_attribute *attr,
 	u_char ch;
 	unsigned long flags;
 	spk_lock(flags);
-	cp1 = key_buf + SHIFT_TBL_SIZE;
+	cp1 = spk_key_buf + SHIFT_TBL_SIZE;
 	num_keys = (int)(*cp1);
 	nstates = (int)cp1[1];
 	cp += sprintf(cp, "%d, %d, %d,\n", KEY_MAP_VER, num_keys, nstates);
@@ -265,14 +266,13 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 	unsigned long flags;
 
 	spk_lock(flags);
-	in_buff = kmalloc(count + 1, GFP_ATOMIC);
+	in_buff = kmemdup(buf, count + 1, GFP_ATOMIC);
 	if (!in_buff) {
 		spk_unlock(flags);
 		return -ENOMEM;
 	}
-	memcpy(in_buff, buf, count + 1);
 	if (strchr("dDrR", *in_buff)) {
-		set_key_info(key_defaults, key_buf);
+		spk_set_key_info(spk_key_defaults, spk_key_buf);
 		pr_info("keymap set to default values\n");
 		kfree(in_buff);
 		spk_unlock(flags);
@@ -283,14 +283,14 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 	cp = in_buff;
 	cp1 = (u_char *)in_buff;
 	for (i = 0; i < 3; i++) {
-		cp = s2uchar(cp, cp1);
+		cp = spk_s2uchar(cp, cp1);
 		cp1++;
 	}
 	i = (int)cp1[-2]+1;
 	i *= (int)cp1[-1]+1;
 	i += 2; /* 0 and last map ver */
 	if (cp1[-3] != KEY_MAP_VER || cp1[-1] > 10 ||
-			i+SHIFT_TBL_SIZE+4 >= sizeof(key_buf)) {
+			i+SHIFT_TBL_SIZE+4 >= sizeof(spk_key_buf)) {
 		pr_warn("i %d %d %d %d\n", i,
 				(int)cp1[-3], (int)cp1[-2], (int)cp1[-1]);
 		kfree(in_buff);
@@ -298,7 +298,7 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 		return -EINVAL;
 	}
 	while (--i >= 0) {
-		cp = s2uchar(cp, cp1);
+		cp = spk_s2uchar(cp, cp1);
 		cp1++;
 		if (!(*cp))
 			break;
@@ -308,8 +308,8 @@ static ssize_t keymap_store(struct kobject *kobj, struct kobj_attribute *attr,
 		pr_warn("end %d %d %d %d\n", i,
 				(int)cp1[-3], (int)cp1[-2], (int)cp1[-1]);
 	} else {
-		if (set_key_info(in_buff, key_buf)) {
-			set_key_info(key_defaults, key_buf);
+		if (spk_set_key_info(in_buff, spk_key_buf)) {
+			spk_set_key_info(spk_key_defaults, spk_key_buf);
 			ret = -EINVAL;
 			pr_warn("set key failed\n");
 		}
@@ -344,7 +344,7 @@ static ssize_t silent_store(struct kobject *kobj, struct kobj_attribute *attr,
 	spk_lock(flags);
 	if (ch&2) {
 		shut = 1;
-		do_flush();
+		spk_do_flush();
 	} else {
 		shut = 0;
 	}
@@ -389,7 +389,7 @@ static ssize_t synth_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (new_synth_name[len - 1] == '\n')
 		len--;
 	new_synth_name[len] = '\0';
-	strlwr(new_synth_name);
+	spk_strlwr(new_synth_name);
 	if ((synth != NULL) && (!strcmp(new_synth_name, synth->name))) {
 		pr_warn("%s already in use\n", new_synth_name);
 	} else if (synth_init(new_synth_name) != 0) {
@@ -418,7 +418,7 @@ static ssize_t synth_direct_store(struct kobject *kobj,
 		bytes = min_t(size_t, len, 250);
 		strncpy(tmp, ptr, bytes);
 		tmp[bytes] = '\0';
-		xlate(tmp);
+		string_unescape_any_inplace(tmp);
 		synth_printf("%s", tmp);
 		ptr += bytes;
 		len -= bytes;
@@ -456,14 +456,14 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 	short mask;
 	unsigned long flags;
 
-	p_header = var_header_by_name(attr->attr.name);
+	p_header = spk_var_header_by_name(attr->attr.name);
 	if (p_header == NULL) {
 		pr_warn("p_header is null, attr->attr.name is %s\n",
 			attr->attr.name);
 		return -EINVAL;
 	}
 
-	var = get_punc_var(p_header->var_id);
+	var = spk_get_punc_var(p_header->var_id);
 	if (var == NULL) {
 		pr_warn("var is null, p_header->var_id is %i\n",
 				p_header->var_id);
@@ -471,7 +471,7 @@ static ssize_t punc_show(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 
 	spk_lock(flags);
-	pb = (struct st_bits_data *) &punc_info[var->value];
+	pb = (struct st_bits_data *) &spk_punc_info[var->value];
 	mask = pb->mask;
 	for (i = 33; i < 128; i++) {
 		if (!(spk_chartab[i]&mask))
@@ -498,14 +498,14 @@ static ssize_t punc_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (x < 1 || x > 99)
 		return -EINVAL;
 
-	p_header = var_header_by_name(attr->attr.name);
+	p_header = spk_var_header_by_name(attr->attr.name);
 	if (p_header == NULL) {
 		pr_warn("p_header is null, attr->attr.name is %s\n",
 			attr->attr.name);
 		return -EINVAL;
 	}
 
-	var = get_punc_var(p_header->var_id);
+	var = spk_get_punc_var(p_header->var_id);
 	if (var == NULL) {
 		pr_warn("var is null, p_header->var_id is %i\n",
 				p_header->var_id);
@@ -521,9 +521,9 @@ static ssize_t punc_store(struct kobject *kobj, struct kobj_attribute *attr,
 	spk_lock(flags);
 
 	if (*punc_buf == 'd' || *punc_buf == 'r')
-		x = set_mask_bits(0, var->value, 3);
+		x = spk_set_mask_bits(0, var->value, 3);
 	else
-		x = set_mask_bits(punc_buf, var->value, 3);
+		x = spk_set_mask_bits(punc_buf, var->value, 3);
 
 	spk_unlock(flags);
 	return count;
@@ -543,7 +543,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 	char ch;
 	unsigned long flags;
 
-	param = var_header_by_name(attr->attr.name);
+	param = spk_var_header_by_name(attr->attr.name);
 	if (param == NULL)
 		return -EINVAL;
 
@@ -600,13 +600,14 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int value;
 	unsigned long flags;
 
-	param = var_header_by_name(attr->attr.name);
+	param = spk_var_header_by_name(attr->attr.name);
 	if (param == NULL)
 		return -EINVAL;
 	if (param->data == NULL)
 		return 0;
 	ret = 0;
-	cp = xlate((char *) buf);
+	cp = (char *)buf;
+	string_unescape_any_inplace(cp);
 
 	spk_lock(flags);
 	switch (param->var_type) {
@@ -618,9 +619,9 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 			len = E_INC;
 		else
 			len = E_SET;
-		speakup_s2i(cp, &value);
-		ret = set_num_var(value, param, len);
-		if (ret == E_RANGE) {
+		value = simple_strtol(cp, NULL, 10);
+		ret = spk_set_num_var(value, param, len);
+		if (ret == -ERANGE) {
 			var_data = param->data;
 			pr_warn("value for %s out of range, expect %d to %d\n",
 				attr->attr.name,
@@ -637,8 +638,8 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		}
 		cp = (char *) buf;
 		cp[len] = '\0';
-		ret = set_string_var(buf, param, len);
-		if (ret == E_TOOLONG)
+		ret = spk_set_string_var(buf, param, len);
+		if (ret == -E2BIG)
 			pr_warn("value too long for %s\n",
 					attr->attr.name);
 		break;
@@ -653,25 +654,25 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	 */
 	if (strcmp(attr->attr.name, "voice") == 0) {
 		if (synth && synth->default_pitch) {
-			param = var_header_by_name("pitch");
+			param = spk_var_header_by_name("pitch");
 			if (param)  {
-				set_num_var(synth->default_pitch[value], param,
-					E_NEW_DEFAULT);
-				set_num_var(0, param, E_DEFAULT);
+				spk_set_num_var(synth->default_pitch[value],
+						param, E_NEW_DEFAULT);
+				spk_set_num_var(0, param, E_DEFAULT);
 			}
 		}
 		if (synth && synth->default_vol) {
-			param = var_header_by_name("vol");
+			param = spk_var_header_by_name("vol");
 			if (param)  {
-				set_num_var(synth->default_vol[value], param,
-					E_NEW_DEFAULT);
-				set_num_var(0, param, E_DEFAULT);
+				spk_set_num_var(synth->default_vol[value],
+						param, E_NEW_DEFAULT);
+				spk_set_num_var(0, param, E_DEFAULT);
 			}
 		}
 	}
 	spk_unlock(flags);
 
-	if (ret == SET_DEFAULT)
+	if (ret == -ERESTART)
 		pr_info("%s reset to default value\n", attr->attr.name);
 	return count;
 }
@@ -695,7 +696,7 @@ static ssize_t message_show_helper(char *buf, enum msg_index_t first,
 		if (bufsize <= 1)
 			break;
 		printed = scnprintf(buf_pointer, bufsize, "%d\t%s\n",
-			index, msg_get(cursor));
+			index, spk_msg_get(cursor));
 		buf_pointer += printed;
 		bufsize -= printed;
 	}
@@ -789,7 +790,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 			continue;
 		}
 
-		msg_stored = msg_set(curmessage, temp, desc_length);
+		msg_stored = spk_msg_set(curmessage, temp, desc_length);
 		if (msg_stored < 0) {
 			retval = msg_stored;
 			if (msg_stored == -ENOMEM)
@@ -803,7 +804,7 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 	}
 
 	if (reset)
-		reset_msg_group(group);
+		spk_reset_msg_group(group);
 
 	report_msg_status(reset, received, used, rejected, group->name);
 	return retval;
@@ -813,7 +814,7 @@ static ssize_t message_show(struct kobject *kobj,
 	struct kobj_attribute *attr, char *buf)
 {
 	ssize_t retval = 0;
-	struct msg_group_t *group = find_msg_group(attr->attr.name);
+	struct msg_group_t *group = spk_find_msg_group(attr->attr.name);
 	unsigned long flags;
 
 	BUG_ON(!group);
@@ -827,7 +828,7 @@ static ssize_t message_store(struct kobject *kobj, struct kobj_attribute *attr,
 	const char *buf, size_t count)
 {
 	ssize_t retval = 0;
-	struct msg_group_t *group = find_msg_group(attr->attr.name);
+	struct msg_group_t *group = spk_find_msg_group(attr->attr.name);
 
 	BUG_ON(!group);
 	retval = message_store_helper(buf, count, group);

@@ -21,7 +21,6 @@
 #include <linux/if_ether.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <linux/inet.h>
@@ -38,7 +37,7 @@
 
 static int rose_header(struct sk_buff *skb, struct net_device *dev,
 		       unsigned short type,
-		       const void *daddr, const void *saddr, unsigned len)
+		       const void *daddr, const void *saddr, unsigned int len)
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 
@@ -96,11 +95,11 @@ static int rose_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 	int err;
 
-	if (!memcpy(dev->dev_addr, sa->sa_data, dev->addr_len))
+	if (!memcmp(dev->dev_addr, sa->sa_data, dev->addr_len))
 		return 0;
 
 	if (dev->flags & IFF_UP) {
-		err = rose_add_loopback_node((rose_address *)dev->dev_addr);
+		err = rose_add_loopback_node((rose_address *)sa->sa_data);
 		if (err)
 			return err;
 

@@ -67,9 +67,9 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 		fscache_attr_changed(vnode->cache);
 #endif
 
-	inode->i_nlink		= vnode->status.nlink;
+	set_nlink(inode, vnode->status.nlink);
 	inode->i_uid		= vnode->status.owner;
-	inode->i_gid		= 0;
+	inode->i_gid		= GLOBAL_ROOT_GID;
 	inode->i_size		= vnode->status.size;
 	inode->i_ctime.tv_sec	= vnode->status.mtime_server;
 	inode->i_ctime.tv_nsec	= 0;
@@ -174,9 +174,9 @@ struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
 	inode->i_size		= 0;
 	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
 	inode->i_op		= &afs_autocell_inode_operations;
-	inode->i_nlink		= 2;
-	inode->i_uid		= 0;
-	inode->i_gid		= 0;
+	set_nlink(inode, 2);
+	inode->i_uid		= GLOBAL_ROOT_UID;
+	inode->i_gid		= GLOBAL_ROOT_GID;
 	inode->i_ctime.tv_sec	= get_seconds();
 	inode->i_ctime.tv_nsec	= 0;
 	inode->i_atime		= inode->i_mtime = inode->i_ctime;
@@ -423,7 +423,7 @@ void afs_evict_inode(struct inode *inode)
 	ASSERTCMP(inode->i_ino, ==, vnode->fid.vnode);
 
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 
 	afs_give_up_callback(vnode);
 

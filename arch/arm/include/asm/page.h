@@ -19,7 +19,7 @@
 
 #ifndef CONFIG_MMU
 
-#include "page-nommu.h"
+#include <asm/page-nommu.h>
 
 #else
 
@@ -34,7 +34,6 @@
  *	processor(s) we're building for.
  *
  *	We have the following to choose from:
- *	  v3		- ARMv3
  *	  v4wt		- ARMv4 with writethrough cache, without minicache
  *	  v4wb		- ARMv4 with writeback cache, without minicache
  *	  v4_mc		- ARMv4 with minicache
@@ -43,14 +42,6 @@
  */
 #undef _USER
 #undef MULTI_USER
-
-#ifdef CONFIG_CPU_COPY_V3
-# ifdef _USER
-#  define MULTI_USER 1
-# else
-#  define _USER v3
-# endif
-#endif
 
 #ifdef CONFIG_CPU_COPY_V4WT
 # ifdef _USER
@@ -151,47 +142,15 @@ extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
 
-typedef unsigned long pteval_t;
+#ifdef CONFIG_KUSER_HELPERS
+#define __HAVE_ARCH_GATE_AREA 1
+#endif
 
-#undef STRICT_MM_TYPECHECKS
-
-#ifdef STRICT_MM_TYPECHECKS
-/*
- * These are used to make use of C type-checking..
- */
-typedef struct { pteval_t pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pgd[2]; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
-
-#define pte_val(x)      ((x).pte)
-#define pmd_val(x)      ((x).pmd)
-#define pgd_val(x)	((x).pgd[0])
-#define pgprot_val(x)   ((x).pgprot)
-
-#define __pte(x)        ((pte_t) { (x) } )
-#define __pmd(x)        ((pmd_t) { (x) } )
-#define __pgprot(x)     ((pgprot_t) { (x) } )
-
+#ifdef CONFIG_ARM_LPAE
+#include <asm/pgtable-3level-types.h>
 #else
-/*
- * .. while these make it easier on the compiler
- */
-typedef pteval_t pte_t;
-typedef unsigned long pmd_t;
-typedef unsigned long pgd_t[2];
-typedef unsigned long pgprot_t;
-
-#define pte_val(x)      (x)
-#define pmd_val(x)      (x)
-#define pgd_val(x)	((x)[0])
-#define pgprot_val(x)   (x)
-
-#define __pte(x)        (x)
-#define __pmd(x)        (x)
-#define __pgprot(x)     (x)
-
-#endif /* STRICT_MM_TYPECHECKS */
+#include <asm/pgtable-2level-types.h>
+#endif
 
 #endif /* CONFIG_MMU */
 

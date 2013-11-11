@@ -23,7 +23,7 @@
 #include "core.h"
 
 /* Declare SQ3 to rate and fragmentation threshold table */
-/* Declare fragmentation thresholds table */
+/* Declare fragmentation threshold table */
 #define MTO_MAX_FRAG_TH_LEVELS		5
 #define MTO_MAX_DATA_RATE_LEVELS	12
 
@@ -33,7 +33,7 @@ u16 MTO_Frag_Th_Tbl[MTO_MAX_FRAG_TH_LEVELS] = {
 
 /*
  * Declare data rate table:
- * The following table will be changed at anytime if the opration rate
+ * The following table will be changed at anytime if the operation rate
  * supported by AP don't match the table
  */
 static u8 MTO_Data_Rate_Tbl[MTO_MAX_DATA_RATE_LEVELS] = {

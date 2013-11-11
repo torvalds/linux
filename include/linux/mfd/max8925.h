@@ -158,8 +158,6 @@ enum {
 #define TSC_IRQ_MASK			(0x03)
 #define RTC_IRQ_MASK			(0x0c)
 
-#define MAX8925_MAX_REGULATOR		(23)
-
 #define MAX8925_NAME_SIZE		(32)
 
 /* IRQ definitions */
@@ -167,9 +165,6 @@ enum {
 	MAX8925_IRQ_VCHG_DC_OVP,
 	MAX8925_IRQ_VCHG_DC_F,
 	MAX8925_IRQ_VCHG_DC_R,
-	MAX8925_IRQ_VCHG_USB_OVP,
-	MAX8925_IRQ_VCHG_USB_F,
-	MAX8925_IRQ_VCHG_USB_R,
 	MAX8925_IRQ_VCHG_THM_OK_R,
 	MAX8925_IRQ_VCHG_THM_OK_F,
 	MAX8925_IRQ_VCHG_SYSLOW_F,
@@ -195,6 +190,8 @@ enum {
 	MAX8925_NR_IRQS,
 };
 
+
+
 struct max8925_chip {
 	struct device		*dev;
 	struct i2c_client	*i2c;
@@ -206,6 +203,7 @@ struct max8925_chip {
 	int			irq_base;
 	int			core_irq;
 	int			tsc_irq;
+	unsigned int            wakeup_flag;
 };
 
 struct max8925_backlight_pdata {
@@ -223,6 +221,10 @@ struct max8925_power_pdata {
 	unsigned	batt_detect:1;
 	unsigned	topoff_threshold:2;
 	unsigned	fast_charge:3;	/* charge current */
+	unsigned	no_temp_support:1; /* set if no temperature detect */
+	unsigned	no_insert_detect:1; /* set if no ac insert detect */
+	char		**supplied_to;
+	int		num_supplicants;
 };
 
 /*
@@ -233,7 +235,29 @@ struct max8925_platform_data {
 	struct max8925_backlight_pdata	*backlight;
 	struct max8925_touch_pdata	*touch;
 	struct max8925_power_pdata	*power;
-	struct regulator_init_data	*regulator[MAX8925_MAX_REGULATOR];
+	struct regulator_init_data	*sd1;
+	struct regulator_init_data	*sd2;
+	struct regulator_init_data	*sd3;
+	struct regulator_init_data	*ldo1;
+	struct regulator_init_data	*ldo2;
+	struct regulator_init_data	*ldo3;
+	struct regulator_init_data	*ldo4;
+	struct regulator_init_data	*ldo5;
+	struct regulator_init_data	*ldo6;
+	struct regulator_init_data	*ldo7;
+	struct regulator_init_data	*ldo8;
+	struct regulator_init_data	*ldo9;
+	struct regulator_init_data	*ldo10;
+	struct regulator_init_data	*ldo11;
+	struct regulator_init_data	*ldo12;
+	struct regulator_init_data	*ldo13;
+	struct regulator_init_data	*ldo14;
+	struct regulator_init_data	*ldo15;
+	struct regulator_init_data	*ldo16;
+	struct regulator_init_data	*ldo17;
+	struct regulator_init_data	*ldo18;
+	struct regulator_init_data	*ldo19;
+	struct regulator_init_data	*ldo20;
 
 	int		irq_base;
 	int		tsc_irq;

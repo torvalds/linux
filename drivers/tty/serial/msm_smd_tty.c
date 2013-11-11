@@ -70,7 +70,7 @@ static void smd_tty_notify(void *priv, unsigned event)
 		if (avail == 0)
 			break;
 
-		avail = tty_prepare_flip_string(tty, &ptr, avail);
+		avail = tty_prepare_flip_string(&info->port, &ptr, avail);
 
 		if (smd_read(info->ch, ptr, avail) != avail) {
 			/* shouldn't be possible since we're in interrupt
@@ -80,7 +80,7 @@ static void smd_tty_notify(void *priv, unsigned event)
 			pr_err("OOPS - smd_tty_buffer mismatch?!");
 		}
 
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&info->port);
 	}
 
 	/* XXX only when writable and necessary */
@@ -90,13 +90,13 @@ static void smd_tty_notify(void *priv, unsigned event)
 
 static int smd_tty_port_activate(struct tty_port *tport, struct tty_struct *tty)
 {
+	struct smd_tty_info *info = container_of(tport, struct smd_tty_info,
+			port);
 	int i, res = 0;
-	int n = tty->index;
 	const char *name = NULL;
-	struct smd_tty_info *info = smd_tty + n;
 
 	for (i = 0; i < smd_tty_channels_len; i++) {
-		if (smd_tty_channels[i].id == n) {
+		if (smd_tty_channels[i].id == tty->index) {
 			name = smd_tty_channels[i].name;
 			break;
 		}
@@ -117,17 +117,13 @@ static int smd_tty_port_activate(struct tty_port *tport, struct tty_struct *tty)
 
 static void smd_tty_port_shutdown(struct tty_port *tport)
 {
-	struct smd_tty_info *info;
-	struct tty_struct *tty = tty_port_tty_get(tport);
+	struct smd_tty_info *info = container_of(tport, struct smd_tty_info,
+			port);
 
-	info = tty->driver_data;
 	if (info->ch) {
 		smd_close(info->ch);
 		info->ch = 0;
 	}
-
-	tty->driver_data = 0;
-	tty_kref_put(tty);
 }
 
 static int smd_tty_open(struct tty_struct *tty, struct file *f)
@@ -203,7 +199,6 @@ static int __init smd_tty_init(void)
 	if (smd_tty_driver == 0)
 		return -ENOMEM;
 
-	smd_tty_driver->owner = THIS_MODULE;
 	smd_tty_driver->driver_name = "smd_tty_driver";
 	smd_tty_driver->name = "smd";
 	smd_tty_driver->major = 0;
@@ -224,9 +219,11 @@ static int __init smd_tty_init(void)
 		return ret;
 
 	for (i = 0; i < smd_tty_channels_len; i++) {
-		tty_port_init(&smd_tty[smd_tty_channels[i].id].port);
-		smd_tty[smd_tty_channels[i].id].port.ops = &smd_tty_port_ops;
-		tty_register_device(smd_tty_driver, smd_tty_channels[i].id, 0);
+		struct tty_port *port = &smd_tty[smd_tty_channels[i].id].port;
+		tty_port_init(port);
+		port->ops = &smd_tty_port_ops;
+		tty_port_register_device(port, smd_tty_driver,
+				smd_tty_channels[i].id, NULL);
 	}
 
 	return 0;

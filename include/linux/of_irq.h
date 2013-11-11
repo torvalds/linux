@@ -6,11 +6,12 @@ struct of_irq;
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 
 /*
- * irq_of_parse_and_map() is used ba all OF enabled platforms; but SPARC
+ * irq_of_parse_and_map() is used by all OF enabled platforms; but SPARC
  * implements it differently.  However, the prototype is the same for all,
  * so declare it here regardless of the CONFIG_OF_IRQ setting.
  */
@@ -32,6 +33,8 @@ struct of_irq {
 	u32 size; /* Specifier size */
 	u32 specifier[OF_MAX_IRQ_SPEC]; /* Specifier copy */
 };
+
+typedef int (*of_irq_init_cb_t)(struct device_node *, struct device_node *);
 
 /*
  * Workarounds only applied to 32bit powermac machines
@@ -55,8 +58,8 @@ static inline int of_irq_map_oldworld(struct device_node *device, int index,
 #endif /* CONFIG_PPC32 && CONFIG_PPC_PMAC */
 
 
-extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
-			  u32 ointsize, const u32 *addr,
+extern int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
+			  u32 ointsize, const __be32 *addr,
 			  struct of_irq *out_irq);
 extern int of_irq_map_one(struct device_node *device, int index,
 			  struct of_irq *out_irq);
@@ -70,6 +73,21 @@ extern int of_irq_to_resource_table(struct device_node *dev,
 		struct resource *res, int nr_irqs);
 extern struct device_node *of_irq_find_parent(struct device_node *child);
 
+extern void of_irq_init(const struct of_device_id *matches);
+
 #endif /* CONFIG_OF_IRQ */
-#endif /* CONFIG_OF */
+
+#else /* !CONFIG_OF */
+static inline unsigned int irq_of_parse_and_map(struct device_node *dev,
+						int index)
+{
+	return 0;
+}
+
+static inline void *of_irq_find_parent(struct device_node *child)
+{
+	return NULL;
+}
+#endif /* !CONFIG_OF */
+
 #endif /* __OF_IRQ_H */

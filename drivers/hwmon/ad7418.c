@@ -76,20 +76,6 @@ static struct i2c_driver ad7418_driver = {
 	.id_table	= ad7418_id,
 };
 
-/* All registers are word-sized, except for the configuration registers.
- * AD7418 uses a high-byte first convention. Do NOT use those functions to
- * access the configuration registers CONF and CONF2, as they are byte-sized.
- */
-static inline int ad7418_read(struct i2c_client *client, u8 reg)
-{
-	return swab16(i2c_smbus_read_word_data(client, reg));
-}
-
-static inline int ad7418_write(struct i2c_client *client, u8 reg, u16 value)
-{
-	return i2c_smbus_write_word_data(client, reg, swab16(value));
-}
-
 static void ad7418_init_client(struct i2c_client *client)
 {
 	struct ad7418_data *data = i2c_get_clientdata(client);
@@ -128,7 +114,9 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 		udelay(30);
 
 		for (i = 0; i < 3; i++) {
-			data->temp[i] = ad7418_read(client, AD7418_REG_TEMP[i]);
+			data->temp[i] =
+				i2c_smbus_read_word_swapped(client,
+						AD7418_REG_TEMP[i]);
 		}
 
 		for (i = 0, ch = 4; i < data->adc_max; i++, ch--) {
@@ -138,11 +126,12 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 
 			udelay(15);
 			data->in[data->adc_max - 1 - i] =
-				ad7418_read(client, AD7418_REG_ADC);
+				i2c_smbus_read_word_swapped(client,
+						AD7418_REG_ADC);
 		}
 
 		/* restore old configuration value */
-		ad7418_write(client, AD7418_REG_CONF, cfg);
+		i2c_smbus_write_word_swapped(client, AD7418_REG_CONF, cfg);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -178,11 +167,17 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad7418_data *data = i2c_get_clientdata(client);
-	long temp = simple_strtol(buf, NULL, 10);
+	long temp;
+	int ret = kstrtol(buf, 10, &temp);
+
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&data->lock);
 	data->temp[attr->index] = LM75_TEMP_TO_REG(temp);
-	ad7418_write(client, AD7418_REG_TEMP[attr->index], data->temp[attr->index]);
+	i2c_smbus_write_word_swapped(client,
+				     AD7418_REG_TEMP[attr->index],
+				     data->temp[attr->index]);
 	mutex_unlock(&data->lock);
 	return count;
 }
@@ -232,15 +227,13 @@ static int ad7418_probe(struct i2c_client *client,
 	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-					I2C_FUNC_SMBUS_WORD_DATA)) {
-		err = -EOPNOTSUPP;
-		goto exit;
-	}
+					I2C_FUNC_SMBUS_WORD_DATA))
+		return -EOPNOTSUPP;
 
-	if (!(data = kzalloc(sizeof(struct ad7418_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct ad7418_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 
@@ -270,8 +263,9 @@ static int ad7418_probe(struct i2c_client *client,
 	ad7418_init_client(client);
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&client->dev.kobj, &data->attrs)))
-		goto exit_free;
+	err = sysfs_create_group(&client->dev.kobj, &data->attrs);
+	if (err)
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -283,9 +277,6 @@ static int ad7418_probe(struct i2c_client *client,
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -294,24 +285,12 @@ static int ad7418_remove(struct i2c_client *client)
 	struct ad7418_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
-	kfree(data);
 	return 0;
 }
 
-static int __init ad7418_init(void)
-{
-	return i2c_add_driver(&ad7418_driver);
-}
-
-static void __exit ad7418_exit(void)
-{
-	i2c_del_driver(&ad7418_driver);
-}
+module_i2c_driver(ad7418_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("AD7416/17/18 driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ad7418_init);
-module_exit(ad7418_exit);

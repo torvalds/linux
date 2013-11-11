@@ -11,7 +11,7 @@
  *
  *------------------------------------------------------------------------------
  *
- *   Header for defintions and macros internal to the drvier.
+ *   Header for definitions and macros internal to the drvier.
  *
  *------------------------------------------------------------------------------
  *
@@ -22,7 +22,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -43,7 +43,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -67,7 +67,6 @@
 /*******************************************************************************
  *  include files
  ******************************************************************************/
-#include <linux/version.h>
 #ifdef BUS_PCMCIA
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -75,15 +74,8 @@
 #include <pcmcia/ds.h>
 #endif  // BUS_PCMCIA
 
-#ifdef HAS_WIRELESS_EXTENSIONS
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 13
 #include <net/iw_handler.h>
-#endif // WIRELESS_EXT > 13
-#define USE_DBM
-#define RETURN_CURRENT_NETWORKNAME
-#define USE_FREQUENCY
-#endif // HAS_WIRELESS_EXTENSIONS/
 
 #include <linux/list.h>
 
@@ -846,7 +838,7 @@ typedef struct dma_strct
 	DESC_STRCT  *rx_packet[NUM_RX_DESC];
 	DESC_STRCT  *rx_reclaim_desc, *tx_reclaim_desc; // Descriptors for host-reclaim purposes (see HCF)
 	int         tx_rsc_ind; // DMA Tx resource indicator is maintained in the MSF, not in the HCF
-	int         rx_rsc_ind; // Also added rx rsource indicator so that cleanup can be performed if alloc fails
+	int         rx_rsc_ind; // Also added rx resource indicator so that cleanup can be performed if alloc fails
 	int         status;
 } DMA_STRCT;
 
@@ -891,7 +883,7 @@ struct wl_private
 	int                         is_registered;
 	int                         is_handling_int;
 	int                         firmware_present;
-	char                        sysfsCreated;
+	bool                        sysfsCreated;
 	CFG_DRV_INFO_STRCT          driverInfo;
 	CFG_IDENTITY_STRCT          driverIdentity;
 	CFG_FW_IDENTITY_STRCT       StationIdentity;
@@ -988,16 +980,15 @@ struct wl_private
 #ifdef USE_WDS
 	WVLAN_WDS_IF                wds_port[NUM_WDS_PORTS];
 #endif // USE_WDS
+
+	/* Track whether the card is using WEP encryption or WPA
+	 * so we know what to disable next time through.
+	 *  IW_ENCODE_ALG_NONE, IW_ENCODE_ALG_WEP, IW_ENCODE_ALG_TKIP
+	 */
+	int wext_enc;
 }; // wl_private
 
-#ifdef HAVE_NETDEV_PRIV
 #define wl_priv(dev) ((struct wl_private *) netdev_priv(dev))
-#else
-extern inline struct wl_private *wl_priv(struct net_device *dev)
-{
-    return dev->priv;
-}
-#endif
 
 /********************************************************************/
 /* Locking and synchronization functions                            */

@@ -122,8 +122,8 @@ maciisi_init(void)
 		return err;
 	}
 
-	if (request_irq(IRQ_MAC_ADB, maciisi_interrupt, IRQ_FLG_LOCK | IRQ_FLG_FAST, 
-			"ADB", maciisi_interrupt)) {
+	if (request_irq(IRQ_MAC_ADB, maciisi_interrupt, 0, "ADB",
+			maciisi_interrupt)) {
 		printk(KERN_ERR "maciisi_init: can't get irq %d\n", IRQ_MAC_ADB);
 		return -EAGAIN;
 	}

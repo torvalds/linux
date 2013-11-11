@@ -1,0 +1,79 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx27.dtsi"
+
+/ {
+	model = "Phytec pcm038";
+	compatible = "phytec,imx27-pcm038", "fsl,imx27";
+
+	memory {
+		reg = <0x0 0x0>;
+	};
+
+	soc {
+		aipi@10000000 { /* aipi1 */
+			serial@1000a000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			serial@1000b000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			serial@1000c000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			i2c@1001d000 {
+				clock-frequency = <400000>;
+				status = "okay";
+				at24@52 {
+					compatible = "at,24c32";
+					pagesize = <32>;
+					reg = <0x52>;
+				};
+				pcf8563@51 {
+					compatible = "nxp,pcf8563";
+					reg = <0x51>;
+				};
+				lm75@4a {
+					compatible = "national,lm75";
+					reg = <0x4a>;
+				};
+			};
+		};
+
+		aipi@10020000 { /* aipi2 */
+			ethernet@1002b000 {
+				status = "okay";
+			};
+		};
+	};
+
+	nor_flash@c0000000 {
+		compatible = "cfi-flash";
+		bank-width = <2>;
+		reg = <0xc0000000 0x02000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	status = "okay";
+};

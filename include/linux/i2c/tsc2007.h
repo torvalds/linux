@@ -5,7 +5,7 @@
 
 struct tsc2007_platform_data {
 	u16	model;				/* 2007. */
-	u16	x_plate_ohms;
+	u16	x_plate_ohms;	/* must be non-zero value */
 	u16	max_rt; /* max. resistance above which samples are ignored */
 	unsigned long poll_delay; /* delay (in ms) after pen-down event
 				     before polling starts */

@@ -14,9 +14,10 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include "internals.h"
 
-static struct intc_map_entry intc_irq_xlate[NR_IRQS];
+static struct intc_map_entry intc_irq_xlate[INTC_NR_IRQS];
 
 struct intc_virq_list {
 	unsigned int irq;
@@ -218,11 +219,13 @@ restart:
 		if (radix_tree_deref_retry(entry))
 			goto restart;
 
-		irq = create_irq();
+		irq = irq_alloc_desc(numa_node_id());
 		if (unlikely(irq < 0)) {
 			pr_err("no more free IRQs, bailing..\n");
 			break;
 		}
+
+		activate_irq(irq);
 
 		pr_info("Setting up a chained VIRQ from %d -> %d\n",
 			irq, entry->pirq);

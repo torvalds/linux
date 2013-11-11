@@ -112,7 +112,7 @@ struct sci_user_parameters {
 	 * This field specifies the maximum number of direct attached devices
 	 * that can have power supplied to them simultaneously.
 	 */
-	u8 max_number_concurrent_device_spin_up;
+	u8 max_concurr_spinup;
 
 	/**
 	 * This field specifies the number of seconds to allow a phy to consume
@@ -152,12 +152,10 @@ struct sci_user_parameters {
 #define MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT 4
 
 struct sci_oem_params;
-int sci_oem_parameters_validate(struct sci_oem_params *oem);
+int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version);
 
 struct isci_orom;
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
-enum sci_status isci_parse_oem_parameters(struct sci_oem_params *oem,
-					  struct isci_orom *orom, int scu_index);
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
 struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 
@@ -191,6 +189,11 @@ struct isci_oem_hdr {
 			0x1a, 0x04, 0xc6)
 #define ISCI_EFI_VAR_NAME	"RstScuO"
 
+#define ISCI_ROM_VER_1_0	0x10
+#define ISCI_ROM_VER_1_1	0x11
+#define ISCI_ROM_VER_1_3	0x13
+#define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_3
+
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
  * for any PORT. i.e. There are no phys assigned to any of the ports at start.
@@ -219,9 +222,87 @@ struct sci_bios_oem_param_block_hdr {
 struct sci_oem_params {
 	struct {
 		uint8_t mode_type;
-		uint8_t max_concurrent_dev_spin_up;
-		uint8_t do_enable_ssc;
-		uint8_t reserved;
+		uint8_t max_concurr_spin_up;
+		/*
+		 * This bitfield indicates the OEM's desired default Tx
+		 * Spread Spectrum Clocking (SSC) settings for SATA and SAS.
+		 * NOTE: Default SSC Modulation Frequency is 31.5KHz.
+		 */
+		union {
+			struct {
+			/*
+			 * NOTE: Max spread for SATA is +0 / -5000 PPM.
+			 * Down-spreading SSC (only method allowed for SATA):
+			 *  SATA SSC Tx Disabled                    = 0x0
+			 *  SATA SSC Tx at +0 / -1419 PPM Spread    = 0x2
+			 *  SATA SSC Tx at +0 / -2129 PPM Spread    = 0x3
+			 *  SATA SSC Tx at +0 / -4257 PPM Spread    = 0x6
+			 *  SATA SSC Tx at +0 / -4967 PPM Spread    = 0x7
+			 */
+				uint8_t ssc_sata_tx_spread_level:4;
+			/*
+			 * SAS SSC Tx Disabled                     = 0x0
+			 *
+			 * NOTE: Max spread for SAS down-spreading +0 /
+			 *	 -2300 PPM
+			 * Down-spreading SSC:
+			 *  SAS SSC Tx at +0 / -1419 PPM Spread     = 0x2
+			 *  SAS SSC Tx at +0 / -2129 PPM Spread     = 0x3
+			 *
+			 * NOTE: Max spread for SAS center-spreading +2300 /
+			 *	 -2300 PPM
+			 * Center-spreading SSC:
+			 *  SAS SSC Tx at +1064 / -1064 PPM Spread  = 0x3
+			 *  SAS SSC Tx at +2129 / -2129 PPM Spread  = 0x6
+			 */
+				uint8_t ssc_sas_tx_spread_level:3;
+			/*
+			 * NOTE: Refer to the SSC section of the SAS 2.x
+			 * Specification for proper setting of this field.
+			 * For standard SAS Initiator SAS PHY operation it
+			 * should be 0 for Down-spreading.
+			 * SAS SSC Tx spread type:
+			 *  Down-spreading SSC      = 0
+			 *  Center-spreading SSC    = 1
+			 */
+				uint8_t ssc_sas_tx_type:1;
+			};
+			uint8_t do_enable_ssc;
+		};
+		/*
+		 * This field indicates length of the SAS/SATA cable between
+		 * host and device.
+		 * This field is used make relationship between analog
+		 * parameters of the phy in the silicon and length of the cable.
+		 * Supported cable attenuation levels:
+		 * "short"- up to 3m, "medium"-3m to 6m, and "long"- more than
+		 * 6m.
+		 *
+		 * This is bit mask field:
+		 *
+		 * BIT:      (MSB) 7     6     5     4
+		 * ASSIGNMENT:   <phy3><phy2><phy1><phy0>  - Medium cable
+		 *                                           length assignment
+		 * BIT:            3     2     1     0  (LSB)
+		 * ASSIGNMENT:   <phy3><phy2><phy1><phy0>  - Long cable length
+		 *                                           assignment
+		 *
+		 * BITS 7-4 are set when the cable length is assigned to medium
+		 * BITS 3-0 are set when the cable length is assigned to long
+		 *
+		 * The BIT positions are clear when the cable length is
+		 * assigned to short.
+		 *
+		 * Setting the bits for both long and medium cable length is
+		 * undefined.
+		 *
+		 * A value of 0x84 would assign
+		 *    phy3 - medium
+		 *    phy2 - long
+		 *    phy1 - short
+		 *    phy0 - short
+		 */
+		uint8_t cable_selection_mask;
 	} controller;
 
 	struct {

@@ -8,16 +8,13 @@
  */
 
 #include <linux/smp.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/memblock.h>
 
-#include <asm/firmware.h>
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
-#include <asm/iseries/lpar_map.h>
-#include <asm/iseries/hv_types.h>
 #include <asm/kexec.h>
 
 /* This symbol is provided by the linker - let it fill in the paca
@@ -30,8 +27,8 @@ extern unsigned long __toc_start;
  * The structure which the hypervisor knows about - this structure
  * should not cross a page boundary.  The vpa_init/register_vpa call
  * is now known to fail if the lppaca structure crosses a page
- * boundary.  The lppaca is also used on legacy iSeries and POWER5
- * pSeries boxes.  The lppaca is 640 bytes long, and cannot readily
+ * boundary.  The lppaca is also used on POWER5 pSeries boxes.
+ * The lppaca is 640 bytes long, and cannot readily
  * change since the hypervisor knows its layout, so a 1kB alignment
  * will suffice to ensure that it doesn't cross a page boundary.
  */
@@ -39,10 +36,7 @@ struct lppaca lppaca[] = {
 	[0 ... (NR_LPPACAS-1)] = {
 		.desc = 0xd397d781,	/* "LpPa" */
 		.size = sizeof(struct lppaca),
-		.dyn_proc_status = 2,
-		.decr_val = 0x00ff0000,
 		.fpregs_in_use = 1,
-		.end_of_quantum = 0xfffffffffffffffful,
 		.slb_count = 64,
 		.vmxregs_in_use = 0,
 		.page_ins = 0,
@@ -126,8 +120,6 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
 struct paca_struct *paca;
 EXPORT_SYMBOL(paca);
 
-struct paca_struct boot_paca;
-
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
        /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
@@ -148,6 +140,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->hw_cpu_id = 0xffff;
 	new_paca->kexec_state = KEXEC_STATE_NONE;
 	new_paca->__current = &init_task;
+	new_paca->data_offset = 0xfeeeeeeeeeeeeeeeULL;
 #ifdef CONFIG_PPC_STD_MMU_64
 	new_paca->slb_shadow_ptr = &slb_shadow[cpu];
 #endif /* CONFIG_PPC_STD_MMU_64 */
@@ -167,7 +160,7 @@ void setup_paca(struct paca_struct *new_paca)
 	 * if we do a GET_PACA() before the feature fixups have been
 	 * applied
 	 */
-	if (cpu_has_feature(CPU_FTR_HVMODE_206))
+	if (cpu_has_feature(CPU_FTR_HVMODE))
 		mtspr(SPRN_SPRG_HPACA, local_paca);
 #endif
 	mtspr(SPRN_SPRG_PACA, local_paca);
@@ -183,12 +176,9 @@ void __init allocate_pacas(void)
 	/*
 	 * We can't take SLB misses on the paca, and we want to access them
 	 * in real mode, so allocate them within the RMA and also within
-	 * the first segment. On iSeries they must be within the area mapped
-	 * by the HV, which is HvPagesToMap * HVPAGESIZE bytes.
+	 * the first segment.
 	 */
 	limit = min(0x10000000ULL, ppc64_rma_size);
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		limit = min(limit, HvPagesToMap * HVPAGESIZE);
 
 	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
 

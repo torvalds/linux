@@ -5,7 +5,7 @@
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
   Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
-  Copyright (c) 2005-2008 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005-2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
@@ -31,6 +31,8 @@
 #include "phy_a.h"
 #include "phy_n.h"
 #include "phy_lp.h"
+#include "phy_ht.h"
+#include "phy_lcn.h"
 #include "b43.h"
 #include "main.h"
 
@@ -57,6 +59,16 @@ int b43_phy_allocate(struct b43_wldev *dev)
 	case B43_PHYTYPE_LP:
 #ifdef CONFIG_B43_PHY_LP
 		phy->ops = &b43_phyops_lp;
+#endif
+		break;
+	case B43_PHYTYPE_HT:
+#ifdef CONFIG_B43_PHY_HT
+		phy->ops = &b43_phyops_ht;
+#endif
+		break;
+	case B43_PHYTYPE_LCN:
+#ifdef CONFIG_B43_PHY_LCN
+		phy->ops = &b43_phyops_lcn;
 #endif
 		break;
 	}
@@ -133,7 +145,7 @@ void b43_radio_lock(struct b43_wldev *dev)
 
 #if B43_DEBUG
 	B43_WARN_ON(dev->phy.radio_locked);
-	dev->phy.radio_locked = 1;
+	dev->phy.radio_locked = true;
 #endif
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
@@ -151,7 +163,7 @@ void b43_radio_unlock(struct b43_wldev *dev)
 
 #if B43_DEBUG
 	B43_WARN_ON(!dev->phy.radio_locked);
-	dev->phy.radio_locked = 0;
+	dev->phy.radio_locked = false;
 #endif
 
 	/* Commit any write */
@@ -166,9 +178,9 @@ void b43_phy_lock(struct b43_wldev *dev)
 {
 #if B43_DEBUG
 	B43_WARN_ON(dev->phy.phy_locked);
-	dev->phy.phy_locked = 1;
+	dev->phy.phy_locked = true;
 #endif
-	B43_WARN_ON(dev->sdev->id.revision < 3);
+	B43_WARN_ON(dev->dev->core_rev < 3);
 
 	if (!b43_is_mode(dev->wl, NL80211_IFTYPE_AP))
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
@@ -178,9 +190,9 @@ void b43_phy_unlock(struct b43_wldev *dev)
 {
 #if B43_DEBUG
 	B43_WARN_ON(!dev->phy.phy_locked);
-	dev->phy.phy_locked = 0;
+	dev->phy.phy_locked = false;
 #endif
-	B43_WARN_ON(dev->sdev->id.revision < 3);
+	B43_WARN_ON(dev->dev->core_rev < 3);
 
 	if (!b43_is_mode(dev->wl, NL80211_IFTYPE_AP))
 		b43_power_saving_ctl_bits(dev, 0);
@@ -226,6 +238,21 @@ void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 {
 	b43_radio_write16(dev, offset,
 			  (b43_radio_read16(dev, offset) & mask) | set);
+}
+
+bool b43_radio_wait_value(struct b43_wldev *dev, u16 offset, u16 mask,
+			  u16 value, int delay, int timeout)
+{
+	u16 val;
+	int i;
+
+	for (i = 0; i < timeout; i += delay) {
+		val = b43_radio_read(dev, offset);
+		if ((val & mask) == value)
+			return true;
+		udelay(delay);
+	}
+	return false;
 }
 
 u16 b43_phy_read(struct b43_wldev *dev, u16 reg)
@@ -368,8 +395,8 @@ void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
 	/* The next check will be needed in two seconds, or later. */
 	phy->next_txpwr_check_time = round_jiffies(now + (HZ * 2));
 
-	if ((dev->sdev->bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
-	    (dev->sdev->bus->boardinfo.type == SSB_BOARD_BU4306))
+	if ((dev->dev->board_vendor == SSB_BOARDVENDOR_BCM) &&
+	    (dev->dev->board_type == SSB_BOARD_BU4306))
 		return; /* No software txpower adjustment needed */
 
 	result = phy->ops->recalc_txpower(dev, !!(flags & B43_TXPWR_IGNORE_TSSI));
@@ -416,7 +443,7 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 	average = (a + b + c + d + 2) / 4;
 	if (is_ofdm) {
 		/* Adjust for CCK-boost */
-		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO)
+		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1)
 		    & B43_HF_CCKBOOST)
 			average = (average >= 13) ? (average - 13) : 0;
 	}
@@ -434,6 +461,38 @@ bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
 {
 	return (channel_type == NL80211_CHAN_HT40MINUS ||
 		channel_type == NL80211_CHAN_HT40PLUS);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
+void b43_phy_force_clock(struct b43_wldev *dev, bool force)
+{
+	u32 tmp;
+
+	WARN_ON(dev->phy.type != B43_PHYTYPE_N &&
+		dev->phy.type != B43_PHYTYPE_HT);
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		if (force)
+			tmp |= BCMA_IOCTL_FGC;
+		else
+			tmp &= ~BCMA_IOCTL_FGC;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		if (force)
+			tmp |= SSB_TMSLOW_FGC;
+		else
+			tmp &= ~SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		break;
+#endif
+	}
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Cordic */

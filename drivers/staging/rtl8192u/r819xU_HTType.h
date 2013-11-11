@@ -16,7 +16,7 @@
 #define HT_OPMODE_MIXED			3
 
 //
-// MIMO Power Save Setings
+// MIMO Power Save Settings
 //
 #define MIMO_PS_STATIC				0
 #define MIMO_PS_DYNAMIC			1
@@ -89,7 +89,7 @@ typedef enum _CHNLOP{
 
 typedef enum _HT_ACTION{
 	ACT_RECOMMAND_WIDTH		= 0,
-	ACT_MIMO_PWR_SAVE 		= 1,
+	ACT_MIMO_PWR_SAVE		= 1,
 	ACT_PSMP					= 2,
 	ACT_SET_PCO_PHASE		= 3,
 	ACT_MIMO_CHL_MEASURE	= 4,
@@ -211,7 +211,7 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
 
-	u8				bRegBW40MHz;				// Tx 40MHz channel capablity
+	u8				bRegBW40MHz;				// Tx 40MHz channel capability
 	u8				bCurBW40MHz;				// Tx 40MHz channel capability
 
 	u8				bRegShortGI40MHz;			// Tx Short GI for 40Mhz
@@ -367,9 +367,9 @@ typedef struct _BSS_HT{
 typedef struct _MIMO_RSSI{
 	u32	EnableAntenna;
 	u32	AntennaA;
-	u32 	AntennaB;
-	u32 	AntennaC;
-	u32 	AntennaD;
+	u32	AntennaB;
+	u32	AntennaC;
+	u32	AntennaD;
 	u32	Average;
 }MIMO_RSSI, *PMIMO_RSSI;
 
@@ -388,4 +388,3 @@ typedef struct _FALSE_ALARM_STATISTICS{
 
 
 #endif //__INC_HTTYPE_H
-

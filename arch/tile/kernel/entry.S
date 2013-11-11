@@ -28,17 +28,6 @@ STD_ENTRY(current_text_addr)
 	STD_ENDPROC(current_text_addr)
 
 /*
- * Implement execve().  The i386 code has a note that forking from kernel
- * space results in no copy on write until the execve, so we should be
- * careful not to write to the stack here.
- */
-STD_ENTRY(kernel_execve)
-	moveli TREG_SYSCALL_NR_NAME, __NR_execve
-	swint1
-	jrp lr
-	STD_ENDPROC(kernel_execve)
-
-/*
  * We don't run this function directly, but instead copy it to a page
  * we map into every user process.  See vdso_setup().
  *
@@ -68,23 +57,10 @@ STD_ENTRY(KBacktraceIterator_init_current)
 	jrp lr   /* keep backtracer happy */
 	STD_ENDPROC(KBacktraceIterator_init_current)
 
-/*
- * Reset our stack to r1/r2 (sp and ksp0+cpu respectively), then
- * free the old stack (passed in r0) and re-invoke cpu_idle().
- * We update sp and ksp0 simultaneously to avoid backtracer warnings.
- */
-STD_ENTRY(cpu_idle_on_new_stack)
-	{
-	 move sp, r1
-	 mtspr SPR_SYSTEM_SAVE_K_0, r2
-	}
-	jal free_thread_info
-	j cpu_idle
-	STD_ENDPROC(cpu_idle_on_new_stack)
-
 /* Loop forever on a nap during SMP boot. */
 STD_ENTRY(smp_nap)
 	nap
+	nop       /* avoid provoking the icache prefetch with a jump */
 	j smp_nap /* we are not architecturally guaranteed not to exit nap */
 	jrp lr    /* clue in the backtracer */
 	STD_ENDPROC(smp_nap)
@@ -99,11 +75,13 @@ STD_ENTRY(smp_nap)
  */
 STD_ENTRY(_cpu_idle)
 	movei r1, 1
+	IRQ_ENABLE_LOAD(r2, r3)
 	mtspr INTERRUPT_CRITICAL_SECTION, r1
-	IRQ_ENABLE(r2, r3)             /* unmask, but still with ICS set */
+	IRQ_ENABLE_APPLY(r2, r3)       /* unmask, but still with ICS set */
 	mtspr INTERRUPT_CRITICAL_SECTION, zero
 	.global _cpu_idle_nap
 _cpu_idle_nap:
 	nap
+	nop       /* avoid provoking the icache prefetch with a jump */
 	jrp lr
 	STD_ENDPROC(_cpu_idle)

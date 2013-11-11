@@ -5,10 +5,11 @@ config AINTC
 
 config CP_INTC
 	bool
+	select IRQ_DOMAIN
 
 config ARCH_DAVINCI_DMx
-	select CPU_ARM926T
 	bool
+	select CPU_ARM926T
 
 menu "TI DaVinci Implementations"
 
@@ -31,19 +32,19 @@ config ARCH_DAVINCI_DM646x
 
 config ARCH_DAVINCI_DA830
 	bool "DA830/OMAP-L137/AM17x based system"
-	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 	select CPU_DCACHE_WRITETHROUGH # needed on silicon revs 1.0, 1.1
+	select CP_INTC
 
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
-	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 	select ARCH_HAS_CPUFREQ
+	select CP_INTC
 
 config ARCH_DAVINCI_DA8XX
-	select CPU_ARM926T
 	bool
+	select CPU_ARM926T
 
 config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
@@ -51,17 +52,25 @@ config ARCH_DAVINCI_DM365
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_TNETV107X
+	bool "TNETV107X based system"
 	select CPU_V6
 	select CP_INTC
-	bool "TNETV107X based system"
 
 comment "DaVinci Board Type"
+
+config MACH_DA8XX_DT
+	bool "Support DA8XX platforms using device tree"
+	default y
+	depends on ARCH_DAVINCI_DA8XX
+	select PINCTRL
+	help
+	  Say y here to include support for TI DaVinci DA850 based using
+	  Flattened Device Tree. More information at Documentation/devicetree
 
 config MACH_DAVINCI_EVM
 	bool "TI DM644x EVM"
 	default ARCH_DAVINCI_DM644x
 	depends on ARCH_DAVINCI_DM644x
-	select MISC_DEVICES
 	select EEPROM_AT24
 	select I2C
 	help
@@ -71,7 +80,6 @@ config MACH_DAVINCI_EVM
 config MACH_SFFSDR
 	bool "Lyrtech SFFSDR"
 	depends on ARCH_DAVINCI_DM644x
-	select MISC_DEVICES
 	select EEPROM_AT24
 	select I2C
 	help
@@ -104,10 +112,9 @@ config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
 	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
-	select MACH_DAVINCI_DM6467TEVM
-	select MISC_DEVICES
 	select EEPROM_AT24
 	select I2C
+	select MACH_DAVINCI_DM6467TEVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
@@ -119,7 +126,6 @@ config MACH_DAVINCI_DM365_EVM
 	bool "TI DM365 EVM"
 	default ARCH_DAVINCI_DM365
 	depends on ARCH_DAVINCI_DM365
-	select MISC_DEVICES
 	select EEPROM_AT24
 	select I2C
 	help
@@ -130,9 +136,8 @@ config MACH_DAVINCI_DA830_EVM
 	bool "TI DA830/OMAP-L137/AM17x Reference Platform"
 	default ARCH_DAVINCI_DA830
 	depends on ARCH_DAVINCI_DA830
-	select GPIO_PCF857X
-	select MISC_DEVICES
 	select EEPROM_AT24
+	select GPIO_PCF857X
 	select I2C
 	help
 	  Say Y here to select the TI DA830/OMAP-L137/AM17x Evaluation Module.
@@ -190,7 +195,24 @@ config DA850_UI_RMII
 	  NOTE: Please take care while choosing this option, MII PHY will
 	  not be functional if RMII mode is selected.
 
+config DA850_UI_SD_VIDEO_PORT
+	bool "Video Port Interface"
+	help
+	  Say Y if you want to use Video Port Interface (VPIF) on the
+	  DA850/OMAP-L138 EVM. The Video decoders/encoders are found on the
+	  UI daughter card that is supplied with the EVM.
+
 endchoice
+
+config DA850_WL12XX
+	bool "AM18x wl1271 daughter board"
+	depends on MACH_DAVINCI_DA850_EVM
+	help
+	  The wl1271 daughter card for AM18x EVMs is a combo wireless
+	  connectivity add-on card, based on the LS Research TiWi module with
+	  Texas Instruments' wl1271 solution.
+	  Say Y if you want to use a wl1271 expansion card connected to the
+	  AM18x EVM.
 
 config GPIO_PCA953X
 	default MACH_DAVINCI_DA850_EVM
@@ -208,7 +230,6 @@ config MACH_TNETV107X
 config MACH_MITYOMAPL138
 	bool "Critical Link MityDSP-L138/MityARM-1808 SoM"
 	depends on ARCH_DAVINCI_DA850
-	select MISC_DEVICES
 	select EEPROM_AT24
 	select I2C
 	help

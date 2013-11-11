@@ -1,5 +1,5 @@
 /*
- * Engenio/LSI RDAC SCSI Device Handler
+ * LSI/Engenio/NetApp E-Series RDAC SCSI Device Handler
  *
  * Copyright (C) 2005 Mike Christie. All rights reserved.
  * Copyright (C) Chandra Seetharaman, IBM Corp. 2007
@@ -24,6 +24,7 @@
 #include <scsi/scsi_dh.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define RDAC_NAME "rdac"
 #define RDAC_RETRY_COUNT 5
@@ -35,7 +36,7 @@
  * mode page were taken from the LSI RDAC 2.4 GPL'd
  * driver, and then converted to Linux conventions.
  */
-#define RDAC_QUIESCENCE_TIME 20;
+#define RDAC_QUIESCENCE_TIME 20
 /*
  * Page Codes
  */
@@ -128,25 +129,7 @@ struct c4_inquiry {
 	u8	reserved[2];
 };
 
-struct rdac_controller {
-	u8			subsys_id[SUBSYS_ID_LEN];
-	u8			slot_id[SLOT_ID_LEN];
-	int			use_ms10;
-	struct kref		kref;
-	struct list_head	node; /* list of all controllers */
-	union			{
-		struct rdac_pg_legacy legacy;
-		struct rdac_pg_expanded expanded;
-	} mode_select;
-	u8	index;
-	u8	array_name[ARRAY_LABEL_LEN];
-	spinlock_t		ms_lock;
-	int			ms_queued;
-	struct work_struct	ms_work;
-	struct scsi_device	*ms_sdev;
-	struct list_head	ms_head;
-};
-
+#define UNIQUE_ID_LEN 16
 struct c8_inquiry {
 	u8	peripheral_info;
 	u8	page_code; /* 0xC8 */
@@ -159,10 +142,29 @@ struct c8_inquiry {
 	u8	vol_user_label_len;
 	u8	vol_user_label[60];
 	u8	array_uniq_id_len;
-	u8	array_unique_id[16];
+	u8	array_unique_id[UNIQUE_ID_LEN];
 	u8	array_user_label_len;
 	u8	array_user_label[60];
 	u8	lun[8];
+};
+
+struct rdac_controller {
+	u8			array_id[UNIQUE_ID_LEN];
+	int			use_ms10;
+	struct kref		kref;
+	struct list_head	node; /* list of all controllers */
+	union			{
+		struct rdac_pg_legacy legacy;
+		struct rdac_pg_expanded expanded;
+	} mode_select;
+	u8	index;
+	u8	array_name[ARRAY_LABEL_LEN];
+	struct Scsi_Host	*host;
+	spinlock_t		ms_lock;
+	int			ms_queued;
+	struct work_struct	ms_work;
+	struct scsi_device	*ms_sdev;
+	struct list_head	ms_head;
 };
 
 struct c2_inquiry {
@@ -362,42 +364,32 @@ static void release_controller(struct kref *kref)
 	struct rdac_controller *ctlr;
 	ctlr = container_of(kref, struct rdac_controller, kref);
 
-	flush_workqueue(kmpath_rdacd);
-	spin_lock(&list_lock);
 	list_del(&ctlr->node);
-	spin_unlock(&list_lock);
 	kfree(ctlr);
 }
 
-static struct rdac_controller *get_controller(u8 *subsys_id, u8 *slot_id,
-						char *array_name)
+static struct rdac_controller *get_controller(int index, char *array_name,
+			u8 *array_id, struct scsi_device *sdev)
 {
 	struct rdac_controller *ctlr, *tmp;
 
-	spin_lock(&list_lock);
-
 	list_for_each_entry(tmp, &ctlr_list, node) {
-		if ((memcmp(tmp->subsys_id, subsys_id, SUBSYS_ID_LEN) == 0) &&
-			  (memcmp(tmp->slot_id, slot_id, SLOT_ID_LEN) == 0)) {
+		if ((memcmp(tmp->array_id, array_id, UNIQUE_ID_LEN) == 0) &&
+			  (tmp->index == index) &&
+			  (tmp->host == sdev->host)) {
 			kref_get(&tmp->kref);
-			spin_unlock(&list_lock);
 			return tmp;
 		}
 	}
 	ctlr = kmalloc(sizeof(*ctlr), GFP_ATOMIC);
 	if (!ctlr)
-		goto done;
+		return NULL;
 
 	/* initialize fields of controller */
-	memcpy(ctlr->subsys_id, subsys_id, SUBSYS_ID_LEN);
-	memcpy(ctlr->slot_id, slot_id, SLOT_ID_LEN);
+	memcpy(ctlr->array_id, array_id, UNIQUE_ID_LEN);
+	ctlr->index = index;
+	ctlr->host = sdev->host;
 	memcpy(ctlr->array_name, array_name, ARRAY_LABEL_LEN);
-
-	/* update the controller index */
-	if (slot_id[1] == 0x31)
-		ctlr->index = 0;
-	else
-		ctlr->index = 1;
 
 	kref_init(&ctlr->kref);
 	ctlr->use_ms10 = -1;
@@ -407,8 +399,7 @@ static struct rdac_controller *get_controller(u8 *subsys_id, u8 *slot_id,
 	INIT_WORK(&ctlr->ms_work, send_mode_select);
 	INIT_LIST_HEAD(&ctlr->ms_head);
 	list_add(&ctlr->node, &ctlr_list);
-done:
-	spin_unlock(&list_lock);
+
 	return ctlr;
 }
 
@@ -444,7 +435,7 @@ done:
 }
 
 static int get_lun_info(struct scsi_device *sdev, struct rdac_dh_data *h,
-			char *array_name)
+			char *array_name, u8 *array_id)
 {
 	int err, i;
 	struct c8_inquiry *inqp;
@@ -463,6 +454,8 @@ static int get_lun_info(struct scsi_device *sdev, struct rdac_dh_data *h,
 			*(array_name+i) = inqp->array_user_label[(2*i)+1];
 
 		*(array_name+ARRAY_LABEL_LEN-1) = '\0';
+		memset(array_id, 0, UNIQUE_ID_LEN);
+		memcpy(array_id, inqp->array_unique_id, inqp->array_uniq_id_len);
 	}
 	return err;
 }
@@ -504,18 +497,25 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 }
 
 static int initialize_controller(struct scsi_device *sdev,
-				 struct rdac_dh_data *h, char *array_name)
+		struct rdac_dh_data *h, char *array_name, u8 *array_id)
 {
-	int err;
+	int err, index;
 	struct c4_inquiry *inqp;
 
 	err = submit_inquiry(sdev, 0xC4, sizeof(struct c4_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c4;
-		h->ctlr = get_controller(inqp->subsys_id, inqp->slot_id,
-					array_name);
+		/* get the controller index */
+		if (inqp->slot_id[1] == 0x31)
+			index = 0;
+		else
+			index = 1;
+
+		spin_lock(&list_lock);
+		h->ctlr = get_controller(index, array_name, array_id, sdev);
 		if (!h->ctlr)
 			err = SCSI_DH_RES_TEMP_UNAVAIL;
+		spin_unlock(&list_lock);
 	}
 	return err;
 }
@@ -790,29 +790,39 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "1815"},
 	{"IBM", "1818"},
 	{"IBM", "3526"},
-	{"SGI", "TP9400"},
-	{"SGI", "TP9500"},
+	{"SGI", "TP9"},
 	{"SGI", "IS"},
 	{"STK", "OPENstorage D280"},
-	{"SUN", "CSM200_R"},
-	{"SUN", "LCSM100_I"},
-	{"SUN", "LCSM100_S"},
-	{"SUN", "LCSM100_E"},
-	{"SUN", "LCSM100_F"},
-	{"DELL", "MD3000"},
-	{"DELL", "MD3000i"},
-	{"DELL", "MD32xx"},
-	{"DELL", "MD32xxi"},
-	{"DELL", "MD36xxi"},
-	{"DELL", "MD36xxf"},
-	{"LSI", "INF-01-00"},
-	{"ENGENIO", "INF-01-00"},
 	{"STK", "FLEXLINE 380"},
-	{"SUN", "CSM100_R_FC"},
+	{"SUN", "CSM"},
+	{"SUN", "LCSM100"},
 	{"SUN", "STK6580_6780"},
 	{"SUN", "SUN_6180"},
+	{"SUN", "ArrayStorage"},
+	{"DELL", "MD3"},
+	{"NETAPP", "INF-01-00"},
+	{"LSI", "INF-01-00"},
+	{"ENGENIO", "INF-01-00"},
 	{NULL, NULL},
 };
+
+static bool rdac_match(struct scsi_device *sdev)
+{
+	int i;
+
+	if (scsi_device_tpgs(sdev))
+		return false;
+
+	for (i = 0; rdac_dev_list[i].vendor; i++) {
+		if (!strncmp(sdev->vendor, rdac_dev_list[i].vendor,
+			strlen(rdac_dev_list[i].vendor)) &&
+		    !strncmp(sdev->model, rdac_dev_list[i].model,
+			strlen(rdac_dev_list[i].model))) {
+			return true;
+		}
+	}
+	return false;
+}
 
 static int rdac_bus_attach(struct scsi_device *sdev);
 static void rdac_bus_detach(struct scsi_device *sdev);
@@ -826,6 +836,7 @@ static struct scsi_device_handler rdac_dh = {
 	.attach = rdac_bus_attach,
 	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
+	.match = rdac_match,
 };
 
 static int rdac_bus_attach(struct scsi_device *sdev)
@@ -835,13 +846,14 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	unsigned long flags;
 	int err;
 	char array_name[ARRAY_LABEL_LEN];
+	char array_id[UNIQUE_ID_LEN];
 
 	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
 			       + sizeof(*h) , GFP_KERNEL);
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
 			    RDAC_NAME);
-		return 0;
+		return -ENOMEM;
 	}
 
 	scsi_dh_data->scsi_dh = &rdac_dh;
@@ -849,11 +861,11 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
-	err = get_lun_info(sdev, h, array_name);
+	err = get_lun_info(sdev, h, array_name, array_id);
 	if (err != SCSI_DH_OK)
 		goto failed;
 
-	err = initialize_controller(sdev, h, array_name);
+	err = initialize_controller(sdev, h, array_name, array_id);
 	if (err != SCSI_DH_OK)
 		goto failed;
 
@@ -880,7 +892,9 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	return 0;
 
 clean_ctlr:
+	spin_lock(&list_lock);
 	kref_put(&h->ctlr->kref, release_controller);
+	spin_unlock(&list_lock);
 
 failed:
 	kfree(scsi_dh_data);
@@ -895,14 +909,19 @@ static void rdac_bus_detach( struct scsi_device *sdev )
 	struct rdac_dh_data *h;
 	unsigned long flags;
 
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	scsi_dh_data = sdev->scsi_dh_data;
+	h = (struct rdac_dh_data *) scsi_dh_data->buf;
+	if (h->ctlr && h->ctlr->ms_queued)
+		flush_workqueue(kmpath_rdacd);
+
+	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
 	sdev->scsi_dh_data = NULL;
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 
-	h = (struct rdac_dh_data *) scsi_dh_data->buf;
+	spin_lock(&list_lock);
 	if (h->ctlr)
 		kref_put(&h->ctlr->kref, release_controller);
+	spin_unlock(&list_lock);
 	kfree(scsi_dh_data);
 	module_put(THIS_MODULE);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", RDAC_NAME);
@@ -927,6 +946,8 @@ static int __init rdac_init(void)
 	if (!kmpath_rdacd) {
 		scsi_unregister_device_handler(&rdac_dh);
 		printk(KERN_ERR "kmpath_rdacd creation failed.\n");
+
+		r = -EINVAL;
 	}
 done:
 	return r;
@@ -941,7 +962,7 @@ static void __exit rdac_exit(void)
 module_init(rdac_init);
 module_exit(rdac_exit);
 
-MODULE_DESCRIPTION("Multipath LSI/Engenio RDAC driver");
+MODULE_DESCRIPTION("Multipath LSI/Engenio/NetApp E-Series RDAC driver");
 MODULE_AUTHOR("Mike Christie, Chandra Seetharaman");
 MODULE_VERSION("01.00.0000.0000");
 MODULE_LICENSE("GPL");

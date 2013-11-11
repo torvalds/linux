@@ -2,29 +2,41 @@
 # Near Field Communication (NFC) devices
 #
 
-menuconfig NFC_DEVICES
-	bool "Near Field Communication (NFC) devices"
-	default n
-	---help---
-	  You'll have to say Y if your computer contains an NFC device that
-	  you want to use under Linux.
+menu "Near Field Communication (NFC) devices"
+	depends on NFC
 
-	  You can say N here if you don't have any Near Field Communication
-	  devices connected to your computer.
+config NFC_PN533
+	tristate "NXP PN533 USB driver"
+	depends on USB
+	help
+	  NXP PN533 USB driver.
+	  This driver provides support for NFC NXP PN533 devices.
 
-if NFC_DEVICES
+	  Say Y here to compile support for PN533 devices into the
+	  kernel or say M to compile it as module (pn533).
 
-config PN544_NFC
-	tristate "PN544 NFC driver"
-	depends on I2C
-	select CRC_CCITT
-	default n
-	---help---
-	  Say yes if you want PN544 Near Field Communication driver.
-	  This is for i2c connected version. If unsure, say N here.
+config NFC_WILINK
+	tristate "Texas Instruments NFC WiLink driver"
+	depends on TI_ST && NFC_NCI
+	help
+	  This enables the NFC driver for Texas Instrument's BT/FM/GPS/NFC
+	  combo devices. This makes use of shared transport line discipline
+	  core driver to communicate with the NFC core of the combo chip.
 
-	  To compile this driver as a module, choose m here. The module will
-	  be called pn544.
+	  Say Y here to compile support for Texas Instrument's NFC WiLink driver
+	  into the kernel or say M to compile it as module.
 
+config NFC_MEI_PHY
+	tristate "MEI bus NFC device support"
+	depends on INTEL_MEI && NFC_HCI
+	help
+	  This adds support to use an mei bus nfc device. Select this if you
+	  will use an HCI NFC driver for an NFC chip connected behind an
+	  Intel's Management Engine chip.
 
-endif # NFC_DEVICES
+	  If unsure, say N.
+
+source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
+
+endmenu

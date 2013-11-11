@@ -16,7 +16,7 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 
-#ifdef RPC_DEBUG
+#ifdef NFS_DEBUG
 # define NFSDBG_FACILITY	NFSDBG_MOUNT
 #endif
 
@@ -67,7 +67,7 @@ enum {
 	MOUNTPROC3_EXPORT	= 5,
 };
 
-static struct rpc_program	mnt_program;
+static const struct rpc_program mnt_program;
 
 /*
  * Defined by OpenGroup XNFS Version 3W, chapter 8
@@ -153,7 +153,7 @@ int nfs_mount(struct nfs_mount_request *info)
 		.rpc_resp	= &result,
 	};
 	struct rpc_create_args args = {
-		.net		= &init_net,
+		.net		= info->net,
 		.protocol	= info->protocol,
 		.address	= info->sap,
 		.addrsize	= info->salen,
@@ -169,6 +169,9 @@ int nfs_mount(struct nfs_mount_request *info)
 		(info->hostname ? info->hostname : "server"),
 			info->dirpath);
 
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return -ENAMETOOLONG;
+
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
@@ -181,7 +184,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	else
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC_MNT];
 
-	status = rpc_call_sync(mnt_clnt, &msg, 0);
+	status = rpc_call_sync(mnt_clnt, &msg, RPC_TASK_SOFT|RPC_TASK_TIMEOUT);
 	rpc_shutdown_client(mnt_clnt);
 
 	if (status < 0)
@@ -225,7 +228,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 		.to_retries = 2,
 	};
 	struct rpc_create_args args = {
-		.net		= &init_net,
+		.net		= info->net,
 		.protocol	= IPPROTO_UDP,
 		.address	= info->sap,
 		.addrsize	= info->salen,
@@ -241,6 +244,9 @@ void nfs_umount(const struct nfs_mount_request *info)
 	};
 	struct rpc_clnt *clnt;
 	int status;
+
+	if (strlen(info->dirpath) > MNTPATHLEN)
+		return;
 
 	if (info->noresvport)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
@@ -283,7 +289,6 @@ static void encode_mntdirpath(struct xdr_stream *xdr, const char *pathname)
 	const u32 pathname_len = strlen(pathname);
 	__be32 *p;
 
-	BUG_ON(pathname_len > MNTPATHLEN);
 	p = xdr_reserve_space(xdr, 4 + pathname_len);
 	xdr_encode_opaque(p, pathname, pathname_len);
 }
@@ -488,19 +493,19 @@ static struct rpc_procinfo mnt3_procedures[] = {
 };
 
 
-static struct rpc_version mnt_version1 = {
+static const struct rpc_version mnt_version1 = {
 	.number		= 1,
 	.nrprocs	= ARRAY_SIZE(mnt_procedures),
 	.procs		= mnt_procedures,
 };
 
-static struct rpc_version mnt_version3 = {
+static const struct rpc_version mnt_version3 = {
 	.number		= 3,
 	.nrprocs	= ARRAY_SIZE(mnt3_procedures),
 	.procs		= mnt3_procedures,
 };
 
-static struct rpc_version *mnt_version[] = {
+static const struct rpc_version *mnt_version[] = {
 	NULL,
 	&mnt_version1,
 	NULL,
@@ -509,7 +514,7 @@ static struct rpc_version *mnt_version[] = {
 
 static struct rpc_stat mnt_stats;
 
-static struct rpc_program mnt_program = {
+static const struct rpc_program mnt_program = {
 	.name		= "mount",
 	.number		= NFS_MNT_PROGRAM,
 	.nrvers		= ARRAY_SIZE(mnt_version),

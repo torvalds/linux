@@ -24,13 +24,12 @@
  * user_time and system_time fields in the paca.
  */
 
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)
 #define ACCOUNT_STOLEN_TIME
 #else
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
-	beq	2f;			/* if from kernel mode */	\
 	MFTB(ra);			/* get timebase */		\
 	ld	rb,PACA_STARTTIME_USER(r13);				\
 	std	ra,PACA_STARTTIME(r13);					\
@@ -38,7 +37,6 @@
 	ld	ra,PACA_USER_TIME(r13);					\
 	add	ra,ra,rb;		/* add on to user time */	\
 	std	ra,PACA_USER_TIME(r13);					\
-2:
 
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
 	MFTB(ra);			/* get timebase */		\
@@ -60,6 +58,8 @@ BEGIN_FW_FTR_SECTION;							\
 	cmpd	cr1,r11,r10;						\
 	beq+	cr1,33f;						\
 	bl	.accumulate_stolen_time;				\
+	ld	r12,_MSR(r1);						\
+	andi.	r10,r12,MSR_PR;		/* Restore cr0 (coming from user) */ \
 33:									\
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 
@@ -68,7 +68,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 
 #endif /* CONFIG_PPC_SPLPAR */
 
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 /*
  * Macros for storing registers into and loading registers from
@@ -123,45 +123,132 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define REST_16VRS(n,b,base)	REST_8VRS(n,b,base); REST_8VRS(n+8,b,base)
 #define REST_32VRS(n,b,base)	REST_16VRS(n,b,base); REST_16VRS(n+16,b,base)
 
+/* Save/restore FPRs, VRs and VSRs from their checkpointed backups in
+ * thread_struct:
+ */
+#define SAVE_FPR_TRANSACT(n, base)	stfd n,THREAD_TRANSACT_FPR0+	\
+					8*TS_FPRWIDTH*(n)(base)
+#define SAVE_2FPRS_TRANSACT(n, base)	SAVE_FPR_TRANSACT(n, base);	\
+					SAVE_FPR_TRANSACT(n+1, base)
+#define SAVE_4FPRS_TRANSACT(n, base)	SAVE_2FPRS_TRANSACT(n, base);	\
+					SAVE_2FPRS_TRANSACT(n+2, base)
+#define SAVE_8FPRS_TRANSACT(n, base)	SAVE_4FPRS_TRANSACT(n, base);	\
+					SAVE_4FPRS_TRANSACT(n+4, base)
+#define SAVE_16FPRS_TRANSACT(n, base)	SAVE_8FPRS_TRANSACT(n, base);	\
+					SAVE_8FPRS_TRANSACT(n+8, base)
+#define SAVE_32FPRS_TRANSACT(n, base)	SAVE_16FPRS_TRANSACT(n, base);	\
+					SAVE_16FPRS_TRANSACT(n+16, base)
+
+#define REST_FPR_TRANSACT(n, base)	lfd	n,THREAD_TRANSACT_FPR0+	\
+					8*TS_FPRWIDTH*(n)(base)
+#define REST_2FPRS_TRANSACT(n, base)	REST_FPR_TRANSACT(n, base);	\
+					REST_FPR_TRANSACT(n+1, base)
+#define REST_4FPRS_TRANSACT(n, base)	REST_2FPRS_TRANSACT(n, base);	\
+					REST_2FPRS_TRANSACT(n+2, base)
+#define REST_8FPRS_TRANSACT(n, base)	REST_4FPRS_TRANSACT(n, base);	\
+					REST_4FPRS_TRANSACT(n+4, base)
+#define REST_16FPRS_TRANSACT(n, base)	REST_8FPRS_TRANSACT(n, base);	\
+					REST_8FPRS_TRANSACT(n+8, base)
+#define REST_32FPRS_TRANSACT(n, base)	REST_16FPRS_TRANSACT(n, base);	\
+					REST_16FPRS_TRANSACT(n+16, base)
+
+
+#define SAVE_VR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VR0+(16*(n)); \
+					stvx n,b,base
+#define SAVE_2VRS_TRANSACT(n,b,base)	SAVE_VR_TRANSACT(n,b,base);	\
+					SAVE_VR_TRANSACT(n+1,b,base)
+#define SAVE_4VRS_TRANSACT(n,b,base)	SAVE_2VRS_TRANSACT(n,b,base);	\
+					SAVE_2VRS_TRANSACT(n+2,b,base)
+#define SAVE_8VRS_TRANSACT(n,b,base)	SAVE_4VRS_TRANSACT(n,b,base);	\
+					SAVE_4VRS_TRANSACT(n+4,b,base)
+#define SAVE_16VRS_TRANSACT(n,b,base)	SAVE_8VRS_TRANSACT(n,b,base);	\
+					SAVE_8VRS_TRANSACT(n+8,b,base)
+#define SAVE_32VRS_TRANSACT(n,b,base)	SAVE_16VRS_TRANSACT(n,b,base);	\
+					SAVE_16VRS_TRANSACT(n+16,b,base)
+
+#define REST_VR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VR0+(16*(n)); \
+					lvx n,b,base
+#define REST_2VRS_TRANSACT(n,b,base)	REST_VR_TRANSACT(n,b,base);	\
+					REST_VR_TRANSACT(n+1,b,base)
+#define REST_4VRS_TRANSACT(n,b,base)	REST_2VRS_TRANSACT(n,b,base);	\
+					REST_2VRS_TRANSACT(n+2,b,base)
+#define REST_8VRS_TRANSACT(n,b,base)	REST_4VRS_TRANSACT(n,b,base);	\
+					REST_4VRS_TRANSACT(n+4,b,base)
+#define REST_16VRS_TRANSACT(n,b,base)	REST_8VRS_TRANSACT(n,b,base);	\
+					REST_8VRS_TRANSACT(n+8,b,base)
+#define REST_32VRS_TRANSACT(n,b,base)	REST_16VRS_TRANSACT(n,b,base);	\
+					REST_16VRS_TRANSACT(n+16,b,base)
+
+
+#define SAVE_VSR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VSR0+(16*(n)); \
+					STXVD2X(n,R##base,R##b)
+#define SAVE_2VSRS_TRANSACT(n,b,base)	SAVE_VSR_TRANSACT(n,b,base);	\
+	                                SAVE_VSR_TRANSACT(n+1,b,base)
+#define SAVE_4VSRS_TRANSACT(n,b,base)	SAVE_2VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_2VSRS_TRANSACT(n+2,b,base)
+#define SAVE_8VSRS_TRANSACT(n,b,base)	SAVE_4VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_4VSRS_TRANSACT(n+4,b,base)
+#define SAVE_16VSRS_TRANSACT(n,b,base)	SAVE_8VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_8VSRS_TRANSACT(n+8,b,base)
+#define SAVE_32VSRS_TRANSACT(n,b,base)	SAVE_16VSRS_TRANSACT(n,b,base);	\
+	                                SAVE_16VSRS_TRANSACT(n+16,b,base)
+
+#define REST_VSR_TRANSACT(n,b,base)	li b,THREAD_TRANSACT_VSR0+(16*(n)); \
+					LXVD2X(n,R##base,R##b)
+#define REST_2VSRS_TRANSACT(n,b,base)	REST_VSR_TRANSACT(n,b,base);    \
+	                                REST_VSR_TRANSACT(n+1,b,base)
+#define REST_4VSRS_TRANSACT(n,b,base)	REST_2VSRS_TRANSACT(n,b,base);	\
+	                                REST_2VSRS_TRANSACT(n+2,b,base)
+#define REST_8VSRS_TRANSACT(n,b,base)	REST_4VSRS_TRANSACT(n,b,base);	\
+	                                REST_4VSRS_TRANSACT(n+4,b,base)
+#define REST_16VSRS_TRANSACT(n,b,base)	REST_8VSRS_TRANSACT(n,b,base);	\
+	                                REST_8VSRS_TRANSACT(n+8,b,base)
+#define REST_32VSRS_TRANSACT(n,b,base)	REST_16VSRS_TRANSACT(n,b,base);	\
+	                                REST_16VSRS_TRANSACT(n+16,b,base)
+
 /* Save the lower 32 VSRs in the thread VSR region */
-#define SAVE_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n));  STXVD2X(n,base,b)
+#define SAVE_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n));  STXVD2X(n,R##base,R##b)
 #define SAVE_2VSRS(n,b,base)	SAVE_VSR(n,b,base); SAVE_VSR(n+1,b,base)
 #define SAVE_4VSRS(n,b,base)	SAVE_2VSRS(n,b,base); SAVE_2VSRS(n+2,b,base)
 #define SAVE_8VSRS(n,b,base)	SAVE_4VSRS(n,b,base); SAVE_4VSRS(n+4,b,base)
 #define SAVE_16VSRS(n,b,base)	SAVE_8VSRS(n,b,base); SAVE_8VSRS(n+8,b,base)
 #define SAVE_32VSRS(n,b,base)	SAVE_16VSRS(n,b,base); SAVE_16VSRS(n+16,b,base)
-#define REST_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n)); LXVD2X(n,base,b)
+#define REST_VSR(n,b,base)	li b,THREAD_VSR0+(16*(n)); LXVD2X(n,R##base,R##b)
 #define REST_2VSRS(n,b,base)	REST_VSR(n,b,base); REST_VSR(n+1,b,base)
 #define REST_4VSRS(n,b,base)	REST_2VSRS(n,b,base); REST_2VSRS(n+2,b,base)
 #define REST_8VSRS(n,b,base)	REST_4VSRS(n,b,base); REST_4VSRS(n+4,b,base)
 #define REST_16VSRS(n,b,base)	REST_8VSRS(n,b,base); REST_8VSRS(n+8,b,base)
 #define REST_32VSRS(n,b,base)	REST_16VSRS(n,b,base); REST_16VSRS(n+16,b,base)
 /* Save the upper 32 VSRs (32-63) in the thread VSX region (0-31) */
-#define SAVE_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n));  STXVD2X(n+32,base,b)
+#define SAVE_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n));  STXVD2X(n+32,R##base,R##b)
 #define SAVE_2VSRSU(n,b,base)	SAVE_VSRU(n,b,base); SAVE_VSRU(n+1,b,base)
 #define SAVE_4VSRSU(n,b,base)	SAVE_2VSRSU(n,b,base); SAVE_2VSRSU(n+2,b,base)
 #define SAVE_8VSRSU(n,b,base)	SAVE_4VSRSU(n,b,base); SAVE_4VSRSU(n+4,b,base)
 #define SAVE_16VSRSU(n,b,base)	SAVE_8VSRSU(n,b,base); SAVE_8VSRSU(n+8,b,base)
 #define SAVE_32VSRSU(n,b,base)	SAVE_16VSRSU(n,b,base); SAVE_16VSRSU(n+16,b,base)
-#define REST_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n)); LXVD2X(n+32,base,b)
+#define REST_VSRU(n,b,base)	li b,THREAD_VR0+(16*(n)); LXVD2X(n+32,R##base,R##b)
 #define REST_2VSRSU(n,b,base)	REST_VSRU(n,b,base); REST_VSRU(n+1,b,base)
 #define REST_4VSRSU(n,b,base)	REST_2VSRSU(n,b,base); REST_2VSRSU(n+2,b,base)
 #define REST_8VSRSU(n,b,base)	REST_4VSRSU(n,b,base); REST_4VSRSU(n+4,b,base)
 #define REST_16VSRSU(n,b,base)	REST_8VSRSU(n,b,base); REST_8VSRSU(n+8,b,base)
 #define REST_32VSRSU(n,b,base)	REST_16VSRSU(n,b,base); REST_16VSRSU(n+16,b,base)
 
-#define SAVE_EVR(n,s,base)	evmergehi s,s,n; stw s,THREAD_EVR0+4*(n)(base)
-#define SAVE_2EVRS(n,s,base)	SAVE_EVR(n,s,base); SAVE_EVR(n+1,s,base)
-#define SAVE_4EVRS(n,s,base)	SAVE_2EVRS(n,s,base); SAVE_2EVRS(n+2,s,base)
-#define SAVE_8EVRS(n,s,base)	SAVE_4EVRS(n,s,base); SAVE_4EVRS(n+4,s,base)
-#define SAVE_16EVRS(n,s,base)	SAVE_8EVRS(n,s,base); SAVE_8EVRS(n+8,s,base)
-#define SAVE_32EVRS(n,s,base)	SAVE_16EVRS(n,s,base); SAVE_16EVRS(n+16,s,base)
-#define REST_EVR(n,s,base)	lwz s,THREAD_EVR0+4*(n)(base); evmergelo n,s,n
-#define REST_2EVRS(n,s,base)	REST_EVR(n,s,base); REST_EVR(n+1,s,base)
-#define REST_4EVRS(n,s,base)	REST_2EVRS(n,s,base); REST_2EVRS(n+2,s,base)
-#define REST_8EVRS(n,s,base)	REST_4EVRS(n,s,base); REST_4EVRS(n+4,s,base)
-#define REST_16EVRS(n,s,base)	REST_8EVRS(n,s,base); REST_8EVRS(n+8,s,base)
-#define REST_32EVRS(n,s,base)	REST_16EVRS(n,s,base); REST_16EVRS(n+16,s,base)
+/*
+ * b = base register for addressing, o = base offset from register of 1st EVR
+ * n = first EVR, s = scratch
+ */
+#define SAVE_EVR(n,s,b,o)	evmergehi s,s,n; stw s,o+4*(n)(b)
+#define SAVE_2EVRS(n,s,b,o)	SAVE_EVR(n,s,b,o); SAVE_EVR(n+1,s,b,o)
+#define SAVE_4EVRS(n,s,b,o)	SAVE_2EVRS(n,s,b,o); SAVE_2EVRS(n+2,s,b,o)
+#define SAVE_8EVRS(n,s,b,o)	SAVE_4EVRS(n,s,b,o); SAVE_4EVRS(n+4,s,b,o)
+#define SAVE_16EVRS(n,s,b,o)	SAVE_8EVRS(n,s,b,o); SAVE_8EVRS(n+8,s,b,o)
+#define SAVE_32EVRS(n,s,b,o)	SAVE_16EVRS(n,s,b,o); SAVE_16EVRS(n+16,s,b,o)
+#define REST_EVR(n,s,b,o)	lwz s,o+4*(n)(b); evmergelo n,s,n
+#define REST_2EVRS(n,s,b,o)	REST_EVR(n,s,b,o); REST_EVR(n+1,s,b,o)
+#define REST_4EVRS(n,s,b,o)	REST_2EVRS(n,s,b,o); REST_2EVRS(n+2,s,b,o)
+#define REST_8EVRS(n,s,b,o)	REST_4EVRS(n,s,b,o); REST_4EVRS(n+4,s,b,o)
+#define REST_16EVRS(n,s,b,o)	REST_8EVRS(n,s,b,o); REST_8EVRS(n+8,s,b,o)
+#define REST_32EVRS(n,s,b,o)	REST_16EVRS(n,s,b,o); REST_16EVRS(n+16,s,b,o)
 
 /* Macros to adjust thread priority for hardware multithreading */
 #define HMT_VERY_LOW	or	31,31,31	# very low priority
@@ -172,8 +259,23 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #define HMT_HIGH	or	3,3,3
 #define HMT_EXTRA_HIGH	or	7,7,7		# power7 only
 
+#ifdef CONFIG_PPC64
+#define ULONG_SIZE 	8
+#else
+#define ULONG_SIZE	4
+#endif
+#define __VCPU_GPR(n)	(VCPU_GPRS + (n * ULONG_SIZE))
+#define VCPU_GPR(n)	__VCPU_GPR(__REG_##n)
+
 #ifdef __KERNEL__
 #ifdef CONFIG_PPC64
+
+#define STACKFRAMESIZE 256
+#define __STK_REG(i)   (112 + ((i)-14)*8)
+#define STK_REG(i)     __STK_REG(__REG_##i)
+
+#define __STK_PARAM(i)	(48 + ((i)-3)*8)
+#define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
 #define XGLUE(a,b) a##b
 #define GLUE(a,b) XGLUE(a,b)
@@ -289,14 +391,14 @@ n:
  */
 #ifdef __powerpc64__
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
-	lis     (reg),(expr)@highest;		\
-	ori     (reg),(reg),(expr)@higher;	\
-	rldicr  (reg),(reg),32,31;		\
-	oris    (reg),(reg),(expr)@h;		\
-	ori     (reg),(reg),(expr)@l;
+	lis     reg,(expr)@highest;		\
+	ori     reg,reg,(expr)@higher;	\
+	rldicr  reg,reg,32,31;		\
+	oris    reg,reg,(expr)@h;		\
+	ori     reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)			\
-	ld	(reg),name@got(r2)
+	ld	reg,name@got(r2)
 
 #define LOAD_REG_ADDRBASE(reg,name)	LOAD_REG_ADDR(reg,name)
 #define ADDROFF(name)			0
@@ -307,12 +409,12 @@ n:
 #else /* 32-bit */
 
 #define LOAD_REG_IMMEDIATE(reg,expr)		\
-	lis	(reg),(expr)@ha;		\
-	addi	(reg),(reg),(expr)@l;
+	lis	reg,(expr)@ha;		\
+	addi	reg,reg,(expr)@l;
 
 #define LOAD_REG_ADDR(reg,name)		LOAD_REG_IMMEDIATE(reg, name)
 
-#define LOAD_REG_ADDRBASE(reg, name)	lis	(reg),name@ha
+#define LOAD_REG_ADDRBASE(reg, name)	lis	reg,name@ha
 #define ADDROFF(name)			name@l
 
 /* offsets for stack frame layout */
@@ -363,7 +465,40 @@ BEGIN_FTR_SECTION			\
 END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #endif
 
-	
+#ifdef CONFIG_PPC64
+#define MTOCRF(FXM, RS)			\
+	BEGIN_FTR_SECTION_NESTED(848);	\
+	mtcrf	(FXM), RS;		\
+	FTR_SECTION_ELSE_NESTED(848);	\
+	mtocrf (FXM), RS;		\
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_NOEXECUTE, 848)
+
+/*
+ * PPR restore macros used in entry_64.S
+ * Used for P7 or later processors
+ */
+#define HMT_MEDIUM_LOW_HAS_PPR						\
+BEGIN_FTR_SECTION_NESTED(944)						\
+	HMT_MEDIUM_LOW;							\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,944)
+
+#define SET_DEFAULT_THREAD_PPR(ra, rb)					\
+BEGIN_FTR_SECTION_NESTED(945)						\
+	lis	ra,INIT_PPR@highest;	/* default ppr=3 */		\
+	ld	rb,PACACURRENT(r13);					\
+	sldi	ra,ra,32;	/* 11- 13 bits are used for ppr */	\
+	std	ra,TASKTHREADPPR(rb);					\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,945)
+
+#define RESTORE_PPR(ra, rb)						\
+BEGIN_FTR_SECTION_NESTED(946)						\
+	ld	ra,PACACURRENT(r13);					\
+	ld	rb,TASKTHREADPPR(ra);					\
+	mtspr	SPRN_PPR,rb;	/* Restore PPR */			\
+END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,946)
+
+#endif
+
 /*
  * This instruction is not implemented on the PPC 603 or 601; however, on
  * the 403GCX and 405GP tlbia IS defined and tlbie is not.
@@ -387,6 +522,17 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #else
 #define PPC440EP_ERR42
 #endif
+
+/* The following stops all load and store data streams associated with stream
+ * ID (ie. streams created explicitly).  The embedded and server mnemonics for
+ * dcbt are different so we use machine "power4" here explicitly.
+ */
+#define DCBT_STOP_ALL_STREAM_IDS(scratch)	\
+.machine push ;					\
+.machine "power4" ;				\
+       lis     scratch,0x60000000@h;		\
+       dcbt    r0,scratch,0b01010;		\
+.machine pop
 
 /*
  * toreal/fromreal/tophys/tovirt macros. 32-bit BookE makes them
@@ -449,6 +595,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #ifdef CONFIG_PPC_BOOK3S_64
 #define RFI		rfid
 #define MTMSRD(r)	mtmsrd	r
+#define MTMSR_EERI(reg)	mtmsrd	reg,1
 #else
 #define FIX_SRR1(ra, rb)
 #ifndef CONFIG_40x
@@ -457,6 +604,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define RFI		rfi; b .	/* Prevent prefetch past rfi */
 #endif
 #define MTMSRD(r)	mtmsr	r
+#define MTMSR_EERI(reg)	mtmsr	reg
 #define CLR_TOP32(r)
 #endif
 
@@ -476,40 +624,46 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define	cr7	7
 
 
-/* General Purpose Registers (GPRs) */
+/*
+ * General Purpose Registers (GPRs)
+ *
+ * The lower case r0-r31 should be used in preference to the upper
+ * case R0-R31 as they provide more error checking in the assembler.
+ * Use R0-31 only when really nessesary.
+ */
 
-#define	r0	0
-#define	r1	1
-#define	r2	2
-#define	r3	3
-#define	r4	4
-#define	r5	5
-#define	r6	6
-#define	r7	7
-#define	r8	8
-#define	r9	9
-#define	r10	10
-#define	r11	11
-#define	r12	12
-#define	r13	13
-#define	r14	14
-#define	r15	15
-#define	r16	16
-#define	r17	17
-#define	r18	18
-#define	r19	19
-#define	r20	20
-#define	r21	21
-#define	r22	22
-#define	r23	23
-#define	r24	24
-#define	r25	25
-#define	r26	26
-#define	r27	27
-#define	r28	28
-#define	r29	29
-#define	r30	30
-#define	r31	31
+#define	r0	%r0
+#define	r1	%r1
+#define	r2	%r2
+#define	r3	%r3
+#define	r4	%r4
+#define	r5	%r5
+#define	r6	%r6
+#define	r7	%r7
+#define	r8	%r8
+#define	r9	%r9
+#define	r10	%r10
+#define	r11	%r11
+#define	r12	%r12
+#define	r13	%r13
+#define	r14	%r14
+#define	r15	%r15
+#define	r16	%r16
+#define	r17	%r17
+#define	r18	%r18
+#define	r19	%r19
+#define	r20	%r20
+#define	r21	%r21
+#define	r22	%r22
+#define	r23	%r23
+#define	r24	%r24
+#define	r25	%r25
+#define	r26	%r26
+#define	r27	%r27
+#define	r28	%r28
+#define	r29	%r29
+#define	r30	%r30
+#define	r31	%r31
 
 
 /* Floating Point Registers (FPRs) */

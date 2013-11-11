@@ -14,11 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include "regd.h"
 #include "regd_common.h"
+
+static int __ath_regd_init(struct ath_regulatory *reg);
 
 /*
  * This is a set of common rules used by our world regulatory domains.
@@ -190,8 +195,6 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
-	u32 bandwidth = 0;
-	int r;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 
@@ -209,11 +212,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				r = freq_reg_info(wiphy,
-						  ch->center_freq,
-						  bandwidth,
-						  &reg_rule);
-				if (r)
+				reg_rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(reg_rule))
 					continue;
 				/*
 				 * If 11d had a rule for this channel ensure
@@ -249,10 +249,10 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
-	u32 bandwidth = 0;
-	int r;
 
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (!sband)
+		return;
 
 	/*
 	 * If no country IE has been received always enable active scan
@@ -276,16 +276,16 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	 */
 
 	ch = &sband->channels[11]; /* CH 12 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 
 	ch = &sband->channels[12]; /* CH 13 */
-	r = freq_reg_info(wiphy, ch->center_freq, bandwidth, &reg_rule);
-	if (!r) {
+	reg_rule = freq_reg_info(wiphy, ch->center_freq);
+	if (!IS_ERR(reg_rule)) {
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
 			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
@@ -344,10 +344,26 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 	}
 }
 
-int ath_reg_notifier_apply(struct wiphy *wiphy,
-			   struct regulatory_request *request,
-			   struct ath_regulatory *reg)
+static u16 ath_regd_find_country_by_name(char *alpha2)
 {
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
+		if (!memcmp(allCountries[i].isoName, alpha2, 2))
+			return allCountries[i].countryCode;
+	}
+
+	return -1;
+}
+
+void ath_reg_notifier_apply(struct wiphy *wiphy,
+			    struct regulatory_request *request,
+			    struct ath_regulatory *reg)
+{
+	struct ath_common *common = container_of(reg, struct ath_common,
+						 regulatory);
+	u16 country_code;
+
 	/* We always apply this */
 	ath_reg_apply_radar_flags(wiphy);
 
@@ -357,21 +373,42 @@ int ath_reg_notifier_apply(struct wiphy *wiphy,
 	 * any pending requests in the queue.
 	 */
 	if (!request)
-		return 0;
+		return;
 
 	switch (request->initiator) {
-	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_CORE:
+		/*
+		 * If common->reg_world_copy is world roaming it means we *were*
+		 * world roaming... so we now have to restore that data.
+		 */
+		if (!ath_is_world_regd(&common->reg_world_copy))
+			break;
+
+		memcpy(reg, &common->reg_world_copy,
+		       sizeof(struct ath_regulatory));
+		break;
+	case NL80211_REGDOM_SET_BY_DRIVER:
 	case NL80211_REGDOM_SET_BY_USER:
 		break;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		if (ath_is_world_regd(reg))
-			ath_reg_apply_world_flags(wiphy, request->initiator,
-						  reg);
+		if (!ath_is_world_regd(reg))
+			break;
+
+		country_code = ath_regd_find_country_by_name(request->alpha2);
+		if (country_code == (u16) -1)
+			break;
+
+		reg->current_rd = COUNTRY_ERD_FLAG;
+		reg->current_rd |= country_code;
+
+		printk(KERN_DEBUG "ath: regdomain 0x%0x updated by CountryIE\n",
+			reg->current_rd);
+		__ath_regd_init(reg);
+
+		ath_reg_apply_world_flags(wiphy, request->initiator, reg);
+
 		break;
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL(ath_reg_notifier_apply);
 
@@ -461,8 +498,8 @@ ath_get_regpair(int regdmn)
 static int
 ath_regd_init_wiphy(struct ath_regulatory *reg,
 		    struct wiphy *wiphy,
-		    int (*reg_notifier)(struct wiphy *wiphy,
-					struct regulatory_request *request))
+		    void (*reg_notifier)(struct wiphy *wiphy,
+					 struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
 
@@ -505,11 +542,7 @@ static void ath_regd_sanitize(struct ath_regulatory *reg)
 	reg->current_rd = 0x64;
 }
 
-int
-ath_regd_init(struct ath_regulatory *reg,
-	      struct wiphy *wiphy,
-	      int (*reg_notifier)(struct wiphy *wiphy,
-				  struct regulatory_request *request))
+static int __ath_regd_init(struct ath_regulatory *reg)
 {
 	struct country_code_to_enum_rd *country = NULL;
 	u16 regdmn;
@@ -522,7 +555,7 @@ ath_regd_init(struct ath_regulatory *reg,
 	printk(KERN_DEBUG "ath: EEPROM regdomain: 0x%0x\n", reg->current_rd);
 
 	if (!ath_regd_is_eeprom_valid(reg)) {
-		printk(KERN_ERR "ath: Invalid EEPROM contents\n");
+		pr_err("Invalid EEPROM contents\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +613,29 @@ ath_regd_init(struct ath_regulatory *reg,
 	printk(KERN_DEBUG "ath: Regpair used: 0x%0x\n",
 		reg->regpair->regDmnEnum);
 
+	return 0;
+}
+
+int
+ath_regd_init(struct ath_regulatory *reg,
+	      struct wiphy *wiphy,
+	      void (*reg_notifier)(struct wiphy *wiphy,
+				   struct regulatory_request *request))
+{
+	struct ath_common *common = container_of(reg, struct ath_common,
+						 regulatory);
+	int r;
+
+	r = __ath_regd_init(reg);
+	if (r)
+		return r;
+
+	if (ath_is_world_regd(reg))
+		memcpy(&common->reg_world_copy, reg,
+		       sizeof(struct ath_regulatory));
+
 	ath_regd_init_wiphy(reg, wiphy, reg_notifier);
+
 	return 0;
 }
 EXPORT_SYMBOL(ath_regd_init);

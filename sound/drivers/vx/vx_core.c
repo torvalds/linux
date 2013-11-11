@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/asoundef.h>
@@ -51,7 +52,6 @@ MODULE_LICENSE("GPL");
 int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int time)
 {
 	unsigned long end_time = jiffies + (time * HZ + 999) / 1000;
-#ifdef CONFIG_SND_DEBUG
 	static char *reg_names[VX_REG_MAX] = {
 		"ICR", "CVR", "ISR", "IVR", "RXH", "RXM", "RXL",
 		"DMA", "CDSP", "RFREQ", "RUER/V2", "DATA", "MEMIRQ",
@@ -59,7 +59,7 @@ int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int t
 		"MIC3", "INTCSR", "CNTRL", "GPIOC",
 		"LOFREQ", "HIFREQ", "CSUER", "RUER"
 	};
-#endif
+
 	do {
 		if ((snd_vx_inb(chip, reg) & mask) == bit)
 			return 0;
@@ -724,7 +724,7 @@ EXPORT_SYMBOL(snd_vx_dsp_load);
 /*
  * suspend
  */
-int snd_vx_suspend(struct vx_core *chip, pm_message_t state)
+int snd_vx_suspend(struct vx_core *chip)
 {
 	unsigned int i;
 

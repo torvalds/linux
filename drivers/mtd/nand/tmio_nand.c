@@ -121,9 +121,6 @@ struct tmio_nand {
 
 #define mtd_to_tmio(m)			container_of(m, struct tmio_nand, mtd)
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -259,18 +256,6 @@ static void tmio_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	tmio_ioread16_rep(tmio->fcr + FCR_DATA, buf, len >> 1);
 }
 
-static int
-tmio_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct tmio_nand *tmio = mtd_to_tmio(mtd);
-	u16				*p = (u16 *) buf;
-
-	for (len >>= 1; len; len--)
-		if (*(p++) != tmio_ioread16(tmio->fcr + FCR_DATA))
-			return -EFAULT;
-	return 0;
-}
-
 static void tmio_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 {
 	struct tmio_nand *tmio = mtd_to_tmio(mtd);
@@ -381,8 +366,6 @@ static int tmio_probe(struct platform_device *dev)
 	struct tmio_nand *tmio;
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
-	struct mtd_partition *parts;
-	int nbparts = 0;
 	int retval;
 
 	if (data == NULL)
@@ -429,12 +412,12 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->read_byte = tmio_nand_read_byte;
 	nand_chip->write_buf = tmio_nand_write_buf;
 	nand_chip->read_buf = tmio_nand_read_buf;
-	nand_chip->verify_buf = tmio_nand_verify_buf;
 
 	/* set eccmode using hardware ECC */
 	nand_chip->ecc.mode = NAND_ECC_HW;
 	nand_chip->ecc.size = 512;
 	nand_chip->ecc.bytes = 6;
+	nand_chip->ecc.strength = 2;
 	nand_chip->ecc.hwctl = tmio_nand_enable_hwecc;
 	nand_chip->ecc.calculate = tmio_nand_calculate_ecc;
 	nand_chip->ecc.correct = tmio_nand_correct_data;
@@ -461,15 +444,9 @@ static int tmio_probe(struct platform_device *dev)
 		goto err_scan;
 	}
 	/* Register the partitions */
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	nbparts = parse_mtd_partitions(mtd, part_probes, &parts, 0);
-#endif
-	if (nbparts <= 0 && data) {
-		parts = data->partition;
-		nbparts = data->num_partitions;
-	}
-
-	retval = mtd_device_register(mtd, parts, nbparts);
+	retval = mtd_device_parse_register(mtd, NULL, NULL,
+					   data ? data->partition : NULL,
+					   data ? data->num_partitions : 0);
 	if (!retval)
 		return retval;
 
@@ -544,18 +521,7 @@ static struct platform_driver tmio_driver = {
 	.resume		= tmio_resume,
 };
 
-static int __init tmio_init(void)
-{
-	return platform_driver_register(&tmio_driver);
-}
-
-static void __exit tmio_exit(void)
-{
-	platform_driver_unregister(&tmio_driver);
-}
-
-module_init(tmio_init);
-module_exit(tmio_exit);
+module_platform_driver(tmio_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ian Molton, Dirk Opfer, Chris Humbert, Dmitry Baryshkov");

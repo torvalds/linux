@@ -11,19 +11,54 @@
 
 #include <linux/input.h>
 
-#define RC_TYPE_UNKNOWN	0
-#define RC_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
-#define RC_TYPE_NEC	(1  << 1)
-#define RC_TYPE_RC6	(1  << 2)	/* Philips RC6 protocol */
-#define RC_TYPE_JVC	(1  << 3)	/* JVC protocol */
-#define RC_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
-#define RC_TYPE_RC5_SZ	(1  << 5)	/* RC5 variant used by Streamzap */
-#define RC_TYPE_LIRC	(1  << 30)	/* Pass raw IR to lirc userspace */
-#define RC_TYPE_OTHER	(1u << 31)
+enum rc_type {
+	RC_TYPE_UNKNOWN		= 0,	/* Protocol not known */
+	RC_TYPE_OTHER		= 1,	/* Protocol known but proprietary */
+	RC_TYPE_LIRC		= 2,	/* Pass raw IR to lirc userspace */
+	RC_TYPE_RC5		= 3,	/* Philips RC5 protocol */
+	RC_TYPE_RC5X		= 4,	/* Philips RC5x protocol */
+	RC_TYPE_RC5_SZ		= 5,	/* StreamZap variant of RC5 */
+	RC_TYPE_JVC		= 6,	/* JVC protocol */
+	RC_TYPE_SONY12		= 7,	/* Sony 12 bit protocol */
+	RC_TYPE_SONY15		= 8,	/* Sony 15 bit protocol */
+	RC_TYPE_SONY20		= 9,	/* Sony 20 bit protocol */
+	RC_TYPE_NEC		= 10,	/* NEC protocol */
+	RC_TYPE_SANYO		= 11,	/* Sanyo protocol */
+	RC_TYPE_MCE_KBD		= 12,	/* RC6-ish MCE keyboard/mouse */
+	RC_TYPE_RC6_0		= 13,	/* Philips RC6-0-16 protocol */
+	RC_TYPE_RC6_6A_20	= 14,	/* Philips RC6-6A-20 protocol */
+	RC_TYPE_RC6_6A_24	= 15,	/* Philips RC6-6A-24 protocol */
+	RC_TYPE_RC6_6A_32	= 16,	/* Philips RC6-6A-32 protocol */
+	RC_TYPE_RC6_MCE		= 17,	/* MCE (Philips RC6-6A-32 subtype) protocol */
+};
 
-#define RC_TYPE_ALL (RC_TYPE_RC5 | RC_TYPE_NEC  | RC_TYPE_RC6  | \
-		     RC_TYPE_JVC | RC_TYPE_SONY | RC_TYPE_LIRC | \
-		     RC_TYPE_RC5_SZ | RC_TYPE_OTHER)
+#define RC_BIT_NONE		0
+#define RC_BIT_UNKNOWN		(1 << RC_TYPE_UNKNOWN)
+#define RC_BIT_OTHER		(1 << RC_TYPE_OTHER)
+#define RC_BIT_LIRC		(1 << RC_TYPE_LIRC)
+#define RC_BIT_RC5		(1 << RC_TYPE_RC5)
+#define RC_BIT_RC5X		(1 << RC_TYPE_RC5X)
+#define RC_BIT_RC5_SZ		(1 << RC_TYPE_RC5_SZ)
+#define RC_BIT_JVC		(1 << RC_TYPE_JVC)
+#define RC_BIT_SONY12		(1 << RC_TYPE_SONY12)
+#define RC_BIT_SONY15		(1 << RC_TYPE_SONY15)
+#define RC_BIT_SONY20		(1 << RC_TYPE_SONY20)
+#define RC_BIT_NEC		(1 << RC_TYPE_NEC)
+#define RC_BIT_SANYO		(1 << RC_TYPE_SANYO)
+#define RC_BIT_MCE_KBD		(1 << RC_TYPE_MCE_KBD)
+#define RC_BIT_RC6_0		(1 << RC_TYPE_RC6_0)
+#define RC_BIT_RC6_6A_20	(1 << RC_TYPE_RC6_6A_20)
+#define RC_BIT_RC6_6A_24	(1 << RC_TYPE_RC6_6A_24)
+#define RC_BIT_RC6_6A_32	(1 << RC_TYPE_RC6_6A_32)
+#define RC_BIT_RC6_MCE		(1 << RC_TYPE_RC6_MCE)
+
+#define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | RC_BIT_LIRC | \
+			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
+			 RC_BIT_JVC | \
+			 RC_BIT_SONY12 | RC_BIT_SONY15 | RC_BIT_SONY20 | \
+			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
+			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
+			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE)
 
 struct rc_map_table {
 	u32	scancode;
@@ -35,7 +70,7 @@ struct rc_map {
 	unsigned int		size;	/* Max number of entries */
 	unsigned int		len;	/* Used number of entries */
 	unsigned int		alloc;	/* Size of *scan in bytes */
-	u64			rc_type;
+	enum rc_type		rc_type;
 	const char		*name;
 	spinlock_t		lock;
 };
@@ -59,7 +94,9 @@ void rc_map_init(void);
 #define RC_MAP_ANYSEE                    "rc-anysee"
 #define RC_MAP_APAC_VIEWCOMP             "rc-apac-viewcomp"
 #define RC_MAP_ASUS_PC39                 "rc-asus-pc39"
+#define RC_MAP_ASUS_PS3_100              "rc-asus-ps3-100"
 #define RC_MAP_ATI_TV_WONDER_HD_600      "rc-ati-tv-wonder-hd-600"
+#define RC_MAP_ATI_X10                   "rc-ati-x10"
 #define RC_MAP_AVERMEDIA_A16D            "rc-avermedia-a16d"
 #define RC_MAP_AVERMEDIA_CARDBUS         "rc-avermedia-cardbus"
 #define RC_MAP_AVERMEDIA_DVBT            "rc-avermedia-dvbt"
@@ -98,13 +135,19 @@ void rc_map_init(void);
 #define RC_MAP_IMON_MCE                  "rc-imon-mce"
 #define RC_MAP_IMON_PAD                  "rc-imon-pad"
 #define RC_MAP_IODATA_BCTV7E             "rc-iodata-bctv7e"
+#define RC_MAP_IT913X_V1                 "rc-it913x-v1"
+#define RC_MAP_IT913X_V2                 "rc-it913x-v2"
 #define RC_MAP_KAIOMY                    "rc-kaiomy"
 #define RC_MAP_KWORLD_315U               "rc-kworld-315u"
+#define RC_MAP_KWORLD_PC150U             "rc-kworld-pc150u"
 #define RC_MAP_KWORLD_PLUS_TV_ANALOG     "rc-kworld-plus-tv-analog"
 #define RC_MAP_LEADTEK_Y04G0051          "rc-leadtek-y04g0051"
 #define RC_MAP_LIRC                      "rc-lirc"
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
+#define RC_MAP_MEDION_X10                "rc-medion-x10"
+#define RC_MAP_MEDION_X10_DIGITAINER     "rc-medion-x10-digitainer"
+#define RC_MAP_MEDION_X10_OR2X           "rc-medion-x10-or2x"
 #define RC_MAP_MSI_DIGIVOX_II            "rc-msi-digivox-ii"
 #define RC_MAP_MSI_DIGIVOX_III           "rc-msi-digivox-iii"
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
@@ -129,6 +172,8 @@ void rc_map_init(void);
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
 #define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"
+#define RC_MAP_REDDO                     "rc-reddo"
+#define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"
@@ -138,10 +183,11 @@ void rc_map_init(void);
 #define RC_MAP_TEVII_NEC                 "rc-tevii-nec"
 #define RC_MAP_TIVO                      "rc-tivo"
 #define RC_MAP_TOTAL_MEDIA_IN_HAND       "rc-total-media-in-hand"
+#define RC_MAP_TOTAL_MEDIA_IN_HAND_02    "rc-total-media-in-hand-02"
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
 #define RC_MAP_TT_1500                   "rc-tt-1500"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"
-#define RC_MAP_VIDEOMATE_M1F             "rc-videomate-m1f"
+#define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
 #define RC_MAP_WINFAST                   "rc-winfast"

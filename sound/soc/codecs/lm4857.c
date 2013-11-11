@@ -3,7 +3,7 @@
  *
  * Copyright 2007 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory
- *         graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
+ *         graeme.gregory@wolfsonmicro.com
  * Copyright 2011 Lars-Peter Clausen <lars@metafoo.de>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -179,7 +179,7 @@ static int lm4857_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = lm4857->i2c;
 
-	ret = snd_soc_add_controls(codec, lm4857_controls,
+	ret = snd_soc_add_codec_controls(codec, lm4857_controls,
 			ARRAY_SIZE(lm4857_controls));
 	if (ret)
 		return ret;
@@ -209,13 +209,13 @@ static struct snd_soc_codec_driver soc_codec_dev_lm4857 = {
 	.set_bias_level = lm4857_set_bias_level,
 };
 
-static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int lm4857_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct lm4857 *lm4857;
 	int ret;
 
-	lm4857 = kzalloc(sizeof(*lm4857), GFP_KERNEL);
+	lm4857 = devm_kzalloc(&i2c->dev, sizeof(*lm4857), GFP_KERNEL);
 	if (!lm4857)
 		return -ENOMEM;
 
@@ -225,21 +225,12 @@ static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_lm4857, NULL, 0);
 
-	if (ret) {
-		kfree(lm4857);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
-static int __devexit lm4857_i2c_remove(struct i2c_client *i2c)
+static int lm4857_i2c_remove(struct i2c_client *i2c)
 {
-	struct lm4857 *lm4857 = i2c_get_clientdata(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(lm4857);
-
 	return 0;
 }
 
@@ -255,21 +246,11 @@ static struct i2c_driver lm4857_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm4857_i2c_probe,
-	.remove = __devexit_p(lm4857_i2c_remove),
+	.remove = lm4857_i2c_remove,
 	.id_table = lm4857_i2c_id,
 };
 
-static int __init lm4857_init(void)
-{
-	return i2c_add_driver(&lm4857_i2c_driver);
-}
-module_init(lm4857_init);
-
-static void __exit lm4857_exit(void)
-{
-	i2c_del_driver(&lm4857_i2c_driver);
-}
-module_exit(lm4857_exit);
+module_i2c_driver(lm4857_i2c_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("LM4857 amplifier driver");

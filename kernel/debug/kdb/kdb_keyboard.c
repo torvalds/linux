@@ -25,6 +25,7 @@
 #define KBD_STAT_MOUSE_OBF	0x20	/* Mouse output buffer full */
 
 static int kbd_exists;
+static int kbd_last_ret;
 
 /*
  * Check if the keyboard controller has a keypress for us.
@@ -90,8 +91,11 @@ int kdb_get_kbd_char(void)
 		return -1;
 	}
 
-	if ((scancode & 0x80) != 0)
+	if ((scancode & 0x80) != 0) {
+		if (scancode == 0x9c)
+			kbd_last_ret = 0;
 		return -1;
+	}
 
 	scancode &= 0x7f;
 
@@ -178,35 +182,82 @@ int kdb_get_kbd_char(void)
 		return -1;	/* ignore unprintables */
 	}
 
-	if ((scancode & 0x7f) == 0x1c) {
-		/*
-		 * enter key.  All done.  Absorb the release scancode.
-		 */
-		while ((inb(KBD_STATUS_REG) & KBD_STAT_OBF) == 0)
-			;
-
-		/*
-		 * Fetch the scancode
-		 */
-		scancode = inb(KBD_DATA_REG);
-		scanstatus = inb(KBD_STATUS_REG);
-
-		while (scanstatus & KBD_STAT_MOUSE_OBF) {
-			scancode = inb(KBD_DATA_REG);
-			scanstatus = inb(KBD_STATUS_REG);
-		}
-
-		if (scancode != 0x9c) {
-			/*
-			 * Wasn't an enter-release,  why not?
-			 */
-			kdb_printf("kdb: expected enter got 0x%x status 0x%x\n",
-			       scancode, scanstatus);
-		}
-
+	if (scancode == 0x1c) {
+		kbd_last_ret = 1;
 		return 13;
 	}
 
 	return keychar & 0xff;
 }
 EXPORT_SYMBOL_GPL(kdb_get_kbd_char);
+
+/*
+ * Best effort cleanup of ENTER break codes on leaving KDB. Called on
+ * exiting KDB, when we know we processed an ENTER or KP ENTER scan
+ * code.
+ */
+void kdb_kbd_cleanup_state(void)
+{
+	int scancode, scanstatus;
+
+	/*
+	 * Nothing to clean up, since either
+	 * ENTER was never pressed, or has already
+	 * gotten cleaned up.
+	 */
+	if (!kbd_last_ret)
+		return;
+
+	kbd_last_ret = 0;
+	/*
+	 * Enter key. Need to absorb the break code here, lest it gets
+	 * leaked out if we exit KDB as the result of processing 'g'.
+	 *
+	 * This has several interesting implications:
+	 * + Need to handle KP ENTER, which has break code 0xe0 0x9c.
+	 * + Need to handle repeat ENTER and repeat KP ENTER. Repeats
+	 *   only get a break code at the end of the repeated
+	 *   sequence. This means we can't propagate the repeated key
+	 *   press, and must swallow it away.
+	 * + Need to handle possible PS/2 mouse input.
+	 * + Need to handle mashed keys.
+	 */
+
+	while (1) {
+		while ((inb(KBD_STATUS_REG) & KBD_STAT_OBF) == 0)
+			cpu_relax();
+
+		/*
+		 * Fetch the scancode.
+		 */
+		scancode = inb(KBD_DATA_REG);
+		scanstatus = inb(KBD_STATUS_REG);
+
+		/*
+		 * Skip mouse input.
+		 */
+		if (scanstatus & KBD_STAT_MOUSE_OBF)
+			continue;
+
+		/*
+		 * If we see 0xe0, this is either a break code for KP
+		 * ENTER, or a repeat make for KP ENTER. Either way,
+		 * since the second byte is equivalent to an ENTER,
+		 * skip the 0xe0 and try again.
+		 *
+		 * If we see 0x1c, this must be a repeat ENTER or KP
+		 * ENTER (and we swallowed 0xe0 before). Try again.
+		 *
+		 * We can also see make and break codes for other keys
+		 * mashed before or after pressing ENTER. Thus, if we
+		 * see anything other than 0x9c, we have to try again.
+		 *
+		 * Note, if you held some key as ENTER was depressed,
+		 * that break code would get leaked out.
+		 */
+		if (scancode != 0x9c)
+			continue;
+
+		return;
+	}
+}

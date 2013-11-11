@@ -62,8 +62,8 @@ static char *radeon_get_mon_name(int type)
  * models with broken OF probing by hard-coding known EDIDs for some Mac
  * laptops internal LVDS panel. (XXX: not done yet)
  */
-static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_EDID,
-					       int hdno)
+static int radeon_parse_montype_prop(struct device_node *dp, u8 **out_EDID,
+				     int hdno)
 {
         static char *propnames[] = { "DFP,EDID", "LCD,EDID", "EDID",
 				     "EDID1", "EDID2",  NULL };
@@ -115,8 +115,8 @@ static int __devinit radeon_parse_montype_prop(struct device_node *dp, u8 **out_
 	return mt;
 }
 
-static int __devinit radeon_probe_OF_head(struct radeonfb_info *rinfo, int head_no,
-					  u8 **out_EDID)
+static int radeon_probe_OF_head(struct radeonfb_info *rinfo, int head_no,
+				u8 **out_EDID)
 {
         struct device_node *dp;
 
@@ -163,7 +163,7 @@ static int __devinit radeon_probe_OF_head(struct radeonfb_info *rinfo, int head_
 #endif /* CONFIG_PPC_OF || CONFIG_SPARC */
 
 
-static int __devinit radeon_get_panel_info_BIOS(struct radeonfb_info *rinfo)
+static int radeon_get_panel_info_BIOS(struct radeonfb_info *rinfo)
 {
 	unsigned long tmp, tmp0;
 	char stmp[30];
@@ -251,7 +251,7 @@ static int __devinit radeon_get_panel_info_BIOS(struct radeonfb_info *rinfo)
  * doesn't quite work yet, but it's output is still useful for
  * debugging
  */
-static void __devinit radeon_parse_connector_info(struct radeonfb_info *rinfo)
+static void radeon_parse_connector_info(struct radeonfb_info *rinfo)
 {
 	int offset, chips, connectors, tmp, i, conn, type;
 
@@ -297,7 +297,7 @@ static void __devinit radeon_parse_connector_info(struct radeonfb_info *rinfo)
  * as well and currently is only implemented for the CRT DAC, the
  * code for the TVDAC is commented out in XFree as "non working"
  */
-static int __devinit radeon_crt_is_connected(struct radeonfb_info *rinfo, int is_crt_dac)
+static int radeon_crt_is_connected(struct radeonfb_info *rinfo, int is_crt_dac)
 {
     int	          connected = 0;
 
@@ -369,8 +369,8 @@ static int __devinit radeon_crt_is_connected(struct radeonfb_info *rinfo, int is
  * Parse the "monitor_layout" string if any. This code is mostly
  * copied from XFree's radeon driver
  */
-static int __devinit radeon_parse_monitor_layout(struct radeonfb_info *rinfo,
-						 const char *monitor_layout)
+static int radeon_parse_monitor_layout(struct radeonfb_info *rinfo,
+				       const char *monitor_layout)
 {
 	char s1[5], s2[5];
 	int i = 0, second = 0;
@@ -433,8 +433,8 @@ static int __devinit radeon_parse_monitor_layout(struct radeonfb_info *rinfo,
  * try to retrieve EDID. The algorithm here comes from XFree's radeon
  * driver
  */
-void __devinit radeon_probe_screens(struct radeonfb_info *rinfo,
-				    const char *monitor_layout, int ignore_edid)
+void radeon_probe_screens(struct radeonfb_info *rinfo,
+			  const char *monitor_layout, int ignore_edid)
 {
 #ifdef CONFIG_FB_RADEON_I2C
 	int ddc_crt2_used = 0;	
@@ -730,11 +730,30 @@ static void radeon_videomode_to_var(struct fb_var_screeninfo *var,
 	var->vmode = mode->vmode;
 }
 
+#ifdef CONFIG_PPC_PSERIES
+static int is_powerblade(const char *model)
+{
+	struct device_node *root;
+	const char* cp;
+	int len, l, rc = 0;
+
+	root = of_find_node_by_path("/");
+	if (root && model) {
+		l = strlen(model);
+		cp = of_get_property(root, "model", &len);
+		if (cp)
+			rc = memcmp(model, cp, min(len, l)) == 0;
+		of_node_put(root);
+	}
+	return rc;
+}
+#endif
+
 /*
  * Build the modedb for head 1 (head 2 will come later), check panel infos
  * from either BIOS or EDID, and pick up the default mode
  */
-void __devinit radeon_check_modes(struct radeonfb_info *rinfo, const char *mode_option)
+void radeon_check_modes(struct radeonfb_info *rinfo, const char *mode_option)
 {
 	struct fb_info * info = rinfo->info;
 	int has_default_mode = 0;
@@ -864,6 +883,22 @@ void __devinit radeon_check_modes(struct radeonfb_info *rinfo, const char *mode_
 				 info->monspecs.modedb_len, NULL, 8) != 0)
 			has_default_mode = 1;
  	}
+
+#ifdef CONFIG_PPC_PSERIES
+	if (!has_default_mode && (
+		is_powerblade("IBM,8842") || /* JS20 */
+		is_powerblade("IBM,8844") || /* JS21 */
+		is_powerblade("IBM,7998") || /* JS12/JS21/JS22 */
+		is_powerblade("IBM,0792") || /* QS21 */
+		is_powerblade("IBM,0793")    /* QS22 */
+	    )) {
+		printk("Falling back to 800x600 on JSxx hardware\n");
+		if (fb_find_mode(&info->var, info, "800x600@60",
+				 info->monspecs.modedb,
+				 info->monspecs.modedb_len, NULL, 8) != 0)
+			has_default_mode = 1;
+	}
+#endif
 
 	/*
 	 * Still no mode, let's pick up a default from the db

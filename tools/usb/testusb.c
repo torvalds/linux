@@ -3,7 +3,7 @@
 /*
  * Copyright (c) 2002 by David Brownell
  * Copyright (c) 2010 by Samsung Electronics
- * Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ * Author: Michal Nazarewicz <mina86@mina86.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -253,9 +253,6 @@ static int find_testdev(const char *name, const struct stat *sb, int flag)
 
 	if (flag != FTW_F)
 		return 0;
-	/* ignore /proc/bus/usb/{devices,drivers} */
-	if (strrchr(name, '/')[1] == 'd')
-		return 0;
 
 	fd = fopen(name, "rb");
 	if (!fd) {
@@ -282,8 +279,7 @@ nomem:
 
 	entry->ifnum = ifnum;
 
-	/* FIXME ask usbfs what speed; update USBDEVFS_CONNECTINFO so
-	 * it tells about high speed etc */
+	/* FIXME update USBDEVFS_CONNECTINFO so it tells about high speed etc */
 
 	fprintf(stderr, "%s speed\t%s\t%u\n",
 		speed(entry->speed), entry->name, entry->ifnum);
@@ -354,27 +350,12 @@ restart:
 	return arg;
 }
 
-static const char *usbfs_dir_find(void)
+static const char *usb_dir_find(void)
 {
-	static char usbfs_path_0[] = "/dev/usb/devices";
-	static char usbfs_path_1[] = "/proc/bus/usb/devices";
+	static char udev_usb_path[] = "/dev/bus/usb";
 
-	static char *const usbfs_paths[] = {
-		usbfs_path_0, usbfs_path_1
-	};
-
-	static char *const *
-		end = usbfs_paths + sizeof usbfs_paths / sizeof *usbfs_paths;
-
-	char *const *it = usbfs_paths;
-	do {
-		int fd = open(*it, O_RDONLY);
-		close(fd);
-		if (fd >= 0) {
-			strrchr(*it, '/')[0] = '\0';
-			return *it;
-		}
-	} while (++it != end);
+	if (access(udev_usb_path, F_OK) == 0)
+		return udev_usb_path;
 
 	return NULL;
 }
@@ -398,7 +379,7 @@ int main (int argc, char **argv)
 	int			c;
 	struct testdev		*entry;
 	char			*device;
-	const char		*usbfs_dir = NULL;
+	const char		*usb_dir = NULL;
 	int			all = 0, forever = 0, not = 0;
 	int			test = -1 /* all */;
 	struct usbtest_param	param;
@@ -420,13 +401,13 @@ int main (int argc, char **argv)
 	/* for easy use when hotplugging */
 	device = getenv ("DEVICE");
 
-	while ((c = getopt (argc, argv, "D:aA:c:g:hns:t:v:")) != EOF)
+	while ((c = getopt (argc, argv, "D:aA:c:g:hlns:t:v:")) != EOF)
 	switch (c) {
 	case 'D':	/* device, if only one */
 		device = optarg;
 		continue;
-	case 'A':	/* use all devices with specified usbfs dir */
-		usbfs_dir = optarg;
+	case 'A':	/* use all devices with specified USB dir */
+		usb_dir = optarg;
 		/* FALL THROUGH */
 	case 'a':	/* use all devices */
 		device = NULL;
@@ -463,32 +444,43 @@ int main (int argc, char **argv)
 	case 'h':
 	default:
 usage:
-		fprintf (stderr, "usage: %s [-n] [-D dev | -a | -A usbfs-dir]\n"
-			"\t[-c iterations]  [-t testnum]\n"
-			"\t[-s packetsize] [-g sglen] [-v vary]\n",
-			argv [0]);
+		fprintf (stderr,
+			"usage: %s [options]\n"
+			"Options:\n"
+			"\t-D dev		only test specific device\n"
+			"\t-A usb-dir\n"
+			"\t-a		test all recognized devices\n"
+			"\t-l		loop forever(for stress test)\n"
+			"\t-t testnum	only run specified case\n"
+			"\t-n		no test running, show devices to be tested\n"
+			"Case arguments:\n"
+			"\t-c iterations	default 1000\n"
+			"\t-s packetsize	default 512\n"
+			"\t-g sglen	default 32\n"
+			"\t-v vary		default 512\n",
+			argv[0]);
 		return 1;
 	}
 	if (optind != argc)
 		goto usage;
 	if (!all && !device) {
 		fprintf (stderr, "must specify '-a' or '-D dev', "
-			"or DEVICE=/proc/bus/usb/BBB/DDD in env\n");
+			"or DEVICE=/dev/bus/usb/BBB/DDD in env\n");
 		goto usage;
 	}
 
-	/* Find usbfs mount point */
-	if (!usbfs_dir) {
-		usbfs_dir = usbfs_dir_find();
-		if (!usbfs_dir) {
-			fputs ("usbfs files are missing\n", stderr);
+	/* Find usb device subdirectory */
+	if (!usb_dir) {
+		usb_dir = usb_dir_find();
+		if (!usb_dir) {
+			fputs ("USB device files are missing\n", stderr);
 			return -1;
 		}
 	}
 
 	/* collect and list the test devices */
-	if (ftw (usbfs_dir, find_testdev, 3) != 0) {
-		fputs ("ftw failed; is usbfs missing?\n", stderr);
+	if (ftw (usb_dir, find_testdev, 3) != 0) {
+		fputs ("ftw failed; are USB device files missing?\n", stderr);
 		return -1;
 	}
 
@@ -514,10 +506,8 @@ usage:
 			return handle_testdev (entry) != entry;
 		}
 		status = pthread_create (&entry->thread, 0, handle_testdev, entry);
-		if (status) {
+		if (status)
 			perror ("pthread_create");
-			continue;
-		}
 	}
 	if (device) {
 		struct testdev		dev;

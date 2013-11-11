@@ -27,16 +27,21 @@
 #ifndef __NOUVEAU_ENCODER_H__
 #define __NOUVEAU_ENCODER_H__
 
-#include "drm_encoder_slave.h"
-#include "nouveau_drv.h"
+#include <subdev/bios/dcb.h>
+
+#include <drm/drm_encoder_slave.h>
+#include "dispnv04/disp.h"
 
 #define NV_DPMS_CLEARED 0x80
+
+struct nouveau_i2c_port;
 
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
-	struct dcb_entry *dcb;
+	struct dcb_output *dcb;
 	int or;
+	struct nouveau_i2c_port *i2c;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
@@ -49,16 +54,16 @@ struct nouveau_encoder {
 
 	union {
 		struct {
-			int mc_unknown;
-			uint32_t unk0;
-			uint32_t unk1;
-			int dpcd_version;
+			u8  dpcd[8];
 			int link_nr;
 			int link_bw;
-			bool enhanced_frame;
+			u32 datarate;
 		} dp;
 	};
 };
+
+struct nouveau_encoder *
+find_encoder(struct drm_connector *connector, int type);
 
 static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
 {
@@ -78,26 +83,12 @@ get_slave_funcs(struct drm_encoder *enc)
 	return to_encoder_slave(enc)->slave_funcs;
 }
 
+/* nouveau_dp.c */
+bool nouveau_dp_detect(struct drm_encoder *);
+void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
+		     struct nouveau_object *);
+
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
-int nv50_sor_create(struct drm_connector *, struct dcb_entry *);
-int nv50_dac_create(struct drm_connector *, struct dcb_entry *);
-
-struct bit_displayport_encoder_table {
-	uint32_t match;
-	uint8_t  record_nr;
-	uint8_t  unknown;
-	uint16_t script0;
-	uint16_t script1;
-	uint16_t unknown_table;
-} __attribute__ ((packed));
-
-struct bit_displayport_encoder_table_entry {
-	uint8_t vs_level;
-	uint8_t pre_level;
-	uint8_t reg0;
-	uint8_t reg1;
-	uint8_t reg2;
-} __attribute__ ((packed));
 
 #endif /* __NOUVEAU_ENCODER_H__ */

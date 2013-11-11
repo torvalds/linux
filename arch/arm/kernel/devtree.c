@@ -9,7 +9,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
@@ -19,8 +19,10 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
+#include <asm/cputype.h>
 #include <asm/setup.h>
 #include <asm/page.h>
+#include <asm/smp_plat.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
@@ -61,6 +63,112 @@ void __init arm_dt_memblock_reserve(void)
 	}
 }
 
+/*
+ * arm_dt_init_cpu_maps - Function retrieves cpu nodes from the device tree
+ * and builds the cpu logical map array containing MPIDR values related to
+ * logical cpus
+ *
+ * Updates the cpu possible mask with the number of parsed cpu nodes
+ */
+void __init arm_dt_init_cpu_maps(void)
+{
+	/*
+	 * Temp logical map is initialized with UINT_MAX values that are
+	 * considered invalid logical map entries since the logical map must
+	 * contain a list of MPIDR[23:0] values where MPIDR[31:24] must
+	 * read as 0.
+	 */
+	struct device_node *cpu, *cpus;
+	u32 i, j, cpuidx = 1;
+	u32 mpidr = is_smp() ? read_cpuid_mpidr() & MPIDR_HWID_BITMASK : 0;
+
+	u32 tmp_map[NR_CPUS] = { [0 ... NR_CPUS-1] = MPIDR_INVALID };
+	bool bootcpu_valid = false;
+	cpus = of_find_node_by_path("/cpus");
+
+	if (!cpus)
+		return;
+
+	for_each_child_of_node(cpus, cpu) {
+		u32 hwid;
+
+		if (of_node_cmp(cpu->type, "cpu"))
+			continue;
+
+		pr_debug(" * %s...\n", cpu->full_name);
+		/*
+		 * A device tree containing CPU nodes with missing "reg"
+		 * properties is considered invalid to build the
+		 * cpu_logical_map.
+		 */
+		if (of_property_read_u32(cpu, "reg", &hwid)) {
+			pr_debug(" * %s missing reg property\n",
+				     cpu->full_name);
+			return;
+		}
+
+		/*
+		 * 8 MSBs must be set to 0 in the DT since the reg property
+		 * defines the MPIDR[23:0].
+		 */
+		if (hwid & ~MPIDR_HWID_BITMASK)
+			return;
+
+		/*
+		 * Duplicate MPIDRs are a recipe for disaster.
+		 * Scan all initialized entries and check for
+		 * duplicates. If any is found just bail out.
+		 * temp values were initialized to UINT_MAX
+		 * to avoid matching valid MPIDR[23:0] values.
+		 */
+		for (j = 0; j < cpuidx; j++)
+			if (WARN(tmp_map[j] == hwid, "Duplicate /cpu reg "
+						     "properties in the DT\n"))
+				return;
+
+		/*
+		 * Build a stashed array of MPIDR values. Numbering scheme
+		 * requires that if detected the boot CPU must be assigned
+		 * logical id 0. Other CPUs get sequential indexes starting
+		 * from 1. If a CPU node with a reg property matching the
+		 * boot CPU MPIDR is detected, this is recorded so that the
+		 * logical map built from DT is validated and can be used
+		 * to override the map created in smp_setup_processor_id().
+		 */
+		if (hwid == mpidr) {
+			i = 0;
+			bootcpu_valid = true;
+		} else {
+			i = cpuidx++;
+		}
+
+		if (WARN(cpuidx > nr_cpu_ids, "DT /cpu %u nodes greater than "
+					       "max cores %u, capping them\n",
+					       cpuidx, nr_cpu_ids)) {
+			cpuidx = nr_cpu_ids;
+			break;
+		}
+
+		tmp_map[i] = hwid;
+	}
+
+	if (!bootcpu_valid) {
+		pr_warn("DT missing boot CPU MPIDR[23:0], fall back to default cpu_logical_map\n");
+		return;
+	}
+
+	/*
+	 * Since the boot CPU node contains proper data, and all nodes have
+	 * a reg property, the DT CPU list can be considered valid and the
+	 * logical map created in smp_setup_processor_id() can be overridden
+	 */
+	for (i = 0; i < cpuidx; i++) {
+		set_cpu_possible(i, true);
+		cpu_logical_map(i) = tmp_map[i];
+		pr_debug("cpu logical map 0x%x\n", cpu_logical_map(i));
+	}
+}
+
 /**
  * setup_machine_fdt - Machine setup when an dtb was passed to the kernel
  * @dt_phys: physical address of dt blob
@@ -75,6 +183,13 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	unsigned int score, mdesc_score = ~1;
 	unsigned long dt_root;
 	const char *model;
+
+#ifdef CONFIG_ARCH_MULTIPLATFORM
+	DT_MACHINE_START(GENERIC_DT, "Generic DT based system")
+	MACHINE_END
+
+	mdesc_best = (struct machine_desc *)&__mach_desc_GENERIC_DT;
+#endif
 
 	if (!dt_phys)
 		return NULL;
@@ -132,17 +247,3 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 
 	return mdesc_best;
 }
-
-/**
- * irq_create_of_mapping - Hook to resolve OF irq specifier into a Linux irq#
- *
- * Currently the mapping mechanism is trivial; simple flat hwirq numbers are
- * mapped 1:1 onto Linux irq numbers.  Cascaded irq controllers are not
- * supported.
- */
-unsigned int irq_create_of_mapping(struct device_node *controller,
-				   const u32 *intspec, unsigned int intsize)
-{
-	return intspec[0];
-}
-EXPORT_SYMBOL_GPL(irq_create_of_mapping);

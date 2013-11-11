@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
+#include <linux/aio.h>
 #include "internal.h"
 
 static int afs_write_back_from_locked_page(struct afs_writeback *wb,
@@ -120,7 +121,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 		    struct page **pagep, void **fsdata)
 {
 	struct afs_writeback *candidate, *wb;
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	struct page *page;
 	struct key *key = file->private_data;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
@@ -245,7 +246,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 		  loff_t pos, unsigned len, unsigned copied,
 		  struct page *page, void *fsdata)
 {
-	struct afs_vnode *vnode = AFS_FS_I(file->f_dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 	loff_t i_size, maybe_i_size;
 
 	_enter("{%x:%u},{%lx}",
@@ -627,8 +628,7 @@ void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)
 ssize_t afs_file_write(struct kiocb *iocb, const struct iovec *iov,
 		       unsigned long nr_segs, loff_t pos)
 {
-	struct dentry *dentry = iocb->ki_filp->f_path.dentry;
-	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
+	struct afs_vnode *vnode = AFS_FS_I(file_inode(iocb->ki_filp));
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
 
@@ -681,9 +681,10 @@ int afs_writeback_all(struct afs_vnode *vnode)
  * - the return status from this call provides a reliable indication of
  *   whether any write errors occurred for this process.
  */
-int afs_fsync(struct file *file, int datasync)
+int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file->f_mapping->host;
 	struct afs_writeback *wb, *xwb;
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	int ret;
@@ -692,12 +693,19 @@ int afs_fsync(struct file *file, int datasync)
 	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
 	       datasync);
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	/* use a writeback record as a marker in the queue - when this reaches
 	 * the front of the queue, all the outstanding writes are either
 	 * completed or rejected */
 	wb = kzalloc(sizeof(*wb), GFP_KERNEL);
-	if (!wb)
-		return -ENOMEM;
+	if (!wb) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	wb->vnode = vnode;
 	wb->first = 0;
 	wb->last = -1;
@@ -720,7 +728,7 @@ int afs_fsync(struct file *file, int datasync)
 	if (ret < 0) {
 		afs_put_writeback(wb);
 		_leave(" = %d [wb]", ret);
-		return ret;
+		goto out;
 	}
 
 	/* wait for the preceding writes to actually complete */
@@ -729,6 +737,8 @@ int afs_fsync(struct file *file, int datasync)
 				       vnode->writebacks.next == &wb->link);
 	afs_put_writeback(wb);
 	_leave(" = %d", ret);
+out:
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 

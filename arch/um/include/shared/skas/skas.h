@@ -6,7 +6,7 @@
 #ifndef __SKAS_H
 #define __SKAS_H
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 extern int userspace_pid[];
 extern int proc_mm, ptrace_faultinfo, ptrace_ldt;

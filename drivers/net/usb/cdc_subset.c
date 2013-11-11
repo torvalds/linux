@@ -336,19 +336,10 @@ static struct usb_driver cdc_subset_driver = {
 	.resume =	usbnet_resume,
 	.disconnect =	usbnet_disconnect,
 	.id_table =	products,
+	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init cdc_subset_init(void)
-{
-	return usb_register(&cdc_subset_driver);
-}
-module_init(cdc_subset_init);
-
-static void __exit cdc_subset_exit(void)
-{
-	usb_deregister(&cdc_subset_driver);
-}
-module_exit(cdc_subset_exit);
+module_usb_driver(cdc_subset_driver);
 
 MODULE_AUTHOR("David Brownell");
 MODULE_DESCRIPTION("Simple 'CDC Subset' USB networking links");

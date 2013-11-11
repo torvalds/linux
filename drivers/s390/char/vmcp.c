@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2004,2010
+ * Copyright IBM Corp. 2004, 2010
  * Interface implementation for communication with the z/VM control program
  *
  * Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
@@ -13,9 +13,11 @@
 
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>

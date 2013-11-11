@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,7 +86,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 	if (type_needed == ACPI_TYPE_LOCAL_REFERENCE) {
 		/*
 		 * Allow the AML "Constant" opcodes (Zero, One, etc.) to be reference
-		 * objects and thus allow them to be targets.  (As per the ACPI
+		 * objects and thus allow them to be targets. (As per the ACPI
 		 * specification, a store to a constant is a noop.)
 		 */
 		if ((this_type == ACPI_TYPE_INTEGER) &&
@@ -113,7 +112,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
  *
  * FUNCTION:    acpi_ex_resolve_operands
  *
- * PARAMETERS:  Opcode              - Opcode being interpreted
+ * PARAMETERS:  opcode              - Opcode being interpreted
  *              stack_ptr           - Pointer to the operand stack to be
  *                                    resolved
  *              walk_state          - Current state
@@ -307,7 +306,7 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_DEVICE_REF:
 		case ARGI_TARGETREF:	/* Allows implicit conversion rules before store */
 		case ARGI_FIXED_TARGET:	/* No implicit conversion before store to target */
-		case ARGI_SIMPLE_TARGET:	/* Name, Local, or Arg - no implicit conversion  */
+		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - no implicit conversion  */
 
 			/*
 			 * Need an operand of type ACPI_TYPE_LOCAL_REFERENCE
@@ -337,7 +336,8 @@ acpi_ex_resolve_operands(u16 opcode,
 			if ((opcode == AML_STORE_OP) &&
 			    ((*stack_ptr)->common.type ==
 			     ACPI_TYPE_LOCAL_REFERENCE)
-			    && ((*stack_ptr)->reference.class == ACPI_REFCLASS_INDEX)) {
+			    && ((*stack_ptr)->reference.class ==
+				ACPI_REFCLASS_INDEX)) {
 				goto next_operand;
 			}
 			break;
@@ -410,7 +410,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_INTEGER,
 			 * But we can implicitly convert from a STRING or BUFFER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status =
 			    acpi_ex_convert_to_integer(obj_desc, stack_ptr, 16);
@@ -437,7 +437,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_BUFFER,
 			 * But we can implicitly convert from a STRING or INTEGER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status = acpi_ex_convert_to_buffer(obj_desc, stack_ptr);
 			if (ACPI_FAILURE(status)) {
@@ -463,7 +463,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_STRING,
 			 * But we can implicitly convert from a BUFFER or INTEGER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status = acpi_ex_convert_to_string(obj_desc, stack_ptr,
 							   ACPI_IMPLICIT_CONVERT_HEX);
@@ -638,7 +638,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				if (acpi_gbl_enable_interpreter_slack) {
 					/*
 					 * Enable original behavior of Store(), allowing any and all
-					 * objects as the source operand.  The ACPI spec does not
+					 * objects as the source operand. The ACPI spec does not
 					 * allow this, however.
 					 */
 					break;

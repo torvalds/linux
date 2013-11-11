@@ -19,6 +19,9 @@
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -44,7 +47,7 @@ struct mpcore_wdt {
 	char		expect_close;
 };
 
-static struct platform_device *mpcore_wdt_dev;
+static struct platform_device *mpcore_wdt_pdev;
 static DEFINE_SPINLOCK(wdt_lock);
 
 #define TIMER_MARGIN	60
@@ -54,8 +57,8 @@ MODULE_PARM_DESC(mpcore_margin,
 	"MPcore timer margin in seconds. (0 < mpcore_margin < 65536, default="
 				__MODULE_STRING(TIMER_MARGIN) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -77,8 +80,7 @@ static irqreturn_t mpcore_wdt_fire(int irq, void *arg)
 
 	/* Check it really was our interrupt */
 	if (readl(wdt->base + TWD_WDOG_INTSTAT)) {
-		dev_printk(KERN_CRIT, wdt->dev,
-					"Triggered - Reboot ignored.\n");
+		dev_crit(wdt->dev, "Triggered - Reboot ignored\n");
 		/* Clear the interrupt on the watchdog */
 		writel(1, wdt->base + TWD_WDOG_INTSTAT);
 		return IRQ_HANDLED;
@@ -120,7 +122,7 @@ static void mpcore_wdt_stop(struct mpcore_wdt *wdt)
 
 static void mpcore_wdt_start(struct mpcore_wdt *wdt)
 {
-	dev_printk(KERN_INFO, wdt->dev, "enabling watchdog.\n");
+	dev_info(wdt->dev, "enabling watchdog\n");
 
 	/* This loads the count register but does NOT start the count yet */
 	mpcore_wdt_keepalive(wdt);
@@ -148,7 +150,7 @@ static int mpcore_wdt_set_heartbeat(int t)
  */
 static int mpcore_wdt_open(struct inode *inode, struct file *file)
 {
-	struct mpcore_wdt *wdt = platform_get_drvdata(mpcore_wdt_dev);
+	struct mpcore_wdt *wdt = platform_get_drvdata(mpcore_wdt_pdev);
 
 	if (test_and_set_bit(0, &wdt->timer_alive))
 		return -EBUSY;
@@ -177,8 +179,8 @@ static int mpcore_wdt_release(struct inode *inode, struct file *file)
 	if (wdt->expect_close == 42)
 		mpcore_wdt_stop(wdt);
 	else {
-		dev_printk(KERN_CRIT, wdt->dev,
-				"unexpected close, not stopping watchdog!\n");
+		dev_crit(wdt->dev,
+			 "unexpected close, not stopping watchdog!\n");
 		mpcore_wdt_keepalive(wdt);
 	}
 	clear_bit(0, &wdt->timer_alive);
@@ -298,9 +300,9 @@ static long mpcore_wdt_ioctl(struct file *file, unsigned int cmd,
  *	System shutdown handler.  Turn off the watchdog if we're
  *	restarting or halting the system.
  */
-static void mpcore_wdt_shutdown(struct platform_device *dev)
+static void mpcore_wdt_shutdown(struct platform_device *pdev)
 {
-	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
+	struct mpcore_wdt *wdt = platform_get_drvdata(pdev);
 
 	if (system_state == SYSTEM_RESTART || system_state == SYSTEM_HALT)
 		mpcore_wdt_stop(wdt);
@@ -324,104 +326,103 @@ static struct miscdevice mpcore_wdt_miscdev = {
 	.fops		= &mpcore_wdt_fops,
 };
 
-static int __devinit mpcore_wdt_probe(struct platform_device *dev)
+static int mpcore_wdt_probe(struct platform_device *pdev)
 {
 	struct mpcore_wdt *wdt;
 	struct resource *res;
 	int ret;
 
 	/* We only accept one device, and it must have an id of -1 */
-	if (dev->id != -1)
+	if (pdev->id != -1)
 		return -ENODEV;
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto err_out;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+
+	wdt = devm_kzalloc(&pdev->dev, sizeof(struct mpcore_wdt), GFP_KERNEL);
+	if (!wdt)
+		return -ENOMEM;
+
+	wdt->dev = &pdev->dev;
+	wdt->irq = platform_get_irq(pdev, 0);
+	if (wdt->irq >= 0) {
+		ret = devm_request_irq(wdt->dev, wdt->irq, mpcore_wdt_fire, 0,
+				"mpcore_wdt", wdt);
+		if (ret) {
+			dev_err(wdt->dev,
+				"cannot register IRQ%d for watchdog\n",
+				wdt->irq);
+			return ret;
+		}
 	}
 
-	wdt = kzalloc(sizeof(struct mpcore_wdt), GFP_KERNEL);
-	if (!wdt) {
-		ret = -ENOMEM;
-		goto err_out;
-	}
+	wdt->base = devm_ioremap(wdt->dev, res->start, resource_size(res));
+	if (!wdt->base)
+		return -ENOMEM;
 
-	wdt->dev = &dev->dev;
-	wdt->irq = platform_get_irq(dev, 0);
-	if (wdt->irq < 0) {
-		ret = -ENXIO;
-		goto err_free;
-	}
-	wdt->base = ioremap(res->start, resource_size(res));
-	if (!wdt->base) {
-		ret = -ENOMEM;
-		goto err_free;
-	}
-
-	mpcore_wdt_miscdev.parent = &dev->dev;
+	mpcore_wdt_miscdev.parent = &pdev->dev;
 	ret = misc_register(&mpcore_wdt_miscdev);
 	if (ret) {
-		dev_printk(KERN_ERR, wdt->dev,
+		dev_err(wdt->dev,
 			"cannot register miscdev on minor=%d (err=%d)\n",
-							WATCHDOG_MINOR, ret);
-		goto err_misc;
-	}
-
-	ret = request_irq(wdt->irq, mpcore_wdt_fire, IRQF_DISABLED,
-							"mpcore_wdt", wdt);
-	if (ret) {
-		dev_printk(KERN_ERR, wdt->dev,
-			"cannot register IRQ%d for watchdog\n", wdt->irq);
-		goto err_irq;
+			WATCHDOG_MINOR, ret);
+		return ret;
 	}
 
 	mpcore_wdt_stop(wdt);
-	platform_set_drvdata(dev, wdt);
-	mpcore_wdt_dev = dev;
+	platform_set_drvdata(pdev, wdt);
+	mpcore_wdt_pdev = pdev;
 
 	return 0;
-
-err_irq:
-	misc_deregister(&mpcore_wdt_miscdev);
-err_misc:
-	iounmap(wdt->base);
-err_free:
-	kfree(wdt);
-err_out:
-	return ret;
 }
 
-static int __devexit mpcore_wdt_remove(struct platform_device *dev)
+static int mpcore_wdt_remove(struct platform_device *pdev)
 {
-	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
-
-	platform_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	misc_deregister(&mpcore_wdt_miscdev);
 
-	mpcore_wdt_dev = NULL;
+	mpcore_wdt_pdev = NULL;
 
-	free_irq(wdt->irq, wdt);
-	iounmap(wdt->base);
-	kfree(wdt);
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int mpcore_wdt_suspend(struct platform_device *pdev, pm_message_t msg)
+{
+	struct mpcore_wdt *wdt = platform_get_drvdata(pdev);
+	mpcore_wdt_stop(wdt);		/* Turn the WDT off */
+	return 0;
+}
+
+static int mpcore_wdt_resume(struct platform_device *pdev)
+{
+	struct mpcore_wdt *wdt = platform_get_drvdata(pdev);
+	/* re-activate timer */
+	if (test_bit(0, &wdt->timer_alive))
+		mpcore_wdt_start(wdt);
+	return 0;
+}
+#else
+#define mpcore_wdt_suspend	NULL
+#define mpcore_wdt_resume	NULL
+#endif
 
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:mpcore_wdt");
 
 static struct platform_driver mpcore_wdt_driver = {
 	.probe		= mpcore_wdt_probe,
-	.remove		= __devexit_p(mpcore_wdt_remove),
+	.remove		= mpcore_wdt_remove,
+	.suspend	= mpcore_wdt_suspend,
+	.resume		= mpcore_wdt_resume,
 	.shutdown	= mpcore_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "mpcore_wdt",
 	},
 };
-
-static char banner[] __initdata = KERN_INFO "MPcore Watchdog Timer: 0.1. "
-		"mpcore_noboot=%d mpcore_margin=%d sec (nowayout= %d)\n";
 
 static int __init mpcore_wdt_init(void)
 {
@@ -431,11 +432,12 @@ static int __init mpcore_wdt_init(void)
 	 */
 	if (mpcore_wdt_set_heartbeat(mpcore_margin)) {
 		mpcore_wdt_set_heartbeat(TIMER_MARGIN);
-		printk(KERN_INFO "mpcore_margin value must be 0 < mpcore_margin < 65536, using %d\n",
+		pr_info("mpcore_margin value must be 0 < mpcore_margin < 65536, using %d\n",
 			TIMER_MARGIN);
 	}
 
-	printk(banner, mpcore_noboot, mpcore_margin, nowayout);
+	pr_info("MPcore Watchdog Timer: 0.1. mpcore_noboot=%d mpcore_margin=%d sec (nowayout= %d)\n",
+		mpcore_noboot, mpcore_margin, nowayout);
 
 	return platform_driver_register(&mpcore_wdt_driver);
 }

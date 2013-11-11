@@ -59,7 +59,12 @@ a case, you can change the default method via `position_fix` option.
 `position_fix=1` means to use LPIB method explicitly.
 `position_fix=2` means to use the position-buffer.
 `position_fix=3` means to use a combination of both methods, needed
-for some VIA and ATI controllers.  0 is the default value for all other
+for some VIA controllers.  The capture stream position is corrected
+by comparing both LPIB and position-buffer values.
+`position_fix=4` is another combination available for all controllers,
+and uses LPIB for the playback and the position-buffer for the capture
+streams.
+0 is the default value for all other
 controllers, the automatic check and fallback to LPIB as described in
 the above.  If you get a problem of repeated sounds, this option might
 help.
@@ -171,14 +176,14 @@ support the automatic probing (yet as of 2.6.28).  And, BIOS is often,
 yes, pretty often broken.  It sets up wrong values and screws up the
 driver.
 
-The preset model is provided basically to overcome such a situation.
-When the matching preset model is found in the white-list, the driver
-assumes the static configuration of that preset and builds the mixer
-elements and PCM streams based on the static information.  Thus, if
-you have a newer machine with a slightly different PCI SSID from the
-existing one, you may have a good chance to re-use the same model.
-You can pass the `model` option to specify the preset model instead of
-PCI SSID look-up.
+The preset model (or recently called as "fix-up") is provided
+basically to overcome such a situation.  When the matching preset
+model is found in the white-list, the driver assumes the static
+configuration of that preset with the correct pin setup, etc.
+Thus, if you have a newer machine with a slightly different PCI SSID
+(or codec SSID) from the existing one, you may have a good chance to
+re-use the same model.  You can pass the `model` option to specify the
+preset model instead of PCI (and codec-) SSID look-up.
 
 What `model` option values are available depends on the codec chip.
 Check your codec chip from the codec proc file (see "Codec Proc-File"
@@ -194,17 +199,12 @@ non-working HD-audio hardware is to check HD-audio codec and several
 different `model` option values.  If you have any luck, some of them
 might suit with your device well.
 
-Some codecs such as ALC880 have a special model option `model=test`.
-This configures the driver to provide as many mixer controls as
-possible for every single pin feature except for the unsolicited
-events (and maybe some other specials).  Adjust each mixer element and
-try the I/O in the way of trial-and-error until figuring out the whole
-I/O pin mappings.
+There are a few special model option values:
+- when 'nofixup' is passed, the device-specific fixups in the codec
+  parser are skipped.
+- when `generic` is passed, the codec-specific parser is skipped and
+  only the generic parser is used.
 
-Note that `model=generic` has a special meaning.  It means to use the
-generic parser regardless of the codec.  Usually the codec-specific
-parser is much better than the generic parser (as now).  Thus this
-option is more about the debugging purpose.
 
 Speaker and Headphone Output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -382,9 +382,8 @@ init_verbs::
   (separated with a space).
 hints::
   Shows / stores hint strings for codec parsers for any use.
-  Its format is `key = value`.  For example, passing `hp_detect = yes`
-  to IDT/STAC codec parser will result in the disablement of the
-  headphone detection.
+  Its format is `key = value`.  For example, passing `jack_detect = no`
+  will disable the jack detection of the machine completely.
 init_pin_configs::
   Shows the initial pin default config values set by BIOS.
 driver_pin_configs::
@@ -416,6 +415,63 @@ re-configure based on that state, run like below:
 ------------------------------------------------------------------------
 
 
+Hint Strings
+~~~~~~~~~~~~
+The codec parser have several switches and adjustment knobs for
+matching better with the actual codec or device behavior.  Many of
+them can be adjusted dynamically via "hints" strings as mentioned in
+the section above.  For example, by passing `jack_detect = no` string
+via sysfs or a patch file, you can disable the jack detection, thus
+the codec parser will skip the features like auto-mute or mic
+auto-switch.  As a boolean value, either `yes`, `no`, `true`, `false`,
+`1` or `0` can be passed.
+
+The generic parser supports the following hints:
+
+- jack_detect (bool): specify whether the jack detection is available
+  at all on this machine; default true
+- inv_jack_detect (bool): indicates that the jack detection logic is
+  inverted
+- trigger_sense (bool): indicates that the jack detection needs the
+  explicit call of AC_VERB_SET_PIN_SENSE verb
+- inv_eapd (bool): indicates that the EAPD is implemented in the
+  inverted logic
+- pcm_format_first (bool): sets the PCM format before the stream tag
+  and channel ID
+- sticky_stream (bool): keep the PCM format, stream tag and ID as long
+  as possible; default true
+- spdif_status_reset (bool): reset the SPDIF status bits at each time
+  the SPDIF stream is set up
+-  pin_amp_workaround (bool): the output pin may have multiple amp
+  values
+- single_adc_amp (bool): ADCs can have only single input amps
+- auto_mute (bool): enable/disable the headphone auto-mute feature;
+  default true
+- auto_mic (bool): enable/disable the mic auto-switch feature; default
+  true
+- line_in_auto_switch (bool): enable/disable the line-in auto-switch
+  feature; default false
+- need_dac_fix (bool): limits the DACs depending on the channel count
+- primary_hp (bool): probe headphone jacks as the primary outputs;
+  default true
+- multi_cap_vol (bool): provide multiple capture volumes
+- inv_dmic_split (bool): provide split internal mic volume/switch for
+  phase-inverted digital mics
+- indep_hp (bool): provide the independent headphone PCM stream and
+  the corresponding mixer control, if available
+- add_stereo_mix_input (bool): add the stereo mix (analog-loopback
+  mix) to the input mux if available
+- add_jack_modes (bool): add "xxx Jack Mode" enum controls to each
+  I/O jack for allowing to change the headphone amp and mic bias VREF
+  capabilities
+- power_down_unused (bool): power down the unused widgets
+- add_hp_mic (bool): add the headphone to capture source if possible
+- hp_mic_detect (bool): enable/disable the hp/mic shared input for a
+  single built-in mic case; default true
+- mixer_nid (int): specifies the widget NID of the analog-loopback
+  mixer
+
+
 Early Patching
 ~~~~~~~~~~~~~~
 When CONFIG_SND_HDA_PATCH_LOADER=y is set, you can pass a "patch" as a
@@ -440,14 +496,17 @@ A patch file is a plain text file which looks like below:
   0x20 0x400 0xff
 
   [hint]
-  hp_detect = yes
+  jack_detect = no
 ------------------------------------------------------------------------
 
 The file needs to have a line `[codec]`.  The next line should contain
 three numbers indicating the codec vendor-id (0x12345678 in the
 example), the codec subsystem-id (0xabcd1234) and the address (2) of
 the codec.  The rest patch entries are applied to this specified codec
-until another codec entry is given.
+until another codec entry is given.  Passing 0 or a negative number to
+the first or the second value will make the check of the corresponding
+field be skipped.  It'll be useful for really broken devices that don't
+initialize SSID properly.
 
 The `[model]` line allows to change the model name of the each codec.
 In the example above, it will be changed to model=auto.
@@ -491,7 +550,7 @@ Also, the codec chip name can be rewritten via `[chip_name]` line.
 The hd-audio driver reads the file via request_firmware().  Thus,
 a patch file has to be located on the appropriate firmware path,
 typically, /lib/firmware.  For example, when you pass the option
-`patch=hda-init.fw`, the file /lib/firmware/hda-init-fw must be
+`patch=hda-init.fw`, the file /lib/firmware/hda-init.fw must be
 present.
 
 The patch module option is specific to each card instance, and you
@@ -523,16 +582,72 @@ cable is unplugged.  Thus, if you hear noises, suspect first the
 power-saving.  See /sys/module/snd_hda_intel/parameters/power_save to
 check the current value.  If it's non-zero, the feature is turned on.
 
+The recent kernel supports the runtime PM for the HD-audio controller
+chip, too.  It means that the HD-audio controller is also powered up /
+down dynamically.  The feature is enabled only for certain controller
+chips like Intel LynxPoint.  You can enable/disable this feature
+forcibly by setting `power_save_controller` option, which is also
+available at /sys/module/snd_hda_intel/parameters directory.
+
+
+Tracepoints
+~~~~~~~~~~~
+The hd-audio driver gives a few basic tracepoints.
+`hda:hda_send_cmd` traces each CORB write while `hda:hda_get_response`
+traces the response from RIRB (only when read from the codec driver).
+`hda:hda_bus_reset` traces the bus-reset due to fatal error, etc,
+`hda:hda_unsol_event` traces the unsolicited events, and
+`hda:hda_power_down` and `hda:hda_power_up` trace the power down/up
+via power-saving behavior.
+
+Enabling all tracepoints can be done like
+------------------------------------------------------------------------
+  # echo 1 > /sys/kernel/debug/tracing/events/hda/enable
+------------------------------------------------------------------------
+then after some commands, you can traces from
+/sys/kernel/debug/tracing/trace file.  For example, when you want to
+trace what codec command is sent, enable the tracepoint like:
+------------------------------------------------------------------------
+  # cat /sys/kernel/debug/tracing/trace
+  # tracer: nop
+  #
+  #       TASK-PID    CPU#    TIMESTAMP  FUNCTION
+  #          | |       |          |         |
+         <...>-7807  [002] 105147.774889: hda_send_cmd: [0:0] val=e3a019
+         <...>-7807  [002] 105147.774893: hda_send_cmd: [0:0] val=e39019
+         <...>-7807  [002] 105147.999542: hda_send_cmd: [0:0] val=e3a01a
+         <...>-7807  [002] 105147.999543: hda_send_cmd: [0:0] val=e3901a
+         <...>-26764 [001] 349222.837143: hda_send_cmd: [0:0] val=e3a019
+         <...>-26764 [001] 349222.837148: hda_send_cmd: [0:0] val=e39019
+         <...>-26764 [001] 349223.058539: hda_send_cmd: [0:0] val=e3a01a
+         <...>-26764 [001] 349223.058541: hda_send_cmd: [0:0] val=e3901a
+------------------------------------------------------------------------
+Here `[0:0]` indicates the card number and the codec address, and
+`val` shows the value sent to the codec, respectively.  The value is
+a packed value, and you can decode it via hda-decode-verb program
+included in hda-emu package below.  For example, the value e3a019 is
+to set the left output-amp value to 25.
+------------------------------------------------------------------------
+  % hda-decode-verb 0xe3a019
+  raw value = 0x00e3a019
+  cid = 0, nid = 0x0e, verb = 0x3a0, parm = 0x19
+  raw value: verb = 0x3a0, parm = 0x19
+  verbname = set_amp_gain_mute
+  amp raw val = 0xa019
+  output, left, idx=0, mute=0, val=25
+------------------------------------------------------------------------
+
 
 Development Tree
 ~~~~~~~~~~~~~~~~
 The latest development codes for HD-audio are found on sound git tree:
 
-- git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+- git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 
 The master branch or for-next branches can be used as the main
-development branches in general while the HD-audio specific patches
-are committed in topic/hda branch.
+development branches in general while the development for the current
+and next kernels are found in for-linus and for-next branches,
+respectively.
 
 If you are using the latest Linus tree, it'd be better to pull the
 above GIT tree onto it.  If you are using the older kernels, an easy
@@ -543,7 +658,7 @@ is, installed via the usual spells: configure, make and make
 install(-modules).  See INSTALL in the package.  The snapshot tarballs
 are found at:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/snapshot/
+- ftp://ftp.suse.com/pub/people/tiwai/snapshot/
 
 
 Sending a Bug Report
@@ -643,9 +758,13 @@ won't be always updated.  For example, the volume values are usually
 cached in the driver, and thus changing the widget amp value directly
 via hda-verb won't change the mixer value.
 
-The hda-verb program is found in the ftp directory:
+The hda-verb program is included now in alsa-tools:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/misc/
+- git://git.alsa-project.org/alsa-tools.git
+
+Also, the old stand-alone package is found in the ftp directory:
+
+- ftp://ftp.suse.com/pub/people/tiwai/misc/
 
 Also a git repository is available:
 
@@ -713,7 +832,7 @@ operation, the jack plugging simulation, etc.
 
 The package is found in:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/misc/
+- ftp://ftp.suse.com/pub/people/tiwai/misc/
 
 A git repository is available:
 
@@ -721,3 +840,18 @@ A git repository is available:
 
 See README file in the tarball for more details about hda-emu
 program.
+
+
+hda-jack-retask
+~~~~~~~~~~~~~~~
+hda-jack-retask is a user-friendly GUI program to manipulate the
+HD-audio pin control for jack retasking.  If you have a problem about
+the jack assignment, try this program and check whether you can get
+useful results.  Once when you figure out the proper pin assignment,
+it can be fixed either in the driver code statically or via passing a
+firmware patch file (see "Early Patching" section).
+
+The program is included in alsa-tools now:
+
+- git://git.alsa-project.org/alsa-tools.git
+

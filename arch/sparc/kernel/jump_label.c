@@ -6,6 +6,8 @@
 #include <linux/jump_label.h>
 #include <linux/memory.h>
 
+#include <asm/cacheflush.h>
+
 #ifdef HAVE_JUMP_LABEL
 
 void arch_jump_label_transform(struct jump_entry *entry,
@@ -34,14 +36,6 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	flushi(insn);
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
-}
-
-void arch_jump_label_text_poke_early(jump_label_t addr)
-{
-	u32 *insn_p = (u32 *) (unsigned long) addr;
-
-	*insn_p = 0x01000000;
-	flushi(insn_p);
 }
 
 #endif

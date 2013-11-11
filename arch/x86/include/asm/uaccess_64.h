@@ -17,6 +17,8 @@
 
 /* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
+copy_user_enhanced_fast_string(void *to, const void *from, unsigned len);
+__must_check unsigned long
 copy_user_generic_string(void *to, const void *from, unsigned len);
 __must_check unsigned long
 copy_user_generic_unrolled(void *to, const void *from, unsigned len);
@@ -26,9 +28,16 @@ copy_user_generic(void *to, const void *from, unsigned len)
 {
 	unsigned ret;
 
-	alternative_call(copy_user_generic_unrolled,
+	/*
+	 * If CPU has ERMS feature, use copy_user_enhanced_fast_string.
+	 * Otherwise, if CPU has rep_good feature, use copy_user_generic_string.
+	 * Otherwise, use copy_user_generic_unrolled.
+	 */
+	alternative_call_2(copy_user_generic_unrolled,
 			 copy_user_generic_string,
 			 X86_FEATURE_REP_GOOD,
+			 copy_user_enhanced_fast_string,
+			 X86_FEATURE_ERMS,
 			 ASM_OUTPUT2("=a" (ret), "=D" (to), "=S" (from),
 				     "=d" (len)),
 			 "1" (to), "2" (from), "3" (len)
@@ -207,16 +216,6 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 					 (__force void *)src, size);
 	}
 }
-
-__must_check long
-strncpy_from_user(char *dst, const char __user *src, long count);
-__must_check long
-__strncpy_from_user(char *dst, const char __user *src, long count);
-__must_check long strnlen_user(const char __user *str, long n);
-__must_check long __strnlen_user(const char __user *str, long n);
-__must_check long strlen_user(const char __user *str);
-__must_check unsigned long clear_user(void __user *mem, unsigned long len);
-__must_check unsigned long __clear_user(void __user *mem, unsigned long len);
 
 static __must_check __always_inline int
 __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)

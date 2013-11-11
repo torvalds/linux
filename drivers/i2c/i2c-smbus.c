@@ -16,7 +16,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301 USA.
  */
 
 #include <linux/kernel.h>
@@ -141,7 +142,8 @@ static int smbalert_probe(struct i2c_client *ara,
 	struct i2c_adapter *adapter = ara->adapter;
 	int res;
 
-	alert = kzalloc(sizeof(struct i2c_smbus_alert), GFP_KERNEL);
+	alert = devm_kzalloc(&ara->dev, sizeof(struct i2c_smbus_alert),
+			     GFP_KERNEL);
 	if (!alert)
 		return -ENOMEM;
 
@@ -153,10 +155,8 @@ static int smbalert_probe(struct i2c_client *ara,
 	if (setup->irq > 0) {
 		res = devm_request_irq(&ara->dev, setup->irq, smbalert_irq,
 				       0, "smbus_alert", alert);
-		if (res) {
-			kfree(alert);
+		if (res)
 			return res;
-		}
 	}
 
 	i2c_set_clientdata(ara, alert);
@@ -166,14 +166,12 @@ static int smbalert_probe(struct i2c_client *ara,
 	return 0;
 }
 
-/* IRQ resource is managed so it is freed automatically */
+/* IRQ and memory resources are managed so they are freed automatically */
 static int smbalert_remove(struct i2c_client *ara)
 {
 	struct i2c_smbus_alert *alert = i2c_get_clientdata(ara);
 
 	cancel_work_sync(&alert->alert);
-
-	kfree(alert);
 	return 0;
 }
 
@@ -244,18 +242,7 @@ int i2c_handle_smbus_alert(struct i2c_client *ara)
 }
 EXPORT_SYMBOL_GPL(i2c_handle_smbus_alert);
 
-static int __init i2c_smbus_init(void)
-{
-	return i2c_add_driver(&smbalert_driver);
-}
-
-static void __exit i2c_smbus_exit(void)
-{
-	i2c_del_driver(&smbalert_driver);
-}
-
-module_init(i2c_smbus_init);
-module_exit(i2c_smbus_exit);
+module_i2c_driver(smbalert_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("SMBus protocol extensions support");

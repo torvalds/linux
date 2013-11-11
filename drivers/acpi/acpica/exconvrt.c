@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 max_length);
  * PARAMETERS:  obj_desc        - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              result_desc     - Where the new Integer object is returned
- *              Flags           - Used for string conversion
+ *              flags           - Used for string conversion
  *
  * RETURN:      Status
  *
@@ -176,7 +176,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	/* Save the Result */
 
-	acpi_ex_truncate_for32bit_table(return_desc);
+	(void)acpi_ex_truncate_for32bit_table(return_desc);
 	*result_desc = return_desc;
 	return_ACPI_STATUS(AE_OK);
 }
@@ -272,9 +272,9 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_ex_convert_to_ascii
  *
- * PARAMETERS:  Integer         - Value to be converted
- *              Base            - ACPI_STRING_DECIMAL or ACPI_STRING_HEX
- *              String          - Where the string is returned
+ * PARAMETERS:  integer         - Value to be converted
+ *              base            - ACPI_STRING_DECIMAL or ACPI_STRING_HEX
+ *              string          - Where the string is returned
  *              data_width      - Size of data item to be converted, in bytes
  *
  * RETURN:      Actual string length
@@ -385,7 +385,7 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
  * PARAMETERS:  obj_desc        - Object to be converted. Must be an
  *                                Integer, Buffer, or String
  *              result_desc     - Where the string object is returned
- *              Type            - String flags (base and conversion type)
+ *              type            - String flags (base and conversion type)
  *
  * RETURN:      Status
  *
@@ -516,8 +516,8 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 			string_length--;
 		}
 
-		return_desc = acpi_ut_create_string_object((acpi_size)
-							   string_length);
+		return_desc =
+		    acpi_ut_create_string_object((acpi_size) string_length);
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

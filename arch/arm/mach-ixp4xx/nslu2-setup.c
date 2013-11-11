@@ -16,7 +16,7 @@
  * Maintainers: http://www.nslu2-linux.org/
  *
  */
-
+#include <linux/gpio.h>
 #include <linux/if_ether.h>
 #include <linux/irq.h>
 #include <linux/serial.h>
@@ -30,7 +30,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
-#include <asm/gpio.h>
 
 #define NSLU2_SDA_PIN		7
 #define NSLU2_SCL_PIN		6
@@ -233,10 +232,6 @@ static void __init nslu2_timer_init(void)
     ixp4xx_timer_init();
 }
 
-static struct sys_timer nslu2_timer = {
-    .init   = nslu2_timer_init,
-};
-
 static void __init nslu2_init(void)
 {
 	uint8_t __iomem *f;
@@ -300,9 +295,14 @@ static void __init nslu2_init(void)
 
 MACHINE_START(NSLU2, "Linksys NSLU2")
 	/* Maintainer: www.nslu2-linux.org */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= ixp4xx_map_io,
+	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer          = &nslu2_timer,
+	.init_time	= nslu2_timer_init,
 	.init_machine	= nslu2_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
+	.restart	= ixp4xx_restart,
 MACHINE_END

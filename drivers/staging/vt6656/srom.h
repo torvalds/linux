@@ -30,10 +30,6 @@
 #ifndef __SROM_H__
 #define __SROM_H__
 
-#include "ttype.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
 #define EEP_MAX_CONTEXT_SIZE    256
 
 #define CB_EEPROM_READBYTE_WAIT 900     //us
@@ -55,7 +51,6 @@
 #define EEP_OFS_PWR_CCK     0x20
 #define EEP_OFS_SETPT_CCK   0x21
 #define EEP_OFS_PWR_OFDMG   0x23
-
 
 #define EEP_OFS_CALIB_TX_IQ 0x24
 #define EEP_OFS_CALIB_TX_DC 0x25
@@ -80,48 +75,38 @@
 //
 #define EEP_RADIOCTL_ENABLE 0x80
 
-/*---------------------  Export Types  ------------------------------*/
-
 // AT24C02 eeprom contents
 //      2048 bits = 256 bytes = 128 words
 //
 typedef struct tagSSromReg {
-    BYTE    abyPAR[6];                  // 0x00 (WORD)
+    u8    abyPAR[6];                  // 0x00 (u16)
 
-    WORD    wSUB_VID;                   // 0x03 (WORD)
-    WORD    wSUB_SID;
+    u16    wSUB_VID;                   // 0x03 (u16)
+    u16    wSUB_SID;
 
-    BYTE    byBCFG0;                    // 0x05 (WORD)
-    BYTE    byBCFG1;
+    u8    byBCFG0;                    // 0x05 (u16)
+    u8    byBCFG1;
 
-    BYTE    byFCR0;                     // 0x06 (WORD)
-    BYTE    byFCR1;
-    BYTE    byPMC0;                     // 0x07 (WORD)
-    BYTE    byPMC1;
-    BYTE    byMAXLAT;                   // 0x08 (WORD)
-    BYTE    byMINGNT;
-    BYTE    byCFG0;                     // 0x09 (WORD)
-    BYTE    byCFG1;
-    WORD    wCISPTR;                    // 0x0A (WORD)
-    WORD    wRsv0;                      // 0x0B (WORD)
-    WORD    wRsv1;                      // 0x0C (WORD)
-    BYTE    byBBPAIR;                   // 0x0D (WORD)
-    BYTE    byRFTYPE;
-    BYTE    byMinChannel;               // 0x0E (WORD)
-    BYTE    byMaxChannel;
-    BYTE    bySignature;                // 0x0F (WORD)
-    BYTE    byCheckSum;
+    u8    byFCR0;                     // 0x06 (u16)
+    u8    byFCR1;
+    u8    byPMC0;                     // 0x07 (u16)
+    u8    byPMC1;
+    u8    byMAXLAT;                   // 0x08 (u16)
+    u8    byMINGNT;
+    u8    byCFG0;                     // 0x09 (u16)
+    u8    byCFG1;
+    u16    wCISPTR;                    // 0x0A (u16)
+    u16    wRsv0;                      // 0x0B (u16)
+    u16    wRsv1;                      // 0x0C (u16)
+    u8    byBBPAIR;                   // 0x0D (u16)
+    u8    byRFTYPE;
+    u8    byMinChannel;               // 0x0E (u16)
+    u8    byMaxChannel;
+    u8    bySignature;                // 0x0F (u16)
+    u8    byCheckSum;
 
-    BYTE    abyReserved0[96];           // 0x10 (WORD)
-    BYTE    abyCIS[128];                // 0x80 (WORD)
+    u8    abyReserved0[96];           // 0x10 (u16)
+    u8    abyCIS[128];                // 0x80 (u16)
 } SSromReg, *PSSromReg;
-
-/*---------------------  Export Macros ------------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif /* __EEPROM_H__ */

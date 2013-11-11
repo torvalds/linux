@@ -27,7 +27,6 @@
 static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
-	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret;
 
 	ret = tmio_mmc_host_suspend(&dev->dev);
@@ -42,7 +41,6 @@ static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 static int tmio_mmc_resume(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
-	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
 	/* Tell the MFD core we are ready to be enabled */
@@ -59,7 +57,7 @@ static int tmio_mmc_resume(struct platform_device *dev)
 #define tmio_mmc_resume NULL
 #endif
 
-static int __devinit tmio_mmc_probe(struct platform_device *pdev)
+static int tmio_mmc_probe(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct tmio_mmc_data *pdata;
@@ -90,8 +88,8 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto cell_disable;
 
-	ret = request_irq(irq, tmio_mmc_irq, IRQF_DISABLED |
-			  IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), host);
+	ret = request_irq(irq, tmio_mmc_irq, IRQF_TRIGGER_FALLING,
+				dev_name(&pdev->dev), host);
 	if (ret)
 		goto host_remove;
 
@@ -109,7 +107,7 @@ out:
 	return ret;
 }
 
-static int __devexit tmio_mmc_remove(struct platform_device *pdev)
+static int tmio_mmc_remove(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
@@ -135,24 +133,12 @@ static struct platform_driver tmio_mmc_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tmio_mmc_probe,
-	.remove = __devexit_p(tmio_mmc_remove),
+	.remove = tmio_mmc_remove,
 	.suspend = tmio_mmc_suspend,
 	.resume = tmio_mmc_resume,
 };
 
-
-static int __init tmio_mmc_init(void)
-{
-	return platform_driver_register(&tmio_mmc_driver);
-}
-
-static void __exit tmio_mmc_exit(void)
-{
-	platform_driver_unregister(&tmio_mmc_driver);
-}
-
-module_init(tmio_mmc_init);
-module_exit(tmio_mmc_exit);
+module_platform_driver(tmio_mmc_driver);
 
 MODULE_DESCRIPTION("Toshiba TMIO SD/MMC driver");
 MODULE_AUTHOR("Ian Molton <spyro@f2s.com>");

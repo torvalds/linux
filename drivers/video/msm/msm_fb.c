@@ -25,7 +25,7 @@
 #include <linux/msm_mdp.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 #include <mach/board.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
@@ -525,10 +525,9 @@ static int setup_fbmem(struct msmfb_info *msmfb, struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	fb->fix.smem_start = resource->start;
-	fb->fix.smem_len = resource->end - resource->start;
-	fbram = ioremap(resource->start,
-			resource->end - resource->start);
-	if (fbram == 0) {
+	fb->fix.smem_len = resource_size(resource);
+	fbram = ioremap(resource->start, resource_size(resource));
+	if (fbram == NULL) {
 		printk(KERN_ERR "msmfb: cannot allocate fbram!\n");
 		return -ENOMEM;
 	}

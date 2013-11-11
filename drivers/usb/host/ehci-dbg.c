@@ -18,21 +18,6 @@
 
 /* this file is part of ehci-hcd.c */
 
-#define ehci_dbg(ehci, fmt, args...) \
-	dev_dbg (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_err(ehci, fmt, args...) \
-	dev_err (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_info(ehci, fmt, args...) \
-	dev_info (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-#define ehci_warn(ehci, fmt, args...) \
-	dev_warn (ehci_to_hcd(ehci)->self.controller , fmt , ## args )
-
-#ifdef VERBOSE_DEBUG
-#	define ehci_vdbg ehci_dbg
-#else
-	static inline void ehci_vdbg(struct ehci_hcd *ehci, ...) {}
-#endif
-
 #ifdef	DEBUG
 
 /* check the values in the HCSPARAMS register
@@ -107,7 +92,7 @@ static void dbg_hcc_params (struct ehci_hcd *ehci, char *label)
 			HCC_PER_PORT_CHANGE_EVENT(params) ? " ppce" : "",
 			HCC_HW_PREFETCH(params) ? " hw prefetch" : "",
 			HCC_32FRAME_PERIODIC_LIST(params) ?
-				" 32 peridic list" : "");
+				" 32 periodic list" : "");
 	}
 }
 #else
@@ -352,12 +337,6 @@ static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
 static int debug_async_open(struct inode *, struct file *);
-static int debug_lpm_open(struct inode *, struct file *);
-static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-static ssize_t debug_lpm_write(struct file *file, const char __user *buffer,
-			      size_t count, loff_t *ppos);
-static int debug_lpm_close(struct inode *inode, struct file *file);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
 static int debug_close(struct inode *, struct file *);
@@ -383,14 +362,6 @@ static const struct file_operations debug_registers_fops = {
 	.release	= debug_close,
 	.llseek		= default_llseek,
 };
-static const struct file_operations debug_lpm_fops = {
-	.owner		= THIS_MODULE,
-	.open		= debug_lpm_open,
-	.read		= debug_lpm_read,
-	.write		= debug_lpm_write,
-	.release	= debug_lpm_close,
-	.llseek		= noop_llseek,
-};
 
 static struct dentry *ehci_debug_root;
 
@@ -405,9 +376,9 @@ struct debug_buffer {
 
 #define speed_char(info1) ({ char tmp; \
 		switch (info1 & (3 << 12)) { \
-		case 0 << 12: tmp = 'f'; break; \
-		case 1 << 12: tmp = 'l'; break; \
-		case 2 << 12: tmp = 'h'; break; \
+		case QH_FULL_SPEED: tmp = 'f'; break; \
+		case QH_LOW_SPEED:  tmp = 'l'; break; \
+		case QH_HIGH_SPEED: tmp = 'h'; break; \
 		default: tmp = '?'; break; \
 		}; tmp; })
 
@@ -539,13 +510,16 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->reclaim && size > 0) {
-		temp = scnprintf (next, size, "\nreclaim =\n");
+	if (!list_empty(&ehci->async_unlink) && size > 0) {
+		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->reclaim; size > 0 && qh; qh = qh->reclaim)
-			qh_lines (ehci, qh, &next, &size);
+		list_for_each_entry(qh, &ehci->async_unlink, unlink_node) {
+			if (size <= 0)
+				break;
+			qh_lines(ehci, qh, &next, &size);
+		}
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -653,10 +627,8 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 						seen [seen_count++].qh = p.qh;
 				} else
 					temp = 0;
-				if (p.qh) {
-					tag = Q_NEXT_TYPE(ehci, hw->hw_next);
-					p = p.qh->qh_next;
-				}
+				tag = Q_NEXT_TYPE(ehci, hw->hw_next);
+				p = p.qh->qh_next;
 				break;
 			case Q_TYPE_FSTN:
 				temp = scnprintf (next, size,
@@ -697,6 +669,21 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 }
 #undef DBG_SCHED_LIMIT
 
+static const char *rh_state_string(struct ehci_hcd *ehci)
+{
+	switch (ehci->rh_state) {
+	case EHCI_RH_HALTED:
+		return "halted";
+	case EHCI_RH_SUSPENDED:
+		return "suspended";
+	case EHCI_RH_RUNNING:
+		return "running";
+	case EHCI_RH_STOPPING:
+		return "stopping";
+	}
+	return "?";
+}
+
 static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 {
 	struct usb_hcd		*hcd;
@@ -730,11 +717,11 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	temp = scnprintf (next, size,
 		"bus %s, device %s\n"
 		"%s\n"
-		"EHCI %x.%02x, hcd state %d\n",
+		"EHCI %x.%02x, rh state %s\n",
 		hcd->self.controller->bus->name,
 		dev_name(hcd->self.controller),
 		hcd->product_desc,
-		i >> 8, i & 0x0ff, hcd->state);
+		i >> 8, i & 0x0ff, rh_state_string(ehci));
 	size -= temp;
 	next += temp;
 
@@ -808,7 +795,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	next += temp;
 
 	temp = scnprintf (next, size, "uframe %04x\n",
-			ehci_readl(ehci, &ehci->regs->frame_index));
+			ehci_read_frame_index(ehci));
 	size -= temp;
 	next += temp;
 
@@ -829,16 +816,18 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->reclaim) {
-		temp = scnprintf(next, size, "reclaim qh %p\n", ehci->reclaim);
+	if (!list_empty(&ehci->async_unlink)) {
+		temp = scnprintf(next, size, "async unlink qh %p\n",
+				list_first_entry(&ehci->async_unlink,
+						struct ehci_qh, unlink_node));
 		size -= temp;
 		next += temp;
 	}
 
 #ifdef EHCI_STATS
 	temp = scnprintf (next, size,
-		"irq normal %ld err %ld reclaim %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.reclaim,
+		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
+		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
 		ehci->stats.lost_iaa);
 	size -= temp;
 	next += temp;
@@ -957,94 +946,6 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 	return file->private_data ? 0 : -ENOMEM;
 }
 
-static int debug_lpm_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static int debug_lpm_close(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static ssize_t debug_lpm_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	/* TODO: show lpm stats */
-	return 0;
-}
-
-static ssize_t debug_lpm_write(struct file *file, const char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	struct usb_hcd		*hcd;
-	struct ehci_hcd		*ehci;
-	char buf[50];
-	size_t len;
-	u32 temp;
-	unsigned long port;
-	u32 __iomem	*portsc ;
-	u32 params;
-
-	hcd = bus_to_hcd(file->private_data);
-	ehci = hcd_to_ehci(hcd);
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-	if (len > 0 && buf[len - 1] == '\n')
-		buf[len - 1] = '\0';
-
-	if (strncmp(buf, "enable", 5) == 0) {
-		if (strict_strtoul(buf + 7, 10, &port))
-			return -EINVAL;
-		params = ehci_readl(ehci, &ehci->caps->hcs_params);
-		if (port > HCS_N_PORTS(params)) {
-			ehci_dbg(ehci, "ERR: LPM on bad port %lu\n", port);
-			return -ENODEV;
-		}
-		portsc = &ehci->regs->port_status[port-1];
-		temp = ehci_readl(ehci, portsc);
-		if (!(temp & PORT_DEV_ADDR)) {
-			ehci_dbg(ehci, "LPM: no device attached\n");
-			return -ENODEV;
-		}
-		temp |= PORT_LPM;
-		ehci_writel(ehci, temp, portsc);
-		printk(KERN_INFO "force enable LPM for port %lu\n", port);
-	} else if (strncmp(buf, "hird=", 5) == 0) {
-		unsigned long hird;
-		if (strict_strtoul(buf + 5, 16, &hird))
-			return -EINVAL;
-		printk(KERN_INFO "setting hird %s %lu\n", buf + 6, hird);
-		temp = ehci_readl(ehci, &ehci->regs->command);
-		temp &= ~CMD_HIRD;
-		temp |= hird << 24;
-		ehci_writel(ehci, temp, &ehci->regs->command);
-	} else if (strncmp(buf, "disable", 7) == 0) {
-		if (strict_strtoul(buf + 8, 10, &port))
-			return -EINVAL;
-		params = ehci_readl(ehci, &ehci->caps->hcs_params);
-		if (port > HCS_N_PORTS(params)) {
-			ehci_dbg(ehci, "ERR: LPM off bad port %lu\n", port);
-			return -ENODEV;
-		}
-		portsc = &ehci->regs->port_status[port-1];
-		temp = ehci_readl(ehci, portsc);
-		if (!(temp & PORT_DEV_ADDR)) {
-			ehci_dbg(ehci, "ERR: no device attached\n");
-			return -ENODEV;
-		}
-		temp &= ~PORT_LPM;
-		ehci_writel(ehci, temp, portsc);
-		printk(KERN_INFO "disabled LPM for port %lu\n", port);
-	} else
-		return -EOPNOTSUPP;
-	return count;
-}
-
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
 	struct usb_bus *bus = &ehci_to_hcd(ehci)->self;
@@ -1063,10 +964,6 @@ static inline void create_debug_files (struct ehci_hcd *ehci)
 
 	if (!debugfs_create_file("registers", S_IRUGO, ehci->debug_dir, bus,
 						    &debug_registers_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("lpm", S_IRUGO|S_IWUSR, ehci->debug_dir, bus,
-						    &debug_lpm_fops))
 		goto file_error;
 
 	return;

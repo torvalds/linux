@@ -111,8 +111,8 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 			list_entry(vcpu->async_pf.done.next,
 				   typeof(*work), link);
 		list_del(&work->link);
-		if (work->page)
-			put_page(work->page);
+		if (!is_error_page(work->page))
+			kvm_release_page_clean(work->page);
 		kmem_cache_free(async_pf_cache, work);
 	}
 	spin_unlock(&vcpu->async_pf.lock);
@@ -138,8 +138,8 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 
 		list_del(&work->queue);
 		vcpu->async_pf.queued--;
-		if (work->page)
-			put_page(work->page);
+		if (!is_error_page(work->page))
+			kvm_release_page_clean(work->page);
 		kmem_cache_free(async_pf_cache, work);
 	}
 }
@@ -203,8 +203,7 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
 	if (!work)
 		return -ENOMEM;
 
-	work->page = bad_page;
-	get_page(bad_page);
+	work->page = KVM_ERR_PTR_BAD_PAGE;
 	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
 
 	spin_lock(&vcpu->async_pf.lock);

@@ -40,14 +40,15 @@
  * void (*close)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is closed.
+ *	Note: called even if the corresponding open() failed.
  *
  *	Required method.
  *
  * void (*shutdown)(struct tty_struct * tty);
  *
- * 	This routine is called synchronously when a particular tty device
- *	is closed for the last time freeing up the resources.
- *
+ * 	This routine is called under the tty lock when a particular tty device
+ *	is closed for the last time. It executes before the tty resources
+ *	are freed so may execute while another function holds a tty kref.
  *
  * void (*cleanup)(struct tty_struct * tty);
  *
@@ -231,6 +232,7 @@
  *	if provided (otherwise EINVAL will be returned).
  */
 
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/cdev.h>
@@ -288,19 +290,18 @@ struct tty_operations {
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
 	struct kref kref;	/* Reference management */
-	struct cdev cdev;
+	struct cdev *cdevs;
 	struct module	*owner;
 	const char	*driver_name;
 	const char	*name;
 	int	name_base;	/* offset of printed name */
 	int	major;		/* major device number */
 	int	minor_start;	/* start of minor device number */
-	int	minor_num;	/* number of *possible* devices */
-	int	num;		/* number of devices allocated */
+	unsigned int	num;	/* number of devices allocated */
 	short	type;		/* type of tty driver */
 	short	subtype;	/* subtype of tty driver */
 	struct ktermios init_termios; /* Initial termios */
-	int	flags;		/* tty driver flags */
+	unsigned long	flags;		/* tty driver flags */
 	struct proc_dir_entry *proc_entry; /* /proc fs entry */
 	struct tty_driver *other; /* only used for the PTY driver */
 
@@ -308,8 +309,8 @@ struct tty_driver {
 	 * Pointer to the tty data structures
 	 */
 	struct tty_struct **ttys;
+	struct tty_port **ports;
 	struct ktermios **termios;
-	struct ktermios **termios_locked;
 	void *driver_state;
 
 	/*
@@ -322,13 +323,30 @@ struct tty_driver {
 
 extern struct list_head tty_drivers;
 
-extern struct tty_driver *alloc_tty_driver(int lines);
+extern struct tty_driver *__tty_alloc_driver(unsigned int lines,
+		struct module *owner, unsigned long flags);
 extern void put_tty_driver(struct tty_driver *driver);
 extern void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 extern void tty_driver_kref_put(struct tty_driver *driver);
+
+/* Use TTY_DRIVER_* flags below */
+#define tty_alloc_driver(lines, flags) \
+		__tty_alloc_driver(lines, THIS_MODULE, flags)
+
+/*
+ * DEPRECATED Do not use this in new code, use tty_alloc_driver instead.
+ * (And change the return value checks.)
+ */
+static inline struct tty_driver *alloc_tty_driver(unsigned int lines)
+{
+	struct tty_driver *ret = tty_alloc_driver(lines, 0);
+	if (IS_ERR(ret))
+		return NULL;
+	return ret;
+}
 
 static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 {
@@ -374,6 +392,14 @@ static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
  *	the requested timeout to the caller instead of using a simple
  *	on/off interface.
  *
+ * TTY_DRIVER_DYNAMIC_ALLOC -- do not allocate structures which are
+ *	needed per line for this driver as it would waste memory.
+ *	The driver will take care.
+ *
+ * TTY_DRIVER_UNNUMBERED_NODE -- do not create numbered /dev nodes. In
+ *	other words create /dev/ttyprintk and not /dev/ttyprintk0.
+ *	Applicable only when a driver for a single tty device is
+ *	being allocated.
  */
 #define TTY_DRIVER_INSTALLED		0x0001
 #define TTY_DRIVER_RESET_TERMIOS	0x0002
@@ -381,6 +407,8 @@ static inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
 #define TTY_DRIVER_DYNAMIC_DEV		0x0008
 #define TTY_DRIVER_DEVPTS_MEM		0x0010
 #define TTY_DRIVER_HARDWARE_BREAK	0x0020
+#define TTY_DRIVER_DYNAMIC_ALLOC	0x0040
+#define TTY_DRIVER_UNNUMBERED_NODE	0x0080
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_SYSTEM		0x0001

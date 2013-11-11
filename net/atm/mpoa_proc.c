@@ -207,7 +207,7 @@ static ssize_t proc_mpc_write(struct file *file, const char __user *buff,
 			      size_t nbytes, loff_t *ppos)
 {
 	char *page, *p;
-	unsigned len;
+	unsigned int len;
 
 	if (nbytes == 0)
 		return 0;

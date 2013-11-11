@@ -37,7 +37,6 @@ struct zorro_dev zorro_autocon[ZORRO_NUM_AUTO];
      */
 
 struct zorro_bus {
-	struct list_head devices;	/* list of devices on this bus */
 	struct device dev;
 };
 
@@ -136,7 +135,6 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	if (!bus)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&bus->devices);
 	bus->dev.parent = &pdev->dev;
 	dev_set_name(&bus->dev, "zorro");
 	error = device_register(&bus->dev);
@@ -148,10 +146,10 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, bus);
 
-	/* Register all devices */
 	pr_info("Zorro: Probing AutoConfig expansion devices: %u device%s\n",
 		 zorro_num_autocon, zorro_num_autocon == 1 ? "" : "s");
 
+	/* First identify all devices ... */
 	for (i = 0; i < zorro_num_autocon; i++) {
 		z = &zorro_autocon[i];
 		z->id = (z->rom.er_Manufacturer<<16) | (z->rom.er_Product<<8);
@@ -172,6 +170,11 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 		dev_set_name(&z->dev, "%02x", i);
 		z->dev.parent = &bus->dev;
 		z->dev.bus = &zorro_bus_type;
+	}
+
+	/* ... then register them */
+	for (i = 0; i < zorro_num_autocon; i++) {
+		z = &zorro_autocon[i];
 		error = device_register(&z->dev);
 		if (error) {
 			dev_err(&bus->dev, "Error registering device %s\n",

@@ -50,18 +50,21 @@ machine_device_initcall(ppc40x_simple, ppc40x_device_probe);
  * Again, if your board needs to do things differently then create a
  * board.c file for it rather than adding it to this list.
  */
-static const char *board[] __initdata = {
+static const char * const board[] __initconst = {
 	"amcc,acadia",
 	"amcc,haleakala",
 	"amcc,kilauea",
 	"amcc,makalu",
-	"est,hotfoot"
+	"apm,klondike",
+	"est,hotfoot",
+	"plathome,obs600",
+	NULL
 };
 
 static int __init ppc40x_probe(void)
 {
 	if (of_flat_dt_match(of_get_flat_dt_root(), board)) {
-		ppc_pci_set_flags(PPC_PCI_REASSIGN_ALL_RSRC);
+		pci_set_flags(PCI_REASSIGN_ALL_RSRC);
 		return 1;
 	}
 

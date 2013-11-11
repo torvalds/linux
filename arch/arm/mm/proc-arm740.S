@@ -17,6 +17,8 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 	.text
 /*
  * cpu_arm740_proc_init()
@@ -47,6 +49,7 @@ ENTRY(cpu_arm740_proc_fin)
  * Params  : r0 = address to jump to
  * Notes   : This sets up everything for a reset
  */
+	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm740_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c0, 0		@ invalidate cache
@@ -54,6 +57,8 @@ ENTRY(cpu_arm740_reset)
 	bic	ip, ip, #0x0000000c		@ ............wc..
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	mov	pc, r0
+ENDPROC(cpu_arm740_reset)
+	.popsection
 
 	__CPUINIT
 
@@ -72,24 +77,27 @@ __arm740_setup:
 	mcr	p15, 0, r0, c6,	c0		@ set area 0, default
 
 	ldr	r0, =(CONFIG_DRAM_BASE & 0xFFFFF000) @ base[31:12] of RAM
-	ldr	r1, =(CONFIG_DRAM_SIZE >> 12)	@ size of RAM (must be >= 4KB)
-	mov	r2, #10				@ 11 is the minimum (4KB)
-1:	add	r2, r2, #1			@ area size *= 2
-	mov	r1, r1, lsr #1
+	ldr	r3, =(CONFIG_DRAM_SIZE >> 12)	@ size of RAM (must be >= 4KB)
+	mov	r4, #10				@ 11 is the minimum (4KB)
+1:	add	r4, r4, #1			@ area size *= 2
+	movs	r3, r3, lsr #1
 	bne	1b				@ count not zero r-shift
-	orr	r0, r0, r2, lsl #1		@ the area register value
+	orr	r0, r0, r4, lsl #1		@ the area register value
 	orr	r0, r0, #1			@ set enable bit
 	mcr	p15, 0, r0, c6,	c1		@ set area 1, RAM
 
 	ldr	r0, =(CONFIG_FLASH_MEM_BASE & 0xFFFFF000) @ base[31:12] of FLASH
-	ldr	r1, =(CONFIG_FLASH_SIZE >> 12)	@ size of FLASH (must be >= 4KB)
-	mov	r2, #10				@ 11 is the minimum (4KB)
-1:	add	r2, r2, #1			@ area size *= 2
-	mov	r1, r1, lsr #1
+	ldr	r3, =(CONFIG_FLASH_SIZE >> 12)	@ size of FLASH (must be >= 4KB)
+	cmp	r3, #0
+	moveq	r0, #0
+	beq	2f
+	mov	r4, #10				@ 11 is the minimum (4KB)
+1:	add	r4, r4, #1			@ area size *= 2
+	movs	r3, r3, lsr #1
 	bne	1b				@ count not zero r-shift
-	orr	r0, r0, r2, lsl #1		@ the area register value
+	orr	r0, r0, r4, lsl #1		@ the area register value
 	orr	r0, r0, #1			@ set enable bit
-	mcr	p15, 0, r0, c6,	c2		@ set area 2, ROM/FLASH
+2:	mcr	p15, 0, r0, c6,	c2		@ set area 2, ROM/FLASH
 
 	mov	r0, #0x06
 	mcr	p15, 0, r0, c2, c0		@ Region 1&2 cacheable
@@ -115,42 +123,14 @@ __arm740_setup:
 
 	__INITDATA
 
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-	.type	arm740_processor_functions, #object
-ENTRY(arm740_processor_functions)
-	.word	v4t_late_abort
-	.word	legacy_pabort
-	.word	cpu_arm740_proc_init
-	.word	cpu_arm740_proc_fin
-	.word	cpu_arm740_reset
-	.word   cpu_arm740_do_idle
-	.word	cpu_arm740_dcache_clean_area
-	.word	cpu_arm740_switch_mm
-	.word	0			@ cpu_*_set_pte
-	.word	0
-	.word	0
-	.word	0
-	.size	arm740_processor_functions, . - arm740_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions arm740, dabort=v4t_late_abort, pabort=legacy_pabort, nommu=1
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_arm740_name, #object
-cpu_arm740_name:
-	.ascii	"ARM740T"
-	.size	cpu_arm740_name, . - cpu_arm740_name
+	string	cpu_arch_name, "armv4"
+	string	cpu_elf_name, "v4"
+	string	cpu_arm740_name, "ARM740T"
 
 	.align
 
@@ -160,15 +140,14 @@ __arm740_proc_info:
 	.long	0x41807400
 	.long	0xfffffff0
 	.long	0
+	.long	0
 	b	__arm740_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_26BIT
+	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_26BIT
 	.long	cpu_arm740_name
 	.long	arm740_processor_functions
 	.long	0
 	.long	0
-	.long	v3_cache_fns			@ cache model
+	.long	v4_cache_fns			@ cache model
 	.size	__arm740_proc_info, . - __arm740_proc_info
-
-

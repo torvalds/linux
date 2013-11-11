@@ -24,7 +24,7 @@
 			.word	1b,4b,2b,4b;				\
 			.previous;"					\
 	: "=&r" (oldval), "=&r" (ret)					\
-	: "b" (uaddr), "i" (-EFAULT), "r" (oparg)			\
+	: "r" (uaddr), "i" (-EFAULT), "r" (oparg)			\
 	);								\
 })
 
@@ -105,7 +105,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 
 	__asm__ __volatile__ ("1:	lwx	%1, %3, r0;		\
 					cmp	%2, %1, %4;		\
-					beqi	%2, 3f;			\
+					bnei	%2, 3f;			\
 				2:	swx	%5, %3, r0;		\
 					addic	%2, r0, 0;		\
 					bnei	%2, 1b;			\

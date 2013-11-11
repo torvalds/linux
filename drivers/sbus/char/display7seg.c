@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>		/* put_/get_user			*/
 #include <asm/io.h>
 
@@ -107,7 +107,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int error = 0;
 	u8 ireg = 0;
 
-	if (D7S_MINOR != iminor(file->f_path.dentry->d_inode))
+	if (D7S_MINOR != iminor(file_inode(file)))
 		return -ENODEV;
 
 	mutex_lock(&d7s_mutex);
@@ -150,7 +150,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			regs |= D7S_FLIP;
 		writeb(regs, p->regs);
 		break;
-	};
+	}
 	mutex_unlock(&d7s_mutex);
 
 	return error;
@@ -171,7 +171,7 @@ static struct miscdevice d7s_miscdev = {
 	.fops		= &d7s_fops
 };
 
-static int __devinit d7s_probe(struct platform_device *op)
+static int d7s_probe(struct platform_device *op)
 {
 	struct device_node *opts;
 	int err = -EINVAL;
@@ -236,7 +236,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit d7s_remove(struct platform_device *op)
+static int d7s_remove(struct platform_device *op)
 {
 	struct d7s *p = dev_get_drvdata(&op->dev);
 	u8 regs = readb(p->regs);
@@ -272,18 +272,7 @@ static struct platform_driver d7s_driver = {
 		.of_match_table = d7s_match,
 	},
 	.probe		= d7s_probe,
-	.remove		= __devexit_p(d7s_remove),
+	.remove		= d7s_remove,
 };
 
-static int __init d7s_init(void)
-{
-	return platform_driver_register(&d7s_driver);
-}
-
-static void __exit d7s_exit(void)
-{
-	platform_driver_unregister(&d7s_driver);
-}
-
-module_init(d7s_init);
-module_exit(d7s_exit);
+module_platform_driver(d7s_driver);

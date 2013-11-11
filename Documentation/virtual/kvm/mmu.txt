@@ -165,6 +165,10 @@ Shadow pages contain the following information:
     Contains the value of efer.nxe for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
+  role.smep_andnot_wp:
+    Contains the value of cr4.smep && !cr0.wp for which the page is valid
+    (pages for which this is true are different from other pages; see the
+    treatment of cr0.wp=0 below).
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
@@ -183,13 +187,6 @@ Shadow pages contain the following information:
     perform a reverse map from a pte to a gfn. When role.direct is set, any
     element of this array can be calculated from the gfn field when used, in
     this case, the array of gfns is not allocated. See role.direct and gfn.
-  slot_bitmap:
-    A bitmap containing one bit per memory slot.  If the page contains a pte
-    mapping a page from memory slot n, then bit n of slot_bitmap will be set
-    (if a page is aliased among several slots, then it is not guaranteed that
-    all slots will be marked).
-    Used during dirty logging to avoid scanning a shadow page if none if its
-    pages need tracking.
   root_count:
     A counter keeping track of how many hardware registers (guest cr3 or
     pdptrs) are now pointing at the page.  While this counter is nonzero, the
@@ -317,6 +314,20 @@ on fault type:
 
 (user write faults generate a #PF)
 
+In the first case there is an additional complication if CR4.SMEP is
+enabled: since we've turned the page into a kernel page, the kernel may now
+execute it.  We handle this by also setting spte.nx.  If we get a user
+fetch or read fault, we'll change spte.u=1 and spte.nx=gpte.nx back.
+
+To prevent an spte that was converted into a kernel page with cr0.wp=0
+from being written by the kernel after cr0.wp has changed to 1, we make
+the value of cr0.wp part of the page role.  This means that an spte created
+with one value of cr0.wp cannot be used when cr0.wp has a different value -
+it will simply be missed by the shadow page lookup code.  A similar issue
+exists when an spte created with cr0.wp=0 and cr4.smep=0 is used after
+changing cr4.smep to 1.  To avoid this, the value of !cr0.wp && cr4.smep
+is also made a part of the page role.
+
 Large pages
 ===========
 
@@ -329,7 +340,7 @@ To instantiate a large spte, four constraints must be satisfied:
 
 - the spte must point to a large host page
 - the guest pte must be a large pte of at least equivalent size (if tdp is
-  enabled, there is no guest pte and this condition is satisified)
+  enabled, there is no guest pte and this condition is satisfied)
 - if the spte will be writeable, the large page frame may not overlap any
   write-protected pages
 - the guest page must be wholly contained by a single memory slot
@@ -338,7 +349,7 @@ To check the last two conditions, the mmu maintains a ->write_count set of
 arrays for each memory slot and large page size.  Every write protected page
 causes its write_count to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
-artificically inflated ->write_counts so they can never be instantiated.
+artificially inflated ->write_counts so they can never be instantiated.
 
 Further reading
 ===============

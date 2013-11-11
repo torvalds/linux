@@ -76,7 +76,8 @@ int mvme147_detect(struct scsi_host_template *tpnt)
 	called++;
 
 	tpnt->proc_name = "MVME147";
-	tpnt->proc_info = &wd33c93_proc_info;
+	tpnt->show_info = wd33c93_show_info,
+	tpnt->write_info = wd33c93_write_info,
 
 	instance = scsi_register(tpnt, sizeof(struct WD33C93_hostdata));
 	if (!instance)

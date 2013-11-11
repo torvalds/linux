@@ -1,0 +1,77 @@
+#!/bin/bash
+#please run as root
+
+#we need 256M, below is the size in kB
+needmem=262144
+mnt=./huge
+
+#get pagesize and freepages from /proc/meminfo
+while read name size unit; do
+	if [ "$name" = "HugePages_Free:" ]; then
+		freepgs=$size
+	fi
+	if [ "$name" = "Hugepagesize:" ]; then
+		pgsize=$size
+	fi
+done < /proc/meminfo
+
+#set proper nr_hugepages
+if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
+	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
+	needpgs=`expr $needmem / $pgsize`
+	if [ $freepgs -lt $needpgs ]; then
+		lackpgs=$(( $needpgs - $freepgs ))
+		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
+		if [ $? -ne 0 ]; then
+			echo "Please run this test as root"
+			exit 1
+		fi
+	fi
+else
+	echo "no hugetlbfs support in kernel?"
+	exit 1
+fi
+
+mkdir $mnt
+mount -t hugetlbfs none $mnt
+
+echo "--------------------"
+echo "running hugepage-mmap"
+echo "--------------------"
+./hugepage-mmap
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi
+
+shmmax=`cat /proc/sys/kernel/shmmax`
+shmall=`cat /proc/sys/kernel/shmall`
+echo 268435456 > /proc/sys/kernel/shmmax
+echo 4194304 > /proc/sys/kernel/shmall
+echo "--------------------"
+echo "running hugepage-shm"
+echo "--------------------"
+./hugepage-shm
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi
+echo $shmmax > /proc/sys/kernel/shmmax
+echo $shmall > /proc/sys/kernel/shmall
+
+echo "--------------------"
+echo "running map_hugetlb"
+echo "--------------------"
+./map_hugetlb
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi
+
+#cleanup
+umount $mnt
+rm -rf $mnt
+echo $nr_hugepgs > /proc/sys/vm/nr_hugepages

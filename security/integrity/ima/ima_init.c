@@ -85,13 +85,11 @@ int __init ima_init(void)
 	if (!ima_used_chip)
 		pr_info("IMA: No TPM chip found, activating TPM-bypass!\n");
 
+	rc = ima_init_crypto();
+	if (rc)
+		return rc;
 	ima_add_boot_aggregate();	/* boot aggregate must be first entry */
 	ima_init_policy();
 
 	return ima_fs_init();
-}
-
-void __exit ima_cleanup(void)
-{
-	ima_fs_cleanup();
 }

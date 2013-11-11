@@ -534,8 +534,8 @@ static void rx8025_sysfs_unregister(struct device *dev)
 	device_remove_file(dev, &dev_attr_clock_adjust_ppb);
 }
 
-static int __devinit rx8025_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int rx8025_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rx8025_data *rx8025;
@@ -614,7 +614,7 @@ errout:
 	return err;
 }
 
-static int __devexit rx8025_remove(struct i2c_client *client)
+static int rx8025_remove(struct i2c_client *client)
 {
 	struct rx8025_data *rx8025 = i2c_get_clientdata(client);
 	struct mutex *lock = &rx8025->rtc->ops_lock;
@@ -640,23 +640,12 @@ static struct i2c_driver rx8025_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= rx8025_probe,
-	.remove		= __devexit_p(rx8025_remove),
+	.remove		= rx8025_remove,
 	.id_table	= rx8025_id,
 };
 
-static int __init rx8025_init(void)
-{
-	return i2c_add_driver(&rx8025_driver);
-}
-
-static void __exit rx8025_exit(void)
-{
-	i2c_del_driver(&rx8025_driver);
-}
+module_i2c_driver(rx8025_driver);
 
 MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 MODULE_DESCRIPTION("RX-8025 SA/NB RTC driver");
 MODULE_LICENSE("GPL");
-
-module_init(rx8025_init);
-module_exit(rx8025_exit);

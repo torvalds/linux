@@ -25,8 +25,13 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 
 #include "main.h"
+
+#define SD8786_DEFAULT_FW_NAME "mrvl/sd8786_uapsta.bin"
+#define SD8787_DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
+#define SD8797_DEFAULT_FW_NAME "mrvl/sd8797_uapsta.bin"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
@@ -52,10 +57,10 @@
 
 #define SDIO_MP_AGGR_DEF_PKT_LIMIT	8
 
-#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
 /* Multi port RX aggregation buffer size */
-#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (16384)	/* 16K */
 
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)
@@ -167,9 +172,6 @@
 /* Rx unit register */
 #define CARD_RX_UNIT_REG		0x63
 
-/* Event header len w/o 4 bytes of interface header */
-#define MWIFIEX_EVENT_HEADER_LEN           4
-
 /* Max retry number of CMD53 write */
 #define MAX_WRITE_IOMEM_RETRY		2
 
@@ -193,7 +195,7 @@
 		a->mpa_tx.ports |= (1<<(a->mpa_tx.pkt_cnt+1+(MAX_PORT -	\
 						a->mp_end_port)));	\
 	a->mpa_tx.pkt_cnt++;						\
-} while (0);
+} while (0)
 
 /* SDIO Tx aggregation limit ? */
 #define MP_TX_AGGR_PKT_LIMIT_REACHED(a)					\
@@ -211,7 +213,7 @@
 	a->mpa_tx.buf_len = 0;						\
 	a->mpa_tx.ports = 0;						\
 	a->mpa_tx.start_port = 0;					\
-} while (0);
+} while (0)
 
 /* SDIO Rx aggregation limit ? */
 #define MP_RX_AGGR_PKT_LIMIT_REACHED(a)					\
@@ -242,7 +244,7 @@
 	a->mpa_rx.skb_arr[a->mpa_rx.pkt_cnt] = skb;			\
 	a->mpa_rx.len_arr[a->mpa_rx.pkt_cnt] = skb->len;		\
 	a->mpa_rx.pkt_cnt++;						\
-} while (0);
+} while (0)
 
 /* Reset SDIO Rx aggregation buffer parameters */
 #define MP_RX_AGGR_BUF_RESET(a) do {					\
@@ -250,7 +252,7 @@
 	a->mpa_rx.buf_len = 0;						\
 	a->mpa_rx.ports = 0;						\
 	a->mpa_rx.start_port = 0;					\
-} while (0);
+} while (0)
 
 
 /* data structure for SDIO MPA TX */
@@ -302,4 +304,25 @@ struct sdio_mmc_card {
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
 };
+
+/*
+ * .cmdrsp_complete handler
+ */
+static inline int mwifiex_sdio_cmdrsp_complete(struct mwifiex_adapter *adapter,
+					       struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+	return 0;
+}
+
+/*
+ * .event_complete handler
+ */
+static inline int mwifiex_sdio_event_complete(struct mwifiex_adapter *adapter,
+					      struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+	return 0;
+}
+
 #endif /* _MWIFIEX_SDIO_H */

@@ -1,0 +1,26 @@
+  <counter_set name="ARM_ARM11MPCore_cnt" count="3"/>
+  <category name="ARM11MPCore" counter_set="ARM_ARM11MPCore_cnt" per_cpu="yes">
+    <event counter="ARM_ARM11MPCore_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Cache" name="Inst miss" description="Instruction cache miss to a cacheable location, which requires a fetch from external memory"/>
+    <event event="0x01" title="Pipeline" name="Instruction stall" description="Stall because instruction buffer cannot deliver an instruction"/>
+    <event event="0x02" title="Pipeline" name="Data stall" description="Stall because of a data dependency"/>
+    <event event="0x03" title="Cache" name="Inst micro TLB miss" description="Instruction MicroTLB miss (unused on ARM1156)"/>
+    <event event="0x04" title="Cache" name="Data micro TLB miss" description="Data MicroTLB miss (unused on ARM1156)"/>
+    <event event="0x05" title="Branch" name="Instruction executed" description="Branch instructions executed, branch might or might not have changed program flow"/>
+    <event event="0x06" title="Branch" name="Not predicted" description="Branch not predicted"/>
+    <event event="0x07" title="Branch" name="Mispredicted" description="Branch mispredicted"/>
+    <event event="0x08" title="Core" name="Instructions" description="Instructions executed"/>
+    <event event="0x09" title="Core" name="Folded Instructions" description="Folded instructions executed"/>
+    <event event="0x0a" title="Cache" name="Data read access" description="Data cache read access, not including cache operations"/>
+    <event event="0x0b" title="Cache" name="Data read miss" description="Data cache miss, not including Cache Operations"/>
+    <event event="0x0c" title="Cache" name="Data write access" description="Data cache write access"/>
+    <event event="0x0d" title="Cache" name="Data write miss" description="Data cache write miss"/>
+    <event event="0x0e" title="Cache" name="Data line eviction" description="Data cache line eviction, not including cache operations"/>
+    <event event="0x0f" title="Branch" name="PC change w/o mode change" description="Software changed the PC and there is not a mode change"/>
+    <event event="0x10" title="Cache " name="TLB miss" description="Main TLB miss"/>
+    <event event="0x11" title="External" name="External Memory request" description="External memory request (cache refill, noncachable, write-back)"/>
+    <event event="0x12" title="Cache" name="Stall" description="Stall because of Load Store Unit request queue being full"/>
+    <event event="0x13" title="Write Buffer" name="Drains" description="The number of times the Write Buffer was drained because of LSU ordering constraints or CP15 operations (Data Synchronization Barrier command) or Strongly Ordered operation"/>
+    <event event="0x14" title="Write Buffer" name="Write Merges" description="Buffered write merged in a store buffer slot"/>
+    <event event="0xFF" title="Core" name="Cycle counter" description="An increment each cycle"/>
+  </category>

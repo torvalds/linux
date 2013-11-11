@@ -36,13 +36,6 @@
 	.global nand_boot
 	.global swapper_pg_dir
 
-	;; Dummy section to make it bootable with current VCS simulator
-#ifdef CONFIG_ETRAX_VCS_SIM
-	.section ".boot", "ax"
-	ba tstart
-	nop
-#endif
-
 	.text
 tstart:
 	;; This is the entry point of the kernel. The CPU is currently in
@@ -75,17 +68,10 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 4)	\
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_d, 5)     \
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb), $r0
-#elif !defined(CONFIG_ETRAX_VCS_SIM)
+#else
 	move.d	REG_FIELD(mmu, rw_mm_kbase_hi, base_e, 8)	\
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 4)	\
 		| REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb), $r0
-#else
-	;; Map the virtual DRAM to the RW eprom area at address 0.
-	;; Also map 0xa for the hook calls,
-	move.d	REG_FIELD(mmu, rw_mm_kbase_hi, base_e, 8)	\
-		| REG_FIELD(mmu, rw_mm_kbase_hi, base_c, 4)	\
-		| REG_FIELD(mmu, rw_mm_kbase_hi, base_b, 0xb)   \
-		| REG_FIELD(mmu, rw_mm_kbase_hi, base_a, 0xa), $r0
 #endif
 
 	;; Temporary map of 0x40 -> 0x40 and 0x00 -> 0x00.
@@ -126,27 +112,6 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 		| REG_STATE(mmu, rw_mm_cfg, seg_2, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_1, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_0, linear), $r2
-#elif !defined(CONFIG_ETRAX_VCS_SIM)
-	move.d	REG_STATE(mmu, rw_mm_cfg, we, on)		\
-		| REG_STATE(mmu, rw_mm_cfg, acc, on)		\
-		| REG_STATE(mmu, rw_mm_cfg, ex, on)		\
-		| REG_STATE(mmu, rw_mm_cfg, inv, on)		\
-		| REG_STATE(mmu, rw_mm_cfg, seg_f, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_e, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_d, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_c, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_b, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_a, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_9, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_8, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_7, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_6, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_5, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_4, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_3, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_2, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_1, page)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_0, linear), $r2
 #else
 	move.d	REG_STATE(mmu, rw_mm_cfg, we, on)		\
 		| REG_STATE(mmu, rw_mm_cfg, acc, on)		\
@@ -157,7 +122,7 @@ secondary_cpu_entry: /* Entry point for secondary CPUs */
 		| REG_STATE(mmu, rw_mm_cfg, seg_d, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_c, linear)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_b, linear)	\
-		| REG_STATE(mmu, rw_mm_cfg, seg_a, linear)	\
+		| REG_STATE(mmu, rw_mm_cfg, seg_a, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_9, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_8, page)	\
 		| REG_STATE(mmu, rw_mm_cfg, seg_7, page)	\
@@ -226,7 +191,6 @@ master_cpu:
 	move.d secondary_cpu_entry, $r1
 	move.d $r1, [$r0]
 #endif
-#ifndef CONFIG_ETRAX_VCS_SIM
 	; Check if starting from DRAM (network->RAM boot or unpacked
 	; compressed kernel), or directly from flash.
 	lapcq	., $r0
@@ -234,7 +198,6 @@ master_cpu:
 	cmp.d	0x10000, $r0	; Arbitrary, something above this code.
 	blo	_inflash0
 	nop
-#endif
 
 	jump	_inram		; Jump to cached RAM.
 	nop
@@ -326,7 +289,6 @@ move_cramfs:
 	move.d	romfs_length, $r1
 	move.d	$r0, [$r1]
 
-#ifndef CONFIG_ETRAX_VCS_SIM
 	;; The kernel could have been unpacked to DRAM by the loader, but
 	;; the cramfs image could still be in the flash immediately
 	;; following the compressed kernel image. The loader passes the address
@@ -335,10 +297,6 @@ move_cramfs:
 	cmp.d	0x0ffffff8, $r9
 	bhs	_no_romfs_in_flash ; R9 points outside the flash area.
 	nop
-#else
-	ba _no_romfs_in_flash
-	nop
-#endif
 	;; cramfs rootfs might to be in flash. Check for it.
 	move.d	[$r9], $r0	; cramfs_super.magic
 	cmp.d	CRAMFS_MAGIC, $r0
@@ -396,7 +354,6 @@ _no_romfs_in_flash:
 	move.d	romfs_length, $r3
 	move.d	$r2, [$r3]	; store size at romfs_length
 
-#ifndef CONFIG_ETRAX_VCS_SIM
 	add.d	$r2, $r0	; copy from end and downwards
 	add.d	$r2, $r1
 
@@ -410,7 +367,6 @@ _no_romfs_in_flash:
 	subq	1, $r2
 	bne	1b
 	nop
-#endif
 
 4:
 	;; BSS move done.
@@ -455,7 +411,6 @@ no_command_line:
 	move.d	etrax_irv, $r1	; Set the exception base register and pointer.
 	move.d	$r0, [$r1]
 
-#ifndef CONFIG_ETRAX_VCS_SIM
 	;; Clear the BSS region from _bss_start to _end.
 	move.d	__bss_start, $r0
 	move.d	_end, $r1
@@ -463,15 +418,6 @@ no_command_line:
 	cmp.d	$r1, $r0
 	blo 1b
 	nop
-#endif
-
-#ifdef CONFIG_ETRAX_VCS_SIM
-	/* Set the watchdog timeout to something big. Will be removed when */
-	/* watchdog can be disabled with command line option */
-	move.d  0x7fffffff, $r10
-	jsr     CPU_WATCHDOG_TIMEOUT
-	nop
-#endif
 
 	; Initialize registers to increase determinism
 	move.d __bss_start, $r0

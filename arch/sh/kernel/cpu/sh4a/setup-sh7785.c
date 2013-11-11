@@ -15,9 +15,8 @@
 #include <linux/mm.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-
+#include <linux/sh_intc.h>
 #include <asm/mmzone.h>
-
 #include <cpu/dma-register.h>
 
 static struct plat_sci_port scif0_platform_data = {
@@ -26,7 +25,8 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 40, 40, 40, 40 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x700)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif0_device = {
@@ -43,7 +43,8 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 44, 44, 44, 44 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x780)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif1_device = {
@@ -60,7 +61,8 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 60, 60, 60, 60 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x980)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif2_device = {
@@ -77,7 +79,8 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 61, 61, 61, 61 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9a0)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif3_device = {
@@ -94,7 +97,8 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 62, 62, 62, 62 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9c0)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif4_device = {
@@ -111,7 +115,8 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_1,
 	.type		= PORT_SCIF,
-	.irqs		= { 63, 63, 63, 63 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x9e0)),
+	.regtype	= SCIx_SH4_SCIF_FIFODATA_REGTYPE,
 };
 
 static struct platform_device scif5_device = {
@@ -135,7 +140,7 @@ static struct resource tmu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 28,
+		.start	= evt2irq(0x580),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -163,7 +168,7 @@ static struct resource tmu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 29,
+		.start	= evt2irq(0x5a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -190,7 +195,7 @@ static struct resource tmu2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 30,
+		.start	= evt2irq(0x5c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -217,7 +222,7 @@ static struct resource tmu3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 96,
+		.start	= evt2irq(0xe00),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -244,7 +249,7 @@ static struct resource tmu4_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 97,
+		.start	= evt2irq(0xe20),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -271,7 +276,7 @@ static struct resource tmu5_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 98,
+		.start	= evt2irq(0xe40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -371,9 +376,13 @@ static struct resource sh7785_dmae0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* Real DMA error IRQ is 39, and channel IRQs are 33-38 */
-		.start	= 33,
-		.end	= 33,
+		/*
+		 * Real DMA error vector is 0x6e0, and channel
+		 * vectors are 0x620-0x6c0
+		 */
+		.name	= "error_irq",
+		.start	= evt2irq(0x620),
+		.end	= evt2irq(0x620),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 };
@@ -387,9 +396,13 @@ static struct resource sh7785_dmae1_resources[] = {
 	},
 	/* DMAC1 has no DMARS */
 	{
-		/* Real DMA error IRQ is 58, and channel IRQs are 52-57 */
-		.start	= 52,
-		.end	= 52,
+		/*
+		 * Real DMA error vector is 0x940, and channel
+		 * vectors are 0x880-0x920
+		 */
+		.name	= "error_irq",
+		.start	= evt2irq(0x880),
+		.end	= evt2irq(0x880),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
 	},
 };

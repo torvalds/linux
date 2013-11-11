@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +24,8 @@
 #include <linux/pci.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
+#include <linux/ctype.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -34,12 +36,13 @@
 
 #include "be.h"
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"2.103.298.0"
-#define BE_NAME			"ServerEngines BladeEngine2" \
-				"Linux iSCSI Driver version" BUILD_STR
+#define BUILD_STR		"10.0.467.0"
+#define BE_NAME			"Emulex OneConnect" \
+				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
 
 #define BE_VENDOR_ID		0x19A2
+#define ELX_VENDOR_ID		0x10DF
 /* DEVICE ID's for BE2 */
 #define BE_DEVICE_ID1		0x212
 #define OC_DEVICE_ID1		0x702
@@ -48,6 +51,9 @@
 /* DEVICE ID's for BE3 */
 #define BE_DEVICE_ID2		0x222
 #define OC_DEVICE_ID3		0x712
+
+/* DEVICE ID for SKH */
+#define OC_SKH_ID1		0x722
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
@@ -58,7 +64,12 @@
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
 
-#define MAX_CPUS		31
+#define MAX_CPUS		64
+#define BEISCSI_MAX_NUM_CPUS	7
+#define OC_SKH_MAX_NUM_CPUS	31
+
+#define BEISCSI_VER_STRLEN 32
+
 #define BEISCSI_SGLIST_ELEMENTS	30
 
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
@@ -84,23 +95,7 @@
 #define MAX_CMD_SZ			65536
 #define IIOC_SCSI_DATA                  0x05	/* Write Operation */
 
-#define DBG_LVL				0x00000001
-#define DBG_LVL_1			0x00000001
-#define DBG_LVL_2			0x00000002
-#define DBG_LVL_3			0x00000004
-#define DBG_LVL_4			0x00000008
-#define DBG_LVL_5			0x00000010
-#define DBG_LVL_6			0x00000020
-#define DBG_LVL_7			0x00000040
-#define DBG_LVL_8			0x00000080
-
-#define SE_DEBUG(debug_mask, fmt, args...)		\
-do {							\
-	if (debug_mask & DBG_LVL) {			\
-		printk(KERN_ERR "(%s():%d):", __func__, __LINE__);\
-		printk(fmt, ##args);			\
-	}						\
-} while (0);
+#define INVALID_SESS_HANDLE	0xFFFFFFFF
 
 #define BE_ADAPTER_UP		0x00000000
 #define BE_ADAPTER_LINK_DOWN	0x00000001
@@ -161,6 +156,8 @@ do {							\
 
 #define PAGES_REQUIRED(x) \
 	((x < PAGE_SIZE) ? 1 :  ((x + PAGE_SIZE - 1) / PAGE_SIZE))
+
+#define BEISCSI_MSI_NAME 20 /* size of msi_name string */
 
 enum be_mem_enum {
 	HWI_MEM_ADDN_CONTEXT,
@@ -269,6 +266,9 @@ struct invalidate_command_table {
 	unsigned short cid;
 } __packed;
 
+#define chip_be2(phba)      (phba->generation == BE_GEN2)
+#define chip_be3_r(phba)    (phba->generation == BE_GEN3)
+#define is_chip_be2_be3r(phba) (chip_be3_r(phba) || (chip_be2(phba)))
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -282,11 +282,11 @@ struct beiscsi_hba {
 	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
-	unsigned int state;
 	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
-	struct msix_entry msix_entries[MAX_CPUS + 1];
+	struct msix_entry msix_entries[MAX_CPUS];
+	char *msi_name[MAX_CPUS];
 	bool msix_enabled;
 	struct be_mem_descriptor *init_mem;
 
@@ -307,12 +307,19 @@ struct beiscsi_hba {
 	unsigned short avlbl_cids;
 	unsigned short cid_alloc;
 	unsigned short cid_free;
-	struct beiscsi_conn *conn_table[BE2_MAX_SESSIONS * 2];
 	struct list_head hba_queue;
+#define BE_MAX_SESSION 2048
+#define BE_SET_CID_TO_CRI(cri_index, cid) \
+			  (phba->cid_to_cri_map[cid] = cri_index)
+#define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
+	unsigned short cid_to_cri_map[BE_MAX_SESSION];
 	unsigned short *cid_array;
 	struct iscsi_endpoint **ep_array;
+	struct beiscsi_conn **conn_table;
 	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
+	struct iscsi_iface *ipv4_iface;
+	struct iscsi_iface *ipv6_iface;
 	struct {
 		/**
 		 * group together since they are used most frequently
@@ -334,18 +341,26 @@ struct beiscsi_hba {
 		spinlock_t cid_lock;
 	} fw_config;
 
+	unsigned int state;
+	bool fw_timeout;
+	bool ue_detected;
+	struct delayed_work beiscsi_hw_check_task;
+
 	u8 mac_address[ETH_ALEN];
-	unsigned short todo_cq;
-	unsigned short todo_mcc_cq;
+	char fw_ver_str[BEISCSI_VER_STRLEN];
 	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
-	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
-	unsigned int read_mac_address;
+	unsigned int interface_handle;
 	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
+	unsigned int attr_log_enable;
+	int (*iotask_fn)(struct iscsi_task *,
+			struct scatterlist *sg,
+			uint32_t num_sg, uint32_t xferlen,
+			uint32_t writedir);
 };
 
 struct beiscsi_session {
@@ -397,7 +412,7 @@ struct amap_pdu_data_out {
 };
 
 struct be_cmd_bhs {
-	struct iscsi_cmd iscsi_hdr;
+	struct iscsi_scsi_req iscsi_hdr;
 	unsigned char pad1[16];
 	struct pdu_data_out iscsi_data_pdu;
 	unsigned char pad2[BE_SENSE_INFO_SIZE -
@@ -417,6 +432,9 @@ struct beiscsi_io_task {
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
 	unsigned short bhs_len;
+	dma_addr_t mtask_addr;
+	uint32_t mtask_data_count;
+	uint8_t wrb_type;
 };
 
 struct be_nonio_bhs {
@@ -428,7 +446,7 @@ struct be_nonio_bhs {
 };
 
 struct be_status_bhs {
-	struct iscsi_cmd iscsi_hdr;
+	struct iscsi_scsi_req iscsi_hdr;
 	unsigned char pad1[16];
 	/**
 	 * The plus 2 below is to hold the sense info length that gets
@@ -464,6 +482,9 @@ struct beiscsi_offload_params {
 #define OFFLD_PARAMS_HDE	0x00000008
 #define OFFLD_PARAMS_IR2T	0x00000010
 #define OFFLD_PARAMS_IMD	0x00000020
+#define OFFLD_PARAMS_DATA_SEQ_INORDER   0x00000040
+#define OFFLD_PARAMS_PDU_SEQ_INORDER    0x00000080
+#define OFFLD_PARAMS_MAX_R2T 0x00FFFF00
 
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -478,7 +499,10 @@ struct amap_beiscsi_offload_params {
 	u8 hde[1];
 	u8 ir2t[1];
 	u8 imd[1];
-	u8 pad[26];
+	u8 data_seq_inorder[1];
+	u8 pdu_seq_inorder[1];
+	u8 max_r2t[16];
+	u8 pad[8];
 	u8 exp_statsn[32];
 };
 
@@ -522,8 +546,6 @@ struct hwi_async_pdu_context {
 
 		unsigned int free_entries;
 		unsigned int busy_entries;
-		unsigned int buffer_size;
-		unsigned int num_entries;
 
 		struct list_head free_list;
 	} async_header;
@@ -540,16 +562,17 @@ struct hwi_async_pdu_context {
 
 		unsigned int free_entries;
 		unsigned int busy_entries;
-		unsigned int buffer_size;
 		struct list_head free_list;
-		unsigned int num_entries;
 	} async_data;
+
+	unsigned int buffer_size;
+	unsigned int num_entries;
 
 	/**
 	 * This is a varying size list! Do not add anything
 	 * after this entry!!
 	 */
-	struct hwi_async_entry async_entry[BE2_MAX_SESSIONS * 2];
+	struct hwi_async_entry *async_entry;
 };
 
 #define PDUCQE_CODE_MASK	0x0000003F
@@ -575,6 +598,20 @@ struct amap_i_t_dpdu_cqe {
 	u8 rsvd0[4];
 	u8 final;
 	u8 valid;
+} __packed;
+
+struct amap_i_t_dpdu_cqe_v2 {
+	u8 db_addr_hi[32];  /* DWORD 0 */
+	u8 db_addr_lo[32];  /* DWORD 1 */
+	u8 code[6]; /* DWORD 2 */
+	u8 num_cons; /* DWORD 2*/
+	u8 rsvd0[8]; /* DWORD 2 */
+	u8 dpl[17]; /* DWORD 2 */
+	u8 index[16]; /* DWORD 3 */
+	u8 cid[13]; /* DWORD 3 */
+	u8 rsvd1; /* DWORD 3 */
+	u8 final; /* DWORD 3 */
+	u8 valid; /* DWORD 3 */
 } __packed;
 
 #define CQE_VALID_MASK	0x80000000
@@ -625,6 +662,11 @@ struct iscsi_wrb {
 } __packed;
 
 #define WRB_TYPE_MASK 0xF0000000
+#define SKH_WRB_TYPE_OFFSET 27
+#define BE_WRB_TYPE_OFFSET  28
+
+#define ADAPTER_SET_WRB_TYPE(pwrb, wrb_type, type_offset) \
+		(pwrb->dw[0] |= (wrb_type << type_offset))
 
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -671,11 +713,58 @@ struct amap_iscsi_wrb {
 
 } __packed;
 
+struct amap_iscsi_wrb_v2 {
+	u8 r2t_exp_dtl[25]; /* DWORD 0 */
+	u8 rsvd0[2];    /* DWORD 0*/
+	u8 type[5];     /* DWORD 0 */
+	u8 ptr2nextwrb[8];  /* DWORD 1 */
+	u8 wrb_idx[8];      /* DWORD 1 */
+	u8 lun[16];     /* DWORD 1 */
+	u8 sgl_idx[16]; /* DWORD 2 */
+	u8 ref_sgl_icd_idx[16]; /* DWORD 2 */
+	u8 exp_data_sn[32]; /* DWORD 3 */
+	u8 iscsi_bhs_addr_hi[32];   /* DWORD 4 */
+	u8 iscsi_bhs_addr_lo[32];   /* DWORD 5 */
+	u8 cq_id[16];   /* DWORD 6 */
+	u8 rsvd1[16];   /* DWORD 6 */
+	u8 cmdsn_itt[32];   /* DWORD 7 */
+	u8 sge0_addr_hi[32];    /* DWORD 8 */
+	u8 sge0_addr_lo[32];    /* DWORD 9 */
+	u8 sge0_offset[24]; /* DWORD 10 */
+	u8 rsvd2[7];    /* DWORD 10 */
+	u8 sge0_last;   /* DWORD 10 */
+	u8 sge0_len[17];    /* DWORD 11 */
+	u8 rsvd3[7];    /* DWORD 11 */
+	u8 diff_enbl;   /* DWORD 11 */
+	u8 u_run;       /* DWORD 11 */
+	u8 o_run;       /* DWORD 11 */
+	u8 invalid;     /* DWORD 11 */
+	u8 dsp;         /* DWORD 11 */
+	u8 dmsg;        /* DWORD 11 */
+	u8 rsvd4;       /* DWORD 11 */
+	u8 lt;          /* DWORD 11 */
+	u8 sge1_addr_hi[32];    /* DWORD 12 */
+	u8 sge1_addr_lo[32];    /* DWORD 13 */
+	u8 sge1_r2t_offset[24]; /* DWORD 14 */
+	u8 rsvd5[7];    /* DWORD 14 */
+	u8 sge1_last;   /* DWORD 14 */
+	u8 sge1_len[17];    /* DWORD 15 */
+	u8 rsvd6[15];   /* DWORD 15 */
+} __packed;
+
+
 struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
 void beiscsi_process_all_cqs(struct work_struct *work);
+void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
+				     struct iscsi_task *task);
+
+static inline bool beiscsi_error(struct beiscsi_hba *phba)
+{
+	return phba->ue_detected || phba->fw_timeout;
+}
 
 struct pdu_nop_out {
 	u32 dw[12];
@@ -736,6 +825,7 @@ struct iscsi_target_context_update_wrb {
  * Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field
  */
+#define BE_TGT_CTX_UPDT_CMD 0x07
 struct amap_iscsi_target_context_update_wrb {
 	u8 lun[14];		/* DWORD 0 */
 	u8 lt;			/* DWORD 0 */
@@ -781,6 +871,47 @@ struct amap_iscsi_target_context_update_wrb {
 
 } __packed;
 
+#define BEISCSI_MAX_RECV_DATASEG_LEN    (64 * 1024)
+#define BEISCSI_MAX_CXNS    1
+struct amap_iscsi_target_context_update_wrb_v2 {
+	u8 max_burst_length[24];    /* DWORD 0 */
+	u8 rsvd0[3];    /* DWORD 0 */
+	u8 type[5];     /* DWORD 0 */
+	u8 ptr2nextwrb[8];  /* DWORD 1 */
+	u8 wrb_idx[8];      /* DWORD 1 */
+	u8 rsvd1[16];       /* DWORD 1 */
+	u8 max_send_data_segment_length[24];    /* DWORD 2 */
+	u8 rsvd2[8];    /* DWORD 2 */
+	u8 first_burst_length[24]; /* DWORD 3 */
+	u8 rsvd3[8]; /* DOWRD 3 */
+	u8 max_r2t[16]; /* DWORD 4 */
+	u8 rsvd4[10];   /* DWORD 4 */
+	u8 hde;         /* DWORD 4 */
+	u8 dde;         /* DWORD 4 */
+	u8 erl[2];      /* DWORD 4 */
+	u8 imd;         /* DWORD 4 */
+	u8 ir2t;        /* DWORD 4 */
+	u8 stat_sn[32];     /* DWORD 5 */
+	u8 rsvd5[32];   /* DWORD 6 */
+	u8 rsvd6[32];   /* DWORD 7 */
+	u8 max_recv_dataseg_len[24];    /* DWORD 8 */
+	u8 rsvd7[8]; /* DWORD 8 */
+	u8 rsvd8[32];   /* DWORD 9 */
+	u8 rsvd9[32];   /* DWORD 10 */
+	u8 max_cxns[16]; /* DWORD 11 */
+	u8 rsvd10[11]; /* DWORD  11*/
+	u8 invld; /* DWORD 11 */
+	u8 rsvd11;/* DWORD 11*/
+	u8 dmsg; /* DWORD 11 */
+	u8 data_seq_inorder; /* DWORD 11 */
+	u8 pdu_seq_inorder; /* DWORD 11 */
+	u8 rsvd12[32]; /*DWORD 12 */
+	u8 rsvd13[32]; /* DWORD 13 */
+	u8 rsvd14[32]; /* DWORD 14 */
+	u8 rsvd15[32]; /* DWORD 15 */
+} __packed;
+
+
 struct be_ring {
 	u32 pages;		/* queue size in pages */
 	u32 id;			/* queue id assigned by beklib */
@@ -813,7 +944,7 @@ struct hwi_controller {
 	struct sgl_handle *psgl_handle_base;
 	unsigned int wrb_mem_index;
 
-	struct hwi_wrb_context wrb_context[BE2_MAX_SESSIONS * 2];
+	struct hwi_wrb_context *wrb_context;
 	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr;
 	struct be_ring default_pdu_data;
@@ -845,15 +976,29 @@ struct hwi_context_memory {
 	u16 max_eqd;		/* in usecs */
 	u16 cur_eqd;		/* in usecs */
 	struct be_eq_obj be_eq[MAX_CPUS];
-	struct be_queue_info be_cq[MAX_CPUS];
+	struct be_queue_info be_cq[MAX_CPUS - 1];
 
 	struct be_queue_info be_def_hdrq;
 	struct be_queue_info be_def_dataq;
 
-	struct be_queue_info be_wrbq[BE2_MAX_SESSIONS];
-	struct be_mcc_wrb_context *pbe_mcc_context;
-
+	struct be_queue_info *be_wrbq;
 	struct hwi_async_pdu_context *pasync_ctx;
 };
+
+/* Logging related definitions */
+#define BEISCSI_LOG_INIT	0x0001	/* Initialization events */
+#define BEISCSI_LOG_MBOX	0x0002	/* Mailbox Events */
+#define BEISCSI_LOG_MISC	0x0004	/* Miscllaneous Events */
+#define BEISCSI_LOG_EH		0x0008	/* Error Handler */
+#define BEISCSI_LOG_IO		0x0010	/* IO Code Path */
+#define BEISCSI_LOG_CONFIG	0x0020	/* CONFIG Code Path */
+
+#define beiscsi_log(phba, level, mask, fmt, arg...) \
+do { \
+	uint32_t log_value = phba->attr_log_enable; \
+		if (((mask) & log_value) || (level[1] <= '3')) \
+			shost_printk(level, phba->shost, \
+				     fmt, __LINE__, ##arg); \
+} while (0)
 
 #endif

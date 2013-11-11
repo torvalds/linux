@@ -74,7 +74,7 @@ static int __qib_get_user_pages(unsigned long start_page, size_t num_pages,
 			goto bail_release;
 	}
 
-	current->mm->locked_vm += num_pages;
+	current->mm->pinned_vm += num_pages;
 
 	ret = 0;
 	goto bail;
@@ -151,7 +151,7 @@ void qib_release_user_pages(struct page **p, size_t num_pages)
 	__qib_release_user_pages(p, num_pages, 1);
 
 	if (current->mm) {
-		current->mm->locked_vm -= num_pages;
+		current->mm->pinned_vm -= num_pages;
 		up_write(&current->mm->mmap_sem);
 	}
 }

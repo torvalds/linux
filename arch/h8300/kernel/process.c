@@ -36,9 +36,9 @@
 #include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -47,45 +47,19 @@ void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 /*
  * The idle loop on an H8/300..
  */
 #if !defined(CONFIG_H8300H_SIM) && !defined(CONFIG_H8S_SIM)
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched()) {
-		local_irq_enable();
-		/* XXX: race here! What if need_resched() gets set now? */
-		__asm__("sleep");
-	} else
-		local_irq_enable();
-}
-#else
-static void default_idle(void)
-{
-	cpu_relax();
+	local_irq_enable();
+	/* XXX: race here! What if need_resched() gets set now? */
+	__asm__("sleep");
 }
 #endif
-void (*idle)(void) = default_idle;
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	while (1) {
-		while (!need_resched())
-			idle();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-	}
-}
 
 void machine_restart(char * __unused)
 {
@@ -109,6 +83,8 @@ void machine_power_off(void)
 
 void show_regs(struct pt_regs * regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("\nPC: %08lx  Status: %02x",
 	       regs->pc, regs->ccr);
 	printk("\nORIG_ER0: %08lx ER0: %08lx ER1: %08lx",
@@ -122,111 +98,32 @@ void show_regs(struct pt_regs * regs)
 		printk("\n");
 }
 
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	long retval;
-	long clone_arg;
-	mm_segment_t fs;
-
-	fs = get_fs();
-	set_fs (KERNEL_DS);
-	clone_arg = flags | CLONE_VM;
-	__asm__("mov.l sp,er3\n\t"
-		"sub.l er2,er2\n\t"
-		"mov.l %2,er1\n\t"
-		"mov.l %1,er0\n\t"
-		"trapa #0\n\t"
-		"cmp.l sp,er3\n\t"
-		"beq 1f\n\t"
-		"mov.l %4,er0\n\t"
-		"mov.l %3,er1\n\t"
-		"jsr @er1\n\t"
-		"mov.l %5,er0\n\t"
-		"trapa #0\n"
-		"1:\n\t"
-		"mov.l er0,%0"
-		:"=r"(retval)
-		:"i"(__NR_clone),"g"(clone_arg),"g"(fn),"g"(arg),"i"(__NR_exit)
-		:"er0","er1","er2","er3");
-	set_fs (fs);
-	return retval;
-}
-
 void flush_thread(void)
 {
 }
 
-/*
- * "h8300_fork()".. By the time we get here, the
- * non-volatile registers have also been saved on the
- * stack. We do some ugly pointer stuff here.. (see
- * also copy_thread)
- */
-
-asmlinkage int h8300_fork(struct pt_regs *regs)
-{
-	return -EINVAL;
-}
-
-asmlinkage int h8300_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), regs, 0, NULL, NULL);
-}
-
-asmlinkage int h8300_clone(struct pt_regs *regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-
-	/* syscall2 puts clone_flags in er1 and usp in er2 */
-	clone_flags = regs->er1;
-	newsp = regs->er2;
-	if (!newsp)
-		newsp  = rdusp();
-	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
-
-}
-
 int copy_thread(unsigned long clone_flags,
                 unsigned long usp, unsigned long topstk,
-		 struct task_struct * p, struct pt_regs * regs)
+		 struct task_struct * p)
 {
 	struct pt_regs * childregs;
 
 	childregs = (struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1;
 
-	*childregs = *regs;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->retpc = (unsigned long) ret_from_kernel_thread;
+		childregs->er4 = topstk; /* arg */
+		childregs->er5 = usp; /* fn */
+		p->thread.ksp = (unsigned long)childregs;
+	}
+	*childregs = *current_pt_regs();
 	childregs->retpc = (unsigned long) ret_from_fork;
 	childregs->er0 = 0;
-
-	p->thread.usp = usp;
+	p->thread.usp = usp ?: rdusp();
 	p->thread.ksp = (unsigned long)childregs;
 
 	return 0;
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char *name,
-			  const char *const *argv,
-			  const char *const *envp,
-			  int dummy, ...)
-{
-	int error;
-	char * filename;
-	struct pt_regs *regs = (struct pt_regs *) ((unsigned char *)&dummy-4);
-
-	filename = getname(name);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-	return error;
 }
 
 unsigned long thread_saved_pc(struct task_struct *tsk)

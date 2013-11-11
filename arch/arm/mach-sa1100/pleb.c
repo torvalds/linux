@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/ioport.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -18,7 +19,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
-#include <asm/mach/serial_sa1100.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
@@ -37,17 +37,9 @@
 #define IRQ_GPIO_ETH0_IRQ	IRQ_GPIO21
 
 static struct resource smc91x_resources[] = {
-	[0] = {
-		.start	= PLEB_ETH0_P,
-		.end	= PLEB_ETH0_P | 0x03ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(PLEB_ETH0_P, 0x04000000),
 #if 0 /* Autoprobe instead, to get rising/falling edge characteristic right */
-	[1] = {
-		.start	= IRQ_GPIO_ETH0_IRQ,
-		.end	= IRQ_GPIO_ETH0_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[1] = DEFINE_RES_IRQ(IRQ_GPIO_ETH0_IRQ),
 #endif
 };
 
@@ -70,16 +62,8 @@ static struct platform_device *devices[] __initdata = {
  * the two SA1100 lowest chip select outputs.
  */
 static struct resource pleb_flash_resources[] = {
-	[0] = {
-		.start = SA1100_CS0_PHYS,
-		.end   = SA1100_CS0_PHYS + SZ_8M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = SA1100_CS1_PHYS,
-		.end   = SA1100_CS1_PHYS + SZ_8M - 1,
-		.flags = IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_8M),
+	[1] = DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_8M),
 };
 
 
@@ -147,7 +131,10 @@ static void __init pleb_map_io(void)
 
 MACHINE_START(PLEB, "PLEB")
 	.map_io		= pleb_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine   = pleb_init,
+	.init_late	= sa11x0_init_late,
+	.restart	= sa11x0_restart,
 MACHINE_END

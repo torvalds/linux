@@ -313,7 +313,8 @@ static void platinum_set_hardware(struct fb_info_platinum *pinfo)
 /*
  * Set misc info vars for this driver
  */
-static void __devinit platinum_init_info(struct fb_info *info, struct fb_info_platinum *pinfo)
+static void platinum_init_info(struct fb_info *info,
+			       struct fb_info_platinum *pinfo)
 {
 	/* Fill fb_info */
 	info->fbops = &platinumfb_ops;
@@ -338,7 +339,7 @@ static void __devinit platinum_init_info(struct fb_info *info, struct fb_info_pl
 }
 
 
-static int __devinit platinum_init_fb(struct fb_info *info)
+static int platinum_init_fb(struct fb_info *info)
 {
 	struct fb_info_platinum *pinfo = info->par;
 	struct fb_var_screeninfo var;
@@ -490,7 +491,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 
 
 /* 
- * Parse user speficied options (`video=platinumfb:')
+ * Parse user specified options (`video=platinumfb:')
  */
 static int __init platinumfb_setup(char *options)
 {
@@ -533,7 +534,7 @@ static int __init platinumfb_setup(char *options)
 #define invalidate_cache(addr)
 #endif
 
-static int __devinit platinumfb_probe(struct platform_device* odev)
+static int platinumfb_probe(struct platform_device* odev)
 {
 	struct device_node	*dp = odev->dev.of_node;
 	struct fb_info		*info;
@@ -567,7 +568,7 @@ static int __devinit platinumfb_probe(struct platform_device* odev)
 	 * northbridge and that can fail. Only request framebuffer
 	 */
 	if (!request_mem_region(pinfo->rsrc_fb.start,
-				pinfo->rsrc_fb.end - pinfo->rsrc_fb.start + 1,
+				resource_size(&pinfo->rsrc_fb),
 				"platinumfb framebuffer")) {
 		printk(KERN_ERR "platinumfb: Can't request framebuffer !\n");
 		framebuffer_release(info);
@@ -645,7 +646,7 @@ static int __devinit platinumfb_probe(struct platform_device* odev)
 	return rc;
 }
 
-static int __devexit platinumfb_remove(struct platform_device* odev)
+static int platinumfb_remove(struct platform_device* odev)
 {
 	struct fb_info		*info = dev_get_drvdata(&odev->dev);
 	struct fb_info_platinum	*pinfo = info->par;
@@ -658,8 +659,7 @@ static int __devexit platinumfb_remove(struct platform_device* odev)
 	iounmap(pinfo->cmap_regs);
 
 	release_mem_region(pinfo->rsrc_fb.start,
-			   pinfo->rsrc_fb.end -
-			   pinfo->rsrc_fb.start + 1);
+			   resource_size(&pinfo->rsrc_fb));
 
 	release_mem_region(pinfo->cmap_regs_phys, 0x1000);
 

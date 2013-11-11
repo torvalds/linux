@@ -42,13 +42,30 @@
 #define MCFINTC1_SIMR       (0)
 #define MCFINTC1_CIMR       (0)
 #define	MCFINTC1_ICR0       (0)
+#define MCFINTC2_SIMR       (0)
+#define MCFINTC2_CIMR       (0)
+#define MCFINTC2_ICR0       (0)
 
 #define MCFINT_VECBASE      64
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
 #define MCFINT_UART1        27          /* Interrupt number for UART1 */
 #define MCFINT_UART2        28          /* Interrupt number for UART2 */
 #define MCFINT_QSPI         31          /* Interrupt number for QSPI */
+#define MCFINT_FECRX0	    36		/* Interrupt number for FEC RX */
+#define MCFINT_FECTX0	    40		/* Interrupt number for FEC RX */
+#define MCFINT_FECENTC0	    42		/* Interrupt number for FEC RX */
 #define MCFINT_PIT1         4           /* Interrupt number for PIT1 (PIT0 in processor) */
+
+#define MCF_IRQ_UART0	    (MCFINT_VECBASE + MCFINT_UART0)
+#define MCF_IRQ_UART1	    (MCFINT_VECBASE + MCFINT_UART1)
+#define MCF_IRQ_UART2	    (MCFINT_VECBASE + MCFINT_UART2)
+
+#define MCF_IRQ_FECRX0	    (MCFINT_VECBASE + MCFINT_FECRX0)
+#define MCF_IRQ_FECTX0	    (MCFINT_VECBASE + MCFINT_FECTX0)
+#define MCF_IRQ_FECENTC0    (MCFINT_VECBASE + MCFINT_FECENTC0)
+
+#define	MCF_IRQ_QSPI	    (MCFINT_VECBASE + MCFINT_QSPI)
+#define MCF_IRQ_PIT1        (MCFINT_VECBASE + MCFINT_PIT1)
 
 /*
  *  SDRAM configuration registers.
@@ -90,15 +107,13 @@
 #define MCFGPIO_PDDR_FECH		0xFC0A4013
 #define MCFGPIO_PDDR_FECL		0xFC0A4014
 
-#define MCFGPIO_PPDSDR_BUSCTL		0xFC0A401A
-#define MCFGPIO_PPDSDR_BE		0xFC0A401B
-#define MCFGPIO_PPDSDR_CS		0xFC0A401C
-#define MCFGPIO_PPDSDR_FECI2C		0xFC0A401D
-#define MCFGPIO_PPDSDR_QSPI		0xFC0A401E
-#define MCFGPIO_PPDSDR_TIMER		0xFC0A401F
-#define MCFGPIO_PPDSDR_UART		0xFC0A4021
-#define MCFGPIO_PPDSDR_FECH		0xFC0A4021
-#define MCFGPIO_PPDSDR_FECL		0xFC0A4022
+#define MCFGPIO_PPDSDR_CS		0xFC0A401A
+#define MCFGPIO_PPDSDR_FECI2C		0xFC0A401B
+#define MCFGPIO_PPDSDR_QSPI		0xFC0A401C
+#define MCFGPIO_PPDSDR_TIMER		0xFC0A401D
+#define MCFGPIO_PPDSDR_UART		0xFC0A401E
+#define MCFGPIO_PPDSDR_FECH		0xFC0A401F
+#define MCFGPIO_PPDSDR_FECL		0xFC0A4020
 
 #define MCFGPIO_PCLRR_BUSCTL		0xFC0A4024
 #define MCFGPIO_PCLRR_BE		0xFC0A4025
@@ -113,11 +128,11 @@
 /*
  * Generic GPIO support
  */
-#define MCFGPIO_PODR			MCFGPIO_PODR_BUSCTL
-#define MCFGPIO_PDDR			MCFGPIO_PDDR_BUSCTL
-#define MCFGPIO_PPDR			MCFGPIO_PPDSDR_BUSCTL
-#define MCFGPIO_SETR			MCFGPIO_PPDSDR_BUSCTL
-#define MCFGPIO_CLRR			MCFGPIO_PCLRR_BUSCTL
+#define MCFGPIO_PODR			MCFGPIO_PODR_CS
+#define MCFGPIO_PDDR			MCFGPIO_PDDR_CS
+#define MCFGPIO_PPDR			MCFGPIO_PPDSDR_CS
+#define MCFGPIO_SETR			MCFGPIO_PPDSDR_CS
+#define MCFGPIO_CLRR			MCFGPIO_PCLRR_CS
 
 #define MCFGPIO_PIN_MAX			80
 #define MCFGPIO_IRQ_MAX			8
@@ -146,15 +161,25 @@
 /*
  *  UART module.
  */
-#define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
-#define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
-#define MCFUART_BASE3		0xFC068000	/* Base address of UART2 */
+#define MCFUART_BASE0		0xFC060000	/* Base address of UART0 */
+#define MCFUART_BASE1		0xFC064000	/* Base address of UART1 */
+#define MCFUART_BASE2		0xFC068000	/* Base address of UART2 */
 
 /*
  *  FEC module.
  */
-#define	MCFFEC_BASE		0xFC030000	/* Base of FEC ethernet */
-#define	MCFFEC_SIZE		0x800		/* Register set size */
+#define	MCFFEC_BASE0		0xFC030000	/* Base of FEC ethernet */
+#define	MCFFEC_SIZE0		0x800		/* Register set size */
+
+/*
+ *  QSPI module.
+ */
+#define	MCFQSPI_BASE		0xFC05C000	/* Base of QSPI module */
+#define	MCFQSPI_SIZE		0x40		/* Register set size */
+
+#define	MCFQSPI_CS0		46
+#define	MCFQSPI_CS1		47
+#define	MCFQSPI_CS2		27
 
 /*
  *  Reset Control Unit.
@@ -164,6 +189,16 @@
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
+/*
+ *  Power Management.
+ */
+#define MCFPM_WCR		0xfc040013
+#define MCFPM_PPMSR0		0xfc04002c
+#define MCFPM_PPMCR0		0xfc04002d
+#define MCFPM_PPMHR0		0xfc040030
+#define MCFPM_PPMLR0		0xfc040034
+#define MCFPM_LPCR		0xfc0a0007
 
 /****************************************************************************/
 #endif  /* m520xsim_h */

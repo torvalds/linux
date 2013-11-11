@@ -73,7 +73,7 @@ static const struct adxl34x_bus_ops adxl34x_i2c_bops = {
 	.read_block	= adxl34x_i2c_read_block,
 };
 
-static int __devinit adxl34x_i2c_probe(struct i2c_client *client,
+static int adxl34x_i2c_probe(struct i2c_client *client,
 				       const struct i2c_device_id *id)
 {
 	struct adxl34x *ac;
@@ -98,14 +98,14 @@ static int __devinit adxl34x_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit adxl34x_i2c_remove(struct i2c_client *client)
+static int adxl34x_i2c_remove(struct i2c_client *client)
 {
 	struct adxl34x *ac = i2c_get_clientdata(client);
 
 	return adxl34x_remove(ac);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adxl34x_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -144,21 +144,11 @@ static struct i2c_driver adxl34x_driver = {
 		.pm = &adxl34x_i2c_pm,
 	},
 	.probe    = adxl34x_i2c_probe,
-	.remove   = __devexit_p(adxl34x_i2c_remove),
+	.remove   = adxl34x_i2c_remove,
 	.id_table = adxl34x_id,
 };
 
-static int __init adxl34x_i2c_init(void)
-{
-	return i2c_add_driver(&adxl34x_driver);
-}
-module_init(adxl34x_i2c_init);
-
-static void __exit adxl34x_i2c_exit(void)
-{
-	i2c_del_driver(&adxl34x_driver);
-}
-module_exit(adxl34x_i2c_exit);
+module_i2c_driver(adxl34x_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("ADXL345/346 Three-Axis Digital Accelerometer I2C Bus Driver");

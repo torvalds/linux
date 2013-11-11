@@ -1,5 +1,7 @@
 vdso.lds
 vdso-syms.lds
+vdsox32.lds
+vdsox32-syms.lds
 vdso32-syms.lds
 vdso32-syscall-syms.lds
 vdso32-sysenter-syms.lds

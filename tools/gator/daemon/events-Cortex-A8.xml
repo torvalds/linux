@@ -1,0 +1,52 @@
+  <counter_set name="ARM_Cortex-A8_cnt" count="4"/>
+  <category name="Cortex-A8" counter_set="ARM_Cortex-A8_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARM_Cortex-A8_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Software" name="Increment" description="Incremented only on writes to the Software Increment Register"/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
+    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x06" title="Instruction" name="Memory read" description="Memory-reading instruction architecturally executed"/>
+    <event event="0x07" title="Instruction" name="Memory write" description="Memory-writing instruction architecturally executed"/>
+    <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
+    <event event="0x0c" title="Branch" name="PC change" description="Software change of the Program Counter, except by an exception, architecturally executed"/>
+    <event event="0x0d" title="Branch" name="Immediate" description="Immediate branch architecturally executed"/>
+    <event event="0x0e" title="Procedure" name="Return" description="Procedure return, other than exception return, architecturally executed"/>
+    <event event="0x0f" title="Memory" name="Unaligned access" description="Unaligned access architecturally executed"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <event event="0x40" title="Cache" name="Write buffer full" description="Any write buffer full cycle"/>
+    <event event="0x41" title="Cache" name="L2 store" description="Any store that is merged in the L2 memory system"/>
+    <event event="0x42" title="Cache" name="Bufferable transaction" description="Any bufferable store transaction from load/store to L2 cache, excluding eviction or cast out data"/>
+    <event event="0x43" title="Cache" name="L2 access" description="Any accesses to the L2 cache"/>
+    <event event="0x44" title="Cache" name="L2 miss" description="Any cacheable miss in the L2 cache"/>
+    <event event="0x45" title="AXI" name="Read" description="The number of AXI read data transfers"/>
+    <event event="0x46" title="AXI" name="Write" description="The number of AXI write data transfers"/>
+    <event event="0x47" title="Memory" name="Replay event" description="Any replay event in the memory system"/>
+    <event event="0x48" title="Memory" name="Unaligned access replay" description="Any unaligned memory access that results in a replay"/>
+    <event event="0x49" title="Cache" name="L1 data hash miss" description="Any L1 data memory access that misses in the cache as a result of the hashing algorithm"/>
+    <event event="0x4a" title="Cache" name="L1 inst hash miss" description="Any L1 instruction memory access that misses in the cache as a result of the hashing algorithm"/>
+    <event event="0x4b" title="Cache" name="L1 page coloring" description="Any L1 data memory access in which a page coloring alias occurs"/>
+    <event event="0x4c" title="NEON" name="L1 cache hit" description="Any NEON access that hits in the L1 data cache"/>
+    <event event="0x4d" title="NEON" name="L1 cache access" description="Any NEON cacheable data accesses for L1 data cache"/>
+    <event event="0x4e" title="NEON" name="L2 cache access" description="Any L2 cache accesses as a result of a NEON memory access"/>
+    <event event="0x4f" title="NEON" name="L2 cache hit" description="Any NEON hit in the L2 cache"/>
+    <event event="0x50" title="Cache" name="L1 inst access" description="Any L1 instruction cache access, excluding CP15 cache accesses"/>
+    <event event="0x51" title="Branch" name="Return stack misprediction" description="Any return stack misprediction because of incorrect target address for a taken return stack pop"/>
+    <event event="0x52" title="Branch" name="Direction misprediction" description="Branch direction misprediction"/>
+    <event event="0x53" title="Branch" name="Taken prediction" description="Any predictable branch that is predicted to be taken"/>
+    <event event="0x54" title="Branch" name="Executed and taken prediction" description="Any predictable branch that is executed and taken"/>
+    <event event="0x55" title="Core" name="Operations issued" description="Number of operations issued, where an operation is either: an instruction or one operation in a sequence of operations that make up a multi-cycle instruction"/>
+    <event event="0x56" title="Core" name="No issue cycles" description="Increment for every cycle that no instructions are available for issue"/>
+    <event event="0x57" title="Core" name="Issue cycles" description="For every cycle, this event counts the number of instructions issued in that cycle. Multi-cycle instructions are only counted once"/>
+    <event event="0x58" title="NEON" name="MRC data wait" description="Number of cycles the processor stalls waiting on MRC data from NEON"/>
+    <event event="0x59" title="NEON" name="Full queue" description="Number of cycles that the processor stalls as a result of a full NEON instruction queue or NEON load queue"/>
+    <event event="0x5a" title="NEON" name="Idle" description="Number of cycles that NEON and integer processors are both not idle"/>
+    <event event="0x70" title="External" name="PMUEXTIN[0]" description="Counts any event from external input source PMUEXTIN[0]"/>
+    <event event="0x71" title="External" name="PMUEXTIN[1]" description="Counts any event from external input source PMUEXTIN[1]"/>
+    <event event="0x72" title="External" name="PMUEXTIN[0,1]" description="Counts any event from both external input sources PMUEXTIN[0] and PMUEXTIN[1]"/>
+  </category>

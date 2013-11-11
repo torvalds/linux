@@ -20,13 +20,20 @@
 #endif
 
 #ifdef CONFIG_32BIT
-
+#ifdef CONFIG_KVM_GUEST
+#define CAC_BASE		_AC(0x40000000, UL)
+#else
 #define CAC_BASE		_AC(0x80000000, UL)
+#endif
 #define IO_BASE			_AC(0xa0000000, UL)
 #define UNCAC_BASE		_AC(0xa0000000, UL)
 
 #ifndef MAP_BASE
+#ifdef CONFIG_KVM_GUEST
+#define MAP_BASE		_AC(0x60000000, UL)
+#else
 #define MAP_BASE		_AC(0xc0000000, UL)
+#endif
 #endif
 
 /*
@@ -69,7 +76,7 @@
 #define HIGHMEM_START		(_AC(1, UL) << _AC(59, UL))
 #endif
 
-#define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
+#define TO_PHYS(x)		(	      ((x) & TO_PHYS_MASK))
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
 #define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 
@@ -80,6 +87,10 @@
  */
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET		(CAC_BASE + PHYS_OFFSET)
+#endif
+
+#ifndef FIXADDR_TOP
+#define FIXADDR_TOP		((unsigned long)(long)(int)0xfffe0000)
 #endif
 
 #endif /* __ASM_MACH_GENERIC_SPACES_H */

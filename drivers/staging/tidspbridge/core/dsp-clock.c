@@ -16,21 +16,20 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#define L4_34XX_BASE		0x48000000
+
 #include <linux/types.h>
 
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 #include <plat/dmtimer.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/dev.h>
 #include "_tiomap.h"
-
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/clk.h>
@@ -54,6 +53,7 @@
 
 /* Bridge GPT id (1 - 4), DM Timer id (5 - 8) */
 #define DMT_ID(id) ((id) + 4)
+#define DM_TIMER_CLOCKS		4
 
 /* Bridge MCBSP id (6 - 10), OMAP Mcbsp id (0 - 4) */
 #define MCBSP_ID(id) ((id) - 6)
@@ -114,11 +114,20 @@ static s8 get_clk_type(u8 id)
  */
 void dsp_clk_exit(void)
 {
+	int i;
+
 	dsp_clock_disable_all(dsp_clocks);
 
+	for (i = 0; i < DM_TIMER_CLOCKS; i++)
+		omap_dm_timer_free(timer[i]);
+
+	clk_unprepare(iva2_clk);
 	clk_put(iva2_clk);
+	clk_unprepare(ssi.sst_fck);
 	clk_put(ssi.sst_fck);
+	clk_unprepare(ssi.ssr_fck);
 	clk_put(ssi.ssr_fck);
+	clk_unprepare(ssi.ick);
 	clk_put(ssi.ick);
 }
 
@@ -130,20 +139,31 @@ void dsp_clk_exit(void)
 void dsp_clk_init(void)
 {
 	static struct platform_device dspbridge_device;
+	int i, id;
 
 	dspbridge_device.dev.bus = &platform_bus_type;
+
+	for (i = 0, id = 5; i < DM_TIMER_CLOCKS; i++, id++)
+		timer[i] = omap_dm_timer_request_specific(id);
 
 	iva2_clk = clk_get(&dspbridge_device.dev, "iva2_ck");
 	if (IS_ERR(iva2_clk))
 		dev_err(bridge, "failed to get iva2 clock %p\n", iva2_clk);
+	else
+		clk_prepare(iva2_clk);
 
 	ssi.sst_fck = clk_get(&dspbridge_device.dev, "ssi_sst_fck");
 	ssi.ssr_fck = clk_get(&dspbridge_device.dev, "ssi_ssr_fck");
 	ssi.ick = clk_get(&dspbridge_device.dev, "ssi_ick");
 
-	if (IS_ERR(ssi.sst_fck) || IS_ERR(ssi.ssr_fck) || IS_ERR(ssi.ick))
+	if (IS_ERR(ssi.sst_fck) || IS_ERR(ssi.ssr_fck) || IS_ERR(ssi.ick)) {
 		dev_err(bridge, "failed to get ssi: sst %p, ssr %p, ick %p\n",
 					ssi.sst_fck, ssi.ssr_fck, ssi.ick);
+	} else {
+		clk_prepare(ssi.sst_fck);
+		clk_prepare(ssi.ssr_fck);
+		clk_prepare(ssi.ick);
+	}
 }
 
 /**
@@ -204,12 +224,10 @@ int dsp_clk_enable(enum dsp_clk_id clk_id)
 		clk_enable(iva2_clk);
 		break;
 	case GPT_CLK:
-		timer[clk_id - 1] =
-				omap_dm_timer_request_specific(DMT_ID(clk_id));
+		status = omap_dm_timer_start(timer[clk_id - 1]);
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
-		omap_mcbsp_set_io_type(MCBSP_ID(clk_id), OMAP_MCBSP_POLL_IO);
 		omap_mcbsp_request(MCBSP_ID(clk_id));
 		omap2_mcbsp_set_clks_src(MCBSP_ID(clk_id), MCBSP_CLKS_PAD_SRC);
 		break;
@@ -282,7 +300,7 @@ int dsp_clk_disable(enum dsp_clk_id clk_id)
 		clk_disable(iva2_clk);
 		break;
 	case GPT_CLK:
-		omap_dm_timer_free(timer[clk_id - 1]);
+		status = omap_dm_timer_stop(timer[clk_id - 1]);
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:

@@ -9,7 +9,6 @@
 #include <linux/interrupt.h>
 #include <asm/bfin-global.h>
 #include <asm/reboot.h>
-#include <asm/system.h>
 #include <asm/bfrom.h>
 
 /* A system soft reset makes external memory unusable so force
@@ -23,6 +22,7 @@
 __attribute__ ((__l1_text__, __noreturn__))
 static void bfin_reset(void)
 {
+#ifndef CONFIG_BF60x
 	if (!ANOMALY_05000353 && !ANOMALY_05000386)
 		bfrom_SoftReset((void *)(L1_SCRATCH_START + L1_SCRATCH_LENGTH - 20));
 
@@ -54,9 +54,10 @@ static void bfin_reset(void)
 
 	/* The BF526 ROM will crash during reset */
 #if defined(__ADSPBF522__) || defined(__ADSPBF524__) || defined(__ADSPBF526__)
-	bfin_read_SWRST();
+	/* Seems to be fixed with newer parts though ... */
+	if (__SILICON_REVISION__ < 1 && bfin_revid() < 1)
+		bfin_read_SWRST();
 #endif
-
 	/* Wait for the SWRST write to complete.  Cannot rely on SSYNC
 	 * though as the System state is all reset now.
 	 */
@@ -71,6 +72,10 @@ static void bfin_reset(void)
 	while (1)
 		/* Issue core reset */
 		asm("raise 1");
+#else
+	while (1)
+		bfin_write_RCU0_CTL(0x1);
+#endif
 }
 
 __attribute__((weak))
@@ -81,7 +86,6 @@ void native_machine_restart(char *cmd)
 void machine_restart(char *cmd)
 {
 	native_machine_restart(cmd);
-	local_irq_disable();
 	if (smp_processor_id())
 		smp_call_function((void *)bfin_reset, 0, 1);
 	else

@@ -19,12 +19,17 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/of_irq.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/slot-gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
-#include <plat/mvsdio.h>
+#include <linux/platform_data/mmc-mvsdio.h>
 
 #include "mvsdio.h"
 
@@ -49,10 +54,7 @@ struct mvsd_host {
 	struct timer_list timer;
 	struct mmc_host *mmc;
 	struct device *dev;
-	struct resource *res;
-	int irq;
-	int gpio_card_detect;
-	int gpio_write_protect;
+	struct clk *clk;
 };
 
 #define mvsd_write(offs, val)	writel(val, iobase + (offs))
@@ -117,10 +119,8 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 		host->pio_size = data->blocks * data->blksz;
 		host->pio_ptr = sg_virt(data->sg);
 		if (!nodma)
-			printk(KERN_DEBUG "%s: fallback to PIO for data "
-					  "at 0x%p size %d\n",
-					  mmc_hostname(host->mmc),
-					  host->pio_ptr, host->pio_size);
+			dev_dbg(host->dev, "fallback to PIO for data at 0x%p size %d\n",
+				host->pio_ptr, host->pio_size);
 		return 1;
 	} else {
 		dma_addr_t phys_addr;
@@ -471,8 +471,8 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 		if (mrq->data)
 			err_status = mvsd_finish_data(host, mrq->data, err_status);
 		if (err_status) {
-			printk(KERN_ERR "%s: unhandled error status %#04x\n",
-					mmc_hostname(host->mmc), err_status);
+			dev_err(host->dev, "unhandled error status %#04x\n",
+				err_status);
 			cmd->error = -ENOMSG;
 		}
 
@@ -489,9 +489,8 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	if (irq_handled)
 		return IRQ_HANDLED;
 
-	printk(KERN_ERR "%s: unhandled interrupt status=0x%04x en=0x%04x "
-			"pio=%d\n", mmc_hostname(host->mmc), intr_status,
-			host->intr_en, host->pio_size);
+	dev_err(host->dev, "unhandled interrupt status=0x%04x en=0x%04x pio=%d\n",
+		intr_status, host->intr_en, host->pio_size);
 	return IRQ_NONE;
 }
 
@@ -505,13 +504,11 @@ static void mvsd_timeout_timer(unsigned long data)
 	spin_lock_irqsave(&host->lock, flags);
 	mrq = host->mrq;
 	if (mrq) {
-		printk(KERN_ERR "%s: Timeout waiting for hardware interrupt.\n",
-				mmc_hostname(host->mmc));
-		printk(KERN_ERR "%s: hw_state=0x%04x, intr_status=0x%04x "
-				"intr_en=0x%04x\n", mmc_hostname(host->mmc),
-				mvsd_read(MVSD_HW_STATE),
-				mvsd_read(MVSD_NOR_INTR_STATUS),
-				mvsd_read(MVSD_NOR_INTR_EN));
+		dev_err(host->dev, "Timeout waiting for hardware interrupt.\n");
+		dev_err(host->dev, "hw_state=0x%04x, intr_status=0x%04x intr_en=0x%04x\n",
+			mvsd_read(MVSD_HW_STATE),
+			mvsd_read(MVSD_NOR_INTR_STATUS),
+			mvsd_read(MVSD_NOR_INTR_EN));
 
 		host->mrq = NULL;
 
@@ -538,13 +535,6 @@ static void mvsd_timeout_timer(unsigned long data)
 		mmc_request_done(host->mmc, mrq);
 }
 
-static irqreturn_t mvsd_card_detect_irq(int irq, void *dev)
-{
-	struct mvsd_host *host = dev;
-	mmc_detect_change(host->mmc, msecs_to_jiffies(100));
-	return IRQ_HANDLED;
-}
-
 static void mvsd_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct mvsd_host *host = mmc_priv(mmc);
@@ -562,20 +552,6 @@ static void mvsd_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	mvsd_write(MVSD_XFER_MODE, host->xfer_mode);
 	mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
 	spin_unlock_irqrestore(&host->lock, flags);
-}
-
-static int mvsd_get_ro(struct mmc_host *mmc)
-{
-	struct mvsd_host *host = mmc_priv(mmc);
-
-	if (host->gpio_write_protect)
-		return gpio_get_value(host->gpio_write_protect);
-
-	/*
-	 * Board doesn't support read only detection; let the mmc core
-	 * decide what to do.
-	 */
-	return -ENOSYS;
 }
 
 static void mvsd_power_up(struct mvsd_host *host)
@@ -674,13 +650,14 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 static const struct mmc_host_ops mvsd_ops = {
 	.request		= mvsd_request,
-	.get_ro			= mvsd_get_ro,
+	.get_ro			= mmc_gpio_get_ro,
 	.set_ios		= mvsd_set_ios,
 	.enable_sdio_irq	= mvsd_enable_sdio_irq,
 };
 
-static void __init mv_conf_mbus_windows(struct mvsd_host *host,
-					struct mbus_dram_target_info *dram)
+static void __init
+mv_conf_mbus_windows(struct mvsd_host *host,
+		     const struct mbus_dram_target_info *dram)
 {
 	void __iomem *iobase = host->base;
 	int i;
@@ -691,7 +668,7 @@ static void __init mv_conf_mbus_windows(struct mvsd_host *host,
 	}
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 		writel(((cs->size - 1) & 0xffff0000) |
 		       (cs->mbus_attr << 8) |
 		       (dram->mbus_dram_target_id << 4) | 1,
@@ -702,21 +679,19 @@ static void __init mv_conf_mbus_windows(struct mvsd_host *host,
 
 static int __init mvsd_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct mmc_host *mmc = NULL;
 	struct mvsd_host *host = NULL;
-	const struct mvsdio_platform_data *mvsd_data;
+	const struct mbus_dram_target_info *dram;
 	struct resource *r;
 	int ret, irq;
+	int gpio_card_detect, gpio_write_protect;
+	struct pinctrl *pinctrl;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	mvsd_data = pdev->dev.platform_data;
-	if (!r || irq < 0 || !mvsd_data)
+	if (!r || irq < 0)
 		return -ENXIO;
-
-	r = request_mem_region(r->start, SZ_1K, DRIVER_NAME);
-	if (!r)
-		return -EBUSY;
 
 	mmc = mmc_alloc_host(sizeof(struct mvsd_host), &pdev->dev);
 	if (!mmc) {
@@ -727,8 +702,43 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->dev = &pdev->dev;
-	host->res = r;
-	host->base_clock = mvsd_data->clock / 2;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&pdev->dev, "no pins associated\n");
+
+	/*
+	 * Some non-DT platforms do not pass a clock, and the clock
+	 * frequency is passed through platform_data. On DT platforms,
+	 * a clock must always be passed, even if there is no gatable
+	 * clock associated to the SDIO interface (it can simply be a
+	 * fixed rate clock).
+	 */
+	host->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(host->clk))
+		clk_prepare_enable(host->clk);
+
+	if (np) {
+		if (IS_ERR(host->clk)) {
+			dev_err(&pdev->dev, "DT platforms must have a clock associated\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		host->base_clock = clk_get_rate(host->clk) / 2;
+		gpio_card_detect = of_get_named_gpio(np, "cd-gpios", 0);
+		gpio_write_protect = of_get_named_gpio(np, "wp-gpios", 0);
+	} else {
+		const struct mvsdio_platform_data *mvsd_data;
+		mvsd_data = pdev->dev.platform_data;
+		if (!mvsd_data) {
+			ret = -ENXIO;
+			goto out;
+		}
+		host->base_clock = mvsd_data->clock / 2;
+		gpio_card_detect = mvsd_data->gpio_card_detect ? : -EINVAL;
+		gpio_write_protect = mvsd_data->gpio_write_protect ? : -EINVAL;
+	}
 
 	mmc->ops = &mvsd_ops;
 
@@ -748,53 +758,33 @@ static int __init mvsd_probe(struct platform_device *pdev)
 
 	spin_lock_init(&host->lock);
 
-	host->base = ioremap(r->start, SZ_4K);
+	host->base = devm_request_and_ioremap(&pdev->dev, r);
 	if (!host->base) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	/* (Re-)program MBUS remapping windows if we are asked to. */
-	if (mvsd_data->dram != NULL)
-		mv_conf_mbus_windows(host, mvsd_data->dram);
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv_conf_mbus_windows(host, dram);
 
 	mvsd_power_down(host);
 
-	ret = request_irq(irq, mvsd_irq, 0, DRIVER_NAME, host);
+	ret = devm_request_irq(&pdev->dev, irq, mvsd_irq, 0, DRIVER_NAME, host);
 	if (ret) {
-		printk(KERN_ERR "%s: cannot assign irq %d\n", DRIVER_NAME, irq);
+		dev_err(&pdev->dev, "cannot assign irq %d\n", irq);
 		goto out;
-	} else
-		host->irq = irq;
-
-	if (mvsd_data->gpio_card_detect) {
-		ret = gpio_request(mvsd_data->gpio_card_detect,
-				   DRIVER_NAME " cd");
-		if (ret == 0) {
-			gpio_direction_input(mvsd_data->gpio_card_detect);
-			irq = gpio_to_irq(mvsd_data->gpio_card_detect);
-			ret = request_irq(irq, mvsd_card_detect_irq,
-					  IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING,
-					  DRIVER_NAME " cd", host);
-			if (ret == 0)
-				host->gpio_card_detect =
-					mvsd_data->gpio_card_detect;
-			else
-				gpio_free(mvsd_data->gpio_card_detect);
-		}
 	}
-	if (!host->gpio_card_detect)
+
+	if (gpio_is_valid(gpio_card_detect)) {
+		ret = mmc_gpio_request_cd(mmc, gpio_card_detect);
+		if (ret)
+			goto out;
+	} else
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	if (mvsd_data->gpio_write_protect) {
-		ret = gpio_request(mvsd_data->gpio_write_protect,
-				   DRIVER_NAME " wp");
-		if (ret == 0) {
-			gpio_direction_input(mvsd_data->gpio_write_protect);
-			host->gpio_write_protect =
-				mvsd_data->gpio_write_protect;
-		}
-	}
+	mmc_gpio_request_ro(mmc, gpio_write_protect);
 
 	setup_timer(&host->timer, mvsd_timeout_timer, (unsigned long)host);
 	platform_set_drvdata(pdev, mmc);
@@ -802,32 +792,21 @@ static int __init mvsd_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	printk(KERN_NOTICE "%s: %s driver initialized, ",
-			   mmc_hostname(mmc), DRIVER_NAME);
-	if (host->gpio_card_detect)
-		printk("using GPIO %d for card detection\n",
-		       host->gpio_card_detect);
+	if (!(mmc->caps & MMC_CAP_NEEDS_POLL))
+		dev_notice(&pdev->dev, "using GPIO %d for card detection\n",
+			   gpio_card_detect);
 	else
-		printk("lacking card detect (fall back to polling)\n");
+		dev_notice(&pdev->dev, "lacking card detect (fall back to polling)\n");
 	return 0;
 
 out:
-	if (host) {
-		if (host->irq)
-			free_irq(host->irq, host);
-		if (host->gpio_card_detect) {
-			free_irq(gpio_to_irq(host->gpio_card_detect), host);
-			gpio_free(host->gpio_card_detect);
-		}
-		if (host->gpio_write_protect)
-			gpio_free(host->gpio_write_protect);
-		if (host->base)
-			iounmap(host->base);
-	}
-	if (r)
-		release_resource(r);
-	if (mmc)
+	if (mmc) {
+		mmc_gpio_free_cd(mmc);
+		mmc_gpio_free_ro(mmc);
+		if (!IS_ERR(host->clk))
+			clk_disable_unprepare(host->clk);
 		mmc_free_host(mmc);
+	}
 
 	return ret;
 }
@@ -836,23 +815,18 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
-	if (mmc) {
-		struct mvsd_host *host = mmc_priv(mmc);
+	struct mvsd_host *host = mmc_priv(mmc);
 
-		if (host->gpio_card_detect) {
-			free_irq(gpio_to_irq(host->gpio_card_detect), host);
-			gpio_free(host->gpio_card_detect);
-		}
-		mmc_remove_host(mmc);
-		free_irq(host->irq, host);
-		if (host->gpio_write_protect)
-			gpio_free(host->gpio_write_protect);
-		del_timer_sync(&host->timer);
-		mvsd_power_down(host);
-		iounmap(host->base);
-		release_resource(host->res);
-		mmc_free_host(mmc);
-	}
+	mmc_gpio_free_cd(mmc);
+	mmc_gpio_free_ro(mmc);
+	mmc_remove_host(mmc);
+	del_timer_sync(&host->timer);
+	mvsd_power_down(host);
+
+	if (!IS_ERR(host->clk))
+		clk_disable_unprepare(host->clk);
+	mmc_free_host(mmc);
+
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
@@ -884,27 +858,23 @@ static int mvsd_resume(struct platform_device *dev)
 #define mvsd_resume	NULL
 #endif
 
+static const struct of_device_id mvsdio_dt_ids[] = {
+	{ .compatible = "marvell,orion-sdio" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mvsdio_dt_ids);
+
 static struct platform_driver mvsd_driver = {
 	.remove		= __exit_p(mvsd_remove),
 	.suspend	= mvsd_suspend,
 	.resume		= mvsd_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.of_match_table = mvsdio_dt_ids,
 	},
 };
 
-static int __init mvsd_init(void)
-{
-	return platform_driver_probe(&mvsd_driver, mvsd_probe);
-}
-
-static void __exit mvsd_exit(void)
-{
-	platform_driver_unregister(&mvsd_driver);
-}
-
-module_init(mvsd_init);
-module_exit(mvsd_exit);
+module_platform_driver_probe(mvsd_driver, mvsd_probe);
 
 /* maximum card clock frequency (default 50MHz) */
 module_param(maxfreq, int, 0);

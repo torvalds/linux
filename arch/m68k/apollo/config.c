@@ -9,7 +9,6 @@
 
 #include <asm/setup.h>
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/apollohw.h>
 #include <asm/irq.h>
@@ -27,7 +26,7 @@ u_long apollo_model;
 
 extern void dn_sched_init(irq_handler_t handler);
 extern void dn_init_IRQ(void);
-extern unsigned long dn_gettimeoffset(void);
+extern u32 dn_gettimeoffset(void);
 extern int dn_dummy_hwclk(int, struct rtc_time *);
 extern int dn_dummy_set_clock_mmss(unsigned long);
 extern void dn_dummy_reset(void);
@@ -152,7 +151,7 @@ void __init config_apollo(void)
 
 	mach_sched_init=dn_sched_init; /* */
 	mach_init_IRQ=dn_init_IRQ;
-	mach_gettimeoffset   = dn_gettimeoffset;
+	arch_gettimeoffset   = dn_gettimeoffset;
 	mach_max_dma_address = 0xffffffff;
 	mach_hwclk           = dn_dummy_hwclk; /* */
 	mach_set_clock_mmss  = dn_dummy_set_clock_mmss; /* */
@@ -178,8 +177,8 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 
 	timer_handler(irq, dev_id);
 
-	x=*(volatile unsigned char *)(timer+3);
-	x=*(volatile unsigned char *)(timer+5);
+	x = *(volatile unsigned char *)(apollo_timer + 3);
+	x = *(volatile unsigned char *)(apollo_timer + 5);
 
 	return IRQ_HANDLED;
 }
@@ -187,27 +186,26 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 void dn_sched_init(irq_handler_t timer_routine)
 {
 	/* program timer 1 */
-	*(volatile unsigned char *)(timer+3)=0x01;
-	*(volatile unsigned char *)(timer+1)=0x40;
-	*(volatile unsigned char *)(timer+5)=0x09;
-	*(volatile unsigned char *)(timer+7)=0xc4;
+	*(volatile unsigned char *)(apollo_timer + 3) = 0x01;
+	*(volatile unsigned char *)(apollo_timer + 1) = 0x40;
+	*(volatile unsigned char *)(apollo_timer + 5) = 0x09;
+	*(volatile unsigned char *)(apollo_timer + 7) = 0xc4;
 
 	/* enable IRQ of PIC B */
 	*(volatile unsigned char *)(pica+1)&=(~8);
 
 #if 0
-	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
-	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
+	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(apollo_timer + 0x3));
+	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(apollo_timer + 0x3));
 #endif
 
 	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine))
 		pr_err("Couldn't register timer interrupt\n");
 }
 
-unsigned long dn_gettimeoffset(void) {
-
+u32 dn_gettimeoffset(void)
+{
 	return 0xdeadbeef;
-
 }
 
 int dn_dummy_hwclk(int op, struct rtc_time *t) {

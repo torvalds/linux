@@ -35,6 +35,7 @@
 #include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/jhash.h>
+#include <linux/ratelimit.h>
 #include "rds.h"
 
 #define BIND_HASH_SIZE 1024
@@ -51,13 +52,12 @@ static struct rds_sock *rds_bind_lookup(__be32 addr, __be16 port,
 					struct rds_sock *insert)
 {
 	struct rds_sock *rs;
-	struct hlist_node *node;
 	struct hlist_head *head = hash_to_bucket(addr, port);
 	u64 cmp;
 	u64 needle = ((u64)be32_to_cpu(addr) << 32) | be16_to_cpu(port);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(rs, node, head, rs_bound_node) {
+	hlist_for_each_entry_rcu(rs, head, rs_bound_node) {
 		cmp = ((u64)be32_to_cpu(rs->rs_bound_addr) << 32) |
 		      be16_to_cpu(rs->rs_bound_port);
 
@@ -185,8 +185,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (!trans) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);
-		if (printk_ratelimit())
-			printk(KERN_INFO "RDS: rds_bind() could not find a transport, "
+		printk_ratelimited(KERN_INFO "RDS: rds_bind() could not find a transport, "
 				"load rds_tcp or rds_rdma?\n");
 		goto out;
 	}

@@ -15,10 +15,14 @@
 extern int check_legacy_ioport(unsigned long base_port);
 #define I8042_DATA_REG	0x60
 #define FDC_BASE	0x3f0
-/* only relevant for PReP */
-#define _PIDXR		0x279
-#define _PNPWRP		0xa79
-#define PNPBIOS_BASE	0xf000
+
+#if defined(CONFIG_PPC64) && defined(CONFIG_PCI)
+extern struct pci_dev *isa_bridge_pcidev;
+/*
+ * has legacy ISA devices ?
+ */
+#define arch_has_dev_port()	(isa_bridge_pcidev != NULL)
+#endif
 
 #include <linux/device.h>
 #include <linux/io.h>
@@ -394,7 +398,7 @@ __do_out_asm(_rec_outl, "stwbrx")
 #endif /* CONFIG_PPC32 */
 
 /* The "__do_*" operations below provide the actual "base" implementation
- * for each of the defined acccessor. Some of them use the out_* functions
+ * for each of the defined accessors. Some of them use the out_* functions
  * directly, some of them still use EEH, though we might change that in the
  * future. Those macros below provide the necessary argument swapping and
  * handling of the IO base for PIO.

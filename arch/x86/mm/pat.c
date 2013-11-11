@@ -158,31 +158,47 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
+struct pagerange_state {
+	unsigned long		cur_pfn;
+	int			ram;
+	int			not_ram;
+};
+
+static int
+pagerange_is_ram_callback(unsigned long initial_pfn, unsigned long total_nr_pages, void *arg)
+{
+	struct pagerange_state *state = arg;
+
+	state->not_ram	|= initial_pfn > state->cur_pfn;
+	state->ram	|= total_nr_pages > 0;
+	state->cur_pfn	 = initial_pfn + total_nr_pages;
+
+	return state->ram && state->not_ram;
+}
+
 static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
 {
-	int ram_page = 0, not_rampage = 0;
-	unsigned long page_nr;
+	int ret = 0;
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long end_pfn = (end + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	struct pagerange_state state = {start_pfn, 0, 0};
 
-	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
-	     ++page_nr) {
-		/*
-		 * For legacy reasons, physical address range in the legacy ISA
-		 * region is tracked as non-RAM. This will allow users of
-		 * /dev/mem to map portions of legacy ISA region, even when
-		 * some of those portions are listed(or not even listed) with
-		 * different e820 types(RAM/reserved/..)
-		 */
-		if (page_nr >= (ISA_END_ADDRESS >> PAGE_SHIFT) &&
-		    page_is_ram(page_nr))
-			ram_page = 1;
-		else
-			not_rampage = 1;
+	/*
+	 * For legacy reasons, physical address range in the legacy ISA
+	 * region is tracked as non-RAM. This will allow users of
+	 * /dev/mem to map portions of legacy ISA region, even when
+	 * some of those portions are listed(or not even listed) with
+	 * different e820 types(RAM/reserved/..)
+	 */
+	if (start_pfn < ISA_END_ADDRESS >> PAGE_SHIFT)
+		start_pfn = ISA_END_ADDRESS >> PAGE_SHIFT;
 
-		if (ram_page == not_rampage)
-			return -1;
+	if (start_pfn < end_pfn) {
+		ret = walk_system_ram_range(start_pfn, end_pfn - start_pfn,
+				&state, pagerange_is_ram_callback);
 	}
 
-	return ram_page;
+	return (ret > 0) ? -1 : (state.ram ? 1 : 0);
 }
 
 /*
@@ -209,9 +225,8 @@ static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
 		page = pfn_to_page(pfn);
 		type = get_page_memtype(page);
 		if (type != -1) {
-			printk(KERN_INFO "reserve_ram_pages_type failed "
-				"0x%Lx-0x%Lx, track 0x%lx, req 0x%lx\n",
-				start, end, type, req_type);
+			printk(KERN_INFO "reserve_ram_pages_type failed [mem %#010Lx-%#010Lx], track 0x%lx, req 0x%lx\n",
+				start, end - 1, type, req_type);
 			if (new_type)
 				*new_type = type;
 
@@ -314,9 +329,9 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	err = rbt_memtype_check_insert(new, new_type);
 	if (err) {
-		printk(KERN_INFO "reserve_memtype failed 0x%Lx-0x%Lx, "
-		       "track %s, req %s\n",
-		       start, end, cattr_name(new->type), cattr_name(req_type));
+		printk(KERN_INFO "reserve_memtype failed [mem %#010Lx-%#010Lx], track %s, req %s\n",
+		       start, end - 1,
+		       cattr_name(new->type), cattr_name(req_type));
 		kfree(new);
 		spin_unlock(&memtype_lock);
 
@@ -325,8 +340,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	spin_unlock(&memtype_lock);
 
-	dprintk("reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
-		start, end, cattr_name(new->type), cattr_name(req_type),
+	dprintk("reserve_memtype added [mem %#010Lx-%#010Lx], track %s, req %s, ret %s\n",
+		start, end - 1, cattr_name(new->type), cattr_name(req_type),
 		new_type ? cattr_name(*new_type) : "-");
 
 	return err;
@@ -360,14 +375,14 @@ int free_memtype(u64 start, u64 end)
 	spin_unlock(&memtype_lock);
 
 	if (!entry) {
-		printk(KERN_INFO "%s:%d freeing invalid memtype %Lx-%Lx\n",
-			current->comm, current->pid, start, end);
+		printk(KERN_INFO "%s:%d freeing invalid memtype [mem %#010Lx-%#010Lx]\n",
+		       current->comm, current->pid, start, end - 1);
 		return -EINVAL;
 	}
 
 	kfree(entry);
 
-	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+	dprintk("free_memtype request [mem %#010Lx-%#010Lx]\n", start, end - 1);
 
 	return 0;
 }
@@ -491,9 +506,8 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 
 	while (cursor < to) {
 		if (!devmem_is_allowed(pfn)) {
-			printk(KERN_INFO
-		"Program %s tried to access /dev/mem between %Lx->%Lx.\n",
-				current->comm, from, to);
+			printk(KERN_INFO "Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx]\n",
+				current->comm, from, to - 1);
 			return 0;
 		}
 		cursor += PAGE_SIZE;
@@ -546,20 +560,26 @@ int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
 {
 	unsigned long id_sz;
 
-	if (base >= __pa(high_memory))
+	if (base > __pa(high_memory-1))
 		return 0;
 
-	id_sz = (__pa(high_memory) < base + size) ?
+	/*
+	 * some areas in the middle of the kernel identity range
+	 * are not mapped, like the PCI space.
+	 */
+	if (!page_is_ram(base >> PAGE_SHIFT))
+		return 0;
+
+	id_sz = (__pa(high_memory-1) <= base + size) ?
 				__pa(high_memory) - base :
 				size;
 
 	if (ioremap_change_attr((unsigned long)__va(base), id_sz, flags) < 0) {
-		printk(KERN_INFO
-			"%s:%d ioremap_change_attr failed %s "
-			"for %Lx-%Lx\n",
+		printk(KERN_INFO "%s:%d ioremap_change_attr failed %s "
+			"for [mem %#010Lx-%#010Lx]\n",
 			current->comm, current->pid,
 			cattr_name(flags),
-			base, (unsigned long long)(base + size));
+			base, (unsigned long long)(base + size-1));
 		return -EINVAL;
 	}
 	return 0;
@@ -591,12 +611,11 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 
 		flags = lookup_memtype(paddr);
 		if (want_flags != flags) {
-			printk(KERN_WARNING
-			"%s:%d map pfn RAM range req %s for %Lx-%Lx, got %s\n",
+			printk(KERN_WARNING "%s:%d map pfn RAM range req %s for [mem %#010Lx-%#010Lx], got %s\n",
 				current->comm, current->pid,
 				cattr_name(want_flags),
 				(unsigned long long)paddr,
-				(unsigned long long)(paddr + size),
+				(unsigned long long)(paddr + size - 1),
 				cattr_name(flags));
 			*vma_prot = __pgprot((pgprot_val(*vma_prot) &
 					      (~_PAGE_CACHE_MASK)) |
@@ -614,11 +633,11 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 		    !is_new_memtype_allowed(paddr, size, want_flags, flags)) {
 			free_memtype(paddr, paddr + size);
 			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
-				" for %Lx-%Lx, got %s\n",
+				" for [mem %#010Lx-%#010Lx], got %s\n",
 				current->comm, current->pid,
 				cattr_name(want_flags),
 				(unsigned long long)paddr,
-				(unsigned long long)(paddr + size),
+				(unsigned long long)(paddr + size - 1),
 				cattr_name(flags));
 			return -EINVAL;
 		}
@@ -652,20 +671,20 @@ static void free_pfn_range(u64 paddr, unsigned long size)
 }
 
 /*
- * track_pfn_vma_copy is called when vma that is covering the pfnmap gets
+ * track_pfn_copy is called when vma that is covering the pfnmap gets
  * copied through copy_page_range().
  *
  * If the vma has a linear pfn mapping for the entire range, we get the prot
  * from pte and reserve the entire vma range with single reserve_pfn_range call.
  */
-int track_pfn_vma_copy(struct vm_area_struct *vma)
+int track_pfn_copy(struct vm_area_struct *vma)
 {
 	resource_size_t paddr;
 	unsigned long prot;
 	unsigned long vma_size = vma->vm_end - vma->vm_start;
 	pgprot_t pgprot;
 
-	if (is_linear_pfn_mapping(vma)) {
+	if (vma->vm_flags & VM_PAT) {
 		/*
 		 * reserve the whole chunk covered by vma. We need the
 		 * starting address and protection from pte.
@@ -682,31 +701,59 @@ int track_pfn_vma_copy(struct vm_area_struct *vma)
 }
 
 /*
- * track_pfn_vma_new is called when a _new_ pfn mapping is being established
- * for physical range indicated by pfn and size.
- *
  * prot is passed in as a parameter for the new mapping. If the vma has a
  * linear pfn mapping for the entire range reserve the entire vma range with
  * single reserve_pfn_range call.
  */
-int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
-			unsigned long pfn, unsigned long size)
+int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+		    unsigned long pfn, unsigned long addr, unsigned long size)
 {
+	resource_size_t paddr = (resource_size_t)pfn << PAGE_SHIFT;
 	unsigned long flags;
-	resource_size_t paddr;
-	unsigned long vma_size = vma->vm_end - vma->vm_start;
 
-	if (is_linear_pfn_mapping(vma)) {
-		/* reserve the whole chunk starting from vm_pgoff */
-		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
-		return reserve_pfn_range(paddr, vma_size, prot, 0);
+	/* reserve the whole chunk starting from paddr */
+	if (addr == vma->vm_start && size == (vma->vm_end - vma->vm_start)) {
+		int ret;
+
+		ret = reserve_pfn_range(paddr, size, prot, 0);
+		if (!ret)
+			vma->vm_flags |= VM_PAT;
+		return ret;
 	}
 
 	if (!pat_enabled)
 		return 0;
 
-	/* for vm_insert_pfn and friends, we set prot based on lookup */
-	flags = lookup_memtype(pfn << PAGE_SHIFT);
+	/*
+	 * For anything smaller than the vma size we set prot based on the
+	 * lookup.
+	 */
+	flags = lookup_memtype(paddr);
+
+	/* Check memtype for the remaining pages */
+	while (size > PAGE_SIZE) {
+		size -= PAGE_SIZE;
+		paddr += PAGE_SIZE;
+		if (flags != lookup_memtype(paddr))
+			return -EINVAL;
+	}
+
+	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+			 flags);
+
+	return 0;
+}
+
+int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+		     unsigned long pfn)
+{
+	unsigned long flags;
+
+	if (!pat_enabled)
+		return 0;
+
+	/* Set prot based on lookup */
+	flags = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
 	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
 			 flags);
 
@@ -714,22 +761,31 @@ int track_pfn_vma_new(struct vm_area_struct *vma, pgprot_t *prot,
 }
 
 /*
- * untrack_pfn_vma is called while unmapping a pfnmap for a region.
+ * untrack_pfn is called while unmapping a pfnmap for a region.
  * untrack can be called for a specific region indicated by pfn and size or
- * can be for the entire vma (in which case size can be zero).
+ * can be for the entire vma (in which case pfn, size are zero).
  */
-void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
-			unsigned long size)
+void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+		 unsigned long size)
 {
 	resource_size_t paddr;
-	unsigned long vma_size = vma->vm_end - vma->vm_start;
+	unsigned long prot;
 
-	if (is_linear_pfn_mapping(vma)) {
-		/* free the whole chunk starting from vm_pgoff */
-		paddr = (resource_size_t)vma->vm_pgoff << PAGE_SHIFT;
-		free_pfn_range(paddr, vma_size);
+	if (!(vma->vm_flags & VM_PAT))
 		return;
+
+	/* free the chunk starting from pfn or the whole chunk */
+	paddr = (resource_size_t)pfn << PAGE_SHIFT;
+	if (!paddr && !size) {
+		if (follow_phys(vma, vma->vm_start, 0, &prot, &paddr)) {
+			WARN_ON_ONCE(1);
+			return;
+		}
+
+		size = vma->vm_end - vma->vm_start;
 	}
+	free_pfn_range(paddr, size);
+	vma->vm_flags &= ~VM_PAT;
 }
 
 pgprot_t pgprot_writecombine(pgprot_t prot)

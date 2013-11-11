@@ -333,11 +333,6 @@ CONFIG_XT2000_SONIC=y
 # CONFIG_S2IO is not set
 
 #
-# Token Ring devices
-#
-# CONFIG_TR is not set
-
-#
 # Wireless LAN (non-hamradio)
 #
 CONFIG_NET_RADIO=y

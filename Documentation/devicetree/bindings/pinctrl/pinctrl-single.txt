@@ -1,0 +1,233 @@
+One-register-per-pin type device tree based pinctrl driver
+
+Required properties:
+- compatible : "pinctrl-single" or "pinconf-single".
+  "pinctrl-single" means that pinconf isn't supported.
+  "pinconf-single" means that generic pinconf is supported.
+
+- reg : offset and length of the register set for the mux registers
+
+- pinctrl-single,register-width : pinmux register access width in bits
+
+- pinctrl-single,function-mask : mask of allowed pinmux function bits
+  in the pinmux register
+
+Optional properties:
+- pinctrl-single,function-off : function off mode for disabled state if
+  available and same for all registers; if not specified, disabling of
+  pin functions is ignored
+
+- pinctrl-single,bit-per-mux : boolean to indicate that one register controls
+  more than one pin
+
+- pinctrl-single,drive-strength : array of value that are used to configure
+  drive strength in the pinmux register. They're value of drive strength
+  current and drive strength mask.
+
+		/* drive strength current, mask */
+		pinctrl-single,power-source = <0x30 0xf0>;
+
+- pinctrl-single,bias-pullup : array of value that are used to configure the
+  input bias pullup in the pinmux register.
+
+		/* input, enabled pullup bits, disabled pullup bits, mask */
+		pinctrl-single,bias-pullup = <0 1 0 1>;
+
+- pinctrl-single,bias-pulldown : array of value that are used to configure the
+  input bias pulldown in the pinmux register.
+
+		/* input, enabled pulldown bits, disabled pulldown bits, mask */
+		pinctrl-single,bias-pulldown = <2 2 0 2>;
+
+  * Two bits to control input bias pullup and pulldown: User should use
+    pinctrl-single,bias-pullup & pinctrl-single,bias-pulldown. One bit means
+    pullup, and the other one bit means pulldown.
+  * Three bits to control input bias enable, pullup and pulldown. User should
+    use pinctrl-single,bias-pullup & pinctrl-single,bias-pulldown. Input bias
+    enable bit should be included in pullup or pulldown bits.
+  * Although driver could set PIN_CONFIG_BIAS_DISABLE, there's no property as
+    pinctrl-single,bias-disable. Because pinctrl single driver could implement
+    it by calling pulldown, pullup disabled.
+
+- pinctrl-single,input-schmitt : array of value that are used to configure
+  input schmitt in the pinmux register. In some silicons, there're two input
+  schmitt value (rising-edge & falling-edge) in the pinmux register.
+
+		/* input schmitt value, mask */
+		pinctrl-single,input-schmitt = <0x30 0x70>;
+
+- pinctrl-single,input-schmitt-enable : array of value that are used to
+  configure input schmitt enable or disable in the pinmux register.
+
+		/* input, enable bits, disable bits, mask */
+		pinctrl-single,input-schmitt-enable = <0x30 0x40 0 0x70>;
+
+- pinctrl-single,gpio-range : list of value that are used to configure a GPIO
+  range. They're value of subnode phandle, pin base in pinctrl device, pin
+  number in this range, GPIO function value of this GPIO range.
+  The number of parameters is depend on #pinctrl-single,gpio-range-cells
+  property.
+
+		/* pin base, nr pins & gpio function */
+		pinctrl-single,gpio-range = <&range 0 3 0 &range 3 9 1>;
+
+This driver assumes that there is only one register for each pin (unless the
+pinctrl-single,bit-per-mux is set), and uses the common pinctrl bindings as
+specified in the pinctrl-bindings.txt document in this directory.
+
+The pin configuration nodes for pinctrl-single are specified as pinctrl
+register offset and value pairs using pinctrl-single,pins. Only the bits
+specified in pinctrl-single,function-mask are updated. For example, setting
+a pin for a device could be done with:
+
+	pinctrl-single,pins = <0xdc 0x118>;
+
+Where 0xdc is the offset from the pinctrl register base address for the
+device pinctrl register, and 0x118 contains the desired value of the
+pinctrl register. See the device example and static board pins example
+below for more information.
+
+In case when one register changes more than one pin's mux the
+pinctrl-single,bits need to be used which takes three parameters:
+
+	pinctrl-single,bits = <0xdc 0x18, 0xff>;
+
+Where 0xdc is the offset from the pinctrl register base address for the
+device pinctrl register, 0x18 is the desired value, and 0xff is the sub mask to
+be used when applying this change to the register.
+
+
+Optional sub-node: In case some pins could be configured as GPIO in the pinmux
+register, those pins could be defined as a GPIO range. This sub-node is required
+by pinctrl-single,gpio-range property.
+
+Required properties in sub-node:
+- #pinctrl-single,gpio-range-cells : the number of parameters after phandle in
+  pinctrl-single,gpio-range property.
+
+	range: gpio-range {
+		#pinctrl-single,gpio-range-cells = <3>;
+	};
+
+
+Example:
+
+/* SoC common file */
+
+/* first controller instance for pins in core domain */
+pmx_core: pinmux@4a100040 {
+	compatible = "pinctrl-single";
+	reg = <0x4a100040 0x0196>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,register-width = <16>;
+	pinctrl-single,function-mask = <0xffff>;
+};
+
+/* second controller instance for pins in wkup domain */
+pmx_wkup: pinmux@4a31e040 {
+	compatible = "pinctrl-single";
+	reg = <0x4a31e040 0x0038>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,register-width = <16>;
+	pinctrl-single,function-mask = <0xffff>;
+};
+
+control_devconf0: pinmux@48002274 {
+	compatible = "pinctrl-single";
+	reg = <0x48002274 4>;	/* Single register */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-single,bit-per-mux;
+	pinctrl-single,register-width = <32>;
+	pinctrl-single,function-mask = <0x5F>;
+};
+
+/* third controller instance for pins in gpio domain */
+pmx_gpio: pinmux@d401e000 {
+	compatible = "pinconf-single";
+	reg = <0xd401e000 0x0330>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	pinctrl-single,register-width = <32>;
+	pinctrl-single,function-mask = <7>;
+
+	/* sparse GPIO range could be supported */
+	pinctrl-single,gpio-range = <&range 0 3 0 &range 3 9 1
+				&range 12 1 0 &range 13 29 1
+				&range 43 1 0 &range 44 49 1
+				&range 94 1 1 &range 96 2 1>;
+
+	range: gpio-range {
+		#pinctrl-single,gpio-range-cells = <3>;
+	};
+};
+
+
+/* board specific .dts file */
+
+&pmx_core {
+
+	/*
+	 * map all board specific static pins enabled by the pinctrl driver
+	 * itself during the boot (or just set them up in the bootloader)
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&board_pins>;
+
+	board_pins: pinmux_board_pins {
+		pinctrl-single,pins = <
+			0x6c 0xf
+			0x6e 0xf
+			0x70 0xf
+			0x72 0xf
+		>;
+	};
+
+	uart0_pins: pinmux_uart0_pins {
+		pinctrl-single,pins = <
+			0x208 0		/* UART0_RXD (IOCFG138) */
+			0x20c 0		/* UART0_TXD (IOCFG139) */
+		>;
+		pinctrl-single,bias-pulldown = <0 2 2>;
+		pinctrl-single,bias-pullup = <0 1 1>;
+	};
+
+	/* map uart2 pins */
+	uart2_pins: pinmux_uart2_pins {
+		pinctrl-single,pins = <
+			0xd8 0x118
+			0xda 0
+			0xdc 0x118
+			0xde 0
+		>;
+	};
+};
+
+&control_devconf0 {
+	mcbsp1_pins: pinmux_mcbsp1_pins {
+		pinctrl-single,bits = <
+			0x00 0x18 0x18 /* FSR/CLKR signal from FSX/CLKX pin */
+		>;
+	};
+
+	mcbsp2_clks_pins: pinmux_mcbsp2_clks_pins {
+		pinctrl-single,bits = <
+			0x00 0x40 0x40 /* McBSP2 CLKS from McBSP_CLKS pin */
+		>;
+	};
+
+};
+
+&uart1 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart0_pins>;
+};
+
+&uart2 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart2_pins>;
+};

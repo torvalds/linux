@@ -164,6 +164,13 @@ void rio_unregister_driver(struct rio_driver *rdrv)
 	driver_unregister(&rdrv->driver);
 }
 
+void rio_attach_device(struct rio_dev *rdev)
+{
+	rdev->dev.bus = &rio_bus_type;
+	rdev->dev.parent = &rio_bus;
+}
+EXPORT_SYMBOL_GPL(rio_attach_device);
+
 /**
  *  rio_match_bus - Tell if a RIO device structure has a matching RIO driver device id structure
  *  @dev: the standard device structure to match against
@@ -200,6 +207,7 @@ struct bus_type rio_bus_type = {
 	.name = "rapidio",
 	.match = rio_match_bus,
 	.dev_attrs = rio_dev_attrs,
+	.bus_attrs = rio_bus_attrs,
 	.probe = rio_device_probe,
 	.remove = rio_device_remove,
 };

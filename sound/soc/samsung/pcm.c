@@ -3,7 +3,7 @@
  * ALSA SoC Audio Layer - S3C PCM-Controller driver
  *
  * Copyright (c) 2009 Samsung Electronics Co. Ltd
- * Author: Jaswinder Singh <jassi.brar@samsung.com>
+ * Author: Jaswinder Singh <jassisinghbrar@gmail.com>
  * based upon I2S drivers by Ben Dooks.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,12 +13,14 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <plat/audio.h>
-#include <plat/dma.h>
+#include <linux/platform_data/asoc-s3c.h>
+#include <mach/dma.h>
 
 #include "dma.h"
 #include "pcm.h"
@@ -451,7 +453,7 @@ static int s3c_pcm_set_sysclk(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
+static const struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 	.set_sysclk	= s3c_pcm_set_sysclk,
 	.set_clkdiv	= s3c_pcm_set_clkdiv,
 	.trigger	= s3c_pcm_trigger,
@@ -477,7 +479,7 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,	\
 	}
 
-struct snd_soc_dai_driver s3c_pcm_dai[] = {
+static struct snd_soc_dai_driver s3c_pcm_dai[] = {
 	[0] = {
 		.name	= "samsung-pcm.0",
 		S3C_PCM_DAI_DECLARE,
@@ -487,9 +489,12 @@ struct snd_soc_dai_driver s3c_pcm_dai[] = {
 		S3C_PCM_DAI_DECLARE,
 	},
 };
-EXPORT_SYMBOL_GPL(s3c_pcm_dai);
 
-static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
+static const struct snd_soc_component_driver s3c_pcm_component = {
+	.name		= "s3c-pcm",
+};
+
+static int s3c_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm;
 	struct resource *mem_res, *dmatx_res, *dmarx_res;
@@ -542,7 +547,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pcm->cclk);
 		goto err1;
 	}
-	clk_enable(pcm->cclk);
+	clk_prepare_enable(pcm->cclk);
 
 	/* record our pcm structure for later use in the callbacks */
 	dev_set_drvdata(&pdev->dev, pcm);
@@ -567,13 +572,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err4;
 	}
-	clk_enable(pcm->pclk);
-
-	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to get pcm_clock\n");
-		goto err5;
-	}
+	clk_prepare_enable(pcm->pclk);
 
 	s3c_pcm_stereo_in[pdev->id].dma_addr = mem_res->start
 							+ S3C_PCM_RXFIFO;
@@ -586,36 +585,56 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	pcm->dma_capture = &s3c_pcm_stereo_in[pdev->id];
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
 
+	pm_runtime_enable(&pdev->dev);
+
+	ret = snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
+					 &s3c_pcm_dai[pdev->id], 1);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
+		goto err5;
+	}
+
+	ret = asoc_dma_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
+		goto err6;
+	}
+
 	return 0;
 
+err6:
+	snd_soc_unregister_component(&pdev->dev);
 err5:
-	clk_disable(pcm->pclk);
+	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
 err4:
 	iounmap(pcm->regs);
 err3:
 	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
-	clk_disable(pcm->cclk);
+	clk_disable_unprepare(pcm->cclk);
 	clk_put(pcm->cclk);
 err1:
 	return ret;
 }
 
-static __devexit int s3c_pcm_dev_remove(struct platform_device *pdev)
+static int s3c_pcm_dev_remove(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm = &s3c_pcm[pdev->id];
 	struct resource *mem_res;
 
-	snd_soc_unregister_dai(&pdev->dev);
+	asoc_dma_platform_unregister(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
+
+	pm_runtime_disable(&pdev->dev);
 
 	iounmap(pcm->regs);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem_res->start, resource_size(mem_res));
 
-	clk_disable(pcm->cclk);
-	clk_disable(pcm->pclk);
+	clk_disable_unprepare(pcm->cclk);
+	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
 	clk_put(pcm->cclk);
 
@@ -631,20 +650,10 @@ static struct platform_driver s3c_pcm_driver = {
 	},
 };
 
-static int __init s3c_pcm_init(void)
-{
-	return platform_driver_register(&s3c_pcm_driver);
-}
-module_init(s3c_pcm_init);
-
-static void __exit s3c_pcm_exit(void)
-{
-	platform_driver_unregister(&s3c_pcm_driver);
-}
-module_exit(s3c_pcm_exit);
+module_platform_driver(s3c_pcm_driver);
 
 /* Module information */
-MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
+MODULE_AUTHOR("Jaswinder Singh, <jassisinghbrar@gmail.com>");
 MODULE_DESCRIPTION("S3C PCM Controller Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:samsung-pcm");

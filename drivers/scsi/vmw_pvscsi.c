@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Maintained by: Alok N Kataria <akataria@vmware.com>
+ * Maintained by: Arvind Kumar <arvindkumar@vmware.com>
  *
  */
 
@@ -295,7 +295,7 @@ static void ll_adapter_reset(const struct pvscsi_adapter *adapter)
 
 static void ll_bus_reset(const struct pvscsi_adapter *adapter)
 {
-	dev_dbg(pvscsi_dev(adapter), "Reseting bus on %p\n", adapter);
+	dev_dbg(pvscsi_dev(adapter), "Resetting bus on %p\n", adapter);
 
 	pvscsi_write_cmd_desc(adapter, PVSCSI_CMD_RESET_BUS, NULL, 0);
 }
@@ -304,7 +304,7 @@ static void ll_device_reset(const struct pvscsi_adapter *adapter, u32 target)
 {
 	struct PVSCSICmdDescResetDevice cmd = { 0 };
 
-	dev_dbg(pvscsi_dev(adapter), "Reseting device: target=%u\n", target);
+	dev_dbg(pvscsi_dev(adapter), "Resetting device: target=%u\n", target);
 
 	cmd.target = target;
 
@@ -397,7 +397,7 @@ static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
 				 SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE);
 }
 
-static int __devinit pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
+static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 {
 	adapter->rings_state = pci_alloc_consistent(adapter->dev, PAGE_SIZE,
 						    &adapter->ringStatePA);
@@ -1144,7 +1144,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
  *
  * These are statically allocated.  Trying to be clever was not worth it.
  *
- * Dynamic allocation can fail, and we can't go deeep into the memory
+ * Dynamic allocation can fail, and we can't go deep into the memory
  * allocator, since we're a SCSI driver, and trying too hard to allocate
  * memory might generate disk I/O.  We also don't want to fail disk I/O
  * in that case because we can't get an allocation - the I/O could be
@@ -1152,7 +1152,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
  * just use a statically allocated scatter list.
  *
  */
-static int __devinit pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
+static int pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
 {
 	struct pvscsi_ctx *ctx;
 	int i;
@@ -1178,11 +1178,66 @@ static int __devinit pvscsi_allocate_sg(struct pvscsi_adapter *adapter)
 	return 0;
 }
 
-static int __devinit pvscsi_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *id)
+/*
+ * Query the device, fetch the config info and return the
+ * maximum number of targets on the adapter. In case of
+ * failure due to any reason return default i.e. 16.
+ */
+static u32 pvscsi_get_max_targets(struct pvscsi_adapter *adapter)
+{
+	struct PVSCSICmdDescConfigCmd cmd;
+	struct PVSCSIConfigPageHeader *header;
+	struct device *dev;
+	dma_addr_t configPagePA;
+	void *config_page;
+	u32 numPhys = 16;
+
+	dev = pvscsi_dev(adapter);
+	config_page = pci_alloc_consistent(adapter->dev, PAGE_SIZE,
+					   &configPagePA);
+	if (!config_page) {
+		dev_warn(dev, "vmw_pvscsi: failed to allocate memory for config page\n");
+		goto exit;
+	}
+	BUG_ON(configPagePA & ~PAGE_MASK);
+
+	/* Fetch config info from the device. */
+	cmd.configPageAddress = ((u64)PVSCSI_CONFIG_CONTROLLER_ADDRESS) << 32;
+	cmd.configPageNum = PVSCSI_CONFIG_PAGE_CONTROLLER;
+	cmd.cmpAddr = configPagePA;
+	cmd._pad = 0;
+
+	/*
+	 * Mark the completion page header with error values. If the device
+	 * completes the command successfully, it sets the status values to
+	 * indicate success.
+	 */
+	header = config_page;
+	memset(header, 0, sizeof *header);
+	header->hostStatus = BTSTAT_INVPARAM;
+	header->scsiStatus = SDSTAT_CHECK;
+
+	pvscsi_write_cmd_desc(adapter, PVSCSI_CMD_CONFIG, &cmd, sizeof cmd);
+
+	if (header->hostStatus == BTSTAT_SUCCESS &&
+	    header->scsiStatus == SDSTAT_GOOD) {
+		struct PVSCSIConfigPageController *config;
+
+		config = config_page;
+		numPhys = config->numPhys;
+	} else
+		dev_warn(dev, "vmw_pvscsi: PVSCSI_CMD_CONFIG failed. hostStatus = 0x%x, scsiStatus = 0x%x\n",
+			 header->hostStatus, header->scsiStatus);
+	pci_free_consistent(adapter->dev, PAGE_SIZE, config_page, configPagePA);
+exit:
+	return numPhys;
+}
+
+static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct pvscsi_adapter *adapter;
 	struct Scsi_Host *host;
+	struct device *dev;
 	unsigned int i;
 	unsigned long flags = 0;
 	int error;
@@ -1270,6 +1325,13 @@ static int __devinit pvscsi_probe(struct pci_dev *pdev,
 		printk(KERN_ERR "vmw_pvscsi: unable to allocate ring memory\n");
 		goto out_release_resources;
 	}
+
+	/*
+	 * Ask the device for max number of targets.
+	 */
+	host->max_id = pvscsi_get_max_targets(adapter);
+	dev = pvscsi_dev(adapter);
+	dev_info(dev, "vmw_pvscsi: host->max_id: %u\n", host->max_id);
 
 	/*
 	 * From this point on we should reset the adapter if anything goes
@@ -1391,7 +1453,7 @@ static struct pci_driver pvscsi_pci_driver = {
 	.name		= "vmw_pvscsi",
 	.id_table	= pvscsi_pci_tbl,
 	.probe		= pvscsi_probe,
-	.remove		= __devexit_p(pvscsi_remove),
+	.remove		= pvscsi_remove,
 	.shutdown       = pvscsi_shutdown,
 };
 

@@ -28,111 +28,17 @@ Author: Michael Hillmann
 Updated: Mon, 14 Apr 2008 15:42:42 +0100
 Status: tested
 
-Configuration Options:
-  [0] - PCI bus of device (optional)
-  [1] - PCI slot of device (optional)
-  If bus/slot is not specified, the first supported
-  PCI device found will be used.
+Configuration Options: not applicable, uses PCI auto config
 
 This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
-#define CNT_DRIVER_NAME         "ke_counter"
-#define PCI_VENDOR_ID_KOLTER    0x1001
 #define CNT_CARD_DEVICE_ID      0x0014
-
-/*-- function prototypes ----------------------------------------------------*/
-
-static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int cnt_detach(struct comedi_device *dev);
-
-static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
-	{
-	PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID, PCI_ANY_ID,
-		    PCI_ANY_ID, 0, 0, 0}, {
-	0}
-};
-
-MODULE_DEVICE_TABLE(pci, cnt_pci_table);
-
-/*-- board specification structure ------------------------------------------*/
-
-struct cnt_board_struct {
-
-	const char *name;
-	int device_id;
-	int cnt_channel_nbr;
-	int cnt_bits;
-};
-
-static const struct cnt_board_struct cnt_boards[] = {
-	{
-	 .name = CNT_DRIVER_NAME,
-	 .device_id = CNT_CARD_DEVICE_ID,
-	 .cnt_channel_nbr = 3,
-	 .cnt_bits = 24}
-};
-
-#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
-
-/*-- device private structure -----------------------------------------------*/
-
-struct cnt_device_private {
-
-	struct pci_dev *pcidev;
-};
-
-#define devpriv ((struct cnt_device_private *)dev->private)
-
-static struct comedi_driver cnt_driver = {
-	.driver_name = CNT_DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = cnt_attach,
-	.detach = cnt_detach,
-};
-
-static int __devinit cnt_driver_pci_probe(struct pci_dev *dev,
-					  const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, cnt_driver.driver_name);
-}
-
-static void __devexit cnt_driver_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver cnt_driver_pci_driver = {
-	.id_table = cnt_pci_table,
-	.probe = &cnt_driver_pci_probe,
-	.remove = __devexit_p(&cnt_driver_pci_remove)
-};
-
-static int __init cnt_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&cnt_driver);
-	if (retval < 0)
-		return retval;
-
-	cnt_driver_pci_driver.name = (char *)cnt_driver.driver_name;
-	return pci_register_driver(&cnt_driver_pci_driver);
-}
-
-static void __exit cnt_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&cnt_driver_pci_driver);
-	comedi_driver_unregister(&cnt_driver);
-}
-
-module_init(cnt_driver_init_module);
-module_exit(cnt_driver_cleanup_module);
 
 /*-- counter write ----------------------------------------------------------*/
 
@@ -183,89 +89,31 @@ static int cnt_rinsn(struct comedi_device *dev,
 	return 1;
 }
 
-/*-- attach -----------------------------------------------------------------*/
-
-static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int cnt_auto_attach(struct comedi_device *dev,
+				     unsigned long context_unused)
 {
-	struct comedi_subdevice *subdevice;
-	struct pci_dev *pci_device = NULL;
-	struct cnt_board_struct *board;
-	unsigned long io_base;
-	int error, i;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct comedi_subdevice *s;
+	int ret;
 
-	/* allocate device private structure */
-	error = alloc_private(dev, sizeof(struct cnt_device_private));
-	if (error < 0)
-		return error;
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+	dev->iobase = pci_resource_start(pcidev, 0);
 
-	/* Probe the device to determine what device in the series it is. */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_KOLTER) {
-			for (i = 0; i < cnt_board_nbr; i++) {
-				if (cnt_boards[i].device_id ==
-				    pci_device->device) {
-					/* was a particular bus/slot requested? */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/* are we on the wrong bus/slot? */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
-					dev->board_ptr = cnt_boards + i;
-					board =
-					    (struct cnt_board_struct *)
-					    dev->board_ptr;
-					goto found;
-				}
-			}
-		}
-	}
-	printk(KERN_WARNING
-	       "comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
-	return -EIO;
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
 
-found:
-	printk(KERN_INFO
-	       "comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
-	       board->name, pci_device->bus->number,
-	       PCI_SLOT(pci_device->devfn));
-	devpriv->pcidev = pci_device;
-	dev->board_name = board->name;
-
-	/* enable PCI device and request regions */
-	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
-	if (error < 0) {
-		printk(KERN_WARNING "comedi%d: "
-		       "failed to enable PCI device and request regions!\n",
-		       dev->minor);
-		return error;
-	}
-
-	/* read register base address [PCI_BASE_ADDRESS #0] */
-	io_base = pci_resource_start(pci_device, 0);
-	dev->iobase = io_base;
-
-	/* allocate the subdevice structures */
-	error = alloc_subdevices(dev, 1);
-	if (error < 0)
-		return error;
-
-	subdevice = dev->subdevices + 0;
-	dev->read_subdev = subdevice;
-
-	subdevice->type = COMEDI_SUBD_COUNTER;
-	subdevice->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
-	subdevice->n_chan = board->cnt_channel_nbr;
-	subdevice->maxdata = (1 << board->cnt_bits) - 1;
-	subdevice->insn_read = cnt_rinsn;
-	subdevice->insn_write = cnt_winsn;
+	s->type = COMEDI_SUBD_COUNTER;
+	s->subdev_flags = SDF_READABLE /* | SDF_COMMON */ ;
+	s->n_chan = 3;
+	s->maxdata = 0x00ffffff;
+	s->insn_read = cnt_rinsn;
+	s->insn_write = cnt_winsn;
 
 	/*  select 20MHz clock */
 	outb(3, dev->iobase + 248);
@@ -275,24 +123,39 @@ found:
 	outb(0, dev->iobase + 0x20);
 	outb(0, dev->iobase + 0x40);
 
-	printk(KERN_INFO "comedi%d: " CNT_DRIVER_NAME " attached.\n",
-	       dev->minor);
+	dev_info(dev->class_dev, "%s: %s attached\n",
+		dev->driver->driver_name, dev->board_name);
+
 	return 0;
 }
 
-/*-- detach -----------------------------------------------------------------*/
+static struct comedi_driver ke_counter_driver = {
+	.driver_name	= "ke_counter",
+	.module		= THIS_MODULE,
+	.auto_attach	= cnt_auto_attach,
+	.detach		= comedi_pci_disable,
+};
 
-static int cnt_detach(struct comedi_device *dev)
+static int ke_counter_pci_probe(struct pci_dev *dev,
+				const struct pci_device_id *id)
 {
-	if (devpriv && devpriv->pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(devpriv->pcidev);
-		pci_dev_put(devpriv->pcidev);
-	}
-	printk(KERN_INFO "comedi%d: " CNT_DRIVER_NAME " remove\n",
-	       dev->minor);
-	return 0;
+	return comedi_pci_auto_config(dev, &ke_counter_driver,
+				      id->driver_data);
 }
+
+static DEFINE_PCI_DEVICE_TABLE(ke_counter_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ke_counter_pci_table);
+
+static struct pci_driver ke_counter_pci_driver = {
+	.name		= "ke_counter",
+	.id_table	= ke_counter_pci_table,
+	.probe		= ke_counter_pci_probe,
+	.remove		= comedi_pci_auto_unconfig,
+};
+module_comedi_pci_driver(ke_counter_driver, ke_counter_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

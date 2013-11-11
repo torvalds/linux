@@ -30,12 +30,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/board-mx31lilly.h>
-
+#include "board-mx31lilly.h"
+#include "common.h"
 #include "devices-imx31.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
 
 /*
  * This file contains board-specific initialization routines for the
@@ -130,7 +129,8 @@ static int mxc_mmc1_init(struct device *dev,
 	gpio_direction_input(gpio_det);
 	gpio_direction_input(gpio_wp);
 
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO1_1), detect_irq,
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)),
+			  detect_irq,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "MMC detect", data);
 	if (ret)
@@ -151,7 +151,7 @@ static void mxc_mmc1_exit(struct device *dev, void *data)
 {
 	gpio_free(gpio_det);
 	gpio_free(gpio_wp);
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO1_1), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)), data);
 }
 
 static const struct imxmmc_platform_data mmc_pdata __initconst = {
@@ -161,10 +161,6 @@ static const struct imxmmc_platform_data mmc_pdata __initconst = {
 };
 
 /* Framebuffer support */
-static const struct ipu_platform_data ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static const struct fb_videomode fb_modedb = {
 	/* 640x480 TFT panel (IPS-056T) */
 	.name		= "CRT-VGA",
@@ -198,7 +194,7 @@ static void __init mx31lilly_init_fb(void)
 		return;
 	}
 
-	imx31_add_ipu_core(&ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&fb_pdata);
 	gpio_direction_output(LCD_VCC_EN_GPIO, 1);
 }

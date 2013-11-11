@@ -151,7 +151,7 @@ err_enable:
 	return ret;
 }
 
-static int __devexit picoxcell_trng_remove(struct platform_device *pdev)
+static int picoxcell_trng_remove(struct platform_device *pdev)
 {
 	hwrng_unregister(&picoxcell_trng);
 	clk_disable(rng_clk);
@@ -181,7 +181,7 @@ static const struct dev_pm_ops picoxcell_trng_pm_ops = {
 
 static struct platform_driver picoxcell_trng_driver = {
 	.probe		= picoxcell_trng_probe,
-	.remove		= __devexit_p(picoxcell_trng_remove),
+	.remove		= picoxcell_trng_remove,
 	.driver		= {
 		.name	= "picoxcell-trng",
 		.owner	= THIS_MODULE,
@@ -191,17 +191,7 @@ static struct platform_driver picoxcell_trng_driver = {
 	},
 };
 
-static int __init picoxcell_trng_init(void)
-{
-	return platform_driver_register(&picoxcell_trng_driver);
-}
-module_init(picoxcell_trng_init);
-
-static void __exit picoxcell_trng_exit(void)
-{
-	platform_driver_unregister(&picoxcell_trng_driver);
-}
-module_exit(picoxcell_trng_exit);
+module_platform_driver(picoxcell_trng_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");

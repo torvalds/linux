@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/module.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
@@ -100,7 +101,6 @@ static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	/* These endpoints are not being used. */
 	snd_soc_dapm_nc_pin(dapm, "LINPUT2");
@@ -110,18 +110,6 @@ static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "OUT3");
 	snd_soc_dapm_nc_pin(dapm, "MONO");
 
-	/* Add jive specific widgets */
-	err = snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
-					ARRAY_SIZE(wm8750_dapm_widgets));
-	if (err) {
-		printk(KERN_ERR "%s: failed to add widgets (%d)\n",
-		       __func__, err);
-		return err;
-	}
-
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
@@ -130,8 +118,8 @@ static struct snd_soc_dai_link jive_dai = {
 	.stream_name	= "WM8750",
 	.cpu_dai_name	= "s3c2412-i2s",
 	.codec_dai_name = "wm8750-hifi",
-	.platform_name	= "samsung-audio",
-	.codec_name	= "wm8750-codec.0-0x1a",
+	.platform_name	= "s3c2412-i2s",
+	.codec_name	= "wm8750.0-001a",
 	.init		= jive_wm8750_init,
 	.ops		= &jive_ops,
 };
@@ -139,8 +127,14 @@ static struct snd_soc_dai_link jive_dai = {
 /* jive audio machine driver */
 static struct snd_soc_card snd_soc_machine_jive = {
 	.name		= "Jive",
+	.owner		= THIS_MODULE,
 	.dai_link	= &jive_dai,
 	.num_links	= 1,
+
+	.dapm_widgets	= wm8750_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
+	.dapm_routes	= audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *jive_snd_device;

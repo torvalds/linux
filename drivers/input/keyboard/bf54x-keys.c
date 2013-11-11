@@ -177,7 +177,7 @@ static irqreturn_t bfin_kpad_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_kpad_probe(struct platform_device *pdev)
+static int bfin_kpad_probe(struct platform_device *pdev)
 {
 	struct bf54x_kpad *bf54x_kpad;
 	struct bfin_kpad_platform_data *pdata = pdev->dev.platform_data;
@@ -331,7 +331,7 @@ out:
 	return error;
 }
 
-static int __devexit bfin_kpad_remove(struct platform_device *pdev)
+static int bfin_kpad_remove(struct platform_device *pdev)
 {
 	struct bfin_kpad_platform_data *pdata = pdev->dev.platform_data;
 	struct bf54x_kpad *bf54x_kpad = platform_get_drvdata(pdev);
@@ -384,29 +384,17 @@ static int bfin_kpad_resume(struct platform_device *pdev)
 # define bfin_kpad_resume  NULL
 #endif
 
-struct platform_driver bfin_kpad_device_driver = {
+static struct platform_driver bfin_kpad_device_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= bfin_kpad_probe,
-	.remove		= __devexit_p(bfin_kpad_remove),
+	.remove		= bfin_kpad_remove,
 	.suspend	= bfin_kpad_suspend,
 	.resume		= bfin_kpad_resume,
 };
-
-static int __init bfin_kpad_init(void)
-{
-	return platform_driver_register(&bfin_kpad_device_driver);
-}
-
-static void __exit bfin_kpad_exit(void)
-{
-	platform_driver_unregister(&bfin_kpad_device_driver);
-}
-
-module_init(bfin_kpad_init);
-module_exit(bfin_kpad_exit);
+module_platform_driver(bfin_kpad_device_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");

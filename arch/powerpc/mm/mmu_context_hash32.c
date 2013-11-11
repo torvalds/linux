@@ -24,6 +24,7 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/export.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>

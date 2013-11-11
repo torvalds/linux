@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
@@ -57,19 +58,19 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
  *
  * FUNCTION:    acpi_evaluate_object_typed
  *
- * PARAMETERS:  Handle              - Object handle (optional)
- *              Pathname            - Object pathname (optional)
+ * PARAMETERS:  handle              - Object handle (optional)
+ *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              return_buffer       - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *              return_type         - Expected type of return object
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -151,18 +152,18 @@ ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
  *
  * FUNCTION:    acpi_evaluate_object
  *
- * PARAMETERS:  Handle              - Object handle (optional)
- *              Pathname            - Object pathname (optional)
+ * PARAMETERS:  handle              - Object handle (optional)
+ *              pathname            - Object pathname (optional)
  *              external_params     - List of parameters to pass to method,
- *                                    terminated by NULL.  May be NULL
+ *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
  *              return_buffer       - Where to put method's return value (if
- *                                    any).  If NULL, no value is returned.
+ *                                    any). If NULL, no value is returned.
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Find and evaluate the given object, passing the given
- *              parameters if necessary.  One of "Handle" or "Pathname" must
+ *              parameters if necessary. One of "Handle" or "Pathname" must
  *              be valid (non-null)
  *
  ******************************************************************************/
@@ -235,7 +236,7 @@ acpi_evaluate_object(acpi_handle handle,
 	 * 2) No handle, not fully qualified pathname (error)
 	 * 3) Valid handle
 	 */
-	if ((pathname) && (acpi_ns_valid_root_prefix(pathname[0]))) {
+	if ((pathname) && (ACPI_IS_ROOT_PREFIX(pathname[0]))) {
 
 		/* The path is fully qualified, just evaluate by name */
 
@@ -363,7 +364,7 @@ ACPI_EXPORT_SYMBOL(acpi_evaluate_object)
  *
  * FUNCTION:    acpi_ns_resolve_references
  *
- * PARAMETERS:  Info                    - Evaluation info block
+ * PARAMETERS:  info                    - Evaluation info block
  *
  * RETURN:      Info->return_object is replaced with the dereferenced object
  *
@@ -430,14 +431,14 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
  *
  * FUNCTION:    acpi_walk_namespace
  *
- * PARAMETERS:  Type                - acpi_object_type to search for
+ * PARAMETERS:  type                - acpi_object_type to search for
  *              start_object        - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
  *              pre_order_visit     - Called during tree pre-order visit
  *                                    when an object of "Type" is found
  *              post_order_visit    - Called during tree post-order visit
  *                                    when an object of "Type" is found
- *              Context             - Passed to user function(s) above
+ *              context             - Passed to user function(s) above
  *              return_value        - Location where return value of
  *                                    user_function is put if terminated early
  *
@@ -491,7 +492,7 @@ acpi_walk_namespace(acpi_object_type type,
 	 */
 	status = acpi_ut_acquire_read_lock(&acpi_gbl_namespace_rw_lock);
 	if (ACPI_FAILURE(status)) {
-		return status;
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -541,8 +542,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	acpi_status status;
 	struct acpi_namespace_node *node;
 	u32 flags;
-	struct acpica_device_id *hid;
-	struct acpica_device_id_list *cid;
+	struct acpi_pnp_device_id *hid;
+	struct acpi_pnp_device_id_list *cid;
 	u32 i;
 	u8 found;
 	int no_match;
@@ -601,17 +602,22 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 			/* Walk the CID list */
 
-			found = 0;
+			found = FALSE;
 			for (i = 0; i < cid->count; i++) {
 				if (ACPI_STRCMP(cid->ids[i].string, info->hid)
 				    == 0) {
-					found = 1;
+
+					/* Found a matching CID */
+
+					found = TRUE;
 					break;
 				}
 			}
+
 			ACPI_FREE(cid);
-			if (!found)
+			if (!found) {
 				return (AE_OK);
+			}
 		}
 	}
 
@@ -645,7 +651,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  *
  * PARAMETERS:  HID                 - HID to search for. Can be NULL.
  *              user_function       - Called when a matching object is found
- *              Context             - Passed to user function
+ *              context             - Passed to user function
  *              return_value        - Location where return value of
  *                                    user_function is put if terminated early
  *
@@ -655,7 +661,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
  *              starting (and ending) at the object specified by start_handle.
  *              The user_function is called whenever an object of type
- *              Device is found.  If the user function returns
+ *              Device is found. If the user function returns
  *              a non-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *
@@ -715,8 +721,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_devices)
  * FUNCTION:    acpi_attach_data
  *
  * PARAMETERS:  obj_handle          - Namespace node
- *              Handler             - Handler for this attachment
- *              Data                - Pointer to data to be attached
+ *              handler             - Handler for this attachment
+ *              data                - Pointer to data to be attached
  *
  * RETURN:      Status
  *
@@ -763,7 +769,7 @@ ACPI_EXPORT_SYMBOL(acpi_attach_data)
  * FUNCTION:    acpi_detach_data
  *
  * PARAMETERS:  obj_handle          - Namespace node handle
- *              Handler             - Handler used in call to acpi_attach_data
+ *              handler             - Handler used in call to acpi_attach_data
  *
  * RETURN:      Status
  *
@@ -809,8 +815,8 @@ ACPI_EXPORT_SYMBOL(acpi_detach_data)
  * FUNCTION:    acpi_get_data
  *
  * PARAMETERS:  obj_handle          - Namespace node
- *              Handler             - Handler used in call to attach_data
- *              Data                - Where the data is returned
+ *              handler             - Handler used in call to attach_data
+ *              data                - Where the data is returned
  *
  * RETURN:      Status
  *

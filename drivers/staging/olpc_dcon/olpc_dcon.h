@@ -52,9 +52,9 @@ struct dcon_priv {
 	struct fb_info *fbinfo;
 	struct backlight_device *bl_dev;
 
+	wait_queue_head_t waitq;
 	struct work_struct switch_source;
 	struct notifier_block reboot_nb;
-	struct notifier_block fbevent_nb;
 
 	/* Shadow register for the DCON_REG_MODE register */
 	u8 disp_mode;
@@ -84,7 +84,7 @@ struct dcon_platform_data {
 	int (*init)(struct dcon_priv *);
 	void (*bus_stabilize_wiggle)(void);
 	void (*set_dconload)(int);
-	u8 (*read_status)(void);
+	int (*read_status)(u8 *);
 };
 
 #include <linux/interrupt.h>

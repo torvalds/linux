@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
@@ -334,7 +335,9 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 			return;
 		}
 
+		mutex_lock(&master_dev->bus_mutex);
 		if (ds1wm_reset(ds1wm_data)) {
+			mutex_unlock(&master_dev->bus_mutex);
 			dev_dbg(&ds1wm_data->pdev->dev,
 				"pass: %d reset error (or no slaves)\n", pass);
 			break;
@@ -347,7 +350,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 			"pass: %d entering ASM\n", pass);
 		ds1wm_write_register(ds1wm_data, DS1WM_CMD, DS1WM_CMD_SRA);
 		dev_dbg(&ds1wm_data->pdev->dev,
-			"pass: %d begining nibble loop\n", pass);
+			"pass: %d beginning nibble loop\n", pass);
 
 		r_prime = 0;
 		d = 0;
@@ -387,6 +390,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 
 		}
 		if (ds1wm_data->read_error) {
+			mutex_unlock(&master_dev->bus_mutex);
 			dev_err(&ds1wm_data->pdev->dev,
 				"pass: %d read error, retrying\n", pass);
 			break;
@@ -400,6 +404,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 		dev_dbg(&ds1wm_data->pdev->dev,
 			"pass: %d resetting bus\n", pass);
 		ds1wm_reset(ds1wm_data);
+		mutex_unlock(&master_dev->bus_mutex);
 		if ((r_prime & ((u64)1 << 63)) && (d & ((u64)1 << 63))) {
 			dev_err(&ds1wm_data->pdev->dev,
 				"pass: %d bus error, retrying\n", pass);
@@ -455,43 +460,34 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!pdev)
 		return -ENODEV;
 
-	ds1wm_data = kzalloc(sizeof(*ds1wm_data), GFP_KERNEL);
+	ds1wm_data = devm_kzalloc(&pdev->dev, sizeof(*ds1wm_data), GFP_KERNEL);
 	if (!ds1wm_data)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ds1wm_data);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENXIO;
-		goto err0;
-	}
-	ds1wm_data->map = ioremap(res->start, resource_size(res));
-	if (!ds1wm_data->map) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	if (!res)
+		return -ENXIO;
+	ds1wm_data->map = devm_ioremap(&pdev->dev, res->start,
+				       resource_size(res));
+	if (!ds1wm_data->map)
+		return -ENOMEM;
 
 	/* calculate bus shift from mem resource */
 	ds1wm_data->bus_shift = resource_size(res) >> 3;
 
 	ds1wm_data->pdev = pdev;
 	ds1wm_data->cell = mfd_get_cell(pdev);
-	if (!ds1wm_data->cell) {
-		ret = -ENODEV;
-		goto err1;
-	}
+	if (!ds1wm_data->cell)
+		return -ENODEV;
 	plat = pdev->dev.platform_data;
-	if (!plat) {
-		ret = -ENODEV;
-		goto err1;
-	}
+	if (!plat)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		ret = -ENXIO;
-		goto err1;
-	}
+	if (!res)
+		return -ENXIO;
 	ds1wm_data->irq = res->start;
 	ds1wm_data->int_en_reg_none = (plat->active_high ? DS1WM_INTEN_IAS : 0);
 	ds1wm_data->reset_recover_delay = plat->reset_recover_delay;
@@ -501,10 +497,10 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (res->flags & IORESOURCE_IRQ_LOWEDGE)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_FALLING);
 
-	ret = request_irq(ds1wm_data->irq, ds1wm_isr,
+	ret = devm_request_irq(&pdev->dev, ds1wm_data->irq, ds1wm_isr,
 			IRQF_DISABLED | IRQF_SHARED, "ds1wm", ds1wm_data);
 	if (ret)
-		goto err1;
+		return ret;
 
 	ds1wm_up(ds1wm_data);
 
@@ -512,17 +508,12 @@ static int ds1wm_probe(struct platform_device *pdev)
 
 	ret = w1_add_master_device(&ds1wm_master);
 	if (ret)
-		goto err2;
+		goto err;
 
 	return 0;
 
-err2:
+err:
 	ds1wm_down(ds1wm_data);
-	free_irq(ds1wm_data->irq, ds1wm_data);
-err1:
-	iounmap(ds1wm_data->map);
-err0:
-	kfree(ds1wm_data);
 
 	return ret;
 }
@@ -556,9 +547,6 @@ static int ds1wm_remove(struct platform_device *pdev)
 
 	w1_remove_master_device(&ds1wm_master);
 	ds1wm_down(ds1wm_data);
-	free_irq(ds1wm_data->irq, ds1wm_data);
-	iounmap(ds1wm_data->map);
-	kfree(ds1wm_data);
 
 	return 0;
 }

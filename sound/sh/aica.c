@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <linux/timer.h>
@@ -55,7 +55,7 @@ MODULE_FIRMWARE("aica_firmware.bin");
 #define CARD_NAME "AICA"
 static int index = -1;
 static char *id;
-static int enable = 1;
+static bool enable = 1;
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
 module_param(id, charp, 0444);
@@ -540,7 +540,7 @@ static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_aica_pcmswitch_control __devinitdata = {
+static struct snd_kcontrol_new snd_aica_pcmswitch_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,
@@ -549,7 +549,7 @@ static struct snd_kcontrol_new snd_aica_pcmswitch_control __devinitdata = {
 	.put = aica_pcmswitch_put
 };
 
-static struct snd_kcontrol_new snd_aica_pcmvolume_control __devinitdata = {
+static struct snd_kcontrol_new snd_aica_pcmvolume_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Volume",
 	.index = 0,
@@ -574,8 +574,7 @@ static int load_aica_firmware(void)
 	return err;
 }
 
-static int __devinit add_aicamixer_controls(struct snd_card_aica
-					    *dreamcastcard)
+static int add_aicamixer_controls(struct snd_card_aica *dreamcastcard)
 {
 	int err;
 	err = snd_ctl_add
@@ -591,7 +590,7 @@ static int __devinit add_aicamixer_controls(struct snd_card_aica
 	return 0;
 }
 
-static int __devexit snd_aica_remove(struct platform_device *devptr)
+static int snd_aica_remove(struct platform_device *devptr)
 {
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = platform_get_drvdata(devptr);
@@ -603,7 +602,7 @@ static int __devexit snd_aica_remove(struct platform_device *devptr)
 	return 0;
 }
 
-static int __devinit snd_aica_probe(struct platform_device *devptr)
+static int snd_aica_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card_aica *dreamcastcard;
@@ -652,9 +651,11 @@ static int __devinit snd_aica_probe(struct platform_device *devptr)
 
 static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
-	.remove = __devexit_p(snd_aica_remove),
+	.remove = snd_aica_remove,
 	.driver = {
-		   .name = SND_AICA_DRIVER},
+		.name = SND_AICA_DRIVER,
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init aica_init(void)

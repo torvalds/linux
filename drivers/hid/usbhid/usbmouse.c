@@ -92,9 +92,10 @@ static void usb_mouse_irq(struct urb *urb)
 resubmit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
-		err ("can't resubmit intr, %s-%s/input0, status %d",
-				mouse->usbdev->bus->bus_name,
-				mouse->usbdev->devpath, status);
+		dev_err(&mouse->usbdev->dev,
+			"can't resubmit intr, %s-%s/input0, status %d\n",
+			mouse->usbdev->bus->bus_name,
+			mouse->usbdev->devpath, status);
 }
 
 static int usb_mouse_open(struct input_dev *dev)
@@ -241,19 +242,4 @@ static struct usb_driver usb_mouse_driver = {
 	.id_table	= usb_mouse_id_table,
 };
 
-static int __init usb_mouse_init(void)
-{
-	int retval = usb_register(&usb_mouse_driver);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-				DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit usb_mouse_exit(void)
-{
-	usb_deregister(&usb_mouse_driver);
-}
-
-module_init(usb_mouse_init);
-module_exit(usb_mouse_exit);
+module_usb_driver(usb_mouse_driver);

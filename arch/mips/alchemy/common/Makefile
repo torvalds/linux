@@ -6,15 +6,9 @@
 #
 
 obj-y += prom.o time.o clocks.o platform.o power.o setup.o \
-	sleeper.o dma.o dbdma.o
-
-obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += irq.o
+	sleeper.o dma.o dbdma.o vss.o irq.o usb.o
 
 # optional gpiolib support
 ifeq ($(CONFIG_ALCHEMY_GPIO_INDIRECT),)
- ifeq ($(CONFIG_GPIOLIB),y)
-  obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += gpiolib-au1000.o
- endif
+ obj-$(CONFIG_GPIOLIB) += gpiolib.o
 endif
-
-obj-$(CONFIG_PCI)		+= pci.o

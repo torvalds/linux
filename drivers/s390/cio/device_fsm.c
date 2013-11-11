@@ -1,8 +1,7 @@
 /*
- * drivers/s390/cio/device_fsm.c
  * finite state machine for device handling
  *
- *    Copyright IBM Corp. 2002,2008
+ *    Copyright IBM Corp. 2002, 2008
  *    Author(s): Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
@@ -48,7 +47,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	cc = stsch_err(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
-	       "device information:\n", get_clock());
+	       "device information:\n", get_tod_clock());
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
 		       orb, sizeof(*orb), 0);
@@ -496,8 +495,26 @@ static void ccw_device_reset_path_events(struct ccw_device *cdev)
 	cdev->private->pgid_reset_mask = 0;
 }
 
-void
-ccw_device_verify_done(struct ccw_device *cdev, int err)
+static void create_fake_irb(struct irb *irb, int type)
+{
+	memset(irb, 0, sizeof(*irb));
+	if (type == FAKE_CMD_IRB) {
+		struct cmd_scsw *scsw = &irb->scsw.cmd;
+		scsw->cc = 1;
+		scsw->fctl = SCSW_FCTL_START_FUNC;
+		scsw->actl = SCSW_ACTL_START_PEND;
+		scsw->stctl = SCSW_STCTL_STATUS_PEND;
+	} else if (type == FAKE_TM_IRB) {
+		struct tm_scsw *scsw = &irb->scsw.tm;
+		scsw->x = 1;
+		scsw->cc = 1;
+		scsw->fctl = SCSW_FCTL_START_FUNC;
+		scsw->actl = SCSW_ACTL_START_PEND;
+		scsw->stctl = SCSW_STCTL_STATUS_PEND;
+	}
+}
+
+void ccw_device_verify_done(struct ccw_device *cdev, int err)
 {
 	struct subchannel *sch;
 
@@ -520,12 +537,8 @@ callback:
 		ccw_device_done(cdev, DEV_STATE_ONLINE);
 		/* Deliver fake irb to device driver, if needed. */
 		if (cdev->private->flags.fake_irb) {
-			memset(&cdev->private->irb, 0, sizeof(struct irb));
-			cdev->private->irb.scsw.cmd.cc = 1;
-			cdev->private->irb.scsw.cmd.fctl = SCSW_FCTL_START_FUNC;
-			cdev->private->irb.scsw.cmd.actl = SCSW_ACTL_START_PEND;
-			cdev->private->irb.scsw.cmd.stctl =
-				SCSW_STCTL_STATUS_PEND;
+			create_fake_irb(&cdev->private->irb,
+					cdev->private->flags.fake_irb);
 			cdev->private->flags.fake_irb = 0;
 			if (cdev->handler)
 				cdev->handler(cdev, cdev->private->intparm,

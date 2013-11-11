@@ -383,7 +383,7 @@ static struct bin_attribute m48t59_nvram_attr = {
 	.write = m48t59_nvram_write,
 };
 
-static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
+static int m48t59_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 	struct m48t59_private *m48t59 = NULL;
@@ -433,7 +433,7 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 
 	if (!m48t59->ioaddr) {
 		/* ioaddr not mapped externally */
-		m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
+		m48t59->ioaddr = ioremap(res->start, resource_size(res));
 		if (!m48t59->ioaddr)
 			goto out;
 	}
@@ -501,7 +501,7 @@ out:
 	return ret;
 }
 
-static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
+static int m48t59_rtc_remove(struct platform_device *pdev)
 {
 	struct m48t59_private *m48t59 = platform_get_drvdata(pdev);
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
@@ -527,21 +527,10 @@ static struct platform_driver m48t59_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t59_rtc_probe,
-	.remove		= __devexit_p(m48t59_rtc_remove),
+	.remove		= m48t59_rtc_remove,
 };
 
-static int __init m48t59_rtc_init(void)
-{
-	return platform_driver_register(&m48t59_rtc_driver);
-}
-
-static void __exit m48t59_rtc_exit(void)
-{
-	platform_driver_unregister(&m48t59_rtc_driver);
-}
-
-module_init(m48t59_rtc_init);
-module_exit(m48t59_rtc_exit);
+module_platform_driver(m48t59_rtc_driver);
 
 MODULE_AUTHOR("Mark Zhan <rongkai.zhan@windriver.com>");
 MODULE_DESCRIPTION("M48T59/M48T02/M48T08 RTC driver");

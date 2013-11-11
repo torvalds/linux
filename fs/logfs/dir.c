@@ -71,7 +71,7 @@ static int write_dir(struct inode *dir, struct logfs_disk_dentry *dd,
 
 static int write_inode(struct inode *inode)
 {
-	return __logfs_write_inode(inode, WF_LOCK);
+	return __logfs_write_inode(inode, NULL, WF_LOCK);
 }
 
 static s64 dir_seek_data(struct inode *inode, s64 pos)
@@ -177,17 +177,17 @@ static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
 				(filler_t *)logfs_readpage, NULL);
 		if (IS_ERR(page))
 			return page;
-		dd = kmap_atomic(page, KM_USER0);
+		dd = kmap_atomic(page);
 		BUG_ON(dd->namelen == 0);
 
 		if (name->len != be16_to_cpu(dd->namelen) ||
 				memcmp(name->name, dd->name, name->len)) {
-			kunmap_atomic(dd, KM_USER0);
+			kunmap_atomic(dd);
 			page_cache_release(page);
 			continue;
 		}
 
-		kunmap_atomic(dd, KM_USER0);
+		kunmap_atomic(dd);
 		return page;
 	}
 	return NULL;
@@ -197,7 +197,7 @@ static int logfs_remove_inode(struct inode *inode)
 {
 	int ret;
 
-	inode->i_nlink--;
+	drop_nlink(inode);
 	ret = write_inode(inode);
 	LOGFS_BUG_ON(ret, inode->i_sb);
 	return ret;
@@ -284,7 +284,7 @@ static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 #define IMPLICIT_NODES 2
 static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 {
-	struct inode *dir = file->f_dentry->d_inode;
+	struct inode *dir = file_inode(file);
 	loff_t pos = file->f_pos - IMPLICIT_NODES;
 	struct page *page;
 	struct logfs_disk_dentry *dd;
@@ -320,7 +320,7 @@ static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 
 static int logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	ino_t pino = parent_ino(file->f_dentry);
 	int err;
 
@@ -349,7 +349,7 @@ static void logfs_set_name(struct logfs_disk_dentry *dd, struct qstr *name)
 }
 
 static struct dentry *logfs_lookup(struct inode *dir, struct dentry *dentry,
-		struct nameidata *nd)
+		unsigned int flags)
 {
 	struct page *page;
 	struct logfs_disk_dentry *dd;
@@ -365,17 +365,15 @@ static struct dentry *logfs_lookup(struct inode *dir, struct dentry *dentry,
 		return NULL;
 	}
 	index = page->index;
-	dd = kmap_atomic(page, KM_USER0);
+	dd = kmap_atomic(page);
 	ino = be64_to_cpu(dd->ino);
-	kunmap_atomic(dd, KM_USER0);
+	kunmap_atomic(dd);
 	page_cache_release(page);
 
 	inode = logfs_iget(dir->i_sb, ino);
-	if (IS_ERR(inode)) {
+	if (IS_ERR(inode))
 		printk(KERN_ERR"LogFS: Cannot read inode #%llx for dentry (%lx, %lx)n",
 				ino, dir->i_ino, index);
-		return ERR_CAST(inode);
-	}
 	return d_splice_alias(inode, dentry);
 }
 
@@ -404,12 +402,12 @@ static int logfs_write_dir(struct inode *dir, struct dentry *dentry,
 		if (!page)
 			return -ENOMEM;
 
-		dd = kmap_atomic(page, KM_USER0);
+		dd = kmap_atomic(page);
 		memset(dd, 0, sizeof(*dd));
 		dd->ino = cpu_to_be64(inode->i_ino);
 		dd->type = logfs_type(inode);
 		logfs_set_name(dd, &dentry->d_name);
-		kunmap_atomic(dd, KM_USER0);
+		kunmap_atomic(dd);
 
 		err = logfs_write_buf(dir, page, WF_LOCK);
 		unlock_page(page);
@@ -435,7 +433,7 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 
 	ta = kzalloc(sizeof(*ta), GFP_KERNEL);
 	if (!ta) {
-		inode->i_nlink--;
+		drop_nlink(inode);
 		iput(inode);
 		return -ENOMEM;
 	}
@@ -458,7 +456,7 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 		abort_transaction(inode, ta);
 		li->li_flags |= LOGFS_IF_STILLBORN;
 		/* FIXME: truncate symlink */
-		inode->i_nlink--;
+		drop_nlink(inode);
 		iput(inode);
 		goto out;
 	}
@@ -484,7 +482,7 @@ out:
 	return ret;
 }
 
-static int logfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int logfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 
@@ -503,8 +501,8 @@ static int logfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return __logfs_create(dir, dentry, inode, NULL, 0);
 }
 
-static int logfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+static int logfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+		bool excl)
 {
 	struct inode *inode;
 
@@ -519,7 +517,7 @@ static int logfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return __logfs_create(dir, dentry, inode, NULL, 0);
 }
 
-static int logfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int logfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		dev_t rdev)
 {
 	struct inode *inode;
@@ -560,12 +558,9 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct inode *inode = old_dentry->d_inode;
 
-	if (inode->i_nlink >= LOGFS_LINK_MAX)
-		return -EMLINK;
-
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	ihold(inode);
-	inode->i_nlink++;
+	inc_nlink(inode);
 	mark_inode_dirty_sync(inode);
 
 	return __logfs_create(dir, dentry, inode, NULL, 0);
@@ -581,9 +576,9 @@ static int logfs_get_dd(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 	*pos = page->index;
-	map = kmap_atomic(page, KM_USER0);
+	map = kmap_atomic(page);
 	memcpy(dd, map, sizeof(*dd));
-	kunmap_atomic(map, KM_USER0);
+	kunmap_atomic(map);
 	page_cache_release(page);
 	return 0;
 }

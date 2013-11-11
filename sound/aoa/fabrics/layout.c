@@ -113,6 +113,7 @@ MODULE_ALIAS("sound-layout-100");
 MODULE_ALIAS("aoa-device-id-14");
 MODULE_ALIAS("aoa-device-id-22");
 MODULE_ALIAS("aoa-device-id-35");
+MODULE_ALIAS("aoa-device-id-44");
 
 /* onyx with all but microphone connected */
 static struct codec_connection onyx_connections_nomic[] = {
@@ -359,6 +360,13 @@ static struct layout layouts[] = {
 	  .codecs[0] = {
 		.name = "tas",
 		.connections = tas_connections_nolineout,
+	  },
+	},
+	/* PowerBook6,5 */
+	{ .device_id = 44,
+	  .codecs[0] = {
+		.name = "tas",
+		.connections = tas_connections_all,
 	  },
 	},
 	/* PowerBook6,7 */
@@ -1073,10 +1081,10 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	sdev->pcmid = -1;
 	list_del(&ldev->list);
 	layouts_list_items--;
+	kfree(ldev);
  outnodev:
  	of_node_put(sound);
  	layout_device = NULL;
- 	kfree(ldev);
 	return -ENODEV;
 }
 

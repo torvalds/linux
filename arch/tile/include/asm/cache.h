@@ -27,11 +27,17 @@
 #define L2_CACHE_ALIGN(x)	(((x)+(L2_CACHE_BYTES-1)) & -L2_CACHE_BYTES)
 
 /*
- * TILE-Gx is fully coherent so we don't need to define ARCH_DMA_MINALIGN.
+ * TILEPro I/O is not always coherent (networking typically uses coherent
+ * I/O, but PCI traffic does not) and setting ARCH_DMA_MINALIGN to the
+ * L2 cacheline size helps ensure that kernel heap allocations are aligned.
+ * TILE-Gx I/O is always coherent when used on hash-for-home pages.
+ *
+ * However, it's possible at runtime to request not to use hash-for-home
+ * for the kernel heap, in which case the kernel will use flush-and-inval
+ * to manage coherence.  As a result, we use L2_CACHE_BYTES for the
+ * DMA minimum alignment to avoid false sharing in the kernel heap.
  */
-#ifndef __tilegx__
 #define ARCH_DMA_MINALIGN	L2_CACHE_BYTES
-#endif
 
 /* use the cache line size for the L2, which is where it counts */
 #define SMP_CACHE_BYTES_SHIFT	L2_CACHE_SHIFT

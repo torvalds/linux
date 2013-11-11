@@ -5,7 +5,7 @@
  *
  * SGI UV architectural definitions
  *
- * Copyright (C) 2007-2010 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2013 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_HUB_H
@@ -45,6 +45,13 @@
  *
  *	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
  *		  of the nasid for socket usage.
+ *
+ *	GPA	- (global physical address) a socket physical address converted
+ *		  so that it can be used by the GRU as a global address. Socket
+ *		  physical addresses 1) need additional NASID (node) bits added
+ *		  to the high end of the address, and 2) unaliased if the
+ *		  partition does not have a physical address 0. In addition, on
+ *		  UV2 rev 1, GPAs need the gnode left shifted to bits 39 or 40.
  *
  *
  *  NumaLink Global Physical Address Format:
@@ -141,6 +148,8 @@ struct uv_hub_info_s {
 	unsigned int		gnode_extra;
 	unsigned char		hub_revision;
 	unsigned char		apic_pnode_shift;
+	unsigned char		m_shift;
+	unsigned char		n_lshift;
 	unsigned long		gnode_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
@@ -166,6 +175,7 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
  */
 #define UV1_HUB_REVISION_BASE		1
 #define UV2_HUB_REVISION_BASE		3
+#define UV3_HUB_REVISION_BASE		5
 
 static inline int is_uv1_hub(void)
 {
@@ -174,7 +184,34 @@ static inline int is_uv1_hub(void)
 
 static inline int is_uv2_hub(void)
 {
+	return ((uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE) &&
+		(uv_hub_info->hub_revision < UV3_HUB_REVISION_BASE));
+}
+
+static inline int is_uv3_hub(void)
+{
+	return uv_hub_info->hub_revision >= UV3_HUB_REVISION_BASE;
+}
+
+static inline int is_uv_hub(void)
+{
+	return uv_hub_info->hub_revision;
+}
+
+/* code common to uv2 and uv3 only */
+static inline int is_uvx_hub(void)
+{
 	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
+}
+
+static inline int is_uv2_1_hub(void)
+{
+	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE;
+}
+
+static inline int is_uv2_2_hub(void)
+{
+	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE + 1;
 }
 
 union uvh_apicid {
@@ -211,14 +248,23 @@ union uvh_apicid {
 #define UV2_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
 #define UV2_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
 
-#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE     \
-						: UV2_LOCAL_MMR_BASE)
-#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE  \
-						: UV2_GLOBAL_MMR32_BASE)
-#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE :   \
-						UV2_LOCAL_MMR_SIZE)
+#define UV3_LOCAL_MMR_BASE		0xfa000000UL
+#define UV3_GLOBAL_MMR32_BASE		0xfc000000UL
+#define UV3_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
+#define UV3_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
+
+#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE : \
+					(is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
+							UV3_LOCAL_MMR_BASE))
+#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE :\
+					(is_uv2_hub() ? UV2_GLOBAL_MMR32_BASE :\
+							UV3_GLOBAL_MMR32_BASE))
+#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE : \
+					(is_uv2_hub() ? UV2_LOCAL_MMR_SIZE : \
+							UV3_LOCAL_MMR_SIZE))
 #define UV_GLOBAL_MMR32_SIZE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE :\
-						UV2_GLOBAL_MMR32_SIZE)
+					(is_uv2_hub() ? UV2_GLOBAL_MMR32_SIZE :\
+							UV3_GLOBAL_MMR32_SIZE))
 #define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
 
 #define UV_GLOBAL_GRU_MMR_BASE		0x4000000
@@ -276,7 +322,10 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 {
 	if (paddr < uv_hub_info->lowmem_remap_top)
 		paddr |= uv_hub_info->lowmem_remap_base;
-	return paddr | uv_hub_info->gnode_upper;
+	paddr |= uv_hub_info->gnode_upper;
+	paddr = ((paddr << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
+		((paddr >> uv_hub_info->m_val) << uv_hub_info->n_lshift);
+	return paddr;
 }
 
 
@@ -296,20 +345,23 @@ uv_gpa_in_mmr_space(unsigned long gpa)
 /* UV global physical address --> socket phys RAM */
 static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 {
-	unsigned long paddr = gpa & uv_hub_info->gpa_mask;
+	unsigned long paddr;
 	unsigned long remap_base = uv_hub_info->lowmem_remap_base;
 	unsigned long remap_top =  uv_hub_info->lowmem_remap_top;
 
+	gpa = ((gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift) |
+		((gpa >> uv_hub_info->n_lshift) << uv_hub_info->m_val);
+	paddr = gpa & uv_hub_info->gpa_mask;
 	if (paddr >= remap_base && paddr < remap_base + remap_top)
 		paddr -= remap_base;
 	return paddr;
 }
 
 
-/* gnode -> pnode */
+/* gpa -> pnode */
 static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 {
-	return gpa >> uv_hub_info->m_val;
+	return gpa >> uv_hub_info->n_lshift;
 }
 
 /* gpa -> pnode */
@@ -318,6 +370,12 @@ static inline int uv_gpa_to_pnode(unsigned long gpa)
 	unsigned long n_mask = (1UL << uv_hub_info->n_val) - 1;
 
 	return uv_gpa_to_gnode(gpa) & n_mask;
+}
+
+/* gpa -> node offset*/
+static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
+{
+	return (gpa << uv_hub_info->m_shift) >> uv_hub_info->m_shift;
 }
 
 /* pnode, offset --> socket virtual */
@@ -568,6 +626,7 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
  *     1 - UV1 rev 1.0 initial silicon
  *     2 - UV1 rev 2.0 production silicon
  *     3 - UV2 rev 1.0 initial silicon
+ *     5 - UV3 rev 1.0 initial silicon
  */
 static inline int uv_get_min_hub_revision_id(void)
 {

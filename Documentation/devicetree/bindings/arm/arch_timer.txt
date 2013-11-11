@@ -1,0 +1,28 @@
+* ARM architected timer
+
+ARM cores may have a per-core architected timer, which provides per-cpu timers.
+
+The timer is attached to a GIC to deliver its per-processor interrupts.
+
+** Timer node properties:
+
+- compatible : Should at least contain one of
+	"arm,armv7-timer"
+	"arm,armv8-timer"
+
+- interrupts : Interrupt list for secure, non-secure, virtual and
+  hypervisor timers, in that order.
+
+- clock-frequency : The frequency of the main counter, in Hz. Optional.
+
+Example:
+
+	timer {
+		compatible = "arm,cortex-a15-timer",
+			     "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+		clock-frequency = <100000000>;
+	};

@@ -1,0 +1,121 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";
+	compatible = "raidsonic,ib-nas6210-b", "raidsonic,ib-nas6220-b", "raidsonic,ib-nas6210", "raidsonic,ib-nas6220", "raidsonic,ib-nas62x0",  "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand
+				      &pmx_led_os_red &pmx_power_off
+				      &pmx_led_os_green &pmx_led_usb_transfer
+				      &pmx_button_reset &pmx_button_usb_copy >;
+			pinctrl-names = "default";
+
+			pmx_led_os_red: pmx-led-os-red {
+				marvell,pins = "mpp22";
+				marvell,function = "gpio";
+			};
+			pmx_power_off: pmx-power-off {
+				marvell,pins = "mpp24";
+				marvell,function = "gpio";
+			};
+			pmx_led_os_green: pmx-led-os-green {
+				marvell,pins = "mpp25";
+				marvell,function = "gpio";
+			};
+			pmx_led_usb_transfer: pmx-led-usb-transfer {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_button_usb_copy: pmx-button-usb-copy {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+		};
+		serial@12000 {
+			status = "okay";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x0100000 0x600000>;
+			};
+
+			partition@700000 {
+				label = "root";
+				reg = <0x0700000 0xf900000>;
+			};
+
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "USB Copy";
+			linux,code = <133>;
+			gpios = <&gpio0 29 1>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 28 1>;
+		};
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-os {
+			label = "ib62x0:green:os";
+			gpios = <&gpio0 25 0>;
+			linux,default-trigger = "default-on";
+		};
+		red-os {
+			label = "ib62x0:red:os";
+			gpios = <&gpio0 22 0>;
+		};
+		usb-copy {
+			label = "ib62x0:red:usb_copy";
+			gpios = <&gpio0 27 0>;
+		};
+	};
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 24 0>;
+	};
+
+
+};

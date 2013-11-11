@@ -10,16 +10,17 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/resource.h>
-#include "as-layout.h"
-#include "init.h"
-#include "kern_constants.h"
-#include "kern_util.h"
-#include "os.h"
-#include "um_malloc.h"
+#include <as-layout.h>
+#include <init.h>
+#include <kern_util.h>
+#include <os.h>
+#include <um_malloc.h>
 
 #define PGD_BOUND (4 * 1024 * 1024)
 #define STACKSIZE (8 * 1024 * 1024)
 #define THREAD_NAME_LEN (256)
+
+long elf_aux_hwcap;
 
 static void set_stklim(void)
 {
@@ -143,7 +144,9 @@ int __init main(int argc, char **argv, char **envp)
 	install_fatal_handler(SIGINT);
 	install_fatal_handler(SIGTERM);
 
+#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 	scan_elf_aux(envp);
+#endif
 
 	do_uml_initcalls();
 	ret = linux_main(argc, argv);

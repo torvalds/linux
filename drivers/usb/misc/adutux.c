@@ -213,7 +213,7 @@ static void adu_interrupt_in_callback(struct urb *urb)
 
 	if (urb->actual_length > 0 && dev->interrupt_in_buffer[0] != 0x00) {
 		if (dev->read_buffer_length <
-		    (4 * le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize)) -
+		    (4 * usb_endpoint_maxp(dev->interrupt_in_endpoint)) -
 		     (urb->actual_length)) {
 			memcpy (dev->read_buffer_primary +
 				dev->read_buffer_length,
@@ -315,7 +315,7 @@ static int adu_open(struct inode *inode, struct file *file)
 			 usb_rcvintpipe(dev->udev,
 					dev->interrupt_in_endpoint->bEndpointAddress),
 			 dev->interrupt_in_buffer,
-			 le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize),
+			 usb_endpoint_maxp(dev->interrupt_in_endpoint),
 			 adu_interrupt_in_callback, dev,
 			 dev->interrupt_in_endpoint->bInterval);
 	dev->read_urb_finished = 0;
@@ -483,7 +483,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 							 usb_rcvintpipe(dev->udev,
 							 		dev->interrupt_in_endpoint->bEndpointAddress),
 							 dev->interrupt_in_buffer,
-							 le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize),
+							 usb_endpoint_maxp(dev->interrupt_in_endpoint),
 							 adu_interrupt_in_callback,
 							 dev,
 							 dev->interrupt_in_endpoint->bInterval);
@@ -536,7 +536,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 				 usb_rcvintpipe(dev->udev,
 				 		dev->interrupt_in_endpoint->bEndpointAddress),
 				dev->interrupt_in_buffer,
-				le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize),
+				usb_endpoint_maxp(dev->interrupt_in_endpoint),
 				adu_interrupt_in_callback,
 				dev,
 				dev->interrupt_in_endpoint->bInterval);
@@ -622,7 +622,7 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			dbg(4," %s : sending, count = %Zd", __func__, count);
 
 			/* write the data into interrupt_out_buffer from userspace */
-			buffer_size = le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize);
+			buffer_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 			bytes_to_write = count > buffer_size ? buffer_size : count;
 			dbg(4," %s : buffer_size = %Zd, count = %Zd, bytes_to_write = %Zd",
 			    __func__, buffer_size, count, bytes_to_write);
@@ -752,8 +752,8 @@ static int adu_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	in_end_size = le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
-	out_end_size = le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize);
+	in_end_size = usb_endpoint_maxp(dev->interrupt_in_endpoint);
+	out_end_size = usb_endpoint_maxp(dev->interrupt_out_endpoint);
 
 	dev->read_buffer_primary = kmalloc((4 * in_end_size), GFP_KERNEL);
 	if (!dev->read_buffer_primary) {
@@ -885,40 +885,7 @@ static struct usb_driver adu_driver = {
 	.id_table = device_table,
 };
 
-static int __init adu_init(void)
-{
-	int result;
-
-	dbg(2," %s : enter", __func__);
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&adu_driver);
-	if (result < 0) {
-		printk(KERN_ERR "usb_register failed for the "__FILE__
-		       " driver. Error number %d\n", result);
-		goto exit;
-	}
-
-	printk(KERN_INFO "adutux " DRIVER_DESC " " DRIVER_VERSION "\n");
-	printk(KERN_INFO "adutux is an experimental driver. "
-	       "Use at your own risk\n");
-
-exit:
-	dbg(2," %s : leave, return value %d", __func__, result);
-
-	return result;
-}
-
-static void __exit adu_exit(void)
-{
-	dbg(2," %s : enter", __func__);
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&adu_driver);
-	dbg(2," %s : leave", __func__);
-}
-
-module_init(adu_init);
-module_exit(adu_exit);
+module_usb_driver(adu_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

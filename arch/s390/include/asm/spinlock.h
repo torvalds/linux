@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/spinlock.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  *  Derived from "include/asm-i386/spinlock.h"
@@ -12,6 +10,8 @@
 #define __ASM_SPINLOCK_H
 
 #include <linux/smp.h>
+
+extern int spin_retry;
 
 static inline int
 _raw_compare_and_swap(volatile unsigned int *lock,

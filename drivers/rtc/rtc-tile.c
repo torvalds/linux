@@ -76,12 +76,12 @@ static const struct rtc_class_ops tile_rtc_ops = {
 /*
  * Device probe routine.
  */
-static int __devinit tile_rtc_probe(struct platform_device *dev)
+static int tile_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register("tile",
-				  &dev->dev, &tile_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&dev->dev, "tile",
+				&tile_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -94,13 +94,8 @@ static int __devinit tile_rtc_probe(struct platform_device *dev)
 /*
  * Device cleanup routine.
  */
-static int __devexit tile_rtc_remove(struct platform_device *dev)
+static int tile_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	if (rtc)
-		rtc_device_unregister(rtc);
-
 	platform_set_drvdata(dev, NULL);
 
 	return 0;
@@ -112,7 +107,7 @@ static struct platform_driver tile_rtc_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tile_rtc_probe,
-	.remove		= __devexit_p(tile_rtc_remove),
+	.remove		= tile_rtc_remove,
 };
 
 /*
@@ -151,6 +146,7 @@ exit_driver_unregister:
  */
 static void __exit tile_rtc_driver_exit(void)
 {
+	platform_device_unregister(tile_rtc_platform_device);
 	platform_driver_unregister(&tile_rtc_platform_driver);
 }
 

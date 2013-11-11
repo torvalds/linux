@@ -43,6 +43,7 @@
  */
 
 #include <linux/highmem.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -58,16 +59,15 @@
 
 void usb_stor_pad12_command(struct scsi_cmnd *srb, struct us_data *us)
 {
-	/* Pad the SCSI command with zeros out to 12 bytes
+	/*
+	 * Pad the SCSI command with zeros out to 12 bytes.  If the
+	 * command already is 12 bytes or longer, leave it alone.
 	 *
 	 * NOTE: This only works because a scsi_cmnd struct field contains
 	 * a unsigned char cmnd[16], so we know we have storage available
 	 */
-	for (; srb->cmd_len<12; srb->cmd_len++)
+	for (; srb->cmd_len < 12; srb->cmd_len++)
 		srb->cmnd[srb->cmd_len] = 0;
-
-	/* set command length to 12 bytes */
-	srb->cmd_len = 12;
 
 	/* send the command to the transport layer */
 	usb_stor_invoke_transport(srb, us);
@@ -76,14 +76,14 @@ void usb_stor_pad12_command(struct scsi_cmnd *srb, struct us_data *us)
 void usb_stor_ufi_command(struct scsi_cmnd *srb, struct us_data *us)
 {
 	/* fix some commands -- this is a form of mode translation
-	 * UFI devices only accept 12 byte long commands 
+	 * UFI devices only accept 12 byte long commands
 	 *
 	 * NOTE: This only works because a scsi_cmnd struct field contains
 	 * a unsigned char cmnd[16], so we know we have storage available
 	 */
 
 	/* Pad the ATAPI command with zeros */
-	for (; srb->cmd_len<12; srb->cmd_len++)
+	for (; srb->cmd_len < 12; srb->cmd_len++)
 		srb->cmnd[srb->cmd_len] = 0;
 
 	/* set command length to 12 bytes (this affects the transport layer) */

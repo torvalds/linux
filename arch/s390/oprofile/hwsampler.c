@@ -1,6 +1,4 @@
-/**
- * arch/s390/oprofile/hwsampler.c
- *
+/*
  * Copyright IBM Corp. 2010
  * Author: Heinz Graalfs <graalfs@de.ibm.com>
  */
@@ -18,22 +16,18 @@
 #include <linux/oom.h>
 #include <linux/oprofile.h>
 
-#include <asm/lowcore.h>
+#include <asm/facility.h>
+#include <asm/cpu_mf.h>
 #include <asm/irq.h>
 
 #include "hwsampler.h"
+#include "op_counter.h"
 
 #define MAX_NUM_SDB 511
 #define MIN_NUM_SDB 1
 
 #define ALERT_REQ_MASK   0x4000000000000000ul
 #define BUFFER_FULL_MASK 0x8000000000000000ul
-
-#define EI_IEA      (1 << 31)	/* invalid entry address              */
-#define EI_ISE      (1 << 30)	/* incorrect SDBT entry               */
-#define EI_PRA      (1 << 29)	/* program request alert              */
-#define EI_SACA     (1 << 23)	/* sampler authorization change alert */
-#define EI_LSDA     (1 << 22)	/* loss of sample data alert          */
 
 DECLARE_PER_CPU(struct hws_cpu_buffer, sampler_cpu_buffer);
 
@@ -231,9 +225,20 @@ static inline unsigned long *trailer_entry_ptr(unsigned long v)
 	return (unsigned long *) ret;
 }
 
-/* prototypes for external interrupt handler and worker */
-static void hws_ext_handler(unsigned int ext_int_code,
-				unsigned int param32, unsigned long param64);
+static void hws_ext_handler(struct ext_code ext_code,
+			    unsigned int param32, unsigned long param64)
+{
+	struct hws_cpu_buffer *cb = &__get_cpu_var(sampler_cpu_buffer);
+
+	if (!(param32 & CPU_MF_INT_SF_MASK))
+		return;
+
+	inc_irq_stat(IRQEXT_CMS);
+	atomic_xchg(&cb->ext_params, atomic_read(&cb->ext_params) | param32);
+
+	if (hws_wq)
+		queue_work(hws_wq, &cb->worker);
+}
 
 static void worker(struct work_struct *work);
 
@@ -672,18 +677,6 @@ int hwsampler_activate(unsigned int cpu)
 	return rc;
 }
 
-static void hws_ext_handler(unsigned int ext_int_code,
-			    unsigned int param32, unsigned long param64)
-{
-	struct hws_cpu_buffer *cb;
-
-	kstat_cpu(smp_processor_id()).irqs[EXTINT_CPM]++;
-	cb = &__get_cpu_var(sampler_cpu_buffer);
-	atomic_xchg(&cb->ext_params, atomic_read(&cb->ext_params) | param32);
-	if (hws_wq)
-		queue_work(hws_wq, &cb->worker);
-}
-
 static int check_qsi_on_setup(void)
 {
 	int rc;
@@ -759,23 +752,23 @@ static int worker_check_error(unsigned int cpu, int ext_params)
 	if (!sdbt || !*sdbt)
 		return -EINVAL;
 
-	if (ext_params & EI_PRA)
+	if (ext_params & CPU_MF_INT_SF_PRA)
 		cb->req_alert++;
 
-	if (ext_params & EI_LSDA)
+	if (ext_params & CPU_MF_INT_SF_LSDA)
 		cb->loss_of_sample_data++;
 
-	if (ext_params & EI_IEA) {
+	if (ext_params & CPU_MF_INT_SF_IAE) {
 		cb->invalid_entry_address++;
 		rc = -EINVAL;
 	}
 
-	if (ext_params & EI_ISE) {
+	if (ext_params & CPU_MF_INT_SF_ISE) {
 		cb->incorrect_sdbt_entry++;
 		rc = -EINVAL;
 	}
 
-	if (ext_params & EI_SACA) {
+	if (ext_params & CPU_MF_INT_SF_SACA) {
 		cb->sample_auth_change_alert++;
 		rc = -EINVAL;
 	}
@@ -896,6 +889,8 @@ static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		if (sample_data_ptr->P == 1) {
 			/* userspace sample */
 			unsigned int pid = sample_data_ptr->prim_asn;
+			if (!counter_config.user)
+				goto skip_sample;
 			rcu_read_lock();
 			tsk = pid_task(find_vpid(pid), PIDTYPE_PID);
 			if (tsk)
@@ -903,6 +898,8 @@ static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 			rcu_read_unlock();
 		} else {
 			/* kernelspace sample */
+			if (!counter_config.kernel)
+				goto skip_sample;
 			regs = task_pt_regs(current);
 		}
 
@@ -910,7 +907,7 @@ static void add_samples_to_oprofile(unsigned int cpu, unsigned long *sdbt,
 		oprofile_add_ext_hw_sample(sample_data_ptr->ia, regs, 0,
 				!sample_data_ptr->P, tsk);
 		mutex_unlock(&hws_sem);
-
+	skip_sample:
 		sample_data_ptr++;
 	}
 }
@@ -994,7 +991,7 @@ allocate_error:
  *
  * Returns 0 on success, !0 on failure.
  */
-int hwsampler_deallocate()
+int hwsampler_deallocate(void)
 {
 	int rc;
 
@@ -1004,7 +1001,7 @@ int hwsampler_deallocate()
 	if (hws_state != HWS_STOPPED)
 		goto deallocate_exit;
 
-	ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
+	measurement_alert_subclass_unregister();
 	deallocate_sdbt();
 
 	hws_state = HWS_DEALLOCATED;
@@ -1035,7 +1032,7 @@ unsigned long hwsampler_get_sample_overflow_count(unsigned int cpu)
 	return cb->sample_overflow;
 }
 
-int hwsampler_setup()
+int hwsampler_setup(void)
 {
 	int rc;
 	int cpu;
@@ -1102,7 +1099,7 @@ setup_exit:
 	return rc;
 }
 
-int hwsampler_shutdown()
+int hwsampler_shutdown(void)
 {
 	int rc;
 
@@ -1118,7 +1115,7 @@ int hwsampler_shutdown()
 		mutex_lock(&hws_sem);
 
 		if (hws_state == HWS_STOPPED) {
-			ctl_clear_bit(0, 5); /* set bit 58 CR0 off */
+			measurement_alert_subclass_unregister();
 			deallocate_sdbt();
 		}
 		if (hws_wq) {
@@ -1193,7 +1190,7 @@ start_all_exit:
 	hws_oom = 1;
 	hws_flush_all = 0;
 	/* now let them in, 1407 CPUMF external interrupts */
-	ctl_set_bit(0, 5); /* set CR0 bit 58 */
+	measurement_alert_subclass_register();
 
 	return 0;
 }
@@ -1203,7 +1200,7 @@ start_all_exit:
  *
  * Returns 0 on success, !0 on failure.
  */
-int hwsampler_stop_all()
+int hwsampler_stop_all(void)
 {
 	int tmp_rc, rc, cpu;
 	struct hws_cpu_buffer *cb;

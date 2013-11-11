@@ -18,6 +18,8 @@
  * this warranty disclaimer.
  **/
 
+#include <linux/module.h>
+
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
@@ -42,23 +44,35 @@ void btmrvl_interrupt(struct btmrvl_private *priv)
 }
 EXPORT_SYMBOL_GPL(btmrvl_interrupt);
 
-void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
+bool btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
-	struct hci_ev_cmd_complete *ec;
-	u16 opcode, ocf;
 
 	if (hdr->evt == HCI_EV_CMD_COMPLETE) {
+		struct hci_ev_cmd_complete *ec;
+		u16 opcode, ocf, ogf;
+
 		ec = (void *) (skb->data + HCI_EVENT_HDR_SIZE);
 		opcode = __le16_to_cpu(ec->opcode);
 		ocf = hci_opcode_ocf(opcode);
+		ogf = hci_opcode_ogf(opcode);
+
 		if (ocf == BT_CMD_MODULE_CFG_REQ &&
 					priv->btmrvl_dev.sendcmdflag) {
 			priv->btmrvl_dev.sendcmdflag = false;
 			priv->adapter->cmd_complete = true;
 			wake_up_interruptible(&priv->adapter->cmd_wait_q);
 		}
+
+		if (ogf == OGF) {
+			BT_DBG("vendor event skipped: ogf 0x%4.4x ocf 0x%4.4x",
+			       ogf, ocf);
+			kfree_skb(skb);
+			return false;
+		}
 	}
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(btmrvl_check_evtpkt);
 
@@ -198,6 +212,36 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
+int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv)
+{
+	struct sk_buff *skb;
+	struct btmrvl_cmd *cmd;
+
+	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	if (!skb) {
+		BT_ERR("No free skb");
+		return -ENOMEM;
+	}
+
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
+						   BT_CMD_HOST_SLEEP_CONFIG));
+	cmd->length = 2;
+	cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
+	cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
+
+	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+
+	skb->dev = (void *) priv->btmrvl_dev.hcidev;
+	skb_queue_head(&priv->adapter->tx_queue, skb);
+
+	BT_DBG("Queue HSCFG Command, gpio=0x%x, gap=0x%x", cmd->data[0],
+	       cmd->data[1]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btmrvl_send_hscfg_cmd);
+
 int btmrvl_enable_ps(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
@@ -230,7 +274,7 @@ int btmrvl_enable_ps(struct btmrvl_private *priv)
 }
 EXPORT_SYMBOL_GPL(btmrvl_enable_ps);
 
-static int btmrvl_enable_hs(struct btmrvl_private *priv)
+int btmrvl_enable_hs(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
 	struct btmrvl_cmd *cmd;
@@ -266,35 +310,15 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(btmrvl_enable_hs);
 
 int btmrvl_prepare_command(struct btmrvl_private *priv)
 {
-	struct sk_buff *skb = NULL;
-	struct btmrvl_cmd *cmd;
 	int ret = 0;
 
 	if (priv->btmrvl_dev.hscfgcmd) {
 		priv->btmrvl_dev.hscfgcmd = 0;
-
-		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-		if (skb == NULL) {
-			BT_ERR("No free skb");
-			return -ENOMEM;
-		}
-
-		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_CONFIG));
-		cmd->length = 2;
-		cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
-		cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
-
-		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-		skb->dev = (void *) priv->btmrvl_dev.hcidev;
-		skb_queue_head(&priv->adapter->tx_queue, skb);
-
-		BT_DBG("Queue HSCFG Command, gpio=0x%x, gap=0x%x",
-						cmd->data[0], cmd->data[1]);
+		btmrvl_send_hscfg_cmd(priv);
 	}
 
 	if (priv->btmrvl_dev.pscmd) {
@@ -385,10 +409,6 @@ static int btmrvl_ioctl(struct hci_dev *hdev,
 	return -ENOIOCTLCMD;
 }
 
-static void btmrvl_destruct(struct hci_dev *hdev)
-{
-}
-
 static int btmrvl_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
@@ -396,12 +416,13 @@ static int btmrvl_send_frame(struct sk_buff *skb)
 
 	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
 
-	if (!hdev || !hdev->driver_data) {
+	if (!hdev) {
 		BT_ERR("Frame for unknown HCI device");
 		return -ENODEV;
 	}
 
-	priv = (struct btmrvl_private *) hdev->driver_data;
+	priv = hci_get_drvdata(hdev);
+
 	if (!test_bit(HCI_RUNNING, &hdev->flags)) {
 		BT_ERR("Failed testing HCI_RUNING, flags=%lx", hdev->flags);
 		print_hex_dump_bytes("data: ", DUMP_PREFIX_OFFSET,
@@ -432,7 +453,7 @@ static int btmrvl_send_frame(struct sk_buff *skb)
 
 static int btmrvl_flush(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv = hdev->driver_data;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
 	skb_queue_purge(&priv->adapter->tx_queue);
 
@@ -441,7 +462,7 @@ static int btmrvl_flush(struct hci_dev *hdev)
 
 static int btmrvl_close(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv = hdev->driver_data;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
@@ -473,12 +494,14 @@ static int btmrvl_service_main_thread(void *data)
 
 	init_waitqueue_entry(&wait, current);
 
-	current->flags |= PF_NOFREEZE;
-
 	for (;;) {
 		add_wait_queue(&thread->wait_q, &wait);
 
 		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop()) {
+			BT_DBG("main_thread: break from main thread");
+			break;
+		}
 
 		if (adapter->wakeup_tries ||
 				((!adapter->int_count) &&
@@ -493,11 +516,6 @@ static int btmrvl_service_main_thread(void *data)
 		remove_wait_queue(&thread->wait_q, &wait);
 
 		BT_DBG("main_thread woke up");
-
-		if (kthread_should_stop()) {
-			BT_DBG("main_thread: break from main thread");
-			break;
-		}
 
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		if (adapter->int_count) {
@@ -546,16 +564,14 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	}
 
 	priv->btmrvl_dev.hcidev = hdev;
-	hdev->driver_data = priv;
+	hci_set_drvdata(hdev, priv);
 
 	hdev->bus = HCI_SDIO;
 	hdev->open = btmrvl_open;
 	hdev->close = btmrvl_close;
 	hdev->flush = btmrvl_flush;
 	hdev->send = btmrvl_send_frame;
-	hdev->destruct = btmrvl_destruct;
 	hdev->ioctl = btmrvl_ioctl;
-	hdev->owner = THIS_MODULE;
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 

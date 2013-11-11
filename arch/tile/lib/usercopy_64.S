@@ -19,55 +19,6 @@
 
 /* Access user memory, but use MMU to avoid propagating kernel exceptions. */
 
-	.pushsection .fixup,"ax"
-
-get_user_fault:
-	{ movei r1, -EFAULT; move r0, zero }
-	jrp lr
-	ENDPROC(get_user_fault)
-
-put_user_fault:
-	{ movei r0, -EFAULT; jrp lr }
-	ENDPROC(put_user_fault)
-
-	.popsection
-
-/*
- * __get_user_N functions take a pointer in r0, and return 0 in r1
- * on success, with the value in r0; or else -EFAULT in r1.
- */
-#define __get_user_N(bytes, LOAD) \
-	STD_ENTRY(__get_user_##bytes); \
-1:	{ LOAD r0, r0; move r1, zero }; \
-	jrp lr; \
-	STD_ENDPROC(__get_user_##bytes); \
-	.pushsection __ex_table,"a"; \
-	.quad 1b, get_user_fault; \
-	.popsection
-
-__get_user_N(1, ld1u)
-__get_user_N(2, ld2u)
-__get_user_N(4, ld4u)
-__get_user_N(8, ld)
-
-/*
- * __put_user_N functions take a value in r0 and a pointer in r1,
- * and return 0 in r0 on success or -EFAULT on failure.
- */
-#define __put_user_N(bytes, STORE) \
-	STD_ENTRY(__put_user_##bytes); \
-1:	{ STORE r1, r0; move r0, zero }; \
-	jrp lr; \
-	STD_ENDPROC(__put_user_##bytes); \
-	.pushsection __ex_table,"a"; \
-	.quad 1b, put_user_fault; \
-	.popsection
-
-__put_user_N(1, st1)
-__put_user_N(2, st2)
-__put_user_N(4, st4)
-__put_user_N(8, st)
-
 /*
  * strnlen_user_asm takes the pointer in r0, and the length bound in r1.
  * It returns the length, including the terminating NUL, or zero on exception.

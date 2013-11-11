@@ -16,9 +16,9 @@
 static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
 {
 	struct quad_buffer_head qbh;
-	u32 *bmp;
+	__le32 *bmp;
 	if (!(bmp = hpfs_map_bitmap(s, sec >> 14, &qbh, "chk"))) goto fail;
-	if ((cpu_to_le32(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f)) & 1) {
+	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f)) & 1) {
 		hpfs_error(s, "sector '%s' - %08x not allocated in bitmap", msg, sec);
 		goto fail1;
 	}
@@ -62,7 +62,7 @@ int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
 static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigned forward)
 {
 	struct quad_buffer_head qbh;
-	unsigned *bmp;
+	__le32 *bmp;
 	unsigned bs = near & ~0x3fff;
 	unsigned nr = (near & 0x3fff) & ~(n - 1);
 	/*unsigned mnr;*/
@@ -236,7 +236,7 @@ static secno alloc_in_dirband(struct super_block *s, secno near)
 int hpfs_alloc_if_possible(struct super_block *s, secno sec)
 {
 	struct quad_buffer_head qbh;
-	u32 *bmp;
+	__le32 *bmp;
 	if (!(bmp = hpfs_map_bitmap(s, sec >> 14, &qbh, "aip"))) goto end;
 	if (le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) & (1 << (sec & 0x1f))) {
 		bmp[(sec & 0x3fff) >> 5] &= cpu_to_le32(~(1 << (sec & 0x1f)));
@@ -254,7 +254,7 @@ int hpfs_alloc_if_possible(struct super_block *s, secno sec)
 void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 {
 	struct quad_buffer_head qbh;
-	u32 *bmp;
+	__le32 *bmp;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	/*printk("2 - ");*/
 	if (!n) return;
@@ -299,7 +299,7 @@ int hpfs_check_free_dnodes(struct super_block *s, int n)
 	int n_bmps = (hpfs_sb(s)->sb_fs_size + 0x4000 - 1) >> 14;
 	int b = hpfs_sb(s)->sb_c_bitmap & 0x0fffffff;
 	int i, j;
-	u32 *bmp;
+	__le32 *bmp;
 	struct quad_buffer_head qbh;
 	if ((bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
 		for (j = 0; j < 512; j++) {
@@ -351,7 +351,7 @@ void hpfs_free_dnode(struct super_block *s, dnode_secno dno)
 		hpfs_free_sectors(s, dno, 4);
 	} else {
 		struct quad_buffer_head qbh;
-		u32 *bmp;
+		__le32 *bmp;
 		unsigned ssec = (dno - hpfs_sb(s)->sb_dirband_start) / 4;
 		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
 			return;

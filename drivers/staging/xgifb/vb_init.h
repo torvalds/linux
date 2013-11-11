@@ -1,6 +1,6 @@
 #ifndef _VBINIT_
 #define _VBINIT_
-extern unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
-extern struct XGI21_LVDSCapStruct  XGI21_LCDCapList[13];
+extern unsigned char XGIInitNew(struct pci_dev *pdev);
+extern void XGIRegInit(struct vb_device_info *, unsigned long);
 #endif
 

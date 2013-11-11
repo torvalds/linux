@@ -6,7 +6,7 @@
  */
 
 struct fsyscall_gtod_data_t {
-	seqlock_t	lock;
+	seqcount_t	seq;
 	struct timespec	wall_time;
 	struct timespec monotonic_time;
 	cycle_t		clk_mask;

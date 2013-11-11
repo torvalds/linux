@@ -22,6 +22,7 @@
 #include <linux/timex.h>
 #include <linux/io.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 
 #define MMCR_BASE	0xfffef000	/* The default base address */
@@ -52,7 +53,8 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 	}
 }
 
-static void sc520_freq_set_cpu_state(unsigned int state)
+static void sc520_freq_set_cpu_state(struct cpufreq_policy *policy,
+		unsigned int state)
 {
 
 	struct cpufreq_freqs	freqs;
@@ -60,9 +62,8 @@ static void sc520_freq_set_cpu_state(unsigned int state)
 
 	freqs.old = sc520_freq_get_cpu_frequency(0);
 	freqs.new = sc520_freq_table[state].frequency;
-	freqs.cpu = 0; /* AMD Elan is UP */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	pr_debug("attempting to set frequency to %i kHz\n",
 			sc520_freq_table[state].frequency);
@@ -74,7 +75,7 @@ static void sc520_freq_set_cpu_state(unsigned int state)
 
 	local_irq_enable();
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 };
 
 static int sc520_freq_verify(struct cpufreq_policy *policy)
@@ -92,7 +93,7 @@ static int sc520_freq_target(struct cpufreq_policy *policy,
 				target_freq, relation, &newstate))
 		return -EINVAL;
 
-	sc520_freq_set_cpu_state(newstate);
+	sc520_freq_set_cpu_state(policy, newstate);
 
 	return 0;
 }
@@ -150,18 +151,19 @@ static struct cpufreq_driver sc520_freq_driver = {
 	.attr	= sc520_freq_attr,
 };
 
+static const struct x86_cpu_id sc520_ids[] = {
+	{ X86_VENDOR_AMD, 4, 9 },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, sc520_ids);
 
 static int __init sc520_freq_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
 	int err;
 
-	/* Test if we have the right hardware */
-	if (c->x86_vendor != X86_VENDOR_AMD ||
-	    c->x86 != 4 || c->x86_model != 9) {
-		pr_debug("no Elan SC520 processor found!\n");
+	if (!x86_match_cpu(sc520_ids))
 		return -ENODEV;
-	}
+
 	cpuctl = ioremap((unsigned long)(MMCR_BASE + OFFS_CPUCTL), 1);
 	if (!cpuctl) {
 		printk(KERN_ERR "sc520_freq: error: failed to remap memory\n");

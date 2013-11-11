@@ -20,8 +20,17 @@
 #include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
-#define PAGE_SHIFT	HV_LOG2_PAGE_SIZE_SMALL
-#define HPAGE_SHIFT	HV_LOG2_PAGE_SIZE_LARGE
+#if defined(CONFIG_PAGE_SIZE_16KB)
+#define PAGE_SHIFT	14
+#define CTX_PAGE_FLAG	HV_CTX_PG_SM_16K
+#elif defined(CONFIG_PAGE_SIZE_64KB)
+#define PAGE_SHIFT	16
+#define CTX_PAGE_FLAG	HV_CTX_PG_SM_64K
+#else
+#define PAGE_SHIFT	HV_LOG2_DEFAULT_PAGE_SIZE_SMALL
+#define CTX_PAGE_FLAG	0
+#endif
+#define HPAGE_SHIFT	HV_LOG2_DEFAULT_PAGE_SIZE_LARGE
 
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define HPAGE_SIZE	(_AC(1, UL) << HPAGE_SHIFT)
@@ -78,8 +87,7 @@ typedef HV_PTE pgprot_t;
 /*
  * User L2 page tables are managed as one L2 page table per page,
  * because we use the page allocator for them.  This keeps the allocation
- * simple and makes it potentially useful to implement HIGHPTE at some point.
- * However, it's also inefficient, since L2 page tables are much smaller
+ * simple, but it's also inefficient, since L2 page tables are much smaller
  * than pages (currently 2KB vs 64KB).  So we should revisit this.
  */
 typedef struct page *pgtable_t;
@@ -128,7 +136,7 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-#define HUGE_MAX_HSTATE		2
+#define HUGE_MAX_HSTATE		6
 
 #ifdef CONFIG_HUGETLB_PAGE
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
@@ -166,7 +174,9 @@ static inline __attribute_const__ int get_order(unsigned long size)
 #define MEM_LOW_END		(HALF_VA_SPACE - 1)         /* low half */
 #define MEM_HIGH_START		(-HALF_VA_SPACE)            /* high half */
 #define PAGE_OFFSET		MEM_HIGH_START
-#define _VMALLOC_START		_AC(0xfffffff500000000, UL) /* 4 GB */
+#define FIXADDR_BASE		_AC(0xfffffff400000000, UL) /* 4 GB */
+#define FIXADDR_TOP		_AC(0xfffffff500000000, UL) /* 4 GB */
+#define _VMALLOC_START		FIXADDR_TOP
 #define HUGE_VMAP_BASE		_AC(0xfffffff600000000, UL) /* 4 GB */
 #define MEM_SV_START		_AC(0xfffffff700000000, UL) /* 256 MB */
 #define MEM_SV_INTRPT		MEM_SV_START
@@ -176,9 +186,6 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 /* Highest DTLB address we will use */
 #define KERNEL_HIGH_VADDR	MEM_SV_START
-
-/* Since we don't currently provide any fixmaps, we use an impossible VA. */
-#define FIXADDR_TOP             MEM_HV_START
 
 #else /* !__tilegx__ */
 

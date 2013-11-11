@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
  */
 
 #ifndef __LINUX_USB_GADGET_PXA27X_H
@@ -88,9 +79,9 @@
 #define UDCISR_INT_MASK	(UDCICR_FIFOERR | UDCICR_PKTCOMPL)
 
 #define UDCOTGICR_IESF	(1 << 24)	/* OTG SET_FEATURE command recvd */
-#define UDCOTGICR_IEXR	(1 << 17)	/* Extra Transciever Interrupt
+#define UDCOTGICR_IEXR	(1 << 17)	/* Extra Transceiver Interrupt
 					   Rising Edge Interrupt Enable */
-#define UDCOTGICR_IEXF	(1 << 16)	/* Extra Transciever Interrupt
+#define UDCOTGICR_IEXF	(1 << 16)	/* Extra Transceiver Interrupt
 					   Falling Edge Interrupt Enable */
 #define UDCOTGICR_IEVV40R (1 << 9)	/* OTG Vbus Valid 4.0V Rising Edge
 					   Interrupt Enable */
@@ -427,7 +418,7 @@ struct udc_stats {
  * @irq: udc irq
  * @clk: udc clock
  * @usb_gadget: udc gadget structure
- * @driver: bound gadget (zero, g_ether, g_file_storage, ...)
+ * @driver: bound gadget (zero, g_ether, g_mass_storage, ...)
  * @dev: device
  * @mach: machine info, used to activate specific GPIO
  * @transceiver: external transceiver to handle vbus sense and D+ pullup
@@ -456,7 +447,7 @@ struct pxa_udc {
 	struct usb_gadget_driver		*driver;
 	struct device				*dev;
 	struct pxa2xx_udc_mach_info		*mach;
-	struct otg_transceiver			*transceiver;
+	struct usb_phy				*transceiver;
 
 	enum ep0_state				ep0state;
 	struct udc_stats			stats;
@@ -482,6 +473,7 @@ struct pxa_udc {
 	struct dentry				*debugfs_eps;
 #endif
 };
+#define to_pxa(g)	(container_of((g), struct pxa_udc, gadget))
 
 static inline struct pxa_udc *to_gadget_udc(struct usb_gadget *gadget)
 {

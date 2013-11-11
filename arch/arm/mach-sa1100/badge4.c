@@ -16,12 +16,15 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/platform_data/sa11x0-serial.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/errno.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -32,27 +35,33 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/mach/serial_sa1100.h>
 
 #include <mach/badge4.h>
 
 #include "generic.h"
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start		= BADGE4_SA1111_BASE,
-		.end		= BADGE4_SA1111_BASE + 0x00001fff,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= BADGE4_IRQ_GPIO_SA1111,
-		.end		= BADGE4_IRQ_GPIO_SA1111,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(BADGE4_SA1111_BASE, 0x2000),
+	[1] = DEFINE_RES_IRQ(BADGE4_IRQ_GPIO_SA1111),
 };
 
+static int badge4_sa1111_enable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 1);
+	return 0;
+}
+
+static void badge4_sa1111_disable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 0);
+}
+
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
+	.enable		= badge4_sa1111_enable,
+	.disable	= badge4_sa1111_disable,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
@@ -69,8 +78,36 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 };
 
+/* LEDs */
+struct gpio_led badge4_gpio_leds[] = {
+	{
+		.name			= "badge4:red",
+		.default_trigger	= "heartbeat",
+		.gpio			= 7,
+	},
+	{
+		.name			= "badge4:green",
+		.default_trigger	= "cpu0",
+		.gpio			= 9,
+	},
+};
+
+static struct gpio_led_platform_data badge4_gpio_led_info = {
+	.leds		= badge4_gpio_leds,
+	.num_leds	= ARRAY_SIZE(badge4_gpio_leds),
+};
+
+static struct platform_device badge4_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &badge4_gpio_led_info,
+	}
+};
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
+	&badge4_leds,
 };
 
 static int __init badge4_sa1111_init(void)
@@ -121,11 +158,8 @@ static struct flash_platform_data badge4_flash_data = {
 	.nr_parts	= ARRAY_SIZE(badge4_partitions),
 };
 
-static struct resource badge4_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_64M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource badge4_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_64M);
 
 static int five_v_on __initdata = 0;
 
@@ -269,11 +303,6 @@ static struct map_desc badge4_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(0x10000000),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
-	}, {	/* SA-1111      */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(0x48000000),
-		.length		= 0x00100000,
-		.type		= MT_DEVICE
 	}
 };
 
@@ -302,8 +331,14 @@ static void __init badge4_map_io(void)
 }
 
 MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= badge4_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_late	= sa11x0_init_late,
+	.init_time	= sa1100_timer_init,
+#ifdef CONFIG_SA1111
+	.dma_zone_size	= SZ_1M,
+#endif
+	.restart	= sa11x0_restart,
 MACHINE_END

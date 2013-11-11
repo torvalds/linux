@@ -25,6 +25,7 @@
 #include <asm/dma.h>
 #include <asm/macints.h>
 #include <asm/macintosh.h>
+#include <asm/mac_via.h>
 
 #include <scsi/scsi_host.h>
 
@@ -149,7 +150,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 
 	do {
 		if (mep->pdma_regs == NULL) {
-			if (mac_irq_pending(IRQ_MAC_SCSIDRQ))
+			if (via2_scsi_drq_pending())
 				return 0;
 		} else {
 			if (nubus_readl(mep->pdma_regs) & 0x200)
@@ -230,9 +231,6 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				  u32 dma_count, int write, u8 cmd)
 {
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
-	unsigned long flags;
-
-	local_irq_save(flags);
 
 	mep->error = 0;
 
@@ -270,8 +268,6 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			esp_count = n;
 		}
 	} while (esp_count);
-
-	local_irq_restore(flags);
 }
 
 /*
@@ -353,8 +349,6 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
 	u8 *fifo = esp->regs + ESP_FDATA * 16;
 
-	disable_irq(esp->host->irq);
-
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
 
@@ -431,8 +425,6 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
 	}
-
-	enable_irq(esp->host->irq);
 }
 
 static int mac_esp_irq_pending(struct esp *esp)
@@ -489,7 +481,7 @@ static struct esp_driver_ops mac_esp_ops = {
 	.dma_error        = mac_esp_dma_error,
 };
 
-static int __devinit esp_mac_probe(struct platform_device *dev)
+static int esp_mac_probe(struct platform_device *dev)
 {
 	struct scsi_host_template *tpnt = &scsi_esp_template;
 	struct Scsi_Host *host;
@@ -573,8 +565,7 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	esp_chips[dev->id] = esp;
 	mb();
 	if (esp_chips[!dev->id] == NULL) {
-		err = request_irq(host->irq, mac_scsi_esp_intr, 0,
-		                  "Mac ESP", NULL);
+		err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
 		if (err < 0) {
 			esp_chips[dev->id] = NULL;
 			goto fail_free_priv;
@@ -600,7 +591,7 @@ fail:
 	return err;
 }
 
-static int __devexit esp_mac_remove(struct platform_device *dev)
+static int esp_mac_remove(struct platform_device *dev)
 {
 	struct mac_esp_priv *mep = platform_get_drvdata(dev);
 	struct esp *esp = mep->esp;
@@ -623,7 +614,7 @@ static int __devexit esp_mac_remove(struct platform_device *dev)
 
 static struct platform_driver esp_mac_driver = {
 	.probe    = esp_mac_probe,
-	.remove   = __devexit_p(esp_mac_remove),
+	.remove   = esp_mac_remove,
 	.driver   = {
 		.name	= DRV_MODULE_NAME,
 		.owner	= THIS_MODULE,

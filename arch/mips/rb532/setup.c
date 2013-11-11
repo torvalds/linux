@@ -3,6 +3,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/export.h>
 
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>

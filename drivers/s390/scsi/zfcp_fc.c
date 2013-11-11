@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2008, 2010
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -25,6 +25,27 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_DOM]		= 0xFF0000,
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
+
+static bool no_auto_port_rescan;
+module_param_named(no_auto_port_rescan, no_auto_port_rescan, bool, 0600);
+MODULE_PARM_DESC(no_auto_port_rescan,
+		 "no automatic port_rescan (default off)");
+
+void zfcp_fc_conditional_port_scan(struct zfcp_adapter *adapter)
+{
+	if (no_auto_port_rescan)
+		return;
+
+	queue_work(adapter->work_queue, &adapter->scan_work);
+}
+
+void zfcp_fc_inverse_conditional_port_scan(struct zfcp_adapter *adapter)
+{
+	if (!no_auto_port_rescan)
+		return;
+
+	queue_work(adapter->work_queue, &adapter->scan_work);
+}
 
 /**
  * zfcp_fc_post_event - post event to userspace via fc_transport
@@ -206,7 +227,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		zfcp_fc_enqueue_event(fsf_req->adapter, FCH_EVT_RSCN,
 				      *(u32 *)page);
 	}
-	queue_work(fsf_req->adapter->work_queue, &fsf_req->adapter->scan_work);
+	zfcp_fc_conditional_port_scan(fsf_req->adapter);
 }
 
 static void zfcp_fc_incoming_wwpn(struct zfcp_fsf_req *req, u64 wwpn)

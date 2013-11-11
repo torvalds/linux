@@ -14,7 +14,13 @@
  * Do memcpy(), but trap and return "n" when a load or store faults.
  *
  * Note: this idiom only works when memcpy() compiles to a leaf function.
- * If "sp" is updated during memcpy, the "jrp lr" will be incorrect.
+ * Here leaf function not only means it does not have calls, but also
+ * requires no stack operations (sp, stack frame pointer) and no
+ * use of callee-saved registers, else "jrp lr" will be incorrect since
+ * unwinding stack frame is bypassed. Since memcpy() is not complex so
+ * these conditions are satisfied here, but we need to be careful when
+ * modifying this file. This is not a clean solution but is the best
+ * one so far.
  *
  * Also note that we are capturing "n" from the containing scope here.
  */

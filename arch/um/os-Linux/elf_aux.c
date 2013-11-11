@@ -9,21 +9,15 @@
  */
 #include <elf.h>
 #include <stddef.h>
-#include "init.h"
-#include "elf_user.h"
-#include "mem_user.h"
-#include <kern_constants.h>
+#include <init.h>
+#include <elf_user.h>
+#include <mem_user.h>
 
-/* Use the one from the kernel - the host may miss it, if having old headers. */
-#if UM_ELF_CLASS == UM_ELFCLASS32
 typedef Elf32_auxv_t elf_auxv_t;
-#else
-typedef Elf64_auxv_t elf_auxv_t;
-#endif
 
 /* These are initialized very early in boot and never changed */
 char * elf_aux_platform;
-long elf_aux_hwcap;
+extern long elf_aux_hwcap;
 unsigned long vsyscall_ehdr;
 unsigned long vsyscall_end;
 unsigned long __kernel_vsyscall;

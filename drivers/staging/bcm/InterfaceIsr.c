@@ -4,8 +4,8 @@
 static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	int		status = urb->status;
-	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)urb->context;
-	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter ;
+	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)urb->context;
+	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter ;
 
 	if (netif_msg_intr(Adapter))
 		pr_info(PFX "%s: interrupt status %d\n",
@@ -114,7 +114,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 
 }
 
-int CreateInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
+int CreateInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	psIntfAdapter->psInterruptUrb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!psIntfAdapter->psInterruptUrb)
@@ -143,7 +143,7 @@ int CreateInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
 }
 
 
-INT StartInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
+INT StartInterruptUrb(struct bcm_interface_adapter *psIntfAdapter)
 {
 	INT status = 0;
 

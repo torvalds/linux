@@ -25,13 +25,6 @@
 
 #include <asm/context.S>
 
-#if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
-# define EX_SCRATCH_REG RETN
-#elif defined(CONFIG_BFIN_SCRATCH_REG_RETE)
-# define EX_SCRATCH_REG RETE
-#else
-# define EX_SCRATCH_REG CYCLES
-#endif
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
@@ -537,61 +530,6 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	jump .Lsyscall_really_exit;
 ENDPROC(_trap)
 
-ENTRY(_kernel_execve)
-	link SIZEOF_PTREGS;
-	p0 = sp;
-	r3 = SIZEOF_PTREGS / 4;
-	r4 = 0(x);
-.Lclear_regs:
-	[p0++] = r4;
-	r3 += -1;
-	cc = r3 == 0;
-	if !cc jump .Lclear_regs (bp);
-
-	p0 = sp;
-	sp += -16;
-	[sp + 12] = p0;
-	pseudo_long_call _do_execve, p5;
-	SP += 16;
-	cc = r0 == 0;
-	if ! cc jump .Lexecve_failed;
-	/* Success.  Copy our temporary pt_regs to the top of the kernel
-	 * stack and do a normal exception return.
-	 */
-	r1 = sp;
-	r0 = (-KERNEL_STACK_SIZE) (x);
-	r1 = r1 & r0;
-	p2 = r1;
-	p3 = [p2];
-	r0 = KERNEL_STACK_SIZE - 4 (z);
-	p1 = r0;
-	p1 = p1 + p2;
-
-	p0 = fp;
-	r4 = [p0--];
-	r3 = SIZEOF_PTREGS / 4;
-.Lcopy_regs:
-	r4 = [p0--];
-	[p1--] = r4;
-	r3 += -1;
-	cc = r3 == 0;
-	if ! cc jump .Lcopy_regs (bp);
-
-	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
-	p1 = r0;
-	p1 = p1 + p2;
-	sp = p1;
-	r0 = syscfg;
-	[SP + PT_SYSCFG] = r0;
-	[p3 + (TASK_THREAD + THREAD_KSP)] = sp;
-
-	RESTORE_CONTEXT;
-	rti;
-.Lexecve_failed:
-	unlink;
-	rts;
-ENDPROC(_kernel_execve)
-
 ENTRY(_system_call)
 	/* Store IPEND */
 	p2.l = lo(IPEND);
@@ -711,8 +649,6 @@ ENTRY(_system_call)
 	jump .Lresume_userspace_1;
 
 .Lsyscall_sigpending:
-	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
-	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_NOTIFY_RESUME);
@@ -1141,7 +1077,8 @@ ENTRY(_schedule_and_signal_from_int)
 	sti r0;
 
 	/* finish the userspace "atomic" functions for it */
-	r1 = FIXED_CODE_END;
+	r1.l = lo(FIXED_CODE_END);
+	r1.h = hi(FIXED_CODE_END);
 	r2 = [sp + PT_PC];
 	cc = r1 <= r2;
 	if cc jump .Lresume_userspace (bp);
@@ -1244,7 +1181,7 @@ ENTRY(_software_trace_buff)
 	.endr
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
 
-#if CONFIG_EARLY_PRINTK
+#ifdef CONFIG_EARLY_PRINTK
 __INIT
 ENTRY(_early_trap)
 	SAVE_ALL_SYS
@@ -1376,7 +1313,7 @@ END(_ex_table)
 ENTRY(_sys_call_table)
 	.long _sys_restart_syscall	/* 0 */
 	.long _sys_exit
-	.long _sys_fork
+	.long _sys_ni_syscall	/* fork */
 	.long _sys_read
 	.long _sys_write
 	.long _sys_open		/* 5 */
@@ -1494,7 +1431,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* old sys_ipc */
 	.long _sys_fsync
 	.long _sys_ni_syscall	/* old sys_sigreturn */
-	.long _sys_clone		/* 120 */
+	.long _bfin_clone		/* 120 */
 	.long _sys_setdomainname
 	.long _sys_newuname
 	.long _sys_ni_syscall	/* old sys_modify_ldt */
@@ -1543,7 +1480,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* for vm86 */
 	.long _sys_ni_syscall	/* old "query_module" */
 	.long _sys_ni_syscall	/* sys_poll */
-	.long _sys_nfsservctl
+	.long _sys_ni_syscall   /* old nfsservctl */
 	.long _sys_setresgid	/* setresgid16 */	/* 170 */
 	.long _sys_getresgid	/* getresgid16 */
 	.long _sys_prctl
@@ -1755,6 +1692,8 @@ ENTRY(_sys_call_table)
 	.long _sys_syncfs
 	.long _sys_setns
 	.long _sys_sendmmsg		/* 380 */
+	.long _sys_process_vm_readv
+	.long _sys_process_vm_writev
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

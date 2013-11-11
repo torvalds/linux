@@ -87,6 +87,10 @@ As any static code analyzer, Coccinelle produces false
 positives. Thus, reports must be carefully checked, and patches
 reviewed.
 
+To enable verbose messages set the V= variable, for example:
+
+   make coccicheck MODE=report V=1
+
 
  Using Coccinelle with a single semantic patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -102,8 +106,14 @@ or
 	make coccicheck COCCI=<my_SP.cocci> MODE=report
 
 
- Using Coccinelle on (modified) files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ Controlling Which Files are Processed by Coccinelle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+By default the entire kernel source tree is checked.
+
+To apply Coccinelle to a specific directory, M= can be used.
+For example, to check drivers/net/wireless/ one may write:
+
+    make coccicheck M=drivers/net/wireless/
 
 To apply Coccinelle on a file basis, instead of a directory basis, the
 following command may be used:
@@ -124,6 +134,15 @@ MODE variable explained above.
 In this mode, there is no information about semantic patches
 displayed, and no commit message proposed.
 
+ Additional flags
+~~~~~~~~~~~~~~~~~~
+
+Additional flags can be passed to spatch through the SPFLAGS
+variable.
+
+    make SPFLAGS=--use_glimpse coccicheck
+
+See spatch --help to learn more about spatch options.
 
  Proposing new semantic patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

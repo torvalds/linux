@@ -22,10 +22,10 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
-#include <sound/version.h>
 #include <linux/utsname.h>
 #include <linux/mutex.h>
 
@@ -93,7 +93,7 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 static void snd_sndstat_proc_read(struct snd_info_entry *entry,
 				  struct snd_info_buffer *buffer)
 {
-	snd_iprintf(buffer, "Sound Driver:3.8.1a-980706 (ALSA v" CONFIG_SND_VERSION " emulation code)\n");
+	snd_iprintf(buffer, "Sound Driver:3.8.1a-980706 (ALSA emulation code)\n");
 	snd_iprintf(buffer, "Kernel: %s %s %s %s %s\n",
 		    init_utsname()->sysname,
 		    init_utsname()->nodename,

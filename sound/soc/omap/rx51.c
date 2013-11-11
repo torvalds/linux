@@ -5,7 +5,7 @@
  *
  * Contact: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *          Eduardo Valentin <eduardo.valentin@nokia.com>
- *          Jarkko Nikula <jhnikula@gmail.com>
+ *          Jarkko Nikula <jarkko.nikula@bitmer.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,17 +26,17 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "../codecs/tpa6130a2.h"
 
 #include <asm/mach-types.h>
 
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #define RX51_TVOUT_SEL_GPIO		40
 #define RX51_JACK_DETECT_GPIO		177
@@ -58,9 +58,8 @@ static int rx51_spk_func;
 static int rx51_dmic_func;
 static int rx51_jack_func;
 
-static void rx51_ext_control(struct snd_soc_codec *codec)
+static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int hp = 0, hs = 0, tvout = 0;
 
 	switch (rx51_jack_func) {
@@ -101,11 +100,11 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = rtd->card;
 
 	snd_pcm_hw_constraint_minmax(runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 0;
 }
@@ -115,24 +114,6 @@ static int rx51_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int err;
-
-	/* Set codec DAI configuration */
-	err = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_DSP_A |
-				  SND_SOC_DAIFMT_IB_NF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
-
-	/* Set cpu DAI configuration */
-	err = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_DSP_A |
-				  SND_SOC_DAIFMT_IB_NF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
 
 	/* Set the codec system clock for DAC and ADC */
 	return snd_soc_dai_set_sysclk(codec_dai, 0, 19200000,
@@ -155,13 +136,13 @@ static int rx51_get_spk(struct snd_kcontrol *kcontrol,
 static int rx51_set_spk(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_spk_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_spk_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -201,13 +182,13 @@ static int rx51_get_input(struct snd_kcontrol *kcontrol,
 static int rx51_set_input(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_dmic_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_dmic_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -223,13 +204,13 @@ static int rx51_get_jack(struct snd_kcontrol *kcontrol,
 static int rx51_set_jack(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (rx51_jack_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	rx51_jack_func = ucontrol->value.integer.value[0];
-	rx51_ext_control(codec);
+	rx51_ext_control(&card->dapm);
 
 	return 1;
 }
@@ -266,16 +247,16 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"FM Transmitter", NULL, "LLOUT"},
 	{"FM Transmitter", NULL, "RLOUT"},
 
-	{"DMic Rate 64", NULL, "Mic Bias 2V"},
-	{"Mic Bias 2V", NULL, "DMic"},
+	{"DMic Rate 64", NULL, "Mic Bias"},
+	{"Mic Bias", NULL, "DMic"},
 };
 
 static const struct snd_soc_dapm_route audio_mapb[] = {
 	{"b LINE2R", NULL, "MONO_LOUT"},
 	{"Earphone", NULL, "b HPLOUT"},
 
-	{"LINE1L", NULL, "b Mic Bias 2.5V"},
-	{"b Mic Bias 2.5V", NULL, "HS Mic"}
+	{"LINE1L", NULL, "b Mic Bias"},
+	{"b Mic Bias", NULL, "HS Mic"}
 };
 
 static const char *spk_function[] = {"Off", "On"};
@@ -314,7 +295,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 
 	/* Add RX-51 specific controls */
-	err = snd_soc_add_controls(codec, aic34_rx51_controls,
+	err = snd_soc_add_card_controls(rtd->card, aic34_rx51_controls,
 				   ARRAY_SIZE(aic34_rx51_controls));
 	if (err < 0)
 		return err;
@@ -331,11 +312,9 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 	snd_soc_limit_volume(codec, "TPA6130A2 Headphone Playback Volume", 42);
 
-	err = omap_mcbsp_st_add_controls(codec, 1);
+	err = omap_mcbsp_st_add_controls(rtd);
 	if (err < 0)
 		return err;
-
-	snd_soc_dapm_sync(dapm);
 
 	/* AV jack detection */
 	err = snd_soc_jack_new(codec, "AV Jack",
@@ -354,7 +333,7 @@ static int rx51_aic34b_init(struct snd_soc_dapm_context *dapm)
 {
 	int err;
 
-	err = snd_soc_add_controls(dapm->codec, aic34_rx51_controlsb,
+	err = snd_soc_add_card_controls(dapm->card, aic34_rx51_controlsb,
 				   ARRAY_SIZE(aic34_rx51_controlsb));
 	if (err < 0)
 		return err;
@@ -373,16 +352,18 @@ static struct snd_soc_dai_link rx51_dai[] = {
 	{
 		.name = "TLV320AIC34",
 		.stream_name = "AIC34",
-		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.cpu_dai_name = "omap-mcbsp.2",
 		.codec_dai_name = "tlv320aic3x-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "tlv320aic3x-codec.2-0018",
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF |
+			   SND_SOC_DAIFMT_CBM_CFM,
 		.init = rx51_aic34_init,
 		.ops = &rx51_ops,
 	},
 };
 
-struct snd_soc_aux_dev rx51_aux_dev[] = {
+static struct snd_soc_aux_dev rx51_aux_dev[] = {
 	{
 		.name = "TLV320AIC34b",
 		.codec_name = "tlv320aic3x-codec.2-0019",
@@ -400,6 +381,7 @@ static struct snd_soc_codec_conf rx51_codec_conf[] = {
 /* Audio card */
 static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
+	.owner = THIS_MODULE,
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
 	.aux_dev = rx51_aux_dev,

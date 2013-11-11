@@ -39,6 +39,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -1050,7 +1051,7 @@ static void reenable_7220_chase(unsigned long opaque)
 static void handle_7220_chase(struct qib_pportdata *ppd, u64 ibcst)
 {
 	u8 ibclt;
-	u64 tnow;
+	unsigned long tnow;
 
 	ibclt = (u8)SYM_FIELD(ibcst, IBCStatus, LinkTrainingState);
 
@@ -1065,9 +1066,9 @@ static void handle_7220_chase(struct qib_pportdata *ppd, u64 ibcst)
 	case IB_7220_LT_STATE_CFGWAITRMT:
 	case IB_7220_LT_STATE_TXREVLANES:
 	case IB_7220_LT_STATE_CFGENH:
-		tnow = get_jiffies_64();
+		tnow = jiffies;
 		if (ppd->cpspec->chase_end &&
-		    time_after64(tnow, ppd->cpspec->chase_end)) {
+		    time_after(tnow, ppd->cpspec->chase_end)) {
 			ppd->cpspec->chase_end = 0;
 			qib_set_ib_7220_lstate(ppd,
 				QLOGIC_IB_IBCC_LINKCMD_DOWN,
@@ -1110,9 +1111,9 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 		sdma_7220_errors(ppd, errs);
 
 	if (errs & ~IB_E_BITSEXTANT)
-		qib_dev_err(dd, "error interrupt with unknown errors "
-			    "%llx set\n", (unsigned long long)
-			    (errs & ~IB_E_BITSEXTANT));
+		qib_dev_err(dd,
+			"error interrupt with unknown errors %llx set\n",
+			(unsigned long long) (errs & ~IB_E_BITSEXTANT));
 
 	if (errs & E_SUM_ERRS) {
 		qib_disarm_7220_senderrbufs(ppd);
@@ -1191,8 +1192,8 @@ static void handle_7220_errors(struct qib_devdata *dd, u64 errs)
 	}
 
 	if (errs & ERR_MASK(ResetNegated)) {
-		qib_dev_err(dd, "Got reset, requires re-init "
-			    "(unload and reload driver)\n");
+		qib_dev_err(dd,
+			"Got reset, requires re-init (unload and reload driver)\n");
 		dd->flags &= ~QIB_INITTED;  /* needs re-init */
 		/* mark as having had error */
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
@@ -1304,8 +1305,8 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	if (!hwerrs)
 		goto bail;
 	if (hwerrs == ~0ULL) {
-		qib_dev_err(dd, "Read of hardware error status failed "
-			    "(all bits set); ignoring\n");
+		qib_dev_err(dd,
+			"Read of hardware error status failed (all bits set); ignoring\n");
 		goto bail;
 	}
 	qib_stats.sps_hwerrs++;
@@ -1328,13 +1329,14 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 			qib_inc_eeprom_err(dd, log_idx, 1);
 	if (hwerrs & ~(TXEMEMPARITYERR_PIOBUF | TXEMEMPARITYERR_PIOPBC |
 		       RXE_PARITY))
-		qib_devinfo(dd->pcidev, "Hardware error: hwerr=0x%llx "
-			 "(cleared)\n", (unsigned long long) hwerrs);
+		qib_devinfo(dd->pcidev,
+			"Hardware error: hwerr=0x%llx (cleared)\n",
+			(unsigned long long) hwerrs);
 
 	if (hwerrs & ~IB_HWE_BITSEXTANT)
-		qib_dev_err(dd, "hwerror interrupt with unknown errors "
-			    "%llx set\n", (unsigned long long)
-			    (hwerrs & ~IB_HWE_BITSEXTANT));
+		qib_dev_err(dd,
+			"hwerror interrupt with unknown errors %llx set\n",
+			(unsigned long long) (hwerrs & ~IB_HWE_BITSEXTANT));
 
 	if (hwerrs & QLOGIC_IB_HWE_IB_UC_MEMORYPARITYERR)
 		qib_sd7220_clr_ibpar(dd);
@@ -1361,8 +1363,9 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (hwerrs & HWE_MASK(PowerOnBISTFailed)) {
 		isfatal = 1;
-		strlcat(msg, "[Memory BIST test failed, "
-			"InfiniPath hardware unusable]", msgl);
+		strlcat(msg,
+			"[Memory BIST test failed, InfiniPath hardware unusable]",
+			msgl);
 		/* ignore from now on, so disable until driver reloaded */
 		dd->cspec->hwerrmask &= ~HWE_MASK(PowerOnBISTFailed);
 		qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
@@ -1408,8 +1411,9 @@ static void qib_7220_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	qib_dev_err(dd, "%s hardware error\n", msg);
 
 	if (isfatal && !dd->diag_client) {
-		qib_dev_err(dd, "Fatal Hardware Error, no longer"
-			    " usable, SN %.16s\n", dd->serial);
+		qib_dev_err(dd,
+			"Fatal Hardware Error, no longer usable, SN %.16s\n",
+			dd->serial);
 		/*
 		 * For /sys status file and user programs to print; if no
 		 * trailing brace is copied, we'll know it was truncated.
@@ -1917,8 +1921,9 @@ static noinline void unlikely_7220_intr(struct qib_devdata *dd, u64 istat)
 		qib_stats.sps_errints++;
 		estat = qib_read_kreg64(dd, kr_errstatus);
 		if (!estat)
-			qib_devinfo(dd->pcidev, "error interrupt (%Lx), "
-				 "but no error bits set!\n", istat);
+			qib_devinfo(dd->pcidev,
+				"error interrupt (%Lx), but no error bits set!\n",
+				istat);
 		else
 			handle_7220_errors(dd, estat);
 	}
@@ -2022,17 +2027,18 @@ bail:
 static void qib_setup_7220_interrupt(struct qib_devdata *dd)
 {
 	if (!dd->cspec->irq)
-		qib_dev_err(dd, "irq is 0, BIOS error?  Interrupts won't "
-			    "work\n");
+		qib_dev_err(dd,
+			"irq is 0, BIOS error?  Interrupts won't work\n");
 	else {
 		int ret = request_irq(dd->cspec->irq, qib_7220intr,
 			dd->msi_lo ? 0 : IRQF_SHARED,
 			QIB_DRV_NAME, dd);
 
 		if (ret)
-			qib_dev_err(dd, "Couldn't setup %s interrupt "
-				    "(irq=%d): %d\n", dd->msi_lo ?
-				    "MSI" : "INTx", dd->cspec->irq, ret);
+			qib_dev_err(dd,
+				"Couldn't setup %s interrupt (irq=%d): %d\n",
+				dd->msi_lo ?  "MSI" : "INTx",
+				dd->cspec->irq, ret);
 	}
 }
 
@@ -2071,9 +2077,9 @@ static void qib_7220_boardname(struct qib_devdata *dd)
 		snprintf(dd->boardname, namelen, "%s", n);
 
 	if (dd->majrev != 5 || !dd->minrev || dd->minrev > 2)
-		qib_dev_err(dd, "Unsupported InfiniPath hardware "
-			    "revision %u.%u!\n",
-			    dd->majrev, dd->minrev);
+		qib_dev_err(dd,
+			"Unsupported InfiniPath hardware revision %u.%u!\n",
+			dd->majrev, dd->minrev);
 
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
@@ -2145,8 +2151,8 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 bail:
 	if (ret) {
 		if (qib_pcie_params(dd, dd->lbus_width, NULL, NULL))
-			qib_dev_err(dd, "Reset failed to setup PCIe or "
-				    "interrupts; continuing anyway\n");
+			qib_dev_err(dd,
+				"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
 		/* hold IBC in reset, no sends, etc till later */
 		qib_write_kreg(dd, kr_control, 0ULL);
@@ -2186,8 +2192,9 @@ static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 			return;
 		}
 		if (chippa >= (1UL << IBA7220_TID_SZ_SHIFT)) {
-			qib_dev_err(dd, "Physical page address 0x%lx "
-				"larger than supported\n", pa);
+			qib_dev_err(dd,
+				"Physical page address 0x%lx larger than supported\n",
+				pa);
 			return;
 		}
 
@@ -2434,6 +2441,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 	int lsb, ret = 0, setforce = 0;
 	u16 lcmd, licmd;
 	unsigned long flags;
+	u32 tmp = 0;
 
 	switch (which) {
 	case QIB_IB_CFG_LIDLMC:
@@ -2467,9 +2475,6 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		maskr = IBA7220_IBC_WIDTH_MASK;
 		lsb = IBA7220_IBC_WIDTH_SHIFT;
 		setforce = 1;
-		spin_lock_irqsave(&ppd->lflags_lock, flags);
-		ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
-		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		break;
 
 	case QIB_IB_CFG_SPD_ENB: /* set allowed Link speeds */
@@ -2643,6 +2648,28 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 			goto bail;
 		}
 		qib_set_ib_7220_lstate(ppd, lcmd, licmd);
+
+		maskr = IBA7220_IBC_WIDTH_MASK;
+		lsb = IBA7220_IBC_WIDTH_SHIFT;
+		tmp = (ppd->cpspec->ibcddrctrl >> lsb) & maskr;
+		/* If the width active on the chip does not match the
+		 * width in the shadow register, write the new active
+		 * width to the chip.
+		 * We don't have to worry about speed as the speed is taken
+		 * care of by set_7220_ibspeed_fast called by ib_updown.
+		 */
+		if (ppd->link_width_enabled-1 != tmp) {
+			ppd->cpspec->ibcddrctrl &= ~(maskr << lsb);
+			ppd->cpspec->ibcddrctrl |=
+				(((u64)(ppd->link_width_enabled-1) & maskr) <<
+				 lsb);
+			qib_write_kreg(dd, kr_ibcddrctrl,
+				       ppd->cpspec->ibcddrctrl);
+			qib_write_kreg(dd, kr_scratch, 0);
+			spin_lock_irqsave(&ppd->lflags_lock, flags);
+			ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
+			spin_unlock_irqrestore(&ppd->lflags_lock, flags);
+		}
 		goto bail;
 
 	case QIB_IB_CFG_HRTBT: /* set Heartbeat off/enable/auto */
@@ -2685,8 +2712,9 @@ static int qib_7220_set_loopback(struct qib_pportdata *ppd, const char *what)
 		ppd->cpspec->ibcctrl &= ~SYM_MASK(IBCCtrl, Loopback);
 		/* enable heart beat again */
 		val = IBA7220_IBC_HRTBT_MASK << IBA7220_IBC_HRTBT_SHIFT;
-		qib_devinfo(ppd->dd->pcidev, "Disabling IB%u:%u IBC loopback "
-			    "(normal)\n", ppd->dd->unit, ppd->port);
+		qib_devinfo(ppd->dd->pcidev,
+			"Disabling IB%u:%u IBC loopback (normal)\n",
+			ppd->dd->unit, ppd->port);
 	} else
 		ret = -EINVAL;
 	if (!ret) {
@@ -2704,9 +2732,11 @@ static int qib_7220_set_loopback(struct qib_pportdata *ppd, const char *what)
 static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 				    u32 updegr, u32 egrhd, u32 npkts)
 {
-	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
+	mmiowb();
+	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
+	mmiowb();
 }
 
 static u32 qib_7220_hdrqempty(struct qib_ctxtdata *rcd)
@@ -3284,8 +3314,8 @@ static int qib_7220_intr_fallback(struct qib_devdata *dd)
 	if (!dd->msi_lo)
 		return 0;
 
-	qib_devinfo(dd->pcidev, "MSI interrupt not detected,"
-		 " trying INTx interrupts\n");
+	qib_devinfo(dd->pcidev,
+		"MSI interrupt not detected, trying INTx interrupts\n");
 	qib_7220_free_irq(dd);
 	qib_enable_intx(dd->pcidev);
 	/*
@@ -3957,11 +3987,10 @@ static int qib_late_7220_initreg(struct qib_devdata *dd)
 	qib_write_kreg(dd, kr_sendpioavailaddr, dd->pioavailregs_phys);
 	val = qib_read_kreg64(dd, kr_sendpioavailaddr);
 	if (val != dd->pioavailregs_phys) {
-		qib_dev_err(dd, "Catastrophic software error, "
-			    "SendPIOAvailAddr written as %lx, "
-			    "read back as %llx\n",
-			    (unsigned long) dd->pioavailregs_phys,
-			    (unsigned long long) val);
+		qib_dev_err(dd,
+			"Catastrophic software error, SendPIOAvailAddr written as %lx, read back as %llx\n",
+			(unsigned long) dd->pioavailregs_phys,
+			(unsigned long long) val);
 		ret = -EINVAL;
 	}
 	qib_register_observer(dd, &sendctrl_observer);
@@ -3991,8 +4020,8 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	dd->revision = readq(&dd->kregbase[kr_revision]);
 
 	if ((dd->revision & 0xffffffffU) == 0xffffffffU) {
-		qib_dev_err(dd, "Revision register read failure, "
-			    "giving up initialization\n");
+		qib_dev_err(dd,
+			"Revision register read failure, giving up initialization\n");
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -4065,6 +4094,8 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
+	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
+	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7220_tidtemplate(dd);
 
@@ -4132,6 +4163,7 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 		dd->cspec->sdmabufcnt;
 	dd->lastctxt_piobuf = dd->cspec->lastbuf_for_pio - sbufs;
 	dd->cspec->lastbuf_for_pio--; /* range is <= , not < */
+	dd->last_pio = dd->cspec->lastbuf_for_pio;
 	dd->pbufsctxt = dd->lastctxt_piobuf /
 		(dd->cfgctxts - dd->first_user_ctxt);
 
@@ -4587,8 +4619,8 @@ struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *pdev,
 		break;
 	}
 	if (qib_pcie_params(dd, minwidth, NULL, NULL))
-		qib_dev_err(dd, "Failed to setup PCIe or interrupts; "
-			    "continuing anyway\n");
+		qib_dev_err(dd,
+			"Failed to setup PCIe or interrupts; continuing anyway\n");
 
 	/* save IRQ for possible later use */
 	dd->cspec->irq = pdev->irq;

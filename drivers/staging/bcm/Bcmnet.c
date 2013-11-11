@@ -4,7 +4,7 @@ struct net_device *gblpnetdev;
 
 static INT bcm_open(struct net_device *dev)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 
 	if (Adapter->fw_download_done == FALSE) {
 		pr_notice(PFX "%s: link up failed (download in progress)\n",
@@ -28,7 +28,7 @@ static INT bcm_open(struct net_device *dev)
 
 static INT bcm_close(struct net_device *dev)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 
 	if (netif_msg_ifdown(Adapter))
 		pr_info(PFX "%s: disabling interface\n", dev->name);
@@ -59,7 +59,7 @@ static u16 bcm_select_queue(struct net_device *dev, struct sk_buff *skb)
 
 static netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 	u16 qindex = skb_get_queue_mapping(skb);
 
 
@@ -141,12 +141,12 @@ static int bcm_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void bcm_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
-	PS_INTERFACE_ADAPTER psIntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_interface_adapter *psIntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_device *udev = interface_to_usbdev(psIntfAdapter->interface);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u",
 		 Adapter->uiFlashLayoutMajorVersion,
 		 Adapter->uiFlashLayoutMinorVersion);
@@ -156,21 +156,21 @@ static void bcm_get_drvinfo(struct net_device *dev,
 
 static u32 bcm_get_link(struct net_device *dev)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 
 	return Adapter->LinkUpStatus;
 }
 
 static u32 bcm_get_msglevel(struct net_device *dev)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 
 	return Adapter->msg_enable;
 }
 
 static void bcm_set_msglevel(struct net_device *dev, u32 level)
 {
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
 
 	Adapter->msg_enable = level;
 }
@@ -183,10 +183,10 @@ static const struct ethtool_ops bcm_ethtool_ops = {
 	.set_msglevel	= bcm_set_msglevel,
 };
 
-int register_networkdev(PMINI_ADAPTER Adapter)
+int register_networkdev(struct bcm_mini_adapter *Adapter)
 {
 	struct net_device *net = Adapter->dev;
-	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *IntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_interface *udev = IntfAdapter->interface;
 	struct usb_device *xdev = IntfAdapter->udev;
 
@@ -224,10 +224,10 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	return 0;
 }
 
-void unregister_networkdev(PMINI_ADAPTER Adapter)
+void unregister_networkdev(struct bcm_mini_adapter *Adapter)
 {
 	struct net_device *net = Adapter->dev;
-	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *IntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_interface *udev = IntfAdapter->interface;
 	struct usb_device *xdev = IntfAdapter->udev;
 

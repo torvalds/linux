@@ -1,0 +1,13 @@
+* Freescale SGTL5000 Stereo Codec
+
+Required properties:
+- compatible : "fsl,sgtl5000".
+
+- reg : the I2C address of the device
+
+Example:
+
+codec: sgtl5000@0a {
+	compatible = "fsl,sgtl5000";
+	reg = <0x0a>;
+};

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@
 #ifndef _I830_BIOS_H_
 #define _I830_BIOS_H_
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 struct vbt_header {
 	u8 signature[20];		/**< Always starts with 'VBT$' */
@@ -120,12 +120,16 @@ struct bdb_general_features {
 	u8 ssc_freq:1;
 	u8 enable_lfp_on_override:1;
 	u8 disable_ssc_ddt:1;
-	u8 rsvd8:3; /* finish byte */
+	u8 rsvd7:1;
+	u8 display_clock_mode:1;
+	u8 rsvd8:1; /* finish byte */
 
         /* bits 3 */
 	u8 disable_smooth_vision:1;
 	u8 single_dvi:1;
-	u8 rsvd9:6; /* finish byte */
+	u8 rsvd9:1;
+	u8 fdi_rx_polarity_inverted:1;
+	u8 rsvd10:4; /* finish byte */
 
         /* bits 4 */
 	u8 legacy_monitor_detect;
@@ -133,7 +137,10 @@ struct bdb_general_features {
         /* bits 5 */
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
-	u8 rsvd11:6; /* finish byte */
+	u8 int_efp_support:1;
+	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
+	u8 rsvd11:3; /* finish byte */
 } __attribute__((packed));
 
 /* pre-915 */
@@ -197,8 +204,7 @@ struct bdb_general_features {
 struct child_device_config {
 	u16 handle;
 	u16 device_type;
-	u8  i2c_speed;
-	u8  rsvd[9];
+	u8  device_id[10]; /* ascii string */
 	u16 addin_offset;
 	u8  dvo_port; /* See Device_PORT_* above */
 	u8  i2c_pin;
@@ -240,7 +246,7 @@ struct bdb_general_definitions {
 	 * And the device num is related with the size of general definition
 	 * block. It is obtained by using the following formula:
 	 * number = (block_size - sizeof(bdb_general_definitions))/
-	 * 		sizeof(child_device_config);
+	 *	     sizeof(child_device_config);
 	 */
 	struct child_device_config devices[0];
 } __attribute__((packed));
@@ -446,11 +452,11 @@ struct bdb_driver_features {
 #define EDP_VSWING_1_2V		3
 
 struct edp_power_seq {
-	u16 t3;
-	u16 t7;
+	u16 t1_t3;
+	u16 t8;
 	u16 t9;
 	u16 t10;
-	u16 t12;
+	u16 t11_t12;
 } __attribute__ ((packed));
 
 struct edp_link_params {
@@ -463,12 +469,16 @@ struct edp_link_params {
 struct bdb_edp {
 	struct edp_power_seq power_seqs[16];
 	u32 color_depth;
-	u32 sdrrs_msa_timing_delay;
 	struct edp_link_params link_params[16];
+	u32 sdrrs_msa_timing_delay;
+
+	/* ith bit indicates enabled/disabled for (i+1)th panel */
+	u16 edp_s3d_feature;
+	u16 edp_t3_optimization;
 } __attribute__ ((packed));
 
 void intel_setup_bios(struct drm_device *dev);
-bool intel_parse_bios(struct drm_device *dev);
+int intel_parse_bios(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

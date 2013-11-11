@@ -4,13 +4,9 @@
 
 menu "PTP clock support"
 
-comment "Enable Device Drivers -> PPS to see the PTP clock options."
-	depends on PPS=n
-
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
-	depends on EXPERIMENTAL
-	depends on PPS
+	select PPS
 	help
 	  The IEEE 1588 standard defines a method to precisely
 	  synchronize distributed clocks over Ethernet networks. The
@@ -29,8 +25,9 @@ config PTP_1588_CLOCK
 
 config PTP_1588_CLOCK_GIANFAR
 	tristate "Freescale eTSEC as PTP clock"
-	depends on PTP_1588_CLOCK
 	depends on GIANFAR
+	select PTP_1588_CLOCK
+	default y
 	help
 	  This driver adds support for using the eTSEC as a PTP
 	  clock. This clock is only useful if your PTP programs are
@@ -42,8 +39,9 @@ config PTP_1588_CLOCK_GIANFAR
 
 config PTP_1588_CLOCK_IXP46X
 	tristate "Intel IXP46x as PTP clock"
-	depends on PTP_1588_CLOCK
 	depends on IXP4XX_ETH
+	select PTP_1588_CLOCK
+	default y
 	help
 	  This driver adds support for using the IXP46X as a PTP
 	  clock. This clock is only useful if your PTP programs are
@@ -54,13 +52,13 @@ config PTP_1588_CLOCK_IXP46X
 	  will be called ptp_ixp46x.
 
 comment "Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks."
-	depends on PTP_1588_CLOCK && (PHYLIB=n || NETWORK_PHY_TIMESTAMPING=n)
+	depends on PHYLIB=n || NETWORK_PHY_TIMESTAMPING=n
 
 config DP83640_PHY
 	tristate "Driver for the National Semiconductor DP83640 PHYTER"
-	depends on PTP_1588_CLOCK
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
+	select PTP_1588_CLOCK
 	---help---
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
@@ -70,6 +68,22 @@ config DP83640_PHY
 	  using the SO_TIMESTAMPING API.
 
 	  In order for this to work, your MAC driver must also
-	  implement the skb_tx_timetamp() function.
+	  implement the skb_tx_timestamp() function.
+
+config PTP_1588_CLOCK_PCH
+	tristate "Intel PCH EG20T as PTP clock"
+	select PTP_1588_CLOCK
+	help
+	  This driver adds support for using the PCH EG20T as a PTP
+	  clock. The hardware supports time stamping of PTP packets
+	  when using the end-to-end delay (E2E) mechansim. The peer
+	  delay mechansim (P2P) is not supported.
+
+	  This clock is only useful if your PTP programs are getting
+	  hardware time stamps on the PTP Ethernet packets using the
+	  SO_TIMESTAMPING API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_pch.
 
 endmenu

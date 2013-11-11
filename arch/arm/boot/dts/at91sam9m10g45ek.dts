@@ -1,0 +1,220 @@
+/*
+ * at91sam9m10g45ek.dts - Device Tree file for AT91SAM9M10G45-EK board
+ *
+ *  Copyright (C) 2011 Atmel,
+ *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/dts-v1/;
+/include/ "at91sam9g45.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9M10G45-EK";
+	compatible = "atmel,at91sam9m10g45ek", "atmel,at91sam9g45", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
+	};
+
+	memory {
+		reg = <0x70000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@ffffee00 {
+				status = "okay";
+			};
+
+			usart1: serial@fff90000 {
+				pinctrl-0 =
+					<&pinctrl_usart1
+					 &pinctrl_usart1_rts
+					 &pinctrl_usart1_cts>;
+				status = "okay";
+			};
+
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			i2c0: i2c@fff84000 {
+				status = "okay";
+			};
+
+			i2c1: i2c@fff88000 {
+				status = "okay";
+			};
+
+			mmc0: mmc@fff80000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0
+					&pinctrl_mmc0_slot0_clk_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 10 0>;
+				};
+			};
+
+			mmc1: mmc@fffd0000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc1
+					&pinctrl_mmc1_slot0_clk_cmd_dat0
+					&pinctrl_mmc1_slot0_dat1_3>;
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 11 0>;
+					wp-gpios = <&pioD 29 0>;
+				};
+			};
+
+			pinctrl@fffff200 {
+				mmc0 {
+					pinctrl_board_mmc0: mmc0-board {
+						atmel,pins =
+							<3 10 0x0 0x5>;	/* PD10 gpio CD pin pull up and deglitch */
+					};
+				};
+
+				mmc1 {
+					pinctrl_board_mmc1: mmc1-board {
+						atmel,pins =
+							<3 11 0x0 0x5	/* PD11 gpio CD pin pull up and deglitch */
+							 3 29 0x0 0x1>;	/* PD29 gpio WP pin pull up */
+					};
+				};
+			};
+
+			spi0: spi@fffa4000{
+				status = "okay";
+				cs-gpios = <&pioB 3 0>, <0>, <0>, <0>;
+				mtd_dataflash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					spi-max-frequency = <13000000>;
+					reg = <0>;
+				};
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			boot@0 {
+				label = "bootstrap/uboot/kernel";
+				reg = <0x0 0x400000>;
+			};
+
+			rootfs@400000 {
+				label = "rootfs";
+				reg = <0x400000 0x3C00000>;
+			};
+
+			data@4000000 {
+				label = "data";
+				reg = <0x4000000 0xC000000>;
+			};
+		};
+
+		usb0: ohci@00700000 {
+			status = "okay";
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioD 1 1
+					   &pioD 3 1>;
+		};
+
+		usb1: ehci@00800000 {
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioD 30 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		d6 {
+			label = "d6";
+			gpios = <&pioD 0 1>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d7 {
+			label = "d7";
+			gpios = <&pioD 31 1>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		left_click {
+			label = "left_click";
+			gpios = <&pioB 6 1>;
+			linux,code = <272>;
+			gpio-key,wakeup;
+		};
+
+		right_click {
+			label = "right_click";
+			gpios = <&pioB 7 1>;
+			linux,code = <273>;
+			gpio-key,wakeup;
+		};
+
+		left {
+			label = "Joystick Left";
+			gpios = <&pioB 14 1>;
+			linux,code = <105>;
+		};
+
+		right {
+			label = "Joystick Right";
+			gpios = <&pioB 15 1>;
+			linux,code = <106>;
+		};
+
+		up {
+			label = "Joystick Up";
+			gpios = <&pioB 16 1>;
+			linux,code = <103>;
+		};
+
+		down {
+			label = "Joystick Down";
+			gpios = <&pioB 17 1>;
+			linux,code = <108>;
+		};
+
+		enter {
+			label = "Joystick Press";
+			gpios = <&pioB 18 1>;
+			linux,code = <28>;
+		};
+	};
+};

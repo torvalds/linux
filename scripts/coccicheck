@@ -1,22 +1,40 @@
-#!/bin/sh
+#!/bin/bash
 
 SPATCH="`which ${SPATCH:=spatch}`"
+
+# The verbosity may be set by the environmental parameter V=
+# as for example with 'make V=1 coccicheck'
+
+if [ -n "$V" -a "$V" != "0" ]; then
+	VERBOSE=1
+else
+	VERBOSE=0
+fi
+
+FLAGS="$SPFLAGS -very_quiet"
+
+# spatch only allows include directories with the syntax "-I include"
+# while gcc also allows "-Iinclude" and "-include include"
+COCCIINCLUDE=${LINUXINCLUDE//-I/-I }
+COCCIINCLUDE=${COCCIINCLUDE//-include/-I}
 
 if [ "$C" = "1" -o "$C" = "2" ]; then
     ONLINE=1
 
-# This requires Coccinelle >= 0.2.3
-#    FLAGS="-ignore_unknown_options -very_quiet"
-#    OPTIONS=$*
-
-# Workaround for Coccinelle < 0.2.3
-    FLAGS="-I $srctree/include -very_quiet"
+    # Take only the last argument, which is the C file to test
     shift $(( $# - 1 ))
-    OPTIONS=$1
+    OPTIONS="$COCCIINCLUDE $1"
 else
     ONLINE=0
-    FLAGS="-very_quiet"
-    OPTIONS="-dir $srctree"
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        OPTIONS="-dir $srctree $COCCIINCLUDE"
+    else
+        OPTIONS="-dir $KBUILD_EXTMOD $COCCIINCLUDE"
+    fi
+fi
+
+if [ "$KBUILD_EXTMOD" != "" ] ; then
+    OPTIONS="-patch $srctree $OPTIONS"
 fi
 
 if [ ! -x "$SPATCH" ]; then
@@ -42,6 +60,14 @@ if [ "$ONLINE" = "0" ] ; then
     echo ''
 fi
 
+run_cmd() {
+	if [ $VERBOSE -ne 0 ] ; then
+		echo "Running: $@"
+	fi
+	eval $@
+}
+
+
 coccinelle () {
     COCCI="$1"
 
@@ -51,7 +77,7 @@ coccinelle () {
 #
 #    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
 
-    if [ "$ONLINE" = "0" ] ; then
+    if [ $VERBOSE -ne 0 -a $ONLINE -eq 0 ] ; then
 
 	FILE=`echo $COCCI | sed "s|$srctree/||"`
 
@@ -87,12 +113,21 @@ coccinelle () {
     fi
 
     if [ "$MODE" = "chain" ] ; then
-	$SPATCH -D patch   $FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
-	$SPATCH -D report  $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || \
-	$SPATCH -D context $FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
-	$SPATCH -D org     $FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || exit 1
+	run_cmd $SPATCH -D patch   \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+	run_cmd $SPATCH -D report  \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || \
+	run_cmd $SPATCH -D context \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+	run_cmd $SPATCH -D org     \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || exit 1
+    elif [ "$MODE" = "rep+ctxt" ] ; then
+	run_cmd $SPATCH -D report  \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff && \
+	run_cmd $SPATCH -D context \
+		$FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     else
-	$SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
+	run_cmd $SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
     fi
 
 }

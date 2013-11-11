@@ -30,14 +30,16 @@
 #include <linux/init.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
+#include <linux/ratelimit.h>
 #include <linux/string.h>
+#include <linux/interrupt.h>
 #include <net/dst.h>
 #ifdef CONFIG_XFRM
 #include <linux/xfrm.h>
 #include <net/xfrm.h>
 #endif /* CONFIG_XFRM */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -46,13 +48,13 @@
 #include "ethernet-tx.h"
 #include "ethernet-util.h"
 
-#include "cvmx-wqe.h"
-#include "cvmx-fau.h"
-#include "cvmx-pip.h"
-#include "cvmx-pko.h"
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-wqe.h>
+#include <asm/octeon/cvmx-fau.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-helper.h>
 
-#include "cvmx-gmxx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
 
 #define CVM_OCT_SKB_CB(skb)	((u64 *)((skb)->cb))
 
@@ -60,7 +62,7 @@
  * You can define GET_SKBUFF_QOS() to override how the skbuff output
  * function determines which output queue is used. The default
  * implementation always uses the base queue for the port. If, for
- * example, you wanted to use the skb->priority fieid, define
+ * example, you wanted to use the skb->priority field, define
  * GET_SKBUFF_QOS as: #define GET_SKBUFF_QOS(skb) ((skb)->priority)
  */
 #ifndef GET_SKBUFF_QOS
@@ -163,8 +165,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	/*
-	 * Prefetch the private data structure.  It is larger that one
-	 * cache line.
+	 * Prefetch the private data structure.  It is larger than the
+	 * one cache line.
 	 */
 	prefetch(priv);
 
@@ -274,7 +276,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
-			hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)(page_address(fs->page) + fs->page_offset));
+			hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)(page_address(fs->page.p) + fs->page_offset));
 			hw_buffer.s.size = fs->size;
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
@@ -289,8 +291,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * See if we can put this skb in the FPA pool. Any strange
 	 * behavior from the Linux networking stack will most likely
 	 * be caused by a bug in the following code. If some field is
-	 * in use by the network stack and get carried over when a
-	 * buffer is reused, bad thing may happen.  If in doubt and
+	 * in use by the network stack and gets carried over when a
+	 * buffer is reused, bad things may happen.  If in doubt and
 	 * you dont need the absolute best performance, disable the
 	 * define REUSE_SKBUFFS_WITHOUT_FREE. The reuse of buffers has
 	 * shown a 25% increase in performance under some loads.
@@ -343,7 +345,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (unlikely
 	    (skb->truesize !=
-	     sizeof(*skb) + skb_end_pointer(skb) - skb->head)) {
+	     sizeof(*skb) + skb_end_offset(skb))) {
 		/*
 		   printk("TX buffer truesize has been changed\n");
 		 */
@@ -446,7 +448,7 @@ dont_put_skbuff_in_hw:
 						 priv->queue + qos,
 						 pko_command, hw_buffer,
 						 CVMX_PKO_LOCK_NONE))) {
-		DEBUGPRINT("%s: Failed to send the packet\n", dev->name);
+		printk_ratelimited("%s: Failed to send the packet\n", dev->name);
 		queue_type = QUEUE_DROP;
 	}
 skip_xmit:
@@ -525,8 +527,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a work queue entry */
 	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
 	if (unlikely(work == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a work queue entry\n",
-			   dev->name);
+		printk_ratelimited("%s: Failed to allocate a work "
+				   "queue entry\n", dev->name);
 		priv->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 		return 0;
@@ -535,8 +537,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Get a packet buffer */
 	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
 	if (unlikely(packet_buffer == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a packet buffer\n",
-			   dev->name);
+		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
+				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 		priv->stats.tx_dropped++;
 		dev_kfree_skb(skb);

@@ -1,11 +1,11 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland / sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/hardirq.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/types.h>
@@ -21,7 +21,7 @@
 #include <linux/debugfs.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sjur Brendeland<sjur.brandeland@stericsson.com>");
+MODULE_AUTHOR("Sjur Brendeland");
 MODULE_DESCRIPTION("CAIF serial device TTY line discipline");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_CAIF);
@@ -38,15 +38,15 @@ MODULE_ALIAS_LDISC(N_CAIF);
 /*This list is protected by the rtnl lock. */
 static LIST_HEAD(ser_list);
 
-static int ser_loop;
+static bool ser_loop;
 module_param(ser_loop, bool, S_IRUGO);
 MODULE_PARM_DESC(ser_loop, "Run in simulated loopback mode.");
 
-static int ser_use_stx = 1;
+static bool ser_use_stx = true;
 module_param(ser_use_stx, bool, S_IRUGO);
 MODULE_PARM_DESC(ser_use_stx, "STX enabled or not.");
 
-static int ser_use_fcs = 1;
+static bool ser_use_fcs = true;
 
 module_param(ser_use_fcs, bool, S_IRUGO);
 MODULE_PARM_DESC(ser_use_fcs, "FCS enabled or not.");
@@ -88,11 +88,9 @@ static inline void update_tty_status(struct ser_device *ser)
 {
 	ser->tty_status =
 		ser->tty->stopped << 5 |
-		ser->tty->hw_stopped << 4 |
 		ser->tty->flow_stopped << 3 |
 		ser->tty->packet << 2 |
-		ser->tty->low_latency << 1 |
-		ser->tty->warned;
+		ser->tty->port->low_latency << 1;
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
@@ -261,7 +259,7 @@ static int handle_tx(struct ser_device *ser)
 		skb_pull(skb, tty_wr);
 		if (skb->len == 0) {
 			struct sk_buff *tmp = skb_dequeue(&ser->head);
-			BUG_ON(tmp != skb);
+			WARN_ON(tmp != skb);
 			if (in_interrupt())
 				dev_kfree_skb_irq(skb);
 			else
@@ -305,7 +303,7 @@ static void ldisc_tx_wakeup(struct tty_struct *tty)
 
 	ser = tty->disc_data;
 	BUG_ON(ser == NULL);
-	BUG_ON(ser->tty != tty);
+	WARN_ON(ser->tty != tty);
 	handle_tx(ser);
 }
 
@@ -325,6 +323,9 @@ static int ldisc_open(struct tty_struct *tty)
 
 	sprintf(name, "cf%s", tty->name);
 	dev = alloc_netdev(sizeof(*ser), name, caifdev_setup);
+	if (!dev)
+		return -ENOMEM;
+
 	ser = netdev_priv(dev);
 	ser->tty = tty_kref_get(tty);
 	ser->dev = dev;

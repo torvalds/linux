@@ -71,13 +71,10 @@
 static inline int
 pl_vendor_req(struct usbnet *dev, u8 req, u8 val, u8 index)
 {
-	return usb_control_msg(dev->udev,
-		usb_rcvctrlpipe(dev->udev, 0),
-		req,
-		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		val, index,
-		NULL, 0,
-		USB_CTRL_GET_TIMEOUT);
+	return usbnet_read_cmd(dev, req,
+				USB_DIR_IN | USB_TYPE_VENDOR |
+				USB_RECIP_DEVICE,
+				val, index, NULL, 0);
 }
 
 static inline int
@@ -152,19 +149,10 @@ static struct usb_driver plusb_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init plusb_init(void)
-{
-	return usb_register(&plusb_driver);
-}
-module_init(plusb_init);
-
-static void __exit plusb_exit(void)
-{
-	usb_deregister(&plusb_driver);
-}
-module_exit(plusb_exit);
+module_usb_driver(plusb_driver);
 
 MODULE_AUTHOR("David Brownell");
 MODULE_DESCRIPTION("Prolific PL-2301/2302/25A1 USB Host to Host Link Driver");

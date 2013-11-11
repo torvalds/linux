@@ -16,6 +16,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/export.h>
 
 #include "bfad_drv.h"
 #include "bfad_im.h"
@@ -185,7 +186,7 @@ bfad_debugfs_lseek(struct file *file, loff_t offset, int orig)
 		file->f_pos += offset;
 		break;
 	case 2:
-		file->f_pos = debug->buffer_len - offset;
+		file->f_pos = debug->buffer_len + offset;
 		break;
 	default:
 		return -EINVAL;
@@ -214,10 +215,10 @@ bfad_debugfs_read(struct file *file, char __user *buf,
 
 #define BFA_REG_CT_ADDRSZ	(0x40000)
 #define BFA_REG_CB_ADDRSZ	(0x20000)
-#define BFA_REG_ADDRSZ(__bfa)	\
-	((bfa_ioc_devid(&(__bfa)->ioc) == BFA_PCI_DEVICE_ID_CT) ?	\
-		BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ)
-#define BFA_REG_ADDRMSK(__bfa)  ((u32)(BFA_REG_ADDRSZ(__bfa) - 1))
+#define BFA_REG_ADDRSZ(__ioc)	\
+	((u32)(bfa_asic_id_ctc(bfa_ioc_devid(__ioc)) ?	\
+	 BFA_REG_CT_ADDRSZ : BFA_REG_CB_ADDRSZ))
+#define BFA_REG_ADDRMSK(__ioc)	(BFA_REG_ADDRSZ(__ioc) - 1)
 
 static bfa_status_t
 bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
@@ -236,7 +237,7 @@ bfad_reg_offset_check(struct bfa_s *bfa, u32 offset, u32 len)
 			return BFA_STATUS_EINVAL;
 	} else {
 		/* CB register space 64KB */
-		if ((offset + (len<<2)) > BFA_REG_ADDRMSK(bfa))
+		if ((offset + (len<<2)) > BFA_REG_ADDRMSK(&bfa->ioc))
 			return BFA_STATUS_EINVAL;
 	}
 	return BFA_STATUS_OK;
@@ -317,7 +318,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	bfad->reglen = len << 2;
 	rb = bfa_ioc_bar0(ioc);
-	addr &= BFA_REG_ADDRMSK(bfa);
+	addr &= BFA_REG_ADDRMSK(ioc);
 
 	/* offset and len sanity check */
 	rc = bfad_reg_offset_check(bfa, addr, len);
@@ -380,7 +381,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	}
 	kfree(kern_buf);
 
-	addr &= BFA_REG_ADDRMSK(bfa); /* offset only 17 bit and word align */
+	addr &= BFA_REG_ADDRMSK(ioc); /* offset only 17 bit and word align */
 
 	/* offset and len sanity check */
 	rc = bfad_reg_offset_check(bfa, addr, 1);
@@ -471,7 +472,7 @@ static const struct file_operations bfad_debugfs_op_regwr = {
 
 struct bfad_debugfs_entry {
 	const char *name;
-	mode_t	mode;
+	umode_t	mode;
 	const struct file_operations *fops;
 };
 
@@ -556,8 +557,7 @@ bfad_debugfs_exit(struct bfad_port_s *port)
 		}
 	}
 
-	/*
-	 * Remove the pci_dev debugfs directory for the port */
+	/* Remove the pci_dev debugfs directory for the port */
 	if (port->port_debugfs_root) {
 		debugfs_remove(port->port_debugfs_root);
 		port->port_debugfs_root = NULL;

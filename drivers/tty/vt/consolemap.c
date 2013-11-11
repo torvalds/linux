@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <asm/uaccess.h>
+#include <linux/console.h>
 #include <linux/consolemap.h>
 #include <linux/vt_kern.h>
 
@@ -193,8 +194,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedir *p, int 
 	q = p->inverse_translations[i];
 
 	if (!q) {
-		q = p->inverse_translations[i] = (unsigned char *) 
-			kmalloc(MAX_GLYPH, GFP_KERNEL);
+		q = p->inverse_translations[i] = kmalloc(MAX_GLYPH, GFP_KERNEL);
 		if (!q) return;
 	}
 	memset(q, 0, MAX_GLYPH);
@@ -312,6 +312,7 @@ int con_set_trans_old(unsigned char __user * arg)
 	if (!access_ok(VERIFY_READ, arg, E_TABSZ))
 		return -EFAULT;
 
+	console_lock();
 	for (i=0; i<E_TABSZ ; i++) {
 		unsigned char uc;
 		__get_user(uc, arg+i);
@@ -319,6 +320,7 @@ int con_set_trans_old(unsigned char __user * arg)
 	}
 
 	update_user_maps();
+	console_unlock();
 	return 0;
 }
 
@@ -330,11 +332,13 @@ int con_get_trans_old(unsigned char __user * arg)
 	if (!access_ok(VERIFY_WRITE, arg, E_TABSZ))
 		return -EFAULT;
 
+	console_lock();
 	for (i=0; i<E_TABSZ ; i++)
-	  {
-	    ch = conv_uni_to_pc(vc_cons[fg_console].d, p[i]);
-	    __put_user((ch & ~0xff) ? 0 : ch, arg+i);
-	  }
+	{
+		ch = conv_uni_to_pc(vc_cons[fg_console].d, p[i]);
+		__put_user((ch & ~0xff) ? 0 : ch, arg+i);
+	}
+	console_unlock();
 	return 0;
 }
 
@@ -346,6 +350,7 @@ int con_set_trans_new(ushort __user * arg)
 	if (!access_ok(VERIFY_READ, arg, E_TABSZ*sizeof(unsigned short)))
 		return -EFAULT;
 
+	console_lock();
 	for (i=0; i<E_TABSZ ; i++) {
 		unsigned short us;
 		__get_user(us, arg+i);
@@ -353,6 +358,7 @@ int con_set_trans_new(ushort __user * arg)
 	}
 
 	update_user_maps();
+	console_unlock();
 	return 0;
 }
 
@@ -364,8 +370,10 @@ int con_get_trans_new(ushort __user * arg)
 	if (!access_ok(VERIFY_WRITE, arg, E_TABSZ*sizeof(unsigned short)))
 		return -EFAULT;
 
+	console_lock();
 	for (i=0; i<E_TABSZ ; i++)
 	  __put_user(p[i], arg+i);
+	console_unlock();
 	
 	return 0;
 }
@@ -401,12 +409,11 @@ static void con_release_unimap(struct uni_pagedir *p)
 		kfree(p->inverse_translations[i]);
 		p->inverse_translations[i] = NULL;
 	}
-	if (p->inverse_trans_unicode) {
-		kfree(p->inverse_trans_unicode);
-		p->inverse_trans_unicode = NULL;
-	}
+	kfree(p->inverse_trans_unicode);
+	p->inverse_trans_unicode = NULL;
 }
 
+/* Caller must hold the console lock */
 void con_free_unimap(struct vc_data *vc)
 {
 	struct uni_pagedir *p;
@@ -487,17 +494,21 @@ con_insert_unipair(struct uni_pagedir *p, u_short unicode, u_short fontpos)
 	return 0;
 }
 
-/* ui is a leftover from using a hashtable, but might be used again */
-int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+/* ui is a leftover from using a hashtable, but might be used again
+   Caller must hold the lock */
+static int con_do_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
 {
 	struct uni_pagedir *p, *q;
-  
+
 	p = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
-	if (p && p->readonly) return -EIO;
+	if (p && p->readonly)
+		return -EIO;
+
 	if (!p || --p->refcount) {
 		q = kzalloc(sizeof(*p), GFP_KERNEL);
 		if (!q) {
-			if (p) p->refcount++;
+			if (p)
+				p->refcount++;
 			return -ENOMEM;
 		}
 		q->refcount=1;
@@ -511,43 +522,96 @@ int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
 	return 0;
 }
 
+int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+{
+	int ret;
+	console_lock();
+	ret = con_do_clear_unimap(vc, ui);
+	console_unlock();
+	return ret;
+}
+	
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 {
 	int err = 0, err1, i;
 	struct uni_pagedir *p, *q;
 
+	console_lock();
+
+	/* Save original vc_unipagdir_loc in case we allocate a new one */
 	p = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
-	if (p->readonly) return -EIO;
+	if (p->readonly) {
+		console_unlock();
+		return -EIO;
+	}
 	
-	if (!ct) return 0;
+	if (!ct) {
+		console_unlock();
+		return 0;
+	}
 	
 	if (p->refcount > 1) {
 		int j, k;
 		u16 **p1, *p2, l;
 		
-		err1 = con_clear_unimap(vc, NULL);
-		if (err1) return err1;
+		err1 = con_do_clear_unimap(vc, NULL);
+		if (err1) {
+			console_unlock();
+			return err1;
+		}
 		
+		/*
+		 * Since refcount was > 1, con_clear_unimap() allocated a
+		 * a new uni_pagedir for this vc.  Re: p != q
+		 */
 		q = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
-		for (i = 0, l = 0; i < 32; i++)
+
+		/*
+		 * uni_pgdir is a 32*32*64 table with rows allocated
+		 * when its first entry is added.  The unicode value must
+		 * still be incremented for empty rows.  We are copying
+		 * entries from "p" (old) to "q" (new).
+		 */
+		l = 0;		/* unicode value */
+		for (i = 0; i < 32; i++)
 		if ((p1 = p->uni_pgdir[i]))
 			for (j = 0; j < 32; j++)
-			if ((p2 = p1[j]))
+			if ((p2 = p1[j])) {
 				for (k = 0; k < 64; k++, l++)
 				if (p2[k] != 0xffff) {
+					/*
+					 * Found one, copy entry for unicode
+					 * l with fontpos value p2[k].
+					 */
 					err1 = con_insert_unipair(q, l, p2[k]);
 					if (err1) {
 						p->refcount++;
 						*vc->vc_uni_pagedir_loc = (unsigned long)p;
 						con_release_unimap(q);
 						kfree(q);
+						console_unlock();
 						return err1; 
 					}
-              			}
-              	p = q;
-	} else if (p == dflt)
+				}
+			} else {
+				/* Account for row of 64 empty entries */
+				l += 64;
+			}
+		else
+			/* Account for empty table */
+			l += 32 * 64;
+
+		/*
+		 * Finished copying font table, set vc_uni_pagedir to new table
+		 */
+		p = q;
+	} else if (p == dflt) {
 		dflt = NULL;
-	
+	}
+
+	/*
+	 * Insert user specified unicode pairs into new table.
+	 */
 	while (ct--) {
 		unsigned short unicode, fontpos;
 		__get_user(unicode, &list->unicode);
@@ -557,21 +621,33 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		list++;
 	}
 	
-	if (con_unify_unimap(vc, p))
+	/*
+	 * Merge with fontmaps of any other virtual consoles.
+	 */
+	if (con_unify_unimap(vc, p)) {
+		console_unlock();
 		return err;
+	}
 
 	for (i = 0; i <= 3; i++)
-		set_inverse_transl(vc, p, i); /* Update all inverse translations */
+		set_inverse_transl(vc, p, i); /* Update inverse translations */
 	set_inverse_trans_unicode(vc, p);
-  
+
+	console_unlock();
 	return err;
 }
 
-/* Loads the unimap for the hardware font, as defined in uni_hash.tbl.
-   The representation used was the most compact I could come up
-   with.  This routine is executed at sys_setup time, and when the
-   PIO_FONTRESET ioctl is called. */
-
+/**
+ *	con_set_default_unimap	-	set default unicode map
+ *	@vc: the console we are updating
+ *
+ *	Loads the unimap for the hardware font, as defined in uni_hash.tbl.
+ *	The representation used was the most compact I could come up
+ *	with.  This routine is executed at video setup, and when the
+ *	PIO_FONTRESET ioctl is called. 
+ *
+ *	The caller must hold the console lock
+ */
 int con_set_default_unimap(struct vc_data *vc)
 {
 	int i, j, err = 0, err1;
@@ -582,9 +658,10 @@ int con_set_default_unimap(struct vc_data *vc)
 		p = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
 		if (p == dflt)
 			return 0;
+
 		dflt->refcount++;
 		*vc->vc_uni_pagedir_loc = (unsigned long)dflt;
-		if (p && --p->refcount) {
+		if (p && !--p->refcount) {
 			con_release_unimap(p);
 			kfree(p);
 		}
@@ -593,8 +670,9 @@ int con_set_default_unimap(struct vc_data *vc)
 	
 	/* The default font is always 256 characters */
 
-	err = con_clear_unimap(vc, NULL);
-	if (err) return err;
+	err = con_do_clear_unimap(vc, NULL);
+	if (err)
+		return err;
     
 	p = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
 	q = dfont_unitable;
@@ -619,6 +697,13 @@ int con_set_default_unimap(struct vc_data *vc)
 }
 EXPORT_SYMBOL(con_set_default_unimap);
 
+/**
+ *	con_copy_unimap		-	copy unimap between two vts
+ *	@dst_vc: target
+ *	@src_vt: source
+ *
+ *	The caller must hold the console lock when invoking this method
+ */
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 {
 	struct uni_pagedir *q;
@@ -633,12 +718,22 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 	*dst_vc->vc_uni_pagedir_loc = (long)q;
 	return 0;
 }
+EXPORT_SYMBOL(con_copy_unimap);
 
+/**
+ *	con_get_unimap		-	get the unicode map
+ *	@vc: the console to read from
+ *
+ *	Read the console unicode data for this console. Called from the ioctl
+ *	handlers.
+ */
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list)
 {
 	int i, j, k, ect;
 	u16 **p1, *p2;
 	struct uni_pagedir *p;
+
+	console_lock();
 
 	ect = 0;
 	if (*vc->vc_uni_pagedir_loc) {
@@ -659,15 +754,8 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 				}
 	}
 	__put_user(ect, uct);
+	console_unlock();
 	return ((ect <= ct) ? 0 : -ENOMEM);
-}
-
-void con_protect_unimap(struct vc_data *vc, int rdonly)
-{
-	struct uni_pagedir *p = (struct uni_pagedir *)*vc->vc_uni_pagedir_loc;
-	
-	if (p)
-		p->readonly = rdonly;
 }
 
 /*
@@ -675,6 +763,10 @@ void con_protect_unimap(struct vc_data *vc, int rdonly)
  * which shouldn't be affected by G0/G1 switching, etc.
  * If the user map still contains default values, i.e. the
  * direct-to-font mapping, then assume user is using Latin1.
+ *
+ * FIXME: at some point we need to decide if we want to lock the table
+ * update element itself via the keyboard_event_lock for consistency with the
+ * keyboard driver as well as the consoles
  */
 /* may be called during an interrupt */
 u32 conv_8bit_to_uni(unsigned char c)
@@ -742,4 +834,3 @@ console_map_init(void)
 			con_set_default_unimap(vc_cons[i].d);
 }
 
-EXPORT_SYMBOL(con_copy_unimap);

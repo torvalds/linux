@@ -89,14 +89,14 @@ static struct i2c_adapter vt586b_adapter = {
 };
 
 
-static const struct pci_device_id vt586b_ids[] __devinitconst = {
+static DEFINE_PCI_DEVICE_TABLE(vt586b_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_3) },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE (pci, vt586b_ids);
 
-static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u16 base;
 	u8 rev;
@@ -146,7 +146,7 @@ static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_i
 	return 0;
 }
 
-static void __devexit vt586b_remove(struct pci_dev *dev)
+static void vt586b_remove(struct pci_dev *dev)
 {
 	i2c_del_adapter(&vt586b_adapter);
 	release_region(I2C_DIR, IOSPACE);
@@ -158,23 +158,11 @@ static struct pci_driver vt586b_driver = {
 	.name		= "vt586b_smbus",
 	.id_table	= vt586b_ids,
 	.probe		= vt586b_probe,
-	.remove		= __devexit_p(vt586b_remove),
+	.remove		= vt586b_remove,
 };
 
-static int __init i2c_vt586b_init(void)
-{
-	return pci_register_driver(&vt586b_driver);
-}
-
-static void __exit i2c_vt586b_exit(void)
-{
-	pci_unregister_driver(&vt586b_driver);
-}
-
+module_pci_driver(vt586b_driver);
 
 MODULE_AUTHOR("Kyösti Mälkki <kmalkki@cc.hut.fi>");
 MODULE_DESCRIPTION("i2c for Via vt82c586b southbridge");
 MODULE_LICENSE("GPL");
-
-module_init(i2c_vt586b_init);
-module_exit(i2c_vt586b_exit);

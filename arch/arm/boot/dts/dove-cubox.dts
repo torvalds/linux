@@ -1,0 +1,88 @@
+/dts-v1/;
+
+/include/ "dove.dtsi"
+
+/ {
+	model = "SolidRun CuBox";
+	compatible = "solidrun,cubox", "marvell,dove";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_gpio_18>;
+		pinctrl-names = "default";
+
+		power {
+			label = "Power";
+			gpios = <&gpio0 18 1>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 1 0>;
+		};
+	};
+};
+
+&uart0 { status = "okay"; };
+&sata0 { status = "okay"; };
+&i2c0 { status = "okay"; };
+
+&sdio0 {
+	status = "okay";
+	/* sdio0 card detect is connected to wrong pin on CuBox */
+	cd-gpios = <&gpio0 12 1>;
+};
+
+&spi0 {
+	status = "okay";
+
+	/* spi0.0: 4M Flash Winbond W25Q32BV */
+	spi-flash@0 {
+		compatible = "st,w25q32";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&pmx_gpio_1 &pmx_gpio_12>;
+	pinctrl-names = "default";
+
+	pmx_gpio_1: pmx-gpio-1 {
+		marvell,pins = "mpp1";
+		marvell,function = "gpio";
+	};
+
+	pmx_gpio_12: pmx-gpio-12 {
+		marvell,pins = "mpp12";
+		marvell,function = "gpio";
+	};
+
+	pmx_gpio_18: pmx-gpio-18 {
+		marvell,pins = "mpp18";
+		marvell,function = "gpio";
+	};
+};

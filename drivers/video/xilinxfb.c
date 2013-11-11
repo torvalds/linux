@@ -23,7 +23,6 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -404,7 +403,7 @@ static int xilinxfb_release(struct device *dev)
  * OF bus binding
  */
 
-static int __devinit xilinxfb_of_probe(struct platform_device *op)
+static int xilinxfb_of_probe(struct platform_device *op)
 {
 	const u32 *prop;
 	u32 *p;
@@ -486,13 +485,13 @@ static int __devinit xilinxfb_of_probe(struct platform_device *op)
 	return -ENODEV;
 }
 
-static int __devexit xilinxfb_of_remove(struct platform_device *op)
+static int xilinxfb_of_remove(struct platform_device *op)
 {
 	return xilinxfb_release(&op->dev);
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id xilinxfb_of_match[] __devinitdata = {
+static struct of_device_id xilinxfb_of_match[] = {
 	{ .compatible = "xlnx,xps-tft-1.00.a", },
 	{ .compatible = "xlnx,xps-tft-2.00.a", },
 	{ .compatible = "xlnx,xps-tft-2.01.a", },
@@ -504,7 +503,7 @@ MODULE_DEVICE_TABLE(of, xilinxfb_of_match);
 
 static struct platform_driver xilinxfb_of_driver = {
 	.probe = xilinxfb_of_probe,
-	.remove = __devexit_p(xilinxfb_of_remove),
+	.remove = xilinxfb_of_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -512,25 +511,7 @@ static struct platform_driver xilinxfb_of_driver = {
 	},
 };
 
-
-/* ---------------------------------------------------------------------
- * Module setup and teardown
- */
-
-static int __init
-xilinxfb_init(void)
-{
-	return platform_driver_register(&xilinxfb_of_driver);
-}
-
-static void __exit
-xilinxfb_cleanup(void)
-{
-	platform_driver_unregister(&xilinxfb_of_driver);
-}
-
-module_init(xilinxfb_init);
-module_exit(xilinxfb_cleanup);
+module_platform_driver(xilinxfb_of_driver);
 
 MODULE_AUTHOR("MontaVista Software, Inc. <source@mvista.com>");
 MODULE_DESCRIPTION("Xilinx TFT frame buffer driver");

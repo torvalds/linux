@@ -21,20 +21,20 @@
 #include <linux/profile.h>
 #include <linux/smp.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/irq.h>
 #include <asm/sections.h>
 
 /* Interrupt handlers registered during init_IRQ */
 extern void apic_timer_interrupt(void);
 extern void x86_platform_ipi(void);
+extern void kvm_posted_intr_ipi(void);
 extern void error_interrupt(void);
 extern void irq_work_interrupt(void);
 
 extern void spurious_interrupt(void);
 extern void thermal_interrupt(void);
 extern void reschedule_interrupt(void);
-extern void mce_self_interrupt(void);
 
 extern void invalidate_interrupt(void);
 extern void invalidate_interrupt0(void);
@@ -102,11 +102,18 @@ static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
 	irq_attr->polarity	= polarity;
 }
 
+/* Intel specific interrupt remapping information */
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
 	u16 irte_index;
 	u16 sub_handle;
 	u8  irte_mask;
+};
+
+/* AMD specific interrupt remapping information */
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
 };
 
 /*
@@ -120,8 +127,12 @@ struct irq_cfg {
 	cpumask_var_t		old_domain;
 	u8			vector;
 	u8			move_in_progress : 1;
-#ifdef CONFIG_INTR_REMAP
-	struct irq_2_iommu	irq_2_iommu;
+#ifdef CONFIG_IRQ_REMAP
+	u8			remapped : 1;
+	union {
+		struct irq_2_iommu irq_2_iommu;
+		struct irq_2_irte  irq_2_irte;
+	};
 #endif
 };
 

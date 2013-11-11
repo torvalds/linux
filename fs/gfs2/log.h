@@ -48,15 +48,22 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	sdp->sd_log_head = sdp->sd_log_tail = value;
 }
 
+static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+
+	if (!test_bit(GIF_ORDERED, &ip->i_flags)) {
+		spin_lock(&sdp->sd_ordered_lock);
+		if (!test_and_set_bit(GIF_ORDERED, &ip->i_flags))
+			list_add(&ip->i_ordered, &sdp->sd_log_le_ordered);
+		spin_unlock(&sdp->sd_ordered_lock);
+	}
+}
+extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
 extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
-extern void gfs2_log_incr_head(struct gfs2_sbd *sdp);
-
-extern struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp);
-extern struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
-				      struct buffer_head *real);
 extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);

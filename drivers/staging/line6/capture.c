@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -106,7 +107,7 @@ void line6_unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	Wait until unlinking of all currently active capture URBs has been
 	finished.
 */
-static void wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
+void line6_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 {
 	int timeout = HZ;
 	unsigned int i;
@@ -133,7 +134,7 @@ static void wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 void line6_unlink_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 {
 	line6_unlink_audio_in_urbs(line6pcm);
-	wait_clear_audio_in_urbs(line6pcm);
+	line6_wait_clear_audio_in_urbs(line6pcm);
 }
 
 /*
@@ -192,6 +193,12 @@ void line6_capture_check_period(struct snd_line6_pcm *line6pcm, int length)
 	}
 }
 
+void line6_free_capture_buffer(struct snd_line6_pcm *line6pcm)
+{
+	kfree(line6pcm->buffer_in);
+	line6pcm->buffer_in = NULL;
+}
+
 /*
  * Callback for completed capture URB.
  */
@@ -208,16 +215,6 @@ static void audio_in_callback(struct urb *urb)
 	for (index = 0; index < LINE6_ISO_BUFFERS; ++index)
 		if (urb == line6pcm->urb_audio_in[index])
 			break;
-
-#ifdef CONFIG_LINE6_USB_DUMP_PCM
-	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
-		struct usb_iso_packet_descriptor *fout =
-		    &urb->iso_frame_desc[i];
-		line6_write_hexdump(line6pcm->line6, 'C',
-				    urb->transfer_buffer + fout->offset,
-				    fout->length);
-	}
-#endif
 
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
 
@@ -243,18 +240,14 @@ static void audio_in_callback(struct urb *urb)
 		length += fsize;
 
 		/* the following assumes LINE6_ISO_PACKETS == 1: */
-#if LINE6_BACKUP_MONITOR_SIGNAL
-		memcpy(line6pcm->prev_fbuf, fbuf, fsize);
-#else
 		line6pcm->prev_fbuf = fbuf;
-#endif
 		line6pcm->prev_fsize = fsize;
 
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-		if (!(line6pcm->flags & MASK_PCM_IMPULSE))
+		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
 #endif
-			if (test_bit(BIT_PCM_ALSA_CAPTURE, &line6pcm->flags)
-			    && (fsize > 0))
+			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
+				     &line6pcm->flags) && (fsize > 0))
 				line6_capture_copy(line6pcm, fbuf, fsize);
 	}
 
@@ -269,9 +262,10 @@ static void audio_in_callback(struct urb *urb)
 		submit_audio_in_urb(line6pcm);
 
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-		if (!(line6pcm->flags & MASK_PCM_IMPULSE))
+		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
 #endif
-			if (test_bit(BIT_PCM_ALSA_CAPTURE, &line6pcm->flags))
+			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
+				     &line6pcm->flags))
 				line6_capture_check_period(line6pcm, length);
 	}
 }
@@ -319,10 +313,17 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
+	ret = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
+
 	if (ret < 0)
 		return ret;
+
+	ret = snd_pcm_lib_malloc_pages(substream,
+				       params_buffer_bytes(hw_params));
+	if (ret < 0) {
+		line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
+		return ret;
+	}
 
 	line6pcm->period_in = params_period_bytes(hw_params);
 	return 0;
@@ -331,6 +332,8 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 /* hw_free capture callback */
 static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+	line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -344,7 +347,8 @@ int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_RESUME:
 #endif
-		err = line6_pcm_start(line6pcm, MASK_PCM_ALSA_CAPTURE);
+		err = line6_pcm_acquire(line6pcm,
+					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
 
 		if (err < 0)
 			return err;
@@ -355,7 +359,8 @@ int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 #endif
-		err = line6_pcm_stop(line6pcm, MASK_PCM_ALSA_CAPTURE);
+		err = line6_pcm_release(line6pcm,
+					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
 
 		if (err < 0)
 			return err;

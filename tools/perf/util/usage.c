@@ -1,9 +1,13 @@
 /*
- * GIT - The information manager from hell
+ * usage.c
+ *
+ * Various reporting routines.
+ * Originally copied from GIT source.
  *
  * Copyright (C) Linus Torvalds, 2005
  */
 #include "util.h"
+#include "debug.h"
 
 static void report(const char *prefix, const char *err, va_list params)
 {

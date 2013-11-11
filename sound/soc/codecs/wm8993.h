@@ -31,6 +31,7 @@
 #define WM8993_GPIO_CTRL_1                      0x12
 #define WM8993_GPIO1                            0x13
 #define WM8993_IRQ_DEBOUNCE                     0x14
+#define WM8993_INPUTS_CLAMP_REG			0x15
 #define WM8993_GPIOCTRL_2                       0x16
 #define WM8993_GPIO_POL                         0x17
 #define WM8993_LEFT_LINE_INPUT_1_2_VOLUME       0x18
@@ -654,6 +655,14 @@
 #define WM8993_GPIO1_DB_MASK                    0x0001  /* GPIO1_DB */
 #define WM8993_GPIO1_DB_SHIFT                        0  /* GPIO1_DB */
 #define WM8993_GPIO1_DB_WIDTH                        1  /* GPIO1_DB */
+
+/*
+ * R21 (0x15) - Inputs Clamp
+ */
+#define WM8993_INPUTS_CLAMP                     0x0040  /* INPUTS_CLAMP */
+#define WM8993_INPUTS_CLAMP_MASK                0x0040  /* INPUTS_CLAMP */
+#define WM8993_INPUTS_CLAMP_SHIFT                    7  /* INPUTS_CLAMP */
+#define WM8993_INPUTS_CLAMP_WIDTH                    1  /* INPUTS_CLAMP */
 
 /*
  * R22 (0x16) - GPIOCTRL 2

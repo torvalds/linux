@@ -42,8 +42,24 @@ extern struct ppc64_caches ppc64_caches;
 #endif /* __powerpc64__ && ! __ASSEMBLY__ */
 
 #if !defined(__ASSEMBLY__)
+
 #define __read_mostly __attribute__((__section__(".data..read_mostly")))
+
+#ifdef CONFIG_6xx
+extern long _get_L2CR(void);
+extern long _get_L3CR(void);
+extern void _set_L2CR(unsigned long);
+extern void _set_L3CR(unsigned long);
+#else
+#define _get_L2CR()	0L
+#define _get_L3CR()	0L
+#define _set_L2CR(val)	do { } while(0)
+#define _set_L3CR(val)	do { } while(0)
 #endif
 
+extern void cacheable_memzero(void *p, unsigned int nb);
+extern void *cacheable_memcpy(void *, const void *, unsigned int);
+
+#endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_CACHE_H */

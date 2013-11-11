@@ -23,7 +23,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -44,7 +44,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -401,7 +401,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_BRSC) || (value_convert <= PARM_MAX_BRSC))
 			lp->brsc[0] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_BRSC_2GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_BRSC_2GHZ);
 	} else if (strcmp(key, PARM_NAME_BRSC_5GHZ) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_BRSC_5GHZ, value);
 
@@ -409,7 +409,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_BRSC) || (value_convert <= PARM_MAX_BRSC))
 			lp->brsc[1] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_BRSC_5GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_BRSC_5GHZ);
 	} else if ((strcmp(key, PARM_NAME_DESIRED_SSID) == 0) || (strcmp(key, PARM_NAME_OWN_SSID) == 0)) {
 		DBG_TRACE(DbgInfo, "SSID, value: %s\n", value);
 
@@ -556,7 +556,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_SRSC) || (value_convert <= PARM_MAX_SRSC))
 			lp->srsc[0] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_SRSC_2GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_SRSC_2GHZ);
 	} else if (strcmp(key, PARM_NAME_SRSC_5GHZ) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_SRSC_5GHZ, value);
 
@@ -564,7 +564,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_SRSC) || (value_convert <= PARM_MAX_SRSC))
 			lp->srsc[1] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_SRSC_5GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_SRSC_5GHZ);
 	} else if (strcmp(key, PARM_NAME_SYSTEM_SCALE) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_SYSTEM_SCALE, value);
 
@@ -910,7 +910,7 @@ int parse_mac_address(char *value, u_char *byte_array)
 	memset(byte_field, '\0', 3);
 
 	while (value[value_offset] != '\0') {
-		/* Skip over the colon chars seperating the bytes, if they exist */
+		/* Skip over the colon chars separating the bytes, if they exist */
 		if (value[value_offset] == ':') {
 			value_offset++;
 			continue;

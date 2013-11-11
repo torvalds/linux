@@ -32,6 +32,7 @@
 
 #define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
+#include <linux/export.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -107,12 +108,14 @@ void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
 	unsigned char *prev_tail;
 
 	prev_tail = skb_tail_pointer(skb);
-	*nlh = NLMSG_NEW(skb, 0, seq, RDMA_NL_GET_TYPE(client, op),
-			len, NLM_F_MULTI);
+	*nlh = nlmsg_put(skb, 0, seq, RDMA_NL_GET_TYPE(client, op),
+			 len, NLM_F_MULTI);
+	if (!*nlh)
+		goto out_nlmsg_trim;
 	(*nlh)->nlmsg_len = skb_tail_pointer(skb) - prev_tail;
-	return NLMSG_DATA(*nlh);
+	return nlmsg_data(*nlh);
 
-nlmsg_failure:
+out_nlmsg_trim:
 	nlmsg_trim(skb, prev_tail);
 	return NULL;
 }
@@ -124,7 +127,8 @@ int ibnl_put_attr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	unsigned char *prev_tail;
 
 	prev_tail = skb_tail_pointer(skb);
-	NLA_PUT(skb, type, len, data);
+	if (nla_put(skb, type, len, data))
+		goto nla_put_failure;
 	nlh->nlmsg_len += skb_tail_pointer(skb) - prev_tail;
 	return 0;
 
@@ -146,9 +150,14 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			if (op < 0 || op >= client->nops ||
 			    !client->cb_table[RDMA_NL_GET_OP(op)].dump)
 				return -EINVAL;
-			return netlink_dump_start(nls, skb, nlh,
-						  client->cb_table[op].dump,
-						  NULL);
+
+			{
+				struct netlink_dump_control c = {
+					.dump = client->cb_table[op].dump,
+					.module = client->cb_table[op].module,
+				};
+				return netlink_dump_start(nls, skb, nlh, &c);
+			}
 		}
 	}
 
@@ -165,8 +174,11 @@ static void ibnl_rcv(struct sk_buff *skb)
 
 int __init ibnl_init(void)
 {
-	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, 0, ibnl_rcv,
-				    NULL, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.input	= ibnl_rcv,
+	};
+
+	nls = netlink_kernel_create(&init_net, NETLINK_RDMA, &cfg);
 	if (!nls) {
 		pr_warn("Failed to create netlink socket\n");
 		return -ENOMEM;

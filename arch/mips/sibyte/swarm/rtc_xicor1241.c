@@ -4,8 +4,8 @@
  * Copyright (C) 2002 MontaVista Software Inc.
  * Author: jsun@mvista.com or jsun@junsun.net
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -28,15 +28,15 @@
  * Register bits
  */
 
-#define X1241REG_SR_BAT	0x80		/* currently on battery power */
+#define X1241REG_SR_BAT 0x80		/* currently on battery power */
 #define X1241REG_SR_RWEL 0x04		/* r/w latch is enabled, can write RTC */
 #define X1241REG_SR_WEL 0x02		/* r/w latch is unlocked, can enable r/w now */
 #define X1241REG_SR_RTCF 0x01		/* clock failed */
 #define X1241REG_BL_BP2 0x80		/* block protect 2 */
 #define X1241REG_BL_BP1 0x40		/* block protect 1 */
 #define X1241REG_BL_BP0 0x20		/* block protect 0 */
-#define X1241REG_BL_WD1	0x10
-#define X1241REG_BL_WD0	0x08
+#define X1241REG_BL_WD1 0x10
+#define X1241REG_BL_WD0 0x08
 #define X1241REG_HR_MIL 0x80		/* military time format */
 
 /*
@@ -61,50 +61,50 @@
 
 static int xicor_read(uint8_t addr)
 {
-        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
-                ;
+	while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+		;
 
 	__raw_writeq((addr >> 8) & 0x7, SMB_CSR(R_SMB_CMD));
 	__raw_writeq(addr & 0xff, SMB_CSR(R_SMB_DATA));
 	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR2BYTE,
 		     SMB_CSR(R_SMB_START));
 
-        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
-                ;
+	while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+		;
 
 	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_RD1BYTE,
 		     SMB_CSR(R_SMB_START));
 
-        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
-                ;
+	while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+		;
 
-        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
-                /* Clear error bit by writing a 1 */
-                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
-                return -1;
-        }
+	if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+		/* Clear error bit by writing a 1 */
+		__raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+		return -1;
+	}
 
 	return (__raw_readq(SMB_CSR(R_SMB_DATA)) & 0xff);
 }
 
 static int xicor_write(uint8_t addr, int b)
 {
-        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
-                ;
+	while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+		;
 
 	__raw_writeq(addr, SMB_CSR(R_SMB_CMD));
 	__raw_writeq((addr & 0xff) | ((b & 0xff) << 8), SMB_CSR(R_SMB_DATA));
 	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR3BYTE,
 		     SMB_CSR(R_SMB_START));
 
-        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
-                ;
+	while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+		;
 
-        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
-                /* Clear error bit by writing a 1 */
-                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
-                return -1;
-        } else {
+	if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+		/* Clear error bit by writing a 1 */
+		__raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+		return -1;
+	} else {
 		return 0;
 	}
 }

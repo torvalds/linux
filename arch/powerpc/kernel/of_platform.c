@@ -15,18 +15,19 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/atomic.h>
 
 #include <asm/errno.h>
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
-#include <asm/atomic.h>
+#include <asm/eeh.h>
 
 #ifdef CONFIG_PPC_OF_PLATFORM_PCI
 
@@ -36,7 +37,7 @@
  * lacking some bits needed here.
  */
 
-static int __devinit of_pci_phb_probe(struct platform_device *dev)
+static int of_pci_phb_probe(struct platform_device *dev)
 {
 	struct pci_controller *phb;
 
@@ -66,11 +67,12 @@ static int __devinit of_pci_phb_probe(struct platform_device *dev)
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
 
+	/* Create EEH devices for the PHB */
+	eeh_dev_phb_init_dynamic(phb);
+
 	/* Register devices with EEH */
-#ifdef CONFIG_EEH
 	if (dev->dev.of_node->child)
 		eeh_add_device_tree_early(dev->dev.of_node);
-#endif /* CONFIG_EEH */
 
 	/* Scan the bus */
 	pcibios_scan_phb(phb);
@@ -78,18 +80,19 @@ static int __devinit of_pci_phb_probe(struct platform_device *dev)
 		return -ENXIO;
 
 	/* Claim resources. This might need some rework as well depending
-	 * wether we are doing probe-only or not, like assigning unassigned
+	 * whether we are doing probe-only or not, like assigning unassigned
 	 * resources etc...
 	 */
 	pcibios_claim_one_bus(phb->bus);
 
 	/* Finish EEH setup */
-#ifdef CONFIG_EEH
 	eeh_add_device_tree_late(phb->bus);
-#endif
 
 	/* Add probed PCI devices to the device model */
 	pci_bus_add_devices(phb->bus);
+
+	/* sysfs files should only be added after devices are added */
+	eeh_add_sysfs_files(phb->bus);
 
 	return 0;
 }

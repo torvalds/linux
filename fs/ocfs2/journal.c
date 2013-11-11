@@ -355,11 +355,14 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 	if (journal_current_handle())
 		return jbd2_journal_start(journal, max_buffs);
 
+	sb_start_intwrite(osb->sb);
+
 	down_read(&osb->journal->j_trans_barrier);
 
 	handle = jbd2_journal_start(journal, max_buffs);
 	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
 
 		mlog_errno(PTR_ERR(handle));
 
@@ -388,8 +391,10 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 	if (ret < 0)
 		mlog_errno(ret);
 
-	if (!nested)
+	if (!nested) {
 		up_read(&journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
+	}
 
 	return ret;
 }
@@ -1229,11 +1234,8 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
 		 * than capable of reclaiming unused space. */
-		if (la_dinode)
-			kfree(la_dinode);
-
-		if (tl_dinode)
-			kfree(tl_dinode);
+		kfree(la_dinode);
+		kfree(tl_dinode);
 
 		if (qrec)
 			ocfs2_free_quota_recovery(qrec);
@@ -1403,8 +1405,7 @@ bail:
 
 	mutex_unlock(&osb->recovery_lock);
 
-	if (rm_quota)
-		kfree(rm_quota);
+	kfree(rm_quota);
 
 	/* no one is callint kthread_stop() for us so the kthread() api
 	 * requires that we call do_exit().  And it isn't exported, but
@@ -1544,9 +1545,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	/* we need to run complete recovery for offline orphan slots */
 	ocfs2_replay_map_set_state(osb, REPLAY_NEEDED);
 
-	mlog(ML_NOTICE, "Recovering node %d from slot %d on device (%u,%u)\n",
-	     node_num, slot_num,
-	     MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
+	printk(KERN_NOTICE "ocfs2: Begin replay journal (node %d, slot %d) on "\
+	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	       MINOR(osb->sb->s_dev));
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
 
@@ -1601,6 +1602,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 
 	jbd2_journal_destroy(journal);
 
+	printk(KERN_NOTICE "ocfs2: End replay journal (node %d, slot %d) on "\
+	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	       MINOR(osb->sb->s_dev));
 done:
 	/* drop the lock on this nodes journal */
 	if (got_lock)
@@ -1807,6 +1811,20 @@ static inline unsigned long ocfs2_orphan_scan_timeout(void)
  * ocfs2_queue_orphan_scan calls ocfs2_queue_recovery_completion for
  * every slot, queuing a recovery of the slot on the ocfs2_wq thread. This
  * is done to catch any orphans that are left over in orphan directories.
+ *
+ * It scans all slots, even ones that are in use. It does so to handle the
+ * case described below:
+ *
+ *   Node 1 has an inode it was using. The dentry went away due to memory
+ *   pressure.  Node 1 closes the inode, but it's on the free list. The node
+ *   has the open lock.
+ *   Node 2 unlinks the inode. It grabs the dentry lock to notify others,
+ *   but node 1 has no dentry and doesn't get the message. It trylocks the
+ *   open lock, sees that another node has a PR, and does nothing.
+ *   Later node 2 runs its orphan dir. It igets the inode, trylocks the
+ *   open lock, sees the PR still, and does nothing.
+ *   Basically, we have to trigger an orphan iput on node 1. The only way
+ *   for this to happen is if node 1 runs node 2's orphan dir.
  *
  * ocfs2_queue_orphan_scan gets called every ORPHAN_SCAN_SCHEDULE_TIMEOUT
  * seconds.  It gets an EX lock on os_lockres and checks sequence number

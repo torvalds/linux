@@ -9,6 +9,9 @@
 #include <asm/uaccess.h>
 #include <linux/kernel_stat.h>
 #include <trace/events/timer.h>
+#include <linux/random.h>
+#include <linux/tick.h>
+#include <linux/workqueue.h>
 
 /*
  * Called after updating RLIMIT_CPU to run cpu timer and update
@@ -78,7 +81,7 @@ static inline int cpu_time_before(const clockid_t which_clock,
 	if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED) {
 		return now.sched < then.sched;
 	}  else {
-		return cputime_lt(now.cpu, then.cpu);
+		return now.cpu < then.cpu;
 	}
 }
 static inline void cpu_time_add(const clockid_t which_clock,
@@ -88,7 +91,7 @@ static inline void cpu_time_add(const clockid_t which_clock,
 	if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED) {
 		acc->sched += val.sched;
 	}  else {
-		acc->cpu = cputime_add(acc->cpu, val.cpu);
+		acc->cpu += val.cpu;
 	}
 }
 static inline union cpu_time_count cpu_time_sub(const clockid_t which_clock,
@@ -98,22 +101,9 @@ static inline union cpu_time_count cpu_time_sub(const clockid_t which_clock,
 	if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED) {
 		a.sched -= b.sched;
 	}  else {
-		a.cpu = cputime_sub(a.cpu, b.cpu);
+		a.cpu -= b.cpu;
 	}
 	return a;
-}
-
-/*
- * Divide and limit the result to res >= 1
- *
- * This is necessary to prevent signal delivery starvation, when the result of
- * the division would be rounded down to 0.
- */
-static inline cputime_t cputime_div_non_zero(cputime_t time, unsigned long div)
-{
-	cputime_t res = cputime_div(time, div);
-
-	return max_t(cputime_t, res, 1);
 }
 
 /*
@@ -148,32 +138,53 @@ static void bump_cpu_timer(struct k_itimer *timer,
 	} else {
 		cputime_t delta, incr;
 
-		if (cputime_lt(now.cpu, timer->it.cpu.expires.cpu))
+		if (now.cpu < timer->it.cpu.expires.cpu)
 			return;
 		incr = timer->it.cpu.incr.cpu;
-		delta = cputime_sub(cputime_add(now.cpu, incr),
-				    timer->it.cpu.expires.cpu);
+		delta = now.cpu + incr - timer->it.cpu.expires.cpu;
 		/* Don't use (incr*2 < delta), incr*2 might overflow. */
-		for (i = 0; cputime_lt(incr, cputime_sub(delta, incr)); i++)
-			     incr = cputime_add(incr, incr);
-		for (; i >= 0; incr = cputime_halve(incr), i--) {
-			if (cputime_lt(delta, incr))
+		for (i = 0; incr < delta - incr; i++)
+			     incr += incr;
+		for (; i >= 0; incr = incr >> 1, i--) {
+			if (delta < incr)
 				continue;
-			timer->it.cpu.expires.cpu =
-				cputime_add(timer->it.cpu.expires.cpu, incr);
+			timer->it.cpu.expires.cpu += incr;
 			timer->it_overrun += 1 << i;
-			delta = cputime_sub(delta, incr);
+			delta -= incr;
 		}
 	}
 }
 
+/**
+ * task_cputime_zero - Check a task_cputime struct for all zero fields.
+ *
+ * @cputime:	The struct to compare.
+ *
+ * Checks @cputime to see if all fields are zero.  Returns true if all fields
+ * are zero, false if any field is nonzero.
+ */
+static inline int task_cputime_zero(const struct task_cputime *cputime)
+{
+	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
+		return 1;
+	return 0;
+}
+
 static inline cputime_t prof_ticks(struct task_struct *p)
 {
-	return cputime_add(p->utime, p->stime);
+	cputime_t utime, stime;
+
+	task_cputime(p, &utime, &stime);
+
+	return utime + stime;
 }
 static inline cputime_t virt_ticks(struct task_struct *p)
 {
-	return p->utime;
+	cputime_t utime;
+
+	task_cputime(p, &utime, NULL);
+
+	return utime;
 }
 
 static int
@@ -232,36 +243,12 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 	return 0;
 }
 
-void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
-{
-	struct signal_struct *sig = tsk->signal;
-	struct task_struct *t;
-
-	times->utime = sig->utime;
-	times->stime = sig->stime;
-	times->sum_exec_runtime = sig->sum_sched_runtime;
-
-	rcu_read_lock();
-	/* make sure we can trust tsk->thread_group list */
-	if (!likely(pid_alive(tsk)))
-		goto out;
-
-	t = tsk;
-	do {
-		times->utime = cputime_add(times->utime, t->utime);
-		times->stime = cputime_add(times->stime, t->stime);
-		times->sum_exec_runtime += t->se.sum_exec_runtime;
-	} while_each_thread(tsk, t);
-out:
-	rcu_read_unlock();
-}
-
 static void update_gt_cputime(struct task_cputime *a, struct task_cputime *b)
 {
-	if (cputime_gt(b->utime, a->utime))
+	if (b->utime > a->utime)
 		a->utime = b->utime;
 
-	if (cputime_gt(b->stime, a->stime))
+	if (b->stime > a->stime)
 		a->stime = b->stime;
 
 	if (b->sum_exec_runtime > a->sum_exec_runtime)
@@ -274,9 +261,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 	struct task_cputime sum;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cputimer->lock, flags);
 	if (!cputimer->running) {
-		cputimer->running = 1;
 		/*
 		 * The POSIX timer interface allows for absolute time expiry
 		 * values through the TIMER_ABSTIME flag, therefore we have
@@ -284,10 +269,13 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * it.
 		 */
 		thread_group_cputime(tsk, &sum);
+		raw_spin_lock_irqsave(&cputimer->lock, flags);
+		cputimer->running = 1;
 		update_gt_cputime(&cputimer->cputime, &sum);
-	}
+	} else
+		raw_spin_lock_irqsave(&cputimer->lock, flags);
 	*times = cputimer->cputime;
-	spin_unlock_irqrestore(&cputimer->lock, flags);
+	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
 }
 
 /*
@@ -305,14 +293,15 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 		return -EINVAL;
 	case CPUCLOCK_PROF:
 		thread_group_cputime(p, &cputime);
-		cpu->cpu = cputime_add(cputime.utime, cputime.stime);
+		cpu->cpu = cputime.utime + cputime.stime;
 		break;
 	case CPUCLOCK_VIRT:
 		thread_group_cputime(p, &cputime);
 		cpu->cpu = cputime.utime;
 		break;
 	case CPUCLOCK_SCHED:
-		cpu->sched = thread_group_sched_runtime(p);
+		thread_group_cputime(p, &cputime);
+		cpu->sched = cputime.sum_exec_runtime;
 		break;
 	}
 	return 0;
@@ -468,26 +457,24 @@ static void cleanup_timers(struct list_head *head,
 			   unsigned long long sum_exec_runtime)
 {
 	struct cpu_timer_list *timer, *next;
-	cputime_t ptime = cputime_add(utime, stime);
+	cputime_t ptime = utime + stime;
 
 	list_for_each_entry_safe(timer, next, head, entry) {
 		list_del_init(&timer->entry);
-		if (cputime_lt(timer->expires.cpu, ptime)) {
-			timer->expires.cpu = cputime_zero;
+		if (timer->expires.cpu < ptime) {
+			timer->expires.cpu = 0;
 		} else {
-			timer->expires.cpu = cputime_sub(timer->expires.cpu,
-							 ptime);
+			timer->expires.cpu -= ptime;
 		}
 	}
 
 	++head;
 	list_for_each_entry_safe(timer, next, head, entry) {
 		list_del_init(&timer->entry);
-		if (cputime_lt(timer->expires.cpu, utime)) {
-			timer->expires.cpu = cputime_zero;
+		if (timer->expires.cpu < utime) {
+			timer->expires.cpu = 0;
 		} else {
-			timer->expires.cpu = cputime_sub(timer->expires.cpu,
-							 utime);
+			timer->expires.cpu -= utime;
 		}
 	}
 
@@ -509,17 +496,23 @@ static void cleanup_timers(struct list_head *head,
  */
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
+	cputime_t utime, stime;
+
+	add_device_randomness((const void*) &tsk->se.sum_exec_runtime,
+						sizeof(unsigned long long));
+	task_cputime(tsk, &utime, &stime);
 	cleanup_timers(tsk->cpu_timers,
-		       tsk->utime, tsk->stime, tsk->se.sum_exec_runtime);
+		       utime, stime, tsk->se.sum_exec_runtime);
 
 }
 void posix_cpu_timers_exit_group(struct task_struct *tsk)
 {
 	struct signal_struct *const sig = tsk->signal;
+	cputime_t utime, stime;
 
+	task_cputime(tsk, &utime, &stime);
 	cleanup_timers(tsk->signal->cpu_timers,
-		       cputime_add(tsk->utime, sig->utime),
-		       cputime_add(tsk->stime, sig->stime),
+		       utime + sig->utime, stime + sig->stime,
 		       tsk->se.sum_exec_runtime + sig->sum_sched_runtime);
 }
 
@@ -538,8 +531,7 @@ static void clear_dead_task(struct k_itimer *timer, union cpu_time_count now)
 
 static inline int expires_gt(cputime_t expires, cputime_t new_exp)
 {
-	return cputime_eq(expires, cputime_zero) ||
-	       cputime_gt(expires, new_exp);
+	return expires == 0 || expires > new_exp;
 }
 
 /*
@@ -649,7 +641,7 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 	default:
 		return -EINVAL;
 	case CPUCLOCK_PROF:
-		cpu->cpu = cputime_add(cputime.utime, cputime.stime);
+		cpu->cpu = cputime.utime + cputime.stime;
 		break;
 	case CPUCLOCK_VIRT:
 		cpu->cpu = cputime.utime;
@@ -660,6 +652,37 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 	}
 	return 0;
 }
+
+#ifdef CONFIG_NO_HZ_FULL
+static void nohz_kick_work_fn(struct work_struct *work)
+{
+	tick_nohz_full_kick_all();
+}
+
+static DECLARE_WORK(nohz_kick_work, nohz_kick_work_fn);
+
+/*
+ * We need the IPIs to be sent from sane process context.
+ * The posix cpu timers are always set with irqs disabled.
+ */
+static void posix_cpu_timer_kick_nohz(void)
+{
+	schedule_work(&nohz_kick_work);
+}
+
+bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
+{
+	if (!task_cputime_zero(&tsk->cputime_expires))
+		return false;
+
+	if (tsk->signal->cputimer.running)
+		return false;
+
+	return true;
+}
+#else
+static inline void posix_cpu_timer_kick_nohz(void) { }
+#endif
 
 /*
  * Guts of sys_timer_settime for CPU timers.
@@ -819,6 +842,8 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		sample_to_timespec(timer->it_clock,
 				   old_incr, &old->it_interval);
 	}
+	if (!ret)
+		posix_cpu_timer_kick_nohz();
 	return ret;
 }
 
@@ -916,12 +941,12 @@ static void check_thread_timers(struct task_struct *tsk,
 	unsigned long soft;
 
 	maxfire = 20;
-	tsk->cputime_expires.prof_exp = cputime_zero;
+	tsk->cputime_expires.prof_exp = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || cputime_lt(prof_ticks(tsk), t->expires.cpu)) {
+		if (!--maxfire || prof_ticks(tsk) < t->expires.cpu) {
 			tsk->cputime_expires.prof_exp = t->expires.cpu;
 			break;
 		}
@@ -931,12 +956,12 @@ static void check_thread_timers(struct task_struct *tsk,
 
 	++timers;
 	maxfire = 20;
-	tsk->cputime_expires.virt_exp = cputime_zero;
+	tsk->cputime_expires.virt_exp = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *t = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || cputime_lt(virt_ticks(tsk), t->expires.cpu)) {
+		if (!--maxfire || virt_ticks(tsk) < t->expires.cpu) {
 			tsk->cputime_expires.virt_exp = t->expires.cpu;
 			break;
 		}
@@ -997,9 +1022,9 @@ static void stop_process_timers(struct signal_struct *sig)
 	struct thread_group_cputimer *cputimer = &sig->cputimer;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cputimer->lock, flags);
+	raw_spin_lock_irqsave(&cputimer->lock, flags);
 	cputimer->running = 0;
-	spin_unlock_irqrestore(&cputimer->lock, flags);
+	raw_spin_unlock_irqrestore(&cputimer->lock, flags);
 }
 
 static u32 onecputick;
@@ -1007,20 +1032,19 @@ static u32 onecputick;
 static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 			     cputime_t *expires, cputime_t cur_time, int signo)
 {
-	if (cputime_eq(it->expires, cputime_zero))
+	if (!it->expires)
 		return;
 
-	if (cputime_ge(cur_time, it->expires)) {
-		if (!cputime_eq(it->incr, cputime_zero)) {
-			it->expires = cputime_add(it->expires, it->incr);
+	if (cur_time >= it->expires) {
+		if (it->incr) {
+			it->expires += it->incr;
 			it->error += it->incr_error;
 			if (it->error >= onecputick) {
-				it->expires = cputime_sub(it->expires,
-							  cputime_one_jiffy);
+				it->expires -= cputime_one_jiffy;
 				it->error -= onecputick;
 			}
 		} else {
-			it->expires = cputime_zero;
+			it->expires = 0;
 		}
 
 		trace_itimer_expire(signo == SIGPROF ?
@@ -1029,28 +1053,9 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 		__group_send_sig_info(signo, SEND_SIG_PRIV, tsk);
 	}
 
-	if (!cputime_eq(it->expires, cputime_zero) &&
-	    (cputime_eq(*expires, cputime_zero) ||
-	     cputime_lt(it->expires, *expires))) {
+	if (it->expires && (!*expires || it->expires < *expires)) {
 		*expires = it->expires;
 	}
-}
-
-/**
- * task_cputime_zero - Check a task_cputime struct for all zero fields.
- *
- * @cputime:	The struct to compare.
- *
- * Checks @cputime to see if all fields are zero.  Returns true if all fields
- * are zero, false if any field is nonzero.
- */
-static inline int task_cputime_zero(const struct task_cputime *cputime)
-{
-	if (cputime_eq(cputime->utime, cputime_zero) &&
-	    cputime_eq(cputime->stime, cputime_zero) &&
-	    cputime->sum_exec_runtime == 0)
-		return 1;
-	return 0;
 }
 
 /*
@@ -1074,15 +1079,15 @@ static void check_process_timers(struct task_struct *tsk,
 	 */
 	thread_group_cputimer(tsk, &cputime);
 	utime = cputime.utime;
-	ptime = cputime_add(utime, cputime.stime);
+	ptime = utime + cputime.stime;
 	sum_sched_runtime = cputime.sum_exec_runtime;
 	maxfire = 20;
-	prof_expires = cputime_zero;
+	prof_expires = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *tl = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || cputime_lt(ptime, tl->expires.cpu)) {
+		if (!--maxfire || ptime < tl->expires.cpu) {
 			prof_expires = tl->expires.cpu;
 			break;
 		}
@@ -1092,12 +1097,12 @@ static void check_process_timers(struct task_struct *tsk,
 
 	++timers;
 	maxfire = 20;
-	virt_expires = cputime_zero;
+	virt_expires = 0;
 	while (!list_empty(timers)) {
 		struct cpu_timer_list *tl = list_first_entry(timers,
 						      struct cpu_timer_list,
 						      entry);
-		if (!--maxfire || cputime_lt(utime, tl->expires.cpu)) {
+		if (!--maxfire || utime < tl->expires.cpu) {
 			virt_expires = tl->expires.cpu;
 			break;
 		}
@@ -1152,8 +1157,7 @@ static void check_process_timers(struct task_struct *tsk,
 			}
 		}
 		x = secs_to_cputime(soft);
-		if (cputime_eq(prof_expires, cputime_zero) ||
-		    cputime_lt(x, prof_expires)) {
+		if (!prof_expires || x < prof_expires) {
 			prof_expires = x;
 		}
 	}
@@ -1247,12 +1251,9 @@ out:
 static inline int task_cputime_expired(const struct task_cputime *sample,
 					const struct task_cputime *expires)
 {
-	if (!cputime_eq(expires->utime, cputime_zero) &&
-	    cputime_ge(sample->utime, expires->utime))
+	if (expires->utime && sample->utime >= expires->utime)
 		return 1;
-	if (!cputime_eq(expires->stime, cputime_zero) &&
-	    cputime_ge(cputime_add(sample->utime, sample->stime),
-		       expires->stime))
+	if (expires->stime && sample->utime + sample->stime >= expires->stime)
 		return 1;
 	if (expires->sum_exec_runtime != 0 &&
 	    sample->sum_exec_runtime >= expires->sum_exec_runtime)
@@ -1273,11 +1274,14 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
 static inline int fastpath_timer_check(struct task_struct *tsk)
 {
 	struct signal_struct *sig;
+	cputime_t utime, stime;
+
+	task_cputime(tsk, &utime, &stime);
 
 	if (!task_cputime_zero(&tsk->cputime_expires)) {
 		struct task_cputime task_sample = {
-			.utime = tsk->utime,
-			.stime = tsk->stime,
+			.utime = utime,
+			.stime = stime,
 			.sum_exec_runtime = tsk->se.sum_exec_runtime
 		};
 
@@ -1289,9 +1293,9 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (sig->cputimer.running) {
 		struct task_cputime group_sample;
 
-		spin_lock(&sig->cputimer.lock);
+		raw_spin_lock(&sig->cputimer.lock);
 		group_sample = sig->cputimer.cputime;
-		spin_unlock(&sig->cputimer.lock);
+		raw_spin_unlock(&sig->cputimer.lock);
 
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
@@ -1367,6 +1371,13 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 			cpu_timer_fire(timer);
 		spin_unlock(&timer->it_lock);
 	}
+
+	/*
+	 * In case some timers were rescheduled after the queue got emptied,
+	 * wake up full dynticks CPUs.
+	 */
+	if (tsk->signal->cputimer.running)
+		posix_cpu_timer_kick_nohz();
 }
 
 /*
@@ -1387,18 +1398,18 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		 * it to be relative, *newval argument is relative and we update
 		 * it to be absolute.
 		 */
-		if (!cputime_eq(*oldval, cputime_zero)) {
-			if (cputime_le(*oldval, now.cpu)) {
+		if (*oldval) {
+			if (*oldval <= now.cpu) {
 				/* Just about to fire. */
 				*oldval = cputime_one_jiffy;
 			} else {
-				*oldval = cputime_sub(*oldval, now.cpu);
+				*oldval -= now.cpu;
 			}
 		}
 
-		if (cputime_eq(*newval, cputime_zero))
-			return;
-		*newval = cputime_add(*newval, now.cpu);
+		if (!*newval)
+			goto out;
+		*newval += now.cpu;
 	}
 
 	/*
@@ -1415,6 +1426,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			tsk->signal->cputime_expires.virt_exp = *newval;
 		break;
 	}
+out:
+	posix_cpu_timer_kick_nohz();
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
@@ -1448,8 +1461,10 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		while (!signal_pending(current)) {
 			if (timer.it.cpu.expires.sched == 0) {
 				/*
-				 * Our timer fired and was reset.
+				 * Our timer fired and was reset, below
+				 * deletion can not fail.
 				 */
+				posix_cpu_timer_del(&timer);
 				spin_unlock_irq(&timer.it_lock);
 				return 0;
 			}
@@ -1467,8 +1482,25 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 * We were interrupted by a signal.
 		 */
 		sample_to_timespec(which_clock, timer.it.cpu.expires, rqtp);
-		posix_cpu_timer_set(&timer, 0, &zero_it, it);
+		error = posix_cpu_timer_set(&timer, 0, &zero_it, it);
+		if (!error) {
+			/*
+			 * Timer is now unarmed, deletion can not fail.
+			 */
+			posix_cpu_timer_del(&timer);
+		}
 		spin_unlock_irq(&timer.it_lock);
+
+		while (error == TIMER_RETRY) {
+			/*
+			 * We need to handle case when timer was or is in the
+			 * middle of firing. In other cases we already freed
+			 * resources.
+			 */
+			spin_lock_irq(&timer.it_lock);
+			error = posix_cpu_timer_del(&timer);
+			spin_unlock_irq(&timer.it_lock);
+		}
 
 		if ((it->it_value.tv_sec | it->it_value.tv_nsec) == 0) {
 			/*

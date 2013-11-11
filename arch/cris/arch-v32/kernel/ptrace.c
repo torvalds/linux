@@ -15,7 +15,6 @@
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <arch/hwregs/supp_reg.h>
 
@@ -115,8 +114,6 @@ void user_disable_single_step(struct task_struct *child)
 void
 ptrace_disable(struct task_struct *child)
 {
-	unsigned long tmp;
-
 	/* Deconfigure SPC and S-bit. */
 	user_disable_single_step(child);
 	put_reg(child, PT_SPC, 0);

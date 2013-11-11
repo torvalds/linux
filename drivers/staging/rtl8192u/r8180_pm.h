@@ -1,5 +1,5 @@
 /*
-        Power management interface routines.
+	Power management interface routines.
 	Written by Mariusz Matuszek.
 	This code is currently just a placeholder for later work and
 	does not do anything useful.

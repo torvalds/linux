@@ -4,10 +4,13 @@
 #	Licensed and distributed under the GPL
 #
 
+config EDAC_SUPPORT
+	bool
+
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE
+	depends on X86 || PPC || TILE || ARM || EDAC_SUPPORT
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
@@ -29,19 +32,25 @@ menuconfig EDAC
 
 if EDAC
 
-comment "Reporting subsystems"
+config EDAC_LEGACY_SYSFS
+	bool "EDAC legacy sysfs"
+	default y
+	help
+	  Enable the compatibility sysfs nodes.
+	  Use 'Y' if your edac utilities aren't ported to work with the newer
+	  structures.
 
 config EDAC_DEBUG
 	bool "Debugging"
 	help
-	  This turns on debugging information for the entire EDAC
-	  sub-system. You can insert module with "debug_level=x", current
-	  there're four debug levels (x=0,1,2,3 from low to high).
-	  Usually you should select 'N'.
+	  This turns on debugging information for the entire EDAC subsystem.
+	  You do so by inserting edac_module with "edac_debug_level=x." Valid
+	  levels are 0-4 (from low to high) and by default it is set to 2.
+	  Usually you should select 'N' here.
 
 config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
-	depends on CPU_SUP_AMD && X86_MCE
+	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
 	---help---
 	  Enable this option if you want to decode Machine Check Exceptions
@@ -71,8 +80,28 @@ config EDAC_MM_EDAC
 	  occurred so that a particular failing memory module can be
 	  replaced.  If unsure, select 'Y'.
 
-config EDAC_MCE
-	bool
+config EDAC_GHES
+	bool "Output ACPI APEI/GHES BIOS detected errors via EDAC"
+	depends on ACPI_APEI_GHES && (EDAC_MM_EDAC=y)
+	default y
+	help
+	  Not all machines support hardware-driven error report. Some of those
+	  provide a BIOS-driven error report mechanism via ACPI, using the
+	  APEI/GHES driver. By enabling this option, the error reports provided
+	  by GHES are sent to userspace via the EDAC API.
+
+	  When this option is enabled, it will disable the hardware-driven
+	  mechanisms, if a GHES BIOS is detected, entering into the
+	  "Firmware First" mode.
+
+	  It should be noticed that keeping both GHES and a hardware-driven
+	  error mechanism won't work well, as BIOS will race with OS, while
+	  reading the error registers. So, if you want to not use "Firmware
+	  first" GHES error mechanism, you should disable GHES either at
+	  compilation time or by passing "ghes.disable=1" Kernel parameter
+	  at boot time.
+
+	  In doubt, say 'Y'.
 
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h"
@@ -152,7 +181,7 @@ config EDAC_I3000
 
 config EDAC_I3200
 	tristate "Intel 3200"
-	depends on EDAC_MM_EDAC && PCI && X86 && EXPERIMENTAL
+	depends on EDAC_MM_EDAC && PCI && X86
 	help
 	  Support for error detection and correction on the Intel
 	  3200 and 3210 server chipsets.
@@ -173,8 +202,7 @@ config EDAC_I5400
 
 config EDAC_I7CORE
 	tristate "Intel i7 Core (Nehalem) processors"
-	depends on EDAC_MM_EDAC && PCI && X86
-	select EDAC_MCE
+	depends on EDAC_MM_EDAC && PCI && X86 && X86_MCE_INTEL
 	help
 	  Support for error detection and correction the Intel
 	  i7 Core (Nehalem) Integrated Memory Controller that exists on
@@ -215,6 +243,14 @@ config EDAC_I7300
 	help
 	  Support for error detection and correction the Intel
 	  Clarksboro MCH (Intel 7300 chipset).
+
+config EDAC_SBRIDGE
+	tristate "Intel Sandy-Bridge Integrated MC"
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
+	depends on PCI_MMCONFIG
+	help
+	  Support for error detection and correction the Intel
+	  Sandy Bridge Integrated Memory Controller.
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
@@ -289,5 +325,47 @@ config EDAC_TILE
 	help
 	  Support for error detection and correction on the
 	  Tilera memory controller.
+
+config EDAC_HIGHBANK_MC
+	tristate "Highbank Memory Controller"
+	depends on EDAC_MM_EDAC && ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
+
+config EDAC_HIGHBANK_L2
+	tristate "Highbank L2 Cache"
+	depends on EDAC_MM_EDAC && ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
+
+config EDAC_OCTEON_PC
+	tristate "Cavium Octeon Primary Caches"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the primary caches of
+	  the cnMIPS cores of Cavium Octeon family SOCs.
+
+config EDAC_OCTEON_L2C
+	tristate "Cavium Octeon Secondary Caches (L2C)"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_LMC
+	tristate "Cavium Octeon DRAM Memory Controller (LMC)"
+	depends on EDAC_MM_EDAC && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_PCI
+	tristate "Cavium Octeon PCI Controller"
+	depends on EDAC_MM_EDAC && PCI && CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
 
 endif # EDAC

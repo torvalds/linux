@@ -116,23 +116,8 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	return skb;
 }
 
-static void int51x1_async_cmd_callback(struct urb *urb)
-{
-	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
-	int status = urb->status;
-
-	if (status < 0)
-		dev_warn(&urb->dev->dev, "async callback failed with %d\n", status);
-
-	kfree(req);
-	usb_free_urb(urb);
-}
-
 static void int51x1_set_multicast(struct net_device *netdev)
 {
-	struct usb_ctrlrequest *req;
-	int status;
-	struct urb *urb;
 	struct usbnet *dev = netdev_priv(netdev);
 	u16 filter = PACKET_TYPE_DIRECTED | PACKET_TYPE_BROADCAST;
 
@@ -149,40 +134,9 @@ static void int51x1_set_multicast(struct net_device *netdev)
 		netdev_dbg(dev->net, "receive own packets only\n");
 	}
 
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_warn(dev->net, "Error allocating URB\n");
-		return;
-	}
-
-	req = kmalloc(sizeof(*req), GFP_ATOMIC);
-	if (!req) {
-		netdev_warn(dev->net, "Error allocating control msg\n");
-		goto out;
-	}
-
-	req->bRequestType = USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
-	req->bRequest = SET_ETHERNET_PACKET_FILTER;
-	req->wValue = cpu_to_le16(filter);
-	req->wIndex = 0;
-	req->wLength = 0;
-
-	usb_fill_control_urb(urb, dev->udev, usb_sndctrlpipe(dev->udev, 0),
-		(void *)req, NULL, 0,
-		int51x1_async_cmd_callback,
-		(void *)req);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status < 0) {
-		netdev_warn(dev->net, "Error submitting control msg, sts=%d\n",
-			    status);
-		goto out1;
-	}
-	return;
-out1:
-	kfree(req);
-out:
-	usb_free_urb(urb);
+	usbnet_write_cmd_async(dev, SET_ETHERNET_PACKET_FILTER,
+			       USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			       filter, 0, NULL, 0);
 }
 
 static const struct net_device_ops int51x1_netdev_ops = {
@@ -193,7 +147,7 @@ static const struct net_device_ops int51x1_netdev_ops = {
 	.ndo_change_mtu		= usbnet_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list	= int51x1_set_multicast,
+	.ndo_set_rx_mode	= int51x1_set_multicast,
 };
 
 static int int51x1_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -236,19 +190,10 @@ static struct usb_driver int51x1_driver = {
 	.disconnect = usbnet_disconnect,
 	.suspend    = usbnet_suspend,
 	.resume     = usbnet_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init int51x1_init(void)
-{
-	return usb_register(&int51x1_driver);
-}
-module_init(int51x1_init);
-
-static void __exit int51x1_exit(void)
-{
-	usb_deregister(&int51x1_driver);
-}
-module_exit(int51x1_exit);
+module_usb_driver(int51x1_driver);
 
 MODULE_AUTHOR("Peter Holik");
 MODULE_DESCRIPTION("Intellon usb powerline adapter");

@@ -24,12 +24,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/xprt.h>
+#include <linux/export.h>
+#include <linux/sunrpc/bc_xprt.h>
 
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
-
-#if defined(CONFIG_NFS_V4_1)
 
 /*
  * Helper routines that track the number of preallocation elements
@@ -59,7 +59,7 @@ static void xprt_free_allocation(struct rpc_rqst *req)
 	struct xdr_buf *xbufp;
 
 	dprintk("RPC:        free allocations for req= %p\n", req);
-	BUG_ON(test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state));
+	WARN_ON_ONCE(test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state));
 	xbufp = &req->rq_private_buf;
 	free_page((unsigned long)xbufp->head[0].iov_base);
 	xbufp = &req->rq_snd_buf;
@@ -172,17 +172,18 @@ out_free:
 		xprt_free_allocation(req);
 
 	dprintk("RPC:       setup backchannel transport failed\n");
-	return -1;
+	return -ENOMEM;
 }
-EXPORT_SYMBOL(xprt_setup_backchannel);
+EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
 
-/*
- * Destroys the backchannel preallocated structures.
+/**
+ * xprt_destroy_backchannel - Destroys the backchannel preallocated structures.
+ * @xprt:	the transport holding the preallocated strucures
+ * @max_reqs	the maximum number of preallocated structures to destroy
+ *
  * Since these structures may have been allocated by multiple calls
  * to xprt_setup_backchannel, we only destroy up to the maximum number
  * of reqs specified by the caller.
- * @xprt:	the transport holding the preallocated strucures
- * @max_reqs	the maximum number of preallocated structures to destroy
  */
 void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 {
@@ -190,7 +191,9 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 
 	dprintk("RPC:        destroy backchannel transport\n");
 
-	BUG_ON(max_reqs == 0);
+	if (max_reqs == 0)
+		goto out;
+
 	spin_lock_bh(&xprt->bc_pa_lock);
 	xprt_dec_alloc_count(xprt, max_reqs);
 	list_for_each_entry_safe(req, tmp, &xprt->bc_pa_list, rq_bc_pa_list) {
@@ -201,10 +204,11 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 	}
 	spin_unlock_bh(&xprt->bc_pa_lock);
 
+out:
 	dprintk("RPC:        backchannel list empty= %s\n",
 		list_empty(&xprt->bc_pa_list) ? "true" : "false");
 }
-EXPORT_SYMBOL(xprt_destroy_backchannel);
+EXPORT_SYMBOL_GPL(xprt_destroy_backchannel);
 
 /*
  * One or more rpc_rqst structure have been preallocated during the
@@ -254,7 +258,7 @@ void xprt_free_bc_request(struct rpc_rqst *req)
 	dprintk("RPC:       free backchannel req=%p\n", req);
 
 	smp_mb__before_clear_bit();
-	BUG_ON(!test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state));
+	WARN_ON_ONCE(!test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state));
 	clear_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
 	smp_mb__after_clear_bit();
 
@@ -279,4 +283,3 @@ void xprt_free_bc_request(struct rpc_rqst *req)
 	spin_unlock_bh(&xprt->bc_pa_lock);
 }
 
-#endif /* CONFIG_NFS_V4_1 */

@@ -1,0 +1,30 @@
+* Samsung Exynos5 G-Scaler device
+
+G-Scaler is used for scaling and color space conversion on EXYNOS5 SoCs.
+
+Required properties:
+- compatible: should be "samsung,exynos5-gsc"
+- reg: should contain G-Scaler physical address location and length.
+- interrupts: should contain G-Scaler interrupt number
+
+Example:
+
+gsc_0:  gsc@0x13e00000 {
+	compatible = "samsung,exynos5-gsc";
+	reg = <0x13e00000 0x1000>;
+	interrupts = <0 85 0>;
+};
+
+Aliases:
+Each G-Scaler node should have a numbered alias in the aliases node,
+in the form of gscN, N = 0...3. G-Scaler driver uses these aliases
+to retrieve the device IDs using "of_alias_get_id()" call.
+
+Example:
+
+aliases {
+	gsc0 =&gsc_0;
+	gsc1 =&gsc_1;
+	gsc2 =&gsc_2;
+	gsc3 =&gsc_3;
+};

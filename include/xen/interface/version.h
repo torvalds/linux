@@ -45,7 +45,7 @@ struct xen_changeset_info {
 
 #define XENVER_platform_parameters 5
 struct xen_platform_parameters {
-    unsigned long virt_start;
+    xen_ulong_t virt_start;
 };
 
 #define XENVER_get_features 6
@@ -55,9 +55,12 @@ struct xen_feature_info {
 };
 
 /* Declares the features reported by XENVER_get_features. */
-#include "features.h"
+#include <xen/interface/features.h>
 
 /* arg == NULL; returns host memory page size. */
 #define XENVER_pagesize 7
+
+/* arg == xen_domain_handle_t. */
+#define XENVER_guest_handle 8
 
 #endif /* __XEN_PUBLIC_VERSION_H__ */

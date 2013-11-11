@@ -23,8 +23,11 @@
 #include <linux/signal.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <mach/ohci.h>
-#include <mach/pxa3xx-u2d.h>
+#include <linux/of_platform.h>
+#include <linux/of_gpio.h>
+#include <mach/hardware.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 /*
  * UHC: USB Host Controller (OHCI-like) register definitions
@@ -218,7 +221,7 @@ static int pxa27x_start_hc(struct pxa27x_ohci *ohci, struct device *dev)
 
 	inf = dev->platform_data;
 
-	clk_enable(ohci->clk);
+	clk_prepare_enable(ohci->clk);
 
 	pxa27x_reset_hc(ohci);
 
@@ -268,9 +271,70 @@ static void pxa27x_stop_hc(struct pxa27x_ohci *ohci, struct device *dev)
 	__raw_writel(uhccoms, ohci->mmio_base + UHCCOMS);
 	udelay(10);
 
-	clk_disable(ohci->clk);
+	clk_disable_unprepare(ohci->clk);
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id pxa_ohci_dt_ids[] = {
+	{ .compatible = "marvell,pxa-ohci" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, pxa_ohci_dt_ids);
+
+static int ohci_pxa_of_init(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct pxaohci_platform_data *pdata;
+	u32 tmp;
+
+	if (!np)
+		return 0;
+
+	/* Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	if (of_get_property(np, "marvell,enable-port1", NULL))
+		pdata->flags |= ENABLE_PORT1;
+	if (of_get_property(np, "marvell,enable-port2", NULL))
+		pdata->flags |= ENABLE_PORT2;
+	if (of_get_property(np, "marvell,enable-port3", NULL))
+		pdata->flags |= ENABLE_PORT3;
+	if (of_get_property(np, "marvell,port-sense-low", NULL))
+		pdata->flags |= POWER_SENSE_LOW;
+	if (of_get_property(np, "marvell,power-control-low", NULL))
+		pdata->flags |= POWER_CONTROL_LOW;
+	if (of_get_property(np, "marvell,no-oc-protection", NULL))
+		pdata->flags |= NO_OC_PROTECTION;
+	if (of_get_property(np, "marvell,oc-mode-perport", NULL))
+		pdata->flags |= OC_MODE_PERPORT;
+	if (!of_property_read_u32(np, "marvell,power-on-delay", &tmp))
+		pdata->power_on_delay = tmp;
+	if (!of_property_read_u32(np, "marvell,port-mode", &tmp))
+		pdata->port_mode = tmp;
+	if (!of_property_read_u32(np, "marvell,power-budget", &tmp))
+		pdata->power_budget = tmp;
+
+	pdev->dev.platform_data = pdata;
+
+	return 0;
+}
+#else
+static int ohci_pxa_of_init(struct platform_device *pdev)
+{
+	return 0;
+}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -295,6 +359,10 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	struct pxa27x_ohci *ohci;
 	struct resource *r;
 	struct clk *usb_clk;
+
+	retval = ohci_pxa_of_init(pdev);
+	if (retval)
+		return retval;
 
 	inf = pdev->dev.platform_data;
 
@@ -359,7 +427,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, 0);
 	if (retval == 0)
 		return retval;
 
@@ -403,7 +471,7 @@ void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 ohci_pxa27x_start (struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
@@ -418,7 +486,8 @@ ohci_pxa27x_start (struct usb_hcd *hcd)
 		return ret;
 
 	if ((ret = ohci_run (ohci)) < 0) {
-		err ("can't start %s", hcd->self.bus_name);
+		dev_err(hcd->self.controller, "can't start %s",
+			hcd->self.bus_name);
 		ohci_stop (hcd);
 		return ret;
 	}
@@ -502,8 +571,6 @@ static int ohci_hcd_pxa27x_drv_suspend(struct device *dev)
 	ohci->ohci.next_statechange = jiffies;
 
 	pxa27x_stop_hc(ohci, dev);
-	hcd->state = HC_STATE_SUSPENDED;
-
 	return 0;
 }
 
@@ -524,7 +591,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 	/* Select Power Management Mode */
 	pxa27x_ohci_select_pmm(ohci, inf->port_mode);
 
-	ohci_finish_controller_resume(hcd);
+	ohci_resume(hcd, false);
 	return 0;
 }
 
@@ -544,6 +611,7 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.driver		= {
 		.name	= "pxa27x-ohci",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(pxa_ohci_dt_ids),
 #ifdef CONFIG_PM
 		.pm	= &ohci_hcd_pxa27x_pm_ops,
 #endif

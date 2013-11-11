@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/seq_file.h>
 #include <scsi/scsi.h>
 
 struct request_queue;
@@ -340,7 +341,8 @@ struct scsi_host_template {
 	 *
 	 * Status: OBSOLETE
 	 */
-	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
+	int (*show_info)(struct seq_file *, struct Scsi_Host *);
+	int (*write_info)(struct Scsi_Host *, char *, int);
 
 	/*
 	 * This is an optional routine that allows the transport to become
@@ -355,6 +357,19 @@ struct scsi_host_template {
 	 */
 	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
 
+	/* This is an optional routine that allows transport to initiate
+	 * LLD adapter or firmware reset using sysfs attribute.
+	 *
+	 * Return values: 0 on success, -ve value on failure.
+	 *
+	 * Status: OPTIONAL
+	 */
+
+	int (*host_reset)(struct Scsi_Host *shost, int reset_type);
+#define SCSI_ADAPTER_RESET	1
+#define SCSI_FIRMWARE_RESET	2
+
+
 	/*
 	 * Name of proc directory
 	 */
@@ -362,7 +377,7 @@ struct scsi_host_template {
 
 	/*
 	 * Used to store the procfs directory if a driver implements the
-	 * proc_info method.
+	 * show_info method.
 	 */
 	struct proc_dir_entry *proc_dir;
 
@@ -656,6 +671,9 @@ struct Scsi_Host {
 	/* Asynchronous scan in progress */
 	unsigned async_scan:1;
 
+	/* Don't resume host in EH */
+	unsigned eh_noresume:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */
@@ -791,7 +809,8 @@ static inline struct device *scsi_get_device(struct Scsi_Host *shost)
  **/
 static inline int scsi_host_scan_allowed(struct Scsi_Host *shost)
 {
-	return shost->shost_state == SHOST_RUNNING;
+	return shost->shost_state == SHOST_RUNNING ||
+	       shost->shost_state == SHOST_RECOVERY;
 }
 
 extern void scsi_unblock_requests(struct Scsi_Host *);
@@ -856,6 +875,9 @@ static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIF_TYPE2_PROTECTION,
 				       SHOST_DIF_TYPE3_PROTECTION };
 
+	if (target_type >= ARRAY_SIZE(cap))
+		return 0;
+
 	return shost->prot_capabilities & cap[target_type] ? target_type : 0;
 }
 
@@ -866,6 +888,9 @@ static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIX_TYPE1_PROTECTION,
 				       SHOST_DIX_TYPE2_PROTECTION,
 				       SHOST_DIX_TYPE3_PROTECTION };
+
+	if (target_type >= ARRAY_SIZE(cap))
+		return 0;
 
 	return shost->prot_capabilities & cap[target_type];
 #endif

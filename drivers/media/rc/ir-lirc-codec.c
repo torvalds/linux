@@ -14,6 +14,7 @@
 
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/module.h>
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 #include <media/rc-core.h>
@@ -34,7 +35,7 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
 
-	if (!(dev->raw->enabled_protocols & RC_TYPE_LIRC))
+	if (!(dev->enabled_protocols & RC_BIT_LIRC))
 		return 0;
 
 	if (!dev->raw->lirc.drv || !dev->raw->lirc.drv->rbuf)
@@ -98,24 +99,30 @@ static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	return 0;
 }
 
-static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
+static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 				   size_t n, loff_t *ppos)
 {
 	struct lirc_codec *lirc;
 	struct rc_dev *dev;
-	int *txbuf; /* buffer with values to transmit */
-	int ret = 0;
+	unsigned int *txbuf; /* buffer with values to transmit */
+	ssize_t ret = -EINVAL;
 	size_t count;
+	ktime_t start;
+	s64 towait;
+	unsigned int duration = 0; /* signal duration in us */
+	int i;
+
+	start = ktime_get();
 
 	lirc = lirc_get_pdata(file);
 	if (!lirc)
 		return -EFAULT;
 
-	if (n % sizeof(int))
+	if (n < sizeof(unsigned) || n % sizeof(unsigned))
 		return -EINVAL;
 
-	count = n / sizeof(int);
-	if (count > LIRCBUF_SIZE || count % 2 == 0 || n % sizeof(int) != 0)
+	count = n / sizeof(unsigned);
+	if (count > LIRCBUF_SIZE || count % 2 == 0)
 		return -EINVAL;
 
 	txbuf = memdup_user(buf, n);
@@ -128,8 +135,30 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 		goto out;
 	}
 
-	if (dev->tx_ir)
-		ret = dev->tx_ir(dev, txbuf, (u32)n);
+	if (!dev->tx_ir) {
+		ret = -ENOSYS;
+		goto out;
+	}
+
+	ret = dev->tx_ir(dev, txbuf, count);
+	if (ret < 0)
+		goto out;
+
+	for (i = 0; i < ret; i++)
+		duration += txbuf[i];
+
+	ret *= sizeof(unsigned int);
+
+	/*
+	 * The lircd gap calculation expects the write function to
+	 * wait for the actual IR signal to be transmitted before
+	 * returning.
+	 */
+	towait = ktime_us_delta(ktime_add_us(start, duration), ktime_get());
+	if (towait > 0) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(towait));
+	}
 
 out:
 	kfree(txbuf);
@@ -137,10 +166,11 @@ out:
 }
 
 static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
-			unsigned long __user arg)
+			unsigned long arg)
 {
 	struct lirc_codec *lirc;
 	struct rc_dev *dev;
+	u32 __user *argp = (u32 __user *)(arg);
 	int ret = 0;
 	__u32 val = 0, tmp;
 
@@ -153,7 +183,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 		return -EFAULT;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		ret = get_user(val, (__u32 *)arg);
+		ret = get_user(val, argp);
 		if (ret)
 			return ret;
 	}
@@ -173,13 +203,13 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
 		if (!dev->s_tx_mask)
-			return -EINVAL;
+			return -ENOSYS;
 
 		return dev->s_tx_mask(dev, val);
 
 	case LIRC_SET_SEND_CARRIER:
 		if (!dev->s_tx_carrier)
-			return -EINVAL;
+			return -ENOSYS;
 
 		return dev->s_tx_carrier(dev, val);
 
@@ -262,7 +292,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 	}
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		ret = put_user(val, (__u32 *)arg);
+		ret = put_user(val, argp);
 
 	return ret;
 }
@@ -277,7 +307,7 @@ static void ir_lirc_close(void *data)
 	return;
 }
 
-static struct file_operations lirc_fops = {
+static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ir_lirc_transmit_ir,
 	.unlocked_ioctl	= ir_lirc_ioctl,
@@ -378,7 +408,7 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 }
 
 static struct ir_raw_handler lirc_handler = {
-	.protocols	= RC_TYPE_LIRC,
+	.protocols	= RC_BIT_LIRC,
 	.decode		= ir_lirc_decode,
 	.raw_register	= ir_lirc_register,
 	.raw_unregister	= ir_lirc_unregister,

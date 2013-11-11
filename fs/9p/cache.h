@@ -93,15 +93,6 @@ static inline void v9fs_uncache_page(struct inode *inode, struct page *page)
 	BUG_ON(PageFsCache(page));
 }
 
-static inline void v9fs_fscache_set_key(struct inode *inode,
-					struct p9_qid *qid)
-{
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	spin_lock(&v9inode->fscache_lock);
-	v9inode->fscache_key = qid;
-	spin_unlock(&v9inode->fscache_lock);
-}
-
 static inline void v9fs_fscache_wait_on_page_write(struct inode *inode,
 						   struct page *page)
 {

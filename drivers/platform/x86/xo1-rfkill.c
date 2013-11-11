@@ -12,25 +12,35 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
+#include <linux/olpc-ec.h>
 
-#include <asm/olpc.h>
+static bool card_blocked;
 
 static int rfkill_set_block(void *data, bool blocked)
 {
 	unsigned char cmd;
+	int r;
+
+	if (blocked == card_blocked)
+		return 0;
+
 	if (blocked)
 		cmd = EC_WLAN_ENTER_RESET;
 	else
 		cmd = EC_WLAN_LEAVE_RESET;
 
-	return olpc_ec_cmd(cmd, NULL, 0, NULL, 0);
+	r = olpc_ec_cmd(cmd, NULL, 0, NULL, 0);
+	if (r == 0)
+		card_blocked = blocked;
+
+	return r;
 }
 
 static const struct rfkill_ops rfkill_ops = {
 	.set_block = rfkill_set_block,
 };
 
-static int __devinit xo1_rfkill_probe(struct platform_device *pdev)
+static int xo1_rfkill_probe(struct platform_device *pdev)
 {
 	struct rfkill *rfk;
 	int r;
@@ -50,7 +60,7 @@ static int __devinit xo1_rfkill_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit xo1_rfkill_remove(struct platform_device *pdev)
+static int xo1_rfkill_remove(struct platform_device *pdev)
 {
 	struct rfkill *rfk = platform_get_drvdata(pdev);
 	rfkill_unregister(rfk);
@@ -64,22 +74,11 @@ static struct platform_driver xo1_rfkill_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= xo1_rfkill_probe,
-	.remove		= __devexit_p(xo1_rfkill_remove),
+	.remove		= xo1_rfkill_remove,
 };
 
-static int __init xo1_rfkill_init(void)
-{
-	return platform_driver_register(&xo1_rfkill_driver);
-}
-
-static void __exit xo1_rfkill_exit(void)
-{
-	platform_driver_unregister(&xo1_rfkill_driver);
-}
+module_platform_driver(xo1_rfkill_driver);
 
 MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:xo1-rfkill");
-
-module_init(xo1_rfkill_init);
-module_exit(xo1_rfkill_exit);

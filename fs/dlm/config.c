@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/dlmconstants.h>
 #include <net/ipv6.h>
 #include <net/sock.h>
 
@@ -28,13 +29,15 @@
  * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/weight
  * /config/dlm/<cluster>/comms/<comm>/nodeid
  * /config/dlm/<cluster>/comms/<comm>/local
- * /config/dlm/<cluster>/comms/<comm>/addr
+ * /config/dlm/<cluster>/comms/<comm>/addr      (write only)
+ * /config/dlm/<cluster>/comms/<comm>/addr_list (read only)
  * The <cluster> level is useless, but I haven't figured out how to avoid it.
  */
 
 static struct config_group *space_list;
 static struct config_group *comm_list;
 static struct dlm_comm *local_comm;
+static uint32_t dlm_comm_count;
 
 struct dlm_clusters;
 struct dlm_cluster;
@@ -80,6 +83,7 @@ static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
 				size_t len);
 static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf,
 				size_t len);
+static ssize_t comm_addr_list_read(struct dlm_comm *cm, char *buf);
 static ssize_t node_nodeid_read(struct dlm_node *nd, char *buf);
 static ssize_t node_nodeid_write(struct dlm_node *nd, const char *buf,
 				size_t len);
@@ -92,8 +96,6 @@ struct dlm_cluster {
 	unsigned int cl_tcp_port;
 	unsigned int cl_buffer_size;
 	unsigned int cl_rsbtbl_size;
-	unsigned int cl_lkbtbl_size;
-	unsigned int cl_dirtbl_size;
 	unsigned int cl_recover_timer;
 	unsigned int cl_toss_secs;
 	unsigned int cl_scan_secs;
@@ -101,14 +103,15 @@ struct dlm_cluster {
 	unsigned int cl_protocol;
 	unsigned int cl_timewarn_cs;
 	unsigned int cl_waitwarn_us;
+	unsigned int cl_new_rsb_count;
+	unsigned int cl_recover_callbacks;
+	char cl_cluster_name[DLM_LOCKSPACE_LEN];
 };
 
 enum {
 	CLUSTER_ATTR_TCP_PORT = 0,
 	CLUSTER_ATTR_BUFFER_SIZE,
 	CLUSTER_ATTR_RSBTBL_SIZE,
-	CLUSTER_ATTR_LKBTBL_SIZE,
-	CLUSTER_ATTR_DIRTBL_SIZE,
 	CLUSTER_ATTR_RECOVER_TIMER,
 	CLUSTER_ATTR_TOSS_SECS,
 	CLUSTER_ATTR_SCAN_SECS,
@@ -116,12 +119,36 @@ enum {
 	CLUSTER_ATTR_PROTOCOL,
 	CLUSTER_ATTR_TIMEWARN_CS,
 	CLUSTER_ATTR_WAITWARN_US,
+	CLUSTER_ATTR_NEW_RSB_COUNT,
+	CLUSTER_ATTR_RECOVER_CALLBACKS,
+	CLUSTER_ATTR_CLUSTER_NAME,
 };
 
 struct cluster_attribute {
 	struct configfs_attribute attr;
 	ssize_t (*show)(struct dlm_cluster *, char *);
 	ssize_t (*store)(struct dlm_cluster *, const char *, size_t);
+};
+
+static ssize_t cluster_cluster_name_read(struct dlm_cluster *cl, char *buf)
+{
+	return sprintf(buf, "%s\n", cl->cl_cluster_name);
+}
+
+static ssize_t cluster_cluster_name_write(struct dlm_cluster *cl,
+					  const char *buf, size_t len)
+{
+	strncpy(dlm_config.ci_cluster_name, buf, DLM_LOCKSPACE_LEN);
+	strncpy(cl->cl_cluster_name, buf, DLM_LOCKSPACE_LEN);
+	return len;
+}
+
+static struct cluster_attribute cluster_attr_cluster_name = {
+	.attr   = { .ca_owner = THIS_MODULE,
+                    .ca_name = "cluster_name",
+                    .ca_mode = S_IRUGO | S_IWUSR },
+	.show   = cluster_cluster_name_read,
+	.store  = cluster_cluster_name_write,
 };
 
 static ssize_t cluster_set(struct dlm_cluster *cl, unsigned int *cl_field,
@@ -131,7 +158,7 @@ static ssize_t cluster_set(struct dlm_cluster *cl, unsigned int *cl_field,
 	unsigned int x;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	x = simple_strtoul(buf, NULL, 0);
 
@@ -160,8 +187,6 @@ __CONFIGFS_ATTR(name, 0644, name##_read, name##_write)
 CLUSTER_ATTR(tcp_port, 1);
 CLUSTER_ATTR(buffer_size, 1);
 CLUSTER_ATTR(rsbtbl_size, 1);
-CLUSTER_ATTR(lkbtbl_size, 1);
-CLUSTER_ATTR(dirtbl_size, 1);
 CLUSTER_ATTR(recover_timer, 1);
 CLUSTER_ATTR(toss_secs, 1);
 CLUSTER_ATTR(scan_secs, 1);
@@ -169,13 +194,13 @@ CLUSTER_ATTR(log_debug, 0);
 CLUSTER_ATTR(protocol, 0);
 CLUSTER_ATTR(timewarn_cs, 1);
 CLUSTER_ATTR(waitwarn_us, 0);
+CLUSTER_ATTR(new_rsb_count, 0);
+CLUSTER_ATTR(recover_callbacks, 0);
 
 static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_TCP_PORT] = &cluster_attr_tcp_port.attr,
 	[CLUSTER_ATTR_BUFFER_SIZE] = &cluster_attr_buffer_size.attr,
 	[CLUSTER_ATTR_RSBTBL_SIZE] = &cluster_attr_rsbtbl_size.attr,
-	[CLUSTER_ATTR_LKBTBL_SIZE] = &cluster_attr_lkbtbl_size.attr,
-	[CLUSTER_ATTR_DIRTBL_SIZE] = &cluster_attr_dirtbl_size.attr,
 	[CLUSTER_ATTR_RECOVER_TIMER] = &cluster_attr_recover_timer.attr,
 	[CLUSTER_ATTR_TOSS_SECS] = &cluster_attr_toss_secs.attr,
 	[CLUSTER_ATTR_SCAN_SECS] = &cluster_attr_scan_secs.attr,
@@ -183,6 +208,9 @@ static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_PROTOCOL] = &cluster_attr_protocol.attr,
 	[CLUSTER_ATTR_TIMEWARN_CS] = &cluster_attr_timewarn_cs.attr,
 	[CLUSTER_ATTR_WAITWARN_US] = &cluster_attr_waitwarn_us.attr,
+	[CLUSTER_ATTR_NEW_RSB_COUNT] = &cluster_attr_new_rsb_count.attr,
+	[CLUSTER_ATTR_RECOVER_CALLBACKS] = &cluster_attr_recover_callbacks.attr,
+	[CLUSTER_ATTR_CLUSTER_NAME] = &cluster_attr_cluster_name.attr,
 	NULL,
 };
 
@@ -190,6 +218,7 @@ enum {
 	COMM_ATTR_NODEID = 0,
 	COMM_ATTR_LOCAL,
 	COMM_ATTR_ADDR,
+	COMM_ATTR_ADDR_LIST,
 };
 
 struct comm_attribute {
@@ -217,14 +246,22 @@ static struct comm_attribute comm_attr_local = {
 static struct comm_attribute comm_attr_addr = {
 	.attr   = { .ca_owner = THIS_MODULE,
                     .ca_name = "addr",
-                    .ca_mode = S_IRUGO | S_IWUSR },
+                    .ca_mode = S_IWUSR },
 	.store  = comm_addr_write,
+};
+
+static struct comm_attribute comm_attr_addr_list = {
+	.attr   = { .ca_owner = THIS_MODULE,
+                    .ca_name = "addr_list",
+                    .ca_mode = S_IRUGO },
+	.show   = comm_addr_list_read,
 };
 
 static struct configfs_attribute *comm_attrs[] = {
 	[COMM_ATTR_NODEID] = &comm_attr_nodeid.attr,
 	[COMM_ATTR_LOCAL] = &comm_attr_local.attr,
 	[COMM_ATTR_ADDR] = &comm_attr_addr.attr,
+	[COMM_ATTR_ADDR_LIST] = &comm_attr_addr_list.attr,
 	NULL,
 };
 
@@ -282,6 +319,7 @@ struct dlm_comms {
 
 struct dlm_comm {
 	struct config_item item;
+	int seq;
 	int nodeid;
 	int local;
 	int addr_count;
@@ -298,6 +336,7 @@ struct dlm_node {
 	int nodeid;
 	int weight;
 	int new;
+	int comm_seq; /* copy of cm->seq when nd->nodeid is set */
 };
 
 static struct configfs_group_operations clusters_ops = {
@@ -435,8 +474,6 @@ static struct config_group *make_cluster(struct config_group *g,
 	cl->cl_tcp_port = dlm_config.ci_tcp_port;
 	cl->cl_buffer_size = dlm_config.ci_buffer_size;
 	cl->cl_rsbtbl_size = dlm_config.ci_rsbtbl_size;
-	cl->cl_lkbtbl_size = dlm_config.ci_lkbtbl_size;
-	cl->cl_dirtbl_size = dlm_config.ci_dirtbl_size;
 	cl->cl_recover_timer = dlm_config.ci_recover_timer;
 	cl->cl_toss_secs = dlm_config.ci_toss_secs;
 	cl->cl_scan_secs = dlm_config.ci_scan_secs;
@@ -444,6 +481,10 @@ static struct config_group *make_cluster(struct config_group *g,
 	cl->cl_protocol = dlm_config.ci_protocol;
 	cl->cl_timewarn_cs = dlm_config.ci_timewarn_cs;
 	cl->cl_waitwarn_us = dlm_config.ci_waitwarn_us;
+	cl->cl_new_rsb_count = dlm_config.ci_new_rsb_count;
+	cl->cl_recover_callbacks = dlm_config.ci_recover_callbacks;
+	memcpy(cl->cl_cluster_name, dlm_config.ci_cluster_name,
+	       DLM_LOCKSPACE_LEN);
 
 	space_list = &sps->ss_group;
 	comm_list = &cms->cs_group;
@@ -547,6 +588,11 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 		return ERR_PTR(-ENOMEM);
 
 	config_item_init_type_name(&cm->item, name, &comm_type);
+
+	cm->seq = dlm_comm_count++;
+	if (!cm->seq)
+		cm->seq = dlm_comm_count++;
+
 	cm->nodeid = -1;
 	cm->local = 0;
 	cm->addr_count = 0;
@@ -704,6 +750,7 @@ static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
 static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 {
 	struct sockaddr_storage *addr;
+	int rv;
 
 	if (len != sizeof(struct sockaddr_storage))
 		return -EINVAL;
@@ -716,8 +763,59 @@ static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 		return -ENOMEM;
 
 	memcpy(addr, buf, len);
+
+	rv = dlm_lowcomms_addr(cm->nodeid, addr, len);
+	if (rv) {
+		kfree(addr);
+		return rv;
+	}
+
 	cm->addr[cm->addr_count++] = addr;
 	return len;
+}
+
+static ssize_t comm_addr_list_read(struct dlm_comm *cm, char *buf)
+{
+	ssize_t s;
+	ssize_t allowance;
+	int i;
+	struct sockaddr_storage *addr;
+	struct sockaddr_in *addr_in;
+	struct sockaddr_in6 *addr_in6;
+	
+	/* Taken from ip6_addr_string() defined in lib/vsprintf.c */
+	char buf0[sizeof("AF_INET6	xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255\n")];
+	
+
+	/* Derived from SIMPLE_ATTR_SIZE of fs/configfs/file.c */
+	allowance = 4096;
+	buf[0] = '\0';
+
+	for (i = 0; i < cm->addr_count; i++) {
+		addr = cm->addr[i];
+
+		switch(addr->ss_family) {
+		case AF_INET:
+			addr_in = (struct sockaddr_in *)addr;
+			s = sprintf(buf0, "AF_INET	%pI4\n", &addr_in->sin_addr.s_addr);
+			break;
+		case AF_INET6:
+			addr_in6 = (struct sockaddr_in6 *)addr;
+			s = sprintf(buf0, "AF_INET6	%pI6\n", &addr_in6->sin6_addr);
+			break;
+		default:
+			s = sprintf(buf0, "%s\n", "<UNKNOWN>");
+			break;
+		}
+		allowance -= s;
+		if (allowance >= 0)
+			strcat(buf, buf0);
+		else {
+			allowance += s;
+			break;
+		}
+	}
+	return 4096 - allowance;
 }
 
 static ssize_t show_node(struct config_item *i, struct configfs_attribute *a,
@@ -746,7 +844,10 @@ static ssize_t node_nodeid_read(struct dlm_node *nd, char *buf)
 static ssize_t node_nodeid_write(struct dlm_node *nd, const char *buf,
 				 size_t len)
 {
+	uint32_t seq = 0;
 	nd->nodeid = simple_strtol(buf, NULL, 0);
+	dlm_comm_seq(nd->nodeid, &seq);
+	nd->comm_seq = seq;
 	return len;
 }
 
@@ -785,34 +886,7 @@ static void put_space(struct dlm_space *sp)
 	config_item_put(&sp->group.cg_item);
 }
 
-static int addr_compare(struct sockaddr_storage *x, struct sockaddr_storage *y)
-{
-	switch (x->ss_family) {
-	case AF_INET: {
-		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
-		struct sockaddr_in *siny = (struct sockaddr_in *)y;
-		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
-			return 0;
-		if (sinx->sin_port != siny->sin_port)
-			return 0;
-		break;
-	}
-	case AF_INET6: {
-		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
-		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
-		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
-			return 0;
-		if (sinx->sin6_port != siny->sin6_port)
-			return 0;
-		break;
-	}
-	default:
-		return 0;
-	}
-	return 1;
-}
-
-static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
+static struct dlm_comm *get_comm(int nodeid)
 {
 	struct config_item *i;
 	struct dlm_comm *cm = NULL;
@@ -826,19 +900,11 @@ static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 	list_for_each_entry(i, &comm_list->cg_children, ci_entry) {
 		cm = config_item_to_comm(i);
 
-		if (nodeid) {
-			if (cm->nodeid != nodeid)
-				continue;
-			found = 1;
-			config_item_get(i);
-			break;
-		} else {
-			if (!cm->addr_count || !addr_compare(cm->addr[0], addr))
-				continue;
-			found = 1;
-			config_item_get(i);
-			break;
-		}
+		if (cm->nodeid != nodeid)
+			continue;
+		found = 1;
+		config_item_get(i);
+		break;
 	}
 	mutex_unlock(&clusters_root.subsys.su_mutex);
 
@@ -853,13 +919,13 @@ static void put_comm(struct dlm_comm *cm)
 }
 
 /* caller must free mem */
-int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
-		    int **new_out, int *new_count_out)
+int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
+		     int *count_out)
 {
 	struct dlm_space *sp;
 	struct dlm_node *nd;
-	int i = 0, rv = 0, ids_count = 0, new_count = 0;
-	int *ids, *new;
+	struct dlm_config_node *nodes, *node;
+	int rv, count;
 
 	sp = get_space(lsname);
 	if (!sp)
@@ -872,93 +938,40 @@ int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
 		goto out;
 	}
 
-	ids_count = sp->members_count;
+	count = sp->members_count;
 
-	ids = kcalloc(ids_count, sizeof(int), GFP_NOFS);
-	if (!ids) {
+	nodes = kcalloc(count, sizeof(struct dlm_config_node), GFP_NOFS);
+	if (!nodes) {
 		rv = -ENOMEM;
 		goto out;
 	}
 
+	node = nodes;
 	list_for_each_entry(nd, &sp->members, list) {
-		ids[i++] = nd->nodeid;
-		if (nd->new)
-			new_count++;
+		node->nodeid = nd->nodeid;
+		node->weight = nd->weight;
+		node->new = nd->new;
+		node->comm_seq = nd->comm_seq;
+		node++;
+
+		nd->new = 0;
 	}
 
-	if (ids_count != i)
-		printk(KERN_ERR "dlm: bad nodeid count %d %d\n", ids_count, i);
-
-	if (!new_count)
-		goto out_ids;
-
-	new = kcalloc(new_count, sizeof(int), GFP_NOFS);
-	if (!new) {
-		kfree(ids);
-		rv = -ENOMEM;
-		goto out;
-	}
-
-	i = 0;
-	list_for_each_entry(nd, &sp->members, list) {
-		if (nd->new) {
-			new[i++] = nd->nodeid;
-			nd->new = 0;
-		}
-	}
-	*new_count_out = new_count;
-	*new_out = new;
-
- out_ids:
-	*ids_count_out = ids_count;
-	*ids_out = ids;
+	*count_out = count;
+	*nodes_out = nodes;
+	rv = 0;
  out:
 	mutex_unlock(&sp->members_lock);
 	put_space(sp);
 	return rv;
 }
 
-int dlm_node_weight(char *lsname, int nodeid)
+int dlm_comm_seq(int nodeid, uint32_t *seq)
 {
-	struct dlm_space *sp;
-	struct dlm_node *nd;
-	int w = -EEXIST;
-
-	sp = get_space(lsname);
-	if (!sp)
-		goto out;
-
-	mutex_lock(&sp->members_lock);
-	list_for_each_entry(nd, &sp->members, list) {
-		if (nd->nodeid != nodeid)
-			continue;
-		w = nd->weight;
-		break;
-	}
-	mutex_unlock(&sp->members_lock);
-	put_space(sp);
- out:
-	return w;
-}
-
-int dlm_nodeid_to_addr(int nodeid, struct sockaddr_storage *addr)
-{
-	struct dlm_comm *cm = get_comm(nodeid, NULL);
+	struct dlm_comm *cm = get_comm(nodeid);
 	if (!cm)
 		return -EEXIST;
-	if (!cm->addr_count)
-		return -ENOENT;
-	memcpy(addr, cm->addr[0], sizeof(*addr));
-	put_comm(cm);
-	return 0;
-}
-
-int dlm_addr_to_nodeid(struct sockaddr_storage *addr, int *nodeid)
-{
-	struct dlm_comm *cm = get_comm(0, addr);
-	if (!cm)
-		return -EEXIST;
-	*nodeid = cm->nodeid;
+	*seq = cm->seq;
 	put_comm(cm);
 	return 0;
 }
@@ -983,8 +996,6 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_TCP_PORT       21064
 #define DEFAULT_BUFFER_SIZE     4096
 #define DEFAULT_RSBTBL_SIZE     1024
-#define DEFAULT_LKBTBL_SIZE     1024
-#define DEFAULT_DIRTBL_SIZE     1024
 #define DEFAULT_RECOVER_TIMER      5
 #define DEFAULT_TOSS_SECS         10
 #define DEFAULT_SCAN_SECS          5
@@ -992,19 +1003,23 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_PROTOCOL           0
 #define DEFAULT_TIMEWARN_CS      500 /* 5 sec = 500 centiseconds */
 #define DEFAULT_WAITWARN_US	   0
+#define DEFAULT_NEW_RSB_COUNT    128
+#define DEFAULT_RECOVER_CALLBACKS  0
+#define DEFAULT_CLUSTER_NAME      ""
 
 struct dlm_config_info dlm_config = {
 	.ci_tcp_port = DEFAULT_TCP_PORT,
 	.ci_buffer_size = DEFAULT_BUFFER_SIZE,
 	.ci_rsbtbl_size = DEFAULT_RSBTBL_SIZE,
-	.ci_lkbtbl_size = DEFAULT_LKBTBL_SIZE,
-	.ci_dirtbl_size = DEFAULT_DIRTBL_SIZE,
 	.ci_recover_timer = DEFAULT_RECOVER_TIMER,
 	.ci_toss_secs = DEFAULT_TOSS_SECS,
 	.ci_scan_secs = DEFAULT_SCAN_SECS,
 	.ci_log_debug = DEFAULT_LOG_DEBUG,
 	.ci_protocol = DEFAULT_PROTOCOL,
 	.ci_timewarn_cs = DEFAULT_TIMEWARN_CS,
-	.ci_waitwarn_us = DEFAULT_WAITWARN_US
+	.ci_waitwarn_us = DEFAULT_WAITWARN_US,
+	.ci_new_rsb_count = DEFAULT_NEW_RSB_COUNT,
+	.ci_recover_callbacks = DEFAULT_RECOVER_CALLBACKS,
+	.ci_cluster_name = DEFAULT_CLUSTER_NAME
 };
 

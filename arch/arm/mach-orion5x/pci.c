@@ -14,9 +14,12 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/mbus.h>
+#include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <plat/addr-map.h>
+#include <mach/orion5x.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -35,7 +38,7 @@
 /*****************************************************************************
  * PCIe controller
  ****************************************************************************/
-#define PCIE_BASE	((void __iomem *)ORION5X_PCIE_VIRT_BASE)
+#define PCIE_BASE	(ORION5X_PCIE_VIRT_BASE)
 
 void __init orion5x_pcie_id(u32 *dev, u32 *rev)
 {
@@ -108,7 +111,7 @@ static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
-	ret = orion_pcie_rd_conf_wa((void __iomem *)ORION5X_PCIE_WA_VIRT_BASE,
+	ret = orion_pcie_rd_conf_wa(ORION5X_PCIE_WA_VIRT_BASE,
 				    bus, devfn, where, size, val);
 
 	return ret;
@@ -144,7 +147,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * Generic PCIe unit setup.
 	 */
-	orion_pcie_setup(PCIE_BASE, &orion5x_mbus_dram_info);
+	orion_pcie_setup(PCIE_BASE);
 
 	/*
 	 * Check whether to apply Orion-1/Orion-NAS PCIe config
@@ -154,42 +157,33 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
-		orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
-					  ORION5X_PCIE_WA_SIZE);
+		mvebu_mbus_add_window_remap_flags("pcie0.0",
+						  ORION5X_PCIE_WA_PHYS_BASE,
+						  ORION5X_PCIE_WA_SIZE,
+						  MVEBU_MBUS_NO_REMAP,
+						  MVEBU_MBUS_PCI_WA);
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
+
+	pci_ioremap_io(sys->busnr * SZ_64K, ORION5X_PCIE_IO_PHYS_BASE);
 
 	/*
 	 * Request resources.
 	 */
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("pcie_setup unable to alloc resources");
 
 	/*
-	 * IORESOURCE_IO
-	 */
-	res[0].name = "PCIe I/O Space";
-	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION5X_PCIE_IO_BUS_BASE;
-	res[0].end = res[0].start + ORION5X_PCIE_IO_SIZE - 1;
-	if (request_resource(&ioport_resource, &res[0]))
-		panic("Request PCIe IO resource failed\n");
-	sys->resource[0] = &res[0];
-
-	/*
 	 * IORESOURCE_MEM
 	 */
-	res[1].name = "PCIe Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION5X_PCIE_MEM_PHYS_BASE;
-	res[1].end = res[1].start + ORION5X_PCIE_MEM_SIZE - 1;
-	if (request_resource(&iomem_resource, &res[1]))
+	res->name = "PCIe Memory Space";
+	res->flags = IORESOURCE_MEM;
+	res->start = ORION5X_PCIE_MEM_PHYS_BASE;
+	res->end = res->start + ORION5X_PCIE_MEM_SIZE - 1;
+	if (request_resource(&iomem_resource, res))
 		panic("Request PCIe Memory resource failed\n");
-	sys->resource[1] = &res[1];
-
-	sys->resource[2] = NULL;
-	sys->io_offset = 0;
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }
@@ -197,7 +191,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * PCI controller
  ****************************************************************************/
-#define ORION5X_PCI_REG(x)	(ORION5X_PCI_VIRT_BASE | (x))
+#define ORION5X_PCI_REG(x)	(ORION5X_PCI_VIRT_BASE + (x))
 #define PCI_MODE		ORION5X_PCI_REG(0xd00)
 #define PCI_CMD			ORION5X_PCI_REG(0xc00)
 #define PCI_P2P_CONF		ORION5X_PCI_REG(0x1d14)
@@ -411,8 +405,9 @@ static void __init orion5x_pci_master_slave_enable(void)
 	orion5x_pci_hw_wr_conf(bus_nr, 0, func, reg, 4, val | 0x7);
 }
 
-static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
+static void __init orion5x_setup_pci_wins(void)
 {
+	const struct mbus_dram_target_info *dram = mv_mbus_dram_info();
 	u32 win_enable;
 	int bus;
 	int i;
@@ -429,7 +424,7 @@ static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
 	bus = orion5x_pci_local_bus_nr();
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 		u32 func = PCI_CONF_FUNC_BAR_CS(cs->cs_index);
 		u32 reg;
 		u32 val;
@@ -476,7 +471,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * Point PCI unit MBUS decode windows to DRAM space.
 	 */
-	orion5x_setup_pci_wins(&orion5x_mbus_dram_info);
+	orion5x_setup_pci_wins();
 
 	/*
 	 * Master + Slave enable
@@ -488,37 +483,25 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	 */
 	orion5x_setbits(PCI_CMD, PCI_CMD_HOST_REORDER);
 
+	pci_ioremap_io(sys->busnr * SZ_64K, ORION5X_PCI_IO_PHYS_BASE);
+
 	/*
 	 * Request resources
 	 */
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("pci_setup unable to alloc resources");
 
 	/*
-	 * IORESOURCE_IO
-	 */
-	res[0].name = "PCI I/O Space";
-	res[0].flags = IORESOURCE_IO;
-	res[0].start = ORION5X_PCI_IO_BUS_BASE;
-	res[0].end = res[0].start + ORION5X_PCI_IO_SIZE - 1;
-	if (request_resource(&ioport_resource, &res[0]))
-		panic("Request PCI IO resource failed\n");
-	sys->resource[0] = &res[0];
-
-	/*
 	 * IORESOURCE_MEM
 	 */
-	res[1].name = "PCI Memory Space";
-	res[1].flags = IORESOURCE_MEM;
-	res[1].start = ORION5X_PCI_MEM_PHYS_BASE;
-	res[1].end = res[1].start + ORION5X_PCI_MEM_SIZE - 1;
-	if (request_resource(&iomem_resource, &res[1]))
+	res->name = "PCI Memory Space";
+	res->flags = IORESOURCE_MEM;
+	res->start = ORION5X_PCI_MEM_PHYS_BASE;
+	res->end = res->start + ORION5X_PCI_MEM_SIZE - 1;
+	if (request_resource(&iomem_resource, res))
 		panic("Request PCI Memory resource failed\n");
-	sys->resource[1] = &res[1];
-
-	sys->resource[2] = NULL;
-	sys->io_offset = 0;
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }
@@ -527,7 +510,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * General PCIe + PCI
  ****************************************************************************/
-static void __devinit rc_pci_fixup(struct pci_dev *dev)
+static void rc_pci_fixup(struct pci_dev *dev)
 {
 	/*
 	 * Prevent enumeration of root complex.
@@ -560,6 +543,8 @@ int __init orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
+	vga_base = ORION5X_PCIE_MEM_PHYS_BASE;
+
 	if (nr == 0) {
 		orion_pcie_set_local_bus_nr(PCIE_BASE, sys->busnr);
 		ret = pcie_setup(sys);
@@ -576,9 +561,11 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	struct pci_bus *bus;
 
 	if (nr == 0) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else if (nr == 1 && !orion5x_pci_disabled) {
-		bus = pci_scan_bus(sys->busnr, &pci_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();
@@ -587,7 +574,7 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	return bus;
 }
 
-int __init orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int bus = dev->bus->number;
 

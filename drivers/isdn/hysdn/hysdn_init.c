@@ -56,8 +56,8 @@ static hysdn_card *card_last = NULL;	/* pointer to first card */
 /* is assumed and the module will not be kept in memory.                    */
 /****************************************************************************/
 
-static int __devinit hysdn_pci_init_one(struct pci_dev *akt_pcidev,
-					const struct pci_device_id *ent)
+static int hysdn_pci_init_one(struct pci_dev *akt_pcidev,
+			      const struct pci_device_id *ent)
 {
 	hysdn_card *card;
 	int rc;
@@ -109,7 +109,7 @@ err_out:
 	return rc;
 }
 
-static void __devexit hysdn_pci_remove_one(struct pci_dev *akt_pcidev)
+static void hysdn_pci_remove_one(struct pci_dev *akt_pcidev)
 {
 	hysdn_card *card = pci_get_drvdata(akt_pcidev);
 
@@ -147,7 +147,7 @@ static struct pci_driver hysdn_pci_driver = {
 	.name		= "hysdn",
 	.id_table	= hysdn_pci_tbl,
 	.probe		= hysdn_pci_init_one,
-	.remove		= __devexit_p(hysdn_pci_remove_one),
+	.remove		= hysdn_pci_remove_one,
 };
 
 static int hysdn_have_procfs;
@@ -169,8 +169,8 @@ hysdn_init(void)
 		hysdn_have_procfs = 1;
 
 #ifdef CONFIG_HYSDN_CAPI
-	if(cardmax > 0) {
-		if(hycapi_init()) {
+	if (cardmax > 0) {
+		if (hycapi_init()) {
 			printk(KERN_ERR "HYCAPI: init failed\n");
 
 			if (hysdn_have_procfs)

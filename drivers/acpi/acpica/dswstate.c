@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,14 +51,15 @@
 ACPI_MODULE_NAME("dswstate")
 
   /* Local prototypes */
-static acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *ws);
-static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *ws);
+static acpi_status
+acpi_ds_result_stack_push(struct acpi_walk_state *walk_state);
+static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state);
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_result_pop
  *
- * PARAMETERS:  Object              - Where to return the popped object
+ * PARAMETERS:  object              - Where to return the popped object
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -132,7 +133,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
  *
  * FUNCTION:    acpi_ds_result_push
  *
- * PARAMETERS:  Object              - Where to return the popped object
+ * PARAMETERS:  object              - Where to return the popped object
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -296,7 +297,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state)
  *
  * FUNCTION:    acpi_ds_obj_stack_push
  *
- * PARAMETERS:  Object              - Object to push
+ * PARAMETERS:  object              - Object to push
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -347,7 +348,7 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state * walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Pop this walk's object stack.  Objects on the stack are NOT
+ * DESCRIPTION: Pop this walk's object stack. Objects on the stack are NOT
  *              deleted by this routine.
  *
  ******************************************************************************/
@@ -433,7 +434,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
  *
  * FUNCTION:    acpi_ds_get_current_walk_state
  *
- * PARAMETERS:  Thread          - Get current active state for this Thread
+ * PARAMETERS:  thread          - Get current active state for this Thread
  *
  * RETURN:      Pointer to the current walk state
  *
@@ -462,7 +463,7 @@ struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
  * FUNCTION:    acpi_ds_push_walk_state
  *
  * PARAMETERS:  walk_state      - State to push
- *              Thread          - Thread state object
+ *              thread          - Thread state object
  *
  * RETURN:      None
  *
@@ -486,12 +487,12 @@ acpi_ds_push_walk_state(struct acpi_walk_state *walk_state,
  *
  * FUNCTION:    acpi_ds_pop_walk_state
  *
- * PARAMETERS:  Thread      - Current thread state
+ * PARAMETERS:  thread      - Current thread state
  *
  * RETURN:      A walk_state object popped from the thread's stack
  *
  * DESCRIPTION: Remove and return the walkstate object that is at the head of
- *              the walk stack for the given walk list.  NULL indicates that
+ *              the walk stack for the given walk list. NULL indicates that
  *              the list is empty.
  *
  ******************************************************************************/
@@ -525,20 +526,23 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
  * FUNCTION:    acpi_ds_create_walk_state
  *
  * PARAMETERS:  owner_id        - ID for object creation
- *              Origin          - Starting point for this walk
+ *              origin          - Starting point for this walk
  *              method_desc     - Method object
- *              Thread          - Current thread state
+ *              thread          - Current thread state
  *
  * RETURN:      Pointer to the new walk state.
  *
- * DESCRIPTION: Allocate and initialize a new walk state.  The current walk
+ * DESCRIPTION: Allocate and initialize a new walk state. The current walk
  *              state is set to this new state.
  *
  ******************************************************************************/
 
-struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id, union acpi_parse_object
-						  *origin, union acpi_operand_object
-						  *method_desc, struct acpi_thread_state
+struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
+						  union acpi_parse_object
+						  *origin,
+						  union acpi_operand_object
+						  *method_desc,
+						  struct acpi_thread_state
 						  *thread)
 {
 	struct acpi_walk_state *walk_state;
@@ -578,11 +582,11 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id, union 
  * FUNCTION:    acpi_ds_init_aml_walk
  *
  * PARAMETERS:  walk_state      - New state to be initialized
- *              Op              - Current parse op
+ *              op              - Current parse op
  *              method_node     - Control method NS node, if any
  *              aml_start       - Start of AML
  *              aml_length      - Length of AML
- *              Info            - Method info block (params, etc.)
+ *              info            - Method info block (params, etc.)
  *              pass_number     - 1, 2, or 3
  *
  * RETURN:      Status
@@ -653,7 +657,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		/*
 		 * Setup the current scope.
 		 * Find a Named Op that has a namespace node associated with it.
-		 * search upwards from this Op.  Current scope is the first
+		 * search upwards from this Op. Current scope is the first
 		 * Op with a namespace node.
 		 */
 		extra_op = parser_state->start_op;
@@ -704,13 +708,13 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 	ACPI_FUNCTION_TRACE_PTR(ds_delete_walk_state, walk_state);
 
 	if (!walk_state) {
-		return;
+		return_VOID;
 	}
 
 	if (walk_state->descriptor_type != ACPI_DESC_TYPE_WALK) {
 		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
 			    walk_state));
-		return;
+		return_VOID;
 	}
 
 	/* There should not be any open scopes */

@@ -39,6 +39,7 @@ enum CTCARDS {
 	CT20K2_MODEL_FIRST = CTSB0760,
 	CTHENDRIX,
 	CTSB0880,
+	CTSB1270,
 	CT20K2_UNKNOWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
@@ -60,17 +61,28 @@ struct card_conf {
 	unsigned int msr;	/* master sample rate in rsrs */
 };
 
+struct capabilities {
+	unsigned int digit_io_switch:1;
+	unsigned int dedicated_mic:1;
+	unsigned int output_switch:1;
+	unsigned int mic_source_switch:1;
+};
+
 struct hw {
 	int (*card_init)(struct hw *hw, struct card_conf *info);
 	int (*card_stop)(struct hw *hw);
 	int (*pll_init)(struct hw *hw, unsigned int rsr);
-#ifdef CONFIG_PM
-	int (*suspend)(struct hw *hw, pm_message_t state);
+#ifdef CONFIG_PM_SLEEP
+	int (*suspend)(struct hw *hw);
 	int (*resume)(struct hw *hw, struct card_conf *info);
 #endif
 	int (*is_adc_source_selected)(struct hw *hw, enum ADCSRC source);
 	int (*select_adc_source)(struct hw *hw, enum ADCSRC source);
-	int (*have_digit_io_switch)(struct hw *hw);
+	struct capabilities (*capabilities)(struct hw *hw);
+	int (*output_switch_get)(struct hw *hw);
+	int (*output_switch_put)(struct hw *hw, int position);
+	int (*mic_source_switch_get)(struct hw *hw);
+	int (*mic_source_switch_put)(struct hw *hw, int position);
 
 	/* SRC operations */
 	int (*src_rsc_get_ctrl_blk)(void **rblk);

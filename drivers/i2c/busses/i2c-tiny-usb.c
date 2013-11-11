@@ -143,6 +143,7 @@ static const struct i2c_algorithm usb_algorithm = {
 static const struct usb_device_id i2c_tiny_usb_table[] = {
 	{ USB_DEVICE(0x0403, 0xc631) },   /* FTDI */
 	{ USB_DEVICE(0x1c40, 0x0534) },   /* EZPrototypes */
+	{ USB_DEVICE(0x1964, 0x0001) },   /* Robofuzz OSIF */
 	{ }                               /* Terminating entry */
 };
 
@@ -262,20 +263,7 @@ static struct usb_driver i2c_tiny_usb_driver = {
 	.id_table	= i2c_tiny_usb_table,
 };
 
-static int __init usb_i2c_tiny_usb_init(void)
-{
-	/* register this driver with the USB subsystem */
-	return usb_register(&i2c_tiny_usb_driver);
-}
-
-static void __exit usb_i2c_tiny_usb_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&i2c_tiny_usb_driver);
-}
-
-module_init(usb_i2c_tiny_usb_init);
-module_exit(usb_i2c_tiny_usb_exit);
+module_usb_driver(i2c_tiny_usb_driver);
 
 /* ----- end of usb layer ------------------------------------------------ */
 

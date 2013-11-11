@@ -1,0 +1,56 @@
+if USB && MEDIA_SUPPORT
+
+menuconfig MEDIA_USB_SUPPORT
+	bool "Media USB Adapters"
+	help
+	  Enable media drivers for USB bus.
+	  If you have such devices, say Y.
+
+if MEDIA_USB_SUPPORT
+
+if MEDIA_CAMERA_SUPPORT
+	comment "Webcam devices"
+source "drivers/media/usb/uvc/Kconfig"
+source "drivers/media/usb/gspca/Kconfig"
+source "drivers/media/usb/pwc/Kconfig"
+source "drivers/media/usb/cpia2/Kconfig"
+source "drivers/media/usb/zr364xx/Kconfig"
+source "drivers/media/usb/stkwebcam/Kconfig"
+source "drivers/media/usb/s2255/Kconfig"
+source "drivers/media/usb/sn9c102/Kconfig"
+endif
+
+if MEDIA_ANALOG_TV_SUPPORT
+	comment "Analog TV USB devices"
+source "drivers/media/usb/pvrusb2/Kconfig"
+source "drivers/media/usb/hdpvr/Kconfig"
+source "drivers/media/usb/tlg2300/Kconfig"
+source "drivers/media/usb/usbvision/Kconfig"
+source "drivers/media/usb/stk1160/Kconfig"
+endif
+
+if (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
+	comment "Analog/digital TV USB devices"
+source "drivers/media/usb/au0828/Kconfig"
+source "drivers/media/usb/cx231xx/Kconfig"
+source "drivers/media/usb/tm6000/Kconfig"
+endif
+
+
+if I2C && MEDIA_DIGITAL_TV_SUPPORT
+	comment "Digital TV USB devices"
+source "drivers/media/usb/dvb-usb/Kconfig"
+source "drivers/media/usb/dvb-usb-v2/Kconfig"
+source "drivers/media/usb/ttusb-budget/Kconfig"
+source "drivers/media/usb/ttusb-dec/Kconfig"
+source "drivers/media/usb/siano/Kconfig"
+source "drivers/media/usb/b2c2/Kconfig"
+endif
+
+if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
+	comment "Webcam, TV (analog/digital) USB devices"
+source "drivers/media/usb/em28xx/Kconfig"
+endif
+
+endif #MEDIA_USB_SUPPORT
+endif #USB

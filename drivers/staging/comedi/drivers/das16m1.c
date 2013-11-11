@@ -28,7 +28,7 @@
 Driver: das16m1
 Description: CIO-DAS16/M1
 Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [Measurement Computing] CIO-DAS16/M1 (cio-das16/m1)
+Devices: [Measurement Computing] CIO-DAS16/M1 (das16m1)
 Status: works
 
 This driver supports a single board - the CIO-DAS16/M1.
@@ -132,57 +132,6 @@ static const struct comedi_lrange range_das16m1 = { 9,
 	 }
 };
 
-static int das16m1_do_wbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int das16m1_di_rbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int das16m1_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-
-static int das16m1_cmd_test(struct comedi_device *dev,
-			    struct comedi_subdevice *s, struct comedi_cmd *cmd);
-static int das16m1_cmd_exec(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static int das16m1_cancel(struct comedi_device *dev,
-			  struct comedi_subdevice *s);
-
-static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s);
-static irqreturn_t das16m1_interrupt(int irq, void *d);
-static void das16m1_handler(struct comedi_device *dev, unsigned int status);
-
-static unsigned int das16m1_set_pacer(struct comedi_device *dev,
-				      unsigned int ns, int round_flag);
-
-static int das16m1_irq_bits(unsigned int irq);
-
-struct das16m1_board {
-	const char *name;
-	unsigned int ai_speed;
-};
-
-static const struct das16m1_board das16m1_boards[] = {
-	{
-	 .name = "cio-das16/m1",	/*  CIO-DAS16_M1.pdf */
-	 .ai_speed = 1000,	/*  1MHz max speed */
-	 },
-};
-
-static int das16m1_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int das16m1_detach(struct comedi_device *dev);
-static struct comedi_driver driver_das16m1 = {
-	.driver_name = "das16m1",
-	.module = THIS_MODULE,
-	.attach = das16m1_attach,
-	.detach = das16m1_detach,
-	.board_name = &das16m1_boards[0].name,
-	.num_names = ARRAY_SIZE(das16m1_boards),
-	.offset = sizeof(das16m1_boards[0]),
-};
-
 struct das16m1_private_struct {
 	unsigned int control_state;
 	volatile unsigned int adc_count;	/*  number of samples completed */
@@ -194,107 +143,67 @@ struct das16m1_private_struct {
 	unsigned int do_bits;	/*  saves status of digital output bits */
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
+	unsigned long extra_iobase;
 };
-#define devpriv ((struct das16m1_private_struct *)(dev->private))
-#define thisboard ((const struct das16m1_board *)(dev->board_ptr))
-
-static int __init driver_das16m1_init_module(void)
-{
-	return comedi_driver_register(&driver_das16m1);
-}
-
-static void __exit driver_das16m1_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das16m1);
-}
-
-module_init(driver_das16m1_init_module);
-module_exit(driver_das16m1_cleanup_module);
 
 static inline short munge_sample(short data)
 {
 	return (data >> 4) & 0xfff;
 }
 
+static void munge_sample_array(short *array, unsigned int num_elements)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_elements; i++)
+		array[i] = munge_sample(array[i]);
+}
+
 static int das16m1_cmd_test(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	unsigned int err = 0, tmp, i;
 
-	/* make sure triggers are valid */
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER | TRIG_EXT;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
-	if (cmd->stop_src != TRIG_COUNT && cmd->stop_src != TRIG_NONE)
-		err++;
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
-		err++;
-	if (cmd->convert_src != TRIG_TIMER && cmd->convert_src != TRIG_EXT)
-		err++;
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->convert_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
 
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 1000);
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -340,9 +249,31 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	return 0;
 }
 
+/* This function takes a time in nanoseconds and sets the     *
+ * 2 pacer clocks to the closest frequency possible. It also  *
+ * returns the actual sampling period.                        */
+static unsigned int das16m1_set_pacer(struct comedi_device *dev,
+				      unsigned int ns, int rounding_flags)
+{
+	struct das16m1_private_struct *devpriv = dev->private;
+
+	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
+				       &(devpriv->divisor2), &ns,
+				       rounding_flags & TRIG_ROUND_MASK);
+
+	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
+	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,
+		   2);
+	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 2, devpriv->divisor2,
+		   2);
+
+	return ns;
+}
+
 static int das16m1_cmd_exec(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
@@ -384,20 +315,20 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	byte = 0;
 	/* if we are using external start trigger (also board dislikes having
 	 * both start and conversion triggers external simultaneously) */
-	if (cmd->start_src == TRIG_EXT && cmd->convert_src != TRIG_EXT) {
+	if (cmd->start_src == TRIG_EXT && cmd->convert_src != TRIG_EXT)
 		byte |= EXT_TRIG_BIT;
-	}
+
 	outb(byte, dev->iobase + DAS16M1_CS);
 	/* clear interrupt bit */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 
 	/* enable interrupts and internal pacer */
 	devpriv->control_state &= ~PACER_MASK;
-	if (cmd->convert_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER)
 		devpriv->control_state |= INT_PACER;
-	} else {
+	else
 		devpriv->control_state |= EXT_PACER;
-	}
+
 	devpriv->control_state |= INTE;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
@@ -406,6 +337,8 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 
 static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
+
 	devpriv->control_state &= ~INTE & ~PACER_MASK;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
@@ -416,6 +349,7 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	int i, n;
 	int byte;
 	const int timeout = 1000;
@@ -460,13 +394,14 @@ static int das16m1_di_rbits(struct comedi_device *dev,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int das16m1_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	unsigned int wbits;
 
 	/*  only set bits that have been masked */
@@ -481,63 +416,12 @@ static int das16m1_do_wbits(struct comedi_device *dev,
 
 	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
 
-	return 2;
-}
-
-static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	unsigned long flags;
-	unsigned int status;
-
-	/*  prevent race with interrupt handler */
-	spin_lock_irqsave(&dev->spinlock, flags);
-	status = inb(dev->iobase + DAS16M1_CS);
-	das16m1_handler(dev, status);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	return s->async->buf_write_count - s->async->buf_read_count;
-}
-
-static irqreturn_t das16m1_interrupt(int irq, void *d)
-{
-	int status;
-	struct comedi_device *dev = d;
-
-	if (dev->attached == 0) {
-		comedi_error(dev, "premature interrupt");
-		return IRQ_HANDLED;
-	}
-	/*  prevent race with comedi_poll() */
-	spin_lock(&dev->spinlock);
-
-	status = inb(dev->iobase + DAS16M1_CS);
-
-	if ((status & (IRQDATA | OVRUN)) == 0) {
-		comedi_error(dev, "spurious interrupt");
-		spin_unlock(&dev->spinlock);
-		return IRQ_NONE;
-	}
-
-	das16m1_handler(dev, status);
-
-	/* clear interrupt */
-	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
-
-	spin_unlock(&dev->spinlock);
-	return IRQ_HANDLED;
-}
-
-static void munge_sample_array(short *array, unsigned int num_elements)
-{
-	unsigned int i;
-
-	for (i = 0; i < num_elements; i++) {
-		array[i] = munge_sample(array[i]);
-	}
+	return insn->n;
 }
 
 static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
@@ -597,23 +481,47 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 
 }
 
-/* This function takes a time in nanoseconds and sets the     *
- * 2 pacer clocks to the closest frequency possible. It also  *
- * returns the actual sampling period.                        */
-static unsigned int das16m1_set_pacer(struct comedi_device *dev,
-				      unsigned int ns, int rounding_flags)
+static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
-				       &(devpriv->divisor2), &ns,
-				       rounding_flags & TRIG_ROUND_MASK);
+	unsigned long flags;
+	unsigned int status;
 
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,
-		   2);
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 2, devpriv->divisor2,
-		   2);
+	/*  prevent race with interrupt handler */
+	spin_lock_irqsave(&dev->spinlock, flags);
+	status = inb(dev->iobase + DAS16M1_CS);
+	das16m1_handler(dev, status);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return ns;
+	return s->async->buf_write_count - s->async->buf_read_count;
+}
+
+static irqreturn_t das16m1_interrupt(int irq, void *d)
+{
+	int status;
+	struct comedi_device *dev = d;
+
+	if (!dev->attached) {
+		comedi_error(dev, "premature interrupt");
+		return IRQ_HANDLED;
+	}
+	/*  prevent race with comedi_poll() */
+	spin_lock(&dev->spinlock);
+
+	status = inb(dev->iobase + DAS16M1_CS);
+
+	if ((status & (IRQDATA | OVRUN)) == 0) {
+		comedi_error(dev, "spurious interrupt");
+		spin_unlock(&dev->spinlock);
+		return IRQ_NONE;
+	}
+
+	das16m1_handler(dev, status);
+
+	/* clear interrupt */
+	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+
+	spin_unlock(&dev->spinlock);
+	return IRQ_HANDLED;
 }
 
 static int das16m1_irq_bits(unsigned int irq)
@@ -657,65 +565,54 @@ static int das16m1_irq_bits(unsigned int irq)
  *   0  I/O base
  *   1  IRQ
  */
-
 static int das16m1_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct das16m1_private_struct *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
-	unsigned long iobase;
 
-	iobase = it->options[0];
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
-	printk("comedi%d: das16m1:", dev->minor);
-
-	ret = alloc_private(dev, sizeof(struct das16m1_private_struct));
-	if (ret < 0)
+	ret = comedi_request_region(dev, it->options[0], DAS16M1_SIZE);
+	if (ret)
 		return ret;
-
-	dev->board_name = thisboard->name;
-
-	printk(" io 0x%lx-0x%lx 0x%lx-0x%lx",
-	       iobase, iobase + DAS16M1_SIZE,
-	       iobase + DAS16M1_82C55, iobase + DAS16M1_82C55 + DAS16M1_SIZE2);
-	if (!request_region(iobase, DAS16M1_SIZE, driver_das16m1.driver_name)) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	if (!request_region(iobase + DAS16M1_82C55, DAS16M1_SIZE2,
-			    driver_das16m1.driver_name)) {
-		release_region(iobase, DAS16M1_SIZE);
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	/* Request an additional region for the 8255 */
+	ret = __comedi_request_region(dev, dev->iobase + DAS16M1_82C55,
+				      DAS16M1_SIZE2);
+	if (ret)
+		return ret;
+	devpriv->extra_iobase = dev->iobase + DAS16M1_82C55;
 
 	/* now for the irq */
 	irq = it->options[1];
 	/*  make sure it is valid */
 	if (das16m1_irq_bits(irq) >= 0) {
 		ret = request_irq(irq, das16m1_interrupt, 0,
-				  driver_das16m1.driver_name, dev);
-		if (ret < 0) {
-			printk(", irq unavailable\n");
+				  dev->driver->driver_name, dev);
+		if (ret < 0)
 			return ret;
-		}
 		dev->irq = irq;
-		printk(", irq %u\n", irq);
+		printk
+		    ("irq %u\n", irq);
 	} else if (irq == 0) {
-		printk(", no irq\n");
+		printk
+		    (", no irq\n");
 	} else {
-		printk(", invalid irq\n"
-		       " valid irqs are 2, 3, 5, 7, 10, 11, 12, or 15\n");
+		comedi_error(dev, "invalid irq\n"
+			     " valid irqs are 2, 3, 5, 7, 10, 11, 12, or 15\n");
 		return -EINVAL;
 	}
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	/* ai */
 	s->type = COMEDI_SUBD_AI;
@@ -731,7 +628,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->cancel = das16m1_cancel;
 	s->poll = das16m1_poll;
 
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	/* di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -740,7 +637,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das16m1_di_rbits;
 
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	/* do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
@@ -749,9 +646,11 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = das16m1_do_wbits;
 
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, dev->iobase + DAS16M1_82C55);
+	ret = subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
+	if (ret)
+		return ret;
 
 	/*  disable upper half of hardware conversion counter so it doesn't mess with us */
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
@@ -769,25 +668,23 @@ static int das16m1_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int das16m1_detach(struct comedi_device *dev)
+static void das16m1_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: das16m1: remove\n", dev->minor);
+	struct das16m1_private_struct *devpriv = dev->private;
 
-/* das16m1_reset(dev); */
-
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 3);
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-
-	if (dev->iobase) {
-		release_region(dev->iobase, DAS16M1_SIZE);
-		release_region(dev->iobase + DAS16M1_82C55, DAS16M1_SIZE2);
-	}
-
-	return 0;
+	comedi_spriv_free(dev, 3);
+	if (devpriv && devpriv->extra_iobase)
+		release_region(devpriv->extra_iobase, DAS16M1_SIZE2);
+	comedi_legacy_detach(dev);
 }
+
+static struct comedi_driver das16m1_driver = {
+	.driver_name	= "das16m1",
+	.module		= THIS_MODULE,
+	.attach		= das16m1_attach,
+	.detach		= das16m1_detach,
+};
+module_comedi_driver(das16m1_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

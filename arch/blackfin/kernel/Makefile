@@ -2,12 +2,12 @@
 # arch/blackfin/kernel/Makefile
 #
 
-extra-y := init_task.o vmlinux.lds
+extra-y := vmlinux.lds
 
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \
 	sys_bfin.o traps.o irqchip.o dma-mapping.o flat.o \
-	fixed_code.o reboot.o bfin_gpio.o bfin_dma_5xx.o \
+	fixed_code.o reboot.o bfin_gpio.o bfin_dma.o \
 	exception.o dumpstack.o
 
 ifeq ($(CONFIG_GENERIC_CLOCKEVENTS),y)
@@ -37,6 +37,6 @@ obj-$(CONFIG_PERF_EVENTS)            += perf_event.o
 
 # the kgdb test puts code into L2 and without linker
 # relaxation, we need to force long calls to/from it
-CFLAGS_kgdb_test.o := -mlong-calls -O0
+CFLAGS_kgdb_test.o := -mlong-calls
 
 obj-$(CONFIG_DEBUG_MMRS)             += debug-mmrs.o

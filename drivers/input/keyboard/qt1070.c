@@ -91,7 +91,7 @@ static int qt1070_write(struct i2c_client *client, u8 reg, u8 data)
 	return ret;
 }
 
-static bool __devinit qt1070_identify(struct i2c_client *client)
+static bool qt1070_identify(struct i2c_client *client)
 {
 	int id, ver;
 
@@ -140,7 +140,7 @@ static irqreturn_t qt1070_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit qt1070_probe(struct i2c_client *client,
+static int qt1070_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct qt1070_data *data;
@@ -201,7 +201,8 @@ static int __devinit qt1070_probe(struct i2c_client *client,
 	msleep(QT1070_RESET_TIME);
 
 	err = request_threaded_irq(client->irq, NULL, qt1070_interrupt,
-		IRQF_TRIGGER_NONE, client->dev.driver->name, data);
+				   IRQF_TRIGGER_NONE | IRQF_ONESHOT,
+				   client->dev.driver->name, data);
 	if (err) {
 		dev_err(&client->dev, "fail to request irq\n");
 		goto err_free_mem;
@@ -229,7 +230,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit qt1070_remove(struct i2c_client *client)
+static int qt1070_remove(struct i2c_client *client)
 {
 	struct qt1070_data *data = i2c_get_clientdata(client);
 
@@ -238,8 +239,6 @@ static int __devexit qt1070_remove(struct i2c_client *client)
 
 	input_unregister_device(data->input);
 	kfree(data);
-
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }
@@ -257,20 +256,10 @@ static struct i2c_driver qt1070_driver = {
 	},
 	.id_table	= qt1070_id,
 	.probe		= qt1070_probe,
-	.remove		= __devexit_p(qt1070_remove),
+	.remove		= qt1070_remove,
 };
 
-static int __init qt1070_init(void)
-{
-	return i2c_add_driver(&qt1070_driver);
-}
-module_init(qt1070_init);
-
-static void __exit qt1070_exit(void)
-{
-	i2c_del_driver(&qt1070_driver);
-}
-module_exit(qt1070_exit);
+module_i2c_driver(qt1070_driver);
 
 MODULE_AUTHOR("Bo Shen <voice.shen@atmel.com>");
 MODULE_DESCRIPTION("Driver for AT42QT1070 QTouch sensor");

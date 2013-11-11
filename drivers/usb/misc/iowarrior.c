@@ -62,7 +62,7 @@ MODULE_LICENSE("GPL");
 
 /* Module parameters */
 static DEFINE_MUTEX(iowarrior_mutex);
-static int debug = 0;
+static bool debug = 0;
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "debug=1 enables debugging messages");
 
@@ -610,8 +610,8 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
 		mutex_unlock(&iowarrior_mutex);
-		err("%s - error, can't find device for minor %d", __func__,
-		    subminor);
+		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
+		       __func__, subminor);
 		return -ENODEV;
 	}
 
@@ -672,7 +672,7 @@ static int iowarrior_release(struct inode *inode, struct file *file)
 		retval = -ENODEV;	/* close called more than once */
 		mutex_unlock(&dev->mutex);
 	} else {
-		dev->opened = 0;	/* we're closeing now */
+		dev->opened = 0;	/* we're closing now */
 		retval = 0;
 		if (dev->present) {
 			/*
@@ -734,7 +734,7 @@ static const struct file_operations iowarrior_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *iowarrior_devnode(struct device *dev, mode_t *mode)
+static char *iowarrior_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
@@ -802,8 +802,8 @@ static int iowarrior_probe(struct usb_interface *interface,
 			/* this one will match for the IOWarrior56 only */
 			dev->int_out_endpoint = endpoint;
 	}
-	/* we have to check the report_size often, so remember it in the endianess suitable for our machine */
-	dev->report_size = le16_to_cpu(dev->int_in_endpoint->wMaxPacketSize);
+	/* we have to check the report_size often, so remember it in the endianness suitable for our machine */
+	dev->report_size = usb_endpoint_maxp(dev->int_in_endpoint);
 	if ((dev->interface->cur_altsetting->desc.bInterfaceNumber == 0) &&
 	    (dev->product_id == USB_DEVICE_ID_CODEMERCS_IOW56))
 		/* IOWarrior56 has wMaxPacketSize different from report size */
@@ -927,15 +927,4 @@ static struct usb_driver iowarrior_driver = {
 	.id_table = iowarrior_ids,
 };
 
-static int __init iowarrior_init(void)
-{
-	return usb_register(&iowarrior_driver);
-}
-
-static void __exit iowarrior_exit(void)
-{
-	usb_deregister(&iowarrior_driver);
-}
-
-module_init(iowarrior_init);
-module_exit(iowarrior_exit);
+module_usb_driver(iowarrior_driver);

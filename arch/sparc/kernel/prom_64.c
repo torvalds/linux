@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 
@@ -38,7 +37,7 @@ void * __init prom_early_alloc(unsigned long size)
 	void *ret;
 
 	if (!paddr) {
-		prom_printf("prom_early_alloc(%lu) failed\n");
+		prom_printf("prom_early_alloc(%lu) failed\n", size);
 		prom_halt();
 	}
 

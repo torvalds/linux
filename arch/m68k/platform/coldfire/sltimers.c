@@ -32,7 +32,7 @@
 /*
  *	By default use Slice Timer 1 as the profiler clock timer.
  */
-#define	PA(a)	(MCF_MBAR + MCFSLT_TIMER1 + (a))
+#define	PA(a)	(MCFSLT_TIMER1 + (a))
 
 /*
  *	Choose a reasonably fast profile timer. Make it an odd value to
@@ -76,17 +76,19 @@ void mcfslt_profile_init(void)
 /*
  *	By default use Slice Timer 0 as the system clock timer.
  */
-#define	TA(a)	(MCF_MBAR + MCFSLT_TIMER0 + (a))
+#define	TA(a)	(MCFSLT_TIMER0 + (a))
 
 static u32 mcfslt_cycles_per_jiffy;
 static u32 mcfslt_cnt;
+
+static irq_handler_t timer_interrupt;
 
 static irqreturn_t mcfslt_tick(int irq, void *dummy)
 {
 	/* Reset Slice Timer 0 */
 	__raw_writel(MCFSLT_SSR_BE | MCFSLT_SSR_TE, TA(MCFSLT_SSR));
 	mcfslt_cnt += mcfslt_cycles_per_jiffy;
-	return arch_timer_interrupt(irq, dummy);
+	return timer_interrupt(irq, dummy);
 }
 
 static struct irqaction mcfslt_timer_irq = {
@@ -98,28 +100,30 @@ static struct irqaction mcfslt_timer_irq = {
 static cycle_t mcfslt_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
-	u32 cycles;
-	u16 scnt;
+	u32 cycles, scnt;
 
 	local_irq_save(flags);
 	scnt = __raw_readl(TA(MCFSLT_SCNT));
 	cycles = mcfslt_cnt;
+	if (__raw_readl(TA(MCFSLT_SSR)) & MCFSLT_SSR_TE) {
+		cycles += mcfslt_cycles_per_jiffy;
+		scnt = __raw_readl(TA(MCFSLT_SCNT));
+	}
 	local_irq_restore(flags);
 
 	/* subtract because slice timers count down */
-	return cycles - scnt;
+	return cycles + ((mcfslt_cycles_per_jiffy - 1) - scnt);
 }
 
 static struct clocksource mcfslt_clk = {
 	.name	= "slt",
 	.rating	= 250,
 	.read	= mcfslt_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
 	mcfslt_cycles_per_jiffy = MCF_BUSCLK / HZ;
 	/*
@@ -134,10 +138,10 @@ void hw_timer_init(void)
 	/* initialize mcfslt_cnt knowing that slice timers count down */
 	mcfslt_cnt = mcfslt_cycles_per_jiffy;
 
+	timer_interrupt = handler;
 	setup_irq(MCF_IRQ_TIMER, &mcfslt_timer_irq);
 
-	mcfslt_clk.mult = clocksource_hz2mult(MCF_BUSCLK, mcfslt_clk.shift);
-	clocksource_register(&mcfslt_clk);
+	clocksource_register_hz(&mcfslt_clk, MCF_BUSCLK);
 
 #ifdef CONFIG_HIGHPROFILE
 	mcfslt_profile_init();

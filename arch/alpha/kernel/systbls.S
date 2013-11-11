@@ -12,7 +12,7 @@
 sys_call_table:
 	.quad alpha_ni_syscall			/* 0 */
 	.quad sys_exit
-	.quad sys_fork
+	.quad alpha_fork
 	.quad sys_read
 	.quad sys_write
 	.quad alpha_ni_syscall			/* 5 */
@@ -76,7 +76,7 @@ sys_call_table:
 	.quad sys_getpgrp
 	.quad sys_getpagesize
 	.quad alpha_ni_syscall			/* 65 */
-	.quad sys_vfork
+	.quad alpha_vfork
 	.quad sys_newstat
 	.quad sys_newlstat
 	.quad alpha_ni_syscall
@@ -111,7 +111,7 @@ sys_call_table:
 	.quad sys_socket
 	.quad sys_connect
 	.quad sys_accept
-	.quad osf_getpriority			/* 100 */
+	.quad sys_osf_getpriority			/* 100 */
 	.quad sys_send
 	.quad sys_recv
 	.quad sys_sigreturn
@@ -241,11 +241,11 @@ sys_call_table:
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall			/* 225 */
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
-	.quad alpha_ni_syscall
+	.quad sys_osf_stat
+	.quad sys_osf_lstat			/* 225 */
+	.quad sys_osf_fstat
+	.quad sys_osf_statfs64
+	.quad sys_osf_fstatfs64
 	.quad alpha_ni_syscall
 	.quad alpha_ni_syscall			/* 230 */
 	.quad alpha_ni_syscall
@@ -330,7 +330,7 @@ sys_call_table:
 	.quad sys_ni_syscall			/* 309: old get_kernel_syms */
 	.quad sys_syslog			/* 310 */
 	.quad sys_reboot
-	.quad sys_clone
+	.quad alpha_clone
 	.quad sys_uselib
 	.quad sys_mlock
 	.quad sys_munlock			/* 315 */
@@ -360,7 +360,7 @@ sys_call_table:
 	.quad sys_newuname
 	.quad sys_nanosleep			/* 340 */
 	.quad sys_mremap
-	.quad sys_nfsservctl
+	.quad sys_ni_syscall			/* old nfsservctl */
 	.quad sys_setresuid
 	.quad sys_getresuid
 	.quad sys_pciconfig_read		/* 345 */
@@ -520,6 +520,10 @@ sys_call_table:
 	.quad sys_clock_adjtime
 	.quad sys_syncfs			/* 500 */
 	.quad sys_setns
+	.quad sys_accept4
+	.quad sys_sendmmsg
+	.quad sys_process_vm_readv
+	.quad sys_process_vm_writev		/* 505 */
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

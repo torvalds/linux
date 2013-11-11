@@ -38,6 +38,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Author: James Morris <jmorris@intercode.com.au>
+ *
+ * Copyright (c) 2006-2010 Patrick McHardy <kaber@trash.net>
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -400,15 +402,12 @@ static unsigned char asn1_octets_decode(struct asn1_ctx *ctx,
 	*len = 0;
 
 	*octets = kmalloc(eoc - ctx->pointer, GFP_ATOMIC);
-	if (*octets == NULL) {
-		if (net_ratelimit())
-			pr_notice("OOM in bsalg (%d)\n", __LINE__);
+	if (*octets == NULL)
 		return 0;
-	}
 
 	ptr = *octets;
 	while (ctx->pointer < eoc) {
-		if (!asn1_octet_decode(ctx, (unsigned char *)ptr++)) {
+		if (!asn1_octet_decode(ctx, ptr++)) {
 			kfree(*octets);
 			*octets = NULL;
 			return 0;
@@ -451,11 +450,8 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 		return 0;
 
 	*oid = kmalloc(size * sizeof(unsigned long), GFP_ATOMIC);
-	if (*oid == NULL) {
-		if (net_ratelimit())
-			pr_notice("OOM in bsalg (%d)\n", __LINE__);
+	if (*oid == NULL)
 		return 0;
-	}
 
 	optr = *oid;
 
@@ -719,117 +715,103 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 
 	l = 0;
 	switch (type) {
-		case SNMP_INTEGER:
-			len = sizeof(long);
-			if (!asn1_long_decode(ctx, end, &l)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len,
-				       GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			(*obj)->syntax.l[0] = l;
-			break;
-		case SNMP_OCTETSTR:
-		case SNMP_OPAQUE:
-			if (!asn1_octets_decode(ctx, end, &p, &len)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len,
-				       GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(p);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.c, p, len);
-			kfree(p);
-			break;
-		case SNMP_NULL:
-		case SNMP_NOSUCHOBJECT:
-		case SNMP_NOSUCHINSTANCE:
-		case SNMP_ENDOFMIBVIEW:
-			len = 0;
-			*obj = kmalloc(sizeof(struct snmp_object), GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			if (!asn1_null_decode(ctx, end)) {
-				kfree(id);
-				kfree(*obj);
-				*obj = NULL;
-				return 0;
-			}
-			break;
-		case SNMP_OBJECTID:
-			if (!asn1_oid_decode(ctx, end, (unsigned long **)&lp, &len)) {
-				kfree(id);
-				return 0;
-			}
-			len *= sizeof(unsigned long);
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(lp);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.ul, lp, len);
-			kfree(lp);
-			break;
-		case SNMP_IPADDR:
-			if (!asn1_octets_decode(ctx, end, &p, &len)) {
-				kfree(id);
-				return 0;
-			}
-			if (len != 4) {
-				kfree(p);
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(p);
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			memcpy((*obj)->syntax.uc, p, len);
-			kfree(p);
-			break;
-		case SNMP_COUNTER:
-		case SNMP_GAUGE:
-		case SNMP_TIMETICKS:
-			len = sizeof(unsigned long);
-			if (!asn1_ulong_decode(ctx, end, &ul)) {
-				kfree(id);
-				return 0;
-			}
-			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
-			if (*obj == NULL) {
-				kfree(id);
-				if (net_ratelimit())
-					pr_notice("OOM in bsalg (%d)\n", __LINE__);
-				return 0;
-			}
-			(*obj)->syntax.ul[0] = ul;
-			break;
-		default:
+	case SNMP_INTEGER:
+		len = sizeof(long);
+		if (!asn1_long_decode(ctx, end, &l)) {
 			kfree(id);
 			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			return 0;
+		}
+		(*obj)->syntax.l[0] = l;
+		break;
+	case SNMP_OCTETSTR:
+	case SNMP_OPAQUE:
+		if (!asn1_octets_decode(ctx, end, &p, &len)) {
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(p);
+			kfree(id);
+			return 0;
+		}
+		memcpy((*obj)->syntax.c, p, len);
+		kfree(p);
+		break;
+	case SNMP_NULL:
+	case SNMP_NOSUCHOBJECT:
+	case SNMP_NOSUCHINSTANCE:
+	case SNMP_ENDOFMIBVIEW:
+		len = 0;
+		*obj = kmalloc(sizeof(struct snmp_object), GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			return 0;
+		}
+		if (!asn1_null_decode(ctx, end)) {
+			kfree(id);
+			kfree(*obj);
+			*obj = NULL;
+			return 0;
+		}
+		break;
+	case SNMP_OBJECTID:
+		if (!asn1_oid_decode(ctx, end, &lp, &len)) {
+			kfree(id);
+			return 0;
+		}
+		len *= sizeof(unsigned long);
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(lp);
+			kfree(id);
+			return 0;
+		}
+		memcpy((*obj)->syntax.ul, lp, len);
+		kfree(lp);
+		break;
+	case SNMP_IPADDR:
+		if (!asn1_octets_decode(ctx, end, &p, &len)) {
+			kfree(id);
+			return 0;
+		}
+		if (len != 4) {
+			kfree(p);
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(p);
+			kfree(id);
+			return 0;
+		}
+		memcpy((*obj)->syntax.uc, p, len);
+		kfree(p);
+		break;
+	case SNMP_COUNTER:
+	case SNMP_GAUGE:
+	case SNMP_TIMETICKS:
+		len = sizeof(unsigned long);
+		if (!asn1_ulong_decode(ctx, end, &ul)) {
+			kfree(id);
+			return 0;
+		}
+		*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
+		if (*obj == NULL) {
+			kfree(id);
+			return 0;
+		}
+		(*obj)->syntax.ul[0] = ul;
+		break;
+	default:
+		kfree(id);
+		return 0;
 	}
 
 	(*obj)->syntax_len = len;
@@ -1226,8 +1208,7 @@ static int snmp_translate(struct nf_conn *ct,
 
 	if (!snmp_parse_mangle((unsigned char *)udph + sizeof(struct udphdr),
 			       paylen, &map, &udph->check)) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "bsalg: parser failed\n");
+		net_warn_ratelimited("bsalg: parser failed\n");
 		return NF_DROP;
 	}
 	return NF_ACCEPT;
@@ -1261,9 +1242,8 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	 * can mess around with the payload.
 	 */
 	if (ntohs(udph->len) != skb->len - (iph->ihl << 2)) {
-		 if (net_ratelimit())
-			 printk(KERN_WARNING "SNMP: dropping malformed packet src=%pI4 dst=%pI4\n",
-				&iph->saddr, &iph->daddr);
+		net_warn_ratelimited("SNMP: dropping malformed packet src=%pI4 dst=%pI4\n",
+				     &iph->saddr, &iph->daddr);
 		 return NF_DROP;
 	}
 
@@ -1312,7 +1292,7 @@ static int __init nf_nat_snmp_basic_init(void)
 	int ret = 0;
 
 	BUG_ON(nf_nat_snmp_hook != NULL);
-	rcu_assign_pointer(nf_nat_snmp_hook, help);
+	RCU_INIT_POINTER(nf_nat_snmp_hook, help);
 
 	ret = nf_conntrack_helper_register(&snmp_trap_helper);
 	if (ret < 0) {
@@ -1324,7 +1304,7 @@ static int __init nf_nat_snmp_basic_init(void)
 
 static void __exit nf_nat_snmp_basic_fini(void)
 {
-	rcu_assign_pointer(nf_nat_snmp_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_snmp_hook, NULL);
 	nf_conntrack_helper_unregister(&snmp_trap_helper);
 }
 

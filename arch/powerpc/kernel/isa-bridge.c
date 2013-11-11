@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
@@ -28,7 +29,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
-#include <asm/firmware.h>
 
 unsigned long isa_io_base;	/* NULL if no ISA bus */
 EXPORT_SYMBOL(isa_io_base);
@@ -41,8 +41,8 @@ EXPORT_SYMBOL_GPL(isa_bridge_pcidev);
 #define ISA_SPACE_MASK 0x1
 #define ISA_SPACE_IO 0x1
 
-static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
-						unsigned long phb_io_base_phys)
+static void pci_process_ISA_OF_ranges(struct device_node *isa_node,
+				      unsigned long phb_io_base_phys)
 {
 	/* We should get some saner parsing here and remove these structs */
 	struct pci_address {
@@ -170,8 +170,8 @@ void __init isa_bridge_find_early(struct pci_controller *hose)
  * isa_bridge_find_late - Find and map the ISA IO space upon discovery of
  *                        a new ISA bridge
  */
-static void __devinit isa_bridge_find_late(struct pci_dev *pdev,
-					   struct device_node *devnode)
+static void isa_bridge_find_late(struct pci_dev *pdev,
+				 struct device_node *devnode)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 
@@ -215,8 +215,8 @@ static void isa_bridge_remove(void)
 /**
  * isa_bridge_notify - Get notified of PCI devices addition/removal
  */
-static int __devinit isa_bridge_notify(struct notifier_block *nb,
-				       unsigned long action, void *data)
+static int isa_bridge_notify(struct notifier_block *nb, unsigned long action,
+			     void *data)
 {
 	struct device *dev = data;
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -260,8 +260,6 @@ static struct notifier_block isa_bridge_notifier = {
  */
 static int __init isa_bridge_init(void)
 {
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return 0;
 	bus_register_notifier(&pci_bus_type, &isa_bridge_notifier);
 	return 0;
 }

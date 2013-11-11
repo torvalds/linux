@@ -19,7 +19,6 @@
 #include <linux/serial_reg.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/irc-regs.h>
 #include <asm/timer-regs.h>
 #include <asm/gdb-stub.h>

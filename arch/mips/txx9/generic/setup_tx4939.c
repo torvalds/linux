@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/param.h>
 #include <linux/ptrace.h>
@@ -301,7 +301,7 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 	unsigned int ch_mask = 0;
 	__u64 pcfg = __raw_readq(&tx4939_ccfgptr->pcfg);
 
-	cts_mask |= ~1;	/* only SIO0 have RTS/CTS */
+	cts_mask |= ~1; /* only SIO0 have RTS/CTS */
 	if ((pcfg & TX4939_PCFG_SIO2MODE_MASK) != TX4939_PCFG_SIO2MODE_SIO0)
 		cts_mask |= 1 << 0; /* disable SIO0 RTS/CTS by PCFG setting */
 	if ((pcfg & TX4939_PCFG_SIO2MODE_MASK) != TX4939_PCFG_SIO2MODE_SIO2)
@@ -317,11 +317,11 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 	}
 }
 
-#if defined(CONFIG_TC35815) || defined(CONFIG_TC35815_MODULE)
+#if IS_ENABLED(CONFIG_TC35815)
 static u32 tx4939_get_eth_speed(struct net_device *dev)
 {
 	struct ethtool_cmd cmd;
-	if (dev_ethtool_get_settings(dev, &cmd))
+	if (__ethtool_get_settings(dev, &cmd))
 		return 100;	/* default 100Mbps */
 
 	return ethtool_cmd_speed(&cmd);
@@ -378,7 +378,7 @@ void __init tx4939_mtd_init(int ch)
 	unsigned long size = txx9_ce_res[ch].end - start + 1;
 
 	if (!(TX4939_EBUSC_CR(ch) & 0x8))
-		return;	/* disabled */
+		return; /* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }
 

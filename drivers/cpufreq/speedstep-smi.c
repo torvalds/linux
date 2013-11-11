@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <asm/ist.h>
+#include <asm/cpu_device_id.h>
 
 #include "speedstep-lib.h"
 
@@ -251,14 +252,13 @@ static int speedstep_target(struct cpufreq_policy *policy,
 
 	freqs.old = speedstep_freqs[speedstep_get_state()].frequency;
 	freqs.new = speedstep_freqs[newstate].frequency;
-	freqs.cpu = 0; /* speedstep.c is UP only driver */
 
 	if (freqs.old == freqs.new)
 		return 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	speedstep_set_state(newstate);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
@@ -379,6 +379,17 @@ static struct cpufreq_driver speedstep_driver = {
 	.attr		= speedstep_attr,
 };
 
+static const struct x86_cpu_id ss_smi_ids[] = {
+	{ X86_VENDOR_INTEL, 6, 0xb, },
+	{ X86_VENDOR_INTEL, 6, 0x8, },
+	{ X86_VENDOR_INTEL, 15, 2 },
+	{}
+};
+#if 0
+/* Not auto loaded currently */
+MODULE_DEVICE_TABLE(x86cpu, ss_smi_ids);
+#endif
+
 /**
  * speedstep_init - initializes the SpeedStep CPUFreq driver
  *
@@ -388,6 +399,9 @@ static struct cpufreq_driver speedstep_driver = {
  */
 static int __init speedstep_init(void)
 {
+	if (!x86_match_cpu(ss_smi_ids))
+		return -ENODEV;
+
 	speedstep_processor = speedstep_detect_processor();
 
 	switch (speedstep_processor) {

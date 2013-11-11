@@ -127,12 +127,20 @@
 #define TUNER_PHILIPS_FMD1216MEX_MK3	78
 #define TUNER_PHILIPS_FM1216MK5		79
 #define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, no FM */
+
 #define TUNER_PARTSNIC_PTI_5NF05	81
 #define TUNER_PHILIPS_CU1216L           82
 #define TUNER_NXP_TDA18271		83
 #define TUNER_SONY_BTF_PXN01Z		84
 #define TUNER_PHILIPS_FQ1236_MK5	85	/* NTSC, TDA9885, no FM radio */
 #define TUNER_TENA_TNF_5337		86
+
+#define TUNER_XC4000			87	/* Xceive Silicon Tuner */
+#define TUNER_XC5000C			88	/* Xceive Silicon Tuner */
+
+#define TUNER_SONY_BTF_PG472Z		89	/* PAL+SECAM */
+#define TUNER_SONY_BTF_PK467Z		90	/* NTSC_JP */
+#define TUNER_SONY_BTF_PB463Z		91	/* NTSC */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -184,7 +192,7 @@ struct tuner_setup {
 	unsigned short	addr; 	/* I2C address */
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
-	unsigned int	config; /* configuraion for more complex tuners */
+	void		*config;    /* configuraion for more complex tuners */
 	int (*tuner_callback) (void *dev, int component, int cmd, int arg);
 };
 

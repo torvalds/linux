@@ -19,10 +19,11 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/backlight.h>
 #include <linux/fb.h>
+#include <linux/gpio.h>
 
 #include <video/omapdss.h>
+#include <video/omap-panel-data.h>
 
 #define LCD_XRES		800
 #define LCD_YRES		480
@@ -31,10 +32,6 @@
  * MIN:21.8MHz TYP:23.8MHz MAX:25.7MHz
  */
 #define LCD_PIXEL_CLOCK		23800
-
-struct nec_8048_data {
-	struct backlight_device *bl;
-};
 
 static const struct {
 	unsigned char addr;
@@ -76,137 +73,106 @@ static struct omap_video_timings nec_8048_panel_timings = {
 	.vfp		= 3,
 	.vsw		= 1,
 	.vbp		= 4,
+
+	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 };
 
-static int nec_8048_bl_update_status(struct backlight_device *bl)
+static inline struct panel_nec_nl8048_data
+*get_panel_data(const struct omap_dss_device *dssdev)
 {
-	struct omap_dss_device *dssdev = dev_get_drvdata(&bl->dev);
-	int level;
-
-	if (!dssdev->set_backlight)
-		return -EINVAL;
-
-	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
-			bl->props.power == FB_BLANK_UNBLANK)
-		level = bl->props.brightness;
-	else
-		level = 0;
-
-	return dssdev->set_backlight(dssdev, level);
+	return (struct panel_nec_nl8048_data *) dssdev->data;
 }
-
-static int nec_8048_bl_get_brightness(struct backlight_device *bl)
-{
-	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
-			bl->props.power == FB_BLANK_UNBLANK)
-		return bl->props.brightness;
-
-	return 0;
-}
-
-static const struct backlight_ops nec_8048_bl_ops = {
-	.get_brightness	= nec_8048_bl_get_brightness,
-	.update_status	= nec_8048_bl_update_status,
-};
 
 static int nec_8048_panel_probe(struct omap_dss_device *dssdev)
 {
-	struct backlight_device *bl;
-	struct nec_8048_data *necd;
-	struct backlight_properties props;
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
 	int r;
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-				OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_RF |
-				OMAP_DSS_LCD_ONOFF;
+	if (!pd)
+		return -EINVAL;
+
 	dssdev->panel.timings = nec_8048_panel_timings;
 
-	necd = kzalloc(sizeof(*necd), GFP_KERNEL);
-	if (!necd)
-		return -ENOMEM;
-
-	dev_set_drvdata(&dssdev->dev, necd);
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = 255;
-
-	bl = backlight_device_register("nec-8048", &dssdev->dev, dssdev,
-			&nec_8048_bl_ops, &props);
-	if (IS_ERR(bl)) {
-		r = PTR_ERR(bl);
-		kfree(necd);
-		return r;
+	if (gpio_is_valid(pd->qvga_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->qvga_gpio,
+				GPIOF_OUT_INIT_HIGH, "lcd QVGA");
+		if (r)
+			return r;
 	}
-	necd->bl = bl;
 
-	bl->props.fb_blank = FB_BLANK_UNBLANK;
-	bl->props.power = FB_BLANK_UNBLANK;
-	bl->props.max_brightness = dssdev->max_backlight_level;
-	bl->props.brightness = dssdev->max_backlight_level;
-
-	r = nec_8048_bl_update_status(bl);
-	if (r < 0)
-		dev_err(&dssdev->dev, "failed to set lcd brightness\n");
+	if (gpio_is_valid(pd->res_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->res_gpio,
+				GPIOF_OUT_INIT_LOW, "lcd RES");
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
 
 static void nec_8048_panel_remove(struct omap_dss_device *dssdev)
 {
-	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bl = necd->bl;
+}
 
-	bl->props.power = FB_BLANK_POWERDOWN;
-	nec_8048_bl_update_status(bl);
-	backlight_device_unregister(bl);
+static int nec_8048_panel_power_on(struct omap_dss_device *dssdev)
+{
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
+	int r;
 
-	kfree(necd);
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		return 0;
+
+	omapdss_dpi_set_timings(dssdev, &dssdev->panel.timings);
+	omapdss_dpi_set_data_lines(dssdev, dssdev->phy.dpi.data_lines);
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
+
+	if (gpio_is_valid(pd->res_gpio))
+		gpio_set_value_cansleep(pd->res_gpio, 1);
+
+	return 0;
+
+err0:
+	return r;
+}
+
+static void nec_8048_panel_power_off(struct omap_dss_device *dssdev)
+{
+	struct panel_nec_nl8048_data *pd = get_panel_data(dssdev);
+
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
+		return;
+
+	if (gpio_is_valid(pd->res_gpio))
+		gpio_set_value_cansleep(pd->res_gpio, 0);
+
+	omapdss_dpi_display_disable(dssdev);
 }
 
 static int nec_8048_panel_enable(struct omap_dss_device *dssdev)
 {
-	int r = 0;
-	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bl = necd->bl;
+	int r;
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			return r;
-	}
+	r = nec_8048_panel_power_on(dssdev);
+	if (r)
+		return r;
 
-	r = nec_8048_bl_update_status(bl);
-	if (r < 0)
-		dev_err(&dssdev->dev, "failed to set lcd brightness\n");
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	r = omapdss_dpi_display_enable(dssdev);
-
-	return r;
+	return 0;
 }
 
 static void nec_8048_panel_disable(struct omap_dss_device *dssdev)
 {
-	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bl = necd->bl;
+	nec_8048_panel_power_off(dssdev);
 
-	omapdss_dpi_display_disable(dssdev);
-
-	bl->props.brightness = 0;
-	nec_8048_bl_update_status(bl);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
-}
-
-static int nec_8048_panel_suspend(struct omap_dss_device *dssdev)
-{
-	nec_8048_panel_disable(dssdev);
-	return 0;
-}
-
-static int nec_8048_panel_resume(struct omap_dss_device *dssdev)
-{
-	return nec_8048_panel_enable(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int nec_8048_recommended_bpp(struct omap_dss_device *dssdev)
@@ -219,8 +185,6 @@ static struct omap_dss_driver nec_8048_driver = {
 	.remove			= nec_8048_panel_remove,
 	.enable			= nec_8048_panel_enable,
 	.disable		= nec_8048_panel_disable,
-	.suspend		= nec_8048_panel_suspend,
-	.resume			= nec_8048_panel_resume,
 	.get_recommended_bpp	= nec_8048_recommended_bpp,
 
 	.driver		= {
@@ -278,16 +242,22 @@ static int nec_8048_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int nec_8048_spi_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+
+static int nec_8048_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+
 	nec_8048_spi_send(spi, 2, 0x01);
 	mdelay(40);
 
 	return 0;
 }
 
-static int nec_8048_spi_resume(struct spi_device *spi)
+static int nec_8048_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+
 	/* reinitialize the panel */
 	spi_setup(spi);
 	nec_8048_spi_send(spi, 2, 0x00);
@@ -296,30 +266,25 @@ static int nec_8048_spi_resume(struct spi_device *spi)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(nec_8048_spi_pm_ops, nec_8048_spi_suspend,
+		nec_8048_spi_resume);
+#define NEC_8048_SPI_PM_OPS (&nec_8048_spi_pm_ops)
+#else
+#define NEC_8048_SPI_PM_OPS NULL
+#endif
+
 static struct spi_driver nec_8048_spi_driver = {
 	.probe		= nec_8048_spi_probe,
-	.remove		= __devexit_p(nec_8048_spi_remove),
-	.suspend	= nec_8048_spi_suspend,
-	.resume		= nec_8048_spi_resume,
+	.remove		= nec_8048_spi_remove,
 	.driver		= {
 		.name	= "nec_8048_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= NEC_8048_SPI_PM_OPS,
 	},
 };
 
-static int __init nec_8048_lcd_init(void)
-{
-	return spi_register_driver(&nec_8048_spi_driver);
-}
+module_spi_driver(nec_8048_spi_driver);
 
-static void __exit nec_8048_lcd_exit(void)
-{
-	return spi_unregister_driver(&nec_8048_spi_driver);
-}
-
-module_init(nec_8048_lcd_init);
-module_exit(nec_8048_lcd_exit);
 MODULE_AUTHOR("Erik Gilling <konkers@android.com>");
 MODULE_DESCRIPTION("NEC-nl8048hl11-01b Driver");
 MODULE_LICENSE("GPL");

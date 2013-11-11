@@ -16,8 +16,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/* Version Information */
-#define DRIVER_VERSION "Version 0.1 09/26/2005"
 #define DRIVER_AUTHOR "Thomas Hergenhahn@web.de http://libnodave.sf.net"
 #define DRIVER_DESC "Driver for Siemens USB/MPI adapter"
 
@@ -29,50 +27,21 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver siemens_usb_mpi_driver = {
-	.name =		"siemens_mpi",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver siemens_usb_mpi_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"siemens_mpi",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&siemens_usb_mpi_driver,
 	.num_ports =		1,
 };
 
-static int __init siemens_usb_mpi_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&siemens_usb_mpi_device, NULL
+};
 
-	retval = usb_serial_register(&siemens_usb_mpi_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&siemens_usb_mpi_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO DRIVER_DESC "\n");
-	printk(KERN_INFO DRIVER_VERSION " " DRIVER_AUTHOR "\n");
-	return retval;
-failed_usb_register:
-	usb_serial_deregister(&siemens_usb_mpi_device);
-failed_usb_serial_register:
-	return retval;
-}
+module_usb_serial_driver(serial_drivers, id_table);
 
-static void __exit siemens_usb_mpi_exit(void)
-{
-	usb_deregister(&siemens_usb_mpi_driver);
-	usb_serial_deregister(&siemens_usb_mpi_device);
-}
-
-module_init(siemens_usb_mpi_init);
-module_exit(siemens_usb_mpi_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

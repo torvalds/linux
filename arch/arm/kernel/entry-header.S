@@ -74,7 +74,24 @@
 	.endm
 
 #ifndef CONFIG_THUMB2_KERNEL
-	.macro	svc_exit, rpsr
+	.macro	svc_exit, rpsr, irq = 0
+	.if	\irq != 0
+	@ IRQs already off
+#ifdef CONFIG_TRACE_IRQFLAGS
+	@ The parent context IRQs must have been enabled to get here in
+	@ the first place, so there's no point checking the PSR I bit.
+	bl	trace_hardirqs_on
+#endif
+	.else
+	@ IRQs off again before pulling preserved data off the stack
+	disable_irq_notrace
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	\rpsr, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	\rpsr, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
+	.endif
 	msr	spsr_cxsf, \rpsr
 #if defined(CONFIG_CPU_V6)
 	ldr	r0, [sp]
@@ -120,16 +137,31 @@
 	mov	pc, \reg
 	.endm
 #else	/* CONFIG_THUMB2_KERNEL */
-	.macro	svc_exit, rpsr
+	.macro	svc_exit, rpsr, irq = 0
+	.if	\irq != 0
+	@ IRQs already off
+#ifdef CONFIG_TRACE_IRQFLAGS
+	@ The parent context IRQs must have been enabled to get here in
+	@ the first place, so there's no point checking the PSR I bit.
+	bl	trace_hardirqs_on
+#endif
+	.else
+	@ IRQs off again before pulling preserved data off the stack
+	disable_irq_notrace
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	\rpsr, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	\rpsr, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
+	.endif
+	ldr	lr, [sp, #S_SP]			@ top of the stack
+	ldrd	r0, r1, [sp, #S_LR]		@ calling lr and pc
 	clrex					@ clear the exclusive monitor
-	ldr	r0, [sp, #S_SP]			@ top of the stack
-	ldr	r1, [sp, #S_PC]			@ return address
-	tst	r0, #4				@ orig stack 8-byte aligned?
-	stmdb	r0, {r1, \rpsr}			@ rfe context
+	stmdb	lr!, {r0, r1, \rpsr}		@ calling lr and rfe context
 	ldmia	sp, {r0 - r12}
-	ldr	lr, [sp, #S_LR]
-	addeq	sp, sp, #S_FRAME_SIZE - 8	@ aligned
-	addne	sp, sp, #S_FRAME_SIZE - 4	@ not aligned
+	mov	sp, lr
+	ldr	lr, [sp], #4
 	rfeia	sp!
 	.endm
 
@@ -165,22 +197,31 @@
 	.endm
 #endif	/* !CONFIG_THUMB2_KERNEL */
 
-	@
-	@ Debug exceptions are taken as prefetch or data aborts.
-	@ We must disable preemption during the handler so that
-	@ we can access the debug registers safely.
-	@
-	.macro	debug_entry, fsr
-#if defined(CONFIG_HAVE_HW_BREAKPOINT) && defined(CONFIG_PREEMPT)
-	ldr	r4, =0x40f		@ mask out fsr.fs
-	and	r5, r4, \fsr
-	cmp	r5, #2			@ debug exception
-	bne	1f
-	get_thread_info r10
-	ldr	r6, [r10, #TI_PREEMPT]	@ get preempt count
-	add	r11, r6, #1		@ increment it
-	str	r11, [r10, #TI_PREEMPT]
-1:
+/*
+ * Context tracking subsystem.  Used to instrument transitions
+ * between user and kernel mode.
+ */
+	.macro ct_user_exit, save = 1
+#ifdef CONFIG_CONTEXT_TRACKING
+	.if	\save
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl	user_exit
+	ldmia	sp!, {r0-r3, ip, lr}
+	.else
+	bl	user_exit
+	.endif
+#endif
+	.endm
+
+	.macro ct_user_enter, save = 1
+#ifdef CONFIG_CONTEXT_TRACKING
+	.if	\save
+	stmdb   sp!, {r0-r3, ip, lr}
+	bl	user_enter
+	ldmia	sp!, {r0-r3, ip, lr}
+	.else
+	bl	user_enter
+	.endif
 #endif
 	.endm
 

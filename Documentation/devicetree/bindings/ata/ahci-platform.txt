@@ -1,0 +1,25 @@
+* AHCI SATA Controller
+
+SATA nodes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "calxeda,hb-ahci" or "snps,spear-ahci"
+- interrupts        : <interrupt mapping for SATA IRQ>
+- reg               : <registers mapping>
+
+Optional properties:
+- calxeda,port-phys: phandle-combophy and lane assignment, which maps each
+			SATA port to a combophy and a lane within that
+			combophy
+- dma-coherent      : Present if dma operations are coherent
+
+Example:
+        sata@ffe08000 {
+		compatible = "calxeda,hb-ahci";
+                reg = <0xffe08000 0x1000>;
+                interrupts = <115>;
+		calxeda,port-phys = <&combophy5 0 &combophy0 0 &combophy0 1
+					&combophy0 2 &combophy0 3>;
+
+        };

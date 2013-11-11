@@ -36,7 +36,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include <net/irda/irda.h>
@@ -73,7 +72,7 @@ static int irlan_provider_data_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s()\n", __func__ );
 
-	self = (struct irlan_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -131,8 +130,8 @@ static void irlan_provider_connect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 
-	self = (struct irlan_cb *) instance;
-	tsap = (struct tsap_cb *) sap;
+	self = instance;
+	tsap = sap;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -182,8 +181,8 @@ static void irlan_provider_disconnect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(4, "%s(), reason=%d\n", __func__ , reason);
 
-	self = (struct irlan_cb *) instance;
-	tsap = (struct tsap_cb *) sap;
+	self = instance;
+	tsap = sap;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -297,7 +296,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 	skb = alloc_skb(IRLAN_MAX_HEADER + IRLAN_CMD_HEADER +
 			/* Bigger param length comes from CMD_GET_MEDIA_CHAR */
 			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "DIRECTED") +
-			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "BORADCAST") +
+			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "BROADCAST") +
 			IRLAN_STRING_PARAMETER_LEN("FILTER_TYPE", "MULTICAST") +
 			IRLAN_STRING_PARAMETER_LEN("ACCESS_TYPE", "HOSTED"),
 			GFP_ATOMIC);

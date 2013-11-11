@@ -2,24 +2,19 @@ This is a driver for the ET1310 network device.
 
 Based on the driver found at https://sourceforge.net/projects/et131x/
 
-Cleaned up immensely by Olaf Hartman <o.hartmann@telovital.com> and Christoph
-Hellwig <hch@infradead.org>
+Cleaned up immensely by Olaf Hartman and Christoph Hellwig <hch@infradead.org>
 
 Note, the powermanagement options were removed from the vendor provided
 driver as they did not build properly at the time.
 
 TODO:
-	- kernel coding style cleanups
-	- forward port for latest network driver changes
-	- kill useless typecasts (e.g. in et1310_phy.c)
-	- alloc_etherdev is initializing memory with zero?!?
-	- add_timer call in et131x_netdev.c is correct?
-	- Add power saving functionality (suspend, sleep, resume)
-	- Implement a few more kernel Parameter (set mac )
+	- some rx packets have CRC/code/frame errors
+	- Look at reducing the number of spinlocks
+	- Simplify code in nic_rx_pkts(), when determining multicast_pkts_rcvd
+	- Implement NAPI support
+	- in et131x_tx(), don't return NETDEV_TX_BUSY, just drop the packet with	  kfree_skb().
 
 Please send patches to:
-	Greg Kroah-Hartman <gregkh@suse.de>
-
-And Cc: Olaf Hartmann <o.hartmann@telovital.com> as he has this device and can
-test any changes.
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+	Mark Einon <mark.einon@gmail.com>
 

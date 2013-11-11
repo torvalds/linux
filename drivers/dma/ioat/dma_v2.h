@@ -74,7 +74,7 @@ static inline struct ioat2_dma_chan *to_ioat2_chan(struct dma_chan *c)
 	return container_of(chan, struct ioat2_dma_chan, base);
 }
 
-static inline u16 ioat2_ring_size(struct ioat2_dma_chan *ioat)
+static inline u32 ioat2_ring_size(struct ioat2_dma_chan *ioat)
 {
 	return 1 << ioat->alloc_order;
 }
@@ -91,7 +91,7 @@ static inline u16 ioat2_ring_pending(struct ioat2_dma_chan *ioat)
 	return CIRC_CNT(ioat->head, ioat->issued, ioat2_ring_size(ioat));
 }
 
-static inline u16 ioat2_ring_space(struct ioat2_dma_chan *ioat)
+static inline u32 ioat2_ring_space(struct ioat2_dma_chan *ioat)
 {
 	return ioat2_ring_size(ioat) - ioat2_ring_active(ioat);
 }
@@ -137,6 +137,7 @@ struct ioat_ring_ent {
 	#ifdef DEBUG
 	int id;
 	#endif
+	struct ioat_sed_ent *sed;
 };
 
 static inline struct ioat_ring_ent *
@@ -155,10 +156,11 @@ static inline void ioat2_set_chainaddr(struct ioat2_dma_chan *ioat, u64 addr)
 	       chan->reg_base + IOAT2_CHAINADDR_OFFSET_HIGH);
 }
 
-int __devinit ioat2_dma_probe(struct ioatdma_device *dev, int dca);
-int __devinit ioat3_dma_probe(struct ioatdma_device *dev, int dca);
-struct dca_provider * __devinit ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
-struct dca_provider * __devinit ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+int ioat2_dma_probe(struct ioatdma_device *dev, int dca);
+int ioat3_dma_probe(struct ioatdma_device *dev, int dca);
+void ioat3_dma_remove(struct ioatdma_device *dev);
+struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+struct dca_provider *ioat3_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs);
 int ioat2_enumerate_channels(struct ioatdma_device *device);
 struct dma_async_tx_descriptor *

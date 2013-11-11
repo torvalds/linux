@@ -504,7 +504,7 @@ N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
 P: 1024D/725B37C6  190F 3E77 9C89 3B6D BECD  46EE 67C3 0308 725B 37C6
-D: parts of CPUFreq code, ACPI bugfixes
+D: parts of CPUFreq code, ACPI bugfixes, PCMCIA rewrite, cpufrequtils
 S: Tuebingen, Germany
 
 N: Andries Brouwer
@@ -513,6 +513,11 @@ D: random Linux hacker
 S: Bessemerstraat 21
 S: Amsterdam
 S: The Netherlands
+
+N: NeilBrown
+E: neil@brown.name
+P: 4096R/566281B9 1BC6 29EB D390 D870 7B5F  497A 39EC 9EDD 5662 81B9
+D: NFSD Maintainer 2000-2007
 
 N: Zach Brown
 E: zab@zabbo.net
@@ -688,10 +693,13 @@ S: Oxfordshire, UK.
 
 N: Kees Cook
 E: kees@outflux.net
-W: http://outflux.net/
-P: 1024D/17063E6D 9FA3 C49C 23C9 D1BC 2E30  1975 1FFF 4BA9 1706 3E6D
-D: Minor updates to SCSI types, added /proc/pid/maps protection
+E: kees@ubuntu.com
+E: keescook@chromium.org
+W: http://outflux.net/blog/
+P: 4096R/DC6DC026 A5C3 F68F 229D D60F 723E  6E13 8972 F4DF DC6D C026
+D: Various security things, bug fixes, and documentation.
 S: (ask for current address)
+S: Portland, Oregon
 S: USA
 
 N: Robin Cornelius
@@ -752,6 +760,10 @@ S: 81 Hood Street
 S: Northampton
 S: NN1 3QT
 S: United Kingdom
+
+N: Massimo Dal Zotto
+E: dz@debian.org
+D: i8k Dell laptop SMM driver
 
 N: Uwe Dannowski
 E: Uwe.Dannowski@ira.uka.de
@@ -857,6 +869,10 @@ S: One Dell Way
 S: Round Rock, TX  78682
 S: USA
 
+N: Mattia Dongili
+E: malattia@gmail.com
+D: cpufrequtils (precursor to cpupowerutils)
+
 N: Ben Dooks
 E: ben-linux@fluff.org
 E: ben@simtec.co.uk
@@ -941,11 +957,11 @@ S: Blacksburg, Virginia 24061
 S: USA
 
 N: Randy Dunlap
-E: rdunlap@xenotime.net
-W: http://www.xenotime.net/linux/linux.html
-W: http://www.linux-usb.org
+E: rdunlap@infradead.org
+W: http://www.infradead.org/~rdunlap/
 D: Linux-USB subsystem, USB core/UHCI/printer/storage drivers
 D: x86 SMP, ACPI, bootflag hacking
+D: documentation, builds
 S: (ask for current address)
 S: USA
 
@@ -1498,6 +1514,14 @@ D: Natsemi ethernet
 D: Cobalt Networks (x86) support
 D: This-and-That
 
+N: Mark M. Hoffman
+E: mhoffman@lightlink.com
+D: asb100, lm93 and smsc47b397 hardware monitoring drivers
+D: hwmon subsystem core
+D: hwmon subsystem maintainer
+D: i2c-sis96x and i2c-stub SMBus drivers
+S: USA
+
 N: Dirk Hohndel
 E: hohndel@suse.de
 D: The XFree86[tm] Project
@@ -1560,12 +1584,12 @@ S: Wantage, New Jersey 07461
 S: USA
 
 N: Harald Hoyer
-E: harald.hoyer@parzelle.de
-W: http://parzelle.de/
+E: harald@redhat.com
+W: http://www.harald-hoyer.de
 D: ip_masq_quake
 D: md boot support
-S: Hohe Strasse 30
-S: D-70176 Stuttgart
+S: Am Strand 5
+S: D-19063 Schwerin
 S: Germany
 
 N: Jan Hubicka
@@ -1811,6 +1835,11 @@ S: Kattreinstr 38
 S: D-64295
 S: Germany
 
+N: Avi Kivity
+E: avi.kivity@gmail.com
+D: Kernel-based Virtual Machine (KVM)
+S: Ra'annana, Israel
+
 N: Andi Kleen
 E: andi@firstfloor.org
 U: http://www.halobates.de
@@ -1882,6 +1911,11 @@ S: X/OS Experts in Open Systems BV
 S: Kruislaan 419
 S: 1098 VA Amsterdam 
 S: The Netherlands
+
+N: Goran Koruga
+E: korugag@siol.net
+D: cpufrequtils (precursor to cpupowerutils)
+S: Slovenia
 
 N: Jiri Kosina
 E: jikos@jikos.cz
@@ -2916,6 +2950,12 @@ S: Schlossbergring 9
 S: 79098 Freiburg
 S: Germany
 
+N: Thomas Renninger
+E: trenn@suse.de
+D: cpupowerutils
+S: SUSE Linux GmbH
+S: Germany
+
 N: Joerg Reuter
 E: jreuter@yaina.de
 W: http://yaina.de/jreuter/
@@ -3791,8 +3831,8 @@ D: INFO-SHEET, former maintainer
 D: Author of the longest-living linux bug
 
 N: Jonathan Woithe
-E: jwoithe@physics.adelaide.edu.au
-W: http://www.physics.adelaide.edu.au/~jwoithe
+E: jwoithe@just42.net
+W: http:/www.just42.net/jwoithe
 D: ALS-007 sound card extensions to Sound Blaster driver
 S: 20 Jordan St
 S: Valley View, SA 5093

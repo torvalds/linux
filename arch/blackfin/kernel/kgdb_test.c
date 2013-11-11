@@ -13,7 +13,6 @@
 
 #include <asm/current.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <asm/blackfin.h>
 
@@ -50,8 +49,7 @@ void kgdb_l2_test(void)
 
 #endif
 
-
-int kgdb_test(char *name, int len, int count, int z)
+noinline int kgdb_test(char *name, int len, int count, int z)
 {
 	pr_alert("kgdb name(%d): %s, %d, %d\n", len, name, count, z);
 	count = z;

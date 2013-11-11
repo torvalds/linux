@@ -33,6 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifndef EM_METAG
+/* Remove this when these make it to the standard system elf.h. */
+#define EM_METAG      174
+#define R_METAG_ADDR32                   2
+#define R_METAG_NONE                     3
+#endif
+
 static int fd_map;	/* File descriptor for file being modified. */
 static int mmap_failed; /* Boolean flag. */
 static void *ehdr_curr; /* current ElfXX_Ehdr *  for resource cleanup */
@@ -341,6 +348,12 @@ do_file(char const *const fname)
 			 altmcount = "__gnu_mcount_nc";
 			 break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
+	case EM_METAG:	 reltype = R_METAG_ADDR32;
+			 altmcount = "_mcount_wrapper";
+			 rel_type_nop = R_METAG_NONE;
+			 /* We happen to have the same requirement as MIPS */
+			 is_fake_mcount32 = MIPS32_is_fake_mcount;
+			 break;
 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;

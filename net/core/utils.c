@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/ctype.h>
 #include <linux/inet.h>
 #include <linux/mm.h>
 #include <linux/net.h>
@@ -30,7 +31,6 @@
 #include <net/net_ratelimit.h>
 
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 int net_msg_warn __read_mostly = 1;
@@ -59,14 +59,11 @@ __be32 in_aton(const char *str)
 	int i;
 
 	l = 0;
-	for (i = 0; i < 4; i++)
-	{
+	for (i = 0; i < 4; i++)	{
 		l <<= 8;
-		if (*str != '\0')
-		{
+		if (*str != '\0') {
 			val = 0;
-			while (*str != '\0' && *str != '.' && *str != '\n')
-			{
+			while (*str != '\0' && *str != '.' && *str != '\n') {
 				val *= 10;
 				val += *str - '0';
 				str++;
@@ -111,6 +108,18 @@ static inline int xdigit2bin(char c, int delim)
 	return IN6PTON_UNKNOWN;
 }
 
+/**
+ * in4_pton - convert an IPv4 address from literal to binary representation
+ * @src: the start of the IPv4 address string
+ * @srclen: the length of the string, -1 means strlen(src)
+ * @dst: the binary (u8[4] array) representation of the IPv4 address
+ * @delim: the delimiter of the IPv4 address in @src, -1 means no delimiter
+ * @end: A pointer to the end of the parsed string will be placed here
+ *
+ * Return one on success, return zero when any error occurs
+ * and @end will point to the end of the parsed string.
+ *
+ */
 int in4_pton(const char *src, int srclen,
 	     u8 *dst,
 	     int delim, const char **end)
@@ -165,6 +174,18 @@ out:
 }
 EXPORT_SYMBOL(in4_pton);
 
+/**
+ * in6_pton - convert an IPv6 address from literal to binary representation
+ * @src: the start of the IPv6 address string
+ * @srclen: the length of the string, -1 means strlen(src)
+ * @dst: the binary (u8[16] array) representation of the IPv6 address
+ * @delim: the delimiter of the IPv6 address in @src, -1 means no delimiter
+ * @end: A pointer to the end of the parsed string will be placed here
+ *
+ * Return one on success, return zero when any error occurs
+ * and @end will point to the end of the parsed string.
+ *
+ */
 int in6_pton(const char *src, int srclen,
 	     u8 *dst,
 	     int delim, const char **end)
@@ -298,6 +319,26 @@ void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(inet_proto_csum_replace4);
 
+void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
+			       const __be32 *from, const __be32 *to,
+			       int pseudohdr)
+{
+	__be32 diff[] = {
+		~from[0], ~from[1], ~from[2], ~from[3],
+		to[0], to[1], to[2], to[3],
+	};
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		*sum = csum_fold(csum_partial(diff, sizeof(diff),
+				 ~csum_unfold(*sum)));
+		if (skb->ip_summed == CHECKSUM_COMPLETE && pseudohdr)
+			skb->csum = ~csum_partial(diff, sizeof(diff),
+						  ~skb->csum);
+	} else if (pseudohdr)
+		*sum = ~csum_fold(csum_partial(diff, sizeof(diff),
+				  csum_unfold(*sum)));
+}
+EXPORT_SYMBOL(inet_proto_csum_replace16);
+
 int mac_pton(const char *s, u8 *mac)
 {
 	int i;
@@ -308,9 +349,7 @@ int mac_pton(const char *s, u8 *mac)
 
 	/* Don't dirty result unless string is valid MAC. */
 	for (i = 0; i < ETH_ALEN; i++) {
-		if (!strchr("0123456789abcdefABCDEF", s[i * 3]))
-			return 0;
-		if (!strchr("0123456789abcdefABCDEF", s[i * 3 + 1]))
+		if (!isxdigit(s[i * 3]) || !isxdigit(s[i * 3 + 1]))
 			return 0;
 		if (i != ETH_ALEN - 1 && s[i * 3 + 2] != ':')
 			return 0;

@@ -12,14 +12,38 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	This kernel configuration parameter defines the period of time
 	that RCU will wait from the beginning of a grace period until it
 	issues an RCU CPU stall warning.  This time period is normally
-	ten seconds.
+	sixty seconds.
 
-RCU_SECONDS_TILL_STALL_RECHECK
+	This configuration parameter may be changed at runtime via the
+	/sys/module/rcutree/parameters/rcu_cpu_stall_timeout, however
+	this parameter is checked only at the beginning of a cycle.
+	So if you are 30 seconds into a 70-second stall, setting this
+	sysfs parameter to (say) five will shorten the timeout for the
+	-next- stall, or the following warning for the current stall
+	(assuming the stall lasts long enough).  It will not affect the
+	timing of the next warning for the current stall.
 
-	This macro defines the period of time that RCU will wait after
-	issuing a stall warning until it issues another stall warning
-	for the same stall.  This time period is normally set to three
-	times the check interval plus thirty seconds.
+	Stall-warning messages may be enabled and disabled completely via
+	/sys/module/rcutree/parameters/rcu_cpu_stall_suppress.
+
+CONFIG_RCU_CPU_STALL_VERBOSE
+
+	This kernel configuration parameter causes the stall warning to
+	also dump the stacks of any tasks that are blocking the current
+	RCU-preempt grace period.
+
+RCU_CPU_STALL_INFO
+
+	This kernel configuration parameter causes the stall warning to
+	print out additional per-CPU diagnostic information, including
+	information on scheduling-clock ticks and RCU's idle-CPU tracking.
+
+RCU_STALL_DELAY_DELTA
+
+	Although the lockdep facility is extremely useful, it does add
+	some overhead.  Therefore, under CONFIG_PROVE_RCU, the
+	RCU_STALL_DELAY_DELTA macro allows five extra seconds before
+	giving an RCU CPU stall warning message.
 
 RCU_STALL_RAT_DELAY
 
@@ -64,6 +88,69 @@ INFO: rcu_bh_state detected stalls on CPUs/tasks: { } (detected by 4, 2502 jiffi
 
 This is rare, but does happen from time to time in real life.
 
+If the CONFIG_RCU_CPU_STALL_INFO kernel configuration parameter is set,
+more information is printed with the stall-warning message, for example:
+
+	INFO: rcu_preempt detected stall on CPU
+	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0 softirq=82/543
+	   (t=65000 jiffies)
+
+In kernels with CONFIG_RCU_FAST_NO_HZ, even more information is
+printed:
+
+	INFO: rcu_preempt detected stall on CPU
+	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D
+	   (t=65000 jiffies)
+
+The "(64628 ticks this GP)" indicates that this CPU has taken more
+than 64,000 scheduling-clock interrupts during the current stalled
+grace period.  If the CPU was not yet aware of the current grace
+period (for example, if it was offline), then this part of the message
+indicates how many grace periods behind the CPU is.
+
+The "idle=" portion of the message prints the dyntick-idle state.
+The hex number before the first "/" is the low-order 12 bits of the
+dynticks counter, which will have an even-numbered value if the CPU is
+in dyntick-idle mode and an odd-numbered value otherwise.  The hex
+number between the two "/"s is the value of the nesting, which will
+be a small positive number if in the idle loop and a very large positive
+number (as shown above) otherwise.
+
+The "softirq=" portion of the message tracks the number of RCU softirq
+handlers that the stalled CPU has executed.  The number before the "/"
+is the number that had executed since boot at the time that this CPU
+last noted the beginning of a grace period, which might be the current
+(stalled) grace period, or it might be some earlier grace period (for
+example, if the CPU might have been in dyntick-idle mode for an extended
+time period.  The number after the "/" is the number that have executed
+since boot until the current time.  If this latter number stays constant
+across repeated stall-warning messages, it is possible that RCU's softirq
+handlers are no longer able to execute on this CPU.  This can happen if
+the stalled CPU is spinning with interrupts are disabled, or, in -rt
+kernels, if a high-priority process is starving RCU's softirq handler.
+
+For CONFIG_RCU_FAST_NO_HZ kernels, the "last_accelerate:" prints the
+low-order 16 bits (in hex) of the jiffies counter when this CPU last
+invoked rcu_try_advance_all_cbs() from rcu_needs_cpu() or last invoked
+rcu_accelerate_cbs() from rcu_prepare_for_idle().  The "nonlazy_posted:"
+prints the number of non-lazy callbacks posted since the last call to
+rcu_needs_cpu().  Finally, an "L" indicates that there are currently
+no non-lazy callbacks ("." is printed otherwise, as shown above) and
+"D" indicates that dyntick-idle processing is enabled ("." is printed
+otherwise, for example, if disabled via the "nohz=" kernel boot parameter).
+
+
+Multiple Warnings From One Stall
+
+If a stall lasts long enough, multiple stall-warning messages will be
+printed for it.  The second and subsequent messages are printed at
+longer intervals, so that the time between (say) the first and second
+message will be about three times the interval between the beginning
+of the stall and the first message.
+
+
+What Causes RCU CPU Stall Warnings?
+
 So your kernel printed an RCU CPU stall warning.  The next question is
 "What caused it?"  The following problems can result in RCU CPU stall
 warnings:
@@ -101,6 +188,11 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	CONFIG_TREE_PREEMPT_RCU case, you might see stall-warning
 	messages.
 
+o	A hardware or software issue shuts off the scheduler-clock
+	interrupt on a CPU that is not in dyntick-idle mode.  This
+	problem really has happened, and seems to be most likely to
+	result in RCU CPU stall warnings for CONFIG_NO_HZ_COMMON=n kernels.
+
 o	A bug in the RCU implementation.
 
 o	A hardware failure.  This is quite unlikely, but has occurred
@@ -109,12 +201,11 @@ o	A hardware failure.  This is quite unlikely, but has occurred
 	This resulted in a series of RCU CPU stall warnings, eventually
 	leading the realization that the CPU had failed.
 
-The RCU, RCU-sched, and RCU-bh implementations have CPU stall
-warning.  SRCU does not have its own CPU stall warnings, but its
-calls to synchronize_sched() will result in RCU-sched detecting
-RCU-sched-related CPU stalls.  Please note that RCU only detects
-CPU stalls when there is a grace period in progress.  No grace period,
-no CPU stall warnings.
+The RCU, RCU-sched, and RCU-bh implementations have CPU stall warning.
+SRCU does not have its own CPU stall warnings, but its calls to
+synchronize_sched() will result in RCU-sched detecting RCU-sched-related
+CPU stalls.  Please note that RCU only detects CPU stalls when there is
+a grace period in progress.  No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.
 The offending function will usually be near the top of the stack.
@@ -124,4 +215,5 @@ is occurring, which will usually be in the function nearest the top of
 that portion of the stack which remains the same from trace to trace.
 If you can reliably trigger the stall, ftrace can be quite helpful.
 
-RCU bugs can often be debugged with the help of CONFIG_RCU_TRACE.
+RCU bugs can often be debugged with the help of CONFIG_RCU_TRACE
+and with RCU's event tracing.

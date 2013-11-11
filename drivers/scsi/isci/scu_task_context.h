@@ -866,9 +866,9 @@ struct scu_task_context {
 	struct transport_snapshot snapshot; /* read only set to 0 */
 
 	/* OFFSET 0x5C */
-	u32 block_protection_enable:1;
-	u32 block_size:2;
-	u32 block_protection_function:2;
+	u32 blk_prot_en:1;
+	u32 blk_sz:2;
+	u32 blk_prot_func:2;
 	u32 reserved_5C_0:9;
 	u32 active_sgl_element:2;  /* read only set to 0 */
 	u32 sgl_exhausted:1;  /* read only set to 0 */
@@ -896,33 +896,56 @@ struct scu_task_context {
 	u32 reserved_C4_CC[3];
 
 	/* OFFSET 0xD0 */
-	u32 intermediate_crc_value:16;
-	u32 initial_crc_seed:16;
+	u32 interm_crc_val:16;
+	u32 init_crc_seed:16;
 
 	/* OFFSET 0xD4 */
-	u32 application_tag_for_verify:16;
-	u32 application_tag_for_generate:16;
+	u32 app_tag_verify:16;
+	u32 app_tag_gen:16;
 
 	/* OFFSET 0xD8 */
-	u32 reference_tag_seed_for_verify_function;
+	u32 ref_tag_seed_verify;
 
 	/* OFFSET 0xDC */
-	u32 reserved_DC;
+	u32 UD_bytes_immed_val:13;
+	u32 reserved_DC_0:3;
+	u32 DIF_bytes_immed_val:4;
+	u32 reserved_DC_1:12;
 
 	/* OFFSET 0xE0 */
-	u32 reserved_E0_0:16;
-	u32 application_tag_mask_for_generate:16;
+	u32 bgc_blk_sz:13;
+	u32 reserved_E0_0:3;
+	u32 app_tag_gen_mask:16;
 
 	/* OFFSET 0xE4 */
-	u32 block_protection_control:16;
-	u32 application_tag_mask_for_verify:16;
+	union {
+		u16 bgctl;
+		struct {
+			u16 crc_verify:1;
+			u16 app_tag_chk:1;
+			u16 ref_tag_chk:1;
+			u16 op:2;
+			u16 legacy:1;
+			u16 invert_crc_seed:1;
+			u16 ref_tag_gen:1;
+			u16 fixed_ref_tag:1;
+			u16 invert_crc:1;
+			u16 app_ref_f_detect:1;
+			u16 uninit_dif_check_err:1;
+			u16 uninit_dif_bypass:1;
+			u16 app_f_detect:1;
+			u16 reserved_0:2;
+		} bgctl_f;
+	};
+
+	u16 app_tag_verify_mask;
 
 	/* OFFSET 0xE8 */
-	u32 block_protection_error:8;
+	u32 blk_guard_err:8;
 	u32 reserved_E8_0:24;
 
 	/* OFFSET 0xEC */
-	u32 reference_tag_seed_for_verify;
+	u32 ref_tag_seed_gen;
 
 	/* OFFSET 0xF0 */
 	u32 intermediate_crc_valid_snapshot:16;
@@ -937,6 +960,6 @@ struct scu_task_context {
 	/* OFFSET 0xFC */
 	u32 reference_tag_seed_for_generate_function_snapshot;
 
-};
+} __packed;
 
 #endif /* _SCU_TASK_CONTEXT_H_ */

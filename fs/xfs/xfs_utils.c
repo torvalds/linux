@@ -18,9 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -53,7 +51,7 @@ xfs_dir_ialloc(
 					   output: may be a new transaction. */
 	xfs_inode_t	*dp,		/* directory within whose allocate
 					   the inode. */
-	mode_t		mode,
+	umode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
 	prid_t		prid,		/* project id */
@@ -67,7 +65,6 @@ xfs_dir_ialloc(
 	xfs_trans_t	*ntp;
 	xfs_inode_t	*ip;
 	xfs_buf_t	*ialloc_context = NULL;
-	boolean_t	call_again = B_FALSE;
 	int		code;
 	uint		log_res;
 	uint		log_count;
@@ -93,7 +90,7 @@ xfs_dir_ialloc(
 	 * the inode(s) that we've just allocated.
 	 */
 	code = xfs_ialloc(tp, dp, mode, nlink, rdev, prid, okalloc,
-			  &ialloc_context, &call_again, &ip);
+			  &ialloc_context, &ip);
 
 	/*
 	 * Return an error if we were unable to allocate a new inode.
@@ -104,19 +101,18 @@ xfs_dir_ialloc(
 		*ipp = NULL;
 		return code;
 	}
-	if (!call_again && (ip == NULL)) {
+	if (!ialloc_context && !ip) {
 		*ipp = NULL;
 		return XFS_ERROR(ENOSPC);
 	}
 
 	/*
-	 * If call_again is set, then we were unable to get an
+	 * If the AGI buffer is non-NULL, then we were unable to get an
 	 * inode in one operation.  We need to commit the current
 	 * transaction and call xfs_ialloc() again.  It is guaranteed
 	 * to succeed the second time.
 	 */
-	if (call_again) {
-
+	if (ialloc_context) {
 		/*
 		 * Normally, xfs_trans_commit releases all the locks.
 		 * We call bhold to hang on to the ialloc_context across
@@ -197,7 +193,7 @@ xfs_dir_ialloc(
 		 * this call should always succeed.
 		 */
 		code = xfs_ialloc(tp, dp, mode, nlink, rdev, prid,
-				  okalloc, &ialloc_context, &call_again, &ip);
+				  okalloc, &ialloc_context, &ip);
 
 		/*
 		 * If we get an error at this point, return to the caller
@@ -208,12 +204,11 @@ xfs_dir_ialloc(
 			*ipp = NULL;
 			return code;
 		}
-		ASSERT ((!call_again) && (ip != NULL));
+		ASSERT(!ialloc_context && ip);
 
 	} else {
-		if (committed != NULL) {
+		if (committed != NULL)
 			*committed = 0;
-		}
 	}
 
 	*ipp = ip;
@@ -296,8 +291,6 @@ xfs_bumplink(
 	xfs_trans_t *tp,
 	xfs_inode_t *ip)
 {
-	if (ip->i_d.di_nlink >= XFS_MAXLINK)
-		return XFS_ERROR(EMLINK);
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 
 	ASSERT(ip->i_d.di_nlink > 0);

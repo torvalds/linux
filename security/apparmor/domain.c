@@ -67,13 +67,12 @@ static int may_change_ptraced_domain(struct task_struct *task,
 	int error = 0;
 
 	rcu_read_lock();
-	tracer = tracehook_tracer_task(task);
+	tracer = ptrace_parent(task);
 	if (tracer) {
 		/* released below */
 		cred = get_task_cred(tracer);
 		tracerp = aa_cred_profile(cred);
 	}
-	rcu_read_unlock();
 
 	/* not ptraced */
 	if (!tracer || unconfined(tracerp))
@@ -82,6 +81,7 @@ static int may_change_ptraced_domain(struct task_struct *task,
 	error = aa_may_ptrace(tracer, tracerp, to_profile, PTRACE_MODE_ATTACH);
 
 out:
+	rcu_read_unlock();
 	if (cred)
 		put_cred(cred);
 
@@ -349,8 +349,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	unsigned int state;
 	struct file_perms perms = {};
 	struct path_cond cond = {
-		bprm->file->f_path.dentry->d_inode->i_uid,
-		bprm->file->f_path.dentry->d_inode->i_mode
+		file_inode(bprm->file)->i_uid,
+		file_inode(bprm->file)->i_mode
 	};
 	const char *name = NULL, *target = NULL, *info = NULL;
 	int error = cap_bprm_set_creds(bprm);
@@ -372,13 +372,12 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	state = profile->file.start;
 
 	/* buffer freed below, name is pointer into buffer */
-	error = aa_get_name(&bprm->file->f_path, profile->path_flags, &buffer,
-			    &name);
+	error = aa_path_name(&bprm->file->f_path, profile->path_flags, &buffer,
+			     &name, &info);
 	if (error) {
 		if (profile->flags &
 		    (PFLAG_IX_ON_NAME_ERROR | PFLAG_UNCONFINED))
 			error = 0;
-		info = "Exec failed name resolution";
 		name = bprm->filename;
 		goto audit;
 	}
@@ -395,6 +394,11 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 			new_profile = find_attach(ns, &ns->base.profiles, name);
 		if (!new_profile)
 			goto cleanup;
+		/*
+		 * NOTE: Domain transitions from unconfined are allowed
+		 * even when no_new_privs is set because this aways results
+		 * in a further reduction of permissions.
+		 */
 		goto apply;
 	}
 
@@ -411,7 +415,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		 * exec\0change_profile
 		 */
 		state = aa_dfa_null_transition(profile->file.dfa, state);
-		cp = change_profile_perms(profile, cxt->onexec->ns, name,
+		cp = change_profile_perms(profile, cxt->onexec->ns,
+					  cxt->onexec->base.name,
 					  AA_MAY_ONEXEC, state);
 
 		if (!(cp.allow & AA_MAY_ONEXEC))
@@ -454,6 +459,16 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	} else
 		/* fail exec */
 		error = -EACCES;
+
+	/*
+	 * Policy has specified a domain transition, if no_new_privs then
+	 * fail the exec.
+	 */
+	if (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) {
+		aa_put_profile(new_profile);
+		error = -EPERM;
+		goto cleanup;
+	}
 
 	if (!new_profile)
 		goto audit;
@@ -609,6 +624,14 @@ int aa_change_hat(const char *hats[], int count, u64 token, bool permtest)
 	const char *target = NULL, *info = NULL;
 	int error = 0;
 
+	/*
+	 * Fail explicitly requested domain transitions if no_new_privs.
+	 * There is no exception for unconfined as change_hat is not
+	 * available.
+	 */
+	if (current->no_new_privs)
+		return -EPERM;
+
 	/* released below */
 	cred = get_current_cred();
 	cxt = cred->security;
@@ -698,7 +721,7 @@ audit:
 	if (!permtest)
 		error = aa_audit_file(profile, &perms, GFP_KERNEL,
 				      OP_CHANGE_HAT, AA_MAY_CHANGEHAT, NULL,
-				      target, 0, info, error);
+				      target, GLOBAL_ROOT_UID, info, error);
 
 out:
 	aa_put_profile(hat);
@@ -749,6 +772,18 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 	cred = get_current_cred();
 	cxt = cred->security;
 	profile = aa_cred_profile(cred);
+
+	/*
+	 * Fail explicitly requested domain transitions if no_new_privs
+	 * and not unconfined.
+	 * Domain transitions from unconfined are allowed even when
+	 * no_new_privs is set because this aways results in a reduction
+	 * of permissions.
+	 */
+	if (current->no_new_privs && !unconfined(profile)) {
+		put_cred(cred);
+		return -EPERM;
+	}
 
 	if (ns_name) {
 		/* released below */
@@ -813,7 +848,7 @@ int aa_change_profile(const char *ns_name, const char *hname, bool onexec,
 audit:
 	if (!permtest)
 		error = aa_audit_file(profile, &perms, GFP_KERNEL, op, request,
-				      name, hname, 0, info, error);
+				      name, hname, GLOBAL_ROOT_UID, info, error);
 
 	aa_put_namespace(ns);
 	aa_put_profile(target);

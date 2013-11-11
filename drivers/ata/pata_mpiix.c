@@ -152,15 +152,13 @@ static struct ata_port_operations mpiix_port_ops = {
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* Single threaded by the PCI probe logic */
-	static int printed_version;
 	struct ata_host *host;
 	struct ata_port *ap;
 	void __iomem *cmd_addr, *ctl_addr;
 	u16 idetim;
 	int cmd, ctl, irq;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&dev->dev, DRV_VERSION);
 
 	host = ata_host_alloc(&dev->dev, 1);
 	if (!host)
@@ -232,21 +230,10 @@ static struct pci_driver mpiix_pci_driver = {
 #endif
 };
 
-static int __init mpiix_init(void)
-{
-	return pci_register_driver(&mpiix_pci_driver);
-}
-
-static void __exit mpiix_exit(void)
-{
-	pci_unregister_driver(&mpiix_pci_driver);
-}
+module_pci_driver(mpiix_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Intel MPIIX");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, mpiix);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(mpiix_init);
-module_exit(mpiix_exit);

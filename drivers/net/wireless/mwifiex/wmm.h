@@ -31,6 +31,8 @@ enum ieee_types_wmm_ecw_bitmasks {
 	MWIFIEX_ECW_MAX = (BIT(4) | BIT(5) | BIT(6) | BIT(7)),
 };
 
+static const u16 mwifiex_1d_to_wmm_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
+
 /*
  * This function retrieves the TID of the given RA list.
  */
@@ -80,9 +82,12 @@ mwifiex_wmm_is_ra_list_empty(struct list_head *ra_list_hhead)
 	return true;
 }
 
-void mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
-				 struct sk_buff *skb);
+void mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
+					struct sk_buff *skb);
 void mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra);
+void mwifiex_rotate_priolists(struct mwifiex_private *priv,
+			      struct mwifiex_ra_list_tbl *ra,
+			      int tid);
 
 int mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter);
 void mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter);

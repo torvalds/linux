@@ -25,6 +25,8 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 
+#include <asm/cpu_device_id.h>
+
 #include "speedstep-lib.h"
 
 
@@ -201,7 +203,7 @@ static unsigned int speedstep_detect_chipset(void)
 	if (speedstep_chipset_dev) {
 		/* speedstep.c causes lockups on Dell Inspirons 8000 and
 		 * 8100 which use a pretty old revision of the 82815
-		 * host brige. Abort on these systems.
+		 * host bridge. Abort on these systems.
 		 */
 		static struct pci_dev *hostbridge;
 
@@ -261,7 +263,6 @@ static int speedstep_target(struct cpufreq_policy *policy,
 {
 	unsigned int newstate = 0, policy_cpu;
 	struct cpufreq_freqs freqs;
-	int i;
 
 	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0],
 				target_freq, relation, &newstate))
@@ -270,7 +271,6 @@ static int speedstep_target(struct cpufreq_policy *policy,
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
 	freqs.old = speedstep_get(policy_cpu);
 	freqs.new = speedstep_freqs[newstate].frequency;
-	freqs.cpu = policy->cpu;
 
 	pr_debug("transiting from %u to %u kHz\n", freqs.old, freqs.new);
 
@@ -278,18 +278,12 @@ static int speedstep_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	smp_call_function_single(policy_cpu, _speedstep_set_state, &newstate,
 				 true);
 
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
@@ -388,6 +382,16 @@ static struct cpufreq_driver speedstep_driver = {
 	.attr	= speedstep_attr,
 };
 
+static const struct x86_cpu_id ss_smi_ids[] = {
+	{ X86_VENDOR_INTEL, 6, 0xb, },
+	{ X86_VENDOR_INTEL, 6, 0x8, },
+	{ X86_VENDOR_INTEL, 15, 2 },
+	{}
+};
+#if 0
+/* Autoload or not? Do not for now. */
+MODULE_DEVICE_TABLE(x86cpu, ss_smi_ids);
+#endif
 
 /**
  * speedstep_init - initializes the SpeedStep CPUFreq driver
@@ -398,6 +402,9 @@ static struct cpufreq_driver speedstep_driver = {
  */
 static int __init speedstep_init(void)
 {
+	if (!x86_match_cpu(ss_smi_ids))
+		return -ENODEV;
+
 	/* detect processor */
 	speedstep_processor = speedstep_detect_processor();
 	if (!speedstep_processor) {

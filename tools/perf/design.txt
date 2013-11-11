@@ -409,14 +409,15 @@ Counters can be enabled and disabled in two ways: via ioctl and via
 prctl.  When a counter is disabled, it doesn't count or generate
 events but does continue to exist and maintain its count value.
 
-An individual counter or counter group can be enabled with
+An individual counter can be enabled with
 
-	ioctl(fd, PERF_EVENT_IOC_ENABLE);
+	ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 
 or disabled with
 
-	ioctl(fd, PERF_EVENT_IOC_DISABLE);
+	ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
 
+For a counter group, pass PERF_IOC_FLAG_GROUP as the third argument.
 Enabling or disabling the leader of a group enables or disables the
 whole group; that is, while the group leader is disabled, none of the
 counters in the group will count.  Enabling or disabling a member of a

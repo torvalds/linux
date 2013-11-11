@@ -1,6 +1,6 @@
 Everything you never wanted to know about kobjects, ksets, and ktypes
 
-Greg Kroah-Hartman <gregkh@suse.de>
+Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Based on an original article by Jon Corbet for lwn.net written October 1,
 2003 and located at http://lwn.net/Articles/51437/
@@ -284,9 +284,11 @@ instead, it is associated with the ktype. So let us introduce struct
 kobj_type:
 
     struct kobj_type {
-	    void (*release)(struct kobject *);
+	    void (*release)(struct kobject *kobj);
 	    const struct sysfs_ops *sysfs_ops;
-	    struct attribute	**default_attrs;
+	    struct attribute **default_attrs;
+	    const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
+	    const void *(*namespace)(struct kobject *kobj);
     };
 
 This structure is used to describe a particular type of kobject (or, more

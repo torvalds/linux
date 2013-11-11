@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
@@ -62,6 +63,7 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 		if (qdisc == NULL)
 			goto err;
 		priv->qdiscs[ntx] = qdisc;
+		qdisc->flags |= TCQ_F_ONETXQUEUE;
 	}
 
 	sch->flags |= TCQ_F_MQROOT;
@@ -149,7 +151,8 @@ static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
 		dev_deactivate(dev);
 
 	*old = dev_graft_qdisc(dev_queue, new);
-
+	if (new)
+		new->flags |= TCQ_F_ONETXQUEUE;
 	if (dev->flags & IFF_UP)
 		dev_activate(dev);
 	return 0;

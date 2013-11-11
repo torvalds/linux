@@ -194,7 +194,7 @@ static void wbsd_reset(struct wbsd_host *host)
 {
 	u8 setup;
 
-	printk(KERN_ERR "%s: Resetting chip\n", mmc_hostname(host->mmc));
+	pr_err("%s: Resetting chip\n", mmc_hostname(host->mmc));
 
 	/*
 	 * Soft reset of chip (SD/MMC part).
@@ -721,7 +721,7 @@ static void wbsd_finish_data(struct wbsd_host *host, struct mmc_data *data)
 		 * Any leftover data?
 		 */
 		if (count) {
-			printk(KERN_ERR "%s: Incomplete DMA transfer. "
+			pr_err("%s: Incomplete DMA transfer. "
 				"%d bytes left.\n",
 				mmc_hostname(host->mmc), count);
 
@@ -803,7 +803,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		default:
 #ifdef CONFIG_MMC_DEBUG
-			printk(KERN_WARNING "%s: Data command %d is not "
+			pr_warning("%s: Data command %d is not "
 				"supported by this controller.\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 #endif
@@ -1029,7 +1029,7 @@ static void wbsd_tasklet_card(unsigned long param)
 		host->flags &= ~WBSD_FCARD_PRESENT;
 
 		if (host->mrq) {
-			printk(KERN_ERR "%s: Card removed during transfer!\n",
+			pr_err("%s: Card removed during transfer!\n",
 				mmc_hostname(host->mmc));
 			wbsd_reset(host);
 
@@ -1196,7 +1196,7 @@ static irqreturn_t wbsd_irq(int irq, void *dev_id)
  * Allocate/free MMC structure.
  */
 
-static int __devinit wbsd_alloc_mmc(struct device *dev)
+static int wbsd_alloc_mmc(struct device *dev)
 {
 	struct mmc_host *mmc;
 	struct wbsd_host *host;
@@ -1288,7 +1288,7 @@ static void wbsd_free_mmc(struct device *dev)
  * Scan for known chip id:s
  */
 
-static int __devinit wbsd_scan(struct wbsd_host *host)
+static int wbsd_scan(struct wbsd_host *host)
 {
 	int i, j, k;
 	int id;
@@ -1344,7 +1344,7 @@ static int __devinit wbsd_scan(struct wbsd_host *host)
  * Allocate/free io port ranges
  */
 
-static int __devinit wbsd_request_region(struct wbsd_host *host, int base)
+static int wbsd_request_region(struct wbsd_host *host, int base)
 {
 	if (base & 0x7)
 		return -EINVAL;
@@ -1374,7 +1374,7 @@ static void wbsd_release_regions(struct wbsd_host *host)
  * Allocate/free DMA port and buffer
  */
 
-static void __devinit wbsd_request_dma(struct wbsd_host *host, int dma)
+static void wbsd_request_dma(struct wbsd_host *host, int dma)
 {
 	if (dma < 0)
 		return;
@@ -1429,7 +1429,7 @@ free:
 	free_dma(dma);
 
 err:
-	printk(KERN_WARNING DRIVER_NAME ": Unable to allocate DMA %d. "
+	pr_warning(DRIVER_NAME ": Unable to allocate DMA %d. "
 		"Falling back on FIFO.\n", dma);
 }
 
@@ -1452,7 +1452,7 @@ static void wbsd_release_dma(struct wbsd_host *host)
  * Allocate/free IRQ.
  */
 
-static int __devinit wbsd_request_irq(struct wbsd_host *host, int irq)
+static int wbsd_request_irq(struct wbsd_host *host, int irq)
 {
 	int ret;
 
@@ -1502,7 +1502,7 @@ static void  wbsd_release_irq(struct wbsd_host *host)
  * Allocate all resources for the host.
  */
 
-static int __devinit wbsd_request_resources(struct wbsd_host *host,
+static int wbsd_request_resources(struct wbsd_host *host,
 	int base, int irq, int dma)
 {
 	int ret;
@@ -1644,7 +1644,7 @@ static void wbsd_chip_poweroff(struct wbsd_host *host)
  *                                                                           *
 \*****************************************************************************/
 
-static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
+static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	int pnp)
 {
 	struct wbsd_host *host = NULL;
@@ -1664,7 +1664,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 	ret = wbsd_scan(host);
 	if (ret) {
 		if (pnp && (ret == -ENODEV)) {
-			printk(KERN_WARNING DRIVER_NAME
+			pr_warning(DRIVER_NAME
 				": Unable to confirm device presence. You may "
 				"experience lock-ups.\n");
 		} else {
@@ -1688,7 +1688,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 	 */
 	if (pnp) {
 		if ((host->config != 0) && !wbsd_chip_validate(host)) {
-			printk(KERN_WARNING DRIVER_NAME
+			pr_warning(DRIVER_NAME
 				": PnP active but chip not configured! "
 				"You probably have a buggy BIOS. "
 				"Configuring chip manually.\n");
@@ -1720,7 +1720,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: W83L51xD", mmc_hostname(mmc));
+	pr_info("%s: W83L51xD", mmc_hostname(mmc));
 	if (host->chip_id != 0)
 		printk(" id %x", (int)host->chip_id);
 	printk(" at 0x%x irq %d", (int)host->base, (int)host->irq);
@@ -1735,7 +1735,7 @@ static int __devinit wbsd_init(struct device *dev, int base, int irq, int dma,
 	return 0;
 }
 
-static void __devexit wbsd_shutdown(struct device *dev, int pnp)
+static void wbsd_shutdown(struct device *dev, int pnp)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wbsd_host *host;
@@ -1762,13 +1762,13 @@ static void __devexit wbsd_shutdown(struct device *dev, int pnp)
  * Non-PnP
  */
 
-static int __devinit wbsd_probe(struct platform_device *dev)
+static int wbsd_probe(struct platform_device *dev)
 {
 	/* Use the module parameters for resources */
 	return wbsd_init(&dev->dev, param_io, param_irq, param_dma, 0);
 }
 
-static int __devexit wbsd_remove(struct platform_device *dev)
+static int wbsd_remove(struct platform_device *dev)
 {
 	wbsd_shutdown(&dev->dev, 0);
 
@@ -1781,7 +1781,7 @@ static int __devexit wbsd_remove(struct platform_device *dev)
 
 #ifdef CONFIG_PNP
 
-static int __devinit
+static int
 wbsd_pnp_probe(struct pnp_dev *pnpdev, const struct pnp_device_id *dev_id)
 {
 	int io, irq, dma;
@@ -1801,7 +1801,7 @@ wbsd_pnp_probe(struct pnp_dev *pnpdev, const struct pnp_device_id *dev_id)
 	return wbsd_init(&pnpdev->dev, io, irq, dma, 1);
 }
 
-static void __devexit wbsd_pnp_remove(struct pnp_dev *dev)
+static void wbsd_pnp_remove(struct pnp_dev *dev)
 {
 	wbsd_shutdown(&dev->dev, 1);
 }
@@ -1909,7 +1909,7 @@ static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
 	 */
 	if (host->config != 0) {
 		if (!wbsd_chip_validate(host)) {
-			printk(KERN_WARNING DRIVER_NAME
+			pr_warning(DRIVER_NAME
 				": PnP active but chip not configured! "
 				"You probably have a buggy BIOS. "
 				"Configuring chip manually.\n");
@@ -1941,7 +1941,7 @@ static struct platform_device *wbsd_device;
 
 static struct platform_driver wbsd_driver = {
 	.probe		= wbsd_probe,
-	.remove		= __devexit_p(wbsd_remove),
+	.remove		= wbsd_remove,
 
 	.suspend	= wbsd_platform_suspend,
 	.resume		= wbsd_platform_resume,
@@ -1957,7 +1957,7 @@ static struct pnp_driver wbsd_pnp_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= pnp_dev_table,
 	.probe		= wbsd_pnp_probe,
-	.remove		= __devexit_p(wbsd_pnp_remove),
+	.remove		= wbsd_pnp_remove,
 
 	.suspend	= wbsd_pnp_suspend,
 	.resume		= wbsd_pnp_resume,
@@ -1973,9 +1973,9 @@ static int __init wbsd_drv_init(void)
 {
 	int result;
 
-	printk(KERN_INFO DRIVER_NAME
+	pr_info(DRIVER_NAME
 		": Winbond W83L51xD SD/MMC card interface driver\n");
-	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
+	pr_info(DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
 
 #ifdef CONFIG_PNP
 

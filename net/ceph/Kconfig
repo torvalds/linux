@@ -1,6 +1,6 @@
 config CEPH_LIB
-        tristate "Ceph core library (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "Ceph core library"
+	depends on INET
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO
@@ -24,6 +24,20 @@ config CEPH_LIB_PRETTYDEBUG
 	  line to aid debugging.  This increases kernel size and slows
 	  execution slightly when debug call sites are enabled (e.g.,
 	  via CONFIG_DYNAMIC_DEBUG).
+
+	  If unsure, say N.
+
+config CEPH_LIB_USE_DNS_RESOLVER
+	bool "Use in-kernel support for DNS lookup"
+	depends on CEPH_LIB
+	select DNS_RESOLVER
+	default n
+	help
+	  If you say Y here, hostnames (e.g. monitor addresses) will
+	  be resolved using the CONFIG_DNS_RESOLVER facility.
+
+	  For information on how to use CONFIG_DNS_RESOLVER consult
+	  Documentation/networking/dns_resolver.txt
 
 	  If unsure, say N.
 

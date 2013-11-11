@@ -155,7 +155,7 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 	 * eventually reassigned to the device as far as driver matching
 	 * condition is kept.
 	 *
-	 * Unfortunatelly, an existing usbip connection will be dropped
+	 * Unfortunately, an existing usbip connection will be dropped
 	 * due to this driver unbinding. So, skip here.
 	 * A user may need to set a special configuration value before
 	 * exporting the device.
@@ -164,7 +164,6 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 		 config, dev_name(&urb->dev->dev));
 
 	return 0;
-	/* return usb_driver_set_configuration(urb->dev, config); */
 }
 
 static int tweak_reset_device_cmd(struct urb *urb)
@@ -175,12 +174,11 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	/*
-	 * With the implementation of pre_reset and post_reset the driver no 
+	 * With the implementation of pre_reset and post_reset the driver no
 	 * longer unbinds. This allows the use of synchronous reset.
 	 */
 
-	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
-	{
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface) < 0) {
 		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
 		return 0;
 	}
@@ -230,61 +228,61 @@ static void tweak_special_requests(struct urb *urb)
 static int stub_recv_cmd_unlink(struct stub_device *sdev,
 				struct usbip_header *pdu)
 {
+	int ret;
 	unsigned long flags;
-
 	struct stub_priv *priv;
 
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 
 	list_for_each_entry(priv, &sdev->priv_init, list) {
-		if (priv->seqnum == pdu->u.cmd_unlink.seqnum) {
-			int ret;
+		if (priv->seqnum != pdu->u.cmd_unlink.seqnum)
+			continue;
 
-			dev_info(&priv->urb->dev->dev, "unlink urb %p\n",
-				 priv->urb);
+		dev_info(&priv->urb->dev->dev, "unlink urb %p\n",
+			 priv->urb);
 
-			/*
-			 * This matched urb is not completed yet (i.e., be in
-			 * flight in usb hcd hardware/driver). Now we are
-			 * cancelling it. The unlinking flag means that we are
-			 * now not going to return the normal result pdu of a
-			 * submission request, but going to return a result pdu
-			 * of the unlink request.
-			 */
-			priv->unlinking = 1;
+		/*
+		 * This matched urb is not completed yet (i.e., be in
+		 * flight in usb hcd hardware/driver). Now we are
+		 * cancelling it. The unlinking flag means that we are
+		 * now not going to return the normal result pdu of a
+		 * submission request, but going to return a result pdu
+		 * of the unlink request.
+		 */
+		priv->unlinking = 1;
 
-			/*
-			 * In the case that unlinking flag is on, prev->seqnum
-			 * is changed from the seqnum of the cancelling urb to
-			 * the seqnum of the unlink request. This will be used
-			 * to make the result pdu of the unlink request.
-			 */
-			priv->seqnum = pdu->base.seqnum;
+		/*
+		 * In the case that unlinking flag is on, prev->seqnum
+		 * is changed from the seqnum of the cancelling urb to
+		 * the seqnum of the unlink request. This will be used
+		 * to make the result pdu of the unlink request.
+		 */
+		priv->seqnum = pdu->base.seqnum;
 
-			spin_unlock_irqrestore(&sdev->priv_lock, flags);
+		spin_unlock_irqrestore(&sdev->priv_lock, flags);
 
-			/*
-			 * usb_unlink_urb() is now out of spinlocking to avoid
-			 * spinlock recursion since stub_complete() is
-			 * sometimes called in this context but not in the
-			 * interrupt context.  If stub_complete() is executed
-			 * before we call usb_unlink_urb(), usb_unlink_urb()
-			 * will return an error value. In this case, stub_tx
-			 * will return the result pdu of this unlink request
-			 * though submission is completed and actual unlinking
-			 * is not executed. OK?
-			 */
-			/* In the above case, urb->status is not -ECONNRESET,
-			 * so a driver in a client host will know the failure
-			 * of the unlink request ?
-			 */
-			ret = usb_unlink_urb(priv->urb);
-			if (ret != -EINPROGRESS)
-				dev_err(&priv->urb->dev->dev,
-					"failed to unlink a urb %p, ret %d\n",
-					priv->urb, ret);
-			return 0;
-		}
+		/*
+		 * usb_unlink_urb() is now out of spinlocking to avoid
+		 * spinlock recursion since stub_complete() is
+		 * sometimes called in this context but not in the
+		 * interrupt context.  If stub_complete() is executed
+		 * before we call usb_unlink_urb(), usb_unlink_urb()
+		 * will return an error value. In this case, stub_tx
+		 * will return the result pdu of this unlink request
+		 * though submission is completed and actual unlinking
+		 * is not executed. OK?
+		 */
+		/* In the above case, urb->status is not -ECONNRESET,
+		 * so a driver in a client host will know the failure
+		 * of the unlink request ?
+		 */
+		ret = usb_unlink_urb(priv->urb);
+		if (ret != -EINPROGRESS)
+			dev_err(&priv->urb->dev->dev,
+				"failed to unlink a urb %p, ret %d\n",
+				priv->urb, ret);
+
+		return 0;
 	}
 
 	usbip_dbg_stub_rx("seqnum %d is not pending\n",
@@ -306,18 +304,18 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 {
 	struct usbip_device *ud = &sdev->ud;
+	int valid = 0;
 
 	if (pdu->base.devid == sdev->devid) {
-		spin_lock(&ud->lock);
+		spin_lock_irq(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
 			/* A request is valid. */
-			spin_unlock(&ud->lock);
-			return 1;
+			valid = 1;
 		}
-		spin_unlock(&ud->lock);
+		spin_unlock_irq(&ud->lock);
 	}
 
-	return 0;
+	return valid;
 }
 
 static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
@@ -368,15 +366,6 @@ static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 	}
 
 	epd = &ep->desc;
-#if 0
-	/* epnum 0 is always control */
-	if (epnum == 0) {
-		if (dir == USBIP_DIR_OUT)
-			return usb_sndctrlpipe(udev, 0);
-		else
-			return usb_rcvctrlpipe(udev, 0);
-	}
-#endif
 	if (usb_endpoint_xfer_control(epd)) {
 		if (dir == USBIP_DIR_OUT)
 			return usb_sndctrlpipe(udev, epnum);
@@ -490,19 +479,18 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		return;
 	}
 
-	/* set priv->urb->transfer_buffer */
+	/* allocate urb transfer buffer, if needed */
 	if (pdu->u.cmd_submit.transfer_buffer_length > 0) {
 		priv->urb->transfer_buffer =
 			kzalloc(pdu->u.cmd_submit.transfer_buffer_length,
 				GFP_KERNEL);
 		if (!priv->urb->transfer_buffer) {
-			dev_err(&sdev->interface->dev, "malloc x_buff\n");
 			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 			return;
 		}
 	}
 
-	/* set priv->urb->setup_packet */
+	/* copy urb setup packet */
 	priv->urb->setup_packet = kmemdup(&pdu->u.cmd_submit.setup, 8,
 					  GFP_KERNEL);
 	if (!priv->urb->setup_packet) {
@@ -564,8 +552,8 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 	memset(&pdu, 0, sizeof(pdu));
 
-	/* 1. receive a pdu header */
-	ret = usbip_xmit(0, ud->tcp_socket, (char *) &pdu, sizeof(pdu), 0);
+	/* receive a pdu header */
+	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret != sizeof(pdu)) {
 		dev_err(dev, "recv a header, %d\n", ret);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);

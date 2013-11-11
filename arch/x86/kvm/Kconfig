@@ -20,17 +20,24 @@ if VIRTUALIZATION
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM
-	# for device assignment:
-	depends on PCI
+	depends on HIGH_RES_TIMERS
+	# for TASKSTATS/TASK_DELAY_ACCT:
+	depends on NET
 	select PREEMPT_NOTIFIERS
 	select MMU_NOTIFIER
 	select ANON_INODES
 	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_EVENTFD
 	select KVM_APIC_ARCHITECTURE
 	select KVM_ASYNC_PF
 	select USER_RETURN_NOTIFIER
 	select KVM_MMIO
+	select TASKSTATS
+	select TASK_DELAY_ACCT
+	select PERF_EVENTS
+	select HAVE_KVM_MSI
+	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -48,6 +55,8 @@ config KVM
 config KVM_INTEL
 	tristate "KVM for Intel processors support"
 	depends on KVM
+	# for perf_guest_get_msrs():
+	depends on CPU_SUP_INTEL
 	---help---
 	  Provides support for KVM on Intel processors equipped with the VT
 	  extensions.
@@ -72,10 +81,20 @@ config KVM_MMU_AUDIT
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 audit  KVM MMU at runtime.
 
+config KVM_DEVICE_ASSIGNMENT
+	bool "KVM legacy PCI device assignment support"
+	depends on KVM && PCI && IOMMU_API
+	default y
+	---help---
+	  Provide support for legacy PCI device assignment through KVM.  The
+	  kernel now also supports a full featured userspace device driver
+	  framework through VFIO, which supersedes much of this support.
+
+	  If unsure, say Y.
+
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig
 source drivers/lguest/Kconfig
-source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

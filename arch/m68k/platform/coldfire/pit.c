@@ -93,7 +93,7 @@ struct clock_event_device cf_pit_clockevent = {
 	.set_mode	= init_cf_pit_timer,
 	.set_next_event	= cf_pit_next_event,
 	.shift		= 32,
-	.irq		= MCFINT_VECBASE + MCFINT_PIT1,
+	.irq		= MCF_IRQ_PIT1,
 };
 
 
@@ -144,13 +144,12 @@ static struct clocksource pit_clk = {
 	.name	= "pit",
 	.rating	= 100,
 	.read	= pit_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 };
 
 /***************************************************************************/
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
 	cf_pit_clockevent.cpumask = cpumask_of(smp_processor_id());
 	cf_pit_clockevent.mult = div_sc(FREQ, NSEC_PER_SEC, 32);
@@ -160,10 +159,9 @@ void hw_timer_init(void)
 		clockevent_delta2ns(0x3f, &cf_pit_clockevent);
 	clockevents_register_device(&cf_pit_clockevent);
 
-	setup_irq(MCFINT_VECBASE + MCFINT_PIT1, &pit_irq);
+	setup_irq(MCF_IRQ_PIT1, &pit_irq);
 
-	pit_clk.mult = clocksource_hz2mult(FREQ, pit_clk.shift);
-	clocksource_register(&pit_clk);
+	clocksource_register_hz(&pit_clk, FREQ);
 }
 
 /***************************************************************************/

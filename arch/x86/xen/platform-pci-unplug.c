@@ -24,6 +24,7 @@
 #include <linux/module.h>
 
 #include <xen/platform_pci.h>
+#include "xen-ops.h"
 
 #define XEN_PLATFORM_ERR_MAGIC -1
 #define XEN_PLATFORM_ERR_PROTOCOL -2
@@ -35,7 +36,7 @@ EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 #ifdef CONFIG_XEN_PVHVM
 static int xen_emul_unplug;
 
-static int __init check_platform_magic(void)
+static int check_platform_magic(void)
 {
 	short magic;
 	char protocol;

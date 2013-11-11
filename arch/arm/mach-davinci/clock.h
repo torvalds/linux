@@ -93,6 +93,7 @@ struct clk {
 	u8			usecount;
 	u8			lpsc;
 	u8			gpsc;
+	u8			domain;
 	u32			flags;
 	struct clk              *parent;
 	struct list_head	children; 	/* list of children */
@@ -102,15 +103,19 @@ struct clk {
 	unsigned long (*recalc) (struct clk *);
 	int (*set_rate) (struct clk *clk, unsigned long rate);
 	int (*round_rate) (struct clk *clk, unsigned long rate);
+	int (*reset) (struct clk *clk, bool reset);
+	void (*clk_enable) (struct clk *clk);
+	void (*clk_disable) (struct clk *clk);
 };
 
 /* Clock flags: SoC-specific flags start at BIT(16) */
 #define ALWAYS_ENABLED		BIT(1)
 #define CLK_PSC			BIT(2)
-#define PSC_DSP			BIT(3) /* PSC uses DSP domain, not ARM */
-#define CLK_PLL			BIT(4) /* PLL-derived clock */
-#define PRE_PLL			BIT(5) /* source is before PLL mult/div */
-#define PSC_SWRSTDISABLE	BIT(6) /* Disable state is SwRstDisable */
+#define CLK_PLL			BIT(3) /* PLL-derived clock */
+#define PRE_PLL			BIT(4) /* source is before PLL mult/div */
+#define PSC_SWRSTDISABLE	BIT(5) /* Disable state is SwRstDisable */
+#define PSC_FORCE		BIT(6) /* Force module state transtition */
+#define PSC_LRST		BIT(8) /* Use local reset on enable/disable */
 
 #define CLK(dev, con, ck) 	\
 	{			\
@@ -123,6 +128,9 @@ int davinci_clk_init(struct clk_lookup *clocks);
 int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 int davinci_set_sysclk_rate(struct clk *clk, unsigned long rate);
+int davinci_set_refclk_rate(unsigned long rate);
+int davinci_simple_set_rate(struct clk *clk, unsigned long rate);
+int davinci_clk_reset(struct clk *clk, bool reset);
 
 extern struct platform_device davinci_wdt_device;
 extern void davinci_watchdog_reset(struct platform_device *);

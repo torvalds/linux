@@ -25,7 +25,6 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -104,7 +103,7 @@ axon_ram_irq_handler(int irq, void *dev)
  * axon_ram_make_request - make_request() method for block device
  * @queue, @bio: see blk_queue_make_request()
  */
-static int
+static void
 axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 {
 	struct axon_ram_bank *bank = bio->bi_bdev->bd_disk->private_data;
@@ -113,7 +112,6 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	struct bio_vec *vec;
 	unsigned int transfered;
 	unsigned short idx;
-	int rc = 0;
 
 	phys_mem = bank->io_addr + (bio->bi_sector << AXON_RAM_SECTOR_SHIFT);
 	phys_end = bank->io_addr + bank->size;
@@ -121,8 +119,7 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 	bio_for_each_segment(vec, bio, idx) {
 		if (unlikely(phys_mem + vec->bv_len > phys_end)) {
 			bio_io_error(bio);
-			rc = -ERANGE;
-			break;
+			return;
 		}
 
 		user_mem = page_address(vec->bv_page) + vec->bv_offset;
@@ -135,8 +132,6 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 		transfered += vec->bv_len;
 	}
 	bio_endio(bio, 0);
-
-	return rc;
 }
 
 /**
@@ -203,7 +198,7 @@ static int axon_ram_probe(struct platform_device *device)
 		goto failed;
 	}
 
-	bank->size = resource.end - resource.start + 1;
+	bank->size = resource_size(&resource);
 
 	if (bank->size == 0) {
 		dev_err(&device->dev, "No DDR2 memory found for %s%d\n",

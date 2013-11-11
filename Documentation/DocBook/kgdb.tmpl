@@ -94,10 +94,8 @@
   <sect1 id="CompileKGDB">
     <title>Kernel config options for kgdb</title>
     <para>
-    To enable <symbol>CONFIG_KGDB</symbol> you should first turn on
-    "Prompt for development and/or incomplete code/drivers"
-    (CONFIG_EXPERIMENTAL) in  "General setup", then under the
-    "Kernel debugging" select "KGDB: kernel debugger".
+    To enable <symbol>CONFIG_KGDB</symbol> you should look under
+    "Kernel debugging" and select "KGDB: kernel debugger".
     </para>
     <para>
     While it is not a hard requirement that you have symbols in your
@@ -361,6 +359,23 @@
    <para>It is possible to use this option with kgdboc on a tty that is not a system console.
    </para>
   </para>
+  </sect1>
+   <sect1 id="kgdbreboot">
+   <title>Run time parameter: kgdbreboot</title>
+   <para> The kgdbreboot feature allows you to change how the debugger
+   deals with the reboot notification.  You have 3 choices for the
+   behavior.  The default behavior is always set to 0.</para>
+   <orderedlist>
+   <listitem><para>echo -1 > /sys/module/debug_core/parameters/kgdbreboot</para>
+   <para>Ignore the reboot notification entirely.</para>
+   </listitem>
+   <listitem><para>echo 0 > /sys/module/debug_core/parameters/kgdbreboot</para>
+   <para>Send the detach message to any attached debugger client.</para>
+   </listitem>
+   <listitem><para>echo 1 > /sys/module/debug_core/parameters/kgdbreboot</para>
+   <para>Enter the debugger on reboot notify.</para>
+   </listitem>
+   </orderedlist>
   </sect1>
   </chapter>
   <chapter id="usingKDB">

@@ -366,14 +366,14 @@ static const u8 mbc_irq_handlers[] = {
 	PCF50633_IRQ_LOWBAT,
 };
 
-static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
+static int pcf50633_mbc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc;
 	int ret;
 	int i;
 	u8 mbcs1;
 
-	mbc = kzalloc(sizeof(*mbc), GFP_KERNEL);
+	mbc = devm_kzalloc(&pdev->dev, sizeof(*mbc), GFP_KERNEL);
 	if (!mbc)
 		return -ENOMEM;
 
@@ -413,7 +413,6 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &mbc->adapter);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
-		kfree(mbc);
 		return ret;
 	}
 
@@ -421,7 +420,6 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
 		power_supply_unregister(&mbc->adapter);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -430,7 +428,6 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
 		power_supply_unregister(&mbc->adapter);
 		power_supply_unregister(&mbc->usb);
-		kfree(mbc);
 		return ret;
 	}
 
@@ -447,7 +444,7 @@ static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_mbc_remove(struct platform_device *pdev)
+static int pcf50633_mbc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc = platform_get_drvdata(pdev);
 	int i;
@@ -461,8 +458,6 @@ static int __devexit pcf50633_mbc_remove(struct platform_device *pdev)
 	power_supply_unregister(&mbc->adapter);
 	power_supply_unregister(&mbc->ac);
 
-	kfree(mbc);
-
 	return 0;
 }
 
@@ -471,20 +466,10 @@ static struct platform_driver pcf50633_mbc_driver = {
 		.name = "pcf50633-mbc",
 	},
 	.probe = pcf50633_mbc_probe,
-	.remove = __devexit_p(pcf50633_mbc_remove),
+	.remove = pcf50633_mbc_remove,
 };
 
-static int __init pcf50633_mbc_init(void)
-{
-	return platform_driver_register(&pcf50633_mbc_driver);
-}
-module_init(pcf50633_mbc_init);
-
-static void __exit pcf50633_mbc_exit(void)
-{
-	platform_driver_unregister(&pcf50633_mbc_driver);
-}
-module_exit(pcf50633_mbc_exit);
+module_platform_driver(pcf50633_mbc_driver);
 
 MODULE_AUTHOR("Balaji Rao <balajirrao@openmoko.org>");
 MODULE_DESCRIPTION("PCF50633 mbc driver");

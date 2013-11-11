@@ -35,11 +35,11 @@ OPTIONS
         child tasks do not inherit counters
 -p::
 --pid=<pid>::
-        stat events on existing process id
+        stat events on existing process id (comma separated list)
 
 -t::
 --tid=<tid>::
-        stat events on existing thread id
+        stat events on existing thread id (comma separated list)
 
 
 -a::
@@ -52,7 +52,7 @@ OPTIONS
 
 -r::
 --repeat=<n>::
-	repeat command and print average + stddev (max: 100)
+	repeat command and print average + stddev (max: 100). 0 means forever.
 
 -B::
 --big-num::
@@ -93,6 +93,44 @@ to first event, second cgroup to second event and so on. It is possible to provi
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
 line.
+
+-o file::
+--output file::
+Print the output into the designated file.
+
+--append::
+Append to the output file designated with the -o option. Ignored if -o is not specified.
+
+--log-fd::
+
+Log output to fd, instead of stderr.  Complementary to --output, and mutually exclusive
+with it.  --append may be used here.  Examples:
+     3>results  perf stat --log-fd 3          -- $cmd
+     3>>results perf stat --log-fd 3 --append -- $cmd
+
+--pre::
+--post::
+	Pre and post measurement hooks, e.g.:
+
+perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- make -s -j64 O=defconfig-build/ bzImage
+
+-I msecs::
+--interval-print msecs::
+	Print count deltas every N milliseconds (minimum: 100ms)
+	example: perf stat -I 1000 -e cycles -a sleep 5
+
+--per-socket::
+Aggregate counts per processor socket for system-wide mode measurements.  This
+is a useful mode to detect imbalance between sockets.  To enable this mode,
+use --per-socket in addition to -a. (system-wide).  The output includes the
+socket number and the number of online processors on that socket. This is
+useful to gauge the amount of aggregation.
+
+--per-core::
+Aggregate counts per physical processor for system-wide mode measurements.  This
+is a useful mode to detect imbalance between physical cores.  To enable this mode,
+use --per-core in addition to -a. (system-wide).  The output includes the
+core number and the number of online logical processors on that physical processor.
 
 EXAMPLES
 --------

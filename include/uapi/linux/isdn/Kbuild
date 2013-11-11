@@ -1,0 +1,2 @@
+# UAPI Header export list
+header-y += capicmd.h

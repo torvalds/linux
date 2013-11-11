@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
-#include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/page.h>
@@ -106,6 +105,7 @@ ENTRY(cpu_xsc3_proc_fin)
  * loc: location to jump to for soft reset
  */
 	.align	5
+	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_xsc3_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
@@ -120,6 +120,8 @@ ENTRY(cpu_xsc3_reset)
 	@ already containing those two last instructions to survive.
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	mov	pc, r0
+ENDPROC(cpu_xsc3_reset)
+	.popsection
 
 /*
  * cpu_xsc3_do_idle()
@@ -335,17 +337,11 @@ ENTRY(xsc3_dma_unmap_area)
 	mov	pc, lr
 ENDPROC(xsc3_dma_unmap_area)
 
-ENTRY(xsc3_cache_fns)
-	.long	xsc3_flush_icache_all
-	.long	xsc3_flush_kern_cache_all
-	.long	xsc3_flush_user_cache_all
-	.long	xsc3_flush_user_cache_range
-	.long	xsc3_coherent_kern_range
-	.long	xsc3_coherent_user_range
-	.long	xsc3_flush_kern_dcache_area
-	.long	xsc3_dma_map_area
-	.long	xsc3_dma_unmap_area
-	.long	xsc3_dma_flush_range
+	.globl	xsc3_flush_kern_cache_louis
+	.equ	xsc3_flush_kern_cache_louis, xsc3_flush_kern_cache_all
+
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions xsc3
 
 ENTRY(cpu_xsc3_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
@@ -416,24 +412,23 @@ ENTRY(cpu_xsc3_set_pte_ext)
 	.align
 
 .globl	cpu_xsc3_suspend_size
-.equ	cpu_xsc3_suspend_size, 4 * 8
-#ifdef CONFIG_PM_SLEEP
+.equ	cpu_xsc3_suspend_size, 4 * 6
+#ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_xsc3_do_suspend)
-	stmfd	sp!, {r4 - r10, lr}
+	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
 	mrc	p15, 0, r6, c13, c0, 0	@ PID
 	mrc 	p15, 0, r7, c3, c0, 0	@ domain ID
-	mrc 	p15, 0, r8, c2, c0, 0	@ translation table base addr
-	mrc	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
-	mrc 	p15, 0, r10, c1, c0, 0	@ control reg
+	mrc	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mrc 	p15, 0, r9, c1, c0, 0	@ control reg
 	bic	r4, r4, #2		@ clear frequency change bit
-	stmia	r0, {r1, r4 - r10}	@ store v:p offset + cp regs
-	ldmia	sp!, {r4 - r10, pc}
+	stmia	r0, {r4 - r9}		@ store cp regs
+	ldmia	sp!, {r4 - r9, pc}
 ENDPROC(cpu_xsc3_do_suspend)
 
 ENTRY(cpu_xsc3_do_resume)
-	ldmia	r0, {r1, r4 - r10}	@ load v:p offset + cp regs
+	ldmia	r0, {r4 - r9}		@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
 	mcr	p15, 0, ip, c7, c10, 4	@ drain write (&fill) buffer
@@ -443,20 +438,12 @@ ENTRY(cpu_xsc3_do_resume)
 	mcr	p15, 0, r5, c15, c1, 0	@ CP access reg
 	mcr	p15, 0, r6, c13, c0, 0	@ PID
 	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
-	mcr	p15, 0, r8, c2, c0, 0	@ translation table base addr
-	mcr	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
-
-	@ temporarily map resume_turn_on_mmu into the page table,
-	@ otherwise prefetch abort occurs after MMU is turned on
-	mov	r0, r10			@ control register
-	mov	r2, r8, lsr #14		@ get TTB0 base
-	mov	r2, r2, lsl #14
-	ldr	r3, =0x542e		@ section flags
+	orr	r1, r1, #0x18		@ cache the page table in L2
+	mcr	p15, 0, r1, c2, c0, 0	@ translation table base addr
+	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
+	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
 ENDPROC(cpu_xsc3_do_resume)
-#else
-#define cpu_xsc3_do_suspend	0
-#define cpu_xsc3_do_resume	0
 #endif
 
 	__CPUINIT
@@ -503,52 +490,24 @@ xsc3_crval:
 
 	__INITDATA
 
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-
-	.type	xsc3_processor_functions, #object
-ENTRY(xsc3_processor_functions)
-	.word	v5t_early_abort
-	.word	legacy_pabort
-	.word	cpu_xsc3_proc_init
-	.word	cpu_xsc3_proc_fin
-	.word	cpu_xsc3_reset
-	.word	cpu_xsc3_do_idle
-	.word	cpu_xsc3_dcache_clean_area
-	.word	cpu_xsc3_switch_mm
-	.word	cpu_xsc3_set_pte_ext
-	.word	cpu_xsc3_suspend_size
-	.word	cpu_xsc3_do_suspend
-	.word	cpu_xsc3_do_resume
-	.size	xsc3_processor_functions, . - xsc3_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions xsc3, dabort=v5t_early_abort, pabort=legacy_pabort, suspend=1
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv5te"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v5"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_xsc3_name, #object
-cpu_xsc3_name:
-	.asciz	"XScale-V3 based processor"
-	.size	cpu_xsc3_name, . - cpu_xsc3_name
+	string	cpu_arch_name, "armv5te"
+	string	cpu_elf_name, "v5"
+	string	cpu_xsc3_name, "XScale-V3 based processor"
 
 	.align
 
 	.section ".proc.info.init", #alloc, #execinstr
 
-	.type	__xsc3_proc_info,#object
-__xsc3_proc_info:
-	.long	0x69056000
-	.long	0xffffe000
+.macro xsc3_proc_info name:req, cpu_val:req, cpu_mask:req
+	.type	__\name\()_proc_info,#object
+__\name\()_proc_info:
+	.long	\cpu_val
+	.long	\cpu_mask
 	.long	PMD_TYPE_SECT | \
 		PMD_SECT_BUFFERABLE | \
 		PMD_SECT_CACHEABLE | \
@@ -566,29 +525,10 @@ __xsc3_proc_info:
 	.long	v4wbi_tlb_fns
 	.long	xsc3_mc_user_fns
 	.long	xsc3_cache_fns
-	.size	__xsc3_proc_info, . - __xsc3_proc_info
+	.size	__\name\()_proc_info, . - __\name\()_proc_info
+.endm
+
+	xsc3_proc_info xsc3, 0x69056000, 0xffffe000
 
 /* Note: PXA935 changed its implementor ID from Intel to Marvell */
-
-	.type	__xsc3_pxa935_proc_info,#object
-__xsc3_pxa935_proc_info:
-	.long	0x56056000
-	.long	0xffffe000
-	.long	PMD_TYPE_SECT | \
-		PMD_SECT_BUFFERABLE | \
-		PMD_SECT_CACHEABLE | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
-	.long	PMD_TYPE_SECT | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
-	b	__xsc3_setup
-	.long	cpu_arch_name
-	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
-	.long	cpu_xsc3_name
-	.long	xsc3_processor_functions
-	.long	v4wbi_tlb_fns
-	.long	xsc3_mc_user_fns
-	.long	xsc3_cache_fns
-	.size	__xsc3_pxa935_proc_info, . - __xsc3_pxa935_proc_info
+	xsc3_proc_info xsc3_pxa935, 0x56056000, 0xffffe000

@@ -1,0 +1,88 @@
+config VIDEO_CX88
+	tristate "Conexant 2388x (bt878 successor) support"
+	depends on VIDEO_DEV && PCI && I2C && RC_CORE
+	select I2C_ALGOBIT
+	select VIDEO_BTCX
+	select VIDEOBUF_DMA_SG
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_WM8775 if MEDIA_SUBDRV_AUTOSELECT
+	---help---
+	  This is a video4linux driver for Conexant 2388x based
+	  TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx8800
+
+config VIDEO_CX88_ALSA
+	tristate "Conexant 2388x DMA audio support"
+	depends on VIDEO_CX88 && SND
+	select SND_PCM
+	---help---
+	  This is a video4linux driver for direct (DMA) audio on
+	  Conexant 2388x based TV cards using ALSA.
+
+	  It only works with boards with function 01 enabled.
+	  To check if your board supports, use lspci -n.
+	  If supported, you should see 14f1:8801 or 14f1:8811
+	  PCI device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-alsa.
+
+config VIDEO_CX88_BLACKBIRD
+	tristate "Blackbird MPEG encoder support (cx2388x + cx23416)"
+	depends on VIDEO_CX88
+	select VIDEO_CX2341X
+	---help---
+	  This adds support for MPEG encoder cards based on the
+	  Blackbird reference design, using the Conexant 2388x
+	  and 23416 chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-blackbird.
+
+config VIDEO_CX88_DVB
+	tristate "DVB/ATSC Support for cx2388x based TV cards"
+	depends on VIDEO_CX88 && DVB_CORE
+	select VIDEOBUF_DVB
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_OR51132 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CX22702 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LGDT330X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_NXT200X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CX24123 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ISL6421 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CX24116 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0288 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB6000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0900 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_DS3000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
+	---help---
+	  This adds support for DVB/ATSC cards based on the
+	  Conexant 2388x chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-dvb.
+
+config VIDEO_CX88_VP3054
+	tristate "VP-3054 Secondary I2C Bus Support"
+	default m
+	depends on VIDEO_CX88_DVB && DVB_MT352
+	---help---
+	  This adds DVB-T support for cards based on the
+	  Conexant 2388x chip and the MT352 demodulator,
+	  which also require support for the VP-3054
+	  Secondary I2C bus, such at DNTV Live! DVB-T Pro.
+
+config VIDEO_CX88_MPEG
+	tristate
+	depends on VIDEO_CX88_DVB || VIDEO_CX88_BLACKBIRD
+	default y

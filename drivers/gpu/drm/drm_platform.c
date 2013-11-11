@@ -25,7 +25,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
+#include <linux/export.h>
+#include <drm/drmP.h>
 
 /**
  * Register.
@@ -63,7 +64,6 @@ int drm_get_platform_dev(struct platform_device *platdev,
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		dev_set_drvdata(&platdev->dev, dev);
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_g1;
@@ -121,16 +121,25 @@ static const char *drm_platform_get_name(struct drm_device *dev)
 
 static int drm_platform_set_busid(struct drm_device *dev, struct drm_master *master)
 {
-	int len, ret;
+	int len, ret, id;
 
-	master->unique_len = 10 + strlen(dev->platformdev->name);
+	master->unique_len = 13 + strlen(dev->platformdev->name);
+	master->unique_size = master->unique_len;
 	master->unique = kmalloc(master->unique_len + 1, GFP_KERNEL);
 
 	if (master->unique == NULL)
 		return -ENOMEM;
 
+	id = dev->platformdev->id;
+
+	/* if only a single instance of the platform device, id will be
+	 * set to -1.. use 0 instead to avoid a funny looking bus-id:
+	 */
+	if (id == -1)
+		id = 0;
+
 	len = snprintf(master->unique, master->unique_len,
-		       "platform:%s", dev->platformdev->name);
+			"platform:%s:%02d", dev->platformdev->name, id);
 
 	if (len > master->unique_len) {
 		DRM_ERROR("Unique buffer overflowed\n");

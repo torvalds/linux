@@ -9,7 +9,9 @@
  */
 
 #include <linux/suspend.h>
+#include <linux/export.h>
 #include <linux/smp.h>
+#include <linux/perf_event.h>
 
 #include <asm/pgtable.h>
 #include <asm/proto.h>
@@ -19,18 +21,16 @@
 #include <asm/xcr.h>
 #include <asm/suspend.h>
 #include <asm/debugreg.h>
+#include <asm/fpu-internal.h> /* pcntxt_mask */
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
-static struct saved_context saved_context;
-
 unsigned long saved_context_ebx;
 unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
-#else
-/* CONFIG_X86_64 */
-struct saved_context saved_context;
 #endif
+struct saved_context saved_context;
 
 /**
  *	__save_processor_state - save CPU registers before creating a
@@ -58,13 +58,20 @@ static void __save_processor_state(struct saved_context *ctxt)
 	 * descriptor tables
 	 */
 #ifdef CONFIG_X86_32
-	store_gdt(&ctxt->gdt);
 	store_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
-	store_gdt((struct desc_ptr *)&ctxt->gdt_limit);
 	store_idt((struct desc_ptr *)&ctxt->idt_limit);
 #endif
+	/*
+	 * We save it here, but restore it only in the hibernate case.
+	 * For ACPI S3 resume, this is loaded via 'early_gdt_desc' in 64-bit
+	 * mode in "secondary_startup_64". In 32-bit mode it is done via
+	 * 'pmode_gdt' in wakeup_start.
+	 */
+	ctxt->gdt_desc.size = GDT_SIZE - 1;
+	ctxt->gdt_desc.address = (unsigned long)get_cpu_gdt_table(smp_processor_id());
+
 	store_tr(ctxt->tr);
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
@@ -113,7 +120,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
-	save_sched_clock_state();
+	x86_platform.save_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(save_processor_state);
@@ -131,7 +138,10 @@ static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
-
+#ifdef CONFIG_X86_64
+	struct desc_struct *desc = get_cpu_gdt_table(cpu);
+	tss_desc tss;
+#endif
 	set_tss_desc(cpu, t);	/*
 				 * This just modifies memory; should not be
 				 * necessary. But... This is necessary, because
@@ -140,7 +150,9 @@ static void fix_processor_context(void)
 				 */
 
 #ifdef CONFIG_X86_64
-	get_cpu_gdt_table(cpu)[GDT_ENTRY_TSS].type = 9;
+	memcpy(&tss, &desc[GDT_ENTRY_TSS], sizeof(tss_desc));
+	tss.type = 0x9; /* The available 64-bit TSS (see AMD vol 2, pg 91 */
+	write_gdt_entry(desc, GDT_ENTRY_TSS, &tss, DESC_TSS);
 
 	syscall_init();				/* This sets MSR_*STAR and related */
 #endif
@@ -179,11 +191,9 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 * ltr is done i fix_processor_context().
 	 */
 #ifdef CONFIG_X86_32
-	load_gdt(&ctxt->gdt);
 	load_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
-	load_gdt((const struct desc_ptr *)&ctxt->gdt_limit);
 	load_idt((const struct desc_ptr *)&ctxt->idt_limit);
 #endif
 
@@ -223,15 +233,97 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	do_fpu_end();
+	x86_platform.restore_sched_clock_state();
 	mtrr_bp_restore();
+	perf_restore_debug_store();
 }
 
 /* Needed by apm.c */
 void restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
-	restore_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(restore_processor_state);
 #endif
+
+/*
+ * When bsp_check() is called in hibernate and suspend, cpu hotplug
+ * is disabled already. So it's unnessary to handle race condition between
+ * cpumask query and cpu hotplug.
+ */
+static int bsp_check(void)
+{
+	if (cpumask_first(cpu_online_mask) != 0) {
+		pr_warn("CPU0 is offline.\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
+			   void *ptr)
+{
+	int ret = 0;
+
+	switch (action) {
+	case PM_SUSPEND_PREPARE:
+	case PM_HIBERNATION_PREPARE:
+		ret = bsp_check();
+		break;
+#ifdef CONFIG_DEBUG_HOTPLUG_CPU0
+	case PM_RESTORE_PREPARE:
+		/*
+		 * When system resumes from hibernation, online CPU0 because
+		 * 1. it's required for resume and
+		 * 2. the CPU was online before hibernation
+		 */
+		if (!cpu_online(0))
+			_debug_hotplug_cpu(0, 1);
+		break;
+	case PM_POST_RESTORE:
+		/*
+		 * When a resume really happens, this code won't be called.
+		 *
+		 * This code is called only when user space hibernation software
+		 * prepares for snapshot device during boot time. So we just
+		 * call _debug_hotplug_cpu() to restore to CPU0's state prior to
+		 * preparing the snapshot device.
+		 *
+		 * This works for normal boot case in our CPU0 hotplug debug
+		 * mode, i.e. CPU0 is offline and user mode hibernation
+		 * software initializes during boot time.
+		 *
+		 * If CPU0 is online and user application accesses snapshot
+		 * device after boot time, this will offline CPU0 and user may
+		 * see different CPU0 state before and after accessing
+		 * the snapshot device. But hopefully this is not a case when
+		 * user debugging CPU0 hotplug. Even if users hit this case,
+		 * they can easily online CPU0 back.
+		 *
+		 * To simplify this debug code, we only consider normal boot
+		 * case. Otherwise we need to remember CPU0's state and restore
+		 * to that state and resolve racy conditions etc.
+		 */
+		_debug_hotplug_cpu(0, 0);
+		break;
+#endif
+	default:
+		break;
+	}
+	return notifier_from_errno(ret);
+}
+
+static int __init bsp_pm_check_init(void)
+{
+	/*
+	 * Set this bsp_pm_callback as lower priority than
+	 * cpu_hotplug_pm_callback. So cpu_hotplug_pm_callback will be called
+	 * earlier to disable cpu hotplug before bsp online check.
+	 */
+	pm_notifier(bsp_pm_callback, -INT_MAX);
+	return 0;
+}
+
+core_initcall(bsp_pm_check_init);

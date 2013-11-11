@@ -1,83 +1,86 @@
 
-What:		/sys/bus/iio/devices/.../ddsX_freqY
+What:		/sys/bus/iio/devices/.../out_altvoltageX_frequencyY
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Stores frequency into tuning word Y.
-		There will be more than one ddsX_freqY file, which allows for
-		pin controlled FSK Frequency Shift Keying
-		(ddsX_pincontrol_freq_en is active) or the user can control
-		the desired active tuning word by writing Y to the
-		ddsX_freqsymbol file.
+		There will be more than one out_altvoltageX_frequencyY file,
+		which allows for pin controlled FSK Frequency Shift Keying
+		(out_altvoltageX_pincontrol_frequency_en is active) or the user
+		can control the desired active tuning word by writing Y to the
+		out_altvoltageX_frequencysymbol file.
 
-What:		/sys/bus/iio/devices/.../ddsX_freqY_scale
+What:		/sys/bus/iio/devices/.../out_altvoltageX_frequencyY_scale
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Scale to be applied to ddsX_freqY in order to obtain the
-		desired value in Hz. If shared across all frequency registers
-		Y is not present. It is also possible X is not present if
-		shared across all channels.
+		Scale to be applied to out_altvoltageX_frequencyY in order to
+		obtain the desired value in Hz. If shared across all frequency
+		registers Y is not present. It is also possible X is not present
+		if shared across all channels.
 
-What:		/sys/bus/iio/devices/.../ddsX_freqsymbol
+What:		/sys/bus/iio/devices/.../out_altvoltageX_frequencysymbol
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the active output frequency tuning word. The value
-		corresponds to the Y in ddsX_freqY. To exit this mode the user
-		can write ddsX_pincontrol_freq_en or ddsX_out_enable file.
+		corresponds to the Y in out_altvoltageX_frequencyY.
+		To exit this mode the user can write
+		out_altvoltageX_pincontrol_frequency_en or
+		out_altvoltageX_out_enable file.
 
-What:		/sys/bus/iio/devices/.../ddsX_phaseY
+What:		/sys/bus/iio/devices/.../out_altvoltageX_phaseY
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Stores phase into Y.
-		There will be more than one ddsX_phaseY file, which allows for
-		pin controlled PSK Phase Shift Keying
-		(ddsX_pincontrol_phase_en is active) or the user can
+		There will be more than one out_altvoltageX_phaseY file, which
+		allows for pin controlled PSK Phase Shift Keying
+		(out_altvoltageX_pincontrol_phase_en is active) or the user can
 		control the desired phase Y which is added to the phase
-		accumulator output by writing Y to the en_phase file.
+		accumulator output by writing Y to the phase_en file.
 
-What:		/sys/bus/iio/devices/.../ddsX_phaseY_scale
+What:		/sys/bus/iio/devices/.../out_altvoltageX_phaseY_scale
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Scale to be applied to ddsX_phaseY in order to obtain the
-		desired value in rad. If shared across all phase registers
+		Scale to be applied to out_altvoltageX_phaseY in order to obtain
+		the desired value in rad. If shared across all phase registers
 		Y is not present. It is also possible X is not present if
 		shared across all channels.
 
-What:		/sys/bus/iio/devices/.../ddsX_phasesymbol
+What:		/sys/bus/iio/devices/.../out_altvoltageX_phasesymbol
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Specifies the active phase Y which is added to the phase
 		accumulator output. The value corresponds to the Y in
-		ddsX_phaseY. To exit this mode the user can write
-		ddsX_pincontrol_phase_en or disable file.
+		out_altvoltageX_phaseY. To exit this mode the user can write
+		out_altvoltageX_pincontrol_phase_en or disable file.
 
-What:		/sys/bus/iio/devices/.../ddsX_pincontrol_en
-What:		/sys/bus/iio/devices/.../ddsX_pincontrol_freq_en
-What:		/sys/bus/iio/devices/.../ddsX_pincontrol_phase_en
+What:		/sys/bus/iio/devices/.../out_altvoltageX_pincontrol_en
+What:		/sys/bus/iio/devices/.../out_altvoltageX_pincontrol_frequency_en
+What:		/sys/bus/iio/devices/.../out_altvoltageX_pincontrol_phase_en
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		ddsX_pincontrol_en: Both, the active frequency and phase is
-		controlled by the respective phase and frequency control inputs.
-		In case the device in question allows to independent controls,
-		then there are dedicated files (ddsX_pincontrol_freq_en,
-		ddsX_pincontrol_phase_en).
+		out_altvoltageX_pincontrol_en: Both, the active frequency and
+		phase is controlled by the respective phase and frequency
+		control inputs. In case the device in features independent
+		controls, then there are dedicated files
+		(out_altvoltageX_pincontrol_frequency_en,
+		out_altvoltageX_pincontrol_phase_en).
 
-What:		/sys/bus/iio/devices/.../ddsX_out_enable
-What:		/sys/bus/iio/devices/.../ddsX_outY_enable
+What:		/sys/bus/iio/devices/.../out_altvoltageX_out_enable
+What:		/sys/bus/iio/devices/.../out_altvoltageX_outY_enable
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
-		ddsX_outY_enable controls signal generation on output Y of
-		channel X. Y may be suppressed if all channels are
+		out_altvoltageX_outY_enable controls signal generation on
+		output Y of channel X. Y may be suppressed if all channels are
 		controlled together.
 
-What:		/sys/bus/iio/devices/.../ddsX_outY_wavetype
+What:		/sys/bus/iio/devices/.../out_altvoltageX_outY_wavetype
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -86,7 +89,7 @@ Description:
 		For a list of available output waveform options read
 		available_output_modes.
 
-What:		/sys/bus/iio/devices/.../ddsX_outY_wavetype_available
+What:		/sys/bus/iio/devices/.../out_altvoltageX_outY_wavetype_available
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:

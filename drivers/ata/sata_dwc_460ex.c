@@ -43,6 +43,7 @@
 /* These two are defined in "libata.h" */
 #undef	DRV_NAME
 #undef	DRV_VERSION
+
 #define DRV_NAME        "sata-dwc"
 #define DRV_VERSION     "1.3"
 
@@ -158,6 +159,7 @@ enum {
 /* Assign HW handshaking interface (x) to destination / source peripheral */
 #define	DMA_CFG_HW_HS_DEST(int_num) (((int_num) & 0xF) << 11)
 #define	DMA_CFG_HW_HS_SRC(int_num) (((int_num) & 0xF) << 7)
+#define	DMA_CFG_HW_CH_PRIOR(int_num) (((int_num) & 0xF) << 5)
 #define	DMA_LLP_LMS(addr, master) (((addr) & 0xfffffffc) | (master))
 
 /*
@@ -318,6 +320,7 @@ struct sata_dwc_host_priv {
 	u32	dma_interrupt_count;
 	struct	ahb_dma_regs	*sata_dma_regs;
 	struct	device	*dwc_dev;
+	int	dma_channel;
 };
 struct sata_dwc_host_priv host_pvt;
 /*
@@ -437,15 +440,12 @@ static  void clear_chan_interrupts(int c)
  */
 static int dma_request_channel(void)
 {
-	int i;
-
-	for (i = 0; i < DMA_NUM_CHANS; i++) {
-		if (!(in_le32(&(host_pvt.sata_dma_regs->dma_chan_en.low)) &\
-			DMA_CHANNEL(i)))
-			return i;
-	}
-	dev_err(host_pvt.dwc_dev, "%s NO channel chan_en: 0x%08x\n", __func__,
-		in_le32(&(host_pvt.sata_dma_regs->dma_chan_en.low)));
+	/* Check if the channel is not currently in use */
+	if (!(in_le32(&(host_pvt.sata_dma_regs->dma_chan_en.low)) &
+		DMA_CHANNEL(host_pvt.dma_channel)))
+		return host_pvt.dma_channel;
+	dev_err(host_pvt.dwc_dev, "%s Channel %d is currently in use\n",
+		__func__, host_pvt.dma_channel);
 	return -1;
 }
 
@@ -481,7 +481,8 @@ static irqreturn_t dma_dwc_interrupt(int irq, void *hsdev_instance)
 	dev_dbg(ap->dev, "eot=0x%08x err=0x%08x pending=%d active port=%d\n",
 		tfr_reg, err_reg, hsdevp->dma_pending[tag], port);
 
-	for (chan = 0; chan < DMA_NUM_CHANS; chan++) {
+	chan = host_pvt.dma_channel;
+	if (chan >= 0) {
 		/* Check for end-of-transfer interrupt. */
 		if (tfr_reg & DMA_CHANNEL(chan)) {
 			/*
@@ -534,9 +535,9 @@ static irqreturn_t dma_dwc_interrupt(int irq, void *hsdev_instance)
 static int dma_request_interrupts(struct sata_dwc_device *hsdev, int irq)
 {
 	int retval = 0;
-	int chan;
+	int chan = host_pvt.dma_channel;
 
-	for (chan = 0; chan < DMA_NUM_CHANS; chan++) {
+	if (chan >= 0) {
 		/* Unmask error interrupt */
 		out_le32(&(host_pvt.sata_dma_regs)->interrupt_mask.error.low,
 			 DMA_ENABLE_CHAN(chan));
@@ -575,7 +576,10 @@ static int map_sg_to_lli(struct scatterlist *sg, int num_elems,
 	int fis_len = 0;
 	dma_addr_t next_llp;
 	int bl;
+	int sms_val, dms_val;
 
+	sms_val = 0;
+	dms_val = 1 + host_pvt.dma_channel;
 	dev_dbg(host_pvt.dwc_dev, "%s: sg=%p nelem=%d lli=%p dma_lli=0x%08x"
 		" dmadr=0x%08x\n", __func__, sg, num_elems, lli, (u32)dma_lli,
 		(u32)dmadr_addr);
@@ -635,8 +639,8 @@ static int map_sg_to_lli(struct scatterlist *sg, int num_elems,
 
 				lli[idx].ctl.low = cpu_to_le32(
 					DMA_CTL_TTFC(DMA_CTL_TTFC_P2M_DMAC) |
-					DMA_CTL_SMS(0) |
-					DMA_CTL_DMS(1) |
+					DMA_CTL_SMS(sms_val) |
+					DMA_CTL_DMS(dms_val) |
 					DMA_CTL_SRC_MSIZE(bl) |
 					DMA_CTL_DST_MSIZE(bl) |
 					DMA_CTL_SINC_NOCHANGE |
@@ -651,8 +655,8 @@ static int map_sg_to_lli(struct scatterlist *sg, int num_elems,
 
 				lli[idx].ctl.low = cpu_to_le32(
 					DMA_CTL_TTFC(DMA_CTL_TTFC_M2P_PER) |
-					DMA_CTL_SMS(1) |
-					DMA_CTL_DMS(0) |
+					DMA_CTL_SMS(dms_val) |
+					DMA_CTL_DMS(sms_val) |
 					DMA_CTL_SRC_MSIZE(bl) |
 					DMA_CTL_DST_MSIZE(bl) |
 					DMA_CTL_DINC_NOCHANGE |
@@ -744,8 +748,10 @@ static int dma_dwc_xfer_setup(struct scatterlist *sg, int num_elems,
 
 	/* Program the CFG register. */
 	out_le32(&(host_pvt.sata_dma_regs->chan_regs[dma_ch].cfg.high),
+		 DMA_CFG_HW_HS_SRC(dma_ch) | DMA_CFG_HW_HS_DEST(dma_ch) |
 		 DMA_CFG_PROTCTL | DMA_CFG_FCMOD_REQ);
-	out_le32(&(host_pvt.sata_dma_regs->chan_regs[dma_ch].cfg.low), 0);
+	out_le32(&(host_pvt.sata_dma_regs->chan_regs[dma_ch].cfg.low),
+		 DMA_CFG_HW_CH_PRIOR(dma_ch));
 
 	/* Program the address of the linked list */
 	out_le32(&(host_pvt.sata_dma_regs->chan_regs[dma_ch].llp.low),
@@ -766,11 +772,15 @@ static int dma_dwc_xfer_setup(struct scatterlist *sg, int num_elems,
 static void dma_dwc_exit(struct sata_dwc_device *hsdev)
 {
 	dev_dbg(host_pvt.dwc_dev, "%s:\n", __func__);
-	if (host_pvt.sata_dma_regs)
+	if (host_pvt.sata_dma_regs) {
 		iounmap(host_pvt.sata_dma_regs);
+		host_pvt.sata_dma_regs = NULL;
+	}
 
-	if (hsdev->irq_dma)
+	if (hsdev->irq_dma) {
 		free_irq(hsdev->irq_dma, hsdev);
+		hsdev->irq_dma = 0;
+	}
 }
 
 /*
@@ -1325,7 +1335,7 @@ static int sata_dwc_port_start(struct ata_port *ap)
 			dev_err(ap->dev, "%s: dma_alloc_coherent failed\n",
 				 __func__);
 			err = -ENOMEM;
-			goto CLEANUP;
+			goto CLEANUP_ALLOC;
 		}
 	}
 
@@ -1345,15 +1355,13 @@ static int sata_dwc_port_start(struct ata_port *ap)
 	/* Clear any error bits before libata starts issuing commands */
 	clear_serror();
 	ap->private_data = hsdevp;
+	dev_dbg(ap->dev, "%s: done\n", __func__);
+	return 0;
 
+CLEANUP_ALLOC:
+	kfree(hsdevp);
 CLEANUP:
-	if (err) {
-		sata_dwc_port_stop(ap);
-		dev_dbg(ap->dev, "%s: fail\n", __func__);
-	} else {
-		dev_dbg(ap->dev, "%s: done\n", __func__);
-	}
-
+	dev_dbg(ap->dev, "%s: fail. ap->id = %d\n", __func__, ap->print_id);
 	return err;
 }
 
@@ -1579,8 +1587,29 @@ static void sata_dwc_qc_prep(struct ata_queued_cmd *qc)
 
 static void sata_dwc_error_handler(struct ata_port *ap)
 {
-	ap->link.flags |= ATA_LFLAG_NO_HRST;
 	ata_sff_error_handler(ap);
+}
+
+int sata_dwc_hardreset(struct ata_link *link, unsigned int *class,
+			unsigned long deadline)
+{
+	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(link->ap);
+	int ret;
+
+	ret = sata_sff_hardreset(link, class, deadline);
+
+	sata_dwc_enable_interrupts(hsdev);
+
+	/* Reconfigure the DMA control register */
+	out_le32(&hsdev->sata_dwc_regs->dmacr,
+		 SATA_DWC_DMACR_TXRXCH_CLEAR);
+
+	/* Reconfigure the DMA Burst Transaction Size register */
+	out_le32(&hsdev->sata_dwc_regs->dbtsr,
+		 SATA_DWC_DBTSR_MWR(AHB_DMA_BRST_DFLT) |
+		 SATA_DWC_DBTSR_MRD(AHB_DMA_BRST_DFLT));
+
+	return ret;
 }
 
 /*
@@ -1602,6 +1631,7 @@ static struct ata_port_operations sata_dwc_ops = {
 	.inherits		= &ata_sff_port_ops,
 
 	.error_handler		= sata_dwc_error_handler,
+	.hardreset		= sata_dwc_hardreset,
 
 	.qc_prep		= sata_dwc_qc_prep,
 	.qc_issue		= sata_dwc_qc_issue,
@@ -1636,15 +1666,23 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	struct ata_host *host;
 	struct ata_port_info pi = sata_dwc_port_info[0];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
+	struct device_node *np = ofdev->dev.of_node;
+	u32 dma_chan;
 
 	/* Allocate DWC SATA device */
-	hsdev = kmalloc(sizeof(*hsdev), GFP_KERNEL);
+	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
 	if (hsdev == NULL) {
 		dev_err(&ofdev->dev, "kmalloc failed for hsdev\n");
 		err = -ENOMEM;
-		goto error_out;
+		goto error;
 	}
-	memset(hsdev, 0, sizeof(*hsdev));
+
+	if (of_property_read_u32(np, "dma-channel", &dma_chan)) {
+		dev_warn(&ofdev->dev, "no dma-channel property set."
+			 " Use channel 0\n");
+		dma_chan = 0;
+	}
+	host_pvt.dma_channel = dma_chan;
 
 	/* Ioremap SATA registers */
 	base = of_iomap(ofdev->dev.of_node, 0);
@@ -1652,7 +1690,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		dev_err(&ofdev->dev, "ioremap failed for SATA register"
 			" address\n");
 		err = -ENODEV;
-		goto error_out;
+		goto error_kmalloc;
 	}
 	hsdev->reg_base = base;
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
@@ -1665,7 +1703,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (!host) {
 		dev_err(&ofdev->dev, "ata_host_alloc_pinfo failed\n");
 		err = -ENOMEM;
-		goto error_out;
+		goto error_iomap;
 	}
 
 	host->private_data = hsdev;
@@ -1733,8 +1771,11 @@ error_out:
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
 
-	if (base)
-		iounmap(base);
+error_iomap:
+	iounmap(base);
+error_kmalloc:
+	kfree(hsdev);
+error:
 	return err;
 }
 
@@ -1773,18 +1814,7 @@ static struct platform_driver sata_dwc_driver = {
 	.remove = sata_dwc_remove,
 };
 
-static int __init sata_dwc_init(void)
-{
-	return platform_driver_register(&sata_dwc_driver);
-}
-
-static void __exit sata_dwc_exit(void)
-{
-	platform_driver_unregister(&sata_dwc_driver);
-}
-
-module_init(sata_dwc_init);
-module_exit(sata_dwc_exit);
+module_platform_driver(sata_dwc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark Miesfeld <mmiesfeld@amcc.com>");

@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <libio.h>
+#include <stddef.h>
 #include <dwarf-regs.h>
 
 struct pt_regs_dwarfnum {

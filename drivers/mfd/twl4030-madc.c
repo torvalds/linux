@@ -173,7 +173,7 @@ static int twl4030battery_temperature(int raw_volt)
 
 	volt = (raw_volt * TEMP_STEP_SIZE) / TEMP_PSR_R;
 	/* Getting and calculating the supply current in micro ampers */
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE, &val,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val,
 		REG_BCICTL2);
 	if (ret < 0)
 		return ret;
@@ -196,7 +196,7 @@ static int twl4030battery_current(int raw_volt)
 	int ret;
 	u8 val;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE, &val,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val,
 		TWL4030_BCI_BCICTL1);
 	if (ret)
 		return ret;
@@ -211,12 +211,14 @@ static int twl4030battery_current(int raw_volt)
  * @reg_base - Base address of the first channel
  * @Channels - 16 bit bitmap. If the bit is set, channel value is read
  * @buf - The channel values are stored here. if read fails error
+ * @raw - Return raw values without conversion
  * value is stored
  * Returns the number of successfully read channels.
  */
 static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 				      u8 reg_base, unsigned
-						long channels, int *buf)
+				      long channels, int *buf,
+				      bool raw)
 {
 	int count = 0, count_req = 0, i;
 	u8 reg;
@@ -228,6 +230,10 @@ static int twl4030_madc_read_channels(struct twl4030_madc_data *madc,
 			dev_err(madc->dev,
 				"Unable to read register 0x%X\n", reg);
 			count_req++;
+			continue;
+		}
+		if (raw) {
+			count++;
 			continue;
 		}
 		switch (i) {
@@ -371,7 +377,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf);
+						 r->channels, r->rbuf, r->raw);
 		/* Return results to caller */
 		if (r->func_cb != NULL) {
 			r->func_cb(len, r->channels, r->rbuf);
@@ -397,7 +403,7 @@ err_i2c:
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
-						 r->channels, r->rbuf);
+						 r->channels, r->rbuf, r->raw);
 		/* Return results to caller */
 		if (r->func_cb != NULL) {
 			r->func_cb(len, r->channels, r->rbuf);
@@ -510,8 +516,9 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 	u8 ch_msb, ch_lsb;
 	int ret;
 
-	if (!req)
+	if (!req || !twl4030_madc)
 		return -EINVAL;
+
 	mutex_lock(&twl4030_madc->lock);
 	if (req->method < TWL4030_MADC_RT || req->method > TWL4030_MADC_SW2) {
 		ret = -EINVAL;
@@ -530,13 +537,13 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 	if (ret) {
 		dev_err(twl4030_madc->dev,
 			"unable to write sel register 0x%X\n", method->sel + 1);
-		return ret;
+		goto out;
 	}
 	ret = twl_i2c_write_u8(TWL4030_MODULE_MADC, ch_lsb, method->sel);
 	if (ret) {
 		dev_err(twl4030_madc->dev,
 			"unable to write sel register 0x%X\n", method->sel + 1);
-		return ret;
+		goto out;
 	}
 	/* Select averaging for all channels if do_avg is set */
 	if (req->do_avg) {
@@ -546,7 +553,7 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 			dev_err(twl4030_madc->dev,
 				"unable to write avg register 0x%X\n",
 				method->avg + 1);
-			return ret;
+			goto out;
 		}
 		ret = twl_i2c_write_u8(TWL4030_MODULE_MADC,
 				       ch_lsb, method->avg);
@@ -554,7 +561,7 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 			dev_err(twl4030_madc->dev,
 				"unable to write sel reg 0x%X\n",
 				method->sel + 1);
-			return ret;
+			goto out;
 		}
 	}
 	if (req->type == TWL4030_MADC_IRQ_ONESHOT && req->func_cb != NULL) {
@@ -584,7 +591,7 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 		goto out;
 	}
 	ret = twl4030_madc_read_channels(twl4030_madc, method->rbase,
-					 req->channels, req->rbuf);
+					 req->channels, req->rbuf, req->raw);
 	twl4030_madc->requests[req->method].active = 0;
 
 out:
@@ -634,7 +641,7 @@ static int twl4030_madc_set_current_generator(struct twl4030_madc_data *madc,
 	int ret;
 	u8 regval;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to read BCICTL1 reg 0x%X",
@@ -645,7 +652,7 @@ static int twl4030_madc_set_current_generator(struct twl4030_madc_data *madc,
 		regval |= chan ? TWL4030_BCI_ITHEN : TWL4030_BCI_TYPEN;
 	else
 		regval &= chan ? ~TWL4030_BCI_ITHEN : ~TWL4030_BCI_TYPEN;
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_write_u8(TWL_MODULE_MAIN_CHARGE,
 			       regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to write BCICTL1 reg 0x%X\n",
@@ -667,7 +674,7 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
 	u8 regval;
 	int ret;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_MADC_CTRL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to read madc ctrl1 reg 0x%X\n",
@@ -691,7 +698,7 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
 /*
  * Initialize MADC and request for threaded irq
  */
-static int __devinit twl4030_madc_probe(struct platform_device *pdev)
+static int twl4030_madc_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc;
 	struct twl4030_madc_platform_data *pdata = pdev->dev.platform_data;
@@ -705,6 +712,8 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 	madc = kzalloc(sizeof(*madc), GFP_KERNEL);
 	if (!madc)
 		return -ENOMEM;
+
+	madc->dev = &pdev->dev;
 
 	/*
 	 * Phoenix provides 2 interrupt lines. The first one is connected to
@@ -722,7 +731,7 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_current_generator;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to read reg BCI CTL1 0x%X\n",
@@ -730,13 +739,35 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 		goto err_i2c;
 	}
 	regval |= TWL4030_BCI_MESBAT;
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_write_u8(TWL_MODULE_MAIN_CHARGE,
 			       regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to write reg BCI Ctl1 0x%X\n",
 			TWL4030_BCI_BCICTL1);
 		goto err_i2c;
 	}
+
+	/* Check that MADC clock is on */
+	ret = twl_i2c_read_u8(TWL4030_MODULE_INTBR, &regval, TWL4030_REG_GPBR1);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to read reg GPBR1 0x%X\n",
+				TWL4030_REG_GPBR1);
+		goto err_i2c;
+	}
+
+	/* If MADC clk is not on, turn it on */
+	if (!(regval & TWL4030_GPBR1_MADC_HFCLK_EN)) {
+		dev_info(&pdev->dev, "clk disabled, enabling\n");
+		regval |= TWL4030_GPBR1_MADC_HFCLK_EN;
+		ret = twl_i2c_write_u8(TWL4030_MODULE_INTBR, regval,
+				       TWL4030_REG_GPBR1);
+		if (ret) {
+			dev_err(&pdev->dev, "unable to write reg GPBR1 0x%X\n",
+					TWL4030_REG_GPBR1);
+			goto err_i2c;
+		}
+	}
+
 	platform_set_drvdata(pdev, madc);
 	mutex_init(&madc->lock);
 	ret = request_threaded_irq(platform_get_irq(pdev, 0), NULL,
@@ -760,7 +791,7 @@ err_power:
 	return ret;
 }
 
-static int __devexit twl4030_madc_remove(struct platform_device *pdev)
+static int twl4030_madc_remove(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc = platform_get_drvdata(pdev);
 
@@ -775,26 +806,14 @@ static int __devexit twl4030_madc_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_madc_driver = {
 	.probe = twl4030_madc_probe,
-	.remove = __exit_p(twl4030_madc_remove),
+	.remove = twl4030_madc_remove,
 	.driver = {
 		   .name = "twl4030_madc",
 		   .owner = THIS_MODULE,
 		   },
 };
 
-static int __init twl4030_madc_init(void)
-{
-	return platform_driver_register(&twl4030_madc_driver);
-}
-
-module_init(twl4030_madc_init);
-
-static void __exit twl4030_madc_exit(void)
-{
-	platform_driver_unregister(&twl4030_madc_driver);
-}
-
-module_exit(twl4030_madc_exit);
+module_platform_driver(twl4030_madc_driver);
 
 MODULE_DESCRIPTION("TWL4030 ADC driver");
 MODULE_LICENSE("GPL");

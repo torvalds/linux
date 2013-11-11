@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <asm/uaccess.h>
 #include <asm/amigahw.h>
 #include <asm/setup.h>
@@ -21,7 +22,7 @@ static loff_t
 proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	mutex_lock(&inode->i_mutex);
 	switch (whence) {
@@ -46,9 +47,7 @@ proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 static ssize_t
 proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	struct inode *ino = file->f_path.dentry->d_inode;
-	struct proc_dir_entry *dp = PDE(ino);
-	struct zorro_dev *z = dp->data;
+	struct zorro_dev *z = PDE_DATA(file_inode(file));
 	struct ConfigDev cd;
 	loff_t pos = *ppos;
 
@@ -140,7 +139,7 @@ static int __init zorro_proc_attach_device(unsigned int slot)
 				 &zorro_autocon[slot]);
 	if (!entry)
 		return -ENOMEM;
-	entry->size = sizeof(struct zorro_dev);
+	proc_set_size(entry, sizeof(struct zorro_dev));
 	return 0;
 }
 

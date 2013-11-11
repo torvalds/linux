@@ -1,12 +1,13 @@
 /*
- * arch/s390/kernel/relocate_kernel.S
- *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Rolf Adelsberger,
  *	      Heiko Carstens <heiko.carstens@de.ibm.com>
  *
  */
+
+#include <linux/linkage.h>
+#include <asm/sigp.h>
 
 /*
  * moves the new kernel to its destination...
@@ -22,8 +23,7 @@
  */
 
 	.text
-	.globl		relocate_kernel
-	relocate_kernel:
+ENTRY(relocate_kernel)
 		basr	%r13,0		# base address
 	.base:
 		stnsm	sys_msk-.base(%r13),0xfb	# disable DAT
@@ -92,7 +92,7 @@
 	.no_diag308:
 		sr	%r1,%r1		# clear %r1
 		sr	%r2,%r2		# clear %r2
-		sigp	%r1,%r2,0x12	# set cpuid to zero
+		sigp	%r1,%r2,SIGP_SET_ARCHITECTURE # set cpuid to zero
 		lpsw	0		# hopefully start new kernel...
 
 		.align	8
@@ -112,6 +112,7 @@
 		.byte	0
 		.align	8
 	relocate_kernel_end:
+	.align 8
 	.globl	relocate_kernel_len
 	relocate_kernel_len:
 		.quad	relocate_kernel_end - relocate_kernel

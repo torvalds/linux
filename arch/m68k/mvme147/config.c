@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -38,7 +37,7 @@
 
 static void mvme147_get_model(char *model);
 extern void mvme147_sched_init(irq_handler_t handler);
-extern unsigned long mvme147_gettimeoffset (void);
+extern u32 mvme147_gettimeoffset(void);
 extern int mvme147_hwclk (int, struct rtc_time *);
 extern int mvme147_set_clock_mmss (unsigned long);
 extern void mvme147_reset (void);
@@ -81,7 +80,7 @@ static void mvme147_get_model(char *model)
 
 void __init mvme147_init_IRQ(void)
 {
-	m68k_setup_user_interrupt(VEC_USER, 192, NULL);
+	m68k_setup_user_interrupt(VEC_USER, 192);
 }
 
 void __init config_mvme147(void)
@@ -89,7 +88,7 @@ void __init config_mvme147(void)
 	mach_max_dma_address	= 0x01000000;
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
-	mach_gettimeoffset	= mvme147_gettimeoffset;
+	arch_gettimeoffset	= mvme147_gettimeoffset;
 	mach_hwclk		= mvme147_hwclk;
 	mach_set_clock_mmss	= mvme147_set_clock_mmss;
 	mach_reset		= mvme147_reset;
@@ -114,8 +113,7 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 void mvme147_sched_init (irq_handler_t timer_routine)
 {
 	tick_handler = timer_routine;
-	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, IRQ_FLG_REPLACE,
-			"timer 1", NULL))
+	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, 0, "timer 1", NULL))
 		pr_err("Couldn't register timer interrupt\n");
 
 	/* Init the clock with a value */
@@ -129,7 +127,7 @@ void mvme147_sched_init (irq_handler_t timer_routine)
 
 /* This is always executed with interrupts disabled.  */
 /* XXX There are race hazards in this code XXX */
-unsigned long mvme147_gettimeoffset (void)
+u32 mvme147_gettimeoffset(void)
 {
 	volatile unsigned short *cp = (volatile unsigned short *)0xfffe1012;
 	unsigned short n;
@@ -139,7 +137,7 @@ unsigned long mvme147_gettimeoffset (void)
 		n = *cp;
 
 	n -= PCC_TIMER_PRELOAD;
-	return (unsigned long)n * 25 / 4;
+	return ((unsigned long)n * 25 / 4) * 1000;
 }
 
 static int bcd2int (unsigned char b)

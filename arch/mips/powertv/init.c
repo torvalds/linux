@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1999, 2000, 2004, 2005  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004, 2005	 MIPS Technologies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -26,13 +26,13 @@
 
 #include <asm/bootinfo.h>
 #include <linux/io.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 
-#include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mach-powertv/asic.h>
+
+#include "init.h"
 
 static int *_prom_envp;
 unsigned long _prom_memsize;
@@ -70,40 +70,6 @@ char *prom_getenv(char *envname)
 	return result;
 }
 
-/* TODO: Verify on linux-mips mailing list that the following two  */
-/* functions are correct                                           */
-/* TODO: Copy NMI and EJTAG exception vectors to memory from the   */
-/* BootROM exception vectors. Flush their cache entries. test it.  */
-
-static void __init mips_nmi_setup(void)
-{
-	void *base;
-#if defined(CONFIG_CPU_MIPS32_R1)
-	base = cpu_has_veic ?
-		(void *)(CAC_BASE + 0xa80) :
-		(void *)(CAC_BASE + 0x380);
-#elif defined(CONFIG_CPU_MIPS32_R2)
-	base = (void *)0xbfc00000;
-#else
-#error NMI exception handler address not defined
-#endif
-}
-
-static void __init mips_ejtag_setup(void)
-{
-	void *base;
-
-#if defined(CONFIG_CPU_MIPS32_R1)
-	base = cpu_has_veic ?
-		(void *)(CAC_BASE + 0xa00) :
-		(void *)(CAC_BASE + 0x300);
-#elif defined(CONFIG_CPU_MIPS32_R2)
-	base = (void *)0xbfc00480;
-#else
-#error EJTAG exception handler address not defined
-#endif
-}
-
 void __init prom_init(void)
 {
 	int prom_argc;
@@ -113,9 +79,6 @@ void __init prom_init(void)
 	prom_argv = (char *) fw_arg1;
 	_prom_envp = (int *) fw_arg2;
 	_prom_memsize = (unsigned long) fw_arg3;
-
-	board_nmi_handler_setup = mips_nmi_setup;
-	board_ejtag_handler_setup = mips_ejtag_setup;
 
 	if (prom_argc == 1) {
 		strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);

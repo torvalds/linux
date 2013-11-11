@@ -21,6 +21,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -65,13 +66,13 @@ static struct snd_soc_codec_driver soc_dmic = {
 	.probe	= dmic_probe,
 };
 
-static int __devinit dmic_dev_probe(struct platform_device *pdev)
+static int dmic_dev_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_dmic, &dmic_dai, 1);
 }
 
-static int __devexit dmic_dev_remove(struct platform_device *pdev)
+static int dmic_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -85,20 +86,10 @@ static struct platform_driver dmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = dmic_dev_probe,
-	.remove = __devexit_p(dmic_dev_remove),
+	.remove = dmic_dev_remove,
 };
 
-static int __init dmic_init(void)
-{
-	return platform_driver_register(&dmic_driver);
-}
-module_init(dmic_init);
-
-static void __exit dmic_exit(void)
-{
-	platform_driver_unregister(&dmic_driver);
-}
-module_exit(dmic_exit);
+module_platform_driver(dmic_driver);
 
 MODULE_DESCRIPTION("Generic DMIC driver");
 MODULE_AUTHOR("Liam Girdwood <lrg@slimlogic.co.uk>");

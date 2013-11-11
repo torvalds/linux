@@ -14,6 +14,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/export.h>
 
 #include <net/fib_rules.h>
 #include <net/ipv6.h>
@@ -21,8 +22,7 @@
 #include <net/ip6_route.h>
 #include <net/netlink.h>
 
-struct fib6_rule
-{
+struct fib6_rule {
 	struct fib_rule		common;
 	struct rt6key		src;
 	struct rt6key		dst;
@@ -95,12 +95,12 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 			if (!ipv6_prefix_equal(&saddr, &r->src.addr,
 					       r->src.plen))
 				goto again;
-			ipv6_addr_copy(&flp6->saddr, &saddr);
+			flp6->saddr = saddr;
 		}
 		goto out;
 	}
 again:
-	dst_release(&rt->dst);
+	ip6_rt_put(rt);
 	rt = NULL;
 	goto out;
 
@@ -214,14 +214,13 @@ static int fib6_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->src_len = rule6->src.plen;
 	frh->tos = rule6->tclass;
 
-	if (rule6->dst.plen)
-		NLA_PUT(skb, FRA_DST, sizeof(struct in6_addr),
-			&rule6->dst.addr);
-
-	if (rule6->src.plen)
-		NLA_PUT(skb, FRA_SRC, sizeof(struct in6_addr),
-			&rule6->src.addr);
-
+	if ((rule6->dst.plen &&
+	     nla_put(skb, FRA_DST, sizeof(struct in6_addr),
+		     &rule6->dst.addr)) ||
+	    (rule6->src.plen &&
+	     nla_put(skb, FRA_SRC, sizeof(struct in6_addr),
+		     &rule6->src.addr)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -239,7 +238,7 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(16); /* src */
 }
 
-static const struct fib_rules_ops __net_initdata fib6_rules_ops_template = {
+static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
 	.addr_size		= sizeof(struct in6_addr),

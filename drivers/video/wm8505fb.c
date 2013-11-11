@@ -14,22 +14,25 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/fb.h>
+#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/memblock.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/wait.h>
-
-#include <mach/vt8500fb.h>
+#include <video/of_display_timing.h>
 
 #include "wm8505fb_regs.h"
 #include "wmt_ge_rops.h"
@@ -59,8 +62,12 @@ static int wm8505fb_init_hw(struct fb_info *info)
 	writel(fbi->fb.fix.smem_start, fbi->regbase + WMT_GOVR_FBADDR);
 	writel(fbi->fb.fix.smem_start, fbi->regbase + WMT_GOVR_FBADDR1);
 
-	/* Set in-memory picture format to RGB 32bpp */
-	writel(0x1c,		       fbi->regbase + WMT_GOVR_COLORSPACE);
+	/*
+	 * Set in-memory picture format to RGB
+	 * 0x31C sets the correct color mode (RGB565) for WM8650
+	 * Bit 8+9 (0x300) are ignored on WM8505 as reserved
+	 */
+	writel(0x31c,		       fbi->regbase + WMT_GOVR_COLORSPACE);
 	writel(1,		       fbi->regbase + WMT_GOVR_COLORSPACE1);
 
 	/* Virtual buffer size */
@@ -127,6 +134,18 @@ static int wm8505fb_set_par(struct fb_info *info)
 		info->var.blue.msb_right = 0;
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		info->fix.line_length = info->var.xres_virtual << 2;
+	} else if (info->var.bits_per_pixel == 16) {
+		info->var.red.offset = 11;
+		info->var.red.length = 5;
+		info->var.red.msb_right = 0;
+		info->var.green.offset = 5;
+		info->var.green.length = 6;
+		info->var.green.msb_right = 0;
+		info->var.blue.offset = 0;
+		info->var.blue.length = 5;
+		info->var.blue.msb_right = 0;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+		info->fix.line_length = info->var.xres_virtual << 1;
 	}
 
 	wm8505fb_set_timing(info);
@@ -241,25 +260,25 @@ static struct fb_ops wm8505fb_ops = {
 	.fb_blank	= wm8505fb_blank,
 };
 
-static int __devinit wm8505fb_probe(struct platform_device *pdev)
+static int wm8505fb_probe(struct platform_device *pdev)
 {
 	struct wm8505fb_info	*fbi;
-	struct resource		*res;
+	struct resource	*res;
+	struct display_timings *disp_timing;
 	void			*addr;
-	struct vt8500fb_platform_data *pdata;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	struct fb_videomode	mode;
+	u32			bpp;
+	dma_addr_t fb_mem_phys;
+	unsigned long fb_mem_len;
+	void *fb_mem_virt;
 
-	ret = -ENOMEM;
-	fbi = NULL;
-
-	fbi = kzalloc(sizeof(struct wm8505fb_info) + sizeof(u32) * 16,
-							GFP_KERNEL);
+	fbi = devm_kzalloc(&pdev->dev, sizeof(struct wm8505fb_info) +
+			sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
-		ret = -ENOMEM;
-		goto failed;
+		return -ENOMEM;
 	}
 
 	strcpy(fbi->fb.fix.id, DRIVER_NAME);
@@ -285,56 +304,61 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.pseudo_palette	= addr;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		ret = -ENODEV;
-		goto failed_fbi;
-	}
+	fbi->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(fbi->regbase))
+		return PTR_ERR(fbi->regbase);
 
-	res = request_mem_region(res->start, resource_size(res), DRIVER_NAME);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto failed_fbi;
-	}
+	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	if (!disp_timing)
+		return -EINVAL;
 
-	fbi->regbase = ioremap(res->start, resource_size(res));
-	if (fbi->regbase == NULL) {
-		dev_err(&pdev->dev, "failed to map I/O memory\n");
-		ret = -EBUSY;
-		goto failed_free_res;
-	}
+	ret = of_get_fb_videomode(pdev->dev.of_node, &mode, OF_USE_NATIVE_MODE);
+	if (ret)
+		return ret;
 
-	fb_videomode_to_var(&fbi->fb.var, &pdata->mode);
+	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	if (ret)
+		return ret;
+
+	fb_videomode_to_var(&fbi->fb.var, &mode);
 
 	fbi->fb.var.nonstd		= 0;
 	fbi->fb.var.activate		= FB_ACTIVATE_NOW;
 
 	fbi->fb.var.height		= -1;
 	fbi->fb.var.width		= -1;
-	fbi->fb.var.xres_virtual	= pdata->xres_virtual;
-	fbi->fb.var.yres_virtual	= pdata->yres_virtual;
-	fbi->fb.var.bits_per_pixel	= pdata->bpp;
 
-	fbi->fb.fix.smem_start	= pdata->video_mem_phys;
-	fbi->fb.fix.smem_len	= pdata->video_mem_len;
-	fbi->fb.screen_base	= pdata->video_mem_virt;
-	fbi->fb.screen_size	= pdata->video_mem_len;
-
-	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
-		dev_err(&pdev->dev, "Failed to allocate color map\n");
-		ret = -ENOMEM;
-		goto failed_free_io;
+	/* try allocating the framebuffer */
+	fb_mem_len = mode.xres * mode.yres * 2 * (bpp / 8);
+	fb_mem_virt = dmam_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
+				GFP_KERNEL);
+	if (!fb_mem_virt) {
+		pr_err("%s: Failed to allocate framebuffer\n", __func__);
+		return -ENOMEM;
 	}
 
-	wm8505fb_init_hw(&fbi->fb);
+	fbi->fb.var.xres_virtual	= mode.xres;
+	fbi->fb.var.yres_virtual	= mode.yres * 2;
+	fbi->fb.var.bits_per_pixel	= bpp;
 
-	fbi->contrast = 0x80;
+	fbi->fb.fix.smem_start		= fb_mem_phys;
+	fbi->fb.fix.smem_len		= fb_mem_len;
+	fbi->fb.screen_base		= fb_mem_virt;
+	fbi->fb.screen_size		= fb_mem_len;
+
+	fbi->contrast = 0x10;
 	ret = wm8505fb_set_par(&fbi->fb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set parameters\n");
-		goto failed_free_cmap;
+		return ret;
 	}
+
+	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
+		dev_err(&pdev->dev, "Failed to allocate color map\n");
+		return -ENOMEM;
+	}
+
+	wm8505fb_init_hw(&fbi->fb);
 
 	platform_set_drvdata(pdev, fbi);
 
@@ -342,7 +366,9 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Failed to register framebuffer device: %d\n", ret);
-		goto failed_free_cmap;
+		if (fbi->fb.cmap.len)
+			fb_dealloc_cmap(&fbi->fb.cmap);
+		return ret;
 	}
 
 	ret = device_create_file(&pdev->dev, &dev_attr_contrast);
@@ -356,25 +382,11 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 	       fbi->fb.fix.smem_start + fbi->fb.fix.smem_len - 1);
 
 	return 0;
-
-failed_free_cmap:
-	if (fbi->fb.cmap.len)
-		fb_dealloc_cmap(&fbi->fb.cmap);
-failed_free_io:
-	iounmap(fbi->regbase);
-failed_free_res:
-	release_mem_region(res->start, resource_size(res));
-failed_fbi:
-	platform_set_drvdata(pdev, NULL);
-	kfree(fbi);
-failed:
-	return ret;
 }
 
-static int __devexit wm8505fb_remove(struct platform_device *pdev)
+static int wm8505fb_remove(struct platform_device *pdev)
 {
 	struct wm8505fb_info *fbi = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	device_remove_file(&pdev->dev, &dev_attr_contrast);
 
@@ -385,38 +397,27 @@ static int __devexit wm8505fb_remove(struct platform_device *pdev)
 	if (fbi->fb.cmap.len)
 		fb_dealloc_cmap(&fbi->fb.cmap);
 
-	iounmap(fbi->regbase);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(fbi);
-
 	return 0;
 }
 
+static const struct of_device_id wmt_dt_ids[] = {
+	{ .compatible = "wm,wm8505-fb", },
+	{}
+};
+
 static struct platform_driver wm8505fb_driver = {
 	.probe		= wm8505fb_probe,
-	.remove		= __devexit_p(wm8505fb_remove),
+	.remove		= wm8505fb_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRIVER_NAME,
+		.of_match_table = of_match_ptr(wmt_dt_ids),
 	},
 };
 
-static int __init wm8505fb_init(void)
-{
-	return platform_driver_register(&wm8505fb_driver);
-}
-
-static void __exit wm8505fb_exit(void)
-{
-	platform_driver_unregister(&wm8505fb_driver);
-}
-
-module_init(wm8505fb_init);
-module_exit(wm8505fb_exit);
+module_platform_driver(wm8505fb_driver);
 
 MODULE_AUTHOR("Ed Spiridonov <edo.rus@gmail.com>");
 MODULE_DESCRIPTION("Framebuffer driver for WMT WM8505");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, wmt_dt_ids);

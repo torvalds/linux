@@ -39,6 +39,8 @@ static struct mfd_cell max8998_devs[] = {
 		.name = "max8998-pmic",
 	}, {
 		.name = "max8998-rtc",
+	}, {
+		.name = "max8998-battery",
 	},
 };
 
@@ -159,13 +161,13 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	switch (id->driver_data) {
 	case TYPE_LP3974:
 		ret = mfd_add_devices(max8998->dev, -1,
-				lp3974_devs, ARRAY_SIZE(lp3974_devs),
-				NULL, 0);
+				      lp3974_devs, ARRAY_SIZE(lp3974_devs),
+				      NULL, 0, NULL);
 		break;
 	case TYPE_MAX8998:
 		ret = mfd_add_devices(max8998->dev, -1,
-				max8998_devs, ARRAY_SIZE(max8998_devs),
-				NULL, 0);
+				      max8998_devs, ARRAY_SIZE(max8998_devs),
+				      NULL, 0, NULL);
 		break;
 	default:
 		ret = -EINVAL;
@@ -173,6 +175,8 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	if (ret < 0)
 		goto err;
+
+	device_init_wakeup(max8998->dev, max8998->wakeup);
 
 	return ret;
 
@@ -208,7 +212,7 @@ static int max8998_suspend(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
-	if (max8998->wakeup)
+	if (device_may_wakeup(dev))
 		irq_set_irq_wake(max8998->irq, 1);
 	return 0;
 }
@@ -218,7 +222,7 @@ static int max8998_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
-	if (max8998->wakeup)
+	if (device_may_wakeup(dev))
 		irq_set_irq_wake(max8998->irq, 0);
 	/*
 	 * In LP3974, if IRQ registers are not "read & clear"

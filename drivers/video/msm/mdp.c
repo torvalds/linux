@@ -25,9 +25,9 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 
-#include <mach/msm_iomap.h>
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 #include <linux/platform_device.h>
+#include <linux/export.h>
 
 #include "mdp_hw.h"
 
@@ -256,19 +256,17 @@ int get_img(struct mdp_img *img, struct fb_info *info,
 	    unsigned long *start, unsigned long *len,
 	    struct file **filep)
 {
-	int put_needed, ret = 0;
-	struct file *file;
-
-	file = fget_light(img->memory_id, &put_needed);
-	if (file == NULL)
+	int ret = 0;
+	struct fd f = fdget(img->memory_id);
+	if (f.file == NULL)
 		return -1;
 
-	if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
+	if (MAJOR(file_inode(f.file)->i_rdev) == FB_MAJOR) {
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
 	} else
 		ret = -1;
-	fput_light(file, put_needed);
+	fdput(f);
 
 	return ret;
 }
@@ -406,8 +404,7 @@ int mdp_probe(struct platform_device *pdev)
 		goto error_get_irq;
 	}
 
-	mdp->base = ioremap(resource->start,
-			    resource->end - resource->start);
+	mdp->base = ioremap(resource->start, resource_size(resource));
 	if (mdp->base == 0) {
 		printk(KERN_ERR "msmfb: cannot allocate mdp regs!\n");
 		ret = -ENOMEM;
@@ -422,10 +419,11 @@ int mdp_probe(struct platform_device *pdev)
 	clk = clk_get(&pdev->dev, "mdp_clk");
 	if (IS_ERR(clk)) {
 		printk(KERN_INFO "mdp: failed to get mdp clk");
-		return PTR_ERR(clk);
+		ret = PTR_ERR(clk);
+		goto error_get_clk;
 	}
 
-	ret = request_irq(mdp->irq, mdp_isr, IRQF_DISABLED, "msm_mdp", mdp);
+	ret = request_irq(mdp->irq, mdp_isr, 0, "msm_mdp", mdp);
 	if (ret)
 		goto error_request_irq;
 	disable_irq(mdp->irq);
@@ -496,6 +494,7 @@ int mdp_probe(struct platform_device *pdev)
 error_device_register:
 	free_irq(mdp->irq, mdp);
 error_request_irq:
+error_get_clk:
 	iounmap(mdp->base);
 error_get_irq:
 error_ioremap:

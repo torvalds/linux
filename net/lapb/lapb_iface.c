@@ -15,6 +15,8 @@
  *	2000-10-29	Henner Eisen	lapb_data_indication() return status.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -32,7 +34,6 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -139,7 +140,8 @@ out:
 	return lapb;
 }
 
-int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks)
+int lapb_register(struct net_device *dev,
+		  const struct lapb_register_struct *callbacks)
 {
 	struct lapb_cb *lapb;
 	int rc = LAPB_BADTOKEN;
@@ -158,7 +160,7 @@ int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks
 		goto out;
 
 	lapb->dev       = dev;
-	lapb->callbacks = *callbacks;
+	lapb->callbacks = callbacks;
 
 	__lapb_insert_cb(lapb);
 
@@ -279,9 +281,7 @@ int lapb_connect_request(struct net_device *dev)
 
 	lapb_establish_data_link(lapb);
 
-#if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S0 -> S1\n", lapb->dev);
-#endif
+	lapb_dbg(0, "(%p) S0 -> S1\n", lapb->dev);
 	lapb->state = LAPB_STATE_1;
 
 	rc = LAPB_OK;
@@ -300,26 +300,22 @@ int lapb_disconnect_request(struct net_device *dev)
 		goto out;
 
 	switch (lapb->state) {
-		case LAPB_STATE_0:
-			rc = LAPB_NOTCONNECTED;
-			goto out_put;
+	case LAPB_STATE_0:
+		rc = LAPB_NOTCONNECTED;
+		goto out_put;
 
-		case LAPB_STATE_1:
-#if LAPB_DEBUG > 1
-			printk(KERN_DEBUG "lapb: (%p) S1 TX DISC(1)\n", lapb->dev);
-#endif
-#if LAPB_DEBUG > 0
-			printk(KERN_DEBUG "lapb: (%p) S1 -> S0\n", lapb->dev);
-#endif
-			lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
-			lapb->state = LAPB_STATE_0;
-			lapb_start_t1timer(lapb);
-			rc = LAPB_NOTCONNECTED;
-			goto out_put;
+	case LAPB_STATE_1:
+		lapb_dbg(1, "(%p) S1 TX DISC(1)\n", lapb->dev);
+		lapb_dbg(0, "(%p) S1 -> S0\n", lapb->dev);
+		lapb_send_control(lapb, LAPB_DISC, LAPB_POLLON, LAPB_COMMAND);
+		lapb->state = LAPB_STATE_0;
+		lapb_start_t1timer(lapb);
+		rc = LAPB_NOTCONNECTED;
+		goto out_put;
 
-		case LAPB_STATE_2:
-			rc = LAPB_OK;
-			goto out_put;
+	case LAPB_STATE_2:
+		rc = LAPB_OK;
+		goto out_put;
 	}
 
 	lapb_clear_queues(lapb);
@@ -329,12 +325,8 @@ int lapb_disconnect_request(struct net_device *dev)
 	lapb_stop_t2timer(lapb);
 	lapb->state = LAPB_STATE_2;
 
-#if LAPB_DEBUG > 1
-	printk(KERN_DEBUG "lapb: (%p) S3 DISC(1)\n", lapb->dev);
-#endif
-#if LAPB_DEBUG > 0
-	printk(KERN_DEBUG "lapb: (%p) S3 -> S2\n", lapb->dev);
-#endif
+	lapb_dbg(1, "(%p) S3 DISC(1)\n", lapb->dev);
+	lapb_dbg(0, "(%p) S3 -> S2\n", lapb->dev);
 
 	rc = LAPB_OK;
 out_put:
@@ -380,32 +372,32 @@ int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 
 void lapb_connect_confirmation(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.connect_confirmation)
-		lapb->callbacks.connect_confirmation(lapb->dev, reason);
+	if (lapb->callbacks->connect_confirmation)
+		lapb->callbacks->connect_confirmation(lapb->dev, reason);
 }
 
 void lapb_connect_indication(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.connect_indication)
-		lapb->callbacks.connect_indication(lapb->dev, reason);
+	if (lapb->callbacks->connect_indication)
+		lapb->callbacks->connect_indication(lapb->dev, reason);
 }
 
 void lapb_disconnect_confirmation(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.disconnect_confirmation)
-		lapb->callbacks.disconnect_confirmation(lapb->dev, reason);
+	if (lapb->callbacks->disconnect_confirmation)
+		lapb->callbacks->disconnect_confirmation(lapb->dev, reason);
 }
 
 void lapb_disconnect_indication(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.disconnect_indication)
-		lapb->callbacks.disconnect_indication(lapb->dev, reason);
+	if (lapb->callbacks->disconnect_indication)
+		lapb->callbacks->disconnect_indication(lapb->dev, reason);
 }
 
 int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 {
-	if (lapb->callbacks.data_indication)
-		return lapb->callbacks.data_indication(lapb->dev, skb);
+	if (lapb->callbacks->data_indication)
+		return lapb->callbacks->data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS; /* For now; must be != NET_RX_DROP */
@@ -415,8 +407,8 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 {
 	int used = 0;
 
-	if (lapb->callbacks.data_transmit) {
-		lapb->callbacks.data_transmit(lapb->dev, skb);
+	if (lapb->callbacks->data_transmit) {
+		lapb->callbacks->data_transmit(lapb->dev, skb);
 		used = 1;
 	}
 

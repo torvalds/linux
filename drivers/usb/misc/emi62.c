@@ -46,9 +46,6 @@ static int emi62_set_reset(struct usb_device *dev, unsigned char reset_bit);
 static int emi62_load_firmware (struct usb_device *dev);
 static int emi62_probe(struct usb_interface *intf, const struct usb_device_id *id);
 static void emi62_disconnect(struct usb_interface *intf);
-static int __init emi62_init (void);
-static void __exit emi62_exit (void);
-
 
 /* thanks to drivers/usb/serial/keyspan_pda.c code */
 static int emi62_writememory(struct usb_device *dev, int address,
@@ -59,7 +56,7 @@ static int emi62_writememory(struct usb_device *dev, int address,
 	unsigned char *buffer =  kmemdup(data, length, GFP_KERNEL);
 
 	if (!buffer) {
-		err("emi62: kmalloc(%d) failed.", length);
+		dev_err(&dev->dev, "kmalloc(%d) failed.\n", length);
 		return -ENOMEM;
 	}
 	/* Note: usb_control_msg returns negative value on error or length of the
@@ -76,9 +73,8 @@ static int emi62_set_reset (struct usb_device *dev, unsigned char reset_bit)
 	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
 	
 	response = emi62_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
-	if (response < 0) {
-		err("emi62: set_reset (%d) failed", reset_bit);
-	}
+	if (response < 0)
+		dev_err(&dev->dev, "set_reset (%d) failed\n", reset_bit);
 	return response;
 }
 
@@ -90,18 +86,15 @@ static int emi62_load_firmware (struct usb_device *dev)
 	const struct firmware *bitstream_fw = NULL;
 	const struct firmware *firmware_fw = NULL;
 	const struct ihex_binrec *rec;
-	int err;
+	int err = -ENOMEM;
 	int i;
 	__u32 addr;	/* Address to write */
 	__u8 *buf;
 
 	dev_dbg(&dev->dev, "load_firmware\n");
 	buf = kmalloc(FW_LOAD_SIZE, GFP_KERNEL);
-	if (!buf) {
-		err( "%s - error loading firmware: error = %d", __func__, -ENOMEM);
-		err = -ENOMEM;
+	if (!buf)
 		goto wraperr;
-	}
 
 	err = request_ihex_firmware(&loader_fw, "emi62/loader.fw", &dev->dev);
 	if (err)
@@ -115,16 +108,13 @@ static int emi62_load_firmware (struct usb_device *dev)
 	err = request_ihex_firmware(&firmware_fw, FIRMWARE_FW, &dev->dev);
 	if (err) {
 	nofw:
-		err( "%s - request_firmware() failed", __func__);
 		goto wraperr;
 	}
 
 	/* Assert reset (stop the CPU in the EMI) */
 	err = emi62_set_reset(dev,1);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 
 	rec = (const struct ihex_binrec *)loader_fw->data;
 
@@ -133,19 +123,15 @@ static int emi62_load_firmware (struct usb_device *dev)
 		err = emi62_writememory(dev, be32_to_cpu(rec->addr),
 					rec->data, be16_to_cpu(rec->len),
 					ANCHOR_LOAD_INTERNAL);
-		if (err < 0) {
-			err("%s - error loading firmware: error = %d", __func__, err);
+		if (err < 0)
 			goto wraperr;
-		}
 		rec = ihex_next_binrec(rec);
 	}
 
 	/* De-assert reset (let the CPU run) */
 	err = emi62_set_reset(dev,0);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 	msleep(250);	/* let device settle */
 
 	/* 2. We upload the FPGA firmware into the EMI
@@ -163,18 +149,14 @@ static int emi62_load_firmware (struct usb_device *dev)
 			rec = ihex_next_binrec(rec);
 		}
 		err = emi62_writememory(dev, addr, buf, i, ANCHOR_LOAD_FPGA);
-		if (err < 0) {
-			err("%s - error loading firmware: error = %d", __func__, err);
+		if (err < 0)
 			goto wraperr;
-		}
 	} while (rec);
 
 	/* Assert reset (stop the CPU in the EMI) */
 	err = emi62_set_reset(dev,1);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 
 	/* 3. We need to put the loader for the firmware into the EZ-USB (again...) */
 	for (rec = (const struct ihex_binrec *)loader_fw->data;
@@ -182,18 +164,14 @@ static int emi62_load_firmware (struct usb_device *dev)
 		err = emi62_writememory(dev, be32_to_cpu(rec->addr),
 					rec->data, be16_to_cpu(rec->len),
 					ANCHOR_LOAD_INTERNAL);
-		if (err < 0) {
-			err("%s - error loading firmware: error = %d", __func__, err);
+		if (err < 0)
 			goto wraperr;
-		}
 	}
 
 	/* De-assert reset (let the CPU run) */
 	err = emi62_set_reset(dev,0);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 	msleep(250);	/* let device settle */
 
 	/* 4. We put the part of the firmware that lies in the external RAM into the EZ-USB */
@@ -204,19 +182,15 @@ static int emi62_load_firmware (struct usb_device *dev)
 			err = emi62_writememory(dev, be32_to_cpu(rec->addr),
 						rec->data, be16_to_cpu(rec->len),
 						ANCHOR_LOAD_EXTERNAL);
-			if (err < 0) {
-				err("%s - error loading firmware: error = %d", __func__, err);
+			if (err < 0)
 				goto wraperr;
-			}
 		}
 	}
 
 	/* Assert reset (stop the CPU in the EMI) */
 	err = emi62_set_reset(dev,1);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 
 	for (rec = (const struct ihex_binrec *)firmware_fw->data;
 	     rec; rec = ihex_next_binrec(rec)) {
@@ -224,19 +198,15 @@ static int emi62_load_firmware (struct usb_device *dev)
 			err = emi62_writememory(dev, be32_to_cpu(rec->addr),
 						rec->data, be16_to_cpu(rec->len),
 						ANCHOR_LOAD_EXTERNAL);
-			if (err < 0) {
-				err("%s - error loading firmware: error = %d", __func__, err);
+			if (err < 0)
 				goto wraperr;
-			}
 		}
 	}
 
 	/* De-assert reset (let the CPU run) */
 	err = emi62_set_reset(dev,0);
-	if (err < 0) {
-		err("%s - error loading firmware: error = %d", __func__, err);
+	if (err < 0)
 		goto wraperr;
-	}
 	msleep(250);	/* let device settle */
 
 	release_firmware(loader_fw);
@@ -250,6 +220,9 @@ static int emi62_load_firmware (struct usb_device *dev)
 	return 1;
 
 wraperr:
+	if (err < 0)
+		dev_err(&dev->dev,"%s - error loading firmware: error = %d\n",
+			__func__, err);
 	release_firmware(loader_fw);
 	release_firmware(bitstream_fw);
 	release_firmware(firmware_fw);
@@ -259,7 +232,7 @@ wraperr:
 	return err;
 }
 
-static const struct usb_device_id id_table[] __devinitconst = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(EMI62_VENDOR_ID, EMI62_PRODUCT_ID) },
 	{ }                                             /* Terminating entry */
 };
@@ -290,22 +263,7 @@ static struct usb_driver emi62_driver = {
 	.id_table	= id_table,
 };
 
-static int __init emi62_init (void)
-{
-	int retval;
-	retval = usb_register (&emi62_driver);
-	if (retval)
-		printk(KERN_ERR "adi-emi: registration failed\n");
-	return retval;
-}
-
-static void __exit emi62_exit (void)
-{
-	usb_deregister (&emi62_driver);
-}
-
-module_init(emi62_init);
-module_exit(emi62_exit);
+module_usb_driver(emi62_driver);
 
 MODULE_AUTHOR("Tapio Laxström");
 MODULE_DESCRIPTION("Emagic EMI 6|2m firmware loader.");

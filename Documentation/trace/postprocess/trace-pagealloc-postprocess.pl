@@ -17,8 +17,8 @@ use Getopt::Long;
 
 # Tracepoint events
 use constant MM_PAGE_ALLOC		=> 1;
-use constant MM_PAGE_FREE_DIRECT 	=> 2;
-use constant MM_PAGEVEC_FREE		=> 3;
+use constant MM_PAGE_FREE		=> 2;
+use constant MM_PAGE_FREE_BATCHED	=> 3;
 use constant MM_PAGE_PCPU_DRAIN		=> 4;
 use constant MM_PAGE_ALLOC_ZONE_LOCKED	=> 5;
 use constant MM_PAGE_ALLOC_EXTFRAG	=> 6;
@@ -223,10 +223,10 @@ EVENT_PROCESS:
 		# Perl Switch() sucks majorly
 		if ($tracepoint eq "mm_page_alloc") {
 			$perprocesspid{$process_pid}->{MM_PAGE_ALLOC}++;
-		} elsif ($tracepoint eq "mm_page_free_direct") {
-			$perprocesspid{$process_pid}->{MM_PAGE_FREE_DIRECT}++;
-		} elsif ($tracepoint eq "mm_pagevec_free") {
-			$perprocesspid{$process_pid}->{MM_PAGEVEC_FREE}++;
+		} elsif ($tracepoint eq "mm_page_free") {
+			$perprocesspid{$process_pid}->{MM_PAGE_FREE}++
+		} elsif ($tracepoint eq "mm_page_free_batched") {
+			$perprocesspid{$process_pid}->{MM_PAGE_FREE_BATCHED}++;
 		} elsif ($tracepoint eq "mm_page_pcpu_drain") {
 			$perprocesspid{$process_pid}->{MM_PAGE_PCPU_DRAIN}++;
 			$perprocesspid{$process_pid}->{STATE_PCPU_PAGES_DRAINED}++;
@@ -336,8 +336,8 @@ sub dump_stats {
 			$process_pid,
 			$stats{$process_pid}->{MM_PAGE_ALLOC},
 			$stats{$process_pid}->{MM_PAGE_ALLOC_ZONE_LOCKED},
-			$stats{$process_pid}->{MM_PAGE_FREE_DIRECT},
-			$stats{$process_pid}->{MM_PAGEVEC_FREE},
+			$stats{$process_pid}->{MM_PAGE_FREE},
+			$stats{$process_pid}->{MM_PAGE_FREE_BATCHED},
 			$stats{$process_pid}->{MM_PAGE_PCPU_DRAIN},
 			$stats{$process_pid}->{HIGH_PCPU_DRAINS},
 			$stats{$process_pid}->{HIGH_PCPU_REFILLS},
@@ -364,8 +364,8 @@ sub aggregate_perprocesspid() {
 
 		$perprocess{$process}->{MM_PAGE_ALLOC} += $perprocesspid{$process_pid}->{MM_PAGE_ALLOC};
 		$perprocess{$process}->{MM_PAGE_ALLOC_ZONE_LOCKED} += $perprocesspid{$process_pid}->{MM_PAGE_ALLOC_ZONE_LOCKED};
-		$perprocess{$process}->{MM_PAGE_FREE_DIRECT} += $perprocesspid{$process_pid}->{MM_PAGE_FREE_DIRECT};
-		$perprocess{$process}->{MM_PAGEVEC_FREE} += $perprocesspid{$process_pid}->{MM_PAGEVEC_FREE};
+		$perprocess{$process}->{MM_PAGE_FREE} += $perprocesspid{$process_pid}->{MM_PAGE_FREE};
+		$perprocess{$process}->{MM_PAGE_FREE_BATCHED} += $perprocesspid{$process_pid}->{MM_PAGE_FREE_BATCHED};
 		$perprocess{$process}->{MM_PAGE_PCPU_DRAIN} += $perprocesspid{$process_pid}->{MM_PAGE_PCPU_DRAIN};
 		$perprocess{$process}->{HIGH_PCPU_DRAINS} += $perprocesspid{$process_pid}->{HIGH_PCPU_DRAINS};
 		$perprocess{$process}->{HIGH_PCPU_REFILLS} += $perprocesspid{$process_pid}->{HIGH_PCPU_REFILLS};

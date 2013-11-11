@@ -1,31 +1,14 @@
 Kernel driver for the NXP Semiconductors PN544 Near Field
 Communication chip
 
-Author: Jari Vanhala
-Contact: Matti Aaltonen (matti.j.aaltonen at nokia.com)
-
 General
 -------
 
 The PN544 is an integrated transmission module for contactless
 communication. The driver goes under drives/nfc/ and is compiled as a
-module named "pn544". It registers a misc device and creates a device
-file named "/dev/pn544".
+module named "pn544".
 
 Host Interfaces: I2C, SPI and HSU, this driver supports currently only I2C.
-
-The Interface
--------------
-
-The driver offers a sysfs interface for a hardware test and an IOCTL
-interface for selecting between two operating modes. There are read,
-write and poll functions for transferring messages. The two operating
-modes are the normal (HCI) mode and the firmware update mode.
-
-PN544 is controlled by sending messages from the userspace to the
-chip. The main function of the driver is just to pass those messages
-without caring about the message content.
-
 
 Protocols
 ---------
@@ -47,68 +30,3 @@ and third (LSB) bytes of the message. The maximum FW message length is
 
 For the ETSI HCI specification see
 http://www.etsi.org/WebSite/Technologies/ProtocolSpecification.aspx
-
-The Hardware Test
------------------
-
-The idea of the test is that it can performed by reading from the
-corresponding sysfs file. The test is implemented in the board file
-and it should test that PN544 can be put into the firmware update
-mode. If the test is not implemented the sysfs file does not get
-created.
-
-Example:
-> cat /sys/module/pn544/drivers/i2c\:pn544/3-002b/nfc_test
-1
-
-Normal Operation
-----------------
-
-PN544 is powered up when the device file is opened, otherwise it's
-turned off. Only one instance can use the device at a time.
-
-Userspace applications control PN544 with HCI messages. The hardware
-sends an interrupt when data is available for reading. Data is
-physically read when the read function is called by a userspace
-application. Poll() checks the read interrupt state. Configuration and
-self testing are also done from the userspace using read and write.
-
-Example platform data:
-
-static int rx71_pn544_nfc_request_resources(struct i2c_client *client)
-{
-	/* Get and setup the HW resources for the device */
-}
-
-static void rx71_pn544_nfc_free_resources(void)
-{
-	/* Release the HW resources */
-}
-
-static void rx71_pn544_nfc_enable(int fw)
-{
-	/* Turn the device on */
-}
-
-static int rx71_pn544_nfc_test(void)
-{
-	/*
-	 * Put the device into the FW update mode
-	 * and then back to the normal mode.
-	 * Check the behavior and return one on success,
-	 * zero on failure.
-	 */
-}
-
-static void rx71_pn544_nfc_disable(void)
-{
-	/* turn the power off */
-}
-
-static struct pn544_nfc_platform_data rx71_nfc_data = {
-	.request_resources = rx71_pn544_nfc_request_resources,
-	.free_resources = rx71_pn544_nfc_free_resources,
-	.enable = rx71_pn544_nfc_enable,
-	.test = rx71_pn544_nfc_test,
-	.disable = rx71_pn544_nfc_disable,
-};

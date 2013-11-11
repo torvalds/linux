@@ -17,31 +17,28 @@
  *
  * Setting up the clock on the MIPS boards.
  */
-
 #include <linux/types.h>
+#include <linux/i8253.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/mc146818rtc.h>
 
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/hardirq.h>
-#include <asm/i8253.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-#include <asm/cpu.h>
+#include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/mc146818-time.h>
 #include <asm/msc01_ic.h>
+#include <asm/gic.h>
 
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
-
 #include <asm/mips-boards/maltaint.h>
 
 unsigned long cpu_khz;
@@ -60,44 +57,73 @@ static void mips_perf_dispatch(void)
 	do_IRQ(mips_cpu_perf_irq);
 }
 
-/*
- * Estimate CPU frequency.  Sets mips_hpt_frequency as a side-effect
- */
-static unsigned int __init estimate_cpu_frequency(void)
+static unsigned int freqround(unsigned int freq, unsigned int amount)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
-	unsigned int count;
+	freq += amount;
+	freq -= freq % (amount*2);
+	return freq;
+}
 
+/*
+ * Estimate CPU and GIC frequencies.
+ */
+static void __init estimate_frequencies(void)
+{
 	unsigned long flags;
-	unsigned int start;
+	unsigned int count, start;
+#ifdef CONFIG_IRQ_GIC
+	unsigned int giccount = 0, gicstart = 0;
+#endif
 
-	local_irq_save(flags);
+#if defined (CONFIG_KVM_GUEST) && defined (CONFIG_KVM_HOST_FREQ)
+	unsigned int prid = read_c0_prid() & 0xffff00;
 
-	/* Start counter exactly on falling edge of update flag */
-	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
-	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
-
-	/* Start r4k counter. */
-	start = read_c0_count();
-
-	/* Read counter exactly on falling edge of update flag */
-	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
-	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
-
-	count = read_c0_count() - start;
-
-	/* restore interrupts */
-	local_irq_restore(flags);
-
-	mips_hpt_frequency = count;
+	/*
+	 * XXXKYMA: hardwire the CPU frequency to Host Freq/4
+	 */
+	count = (CONFIG_KVM_HOST_FREQ * 1000000) >> 3;
 	if ((prid != (PRID_COMP_MIPS | PRID_IMP_20KC)) &&
 	    (prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
 		count *= 2;
 
-	count += 5000;    /* round */
-	count -= count%10000;
+	mips_hpt_frequency = count;
+	return;
+#endif
 
-	return count;
+	local_irq_save(flags);
+
+	/* Start counter exactly on falling edge of update flag. */
+	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
+	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
+
+	/* Initialize counters. */
+	start = read_c0_count();
+#ifdef CONFIG_IRQ_GIC
+	if (gic_present)
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), gicstart);
+#endif
+
+	/* Read counter exactly on falling edge of update flag. */
+	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
+	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
+
+	count = read_c0_count();
+#ifdef CONFIG_IRQ_GIC
+	if (gic_present)
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), giccount);
+#endif
+
+	local_irq_restore(flags);
+
+	count -= start;
+	mips_hpt_frequency = count;
+
+#ifdef CONFIG_IRQ_GIC
+	if (gic_present) {
+		giccount -= gicstart;
+		gic_frequency = giccount;
+	}
+#endif
 }
 
 void read_persistent_clock(struct timespec *ts)
@@ -143,21 +169,36 @@ unsigned int __cpuinit get_c0_compare_int(void)
 
 void __init plat_time_init(void)
 {
-	unsigned int est_freq;
+	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int freq;
 
-        /* Set Data mode - binary. */
-        CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
+	estimate_frequencies();
 
-	est_freq = estimate_cpu_frequency();
-
-	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
-	       (est_freq%1000000)*100/1000000);
-
-        cpu_khz = est_freq / 1000;
+	freq = mips_hpt_frequency;
+	if ((prid != (PRID_COMP_MIPS | PRID_IMP_20KC)) &&
+	    (prid != (PRID_COMP_MIPS | PRID_IMP_25KF)))
+		freq *= 2;
+	freq = freqround(freq, 5000);
+	printk("CPU frequency %d.%02d MHz\n", freq/1000000,
+	       (freq%1000000)*100/1000000);
+	cpu_khz = freq / 1000;
 
 	mips_scroll_message();
-#ifdef CONFIG_I8253		/* Only Malta has a PIT */
+
+#ifdef CONFIG_I8253
+	/* Only Malta has a PIT. */
 	setup_pit_timer();
+#endif
+
+#ifdef CONFIG_IRQ_GIC
+	if (gic_present) {
+		freq = freqround(gic_frequency, 5000);
+		printk("GIC frequency %d.%02d MHz\n", freq/1000000,
+		       (freq%1000000)*100/1000000);
+#ifdef CONFIG_CSRC_GIC
+		gic_clocksource_init(gic_frequency);
+#endif
+	}
 #endif
 
 	plat_perf_setup();

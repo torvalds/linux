@@ -1,5 +1,5 @@
 config CAN_MSCAN
-	depends on CAN_DEV && (PPC || M68K)
+	depends on PPC || M68K
 	tristate "Support for Freescale MSCAN based chips"
 	---help---
 	  The Motorola Scalable Controller Area Network (MSCAN) definition

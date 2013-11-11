@@ -1,11 +1,10 @@
 /*
- * File...........: linux/drivers/s390/block/dasd_devmap.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
+ * Copyright IBM Corp. 1999,2001
  *
  * Device mapping and dasd= parameter parsing functions. All devmap
  * functions may not be called from interrupt context. In particular
@@ -411,8 +410,7 @@ dasd_add_busid(const char *bus_id, int features)
 	struct dasd_devmap *devmap, *new, *tmp;
 	int hash;
 
-	new = (struct dasd_devmap *)
-		kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
+	new = kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 	spin_lock(&dasd_devmap_lock);
@@ -953,6 +951,39 @@ static DEVICE_ATTR(raw_track_access, 0644, dasd_use_raw_show,
 		   dasd_use_raw_store);
 
 static ssize_t
+dasd_safe_offline_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct dasd_device *device;
+	int rc;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device)) {
+		rc = PTR_ERR(device);
+		goto out;
+	}
+
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
+	    test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/* Already doing offline processing */
+		dasd_put_device(device);
+		rc = -EBUSY;
+		goto out;
+	}
+
+	set_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
+	dasd_put_device(device);
+
+	rc = ccw_device_set_offline(cdev);
+
+out:
+	return rc ? rc : count;
+}
+
+static DEVICE_ATTR(safe_offline, 0200, NULL, dasd_safe_offline_store);
+
+static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
@@ -1321,6 +1352,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_expires.attr,
 	&dev_attr_reservation_policy.attr,
 	&dev_attr_last_known_reservation_state.attr,
+	&dev_attr_safe_offline.attr,
 	NULL,
 };
 
@@ -1345,7 +1377,7 @@ dasd_get_feature(struct ccw_device *cdev, int feature)
 
 /*
  * Set / reset given feature.
- * Flag indicates wether to set (!=0) or the reset (=0) the feature.
+ * Flag indicates whether to set (!=0) or the reset (=0) the feature.
  */
 int
 dasd_set_feature(struct ccw_device *cdev, int feature, int flag)

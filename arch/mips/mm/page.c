@@ -6,6 +6,7 @@
  * Copyright (C) 2003, 04, 05 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2007  Maciej W. Rozycki
  * Copyright (C) 2008  Thiemo Seufer
+ * Copyright (C) 2012  MIPS Technologies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -22,7 +23,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/prefetch.h>
-#include <asm/system.h>
 #include <asm/bootinfo.h>
 #include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
@@ -71,45 +71,6 @@ static struct uasm_reloc __cpuinitdata relocs[5];
 
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
-
-/*
- * Maximum sizes:
- *
- * R4000 128 bytes S-cache:		0x058 bytes
- * R4600 v1.7:				0x05c bytes
- * R4600 v2.0:				0x060 bytes
- * With prefetching, 16 word strides	0x120 bytes
- */
-
-static u32 clear_page_array[0x120 / 4];
-
-#ifdef CONFIG_SIBYTE_DMA_PAGEOPS
-void clear_page_cpu(void *page) __attribute__((alias("clear_page_array")));
-#else
-void clear_page(void *page) __attribute__((alias("clear_page_array")));
-#endif
-
-EXPORT_SYMBOL(clear_page);
-
-/*
- * Maximum sizes:
- *
- * R4000 128 bytes S-cache:		0x11c bytes
- * R4600 v1.7:				0x080 bytes
- * R4600 v2.0:				0x07c bytes
- * With prefetching, 16 word strides	0x540 bytes
- */
-static u32 copy_page_array[0x540 / 4];
-
-#ifdef CONFIG_SIBYTE_DMA_PAGEOPS
-void
-copy_page_cpu(void *to, void *from) __attribute__((alias("copy_page_array")));
-#else
-void copy_page(void *to, void *from) __attribute__((alias("copy_page_array")));
-#endif
-
-EXPORT_SYMBOL(copy_page);
-
 
 static int pref_bias_clear_store __cpuinitdata;
 static int pref_bias_copy_load __cpuinitdata;
@@ -178,15 +139,6 @@ static void __cpuinit set_prefetch_parameters(void)
 			/* These processors only support the Pref_Load. */
 			pref_bias_copy_load = 256;
 			break;
-
-		case CPU_RM9000:
-			/*
-			 * As a workaround for erratum G105 which make the
-			 * PrepareForStore hint unusable we fall back to
-			 * StoreRetained on the RM9000.  Once it is known which
-			 * versions of the RM9000 we'll be able to condition-
-			 * alize this.
-			 */
 
 		case CPU_R10000:
 		case CPU_R12000:
@@ -283,13 +235,23 @@ static inline void __cpuinit build_clear_pref(u32 **buf, int off)
 		}
 }
 
+extern u32 __clear_page_start;
+extern u32 __clear_page_end;
+extern u32 __copy_page_start;
+extern u32 __copy_page_end;
+
 void __cpuinit build_clear_page(void)
 {
 	int off;
-	u32 *buf = (u32 *)&clear_page_array;
+	u32 *buf = &__clear_page_start;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
+	static atomic_t run_once = ATOMIC_INIT(0);
+
+	if (atomic_xchg(&run_once, 1)) {
+		return;
+	}
 
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
@@ -314,7 +276,7 @@ void __cpuinit build_clear_page(void)
 		uasm_i_lui(&buf, AT, 0xa000);
 
 	off = cache_line_size ? min(8, pref_bias_clear_store / cache_line_size)
-	                        * cache_line_size : 0;
+				* cache_line_size : 0;
 	while (off) {
 		build_clear_pref(&buf, -off);
 		off -= cache_line_size;
@@ -357,17 +319,17 @@ void __cpuinit build_clear_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > clear_page_array + ARRAY_SIZE(clear_page_array));
+	BUG_ON(buf > &__clear_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
 	pr_debug("Synthesized clear page handler (%u instructions).\n",
-		 (u32)(buf - clear_page_array));
+		 (u32)(buf - &__clear_page_start));
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (buf - clear_page_array); i++)
-		pr_debug("\t.word 0x%08x\n", clear_page_array[i]);
+	for (i = 0; i < (buf - &__clear_page_start); i++)
+		pr_debug("\t.word 0x%08x\n", (&__clear_page_start)[i]);
 	pr_debug("\t.set pop\n");
 }
 
@@ -428,10 +390,15 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 void __cpuinit build_copy_page(void)
 {
 	int off;
-	u32 *buf = (u32 *)&copy_page_array;
+	u32 *buf = &__copy_page_start;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
+	static atomic_t run_once = ATOMIC_INIT(0);
+
+	if (atomic_xchg(&run_once, 1)) {
+		return;
+	}
 
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
@@ -460,13 +427,13 @@ void __cpuinit build_copy_page(void)
 		uasm_i_lui(&buf, AT, 0xa000);
 
 	off = cache_line_size ? min(8, pref_bias_copy_load / cache_line_size) *
-	                        cache_line_size : 0;
+				cache_line_size : 0;
 	while (off) {
 		build_copy_load_pref(&buf, -off);
 		off -= cache_line_size;
 	}
 	off = cache_line_size ? min(8, pref_bias_copy_store / cache_line_size) *
-	                        cache_line_size : 0;
+				cache_line_size : 0;
 	while (off) {
 		build_copy_store_pref(&buf, -off);
 		off -= cache_line_size;
@@ -596,21 +563,23 @@ void __cpuinit build_copy_page(void)
 	uasm_i_jr(&buf, RA);
 	uasm_i_nop(&buf);
 
-	BUG_ON(buf > copy_page_array + ARRAY_SIZE(copy_page_array));
+	BUG_ON(buf > &__copy_page_end);
 
 	uasm_resolve_relocs(relocs, labels);
 
 	pr_debug("Synthesized copy page handler (%u instructions).\n",
-		 (u32)(buf - copy_page_array));
+		 (u32)(buf - &__copy_page_start));
 
 	pr_debug("\t.set push\n");
 	pr_debug("\t.set noreorder\n");
-	for (i = 0; i < (buf - copy_page_array); i++)
-		pr_debug("\t.word 0x%08x\n", copy_page_array[i]);
+	for (i = 0; i < (buf - &__copy_page_start); i++)
+		pr_debug("\t.word 0x%08x\n", (&__copy_page_start)[i]);
 	pr_debug("\t.set pop\n");
 }
 
 #ifdef CONFIG_SIBYTE_DMA_PAGEOPS
+extern void clear_page_cpu(void *page);
+extern void copy_page_cpu(void *to, void *from);
 
 /*
  * Pad descriptors to cacheline, since each is exclusively owned by a

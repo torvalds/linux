@@ -49,6 +49,12 @@ struct wm8962_pdata {
 	bool irq_active_low;
 
 	bool spk_mono;   /* Speaker outputs tied together as mono */
+
+	/**
+	 * This flag should be set if one or both IN4 inputs is wired
+	 * in a DC measurement configuration.
+	 */
+	bool in4_dc_measure;
 };
 
 #endif

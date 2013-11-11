@@ -22,7 +22,7 @@ volatile unsigned long mem_err;		/* So we know an error occurred */
 
 /*
  * Probe memory in 4MB chunks, waiting for an error to tell us we've fallen
- * off the end of real memory.  Only suitable for the 2100/3100's (PMAX).
+ * off the end of real memory.	Only suitable for the 2100/3100's (PMAX).
  */
 
 #define CHUNK_SIZE 0x400000
@@ -101,7 +101,7 @@ void __init prom_free_prom_memory(void)
 	 * the first page reserved for the exception handlers.
 	 */
 
-#if defined(CONFIG_DECLANCE) || defined(CONFIG_DECLANCE_MODULE)
+#if IS_ENABLED(CONFIG_DECLANCE)
 	/*
 	 * Leave 128 KB reserved for Lance memory for
 	 * IOASIC DECstations.

@@ -12,6 +12,7 @@
  *  -----------
  *  o Feature negotiation is coordinated with connection setup (as in TCP), wild
  *    changes of parameters of an established connection are not supported.
+ *  o Changing non-negotiable (NN) values is supported in state OPEN/PARTOPEN.
  *  o All currently known SP features have 1-byte quantities. If in the future
  *    extensions of RFCs 4340..42 define features with item lengths larger than
  *    one byte, a feature-specific extension of the code will be required.
@@ -343,6 +344,21 @@ static int __dccp_feat_activate(struct sock *sk, const int idx,
 	return dccp_feat_table[idx].activation_hdlr(sk, val, rx);
 }
 
+/**
+ * dccp_feat_activate  -  Activate feature value on socket
+ * @sk: fully connected DCCP socket (after handshake is complete)
+ * @feat_num: feature to activate, one of %dccp_feature_numbers
+ * @local: whether local (1) or remote (0) @feat_num is meant
+ * @fval: the value (SP or NN) to activate, or NULL to use the default value
+ *
+ * For general use this function is preferable over __dccp_feat_activate().
+ */
+static int dccp_feat_activate(struct sock *sk, u8 feat_num, bool local,
+			      dccp_feat_val const *fval)
+{
+	return __dccp_feat_activate(sk, dccp_feat_index(feat_num), local, fval);
+}
+
 /* Test for "Req'd" feature (RFC 4340, 6.4) */
 static inline int dccp_feat_must_be_understood(u8 feat_num)
 {
@@ -431,6 +447,7 @@ static struct dccp_feat_entry *dccp_feat_list_lookup(struct list_head *fn_list,
  * @head:  list to add to
  * @feat:  feature number
  * @local: whether the local (1) or remote feature with number @feat is meant
+ *
  * This is the only constructor and serves to ensure the above invariants.
  */
 static struct dccp_feat_entry *
@@ -475,8 +492,8 @@ static int dccp_feat_push_change(struct list_head *fn_list, u8 feat, u8 local,
 	new->feat_num	     = feat;
 	new->is_local	     = local;
 	new->state	     = FEAT_INITIALISING;
-	new->needs_confirm   = 0;
-	new->empty_confirm   = 0;
+	new->needs_confirm   = false;
+	new->empty_confirm   = false;
 	new->val	     = *fval;
 	new->needs_mandatory = mandatory;
 
@@ -489,6 +506,7 @@ static int dccp_feat_push_change(struct list_head *fn_list, u8 feat, u8 local,
  * @feat: one of %dccp_feature_numbers
  * @local: whether local (1) or remote (0) @feat_num is being confirmed
  * @fval: pointer to NN/SP value to be inserted or NULL
+ *
  * Returns 0 on success, a Reset code for further processing otherwise.
  */
 static int dccp_feat_push_confirm(struct list_head *fn_list, u8 feat, u8 local,
@@ -502,12 +520,12 @@ static int dccp_feat_push_confirm(struct list_head *fn_list, u8 feat, u8 local,
 	new->feat_num	     = feat;
 	new->is_local	     = local;
 	new->state	     = FEAT_STABLE;	/* transition in 6.6.2 */
-	new->needs_confirm   = 1;
+	new->needs_confirm   = true;
 	new->empty_confirm   = (fval == NULL);
 	new->val.nn	     = 0;		/* zeroes the whole structure */
 	if (!new->empty_confirm)
 		new->val     = *fval;
-	new->needs_mandatory = 0;
+	new->needs_mandatory = false;
 
 	return 0;
 }
@@ -650,11 +668,22 @@ int dccp_feat_insert_opts(struct dccp_sock *dp, struct dccp_request_sock *dreq,
 			return -1;
 		if (pos->needs_mandatory && dccp_insert_option_mandatory(skb))
 			return -1;
-		/*
-		 * Enter CHANGING after transmitting the Change option (6.6.2).
-		 */
-		if (pos->state == FEAT_INITIALISING)
-			pos->state = FEAT_CHANGING;
+
+		if (skb->sk->sk_state == DCCP_OPEN &&
+		    (opt == DCCPO_CONFIRM_R || opt == DCCPO_CONFIRM_L)) {
+			/*
+			 * Confirms don't get retransmitted (6.6.3) once the
+			 * connection is in state OPEN
+			 */
+			dccp_feat_list_pop(pos);
+		} else {
+			/*
+			 * Enter CHANGING after transmitting the Change
+			 * option (6.6.2).
+			 */
+			if (pos->state == FEAT_INITIALISING)
+				pos->state = FEAT_CHANGING;
+		}
 	}
 	return 0;
 }
@@ -665,6 +694,7 @@ int dccp_feat_insert_opts(struct dccp_sock *dp, struct dccp_request_sock *dreq,
  * @feat: an NN feature from %dccp_feature_numbers
  * @mandatory: use Mandatory option if 1
  * @nn_val: value to register (restricted to 4 bytes)
+ *
  * Note that NN features are local by definition (RFC 4340, 6.3.2).
  */
 static int __feat_register_nn(struct list_head *fn, u8 feat,
@@ -730,6 +760,72 @@ int dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 				  0, list, len);
 }
 
+/**
+ * dccp_feat_nn_get  -  Query current/pending value of NN feature
+ * @sk: DCCP socket of an established connection
+ * @feat: NN feature number from %dccp_feature_numbers
+ *
+ * For a known NN feature, returns value currently being negotiated, or
+ * current (confirmed) value if no negotiation is going on.
+ */
+u64 dccp_feat_nn_get(struct sock *sk, u8 feat)
+{
+	if (dccp_feat_type(feat) == FEAT_NN) {
+		struct dccp_sock *dp = dccp_sk(sk);
+		struct dccp_feat_entry *entry;
+
+		entry = dccp_feat_list_lookup(&dp->dccps_featneg, feat, 1);
+		if (entry != NULL)
+			return entry->val.nn;
+
+		switch (feat) {
+		case DCCPF_ACK_RATIO:
+			return dp->dccps_l_ack_ratio;
+		case DCCPF_SEQUENCE_WINDOW:
+			return dp->dccps_l_seq_win;
+		}
+	}
+	DCCP_BUG("attempt to look up unsupported feature %u", feat);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dccp_feat_nn_get);
+
+/**
+ * dccp_feat_signal_nn_change  -  Update NN values for an established connection
+ * @sk: DCCP socket of an established connection
+ * @feat: NN feature number from %dccp_feature_numbers
+ * @nn_val: the new value to use
+ *
+ * This function is used to communicate NN updates out-of-band.
+ */
+int dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val)
+{
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	dccp_feat_val fval = { .nn = nn_val };
+	struct dccp_feat_entry *entry;
+
+	if (sk->sk_state != DCCP_OPEN && sk->sk_state != DCCP_PARTOPEN)
+		return 0;
+
+	if (dccp_feat_type(feat) != FEAT_NN ||
+	    !dccp_feat_is_valid_nn_val(feat, nn_val))
+		return -EINVAL;
+
+	if (nn_val == dccp_feat_nn_get(sk, feat))
+		return 0;	/* already set or negotiation under way */
+
+	entry = dccp_feat_list_lookup(fn, feat, 1);
+	if (entry != NULL) {
+		dccp_pr_debug("Clobbering existing NN entry %llu -> %llu\n",
+			      (unsigned long long)entry->val.nn,
+			      (unsigned long long)nn_val);
+		dccp_feat_list_pop(entry);
+	}
+
+	inet_csk_schedule_ack(sk);
+	return dccp_feat_push_change(fn, feat, 1, 0, &fval);
+}
+EXPORT_SYMBOL_GPL(dccp_feat_signal_nn_change);
 
 /*
  *	Tracking features whose value depend on the choice of CCID
@@ -840,6 +936,7 @@ static const struct ccid_dependency *dccp_feat_ccid_deps(u8 ccid, bool is_local)
  * @fn: feature-negotiation list to update
  * @id: CCID number to track
  * @is_local: whether TX CCID (1) or RX CCID (0) is meant
+ *
  * This function needs to be called after registering all other features.
  */
 static int dccp_feat_propagate_ccid(struct list_head *fn, u8 id, bool is_local)
@@ -863,6 +960,7 @@ static int dccp_feat_propagate_ccid(struct list_head *fn, u8 id, bool is_local)
 /**
  * dccp_feat_finalise_settings  -  Finalise settings before starting negotiation
  * @dp: client or listening socket (settings will be inherited)
+ *
  * This is called after all registrations (socket initialisation, sysctls, and
  * sockopt calls), and before sending the first packet containing Change options
  * (ie. client-Request or server-Response), to ensure internal consistency.
@@ -1065,7 +1163,7 @@ static u8 dccp_feat_change_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 	}
 
 	if (dccp_feat_reconcile(&entry->val, val, len, server, true)) {
-		entry->empty_confirm = 0;
+		entry->empty_confirm = false;
 	} else if (is_mandatory) {
 		return DCCP_RESET_CODE_MANDATORY_ERROR;
 	} else if (entry->state == FEAT_INITIALISING) {
@@ -1081,10 +1179,10 @@ static u8 dccp_feat_change_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 		defval = dccp_feat_default_value(feat);
 		if (!dccp_feat_reconcile(&entry->val, &defval, 1, server, true))
 			return DCCP_RESET_CODE_OPTION_ERROR;
-		entry->empty_confirm = 1;
+		entry->empty_confirm = true;
 	}
-	entry->needs_confirm   = 1;
-	entry->needs_mandatory = 0;
+	entry->needs_confirm   = true;
+	entry->needs_mandatory = false;
 	entry->state	       = FEAT_STABLE;
 	return 0;
 
@@ -1187,6 +1285,101 @@ confirmation_failed:
 }
 
 /**
+ * dccp_feat_handle_nn_established  -  Fast-path reception of NN options
+ * @sk:		socket of an established DCCP connection
+ * @mandatory:	whether @opt was preceded by a Mandatory option
+ * @opt:	%DCCPO_CHANGE_L | %DCCPO_CONFIRM_R (NN only)
+ * @feat:	NN number, one of %dccp_feature_numbers
+ * @val:	NN value
+ * @len:	length of @val in bytes
+ *
+ * This function combines the functionality of change_recv/confirm_recv, with
+ * the following differences (reset codes are the same):
+ *    - cleanup after receiving the Confirm;
+ *    - values are directly activated after successful parsing;
+ *    - deliberately restricted to NN features.
+ * The restriction to NN features is essential since SP features can have non-
+ * predictable outcomes (depending on the remote configuration), and are inter-
+ * dependent (CCIDs for instance cause further dependencies).
+ */
+static u8 dccp_feat_handle_nn_established(struct sock *sk, u8 mandatory, u8 opt,
+					  u8 feat, u8 *val, u8 len)
+{
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	const bool local = (opt == DCCPO_CONFIRM_R);
+	struct dccp_feat_entry *entry;
+	u8 type = dccp_feat_type(feat);
+	dccp_feat_val fval;
+
+	dccp_feat_print_opt(opt, feat, val, len, mandatory);
+
+	/* Ignore non-mandatory unknown and non-NN features */
+	if (type == FEAT_UNKNOWN) {
+		if (local && !mandatory)
+			return 0;
+		goto fast_path_unknown;
+	} else if (type != FEAT_NN) {
+		return 0;
+	}
+
+	/*
+	 * We don't accept empty Confirms, since in fast-path feature
+	 * negotiation the values are enabled immediately after sending
+	 * the Change option.
+	 * Empty Changes on the other hand are invalid (RFC 4340, 6.1).
+	 */
+	if (len == 0 || len > sizeof(fval.nn))
+		goto fast_path_unknown;
+
+	if (opt == DCCPO_CHANGE_L) {
+		fval.nn = dccp_decode_value_var(val, len);
+		if (!dccp_feat_is_valid_nn_val(feat, fval.nn))
+			goto fast_path_unknown;
+
+		if (dccp_feat_push_confirm(fn, feat, local, &fval) ||
+		    dccp_feat_activate(sk, feat, local, &fval))
+			return DCCP_RESET_CODE_TOO_BUSY;
+
+		/* set the `Ack Pending' flag to piggyback a Confirm */
+		inet_csk_schedule_ack(sk);
+
+	} else if (opt == DCCPO_CONFIRM_R) {
+		entry = dccp_feat_list_lookup(fn, feat, local);
+		if (entry == NULL || entry->state != FEAT_CHANGING)
+			return 0;
+
+		fval.nn = dccp_decode_value_var(val, len);
+		/*
+		 * Just ignore a value that doesn't match our current value.
+		 * If the option changes twice within two RTTs, then at least
+		 * one CONFIRM will be received for the old value after a
+		 * new CHANGE was sent.
+		 */
+		if (fval.nn != entry->val.nn)
+			return 0;
+
+		/* Only activate after receiving the Confirm option (6.6.1). */
+		dccp_feat_activate(sk, feat, local, &fval);
+
+		/* It has been confirmed - so remove the entry */
+		dccp_feat_list_pop(entry);
+
+	} else {
+		DCCP_WARN("Received illegal option %u\n", opt);
+		goto fast_path_failed;
+	}
+	return 0;
+
+fast_path_unknown:
+	if (!mandatory)
+		return dccp_push_empty_confirm(fn, feat, local);
+
+fast_path_failed:
+	return mandatory ? DCCP_RESET_CODE_MANDATORY_ERROR
+			 : DCCP_RESET_CODE_OPTION_ERROR;
+}
+
+/**
  * dccp_feat_parse_options  -  Process Feature-Negotiation Options
  * @sk: for general use and used by the client during connection setup
  * @dreq: used by the server during connection setup
@@ -1195,6 +1388,7 @@ confirmation_failed:
  * @feat: one of %dccp_feature_numbers
  * @val: value contents of @opt
  * @len: length of @val in bytes
+ *
  * Returns 0 on success, a Reset code for ending the connection otherwise.
  */
 int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
@@ -1221,6 +1415,14 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			return dccp_feat_confirm_recv(fn, mandatory, opt, feat,
 						      val, len, server);
 		}
+		break;
+	/*
+	 *	Support for exchanging NN options on an established connection.
+	 */
+	case DCCP_OPEN:
+	case DCCP_PARTOPEN:
+		return dccp_feat_handle_nn_established(sk, mandatory, opt, feat,
+						       val, len);
 	}
 	return 0;	/* ignore FN options in all other states */
 }

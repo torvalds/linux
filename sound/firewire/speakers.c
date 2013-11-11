@@ -171,7 +171,7 @@ static int fwspk_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   5000, 8192000);
+					   5000, UINT_MAX);
 	if (err < 0)
 		return err;
 
@@ -656,16 +656,14 @@ static u32 fwspk_read_firmware_version(struct fw_unit *unit)
 static void fwspk_card_free(struct snd_card *card)
 {
 	struct fwspk *fwspk = card->private_data;
-	struct fw_device *dev = fw_parent_device(fwspk->unit);
 
 	amdtp_out_stream_destroy(&fwspk->stream);
 	cmp_connection_destroy(&fwspk->connection);
 	fw_unit_put(fwspk->unit);
-	fw_device_put(dev);
 	mutex_destroy(&fwspk->mutex);
 }
 
-static const struct device_info *__devinit fwspk_detect(struct fw_device *dev)
+static const struct device_info *fwspk_detect(struct fw_device *dev)
 {
 	static const struct device_info griffin_firewave = {
 		.driver_name = "FireWave",
@@ -701,7 +699,7 @@ static const struct device_info *__devinit fwspk_detect(struct fw_device *dev)
 	return NULL;
 }
 
-static int __devinit fwspk_probe(struct device *unit_dev)
+static int fwspk_probe(struct device *unit_dev)
 {
 	struct fw_unit *unit = fw_unit(unit_dev);
 	struct fw_device *fw_dev = fw_parent_device(unit);
@@ -718,7 +716,6 @@ static int __devinit fwspk_probe(struct device *unit_dev)
 	fwspk = card->private_data;
 	fwspk->card = card;
 	mutex_init(&fwspk->mutex);
-	fw_device_get(fw_dev);
 	fwspk->unit = fw_unit_get(unit);
 	fwspk->device_info = fwspk_detect(fw_dev);
 	if (!fwspk->device_info) {
@@ -767,20 +764,20 @@ err_connection:
 	cmp_connection_destroy(&fwspk->connection);
 err_unit:
 	fw_unit_put(fwspk->unit);
-	fw_device_put(fw_dev);
 	mutex_destroy(&fwspk->mutex);
 error:
 	snd_card_free(card);
 	return err;
 }
 
-static int __devexit fwspk_remove(struct device *dev)
+static int fwspk_remove(struct device *dev)
 {
 	struct fwspk *fwspk = dev_get_drvdata(dev);
 
-	mutex_lock(&fwspk->mutex);
 	amdtp_out_stream_pcm_abort(&fwspk->stream);
 	snd_card_disconnect(fwspk->card);
+
+	mutex_lock(&fwspk->mutex);
 	fwspk_stop_stream(fwspk);
 	mutex_unlock(&fwspk->mutex);
 
@@ -796,8 +793,8 @@ static void fwspk_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(fwspk->unit);
 
 	if (cmp_connection_update(&fwspk->connection) < 0) {
-		mutex_lock(&fwspk->mutex);
 		amdtp_out_stream_pcm_abort(&fwspk->stream);
+		mutex_lock(&fwspk->mutex);
 		fwspk_stop_stream(fwspk);
 		mutex_unlock(&fwspk->mutex);
 		return;
@@ -837,7 +834,7 @@ static struct fw_driver fwspk_driver = {
 		.name	= KBUILD_MODNAME,
 		.bus	= &fw_bus_type,
 		.probe	= fwspk_probe,
-		.remove	= __devexit_p(fwspk_remove),
+		.remove	= fwspk_remove,
 	},
 	.update   = fwspk_bus_reset,
 	.id_table = fwspk_id_table,

@@ -12,76 +12,139 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/serial_core.h>
-#include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
+#include <linux/clk.h>
+
+#include "8250/8250.h"
 
 struct of_serial_info {
+	struct clk *clk;
 	int type;
 	int line;
 };
 
+#ifdef CONFIG_ARCH_TEGRA
+void tegra_serial_handle_break(struct uart_port *p)
+{
+	unsigned int status, tmout = 10000;
+
+	do {
+		status = p->serial_in(p, UART_LSR);
+		if (status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS))
+			status = p->serial_in(p, UART_RX);
+		else
+			break;
+		if (--tmout == 0)
+			break;
+		udelay(1);
+	} while (1);
+}
+#else
+static inline void tegra_serial_handle_break(struct uart_port *port)
+{
+}
+#endif
+
 /*
  * Fill a struct uart_port for a given device node
  */
-static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
-					int type, struct uart_port *port)
+static int of_platform_serial_setup(struct platform_device *ofdev,
+			int type, struct uart_port *port,
+			struct of_serial_info *info)
 {
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
-	const __be32 *clk, *spd;
-	const __be32 *prop;
-	int ret, prop_size;
+	u32 clk, spd, prop;
+	int ret;
 
 	memset(port, 0, sizeof *port);
-	spd = of_get_property(np, "current-speed", NULL);
-	clk = of_get_property(np, "clock-frequency", NULL);
-	if (!clk) {
-		dev_warn(&ofdev->dev, "no clock-frequency property set\n");
-		return -ENODEV;
+	if (of_property_read_u32(np, "clock-frequency", &clk)) {
+
+		/* Get clk rate through clk driver if present */
+		info->clk = clk_get(&ofdev->dev, NULL);
+		if (IS_ERR(info->clk)) {
+			dev_warn(&ofdev->dev,
+				"clk or clock-frequency not defined\n");
+			return PTR_ERR(info->clk);
+		}
+
+		clk_prepare_enable(info->clk);
+		clk = clk_get_rate(info->clk);
 	}
+	/* If current-speed was set, then try not to change it. */
+	if (of_property_read_u32(np, "current-speed", &spd) == 0)
+		port->custom_divisor = clk / (16 * spd);
 
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
 		dev_warn(&ofdev->dev, "invalid address\n");
-		return ret;
+		goto out;
 	}
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
 
 	/* Check for shifted address mapping */
-	prop = of_get_property(np, "reg-offset", &prop_size);
-	if (prop && (prop_size == sizeof(u32)))
-		port->mapbase += be32_to_cpup(prop);
+	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
+		port->mapbase += prop;
 
 	/* Check for registers offset within the devices address range */
-	prop = of_get_property(np, "reg-shift", &prop_size);
-	if (prop && (prop_size == sizeof(u32)))
-		port->regshift = be32_to_cpup(prop);
+	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
+		port->regshift = prop;
+
+	/* Check for fifo size */
+	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
+		port->fifosize = prop;
 
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
+	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+		switch (prop) {
+		case 1:
+			port->iotype = UPIO_MEM;
+			break;
+		case 4:
+			port->iotype = UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
+				 prop);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
 	port->type = type;
-	port->uartclk = be32_to_cpup(clk);
+	port->uartclk = clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
+
+	if (of_find_property(np, "no-loopback-test", NULL))
+		port->flags |= UPF_SKIP_TEST;
+
 	port->dev = &ofdev->dev;
-	/* If current-speed was set, then try not to change it. */
-	if (spd)
-		port->custom_divisor = be32_to_cpup(clk) / (16 * (be32_to_cpup(spd)));
+
+	if (type == PORT_TEGRA)
+		port->handle_break = tegra_serial_handle_break;
 
 	return 0;
+out:
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
+	return ret;
 }
 
 /*
  * Try to register a serial port
  */
 static struct of_device_id of_platform_serial_table[];
-static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
+static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct of_serial_info *info;
@@ -101,15 +164,28 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	port_type = (unsigned long)match->data;
-	ret = of_platform_serial_setup(ofdev, port_type, &port);
+	ret = of_platform_serial_setup(ofdev, port_type, &port, info);
 	if (ret)
 		goto out;
 
 	switch (port_type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
-		ret = serial8250_register_port(&port);
+	{
+		struct uart_8250_port port8250;
+		memset(&port8250, 0, sizeof(port8250));
+		port8250.port = port;
+
+		if (port.fifosize)
+			port8250.capabilities = UART_CAP_FIFO;
+
+		if (of_property_read_bool(ofdev->dev.of_node,
+					  "auto-flow-control"))
+			port8250.capabilities |= UART_CAP_AFE;
+
+		ret = serial8250_register_8250_port(&port8250);
 		break;
+	}
 #endif
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	case PORT_NWPSERIAL:
@@ -157,6 +233,9 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 		/* need to add code for these */
 		break;
 	}
+
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
 	kfree(info);
 	return 0;
 }
@@ -164,13 +243,21 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id __devinitdata of_platform_serial_table[] = {
+static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },
 	{ .compatible = "ns16550",  .data = (void *)PORT_16550, },
 	{ .compatible = "ns16750",  .data = (void *)PORT_16750, },
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
+	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
+	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
+	{ .compatible = "altr,16550-FIFO32",
+		.data = (void *)PORT_ALTR_16550_F32, },
+	{ .compatible = "altr,16550-FIFO64",
+		.data = (void *)PORT_ALTR_16550_F64, },
+	{ .compatible = "altr,16550-FIFO128",
+		.data = (void *)PORT_ALTR_16550_F128, },
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	{ .compatible = "ibm,qpace-nwp-serial",
 		.data = (void *)PORT_NWPSERIAL, },
@@ -189,17 +276,7 @@ static struct platform_driver of_platform_serial_driver = {
 	.remove = of_platform_serial_remove,
 };
 
-static int __init of_platform_serial_init(void)
-{
-	return platform_driver_register(&of_platform_serial_driver);
-}
-module_init(of_platform_serial_init);
-
-static void __exit of_platform_serial_exit(void)
-{
-	return platform_driver_unregister(&of_platform_serial_driver);
-};
-module_exit(of_platform_serial_exit);
+module_platform_driver(of_platform_serial_driver);
 
 MODULE_AUTHOR("Arnd Bergmann <arnd@arndb.de>");
 MODULE_LICENSE("GPL");

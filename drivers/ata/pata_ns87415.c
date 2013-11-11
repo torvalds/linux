@@ -350,7 +350,6 @@ static void ns87415_fixup(struct pci_dev *pdev)
 
 static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
@@ -370,9 +369,7 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	if (PCI_SLOT(pdev->devfn) == 0x0E)
 		ppi[0] = &info87560;
 #endif
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			   "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -417,18 +414,7 @@ static struct pci_driver ns87415_pci_driver = {
 #endif
 };
 
-static int __init ns87415_init(void)
-{
-	return pci_register_driver(&ns87415_pci_driver);
-}
-
-static void __exit ns87415_exit(void)
-{
-	pci_unregister_driver(&ns87415_pci_driver);
-}
-
-module_init(ns87415_init);
-module_exit(ns87415_exit);
+module_pci_driver(ns87415_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("ATA low-level driver for NS87415 controllers");

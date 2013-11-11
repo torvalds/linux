@@ -27,7 +27,7 @@
 #include <plat/cpu.h>
 
 #include <plat/regs-timer.h>
-#include <mach/pwm-clock.h>
+#include <plat/pwm-clock.h>
 
 /* Each of the timers 0 through 5 go through the following
  * clock tree, with the inputs depending on the timers.
@@ -268,6 +268,7 @@ static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[0]	= {
 		.clk	= {
 			.name	= "pwm-tdiv",
+			.devname	= "s3c24xx-pwm.0",
 			.ops	= &clk_tdiv_ops,
 			.parent	= &clk_timer_scaler[0],
 		},
@@ -275,6 +276,7 @@ static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[1]	= {
 		.clk	= {
 			.name	= "pwm-tdiv",
+			.devname	= "s3c24xx-pwm.1",
 			.ops	= &clk_tdiv_ops,
 			.parent	= &clk_timer_scaler[0],
 		}
@@ -282,6 +284,7 @@ static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[2]	= {
 		.clk	= {
 			.name	= "pwm-tdiv",
+			.devname	= "s3c24xx-pwm.2",
 			.ops	= &clk_tdiv_ops,
 			.parent	= &clk_timer_scaler[1],
 		},
@@ -289,6 +292,7 @@ static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[3]	= {
 		.clk	= {
 			.name	= "pwm-tdiv",
+			.devname	= "s3c24xx-pwm.3",
 			.ops	= &clk_tdiv_ops,
 			.parent	= &clk_timer_scaler[1],
 		},
@@ -296,6 +300,7 @@ static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[4]	= {
 		.clk	= {
 			.name	= "pwm-tdiv",
+			.devname	= "s3c24xx-pwm.4",
 			.ops	= &clk_tdiv_ops,
 			.parent	= &clk_timer_scaler[1],
 		},
@@ -334,8 +339,17 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long bits;
 	unsigned long shift = S3C2410_TCFG1_SHIFT(id);
 
+	unsigned long mux_tclk;
+
+	if (soc_is_s3c24xx())
+		mux_tclk = S3C2410_TCFG1_MUX_TCLK;
+	else if (soc_is_s5p6440() || soc_is_s5p6450())
+		mux_tclk = 0;
+	else
+		mux_tclk = S3C64XX_TCFG1_MUX_TCLK;
+
 	if (parent == s3c24xx_pwmclk_tclk(id))
-		bits = S3C_TCFG1_MUX_TCLK << shift;
+		bits = mux_tclk << shift;
 	else if (parent == s3c24xx_pwmclk_tdiv(id))
 		bits = clk_pwm_tdiv_bits(to_tdiv(parent)) << shift;
 	else
@@ -361,26 +375,31 @@ static struct clk_ops clk_tin_ops = {
 static struct clk clk_tin[] = {
 	[0]	= {
 		.name	= "pwm-tin",
+		.devname	= "s3c24xx-pwm.0",
 		.id	= 0,
 		.ops	= &clk_tin_ops,
 	},
 	[1]	= {
 		.name	= "pwm-tin",
+		.devname	= "s3c24xx-pwm.1",
 		.id	= 1,
 		.ops	= &clk_tin_ops,
 	},
 	[2]	= {
 		.name	= "pwm-tin",
+		.devname	= "s3c24xx-pwm.2",
 		.id	= 2,
 		.ops	= &clk_tin_ops,
 	},
 	[3]	= {
 		.name	= "pwm-tin",
+		.devname	= "s3c24xx-pwm.3",
 		.id	= 3,
 		.ops	= &clk_tin_ops,
 	},
 	[4]	= {
 		.name	= "pwm-tin",
+		.devname	= "s3c24xx-pwm.4",
 		.id	= 4,
 		.ops	= &clk_tin_ops,
 	},

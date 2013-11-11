@@ -64,23 +64,12 @@ void nfs_fscache_release_client_cookie(struct nfs_client *clp)
  * either by the 'fsc=xxx' option to mount, or by inheriting it from the parent
  * superblock across an automount point of some nature.
  */
-void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq,
-				  struct nfs_clone_mount *mntdata)
+void nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq, int ulen)
 {
 	struct nfs_fscache_key *key, *xkey;
 	struct nfs_server *nfss = NFS_SB(sb);
 	struct rb_node **p, *parent;
-	int diff, ulen;
-
-	if (uniq) {
-		ulen = strlen(uniq);
-	} else if (mntdata) {
-		struct nfs_server *mnt_s = NFS_SB(mntdata->sb);
-		if (mnt_s->fscache_key) {
-			uniq = mnt_s->fscache_key->key.uniquifier;
-			ulen = mnt_s->fscache_key->key.uniq_len;
-		}
-	}
+	int diff;
 
 	if (!uniq) {
 		uniq = "";
@@ -318,6 +307,7 @@ void nfs_fscache_set_inode_cookie(struct inode *inode, struct file *filp)
 		nfs_fscache_inode_unlock(inode);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_fscache_set_inode_cookie);
 
 /*
  * Replace a per-inode cookie due to revalidation detecting a file having
@@ -327,7 +317,7 @@ void nfs_fscache_reset_inode_cookie(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_server *nfss = NFS_SERVER(inode);
-	struct fscache_cookie *old = nfsi->fscache;
+	NFS_IFDEBUG(struct fscache_cookie *old = nfsi->fscache);
 
 	nfs_fscache_inode_lock(inode);
 	if (nfsi->fscache) {

@@ -711,7 +711,7 @@ static void spear13xx_pcie_device_init(struct spear_pcie_gadget_config *config)
 	spear_dbi_write_reg(config, PCI_INTERRUPT_LINE, 1, 1);
 }
 
-static int __devinit spear_pcie_gadget_probe(struct platform_device *pdev)
+static int spear_pcie_gadget_probe(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
 	unsigned int status = 0;
@@ -853,7 +853,7 @@ err_rel_res0:
 	return status;
 }
 
-static int __devexit spear_pcie_gadget_remove(struct platform_device *pdev)
+static int spear_pcie_gadget_remove(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
 	static struct pcie_gadget_target *target;
@@ -891,18 +891,8 @@ static struct platform_driver spear_pcie_gadget_driver = {
 	},
 };
 
-static int __init spear_pcie_gadget_init(void)
-{
-	return platform_driver_register(&spear_pcie_gadget_driver);
-}
-module_init(spear_pcie_gadget_init);
+module_platform_driver(spear_pcie_gadget_driver);
 
-static void __exit spear_pcie_gadget_exit(void)
-{
-	platform_driver_unregister(&spear_pcie_gadget_driver);
-}
-module_exit(spear_pcie_gadget_exit);
-
-MODULE_ALIAS("pcie-gadget-spear");
+MODULE_ALIAS("platform:pcie-gadget-spear");
 MODULE_AUTHOR("Pratyush Anand");
 MODULE_LICENSE("GPL");

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,8 @@ ACPI_MODULE_NAME("nsrepair2")
  */
 typedef
 acpi_status(*acpi_repair_function) (struct acpi_predefined_data *data,
-				    union acpi_operand_object **return_object_ptr);
+				    union acpi_operand_object
+				    **return_object_ptr);
 
 typedef struct acpi_repair_info {
 	char name[ACPI_NAME_SIZE];
@@ -65,9 +66,9 @@ typedef struct acpi_repair_info {
 
 /* Local prototypes */
 
-static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
-								    acpi_namespace_node
-								    *node);
+static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
+								   acpi_namespace_node
+								   *node);
 
 static acpi_status
 acpi_ns_repair_ALR(struct acpi_predefined_data *data,
@@ -149,8 +150,8 @@ static const struct acpi_repair_info acpi_ns_repairable_names[] = {
  *
  * FUNCTION:    acpi_ns_complex_repairs
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
- *              Node                - Namespace node for the method/object
+ * PARAMETERS:  data                - Pointer to validation data structure
+ *              node                - Namespace node for the method/object
  *              validate_status     - Original status of earlier validation
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
@@ -174,7 +175,7 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 
 	/* Check if this name is in the list of repairable names */
 
-	predefined = acpi_ns_match_repairable_name(node);
+	predefined = acpi_ns_match_complex_repair(node);
 	if (!predefined) {
 		return (validate_status);
 	}
@@ -185,9 +186,9 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_ns_match_repairable_name
+ * FUNCTION:    acpi_ns_match_complex_repair
  *
- * PARAMETERS:  Node                - Namespace node for the method/object
+ * PARAMETERS:  node                - Namespace node for the method/object
  *
  * RETURN:      Pointer to entry in repair table. NULL indicates not found.
  *
@@ -195,9 +196,9 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
  *
  *****************************************************************************/
 
-static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
-								    acpi_namespace_node
-								    *node)
+static const struct acpi_repair_info *acpi_ns_match_complex_repair(struct
+								   acpi_namespace_node
+								   *node)
 {
 	const struct acpi_repair_info *this_name;
 
@@ -218,7 +219,7 @@ static const struct acpi_repair_info *acpi_ns_match_repairable_name(struct
  *
  * FUNCTION:    acpi_ns_repair_ALR
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -247,7 +248,7 @@ acpi_ns_repair_ALR(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_FDE
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -335,7 +336,7 @@ acpi_ns_repair_FDE(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_CID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -405,7 +406,7 @@ acpi_ns_repair_CID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_HID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -467,11 +468,12 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
 	}
 
 	/*
-	 * Copy and uppercase the string. From the ACPI specification:
+	 * Copy and uppercase the string. From the ACPI 5.0 specification:
 	 *
 	 * A valid PNP ID must be of the form "AAA####" where A is an uppercase
 	 * letter and # is a hex digit. A valid ACPI ID must be of the form
-	 * "ACPI####" where # is a hex digit.
+	 * "NNNN####" where N is an uppercase letter or decimal digit, and
+	 * # is a hex digit.
 	 */
 	for (dest = new_string->string.pointer; *source; dest++, source++) {
 		*dest = (char)ACPI_TOUPPER(*source);
@@ -486,7 +488,7 @@ acpi_ns_repair_HID(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_TSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -503,6 +505,21 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	acpi_status status;
+	struct acpi_namespace_node *node;
+
+	/*
+	 * We can only sort the _TSS return package if there is no _PSS in the
+	 * same scope. This is because if _PSS is present, the ACPI specification
+	 * dictates that the _TSS Power Dissipation field is to be ignored, and
+	 * therefore some BIOSs leave garbage values in the _TSS Power field(s).
+	 * In this case, it is best to just return the _TSS package as-is.
+	 * (May, 2011)
+	 */
+	status =
+	    acpi_ns_get_node(data->node, "^_PSS", ACPI_NS_NO_UPSEARCH, &node);
+	if (ACPI_SUCCESS(status)) {
+		return (AE_OK);
+	}
 
 	status = acpi_ns_check_sorted_list(data, return_object, 5, 1,
 					   ACPI_SORT_DESCENDING,
@@ -515,7 +532,7 @@ acpi_ns_repair_TSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_repair_PSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object_ptr   - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -584,7 +601,7 @@ acpi_ns_repair_PSS(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_check_sorted_list
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  data                - Pointer to validation data structure
  *              return_object       - Pointer to the top-level returned object
  *              expected_count      - Minimum length of each sub-package
  *              sort_index          - Sub-package entry to sort on
@@ -691,9 +708,9 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
  *
  * FUNCTION:    acpi_ns_sort_list
  *
- * PARAMETERS:  Elements            - Package object element list
- *              Count               - Element count for above
- *              Index               - Sort by which package element
+ * PARAMETERS:  elements            - Package object element list
+ *              count               - Element count for above
+ *              index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
  * RETURN:      None

@@ -28,6 +28,7 @@ Contents:
 2.3  Userspace
 2.4  Ondemand
 2.5  Conservative
+2.6  Interactive
 
 3.   The Governor Interface in the CPUfreq Core
 
@@ -127,20 +128,18 @@ in the bash (as said, 1000 is default), do:
 echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) \
     >ondemand/sampling_rate
 
-show_sampling_rate_min:
+sampling_rate_min:
 The sampling rate is limited by the HW transition latency:
 transition_latency * 100
 Or by kernel restrictions:
-If CONFIG_NO_HZ is set, the limit is 10ms fixed.
-If CONFIG_NO_HZ is not set or no_hz=off boot parameter is used, the
+If CONFIG_NO_HZ_COMMON is set, the limit is 10ms fixed.
+If CONFIG_NO_HZ_COMMON is not set or nohz=off boot parameter is used, the
 limits depend on the CONFIG_HZ option:
 HZ=1000: min=20000us  (20ms)
 HZ=250:  min=80000us  (80ms)
 HZ=100:  min=200000us (200ms)
 The highest value of kernel and HW latency restrictions is shown and
 used as the minimum sampling rate.
-
-show_sampling_rate_max: THIS INTERFACE IS DEPRECATED, DON'T USE IT.
 
 up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on
@@ -169,6 +168,27 @@ of load evaluation and helping the CPU stay at its top speed when truly
 busy, rather than shifting back and forth in speed. This tunable has no
 effect on behavior at lower speeds/lower CPU loads.
 
+powersave_bias: this parameter takes a value between 0 to 1000. It
+defines the percentage (times 10) value of the target frequency that
+will be shaved off of the target. For example, when set to 100 -- 10%,
+when ondemand governor would have targeted 1000 MHz, it will target
+1000 MHz - (10% of 1000 MHz) = 900 MHz instead. This is set to 0
+(disabled) by default.
+When AMD frequency sensitivity powersave bias driver --
+drivers/cpufreq/amd_freq_sensitivity.c is loaded, this parameter
+defines the workload frequency sensitivity threshold in which a lower
+frequency is chosen instead of ondemand governor's original target.
+The frequency sensitivity is a hardware reported (on AMD Family 16h
+Processors and above) value between 0 to 100% that tells software how
+the performance of the workload running on a CPU will change when
+frequency changes. A workload with sensitivity of 0% (memory/IO-bound)
+will not perform any better on higher core frequency, whereas a
+workload with sensitivity of 100% (CPU-bound) will perform better
+higher the frequency. When the driver is loaded, this is set to 400
+by default -- for CPUs running workloads with sensitivity value below
+40%, a lower frequency is chosen. Unloading the driver or writing 0
+will disable this feature.
+
 
 2.5 Conservative
 ----------------
@@ -192,6 +212,96 @@ down_threshold: same as the 'up_threshold' found for the "ondemand"
 governor but for the opposite direction.  For example when set to its
 default value of '20' it means that if the CPU usage needs to be below
 20% between samples to have the frequency decreased.
+
+sampling_down_factor: similar functionality as in "ondemand" governor.
+But in "conservative", it controls the rate at which the kernel makes
+a decision on when to decrease the frequency while running in any
+speed. Load for frequency increase is still evaluated every
+sampling rate.
+
+2.6 Interactive
+---------------
+
+The CPUfreq governor "interactive" is designed for latency-sensitive,
+interactive workloads. This governor sets the CPU speed depending on
+usage, similar to "ondemand" and "conservative" governors, but with a
+different set of configurable behaviors.
+
+The tuneable values for this governor are:
+
+target_loads: CPU load values used to adjust speed to influence the
+current CPU load toward that value.  In general, the lower the target
+load, the more often the governor will raise CPU speeds to bring load
+below the target.  The format is a single target load, optionally
+followed by pairs of CPU speeds and CPU loads to target at or above
+those speeds.  Colons can be used between the speeds and associated
+target loads for readability.  For example:
+
+   85 1000000:90 1700000:99
+
+targets CPU load 85% below speed 1GHz, 90% at or above 1GHz, until
+1.7GHz and above, at which load 99% is targeted.  If speeds are
+specified these must appear in ascending order.  Higher target load
+values are typically specified for higher speeds, that is, target load
+values also usually appear in an ascending order. The default is
+target load 90% for all speeds.
+
+min_sample_time: The minimum amount of time to spend at the current
+frequency before ramping down. Default is 80000 uS.
+
+hispeed_freq: An intermediate "hi speed" at which to initially ramp
+when CPU load hits the value specified in go_hispeed_load.  If load
+stays high for the amount of time specified in above_hispeed_delay,
+then speed may be bumped higher.  Default is the maximum speed
+allowed by the policy at governor initialization time.
+
+go_hispeed_load: The CPU load at which to ramp to hispeed_freq.
+Default is 99%.
+
+above_hispeed_delay: When speed is at or above hispeed_freq, wait for
+this long before raising speed in response to continued high load.
+The format is a single delay value, optionally followed by pairs of
+CPU speeds and the delay to use at or above those speeds.  Colons can
+be used between the speeds and associated delays for readability.  For
+example:
+
+   80000 1300000:200000 1500000:40000
+
+uses delay 80000 uS until CPU speed 1.3 GHz, at which speed delay
+200000 uS is used until speed 1.5 GHz, at which speed (and above)
+delay 40000 uS is used.  If speeds are specified these must appear in
+ascending order.  Default is 20000 uS.
+
+timer_rate: Sample rate for reevaluating CPU load when the CPU is not
+idle.  A deferrable timer is used, such that the CPU will not be woken
+from idle to service this timer until something else needs to run.
+(The maximum time to allow deferring this timer when not running at
+minimum speed is configurable via timer_slack.)  Default is 20000 uS.
+
+timer_slack: Maximum additional time to defer handling the governor
+sampling timer beyond timer_rate when running at speeds above the
+minimum.  For platforms that consume additional power at idle when
+CPUs are running at speeds greater than minimum, this places an upper
+bound on how long the timer will be deferred prior to re-evaluating
+load and dropping speed.  For example, if timer_rate is 20000uS and
+timer_slack is 10000uS then timers will be deferred for up to 30msec
+when not at lowest speed.  A value of -1 means defer timers
+indefinitely at all speeds.  Default is 80000 uS.
+
+boost: If non-zero, immediately boost speed of all CPUs to at least
+hispeed_freq until zero is written to this attribute.  If zero, allow
+CPU speeds to drop below hispeed_freq according to load as usual.
+Default is zero.
+
+boostpulse: On each write, immediately boost speed of all CPUs to
+hispeed_freq for at least the period of time specified by
+boostpulse_duration, after which speeds are allowed to drop below
+hispeed_freq according to load as usual.
+
+boostpulse_duration: Length of time to hold CPU speed at hispeed_freq
+on a write to boostpulse, before allowing speed to drop according to
+load as usual.  Default is 80000 uS.
+
 
 3. The Governor Interface in the CPUfreq Core
 =============================================

@@ -1,6 +1,9 @@
 #ifndef _FIREWIRE_CORE_H
 #define _FIREWIRE_CORE_H
 
+#include <linux/compiler.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/idr.h>
@@ -9,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct device;
 struct fw_card;
@@ -22,6 +25,11 @@ struct fw_packet;
 
 
 /* -card */
+
+extern __printf(2, 3)
+void fw_err(const struct fw_card *card, const char *fmt, ...);
+extern __printf(2, 3)
+void fw_notice(const struct fw_card *card, const char *fmt, ...);
 
 /* bitfields within the PHY registers */
 #define PHY_LINK_ACTIVE		0x80
@@ -99,6 +107,8 @@ struct fw_card_driver {
 
 	void (*flush_queue_iso)(struct fw_iso_context *ctx);
 
+	int (*flush_iso_completions)(struct fw_iso_context *ctx);
+
 	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
@@ -110,21 +120,6 @@ void fw_core_remove_card(struct fw_card *card);
 int fw_compute_block_crc(__be32 *block);
 void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
-
-static inline struct fw_card *fw_card_get(struct fw_card *card)
-{
-	kref_get(&card->kref);
-
-	return card;
-}
-
-void fw_card_release(struct kref *kref);
-
-static inline void fw_card_put(struct fw_card *card)
-{
-	kref_put(&card->kref, fw_card_release);
-}
-
 
 /* -cdev */
 
@@ -141,6 +136,18 @@ extern struct rw_semaphore fw_device_rwsem;
 extern struct idr fw_device_idr;
 extern int fw_cdev_major;
 
+static inline struct fw_device *fw_device_get(struct fw_device *device)
+{
+	get_device(&device->device);
+
+	return device;
+}
+
+static inline void fw_device_put(struct fw_device *device)
+{
+	put_device(&device->device);
+}
+
 struct fw_device *fw_device_get_by_devt(dev_t devt);
 int fw_device_set_broadcast_channel(struct device *dev, void *gen);
 void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
@@ -148,7 +155,11 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 /* -iso */
 
-int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma);
+int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count);
+int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
+			  enum dma_data_direction direction);
+int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
+			  struct vm_area_struct *vma);
 
 
 /* -topology */

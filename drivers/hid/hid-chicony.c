@@ -45,6 +45,12 @@ static int ch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0xff09: ch_map_key_clear(BTN_9);	break;
 	case 0xff0a: ch_map_key_clear(BTN_A);	break;
 	case 0xff0b: ch_map_key_clear(BTN_B);	break;
+	case 0x00f1: ch_map_key_clear(KEY_WLAN);	break;
+	case 0x00f2: ch_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+	case 0x00f3: ch_map_key_clear(KEY_BRIGHTNESSUP);	break;
+	case 0x00f4: ch_map_key_clear(KEY_DISPLAY_OFF);	break;
+	case 0x00f7: ch_map_key_clear(KEY_CAMERA);	break;
+	case 0x00f8: ch_map_key_clear(KEY_PROG1);	break;
 	default:
 		return 0;
 	}
@@ -53,6 +59,8 @@ static int ch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 static const struct hid_device_id ch_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_TACTICAL_PAD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_WIRELESS2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_AK1D) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ch_devices);
@@ -62,17 +70,6 @@ static struct hid_driver ch_driver = {
 	.id_table = ch_devices,
 	.input_mapping = ch_input_mapping,
 };
+module_hid_driver(ch_driver);
 
-static int __init ch_init(void)
-{
-	return hid_register_driver(&ch_driver);
-}
-
-static void __exit ch_exit(void)
-{
-	hid_unregister_driver(&ch_driver);
-}
-
-module_init(ch_init);
-module_exit(ch_exit);
 MODULE_LICENSE("GPL");

@@ -161,7 +161,7 @@ struct __large_struct { unsigned long buf[100]; };
 
 #define __get_user_check(x, ptr, size)					\
 ({									\
-	const __typeof__(ptr) __guc_ptr = (ptr);			\
+	const __typeof__(*(ptr))* __guc_ptr = (ptr);			\
 	int _e;								\
 	if (likely(__access_ok((unsigned long) __guc_ptr, (size))))	\
 		_e = __get_user_nocheck((x), __guc_ptr, (size));	\

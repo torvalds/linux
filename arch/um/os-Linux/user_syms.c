@@ -1,5 +1,5 @@
-#include "linux/types.h"
-#include "linux/module.h"
+#include <linux/types.h>
+#include <linux/module.h>
 
 /* Some of this are builtin function (some are not but could in the future),
  * so I *must* declare good prototypes for them and then EXPORT them.
@@ -45,7 +45,7 @@ EXPORT_SYMBOL(readdir64);
 extern void truncate64(void) __attribute__((weak));
 EXPORT_SYMBOL(truncate64);
 
-#ifdef SUBARCH_i386
+#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
 EXPORT_SYMBOL(vsyscall_ehdr);
 EXPORT_SYMBOL(vsyscall_end);
 #endif
@@ -113,3 +113,8 @@ EXPORT_SYMBOL(__stack_smash_handler);
 
 extern long __guard __attribute__((weak));
 EXPORT_SYMBOL(__guard);
+
+#ifdef _FORTIFY_SOURCE
+extern int __sprintf_chk(char *str, int flag, size_t strlen, const char *format);
+EXPORT_SYMBOL(__sprintf_chk);
+#endif

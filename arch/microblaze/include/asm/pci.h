@@ -22,6 +22,8 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
+#include <asm-generic/pci-dma-compat.h>
+
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
@@ -40,13 +42,7 @@ struct pci_dev;
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)
  */
-#define pcibios_assign_all_busses() \
-	(pci_has_flag(PCI_REASSIGN_ALL_BUS))
-
-static inline void pcibios_set_master(struct pci_dev *dev)
-{
-	/* No special bus mastering setup handling */
-}
+#define pcibios_assign_all_busses()	0
 
 static inline void pcibios_penalize_isa_irq(int irq, int active)
 {
@@ -99,14 +95,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
  * this boolean for bounce buffer decisions.
  */
 #define PCI_DMA_BUS_IS_PHYS     (1)
-
-extern void pcibios_resource_to_bus(struct pci_dev *dev,
-			struct pci_bus_region *region,
-			struct resource *res);
-
-extern void pcibios_bus_to_resource(struct pci_dev *dev,
-			struct resource *res,
-			struct pci_bus_region *region);
 
 static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 			struct resource *res)
@@ -164,8 +152,6 @@ extern void __init xilinx_pci_init(void);
 #else
 static inline void __init xilinx_pci_init(void) { return; }
 #endif
-
-#include <asm-generic/pci-dma-compat.h>
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_MICROBLAZE_PCI_H */

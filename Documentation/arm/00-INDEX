@@ -4,8 +4,6 @@ Booting
 	- requirements for booting
 Interrupts
 	- ARM Interrupt subsystem documentation
-IXP2000
-	- Release Notes for Linux on Intel's IXP2000 Network Processor
 msm
 	- MSM specific documentation
 Netwinder

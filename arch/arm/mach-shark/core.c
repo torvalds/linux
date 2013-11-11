@@ -10,26 +10,23 @@
 #include <linux/sched.h>
 #include <linux/serial_8250.h>
 #include <linux/io.h>
+#include <linux/cpu.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/leds.h>
 #include <asm/param.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#define IO_BASE                 0xe0000000
-#define IO_SIZE                 0x08000000
-#define IO_START                0x40000000
 #define ROMCARD_SIZE            0x08000000
 #define ROMCARD_START           0x10000000
 
-void arch_reset(char mode, const char *cmd)
+static void shark_restart(char mode, const char *cmd)
 {
         short temp;
-        local_irq_disable();
         /* Reset the Machine via pc[3] of the sequoia chipset */
         outw(0x09,0x24);
         temp=inw(0x26);
@@ -104,20 +101,6 @@ arch_initcall(shark_init);
 
 extern void shark_init_irq(void);
 
-static struct map_desc shark_io_desc[] __initdata = {
-	{
-		.virtual	= IO_BASE,
-		.pfn		= __phys_to_pfn(IO_START),
-		.length		= IO_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-
-static void __init shark_map_io(void)
-{
-	iotable_init(shark_io_desc, ARRAY_SIZE(shark_io_desc));
-}
-
 #define IRQ_TIMER 0
 #define HZ_TIME ((1193180 + HZ/2) / HZ)
 
@@ -146,14 +129,17 @@ static void __init shark_timer_init(void)
 	setup_irq(IRQ_TIMER, &shark_timer_irq);
 }
 
-static struct sys_timer shark_timer = {
-	.init		= shark_timer_init,
-};
+static void shark_init_early(void)
+{
+	cpu_idle_poll_ctrl(true);
+}
 
 MACHINE_START(SHARK, "Shark")
 	/* Maintainer: Alexander Schulz */
-	.boot_params	= 0x08003000,
-	.map_io		= shark_map_io,
+	.atag_offset	= 0x3000,
+	.init_early	= shark_init_early,
 	.init_irq	= shark_init_irq,
-	.timer		= &shark_timer,
+	.init_time	= shark_timer_init,
+	.dma_zone_size	= SZ_4M,
+	.restart	= shark_restart,
 MACHINE_END

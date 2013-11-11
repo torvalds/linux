@@ -3,11 +3,18 @@
 
 #include <linux/platform_device.h>
 #include <linux/list.h>
+#include <linux/io.h>
+
+struct atmel_ssc_platform_data {
+	int			use_dma;
+};
 
 struct ssc_device {
 	struct list_head	list;
+	resource_size_t		phybase;
 	void __iomem		*regs;
 	struct platform_device	*pdev;
+	struct atmel_ssc_platform_data *pdata;
 	struct clk		*clk;
 	int			user;
 	int			irq;

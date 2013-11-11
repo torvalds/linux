@@ -1,0 +1,184 @@
+
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#include "imx6qdl.dtsi"
+#include "imx6dl-pinfunc.h"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	soc {
+		aips1: aips-bus@02000000 {
+			iomuxc: iomuxc@020e0000 {
+				compatible = "fsl,imx6dl-iomuxc";
+				reg = <0x020e0000 0x4000>;
+
+				enet {
+					pinctrl_enet_1: enetgrp-1 {
+						fsl,pins = <
+							MX6DL_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
+							MX6DL_PAD_ENET_MDC__ENET_MDC         0x1b0b0
+							MX6DL_PAD_RGMII_TXC__RGMII_TXC       0x1b0b0
+							MX6DL_PAD_RGMII_TD0__RGMII_TD0       0x1b0b0
+							MX6DL_PAD_RGMII_TD1__RGMII_TD1       0x1b0b0
+							MX6DL_PAD_RGMII_TD2__RGMII_TD2       0x1b0b0
+							MX6DL_PAD_RGMII_TD3__RGMII_TD3       0x1b0b0
+							MX6DL_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+							MX6DL_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+							MX6DL_PAD_RGMII_RXC__RGMII_RXC       0x1b0b0
+							MX6DL_PAD_RGMII_RD0__RGMII_RD0       0x1b0b0
+							MX6DL_PAD_RGMII_RD1__RGMII_RD1       0x1b0b0
+							MX6DL_PAD_RGMII_RD2__RGMII_RD2       0x1b0b0
+							MX6DL_PAD_RGMII_RD3__RGMII_RD3       0x1b0b0
+							MX6DL_PAD_RGMII_RX_CTL__RGMII_RX_CTL 0x1b0b0
+							MX6DL_PAD_GPIO_16__ENET_REF_CLK      0x4001b0a8
+						>;
+					};
+
+					pinctrl_enet_2: enetgrp-2 {
+						fsl,pins = <
+							MX6DL_PAD_KEY_COL1__ENET_MDIO        0x1b0b0
+							MX6DL_PAD_KEY_COL2__ENET_MDC         0x1b0b0
+							MX6DL_PAD_RGMII_TXC__RGMII_TXC       0x1b0b0
+							MX6DL_PAD_RGMII_TD0__RGMII_TD0       0x1b0b0
+							MX6DL_PAD_RGMII_TD1__RGMII_TD1       0x1b0b0
+							MX6DL_PAD_RGMII_TD2__RGMII_TD2       0x1b0b0
+							MX6DL_PAD_RGMII_TD3__RGMII_TD3       0x1b0b0
+							MX6DL_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+							MX6DL_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+							MX6DL_PAD_RGMII_RXC__RGMII_RXC       0x1b0b0
+							MX6DL_PAD_RGMII_RD0__RGMII_RD0       0x1b0b0
+							MX6DL_PAD_RGMII_RD1__RGMII_RD1       0x1b0b0
+							MX6DL_PAD_RGMII_RD2__RGMII_RD2       0x1b0b0
+							MX6DL_PAD_RGMII_RD3__RGMII_RD3       0x1b0b0
+							MX6DL_PAD_RGMII_RX_CTL__RGMII_RX_CTL 0x1b0b0
+						>;
+					};
+				};
+
+				uart1 {
+					pinctrl_uart1_1: uart1grp-1 {
+						fsl,pins = <
+							MX6DL_PAD_CSI0_DAT10__UART1_TX_DATA 0x1b0b1
+							MX6DL_PAD_CSI0_DAT11__UART1_RX_DATA 0x1b0b1
+						>;
+					};
+				};
+
+				uart4 {
+					pinctrl_uart4_1: uart4grp-1 {
+						fsl,pins = <
+							MX6DL_PAD_KEY_COL0__UART4_TX_DATA 0x1b0b1
+							MX6DL_PAD_KEY_ROW0__UART4_RX_DATA 0x1b0b1
+						>;
+					};
+				};
+
+				usbotg {
+					pinctrl_usbotg_2: usbotggrp-2 {
+						fsl,pins = <
+							MX6DL_PAD_ENET_RX_ER__USB_OTG_ID 0x17059
+						>;
+					};
+				};
+
+				usdhc2 {
+					pinctrl_usdhc2_1: usdhc2grp-1 {
+						fsl,pins = <
+							MX6DL_PAD_SD2_CMD__SD2_CMD    0x17059
+							MX6DL_PAD_SD2_CLK__SD2_CLK    0x10059
+							MX6DL_PAD_SD2_DAT0__SD2_DATA0 0x17059
+							MX6DL_PAD_SD2_DAT1__SD2_DATA1 0x17059
+							MX6DL_PAD_SD2_DAT2__SD2_DATA2 0x17059
+							MX6DL_PAD_SD2_DAT3__SD2_DATA3 0x17059
+							MX6DL_PAD_NANDF_D4__SD2_DATA4 0x17059
+							MX6DL_PAD_NANDF_D5__SD2_DATA5 0x17059
+							MX6DL_PAD_NANDF_D6__SD2_DATA6 0x17059
+							MX6DL_PAD_NANDF_D7__SD2_DATA7 0x17059
+						>;
+					};
+				};
+
+				usdhc3 {
+					pinctrl_usdhc3_1: usdhc3grp-1 {
+						fsl,pins = <
+							MX6DL_PAD_SD3_CMD__SD3_CMD    0x17059
+							MX6DL_PAD_SD3_CLK__SD3_CLK    0x10059
+							MX6DL_PAD_SD3_DAT0__SD3_DATA0 0x17059
+							MX6DL_PAD_SD3_DAT1__SD3_DATA1 0x17059
+							MX6DL_PAD_SD3_DAT2__SD3_DATA2 0x17059
+							MX6DL_PAD_SD3_DAT3__SD3_DATA3 0x17059
+							MX6DL_PAD_SD3_DAT4__SD3_DATA4 0x17059
+							MX6DL_PAD_SD3_DAT5__SD3_DATA5 0x17059
+							MX6DL_PAD_SD3_DAT6__SD3_DATA6 0x17059
+							MX6DL_PAD_SD3_DAT7__SD3_DATA7 0x17059
+						>;
+					};
+
+					pinctrl_usdhc3_2: usdhc3grp_2 {
+						fsl,pins = <
+							MX6DL_PAD_SD3_CMD__SD3_CMD    0x17059
+							MX6DL_PAD_SD3_CLK__SD3_CLK    0x10059
+							MX6DL_PAD_SD3_DAT0__SD3_DATA0 0x17059
+							MX6DL_PAD_SD3_DAT1__SD3_DATA1 0x17059
+							MX6DL_PAD_SD3_DAT2__SD3_DATA2 0x17059
+							MX6DL_PAD_SD3_DAT3__SD3_DATA3 0x17059
+						>;
+					};
+				};
+
+
+			};
+
+			pxp: pxp@020f0000 {
+				reg = <0x020f0000 0x4000>;
+				interrupts = <0 98 0x04>;
+			};
+
+			epdc: epdc@020f4000 {
+				reg = <0x020f4000 0x4000>;
+				interrupts = <0 97 0x04>;
+			};
+
+			lcdif: lcdif@020f8000 {
+				reg = <0x020f8000 0x4000>;
+				interrupts = <0 39 0x04>;
+			};
+		};
+
+		aips2: aips-bus@02100000 {
+			i2c4: i2c@021f8000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx1-i2c";
+				reg = <0x021f8000 0x4000>;
+				interrupts = <0 35 0x04>;
+				status = "disabled";
+			};
+		};
+	};
+};

@@ -22,6 +22,7 @@
 #include <asm/irqflags.h>
 #include <asm/asm-offsets.h>
 #include <asm/types.h>
+#include <asm/signal.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>
 #include <arch/interrupts.h>
@@ -219,7 +220,9 @@ intvec_\vecname:
 	 * This routine saves just the first four registers, plus the
 	 * stack context so we can do proper backtracing right away,
 	 * and defers to handle_interrupt to save the rest.
-	 * The backtracer needs pc, ex1, lr, sp, r52, and faultnum.
+	 * The backtracer needs pc, ex1, lr, sp, r52, and faultnum,
+	 * and needs sp set to its final location at the bottom of
+	 * the stack frame.
 	 */
 	addli   r0, r0, PTREGS_OFFSET_LR - (PTREGS_SIZE + KSTK_PTREGS_GAP)
 	wh64    r0   /* cache line 7 */
@@ -449,23 +452,6 @@ intvec_\vecname:
 	push_reg r5, r52
 	st      r52, r4
 
-	/* Load tp with our per-cpu offset. */
-#ifdef CONFIG_SMP
-	{
-	 mfspr  r20, SPR_SYSTEM_SAVE_K_0
-	 moveli r21, hw2_last(__per_cpu_offset)
-	}
-	{
-	 shl16insli r21, r21, hw1(__per_cpu_offset)
-	 bfextu r20, r20, 0, LOG2_THREAD_SIZE-1
-	}
-	shl16insli r21, r21, hw0(__per_cpu_offset)
-	shl3add r20, r20, r21
-	ld      tp, r20
-#else
-	move    tp, zero
-#endif
-
 	/*
 	 * If we will be returning to the kernel, we will need to
 	 * reset the interrupt masks to the state they had before.
@@ -487,6 +473,44 @@ intvec_\vecname:
 	ori     r32, r32, PT_FLAGS_CALLER_SAVES
 	.endif
 	st      r21, r32
+
+	/*
+	 * we've captured enough state to the stack (including in
+	 * particular our EX_CONTEXT state) that we can now release
+	 * the interrupt critical section and replace it with our
+	 * standard "interrupts disabled" mask value.  This allows
+	 * synchronous interrupts (and profile interrupts) to punch
+	 * through from this point onwards.
+	 *
+	 * It's important that no code before this point touch memory
+	 * other than our own stack (to keep the invariant that this
+	 * is all that gets touched under ICS), and that no code after
+	 * this point reference any interrupt-specific SPR, in particular
+	 * the EX_CONTEXT_K_ values.
+	 */
+	.ifc \function,handle_nmi
+	IRQ_DISABLE_ALL(r20)
+	.else
+	IRQ_DISABLE(r20, r21)
+	.endif
+	mtspr   INTERRUPT_CRITICAL_SECTION, zero
+
+	/* Load tp with our per-cpu offset. */
+#ifdef CONFIG_SMP
+	{
+	 mfspr  r20, SPR_SYSTEM_SAVE_K_0
+	 moveli r21, hw2_last(__per_cpu_offset)
+	}
+	{
+	 shl16insli r21, r21, hw1(__per_cpu_offset)
+	 bfextu r20, r20, 0, LOG2_THREAD_SIZE-1
+	}
+	shl16insli r21, r21, hw0(__per_cpu_offset)
+	shl3add r20, r20, r21
+	ld      tp, r20
+#else
+	move    tp, zero
+#endif
 
 #ifdef __COLLECT_LINKER_FEEDBACK__
 	/*
@@ -510,21 +534,6 @@ intvec_\vecname:
 	/* And now notify the feedback routines that we are here. */
 	FEEDBACK_ENTER(\function)
 #endif
-
-	/*
-	 * we've captured enough state to the stack (including in
-	 * particular our EX_CONTEXT state) that we can now release
-	 * the interrupt critical section and replace it with our
-	 * standard "interrupts disabled" mask value.  This allows
-	 * synchronous interrupts (and profile interrupts) to punch
-	 * through from this point onwards.
-	 */
-	.ifc \function,handle_nmi
-	IRQ_DISABLE_ALL(r20)
-	.else
-	IRQ_DISABLE(r20, r21)
-	.endif
-	mtspr   INTERRUPT_CRITICAL_SECTION, zero
 
 	/*
 	 * Prepare the first 256 stack bytes to be rapidly accessible
@@ -605,6 +614,10 @@ handle_interrupt:
  * This routine takes a boolean in r30 indicating if this is an NMI.
  * If so, we also expect a boolean in r31 indicating whether to
  * re-enable the oprofile interrupts.
+ *
+ * Note that .Lresume_userspace is jumped to directly in several
+ * places, and we need to make sure r30 is set correctly in those
+ * callers as well.
  */
 STD_ENTRY(interrupt_return)
 	/* If we're resuming to kernel space, don't check thread flags. */
@@ -642,6 +655,20 @@ STD_ENTRY(interrupt_return)
 	FEEDBACK_REENTER(interrupt_return)
 
 	/*
+	 * Use r33 to hold whether we have already loaded the callee-saves
+	 * into ptregs.  We don't want to do it twice in this loop, since
+	 * then we'd clobber whatever changes are made by ptrace, etc.
+	 */
+	{
+	 movei  r33, 0
+	 move   r32, sp
+	}
+
+	/* Get base of stack in r32. */
+	EXTRACT_THREAD_INFO(r32)
+
+.Lretry_work_pending:
+	/*
 	 * Disable interrupts so as to make sure we don't
 	 * miss an interrupt that sets any of the thread flags (like
 	 * need_resched or sigpending) between sampling and the iret.
@@ -650,9 +677,6 @@ STD_ENTRY(interrupt_return)
 	 */
 	IRQ_DISABLE(r20, r21)
 	TRACE_IRQS_OFF  /* Note: clobbers registers r0-r29 */
-
-	/* Get base of stack in r32; note r30/31 are used as arguments here. */
-	GET_THREAD_INFO(r32)
 
 
 	/* Check to see if there is any work to do before returning to user. */
@@ -669,16 +693,18 @@ STD_ENTRY(interrupt_return)
 
 	/*
 	 * Make sure we have all the registers saved for signal
-	 * handling or single-step.  Call out to C code to figure out
+	 * handling or notify-resume.  Call out to C code to figure out
 	 * exactly what we need to do for each flag bit, then if
 	 * necessary, reload the flags and recheck.
 	 */
-	push_extra_callee_saves r0
 	{
 	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
-	 jal    do_work_pending
+	 bnez   r33, 1f
 	}
-	bnez    r0, .Lresume_userspace
+	push_extra_callee_saves r0
+	movei   r33, 1
+1:	jal     do_work_pending
+	bnez    r0, .Lretry_work_pending
 
 	/*
 	 * In the NMI case we
@@ -718,9 +744,10 @@ STD_ENTRY(interrupt_return)
 	beqzt   r30, .Lrestore_regs
 	j       3f
 2:	TRACE_IRQS_ON
+	IRQ_ENABLE_LOAD(r20, r21)
 	movei   r0, 1
 	mtspr   INTERRUPT_CRITICAL_SECTION, r0
-	IRQ_ENABLE(r20, r21)
+	IRQ_ENABLE_APPLY(r20, r21)
 	beqzt   r30, .Lrestore_regs
 3:
 
@@ -737,7 +764,6 @@ STD_ENTRY(interrupt_return)
 	 * that will save some cycles if this turns out to be a syscall.
 	 */
 .Lrestore_regs:
-	FEEDBACK_REENTER(interrupt_return)   /* called from elsewhere */
 
 	/*
 	 * Rotate so we have one high bit and one low bit to test.
@@ -963,19 +989,30 @@ handle_syscall:
 	shl16insli r20, r20, hw0(irq_stat + IRQ_CPUSTAT_SYSCALL_COUNT_OFFSET)
 	add     r20, r20, tp
 	ld4s    r21, r20
-	addi    r21, r21, 1
-	st4     r20, r21
+	{
+	 addi   r21, r21, 1
+	 move   r31, sp
+	}
+	{
+	 st4    r20, r21
+	 EXTRACT_THREAD_INFO(r31)
+	}
 
 	/* Trace syscalls, if requested. */
-	GET_THREAD_INFO(r31)
 	addi	r31, r31, THREAD_INFO_FLAGS_OFFSET
-	ld	r30, r31
-	andi    r30, r30, _TIF_SYSCALL_TRACE
+	{
+	 ld     r30, r31
+	 moveli r32, _TIF_SYSCALL_ENTRY_WORK
+	}
+	and     r30, r30, r32
 	{
 	 addi   r30, r31, THREAD_INFO_STATUS_OFFSET - THREAD_INFO_FLAGS_OFFSET
 	 beqzt	r30, .Lrestore_syscall_regs
 	}
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_enter
+	}
 	FEEDBACK_REENTER(handle_syscall)
 
 	/*
@@ -1004,7 +1041,9 @@ handle_syscall:
 	/* Ensure that the syscall number is within the legal range. */
 	{
 	 moveli r20, hw2(sys_call_table)
+#ifdef CONFIG_COMPAT
 	 blbs   r30, .Lcompat_syscall
+#endif
 	}
 	{
 	 cmpltu r21, TREG_SYSCALL_NR_NAME, r21
@@ -1038,13 +1077,37 @@ handle_syscall:
 	FEEDBACK_REENTER(handle_syscall)
 
 	/* Do syscall trace again, if requested. */
-	ld	r30, r31
-	andi    r30, r30, _TIF_SYSCALL_TRACE
-	beqzt	r30, 1f
-	jal	do_syscall_trace
+	{
+	 ld      r30, r31
+	 moveli  r32, _TIF_SYSCALL_EXIT_WORK
+	}
+	and      r0, r30, r32
+	{
+	 andi    r0, r30, _TIF_SINGLESTEP
+	 beqzt   r0, 1f
+	}
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_exit
+	}
 	FEEDBACK_REENTER(handle_syscall)
-1:	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	andi    r0, r30, _TIF_SINGLESTEP
 
+1:	beqzt	r0, 2f
+
+	/* Single stepping -- notify ptrace. */
+	{
+	 movei   r0, SIGTRAP
+	 jal     ptrace_notify
+	}
+	FEEDBACK_REENTER(handle_syscall)
+
+2:	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
+
+#ifdef CONFIG_COMPAT
 .Lcompat_syscall:
 	/*
 	 * Load the base of the compat syscall table in r20, and
@@ -1069,6 +1132,7 @@ handle_syscall:
 	{ move r15, r4; addxi r4, r4, 0 }
 	{ move r16, r5; addxi r5, r5, 0 }
 	j .Lload_syscall_pointer
+#endif
 
 .Linvalid_syscall:
 	/* Report an invalid syscall back to the user program */
@@ -1077,7 +1141,10 @@ handle_syscall:
 	 movei  r28, -ENOSYS
 	}
 	st      r29, r28
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(handle_syscall)
 
 	/* Return the address for oprofile to suppress in backtraces. */
@@ -1093,8 +1160,26 @@ STD_ENTRY(ret_from_fork)
 	jal     sim_notify_fork
 	jal     schedule_tail
 	FEEDBACK_REENTER(ret_from_fork)
-	j       .Lresume_userspace
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(ret_from_fork)
+
+STD_ENTRY(ret_from_kernel_thread)
+	jal     sim_notify_fork
+	jal     schedule_tail
+	FEEDBACK_REENTER(ret_from_fork)
+	{
+	 move   r0, r31
+	 jalr   r30
+	}
+	FEEDBACK_REENTER(ret_from_kernel_thread)
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
+	STD_ENDPROC(ret_from_kernel_thread)
 
 /* Various stub interrupt handlers and syscall handlers */
 
@@ -1112,15 +1197,6 @@ STD_ENTRY_LOCAL(bad_intr)
 	panic   "Unhandled interrupt %#x: PC %#lx"
 	STD_ENDPROC(bad_intr)
 
-/* Put address of pt_regs in reg and jump. */
-#define PTREGS_SYSCALL(x, reg)                          \
-	STD_ENTRY(_##x);                                \
-	{                                               \
-	 PTREGS_PTR(reg, PTREGS_OFFSET_BASE);           \
-	 j      x                                       \
-	};                                              \
-	STD_ENDPROC(_##x)
-
 /*
  * Special-case sigreturn to not write r0 to the stack on return.
  * This is technically more efficient, but it also avoids difficulties
@@ -1136,16 +1212,12 @@ STD_ENTRY_LOCAL(bad_intr)
 	};                                              \
 	STD_ENDPROC(_##x)
 
-PTREGS_SYSCALL(sys_execve, r3)
-PTREGS_SYSCALL(sys_sigaltstack, r2)
 PTREGS_SYSCALL_SIGRETURN(sys_rt_sigreturn, r0)
 #ifdef CONFIG_COMPAT
-PTREGS_SYSCALL(compat_sys_execve, r3)
-PTREGS_SYSCALL(compat_sys_sigaltstack, r2)
 PTREGS_SYSCALL_SIGRETURN(compat_sys_rt_sigreturn, r0)
 #endif
 
-/* Save additional callee-saves to pt_regs, put address in r4 and jump. */
+/* Save additional callee-saves to pt_regs and jump to standard function. */
 STD_ENTRY(_sys_clone)
 	push_extra_callee_saves r4
 	j       sys_clone
@@ -1155,6 +1227,18 @@ STD_ENTRY(_sys_clone)
 int_unalign:
 	push_extra_callee_saves r0
 	j       do_trap
+
+/* Fill the return address stack with nonzero entries. */
+STD_ENTRY(fill_ra_stack)
+	{
+	 move	r0, lr
+	 jal	1f
+	}
+1:	jal	2f
+2:	jal	3f
+3:	jal	4f
+4:	jrp	r0
+	STD_ENDPROC(fill_ra_stack)
 
 /* Include .intrpt1 array of interrupt vectors */
 	.section ".intrpt1", "ax"
@@ -1166,7 +1250,7 @@ int_unalign:
 #define do_hardwall_trap bad_intr
 #endif
 
-	int_hand     INT_MEM_ERROR, MEM_ERROR, bad_intr
+	int_hand     INT_MEM_ERROR, MEM_ERROR, do_trap
 	int_hand     INT_SINGLE_STEP_3, SINGLE_STEP_3, bad_intr
 #if CONFIG_KERNEL_PL == 2
 	int_hand     INT_SINGLE_STEP_2, SINGLE_STEP_2, gx_singlestep_handle
@@ -1191,7 +1275,7 @@ int_unalign:
 	int_hand     INT_UNALIGN_DATA, UNALIGN_DATA, int_unalign
 	int_hand     INT_DTLB_MISS, DTLB_MISS, do_page_fault
 	int_hand     INT_DTLB_ACCESS, DTLB_ACCESS, do_page_fault
-	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, bad_intr
+	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_UDN_FIREWALL, UDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_TILE_TIMER, TILE_TIMER, do_timer_interrupt
 	int_hand     INT_IDN_TIMER, IDN_TIMER, bad_intr

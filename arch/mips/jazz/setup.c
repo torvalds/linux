@@ -21,6 +21,7 @@
 #include <asm/jazzdma.h>
 #include <asm/reboot.h>
 #include <asm/pgtable.h>
+#include <asm/tlbmisc.h>
 
 extern asmlinkage void jazz_handle_int(void);
 
@@ -136,9 +137,9 @@ static struct resource jazz_esp_rsrc[] = {
 };
 
 static struct platform_device jazz_esp_pdev = {
-	.name           = "jazz_esp",
-	.num_resources  = ARRAY_SIZE(jazz_esp_rsrc),
-	.resource       = jazz_esp_rsrc
+	.name		= "jazz_esp",
+	.num_resources	= ARRAY_SIZE(jazz_esp_rsrc),
+	.resource	= jazz_esp_rsrc
 };
 
 static struct resource jazz_sonic_rsrc[] = {
@@ -155,9 +156,9 @@ static struct resource jazz_sonic_rsrc[] = {
 };
 
 static struct platform_device jazz_sonic_pdev = {
-	.name           = "jazzsonic",
-	.num_resources  = ARRAY_SIZE(jazz_sonic_rsrc),
-	.resource       = jazz_sonic_rsrc
+	.name		= "jazzsonic",
+	.num_resources	= ARRAY_SIZE(jazz_sonic_rsrc),
+	.resource	= jazz_sonic_rsrc
 };
 
 static struct resource jazz_cmos_rsrc[] = {
@@ -174,13 +175,13 @@ static struct resource jazz_cmos_rsrc[] = {
 };
 
 static struct platform_device jazz_cmos_pdev = {
-	.name           = "rtc_cmos",
-	.num_resources  = ARRAY_SIZE(jazz_cmos_rsrc),
-	.resource       = jazz_cmos_rsrc
+	.name		= "rtc_cmos",
+	.num_resources	= ARRAY_SIZE(jazz_cmos_rsrc),
+	.resource	= jazz_cmos_rsrc
 };
 
 static struct platform_device pcspeaker_pdev = {
-	.name           = "pcspkr",
+	.name		= "pcspkr",
 	.id		= -1,
 };
 

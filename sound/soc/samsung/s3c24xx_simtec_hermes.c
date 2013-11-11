@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/module.h>
 #include <sound/soc.h>
 
 #include "s3c24xx_simtec.h"
@@ -65,18 +66,12 @@ static int simtec_hermes_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(dapm, dapm_widgets,
-				  ARRAY_SIZE(dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, base_map, ARRAY_SIZE(base_map));
-
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Line In");
 	snd_soc_dapm_enable_pin(dapm, "Line Out");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	simtec_audio_init(rtd);
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
@@ -87,18 +82,24 @@ static struct snd_soc_dai_link simtec_dai_aic33 = {
 	.codec_name	= "tlv320aic3x-codec.0-001a",
 	.cpu_dai_name	= "s3c24xx-iis",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.platform_name	= "samsung-audio",
+	.platform_name	= "s3c24xx-iis",
 	.init		= simtec_hermes_init,
 };
 
 /* simtec audio machine driver */
 static struct snd_soc_card snd_soc_machine_simtec_aic33 = {
 	.name		= "Simtec-Hermes",
+	.owner		= THIS_MODULE,
 	.dai_link	= &simtec_dai_aic33,
 	.num_links	= 1,
+
+	.dapm_widgets	= dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(dapm_widgets),
+	.dapm_routes	= base_map,
+	.num_dapm_routes = ARRAY_SIZE(base_map),
 };
 
-static int __devinit simtec_audio_hermes_probe(struct platform_device *pd)
+static int simtec_audio_hermes_probe(struct platform_device *pd)
 {
 	dev_info(&pd->dev, "probing....\n");
 	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic33);
@@ -111,24 +112,12 @@ static struct platform_driver simtec_audio_hermes_platdrv = {
 		.pm	= simtec_audio_pm,
 	},
 	.probe	= simtec_audio_hermes_probe,
-	.remove	= __devexit_p(simtec_audio_remove),
+	.remove	= simtec_audio_remove,
 };
 
+module_platform_driver(simtec_audio_hermes_platdrv);
+
 MODULE_ALIAS("platform:s3c24xx-simtec-hermes-snd");
-
-static int __init simtec_hermes_modinit(void)
-{
-	return platform_driver_register(&simtec_audio_hermes_platdrv);
-}
-
-static void __exit simtec_hermes_modexit(void)
-{
-	platform_driver_unregister(&simtec_audio_hermes_platdrv);
-}
-
-module_init(simtec_hermes_modinit);
-module_exit(simtec_hermes_modexit);
-
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("ALSA SoC Simtec Audio support");
 MODULE_LICENSE("GPL");

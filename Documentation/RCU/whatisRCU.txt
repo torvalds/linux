@@ -4,6 +4,7 @@ to start learning about RCU:
 1.	What is RCU, Fundamentally?  http://lwn.net/Articles/262464/
 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
+4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
 
 
 What is RCU?
@@ -264,9 +265,9 @@ rcu_dereference()
 		rcu_read_lock();
 		p = rcu_dereference(head.next);
 		rcu_read_unlock();
-		x = p->address;
+		x = p->address;	/* BUG!!! */
 		rcu_read_lock();
-		y = p->data;
+		y = p->data;	/* BUG!!! */
 		rcu_read_unlock();
 
 	Holding a reference from one RCU read-side critical section
@@ -498,6 +499,8 @@ The foo_reclaim() function might appear as follows:
 	{
 		struct foo *fp = container_of(rp, struct foo, rcu);
 
+		foo_cleanup(fp->a);
+
 		kfree(fp);
 	}
 
@@ -519,6 +522,12 @@ o	Use call_rcu() -after- removing a data element from an
 	function that will be invoked after the completion of all RCU
 	read-side critical sections that might be referencing that
 	data item.
+
+If the callback for call_rcu() is not doing anything more than calling
+kfree() on the structure, you can use kfree_rcu() instead of call_rcu()
+to avoid having to write your own callback:
+
+	kfree_rcu(old_fp, rcu);
 
 Again, see checklist.txt for additional rules governing the use of RCU.
 
@@ -772,8 +781,8 @@ a single atomic update, converting to RCU will require special care.
 
 Also, the presence of synchronize_rcu() means that the RCU version of
 delete() can now block.  If this is a problem, there is a callback-based
-mechanism that never blocks, namely call_rcu(), that can be used in
-place of synchronize_rcu().
+mechanism that never blocks, namely call_rcu() or kfree_rcu(), that can
+be used in place of synchronize_rcu().
 
 
 7.  FULL LIST OF RCU APIs
@@ -788,9 +797,7 @@ RCU list traversal:
 	list_for_each_entry_rcu
 	hlist_for_each_entry_rcu
 	hlist_nulls_for_each_entry_rcu
-
-	list_for_each_continue_rcu	(to be deprecated in favor of new
-					 list_for_each_entry_continue_rcu)
+	list_for_each_entry_continue_rcu
 
 RCU pointer/list update:
 
@@ -812,6 +819,7 @@ RCU:	Critical sections	Grace period		Barrier
 	rcu_read_unlock		synchronize_rcu
 	rcu_dereference		synchronize_rcu_expedited
 				call_rcu
+				kfree_rcu
 
 
 bh:	Critical sections	Grace period		Barrier
@@ -832,8 +840,10 @@ sched:	Critical sections	Grace period		Barrier
 
 SRCU:	Critical sections	Grace period		Barrier
 
-	srcu_read_lock		synchronize_srcu	N/A
-	srcu_read_unlock	synchronize_srcu_expedited
+	srcu_read_lock		synchronize_srcu	srcu_barrier
+	srcu_read_unlock	call_srcu
+	srcu_read_lock_raw	synchronize_srcu_expedited
+	srcu_read_unlock_raw
 	srcu_dereference
 
 SRCU:	Initialization/cleanup
@@ -855,27 +865,38 @@ list can be helpful:
 
 a.	Will readers need to block?  If so, you need SRCU.
 
-b.	What about the -rt patchset?  If readers would need to block
+b.	Is it necessary to start a read-side critical section in a
+	hardirq handler or exception handler, and then to complete
+	this read-side critical section in the task that was
+	interrupted?  If so, you need SRCU's srcu_read_lock_raw() and
+	srcu_read_unlock_raw() primitives.
+
+c.	What about the -rt patchset?  If readers would need to block
 	in an non-rt kernel, you need SRCU.  If readers would block
 	in a -rt kernel, but not in a non-rt kernel, SRCU is not
 	necessary.
 
-c.	Do you need to treat NMI handlers, hardirq handlers,
+d.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
 	via preempt_disable(), local_irq_save(), local_bh_disable(),
 	or some other mechanism) as if they were explicit RCU readers?
-	If so, you need RCU-sched.
+	If so, RCU-sched is the only choice that will work for you.
 
-d.	Do you need RCU grace periods to complete even in the face
+e.	Do you need RCU grace periods to complete even in the face
 	of softirq monopolization of one or more of the CPUs?  For
 	example, is your code subject to network-based denial-of-service
 	attacks?  If so, you need RCU-bh.
 
-e.	Is your workload too update-intensive for normal use of
+f.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
 	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
 
-f.	Otherwise, use RCU.
+g.	Do you need read-side critical sections that are respected
+	even though they are in the middle of the idle loop, during
+	user-mode execution, or on an offlined CPU?  If so, SRCU is the
+	only choice that will work for you.
+
+h.	Otherwise, use RCU.
 
 Of course, this all assumes that you have determined that RCU is in fact
 the right tool for your job.

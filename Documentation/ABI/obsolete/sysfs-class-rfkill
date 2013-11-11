@@ -7,7 +7,7 @@ Date:		09-Jul-2007
 KernelVersion	v2.6.22
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Current state of the transmitter.
-		This file is deprecated and sheduled to be removed in 2014,
+		This file is deprecated and scheduled to be removed in 2014,
 		because its not possible to express the 'soft and hard block'
 		state of the rfkill driver.
 Values: 	A numeric value.

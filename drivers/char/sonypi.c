@@ -54,7 +54,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <linux/sonypi.h>
 
@@ -939,7 +938,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(file);
 		inode->i_atime = current_fs_time(inode->i_sb);
 	}
 
@@ -1143,7 +1142,7 @@ static int sonypi_acpi_add(struct acpi_device *device)
 	return 0;
 }
 
-static int sonypi_acpi_remove(struct acpi_device *device, int type)
+static int sonypi_acpi_remove(struct acpi_device *device)
 {
 	sonypi_acpi_device = NULL;
 	return 0;
@@ -1165,7 +1164,7 @@ static struct acpi_driver sonypi_acpi_driver = {
 };
 #endif
 
-static int __devinit sonypi_create_input_devices(struct platform_device *pdev)
+static int sonypi_create_input_devices(struct platform_device *pdev)
 {
 	struct input_dev *jog_dev;
 	struct input_dev *key_dev;
@@ -1226,7 +1225,7 @@ static int __devinit sonypi_create_input_devices(struct platform_device *pdev)
 	return error;
 }
 
-static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
+static int sonypi_setup_ioports(struct sonypi_device *dev,
 				const struct sonypi_ioport_list *ioport_list)
 {
 	/* try to detect if sony-laptop is being used and thus
@@ -1266,7 +1265,7 @@ static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
 	return -EBUSY;
 }
 
-static int __devinit sonypi_setup_irq(struct sonypi_device *dev,
+static int sonypi_setup_irq(struct sonypi_device *dev,
 				      const struct sonypi_irq_list *irq_list)
 {
 	while (irq_list->irq) {
@@ -1283,7 +1282,7 @@ static int __devinit sonypi_setup_irq(struct sonypi_device *dev,
 	return -EBUSY;
 }
 
-static void __devinit sonypi_display_info(void)
+static void sonypi_display_info(void)
 {
 	printk(KERN_INFO "sonypi: detected type%d model, "
 	       "verbose = %d, fnkeyinit = %s, camera = %s, "
@@ -1305,7 +1304,7 @@ static void __devinit sonypi_display_info(void)
 		       sonypi_misc_device.minor);
 }
 
-static int __devinit sonypi_probe(struct platform_device *dev)
+static int sonypi_probe(struct platform_device *dev)
 {
 	const struct sonypi_ioport_list *ioport_list;
 	const struct sonypi_irq_list *irq_list;
@@ -1429,12 +1428,12 @@ static int __devinit sonypi_probe(struct platform_device *dev)
 	return error;
 }
 
-static int __devexit sonypi_remove(struct platform_device *dev)
+static int sonypi_remove(struct platform_device *dev)
 {
 	sonypi_disable();
 
 	synchronize_irq(sonypi_device.irq);
-	flush_work_sync(&sonypi_device.input_work);
+	flush_work(&sonypi_device.input_work);
 
 	if (useinput) {
 		input_unregister_device(sonypi_device.input_key_dev);
@@ -1457,10 +1456,10 @@ static int __devexit sonypi_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int old_camera_power;
 
-static int sonypi_suspend(struct platform_device *dev, pm_message_t state)
+static int sonypi_suspend(struct device *dev)
 {
 	old_camera_power = sonypi_device.camera_power;
 	sonypi_disable();
@@ -1468,14 +1467,16 @@ static int sonypi_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int sonypi_resume(struct platform_device *dev)
+static int sonypi_resume(struct device *dev)
 {
 	sonypi_enable(old_camera_power);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(sonypi_pm, sonypi_suspend, sonypi_resume);
+#define SONYPI_PM	(&sonypi_pm)
 #else
-#define sonypi_suspend	NULL
-#define sonypi_resume	NULL
+#define SONYPI_PM	NULL
 #endif
 
 static void sonypi_shutdown(struct platform_device *dev)
@@ -1487,12 +1488,11 @@ static struct platform_driver sonypi_driver = {
 	.driver		= {
 		.name	= "sonypi",
 		.owner	= THIS_MODULE,
+		.pm	= SONYPI_PM,
 	},
 	.probe		= sonypi_probe,
-	.remove		= __devexit_p(sonypi_remove),
+	.remove		= sonypi_remove,
 	.shutdown	= sonypi_shutdown,
-	.suspend	= sonypi_suspend,
-	.resume		= sonypi_resume,
 };
 
 static struct platform_device *sonypi_platform_device;

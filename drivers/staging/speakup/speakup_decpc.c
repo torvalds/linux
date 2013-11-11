@@ -66,7 +66,7 @@
 #define	CMD_null		0x0000	/* post status */
 #define	CMD_control		0x1000	/* hard control command */
 #define	CTRL_mask		0x0F00	/*   mask off control nibble */
-#define	CTRL_data		0x00FF	/*   madk to get data byte */
+#define	CTRL_data		0x00FF	/*   mask to get data byte */
 #define	CTRL_null		0x0000	/*   null control */
 #define	CTRL_vol_up		0x0100	/*   increase volume */
 #define	CTRL_vol_down		0x0200	/*   decrease volume */
@@ -375,8 +375,8 @@ static void do_catch_up(struct spk_synth *synth)
 	int jiffy_delta_val;
 	int delay_time_val;
 
-	jiffy_delta = get_var(JIFFY);
-	delay_time = get_var(DELAY);
+	jiffy_delta = spk_get_var(JIFFY);
+	delay_time = spk_get_var(DELAY);
 	spk_lock(flags);
 	jiffy_delta_val = jiffy_delta->u.n.value;
 	spk_unlock(flags);

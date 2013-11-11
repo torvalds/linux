@@ -136,16 +136,6 @@ For more information, please review the AMD8131 errata at
 http://vip.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/
 26310_AMD-8131_HyperTransport_PCI-X_Tunnel_Revision_Guide_rev_3_18.pdf
 
-6.  Available Downloads
-Neterion "s2io" driver in Red Hat and Suse 2.6-based distributions is kept up 
-to date, also the latest "s2io" code (including support for 2.4 kernels) is 
-available via "Support" link on the Neterion site:  http://www.neterion.com.
-
-For Xframe User Guide (Programming manual), visit ftp site ns1.s2io.com,
-user: linuxdocs password: HALdocs
-
-7. Support 
+6. Support
 For further support please contact either your 10GbE Xframe NIC vendor (IBM, 
-HP, SGI etc.) or click on the "Support" link on the Neterion site:  
-http://www.neterion.com.
-
+HP, SGI etc.)

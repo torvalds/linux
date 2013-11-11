@@ -22,7 +22,7 @@
 #define CVMX_PCIE_BAR1_PHYS_SIZE (1ull << 28)
 
 /*
- * The RC base of BAR1.  gen1 has a 39-bit BAR2, gen2 has 41-bit BAR2,
+ * The RC base of BAR1.	 gen1 has a 39-bit BAR2, gen2 has 41-bit BAR2,
  * place BAR1 so it is the same for both.
  */
 #define CVMX_PCIE_BAR1_RC_BASE (1ull << 41)
@@ -56,7 +56,8 @@ enum octeon_dma_bar_type {
 	OCTEON_DMA_BAR_TYPE_INVALID,
 	OCTEON_DMA_BAR_TYPE_SMALL,
 	OCTEON_DMA_BAR_TYPE_BIG,
-	OCTEON_DMA_BAR_TYPE_PCIE
+	OCTEON_DMA_BAR_TYPE_PCIE,
+	OCTEON_DMA_BAR_TYPE_PCIE2
 };
 
 /*

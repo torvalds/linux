@@ -22,7 +22,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2003 Agere Systems Inc.
+ * Copyright Â© 2003 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -43,7 +43,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED Â“AS ISÂ” AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -60,9 +60,6 @@
 
 #ifndef __WL_WEXT_H__
 #define __WL_WEXT_H__
-
-
-#ifdef WIRELESS_EXT
 
 
 /*******************************************************************************
@@ -87,10 +84,5 @@ void wl_wext_event_mic_failed( struct net_device *dev );
 void wl_wext_event_assoc_ie( struct net_device *dev );
 
 extern const struct iw_handler_def wl_iw_handler_def;
-
-#else
-#error WIRELESS_EXT
-#endif // WIRELESS_EXT
-
 
 #endif  // __WL_WEXT_H__

@@ -30,6 +30,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pnp.h>
@@ -118,31 +120,31 @@ static int ene_hw_detect(struct ene_device *dev)
 			dev->pll_freq == ENE_DEFAULT_PLL_FREQ ? 2 : 4;
 
 	if (hw_revision == 0xFF) {
-		ene_warn("device seems to be disabled");
-		ene_warn("send a mail to lirc-list@lists.sourceforge.net");
-		ene_warn("please attach output of acpidump and dmidecode");
+		pr_warn("device seems to be disabled\n");
+		pr_warn("send a mail to lirc-list@lists.sourceforge.net\n");
+		pr_warn("please attach output of acpidump and dmidecode\n");
 		return -ENODEV;
 	}
 
-	ene_notice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x",
-		chip_major, chip_minor, old_ver, hw_revision);
+	pr_notice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x\n",
+		  chip_major, chip_minor, old_ver, hw_revision);
 
-	ene_notice("PLL freq = %d", dev->pll_freq);
+	pr_notice("PLL freq = %d\n", dev->pll_freq);
 
 	if (chip_major == 0x33) {
-		ene_warn("chips 0x33xx aren't supported");
+		pr_warn("chips 0x33xx aren't supported\n");
 		return -ENODEV;
 	}
 
 	if (chip_major == 0x39 && chip_minor == 0x26 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_C;
-		ene_notice("KB3926C detected");
+		pr_notice("KB3926C detected\n");
 	} else if (old_ver == 0x24 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_B;
-		ene_notice("KB3926B detected");
+		pr_notice("KB3926B detected\n");
 	} else {
 		dev->hw_revision = ENE_HW_D;
-		ene_notice("KB3926D or higher detected");
+		pr_notice("KB3926D or higher detected\n");
 	}
 
 	/* detect features hardware supports */
@@ -152,7 +154,7 @@ static int ene_hw_detect(struct ene_device *dev)
 	fw_reg1 = ene_read_reg(dev, ENE_FW1);
 	fw_reg2 = ene_read_reg(dev, ENE_FW2);
 
-	ene_notice("Firmware regs: %02x %02x", fw_reg1, fw_reg2);
+	pr_notice("Firmware regs: %02x %02x\n", fw_reg1, fw_reg2);
 
 	dev->hw_use_gpio_0a = !!(fw_reg2 & ENE_FW2_GP0A);
 	dev->hw_learning_and_tx_capable = !!(fw_reg2 & ENE_FW2_LEARNING);
@@ -161,30 +163,29 @@ static int ene_hw_detect(struct ene_device *dev)
 	if (dev->hw_learning_and_tx_capable)
 		dev->hw_fan_input = !!(fw_reg2 & ENE_FW2_FAN_INPUT);
 
-	ene_notice("Hardware features:");
+	pr_notice("Hardware features:\n");
 
 	if (dev->hw_learning_and_tx_capable) {
-		ene_notice("* Supports transmitting & learning mode");
-		ene_notice("   This feature is rare and therefore,");
-		ene_notice("   you are welcome to test it,");
-		ene_notice("   and/or contact the author via:");
-		ene_notice("   lirc-list@lists.sourceforge.net");
-		ene_notice("   or maximlevitsky@gmail.com");
+		pr_notice("* Supports transmitting & learning mode\n");
+		pr_notice("   This feature is rare and therefore,\n");
+		pr_notice("   you are welcome to test it,\n");
+		pr_notice("   and/or contact the author via:\n");
+		pr_notice("   lirc-list@lists.sourceforge.net\n");
+		pr_notice("   or maximlevitsky@gmail.com\n");
 
-		ene_notice("* Uses GPIO %s for IR raw input",
-			dev->hw_use_gpio_0a ? "40" : "0A");
+		pr_notice("* Uses GPIO %s for IR raw input\n",
+			  dev->hw_use_gpio_0a ? "40" : "0A");
 
 		if (dev->hw_fan_input)
-			ene_notice("* Uses unused fan feedback input as source"
-					" of demodulated IR data");
+			pr_notice("* Uses unused fan feedback input as source of demodulated IR data\n");
 	}
 
 	if (!dev->hw_fan_input)
-		ene_notice("* Uses GPIO %s for IR demodulated input",
-			dev->hw_use_gpio_0a ? "0A" : "40");
+		pr_notice("* Uses GPIO %s for IR demodulated input\n",
+			  dev->hw_use_gpio_0a ? "0A" : "40");
 
 	if (dev->hw_extra_buffer)
-		ene_notice("* Uses new style input buffer");
+		pr_notice("* Uses new style input buffer\n");
 	return 0;
 }
 
@@ -215,13 +216,13 @@ static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 
 	dev->buffer_len = dev->extra_buf1_len + dev->extra_buf2_len + 8;
 
-	ene_notice("Hardware uses 2 extended buffers:");
-	ene_notice("  0x%04x - len : %d", dev->extra_buf1_address,
-						dev->extra_buf1_len);
-	ene_notice("  0x%04x - len : %d", dev->extra_buf2_address,
-						dev->extra_buf2_len);
+	pr_notice("Hardware uses 2 extended buffers:\n");
+	pr_notice("  0x%04x - len : %d\n",
+		  dev->extra_buf1_address, dev->extra_buf1_len);
+	pr_notice("  0x%04x - len : %d\n",
+		  dev->extra_buf2_address, dev->extra_buf2_len);
 
-	ene_notice("Total buffer len = %d", dev->buffer_len);
+	pr_notice("Total buffer len = %d\n", dev->buffer_len);
 
 	if (dev->buffer_len > 64 || dev->buffer_len < 16)
 		goto error;
@@ -240,7 +241,7 @@ static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 	ene_set_reg_mask(dev, ENE_FW1, ENE_FW1_EXTRA_BUF_HND);
 	return;
 error:
-	ene_warn("Error validating extra buffers, device probably won't work");
+	pr_warn("Error validating extra buffers, device probably won't work\n");
 	dev->hw_extra_buffer = false;
 	ene_clear_reg_mask(dev, ENE_FW1, ENE_FW1_EXTRA_BUF_HND);
 }
@@ -323,12 +324,12 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 		return dev->extra_buf2_address + r_pointer;
 	}
 
-	dbg("attempt to read beyong ring bufer end");
+	dbg("attempt to read beyond ring buffer end");
 	return 0;
 }
 
 /* Sense current received carrier */
-void ene_rx_sense_carrier(struct ene_device *dev)
+static void ene_rx_sense_carrier(struct ene_device *dev)
 {
 	DEFINE_IR_RAW_EVENT(ev);
 
@@ -588,7 +589,7 @@ static void ene_tx_enable(struct ene_device *dev)
 		dbg("TX: Transmitter #2 is connected");
 
 	if (!(fwreg2 & (ENE_FW2_EMMITER1_CONN | ENE_FW2_EMMITER2_CONN)))
-		ene_warn("TX: transmitter cable isn't connected!");
+		pr_warn("TX: transmitter cable isn't connected!\n");
 
 	/* disable receive on revc */
 	if (dev->hw_revision == ENE_HW_C)
@@ -615,7 +616,7 @@ static void ene_tx_sample(struct ene_device *dev)
 	bool pulse = dev->tx_sample_pulse;
 
 	if (!dev->tx_buffer) {
-		ene_warn("TX: BUG: attempt to transmit NULL buffer");
+		pr_warn("TX: BUG: attempt to transmit NULL buffer\n");
 		return;
 	}
 
@@ -880,10 +881,13 @@ static int ene_set_tx_mask(struct rc_dev *rdev, u32 tx_mask)
 static int ene_set_tx_carrier(struct rc_dev *rdev, u32 carrier)
 {
 	struct ene_device *dev = rdev->priv;
-	u32 period = 2000000 / carrier;
+	u32 period;
 
 	dbg("TX: attempt to set tx carrier to %d kHz", carrier);
+	if (carrier == 0)
+		return -EINVAL;
 
+	period = 2000000 / carrier;
 	if (period && (period > ENE_CIRMOD_PRD_MAX ||
 			period < ENE_CIRMOD_PRD_MIN)) {
 
@@ -953,13 +957,13 @@ static void ene_set_idle(struct rc_dev *rdev, bool idle)
 }
 
 /* outside interface: transmit */
-static int ene_transmit(struct rc_dev *rdev, int *buf, u32 n)
+static int ene_transmit(struct rc_dev *rdev, unsigned *buf, unsigned n)
 {
 	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 
 	dev->tx_buffer = buf;
-	dev->tx_len = n / sizeof(int);
+	dev->tx_len = n;
 	dev->tx_pos = 0;
 	dev->tx_reg = 0;
 	dev->tx_done = 0;
@@ -999,7 +1003,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
 	rdev = rc_allocate_device();
 	if (!dev || !rdev)
-		goto error1;
+		goto exit_free_dev_rdev;
 
 	/* validate resources */
 	error = -ENODEV;
@@ -1010,28 +1014,14 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	if (!pnp_port_valid(pnp_dev, 0) ||
 	    pnp_port_len(pnp_dev, 0) < ENE_IO_SIZE)
-		goto error;
+		goto exit_free_dev_rdev;
 
 	if (!pnp_irq_valid(pnp_dev, 0))
-		goto error;
+		goto exit_free_dev_rdev;
 
 	spin_lock_init(&dev->hw_lock);
 
-	/* claim the resources */
-	error = -EBUSY;
 	dev->hw_io = pnp_port_start(pnp_dev, 0);
-	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		dev->hw_io = -1;
-		dev->irq = -1;
-		goto error;
-	}
-
-	dev->irq = pnp_irq(pnp_dev, 0);
-	if (request_irq(dev->irq, ene_isr,
-			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
-		dev->irq = -1;
-		goto error;
-	}
 
 	pnp_set_drvdata(pnp_dev, dev);
 	dev->pnp_dev = pnp_dev;
@@ -1043,20 +1033,20 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	/* detect hardware version and features */
 	error = ene_hw_detect(dev);
 	if (error)
-		goto error;
+		goto exit_free_dev_rdev;
 
 	if (!dev->hw_learning_and_tx_capable && txsim) {
 		dev->hw_learning_and_tx_capable = true;
 		setup_timer(&dev->tx_sim_timer, ene_tx_irqsim,
 						(long unsigned int)dev);
-		ene_warn("Simulation of TX activated");
+		pr_warn("Simulation of TX activated\n");
 	}
 
 	if (!dev->hw_learning_and_tx_capable)
 		learning_mode_force = false;
 
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = RC_TYPE_ALL;
+	rdev->allowed_protos = RC_BIT_ALL;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;
@@ -1087,16 +1077,29 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 
 	error = rc_register_device(rdev);
 	if (error < 0)
-		goto error;
+		goto exit_free_dev_rdev;
 
-	ene_notice("driver has been successfully loaded");
+	/* claim the resources */
+	error = -EBUSY;
+	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
+		goto exit_unregister_device;
+	}
+
+	dev->irq = pnp_irq(pnp_dev, 0);
+	if (request_irq(dev->irq, ene_isr,
+			IRQF_SHARED, ENE_DRIVER_NAME, (void *)dev)) {
+		goto exit_release_hw_io;
+	}
+
+	pr_notice("driver has been successfully loaded\n");
 	return 0;
-error:
-	if (dev && dev->irq >= 0)
-		free_irq(dev->irq, dev);
-	if (dev && dev->hw_io >= 0)
-		release_region(dev->hw_io, ENE_IO_SIZE);
-error1:
+
+exit_release_hw_io:
+	release_region(dev->hw_io, ENE_IO_SIZE);
+exit_unregister_device:
+	rc_unregister_device(rdev);
+	rdev = NULL;
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);
 	return error;
@@ -1170,7 +1173,7 @@ static struct pnp_driver ene_driver = {
 	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
 
 	.probe = ene_probe,
-	.remove = __devexit_p(ene_remove),
+	.remove = ene_remove,
 #ifdef CONFIG_PM
 	.suspend = ene_suspend,
 	.resume = ene_resume,

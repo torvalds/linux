@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/bitrev.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <sound/core.h>
 #include <sound/control.h>

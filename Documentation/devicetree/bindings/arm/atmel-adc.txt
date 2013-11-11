@@ -1,0 +1,78 @@
+* AT91's Analog to Digital Converter (ADC)
+
+Required properties:
+  - compatible: Should be "atmel,at91sam9260-adc"
+  - reg: Should contain ADC registers location and length
+  - interrupts: Should contain the IRQ line for the ADC
+  - atmel,adc-channel-base: Offset of the first channel data register
+  - atmel,adc-channels-used: Bitmask of the channels muxed and enable for this
+    device
+  - atmel,adc-drdy-mask: Mask of the DRDY interruption in the ADC
+  - atmel,adc-num-channels: Number of channels available in the ADC
+  - atmel,adc-startup-time: Startup Time of the ADC in microseconds as
+    defined in the datasheet
+  - atmel,adc-status-register: Offset of the Interrupt Status Register
+  - atmel,adc-trigger-register: Offset of the Trigger Register
+  - atmel,adc-vref: Reference voltage in millivolts for the conversions
+  - atmel,adc-res: List of resolution in bits supported by the ADC. List size
+		   must be two at least.
+  - atmel,adc-res-names: Contains one identifier string for each resolution
+			 in atmel,adc-res property. "lowres" and "highres"
+			 identifiers are required.
+
+Optional properties:
+  - atmel,adc-use-external: Boolean to enable of external triggers
+  - atmel,adc-use-res: String corresponding to an identifier from
+		       atmel,adc-res-names property. If not specified, the highest
+		       resolution will be used.
+  - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
+  - atmel,adc-sample-hold-time: Sample and Hold Time in microseconds
+ 
+Optional trigger Nodes:
+  - Required properties:
+    * trigger-name: Name of the trigger exposed to the user
+    * trigger-value: Value to put in the Trigger register
+      to activate this trigger
+  - Optional properties:
+    * trigger-external: Is the trigger an external trigger?
+
+Examples:
+adc0: adc@fffb0000 {
+	compatible = "atmel,at91sam9260-adc";
+	reg = <0xfffb0000 0x100>;
+	interrupts = <20 4>;
+	atmel,adc-channel-base = <0x30>;
+	atmel,adc-channels-used = <0xff>;
+	atmel,adc-drdy-mask = <0x10000>;
+	atmel,adc-num-channels = <8>;
+	atmel,adc-startup-time = <40>;
+	atmel,adc-status-register = <0x1c>;
+	atmel,adc-trigger-register = <0x08>;
+	atmel,adc-use-external;
+	atmel,adc-vref = <3300>;
+	atmel,adc-res = <8 10>;
+	atmel,adc-res-names = "lowres", "highres";
+	atmel,adc-use-res = "lowres";
+
+	trigger@0 {
+		trigger-name = "external-rising";
+		trigger-value = <0x1>;
+		trigger-external;
+	};
+	trigger@1 {
+		trigger-name = "external-falling";
+		trigger-value = <0x2>;
+		trigger-external;
+	};
+
+	trigger@2 {
+		trigger-name = "external-any";
+		trigger-value = <0x3>;
+		trigger-external;
+	};
+
+	trigger@3 {
+		trigger-name = "continuous";
+		trigger-value = <0x6>;
+	};
+};

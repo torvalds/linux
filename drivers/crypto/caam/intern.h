@@ -41,9 +41,10 @@ struct caam_jrentry_info {
 /* Private sub-storage for a single JobR */
 struct caam_drv_private_jr {
 	struct device *parentdev;	/* points back to controller dev */
+	struct platform_device *jr_pdev;/* points to platform device for JR */
 	int ridx;
 	struct caam_job_ring __iomem *rregs;	/* JobR's register space */
-	struct tasklet_struct irqtask[NR_CPUS];
+	struct tasklet_struct irqtask;
 	int irq;			/* One per queue */
 	int assign;			/* busy/free */
 
@@ -86,10 +87,10 @@ struct caam_drv_private {
 
 	/* which jr allocated to scatterlist crypto */
 	atomic_t tfm_count ____cacheline_aligned;
-	int num_jrs_for_algapi;
-	struct device **algapi_jr;
 	/* list of registered crypto algorithms (mk generic context handle?) */
 	struct list_head alg_list;
+	/* list of registered hash algorithms (mk generic context handle?) */
+	struct list_head hash_list;
 
 	/*
 	 * debugfs entries for developer view into driver/device

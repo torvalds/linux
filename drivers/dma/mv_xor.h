@@ -24,8 +24,10 @@
 #include <linux/interrupt.h>
 
 #define USE_TIMER
+#define MV_XOR_POOL_SIZE		PAGE_SIZE
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
+#define MV_XOR_MAX_CHANNELS             2
 
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
@@ -51,34 +53,18 @@
 #define WINDOW_SIZE(w)		(0x270 + ((w) << 2))
 #define WINDOW_REMAP_HIGH(w)	(0x290 + ((w) << 2))
 #define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
+#define WINDOW_OVERRIDE_CTRL(chan)	(0x2A0 + ((chan) << 2))
 
-struct mv_xor_shared_private {
-	void __iomem	*xor_base;
-	void __iomem	*xor_high_base;
-};
-
-
-/**
- * struct mv_xor_device - internal representation of a XOR device
- * @pdev: Platform device
- * @id: HW XOR Device selector
- * @dma_desc_pool: base of DMA descriptor region (DMA address)
- * @dma_desc_pool_virt: base of DMA descriptor region (CPU address)
- * @common: embedded struct dma_device
- */
 struct mv_xor_device {
-	struct platform_device		*pdev;
-	int				id;
-	dma_addr_t			dma_desc_pool;
-	void				*dma_desc_pool_virt;
-	struct dma_device		common;
-	struct mv_xor_shared_private	*shared;
+	void __iomem	     *xor_base;
+	void __iomem	     *xor_high_base;
+	struct clk	     *clk;
+	struct mv_xor_chan   *channels[MV_XOR_MAX_CHANNELS];
 };
 
 /**
  * struct mv_xor_chan - internal representation of a XOR channel
  * @pending: allows batching of hardware operations
- * @completed_cookie: identifier for the most recently completed operation
  * @lock: serializes enqueue/dequeue operations to the descriptors pool
  * @mmr_base: memory mapped register base
  * @idx: the index of the xor channel
@@ -93,15 +79,18 @@ struct mv_xor_device {
  */
 struct mv_xor_chan {
 	int			pending;
-	dma_cookie_t		completed_cookie;
 	spinlock_t		lock; /* protects the descriptor slot pool */
 	void __iomem		*mmr_base;
 	unsigned int		idx;
+	int                     irq;
 	enum dma_transaction_type	current_type;
 	struct list_head	chain;
 	struct list_head	completed_slots;
-	struct mv_xor_device	*device;
-	struct dma_chan		common;
+	dma_addr_t		dma_desc_pool;
+	void			*dma_desc_pool_virt;
+	size_t                  pool_size;
+	struct dma_device	dmadev;
+	struct dma_chan		dmachan;
 	struct mv_xor_desc_slot	*last_used;
 	struct list_head	all_slots;
 	int			slots_allocated;
@@ -109,7 +98,6 @@ struct mv_xor_chan {
 #ifdef USE_TIMER
 	unsigned long		cleanup_time;
 	u32			current_on_last_cleanup;
-	dma_cookie_t		is_complete_cookie;
 #endif
 };
 

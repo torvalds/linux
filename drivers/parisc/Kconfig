@@ -108,13 +108,6 @@ config IOMMU_HELPER
 	depends on IOMMU_SBA || IOMMU_CCIO
 	default y
 
-#config PCI_EPIC
-#	bool "EPIC/SAGA PCI support"
-#	depends on PCI
-#	default y
-#	help
-#	  Say Y here for V-class PCI, DMA/IOMMU, IRQ subsystem support.
-
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
@@ -135,6 +128,7 @@ config SUPERIO
 config CHASSIS_LCD_LED
 	bool "Chassis LCD and LED support"
 	default y
+	select VM_EVENT_COUNTERS
 	help
 	  Say Y here if you want to enable support for the Heartbeat,
 	  Disk/Network activities LEDs on some PA-RISC machines,

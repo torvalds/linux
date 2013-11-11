@@ -29,6 +29,7 @@
  */
 
 #include <linux/time.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 

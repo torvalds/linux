@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/cpufreq.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 #include <linux/timex.h>
 #include <linux/io.h>
@@ -116,15 +117,15 @@ static unsigned int elanfreq_get_cpu_frequency(unsigned int cpu)
  *	There is no return value.
  */
 
-static void elanfreq_set_cpu_state(unsigned int state)
+static void elanfreq_set_cpu_state(struct cpufreq_policy *policy,
+		unsigned int state)
 {
 	struct cpufreq_freqs    freqs;
 
 	freqs.old = elanfreq_get_cpu_frequency(0);
 	freqs.new = elan_multiplier[state].clock;
-	freqs.cpu = 0; /* elanfreq.c is UP only driver */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	printk(KERN_INFO "elanfreq: attempting to set frequency to %i kHz\n",
 			elan_multiplier[state].clock);
@@ -160,7 +161,7 @@ static void elanfreq_set_cpu_state(unsigned int state)
 	udelay(10000);
 	local_irq_enable();
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 };
 
 
@@ -187,7 +188,7 @@ static int elanfreq_target(struct cpufreq_policy *policy,
 				target_freq, relation, &newstate))
 		return -EINVAL;
 
-	elanfreq_set_cpu_state(newstate);
+	elanfreq_set_cpu_state(policy, newstate);
 
 	return 0;
 }
@@ -277,17 +278,16 @@ static struct cpufreq_driver elanfreq_driver = {
 	.attr		= elanfreq_attr,
 };
 
+static const struct x86_cpu_id elan_id[] = {
+	{ X86_VENDOR_AMD, 4, 10, },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, elan_id);
 
 static int __init elanfreq_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	/* Test if we have the right hardware */
-	if ((c->x86_vendor != X86_VENDOR_AMD) ||
-		(c->x86 != 4) || (c->x86_model != 10)) {
-		printk(KERN_INFO "elanfreq: error: no Elan processor found!\n");
+	if (!x86_match_cpu(elan_id))
 		return -ENODEV;
-	}
 	return cpufreq_register_driver(&elanfreq_driver);
 }
 

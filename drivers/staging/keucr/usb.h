@@ -10,7 +10,6 @@
 #include <linux/mutex.h>
 #include <scsi/scsi_host.h>
 #include "common.h"
-#include "ms.h"
 
 struct us_data;
 struct scsi_cmnd;
@@ -201,7 +200,7 @@ struct us_data {
 	//----- MS Control Data ----------------
 	BOOLEAN             MS_SWWP;
 	DWORD               MSP_TotalBlock;
-	MS_LibControl       MS_Lib;
+	/* MS_LibControl       MS_Lib; */
 	BOOLEAN             MS_IsRWPage;
 	WORD                MS_Model;
 

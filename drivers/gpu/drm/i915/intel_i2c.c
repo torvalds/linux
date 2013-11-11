@@ -28,15 +28,29 @@
  */
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include "drmP.h"
-#include "drm.h"
+#include <linux/export.h>
+#include <drm/drmP.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
+
+struct gmbus_port {
+	const char *name;
+	int reg;
+};
+
+static const struct gmbus_port gmbus_ports[] = {
+	{ "ssc", GPIOB },
+	{ "vga", GPIOA },
+	{ "panel", GPIOC },
+	{ "dpc", GPIOD },
+	{ "dpb", GPIOE },
+	{ "dpd", GPIOF },
+};
 
 /* Intel GPIO access functions */
 
-#define I2C_RISEFALL_TIME 20
+#define I2C_RISEFALL_TIME 10
 
 static inline struct intel_gmbus *
 to_intel_gmbus(struct i2c_adapter *i2c)
@@ -44,21 +58,12 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 	return container_of(i2c, struct intel_gmbus, adapter);
 }
 
-struct intel_gpio {
-	struct i2c_adapter adapter;
-	struct i2c_algo_bit_data algo;
-	struct drm_i915_private *dev_priv;
-	u32 reg;
-};
-
 void
 intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(PCH_GMBUS0, 0);
-	else
-		I915_WRITE(GMBUS0, 0);
+	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
+	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS4, 0);
 }
 
 static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
@@ -77,15 +82,15 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
-static u32 get_reserved(struct intel_gpio *gpio)
+static u32 get_reserved(struct intel_gmbus *bus)
 {
-	struct drm_i915_private *dev_priv = gpio->dev_priv;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 	struct drm_device *dev = dev_priv->dev;
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ_NOTRACE(gpio->reg) &
+		reserved = I915_READ_NOTRACE(bus->gpio_reg) &
 					     (GPIO_DATA_PULLUP_DISABLE |
 					      GPIO_CLOCK_PULLUP_DISABLE);
 
@@ -94,29 +99,29 @@ static u32 get_reserved(struct intel_gpio *gpio)
 
 static int get_clock(void *data)
 {
-	struct intel_gpio *gpio = data;
-	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	u32 reserved = get_reserved(gpio);
-	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
-	I915_WRITE_NOTRACE(gpio->reg, reserved);
-	return (I915_READ_NOTRACE(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
+	struct intel_gmbus *bus = data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_CLOCK_DIR_MASK);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
+	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
 {
-	struct intel_gpio *gpio = data;
-	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	u32 reserved = get_reserved(gpio);
-	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
-	I915_WRITE_NOTRACE(gpio->reg, reserved);
-	return (I915_READ_NOTRACE(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
+	struct intel_gmbus *bus = data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_DATA_DIR_MASK);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
+	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
 {
-	struct intel_gpio *gpio = data;
-	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	u32 reserved = get_reserved(gpio);
+	struct intel_gmbus *bus = data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
 	u32 clock_bits;
 
 	if (state_high)
@@ -125,15 +130,15 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			GPIO_CLOCK_VAL_MASK;
 
-	I915_WRITE_NOTRACE(gpio->reg, reserved | clock_bits);
-	POSTING_READ(gpio->reg);
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | clock_bits);
+	POSTING_READ(bus->gpio_reg);
 }
 
 static void set_data(void *data, int state_high)
 {
-	struct intel_gpio *gpio = data;
-	struct drm_i915_private *dev_priv = gpio->dev_priv;
-	u32 reserved = get_reserved(gpio);
+	struct intel_gmbus *bus = data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	u32 reserved = get_reserved(bus);
 	u32 data_bits;
 
 	if (state_high)
@@ -142,83 +147,241 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	I915_WRITE_NOTRACE(gpio->reg, reserved | data_bits);
-	POSTING_READ(gpio->reg);
-}
-
-static struct i2c_adapter *
-intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
-{
-	static const int map_pin_to_reg[] = {
-		0,
-		GPIOB,
-		GPIOA,
-		GPIOC,
-		GPIOD,
-		GPIOE,
-		0,
-		GPIOF,
-	};
-	struct intel_gpio *gpio;
-
-	if (pin >= ARRAY_SIZE(map_pin_to_reg) || !map_pin_to_reg[pin])
-		return NULL;
-
-	gpio = kzalloc(sizeof(struct intel_gpio), GFP_KERNEL);
-	if (gpio == NULL)
-		return NULL;
-
-	gpio->reg = map_pin_to_reg[pin];
-	if (HAS_PCH_SPLIT(dev_priv->dev))
-		gpio->reg += PCH_GPIOA - GPIOA;
-	gpio->dev_priv = dev_priv;
-
-	snprintf(gpio->adapter.name, sizeof(gpio->adapter.name),
-		 "i915 GPIO%c", "?BACDE?F"[pin]);
-	gpio->adapter.owner = THIS_MODULE;
-	gpio->adapter.algo_data	= &gpio->algo;
-	gpio->adapter.dev.parent = &dev_priv->dev->pdev->dev;
-	gpio->algo.setsda = set_data;
-	gpio->algo.setscl = set_clock;
-	gpio->algo.getsda = get_data;
-	gpio->algo.getscl = get_clock;
-	gpio->algo.udelay = I2C_RISEFALL_TIME;
-	gpio->algo.timeout = usecs_to_jiffies(2200);
-	gpio->algo.data = gpio;
-
-	if (i2c_bit_add_bus(&gpio->adapter))
-		goto out_free;
-
-	return &gpio->adapter;
-
-out_free:
-	kfree(gpio);
-	return NULL;
+	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | data_bits);
+	POSTING_READ(bus->gpio_reg);
 }
 
 static int
-intel_i2c_quirk_xfer(struct drm_i915_private *dev_priv,
-		     struct i2c_adapter *adapter,
-		     struct i2c_msg *msgs,
-		     int num)
+intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 {
-	struct intel_gpio *gpio = container_of(adapter,
-					       struct intel_gpio,
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
 					       adapter);
-	int ret;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	intel_i2c_reset(dev_priv->dev);
-
 	intel_i2c_quirk_set(dev_priv, true);
-	set_data(gpio, 1);
-	set_clock(gpio, 1);
+	set_data(bus, 1);
+	set_clock(bus, 1);
 	udelay(I2C_RISEFALL_TIME);
+	return 0;
+}
 
-	ret = adapter->algo->master_xfer(adapter, msgs, num);
+static void
+intel_gpio_post_xfer(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	set_data(gpio, 1);
-	set_clock(gpio, 1);
+	set_data(bus, 1);
+	set_clock(bus, 1);
 	intel_i2c_quirk_set(dev_priv, false);
+}
+
+static void
+intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
+{
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct i2c_algo_bit_data *algo;
+
+	algo = &bus->bit_algo;
+
+	/* -1 to map pin pair to gmbus index */
+	bus->gpio_reg = dev_priv->gpio_mmio_base + gmbus_ports[pin - 1].reg;
+
+	bus->adapter.algo_data = algo;
+	algo->setsda = set_data;
+	algo->setscl = set_clock;
+	algo->getsda = get_data;
+	algo->getscl = get_clock;
+	algo->pre_xfer = intel_gpio_pre_xfer;
+	algo->post_xfer = intel_gpio_post_xfer;
+	algo->udelay = I2C_RISEFALL_TIME;
+	algo->timeout = usecs_to_jiffies(2200);
+	algo->data = bus;
+}
+
+/*
+ * gmbus on gen4 seems to be able to generate legacy interrupts even when in MSI
+ * mode. This results in spurious interrupt warnings if the legacy irq no. is
+ * shared with another device. The kernel then disables that interrupt source
+ * and so prevents the other device from working properly.
+ */
+#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
+static int
+gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
+		     u32 gmbus2_status,
+		     u32 gmbus4_irq_en)
+{
+	int i;
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u32 gmbus2 = 0;
+	DEFINE_WAIT(wait);
+
+	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+		gmbus4_irq_en = 0;
+
+	/* Important: The hw handles only the first bit, so set only one! Since
+	 * we also need to check for NAKs besides the hw ready/idle signal, we
+	 * need to wake up periodically and check that ourselves. */
+	I915_WRITE(GMBUS4 + reg_offset, gmbus4_irq_en);
+
+	for (i = 0; i < msecs_to_jiffies_timeout(50); i++) {
+		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
+				TASK_UNINTERRUPTIBLE);
+
+		gmbus2 = I915_READ_NOTRACE(GMBUS2 + reg_offset);
+		if (gmbus2 & (GMBUS_SATOER | gmbus2_status))
+			break;
+
+		schedule_timeout(1);
+	}
+	finish_wait(&dev_priv->gmbus_wait_queue, &wait);
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
+
+	if (gmbus2 & GMBUS_SATOER)
+		return -ENXIO;
+	if (gmbus2 & gmbus2_status)
+		return 0;
+	return -ETIMEDOUT;
+}
+
+static int
+gmbus_wait_idle(struct drm_i915_private *dev_priv)
+{
+	int ret;
+	int reg_offset = dev_priv->gpio_mmio_base;
+
+#define C ((I915_READ_NOTRACE(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0)
+
+	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+		return wait_for(C, 10);
+
+	/* Important: The hw handles only the first bit, so set only one! */
+	I915_WRITE(GMBUS4 + reg_offset, GMBUS_IDLE_EN);
+
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+				 msecs_to_jiffies_timeout(10));
+
+	I915_WRITE(GMBUS4 + reg_offset, 0);
+
+	if (ret)
+		return 0;
+	else
+		return -ETIMEDOUT;
+#undef C
+}
+
+static int
+gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
+		u32 gmbus1_index)
+{
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u16 len = msg->len;
+	u8 *buf = msg->buf;
+
+	I915_WRITE(GMBUS1 + reg_offset,
+		   gmbus1_index |
+		   GMBUS_CYCLE_WAIT |
+		   (len << GMBUS_BYTE_COUNT_SHIFT) |
+		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
+		   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
+	while (len) {
+		int ret;
+		u32 val, loop = 0;
+
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
+		if (ret)
+			return ret;
+
+		val = I915_READ(GMBUS3 + reg_offset);
+		do {
+			*buf++ = val & 0xff;
+			val >>= 8;
+		} while (--len && ++loop < 4);
+	}
+
+	return 0;
+}
+
+static int
+gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+{
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u16 len = msg->len;
+	u8 *buf = msg->buf;
+	u32 val, loop;
+
+	val = loop = 0;
+	while (len && loop < 4) {
+		val |= *buf++ << (8 * loop++);
+		len -= 1;
+	}
+
+	I915_WRITE(GMBUS3 + reg_offset, val);
+	I915_WRITE(GMBUS1 + reg_offset,
+		   GMBUS_CYCLE_WAIT |
+		   (msg->len << GMBUS_BYTE_COUNT_SHIFT) |
+		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
+		   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
+	while (len) {
+		int ret;
+
+		val = loop = 0;
+		do {
+			val |= *buf++ << (8 * loop);
+		} while (--len && ++loop < 4);
+
+		I915_WRITE(GMBUS3 + reg_offset, val);
+
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_RDY,
+					   GMBUS_HW_RDY_EN);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/*
+ * The gmbus controller can combine a 1 or 2 byte write with a read that
+ * immediately follows it by using an "INDEX" cycle.
+ */
+static bool
+gmbus_is_index_read(struct i2c_msg *msgs, int i, int num)
+{
+	return (i + 1 < num &&
+		!(msgs[i].flags & I2C_M_RD) && msgs[i].len <= 2 &&
+		(msgs[i + 1].flags & I2C_M_RD));
+}
+
+static int
+gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
+{
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u32 gmbus1_index = 0;
+	u32 gmbus5 = 0;
+	int ret;
+
+	if (msgs[0].len == 2)
+		gmbus5 = GMBUS_2BYTE_INDEX_EN |
+			 msgs[0].buf[1] | (msgs[0].buf[0] << 8);
+	if (msgs[0].len == 1)
+		gmbus1_index = GMBUS_CYCLE_INDEX |
+			       (msgs[0].buf[0] << GMBUS_SLAVE_INDEX_SHIFT);
+
+	/* GMBUS5 holds 16-bit index */
+	if (gmbus5)
+		I915_WRITE(GMBUS5 + reg_offset, gmbus5);
+
+	ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+
+	/* Clear GMBUS5 after each index transfer */
+	if (gmbus5)
+		I915_WRITE(GMBUS5 + reg_offset, 0);
 
 	return ret;
 }
@@ -231,120 +394,116 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
 					       adapter);
-	struct drm_i915_private *dev_priv = adapter->algo_data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 	int i, reg_offset;
+	int ret = 0;
 
-	if (bus->force_bit)
-		return intel_i2c_quirk_xfer(dev_priv,
-					    bus->force_bit, msgs, num);
+	mutex_lock(&dev_priv->gmbus_mutex);
 
-	reg_offset = HAS_PCH_SPLIT(dev_priv->dev) ? PCH_GMBUS0 - GMBUS0 : 0;
+	if (bus->force_bit) {
+		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
+		goto out;
+	}
+
+	reg_offset = dev_priv->gpio_mmio_base;
 
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
-		u16 len = msgs[i].len;
-		u8 *buf = msgs[i].buf;
-
-		if (msgs[i].flags & I2C_M_RD) {
-			I915_WRITE(GMBUS1 + reg_offset,
-				   GMBUS_CYCLE_WAIT | (i + 1 == num ? GMBUS_CYCLE_STOP : 0) |
-				   (len << GMBUS_BYTE_COUNT_SHIFT) |
-				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
-				   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
-			POSTING_READ(GMBUS2+reg_offset);
-			do {
-				u32 val, loop = 0;
-
-				if (wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_RDY), 50))
-					goto timeout;
-				if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
-					goto clear_err;
-
-				val = I915_READ(GMBUS3 + reg_offset);
-				do {
-					*buf++ = val & 0xff;
-					val >>= 8;
-				} while (--len && ++loop < 4);
-			} while (len);
+		if (gmbus_is_index_read(msgs, i, num)) {
+			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
+			i += 1;  /* set i to the index of the read xfer */
+		} else if (msgs[i].flags & I2C_M_RD) {
+			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
 		} else {
-			u32 val, loop;
-
-			val = loop = 0;
-			do {
-				val |= *buf++ << (8 * loop);
-			} while (--len && ++loop < 4);
-
-			I915_WRITE(GMBUS3 + reg_offset, val);
-			I915_WRITE(GMBUS1 + reg_offset,
-				   (i + 1 == num ? GMBUS_CYCLE_STOP : GMBUS_CYCLE_WAIT) |
-				   (msgs[i].len << GMBUS_BYTE_COUNT_SHIFT) |
-				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
-				   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
-			POSTING_READ(GMBUS2+reg_offset);
-
-			while (len) {
-				if (wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_RDY), 50))
-					goto timeout;
-				if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
-					goto clear_err;
-
-				val = loop = 0;
-				do {
-					val |= *buf++ << (8 * loop);
-				} while (--len && ++loop < 4);
-
-				I915_WRITE(GMBUS3 + reg_offset, val);
-				POSTING_READ(GMBUS2+reg_offset);
-			}
+			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
 		}
 
-		if (i + 1 < num && wait_for(I915_READ(GMBUS2 + reg_offset) & (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE), 50))
+		if (ret == -ETIMEDOUT)
 			goto timeout;
-		if (I915_READ(GMBUS2 + reg_offset) & GMBUS_SATOER)
+		if (ret == -ENXIO)
 			goto clear_err;
+
+		ret = gmbus_wait_hw_status(dev_priv, GMBUS_HW_WAIT_PHASE,
+					   GMBUS_HW_WAIT_EN);
+		if (ret == -ENXIO)
+			goto clear_err;
+		if (ret)
+			goto timeout;
 	}
 
-	goto done;
+	/* Generate a STOP condition on the bus. Note that gmbus can't generata
+	 * a STOP on the very first cycle. To simplify the code we
+	 * unconditionally generate the STOP condition with an additional gmbus
+	 * cycle. */
+	I915_WRITE(GMBUS1 + reg_offset, GMBUS_CYCLE_STOP | GMBUS_SW_RDY);
+
+	/* Mark the GMBUS interface as disabled after waiting for idle.
+	 * We will re-enable it at the start of the next xfer,
+	 * till then let it sleep.
+	 */
+	if (gmbus_wait_idle(dev_priv)) {
+		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
+			 adapter->name);
+		ret = -ETIMEDOUT;
+	}
+	I915_WRITE(GMBUS0 + reg_offset, 0);
+	ret = ret ?: i;
+	goto out;
 
 clear_err:
+	/*
+	 * Wait for bus to IDLE before clearing NAK.
+	 * If we clear the NAK while bus is still active, then it will stay
+	 * active and the next transaction may fail.
+	 *
+	 * If no ACK is received during the address phase of a transaction, the
+	 * adapter must report -ENXIO. It is not clear what to return if no ACK
+	 * is received at other times. But we have to be careful to not return
+	 * spurious -ENXIO because that will prevent i2c and drm edid functions
+	 * from retrying. So return -ENXIO only when gmbus properly quiescents -
+	 * timing out seems to happen when there _is_ a ddc chip present, but
+	 * it's slow responding and only answers on the 2nd retry.
+	 */
+	ret = -ENXIO;
+	if (gmbus_wait_idle(dev_priv)) {
+		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
+			      adapter->name);
+		ret = -ETIMEDOUT;
+	}
+
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
 	 * BUS_ERROR raised by the slave's NAK.
 	 */
 	I915_WRITE(GMBUS1 + reg_offset, GMBUS_SW_CLR_INT);
 	I915_WRITE(GMBUS1 + reg_offset, 0);
-
-done:
-	/* Mark the GMBUS interface as disabled. We will re-enable it at the
-	 * start of the next xfer, till then let it sleep.
-	 */
 	I915_WRITE(GMBUS0 + reg_offset, 0);
-	return i;
+
+	DRM_DEBUG_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
+			 adapter->name, msgs[i].addr,
+			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
+
+	goto out;
 
 timeout:
-	DRM_INFO("GMBUS timed out, falling back to bit banging on pin %d [%s]\n",
-		 bus->reg0 & 0xff, bus->adapter.name);
+	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+		 bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
-	bus->force_bit = intel_gpio_create(dev_priv, bus->reg0 & 0xff);
-	if (!bus->force_bit)
-		return -ENOMEM;
+	bus->force_bit = 1;
+	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 
-	return intel_i2c_quirk_xfer(dev_priv, bus->force_bit, msgs, num);
+out:
+	mutex_unlock(&dev_priv->gmbus_mutex);
+	return ret;
 }
 
 static u32 gmbus_func(struct i2c_adapter *adapter)
 {
-	struct intel_gmbus *bus = container_of(adapter,
-					       struct intel_gmbus,
-					       adapter);
-
-	if (bus->force_bit)
-		bus->force_bit->algo->functionality(bus->force_bit);
-
-	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
+	return i2c_bit_algo.functionality(adapter) &
+		(I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
 		/* I2C_FUNC_10BIT_ADDR | */
 		I2C_FUNC_SMBUS_READ_BLOCK_DATA |
 		I2C_FUNC_SMBUS_BLOCK_PROC_CALL);
@@ -361,47 +520,49 @@ static const struct i2c_algorithm gmbus_algorithm = {
  */
 int intel_setup_gmbus(struct drm_device *dev)
 {
-	static const char *names[GMBUS_NUM_PORTS] = {
-		"disabled",
-		"ssc",
-		"vga",
-		"panel",
-		"dpc",
-		"dpb",
-		"reserved",
-		"dpd",
-	};
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	dev_priv->gmbus = kcalloc(sizeof(struct intel_gmbus), GMBUS_NUM_PORTS,
-				  GFP_KERNEL);
-	if (dev_priv->gmbus == NULL)
-		return -ENOMEM;
+	if (HAS_PCH_NOP(dev))
+		return 0;
+	else if (HAS_PCH_SPLIT(dev))
+		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
+	else if (IS_VALLEYVIEW(dev))
+		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;
+	else
+		dev_priv->gpio_mmio_base = 0;
+
+	mutex_init(&dev_priv->gmbus_mutex);
+	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
+		u32 port = i + 1; /* +1 to map gmbus index to pin pair */
 
 		bus->adapter.owner = THIS_MODULE;
 		bus->adapter.class = I2C_CLASS_DDC;
 		snprintf(bus->adapter.name,
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s",
-			 names[i]);
+			 gmbus_ports[i].name);
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
-		bus->adapter.algo_data	= dev_priv;
+		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;
+
+		/* By default use a conservative clock rate */
+		bus->reg0 = port | GMBUS_RATE_100KHZ;
+
+		/* gmbus seems to be broken on i830 */
+		if (IS_I830(dev))
+			bus->force_bit = 1;
+
+		intel_gpio_setup(bus, port);
+
 		ret = i2c_add_adapter(&bus->adapter);
 		if (ret)
 			goto err;
-
-		/* By default use a conservative clock rate */
-		bus->reg0 = i | GMBUS_RATE_100KHZ;
-
-		/* XXX force bit banging until GMBUS is fully debugged */
-		bus->force_bit = intel_gpio_create(dev_priv, i);
 	}
 
 	intel_i2c_reset(dev_priv->dev);
@@ -413,41 +574,33 @@ err:
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
 		i2c_del_adapter(&bus->adapter);
 	}
-	kfree(dev_priv->gmbus);
-	dev_priv->gmbus = NULL;
 	return ret;
+}
+
+struct i2c_adapter *intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
+					    unsigned port)
+{
+	WARN_ON(!intel_gmbus_is_port_valid(port));
+	/* -1 to map pin pair to gmbus index */
+	return (intel_gmbus_is_port_valid(port)) ?
+		&dev_priv->gmbus[port - 1].adapter : NULL;
 }
 
 void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	/* speed:
-	 * 0x0 = 100 KHz
-	 * 0x1 = 50 KHz
-	 * 0x2 = 400 KHz
-	 * 0x3 = 1000 Khz
-	 */
-	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | (speed << 8);
+	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
 }
 
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
-	if (force_bit) {
-		if (bus->force_bit == NULL) {
-			struct drm_i915_private *dev_priv = adapter->algo_data;
-			bus->force_bit = intel_gpio_create(dev_priv,
-							   bus->reg0 & 0xff);
-		}
-	} else {
-		if (bus->force_bit) {
-			i2c_del_adapter(bus->force_bit);
-			kfree(bus->force_bit);
-			bus->force_bit = NULL;
-		}
-	}
+	bus->force_bit += force_bit ? 1 : -1;
+	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
+		      force_bit ? "en" : "dis", adapter->name,
+		      bus->force_bit);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)
@@ -455,18 +608,8 @@ void intel_teardown_gmbus(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	if (dev_priv->gmbus == NULL)
-		return;
-
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
-		if (bus->force_bit) {
-			i2c_del_adapter(bus->force_bit);
-			kfree(bus->force_bit);
-		}
 		i2c_del_adapter(&bus->adapter);
 	}
-
-	kfree(dev_priv->gmbus);
-	dev_priv->gmbus = NULL;
 }

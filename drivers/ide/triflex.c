@@ -92,7 +92,7 @@ static const struct ide_port_ops triflex_port_ops = {
 	.set_dma_mode		= triflex_set_mode,
 };
 
-static const struct ide_port_info triflex_device __devinitdata = {
+static const struct ide_port_info triflex_device = {
 	.name		= DRV_NAME,
 	.enablebits	= {{0x80, 0x01, 0x01}, {0x80, 0x02, 0x02}},
 	.port_ops	= &triflex_port_ops,
@@ -101,8 +101,7 @@ static const struct ide_port_info triflex_device __devinitdata = {
 	.mwdma_mask	= ATA_MWDMA2,
 };
 
-static int __devinit triflex_init_one(struct pci_dev *dev, 
-		const struct pci_device_id *id)
+static int triflex_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &triflex_device, NULL);
 }
@@ -113,12 +112,26 @@ static const struct pci_device_id triflex_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);
 
+#ifdef CONFIG_PM
+static int triflex_ide_pci_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	/*
+	 * We must not disable or powerdown the device.
+	 * APM bios refuses to suspend if IDE is not accessible.
+	 */
+	pci_save_state(dev);
+	return 0;
+}
+#else
+#define triflex_ide_pci_suspend NULL
+#endif
+
 static struct pci_driver triflex_pci_driver = {
 	.name		= "TRIFLEX_IDE",
 	.id_table	= triflex_pci_tbl,
 	.probe		= triflex_init_one,
 	.remove		= ide_pci_remove,
-	.suspend	= ide_pci_suspend,
+	.suspend	= triflex_ide_pci_suspend,
 	.resume		= ide_pci_resume,
 };
 

@@ -1,0 +1,64 @@
+#
+# QLogic network device configuration
+#
+
+config NET_VENDOR_QLOGIC
+	bool "QLogic devices"
+	default y
+	depends on PCI
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about QLogic cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_QLOGIC
+
+config QLA3XXX
+	tristate "QLogic QLA3XXX Network Driver Support"
+	depends on PCI
+	---help---
+	  This driver supports QLogic ISP3XXX gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qla3xxx.
+
+config QLCNIC
+	tristate "QLOGIC QLCNIC 1/10Gb Converged Ethernet NIC Support"
+	depends on PCI
+	select FW_LOADER
+	---help---
+	  This driver supports QLogic QLE8240 and QLE8242 Converged Ethernet
+	  devices.
+
+config QLCNIC_SRIOV
+	bool "QLOGIC QLCNIC 83XX family SR-IOV Support"
+	depends on QLCNIC && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support for QLE83XX Converged Ethernet devices.
+	  This allows for virtual function acceleration in virtualized
+	  environments.
+
+config QLGE
+	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
+	depends on PCI
+	---help---
+	  This driver supports QLogic ISP8XXX 10Gb Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qlge.
+
+config NETXEN_NIC
+	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
+	depends on PCI
+	select FW_LOADER
+	---help---
+	  This enables the support for NetXen's Gigabit Ethernet card.
+
+endif # NET_VENDOR_QLOGIC

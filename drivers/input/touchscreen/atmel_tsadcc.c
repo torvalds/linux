@@ -22,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <mach/board.h>
+#include <linux/platform_data/atmel.h>
 #include <mach/cpu.h>
 
 /* Register definitions based on AT91SAM9RL64 preliminary draft datasheet */
@@ -177,7 +177,7 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
  * The functions for inserting/removing us as a module.
  */
 
-static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
+static int atmel_tsadcc_probe(struct platform_device *pdev)
 {
 	struct atmel_tsadcc	*ts_dev;
 	struct input_dev	*input_dev;
@@ -229,7 +229,7 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 		goto err_release_mem;
 	}
 
-	err = request_irq(ts_dev->irq, atmel_tsadcc_interrupt, IRQF_DISABLED,
+	err = request_irq(ts_dev->irq, atmel_tsadcc_interrupt, 0,
 			pdev->dev.driver->name, ts_dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to allocate irq.\n");
@@ -323,7 +323,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
+static int atmel_tsadcc_remove(struct platform_device *pdev)
 {
 	struct atmel_tsadcc *ts_dev = dev_get_drvdata(&pdev->dev);
 	struct resource *res;
@@ -346,25 +346,12 @@ static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tsadcc_driver = {
 	.probe		= atmel_tsadcc_probe,
-	.remove		= __devexit_p(atmel_tsadcc_remove),
+	.remove		= atmel_tsadcc_remove,
 	.driver		= {
 		.name	= "atmel_tsadcc",
 	},
 };
-
-static int __init atmel_tsadcc_init(void)
-{
-	return platform_driver_register(&atmel_tsadcc_driver);
-}
-
-static void __exit atmel_tsadcc_exit(void)
-{
-	platform_driver_unregister(&atmel_tsadcc_driver);
-}
-
-module_init(atmel_tsadcc_init);
-module_exit(atmel_tsadcc_exit);
-
+module_platform_driver(atmel_tsadcc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atmel TouchScreen Driver");

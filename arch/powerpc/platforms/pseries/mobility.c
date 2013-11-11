@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/smp.h>
+#include <linux/stat.h>
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -36,14 +37,16 @@ struct update_props_workarea {
 #define UPDATE_DT_NODE	0x02000000
 #define ADD_DT_NODE	0x03000000
 
-static int mobility_rtas_call(int token, char *buf)
+#define MIGRATION_SCOPE	(1)
+
+static int mobility_rtas_call(int token, char *buf, s32 scope)
 {
 	int rc;
 
 	spin_lock(&rtas_data_buf_lock);
 
 	memcpy(rtas_data_buf, buf, RTAS_DATA_BUF_SIZE);
-	rc = rtas_call(token, 2, 1, NULL, rtas_data_buf, 1);
+	rc = rtas_call(token, 2, 1, NULL, rtas_data_buf, scope);
 	memcpy(buf, rtas_data_buf, RTAS_DATA_BUF_SIZE);
 
 	spin_unlock(&rtas_data_buf_lock);
@@ -66,7 +69,6 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 			      const char *name, u32 vd, char *value)
 {
 	struct property *new_prop = *prop;
-	struct property *old_prop;
 	int more = 0;
 
 	/* A negative 'vd' value indicates that only part of the new property
@@ -116,19 +118,14 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
-		old_prop = of_find_property(dn, new_prop->name, NULL);
-		if (old_prop)
-			prom_update_property(dn, new_prop, old_prop);
-		else
-			prom_add_property(dn, new_prop);
-
+		of_update_property(dn, new_prop);
 		new_prop = NULL;
 	}
 
 	return 0;
 }
 
-static int update_dt_node(u32 phandle)
+static int update_dt_node(u32 phandle, s32 scope)
 {
 	struct update_props_workarea *upwa;
 	struct device_node *dn;
@@ -137,6 +134,7 @@ static int update_dt_node(u32 phandle)
 	char *prop_data;
 	char *rtas_buf;
 	int update_properties_token;
+	u32 vd;
 
 	update_properties_token = rtas_token("ibm,update-properties");
 	if (update_properties_token == RTAS_UNKNOWN_SERVICE)
@@ -156,19 +154,31 @@ static int update_dt_node(u32 phandle)
 	upwa->phandle = phandle;
 
 	do {
-		rc = mobility_rtas_call(update_properties_token, rtas_buf);
+		rc = mobility_rtas_call(update_properties_token, rtas_buf,
+					scope);
 		if (rc < 0)
 			break;
 
 		prop_data = rtas_buf + sizeof(*upwa);
 
-		for (i = 0; i < upwa->nprops; i++) {
-			char *prop_name;
-			u32 vd;
+		/* The first element of the buffer is the path of the node
+		 * being updated in the form of a 8 byte string length
+		 * followed by the string. Skip past this to get to the
+		 * properties being updated.
+		 */
+		vd = *prop_data++;
+		prop_data += vd;
 
-			prop_name = prop_data + 1;
+		/* The path we skipped over is counted as one of the elements
+		 * returned so start counting at one.
+		 */
+		for (i = 1; i < upwa->nprops; i++) {
+			char *prop_name;
+
+			prop_name = prop_data;
 			prop_data += strlen(prop_name) + 1;
-			vd = *prop_data++;
+			vd = *(u32 *)prop_data;
+			prop_data += sizeof(vd);
 
 			switch (vd) {
 			case 0x00000000:
@@ -177,7 +187,7 @@ static int update_dt_node(u32 phandle)
 
 			case 0x80000000:
 				prop = of_find_property(dn, prop_name, NULL);
-				prom_remove_property(dn, prop);
+				of_remove_property(dn, prop);
 				prop = NULL;
 				break;
 
@@ -224,7 +234,7 @@ static int add_dt_node(u32 parent_phandle, u32 drc_index)
 	return rc;
 }
 
-static int pseries_devicetree_update(void)
+int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	u32 *data;
@@ -240,7 +250,7 @@ static int pseries_devicetree_update(void)
 		return -ENOMEM;
 
 	do {
-		rc = mobility_rtas_call(update_nodes_token, rtas_buf);
+		rc = mobility_rtas_call(update_nodes_token, rtas_buf, scope);
 		if (rc && rc != 1)
 			break;
 
@@ -261,7 +271,7 @@ static int pseries_devicetree_update(void)
 					delete_dt_node(phandle);
 					break;
 				case UPDATE_DT_NODE:
-					update_dt_node(phandle);
+					update_dt_node(phandle, scope);
 					break;
 				case ADD_DT_NODE:
 					drc_index = *data++;
@@ -281,7 +291,7 @@ void post_mobility_fixup(void)
 	int rc;
 	int activate_fw_token;
 
-	rc = pseries_devicetree_update();
+	rc = pseries_devicetree_update(MIGRATION_SCOPE);
 	if (rc) {
 		printk(KERN_ERR "Initial post-mobility device tree update "
 		       "failed: %d\n", rc);
@@ -297,7 +307,7 @@ void post_mobility_fixup(void)
 
 	rc = rtas_call(activate_fw_token, 0, 1, NULL);
 	if (!rc) {
-		rc = pseries_devicetree_update();
+		rc = pseries_devicetree_update(MIGRATION_SCOPE);
 		if (rc)
 			printk(KERN_ERR "Secondary post-mobility device tree "
 			       "update failed: %d\n", rc);

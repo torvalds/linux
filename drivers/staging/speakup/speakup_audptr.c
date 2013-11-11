@@ -162,7 +162,7 @@ static int synth_probe(struct spk_synth *synth)
 {
 	int failed = 0;
 
-	failed = serial_synth_probe(synth);
+	failed = spk_serial_synth_probe(synth);
 	if (failed == 0)
 		synth_version(synth);
 	synth->alive = !failed;

@@ -21,6 +21,8 @@
 #ifndef _ZD_CHIP_H
 #define _ZD_CHIP_H
 
+#include <net/mac80211.h>
+
 #include "zd_rf.h"
 #include "zd_usb.h"
 
@@ -825,7 +827,7 @@ int zd_ioread32v_locked(struct zd_chip *chip, u32 *values,
 static inline int zd_ioread32_locked(struct zd_chip *chip, u32 *value,
 	                             const zd_addr_t addr)
 {
-	return zd_ioread32v_locked(chip, value, (const zd_addr_t *)&addr, 1);
+	return zd_ioread32v_locked(chip, value, &addr, 1);
 }
 
 static inline int zd_iowrite16_locked(struct zd_chip *chip, u16 value,

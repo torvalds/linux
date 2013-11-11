@@ -8,7 +8,7 @@
 #ifndef __ASM_OCTEON_OCTEON_H
 #define __ASM_OCTEON_OCTEON_H
 
-#include "cvmx.h"
+#include <asm/octeon/cvmx.h>
 
 extern uint64_t octeon_bootmem_alloc_range_phys(uint64_t size,
 						uint64_t alignment,
@@ -52,6 +52,7 @@ extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
 extern void octeon_setup_delays(void);
+extern void octeon_io_clk_delay(unsigned long);
 
 #define OCTEON_ARGV_MAX_ARGS	64
 #define OCTOEN_SERIAL_LEN	20
@@ -74,15 +75,15 @@ struct octeon_boot_descriptor {
 	uint32_t argc;
 	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
 
-#define  BOOT_FLAG_INIT_CORE		(1 << 0)
-#define  OCTEON_BL_FLAG_DEBUG		(1 << 1)
-#define  OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
+#define	 BOOT_FLAG_INIT_CORE		(1 << 0)
+#define	 OCTEON_BL_FLAG_DEBUG		(1 << 1)
+#define	 OCTEON_BL_FLAG_NO_MAGIC	(1 << 2)
 	/* If set, use uart1 for console */
-#define  OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
+#define	 OCTEON_BL_FLAG_CONSOLE_UART1	(1 << 3)
 	/* If set, use PCI console */
-#define  OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
+#define	 OCTEON_BL_FLAG_CONSOLE_PCI	(1 << 4)
 	/* Call exit on break on serial port */
-#define  OCTEON_BL_FLAG_BREAK		(1 << 5)
+#define	 OCTEON_BL_FLAG_BREAK		(1 << 5)
 
 	uint32_t flags;
 	uint32_t core_mask;
@@ -208,18 +209,6 @@ union octeon_cvmemctl {
 	} s;
 };
 
-struct octeon_cf_data {
-	unsigned long	base_region_bias;
-	unsigned int	base_region;	/* The chip select region used by CF */
-	int		is16bit;	/* 0 - 8bit, !0 - 16bit */
-	int		dma_engine;	/* -1 for no DMA */
-};
-
-struct octeon_i2c_data {
-	unsigned int	sys_freq;
-	unsigned int	i2c_freq;
-};
-
 extern void octeon_write_lcd(const char *s);
 extern void octeon_check_cpu_bist(void);
 extern int octeon_get_boot_debug_flag(void);
@@ -258,5 +247,8 @@ extern struct cvmx_bootinfo *octeon_bootinfo;
 extern uint64_t octeon_bootloader_entry_addr;
 
 extern void (*octeon_irq_setup_secondary)(void);
+
+typedef void (*octeon_irq_ip4_handler_t)(void);
+void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t);
 
 #endif /* __ASM_OCTEON_OCTEON_H */

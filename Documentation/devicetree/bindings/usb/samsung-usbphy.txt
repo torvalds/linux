@@ -1,0 +1,117 @@
+SAMSUNG USB-PHY controllers
+
+** Samsung's usb 2.0 phy transceiver
+
+The Samsung's usb 2.0 phy transceiver is used for controlling
+usb 2.0 phy for s3c-hsotg as well as ehci-s5p and ohci-exynos
+usb controllers across Samsung SOCs.
+TODO: Adding the PHY binding with controller(s) according to the under
+development generic PHY driver.
+
+Required properties:
+
+Exynos4210:
+- compatible : should be "samsung,exynos4210-usb2phy"
+- reg : base physical address of the phy registers and length of memory mapped
+	region.
+- clocks: Clock IDs array as required by the controller.
+- clock-names: names of clock correseponding IDs clock property as requested
+	       by the controller driver.
+
+Exynos5250:
+- compatible : should be "samsung,exynos5250-usb2phy"
+- reg : base physical address of the phy registers and length of memory mapped
+	region.
+
+Optional properties:
+- #address-cells: should be '1' when usbphy node has a child node with 'reg'
+		  property.
+- #size-cells: should be '1' when usbphy node has a child node with 'reg'
+	       property.
+- ranges: allows valid translation between child's address space and parent's
+	  address space.
+
+- The child node 'usbphy-sys' to the node 'usbphy' is for the system controller
+  interface for usb-phy. It should provide the following information required by
+  usb-phy controller to control phy.
+  - reg : base physical address of PHY_CONTROL registers.
+	  The size of this register is the total sum of size of all PHY_CONTROL
+	  registers that the SoC has. For example, the size will be
+	  '0x4' in case we have only one PHY_CONTROL register (e.g.
+	  OTHERS register in S3C64XX or USB_PHY_CONTROL register in S5PV210)
+	  and, '0x8' in case we have two PHY_CONTROL registers (e.g.
+	  USBDEVICE_PHY_CONTROL and USBHOST_PHY_CONTROL registers in exynos4x).
+	  and so on.
+
+Example:
+ - Exynos4210
+
+	usbphy@125B0000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "samsung,exynos4210-usb2phy";
+		reg = <0x125B0000 0x100>;
+		ranges;
+
+		clocks = <&clock 2>, <&clock 305>;
+		clock-names = "xusbxti", "otg";
+
+		usbphy-sys {
+			/* USB device and host PHY_CONTROL registers */
+			reg = <0x10020704 0x8>;
+		};
+	};
+
+
+** Samsung's usb 3.0 phy transceiver
+
+Starting exynso5250, Samsung's SoC have usb 3.0 phy transceiver
+which is used for controlling usb 3.0 phy for dwc3-exynos usb 3.0
+controllers across Samsung SOCs.
+
+Required properties:
+
+Exynos5250:
+- compatible : should be "samsung,exynos5250-usb3phy"
+- reg : base physical address of the phy registers and length of memory mapped
+	region.
+- clocks: Clock IDs array as required by the controller.
+- clock-names: names of clocks correseponding to IDs in the clock property
+	       as requested by the controller driver.
+
+Optional properties:
+- #address-cells: should be '1' when usbphy node has a child node with 'reg'
+		  property.
+- #size-cells: should be '1' when usbphy node has a child node with 'reg'
+	       property.
+- ranges: allows valid translation between child's address space and parent's
+	  address space.
+
+- The child node 'usbphy-sys' to the node 'usbphy' is for the system controller
+  interface for usb-phy. It should provide the following information required by
+  usb-phy controller to control phy.
+  - reg : base physical address of PHY_CONTROL registers.
+	  The size of this register is the total sum of size of all PHY_CONTROL
+	  registers that the SoC has. For example, the size will be
+	  '0x4' in case we have only one PHY_CONTROL register (e.g.
+	  OTHERS register in S3C64XX or USB_PHY_CONTROL register in S5PV210)
+	  and, '0x8' in case we have two PHY_CONTROL registers (e.g.
+	  USBDEVICE_PHY_CONTROL and USBHOST_PHY_CONTROL registers in exynos4x).
+	  and so on.
+
+Example:
+	usbphy@12100000 {
+		compatible = "samsung,exynos5250-usb3phy";
+		reg = <0x12100000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		clocks = <&clock 1>, <&clock 286>;
+		clock-names = "ext_xtal", "usbdrd30";
+
+		usbphy-sys {
+			/* USB device and host PHY_CONTROL registers */
+			reg = <0x10040704 0x8>;
+		};
+	};

@@ -23,11 +23,13 @@ use IO::Handle;
 
 @components = ( "sp8870", "sp887x", "tda10045", "tda10046",
 		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
-		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
+		"dec3000s", "vp7041", "vp7049", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old");
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
+		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137",
+		"drxk_pctv", "drxk_terratec_htc_stick", "sms1xxx_hcw");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -114,7 +116,7 @@ sub tda10045 {
 
 sub tda10046 {
 	my $sourcefile = "TT_PCI_2.19h_28_11_2006.zip";
-	my $url = "http://www.tt-download.com/download/updates/219/$sourcefile";
+	my $url = "http://technotrend.com.ua/download/software/219/$sourcefile";
 	my $hash = "6a7e1e2f2644b162ff0502367553c72d";
 	my $outfile = "dvb-fe-tda10046.fw";
 	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -285,6 +287,19 @@ sub vp7041 {
     copy("$tmpdir/fwtmp3", $outfile);
 
     $outfile;
+}
+
+sub vp7049 {
+    my $fwfile = "dvb-usb-vp7049-0.95.fw";
+    my $url = "http://ao2.it/sites/default/files/blog/2012/11/06/linux-support-digicom-digitune-s-vp7049-udtt7049/$fwfile";
+    my $hash = "5609fd295168aea88b25ff43a6f79c36";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url);
+    verify($fwfile, $hash);
+
+    $fwfile;
 }
 
 sub dibusb {
@@ -575,19 +590,10 @@ sub ngene {
 }
 
 sub az6027{
-    my $file = "AZ6027_Linux_Driver.tar.gz";
-    my $url = "http://linux.terratec.de/files/$file";
     my $firmware = "dvb-usb-az6027-03.fw";
+    my $url = "http://linux.terratec.de/files/TERRATEC_S7/$firmware";
 
-    wgetfile($file, $url);
-
-    #untar
-    if( system("tar xzvf $file $firmware")){
-        die "failed to untar firmware";
-    }
-    if( system("rm $file")){
-        die ("unable to remove unnecessary files");
-    }
+    wgetfile($firmware, $url);
 
     $firmware;
 }
@@ -632,6 +638,167 @@ sub lme2510c_s7395_old {
     extract($sourcefile, 4208, 3881, $outfile);
     verify($outfile, $hasho);
     $outfile;
+}
+
+sub drxk {
+    my $url = "http://l4m-daten.de/files/";
+    my $zipfile = "DDTuner.zip";
+    my $hash = "f5a37b9a20a3534997997c0b1382a3e5";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+    my $drvfile = "DDTuner.sys";
+    my $fwfile = "drxk_a3.mc";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x14dd8, 15634, "$fwfile");
+
+    "$fwfile"
+}
+
+sub drxk_hauppauge_hvr930c {
+    my $url = "http://www.wintvcd.co.uk/drivers/";
+    my $zipfile = "HVR-9x0_5_10_325_28153_SIGNED.zip";
+    my $hash = "83ab82e7e9480ec8bf1ae0155ca63c88";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+    my $drvfile = "HVR-900/emOEM.sys";
+    my $fwfile = "dvb-usb-hauppauge-hvr930c-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x117b0, 42692, "$fwfile");
+
+    "$fwfile"
+}
+
+sub drxk_terratec_h5 {
+    my $url = "http://www.linuxtv.org/downloads/firmware/";
+    my $hash = "19000dada8e2741162ccc50cc91fa7f1";
+    my $fwfile = "dvb-usb-terratec-h5-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($fwfile, $url . $fwfile);
+    verify($fwfile, $hash);
+
+    "$fwfile"
+}
+
+sub drxk_terratec_htc_stick {
+    my $url = "http://ftp.terratec.de/Receiver/Cinergy_HTC_Stick/Updates/History/";
+    my $zipfile = "Cinergy_HTC_Stick_Drv_5.09.1202.00_XP_Vista_7.exe";
+    my $hash = "6722a2442a05423b781721fbc069ed5e";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+    my $drvfile = "Cinergy HTC Stick/BDA Driver 5.09.1202.00/Windows 32 Bit/emOEM.sys";
+    my $fwfile = "dvb-usb-terratec-htc-stick-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x4e5c0, 42692, "$fwfile");
+
+    "$fwfile"
+}
+
+sub it9135 {
+	my $sourcefile = "dvb-usb-it9135.zip";
+	my $url = "http://www.ite.com.tw/uploads/firmware/v3.6.0.0/$sourcefile";
+	my $hash = "1e55f6c8833f1d0ae067c2bb2953e6a9";
+	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+	my $outfile = "dvb-usb-it9135.fw";
+	my $fwfile1 = "dvb-usb-it9135-01.fw";
+	my $fwfile2 = "dvb-usb-it9135-02.fw";
+
+	checkstandard();
+
+	wgetfile($sourcefile, $url);
+	unzip($sourcefile, $tmpdir);
+	verify("$tmpdir/$outfile", $hash);
+	extract("$tmpdir/$outfile", 64, 8128, "$fwfile1");
+	extract("$tmpdir/$outfile", 12866, 5817, "$fwfile2");
+
+	"$fwfile1 $fwfile2"
+}
+
+sub it9137 {
+    my $url = "http://kworld.server261.com/kworld/CD/ITE_TiVme/V1.00/";
+    my $zipfile = "Driver_V10.323.1.0412.100412.zip";
+    my $hash = "79b597dc648698ed6820845c0c9d0d37";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+    my $drvfile = "Driver_V10.323.1.0412.100412/Data/x86/IT9135BDA.sys";
+    my $fwfile = "dvb-usb-it9137-01.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 69632, 5731, "$fwfile");
+
+    "$fwfile"
+}
+
+sub tda10071 {
+    my $sourcefile = "PCTV_460e_reference.zip";
+    my $url = "ftp://ftp.pctvsystems.com/TV/driver/PCTV%2070e%2080e%20100e%20320e%20330e%20800e/";
+    my $hash = "4403de903bf2593464c8d74bbc200a57";
+    my $fwfile = "dvb-fe-tda10071.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url . $sourcefile);
+    verify($sourcefile, $hash);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/PCTV\ 70e\ 80e\ 100e\ 320e\ 330e\ 800e/32\ bit/emOEM.sys", 0x67d38, 40504, $fwfile);
+
+    "$fwfile";
+}
+
+sub drxk_pctv {
+    my $sourcefile = "PCTV_460e_reference.zip";
+    my $url = "ftp://ftp.pctvsystems.com/TV/driver/PCTV%2070e%2080e%20100e%20320e%20330e%20800e/";
+    my $hash = "4403de903bf2593464c8d74bbc200a57";
+    my $fwfile = "dvb-demod-drxk-pctv.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url . $sourcefile);
+    verify($sourcefile, $hash);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/PCTV\ 70e\ 80e\ 100e\ 320e\ 330e\ 800e/32\ bit/emOEM.sys", 0x72b80, 42692, $fwfile);
+
+    "$fwfile";
+}
+
+sub sms1xxx_hcw {
+    my $url = "http://steventoth.net/linux/sms1xxx/";
+    my %files = (
+	'sms1xxx-hcw-55xxx-dvbt-01.fw'  => "afb6f9fb9a71d64392e8564ef9577e5a",
+	'sms1xxx-hcw-55xxx-dvbt-02.fw'  => "b44807098ba26e52cbedeadc052ba58f",
+	'sms1xxx-hcw-55xxx-isdbt-02.fw' => "dae934eeea85225acbd63ce6cfe1c9e4",
+    );
+
+    checkstandard();
+
+    my $allfiles;
+    foreach my $fwfile (keys %files) {
+	wgetfile($fwfile, "$url/$fwfile");
+	verify($fwfile, $files{$fwfile});
+	$allfiles .= " $fwfile";
+    }
+
+    $allfiles =~ s/^\s//;
+
+    $allfiles;
 }
 
 # ---------------------------------------------------------------

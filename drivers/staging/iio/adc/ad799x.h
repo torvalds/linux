@@ -87,7 +87,6 @@ struct ad799x_state;
  * struct ad799x_chip_info - chip specifc information
  * @channel:		channel specification
  * @num_channels:	number of channels
- * @int_vref_mv:	the internal reference voltage
  * @monitor_mode:	whether the chip supports monitor interrupts
  * @default_config:	device default configuration
  * @event_attrs:	pointer to the monitor event attribute group
@@ -96,7 +95,6 @@ struct ad799x_state;
 struct ad799x_chip_info {
 	struct iio_chan_spec		channel[9];
 	int				num_channels;
-	u16				int_vref_mv;
 	u16				default_config;
 	const struct iio_info		*info;
 };
@@ -104,13 +102,13 @@ struct ad799x_chip_info {
 struct ad799x_state {
 	struct i2c_client		*client;
 	const struct ad799x_chip_info	*chip_info;
-	size_t				d_size;
-	struct iio_trigger		*trig;
 	struct regulator		*reg;
 	u16				int_vref_mv;
 	unsigned			id;
-	char				*name;
 	u16				config;
+
+	u8				*rx_buf;
+	unsigned int			transfer_size;
 };
 
 /*
@@ -121,18 +119,10 @@ struct ad799x_platform_data {
 	u16				vref_mv;
 };
 
-int ad7997_8_set_scan_mode(struct ad799x_state *st, unsigned mask);
-
 #ifdef CONFIG_AD799X_RING_BUFFER
-int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask);
 int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad799x_ring_cleanup(struct iio_dev *indio_dev);
 #else /* CONFIG_AD799X_RING_BUFFER */
-int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask)
-{
-	return -EINVAL;
-}
-
 
 static inline int
 ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)

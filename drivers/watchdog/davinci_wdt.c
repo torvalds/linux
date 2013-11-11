@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 
@@ -69,7 +70,6 @@ static unsigned long wdt_status;
 #define WDT_REGION_INITED 2
 #define WDT_DEVICE_INITED 3
 
-static struct resource	*wdt_mem;
 static void __iomem	*wdt_base;
 struct clk		*wdt_clk;
 
@@ -199,16 +199,17 @@ static struct miscdevice davinci_wdt_miscdev = {
 	.fops = &davinci_wdt_fops,
 };
 
-static int __devinit davinci_wdt_probe(struct platform_device *pdev)
+static int davinci_wdt_probe(struct platform_device *pdev)
 {
-	int ret = 0, size;
+	int ret = 0;
 	struct device *dev = &pdev->dev;
+	struct resource  *wdt_mem;
 
-	wdt_clk = clk_get(dev, NULL);
+	wdt_clk = devm_clk_get(dev, NULL);
 	if (WARN_ON(IS_ERR(wdt_clk)))
 		return PTR_ERR(wdt_clk);
 
-	clk_enable(wdt_clk);
+	clk_prepare_enable(wdt_clk);
 
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
@@ -216,73 +217,45 @@ static int __devinit davinci_wdt_probe(struct platform_device *pdev)
 	dev_info(dev, "heartbeat %d sec\n", heartbeat);
 
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (wdt_mem == NULL) {
-		dev_err(dev, "failed to get memory region resource\n");
-		return -ENOENT;
-	}
-
-	size = resource_size(wdt_mem);
-	if (!request_mem_region(wdt_mem->start, size, pdev->name)) {
-		dev_err(dev, "failed to get memory region\n");
-		return -ENOENT;
-	}
-
-	wdt_base = ioremap(wdt_mem->start, size);
-	if (!wdt_base) {
-		dev_err(dev, "failed to map memory region\n");
-		release_mem_region(wdt_mem->start, size);
-		wdt_mem = NULL;
-		return -ENOMEM;
-	}
+	wdt_base = devm_ioremap_resource(dev, wdt_mem);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	ret = misc_register(&davinci_wdt_miscdev);
 	if (ret < 0) {
 		dev_err(dev, "cannot register misc device\n");
-		release_mem_region(wdt_mem->start, size);
-		wdt_mem = NULL;
 	} else {
 		set_bit(WDT_DEVICE_INITED, &wdt_status);
 	}
 
-	iounmap(wdt_base);
 	return ret;
 }
 
-static int __devexit davinci_wdt_remove(struct platform_device *pdev)
+static int davinci_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&davinci_wdt_miscdev);
-	if (wdt_mem) {
-		release_mem_region(wdt_mem->start, resource_size(wdt_mem));
-		wdt_mem = NULL;
-	}
-
-	clk_disable(wdt_clk);
-	clk_put(wdt_clk);
+	clk_disable_unprepare(wdt_clk);
 
 	return 0;
 }
+
+static const struct of_device_id davinci_wdt_of_match[] = {
+	{ .compatible = "ti,davinci-wdt", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, davinci_wdt_of_match);
 
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "watchdog",
 		.owner	= THIS_MODULE,
+		.of_match_table = davinci_wdt_of_match,
 	},
 	.probe = davinci_wdt_probe,
-	.remove = __devexit_p(davinci_wdt_remove),
+	.remove = davinci_wdt_remove,
 };
 
-static int __init davinci_wdt_init(void)
-{
-	return platform_driver_register(&platform_wdt_driver);
-}
-
-static void __exit davinci_wdt_exit(void)
-{
-	platform_driver_unregister(&platform_wdt_driver);
-}
-
-module_init(davinci_wdt_init);
-module_exit(davinci_wdt_exit);
+module_platform_driver(platform_wdt_driver);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("DaVinci Watchdog Driver");

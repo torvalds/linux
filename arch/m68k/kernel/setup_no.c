@@ -31,11 +31,13 @@
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
+#include <linux/rtc.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 
 unsigned long memory_start;
 unsigned long memory_end;
@@ -46,14 +48,18 @@ EXPORT_SYMBOL(memory_end);
 char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* machine dependent timer functions */
-void (*mach_gettod)(int*, int*, int*, int*, int*, int*);
+void (*mach_sched_init)(irq_handler_t handler) __initdata = NULL;
 int (*mach_set_clock_mmss)(unsigned long);
+int (*mach_hwclk) (int, struct rtc_time*);
 
 /* machine dependent reboot functions */
 void (*mach_reset)(void);
 void (*mach_halt)(void);
 void (*mach_power_off)(void);
 
+#ifdef CONFIG_M68000
+#define CPU_NAME	"MC68000"
+#endif
 #ifdef CONFIG_M68328
 #define CPU_NAME	"MC68328"
 #endif
@@ -79,9 +85,6 @@ void (*mach_power_off)(void);
 #ifndef CPU_INSTR_PER_JIFFY
 #define	CPU_INSTR_PER_JIFFY	16
 #endif
-
-extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
-extern int _ramstart, _ramend;
 
 #if defined(CONFIG_UBOOT)
 /*
@@ -218,13 +221,10 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Motorola M5235EVB support (C)2005 Syn-tech Systems, Inc. (Jate Sujjavanich)\n");
 #endif
 
-	pr_debug("KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x "
-		 "BSS=0x%06x-0x%06x\n", (int) &_stext, (int) &_etext,
-		 (int) &_sdata, (int) &_edata,
-		 (int) &_sbss, (int) &_ebss);
-	pr_debug("MEMORY -> ROMFS=0x%06x-0x%06x MEM=0x%06x-0x%06x\n ",
-		 (int) &_ebss, (int) memory_start,
-		 (int) memory_start, (int) memory_end);
+	pr_debug("KERNEL -> TEXT=0x%p-0x%p DATA=0x%p-0x%p BSS=0x%p-0x%p\n",
+		 _stext, _etext, _sdata, _edata, __bss_start, __bss_stop);
+	pr_debug("MEMORY -> ROMFS=0x%p-0x%06lx MEM=0x%06lx-0x%06lx\n ",
+		 __bss_stop, memory_start, memory_start, memory_end);
 
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];

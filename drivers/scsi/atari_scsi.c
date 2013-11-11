@@ -572,7 +572,7 @@ static void falcon_get_lock(void)
 }
 
 
-int __init atari_scsi_detect(struct scsi_host_template *host)
+static int __init atari_scsi_detect(struct scsi_host_template *host)
 {
 	static int called = 0;
 	struct Scsi_Host *instance;
@@ -724,26 +724,31 @@ int __init atari_scsi_detect(struct scsi_host_template *host)
 	return 1;
 }
 
-int atari_scsi_release(struct Scsi_Host *sh)
+static int atari_scsi_release(struct Scsi_Host *sh)
 {
 	if (IS_A_TT())
 		free_irq(IRQ_TT_MFP_SCSI, sh);
 	if (atari_dma_buffer)
 		atari_stram_free(atari_dma_buffer);
+	NCR5380_exit(sh);
 	return 1;
 }
 
-void __init atari_scsi_setup(char *str, int *ints)
+#ifndef MODULE
+static int __init atari_scsi_setup(char *str)
 {
 	/* Format of atascsi parameter is:
 	 *   atascsi=<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
 	 * Defaults depend on TT or Falcon, hostid determined at run time.
 	 * Negative values mean don't change.
 	 */
+	int ints[6];
+
+	get_options(str, ARRAY_SIZE(ints), ints);
 
 	if (ints[0] < 1) {
 		printk("atari_scsi_setup: no arguments!\n");
-		return;
+		return 0;
 	}
 
 	if (ints[0] >= 1) {
@@ -776,9 +781,14 @@ void __init atari_scsi_setup(char *str, int *ints)
 			setup_use_tagged_queuing = !!ints[5];
 	}
 #endif
+
+	return 1;
 }
 
-int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
+__setup("atascsi=", atari_scsi_setup);
+#endif /* !MODULE */
+
+static int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
 {
 	int rv;
 	struct NCR5380_hostdata *hostdata =
@@ -851,7 +861,7 @@ static void __init atari_scsi_reset_boot(void)
 #endif
 
 
-const char *atari_scsi_info(struct Scsi_Host *host)
+static const char *atari_scsi_info(struct Scsi_Host *host)
 {
 	/* atari_scsi_detect() is verbose enough... */
 	static const char string[] = "Atari native SCSI";
@@ -861,8 +871,9 @@ const char *atari_scsi_info(struct Scsi_Host *host)
 
 #if defined(REAL_DMA)
 
-unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance, void *data,
-				   unsigned long count, int dir)
+static unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance,
+					  void *data, unsigned long count,
+					  int dir)
 {
 	unsigned long addr = virt_to_phys(data);
 
@@ -1089,7 +1100,7 @@ static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
 #include "atari_NCR5380.c"
 
 static struct scsi_host_template driver_template = {
-	.proc_info		= atari_scsi_proc_info,
+	.show_info		= atari_scsi_show_info,
 	.name			= "Atari native SCSI",
 	.detect			= atari_scsi_detect,
 	.release		= atari_scsi_release,

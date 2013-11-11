@@ -18,7 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/rtc.h>
@@ -136,9 +136,9 @@ ssize_t beat_nvram_get_size(void)
 	return BEAT_NVRAM_SIZE;
 }
 
-int beat_set_xdabr(unsigned long dabr)
+int beat_set_xdabr(unsigned long dabr, unsigned long dabrx)
 {
-	if (beat_set_dabr(dabr, DABRX_KERNEL | DABRX_USER))
+	if (beat_set_dabr(dabr, dabrx))
 		return -1;
 	return 0;
 }
@@ -230,7 +230,7 @@ static int __init beat_register_event(void)
 		}
 		ev->virq = virq;
 
-		rc = request_irq(virq, ev->handler, IRQF_DISABLED,
+		rc = request_irq(virq, ev->handler, 0,
 				      ev->typecode, NULL);
 		if (rc != 0) {
 			printk(KERN_ERR "Beat: failed to request virtual IRQ"

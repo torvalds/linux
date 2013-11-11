@@ -10,6 +10,7 @@
 #define __ASM_HUGETLB_H
 
 #include <asm/page.h>
+#include <asm-generic/hugetlb.h>
 
 
 static inline int is_hugepage_only_range(struct mm_struct *mm,
@@ -70,7 +71,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 					 unsigned long addr, pte_t *ptep)
 {
-	flush_tlb_mm(vma->vm_mm);
+	flush_tlb_page(vma, addr & huge_page_mask(hstate_vma(vma)));
 }
 
 static inline int huge_pte_none(pte_t pte)
@@ -95,7 +96,17 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 					     pte_t *ptep, pte_t pte,
 					     int dirty)
 {
-	return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+	int changed = !pte_same(*ptep, pte);
+
+	if (changed) {
+		set_pte_at(vma->vm_mm, addr, ptep, pte);
+		/*
+		 * There could be some standard sized pages in there,
+		 * get them all.
+		 */
+		flush_tlb_range(vma, addr, addr + HPAGE_SIZE);
+	}
+	return changed;
 }
 
 static inline pte_t huge_ptep_get(pte_t *ptep)
@@ -109,6 +120,10 @@ static inline int arch_prepare_hugepage(struct page *page)
 }
 
 static inline void arch_release_hugepage(struct page *page)
+{
+}
+
+static inline void arch_clear_hugepage_flags(struct page *page)
 {
 }
 

@@ -23,12 +23,10 @@
 #ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
-#if defined(CONFIG_MICROBLAZE_32K_PAGES)
-#define PAGE_SHIFT		15
+#if defined(CONFIG_MICROBLAZE_64K_PAGES)
+#define PAGE_SHIFT		16
 #elif defined(CONFIG_MICROBLAZE_16K_PAGES)
 #define PAGE_SHIFT		14
-#elif defined(CONFIG_MICROBLAZE_8K_PAGES)
-#define PAGE_SHIFT		13
 #else
 #define PAGE_SHIFT		12
 #endif
@@ -36,6 +34,8 @@
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_KERNEL_BASE_ADDR))
+
+#define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
 
 #ifndef __ASSEMBLY__
 
@@ -71,7 +71,6 @@ extern unsigned int __page_offset;
  * The basic type of a PTE - 32 bit physical addressing.
  */
 typedef unsigned long pte_basic_t;
-#define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
 #define PTE_FMT		"%.8lx"
 
 #endif /* CONFIG_MMU */
@@ -135,8 +134,10 @@ extern unsigned long min_low_pfn;
 extern unsigned long max_pfn;
 
 extern unsigned long memory_start;
-extern unsigned long memory_end;
 extern unsigned long memory_size;
+extern unsigned long lowmem_size;
+
+extern unsigned long kernel_tlb;
 
 extern int page_is_ram(unsigned long pfn);
 
@@ -174,15 +175,8 @@ extern int page_is_ram(unsigned long pfn);
 
 #define	virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
 
-
-#  ifndef CONFIG_MMU
-#  define __pa(vaddr)	((unsigned long) (vaddr))
-#  define __va(paddr)	((void *) (paddr))
-#  else /* CONFIG_MMU */
-#  define __pa(x)	__virt_to_phys((unsigned long)(x))
-#  define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
-#  endif /* CONFIG_MMU */
-
+# define __pa(x)	__virt_to_phys((unsigned long)(x))
+# define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
 
 /* Convert between virtual and physical address for MMU. */
 /* Handle MicroBlaze processor with virtual memory. */

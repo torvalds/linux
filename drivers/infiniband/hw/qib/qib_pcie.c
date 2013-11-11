@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/aer.h>
+#include <linux/module.h>
 
 #include "qib.h"
 
@@ -193,11 +194,24 @@ void qib_pcie_ddcleanup(struct qib_devdata *dd)
 }
 
 static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
-			   struct msix_entry *msix_entry)
+			   struct qib_msix_entry *qib_msix_entry)
 {
 	int ret;
 	u32 tabsize = 0;
 	u16 msix_flags;
+	struct msix_entry *msix_entry;
+	int i;
+
+	/* We can't pass qib_msix_entry array to qib_msix_setup
+	 * so use a dummy msix_entry array and copy the allocated
+	 * irq back to the qib_msix_entry array. */
+	msix_entry = kmalloc(*msixcnt * sizeof(*msix_entry), GFP_KERNEL);
+	if (!msix_entry) {
+		ret = -ENOMEM;
+		goto do_intx;
+	}
+	for (i = 0; i < *msixcnt; i++)
+		msix_entry[i] = qib_msix_entry[i].msix;
 
 	pci_read_config_word(dd->pcidev, pos + PCI_MSIX_FLAGS, &msix_flags);
 	tabsize = 1 + (msix_flags & PCI_MSIX_FLAGS_QSIZE);
@@ -208,11 +222,16 @@ static void qib_msix_setup(struct qib_devdata *dd, int pos, u32 *msixcnt,
 		tabsize = ret;
 		ret = pci_enable_msix(dd->pcidev, msix_entry, tabsize);
 	}
+do_intx:
 	if (ret) {
-		qib_dev_err(dd, "pci_enable_msix %d vectors failed: %d, "
-			    "falling back to INTx\n", tabsize, ret);
+		qib_dev_err(dd,
+			"pci_enable_msix %d vectors failed: %d, falling back to INTx\n",
+			tabsize, ret);
 		tabsize = 0;
 	}
+	for (i = 0; i < tabsize; i++)
+		qib_msix_entry[i].msix = msix_entry[i];
+	kfree(msix_entry);
 	*msixcnt = tabsize;
 
 	if (ret)
@@ -233,8 +252,9 @@ static int qib_msi_setup(struct qib_devdata *dd, int pos)
 
 	ret = pci_enable_msi(pdev);
 	if (ret)
-		qib_dev_err(dd, "pci_enable_msi failed: %d, "
-			    "interrupts may not work\n", ret);
+		qib_dev_err(dd,
+			"pci_enable_msi failed: %d, interrupts may not work\n",
+			ret);
 	/* continue even if it fails, we may still be OK... */
 
 	pci_read_config_dword(pdev, pos + PCI_MSI_ADDRESS_LO,
@@ -250,13 +270,12 @@ static int qib_msi_setup(struct qib_devdata *dd, int pos)
 }
 
 int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
-		    struct msix_entry *entry)
+		    struct qib_msix_entry *entry)
 {
 	u16 linkstat, speed;
-	int pos = 0, pose, ret = 1;
+	int pos = 0, ret = 1;
 
-	pose = pci_find_capability(dd->pcidev, PCI_CAP_ID_EXP);
-	if (!pose) {
+	if (!pci_is_pcie(dd->pcidev)) {
 		qib_dev_err(dd, "Can't find PCI Express capability!\n");
 		/* set up something... */
 		dd->lbus_width = 1;
@@ -278,7 +297,7 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
 	if (!pos)
 		qib_enable_intx(dd->pcidev);
 
-	pci_read_config_word(dd->pcidev, pose + PCI_EXP_LNKSTA, &linkstat);
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKSTA, &linkstat);
 	/*
 	 * speed is bits 0-3, linkwidth is bits 4-8
 	 * no defines for them in headers
@@ -340,8 +359,8 @@ int qib_reinit_intr(struct qib_devdata *dd)
 
 	pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSI);
 	if (!pos) {
-		qib_dev_err(dd, "Can't find MSI capability, "
-			    "can't restore MSI settings\n");
+		qib_dev_err(dd,
+			"Can't find MSI capability, can't restore MSI settings\n");
 		ret = 0;
 		/* nothing special for MSIx, just MSI */
 		goto bail;
@@ -453,8 +472,8 @@ void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 	pci_write_config_byte(dd->pcidev, PCI_CACHE_LINE_SIZE, cline);
 	r = pci_enable_device(dd->pcidev);
 	if (r)
-		qib_dev_err(dd, "pci_enable_device failed after "
-			    "reset: %d\n", r);
+		qib_dev_err(dd,
+			"pci_enable_device failed after reset: %d\n", r);
 }
 
 /* code to adjust PCIe capabilities. */
@@ -496,7 +515,6 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 {
 	int r;
 	struct pci_dev *parent;
-	int ppos;
 	u16 devid;
 	u32 mask, bits, val;
 
@@ -509,8 +527,7 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
 		qib_devinfo(dd->pcidev, "Parent not root\n");
 		return 1;
 	}
-	ppos = pci_find_capability(parent, PCI_CAP_ID_EXP);
-	if (!ppos)
+	if (!pci_is_pcie(parent))
 		return 1;
 	if (parent->vendor != 0x8086)
 		return 1;
@@ -561,13 +578,12 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
  */
 static int qib_pcie_caps;
 module_param_named(pcie_caps, qib_pcie_caps, int, S_IRUGO);
-MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (4lsb), ReadReq (D4..7)");
+MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
 
 static int qib_tune_pcie_caps(struct qib_devdata *dd)
 {
 	int ret = 1; /* Assume the worst */
 	struct pci_dev *parent;
-	int ppos, epos;
 	u16 pcaps, pctl, ecaps, ectl;
 	int rc_sup, ep_sup;
 	int rc_cur, ep_cur;
@@ -578,19 +594,15 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		qib_devinfo(dd->pcidev, "Parent not root\n");
 		goto bail;
 	}
-	ppos = pci_find_capability(parent, PCI_CAP_ID_EXP);
-	if (ppos) {
-		pci_read_config_word(parent, ppos + PCI_EXP_DEVCAP, &pcaps);
-		pci_read_config_word(parent, ppos + PCI_EXP_DEVCTL, &pctl);
-	} else
+
+	if (!pci_is_pcie(parent) || !pci_is_pcie(dd->pcidev))
 		goto bail;
+	pcie_capability_read_word(parent, PCI_EXP_DEVCAP, &pcaps);
+	pcie_capability_read_word(parent, PCI_EXP_DEVCTL, &pctl);
 	/* Find out supported and configured values for endpoint (us) */
-	epos = pci_find_capability(dd->pcidev, PCI_CAP_ID_EXP);
-	if (epos) {
-		pci_read_config_word(dd->pcidev, epos + PCI_EXP_DEVCAP, &ecaps);
-		pci_read_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, &ectl);
-	} else
-		goto bail;
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCAP, &ecaps);
+	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &ectl);
+
 	ret = 0;
 	/* Find max payload supported by root, endpoint */
 	rc_sup = fld2val(pcaps, PCI_EXP_DEVCAP_PAYLOAD);
@@ -609,14 +621,14 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		rc_cur = rc_sup;
 		pctl = (pctl & ~PCI_EXP_DEVCTL_PAYLOAD) |
 			val2fld(rc_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pci_write_config_word(parent, ppos + PCI_EXP_DEVCTL, pctl);
+		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
 	}
 	/* If less than (allowed, supported), bump endpoint payload */
 	if (rc_sup > ep_cur) {
 		ep_cur = rc_sup;
 		ectl = (ectl & ~PCI_EXP_DEVCTL_PAYLOAD) |
 			val2fld(ep_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pci_write_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, ectl);
+		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
 	}
 
 	/*
@@ -634,13 +646,13 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 		rc_cur = rc_sup;
 		pctl = (pctl & ~PCI_EXP_DEVCTL_READRQ) |
 			val2fld(rc_cur, PCI_EXP_DEVCTL_READRQ);
-		pci_write_config_word(parent, ppos + PCI_EXP_DEVCTL, pctl);
+		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
 	}
 	if (rc_sup > ep_cur) {
 		ep_cur = rc_sup;
 		ectl = (ectl & ~PCI_EXP_DEVCTL_READRQ) |
 			val2fld(ep_cur, PCI_EXP_DEVCTL_READRQ);
-		pci_write_config_word(dd->pcidev, epos + PCI_EXP_DEVCTL, ectl);
+		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
 	}
 bail:
 	return ret;
@@ -699,15 +711,16 @@ qib_pci_mmio_enabled(struct pci_dev *pdev)
 		if (words == ~0ULL)
 			ret = PCI_ERS_RESULT_NEED_RESET;
 	}
-	qib_devinfo(pdev, "QIB mmio_enabled function called, "
-		 "read wordscntr %Lx, returning %d\n", words, ret);
+	qib_devinfo(pdev,
+		"QIB mmio_enabled function called, read wordscntr %Lx, returning %d\n",
+		words, ret);
 	return  ret;
 }
 
 static pci_ers_result_t
 qib_pci_slot_reset(struct pci_dev *pdev)
 {
-	qib_devinfo(pdev, "QIB link_reset function called, ignored\n");
+	qib_devinfo(pdev, "QIB slot_reset function called, ignored\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -732,7 +745,7 @@ qib_pci_resume(struct pci_dev *pdev)
 	qib_init(dd, 1); /* same as re-init after reset */
 }
 
-struct pci_error_handlers qib_pci_err_handler = {
+const struct pci_error_handlers qib_pci_err_handler = {
 	.error_detected = qib_pci_error_detected,
 	.mmio_enabled = qib_pci_mmio_enabled,
 	.link_reset = qib_pci_link_reset,

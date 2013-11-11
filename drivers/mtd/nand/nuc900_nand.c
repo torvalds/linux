@@ -112,22 +112,6 @@ static void nuc900_nand_write_buf(struct mtd_info *mtd,
 		write_data_reg(nand, buf[i]);
 }
 
-static int nuc900_verify_buf(struct mtd_info *mtd,
-			     const unsigned char *buf, int len)
-{
-	int i;
-	struct nuc900_nand *nand;
-
-	nand = container_of(mtd, struct nuc900_nand, mtd);
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != (unsigned char)read_data_reg(nand))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
 static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
@@ -193,15 +177,6 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_RNDIN:
 	case NAND_CMD_STATUS:
-	case NAND_CMD_DEPLETE1:
-		return;
-
-	case NAND_CMD_STATUS_ERROR:
-	case NAND_CMD_STATUS_ERROR0:
-	case NAND_CMD_STATUS_ERROR1:
-	case NAND_CMD_STATUS_ERROR2:
-	case NAND_CMD_STATUS_ERROR3:
-		udelay(chip->chip_delay);
 		return;
 
 	case NAND_CMD_RESET:
@@ -262,7 +237,7 @@ static void nuc900_nand_enable(struct nuc900_nand *nand)
 	spin_unlock(&nand->lock);
 }
 
-static int __devinit nuc900_nand_probe(struct platform_device *pdev)
+static int nuc900_nand_probe(struct platform_device *pdev)
 {
 	struct nuc900_nand *nuc900_nand;
 	struct nand_chip *chip;
@@ -292,7 +267,6 @@ static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 	chip->read_byte		= nuc900_nand_read_byte;
 	chip->write_buf		= nuc900_nand_write_buf;
 	chip->read_buf		= nuc900_nand_read_buf;
-	chip->verify_buf	= nuc900_verify_buf;
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;
@@ -334,11 +308,12 @@ fail1:	kfree(nuc900_nand);
 	return retval;
 }
 
-static int __devexit nuc900_nand_remove(struct platform_device *pdev)
+static int nuc900_nand_remove(struct platform_device *pdev)
 {
 	struct nuc900_nand *nuc900_nand = platform_get_drvdata(pdev);
 	struct resource *res;
 
+	nand_release(&nuc900_nand->mtd);
 	iounmap(nuc900_nand->reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -356,25 +331,14 @@ static int __devexit nuc900_nand_remove(struct platform_device *pdev)
 
 static struct platform_driver nuc900_nand_driver = {
 	.probe		= nuc900_nand_probe,
-	.remove		= __devexit_p(nuc900_nand_remove),
+	.remove		= nuc900_nand_remove,
 	.driver		= {
 		.name	= "nuc900-fmi",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init nuc900_nand_init(void)
-{
-	return platform_driver_register(&nuc900_nand_driver);
-}
-
-static void __exit nuc900_nand_exit(void)
-{
-	platform_driver_unregister(&nuc900_nand_driver);
-}
-
-module_init(nuc900_nand_init);
-module_exit(nuc900_nand_exit);
+module_platform_driver(nuc900_nand_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910/NUC9xx nand driver!");

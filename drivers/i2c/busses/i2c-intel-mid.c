@@ -947,7 +947,7 @@ static const struct dev_pm_ops intel_mid_i2c_pm_ops = {
  * 5. Call intel_mid_i2c_hwinit() for hardware initialization
  * 6. Register I2C adapter in i2c-core
  */
-static int __devinit intel_mid_i2c_probe(struct pci_dev *dev,
+static int intel_mid_i2c_probe(struct pci_dev *dev,
 				    const struct pci_device_id *id)
 {
 	struct intel_mid_i2c_private *mrst;
@@ -1069,7 +1069,6 @@ static int __devinit intel_mid_i2c_probe(struct pci_dev *dev,
 fail3:
 	free_irq(dev->irq, mrst);
 fail2:
-	pci_set_drvdata(dev, NULL);
 	kfree(mrst);
 fail1:
 	iounmap(base);
@@ -1079,21 +1078,19 @@ exit:
 	return err;
 }
 
-static void __devexit intel_mid_i2c_remove(struct pci_dev *dev)
+static void intel_mid_i2c_remove(struct pci_dev *dev)
 {
 	struct intel_mid_i2c_private *mrst = pci_get_drvdata(dev);
 	intel_mid_i2c_disable(&mrst->adap);
-	if (i2c_del_adapter(&mrst->adap))
-		dev_err(&dev->dev, "Failed to delete i2c adapter");
+	i2c_del_adapter(&mrst->adap);
 
 	free_irq(dev->irq, mrst);
-	pci_set_drvdata(dev, NULL);
 	iounmap(mrst->base);
 	kfree(mrst);
 	pci_release_region(dev, 0);
 }
 
-static struct pci_device_id intel_mid_i2c_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(intel_mid_i2c_ids) = {
 	/* Moorestown */
 	{ PCI_VDEVICE(INTEL, 0x0802), 0 },
 	{ PCI_VDEVICE(INTEL, 0x0803), 1 },
@@ -1113,21 +1110,10 @@ static struct pci_driver intel_mid_i2c_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= intel_mid_i2c_ids,
 	.probe		= intel_mid_i2c_probe,
-	.remove		= __devexit_p(intel_mid_i2c_remove),
+	.remove		= intel_mid_i2c_remove,
 };
 
-static int __init intel_mid_i2c_init(void)
-{
-	return pci_register_driver(&intel_mid_i2c_driver);
-}
-
-static void __exit intel_mid_i2c_exit(void)
-{
-	pci_unregister_driver(&intel_mid_i2c_driver);
-}
-
-module_init(intel_mid_i2c_init);
-module_exit(intel_mid_i2c_exit);
+module_pci_driver(intel_mid_i2c_driver);
 
 MODULE_AUTHOR("Ba Zheng <zheng.ba@intel.com>");
 MODULE_DESCRIPTION("I2C driver for Moorestown Platform");

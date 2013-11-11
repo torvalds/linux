@@ -7,7 +7,16 @@ config DRM_VMWGFX
 	select FB_CFB_IMAGEBLIT
 	select DRM_TTM
 	help
-	  KMS enabled DRM driver for SVGA2 virtual hardware.
+	  Choose this option if you would like to run 3D acceleration
+	  in a VMware virtual machine.
+	  This is a KMS enabled DRM driver for the VMware SVGA2
+	  virtual hardware.
+	  The compiled module will be called "vmwgfx.ko".
 
-	  If unsure say n. The compiled module will be
-	  called vmwgfx.ko
+config DRM_VMWGFX_FBCON
+	depends on DRM_VMWGFX
+	bool "Enable framebuffer console under vmwgfx by default"
+	help
+	   Choose this option if you are shipping a new vmwgfx
+	   userspace driver that supports using the kernel driver.
+

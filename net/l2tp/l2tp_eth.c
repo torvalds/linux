@@ -9,6 +9,8 @@
  *	2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/socket.h>
@@ -40,6 +42,12 @@ struct l2tp_eth {
 	struct sock		*tunnel_sock;
 	struct l2tp_session	*session;
 	struct list_head	list;
+	atomic_long_t		tx_bytes;
+	atomic_long_t		tx_packets;
+	atomic_long_t		tx_dropped;
+	atomic_long_t		rx_bytes;
+	atomic_long_t		rx_packets;
+	atomic_long_t		rx_errors;
 };
 
 /* via l2tp_session_priv() */
@@ -59,14 +67,15 @@ static inline struct l2tp_eth_net *l2tp_eth_pernet(struct net *net)
 	return net_generic(net, l2tp_eth_net_id);
 }
 
+static struct lock_class_key l2tp_eth_tx_busylock;
 static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
 	priv->dev = dev;
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 	memset(&dev->broadcast[0], 0xff, 6);
-
+	dev->qdisc_tx_busylock = &l2tp_eth_tx_busylock;
 	return 0;
 }
 
@@ -85,25 +94,45 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
+	unsigned int len = skb->len;
+	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
 
-	l2tp_xmit_skb(session, skb, session->hdr_len);
-
-	dev->stats.tx_bytes += skb->len;
-	dev->stats.tx_packets++;
-
-	return 0;
+	if (likely(ret == NET_XMIT_SUCCESS)) {
+		atomic_long_add(len, &priv->tx_bytes);
+		atomic_long_inc(&priv->tx_packets);
+	} else {
+		atomic_long_inc(&priv->tx_dropped);
+	}
+	return NETDEV_TX_OK;
 }
+
+static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats)
+{
+	struct l2tp_eth *priv = netdev_priv(dev);
+
+	stats->tx_bytes   = atomic_long_read(&priv->tx_bytes);
+	stats->tx_packets = atomic_long_read(&priv->tx_packets);
+	stats->tx_dropped = atomic_long_read(&priv->tx_dropped);
+	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
+	stats->rx_packets = atomic_long_read(&priv->rx_packets);
+	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
+	return stats;
+}
+
 
 static struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
+	.ndo_get_stats64	= l2tp_eth_get_stats64,
 };
 
 static void l2tp_eth_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-
+	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
+	dev->features		|= NETIF_F_LLTX;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
 	dev->destructor		= free_netdev;
 }
@@ -112,27 +141,20 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 {
 	struct l2tp_eth_sess *spriv = l2tp_session_priv(session);
 	struct net_device *dev = spriv->dev;
+	struct l2tp_eth *priv = netdev_priv(dev);
 
 	if (session->debug & L2TP_MSG_DATA) {
 		unsigned int length;
-		int offset;
-		u8 *ptr = skb->data;
 
 		length = min(32u, skb->len);
 		if (!pskb_may_pull(skb, length))
 			goto error;
 
-		printk(KERN_DEBUG "%s: eth recv: ", session->name);
-
-		offset = 0;
-		do {
-			printk(" %02X", ptr[offset]);
-		} while (++offset < length);
-
-		printk("\n");
+		pr_debug("%s: eth recv\n", session->name);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
-	if (!pskb_may_pull(skb, sizeof(ETH_HLEN)))
+	if (!pskb_may_pull(skb, ETH_HLEN))
 		goto error;
 
 	secpath_reset(skb);
@@ -144,15 +166,15 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	nf_reset(skb);
 
 	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
-		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += data_len;
-	} else
-		dev->stats.rx_errors++;
-
+		atomic_long_inc(&priv->rx_packets);
+		atomic_long_add(data_len, &priv->rx_bytes);
+	} else {
+		atomic_long_inc(&priv->rx_errors);
+	}
 	return;
 
 error:
-	dev->stats.rx_errors++;
+	atomic_long_inc(&priv->rx_errors);
 	kfree_skb(skb);
 }
 
@@ -167,6 +189,7 @@ static void l2tp_eth_delete(struct l2tp_session *session)
 		if (dev) {
 			unregister_netdev(dev);
 			spriv->dev = NULL;
+			module_put(THIS_MODULE);
 		}
 	}
 }
@@ -254,6 +277,7 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 	if (rc < 0)
 		goto out_del_dev;
 
+	__module_get(THIS_MODULE);
 	/* Must be done after register_netdev() */
 	strlcpy(session->ifname, dev->name, IFNAMSIZ);
 
@@ -267,6 +291,7 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 
 out_del_dev:
 	free_netdev(dev);
+	spriv->dev = NULL;
 out_del_session:
 	l2tp_session_delete(session);
 out:
@@ -308,7 +333,7 @@ static int __init l2tp_eth_init(void)
 	if (err)
 		goto out_unreg;
 
-	printk(KERN_INFO "L2TP ethernet pseudowire support (L2TPv3)\n");
+	pr_info("L2TP ethernet pseudowire support (L2TPv3)\n");
 
 	return 0;
 

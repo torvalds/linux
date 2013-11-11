@@ -25,7 +25,6 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/debugfs.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
@@ -33,6 +32,9 @@
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
 static DEFINE_MUTEX(clock_list_sem);
+
+/* clock disable operations are not passed on to hardware during boot */
+static int allow_disable;
 
 void clk_rate_table_build(struct clk *clk,
 			  struct cpufreq_frequency_table *freq_table,
@@ -170,6 +172,26 @@ long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
 	return clk_rate_round_helper(&div_range_round);
 }
 
+static long clk_rate_mult_range_iter(unsigned int pos,
+				      struct clk_rate_round_data *rounder)
+{
+	return clk_get_rate(rounder->arg) * pos;
+}
+
+long clk_rate_mult_range_round(struct clk *clk, unsigned int mult_min,
+			       unsigned int mult_max, unsigned long rate)
+{
+	struct clk_rate_round_data mult_range_round = {
+		.min	= mult_min,
+		.max	= mult_max,
+		.func	= clk_rate_mult_range_iter,
+		.arg	= clk_get_parent(clk),
+		.rate	= rate,
+	};
+
+	return clk_rate_round_helper(&mult_range_round);
+}
+
 int clk_rate_table_find(struct clk *clk,
 			struct cpufreq_frequency_table *freq_table,
 			unsigned long rate)
@@ -202,9 +224,6 @@ int clk_reparent(struct clk *child, struct clk *parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
 
-	/* now do the debugfs renaming to reattach the child
-	   to the proper parent */
-
 	return 0;
 }
 
@@ -228,7 +247,7 @@ static void __clk_disable(struct clk *clk)
 		return;
 
 	if (!(--clk->usecount)) {
-		if (likely(clk->ops && clk->ops->disable))
+		if (likely(allow_disable && clk->ops && clk->ops->disable))
 			clk->ops->disable(clk);
 		if (likely(clk->parent))
 			__clk_disable(clk->parent);
@@ -336,7 +355,7 @@ static int clk_establish_mapping(struct clk *clk)
 		 */
 		if (!clk->parent) {
 			clk->mapping = &dummy_mapping;
-			return 0;
+			goto out;
 		}
 
 		/*
@@ -365,6 +384,9 @@ static int clk_establish_mapping(struct clk *clk)
 	}
 
 	clk->mapping = mapping;
+out:
+	clk->mapped_reg = clk->mapping->base;
+	clk->mapped_reg += (phys_addr_t)clk->enable_reg - clk->mapping->phys;
 	return 0;
 }
 
@@ -383,17 +405,19 @@ static void clk_teardown_mapping(struct clk *clk)
 
 	/* Nothing to do */
 	if (mapping == &dummy_mapping)
-		return;
+		goto out;
 
 	kref_put(&mapping->ref, clk_destroy_mapping);
 	clk->mapping = NULL;
+out:
+	clk->mapped_reg = NULL;
 }
 
 int clk_register(struct clk *clk)
 {
 	int ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/*
@@ -662,88 +686,24 @@ static int __init clk_syscore_init(void)
 subsys_initcall(clk_syscore_init);
 #endif
 
-/*
- *	debugfs support to trace clock tree hierarchy and attributes
- */
-static struct dentry *clk_debugfs_root;
-
-static int clk_debugfs_register_one(struct clk *c)
+static int __init clk_late_init(void)
 {
-	int err;
-	struct dentry *d, *child, *child_tmp;
-	struct clk *pa = c->parent;
-	char s[255];
-	char *p = s;
+	unsigned long flags;
+	struct clk *clk;
 
-	p += sprintf(p, "%p", c);
-	d = debugfs_create_dir(s, pa ? pa->dentry : clk_debugfs_root);
-	if (!d)
-		return -ENOMEM;
-	c->dentry = d;
+	/* disable all clocks with zero use count */
+	mutex_lock(&clock_list_sem);
+	spin_lock_irqsave(&clock_lock, flags);
 
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dentry, (u8 *)&c->usecount);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_u32("rate", S_IRUGO, c->dentry, (u32 *)&c->rate);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_x32("flags", S_IRUGO, c->dentry, (u32 *)&c->flags);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	return 0;
+	list_for_each_entry(clk, &clock_list, node)
+		if (!clk->usecount && clk->ops && clk->ops->disable)
+			clk->ops->disable(clk);
 
-err_out:
-	d = c->dentry;
-	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(c->dentry);
-	return err;
-}
+	/* from now on allow clock disable operations */
+	allow_disable = 1;
 
-static int clk_debugfs_register(struct clk *c)
-{
-	int err;
-	struct clk *pa = c->parent;
-
-	if (pa && !pa->dentry) {
-		err = clk_debugfs_register(pa);
-		if (err)
-			return err;
-	}
-
-	if (!c->dentry) {
-		err = clk_debugfs_register_one(c);
-		if (err)
-			return err;
-	}
+	spin_unlock_irqrestore(&clock_lock, flags);
+	mutex_unlock(&clock_list_sem);
 	return 0;
 }
-
-static int __init clk_debugfs_init(void)
-{
-	struct clk *c;
-	struct dentry *d;
-	int err;
-
-	d = debugfs_create_dir("clock", NULL);
-	if (!d)
-		return -ENOMEM;
-	clk_debugfs_root = d;
-
-	list_for_each_entry(c, &clock_list, node) {
-		err = clk_debugfs_register(c);
-		if (err)
-			goto err_out;
-	}
-	return 0;
-err_out:
-	debugfs_remove_recursive(clk_debugfs_root);
-	return err;
-}
-late_initcall(clk_debugfs_init);
+late_initcall(clk_late_init);

@@ -65,7 +65,7 @@ static const struct adxl34x_bus_ops adxl34x_spi_bops = {
 	.read_block	= adxl34x_spi_read_block,
 };
 
-static int __devinit adxl34x_spi_probe(struct spi_device *spi)
+static int adxl34x_spi_probe(struct spi_device *spi)
 {
 	struct adxl34x *ac;
 
@@ -87,18 +87,18 @@ static int __devinit adxl34x_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit adxl34x_spi_remove(struct spi_device *spi)
+static int adxl34x_spi_remove(struct spi_device *spi)
 {
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	return adxl34x_remove(ac);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adxl34x_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	adxl34x_suspend(ac);
 
@@ -108,7 +108,7 @@ static int adxl34x_spi_suspend(struct device *dev)
 static int adxl34x_spi_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	adxl34x_resume(ac);
 
@@ -122,25 +122,14 @@ static SIMPLE_DEV_PM_OPS(adxl34x_spi_pm, adxl34x_spi_suspend,
 static struct spi_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 		.pm = &adxl34x_spi_pm,
 	},
 	.probe   = adxl34x_spi_probe,
-	.remove  = __devexit_p(adxl34x_spi_remove),
+	.remove  = adxl34x_spi_remove,
 };
 
-static int __init adxl34x_spi_init(void)
-{
-	return spi_register_driver(&adxl34x_driver);
-}
-module_init(adxl34x_spi_init);
-
-static void __exit adxl34x_spi_exit(void)
-{
-	spi_unregister_driver(&adxl34x_driver);
-}
-module_exit(adxl34x_spi_exit);
+module_spi_driver(adxl34x_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("ADXL345/346 Three-Axis Digital Accelerometer SPI Bus Driver");

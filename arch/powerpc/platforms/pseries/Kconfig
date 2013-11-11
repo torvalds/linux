@@ -1,7 +1,9 @@
 config PPC_PSERIES
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM pSeries & new (POWER5-based) iSeries"
+	select HAVE_PCSPKR_PLATFORM
 	select MPIC
+	select OF_DYNAMIC
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_ICP_NATIVE
@@ -14,6 +16,11 @@ config PPC_PSERIES
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select PPC_PCI_CHOICE if EXPERT
+	select ZLIB_DEFLATE
+	select PPC_DOORBELL
+	select HAVE_CONTEXT_TRACKING
+	select HOTPLUG if SMP
+	select HOTPLUG_CPU if SMP
 	default y
 
 config PPC_SPLPAR
@@ -27,9 +34,9 @@ config PPC_SPLPAR
 	  two or more partitions.
 
 config EEH
-	bool "PCI Extended Error Handling (EEH)" if EXPERT
+	bool
 	depends on PPC_PSERIES && PCI
-	default y if !EXPERT
+	default y
 
 config PSERIES_MSI
        bool
@@ -64,13 +71,13 @@ config IO_EVENT_IRQ
 
 	  This option will only enable the IO event platform code. You
 	  will still need to enable or compile the actual drivers
-	  that use this infrastruture to handle IO event interrupts.
+	  that use this infrastructure to handle IO event interrupts.
 
 	  Say Y if you are unsure.
 
 config LPARCFG
 	bool "LPAR Configuration Data"
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	help
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
@@ -118,3 +125,12 @@ config DTL
 	  which are accessible through a debugfs file.
 
 	  Say N if you are unsure.
+
+config PSERIES_IDLE
+	bool "Cpuidle driver for pSeries platforms"
+	depends on CPU_IDLE
+	depends on PPC_PSERIES
+	default y
+	help
+	  Select this option to enable processor idle state management
+	  through cpuidle subsystem.

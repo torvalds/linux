@@ -33,9 +33,6 @@ struct latch_addr_flash_info {
 	/* cache; could be found out of res */
 	unsigned long		win_mask;
 
-	int			nr_parts;
-	struct mtd_partition	*parts;
-
 	spinlock_t		lock;
 };
 
@@ -97,8 +94,6 @@ static void lf_copy_from(struct map_info *map, void *to,
 
 static char *rom_probe_types[] = { "cfi_probe", NULL };
 
-static char *part_probe_types[] = { "cmdlinepart", NULL };
-
 static int latch_addr_flash_remove(struct platform_device *dev)
 {
 	struct latch_addr_flash_info *info;
@@ -112,8 +107,6 @@ static int latch_addr_flash_remove(struct platform_device *dev)
 	latch_addr_data = dev->dev.platform_data;
 
 	if (info->mtd != NULL) {
-		if (info->nr_parts)
-			kfree(info->parts);
 		mtd_device_unregister(info->mtd);
 		map_destroy(info->mtd);
 	}
@@ -132,7 +125,7 @@ static int latch_addr_flash_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit latch_addr_flash_probe(struct platform_device *dev)
+static int latch_addr_flash_probe(struct platform_device *dev)
 {
 	struct latch_addr_flash_data *latch_addr_data;
 	struct latch_addr_flash_info *info;
@@ -206,21 +199,9 @@ static int __devinit latch_addr_flash_probe(struct platform_device *dev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	err = parse_mtd_partitions(info->mtd, (const char **)part_probe_types,
-				   &info->parts, 0);
-	if (err > 0) {
-		mtd_device_register(info->mtd, info->parts, err);
-		return 0;
-	}
-	if (latch_addr_data->nr_parts) {
-		pr_notice("Using latch-addr-flash partition information\n");
-		mtd_device_register(info->mtd,
-				    latch_addr_data->parts,
-				    latch_addr_data->nr_parts);
-		return 0;
-	}
-
-	mtd_device_register(info->mtd, NULL, 0);
+	mtd_device_parse_register(info->mtd, NULL, NULL,
+				  latch_addr_data->parts,
+				  latch_addr_data->nr_parts);
 	return 0;
 
 iounmap:
@@ -237,23 +218,13 @@ done:
 
 static struct platform_driver latch_addr_flash_driver = {
 	.probe		= latch_addr_flash_probe,
-	.remove		= __devexit_p(latch_addr_flash_remove),
+	.remove		= latch_addr_flash_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
 };
 
-static int __init latch_addr_flash_init(void)
-{
-	return platform_driver_register(&latch_addr_flash_driver);
-}
-module_init(latch_addr_flash_init);
-
-static void __exit latch_addr_flash_exit(void)
-{
-	platform_driver_unregister(&latch_addr_flash_driver);
-}
-module_exit(latch_addr_flash_exit);
+module_platform_driver(latch_addr_flash_driver);
 
 MODULE_AUTHOR("David Griego <dgriego@mvista.com>");
 MODULE_DESCRIPTION("MTD map driver for flashes addressed physically with upper "

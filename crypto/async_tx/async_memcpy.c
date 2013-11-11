@@ -25,6 +25,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/highmem.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/async_tx.h>
@@ -66,6 +67,12 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 
 		tx = device->device_prep_dma_memcpy(chan, dma_dest, dma_src,
 						    len, dma_prep_flags);
+		if (!tx) {
+			dma_unmap_page(device->dev, dma_dest, len,
+				       DMA_FROM_DEVICE);
+			dma_unmap_page(device->dev, dma_src, len,
+				       DMA_TO_DEVICE);
+		}
 	}
 
 	if (tx) {
@@ -78,13 +85,13 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 		/* wait for any prerequisite operations */
 		async_tx_quiesce(&submit->depend_tx);
 
-		dest_buf = kmap_atomic(dest, KM_USER0) + dest_offset;
-		src_buf = kmap_atomic(src, KM_USER1) + src_offset;
+		dest_buf = kmap_atomic(dest) + dest_offset;
+		src_buf = kmap_atomic(src) + src_offset;
 
 		memcpy(dest_buf, src_buf, len);
 
-		kunmap_atomic(src_buf, KM_USER1);
-		kunmap_atomic(dest_buf, KM_USER0);
+		kunmap_atomic(src_buf);
+		kunmap_atomic(dest_buf);
 
 		async_tx_sync_epilog(submit);
 	}

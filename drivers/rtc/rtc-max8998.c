@@ -249,14 +249,15 @@ static const struct rtc_class_ops max8998_rtc_ops = {
 	.alarm_irq_enable = max8998_rtc_alarm_irq_enable,
 };
 
-static int __devinit max8998_rtc_probe(struct platform_device *pdev)
+static int max8998_rtc_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *max8998 = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = dev_get_platdata(max8998->dev);
 	struct max8998_rtc_info *info;
 	int ret;
 
-	info = kzalloc(sizeof(struct max8998_rtc_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8998_rtc_info),
+			GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -267,7 +268,7 @@ static int __devinit max8998_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	info->rtc_dev = rtc_device_register("max8998-rtc", &pdev->dev,
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8998-rtc",
 			&max8998_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(info->rtc_dev)) {
@@ -276,15 +277,15 @@ static int __devinit max8998_rtc_probe(struct platform_device *pdev)
 		goto out_rtc;
 	}
 
-	ret = request_threaded_irq(info->irq, NULL, max8998_rtc_alarm_irq, 0,
-			"rtc-alarm0", info);
+	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
+				max8998_rtc_alarm_irq, 0, "rtc-alarm0", info);
 
 	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->irq, ret);
 
 	dev_info(&pdev->dev, "RTC CHIP NAME: %s\n", pdev->id_entry->name);
-	if (pdata->rtc_delay) {
+	if (pdata && pdata->rtc_delay) {
 		info->lp3974_bug_workaround = true;
 		dev_warn(&pdev->dev, "LP3974 with RTC REGERR option."
 				" RTC updates will be extremely slow.\n");
@@ -294,20 +295,11 @@ static int __devinit max8998_rtc_probe(struct platform_device *pdev)
 
 out_rtc:
 	platform_set_drvdata(pdev, NULL);
-	kfree(info);
 	return ret;
 }
 
-static int __devexit max8998_rtc_remove(struct platform_device *pdev)
+static int max8998_rtc_remove(struct platform_device *pdev)
 {
-	struct max8998_rtc_info *info = platform_get_drvdata(pdev);
-
-	if (info) {
-		free_irq(info->irq, info);
-		rtc_device_unregister(info->rtc_dev);
-		kfree(info);
-	}
-
 	return 0;
 }
 
@@ -323,21 +315,11 @@ static struct platform_driver max8998_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8998_rtc_probe,
-	.remove		= __devexit_p(max8998_rtc_remove),
+	.remove		= max8998_rtc_remove,
 	.id_table	= max8998_rtc_id,
 };
 
-static int __init max8998_rtc_init(void)
-{
-	return platform_driver_register(&max8998_rtc_driver);
-}
-module_init(max8998_rtc_init);
-
-static void __exit max8998_rtc_exit(void)
-{
-	platform_driver_unregister(&max8998_rtc_driver);
-}
-module_exit(max8998_rtc_exit);
+module_platform_driver(max8998_rtc_driver);
 
 MODULE_AUTHOR("Minkyu Kang <mk7.kang@samsung.com>");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

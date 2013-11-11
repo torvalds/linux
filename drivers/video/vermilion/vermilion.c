@@ -393,7 +393,7 @@ static void vmlfb_release_devices(struct vml_par *par)
  * Free up allocated resources for a device.
  */
 
-static void __devexit vml_pci_remove(struct pci_dev *dev)
+static void vml_pci_remove(struct pci_dev *dev)
 {
 	struct fb_info *info;
 	struct vml_info *vinfo;
@@ -452,8 +452,7 @@ static void vmlfb_set_pref_pixel_format(struct fb_var_screeninfo *var)
  * struct per pipe. Currently we have only one pipe.
  */
 
-static int __devinit vml_pci_probe(struct pci_dev *dev,
-				   const struct pci_device_id *id)
+static int vml_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct vml_info *vinfo;
 	struct fb_info *info;
@@ -1004,25 +1003,18 @@ static int vmlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct vml_info *vinfo = container_of(info, struct vml_info, info);
-	unsigned long size = vma->vm_end - vma->vm_start;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	int ret;
 
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-	if (offset + size > vinfo->vram_contig_size)
-		return -EINVAL;
 	ret = vmlfb_vram_offset(vinfo, offset);
 	if (ret)
 		return -EINVAL;
-	offset += vinfo->vram_start;
+
 	pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
 	pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-	vma->vm_flags |= VM_RESERVED | VM_IO;
-	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
-						size, vma->vm_page_prot))
-		return -EAGAIN;
-	return 0;
+
+	return vm_iomap_memory(vma, vinfo->vram_start,
+			vinfo->vram_contig_size);
 }
 
 static int vmlfb_sync(struct fb_info *info)
@@ -1061,7 +1053,7 @@ static struct pci_driver vmlfb_pci_driver = {
 	.name = "vmlfb",
 	.id_table = vml_ids,
 	.probe = vml_pci_probe,
-	.remove = __devexit_p(vml_pci_remove)
+	.remove = vml_pci_remove,
 };
 
 static void __exit vmlfb_cleanup(void)
@@ -1168,8 +1160,7 @@ void vmlfb_unregister_subsys(struct vml_sys *sys)
 	list_for_each_entry_safe(entry, next, &global_has_mode, head) {
 		printk(KERN_DEBUG MODULE_NAME ": subsys disable pipe\n");
 		vmlfb_disable_pipe(entry);
-		list_del(&entry->head);
-		list_add_tail(&entry->head, &global_no_mode);
+		list_move_tail(&entry->head, &global_no_mode);
 	}
 	mutex_unlock(&vml_mutex);
 }

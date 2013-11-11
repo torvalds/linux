@@ -186,7 +186,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -301,7 +301,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for AZF3328 soundcard.");
 
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable AZF3328 soundcard.");
 
@@ -365,7 +365,7 @@ struct snd_azf3328 {
 	 * CONFIG_PM register storage below, but that's slightly difficult. */
 	u16 shadow_reg_ctrl_6AH;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* register value containers for power management
 	 * Note: not always full I/O range preserved (similar to Win driver!) */
 	u32 saved_regs_ctrl[AZF_ALIGN(AZF_IO_SIZE_CTRL_PM) / 4];
@@ -817,7 +817,7 @@ snd_azf3328_mixer_ac97_write(struct snd_ac97 *ac97,
 		snd_azf3328_mixer_ac97_map_unsupported(reg_ac97, "write");
 }
 
-static int __devinit
+static int
 snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 {
 	struct snd_ac97_bus *bus;
@@ -1171,7 +1171,7 @@ snd_azf3328_put_mixer_enum(struct snd_kcontrol *kcontrol,
 	return (nreg != oreg);
 }
 
-static struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_azf3328_mixer_controls[] = {
 	AZF3328_MIXER_SWITCH("Master Playback Switch", IDX_MIXER_PLAY_MASTER, 15, 1),
 	AZF3328_MIXER_VOL_STEREO("Master Playback Volume", IDX_MIXER_PLAY_MASTER, 0x1f, 1),
 	AZF3328_MIXER_SWITCH("PCM Playback Switch", IDX_MIXER_WAVEOUT, 15, 1),
@@ -1229,7 +1229,7 @@ static struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
 #endif
 };
 
-static u16 __devinitdata snd_azf3328_init_values[][2] = {
+static u16 snd_azf3328_init_values[][2] = {
         { IDX_MIXER_PLAY_MASTER,	MIXER_MUTE_MASK|0x1f1f },
         { IDX_MIXER_MODEMOUT,		MIXER_MUTE_MASK|0x1f1f },
 	{ IDX_MIXER_BASSTREBLE,		0x0000 },
@@ -1245,7 +1245,7 @@ static u16 __devinitdata snd_azf3328_init_values[][2] = {
         { IDX_MIXER_REC_VOLUME,		MIXER_MUTE_MASK|0x0707 },
 };
 
-static int __devinit
+static int
 snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 {
 	struct snd_card *card;
@@ -1899,7 +1899,7 @@ snd_azf3328_gameport_cooked_read(struct gameport *gameport,
 	return 0;
 }
 
-static int __devinit
+static int
 snd_azf3328_gameport(struct snd_azf3328 *chip, int dev)
 {
 	struct gameport *gp;
@@ -2212,7 +2212,7 @@ static struct snd_pcm_ops snd_azf3328_i2s_out_ops = {
 	.pointer =	snd_azf3328_pcm_pointer
 };
 
-static int __devinit
+static int
 snd_azf3328_pcm(struct snd_azf3328 *chip)
 {
 enum { AZF_PCMDEV_STD, AZF_PCMDEV_I2S_OUT, NUM_AZF_PCMDEVS }; /* pcm devices */
@@ -2344,7 +2344,7 @@ static struct snd_timer_hardware snd_azf3328_timer_hw = {
 	.precise_resolution = snd_azf3328_timer_precise_resolution,
 };
 
-static int __devinit
+static int
 snd_azf3328_timer(struct snd_azf3328 *chip, int device)
 {
 	struct snd_timer *timer = NULL;
@@ -2489,7 +2489,7 @@ snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
 #endif /* DEBUG_MISC */
 }
 
-static int __devinit
+static int
 snd_azf3328_create(struct snd_card *card,
 		   struct pci_dev *pci,
 		   unsigned long device_type,
@@ -2559,7 +2559,7 @@ snd_azf3328_create(struct snd_card *card,
 	codec_setup->name = "I2S_OUT";
 
 	if (request_irq(pci->irq, snd_azf3328_interrupt,
-			IRQF_SHARED, card->shortname, chip)) {
+			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto out_err;
@@ -2615,7 +2615,7 @@ out:
 	return err;
 }
 
-static int __devinit
+static int
 snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -2625,16 +2625,19 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	int err;
 
 	snd_azf3328_dbgcallenter();
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+	if (dev >= SNDRV_CARDS) {
+		err = -ENODEV;
+		goto out;
+	}
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		err = -ENOENT;
+		goto out;
 	}
 
 	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
 	if (err < 0)
-		return err;
+		goto out;
 
 	strcpy(card->driver, "AZF3328");
 	strcpy(card->shortname, "Aztech AZF3328 (PCI168)");
@@ -2649,8 +2652,9 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	   since our hardware ought to be similar, thus use same ID. */
 	err = snd_mpu401_uart_new(
 		card, 0,
-		MPU401_HW_AZT2320, chip->mpu_io, MPU401_INFO_INTEGRATED,
-		pci->irq, 0, &chip->rmidi
+		MPU401_HW_AZT2320, chip->mpu_io,
+		MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+		-1, &chip->rmidi
 	);
 	if (err < 0) {
 		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n",
@@ -2680,9 +2684,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
 			goto out_err;
+		opl3->private_data = chip;
 	}
-
-	opl3->private_data = chip;
 
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, chip->ctrl_io, chip->irq);
@@ -2717,7 +2720,7 @@ out:
 	return err;
 }
 
-static void __devexit
+static void
 snd_azf3328_remove(struct pci_dev *pci)
 {
 	snd_azf3328_dbgcallenter();
@@ -2726,7 +2729,7 @@ snd_azf3328_remove(struct pci_dev *pci)
 	snd_azf3328_dbgcallleave();
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static inline void
 snd_azf3328_suspend_regs(unsigned long io_addr, unsigned count, u32 *saved_regs)
 {
@@ -2791,9 +2794,10 @@ snd_azf3328_resume_ac97(const struct snd_azf3328 *chip)
 }
 
 static int
-snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
+snd_azf3328_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_azf3328 *chip = card->private_data;
 	u16 *saved_regs_ctrl_u16;
 
@@ -2821,14 +2825,15 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int
-snd_azf3328_resume(struct pci_dev *pci)
+snd_azf3328_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	const struct snd_azf3328 *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -2856,37 +2861,21 @@ snd_azf3328_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
+static SIMPLE_DEV_PM_OPS(snd_azf3328_pm, snd_azf3328_suspend, snd_azf3328_resume);
+#define SND_AZF3328_PM_OPS	&snd_azf3328_pm
+#else
+#define SND_AZF3328_PM_OPS	NULL
+#endif /* CONFIG_PM_SLEEP */
 
-static struct pci_driver driver = {
-	.name = "AZF3328",
+static struct pci_driver azf3328_driver = {
+	.name = KBUILD_MODNAME,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
-	.remove = __devexit_p(snd_azf3328_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_azf3328_suspend,
-	.resume = snd_azf3328_resume,
-#endif
+	.remove = snd_azf3328_remove,
+	.driver = {
+		.pm = SND_AZF3328_PM_OPS,
+	},
 };
 
-static int __init
-alsa_card_azf3328_init(void)
-{
-	int err;
-	snd_azf3328_dbgcallenter();
-	err = pci_register_driver(&driver);
-	snd_azf3328_dbgcallleave();
-	return err;
-}
-
-static void __exit
-alsa_card_azf3328_exit(void)
-{
-	snd_azf3328_dbgcallenter();
-	pci_unregister_driver(&driver);
-	snd_azf3328_dbgcallleave();
-}
-
-module_init(alsa_card_azf3328_init)
-module_exit(alsa_card_azf3328_exit)
+module_pci_driver(azf3328_driver);

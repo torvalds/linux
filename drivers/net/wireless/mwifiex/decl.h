@@ -26,44 +26,61 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
+#include <net/mac80211.h>
 
 
-#define MWIFIEX_MAX_BSS_NUM         (1)
+#define MWIFIEX_MAX_BSS_NUM         (3)
 
-#define MWIFIEX_MIN_DATA_HEADER_LEN 32	/* (sizeof(mwifiex_txpd)) */
+#define MWIFIEX_MIN_DATA_HEADER_LEN 36	/* sizeof(mwifiex_txpd)
+					 *   + 4 byte alignment
+					 */
+#define MWIFIEX_MGMT_FRAME_HEADER_SIZE	8	/* sizeof(pkt_type)
+						 *   + sizeof(tx_control)
+						 */
 
 #define MWIFIEX_MAX_TX_BASTREAM_SUPPORTED	2
 #define MWIFIEX_MAX_RX_BASTREAM_SUPPORTED	16
 
-#define MWIFIEX_AMPDU_DEF_TXWINSIZE        32
-#define MWIFIEX_AMPDU_DEF_RXWINSIZE        16
+#define MWIFIEX_STA_AMPDU_DEF_TXWINSIZE        16
+#define MWIFIEX_STA_AMPDU_DEF_RXWINSIZE        32
+#define MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE        32
+#define MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE        16
+#define MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE   32
+#define MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE   48
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE   48
+#define MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE   32
+
 #define MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT  0xffff
 
-#define MWIFIEX_RATE_INDEX_HRDSSS0 0
-#define MWIFIEX_RATE_INDEX_HRDSSS3 3
-#define MWIFIEX_RATE_INDEX_OFDM0   4
-#define MWIFIEX_RATE_INDEX_OFDM7   11
-#define MWIFIEX_RATE_INDEX_MCS0    12
-
-#define MWIFIEX_RATE_BITMAP_OFDM0  16
-#define MWIFIEX_RATE_BITMAP_OFDM7  23
 #define MWIFIEX_RATE_BITMAP_MCS0   32
-#define MWIFIEX_RATE_BITMAP_MCS127 159
 
 #define MWIFIEX_RX_DATA_BUF_SIZE     (4 * 1024)
+#define MWIFIEX_RX_CMD_BUF_SIZE	     (2 * 1024)
+
+#define MAX_BEACON_PERIOD                  (4000)
+#define MIN_BEACON_PERIOD                  (50)
+#define MAX_DTIM_PERIOD                    (100)
+#define MIN_DTIM_PERIOD                    (1)
 
 #define MWIFIEX_RTS_MIN_VALUE              (0)
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
 #define MWIFIEX_FRAG_MAX_VALUE             (2346)
+#define MWIFIEX_WMM_VERSION                0x01
+#define MWIFIEX_WMM_SUBTYPE                0x01
 
+#define MWIFIEX_RETRY_LIMIT                14
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
 
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)
+#define MWIFIEX_BUF_FLAG_BRIDGED_PKT	   BIT(1)
+
+#define MWIFIEX_BRIDGED_PKTS_THRESHOLD     1024
 
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
+	MWIFIEX_BSS_TYPE_P2P = 2,
 	MWIFIEX_BSS_TYPE_ANY = 0xff,
 };
 
@@ -96,12 +113,12 @@ struct mwifiex_802_11_ssid {
 
 struct mwifiex_wait_queue {
 	wait_queue_head_t wait;
-	u16 condition;
 	int status;
 };
 
 struct mwifiex_rxinfo {
-	u8 bss_index;
+	u8 bss_num;
+	u8 bss_type;
 	struct sk_buff *parent;
 	u8 use_count;
 };
@@ -109,15 +126,8 @@ struct mwifiex_rxinfo {
 struct mwifiex_txinfo {
 	u32 status_code;
 	u8 flags;
-	u8 bss_index;
-};
-
-struct mwifiex_bss_attr {
-	u8 bss_type;
-	u8 frame_type;
-	u8 active;
-	u8 bss_priority;
 	u8 bss_num;
+	u8 bss_type;
 };
 
 enum mwifiex_wmm_ac_e {
@@ -125,5 +135,20 @@ enum mwifiex_wmm_ac_e {
 	WMM_AC_BE,
 	WMM_AC_VI,
 	WMM_AC_VO
+} __packed;
+
+struct ieee_types_wmm_ac_parameters {
+	u8 aci_aifsn_bitmap;
+	u8 ecw_bitmap;
+	__le16 tx_op_limit;
+} __packed;
+
+struct mwifiex_types_wmm_info {
+	u8 oui[4];
+	u8 subtype;
+	u8 version;
+	u8 qos_info;
+	u8 reserved;
+	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_NUM_ACS];
 } __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

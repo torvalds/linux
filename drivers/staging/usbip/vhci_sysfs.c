@@ -18,6 +18,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/file.h>
 #include <linux/net.h>
 
 #include "usbip_common.h"
@@ -135,7 +136,7 @@ static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
 static int valid_args(__u32 rhport, enum usb_device_speed speed)
 {
 	/* check rhport */
-	if ((rhport < 0) || (rhport >= VHCI_NPORTS)) {
+	if (rhport >= VHCI_NPORTS) {
 		pr_err("port %u\n", rhport);
 		return -EINVAL;
 	}
@@ -189,10 +190,11 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	if (valid_args(rhport, speed) < 0)
 		return -EINVAL;
 
-	/* check sockfd */
+	/* Extract socket from fd. */
+	/* The correct way to clean this up is to fput(socket->file). */
 	socket = sockfd_to_socket(sockfd);
 	if (!socket)
-		return  -EINVAL;
+		return -EINVAL;
 
 	/* now need lock until setting vdev status as used */
 
@@ -205,6 +207,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 		/* end of the lock */
 		spin_unlock(&vdev->ud.lock);
 		spin_unlock(&the_controller->lock);
+
+		fput(socket->file);
 
 		dev_err(dev, "port %d already used\n", rhport);
 		return -EINVAL;
@@ -222,8 +226,8 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	spin_unlock(&the_controller->lock);
 	/* end the lock */
 
-	vdev->ud.tcp_rx = kthread_run(vhci_rx_loop, &vdev->ud, "vhci_rx");
-	vdev->ud.tcp_tx = kthread_run(vhci_tx_loop, &vdev->ud, "vhci_tx");
+	vdev->ud.tcp_rx = kthread_get_run(vhci_rx_loop, &vdev->ud, "vhci_rx");
+	vdev->ud.tcp_tx = kthread_get_run(vhci_tx_loop, &vdev->ud, "vhci_tx");
 
 	rh_port_connect(rhport, speed);
 
@@ -239,6 +243,6 @@ static struct attribute *dev_attrs[] = {
 	NULL,
 };
 
-struct attribute_group dev_attr_group = {
+const struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
 };

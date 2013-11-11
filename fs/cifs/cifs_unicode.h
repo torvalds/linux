@@ -74,17 +74,21 @@ extern const struct UniCaseRange CifsUniLowerRange[];
 #endif				/* UNIUPR_NOLOWER */
 
 #ifdef __KERNEL__
-int cifs_from_ucs2(char *to, const __le16 *from, int tolen, int fromlen,
-		   const struct nls_table *codepage, bool mapchar);
-int cifs_ucs2_bytes(const __le16 *from, int maxbytes,
-		    const struct nls_table *codepage);
-int cifs_strtoUCS(__le16 *, const char *, int, const struct nls_table *);
-char *cifs_strndup_from_ucs(const char *src, const int maxlen,
-			    const bool is_unicode,
-			    const struct nls_table *codepage);
-extern int cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
-			const struct nls_table *cp, int mapChars);
-
+int cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
+		    const struct nls_table *codepage, bool mapchar);
+int cifs_utf16_bytes(const __le16 *from, int maxbytes,
+		     const struct nls_table *codepage);
+int cifs_strtoUTF16(__le16 *, const char *, int, const struct nls_table *);
+char *cifs_strndup_from_utf16(const char *src, const int maxlen,
+			      const bool is_unicode,
+			      const struct nls_table *codepage);
+extern int cifsConvertToUTF16(__le16 *target, const char *source, int maxlen,
+			      const struct nls_table *cp, int mapChars);
+#ifdef CONFIG_CIFS_SMB2
+extern __le16 *cifs_strndup_to_utf16(const char *src, const int maxlen,
+				     int *utf16_len, const struct nls_table *cp,
+				     int remap);
+#endif /* CONFIG_CIFS_SMB2 */
 #endif
 
 /*
@@ -323,14 +327,14 @@ UniToupper(register wchar_t uc)
 /*
  * UniStrupr:  Upper case a unicode string
  */
-static inline wchar_t *
-UniStrupr(register wchar_t *upin)
+static inline __le16 *
+UniStrupr(register __le16 *upin)
 {
-	register wchar_t *up;
+	register __le16 *up;
 
 	up = upin;
 	while (*up) {		/* For all characters */
-		*up = UniToupper(*up);
+		*up = cpu_to_le16(UniToupper(le16_to_cpu(*up)));
 		up++;
 	}
 	return upin;		/* Return input pointer */

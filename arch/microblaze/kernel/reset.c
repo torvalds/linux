@@ -19,59 +19,21 @@
 static int handle; /* reset pin handle */
 static unsigned int reset_val;
 
-static int of_reset_gpio_handle(void)
-{
-	int ret; /* variable which stored handle reset gpio pin */
-	struct device_node *root; /* root node */
-	struct device_node *gpio; /* gpio node */
-	struct gpio_chip *gc;
-	u32 flags;
-	const void *gpio_spec;
-
-	/* find out root node */
-	root = of_find_node_by_path("/");
-
-	/* give me handle for gpio node to be possible allocate pin */
-	ret = of_parse_phandles_with_args(root, "hard-reset-gpios",
-				"#gpio-cells", 0, &gpio, &gpio_spec);
-	if (ret) {
-		pr_debug("%s: can't parse gpios property\n", __func__);
-		goto err0;
-	}
-
-	gc = of_node_to_gpiochip(gpio);
-	if (!gc) {
-		pr_debug("%s: gpio controller %s isn't registered\n",
-			 root->full_name, gpio->full_name);
-		ret = -ENODEV;
-		goto err1;
-	}
-
-	ret = gc->of_xlate(gc, root, gpio_spec, &flags);
-	if (ret < 0)
-		goto err1;
-
-	ret += gc->base;
-err1:
-	of_node_put(gpio);
-err0:
-	pr_debug("%s exited with status %d\n", __func__, ret);
-	return ret;
-}
-
 void of_platform_reset_gpio_probe(void)
 {
 	int ret;
-	handle = of_reset_gpio_handle();
+	handle = of_get_named_gpio(of_find_node_by_path("/"),
+				   "hard-reset-gpios", 0);
 
 	if (!gpio_is_valid(handle)) {
-		printk(KERN_INFO "Skipping unavailable RESET gpio %d (%s)\n",
+		pr_info("Skipping unavailable RESET gpio %d (%s)\n",
 				handle, "reset");
+		return;
 	}
 
 	ret = gpio_request(handle, "reset");
 	if (ret < 0) {
-		printk(KERN_INFO "GPIO pin is already allocated\n");
+		pr_info("GPIO pin is already allocated\n");
 		return;
 	}
 
@@ -88,7 +50,7 @@ void of_platform_reset_gpio_probe(void)
 	/* Setup output direction */
 	gpio_set_value(handle, 0);
 
-	printk(KERN_INFO "RESET: Registered gpio device: %d, current val: %d\n",
+	pr_info("RESET: Registered gpio device: %d, current val: %d\n",
 							handle, reset_val);
 	return;
 err:
@@ -99,7 +61,10 @@ err:
 
 static void gpio_system_reset(void)
 {
-	gpio_set_value(handle, 1 - reset_val);
+	if (gpio_is_valid(handle))
+		gpio_set_value(handle, 1 - reset_val);
+	else
+		pr_notice("Reset GPIO unavailable - halting!\n");
 }
 #else
 #define gpio_system_reset() do {} while (0)
@@ -111,30 +76,29 @@ void of_platform_reset_gpio_probe(void)
 
 void machine_restart(char *cmd)
 {
-	printk(KERN_NOTICE "Machine restart...\n");
+	pr_notice("Machine restart...\n");
 	gpio_system_reset();
-	dump_stack();
 	while (1)
 		;
 }
 
 void machine_shutdown(void)
 {
-	printk(KERN_NOTICE "Machine shutdown...\n");
+	pr_notice("Machine shutdown...\n");
 	while (1)
 		;
 }
 
 void machine_halt(void)
 {
-	printk(KERN_NOTICE "Machine halt...\n");
+	pr_notice("Machine halt...\n");
 	while (1)
 		;
 }
 
 void machine_power_off(void)
 {
-	printk(KERN_NOTICE "Machine power off...\n");
+	pr_notice("Machine power off...\n");
 	while (1)
 		;
 }

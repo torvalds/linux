@@ -65,7 +65,7 @@ EXPORT_SYMBOL(ioasic_base);
 /*
  * IRQ routing and priority tables.  Priorites are set as follows:
  *
- * 		KN01	KN230	KN02	KN02-BA	KN02-CA	KN03
+ *		KN01	KN230	KN02	KN02-BA KN02-CA KN03
  *
  * MEMORY	CPU	CPU	CPU	ASIC	CPU	CPU
  * RTC		CPU	CPU	CPU	ASIC	CPU	CPU
@@ -101,20 +101,23 @@ int cpu_fpu_mask = DEC_CPU_IRQ_MASK(DEC_CPU_INR_FPU);
 static struct irqaction ioirq = {
 	.handler = no_action,
 	.name = "cascade",
+	.flags = IRQF_NO_THREAD,
 };
 static struct irqaction fpuirq = {
 	.handler = no_action,
 	.name = "fpu",
+	.flags = IRQF_NO_THREAD,
 };
 
 static struct irqaction busirq = {
-	.flags = IRQF_DISABLED,
 	.name = "bus error",
+	.flags = IRQF_NO_THREAD,
 };
 
 static struct irqaction haltirq = {
 	.handler = dec_intr_halt,
 	.name = "halt",
+	.flags = IRQF_NO_THREAD,
 };
 
 
@@ -410,7 +413,7 @@ static void __init dec_init_kn02(void)
 
 /*
  * Machine-specific initialisation for KN02-BA, aka DS5000/1xx
- * (xx = 20, 25, 33), aka 3min.  Also applies to KN04(-BA), aka
+ * (xx = 20, 25, 33), aka 3min.	 Also applies to KN04(-BA), aka
  * DS5000/150, aka 4min.
  */
 static int kn02ba_interrupt[DEC_NR_INTS] __initdata = {

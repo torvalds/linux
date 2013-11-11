@@ -23,6 +23,7 @@
 
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -140,7 +141,7 @@ void snd_ak4113_reinit(struct ak4113 *chip)
 {
 	chip->init = 1;
 	mb();
-	flush_delayed_work_sync(&chip->work);
+	flush_delayed_work(&chip->work);
 	ak4113_init_regs(chip);
 	/* bring up statistics / event queing */
 	chip->init = 0;
@@ -425,7 +426,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
-	.name =		"IEC958 Preample Capture Default",
+	.name =		"IEC958 Preamble Capture Default",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ |
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_spdif_pinfo,

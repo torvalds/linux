@@ -26,6 +26,7 @@ config BT_HCIBTSDIO
 
 config BT_HCIUART
 	tristate "HCI UART driver"
+	depends on TTY
 	help
 	  Bluetooth HCI UART driver.
 	  This driver is required if you want to use Bluetooth devices with
@@ -80,6 +81,18 @@ config BT_HCIUART_LL
 	  BRF chips.
 
 	  Say Y here to compile support for HCILL protocol.
+
+config BT_HCIUART_3WIRE
+	bool "Three-wire UART (H5) protocol support"
+	depends on BT_HCIUART
+	help
+	  The HCI Three-wire UART Transport Layer makes it possible to
+	  user the Bluetooth HCI over a serial port interface. The HCI
+	  Three-wire UART Transport Layer assumes that the UART
+	  communication may have bit errors, overrun errors or burst
+	  errors and thereby making CTS/RTS lines unnecessary.
+
+	  Say Y here to compile support for Three-wire UART protocol.
 
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
@@ -188,7 +201,7 @@ config BT_MRVL
 	  The core driver to support Marvell Bluetooth devices.
 
 	  This driver is required if you want to support
-	  Marvell Bluetooth devices, such as 8688/8787.
+	  Marvell Bluetooth devices, such as 8688/8787/8797/8897.
 
 	  Say Y here to compile Marvell Bluetooth driver
 	  into the kernel or say M to compile it as module.
@@ -201,8 +214,8 @@ config BT_MRVL_SDIO
 	  The driver for Marvell Bluetooth chipsets with SDIO interface.
 
 	  This driver is required if you want to use Marvell Bluetooth
-	  devices with SDIO interface. Currently SD8688/SD8787 chipsets are
-	  supported.
+	  devices with SDIO interface. Currently SD8688/SD8787/SD8797/SD8897
+	  chipsets are supported.
 
 	  Say Y here to compile support for Marvell BT-over-SDIO driver
 	  into the kernel or say M to compile it as module.

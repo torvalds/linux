@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /*
   Keycodes for remote on the MSI TV@nywhere Plus. The controller IC on the card

@@ -116,9 +116,26 @@ static inline void spin_time_accum_blocked(u64 start)
 }
 #endif  /* CONFIG_XEN_DEBUG_FS */
 
+/*
+ * Size struct xen_spinlock so it's the same as arch_spinlock_t.
+ */
+#if NR_CPUS < 256
+typedef u8 xen_spinners_t;
+# define inc_spinners(xl) \
+	asm(LOCK_PREFIX " incb %0" : "+m" ((xl)->spinners) : : "memory");
+# define dec_spinners(xl) \
+	asm(LOCK_PREFIX " decb %0" : "+m" ((xl)->spinners) : : "memory");
+#else
+typedef u16 xen_spinners_t;
+# define inc_spinners(xl) \
+	asm(LOCK_PREFIX " incw %0" : "+m" ((xl)->spinners) : : "memory");
+# define dec_spinners(xl) \
+	asm(LOCK_PREFIX " decw %0" : "+m" ((xl)->spinners) : : "memory");
+#endif
+
 struct xen_spinlock {
 	unsigned char lock;		/* 0 -> free; 1 -> locked */
-	unsigned short spinners;	/* count of waiting cpus */
+	xen_spinners_t spinners;	/* count of waiting cpus */
 };
 
 static int xen_spin_is_locked(struct arch_spinlock *lock)
@@ -164,8 +181,7 @@ static inline struct xen_spinlock *spinning_lock(struct xen_spinlock *xl)
 
 	wmb();			/* set lock of interest before count */
 
-	asm(LOCK_PREFIX " incw %0"
-	    : "+m" (xl->spinners) : : "memory");
+	inc_spinners(xl);
 
 	return prev;
 }
@@ -176,8 +192,7 @@ static inline struct xen_spinlock *spinning_lock(struct xen_spinlock *xl)
  */
 static inline void unspinning_lock(struct xen_spinlock *xl, struct xen_spinlock *prev)
 {
-	asm(LOCK_PREFIX " decw %0"
-	    : "+m" (xl->spinners) : : "memory");
+	dec_spinners(xl);
 	wmb();			/* decrement count before restoring lock */
 	__this_cpu_write(lock_spinners, prev);
 }
@@ -313,7 +328,6 @@ static noinline void xen_spin_unlock_slow(struct xen_spinlock *xl)
 		if (per_cpu(lock_spinners, cpu) == xl) {
 			ADD_STATS(released_slow_kicked, 1);
 			xen_send_IPI_one(cpu, XEN_SPIN_UNLOCK_VECTOR);
-			break;
 		}
 	}
 }
@@ -350,6 +364,16 @@ void __cpuinit xen_init_lock_cpu(int cpu)
 	int irq;
 	const char *name;
 
+	WARN(per_cpu(lock_kicker_irq, cpu) >= 0, "spinlock on CPU%d exists on IRQ%d!\n",
+	     cpu, per_cpu(lock_kicker_irq, cpu));
+
+	/*
+	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
+	 * (xen: disable PV spinlocks on HVM)
+	 */
+	if (xen_hvm_domain())
+		return;
+
 	name = kasprintf(GFP_KERNEL, "spinlock%d", cpu);
 	irq = bind_ipi_to_irqhandler(XEN_SPIN_UNLOCK_VECTOR,
 				     cpu,
@@ -368,11 +392,28 @@ void __cpuinit xen_init_lock_cpu(int cpu)
 
 void xen_uninit_lock_cpu(int cpu)
 {
+	/*
+	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
+	 * (xen: disable PV spinlocks on HVM)
+	 */
+	if (xen_hvm_domain())
+		return;
+
 	unbind_from_irqhandler(per_cpu(lock_kicker_irq, cpu), NULL);
+	per_cpu(lock_kicker_irq, cpu) = -1;
 }
 
 void __init xen_init_spinlocks(void)
 {
+	/*
+	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
+	 * (xen: disable PV spinlocks on HVM)
+	 */
+	if (xen_hvm_domain())
+		return;
+
+	BUILD_BUG_ON(sizeof(struct xen_spinlock) > sizeof(arch_spinlock_t));
+
 	pv_lock_ops.spin_is_locked = xen_spin_is_locked;
 	pv_lock_ops.spin_is_contended = xen_spin_is_contended;
 	pv_lock_ops.spin_lock = xen_spin_lock;
@@ -423,12 +464,12 @@ static int __init xen_spinlock_debugfs(void)
 	debugfs_create_u64("time_total", 0444, d_spin_debug,
 			   &spinlock_stats.time_total);
 
-	xen_debugfs_create_u32_array("histo_total", 0444, d_spin_debug,
-				     spinlock_stats.histo_spin_total, HISTO_BUCKETS + 1);
-	xen_debugfs_create_u32_array("histo_spinning", 0444, d_spin_debug,
-				     spinlock_stats.histo_spin_spinning, HISTO_BUCKETS + 1);
-	xen_debugfs_create_u32_array("histo_blocked", 0444, d_spin_debug,
-				     spinlock_stats.histo_spin_blocked, HISTO_BUCKETS + 1);
+	debugfs_create_u32_array("histo_total", 0444, d_spin_debug,
+				spinlock_stats.histo_spin_total, HISTO_BUCKETS + 1);
+	debugfs_create_u32_array("histo_spinning", 0444, d_spin_debug,
+				spinlock_stats.histo_spin_spinning, HISTO_BUCKETS + 1);
+	debugfs_create_u32_array("histo_blocked", 0444, d_spin_debug,
+				spinlock_stats.histo_spin_blocked, HISTO_BUCKETS + 1);
 
 	return 0;
 }

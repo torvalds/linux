@@ -1,6 +1,6 @@
 /* bnx2i.h: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2010 Broadcom Corporation
+ * Copyright (c) 2006 - 2012 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -22,11 +22,14 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/in.h>
 #include <linux/kfifo.h>
 #include <linux/netdevice.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
+#include <linux/cpu.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -37,9 +40,11 @@
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
 
-#include "../../net/cnic_if.h"
+#include "../../net/ethernet/broadcom/cnic_if.h"
 #include "57xx_iscsi_hsi.h"
 #include "57xx_iscsi_constants.h"
+
+#include "../../net/ethernet/broadcom/bnx2x/bnx2x_mfw_req.h"
 
 #define BNX2_ISCSI_DRIVER_NAME		"bnx2i"
 
@@ -123,6 +128,43 @@
 #define REG_WR(__hba, offset, val)			\
 		writel(val, __hba->regview + offset)
 
+#ifdef CONFIG_32BIT
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		spin_lock_bh(&__hba->stat_lock);		\
+		dst->field##_lo = __hba->stats.field##_lo;	\
+		dst->field##_hi = __hba->stats.field##_hi;	\
+		spin_unlock_bh(&__hba->stat_lock);		\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		if (spin_trylock(&__hba->stat_lock)) {		\
+			if (__hba->stats.field##_lo + len <	\
+			    __hba->stats.field##_lo)		\
+				__hba->stats.field##_hi++;	\
+			__hba->stats.field##_lo += len;		\
+			spin_unlock(&__hba->stat_lock);		\
+		}						\
+	} while (0)
+
+#else
+#define GET_STATS_64(__hba, dst, field)				\
+	do {							\
+		u64 val, *out;					\
+								\
+		val = __hba->bnx2i_stats.field;			\
+		out = (u64 *)&__hba->stats.field##_lo;		\
+		*out = cpu_to_le64(val);			\
+		out = (u64 *)&dst->field##_lo;			\
+		*out = cpu_to_le64(val);			\
+	} while (0)
+
+#define ADD_STATS_64(__hba, field, len)				\
+	do {							\
+		__hba->bnx2i_stats.field += len;		\
+	} while (0)
+#endif
 
 /**
  * struct generic_pdu_resc - login pdu resource structure
@@ -202,10 +244,13 @@ struct io_bdt {
 /**
  * bnx2i_cmd - iscsi command structure
  *
+ * @hdr:                iSCSI header
+ * @conn:               iscsi_conn pointer
  * @scsi_cmd:           SCSI-ML task pointer corresponding to this iscsi cmd
  * @sg:                 SG list
  * @io_tbl:             buffer descriptor (BD) table
  * @bd_tbl_dma:         buffer descriptor (BD) table's dma address
+ * @req:                bnx2i specific command request struct
  */
 struct bnx2i_cmd {
 	struct iscsi_hdr hdr;
@@ -229,6 +274,7 @@ struct bnx2i_cmd {
  * @gen_pdu:               login/nopout/logout pdu resources
  * @violation_notified:    bit mask used to track iscsi error/warning messages
  *                         already printed out
+ * @work_cnt:              keeps track of the number of outstanding work
  *
  * iSCSI connection structure
  */
@@ -252,6 +298,8 @@ struct bnx2i_conn {
 	 */
 	struct generic_pdu_resc gen_pdu;
 	u64 violation_notified;
+
+	atomic_t work_cnt;
 };
 
 
@@ -278,6 +326,15 @@ struct iscsi_cid_queue {
 	u32 cid_free_cnt;
 	struct bnx2i_conn **conn_cid_tbl;
 };
+
+
+struct bnx2i_stats_info {
+	u64 rx_pdus;
+	u64 rx_bytes;
+	u64 tx_pdus;
+	u64 tx_bytes;
+};
+
 
 /**
  * struct bnx2i_hba - bnx2i adapter structure
@@ -332,6 +389,8 @@ struct iscsi_cid_queue {
  * @ctx_ccell_tasks:       captures number of ccells and tasks supported by
  *                         currently offloaded connection, used to decode
  *                         context memory
+ * @stat_lock:		   spin lock used by the statistic collector (32 bit)
+ * @stats:		   local iSCSI statistic collection place holder
  *
  * Adapter Data Structure
  */
@@ -341,6 +400,7 @@ struct bnx2i_hba {
 	struct pci_dev *pcidev;
 	struct net_device *netdev;
 	void __iomem *regview;
+	resource_size_t reg_base;
 
 	u32 age;
 	unsigned long cnic_dev_type;
@@ -417,6 +477,12 @@ struct bnx2i_hba {
 	u32 num_sess_opened;
 	u32 num_conn_opened;
 	unsigned int ctx_ccell_tasks;
+
+#ifdef CONFIG_32BIT
+	spinlock_t stat_lock;
+#endif
+	struct bnx2i_stats_info bnx2i_stats;
+	struct iscsi_stats_info stats;
 };
 
 
@@ -478,7 +544,7 @@ struct bnx2i_5771x_cq_db {
 
 struct bnx2i_5771x_sq_rq_db {
 	u16 prod_idx;
-	u8 reserved0[14]; /* Pad structure size to 16 bytes */
+	u8 reserved0[62]; /* Pad structure size to 64 bytes */
 };
 
 
@@ -514,8 +580,8 @@ struct bnx2i_5771x_dbell {
  * @sq_mem_size:        SQ size
  * @sq_prod_qe:         SQ producer entry pointer
  * @sq_cons_qe:         SQ consumer entry pointer
- * @sq_first_qe:        virtaul address of first entry in SQ
- * @sq_last_qe:         virtaul address of last entry in SQ
+ * @sq_first_qe:        virtual address of first entry in SQ
+ * @sq_last_qe:         virtual address of last entry in SQ
  * @sq_prod_idx:        SQ producer index
  * @sq_cons_idx:        SQ consumer index
  * @sqe_left:           number sq entry left
@@ -527,8 +593,8 @@ struct bnx2i_5771x_dbell {
  * @cq_mem_size:        CQ size
  * @cq_prod_qe:         CQ producer entry pointer
  * @cq_cons_qe:         CQ consumer entry pointer
- * @cq_first_qe:        virtaul address of first entry in CQ
- * @cq_last_qe:         virtaul address of last entry in CQ
+ * @cq_first_qe:        virtual address of first entry in CQ
+ * @cq_last_qe:         virtual address of last entry in CQ
  * @cq_prod_idx:        CQ producer index
  * @cq_cons_idx:        CQ consumer index
  * @cqe_left:           number cq entry left
@@ -542,8 +608,8 @@ struct bnx2i_5771x_dbell {
  * @rq_mem_size:        RQ size
  * @rq_prod_qe:         RQ producer entry pointer
  * @rq_cons_qe:         RQ consumer entry pointer
- * @rq_first_qe:        virtaul address of first entry in RQ
- * @rq_last_qe:         virtaul address of last entry in RQ
+ * @rq_first_qe:        virtual address of first entry in RQ
+ * @rq_last_qe:         virtual address of last entry in RQ
  * @rq_prod_idx:        RQ producer index
  * @rq_cons_idx:        RQ consumer index
  * @rqe_left:           number rq entry left
@@ -661,7 +727,6 @@ enum {
  * @hba:                adapter to which this connection belongs
  * @conn:               iscsi connection this EP is linked to
  * @cls_ep:             associated iSCSI endpoint pointer
- * @sess:               iscsi session this EP is linked to
  * @cm_sk:              cnic sock struct
  * @hba_age:            age to detect if 'iscsid' issues ep_disconnect()
  *                      after HBA reset is completed by bnx2i/cnic/bnx2
@@ -687,7 +752,7 @@ struct bnx2i_endpoint {
 	u32 hba_age;
 	u32 state;
 	unsigned long timestamp;
-	int num_active_cmds;
+	atomic_t num_active_cmds;
 	u32 ec_shift;
 
 	struct qp_info qp;
@@ -699,6 +764,19 @@ struct bnx2i_endpoint {
 	wait_queue_head_t ofld_wait;
 };
 
+
+struct bnx2i_work {
+	struct list_head list;
+	struct iscsi_session *session;
+	struct bnx2i_conn *bnx2i_conn;
+	struct cqe cqe;
+};
+
+struct bnx2i_percpu_s {
+	struct task_struct *iothread;
+	struct list_head work_list;
+	spinlock_t p_work_lock;
+};
 
 
 /* Global variables */
@@ -722,12 +800,14 @@ extern struct device_attribute *bnx2i_dev_attributes[];
 /*
  * Function Prototypes
  */
-extern void bnx2i_identify_device(struct bnx2i_hba *hba);
+extern void bnx2i_identify_device(struct bnx2i_hba *hba, struct cnic_dev *dev);
 
 extern void bnx2i_ulp_init(struct cnic_dev *dev);
 extern void bnx2i_ulp_exit(struct cnic_dev *dev);
 extern void bnx2i_start(void *handle);
 extern void bnx2i_stop(void *handle);
+extern int bnx2i_get_stats(void *handle);
+
 extern struct bnx2i_hba *get_adapter_list_head(void);
 
 struct bnx2i_conn *bnx2i_get_conn_from_id(struct bnx2i_hba *hba,
@@ -783,7 +863,7 @@ extern struct bnx2i_endpoint *bnx2i_find_ep_in_destroy_list(
 		struct bnx2i_hba *hba, u32 iscsi_cid);
 
 extern int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep);
-extern void bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action);
+extern int bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action);
 
 extern int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep);
 
@@ -793,4 +873,8 @@ extern void bnx2i_print_active_cmd_queue(struct bnx2i_conn *conn);
 extern void bnx2i_print_xmit_pdu_queue(struct bnx2i_conn *conn);
 extern void bnx2i_print_recv_state(struct bnx2i_conn *conn);
 
+extern int bnx2i_percpu_io_thread(void *arg);
+extern int bnx2i_process_scsi_cmd_resp(struct iscsi_session *session,
+				       struct bnx2i_conn *bnx2i_conn,
+				       struct cqe *cqe);
 #endif

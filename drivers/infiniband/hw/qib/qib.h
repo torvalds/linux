@@ -1,8 +1,8 @@
 #ifndef _QIB_KERNEL_H
 #define _QIB_KERNEL_H
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -87,7 +87,7 @@ struct qlogic_ib_stats {
 };
 
 extern struct qlogic_ib_stats qib_stats;
-extern struct pci_error_handlers qib_pci_err_handler;
+extern const struct pci_error_handlers qib_pci_err_handler;
 extern struct pci_driver qib_driver;
 
 #define QIB_CHIP_SWVERSION QIB_CHIP_VERS_MAJ
@@ -171,7 +171,9 @@ struct qib_ctxtdata {
 	/* how many alloc_pages() chunks in rcvegrbuf_pages */
 	u32 rcvegrbuf_chunks;
 	/* how many egrbufs per chunk */
-	u32 rcvegrbufs_perchunk;
+	u16 rcvegrbufs_perchunk;
+	/* ilog2 of above */
+	u16 rcvegrbufs_perchunk_shift;
 	/* order for rcvegrbuf_pages */
 	size_t rcvegrbuf_size;
 	/* rcvhdrq size (for freeing) */
@@ -221,6 +223,9 @@ struct qib_ctxtdata {
 	/* ctxt rcvhdrq head offset */
 	u32 head;
 	u32 pkt_count;
+	/* lookaside fields */
+	struct qib_qp *lookaside_qp;
+	u32 lookaside_qpn;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
 };
@@ -422,6 +427,14 @@ struct qib_verbs_txreq {
 /* how often we check for packet activity for "power on hours (in seconds) */
 #define ACTIVITY_TIMER 5
 
+#define MAX_NAME_SIZE 64
+struct qib_msix_entry {
+	struct msix_entry msix;
+	void *arg;
+	char name[MAX_NAME_SIZE];
+	cpumask_var_t mask;
+};
+
 /* Below is an opaque struct. Each chip (device) can maintain
  * private data needed for its operation, but not germane to the
  * rest of the driver.  For convenience, we define another that
@@ -506,6 +519,7 @@ struct qib_pportdata {
 	struct qib_devdata *dd;
 	struct qib_chippport_specific *cpspec; /* chip-specific per-port */
 	struct kobject pport_kobj;
+	struct kobject pport_cc_kobj;
 	struct kobject sl2vl_kobj;
 	struct kobject diagc_kobj;
 
@@ -517,8 +531,6 @@ struct qib_pportdata {
 	/* qib_lflags driver is waiting for */
 	u32 state_wanted;
 	spinlock_t lflags_lock;
-	/* number of (port-specific) interrupts for this port -- saturates... */
-	u32 int_counter;
 
 	/* ref count for each pkey */
 	atomic_t pkeyrefs[4];
@@ -530,24 +542,27 @@ struct qib_pportdata {
 	u64 *statusp;
 
 	/* SendDMA related entries */
-	spinlock_t            sdma_lock;
-	struct qib_sdma_state sdma_state;
-	unsigned long         sdma_buf_jiffies;
-	struct qib_sdma_desc *sdma_descq;
-	u64                   sdma_descq_added;
-	u64                   sdma_descq_removed;
-	u16                   sdma_descq_cnt;
-	u16                   sdma_descq_tail;
-	u16                   sdma_descq_head;
-	u16                   sdma_next_intr;
-	u16                   sdma_reset_wait;
-	u8                    sdma_generation;
-	struct tasklet_struct sdma_sw_clean_up_task;
-	struct list_head      sdma_activelist;
 
+	/* read mostly */
+	struct qib_sdma_desc *sdma_descq;
+	struct workqueue_struct *qib_wq;
+	struct qib_sdma_state sdma_state;
 	dma_addr_t       sdma_descq_phys;
 	volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
 	dma_addr_t       sdma_head_phys;
+	u16                   sdma_descq_cnt;
+
+	/* read/write using lock */
+	spinlock_t            sdma_lock ____cacheline_aligned_in_smp;
+	struct list_head      sdma_activelist;
+	u64                   sdma_descq_added;
+	u64                   sdma_descq_removed;
+	u16                   sdma_descq_tail;
+	u16                   sdma_descq_head;
+	u8                    sdma_generation;
+
+	struct tasklet_struct sdma_sw_clean_up_task
+		____cacheline_aligned_in_smp;
 
 	wait_queue_head_t state_wait; /* for state_wanted */
 
@@ -624,6 +639,39 @@ struct qib_pportdata {
 	struct timer_list led_override_timer;
 	struct xmit_wait cong_stats;
 	struct timer_list symerr_clear_timer;
+
+	/* Synchronize access between driver writes and sysfs reads */
+	spinlock_t cc_shadow_lock
+		____cacheline_aligned_in_smp;
+
+	/* Shadow copy of the congestion control table */
+	struct cc_table_shadow *ccti_entries_shadow;
+
+	/* Shadow copy of the congestion control entries */
+	struct ib_cc_congestion_setting_attr_shadow *congestion_entries_shadow;
+
+	/* List of congestion control table entries */
+	struct ib_cc_table_entry_shadow *ccti_entries;
+
+	/* 16 congestion entries with each entry corresponding to a SL */
+	struct ib_cc_congestion_entry_shadow *congestion_entries;
+
+	/* Maximum number of congestion control entries that the agent expects
+	 * the manager to send.
+	 */
+	u16 cc_supported_table_entries;
+
+	/* Total number of congestion control table entries */
+	u16 total_cct_entry;
+
+	/* Bit map identifying service level */
+	u16 cc_sl_control_map;
+
+	/* maximum congestion control table index */
+	u16 ccti_limit;
+
+	/* CA's max number of 64 entry units in the congestion control table */
+	u8 cc_max_table_entries;
 };
 
 /* Observers. Not to be taken lightly, possibly not to ship. */
@@ -807,6 +855,10 @@ struct qib_devdata {
 	 * supports, less gives more pio bufs/ctxt, etc.
 	 */
 	u32 cfgctxts;
+	/*
+	 * number of ctxts available for PSM open
+	 */
+	u32 freectxts;
 
 	/*
 	 * hint that we should update pioavailshadow before
@@ -856,7 +908,14 @@ struct qib_devdata {
 	 * pio_writing.
 	 */
 	spinlock_t pioavail_lock;
-
+	/*
+	 * index of last buffer to optimize search for next
+	 */
+	u32 last_pio;
+	/*
+	 * min kernel pio buffer to optimize search
+	 */
+	u32 min_kernel_pio;
 	/*
 	 * Shadow copies of registers; size indicates read access size.
 	 * Most of them are readonly, but some are write-only register,
@@ -936,7 +995,9 @@ struct qib_devdata {
 	/* chip address space used by 4k pio buffers */
 	u32 align4k;
 	/* size of each rcvegrbuffer */
-	u32 rcvegrbufsize;
+	u16 rcvegrbufsize;
+	/* log2 of above */
+	u16 rcvegrbufsize_shift;
 	/* localbus width (1, 2,4,8,16,32) from config space  */
 	u32 lbus_width;
 	/* localbus speed in MHz */
@@ -1012,6 +1073,8 @@ struct qib_devdata {
 	u8 psxmitwait_supported;
 	/* cycle length of PS* counters in HW (in picoseconds) */
 	u16 psxmitwait_check_rate;
+	/* high volume overflow errors defered to tasklet */
+	struct tasklet_struct error_tasklet;
 };
 
 /* hol_state values */
@@ -1049,6 +1112,7 @@ extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;
 
 extern unsigned qib_wc_pat;
+extern unsigned qib_cc_table_size;
 int qib_init(struct qib_devdata *, int);
 int init_chip_wc_pat(struct qib_devdata *dd, u32);
 int qib_enable_wc(struct qib_devdata *dd);
@@ -1239,6 +1303,11 @@ int qib_sdma_verbs_send(struct qib_pportdata *, struct qib_sge_state *,
 /* ppd->sdma_lock should be locked before calling this. */
 int qib_sdma_make_progress(struct qib_pportdata *dd);
 
+static inline int qib_sdma_empty(const struct qib_pportdata *ppd)
+{
+	return ppd->sdma_descq_added == ppd->sdma_descq_removed;
+}
+
 /* must be called under qib_sdma_lock */
 static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd)
 {
@@ -1342,7 +1411,7 @@ int qib_pcie_init(struct pci_dev *, const struct pci_device_id *);
 int qib_pcie_ddinit(struct qib_devdata *, struct pci_dev *,
 		    const struct pci_device_id *);
 void qib_pcie_ddcleanup(struct qib_devdata *);
-int qib_pcie_params(struct qib_devdata *, u32, u32 *, struct msix_entry *);
+int qib_pcie_params(struct qib_devdata *, u32, u32 *, struct qib_msix_entry *);
 int qib_reinit_intr(struct qib_devdata *);
 void qib_enable_intx(struct pci_dev *);
 void qib_nomsi(struct qib_devdata *);
@@ -1433,6 +1502,7 @@ extern struct mutex qib_mutex;
 struct qib_hwerror_msgs {
 	u64 mask;
 	const char *msg;
+	size_t sz;
 };
 
 #define QLOGIC_IB_HWE_MSG(a, b) { .mask = a, .msg = b }

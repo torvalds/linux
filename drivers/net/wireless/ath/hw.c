@@ -14,13 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include "ath.h"
 #include "reg.h"
 
-#define REG_READ	(common->ops->read)
-#define REG_WRITE	(common->ops->write)
+#define REG_READ			(common->ops->read)
+#define REG_WRITE(_ah, _reg, _val)	(common->ops->write)(_ah, _val, _reg)
 
 /**
  * ath_hw_set_bssid_mask - filter out bssids we listen
@@ -117,9 +118,15 @@
 void ath_hw_setbssidmask(struct ath_common *common)
 {
 	void *ah = common->ah;
+	u32 id1;
 
-	REG_WRITE(ah, get_unaligned_le32(common->bssidmask), AR_BSSMSKL);
-	REG_WRITE(ah, get_unaligned_le16(common->bssidmask + 4), AR_BSSMSKU);
+	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
+	id1 = REG_READ(ah, AR_STA_ID1) & ~AR_STA_ID1_SADH_MASK;
+	id1 |= get_unaligned_le16(common->macaddr + 4);
+	REG_WRITE(ah, AR_STA_ID1, id1);
+
+	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(common->bssidmask));
+	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(common->bssidmask + 4));
 }
 EXPORT_SYMBOL(ath_hw_setbssidmask);
 
@@ -138,7 +145,7 @@ void ath_hw_cycle_counters_update(struct ath_common *common)
 	void *ah = common->ah;
 
 	/* freeze */
-	REG_WRITE(ah, AR_MIBC_FMC, AR_MIBC);
+	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
 
 	/* read */
 	cycles = REG_READ(ah, AR_CCCNT);
@@ -147,13 +154,13 @@ void ath_hw_cycle_counters_update(struct ath_common *common)
 	tx = REG_READ(ah, AR_TFCNT);
 
 	/* clear */
-	REG_WRITE(ah, 0, AR_CCCNT);
-	REG_WRITE(ah, 0, AR_RFCNT);
-	REG_WRITE(ah, 0, AR_RCCNT);
-	REG_WRITE(ah, 0, AR_TFCNT);
+	REG_WRITE(ah, AR_CCCNT, 0);
+	REG_WRITE(ah, AR_RFCNT, 0);
+	REG_WRITE(ah, AR_RCCNT, 0);
+	REG_WRITE(ah, AR_TFCNT, 0);
 
 	/* unfreeze */
-	REG_WRITE(ah, 0, AR_MIBC);
+	REG_WRITE(ah, AR_MIBC, 0);
 
 	/* update all cycle counters here */
 	common->cc_ani.cycles += cycles;

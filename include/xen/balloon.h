@@ -15,11 +15,26 @@ struct balloon_stats {
 	unsigned long max_schedule_delay;
 	unsigned long retry_count;
 	unsigned long max_retry_count;
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+	unsigned long hotplug_pages;
+	unsigned long balloon_hotplug;
+#endif
 };
 
 extern struct balloon_stats balloon_stats;
 
 void balloon_set_new_target(unsigned long target);
 
-int alloc_xenballooned_pages(int nr_pages, struct page** pages);
-void free_xenballooned_pages(int nr_pages, struct page** pages);
+int alloc_xenballooned_pages(int nr_pages, struct page **pages,
+		bool highmem);
+void free_xenballooned_pages(int nr_pages, struct page **pages);
+
+struct device;
+#ifdef CONFIG_XEN_SELFBALLOONING
+extern int register_xen_selfballooning(struct device *dev);
+#else
+static inline int register_xen_selfballooning(struct device *dev)
+{
+	return -ENOSYS;
+}
+#endif

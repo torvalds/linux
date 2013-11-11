@@ -22,13 +22,14 @@
  *
  */
 
-#include "control.h"
-#include "pcm.h"
+#include <sound/control.h>
+#include <sound/pcm.h>
 #include <linux/interrupt.h>
 
 #define ES1688_HW_AUTO		0x0000
 #define ES1688_HW_688		0x0001
 #define ES1688_HW_1688		0x0002
+#define ES1688_HW_UNDEF	0x0003
 
 struct snd_es1688 {
 	unsigned long port;		/* port of ESS chip */

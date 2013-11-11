@@ -7,9 +7,9 @@
 #include <linux/fcntl.h>
 #include <linux/string.h>
 
-#include "ceph_fs.h"
-#include "ceph_frag.h"
-#include "ceph_hash.h"
+#include <linux/ceph/ceph_fs.h>
+#include <linux/ceph/ceph_frag.h>
+#include <linux/ceph/ceph_hash.h>
 
 /*
  * Identify inodes by both their ino AND snapshot id (a u64).

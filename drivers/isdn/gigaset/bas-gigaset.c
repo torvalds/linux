@@ -148,6 +148,7 @@ static struct usb_driver gigaset_usb_driver = {
 	.reset_resume =	gigaset_post_reset,
 	.pre_reset =	gigaset_pre_reset,
 	.post_reset =	gigaset_post_reset,
+	.disable_hub_initiated_lpm = 1,
 };
 
 /* get message text for usb_submit_urb return code
@@ -491,7 +492,7 @@ static void read_ctrl_callback(struct urb *urb)
 		numbytes = urb->actual_length;
 		if (unlikely(numbytes != ucs->rcvbuf_size)) {
 			dev_warn(cs->dev,
-			       "control read: received %d chars, expected %d\n",
+				 "control read: received %d chars, expected %d\n",
 				 numbytes, ucs->rcvbuf_size);
 			if (numbytes > ucs->rcvbuf_size)
 				numbytes = ucs->rcvbuf_size;
@@ -616,7 +617,13 @@ static void int_in_work(struct work_struct *work)
 	if (rc == 0)
 		/* success, resubmit interrupt read URB */
 		rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc != 0 && rc != -ENODEV) {
+
+	switch (rc) {
+	case 0:		/* success */
+	case -ENODEV:	/* device gone */
+	case -EINVAL:	/* URB already resubmitted, or terminal badness */
+		break;
+	default:	/* failure: try to recover by resetting the device */
 		dev_err(cs->dev, "clear halt failed: %s\n", get_usb_rcmsg(rc));
 		rc = usb_lock_device_for_reset(ucs->udev, ucs->interface);
 		if (rc == 0) {
@@ -710,7 +717,7 @@ static void read_int_callback(struct urb *urb)
 	}
 
 	l = (unsigned) ucs->int_in_buf[1] +
-	    (((unsigned) ucs->int_in_buf[2]) << 8);
+		(((unsigned) ucs->int_in_buf[2]) << 8);
 
 	gig_dbg(DEBUG_USBREQ, "<-------%d: 0x%02x (%u [0x%02x 0x%02x])",
 		urb->actual_length, (int)ucs->int_in_buf[0], l,
@@ -770,14 +777,14 @@ static void read_int_callback(struct urb *urb)
 	case HD_RECEIVEATDATA_ACK:	/* AT response ready to be received */
 		if (!l) {
 			dev_warn(cs->dev,
-				"HD_RECEIVEATDATA_ACK with length 0 ignored\n");
+				 "HD_RECEIVEATDATA_ACK with length 0 ignored\n");
 			break;
 		}
 		spin_lock_irqsave(&cs->lock, flags);
 		if (ucs->basstate & BS_ATRDPEND) {
 			spin_unlock_irqrestore(&cs->lock, flags);
 			dev_warn(cs->dev,
-	"HD_RECEIVEATDATA_ACK(%d) during HD_READ_ATMESSAGE(%d) ignored\n",
+				 "HD_RECEIVEATDATA_ACK(%d) during HD_READ_ATMESSAGE(%d) ignored\n",
 				 l, ucs->rcvbuf_size);
 			break;
 		}
@@ -877,8 +884,7 @@ static void read_iso_callback(struct urb *urb)
 		for (i = 0; i < BAS_NUMFRAMES; i++) {
 			ubc->isoinlost += urb->iso_frame_desc[i].actual_length;
 			if (unlikely(urb->iso_frame_desc[i].status != 0 &&
-				     urb->iso_frame_desc[i].status !=
-								-EINPROGRESS))
+				     urb->iso_frame_desc[i].status != -EINPROGRESS))
 				ubc->loststatus = urb->iso_frame_desc[i].status;
 			urb->iso_frame_desc[i].status = 0;
 			urb->iso_frame_desc[i].actual_length = 0;
@@ -891,7 +897,7 @@ static void read_iso_callback(struct urb *urb)
 			rc = usb_submit_urb(urb, GFP_ATOMIC);
 			if (unlikely(rc != 0 && rc != -ENODEV)) {
 				dev_err(bcs->cs->dev,
-				       "could not resubmit isoc read URB: %s\n",
+					"could not resubmit isoc read URB: %s\n",
 					get_usb_rcmsg(rc));
 				dump_urb(DEBUG_ISO, "isoc read", urb);
 				error_hangup(bcs);
@@ -1017,17 +1023,17 @@ static int starturbs(struct bc_state *bcs)
 	}
 
 	/* keep one URB free, submit the others */
-	for (k = 0; k < BAS_OUTURBS-1; ++k) {
+	for (k = 0; k < BAS_OUTURBS - 1; ++k) {
 		dump_urb(DEBUG_ISO, "Initial isoc write", urb);
 		rc = usb_submit_urb(ubc->isoouturbs[k].urb, GFP_ATOMIC);
 		if (rc != 0)
 			goto error;
 	}
 	dump_urb(DEBUG_ISO, "Initial isoc write (free)", urb);
-	ubc->isooutfree = &ubc->isoouturbs[BAS_OUTURBS-1];
+	ubc->isooutfree = &ubc->isoouturbs[BAS_OUTURBS - 1];
 	ubc->isooutdone = ubc->isooutovfl = NULL;
 	return 0;
- error:
+error:
 	stopurbs(ubc);
 	return rc;
 }
@@ -1229,7 +1235,7 @@ static void write_iso_tasklet(unsigned long data)
 				if (ifd->status ||
 				    ifd->actual_length != ifd->length) {
 					dev_warn(cs->dev,
-					    "isoc write: frame %d[%d/%d]: %s\n",
+						 "isoc write: frame %d[%d/%d]: %s\n",
 						 i, ifd->actual_length,
 						 ifd->length,
 						 get_usb_statmsg(ifd->status));
@@ -1316,7 +1322,7 @@ static void read_iso_tasklet(unsigned long data)
 		ubc->isoindone = NULL;
 		if (unlikely(ubc->loststatus != -EINPROGRESS)) {
 			dev_warn(cs->dev,
-		"isoc read overrun, URB dropped (status: %s, %d bytes)\n",
+				 "isoc read overrun, URB dropped (status: %s, %d bytes)\n",
 				 get_usb_statmsg(ubc->loststatus),
 				 ubc->isoinlost);
 			ubc->loststatus = -EINPROGRESS;
@@ -1965,7 +1971,7 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	int rc;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
-			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
+			   DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", cb->len, cb->buf);
 
 	/* translate "+++" escape sequence sent as a single separate command
@@ -2078,16 +2084,14 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 /* Free hardware dependent part of the B channel structure
  * parameter:
  *	bcs	B channel structure
- * return value:
- *	!=0 on success
  */
-static int gigaset_freebcshw(struct bc_state *bcs)
+static void gigaset_freebcshw(struct bc_state *bcs)
 {
 	struct bas_bc_state *ubc = bcs->hw.bas;
 	int i;
 
 	if (!ubc)
-		return 0;
+		return;
 
 	/* kill URBs and tasklets before freeing - better safe than sorry */
 	ubc->running = 0;
@@ -2105,14 +2109,13 @@ static int gigaset_freebcshw(struct bc_state *bcs)
 	kfree(ubc->isooutbuf);
 	kfree(ubc);
 	bcs->hw.bas = NULL;
-	return 1;
 }
 
 /* Initialize hardware dependent part of the B channel structure
  * parameter:
  *	bcs	B channel structure
  * return value:
- *	!=0 on success
+ *	0 on success, error code < 0 on failure
  */
 static int gigaset_initbcshw(struct bc_state *bcs)
 {
@@ -2122,7 +2125,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	bcs->hw.bas = ubc = kmalloc(sizeof(struct bas_bc_state), GFP_KERNEL);
 	if (!ubc) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	ubc->running = 0;
@@ -2139,7 +2142,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 		pr_err("out of memory\n");
 		kfree(ubc);
 		bcs->hw.bas = NULL;
-		return 0;
+		return -ENOMEM;
 	}
 	tasklet_init(&ubc->sent_tasklet,
 		     write_iso_tasklet, (unsigned long) bcs);
@@ -2164,7 +2167,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	ubc->stolen0s = 0;
 	tasklet_init(&ubc->rcvd_tasklet,
 		     read_iso_tasklet, (unsigned long) bcs);
-	return 1;
+	return 0;
 }
 
 static void gigaset_reinitbcshw(struct bc_state *bcs)
@@ -2187,6 +2190,12 @@ static void gigaset_freecshw(struct cardstate *cs)
 	cs->hw.bas = NULL;
 }
 
+/* Initialize hardware dependent part of the cardstate structure
+ * parameter:
+ *	cs	cardstate structure
+ * return value:
+ *	0 on success, error code < 0 on failure
+ */
 static int gigaset_initcshw(struct cardstate *cs)
 {
 	struct bas_cardstate *ucs;
@@ -2194,13 +2203,13 @@ static int gigaset_initcshw(struct cardstate *cs)
 	cs->hw.bas = ucs = kmalloc(sizeof *ucs, GFP_KERNEL);
 	if (!ucs) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 	ucs->int_in_buf = kmalloc(IP_MSGSIZE, GFP_KERNEL);
 	if (!ucs->int_in_buf) {
 		kfree(ucs);
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	ucs->urb_cmd_in = NULL;
@@ -2219,7 +2228,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	init_waitqueue_head(&ucs->waitqueue);
 	INIT_WORK(&ucs->int_in_wq, int_in_work);
 
-	return 1;
+	return 0;
 }
 
 /* freeurbs
@@ -2379,18 +2388,20 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* save address of controller structure */
 	usb_set_intfdata(interface, cs);
 
-	if (!gigaset_start(cs))
+	rc = gigaset_start(cs);
+	if (rc < 0)
 		goto error;
 
 	return 0;
 
 allocerr:
 	dev_err(cs->dev, "could not allocate URBs\n");
+	rc = -ENOMEM;
 error:
 	freeurbs(cs);
 	usb_set_intfdata(interface, NULL);
 	gigaset_freecs(cs);
-	return -ENODEV;
+	return rc;
 }
 
 /* gigaset_disconnect
@@ -2437,7 +2448,9 @@ static void gigaset_disconnect(struct usb_interface *interface)
 }
 
 /* gigaset_suspend
- * This function is called before the USB connection is suspended.
+ * This function is called before the USB connection is suspended
+ * or before the USB device is reset.
+ * In the latter case, message == PMSG_ON.
  */
 static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 {
@@ -2453,13 +2466,13 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 
 	/* wait a bit for blocking conditions to go away */
 	rc = wait_event_timeout(ucs->waitqueue,
-			!(ucs->basstate &
-			  (BS_B1OPEN|BS_B2OPEN|BS_ATRDPEND|BS_ATWRPEND)),
-			BAS_TIMEOUT*HZ/10);
+				!(ucs->basstate &
+				  (BS_B1OPEN | BS_B2OPEN | BS_ATRDPEND | BS_ATWRPEND)),
+				BAS_TIMEOUT * HZ / 10);
 	gig_dbg(DEBUG_SUSPEND, "wait_event_timeout() -> %d", rc);
 
 	/* check for conditions preventing suspend */
-	if (ucs->basstate & (BS_B1OPEN|BS_B2OPEN|BS_ATRDPEND|BS_ATWRPEND)) {
+	if (ucs->basstate & (BS_B1OPEN | BS_B2OPEN | BS_ATRDPEND | BS_ATWRPEND)) {
 		dev_warn(cs->dev, "cannot suspend:\n");
 		if (ucs->basstate & BS_B1OPEN)
 			dev_warn(cs->dev, " B channel 1 open\n");
@@ -2482,7 +2495,7 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 			return rc;
 		}
 		wait_event_timeout(ucs->waitqueue, !ucs->pending,
-				   BAS_TIMEOUT*HZ/10);
+				   BAS_TIMEOUT * HZ / 10);
 		/* in case of timeout, proceed anyway */
 	}
 
@@ -2493,7 +2506,12 @@ static int gigaset_suspend(struct usb_interface *intf, pm_message_t message)
 	del_timer_sync(&ucs->timer_atrdy);
 	del_timer_sync(&ucs->timer_cmd_in);
 	del_timer_sync(&ucs->timer_int_in);
-	cancel_work_sync(&ucs->int_in_wq);
+
+	/* don't try to cancel int_in_wq from within reset as it
+	 * might be the one requesting the reset
+	 */
+	if (message.event != PM_EVENT_ON)
+		cancel_work_sync(&ucs->int_in_wq);
 
 	gig_dbg(DEBUG_SUSPEND, "suspend complete");
 	return 0;

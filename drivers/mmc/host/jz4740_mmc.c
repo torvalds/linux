@@ -702,7 +702,7 @@ static const struct jz_gpio_bulk_request jz4740_mmc_pins[] = {
 	JZ_GPIO_BULK_PIN(MSC_DATA3),
 };
 
-static int __devinit jz4740_mmc_request_gpio(struct device *dev, int gpio,
+static int jz4740_mmc_request_gpio(struct device *dev, int gpio,
 	const char *name, bool output, int value)
 {
 	int ret;
@@ -724,7 +724,7 @@ static int __devinit jz4740_mmc_request_gpio(struct device *dev, int gpio,
 	return 0;
 }
 
-static int __devinit jz4740_mmc_request_gpios(struct platform_device *pdev)
+static int jz4740_mmc_request_gpios(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_mmc_platform_data *pdata = pdev->dev.platform_data;
@@ -759,7 +759,7 @@ err:
 	return ret;
 }
 
-static int __devinit jz4740_mmc_request_cd_irq(struct platform_device *pdev,
+static int jz4740_mmc_request_cd_irq(struct platform_device *pdev,
 	struct jz4740_mmc_host *host)
 {
 	struct jz4740_mmc_platform_data *pdata = pdev->dev.platform_data;
@@ -802,7 +802,7 @@ static inline size_t jz4740_mmc_num_pins(struct jz4740_mmc_host *host)
 	return num_pins;
 }
 
-static int __devinit jz4740_mmc_probe(struct platform_device* pdev)
+static int jz4740_mmc_probe(struct platform_device* pdev)
 {
 	int ret;
 	struct mmc_host *mmc;
@@ -938,7 +938,7 @@ err_free_host:
 	return ret;
 }
 
-static int __devexit jz4740_mmc_remove(struct platform_device *pdev)
+static int jz4740_mmc_remove(struct platform_device *pdev)
 {
 	struct jz4740_mmc_host *host = platform_get_drvdata(pdev);
 
@@ -1004,7 +1004,7 @@ const struct dev_pm_ops jz4740_mmc_pm_ops = {
 
 static struct platform_driver jz4740_mmc_driver = {
 	.probe = jz4740_mmc_probe,
-	.remove = __devexit_p(jz4740_mmc_remove),
+	.remove = jz4740_mmc_remove,
 	.driver = {
 		.name = "jz4740-mmc",
 		.owner = THIS_MODULE,
@@ -1012,17 +1012,7 @@ static struct platform_driver jz4740_mmc_driver = {
 	},
 };
 
-static int __init jz4740_mmc_init(void)
-{
-	return platform_driver_register(&jz4740_mmc_driver);
-}
-module_init(jz4740_mmc_init);
-
-static void __exit jz4740_mmc_exit(void)
-{
-	platform_driver_unregister(&jz4740_mmc_driver);
-}
-module_exit(jz4740_mmc_exit);
+module_platform_driver(jz4740_mmc_driver);
 
 MODULE_DESCRIPTION("JZ4740 SD/MMC controller driver");
 MODULE_LICENSE("GPL");

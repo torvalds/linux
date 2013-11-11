@@ -69,7 +69,8 @@
 
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
+#include <linux/module.h>
 
 MODULE_AUTHOR("Rudolf Koenig, Brent Baccala and Martin Habets");
 MODULE_DESCRIPTION("Sun DBRI");
@@ -79,7 +80,7 @@ MODULE_SUPPORTED_DEVICE("{{Sun,DBRI}}");
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 /* Enable this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Sun DBRI soundcard.");
@@ -591,7 +592,7 @@ static __u32 reverse_bytes(__u32 b, int len)
 		break;
 	default:
 		printk(KERN_ERR "DBRI reverse_bytes: unsupported length\n");
-	};
+	}
 
 	return b;
 }
@@ -744,7 +745,7 @@ static void dbri_reset(struct snd_dbri *dbri)
 }
 
 /* Lock must not be held before calling this */
-static void __devinit dbri_initialize(struct snd_dbri *dbri)
+static void dbri_initialize(struct snd_dbri *dbri)
 {
 	s32 *cmd;
 	u32 dma_addr;
@@ -1304,7 +1305,7 @@ to the DBRI via the CHI interface and few of the DBRI's PIO pins.
  * Lock must not be held before calling it.
 
 */
-static __devinit void cs4215_setup_pipes(struct snd_dbri *dbri)
+static void cs4215_setup_pipes(struct snd_dbri *dbri)
 {
 	unsigned long flags;
 
@@ -1337,7 +1338,7 @@ static __devinit void cs4215_setup_pipes(struct snd_dbri *dbri)
 	dbri_cmdwait(dbri);
 }
 
-static __devinit int cs4215_init_data(struct cs4215 *mm)
+static int cs4215_init_data(struct cs4215 *mm)
 {
 	/*
 	 * No action, memory resetting only.
@@ -1629,7 +1630,7 @@ static int cs4215_prepare(struct snd_dbri *dbri, unsigned int rate,
 /*
  *
  */
-static __devinit int cs4215_init(struct snd_dbri *dbri)
+static int cs4215_init(struct snd_dbri *dbri)
 {
 	u32 reg2 = sbus_readl(dbri->regs + REG2);
 	dprintk(D_MM, "cs4215_init: reg2=0x%x\n", reg2);
@@ -2216,7 +2217,7 @@ static struct snd_pcm_ops snd_dbri_ops = {
 	.pointer = snd_dbri_pointer,
 };
 
-static int __devinit snd_dbri_pcm(struct snd_card *card)
+static int snd_dbri_pcm(struct snd_card *card)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -2408,7 +2409,7 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
   .private_value = (entry) | ((shift) << 8) | ((mask) << 16) |	\
 			((invert) << 24) },
 
-static struct snd_kcontrol_new dbri_controls[] __devinitdata = {
+static struct snd_kcontrol_new dbri_controls[] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name  = "Playback Volume",
@@ -2435,7 +2436,7 @@ static struct snd_kcontrol_new dbri_controls[] __devinitdata = {
 	CS4215_SINGLE("Mic boost", 4, 4, 1, 1)
 };
 
-static int __devinit snd_dbri_mixer(struct snd_card *card)
+static int snd_dbri_mixer(struct snd_card *card)
 {
 	int idx, err;
 	struct snd_dbri *dbri;
@@ -2499,7 +2500,7 @@ static void dbri_debug_read(struct snd_info_entry *entry,
 }
 #endif
 
-static void __devinit snd_dbri_proc(struct snd_card *card)
+static void snd_dbri_proc(struct snd_card *card)
 {
 	struct snd_dbri *dbri = card->private_data;
 	struct snd_info_entry *entry;
@@ -2522,9 +2523,9 @@ static void __devinit snd_dbri_proc(struct snd_card *card)
 */
 static void snd_dbri_free(struct snd_dbri *dbri);
 
-static int __devinit snd_dbri_create(struct snd_card *card,
-				     struct platform_device *op,
-				     int irq, int dev)
+static int snd_dbri_create(struct snd_card *card,
+			   struct platform_device *op,
+			   int irq, int dev)
 {
 	struct snd_dbri *dbri = card->private_data;
 	int err;
@@ -2592,7 +2593,7 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 				  (void *)dbri->dma, dbri->dma_dvma);
 }
 
-static int __devinit dbri_probe(struct platform_device *op)
+static int dbri_probe(struct platform_device *op)
 {
 	struct snd_dbri *dbri;
 	struct resource *rp;
@@ -2662,7 +2663,7 @@ _err:
 	return err;
 }
 
-static int __devexit dbri_remove(struct platform_device *op)
+static int dbri_remove(struct platform_device *op)
 {
 	struct snd_card *card = dev_get_drvdata(&op->dev);
 
@@ -2693,19 +2694,7 @@ static struct platform_driver dbri_sbus_driver = {
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,
-	.remove		= __devexit_p(dbri_remove),
+	.remove		= dbri_remove,
 };
 
-/* Probe for the dbri chip and then attach the driver. */
-static int __init dbri_init(void)
-{
-	return platform_driver_register(&dbri_sbus_driver);
-}
-
-static void __exit dbri_exit(void)
-{
-	platform_driver_unregister(&dbri_sbus_driver);
-}
-
-module_init(dbri_init);
-module_exit(dbri_exit);
+module_platform_driver(dbri_sbus_driver);

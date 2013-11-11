@@ -1,0 +1,33 @@
+* TI Highspeed MMC host controller for OMAP
+
+The Highspeed MMC Host Controller on TI OMAP family
+provides an interface for MMC, SD, and SDIO types of memory cards.
+
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the omap_hsmmc driver.
+
+Required properties:
+- compatible:
+ Should be "ti,omap2-hsmmc", for OMAP2 controllers
+ Should be "ti,omap3-hsmmc", for OMAP3 controllers
+ Should be "ti,omap4-hsmmc", for OMAP4 controllers
+- ti,hwmods: Must be "mmc<n>", n is controller instance starting 1
+
+Optional properties:
+ti,dual-volt: boolean, supports dual voltage cards
+<supply-name>-supply: phandle to the regulator device tree node
+"supply-name" examples are "vmmc", "vmmc_aux" etc
+ti,non-removable: non-removable slot (like eMMC)
+ti,needs-special-reset: Requires a special softreset sequence
+ti,needs-special-hs-handling: HSMMC IP needs special setting for handling High Speed
+
+Example:
+	mmc1: mmc@0x4809c000 {
+		compatible = "ti,omap4-hsmmc";
+		reg = <0x4809c000 0x400>;
+		ti,hwmods = "mmc1";
+		ti,dual-volt;
+		bus-width = <4>;
+		vmmc-supply = <&vmmc>; /* phandle to regulator node */
+		ti,non-removable;
+	};

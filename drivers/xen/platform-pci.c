@@ -101,13 +101,16 @@ static int platform_pci_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit platform_pci_init(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int platform_pci_init(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	int i, ret;
 	long ioaddr;
 	long mmio_addr, mmio_len;
 	unsigned int max_nr_gframes;
+
+	if (!xen_domain())
+		return -ENODEV;
 
 	i = pci_enable_device(pdev);
 	if (i)
@@ -167,7 +170,7 @@ pci_out:
 	return ret;
 }
 
-static struct pci_device_id platform_pci_tbl[] __devinitdata = {
+static struct pci_device_id platform_pci_tbl[] = {
 	{PCI_VENDOR_ID_XEN, PCI_DEVICE_ID_XEN_PLATFORM,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
@@ -186,11 +189,6 @@ static struct pci_driver platform_driver = {
 
 static int __init platform_pci_module_init(void)
 {
-	/* no unplug has been done, IGNORE hasn't been specified: just
-	 * return now */
-	if (!xen_platform_pci_unplug)
-		return -ENODEV;
-
 	return pci_register_driver(&platform_driver);
 }
 

@@ -35,8 +35,24 @@
 
 #define	MCFINT_VECBASE		64		/* Vector base number */
 #define	MCFINT_UART0		13		/* Interrupt number for UART0 */
-#define	MCFINT_PIT1		36		/* Interrupt number for PIT1 */
+#define	MCFINT_UART1		14		/* Interrupt number for UART1 */
+#define	MCFINT_UART2		15		/* Interrupt number for UART2 */
 #define MCFINT_QSPI		18		/* Interrupt number for QSPI */
+#define	MCFINT_FECRX0		23		/* Interrupt number for FEC */
+#define	MCFINT_FECTX0		27		/* Interrupt number for FEC */
+#define	MCFINT_FECENTC0		29		/* Interrupt number for FEC */
+#define	MCFINT_PIT1		36		/* Interrupt number for PIT1 */
+
+#define	MCF_IRQ_UART0	        (MCFINT_VECBASE + MCFINT_UART0)
+#define	MCF_IRQ_UART1	        (MCFINT_VECBASE + MCFINT_UART1)
+#define	MCF_IRQ_UART2	        (MCFINT_VECBASE + MCFINT_UART2)
+
+#define	MCF_IRQ_FECRX0		(MCFINT_VECBASE + MCFINT_FECRX0)
+#define	MCF_IRQ_FECTX0		(MCFINT_VECBASE + MCFINT_FECTX0)
+#define	MCF_IRQ_FECENTC0	(MCFINT_VECBASE + MCFINT_FECENTC0)
+
+#define	MCF_IRQ_QSPI		(MCFINT_VECBASE + MCFINT_QSPI)
+#define MCF_IRQ_PIT1		(MCFINT_VECBASE + MCFINT_PIT1)
 
 /*
  *	SDRAM configuration registers.
@@ -50,8 +66,8 @@
 /*
  *  Reset Control Unit (relative to IPSBAR).
  */
-#define	MCF_RCR			0x110000
-#define	MCF_RSR			0x110001
+#define	MCF_RCR			(MCF_IPSBAR + 0x110000)
+#define	MCF_RSR			(MCF_IPSBAR + 0x110001)
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
@@ -59,15 +75,26 @@
 /*
  *  UART module.
  */
-#define MCFUART_BASE1		(MCF_IPSBAR + 0x200)
-#define MCFUART_BASE2		(MCF_IPSBAR + 0x240)
-#define MCFUART_BASE3		(MCF_IPSBAR + 0x280)
+#define MCFUART_BASE0		(MCF_IPSBAR + 0x200)
+#define MCFUART_BASE1		(MCF_IPSBAR + 0x240)
+#define MCFUART_BASE2		(MCF_IPSBAR + 0x280)
 
 /*
  *  FEC ethernet module.
  */
-#define	MCFFEC_BASE		(MCF_IPSBAR + 0x1000)
-#define	MCFFEC_SIZE		0x800
+#define	MCFFEC_BASE0		(MCF_IPSBAR + 0x1000)
+#define	MCFFEC_SIZE0		0x800
+
+/*
+ *  QSPI module.
+ */
+#define	MCFQSPI_BASE		(MCF_IPSBAR + 0x340)
+#define	MCFQSPI_SIZE		0x40
+
+#define	MCFQSPI_CS0		91
+#define	MCFQSPI_CS1		92
+#define	MCFQSPI_CS2		103
+#define	MCFQSPI_CS3		99
 
 /*
  *  GPIO module.
@@ -149,21 +176,29 @@
 /*
  * Generic GPIO support
  */
-#define MCFGPIO_PODR			MCFGPIO_PODR_ADDR
-#define MCFGPIO_PDDR			MCFGPIO_PDDR_ADDR
-#define MCFGPIO_PPDR			MCFGPIO_PPDSDR_ADDR
-#define MCFGPIO_SETR			MCFGPIO_PPDSDR_ADDR
-#define MCFGPIO_CLRR			MCFGPIO_PCLRR_ADDR
+#define MCFGPIO_PODR		MCFGPIO_PODR_ADDR
+#define MCFGPIO_PDDR		MCFGPIO_PDDR_ADDR
+#define MCFGPIO_PPDR		MCFGPIO_PPDSDR_ADDR
+#define MCFGPIO_SETR		MCFGPIO_PPDSDR_ADDR
+#define MCFGPIO_CLRR		MCFGPIO_PCLRR_ADDR
 
-#define MCFGPIO_PIN_MAX			107
-#define MCFGPIO_IRQ_MAX			8
-#define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
+#define MCFGPIO_PIN_MAX		107
+#define MCFGPIO_IRQ_MAX		8
+#define MCFGPIO_IRQ_VECBASE	MCFINT_VECBASE
 
 /*
  * Pin Assignment
 */
+#define	MCFGPIO_PAR_AD		(MCF_IPSBAR + 0x100040)
+#define	MCFGPIO_PAR_BUSCTL	(MCF_IPSBAR + 0x100042)
+#define	MCFGPIO_PAR_BS		(MCF_IPSBAR + 0x100044)
+#define	MCFGPIO_PAR_CS		(MCF_IPSBAR + 0x100045)
+#define	MCFGPIO_PAR_SDRAM	(MCF_IPSBAR + 0x100046)
+#define	MCFGPIO_PAR_FECI2C	(MCF_IPSBAR + 0x100047)
+#define	MCFGPIO_PAR_UART	(MCF_IPSBAR + 0x100048)
 #define	MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
 #define	MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
+#define	MCFGPIO_PAR_ETPU	(MCF_IPSBAR + 0x10004E)
 
 /*
  * DMA unit base addresses.

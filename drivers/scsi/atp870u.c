@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -1174,7 +1173,16 @@ wait_io1:
 	outw(val, tmport);
 	outb(2, 0x80);
 TCM_SYNC:
-	udelay(0x800);
+	/*
+	 * The funny division into multiple delays is to accomodate
+	 * arches like ARM where udelay() multiplies its argument by
+	 * a large number to initialize a loop counter.  To avoid
+	 * overflow, the maximum supported udelay is 2000 microseconds.
+	 *
+	 * XXX it would be more polite to find a way to use msleep()
+	 */
+	mdelay(2);
+	udelay(48);
 	if ((inb(tmport) & 0x80) == 0x00) {	/* bsy ? */
 		outw(0, tmport--);
 		outb(0, tmport);
@@ -2583,7 +2591,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * this than via the PCI device table
 	 */
 	if (ent->device == PCI_DEVICE_ID_ARTOP_AEC7610) {
-		error = pci_read_config_byte(pdev, PCI_CLASS_REVISION, &atpdev->chip_ver);
+		atpdev->chip_ver = pdev->revision;
 		if (atpdev->chip_ver < 2)
 			goto err_eio;
 	}
@@ -2602,7 +2610,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	base_io &= 0xfffffff8;
 
 	if ((ent->device == ATP880_DEVID1)||(ent->device == ATP880_DEVID2)) {
-		error = pci_read_config_byte(pdev, PCI_CLASS_REVISION, &atpdev->chip_ver);
+		atpdev->chip_ver = pdev->revision;
 		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x80);//JCC082803
 
 		host_id = inb(base_io + 0x39);
@@ -3091,38 +3099,14 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 	return buffer;
 }
 
-#define BLS buffer + len + size
-static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
-			     char **start, off_t offset, int length, int inout)
+static int atp870u_show_info(struct seq_file *m, struct Scsi_Host *HBAptr)
 {
-	static u8 buff[512];
-	int size = 0;
-	int len = 0;
-	off_t begin = 0;
-	off_t pos = 0;
-	
-	if (inout) 	
-		return -EINVAL;
-	if (offset == 0)
-		memset(buff, 0, sizeof(buff));
-	size += sprintf(BLS, "ACARD AEC-671X Driver Version: 2.6+ac\n");
-	len += size;
-	pos = begin + len;
-	size = 0;
-
-	size += sprintf(BLS, "\n");
-	size += sprintf(BLS, "Adapter Configuration:\n");
-	size += sprintf(BLS, "               Base IO: %#.4lx\n", HBAptr->io_port);
-	size += sprintf(BLS, "                   IRQ: %d\n", HBAptr->irq);
-	len += size;
-	pos = begin + len;
-	
-	*start = buffer + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);	/* Start slop */
-	if (len > length) {
-		len = length;	/* Ending slop */
-	}
-	return (len);
+	seq_printf(m, "ACARD AEC-671X Driver Version: 2.6+ac\n");
+	seq_printf(m, "\n");
+	seq_printf(m, "Adapter Configuration:\n");
+	seq_printf(m, "               Base IO: %#.4lx\n", HBAptr->io_port);
+	seq_printf(m, "                   IRQ: %d\n", HBAptr->irq);
+	return 0;
 }
 
 
@@ -3169,7 +3153,7 @@ static struct scsi_host_template atp870u_template = {
      .module			= THIS_MODULE,
      .name              	= "atp870u"		/* name */,
      .proc_name			= "atp870u",
-     .proc_info			= atp870u_proc_info,
+     .show_info			= atp870u_show_info,
      .info              	= atp870u_info		/* info */,
      .queuecommand      	= atp870u_queuecommand	/* queuecommand */,
      .eh_abort_handler  	= atp870u_abort		/* abort */,
@@ -3202,7 +3186,7 @@ static struct pci_driver atp870u_driver = {
 	.id_table	= atp870u_id_table,
 	.name		= "atp870u",
 	.probe		= atp870u_probe,
-	.remove		= __devexit_p(atp870u_remove),
+	.remove		= atp870u_remove,
 };
 
 static int __init atp870u_init(void)

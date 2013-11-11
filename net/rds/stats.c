@@ -33,6 +33,7 @@
 #include <linux/percpu.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 
 #include "rds.h"
 
@@ -86,6 +87,7 @@ void rds_stats_info_copy(struct rds_info_iterator *iter,
 	for (i = 0; i < nr; i++) {
 		BUG_ON(strlen(names[i]) >= sizeof(ctr.name));
 		strncpy(ctr.name, names[i], sizeof(ctr.name) - 1);
+		ctr.name[sizeof(ctr.name) - 1] = '\0';
 		ctr.value = values[i];
 
 		rds_info_copy(iter, &ctr, sizeof(ctr));

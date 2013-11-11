@@ -16,6 +16,7 @@
 #include "gigaset.h"
 #include <linux/crc-ccitt.h>
 #include <linux/bitrev.h>
+#include <linux/export.h>
 
 /* check if byte must be stuffed/escaped
  * I'm not sure which data should be encoded.
@@ -213,7 +214,7 @@ byte_stuff:
 				} else if (fcs != PPP_GOODFCS) {
 					/* frame check error */
 					dev_err(cs->dev,
-				"Checksum failed, %u bytes corrupted!\n",
+						"Checksum failed, %u bytes corrupted!\n",
 						skb->len);
 					gigaset_isdn_rcv_err(bcs);
 					dev_kfree_skb_any(skb);
@@ -542,7 +543,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb)
 	/* size of new buffer (worst case = every byte must be stuffed):
 	 * 2 * original size + room for link layer header
 	 */
-	iraw_skb = dev_alloc_skb(2*skb->len + skb->mac_len);
+	iraw_skb = dev_alloc_skb(2 * skb->len + skb->mac_len);
 	if (!iraw_skb) {
 		dev_kfree_skb_any(skb);
 		return NULL;

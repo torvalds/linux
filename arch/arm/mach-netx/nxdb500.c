@@ -29,7 +29,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/netx-regs.h>
-#include <mach/eth.h>
+#include <linux/platform_data/eth-netx.h>
 
 #include "generic.h"
 #include "fb.h"
@@ -200,9 +200,10 @@ static void __init nxdb500_init(void)
 }
 
 MACHINE_START(NXDB500, "Hilscher nxdb500")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.map_io		= netx_map_io,
 	.init_irq	= netx_init_irq,
-	.timer		= &netx_timer,
+	.init_time	= netx_timer_init,
 	.init_machine	= nxdb500_init,
+	.restart	= netx_restart,
 MACHINE_END

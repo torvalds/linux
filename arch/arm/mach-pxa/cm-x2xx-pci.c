@@ -26,7 +26,7 @@
 
 #include <asm/hardware/it8152.h>
 
-unsigned long it8152_base_address;
+void __iomem *it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
@@ -77,7 +77,7 @@ void cmx2xx_pci_resume(void) {}
 #endif
 
 /* PCI IRQ mapping*/
-static int __init cmx2xx_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init cmx2xx_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -124,6 +124,9 @@ static int __init cmx2xx_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 static void cmx2xx_pci_preinit(void)
 {
 	pr_info("Initializing CM-X2XX PCI subsystem\n");
+
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0;
 
 	__raw_writel(0x800, IT8152_PCI_CFG_ADDR);
 	if (__raw_readl(IT8152_PCI_CFG_DATA) == 0x81521283) {
@@ -178,11 +181,10 @@ static void cmx2xx_pci_preinit(void)
 }
 
 static struct hw_pci cmx2xx_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.map_irq	= cmx2xx_pci_map_irq,
 	.nr_controllers	= 1,
+	.ops		= &it8152_ops,
 	.setup		= it8152_pci_setup,
-	.scan		= it8152_pci_scan_bus,
 	.preinit	= cmx2xx_pci_preinit,
 };
 

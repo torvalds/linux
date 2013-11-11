@@ -31,16 +31,26 @@
 /*
  *	UART module.
  */
-#define MCFUART_BASE1		0x8600		/* Base address of UART1 */
-#define MCFUART_BASE2		0x8700		/* Base address of UART2 */
-#define MCFUART_BASE3		0x8800		/* Base address of UART3 */
-#define MCFUART_BASE4		0x8900		/* Base address of UART4 */
+#define MCFUART_BASE0		(MCF_MBAR + 0x8600)	/* Base address UART0 */
+#define MCFUART_BASE1		(MCF_MBAR + 0x8700)	/* Base address UART1 */
+#define MCFUART_BASE2		(MCF_MBAR + 0x8800)	/* Base address UART2 */
+#define MCFUART_BASE3		(MCF_MBAR + 0x8900)	/* Base address UART3 */
 
 /*
  *	Define system peripheral IRQ usage.
  */
-#define MCF_IRQ_TIMER		(64 + 54)	/* Slice Timer 0 */
-#define MCF_IRQ_PROFILER	(64 + 53)	/* Slice Timer 1 */
+#define MCF_IRQ_TIMER		(MCFINT_VECBASE + 54)	/* Slice Timer 0 */
+#define MCF_IRQ_PROFILER	(MCFINT_VECBASE + 53)	/* Slice Timer 1 */
+#define MCF_IRQ_UART0		(MCFINT_VECBASE + 35)
+#define MCF_IRQ_UART1		(MCFINT_VECBASE + 34)
+#define MCF_IRQ_UART2		(MCFINT_VECBASE + 33)
+#define MCF_IRQ_UART3		(MCFINT_VECBASE + 32)
+
+/*
+ *	Slice Timer support.
+ */
+#define MCFSLT_TIMER0		(MCF_MBAR + 0x900)	/* Base addr TIMER0 */
+#define MCFSLT_TIMER1		(MCF_MBAR + 0x910)	/* Base addr TIMER1 */
 
 /*
  *	Generic GPIO support
@@ -60,15 +70,25 @@
 #define	MCFEPORT_EPFR		(MCF_MBAR + 0xf0c)	/* Flags */
 
 /*
- *	Some PSC related definitions
+ *	Pin Assignment register definitions
  */
-#define MCF_PAR_PSC(x)		(0x000A4F-((x)&0x3))
+#define MCFGPIO_PAR_FBCTL	(MCF_MBAR + 0xA40)
+#define MCFGPIO_PAR_FBCS	(MCF_MBAR + 0xA42)
+#define MCFGPIO_PAR_DMA		(MCF_MBAR + 0xA43)
+#define MCFGPIO_PAR_FECI2CIRQ	(MCF_MBAR + 0xA44)
+#define MCFGPIO_PAR_PCIBG	(MCF_MBAR + 0xA48)	/* PCI bus grant */
+#define MCFGPIO_PAR_PCIBR	(MCF_MBAR + 0xA4A)	/* PCI */
+#define MCFGPIO_PAR_PSC0	(MCF_MBAR + 0xA4F)
+#define MCFGPIO_PAR_PSC1	(MCF_MBAR + 0xA4E)
+#define MCFGPIO_PAR_PSC2	(MCF_MBAR + 0xA4D)
+#define MCFGPIO_PAR_PSC3	(MCF_MBAR + 0xA4C)
+#define MCFGPIO_PAR_DSPI	(MCF_MBAR + 0xA50)
+#define MCFGPIO_PAR_TIMER	(MCF_MBAR + 0xA52)
+
 #define MCF_PAR_SDA		(0x0008)
 #define MCF_PAR_SCL		(0x0004)
 #define MCF_PAR_PSC_TXD		(0x04)
 #define MCF_PAR_PSC_RXD		(0x08)
-#define MCF_PAR_PSC_RTS(x)	(((x)&0x03)<<4)
-#define MCF_PAR_PSC_CTS(x)	(((x)&0x03)<<6)
 #define MCF_PAR_PSC_CTS_GPIO	(0x00)
 #define MCF_PAR_PSC_CTS_BCLK	(0x80)
 #define MCF_PAR_PSC_CTS_CTS	(0xC0)

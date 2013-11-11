@@ -43,16 +43,6 @@
 #define CHECK_BINSEARCH__
 
 /*
- * Turn on EXT_DEBUG to get lots of info about extents operations.
- */
-#define EXT_DEBUG__
-#ifdef EXT_DEBUG
-#define ext_debug(a...)		printk(a)
-#else
-#define ext_debug(a...)
-#endif
-
-/*
  * If EXT_STATS is defined then stats numbers are collected.
  * These number will be displayed at umount time.
  */
@@ -63,7 +53,20 @@
  * ext4_inode has i_block array (60 bytes total).
  * The first 12 bytes store ext4_extent_header;
  * the remainder stores an array of ext4_extent.
+ * For non-inode extent blocks, ext4_extent_tail
+ * follows the array.
  */
+
+/*
+ * This is the extent tail on-disk structure.
+ * All other extent structures are 12 bytes long.  It turns out that
+ * block_size % 12 >= 4 for at least all powers of 2 greater than 512, which
+ * covers all valid ext4 block sizes.  Therefore, this tail structure can be
+ * crammed into the end of the block without having to rebalance the tree.
+ */
+struct ext4_extent_tail {
+	__le32	et_checksum;	/* crc32c(uuid+inum+extent_block) */
+};
 
 /*
  * This is the extent on-disk structure.
@@ -101,6 +104,17 @@ struct ext4_extent_header {
 
 #define EXT4_EXT_MAGIC		cpu_to_le16(0xf30a)
 
+#define EXT4_EXTENT_TAIL_OFFSET(hdr) \
+	(sizeof(struct ext4_extent_header) + \
+	 (sizeof(struct ext4_extent) * le16_to_cpu((hdr)->eh_max)))
+
+static inline struct ext4_extent_tail *
+find_ext4_extent_tail(struct ext4_extent_header *eh)
+{
+	return (struct ext4_extent_tail *)(((void *)eh) +
+					   EXT4_EXTENT_TAIL_OFFSET(eh));
+}
+
 /*
  * Array of ext4_ext_path contains path to some extent.
  * Creation/lookup routines use it for traversal/splitting/etc.
@@ -118,20 +132,6 @@ struct ext4_ext_path {
 /*
  * structure for external API
  */
-
-/*
- * to be called by ext4_ext_walk_space()
- * negative retcode - error
- * positive retcode - signal for ext4_ext_walk_space(), see below
- * callback must return valid extent (passed or newly created)
- */
-typedef int (*ext_prepare_callback)(struct inode *, ext4_lblk_t,
-					struct ext4_ext_cache *,
-					struct ext4_extent *, void *);
-
-#define EXT_CONTINUE   0
-#define EXT_BREAK      1
-#define EXT_REPEAT     2
 
 /*
  * Maximum number of logical blocks in a file; ext4_extent's ee_block is
@@ -191,12 +191,6 @@ static inline struct ext4_extent_header *ext_block_hdr(struct buffer_head *bh)
 static inline unsigned short ext_depth(struct inode *inode)
 {
 	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
-}
-
-static inline void
-ext4_ext_invalidate_cache(struct inode *inode)
-{
-	EXT4_I(inode)->i_cached_extent.ec_len = 0;
 }
 
 static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)
@@ -276,19 +270,10 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 				     0xffff);
 }
 
-extern int ext4_ext_calc_metadata_amount(struct inode *inode,
-					 ext4_lblk_t lblocks);
-extern int ext4_extent_tree_init(handle_t *, struct inode *);
-extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
-						   int num,
-						   struct ext4_ext_path *path);
-extern int ext4_can_extents_be_merged(struct inode *inode,
-				      struct ext4_extent *ex1,
-				      struct ext4_extent *ex2);
-extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *, int);
-extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
-							struct ext4_ext_path *);
-extern void ext4_ext_drop_refs(struct ext4_ext_path *);
-extern int ext4_ext_check_inode(struct inode *inode);
+#define ext4_ext_dirty(handle, inode, path) \
+		__ext4_ext_dirty(__func__, __LINE__, (handle), (inode), (path))
+int __ext4_ext_dirty(const char *where, unsigned int line, handle_t *handle,
+		     struct inode *inode, struct ext4_ext_path *path);
+
 #endif /* _EXT4_EXTENTS */
 

@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #define DM_MSG_PREFIX "snapshot exception stores"
@@ -141,24 +142,19 @@ EXPORT_SYMBOL(dm_exception_store_type_unregister);
 static int set_chunk_size(struct dm_exception_store *store,
 			  const char *chunk_size_arg, char **error)
 {
-	unsigned long chunk_size_ulong;
-	char *value;
+	unsigned chunk_size;
 
-	chunk_size_ulong = simple_strtoul(chunk_size_arg, &value, 10);
-	if (*chunk_size_arg == '\0' || *value != '\0' ||
-	    chunk_size_ulong > UINT_MAX) {
+	if (kstrtouint(chunk_size_arg, 10, &chunk_size)) {
 		*error = "Invalid chunk size";
 		return -EINVAL;
 	}
 
-	if (!chunk_size_ulong) {
+	if (!chunk_size) {
 		store->chunk_size = store->chunk_mask = store->chunk_shift = 0;
 		return 0;
 	}
 
-	return dm_exception_store_set_chunk_size(store,
-						 (unsigned) chunk_size_ulong,
-						 error);
+	return dm_exception_store_set_chunk_size(store, chunk_size, error);
 }
 
 int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
@@ -282,7 +278,7 @@ int dm_exception_store_init(void)
 	return 0;
 
 persistent_fail:
-	dm_persistent_snapshot_exit();
+	dm_transient_snapshot_exit();
 transient_fail:
 	return r;
 }

@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -25,6 +24,7 @@
 #include <linux/slab.h>
 #include <asm/div64.h>
 #include <sound/max98095.h>
+#include <sound/jack.h>
 #include "max98095.h"
 
 enum max98095_type {
@@ -40,7 +40,6 @@ struct max98095_cdata {
 
 struct max98095_priv {
 	enum max98095_type devtype;
-	void *control_data;
 	struct max98095_pdata *pdata;
 	unsigned int sysclk;
 	struct max98095_cdata dai[3];
@@ -53,6 +52,8 @@ struct max98095_priv {
 	u8 lin_state;
 	unsigned int mic1pre;
 	unsigned int mic2pre;
+	struct snd_soc_jack *headphone_jack;
+	struct snd_soc_jack *mic_jack;
 };
 
 static const u8 max98095_reg_def[M98095_REG_CNT] = {
@@ -618,14 +619,13 @@ static int max98095_volatile(struct snd_soc_codec *codec, unsigned int reg)
 static int max98095_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 			     unsigned int value)
 {
-	u8 data[2];
+	int ret;
 
-	data[0] = reg;
-	data[1] = value;
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
+	codec->cache_bypass = 1;
+	ret = snd_soc_write(codec, reg, value);
+	codec->cache_bypass = 0;
+
+	return ret ? -EIO : 0;
 }
 
 /*
@@ -1287,7 +1287,7 @@ static const struct snd_soc_dapm_route max98095_audio_map[] = {
 
 static int max98095_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_add_controls(codec, max98095_snd_controls,
+	snd_soc_add_codec_controls(codec, max98095_snd_controls,
 			     ARRAY_SIZE(max98095_snd_controls));
 
 	return 0;
@@ -1516,8 +1516,6 @@ static int max98095_dai_set_sysclk(struct snd_soc_dai *dai,
 	/* Requested clock frequency is already setup */
 	if (freq == max98095->sysclk)
 		return 0;
-
-	max98095->sysclk = freq; /* remember current sysclk */
 
 	/* Setup clocks for slave mode, and using the PLL
 	 * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
@@ -1786,19 +1784,19 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 #define MAX98095_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98095_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops max98095_dai1_ops = {
+static const struct snd_soc_dai_ops max98095_dai1_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai1_set_fmt,
 	.hw_params = max98095_dai1_hw_params,
 };
 
-static struct snd_soc_dai_ops max98095_dai2_ops = {
+static const struct snd_soc_dai_ops max98095_dai2_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai2_set_fmt,
 	.hw_params = max98095_dai2_hw_params,
 };
 
-static struct snd_soc_dai_ops max98095_dai3_ops = {
+static const struct snd_soc_dai_ops max98095_dai3_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai3_set_fmt,
 	.hw_params = max98095_dai3_hw_params,
@@ -1865,7 +1863,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 	struct max98095_pdata *pdata = max98095->pdata;
 	int channel = max98095_get_eq_channel(kcontrol->id.name);
 	struct max98095_cdata *cdata;
-	int sel = ucontrol->value.integer.value[0];
+	unsigned int sel = ucontrol->value.integer.value[0];
 	struct max98095_eq_cfg *coef_set;
 	int fs, best, best_val, i;
 	int regmask, regsave;
@@ -1989,17 +1987,24 @@ static void max98095_handle_eq_pdata(struct snd_soc_codec *codec)
 	max98095->eq_enum.texts = max98095->eq_texts;
 	max98095->eq_enum.max = max98095->eq_textcnt;
 
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to add EQ control: %d\n", ret);
 }
 
-static int max98095_get_bq_channel(const char *name)
+static const char *bq_mode_name[] = {"Biquad1 Mode", "Biquad2 Mode"};
+
+static int max98095_get_bq_channel(struct snd_soc_codec *codec,
+				   const char *name)
 {
-	if (strcmp(name, "Biquad1 Mode") == 0)
-		return 0;
-	if (strcmp(name, "Biquad2 Mode") == 0)
-		return 1;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bq_mode_name); i++)
+		if (strcmp(name, bq_mode_name[i]) == 0)
+			return i;
+
+	/* Shouldn't happen */
+	dev_err(codec->dev, "Bad biquad channel name '%s'\n", name);
 	return -EINVAL;
 }
 
@@ -2009,14 +2014,15 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_pdata *pdata = max98095->pdata;
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
+	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
 	struct max98095_cdata *cdata;
-	int sel = ucontrol->value.integer.value[0];
+	unsigned int sel = ucontrol->value.integer.value[0];
 	struct max98095_biquad_cfg *coef_set;
 	int fs, best, best_val, i;
 	int regmask, regsave;
 
-	BUG_ON(channel > 1);
+	if (channel < 0)
+		return channel;
 
 	if (!pdata || !max98095->bq_textcnt)
 		return 0;
@@ -2068,8 +2074,11 @@ static int max98095_get_bq_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
+	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
 	struct max98095_cdata *cdata;
+
+	if (channel < 0)
+		return channel;
 
 	cdata = &max98095->dai[channel];
 	ucontrol->value.enumerated.item[0] = cdata->bq_sel;
@@ -2088,15 +2097,16 @@ static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
 	int ret;
 
 	struct snd_kcontrol_new controls[] = {
-		SOC_ENUM_EXT("Biquad1 Mode",
+		SOC_ENUM_EXT((char *)bq_mode_name[0],
 			max98095->bq_enum,
 			max98095_get_bq_enum,
 			max98095_put_bq_enum),
-		SOC_ENUM_EXT("Biquad2 Mode",
+		SOC_ENUM_EXT((char *)bq_mode_name[1],
 			max98095->bq_enum,
 			max98095_get_bq_enum,
 			max98095_put_bq_enum),
 	};
+	BUILD_BUG_ON(ARRAY_SIZE(controls) != ARRAY_SIZE(bq_mode_name));
 
 	cfg = pdata->bq_cfg;
 	cfgcnt = pdata->bq_cfgcnt;
@@ -2132,7 +2142,7 @@ static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
 	max98095->bq_enum.texts = max98095->bq_texts;
 	max98095->bq_enum.max = max98095->bq_textcnt;
 
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
 		dev_err(codec->dev, "Failed to add Biquad control: %d\n", ret);
 }
@@ -2166,9 +2176,126 @@ static void max98095_handle_pdata(struct snd_soc_codec *codec)
 		max98095_handle_bq_pdata(codec);
 }
 
-#ifdef CONFIG_PM
-static int max98095_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static irqreturn_t max98095_report_jack(int irq, void *data)
 {
+	struct snd_soc_codec *codec = data;
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value;
+	int hp_report = 0;
+	int mic_report = 0;
+
+	/* Read the Jack Status Register */
+	value = snd_soc_read(codec, M98095_007_JACK_AUTO_STS);
+
+	/* If ddone is not set, then detection isn't finished yet */
+	if ((value & M98095_DDONE) == 0)
+		return IRQ_NONE;
+
+	/* if hp, check its bit, and if set, clear it */
+	if ((value & M98095_HP_IN || value & M98095_LO_IN) &&
+		max98095->headphone_jack)
+		hp_report |= SND_JACK_HEADPHONE;
+
+	/* if mic, check its bit, and if set, clear it */
+	if ((value & M98095_MIC_IN) && max98095->mic_jack)
+		mic_report |= SND_JACK_MICROPHONE;
+
+	if (max98095->headphone_jack == max98095->mic_jack) {
+		snd_soc_jack_report(max98095->headphone_jack,
+					hp_report | mic_report,
+					SND_JACK_HEADSET);
+	} else {
+		if (max98095->headphone_jack)
+			snd_soc_jack_report(max98095->headphone_jack,
+					hp_report, SND_JACK_HEADPHONE);
+		if (max98095->mic_jack)
+			snd_soc_jack_report(max98095->mic_jack,
+					mic_report, SND_JACK_MICROPHONE);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int max98095_jack_detect_enable(struct snd_soc_codec *codec)
+{
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+	int detect_enable = M98095_JDEN;
+	unsigned int slew = M98095_DEFAULT_SLEW_DELAY;
+
+	if (max98095->pdata->jack_detect_pin5en)
+		detect_enable |= M98095_PIN5EN;
+
+	if (max98095->pdata->jack_detect_delay)
+		slew = max98095->pdata->jack_detect_delay;
+
+	ret = snd_soc_write(codec, M98095_08E_JACK_DC_SLEW, slew);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	/* configure auto detection to be enabled */
+	ret = snd_soc_write(codec, M98095_089_JACK_DET_AUTO, detect_enable);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int max98095_jack_detect_disable(struct snd_soc_codec *codec)
+{
+	int ret = 0;
+
+	/* configure auto detection to be disabled */
+	ret = snd_soc_write(codec, M98095_089_JACK_DET_AUTO, 0x0);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg auto detect %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+int max98095_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack)
+{
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+	int ret = 0;
+
+	max98095->headphone_jack = hp_jack;
+	max98095->mic_jack = mic_jack;
+
+	/* only progress if we have at least 1 jack pointer */
+	if (!hp_jack && !mic_jack)
+		return -EINVAL;
+
+	max98095_jack_detect_enable(codec);
+
+	/* enable interrupts for headphone jack detection */
+	ret = snd_soc_update_bits(codec, M98095_013_JACK_INT_EN,
+		M98095_IDDONE, M98095_IDDONE);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to cfg jack irqs %d\n", ret);
+		return ret;
+	}
+
+	max98095_report_jack(client->irq, codec);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max98095_jack_detect);
+
+#ifdef CONFIG_PM
+static int max98095_suspend(struct snd_soc_codec *codec)
+{
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+
+	if (max98095->headphone_jack || max98095->mic_jack)
+		max98095_jack_detect_disable(codec);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
@@ -2176,7 +2303,15 @@ static int max98095_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int max98095_resume(struct snd_soc_codec *codec)
 {
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	if (max98095->headphone_jack || max98095->mic_jack) {
+		max98095_jack_detect_enable(codec);
+		max98095_report_jack(client->irq, codec);
+	}
 
 	return 0;
 }
@@ -2220,6 +2355,7 @@ static int max98095_probe(struct snd_soc_codec *codec)
 {
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_cdata *cdata;
+	struct i2c_client *client;
 	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
@@ -2230,6 +2366,8 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	/* reset the codec, the DSP core, and disable all interrupts */
 	max98095_reset(codec);
+
+	client = to_i2c_client(codec->dev);
 
 	/* initialize private data */
 
@@ -2259,13 +2397,25 @@ static int max98095_probe(struct snd_soc_codec *codec)
 	max98095->mic1pre = 0;
 	max98095->mic2pre = 0;
 
+	if (client->irq) {
+		/* register an audio interrupt */
+		ret = request_threaded_irq(client->irq, NULL,
+			max98095_report_jack,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			"max98095", codec);
+		if (ret) {
+			dev_err(codec->dev, "Failed to request IRQ: %d\n", ret);
+			goto err_access;
+		}
+	}
+
 	ret = snd_soc_read(codec, M98095_0FF_REV_ID);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
+		dev_err(codec->dev, "Failure reading hardware revision: %d\n",
 			ret);
-		goto err_access;
+		goto err_irq;
 	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
+	dev_info(codec->dev, "Hardware revision: %c\n", ret - 0x40 + 'A');
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
@@ -2299,13 +2449,27 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	max98095_add_widgets(codec);
 
+	return 0;
+
+err_irq:
+	if (client->irq)
+		free_irq(client->irq, codec);
 err_access:
 	return ret;
 }
 
 static int max98095_remove(struct snd_soc_codec *codec)
 {
+	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
+	struct i2c_client *client = to_i2c_client(codec->dev);
+
 	max98095_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	if (max98095->headphone_jack || max98095->mic_jack)
+		max98095_jack_detect_disable(codec);
+
+	if (client->irq)
+		free_irq(client->irq, codec);
 
 	return 0;
 }
@@ -2333,27 +2497,23 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 	struct max98095_priv *max98095;
 	int ret;
 
-	max98095 = kzalloc(sizeof(struct max98095_priv), GFP_KERNEL);
+	max98095 = devm_kzalloc(&i2c->dev, sizeof(struct max98095_priv),
+				GFP_KERNEL);
 	if (max98095 == NULL)
 		return -ENOMEM;
 
 	max98095->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, max98095);
-	max98095->control_data = i2c;
 	max98095->pdata = i2c->dev.platform_data;
 
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_max98095, &max98095_dai[0], 3);
-	if (ret < 0)
-		kfree(max98095);
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_max98095,
+				     max98095_dai, ARRAY_SIZE(max98095_dai));
 	return ret;
 }
 
-static int __devexit max98095_i2c_remove(struct i2c_client *client)
+static int max98095_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
-
 	return 0;
 }
 
@@ -2369,27 +2529,11 @@ static struct i2c_driver max98095_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = max98095_i2c_probe,
-	.remove = __devexit_p(max98095_i2c_remove),
+	.remove = max98095_i2c_remove,
 	.id_table = max98095_i2c_id,
 };
 
-static int __init max98095_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&max98095_i2c_driver);
-	if (ret)
-		pr_err("Failed to register max98095 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(max98095_init);
-
-static void __exit max98095_exit(void)
-{
-	i2c_del_driver(&max98095_i2c_driver);
-}
-module_exit(max98095_exit);
+module_i2c_driver(max98095_i2c_driver);
 
 MODULE_DESCRIPTION("ALSA SoC MAX98095 driver");
 MODULE_AUTHOR("Peter Hsiang");

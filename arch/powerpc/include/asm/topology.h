@@ -3,20 +3,10 @@
 #ifdef __KERNEL__
 
 
-struct sys_device;
+struct device;
 struct device_node;
 
 #ifdef CONFIG_NUMA
-
-/*
- * Before going off node we want the VM to try and reclaim from the local
- * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
- * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
- * 20, we never reclaim and go off node straight away.
- *
- * To fix this we choose a smaller value of RECLAIM_DISTANCE.
- */
-#define RECLAIM_DISTANCE 10
 
 /*
  * Before going off node we want the VM to try and reclaim from the local
@@ -55,54 +45,24 @@ static inline int pcibus_to_node(struct pci_bus *bus)
 				 cpu_all_mask :				\
 				 cpumask_of_node(pcibus_to_node(bus)))
 
-/* sched_domains SD_NODE_INIT for PPC64 machines */
-#define SD_NODE_INIT (struct sched_domain) {				\
-	.min_interval		= 8,					\
-	.max_interval		= 32,					\
-	.busy_factor		= 32,					\
-	.imbalance_pct		= 125,					\
-	.cache_nice_tries	= 1,					\
-	.busy_idx		= 3,					\
-	.idle_idx		= 1,					\
-	.newidle_idx		= 0,					\
-	.wake_idx		= 0,					\
-	.forkexec_idx		= 0,					\
-									\
-	.flags			= 1*SD_LOAD_BALANCE			\
-				| 1*SD_BALANCE_NEWIDLE			\
-				| 1*SD_BALANCE_EXEC			\
-				| 1*SD_BALANCE_FORK			\
-				| 0*SD_BALANCE_WAKE			\
-				| 0*SD_WAKE_AFFINE			\
-				| 0*SD_PREFER_LOCAL			\
-				| 0*SD_SHARE_CPUPOWER			\
-				| 0*SD_POWERSAVINGS_BALANCE		\
-				| 0*SD_SHARE_PKG_RESOURCES		\
-				| 1*SD_SERIALIZE			\
-				| 0*SD_PREFER_SIBLING			\
-				,					\
-	.last_balance		= jiffies,				\
-	.balance_interval	= 1,					\
-}
-
 extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)
 
 extern void __init dump_numa_cpu_topology(void);
 
-extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
-extern void sysfs_remove_device_from_node(struct sys_device *dev, int nid);
+extern int sysfs_add_device_to_node(struct device *dev, int nid);
+extern void sysfs_remove_device_from_node(struct device *dev, int nid);
 
 #else
 
 static inline void dump_numa_cpu_topology(void) {}
 
-static inline int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+static inline int sysfs_add_device_to_node(struct device *dev, int nid)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_device_from_node(struct sys_device *dev,
+static inline void sysfs_remove_device_from_node(struct device *dev,
 						int nid)
 {
 }
@@ -111,12 +71,17 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
 extern int start_topology_update(void);
 extern int stop_topology_update(void);
+extern int prrn_is_enabled(void);
 #else
 static inline int start_topology_update(void)
 {
 	return 0;
 }
 static inline int stop_topology_update(void)
+{
+	return 0;
+}
+static inline int prrn_is_enabled(void)
 {
 	return 0;
 }

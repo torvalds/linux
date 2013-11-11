@@ -1,4 +1,3 @@
 Todo's so far (from Alan Cox)
-- Check whether it can be plugged into any of the kernel crypto API
-  interfaces - Crypto API 'glue' is still not ready to submit
-- Clean up un-needed debug prints - Started to work on this
+- Clean up unused ioctls
+- Clean up unused fields in ioctl structures

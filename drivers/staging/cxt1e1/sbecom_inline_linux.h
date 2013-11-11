@@ -1,7 +1,3 @@
-/*
- * $Id: sbecom_inline_linux.h,v 1.2 2007/08/15 22:51:35 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_SBECOM_INLNX_H_
 #define _INC_SBECOM_INLNX_H_
 
@@ -24,100 +20,19 @@
  * For further information, contact via email: support@onestopsystems.com
  * One Stop Systems, Inc.  Escondido, California  U.S.A.
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.2 $
- * Last changed on $Date: 2007/08/15 22:51:35 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: sbecom_inline_linux.h,v $
- * Revision 1.2  2007/08/15 22:51:35  rickd
- * Remove duplicate version.h entry.
- *
- * Revision 1.1  2007/08/15 22:50:29  rickd
- * Update linux/config for 2.6.18 and later.
- *
- * Revision 1.0  2005/09/28 00:10:09  rickd
- * Initial revision
- *
- *-----------------------------------------------------------------------------
  */
 
 
-#if defined (__FreeBSD__) || defined (__NetBSD__)
-#include <sys/types.h>
-#else
 #include <linux/types.h>
-#include <linux/version.h>
-#if defined(CONFIG_SMP) && ! defined(__SMP__)
-#define __SMP__
-#endif
-#if defined(CONFIG_MODVERSIONS) && defined(MODULE) && ! defined(MODVERSIONS)
-#define MODVERSIONS
-#endif
-
-#ifdef MODULE
-#ifdef MODVERSIONS
-#include <config/modversions.h>
-#endif
 #include <linux/module.h>
-#endif
-#endif
-
 #include <linux/kernel.h>       /* resolves kmalloc references */
 #include <linux/skbuff.h>       /* resolves skb references */
 #include <linux/netdevice.h>    /* resolves dev_kree_skb_any */
 #include <asm/byteorder.h>      /* resolves cpu_to_le32 */
 
-#if 0
-
-/*** PORT POINT WARNING
- ***
- *** Under Linux 2.6 it has been found that compiler is re-ordering
- *** in-lined pci_write_32() functions to the detrement of correct
- *** hardware setup.  Therefore, inlining of PCI accesses has been
- *** de-implemented, and subroutine calls have been implemented.
- ***/
-
-static inline u_int32_t
-pci_read_32 (u_int32_t *p)
-{
-#ifdef FLOW_DEBUG
-    u_int32_t   v;
-
-    FLUSH_PCI_READ ();
-    v = le32_to_cpu (*p);
-    if (cxt1e1_log_level >= LOG_DEBUG)
-        pr_info("pci_read : %x = %x\n", (u_int32_t) p, v);
-    return v;
-#else
-                FLUSH_PCI_READ ();      /* */
-    return le32_to_cpu (*p);
-#endif
-}
-
-static inline void
-pci_write_32 (u_int32_t *p, u_int32_t v)
-{
-#ifdef FLOW_DEBUG
-    if (cxt1e1_log_level >= LOG_DEBUG)
-        pr_info("pci_write: %x = %x\n", (u_int32_t) p, v);
-#endif
-    *p = cpu_to_le32 (v);
-    FLUSH_PCI_WRITE ();             /* This routine is called from routines
-                                     * which do multiple register writes
-                                     * which themselves need flushing between
-                                     * writes in order to guarantee write
-                                     * ordering.  It is less code-cumbersome
-                                     * to flush here-in then to investigate
-                                     * and code the many other register
-                                     * writing routines. */
-}
-#else
 /* forward reference */
 u_int32_t   pci_read_32 (u_int32_t *p);
 void        pci_write_32 (u_int32_t *p, u_int32_t v);
-
-#endif
 
 
 /*

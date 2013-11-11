@@ -81,13 +81,13 @@ static int rackmeter_ignore_nice;
  */
 static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
 {
-	cputime64_t retval;
+	u64 retval;
 
-	retval = cputime64_add(kstat_cpu(cpu).cpustat.idle,
-			kstat_cpu(cpu).cpustat.iowait);
+	retval = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE] +
+		 kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
 
 	if (rackmeter_ignore_nice)
-		retval = cputime64_add(retval, kstat_cpu(cpu).cpustat.nice);
+		retval += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
 
 	return retval;
 }
@@ -220,13 +220,11 @@ static void rackmeter_do_timer(struct work_struct *work)
 	int i, offset, load, cumm, pause;
 
 	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
-	total_ticks = (unsigned int)cputime64_sub(cur_jiffies,
-						  rcpu->prev_wall);
+	total_ticks = (unsigned int) (cur_jiffies - rcpu->prev_wall);
 	rcpu->prev_wall = cur_jiffies;
 
 	total_idle_ticks = get_cpu_idle_time(cpu);
-	idle_ticks = (unsigned int) cputime64_sub(total_idle_ticks,
-				rcpu->prev_idle);
+	idle_ticks = (unsigned int) (total_idle_ticks - rcpu->prev_idle);
 	rcpu->prev_idle = total_idle_ticks;
 
 	/* We do a very dumb calculation to update the LEDs for now,
@@ -255,7 +253,7 @@ static void rackmeter_do_timer(struct work_struct *work)
 				 msecs_to_jiffies(CPU_SAMPLING_RATE));
 }
 
-static void __devinit rackmeter_init_cpu_sniffer(struct rackmeter *rm)
+static void rackmeter_init_cpu_sniffer(struct rackmeter *rm)
 {
 	unsigned int cpu;
 
@@ -289,7 +287,7 @@ static void rackmeter_stop_cpu_sniffer(struct rackmeter *rm)
 	cancel_delayed_work_sync(&rm->cpu[1].sniffer);
 }
 
-static int __devinit rackmeter_setup(struct rackmeter *rm)
+static int rackmeter_setup(struct rackmeter *rm)
 {
 	pr_debug("rackmeter: setting up i2s..\n");
 	rackmeter_setup_i2s(rm);
@@ -364,8 +362,8 @@ static irqreturn_t rackmeter_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int __devinit rackmeter_probe(struct macio_dev* mdev,
-				     const struct of_device_id *match)
+static int rackmeter_probe(struct macio_dev* mdev,
+			   const struct of_device_id *match)
 {
 	struct device_node *i2s = NULL, *np = NULL;
 	struct rackmeter *rm = NULL;
@@ -523,7 +521,7 @@ static int __devinit rackmeter_probe(struct macio_dev* mdev,
 	return rc;
 }
 
-static int __devexit rackmeter_remove(struct macio_dev* mdev)
+static int rackmeter_remove(struct macio_dev* mdev)
 {
 	struct rackmeter *rm = dev_get_drvdata(&mdev->ofdev.dev);
 
@@ -590,7 +588,7 @@ static struct macio_driver rackmeter_driver = {
 		.of_match_table = rackmeter_match,
 	},
 	.probe = rackmeter_probe,
-	.remove = __devexit_p(rackmeter_remove),
+	.remove = rackmeter_remove,
 	.shutdown = rackmeter_shutdown,
 };
 

@@ -3,7 +3,7 @@
  *
  * s390 implementation of the DES Cipher Algorithm.
  *
- * Copyright IBM Corp. 2003,2011
+ * Copyright IBM Corp. 2003, 2011
  * Author(s): Thomas Spatzier
  *	      Jan Glauber (jan.glauber@de.ibm.com)
  *
@@ -70,7 +70,6 @@ static struct crypto_alg des_alg = {
 	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(des_alg.cra_list),
 	.cra_u			=	{
 		.cipher = {
 			.cia_min_keysize	=	DES_KEY_SIZE,
@@ -95,7 +94,8 @@ static int ecb_desall_crypt(struct blkcipher_desc *desc, long func,
 		u8 *in = walk->src.virt.addr;
 
 		ret = crypt_s390_km(func, key, out, in, n);
-		BUG_ON((ret < 0) || (ret != n));
+		if (ret < 0 || ret != n)
+			return -EIO;
 
 		nbytes &= DES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -121,7 +121,8 @@ static int cbc_desall_crypt(struct blkcipher_desc *desc, long func,
 		u8 *in = walk->src.virt.addr;
 
 		ret = crypt_s390_kmc(func, iv, out, in, n);
-		BUG_ON((ret < 0) || (ret != n));
+		if (ret < 0 || ret != n)
+			return -EIO;
 
 		nbytes &= DES_BLOCK_SIZE - 1;
 		ret = blkcipher_walk_done(desc, walk, nbytes);
@@ -163,7 +164,6 @@ static struct crypto_alg ecb_des_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(ecb_des_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES_KEY_SIZE,
@@ -206,7 +206,6 @@ static struct crypto_alg cbc_des_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(cbc_des_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES_KEY_SIZE,
@@ -271,7 +270,6 @@ static struct crypto_alg des3_alg = {
 	.cra_blocksize		=	DES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(des3_alg.cra_list),
 	.cra_u			=	{
 		.cipher = {
 			.cia_min_keysize	=	DES3_KEY_SIZE,
@@ -314,8 +312,6 @@ static struct crypto_alg ecb_des3_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(
-						ecb_des3_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES3_KEY_SIZE,
@@ -358,8 +354,6 @@ static struct crypto_alg cbc_des3_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(
-						cbc_des3_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES3_KEY_SIZE,
@@ -394,7 +388,8 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
 				crypto_inc(ctrblk + i, DES_BLOCK_SIZE);
 			}
 			ret = crypt_s390_kmctr(func, ctx->key, out, in, n, ctrblk);
-			BUG_ON((ret < 0) || (ret != n));
+			if (ret < 0 || ret != n)
+				return -EIO;
 			if (n > DES_BLOCK_SIZE)
 				memcpy(ctrblk, ctrblk + n - DES_BLOCK_SIZE,
 				       DES_BLOCK_SIZE);
@@ -412,7 +407,8 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, long func,
 		in = walk->src.virt.addr;
 		ret = crypt_s390_kmctr(func, ctx->key, buf, in,
 				       DES_BLOCK_SIZE, ctrblk);
-		BUG_ON(ret < 0 || ret != DES_BLOCK_SIZE);
+		if (ret < 0 || ret != DES_BLOCK_SIZE)
+			return -EIO;
 		memcpy(out, buf, nbytes);
 		crypto_inc(ctrblk, DES_BLOCK_SIZE);
 		ret = blkcipher_walk_done(desc, walk, 0);
@@ -452,7 +448,6 @@ static struct crypto_alg ctr_des_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(ctr_des_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES_KEY_SIZE,
@@ -496,7 +491,6 @@ static struct crypto_alg ctr_des3_alg = {
 	.cra_ctxsize		=	sizeof(struct s390_des_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(ctr_des3_alg.cra_list),
 	.cra_u			=	{
 		.blkcipher = {
 			.min_keysize		=	DES3_KEY_SIZE,

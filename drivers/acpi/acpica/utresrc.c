@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "amlresrc.h"
+#include "acresrc.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utresrc")
@@ -127,7 +127,9 @@ const char *acpi_gbl_rw_decode[] = {
 
 const char *acpi_gbl_shr_decode[] = {
 	"Exclusive",
-	"Shared"
+	"Shared",
+	"ExclusiveAndWake",	/* ACPI 5.0 */
+	"SharedAndWake"		/* ACPI 5.0 */
 };
 
 const char *acpi_gbl_siz_decode[] = {
@@ -154,6 +156,138 @@ const char *acpi_gbl_typ_decode[] = {
 	"TypeF"
 };
 
+const char *acpi_gbl_ppc_decode[] = {
+	"PullDefault",
+	"PullUp",
+	"PullDown",
+	"PullNone"
+};
+
+const char *acpi_gbl_ior_decode[] = {
+	"IoRestrictionNone",
+	"IoRestrictionInputOnly",
+	"IoRestrictionOutputOnly",
+	"IoRestrictionNoneAndPreserve"
+};
+
+const char *acpi_gbl_dts_decode[] = {
+	"Width8bit",
+	"Width16bit",
+	"Width32bit",
+	"Width64bit",
+	"Width128bit",
+	"Width256bit",
+};
+
+/* GPIO connection type */
+
+const char *acpi_gbl_ct_decode[] = {
+	"Interrupt",
+	"I/O"
+};
+
+/* Serial bus type */
+
+const char *acpi_gbl_sbt_decode[] = {
+	"/* UNKNOWN serial bus type */",
+	"I2C",
+	"SPI",
+	"UART"
+};
+
+/* I2C serial bus access mode */
+
+const char *acpi_gbl_am_decode[] = {
+	"AddressingMode7Bit",
+	"AddressingMode10Bit"
+};
+
+/* I2C serial bus slave mode */
+
+const char *acpi_gbl_sm_decode[] = {
+	"ControllerInitiated",
+	"DeviceInitiated"
+};
+
+/* SPI serial bus wire mode */
+
+const char *acpi_gbl_wm_decode[] = {
+	"FourWireMode",
+	"ThreeWireMode"
+};
+
+/* SPI serial clock phase */
+
+const char *acpi_gbl_cph_decode[] = {
+	"ClockPhaseFirst",
+	"ClockPhaseSecond"
+};
+
+/* SPI serial bus clock polarity */
+
+const char *acpi_gbl_cpo_decode[] = {
+	"ClockPolarityLow",
+	"ClockPolarityHigh"
+};
+
+/* SPI serial bus device polarity */
+
+const char *acpi_gbl_dp_decode[] = {
+	"PolarityLow",
+	"PolarityHigh"
+};
+
+/* UART serial bus endian */
+
+const char *acpi_gbl_ed_decode[] = {
+	"LittleEndian",
+	"BigEndian"
+};
+
+/* UART serial bus bits per byte */
+
+const char *acpi_gbl_bpb_decode[] = {
+	"DataBitsFive",
+	"DataBitsSix",
+	"DataBitsSeven",
+	"DataBitsEight",
+	"DataBitsNine",
+	"/* UNKNOWN Bits per byte */",
+	"/* UNKNOWN Bits per byte */",
+	"/* UNKNOWN Bits per byte */"
+};
+
+/* UART serial bus stop bits */
+
+const char *acpi_gbl_sb_decode[] = {
+	"StopBitsNone",
+	"StopBitsOne",
+	"StopBitsOnePlusHalf",
+	"StopBitsTwo"
+};
+
+/* UART serial bus flow control */
+
+const char *acpi_gbl_fc_decode[] = {
+	"FlowControlNone",
+	"FlowControlHardware",
+	"FlowControlXON",
+	"/* UNKNOWN flow control keyword */"
+};
+
+/* UART serial bus parity type */
+
+const char *acpi_gbl_pt_decode[] = {
+	"ParityTypeNone",
+	"ParityTypeEven",
+	"ParityTypeOdd",
+	"ParityTypeMark",
+	"ParityTypeSpace",
+	"/* UNKNOWN parity keyword */",
+	"/* UNKNOWN parity keyword */",
+	"/* UNKNOWN parity keyword */"
+};
+
 #endif
 
 /*
@@ -173,7 +307,7 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_SMALL(struct aml_resource_end_dependent),
 	ACPI_AML_SIZE_SMALL(struct aml_resource_io),
 	ACPI_AML_SIZE_SMALL(struct aml_resource_fixed_io),
-	0,
+	ACPI_AML_SIZE_SMALL(struct aml_resource_fixed_dma),
 	0,
 	0,
 	0,
@@ -193,7 +327,17 @@ const u8 acpi_gbl_resource_aml_sizes[] = {
 	ACPI_AML_SIZE_LARGE(struct aml_resource_address16),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_extended_irq),
 	ACPI_AML_SIZE_LARGE(struct aml_resource_address64),
-	ACPI_AML_SIZE_LARGE(struct aml_resource_extended_address64)
+	ACPI_AML_SIZE_LARGE(struct aml_resource_extended_address64),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_gpio),
+	0,
+	ACPI_AML_SIZE_LARGE(struct aml_resource_common_serialbus),
+};
+
+const u8 acpi_gbl_resource_aml_serial_bus_sizes[] = {
+	0,
+	ACPI_AML_SIZE_LARGE(struct aml_resource_i2c_serialbus),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_spi_serialbus),
+	ACPI_AML_SIZE_LARGE(struct aml_resource_uart_serialbus),
 };
 
 /*
@@ -209,44 +353,48 @@ static const u8 acpi_gbl_resource_types[] = {
 	0,
 	0,
 	0,
-	ACPI_SMALL_VARIABLE_LENGTH,
-	ACPI_FIXED_LENGTH,
-	ACPI_SMALL_VARIABLE_LENGTH,
-	ACPI_FIXED_LENGTH,
-	ACPI_FIXED_LENGTH,
-	ACPI_FIXED_LENGTH,
+	ACPI_SMALL_VARIABLE_LENGTH,	/* 04 IRQ */
+	ACPI_FIXED_LENGTH,	/* 05 DMA */
+	ACPI_SMALL_VARIABLE_LENGTH,	/* 06 start_dependent_functions */
+	ACPI_FIXED_LENGTH,	/* 07 end_dependent_functions */
+	ACPI_FIXED_LENGTH,	/* 08 IO */
+	ACPI_FIXED_LENGTH,	/* 09 fixed_IO */
+	ACPI_FIXED_LENGTH,	/* 0A fixed_DMA */
 	0,
 	0,
 	0,
-	0,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_FIXED_LENGTH,
+	ACPI_VARIABLE_LENGTH,	/* 0E vendor_short */
+	ACPI_FIXED_LENGTH,	/* 0F end_tag */
 
 	/* Large descriptors */
 
 	0,
-	ACPI_FIXED_LENGTH,
-	ACPI_FIXED_LENGTH,
+	ACPI_FIXED_LENGTH,	/* 01 Memory24 */
+	ACPI_FIXED_LENGTH,	/* 02 generic_register */
 	0,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_FIXED_LENGTH,
-	ACPI_FIXED_LENGTH,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_VARIABLE_LENGTH,
-	ACPI_FIXED_LENGTH
+	ACPI_VARIABLE_LENGTH,	/* 04 vendor_long */
+	ACPI_FIXED_LENGTH,	/* 05 Memory32 */
+	ACPI_FIXED_LENGTH,	/* 06 memory32_fixed */
+	ACPI_VARIABLE_LENGTH,	/* 07 Dword* address */
+	ACPI_VARIABLE_LENGTH,	/* 08 Word* address */
+	ACPI_VARIABLE_LENGTH,	/* 09 extended_IRQ */
+	ACPI_VARIABLE_LENGTH,	/* 0A Qword* address */
+	ACPI_FIXED_LENGTH,	/* 0B Extended* address */
+	ACPI_VARIABLE_LENGTH,	/* 0C Gpio* */
+	0,
+	ACPI_VARIABLE_LENGTH	/* 0E *serial_bus */
 };
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_walk_aml_resources
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource template
- *              aml_length      - Length of the entire template
- *              user_function   - Called once for each descriptor found. If
- *                                NULL, a pointer to the end_tag is returned
- *              Context         - Passed to user_function
+ * PARAMETERS:  walk_state          - Current walk info
+ * PARAMETERS:  aml                 - Pointer to the raw AML resource template
+ *              aml_length          - Length of the entire template
+ *              user_function       - Called once for each descriptor found. If
+ *                                    NULL, a pointer to the end_tag is returned
+ *              context             - Passed to user_function
  *
  * RETURN:      Status
  *
@@ -256,7 +404,8 @@ static const u8 acpi_gbl_resource_types[] = {
  ******************************************************************************/
 
 acpi_status
-acpi_ut_walk_aml_resources(u8 * aml,
+acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
+			   u8 *aml,
 			   acpi_size aml_length,
 			   acpi_walk_aml_callback user_function, void **context)
 {
@@ -265,6 +414,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
 	u8 resource_index;
 	u32 length;
 	u32 offset = 0;
+	u8 end_tag[2] = { 0x79, 0x00 };
 
 	ACPI_FUNCTION_TRACE(ut_walk_aml_resources);
 
@@ -284,8 +434,13 @@ acpi_ut_walk_aml_resources(u8 * aml,
 
 		/* Validate the Resource Type and Resource Length */
 
-		status = acpi_ut_validate_resource(aml, &resource_index);
+		status =
+		    acpi_ut_validate_resource(walk_state, aml, &resource_index);
 		if (ACPI_FAILURE(status)) {
+			/*
+			 * Exit on failure. Cannot continue because the descriptor length
+			 * may be bogus also.
+			 */
 			return_ACPI_STATUS(status);
 		}
 
@@ -300,7 +455,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
 			    user_function(aml, length, offset, resource_index,
 					  context);
 			if (ACPI_FAILURE(status)) {
-				return (status);
+				return_ACPI_STATUS(status);
 			}
 		}
 
@@ -333,16 +488,30 @@ acpi_ut_walk_aml_resources(u8 * aml,
 
 	/* Did not find an end_tag descriptor */
 
-	return (AE_AML_NO_RESOURCE_END_TAG);
+	if (user_function) {
+
+		/* Insert an end_tag anyway. acpi_rs_get_list_length always leaves room */
+
+		(void)acpi_ut_validate_resource(walk_state, end_tag,
+						&resource_index);
+		status =
+		    user_function(end_tag, 2, offset, resource_index, context);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_validate_resource
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
- *              return_index    - Where the resource index is returned. NULL
- *                                if the index is not required.
+ * PARAMETERS:  walk_state          - Current walk info
+ *              aml                 - Pointer to the raw AML resource descriptor
+ *              return_index        - Where the resource index is returned. NULL
+ *                                    if the index is not required.
  *
  * RETURN:      Status, and optionally the Index into the global resource tables
  *
@@ -352,8 +521,11 @@ acpi_ut_walk_aml_resources(u8 * aml,
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
+acpi_status
+acpi_ut_validate_resource(struct acpi_walk_state *walk_state,
+			  void *aml, u8 *return_index)
 {
+	union aml_resource *aml_resource;
 	u8 resource_type;
 	u8 resource_index;
 	acpi_rs_length resource_length;
@@ -375,7 +547,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 		/* Verify the large resource type (name) against the max */
 
 		if (resource_type > ACPI_RESOURCE_NAME_LARGE_MAX) {
-			return (AE_AML_INVALID_RESOURCE_TYPE);
+			goto invalid_resource;
 		}
 
 		/*
@@ -392,15 +564,17 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 		    ((resource_type & ACPI_RESOURCE_NAME_SMALL_MASK) >> 3);
 	}
 
-	/* Check validity of the resource type, zero indicates name is invalid */
-
+	/*
+	 * Check validity of the resource type, via acpi_gbl_resource_types. Zero
+	 * indicates an invalid resource.
+	 */
 	if (!acpi_gbl_resource_types[resource_index]) {
-		return (AE_AML_INVALID_RESOURCE_TYPE);
+		goto invalid_resource;
 	}
 
 	/*
-	 * 2) Validate the resource_length field. This ensures that the length
-	 *    is at least reasonable, and guarantees that it is non-zero.
+	 * Validate the resource_length field. This ensures that the length
+	 * is at least reasonable, and guarantees that it is non-zero.
 	 */
 	resource_length = acpi_ut_get_resource_length(aml);
 	minimum_resource_length = acpi_gbl_resource_aml_sizes[resource_index];
@@ -413,7 +587,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 		/* Fixed length resource, length must match exactly */
 
 		if (resource_length != minimum_resource_length) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
+			goto bad_resource_length;
 		}
 		break;
 
@@ -422,7 +596,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 		/* Variable length resource, length must be at least the minimum */
 
 		if (resource_length < minimum_resource_length) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
+			goto bad_resource_length;
 		}
 		break;
 
@@ -432,7 +606,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 
 		if ((resource_length > minimum_resource_length) ||
 		    (resource_length < (minimum_resource_length - 1))) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
+			goto bad_resource_length;
 		}
 		break;
 
@@ -440,7 +614,25 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 
 		/* Shouldn't happen (because of validation earlier), but be sure */
 
-		return (AE_AML_INVALID_RESOURCE_TYPE);
+		goto invalid_resource;
+	}
+
+	aml_resource = ACPI_CAST_PTR(union aml_resource, aml);
+	if (resource_type == ACPI_RESOURCE_NAME_SERIAL_BUS) {
+
+		/* Validate the bus_type field */
+
+		if ((aml_resource->common_serial_bus.type == 0) ||
+		    (aml_resource->common_serial_bus.type >
+		     AML_RESOURCE_MAX_SERIALBUSTYPE)) {
+			if (walk_state) {
+				ACPI_ERROR((AE_INFO,
+					    "Invalid/unsupported SerialBus resource descriptor: BusType 0x%2.2X",
+					    aml_resource->common_serial_bus.
+					    type));
+			}
+			return (AE_AML_INVALID_RESOURCE_TYPE);
+		}
 	}
 
 	/* Optionally return the resource table index */
@@ -450,13 +642,33 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 	}
 
 	return (AE_OK);
+
+      invalid_resource:
+
+	if (walk_state) {
+		ACPI_ERROR((AE_INFO,
+			    "Invalid/unsupported resource descriptor: Type 0x%2.2X",
+			    resource_type));
+	}
+	return (AE_AML_INVALID_RESOURCE_TYPE);
+
+      bad_resource_length:
+
+	if (walk_state) {
+		ACPI_ERROR((AE_INFO,
+			    "Invalid resource descriptor length: Type "
+			    "0x%2.2X, Length 0x%4.4X, MinLength 0x%4.4X",
+			    resource_type, resource_length,
+			    minimum_resource_length));
+	}
+	return (AE_AML_BAD_RESOURCE_LENGTH);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_resource_type
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      The Resource Type with no extraneous bits (except the
  *              Large/Small descriptor bit -- this is left alone)
@@ -490,7 +702,7 @@ u8 acpi_ut_get_resource_type(void *aml)
  *
  * FUNCTION:    acpi_ut_get_resource_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Byte Length
  *
@@ -530,7 +742,7 @@ u16 acpi_ut_get_resource_length(void *aml)
  *
  * FUNCTION:    acpi_ut_get_resource_header_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Length of the AML header (depends on large/small descriptor)
  *
@@ -555,7 +767,7 @@ u8 acpi_ut_get_resource_header_length(void *aml)
  *
  * FUNCTION:    acpi_ut_get_descriptor_length
  *
- * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
+ * PARAMETERS:  aml             - Pointer to the raw AML resource descriptor
  *
  * RETURN:      Byte length
  *
@@ -592,8 +804,7 @@ u32 acpi_ut_get_descriptor_length(void *aml)
  ******************************************************************************/
 
 acpi_status
-acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
-			     u8 ** end_tag)
+acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag)
 {
 	acpi_status status;
 
@@ -608,7 +819,7 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 
 	/* Validate the template and get a pointer to the end_tag */
 
-	status = acpi_ut_walk_aml_resources(obj_desc->buffer.pointer,
+	status = acpi_ut_walk_aml_resources(NULL, obj_desc->buffer.pointer,
 					    obj_desc->buffer.length, NULL,
 					    (void **)end_tag);
 

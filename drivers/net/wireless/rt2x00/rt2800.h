@@ -50,7 +50,9 @@
  * RF2853 2.4G/5G 3T3R
  * RF3320 2.4G 1T1R(RT3350/RT3370/RT3390)
  * RF3322 2.4G 2T2R(RT3352/RT3371/RT3372/RT3391/RT3392)
- * RF3853 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
+ * RF3053 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
+ * RF5592 2.4G/5G 2T2R
+ * RF5360 2.4G 1T1R
  * RF5370 2.4G 1T1R
  * RF5390 2.4G 1T1R
  */
@@ -66,9 +68,14 @@
 #define RF2853				0x000a
 #define RF3320				0x000b
 #define RF3322				0x000c
-#define RF3853				0x000d
+#define RF3053				0x000d
+#define RF5592				0x000f
+#define RF3290				0x3290
+#define RF5360				0x5360
 #define RF5370				0x5370
+#define RF5372				0x5372
 #define RF5390				0x5390
+#define RF5392				0x5392
 
 /*
  * Chipset revisions.
@@ -82,11 +89,9 @@
 #define REV_RT3090E			0x0211
 #define REV_RT3390E			0x0211
 #define REV_RT5390F			0x0502
+#define REV_RT5390R			0x1502
+#define REV_RT5592C			0x0221
 
-/*
- * Signal information.
- * Default offset is required for RSSI <-> dBm conversion.
- */
 #define DEFAULT_RSSI_OFFSET		120
 
 /*
@@ -97,9 +102,11 @@
 #define EEPROM_BASE			0x0000
 #define EEPROM_SIZE			0x0110
 #define BBP_BASE			0x0000
-#define BBP_SIZE			0x0080
+#define BBP_SIZE			0x00ff
 #define RF_BASE				0x0004
 #define RF_SIZE				0x0010
+#define RFCSR_BASE			0x0000
+#define RFCSR_SIZE			0x0040
 
 /*
  * Number of TX queues.
@@ -109,6 +116,12 @@
 /*
  * Registers.
  */
+
+
+/*
+ * MAC_CSR0_3290: MAC_CSR0 for RT3290 to identity MAC version number.
+ */
+#define MAC_CSR0_3290				0x0000
 
 /*
  * E2PROM_CSR: PCI EEPROM control register.
@@ -124,6 +137,150 @@
 #define E2PROM_CSR_TYPE			FIELD32(0x00000030)
 #define E2PROM_CSR_LOAD_STATUS		FIELD32(0x00000040)
 #define E2PROM_CSR_RELOAD		FIELD32(0x00000080)
+
+/*
+ * CMB_CTRL_CFG
+ */
+#define CMB_CTRL		0x0020
+#define AUX_OPT_BIT0		FIELD32(0x00000001)
+#define AUX_OPT_BIT1		FIELD32(0x00000002)
+#define AUX_OPT_BIT2		FIELD32(0x00000004)
+#define AUX_OPT_BIT3		FIELD32(0x00000008)
+#define AUX_OPT_BIT4		FIELD32(0x00000010)
+#define AUX_OPT_BIT5		FIELD32(0x00000020)
+#define AUX_OPT_BIT6		FIELD32(0x00000040)
+#define AUX_OPT_BIT7		FIELD32(0x00000080)
+#define AUX_OPT_BIT8		FIELD32(0x00000100)
+#define AUX_OPT_BIT9		FIELD32(0x00000200)
+#define AUX_OPT_BIT10		FIELD32(0x00000400)
+#define AUX_OPT_BIT11		FIELD32(0x00000800)
+#define AUX_OPT_BIT12		FIELD32(0x00001000)
+#define AUX_OPT_BIT13		FIELD32(0x00002000)
+#define AUX_OPT_BIT14		FIELD32(0x00004000)
+#define AUX_OPT_BIT15		FIELD32(0x00008000)
+#define LDO25_LEVEL		FIELD32(0x00030000)
+#define LDO25_LARGEA		FIELD32(0x00040000)
+#define LDO25_FRC_ON		FIELD32(0x00080000)
+#define CMB_RSV			FIELD32(0x00300000)
+#define XTAL_RDY		FIELD32(0x00400000)
+#define PLL_LD			FIELD32(0x00800000)
+#define LDO_CORE_LEVEL		FIELD32(0x0F000000)
+#define LDO_BGSEL		FIELD32(0x30000000)
+#define LDO3_EN			FIELD32(0x40000000)
+#define LDO0_EN			FIELD32(0x80000000)
+
+/*
+ * EFUSE_CSR_3290: RT3290 EEPROM
+ */
+#define EFUSE_CTRL_3290			0x0024
+
+/*
+ * EFUSE_DATA3 of 3290
+ */
+#define EFUSE_DATA3_3290		0x0028
+
+/*
+ * EFUSE_DATA2 of 3290
+ */
+#define EFUSE_DATA2_3290		0x002c
+
+/*
+ * EFUSE_DATA1 of 3290
+ */
+#define EFUSE_DATA1_3290		0x0030
+
+/*
+ * EFUSE_DATA0 of 3290
+ */
+#define EFUSE_DATA0_3290		0x0034
+
+/*
+ * OSC_CTRL_CFG
+ * Ring oscillator configuration
+ */
+#define OSC_CTRL		0x0038
+#define OSC_REF_CYCLE		FIELD32(0x00001fff)
+#define OSC_RSV			FIELD32(0x0000e000)
+#define OSC_CAL_CNT		FIELD32(0x0fff0000)
+#define OSC_CAL_ACK		FIELD32(0x10000000)
+#define OSC_CLK_32K_VLD		FIELD32(0x20000000)
+#define OSC_CAL_REQ		FIELD32(0x40000000)
+#define OSC_ROSC_EN		FIELD32(0x80000000)
+
+/*
+ * COEX_CFG_0
+ */
+#define COEX_CFG0			0x0040
+#define COEX_CFG_ANT		FIELD32(0xff000000)
+/*
+ * COEX_CFG_1
+ */
+#define COEX_CFG1			0x0044
+
+/*
+ * COEX_CFG_2
+ */
+#define COEX_CFG2			0x0048
+#define BT_COEX_CFG1		FIELD32(0xff000000)
+#define BT_COEX_CFG0		FIELD32(0x00ff0000)
+#define WL_COEX_CFG1		FIELD32(0x0000ff00)
+#define WL_COEX_CFG0		FIELD32(0x000000ff)
+/*
+ * PLL_CTRL_CFG
+ * PLL configuration register
+ */
+#define PLL_CTRL		0x0050
+#define PLL_RESERVED_INPUT1	FIELD32(0x000000ff)
+#define PLL_RESERVED_INPUT2	FIELD32(0x0000ff00)
+#define PLL_CONTROL		FIELD32(0x00070000)
+#define PLL_LPF_R1		FIELD32(0x00080000)
+#define PLL_LPF_C1_CTRL	FIELD32(0x00300000)
+#define PLL_LPF_C2_CTRL	FIELD32(0x00c00000)
+#define PLL_CP_CURRENT_CTRL	FIELD32(0x03000000)
+#define PLL_PFD_DELAY_CTRL	FIELD32(0x0c000000)
+#define PLL_LOCK_CTRL		FIELD32(0x70000000)
+#define PLL_VBGBK_EN		FIELD32(0x80000000)
+
+
+/*
+ * WLAN_CTRL_CFG
+ * RT3290 wlan configuration
+ */
+#define WLAN_FUN_CTRL			0x0080
+#define WLAN_EN				FIELD32(0x00000001)
+#define WLAN_CLK_EN			FIELD32(0x00000002)
+#define WLAN_RSV1			FIELD32(0x00000004)
+#define WLAN_RESET			FIELD32(0x00000008)
+#define PCIE_APP0_CLK_REQ		FIELD32(0x00000010)
+#define FRC_WL_ANT_SET			FIELD32(0x00000020)
+#define INV_TR_SW0			FIELD32(0x00000040)
+#define WLAN_GPIO_IN_BIT0		FIELD32(0x00000100)
+#define WLAN_GPIO_IN_BIT1		FIELD32(0x00000200)
+#define WLAN_GPIO_IN_BIT2		FIELD32(0x00000400)
+#define WLAN_GPIO_IN_BIT3		FIELD32(0x00000800)
+#define WLAN_GPIO_IN_BIT4		FIELD32(0x00001000)
+#define WLAN_GPIO_IN_BIT5		FIELD32(0x00002000)
+#define WLAN_GPIO_IN_BIT6		FIELD32(0x00004000)
+#define WLAN_GPIO_IN_BIT7		FIELD32(0x00008000)
+#define WLAN_GPIO_IN_BIT_ALL		FIELD32(0x0000ff00)
+#define WLAN_GPIO_OUT_BIT0		FIELD32(0x00010000)
+#define WLAN_GPIO_OUT_BIT1		FIELD32(0x00020000)
+#define WLAN_GPIO_OUT_BIT2		FIELD32(0x00040000)
+#define WLAN_GPIO_OUT_BIT3		FIELD32(0x00050000)
+#define WLAN_GPIO_OUT_BIT4		FIELD32(0x00100000)
+#define WLAN_GPIO_OUT_BIT5		FIELD32(0x00200000)
+#define WLAN_GPIO_OUT_BIT6		FIELD32(0x00400000)
+#define WLAN_GPIO_OUT_BIT7		FIELD32(0x00800000)
+#define WLAN_GPIO_OUT_BIT_ALL		FIELD32(0x00ff0000)
+#define WLAN_GPIO_OUT_OE_BIT0		FIELD32(0x01000000)
+#define WLAN_GPIO_OUT_OE_BIT1		FIELD32(0x02000000)
+#define WLAN_GPIO_OUT_OE_BIT2		FIELD32(0x04000000)
+#define WLAN_GPIO_OUT_OE_BIT3		FIELD32(0x08000000)
+#define WLAN_GPIO_OUT_OE_BIT4		FIELD32(0x10000000)
+#define WLAN_GPIO_OUT_OE_BIT5		FIELD32(0x20000000)
+#define WLAN_GPIO_OUT_OE_BIT6		FIELD32(0x40000000)
+#define WLAN_GPIO_OUT_OE_BIT7		FIELD32(0x80000000)
+#define WLAN_GPIO_OUT_OE_BIT_ALL	FIELD32(0xff000000)
 
 /*
  * AUX_CTRL: Aux/PCI-E related configuration
@@ -281,26 +438,33 @@
 #define WMM_TXOP1_CFG_AC3TXOP		FIELD32(0xffff0000)
 
 /*
- * GPIO_CTRL_CFG:
- * GPIOD: GPIO direction, 0: Output, 1: Input
+ * GPIO_CTRL:
+ *	GPIO_CTRL_VALx: GPIO value
+ *	GPIO_CTRL_DIRx: GPIO direction: 0 = output; 1 = input
  */
-#define GPIO_CTRL_CFG			0x0228
-#define GPIO_CTRL_CFG_BIT0		FIELD32(0x00000001)
-#define GPIO_CTRL_CFG_BIT1		FIELD32(0x00000002)
-#define GPIO_CTRL_CFG_BIT2		FIELD32(0x00000004)
-#define GPIO_CTRL_CFG_BIT3		FIELD32(0x00000008)
-#define GPIO_CTRL_CFG_BIT4		FIELD32(0x00000010)
-#define GPIO_CTRL_CFG_BIT5		FIELD32(0x00000020)
-#define GPIO_CTRL_CFG_BIT6		FIELD32(0x00000040)
-#define GPIO_CTRL_CFG_BIT7		FIELD32(0x00000080)
-#define GPIO_CTRL_CFG_GPIOD_BIT0	FIELD32(0x00000100)
-#define GPIO_CTRL_CFG_GPIOD_BIT1	FIELD32(0x00000200)
-#define GPIO_CTRL_CFG_GPIOD_BIT2	FIELD32(0x00000400)
-#define GPIO_CTRL_CFG_GPIOD_BIT3	FIELD32(0x00000800)
-#define GPIO_CTRL_CFG_GPIOD_BIT4	FIELD32(0x00001000)
-#define GPIO_CTRL_CFG_GPIOD_BIT5	FIELD32(0x00002000)
-#define GPIO_CTRL_CFG_GPIOD_BIT6	FIELD32(0x00004000)
-#define GPIO_CTRL_CFG_GPIOD_BIT7	FIELD32(0x00008000)
+#define GPIO_CTRL			0x0228
+#define GPIO_CTRL_VAL0			FIELD32(0x00000001)
+#define GPIO_CTRL_VAL1			FIELD32(0x00000002)
+#define GPIO_CTRL_VAL2			FIELD32(0x00000004)
+#define GPIO_CTRL_VAL3			FIELD32(0x00000008)
+#define GPIO_CTRL_VAL4			FIELD32(0x00000010)
+#define GPIO_CTRL_VAL5			FIELD32(0x00000020)
+#define GPIO_CTRL_VAL6			FIELD32(0x00000040)
+#define GPIO_CTRL_VAL7			FIELD32(0x00000080)
+#define GPIO_CTRL_DIR0			FIELD32(0x00000100)
+#define GPIO_CTRL_DIR1			FIELD32(0x00000200)
+#define GPIO_CTRL_DIR2			FIELD32(0x00000400)
+#define GPIO_CTRL_DIR3			FIELD32(0x00000800)
+#define GPIO_CTRL_DIR4			FIELD32(0x00001000)
+#define GPIO_CTRL_DIR5			FIELD32(0x00002000)
+#define GPIO_CTRL_DIR6			FIELD32(0x00004000)
+#define GPIO_CTRL_DIR7			FIELD32(0x00008000)
+#define GPIO_CTRL_VAL8			FIELD32(0x00010000)
+#define GPIO_CTRL_VAL9			FIELD32(0x00020000)
+#define GPIO_CTRL_VAL10			FIELD32(0x00040000)
+#define GPIO_CTRL_DIR8			FIELD32(0x01000000)
+#define GPIO_CTRL_DIR9			FIELD32(0x02000000)
+#define GPIO_CTRL_DIR10			FIELD32(0x04000000)
 
 /*
  * MCU_CMD_CFG
@@ -525,6 +689,12 @@
 #define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
+ * FIXME: where the DEBUG_INDEX name come from?
+ */
+#define MAC_DEBUG_INDEX			0x05e8
+#define MAC_DEBUG_INDEX_XTAL		FIELD32(0x80000000)
+
+/*
  * MAC Control/Status Registers(CSR).
  * Some values are set in TU, whereas 1 TU == 1024 us.
  */
@@ -664,6 +834,9 @@
 
 /*
  * LED_CFG: LED control
+ * ON_PERIOD: LED active time (ms) during TX (only used for LED mode 1)
+ * OFF_PERIOD: LED inactive time (ms) during TX (only used for LED mode 1)
+ * SLOW_BLINK_PERIOD: LED blink interval in seconds (only used for LED mode 2)
  * color LED's:
  *   0: off
  *   1: blinking upon TX2
@@ -962,6 +1135,7 @@
  * TX_PIN_CFG:
  */
 #define TX_PIN_CFG			0x1328
+#define TX_PIN_CFG_PA_PE_DISABLE	0xfcfffff0
 #define TX_PIN_CFG_PA_PE_A0_EN		FIELD32(0x00000001)
 #define TX_PIN_CFG_PA_PE_G0_EN		FIELD32(0x00000002)
 #define TX_PIN_CFG_PA_PE_A1_EN		FIELD32(0x00000004)
@@ -982,6 +1156,14 @@
 #define TX_PIN_CFG_RFTR_POL		FIELD32(0x00020000)
 #define TX_PIN_CFG_TRSW_EN		FIELD32(0x00040000)
 #define TX_PIN_CFG_TRSW_POL		FIELD32(0x00080000)
+#define TX_PIN_CFG_PA_PE_A2_EN		FIELD32(0x01000000)
+#define TX_PIN_CFG_PA_PE_G2_EN		FIELD32(0x02000000)
+#define TX_PIN_CFG_PA_PE_A2_POL		FIELD32(0x04000000)
+#define TX_PIN_CFG_PA_PE_G2_POL		FIELD32(0x08000000)
+#define TX_PIN_CFG_LNA_PE_A2_EN		FIELD32(0x10000000)
+#define TX_PIN_CFG_LNA_PE_G2_EN		FIELD32(0x20000000)
+#define TX_PIN_CFG_LNA_PE_A2_POL	FIELD32(0x40000000)
+#define TX_PIN_CFG_LNA_PE_G2_POL	FIELD32(0x80000000)
 
 /*
  * TX_BAND_CFG: 0x1 use upper 20MHz, 0x0 use lower 20MHz
@@ -1624,6 +1806,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CSR: Host-to-MCU Mailbox.
+ * CMD_TOKEN: Command id, 0xff disable status reporting.
  */
 #define H2M_MAILBOX_CSR			0x7010
 #define H2M_MAILBOX_CSR_ARG0		FIELD32(0x000000ff)
@@ -1633,6 +1816,8 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CID:
+ * Free slots contain 0xff. MCU will store command's token to lowest free slot.
+ * If all slots are occupied status will be dropped.
  */
 #define H2M_MAILBOX_CID			0x7014
 #define H2M_MAILBOX_CID_CMD0		FIELD32(0x000000ff)
@@ -1642,6 +1827,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_STATUS:
+ * Command status will be saved to same slot as command id.
  */
 #define H2M_MAILBOX_STATUS		0x701c
 
@@ -1740,8 +1926,11 @@ struct mac_iveiv_entry {
 /*
  * BBP 3: RX Antenna
  */
+#define BBP3_RX_ADC			FIELD8(0x03)
 #define BBP3_RX_ANTENNA			FIELD8(0x18)
 #define BBP3_HT40_MINUS			FIELD8(0x20)
+#define BBP3_ADC_MODE_SWITCH		FIELD8(0x40)
+#define BBP3_ADC_INIT_MODE		FIELD8(0x80)
 
 /*
  * BBP 4: Bandwidth
@@ -1749,6 +1938,36 @@ struct mac_iveiv_entry {
 #define BBP4_TX_BF			FIELD8(0x01)
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 #define BBP4_MAC_IF_CTRL		FIELD8(0x40)
+
+/* BBP27 */
+#define BBP27_RX_CHAIN_SEL		FIELD8(0x60)
+
+/*
+ * BBP 47: Bandwidth
+ */
+#define BBP47_TSSI_REPORT_SEL		FIELD8(0x03)
+#define BBP47_TSSI_UPDATE_REQ		FIELD8(0x04)
+#define BBP47_TSSI_TSSI_MODE		FIELD8(0x18)
+#define BBP47_TSSI_ADC6			FIELD8(0x80)
+
+/*
+ * BBP 49
+ */
+#define BBP49_UPDATE_FLAG		FIELD8(0x01)
+
+/*
+ * BBP 105:
+ * - bit0: detect SIG on primary channel only (on 40MHz bandwidth)
+ * - bit1: FEQ (Feed Forward Compensation) for independend streams
+ * - bit2: MLD (Maximum Likehood Detection) for 2 streams (reserved on single
+ *	   stream)
+ * - bit4: channel estimation updates based on remodulation of
+ *	   L-SIG and HT-SIG symbols
+ */
+#define BBP105_DETECT_SIG_ON_PRIMARY	FIELD8(0x01)
+#define BBP105_FEQ			FIELD8(0x02)
+#define BBP105_MLD			FIELD8(0x04)
+#define BBP105_SIG_REMODULATION		FIELD8(0x08)
 
 /*
  * BBP 109
@@ -1770,6 +1989,11 @@ struct mac_iveiv_entry {
 #define BBP152_RX_DEFAULT_ANT		FIELD8(0x80)
 
 /*
+ * BBP 254: unknown
+ */
+#define BBP254_BIT7			FIELD8(0x80)
+
+/*
  * RFCSR registers
  * The wordsize of the RFCSR is 8 bits.
  */
@@ -1783,6 +2007,8 @@ struct mac_iveiv_entry {
 #define RFCSR1_TX0_PD			FIELD8(0x08)
 #define RFCSR1_RX1_PD			FIELD8(0x10)
 #define RFCSR1_TX1_PD			FIELD8(0x20)
+#define RFCSR1_RX2_PD			FIELD8(0x40)
+#define RFCSR1_TX2_PD			FIELD8(0x80)
 
 /*
  * RFCSR 2:
@@ -1790,35 +2016,73 @@ struct mac_iveiv_entry {
 #define RFCSR2_RESCAL_EN		FIELD8(0x80)
 
 /*
+ * RFCSR 3:
+ */
+#define RFCSR3_K			FIELD8(0x0f)
+/* Bits [7-4] for RF3320 (RT3370/RT3390), on other chipsets reserved */
+#define RFCSR3_PA1_BIAS_CCK		FIELD8(0x70)
+#define RFCSR3_PA2_CASCODE_BIAS_CCKK	FIELD8(0x80)
+/* Bits for RF3290/RF5360/RF5370/RF5372/RF5390/RF5392 */
+#define RFCSR3_VCOCAL_EN		FIELD8(0x80)
+
+/*
+ * FRCSR 5:
+ */
+#define RFCSR5_R1			FIELD8(0x0c)
+
+/*
  * RFCSR 6:
  */
 #define RFCSR6_R1			FIELD8(0x03)
 #define RFCSR6_R2			FIELD8(0x40)
+#define RFCSR6_TXDIV		FIELD8(0x0c)
 
 /*
  * RFCSR 7:
  */
 #define RFCSR7_RF_TUNING		FIELD8(0x01)
+#define RFCSR7_BIT1			FIELD8(0x02)
+#define RFCSR7_BIT2			FIELD8(0x04)
+#define RFCSR7_BIT3			FIELD8(0x08)
+#define RFCSR7_BIT4			FIELD8(0x10)
+#define RFCSR7_BIT5			FIELD8(0x20)
+#define RFCSR7_BITS67			FIELD8(0xc0)
+
+/*
+ * RFCSR 9:
+ */
+#define RFCSR9_K			FIELD8(0x0f)
+#define RFCSR9_N			FIELD8(0x10)
+#define RFCSR9_UNKNOWN			FIELD8(0x60)
+#define RFCSR9_MOD			FIELD8(0x80)
 
 /*
  * RFCSR 11:
  */
 #define RFCSR11_R			FIELD8(0x03)
+#define RFCSR11_MOD			FIELD8(0xc0)
 
 /*
  * RFCSR 12:
  */
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
+#define RFCSR12_DR0				FIELD8(0xe0)
 
 /*
  * RFCSR 13:
  */
 #define RFCSR13_TX_POWER		FIELD8(0x1f)
+#define RFCSR13_DR0				FIELD8(0xe0)
 
 /*
  * RFCSR 15:
  */
 #define RFCSR15_TX_LO2_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 16:
+ */
+#define RFCSR16_TXMIXER_GAIN		FIELD8(0x07)
 
 /*
  * RFCSR 17:
@@ -1849,12 +2113,29 @@ struct mac_iveiv_entry {
 #define RFCSR23_FREQ_OFFSET		FIELD8(0x7f)
 
 /*
+ * RFCSR 24:
+ */
+#define RFCSR24_TX_AGC_FC		FIELD8(0x1f)
+#define RFCSR24_TX_H20M			FIELD8(0x20)
+#define RFCSR24_TX_CALIB		FIELD8(0x7f)
+
+/*
  * RFCSR 27:
  */
 #define RFCSR27_R1			FIELD8(0x03)
 #define RFCSR27_R2			FIELD8(0x04)
 #define RFCSR27_R3			FIELD8(0x30)
 #define RFCSR27_R4			FIELD8(0x40)
+
+/*
+ * RFCSR 29:
+ */
+#define RFCSR29_ADC6_TEST		FIELD8(0x01)
+#define RFCSR29_ADC6_INT_TEST		FIELD8(0x02)
+#define RFCSR29_RSSI_RESET		FIELD8(0x04)
+#define RFCSR29_RSSI_ON			FIELD8(0x08)
+#define RFCSR29_RSSI_RIP_CTRL		FIELD8(0x30)
+#define RFCSR29_RSSI_GAIN		FIELD8(0xc0)
 
 /*
  * RFCSR 30:
@@ -1869,6 +2150,7 @@ struct mac_iveiv_entry {
  */
 #define RFCSR31_RX_AGC_FC		FIELD8(0x1f)
 #define RFCSR31_RX_H20M			FIELD8(0x20)
+#define RFCSR31_RX_CALIB		FIELD8(0x7f)
 
 /*
  * RFCSR 38:
@@ -1884,6 +2166,13 @@ struct mac_iveiv_entry {
  * RFCSR 49:
  */
 #define RFCSR49_TX			FIELD8(0x3f)
+#define RFCSR49_EP			FIELD8(0xc0)
+
+/*
+ * RFCSR 50:
+ */
+#define RFCSR50_TX			FIELD8(0x3f)
+#define RFCSR50_EP			FIELD8(0xc0)
 
 /*
  * RF registers
@@ -2075,6 +2364,12 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
+ * EEPROM TXMIXER GAIN A offset (note overlaps with EEPROM RSSI A2).
+ */
+#define EEPROM_TXMIXER_GAIN_A		0x0026
+#define EEPROM_TXMIXER_GAIN_A_VAL	FIELD16(0x0007)
+
+/*
  * EEPROM EIRP Maximum TX power values(unit: dbm)
  */
 #define EEPROM_EIRP_MAX_TX_POWER	0x0027
@@ -2240,7 +2535,68 @@ struct mac_iveiv_entry {
 #define EEPROM_BBP_REG_ID		FIELD16(0xff00)
 
 /*
+ * EEPROM IQ Calibration, unlike other entries those are byte addresses.
+ */
+
+#define EEPROM_IQ_GAIN_CAL_TX0_2G			0x130
+#define EEPROM_IQ_PHASE_CAL_TX0_2G			0x131
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_2G			0x132
+#define EEPROM_IQ_GAIN_CAL_TX1_2G			0x133
+#define EEPROM_IQ_PHASE_CAL_TX1_2G			0x134
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_2G			0x135
+#define EEPROM_IQ_GAIN_CAL_RX0_2G			0x136
+#define EEPROM_IQ_PHASE_CAL_RX0_2G			0x137
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_2G			0x138
+#define EEPROM_IQ_GAIN_CAL_RX1_2G			0x139
+#define EEPROM_IQ_PHASE_CAL_RX1_2G			0x13A
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_2G			0x13B
+#define EEPROM_RF_IQ_COMPENSATION_CONTROL		0x13C
+#define EEPROM_RF_IQ_IMBALANCE_COMPENSATION_CONTROL	0x13D
+#define EEPROM_IQ_GAIN_CAL_TX0_CH36_TO_CH64_5G		0x144
+#define EEPROM_IQ_PHASE_CAL_TX0_CH36_TO_CH64_5G		0x145
+#define EEPROM_IQ_GAIN_CAL_TX0_CH100_TO_CH138_5G	0X146
+#define EEPROM_IQ_PHASE_CAL_TX0_CH100_TO_CH138_5G	0x147
+#define EEPROM_IQ_GAIN_CAL_TX0_CH140_TO_CH165_5G	0x148
+#define EEPROM_IQ_PHASE_CAL_TX0_CH140_TO_CH165_5G	0x149
+#define EEPROM_IQ_GAIN_CAL_TX1_CH36_TO_CH64_5G		0x14A
+#define EEPROM_IQ_PHASE_CAL_TX1_CH36_TO_CH64_5G		0x14B
+#define EEPROM_IQ_GAIN_CAL_TX1_CH100_TO_CH138_5G	0X14C
+#define EEPROM_IQ_PHASE_CAL_TX1_CH100_TO_CH138_5G	0x14D
+#define EEPROM_IQ_GAIN_CAL_TX1_CH140_TO_CH165_5G	0x14E
+#define EEPROM_IQ_PHASE_CAL_TX1_CH140_TO_CH165_5G	0x14F
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH36_TO_CH64_5G	0x150
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH36_TO_CH64_5G	0x151
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH100_TO_CH138_5G	0x152
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH100_TO_CH138_5G	0x153
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH140_TO_CH165_5G	0x154
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH140_TO_CH165_5G	0x155
+#define EEPROM_IQ_GAIN_CAL_RX0_CH36_TO_CH64_5G		0x156
+#define EEPROM_IQ_PHASE_CAL_RX0_CH36_TO_CH64_5G		0x157
+#define EEPROM_IQ_GAIN_CAL_RX0_CH100_TO_CH138_5G	0X158
+#define EEPROM_IQ_PHASE_CAL_RX0_CH100_TO_CH138_5G	0x159
+#define EEPROM_IQ_GAIN_CAL_RX0_CH140_TO_CH165_5G	0x15A
+#define EEPROM_IQ_PHASE_CAL_RX0_CH140_TO_CH165_5G	0x15B
+#define EEPROM_IQ_GAIN_CAL_RX1_CH36_TO_CH64_5G		0x15C
+#define EEPROM_IQ_PHASE_CAL_RX1_CH36_TO_CH64_5G		0x15D
+#define EEPROM_IQ_GAIN_CAL_RX1_CH100_TO_CH138_5G	0X15E
+#define EEPROM_IQ_PHASE_CAL_RX1_CH100_TO_CH138_5G	0x15F
+#define EEPROM_IQ_GAIN_CAL_RX1_CH140_TO_CH165_5G	0x160
+#define EEPROM_IQ_PHASE_CAL_RX1_CH140_TO_CH165_5G	0x161
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH36_TO_CH64_5G	0x162
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH36_TO_CH64_5G	0x163
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH100_TO_CH138_5G	0x164
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH100_TO_CH138_5G	0x165
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH140_TO_CH165_5G	0x166
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH140_TO_CH165_5G	0x167
+
+/*
  * MCU mailbox commands.
+ * MCU_SLEEP - go to power-save mode.
+ *             arg1: 1: save as much power as possible, 0: save less power.
+ *             status: 1: success, 2: already asleep,
+ *                     3: maybe MAC is busy so can't finish this task.
+ * MCU_RADIO_OFF
+ *             arg0: 0: do power-saving, NOT turn off radio.
  */
 #define MCU_SLEEP			0x30
 #define MCU_WAKEUP			0x31
@@ -2256,11 +2612,15 @@ struct mac_iveiv_entry {
 #define MCU_ANT_SELECT			0X73
 #define MCU_BBP_SIGNAL			0x80
 #define MCU_POWER_SAVE			0x83
+#define MCU_BAND_SELECT		0x91
 
 /*
  * MCU mailbox tokens
  */
-#define TOKEN_WAKUP			3
+#define TOKEN_SLEEP			1
+#define TOKEN_RADIO_OFF			2
+#define TOKEN_WAKEUP			3
+
 
 /*
  * DMA descriptor defines.
@@ -2268,6 +2628,8 @@ struct mac_iveiv_entry {
 #define TXWI_DESC_SIZE			(4 * sizeof(__le32))
 #define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
+#define TXWI_DESC_SIZE_5592		(5 * sizeof(__le32))
+#define RXWI_DESC_SIZE_5592		(6 * sizeof(__le32))
 /*
  * TX WI structure
  */
@@ -2402,5 +2764,24 @@ struct mac_iveiv_entry {
  *  Board's maximun TX power limitation
  */
 #define EIRP_MAX_TX_POWER_LIMIT	0x50
+
+/*
+ * Number of TBTT intervals after which we have to adjust
+ * the hw beacon timer.
+ */
+#define BCN_TBTT_OFFSET 64
+
+/*
+ * RT2800 driver data structure
+ */
+struct rt2800_drv_data {
+	u8 calibration_bw20;
+	u8 calibration_bw40;
+	u8 bbp25;
+	u8 bbp26;
+	u8 txmixer_gain_24g;
+	u8 txmixer_gain_5g;
+	unsigned int tbtt_tick;
+};
 
 #endif /* RT2800_H */

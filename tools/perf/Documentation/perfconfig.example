@@ -1,0 +1,29 @@
+[colors]
+
+	# These were the old defaults
+	top = red, lightgray
+	medium = green, lightgray
+	normal = black, lightgray
+	selected = lightgray, magenta
+	code = blue, lightgray
+	addr = magenta, lightgray
+
+[tui]
+
+	# Defaults if linked with libslang
+	report = on
+	annotate = on
+	top = on
+
+[buildid]
+
+	# Default, disable using /dev/null
+	dir = /root/.debug
+
+[annotate]
+
+	# Defaults
+	hide_src_code = false
+	use_offset = true
+	jump_arrows = true
+	show_nr_jumps = false

@@ -3,15 +3,15 @@
  * Licensed under the GPL
  */
 
-#include "linux/fs.h"
-#include "linux/module.h"
-#include "linux/slab.h"
-#include "linux/sound.h"
-#include "linux/soundcard.h"
-#include "linux/mutex.h"
-#include "asm/uaccess.h"
-#include "init.h"
-#include "os.h"
+#include <linux/fs.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/sound.h>
+#include <linux/soundcard.h>
+#include <linux/mutex.h>
+#include <asm/uaccess.h>
+#include <init.h>
+#include <os.h>
 
 struct hostaudio_state {
 	int fd;

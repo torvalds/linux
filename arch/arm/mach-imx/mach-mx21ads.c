@@ -18,27 +18,27 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
-#include <mach/common.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx21.h>
 
+#include "common.h"
 #include "devices-imx21.h"
+#include "hardware.h"
+#include "iomux-mx21.h"
 
 /*
  * Memory-mapped I/O on MX21ADS base board
  */
 #define MX21ADS_MMIO_BASE_ADDR   0xf5000000
-#define MX21ADS_MMIO_SIZE        SZ_16M
+#define MX21ADS_MMIO_SIZE        0xc00000
 
 #define MX21ADS_REG_ADDR(offset)    (void __force __iomem *) \
 		(MX21ADS_MMIO_BASE_ADDR + (offset))
 
-#define MX21ADS_CS8900A_IRQ         IRQ_GPIOE(11)
-#define MX21ADS_CS8900A_IOBASE_REG  MX21ADS_REG_ADDR(0x000000)
+#define MX21ADS_CS8900A_MMIO_SIZE   0x200000
+#define MX21ADS_CS8900A_IRQ_GPIO    IMX_GPIO_NR(5, 11)
 #define MX21ADS_ST16C255_IOBASE_REG MX21ADS_REG_ADDR(0x200000)
 #define MX21ADS_VERSION_REG         MX21ADS_REG_ADDR(0x400000)
 #define MX21ADS_IO_REG              MX21ADS_REG_ADDR(0x800000)
@@ -159,6 +159,19 @@ static struct platform_device mx21ads_nor_mtd_device = {
 	.resource = &mx21ads_flash_resource,
 };
 
+static struct resource mx21ads_cs8900_resources[] __initdata = {
+	DEFINE_RES_MEM(MX21_CS1_BASE_ADDR, MX21ADS_CS8900A_MMIO_SIZE),
+	/* irq number is run-time assigned */
+	DEFINE_RES_IRQ(-1),
+};
+
+static const struct platform_device_info mx21ads_cs8900_devinfo __initconst = {
+	.name = "cs89x0",
+	.id = 0,
+	.res = mx21ads_cs8900_resources,
+	.num_res = ARRAY_SIZE(mx21ads_cs8900_resources),
+};
+
 static const struct imxuart_platform_data uart_pdata_rts __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
@@ -229,13 +242,13 @@ static int mx21ads_sdhc_get_ro(struct device *dev)
 static int mx21ads_sdhc_init(struct device *dev, irq_handler_t detect_irq,
 	void *data)
 {
-	return request_irq(IRQ_GPIOD(25), detect_irq,
+	return request_irq(gpio_to_irq(IMX_GPIO_NR(4, 25)), detect_irq,
 		IRQF_TRIGGER_FALLING, "mmc-detect", data);
 }
 
 static void mx21ads_sdhc_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOD(25), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(4, 25)), data);
 }
 
 static const struct imxmmc_platform_data mx21ads_sdhc_pdata __initconst = {
@@ -279,6 +292,8 @@ static struct platform_device *platform_devices[] __initdata = {
 
 static void __init mx21ads_board_init(void)
 {
+	imx21_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx21ads_pins, ARRAY_SIZE(mx21ads_pins),
 			"mx21ads");
 
@@ -290,6 +305,12 @@ static void __init mx21ads_board_init(void)
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+
+	mx21ads_cs8900_resources[1].start =
+			gpio_to_irq(MX21ADS_CS8900A_IRQ_GPIO);
+	mx21ads_cs8900_resources[1].end =
+			gpio_to_irq(MX21ADS_CS8900A_IRQ_GPIO);
+	platform_device_register_full(&mx21ads_cs8900_devinfo);
 }
 
 static void __init mx21ads_timer_init(void)
@@ -297,16 +318,14 @@ static void __init mx21ads_timer_init(void)
 	mx21_clocks_init(32768, 26000000);
 }
 
-static struct sys_timer mx21ads_timer = {
-	.init	= mx21ads_timer_init,
-};
-
 MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX21_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx21ads_map_io,
 	.init_early = imx21_init_early,
 	.init_irq = mx21_init_irq,
-	.timer = &mx21ads_timer,
+	.handle_irq = imx21_handle_irq,
+	.init_time	= mx21ads_timer_init,
 	.init_machine = mx21ads_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

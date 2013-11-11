@@ -10,6 +10,8 @@
  *  2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -50,8 +52,8 @@ static struct {
 static int expect_close;
 
 static int wdt_time = WDT_DEFAULT_TIME;
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -82,7 +84,7 @@ static void bcm63xx_timer_tick(unsigned long unused)
 		bcm63xx_wdt_hw_start();
 		mod_timer(&bcm63xx_wdt_device.timer, jiffies + HZ);
 	} else
-		printk(KERN_CRIT PFX ": watchdog will restart system\n");
+		pr_crit("watchdog will restart system\n");
 }
 
 static void bcm63xx_wdt_pet(void)
@@ -126,8 +128,7 @@ static int bcm63xx_wdt_release(struct inode *inode, struct file *file)
 	if (expect_close == 42)
 		bcm63xx_wdt_pause();
 	else {
-		printk(KERN_CRIT PFX
-			": Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		bcm63xx_wdt_start();
 	}
 	clear_bit(0, &bcm63xx_wdt_device.inuse);
@@ -235,7 +236,7 @@ static struct miscdevice bcm63xx_wdt_miscdev = {
 };
 
 
-static int __devinit bcm63xx_wdt_probe(struct platform_device *pdev)
+static int bcm63xx_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
@@ -285,7 +286,7 @@ unmap:
 	return ret;
 }
 
-static int __devexit bcm63xx_wdt_remove(struct platform_device *pdev)
+static int bcm63xx_wdt_remove(struct platform_device *pdev)
 {
 	if (!nowayout)
 		bcm63xx_wdt_pause();
@@ -301,9 +302,9 @@ static void bcm63xx_wdt_shutdown(struct platform_device *pdev)
 	bcm63xx_wdt_pause();
 }
 
-static struct platform_driver bcm63xx_wdt = {
+static struct platform_driver bcm63xx_wdt_driver = {
 	.probe	= bcm63xx_wdt_probe,
-	.remove = __devexit_p(bcm63xx_wdt_remove),
+	.remove = bcm63xx_wdt_remove,
 	.shutdown = bcm63xx_wdt_shutdown,
 	.driver = {
 		.owner = THIS_MODULE,
@@ -311,18 +312,7 @@ static struct platform_driver bcm63xx_wdt = {
 	}
 };
 
-static int __init bcm63xx_wdt_init(void)
-{
-	return platform_driver_register(&bcm63xx_wdt);
-}
-
-static void __exit bcm63xx_wdt_exit(void)
-{
-	platform_driver_unregister(&bcm63xx_wdt);
-}
-
-module_init(bcm63xx_wdt_init);
-module_exit(bcm63xx_wdt_exit);
+module_platform_driver(bcm63xx_wdt_driver);
 
 MODULE_AUTHOR("Miguel Gaio <miguel.gaio@efixo.com>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
