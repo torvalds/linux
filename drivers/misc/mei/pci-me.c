@@ -195,8 +195,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 release_irq:
+	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
-	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
 disable_msi:
 	pci_disable_msi(pdev);

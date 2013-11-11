@@ -131,6 +131,15 @@ err:
 }
 EXPORT_SYMBOL_GPL(mei_start);
 
+
+void mei_cancel_work(struct mei_device *dev)
+{
+	cancel_work_sync(&dev->init_work);
+
+	cancel_delayed_work(&dev->timer_work);
+}
+EXPORT_SYMBOL_GPL(mei_cancel_work);
+
 /**
  * mei_reset - resets host and fw.
  *
@@ -215,15 +224,13 @@ void mei_stop(struct mei_device *dev)
 {
 	dev_dbg(&dev->pdev->dev, "stopping the device.\n");
 
-	flush_scheduled_work();
+	mei_cancel_work(dev);
+
+	mei_nfc_host_exit(dev);
 
 	mutex_lock(&dev->device_lock);
 
-	cancel_delayed_work(&dev->timer_work);
-
 	mei_wd_stop(dev);
-
-	mei_nfc_host_exit();
 
 	dev->dev_state = MEI_DEV_POWER_DOWN;
 	mei_reset(dev, 0);
