@@ -130,6 +130,7 @@ const struct iwl_cfg iwl7260_2ac_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
@@ -140,6 +141,7 @@ const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
 	.high_temp = true,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl7260_2n_cfg = {
@@ -149,6 +151,7 @@ const struct iwl_cfg iwl7260_2n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl7260_n_cfg = {
@@ -158,6 +161,7 @@ const struct iwl_cfg iwl7260_n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl3160_2ac_cfg = {
@@ -167,6 +171,7 @@ const struct iwl_cfg iwl3160_2ac_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl3160_2n_cfg = {
@@ -176,6 +181,7 @@ const struct iwl_cfg iwl3160_2n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl3160_n_cfg = {
@@ -185,6 +191,7 @@ const struct iwl_cfg iwl3160_n_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL3160_NVM_VERSION,
 	.nvm_calib_ver = IWL3160_TX_POWER_VERSION,
+	.host_interrupt_operation_mode = true,
 };
 
 const struct iwl_cfg iwl7265_2ac_cfg = {
