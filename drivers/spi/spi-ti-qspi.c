@@ -459,11 +459,10 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "num-cs", &num_cs))
 		master->num_chipselect = num_cs;
 
-	platform_set_drvdata(pdev, master);
-
 	qspi = spi_master_get_devdata(master);
 	qspi->master = master;
 	qspi->dev = &pdev->dev;
+	platform_set_drvdata(pdev, qspi);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
