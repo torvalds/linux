@@ -671,6 +671,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	if (!ndev)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->netdev_ops = &arc_emac_netdev_ops;
