@@ -135,7 +135,7 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi);
 static int
 minstrel_ht_get_group_idx(struct ieee80211_tx_rate *rate)
 {
-	return GROUP_IDX((rate->idx / MCS_GROUP_RATES) + 1,
+	return GROUP_IDX((rate->idx / 8) + 1,
 			 !!(rate->flags & IEEE80211_TX_RC_SHORT_GI),
 			 !!(rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH));
 }
@@ -148,7 +148,7 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	if (rate->flags & IEEE80211_TX_RC_MCS) {
 		group = minstrel_ht_get_group_idx(rate);
-		idx = rate->idx % MCS_GROUP_RATES;
+		idx = rate->idx % 8;
 	} else {
 		group = MINSTREL_CCK_GROUP;
 
@@ -636,8 +636,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		idx = mp->cck_rates[index % ARRAY_SIZE(mp->cck_rates)];
 		flags = 0;
 	} else {
-		idx = index % MCS_GROUP_RATES +
-		      (group->streams - 1) * MCS_GROUP_RATES;
+		idx = index % MCS_GROUP_RATES + (group->streams - 1) * 8;
 		flags = IEEE80211_TX_RC_MCS | group->flags;
 	}
 
@@ -817,7 +816,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	}
 
 	rate->idx = sample_idx % MCS_GROUP_RATES +
-		    (sample_group->streams - 1) * MCS_GROUP_RATES;
+		    (sample_group->streams - 1) * 8;
 	rate->flags = IEEE80211_TX_RC_MCS | sample_group->flags;
 }
 
