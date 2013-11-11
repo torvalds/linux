@@ -200,9 +200,18 @@ static void prandom_start_seed_timer(void)
  *	Generate better values after random number generator
  *	is fully initialized.
  */
-static int __init prandom_reseed(void)
+static void __prandom_reseed(bool late)
 {
 	int i;
+	unsigned long flags;
+	static bool latch = false;
+	static DEFINE_SPINLOCK(lock);
+
+	/* only allow initial seeding (late == false) once */
+	spin_lock_irqsave(&lock, flags);
+	if (latch && !late)
+		goto out;
+	latch = true;
 
 	for_each_possible_cpu(i) {
 		struct rnd_state *state = &per_cpu(net_rand_state,i);
@@ -216,6 +225,18 @@ static int __init prandom_reseed(void)
 		/* mix it in */
 		prandom_u32_state(state);
 	}
+out:
+	spin_unlock_irqrestore(&lock, flags);
+}
+
+void prandom_reseed_late(void)
+{
+	__prandom_reseed(true);
+}
+
+static int __init prandom_reseed(void)
+{
+	__prandom_reseed(false);
 	prandom_start_seed_timer();
 	return 0;
 }
