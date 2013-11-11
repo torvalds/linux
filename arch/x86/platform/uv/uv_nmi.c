@@ -1,5 +1,5 @@
 /*
- * SGI NMI/TRACE support routines
+ * SGI NMI support routines
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,13 +38,6 @@
 #include <asm/uv/uv.h>
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_mmrs.h>
-
-void (*uv_trace_func)(const char *f, const int l, const char *fmt, ...);
-EXPORT_SYMBOL(uv_trace_func);
-
-void (*uv_trace_nmi_func)(unsigned int reason, struct pt_regs *regs);
-EXPORT_SYMBOL(uv_trace_nmi_func);
-
 
 /*
  * UV handler for NMI
@@ -598,10 +591,6 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 		local_irq_restore(flags);
 		return NMI_DONE;
 	}
-
-	/* Call possible NMI trace function */
-	if (unlikely(uv_trace_nmi_func))
-		(uv_trace_nmi_func)(reason, regs);
 
 	/* Indicate we are the first CPU into the NMI handler */
 	master = (atomic_read(&uv_nmi_cpu) == cpu);
