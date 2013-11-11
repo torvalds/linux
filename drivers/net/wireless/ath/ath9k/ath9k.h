@@ -754,6 +754,7 @@ struct ath_softc {
 	struct work_struct hw_check_work;
 	struct work_struct hw_reset_work;
 	struct completion paprd_complete;
+	wait_queue_head_t tx_wait;
 
 	unsigned int hw_busy_count;
 	unsigned long sc_flags;

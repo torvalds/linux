@@ -504,6 +504,8 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_edma_tasklet(sc);
 		else
 			ath_tx_tasklet(sc);
+
+		wake_up(&sc->tx_wait);
 	}
 
 	ath9k_btcoex_handle_interrupt(sc, status);
@@ -1837,13 +1839,31 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 	mutex_unlock(&sc->mutex);
 }
 
+static bool ath9k_has_tx_pending(struct ath_softc *sc)
+{
+	int i, npend;
+
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
+
+		if (!sc->tx.txq[i].axq_depth)
+			continue;
+
+		npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
+		if (npend)
+			break;
+	}
+
+	return !!npend;
+}
+
 static void ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int timeout = 200; /* ms */
-	int i, j;
+	int timeout = HZ / 5; /* 200 ms */
 	bool drain_txq;
 
 	mutex_lock(&sc->mutex);
@@ -1861,25 +1881,9 @@ static void ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		return;
 	}
 
-	for (j = 0; j < timeout; j++) {
-		bool npend = false;
-
-		if (j)
-			usleep_range(1000, 2000);
-
-		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-			if (!ATH_TXQ_SETUP(sc, i))
-				continue;
-
-			npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
-
-			if (npend)
-				break;
-		}
-
-		if (!npend)
-		    break;
-	}
+	if (wait_event_timeout(sc->tx_wait, !ath9k_has_tx_pending(sc),
+			       timeout) > 0)
+		drop = false;
 
 	if (drop) {
 		ath9k_ps_wakeup(sc);

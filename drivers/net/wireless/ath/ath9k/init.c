@@ -691,6 +691,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common = ath9k_hw_common(ah);
 	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
 	sc->tx99_power = MAX_RATE_POWER + 1;
+	init_waitqueue_head(&sc->tx_wait);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
