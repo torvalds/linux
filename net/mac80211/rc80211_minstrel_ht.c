@@ -700,12 +700,16 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (!mi->sample_tries)
 		return -1;
 
-	mg = &mi->groups[mi->sample_group];
-	sample_idx = sample_table[mg->column][mg->index];
-	mr = &mg->rates[sample_idx];
 	sample_group = mi->sample_group;
-	sample_idx += sample_group * MCS_GROUP_RATES;
+	mg = &mi->groups[sample_group];
+	sample_idx = sample_table[mg->column][mg->index];
 	minstrel_next_sample_idx(mi);
+
+	if (!(mg->supported & BIT(sample_idx)))
+		return -1;
+
+	mr = &mg->rates[sample_idx];
+	sample_idx += sample_group * MCS_GROUP_RATES;
 
 	/*
 	 * Sampling might add some overhead (RTS, no aggregation)
