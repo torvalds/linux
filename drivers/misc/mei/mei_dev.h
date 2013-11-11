@@ -456,6 +456,16 @@ static inline u32 mei_data2slots(size_t length)
 	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
 }
 
+/**
+ * mei_slots2data- get data in slots - bytes from slots
+ * @slots -  number of available slots
+ * returns  - number of bytes in slots
+ */
+static inline u32 mei_slots2data(int slots)
+{
+	return slots * 4;
+}
+
 /*
  * mei init function prototypes
  */
