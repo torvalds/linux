@@ -77,13 +77,13 @@ void ptlrpc_lprocfs_register_service(struct proc_dir_entry *proc_entry,
 				     struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc);
 void ptlrpc_lprocfs_rpc_sent(struct ptlrpc_request *req, long amount);
-void ptlrpc_lprocfs_do_request_stat (struct ptlrpc_request *req,
+void ptlrpc_lprocfs_do_request_stat(struct ptlrpc_request *req,
 				     long q_usec, long work_usec);
 #else
-#define ptlrpc_lprocfs_register_service(params...) do{}while(0)
-#define ptlrpc_lprocfs_unregister_service(params...) do{}while(0)
-#define ptlrpc_lprocfs_rpc_sent(params...) do{}while(0)
-#define ptlrpc_lprocfs_do_request_stat(params...) do{}while(0)
+#define ptlrpc_lprocfs_register_service(params...) do{}while (0)
+#define ptlrpc_lprocfs_unregister_service(params...) do{}while (0)
+#define ptlrpc_lprocfs_rpc_sent(params...) do{}while (0)
+#define ptlrpc_lprocfs_do_request_stat(params...) do{}while (0)
 #endif /* LPROCFS */
 
 /* NRS */

@@ -221,7 +221,7 @@ void ptlrpc_lprocfs_register(struct proc_dir_entry *root, char *dir,
 	for (i = 0; i < EXTRA_LAST_OPC; i++) {
 		char *units;
 
-		switch(i) {
+		switch (i) {
 		case BRW_WRITE_BYTES:
 		case BRW_READ_BYTES:
 			units = "bytes";

@@ -81,14 +81,14 @@ do {									   \
 		      ptlrpc_import_state_name(state));			\
 	       __import_set_state(imp, state);				 \
 	}								      \
-} while(0)
+} while (0)
 
 #define IMPORT_SET_STATE(imp, state)					\
 do {									\
 	spin_lock(&imp->imp_lock);					\
 	IMPORT_SET_STATE_NOLOCK(imp, state);				\
 	spin_unlock(&imp->imp_lock);					\
-} while(0)
+} while (0)
 
 
 static int ptlrpc_connect_interpret(const struct lu_env *env,
@@ -680,7 +680,7 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	ptlrpc_request_set_replen(request);
 	request->rq_interpret_reply = ptlrpc_connect_interpret;
 
-	CLASSERT(sizeof (*aa) <= sizeof (request->rq_async_args));
+	CLASSERT(sizeof(*aa) <= sizeof(request->rq_async_args));
 	aa = ptlrpc_req_async_args(request);
 	memset(aa, 0, sizeof(*aa));
 
@@ -859,7 +859,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if (MSG_CONNECT_RECONNECT & msg_flags) {
 		memset(&old_hdl, 0, sizeof(old_hdl));
 		if (!memcmp(&old_hdl, lustre_msg_get_handle(request->rq_repmsg),
-			    sizeof (old_hdl))) {
+			    sizeof(old_hdl))) {
 			LCONSOLE_WARN("Reconnect to %s (at @%s) failed due "
 				      "bad handle "LPX64"\n",
 				      obd2cli_tgt(imp->imp_obd),
@@ -1507,7 +1507,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		at->at_worst_time = now;
 		at->at_hist[0] = val;
 		at->at_binstart = now;
-	} else if (now - at->at_binstart < binlimit ) {
+	} else if (now - at->at_binstart < binlimit) {
 		/* in bin 0 */
 		at->at_hist[0] = max(val, at->at_hist[0]);
 		at->at_current = max(val, at->at_current);
@@ -1517,7 +1517,7 @@ int at_measured(struct adaptive_timeout *at, unsigned int val)
 		/* move bins over */
 		shift = (now - at->at_binstart) / binlimit;
 		LASSERT(shift > 0);
-		for(i = AT_BINS - 1; i >= 0; i--) {
+		for (i = AT_BINS - 1; i >= 0; i--) {
 			if (i >= shift) {
 				at->at_hist[i] = at->at_hist[i - shift];
 				maxv = max(maxv, at->at_hist[i]);

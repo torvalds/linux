@@ -386,7 +386,7 @@ ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 {
 	LASSERT(spin_is_locked(&rs->rs_svcpt->scp_rep_lock));
 	LASSERT(spin_is_locked(&rs->rs_lock));
-	LASSERT (rs->rs_difficult);
+	LASSERT(rs->rs_difficult);
 	rs->rs_scheduled_ever = 1;  /* flag any notification attempt */
 
 	if (rs->rs_scheduled) {     /* being set up or already notified */
@@ -412,7 +412,7 @@ void ptlrpc_commit_replies(struct obd_export *exp)
 	spin_lock(&exp->exp_uncommitted_replies_lock);
 	list_for_each_entry_safe(rs, nxt, &exp->exp_uncommitted_replies,
 				     rs_obd_list) {
-		LASSERT (rs->rs_difficult);
+		LASSERT(rs->rs_difficult);
 		/* VBR: per-export last_committed */
 		LASSERT(rs->rs_export);
 		if (rs->rs_transno <= exp->exp_last_committed) {
@@ -796,7 +796,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	LASSERT(rc == 0);
 
 	mutex_lock(&ptlrpc_all_services_mutex);
-	list_add (&service->srv_list, &ptlrpc_all_services);
+	list_add(&service->srv_list, &ptlrpc_all_services);
 	mutex_unlock(&ptlrpc_all_services_mutex);
 
 	if (proc_entry != NULL)
@@ -1777,9 +1777,9 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 
 	rc = lustre_unpack_req_ptlrpc_body(req, MSG_PTLRPC_BODY_OFF);
 	if (rc) {
-		CERROR ("error unpacking ptlrpc body: ptl %d from %s x"
-			LPU64"\n", svc->srv_req_portal,
-			libcfs_id2str(req->rq_peer), req->rq_xid);
+		CERROR("error unpacking ptlrpc body: ptl %d from %s x"
+		       LPU64"\n", svc->srv_req_portal,
+		       libcfs_id2str(req->rq_peer), req->rq_xid);
 		goto err_req;
 	}
 
@@ -1798,7 +1798,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 		goto err_req;
 	}
 
-	switch(lustre_msg_get_opc(req->rq_reqmsg)) {
+	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case MDS_WRITEPAGE:
 	case OST_WRITE:
 		req->rq_bulk_write = 1;
@@ -1895,7 +1895,7 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 
 	ptlrpc_rqphase_move(request, RQ_PHASE_INTERPRET);
 
-	if(OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
+	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DUMP_LOG))
 		libcfs_debug_dumplog();
 
 	do_gettimeofday(&work_start);
@@ -2037,13 +2037,13 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 
 	exp = rs->rs_export;
 
-	LASSERT (rs->rs_difficult);
-	LASSERT (rs->rs_scheduled);
-	LASSERT (list_empty(&rs->rs_list));
+	LASSERT(rs->rs_difficult);
+	LASSERT(rs->rs_scheduled);
+	LASSERT(list_empty(&rs->rs_list));
 
 	spin_lock(&exp->exp_lock);
 	/* Noop if removed already */
-	list_del_init (&rs->rs_exp_list);
+	list_del_init(&rs->rs_exp_list);
 	spin_unlock(&exp->exp_lock);
 
 	/* The disk commit callback holds exp_uncommitted_replies_lock while it
@@ -2113,9 +2113,9 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 		/* Off the net */
 		spin_unlock(&rs->rs_lock);
 
-		class_export_put (exp);
+		class_export_put(exp);
 		rs->rs_export = NULL;
-		ptlrpc_rs_decref (rs);
+		ptlrpc_rs_decref(rs);
 		if (atomic_dec_and_test(&svcpt->scp_nreps_difficult) &&
 		    svc->srv_is_stopping)
 			wake_up_all(&svcpt->scp_waitq);

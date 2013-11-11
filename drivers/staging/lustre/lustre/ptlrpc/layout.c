@@ -1808,7 +1808,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 		      const struct req_msg_field *field,
 		      enum req_location loc,
 		      int offset,
-		      void *value, int len, int dump, void (*swabber)( void *))
+		      void *value, int len, int dump, void (*swabber)(void *))
 {
 	void    *p;
 	int     i;
@@ -1883,7 +1883,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 static void *__req_capsule_get(struct req_capsule *pill,
 			       const struct req_msg_field *field,
 			       enum req_location loc,
-			       void (*swabber)( void *),
+			       void (*swabber)(void *),
 			       int dump)
 {
 	const struct req_format *fmt;
