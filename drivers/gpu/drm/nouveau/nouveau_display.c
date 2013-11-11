@@ -398,6 +398,11 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
+	if (nv_device(drm->device)->chipset < 0x11)
+		dev->mode_config.async_page_flip = false;
+	else
+		dev->mode_config.async_page_flip = true;
+
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
@@ -579,9 +584,9 @@ fail:
 
 int
 nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		       struct drm_pending_vblank_event *event,
-		       uint32_t page_flip_flags)
+		       struct drm_pending_vblank_event *event, u32 flags)
 {
+	const int swap_interval = (flags & DRM_MODE_PAGE_FLIP_ASYNC) ? 0 : 1;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->fb)->nvbo;
@@ -625,12 +630,29 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
-		ret = nv50_display_flip_next(crtc, fb, chan, 0);
+		ret = nv50_display_flip_next(crtc, fb, chan, swap_interval);
 		if (ret)
 			goto fail_unreserve;
 	} else {
 		struct nv04_display *dispnv04 = nv04_display(dev);
-		nouveau_bo_ref(new_bo, &dispnv04->image[nouveau_crtc(crtc)->index]);
+		int head = nouveau_crtc(crtc)->index;
+
+		if (swap_interval) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				goto fail_unreserve;
+
+			BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
+			OUT_RING  (chan, 0);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
+			OUT_RING  (chan, head);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
+			OUT_RING  (chan, 0);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
+			OUT_RING  (chan, 0);
+		}
+
+		nouveau_bo_ref(new_bo, &dispnv04->image[head]);
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
