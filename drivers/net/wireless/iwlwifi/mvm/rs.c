@@ -2862,12 +2862,12 @@ int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 
 	if (enable) {
 		if (mvmsta->tx_protection == 0)
-			lq->flags |= LQ_FLAG_SET_STA_TLC_RTS_MSK;
+			lq->flags |= LQ_FLAG_USE_RTS_MSK;
 		mvmsta->tx_protection++;
 	} else {
 		mvmsta->tx_protection--;
 		if (mvmsta->tx_protection == 0)
-			lq->flags &= ~LQ_FLAG_SET_STA_TLC_RTS_MSK;
+			lq->flags &= ~LQ_FLAG_USE_RTS_MSK;
 	}
 
 	return iwl_mvm_send_lq_cmd(mvm, lq, false);
