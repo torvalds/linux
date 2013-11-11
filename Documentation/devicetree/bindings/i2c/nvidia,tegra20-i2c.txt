@@ -51,6 +51,11 @@ Required properties:
   See ../reset/reset.txt for details.
 - reset-names: Must include the following entries:
   - i2c
+- dmas: Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names: Must include the following entries:
+  - rx
+  - tx
 
 Example:
 
@@ -64,5 +69,7 @@ Example:
 		clock-names = "div-clk", "fast-clk";
 		resets = <&tegra_car 12>;
 		reset-names = "i2c";
+		dmas = <&apbdma 16>, <&apbdma 16>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};

@@ -7,11 +7,6 @@ Required properties:
   - Tegra30 requires 2 entries, for the APBIF and AHUB/AUDIO register blocks.
   - Tegra114 requires an additional entry, for the APBIF2 register block.
 - interrupts : Should contain AHUB interrupt
-- nvidia,dma-request-selector : A list of the DMA channel specifiers. Each
-  entry contains the Tegra DMA controller's phandle and request selector.
-  If a single entry is present, the request selectors for the channels are
-  assumed to be contiguous, and increment from this value.
-  If multiple values are given, one value must be given per channel.
 - clocks : Must contain an entry for each entry in clock-names.
   See ../clocks/clock-bindings.txt for details.
 - clock-names : Must include the following entries:
@@ -37,6 +32,14 @@ Required properties:
   - adx
 - ranges : The bus address mapping for the configlink register bus.
   Can be empty since the mapping is 1:1.
+- dmas : Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names : Must include the following entries:
+  - rx0 .. rx<n>
+  - tx0 .. tx<n>
+  ... where n is:
+  Tegra30: 3
+  Tegra114, Tegra124: 9
 - #address-cells : For the configlink bus. Should be <1>;
 - #size-cells : For the configlink bus. Should be <1>.
 
@@ -62,6 +65,11 @@ ahub@70080000 {
 	reset-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
 		"i2s3", "i2s4", "dam0", "dam1", "dam2",
 		"spdif";
+	dmas = <&apbdma 1>, <&apbdma 1>;
+	       <&apbdma 2>, <&apbdma 2>;
+	       <&apbdma 3>, <&apbdma 3>;
+	       <&apbdma 4>, <&apbdma 4>;
+	dma-names = "rx0", "tx0", "rx1", "tx1", "rx2", "tx2", "rx3", "tx3";
 	ranges;
 	#address-cells = <1>;
 	#size-cells = <1>;
