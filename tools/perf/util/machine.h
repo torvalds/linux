@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <linux/rbtree.h>
 #include "map.h"
+#include "event.h"
 
 struct addr_location;
 struct branch_stack;
@@ -178,4 +179,7 @@ int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);
 
+int machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				struct perf_target *target, struct thread_map *threads,
+				perf_event__handler_t process, bool data_mmap);
 #endif /* __PERF_MACHINE_H */

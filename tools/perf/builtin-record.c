@@ -480,16 +480,8 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 					 perf_event__synthesize_guest_os, tool);
 	}
 
-	if (perf_target__has_task(&opts->target))
-		err = perf_event__synthesize_thread_map(tool, evsel_list->threads,
-							process_synthesized_event,
-							machine, opts->sample_address);
-	else if (perf_target__has_cpu(&opts->target))
-		err = perf_event__synthesize_threads(tool, process_synthesized_event,
-						     machine, opts->sample_address);
-	else /* command specified */
-		err = 0;
-
+	err = machine__synthesize_threads(machine, tool, &opts->target, evsel_list->threads,
+					  process_synthesized_event, opts->sample_address);
 	if (err != 0)
 		goto out_delete_session;
 

@@ -1340,15 +1340,8 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
-	if (perf_target__has_task(&trace->opts.target)) {
-		err = perf_event__synthesize_thread_map(&trace->tool, evlist->threads,
-							trace__tool_process,
-							trace->host, false);
-	} else {
-		err = perf_event__synthesize_threads(&trace->tool, trace__tool_process,
-						     trace->host, false);
-	}
-
+	err = machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
+					  evlist->threads, trace__tool_process, false);
 	if (err)
 		symbol__exit();
 
