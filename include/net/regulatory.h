@@ -96,27 +96,39 @@ struct regulatory_request {
  *	initiator is %REGDOM_SET_BY_CORE). Drivers that use
  *	wiphy_apply_custom_regulatory() should have this flag set
  *	or the regulatory core will set it for the wiphy.
- * @REGULATORY_STRICT_REG: tells us the driver for this device will
- *	ignore regulatory domain settings until it gets its own regulatory
- *	domain via its regulatory_hint() unless the regulatory hint is
- *	from a country IE. After its gets its own regulatory domain it will
- *	only allow further regulatory domain settings to further enhance
- *	compliance. For example if channel 13 and 14 are disabled by this
- *	regulatory domain no user regulatory domain can enable these channels
- *	at a later time. This can be used for devices which do not have
- *	calibration information guaranteed for frequencies or settings
- *	outside of its regulatory domain. If used in combination with
- *	REGULATORY_FLAG_CUSTOM_REG the inspected country IE power settings
- *	will be followed.
+ * @REGULATORY_STRICT_REG: tells us that the wiphy for this device
+ *	has regulatory domain that it wishes to be considered as the
+ *	superset for regulatory rules. After this device gets its regulatory
+ *	domain programmed further regulatory hints shall only be considered
+ *	for this device to enhance regulatory compliance, forcing the
+ *	device to only possibly use subsets of the original regulatory
+ *	rules. For example if channel 13 and 14 are disabled by this
+ *	device's regulatory domain no user specified regulatory hint which
+ *	has these channels enabled would enable them for this wiphy,
+ *	the device's original regulatory domain will be trusted as the
+ *	base. You can program the superset of regulatory rules for this
+ *	wiphy with regulatory_hint() for cards programmed with an
+ *	ISO3166-alpha2 country code. wiphys that use regulatory_hint()
+ *	will have their wiphy->regd programmed once the regulatory
+ *	domain is set, and all other regulatory hints will be ignored
+ *	until their own regulatory domain gets programmed.
  * @REGULATORY_DISABLE_BEACON_HINTS: enable this if your driver needs to
  *	ensure that passive scan flags and beaconing flags may not be lifted by
  *	cfg80211 due to regulatory beacon hints. For more information on beacon
  *	hints read the documenation for regulatory_hint_found_beacon()
+ * @REGULATORY_COUNTRY_IE_FOLLOW_POWER:  for devices that have a preference
+ *	that even though they may have programmed their own custom power
+ *	setting prior to wiphy registration, they want to ensure their channel
+ *	power settings are updated for this connection with the power settings
+ *	derived from the regulatory domain. The regulatory domain used will be
+ *	based on the ISO3166-alpha2 from country IE provided through
+ *	regulatory_hint_country_ie()
  */
 enum ieee80211_regulatory_flags {
 	REGULATORY_CUSTOM_REG			= BIT(0),
 	REGULATORY_STRICT_REG			= BIT(1),
 	REGULATORY_DISABLE_BEACON_HINTS		= BIT(2),
+	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(3),
 };
 
 struct ieee80211_freq_range {
