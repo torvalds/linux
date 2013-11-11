@@ -44,9 +44,6 @@
  */
 #define DEFAULT_MTU_SIZE 1500
 
-#define gdm_lte_sdu_send(n, d, l, c, b, i, t) (\
-	n->phy_dev->send_sdu_func(n->phy_dev->priv_dev, d, l, n->pdn_table.dft_eps_id, 0, c, b, i, t))
-
 #define IP_VERSION_4	4
 #define IP_VERSION_6	6
 
@@ -449,13 +446,11 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 
 	sscanf(dev->name, "lte%d", &idx);
 
-	ret = gdm_lte_sdu_send(nic,
-			       data_buf,
-			       data_len,
-			       tx_complete,
-			       nic,
-			       idx,
-			       nic_type);
+	ret = nic->phy_dev->send_sdu_func(nic->phy_dev->priv_dev,
+					  data_buf, data_len,
+					  nic->pdn_table.dft_eps_id, 0,
+					  tx_complete, nic, idx,
+					  nic_type);
 
 	if (ret == TX_NO_BUFFER || ret == TX_NO_SPC) {
 		netif_stop_queue(dev);
