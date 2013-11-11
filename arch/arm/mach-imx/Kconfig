@@ -11,6 +11,7 @@ config ARCH_MXC
 	select GENERIC_IRQ_CHIP
 	select MIGHT_HAVE_CACHE_L2X0 if ARCH_MULTI_V6_V7
 	select MULTI_IRQ_HANDLER
+	select SOC_BUS
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -24,7 +25,7 @@ config MXC_IRQ_PRIOR
 	help
 	  Select this if you want to use prioritized IRQ handling.
 	  This feature prevents higher priority ISR to be interrupted
-	  by lower priority IRQ even IRQF_DISABLED flag is not set.
+	  by lower priority IRQ.
 	  This may be useful in embedded applications, where are strong
 	  requirements for timing.
 	  Say N here, unless you have a specialized requirement.
@@ -793,6 +794,8 @@ config SOC_IMX6Q
 	select HAVE_IMX_SRC
 	select HAVE_SMP
 	select MFD_SYSCON
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
 	select PINCTRL
 	select PINCTRL_IMX6Q
 	select PL310_ERRATA_588369 if CACHE_PL310

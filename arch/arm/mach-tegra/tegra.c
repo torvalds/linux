@@ -173,6 +173,7 @@ static void __init tegra_dt_init_late(void)
 }
 
 static const char * const tegra_dt_board_compat[] = {
+	"nvidia,tegra124",
 	"nvidia,tegra114",
 	"nvidia,tegra30",
 	"nvidia,tegra20",

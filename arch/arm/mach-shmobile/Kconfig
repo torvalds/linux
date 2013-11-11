@@ -101,11 +101,23 @@ config ARCH_R8A7790
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
+config ARCH_R8A7791
+	bool "R-Car M2 (R8A77910)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
+
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
+
+config ARCH_R7S72100
+	bool "RZ/A1H (R7S72100)"
+	select ARM_GIC
+	select CPU_V7
+	select SH_CLK_CPG
 
 comment "SH-Mobile Board Type"
 

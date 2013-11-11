@@ -42,6 +42,9 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
+	if (cpu_is_imx6q() || cpu_is_imx6dl())
+		imx_src_prepare_restart();
+
 	if (wdog_clk)
 		clk_enable(wdog_clk);
 
@@ -51,6 +54,8 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 		wcr_enable = (1 << 2);
 
 	/* Assert SRS signal */
+	__raw_writew(wcr_enable, wdog_base);
+	/* write twice to ensure the request will not get ignored */
 	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */

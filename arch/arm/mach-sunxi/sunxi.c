@@ -90,14 +90,13 @@ static void sun6i_restart(enum reboot_mode mode, const char *cmd)
 }
 
 static struct of_device_id sunxi_restart_ids[] = {
-	{ .compatible = "allwinner,sun4i-wdt", .data = sun4i_restart },
-	{ .compatible = "allwinner,sun6i-wdt", .data = sun6i_restart },
+	{ .compatible = "allwinner,sun4i-wdt" },
+	{ .compatible = "allwinner,sun6i-wdt" },
 	{ /*sentinel*/ }
 };
 
 static void sunxi_setup_restart(void)
 {
-	const struct of_device_id *of_id;
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, sunxi_restart_ids);
@@ -106,11 +105,6 @@ static void sunxi_setup_restart(void)
 
 	wdt_base = of_iomap(np, 0);
 	WARN(!wdt_base, "failed to map watchdog base address");
-
-	of_id = of_match_node(sunxi_restart_ids, np);
-	WARN(!of_id, "restart function not available");
-
-	arm_pm_restart = of_id->data;
 }
 
 static void __init sunxi_dt_init(void)
@@ -124,12 +118,33 @@ static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
 	"allwinner,sun5i-a10s",
 	"allwinner,sun5i-a13",
-	"allwinner,sun6i-a31",
-	"allwinner,sun7i-a20",
 	NULL,
 };
 
 DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_machine	= sunxi_dt_init,
 	.dt_compat	= sunxi_board_dt_compat,
+	.restart	= sun4i_restart,
+MACHINE_END
+
+static const char * const sun6i_board_dt_compat[] = {
+	"allwinner,sun6i-a31",
+	NULL,
+};
+
+DT_MACHINE_START(SUN6I_DT, "Allwinner sun6i (A31) Family")
+	.init_machine	= sunxi_dt_init,
+	.dt_compat	= sun6i_board_dt_compat,
+	.restart	= sun6i_restart,
+MACHINE_END
+
+static const char * const sun7i_board_dt_compat[] = {
+	"allwinner,sun7i-a20",
+	NULL,
+};
+
+DT_MACHINE_START(SUN7I_DT, "Allwinner sun7i (A20) Family")
+	.init_machine	= sunxi_dt_init,
+	.dt_compat	= sun7i_board_dt_compat,
+	.restart	= sun4i_restart,
 MACHINE_END

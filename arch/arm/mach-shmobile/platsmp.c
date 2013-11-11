@@ -11,24 +11,9 @@
  * published by the Free Software Foundation.
  */
 #include <linux/init.h>
-#include <linux/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <mach/common.h>
-
-void __init shmobile_smp_init_cpus(unsigned int ncores)
-{
-	unsigned int i;
-
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
-			ncores, nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
 
 extern unsigned long shmobile_smp_fn[];
 extern unsigned long shmobile_smp_arg[];
@@ -44,3 +29,10 @@ void shmobile_smp_hook(unsigned int cpu, unsigned long fn, unsigned long arg)
 	shmobile_smp_arg[cpu] = arg;
 	flush_cache_all();
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+int shmobile_smp_cpu_disable(unsigned int cpu)
+{
+	return 0; /* Hotplug of any CPU is supported */
+}
+#endif

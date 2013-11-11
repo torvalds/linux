@@ -42,6 +42,8 @@
 #define OMAP4_MON_L2X0_AUXCTRL_INDEX	0x109
 #define OMAP4_MON_L2X0_PREFETCH_INDEX	0x113
 
+#define OMAP5_DRA7_MON_SET_CNTFRQ_INDEX	0x109
+
 /* Secure PPA(Primary Protected Application) APIs */
 #define OMAP4_PPA_L2_POR_INDEX		0x23
 #define OMAP4_PPA_CPU_ACTRL_SMP_INDEX	0x25
@@ -60,5 +62,7 @@ extern int omap_barrier_reserve_memblock(void);
 static inline void omap_barrier_reserve_memblock(void)
 { }
 #endif
+
+void set_cntfreq(void);
 #endif /* __ASSEMBLER__ */
 #endif /* OMAP_ARCH_OMAP_SECURE_H */

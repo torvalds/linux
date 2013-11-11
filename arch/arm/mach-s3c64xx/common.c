@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/clk-provider.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
@@ -38,7 +39,6 @@
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/gpio-cfg.h>
@@ -49,6 +49,19 @@
 #include <plat/watchdog-reset.h>
 
 #include "common.h"
+
+/* External clock frequency */
+static unsigned long xtal_f = 12000000, xusbxti_f = 48000000;
+
+void __init s3c64xx_set_xtal_freq(unsigned long freq)
+{
+	xtal_f = freq;
+}
+
+void __init s3c64xx_set_xusbxti_freq(unsigned long freq)
+{
+	xusbxti_f = freq;
+}
 
 /* uart registration process */
 
@@ -67,7 +80,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= S3C6400_CPU_ID,
 		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6400_map_io,
-		.init_clocks	= s3c6400_init_clocks,
 		.init_uarts	= s3c64xx_init_uarts,
 		.init		= s3c6400_init,
 		.name		= name_s3c6400,
@@ -75,7 +87,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= S3C6410_CPU_ID,
 		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6410_map_io,
-		.init_clocks	= s3c6410_init_clocks,
 		.init_uarts	= s3c64xx_init_uarts,
 		.init		= s3c6410_init,
 		.name		= name_s3c6410,
@@ -213,8 +224,10 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
 	/*
 	 * FIXME: there is no better place to put this at the moment
-	 * (samsung_wdt_reset_init needs clocks)
+	 * (s3c64xx_clk_init needs ioremap and must happen before init_time
+	 * samsung_wdt_reset_init needs clocks)
 	 */
+	s3c64xx_clk_init(NULL, xtal_f, xusbxti_f, soc_is_s3c6400(), S3C_VA_SYS);
 	samsung_wdt_reset_init(S3C_VA_WATCHDOG);
 
 	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);

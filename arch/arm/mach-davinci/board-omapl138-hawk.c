@@ -211,7 +211,7 @@ static int hawk_usb_ocic_notify(da8xx_ocic_handler_t handler)
 		hawk_usb_ocic_handler = handler;
 
 		error = request_irq(irq, omapl138_hawk_usb_ocic_irq,
-					IRQF_DISABLED | IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_RISING |
 					IRQF_TRIGGER_FALLING,
 					"OHCI over-current indicator", NULL);
 		if (error)

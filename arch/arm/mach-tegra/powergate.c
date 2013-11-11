@@ -42,8 +42,16 @@
 
 static int tegra_num_powerdomains;
 static int tegra_num_cpu_domains;
-static u8 *tegra_cpu_domains;
-static u8 tegra30_cpu_domains[] = {
+static const u8 *tegra_cpu_domains;
+
+static const u8 tegra30_cpu_domains[] = {
+	TEGRA_POWERGATE_CPU,
+	TEGRA_POWERGATE_CPU1,
+	TEGRA_POWERGATE_CPU2,
+	TEGRA_POWERGATE_CPU3,
+};
+
+static const u8 tegra114_cpu_domains[] = {
 	TEGRA_POWERGATE_CPU0,
 	TEGRA_POWERGATE_CPU1,
 	TEGRA_POWERGATE_CPU2,
@@ -189,6 +197,11 @@ int __init tegra_powergate_init(void)
 		tegra_num_cpu_domains = 4;
 		tegra_cpu_domains = tegra30_cpu_domains;
 		break;
+	case TEGRA114:
+		tegra_num_powerdomains = 23;
+		tegra_num_cpu_domains = 4;
+		tegra_cpu_domains = tegra114_cpu_domains;
+		break;
 	default:
 		/* Unknown Tegra variant. Disable powergating */
 		tegra_num_powerdomains = 0;
@@ -229,6 +242,27 @@ static const char * const powergate_name_t30[] = {
 	[TEGRA_POWERGATE_3D1]	= "3d1",
 };
 
+static const char * const powergate_name_t114[] = {
+	[TEGRA_POWERGATE_CPU]	= "cpu0",
+	[TEGRA_POWERGATE_3D]	= "3d",
+	[TEGRA_POWERGATE_VENC]	= "venc",
+	[TEGRA_POWERGATE_VDEC]	= "vdec",
+	[TEGRA_POWERGATE_MPE]	= "mpe",
+	[TEGRA_POWERGATE_HEG]	= "heg",
+	[TEGRA_POWERGATE_CPU1]	= "cpu1",
+	[TEGRA_POWERGATE_CPU2]	= "cpu2",
+	[TEGRA_POWERGATE_CPU3]	= "cpu3",
+	[TEGRA_POWERGATE_CELP]	= "celp",
+	[TEGRA_POWERGATE_CPU0]	= "cpu0",
+	[TEGRA_POWERGATE_C0NC]	= "c0nc",
+	[TEGRA_POWERGATE_C1NC]	= "c1nc",
+	[TEGRA_POWERGATE_DIS]	= "dis",
+	[TEGRA_POWERGATE_DISB]	= "disb",
+	[TEGRA_POWERGATE_XUSBA]	= "xusba",
+	[TEGRA_POWERGATE_XUSBB]	= "xusbb",
+	[TEGRA_POWERGATE_XUSBC]	= "xusbc",
+};
+
 static int powergate_show(struct seq_file *s, void *data)
 {
 	int i;
@@ -236,9 +270,14 @@ static int powergate_show(struct seq_file *s, void *data)
 	seq_printf(s, " powergate powered\n");
 	seq_printf(s, "------------------\n");
 
-	for (i = 0; i < tegra_num_powerdomains; i++)
+	for (i = 0; i < tegra_num_powerdomains; i++) {
+		if (!powergate_name[i])
+			continue;
+
 		seq_printf(s, " %9s %7s\n", powergate_name[i],
 			tegra_powergate_is_powered(i) ? "yes" : "no");
+	}
+
 	return 0;
 }
 
@@ -264,6 +303,9 @@ int __init tegra_powergate_debugfs_init(void)
 		break;
 	case TEGRA30:
 		powergate_name = powergate_name_t30;
+		break;
+	case TEGRA114:
+		powergate_name = powergate_name_t114;
 		break;
 	}
 

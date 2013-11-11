@@ -12,7 +12,7 @@ obj-				:=
 
 # Core
 
-obj-y				+= common.o clock.o
+obj-y				+= common.o
 
 # Core support
 

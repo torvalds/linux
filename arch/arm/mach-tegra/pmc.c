@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/tegra-powergate.h>
 
 #include "flowctrl.h"
 #include "fuse.h"
@@ -42,12 +43,6 @@
 
 #define PMC_CPUPWRGOOD_TIMER	0xc8
 #define PMC_CPUPWROFF_TIMER	0xcc
-
-#define TEGRA_POWERGATE_PCIE	3
-#define TEGRA_POWERGATE_VDEC	4
-#define TEGRA_POWERGATE_CPU1	9
-#define TEGRA_POWERGATE_CPU2	10
-#define TEGRA_POWERGATE_CPU3	11
 
 static u8 tegra_cpu_domains[] = {
 	0xFF,			/* not available for CPU0 */
@@ -288,6 +283,7 @@ void tegra_pmc_suspend_init(void)
 #endif
 
 static const struct of_device_id matches[] __initconst = {
+	{ .compatible = "nvidia,tegra124-pmc" },
 	{ .compatible = "nvidia,tegra114-pmc" },
 	{ .compatible = "nvidia,tegra30-pmc" },
 	{ .compatible = "nvidia,tegra20-pmc" },

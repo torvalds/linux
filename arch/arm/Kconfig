@@ -317,6 +317,7 @@ config ARCH_INTEGRATOR
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
 	select SPARSE_IRQ
+	select USE_OF
 	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
@@ -723,6 +724,7 @@ config ARCH_S3C64XX
 	select ARM_VIC
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -736,7 +738,6 @@ config ARCH_S3C64XX
 	select S3C_DEV_NAND
 	select S3C_GPIO_TRACK
 	select SAMSUNG_ATAGS
-	select SAMSUNG_CLKSRC
 	select SAMSUNG_GPIOLIB_4BIT
 	select SAMSUNG_WAKEMASK
 	select SAMSUNG_WDT_RESET

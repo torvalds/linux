@@ -64,10 +64,10 @@ static void s3c2410_start_hc(struct platform_device *dev, struct usb_hcd *hcd)
 
 	dev_dbg(&dev->dev, "s3c2410_start_hc:\n");
 
-	clk_enable(usb_clk);
+	clk_prepare_enable(usb_clk);
 	mdelay(2);			/* let the bus clock stabilise */
 
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	if (info != NULL) {
 		info->hcd	= hcd;
@@ -92,8 +92,8 @@ static void s3c2410_stop_hc(struct platform_device *dev)
 			(info->enable_oc)(info, 0);
 	}
 
-	clk_disable(clk);
-	clk_disable(usb_clk);
+	clk_disable_unprepare(clk);
+	clk_disable_unprepare(usb_clk);
 }
 
 /* ohci_s3c2410_hub_status_data
