@@ -139,27 +139,33 @@ static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 void clear_prefree_segments(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int segno = -1;
+	unsigned long *prefree_map = dirty_i->dirty_segmap[PRE];
 	unsigned int total_segs = TOTAL_SEGS(sbi);
+	unsigned int start = 0, end = -1;
 
 	mutex_lock(&dirty_i->seglist_lock);
+
 	while (1) {
-		segno = find_next_bit(dirty_i->dirty_segmap[PRE], total_segs,
-				segno + 1);
-		if (segno >= total_segs)
+		int i;
+		start = find_next_bit(prefree_map, total_segs, end + 1);
+		if (start >= total_segs)
 			break;
+		end = find_next_zero_bit(prefree_map, total_segs, start + 1);
 
-		if (test_and_clear_bit(segno, dirty_i->dirty_segmap[PRE]))
-			dirty_i->nr_dirty[PRE]--;
+		for (i = start; i < end; i++)
+			clear_bit(i, prefree_map);
 
-		/* Let's use trim */
-		if (test_opt(sbi, DISCARD))
-			blkdev_issue_discard(sbi->sb->s_bdev,
-					START_BLOCK(sbi, segno) <<
-					sbi->log_sectors_per_block,
-					1 << (sbi->log_sectors_per_block +
-						sbi->log_blocks_per_seg),
-					GFP_NOFS, 0);
+		dirty_i->nr_dirty[PRE] -= end - start;
+
+		if (!test_opt(sbi, DISCARD))
+			continue;
+
+		blkdev_issue_discard(sbi->sb->s_bdev,
+				START_BLOCK(sbi, start) <<
+				sbi->log_sectors_per_block,
+				(1 << (sbi->log_sectors_per_block +
+				sbi->log_blocks_per_seg)) * (end - start),
+				GFP_NOFS, 0);
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 }
