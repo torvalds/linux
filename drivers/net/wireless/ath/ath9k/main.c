@@ -82,6 +82,22 @@ static bool ath9k_setpower(struct ath_softc *sc, enum ath9k_power_mode mode)
 	return ret;
 }
 
+void ath_ps_full_sleep(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	bool reset;
+
+	spin_lock(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	spin_unlock(&common->cc_lock);
+
+	ath9k_hw_setrxabort(sc->sc_ah, 1);
+	ath9k_hw_stopdmarecv(sc->sc_ah, &reset);
+
+	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
+}
+
 void ath9k_ps_wakeup(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -92,6 +108,7 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	if (++sc->ps_usecount != 1)
 		goto unlock;
 
+	del_timer_sync(&sc->sleep_timer);
 	power_mode = sc->sc_ah->power_mode;
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
@@ -117,17 +134,17 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	enum ath9k_power_mode mode;
 	unsigned long flags;
-	bool reset;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
 	if (sc->ps_idle) {
-		ath9k_hw_setrxabort(sc->sc_ah, 1);
-		ath9k_hw_stopdmarecv(sc->sc_ah, &reset);
-		mode = ATH9K_PM_FULL_SLEEP;
-	} else if (sc->ps_enabled &&
+		mod_timer(&sc->sleep_timer, jiffies + HZ / 10);
+		goto unlock;
+	}
+
+	if (sc->ps_enabled &&
 		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 				     PS_WAIT_FOR_CAB |
 				     PS_WAIT_FOR_PSPOLL_DATA |

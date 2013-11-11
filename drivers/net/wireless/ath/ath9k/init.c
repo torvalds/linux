@@ -738,6 +738,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
 
+	setup_timer(&sc->sleep_timer, ath_ps_full_sleep, (unsigned long)sc);
 	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
@@ -1049,6 +1050,7 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
+	del_timer_sync(&sc->sleep_timer);
 	ath9k_hw_deinit(sc->sc_ah);
 	if (sc->dfs_detector != NULL)
 		sc->dfs_detector->exit(sc->dfs_detector);

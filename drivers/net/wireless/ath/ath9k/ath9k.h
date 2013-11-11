@@ -459,6 +459,7 @@ void ath_check_ani(struct ath_softc *sc);
 int ath_update_survey_stats(struct ath_softc *sc);
 void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
+void ath_ps_full_sleep(unsigned long data);
 
 /**********/
 /* BTCOEX */
@@ -789,6 +790,7 @@ struct ath_softc {
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
 	struct timer_list rx_poll_timer;
+	struct timer_list sleep_timer;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
