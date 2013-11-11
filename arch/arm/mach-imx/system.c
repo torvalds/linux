@@ -42,9 +42,6 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
-	if (cpu_is_imx6q() || cpu_is_imx6dl())
-		imx_src_prepare_restart();
-
 	if (wdog_clk)
 		clk_enable(wdog_clk);
 
@@ -55,7 +52,14 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 
 	/* Assert SRS signal */
 	__raw_writew(wcr_enable, wdog_base);
-	/* write twice to ensure the request will not get ignored */
+	/*
+	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
+	 * written twice), we add another two writes to ensure there must be at
+	 * least two writes happen in the same one 32kHz clock period.  We save
+	 * the target check here, since the writes shouldn't be a huge burden
+	 * for other platforms.
+	 */
+	__raw_writew(wcr_enable, wdog_base);
 	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */
