@@ -89,3 +89,9 @@
 &i2c2 {
 	status = "okay";
 };
+
+&sdhci2 {
+	bus-width = <4>;
+	cd-gpios = <&gpio3 14 0>;
+	status = "okay";
+};
