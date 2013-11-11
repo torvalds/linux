@@ -83,7 +83,6 @@ rw_attribute(writeback_rate);
 rw_attribute(writeback_rate_update_seconds);
 rw_attribute(writeback_rate_d_term);
 rw_attribute(writeback_rate_p_term_inverse);
-rw_attribute(writeback_rate_d_smooth);
 read_attribute(writeback_rate_debug);
 
 read_attribute(stripe_size);
@@ -129,31 +128,41 @@ SHOW(__bch_cached_dev)
 	var_printf(writeback_running,	"%i");
 	var_print(writeback_delay);
 	var_print(writeback_percent);
-	sysfs_print(writeback_rate,	dc->writeback_rate.rate);
+	sysfs_hprint(writeback_rate,	dc->writeback_rate.rate << 9);
 
 	var_print(writeback_rate_update_seconds);
 	var_print(writeback_rate_d_term);
 	var_print(writeback_rate_p_term_inverse);
-	var_print(writeback_rate_d_smooth);
 
 	if (attr == &sysfs_writeback_rate_debug) {
+		char rate[20];
 		char dirty[20];
-		char derivative[20];
 		char target[20];
-		bch_hprint(dirty,
-			   bcache_dev_sectors_dirty(&dc->disk) << 9);
-		bch_hprint(derivative,	dc->writeback_rate_derivative << 9);
+		char proportional[20];
+		char derivative[20];
+		char change[20];
+		s64 next_io;
+
+		bch_hprint(rate,	dc->writeback_rate.rate << 9);
+		bch_hprint(dirty,	bcache_dev_sectors_dirty(&dc->disk) << 9);
 		bch_hprint(target,	dc->writeback_rate_target << 9);
+		bch_hprint(proportional,dc->writeback_rate_proportional << 9);
+		bch_hprint(derivative,	dc->writeback_rate_derivative << 9);
+		bch_hprint(change,	dc->writeback_rate_change << 9);
+
+		next_io = div64_s64(dc->writeback_rate.next - local_clock(),
+				    NSEC_PER_MSEC);
 
 		return sprintf(buf,
-			       "rate:\t\t%u\n"
-			       "change:\t\t%i\n"
+			       "rate:\t\t%s/sec\n"
 			       "dirty:\t\t%s\n"
+			       "target:\t\t%s\n"
+			       "proportional:\t%s\n"
 			       "derivative:\t%s\n"
-			       "target:\t\t%s\n",
-			       dc->writeback_rate.rate,
-			       dc->writeback_rate_change,
-			       dirty, derivative, target);
+			       "change:\t\t%s/sec\n"
+			       "next io:\t%llims\n",
+			       rate, dirty, target, proportional,
+			       derivative, change, next_io);
 	}
 
 	sysfs_hprint(dirty_data,
@@ -189,6 +198,7 @@ STORE(__cached_dev)
 	struct kobj_uevent_env *env;
 
 #define d_strtoul(var)		sysfs_strtoul(var, dc->var)
+#define d_strtoul_nonzero(var)	sysfs_strtoul_clamp(var, dc->var, 1, INT_MAX)
 #define d_strtoi_h(var)		sysfs_hatoi(var, dc->var)
 
 	sysfs_strtoul(data_csum,	dc->disk.data_csum);
@@ -197,16 +207,15 @@ STORE(__cached_dev)
 	d_strtoul(writeback_metadata);
 	d_strtoul(writeback_running);
 	d_strtoul(writeback_delay);
-	sysfs_strtoul_clamp(writeback_rate,
-			    dc->writeback_rate.rate, 1, 1000000);
+
 	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent, 0, 40);
 
-	d_strtoul(writeback_rate_update_seconds);
+	sysfs_strtoul_clamp(writeback_rate,
+			    dc->writeback_rate.rate, 1, INT_MAX);
+
+	d_strtoul_nonzero(writeback_rate_update_seconds);
 	d_strtoul(writeback_rate_d_term);
-	d_strtoul(writeback_rate_p_term_inverse);
-	sysfs_strtoul_clamp(writeback_rate_p_term_inverse,
-			    dc->writeback_rate_p_term_inverse, 1, INT_MAX);
-	d_strtoul(writeback_rate_d_smooth);
+	d_strtoul_nonzero(writeback_rate_p_term_inverse);
 
 	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
@@ -313,7 +322,6 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_rate_update_seconds,
 	&sysfs_writeback_rate_d_term,
 	&sysfs_writeback_rate_p_term_inverse,
-	&sysfs_writeback_rate_d_smooth,
 	&sysfs_writeback_rate_debug,
 	&sysfs_dirty_data,
 	&sysfs_stripe_size,

@@ -373,14 +373,14 @@ struct cached_dev {
 	unsigned char		writeback_percent;
 	unsigned		writeback_delay;
 
-	int			writeback_rate_change;
-	int64_t			writeback_rate_derivative;
 	uint64_t		writeback_rate_target;
+	int64_t			writeback_rate_proportional;
+	int64_t			writeback_rate_derivative;
+	int64_t			writeback_rate_change;
 
 	unsigned		writeback_rate_update_seconds;
 	unsigned		writeback_rate_d_term;
 	unsigned		writeback_rate_p_term_inverse;
-	unsigned		writeback_rate_d_smooth;
 };
 
 enum alloc_watermarks {
