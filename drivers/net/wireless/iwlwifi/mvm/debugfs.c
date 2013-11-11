@@ -862,8 +862,37 @@ static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
 	PRINT_MVM_REF(IWL_MVM_REF_ROC);
 	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
 	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
+	PRINT_MVM_REF(IWL_MVM_REF_USER);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	unsigned long value;
+	int ret;
+	bool taken;
+
+	ret = kstrtoul(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&mvm->mutex);
+
+	taken = test_bit(IWL_MVM_REF_USER, mvm->ref_bitmap);
+	if (value == 1 && !taken)
+		iwl_mvm_ref(mvm, IWL_MVM_REF_USER);
+	else if (value == 0 && taken)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_USER);
+	else
+		ret = -EINVAL;
+
+	mutex_unlock(&mvm->mutex);
+
+	if (ret < 0)
+		return ret;
+	return count;
 }
 
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
@@ -890,7 +919,7 @@ MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
-MVM_DEBUGFS_READ_FILE_OPS(d0i3_refs);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -922,7 +951,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_nmi, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
 			     S_IWUSR | S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING) {
