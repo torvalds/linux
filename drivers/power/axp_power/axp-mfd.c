@@ -206,6 +206,8 @@ static void axp_power_off(void)
 {
 	uint8_t val;
 
+	preempt_count() = 0;
+
 #if defined (CONFIG_AW_AXP18)
 	axp_set_bits(&axp->dev, POWER18_ONOFF, 0x80);
 #endif
