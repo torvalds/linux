@@ -411,12 +411,12 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-				 const struct cfg80211_chan_def *chandef,
 				 u32 *changed)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
+	const struct cfg80211_chan_def *chandef = &sdata->csa_chandef;
 	int ret;
 	u32 chanctx_changed = 0;
 

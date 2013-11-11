@@ -2990,13 +2990,12 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 		return;
 
 	sdata->radar_required = sdata->csa_radar_required;
-	err = ieee80211_vif_change_channel(sdata, &local->csa_chandef,
-					   &changed);
+	err = ieee80211_vif_change_channel(sdata, &changed);
 	if (WARN_ON(err < 0))
 		return;
 
 	if (!local->use_chanctx) {
-		local->_oper_chandef = local->csa_chandef;
+		local->_oper_chandef = sdata->csa_chandef;
 		ieee80211_hw_config(local, 0);
 	}
 
@@ -3033,7 +3032,7 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	cfg80211_ch_switch_notify(sdata->dev, &local->csa_chandef);
+	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
 }
 
 static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
@@ -3158,7 +3157,7 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 				IEEE80211_MAX_QUEUE_MAP,
 				IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	local->csa_chandef = params->chandef;
+	sdata->csa_chandef = params->chandef;
 	sdata->vif.csa_active = true;
 
 	ieee80211_bss_info_change_notify(sdata, err);

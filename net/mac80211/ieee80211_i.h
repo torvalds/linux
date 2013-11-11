@@ -736,6 +736,7 @@ struct ieee80211_sub_if_data {
 	int csa_counter_offset_beacon;
 	int csa_counter_offset_presp;
 	bool csa_radar_required;
+	struct cfg80211_chan_def csa_chandef;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -1094,7 +1095,6 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	struct cfg80211_chan_def csa_chandef;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
 
@@ -1731,7 +1731,6 @@ ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 /* NOTE: only use ieee80211_vif_change_channel() for channel switch */
 int __must_check
 ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-			     const struct cfg80211_chan_def *chandef,
 			     u32 *changed);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);

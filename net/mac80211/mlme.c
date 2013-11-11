@@ -886,8 +886,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	if (!ifmgd->associated)
 		goto out;
 
-	ret = ieee80211_vif_change_channel(sdata, &local->csa_chandef,
-					   &changed);
+	ret = ieee80211_vif_change_channel(sdata, &changed);
 	if (ret) {
 		sdata_info(sdata,
 			   "vif channel switch failed, disconnecting\n");
@@ -897,7 +896,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	}
 
 	if (!local->use_chanctx) {
-		local->_oper_chandef = local->csa_chandef;
+		local->_oper_chandef = sdata->csa_chandef;
 		/* Call "hw_config" only if doing sw channel switch.
 		 * Otherwise update the channel directly
 		 */
@@ -908,7 +907,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	}
 
 	/* XXX: shouldn't really modify cfg80211-owned data! */
-	ifmgd->associated->channel = local->csa_chandef.chan;
+	ifmgd->associated->channel = sdata->csa_chandef.chan;
 
 	/* XXX: wait for a beacon first? */
 	ieee80211_wake_queues_by_reason(&local->hw,
@@ -1035,7 +1034,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->chanctx_mtx);
 
-	local->csa_chandef = csa_ie.chandef;
+	sdata->csa_chandef = csa_ie.chandef;
 
 	if (csa_ie.mode)
 		ieee80211_stop_queues_by_reason(&local->hw,
