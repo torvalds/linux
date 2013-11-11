@@ -715,7 +715,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	if (rc == 0)
 		return (0);
 
-	CERROR("LNetMDAttach failed: %d; \n", rc);
+	CERROR("LNetMDAttach failed: %d;\n", rc);
 	LASSERT(rc == -ENOMEM);
 	rc = LNetMEUnlink(me_h);
 	LASSERT(rc == 0);

@@ -576,7 +576,7 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 			break;
 		}
 	}
-	LASSERTF(ti != NULL, "ti is NULL ! \n");
+	LASSERTF(ti != NULL, "ti is NULL !\n");
 	if (list_empty(&ti->ti_obd_list)) {
 		list_del(&ti->ti_chain);
 		OBD_FREE_PTR(ti);
