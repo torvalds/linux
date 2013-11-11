@@ -57,7 +57,11 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		goto out_delete_maps;
 	}
 
-	perf_evlist__open(evlist);
+	if (perf_evlist__open(evlist)) {
+		err = -errno;
+		pr_debug("Couldn't open evlist: %s\n", strerror(errno));
+		goto out_delete_maps;
+	}
 
 	err = perf_evlist__mmap(evlist, 128, true);
 	if (err < 0) {
