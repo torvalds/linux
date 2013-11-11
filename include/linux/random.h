@@ -32,10 +32,10 @@ void prandom_seed(u32 seed);
 void prandom_reseed_late(void);
 
 struct rnd_state {
-	__u32 s1, s2, s3;
+	__u32 s1, s2, s3, s4;
 };
 
-u32 prandom_u32_state(struct rnd_state *);
+u32 prandom_u32_state(struct rnd_state *state);
 void prandom_bytes_state(struct rnd_state *state, void *buf, int nbytes);
 
 /*
@@ -55,9 +55,10 @@ static inline void prandom_seed_state(struct rnd_state *state, u64 seed)
 {
 	u32 i = (seed >> 32) ^ (seed << 10) ^ seed;
 
-	state->s1 = __seed(i, 2);
-	state->s2 = __seed(i, 8);
-	state->s3 = __seed(i, 16);
+	state->s1 = __seed(i,   2U);
+	state->s2 = __seed(i,   8U);
+	state->s3 = __seed(i,  16U);
+	state->s4 = __seed(i, 128U);
 }
 
 #ifdef CONFIG_ARCH_RANDOM

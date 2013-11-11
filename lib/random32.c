@@ -2,19 +2,19 @@
   This is a maximally equidistributed combined Tausworthe generator
   based on code from GNU Scientific Library 1.5 (30 Jun 2004)
 
-   x_n = (s1_n ^ s2_n ^ s3_n)
+  lfsr113 version:
 
-   s1_{n+1} = (((s1_n & 4294967294) <<12) ^ (((s1_n <<13) ^ s1_n) >>19))
-   s2_{n+1} = (((s2_n & 4294967288) << 4) ^ (((s2_n << 2) ^ s2_n) >>25))
-   s3_{n+1} = (((s3_n & 4294967280) <<17) ^ (((s3_n << 3) ^ s3_n) >>11))
+   x_n = (s1_n ^ s2_n ^ s3_n ^ s4_n)
 
-   The period of this generator is about 2^88.
+   s1_{n+1} = (((s1_n & 4294967294) << 18) ^ (((s1_n <<  6) ^ s1_n) >> 13))
+   s2_{n+1} = (((s2_n & 4294967288) <<  2) ^ (((s2_n <<  2) ^ s2_n) >> 27))
+   s3_{n+1} = (((s3_n & 4294967280) <<  7) ^ (((s3_n << 13) ^ s3_n) >> 21))
+   s4_{n+1} = (((s4_n & 4294967168) << 13) ^ (((s4_n <<  3) ^ s4_n) >> 12))
+
+   The period of this generator is about 2^113 (see erratum paper).
 
    From: P. L'Ecuyer, "Maximally Equidistributed Combined Tausworthe
-   Generators", Mathematics of Computation, 65, 213 (1996), 203--213.
-
-   This is available on the net from L'Ecuyer's home page,
-
+   Generators", Mathematics of Computation, 65, 213 (1996), 203--213:
    http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme.ps
    ftp://ftp.iro.umontreal.ca/pub/simulation/lecuyer/papers/tausme.ps
 
@@ -29,7 +29,7 @@
         that paper.)
 
    This affects the seeding procedure by imposing the requirement
-   s1 > 1, s2 > 7, s3 > 15.
+   s1 > 1, s2 > 7, s3 > 15, s4 > 127.
 
 */
 
@@ -52,11 +52,12 @@ u32 prandom_u32_state(struct rnd_state *state)
 {
 #define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
 
-	state->s1 = TAUSWORTHE(state->s1, 13, 19, 4294967294UL, 12);
-	state->s2 = TAUSWORTHE(state->s2, 2, 25, 4294967288UL, 4);
-	state->s3 = TAUSWORTHE(state->s3, 3, 11, 4294967280UL, 17);
+	state->s1 = TAUSWORTHE(state->s1,  6U, 13U, 4294967294U, 18U);
+	state->s2 = TAUSWORTHE(state->s2,  2U, 27U, 4294967288U,  2U);
+	state->s3 = TAUSWORTHE(state->s3, 13U, 21U, 4294967280U,  7U);
+	state->s4 = TAUSWORTHE(state->s4,  3U, 12U, 4294967168U, 13U);
 
-	return (state->s1 ^ state->s2 ^ state->s3);
+	return (state->s1 ^ state->s2 ^ state->s3 ^ state->s4);
 }
 EXPORT_SYMBOL(prandom_u32_state);
 
@@ -126,6 +127,21 @@ void prandom_bytes(void *buf, int bytes)
 }
 EXPORT_SYMBOL(prandom_bytes);
 
+static void prandom_warmup(struct rnd_state *state)
+{
+	/* Calling RNG ten times to satify recurrence condition */
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+	prandom_u32_state(state);
+}
+
 /**
  *	prandom_seed - add entropy to pseudo random number generator
  *	@seed: seed value
@@ -141,8 +157,9 @@ void prandom_seed(u32 entropy)
 	 */
 	for_each_possible_cpu (i) {
 		struct rnd_state *state = &per_cpu(net_rand_state, i);
-		state->s1 = __seed(state->s1 ^ entropy, 2);
-		prandom_u32_state(state);
+
+		state->s1 = __seed(state->s1 ^ entropy, 2U);
+		prandom_warmup(state);
 	}
 }
 EXPORT_SYMBOL(prandom_seed);
@@ -158,18 +175,13 @@ static int __init prandom_init(void)
 	for_each_possible_cpu(i) {
 		struct rnd_state *state = &per_cpu(net_rand_state,i);
 
-#define LCG(x)	((x) * 69069)	/* super-duper LCG */
-		state->s1 = __seed(LCG(i + jiffies), 2);
-		state->s2 = __seed(LCG(state->s1), 8);
-		state->s3 = __seed(LCG(state->s2), 16);
+#define LCG(x)	((x) * 69069U)	/* super-duper LCG */
+		state->s1 = __seed(LCG((i + jiffies) ^ random_get_entropy()), 2U);
+		state->s2 = __seed(LCG(state->s1),   8U);
+		state->s3 = __seed(LCG(state->s2),  16U);
+		state->s4 = __seed(LCG(state->s3), 128U);
 
-		/* "warm it up" */
-		prandom_u32_state(state);
-		prandom_u32_state(state);
-		prandom_u32_state(state);
-		prandom_u32_state(state);
-		prandom_u32_state(state);
-		prandom_u32_state(state);
+		prandom_warmup(state);
 	}
 	return 0;
 }
@@ -215,15 +227,15 @@ static void __prandom_reseed(bool late)
 
 	for_each_possible_cpu(i) {
 		struct rnd_state *state = &per_cpu(net_rand_state,i);
-		u32 seeds[3];
+		u32 seeds[4];
 
 		get_random_bytes(&seeds, sizeof(seeds));
-		state->s1 = __seed(seeds[0], 2);
-		state->s2 = __seed(seeds[1], 8);
-		state->s3 = __seed(seeds[2], 16);
+		state->s1 = __seed(seeds[0],   2U);
+		state->s2 = __seed(seeds[1],   8U);
+		state->s3 = __seed(seeds[2],  16U);
+		state->s4 = __seed(seeds[3], 128U);
 
-		/* mix it in */
-		prandom_u32_state(state);
+		prandom_warmup(state);
 	}
 out:
 	spin_unlock_irqrestore(&lock, flags);
