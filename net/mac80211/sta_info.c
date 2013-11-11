@@ -507,6 +507,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	set_sta_flag(sta, WLAN_STA_INSERTED);
 
+	ieee80211_recalc_min_chandef(sdata);
 	ieee80211_sta_debugfs_add(sta);
 	rate_control_add_sta_debugfs(sta);
 
@@ -869,6 +870,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
+	ieee80211_recalc_min_chandef(sdata);
 
 	call_rcu(&sta->rcu_head, free_sta_rcu);
 
