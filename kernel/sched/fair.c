@@ -31,7 +31,6 @@
 #include <linux/task_work.h>
 
 #include <trace/events/sched.h>
-#ifdef CONFIG_HMP_VARIABLE_SCALE
 #include <linux/sysfs.h>
 #include <linux/vmalloc.h>
 #ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
@@ -40,7 +39,6 @@
  */
 #include <linux/cpufreq.h>
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
 
 #include "sched.h"
 
@@ -1212,8 +1210,6 @@ static u32 __compute_runnable_contrib(u64 n)
 	return contrib + runnable_avg_yN_sum[n];
 }
 
-#ifdef CONFIG_HMP_VARIABLE_SCALE
-
 #define HMP_VARIABLE_SCALE_SHIFT 16ULL
 struct hmp_global_attr {
 	struct attribute attr;
@@ -1224,6 +1220,7 @@ struct hmp_global_attr {
 	int *value;
 	int (*to_sysfs)(int);
 	int (*from_sysfs)(int);
+	ssize_t (*to_sysfs_text)(char *buf, int buf_size);
 };
 
 #define HMP_DATA_SYSFS_MAX 8
@@ -1294,7 +1291,6 @@ struct cpufreq_extents {
 
 static struct cpufreq_extents freq_scale[CONFIG_NR_CPUS];
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
 
 /* We can represent the historical contribution to runnable average as the
  * coefficients of a geometric series.  To do this we sub-divide our runnable
@@ -1340,9 +1336,8 @@ static __always_inline int __update_entity_runnable_avg(u64 now,
 #endif /* CONFIG_HMP_FREQUENCY_INVARIANT_SCALE */
 
 	delta = now - sa->last_runnable_update;
-#ifdef CONFIG_HMP_VARIABLE_SCALE
+
 	delta = hmp_variable_scale_convert(delta);
-#endif
 	/*
 	 * This should only happen when time goes backwards, which it
 	 * unfortunately does during sched clock init when we swap over to TSC.
@@ -3842,7 +3837,6 @@ static inline void hmp_next_down_delay(struct sched_entity *se, int cpu)
 	cpu_rq(cpu)->avg.hmp_last_up_migration = 0;
 }
 
-#ifdef CONFIG_HMP_VARIABLE_SCALE
 /*
  * Heterogenous multiprocessor (HMP) optimizations
  *
@@ -3875,27 +3869,35 @@ static inline void hmp_next_down_delay(struct sched_entity *se, int cpu)
  * The scale factor hmp_data.multiplier is a fixed point
  * number: (32-HMP_VARIABLE_SCALE_SHIFT).HMP_VARIABLE_SCALE_SHIFT
  */
-static u64 hmp_variable_scale_convert(u64 delta)
+static inline u64 hmp_variable_scale_convert(u64 delta)
 {
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 	u64 high = delta >> 32ULL;
 	u64 low = delta & 0xffffffffULL;
 	low *= hmp_data.multiplier;
 	high *= hmp_data.multiplier;
 	return (low >> HMP_VARIABLE_SCALE_SHIFT)
 			+ (high << (32ULL - HMP_VARIABLE_SCALE_SHIFT));
+#else
+	return delta;
+#endif
 }
 
 static ssize_t hmp_show(struct kobject *kobj,
 				struct attribute *attr, char *buf)
 {
-	ssize_t ret = 0;
 	struct hmp_global_attr *hmp_attr =
 		container_of(attr, struct hmp_global_attr, attr);
-	int temp = *(hmp_attr->value);
+	int temp;
+
+	if (hmp_attr->to_sysfs_text != NULL)
+		return hmp_attr->to_sysfs_text(buf, PAGE_SIZE);
+
+	temp = *(hmp_attr->value);
 	if (hmp_attr->to_sysfs != NULL)
 		temp = hmp_attr->to_sysfs(temp);
-	ret = sprintf(buf, "%d\n", temp);
-	return ret;
+
+	return (ssize_t)sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t hmp_store(struct kobject *a, struct attribute *attr,
@@ -3924,11 +3926,31 @@ static ssize_t hmp_store(struct kobject *a, struct attribute *attr,
 	return ret;
 }
 
+static ssize_t hmp_print_domains(char *outbuf, int outbufsize)
+{
+	char buf[64];
+	const char nospace[] = "%s", space[] = " %s";
+	const char *fmt = nospace;
+	struct hmp_domain *domain;
+	struct list_head *pos;
+	int outpos = 0;
+	list_for_each(pos, &hmp_domains) {
+		domain = list_entry(pos, struct hmp_domain, hmp_domains);
+		if (cpumask_scnprintf(buf, 64, &domain->possible_cpus)) {
+			outpos += sprintf(outbuf+outpos, fmt, buf);
+			fmt = space;
+		}
+	}
+	strcat(outbuf, "\n");
+	return outpos+1;
+}
+
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 static int hmp_period_tofrom_sysfs(int value)
 {
 	return (LOAD_AVG_PERIOD << HMP_VARIABLE_SCALE_SHIFT) / value;
 }
-
+#endif
 /* max value for threshold is 1024 */
 static int hmp_theshold_from_sysfs(int value)
 {
@@ -3936,9 +3958,10 @@ static int hmp_theshold_from_sysfs(int value)
 		return -1;
 	return value;
 }
-#ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
-/* freqinvar control is only 0,1 off/on */
-static int hmp_freqinvar_from_sysfs(int value)
+#if defined(CONFIG_SCHED_HMP_LITTLE_PACKING) || \
+		defined(CONFIG_HMP_FREQUENCY_INVARIANT_SCALE)
+/* toggle control is only 0,1 off/on */
+static int hmp_toggle_from_sysfs(int value)
 {
 	if (value < 0 || value > 1)
 		return -1;
@@ -3958,7 +3981,9 @@ static void hmp_attr_add(
 	const char *name,
 	int *value,
 	int (*to_sysfs)(int),
-	int (*from_sysfs)(int))
+	int (*from_sysfs)(int),
+	ssize_t (*to_sysfs_text)(char *, int),
+	umode_t mode)
 {
 	int i = 0;
 	while (hmp_data.attributes[i] != NULL) {
@@ -3966,13 +3991,17 @@ static void hmp_attr_add(
 		if (i >= HMP_DATA_SYSFS_MAX)
 			return;
 	}
-	hmp_data.attr[i].attr.mode = 0644;
+	if (mode)
+		hmp_data.attr[i].attr.mode = mode;
+	else
+		hmp_data.attr[i].attr.mode = 0644;
 	hmp_data.attr[i].show = hmp_show;
 	hmp_data.attr[i].store = hmp_store;
 	hmp_data.attr[i].attr.name = name;
 	hmp_data.attr[i].value = value;
 	hmp_data.attr[i].to_sysfs = to_sysfs;
 	hmp_data.attr[i].from_sysfs = from_sysfs;
+	hmp_data.attr[i].to_sysfs_text = to_sysfs_text;
 	hmp_data.attributes[i] = &hmp_data.attr[i].attr;
 	hmp_data.attributes[i + 1] = NULL;
 }
@@ -3981,40 +4010,59 @@ static int hmp_attr_init(void)
 {
 	int ret;
 	memset(&hmp_data, sizeof(hmp_data), 0);
+	hmp_attr_add("hmp_domains",
+		NULL,
+		NULL,
+		NULL,
+		hmp_print_domains,
+		0444);
+	hmp_attr_add("up_threshold",
+		&hmp_up_threshold,
+		NULL,
+		hmp_theshold_from_sysfs,
+		NULL,
+		0);
+	hmp_attr_add("down_threshold",
+		&hmp_down_threshold,
+		NULL,
+		hmp_theshold_from_sysfs,
+		NULL,
+		0);
+#ifdef CONFIG_HMP_VARIABLE_SCALE
 	/* by default load_avg_period_ms == LOAD_AVG_PERIOD
 	 * meaning no change
 	 */
 	hmp_data.multiplier = hmp_period_tofrom_sysfs(LOAD_AVG_PERIOD);
-
 	hmp_attr_add("load_avg_period_ms",
 		&hmp_data.multiplier,
 		hmp_period_tofrom_sysfs,
-		hmp_period_tofrom_sysfs);
-	hmp_attr_add("up_threshold",
-		&hmp_up_threshold,
+		hmp_period_tofrom_sysfs,
 		NULL,
-		hmp_theshold_from_sysfs);
-	hmp_attr_add("down_threshold",
-		&hmp_down_threshold,
-		NULL,
-		hmp_theshold_from_sysfs);
+		0);
+#endif
 #ifdef CONFIG_HMP_FREQUENCY_INVARIANT_SCALE
 	/* default frequency-invariant scaling ON */
 	hmp_data.freqinvar_load_scale_enabled = 1;
 	hmp_attr_add("frequency_invariant_load_scale",
 		&hmp_data.freqinvar_load_scale_enabled,
 		NULL,
-		hmp_freqinvar_from_sysfs);
+		hmp_toggle_from_sysfs,
+		NULL,
+		0);
 #endif
 #ifdef CONFIG_SCHED_HMP_LITTLE_PACKING
 	hmp_attr_add("packing_enable",
 		&hmp_packing_enabled,
 		NULL,
-		hmp_freqinvar_from_sysfs);
+		hmp_toggle_from_sysfs,
+		NULL,
+		0);
 	hmp_attr_add("packing_limit",
 		&hmp_full_threshold,
 		NULL,
-		hmp_packing_from_sysfs);
+		hmp_packing_from_sysfs,
+		NULL,
+		0);
 #endif
 	hmp_data.attr_group.name = "hmp";
 	hmp_data.attr_group.attrs = hmp_data.attributes;
@@ -4023,7 +4071,6 @@ static int hmp_attr_init(void)
 	return 0;
 }
 late_initcall(hmp_attr_init);
-#endif /* CONFIG_HMP_VARIABLE_SCALE */
 /*
  * return the load of the lowest-loaded CPU in a given HMP domain
  * min_cpu optionally points to an int to receive the CPU.
