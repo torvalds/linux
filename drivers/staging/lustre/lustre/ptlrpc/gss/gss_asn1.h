@@ -64,9 +64,9 @@
 #define G_REFLECT				(-2045022961L)
 #define G_WRONG_TOKID			    (-2045022960L)
 
-#define g_OID_equal(o1,o2) \
-   (((o1)->len == (o2)->len) && \
-    (memcmp((o1)->data,(o2)->data,(int) (o1)->len) == 0))
+#define g_OID_equal(o1, o2) \
+	(((o1)->len == (o2)->len) && \
+	 (memcmp((o1)->data, (o2)->data, (int) (o1)->len) == 0))
 
 __u32 g_verify_token_header(rawobj_t *mech,
 			    int *body_size,
