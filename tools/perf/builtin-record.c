@@ -482,11 +482,11 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	if (perf_target__has_task(&opts->target))
 		err = perf_event__synthesize_thread_map(tool, evsel_list->threads,
-						  process_synthesized_event,
-						  machine);
+							process_synthesized_event,
+							machine, opts->sample_address);
 	else if (perf_target__has_cpu(&opts->target))
 		err = perf_event__synthesize_threads(tool, process_synthesized_event,
-					       machine);
+						     machine, opts->sample_address);
 	else /* command specified */
 		err = 0;
 

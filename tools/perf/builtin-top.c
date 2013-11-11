@@ -953,10 +953,10 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_target__has_task(&opts->target))
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
-						  &top->session->machines.host);
+						  &top->session->machines.host, false);
 	else
 		perf_event__synthesize_threads(&top->tool, perf_event__process,
-					       &top->session->machines.host);
+					       &top->session->machines.host, false);
 
 	ret = perf_top__start_counters(top);
 	if (ret)

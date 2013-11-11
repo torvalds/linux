@@ -1550,10 +1550,10 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		perf_event__synthesize_thread_map(&kvm->tool,
 						  kvm->evlist->threads,
 						  perf_event__process,
-						  &kvm->session->machines.host);
+						  &kvm->session->machines.host, false);
 	else
 		perf_event__synthesize_threads(&kvm->tool, perf_event__process,
-					       &kvm->session->machines.host);
+					       &kvm->session->machines.host, false);
 
 
 	err = kvm_live_open_events(kvm);

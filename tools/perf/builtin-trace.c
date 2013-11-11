@@ -1343,10 +1343,10 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (perf_target__has_task(&trace->opts.target)) {
 		err = perf_event__synthesize_thread_map(&trace->tool, evlist->threads,
 							trace__tool_process,
-							trace->host);
+							trace->host, false);
 	} else {
 		err = perf_event__synthesize_threads(&trace->tool, trace__tool_process,
-						     trace->host);
+						     trace->host, false);
 	}
 
 	if (err)
