@@ -292,9 +292,6 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_pcie_apm_init(trans);
 
-	/* Set interrupt coalescing calibration timer to default (512 usecs) */
-	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
-
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	iwl_pcie_set_pwr(trans, false);

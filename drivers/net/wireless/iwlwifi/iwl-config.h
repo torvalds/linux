@@ -241,6 +241,8 @@ struct iwl_eeprom_params {
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @temp_offset_v2: support v2 of temperature offset calibration
+ * @host_interrupt_operation_mode: device needs host interrupt operation
+ *	mode set
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -273,6 +275,7 @@ struct iwl_cfg {
 	const bool rx_with_siso_diversity;
 	const bool internal_wimax_coex;
 	const bool temp_offset_v2;
+	const bool host_interrupt_operation_mode;
 };
 
 /*
