@@ -7,6 +7,7 @@
 #include "smil.h"
 
 static BYTE   _Check_D_DevCode(BYTE);
+static DWORD	ErrXDCode;
 
 struct keucr_media_info         Ssfdc;
 struct keucr_media_address      Media;

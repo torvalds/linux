@@ -25,7 +25,6 @@ static int  Make_D_LogTable(struct us_data *);
 
 static int  MarkFail_D_PhyOneBlock(struct us_data *);
 
-DWORD ErrXDCode;
 DWORD ErrCode;
 static BYTE  WorkBuf[SECTSIZE];
 static BYTE  Redundant[REDTSIZE];
