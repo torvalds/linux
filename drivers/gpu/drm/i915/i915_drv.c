@@ -158,7 +158,7 @@ static struct drm_driver driver;
 #if IS_ENABLED(CONFIG_AGP_INTEL)
 extern int intel_agp_enabled;
 #else
-static int intel_agp_enabled;
+static int intel_agp_enabled = 1;
 #endif
 
 static const struct intel_device_info intel_i830_info = {
