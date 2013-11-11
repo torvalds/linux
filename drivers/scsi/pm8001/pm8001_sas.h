@@ -466,6 +466,10 @@ struct pm8001_hba_memspace {
 	u64			membase;
 	u32			memsize;
 };
+struct isr_param {
+	struct pm8001_hba_info *drv_inst;
+	u32 irq_id;
+};
 struct pm8001_hba_info {
 	char			name[PM8001_NAME_LENGTH];
 	struct list_head	list;
@@ -519,14 +523,13 @@ struct pm8001_hba_info {
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET
-	struct tasklet_struct	tasklet;
+	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
 #endif
 	u32			logging_level;
 	u32			fw_status;
 	u32			smp_exp_mode;
-	u32			int_vector;
 	const struct firmware 	*fw_image;
-	u8			outq[PM8001_MAX_MSIX_VEC];
+	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
 };
 
 struct pm8001_work {
