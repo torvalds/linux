@@ -160,13 +160,13 @@ static u8 get_gpmc0_type(void)
 	if (!fpga_map_addr)
 		return -ENOMEM;
 
-	if (!(__raw_readw(fpga_map_addr + REG_FPGA_REV)))
+	if (!(readw_relaxed(fpga_map_addr + REG_FPGA_REV)))
 		/* we dont have an DEBUG FPGA??? */
 		/* Depend on #defines!! default to strata boot return param */
 		goto unmap;
 
 	/* S8-DIP-OFF = 1, S8-DIP-ON = 0 */
-	cs = __raw_readw(fpga_map_addr + REG_FPGA_DIP_SWITCH_INPUT2) & 0xf;
+	cs = readw_relaxed(fpga_map_addr + REG_FPGA_DIP_SWITCH_INPUT2) & 0xf;
 
 	/* ES2.0 SDP's onwards 4 dip switches are provided for CS */
 	if (omap_rev() >= OMAP3430_REV_ES1_0)

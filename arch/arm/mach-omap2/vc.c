@@ -462,7 +462,7 @@ static void omap4_set_timings(struct voltagedomain *voltdm, bool off_mode)
 	val |= omap4_usec_to_val_scrm(tshut, OMAP4_DOWNTIME_SHIFT,
 		OMAP4_DOWNTIME_MASK);
 
-	__raw_writel(val, OMAP4_SCRM_CLKSETUPTIME);
+	writel_relaxed(val, OMAP4_SCRM_CLKSETUPTIME);
 }
 
 /* OMAP4 specific voltage init functions */
@@ -584,7 +584,7 @@ static void __init omap4_vc_i2c_timing_init(struct voltagedomain *voltdm)
 	val = i2c_data->loadbits << 25 | i2c_data->loadbits << 29;
 
 	/* Write to SYSCTRL_PADCONF_WKUP_CTRL_I2C_2 to setup I2C pull */
-	__raw_writel(val, OMAP2_L4_IO_ADDRESS(OMAP4_CTRL_MODULE_PAD_WKUP +
+	writel_relaxed(val, OMAP2_L4_IO_ADDRESS(OMAP4_CTRL_MODULE_PAD_WKUP +
 				OMAP4_CTRL_MODULE_PAD_WKUP_CONTROL_I2C_2));
 
 	/* HSSCLH can always be zero */

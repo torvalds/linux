@@ -116,7 +116,7 @@ u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	return __raw_readl(_cm_bases[part] + inst + idx);
+	return readl_relaxed(_cm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a CM instance */
@@ -125,7 +125,7 @@ void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_cm_bases[part]);
-	__raw_writel(val, _cm_bases[part] + inst + idx);
+	writel_relaxed(val, _cm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */

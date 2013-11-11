@@ -26,7 +26,7 @@
 
 /*
  * OMAP3-specific global PRM registers
- * Use __raw_{read,write}l() with these registers.
+ * Use {read,write}l_relaxed() with these registers.
  *
  * With a few exceptions, these are the register names beginning with
  * PRM_* on 34xx.  (The exceptions are the IRQSTATUS and IRQENABLE

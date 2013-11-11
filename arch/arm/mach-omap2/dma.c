@@ -98,7 +98,7 @@ static inline void dma_write(u32 val, int reg, int lch)
 
 	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
 	offset = reg_map[reg] + (stride * lch);
-	__raw_writel(val, dma_base + offset);
+	writel_relaxed(val, dma_base + offset);
 }
 
 static inline u32 dma_read(int reg, int lch)
@@ -108,7 +108,7 @@ static inline u32 dma_read(int reg, int lch)
 
 	stride = (reg >= dma_common_ch_start) ? dma_stride : 0;
 	offset = reg_map[reg] + (stride * lch);
-	val = __raw_readl(dma_base + offset);
+	val = readl_relaxed(dma_base + offset);
 	return val;
 }
 

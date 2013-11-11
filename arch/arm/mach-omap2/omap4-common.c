@@ -124,25 +124,25 @@ void __init gic_init_irq(void)
 void gic_dist_disable(void)
 {
 	if (gic_dist_base_addr)
-		__raw_writel(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
+		writel_relaxed(0x0, gic_dist_base_addr + GIC_DIST_CTRL);
 }
 
 void gic_dist_enable(void)
 {
 	if (gic_dist_base_addr)
-		__raw_writel(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
+		writel_relaxed(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
 }
 
 bool gic_dist_disabled(void)
 {
-	return !(__raw_readl(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
+	return !(readl_relaxed(gic_dist_base_addr + GIC_DIST_CTRL) & 0x1);
 }
 
 void gic_timer_retrigger(void)
 {
-	u32 twd_int = __raw_readl(twd_base + TWD_TIMER_INTSTAT);
-	u32 gic_int = __raw_readl(gic_dist_base_addr + GIC_DIST_PENDING_SET);
-	u32 twd_ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
+	u32 twd_int = readl_relaxed(twd_base + TWD_TIMER_INTSTAT);
+	u32 gic_int = readl_relaxed(gic_dist_base_addr + GIC_DIST_PENDING_SET);
+	u32 twd_ctrl = readl_relaxed(twd_base + TWD_TIMER_CONTROL);
 
 	if (twd_int && !(gic_int & BIT(IRQ_LOCALTIMER))) {
 		/*
@@ -150,11 +150,11 @@ void gic_timer_retrigger(void)
 		 * disabled.  Ack the pending interrupt, and retrigger it.
 		 */
 		pr_warn("%s: lost localtimer interrupt\n", __func__);
-		__raw_writel(1, twd_base + TWD_TIMER_INTSTAT);
+		writel_relaxed(1, twd_base + TWD_TIMER_INTSTAT);
 		if (!(twd_ctrl & TWD_TIMER_CONTROL_PERIODIC)) {
-			__raw_writel(1, twd_base + TWD_TIMER_COUNTER);
+			writel_relaxed(1, twd_base + TWD_TIMER_COUNTER);
 			twd_ctrl |= TWD_TIMER_CONTROL_ENABLE;
-			__raw_writel(twd_ctrl, twd_base + TWD_TIMER_CONTROL);
+			writel_relaxed(twd_ctrl, twd_base + TWD_TIMER_CONTROL);
 		}
 	}
 }

@@ -49,12 +49,12 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 	}
 
 	/* sequence required to disable watchdog */
-	__raw_writel(0xAAAA, base + OMAP_WDT_SPR);
-	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
+	writel_relaxed(0xAAAA, base + OMAP_WDT_SPR);
+	while (readl_relaxed(base + OMAP_WDT_WPS) & 0x10)
 		cpu_relax();
 
-	__raw_writel(0x5555, base + OMAP_WDT_SPR);
-	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
+	writel_relaxed(0x5555, base + OMAP_WDT_SPR);
+	while (readl_relaxed(base + OMAP_WDT_WPS) & 0x10)
 		cpu_relax();
 
 	return 0;

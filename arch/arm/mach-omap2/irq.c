@@ -83,12 +83,12 @@ struct omap3_intc_regs {
 
 static void intc_bank_write_reg(u32 val, struct omap_irq_bank *bank, u16 reg)
 {
-	__raw_writel(val, bank->base_reg + reg);
+	writel_relaxed(val, bank->base_reg + reg);
 }
 
 static u32 intc_bank_read_reg(struct omap_irq_bank *bank, u16 reg)
 {
-	return __raw_readl(bank->base_reg + reg);
+	return readl_relaxed(bank->base_reg + reg);
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
