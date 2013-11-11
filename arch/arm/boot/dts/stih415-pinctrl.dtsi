@@ -120,6 +120,14 @@
 				};
 			};
 
+			rc{
+				pinctrl_ir: ir0 {
+					st,pins {
+						ir = <&PIO4 0 ALT2 IN>;
+					};
+				};
+			};
+
 			gmac1 {
 				pinctrl_mii1: mii1 {
 						st,pins {

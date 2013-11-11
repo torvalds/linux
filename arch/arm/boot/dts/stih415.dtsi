@@ -195,5 +195,16 @@
 			clock-names	= "stmmaceth";
 			clocks		= <&CLKS_ETH1_PHY>;
 		};
+
+		rc: rc@fe518000 {
+			compatible	= "st,comms-irb";
+			reg		= <0xfe518000 0x234>;
+			interrupts	=  <0 203 0>;
+			clocks		= <&CLK_SYSIN>;
+			rx-mode		= "infrared";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_ir>;
+			resets		= <&softreset STIH415_IRB_SOFTRESET>;
+		};
 	};
 };
