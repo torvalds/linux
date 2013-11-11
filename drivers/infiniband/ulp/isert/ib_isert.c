@@ -2259,18 +2259,26 @@ isert_reg_rdma_frwr(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	data_len = min(data_left, rdma_write_max);
 	wr->cur_rdma_length = data_len;
 
-	spin_lock_irqsave(&isert_conn->conn_lock, flags);
-	fr_desc = list_first_entry(&isert_conn->conn_frwr_pool,
-				   struct fast_reg_descriptor, list);
-	list_del(&fr_desc->list);
-	spin_unlock_irqrestore(&isert_conn->conn_lock, flags);
-	wr->fr_desc = fr_desc;
+	/* if there is a single dma entry, dma mr is sufficient */
+	if (count == 1) {
+		ib_sge->addr = ib_sg_dma_address(ib_dev, &sg_start[0]);
+		ib_sge->length = ib_sg_dma_len(ib_dev, &sg_start[0]);
+		ib_sge->lkey = isert_conn->conn_mr->lkey;
+		wr->fr_desc = NULL;
+	} else {
+		spin_lock_irqsave(&isert_conn->conn_lock, flags);
+		fr_desc = list_first_entry(&isert_conn->conn_frwr_pool,
+					   struct fast_reg_descriptor, list);
+		list_del(&fr_desc->list);
+		spin_unlock_irqrestore(&isert_conn->conn_lock, flags);
+		wr->fr_desc = fr_desc;
 
-	ret = isert_fast_reg_mr(fr_desc, isert_cmd, isert_conn,
-			  ib_sge, offset, data_len);
-	if (ret) {
-		list_add_tail(&fr_desc->list, &isert_conn->conn_frwr_pool);
-		goto unmap_sg;
+		ret = isert_fast_reg_mr(fr_desc, isert_cmd, isert_conn,
+				  ib_sge, offset, data_len);
+		if (ret) {
+			list_add_tail(&fr_desc->list, &isert_conn->conn_frwr_pool);
+			goto unmap_sg;
+		}
 	}
 
 	return 0;
