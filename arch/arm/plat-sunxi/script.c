@@ -1,9 +1,5 @@
 /*
- * arch/arm/plat-sunxi/script.c
- *
- * (C) Copyright 2007-2012
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- * Benn Huang <benn@allwinnertech.com>
+ * Copyright (C) 2012, Alejandro Mery <amery@geeks.cl>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
