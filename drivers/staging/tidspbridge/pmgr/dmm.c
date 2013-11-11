@@ -479,7 +479,7 @@ u32 dmm_mem_map_dump(struct dmm_object *dmm_mgr)
 	       freemem / (1024 * 1024));
 	dev_info(bridge, "Total DSP VA USED memory= %d Mbytes\n",
 	       (((table_size * PG_SIZE4K) - freemem)) / (1024 * 1024));
-	dev_info(bridge, "DSP VA - Biggest FREE block = %d Mbytes\n\n",
+	dev_info(bridge, "DSP VA - Biggest FREE block = %d Mbytes\n",
 	       (bigsize * PG_SIZE4K / (1024 * 1024)));
 
 	return 0;
