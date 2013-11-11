@@ -344,8 +344,6 @@ int mei_cl_unlink(struct mei_cl *cl)
 
 	cl->state = MEI_FILE_INITIALIZING;
 
-	list_del_init(&cl->link);
-
 	return 0;
 }
 
