@@ -1543,6 +1543,9 @@ __reg_process_hint_country_ie(struct wiphy *wiphy,
 		if (regdom_changes(country_ie_request->alpha2))
 			return REG_REQ_IGNORE;
 		return REG_REQ_ALREADY_SET;
+	} else {
+		if (wiphy->regulatory_flags & REGULATORY_COUNTRY_IE_IGNORE)
+			return REG_REQ_IGNORE;
 	}
 
 	if (unlikely(!is_an_alpha2(country_ie_request->alpha2)))

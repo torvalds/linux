@@ -123,12 +123,17 @@ struct regulatory_request {
  *	derived from the regulatory domain. The regulatory domain used will be
  *	based on the ISO3166-alpha2 from country IE provided through
  *	regulatory_hint_country_ie()
+ * @REGULATORY_COUNTRY_IE_IGNORE: for devices that have a preference to ignore
+ * 	all country IE information processed by the regulatory core. This will
+ * 	override %REGULATORY_COUNTRY_IE_FOLLOW_POWER as all country IEs will
+ * 	be ignored.
  */
 enum ieee80211_regulatory_flags {
 	REGULATORY_CUSTOM_REG			= BIT(0),
 	REGULATORY_STRICT_REG			= BIT(1),
 	REGULATORY_DISABLE_BEACON_HINTS		= BIT(2),
 	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(3),
+	REGULATORY_COUNTRY_IE_IGNORE		= BIT(4),
 };
 
 struct ieee80211_freq_range {
