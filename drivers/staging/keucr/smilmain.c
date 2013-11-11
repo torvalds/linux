@@ -44,7 +44,6 @@ static BYTE BitData[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 #define Clr_D_Bit(a, b)    (a[(BYTE)((b) / 8)] &= ~BitData[(b) % 8])
 #define Chk_D_Bit(a, b)    (a[(BYTE)((b) / 8)] & BitData[(b) % 8])
 
-BYTE     IsSSFDCCompliance;
 BYTE     IsXDCompliance;
 
 
