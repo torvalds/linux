@@ -87,6 +87,7 @@ config ARCH_OMAP2PLUS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select MACH_OMAP_GENERIC
 	select OMAP_DM_TIMER
 	select PINCTRL
 	select PROC_DEVICETREE if PROC_FS
@@ -180,16 +181,11 @@ config OMAP_PACKAGE_CUS
 config OMAP_PACKAGE_CBP
        bool
 
-comment "OMAP Board Type"
+comment "OMAP Legacy Platform Data Board Type"
 	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
-	bool "Generic OMAP2+ board"
-	depends on ARCH_OMAP2PLUS
-	default y
-	help
-	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
-	  More information at Documentation/devicetree
+	bool
 
 config MACH_OMAP2_TUSB6010
 	bool
@@ -253,12 +249,6 @@ config MACH_OVERO
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP3EVM
-	bool "OMAP 3530 EVM board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
@@ -307,32 +297,11 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810_WIMAX
 	select OMAP_PACKAGE_ZAC
 
-config MACH_NOKIA_RM680
-	bool "Nokia N950 (RM-680) / N9 (RM-696) phones"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_NOKIA_RM696
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_RX51
 	bool "Nokia N900 (RX-51) phone"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-
-config MACH_OMAP_ZOOM2
-	bool "OMAP3 Zoom2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_OMAP_ZOOM3
-	bool "OMAP3630 Zoom3 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
@@ -350,30 +319,11 @@ config MACH_CM_T3517
 config MACH_CM_T3730
        bool
 
-config MACH_IGEP0020
-	bool "IGEP v2 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_IGEP0030
-	bool "IGEP OMAP3 module"
-	depends on ARCH_OMAP3
-	default y
-	select MACH_IGEP0020
-	select OMAP_PACKAGE_CBB
-
 config MACH_SBC3530
 	bool "OMAP3 SBC STALKER board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-
-config MACH_OMAP_3630SDP
-	bool "OMAP3630 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"

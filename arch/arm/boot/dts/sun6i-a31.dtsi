@@ -175,7 +175,7 @@
 		apb2_gates: apb2_gates@01c2006c {
 			#clock-cells = <1>;
 			compatible = "allwinner,sun6i-a31-apb2-gates-clk";
-			reg = <0x01c2006c 0x8>;
+			reg = <0x01c2006c 0x4>;
 			clocks = <&apb2>;
 			clock-output-names = "apb2_i2c0", "apb2_i2c1",
 					"apb2_i2c2", "apb2_i2c3", "apb2_uart0",

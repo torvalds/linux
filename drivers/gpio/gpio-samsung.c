@@ -2082,34 +2082,14 @@ static __init int samsung_gpiolib_init(void)
 	int i, nr_chips;
 	int group = 0;
 
-#if defined(CONFIG_PINCTRL_EXYNOS) || defined(CONFIG_PINCTRL_EXYNOS5440)
 	/*
-	* This gpio driver includes support for device tree support and there
-	* are platforms using it. In order to maintain compatibility with those
-	* platforms, and to allow non-dt Exynos4210 platforms to use this
-	* gpiolib support, a check is added to find out if there is a active
-	* pin-controller driver support available. If it is available, this
-	* gpiolib support is ignored and the gpiolib support available in
-	* pin-controller driver is used. This is a temporary check and will go
-	* away when all of the Exynos4210 platforms have switched to using
-	* device tree and the pin-ctrl driver.
-	*/
-	struct device_node *pctrl_np;
-	static const struct of_device_id exynos_pinctrl_ids[] = {
-		{ .compatible = "samsung,s3c2412-pinctrl", },
-		{ .compatible = "samsung,s3c2416-pinctrl", },
-		{ .compatible = "samsung,s3c2440-pinctrl", },
-		{ .compatible = "samsung,s3c2450-pinctrl", },
-		{ .compatible = "samsung,exynos4210-pinctrl", },
-		{ .compatible = "samsung,exynos4x12-pinctrl", },
-		{ .compatible = "samsung,exynos5250-pinctrl", },
-		{ .compatible = "samsung,exynos5440-pinctrl", },
-		{ }
-	};
-	for_each_matching_node(pctrl_np, exynos_pinctrl_ids)
-		if (pctrl_np && of_device_is_available(pctrl_np))
-			return -ENODEV;
-#endif
+	 * Currently there are two drivers that can provide GPIO support for
+	 * Samsung SoCs. For device tree enabled platforms, the new
+	 * pinctrl-samsung driver is used, providing both GPIO and pin control
+	 * interfaces. For legacy (non-DT) platforms this driver is used.
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	samsung_gpiolib_set_cfg(samsung_gpio_cfgs, ARRAY_SIZE(samsung_gpio_cfgs));
 

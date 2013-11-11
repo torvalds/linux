@@ -86,6 +86,11 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		iram: iram@1ffe0000 {
+			compatible = "mmio-sram";
+			reg = <0x1ffe0000 0x20000>;
+		};
+
 		ipu: ipu@40000000 {
 			#crtc-cells = <1>;
 			compatible = "fsl,imx51-ipu";
@@ -372,6 +377,14 @@
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks 107>;
+			};
+
+			owire: owire@83fa4000 {
+				compatible = "fsl,imx51-owire", "fsl,imx21-owire";
+				reg = <0x83fa4000 0x4000>;
+				interrupts = <88>;
+				clocks = <&clks 159>;
+				status = "disabled";
 			};
 
 			ecspi2: ecspi@83fac000 {
@@ -747,6 +760,11 @@
 			fsl,pins = <
 				MX51_PAD_UART1_RXD__UART1_RXD 0x1c5
 				MX51_PAD_UART1_TXD__UART1_TXD 0x1c5
+			>;
+		};
+
+		pinctrl_uart1_rtscts_1: uart1rtscts-1 {
+			fsl,pins = <
 				MX51_PAD_UART1_RTS__UART1_RTS 0x1c5
 				MX51_PAD_UART1_CTS__UART1_CTS 0x1c5
 			>;
@@ -767,6 +785,11 @@
 			fsl,pins = <
 				MX51_PAD_EIM_D25__UART3_RXD 0x1c5
 				MX51_PAD_EIM_D26__UART3_TXD 0x1c5
+			>;
+		};
+
+		pinctrl_uart3_rtscts_1: uart3rtscts-1 {
+			fsl,pins = <
 				MX51_PAD_EIM_D27__UART3_RTS 0x1c5
 				MX51_PAD_EIM_D24__UART3_CTS 0x1c5
 			>;

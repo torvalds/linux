@@ -8,70 +8,14 @@
 /dts-v1/;
 
 #include "omap34xx.dtsi"
+#include "omap3-evm-common.dtsi"
 
 / {
-	model = "TI OMAP3 EVM (OMAP3530, AM/DM37x)";
+	model = "TI OMAP35XX EVM (TMDSEVM3530)";
 	compatible = "ti,omap3-evm", "ti,omap3";
-
-	cpus {
-		cpu@0 {
-			cpu0-supply = <&vcc>;
-		};
-	};
 
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		ledb {
-			label = "omap3evm::ledb";
-			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
-			linux,default-trigger = "default-on";
-		};
-	};
-};
-
-&i2c1 {
-	clock-frequency = <2600000>;
-
-	twl: twl@48 {
-		reg = <0x48>;
-		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
-		interrupt-parent = <&intc>;
-	};
-};
-
-#include "twl4030.dtsi"
-#include "twl4030_omap3.dtsi"
-
-&i2c2 {
-	clock-frequency = <400000>;
-};
-
-&i2c3 {
-	clock-frequency = <400000>;
-
-	/*
-	 * TVP5146 Video decoder-in for analog input support.
-	 */
-	tvp5146@5c {
-		compatible = "ti,tvp5146m2";
-		reg = <0x5c>;
-	};
-};
-
-&twl_gpio {
-	ti,use-leds;
-};
-
-&usb_otg_hs {
-	interface-type = <0>;
-	usb-phy = <&usb2_phy>;
-	phys = <&usb2_phy>;
-	phy-names = "usb2-phy";
-	mode = <3>;
-	power = <50>;
 };

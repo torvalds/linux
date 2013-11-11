@@ -1,0 +1,21 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF version 60 or later with the TVK1281618 UIB
+ */
+
+/dts-v1/;
+#include "ste-hrefv60plus.dtsi"
+#include "ste-href-tvk1281618.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) and TVK1281618 UIB";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+};

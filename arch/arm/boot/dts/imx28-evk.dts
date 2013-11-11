@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx28.dtsi"
+#include "imx28.dtsi"
 
 / {
 	model = "Freescale i.MX28 Evaluation Kit";
@@ -70,52 +70,52 @@
 				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
-						0x20f3 /* MX28_PAD_SSP1_DATA3__GPIO_2_15 */
-						0x40d3 /* MX28_PAD_ENET0_RX_CLK__GPIO_4_13 */
-						0x20c3 /* MX28_PAD_SSP1_SCK__GPIO_2_12 */
-						0x31c3 /* MX28_PAD_PWM3__GPIO_3_28 */
-						0x31e3 /* MX28_PAD_LCD_RESET__GPIO_3_30 */
-						0x3083 /* MX28_PAD_AUART2_RX__GPIO_3_8 */
-						0x3093 /* MX28_PAD_AUART2_TX__GPIO_3_9 */
+						MX28_PAD_SSP1_CMD__GPIO_2_13
+						MX28_PAD_SSP1_DATA3__GPIO_2_15
+						MX28_PAD_ENET0_RX_CLK__GPIO_4_13
+						MX28_PAD_SSP1_SCK__GPIO_2_12
+						MX28_PAD_PWM3__GPIO_3_28
+						MX28_PAD_LCD_RESET__GPIO_3_30
+						MX28_PAD_AUART2_RX__GPIO_3_8
+						MX28_PAD_AUART2_TX__GPIO_3_9
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				led_pin_gpio3_5: led_gpio3_5@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x3053 /* MX28_PAD_AUART1_TX__GPIO_3_5 */
+						MX28_PAD_AUART1_TX__GPIO_3_5
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				gpmi_pins_evk: gpmi-nand-evk@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x0110 /* MX28_PAD_GPMI_CE1N__GPMI_CE1N */
-						0x0150 /* MX28_PAD_GPMI_RDY1__GPMI_READY1 */
+						MX28_PAD_GPMI_CE1N__GPMI_CE1N
+						MX28_PAD_GPMI_RDY1__GPMI_READY1
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
 				lcdif_pins_evk: lcdif-evk@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
-						0x1181 /* MX28_PAD_LCD_RD_E__LCD_VSYNC */
-						0x1191 /* MX28_PAD_LCD_WR_RWN__LCD_HSYNC */
-						0x11a1 /* MX28_PAD_LCD_RS__LCD_DOTCLK */
-						0x11b1 /* MX28_PAD_LCD_CS__LCD_ENABLE */
+						MX28_PAD_LCD_RD_E__LCD_VSYNC
+						MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+						MX28_PAD_LCD_RS__LCD_DOTCLK
+						MX28_PAD_LCD_CS__LCD_ENABLE
 					>;
-					fsl,drive-strength = <0>;
-					fsl,voltage = <1>;
-					fsl,pull-up = <0>;
+					fsl,drive-strength = <MXS_DRIVE_4mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 			};
 
@@ -182,6 +182,7 @@
 			};
 
 			lradc@80050000 {
+				fsl,lradc-touchscreen-wires = <4>;
 				status = "okay";
 				fsl,lradc-touchscreen-wires = <4>;
 				fsl,ave-ctrl = <4>;
@@ -246,6 +247,8 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_id_pins_a>;
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};

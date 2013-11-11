@@ -14,6 +14,10 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * NOTE: Code in this file is not used when booting with Device Tree support.
+ */
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -203,6 +207,10 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 
 static __init int s3c64xx_dev_init(void)
 {
+	/* Not applicable when using DT. */
+	if (of_have_populated_dt())
+		return 0;
+
 	subsys_system_register(&s3c64xx_subsys, NULL);
 	return device_register(&s3c64xx_dev);
 }
@@ -403,6 +411,10 @@ static void s3c_irq_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
 static int __init s3c64xx_init_irq_eint(void)
 {
 	int irq;
+
+	/* On DT-enabled systems EINTs are handled by pinctrl-s3c64xx driver. */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(27); irq++) {
 		irq_set_chip_and_handler(irq, &s3c_irq_eint, handle_level_irq);
