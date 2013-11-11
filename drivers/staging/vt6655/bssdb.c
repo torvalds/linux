@@ -849,7 +849,7 @@ BSSvUpdateAPNode(
 	netdev_dbg(pDevice->dev, "BSSvUpdateAPNode:MaxSuppRate is %d\n",
 		   pMgmt->sNodeDBTable[0].wMaxSuppRate);
 	/* auto rate fallback function initiation */
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->sNodeDBTable[0].wTxDataRate = %d\n", pMgmt->sNodeDBTable[0].wTxDataRate);
 };
 
 /*+
@@ -1067,11 +1067,11 @@ start:
 
 			/* check if pending PS queue */
 			if (pMgmt->sNodeDBTable[ii].wEnQueueCnt != 0) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index= %d, Queue = %d pending \n",
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index= %d, Queue = %d pending\n",
 					ii, pMgmt->sNodeDBTable[ii].wEnQueueCnt);
 				if ((ii > 0) && (pMgmt->sNodeDBTable[ii].wEnQueueCnt > 15)) {
 					BSSvRemoveOneNode(pDevice, ii);
-					DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Pending many queues PS STA Index = %d remove \n", ii);
+					DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Pending many queues PS STA Index = %d remove\n", ii);
 					continue;
 				}
 			}
