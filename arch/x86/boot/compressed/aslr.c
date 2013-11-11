@@ -5,6 +5,17 @@
 #include <asm/archrandom.h>
 #include <asm/e820.h>
 
+#include <generated/compile.h>
+#include <linux/module.h>
+#include <linux/uts.h>
+#include <linux/utsname.h>
+#include <generated/utsrelease.h>
+#include <linux/version.h>
+
+/* Simplified build-specific string for starting entropy. */
+static const char *build_str = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+		LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;
+
 #define I8254_PORT_CONTROL	0x43
 #define I8254_PORT_COUNTER0	0x40
 #define I8254_CMD_READBACK	0xC0
@@ -25,34 +36,62 @@ static inline u16 i8254(void)
 	return timer;
 }
 
+static unsigned long rotate_xor(unsigned long hash, const void *area,
+				size_t size)
+{
+	size_t i;
+	unsigned long *ptr = (unsigned long *)area;
+
+	for (i = 0; i < size / sizeof(hash); i++) {
+		/* Rotate by odd number of bits and XOR. */
+		hash = (hash << ((sizeof(hash) * 8) - 7)) | (hash >> 7);
+		hash ^= ptr[i];
+	}
+
+	return hash;
+}
+
+/* Attempt to create a simple but unpredictable starting entropy. */
+static unsigned long get_random_boot(void)
+{
+	unsigned long hash = 0;
+
+	hash = rotate_xor(hash, build_str, sizeof(build_str));
+	hash = rotate_xor(hash, real_mode, sizeof(*real_mode));
+
+	return hash;
+}
+
 static unsigned long get_random_long(void)
 {
-	unsigned long random;
+	unsigned long raw, random = get_random_boot();
+	bool use_i8254 = true;
+
+	debug_putstr("KASLR using");
 
 	if (has_cpuflag(X86_FEATURE_RDRAND)) {
-		debug_putstr("KASLR using RDRAND...\n");
-		if (rdrand_long(&random))
-			return random;
+		debug_putstr(" RDRAND");
+		if (rdrand_long(&raw)) {
+			random ^= raw;
+			use_i8254 = false;
+		}
 	}
 
 	if (has_cpuflag(X86_FEATURE_TSC)) {
-		uint32_t raw;
+		debug_putstr(" RDTSC");
+		rdtscll(raw);
 
-		debug_putstr("KASLR using RDTSC...\n");
-		rdtscl(raw);
-
-		/* Only use the low bits of rdtsc. */
-		random = raw & 0xffff;
-	} else {
-		debug_putstr("KASLR using i8254...\n");
-		random = i8254();
+		random ^= raw;
+		use_i8254 = false;
 	}
 
-	/* Extend timer bits poorly... */
-	random |= (random << 16);
-#ifdef CONFIG_X86_64
-	random |= (random << 32);
-#endif
+	if (use_i8254) {
+		debug_putstr(" i8254");
+		random ^= i8254();
+	}
+
+	debug_putstr("...\n");
+
 	return random;
 }
 

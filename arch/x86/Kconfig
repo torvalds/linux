@@ -1735,13 +1735,17 @@ config RANDOMIZE_BASE
 	   deters exploit attempts relying on knowledge of the location
 	   of kernel internals.
 
-	   Entropy is generated using the RDRAND instruction if it
-	   is supported.  If not, then RDTSC is used, if supported. If
-	   neither RDRAND nor RDTSC are supported, then no randomness
-	   is introduced.
+	   Entropy is generated using the RDRAND instruction if it is
+	   supported. If RDTSC is supported, it is used as well. If
+	   neither RDRAND nor RDTSC are supported, then randomness is
+	   read from the i8254 timer.
 
 	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET,
-	   and aligned according to PHYSICAL_ALIGN.
+	   and aligned according to PHYSICAL_ALIGN. Since the kernel is
+	   built using 2GiB addressing, and PHYSICAL_ALGIN must be at a
+	   minimum of 2MiB, only 10 bits of entropy is theoretically
+	   possible. At best, due to page table layouts, 64-bit can use
+	   9 bits of entropy and 32-bit uses 8 bits.
 
 config RANDOMIZE_BASE_MAX_OFFSET
 	hex "Maximum ASLR offset allowed"
