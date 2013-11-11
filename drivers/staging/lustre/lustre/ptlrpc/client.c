@@ -1753,7 +1753,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 
 		ptlrpc_rqphase_move(req, RQ_PHASE_INTERPRET);
 
-	interpret:
+interpret:
 		LASSERT(req->rq_phase == RQ_PHASE_INTERPRET);
 
 		/* This moves to "unregistering" phase we need to wait for
