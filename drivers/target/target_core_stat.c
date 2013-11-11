@@ -32,7 +32,6 @@
 #include <linux/utsname.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/blkdev.h>
 #include <linux/configfs.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
