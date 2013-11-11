@@ -178,7 +178,6 @@ struct tegra_spi_data {
 	void __iomem				*base;
 	phys_addr_t				phys;
 	unsigned				irq;
-	int					dma_req_sel;
 	u32					spi_max_frequency;
 	u32					cur_speed;
 
@@ -601,15 +600,15 @@ static int tegra_spi_init_dma_param(struct tegra_spi_data *tspi,
 	dma_addr_t dma_phys;
 	int ret;
 	struct dma_slave_config dma_sconfig;
-	dma_cap_mask_t mask;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	dma_chan = dma_request_channel(mask, NULL, NULL);
-	if (!dma_chan) {
-		dev_err(tspi->dev,
-			"Dma channel is not available, will try later\n");
-		return -EPROBE_DEFER;
+	dma_chan = dma_request_slave_channel_reason(tspi->dev,
+					dma_to_memory ? "rx" : "tx");
+	if (IS_ERR(dma_chan)) {
+		ret = PTR_ERR(dma_chan);
+		if (ret != -EPROBE_DEFER)
+			dev_err(tspi->dev,
+				"Dma channel is not available: %d\n", ret);
+		return ret;
 	}
 
 	dma_buf = dma_alloc_coherent(tspi->dev, tspi->dma_buf_size,
@@ -620,7 +619,6 @@ static int tegra_spi_init_dma_param(struct tegra_spi_data *tspi,
 		return -ENOMEM;
 	}
 
-	dma_sconfig.slave_id = tspi->dma_req_sel;
 	if (dma_to_memory) {
 		dma_sconfig.src_addr = tspi->phys + SPI_RX_FIFO;
 		dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -1055,11 +1053,6 @@ static void tegra_spi_parse_dt(struct platform_device *pdev,
 	struct tegra_spi_data *tspi)
 {
 	struct device_node *np = pdev->dev.of_node;
-	u32 of_dma[2];
-
-	if (of_property_read_u32_array(np, "nvidia,dma-request-selector",
-				of_dma, 2) >= 0)
-		tspi->dma_req_sel = of_dma[1];
 
 	if (of_property_read_u32(np, "spi-max-frequency",
 				&tspi->spi_max_frequency))
@@ -1138,22 +1131,15 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	tspi->max_buf_size = SPI_FIFO_DEPTH << 2;
 	tspi->dma_buf_size = DEFAULT_SPI_DMA_BUF_LEN;
 
-	if (tspi->dma_req_sel) {
-		ret = tegra_spi_init_dma_param(tspi, true);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "RxDma Init failed, err %d\n", ret);
-			goto exit_free_irq;
-		}
-
-		ret = tegra_spi_init_dma_param(tspi, false);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "TxDma Init failed, err %d\n", ret);
-			goto exit_rx_dma_free;
-		}
-		tspi->max_buf_size = tspi->dma_buf_size;
-		init_completion(&tspi->tx_dma_complete);
-		init_completion(&tspi->rx_dma_complete);
-	}
+	ret = tegra_spi_init_dma_param(tspi, true);
+	if (ret < 0)
+		goto exit_free_irq;
+	ret = tegra_spi_init_dma_param(tspi, false);
+	if (ret < 0)
+		goto exit_rx_dma_free;
+	tspi->max_buf_size = tspi->dma_buf_size;
+	init_completion(&tspi->tx_dma_complete);
+	init_completion(&tspi->rx_dma_complete);
 
 	init_completion(&tspi->xfer_completion);
 
