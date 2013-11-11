@@ -693,6 +693,10 @@ static int ceph_mknod(struct inode *dir, struct dentry *dentry,
 	if (!err && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
 	ceph_mdsc_put_request(req);
+
+	if (!err)
+		err = ceph_init_acl(dentry, dentry->d_inode, dir);
+
 	if (err)
 		d_drop(dentry);
 	return err;
@@ -1293,6 +1297,7 @@ const struct inode_operations ceph_dir_iops = {
 	.getxattr = ceph_getxattr,
 	.listxattr = ceph_listxattr,
 	.removexattr = ceph_removexattr,
+	.get_acl = ceph_get_acl,
 	.mknod = ceph_mknod,
 	.symlink = ceph_symlink,
 	.mkdir = ceph_mkdir,

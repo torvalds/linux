@@ -335,7 +335,6 @@ struct ceph_inode_info {
 	u32 i_fscache_gen; /* sequence, for delayed fscache validate */
 	struct work_struct i_revalidate_work;
 #endif
-
 	struct inode vfs_inode; /* at end */
 };
 
@@ -725,6 +724,9 @@ extern int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 /* xattr.c */
 extern int ceph_setxattr(struct dentry *, const char *, const void *,
 			 size_t, int);
+int __ceph_setxattr(struct dentry *, const char *, const void *, size_t, int);
+ssize_t __ceph_getxattr(struct inode *, const char *, void *, size_t);
+int __ceph_removexattr(struct dentry *, const char *);
 extern ssize_t ceph_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t ceph_listxattr(struct dentry *, char *, size_t);
 extern int ceph_removexattr(struct dentry *, const char *);
@@ -732,6 +734,39 @@ extern void __ceph_build_xattrs_blob(struct ceph_inode_info *ci);
 extern void __ceph_destroy_xattrs(struct ceph_inode_info *ci);
 extern void __init ceph_xattr_init(void);
 extern void ceph_xattr_exit(void);
+
+/* acl.c */
+extern const struct xattr_handler ceph_xattr_acl_access_handler;
+extern const struct xattr_handler ceph_xattr_acl_default_handler;
+extern const struct xattr_handler *ceph_xattr_handlers[];
+
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+
+struct posix_acl *ceph_get_acl(struct inode *, int);
+int ceph_init_acl(struct dentry *, struct inode *, struct inode *);
+int ceph_acl_chmod(struct dentry *, struct inode *);
+void ceph_forget_all_cached_acls(struct inode *inode);
+
+#else
+
+#define ceph_get_acl NULL
+
+static inline int ceph_init_acl(struct dentry *dentry, struct inode *inode,
+				struct inode *dir)
+{
+	return 0;
+}
+
+static inline int ceph_acl_chmod(struct dentry *dentry, struct inode *inode)
+{
+	return 0;
+}
+
+static inline void ceph_forget_all_cached_acls(struct inode *inode)
+{
+}
+
+#endif
 
 /* caps.c */
 extern const char *ceph_cap_string(int c);

@@ -819,7 +819,11 @@ static int ceph_set_super(struct super_block *s, void *data)
 
 	s->s_flags = fsc->mount_options->sb_flags;
 	s->s_maxbytes = 1ULL << 40;  /* temp value until we get mdsmap */
+#ifdef CONFIG_CEPH_FS_POSIX_ACL
+	s->s_flags |= MS_POSIXACL;
+#endif
 
+	s->s_xattr = ceph_xattr_handlers;
 	s->s_fs_info = fsc;
 	fsc->sb = s;
 
