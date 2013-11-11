@@ -126,6 +126,7 @@ static struct platform_device *vstms_devices[] __initdata = {
 	&s3c_device_iis,
 	&s3c_device_rtc,
 	&s3c_device_nand,
+	&s3c2412_device_dma,
 };
 
 static void __init vstms_fixup(struct tag *tags, char **cmdline,
