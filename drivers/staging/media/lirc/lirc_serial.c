@@ -428,8 +428,8 @@ static int init_timing_params(unsigned int new_duty_cycle,
 	period = 256 * 1000000L / freq;
 	pulse_width = period * duty_cycle / 100;
 	space_width = period - pulse_width;
-	dprintk("in init_timing_params, freq=%d pulse=%ld, "
-		"space=%ld\n", freq, pulse_width, space_width);
+	dprintk("in init_timing_params, freq=%d pulse=%ld, space=%ld\n",
+		freq, pulse_width, space_width);
 	return 0;
 }
 #endif /* USE_RDTSC */
