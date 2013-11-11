@@ -193,7 +193,6 @@ struct keucr_media_area {
 extern BYTE IsSSFDCCompliance;
 extern BYTE IsXDCompliance;
 
-extern DWORD	ErrCode;
 extern WORD	ReadBlock;
 extern WORD	WriteBlock;
 extern DWORD	MediaChange;
