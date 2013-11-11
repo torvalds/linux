@@ -15,8 +15,16 @@
 
 #include <dt-bindings/clock/exynos5410.h>
 #include "exynos5.dtsi"
+#include "exynos5410-pinctrl.dtsi"
 / {
 	compatible = "samsung,exynos5410";
+
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+		pinctrl3 = &pinctrl_3;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -84,6 +92,36 @@
 					<10 &gic 0 130 0>,
 					<11 &gic 0 131 0>;
 		};
+	};
+
+	pinctrl_0: pinctrl@13400000 {
+		compatible = "samsung,exynos5410-pinctrl";
+		reg = <0x13400000 0x1000>;
+		interrupts = <0 45 0>;
+
+		wakeup-interrupt-controller {
+			compatible = "samsung,exynos4210-wakeup-eint";
+			interrupt-parent = <&gic>;
+			interrupts = <0 32 0>;
+		};
+	};
+
+	pinctrl_1: pinctrl@14000000 {
+		compatible = "samsung,exynos5410-pinctrl";
+		reg = <0x14000000 0x1000>;
+		interrupts = <0 46 0>;
+	};
+
+	pinctrl_2: pinctrl@10d10000 {
+		compatible = "samsung,exynos5410-pinctrl";
+		reg = <0x10d10000 0x1000>;
+		interrupts = <0 50 0>;
+	};
+
+	pinctrl_3: pinctrl@03860000 {
+		compatible = "samsung,exynos5410-pinctrl";
+		reg = <0x03860000 0x1000>;
+		interrupts = <0 47 0>;
 	};
 
 	mmc_0: mmc@12200000 {
