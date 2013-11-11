@@ -13,6 +13,7 @@
 #include <linux/acpi_gpio.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>

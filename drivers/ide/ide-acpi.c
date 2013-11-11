@@ -7,6 +7,7 @@
  * Copyright (C) 2006 Hannes Reinecke
  */
 
+#include <linux/acpi.h>
 #include <linux/ata.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -18,8 +19,6 @@
 #include <linux/pci.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
-
-#include <acpi/acpi_bus.h>
 
 #define REGS_PER_GTF		7
 
