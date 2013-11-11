@@ -804,7 +804,8 @@ int gss_cli_ctx_verify(struct ptlrpc_cli_ctx *ctx,
 	case PTLRPC_GSS_PROC_DATA:
 		pack_bulk = ghdr->gh_flags & LUSTRE_GSS_PACK_BULK;
 
-		if (!req->rq_early && !equi(req->rq_pack_bulk == 1, pack_bulk)){
+		if (!req->rq_early &&
+		    !equi(req->rq_pack_bulk == 1, pack_bulk)) {
 			CERROR("%s bulk flag in reply\n",
 			       req->rq_pack_bulk ? "missing" : "unexpected");
 			return -EPROTO;
@@ -1009,7 +1010,8 @@ int gss_cli_ctx_unseal(struct ptlrpc_cli_ctx *ctx,
 	case PTLRPC_GSS_PROC_DATA:
 		pack_bulk = ghdr->gh_flags & LUSTRE_GSS_PACK_BULK;
 
-		if (!req->rq_early && !equi(req->rq_pack_bulk == 1, pack_bulk)){
+		if (!req->rq_early &&
+		    !equi(req->rq_pack_bulk == 1, pack_bulk)) {
 			CERROR("%s bulk flag in reply\n",
 			       req->rq_pack_bulk ? "missing" : "unexpected");
 			return -EPROTO;
@@ -1979,7 +1981,7 @@ int gss_svc_handle_init(struct ptlrpc_request *req,
 		return SECSVC_DROP;
 	}
 
-	if (reqbuf->lm_bufcount < 3 || reqbuf->lm_bufcount > 4){
+	if (reqbuf->lm_bufcount < 3 || reqbuf->lm_bufcount > 4) {
 		CERROR("Invalid bufcount %d\n", reqbuf->lm_bufcount);
 		return SECSVC_DROP;
 	}

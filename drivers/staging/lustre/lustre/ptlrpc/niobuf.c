@@ -66,7 +66,8 @@ static int ptl_send_buf(lnet_handle_md_t *mdh, void *base, int len,
 	md.eq_handle = ptlrpc_eq_h;
 
 	if (unlikely(ack == LNET_ACK_REQ &&
-		     OBD_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_ACK, OBD_FAIL_ONCE))){
+		     OBD_FAIL_CHECK_ORSET(OBD_FAIL_PTLRPC_ACK,
+					  OBD_FAIL_ONCE))) {
 		/* don't ask for the ack to simulate failing client */
 		ack = LNET_NOACK_REQ;
 	}

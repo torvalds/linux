@@ -1268,7 +1268,7 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 		return -ETIMEDOUT;
 	}
 
-	if ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT) == 0){
+	if (!(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
 		DEBUG_REQ(D_INFO, req, "Wanted to ask client for more time, "
 			  "but no AT support");
 		return -ENOSYS;
