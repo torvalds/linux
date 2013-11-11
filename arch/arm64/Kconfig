@@ -1,6 +1,7 @@
 config ARM64
 	def_bool y
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	select ARCH_WANT_FRAME_POINTERS
@@ -60,10 +61,6 @@ config LOCKDEP_SUPPORT
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
-
-config GENERIC_LOCKBREAK
-	def_bool y
-	depends on SMP && PREEMPT
 
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
@@ -138,6 +135,11 @@ config ARM64_64K_PAGES
 	  look-up. AArch32 emulation is not available when this feature
 	  is enabled.
 
+config CPU_BIG_ENDIAN
+       bool "Build big-endian kernel"
+       help
+         Say Y if you plan on running a kernel in big-endian mode.
+
 config SMP
 	bool "Symmetric Multi-Processing"
 	select USE_GENERIC_SMP_HELPERS
@@ -159,6 +161,13 @@ config NR_CPUS
 	# These have to remain sorted largest to smallest
 	default "8" if ARCH_XGENE
 	default "4"
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
 
 source kernel/Kconfig.preempt
 

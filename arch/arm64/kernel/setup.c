@@ -45,6 +45,7 @@
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/cputable.h>
+#include <asm/cpu_ops.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp_plat.h>
@@ -97,6 +98,11 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return phys_id == cpu_logical_map(cpu);
+}
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
@@ -118,7 +124,7 @@ static void __init setup_processor(void)
 	printk("CPU: %s [%08x] revision %d\n",
 	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15);
 
-	sprintf(init_utsname()->machine, "aarch64");
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	elf_hwcap = 0;
 }
 
@@ -264,6 +270,7 @@ void __init setup_arch(char **cmdline_p)
 	psci_init();
 
 	cpu_logical_map(0) = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
+	cpu_read_bootcpu_ops();
 #ifdef CONFIG_SMP
 	smp_init_cpus();
 #endif
