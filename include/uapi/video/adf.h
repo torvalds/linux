@@ -233,7 +233,7 @@ struct adf_device_data {
 	size_t custom_data_size;
 	void __user *custom_data;
 };
-#define ADF_MAX_ATTACHMENTS (4096 / sizeof(struct adf_attachment))
+#define ADF_MAX_ATTACHMENTS (4096 / sizeof(struct adf_attachment_config))
 
 /**
  * struct adf_device_data - describes a display interface
