@@ -112,7 +112,7 @@ u32 tegra_read_chipid(void)
 	return readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
 }
 
-void tegra_init_fuse(void)
+void __init tegra_init_fuse(void)
 {
 	u32 id;
 

@@ -1,6 +1,5 @@
 asflags-y				+= -march=armv7-a
 
-obj-y                                   += common.o
 obj-y                                   += io.o
 obj-y                                   += irq.o
 obj-y					+= fuse.o

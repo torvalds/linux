@@ -7,7 +7,6 @@
  *
  */
 
-#include <linux/clk-provider.h>
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -31,11 +30,6 @@ static void __init imx6sl_init_irq(void)
 	irqchip_init();
 }
 
-static void __init imx6sl_timer_init(void)
-{
-	of_clk_init(NULL);
-}
-
 static const char *imx6sl_dt_compat[] __initdata = {
 	"fsl,imx6sl",
 	NULL,
@@ -44,7 +38,6 @@ static const char *imx6sl_dt_compat[] __initdata = {
 DT_MACHINE_START(IMX6SL, "Freescale i.MX6 SoloLite (Device Tree)")
 	.map_io		= debug_ll_io_init,
 	.init_irq	= imx6sl_init_irq,
-	.init_time	= imx6sl_timer_init,
 	.init_machine	= imx6sl_init_machine,
 	.dt_compat	= imx6sl_dt_compat,
 	.restart	= mxc_restart,
