@@ -452,6 +452,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 	u32 max_sectors;
 	int have_tp = 0;
+	int opt, min;
 
 	/*
 	 * Following spc3r22 section 6.5.3 Block Limits VPD page, when
@@ -475,7 +476,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH GRANULARITY
 	 */
-	put_unaligned_be16(1, &buf[6]);
+	if (dev->transport->get_io_min && (min = dev->transport->get_io_min(dev)))
+		put_unaligned_be16(min / dev->dev_attrib.block_size, &buf[6]);
+	else
+		put_unaligned_be16(1, &buf[6]);
 
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
@@ -487,7 +491,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
 	 */
-	put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
+	if (dev->transport->get_io_opt && (opt = dev->transport->get_io_opt(dev)))
+		put_unaligned_be32(opt / dev->dev_attrib.block_size, &buf[12]);
+	else
+		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
 	 * Exit now if we don't support TP.
