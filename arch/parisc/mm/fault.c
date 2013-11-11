@@ -142,6 +142,12 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
+	/* If we only stored 32bit addresses in the exception table we can drop
+	 * out if we faulted on a 64bit address. */
+	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
+		&& (regs->iaoq[0] >> 32))
+			return 0;
+
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
@@ -274,12 +280,22 @@ bad_area:
 		}
 		show_regs(regs);
 #endif
-		/* FIXME: actually we need to get the signo and code correct */
-		si.si_signo = SIGSEGV;
+		switch (code) {
+		case 15:	/* Data TLB miss fault/Data page fault */
+		case 17:	/* NA data TLB miss / page fault */
+		case 18:	/* Unaligned access - PCXS only */
+			si.si_signo = SIGBUS;
+			si.si_code = BUS_ADRERR;
+			break;
+		case 16:	/* Non-access instruction TLB miss fault */
+		case 26:	/* PCXL: Data memory access rights trap */
+		default:
+			si.si_signo = SIGSEGV;
+			si.si_code = SEGV_MAPERR;
+		}
 		si.si_errno = 0;
-		si.si_code = SEGV_MAPERR;
 		si.si_addr = (void __user *) address;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_info(si.si_signo, &si, current);
 		return;
 	}
 
