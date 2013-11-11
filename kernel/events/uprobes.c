@@ -504,9 +504,8 @@ static bool consumer_del(struct uprobe *uprobe, struct uprobe_consumer *uc)
 	return ret;
 }
 
-static int
-__copy_insn(struct address_space *mapping, struct file *filp, char *insn,
-			unsigned long nbytes, loff_t offset)
+static int __copy_insn(struct address_space *mapping, struct file *filp,
+			void *insn, int nbytes, loff_t offset)
 {
 	struct page *page;
 
@@ -528,28 +527,28 @@ __copy_insn(struct address_space *mapping, struct file *filp, char *insn,
 
 static int copy_insn(struct uprobe *uprobe, struct file *filp)
 {
-	struct address_space *mapping;
-	unsigned long nbytes;
-	int bytes;
+	struct address_space *mapping = uprobe->inode->i_mapping;
+	loff_t offs = uprobe->offset;
+	void *insn = uprobe->arch.insn;
+	int size = MAX_UINSN_BYTES;
+	int len, err = -EIO;
 
-	nbytes = PAGE_SIZE - (uprobe->offset & ~PAGE_MASK);
-	mapping = uprobe->inode->i_mapping;
+	/* Copy only available bytes, -EIO if nothing was read */
+	do {
+		if (offs >= i_size_read(uprobe->inode))
+			break;
 
-	/* Instruction at end of binary; copy only available bytes */
-	if (uprobe->offset + MAX_UINSN_BYTES > uprobe->inode->i_size)
-		bytes = uprobe->inode->i_size - uprobe->offset;
-	else
-		bytes = MAX_UINSN_BYTES;
-
-	/* Instruction at the page-boundary; copy bytes in second page */
-	if (nbytes < bytes) {
-		int err = __copy_insn(mapping, filp, uprobe->arch.insn + nbytes,
-				bytes - nbytes, uprobe->offset + nbytes);
+		len = min_t(int, size, PAGE_SIZE - (offs & ~PAGE_MASK));
+		err = __copy_insn(mapping, filp, insn, len, offs);
 		if (err)
-			return err;
-		bytes = nbytes;
-	}
-	return __copy_insn(mapping, filp, uprobe->arch.insn, bytes, uprobe->offset);
+			break;
+
+		insn += len;
+		offs += len;
+		size -= len;
+	} while (size);
+
+	return err;
 }
 
 static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
@@ -1447,7 +1446,7 @@ void uprobe_copy_process(struct task_struct *t, unsigned long flags)
 	if (!work)
 		return uprobe_warn(t, "dup xol area");
 
-	utask->vaddr = area->vaddr;
+	t->utask->vaddr = area->vaddr;
 	init_task_work(work, dup_xol_work);
 	task_work_add(t, work, true);
 }
