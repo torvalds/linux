@@ -745,15 +745,13 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 }
 
 /**
- * scsi_done - Enqueue the finished SCSI command into the done queue.
+ * scsi_done - Invoke completion on finished SCSI command.
  * @cmd: The SCSI Command for which a low-level device driver (LLDD) gives
  * ownership back to SCSI Core -- i.e. the LLDD has finished with it.
  *
  * Description: This function is the mid-level's (SCSI Core) interrupt routine,
  * which regains ownership of the SCSI command (de facto) from a LLDD, and
- * enqueues the command to the done queue for further processing.
- *
- * This is the producer of the done queue who enqueues at the tail.
+ * calls blk_complete_request() for further processing.
  *
  * This function is interrupt context safe.
  */
