@@ -808,7 +808,8 @@ static int imon_probe(struct usb_interface *interface,
 
 	/* Input endpoint is mandatory */
 	if (!ir_ep_found) {
-		dev_err(dev, "%s: no valid input (IR) endpoint found.\n", __func__);
+		dev_err(dev, "%s: no valid input (IR) endpoint found.\n",
+			__func__);
 		retval = -ENODEV;
 		alloc_status = 2;
 		goto alloc_status_switch;
