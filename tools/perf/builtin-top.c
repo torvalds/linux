@@ -950,9 +950,8 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	machine__synthesize_threads(&top->session->machines.host, &top->tool,
-				    &opts->target, top->evlist->threads,
-				    perf_event__process, false);
+	machine__synthesize_threads(&top->session->machines.host, &opts->target,
+				    top->evlist->threads, false);
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;

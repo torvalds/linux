@@ -1544,9 +1544,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	}
 	kvm->session->evlist = kvm->evlist;
 	perf_session__set_id_hdr_size(kvm->session);
-	machine__synthesize_threads(&kvm->session->machines.host, &kvm->tool,
-				    &kvm->opts.target, kvm->evlist->threads,
-				    perf_event__process, false);
+	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
+				    kvm->evlist->threads, false);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;

@@ -179,7 +179,15 @@ int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);
 
-int machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
-				struct perf_target *target, struct thread_map *threads,
-				perf_event__handler_t process, bool data_mmap);
+int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				  struct perf_target *target, struct thread_map *threads,
+				  perf_event__handler_t process, bool data_mmap);
+static inline
+int machine__synthesize_threads(struct machine *machine, struct perf_target *target,
+				struct thread_map *threads, bool data_mmap)
+{
+	return __machine__synthesize_threads(machine, NULL, target, threads,
+					     perf_event__process, data_mmap);
+}
+
 #endif /* __PERF_MACHINE_H */

@@ -480,8 +480,8 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 					 perf_event__synthesize_guest_os, tool);
 	}
 
-	err = machine__synthesize_threads(machine, tool, &opts->target, evsel_list->threads,
-					  process_synthesized_event, opts->sample_address);
+	err = __machine__synthesize_threads(machine, tool, &opts->target, evsel_list->threads,
+					    process_synthesized_event, opts->sample_address);
 	if (err != 0)
 		goto out_delete_session;
 

@@ -1395,9 +1395,9 @@ int machine__for_each_thread(struct machine *machine,
 	return rc;
 }
 
-int machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
-				struct perf_target *target, struct thread_map *threads,
-				perf_event__handler_t process, bool data_mmap)
+int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				  struct perf_target *target, struct thread_map *threads,
+				  perf_event__handler_t process, bool data_mmap)
 {
 	if (perf_target__has_task(target))
 		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap);
