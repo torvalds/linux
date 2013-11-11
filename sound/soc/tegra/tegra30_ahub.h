@@ -465,15 +465,15 @@ enum tegra30_ahub_rxcif {
 };
 
 extern int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
-					 dma_addr_t *fiforeg,
-					 unsigned int *reqsel);
+					 char *dmachan, int dmachan_len,
+					 dma_addr_t *fiforeg);
 extern int tegra30_ahub_enable_rx_fifo(enum tegra30_ahub_rxcif rxcif);
 extern int tegra30_ahub_disable_rx_fifo(enum tegra30_ahub_rxcif rxcif);
 extern int tegra30_ahub_free_rx_fifo(enum tegra30_ahub_rxcif rxcif);
 
 extern int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
-					 dma_addr_t *fiforeg,
-					 unsigned int *reqsel);
+					 char *dmachan, int dmachan_len,
+					 dma_addr_t *fiforeg);
 extern int tegra30_ahub_enable_tx_fifo(enum tegra30_ahub_txcif txcif);
 extern int tegra30_ahub_disable_tx_fifo(enum tegra30_ahub_txcif txcif);
 extern int tegra30_ahub_free_tx_fifo(enum tegra30_ahub_txcif txcif);
@@ -524,7 +524,6 @@ struct tegra30_ahub {
 	struct device *dev;
 	struct clk *clk_d_audio;
 	struct clk *clk_apbif;
-	int dma_sel;
 	resource_size_t apbif_addr;
 	struct regmap *regmap_apbif;
 	struct regmap *regmap_ahub;

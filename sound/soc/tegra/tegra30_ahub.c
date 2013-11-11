@@ -95,8 +95,8 @@ static int tegra30_ahub_runtime_resume(struct device *dev)
 }
 
 int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
-				  dma_addr_t *fiforeg,
-				  unsigned int *reqsel)
+				  char *dmachan, int dmachan_len,
+				  dma_addr_t *fiforeg)
 {
 	int channel;
 	u32 reg, val;
@@ -110,9 +110,9 @@ int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
 	__set_bit(channel, ahub->rx_usage);
 
 	*rxcif = TEGRA30_AHUB_RXCIF_APBIF_RX0 + channel;
+	snprintf(dmachan, dmachan_len, "rx%d", channel);
 	*fiforeg = ahub->apbif_addr + TEGRA30_AHUB_CHANNEL_RXFIFO +
 		   (channel * TEGRA30_AHUB_CHANNEL_RXFIFO_STRIDE);
-	*reqsel = ahub->dma_sel + channel;
 
 	pm_runtime_get_sync(ahub->dev);
 
@@ -197,8 +197,8 @@ int tegra30_ahub_free_rx_fifo(enum tegra30_ahub_rxcif rxcif)
 EXPORT_SYMBOL_GPL(tegra30_ahub_free_rx_fifo);
 
 int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
-				  dma_addr_t *fiforeg,
-				  unsigned int *reqsel)
+				  char *dmachan, int dmachan_len,
+				  dma_addr_t *fiforeg)
 {
 	int channel;
 	u32 reg, val;
@@ -212,9 +212,9 @@ int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
 	__set_bit(channel, ahub->tx_usage);
 
 	*txcif = TEGRA30_AHUB_TXCIF_APBIF_TX0 + channel;
+	snprintf(dmachan, dmachan_len, "tx%d", channel);
 	*fiforeg = ahub->apbif_addr + TEGRA30_AHUB_CHANNEL_TXFIFO +
 		   (channel * TEGRA30_AHUB_CHANNEL_TXFIFO_STRIDE);
-	*reqsel = ahub->dma_sel + channel;
 
 	pm_runtime_get_sync(ahub->dev);
 
@@ -510,7 +510,6 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	struct reset_control *rst;
 	int i;
 	struct resource *res0, *res1, *region;
-	u32 of_dma[2];
 	void __iomem *regs_apbif, *regs_ahub;
 	int ret = 0;
 
@@ -572,16 +571,6 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ahub->clk_apbif);
 		goto err_clk_put_d_audio;
 	}
-
-	if (of_property_read_u32_array(pdev->dev.of_node,
-				"nvidia,dma-request-selector",
-				of_dma, 2) < 0) {
-		dev_err(&pdev->dev,
-			"Missing property nvidia,dma-request-selector\n");
-		ret = -ENODEV;
-		goto err_clk_put_d_audio;
-	}
-	ahub->dma_sel = of_dma[1];
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res0) {

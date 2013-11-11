@@ -459,8 +459,9 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->playback_dma_data.maxburst = 4;
 	ret = tegra30_ahub_allocate_tx_fifo(&i2s->playback_fifo_cif,
-					    &i2s->playback_dma_data.addr,
-					    &i2s->playback_dma_data.slave_id);
+					    i2s->playback_dma_chan,
+					    sizeof(i2s->playback_dma_chan),
+					    &i2s->playback_dma_data.addr);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not alloc TX FIFO: %d\n", ret);
 		goto err_suspend;
@@ -475,8 +476,9 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->capture_dma_data.maxburst = 4;
 	ret = tegra30_ahub_allocate_rx_fifo(&i2s->capture_fifo_cif,
-					    &i2s->capture_dma_data.addr,
-					    &i2s->capture_dma_data.slave_id);
+					    i2s->capture_dma_chan,
+					    sizeof(i2s->capture_dma_chan),
+					    &i2s->capture_dma_data.addr);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not alloc RX FIFO: %d\n", ret);
 		goto err_unroute_tx_fifo;
@@ -496,7 +498,9 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 		goto err_unroute_rx_fifo;
 	}
 
-	ret = tegra_pcm_platform_register(&pdev->dev);
+	ret = tegra_pcm_platform_register_with_chan_names(&pdev->dev,
+				&i2s->dma_config, i2s->playback_dma_chan,
+				i2s->capture_dma_chan);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
 		goto err_unregister_component;
