@@ -106,6 +106,13 @@
 				st,retime-pin-mask = <0x7f>;
 			};
 
+			rc{
+				pinctrl_ir: ir0 {
+					st,pins {
+						ir = <&PIO4 0 ALT2 IN>;
+					};
+				};
+			};
 			sbc_serial1 {
 				pinctrl_sbc_serial1: sbc_serial1 {
 					st,pins {
