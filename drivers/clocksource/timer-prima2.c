@@ -21,6 +21,8 @@
 #include <linux/sched_clock.h>
 #include <asm/mach/time.h>
 
+#define PRIMA2_CLOCK_FREQ 1000000
+
 #define SIRFSOC_TIMER_COUNTER_LO	0x0000
 #define SIRFSOC_TIMER_COUNTER_HI	0x0004
 #define SIRFSOC_TIMER_MATCH_0		0x0008
@@ -173,7 +175,7 @@ static u64 notrace sirfsoc_read_sched_clock(void)
 static void __init sirfsoc_clockevent_init(void)
 {
 	sirfsoc_clockevent.cpumask = cpumask_of(0);
-	clockevents_config_and_register(&sirfsoc_clockevent, CLOCK_TICK_RATE,
+	clockevents_config_and_register(&sirfsoc_clockevent, PRIMA2_CLOCK_FREQ,
 					2, -2);
 }
 
@@ -190,8 +192,8 @@ static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	rate = clk_get_rate(clk);
 
-	BUG_ON(rate < CLOCK_TICK_RATE);
-	BUG_ON(rate % CLOCK_TICK_RATE);
+	BUG_ON(rate < PRIMA2_CLOCK_FREQ);
+	BUG_ON(rate % PRIMA2_CLOCK_FREQ);
 
 	sirfsoc_timer_base = of_iomap(np, 0);
 	if (!sirfsoc_timer_base)
@@ -199,14 +201,16 @@ static void __init sirfsoc_prima2_timer_init(struct device_node *np)
 
 	sirfsoc_timer_irq.irq = irq_of_parse_and_map(np, 0);
 
-	writel_relaxed(rate / CLOCK_TICK_RATE / 2 - 1, sirfsoc_timer_base + SIRFSOC_TIMER_DIV);
+	writel_relaxed(rate / PRIMA2_CLOCK_FREQ / 2 - 1,
+		       sirfsoc_timer_base + SIRFSOC_TIMER_DIV);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
 	writel_relaxed(BIT(0), sirfsoc_timer_base + SIRFSOC_TIMER_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, CLOCK_TICK_RATE));
+	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource,
+				       PRIMA2_CLOCK_FREQ));
 
-	sched_clock_register(sirfsoc_read_sched_clock, 64, CLOCK_TICK_RATE);
+	sched_clock_register(sirfsoc_read_sched_clock, 64, PRIMA2_CLOCK_FREQ);
 
 	BUG_ON(setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq));
 
