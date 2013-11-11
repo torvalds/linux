@@ -16,13 +16,13 @@
 
 #include <linux/err.h>
 #include <linux/freezer.h>
-#include <linux/ion.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>
 #include <linux/rtmutex.h>
 #include <linux/sched.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
+#include "ion.h"
 #include "ion_priv.h"
 
 void *ion_heap_map_kernel(struct ion_heap *heap,
@@ -55,6 +55,9 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	}
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
+
+	if (vaddr == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	return vaddr;
 }
@@ -134,8 +137,22 @@ end:
 	return ret;
 }
 
-void ion_heap_free_page(struct ion_buffer *buffer, struct page *page,
-		       unsigned int order)
+struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
+				  unsigned int order)
+{
+	struct page *page = alloc_pages(gfp_flags, order);
+
+	if (!page)
+		return page;
+
+	if (ion_buffer_fault_user_mappings(buffer))
+		split_page(page, order);
+
+	return page;
+}
+
+void ion_heap_free_pages(struct ion_buffer *buffer, struct page *page,
+			 unsigned int order)
 {
 	int i;
 
@@ -254,6 +271,9 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 	case ION_HEAP_TYPE_CHUNK:
 		heap = ion_chunk_heap_create(heap_data);
 		break;
+	case ION_HEAP_TYPE_DMA:
+		heap = ion_cma_heap_create(heap_data);
+		break;
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,
 		       heap_data->type);
@@ -289,6 +309,9 @@ void ion_heap_destroy(struct ion_heap *heap)
 		break;
 	case ION_HEAP_TYPE_CHUNK:
 		ion_chunk_heap_destroy(heap);
+		break;
+	case ION_HEAP_TYPE_DMA:
+		ion_cma_heap_destroy(heap);
 		break;
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,

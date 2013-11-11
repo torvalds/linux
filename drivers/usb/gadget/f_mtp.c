@@ -269,6 +269,17 @@ struct mtp_device_status {
 	__le16	wCode;
 };
 
+struct mtp_data_header {
+	/* length of packet, including this header */
+	__le32	length;
+	/* container type (2 for data packet) */
+	__le16	type;
+	/* MTP command code */
+	__le16	command;
+	/* MTP transaction ID */
+	__le32	transaction_id;
+};
+
 /* temporary variable used between mtp_open() and mtp_gadget_bind() */
 static struct mtp_dev *_mtp_dev;
 
@@ -400,15 +411,6 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	DBG(cdev, "usb_ep_autoconfig for ep_in got %s\n", ep->name);
 	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_in = ep;
-
-	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
-	if (!ep) {
-		DBG(cdev, "usb_ep_autoconfig for ep_out failed\n");
-		return -ENODEV;
-	}
-	DBG(cdev, "usb_ep_autoconfig for mtp ep_out got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
-	dev->ep_out = ep;
 
 	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
 	if (!ep) {
