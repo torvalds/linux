@@ -46,10 +46,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 			return mfn;
 	}
 
-	if (xen_initial_domain())
-		return pfn;
-	else
-		return INVALID_P2M_ENTRY;
+	return pfn;
 }
 
 static inline unsigned long mfn_to_pfn(unsigned long mfn)
@@ -62,10 +59,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 			return pfn;
 	}
 
-	if (xen_initial_domain())
-		return mfn;
-	else
-		return INVALID_P2M_ENTRY;
+	return mfn;
 }
 
 #define mfn_to_local_pfn(mfn) mfn_to_pfn(mfn)
