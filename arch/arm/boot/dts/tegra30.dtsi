@@ -302,6 +302,7 @@
 		clocks = <&tegra_car TEGRA30_CLK_APBDMA>;
 		resets = <&tegra_car 34>;
 		reset-names = "dma";
+		#dma-cells = <1>;
 	};
 
 	ahb: ahb {
@@ -349,6 +350,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_UARTA>;
 		resets = <&tegra_car 6>;
 		reset-names = "serial";
+		dmas = <&apbdma 8>, <&apbdma 8>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -361,6 +364,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_UARTB>;
 		resets = <&tegra_car 7>;
 		reset-names = "serial";
+		dmas = <&apbdma 9>, <&apbdma 9>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -373,6 +378,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_UARTC>;
 		resets = <&tegra_car 55>;
 		reset-names = "serial";
+		dmas = <&apbdma 10>, <&apbdma 10>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -385,6 +392,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_UARTD>;
 		resets = <&tegra_car 65>;
 		reset-names = "serial";
+		dmas = <&apbdma 19>, <&apbdma 19>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -397,6 +406,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_UARTE>;
 		resets = <&tegra_car 66>;
 		reset-names = "serial";
+		dmas = <&apbdma 20>, <&apbdma 20>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -428,6 +439,8 @@
 		clock-names = "div-clk", "fast-clk";
 		resets = <&tegra_car 12>;
 		reset-names = "i2c";
+		dmas = <&apbdma 21>, <&apbdma 21>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -442,6 +455,8 @@
 		clock-names = "div-clk", "fast-clk";
 		resets = <&tegra_car 54>;
 		reset-names = "i2c";
+		dmas = <&apbdma 22>, <&apbdma 22>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -456,6 +471,8 @@
 		clock-names = "div-clk", "fast-clk";
 		resets = <&tegra_car 67>;
 		reset-names = "i2c";
+		dmas = <&apbdma 23>, <&apbdma 23>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -470,6 +487,8 @@
 		resets = <&tegra_car 103>;
 		reset-names = "i2c";
 		clock-names = "div-clk", "fast-clk";
+		dmas = <&apbdma 26>, <&apbdma 26>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -484,6 +503,8 @@
 		clock-names = "div-clk", "fast-clk";
 		resets = <&tegra_car 47>;
 		reset-names = "i2c";
+		dmas = <&apbdma 24>, <&apbdma 24>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -497,6 +518,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC1>;
 		resets = <&tegra_car 41>;
 		reset-names = "spi";
+		dmas = <&apbdma 15>, <&apbdma 15>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -510,6 +533,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC2>;
 		resets = <&tegra_car 44>;
 		reset-names = "spi";
+		dmas = <&apbdma 16>, <&apbdma 16>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -523,6 +548,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC3>;
 		resets = <&tegra_car 46>;
 		reset-names = "spi";
+		dmas = <&apbdma 17>, <&apbdma 17>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -536,6 +563,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC4>;
 		resets = <&tegra_car 68>;
 		reset-names = "spi";
+		dmas = <&apbdma 18>, <&apbdma 18>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -549,6 +578,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC5>;
 		resets = <&tegra_car 104>;
 		reset-names = "spi";
+		dmas = <&apbdma 27>, <&apbdma 27>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -562,6 +593,8 @@
 		clocks = <&tegra_car TEGRA30_CLK_SBC6>;
 		resets = <&tegra_car 106>;
 		reset-names = "spi";
+		dmas = <&apbdma 28>, <&apbdma 28>;
+		dma-names = "rx", "tx";
 		status = "disabled";
 	};
 
@@ -635,6 +668,12 @@
 		reset-names = "d_audio", "apbif", "i2s0", "i2s1", "i2s2",
 			      "i2s3", "i2s4", "dam0", "dam1", "dam2",
 			      "spdif";
+		dmas = <&apbdma 1>, <&apbdma 1>,
+		       <&apbdma 2>, <&apbdma 2>,
+		       <&apbdma 3>, <&apbdma 3>,
+		       <&apbdma 4>, <&apbdma 4>;
+		dma-names = "rx0", "tx0", "rx1", "tx1", "rx2", "tx2",
+			    "rx3", "tx3";
 		ranges;
 		#address-cells = <1>;
 		#size-cells = <1>;
