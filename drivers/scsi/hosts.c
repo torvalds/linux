@@ -319,11 +319,11 @@ static void scsi_host_dev_release(struct device *dev)
 	kfree(shost);
 }
 
-static unsigned int shost_eh_deadline;
+static int shost_eh_deadline = -1;
 
-module_param_named(eh_deadline, shost_eh_deadline, uint, S_IRUGO|S_IWUSR);
+module_param_named(eh_deadline, shost_eh_deadline, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(eh_deadline,
-		 "SCSI EH timeout in seconds (should be between 1 and 2^32-1)");
+		 "SCSI EH timeout in seconds (should be between 0 and 2^31-1)");
 
 static struct device_type scsi_host_type = {
 	.name =		"scsi_host",
@@ -396,8 +396,17 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
 	shost->use_clustering = sht->use_clustering;
 	shost->ordered_tag = sht->ordered_tag;
-	shost->eh_deadline = shost_eh_deadline * HZ;
 	shost->no_write_same = sht->no_write_same;
+
+	if (shost_eh_deadline == -1)
+		shost->eh_deadline = -1;
+	else if ((ulong) shost_eh_deadline * HZ > INT_MAX) {
+		shost_printk(KERN_WARNING, shost,
+			     "eh_deadline %u too large, setting to %u\n",
+			     shost_eh_deadline, INT_MAX / HZ);
+		shost->eh_deadline = INT_MAX;
+	} else
+		shost->eh_deadline = shost_eh_deadline * HZ;
 
 	if (sht->supported_mode == MODE_UNKNOWN)
 		/* means we didn't set it ... default to INITIATOR */

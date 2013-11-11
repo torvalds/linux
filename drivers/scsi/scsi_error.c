@@ -91,18 +91,18 @@ EXPORT_SYMBOL_GPL(scsi_schedule_eh);
 
 static int scsi_host_eh_past_deadline(struct Scsi_Host *shost)
 {
-	if (!shost->last_reset || !shost->eh_deadline)
+	if (!shost->last_reset || shost->eh_deadline == -1)
 		return 0;
 
 	/*
 	 * 32bit accesses are guaranteed to be atomic
 	 * (on all supported architectures), so instead
 	 * of using a spinlock we can as well double check
-	 * if eh_deadline has been unset during the
+	 * if eh_deadline has been set to 'off' during the
 	 * time_before call.
 	 */
 	if (time_before(jiffies, shost->last_reset + shost->eh_deadline) &&
-	    shost->eh_deadline != 0)
+	    shost->eh_deadline > -1)
 		return 0;
 
 	return 1;
@@ -132,26 +132,34 @@ scmd_eh_abort_handler(struct work_struct *work)
 		rtn = scsi_try_to_abort_cmd(sdev->host->hostt, scmd);
 		if (rtn == SUCCESS) {
 			scmd->result |= DID_TIME_OUT << 16;
-			if (!scsi_noretry_cmd(scmd) &&
+			if (scsi_host_eh_past_deadline(sdev->host)) {
+				SCSI_LOG_ERROR_RECOVERY(3,
+					scmd_printk(KERN_INFO, scmd,
+						    "scmd %p eh timeout, "
+						    "not retrying aborted "
+						    "command\n", scmd));
+			} else if (!scsi_noretry_cmd(scmd) &&
 			    (++scmd->retries <= scmd->allowed)) {
 				SCSI_LOG_ERROR_RECOVERY(3,
 					scmd_printk(KERN_WARNING, scmd,
 						    "scmd %p retry "
 						    "aborted command\n", scmd));
 				scsi_queue_insert(scmd, SCSI_MLQUEUE_EH_RETRY);
+				return;
 			} else {
 				SCSI_LOG_ERROR_RECOVERY(3,
 					scmd_printk(KERN_WARNING, scmd,
 						    "scmd %p finish "
 						    "aborted command\n", scmd));
 				scsi_finish_command(scmd);
+				return;
 			}
-			return;
+		} else {
+			SCSI_LOG_ERROR_RECOVERY(3,
+				scmd_printk(KERN_INFO, scmd,
+					    "scmd %p abort failed, rtn %d\n",
+					    scmd, rtn));
 		}
-		SCSI_LOG_ERROR_RECOVERY(3,
-			scmd_printk(KERN_INFO, scmd,
-				    "scmd %p abort failed, rtn %d\n",
-				    scmd, rtn));
 	}
 
 	if (!scsi_eh_scmd_add(scmd, 0)) {
@@ -202,7 +210,7 @@ scsi_abort_command(struct scsi_cmnd *scmd)
 		return FAILED;
 	}
 
-	if (shost->eh_deadline && !shost->last_reset)
+	if (shost->eh_deadline != -1 && !shost->last_reset)
 		shost->last_reset = jiffies;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
@@ -236,7 +244,7 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 		if (scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY))
 			goto out_unlock;
 
-	if (shost->eh_deadline && !shost->last_reset)
+	if (shost->eh_deadline != -1 && !shost->last_reset)
 		shost->last_reset = jiffies;
 
 	ret = 1;
@@ -270,7 +278,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
-	if (host->eh_deadline && !host->last_reset)
+	if (host->eh_deadline != -1 && !host->last_reset)
 		host->last_reset = jiffies;
 
 	if (host->transportt->eh_timed_out)
@@ -2106,7 +2114,7 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 			scsi_eh_ready_devs(shost, &eh_work_q, &eh_done_q);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (shost->eh_deadline)
+	if (shost->eh_deadline != -1)
 		shost->last_reset = 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	scsi_eh_flush_done_q(&eh_done_q);
