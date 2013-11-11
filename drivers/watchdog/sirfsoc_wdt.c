@@ -14,6 +14,8 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
+#define CLOCK_FREQ	1000000
+
 #define SIRFSOC_TIMER_COUNTER_LO	0x0000
 #define SIRFSOC_TIMER_MATCH_0		0x0008
 #define SIRFSOC_TIMER_INT_EN		0x0024
@@ -50,7 +52,7 @@ static unsigned int sirfsoc_wdt_gettimeleft(struct watchdog_device *wdd)
 
 	time_left = match - counter;
 
-	return time_left / CLOCK_TICK_RATE;
+	return time_left / CLOCK_FREQ;
 }
 
 static int sirfsoc_wdt_updatetimeout(struct watchdog_device *wdd)
@@ -58,7 +60,7 @@ static int sirfsoc_wdt_updatetimeout(struct watchdog_device *wdd)
 	u32 counter, timeout_ticks;
 	void __iomem *wdt_base;
 
-	timeout_ticks = wdd->timeout * CLOCK_TICK_RATE;
+	timeout_ticks = wdd->timeout * CLOCK_FREQ;
 	wdt_base = watchdog_get_drvdata(wdd);
 
 	/* Enable the latch before reading the LATCH_LO register */
