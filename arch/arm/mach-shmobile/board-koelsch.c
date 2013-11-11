@@ -1,6 +1,7 @@
 /*
- * kzm9d board support - Reference DT implementation
+ * Koelsch board support
  *
+ * Copyright (C) 2013  Renesas Electronics Corporation
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Magnus Damm
  *
@@ -18,31 +19,29 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/init.h>
-#include <linux/of_platform.h>
-#include <mach/emev2.h>
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <mach/common.h>
+#include <mach/r8a7791.h>
+#include <mach/rcar-gen2.h>
+#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static void __init kzm9d_add_standard_devices(void)
+static void __init koelsch_add_standard_devices(void)
 {
-	if (!IS_ENABLED(CONFIG_COMMON_CLK))
-		emev2_clock_init();
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	r8a7791_clock_init();
+	r8a7791_add_standard_devices();
 }
 
-static const char *kzm9d_boards_compat_dt[] __initdata = {
-	"renesas,kzm9d",
-	"renesas,kzm9d-reference",
+static const char * const koelsch_boards_compat_dt[] __initconst = {
+	"renesas,koelsch",
 	NULL,
 };
 
-DT_MACHINE_START(KZM9D_DT, "kzm9d")
-	.smp		= smp_ops(emev2_smp_ops),
-	.map_io		= emev2_map_io,
-	.init_early	= emev2_init_delay,
-	.init_machine	= kzm9d_add_standard_devices,
-	.init_late	= shmobile_init_late,
-	.dt_compat	= kzm9d_boards_compat_dt,
+DT_MACHINE_START(KOELSCH_DT, "koelsch")
+	.smp		= smp_ops(r8a7791_smp_ops),
+	.init_early	= r8a7791_init_early,
+	.init_machine	= koelsch_add_standard_devices,
+	.init_time	= rcar_gen2_timer_init,
+	.dt_compat	= koelsch_boards_compat_dt,
 MACHINE_END

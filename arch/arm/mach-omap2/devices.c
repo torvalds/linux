@@ -37,6 +37,7 @@
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
+#include "display.h"
 
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
@@ -466,13 +467,13 @@ static struct platform_device omap_vout_device = {
 	.resource 	= &omap_vout_resource[0],
 	.id		= -1,
 };
-static void omap_init_vout(void)
+
+int __init omap_init_vout(void)
 {
-	if (platform_device_register(&omap_vout_device) < 0)
-		printk(KERN_ERR "Unable to register OMAP-VOUT device\n");
+	return platform_device_register(&omap_vout_device);
 }
 #else
-static inline void omap_init_vout(void) {}
+int __init omap_init_vout(void) { return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_WL12XX)
@@ -536,7 +537,6 @@ static int __init omap2_init_devices(void)
 		omap_init_wl12xx_of();
 	}
 	omap_init_sti();
-	omap_init_vout();
 
 	return 0;
 }
