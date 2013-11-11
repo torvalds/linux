@@ -74,11 +74,13 @@ int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static void reset_mpidr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 {
 	/*
-	 * Compute guest MPIDR. No need to mess around with different clusters
-	 * but we read the 'U' bit from the underlying hardware directly.
+	 * Compute guest MPIDR. We build a virtual cluster out of the
+	 * vcpu_id, but we read the 'U' bit from the underlying
+	 * hardware directly.
 	 */
-	vcpu->arch.cp15[c0_MPIDR] = (read_cpuid_mpidr() & MPIDR_SMP_BITMASK)
-					| vcpu->vcpu_id;
+	vcpu->arch.cp15[c0_MPIDR] = ((read_cpuid_mpidr() & MPIDR_SMP_BITMASK) |
+				     ((vcpu->vcpu_id >> 2) << MPIDR_LEVEL_BITS) |
+				     (vcpu->vcpu_id & 3));
 }
 
 /* TRM entries A7:4.3.31 A15:4.3.28 - RO WI */
@@ -122,6 +124,10 @@ static void reset_l2ctlr(struct kvm_vcpu *vcpu, const struct coproc_reg *r)
 	asm volatile("mrc p15, 1, %0, c9, c0, 2\n" : "=r" (l2ctlr));
 	l2ctlr &= ~(3 << 24);
 	ncores = atomic_read(&vcpu->kvm->online_vcpus) - 1;
+	/* How many cores in the current cluster and the next ones */
+	ncores -= (vcpu->vcpu_id & ~3);
+	/* Cap it to the maximum number of cores in a single cluster */
+	ncores = min(ncores, 3U);
 	l2ctlr |= (ncores & 3) << 24;
 
 	vcpu->arch.cp15[c9_L2CTLR] = l2ctlr;
