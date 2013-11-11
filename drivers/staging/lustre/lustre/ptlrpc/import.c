@@ -72,15 +72,15 @@ static void __import_set_state(struct obd_import *imp,
 }
 
 /* A CLOSED import should remain so. */
-#define IMPORT_SET_STATE_NOLOCK(imp, state)				    \
-do {									   \
-	if (imp->imp_state != LUSTRE_IMP_CLOSED) {			     \
-	       CDEBUG(D_HA, "%p %s: changing import state from %s to %s\n",    \
-		      imp, obd2cli_tgt(imp->imp_obd),			  \
-		      ptlrpc_import_state_name(imp->imp_state),		\
-		      ptlrpc_import_state_name(state));			\
-	       __import_set_state(imp, state);				 \
-	}								      \
+#define IMPORT_SET_STATE_NOLOCK(imp, state)				       \
+do {									       \
+	if (imp->imp_state != LUSTRE_IMP_CLOSED) {			       \
+		CDEBUG(D_HA, "%p %s: changing import state from %s to %s\n",   \
+		       imp, obd2cli_tgt(imp->imp_obd),			       \
+		       ptlrpc_import_state_name(imp->imp_state),	       \
+		       ptlrpc_import_state_name(state));		       \
+		__import_set_state(imp, state);				       \
+	}								       \
 } while (0)
 
 #define IMPORT_SET_STATE(imp, state)					\
@@ -1135,9 +1135,11 @@ out:
 			if (ocd &&
 			    (ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
 			    (ocd->ocd_version != LUSTRE_VERSION_CODE)) {
-			   /* Actually servers are only supposed to refuse
-			      connection from liblustre clients, so we should
-			      never see this from VFS context */
+				/*
+				 * Actually servers are only supposed to refuse
+				 * connection from liblustre clients, so we
+				 * should never see this from VFS context
+				 */
 				LCONSOLE_ERROR_MSG(0x16a, "Server %s version "
 					"(%d.%d.%d.%d)"
 					" refused connection from this client "

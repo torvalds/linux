@@ -636,8 +636,8 @@ static inline int lustre_unpack_ptlrpc_body_v2(struct ptlrpc_request *req,
 	}
 
 	if ((pb->pb_version & ~LUSTRE_VERSION_MASK) != PTLRPC_MSG_VERSION) {
-		 CERROR("wrong lustre_msg version %08x\n", pb->pb_version);
-		 return -EINVAL;
+		CERROR("wrong lustre_msg version %08x\n", pb->pb_version);
+		return -EINVAL;
 	}
 
 	if (!inout)

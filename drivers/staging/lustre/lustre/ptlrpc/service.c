@@ -1115,8 +1115,10 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 	}
 	if (unlikely(req->rq_export->exp_obd &&
 		     req->rq_export->exp_obd->obd_fail)) {
-	     /* Failing over, don't handle any more reqs, send
-		error response instead. */
+		/*
+		 * Failing over, don't handle any more reqs, send
+		 * error response instead.
+		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
 		       req, req->rq_export->exp_obd->obd_name);
 		rc = -ENODEV;
@@ -1967,13 +1969,14 @@ put_conn:
 	lu_context_fini(&request->rq_session);
 
 	if (unlikely(cfs_time_current_sec() > request->rq_deadline)) {
-		     DEBUG_REQ(D_WARNING, request, "Request took longer "
-			       "than estimated ("CFS_DURATION_T":"CFS_DURATION_T"s);"
-			       " client may timeout.",
-			       cfs_time_sub(request->rq_deadline,
-					    request->rq_arrival_time.tv_sec),
-			       cfs_time_sub(cfs_time_current_sec(),
-					    request->rq_deadline));
+		DEBUG_REQ(D_WARNING, request,
+			  "Request took longer than estimated ("
+				CFS_DURATION_T":"CFS_DURATION_T
+				"s); client may timeout.",
+			  cfs_time_sub(request->rq_deadline,
+				       request->rq_arrival_time.tv_sec),
+			  cfs_time_sub(cfs_time_current_sec(),
+				       request->rq_deadline));
 	}
 
 	do_gettimeofday(&work_end);
