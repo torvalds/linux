@@ -274,12 +274,6 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	drm_kms_helper_poll_init(drm);
 
-	/* setup the grouping for the legacy output */
-	ret = drm_mode_group_init_legacy_group(drm,
-			&drm->primary->mode_group);
-	if (ret)
-		goto err_kms;
-
 	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret)
 		goto err_kms;
