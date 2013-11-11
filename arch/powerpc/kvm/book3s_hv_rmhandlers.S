@@ -754,15 +754,14 @@ kvmppc_interrupt_hv:
 	 * guest CR, R12 saved in shadow VCPU SCRATCH1/0
 	 * guest R13 saved in SPRN_SCRATCH0
 	 */
-	/* abuse host_r2 as third scratch area; we get r2 from PACATOC(r13) */
-	std	r9, HSTATE_HOST_R2(r13)
+	std	r9, HSTATE_SCRATCH2(r13)
 
 	lbz	r9, HSTATE_IN_GUEST(r13)
 	cmpwi	r9, KVM_GUEST_MODE_HOST_HV
 	beq	kvmppc_bad_host_intr
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	cmpwi	r9, KVM_GUEST_MODE_GUEST
-	ld	r9, HSTATE_HOST_R2(r13)
+	ld	r9, HSTATE_SCRATCH2(r13)
 	beq	kvmppc_interrupt_pr
 #endif
 	/* We're now back in the host but in guest MMU context */
@@ -782,7 +781,7 @@ kvmppc_interrupt_hv:
 	std	r6, VCPU_GPR(R6)(r9)
 	std	r7, VCPU_GPR(R7)(r9)
 	std	r8, VCPU_GPR(R8)(r9)
-	ld	r0, HSTATE_HOST_R2(r13)
+	ld	r0, HSTATE_SCRATCH2(r13)
 	std	r0, VCPU_GPR(R9)(r9)
 	std	r10, VCPU_GPR(R10)(r9)
 	std	r11, VCPU_GPR(R11)(r9)
