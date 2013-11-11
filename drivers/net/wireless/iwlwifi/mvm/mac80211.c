@@ -199,9 +199,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 8)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
-			    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 	hw->wiphy->iface_combinations = iwl_mvm_iface_combinations;
 	hw->wiphy->n_iface_combinations =

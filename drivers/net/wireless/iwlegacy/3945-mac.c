@@ -3575,9 +3575,9 @@ il3945_setup_mac(struct il_priv *il)
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->flags |=
-	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
-	    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 

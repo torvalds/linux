@@ -4341,7 +4341,7 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	wiphy->max_remain_on_channel_duration = 5000;
 	brcmf_wiphy_pno_params(wiphy);
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
-	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy_apply_custom_regulatory(wiphy, &brcmf_regdom);
 	err = wiphy_register(wiphy);
 	if (err < 0) {

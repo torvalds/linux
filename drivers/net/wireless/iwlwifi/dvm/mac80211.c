@@ -155,9 +155,9 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
 
-	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
-			    WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				       REGULATORY_DISABLE_BEACON_HINTS;
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&

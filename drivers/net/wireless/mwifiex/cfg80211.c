@@ -2687,9 +2687,10 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
-			WIPHY_FLAG_CUSTOM_REGULATORY |
-			WIPHY_FLAG_STRICT_REGULATORY |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->regulatory_flags |=
+			REGULATORY_CUSTOM_REG |
+			REGULATORY_STRICT_REG;
 
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 

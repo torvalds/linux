@@ -766,8 +766,8 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 	}
 
 	wlc->wiphy->reg_notifier = brcms_reg_notifier;
-	wlc->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
-			     WIPHY_FLAG_STRICT_REGULATORY;
+	wlc->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+					REGULATORY_STRICT_REG;
 	wiphy_apply_custom_regulatory(wlc->wiphy, regd->regdomain);
 	brcms_reg_apply_beaconing_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER);
 }

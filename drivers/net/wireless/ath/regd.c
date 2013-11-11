@@ -601,7 +601,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 	const struct ieee80211_regdomain *regd;
 
 	wiphy->reg_notifier = reg_notifier;
-	wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
+	wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 
 	if (ath_is_world_regd(reg)) {
 		/*
@@ -609,7 +609,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 		 * saved on the wiphy orig_* parameters
 		 */
 		regd = ath_world_regdomain(reg);
-		wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+		wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	} else {
 		/*
 		 * This gets applied in the case of the absence of CRDA,

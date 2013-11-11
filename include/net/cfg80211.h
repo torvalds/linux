@@ -2437,29 +2437,6 @@ struct cfg80211_ops {
 /**
  * enum wiphy_flags - wiphy capability flags
  *
- * @WIPHY_FLAG_CUSTOM_REGULATORY:  tells us the driver for this device
- * 	has its own custom regulatory domain and cannot identify the
- * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
- * 	we will disregard the first regulatory hint (when the
- * 	initiator is %REGDOM_SET_BY_CORE). Drivers that use
- * 	wiphy_apply_custom_regulatory() should have this flag set
- * 	or the regulatory core will set it for wiphy.
- * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
- *	ignore regulatory domain settings until it gets its own regulatory
- *	domain via its regulatory_hint() unless the regulatory hint is
- *	from a country IE. After its gets its own regulatory domain it will
- *	only allow further regulatory domain settings to further enhance
- *	compliance. For example if channel 13 and 14 are disabled by this
- *	regulatory domain no user regulatory domain can enable these channels
- *	at a later time. This can be used for devices which do not have
- *	calibration information guaranteed for frequencies or settings
- *	outside of its regulatory domain. If used in combination with
- *	WIPHY_FLAG_CUSTOM_REGULATORY the inspected country IE power settings
- *	will be followed.
- * @WIPHY_FLAG_DISABLE_BEACON_HINTS: enable this if your driver needs to ensure
- *	that passive scan flags and beaconing flags may not be lifted by
- *	cfg80211 due to regulatory beacon hints. For more information on beacon
- *	hints read the documenation for regulatory_hint_found_beacon()
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
@@ -2498,9 +2475,9 @@ struct cfg80211_ops {
  *	beaconing mode (AP, IBSS, Mesh, ...).
  */
 enum wiphy_flags {
-	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
-	WIPHY_FLAG_STRICT_REGULATORY		= BIT(1),
-	WIPHY_FLAG_DISABLE_BEACON_HINTS		= BIT(2),
+	/* use hole at 0 */
+	/* use hole at 1 */
+	/* use hole at 2 */
 	WIPHY_FLAG_NETNS_OK			= BIT(3),
 	WIPHY_FLAG_PS_ON_BY_DEFAULT		= BIT(4),
 	WIPHY_FLAG_4ADDR_AP			= BIT(5),
@@ -2722,6 +2699,8 @@ struct wiphy_coalesce_support {
  * @software_iftypes: bitmask of software interface types, these are not
  *	subject to any restrictions since they are purely managed in SW.
  * @flags: wiphy flags, see &enum wiphy_flags
+ * @regulatory_flags: wiphy regulatory flags, see
+ *	&enum ieee80211_regulatory_flags
  * @features: features advertised to nl80211, see &enum nl80211_feature_flags.
  * @bss_priv_size: each BSS struct has private data allocated with it,
  *	this variable determines its size
@@ -2810,7 +2789,7 @@ struct wiphy {
 
 	u16 max_acl_mac_addrs;
 
-	u32 flags, features;
+	u32 flags, regulatory_flags, features;
 
 	u32 ap_sme_capa;
 

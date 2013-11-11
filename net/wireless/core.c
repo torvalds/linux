@@ -586,7 +586,7 @@ int wiphy_register(struct wiphy *wiphy)
 	if (IS_ERR(rdev->wiphy.debugfsdir))
 		rdev->wiphy.debugfsdir = NULL;
 
-	if (wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+	if (wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
 		struct regulatory_request request;
 
 		request.wiphy_idx = get_wiphy_idx(wiphy);

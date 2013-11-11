@@ -344,9 +344,9 @@ static int _rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 
 	wiphy->reg_notifier = reg_notifier;
 
-	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
-	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;
-	wiphy->flags &= ~WIPHY_FLAG_DISABLE_BEACON_HINTS;
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
 
 	regd = _rtl_regdomain_select(reg);
 	wiphy_apply_custom_regulatory(wiphy, regd);

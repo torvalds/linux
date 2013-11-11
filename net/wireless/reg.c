@@ -868,7 +868,7 @@ static void handle_channel(struct wiphy *wiphy,
 
 		if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 		    request_wiphy && request_wiphy == wiphy &&
-		    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
+		    request_wiphy->regulatory_flags & REGULATORY_STRICT_REG) {
 			REG_DBG_PRINT("Disabling freq %d MHz for good\n",
 				      chan->center_freq);
 			chan->orig_flags |= IEEE80211_CHAN_DISABLED;
@@ -895,7 +895,7 @@ static void handle_channel(struct wiphy *wiphy,
 
 	if (lr->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 	    request_wiphy && request_wiphy == wiphy &&
-	    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
+	    request_wiphy->regulatory_flags & REGULATORY_STRICT_REG) {
 		/*
 		 * This guarantees the driver's requested regulatory domain
 		 * will always be used as a base for further regulatory
@@ -922,12 +922,12 @@ static void handle_channel(struct wiphy *wiphy,
 	if (chan->orig_mpwr) {
 		/*
 		 * Devices that have their own custom regulatory domain
-		 * but also use WIPHY_FLAG_STRICT_REGULATORY will follow the
+		 * but also use REGULATORY_STRICT_REG will follow the
 		 * passed country IE power settings.
 		 */
 		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
-		    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
+		    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG &&
+		    wiphy->regulatory_flags & REGULATORY_STRICT_REG)
 			chan->max_power = chan->max_reg_power;
 		else
 			chan->max_power = min(chan->orig_mpwr,
@@ -997,8 +997,8 @@ static bool reg_dev_ignore_cell_hint(struct wiphy *wiphy)
 
 static bool wiphy_strict_alpha2_regd(struct wiphy *wiphy)
 {
-	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY &&
-	    !(wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY))
+	if (wiphy->regulatory_flags & REGULATORY_STRICT_REG &&
+	    !(wiphy->regulatory_flags & REGULATORY_CUSTOM_REG))
 		return true;
 	return false;
 }
@@ -1016,7 +1016,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	}
 
 	if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+	    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG) {
 		REG_DBG_PRINT("Ignoring regulatory request set by %s "
 			      "since the driver uses its own custom "
 			      "regulatory domain\n",
@@ -1054,7 +1054,7 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 		return true;
 
 	if (lr && lr->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+	    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG)
 		return true;
 
 	return false;
@@ -1082,7 +1082,7 @@ static void handle_reg_beacon(struct wiphy *wiphy, unsigned int chan_idx,
 	if (!reg_is_world_roaming(wiphy))
 		return;
 
-	if (wiphy->flags & WIPHY_FLAG_DISABLE_BEACON_HINTS)
+	if (wiphy->regulatory_flags & REGULATORY_DISABLE_BEACON_HINTS)
 		return;
 
 	chan_before.center_freq = chan->center_freq;
@@ -1242,7 +1242,7 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 		 * as some drivers used this to restore its orig_* reg domain.
 		 */
 		if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+		    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG)
 			reg_call_notifier(wiphy, lr);
 		return;
 	}
@@ -1328,9 +1328,9 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 	enum ieee80211_band band;
 	unsigned int bands_set = 0;
 
-	WARN(!(wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY),
-	     "wiphy should have WIPHY_FLAG_CUSTOM_REGULATORY\n");
-	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+	WARN(!(wiphy->regulatory_flags & REGULATORY_CUSTOM_REG),
+	     "wiphy should have REGULATORY_CUSTOM_REG\n");
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (!wiphy->bands[band])
@@ -1659,7 +1659,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	/* This is required so that the orig_* parameters are saved */
 	if (treatment == REG_REQ_ALREADY_SET && wiphy &&
-	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
+	    wiphy->regulatory_flags & REGULATORY_STRICT_REG)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
 }
 
@@ -1986,7 +1986,7 @@ static void restore_regulatory_settings(bool reset_user)
 	world_alpha2[1] = cfg80211_world_regdom->alpha2[1];
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
-		if (rdev->wiphy.flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+		if (rdev->wiphy.regulatory_flags & REGULATORY_CUSTOM_REG)
 			restore_custom_reg_settings(&rdev->wiphy);
 	}
 
