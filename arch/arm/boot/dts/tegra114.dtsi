@@ -128,7 +128,6 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 8>;
 		clocks = <&tegra_car TEGRA114_CLK_UARTA>;
 		resets = <&tegra_car 6>;
 		reset-names = "serial";
@@ -142,7 +141,6 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 9>;
 		clocks = <&tegra_car TEGRA114_CLK_UARTB>;
 		resets = <&tegra_car 7>;
 		reset-names = "serial";
@@ -156,7 +154,6 @@
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 10>;
 		clocks = <&tegra_car TEGRA114_CLK_UARTC>;
 		resets = <&tegra_car 55>;
 		reset-names = "serial";
@@ -170,7 +167,6 @@
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 19>;
 		clocks = <&tegra_car TEGRA114_CLK_UARTD>;
 		resets = <&tegra_car 65>;
 		reset-names = "serial";
@@ -268,7 +264,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000d400 0x200>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 15>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC1>;
@@ -284,7 +279,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000d600 0x200>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 16>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC2>;
@@ -300,7 +294,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000d800 0x200>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 17>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC3>;
@@ -316,7 +309,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000da00 0x200>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 18>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC4>;
@@ -332,7 +324,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000dc00 0x200>;
 		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 27>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC5>;
@@ -348,7 +339,6 @@
 		compatible = "nvidia,tegra114-spi";
 		reg = <0x7000de00 0x200>;
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 28>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA114_CLK_SBC6>;
@@ -401,10 +391,6 @@
 		      <0x70080200 0x100>,
 		      <0x70081000 0x200>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 1>, <&apbdma 2>,
-			<&apbdma 3>, <&apbdma 4>, <&apbdma 6>, <&apbdma 7>,
-			<&apbdma 12>, <&apbdma 13>, <&apbdma 14>,
-			<&apbdma 29>;
 		clocks = <&tegra_car TEGRA114_CLK_D_AUDIO>,
 			 <&tegra_car TEGRA114_CLK_APBIF>;
 		clock-names = "d_audio", "apbif";

@@ -248,7 +248,6 @@
 		compatible = "nvidia,tegra20-ac97";
 		reg = <0x70002000 0x200>;
 		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 12>;
 		clocks = <&tegra_car TEGRA20_CLK_AC97>;
 		resets = <&tegra_car 3>;
 		reset-names = "ac97";
@@ -261,7 +260,6 @@
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
 		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 2>;
 		clocks = <&tegra_car TEGRA20_CLK_I2S1>;
 		resets = <&tegra_car 11>;
 		reset-names = "i2s";
@@ -274,7 +272,6 @@
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 1>;
 		clocks = <&tegra_car TEGRA20_CLK_I2S2>;
 		resets = <&tegra_car 18>;
 		reset-names = "i2s";
@@ -295,7 +292,6 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 8>;
 		clocks = <&tegra_car TEGRA20_CLK_UARTA>;
 		resets = <&tegra_car 6>;
 		reset-names = "serial";
@@ -309,7 +305,6 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 9>;
 		clocks = <&tegra_car TEGRA20_CLK_UARTB>;
 		resets = <&tegra_car 7>;
 		reset-names = "serial";
@@ -323,7 +318,6 @@
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 10>;
 		clocks = <&tegra_car TEGRA20_CLK_UARTC>;
 		resets = <&tegra_car 55>;
 		reset-names = "serial";
@@ -337,7 +331,6 @@
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 19>;
 		clocks = <&tegra_car TEGRA20_CLK_UARTD>;
 		resets = <&tegra_car 65>;
 		reset-names = "serial";
@@ -351,7 +344,6 @@
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 20>;
 		clocks = <&tegra_car TEGRA20_CLK_UARTE>;
 		resets = <&tegra_car 66>;
 		reset-names = "serial";
@@ -397,7 +389,6 @@
 		compatible = "nvidia,tegra20-sflash";
 		reg = <0x7000c380 0x80>;
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 11>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA20_CLK_SPI>;
@@ -460,7 +451,6 @@
 		compatible = "nvidia,tegra20-slink";
 		reg = <0x7000d400 0x200>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 15>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA20_CLK_SBC1>;
@@ -475,7 +465,6 @@
 		compatible = "nvidia,tegra20-slink";
 		reg = <0x7000d600 0x200>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 16>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA20_CLK_SBC2>;
@@ -490,7 +479,6 @@
 		compatible = "nvidia,tegra20-slink";
 		reg = <0x7000d800 0x200>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 17>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA20_CLK_SBC3>;
@@ -505,7 +493,6 @@
 		compatible = "nvidia,tegra20-slink";
 		reg = <0x7000da00 0x200>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
-		nvidia,dma-request-selector = <&apbdma 18>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		clocks = <&tegra_car TEGRA20_CLK_SBC4>;
