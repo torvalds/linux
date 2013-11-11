@@ -142,10 +142,10 @@ BSSpSearchBSSList(
 		/* match BSSID first */
 		for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 			pCurrBSS = &(pMgmt->sBSSList[ii]);
-			if (pDevice->bLinkPass == false)
+			if (!pDevice->bLinkPass)
 				pCurrBSS->bSelected = false;
 			if ((pCurrBSS->bActive) &&
-			    (pCurrBSS->bSelected == false)) {
+			    (!pCurrBSS->bSelected)) {
 				if (ether_addr_equal(pCurrBSS->abyBSSID,
 						     pbyBSSID)) {
 					if (pSSID != NULL) {
@@ -390,7 +390,7 @@ BSSbInsertToBSSList(
 	if (pBSSList->uChannel > CB_MAX_CHANNEL_24G) {
 		pBSSList->eNetworkTypeInUse = PHY_TYPE_11A;
 	} else {
-		if (pBSSList->sERP.bERPExist == true)
+		if (pBSSList->sERP.bERPExist)
 			pBSSList->eNetworkTypeInUse = PHY_TYPE_11G;
 		else
 			pBSSList->eNetworkTypeInUse = PHY_TYPE_11B;
@@ -431,7 +431,7 @@ BSSbInsertToBSSList(
 		}
 	}
 
-	if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || (pBSSList->bWPA2Valid == true)) {
+	if ((pMgmt->eAuthenMode == WMAC_AUTH_WPA2) || pBSSList->bWPA2Valid) {
 		PSKeyItem  pTransmitKey = NULL;
 		bool bIs802_1x = false;
 
@@ -441,13 +441,13 @@ BSSbInsertToBSSList(
 				break;
 			}
 		}
-		if ((bIs802_1x == true) && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
+		if (bIs802_1x && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
 		    (!memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
 			bAdd_PMKID_Candidate((void *)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
 
-			if ((pDevice->bLinkPass == true) && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
-				if ((KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, PAIRWISE_KEY, &pTransmitKey) == true) ||
-				    (KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, GROUP_KEY, &pTransmitKey) == true)) {
+			if (pDevice->bLinkPass && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
+				if (KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, PAIRWISE_KEY, &pTransmitKey) ||
+				    KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, GROUP_KEY, &pTransmitKey)) {
 					pDevice->gsPMKIDCandidate.StatusType = Ndis802_11StatusType_PMKID_CandidateList;
 					pDevice->gsPMKIDCandidate.Version = 1;
 
@@ -466,13 +466,12 @@ BSSbInsertToBSSList(
 			pBSSList->ldBmAverage[ii] = 0;
 	}
 
-	if ((pIE_Country != NULL) &&
-	    (pMgmt->b11hEnable == true)) {
+	if ((pIE_Country != NULL) && pMgmt->b11hEnable) {
 		set_country_info(pMgmt->pAdapter, pBSSList->eNetworkTypeInUse,
 				 pIE_Country);
 	}
 
-	if ((bParsingQuiet == true) && (pIE_Quiet != NULL)) {
+	if (bParsingQuiet && (pIE_Quiet != NULL)) {
 		if ((((PWLAN_IE_QUIET)pIE_Quiet)->len == 8) &&
 		    (((PWLAN_IE_QUIET)pIE_Quiet)->byQuietCount != 0)) {
 			/* valid EID */
@@ -498,8 +497,7 @@ BSSbInsertToBSSList(
 		}
 	}
 
-	if ((bParsingQuiet == true) &&
-	    (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL)) {
 		CARDbStartQuiet(pMgmt->pAdapter);
 	}
 
@@ -580,7 +578,7 @@ BSSbUpdateToBSSList(
 	if (pBSSList->uChannel > CB_MAX_CHANNEL_24G) {
 		pBSSList->eNetworkTypeInUse = PHY_TYPE_11A;
 	} else {
-		if (pBSSList->sERP.bERPExist == true)
+		if (pBSSList->sERP.bERPExist)
 			pBSSList->eNetworkTypeInUse = PHY_TYPE_11G;
 		else
 			pBSSList->eNetworkTypeInUse = PHY_TYPE_11B;
@@ -633,13 +631,12 @@ BSSbUpdateToBSSList(
 		}
 	}
 
-	if ((pIE_Country != NULL) &&
-	    (pMgmt->b11hEnable == true)) {
+	if ((pIE_Country != NULL) && pMgmt->b11hEnable) {
 		set_country_info(pMgmt->pAdapter, pBSSList->eNetworkTypeInUse,
 				 pIE_Country);
 	}
 
-	if ((bParsingQuiet == true) && (pIE_Quiet != NULL)) {
+	if (bParsingQuiet && (pIE_Quiet != NULL)) {
 		if ((((PWLAN_IE_QUIET)pIE_Quiet)->len == 8) &&
 		    (((PWLAN_IE_QUIET)pIE_Quiet)->byQuietCount != 0)) {
 			/* valid EID */
@@ -665,8 +662,7 @@ BSSbUpdateToBSSList(
 		}
 	}
 
-	if ((bParsingQuiet == true) &&
-	    (pQuiet != NULL)) {
+	if (bParsingQuiet && (pQuiet != NULL)) {
 		CARDbStartQuiet(pMgmt->pAdapter);
 	}
 
@@ -934,10 +930,12 @@ BSSvSecondCallBack(
 	/* 2008-4-14 <add> by chester for led issue */
 #ifdef FOR_LED_ON_NOTEBOOK
 	MACvGPIOIn(pDevice->PortOffset, &pDevice->byGPIO);
-	if (((!(pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == false)) || ((pDevice->byGPIO & GPIO0_DATA) && (pDevice->bHWRadioOff == true))) && (cc == false)) {
+	if (((!(pDevice->byGPIO & GPIO0_DATA) && (!pDevice->bHWRadioOff)) ||
+	     ((pDevice->byGPIO & GPIO0_DATA) && pDevice->bHWRadioOff)) &&
+	    (!cc)) {
 		cc = true;
-	} else if (cc == true) {
-		if (pDevice->bHWRadioOff == true) {
+	} else if (cc) {
+		if (pDevice->bHWRadioOff) {
 			if (!(pDevice->byGPIO & GPIO0_DATA)) {
 				if (status == 1)
 					goto start;
@@ -988,7 +986,7 @@ start:
 	{
 		pDevice->byReAssocCount++;
 		/* 10 sec timeout */
-		if ((pDevice->byReAssocCount > 10) && (pDevice->bLinkPass != true)) {
+		if ((pDevice->byReAssocCount > 10) && (!pDevice->bLinkPass)) {
 			netdev_info(pDevice->dev, "Re-association timeout!!!\n");
 			pDevice->byReAssocCount = 0;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
@@ -1000,7 +998,7 @@ start:
 				wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 			}
 #endif
-		} else if (pDevice->bLinkPass == true)
+		} else if (pDevice->bLinkPass)
 			pDevice->byReAssocCount = 0;
 	}
 
@@ -1188,7 +1186,7 @@ start:
 				 * network manager support need not do
 				 * Roaming scan???
 				 */
-				if (pDevice->bWPASuppWextEnabled == true)
+				if (pDevice->bWPASuppWextEnabled)
 					pDevice->uAutoReConnectTime = 0;
 #endif
 			} else {
@@ -1520,7 +1518,7 @@ void s_uCalculateLinkQual(
 	TxOkRatio = (TxCnt < 6) ? 4000 : ((pDevice->scStatistic.TxNoRetryOkCount * 4000) / TxCnt);
 	RxOkRatio = (RxCnt < 6) ? 2000 : ((pDevice->scStatistic.RxOkCnt * 2000) / RxCnt);
 	/* decide link quality */
-	if (pDevice->bLinkPass != true) {
+	if (!pDevice->bLinkPass) {
 		pDevice->scStatistic.LinkQuality = 0;
 		pDevice->scStatistic.SignalStren = 0;
 	} else {
