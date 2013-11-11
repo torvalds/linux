@@ -200,7 +200,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 		class_import_put(desc->bd_import);
 
 	if (unpin) {
-		for (i = 0; i < desc->bd_iov_count ; i++)
+		for (i = 0; i < desc->bd_iov_count; i++)
 			page_cache_release(desc->bd_iov[i].kiov_page);
 	}
 
@@ -1039,7 +1039,7 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 		*status = -EIO;
 	} else if (req->rq_send_state == LUSTRE_IMP_CONNECTING &&
 		   imp->imp_state == LUSTRE_IMP_CONNECTING) {
-		/* allow CONNECT even if import is invalid */ ;
+		/* allow CONNECT even if import is invalid */
 		if (atomic_read(&imp->imp_inval_count) != 0) {
 			DEBUG_REQ(D_ERROR, req, "invalidate in flight");
 			*status = -EIO;
