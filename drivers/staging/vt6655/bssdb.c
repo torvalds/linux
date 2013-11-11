@@ -846,9 +846,8 @@ BSSvUpdateAPNode(
 	pMgmt->sNodeDBTable[0].wTxDataRate = pMgmt->sNodeDBTable[0].wMaxSuppRate;
 	pMgmt->sNodeDBTable[0].bShortPreamble = WLAN_GET_CAP_INFO_SHORTPREAMBLE(*pwCapInfo);
 	pMgmt->sNodeDBTable[0].uRatePollTimeout = FALLBACK_POLL_SECOND;
-#ifdef	PLICE_DEBUG
-	printk("BSSvUpdateAPNode:MaxSuppRate is %d\n", pMgmt->sNodeDBTable[0].wMaxSuppRate);
-#endif
+	netdev_dbg(pDevice->dev, "BSSvUpdateAPNode:MaxSuppRate is %d\n",
+		   pMgmt->sNodeDBTable[0].wMaxSuppRate);
 	/* auto rate fallback function initiation */
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pMgmt->sNodeDBTable[0].wTxDataRate = %d \n", pMgmt->sNodeDBTable[0].wTxDataRate);
 };
@@ -889,9 +888,9 @@ BSSvAddMulticastNode(
 			  &(pMgmt->sNodeDBTable[0].byTopOFDMBasicRate)
 );
 	pMgmt->sNodeDBTable[0].wTxDataRate = pMgmt->sNodeDBTable[0].wMaxBasicRate;
-#ifdef	PLICE_DEBUG
-	printk("BSSvAddMultiCastNode:pMgmt->sNodeDBTable[0].wTxDataRate is %d\n", pMgmt->sNodeDBTable[0].wTxDataRate);
-#endif
+	netdev_dbg(pDevice->dev,
+		   "BSSvAddMultiCastNode:pMgmt->sNodeDBTable[0].wTxDataRate is %d\n",
+		   pMgmt->sNodeDBTable[0].wTxDataRate);
 	pMgmt->sNodeDBTable[0].uRatePollTimeout = FALLBACK_POLL_SECOND;
 };
 
@@ -990,7 +989,7 @@ start:
 		pDevice->byReAssocCount++;
 		/* 10 sec timeout */
 		if ((pDevice->byReAssocCount > 10) && (pDevice->bLinkPass != true)) {
-			printk("Re-association timeout!!!\n");
+			netdev_info(pDevice->dev, "Re-association timeout!!!\n");
 			pDevice->byReAssocCount = 0;
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 			{
@@ -1054,13 +1053,13 @@ start:
 				} else {
 					/* ii = 0 reserved for unicast AP node (Infra STA) */
 					if (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)
-#ifdef	PLICE_DEBUG
-						printk("SecondCallback:Before:TxDataRate is %d\n", pMgmt->sNodeDBTable[0].wTxDataRate);
-#endif
+						netdev_dbg(pDevice->dev,
+							   "SecondCallback:Before:TxDataRate is %d\n",
+							   pMgmt->sNodeDBTable[0].wTxDataRate);
 					RATEvTxRateFallBack((void *)pDevice, &(pMgmt->sNodeDBTable[ii]));
-#ifdef	PLICE_DEBUG
-					printk("SecondCallback:After:TxDataRate is %d\n", pMgmt->sNodeDBTable[0].wTxDataRate);
-#endif
+					netdev_dbg(pDevice->dev,
+						   "SecondCallback:After:TxDataRate is %d\n",
+						   pMgmt->sNodeDBTable[0].wTxDataRate);
 
 				}
 
