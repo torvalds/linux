@@ -40,8 +40,8 @@ DEFINE_EVENT_FN(x86_exceptions, name,				\
 	trace_irq_vector_regfunc,				\
 	trace_irq_vector_unregfunc);
 
-DEFINE_PAGE_FAULT_EVENT(user_page_fault);
-DEFINE_PAGE_FAULT_EVENT(kernel_page_fault);
+DEFINE_PAGE_FAULT_EVENT(page_fault_user);
+DEFINE_PAGE_FAULT_EVENT(page_fault_kernel);
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .

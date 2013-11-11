@@ -1239,9 +1239,9 @@ static void trace_page_fault_entries(struct pt_regs *regs,
 				     unsigned long error_code)
 {
 	if (user_mode(regs))
-		trace_user_page_fault(read_cr2(), regs, error_code);
+		trace_page_fault_user(read_cr2(), regs, error_code);
 	else
-		trace_kernel_page_fault(read_cr2(), regs, error_code);
+		trace_page_fault_kernel(read_cr2(), regs, error_code);
 }
 
 dotraplinkage void __kprobes
