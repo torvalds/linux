@@ -85,7 +85,7 @@ struct obd_client_handle {
 	struct lu_fid	 och_fid;
 	struct md_open_data  *och_mod;
 	__u32 och_magic;
-	int och_flags;
+	fmode_t och_flags;
 };
 #define OBD_CLIENT_HANDLE_MAGIC 0xd15ea5ed
 
