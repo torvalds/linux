@@ -192,7 +192,12 @@
 				};
 
 				buck1_reg: BUCK1 {
-					regulator-name = "VDD_ARM_1.2V";
+					/*
+					* HACK: The real name is VDD_ARM_1.2V,
+					* but exynos-cpufreq does not support
+					* DT-based regulator lookup yet.
+					*/
+					regulator-name = "vdd_arm";
 					regulator-min-microvolt = <950000>;
 					regulator-max-microvolt	= <1350000>;
 					regulator-always-on;
