@@ -480,6 +480,8 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	mtd_device_register(&ctx->info, pd->parts, pd->num_parts);
 
+	platform_set_drvdata(pdev, ctx);
+
 	return 0;
 
 out3:
