@@ -90,8 +90,8 @@ static int lm3630a_chip_init(struct lm3630a_chip *pchip)
 	/* set current B */
 	rval |= lm3630a_write(pchip, REG_I_B, 0x1F);
 	/* set control */
-	rval |=
-	    lm3630a_write(pchip, REG_CTRL, pdata->leda_ctrl | pdata->ledb_ctrl);
+	rval |= lm3630a_update(pchip, REG_CTRL, 0x14, pdata->leda_ctrl);
+	rval |= lm3630a_update(pchip, REG_CTRL, 0x0B, pdata->ledb_ctrl);
 	usleep_range(1000, 2000);
 	/* set brightness A and B */
 	rval |= lm3630a_write(pchip, REG_BRT_A, pdata->leda_init_brt);
