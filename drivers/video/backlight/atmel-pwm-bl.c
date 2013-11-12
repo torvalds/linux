@@ -171,8 +171,9 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = pdata->pwm_duty_max - pdata->pwm_duty_min;
-	bldev = backlight_device_register("atmel-pwm-bl", &pdev->dev, pwmbl,
-					  &atmel_pwm_bl_ops, &props);
+	bldev = devm_backlight_device_register(&pdev->dev, "atmel-pwm-bl",
+					&pdev->dev, pwmbl, &atmel_pwm_bl_ops,
+					&props);
 	if (IS_ERR(bldev)) {
 		retval = PTR_ERR(bldev);
 		goto err_free_pwm;
@@ -188,14 +189,12 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 
 	retval = atmel_pwm_bl_init_pwm(pwmbl);
 	if (retval)
-		goto err_free_bl_dev;
+		goto err_free_pwm;
 
 	atmel_pwm_bl_set_intensity(bldev);
 
 	return 0;
 
-err_free_bl_dev:
-	backlight_device_unregister(bldev);
 err_free_pwm:
 	pwm_channel_free(&pwmbl->pwmc);
 err_free_mem:
@@ -210,7 +209,6 @@ static int atmel_pwm_bl_remove(struct platform_device *pdev)
 		gpio_set_value(pwmbl->gpio_on, 0);
 	pwm_channel_disable(&pwmbl->pwmc);
 	pwm_channel_free(&pwmbl->pwmc);
-	backlight_device_unregister(pwmbl->bldev);
 
 	return 0;
 }
