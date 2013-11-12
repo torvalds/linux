@@ -789,7 +789,6 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->iomem = NULL;
 
 	cmos->dev = NULL;
-	dev_set_drvdata(dev, NULL);
 }
 
 #ifdef	CONFIG_PM
