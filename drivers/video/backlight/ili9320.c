@@ -235,7 +235,8 @@ int ili9320_probe_spi(struct spi_device *spi,
 
 	ili9320_setup_spi(ili, spi);
 
-	lcd = lcd_device_register("ili9320", dev, ili, &ili9320_ops);
+	lcd = devm_lcd_device_register(&spi->dev, "ili9320", dev, ili,
+					&ili9320_ops);
 	if (IS_ERR(lcd)) {
 		dev_err(dev, "failed to register lcd device\n");
 		return PTR_ERR(lcd);
@@ -248,24 +249,16 @@ int ili9320_probe_spi(struct spi_device *spi,
 	ret = ili9320_power(ili, FB_BLANK_UNBLANK);
 	if (ret != 0) {
 		dev_err(dev, "failed to set lcd power state\n");
-		goto err_unregister;
+		return ret;
 	}
 
 	return 0;
-
- err_unregister:
-	lcd_device_unregister(lcd);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(ili9320_probe_spi);
 
 int ili9320_remove(struct ili9320 *ili)
 {
 	ili9320_power(ili, FB_BLANK_POWERDOWN);
-
-	lcd_device_unregister(ili->lcd);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ili9320_remove);
