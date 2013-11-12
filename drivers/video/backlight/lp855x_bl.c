@@ -405,7 +405,7 @@ static int lp855x_parse_dt(struct device *dev, struct device_node *node)
 static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp855x *lp;
-	struct lp855x_platform_data *pdata = cl->dev.platform_data;
+	struct lp855x_platform_data *pdata = dev_get_platdata(&cl->dev);
 	struct device_node *node = cl->dev.of_node;
 	int ret;
 
@@ -414,7 +414,7 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		if (ret < 0)
 			return ret;
 
-		pdata = cl->dev.platform_data;
+		pdata = dev_get_platdata(&cl->dev);
 	}
 
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))

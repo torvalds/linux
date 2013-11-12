@@ -109,7 +109,7 @@ static const struct backlight_ops da903x_backlight_ops = {
 
 static int da903x_backlight_probe(struct platform_device *pdev)
 {
-	struct da9034_backlight_pdata *pdata = pdev->dev.platform_data;
+	struct da9034_backlight_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct da903x_backlight_data *data;
 	struct backlight_device *bl;
 	struct backlight_properties props;

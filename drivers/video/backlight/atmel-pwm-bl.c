@@ -133,7 +133,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 
 	pwmbl->pdev = pdev;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		retval = -ENODEV;
 		goto err_free_mem;

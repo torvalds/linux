@@ -196,7 +196,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 static int pm860x_backlight_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_backlight_pdata *pdata = pdev->dev.platform_data;
+	struct pm860x_backlight_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm860x_backlight_data *data;
 	struct backlight_device *bl;
 	struct resource *res;

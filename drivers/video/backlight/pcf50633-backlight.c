@@ -103,7 +103,7 @@ static int pcf50633_bl_probe(struct platform_device *pdev)
 {
 	struct pcf50633_bl *pcf_bl;
 	struct device *parent = pdev->dev.parent;
-	struct pcf50633_platform_data *pcf50633_data = parent->platform_data;
+	struct pcf50633_platform_data *pcf50633_data = dev_get_platdata(parent);
 	struct pcf50633_bl_platform_data *pdata = pcf50633_data->backlight_data;
 	struct backlight_properties bl_props;
 

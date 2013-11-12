@@ -93,7 +93,7 @@ static const struct backlight_ops lv5207lp_backlight_ops = {
 static int lv5207lp_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	struct lv5207lp_platform_data *pdata = client->dev.platform_data;
+	struct lv5207lp_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct backlight_device *backlight;
 	struct backlight_properties props;
 	struct lv5207lp *lv;

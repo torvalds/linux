@@ -141,7 +141,7 @@ static const struct backlight_ops kb3886bl_ops = {
 static int kb3886bl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
-	struct kb3886bl_machinfo *machinfo = pdev->dev.platform_data;
+	struct kb3886bl_machinfo *machinfo = dev_get_platdata(&pdev->dev);
 
 	bl_machinfo = machinfo;
 	if (!machinfo->limit_mask)

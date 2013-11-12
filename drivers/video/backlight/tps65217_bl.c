@@ -287,12 +287,11 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	} else {
-		if (!pdev->dev.platform_data) {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (!pdata) {
 			dev_err(&pdev->dev, "no platform data provided\n");
 			return -EINVAL;
 		}
-
-		pdata = pdev->dev.platform_data;
 	}
 
 	tps65217_bl = devm_kzalloc(&pdev->dev, sizeof(*tps65217_bl),

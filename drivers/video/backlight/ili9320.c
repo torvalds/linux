@@ -198,7 +198,7 @@ static void ili9320_setup_spi(struct ili9320 *ili,
 int ili9320_probe_spi(struct spi_device *spi,
 				struct ili9320_client *client)
 {
-	struct ili9320_platdata *cfg = spi->dev.platform_data;
+	struct ili9320_platdata *cfg = dev_get_platdata(&spi->dev);
 	struct device *dev = &spi->dev;
 	struct ili9320 *ili;
 	struct lcd_device *lcd;

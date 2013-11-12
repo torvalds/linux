@@ -62,7 +62,8 @@ static const struct backlight_ops gpio_backlight_ops = {
 
 static int gpio_backlight_probe(struct platform_device *pdev)
 {
-	struct gpio_backlight_platform_data *pdata = pdev->dev.platform_data;
+	struct gpio_backlight_platform_data *pdata =
+		dev_get_platdata(&pdev->dev);
 	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct gpio_backlight *gbl;

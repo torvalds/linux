@@ -80,7 +80,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(dev, "no platform data supplied\n");
 		return -EINVAL;
