@@ -2450,7 +2450,6 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-		__le16 pre_value;
 
 		skb_put(skb, 8);
 		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;		/* EID */
@@ -2466,8 +2465,7 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			ifmsh->pre_value = 1;
 		else
 			ifmsh->pre_value++;
-		pre_value = cpu_to_le16(ifmsh->pre_value);
-		memcpy(pos, &pre_value, 2);		/* Precedence Value */
+		put_unaligned_le16(ifmsh->pre_value, pos);/* Precedence Value */
 		pos += 2;
 		ifmsh->chsw_init = true;
 	}

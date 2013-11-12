@@ -674,8 +674,6 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	rcu_read_lock();
 	csa = rcu_dereference(ifmsh->csa);
 	if (csa) {
-		__le16 pre_value;
-
 		pos = skb_put(skb, 13);
 		memset(pos, 0, 13);
 		*pos++ = WLAN_EID_CHANNEL_SWITCH;
@@ -697,8 +695,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 			  WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT : 0x00;
 		put_unaligned_le16(WLAN_REASON_MESH_CHAN, pos);
 		pos += 2;
-		pre_value = cpu_to_le16(ifmsh->pre_value);
-		memcpy(pos, &pre_value, 2);
+		put_unaligned_le16(ifmsh->pre_value, pos);
 		pos += 2;
 	}
 	rcu_read_unlock();
