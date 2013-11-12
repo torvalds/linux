@@ -530,20 +530,6 @@ static void zpci_unmap_resources(struct zpci_dev *zdev)
 	}
 }
 
-struct zpci_dev *zpci_alloc_device(void)
-{
-	struct zpci_dev *zdev;
-
-	/* Alloc memory for our private pci device data */
-	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
-	return zdev ? : ERR_PTR(-ENOMEM);
-}
-
-void zpci_free_device(struct zpci_dev *zdev)
-{
-	kfree(zdev);
-}
-
 int pcibios_add_platform_entries(struct pci_dev *pdev)
 {
 	return zpci_sysfs_add_device(&pdev->dev);
@@ -774,26 +760,6 @@ struct dev_pm_ops pcibios_pm_ops = {
 };
 #endif /* CONFIG_HIBERNATE_CALLBACKS */
 
-static int zpci_scan_bus(struct zpci_dev *zdev)
-{
-	LIST_HEAD(resources);
-	int ret;
-
-	ret = zpci_setup_bus_resources(zdev, &resources);
-	if (ret)
-		return ret;
-
-	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
-				      zdev, &resources);
-	if (!zdev->bus) {
-		zpci_cleanup_bus_resources(zdev);
-		return -EIO;
-	}
-
-	zdev->bus->max_bus_speed = zdev->max_bus_speed;
-	return 0;
-}
-
 static int zpci_alloc_domain(struct zpci_dev *zdev)
 {
 	spin_lock(&zpci_domain_lock);
@@ -812,6 +778,41 @@ static void zpci_free_domain(struct zpci_dev *zdev)
 	spin_lock(&zpci_domain_lock);
 	clear_bit(zdev->domain, zpci_domain);
 	spin_unlock(&zpci_domain_lock);
+}
+
+void pcibios_remove_bus(struct pci_bus *bus)
+{
+	struct zpci_dev *zdev = get_zdev_by_bus(bus);
+
+	zpci_exit_slot(zdev);
+	zpci_cleanup_bus_resources(zdev);
+	zpci_free_domain(zdev);
+
+	spin_lock(&zpci_list_lock);
+	list_del(&zdev->entry);
+	spin_unlock(&zpci_list_lock);
+
+	kfree(zdev);
+}
+
+static int zpci_scan_bus(struct zpci_dev *zdev)
+{
+	LIST_HEAD(resources);
+	int ret;
+
+	ret = zpci_setup_bus_resources(zdev, &resources);
+	if (ret)
+		return ret;
+
+	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
+				      zdev, &resources);
+	if (!zdev->bus) {
+		zpci_cleanup_bus_resources(zdev);
+		return -EIO;
+	}
+
+	zdev->bus->max_bus_speed = zdev->max_bus_speed;
+	return 0;
 }
 
 int zpci_enable_device(struct zpci_dev *zdev)
