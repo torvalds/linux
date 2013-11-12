@@ -79,6 +79,12 @@ void __gcov_merge_delta(gcov_type *counters, unsigned int n_counters)
 }
 EXPORT_SYMBOL(__gcov_merge_delta);
 
+void __gcov_merge_ior(gcov_type *counters, unsigned int n_counters)
+{
+	/* Unused. */
+}
+EXPORT_SYMBOL(__gcov_merge_ior);
+
 /**
  * gcov_enable_events - enable event reporting through gcov_event()
  *
