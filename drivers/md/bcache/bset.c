@@ -676,6 +676,8 @@ void bch_bset_build_written_tree(struct btree_keys *b)
 }
 EXPORT_SYMBOL(bch_bset_build_written_tree);
 
+/* Insert */
+
 void bch_bset_fix_invalidated_key(struct btree_keys *b, struct bkey *k)
 {
 	struct bset_tree *t;
@@ -790,6 +792,54 @@ void bch_bset_insert(struct btree_keys *b, struct bkey *where,
 	bch_bset_fix_lookup_table(b, t, where);
 }
 EXPORT_SYMBOL(bch_bset_insert);
+
+unsigned bch_btree_insert_key(struct btree_keys *b, struct bkey *k,
+			      struct bkey *replace_key)
+{
+	unsigned status = BTREE_INSERT_STATUS_NO_INSERT;
+	struct bset *i = bset_tree_last(b)->data;
+	struct bkey *m, *prev = NULL;
+	struct btree_iter iter;
+
+	BUG_ON(b->ops->is_extents && !KEY_SIZE(k));
+
+	m = bch_btree_iter_init(b, &iter, b->ops->is_extents
+				? PRECEDING_KEY(&START_KEY(k))
+				: PRECEDING_KEY(k));
+
+	if (b->ops->insert_fixup(b, k, &iter, replace_key))
+		return status;
+
+	status = BTREE_INSERT_STATUS_INSERT;
+
+	while (m != bset_bkey_last(i) &&
+	       bkey_cmp(k, b->ops->is_extents ? &START_KEY(m) : m) > 0)
+		prev = m, m = bkey_next(m);
+
+	/* prev is in the tree, if we merge we're done */
+	status = BTREE_INSERT_STATUS_BACK_MERGE;
+	if (prev &&
+	    bch_bkey_try_merge(b, prev, k))
+		goto merged;
+#if 0
+	status = BTREE_INSERT_STATUS_OVERWROTE;
+	if (m != bset_bkey_last(i) &&
+	    KEY_PTRS(m) == KEY_PTRS(k) && !KEY_SIZE(m))
+		goto copy;
+#endif
+	status = BTREE_INSERT_STATUS_FRONT_MERGE;
+	if (m != bset_bkey_last(i) &&
+	    bch_bkey_try_merge(b, k, m))
+		goto copy;
+
+	bch_bset_insert(b, m, k);
+copy:	bkey_copy(m, k);
+merged:
+	return status;
+}
+EXPORT_SYMBOL(bch_btree_insert_key);
+
+/* Lookup */
 
 struct bset_search_iter {
 	struct bkey *l, *r;

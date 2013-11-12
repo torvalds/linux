@@ -222,8 +222,22 @@ static bool bch_btree_ptr_bad(struct btree_keys *bk, const struct bkey *k)
 	return false;
 }
 
+static bool bch_btree_ptr_insert_fixup(struct btree_keys *bk,
+				       struct bkey *insert,
+				       struct btree_iter *iter,
+				       struct bkey *replace_key)
+{
+	struct btree *b = container_of(bk, struct btree, keys);
+
+	if (!KEY_OFFSET(insert))
+		btree_current_write(b)->prio_blocked++;
+
+	return false;
+}
+
 const struct btree_keys_ops bch_btree_keys_ops = {
 	.sort_cmp	= bch_key_sort_cmp,
+	.insert_fixup	= bch_btree_ptr_insert_fixup,
 	.key_invalid	= bch_btree_ptr_invalid,
 	.key_bad	= bch_btree_ptr_bad,
 	.key_to_text	= bch_extent_to_text,
@@ -292,6 +306,169 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 	}
 
 	return NULL;
+}
+
+static bool bch_extent_insert_fixup(struct btree_keys *b,
+				    struct bkey *insert,
+				    struct btree_iter *iter,
+				    struct bkey *replace_key)
+{
+	struct cache_set *c = container_of(b, struct btree, keys)->c;
+
+	void subtract_dirty(struct bkey *k, uint64_t offset, int sectors)
+	{
+		if (KEY_DIRTY(k))
+			bcache_dev_sectors_dirty_add(c, KEY_INODE(k),
+						     offset, -sectors);
+	}
+
+	uint64_t old_offset;
+	unsigned old_size, sectors_found = 0;
+
+	BUG_ON(!KEY_OFFSET(insert));
+	BUG_ON(!KEY_SIZE(insert));
+
+	while (1) {
+		struct bkey *k = bch_btree_iter_next(iter);
+		if (!k)
+			break;
+
+		if (bkey_cmp(&START_KEY(k), insert) >= 0) {
+			if (KEY_SIZE(k))
+				break;
+			else
+				continue;
+		}
+
+		if (bkey_cmp(k, &START_KEY(insert)) <= 0)
+			continue;
+
+		old_offset = KEY_START(k);
+		old_size = KEY_SIZE(k);
+
+		/*
+		 * We might overlap with 0 size extents; we can't skip these
+		 * because if they're in the set we're inserting to we have to
+		 * adjust them so they don't overlap with the key we're
+		 * inserting. But we don't want to check them for replace
+		 * operations.
+		 */
+
+		if (replace_key && KEY_SIZE(k)) {
+			/*
+			 * k might have been split since we inserted/found the
+			 * key we're replacing
+			 */
+			unsigned i;
+			uint64_t offset = KEY_START(k) -
+				KEY_START(replace_key);
+
+			/* But it must be a subset of the replace key */
+			if (KEY_START(k) < KEY_START(replace_key) ||
+			    KEY_OFFSET(k) > KEY_OFFSET(replace_key))
+				goto check_failed;
+
+			/* We didn't find a key that we were supposed to */
+			if (KEY_START(k) > KEY_START(insert) + sectors_found)
+				goto check_failed;
+
+			if (KEY_PTRS(k) != KEY_PTRS(replace_key) ||
+			    KEY_DIRTY(k) != KEY_DIRTY(replace_key))
+				goto check_failed;
+
+			/* skip past gen */
+			offset <<= 8;
+
+			BUG_ON(!KEY_PTRS(replace_key));
+
+			for (i = 0; i < KEY_PTRS(replace_key); i++)
+				if (k->ptr[i] != replace_key->ptr[i] + offset)
+					goto check_failed;
+
+			sectors_found = KEY_OFFSET(k) - KEY_START(insert);
+		}
+
+		if (bkey_cmp(insert, k) < 0 &&
+		    bkey_cmp(&START_KEY(insert), &START_KEY(k)) > 0) {
+			/*
+			 * We overlapped in the middle of an existing key: that
+			 * means we have to split the old key. But we have to do
+			 * slightly different things depending on whether the
+			 * old key has been written out yet.
+			 */
+
+			struct bkey *top;
+
+			subtract_dirty(k, KEY_START(insert), KEY_SIZE(insert));
+
+			if (bkey_written(b, k)) {
+				/*
+				 * We insert a new key to cover the top of the
+				 * old key, and the old key is modified in place
+				 * to represent the bottom split.
+				 *
+				 * It's completely arbitrary whether the new key
+				 * is the top or the bottom, but it has to match
+				 * up with what btree_sort_fixup() does - it
+				 * doesn't check for this kind of overlap, it
+				 * depends on us inserting a new key for the top
+				 * here.
+				 */
+				top = bch_bset_search(b, bset_tree_last(b),
+						      insert);
+				bch_bset_insert(b, top, k);
+			} else {
+				BKEY_PADDED(key) temp;
+				bkey_copy(&temp.key, k);
+				bch_bset_insert(b, k, &temp.key);
+				top = bkey_next(k);
+			}
+
+			bch_cut_front(insert, top);
+			bch_cut_back(&START_KEY(insert), k);
+			bch_bset_fix_invalidated_key(b, k);
+			goto out;
+		}
+
+		if (bkey_cmp(insert, k) < 0) {
+			bch_cut_front(insert, k);
+		} else {
+			if (bkey_cmp(&START_KEY(insert), &START_KEY(k)) > 0)
+				old_offset = KEY_START(insert);
+
+			if (bkey_written(b, k) &&
+			    bkey_cmp(&START_KEY(insert), &START_KEY(k)) <= 0) {
+				/*
+				 * Completely overwrote, so we don't have to
+				 * invalidate the binary search tree
+				 */
+				bch_cut_front(k, k);
+			} else {
+				__bch_cut_back(&START_KEY(insert), k);
+				bch_bset_fix_invalidated_key(b, k);
+			}
+		}
+
+		subtract_dirty(k, old_offset, old_size - KEY_SIZE(k));
+	}
+
+check_failed:
+	if (replace_key) {
+		if (!sectors_found) {
+			return true;
+		} else if (sectors_found < KEY_SIZE(insert)) {
+			SET_KEY_OFFSET(insert, KEY_OFFSET(insert) -
+				       (KEY_SIZE(insert) - sectors_found));
+			SET_KEY_SIZE(insert, sectors_found);
+		}
+	}
+out:
+	if (KEY_DIRTY(insert))
+		bcache_dev_sectors_dirty_add(c, KEY_INODE(insert),
+					     KEY_START(insert),
+					     KEY_SIZE(insert));
+
+	return false;
 }
 
 static bool bch_extent_invalid(struct btree_keys *bk, const struct bkey *k)
@@ -435,6 +612,7 @@ static bool bch_extent_merge(struct btree_keys *bk, struct bkey *l, struct bkey 
 const struct btree_keys_ops bch_extent_keys_ops = {
 	.sort_cmp	= bch_extent_sort_cmp,
 	.sort_fixup	= bch_extent_sort_fixup,
+	.insert_fixup	= bch_extent_insert_fixup,
 	.key_invalid	= bch_extent_invalid,
 	.key_bad	= bch_extent_bad,
 	.key_merge	= bch_extent_merge,

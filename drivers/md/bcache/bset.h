@@ -189,6 +189,8 @@ struct btree_keys_ops {
 	bool		(*sort_cmp)(struct btree_iter_set,
 				    struct btree_iter_set);
 	struct bkey	*(*sort_fixup)(struct btree_iter *, struct bkey *);
+	bool		(*insert_fixup)(struct btree_keys *, struct bkey *,
+					struct btree_iter *, struct bkey *);
 	bool		(*key_invalid)(struct btree_keys *,
 				       const struct bkey *);
 	bool		(*key_bad)(struct btree_keys *, const struct bkey *);
@@ -286,6 +288,16 @@ void bch_bset_init_next(struct btree_keys *, struct bset *, uint64_t);
 void bch_bset_build_written_tree(struct btree_keys *);
 void bch_bset_fix_invalidated_key(struct btree_keys *, struct bkey *);
 void bch_bset_insert(struct btree_keys *, struct bkey *, struct bkey *);
+unsigned bch_btree_insert_key(struct btree_keys *, struct bkey *,
+			      struct bkey *);
+
+enum {
+	BTREE_INSERT_STATUS_NO_INSERT = 0,
+	BTREE_INSERT_STATUS_INSERT,
+	BTREE_INSERT_STATUS_BACK_MERGE,
+	BTREE_INSERT_STATUS_OVERWROTE,
+	BTREE_INSERT_STATUS_FRONT_MERGE,
+};
 
 /*
  * Tries to merge l and r: l should be lower than r
