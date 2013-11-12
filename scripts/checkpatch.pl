@@ -1514,6 +1514,14 @@ sub rtrim {
 	return $string;
 }
 
+sub string_find_replace {
+	my ($string, $find, $replace) = @_;
+
+	$string =~ s/$find/$replace/g;
+
+	return $string;
+}
+
 sub tabify {
 	my ($leading) = @_;
 
@@ -3733,14 +3741,6 @@ sub process {
 			}
 		}
 
-sub string_find_replace {
-	my ($string, $find, $replace) = @_;
-
-	$string =~ s/$find/$replace/g;
-
-	return $string;
-}
-
 # check for bad placement of section $InitAttribute (e.g.: __initdata)
 		if ($line =~ /(\b$InitAttribute\b)/) {
 			my $attr = $1;
@@ -4196,6 +4196,12 @@ sub string_find_replace {
 		{
 			WARN("NR_CPUS",
 			     "usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc\n" . $herecurr);
+		}
+
+# Use of __ARCH_HAS_<FOO> or ARCH_HAVE_<BAR> is wrong.
+		if ($line =~ /\+\s*#\s*define\s+((?:__)?ARCH_(?:HAS|HAVE)\w*)\b/) {
+			ERROR("DEFINE_ARCH_HAS",
+			      "#define of '$1' is wrong - use Kconfig variables or standard guards instead\n" . $herecurr);
 		}
 
 # check for %L{u,d,i} in strings
