@@ -1545,7 +1545,8 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 
 	if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
-	else if (nvbo->bo.mem.mem_type == TTM_PL_TT) {
+	else if (nvbo->bo.mem.mem_type == TTM_PL_TT &&
+		 nvbo->page_shift == vma->vm->vmm->spg_shift) {
 		if (node->sg)
 			nouveau_vm_map_sg_table(vma, 0, size, node);
 		else
