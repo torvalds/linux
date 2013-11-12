@@ -400,6 +400,48 @@ static struct attribute *bch_flash_dev_files[] = {
 };
 KTYPE(bch_flash_dev);
 
+struct bset_stats_op {
+	struct btree_op op;
+	size_t nodes;
+	struct bset_stats stats;
+};
+
+static int btree_bset_stats(struct btree_op *b_op, struct btree *b)
+{
+	struct bset_stats_op *op = container_of(b_op, struct bset_stats_op, op);
+
+	op->nodes++;
+	bch_btree_keys_stats(&b->keys, &op->stats);
+
+	return MAP_CONTINUE;
+}
+
+int bch_bset_print_stats(struct cache_set *c, char *buf)
+{
+	struct bset_stats_op op;
+	int ret;
+
+	memset(&op, 0, sizeof(op));
+	bch_btree_op_init(&op.op, -1);
+
+	ret = bch_btree_map_nodes(&op.op, c, &ZERO_KEY, btree_bset_stats);
+	if (ret < 0)
+		return ret;
+
+	return snprintf(buf, PAGE_SIZE,
+			"btree nodes:		%zu\n"
+			"written sets:		%zu\n"
+			"unwritten sets:		%zu\n"
+			"written key bytes:	%zu\n"
+			"unwritten key bytes:	%zu\n"
+			"floats:			%zu\n"
+			"failed:			%zu\n",
+			op.nodes,
+			op.stats.sets_written, op.stats.sets_unwritten,
+			op.stats.bytes_written, op.stats.bytes_unwritten,
+			op.stats.floats, op.stats.failed);
+}
+
 SHOW(__bch_cache_set)
 {
 	unsigned root_usage(struct cache_set *c)

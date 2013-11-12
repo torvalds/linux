@@ -1122,29 +1122,16 @@ out:
 }
 EXPORT_SYMBOL(bch_btree_sort_lazy);
 
-/* Sysfs stuff */
-
-struct bset_stats {
-	struct btree_op op;
-	size_t nodes;
-	size_t sets_written, sets_unwritten;
-	size_t bytes_written, bytes_unwritten;
-	size_t floats, failed;
-};
-
-static int btree_bset_stats(struct btree_op *op, struct btree *b)
+void bch_btree_keys_stats(struct btree_keys *b, struct bset_stats *stats)
 {
-	struct bset_stats *stats = container_of(op, struct bset_stats, op);
 	unsigned i;
 
-	stats->nodes++;
-
-	for (i = 0; i <= b->keys.nsets; i++) {
-		struct bset_tree *t = &b->keys.set[i];
+	for (i = 0; i <= b->nsets; i++) {
+		struct bset_tree *t = &b->set[i];
 		size_t bytes = t->data->keys * sizeof(uint64_t);
 		size_t j;
 
-		if (bset_written(&b->keys, t)) {
+		if (bset_written(b, t)) {
 			stats->sets_written++;
 			stats->bytes_written += bytes;
 
@@ -1158,32 +1145,4 @@ static int btree_bset_stats(struct btree_op *op, struct btree *b)
 			stats->bytes_unwritten += bytes;
 		}
 	}
-
-	return MAP_CONTINUE;
-}
-
-int bch_bset_print_stats(struct cache_set *c, char *buf)
-{
-	struct bset_stats t;
-	int ret;
-
-	memset(&t, 0, sizeof(struct bset_stats));
-	bch_btree_op_init(&t.op, -1);
-
-	ret = bch_btree_map_nodes(&t.op, c, &ZERO_KEY, btree_bset_stats);
-	if (ret < 0)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE,
-			"btree nodes:		%zu\n"
-			"written sets:		%zu\n"
-			"unwritten sets:		%zu\n"
-			"written key bytes:	%zu\n"
-			"unwritten key bytes:	%zu\n"
-			"floats:			%zu\n"
-			"failed:			%zu\n",
-			t.nodes,
-			t.sets_written, t.sets_unwritten,
-			t.bytes_written, t.bytes_unwritten,
-			t.floats, t.failed);
 }

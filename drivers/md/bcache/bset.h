@@ -365,6 +365,14 @@ static inline void bch_btree_sort(struct btree *b,
 	bch_btree_sort_partial(b, 0, state);
 }
 
+struct bset_stats {
+	size_t sets_written, sets_unwritten;
+	size_t bytes_written, bytes_unwritten;
+	size_t floats, failed;
+};
+
+void bch_btree_keys_stats(struct btree_keys *, struct bset_stats *);
+
 /* Bkey utility code */
 
 #define bset_bkey_last(i)	bkey_idx((struct bkey *) (i)->d, (i)->keys)
@@ -494,7 +502,5 @@ int __bch_keylist_realloc(struct keylist *, unsigned);
 
 struct cache_set;
 const char *bch_ptr_status(struct cache_set *, const struct bkey *);
-
-int bch_bset_print_stats(struct cache_set *, char *);
 
 #endif
