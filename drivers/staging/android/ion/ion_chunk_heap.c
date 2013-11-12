@@ -84,7 +84,7 @@ err:
 	sg = table->sgl;
 	for (i -= 1; i >= 0; i--) {
 		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
-			      sg_dma_len(sg));
+			      sg->length);
 		sg = sg_next(sg);
 	}
 	sg_free_table(table);
@@ -112,7 +112,7 @@ static void ion_chunk_heap_free(struct ion_buffer *buffer)
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		gen_pool_free(chunk_heap->pool, page_to_phys(sg_page(sg)),
-			      sg_dma_len(sg));
+			      sg->length);
 	}
 	chunk_heap->allocated -= allocated_size;
 	sg_free_table(table);

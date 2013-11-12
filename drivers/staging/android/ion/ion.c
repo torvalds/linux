@@ -224,7 +224,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		for_each_sg(table->sgl, sg, table->nents, i) {
 			struct page *page = sg_page(sg);
 
-			for (j = 0; j < sg_dma_len(sg) / PAGE_SIZE; j++)
+			for (j = 0; j < sg->length / PAGE_SIZE; j++)
 				buffer->pages[k++] = page++;
 		}
 
