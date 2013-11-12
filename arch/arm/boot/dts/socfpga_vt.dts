@@ -152,7 +152,6 @@
 		};
 
 		usb0: usb@ffb00000 {
-			ulpi-ddr = <0>;
 			status = "okay";
 		};
 	};

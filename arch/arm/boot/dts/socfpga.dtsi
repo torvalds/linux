@@ -779,16 +779,20 @@
 			reg-io-width = <4>;
 		};
 
+		usbphy0: usbphy@0 {
+			#phy-cells = <0>;
+			compatible = "usb-nop-xceiv";
+			status = "okay";
+		};
+
 		usb0: usb@ffb00000 {
 			compatible = "snps,dwc2";
 			reg = <0xffb00000 0xffff>;
 			interrupts = <0 125 4>;
-			dev-rx-fifo-size = <512>;
-			dev-nperio-tx-fifo-size = <4096>;
-			dev-perio-tx-fifo-size = <512 512 512 512 512 512
-				512 512 512 512 512 512 512 512 512>;
-			dev-tx-fifo-size = <512 512 512 512 512 512
-				512 512 512 512 512 512 512 512 512>;
+			clocks = <&usb_mp_clk>;
+			clock-names = "otg";
+			phys = <&usbphy0>;
+			phy-names = "usb2-phy";
 			enable-dynamic-fifo = <1>;
 			host-rx-fifo-size = <0xa00>;
 			host-perio-tx-fifo-size = <0xa00>;
@@ -801,12 +805,10 @@
 			compatible = "snps,dwc2";
 			reg = <0xffb40000 0xffff>;
 			interrupts = <0 128 4>;
-			dev-rx-fifo-size = <512>;
-			dev-nperio-tx-fifo-size = <4096>;
-			dev-perio-tx-fifo-size = <512 512 512 512 512 512
-				512 512 512 512 512 512 512 512 512>;
-			dev-tx-fifo-size = <512 512 512 512 512 512
-				512 512 512 512 512 512 512 512 512>;
+			clocks = <&usb_mp_clk>;
+			clock-names = "otg";
+			phys = <&usbphy0>;
+			phy-names = "usb2-phy";
 			enable-dynamic-fifo = <1>;
 			host-rx-fifo-size = <0xa00>;
 			host-perio-tx-fifo-size = <0xa00>;
