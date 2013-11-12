@@ -443,8 +443,9 @@ sub seed_camelcase_file {
 		next if ($line !~ /(?:[A-Z][a-z]|[a-z][A-Z])/);
 		if ($line =~ /^[ \t]*(?:#[ \t]*define|typedef\s+$Type)\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)/) {
 			$camelcase{$1} = 1;
-		}
-	        elsif ($line =~ /^\s*$Declare\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)\s*[\(\[,;]/) {
+		} elsif ($line =~ /^\s*$Declare\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)\s*[\(\[,;]/) {
+			$camelcase{$1} = 1;
+		} elsif ($line =~ /^\s*(?:union|struct|enum)\s+(\w*(?:[A-Z][a-z]|[a-z][A-Z])\w*)\s*[;\{]/) {
 			$camelcase{$1} = 1;
 		}
 	}
