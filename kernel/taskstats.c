@@ -404,11 +404,15 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 	if (!na)
 		goto err;
 
-	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
+	if (nla_put(skb, type, sizeof(pid), &pid) < 0) {
+		nla_nest_cancel(skb, na);
 		goto err;
+	}
 	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
-	if (!ret)
+	if (!ret) {
+		nla_nest_cancel(skb, na);
 		goto err;
+	}
 	nla_nest_end(skb, na);
 
 	return nla_data(ret);
