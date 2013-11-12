@@ -358,6 +358,10 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
 		    ETH_ALEN))
 		allow_uapsd = false;
+
+	if (vif->p2p &&
+	    !(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD))
+		allow_uapsd = false;
 	/*
 	 * Avoid using uAPSD if P2P client is associated to GO that uses
 	 * opportunistic power save. This is due to current FW limitation.

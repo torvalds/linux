@@ -94,6 +94,7 @@
  *	containing CAM (Continuous Active Mode) indication.
  * @IWL_UCODE_TLV_FLAGS_P2P_PS: P2P client power save is supported (only on a
  *	single bound interface).
+ * @IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD: P2P client supports uAPSD power save
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
@@ -117,6 +118,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= BIT(20),
 	IWL_UCODE_TLV_FLAGS_P2P_PS		= BIT(21),
 	IWL_UCODE_TLV_FLAGS_UAPSD_SUPPORT	= BIT(24),
+	IWL_UCODE_TLV_FLAGS_P2P_PS_UAPSD	= BIT(26),
 };
 
 /* The default calibrate table size if not specified by firmware file */
