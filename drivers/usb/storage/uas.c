@@ -86,8 +86,7 @@ struct uas_cmd_info {
 	struct urb *cmd_urb;
 	struct urb *data_in_urb;
 	struct urb *data_out_urb;
-	struct list_head inflight;
-	struct list_head dead;
+	struct list_head list;
 };
 
 /* I hate forward declarations, but I actually have a loop */
@@ -129,7 +128,7 @@ static void uas_do_work(struct work_struct *work)
 	int err;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry(cmdinfo, &devinfo->inflight_list, inflight) {
+	list_for_each_entry(cmdinfo, &devinfo->inflight_list, list) {
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
 						      SCp);
@@ -157,8 +156,7 @@ static void uas_mark_cmd_dead(struct uas_dev_info *devinfo,
 	WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
 	cmdinfo->state |= COMMAND_ABORTED;
 	cmdinfo->state &= ~IS_IN_WORK_LIST;
-	list_del(&cmdinfo->inflight);
-	list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
+	list_move_tail(&cmdinfo->list, &devinfo->dead_list);
 }
 
 static void uas_abort_inflight(struct uas_dev_info *devinfo)
@@ -168,8 +166,7 @@ static void uas_abort_inflight(struct uas_dev_info *devinfo)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry_safe(cmdinfo, temp, &devinfo->inflight_list,
-				 inflight)
+	list_for_each_entry_safe(cmdinfo, temp, &devinfo->inflight_list, list)
 		uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
@@ -192,7 +189,7 @@ static void uas_zap_dead(struct uas_dev_info *devinfo)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry_safe(cmdinfo, temp, &devinfo->dead_list, dead) {
+	list_for_each_entry_safe(cmdinfo, temp, &devinfo->dead_list, list) {
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
 						      SCp);
@@ -295,9 +292,8 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	if (cmdinfo->state & COMMAND_ABORTED) {
 		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
 		cmnd->result = DID_ABORT << 16;
-		list_del(&cmdinfo->dead);
-	} else
-		list_del(&cmdinfo->inflight);
+	}
+	list_del(&cmdinfo->list);
 	cmnd->scsi_done(cmnd);
 	return 0;
 }
@@ -725,7 +721,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		uas_add_work(cmdinfo);
 	}
 
-	list_add_tail(&cmdinfo->inflight, &devinfo->inflight_list);
+	list_add_tail(&cmdinfo->list, &devinfo->inflight_list);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 	return 0;
 }
