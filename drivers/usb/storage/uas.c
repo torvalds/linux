@@ -146,6 +146,21 @@ static void uas_do_work(struct work_struct *work)
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
+static void uas_mark_cmd_dead(struct uas_dev_info *devinfo,
+			      struct uas_cmd_info *cmdinfo, const char *caller)
+{
+	struct scsi_pointer *scp = (void *)cmdinfo;
+	struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd, SCp);
+
+	uas_log_cmd_state(cmnd, caller);
+	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
+	WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
+	cmdinfo->state |= COMMAND_ABORTED;
+	cmdinfo->state &= ~IS_IN_WORK_LIST;
+	list_del(&cmdinfo->inflight);
+	list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
+}
+
 static void uas_abort_inflight(struct uas_dev_info *devinfo)
 {
 	struct uas_cmd_info *cmdinfo;
@@ -154,17 +169,8 @@ static void uas_abort_inflight(struct uas_dev_info *devinfo)
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 	list_for_each_entry_safe(cmdinfo, temp, &devinfo->inflight_list,
-				 inflight) {
-		struct scsi_pointer *scp = (void *)cmdinfo;
-		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
-						      SCp);
-		uas_log_cmd_state(cmnd, __func__);
-		WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
-		cmdinfo->state |= COMMAND_ABORTED;
-		cmdinfo->state &= ~IS_IN_WORK_LIST;
-		list_del(&cmdinfo->inflight);
-		list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
-	}
+				 inflight)
+		uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -806,13 +812,8 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	unsigned long flags;
 	int ret;
 
-	uas_log_cmd_state(cmnd, __func__);
 	spin_lock_irqsave(&devinfo->lock, flags);
-	WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
-	cmdinfo->state |= COMMAND_ABORTED;
-	cmdinfo->state &= ~IS_IN_WORK_LIST;
-	list_del(&cmdinfo->inflight);
-	list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
+	uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
 	if (cmdinfo->state & COMMAND_INFLIGHT) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
