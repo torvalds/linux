@@ -226,6 +226,17 @@ static inline int of_get_child_count(const struct device_node *np)
 	return num;
 }
 
+static inline int of_get_available_child_count(const struct device_node *np)
+{
+	struct device_node *child;
+	int num = 0;
+
+	for_each_available_child_of_node(np, child)
+		num++;
+
+	return num;
+}
+
 /* cache lookup */
 extern struct device_node *of_find_next_cache_node(const struct device_node *);
 extern struct device_node *of_find_node_with_property(
@@ -374,6 +385,11 @@ static inline struct device_node *of_get_child_by_name(
 }
 
 static inline int of_get_child_count(const struct device_node *np)
+{
+	return 0;
+}
+
+static inline int of_get_available_child_count(const struct device_node *np)
 {
 	return 0;
 }
