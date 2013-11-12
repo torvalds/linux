@@ -673,7 +673,7 @@ static struct spi_driver hx8357_driver = {
 	.probe  = hx8357_probe,
 	.driver = {
 		.name = "hx8357",
-		.of_match_table = of_match_ptr(hx8357_dt_ids),
+		.of_match_table = hx8357_dt_ids,
 	},
 };
 
