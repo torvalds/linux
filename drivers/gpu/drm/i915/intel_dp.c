@@ -1774,7 +1774,7 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	 * ensure that we have vdd while we switch off the panel. */
 	ironlake_edp_panel_vdd_on(intel_dp);
 	ironlake_edp_backlight_off(intel_dp);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	ironlake_edp_panel_off(intel_dp);
 
 	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
