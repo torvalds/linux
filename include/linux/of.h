@@ -226,6 +226,8 @@ static inline int of_get_child_count(const struct device_node *np)
 	return num;
 }
 
+/* cache lookup */
+extern struct device_node *of_find_next_cache_node(const struct device_node *);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 #define for_each_node_with_property(dn, prop_name) \
