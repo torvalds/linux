@@ -95,14 +95,6 @@ static const char version[] =
 #define USE_32_BIT 1
 #endif
 
-#if defined(__H8300H__) || defined(__H8300S__)
-#define NO_AUTOPROBE
-#undef insl
-#undef outsl
-#define insl(a,b,l)  io_insl_noswap(a,b,l)
-#define outsl(a,b,l) io_outsl_noswap(a,b,l)
-#endif
-
 /*
  .the SMC9194 can be at any of the following port addresses.  To change,
  .for a slightly different card, you can add it to the array.  Keep in
@@ -114,12 +106,6 @@ struct devlist {
 	unsigned int irq;
 };
 
-#if defined(CONFIG_H8S_EDOSK2674)
-static struct devlist smc_devlist[] __initdata = {
-	{.port = 0xf80000, .irq = 16},
-	{.port = 0,        .irq = 0 },
-};
-#else
 static struct devlist smc_devlist[] __initdata = {
 	{.port = 0x200, .irq = 0},
 	{.port = 0x220, .irq = 0},
@@ -139,7 +125,6 @@ static struct devlist smc_devlist[] __initdata = {
 	{.port = 0x3E0, .irq = 0},
 	{.port = 0,     .irq = 0},
 };
-#endif
 /*
  . Wait time for memory to be free.  This probably shouldn't be
  . tuned that much, as waiting for this means nothing else happens
@@ -651,11 +636,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 #ifdef USE_32_BIT
 	if ( length & 0x2  ) {
 		outsl(ioaddr + DATA_1, buf,  length >> 2 );
-#if !defined(__H8300H__) && !defined(__H8300S__)
 		outw( *((word *)(buf + (length & 0xFFFFFFFC))),ioaddr +DATA_1);
-#else
-		ctrl_outw( *((word *)(buf + (length & 0xFFFFFFFC))),ioaddr +DATA_1);
-#endif
 	}
 	else
 		outsl(ioaddr + DATA_1, buf,  length >> 2 );
@@ -899,7 +880,6 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto err_out;
 	}
-#if !defined(CONFIG_H8S_EDOSK2674)
 	/* well, we've already written once, so hopefully another time won't
  	   hurt.  This time, I need to switch the bank register to bank 1,
 	   so I can access the base address register */
@@ -914,10 +894,6 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto err_out;
 	}
-#else
-	(void)base_address_register; /* Warning suppression */
-#endif
-
 
 	/*  check if the revision register is something that I recognize.
 	    These might need to be added to later, as future revisions

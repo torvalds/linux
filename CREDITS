@@ -3152,6 +3152,11 @@ N: Dipankar Sarma
 E: dipankar@in.ibm.com
 D: RCU
 
+N: Yoshinori Sato
+E: ysato@users.sourceforge.jp
+D: uClinux for Renesas H8/300 (H8300)
+D: http://uclinux-h8.sourceforge.jp/
+
 N: Hannu Savolainen
 E: hannu@opensound.com
 D: Maintainer of the sound drivers until 2.1.x days.

@@ -8707,14 +8707,6 @@ S:	Maintained
 F:	arch/m68k/*/*_no.*
 F:	arch/m68k/include/asm/*_no.*
 
-UCLINUX FOR RENESAS H8/300 (H8300)
-M:	Yoshinori Sato <ysato@users.sourceforge.jp>
-W:	http://uclinux-h8.sourceforge.jp/
-S:	Supported
-F:	arch/h8300/
-F:	drivers/ide/ide-h8300.c
-F:	drivers/net/ethernet/8390/ne-h8300.c
-
 UDF FILESYSTEM
 M:	Jan Kara <jack@suse.cz>
 S:	Maintained
