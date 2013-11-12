@@ -149,20 +149,32 @@ static void perf_evsel__delete_priv(struct perf_evsel *evsel)
 	perf_evsel__delete(evsel);
 }
 
+static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel, void *handler)
+{
+	evsel->priv = malloc(sizeof(struct syscall_tp));
+	if (evsel->priv != NULL) {
+		if (perf_evsel__init_sc_tp_uint_field(evsel, id))
+			goto out_delete;
+
+		evsel->handler = handler;
+		return 0;
+	}
+
+	return -ENOMEM;
+
+out_delete:
+	free(evsel->priv);
+	evsel->priv = NULL;
+	return -ENOENT;
+}
+
 static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	if (evsel) {
-		evsel->priv = malloc(sizeof(struct syscall_tp));
-
-		if (evsel->priv == NULL)
+		if (perf_evsel__init_syscall_tp(evsel, handler))
 			goto out_delete;
-
-		if (perf_evsel__init_sc_tp_uint_field(evsel, id))
-			goto out_delete;
-
-		evsel->handler = handler;
 	}
 
 	return evsel;
