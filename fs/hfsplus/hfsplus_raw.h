@@ -156,10 +156,10 @@ struct hfs_bnode_desc {
 } __packed;
 
 /* HFS+ BTree node types */
-#define HFS_NODE_INDEX	0x00
-#define HFS_NODE_HEADER	0x01
-#define HFS_NODE_MAP	0x02
-#define HFS_NODE_LEAF	0xFF
+#define HFS_NODE_INDEX	0x00	/* An internal (index) node */
+#define HFS_NODE_HEADER	0x01	/* The tree header node (node 0) */
+#define HFS_NODE_MAP	0x02	/* Holds part of the bitmap of used nodes */
+#define HFS_NODE_LEAF	0xFF	/* A leaf (ndNHeight==1) node */
 
 /* HFS+ BTree header */
 struct hfs_btree_header_rec {
