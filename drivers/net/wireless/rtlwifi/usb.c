@@ -475,8 +475,6 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 			rtlpriv->stats.rxbytesunicast +=  skb->len;
 		}
 
-		rtl_is_special_data(hw, skb, false);
-
 		if (ieee80211_is_data(fc)) {
 			rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);
 
@@ -516,8 +514,6 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 			unicast = true;
 			rtlpriv->stats.rxbytesunicast +=  skb->len;
 		}
-
-		rtl_is_special_data(hw, skb, false);
 
 		if (ieee80211_is_data(fc)) {
 			rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);

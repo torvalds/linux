@@ -688,8 +688,6 @@ static void _rtl_receive_one(struct ieee80211_hw *hw, struct sk_buff *skb,
 		rtlpriv->stats.rxbytesunicast += skb->len;
 	}
 
-	rtl_is_special_data(hw, skb, false);
-
 	if (ieee80211_is_data(fc)) {
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);
 
