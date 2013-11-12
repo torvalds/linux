@@ -7986,10 +7986,9 @@ skip_sriov:
 			   NETIF_F_TSO |
 			   NETIF_F_TSO6 |
 			   NETIF_F_RXHASH |
-			   NETIF_F_RXCSUM |
-			   NETIF_F_HW_L2FW_DOFFLOAD;
+			   NETIF_F_RXCSUM;
 
-	netdev->hw_features = netdev->features;
+	netdev->hw_features = netdev->features | NETIF_F_HW_L2FW_DOFFLOAD;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
