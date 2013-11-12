@@ -380,6 +380,7 @@ int hfsplus_block_allocate(struct super_block *, u32, u32, u32 *);
 int hfsplus_block_free(struct super_block *, u32, u32);
 
 /* btree.c */
+u32 hfsplus_calc_btree_clump_size(u32, u32, u64, int);
 struct hfs_btree *hfs_btree_open(struct super_block *, u32);
 void hfs_btree_close(struct hfs_btree *);
 int hfs_btree_write(struct hfs_btree *);
