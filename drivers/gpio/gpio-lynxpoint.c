@@ -438,6 +438,7 @@ static const struct dev_pm_ops lp_gpio_pm_ops = {
 
 static const struct acpi_device_id lynxpoint_gpio_acpi_match[] = {
 	{ "INT33C7", 0 },
+	{ "INT3437", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, lynxpoint_gpio_acpi_match);
