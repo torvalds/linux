@@ -18,11 +18,11 @@
 #include <linux/err.h>
 #include <linux/genalloc.h>
 #include <linux/io.h>
-#include <linux/ion.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include "ion.h"
 #include "ion_priv.h"
 
 #include <asm/mach/map.h>
