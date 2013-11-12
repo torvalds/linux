@@ -318,7 +318,7 @@ static ssize_t iio_trigger_read_current(struct device *dev,
  * iio_trigger_write_current() - trigger consumer sysfs set current trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
- * used for this device to be specified at run time based on the triggers
+ * used for this device to be specified at run time based on the trigger's
  * name.
  **/
 static ssize_t iio_trigger_write_current(struct device *dev,
