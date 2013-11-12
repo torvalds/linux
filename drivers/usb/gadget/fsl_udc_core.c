@@ -2666,7 +2666,7 @@ static struct platform_driver udc_driver = {
 	.suspend	= fsl_udc_suspend,
 	.resume		= fsl_udc_resume,
 	.driver		= {
-			.name = (char *)driver_name,
+			.name = driver_name,
 			.owner = THIS_MODULE,
 			/* udc suspend/resume called from OTG driver */
 			.suspend = fsl_udc_otg_suspend,
