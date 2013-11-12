@@ -888,8 +888,9 @@ static int adp8870_probe(struct i2c_client *client,
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = props.brightness = ADP8870_MAX_BRIGHTNESS;
-	bl = backlight_device_register(dev_driver_string(&client->dev),
-			&client->dev, data, &adp8870_bl_ops, &props);
+	bl = devm_backlight_device_register(&client->dev,
+				dev_driver_string(&client->dev),
+				&client->dev, data, &adp8870_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -902,7 +903,7 @@ static int adp8870_probe(struct i2c_client *client,
 			&adp8870_bl_attr_group);
 		if (ret) {
 			dev_err(&client->dev, "failed to register sysfs\n");
-			goto out1;
+			return ret;
 		}
 	}
 
@@ -925,8 +926,6 @@ out:
 	if (data->pdata->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8870_bl_attr_group);
-out1:
-	backlight_device_unregister(bl);
 
 	return ret;
 }
@@ -943,8 +942,6 @@ static int adp8870_remove(struct i2c_client *client)
 	if (data->pdata->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8870_bl_attr_group);
-
-	backlight_device_unregister(data->bl);
 
 	return 0;
 }
