@@ -3057,7 +3057,7 @@ static int cache_message(struct dm_target *ti, unsigned argc, char **argv)
 	if (!argc)
 		return -EINVAL;
 
-	if (!strcmp(argv[0], "invalidate_cblocks"))
+	if (!strcasecmp(argv[0], "invalidate_cblocks"))
 		return process_invalidate_cblocks_message(cache, argc - 1, (const char **) argv + 1);
 
 	if (argc != 2)

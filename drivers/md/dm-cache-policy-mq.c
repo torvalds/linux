@@ -310,7 +310,7 @@ static void free_entry(struct entry_pool *ep, struct entry *e)
 static struct entry *epool_find(struct entry_pool *ep, dm_cblock_t cblock)
 {
 	struct entry *e = ep->entries + from_cblock(cblock);
-	return e->hlist.pprev ? e : NULL;
+	return !hlist_unhashed(&e->hlist) ? e : NULL;
 }
 
 static bool epool_empty(struct entry_pool *ep)
