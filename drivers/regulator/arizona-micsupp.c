@@ -225,7 +225,9 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_CHARGE_PUMP_1,
 			   ARIZONA_CPMIC_BYPASS, 0);
 
-	micsupp->regulator = regulator_register(&arizona_micsupp, &config);
+	micsupp->regulator = devm_regulator_register(&pdev->dev,
+						     &arizona_micsupp,
+						     &config);
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);
 		dev_err(arizona->dev, "Failed to register mic supply: %d\n",
@@ -238,18 +240,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int arizona_micsupp_remove(struct platform_device *pdev)
-{
-	struct arizona_micsupp *micsupp = platform_get_drvdata(pdev);
-
-	regulator_unregister(micsupp->regulator);
-
-	return 0;
-}
-
 static struct platform_driver arizona_micsupp_driver = {
 	.probe = arizona_micsupp_probe,
-	.remove = arizona_micsupp_remove,
 	.driver		= {
 		.name	= "arizona-micsupp",
 		.owner	= THIS_MODULE,

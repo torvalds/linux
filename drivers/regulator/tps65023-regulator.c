@@ -277,12 +277,12 @@ static int tps_65023_probe(struct i2c_client *client,
 		config.regmap = tps->regmap;
 
 		/* Register the regulators */
-		rdev = regulator_register(&tps->desc[i], &config);
+		rdev = devm_regulator_register(&client->dev, &tps->desc[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&client->dev, "failed to register %s\n",
 				id->name);
-			error = PTR_ERR(rdev);
-			goto fail;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
@@ -293,23 +293,9 @@ static int tps_65023_probe(struct i2c_client *client,
 
 	/* Enable setting output voltage by I2C */
 	regmap_update_bits(tps->regmap, TPS65023_REG_CON_CTRL2,
-			TPS65023_REG_CTRL2_CORE_ADJ, TPS65023_REG_CTRL2_CORE_ADJ);
+					TPS65023_REG_CTRL2_CORE_ADJ,
+					TPS65023_REG_CTRL2_CORE_ADJ);
 
-	return 0;
-
- fail:
-	while (--i >= 0)
-		regulator_unregister(tps->rdev[i]);
-	return error;
-}
-
-static int tps_65023_remove(struct i2c_client *client)
-{
-	struct tps_pmic *tps = i2c_get_clientdata(client);
-	int i;
-
-	for (i = 0; i < TPS65023_NUM_REGULATOR; i++)
-		regulator_unregister(tps->rdev[i]);
 	return 0;
 }
 
@@ -430,7 +416,6 @@ static struct i2c_driver tps_65023_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps_65023_probe,
-	.remove = tps_65023_remove,
 	.id_table = tps_65023_id,
 };
 
