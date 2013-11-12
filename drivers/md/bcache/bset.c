@@ -14,20 +14,12 @@
 
 /* Keylists */
 
-int bch_keylist_realloc(struct keylist *l, int nptrs, struct cache_set *c)
+int __bch_keylist_realloc(struct keylist *l, unsigned u64s)
 {
 	size_t oldsize = bch_keylist_nkeys(l);
-	size_t newsize = oldsize + 2 + nptrs;
+	size_t newsize = oldsize + u64s;
 	uint64_t *old_keys = l->keys_p == l->inline_keys ? NULL : l->keys_p;
 	uint64_t *new_keys;
-
-	/* The journalling code doesn't handle the case where the keys to insert
-	 * is bigger than an empty write: If we just return -ENOMEM here,
-	 * bio_insert() and bio_invalidate() will insert the keys created so far
-	 * and finish the rest when the keylist is empty.
-	 */
-	if (newsize * sizeof(uint64_t) > block_bytes(c) - sizeof(struct jset))
-		return -ENOMEM;
 
 	newsize = roundup_pow_of_two(newsize);
 

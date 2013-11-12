@@ -255,6 +255,24 @@ static void bch_data_insert_keys(struct closure *cl)
 	closure_return(cl);
 }
 
+static int bch_keylist_realloc(struct keylist *l, unsigned u64s,
+			       struct cache_set *c)
+{
+	size_t oldsize = bch_keylist_nkeys(l);
+	size_t newsize = oldsize + u64s;
+
+	/*
+	 * The journalling code doesn't handle the case where the keys to insert
+	 * is bigger than an empty write: If we just return -ENOMEM here,
+	 * bio_insert() and bio_invalidate() will insert the keys created so far
+	 * and finish the rest when the keylist is empty.
+	 */
+	if (newsize * sizeof(uint64_t) > block_bytes(c) - sizeof(struct jset))
+		return -ENOMEM;
+
+	return __bch_keylist_realloc(l, u64s);
+}
+
 static void bch_data_invalidate(struct closure *cl)
 {
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
@@ -267,7 +285,7 @@ static void bch_data_invalidate(struct closure *cl)
 		unsigned sectors = min(bio_sectors(bio),
 				       1U << (KEY_SIZE_BITS - 1));
 
-		if (bch_keylist_realloc(&op->insert_keys, 0, op->c))
+		if (bch_keylist_realloc(&op->insert_keys, 2, op->c))
 			goto out;
 
 		bio->bi_iter.bi_sector	+= sectors;
@@ -357,7 +375,7 @@ static void bch_data_insert_start(struct closure *cl)
 
 		/* 1 for the device pointer and 1 for the chksum */
 		if (bch_keylist_realloc(&op->insert_keys,
-					1 + (op->csum ? 1 : 0),
+					3 + (op->csum ? 1 : 0),
 					op->c))
 			continue_at(cl, bch_data_insert_keys, bcache_wq);
 
