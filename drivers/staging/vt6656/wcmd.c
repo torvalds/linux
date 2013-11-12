@@ -197,9 +197,9 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
     if (pTxPacket != NULL) {
         for (ii = 0; ii < 1; ii++) {
             if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail.. \n");
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail..\n");
 	    } else {
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending.. \n");
+                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending..\n");
 	    }
         }
     }
@@ -319,7 +319,7 @@ void vRunCommand(struct work_struct *work)
 
             } else {
                 if (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel)) {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n", pMgmt->uScanChannel);
+                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d\n", pMgmt->uScanChannel);
 			pMgmt->uScanChannel++;
                     s_bCommandComplete(pDevice);
                     spin_unlock_irq(&pDevice->lock);
@@ -704,7 +704,7 @@ void vRunCommand(struct work_struct *work)
                     }
 
                     if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
-                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail \n");
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail\n");
 
                     pMgmt->sNodeDBTable[0].wEnQueueCnt--;
                 }
@@ -727,7 +727,7 @@ void vRunCommand(struct work_struct *work)
                         }
 
                         if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
-                            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
+                            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail\n");
 
                         pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
                         // check if sta ps enable, wait next pspoll
@@ -739,7 +739,7 @@ void vRunCommand(struct work_struct *work)
                         // clear tx map
                         pMgmt->abyPSTxMap[pMgmt->sNodeDBTable[ii].wAID >> 3] &=
                                     ~byMask[pMgmt->sNodeDBTable[ii].wAID & 7];
-                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear \n", ii);
+                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Index=%d PS queue clear\n", ii);
                     }
                     pMgmt->sNodeDBTable[ii].bRxPSPoll = false;
                 }
