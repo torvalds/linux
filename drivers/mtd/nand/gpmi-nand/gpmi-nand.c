@@ -1578,8 +1578,6 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 
 static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 {
-	int ret;
-
 	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */
 	if (GPMI_IS_MX23(this))
 		this->swap_block_mark = false;
@@ -1587,12 +1585,8 @@ static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 		this->swap_block_mark = true;
 
 	/* Set up the medium geometry */
-	ret = gpmi_set_geometry(this);
-	if (ret)
-		return ret;
+	return gpmi_set_geometry(this);
 
-	/* NAND boot init, depends on the gpmi_set_geometry(). */
-	return nand_boot_init(this);
 }
 
 static void gpmi_nfc_exit(struct gpmi_nand_data *this)
@@ -1682,9 +1676,15 @@ static int gpmi_nfc_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
+	chip->options |= NAND_SKIP_BBTSCAN;
 	ret = nand_scan_tail(mtd);
 	if (ret)
 		goto err_out;
+
+	ret = nand_boot_init(this);
+	if (ret)
+		goto err_out;
+	chip->scan_bbt(mtd);
 
 	ppdata.of_node = this->pdev->dev.of_node;
 	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
