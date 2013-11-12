@@ -514,7 +514,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	ret = ocfs2_verify_group_and_input(main_bm_inode, fe, input, group_bh);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_unlock;
+		goto out_free_group_bh;
 	}
 
 	trace_ocfs2_group_add((unsigned long long)input->group,
@@ -524,7 +524,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	if (IS_ERR(handle)) {
 		mlog_errno(PTR_ERR(handle));
 		ret = -EINVAL;
-		goto out_unlock;
+		goto out_free_group_bh;
 	}
 
 	cl_bpc = le16_to_cpu(fe->id2.i_chain.cl_bpc);
@@ -577,8 +577,11 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
-out_unlock:
+
+out_free_group_bh:
 	brelse(group_bh);
+
+out_unlock:
 	brelse(main_bm_bh);
 
 	ocfs2_inode_unlock(main_bm_inode, 1);
