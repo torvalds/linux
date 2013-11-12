@@ -598,18 +598,6 @@ static struct platform_device ohci1_device = {
 	.resource	= ohci1_resources,
 };
 
-/* Ether */
-static struct resource ether_resources[] __initdata = {
-	{
-		.start	= 0xfde00000,
-		.end	= 0xfde003ff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= gic_iid(0xb4),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 /* HPB-DMA */
 
 /* Asynchronous mode register bits */
@@ -796,14 +784,6 @@ void __init r8a7779_add_standard_devices(void)
 	platform_add_devices(r8a7779_standard_devices,
 			    ARRAY_SIZE(r8a7779_standard_devices));
 	r8a7779_register_hpb_dmae();
-}
-
-void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
