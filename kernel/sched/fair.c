@@ -5379,10 +5379,31 @@ void update_group_power(struct sched_domain *sd, int cpu)
 		 */
 
 		for_each_cpu(cpu, sched_group_cpus(sdg)) {
-			struct sched_group *sg = cpu_rq(cpu)->sd->groups;
+			struct sched_group_power *sgp;
+			struct rq *rq = cpu_rq(cpu);
 
-			power_orig += sg->sgp->power_orig;
-			power += sg->sgp->power;
+			/*
+			 * build_sched_domains() -> init_sched_groups_power()
+			 * gets here before we've attached the domains to the
+			 * runqueues.
+			 *
+			 * Use power_of(), which is set irrespective of domains
+			 * in update_cpu_power().
+			 *
+			 * This avoids power/power_orig from being 0 and
+			 * causing divide-by-zero issues on boot.
+			 *
+			 * Runtime updates will correct power_orig.
+			 */
+			if (unlikely(!rq->sd)) {
+				power_orig += power_of(cpu);
+				power += power_of(cpu);
+				continue;
+			}
+
+			sgp = rq->sd->groups->sgp;
+			power_orig += sgp->power_orig;
+			power += sgp->power;
 		}
 	} else  {
 		/*
