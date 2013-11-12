@@ -377,7 +377,7 @@ static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 		bucket->bu_bhs[i] = sb_getblk(bucket->bu_inode->i_sb,
 					      xb_blkno + i);
 		if (!bucket->bu_bhs[i]) {
-			rc = -EIO;
+			rc = -ENOMEM;
 			mlog_errno(rc);
 			break;
 		}

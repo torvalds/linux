@@ -1310,7 +1310,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -1561,7 +1561,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 
 	new_bh = sb_getblk(sb, blkno);
 	if (new_bh == NULL) {
-		ret = -EIO;
+		ret = -ENOMEM;
 		mlog_errno(ret);
 		goto out;
 	}
@@ -3029,7 +3029,7 @@ int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
 	for (i = 0; i < blocks; i++, old_block++, new_block++) {
 		new_bh = sb_getblk(osb->sb, new_block);
 		if (new_bh == NULL) {
-			ret = -EIO;
+			ret = -ENOMEM;
 			mlog_errno(ret);
 			break;
 		}
