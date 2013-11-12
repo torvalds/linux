@@ -401,13 +401,12 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 static int __meminit __add_section(int nid, struct zone *zone,
 					unsigned long phys_start_pfn)
 {
-	int nr_pages = PAGES_PER_SECTION;
 	int ret;
 
 	if (pfn_valid(phys_start_pfn))
 		return -EEXIST;
 
-	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
+	ret = sparse_add_one_section(zone, phys_start_pfn);
 
 	if (ret < 0)
 		return ret;
