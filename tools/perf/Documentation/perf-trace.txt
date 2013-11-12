@@ -93,9 +93,15 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --comm::
         Show process COMM right beside its ID, on by default, disable with --no-comm.
 
+-s::
 --summary::
-	Show a summary of syscalls by thread with min, max, and average times (in
-    msec) and relative stddev.
+	Show only a summary of syscalls by thread with min, max, and average times
+    (in msec) and relative stddev.
+
+-S::
+--with-summary::
+	Show all syscalls followed by a summary by thread with min, max, and
+    average times (in msec) and relative stddev.
 
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru

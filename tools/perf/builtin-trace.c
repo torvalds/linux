@@ -1168,6 +1168,7 @@ struct trace {
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
+	bool			summary_only;
 	bool			show_comm;
 	bool			show_tool_stats;
 	double			duration_filter;
@@ -1611,7 +1612,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 					   args, trace, thread);
 
 	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
-		if (!trace->duration_filter) {
+		if (!trace->duration_filter && !trace->summary_only) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
@@ -1662,6 +1663,9 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		if (trace__filter_duration(trace, duration))
 			goto out;
 	} else if (trace->duration_filter)
+		goto out;
+
+	if (trace->summary_only)
 		goto out;
 
 	trace__fprintf_entry_head(trace, thread, duration, sample->time, trace->output);
@@ -2282,8 +2286,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_BOOLEAN('T', "time", &trace.full_time,
 		    "Show full timestamp, not time relative to first start"),
-	OPT_BOOLEAN(0, "summary", &trace.summary,
-		    "Show syscall summary with statistics"),
+	OPT_BOOLEAN('s', "summary", &trace.summary_only,
+		    "Show only syscall summary with statistics"),
+	OPT_BOOLEAN('S', "with-summary", &trace.summary,
+		    "Show all syscalls and summary with statistics"),
 	OPT_END()
 	};
 	int err;
@@ -2293,6 +2299,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		return trace__record(argc-2, &argv[2]);
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
+
+	/* summary_only implies summary option, but don't overwrite summary if set */
+	if (trace.summary_only)
+		trace.summary = trace.summary_only;
 
 	if (output_name != NULL) {
 		err = trace__open_output(&trace, output_name);
