@@ -1023,7 +1023,7 @@ int bScheduleCommand(struct vnt_private *pDevice,
 {
 
 	if (pDevice->cbFreeCmdQueue == 0)
-		return (false);
+		return false;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
 	memset(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID, 0 , WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
@@ -1064,7 +1064,7 @@ int bScheduleCommand(struct vnt_private *pDevice,
 	if (pDevice->bCmdRunning == false)
 		s_bCommandComplete(pDevice);
 
-	return (true);
+	return true;
 
 }
 
