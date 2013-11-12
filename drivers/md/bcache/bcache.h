@@ -704,7 +704,7 @@ struct bbio {
 };
 
 #define BTREE_PRIO		USHRT_MAX
-#define INITIAL_PRIO		32768
+#define INITIAL_PRIO		32768U
 
 #define btree_bytes(c)		((c)->btree_pages * PAGE_SIZE)
 #define btree_blocks(b)							\

@@ -168,8 +168,21 @@ static void invalidate_one_bucket(struct cache *ca, struct bucket *b)
 	fifo_push(&ca->free_inc, b - ca->buckets);
 }
 
-#define bucket_prio(b)				\
-	(((unsigned) (b->prio - ca->set->min_prio)) * GC_SECTORS_USED(b))
+/*
+ * Determines what order we're going to reuse buckets, smallest bucket_prio()
+ * first: we also take into account the number of sectors of live data in that
+ * bucket, and in order for that multiply to make sense we have to scale bucket
+ *
+ * Thus, we scale the bucket priorities so that the bucket with the smallest
+ * prio is worth 1/8th of what INITIAL_PRIO is worth.
+ */
+
+#define bucket_prio(b)							\
+({									\
+	unsigned min_prio = (INITIAL_PRIO - ca->set->min_prio) / 8;	\
+									\
+	(b->prio - ca->set->min_prio + min_prio) * GC_SECTORS_USED(b);	\
+})
 
 #define bucket_max_cmp(l, r)	(bucket_prio(l) < bucket_prio(r))
 #define bucket_min_cmp(l, r)	(bucket_prio(l) > bucket_prio(r))
