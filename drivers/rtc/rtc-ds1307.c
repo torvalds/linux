@@ -670,7 +670,7 @@ static int ds1307_probe(struct i2c_client *client,
 	int			tmp;
 	const struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
-	int			want_irq = false;
+	bool			want_irq = false;
 	unsigned char		*buf;
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	static const int	bbsqi_bitpos[] = {
