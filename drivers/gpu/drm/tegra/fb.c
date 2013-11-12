@@ -100,8 +100,10 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
-	if (!fb->planes)
+	if (!fb->planes) {
+		kfree(fb);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	fb->num_planes = num_planes;
 
