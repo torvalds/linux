@@ -820,9 +820,9 @@ static int __init boot_delay_setup(char *str)
 	pr_debug("boot_delay: %u, preset_lpj: %ld, lpj: %lu, "
 		"HZ: %d, loops_per_msec: %llu\n",
 		boot_delay, preset_lpj, lpj, HZ, loops_per_msec);
-	return 1;
+	return 0;
 }
-__setup("boot_delay=", boot_delay_setup);
+early_param("boot_delay", boot_delay_setup);
 
 static void boot_delay_msec(int level)
 {
