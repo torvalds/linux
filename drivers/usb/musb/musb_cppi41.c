@@ -96,31 +96,15 @@ static void update_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 	cppi41_channel->usb_toggle = toggle;
 }
 
-static void cppi41_dma_callback(void *private_data)
+static void cppi41_dma_callback(void *private_data);
+
+static void cppi41_trans_done(struct dma_channel *channel)
 {
-	struct dma_channel *channel = private_data;
 	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
 	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
 	struct musb *musb = hw_ep->musb;
-	unsigned long flags;
-	struct dma_tx_state txstate;
-	u32 transferred;
 
-	spin_lock_irqsave(&musb->lock, flags);
-
-	dmaengine_tx_status(cppi41_channel->dc, cppi41_channel->cookie,
-			&txstate);
-	transferred = cppi41_channel->prog_len - txstate.residue;
-	cppi41_channel->transferred += transferred;
-
-	dev_dbg(musb->controller, "DMA transfer done on hw_ep=%d bytes=%d/%d\n",
-		hw_ep->epnum, cppi41_channel->transferred,
-		cppi41_channel->total_len);
-
-	update_rx_toggle(cppi41_channel);
-
-	if (cppi41_channel->transferred == cppi41_channel->total_len ||
-			transferred < cppi41_channel->packet_sz) {
+	if (!cppi41_channel->prog_len) {
 
 		/* done, complete */
 		cppi41_channel->channel.actual_len =
@@ -150,10 +134,8 @@ static void cppi41_dma_callback(void *private_data)
 				remain_bytes,
 				direction,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (WARN_ON(!dma_desc)) {
-			spin_unlock_irqrestore(&musb->lock, flags);
+		if (WARN_ON(!dma_desc))
 			return;
-		}
 
 		dma_desc->callback = cppi41_dma_callback;
 		dma_desc->callback_param = channel;
@@ -166,6 +148,37 @@ static void cppi41_dma_callback(void *private_data)
 			musb_writew(epio, MUSB_RXCSR, csr);
 		}
 	}
+}
+
+static void cppi41_dma_callback(void *private_data)
+{
+	struct dma_channel *channel = private_data;
+	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
+	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
+	struct musb *musb = hw_ep->musb;
+	unsigned long flags;
+	struct dma_tx_state txstate;
+	u32 transferred;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	dmaengine_tx_status(cppi41_channel->dc, cppi41_channel->cookie,
+			&txstate);
+	transferred = cppi41_channel->prog_len - txstate.residue;
+	cppi41_channel->transferred += transferred;
+
+	dev_dbg(musb->controller, "DMA transfer done on hw_ep=%d bytes=%d/%d\n",
+		hw_ep->epnum, cppi41_channel->transferred,
+		cppi41_channel->total_len);
+
+	update_rx_toggle(cppi41_channel);
+
+	if (cppi41_channel->transferred == cppi41_channel->total_len ||
+			transferred < cppi41_channel->packet_sz)
+		cppi41_channel->prog_len = 0;
+
+	cppi41_trans_done(channel);
+
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
