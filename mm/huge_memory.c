@@ -759,14 +759,6 @@ static inline struct page *alloc_hugepage_vma(int defrag,
 			       HPAGE_PMD_ORDER, vma, haddr, nd);
 }
 
-#ifndef CONFIG_NUMA
-static inline struct page *alloc_hugepage(int defrag)
-{
-	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
-			   HPAGE_PMD_ORDER);
-}
-#endif
-
 static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
 		struct page *zero_page)
@@ -2251,6 +2243,12 @@ static struct page
 	return *hpage;
 }
 #else
+static inline struct page *alloc_hugepage(int defrag)
+{
+	return alloc_pages(alloc_hugepage_gfpmask(defrag, 0),
+			   HPAGE_PMD_ORDER);
+}
+
 static struct page *khugepaged_alloc_hugepage(bool *wait)
 {
 	struct page *hpage;
