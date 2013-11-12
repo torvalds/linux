@@ -192,6 +192,14 @@ static __init int add_rtc_cmos(void)
 	if (mrst_identify_cpu())
 		return -ENODEV;
 
+#ifdef CONFIG_ACPI
+	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
+		/* This warning can likely go away again in a year or two. */
+		pr_info("ACPI: not registering RTC platform device\n");
+		return -ENODEV;
+	}
+#endif
+
 	platform_device_register(&rtc_device);
 	dev_info(&rtc_device.dev,
 		 "registered platform RTC device (no PNP device found)\n");

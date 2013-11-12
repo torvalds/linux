@@ -619,7 +619,7 @@ static ssize_t sysfs_unbind_tick_dev(struct device *dev,
 				     const char *buf, size_t count)
 {
 	char name[CS_NAME_LEN];
-	size_t ret = sysfs_get_uname(buf, name, count);
+	ssize_t ret = sysfs_get_uname(buf, name, count);
 	struct clock_event_device *ce;
 
 	if (ret < 0)
