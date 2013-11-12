@@ -149,6 +149,9 @@ static void apply_init_priv(void)
 
 		op = &dss_data.ovl_priv_data_array[i];
 
+		op->info.color_mode = OMAP_DSS_COLOR_RGB16;
+		op->info.rotation_type = OMAP_DSS_ROT_DMA;
+
 		op->info.global_alpha = 255;
 
 		switch (i) {
