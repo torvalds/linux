@@ -38,8 +38,8 @@
 
 #include <asm-generic/rtc.h>
 #include <asm/intel_scu_ipc.h>
-#include <asm/mrst.h>
-#include <asm/mrst-vrtc.h>
+#include <asm/intel-mid.h>
+#include <asm/intel_mid_vrtc.h>
 
 struct mrst_rtc {
 	struct rtc_device	*rtc;
