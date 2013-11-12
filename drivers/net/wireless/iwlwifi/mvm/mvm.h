@@ -323,9 +323,9 @@ struct iwl_mvm_vif {
 #endif
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct iwl_mvm *mvm;
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_slink;
-	void *dbgfs_data;
 	struct iwl_dbgfs_pm dbgfs_pm;
 	struct iwl_dbgfs_bf dbgfs_bf;
 #endif

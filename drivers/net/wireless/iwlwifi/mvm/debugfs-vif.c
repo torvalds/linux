@@ -69,7 +69,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 {
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->dbgfs_data;
+	struct iwl_mvm *mvm = mvmvif->mvm;
 	u8 ap_sta_id;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	char buf[512];
@@ -144,7 +144,7 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		return;
 
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);
-	mvmvif->dbgfs_data = mvm;
+	mvmvif->mvm = mvm;
 
 	if (!mvmvif->dbgfs_dir) {
 		IWL_ERR(mvm, "Failed to create debugfs directory under %s\n",
