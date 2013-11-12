@@ -266,6 +266,47 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
+static void add_discard_addrs(struct f2fs_sb_info *sbi,
+			unsigned int segno, struct seg_entry *se)
+{
+	struct list_head *head = &SM_I(sbi)->discard_list;
+	struct discard_entry *new;
+	int entries = SIT_VBLOCK_MAP_SIZE / sizeof(unsigned long);
+	int max_blocks = sbi->blocks_per_seg;
+	unsigned long *cur_map = (unsigned long *)se->cur_valid_map;
+	unsigned long *ckpt_map = (unsigned long *)se->ckpt_valid_map;
+	unsigned long dmap[entries];
+	unsigned int start = 0, end = -1;
+	int i;
+
+	if (!test_opt(sbi, DISCARD))
+		return;
+
+	/* zero block will be discarded through the prefree list */
+	if (!se->valid_blocks || se->valid_blocks == max_blocks)
+		return;
+
+	/* SIT_VBLOCK_MAP_SIZE should be multiple of sizeof(unsigned long) */
+	for (i = 0; i < entries; i++)
+		dmap[i] = (cur_map[i] ^ ckpt_map[i]) & ckpt_map[i];
+
+	while (SM_I(sbi)->nr_discards <= SM_I(sbi)->max_discards) {
+		start = __find_rev_next_bit(dmap, max_blocks, end + 1);
+		if (start >= max_blocks)
+			break;
+
+		end = __find_rev_next_zero_bit(dmap, max_blocks, start + 1);
+
+		new = f2fs_kmem_cache_alloc(discard_entry_slab, GFP_NOFS);
+		INIT_LIST_HEAD(&new->list);
+		new->blkaddr = START_BLOCK(sbi, segno) + start;
+		new->len = end - start;
+
+		list_add_tail(&new->list, head);
+		SM_I(sbi)->nr_discards += end - start;
+	}
+}
+
 /*
  * Should call clear_prefree_segments after checkpoint is done.
  */
@@ -288,6 +329,9 @@ static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 
 void clear_prefree_segments(struct f2fs_sb_info *sbi)
 {
+	struct list_head *head = &(SM_I(sbi)->discard_list);
+	struct list_head *this, *next;
+	struct discard_entry *entry;
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	unsigned long *prefree_map = dirty_i->dirty_segmap[PRE];
 	unsigned int total_segs = TOTAL_SEGS(sbi);
@@ -318,6 +362,18 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi)
 				GFP_NOFS, 0);
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
+
+	/* send small discards */
+	list_for_each_safe(this, next, head) {
+		entry = list_entry(this, struct discard_entry, list);
+		blkdev_issue_discard(sbi->sb->s_bdev,
+				entry->blkaddr << sbi->log_sectors_per_block,
+				(1 << sbi->log_sectors_per_block) * entry->len,
+				GFP_NOFS, 0);
+		list_del(&entry->list);
+		SM_I(sbi)->nr_discards -= entry->len;
+		kmem_cache_free(discard_entry_slab, entry);
+	}
 }
 
 static void __mark_sit_entry_dirty(struct f2fs_sb_info *sbi, unsigned int segno)
@@ -1468,6 +1524,10 @@ void flush_sit_entries(struct f2fs_sb_info *sbi)
 		int sit_offset, offset;
 
 		sit_offset = SIT_ENTRY_OFFSET(sit_i, segno);
+
+		/* add discard candidates */
+		if (SM_I(sbi)->nr_discards < SM_I(sbi)->max_discards)
+			add_discard_addrs(sbi, segno, se);
 
 		if (flushed)
 			goto to_sit_page;
