@@ -1024,7 +1024,7 @@ static ssize_t bin_intvec(struct file *file,
 			if (get_user(value, vec + i))
 				goto out_kfree;
 
-			str += snprintf(str, end - str, "%lu\t", value);
+			str += scnprintf(str, end - str, "%lu\t", value);
 		}
 
 		result = kernel_write(file, buffer, str - buffer, 0);
@@ -1095,7 +1095,7 @@ static ssize_t bin_ulongvec(struct file *file,
 			if (get_user(value, vec + i))
 				goto out_kfree;
 
-			str += snprintf(str, end - str, "%lu\t", value);
+			str += scnprintf(str, end - str, "%lu\t", value);
 		}
 
 		result = kernel_write(file, buffer, str - buffer, 0);
@@ -1205,7 +1205,7 @@ static ssize_t bin_dn_node_address(struct file *file,
 		if (get_user(dnaddr, (__le16 __user *)newval))
 			goto out;
 
-		len = snprintf(buf, sizeof(buf), "%hu.%hu",
+		len = scnprintf(buf, sizeof(buf), "%hu.%hu",
 				le16_to_cpu(dnaddr) >> 10,
 				le16_to_cpu(dnaddr) & 0x3ff);
 
