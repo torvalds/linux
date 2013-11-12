@@ -554,7 +554,7 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	if (pcie_ports_disabled)
 		return -ENODEV;
 
-	new->driver.name = (char *)new->name;
+	new->driver.name = new->name;
 	new->driver.bus = &pcie_port_bus_type;
 	new->driver.probe = pcie_port_probe_service;
 	new->driver.remove = pcie_port_remove_service;
