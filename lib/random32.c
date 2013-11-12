@@ -214,18 +214,22 @@ static DEFINE_TIMER(seed_timer, __prandom_timer, 0, 0);
 static void __prandom_timer(unsigned long dontcare)
 {
 	u32 entropy;
+	unsigned long expires;
 
 	get_random_bytes(&entropy, sizeof(entropy));
 	prandom_seed(entropy);
+
 	/* reseed every ~60 seconds, in [40 .. 80) interval with slack */
-	seed_timer.expires = jiffies + (40 * HZ + (prandom_u32() % (40 * HZ)));
+	expires = 40 + (prandom_u32() % 40);
+	seed_timer.expires = jiffies + msecs_to_jiffies(expires * MSEC_PER_SEC);
+
 	add_timer(&seed_timer);
 }
 
 static void __init __prandom_start_seed_timer(void)
 {
 	set_timer_slack(&seed_timer, HZ);
-	seed_timer.expires = jiffies + 40 * HZ;
+	seed_timer.expires = jiffies + msecs_to_jiffies(40 * MSEC_PER_SEC);
 	add_timer(&seed_timer);
 }
 
