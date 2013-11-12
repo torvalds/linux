@@ -529,7 +529,7 @@ long probe_kernel_read(void *dst, const void *src, size_t size)
 {
 	unsigned long addr = (unsigned long)src;
 
-	if (size < 0 || addr < PAGE_SIZE)
+	if (addr < PAGE_SIZE)
 		return -EFAULT;
 
 	/* check for I/O space F_EXTEND(0xfff00000) access as well? */
