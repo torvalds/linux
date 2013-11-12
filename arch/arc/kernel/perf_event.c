@@ -16,6 +16,7 @@
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <asm/arcregs.h>
+#include <asm/stacktrace.h>
 
 struct arc_pmu {
 	struct pmu	pmu;
@@ -24,6 +25,34 @@ struct arc_pmu {
 	unsigned long	used_mask[BITS_TO_LONGS(ARC_PMU_MAX_HWEVENTS)];
 	int		ev_hw_idx[PERF_COUNT_ARC_HW_MAX];
 };
+
+struct arc_callchain_trace {
+	int depth;
+	void *perf_stuff;
+};
+
+static int callchain_trace(unsigned int addr, void *data)
+{
+	struct arc_callchain_trace *ctrl = data;
+	struct perf_callchain_entry *entry = ctrl->perf_stuff;
+	perf_callchain_store(entry, addr);
+
+	if (ctrl->depth++ < 3)
+		return 0;
+
+	return -1;
+}
+
+void
+perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+{
+	struct arc_callchain_trace ctrl = {
+		.depth = 0,
+		.perf_stuff = entry,
+	};
+
+	arc_unwind_core(NULL, regs, callchain_trace, &ctrl);
+}
 
 static struct arc_pmu *arc_pmu;
 
