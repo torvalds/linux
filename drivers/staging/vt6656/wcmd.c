@@ -448,7 +448,7 @@ void vRunCommand(struct work_struct *work)
 					     (8),
 					     &Status);
 			pDevice->bLinkPass = false;
-			ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
+			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_SLOW);
 			// unlock command busy
 			pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
 			pItemSSID->len = 0;
