@@ -746,7 +746,8 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 
 	devinfo->running_task = 1;
 	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(shost, GFP_NOIO, tag);
+	sense_urb = uas_submit_sense_urb(shost, GFP_NOIO,
+					 devinfo->use_streams ? tag : 0);
 	if (!sense_urb) {
 		shost_printk(KERN_INFO, shost,
 			     "%s: %s: submit sense urb failed\n",
