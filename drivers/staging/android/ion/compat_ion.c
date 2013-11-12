@@ -14,14 +14,14 @@
  *
  */
 
-#include <linux/ion.h>
 #include <linux/compat.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 
+#include "ion.h"
 #include "compat_ion.h"
 
-/* See include/linux/ion.h for the definition of these structs */
+/* See drivers/staging/android/uapi/ion.h for the definition of these structs */
 struct compat_ion_allocation_data {
 	compat_size_t len;
 	compat_size_t align;
