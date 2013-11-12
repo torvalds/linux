@@ -1769,11 +1769,11 @@ sub process {
 		# extract the filename as it passes
 		if ($line =~ /^diff --git.*?(\S+)$/) {
 			$realfile = $1;
-			$realfile =~ s@^([^/]*)/@@;
+			$realfile =~ s@^([^/]*)/@@ if (!$file);
 			$in_commit_log = 0;
 		} elsif ($line =~ /^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
-			$realfile =~ s@^([^/]*)/@@;
+			$realfile =~ s@^([^/]*)/@@ if (!$file);
 			$in_commit_log = 0;
 
 			$p1_prefix = $1;
@@ -3877,7 +3877,8 @@ sub process {
 		}
 
 # Check for __inline__ and __inline, prefer inline
-		if ($line =~ /\b(__inline__|__inline)\b/) {
+		if ($realfile !~ m@\binclude/uapi/@ &&
+		    $line =~ /\b(__inline__|__inline)\b/) {
 			if (WARN("INLINE",
 				 "plain inline is preferred over $1\n" . $herecurr) &&
 			    $fix) {
@@ -3887,19 +3888,22 @@ sub process {
 		}
 
 # Check for __attribute__ packed, prefer __packed
-		if ($line =~ /\b__attribute__\s*\(\s*\(.*\bpacked\b/) {
+		if ($realfile !~ m@\binclude/uapi/@ &&
+		    $line =~ /\b__attribute__\s*\(\s*\(.*\bpacked\b/) {
 			WARN("PREFER_PACKED",
 			     "__packed is preferred over __attribute__((packed))\n" . $herecurr);
 		}
 
 # Check for __attribute__ aligned, prefer __aligned
-		if ($line =~ /\b__attribute__\s*\(\s*\(.*aligned/) {
+		if ($realfile !~ m@\binclude/uapi/@ &&
+		    $line =~ /\b__attribute__\s*\(\s*\(.*aligned/) {
 			WARN("PREFER_ALIGNED",
 			     "__aligned(size) is preferred over __attribute__((aligned(size)))\n" . $herecurr);
 		}
 
 # Check for __attribute__ format(printf, prefer __printf
-		if ($line =~ /\b__attribute__\s*\(\s*\(\s*format\s*\(\s*printf/) {
+		if ($realfile !~ m@\binclude/uapi/@ &&
+		    $line =~ /\b__attribute__\s*\(\s*\(\s*format\s*\(\s*printf/) {
 			if (WARN("PREFER_PRINTF",
 				 "__printf(string-index, first-to-check) is preferred over __attribute__((format(printf, string-index, first-to-check)))\n" . $herecurr) &&
 			    $fix) {
@@ -3909,7 +3913,8 @@ sub process {
 		}
 
 # Check for __attribute__ format(scanf, prefer __scanf
-		if ($line =~ /\b__attribute__\s*\(\s*\(\s*format\s*\(\s*scanf\b/) {
+		if ($realfile !~ m@\binclude/uapi/@ &&
+		    $line =~ /\b__attribute__\s*\(\s*\(\s*format\s*\(\s*scanf\b/) {
 			if (WARN("PREFER_SCANF",
 				 "__scanf(string-index, first-to-check) is preferred over __attribute__((format(scanf, string-index, first-to-check)))\n" . $herecurr) &&
 			    $fix) {
