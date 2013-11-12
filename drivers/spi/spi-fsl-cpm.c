@@ -299,7 +299,7 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 
 		switch (mspi->subblock) {
 		default:
-			dev_warn(dev, "cell-index unspecified, assuming SPI1");
+			dev_warn(dev, "cell-index unspecified, assuming SPI1\n");
 			/* fall through */
 		case 0:
 			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
