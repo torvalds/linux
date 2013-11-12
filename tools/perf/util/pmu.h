@@ -42,6 +42,7 @@ int perf_pmu__format_parse(char *dir, struct list_head *head);
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
 void print_pmu_events(const char *event_glob, bool name_only);
+bool pmu_have_event(const char *pname, const char *name);
 
 int perf_pmu__test(void);
 #endif /* __PMU_H */
