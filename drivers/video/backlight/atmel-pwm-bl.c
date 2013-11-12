@@ -48,7 +48,7 @@ static int atmel_pwm_bl_set_intensity(struct backlight_device *bd)
 		pwm_duty = pwmbl->pdata->pwm_duty_min;
 
 	if (!intensity) {
-		if (pwmbl->gpio_on != -1) {
+		if (gpio_is_valid(pwmbl->gpio_on)) {
 			gpio_set_value(pwmbl->gpio_on,
 					0 ^ pwmbl->pdata->on_active_low);
 		}
@@ -57,7 +57,7 @@ static int atmel_pwm_bl_set_intensity(struct backlight_device *bd)
 	} else {
 		pwm_channel_enable(&pwmbl->pwmc);
 		pwm_channel_writel(&pwmbl->pwmc, PWM_CUPD, pwm_duty);
-		if (pwmbl->gpio_on != -1) {
+		if (gpio_is_valid(pwmbl->gpio_on)) {
 			gpio_set_value(pwmbl->gpio_on,
 					1 ^ pwmbl->pdata->on_active_low);
 		}
@@ -146,7 +146,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 	if (retval)
 		return retval;
 
-	if (pwmbl->gpio_on != -1) {
+	if (gpio_is_valid(pwmbl->gpio_on)) {
 		retval = devm_gpio_request(&pdev->dev, pwmbl->gpio_on,
 					"gpio_atmel_pwm_bl");
 		if (retval)
@@ -196,7 +196,7 @@ static int atmel_pwm_bl_remove(struct platform_device *pdev)
 {
 	struct atmel_pwm_bl *pwmbl = platform_get_drvdata(pdev);
 
-	if (pwmbl->gpio_on != -1) {
+	if (gpio_is_valid(pwmbl->gpio_on)) {
 		gpio_set_value(pwmbl->gpio_on,
 					0 ^ pwmbl->pdata->on_active_low);
 	}
