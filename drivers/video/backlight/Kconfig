@@ -388,8 +388,8 @@ config BACKLIGHT_LP855X
 	tristate "Backlight driver for TI LP855X"
 	depends on BACKLIGHT_CLASS_DEVICE && I2C
 	help
-	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8556 and LP8557
-	  backlight driver.
+	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8555, LP8556 and
+	  LP8557 backlight driver.
 
 config BACKLIGHT_LP8788
 	tristate "Backlight driver for TI LP8788 MFD"
