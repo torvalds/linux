@@ -269,7 +269,9 @@ struct iwl_mvm_vif_bf_data {
  * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
  *	should get quota etc.
  * @monitor_active: indicates that monitor context is configured, and that the
- * interface should get quota etc.
+ *	interface should get quota etc.
+ * @low_latency: indicates that this interface is in low-latency mode
+ *	(VMACLowLatencyMode)
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
@@ -285,6 +287,7 @@ struct iwl_mvm_vif {
 	bool uploaded;
 	bool ap_ibss_active;
 	bool monitor_active;
+	bool low_latency;
 	struct iwl_mvm_vif_bf_data bf_data;
 
 	u32 ap_beacon_time;
@@ -908,6 +911,26 @@ int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				enum iwl_mvm_smps_type_request req_type,
 				enum ieee80211_smps_mode smps_request);
+
+/* Low latency */
+int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool value);
+/* get VMACLowLatencyMode */
+static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
+{
+	/*
+	 * should this consider associated/active/... state?
+	 *
+	 * Normally low-latency should only be active on interfaces
+	 * that are active, but at least with debugfs it can also be
+	 * enabled on interfaces that aren't active. However, when
+	 * interface aren't active then they aren't added into the
+	 * binding, so this has no real impact. For now, just return
+	 * the current desired low-latency state.
+	 */
+
+	return mvmvif->low_latency;
+}
 
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm);

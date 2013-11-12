@@ -536,3 +536,15 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	ieee80211_request_smps(vif, smps_mode);
 }
+
+int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool value)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	mvmvif->low_latency = value;
+
+	return iwl_mvm_update_quotas(mvm, NULL);
+}
