@@ -350,8 +350,7 @@ void vRunCommand(struct work_struct *work)
                 if ((pDevice->byBBType != BB_TYPE_11A) && (pMgmt->uScanChannel > CB_MAX_CHANNEL_24G)) {
                     pDevice->byBBType = BB_TYPE_11A;
                     CARDvSetBSSMode(pDevice);
-                }
-                else if ((pDevice->byBBType == BB_TYPE_11A) && (pMgmt->uScanChannel <= CB_MAX_CHANNEL_24G)) {
+                } else if ((pDevice->byBBType == BB_TYPE_11A) && (pMgmt->uScanChannel <= CB_MAX_CHANNEL_24G)) {
                     pDevice->byBBType = BB_TYPE_11G;
                     CARDvSetBSSMode(pDevice);
                 }
@@ -544,8 +543,7 @@ void vRunCommand(struct work_struct *work)
                     ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
                     pMgmt->sNodeDBTable[0].bActive = true;
                     pMgmt->sNodeDBTable[0].uInActiveCount = 0;
-                }
-                else {
+                } else {
                     // start own IBSS
 		    DBG_PRT(MSG_LEVEL_DEBUG,
 			    KERN_INFO "CreateOwn IBSS by CurrMode = IBSS_STA\n");
@@ -580,8 +578,7 @@ void vRunCommand(struct work_struct *work)
                     }
                     s_bClearBSSID_SCAN(pDevice);
 */
-                }
-                else {
+                } else {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disconnect SSID none\n");
                     // if(pDevice->bWPASuppWextEnabled == true)
                         {
@@ -611,11 +608,9 @@ void vRunCommand(struct work_struct *work)
                     spin_unlock_irq(&pDevice->lock);
                     return;
                 }
-            }
-	   else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
+            } else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
                printk("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
-	   }
-	   else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if authenticated_frame delay!
+	   } else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if authenticated_frame delay!
                 pDevice->byLinkWaitCount++;
 	       printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
@@ -648,11 +643,9 @@ void vRunCommand(struct work_struct *work)
                 if (netif_queue_stopped(pDevice->dev))
                     netif_wake_queue(pDevice->dev);
 
-            }
-	   else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
+            } else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
                printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
-	   }
-	   else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
+	   } else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
                 pDevice->byLinkWaitCount++;
 	       printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
@@ -706,8 +699,7 @@ void vRunCommand(struct work_struct *work)
                     if (skb_queue_empty(&pMgmt->sNodeDBTable[0].sTxPSQueue)) {
                         pMgmt->abyPSTxMap[0] &= ~byMask[0];
                         pDevice->bMoreData = false;
-                    }
-                    else {
+                    } else {
                         pDevice->bMoreData = true;
                     }
 
@@ -730,8 +722,7 @@ void vRunCommand(struct work_struct *work)
                             pMgmt->abyPSTxMap[pMgmt->sNodeDBTable[ii].wAID >> 3] &=
                                     ~byMask[pMgmt->sNodeDBTable[ii].wAID & 7];
                             pDevice->bMoreData = false;
-                        }
-                        else {
+                        } else {
                             pDevice->bMoreData = true;
                         }
 
@@ -946,8 +937,7 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
         //Command Queue Empty
         pDevice->bCmdRunning = false;
         return true;
-    }
-    else {
+    } else {
         pDevice->eCommand = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].eCmd;
         pSSID = (PWLAN_IE_SSID)pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].abyCmdDesireSSID;
         bRadioCmd = pDevice->eCmdQueue[pDevice->uCmdDequeueIdx].bRadioCmd;
