@@ -3850,8 +3850,8 @@ sub process {
 # check for memory barriers without a comment.
 		if ($line =~ /\b(mb|rmb|wmb|read_barrier_depends|smp_mb|smp_rmb|smp_wmb|smp_read_barrier_depends)\(/) {
 			if (!ctx_has_comment($first_line, $linenr)) {
-				CHK("MEMORY_BARRIER",
-				    "memory barrier without comment\n" . $herecurr);
+				WARN("MEMORY_BARRIER",
+				     "memory barrier without comment\n" . $herecurr);
 			}
 		}
 # check of hardware specific defines
