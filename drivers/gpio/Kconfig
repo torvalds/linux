@@ -360,6 +360,10 @@ config GPIO_GRGPIO
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
 
+config GPIO_TB10X
+	bool
+	select OF_GPIO
+
 comment "I2C GPIO expanders:"
 
 config GPIO_ARIZONA
