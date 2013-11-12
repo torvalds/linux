@@ -172,11 +172,12 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
 static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 {
 	struct page *page;
-	unsigned long start, end, pages, count = 0;
+	unsigned long *map, start, end, pages, count = 0;
 
 	if (!bdata->node_bootmem_map)
 		return 0;
 
+	map = bdata->node_bootmem_map;
 	start = bdata->node_min_pfn;
 	end = bdata->node_low_pfn;
 
@@ -184,10 +185,9 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
 		bdata - bootmem_node_data, start, end);
 
 	while (start < end) {
-		unsigned long *map, idx, vec;
+		unsigned long idx, vec;
 		unsigned shift;
 
-		map = bdata->node_bootmem_map;
 		idx = start - bdata->node_min_pfn;
 		shift = idx & (BITS_PER_LONG - 1);
 		/*
