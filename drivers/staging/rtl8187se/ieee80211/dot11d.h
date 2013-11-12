@@ -58,43 +58,13 @@ typedef struct _RT_DOT11D_INFO {
 
 #define IS_DOT11D_STATE_DONE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)
 
+void Dot11d_Init(struct ieee80211_device *dev);
+void Dot11d_Reset(struct ieee80211_device *dev);
+void Dot11d_UpdateCountryIe(struct ieee80211_device *dev, u8 *pTaddr,
+			    u16 CoutryIeLen, u8 *pCoutryIe);
+u8 DOT11D_GetMaxTxPwrInDbm(struct ieee80211_device *dev, u8 Channel);
+void DOT11D_ScanComplete(struct ieee80211_device *dev);
+int IsLegalChannel(struct ieee80211_device *dev, u8 channel);
+int ToLegalChannel(struct ieee80211_device *dev, u8 channel);
 
-void
-Dot11d_Init(
-	struct ieee80211_device *dev
-	);
-
-void
-Dot11d_Reset(
-	struct ieee80211_device *dev
-	);
-
-void
-Dot11d_UpdateCountryIe(
-	struct ieee80211_device *dev,
-	u8 *		pTaddr,
-	u16	CoutryIeLen,
-	u8 * pCoutryIe
-	);
-
-u8
-DOT11D_GetMaxTxPwrInDbm(
-	struct ieee80211_device *dev,
-	u8 Channel
-	);
-
-void
-DOT11D_ScanComplete(
-	struct ieee80211_device * dev
-	);
-
-int IsLegalChannel(
-	struct ieee80211_device * dev,
-	u8 channel
-);
-
-int ToLegalChannel(
-	struct ieee80211_device * dev,
-	u8 channel
-);
 #endif /*  #ifndef __INC_DOT11D_H */

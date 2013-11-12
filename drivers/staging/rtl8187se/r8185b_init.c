@@ -870,9 +870,10 @@ static u8 GetSupportedWirelessMode8185(struct net_device *dev)
 	return WIRELESS_MODE_B | WIRELESS_MODE_G;
 }
 
-static void ActUpdateChannelAccessSetting(struct net_device *dev,
-				   WIRELESS_MODE WirelessMode,
-				   PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
+static void
+ActUpdateChannelAccessSetting(struct net_device *dev,
+			      WIRELESS_MODE WirelessMode,
+			      PCHANNEL_ACCESS_SETTING ChnlAccessSetting)
 {
 	AC_CODING	eACI;
 
@@ -1084,7 +1085,7 @@ static bool MgntDisconnect(struct net_device *dev, u8 asRsn)
  *		PASSIVE LEVEL.
  */
 static bool SetRFPowerState(struct net_device *dev,
-		RT_RF_POWER_STATE eRFPowerState)
+			    RT_RF_POWER_STATE eRFPowerState)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bResult = false;
@@ -1097,8 +1098,8 @@ static bool SetRFPowerState(struct net_device *dev,
 	return bResult;
 }
 
-bool MgntActSet_RF_State(struct net_device *dev,
-		RT_RF_POWER_STATE StateToSet, u32 ChangeSource)
+bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet,
+			 u32 ChangeSource)
 {
 	struct	r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	bool	bActionAllowed = false;

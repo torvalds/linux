@@ -75,8 +75,9 @@ static int r8180_wx_set_key(struct net_device *dev,
 }
 
 
-static int r8180_wx_set_beaconinterval(struct net_device *dev, struct iw_request_info *aa,
-			  union iwreq_data *wrqu, char *b)
+static int r8180_wx_set_beaconinterval(struct net_device *dev,
+				       struct iw_request_info *aa,
+				       union iwreq_data *wrqu, char *b)
 {
 	int *parms = (int *)b;
 	int bi = parms[0];
@@ -474,9 +475,8 @@ static int r8180_wx_get_frag(struct net_device *dev,
 
 
 static int r8180_wx_set_wap(struct net_device *dev,
-			 struct iw_request_info *info,
-			 union iwreq_data *awrq,
-			 char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *awrq, char *extra)
 {
 	int ret;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -538,8 +538,10 @@ static int r8180_wx_get_enc(struct net_device *dev,
 }
 
 
-static int r8180_wx_set_scan_type(struct net_device *dev, struct iw_request_info *aa, union
-	iwreq_data *wrqu, char *p)	{
+static int r8180_wx_set_scan_type(struct net_device *dev,
+				  struct iw_request_info *aa,
+				  union	iwreq_data *wrqu, char *p)
+{
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int *parms = (int*)p;
@@ -554,8 +556,8 @@ static int r8180_wx_set_scan_type(struct net_device *dev, struct iw_request_info
 }
 
 static int r8180_wx_set_retry(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int err = 0;
@@ -602,8 +604,8 @@ exit:
 }
 
 static int r8180_wx_get_retry(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -626,8 +628,8 @@ static int r8180_wx_get_retry(struct net_device *dev,
 }
 
 static int r8180_wx_get_sens(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	if (priv->rf_set_sens == NULL)
@@ -638,8 +640,8 @@ static int r8180_wx_get_sens(struct net_device *dev,
 
 
 static int r8180_wx_set_sens(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -667,8 +669,8 @@ exit:
 
 
 static int r8180_wx_set_rawtx(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret;
@@ -687,8 +689,8 @@ static int r8180_wx_set_rawtx(struct net_device *dev,
 }
 
 static int r8180_wx_get_power(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -703,8 +705,8 @@ static int r8180_wx_get_power(struct net_device *dev,
 }
 
 static int r8180_wx_set_power(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	int ret;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -729,8 +731,8 @@ static int r8180_wx_set_power(struct net_device *dev,
 }
 
 static int r8180_wx_set_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -751,8 +753,8 @@ static int r8180_wx_set_rts(struct net_device *dev,
 	return 0;
 }
 static int r8180_wx_get_rts(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -842,8 +844,8 @@ static int r8180_wx_set_iwmode(struct net_device *dev,
 	return ret;
 }
 static int r8180_wx_get_preamble(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -859,8 +861,8 @@ static int r8180_wx_get_preamble(struct net_device *dev,
 	return 0;
 }
 static int r8180_wx_set_preamble(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret = 0;
@@ -882,8 +884,8 @@ static int r8180_wx_set_preamble(struct net_device *dev,
 	return ret;
 }
 static int r8180_wx_get_siglevel(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+				 struct iw_request_info *info,
+				 union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret = 0;
@@ -901,8 +903,8 @@ static int r8180_wx_get_siglevel(struct net_device *dev,
 	return ret;
 }
 static int r8180_wx_get_sigqual(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret = 0;
@@ -960,8 +962,8 @@ static int r8180_wx_reset_stats(struct net_device *dev,
 
 }
 static int r8180_wx_radio_on(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -979,8 +981,8 @@ static int r8180_wx_radio_on(struct net_device *dev,
 }
 
 static int r8180_wx_radio_off(struct net_device *dev,
-				struct iw_request_info *info,
-				union iwreq_data *wrqu, char *extra)
+			      struct iw_request_info *info,
+			      union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -997,8 +999,8 @@ static int r8180_wx_radio_off(struct net_device *dev,
 
 }
 static int r8180_wx_get_channelplan(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -1014,8 +1016,8 @@ static int r8180_wx_get_channelplan(struct net_device *dev,
 	return 0;
 }
 static int r8180_wx_set_channelplan(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+				    struct iw_request_info *info,
+				    union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int *val = (int *)extra;
@@ -1044,8 +1046,8 @@ static int r8180_wx_set_channelplan(struct net_device *dev,
 }
 
 static int r8180_wx_get_version(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	/* struct ieee80211_device *ieee; */
@@ -1060,8 +1062,8 @@ static int r8180_wx_get_version(struct net_device *dev,
 /* added by amy 080818 */
 /*receive datarate from user typing valid rate is from 2 to 108 (1 - 54M), if input 0, return to normal rate adaptive. */
 static int r8180_wx_set_forcerate(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *wrqu, char *extra)
+				  struct iw_request_info *info,
+				  union iwreq_data *wrqu, char *extra)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8 forcerate = *extra;
@@ -1085,8 +1087,8 @@ static int r8180_wx_set_forcerate(struct net_device *dev,
 }
 
 static int r8180_wx_set_enc_ext(struct net_device *dev,
-										struct iw_request_info *info,
-										union iwreq_data *wrqu, char *extra)
+				struct iw_request_info *info,
+				union iwreq_data *wrqu, char *extra)
 {
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -1119,8 +1121,8 @@ static int r8180_wx_set_auth(struct net_device *dev,
 }
 
 static int r8180_wx_set_mlme(struct net_device *dev,
-										struct iw_request_info *info,
-										union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -1334,7 +1336,7 @@ static iw_handler r8180_private_handler[] = {
 };
 
 static inline int is_same_network(struct ieee80211_network *src,
-									struct ieee80211_network *dst,
+				  struct ieee80211_network *dst,
 				  struct ieee80211_device *ieee)
 {
 		/* A network is only a duplicate if the channel, BSSID, ESSID

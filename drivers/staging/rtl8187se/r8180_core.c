@@ -79,7 +79,7 @@ module_param(hwwep, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support. Still broken and not available on all cards");
 
 static int rtl8180_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *id);
+			     const struct pci_device_id *id);
 
 static void rtl8180_pci_remove(struct pci_dev *pdev);
 
@@ -387,7 +387,8 @@ static short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 	return 0;
 }
 
-void buffer_free(struct net_device *dev, struct buffer **buffer, int len, short consistent)
+void buffer_free(struct net_device *dev, struct buffer **buffer, int len,
+		 short consistent)
 {
 
 	struct buffer *tmp, *next;
@@ -2238,7 +2239,8 @@ static CHANNEL_LIST ChannelPlan[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13},13} /* world wide 13: ch1~ch11 active scan, ch12~13 passive //lzm add 080826 */
 };
 
-static void rtl8180_set_channel_map(u8 channel_plan, struct ieee80211_device *ieee)
+static void rtl8180_set_channel_map(u8 channel_plan,
+				    struct ieee80211_device *ieee)
 {
 	int i;
 
@@ -2830,11 +2832,8 @@ static struct net_device_stats *rtl8180_stats(struct net_device *dev)
 /*
  * Change current and default preamble mode.
  */
-bool
-MgntActSet_802_11_PowerSaveMode(
-	struct r8180_priv *priv,
-	RT_PS_MODE		rtPsMode
-)
+bool MgntActSet_802_11_PowerSaveMode(struct r8180_priv *priv,
+				     RT_PS_MODE rtPsMode)
 {
 	/* Currently, we do not change power save mode on IBSS mode. */
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
@@ -3161,7 +3160,7 @@ static const struct net_device_ops rtl8180_netdev_ops = {
 };
 
 static int rtl8180_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *id)
+			     const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
 	struct net_device *dev = NULL;

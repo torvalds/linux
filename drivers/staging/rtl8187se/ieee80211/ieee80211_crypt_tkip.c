@@ -520,7 +520,8 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 }
 
 
-static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
+static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
+				     void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 *pos;
@@ -550,8 +551,8 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 }
 
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-				       struct ieee80211_hdr_4addr *hdr,
-				       int keyidx)
+					  struct ieee80211_hdr_4addr *hdr,
+					  int keyidx)
 {
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure ev;
@@ -571,7 +572,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv)
+					int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];

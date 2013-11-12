@@ -60,7 +60,7 @@ struct ieee80211_ccmp_data {
 };
 
 void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
-			     const u8 pt[16], u8 ct[16])
+				const u8 pt[16], u8 ct[16])
 {
 	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
 }
