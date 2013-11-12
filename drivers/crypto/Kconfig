@@ -399,4 +399,16 @@ config CRYPTO_DEV_ATMEL_SHA
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.
 
+config CRYPTO_DEV_CCP
+	bool "Support for AMD Cryptographic Coprocessor"
+	depends on X86
+	default n
+	help
+	  The AMD Cryptographic Coprocessor provides hardware support
+	  for encryption, hashing and related operations.
+
+if CRYPTO_DEV_CCP
+	source "drivers/crypto/ccp/Kconfig"
+endif
+
 endif # CRYPTO_HW
