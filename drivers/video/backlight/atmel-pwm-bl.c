@@ -124,6 +124,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 	const struct atmel_pwm_bl_platform_data *pdata;
 	struct backlight_device *bldev;
 	struct atmel_pwm_bl *pwmbl;
+	unsigned long flags;
 	int retval;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -149,14 +150,14 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 		return retval;
 
 	if (gpio_is_valid(pwmbl->gpio_on)) {
-		retval = devm_gpio_request(&pdev->dev, pwmbl->gpio_on,
-					"gpio_atmel_pwm_bl");
-		if (retval)
-			goto err_free_pwm;
-
 		/* Turn display off by default. */
-		retval = gpio_direction_output(pwmbl->gpio_on,
-				0 ^ pdata->on_active_low);
+		if (pdata->on_active_low)
+			flags = GPIOF_OUT_INIT_HIGH;
+		else
+			flags = GPIOF_OUT_INIT_LOW;
+
+		retval = devm_gpio_request_one(&pdev->dev, pwmbl->gpio_on,
+						flags, "gpio_atmel_pwm_bl");
 		if (retval)
 			goto err_free_pwm;
 	}
