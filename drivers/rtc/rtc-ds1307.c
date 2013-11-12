@@ -956,7 +956,7 @@ read_rtc:
 					GFP_KERNEL);
 		if (!ds1307->nvram) {
 			err = -ENOMEM;
-			goto exit;
+			goto err_irq;
 		}
 		ds1307->nvram->attr.name = "nvram";
 		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
@@ -967,13 +967,15 @@ read_rtc:
 		ds1307->nvram_offset = chip->nvram_offset;
 		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
 		if (err)
-			goto exit;
+			goto err_irq;
 		set_bit(HAS_NVRAM, &ds1307->flags);
 		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
+err_irq:
+	free_irq(client->irq, client);
 exit:
 	return err;
 }
