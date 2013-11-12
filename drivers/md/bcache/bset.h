@@ -260,6 +260,21 @@ static inline bool btree_keys_expensive_checks(struct btree_keys *b)
 #define set_blocks(i, block_bytes)				\
 	__set_blocks(i, (i)->keys, block_bytes)
 
+static inline size_t bch_btree_keys_u64s_remaining(struct btree_keys *b)
+{
+	struct bset_tree *t = bset_tree_last(b);
+
+	BUG_ON((PAGE_SIZE << b->page_order) <
+	       (bset_byte_offset(b, t->data) + set_bytes(t->data)));
+
+	if (!b->last_set_unwritten)
+		return 0;
+
+	return ((PAGE_SIZE << b->page_order) -
+		(bset_byte_offset(b, t->data) + set_bytes(t->data))) /
+		sizeof(u64);
+}
+
 static inline struct bset *bset_next_set(struct btree_keys *b,
 					 unsigned block_bytes)
 {

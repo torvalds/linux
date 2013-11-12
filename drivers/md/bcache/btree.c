@@ -179,14 +179,6 @@ static inline struct bset *write_block(struct btree *b)
 	return ((void *) btree_bset_first(b)) + b->written * block_bytes(b->c);
 }
 
-static inline bool should_split(struct btree *b)
-{
-	struct bset *i = write_block(b);
-	return b->written >= btree_blocks(b) ||
-		(b->written + __set_blocks(i, i->keys + 15, block_bytes(b->c))
-		 > btree_blocks(b));
-}
-
 /* Btree key manipulation */
 
 void bkey_put(struct cache_set *c, struct bkey *k)
@@ -2026,6 +2018,19 @@ merged:
 	return true;
 }
 
+static size_t insert_u64s_remaining(struct btree *b)
+{
+	ssize_t ret = bch_btree_keys_u64s_remaining(&b->keys);
+
+	/*
+	 * Might land in the middle of an existing extent and have to split it
+	 */
+	if (b->keys.ops->is_extents)
+		ret -= KEY_MAX_U64S;
+
+	return max(ret, 0L);
+}
+
 static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 				  struct keylist *insert_keys,
 				  struct bkey *replace_key)
@@ -2034,12 +2039,9 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 	int oldsize = bch_count_data(b);
 
 	while (!bch_keylist_empty(insert_keys)) {
-		struct bset *i = write_block(b);
 		struct bkey *k = insert_keys->keys;
 
-		if (b->written +
-		    __set_blocks(i, i->keys + bkey_u64s(k),
-				 block_bytes(b->c)) > btree_blocks(b))
+		if (bkey_u64s(k) > insert_u64s_remaining(b))
 			break;
 
 		if (bkey_cmp(k, &b->key) <= 0) {
@@ -2203,7 +2205,7 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 {
 	BUG_ON(b->level && replace_key);
 
-	if (should_split(b)) {
+	if (bch_keylist_nkeys(insert_keys) > insert_u64s_remaining(b)) {
 		if (current->bio_list) {
 			op->lock = b->c->root->level + 1;
 			return -EAGAIN;
