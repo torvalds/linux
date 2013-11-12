@@ -389,22 +389,21 @@ static int lm3630a_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pchip);
 	if (pdata == NULL) {
-		pchip->pdata = devm_kzalloc(pchip->dev,
-					    sizeof(struct
-						   lm3630a_platform_data),
-					    GFP_KERNEL);
-		if (pchip->pdata == NULL)
+		pdata = devm_kzalloc(pchip->dev,
+				     sizeof(struct lm3630a_platform_data),
+				     GFP_KERNEL);
+		if (pdata == NULL)
 			return -ENOMEM;
 		/* default values */
-		pchip->pdata->leda_ctrl = LM3630A_LEDA_ENABLE;
-		pchip->pdata->ledb_ctrl = LM3630A_LEDB_ENABLE;
-		pchip->pdata->leda_max_brt = LM3630A_MAX_BRIGHTNESS;
-		pchip->pdata->ledb_max_brt = LM3630A_MAX_BRIGHTNESS;
-		pchip->pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
-		pchip->pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
-	} else {
-		pchip->pdata = pdata;
+		pdata->leda_ctrl = LM3630A_LEDA_ENABLE;
+		pdata->ledb_ctrl = LM3630A_LEDB_ENABLE;
+		pdata->leda_max_brt = LM3630A_MAX_BRIGHTNESS;
+		pdata->ledb_max_brt = LM3630A_MAX_BRIGHTNESS;
+		pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
+		pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
 	}
+	pchip->pdata = pdata;
+
 	/* chip initialize */
 	rval = lm3630a_chip_init(pchip);
 	if (rval < 0) {
