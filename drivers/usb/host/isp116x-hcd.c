@@ -1705,7 +1705,7 @@ static struct platform_driver isp116x_driver = {
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
 	.driver = {
-		.name = (char *)hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 	},
 };

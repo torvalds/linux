@@ -2829,7 +2829,7 @@ static struct platform_driver isp1362_driver = {
 	.suspend = isp1362_suspend,
 	.resume = isp1362_resume,
 	.driver = {
-		.name = (char *)hcd_name,
+		.name = hcd_name,
 		.owner = THIS_MODULE,
 	},
 };

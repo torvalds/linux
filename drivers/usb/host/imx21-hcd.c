@@ -1930,7 +1930,7 @@ failed_request_mem:
 
 static struct platform_driver imx21_hcd_driver = {
 	.driver = {
-		   .name = (char *)hcd_name,
+		   .name = hcd_name,
 		   },
 	.probe = imx21_probe,
 	.remove = imx21_remove,

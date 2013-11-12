@@ -2534,7 +2534,7 @@ static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
 	.remove =	r8a66597_remove,
 	.driver		= {
-		.name = (char *) hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 		.pm	= R8A66597_DEV_PM_OPS,
 	},
