@@ -39,15 +39,15 @@ struct msg_msgseg {
 	/* the next part of the message follows immediately */
 };
 
-#define DATALEN_MSG	(PAGE_SIZE-sizeof(struct msg_msg))
-#define DATALEN_SEG	(PAGE_SIZE-sizeof(struct msg_msgseg))
+#define DATALEN_MSG	((size_t)PAGE_SIZE-sizeof(struct msg_msg))
+#define DATALEN_SEG	((size_t)PAGE_SIZE-sizeof(struct msg_msgseg))
 
-struct msg_msg *load_msg(const void __user *src, int len)
+struct msg_msg *load_msg(const void __user *src, size_t len)
 {
 	struct msg_msg *msg;
 	struct msg_msgseg **pseg;
 	int err;
-	int alen;
+	size_t alen;
 
 	alen = len;
 	if (alen > DATALEN_MSG)
@@ -101,9 +101,9 @@ out_err:
 	return ERR_PTR(err);
 }
 
-int store_msg(void __user *dest, struct msg_msg *msg, int len)
+int store_msg(void __user *dest, struct msg_msg *msg, size_t len)
 {
-	int alen;
+	size_t alen;
 	struct msg_msgseg *seg;
 
 	alen = len;
