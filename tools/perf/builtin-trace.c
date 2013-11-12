@@ -2090,12 +2090,7 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 {
 	size_t printed;
 
-	printed  = fprintf(fp, "\n _____________________________________________________________________________\n");
-	printed += fprintf(fp, " __)    Summary of events    (__\n\n");
-	printed += fprintf(fp, "              [ task - pid ]     [ events ] [ ratio ]  [ runtime ]\n");
-	printed += fprintf(fp, "                                  syscall  count    min     avg    max  stddev\n");
-	printed += fprintf(fp, "                                                   msec    msec   msec     %%\n");
-	printed += fprintf(fp, " _____________________________________________________________________________\n\n");
+	printed  = fprintf(fp, "\n Summary of events:\n\n");
 
 	return printed;
 }
@@ -2113,6 +2108,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 	printed += fprintf(fp, "\n");
 
+	printed += fprintf(fp, "                                                    msec/call\n");
+	printed += fprintf(fp, "   syscall            calls      min      avg      max stddev\n");
+	printed += fprintf(fp, "   --------------- -------- -------- -------- -------- ------\n");
+
 	/* each int_node is a syscall */
 	while (inode) {
 		stats = inode->priv;
@@ -2127,10 +2126,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			avg /= NSEC_PER_MSEC;
 
 			sc = &trace->syscalls.table[inode->i];
-			printed += fprintf(fp, "%24s  %14s : ", "", sc->name);
-			printed += fprintf(fp, "%5" PRIu64 "  %8.3f  %8.3f",
+			printed += fprintf(fp, "   %-15s", sc->name);
+			printed += fprintf(fp, " %8" PRIu64 " %8.3f %8.3f",
 					   n, min, avg);
-			printed += fprintf(fp, "  %8.3f  %6.2f\n", max, pct);
+			printed += fprintf(fp, " %8.3f %6.2f\n", max, pct);
 		}
 
 		inode = intlist__next(inode);
@@ -2171,10 +2170,10 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	printed += color_fprintf(fp, color, "%20s", thread__comm_str(thread));
-	printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
-	printed += color_fprintf(fp, color, "%5.1f%%", ratio);
-	printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
+	printed += color_fprintf(fp, color, " %s (%d), ", thread__comm_str(thread), thread->tid);
+	printed += fprintf(fp, "%lu events, ", ttrace->nr_events);
+	printed += color_fprintf(fp, color, "%.1f%%", ratio);
+	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
 	printed += thread__dump_stats(ttrace, trace, fp);
 
 	data->printed += printed;
