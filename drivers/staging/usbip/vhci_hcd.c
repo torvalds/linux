@@ -1124,7 +1124,7 @@ static void the_pdev_release(struct device *dev)
 
 static struct platform_device the_pdev = {
 	/* should be the same name as driver_name */
-	.name = (char *) driver_name,
+	.name = driver_name,
 	.id = -1,
 	.dev = {
 		.release = the_pdev_release,
