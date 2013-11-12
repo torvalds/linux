@@ -38,6 +38,7 @@ struct cppi41_dma_channel {
 	u32 prog_len;
 	u32 transferred;
 	u32 packet_sz;
+	struct list_head tx_check;
 };
 
 #define MUSB_DMA_NUM_CHANNELS 15
@@ -47,6 +48,8 @@ struct cppi41_dma_controller {
 	struct cppi41_dma_channel rx_channel[MUSB_DMA_NUM_CHANNELS];
 	struct cppi41_dma_channel tx_channel[MUSB_DMA_NUM_CHANNELS];
 	struct musb *musb;
+	struct hrtimer early_tx;
+	struct list_head early_tx_list;
 	u32 rx_mode;
 	u32 tx_mode;
 	u32 auto_req;
@@ -96,11 +99,23 @@ static void update_rx_toggle(struct cppi41_dma_channel *cppi41_channel)
 	cppi41_channel->usb_toggle = toggle;
 }
 
+static bool musb_is_tx_fifo_empty(struct musb_hw_ep *hw_ep)
+{
+	u8		epnum = hw_ep->epnum;
+	struct musb	*musb = hw_ep->musb;
+	void __iomem	*epio = musb->endpoints[epnum].regs;
+	u16		csr;
+
+	csr = musb_readw(epio, MUSB_TXCSR);
+	if (csr & MUSB_TXCSR_TXPKTRDY)
+		return false;
+	return true;
+}
+
 static void cppi41_dma_callback(void *private_data);
 
-static void cppi41_trans_done(struct dma_channel *channel)
+static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 {
-	struct cppi41_dma_channel *cppi41_channel = channel->private_data;
 	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
 	struct musb *musb = hw_ep->musb;
 
@@ -138,7 +153,7 @@ static void cppi41_trans_done(struct dma_channel *channel)
 			return;
 
 		dma_desc->callback = cppi41_dma_callback;
-		dma_desc->callback_param = channel;
+		dma_desc->callback_param = &cppi41_channel->channel;
 		cppi41_channel->cookie = dma_desc->tx_submit(dma_desc);
 		dma_async_issue_pending(dc);
 
@@ -150,6 +165,41 @@ static void cppi41_trans_done(struct dma_channel *channel)
 	}
 }
 
+static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
+{
+	struct cppi41_dma_controller *controller;
+	struct cppi41_dma_channel *cppi41_channel, *n;
+	struct musb *musb;
+	unsigned long flags;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
+
+	controller = container_of(timer, struct cppi41_dma_controller,
+			early_tx);
+	musb = controller->musb;
+
+	spin_lock_irqsave(&musb->lock, flags);
+	list_for_each_entry_safe(cppi41_channel, n, &controller->early_tx_list,
+			tx_check) {
+		bool empty;
+		struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
+
+		empty = musb_is_tx_fifo_empty(hw_ep);
+		if (empty) {
+			list_del_init(&cppi41_channel->tx_check);
+			cppi41_trans_done(cppi41_channel);
+		}
+	}
+
+	if (!list_empty(&controller->early_tx_list)) {
+		ret = HRTIMER_RESTART;
+		hrtimer_forward_now(&controller->early_tx,
+				ktime_set(0, 150 * NSEC_PER_USEC));
+	}
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+	return ret;
+}
+
 static void cppi41_dma_callback(void *private_data)
 {
 	struct dma_channel *channel = private_data;
@@ -159,6 +209,7 @@ static void cppi41_dma_callback(void *private_data)
 	unsigned long flags;
 	struct dma_tx_state txstate;
 	u32 transferred;
+	bool empty;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -177,8 +228,52 @@ static void cppi41_dma_callback(void *private_data)
 			transferred < cppi41_channel->packet_sz)
 		cppi41_channel->prog_len = 0;
 
-	cppi41_trans_done(channel);
+	empty = musb_is_tx_fifo_empty(hw_ep);
+	if (empty) {
+		cppi41_trans_done(cppi41_channel);
+	} else {
+		struct cppi41_dma_controller *controller;
+		/*
+		 * On AM335x it has been observed that the TX interrupt fires
+		 * too early that means the TXFIFO is not yet empty but the DMA
+		 * engine says that it is done with the transfer. We don't
+		 * receive a FIFO empty interrupt so the only thing we can do is
+		 * to poll for the bit. On HS it usually takes 2us, on FS around
+		 * 110us - 150us depending on the transfer size.
+		 * We spin on HS (no longer than than 25us and setup a timer on
+		 * FS to check for the bit and complete the transfer.
+		 */
+		controller = cppi41_channel->controller;
 
+		if (musb->g.speed == USB_SPEED_HIGH) {
+			unsigned wait = 25;
+
+			do {
+				empty = musb_is_tx_fifo_empty(hw_ep);
+				if (empty)
+					break;
+				wait--;
+				if (!wait)
+					break;
+				udelay(1);
+			} while (1);
+
+			empty = musb_is_tx_fifo_empty(hw_ep);
+			if (empty) {
+				cppi41_trans_done(cppi41_channel);
+				goto out;
+			}
+		}
+		list_add_tail(&cppi41_channel->tx_check,
+				&controller->early_tx_list);
+		if (!hrtimer_active(&controller->early_tx)) {
+			hrtimer_start_range_ns(&controller->early_tx,
+				ktime_set(0, 140 * NSEC_PER_USEC),
+				40 * NSEC_PER_USEC,
+				HRTIMER_MODE_REL);
+		}
+	}
+out:
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
@@ -377,6 +472,8 @@ static int cppi41_is_compatible(struct dma_channel *channel, u16 maxpacket,
 		WARN_ON(1);
 		return 1;
 	}
+	if (cppi41_channel->hw_ep->ep_in.type != USB_ENDPOINT_XFER_BULK)
+		return 0;
 	if (cppi41_channel->is_tx)
 		return 1;
 	/* AM335x Advisory 1.0.13. No workaround for device RX mode */
@@ -401,6 +498,7 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 	if (cppi41_channel->channel.status == MUSB_DMA_STATUS_FREE)
 		return 0;
 
+	list_del_init(&cppi41_channel->tx_check);
 	if (is_tx) {
 		csr = musb_readw(epio, MUSB_TXCSR);
 		csr &= ~MUSB_TXCSR_DMAENAB;
@@ -508,6 +606,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 		cppi41_channel->controller = controller;
 		cppi41_channel->port_num = port;
 		cppi41_channel->is_tx = is_tx;
+		INIT_LIST_HEAD(&cppi41_channel->tx_check);
 
 		musb_dma = &cppi41_channel->channel;
 		musb_dma->private_data = cppi41_channel;
@@ -533,6 +632,7 @@ void dma_controller_destroy(struct dma_controller *c)
 	struct cppi41_dma_controller *controller = container_of(c,
 			struct cppi41_dma_controller, controller);
 
+	hrtimer_cancel(&controller->early_tx);
 	cppi41_dma_controller_stop(controller);
 	kfree(controller);
 }
@@ -552,6 +652,9 @@ struct dma_controller *dma_controller_create(struct musb *musb,
 	if (!controller)
 		goto kzalloc_fail;
 
+	hrtimer_init(&controller->early_tx, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	controller->early_tx.function = cppi41_recheck_tx_req;
+	INIT_LIST_HEAD(&controller->early_tx_list);
 	controller->musb = musb;
 
 	controller->controller.channel_alloc = cppi41_dma_channel_allocate;
