@@ -365,7 +365,7 @@ static const char *deskew(const char *basename)
  */
 static void add_links(struct gcov_node *node, struct dentry *parent)
 {
-	char *basename;
+	const char *basename;
 	char *target;
 	int num;
 	int i;
@@ -381,10 +381,9 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 				&gcov_link[i]);
 		if (!target)
 			goto out_err;
-		basename = strrchr(target, '/');
-		if (!basename)
+		basename = kbasename(target);
+		if (basename == target)
 			goto out_err;
-		basename++;
 		node->links[i] = debugfs_create_symlink(deskew(basename),
 							parent,	target);
 		if (!node->links[i])
