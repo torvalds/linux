@@ -210,15 +210,15 @@ void __init setup_cpuinfo(void)
  * Falls back on built-in device tree in case null pointer is passed.
  */
 
-void __init or32_early_setup(unsigned int fdt)
+void __init or32_early_setup(void *fdt)
 {
-	if (fdt) {
-		early_init_devtree((void*) fdt);
-		printk(KERN_INFO "FDT at 0x%08x\n", fdt);
-	} else {
-		early_init_devtree(__dtb_start);
-		printk(KERN_INFO "Compiled-in FDT at %p\n", __dtb_start);
+	if (fdt)
+		pr_info("FDT at %p\n", fdt);
+	else {
+		fdt = __dtb_start;
+		pr_info("Compiled-in FDT at %p\n", fdt);
 	}
+	early_init_devtree(fdt);
 }
 
 static int __init openrisc_device_probe(void)
