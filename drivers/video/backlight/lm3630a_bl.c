@@ -154,6 +154,7 @@ static int lm3630a_intr_config(struct lm3630a_chip *pchip)
 	    (pchip->irq, NULL, lm3630a_isr_func,
 	     IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "lm3630a_irq", pchip)) {
 		dev_err(pchip->dev, "request threaded irq fail\n");
+		destroy_workqueue(pchip->irqthread);
 		return -ENOMEM;
 	}
 	return rval;
