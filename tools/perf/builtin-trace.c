@@ -2093,7 +2093,7 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 	printed  = fprintf(fp, "\n _____________________________________________________________________________\n");
 	printed += fprintf(fp, " __)    Summary of events    (__\n\n");
 	printed += fprintf(fp, "              [ task - pid ]     [ events ] [ ratio ]  [ runtime ]\n");
-	printed += fprintf(fp, "                                  syscall  count    min     max    avg  stddev\n");
+	printed += fprintf(fp, "                                  syscall  count    min     avg    max  stddev\n");
 	printed += fprintf(fp, "                                                   msec    msec   msec     %%\n");
 	printed += fprintf(fp, " _____________________________________________________________________________\n\n");
 
@@ -2129,8 +2129,8 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			sc = &trace->syscalls.table[inode->i];
 			printed += fprintf(fp, "%24s  %14s : ", "", sc->name);
 			printed += fprintf(fp, "%5" PRIu64 "  %8.3f  %8.3f",
-					   n, min, max);
-			printed += fprintf(fp, "  %8.3f  %6.2f\n", avg, pct);
+					   n, min, avg);
+			printed += fprintf(fp, "  %8.3f  %6.2f\n", max, pct);
 		}
 
 		inode = intlist__next(inode);
