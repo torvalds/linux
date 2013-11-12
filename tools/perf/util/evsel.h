@@ -68,6 +68,8 @@ struct perf_evsel {
 	u32			ids;
 	struct hists		hists;
 	char			*name;
+	double			scale;
+	const char		*unit;
 	struct event_format	*tp_format;
 	union {
 		void		*priv;
@@ -138,6 +140,7 @@ extern const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX];
 int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
 					    char *bf, size_t size);
 const char *perf_evsel__name(struct perf_evsel *evsel);
+
 const char *perf_evsel__group_name(struct perf_evsel *evsel);
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size);
 

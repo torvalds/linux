@@ -138,6 +138,7 @@ static const char		*post_cmd			= NULL;
 static bool			sync_run			= false;
 static unsigned int		interval			= 0;
 static unsigned int		initial_delay			= 0;
+static unsigned int		unit_width			= 4; /* strlen("unit") */
 static bool			forever				= false;
 static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
@@ -461,17 +462,17 @@ static void print_interval(void)
 	if (num_print_interval == 0 && !csv_output) {
 		switch (aggr_mode) {
 		case AGGR_SOCKET:
-			fprintf(output, "#           time socket cpus             counts events\n");
+			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_CORE:
-			fprintf(output, "#           time core         cpus             counts events\n");
+			fprintf(output, "#           time core         cpus             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_NONE:
-			fprintf(output, "#           time CPU                 counts events\n");
+			fprintf(output, "#           time CPU                counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_GLOBAL:
 		default:
-			fprintf(output, "#           time             counts events\n");
+			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
 		}
 	}
 
@@ -516,6 +517,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
 	struct timespec ts;
+	size_t l;
 	int status = 0;
 	const bool forks = (argc > 0);
 
@@ -565,6 +567,10 @@ static int __run_perf_stat(int argc, const char **argv)
 			return -1;
 		}
 		counter->supported = true;
+
+		l = strlen(counter->unit);
+		if (l > unit_width)
+			unit_width = l;
 	}
 
 	if (perf_evlist__apply_filters(evsel_list)) {
@@ -704,14 +710,25 @@ static void aggr_printout(struct perf_evsel *evsel, int id, int nr)
 static void nsec_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
-	const char *fmt = csv_output ? "%.6f%s%s" : "%18.6f%s%-25s";
+	const char *fmt_v, *fmt_n;
 	char name[25];
+
+	fmt_v = csv_output ? "%.6f%s" : "%18.6f%s";
+	fmt_n = csv_output ? "%s" : "%-25s";
 
 	aggr_printout(evsel, cpu, nr);
 
 	scnprintf(name, sizeof(name), "%s%s",
 		  perf_evsel__name(evsel), csv_output ? "" : " (msec)");
-	fprintf(output, fmt, msecs, csv_sep, name);
+
+	fprintf(output, fmt_v, msecs, csv_sep);
+
+	if (csv_output)
+		fprintf(output, "%s%s", evsel->unit, csv_sep);
+	else
+		fprintf(output, "%-*s%s", unit_width, evsel->unit, csv_sep);
+
+	fprintf(output, fmt_n, name);
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -908,21 +925,31 @@ static void print_ll_cache_misses(int cpu,
 static void abs_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 {
 	double total, ratio = 0.0, total2;
+	double sc =  evsel->scale;
 	const char *fmt;
 
-	if (csv_output)
-		fmt = "%.0f%s%s";
-	else if (big_num)
-		fmt = "%'18.0f%s%-25s";
-	else
-		fmt = "%18.0f%s%-25s";
+	if (csv_output) {
+		fmt = sc != 1.0 ?  "%.2f%s" : "%.0f%s";
+	} else {
+		if (big_num)
+			fmt = sc != 1.0 ? "%'18.2f%s" : "%'18.0f%s";
+		else
+			fmt = sc != 1.0 ? "%18.2f%s" : "%18.0f%s";
+	}
 
 	aggr_printout(evsel, cpu, nr);
 
 	if (aggr_mode == AGGR_GLOBAL)
 		cpu = 0;
 
-	fprintf(output, fmt, avg, csv_sep, perf_evsel__name(evsel));
+	fprintf(output, fmt, avg, csv_sep);
+
+	if (evsel->unit)
+		fprintf(output, "%-*s%s",
+			csv_output ? 0 : unit_width,
+			evsel->unit, csv_sep);
+
+	fprintf(output, "%-*s", csv_output ? 0 : 25, perf_evsel__name(evsel));
 
 	if (evsel->cgrp)
 		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
@@ -941,7 +968,10 @@ static void abs_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 
 		if (total && avg) {
 			ratio = total / avg;
-			fprintf(output, "\n                                             #   %5.2f  stalled cycles per insn", ratio);
+			fprintf(output, "\n");
+			if (aggr_mode == AGGR_NONE)
+				fprintf(output, "        ");
+			fprintf(output, "                                                  #   %5.2f  stalled cycles per insn", ratio);
 		}
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
@@ -1061,6 +1091,7 @@ static void print_aggr(char *prefix)
 {
 	struct perf_evsel *counter;
 	int cpu, cpu2, s, s2, id, nr;
+	double uval;
 	u64 ena, run, val;
 
 	if (!(aggr_map || aggr_get_id))
@@ -1087,11 +1118,17 @@ static void print_aggr(char *prefix)
 			if (run == 0 || ena == 0) {
 				aggr_printout(counter, id, nr);
 
-				fprintf(output, "%*s%s%*s",
+				fprintf(output, "%*s%s",
 					csv_output ? 0 : 18,
 					counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
-					csv_sep,
-					csv_output ? 0 : -24,
+					csv_sep);
+
+				fprintf(output, "%-*s%s",
+					csv_output ? 0 : unit_width,
+					counter->unit, csv_sep);
+
+				fprintf(output, "%*s",
+					csv_output ? 0 : -25,
 					perf_evsel__name(counter));
 
 				if (counter->cgrp)
@@ -1101,11 +1138,12 @@ static void print_aggr(char *prefix)
 				fputc('\n', output);
 				continue;
 			}
+			uval = val * counter->scale;
 
 			if (nsec_counter(counter))
-				nsec_printout(id, nr, counter, val);
+				nsec_printout(id, nr, counter, uval);
 			else
-				abs_printout(id, nr, counter, val);
+				abs_printout(id, nr, counter, uval);
 
 			if (!csv_output) {
 				print_noise(counter, 1.0);
@@ -1128,16 +1166,21 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 	struct perf_stat *ps = counter->priv;
 	double avg = avg_stats(&ps->res_stats[0]);
 	int scaled = counter->counts->scaled;
+	double uval;
 
 	if (prefix)
 		fprintf(output, "%s", prefix);
 
 	if (scaled == -1) {
-		fprintf(output, "%*s%s%*s",
+		fprintf(output, "%*s%s",
 			csv_output ? 0 : 18,
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
-			csv_sep,
-			csv_output ? 0 : -24,
+			csv_sep);
+		fprintf(output, "%-*s%s",
+			csv_output ? 0 : unit_width,
+			counter->unit, csv_sep);
+		fprintf(output, "%*s",
+			csv_output ? 0 : -25,
 			perf_evsel__name(counter));
 
 		if (counter->cgrp)
@@ -1147,10 +1190,12 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 		return;
 	}
 
+	uval = avg * counter->scale;
+
 	if (nsec_counter(counter))
-		nsec_printout(-1, 0, counter, avg);
+		nsec_printout(-1, 0, counter, uval);
 	else
-		abs_printout(-1, 0, counter, avg);
+		abs_printout(-1, 0, counter, uval);
 
 	print_noise(counter, avg);
 
@@ -1177,6 +1222,7 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 static void print_counter(struct perf_evsel *counter, char *prefix)
 {
 	u64 ena, run, val;
+	double uval;
 	int cpu;
 
 	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
@@ -1188,14 +1234,20 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 			fprintf(output, "%s", prefix);
 
 		if (run == 0 || ena == 0) {
-			fprintf(output, "CPU%*d%s%*s%s%*s",
+			fprintf(output, "CPU%*d%s%*s%s",
 				csv_output ? 0 : -4,
 				perf_evsel__cpus(counter)->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
 				counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
-				csv_sep,
-				csv_output ? 0 : -24,
-				perf_evsel__name(counter));
+				csv_sep);
+
+				fprintf(output, "%-*s%s",
+					csv_output ? 0 : unit_width,
+					counter->unit, csv_sep);
+
+				fprintf(output, "%*s",
+					csv_output ? 0 : -25,
+					perf_evsel__name(counter));
 
 			if (counter->cgrp)
 				fprintf(output, "%s%s",
@@ -1205,10 +1257,12 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 			continue;
 		}
 
+		uval = val * counter->scale;
+
 		if (nsec_counter(counter))
-			nsec_printout(cpu, 0, counter, val);
+			nsec_printout(cpu, 0, counter, uval);
 		else
-			abs_printout(cpu, 0, counter, val);
+			abs_printout(cpu, 0, counter, uval);
 
 		if (!csv_output) {
 			print_noise(counter, 1.0);
