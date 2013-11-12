@@ -272,6 +272,7 @@ static void f2fs_issue_discard(struct f2fs_sb_info *sbi,
 	sector_t start = ((sector_t)blkstart) << sbi->log_sectors_per_block;
 	sector_t len = ((sector_t)blklen) << sbi->log_sectors_per_block;
 	blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
+	trace_f2fs_issue_discard(sbi->sb, blkstart, blklen);
 }
 
 static void add_discard_addrs(struct f2fs_sb_info *sbi,

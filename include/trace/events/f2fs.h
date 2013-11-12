@@ -727,6 +727,29 @@ TRACE_EVENT(f2fs_write_checkpoint,
 		__entry->msg)
 );
 
+TRACE_EVENT(f2fs_issue_discard,
+
+	TP_PROTO(struct super_block *sb, block_t blkstart, block_t blklen),
+
+	TP_ARGS(sb, blkstart, blklen),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(block_t, blkstart)
+		__field(block_t, blklen)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->blkstart = blkstart;
+		__entry->blklen = blklen;
+	),
+
+	TP_printk("dev = (%d,%d), blkstart = 0x%llx, blklen = 0x%llx",
+		show_dev(__entry),
+		(unsigned long long)__entry->blkstart,
+		(unsigned long long)__entry->blklen)
+);
 #endif /* _TRACE_F2FS_H */
 
  /* This part must be outside protection */
