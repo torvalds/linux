@@ -59,7 +59,7 @@ static int sirfsoc_rtc_read_alarm(struct device *dev,
 	unsigned long rtc_alarm, rtc_count;
 	struct sirfsoc_rtc_drv *rtcdrv;
 
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	local_irq_disable();
 
@@ -94,7 +94,7 @@ static int sirfsoc_rtc_set_alarm(struct device *dev,
 {
 	unsigned long rtc_status_reg, rtc_alarm;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	if (alrm->enabled) {
 		rtc_tm_to_time(&(alrm->time), &rtc_alarm);
@@ -157,7 +157,7 @@ static int sirfsoc_rtc_read_time(struct device *dev,
 {
 	unsigned long tmp_rtc = 0;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 	/*
 	 * This patch is taken from WinCE - Need to validate this for
 	 * correctness. To work around sirfsoc RTC counter double sync logic
@@ -178,7 +178,7 @@ static int sirfsoc_rtc_set_time(struct device *dev,
 {
 	unsigned long rtc_time;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	rtc_tm_to_time(tm, &rtc_time);
 
@@ -364,7 +364,7 @@ static int sirfsoc_rtc_thaw(struct device *dev)
 {
 	u32 tmp;
 	struct sirfsoc_rtc_drv *rtcdrv;
-	rtcdrv = (struct sirfsoc_rtc_drv *)dev_get_drvdata(dev);
+	rtcdrv = dev_get_drvdata(dev);
 
 	/*
 	 * if resume from snapshot and the rtc power is losed,
