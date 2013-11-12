@@ -153,6 +153,16 @@ config RTC_DRV_88PM80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-88pm80x.
 
+config RTC_DRV_AS3722
+	tristate "ams AS3722 RTC driver"
+	depends on MFD_AS3722
+	help
+	  If you say yes here you get support for the RTC of ams AS3722 PMIC
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-as3722.
+
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
 	help
