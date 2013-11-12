@@ -180,6 +180,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		.colors = { -1, -1, -1, -1 },
 		.new_vif = newvif,
 	};
+	u32 ll_max_duration;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -196,6 +197,21 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	if (newvif) {
 		data.new_vif = NULL;
 		iwl_mvm_quota_iterator(&data, newvif->addr, newvif);
+	}
+
+	switch (data.n_low_latency_bindings) {
+	case 0: /* no low latency - use default */
+		ll_max_duration = 0;
+		break;
+	case 1: /* SingleBindingLowLatencyMode */
+		ll_max_duration = IWL_MVM_LOWLAT_SINGLE_BINDING_MAXDUR;
+		break;
+	case 2: /* DualBindingLowLatencyMode */
+		ll_max_duration = IWL_MVM_LOWLAT_DUAL_BINDING_MAXDUR;
+		break;
+	default: /* MultiBindingLowLatencyMode */
+		ll_max_duration = 0;
+		break;
 	}
 
 	/*
@@ -242,18 +258,21 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 		cmd.quotas[idx].id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(i, data.colors[i]));
 
-		if (data.n_interfaces[i] <= 0) {
+		if (data.n_interfaces[i] <= 0)
 			cmd.quotas[idx].quota = cpu_to_le32(0);
-			cmd.quotas[idx].max_duration = cpu_to_le32(0);
-		} else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
-			   data.low_latency[i]) {
+		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
+			 data.low_latency[i])
 			cmd.quotas[idx].quota = cpu_to_le32(QUOTA_LOWLAT_MIN);
-			cmd.quotas[idx].max_duration = cpu_to_le32(0);
-		} else {
+		else
 			cmd.quotas[idx].quota =
 				cpu_to_le32(quota * data.n_interfaces[i]);
+
+		if (data.n_interfaces[i] && !data.low_latency[i])
+			cmd.quotas[idx].max_duration =
+				cpu_to_le32(ll_max_duration);
+		else
 			cmd.quotas[idx].max_duration = cpu_to_le32(0);
-		}
+
 		idx++;
 	}
 
