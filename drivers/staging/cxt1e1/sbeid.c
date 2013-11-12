@@ -24,8 +24,7 @@ sbeid_get_bdname (ci_t *ci)
 {
 	char       *np = NULL;
 
-	switch (ci->brd_id)
-	{
+	switch (ci->brd_id) {
 	case SBE_BOARD_ID (PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_WANPTMC_256T3_E1):
 		np = "wanPTMC-256T3 <E1>";
 		break;
@@ -73,8 +72,7 @@ sbeid_set_hdwbid (ci_t *ci)
 	 * have this register implemented)
 	 */
 
-	switch (ci->brd_id)
-	{
+	switch (ci->brd_id) {
         case SBE_BOARD_ID (PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_WANPTMC_256T3_E1):
 		ci->hdw_bid = SBE_BID_256T3_E1; /* 0x46 - SBE wanPTMC-256T3 (E1
 						 * Version) */
@@ -89,8 +87,7 @@ sbeid_set_hdwbid (ci_t *ci)
 		 * This Board ID is a generic identification.  Use the found number
 		 * of ports to further define this hardware.
 		 */
-		switch (ci->max_port)
-		{
+		switch (ci->max_port) {
 		default:                    /* shouldn't need a default, but have one
 					     * anyway */
 		case 4:
@@ -130,8 +127,7 @@ sbeid_set_hdwbid (ci_t *ci)
 		 * This Board ID is a generic identification.  Use the number of
 		 * found ports to further define this hardware.
 		 */
-		switch (ci->max_port)
-		{
+		switch (ci->max_port) {
 		default:                    /* shouldn't need a default, but have one
 					     * anyway */
 		case 4:
@@ -166,8 +162,7 @@ void
 sbeid_set_bdtype (ci_t *ci)
 {
 	/* set SBE's unique PCI VENDOR/DEVID */
-	switch (ci->hdw_bid)
-	{
+	switch (ci->hdw_bid) {
         case SBE_BID_C1T3:      /* SBE wanPMC-C1T3 */
 		ci->brd_id = SBE_BOARD_ID (PCI_VENDOR_ID_SBE, PCI_DEVICE_ID_WANPMC_C1T3);
 		break;
