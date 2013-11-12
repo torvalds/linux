@@ -100,19 +100,16 @@ static void vAdHocBeaconStop(struct vnt_private *pDevice)
      */
     bStop = false;
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
-    (pMgmt->eCurrState >= WMAC_STATE_STARTED))
-    {
+    (pMgmt->eCurrState >= WMAC_STATE_STARTED)) {
         if ((pMgmt->uIBSSChannel <=  CB_MAX_CHANNEL_24G) &&
-             (pMgmt->uScanChannel > CB_MAX_CHANNEL_24G))
-        {
+             (pMgmt->uScanChannel > CB_MAX_CHANNEL_24G)) {
             bStop = true;
         }
         if (pMgmt->uIBSSChannel >  CB_MAX_CHANNEL_24G)
             bStop = true;
     }
 
-    if (bStop)
-    {
+    if (bStop) {
         //PMESG(("STOP_BEACON: IBSSChannel = %u, ScanChannel = %u\n",
         //        pMgmt->uIBSSChannel, pMgmt->uScanChannel));
         MACvRegBitsOff(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
@@ -144,8 +141,7 @@ static void vAdHocBeaconRestart(struct vnt_private *pDevice)
      *  (2) VT3253 is programmed as automatic Beacon Transmitting
      */
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
-    (pMgmt->eCurrState >= WMAC_STATE_STARTED))
-    {
+    (pMgmt->eCurrState >= WMAC_STATE_STARTED)) {
         //PMESG(("RESTART_BEACON\n"));
         MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
     }
