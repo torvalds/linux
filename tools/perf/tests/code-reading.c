@@ -275,8 +275,19 @@ static int process_event(struct machine *machine, struct perf_evlist *evlist,
 	if (event->header.type == PERF_RECORD_SAMPLE)
 		return process_sample_event(machine, evlist, event, state);
 
-	if (event->header.type < PERF_RECORD_MAX)
-		return machine__process_event(machine, event, NULL);
+	if (event->header.type == PERF_RECORD_THROTTLE ||
+	    event->header.type == PERF_RECORD_UNTHROTTLE)
+		return 0;
+
+	if (event->header.type < PERF_RECORD_MAX) {
+		int ret;
+
+		ret = machine__process_event(machine, event, NULL);
+		if (ret < 0)
+			pr_debug("machine__process_event failed, event type %u\n",
+				 event->header.type);
+		return ret;
+	}
 
 	return 0;
 }
