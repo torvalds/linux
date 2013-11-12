@@ -64,6 +64,11 @@ static unsigned long get_random_boot(void)
 
 static unsigned long get_random_long(void)
 {
+#ifdef CONFIG_X86_64
+	const unsigned long mix_const = 0x5d6008cbf3848dd3UL;
+#else
+	const unsigned long mix_const = 0x3f39e593UL;
+#endif
 	unsigned long raw, random = get_random_boot();
 	bool use_i8254 = true;
 
@@ -89,6 +94,12 @@ static unsigned long get_random_long(void)
 		debug_putstr(" i8254");
 		random ^= i8254();
 	}
+
+	/* Circular multiply for better bit diffusion */
+	asm("mul %3"
+	    : "=a" (random), "=d" (raw)
+	    : "a" (random), "rm" (mix_const));
+	random += raw;
 
 	debug_putstr("...\n");
 
