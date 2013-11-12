@@ -126,7 +126,8 @@ static int pcf50633_bl_probe(struct platform_device *pdev)
 
 	pcf_bl->pcf = dev_to_pcf50633(pdev->dev.parent);
 
-	pcf_bl->bl = backlight_device_register(pdev->name, &pdev->dev, pcf_bl,
+	pcf_bl->bl = devm_backlight_device_register(&pdev->dev, pdev->name,
+						&pdev->dev, pcf_bl,
 						&pcf50633_bl_ops, &bl_props);
 
 	if (IS_ERR(pcf_bl->bl))
@@ -147,18 +148,8 @@ static int pcf50633_bl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcf50633_bl_remove(struct platform_device *pdev)
-{
-	struct pcf50633_bl *pcf_bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(pcf_bl->bl);
-
-	return 0;
-}
-
 static struct platform_driver pcf50633_bl_driver = {
 	.probe =	pcf50633_bl_probe,
-	.remove =	pcf50633_bl_remove,
 	.driver = {
 		.name = "pcf50633-backlight",
 	},
