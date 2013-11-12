@@ -754,8 +754,7 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 			BUG_ON(why == RESTART_META);
 
 			credits = ocfs2_calc_extend_credits(inode->i_sb,
-							    &vb->vb_xv->xr_list,
-							    clusters_to_add);
+							    &vb->vb_xv->xr_list);
 			status = ocfs2_extend_trans(handle, credits);
 			if (status < 0) {
 				status = -ENOMEM;
@@ -3040,8 +3039,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 		if (xi->xi_value_len > OCFS2_XATTR_INLINE_SIZE) {
 			clusters_add += new_clusters;
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
-							&def_xv.xv.xr_list,
-							new_clusters);
+							&def_xv.xv.xr_list);
 		}
 
 		goto meta_guess;
@@ -3106,8 +3104,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 			if (!ocfs2_xattr_is_local(xe))
 				credits += ocfs2_calc_extend_credits(
 							inode->i_sb,
-							&def_xv.xv.xr_list,
-							new_clusters);
+							&def_xv.xv.xr_list);
 			goto out;
 		}
 	}
@@ -3132,9 +3129,7 @@ static int ocfs2_calc_xattr_set_need(struct inode *inode,
 			meta_add += ocfs2_extend_meta_needed(&xv->xr_list);
 			clusters_add += new_clusters - old_clusters;
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
-							     &xv->xr_list,
-							     new_clusters -
-							     old_clusters);
+							     &xv->xr_list);
 			if (value_size >= OCFS2_XATTR_ROOT_SIZE)
 				goto out;
 		}
@@ -3180,7 +3175,7 @@ meta_guess:
 				 &xb->xb_attrs.xb_root.xt_list;
 			meta_add += ocfs2_extend_meta_needed(el);
 			credits += ocfs2_calc_extend_credits(inode->i_sb,
-							     el, 1);
+							     el);
 		} else
 			credits += OCFS2_SUBALLOC_ALLOC + 1;
 
@@ -6216,8 +6211,7 @@ static int ocfs2_value_metas_in_xattr_header(struct super_block *sb,
 			  le16_to_cpu(xv->xr_list.l_next_free_rec);
 
 		*credits += ocfs2_calc_extend_credits(sb,
-						&def_xv.xv.xr_list,
-						le32_to_cpu(xv->xr_clusters));
+						&def_xv.xv.xr_list);
 
 		/*
 		 * If the value is a tree with depth > 1, We don't go deep
@@ -6782,7 +6776,7 @@ static int ocfs2_lock_reflink_xattr_rec_allocators(
 		metas.num_metas += ocfs2_extend_meta_needed(xt_et->et_root_el);
 
 	*credits += ocfs2_calc_extend_credits(osb->sb,
-					      xt_et->et_root_el, len);
+					      xt_et->et_root_el);
 
 	if (metas.num_metas) {
 		ret = ocfs2_reserve_new_metadata_blocks(osb, metas.num_metas,

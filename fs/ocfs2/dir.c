@@ -3284,7 +3284,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		if (ocfs2_dir_resv_allowed(osb))
 			data_ac->ac_resv = &OCFS2_I(dir)->ip_la_data_resv;
 
-		credits = ocfs2_calc_extend_credits(sb, el, 1);
+		credits = ocfs2_calc_extend_credits(sb, el);
 	} else {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
 		credits = OCFS2_SIMPLE_DIR_EXTEND_CREDITS;
@@ -3716,7 +3716,7 @@ static int ocfs2_dx_dir_rebalance_credits(struct ocfs2_super *osb,
 {
 	int credits = ocfs2_clusters_to_blocks(osb->sb, 2);
 
-	credits += ocfs2_calc_extend_credits(osb->sb, &dx_root->dr_list, 1);
+	credits += ocfs2_calc_extend_credits(osb->sb, &dx_root->dr_list);
 	credits += ocfs2_quota_trans_credits(osb->sb);
 	return credits;
 }

@@ -2502,8 +2502,7 @@ static int ocfs2_calc_refcount_meta_credits(struct super_block *sb,
 		ocfs2_init_refcount_extent_tree(&et, ci, ref_root_bh);
 		*meta_add += ocfs2_extend_meta_needed(et.et_root_el);
 		*credits += ocfs2_calc_extend_credits(sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	} else {
 		*credits += OCFS2_EXPAND_REFCOUNT_TREE_CREDITS;
 		*meta_add += 1;
@@ -2874,8 +2873,7 @@ static int ocfs2_lock_refcount_allocators(struct super_block *sb,
 		meta_add =
 			ocfs2_extend_meta_needed(et->et_root_el);
 
-	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el,
-					      num_clusters + 2);
+	*credits += ocfs2_calc_extend_credits(sb, et->et_root_el);
 
 	ret = ocfs2_calc_refcount_meta_credits(sb, ref_ci, ref_root_bh,
 					       p_cluster, num_clusters,
@@ -3625,8 +3623,7 @@ int ocfs2_refcounted_xattr_delete_need(struct inode *inode,
 
 		ocfs2_init_refcount_extent_tree(&et, ref_ci, ref_root_bh);
 		*credits += ocfs2_calc_extend_credits(inode->i_sb,
-						      et.et_root_el,
-						      ref_blocks);
+						      et.et_root_el);
 	}
 
 out:

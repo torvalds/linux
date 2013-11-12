@@ -201,8 +201,7 @@ static int ocfs2_lock_allocators_move_extents(struct inode *inode,
 		}
 	}
 
-	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el,
-					      clusters_to_move + 2);
+	*credits += ocfs2_calc_extend_credits(osb->sb, et->et_root_el);
 
 	mlog(0, "reserve metadata_blocks: %d, data_clusters: %u, credits: %d\n",
 	     extra_blocks, clusters_to_move, *credits);
