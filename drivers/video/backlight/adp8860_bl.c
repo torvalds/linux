@@ -711,8 +711,9 @@ static int adp8860_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	bl = backlight_device_register(dev_driver_string(&client->dev),
-			&client->dev, data, &adp8860_bl_ops, &props);
+	bl = devm_backlight_device_register(&client->dev,
+				dev_driver_string(&client->dev),
+				&client->dev, data, &adp8860_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -728,7 +729,7 @@ static int adp8860_probe(struct i2c_client *client,
 
 	if (ret) {
 		dev_err(&client->dev, "failed to register sysfs\n");
-		goto out1;
+		return ret;
 	}
 
 	ret = adp8860_bl_setup(bl);
@@ -751,8 +752,6 @@ out:
 	if (data->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8860_bl_attr_group);
-out1:
-	backlight_device_unregister(bl);
 
 	return ret;
 }
@@ -769,8 +768,6 @@ static int adp8860_remove(struct i2c_client *client)
 	if (data->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8860_bl_attr_group);
-
-	backlight_device_unregister(data->bl);
 
 	return 0;
 }
