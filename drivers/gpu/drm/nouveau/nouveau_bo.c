@@ -1241,6 +1241,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nouveau_mem *node = mem->mm_node;
 	struct drm_device *dev = drm->dev;
 	int ret;
 
@@ -1263,14 +1264,16 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			mem->bus.is_iomem = !dev->agp->cant_use_aperture;
 		}
 #endif
-		break;
+		if (!node->memtype)
+			/* untiled */
+			break;
+		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 		if (nv_device(drm->device)->card_type >= NV_50) {
 			struct nouveau_bar *bar = nouveau_bar(drm->device);
-			struct nouveau_mem *node = mem->mm_node;
 
 			ret = bar->umap(bar, node, NV_MEM_ACCESS_RW,
 					&node->bar_vma);
@@ -1306,6 +1309,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_device *device = nv_device(drm->device);
 	u32 mappable = pci_resource_len(device->pdev, 1) >> PAGE_SHIFT;
+	int ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
@@ -1314,10 +1318,20 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 		if (nv_device(drm->device)->card_type < NV_50 ||
 		    !nouveau_bo_tile_layout(nvbo))
 			return 0;
+
+		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
+			nouveau_bo_placement_set(nvbo, TTM_PL_TT, 0);
+
+			ret = nouveau_bo_validate(nvbo, false, false);
+			if (ret)
+				return ret;
+		}
+		return 0;
 	}
 
 	/* make sure bo is in mappable vram */
-	if (bo->mem.start + bo->mem.num_pages < mappable)
+	if (nv_device(drm->device)->card_type >= NV_50 ||
+	    bo->mem.start + bo->mem.num_pages < mappable)
 		return 0;
 
 
