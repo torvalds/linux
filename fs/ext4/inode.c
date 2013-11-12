@@ -4694,6 +4694,15 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	generic_fillattr(inode, stat);
 
 	/*
+	 * If there is inline data in the inode, the inode will normally not
+	 * have data blocks allocated (it may have an external xattr block).
+	 * Report at least one sector for such files, so tools like tar, rsync,
+	 * others doen't incorrectly think the file is completely sparse.
+	 */
+	if (unlikely(ext4_has_inline_data(inode)))
+		stat->blocks += (stat->size + 511) >> 9;
+
+	/*
 	 * We can't update i_blocks if the block allocation is delayed
 	 * otherwise in the case of system crash before the real block
 	 * allocation is done, we will have i_blocks inconsistent with
@@ -4704,9 +4713,8 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * blocks for this file.
 	 */
 	delalloc_blocks = EXT4_C2B(EXT4_SB(inode->i_sb),
-				EXT4_I(inode)->i_reserved_data_blocks);
-
-	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits-9);
+				   EXT4_I(inode)->i_reserved_data_blocks);
+	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits - 9);
 	return 0;
 }
 
