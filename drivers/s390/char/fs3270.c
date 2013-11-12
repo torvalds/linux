@@ -564,6 +564,7 @@ static void __exit
 fs3270_exit(void)
 {
 	raw3270_unregister_notifier(&fs3270_notifier);
+	device_destroy(class3270, MKDEV(IBM_FS3270_MAJOR, 0));
 	__unregister_chrdev(IBM_FS3270_MAJOR, 0, 1, "fs3270");
 }
 
