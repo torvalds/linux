@@ -1069,34 +1069,30 @@ struct i915_gpu_error {
 	unsigned long missed_irq_rings;
 
 	/**
-	 * State variable and reset counter controlling the reset flow
+	 * State variable controlling the reset flow and count
 	 *
-	 * Upper bits are for the reset counter.  This counter is used by the
-	 * wait_seqno code to race-free noticed that a reset event happened and
-	 * that it needs to restart the entire ioctl (since most likely the
-	 * seqno it waited for won't ever signal anytime soon).
+	 * This is a counter which gets incremented when reset is triggered,
+	 * and again when reset has been handled. So odd values (lowest bit set)
+	 * means that reset is in progress and even values that
+	 * (reset_counter >> 1):th reset was successfully completed.
+	 *
+	 * If reset is not completed succesfully, the I915_WEDGE bit is
+	 * set meaning that hardware is terminally sour and there is no
+	 * recovery. All waiters on the reset_queue will be woken when
+	 * that happens.
+	 *
+	 * This counter is used by the wait_seqno code to notice that reset
+	 * event happened and it needs to restart the entire ioctl (since most
+	 * likely the seqno it waited for won't ever signal anytime soon).
 	 *
 	 * This is important for lock-free wait paths, where no contended lock
 	 * naturally enforces the correct ordering between the bail-out of the
 	 * waiter and the gpu reset work code.
-	 *
-	 * Lowest bit controls the reset state machine: Set means a reset is in
-	 * progress. This state will (presuming we don't have any bugs) decay
-	 * into either unset (successful reset) or the special WEDGED value (hw
-	 * terminally sour). All waiters on the reset_queue will be woken when
-	 * that happens.
 	 */
 	atomic_t reset_counter;
 
-	/**
-	 * Special values/flags for reset_counter
-	 *
-	 * Note that the code relies on
-	 * 	I915_WEDGED & I915_RESET_IN_PROGRESS_FLAG
-	 * being true.
-	 */
 #define I915_RESET_IN_PROGRESS_FLAG	1
-#define I915_WEDGED			0xffffffff
+#define I915_WEDGED			(1 << 31)
 
 	/**
 	 * Waitqueue to signal when the reset has completed. Used by clients
@@ -2046,12 +2042,17 @@ int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
 {
 	return unlikely(atomic_read(&error->reset_counter)
-			& I915_RESET_IN_PROGRESS_FLAG);
+			& (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
-	return atomic_read(&error->reset_counter) == I915_WEDGED;
+	return atomic_read(&error->reset_counter) & I915_WEDGED;
+}
+
+static inline u32 i915_reset_count(struct i915_gpu_error *error)
+{
+	return ((atomic_read(&error->reset_counter) & ~I915_WEDGED) + 1) / 2;
 }
 
 void i915_gem_reset(struct drm_device *dev);
