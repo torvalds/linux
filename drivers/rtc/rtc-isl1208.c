@@ -144,11 +144,7 @@ isl1208_i2c_validate_client(struct i2c_client *client)
 static int
 isl1208_i2c_get_sr(struct i2c_client *client)
 {
-	int sr = i2c_smbus_read_byte_data(client, ISL1208_REG_SR);
-	if (sr < 0)
-		return -EIO;
-
-	return sr;
+	return i2c_smbus_read_byte_data(client, ISL1208_REG_SR);
 }
 
 static int
