@@ -580,7 +580,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	int did_quota = 0;
 
 	/*
-	 * This function only exists for file systems which don't
+	 * Unwritten extent only exists for file systems which
 	 * support holes.
 	 */
 	BUG_ON(mark_unwritten && !ocfs2_sparse_alloc(osb));
