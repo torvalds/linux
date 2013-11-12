@@ -292,7 +292,7 @@ void vRunCommand(struct work_struct *work)
 
     switch (pDevice->eCommandState) {
 
-        case WLAN_CMD_SCAN_START:
+    case WLAN_CMD_SCAN_START:
 
 		pDevice->byReAssocCount = 0;
             if (pDevice->bRadioOff == true) {
@@ -392,7 +392,7 @@ void vRunCommand(struct work_struct *work)
 
             break;
 
-        case WLAN_CMD_SCAN_END:
+    case WLAN_CMD_SCAN_END:
 
             // Set Baseband's sensitivity back.
             if (pDevice->byBBType != pDevice->byScanBBType) {
@@ -428,7 +428,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_DISASSOCIATE_START:
+    case WLAN_CMD_DISASSOCIATE_START:
 		pDevice->byReAssocCount = 0;
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
                 (pMgmt->eCurrState != WMAC_STATE_ASSOC)) {
@@ -467,7 +467,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_SSID_START:
+    case WLAN_CMD_SSID_START:
 
 		pDevice->byReAssocCount = 0;
             if (pDevice->bRadioOff == true) {
@@ -593,7 +593,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_AUTHENTICATE_WAIT:
+    case WLAN_AUTHENTICATE_WAIT:
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_AUTHENTICATE_WAIT\n");
             if (pMgmt->eCurrState == WMAC_STATE_AUTH) {
 		pDevice->byLinkWaitCount = 0;
@@ -622,7 +622,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_ASSOCIATE_WAIT:
+    case WLAN_ASSOCIATE_WAIT:
             if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_ASSOC\n");
                 if (pDevice->ePSMode != WMAC_POWER_CAM) {
@@ -656,7 +656,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_AP_MODE_START:
+    case WLAN_CMD_AP_MODE_START:
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_AP_MODE_START\n");
 
             if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
@@ -692,7 +692,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_TX_PSPACKET_START:
+    case WLAN_CMD_TX_PSPACKET_START:
             // DTIM Multicast tx
             if (pMgmt->sNodeDBTable[0].bRxPSPoll) {
                 while ((skb = skb_dequeue(&pMgmt->sNodeDBTable[0].sTxPSQueue)) != NULL) {
@@ -748,7 +748,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_RADIO_START:
+    case WLAN_CMD_RADIO_START:
 
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_RADIO_START\n");
        //     if (pDevice->bRadioCmd == true)
@@ -843,7 +843,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_CHANGE_BBSENSITIVITY_START:
+    case WLAN_CMD_CHANGE_BBSENSITIVITY_START:
 
             pDevice->bStopDataPkt = true;
             pDevice->byBBVGACurrent = pDevice->byBBVGANew;
@@ -853,24 +853,24 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_TBTT_WAKEUP_START:
+    case WLAN_CMD_TBTT_WAKEUP_START:
             PSbIsNextTBTTWakeUp(pDevice);
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_BECON_SEND_START:
+    case WLAN_CMD_BECON_SEND_START:
             bMgrPrepareBeaconToSend(pDevice, pMgmt);
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_SETPOWER_START:
+    case WLAN_CMD_SETPOWER_START:
 
             RFbSetPower(pDevice, pDevice->wCurrentRate, pMgmt->uCurrChannel);
 
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_CHANGE_ANTENNA_START:
+    case WLAN_CMD_CHANGE_ANTENNA_START:
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Change from Antenna%d to", (int)pDevice->dwRxAntennaSel);
             if (pDevice->dwRxAntennaSel == 0) {
                 pDevice->dwRxAntennaSel = 1;
@@ -888,12 +888,12 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_REMOVE_ALLKEY_START:
+    case WLAN_CMD_REMOVE_ALLKEY_START:
             KeybRemoveAllKey(pDevice, &(pDevice->sKey), pDevice->abyBSSID);
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_MAC_DISPOWERSAVING_START:
+    case WLAN_CMD_MAC_DISPOWERSAVING_START:
             ControlvReadByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
             if ((byData & PSCTL_PS) != 0) {
                 // disable power saving hw function
@@ -908,7 +908,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        case WLAN_CMD_11H_CHSW_START:
+    case WLAN_CMD_11H_CHSW_START:
             CARDbSetMediaChannel(pDevice, pDevice->byNewChannel);
             pDevice->bChannelSwitch = false;
             pMgmt->uCurrChannel = pDevice->byNewChannel;
@@ -916,7 +916,7 @@ void vRunCommand(struct work_struct *work)
             s_bCommandComplete(pDevice);
             break;
 
-        default:
+    default:
             s_bCommandComplete(pDevice);
             break;
     } //switch
@@ -946,7 +946,7 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
         pDevice->cbFreeCmdQueue++;
         pDevice->bCmdRunning = true;
         switch (pDevice->eCommand) {
-            case WLAN_CMD_BSSID_SCAN:
+        case WLAN_CMD_BSSID_SCAN:
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState= WLAN_CMD_BSSID_SCAN\n");
                 pDevice->eCommandState = WLAN_CMD_SCAN_START;
                 pMgmt->uScanChannel = 0;
@@ -963,7 +963,7 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
                 }
 */
                 break;
-            case WLAN_CMD_SSID:
+        case WLAN_CMD_SSID:
                 pDevice->eCommandState = WLAN_CMD_SSID_START;
                 if (pSSID->len > WLAN_SSID_MAXLEN)
                     pSSID->len = WLAN_SSID_MAXLEN;
@@ -971,52 +971,52 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
                     memcpy(pMgmt->abyDesireSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState= WLAN_CMD_SSID_START\n");
                 break;
-            case WLAN_CMD_DISASSOCIATE:
+        case WLAN_CMD_DISASSOCIATE:
                 pDevice->eCommandState = WLAN_CMD_DISASSOCIATE_START;
                 break;
-            case WLAN_CMD_RX_PSPOLL:
+        case WLAN_CMD_RX_PSPOLL:
                 pDevice->eCommandState = WLAN_CMD_TX_PSPACKET_START;
                 break;
-            case WLAN_CMD_RUN_AP:
+        case WLAN_CMD_RUN_AP:
                 pDevice->eCommandState = WLAN_CMD_AP_MODE_START;
                 break;
-            case WLAN_CMD_RADIO:
+        case WLAN_CMD_RADIO:
                 pDevice->eCommandState = WLAN_CMD_RADIO_START;
                 pDevice->bRadioCmd = bRadioCmd;
                 break;
-            case WLAN_CMD_CHANGE_BBSENSITIVITY:
+        case WLAN_CMD_CHANGE_BBSENSITIVITY:
                 pDevice->eCommandState = WLAN_CMD_CHANGE_BBSENSITIVITY_START;
                 break;
 
-            case WLAN_CMD_TBTT_WAKEUP:
+        case WLAN_CMD_TBTT_WAKEUP:
                 pDevice->eCommandState = WLAN_CMD_TBTT_WAKEUP_START;
                 break;
 
-            case WLAN_CMD_BECON_SEND:
+        case WLAN_CMD_BECON_SEND:
                 pDevice->eCommandState = WLAN_CMD_BECON_SEND_START;
                 break;
 
-            case WLAN_CMD_SETPOWER:
+        case WLAN_CMD_SETPOWER:
                 pDevice->eCommandState = WLAN_CMD_SETPOWER_START;
                 break;
 
-            case WLAN_CMD_CHANGE_ANTENNA:
+        case WLAN_CMD_CHANGE_ANTENNA:
                 pDevice->eCommandState = WLAN_CMD_CHANGE_ANTENNA_START;
                 break;
 
-            case WLAN_CMD_REMOVE_ALLKEY:
+        case WLAN_CMD_REMOVE_ALLKEY:
                 pDevice->eCommandState = WLAN_CMD_REMOVE_ALLKEY_START;
                 break;
 
-            case WLAN_CMD_MAC_DISPOWERSAVING:
+        case WLAN_CMD_MAC_DISPOWERSAVING:
                 pDevice->eCommandState = WLAN_CMD_MAC_DISPOWERSAVING_START;
                 break;
 
-            case WLAN_CMD_11H_CHSW:
+        case WLAN_CMD_11H_CHSW:
                 pDevice->eCommandState = WLAN_CMD_11H_CHSW_START;
                 break;
 
-            default:
+        default:
                 break;
 
         }
@@ -1037,31 +1037,31 @@ int bScheduleCommand(struct vnt_private *pDevice,
     memset(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID, 0 , WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
     if (pbyItem0 != NULL) {
         switch (eCommand) {
-            case WLAN_CMD_BSSID_SCAN:
+        case WLAN_CMD_BSSID_SCAN:
                 pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = false;
                 memcpy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
                          pbyItem0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 break;
 
-            case WLAN_CMD_SSID:
+        case WLAN_CMD_SSID:
                 memcpy(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID,
                          pbyItem0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
                 break;
 
-            case WLAN_CMD_DISASSOCIATE:
+        case WLAN_CMD_DISASSOCIATE:
                 pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bNeedRadioOFF = *((int *)pbyItem0);
                 break;
 /*
-            case WLAN_CMD_DEAUTH:
+        case WLAN_CMD_DEAUTH:
                 pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].wDeAuthenReason = *((u16 *)pbyItem0);
                 break;
 */
 
-            case WLAN_CMD_RADIO:
+        case WLAN_CMD_RADIO:
                 pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bRadioCmd = *((int *)pbyItem0);
                 break;
 
-            default:
+        default:
                 break;
         }
     }
