@@ -187,6 +187,9 @@ struct hfs_btree_header_rec {
 /* HFS+ BTree misc info */
 #define HFSPLUS_TREE_HEAD 0
 #define HFSPLUS_NODE_MXSZ 32768
+#define HFSPLUS_ATTR_TREE_NODE_SIZE		8192
+#define HFSPLUS_BTREE_HDR_NODE_RECS_COUNT	3
+#define HFSPLUS_BTREE_HDR_USER_BYTES		128
 
 /* Some special File ID numbers (stolen from hfs.h) */
 #define HFSPLUS_POR_CNID		1	/* Parent Of the Root */
