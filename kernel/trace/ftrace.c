@@ -2870,7 +2870,9 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 static int
 ftrace_filter_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&global_ops,
+	struct ftrace_ops *ops = inode->i_private;
+
+	return ftrace_regex_open(ops,
 			FTRACE_ITER_FILTER | FTRACE_ITER_DO_HASH,
 			inode, file);
 }
@@ -2878,7 +2880,9 @@ ftrace_filter_open(struct inode *inode, struct file *file)
 static int
 ftrace_notrace_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&global_ops, FTRACE_ITER_NOTRACE,
+	struct ftrace_ops *ops = inode->i_private;
+
+	return ftrace_regex_open(ops, FTRACE_ITER_NOTRACE,
 				 inode, file);
 }
 
@@ -4118,10 +4122,10 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 			d_tracer, NULL, &ftrace_enabled_fops);
 
 	trace_create_file("set_ftrace_filter", 0644, d_tracer,
-			NULL, &ftrace_filter_fops);
+			&global_ops, &ftrace_filter_fops);
 
 	trace_create_file("set_ftrace_notrace", 0644, d_tracer,
-				    NULL, &ftrace_notrace_fops);
+				    &global_ops, &ftrace_notrace_fops);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	trace_create_file("set_graph_function", 0444, d_tracer,
