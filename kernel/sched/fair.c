@@ -1201,8 +1201,20 @@ static int task_numa_migrate(struct task_struct *p)
 	 */
 	rcu_read_lock();
 	sd = rcu_dereference(per_cpu(sd_numa, env.src_cpu));
-	env.imbalance_pct = 100 + (sd->imbalance_pct - 100) / 2;
+	if (sd)
+		env.imbalance_pct = 100 + (sd->imbalance_pct - 100) / 2;
 	rcu_read_unlock();
+
+	/*
+	 * Cpusets can break the scheduler domain tree into smaller
+	 * balance domains, some of which do not cross NUMA boundaries.
+	 * Tasks that are "trapped" in such domains cannot be migrated
+	 * elsewhere, so there is no point in (re)trying.
+	 */
+	if (unlikely(!sd)) {
+		p->numa_preferred_nid = cpu_to_node(task_cpu(p));
+		return -EINVAL;
+	}
 
 	taskweight = task_weight(p, env.src_nid);
 	groupweight = group_weight(p, env.src_nid);
