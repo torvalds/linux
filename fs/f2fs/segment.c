@@ -266,6 +266,14 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
+static void f2fs_issue_discard(struct f2fs_sb_info *sbi,
+				block_t blkstart, block_t blklen)
+{
+	sector_t start = ((sector_t)blkstart) << sbi->log_sectors_per_block;
+	sector_t len = ((sector_t)blklen) << sbi->log_sectors_per_block;
+	blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
+}
+
 static void add_discard_addrs(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct seg_entry *se)
 {
@@ -354,22 +362,15 @@ void clear_prefree_segments(struct f2fs_sb_info *sbi)
 		if (!test_opt(sbi, DISCARD))
 			continue;
 
-		blkdev_issue_discard(sbi->sb->s_bdev,
-				START_BLOCK(sbi, start) <<
-				sbi->log_sectors_per_block,
-				(1 << (sbi->log_sectors_per_block +
-				sbi->log_blocks_per_seg)) * (end - start),
-				GFP_NOFS, 0);
+		f2fs_issue_discard(sbi, START_BLOCK(sbi, start),
+				(end - start) << sbi->log_blocks_per_seg);
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 
 	/* send small discards */
 	list_for_each_safe(this, next, head) {
 		entry = list_entry(this, struct discard_entry, list);
-		blkdev_issue_discard(sbi->sb->s_bdev,
-				entry->blkaddr << sbi->log_sectors_per_block,
-				(1 << sbi->log_sectors_per_block) * entry->len,
-				GFP_NOFS, 0);
+		f2fs_issue_discard(sbi, entry->blkaddr, entry->len);
 		list_del(&entry->list);
 		SM_I(sbi)->nr_discards -= entry->len;
 		kmem_cache_free(discard_entry_slab, entry);
