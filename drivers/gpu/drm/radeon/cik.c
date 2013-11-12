@@ -3561,6 +3561,8 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 			     struct radeon_semaphore *semaphore,
 			     bool emit_wait)
 {
+/* TODO: figure out why semaphore cause lockups */
+#if 0
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
@@ -3569,6 +3571,9 @@ bool cik_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | sel);
 
 	return true;
+#else
+	return false;
+#endif
 }
 
 /**
