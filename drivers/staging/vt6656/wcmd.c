@@ -604,7 +604,8 @@ void vRunCommand(struct work_struct *work)
 			}
 		} else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
 			printk("WLAN_AUTHENTICATE_WAIT:Authen Fail???\n");
-		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if authenticated_frame delay!
+		} else if (pDevice->byLinkWaitCount <= 4) {
+			//mike add:wait another 2 sec if authenticated_frame delay!
 			pDevice->byLinkWaitCount++;
 			printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
@@ -639,7 +640,8 @@ void vRunCommand(struct work_struct *work)
 
 		} else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
 			printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
-		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
+		} else if (pDevice->byLinkWaitCount <= 4) {
+			//mike add:wait another 2 sec if associated_frame delay!
 			pDevice->byLinkWaitCount++;
 			printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
 			spin_unlock_irq(&pDevice->lock);
