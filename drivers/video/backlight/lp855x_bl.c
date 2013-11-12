@@ -300,7 +300,7 @@ static int lp855x_backlight_register(struct lp855x *lp)
 
 	props.brightness = pdata->initial_brightness;
 
-	bl = backlight_device_register(name, lp->dev, lp,
+	bl = devm_backlight_device_register(lp->dev, name, lp->dev, lp,
 				       &lp855x_bl_ops, &props);
 	if (IS_ERR(bl))
 		return PTR_ERR(bl);
@@ -308,12 +308,6 @@ static int lp855x_backlight_register(struct lp855x *lp)
 	lp->bl = bl;
 
 	return 0;
-}
-
-static void lp855x_backlight_unregister(struct lp855x *lp)
-{
-	if (lp->bl)
-		backlight_device_unregister(lp->bl);
 }
 
 static ssize_t lp855x_get_chip_id(struct device *dev,
@@ -439,29 +433,24 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	ret = lp855x_configure(lp);
 	if (ret) {
 		dev_err(lp->dev, "device config err: %d", ret);
-		goto err_dev;
+		return ret;
 	}
 
 	ret = lp855x_backlight_register(lp);
 	if (ret) {
 		dev_err(lp->dev,
 			"failed to register backlight. err: %d\n", ret);
-		goto err_dev;
+		return ret;
 	}
 
 	ret = sysfs_create_group(&lp->dev->kobj, &lp855x_attr_group);
 	if (ret) {
 		dev_err(lp->dev, "failed to register sysfs. err: %d\n", ret);
-		goto err_sysfs;
+		return ret;
 	}
 
 	backlight_update_status(lp->bl);
 	return 0;
-
-err_sysfs:
-	lp855x_backlight_unregister(lp);
-err_dev:
-	return ret;
 }
 
 static int lp855x_remove(struct i2c_client *cl)
@@ -471,7 +460,6 @@ static int lp855x_remove(struct i2c_client *cl)
 	lp->bl->props.brightness = 0;
 	backlight_update_status(lp->bl);
 	sysfs_remove_group(&lp->dev->kobj, &lp855x_attr_group);
-	lp855x_backlight_unregister(lp);
 
 	return 0;
 }
