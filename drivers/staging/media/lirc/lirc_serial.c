@@ -67,7 +67,7 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/platform_device.h>
-
+#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/fcntl.h>
@@ -321,7 +321,7 @@ static void on(void)
 	 * status LED and ground
 	 */
 	if (type == LIRC_NSLU2) {
-		gpio_line_set(NSLU2_LED_GRN, IXP4XX_GPIO_LOW);
+		gpio_set_value(NSLU2_LED_GRN, 0);
 		return;
 	}
 #endif
@@ -335,7 +335,7 @@ static void off(void)
 {
 #ifdef CONFIG_LIRC_SERIAL_NSLU2
 	if (type == LIRC_NSLU2) {
-		gpio_line_set(NSLU2_LED_GRN, IXP4XX_GPIO_HIGH);
+		gpio_set_value(NSLU2_LED_GRN, 1);
 		return;
 	}
 #endif
@@ -838,6 +838,16 @@ static int hardware_init_port(void)
 static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
+
+#ifdef CONFIG_LIRC_SERIAL_NSLU2
+	/* This GPIO is used for a LED on the NSLU2 */
+	result = devm_gpio_request(dev, NSLU2_LED_GRN, "lirc-serial");
+	if (result)
+		return result;
+	result = gpio_direction_output(NSLU2_LED_GRN, 0);
+	if (result)
+		return result;
+#endif
 
 	result = request_irq(irq, irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),

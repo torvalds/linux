@@ -16,42 +16,61 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
-#include <asm/hardware/iop3xx.h>
-#include <mach/gpio.h>
+#include <linux/platform_device.h>
+#include <linux/bitops.h>
+#include <linux/io.h>
 
-void gpio_line_config(int line, int direction)
+#define IOP3XX_N_GPIOS	8
+
+#define GPIO_IN			0
+#define GPIO_OUT		1
+#define GPIO_LOW		0
+#define GPIO_HIGH		1
+
+/* Memory base offset */
+static void __iomem *base;
+
+#define IOP3XX_GPIO_REG(reg)	(base + (reg))
+#define IOP3XX_GPOE		IOP3XX_GPIO_REG(0x0000)
+#define IOP3XX_GPID		IOP3XX_GPIO_REG(0x0004)
+#define IOP3XX_GPOD		IOP3XX_GPIO_REG(0x0008)
+
+static void gpio_line_config(int line, int direction)
 {
 	unsigned long flags;
+	u32 val;
 
 	local_irq_save(flags);
+	val = readl(IOP3XX_GPOE);
 	if (direction == GPIO_IN) {
-		*IOP3XX_GPOE |= 1 << line;
+		val |= BIT(line);
 	} else if (direction == GPIO_OUT) {
-		*IOP3XX_GPOE &= ~(1 << line);
+		val &= ~BIT(line);
 	}
+	writel(val, IOP3XX_GPOE);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(gpio_line_config);
 
-int gpio_line_get(int line)
+static int gpio_line_get(int line)
 {
-	return !!(*IOP3XX_GPID & (1 << line));
+	return !!(readl(IOP3XX_GPID) & BIT(line));
 }
-EXPORT_SYMBOL(gpio_line_get);
 
-void gpio_line_set(int line, int value)
+static void gpio_line_set(int line, int value)
 {
 	unsigned long flags;
+	u32 val;
 
 	local_irq_save(flags);
+	val = readl(IOP3XX_GPOD);
 	if (value == GPIO_LOW) {
-		*IOP3XX_GPOD &= ~(1 << line);
+		val &= ~BIT(line);
 	} else if (value == GPIO_HIGH) {
-		*IOP3XX_GPOD |= 1 << line;
+		val |= BIT(line);
 	}
+	writel(val, IOP3XX_GPOD);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(gpio_line_set);
 
 static int iop3xx_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
@@ -86,8 +105,26 @@ static struct gpio_chip iop3xx_chip = {
 	.ngpio			= IOP3XX_N_GPIOS,
 };
 
-static int __init iop3xx_gpio_setup(void)
+static int iop3xx_gpio_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+
 	return gpiochip_add(&iop3xx_chip);
 }
-arch_initcall(iop3xx_gpio_setup);
+
+static struct platform_driver iop3xx_gpio_driver = {
+	.driver = {
+		.name = "gpio-iop",
+		.owner = THIS_MODULE,
+	},
+	.probe = iop3xx_gpio_probe,
+};
+
+static int __init iop3xx_gpio_init(void)
+{
+	return platform_driver_register(&iop3xx_gpio_driver);
+}
+arch_initcall(iop3xx_gpio_init);
