@@ -76,12 +76,12 @@ struct perf_record {
 	long			samples;
 };
 
-static int write_output(struct perf_record *rec, void *buf, size_t size)
+static int do_write_output(struct perf_record *rec, void *buf, size_t size)
 {
 	struct perf_data_file *file = &rec->file;
 
 	while (size) {
-		int ret = write(file->fd, buf, size);
+		ssize_t ret = write(file->fd, buf, size);
 
 		if (ret < 0) {
 			pr_err("failed to write perf data, error: %m\n");
@@ -95,6 +95,11 @@ static int write_output(struct perf_record *rec, void *buf, size_t size)
 	}
 
 	return 0;
+}
+
+static int write_output(struct perf_record *rec, void *buf, size_t size)
+{
+	return do_write_output(rec, buf, size);
 }
 
 static int process_synthesized_event(struct perf_tool *tool,
@@ -480,16 +485,8 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 					 perf_event__synthesize_guest_os, tool);
 	}
 
-	if (perf_target__has_task(&opts->target))
-		err = perf_event__synthesize_thread_map(tool, evsel_list->threads,
-						  process_synthesized_event,
-						  machine);
-	else if (perf_target__has_cpu(&opts->target))
-		err = perf_event__synthesize_threads(tool, process_synthesized_event,
-					       machine);
-	else /* command specified */
-		err = 0;
-
+	err = __machine__synthesize_threads(machine, tool, &opts->target, evsel_list->threads,
+					    process_synthesized_event, opts->sample_address);
 	if (err != 0)
 		goto out_delete_session;
 
@@ -509,7 +506,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	 * (apart from group members) have enable_on_exec=1 set,
 	 * so don't spoil it by prematurely enabling them.
 	 */
-	if (!perf_target__none(&opts->target))
+	if (!target__none(&opts->target))
 		perf_evlist__enable(evsel_list);
 
 	/*
@@ -538,7 +535,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		 * die with the process and we wait for that. Thus no need to
 		 * disable events in this case.
 		 */
-		if (done && !disabled && !perf_target__none(&opts->target)) {
+		if (done && !disabled && !target__none(&opts->target)) {
 			perf_evlist__disable(evsel_list);
 			disabled = true;
 		}
@@ -909,7 +906,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && perf_target__none(&rec->opts.target))
+	if (!argc && target__none(&rec->opts.target))
 		usage_with_options(record_usage, record_options);
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
@@ -939,17 +936,17 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_symbol_exit;
 	}
 
-	err = perf_target__validate(&rec->opts.target);
+	err = target__validate(&rec->opts.target);
 	if (err) {
-		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
 		ui__warning("%s", errbuf);
 	}
 
-	err = perf_target__parse_uid(&rec->opts.target);
+	err = target__parse_uid(&rec->opts.target);
 	if (err) {
 		int saved_errno = errno;
 
-		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
 		ui__error("%s", errbuf);
 
 		err = -saved_errno;

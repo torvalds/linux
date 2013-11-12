@@ -277,7 +277,7 @@ static int __add_event(struct list_head *list, int *idx,
 
 	event_attr_init(attr);
 
-	evsel = perf_evsel__new(attr, (*idx)++);
+	evsel = perf_evsel__new_idx(attr, (*idx)++);
 	if (!evsel)
 		return -ENOMEM;
 
@@ -378,7 +378,7 @@ static int add_tracepoint(struct list_head *list, int *idx,
 {
 	struct perf_evsel *evsel;
 
-	evsel = perf_evsel__newtp(sys_name, evt_name, (*idx)++);
+	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 	if (!evsel)
 		return -ENOMEM;
 
@@ -1097,7 +1097,7 @@ static bool is_event_supported(u8 type, unsigned config)
 		.threads = { 0 },
 	};
 
-	evsel = perf_evsel__new(&attr, 0);
+	evsel = perf_evsel__new(&attr);
 	if (evsel) {
 		ret = perf_evsel__open(evsel, NULL, &tmap.map) >= 0;
 		perf_evsel__delete(evsel);

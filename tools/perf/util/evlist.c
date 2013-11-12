@@ -117,6 +117,8 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 {
 	list_add_tail(&entry->node, &evlist->entries);
+	entry->idx = evlist->nr_entries;
+
 	if (!evlist->nr_entries++)
 		perf_evlist__set_id_pos(evlist);
 }
@@ -165,7 +167,7 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 
 	event_attr_init(&attr);
 
-	evsel = perf_evsel__new(&attr, 0);
+	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto error;
 
@@ -190,7 +192,7 @@ static int perf_evlist__add_attrs(struct perf_evlist *evlist,
 	size_t i;
 
 	for (i = 0; i < nr_attrs; i++) {
-		evsel = perf_evsel__new(attrs + i, evlist->nr_entries + i);
+		evsel = perf_evsel__new_idx(attrs + i, evlist->nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
 		list_add_tail(&evsel->node, &head);
@@ -249,9 +251,8 @@ perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler)
 {
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = perf_evsel__newtp(sys, name);
 
-	evsel = perf_evsel__newtp(sys, name, evlist->nr_entries);
 	if (evsel == NULL)
 		return -1;
 
@@ -704,12 +705,10 @@ static size_t perf_evlist__mmap_size(unsigned long pages)
 	return (pages + 1) * page_size;
 }
 
-int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
-				  int unset __maybe_unused)
+static long parse_pages_arg(const char *str, unsigned long min,
+			    unsigned long max)
 {
-	unsigned int *mmap_pages = opt->value;
 	unsigned long pages, val;
-	size_t size;
 	static struct parse_tag tags[] = {
 		{ .tag  = 'B', .mult = 1       },
 		{ .tag  = 'K', .mult = 1 << 10 },
@@ -718,33 +717,49 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 		{ .tag  = 0 },
 	};
 
+	if (str == NULL)
+		return -EINVAL;
+
 	val = parse_tag_value(str, tags);
 	if (val != (unsigned long) -1) {
 		/* we got file size value */
 		pages = PERF_ALIGN(val, page_size) / page_size;
-		if (pages < (1UL << 31) && !is_power_of_2(pages)) {
-			pages = next_pow2(pages);
-			pr_info("rounding mmap pages size to %lu (%lu pages)\n",
-				pages * page_size, pages);
-		}
 	} else {
 		/* we got pages count value */
 		char *eptr;
 		pages = strtoul(str, &eptr, 10);
-		if (*eptr != '\0') {
-			pr_err("failed to parse --mmap_pages/-m value\n");
-			return -1;
-		}
+		if (*eptr != '\0')
+			return -EINVAL;
 	}
 
-	if (pages > UINT_MAX || pages > SIZE_MAX / page_size) {
-		pr_err("--mmap_pages/-m value too big\n");
-		return -1;
+	if ((pages == 0) && (min == 0)) {
+		/* leave number of pages at 0 */
+	} else if (pages < (1UL << 31) && !is_power_of_2(pages)) {
+		/* round pages up to next power of 2 */
+		pages = next_pow2(pages);
+		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
+			pages * page_size, pages);
 	}
 
-	size = perf_evlist__mmap_size(pages);
-	if (!size) {
-		pr_err("--mmap_pages/-m value must be a power of two.");
+	if (pages > max)
+		return -EINVAL;
+
+	return pages;
+}
+
+int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	unsigned int *mmap_pages = opt->value;
+	unsigned long max = UINT_MAX;
+	long pages;
+
+	if (max < SIZE_MAX / page_size)
+		max = SIZE_MAX / page_size;
+
+	pages = parse_pages_arg(str, 1, max);
+	if (pages < 0) {
+		pr_err("Invalid argument for --mmap_pages/-m\n");
 		return -1;
 	}
 
@@ -796,8 +811,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist,
-			     struct perf_target *target)
+int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
 	evlist->threads = thread_map__new_str(target->pid, target->tid,
 					      target->uid);
@@ -805,9 +819,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (perf_target__has_task(target))
+	if (target__has_task(target))
 		evlist->cpus = cpu_map__dummy_new();
-	else if (!perf_target__has_cpu(target) && !target->uses_mmap)
+	else if (!target__has_cpu(target) && !target->uses_mmap)
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(target->cpu_list);
@@ -1016,8 +1030,7 @@ out_err:
 	return err;
 }
 
-int perf_evlist__prepare_workload(struct perf_evlist *evlist,
-				  struct perf_target *target,
+int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *target,
 				  const char *argv[], bool pipe_output,
 				  bool want_signal)
 {
@@ -1069,7 +1082,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		exit(-1);
 	}
 
-	if (perf_target__none(target))
+	if (target__none(target))
 		evlist->threads->map[0] = evlist->workload.pid;
 
 	close(child_ready_pipe[1]);

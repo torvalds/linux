@@ -1137,6 +1137,8 @@ static void sort_entry__setup_elide(struct sort_entry *se,
 
 void sort__setup_elide(FILE *output)
 {
+	struct sort_entry *se;
+
 	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
 				"dso", output);
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list,
@@ -1172,4 +1174,15 @@ void sort__setup_elide(FILE *output)
 					"snoop", output);
 	}
 
+	/*
+	 * It makes no sense to elide all of sort entries.
+	 * Just revert them to show up again.
+	 */
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		if (!se->elide)
+			return;
+	}
+
+	list_for_each_entry(se, &hist_entry__sort_list, list)
+		se->elide = false;
 }

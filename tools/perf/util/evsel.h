@@ -96,8 +96,19 @@ struct thread_map;
 struct perf_evlist;
 struct perf_record_opts;
 
-struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
-struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name, int idx);
+struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
+
+static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
+{
+	return perf_evsel__new_idx(attr, 0);
+}
+
+struct perf_evsel *perf_evsel__newtp_idx(const char *sys, const char *name, int idx);
+
+static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *name)
+{
+	return perf_evsel__newtp_idx(sys, name, 0);
+}
 
 struct event_format *event_format__new(const char *sys, const char *name);
 
@@ -307,8 +318,7 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize);
-int perf_evsel__open_strerror(struct perf_evsel *evsel,
-			      struct perf_target *target,
+int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size);
 
 static inline int perf_evsel__group_idx(struct perf_evsel *evsel)

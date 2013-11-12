@@ -1510,13 +1510,13 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * target related setups
 	 */
-	err = perf_target__validate(&kvm->opts.target);
+	err = target__validate(&kvm->opts.target);
 	if (err) {
-		perf_target__strerror(&kvm->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&kvm->opts.target, err, errbuf, BUFSIZ);
 		ui__warning("%s", errbuf);
 	}
 
-	if (perf_target__none(&kvm->opts.target))
+	if (target__none(&kvm->opts.target))
 		kvm->opts.target.system_wide = true;
 
 
@@ -1544,18 +1544,8 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	}
 	kvm->session->evlist = kvm->evlist;
 	perf_session__set_id_hdr_size(kvm->session);
-
-
-	if (perf_target__has_task(&kvm->opts.target))
-		perf_event__synthesize_thread_map(&kvm->tool,
-						  kvm->evlist->threads,
-						  perf_event__process,
-						  &kvm->session->machines.host);
-	else
-		perf_event__synthesize_threads(&kvm->tool, perf_event__process,
-					       &kvm->session->machines.host);
-
-
+	machine__synthesize_threads(&kvm->session->machines.host, &kvm->opts.target,
+				    kvm->evlist->threads, false);
 	err = kvm_live_open_events(kvm);
 	if (err)
 		goto out;
