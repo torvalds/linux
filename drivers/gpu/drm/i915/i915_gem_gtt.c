@@ -759,7 +759,6 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 		if (ret)
 			DRM_DEBUG_KMS("Reservation failed\n");
 		obj->has_global_gtt_mapping = 1;
-		list_add(&vma->vma_link, &obj->vma_list);
 	}
 
 	dev_priv->gtt.base.start = start;
