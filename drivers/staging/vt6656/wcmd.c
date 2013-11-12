@@ -108,9 +108,7 @@ static void vAdHocBeaconStop(struct vnt_private *pDevice)
             bStop = true;
         }
         if (pMgmt->uIBSSChannel >  CB_MAX_CHANNEL_24G)
-        {
             bStop = true;
-        }
     }
 
     if (bStop)
@@ -182,13 +180,13 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
 	u8 *pbyRate;
 	int ii;
 
-    if (pDevice->byBBType == BB_TYPE_11A) {
-        pbyRate = &abyCurrSuppRatesA[0];
-    } else if (pDevice->byBBType == BB_TYPE_11B) {
-        pbyRate = &abyCurrSuppRatesB[0];
-    } else {
-        pbyRate = &abyCurrSuppRatesG[0];
-    }
+	if (pDevice->byBBType == BB_TYPE_11A)
+		pbyRate = &abyCurrSuppRatesA[0];
+	else if (pDevice->byBBType == BB_TYPE_11B)
+		pbyRate = &abyCurrSuppRatesB[0];
+	else
+		pbyRate = &abyCurrSuppRatesG[0];
+
     // build an assocreq frame and send it
     pTxPacket = s_MgrMakeProbeRequest
                 (
@@ -204,10 +202,9 @@ static void s_vProbeChannel(struct vnt_private *pDevice)
         for (ii = 0; ii < 1; ii++) {
             if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request sending fail.. \n");
-            }
-            else {
+	    } else {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Probe request is sending.. \n");
-            }
+	    }
         }
     }
 
@@ -316,9 +313,8 @@ void vRunCommand(struct work_struct *work)
 
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyScanSSID;
 
-            if (pMgmt->uScanChannel == 0) {
+            if (pMgmt->uScanChannel == 0)
                 pMgmt->uScanChannel = pDevice->byMinChannel;
-            }
             if (pMgmt->uScanChannel > pDevice->byMaxChannel) {
 		pDevice->eCommandState = WLAN_CMD_SCAN_END;
                 s_bCommandComplete(pDevice);
@@ -546,9 +542,8 @@ void vRunCommand(struct work_struct *work)
             // if Adhoc mode
             else if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
                 if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
-                    if (netif_queue_stopped(pDevice->dev)) {
+                    if (netif_queue_stopped(pDevice->dev))
                         netif_wake_queue(pDevice->dev);
-                    }
                     pDevice->bLinkPass = true;
                     ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
                     pMgmt->sNodeDBTable[0].bActive = true;
@@ -654,9 +649,8 @@ void vRunCommand(struct work_struct *work)
                 ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
                 s_bClearBSSID_SCAN(pDevice);
 
-                if (netif_queue_stopped(pDevice->dev)) {
+                if (netif_queue_stopped(pDevice->dev))
                     netif_wake_queue(pDevice->dev);
-                }
 
             }
 	   else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
@@ -700,9 +694,8 @@ void vRunCommand(struct work_struct *work)
                 pDevice->byRxMode &= ~RCR_UNICAST;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode);
                 BSSvAddMulticastNode(pDevice);
-                if (netif_queue_stopped(pDevice->dev)) {
+                if (netif_queue_stopped(pDevice->dev))
                     netif_wake_queue(pDevice->dev);
-                }
                 pDevice->bLinkPass = true;
                 ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
 		schedule_delayed_work(&pDevice->second_callback_work, HZ);
@@ -722,9 +715,8 @@ void vRunCommand(struct work_struct *work)
                         pDevice->bMoreData = true;
                     }
 
-                    if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0) {
+                    if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Multicast ps tx fail \n");
-                    }
 
                     pMgmt->sNodeDBTable[0].wEnQueueCnt--;
                 }
@@ -747,9 +739,8 @@ void vRunCommand(struct work_struct *work)
                             pDevice->bMoreData = true;
                         }
 
-                        if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0) {
+                        if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) != 0)
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "sta ps tx fail \n");
-                        }
 
                         pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
                         // check if sta ps enable, wait next pspoll
@@ -973,11 +964,10 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState= WLAN_CMD_BSSID_SCAN\n");
                 pDevice->eCommandState = WLAN_CMD_SCAN_START;
                 pMgmt->uScanChannel = 0;
-                if (pSSID->len != 0) {
+                if (pSSID->len != 0)
                     memcpy(pMgmt->abyScanSSID, pSSID, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-                } else {
+                else
                     memset(pMgmt->abyScanSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
-                }
 /*
                 if ((bForceSCAN == false) && (pDevice->bLinkPass == true)) {
                     if ((pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyCurrSSID)->len) &&
@@ -1054,9 +1044,8 @@ int bScheduleCommand(struct vnt_private *pDevice,
 		CMD_CODE eCommand, u8 *pbyItem0)
 {
 
-    if (pDevice->cbFreeCmdQueue == 0) {
+    if (pDevice->cbFreeCmdQueue == 0)
         return (false);
-    }
     pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
     pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
     memset(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID, 0 , WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
@@ -1094,11 +1083,9 @@ int bScheduleCommand(struct vnt_private *pDevice,
     ADD_ONE_WITH_WRAP_AROUND(pDevice->uCmdEnqueueIdx, CMD_Q_SIZE);
     pDevice->cbFreeCmdQueue--;
 
-    if (pDevice->bCmdRunning == false) {
+    if (pDevice->bCmdRunning == false)
         s_bCommandComplete(pDevice);
-    }
-    else {
-    }
+
     return (true);
 
 }
