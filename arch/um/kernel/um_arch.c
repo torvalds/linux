@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <as-layout.h>
 #include <arch.h>
