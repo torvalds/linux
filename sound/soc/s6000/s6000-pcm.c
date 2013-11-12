@@ -90,7 +90,8 @@ static void s6000_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		return;
 	}
 
-	BUG_ON(period_size & 15);
+	if (WARN_ON(period_size & 15))
+		return;
 	s6dmac_put_fifo(DMA_MASK_DMAC(channel), DMA_INDEX_CHNL(channel),
 			src, dst, period_size);
 

@@ -549,11 +549,15 @@ static hda_nid_t look_for_out_mute_nid(struct hda_codec *codec,
 static hda_nid_t look_for_out_vol_nid(struct hda_codec *codec,
 				      struct nid_path *path)
 {
+	struct hda_gen_spec *spec = codec->spec;
 	int i;
 
 	for (i = path->depth - 1; i >= 0; i--) {
-		if (nid_has_volume(codec, path->path[i], HDA_OUTPUT))
-			return path->path[i];
+		hda_nid_t nid = path->path[i];
+		if ((spec->out_vol_mask >> nid) & 1)
+			continue;
+		if (nid_has_volume(codec, nid, HDA_OUTPUT))
+			return nid;
 	}
 	return 0;
 }

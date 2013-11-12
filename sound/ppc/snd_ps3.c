@@ -933,8 +933,10 @@ static int snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	int i, ret;
 	u64 lpar_addr, lpar_size;
 
-	BUG_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1));
-	BUG_ON(dev->match_id != PS3_MATCH_ID_SOUND);
+	if (WARN_ON(!firmware_has_feature(FW_FEATURE_PS3_LV1)))
+		return -ENODEV;
+	if (WARN_ON(dev->match_id != PS3_MATCH_ID_SOUND))
+		return -ENODEV;
 
 	the_card.ps3_dev = dev;
 

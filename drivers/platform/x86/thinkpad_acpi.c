@@ -23,7 +23,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define TPACPI_VERSION "0.24"
+#define TPACPI_VERSION "0.25"
 #define TPACPI_SYSFS_VERSION 0x020700
 
 /*
@@ -88,6 +88,7 @@
 
 #include <linux/pci_ids.h>
 
+#include <linux/thinkpad_acpi.h>
 
 /* ThinkPad CMOS commands */
 #define TP_CMOS_VOLUME_DOWN	0
@@ -8350,6 +8351,91 @@ static struct ibm_struct fan_driver_data = {
 	.resume = fan_resume,
 };
 
+/*************************************************************************
+ * Mute LED subdriver
+ */
+
+
+struct tp_led_table {
+	acpi_string name;
+	int on_value;
+	int off_value;
+	int state;
+};
+
+static struct tp_led_table led_tables[] = {
+	[TPACPI_LED_MUTE] = {
+		.name = "SSMS",
+		.on_value = 1,
+		.off_value = 0,
+	},
+	[TPACPI_LED_MICMUTE] = {
+		.name = "MMTS",
+		.on_value = 2,
+		.off_value = 0,
+	},
+};
+
+static int mute_led_on_off(struct tp_led_table *t, bool state)
+{
+	acpi_handle temp;
+	int output;
+
+	if (!ACPI_SUCCESS(acpi_get_handle(hkey_handle, t->name, &temp))) {
+		pr_warn("Thinkpad ACPI has no %s interface.\n", t->name);
+		return -EIO;
+	}
+
+	if (!acpi_evalf(hkey_handle, &output, t->name, "dd",
+			state ? t->on_value : t->off_value))
+		return -EIO;
+
+	t->state = state;
+	return state;
+}
+
+int tpacpi_led_set(int whichled, bool on)
+{
+	struct tp_led_table *t;
+
+	if (whichled < 0 || whichled >= TPACPI_LED_MAX)
+		return -EINVAL;
+
+	t = &led_tables[whichled];
+	if (t->state < 0 || t->state == on)
+		return t->state;
+	return mute_led_on_off(t, on);
+}
+EXPORT_SYMBOL_GPL(tpacpi_led_set);
+
+static int mute_led_init(struct ibm_init_struct *iibm)
+{
+	acpi_handle temp;
+	int i;
+
+	for (i = 0; i < TPACPI_LED_MAX; i++) {
+		struct tp_led_table *t = &led_tables[i];
+		if (ACPI_SUCCESS(acpi_get_handle(hkey_handle, t->name, &temp)))
+			mute_led_on_off(t, false);
+		else
+			t->state = -ENODEV;
+	}
+	return 0;
+}
+
+static void mute_led_exit(void)
+{
+	int i;
+
+	for (i = 0; i < TPACPI_LED_MAX; i++)
+		tpacpi_led_set(i, false);
+}
+
+static struct ibm_struct mute_led_driver_data = {
+	.name = "mute_led",
+	.exit = mute_led_exit,
+};
+
 /****************************************************************************
  ****************************************************************************
  *
@@ -8767,6 +8853,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = fan_init,
 		.data = &fan_driver_data,
+	},
+	{
+		.init = mute_led_init,
+		.data = &mute_led_driver_data,
 	},
 };
 

@@ -28,6 +28,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #include "pcm1792a.h"

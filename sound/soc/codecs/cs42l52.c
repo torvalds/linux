@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -1116,40 +1117,6 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 	cs42l52->sysclk = CS42L52_DEFAULT_CLK;
 	cs42l52->config.format = CS42L52_DEFAULT_FORMAT;
 
-	/* Set Platform MICx CFG */
-	snd_soc_update_bits(codec, CS42L52_MICA_CTL,
-			    CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.mica_cfg <<
-				CS42L52_MIC_CTL_TYPE_SHIFT);
-
-	snd_soc_update_bits(codec, CS42L52_MICB_CTL,
-			    CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.micb_cfg <<
-				CS42L52_MIC_CTL_TYPE_SHIFT);
-
-	/* if Single Ended, Get Mic_Select */
-	if (cs42l52->pdata.mica_cfg)
-		snd_soc_update_bits(codec, CS42L52_MICA_CTL,
-				    CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.mica_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
-	if (cs42l52->pdata.micb_cfg)
-		snd_soc_update_bits(codec, CS42L52_MICB_CTL,
-				    CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.micb_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
-
-	/* Set Platform Charge Pump Freq */
-	snd_soc_update_bits(codec, CS42L52_CHARGE_PUMP,
-			    CS42L52_CHARGE_PUMP_MASK,
-				cs42l52->pdata.chgfreq <<
-				CS42L52_CHARGE_PUMP_SHIFT);
-
-	/* Set Platform Bias Level */
-	snd_soc_update_bits(codec, CS42L52_IFACE_CTL2,
-			    CS42L52_IFACE_CTL2_BIAS_LVL,
-				cs42l52->pdata.micbias_lvl);
-
 	return ret;
 }
 
@@ -1205,6 +1172,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 			     const struct i2c_device_id *id)
 {
 	struct cs42l52_private *cs42l52;
+	struct cs42l52_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
@@ -1222,11 +1190,22 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	i2c_set_clientdata(i2c_client, cs42l52);
+	if (pdata)
+		cs42l52->pdata = *pdata;
 
-	if (dev_get_platdata(&i2c_client->dev))
-		memcpy(&cs42l52->pdata, dev_get_platdata(&i2c_client->dev),
-		       sizeof(cs42l52->pdata));
+	if (cs42l52->pdata.reset_gpio) {
+		ret = gpio_request_one(cs42l52->pdata.reset_gpio,
+				       GPIOF_OUT_INIT_HIGH, "CS42L52 /RST");
+		if (ret < 0) {
+			dev_err(&i2c_client->dev, "Failed to request /RST %d: %d\n",
+				cs42l52->pdata.reset_gpio, ret);
+			return ret;
+		}
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 0);
+		gpio_set_value_cansleep(cs42l52->pdata.reset_gpio, 1);
+	}
+
+	i2c_set_clientdata(i2c_client, cs42l52);
 
 	ret = regmap_register_patch(cs42l52->regmap, cs42l52_threshold_patch,
 				    ARRAY_SIZE(cs42l52_threshold_patch));
@@ -1244,7 +1223,43 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	regcache_cache_only(cs42l52->regmap, true);
+	dev_info(&i2c_client->dev, "Cirrus Logic CS42L52, Revision: %02X\n",
+			reg & 0xFF);
+
+	/* Set Platform Data */
+	if (cs42l52->pdata.mica_cfg)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
+				   CS42L52_MIC_CTL_TYPE_MASK,
+				cs42l52->pdata.mica_cfg <<
+				CS42L52_MIC_CTL_TYPE_SHIFT);
+
+	if (cs42l52->pdata.micb_cfg)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICB_CTL,
+				   CS42L52_MIC_CTL_TYPE_MASK,
+				cs42l52->pdata.micb_cfg <<
+				CS42L52_MIC_CTL_TYPE_SHIFT);
+
+	if (cs42l52->pdata.mica_sel)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
+				   CS42L52_MIC_CTL_MIC_SEL_MASK,
+				cs42l52->pdata.mica_sel <<
+				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
+	if (cs42l52->pdata.micb_sel)
+		regmap_update_bits(cs42l52->regmap, CS42L52_MICB_CTL,
+				   CS42L52_MIC_CTL_MIC_SEL_MASK,
+				cs42l52->pdata.micb_sel <<
+				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
+
+	if (cs42l52->pdata.chgfreq)
+		regmap_update_bits(cs42l52->regmap, CS42L52_CHARGE_PUMP,
+				   CS42L52_CHARGE_PUMP_MASK,
+				cs42l52->pdata.chgfreq <<
+				CS42L52_CHARGE_PUMP_SHIFT);
+
+	if (cs42l52->pdata.micbias_lvl)
+		regmap_update_bits(cs42l52->regmap, CS42L52_IFACE_CTL2,
+				   CS42L52_IFACE_CTL2_BIAS_LVL,
+				cs42l52->pdata.micbias_lvl);
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs42l52, &cs42l52_dai, 1);
