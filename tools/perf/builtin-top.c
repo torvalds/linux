@@ -967,7 +967,7 @@ static int __cmd_top(struct perf_top *top)
 	 * XXX 'top' still doesn't start workloads like record, trace, but should,
 	 * so leave the check here.
 	 */
-        if (!perf_target__none(&opts->target))
+        if (!target__none(&opts->target))
                 perf_evlist__enable(top->evlist);
 
 	/* Wait for a minimal set of events before starting the snapshot */
@@ -1053,7 +1053,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		.sym_pcnt_filter     = 5,
 	};
 	struct perf_record_opts *opts = &top.record_opts;
-	struct perf_target *target = &opts->target;
+	struct target *target = &opts->target;
 	const struct option options[] = {
 	OPT_CALLBACK('e', "event", &top.evlist, "event",
 		     "event selector. use 'perf list' to list available events",
@@ -1169,24 +1169,24 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_browser(false);
 
-	status = perf_target__validate(target);
+	status = target__validate(target);
 	if (status) {
-		perf_target__strerror(target, status, errbuf, BUFSIZ);
+		target__strerror(target, status, errbuf, BUFSIZ);
 		ui__warning("%s", errbuf);
 	}
 
-	status = perf_target__parse_uid(target);
+	status = target__parse_uid(target);
 	if (status) {
 		int saved_errno = errno;
 
-		perf_target__strerror(target, status, errbuf, BUFSIZ);
+		target__strerror(target, status, errbuf, BUFSIZ);
 		ui__error("%s", errbuf);
 
 		status = -saved_errno;
 		goto out_delete_evlist;
 	}
 
-	if (perf_target__none(target))
+	if (target__none(target))
 		target->system_wide = true;
 
 	if (perf_evlist__create_maps(top.evlist, target) < 0)

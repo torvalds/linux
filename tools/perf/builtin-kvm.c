@@ -1510,13 +1510,13 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * target related setups
 	 */
-	err = perf_target__validate(&kvm->opts.target);
+	err = target__validate(&kvm->opts.target);
 	if (err) {
-		perf_target__strerror(&kvm->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&kvm->opts.target, err, errbuf, BUFSIZ);
 		ui__warning("%s", errbuf);
 	}
 
-	if (perf_target__none(&kvm->opts.target))
+	if (target__none(&kvm->opts.target))
 		kvm->opts.target.system_wide = true;
 
 

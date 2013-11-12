@@ -2327,21 +2327,21 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 	}
 
-	err = perf_target__validate(&trace.opts.target);
+	err = target__validate(&trace.opts.target);
 	if (err) {
-		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		fprintf(trace.output, "%s", bf);
 		goto out_close;
 	}
 
-	err = perf_target__parse_uid(&trace.opts.target);
+	err = target__parse_uid(&trace.opts.target);
 	if (err) {
-		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		fprintf(trace.output, "%s", bf);
 		goto out_close;
 	}
 
-	if (!argc && perf_target__none(&trace.opts.target))
+	if (!argc && target__none(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
 	if (input_name)

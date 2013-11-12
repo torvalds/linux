@@ -506,7 +506,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	 * (apart from group members) have enable_on_exec=1 set,
 	 * so don't spoil it by prematurely enabling them.
 	 */
-	if (!perf_target__none(&opts->target))
+	if (!target__none(&opts->target))
 		perf_evlist__enable(evsel_list);
 
 	/*
@@ -535,7 +535,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		 * die with the process and we wait for that. Thus no need to
 		 * disable events in this case.
 		 */
-		if (done && !disabled && !perf_target__none(&opts->target)) {
+		if (done && !disabled && !target__none(&opts->target)) {
 			perf_evlist__disable(evsel_list);
 			disabled = true;
 		}
@@ -906,7 +906,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && perf_target__none(&rec->opts.target))
+	if (!argc && target__none(&rec->opts.target))
 		usage_with_options(record_usage, record_options);
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
@@ -936,17 +936,17 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_symbol_exit;
 	}
 
-	err = perf_target__validate(&rec->opts.target);
+	err = target__validate(&rec->opts.target);
 	if (err) {
-		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
 		ui__warning("%s", errbuf);
 	}
 
-	err = perf_target__parse_uid(&rec->opts.target);
+	err = target__parse_uid(&rec->opts.target);
 	if (err) {
 		int saved_errno = errno;
 
-		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
 		ui__error("%s", errbuf);
 
 		err = -saved_errno;

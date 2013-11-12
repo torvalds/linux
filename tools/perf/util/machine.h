@@ -180,10 +180,10 @@ int machine__for_each_thread(struct machine *machine,
 			     void *priv);
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
-				  struct perf_target *target, struct thread_map *threads,
+				  struct target *target, struct thread_map *threads,
 				  perf_event__handler_t process, bool data_mmap);
 static inline
-int machine__synthesize_threads(struct machine *machine, struct perf_target *target,
+int machine__synthesize_threads(struct machine *machine, struct target *target,
 				struct thread_map *threads, bool data_mmap)
 {
 	return __machine__synthesize_threads(machine, NULL, target, threads,
