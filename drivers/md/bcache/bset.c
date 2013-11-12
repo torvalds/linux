@@ -5,8 +5,10 @@
  * Copyright 2012 Google, Inc.
  */
 
-#include "bcache.h"
-#include "btree.h"
+#define pr_fmt(fmt) "bcache: %s() " fmt "\n", __func__
+
+#include "util.h"
+#include "bset.h"
 
 #include <linux/console.h>
 #include <linux/random.h>
@@ -1150,31 +1152,27 @@ static void __btree_sort(struct btree_keys *b, struct btree_iter *iter,
 		bch_time_stats_update(&state->time, start_time);
 }
 
-void bch_btree_sort_partial(struct btree *b, unsigned start,
+void bch_btree_sort_partial(struct btree_keys *b, unsigned start,
 			    struct bset_sort_state *state)
 {
-	size_t order = b->keys.page_order, keys = 0;
+	size_t order = b->page_order, keys = 0;
 	struct btree_iter iter;
-	int oldsize = bch_count_data(&b->keys);
+	int oldsize = bch_count_data(b);
 
-	__bch_btree_iter_init(&b->keys, &iter, NULL, &b->keys.set[start]);
+	__bch_btree_iter_init(b, &iter, NULL, &b->set[start]);
 
 	if (start) {
 		unsigned i;
 
-		for (i = start; i <= b->keys.nsets; i++)
-			keys += b->keys.set[i].data->keys;
+		for (i = start; i <= b->nsets; i++)
+			keys += b->set[i].data->keys;
 
-		order = roundup_pow_of_two(__set_bytes(b->keys.set->data,
-						       keys)) / PAGE_SIZE;
-		if (order)
-			order = ilog2(order);
+		order = get_order(__set_bytes(b->set->data, keys));
 	}
 
-	__btree_sort(&b->keys, &iter, start, order, false, state);
+	__btree_sort(b, &iter, start, order, false, state);
 
-	EBUG_ON(b->written && oldsize >= 0 &&
-		bch_count_data(&b->keys) != oldsize);
+	EBUG_ON(oldsize >= 0 && bch_count_data(b) != oldsize);
 }
 EXPORT_SYMBOL(bch_btree_sort_partial);
 
@@ -1185,51 +1183,49 @@ void bch_btree_sort_and_fix_extents(struct btree_keys *b,
 	__btree_sort(b, iter, 0, b->page_order, true, state);
 }
 
-void bch_btree_sort_into(struct btree *b, struct btree *new,
+void bch_btree_sort_into(struct btree_keys *b, struct btree_keys *new,
 			 struct bset_sort_state *state)
 {
 	uint64_t start_time = local_clock();
 
 	struct btree_iter iter;
-	bch_btree_iter_init(&b->keys, &iter, NULL);
+	bch_btree_iter_init(b, &iter, NULL);
 
-	btree_mergesort(&b->keys, new->keys.set->data, &iter, false, true);
+	btree_mergesort(b, new->set->data, &iter, false, true);
 
 	bch_time_stats_update(&state->time, start_time);
 
-	new->keys.set->size = 0; // XXX: why?
+	new->set->size = 0; // XXX: why?
 }
 
 #define SORT_CRIT	(4096 / sizeof(uint64_t))
 
-void bch_btree_sort_lazy(struct btree *b, struct bset_sort_state *state)
+void bch_btree_sort_lazy(struct btree_keys *b, struct bset_sort_state *state)
 {
 	unsigned crit = SORT_CRIT;
 	int i;
 
-	b->keys.last_set_unwritten = 0;
-
 	/* Don't sort if nothing to do */
-	if (!b->keys.nsets)
+	if (!b->nsets)
 		goto out;
 
-	for (i = b->keys.nsets - 1; i >= 0; --i) {
+	for (i = b->nsets - 1; i >= 0; --i) {
 		crit *= state->crit_factor;
 
-		if (b->keys.set[i].data->keys < crit) {
+		if (b->set[i].data->keys < crit) {
 			bch_btree_sort_partial(b, i, state);
 			return;
 		}
 	}
 
 	/* Sort if we'd overflow */
-	if (b->keys.nsets + 1 == MAX_BSETS) {
+	if (b->nsets + 1 == MAX_BSETS) {
 		bch_btree_sort(b, state);
 		return;
 	}
 
 out:
-	bch_bset_build_written_tree(&b->keys);
+	bch_bset_build_written_tree(b);
 }
 EXPORT_SYMBOL(bch_btree_sort_lazy);
 

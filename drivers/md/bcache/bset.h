@@ -1,7 +1,9 @@
 #ifndef _BCACHE_BSET_H
 #define _BCACHE_BSET_H
 
-#include <linux/slab.h>
+#include <linux/bcache.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
 
 #include "util.h" /* for time_stats */
 
@@ -144,7 +146,6 @@
  * first key in that range of bytes again.
  */
 
-struct btree;
 struct btree_keys;
 struct btree_iter;
 struct btree_iter_set;
@@ -353,15 +354,15 @@ struct bset_sort_state {
 
 void bch_bset_sort_state_free(struct bset_sort_state *);
 int bch_bset_sort_state_init(struct bset_sort_state *, unsigned);
-void bch_btree_sort_lazy(struct btree *, struct bset_sort_state *);
-void bch_btree_sort_into(struct btree *, struct btree *,
+void bch_btree_sort_lazy(struct btree_keys *, struct bset_sort_state *);
+void bch_btree_sort_into(struct btree_keys *, struct btree_keys *,
 			 struct bset_sort_state *);
 void bch_btree_sort_and_fix_extents(struct btree_keys *, struct btree_iter *,
 				    struct bset_sort_state *);
-void bch_btree_sort_partial(struct btree *, unsigned,
+void bch_btree_sort_partial(struct btree_keys *, unsigned,
 			    struct bset_sort_state *);
 
-static inline void bch_btree_sort(struct btree *b,
+static inline void bch_btree_sort(struct btree_keys *b,
 				  struct bset_sort_state *state)
 {
 	bch_btree_sort_partial(b, 0, state);
