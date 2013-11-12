@@ -808,22 +808,6 @@ static u8 __init pci_v3_swizzle(struct pci_dev *dev, u8 *pinp)
 	return pci_common_swizzle(dev, pinp);
 }
 
-static int __init pci_v3_map_irq_dt(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	struct of_irq oirq;
-	int ret;
-
-	ret = of_irq_map_pci(dev, &oirq);
-	if (ret) {
-		dev_err(&dev->dev, "of_irq_map_pci() %d\n", ret);
-		/* Proper return code 0 == NO_IRQ */
-		return 0;
-	}
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-
 static struct hw_pci pci_v3 __initdata = {
 	.swizzle		= pci_v3_swizzle,
 	.setup			= pci_v3_setup,
@@ -914,7 +898,7 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pci_v3.map_irq = pci_v3_map_irq_dt;
+	pci_v3.map_irq = of_irq_parse_and_map_pci;
 	pci_common_init_dev(&pdev->dev, &pci_v3);
 
 	return 0;

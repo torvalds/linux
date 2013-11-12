@@ -5,6 +5,8 @@
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/of_irq.h>
+
 #include "compat.h"
 #include "regs.h"
 #include "jr.h"
@@ -403,7 +405,7 @@ int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
 		dma_set_mask(jrdev, DMA_BIT_MASK(32));
 
 	/* Identify the interrupt */
-	jrpriv->irq = of_irq_to_resource(np, 0, NULL);
+	jrpriv->irq = irq_of_parse_and_map(np, 0);
 
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */

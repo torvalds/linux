@@ -20,6 +20,7 @@
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
 #include <asm/cpm.h>
 #include <asm/qe.h>
 

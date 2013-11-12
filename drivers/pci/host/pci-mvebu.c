@@ -665,19 +665,6 @@ static int mvebu_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-static int mvebu_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	struct of_irq oirq;
-	int ret;
-
-	ret = of_irq_map_pci(dev, &oirq);
-	if (ret)
-		return ret;
-
-	return irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-}
-
 static struct pci_bus *mvebu_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(sys);
@@ -732,7 +719,7 @@ static void mvebu_pcie_enable(struct mvebu_pcie *pcie)
 	hw.private_data   = (void **)&pcie;
 	hw.setup          = mvebu_pcie_setup;
 	hw.scan           = mvebu_pcie_scan_bus;
-	hw.map_irq        = mvebu_pcie_map_irq;
+	hw.map_irq        = of_irq_parse_and_map_pci;
 	hw.ops            = &mvebu_pcie_ops;
 	hw.align_resource = mvebu_pcie_align_resource;
 	hw.add_bus        = mvebu_pcie_add_bus;
