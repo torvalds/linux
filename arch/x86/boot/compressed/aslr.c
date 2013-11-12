@@ -13,7 +13,7 @@
 #include <linux/version.h>
 
 /* Simplified build-specific string for starting entropy. */
-static const char *build_str = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
 		LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;
 
 #define I8254_PORT_CONTROL	0x43
