@@ -372,8 +372,7 @@ static bool bch_extent_insert_fixup(struct btree_keys *b,
 			if (KEY_START(k) > KEY_START(insert) + sectors_found)
 				goto check_failed;
 
-			if (KEY_PTRS(k) != KEY_PTRS(replace_key) ||
-			    KEY_DIRTY(k) != KEY_DIRTY(replace_key))
+			if (!bch_bkey_equal_header(k, replace_key))
 				goto check_failed;
 
 			/* skip past gen */

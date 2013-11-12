@@ -448,6 +448,14 @@ static inline void bch_bkey_to_text(struct btree_keys *b, char *buf,
 	return b->ops->key_to_text(buf, size, k);
 }
 
+static inline bool bch_bkey_equal_header(const struct bkey *l,
+					 const struct bkey *r)
+{
+	return (KEY_DIRTY(l) == KEY_DIRTY(r) &&
+		KEY_PTRS(l) == KEY_PTRS(r) &&
+		KEY_CSUM(l) == KEY_CSUM(l));
+}
+
 /* Keylists */
 
 struct keylist {

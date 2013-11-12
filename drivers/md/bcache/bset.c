@@ -788,12 +788,8 @@ bool bch_bkey_try_merge(struct btree_keys *b, struct bkey *l, struct bkey *r)
 	 * Assumes left and right are in order
 	 * Left and right must be exactly aligned
 	 */
-	if (KEY_U64s(l) != KEY_U64s(r) ||
-	    KEY_DELETED(l) != KEY_DELETED(r) ||
-	    KEY_CACHED(l) != KEY_CACHED(r) ||
-	    KEY_VERSION(l) != KEY_VERSION(r) ||
-	    KEY_CSUM(l) != KEY_CSUM(r) ||
-	    bkey_cmp(l, &START_KEY(r)))
+	if (!bch_bkey_equal_header(l, r) ||
+	     bkey_cmp(l, &START_KEY(r)))
 		return false;
 
 	return b->ops->key_merge(b, l, r);
