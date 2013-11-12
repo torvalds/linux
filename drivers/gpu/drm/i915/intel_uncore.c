@@ -641,6 +641,9 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	struct i915_ctx_hang_stats *hs;
 	int ret;
 
+	if (args->flags || args->pad)
+		return -EINVAL;
+
 	if (args->ctx_id == DEFAULT_CONTEXT_ID && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
