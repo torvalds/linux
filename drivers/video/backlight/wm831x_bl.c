@@ -195,8 +195,8 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = max_isel;
-	bl = backlight_device_register("wm831x", &pdev->dev, data,
-				       &wm831x_backlight_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, "wm831x", &pdev->dev,
+					data, &wm831x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -214,21 +214,12 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wm831x_backlight_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(bl);
-	return 0;
-}
-
 static struct platform_driver wm831x_backlight_driver = {
 	.driver		= {
 		.name	= "wm831x-backlight",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm831x_backlight_probe,
-	.remove		= wm831x_backlight_remove,
 };
 
 module_platform_driver(wm831x_backlight_driver);
