@@ -990,6 +990,17 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				 struct ieee80211_bss_conf *bss_conf,
 				 u32 changes)
 {
+	enum ieee80211_bss_change ht_change = BSS_CHANGED_ERP_CTS_PROT |
+					      BSS_CHANGED_HT |
+					      BSS_CHANGED_BANDWIDTH;
+	int ret;
+
+	if (changes & ht_change) {
+		ret = iwl_mvm_mac_ctxt_changed(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
+	}
+
 	/* Need to send a new beacon template to the FW */
 	if (changes & BSS_CHANGED_BEACON) {
 		if (iwl_mvm_mac_ctxt_beacon_changed(mvm, vif))
