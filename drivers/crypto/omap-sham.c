@@ -1970,7 +1970,8 @@ err_algs:
 			crypto_unregister_ahash(
 					&dd->pdata->algs_info[i].algs_list[j]);
 	pm_runtime_disable(dev);
-	dma_release_channel(dd->dma_lch);
+	if (dd->dma_lch)
+		dma_release_channel(dd->dma_lch);
 data_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1994,7 +1995,9 @@ static int omap_sham_remove(struct platform_device *pdev)
 					&dd->pdata->algs_info[i].algs_list[j]);
 	tasklet_kill(&dd->done_task);
 	pm_runtime_disable(&pdev->dev);
-	dma_release_channel(dd->dma_lch);
+
+	if (dd->dma_lch)
+		dma_release_channel(dd->dma_lch);
 
 	return 0;
 }
