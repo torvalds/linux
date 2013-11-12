@@ -75,7 +75,7 @@ static int __init gcov_persist_setup(char *str)
 	unsigned long val;
 
 	if (kstrtoul(str, 0, &val)) {
-		pr_warning("invalid gcov_persist parameter '%s'\n", str);
+		pr_warn("invalid gcov_persist parameter '%s'\n", str);
 		return 0;
 	}
 	gcov_persist = val;
@@ -451,7 +451,7 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	} else
 		node->dentry = debugfs_create_dir(node->name, parent->dentry);
 	if (!node->dentry) {
-		pr_warning("could not create file\n");
+		pr_warn("could not create file\n");
 		kfree(node);
 		return NULL;
 	}
@@ -464,7 +464,7 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 
 err_nomem:
 	kfree(node);
-	pr_warning("out of memory\n");
+	pr_warn("out of memory\n");
 	return NULL;
 }
 
@@ -631,8 +631,8 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 	 */
 	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
 	if (!loaded_info) {
-		pr_warning("could not add '%s' (out of memory)\n",
-			   gcov_info_filename(info));
+		pr_warn("could not add '%s' (out of memory)\n",
+			gcov_info_filename(info));
 		return;
 	}
 	memcpy(loaded_info, node->loaded_info,
@@ -645,9 +645,9 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 * data set replaces the copy of the last one.
 		 */
 		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
-			pr_warning("discarding saved data for %s "
-				   "(incompatible version)\n",
-				   gcov_info_filename(info));
+			pr_warn("discarding saved data for %s "
+				"(incompatible version)\n",
+				gcov_info_filename(info));
 			gcov_info_free(node->unloaded_info);
 			node->unloaded_info = NULL;
 		}
@@ -657,8 +657,8 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 		 * The initial one takes precedence.
 		 */
 		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
-			pr_warning("could not add '%s' (incompatible "
-				   "version)\n", gcov_info_filename(info));
+			pr_warn("could not add '%s' (incompatible "
+				"version)\n", gcov_info_filename(info));
 			kfree(loaded_info);
 			return;
 		}
@@ -693,9 +693,9 @@ static void save_info(struct gcov_node *node, struct gcov_info *info)
 	else {
 		node->unloaded_info = gcov_info_dup(info);
 		if (!node->unloaded_info) {
-			pr_warning("could not save data for '%s' "
-				   "(out of memory)\n",
-				   gcov_info_filename(info));
+			pr_warn("could not save data for '%s' "
+				"(out of memory)\n",
+				gcov_info_filename(info));
 		}
 	}
 }
@@ -710,8 +710,8 @@ static void remove_info(struct gcov_node *node, struct gcov_info *info)
 
 	i = get_info_index(node, info);
 	if (i < 0) {
-		pr_warning("could not remove '%s' (not found)\n",
-			   gcov_info_filename(info));
+		pr_warn("could not remove '%s' (not found)\n",
+			gcov_info_filename(info));
 		return;
 	}
 	if (gcov_persist)
@@ -750,8 +750,8 @@ void gcov_event(enum gcov_action action, struct gcov_info *info)
 		if (node)
 			remove_info(node, info);
 		else {
-			pr_warning("could not remove '%s' (not found)\n",
-				   gcov_info_filename(info));
+			pr_warn("could not remove '%s' (not found)\n",
+				gcov_info_filename(info));
 		}
 		break;
 	}
