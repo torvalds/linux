@@ -63,9 +63,10 @@ enum zpci_state {
 };
 
 struct zpci_bar_struct {
+	struct resource *res;		/* bus resource */
 	u32		val;		/* bar start & 3 flag bits */
-	u8		size;		/* order 2 exponent */
 	u16		map_idx;	/* index into bar mapping array */
+	u8		size;		/* order 2 exponent */
 };
 
 /* Private data per function */
@@ -97,6 +98,7 @@ struct zpci_dev {
 	unsigned long	iommu_pages;
 	unsigned int	next_bit;
 
+	char res_name[16];
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	u64		start_dma;	/* Start of available DMA addresses */

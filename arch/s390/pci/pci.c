@@ -579,37 +579,6 @@ static void zpci_irq_exit(void)
 	unregister_adapter_interrupt(&zpci_airq);
 }
 
-static struct resource *zpci_alloc_bus_resource(unsigned long start, unsigned long size,
-						unsigned long flags, int domain)
-{
-	struct resource *r;
-	char *name;
-	int rc;
-
-	r = kzalloc(sizeof(*r), GFP_KERNEL);
-	if (!r)
-		return ERR_PTR(-ENOMEM);
-	r->start = start;
-	r->end = r->start + size - 1;
-	r->flags = flags;
-	r->parent = &iomem_resource;
-	name = kmalloc(18, GFP_KERNEL);
-	if (!name) {
-		kfree(r);
-		return ERR_PTR(-ENOMEM);
-	}
-	sprintf(name, "PCI Bus: %04x:%02x", domain, ZPCI_BUS_NR);
-	r->name = name;
-
-	rc = request_resource(&iomem_resource, r);
-	if (rc) {
-		kfree(r->name);
-		kfree(r);
-		return ERR_PTR(-ENOMEM);
-	}
-	return r;
-}
-
 static int zpci_alloc_iomap(struct zpci_dev *zdev)
 {
 	int entry;
@@ -631,6 +600,82 @@ static void zpci_free_iomap(struct zpci_dev *zdev, int entry)
 	memset(&zpci_iomap_start[entry], 0, sizeof(struct zpci_iomap_entry));
 	clear_bit(entry, zpci_iomap);
 	spin_unlock(&zpci_iomap_lock);
+}
+
+static struct resource *__alloc_res(struct zpci_dev *zdev, unsigned long start,
+				    unsigned long size, unsigned long flags)
+{
+	struct resource *r;
+
+	r = kzalloc(sizeof(*r), GFP_KERNEL);
+	if (!r)
+		return NULL;
+
+	r->start = start;
+	r->end = r->start + size - 1;
+	r->flags = flags;
+	r->name = zdev->res_name;
+
+	if (request_resource(&iomem_resource, r)) {
+		kfree(r);
+		return NULL;
+	}
+	return r;
+}
+
+static int zpci_setup_bus_resources(struct zpci_dev *zdev,
+				    struct list_head *resources)
+{
+	unsigned long addr, size, flags;
+	struct resource *res;
+	int i, entry;
+
+	snprintf(zdev->res_name, sizeof(zdev->res_name),
+		 "PCI Bus %04x:%02x", zdev->domain, ZPCI_BUS_NR);
+
+	for (i = 0; i < PCI_BAR_COUNT; i++) {
+		if (!zdev->bars[i].size)
+			continue;
+		entry = zpci_alloc_iomap(zdev);
+		if (entry < 0)
+			return entry;
+		zdev->bars[i].map_idx = entry;
+
+		/* only MMIO is supported */
+		flags = IORESOURCE_MEM;
+		if (zdev->bars[i].val & 8)
+			flags |= IORESOURCE_PREFETCH;
+		if (zdev->bars[i].val & 4)
+			flags |= IORESOURCE_MEM_64;
+
+		addr = ZPCI_IOMAP_ADDR_BASE + ((u64) entry << 48);
+
+		size = 1UL << zdev->bars[i].size;
+
+		res = __alloc_res(zdev, addr, size, flags);
+		if (!res) {
+			zpci_free_iomap(zdev, entry);
+			return -ENOMEM;
+		}
+		zdev->bars[i].res = res;
+		pci_add_resource(resources, res);
+	}
+
+	return 0;
+}
+
+static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
+{
+	int i;
+
+	for (i = 0; i < PCI_BAR_COUNT; i++) {
+		if (!zdev->bars[i].size)
+			continue;
+
+		zpci_free_iomap(zdev, zdev->bars[i].map_idx);
+		release_resource(zdev->bars[i].res);
+		kfree(zdev->bars[i].res);
+	}
 }
 
 int pcibios_add_device(struct pci_dev *pdev)
@@ -731,45 +776,19 @@ struct dev_pm_ops pcibios_pm_ops = {
 
 static int zpci_scan_bus(struct zpci_dev *zdev)
 {
-	struct resource *res;
 	LIST_HEAD(resources);
-	int i;
+	int ret;
 
-	/* allocate mapping entry for each used bar */
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		unsigned long addr, size, flags;
-		int entry;
-
-		if (!zdev->bars[i].size)
-			continue;
-		entry = zpci_alloc_iomap(zdev);
-		if (entry < 0)
-			return entry;
-		zdev->bars[i].map_idx = entry;
-
-		/* only MMIO is supported */
-		flags = IORESOURCE_MEM;
-		if (zdev->bars[i].val & 8)
-			flags |= IORESOURCE_PREFETCH;
-		if (zdev->bars[i].val & 4)
-			flags |= IORESOURCE_MEM_64;
-
-		addr = ZPCI_IOMAP_ADDR_BASE + ((u64) entry << 48);
-
-		size = 1UL << zdev->bars[i].size;
-
-		res = zpci_alloc_bus_resource(addr, size, flags, zdev->domain);
-		if (IS_ERR(res)) {
-			zpci_free_iomap(zdev, entry);
-			return PTR_ERR(res);
-		}
-		pci_add_resource(&resources, res);
-	}
+	ret = zpci_setup_bus_resources(zdev, &resources);
+	if (ret)
+		return ret;
 
 	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
 				      zdev, &resources);
-	if (!zdev->bus)
+	if (!zdev->bus) {
+		zpci_cleanup_bus_resources(zdev);
 		return -EIO;
+	}
 
 	zdev->bus->max_bus_speed = zdev->max_bus_speed;
 	return 0;
