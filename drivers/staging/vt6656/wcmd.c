@@ -651,7 +651,7 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_AP_MODE_START:
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_AP_MODE_START\n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState == WLAN_CMD_AP_MODE_START\n");
 
 		if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
 			cancel_delayed_work_sync(&pDevice->second_callback_work);
@@ -683,8 +683,8 @@ void vRunCommand(struct work_struct *work)
 			ControlvMaskByte(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PAPEDELAY, LEDSTS_STS, LEDSTS_INTER);
 			schedule_delayed_work(&pDevice->second_callback_work, HZ);
 		}
-            s_bCommandComplete(pDevice);
-            break;
+		s_bCommandComplete(pDevice);
+		break;
 
 	case WLAN_CMD_TX_PSPACKET_START:
 		// DTIM Multicast tx
@@ -704,7 +704,7 @@ void vRunCommand(struct work_struct *work)
 			}
 		}
 
-            // PS nodes tx
+		// PS nodes tx
 		for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {
 			if (pMgmt->sNodeDBTable[ii].bActive &&
 			    pMgmt->sNodeDBTable[ii].bRxPSPoll) {
