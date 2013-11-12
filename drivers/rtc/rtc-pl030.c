@@ -153,8 +153,6 @@ static int pl030_remove(struct amba_device *dev)
 {
 	struct pl030_rtc *rtc = amba_get_drvdata(dev);
 
-	amba_set_drvdata(dev, NULL);
-
 	writel(0, rtc->base + RTC_CR);
 
 	free_irq(dev->irq[0], rtc);
