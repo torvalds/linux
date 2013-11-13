@@ -120,6 +120,21 @@ static const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy)
 	return rtnl_dereference(wiphy->regd);
 }
 
+static const char *reg_dfs_region_str(enum nl80211_dfs_regions dfs_region)
+{
+	switch (dfs_region) {
+	case NL80211_DFS_UNSET:
+		return "unset";
+	case NL80211_DFS_FCC:
+		return "FCC";
+	case NL80211_DFS_ETSI:
+		return "ETSI";
+	case NL80211_DFS_JP:
+		return "JP";
+	}
+	return "Unknown";
+}
+
 static void rcu_free_regdom(const struct ieee80211_regdomain *r)
 {
 	if (!r)
@@ -2146,30 +2161,6 @@ bool reg_supported_dfs_region(enum nl80211_dfs_regions dfs_region)
 	}
 }
 
-static void print_dfs_region(enum nl80211_dfs_regions dfs_region)
-{
-	if (!dfs_region)
-		return;
-
-	switch (dfs_region) {
-	case NL80211_DFS_UNSET:
-		pr_info(" DFS Master region unset");
-		break;
-	case NL80211_DFS_FCC:
-		pr_info(" DFS Master region FCC");
-		break;
-	case NL80211_DFS_ETSI:
-		pr_info(" DFS Master region ETSI");
-		break;
-	case NL80211_DFS_JP:
-		pr_info(" DFS Master region JP");
-		break;
-	default:
-		pr_info(" DFS Master region Unknown");
-		break;
-	}
-}
-
 static void print_regdomain(const struct ieee80211_regdomain *rd)
 {
 	struct regulatory_request *lr = get_last_request();
@@ -2201,7 +2192,7 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 		}
 	}
 
-	print_dfs_region(rd->dfs_region);
+	pr_info(" DFS Master region: %s", reg_dfs_region_str(rd->dfs_region));
 	print_rd_rules(rd);
 }
 
