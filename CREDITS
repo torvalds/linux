@@ -2576,7 +2576,7 @@ S: Toronto, Ontario
 S: Canada
 
 N: Zwane Mwaikambo
-E: zwane@arm.linux.org.uk
+E: zwanem@gmail.com
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
 D: General debugging
@@ -2893,6 +2893,11 @@ P: 1024/93898735 D3 9E F4 F7 6D 8D 2F 3A  38 BA 06 7C 2B 33 43 7D
 S: Madge Networks
 S: Framewood Road
 S: Wexham SL3 6PJ
+S: United Kingdom
+
+N: Richard Purdie
+E: rpurdie@rpsys.net
+D: Backlight subsystem maintainer
 S: United Kingdom
 
 N: Daniel Quinlan

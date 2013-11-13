@@ -267,10 +267,9 @@ static int allocate_sram(struct snd_pcm_substream *substream,
 		return 0;
 
 	ppcm->period_bytes_max = size;
-	iram_virt = (void *)gen_pool_alloc(sram_pool, size);
+	iram_virt = gen_pool_dma_alloc(sram_pool, size, &iram_phys);
 	if (!iram_virt)
 		goto exit1;
-	iram_phys = gen_pool_virt_to_phys(sram_pool, (unsigned)iram_virt);
 	iram_dma = kzalloc(sizeof(*iram_dma), GFP_KERNEL);
 	if (!iram_dma)
 		goto exit2;

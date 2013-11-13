@@ -257,6 +257,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'July', 'August', 'September', 'October',
 		'November', 'December')[(localtime)[4]] .
   " " . ((localtime)[5]+1900);
+my $show_not_found = 0;
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
@@ -369,6 +370,8 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	usage();
     } elsif ($cmd eq '-no-doc-sections') {
 	    $no_doc_sections = 1;
+    } elsif ($cmd eq '-show-not-found') {
+	$show_not_found = 1;
     }
 }
 
@@ -2536,6 +2539,9 @@ sub process_file($) {
     }
     if ($initial_section_counter == $section_counter) {
 	print STDERR "Warning(${file}): no structured comments found\n";
+	if (($function_only == 1) && ($show_not_found == 1)) {
+	    print STDERR "    Was looking for '$_'.\n" for keys %function_table;
+	}
 	if ($output_mode eq "xml") {
 	    # The template wants at least one RefEntry here; make one.
 	    print "<refentry>\n";
