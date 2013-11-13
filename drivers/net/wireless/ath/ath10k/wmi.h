@@ -2234,7 +2234,12 @@ enum wmi_pdev_param {
 	 * 0: no protection 1:use CTS-to-self 2: use RTS/CTS
 	 */
 	WMI_PDEV_PARAM_PROTECTION_MODE,
-	/* Dynamic bandwidth 0: disable 1: enable */
+	/*
+	 * Dynamic bandwidth - 0: disable, 1: enable
+	 *
+	 * When enabled HW rate control tries different bandwidths when
+	 * retransmitting frames.
+	 */
 	WMI_PDEV_PARAM_DYNAMIC_BW,
 	/* Non aggregrate/ 11g sw retry threshold.0-disable */
 	WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
