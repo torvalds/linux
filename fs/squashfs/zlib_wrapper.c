@@ -33,7 +33,7 @@
 #include "squashfs.h"
 #include "decompressor.h"
 
-static void *zlib_init(struct squashfs_sb_info *dummy, void *buff, int len)
+static void *zlib_init(struct squashfs_sb_info *dummy, void *buff)
 {
 	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
 	if (stream == NULL)
@@ -61,15 +61,13 @@ static void zlib_free(void *strm)
 }
 
 
-static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
-	struct buffer_head **bh, int b, int offset, int length, int srclength,
-	int pages)
+static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
+	void **buffer, struct buffer_head **bh, int b, int offset, int length,
+	int srclength, int pages)
 {
 	int zlib_err, zlib_init = 0;
 	int k = 0, page = 0;
-	z_stream *stream = msblk->stream;
-
-	mutex_lock(&msblk->read_data_mutex);
+	z_stream *stream = strm;
 
 	stream->avail_out = 0;
 	stream->avail_in = 0;
@@ -78,10 +76,6 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 		if (stream->avail_in == 0 && k < b) {
 			int avail = min(length, msblk->devblksize - offset);
 			length -= avail;
-			wait_on_buffer(bh[k]);
-			if (!buffer_uptodate(bh[k]))
-				goto release_mutex;
-
 			stream->next_in = bh[k]->b_data + offset;
 			stream->avail_in = avail;
 			offset = 0;
@@ -94,12 +88,8 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 
 		if (!zlib_init) {
 			zlib_err = zlib_inflateInit(stream);
-			if (zlib_err != Z_OK) {
-				ERROR("zlib_inflateInit returned unexpected "
-					"result 0x%x, srclength %d\n",
-					zlib_err, srclength);
-				goto release_mutex;
-			}
+			if (zlib_err != Z_OK)
+				goto out;
 			zlib_init = 1;
 		}
 
@@ -109,29 +99,19 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 			put_bh(bh[k++]);
 	} while (zlib_err == Z_OK);
 
-	if (zlib_err != Z_STREAM_END) {
-		ERROR("zlib_inflate error, data probably corrupt\n");
-		goto release_mutex;
-	}
+	if (zlib_err != Z_STREAM_END)
+		goto out;
 
 	zlib_err = zlib_inflateEnd(stream);
-	if (zlib_err != Z_OK) {
-		ERROR("zlib_inflate error, data probably corrupt\n");
-		goto release_mutex;
-	}
+	if (zlib_err != Z_OK)
+		goto out;
 
-	if (k < b) {
-		ERROR("zlib_uncompress error, data remaining\n");
-		goto release_mutex;
-	}
+	if (k < b)
+		goto out;
 
-	length = stream->total_out;
-	mutex_unlock(&msblk->read_data_mutex);
-	return length;
+	return stream->total_out;
 
-release_mutex:
-	mutex_unlock(&msblk->read_data_mutex);
-
+out:
 	for (; k < b; k++)
 		put_bh(bh[k]);
 
