@@ -26,7 +26,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/ttm/ttm_execbuf_util.h>
 
 #include "nouveau_fbcon.h"
 #include "dispnv04/hw.h"
@@ -594,12 +593,6 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_page_flip_state *s;
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_fence *fence;
-	struct ttm_validate_buffer resv[2] = {
-		{ .bo = &old_bo->bo },
-		{ .bo = &new_bo->bo },
-	};
-	struct ww_acquire_ctx ticket;
-	LIST_HEAD(res);
 	int ret;
 
 	if (!drm->channel)
@@ -622,13 +615,10 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
 		if (ret)
 			goto fail_free;
-
-		list_add(&resv[1].head, &res);
 	}
-	list_add(&resv[0].head, &res);
 
 	mutex_lock(&chan->cli->mutex);
-	ret = ttm_eu_reserve_buffers(&ticket, &res);
+	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
 	if (ret)
 		goto fail_unpin;
 
@@ -656,14 +646,15 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->fb = fb;
 
-	ttm_eu_fence_buffer_objects(&ticket, &res, fence);
+	nouveau_bo_fence(old_bo, fence);
+	ttm_bo_unreserve(&old_bo->bo);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(old_bo);
 	nouveau_fence_unref(&fence);
 	return 0;
 
 fail_unreserve:
-	ttm_eu_backoff_reservation(&ticket, &res);
+	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
 	mutex_unlock(&chan->cli->mutex);
 	if (old_bo != new_bo)
