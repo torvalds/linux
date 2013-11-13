@@ -104,6 +104,15 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 {
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int index = plane->hwindex;
+	u32 mwr;
+
+	/* Memory pitch (expressed in pixels) */
+	if (plane->format->planes == 2)
+		mwr = plane->pitch;
+	else
+		mwr = plane->pitch * 8 / plane->format->bpp;
+
+	rcar_du_plane_write(rgrp, index, PnMWR, mwr);
 
 	/* The Y position is expressed in raster line units and must be doubled
 	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
@@ -132,6 +141,8 @@ void rcar_du_plane_compute_base(struct rcar_du_plane *plane,
 				struct drm_framebuffer *fb)
 {
 	struct drm_gem_cma_object *gem;
+
+	plane->pitch = fb->pitches[0];
 
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 	plane->dma[0] = gem->paddr + fb->offsets[0];
@@ -209,7 +220,6 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 	struct rcar_du_group *rgrp = plane->group;
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
-	u32 mwr;
 
 	/* Data format
 	 *
@@ -239,14 +249,6 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 
 	rcar_du_plane_write(rgrp, index, PnDDCR2, ddcr2);
 	rcar_du_plane_write(rgrp, index, PnDDCR4, ddcr4);
-
-	/* Memory pitch (expressed in pixels) */
-	if (plane->format->planes == 2)
-		mwr = plane->pitch;
-	else
-		mwr = plane->pitch * 8 / plane->format->bpp;
-
-	rcar_du_plane_write(rgrp, index, PnMWR, mwr);
 
 	/* Destination position and size */
 	rcar_du_plane_write(rgrp, index, PnDSXR, plane->width);
@@ -309,7 +311,6 @@ rcar_du_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	rplane->crtc = crtc;
 	rplane->format = format;
-	rplane->pitch = fb->pitches[0];
 
 	rplane->src_x = src_x >> 16;
 	rplane->src_y = src_y >> 16;

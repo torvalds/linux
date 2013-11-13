@@ -371,7 +371,6 @@ static int rcar_du_crtc_mode_set(struct drm_crtc *crtc,
 		goto error;
 
 	rcrtc->plane->format = format;
-	rcrtc->plane->pitch = crtc->fb->pitches[0];
 
 	rcrtc->plane->src_x = x;
 	rcrtc->plane->src_y = y;
