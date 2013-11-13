@@ -87,13 +87,6 @@ static const u8 pq_idx_to_field[] = { 1, 4, 5, 0, 1, 2, 4, 5 };
 static const u8 pq16_idx_to_field[] = { 1, 4, 1, 2, 3, 4, 5, 6, 7,
 					0, 1, 2, 3, 4, 5, 6 };
 
-/*
- * technically sources 1 and 2 do not require SED, but the op will have
- * at least 9 descriptors so that's irrelevant.
- */
-static const u8 pq16_idx_to_sed[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				      1, 1, 1, 1, 1, 1, 1 };
-
 static void ioat3_eh(struct ioat2_dma_chan *ioat);
 
 static dma_addr_t xor_get_src(struct ioat_raw_descriptor *descs[2], int idx)
@@ -133,12 +126,6 @@ static void pq_set_src(struct ioat_raw_descriptor *descs[2],
 
 	raw->field[pq_idx_to_field[idx]] = addr + offset;
 	pq->coef[idx] = coef;
-}
-
-static int sed_get_pq16_pool_idx(int src_cnt)
-{
-
-	return pq16_idx_to_sed[src_cnt];
 }
 
 static bool is_jf_ioat(struct pci_dev *pdev)
@@ -1212,8 +1199,7 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 
 		descs[0] = (struct ioat_raw_descriptor *) pq;
 
-		desc->sed = ioat3_alloc_sed(device,
-					    sed_get_pq16_pool_idx(src_cnt));
+		desc->sed = ioat3_alloc_sed(device, (src_cnt-2) >> 3);
 		if (!desc->sed) {
 			dev_err(to_dev(chan),
 				"%s: no free sed entries\n", __func__);
