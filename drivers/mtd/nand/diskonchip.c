@@ -1440,10 +1440,13 @@ static int __init doc_probe(unsigned long physadr)
 	int reg, len, numchips;
 	int ret = 0;
 
+	if (!request_mem_region(physadr, DOC_IOREMAP_LEN, NULL))
+		return -EBUSY;
 	virtadr = ioremap(physadr, DOC_IOREMAP_LEN);
 	if (!virtadr) {
 		printk(KERN_ERR "Diskonchip ioremap failed: 0x%x bytes at 0x%lx\n", DOC_IOREMAP_LEN, physadr);
-		return -EIO;
+		ret = -EIO;
+		goto error_ioremap;
 	}
 
 	/* It's not possible to cleanly detect the DiskOnChip - the
@@ -1629,6 +1632,10 @@ static int __init doc_probe(unsigned long physadr)
 	WriteDOC(save_control, virtadr, DOCControl);
  fail:
 	iounmap(virtadr);
+
+error_ioremap:
+	release_mem_region(physadr, DOC_IOREMAP_LEN);
+
 	return ret;
 }
 
@@ -1645,6 +1652,7 @@ static void release_nanddoc(void)
 		nextmtd = doc->nextdoc;
 		nand_release(mtd);
 		iounmap(doc->virtadr);
+		release_mem_region(doc->physadr, DOC_IOREMAP_LEN);
 		kfree(mtd);
 	}
 }
