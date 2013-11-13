@@ -198,6 +198,7 @@ struct batadv_orig_bat_iv {
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
  * @ifinfo_list: list for routers per outgoing interface
+ * @last_bonding_candidate: pointer to last ifinfo of last used router
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
@@ -238,6 +239,7 @@ struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
 	struct hlist_head ifinfo_list;
+	struct batadv_orig_ifinfo *last_bonding_candidate;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	batadv_dat_addr_t dat_addr;
 #endif

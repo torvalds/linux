@@ -701,6 +701,10 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
 
 		hlist_del_rcu(&orig_ifinfo->list);
 		batadv_orig_ifinfo_free_ref(orig_ifinfo);
+		if (orig_node->last_bonding_candidate == orig_ifinfo) {
+			orig_node->last_bonding_candidate = NULL;
+			batadv_orig_ifinfo_free_ref(orig_ifinfo);
+		}
 	}
 
 	spin_unlock_bh(&orig_node->neigh_list_lock);

@@ -44,7 +44,7 @@ int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
 struct batadv_neigh_node *
 batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
-		   const struct batadv_hard_iface *recv_if);
+		   struct batadv_hard_iface *recv_if);
 int batadv_window_protected(struct batadv_priv *bat_priv, int32_t seq_num_diff,
 			    unsigned long *last_reset);
 
