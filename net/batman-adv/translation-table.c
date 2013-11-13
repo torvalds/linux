@@ -1405,7 +1405,8 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 			continue;
 
 		if (best_router &&
-		    bao->bat_neigh_cmp(router, best_router) <= 0) {
+		    bao->bat_neigh_cmp(router, BATADV_IF_DEFAULT,
+				       best_router, BATADV_IF_DEFAULT) <= 0) {
 			batadv_neigh_node_free_ref(router);
 			continue;
 		}

@@ -35,6 +35,13 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node);
 struct batadv_neigh_node *
 batadv_orig_node_get_router(struct batadv_orig_node *orig_node);
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing);
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing);
+void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo);
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset);
 int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num);

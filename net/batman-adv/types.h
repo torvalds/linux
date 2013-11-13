@@ -289,34 +289,15 @@ struct batadv_gw_node {
 };
 
 /**
- * struct batadv_neigh_bat_iv - B.A.T.M.A.N. IV specific structure for single
- *  hop neighbors
- * @tq_recv: ring buffer of received TQ values from this neigh node
- * @tq_index: ring buffer index
- * @tq_avg: averaged tq of all tq values in the ring buffer (tq_recv)
- * @real_bits: bitfield containing the number of OGMs received from this neigh
- *  node (relative to orig_node->last_real_seqno)
- * @real_packet_count: counted result of real_bits
- * @lq_update_lock: lock protecting tq_recv & tq_index
- */
-struct batadv_neigh_bat_iv {
-	uint8_t tq_recv[BATADV_TQ_GLOBAL_WINDOW_SIZE];
-	uint8_t tq_index;
-	uint8_t tq_avg;
-	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
-	uint8_t real_packet_count;
-	spinlock_t lq_update_lock; /* protects tq_recv & tq_index */
-};
-
-/**
  * struct batadv_neigh_node - structure for single hops neighbors
  * @list: list node for batadv_orig_node::neigh_list
  * @orig_node: pointer to corresponding orig_node
  * @addr: the MAC address of the neighboring interface
+ * @ifinfo_list: list for routing metrics per outgoing interface
+ * @ifinfo_lock: lock protecting private ifinfo members and list
  * @if_incoming: pointer to incoming hard interface
  * @last_seen: when last packet via this neighbor was received
  * @last_ttl: last received ttl from this neigh node
- * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
  * @bat_iv: B.A.T.M.A.N. IV private structure
  */
@@ -324,12 +305,46 @@ struct batadv_neigh_node {
 	struct hlist_node list;
 	struct batadv_orig_node *orig_node;
 	uint8_t addr[ETH_ALEN];
+	struct hlist_head ifinfo_list;
+	spinlock_t ifinfo_lock;	/* protects ifinfo_list and its members */
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/* struct batadv_neigh_node_bat_iv - neighbor information per outgoing
+ *  interface for BATMAN IV
+ * @tq_recv: ring buffer of received TQ values from this neigh node
+ * @tq_index: ring buffer index
+ * @tq_avg: averaged tq of all tq values in the ring buffer (tq_recv)
+ * @real_bits: bitfield containing the number of OGMs received from this neigh
+ *  node (relative to orig_node->last_real_seqno)
+ * @real_packet_count: counted result of real_bits
+ */
+struct batadv_neigh_ifinfo_bat_iv {
+	uint8_t tq_recv[BATADV_TQ_GLOBAL_WINDOW_SIZE];
+	uint8_t tq_index;
+	uint8_t tq_avg;
+	DECLARE_BITMAP(real_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
+	uint8_t real_packet_count;
+};
+
+/* struct batadv_neigh_ifinfo - neighbor information per outgoing interface
+ * @list: list node for batadv_neigh_node::ifinfo_list
+ * @if_outgoing: pointer to outgoing hard interface
+ * @bat_iv: B.A.T.M.A.N. IV private structure
+ * @last_ttl: last received ttl from this neigh node
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in a RCU-safe manner
+ */
+struct batadv_neigh_ifinfo {
+	struct hlist_node list;
+	struct batadv_hard_iface *if_outgoing;
+	struct batadv_neigh_ifinfo_bat_iv bat_iv;
 	uint8_t last_ttl;
 	atomic_t refcount;
 	struct rcu_head rcu;
-	struct batadv_neigh_bat_iv bat_iv;
 };
 
 /**
@@ -1013,9 +1028,11 @@ struct batadv_forw_packet {
  * @bat_primary_iface_set: called when primary interface is selected / changed
  * @bat_ogm_schedule: prepare a new outgoing OGM for the send queue
  * @bat_ogm_emit: send scheduled OGM
- * @bat_neigh_cmp: compare the metrics of two neighbors
- * @bat_neigh_is_equiv_or_better: check if neigh1 is equally good or
- *  better than neigh2 from the metric prospective
+ * @bat_neigh_cmp: compare the metrics of two neighbors for their respective
+ *  outgoing interfaces
+ * @bat_neigh_is_equiv_or_better: check if neigh1 is equally good or better
+ *  than neigh2 for their respective outgoing interface from the metric
+ *  prospective
  * @bat_orig_print: print the originator table (optional)
  * @bat_orig_free: free the resources allocated by the routing algorithm for an
  *  orig_node object
@@ -1034,9 +1051,14 @@ struct batadv_algo_ops {
 	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
 	int (*bat_neigh_cmp)(struct batadv_neigh_node *neigh1,
-			     struct batadv_neigh_node *neigh2);
-	bool (*bat_neigh_is_equiv_or_better)(struct batadv_neigh_node *neigh1,
-					     struct batadv_neigh_node *neigh2);
+			     struct batadv_hard_iface *if_outgoing1,
+			     struct batadv_neigh_node *neigh2,
+			     struct batadv_hard_iface *if_outgoing2);
+	bool (*bat_neigh_is_equiv_or_better)
+		(struct batadv_neigh_node *neigh1,
+		 struct batadv_hard_iface *if_outgoing1,
+		 struct batadv_neigh_node *neigh2,
+		 struct batadv_hard_iface *if_outgoing2);
 	/* orig_node handling API */
 	void (*bat_orig_print)(struct batadv_priv *priv, struct seq_file *seq);
 	void (*bat_orig_free)(struct batadv_orig_node *orig_node);

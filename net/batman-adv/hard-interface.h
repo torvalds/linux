@@ -51,11 +51,28 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface);
 void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_free_rcu(struct rcu_head *rcu);
 
+/**
+ * batadv_hardif_free_ref - decrement the hard interface refcounter and
+ *  possibly free it
+ * @hard_iface: the hard interface to free
+ */
 static inline void
 batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
 {
 	if (atomic_dec_and_test(&hard_iface->refcount))
 		call_rcu(&hard_iface->rcu, batadv_hardif_free_rcu);
+}
+
+/**
+ * batadv_hardif_free_ref_now - decrement the hard interface refcounter and
+ *  possibly free it (without rcu callback)
+ * @hard_iface: the hard interface to free
+ */
+static inline void
+batadv_hardif_free_ref_now(struct batadv_hard_iface *hard_iface)
+{
+	if (atomic_dec_and_test(&hard_iface->refcount))
+		batadv_hardif_free_rcu(&hard_iface->rcu);
 }
 
 static inline struct batadv_hard_iface *

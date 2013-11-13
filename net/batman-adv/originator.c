@@ -148,10 +148,87 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_neigh_ifinfo_free_rcu - free the neigh_ifinfo object
+ * @rcu: rcu pointer of the neigh_ifinfo object
+ */
+static void batadv_neigh_ifinfo_free_rcu(struct rcu_head *rcu)
+{
+	struct batadv_neigh_ifinfo *neigh_ifinfo;
+
+	neigh_ifinfo = container_of(rcu, struct batadv_neigh_ifinfo, rcu);
+
+	if (neigh_ifinfo->if_outgoing != BATADV_IF_DEFAULT)
+		batadv_hardif_free_ref_now(neigh_ifinfo->if_outgoing);
+
+	kfree(neigh_ifinfo);
+}
+
+/**
+ * batadv_neigh_ifinfo_free_now - decrement the refcounter and possibly free
+ *  the neigh_ifinfo (without rcu callback)
+ * @neigh_ifinfo: the neigh_ifinfo object to release
+ */
+static void
+batadv_neigh_ifinfo_free_ref_now(struct batadv_neigh_ifinfo *neigh_ifinfo)
+{
+	if (atomic_dec_and_test(&neigh_ifinfo->refcount))
+		batadv_neigh_ifinfo_free_rcu(&neigh_ifinfo->rcu);
+}
+
+/**
+ * batadv_neigh_ifinfo_free_ref - decrement the refcounter and possibly free
+ *  the neigh_ifinfo
+ * @neigh_ifinfo: the neigh_ifinfo object to release
+ */
+void batadv_neigh_ifinfo_free_ref(struct batadv_neigh_ifinfo *neigh_ifinfo)
+{
+	if (atomic_dec_and_test(&neigh_ifinfo->refcount))
+		call_rcu(&neigh_ifinfo->rcu, batadv_neigh_ifinfo_free_rcu);
+}
+
+/**
+ * batadv_neigh_node_free_rcu - free the neigh_node
+ * @rcu: rcu pointer of the neigh_node
+ */
+static void batadv_neigh_node_free_rcu(struct rcu_head *rcu)
+{
+	struct hlist_node *node_tmp;
+	struct batadv_neigh_node *neigh_node;
+	struct batadv_neigh_ifinfo *neigh_ifinfo;
+
+	neigh_node = container_of(rcu, struct batadv_neigh_node, rcu);
+
+	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
+				  &neigh_node->ifinfo_list, list) {
+		batadv_neigh_ifinfo_free_ref_now(neigh_ifinfo);
+	}
+	batadv_hardif_free_ref_now(neigh_node->if_incoming);
+
+	kfree(neigh_node);
+}
+
+/**
+ * batadv_neigh_node_free_ref_now - decrement the neighbors refcounter
+ *  and possibly free it (without rcu callback)
+ * @neigh_node: neigh neighbor to free
+ */
+static void
+batadv_neigh_node_free_ref_now(struct batadv_neigh_node *neigh_node)
+{
+	if (atomic_dec_and_test(&neigh_node->refcount))
+		batadv_neigh_node_free_rcu(&neigh_node->rcu);
+}
+
+/**
+ * batadv_neigh_node_free_ref - decrement the neighbors refcounter
+ *  and possibly free it
+ * @neigh_node: neigh neighbor to free
+ */
 void batadv_neigh_node_free_ref(struct batadv_neigh_node *neigh_node)
 {
 	if (atomic_dec_and_test(&neigh_node->refcount))
-		kfree_rcu(neigh_node, rcu);
+		call_rcu(&neigh_node->rcu, batadv_neigh_node_free_rcu);
 }
 
 /* increases the refcounter of a found router */
@@ -168,6 +245,84 @@ batadv_orig_node_get_router(struct batadv_orig_node *orig_node)
 
 	rcu_read_unlock();
 	return router;
+}
+
+/**
+ * batadv_neigh_ifinfo_get - find the ifinfo from an neigh_node
+ * @neigh_node: the neigh node to be queried
+ * @if_outgoing: the interface for which the ifinfo should be acquired
+ *
+ * The object is returned with refcounter increased by 1.
+ *
+ * Returns the requested neigh_ifinfo or NULL if not found
+ */
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_get(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing)
+{
+	struct batadv_neigh_ifinfo *neigh_ifinfo = NULL,
+				   *tmp_neigh_ifinfo;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp_neigh_ifinfo, &neigh->ifinfo_list,
+				 list) {
+		if (tmp_neigh_ifinfo->if_outgoing != if_outgoing)
+			continue;
+
+		if (!atomic_inc_not_zero(&tmp_neigh_ifinfo->refcount))
+			continue;
+
+		neigh_ifinfo = tmp_neigh_ifinfo;
+		break;
+	}
+	rcu_read_unlock();
+
+	return neigh_ifinfo;
+}
+
+/**
+ * batadv_neigh_ifinfo_new - search and possibly create an neigh_ifinfo object
+ * @neigh_node: the neigh node to be queried
+ * @if_outgoing: the interface for which the ifinfo should be acquired
+ *
+ * Returns NULL in case of failure or the neigh_ifinfo object for the
+ * if_outgoing interface otherwise. The object is created and added to the list
+ * if it does not exist.
+ *
+ * The object is returned with refcounter increased by 1.
+ */
+struct batadv_neigh_ifinfo *
+batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
+			struct batadv_hard_iface *if_outgoing)
+{
+	struct batadv_neigh_ifinfo *neigh_ifinfo;
+
+	spin_lock_bh(&neigh->ifinfo_lock);
+
+	neigh_ifinfo = batadv_neigh_ifinfo_get(neigh, if_outgoing);
+	if (neigh_ifinfo)
+		goto out;
+
+	neigh_ifinfo = kzalloc(sizeof(*neigh_ifinfo), GFP_ATOMIC);
+	if (!neigh_ifinfo)
+		goto out;
+
+	if (if_outgoing && !atomic_inc_not_zero(&if_outgoing->refcount)) {
+		kfree(neigh_ifinfo);
+		neigh_ifinfo = NULL;
+		goto out;
+	}
+
+	INIT_HLIST_NODE(&neigh_ifinfo->list);
+	atomic_set(&neigh_ifinfo->refcount, 2);
+	neigh_ifinfo->if_outgoing = if_outgoing;
+
+	hlist_add_head_rcu(&neigh_ifinfo->list, &neigh->ifinfo_list);
+
+out:
+	spin_unlock_bh(&neigh->ifinfo_lock);
+
+	return neigh_ifinfo;
 }
 
 /**
@@ -191,6 +346,8 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 		goto out;
 
 	INIT_HLIST_NODE(&neigh_node->list);
+	INIT_HLIST_HEAD(&neigh_node->ifinfo_list);
+	spin_lock_init(&neigh_node->ifinfo_lock);
 
 	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
 	neigh_node->if_incoming = hard_iface;
@@ -217,7 +374,7 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 	hlist_for_each_entry_safe(neigh_node, node_tmp,
 				  &orig_node->neigh_list, list) {
 		hlist_del_rcu(&neigh_node->list);
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_free_ref_now(neigh_node);
 	}
 
 	spin_unlock_bh(&orig_node->neigh_list_lock);
@@ -362,19 +519,22 @@ free_orig_node:
 	return NULL;
 }
 
+/**
+ * batadv_purge_orig_neighbors - purges neighbors from originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be checked
+ *
+ * Returns true if any neighbor was purged, false otherwise
+ */
 static bool
 batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
-			    struct batadv_orig_node *orig_node,
-			    struct batadv_neigh_node **best_neigh)
+			    struct batadv_orig_node *orig_node)
 {
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
 	struct hlist_node *node_tmp;
 	struct batadv_neigh_node *neigh_node;
 	bool neigh_purged = false;
 	unsigned long last_seen;
 	struct batadv_hard_iface *if_incoming;
-
-	*best_neigh = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
@@ -405,18 +565,46 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 
 			hlist_del_rcu(&neigh_node->list);
 			batadv_neigh_node_free_ref(neigh_node);
-		} else {
-			/* store the best_neighbour if this is the first
-			 * iteration or if a better neighbor has been found
-			 */
-			if (!*best_neigh ||
-			    bao->bat_neigh_cmp(neigh_node, *best_neigh) > 0)
-				*best_neigh = neigh_node;
 		}
 	}
 
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 	return neigh_purged;
+}
+
+/**
+ * batadv_find_best_neighbor - finds the best neighbor after purging
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be checked
+ * @if_outgoing: the interface for which the metric should be compared
+ *
+ * Returns the current best neighbor, with refcount increased.
+ */
+static struct batadv_neigh_node *
+batadv_find_best_neighbor(struct batadv_priv *bat_priv,
+			  struct batadv_orig_node *orig_node,
+			  struct batadv_hard_iface *if_outgoing)
+{
+	struct batadv_neigh_node *best = NULL, *neigh;
+	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(neigh, &orig_node->neigh_list, list) {
+		if (best && (bao->bat_neigh_cmp(neigh, if_outgoing,
+						best, if_outgoing) <= 0))
+			continue;
+
+		if (!atomic_inc_not_zero(&neigh->refcount))
+			continue;
+
+		if (best)
+			batadv_neigh_node_free_ref(best);
+
+		best = neigh;
+	}
+	rcu_read_unlock();
+
+	return best;
 }
 
 static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
@@ -431,12 +619,15 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 			   orig_node->orig,
 			   jiffies_to_msecs(orig_node->last_seen));
 		return true;
-	} else {
-		if (batadv_purge_orig_neighbors(bat_priv, orig_node,
-						&best_neigh_node))
-			batadv_update_route(bat_priv, orig_node,
-					    best_neigh_node);
 	}
+	if (!batadv_purge_orig_neighbors(bat_priv, orig_node))
+		return false;
+
+	best_neigh_node = batadv_find_best_neighbor(bat_priv, orig_node,
+						    BATADV_IF_DEFAULT);
+	batadv_update_route(bat_priv, orig_node, best_neigh_node);
+	if (best_neigh_node)
+		batadv_neigh_node_free_ref(best_neigh_node);
 
 	return false;
 }
