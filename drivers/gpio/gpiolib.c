@@ -1354,8 +1354,10 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 	ret = pinctrl_get_group_pins(pctldev, pin_group,
 					&pin_range->range.pins,
 					&pin_range->range.npins);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(pin_range);
 		return ret;
+	}
 
 	pinctrl_add_gpio_range(pctldev, &pin_range->range);
 
