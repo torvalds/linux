@@ -975,8 +975,13 @@ static int __init i915_init(void)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
 
-	if (!(driver.driver_features & DRIVER_MODESET))
+	if (!(driver.driver_features & DRIVER_MODESET)) {
 		driver.get_vblank_timestamp = NULL;
+#ifndef CONFIG_DRM_I915_UMS
+		/* Silently fail loading to not upset userspace. */
+		return 0;
+#endif
+	}
 
 	return drm_pci_init(&driver, &i915_pci_driver);
 }
