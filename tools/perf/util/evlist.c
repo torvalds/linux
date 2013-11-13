@@ -1148,7 +1148,7 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 				   perf_evsel__name(evsel));
 	}
 
-	return printed + fprintf(fp, "\n");;
+	return printed + fprintf(fp, "\n");
 }
 
 int perf_evlist__strerror_tp(struct perf_evlist *evlist __maybe_unused,
