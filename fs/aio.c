@@ -163,8 +163,8 @@ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 	struct file *file;
 	struct path path;
 	struct inode *inode = alloc_anon_inode(aio_mnt->mnt_sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	inode->i_mapping->a_ops = &aio_ctx_aops;
 	inode->i_mapping->private_data = ctx;
