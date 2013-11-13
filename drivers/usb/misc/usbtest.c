@@ -763,7 +763,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	 * there's always [9.4.3] a bos device descriptor [9.6.2] in USB
 	 * 3.0 spec
 	 */
-	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0300) {
+	if (le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0210) {
 		struct usb_bos_descriptor *bos = NULL;
 		struct usb_dev_cap_header *header = NULL;
 		unsigned total, num, length;
