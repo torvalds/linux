@@ -249,8 +249,8 @@ static const struct rcar_du_device_info rcar_du_r8a7779_info = {
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7790_info = {
-	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_ALIGN_128B
-		  | RCAR_DU_FEATURE_DEFR8,
+	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8,
+	.quirks = RCAR_DU_QUIRK_ALIGN_128B,
 	.num_crtcs = 3,
 	.routes = {
 		/* R8A7790 has one RGB output, two LVDS outputs and one
