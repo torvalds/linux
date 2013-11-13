@@ -792,7 +792,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get access to sata clock\n");
 		return PTR_ERR(priv->clk);
 	}
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host) {
@@ -822,7 +822,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 		return 0;
 
 cleanup:
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -841,7 +841,7 @@ static int sata_rcar_remove(struct platform_device *pdev)
 	iowrite32(0, base + SATAINTSTAT_REG);
 	iowrite32(0x7ff, base + SATAINTMASK_REG);
 
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -861,7 +861,7 @@ static int sata_rcar_suspend(struct device *dev)
 		/* mask */
 		iowrite32(0x7ff, base + SATAINTMASK_REG);
 
-		clk_disable(priv->clk);
+		clk_disable_unprepare(priv->clk);
 	}
 
 	return ret;
@@ -873,7 +873,7 @@ static int sata_rcar_resume(struct device *dev)
 	struct sata_rcar_priv *priv = host->private_data;
 	void __iomem *base = priv->base;
 
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	/* ack and mask */
 	iowrite32(0, base + SATAINTSTAT_REG);
