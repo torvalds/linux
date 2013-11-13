@@ -2115,7 +2115,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	}
 }
 
-bool reg_supported_dfs_region(u8 dfs_region)
+bool reg_supported_dfs_region(enum nl80211_dfs_regions dfs_region)
 {
 	switch (dfs_region) {
 	case NL80211_DFS_UNSET:
@@ -2130,7 +2130,7 @@ bool reg_supported_dfs_region(u8 dfs_region)
 	}
 }
 
-static void print_dfs_region(u8 dfs_region)
+static void print_dfs_region(enum nl80211_dfs_regions dfs_region)
 {
 	if (!dfs_region)
 		return;

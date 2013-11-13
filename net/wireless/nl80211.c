@@ -5079,7 +5079,7 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	char *alpha2 = NULL;
 	int rem_reg_rules = 0, r = 0;
 	u32 num_rules = 0, rule_idx = 0, size_of_regd;
-	u8 dfs_region = 0;
+	enum nl80211_dfs_regions dfs_region = NL80211_DFS_UNSET;
 	struct ieee80211_regdomain *rd = NULL;
 
 	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
