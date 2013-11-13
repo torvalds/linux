@@ -1368,7 +1368,7 @@ int machine__resolve_callchain(struct machine *machine,
 
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
-				   sample);
+				   sample, max_stack);
 
 }
 
