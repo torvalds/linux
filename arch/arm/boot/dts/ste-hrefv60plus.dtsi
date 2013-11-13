@@ -66,5 +66,17 @@
 
 			status = "okay";
 		};
+
+		pinctrl {
+			sdi0 {
+				/* SD card detect GPIO pin, extend default state */
+				sdi0_default_mode: sdi0_default {
+					default_hrefv60_cfg1 {
+						ste,pins = "GPIO95_E8";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
 	};
 };

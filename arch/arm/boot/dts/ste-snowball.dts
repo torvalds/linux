@@ -137,9 +137,33 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi0_default_mode>;
+			pinctrl-1 = <&sdi0_sleep_mode>;
 
 			cd-gpios  = <&gpio6 26 0x4>; // 218
 			cd-inverted;
+
+			status = "okay";
+		};
+
+		// WLAN SDIO channel
+		sdi1_per2@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi1_default_mode>;
+			pinctrl-1 = <&sdi1_sleep_mode>;
+
+			status = "okay";
+		};
+
+		// Unused PoP eMMC - register and put it to sleep by default */
+		sdi2_per3@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdi2_sleep_mode>;
 
 			status = "okay";
 		};
@@ -151,6 +175,9 @@
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdi4_default_mode>;
+			pinctrl-1 = <&sdi4_sleep_mode>;
 
 			status = "okay";
 		};
@@ -297,6 +324,22 @@
 					ab8500_ldo_ana_reg: ab8500_ldo_ana {
 						regulator-name = "V-CSI/DSI";
 					};
+				};
+			};
+		};
+
+		pinctrl {
+			sdi0 {
+				sdi0_default_mode: sdi0_default {
+					snowball_mux {
+						ste,function = "mc0";
+						ste,pins = "mc0dat31dir_a_1";
+					};
+					snowball_cfg1 {
+						ste,pins = "GPIO21_AB3"; /* DAT31DIR */
+						ste,config = <&out_hi>;
+					};
+
 				};
 			};
 		};

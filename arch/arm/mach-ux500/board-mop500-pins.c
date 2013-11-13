@@ -63,12 +63,6 @@ BIAS(slpm_out_hi_wkup_pdis, PIN_SLEEPMODE_ENABLED|PIN_SLPM_OUTPUT_HIGH|
 	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 BIAS(slpm_in_pu_wkup_pdis_en, PIN_SLEEPMODE_ENABLED|PIN_SLPM_INPUT_PULLUP|
 	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_ENABLED);
-BIAS(out_lo_wkup_pdis, PIN_SLPM_OUTPUT_LOW|
-	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
-BIAS(in_wkup_pdis_en, PIN_SLPM_DIR_INPUT|PIN_SLPM_WAKEUP_ENABLE|
-	PIN_SLPM_PDIS_ENABLED);
-BIAS(in_wkup_pdis, PIN_SLPM_DIR_INPUT|PIN_SLPM_WAKEUP_ENABLE|
-	PIN_SLPM_PDIS_DISABLED);
 
 /* We use these to define hog settings that are always done on boot */
 #define DB8500_MUX_HOG(group,func) \
@@ -389,99 +383,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_PIN("GPIO69_E2", in_pu, "0-0070"),
 	/* LCD VSI1 sleep state */
 	DB8500_PIN_SLEEP("GPIO69_E2", slpm_in_wkup_pdis, "0-0070"),
-	/* Mux in SDI0 (here called MC0) used for removable MMC/SD/SDIO cards */
-	DB8500_MUX("mc0_a_1", "mc0", "sdi0"),
-	DB8500_PIN("GPIO18_AC2", out_hi, "sdi0"), /* CMDDIR */
-	DB8500_PIN("GPIO19_AC1", out_hi, "sdi0"), /* DAT0DIR */
-	DB8500_PIN("GPIO20_AB4", out_hi, "sdi0"), /* DAT2DIR */
-	DB8500_PIN("GPIO22_AA3", in_nopull, "sdi0"), /* FBCLK */
-	DB8500_PIN("GPIO23_AA4", out_lo, "sdi0"), /* CLK */
-	DB8500_PIN("GPIO24_AB2", in_pu, "sdi0"), /* CMD */
-	DB8500_PIN("GPIO25_Y4", in_pu, "sdi0"), /* DAT0 */
-	DB8500_PIN("GPIO26_Y2", in_pu, "sdi0"), /* DAT1 */
-	DB8500_PIN("GPIO27_AA2", in_pu, "sdi0"), /* DAT2 */
-	DB8500_PIN("GPIO28_AA1", in_pu, "sdi0"), /* DAT3 */
-	/* SDI0 sleep state */
-	DB8500_PIN_SLEEP("GPIO18_AC2", slpm_out_hi_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO19_AC1", slpm_out_hi_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO20_AB4", slpm_out_hi_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO22_AA3", slpm_in_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO23_AA4", slpm_out_lo_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO24_AB2", slpm_in_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO25_Y4", slpm_in_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO26_Y2", slpm_in_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO27_AA2", slpm_in_wkup_pdis, "sdi0"),
-	DB8500_PIN_SLEEP("GPIO28_AA1", slpm_in_wkup_pdis, "sdi0"),
-
-	/* Mux in SDI1 (here called MC1) used for SDIO for CW1200 WLAN */
-	DB8500_MUX("mc1_a_1", "mc1", "sdi1"),
-	DB8500_PIN("GPIO208_AH16", out_lo, "sdi1"), /* CLK */
-	DB8500_PIN("GPIO209_AG15", in_nopull, "sdi1"), /* FBCLK */
-	DB8500_PIN("GPIO210_AJ15", in_pu, "sdi1"), /* CMD */
-	DB8500_PIN("GPIO211_AG14", in_pu, "sdi1"), /* DAT0 */
-	DB8500_PIN("GPIO212_AF13", in_pu, "sdi1"), /* DAT1 */
-	DB8500_PIN("GPIO213_AG13", in_pu, "sdi1"), /* DAT2 */
-	DB8500_PIN("GPIO214_AH15", in_pu, "sdi1"), /* DAT3 */
-	/* SDI1 sleep state */
-	DB8500_PIN_SLEEP("GPIO208_AH16", slpm_out_lo_wkup_pdis, "sdi1"), /* CLK */
-	DB8500_PIN_SLEEP("GPIO209_AG15", slpm_in_wkup_pdis, "sdi1"), /* FBCLK */
-	DB8500_PIN_SLEEP("GPIO210_AJ15", slpm_in_wkup_pdis, "sdi1"), /* CMD */
-	DB8500_PIN_SLEEP("GPIO211_AG14", slpm_in_wkup_pdis, "sdi1"), /* DAT0 */
-	DB8500_PIN_SLEEP("GPIO212_AF13", slpm_in_wkup_pdis, "sdi1"), /* DAT1 */
-	DB8500_PIN_SLEEP("GPIO213_AG13", slpm_in_wkup_pdis, "sdi1"), /* DAT2 */
-	DB8500_PIN_SLEEP("GPIO214_AH15", slpm_in_wkup_pdis, "sdi1"), /* DAT3 */
-
-	/* Mux in SDI2 (here called MC2) used for for PoP eMMC */
-	DB8500_MUX("mc2_a_1", "mc2", "sdi2"),
-	DB8500_PIN("GPIO128_A5", out_lo, "sdi2"), /* CLK */
-	DB8500_PIN("GPIO129_B4", in_pu, "sdi2"), /* CMD */
-	DB8500_PIN("GPIO130_C8", in_nopull, "sdi2"), /* FBCLK */
-	DB8500_PIN("GPIO131_A12", in_pu, "sdi2"), /* DAT0 */
-	DB8500_PIN("GPIO132_C10", in_pu, "sdi2"), /* DAT1 */
-	DB8500_PIN("GPIO133_B10", in_pu, "sdi2"), /* DAT2 */
-	DB8500_PIN("GPIO134_B9", in_pu, "sdi2"), /* DAT3 */
-	DB8500_PIN("GPIO135_A9", in_pu, "sdi2"), /* DAT4 */
-	DB8500_PIN("GPIO136_C7", in_pu, "sdi2"), /* DAT5 */
-	DB8500_PIN("GPIO137_A7", in_pu, "sdi2"), /* DAT6 */
-	DB8500_PIN("GPIO138_C5", in_pu, "sdi2"), /* DAT7 */
-	/* SDI2 sleep state */
-	DB8500_PIN_SLEEP("GPIO128_A5", out_lo_wkup_pdis, "sdi2"), /* CLK */
-	DB8500_PIN_SLEEP("GPIO129_B4", in_wkup_pdis_en, "sdi2"), /* CMD */
-	DB8500_PIN_SLEEP("GPIO130_C8", in_wkup_pdis_en, "sdi2"), /* FBCLK */
-	DB8500_PIN_SLEEP("GPIO131_A12", in_wkup_pdis, "sdi2"), /* DAT0 */
-	DB8500_PIN_SLEEP("GPIO132_C10", in_wkup_pdis, "sdi2"), /* DAT1 */
-	DB8500_PIN_SLEEP("GPIO133_B10", in_wkup_pdis, "sdi2"), /* DAT2 */
-	DB8500_PIN_SLEEP("GPIO134_B9", in_wkup_pdis, "sdi2"), /* DAT3 */
-	DB8500_PIN_SLEEP("GPIO135_A9", in_wkup_pdis, "sdi2"), /* DAT4 */
-	DB8500_PIN_SLEEP("GPIO136_C7", in_wkup_pdis, "sdi2"), /* DAT5 */
-	DB8500_PIN_SLEEP("GPIO137_A7", in_wkup_pdis, "sdi2"), /* DAT6 */
-	DB8500_PIN_SLEEP("GPIO138_C5", in_wkup_pdis, "sdi2"), /* DAT7 */
-
-	/* Mux in SDI4 (here called MC4) used for for PCB-mounted eMMC */
-	DB8500_MUX("mc4_a_1", "mc4", "sdi4"),
-	DB8500_PIN("GPIO197_AH24", in_pu, "sdi4"), /* DAT3 */
-	DB8500_PIN("GPIO198_AG25", in_pu, "sdi4"), /* DAT2 */
-	DB8500_PIN("GPIO199_AH23", in_pu, "sdi4"), /* DAT1 */
-	DB8500_PIN("GPIO200_AH26", in_pu, "sdi4"), /* DAT0 */
-	DB8500_PIN("GPIO201_AF24", in_pu, "sdi4"), /* CMD */
-	DB8500_PIN("GPIO202_AF25", in_nopull, "sdi4"), /* FBCLK */
-	DB8500_PIN("GPIO203_AE23", out_lo, "sdi4"), /* CLK */
-	DB8500_PIN("GPIO204_AF23", in_pu, "sdi4"), /* DAT7 */
-	DB8500_PIN("GPIO205_AG23", in_pu, "sdi4"), /* DAT6 */
-	DB8500_PIN("GPIO206_AG24", in_pu, "sdi4"), /* DAT5 */
-	DB8500_PIN("GPIO207_AJ23", in_pu, "sdi4"), /* DAT4 */
-	/*SDI4 sleep state */
-	DB8500_PIN_SLEEP("GPIO197_AH24", slpm_in_wkup_pdis, "sdi4"), /* DAT3 */
-	DB8500_PIN_SLEEP("GPIO198_AG25", slpm_in_wkup_pdis, "sdi4"), /* DAT2 */
-	DB8500_PIN_SLEEP("GPIO199_AH23", slpm_in_wkup_pdis, "sdi4"), /* DAT1 */
-	DB8500_PIN_SLEEP("GPIO200_AH26", slpm_in_wkup_pdis, "sdi4"), /* DAT0 */
-	DB8500_PIN_SLEEP("GPIO201_AF24", slpm_in_wkup_pdis, "sdi4"), /* CMD */
-	DB8500_PIN_SLEEP("GPIO202_AF25", slpm_in_wkup_pdis, "sdi4"), /* FBCLK */
-	DB8500_PIN_SLEEP("GPIO203_AE23", slpm_out_lo_wkup_pdis, "sdi4"), /* CLK */
-	DB8500_PIN_SLEEP("GPIO204_AF23", slpm_in_wkup_pdis, "sdi4"), /* DAT7 */
-	DB8500_PIN_SLEEP("GPIO205_AG23", slpm_in_wkup_pdis, "sdi4"), /* DAT6 */
-	DB8500_PIN_SLEEP("GPIO206_AG24", slpm_in_wkup_pdis, "sdi4"), /* DAT5 */
-	DB8500_PIN_SLEEP("GPIO207_AJ23", slpm_in_wkup_pdis, "sdi4"), /* DAT4 */
 
 	/* Mux in USB pins, drive STP high */
 	/* USB default state */
@@ -795,10 +696,6 @@ static struct pinctrl_map __initdata mop500_pinmap[] = {
 	DB8500_PIN_SLEEP("GPIO166_A22", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O2 */
 	DB8500_PIN_SLEEP("GPIO167_B24", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O1 */
 	DB8500_PIN_SLEEP("GPIO168_C22", slpm_out_lo_pdis, "nmk-ske-keypad"), /* O0 */
-
-	/* Mux in and drive the SDI0 DAT31DIR line high at runtime */
-	DB8500_MUX("mc0dat31dir_a_1", "mc0", "sdi0"),
-	DB8500_PIN("GPIO21_AB3", out_hi, "sdi0"),
 };
 
 /*
@@ -888,8 +785,6 @@ static struct pinctrl_map __initdata hrefv60_pinmap[] = {
 	/* Accelerometer interrupt lines */
 	DB8500_PIN_HOG("GPIO82_C1", gpio_in_pu), /* ACC_INT1 */
 	DB8500_PIN_HOG("GPIO83_D3", gpio_in_pu), /* ACC_INT2 */
-	/* SD card detect GPIO pin */
-	DB8500_PIN_HOG("GPIO95_E8", gpio_in_pu),
 	/*
 	 * Runtime stuff
 	 * Pull up/down of some sensor GPIO pins, for proximity, HAL sensor
@@ -925,8 +820,6 @@ static struct pinctrl_map __initdata snowball_pinmap[] = {
 	/* Mux in SSP0 connected to AB8500, pull down RXD pin */
 	DB8500_MUX_HOG("ssp0_a_1", "ssp0"),
 	DB8500_PIN_HOG("GPIO145_C13", pd),
-	/* Always drive the MC0 DAT31DIR line high on these boards */
-	DB8500_PIN_HOG("GPIO21_AB3", out_hi),
 	/* Mux in "SM" which is used for the SMSC911x Ethernet adapter */
 	DB8500_MUX_HOG("sm_b_1", "sm"),
 	/* User LED */

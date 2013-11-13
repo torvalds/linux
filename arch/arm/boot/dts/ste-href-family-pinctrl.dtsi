@@ -214,6 +214,217 @@
 					};
 				};
 			};
+
+			/* Settings for all MMC/SD/SDIO default and sleep states */
+			sdi0 {
+				/* This is the external SD card slot, 4 bits wide */
+				sdi0_default_mode: sdi0_default {
+					default_mux {
+						ste,function = "mc0";
+						ste,pins = "mc0_a_1";
+					};
+					default_cfg1 {
+						ste,pins =
+						"GPIO18_AC2", /* CMDDIR */
+						"GPIO19_AC1", /* DAT0DIR */
+						"GPIO20_AB4"; /* DAT2DIR */
+						ste,config = <&out_hi>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO22_AA3"; /* FBCLK */
+						ste,config = <&in_nopull>;
+					};
+					default_cfg3 {
+						ste,pins = "GPIO23_AA4"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+					default_cfg4 {
+						ste,pins =
+						"GPIO24_AB2", /* CMD */
+						"GPIO25_Y4", /* DAT0 */
+						"GPIO26_Y2", /* DAT1 */
+						"GPIO27_AA2", /* DAT2 */
+						"GPIO28_AA1"; /* DAT3 */
+						ste,config = <&in_pu>;
+					};
+				};
+
+				sdi0_sleep_mode: sdi0_sleep {
+					sleep_cfg1 {
+						ste,pins =
+						"GPIO18_AC2", /* CMDDIR */
+						"GPIO19_AC1", /* DAT0DIR */
+						"GPIO20_AB4"; /* DAT2DIR */
+						ste,config = <&slpm_out_hi_wkup_pdis>;
+					};
+					sleep_cfg2 {
+						ste,pins =
+						"GPIO22_AA3", /* FBCLK */
+						"GPIO24_AB2", /* CMD */
+						"GPIO25_Y4", /* DAT0 */
+						"GPIO26_Y2", /* DAT1 */
+						"GPIO27_AA2", /* DAT2 */
+						"GPIO28_AA1"; /* DAT3 */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+					sleep_cfg3 {
+						ste,pins = "GPIO23_AA4"; /* CLK */
+						ste,config = <&slpm_out_lo_wkup_pdis>;
+					};
+				};
+			};
+
+			sdi1 {
+				/* This is the WLAN SDIO 4 bits wide */
+				sdi1_default_mode: sdi1_default {
+					default_mux {
+						ste,function = "mc1";
+						ste,pins = "mc1_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO208_AH16"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO209_AG15"; /* FBCLK */
+						ste,config = <&in_nopull>;
+					};
+					default_cfg3 {
+						ste,pins =
+						"GPIO210_AJ15", /* CMD */
+						"GPIO211_AG14", /* DAT0 */
+						"GPIO212_AF13", /* DAT1 */
+						"GPIO213_AG13", /* DAT2 */
+						"GPIO214_AH15"; /* DAT3 */
+						ste,config = <&in_pu>;
+					};
+				};
+
+				sdi1_sleep_mode: sdi1_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO208_AH16"; /* CLK */
+						ste,config = <&slpm_out_lo_wkup_pdis>;
+					};
+					sleep_cfg2 {
+						ste,pins =
+						"GPIO209_AG15", /* FBCLK */
+						"GPIO210_AJ15", /* CMD */
+						"GPIO211_AG14", /* DAT0 */
+						"GPIO212_AF13", /* DAT1 */
+						"GPIO213_AG13", /* DAT2 */
+						"GPIO214_AH15"; /* DAT3 */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+				};
+			};
+
+			sdi2 {
+				/* This is the eMMC 8 bits wide, usually PoP eMMC */
+				sdi2_default_mode: sdi2_default {
+					default_mux {
+						ste,function = "mc2";
+						ste,pins = "mc2_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO128_A5"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO130_C8"; /* FBCLK */
+						ste,config = <&in_nopull>;
+					};
+					default_cfg3 {
+						ste,pins =
+						"GPIO129_B4", /* CMD */
+						"GPIO131_A12", /* DAT0 */
+						"GPIO132_C10", /* DAT1 */
+						"GPIO133_B10", /* DAT2 */
+						"GPIO134_B9", /* DAT3 */
+						"GPIO135_A9", /* DAT4 */
+						"GPIO136_C7", /* DAT5 */
+						"GPIO137_A7", /* DAT6 */
+						"GPIO138_C5"; /* DAT7 */
+						ste,config = <&in_pu>;
+					};
+				};
+
+				sdi2_sleep_mode: sdi2_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO128_A5"; /* CLK */
+						ste,config = <&out_lo_wkup_pdis>;
+					};
+					sleep_cfg2 {
+						ste,pins =
+						"GPIO130_C8", /* FBCLK */
+						"GPIO129_B4"; /* CMD */
+						ste,config = <&in_wkup_pdis_en>;
+					};
+					sleep_cfg3 {
+						ste,pins =
+						"GPIO131_A12", /* DAT0 */
+						"GPIO132_C10", /* DAT1 */
+						"GPIO133_B10", /* DAT2 */
+						"GPIO134_B9", /* DAT3 */
+						"GPIO135_A9", /* DAT4 */
+						"GPIO136_C7", /* DAT5 */
+						"GPIO137_A7", /* DAT6 */
+						"GPIO138_C5"; /* DAT7 */
+						ste,config = <&in_wkup_pdis>;
+					};
+				};
+			};
+
+			sdi4 {
+				/* This is the eMMC 8 bits wide, usually PCB-mounted eMMC */
+				sdi4_default_mode: sdi4_default {
+					default_mux {
+						ste,function = "mc4";
+						ste,pins = "mc4_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO203_AE23"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO202_AF25"; /* FBCLK */
+						ste,config = <&in_nopull>;
+					};
+					default_cfg3 {
+						ste,pins =
+						"GPIO201_AF24", /* CMD */
+						"GPIO200_AH26", /* DAT0 */
+						"GPIO199_AH23", /* DAT1 */
+						"GPIO198_AG25", /* DAT2 */
+						"GPIO197_AH24", /* DAT3 */
+						"GPIO207_AJ23", /* DAT4 */
+						"GPIO206_AG24", /* DAT5 */
+						"GPIO205_AG23", /* DAT6 */
+						"GPIO204_AF23"; /* DAT7 */
+						ste,config = <&in_pu>;
+					};
+				};
+
+				sdi4_sleep_mode: sdi4_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO203_AE23"; /* CLK */
+						ste,config = <&out_lo_wkup_pdis>;
+					};
+					sleep_cfg2 {
+						ste,pins =
+						"GPIO202_AF25", /* FBCLK */
+						"GPIO201_AF24", /* CMD */
+						"GPIO200_AH26", /* DAT0 */
+						"GPIO199_AH23", /* DAT1 */
+						"GPIO198_AG25", /* DAT2 */
+						"GPIO197_AH24", /* DAT3 */
+						"GPIO207_AJ23", /* DAT4 */
+						"GPIO206_AG24", /* DAT5 */
+						"GPIO205_AG23", /* DAT6 */
+						"GPIO204_AF23"; /* DAT7 */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+				};
+			};
 		};
 	};
 };
