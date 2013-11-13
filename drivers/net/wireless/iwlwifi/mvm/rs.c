@@ -1499,6 +1499,9 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
+		tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+
 	start_action = tbl->action;
 	while (1) {
 		lq_sta->action_counter++;
@@ -1970,26 +1973,9 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
 
-	if ((le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >=
-	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) && (is_mimo(tbl->lq_type))) {
-		if (lq_sta->last_bt_traffic >
-		    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
-			/*
-			 * don't set scale_action, don't want to scale up if
-			 * the rate scale doesn't otherwise think that is a
-			 * good idea.
-			 */
-		} else if (lq_sta->last_bt_traffic <=
-			   le32_to_cpu(mvm->last_bt_notif.bt_activity_grading)) {
-			scale_action = -1;
-		}
-	}
-	lq_sta->last_bt_traffic =
-		le32_to_cpu(mvm->last_bt_notif.bt_activity_grading);
-
-	if ((le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) >=
-	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) && is_mimo(tbl->lq_type)) {
-		/* search for a new modulation */
+	/* Force a search in case BT doesn't like us being in MIMO */
+	if (is_mimo(tbl->lq_type) &&
+	    !iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta)) {
 		rs_stay_in_table(lq_sta, true);
 		goto lq_update;
 	}
