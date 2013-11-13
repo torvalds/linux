@@ -84,30 +84,97 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int ret;
 
-	if (!soc_dai->driver->symmetric_rates &&
-	    !rtd->dai_link->symmetric_rates)
-		return 0;
+	if (soc_dai->rate && (soc_dai->driver->symmetric_rates ||
+				rtd->dai_link->symmetric_rates)) {
+		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n",
+				soc_dai->rate);
 
-	/* This can happen if multiple streams are starting simultaneously -
-	 * the second can need to get its constraints before the first has
-	 * picked a rate.  Complain and allow the application to carry on.
-	 */
-	if (!soc_dai->rate) {
-		dev_warn(soc_dai->dev,
-			 "ASoC: Not enforcing symmetric_rates due to race\n");
-		return 0;
+		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_RATE,
+						soc_dai->rate, soc_dai->rate);
+		if (ret < 0) {
+			dev_err(soc_dai->dev,
+				"ASoC: Unable to apply rate constraint: %d\n",
+				ret);
+			return ret;
+		}
 	}
 
-	dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %dHz rate\n", soc_dai->rate);
+	if (soc_dai->channels && (soc_dai->driver->symmetric_channels ||
+				rtd->dai_link->symmetric_channels)) {
+		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d channel(s)\n",
+				soc_dai->channels);
 
-	ret = snd_pcm_hw_constraint_minmax(substream->runtime,
-					   SNDRV_PCM_HW_PARAM_RATE,
-					   soc_dai->rate, soc_dai->rate);
-	if (ret < 0) {
-		dev_err(soc_dai->dev,
-			"ASoC: Unable to apply rate symmetry constraint: %d\n",
-			ret);
-		return ret;
+		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_CHANNELS,
+						soc_dai->channels,
+						soc_dai->channels);
+		if (ret < 0) {
+			dev_err(soc_dai->dev,
+				"ASoC: Unable to apply channel symmetry constraint: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (soc_dai->sample_bits && (soc_dai->driver->symmetric_samplebits ||
+				rtd->dai_link->symmetric_samplebits)) {
+		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %d sample bits\n",
+				soc_dai->sample_bits);
+
+		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+						soc_dai->sample_bits,
+						soc_dai->sample_bits);
+		if (ret < 0) {
+			dev_err(soc_dai->dev,
+				"ASoC: Unable to apply sample bits symmetry constraint: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	unsigned int rate, channels, sample_bits, symmetry;
+
+	rate = params_rate(params);
+	channels = params_channels(params);
+	sample_bits = snd_pcm_format_physical_width(params_format(params));
+
+	/* reject unmatched parameters when applying symmetry */
+	symmetry = cpu_dai->driver->symmetric_rates ||
+		codec_dai->driver->symmetric_rates ||
+		rtd->dai_link->symmetric_rates;
+	if (symmetry && cpu_dai->rate && cpu_dai->rate != rate) {
+		dev_err(rtd->dev, "ASoC: unmatched rate symmetry: %d - %d\n",
+				cpu_dai->rate, rate);
+		return -EINVAL;
+	}
+
+	symmetry = cpu_dai->driver->symmetric_channels ||
+		codec_dai->driver->symmetric_channels ||
+		rtd->dai_link->symmetric_channels;
+	if (symmetry && cpu_dai->channels && cpu_dai->channels != channels) {
+		dev_err(rtd->dev, "ASoC: unmatched channel symmetry: %d - %d\n",
+				cpu_dai->channels, channels);
+		return -EINVAL;
+	}
+
+	symmetry = cpu_dai->driver->symmetric_samplebits ||
+		codec_dai->driver->symmetric_samplebits ||
+		rtd->dai_link->symmetric_samplebits;
+	if (symmetry && cpu_dai->sample_bits && cpu_dai->sample_bits != sample_bits) {
+		dev_err(rtd->dev, "ASoC: unmatched sample bits symmetry: %d - %d\n",
+				cpu_dai->sample_bits, sample_bits);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -384,11 +451,17 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	codec->active--;
 
 	/* clear the corresponding DAIs rate when inactive */
-	if (!cpu_dai->active)
+	if (!cpu_dai->active) {
 		cpu_dai->rate = 0;
+		cpu_dai->channels = 0;
+		cpu_dai->sample_bits = 0;
+	}
 
-	if (!codec_dai->active)
+	if (!codec_dai->active) {
 		codec_dai->rate = 0;
+		codec_dai->channels = 0;
+		codec_dai->sample_bits = 0;
+	}
 
 	/* Muting the DAC suppresses artifacts caused during digital
 	 * shutdown, for example from stopping clocks.
@@ -525,6 +598,10 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
+	ret = soc_pcm_params_symmetry(substream, params);
+	if (ret)
+		goto out;
+
 	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_params) {
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 		if (ret < 0) {
@@ -561,9 +638,16 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	/* store the rate for each DAIs */
+	/* store the parameters for each DAIs */
 	cpu_dai->rate = params_rate(params);
+	cpu_dai->channels = params_channels(params);
+	cpu_dai->sample_bits =
+		snd_pcm_format_physical_width(params_format(params));
+
 	codec_dai->rate = params_rate(params);
+	codec_dai->channels = params_channels(params);
+	codec_dai->sample_bits =
+		snd_pcm_format_physical_width(params_format(params));
 
 out:
 	mutex_unlock(&rtd->pcm_mutex);
