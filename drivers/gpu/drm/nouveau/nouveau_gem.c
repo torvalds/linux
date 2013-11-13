@@ -106,8 +106,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 
 	if (mapped) {
 		spin_lock(&nvbo->bo.bdev->fence_lock);
-		if (nvbo->bo.sync_obj)
-			fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
 		spin_unlock(&nvbo->bo.bdev->fence_lock);
 	}
 
@@ -438,8 +437,7 @@ validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
 	int ret = 0;
 
 	spin_lock(&nvbo->bo.bdev->fence_lock);
-	if (nvbo->bo.sync_obj)
-		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+	fence = nouveau_fence_ref(nvbo->bo.sync_obj);
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 
 	if (fence) {

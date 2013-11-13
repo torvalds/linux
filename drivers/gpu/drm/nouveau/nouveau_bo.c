@@ -98,12 +98,7 @@ nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		if (fence) {
-			/* Mark it as pending. */
-			tile->fence = fence;
-			nouveau_fence_ref(fence);
-		}
-
+		tile->fence = nouveau_fence_ref(fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -1462,14 +1457,12 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 {
+	struct nouveau_fence *new_fence = nouveau_fence_ref(fence);
 	struct nouveau_fence *old_fence = NULL;
-
-	if (likely(fence))
-		nouveau_fence_ref(fence);
 
 	spin_lock(&nvbo->bo.bdev->fence_lock);
 	old_fence = nvbo->bo.sync_obj;
-	nvbo->bo.sync_obj = fence;
+	nvbo->bo.sync_obj = new_fence;
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 
 	nouveau_fence_unref(&old_fence);
