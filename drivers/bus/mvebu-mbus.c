@@ -734,11 +734,11 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 {
 	const struct of_device_id *of_id;
 
-	for (of_id = of_mvebu_mbus_ids; of_id->compatible; of_id++)
+	for (of_id = of_mvebu_mbus_ids; of_id->compatible[0]; of_id++)
 		if (!strcmp(of_id->compatible, soc))
 			break;
 
-	if (!of_id->compatible) {
+	if (!of_id->compatible[0]) {
 		pr_err("could not find a matching SoC family\n");
 		return -ENODEV;
 	}
