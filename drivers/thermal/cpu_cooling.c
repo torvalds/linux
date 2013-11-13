@@ -173,6 +173,8 @@ static int get_property(unsigned int cpu, unsigned long input,
 		freq = table[i].frequency;
 		max_level++;
 	}
+	/* max_level is an index, not a counter */
+	max_level--;
 
 	/* get max level */
 	if (property == GET_MAXL) {
@@ -181,7 +183,7 @@ static int get_property(unsigned int cpu, unsigned long input,
 	}
 
 	if (property == GET_FREQ)
-		level = descend ? input : (max_level - input - 1);
+		level = descend ? input : (max_level - input);
 
 	for (i = 0, j = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		/* ignore invalid entry */
@@ -197,7 +199,7 @@ static int get_property(unsigned int cpu, unsigned long input,
 
 		if (property == GET_LEVEL && (unsigned int)input == freq) {
 			/* get level by frequency */
-			*output = descend ? j : (max_level - j - 1);
+			*output = descend ? j : (max_level - j);
 			return 0;
 		}
 		if (property == GET_FREQ && level == j) {
