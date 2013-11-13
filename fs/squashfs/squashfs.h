@@ -48,7 +48,14 @@ extern void *squashfs_read_table(struct super_block *, u64, int);
 
 /* decompressor.c */
 extern const struct squashfs_decompressor *squashfs_lookup_decompressor(int);
-extern void *squashfs_decompressor_init(struct super_block *, unsigned short);
+extern void *squashfs_decompressor_setup(struct super_block *, unsigned short);
+
+/* decompressor_xxx.c */
+extern void *squashfs_decompressor_create(struct squashfs_sb_info *, void *);
+extern void squashfs_decompressor_destroy(struct squashfs_sb_info *);
+extern int squashfs_decompress(struct squashfs_sb_info *, void **,
+	struct buffer_head **, int, int, int, int, int);
+extern int squashfs_max_decompressors(void);
 
 /* export.c */
 extern __le64 *squashfs_read_inode_lookup_table(struct super_block *, u64, u64,
