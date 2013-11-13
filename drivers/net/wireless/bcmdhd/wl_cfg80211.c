@@ -10571,33 +10571,42 @@ wl_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 #ifdef WLTDLS
 	struct wl_priv *wl = wlcfg_drv_priv;
 	tdls_iovar_t info;
-	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
 
 	memset(&info, 0, sizeof(tdls_iovar_t));
 	if (peer)
 		memcpy(&info.ea, peer, ETHER_ADDR_LEN);
 	switch (oper) {
 	case NL80211_TDLS_DISCOVERY_REQ:
-		if (!dhd->tdls_enable)
-			ret = dhd_tdls_enable_disable(dhd, 1);
+		/* turn on TDLS */
+		ret = dhd_tdls_enable(dev, true, false, NULL);
 		if (ret < 0)
 			return ret;
 		info.mode = TDLS_MANUAL_EP_DISCOVERY;
 		break;
 	case NL80211_TDLS_SETUP:
-		info.mode = TDLS_MANUAL_EP_CREATE;
+		/* auto mode on */
+		ret = dhd_tdls_enable(dev, true, true, (struct ether_addr *)peer);
+		if (ret < 0)
+			return ret;
 		break;
 	case NL80211_TDLS_TEARDOWN:
 		info.mode = TDLS_MANUAL_EP_DELETE;
+		/* auto mode off */
+		ret = dhd_tdls_enable(dev, true, false, (struct ether_addr *)peer);
+		if (ret < 0)
+			return ret;
 		break;
 	default:
 		WL_ERR(("Unsupported operation : %d\n", oper));
 		goto out;
 	}
-	ret = wldev_iovar_setbuf(dev, "tdls_endpoint", &info, sizeof(info),
-		wl->ioctl_buf, WLC_IOCTL_MAXLEN, &wl->ioctl_buf_sync);
-	if (ret) {
-		WL_ERR(("tdls_endpoint error %d\n", ret));
+
+	if (info.mode) {
+		ret = wldev_iovar_setbuf(dev, "tdls_endpoint", &info, sizeof(info),
+			wl->ioctl_buf, WLC_IOCTL_MAXLEN, &wl->ioctl_buf_sync);
+		if (ret) {
+			WL_ERR(("tdls_endpoint error %d\n", ret));
+		}
 	}
 out:
 #endif /* WLTDLS */
