@@ -22,12 +22,6 @@ struct cs42l52_platform_data {
 	/* MICB mode selection 0=Single 1=Differential */
 	unsigned int micb_cfg;
 
-	/* MICA Select 0=MIC1A 1=MIC2A */
-	unsigned int mica_sel;
-
-	/* MICB Select 0=MIC2A 1=MIC2B */
-	unsigned int micb_sel;
-
 	/* Charge Pump Freq. Check datasheet Pg73 */
 	unsigned int chgfreq;
 

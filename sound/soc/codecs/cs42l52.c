@@ -233,7 +233,7 @@ static const struct soc_enum mic_bias_level_enum =
 	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL2, 0,
 			ARRAY_SIZE(mic_bias_level_text), mic_bias_level_text);
 
-static const char * const cs42l52_mic_text[] = { "Single", "Differential" };
+static const char * const cs42l52_mic_text[] = { "MIC1", "MIC2" };
 
 static const struct soc_enum mica_enum =
 	SOC_ENUM_SINGLE(CS42L52_MICA_CTL, 5,
@@ -242,12 +242,6 @@ static const struct soc_enum mica_enum =
 static const struct soc_enum micb_enum =
 	SOC_ENUM_SINGLE(CS42L52_MICB_CTL, 5,
 			ARRAY_SIZE(cs42l52_mic_text), cs42l52_mic_text);
-
-static const struct snd_kcontrol_new mica_mux =
-	SOC_DAPM_ENUM("Left Mic Input Capture Mux", mica_enum);
-
-static const struct snd_kcontrol_new micb_mux =
-	SOC_DAPM_ENUM("Right Mic Input Capture Mux", micb_enum);
 
 static const char * const digital_output_mux_text[] = {"ADC", "DSP"};
 
@@ -425,6 +419,9 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 
 	SOC_DOUBLE("Bypass Mute", CS42L52_MISC_CTL, 4, 5, 1, 0),
 
+	SOC_ENUM("MICA Select", mica_enum),
+	SOC_ENUM("MICB Select", micb_enum),
+
 	SOC_DOUBLE_R_TLV("MIC Gain Volume", CS42L52_MICA_CTL,
 			      CS42L52_MICB_CTL, 0, 0x10, 0, mic_tlv),
 
@@ -549,9 +546,6 @@ static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 			SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("AIFOUTR", NULL,  0,
 			SND_SOC_NOPM, 0, 0),
-
-	SND_SOC_DAPM_MUX("MICA Mux", SND_SOC_NOPM, 0, 0, &mica_mux),
-	SND_SOC_DAPM_MUX("MICB Mux", SND_SOC_NOPM, 0, 0, &micb_mux),
 
 	SND_SOC_DAPM_ADC("ADC Left", NULL, CS42L52_PWRCTL1, 1, 1),
 	SND_SOC_DAPM_ADC("ADC Right", NULL, CS42L52_PWRCTL1, 2, 1),
@@ -1238,17 +1232,6 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 				   CS42L52_MIC_CTL_TYPE_MASK,
 				cs42l52->pdata.micb_cfg <<
 				CS42L52_MIC_CTL_TYPE_SHIFT);
-
-	if (cs42l52->pdata.mica_sel)
-		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
-				   CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.mica_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
-	if (cs42l52->pdata.micb_sel)
-		regmap_update_bits(cs42l52->regmap, CS42L52_MICB_CTL,
-				   CS42L52_MIC_CTL_MIC_SEL_MASK,
-				cs42l52->pdata.micb_sel <<
-				CS42L52_MIC_CTL_MIC_SEL_SHIFT);
 
 	if (cs42l52->pdata.chgfreq)
 		regmap_update_bits(cs42l52->regmap, CS42L52_CHARGE_PUMP,
