@@ -236,6 +236,9 @@ void ath10k_process_rx(struct ath10k *ar, struct htt_rx_info *info)
 	if (info->fcs_err)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
+	if (info->amsdu_more)
+		status->flag |= RX_FLAG_AMSDU_MORE;
+
 	status->signal = info->signal;
 
 	spin_lock_bh(&ar->data_lock);
