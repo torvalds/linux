@@ -155,11 +155,6 @@ MODULE_PARM_DESC(prefault_disable,
 		"Disable page prefaulting for pread/pwrite/reloc (default:false). For developers only.");
 
 static struct drm_driver driver;
-#if IS_ENABLED(CONFIG_AGP_INTEL)
-extern int intel_agp_enabled;
-#else
-static int intel_agp_enabled = 1;
-#endif
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
@@ -797,17 +792,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-	/* We've managed to ship a kms-enabled ddx that shipped with an XvMC
-	 * implementation for gen3 (and only gen3) that used legacy drm maps
-	 * (gasp!) to share buffers between X and the client. Hence we need to
-	 * keep around the fake agp stuff for gen3, even when kms is enabled. */
-	if (intel_info->gen != 3) {
-		driver.driver_features &=
-			~(DRIVER_USE_AGP | DRIVER_REQUIRE_AGP);
-	} else if (!intel_agp_enabled) {
-		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
-		return -ENODEV;
-	}
+	driver.driver_features &= ~(DRIVER_USE_AGP | DRIVER_REQUIRE_AGP);
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
