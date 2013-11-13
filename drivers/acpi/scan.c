@@ -289,24 +289,17 @@ void acpi_bus_device_eject(void *data, u32 ost_src)
 {
 	struct acpi_device *device = data;
 	acpi_handle handle = device->handle;
-	struct acpi_scan_handler *handler;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
 
 	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
-	handler = device->handler;
-	if (!handler || !handler->hotplug.enabled) {
-		put_device(&device->dev);
-		goto err_support;
-	}
-
 	if (ost_src == ACPI_NOTIFY_EJECT_REQUEST)
 		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
 					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 
-	if (handler->hotplug.mode == AHM_CONTAINER)
+	if (device->handler && device->handler->hotplug.mode == AHM_CONTAINER)
 		kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 
 	error = acpi_scan_hot_remove(device);
