@@ -390,9 +390,9 @@ struct sta_info {
 	 * Mesh peer link attributes
 	 * TODO: move to a sub-structure that is referenced with pointer?
 	 */
-	__le16 llid;
-	__le16 plid;
-	__le16 reason;
+	u16 llid;
+	u16 plid;
+	u16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
 	enum nl80211_plink_state plink_state;

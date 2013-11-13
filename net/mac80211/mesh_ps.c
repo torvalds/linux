@@ -578,7 +578,7 @@ void ieee80211_mps_frame_release(struct sta_info *sta,
 
 	if (sta->plink_state == NL80211_PLINK_ESTAB)
 		has_buffered = ieee80211_check_tim(elems->tim, elems->tim_len,
-						   le16_to_cpu(sta->llid));
+						   sta->llid);
 
 	if (has_buffered)
 		mps_dbg(sta->sdata, "%pM indicates buffered frames\n",

@@ -532,8 +532,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 				 STATION_INFO_PEER_PM |
 				 STATION_INFO_NONPEER_PM;
 
-		sinfo->llid = le16_to_cpu(sta->llid);
-		sinfo->plid = le16_to_cpu(sta->plid);
+		sinfo->llid = sta->llid;
+		sinfo->plid = sta->plid;
 		sinfo->plink_state = sta->plink_state;
 		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
 			sinfo->filled |= STATION_INFO_T_OFFSET;
