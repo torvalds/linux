@@ -46,7 +46,9 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/svcauth.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/nfs_fs.h>
 
+#include "nfs4_fs.h"
 #include "dns_resolve.h"
 #include "cache_lib.h"
 #include "netns.h"
