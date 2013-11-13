@@ -167,9 +167,11 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 	const struct cred *cred = current_cred();
 	int i;
 
-	if ((rule->flags & IMA_FUNC) && rule->func != func)
+	if ((rule->flags & IMA_FUNC) &&
+	    (rule->func != func && func != POST_SETATTR))
 		return false;
-	if ((rule->flags & IMA_MASK) && rule->mask != mask)
+	if ((rule->flags & IMA_MASK) &&
+	    (rule->mask != mask && func != POST_SETATTR))
 		return false;
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
