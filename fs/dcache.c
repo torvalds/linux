@@ -2924,6 +2924,7 @@ static int prepend_path(const struct path *path,
 restart_mnt:
 	read_seqbegin_or_lock(&mount_lock, &m_seq);
 	seq = 0;
+	rcu_read_lock();
 restart:
 	bptr = *buffer;
 	blen = *buflen;
@@ -2971,6 +2972,9 @@ restart:
 		goto restart;
 	}
 	done_seqretry(&rename_lock, seq);
+
+	if (!(m_seq & 1))
+		rcu_read_unlock();
 	if (need_seqretry(&mount_lock, m_seq)) {
 		m_seq = 1;
 		goto restart_mnt;
