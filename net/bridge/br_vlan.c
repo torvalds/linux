@@ -390,12 +390,16 @@ int nbp_vlan_delete(struct net_bridge_port *port, u16 vid)
 void nbp_vlan_flush(struct net_bridge_port *port)
 {
 	struct net_port_vlans *pv;
+	u16 vid;
 
 	ASSERT_RTNL();
 
 	pv = rtnl_dereference(port->vlan_info);
 	if (!pv)
 		return;
+
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID)
+		vlan_vid_del(port->dev, htons(ETH_P_8021Q), vid);
 
 	__vlan_flush(pv);
 }
