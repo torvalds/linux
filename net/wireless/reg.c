@@ -571,6 +571,20 @@ static bool freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
 }
 
 /*
+ * Later on we can perhaps use the more restrictive DFS
+ * region but we don't have information for that yet so
+ * for now simply disallow conflicts.
+ */
+static enum nl80211_dfs_regions
+reg_intersect_dfs_region(const enum nl80211_dfs_regions dfs_region1,
+			 const enum nl80211_dfs_regions dfs_region2)
+{
+	if (dfs_region1 != dfs_region2)
+		return NL80211_DFS_UNSET;
+	return dfs_region1;
+}
+
+/*
  * Helper for regdom_intersect(), this does the real
  * mathematical intersection fun
  */
@@ -701,6 +715,8 @@ regdom_intersect(const struct ieee80211_regdomain *rd1,
 	rd->n_reg_rules = num_rules;
 	rd->alpha2[0] = '9';
 	rd->alpha2[1] = '8';
+	rd->dfs_region = reg_intersect_dfs_region(rd1->dfs_region,
+						  rd2->dfs_region);
 
 	return rd;
 }
