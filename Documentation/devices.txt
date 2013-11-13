@@ -414,6 +414,7 @@ Your cooperation is appreciated.
 		200 = /dev/net/tun	TAP/TUN network device
 		201 = /dev/button/gulpb	Transmeta GULP-B buttons
 		202 = /dev/emd/ctl	Enhanced Metadisk RAID (EMD) control
+		203 = /dev/cuse		Cuse (character device in user-space)
 		204 = /dev/video/em8300		EM8300 DVD decoder control
 		205 = /dev/video/em8300_mv	EM8300 DVD decoder video
 		206 = /dev/video/em8300_ma	EM8300 DVD decoder audio
