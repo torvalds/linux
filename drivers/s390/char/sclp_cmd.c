@@ -59,7 +59,7 @@ static u8 sclp_fac84;
 static unsigned long long rzm;
 static unsigned long long rnmax;
 
-static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
+int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 {
 	int rc;
 
