@@ -612,11 +612,6 @@ struct cgroup_subsys {
 	int subsys_id;
 	int disabled;
 	int early_init;
-	/*
-	 * True if this subsys uses ID. ID is not available before cgroup_init()
-	 * (not available in early_init time.)
-	 */
-	bool use_id;
 
 	/*
 	 * If %false, this subsystem is properly hierarchical -
@@ -642,9 +637,6 @@ struct cgroup_subsys {
 	 */
 	struct cgroupfs_root *root;
 	struct list_head sibling;
-	/* used when use_id == true */
-	struct idr idr;
-	spinlock_t id_lock;
 
 	/* list of cftype_sets */
 	struct list_head cftsets;
@@ -875,35 +867,6 @@ int css_scan_tasks(struct cgroup_subsys_state *css,
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
-/*
- * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
- * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
- * CSS ID is assigned at cgroup allocation (create) automatically
- * and removed when subsys calls free_css_id() function. This is because
- * the lifetime of cgroup_subsys_state is subsys's matter.
- *
- * Looking up and scanning function should be called under rcu_read_lock().
- * Taking cgroup_mutex is not necessary for following calls.
- * But the css returned by this routine can be "not populated yet" or "being
- * destroyed". The caller should check css and cgroup's status.
- */
-
-/*
- * Typically Called at ->destroy(), or somewhere the subsys frees
- * cgroup_subsys_state.
- */
-void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
-
-/* Find a cgroup_subsys_state which has given ID */
-
-struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
-
-/* Returns true if root is ancestor of cg */
-bool css_is_ancestor(struct cgroup_subsys_state *cg,
-		     const struct cgroup_subsys_state *root);
-
-/* Get id and depth of css */
-unsigned short css_id(struct cgroup_subsys_state *css);
 struct cgroup_subsys_state *css_from_dir(struct dentry *dentry,
 					 struct cgroup_subsys *ss);
 
