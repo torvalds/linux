@@ -85,6 +85,11 @@
 	};
 
 	soc {
+		usb_per5@a03e0000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&musb_default_mode>;
+			pinctrl-1 = <&musb_sleep_mode>;
+		};
 
 		sound {
 			compatible = "stericsson,snd-soc-mop500";

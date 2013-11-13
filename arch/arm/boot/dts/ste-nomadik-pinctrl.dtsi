@@ -41,6 +41,12 @@
 		ste,output = <OUTPUT_LOW>;
 	};
 
+	slpm_wkup_pdis_en: slpm_wkup_pdis_en {
+		ste,sleep = <SLPM_ENABLED>;
+		ste,sleep-wakeup = <SLPM_WAKEUP_ENABLE>;
+		ste,sleep-pull-disable = <SLPM_PDIS_ENABLED>;
+	};
+
 	slpm_in_pu: slpm_in_pu {
 		ste,sleep = <SLPM_ENABLED>;
 		ste,sleep-input = <SLPM_INPUT_PULLUP>;
@@ -52,6 +58,13 @@
 		ste,sleep-input = <SLPM_DIR_INPUT>;
 		ste,sleep-wakeup = <SLPM_WAKEUP_ENABLE>;
 		ste,sleep-pull-disable = <SLPM_PDIS_DISABLED>;
+	};
+
+	slpm_in_wkup_pdis_en: slpm_in_wkup_pdis_en {
+		ste,sleep = <SLPM_ENABLED>;
+		ste,sleep-input = <SLPM_DIR_INPUT>;
+		ste,sleep-wakeup = <SLPM_WAKEUP_ENABLE>;
+		ste,sleep-pull-disable = <SLPM_PDIS_ENABLED>;
 	};
 
 	slpm_out_lo: slpm_out_lo {

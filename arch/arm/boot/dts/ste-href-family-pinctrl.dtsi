@@ -488,6 +488,61 @@
 					};
 				};
 			};
+
+
+			musb {
+				musb_default_mode: musb_default {
+					default_mux {
+						ste,function = "usb";
+						ste,pins = "usb_a_1";
+					};
+					default_cfg1 {
+						ste,pins =
+						"GPIO256_AF28", /* NXT */
+						"GPIO258_AD29", /* XCLK */
+						"GPIO259_AC29", /* DIR */
+						"GPIO260_AD28", /* DAT7 */
+						"GPIO261_AD26", /* DAT6 */
+						"GPIO262_AE26", /* DAT5 */
+						"GPIO263_AG29", /* DAT4 */
+						"GPIO264_AE27", /* DAT3 */
+						"GPIO265_AD27", /* DAT2 */
+						"GPIO266_AC28", /* DAT1 */
+						"GPIO267_AC27"; /* DAT0 */
+						ste,config = <&in_nopull>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO257_AE29"; /* STP */
+						ste,config = <&out_hi>;
+					};
+				};
+
+				musb_sleep_mode: musb_sleep {
+					sleep_cfg1 {
+						ste,pins =
+						"GPIO256_AF28", /* NXT */
+						"GPIO258_AD29", /* XCLK */
+						"GPIO259_AC29"; /* DIR */
+						ste,config = <&slpm_wkup_pdis_en>;
+					};
+					sleep_cfg2 {
+						ste,pins = "GPIO257_AE29"; /* STP */
+						ste,config = <&slpm_out_hi_wkup_pdis>;
+					};
+					sleep_cfg3 {
+						ste,pins =
+						"GPIO260_AD28", /* DAT7 */
+						"GPIO261_AD26", /* DAT6 */
+						"GPIO262_AE26", /* DAT5 */
+						"GPIO263_AG29", /* DAT4 */
+						"GPIO264_AE27", /* DAT3 */
+						"GPIO265_AD27", /* DAT2 */
+						"GPIO266_AC28", /* DAT1 */
+						"GPIO267_AC27"; /* DAT0 */
+						ste,config = <&slpm_in_wkup_pdis_en>;
+					};
+				};
+			};
 		};
 	};
 };
