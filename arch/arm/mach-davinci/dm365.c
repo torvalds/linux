@@ -942,6 +942,7 @@ static struct platform_device dm365_edma_device = {
 
 static struct resource dm365_asp_resources[] = {
 	{
+		.name	= "mpu",
 		.start	= DAVINCI_DM365_ASP0_BASE,
 		.end	= DAVINCI_DM365_ASP0_BASE + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
