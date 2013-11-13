@@ -1,0 +1,114 @@
+/*
+ * Copyright 2013 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "ste-nomadik-pinctrl.dtsi"
+
+/ {
+	soc {
+		pinctrl {
+			/* Settings for all UART default and sleep states */
+			uart0 {
+				uart0_default_mode: uart0_default {
+					default_mux {
+						ste,function = "u0";
+						ste,pins = "u0_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart0_sleep_mode: uart0_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO0_AJ5", "GPIO2_AH4"; /* CTS+RXD */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO1_AJ3"; /* RTS */
+						ste,config = <&slpm_out_hi_wkup_pdis>;
+					};
+
+					sleep_cfg3 {
+						ste,pins = "GPIO3_AH3"; /* TXD */
+						ste,config = <&slpm_out_wkup_pdis>;
+					};
+				};
+			};
+
+			uart1 {
+				uart1_default_mode: uart1_default {
+					default_mux {
+						ste,function = "u1";
+						ste,pins = "u1rxtx_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO4_AH6"; /* RXD */
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO5_AG6"; /* TXD */
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart1_sleep_mode: uart1_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO4_AH6"; /* RXD */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO5_AG6"; /* TXD */
+						ste,config = <&slpm_out_wkup_pdis>;
+					};
+				};
+			};
+
+			uart2 {
+				uart2_default_mode: uart2_default {
+					default_mux {
+						ste,function = "u2";
+						ste,pins = "u2rxtx_c_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO29_W2"; /* RXD */
+						ste,config = <&in_pu>;
+					};
+
+					default_cfg2 {
+						ste,pins = "GPIO30_W3"; /* TXD */
+						ste,config = <&out_hi>;
+					};
+				};
+
+				uart2_sleep_mode: uart2_sleep {
+					sleep_cfg1 {
+						ste,pins = "GPIO29_W2"; /* RXD */
+						ste,config = <&in_wkup_pdis>;
+					};
+
+					sleep_cfg2 {
+						ste,pins = "GPIO30_W3"; /* TXD */
+						ste,config = <&out_wkup_pdis>;
+					};
+				};
+			};
+		};
+	};
+};

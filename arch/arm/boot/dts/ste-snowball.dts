@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "ste-dbx5x0.dtsi"
+#include "ste-href-family-pinctrl.dtsi"
 
 / {
 	model = "Calao Systems Snowball platform with device tree";
@@ -155,14 +156,23 @@
 		};
 
 		uart@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart0_default_mode>;
+			pinctrl-1 = <&uart0_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80121000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart1_default_mode>;
+			pinctrl-1 = <&uart1_sleep_mode>;
 			status = "okay";
 		};
 
 		uart@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&uart2_default_mode>;
+			pinctrl-1 = <&uart2_sleep_mode>;
 			status = "okay";
 		};
 
