@@ -29,27 +29,19 @@ static DECLARE_RWSEM(minor_rwsem);
 
 static int usb_open(struct inode *inode, struct file *file)
 {
-	int minor = iminor(inode);
-	const struct file_operations *c;
 	int err = -ENODEV;
-	const struct file_operations *old_fops, *new_fops = NULL;
+	const struct file_operations *new_fops;
 
 	down_read(&minor_rwsem);
-	c = usb_minors[minor];
+	new_fops = fops_get(usb_minors[iminor(inode)]);
 
-	if (!c || !(new_fops = fops_get(c)))
+	if (!new_fops)
 		goto done;
 
-	old_fops = file->f_op;
-	file->f_op = new_fops;
+	replace_fops(file, new_fops);
 	/* Curiouser and curiouser... NULL ->open() as "no device" ? */
 	if (file->f_op->open)
 		err = file->f_op->open(inode, file);
-	if (err) {
-		fops_put(file->f_op);
-		file->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
  done:
 	up_read(&minor_rwsem);
 	return err;

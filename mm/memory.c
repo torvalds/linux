@@ -681,7 +681,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	if (vma->vm_ops)
 		printk(KERN_ALERT "vma->vm_ops->fault: %pSR\n",
 		       vma->vm_ops->fault);
-	if (vma->vm_file && vma->vm_file->f_op)
+	if (vma->vm_file)
 		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
 		       vma->vm_file->f_op->mmap);
 	dump_stack();

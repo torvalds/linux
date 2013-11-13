@@ -134,7 +134,7 @@
 
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
-#define IS_LEASE(fl)	(fl->fl_flags & FL_LEASE)
+#define IS_LEASE(fl)	(fl->fl_flags & (FL_LEASE|FL_DELEG))
 
 static bool lease_breaking(struct file_lock *fl)
 {
@@ -1292,28 +1292,40 @@ static void time_out_leases(struct inode *inode)
 	}
 }
 
+static bool leases_conflict(struct file_lock *lease, struct file_lock *breaker)
+{
+	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE))
+		return false;
+	return locks_conflict(breaker, lease);
+}
+
 /**
  *	__break_lease	-	revoke all outstanding leases on file
  *	@inode: the inode of the file to return
- *	@mode: the open mode (read or write)
+ *	@mode: O_RDONLY: break only write leases; O_WRONLY or O_RDWR:
+ *	    break all leases
+ *	@type: FL_LEASE: break leases and delegations; FL_DELEG: break
+ *	    only delegations
  *
  *	break_lease (inlined for speed) has checked there already is at least
  *	some kind of lock (maybe a lease) on this file.  Leases are broken on
  *	a call to open() or truncate().  This function can sleep unless you
  *	specified %O_NONBLOCK to your open().
  */
-int __break_lease(struct inode *inode, unsigned int mode)
+int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	int error = 0;
 	struct file_lock *new_fl, *flock;
 	struct file_lock *fl;
 	unsigned long break_time;
 	int i_have_this_lease = 0;
+	bool lease_conflict = false;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 
 	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
 	if (IS_ERR(new_fl))
 		return PTR_ERR(new_fl);
+	new_fl->fl_flags = type;
 
 	spin_lock(&inode->i_lock);
 
@@ -1323,12 +1335,15 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	if ((flock == NULL) || !IS_LEASE(flock))
 		goto out;
 
-	if (!locks_conflict(flock, new_fl))
+	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
+		if (leases_conflict(fl, new_fl)) {
+			lease_conflict = true;
+			if (fl->fl_owner == current->files)
+				i_have_this_lease = 1;
+		}
+	}
+	if (!lease_conflict)
 		goto out;
-
-	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next)
-		if (fl->fl_owner == current->files)
-			i_have_this_lease = 1;
 
 	break_time = 0;
 	if (lease_break_time > 0) {
@@ -1338,6 +1353,8 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	}
 
 	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
+		if (!leases_conflict(fl, new_fl))
+			continue;
 		if (want_write) {
 			if (fl->fl_flags & FL_UNLOCK_PENDING)
 				continue;
@@ -1379,7 +1396,7 @@ restart:
 		 */
 		for (flock = inode->i_flock; flock && IS_LEASE(flock);
 				flock = flock->fl_next) {
-			if (locks_conflict(new_fl, flock))
+			if (leases_conflict(new_fl, flock))
 				goto restart;
 		}
 		error = 0;
@@ -1460,9 +1477,26 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
+	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
 
 	lease = *flp;
+	/*
+	 * In the delegation case we need mutual exclusion with
+	 * a number of operations that take the i_mutex.  We trylock
+	 * because delegations are an optional optimization, and if
+	 * there's some chance of a conflict--we'd rather not
+	 * bother, maybe that's a sign this just isn't a good file to
+	 * hand out a delegation on.
+	 */
+	if (is_deleg && !mutex_trylock(&inode->i_mutex))
+		return -EAGAIN;
+
+	if (is_deleg && arg == F_WRLCK) {
+		/* Write delegations are not currently supported: */
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
 
 	error = -EAGAIN;
 	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
@@ -1514,9 +1548,10 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 		goto out;
 
 	locks_insert_lock(before, lease);
-	return 0;
-
+	error = 0;
 out:
+	if (is_deleg)
+		mutex_unlock(&inode->i_mutex);
 	return error;
 }
 
@@ -1579,7 +1614,7 @@ EXPORT_SYMBOL(generic_setlease);
 
 static int __vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 {
-	if (filp->f_op && filp->f_op->setlease)
+	if (filp->f_op->setlease)
 		return filp->f_op->setlease(filp, arg, lease);
 	else
 		return generic_setlease(filp, arg, lease);
@@ -1771,7 +1806,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	if (error)
 		goto out_free;
 
-	if (f.file->f_op && f.file->f_op->flock)
+	if (f.file->f_op->flock)
 		error = f.file->f_op->flock(f.file,
 					  (can_sleep) ? F_SETLKW : F_SETLK,
 					  lock);
@@ -1797,7 +1832,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
  */
 int vfs_test_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op && filp->f_op->lock)
+	if (filp->f_op->lock)
 		return filp->f_op->lock(filp, F_GETLK, fl);
 	posix_test_lock(filp, fl);
 	return 0;
@@ -1909,7 +1944,7 @@ out:
  */
 int vfs_lock_file(struct file *filp, unsigned int cmd, struct file_lock *fl, struct file_lock *conf)
 {
-	if (filp->f_op && filp->f_op->lock)
+	if (filp->f_op->lock)
 		return filp->f_op->lock(filp, cmd, fl);
 	else
 		return posix_lock_file(filp, fl, conf);
@@ -2182,7 +2217,7 @@ void locks_remove_flock(struct file *filp)
 	if (!inode->i_flock)
 		return;
 
-	if (filp->f_op && filp->f_op->flock) {
+	if (filp->f_op->flock) {
 		struct file_lock fl = {
 			.fl_pid = current->tgid,
 			.fl_file = filp,
@@ -2246,7 +2281,7 @@ EXPORT_SYMBOL(posix_unblock_lock);
  */
 int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 {
-	if (filp->f_op && filp->f_op->lock)
+	if (filp->f_op->lock)
 		return filp->f_op->lock(filp, F_CANCELLK, fl);
 	return 0;
 }

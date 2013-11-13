@@ -36,10 +36,10 @@
 #include <linux/eventfd.h>
 #include <linux/blkdev.h>
 #include <linux/compat.h>
-#include <linux/anon_inodes.h>
 #include <linux/migrate.h>
 #include <linux/ramfs.h>
 #include <linux/percpu-refcount.h>
+#include <linux/mount.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -152,12 +152,67 @@ unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio request
 static struct kmem_cache	*kiocb_cachep;
 static struct kmem_cache	*kioctx_cachep;
 
+static struct vfsmount *aio_mnt;
+
+static const struct file_operations aio_ring_fops;
+static const struct address_space_operations aio_ctx_aops;
+
+static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
+{
+	struct qstr this = QSTR_INIT("[aio]", 5);
+	struct file *file;
+	struct path path;
+	struct inode *inode = alloc_anon_inode(aio_mnt->mnt_sb);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	inode->i_mapping->a_ops = &aio_ctx_aops;
+	inode->i_mapping->private_data = ctx;
+	inode->i_size = PAGE_SIZE * nr_pages;
+
+	path.dentry = d_alloc_pseudo(aio_mnt->mnt_sb, &this);
+	if (!path.dentry) {
+		iput(inode);
+		return ERR_PTR(-ENOMEM);
+	}
+	path.mnt = mntget(aio_mnt);
+
+	d_instantiate(path.dentry, inode);
+	file = alloc_file(&path, FMODE_READ | FMODE_WRITE, &aio_ring_fops);
+	if (IS_ERR(file)) {
+		path_put(&path);
+		return file;
+	}
+
+	file->f_flags = O_RDWR;
+	file->private_data = ctx;
+	return file;
+}
+
+static struct dentry *aio_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
+{
+	static const struct dentry_operations ops = {
+		.d_dname	= simple_dname,
+	};
+	return mount_pseudo(fs_type, "aio:", NULL, &ops, 0xa10a10a1);
+}
+
 /* aio_setup
  *	Creates the slab caches used by the aio routines, panic on
  *	failure as this is done early during the boot sequence.
  */
 static int __init aio_setup(void)
 {
+	static struct file_system_type aio_fs = {
+		.name		= "aio",
+		.mount		= aio_mount,
+		.kill_sb	= kill_anon_super,
+	};
+	aio_mnt = kern_mount(&aio_fs);
+	if (IS_ERR(aio_mnt))
+		panic("Failed to create aio fs mount.");
+
 	kiocb_cachep = KMEM_CACHE(kiocb, SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 	kioctx_cachep = KMEM_CACHE(kioctx,SLAB_HWCACHE_ALIGN|SLAB_PANIC);
 
@@ -283,15 +338,11 @@ static int aio_setup_ring(struct kioctx *ctx)
 	if (nr_pages < 0)
 		return -EINVAL;
 
-	file = anon_inode_getfile_private("[aio]", &aio_ring_fops, ctx, O_RDWR);
+	file = aio_private_file(ctx, nr_pages);
 	if (IS_ERR(file)) {
 		ctx->aio_ring_file = NULL;
 		return -EAGAIN;
 	}
-
-	file->f_inode->i_mapping->a_ops = &aio_ctx_aops;
-	file->f_inode->i_mapping->private_data = ctx;
-	file->f_inode->i_size = PAGE_SIZE * (loff_t)nr_pages;
 
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;

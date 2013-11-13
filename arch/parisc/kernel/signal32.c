@@ -319,7 +319,7 @@ copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from)
 }
 
 int
-copy_siginfo_to_user32 (compat_siginfo_t __user *to, siginfo_t *from)
+copy_siginfo_to_user32 (compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	compat_uptr_t addr;
 	compat_int_t val;

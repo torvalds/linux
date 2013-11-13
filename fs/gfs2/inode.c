@@ -1514,13 +1514,6 @@ out:
 	return NULL;
 }
 
-static void gfs2_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
-}
-
 /**
  * gfs2_permission -
  * @inode: The inode
@@ -1872,7 +1865,7 @@ const struct inode_operations gfs2_dir_iops = {
 const struct inode_operations gfs2_symlink_iops = {
 	.readlink = generic_readlink,
 	.follow_link = gfs2_follow_link,
-	.put_link = gfs2_put_link,
+	.put_link = kfree_put_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
