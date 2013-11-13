@@ -3816,8 +3816,14 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	btrfs_printk(fs_info, KERN_NOTICE fmt, ##args)
 #define btrfs_info(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_INFO fmt, ##args)
+
+#ifdef DEBUG
 #define btrfs_debug(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_DEBUG fmt, ##args)
+#else
+#define btrfs_debug(fs_info, fmt, args...) \
+    no_printk(KERN_DEBUG fmt, ##args)
+#endif
 
 #ifdef CONFIG_BTRFS_ASSERT
 
