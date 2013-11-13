@@ -1494,6 +1494,7 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 
 	if (is_deleg && arg == F_WRLCK) {
 		/* Write delegations are not currently supported: */
+		mutex_unlock(&inode->i_mutex);
 		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
