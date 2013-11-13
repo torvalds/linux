@@ -554,19 +554,15 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 3);
+	ret = RING_SPACE(chan, 2);
 	if (ret)
 		goto fail;
 
-	if (nv_device(drm->device)->card_type < NV_C0) {
+	if (nv_device(drm->device)->card_type < NV_C0)
 		BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-		OUT_RING  (chan, 0x00000000);
-		OUT_RING  (chan, 0x00000000);
-	} else {
-		BEGIN_NVC0(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_IMC0(chan, 0, NVSW_SUBCHAN_PAGE_FLIP, 0x0000);
-	}
+	else
+		BEGIN_NVC0(chan, FermiSw, NV_SW_PAGE_FLIP, 1);
+	OUT_RING  (chan, 0x00000000);
 	FIRE_RING (chan);
 
 	ret = nouveau_fence_new(chan, false, pfence);
