@@ -1400,7 +1400,8 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 
 	head = &tt_global_entry->orig_list;
 	hlist_for_each_entry_rcu(orig_entry, head, list) {
-		router = batadv_orig_node_get_router(orig_entry->orig_node);
+		router = batadv_orig_router_get(orig_entry->orig_node,
+						BATADV_IF_DEFAULT);
 		if (!router)
 			continue;
 

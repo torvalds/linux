@@ -101,6 +101,28 @@ struct batadv_hard_iface {
 };
 
 /**
+ * struct batadv_orig_ifinfo - originator info per outgoing interface
+ * @list: list node for orig_node::ifinfo_list
+ * @if_outgoing: pointer to outgoing hard interface
+ * @router: router that should be used to reach this originator
+ * @last_real_seqno: last and best known sequence number
+ * @last_ttl: ttl of last received packet
+ * @batman_seqno_reset: time when the batman seqno window was reset
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ */
+struct batadv_orig_ifinfo {
+	struct hlist_node list;
+	struct batadv_hard_iface *if_outgoing;
+	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
+	uint32_t last_real_seqno;
+	uint8_t last_ttl;
+	unsigned long batman_seqno_reset;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
  * struct batadv_frag_table_entry - head in the fragment buffer table
  * @head: head of list with fragments
  * @lock: lock to protect the list of fragments
@@ -175,11 +197,10 @@ struct batadv_orig_bat_iv {
  * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
- * @router: router that should be used to reach this originator
+ * @ifinfo_list: list for routers per outgoing interface
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
- * @batman_seqno_reset: time when the batman seqno window was reset
  * @capabilities: announced capabilities of this originator
  * @last_ttvn: last seen translation table version number
  * @tt_buff: last tt changeset this node received from the orig node
@@ -192,8 +213,6 @@ struct batadv_orig_bat_iv {
  *  made up by two operations (data structure update and metdata -CRC/TTVN-
  *  recalculation) and they have to be executed atomically in order to avoid
  *  another thread to read the table/metadata between those.
- * @last_real_seqno: last and best known sequence number
- * @last_ttl: ttl of last received packet
  * @bcast_bits: bitfield containing the info which payload broadcast originated
  *  from this orig node this host already has seen (relative to
  *  last_bcast_seqno)
@@ -218,13 +237,12 @@ struct batadv_orig_bat_iv {
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
-	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
+	struct hlist_head ifinfo_list;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	batadv_dat_addr_t dat_addr;
 #endif
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
-	unsigned long batman_seqno_reset;
 	uint8_t capabilities;
 	atomic_t last_ttvn;
 	unsigned char *tt_buff;
@@ -233,8 +251,6 @@ struct batadv_orig_node {
 	bool tt_initialised;
 	/* prevents from changing the table while reading it */
 	spinlock_t tt_lock;
-	uint32_t last_real_seqno;
-	uint8_t last_ttl;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;

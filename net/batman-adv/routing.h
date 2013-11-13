@@ -23,6 +23,7 @@ bool batadv_check_management_packet(struct sk_buff *skb,
 				    int header_len);
 void batadv_update_route(struct batadv_priv *bat_priv,
 			 struct batadv_orig_node *orig_node,
+			 struct batadv_hard_iface *recv_if,
 			 struct batadv_neigh_node *neigh_node);
 int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if);

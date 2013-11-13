@@ -589,7 +589,8 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 		if (cand[i].type == BATADV_DAT_CANDIDATE_NOT_FOUND)
 			continue;
 
-		neigh_node = batadv_orig_node_get_router(cand[i].orig_node);
+		neigh_node = batadv_orig_router_get(cand[i].orig_node,
+						    BATADV_IF_DEFAULT);
 		if (!neigh_node)
 			goto free_orig;
 

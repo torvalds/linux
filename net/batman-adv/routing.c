@@ -33,13 +33,32 @@
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
 
+/**
+ * _batadv_update_route - set the router for this originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be configured
+ * @recv_if: the receive interface for which this route is set
+ * @neigh_node: neighbor which should be the next router
+ *
+ * This function does not perform any error checks
+ */
 static void _batadv_update_route(struct batadv_priv *bat_priv,
 				 struct batadv_orig_node *orig_node,
+				 struct batadv_hard_iface *recv_if,
 				 struct batadv_neigh_node *neigh_node)
 {
+	struct batadv_orig_ifinfo *orig_ifinfo;
 	struct batadv_neigh_node *curr_router;
 
-	curr_router = batadv_orig_node_get_router(orig_node);
+	orig_ifinfo = batadv_orig_ifinfo_get(orig_node, recv_if);
+	if (!orig_ifinfo)
+		return;
+
+	rcu_read_lock();
+	curr_router = rcu_dereference(orig_ifinfo->router);
+	if (curr_router && !atomic_inc_not_zero(&curr_router->refcount))
+		curr_router = NULL;
+	rcu_read_unlock();
 
 	/* route deleted */
 	if ((curr_router) && (!neigh_node)) {
@@ -69,16 +88,25 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 		neigh_node = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
-	rcu_assign_pointer(orig_node->router, neigh_node);
+	rcu_assign_pointer(orig_ifinfo->router, neigh_node);
 	spin_unlock_bh(&orig_node->neigh_list_lock);
+	batadv_orig_ifinfo_free_ref(orig_ifinfo);
 
 	/* decrease refcount of previous best neighbor */
 	if (curr_router)
 		batadv_neigh_node_free_ref(curr_router);
 }
 
+/**
+ * batadv_update_route - set the router for this originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be configured
+ * @recv_if: the receive interface for which this route is set
+ * @neigh_node: neighbor which should be the next router
+ */
 void batadv_update_route(struct batadv_priv *bat_priv,
 			 struct batadv_orig_node *orig_node,
+			 struct batadv_hard_iface *recv_if,
 			 struct batadv_neigh_node *neigh_node)
 {
 	struct batadv_neigh_node *router = NULL;
@@ -86,10 +114,10 @@ void batadv_update_route(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
-	router = batadv_orig_node_get_router(orig_node);
+	router = batadv_orig_router_get(orig_node, recv_if);
 
 	if (router != neigh_node)
-		_batadv_update_route(bat_priv, orig_node, neigh_node);
+		_batadv_update_route(bat_priv, orig_node, recv_if, neigh_node);
 
 out:
 	if (router)
@@ -406,7 +434,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		return NULL;
 
-	router = batadv_orig_node_get_router(orig_node);
+	router = batadv_orig_router_get(orig_node, recv_if);
 
 	/* TODO: fill this later with new bonding mechanism */
 

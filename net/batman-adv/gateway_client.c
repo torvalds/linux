@@ -146,7 +146,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			continue;
 
 		orig_node = gw_node->orig_node;
-		router = batadv_orig_node_get_router(orig_node);
+		router = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
 		if (!router)
 			continue;
 
@@ -266,7 +266,8 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	if (next_gw) {
 		sprintf(gw_addr, "%pM", next_gw->orig_node->orig);
 
-		router = batadv_orig_node_get_router(next_gw->orig_node);
+		router = batadv_orig_router_get(next_gw->orig_node,
+						BATADV_IF_DEFAULT);
 		if (!router) {
 			batadv_gw_reselect(bat_priv);
 			goto out;
@@ -335,7 +336,7 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 	if (!curr_gw_orig)
 		goto reselect;
 
-	router_gw = batadv_orig_node_get_router(curr_gw_orig);
+	router_gw = batadv_orig_router_get(curr_gw_orig, BATADV_IF_DEFAULT);
 	if (!router_gw)
 		goto reselect;
 
@@ -348,7 +349,7 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 	if (curr_gw_orig == orig_node)
 		goto out;
 
-	router_orig = batadv_orig_node_get_router(orig_node);
+	router_orig = batadv_orig_router_get(orig_node, BATADV_IF_DEFAULT);
 	if (!router_orig)
 		goto out;
 
@@ -576,7 +577,7 @@ static int batadv_write_buffer_text(struct batadv_priv *bat_priv,
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	int ret = -1;
 
-	router = batadv_orig_node_get_router(gw_node->orig_node);
+	router = batadv_orig_router_get(gw_node->orig_node, BATADV_IF_DEFAULT);
 	if (!router)
 		goto out;
 
