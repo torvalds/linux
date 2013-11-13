@@ -802,6 +802,7 @@ static int qla4xxx_set_chap_entry(struct Scsi_Host *shost, void *data, int len)
 	int type;
 	int rem = len;
 	int rc = 0;
+	int size;
 
 	memset(&chap_rec, 0, sizeof(chap_rec));
 
@@ -816,12 +817,14 @@ static int qla4xxx_set_chap_entry(struct Scsi_Host *shost, void *data, int len)
 			chap_rec.chap_type = param_info->value[0];
 			break;
 		case ISCSI_CHAP_PARAM_USERNAME:
-			memcpy(chap_rec.username, param_info->value,
-			       param_info->len);
+			size = min_t(size_t, sizeof(chap_rec.username),
+				     param_info->len);
+			memcpy(chap_rec.username, param_info->value, size);
 			break;
 		case ISCSI_CHAP_PARAM_PASSWORD:
-			memcpy(chap_rec.password, param_info->value,
-			       param_info->len);
+			size = min_t(size_t, sizeof(chap_rec.password),
+				     param_info->len);
+			memcpy(chap_rec.password, param_info->value, size);
 			break;
 		case ISCSI_CHAP_PARAM_PASSWORD_LEN:
 			chap_rec.password_length = param_info->value[0];
