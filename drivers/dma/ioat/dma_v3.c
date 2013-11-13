@@ -67,6 +67,8 @@
 #include "dma.h"
 #include "dma_v2.h"
 
+extern struct kmem_cache *ioat3_sed_cache;
+
 /* ioat hardware assumes at least two sources for raid operations */
 #define src_cnt_to_sw(x) ((x) + 2)
 #define src_cnt_to_hw(x) ((x) - 2)
@@ -252,7 +254,7 @@ ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 	struct ioat_sed_ent *sed;
 	gfp_t flags = __GFP_ZERO | GFP_ATOMIC;
 
-	sed = kmem_cache_alloc(device->sed_pool, flags);
+	sed = kmem_cache_alloc(ioat3_sed_cache, flags);
 	if (!sed)
 		return NULL;
 
@@ -260,7 +262,7 @@ ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 	sed->hw = dma_pool_alloc(device->sed_hw_pool[hw_pool],
 				 flags, &sed->dma);
 	if (!sed->hw) {
-		kmem_cache_free(device->sed_pool, sed);
+		kmem_cache_free(ioat3_sed_cache, sed);
 		return NULL;
 	}
 
@@ -273,7 +275,7 @@ static void ioat3_free_sed(struct ioatdma_device *device, struct ioat_sed_ent *s
 		return;
 
 	dma_pool_free(device->sed_hw_pool[sed->hw_pool], sed->hw, sed->dma);
-	kmem_cache_free(device->sed_pool, sed);
+	kmem_cache_free(ioat3_sed_cache, sed);
 }
 
 static bool desc_has_ext(struct ioat_ring_ent *desc)
@@ -1652,21 +1654,15 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		char pool_name[14];
 		int i;
 
-		/* allocate sw descriptor pool for SED */
-		device->sed_pool = kmem_cache_create("ioat_sed",
-				sizeof(struct ioat_sed_ent), 0, 0, NULL);
-		if (!device->sed_pool)
-			return -ENOMEM;
-
 		for (i = 0; i < MAX_SED_POOLS; i++) {
 			snprintf(pool_name, 14, "ioat_hw%d_sed", i);
 
 			/* allocate SED DMA pool */
-			device->sed_hw_pool[i] = dma_pool_create(pool_name,
+			device->sed_hw_pool[i] = dmam_pool_create(pool_name,
 					&pdev->dev,
 					SED_SIZE * (i + 1), 64, 0);
 			if (!device->sed_hw_pool[i])
-				goto sed_pool_cleanup;
+				return -ENOMEM;
 
 		}
 	}
@@ -1692,28 +1688,4 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		device->dca = ioat3_dca_init(pdev, device->reg_base);
 
 	return 0;
-
-sed_pool_cleanup:
-	if (device->sed_pool) {
-		int i;
-		kmem_cache_destroy(device->sed_pool);
-
-		for (i = 0; i < MAX_SED_POOLS; i++)
-			if (device->sed_hw_pool[i])
-				dma_pool_destroy(device->sed_hw_pool[i]);
-	}
-
-	return -ENOMEM;
-}
-
-void ioat3_dma_remove(struct ioatdma_device *device)
-{
-	if (device->sed_pool) {
-		int i;
-		kmem_cache_destroy(device->sed_pool);
-
-		for (i = 0; i < MAX_SED_POOLS; i++)
-			if (device->sed_hw_pool[i])
-				dma_pool_destroy(device->sed_hw_pool[i]);
-	}
 }

@@ -83,7 +83,6 @@ struct ioatdma_device {
 	struct pci_pool *completion_pool;
 #define MAX_SED_POOLS	5
 	struct dma_pool *sed_hw_pool[MAX_SED_POOLS];
-	struct kmem_cache *sed_pool;
 	struct dma_device common;
 	u8 version;
 	struct msix_entry msix_entries[4];
