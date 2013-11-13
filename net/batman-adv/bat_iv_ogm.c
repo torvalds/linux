@@ -974,8 +974,6 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		neigh_node->last_ttl = batadv_ogm_packet->ttl;
 	}
 
-	batadv_bonding_candidate_add(bat_priv, orig_node, neigh_node);
-
 	/* if this neighbor already is our next hop there is nothing
 	 * to change
 	 */
@@ -1423,9 +1421,6 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	is_bidirect = batadv_iv_ogm_calc_tq(orig_node, orig_neigh_node,
 					    batadv_ogm_packet, if_incoming);
-
-	batadv_bonding_save_primary(orig_node, orig_neigh_node,
-				    batadv_ogm_packet);
 
 	/* update ranking if it is not a duplicate or has the same
 	 * seqno and similar ttl as the non-duplicate

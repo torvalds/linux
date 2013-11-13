@@ -44,15 +44,6 @@ struct batadv_neigh_node *
 batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   const struct batadv_hard_iface *recv_if);
-void batadv_bonding_candidate_del(struct batadv_orig_node *orig_node,
-				  struct batadv_neigh_node *neigh_node);
-void batadv_bonding_candidate_add(struct batadv_priv *bat_priv,
-				  struct batadv_orig_node *orig_node,
-				  struct batadv_neigh_node *neigh_node);
-void batadv_bonding_save_primary(const struct batadv_orig_node *orig_node,
-				 struct batadv_orig_node *orig_neigh_node,
-				 const struct batadv_ogm_packet
-				 *batman_ogm_packet);
 int batadv_window_protected(struct batadv_priv *bat_priv, int32_t seq_num_diff,
 			    unsigned long *last_reset);
 

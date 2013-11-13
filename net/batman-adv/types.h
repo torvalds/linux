@@ -199,12 +199,10 @@ struct batadv_orig_bat_iv {
  *  last_bcast_seqno)
  * @last_bcast_seqno: last broadcast sequence number received by this host
  * @neigh_list: list of potential next hop neighbor towards this orig node
- * @neigh_list_lock: lock protecting neigh_list, router and bonding_list
+ * @neigh_list_lock: lock protecting neigh_list and router
  * @hash_entry: hlist node for batadv_priv::orig_hash
  * @bat_priv: pointer to soft_iface this orig node belongs to
  * @bcast_seqno_lock: lock protecting bcast_bits & last_bcast_seqno
- * @bond_candidates: how many candidates are available
- * @bond_list: list of bonding candidates
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
  * @in_coding_list: list of nodes this orig can hear
@@ -240,14 +238,12 @@ struct batadv_orig_node {
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
-	/* neigh_list_lock protects: neigh_list, router & bonding_list */
+	/* neigh_list_lock protects: neigh_list and router */
 	spinlock_t neigh_list_lock;
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
 	/* bcast_seqno_lock protects: bcast_bits & last_bcast_seqno */
 	spinlock_t bcast_seqno_lock;
-	atomic_t bond_candidates;
-	struct list_head bond_list;
 	atomic_t refcount;
 	struct rcu_head rcu;
 #ifdef CONFIG_BATMAN_ADV_NC
@@ -320,7 +316,6 @@ struct batadv_neigh_bat_iv {
  * @if_incoming: pointer to incoming hard interface
  * @last_seen: when last packet via this neighbor was received
  * @last_ttl: last received ttl from this neigh node
- * @bonding_list: list node for batadv_orig_node::bond_list
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
  * @bat_iv: B.A.T.M.A.N. IV private structure
@@ -332,7 +327,6 @@ struct batadv_neigh_node {
 	struct batadv_hard_iface *if_incoming;
 	unsigned long last_seen;
 	uint8_t last_ttl;
-	struct list_head bonding_list;
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct batadv_neigh_bat_iv bat_iv;

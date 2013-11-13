@@ -196,8 +196,6 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 	neigh_node->if_incoming = hard_iface;
 	neigh_node->orig_node = orig_node;
 
-	INIT_LIST_HEAD(&neigh_node->bonding_list);
-
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
 
@@ -208,19 +206,12 @@ out:
 static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 {
 	struct hlist_node *node_tmp;
-	struct batadv_neigh_node *neigh_node, *tmp_neigh_node;
+	struct batadv_neigh_node *neigh_node;
 	struct batadv_orig_node *orig_node;
 
 	orig_node = container_of(rcu, struct batadv_orig_node, rcu);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
-
-	/* for all bonding members ... */
-	list_for_each_entry_safe(neigh_node, tmp_neigh_node,
-				 &orig_node->bond_list, bonding_list) {
-		list_del_rcu(&neigh_node->bonding_list);
-		batadv_neigh_node_free_ref(neigh_node);
-	}
 
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node_tmp,
@@ -325,7 +316,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 		return NULL;
 
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
-	INIT_LIST_HEAD(&orig_node->bond_list);
 	INIT_LIST_HEAD(&orig_node->vlan_list);
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
@@ -349,8 +339,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	reset_time = jiffies - 1 - msecs_to_jiffies(BATADV_RESET_PROTECTION_MS);
 	orig_node->bcast_seqno_reset = reset_time;
 	orig_node->batman_seqno_reset = reset_time;
-
-	atomic_set(&orig_node->bond_candidates, 0);
 
 	/* create a vlan object for the "untagged" LAN */
 	vlan = batadv_orig_node_vlan_new(orig_node, BATADV_NO_FLAGS);
@@ -416,7 +404,6 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 			neigh_purged = true;
 
 			hlist_del_rcu(&neigh_node->list);
-			batadv_bonding_candidate_del(orig_node, neigh_node);
 			batadv_neigh_node_free_ref(neigh_node);
 		} else {
 			/* store the best_neighbour if this is the first
