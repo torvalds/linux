@@ -2910,6 +2910,7 @@ int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 		 cmd->t_task_cdb[0], cmd->se_tfo->get_task_tag(cmd));
 
 	cmd->se_cmd_flags |= SCF_SENT_DELAYED_TAS;
+	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
 	trace_target_cmd_complete(cmd);
 	cmd->se_tfo->queue_status(cmd);
 
@@ -2938,6 +2939,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
 			cmd->transport_state |= CMD_T_ABORTED;
 			smp_mb__after_atomic_inc();
+			return;
 		}
 	}
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
