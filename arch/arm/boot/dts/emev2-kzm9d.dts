@@ -9,7 +9,9 @@
  */
 /dts-v1/;
 
-/include/ "emev2.dtsi"
+#include "emev2.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "EMEV2 KZM9D Board";
@@ -53,5 +55,40 @@
 		smsc,irq-push-pull;
 		vddvario-supply = <&reg_1p8v>;
 		vdd33a-supply = <&reg_3p3v>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			label = "DSW2-1";
+			linux,code = <KEY_1>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			label = "DSW2-2";
+			linux,code = <KEY_2>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			label = "DSW2-3";
+			linux,code = <KEY_3>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			label = "DSW2-4";
+			linux,code = <KEY_4>;
+			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+		};
 	};
 };
