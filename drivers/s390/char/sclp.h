@@ -99,6 +99,7 @@ struct init_sccb {
 } __attribute__((packed));
 
 extern u64 sclp_facilities;
+
 #define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
 #define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
@@ -172,7 +173,6 @@ int sclp_deactivate(void);
 int sclp_reactivate(void);
 int sclp_service_call(sclp_cmdw_t command, void *sccb);
 int sclp_sync_request(sclp_cmdw_t command, void *sccb);
-int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
@@ -180,6 +180,10 @@ void sclp_sdias_exit(void);
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
+extern u8 sclp_fac84;
+extern unsigned long long sclp_rzm;
+extern unsigned long long sclp_rnmax;
+extern __initdata int sclp_early_read_info_sccb_valid;
 
 /* useful inlines */
 
