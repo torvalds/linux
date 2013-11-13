@@ -145,7 +145,9 @@ static void vmw_gmr_free_descriptors(struct device *dev, dma_addr_t desc_dma,
 		}
 
 		page_virtual = kmap_atomic(page);
-		desc_dma = page_virtual[desc_per_page].ppn << PAGE_SHIFT;
+		desc_dma = (dma_addr_t)
+			le32_to_cpu(page_virtual[desc_per_page].ppn) <<
+			PAGE_SHIFT;
 		kunmap_atomic(page_virtual);
 
 		__free_page(page);
@@ -217,7 +219,8 @@ static int vmw_gmr_build_descriptors(struct device *dev,
 	desc_dma = 0;
 	list_for_each_entry_reverse(page, desc_pages, lru) {
 		page_virtual = kmap_atomic(page);
-		page_virtual[desc_per_page].ppn = desc_dma >> PAGE_SHIFT;
+		page_virtual[desc_per_page].ppn = cpu_to_le32
+			(desc_dma >> PAGE_SHIFT);
 		kunmap_atomic(page_virtual);
 		desc_dma = dma_map_page(dev, page, 0, PAGE_SIZE,
 					DMA_TO_DEVICE);
