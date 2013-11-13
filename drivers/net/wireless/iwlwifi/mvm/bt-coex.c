@@ -391,7 +391,6 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					    BT_VALID_LUT |
 					    BT_VALID_WIFI_RX_SW_PRIO_BOOST |
 					    BT_VALID_WIFI_TX_SW_PRIO_BOOST |
-					    BT_VALID_MULTI_PRIO_LUT |
 					    BT_VALID_CORUN_LUT_20 |
 					    BT_VALID_CORUN_LUT_40 |
 					    BT_VALID_ANT_ISOLATION |
