@@ -1169,9 +1169,6 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 	u8 op;
 	int i, s, idx, num_descs;
 
-	/* this function only handles src_cnt 9 - 16 */
-	BUG_ON(src_cnt < 9);
-
 	/* this function is only called with 9-16 sources */
 	op = result ? IOAT_OP_PQ_VAL_16S : IOAT_OP_PQ_16S;
 
@@ -1257,13 +1254,21 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 	return &desc->txd;
 }
 
+static int src_cnt_flags(unsigned int src_cnt, unsigned long flags)
+{
+	if (dmaf_p_disabled_continue(flags))
+		return src_cnt + 1;
+	else if (dmaf_continue(flags))
+		return src_cnt + 3;
+	else
+		return src_cnt;
+}
+
 static struct dma_async_tx_descriptor *
 ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 	      unsigned int src_cnt, const unsigned char *scf, size_t len,
 	      unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
-
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		dst[0] = dst[1];
@@ -1283,7 +1288,7 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 		single_source_coef[0] = scf[0];
 		single_source_coef[1] = 0;
 
-		return (src_cnt > 8) && (dma->max_pq > 8) ?
+		return src_cnt_flags(src_cnt, flags) > 8 ?
 			__ioat3_prep_pq16_lock(chan, NULL, dst, single_source,
 					       2, single_source_coef, len,
 					       flags) :
@@ -1291,7 +1296,7 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 					     single_source_coef, len, flags);
 
 	} else {
-		return (src_cnt > 8) && (dma->max_pq > 8) ?
+		return src_cnt_flags(src_cnt, flags) > 8 ?
 			__ioat3_prep_pq16_lock(chan, NULL, dst, src, src_cnt,
 					       scf, len, flags) :
 			__ioat3_prep_pq_lock(chan, NULL, dst, src, src_cnt,
@@ -1304,8 +1309,6 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		  unsigned int src_cnt, const unsigned char *scf, size_t len,
 		  enum sum_check_flags *pqres, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
-
 	/* specify valid address for disabled result */
 	if (flags & DMA_PREP_PQ_DISABLE_P)
 		pq[0] = pq[1];
@@ -1317,7 +1320,7 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 	 */
 	*pqres = 0;
 
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, pqres, pq, src, src_cnt, scf, len,
 				       flags) :
 		__ioat3_prep_pq_lock(chan, pqres, pq, src, src_cnt, scf, len,
@@ -1328,7 +1331,6 @@ static struct dma_async_tx_descriptor *
 ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 		 unsigned int src_cnt, size_t len, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
 	unsigned char scf[src_cnt];
 	dma_addr_t pq[2];
 
@@ -1337,7 +1339,7 @@ ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[1] = dst; /* specify valid address for disabled result */
 
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, NULL, pq, src, src_cnt, scf, len,
 				       flags) :
 		__ioat3_prep_pq_lock(chan, NULL, pq, src, src_cnt, scf, len,
@@ -1349,7 +1351,6 @@ ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		     unsigned int src_cnt, size_t len,
 		     enum sum_check_flags *result, unsigned long flags)
 {
-	struct dma_device *dma = chan->device;
 	unsigned char scf[src_cnt];
 	dma_addr_t pq[2];
 
@@ -1363,8 +1364,7 @@ ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[1] = pq[0]; /* specify valid address for disabled result */
 
-
-	return (src_cnt > 8) && (dma->max_pq > 8) ?
+	return src_cnt_flags(src_cnt, flags) > 8 ?
 		__ioat3_prep_pq16_lock(chan, result, pq, &src[1], src_cnt - 1,
 				       scf, len, flags) :
 		__ioat3_prep_pq_lock(chan, result, pq, &src[1], src_cnt - 1,
