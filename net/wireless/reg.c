@@ -2152,6 +2152,9 @@ static void print_dfs_region(enum nl80211_dfs_regions dfs_region)
 		return;
 
 	switch (dfs_region) {
+	case NL80211_DFS_UNSET:
+		pr_info(" DFS Master region unset");
+		break;
 	case NL80211_DFS_FCC:
 		pr_info(" DFS Master region FCC");
 		break;
