@@ -224,6 +224,10 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
+	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
+		   iwl_mvm_rx_scan_offload_complete_notif, false),
+	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
+		   false),
 
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
@@ -249,6 +253,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(TIME_EVENT_NOTIFICATION),
 	CMD(BINDING_CONTEXT_CMD),
 	CMD(TIME_QUOTA_CMD),
+	CMD(NON_QOS_TX_COUNTER_CMD),
 	CMD(RADIO_VERSION_NOTIFICATION),
 	CMD(SCAN_REQUEST_CMD),
 	CMD(SCAN_ABORT_CMD),
@@ -260,10 +265,12 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(CALIB_RES_NOTIF_PHY_DB),
 	CMD(SET_CALIB_DEFAULT_CMD),
 	CMD(CALIBRATION_COMPLETE_NOTIFICATION),
+	CMD(ADD_STA_KEY),
 	CMD(ADD_STA),
 	CMD(REMOVE_STA),
 	CMD(LQ_CMD),
 	CMD(SCAN_OFFLOAD_CONFIG_CMD),
+	CMD(MATCH_FOUND_NOTIFICATION),
 	CMD(SCAN_OFFLOAD_REQUEST_CMD),
 	CMD(SCAN_OFFLOAD_ABORT_CMD),
 	CMD(SCAN_OFFLOAD_COMPLETE),
@@ -303,6 +310,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(REPLY_BEACON_FILTERING_CMD),
 	CMD(REPLY_THERMAL_MNG_BACKOFF),
 	CMD(MAC_PM_POWER_TABLE),
+	CMD(BT_COEX_CI),
 };
 #undef CMD
 
@@ -343,6 +351,14 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->hw = hw;
 
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
+
+	mvm->aux_queue = 15;
+	mvm->first_agg_queue = 16;
+	mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	if (mvm->cfg->base_params->num_of_queues == 16) {
+		mvm->aux_queue = 11;
+		mvm->first_agg_queue = 12;
+	}
 
 	mutex_init(&mvm->mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
@@ -401,24 +417,32 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	IWL_INFO(mvm, "Detected %s, REV=0x%X\n",
 		 mvm->cfg->name, mvm->trans->hw_rev);
 
-	err = iwl_trans_start_hw(mvm->trans);
-	if (err)
-		goto out_free;
-
 	iwl_mvm_tt_initialize(mvm);
 
-	mutex_lock(&mvm->mutex);
-	err = iwl_run_init_mvm_ucode(mvm, true);
-	mutex_unlock(&mvm->mutex);
-	/* returns 0 if successful, 1 if success but in rfkill */
-	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
-		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
-		goto out_free;
-	}
+	/*
+	 * If the NVM exists in an external file,
+	 * there is no need to unnecessarily power up the NIC at driver load
+	 */
+	if (iwlwifi_mod_params.nvm_file) {
+			iwl_nvm_init(mvm);
+	} else {
+		err = iwl_trans_start_hw(mvm->trans);
+		if (err)
+			goto out_free;
 
-	/* Stop the hw after the ALIVE and NVM has been read */
-	if (!iwlmvm_mod_params.init_dbg)
-		iwl_trans_stop_hw(mvm->trans, false);
+		mutex_lock(&mvm->mutex);
+		err = iwl_run_init_mvm_ucode(mvm, true);
+		mutex_unlock(&mvm->mutex);
+		/* returns 0 if successful, 1 if success but in rfkill */
+		if (err < 0 && !iwlmvm_mod_params.init_dbg) {
+			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
+			goto out_free;
+		}
+
+		/* Stop the hw after the ALIVE and NVM has been read */
+		if (!iwlmvm_mod_params.init_dbg)
+			iwl_trans_stop_hw(mvm->trans, false);
+	}
 
 	scan_size = sizeof(struct iwl_scan_cmd) +
 		mvm->fw->ucode_capa.max_probe_length +
@@ -435,7 +459,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_unregister;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PM_CMD_SUPPORT)
 		mvm->pm_ops = &pm_mac_ops;
 	else
 		mvm->pm_ops = &pm_legacy_ops;
@@ -449,7 +473,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	iwl_trans_stop_hw(trans, true);
+	if (!iwlwifi_mod_params.nvm_file)
+		iwl_trans_stop_hw(trans, true);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
 }
@@ -714,6 +739,9 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			break;
 		case IWL_MVM_SCAN_OS:
 			ieee80211_scan_completed(mvm->hw, true);
+			break;
+		case IWL_MVM_SCAN_SCHED:
+			ieee80211_sched_scan_stopped(mvm->hw);
 			break;
 		}
 

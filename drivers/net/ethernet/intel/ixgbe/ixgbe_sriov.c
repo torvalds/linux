@@ -129,10 +129,6 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter)
 	if (!pre_existing_vfs && !adapter->num_vfs)
 		return;
 
-	if (!pre_existing_vfs)
-		dev_warn(&adapter->pdev->dev,
-			 "Enabling SR-IOV VFs using the module parameter is deprecated - please use the pci sysfs interface.\n");
-
 	/* If there are pre-existing VFs then we have to force
 	 * use of that many - over ride any module parameter value.
 	 * This may result from the user unloading the PF driver
@@ -223,17 +219,19 @@ int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Disable VMDq flag so device will be set in VM mode */
-	if (adapter->ring_feature[RING_F_VMDQ].limit == 1)
+	if (adapter->ring_feature[RING_F_VMDQ].limit == 1) {
 		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
-	adapter->ring_feature[RING_F_VMDQ].offset = 0;
+		adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
+		rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
+	} else {
+		rss = min_t(int, IXGBE_MAX_L2A_QUEUES, num_online_cpus());
+	}
 
-	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
+	adapter->ring_feature[RING_F_VMDQ].offset = 0;
 	adapter->ring_feature[RING_F_RSS].limit = rss;
 
 	/* take a breather then clean up driver data */
 	msleep(100);
-
-	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
 	return 0;
 }
 
@@ -298,13 +296,10 @@ static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
 	err = ixgbe_disable_sriov(adapter);
 
 	/* Only reinit if no error and state changed */
-	if (!err && current_flags != adapter->flags) {
-		/* ixgbe_disable_sriov() doesn't clear VMDQ flag */
-		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
 #ifdef CONFIG_PCI_IOV
+	if (!err && current_flags != adapter->flags)
 		ixgbe_sriov_reinit(adapter);
 #endif
-	}
 
 	return err;
 }
@@ -558,7 +553,7 @@ static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
 
-	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, 6);
+	memcpy(adapter->vfinfo[vf].vf_mac_addresses, mac_addr, ETH_ALEN);
 	hw->mac.ops.set_rar(hw, rar_entry, mac_addr, vf, IXGBE_RAH_AV);
 
 	return 0;
@@ -621,16 +616,13 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 {
-	unsigned char vf_mac_addr[6];
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	unsigned int vfn = (event_mask & 0x3f);
 
 	bool enable = ((event_mask & 0x10000000U) != 0);
 
-	if (enable) {
-		eth_zero_addr(vf_mac_addr);
-		memcpy(adapter->vfinfo[vfn].vf_mac_addresses, vf_mac_addr, 6);
-	}
+	if (enable)
+		eth_zero_addr(adapter->vfinfo[vfn].vf_mac_addresses);
 
 	return 0;
 }

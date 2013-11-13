@@ -278,12 +278,9 @@ static const unsigned int rt2800_eeprom_map_ext[EEPROM_WORD_COUNT] = {
 	[EEPROM_LNA]			= 0x0026,
 	[EEPROM_EXT_LNA2]		= 0x0027,
 	[EEPROM_RSSI_BG]		= 0x0028,
-	[EEPROM_TXPOWER_DELTA]		= 0x0028, /* Overlaps with RSSI_BG */
 	[EEPROM_RSSI_BG2]		= 0x0029,
-	[EEPROM_TXMIXER_GAIN_BG]	= 0x0029, /* Overlaps with RSSI_BG2 */
 	[EEPROM_RSSI_A]			= 0x002a,
 	[EEPROM_RSSI_A2]		= 0x002b,
-	[EEPROM_TXMIXER_GAIN_A]		= 0x002b, /* Overlaps with RSSI_A2 */
 	[EEPROM_TXPOWER_BG1]		= 0x0030,
 	[EEPROM_TXPOWER_BG2]		= 0x0037,
 	[EEPROM_EXT_TXPOWER_BG3]	= 0x003e,
@@ -1783,7 +1780,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 	rt2800_bbp_read(rt2x00dev, 3, &r3);
 
 	if (rt2x00_rt(rt2x00dev, RT3572) &&
-	    test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags))
+	    rt2x00_has_cap_bt_coexist(rt2x00dev))
 		rt2800_config_3572bt_ant(rt2x00dev);
 
 	/*
@@ -1795,7 +1792,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 		break;
 	case 2:
 		if (rt2x00_rt(rt2x00dev, RT3572) &&
-		    test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags))
+		    rt2x00_has_cap_bt_coexist(rt2x00dev))
 			rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 1);
 		else
 			rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 2);
@@ -1825,7 +1822,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 		break;
 	case 2:
 		if (rt2x00_rt(rt2x00dev, RT3572) &&
-		    test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
+		    rt2x00_has_cap_bt_coexist(rt2x00dev)) {
 			rt2x00_set_field8(&r3, BBP3_RX_ADC, 1);
 			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA,
 				rt2x00dev->curr_band == IEEE80211_BAND_5GHZ);
@@ -2029,13 +2026,6 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 			  rt2x00dev->default_ant.tx_chain_num <= 2);
 	rt2800_rfcsr_write(rt2x00dev, 1, rfcsr);
 
-	rt2800_rfcsr_read(rt2x00dev, 30, &rfcsr);
-	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 1);
-	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
-	msleep(1);
-	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 0);
-	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
-
 	rt2800_rfcsr_read(rt2x00dev, 23, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR23_FREQ_OFFSET, rt2x00dev->freq_offset);
 	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
@@ -2141,7 +2131,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 0);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 0);
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 0);
-	if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_bt_coexist(rt2x00dev)) {
 		if (rf->channel <= 14) {
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
 			rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 1);
@@ -2674,7 +2664,7 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 	if (rf->channel <= 14) {
 		int idx = rf->channel-1;
 
-		if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
+		if (rt2x00_has_cap_bt_coexist(rt2x00dev)) {
 			if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
 				/* r55/r59 value array of channel 1~14 */
 				static const char r55_bt_rev[] = {0x83, 0x83,
@@ -3152,6 +3142,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	case RF3322:
 		rt2800_config_channel_rf3322(rt2x00dev, conf, rf, info);
 		break;
+	case RF3070:
 	case RF5360:
 	case RF5370:
 	case RF5372:
@@ -3166,7 +3157,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_config_channel_rf2xxx(rt2x00dev, conf, rf, info);
 	}
 
-	if (rt2x00_rf(rt2x00dev, RF3290) ||
+	if (rt2x00_rf(rt2x00dev, RF3070) ||
+	    rt2x00_rf(rt2x00dev, RF3290) ||
 	    rt2x00_rf(rt2x00dev, RF3322) ||
 	    rt2x00_rf(rt2x00dev, RF5360) ||
 	    rt2x00_rf(rt2x00dev, RF5370) ||
@@ -3218,8 +3210,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	if (rf->channel <= 14) {
 		if (!rt2x00_rt(rt2x00dev, RT5390) &&
 		    !rt2x00_rt(rt2x00dev, RT5392)) {
-			if (test_bit(CAPABILITY_EXTERNAL_LNA_BG,
-				     &rt2x00dev->cap_flags)) {
+			if (rt2x00_has_cap_external_lna_bg(rt2x00dev)) {
 				rt2800_bbp_write(rt2x00dev, 82, 0x62);
 				rt2800_bbp_write(rt2x00dev, 75, 0x46);
 			} else {
@@ -3244,7 +3235,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		if (rt2x00_rt(rt2x00dev, RT3593))
 			rt2800_bbp_write(rt2x00dev, 83, 0x9a);
 
-		if (test_bit(CAPABILITY_EXTERNAL_LNA_A, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_external_lna_a(rt2x00dev))
 			rt2800_bbp_write(rt2x00dev, 75, 0x46);
 		else
 			rt2800_bbp_write(rt2x00dev, 75, 0x50);
@@ -3280,7 +3271,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		/* Turn on primary PAs */
 		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_A0_EN,
 				   rf->channel > 14);
-		if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_bt_coexist(rt2x00dev))
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN, 1);
 		else
 			rt2x00_set_field32(&tx_pin, TX_PIN_CFG_PA_PE_G0_EN,
@@ -3311,32 +3302,49 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
-	if (rt2x00_rt(rt2x00dev, RT3572))
+	if (rt2x00_rt(rt2x00dev, RT3572)) {
 		rt2800_rfcsr_write(rt2x00dev, 8, 0x80);
 
-	if (rt2x00_rt(rt2x00dev, RT3593)) {
-		if (rt2x00_is_usb(rt2x00dev)) {
-			rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+		/* AGC init */
+		if (rf->channel <= 14)
+			reg = 0x1c + (2 * rt2x00dev->lna_gain);
+		else
+			reg = 0x22 + ((rt2x00dev->lna_gain * 5) / 3);
 
-			/* Band selection. GPIO #8 controls all paths */
+		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
+	}
+
+	if (rt2x00_rt(rt2x00dev, RT3593)) {
+		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+
+		/* Band selection */
+		if (rt2x00_is_usb(rt2x00dev) ||
+		    rt2x00_is_pcie(rt2x00dev)) {
+			/* GPIO #8 controls all paths */
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR8, 0);
 			if (rf->channel <= 14)
 				rt2x00_set_field32(&reg, GPIO_CTRL_VAL8, 1);
 			else
 				rt2x00_set_field32(&reg, GPIO_CTRL_VAL8, 0);
+		}
 
+		/* LNA PE control. */
+		if (rt2x00_is_usb(rt2x00dev)) {
+			/* GPIO #4 controls PE0 and PE1,
+			 * GPIO #7 controls PE2
+			 */
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR4, 0);
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR7, 0);
 
-			/* LNA PE control.
-			* GPIO #4 controls PE0 and PE1,
-			* GPIO #7 controls PE2
-			*/
 			rt2x00_set_field32(&reg, GPIO_CTRL_VAL4, 1);
 			rt2x00_set_field32(&reg, GPIO_CTRL_VAL7, 1);
-
-			rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
+		} else if (rt2x00_is_pcie(rt2x00dev)) {
+			/* GPIO #4 controls PE0, PE1 and PE2 */
+			rt2x00_set_field32(&reg, GPIO_CTRL_DIR4, 0);
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL4, 1);
 		}
+
+		rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 
 		/* AGC init */
 		if (rf->channel <= 14)
@@ -3565,7 +3573,7 @@ static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
 {
 	int delta;
 
-	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_power_limit(rt2x00dev))
 		return 0;
 
 	/*
@@ -3594,7 +3602,7 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	if (rt2x00_rt(rt2x00dev, RT3593))
 		return min_t(u8, txpower, 0xc);
 
-	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_power_limit(rt2x00dev)) {
 		/*
 		 * Check if eirp txpower exceed txpower_limit.
 		 * We use OFDM 6M as criterion and its eirp txpower
@@ -4264,6 +4272,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 7, rfcsr);
 		break;
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF5360:
 	case RF5370:
@@ -4405,6 +4414,7 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		    rt2x00_rt(rt2x00dev, RT3290) ||
 		    rt2x00_rt(rt2x00dev, RT3390) ||
 		    rt2x00_rt(rt2x00dev, RT3572) ||
+		    rt2x00_rt(rt2x00dev, RT3593) ||
 		    rt2x00_rt(rt2x00dev, RT5390) ||
 		    rt2x00_rt(rt2x00dev, RT5392) ||
 		    rt2x00_rt(rt2x00dev, RT5592))
@@ -4412,8 +4422,8 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 		else
 			vgc = 0x2e + rt2x00dev->lna_gain;
 	} else { /* 5GHZ band */
-		if (rt2x00_rt(rt2x00dev, RT3572))
-			vgc = 0x22 + (rt2x00dev->lna_gain * 5) / 3;
+		if (rt2x00_rt(rt2x00dev, RT3593))
+			vgc = 0x20 + (rt2x00dev->lna_gain * 5) / 3;
 		else if (rt2x00_rt(rt2x00dev, RT5592))
 			vgc = 0x24 + (2 * rt2x00dev->lna_gain);
 		else {
@@ -4431,11 +4441,17 @@ static inline void rt2800_set_vgc(struct rt2x00_dev *rt2x00dev,
 				  struct link_qual *qual, u8 vgc_level)
 {
 	if (qual->vgc_level != vgc_level) {
-		if (rt2x00_rt(rt2x00dev, RT5592)) {
+		if (rt2x00_rt(rt2x00dev, RT3572) ||
+		    rt2x00_rt(rt2x00dev, RT3593)) {
+			rt2800_bbp_write_with_rx_chain(rt2x00dev, 66,
+						       vgc_level);
+		} else if (rt2x00_rt(rt2x00dev, RT5592)) {
 			rt2800_bbp_write(rt2x00dev, 83, qual->rssi > -65 ? 0x4a : 0x7a);
 			rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, vgc_level);
-		} else
+		} else {
 			rt2800_bbp_write(rt2x00dev, 66, vgc_level);
+		}
+
 		qual->vgc_level = vgc_level;
 		qual->vgc_level_reg = vgc_level;
 	}
@@ -4454,17 +4470,35 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 
 	if (rt2x00_rt_rev(rt2x00dev, RT2860, REV_RT2860C))
 		return;
-	/*
-	 * When RSSI is better then -80 increase VGC level with 0x10, except
-	 * for rt5592 chip.
+
+	/* When RSSI is better than a certain threshold, increase VGC
+	 * with a chip specific value in order to improve the balance
+	 * between sensibility and noise isolation.
 	 */
 
 	vgc = rt2800_get_default_vgc(rt2x00dev);
 
-	if (rt2x00_rt(rt2x00dev, RT5592) && qual->rssi > -65)
-		vgc += 0x20;
-	else if (qual->rssi > -80)
-		vgc += 0x10;
+	switch (rt2x00dev->chip.rt) {
+	case RT3572:
+	case RT3593:
+		if (qual->rssi > -65) {
+			if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ)
+				vgc += 0x20;
+			else
+				vgc += 0x10;
+		}
+		break;
+
+	case RT5592:
+		if (qual->rssi > -65)
+			vgc += 0x20;
+		break;
+
+	default:
+		if (qual->rssi > -80)
+			vgc += 0x10;
+		break;
+	}
 
 	rt2800_set_vgc(rt2x00dev, qual, vgc);
 }
@@ -5489,7 +5523,7 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 	ant = (div_mode == 3) ? 1 : 0;
 
 	/* check if this is a Bluetooth combo card */
-	if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_bt_coexist(rt2x00dev)) {
 		u32 reg;
 
 		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
@@ -5798,7 +5832,7 @@ static void rt2800_normal_mode_setup_3xxx(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 	    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E) ||
 	    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E)) {
-		if (!test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags))
+		if (!rt2x00_has_cap_external_lna_bg(rt2x00dev))
 			rt2x00_set_field8(&rfcsr, RFCSR17_R, 1);
 	}
 
@@ -5985,7 +6019,7 @@ static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 20, 0xba);
 	rt2800_rfcsr_write(rt2x00dev, 21, 0xdb);
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x16);
-	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
+	rt2800_rfcsr_write(rt2x00dev, 25, 0x03);
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
 
 	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
@@ -6441,7 +6475,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 28, 0x00);
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x10);
 
-	rt2800_rfcsr_write(rt2x00dev, 30, 0x00);
+	rt2800_rfcsr_write(rt2x00dev, 30, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 31, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 32, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 33, 0x00);
@@ -6479,7 +6513,7 @@ static void rt2800_init_rfcsr_5390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 56, 0x22);
 	rt2800_rfcsr_write(rt2x00dev, 57, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 58, 0x7f);
-	rt2800_rfcsr_write(rt2x00dev, 59, 0x63);
+	rt2800_rfcsr_write(rt2x00dev, 59, 0x8f);
 
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F))
@@ -6499,7 +6533,6 @@ static void rt2800_init_rfcsr_5392(struct rt2x00_dev *rt2x00dev)
 	rt2800_rf_init_calibration(rt2x00dev, 2);
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x17);
-	rt2800_rfcsr_write(rt2x00dev, 2, 0x80);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x88);
 	rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 6, 0xe0);
@@ -6653,17 +6686,20 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	u16 word;
 
 	/*
-	 * Initialize all registers.
+	 * Initialize MAC registers.
 	 */
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800_init_registers(rt2x00dev)))
 		return -EIO;
 
+	/*
+	 * Wait BBP/RF to wake up.
+	 */
 	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev)))
 		return -EIO;
 
 	/*
-	 * Send signal to firmware during boot time.
+	 * Send signal during boot time to initialize firmware.
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
@@ -6672,9 +6708,15 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
 	msleep(1);
 
+	/*
+	 * Make sure BBP is up and running.
+	 */
 	if (unlikely(rt2800_wait_bbp_ready(rt2x00dev)))
 		return -EIO;
 
+	/*
+	 * Initialize BBP/RF registers.
+	 */
 	rt2800_init_bbp(rt2x00dev);
 	rt2800_init_rfcsr(rt2x00dev);
 
@@ -7021,6 +7063,7 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF3022:
 	case RF3052:
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF3320:
 	case RF3322:
@@ -7203,7 +7246,7 @@ static const struct rf_channel rf_vals[] = {
 
 /*
  * RF value list for rt3xxx
- * Supports: 2.4 GHz (all) & 5.2 GHz (RF3052)
+ * Supports: 2.4 GHz (all) & 5.2 GHz (RF3052 & RF3053)
  */
 static const struct rf_channel rf_vals_3x[] = {
 	{1,  241, 2, 2 },
@@ -7399,72 +7442,6 @@ static const struct rf_channel rf_vals_5592_xtal40[] = {
 	{196, 83, 0, 12, 1},
 };
 
-static const struct rf_channel rf_vals_3053[] = {
-	/* Channel, N, R, K */
-	{1, 241, 2, 2},
-	{2, 241, 2, 7},
-	{3, 242, 2, 2},
-	{4, 242, 2, 7},
-	{5, 243, 2, 2},
-	{6, 243, 2, 7},
-	{7, 244, 2, 2},
-	{8, 244, 2, 7},
-	{9, 245, 2, 2},
-	{10, 245, 2, 7},
-	{11, 246, 2, 2},
-	{12, 246, 2, 7},
-	{13, 247, 2, 2},
-	{14, 248, 2, 4},
-
-	{36, 0x56, 0, 4},
-	{38, 0x56, 0, 6},
-	{40, 0x56, 0, 8},
-	{44, 0x57, 0, 0},
-	{46, 0x57, 0, 2},
-	{48, 0x57, 0, 4},
-	{52, 0x57, 0, 8},
-	{54, 0x57, 0, 10},
-	{56, 0x58, 0, 0},
-	{60, 0x58, 0, 4},
-	{62, 0x58, 0, 6},
-	{64, 0x58, 0, 8},
-
-	{100, 0x5B, 0, 8},
-	{102, 0x5B, 0, 10},
-	{104, 0x5C, 0, 0},
-	{108, 0x5C, 0, 4},
-	{110, 0x5C, 0, 6},
-	{112, 0x5C, 0, 8},
-
-	/* NOTE: Channel 114 has been removed intentionally.
-	 * The EEPROM contains no TX power values for that,
-	 * and it is disabled in the vendor driver as well.
-	 */
-
-	{116, 0x5D, 0, 0},
-	{118, 0x5D, 0, 2},
-	{120, 0x5D, 0, 4},
-	{124, 0x5D, 0, 8},
-	{126, 0x5D, 0, 10},
-	{128, 0x5E, 0, 0},
-	{132, 0x5E, 0, 4},
-	{134, 0x5E, 0, 6},
-	{136, 0x5E, 0, 8},
-	{140, 0x5F, 0, 0},
-
-	{149, 0x5F, 0, 9},
-	{151, 0x5F, 0, 11},
-	{153, 0x60, 0, 1},
-	{157, 0x60, 0, 5},
-	{159, 0x60, 0, 7},
-	{161, 0x60, 0, 9},
-	{165, 0x61, 0, 1},
-	{167, 0x61, 0, 3},
-	{169, 0x61, 0, 5},
-	{171, 0x61, 0, 7},
-	{173, 0x61, 0, 9},
-};
-
 static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
@@ -7473,7 +7450,6 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	char *default_power2;
 	char *default_power3;
 	unsigned int i;
-	u16 eeprom;
 	u32 reg;
 
 	/*
@@ -7522,48 +7498,48 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->max_report_rates = 7;
 	rt2x00dev->hw->max_rate_tries = 1;
 
-	rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
-
 	/*
 	 * Initialize hw_mode information.
 	 */
-	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
-	if (rt2x00_rf(rt2x00dev, RF2820) ||
-	    rt2x00_rf(rt2x00dev, RF2720)) {
+	switch (rt2x00dev->chip.rf) {
+	case RF2720:
+	case RF2820:
 		spec->num_channels = 14;
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(rt2x00dev, RF2850) ||
-		   rt2x00_rf(rt2x00dev, RF2750)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		break;
+
+	case RF2750:
+	case RF2850:
 		spec->num_channels = ARRAY_SIZE(rf_vals);
 		spec->channels = rf_vals;
-	} else if (rt2x00_rf(rt2x00dev, RF3020) ||
-		   rt2x00_rf(rt2x00dev, RF2020) ||
-		   rt2x00_rf(rt2x00dev, RF3021) ||
-		   rt2x00_rf(rt2x00dev, RF3022) ||
-		   rt2x00_rf(rt2x00dev, RF3290) ||
-		   rt2x00_rf(rt2x00dev, RF3320) ||
-		   rt2x00_rf(rt2x00dev, RF3322) ||
-		   rt2x00_rf(rt2x00dev, RF5360) ||
-		   rt2x00_rf(rt2x00dev, RF5370) ||
-		   rt2x00_rf(rt2x00dev, RF5372) ||
-		   rt2x00_rf(rt2x00dev, RF5390) ||
-		   rt2x00_rf(rt2x00dev, RF5392)) {
+		break;
+
+	case RF2020:
+	case RF3020:
+	case RF3021:
+	case RF3022:
+	case RF3070:
+	case RF3290:
+	case RF3320:
+	case RF3322:
+	case RF5360:
+	case RF5370:
+	case RF5372:
+	case RF5390:
+	case RF5392:
 		spec->num_channels = 14;
 		spec->channels = rf_vals_3x;
-	} else if (rt2x00_rf(rt2x00dev, RF3052)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		break;
+
+	case RF3052:
+	case RF3053:
 		spec->num_channels = ARRAY_SIZE(rf_vals_3x);
 		spec->channels = rf_vals_3x;
-	} else if (rt2x00_rf(rt2x00dev, RF3053)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
-		spec->num_channels = ARRAY_SIZE(rf_vals_3053);
-		spec->channels = rf_vals_3053;
-	} else if (rt2x00_rf(rt2x00dev, RF5592)) {
-		spec->supported_bands |= SUPPORT_BAND_5GHZ;
+		break;
 
+	case RF5592:
 		rt2800_register_read(rt2x00dev, MAC_DEBUG_INDEX, &reg);
 		if (rt2x00_get_field32(reg, MAC_DEBUG_INDEX_XTAL)) {
 			spec->num_channels = ARRAY_SIZE(rf_vals_5592_xtal40);
@@ -7572,10 +7548,15 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 			spec->num_channels = ARRAY_SIZE(rf_vals_5592_xtal20);
 			spec->channels = rf_vals_5592_xtal20;
 		}
+		break;
 	}
 
 	if (WARN_ON_ONCE(!spec->channels))
 		return -ENODEV;
+
+	spec->supported_bands = SUPPORT_BAND_2GHZ;
+	if (spec->num_channels > 14)
+		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 
 	/*
 	 * Initialize HT information.
@@ -7591,22 +7572,21 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40;
 
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) >= 2)
+	if (rt2x00dev->default_ant.tx_chain_num >= 2)
 		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
 
-	spec->ht.cap |=
-	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) <<
-		IEEE80211_HT_CAP_RX_STBC_SHIFT;
+	spec->ht.cap |= rt2x00dev->default_ant.rx_chain_num <<
+			IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
 	spec->ht.mcs.tx_params =
 	    IEEE80211_HT_MCS_TX_DEFINED |
 	    IEEE80211_HT_MCS_TX_RX_DIFF |
-	    ((rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) - 1) <<
-		IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	    ((rt2x00dev->default_ant.tx_chain_num - 1) <<
+	     IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 
-	switch (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH)) {
+	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
 	case 2:
@@ -7671,6 +7651,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF3320:
 	case RF3052:
 	case RF3053:
+	case RF3070:
 	case RF3290:
 	case RF5360:
 	case RF5370:

@@ -17,10 +17,14 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include "ath9k.h"
+#include "ath.h"
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
-#include "dfs_debug.h"
+
+struct ath_dfs_pool_stats global_dfs_pool_stats = {};
+
+#define DFS_POOL_STAT_INC(c) (global_dfs_pool_stats.c++)
+#define DFS_POOL_STAT_DEC(c) (global_dfs_pool_stats.c--)
 
 /**
  * struct pulse_elem - elements in pulse queue
@@ -392,7 +396,7 @@ static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
 
 	if (!pseq_handler_create_sequences(de, ts, max_updated_seq)) {
 		pri_detector_reset(de, ts);
-		return false;
+		return NULL;
 	}
 
 	ps = pseq_handler_check_detection(de);

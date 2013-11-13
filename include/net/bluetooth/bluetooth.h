@@ -197,8 +197,8 @@ static inline bool bdaddr_type_is_le(__u8 type)
 	return false;
 }
 
-#define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0} })
-#define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
+#define BDADDR_ANY  (&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
+#define BDADDR_NONE (&(bdaddr_t) {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}})
 
 /* Copy, swap, convert BD Address */
 static inline int bacmp(const bdaddr_t *ba1, const bdaddr_t *ba2)
@@ -218,11 +218,10 @@ void baswap(bdaddr_t *dst, bdaddr_t *src);
 
 struct bt_sock {
 	struct sock sk;
-	bdaddr_t    src;
-	bdaddr_t    dst;
 	struct list_head accept_q;
 	struct sock *parent;
 	unsigned long flags;
+	void (*skb_msg_name)(struct sk_buff *, void *, int *);
 };
 
 enum {
@@ -249,6 +248,7 @@ int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 uint bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait);
 int  bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int  bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo);
+int  bt_sock_wait_ready(struct sock *sk, unsigned long flags);
 
 void bt_accept_enqueue(struct sock *parent, struct sock *sk);
 void bt_accept_unlink(struct sock *sk);
@@ -282,8 +282,11 @@ struct bt_skb_cb {
 	__u8 incoming;
 	__u16 expect;
 	__u8 force_active;
+	struct l2cap_chan *chan;
 	struct l2cap_ctrl control;
 	struct hci_req_ctrl req;
+	bdaddr_t bdaddr;
+	__le16 psm;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
@@ -331,16 +334,16 @@ out:
 
 int bt_to_errno(__u16 code);
 
-extern int hci_sock_init(void);
-extern void hci_sock_cleanup(void);
+int hci_sock_init(void);
+void hci_sock_cleanup(void);
 
-extern int bt_sysfs_init(void);
-extern void bt_sysfs_cleanup(void);
+int bt_sysfs_init(void);
+void bt_sysfs_cleanup(void);
 
-extern int  bt_procfs_init(struct net *net, const char *name,
-			   struct bt_sock_list* sk_list,
-			   int (* seq_show)(struct seq_file *, void *));
-extern void bt_procfs_cleanup(struct net *net, const char *name);
+int bt_procfs_init(struct net *net, const char *name,
+		   struct bt_sock_list *sk_list,
+		   int (*seq_show)(struct seq_file *, void *));
+void bt_procfs_cleanup(struct net *net, const char *name);
 
 extern struct dentry *bt_debugfs;
 

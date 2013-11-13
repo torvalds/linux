@@ -316,8 +316,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	}
 	conn.channel = ch - 1;
 
-	memcpy(conn.bssid, bss->bssid, 6);
-	memcpy(conn.dst_mac, bss->bssid, 6);
+	memcpy(conn.bssid, bss->bssid, ETH_ALEN);
+	memcpy(conn.dst_mac, bss->bssid, ETH_ALEN);
 	/*
 	 * FW don't support scan after connection attempt
 	 */

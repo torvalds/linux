@@ -641,13 +641,13 @@ static struct rfcomm_session *rfcomm_session_get(bdaddr_t *src, bdaddr_t *dst)
 {
 	struct rfcomm_session *s;
 	struct list_head *p, *n;
-	struct bt_sock *sk;
+	struct l2cap_chan *chan;
 	list_for_each_safe(p, n, &session_list) {
 		s = list_entry(p, struct rfcomm_session, list);
-		sk = bt_sk(s->sock->sk);
+		chan = l2cap_pi(s->sock->sk)->chan;
 
-		if ((!bacmp(src, BDADDR_ANY) || !bacmp(&sk->src, src)) &&
-				!bacmp(&sk->dst, dst))
+		if ((!bacmp(src, BDADDR_ANY) || !bacmp(&chan->src, src)) &&
+		    !bacmp(&chan->dst, dst))
 			return s;
 	}
 	return NULL;
@@ -732,11 +732,11 @@ failed:
 
 void rfcomm_session_getaddr(struct rfcomm_session *s, bdaddr_t *src, bdaddr_t *dst)
 {
-	struct sock *sk = s->sock->sk;
+	struct l2cap_chan *chan = l2cap_pi(s->sock->sk)->chan;
 	if (src)
-		bacpy(src, &bt_sk(sk)->src);
+		bacpy(src, &chan->src);
 	if (dst)
-		bacpy(dst, &bt_sk(sk)->dst);
+		bacpy(dst, &chan->dst);
 }
 
 /* ---- RFCOMM frame sending ---- */
@@ -2112,12 +2112,11 @@ static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 	rfcomm_lock();
 
 	list_for_each_entry(s, &session_list, list) {
+		struct l2cap_chan *chan = l2cap_pi(s->sock->sk)->chan;
 		struct rfcomm_dlc *d;
 		list_for_each_entry(d, &s->dlcs, list) {
-			struct sock *sk = s->sock->sk;
-
 			seq_printf(f, "%pMR %pMR %ld %d %d %d %d\n",
-				   &bt_sk(sk)->src, &bt_sk(sk)->dst,
+				   &chan->src, &chan->dst,
 				   d->state, d->dlci, d->mtu,
 				   d->rx_credits, d->tx_credits);
 		}
@@ -2155,13 +2154,6 @@ static int __init rfcomm_init(void)
 		goto unregister;
 	}
 
-	if (bt_debugfs) {
-		rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
-				bt_debugfs, NULL, &rfcomm_dlc_debugfs_fops);
-		if (!rfcomm_dlc_debugfs)
-			BT_ERR("Failed to create RFCOMM debug file");
-	}
-
 	err = rfcomm_init_ttys();
 	if (err < 0)
 		goto stop;
@@ -2171,6 +2163,13 @@ static int __init rfcomm_init(void)
 		goto cleanup;
 
 	BT_INFO("RFCOMM ver %s", VERSION);
+
+	if (IS_ERR_OR_NULL(bt_debugfs))
+		return 0;
+
+	rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
+						 bt_debugfs, NULL,
+						 &rfcomm_dlc_debugfs_fops);
 
 	return 0;
 

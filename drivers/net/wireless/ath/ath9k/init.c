@@ -347,7 +347,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u8 *ds;
-	struct ath_buf *bf;
 	int i, bsize, desc_len;
 
 	ath_dbg(common, CONFIG, "%s DMA: %u buffers %u desc/buf\n",
@@ -399,33 +398,68 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 
 	/* allocate buffers */
-	bsize = sizeof(struct ath_buf) * nbuf;
-	bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
-	if (!bf)
-		return -ENOMEM;
+	if (is_tx) {
+		struct ath_buf *bf;
 
-	for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
-		bf->bf_desc = ds;
-		bf->bf_daddr = DS2PHYS(dd, ds);
+		bsize = sizeof(struct ath_buf) * nbuf;
+		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
+		if (!bf)
+			return -ENOMEM;
 
-		if (!(sc->sc_ah->caps.hw_caps &
-		      ATH9K_HW_CAP_4KB_SPLITTRANS)) {
-			/*
-			 * Skip descriptor addresses which can cause 4KB
-			 * boundary crossing (addr + length) with a 32 dword
-			 * descriptor fetch.
-			 */
-			while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
-				BUG_ON((caddr_t) bf->bf_desc >=
-				       ((caddr_t) dd->dd_desc +
-					dd->dd_desc_len));
+		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
+			bf->bf_desc = ds;
+			bf->bf_daddr = DS2PHYS(dd, ds);
 
-				ds += (desc_len * ndesc);
-				bf->bf_desc = ds;
-				bf->bf_daddr = DS2PHYS(dd, ds);
+			if (!(sc->sc_ah->caps.hw_caps &
+				  ATH9K_HW_CAP_4KB_SPLITTRANS)) {
+				/*
+				 * Skip descriptor addresses which can cause 4KB
+				 * boundary crossing (addr + length) with a 32 dword
+				 * descriptor fetch.
+				 */
+				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
+					BUG_ON((caddr_t) bf->bf_desc >=
+						   ((caddr_t) dd->dd_desc +
+						dd->dd_desc_len));
+
+					ds += (desc_len * ndesc);
+					bf->bf_desc = ds;
+					bf->bf_daddr = DS2PHYS(dd, ds);
+				}
 			}
+			list_add_tail(&bf->list, head);
 		}
-		list_add_tail(&bf->list, head);
+	} else {
+		struct ath_rxbuf *bf;
+
+		bsize = sizeof(struct ath_rxbuf) * nbuf;
+		bf = devm_kzalloc(sc->dev, bsize, GFP_KERNEL);
+		if (!bf)
+			return -ENOMEM;
+
+		for (i = 0; i < nbuf; i++, bf++, ds += (desc_len * ndesc)) {
+			bf->bf_desc = ds;
+			bf->bf_daddr = DS2PHYS(dd, ds);
+
+			if (!(sc->sc_ah->caps.hw_caps &
+				  ATH9K_HW_CAP_4KB_SPLITTRANS)) {
+				/*
+				 * Skip descriptor addresses which can cause 4KB
+				 * boundary crossing (addr + length) with a 32 dword
+				 * descriptor fetch.
+				 */
+				while (ATH_DESC_4KB_BOUND_CHECK(bf->bf_daddr)) {
+					BUG_ON((caddr_t) bf->bf_desc >=
+						   ((caddr_t) dd->dd_desc +
+						dd->dd_desc_len));
+
+					ds += (desc_len * ndesc);
+					bf->bf_desc = ds;
+					bf->bf_daddr = DS2PHYS(dd, ds);
+				}
+			}
+			list_add_tail(&bf->list, head);
+		}
 	}
 	return 0;
 }
@@ -437,7 +471,6 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->beacon.beaconq = ath9k_hw_beaconq_setup(sc->sc_ah);
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
 
-	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
 	sc->tx.uapsdq = ath_txq_setup(sc, ATH9K_TX_QUEUE_UAPSD, 0);
@@ -547,6 +580,26 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_CUS217)
 		ath_info(common, "CUS217 card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_CUS252)
+		ath_info(common, "CUS252 card detected\n");
+
+	if (sc->driver_data & ATH9K_PCI_AR9565_1ANT)
+		ath_info(common, "WB335 1-ANT card detected\n");
+
+	if (sc->driver_data & ATH9K_PCI_AR9565_2ANT)
+		ath_info(common, "WB335 2-ANT card detected\n");
+
+	/*
+	 * Some WB335 cards do not support antenna diversity. Since
+	 * we use a hardcoded value for AR9565 instead of using the
+	 * EEPROM/OTP data, remove the combining feature from
+	 * the HW capabilities bitmap.
+	 */
+	if (sc->driver_data & (ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_AR9565_2ANT)) {
+		if (!(sc->driver_data & ATH9K_PCI_BT_ANT_DIV))
+			pCap->hw_caps &= ~ATH9K_HW_CAP_ANT_DIV_COMB;
+	}
+
 	if (sc->driver_data & ATH9K_PCI_BT_ANT_DIV) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
 		ath_info(common, "Set BT/WLAN RX diversity capability\n");
@@ -627,7 +680,9 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	sc->sc_ah = ah;
 	pCap = &ah->caps;
 
-	sc->dfs_detector = dfs_pattern_detector_init(ah, NL80211_DFS_UNSET);
+	common = ath9k_hw_common(ah);
+	sc->dfs_detector = dfs_pattern_detector_init(common, NL80211_DFS_UNSET);
+	sc->tx99_power = MAX_RATE_POWER + 1;
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -641,7 +696,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		ah->external_reset = pdata->external_reset;
 	}
 
-	common = ath9k_hw_common(ah);
 	common->ops = &ah->reg_ops;
 	common->bus_ops = bus_ops;
 	common->ah = ah;
@@ -732,6 +786,7 @@ err_queues:
 	ath9k_hw_deinit(ah);
 err_hw:
 	ath9k_eeprom_release(sc);
+	dev_kfree_skb_any(sc->tx99_skb);
 	return ret;
 }
 
@@ -748,7 +803,7 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 		chan = &sband->channels[i];
 		ah->curchan = &ah->channels[chan->hw_value];
 		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
-		ath9k_cmn_update_ichannel(ah->curchan, &chandef);
+		ath9k_cmn_get_channel(sc->hw, ah, &chandef);
 		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
 	}
 }
@@ -789,9 +844,9 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
-
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
-	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_ADHOC) },
 };
 
 static const struct ieee80211_iface_combination if_comb[] = {
@@ -850,17 +905,18 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 
-	hw->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_P2P_GO) |
-		BIT(NL80211_IFTYPE_P2P_CLIENT) |
-		BIT(NL80211_IFTYPE_AP) |
-		BIT(NL80211_IFTYPE_WDS) |
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC) |
-		BIT(NL80211_IFTYPE_MESH_POINT);
-
-	hw->wiphy->iface_combinations = if_comb;
-	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	if (!config_enabled(CONFIG_ATH9K_TX99)) {
+		hw->wiphy->interface_modes =
+			BIT(NL80211_IFTYPE_P2P_GO) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_WDS) |
+			BIT(NL80211_IFTYPE_STATION) |
+			BIT(NL80211_IFTYPE_ADHOC) |
+			BIT(NL80211_IFTYPE_MESH_POINT);
+		hw->wiphy->iface_combinations = if_comb;
+		hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 

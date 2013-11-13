@@ -596,6 +596,7 @@ static void b44_timer(unsigned long __opaque)
 static void b44_tx(struct b44 *bp)
 {
 	u32 cur, cons;
+	unsigned bytes_compl = 0, pkts_compl = 0;
 
 	cur  = br32(bp, B44_DMATX_STAT) & DMATX_STAT_CDMASK;
 	cur /= sizeof(struct dma_desc);
@@ -612,9 +613,14 @@ static void b44_tx(struct b44 *bp)
 				 skb->len,
 				 DMA_TO_DEVICE);
 		rp->skb = NULL;
+
+		bytes_compl += skb->len;
+		pkts_compl++;
+
 		dev_kfree_skb_irq(skb);
 	}
 
+	netdev_completed_queue(bp->dev, pkts_compl, bytes_compl);
 	bp->tx_cons = cons;
 	if (netif_queue_stopped(bp->dev) &&
 	    TX_BUFFS_AVAIL(bp) > B44_TX_WAKEUP_THRESH)
@@ -1018,6 +1024,8 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bp->flags & B44_FLAG_REORDER_BUG)
 		br32(bp, B44_DMATX_PTR);
 
+	netdev_sent_queue(dev, skb->len);
+
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
 
@@ -1416,6 +1424,8 @@ static void b44_init_hw(struct b44 *bp, int reset_kind)
 
 	val = br32(bp, B44_ENET_CTRL);
 	bw32(bp, B44_ENET_CTRL, (val | ENET_CTRL_ENABLE));
+
+	netdev_reset_queue(bp->dev);
 }
 
 static int b44_open(struct net_device *dev)
@@ -2101,7 +2111,7 @@ static int b44_get_invariants(struct b44 *bp)
 	 * valid PHY address. */
 	bp->phy_addr &= 0x1F;
 
-	memcpy(bp->dev->dev_addr, addr, 6);
+	memcpy(bp->dev->dev_addr, addr, ETH_ALEN);
 
 	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){
 		pr_err("Invalid MAC address found in EEPROM\n");

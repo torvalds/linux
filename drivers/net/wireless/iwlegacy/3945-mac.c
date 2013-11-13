@@ -3811,7 +3811,6 @@ out_iounmap:
 out_pci_release_regions:
 	pci_release_regions(pdev);
 out_pci_disable_device:
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 out_ieee80211_free_hw:
 	ieee80211_free_hw(il->hw);
@@ -3888,7 +3887,6 @@ il3945_pci_remove(struct pci_dev *pdev)
 	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 
 	il_free_channel_map(il);
 	il_free_geos(il);

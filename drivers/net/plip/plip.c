@@ -1002,7 +1002,7 @@ plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 		/* Any address will do - we take the first */
 		const struct in_ifaddr *ifa = in_dev->ifa_list;
 		if (ifa) {
-			memcpy(eth->h_source, dev->dev_addr, 6);
+			memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 			memset(eth->h_dest, 0xfc, 2);
 			memcpy(eth->h_dest+2, &ifa->ifa_address, 4);
 		}

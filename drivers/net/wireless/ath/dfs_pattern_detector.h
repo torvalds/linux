@@ -22,6 +22,19 @@
 #include <linux/nl80211.h>
 
 /**
+ * struct ath_dfs_pool_stats - DFS Statistics for global pools
+ */
+struct ath_dfs_pool_stats {
+	u32 pool_reference;
+	u32 pulse_allocated;
+	u32 pulse_alloc_error;
+	u32 pulse_used;
+	u32 pseq_allocated;
+	u32 pseq_alloc_error;
+	u32 pseq_used;
+};
+
+/**
  * struct pulse_event - describing pulses reported by PHY
  * @ts: pulse time stamp in us
  * @freq: channel frequency in MHz
@@ -77,11 +90,12 @@ struct dfs_pattern_detector {
 	bool (*add_pulse)(struct dfs_pattern_detector *dpd,
 			  struct pulse_event *pe);
 
+	struct ath_dfs_pool_stats (*get_stats)(struct dfs_pattern_detector *dpd);
 	enum nl80211_dfs_regions region;
 	u8 num_radar_types;
 	u64 last_pulse_ts;
 	/* needed for ath_dbg() */
-	struct ath_hw *ah;
+	struct ath_common *common;
 
 	const struct radar_detector_specs *radar_spec;
 	struct list_head channel_detectors;
@@ -92,15 +106,7 @@ struct dfs_pattern_detector {
  * @param region: DFS domain to be used, can be NL80211_DFS_UNSET at creation
  * @return instance pointer on success, NULL otherwise
  */
-#if defined(CONFIG_ATH9K_DFS_CERTIFIED)
 extern struct dfs_pattern_detector *
-dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region);
-#else
-static inline struct dfs_pattern_detector *
-dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
-{
-	return NULL;
-}
-#endif /* CONFIG_ATH9K_DFS_CERTIFIED */
-
+dfs_pattern_detector_init(struct ath_common *common,
+			  enum nl80211_dfs_regions region);
 #endif /* DFS_PATTERN_DETECTOR_H */

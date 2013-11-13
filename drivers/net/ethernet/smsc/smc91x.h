@@ -907,8 +907,8 @@ static const char * chip_ids[ 16 ] =  {
 	({								\
 		int __b = SMC_CURRENT_BANK(lp);			\
 		if (unlikely((__b & ~0xf0) != (0x3300 | bank))) {	\
-			printk( "%s: bank reg screwed (0x%04x)\n",	\
-				CARDNAME, __b );			\
+			pr_err("%s: bank reg screwed (0x%04x)\n",	\
+			       CARDNAME, __b);				\
 			BUG();						\
 		}							\
 		reg<<SMC_IO_SHIFT;					\
