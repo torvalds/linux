@@ -275,6 +275,37 @@ out_fi:
 	return rc;
 }
 
+static int __sigp_store_status_at_addr(struct kvm_vcpu *vcpu, u16 cpu_id,
+					u32 addr, u64 *reg)
+{
+	struct kvm_vcpu *dst_vcpu = NULL;
+	int flags;
+	int rc;
+
+	if (cpu_id < KVM_MAX_VCPUS)
+		dst_vcpu = kvm_get_vcpu(vcpu->kvm, cpu_id);
+	if (!dst_vcpu)
+		return SIGP_CC_NOT_OPERATIONAL;
+
+	spin_lock_bh(&dst_vcpu->arch.local_int.lock);
+	flags = atomic_read(dst_vcpu->arch.local_int.cpuflags);
+	spin_unlock_bh(&dst_vcpu->arch.local_int.lock);
+	if (!(flags & CPUSTAT_STOPPED)) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INCORRECT_STATE;
+		return SIGP_CC_STATUS_STORED;
+	}
+
+	addr &= 0x7ffffe00;
+	rc = kvm_s390_store_status_unloaded(dst_vcpu, addr);
+	if (rc == -EFAULT) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INVALID_PARAMETER;
+		rc = SIGP_CC_STATUS_STORED;
+	}
+	return rc;
+}
+
 static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 				u64 *reg)
 {
@@ -378,6 +409,10 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_stop++;
 		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
 						 ACTION_STOP_ON_STOP);
+		break;
+	case SIGP_STORE_STATUS_AT_ADDRESS:
+		rc = __sigp_store_status_at_addr(vcpu, cpu_addr, parameter,
+						 &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_SET_ARCHITECTURE:
 		vcpu->stat.instruction_sigp_arch++;
