@@ -628,7 +628,7 @@ retry:
 	cap->cap_id = cap_id;
 	cap->issued = issued;
 	cap->implemented |= issued;
-	if (mseq > cap->mseq)
+	if (ceph_seq_cmp(mseq, cap->mseq) > 0)
 		cap->mds_wanted = wanted;
 	else
 		cap->mds_wanted |= wanted;
