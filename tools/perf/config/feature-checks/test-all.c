@@ -49,6 +49,10 @@
 # include "test-libunwind.c"
 #undef main
 
+#define main main_test_libunwind_debug_frame
+# include "test-libunwind-debug-frame.c"
+#undef main
+
 #define main main_test_libaudit
 # include "test-libaudit.c"
 #undef main

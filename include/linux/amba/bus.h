@@ -21,7 +21,7 @@
 #include <linux/resource.h>
 #include <linux/regulator/consumer.h>
 
-#define AMBA_NR_IRQS	2
+#define AMBA_NR_IRQS	9
 #define AMBA_CID	0xb105f00d
 
 struct clk;
