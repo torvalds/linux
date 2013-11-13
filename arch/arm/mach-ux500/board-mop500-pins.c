@@ -28,12 +28,10 @@ static enum custom_pin_cfg_t pinsfor;
 
 BIAS(pd, PIN_PULL_DOWN);
 BIAS(in_nopull, PIN_INPUT_NOPULL);
-BIAS(in_nopull_slpm_nowkup, PIN_INPUT_NOPULL|PIN_SLPM_WAKEUP_DISABLE);
 BIAS(in_pu, PIN_INPUT_PULLUP);
 BIAS(in_pd, PIN_INPUT_PULLDOWN);
 BIAS(out_hi, PIN_OUTPUT_HIGH);
 BIAS(out_lo, PIN_OUTPUT_LOW);
-BIAS(out_lo_slpm_nowkup, PIN_OUTPUT_LOW|PIN_SLPM_WAKEUP_DISABLE);
 
 BIAS(abx500_out_lo, PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0));
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
@@ -335,22 +333,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 /* Pin control settings */
 static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	/*
-	 * uMSP0, mux in 4 pins, regular placement of RX/TX
-	 * explicitly set the pins to no pull
-	 */
-	DB8500_MUX_HOG("msp0txrx_a_1", "msp0"),
-	DB8500_MUX_HOG("msp0tfstck_a_1", "msp0"),
-	DB8500_PIN_HOG("GPIO12_AC4", in_nopull), /* TXD */
-	DB8500_PIN_HOG("GPIO15_AC3", in_nopull), /* RXD */
-	DB8500_PIN_HOG("GPIO13_AF3", in_nopull), /* TFS */
-	DB8500_PIN_HOG("GPIO14_AE3", in_nopull), /* TCK */
-	/* MSP2 for HDMI, pull down TXD, TCK, TFS  */
-	DB8500_MUX_HOG("msp2_a_1", "msp2"),
-	DB8500_PIN_HOG("GPIO193_AH27", in_pd), /* TXD */
-	DB8500_PIN_HOG("GPIO194_AF27", in_pd), /* TCK */
-	DB8500_PIN_HOG("GPIO195_AG28", in_pd), /* TFS */
-	DB8500_PIN_HOG("GPIO196_AG26", out_lo), /* RXD */
-	/*
 	 * LCD, set TE0 (using LCD VSI0) and D14 (touch screen interrupt) to
 	 * pull-up
 	 * TODO: is this really correct? Snowball doesn't have a LCD.
@@ -363,18 +345,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	 * TODO: set for snowball and HREF really??
 	 */
 	DB8500_PIN_HOG("GPIO218_AH11", gpio_in_pu),
-	/*
-	 * The following pin sets were known as "runtime pins" before being
-	 * converted to the pinctrl model. Here we model them as "default"
-	 * states.
-	 */
-	/* MSP1 for ALSA codec */
-	DB8500_MUX_HOG("msp1txrx_a_1", "msp1"),
-	DB8500_MUX_HOG("msp1_a_1", "msp1"),
-	DB8500_PIN_HOG("GPIO33_AF2", out_lo_slpm_nowkup),
-	DB8500_PIN_HOG("GPIO34_AE1", in_nopull_slpm_nowkup),
-	DB8500_PIN_HOG("GPIO35_AE2", in_nopull_slpm_nowkup),
-	DB8500_PIN_HOG("GPIO36_AG2", in_nopull_slpm_nowkup),
 	/* Mux in LCD data lines 8 thru 11 and LCDA CLK for MCDE TVOUT */
 	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
 	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),

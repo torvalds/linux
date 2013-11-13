@@ -425,6 +425,69 @@
 					};
 				};
 			};
+
+			/*
+			 * Multi-rate serial ports (MSPs) - MSP3 output is internal and
+			 * cannot be muxed onto any pins.
+			 */
+			msp0 {
+				msp0_default_mode: msp0_default {
+					default_msp0_mux {
+						ste,function = "msp0";
+						ste,pins = "msp0txrx_a_1", "msp0tfstck_a_1";
+					};
+					default_msp0_cfg {
+						ste,pins =
+						"GPIO12_AC4", /* TXD */
+						"GPIO15_AC3", /* RXD */
+						"GPIO13_AF3", /* TFS */
+						"GPIO14_AE3"; /* TCK */
+						ste,config = <&in_nopull>;
+					};
+				};
+			};
+
+			msp1 {
+				msp1_default_mode: msp1_default {
+					default_mux {
+						ste,function = "msp1";
+						ste,pins = "msp1txrx_a_1", "msp1_a_1";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO33_AF2";
+						ste,config = <&out_lo>;
+					};
+					default_cfg2 {
+						ste,pins =
+						"GPIO34_AE1",
+						"GPIO35_AE2",
+						"GPIO36_AG2";
+						ste,config = <&in_nopull>;
+					};
+
+				};
+			};
+
+			msp2 {
+				msp2_default_mode: msp2_default {
+					/* MSP2 usually used for HDMI audio */
+					default_mux {
+						ste,function = "msp2";
+						ste,pins = "msp2_a_1";
+					};
+					default_cfg1 {
+						ste,pins =
+						"GPIO193_AH27", /* TXD */
+						"GPIO194_AF27", /* TCK */
+						"GPIO195_AG28"; /* TFS */
+						ste,config = <&in_pd>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO196_AG26"; /* RXD */
+						ste,config = <&out_lo>;
+					};
+				};
+			};
 		};
 	};
 };

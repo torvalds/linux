@@ -180,7 +180,21 @@
 			stericsson,audio-codec = <&codec>;
 		};
 
+		msp0: msp@80123000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp0_default_mode>;
+			status = "okay";
+		};
+
 		msp1: msp@80124000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp1_default_mode>;
+			status = "okay";
+		};
+
+		msp2: msp@80117000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp2_default_mode>;
 			status = "okay";
 		};
 
