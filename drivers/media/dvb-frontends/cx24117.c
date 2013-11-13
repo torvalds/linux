@@ -917,22 +917,15 @@ static int cx24117_set_voltage(struct dvb_frontend *fe,
 		voltage == SEC_VOLTAGE_18 ? "SEC_VOLTAGE_18" :
 		"SEC_VOLTAGE_OFF");
 
-	/* Set GPIO direction */
-	cmd.args[0] = CMD_SET_GPIODIR;
-	cmd.args[1] = reg;
-	cmd.args[2] = reg;
+	/* Prepare a set GPIO logic level CMD */
+	cmd.args[0] = CMD_SET_GPIOOUT;
+	cmd.args[2] = reg; /* mask */
 	cmd.len = 3;
-	ret = cx24117_cmd_execute(fe, &cmd);
-	if (ret)
-		return ret;
 
 	if ((voltage == SEC_VOLTAGE_13) ||
 	    (voltage == SEC_VOLTAGE_18)) {
-		/* Set GPIO logic level */
-		cmd.args[0] = CMD_SET_GPIOOUT;
+		/* power on LNB */
 		cmd.args[1] = reg;
-		cmd.args[2] = reg;
-		cmd.len = 3;
 		ret = cx24117_cmd_execute(fe, &cmd);
 		if (ret != 0)
 			return ret;
@@ -949,17 +942,17 @@ static int cx24117_set_voltage(struct dvb_frontend *fe,
 		cmd.args[1] = state->demod ? 0 : 1;
 		cmd.args[2] = (voltage == SEC_VOLTAGE_18 ? 0x01 : 0x00);
 		cmd.len = 3;
+		ret = cx24117_cmd_execute(fe, &cmd);
 
 		/* Min delay time before DiSEqC send */
 		msleep(20);
 	} else {
-		cmd.args[0] = CMD_SET_GPIOOUT;
+		/* power off LNB */
 		cmd.args[1] = 0x00;
-		cmd.args[2] = reg;
-		cmd.len = 3;
+		ret = cx24117_cmd_execute(fe, &cmd);
 	}
 
-	return cx24117_cmd_execute(fe, &cmd);
+	return ret;
 }
 
 static int cx24117_set_tone(struct dvb_frontend *fe,
@@ -1275,6 +1268,16 @@ static int cx24117_initfe(struct dvb_frontend *fe)
 	cmd.args[0] = CMD_ENABLERSCORR;
 	cmd.args[1] = (state->demod ? 1 : 0);
 	cmd.args[2] = CX24117_OCC;
+	cmd.len = 3;
+	ret = cx24117_cmd_execute_nolock(fe, &cmd);
+	if (ret != 0)
+		goto exit;
+
+	/* Set GPIO direction */
+	/* Set as output - controls LNB power on/off */
+	cmd.args[0] = CMD_SET_GPIODIR;
+	cmd.args[1] = 0x30;
+	cmd.args[2] = 0x30;
 	cmd.len = 3;
 	ret = cx24117_cmd_execute_nolock(fe, &cmd);
 
