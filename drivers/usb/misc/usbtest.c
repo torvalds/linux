@@ -619,8 +619,8 @@ static int is_good_ext(struct usbtest_dev *tdev, u8 *buf)
 	}
 
 	attr = le32_to_cpu(ext->bmAttributes);
-	/* bits[1:4] is used and others are reserved */
-	if (attr & ~0x1e) {	/* reserved == 0 */
+	/* bits[1:15] is used and others are reserved */
+	if (attr & ~0xfffe) {	/* reserved == 0 */
 		ERROR(tdev, "reserved bits set\n");
 		return 0;
 	}
