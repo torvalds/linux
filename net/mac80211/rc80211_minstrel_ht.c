@@ -1051,10 +1051,9 @@ init_sample_table(void)
 
 	memset(sample_table, 0xff, sizeof(sample_table));
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
+		prandom_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < MCS_GROUP_RATES; i++) {
-			get_random_bytes(rnd, sizeof(rnd));
 			new_idx = (i + rnd[i]) % MCS_GROUP_RATES;
-
 			while (sample_table[col][new_idx] != 0xff)
 				new_idx = (new_idx + 1) % MCS_GROUP_RATES;
 
