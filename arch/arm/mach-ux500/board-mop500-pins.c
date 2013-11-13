@@ -61,8 +61,6 @@ BIAS(slpm_out_lo_wkup_pdis, PIN_SLEEPMODE_ENABLED|
 	PIN_SLPM_OUTPUT_LOW|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 BIAS(slpm_out_hi_wkup_pdis, PIN_SLEEPMODE_ENABLED|PIN_SLPM_OUTPUT_HIGH|
 	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
-BIAS(slpm_in_nopull_wkup_pdis, PIN_SLEEPMODE_ENABLED|
-	PIN_SLPM_INPUT_NOPULL|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 BIAS(slpm_in_pu_wkup_pdis_en, PIN_SLEEPMODE_ENABLED|PIN_SLPM_INPUT_PULLUP|
 	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_ENABLED);
 BIAS(out_lo_wkup_pdis, PIN_SLPM_OUTPUT_LOW|
@@ -391,26 +389,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_PIN("GPIO69_E2", in_pu, "0-0070"),
 	/* LCD VSI1 sleep state */
 	DB8500_PIN_SLEEP("GPIO69_E2", slpm_in_wkup_pdis, "0-0070"),
-	/* Mux in i2c0 block, default state */
-	DB8500_MUX("i2c0_a_1", "i2c0", "nmk-i2c.0"),
-	/* i2c0 sleep state */
-	DB8500_PIN_SLEEP("GPIO147_C15", slpm_in_nopull_wkup_pdis, "nmk-i2c.0"), /* SDA */
-	DB8500_PIN_SLEEP("GPIO148_B16", slpm_in_nopull_wkup_pdis, "nmk-i2c.0"), /* SCL */
-	/* Mux in i2c1 block, default state  */
-	DB8500_MUX("i2c1_b_2", "i2c1", "nmk-i2c.1"),
-	/* i2c1 sleep state */
-	DB8500_PIN_SLEEP("GPIO16_AD3", slpm_in_nopull_wkup_pdis, "nmk-i2c.1"), /* SDA */
-	DB8500_PIN_SLEEP("GPIO17_AD4", slpm_in_nopull_wkup_pdis, "nmk-i2c.1"), /* SCL */
-	/* Mux in i2c2 block, default state  */
-	DB8500_MUX("i2c2_b_2", "i2c2", "nmk-i2c.2"),
-	/* i2c2 sleep state */
-	DB8500_PIN_SLEEP("GPIO10_AF5", slpm_in_nopull_wkup_pdis, "nmk-i2c.2"), /* SDA */
-	DB8500_PIN_SLEEP("GPIO11_AG4", slpm_in_nopull_wkup_pdis, "nmk-i2c.2"), /* SCL */
-	/* Mux in i2c3 block, default state  */
-	DB8500_MUX("i2c3_c_2", "i2c3", "nmk-i2c.3"),
-	/* i2c3 sleep state */
-	DB8500_PIN_SLEEP("GPIO229_AG7", slpm_in_nopull_wkup_pdis, "nmk-i2c.3"), /* SDA */
-	DB8500_PIN_SLEEP("GPIO230_AF7", slpm_in_nopull_wkup_pdis, "nmk-i2c.3"), /* SCL */
 	/* Mux in SDI0 (here called MC0) used for removable MMC/SD/SDIO cards */
 	DB8500_MUX("mc0_a_1", "mc0", "sdi0"),
 	DB8500_PIN("GPIO18_AC2", out_hi, "sdi0"), /* CMDDIR */
