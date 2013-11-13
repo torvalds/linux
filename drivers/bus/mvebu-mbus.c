@@ -588,12 +588,6 @@ static const struct mvebu_mbus_soc_data mv78xx0_mbus_data = {
 	.show_cpu_target     = mvebu_sdram_debug_show_orion,
 };
 
-/*
- * The driver doesn't yet have a DT binding because the details of
- * this DT binding still need to be sorted out. However, as a
- * preparation, we already use of_device_id to match a SoC description
- * string against the SoC specific details of this driver.
- */
 static const struct of_device_id of_mvebu_mbus_ids[] = {
 	{ .compatible = "marvell,armada370-mbus",
 	  .data = &armada_370_xp_mbus_data, },
