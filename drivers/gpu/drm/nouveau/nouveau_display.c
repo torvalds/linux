@@ -591,7 +591,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->fb)->nvbo;
 	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
 	struct nouveau_page_flip_state *s;
-	struct nouveau_channel *chan = NULL;
+	struct nouveau_channel *chan = drm->channel;
 	struct nouveau_fence *fence;
 	int ret;
 
@@ -602,14 +602,13 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!s)
 		return -ENOMEM;
 
-	/* Choose the channel the flip will be handled in */
-	spin_lock(&old_bo->bo.bdev->fence_lock);
-	fence = new_bo->bo.sync_obj;
-	if (fence)
-		chan = fence->channel;
-	if (!chan)
-		chan = drm->channel;
-	spin_unlock(&old_bo->bo.bdev->fence_lock);
+	/* synchronise rendering channel with the kernel's channel */
+	spin_lock(&new_bo->bo.bdev->fence_lock);
+	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
+	spin_unlock(&new_bo->bo.bdev->fence_lock);
+	ret = nouveau_fence_sync(fence, chan);
+	if (ret)
+		return ret;
 
 	if (new_bo != old_bo) {
 		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
