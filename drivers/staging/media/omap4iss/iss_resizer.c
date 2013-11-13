@@ -190,7 +190,9 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	informat = &resizer->formats[RESIZER_PAD_SINK];
 	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
-	/* Make sure we don't bypass the resizer */
+	/* Disable pass-through more. Despite its name, the BYPASS bit controls
+	 * pass-through mode, not bypass mode.
+	 */
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RSZ_SRC_FMT0,
 		    RSZ_SRC_FMT0_BYPASS);
 
