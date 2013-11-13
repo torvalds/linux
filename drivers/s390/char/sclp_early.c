@@ -93,20 +93,7 @@ static void __init sclp_read_info_early(void)
 	}
 }
 
-static void __init sclp_event_mask_early(void)
-{
-	struct init_sccb *sccb = &early_event_mask_sccb;
-	int rc;
-
-	do {
-		memset(sccb, 0, sizeof(*sccb));
-		sccb->header.length = sizeof(*sccb);
-		sccb->mask_length = sizeof(sccb_mask_t);
-		rc = sclp_cmd_sync_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
-	} while (rc == -EBUSY);
-}
-
-void __init sclp_facilities_detect(void)
+static void __init sclp_facilities_detect(void)
 {
 	struct read_info_sccb *sccb;
 
@@ -122,8 +109,6 @@ void __init sclp_facilities_detect(void)
 	sclp_rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp_rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp_rzm <<= 20;
-
-	sclp_event_mask_early();
 }
 
 bool __init sclp_has_linemode(void)
@@ -246,7 +231,7 @@ unsigned long sclp_get_hsa_size(void)
 	return sclp_hsa_size;
 }
 
-void __init sclp_hsa_size_detect(void)
+static void __init sclp_hsa_size_detect(void)
 {
 	long size;
 
@@ -268,6 +253,12 @@ void __init sclp_hsa_size_detect(void)
 	if (size < 0)
 		return;
 out:
-	sclp_set_event_mask(0, 0);
 	sclp_hsa_size = size;
+}
+
+void __init sclp_early_detect(void)
+{
+	sclp_facilities_detect();
+	sclp_hsa_size_detect();
+	sclp_set_event_mask(0, 0);
 }
