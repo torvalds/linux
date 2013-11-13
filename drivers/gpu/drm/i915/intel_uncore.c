@@ -123,9 +123,8 @@ static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 	u32 gtfifodbg;
 
 	gtfifodbg = __raw_i915_read32(dev_priv, GTFIFODBG);
-	if (WARN(gtfifodbg & GT_FIFO_CPU_ERROR_MASK,
-	     "MMIO read or write has been dropped %x\n", gtfifodbg))
-		__raw_i915_write32(dev_priv, GTFIFODBG, GT_FIFO_CPU_ERROR_MASK);
+	if (WARN(gtfifodbg, "GT wake FIFO error 0x%x\n", gtfifodbg))
+		__raw_i915_write32(dev_priv, GTFIFODBG, gtfifodbg);
 }
 
 static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,

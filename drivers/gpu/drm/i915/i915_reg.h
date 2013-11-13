@@ -4857,7 +4857,10 @@
 #define    FORCEWAKE_MT_ENABLE			(1<<5)
 
 #define  GTFIFODBG				0x120000
-#define    GT_FIFO_CPU_ERROR_MASK		7
+#define    GT_FIFO_SBDROPERR			(1<<6)
+#define    GT_FIFO_BLOBDROPERR			(1<<5)
+#define    GT_FIFO_SB_READ_ABORTERR		(1<<4)
+#define    GT_FIFO_DROPERR			(1<<3)
 #define    GT_FIFO_OVFERR			(1<<2)
 #define    GT_FIFO_IAWRERR			(1<<1)
 #define    GT_FIFO_IARDERR			(1<<0)
