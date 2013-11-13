@@ -66,21 +66,14 @@
 #include "iwl-prph.h"
 #include "debugfs.h"
 
-static ssize_t iwl_dbgfs_tx_flush_write(struct file *file,
-					const char __user *user_buf,
+static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 					size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[16] = {};
-	size_t buf_size = min(count, sizeof(buf) - 1);
 	int ret;
 	u32 scd_q_msk;
 
 	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 
 	if (sscanf(buf, "%x", &scd_q_msk) != 1)
 		return -EINVAL;
@@ -94,21 +87,14 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_sta_drain_write(struct file *file,
-					 const char __user *user_buf,
+static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
 	struct ieee80211_sta *sta;
-	char buf[8] = {};
-	size_t buf_size = min(count, sizeof(buf) - 1);
 	int sta_id, drain, ret;
 
 	if (!mvm->ucode_loaded || mvm->cur_ucode != IWL_UCODE_REGULAR)
 		return -EIO;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 
 	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
 		return -EINVAL;
@@ -187,17 +173,10 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_sram_write(struct file *file,
-				    const char __user *user_buf, size_t count,
-				    loff_t *ppos)
+static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
+				    size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[64] = {};
-	size_t buf_size = min(count, sizeof(buf) -  1);
 	u32 offset, len;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 
 	if (sscanf(buf, "%x,%x", &offset, &len) == 2) {
 		if ((offset & 0x3) || (len & 0x3))
@@ -258,21 +237,13 @@ static ssize_t iwl_dbgfs_disable_power_off_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_disable_power_off_write(struct file *file,
-						 const char __user *user_buf,
+static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 						 size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[64] = {};
-	size_t buf_size = min(count, sizeof(buf) - 1);
-	int ret;
-	int val;
+	int ret, val;
 
 	if (!mvm->ucode_loaded)
 		return -EIO;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 
 	if (!strncmp("disable_power_off_d0=", buf, 21)) {
 		if (sscanf(buf + 21, "%d", &val) != 1)
@@ -568,11 +539,9 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 }
 #undef PRINT_STAT_LE32
 
-static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
-					  const char __user *user_buf,
+static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 					  size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -589,12 +558,9 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_dbgfs_fw_nmi_write(struct file *file,
-				      const char __user *user_buf,
+static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-
 	iwl_write_prph(mvm->trans, DEVICE_SET_NMI_REG, 1);
 
 	return count;
@@ -624,17 +590,11 @@ iwl_dbgfs_scan_ant_rxchain_read(struct file *file,
 }
 
 static ssize_t
-iwl_dbgfs_scan_ant_rxchain_write(struct file *file,
-				 const char __user *user_buf,
+iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 				 size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[8] = {};
-	size_t buf_size = min(count, sizeof(buf) - 1);
 	u8 scan_rx_ant;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 	if (sscanf(buf, "%hhx", &scan_rx_ant) != 1)
 		return -EINVAL;
 	if (scan_rx_ant > ANT_ABC)
@@ -648,17 +608,10 @@ iwl_dbgfs_scan_ant_rxchain_write(struct file *file,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static ssize_t iwl_dbgfs_d3_sram_write(struct file *file,
-				       const char __user *user_buf,
+static ssize_t iwl_dbgfs_d3_sram_write(struct iwl_mvm *mvm, char *buf,
 				       size_t count, loff_t *ppos)
 {
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[8] = {};
-	size_t buf_size = min(count, sizeof(buf) - 1);
 	int store;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
 
 	if (sscanf(buf, "%d", &store) != 1)
 		return -EINVAL;
@@ -712,6 +665,10 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 }
 #endif
 
+#define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
+#define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
+	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
 #define MVM_DEBUGFS_ADD_FILE(name, parent, mode) do {			\
 		if (!debugfs_create_file(#name, mode, parent, mvm,	\
 					 &iwl_dbgfs_##name##_ops))	\
@@ -719,20 +676,20 @@ static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
 	} while (0)
 
 /* Device wide debugfs entries */
-MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush);
-MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram);
+MVM_DEBUGFS_WRITE_FILE_OPS(tx_flush, 16);
+MVM_DEBUGFS_WRITE_FILE_OPS(sta_drain, 8);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
-MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
-MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 
 #ifdef CONFIG_PM_SLEEP
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
 #endif
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
