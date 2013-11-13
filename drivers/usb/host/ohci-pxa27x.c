@@ -298,6 +298,7 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct pxaohci_platform_data *pdata;
 	u32 tmp;
+	int ret;
 
 	if (!np)
 		return 0;
@@ -306,10 +307,9 @@ static int ohci_pxa_of_init(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)

@@ -300,14 +300,11 @@ static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
-	static u64 fsl_dma_dmamask = DMA_BIT_MASK(36);
 	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &fsl_dma_dmamask;
-
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = fsl_dma_dmamask;
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(36));
+	if (ret)
+		return ret;
 
 	/* Some codecs have separate DAIs for playback and capture, so we
 	 * should allocate a DMA buffer only for the streams that are valid.

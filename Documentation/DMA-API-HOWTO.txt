@@ -101,14 +101,23 @@ style to do this even if your device holds the default setting,
 because this shows that you did think about these issues wrt. your
 device.
 
-The query is performed via a call to dma_set_mask():
+The query is performed via a call to dma_set_mask_and_coherent():
 
-	int dma_set_mask(struct device *dev, u64 mask);
+	int dma_set_mask_and_coherent(struct device *dev, u64 mask);
 
-The query for consistent allocations is performed via a call to
-dma_set_coherent_mask():
+which will query the mask for both streaming and coherent APIs together.
+If you have some special requirements, then the following two separate
+queries can be used instead:
 
-	int dma_set_coherent_mask(struct device *dev, u64 mask);
+	The query for streaming mappings is performed via a call to
+	dma_set_mask():
+
+		int dma_set_mask(struct device *dev, u64 mask);
+
+	The query for consistent allocations is performed via a call
+	to dma_set_coherent_mask():
+
+		int dma_set_coherent_mask(struct device *dev, u64 mask);
 
 Here, dev is a pointer to the device struct of your device, and mask
 is a bit mask describing which bits of an address your device
@@ -137,7 +146,7 @@ exactly why.
 
 The standard 32-bit addressing device would do something like this:
 
-	if (dma_set_mask(dev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING
 		       "mydev: No suitable DMA available.\n");
 		goto ignore_this_device;
@@ -171,22 +180,20 @@ the case would look like this:
 
 	int using_dac, consistent_using_dac;
 
-	if (!dma_set_mask(dev, DMA_BIT_MASK(64))) {
+	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
 		using_dac = 1;
 	   	consistent_using_dac = 1;
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(64));
-	} else if (!dma_set_mask(dev, DMA_BIT_MASK(32))) {
+	} else if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32))) {
 		using_dac = 0;
 		consistent_using_dac = 0;
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	} else {
 		printk(KERN_WARNING
 		       "mydev: No suitable DMA available.\n");
 		goto ignore_this_device;
 	}
 
-dma_set_coherent_mask() will always be able to set the same or a
-smaller mask as dma_set_mask(). However for the rare case that a
+The coherent coherent mask will always be able to set the same or a
+smaller mask as the streaming mask. However for the rare case that a
 device driver only uses consistent allocations, one would have to
 check the return value from dma_set_coherent_mask().
 
@@ -199,9 +206,9 @@ address you might do something like:
 		goto ignore_this_device;
 	}
 
-When dma_set_mask() is successful, and returns zero, the kernel saves
-away this mask you have provided.  The kernel will use this
-information later when you make DMA mappings.
+When dma_set_mask() or dma_set_mask_and_coherent() is successful, and
+returns zero, the kernel saves away this mask you have provided.  The
+kernel will use this information later when you make DMA mappings.
 
 There is a case which we are aware of at this time, which is worth
 mentioning in this documentation.  If your device supports multiple
