@@ -3802,7 +3802,7 @@ log_extents:
 			err = ret;
 			goto out_unlock;
 		}
-	} else {
+	} else if (inode_only == LOG_INODE_ALL) {
 		struct extent_map_tree *tree = &BTRFS_I(inode)->extent_tree;
 		struct extent_map *em, *n;
 
