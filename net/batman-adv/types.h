@@ -1018,8 +1018,10 @@ struct batadv_skb_cb {
  * @direct_link_flags: direct link flags for aggregated OGM packets
  * @num_packets: counter for bcast packet retransmission
  * @delayed_work: work queue callback item for packet sending
- * @if_incoming: pointer incoming hard-iface or primary iface if locally
- *  generated packet
+ * @if_incoming: pointer to incoming hard-iface or primary iface if
+ *  locally generated packet
+ * @if_outgoing: packet where the packet should be sent to, or NULL if
+ *  unspecified
  */
 struct batadv_forw_packet {
 	struct hlist_node list;
@@ -1031,6 +1033,7 @@ struct batadv_forw_packet {
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
 	struct batadv_hard_iface *if_incoming;
+	struct batadv_hard_iface *if_outgoing;
 };
 
 /**
