@@ -312,7 +312,8 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	    mvmvif->dbgfs_pm.disable_power_off)
 		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
 #endif
-	if (!vif->bss_conf.ps || mvmvif->pm_prevented)
+	if (!vif->bss_conf.ps || mvmvif->pm_prevented ||
+	    iwl_mvm_vif_low_latency(mvmvif))
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);

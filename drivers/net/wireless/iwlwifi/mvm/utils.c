@@ -541,10 +541,14 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool value)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int res;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	mvmvif->low_latency = value;
 
-	return iwl_mvm_update_quotas(mvm, NULL);
+	res = iwl_mvm_update_quotas(mvm, NULL);
+	if (res)
+		return res;
+	return iwl_mvm_power_update_mode(mvm, vif);
 }
