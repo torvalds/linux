@@ -22,6 +22,8 @@
 				reg = <0x44>;
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tc35893_tvk_mode>;
 
 				interrupt-controller;
 				#interrupt-cells = <1>;
@@ -61,6 +63,17 @@
 							0x01030039
 							0x07060069
 							0x050500d9>;
+				};
+			};
+		};
+		pinctrl {
+			/* Pull up this GPIO pin */
+			tc35893 {
+				tc35893_tvk_mode: tc35893_tvk {
+					tvk_cfg {
+						ste,pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
 				};
 			};
 		};

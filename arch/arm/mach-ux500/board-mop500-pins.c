@@ -340,11 +340,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_MUX_HOG("lcdvsi0_a_1", "lcd"),
 	DB8500_PIN_HOG("GPIO68_E1", in_pu),
 	DB8500_PIN_HOG("GPIO84_C2", gpio_in_pu),
-	/*
-	 * STMPE1601/tc35893 keypad IRQ GPIO 218
-	 * TODO: set for snowball and HREF really??
-	 */
-	DB8500_PIN_HOG("GPIO218_AH11", gpio_in_pu),
 	/* Mux in LCD data lines 8 thru 11 and LCDA CLK for MCDE TVOUT */
 	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
 	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),
@@ -625,8 +620,6 @@ static struct pinctrl_map __initdata mop500_pinmap[] = {
 	DB8500_MUX_HOG("ipgpio1_c_1", "ipgpio"),
 	DB8500_PIN_HOG("GPIO6_AF6", in_pu),
 	DB8500_PIN_HOG("GPIO7_AG5", in_pu),
-	/* TC35892 IRQ, pull up the line, let the driver mux in the pin */
-	DB8500_PIN_HOG("GPIO217_AH12", gpio_in_pu),
 	/*
 	 * Runtime stuff: make it possible to mux in the SKE keypad
 	 * and bias the pins
