@@ -78,6 +78,7 @@ int big_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 
 		written = kernel_write(file, prep->data, prep->datalen, 0);
 		if (written != datalen) {
+			ret = written;
 			if (written >= 0)
 				ret = -ENOMEM;
 			goto err_fput;
