@@ -332,5 +332,5 @@ const char *ima_d_path(struct path *path, char **pathbuf)
 			pathname = NULL;
 		}
 	}
-	return pathname;
+	return pathname ?: (const char *)path->dentry->d_name.name;
 }
