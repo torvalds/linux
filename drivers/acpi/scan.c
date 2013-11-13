@@ -411,8 +411,7 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		status = acpi_bus_get_device(handle, &adev);
-		if (ACPI_FAILURE(status))
+		if (acpi_bus_get_device(handle, &adev))
 			goto err_out;
 
 		get_device(&adev->dev);
