@@ -2184,6 +2184,9 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 	struct regulator_ops	*ops = rdev->desc->ops;
 	int			ret;
 
+	if (rdev->desc->fixed_uV && rdev->desc->n_voltages == 1 && !selector)
+		return rdev->desc->fixed_uV;
+
 	if (!ops->list_voltage || selector >= rdev->desc->n_voltages)
 		return -EINVAL;
 
