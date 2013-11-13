@@ -1,10 +1,12 @@
 config SUNXI_GMAC
 	tristate "Sunxi platform 10/100/1000Mbps Ethernet driver"
 	depends on HAS_IOMEM
+	depends on ARCH_SUN7I
 	select NET_CORE
 	select MII
 	select PHYLIB
 	select CRC32
+	default m
 	---help---
 	  This is the driver for the Sunxi Ethernet.
 
