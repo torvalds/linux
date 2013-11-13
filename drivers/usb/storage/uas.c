@@ -315,7 +315,7 @@ static void uas_stat_cmplt(struct urb *urb)
 {
 	struct iu *iu = urb->transfer_buffer;
 	struct Scsi_Host *shost = urb->context;
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	struct scsi_cmnd *cmnd;
 	struct uas_cmd_info *cmdinfo;
 	unsigned long flags;
@@ -562,7 +562,7 @@ err:
 static struct urb *uas_submit_sense_urb(struct Scsi_Host *shost,
 					gfp_t gfp, unsigned int stream)
 {
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	struct urb *urb;
 
 	urb = uas_alloc_sense_urb(devinfo, gfp, shost, stream);
@@ -734,7 +734,7 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 			    const char *fname, u8 function)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	u16 tag = devinfo->qdepth;
 	unsigned long flags;
 	struct urb *sense_urb;
@@ -879,7 +879,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 
 static int uas_slave_alloc(struct scsi_device *sdev)
 {
-	sdev->hostdata = (void *)sdev->host->hostdata[0];
+	sdev->hostdata = (void *)sdev->host->hostdata;
 	return 0;
 }
 
@@ -1005,11 +1005,8 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (uas_switch_interface(udev, intf))
 		return -ENODEV;
 
-	devinfo = kmalloc(sizeof(struct uas_dev_info), GFP_KERNEL);
-	if (!devinfo)
-		goto set_alt0;
-
-	shost = scsi_host_alloc(&uas_host_template, sizeof(void *));
+	shost = scsi_host_alloc(&uas_host_template,
+				sizeof(struct uas_dev_info));
 	if (!shost)
 		goto set_alt0;
 
@@ -1019,6 +1016,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	shost->max_channel = 0;
 	shost->sg_tablesize = udev->bus->sg_tablesize;
 
+	devinfo = (struct uas_dev_info *)shost->hostdata;
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
@@ -1044,8 +1042,6 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (result)
 		goto free_streams;
 
-	shost->hostdata[0] = (unsigned long)devinfo;
-
 	scsi_scan_host(shost);
 	usb_set_intfdata(intf, shost);
 	return result;
@@ -1054,7 +1050,6 @@ free_streams:
 	uas_free_streams(devinfo);
 set_alt0:
 	usb_set_interface(udev, intf->altsetting[0].desc.bInterfaceNumber, 0);
-	kfree(devinfo);
 	if (shost)
 		scsi_host_put(shost);
 	return result;
@@ -1063,7 +1058,7 @@ set_alt0:
 static int uas_pre_reset(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	unsigned long flags;
 
 	if (devinfo->shutdown)
@@ -1089,7 +1084,7 @@ static int uas_pre_reset(struct usb_interface *intf)
 static int uas_post_reset(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	unsigned long flags;
 
 	if (devinfo->shutdown)
@@ -1113,7 +1108,7 @@ static int uas_post_reset(struct usb_interface *intf)
 static int uas_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 
 	/* Wait for any pending requests to complete */
 	flush_work(&devinfo->work);
@@ -1133,7 +1128,7 @@ static int uas_resume(struct usb_interface *intf)
 static int uas_reset_resume(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	unsigned long flags;
 
 	if (uas_configure_endpoints(devinfo) != 0) {
@@ -1152,7 +1147,7 @@ static int uas_reset_resume(struct usb_interface *intf)
 static void uas_disconnect(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 
 	devinfo->resetting = 1;
 	cancel_work_sync(&devinfo->work);
@@ -1163,7 +1158,7 @@ static void uas_disconnect(struct usb_interface *intf)
 	uas_zap_dead(devinfo);
 	scsi_remove_host(shost);
 	uas_free_streams(devinfo);
-	kfree(devinfo);
+	scsi_host_put(shost);
 }
 
 /*
@@ -1176,7 +1171,7 @@ static void uas_shutdown(struct device *dev)
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
-	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
+	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 
 	if (system_state != SYSTEM_RESTART)
 		return;
