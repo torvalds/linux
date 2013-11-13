@@ -877,6 +877,7 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	unsigned char archmode = 1;
 	int prefix;
+	u64 clkcomp;
 
 	if (addr == KVM_S390_STORE_STATUS_NOADDR) {
 		if (copy_to_guest_absolute(vcpu, 163ul, &archmode, 1))
@@ -920,8 +921,9 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long addr)
 			&vcpu->arch.sie_block->cputm, 8, prefix))
 		return -EFAULT;
 
+	clkcomp = vcpu->arch.sie_block->ckc >> 8;
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, clk_cmp),
-			&vcpu->arch.sie_block->ckc, 8, prefix))
+			&clkcomp, 8, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, acc_regs),
