@@ -670,13 +670,15 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
+	spin_lock_irqsave(&devinfo->lock, flags);
+
 	if (devinfo->resetting) {
 		cmnd->result = DID_ERROR << 16;
 		cmnd->scsi_done(cmnd);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return 0;
 	}
 
-	spin_lock_irqsave(&devinfo->lock, flags);
 	if (devinfo->cmnd) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -739,6 +741,11 @@ static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
 	int result = SUCCESS;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->resetting) {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		return FAILED;
+	}
 
 	if (devinfo->running_task) {
 		shost_printk(KERN_INFO, shost,
@@ -809,6 +816,12 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	int ret;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->resetting) {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		return FAILED;
+	}
+
 	uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
 	if (cmdinfo->state & COMMAND_INFLIGHT) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
