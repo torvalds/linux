@@ -1,11 +1,6 @@
 config SND_DAVINCI_SOC
 	tristate "SoC Audio for the TI DAVINCI or AM33XX chip"
 	depends on ARCH_DAVINCI || SOC_AM33XX
-	help
-	  Platform driver for daVinci or AM33xx
-	  Say Y or M if you want to add support for codecs attached to
-	  the DAVINCI AC97, I2S, or McASP interface. You will also need
-	  to select the audio interfaces to support below.
 
 config SND_DAVINCI_SOC_I2S
 	tristate
