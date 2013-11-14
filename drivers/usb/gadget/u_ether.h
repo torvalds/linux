@@ -106,7 +106,7 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
  * gadget driver using this framework.  The link layer addresses are
  * set up using module parameters.
  *
- * Returns negative errno, or zero on success
+ * Returns a eth_dev pointer on success, or an ERR_PTR on failure
  */
 static inline struct eth_dev *gether_setup(struct usb_gadget *g,
 		const char *dev_addr, const char *host_addr,
