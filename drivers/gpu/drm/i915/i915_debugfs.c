@@ -3014,10 +3014,10 @@ static struct i915_debugfs_files {
 void intel_display_crc_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
+	enum pipe pipe;
 
-	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
-		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[i];
+	for_each_pipe(pipe) {
+		struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 
 		pipe_crc->opened = false;
 		spin_lock_init(&pipe_crc->lock);
