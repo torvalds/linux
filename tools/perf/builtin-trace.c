@@ -2158,7 +2158,6 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	size_t printed = data->printed;
 	struct trace *trace = data->trace;
 	struct thread_trace *ttrace = thread->priv;
-	const char *color;
 	double ratio;
 
 	if (ttrace == NULL)
@@ -2166,17 +2165,9 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 
 	ratio = (double)ttrace->nr_events / trace->nr_events * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 50.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 25.0)
-		color = PERF_COLOR_GREEN;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
-
-	printed += color_fprintf(fp, color, " %s (%d), ", thread__comm_str(thread), thread->tid);
+	printed += fprintf(fp, " %s (%d), ", thread__comm_str(thread), thread->tid);
 	printed += fprintf(fp, "%lu events, ", ttrace->nr_events);
-	printed += color_fprintf(fp, color, "%.1f%%", ratio);
+	printed += fprintf(fp, "%.1f%%", ratio);
 	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
 	printed += thread__dump_stats(ttrace, trace, fp);
 
