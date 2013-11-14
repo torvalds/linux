@@ -37,6 +37,36 @@
 
 #define DAVINCI_MCASP_NUM_SERIALIZER	16
 
+struct davinci_audio_dev {
+	struct davinci_pcm_dma_params dma_params[2];
+	void __iomem *base;
+	struct device *dev;
+
+	/* McASP specific data */
+	int	tdm_slots;
+	u8	op_mode;
+	u8	num_serializer;
+	u8	*serial_dir;
+	u8	version;
+	u16	bclk_lrclk_ratio;
+
+	/* McASP FIFO related */
+	u8	txnumevt;
+	u8	rxnumevt;
+
+#ifdef CONFIG_PM_SLEEP
+	struct {
+		u32	txfmtctl;
+		u32	rxfmtctl;
+		u32	txfmt;
+		u32	rxfmt;
+		u32	aclkxctl;
+		u32	aclkrctl;
+		u32	pdir;
+	} context;
+#endif
+};
+
 static inline void mcasp_set_bits(void __iomem *reg, u32 val)
 {
 	__raw_writel(__raw_readl(reg) | val, reg);
