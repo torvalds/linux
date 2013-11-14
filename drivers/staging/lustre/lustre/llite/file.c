@@ -2628,6 +2628,38 @@ int ll_getattr(struct vfsmount *mnt, struct dentry *de, struct kstat *stat)
 	return ll_getattr_it(mnt, de, &it, stat);
 }
 
+int ll_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len)
+{
+	int rc;
+	size_t num_bytes;
+	struct ll_user_fiemap *fiemap;
+	unsigned int extent_count = fieinfo->fi_extents_max;
+
+	num_bytes = sizeof(*fiemap) + (extent_count *
+				       sizeof(struct ll_fiemap_extent));
+	OBD_ALLOC_LARGE(fiemap, num_bytes);
+
+	if (fiemap == NULL)
+		return -ENOMEM;
+
+	fiemap->fm_flags = fieinfo->fi_flags;
+	fiemap->fm_extent_count = fieinfo->fi_extents_max;
+	fiemap->fm_start = start;
+	fiemap->fm_length = len;
+	memcpy(&fiemap->fm_extents[0], fieinfo->fi_extents_start,
+	       sizeof(struct ll_fiemap_extent));
+
+	rc = ll_do_fiemap(inode, fiemap, num_bytes);
+
+	fieinfo->fi_flags = fiemap->fm_flags;
+	fieinfo->fi_extents_mapped = fiemap->fm_mapped_extents;
+	memcpy(fieinfo->fi_extents_start, &fiemap->fm_extents[0],
+	       fiemap->fm_mapped_extents * sizeof(struct ll_fiemap_extent));
+
+	OBD_FREE_LARGE(fiemap, num_bytes);
+	return rc;
+}
 
 struct posix_acl * ll_get_acl(struct inode *inode, int type)
 {
@@ -2740,6 +2772,7 @@ struct inode_operations ll_file_inode_operations = {
 	.getxattr	= ll_getxattr,
 	.listxattr	= ll_listxattr,
 	.removexattr	= ll_removexattr,
+	.fiemap		= ll_fiemap,
 	.get_acl	= ll_get_acl,
 };
 
