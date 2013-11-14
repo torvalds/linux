@@ -46,7 +46,7 @@ static void release_pcie_device(struct device *dev)
  * pcie_port_msix_add_entry - add entry to given array of MSI-X entries
  * @entries: Array of MSI-X entries
  * @new_entry: Index of the entry to add to the array
- * @nr_entries: Number of entries aleady in the array
+ * @nr_entries: Number of entries already in the array
  *
  * Return value: Position of the added entry in the array
  */

@@ -131,7 +131,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	}
 	module_put(slot->ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -177,7 +177,7 @@ static ssize_t attention_write_file(struct pci_slot *slot, const char *buf,
 		retval = ops->set_attention_status(slot->hotplug, attention);
 	module_put(ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -247,7 +247,7 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 		retval = slot->ops->hardware_test(slot, test);
 	module_put(slot->ops->owner);
 
-exit:	
+exit:
 	if (retval)
 		return retval;
 	return count;
@@ -512,7 +512,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
  * @hotplug: pointer to the slot whose info has changed
  * @info: pointer to the info copy into the slot's info structure
  *
- * @slot must have been registered with the pci 
+ * @slot must have been registered with the pci
  * hotplug subsystem previously with a call to pci_hp_register().
  *
  * Returns 0 if successful, anything else for an error.

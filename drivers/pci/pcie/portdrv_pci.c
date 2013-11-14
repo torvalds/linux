@@ -390,9 +390,9 @@ static struct pci_driver pcie_portdriver = {
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,
 
-	.err_handler 	= &pcie_portdrv_err_handler,
+	.err_handler	= &pcie_portdrv_err_handler,
 
-	.driver.pm 	= PCIE_PORTDRV_PM_OPS,
+	.driver.pm	= PCIE_PORTDRV_PM_OPS,
 };
 
 static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
@@ -412,7 +412,7 @@ static struct dmi_system_id __initdata pcie_portdrv_dmi_table[] = {
 	 .ident = "MSI Wind U-100",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR,
-		     		"MICRO-STAR INTERNATIONAL CO., LTD"),
+				"MICRO-STAR INTERNATIONAL CO., LTD"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "U-100"),
 		     },
 	 },

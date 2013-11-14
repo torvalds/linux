@@ -26,11 +26,11 @@ struct msi_desc {
 	struct {
 		__u8	is_msix	: 1;
 		__u8	multiple: 3;	/* log2 number of messages */
-		__u8	maskbit	: 1; 	/* mask-pending bit supported ?   */
-		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit  */
-		__u8	pos;	 	/* Location of the msi capability */
-		__u16	entry_nr;    	/* specific enabled entry 	  */
-		unsigned default_irq;	/* default pre-assigned irq	  */
+		__u8	maskbit	: 1;	/* mask-pending bit supported ? */
+		__u8	is_64	: 1;	/* Address size: 0=32bit 1=64bit */
+		__u8	pos;		/* Location of the msi capability */
+		__u16	entry_nr;	/* specific enabled entry */
+		unsigned default_irq;	/* default pre-assigned irq */
 	} msi_attrib;
 
 	u32 masked;			/* mask bits */

@@ -548,7 +548,7 @@ static struct pcie_link_state *alloc_pcie_link_state(struct pci_dev *pdev)
 
 /*
  * pcie_aspm_init_link_state: Initiate PCI express link state.
- * It is called after the pcie and its children devices are scaned.
+ * It is called after the pcie and its children devices are scanned.
  * @pdev: the root port or switch downstream port
  */
 void pcie_aspm_init_link_state(struct pci_dev *pdev)
