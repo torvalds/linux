@@ -1667,6 +1667,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 				unsigned long address,
 				struct page *page, int node)
 {
+	spinlock_t *ptl;
 	unsigned long haddr = address & HPAGE_PMD_MASK;
 	pg_data_t *pgdat = NODE_DATA(node);
 	int isolated = 0;
@@ -1706,9 +1707,9 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	WARN_ON(PageLRU(new_page));
 
 	/* Recheck the target PMD */
-	spin_lock(&mm->page_table_lock);
+	ptl = pmd_lock(mm, pmd);
 	if (unlikely(!pmd_same(*pmd, entry))) {
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock(ptl);
 
 		/* Reverse changes made by migrate_page_copy() */
 		if (TestClearPageActive(new_page))
@@ -1753,7 +1754,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	 * before it's fully transferred to the new page.
 	 */
 	mem_cgroup_end_migration(memcg, page, new_page, true);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(ptl);
 
 	unlock_page(new_page);
 	unlock_page(page);
