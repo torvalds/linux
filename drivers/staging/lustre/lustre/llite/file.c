@@ -431,22 +431,17 @@ void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch)
 	}
 }
 
-static int ll_och_fill(struct obd_export *md_exp, struct ll_inode_info *lli,
-		       struct lookup_intent *it, struct obd_client_handle *och)
+static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
+		       struct obd_client_handle *och)
 {
 	struct ptlrpc_request *req = it->d.lustre.it_data;
 	struct mdt_body *body;
 
-	LASSERT(och);
-
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-	LASSERT(body != NULL);		      /* reply already checked out */
-
-	memcpy(&och->och_fh, &body->handle, sizeof(body->handle));
+	och->och_fh = body->handle;
+	och->och_fid = body->fid1;
 	och->och_magic = OBD_CLIENT_HANDLE_MAGIC;
-	och->och_fid = lli->lli_fid;
 	och->och_flags = it->it_flags;
-	ll_ioepoch_open(lli, body->ioepoch);
 
 	return md_set_open_replay_data(md_exp, och, req);
 }
@@ -466,15 +461,12 @@ int ll_local_open(struct file *file, struct lookup_intent *it,
 		struct mdt_body *body;
 		int rc;
 
-		rc = ll_och_fill(ll_i2sbi(inode)->ll_md_exp, lli, it, och);
-		if (rc)
+		rc = ll_och_fill(ll_i2sbi(inode)->ll_md_exp, it, och);
+		if (rc != 0)
 			return rc;
 
 		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		if ((it->it_flags & FMODE_WRITE) &&
-		    (body->valid & OBD_MD_FLSIZE))
-			CDEBUG(D_INODE, "Epoch "LPU64" opened on "DFID"\n",
-			       lli->lli_ioepoch, PFID(&lli->lli_fid));
+		ll_ioepoch_open(lli, body->ioepoch);
 	}
 
 	LUSTRE_FPRIVATE(file) = fd;
@@ -1482,8 +1474,7 @@ int ll_release_openhandle(struct dentry *dentry, struct lookup_intent *it)
 	if (!och)
 		GOTO(out, rc = -ENOMEM);
 
-	ll_och_fill(ll_i2sbi(inode)->ll_md_exp,
-		    ll_i2info(inode), it, och);
+	ll_och_fill(ll_i2sbi(inode)->ll_md_exp, it, och);
 
 	rc = ll_close_inode_openhandle(ll_i2sbi(inode)->ll_md_exp,
 				       inode, och);
