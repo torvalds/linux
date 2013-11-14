@@ -23,9 +23,6 @@
 
 #include "davinci-pcm.h"
 
-#define DAVINCI_MCASP_I2S_DAI	0
-#define DAVINCI_MCASP_DIT_DAI	1
-
 struct davinci_audio_dev {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
