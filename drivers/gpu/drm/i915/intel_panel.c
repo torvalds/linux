@@ -749,10 +749,6 @@ static void pch_enable_backlight(struct intel_connector *connector)
 	pch_ctl2 = panel->backlight.max << 16;
 	I915_WRITE(BLC_PWM_PCH_CTL2, pch_ctl2);
 
-	/* XXX: transitional */
-	if (dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)
-		return;
-
 	pch_ctl1 = 0;
 	if (panel->backlight.active_low_pwm)
 		pch_ctl1 |= BLM_PCH_POLARITY;
