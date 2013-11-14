@@ -147,7 +147,10 @@ struct page {
 						 * system if PG_buddy is set.
 						 */
 #if USE_SPLIT_PTE_PTLOCKS
-		spinlock_t ptl;
+		unsigned long ptl; /* It's spinlock_t if it fits to long,
+				    * otherwise it's pointer to dynamicaly
+				    * allocated spinlock_t.
+				    */
 #endif
 		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
 		struct page *first_page;	/* Compound tail pages */

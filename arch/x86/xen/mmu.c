@@ -797,7 +797,7 @@ static spinlock_t *xen_pte_lock(struct page *page, struct mm_struct *mm)
 	spinlock_t *ptl = NULL;
 
 #if USE_SPLIT_PTE_PTLOCKS
-	ptl = __pte_lockptr(page);
+	ptl = ptlock_ptr(page);
 	spin_lock_nest_lock(ptl, &mm->page_table_lock);
 #endif
 

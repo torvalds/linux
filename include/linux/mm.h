@@ -1317,32 +1317,73 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
 #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
 
 #if USE_SPLIT_PTE_PTLOCKS
-/*
- * We tuck a spinlock to guard each pagetable page into its struct page,
- * at page->private, with BUILD_BUG_ON to make sure that this will not
- * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
- * When freeing, reset page->mapping so free_pages_check won't complain.
- */
-#define __pte_lockptr(page)	&((page)->ptl)
-#define pte_lock_init(_page)	do {					\
-	spin_lock_init(__pte_lockptr(_page));				\
-} while (0)
-#define pte_lock_deinit(page)	((page)->mapping = NULL)
-#define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+bool __ptlock_alloc(struct page *page);
+void __ptlock_free(struct page *page);
+static inline bool ptlock_alloc(struct page *page)
+{
+	if (sizeof(spinlock_t) > sizeof(page->ptl))
+		return __ptlock_alloc(page);
+	return true;
+}
+static inline void ptlock_free(struct page *page)
+{
+	if (sizeof(spinlock_t) > sizeof(page->ptl))
+		__ptlock_free(page);
+}
+
+static inline spinlock_t *ptlock_ptr(struct page *page)
+{
+	if (sizeof(spinlock_t) > sizeof(page->ptl))
+		return (spinlock_t *) page->ptl;
+	else
+		return (spinlock_t *) &page->ptl;
+}
+
+static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
+{
+	return ptlock_ptr(pmd_page(*pmd));
+}
+
+static inline bool ptlock_init(struct page *page)
+{
+	/*
+	 * prep_new_page() initialize page->private (and therefore page->ptl)
+	 * with 0. Make sure nobody took it in use in between.
+	 *
+	 * It can happen if arch try to use slab for page table allocation:
+	 * slab code uses page->slab_cache and page->first_page (for tail
+	 * pages), which share storage with page->ptl.
+	 */
+	VM_BUG_ON(page->ptl);
+	if (!ptlock_alloc(page))
+		return false;
+	spin_lock_init(ptlock_ptr(page));
+	return true;
+}
+
+/* Reset page->mapping so free_pages_check won't complain. */
+static inline void pte_lock_deinit(struct page *page)
+{
+	page->mapping = NULL;
+	ptlock_free(page);
+}
+
 #else	/* !USE_SPLIT_PTE_PTLOCKS */
 /*
  * We use mm->page_table_lock to guard all pagetable pages of the mm.
  */
-#define pte_lock_init(page)	do {} while (0)
-#define pte_lock_deinit(page)	do {} while (0)
-#define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+static inline spinlock_t *pte_lockptr(struct mm_struct *mm, pmd_t *pmd)
+{
+	return &mm->page_table_lock;
+}
+static inline bool ptlock_init(struct page *page) { return true; }
+static inline void pte_lock_deinit(struct page *page) {}
 #endif /* USE_SPLIT_PTE_PTLOCKS */
 
 static inline bool pgtable_page_ctor(struct page *page)
 {
-	pte_lock_init(page);
 	inc_zone_page_state(page, NR_PAGETABLE);
-	return true;
+	return ptlock_init(page);
 }
 
 static inline void pgtable_page_dtor(struct page *page)
@@ -1383,16 +1424,15 @@ static inline void pgtable_page_dtor(struct page *page)
 
 static inline spinlock_t *pmd_lockptr(struct mm_struct *mm, pmd_t *pmd)
 {
-	return &virt_to_page(pmd)->ptl;
+	return ptlock_ptr(virt_to_page(pmd));
 }
 
 static inline bool pgtable_pmd_page_ctor(struct page *page)
 {
-	spin_lock_init(&page->ptl);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	page->pmd_huge_pte = NULL;
 #endif
-	return true;
+	return ptlock_init(page);
 }
 
 static inline void pgtable_pmd_page_dtor(struct page *page)
@@ -1400,6 +1440,7 @@ static inline void pgtable_pmd_page_dtor(struct page *page)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	VM_BUG_ON(page->pmd_huge_pte);
 #endif
+	ptlock_free(page);
 }
 
 #define pmd_huge_pte(mm, pmd) (virt_to_page(pmd)->pmd_huge_pte)
