@@ -40,6 +40,7 @@
 #define DISPC_CONTROL3                  0x0848
 #define DISPC_CONFIG3                   0x084C
 #define DISPC_MSTANDBY_CTRL		0x0858
+#define DISPC_GLOBAL_MFLAG_ATTRIBUTE	0x085C
 
 /* DISPC overlay registers */
 #define DISPC_OVL_BA0(n)		(DISPC_OVL_BASE(n) + \
@@ -100,6 +101,8 @@
 					DISPC_FIR_COEF_V2_OFFSET(n, i))
 #define DISPC_OVL_PRELOAD(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_PRELOAD_OFFSET(n))
+#define DISPC_OVL_MFLAG_THRESHOLD(n)	(DISPC_OVL_BASE(n) + \
+					DISPC_MFLAG_THRESHOLD_OFFSET(n))
 
 /* DISPC up/downsampling FIR filter coefficient structure */
 struct dispc_coef {
@@ -889,6 +892,23 @@ static inline u16 DISPC_PRELOAD_OFFSET(enum omap_plane plane)
 		return 0x00E8;
 	case OMAP_DSS_VIDEO3:
 		return 0x00A0;
+	default:
+		BUG();
+		return 0;
+	}
+}
+
+static inline u16 DISPC_MFLAG_THRESHOLD_OFFSET(enum omap_plane plane)
+{
+	switch (plane) {
+	case OMAP_DSS_GFX:
+		return 0x0860;
+	case OMAP_DSS_VIDEO1:
+		return 0x0864;
+	case OMAP_DSS_VIDEO2:
+		return 0x0868;
+	case OMAP_DSS_VIDEO3:
+		return 0x086c;
 	default:
 		BUG();
 		return 0;

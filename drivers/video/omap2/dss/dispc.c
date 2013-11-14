@@ -3213,6 +3213,8 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(DISPC_CONTROL3);
 		DUMPREG(DISPC_CONFIG3);
 	}
+	if (dss_has_feature(FEAT_MFLAG))
+		DUMPREG(DISPC_GLOBAL_MFLAG_ATTRIBUTE);
 
 #undef DUMPREG
 
@@ -3287,6 +3289,8 @@ static void dispc_dump_regs(struct seq_file *s)
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
 		if (dss_has_feature(FEAT_PRELOAD))
 			DUMPREG(i, DISPC_OVL_PRELOAD);
+		if (dss_has_feature(FEAT_MFLAG))
+			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 	}
 
 #undef DISPC_REG
