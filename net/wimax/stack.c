@@ -402,22 +402,44 @@ void wimax_dev_init(struct wimax_dev *wimax_dev)
 }
 EXPORT_SYMBOL_GPL(wimax_dev_init);
 
-/*
- * This extern is declared here because it's easier to keep track --
- * both declarations are a list of the same
- */
-extern struct genl_ops
-	wimax_gnl_msg_from_user,
-	wimax_gnl_reset,
-	wimax_gnl_rfkill,
-	wimax_gnl_state_get;
+static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+	[WIMAX_GNL_RESET_IFIDX] = { .type = NLA_U32, },
+	[WIMAX_GNL_RFKILL_IFIDX] = { .type = NLA_U32, },
+	[WIMAX_GNL_RFKILL_STATE] = {
+		.type = NLA_U32		/* enum wimax_rf_state */
+	},
+	[WIMAX_GNL_STGET_IFIDX] = { .type = NLA_U32, },
+	[WIMAX_GNL_MSG_IFIDX] = { .type = NLA_U32, },
+	[WIMAX_GNL_MSG_DATA] = {
+		.type = NLA_UNSPEC,	/* libnl doesn't grok BINARY yet */
+	},
+};
 
-static
-struct genl_ops *wimax_gnl_ops[] = {
-	&wimax_gnl_msg_from_user,
-	&wimax_gnl_reset,
-	&wimax_gnl_rfkill,
-	&wimax_gnl_state_get,
+static struct genl_ops wimax_gnl_ops[] = {
+	{
+		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
+		.flags = GENL_ADMIN_PERM,
+		.policy = wimax_gnl_policy,
+		.doit = wimax_gnl_doit_msg_from_user,
+	},
+	{
+		.cmd = WIMAX_GNL_OP_RESET,
+		.flags = GENL_ADMIN_PERM,
+		.policy = wimax_gnl_policy,
+		.doit = wimax_gnl_doit_reset,
+	},
+	{
+		.cmd = WIMAX_GNL_OP_RFKILL,
+		.flags = GENL_ADMIN_PERM,
+		.policy = wimax_gnl_policy,
+		.doit = wimax_gnl_doit_rfkill,
+	},
+	{
+		.cmd = WIMAX_GNL_OP_STATE_GET,
+		.flags = GENL_ADMIN_PERM,
+		.policy = wimax_gnl_policy,
+		.doit = wimax_gnl_doit_state_get,
+	},
 };
 
 
@@ -567,7 +589,7 @@ struct genl_multicast_group wimax_gnl_mcg = {
 static
 int __init wimax_subsys_init(void)
 {
-	int result, cnt;
+	int result;
 
 	d_fnstart(4, NULL, "()\n");
 	d_parse_params(D_LEVEL, D_LEVEL_SIZE, wimax_debug_params,
@@ -575,24 +597,12 @@ int __init wimax_subsys_init(void)
 
 	snprintf(wimax_gnl_family.name, sizeof(wimax_gnl_family.name),
 		 "WiMAX");
-	result = genl_register_family(&wimax_gnl_family);
+	result = genl_register_family_with_ops(&wimax_gnl_family, wimax_gnl_ops,
+					       ARRAY_SIZE(wimax_gnl_ops));
 	if (unlikely(result < 0)) {
 		printk(KERN_ERR "cannot register generic netlink family: %d\n",
 		       result);
 		goto error_register_family;
-	}
-
-	for (cnt = 0; cnt < ARRAY_SIZE(wimax_gnl_ops); cnt++) {
-		result = genl_register_ops(&wimax_gnl_family,
-					   wimax_gnl_ops[cnt]);
-		d_printf(4, NULL, "registering generic netlink op code "
-			 "%u: %d\n", wimax_gnl_ops[cnt]->cmd, result);
-		if (unlikely(result < 0)) {
-			printk(KERN_ERR "cannot register generic netlink op "
-			       "code %u: %d\n",
-			       wimax_gnl_ops[cnt]->cmd, result);
-			goto error_register_ops;
-		}
 	}
 
 	result = genl_register_mc_group(&wimax_gnl_family, &wimax_gnl_mcg);
@@ -602,10 +612,6 @@ int __init wimax_subsys_init(void)
 	return 0;
 
 error_mc_group:
-error_register_ops:
-	for (cnt--; cnt >= 0; cnt--)
-		genl_unregister_ops(&wimax_gnl_family,
-				    wimax_gnl_ops[cnt]);
 	genl_unregister_family(&wimax_gnl_family);
 error_register_family:
 	d_fnend(4, NULL, "() = %d\n", result);
@@ -619,12 +625,7 @@ module_init(wimax_subsys_init);
 static
 void __exit wimax_subsys_exit(void)
 {
-	int cnt;
 	wimax_id_table_release();
-	genl_unregister_mc_group(&wimax_gnl_family, &wimax_gnl_mcg);
-	for (cnt = ARRAY_SIZE(wimax_gnl_ops) - 1; cnt >= 0; cnt--)
-		genl_unregister_ops(&wimax_gnl_family,
-				    wimax_gnl_ops[cnt]);
 	genl_unregister_family(&wimax_gnl_family);
 }
 module_exit(wimax_subsys_exit);
