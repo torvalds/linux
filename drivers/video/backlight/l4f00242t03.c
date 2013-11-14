@@ -244,7 +244,6 @@ static int l4f00242t03_remove(struct spi_device *spi)
 
 	l4f00242t03_lcd_power_set(priv->ld, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(priv->ld);
-	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }
