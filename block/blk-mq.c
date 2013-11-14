@@ -319,7 +319,7 @@ void __blk_mq_end_io(struct request *rq, int error)
 		blk_mq_complete_request(rq, error);
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#if defined(CONFIG_SMP)
 
 /*
  * Called with interrupts disabled.
@@ -361,7 +361,7 @@ static int ipi_remote_cpu(struct blk_mq_ctx *ctx, const int cpu,
 
 	return true;
 }
-#else /* CONFIG_SMP && CONFIG_USE_GENERIC_SMP_HELPERS */
+#else /* CONFIG_SMP */
 static int ipi_remote_cpu(struct blk_mq_ctx *ctx, const int cpu,
 			  struct request *rq, const int error)
 {
