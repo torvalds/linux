@@ -37,6 +37,7 @@
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
+#define NAND_DEV_READY_TIMEOUT  50
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 #define NAND_STOP_DELAY		(2 * HZ/50)
 #define PAGE_CHUNK_SIZE		(2048)
@@ -168,7 +169,7 @@ struct pxa3xx_nand_info {
 	struct clk		*clk;
 	void __iomem		*mmio_base;
 	unsigned long		mmio_phys;
-	struct completion	cmd_complete;
+	struct completion	cmd_complete, dev_ready;
 
 	unsigned int 		buf_start;
 	unsigned int		buf_count;
@@ -198,7 +199,7 @@ struct pxa3xx_nand_info {
 	int			use_ecc;	/* use HW ECC ? */
 	int			use_dma;	/* use DMA ? */
 	int			use_spare;	/* use spare ? */
-	int			is_ready;
+	int			need_wait;
 
 	unsigned int		fifo_size;	/* max. data size in the FIFO */
 	unsigned int		data_size;	/* data to be read from FIFO */
@@ -476,7 +477,7 @@ static void start_data_dma(struct pxa3xx_nand_info *info)
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 {
 	struct pxa3xx_nand_info *info = devid;
-	unsigned int status, is_completed = 0;
+	unsigned int status, is_completed = 0, is_ready = 0;
 	unsigned int ready, cmd_done;
 
 	if (info->cs == 0) {
@@ -512,8 +513,8 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 		is_completed = 1;
 	}
 	if (status & ready) {
-		info->is_ready = 1;
 		info->state = STATE_READY;
+		is_ready = 1;
 	}
 
 	if (status & NDSR_WRCMDREQ) {
@@ -542,6 +543,8 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 	nand_writel(info, NDSR, status);
 	if (is_completed)
 		complete(&info->cmd_complete);
+	if (is_ready)
+		complete(&info->dev_ready);
 NORMAL_IRQ_EXIT:
 	return IRQ_HANDLED;
 }
@@ -572,7 +575,6 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	info->oob_size		= 0;
 	info->use_ecc		= 0;
 	info->use_spare		= 1;
-	info->is_ready		= 0;
 	info->retcode		= ERR_NONE;
 	if (info->cs != 0)
 		info->ndcb0 = NDCB0_CSEL;
@@ -745,6 +747,8 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	exec_cmd = prepare_command_pool(info, command, column, page_addr);
 	if (exec_cmd) {
 		init_completion(&info->cmd_complete);
+		init_completion(&info->dev_ready);
+		info->need_wait = 1;
 		pxa3xx_nand_start(info);
 
 		ret = wait_for_completion_timeout(&info->cmd_complete,
@@ -859,21 +863,27 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
+	int ret;
+
+	if (info->need_wait) {
+		ret = wait_for_completion_timeout(&info->dev_ready,
+				CHIP_DELAY_TIMEOUT);
+		info->need_wait = 0;
+		if (!ret) {
+			dev_err(&info->pdev->dev, "Ready time out!!!\n");
+			return NAND_STATUS_FAIL;
+		}
+	}
 
 	/* pxa3xx_nand_send_command has waited for command complete */
 	if (this->state == FL_WRITING || this->state == FL_ERASING) {
 		if (info->retcode == ERR_NONE)
 			return 0;
-		else {
-			/*
-			 * any error make it return 0x01 which will tell
-			 * the caller the erase and write fail
-			 */
-			return 0x01;
-		}
+		else
+			return NAND_STATUS_FAIL;
 	}
 
-	return 0;
+	return NAND_STATUS_READY;
 }
 
 static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
@@ -1026,7 +1036,7 @@ static int pxa3xx_nand_sensing(struct pxa3xx_nand_info *info)
 		return ret;
 
 	chip->cmdfunc(mtd, NAND_CMD_RESET, 0, 0);
-	if (info->is_ready)
+	if (!info->need_wait)
 		return 0;
 
 	return -ENODEV;
