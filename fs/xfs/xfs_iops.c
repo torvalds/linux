@@ -17,32 +17,28 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_acl.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
-#include "xfs_rtalloc.h"
+#include "xfs_acl.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
 #include "xfs_attr.h"
-#include "xfs_buf_item.h"
-#include "xfs_inode_item.h"
+#include "xfs_trans.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2_priv.h"
+#include "xfs_dinode.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -709,8 +705,7 @@ out_dqrele:
 int
 xfs_setattr_size(
 	struct xfs_inode	*ip,
-	struct iattr		*iattr,
-	int			flags)
+	struct iattr		*iattr)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
@@ -733,14 +728,10 @@ xfs_setattr_size(
 	if (error)
 		return XFS_ERROR(error);
 
+	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
 	ASSERT((mask & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 			ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
-
-	if (!(flags & XFS_ATTR_NOLOCK)) {
-		lock_flags |= XFS_IOLOCK_EXCL;
-		xfs_ilock(ip, lock_flags);
-	}
 
 	oldsize = inode->i_size;
 	newsize = iattr->ia_size;
@@ -750,12 +741,11 @@ xfs_setattr_size(
 	 */
 	if (newsize == 0 && oldsize == 0 && ip->i_d.di_nextents == 0) {
 		if (!(mask & (ATTR_CTIME|ATTR_MTIME)))
-			goto out_unlock;
+			return 0;
 
 		/*
 		 * Use the regular setattr path to update the timestamps.
 		 */
-		xfs_iunlock(ip, lock_flags);
 		iattr->ia_valid &= ~ATTR_SIZE;
 		return xfs_setattr_nonsize(ip, iattr, 0);
 	}
@@ -765,7 +755,7 @@ xfs_setattr_size(
 	 */
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
-		goto out_unlock;
+		return error;
 
 	/*
 	 * Now we can make the changes.  Before we join the inode to the
@@ -783,7 +773,7 @@ xfs_setattr_size(
 		 */
 		error = xfs_zero_eof(ip, newsize, oldsize);
 		if (error)
-			goto out_unlock;
+			return error;
 	}
 
 	/*
@@ -802,7 +792,7 @@ xfs_setattr_size(
 		error = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
-			goto out_unlock;
+			return error;
 	}
 
 	/*
@@ -812,7 +802,7 @@ xfs_setattr_size(
 
 	error = -block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
-		goto out_unlock;
+		return error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
@@ -916,12 +906,21 @@ out_trans_cancel:
 
 STATIC int
 xfs_vn_setattr(
-	struct dentry	*dentry,
-	struct iattr	*iattr)
+	struct dentry		*dentry,
+	struct iattr		*iattr)
 {
-	if (iattr->ia_valid & ATTR_SIZE)
-		return -xfs_setattr_size(XFS_I(dentry->d_inode), iattr, 0);
-	return -xfs_setattr_nonsize(XFS_I(dentry->d_inode), iattr, 0);
+	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
+	int			error;
+
+	if (iattr->ia_valid & ATTR_SIZE) {
+		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		error = xfs_setattr_size(ip, iattr);
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	} else {
+		error = xfs_setattr_nonsize(ip, iattr, 0);
+	}
+
+	return -error;
 }
 
 STATIC int
@@ -1169,6 +1168,7 @@ xfs_setup_inode(
 	struct xfs_inode	*ip)
 {
 	struct inode		*inode = &ip->i_vnode;
+	gfp_t			gfp_mask;
 
 	inode->i_ino = ip->i_ino;
 	inode->i_state = I_NEW;
@@ -1204,6 +1204,7 @@ xfs_setup_inode(
 	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
 	xfs_diflags_to_iflags(inode, ip);
 
+	ip->d_ops = ip->i_mount->m_nondir_inode_ops;
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_op = &xfs_inode_operations;
@@ -1216,6 +1217,7 @@ xfs_setup_inode(
 		else
 			inode->i_op = &xfs_dir_inode_operations;
 		inode->i_fop = &xfs_dir_file_operations;
+		ip->d_ops = ip->i_mount->m_dir_inode_ops;
 		break;
 	case S_IFLNK:
 		inode->i_op = &xfs_symlink_inode_operations;
@@ -1227,6 +1229,14 @@ xfs_setup_inode(
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 		break;
 	}
+
+	/*
+	 * Ensure all page cache allocations are done from GFP_NOFS context to
+	 * prevent direct reclaim recursion back into the filesystem and blowing
+	 * stacks or deadlocking.
+	 */
+	gfp_mask = mapping_gfp_mask(inode->i_mapping);
+	mapping_set_gfp_mask(inode->i_mapping, (gfp_mask & ~(__GFP_FS)));
 
 	/*
 	 * If there is no attribute fork no ACL can exist on this inode,

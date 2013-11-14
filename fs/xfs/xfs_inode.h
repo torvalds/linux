@@ -24,7 +24,6 @@
 /*
  * Kernel only inode definitions
  */
-
 struct xfs_dinode;
 struct xfs_inode;
 struct xfs_buf;
@@ -49,6 +48,9 @@ typedef struct xfs_inode {
 	/* Extent information. */
 	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
 	xfs_ifork_t		i_df;		/* data fork */
+
+	/* operations vectors */
+	const struct xfs_dir_ops *d_ops;		/* directory ops vector */
 
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
@@ -316,7 +318,7 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 
 
 int		xfs_release(struct xfs_inode *ip);
-int		xfs_inactive(struct xfs_inode *ip);
+void		xfs_inactive(struct xfs_inode *ip);
 int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
