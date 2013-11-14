@@ -665,6 +665,11 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 		if (mtd->writesize >= PAGE_CHUNK_SIZE)
 			info->ndcb0 |= NDCB0_DBC | (NAND_CMD_READSTART << 8);
 
+		set_command_address(info, mtd->writesize, column, page_addr);
+		info->buf_count = mtd->writesize + mtd->oobsize;
+		memset(info->data_buff, 0xFF, info->buf_count);
+		break;
+
 	case NAND_CMD_SEQIN:
 
 		set_command_address(info, mtd->writesize, column, page_addr);
