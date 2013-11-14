@@ -20,15 +20,10 @@
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
+#include <asm/tlb.h>
 #include <asm/tlbmisc.h>
 
 extern void build_tlb_refill_handler(void);
-
-/*
- * Make sure all entries differ.  If they're not different
- * MIPS32 will take revenge ...
- */
-#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
 
 /* Atomicity and interruptability */
 #ifdef CONFIG_MIPS_MT_SMTC
