@@ -2391,7 +2391,7 @@ out_acl:
 	if (bmval0 & FATTR4_WORD0_MAXFILESIZE) {
 		if ((buflen -= 8) < 0)
 			goto out_resource;
-		WRITE64(~(u64)0);
+		WRITE64(exp->ex_path.mnt->mnt_sb->s_maxbytes);
 	}
 	if (bmval0 & FATTR4_WORD0_MAXLINK) {
 		if ((buflen -= 4) < 0)
