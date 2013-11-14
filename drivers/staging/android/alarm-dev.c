@@ -72,7 +72,6 @@ static int is_wakeup(enum android_alarm_type type)
 		type == ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP;
 }
 
-
 static void devalarm_start(struct devalarm *alrm, ktime_t exp)
 {
 	if (is_wakeup(alrm->type))
@@ -111,7 +110,6 @@ static void alarm_clear(enum android_alarm_type alarm_type)
 	}
 	alarm_enabled &= ~alarm_type_mask;
 	spin_unlock_irqrestore(&alarm_slock, flags);
-
 }
 
 static void alarm_set(enum android_alarm_type alarm_type,
@@ -370,7 +368,6 @@ static void devalarm_triggered(struct devalarm *alarm)
 	}
 	spin_unlock_irqrestore(&alarm_slock, flags);
 }
-
 
 static enum hrtimer_restart devalarm_hrthandler(struct hrtimer *hrt)
 {
