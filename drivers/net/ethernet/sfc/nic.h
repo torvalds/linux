@@ -762,10 +762,6 @@ int falcon_reset_xaui(struct efx_nic *efx);
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
 void efx_farch_init_common(struct efx_nic *efx);
 void efx_ef10_handle_drain_event(struct efx_nic *efx);
-static inline void efx_nic_push_rx_indir_table(struct efx_nic *efx)
-{
-	efx->type->rx_push_indir_table(efx);
-}
 void efx_farch_rx_push_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,

@@ -1034,7 +1034,7 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 
 	memcpy(efx->rx_indir_table, indir, sizeof(efx->rx_indir_table));
-	efx_nic_push_rx_indir_table(efx);
+	efx->type->rx_push_rss_config(efx);
 	return 0;
 }
 

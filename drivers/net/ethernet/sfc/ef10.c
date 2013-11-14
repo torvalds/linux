@@ -77,7 +77,7 @@ struct efx_ef10_filter_table {
 /* An arbitrary search limit for the software hash table */
 #define EFX_EF10_FILTER_SEARCH_LIMIT 200
 
-static void efx_ef10_rx_push_indir_table(struct efx_nic *efx);
+static void efx_ef10_rx_push_rss_config(struct efx_nic *efx);
 static void efx_ef10_rx_free_indir_table(struct efx_nic *efx);
 static void efx_ef10_filter_table_remove(struct efx_nic *efx);
 
@@ -679,7 +679,7 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 		nic_data->must_restore_piobufs = false;
 	}
 
-	efx_ef10_rx_push_indir_table(efx);
+	efx_ef10_rx_push_rss_config(efx);
 	return 0;
 }
 
@@ -1420,12 +1420,12 @@ static void efx_ef10_rx_free_indir_table(struct efx_nic *efx)
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
-static void efx_ef10_rx_push_indir_table(struct efx_nic *efx)
+static void efx_ef10_rx_push_rss_config(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	netif_dbg(efx, drv, efx->net_dev, "pushing RX indirection table\n");
+	netif_dbg(efx, drv, efx->net_dev, "pushing RSS config\n");
 
 	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID) {
 		rc = efx_ef10_alloc_rss_context(efx, &nic_data->rx_rss_context);
@@ -3574,7 +3574,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
-	.rx_push_indir_table = efx_ef10_rx_push_indir_table,
+	.rx_push_rss_config = efx_ef10_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,

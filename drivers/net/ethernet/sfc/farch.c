@@ -1618,8 +1618,7 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
-		return;
+	BUG_ON(efx_nic_rev(efx) < EFX_REV_FALCON_B0);
 
 	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
@@ -1744,8 +1743,6 @@ void efx_farch_init_common(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
-
-	efx_farch_rx_push_indir_table(efx);
 
 	/* Disable the ugly timer-based TX DMA backoff and allow TX DMA to be
 	 * controlled by the RX FIFO fill level. Set arbitration to one pkt/Q.
