@@ -31,12 +31,14 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 
 struct davinci_mcasp {
 	struct davinci_pcm_dma_params dma_params[2];
+	struct snd_dmaengine_dai_dma_data dma_data[2];
 	void __iomem *base;
 	u32 fifo_base;
 	struct device *dev;
@@ -458,7 +460,9 @@ static int davinci_hw_common_param(struct davinci_mcasp *mcasp, int stream,
 	u8 max_active_serializers = (channels + slots - 1) / slots;
 	u32 reg;
 	/* Default configuration */
-	mcasp_set_bits(mcasp->base + DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
+	if (mcasp->version != MCASP_VERSION_4)
+		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_PWREMUMGT_REG,
+			       MCASP_SOFT);
 
 	/* All PINS as McASP */
 	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_PFUNC_REG, 0x00000000);
@@ -605,6 +609,8 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct davinci_pcm_dma_params *dma_params =
 					&mcasp->dma_params[substream->stream];
+	struct snd_dmaengine_dai_dma_data *dma_data =
+					&mcasp->dma_data[substream->stream];
 	int word_length;
 	u8 fifo_level;
 	u8 slots = mcasp->tdm_slots;
@@ -666,6 +672,8 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		dma_params->acnt = dma_params->data_type;
 
 	dma_params->fifo_level = fifo_level;
+	dma_data->maxburst = fifo_level;
+
 	davinci_config_channel_size(mcasp, word_length);
 
 	return 0;
@@ -711,7 +719,12 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
-	snd_soc_dai_set_dma_data(dai, substream, mcasp->dma_params);
+	if (mcasp->version == MCASP_VERSION_4)
+		snd_soc_dai_set_dma_data(dai, substream,
+					&mcasp->dma_data[substream->stream]);
+	else
+		snd_soc_dai_set_dma_data(dai, substream, mcasp->dma_params);
+
 	return 0;
 }
 
@@ -794,6 +807,13 @@ static struct snd_platform_data omap2_mcasp_pdata = {
 	.version = MCASP_VERSION_3,
 };
 
+static struct snd_platform_data dra7_mcasp_pdata = {
+	.tx_dma_offset = 0x200,
+	.rx_dma_offset = 0x284,
+	.asp_chan_q = EVENTQ_0,
+	.version = MCASP_VERSION_4,
+};
+
 static const struct of_device_id mcasp_dt_ids[] = {
 	{
 		.compatible = "ti,dm646x-mcasp-audio",
@@ -806,6 +826,10 @@ static const struct of_device_id mcasp_dt_ids[] = {
 	{
 		.compatible = "ti,am33xx-mcasp-audio",
 		.data = &omap2_mcasp_pdata,
+	},
+	{
+		.compatible = "ti,dra7-mcasp-audio",
+		.data = &dra7_mcasp_pdata,
 	},
 	{ /* sentinel */ }
 };
@@ -999,6 +1023,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		dma_data->dma_addr = mem->start + pdata->tx_dma_offset;
 
+	/* Unconditional dmaengine stuff */
+	mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr = dma_data->dma_addr;
+
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (res)
 		dma_data->channel = res->start;
@@ -1015,6 +1042,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		dma_data->dma_addr = mem->start + pdata->rx_dma_offset;
 
+	/* Unconditional dmaengine stuff */
+	mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE].addr = dma_data->dma_addr;
+
 	if (mcasp->version < MCASP_VERSION_3) {
 		mcasp->fifo_base = DAVINCI_MCASP_V2_AFIFO_BASE;
 		/* dma_data->dma_addr is pointing to the data port address */
@@ -1029,6 +1059,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		dma_data->channel = pdata->rx_dma_channel;
 
+	/* Unconditional dmaengine stuff */
+	mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data = "tx";
+	mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE].filter_data = "rx";
+
 	dev_set_drvdata(&pdev->dev, mcasp);
 	ret = snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
 					 &davinci_mcasp_dai[pdata->op_mode], 1);
@@ -1036,10 +1070,12 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto err_release_clk;
 
-	ret = davinci_soc_platform_register(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
-		goto err_unregister_component;
+	if (mcasp->version != MCASP_VERSION_4) {
+		ret = davinci_soc_platform_register(&pdev->dev);
+		if (ret) {
+			dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+			goto err_unregister_component;
+		}
 	}
 
 	return 0;
@@ -1054,9 +1090,11 @@ err_release_clk:
 
 static int davinci_mcasp_remove(struct platform_device *pdev)
 {
+	struct davinci_mcasp *mcasp = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	davinci_soc_platform_unregister(&pdev->dev);
+	if (mcasp->version != MCASP_VERSION_4)
+		davinci_soc_platform_unregister(&pdev->dev);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
