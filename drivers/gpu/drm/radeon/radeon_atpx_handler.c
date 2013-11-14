@@ -442,7 +442,7 @@ static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 	acpi_handle dhandle, atpx_handle;
 	acpi_status status;
 
-	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 
@@ -488,7 +488,7 @@ static int radeon_atpx_init(void)
  */
 static int radeon_atpx_get_client_id(struct pci_dev *pdev)
 {
-	if (radeon_atpx_priv.dhandle == DEVICE_ACPI_HANDLE(&pdev->dev))
+	if (radeon_atpx_priv.dhandle == ACPI_HANDLE(&pdev->dev))
 		return VGA_SWITCHEROO_IGD;
 	else
 		return VGA_SWITCHEROO_DIS;

@@ -127,7 +127,7 @@ static int ide_get_dev_handle(struct device *dev, acpi_handle *handle,
 
 	DEBPRINT("ENTER: pci %02x:%02x.%01x\n", bus, devnum, func);
 
-	dev_handle = DEVICE_ACPI_HANDLE(dev);
+	dev_handle = ACPI_HANDLE(dev);
 	if (!dev_handle) {
 		DEBPRINT("no acpi handle for device\n");
 		goto err;
