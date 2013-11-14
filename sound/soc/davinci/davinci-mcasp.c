@@ -788,7 +788,7 @@ static struct snd_platform_data da830_mcasp_pdata = {
 	.version = MCASP_VERSION_2,
 };
 
-static struct snd_platform_data omap2_mcasp_pdata = {
+static struct snd_platform_data am33xx_mcasp_pdata = {
 	.tx_dma_offset = 0,
 	.rx_dma_offset = 0,
 	.asp_chan_q = EVENTQ_0,
@@ -813,7 +813,7 @@ static const struct of_device_id mcasp_dt_ids[] = {
 	},
 	{
 		.compatible = "ti,am33xx-mcasp-audio",
-		.data = &omap2_mcasp_pdata,
+		.data = &am33xx_mcasp_pdata,
 	},
 	{
 		.compatible = "ti,dra7-mcasp-audio",
