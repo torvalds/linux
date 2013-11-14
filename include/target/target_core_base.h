@@ -683,11 +683,10 @@ struct se_device {
 	/* Pointer to transport specific device structure */
 	u32			dev_index;
 	u64			creation_time;
-	u32			num_resets;
-	u64			num_cmds;
-	u64			read_bytes;
-	u64			write_bytes;
-	spinlock_t		stats_lock;
+	atomic_long_t		num_resets;
+	atomic_long_t		num_cmds;
+	atomic_long_t		read_bytes;
+	atomic_long_t		write_bytes;
 	/* Active commands on this virtual SE device */
 	atomic_t		simple_cmds;
 	atomic_t		dev_ordered_id;

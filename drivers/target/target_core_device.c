@@ -130,15 +130,12 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	/* Directly associate cmd with se_dev */
 	se_cmd->se_dev = se_lun->lun_se_dev;
 
-	/* TODO: get rid of this and use atomics for stats */
 	dev = se_lun->lun_se_dev;
-	spin_lock_irqsave(&dev->stats_lock, flags);
-	dev->num_cmds++;
+	atomic_long_inc(&dev->num_cmds);
 	if (se_cmd->data_direction == DMA_TO_DEVICE)
-		dev->write_bytes += se_cmd->data_length;
+		atomic_long_add(se_cmd->data_length, &dev->write_bytes);
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
-		dev->read_bytes += se_cmd->data_length;
-	spin_unlock_irqrestore(&dev->stats_lock, flags);
+		atomic_long_add(se_cmd->data_length, &dev->read_bytes);
 
 	return 0;
 }
@@ -1426,7 +1423,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
 	INIT_LIST_HEAD(&dev->g_dev_node);
-	spin_lock_init(&dev->stats_lock);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
