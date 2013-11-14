@@ -690,7 +690,8 @@ static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
 
 	case NAND_CMD_SEQIN:
 
-		set_command_address(info, mtd->writesize, column, page_addr);
+		info->buf_start = column;
+		set_command_address(info, mtd->writesize, 0, page_addr);
 		break;
 
 	case NAND_CMD_PAGEPROG:
