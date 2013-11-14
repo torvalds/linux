@@ -1439,7 +1439,6 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 
 	/* Write the NCB fingerprint into the page buffer. */
 	memset(buffer, ~0, mtd->writesize);
-	memset(chip->oob_poi, ~0, mtd->oobsize);
 	memcpy(buffer + 12, fingerprint, strlen(fingerprint));
 
 	/* Loop through the first search area, writing NCB fingerprints. */
