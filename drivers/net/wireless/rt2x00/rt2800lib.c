@@ -6610,7 +6610,6 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x3F);
 	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
-	rt2800_rfcsr_write(rt2x00dev, 3, 0x08);
 	rt2800_rfcsr_write(rt2x00dev, 5, 0x10);
 	rt2800_rfcsr_write(rt2x00dev, 6, 0xE4);
 	rt2800_rfcsr_write(rt2x00dev, 7, 0x00);
