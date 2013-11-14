@@ -68,6 +68,86 @@ nouveau_display_vblank_disable(struct drm_device *dev, int head)
 		nouveau_event_put(disp->vblank[head]);
 }
 
+static inline int
+calc(int blanks, int blanke, int total, int line)
+{
+	if (blanke >= blanks) {
+		if (line >= blanks)
+			line -= total;
+	} else {
+		if (line >= blanks)
+			line -= total;
+		line -= blanke + 1;
+	}
+	return line;
+}
+
+int
+nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
+				ktime_t *stime, ktime_t *etime)
+{
+	const u32 mthd = NV04_DISP_SCANOUTPOS + nouveau_crtc(crtc)->index;
+	struct nouveau_display *disp = nouveau_display(crtc->dev);
+	struct nv04_display_scanoutpos args;
+	int ret, retry = 1;
+
+	do {
+		ret = nv_exec(disp->core, mthd, &args, sizeof(args));
+		if (ret != 0)
+			return 0;
+
+		if (args.vline) {
+			ret |= DRM_SCANOUTPOS_ACCURATE;
+			ret |= DRM_SCANOUTPOS_VALID;
+			break;
+		}
+
+		if (retry) ndelay(crtc->linedur_ns);
+	} while (retry--);
+
+	*hpos = calc(args.hblanks, args.hblanke, args.htotal, args.hline);
+	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
+	if (stime) *stime = ns_to_ktime(args.time[0]);
+	if (etime) *etime = ns_to_ktime(args.time[1]);
+
+	if (*vpos < 0)
+		ret |= DRM_SCANOUTPOS_INVBL;
+	return ret;
+}
+
+int
+nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
+			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (nouveau_crtc(crtc)->index == head) {
+			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
+							       stime, etime);
+		}
+	}
+
+	return 0;
+}
+
+int
+nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
+			 struct timeval *time, unsigned flags)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (nouveau_crtc(crtc)->index == head) {
+			return drm_calc_vbltimestamp_from_scanoutpos(dev,
+					head, max_error, time, flags, crtc,
+					&crtc->hwmode);
+		}
+	}
+
+	return -EINVAL;
+}
+
 static void
 nouveau_display_vblank_fini(struct drm_device *dev)
 {
