@@ -8,6 +8,7 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "imx6dl-pinfunc.h"
 #include "imx6qdl.dtsi"
 
@@ -45,17 +46,17 @@
 
 			pxp: pxp@020f0000 {
 				reg = <0x020f0000 0x4000>;
-				interrupts = <0 98 0x04>;
+				interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			epdc: epdc@020f4000 {
 				reg = <0x020f4000 0x4000>;
-				interrupts = <0 97 0x04>;
+				interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			lcdif: lcdif@020f8000 {
 				reg = <0x020f8000 0x4000>;
-				interrupts = <0 39 0x04>;
+				interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
@@ -65,7 +66,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,imx1-i2c";
 				reg = <0x021f8000 0x4000>;
-				interrupts = <0 35 0x04>;
+				interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 		};
