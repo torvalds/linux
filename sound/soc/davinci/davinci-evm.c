@@ -28,7 +28,6 @@
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
-#include "davinci-mcasp.h"
 
 struct snd_soc_card_drvdata_davinci {
 	unsigned sysclk;
