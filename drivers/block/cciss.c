@@ -5183,7 +5183,7 @@ reinit_after_soft_reset:
 	rebuild_lun_table(h, 1, 0);
 	cciss_engage_scsi(h);
 	h->busy_initializing = 0;
-	return 1;
+	return 0;
 
 clean4:
 	cciss_free_cmd_pool(h);
