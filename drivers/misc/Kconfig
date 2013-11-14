@@ -60,14 +60,6 @@ config SUN4I_VIBRATOR
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-vibrator.
 
-config SUN4I_GPIO_UGLY
-	tristate "An ugly sun4i gpio driver"
-	help
-	  Say Y here if you want to use gpio as general input/output.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sun4i-gpio.
-
 config SUNXI_DBGREG
 	tristate "Sunxi platform register debug driver"
 	help
