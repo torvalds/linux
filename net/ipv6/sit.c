@@ -1320,6 +1320,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 static int ipip6_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	int i;
 
 	tunnel->dev = dev;
 	tunnel->net = dev_net(dev);
@@ -1332,6 +1333,12 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipip6_tunnel_stats;
+		ipip6_tunnel_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipip6_tunnel_stats->syncp);
+	}
+
 	return 0;
 }
 
@@ -1341,6 +1348,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	struct iphdr *iph = &tunnel->parms.iph;
 	struct net *net = dev_net(dev);
 	struct sit_net *sitn = net_generic(net, sit_net_id);
+	int i;
 
 	tunnel->dev = dev;
 	tunnel->net = dev_net(dev);
@@ -1354,6 +1362,13 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipip6_fb_stats;
+		ipip6_fb_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipip6_fb_stats->syncp);
+	}
+
 	dev_hold(dev);
 	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;

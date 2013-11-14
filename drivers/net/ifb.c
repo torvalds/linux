@@ -265,6 +265,7 @@ MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 static int __init ifb_init_one(int index)
 {
 	struct net_device *dev_ifb;
+	struct ifb_private *dp;
 	int err;
 
 	dev_ifb = alloc_netdev(sizeof(struct ifb_private),
@@ -272,6 +273,10 @@ static int __init ifb_init_one(int index)
 
 	if (!dev_ifb)
 		return -ENOMEM;
+
+	dp = netdev_priv(dev_ifb);
+	u64_stats_init(&dp->rsync);
+	u64_stats_init(&dp->tsync);
 
 	dev_ifb->rtnl_link_ops = &ifb_link_ops;
 	err = register_netdevice(dev_ifb);

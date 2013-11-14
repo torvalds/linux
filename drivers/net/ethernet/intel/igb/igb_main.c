@@ -1224,6 +1224,9 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = txr_idx;
 
+		u64_stats_init(&ring->tx_syncp);
+		u64_stats_init(&ring->tx_syncp2);
+
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
 
@@ -1256,6 +1259,8 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = rxr_idx;
+
+		u64_stats_init(&ring->rx_syncp);
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;
