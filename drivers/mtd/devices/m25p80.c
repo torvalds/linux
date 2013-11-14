@@ -997,8 +997,10 @@ struct flash_info {
 #define	M25P_NO_ERASE	0x02		/* No erase command needed */
 #define	SST_WRITE	0x04		/* use SST byte programming */
 #define	SECT_32K	0x10		/* OPCODE_BE_32K */
-#define	USE_FSR		0x08    /* use flag status register */
-#define	SHUTDOWN_3BYTE   0x10    /* set 3-byte mode on shutdown */
+#define	M25P_NO_FR	0x08		/* Can't do fastread */
+#define	SECT_4K_PMC	0x10		/* OPCODE_BE_4K_PMC works uniformly */
+#define	USE_FSR		0x20		/* use flag status register */
+#define	SHUTDOWN_3BYTE	0x40		/* set 3-byte mode on shutdown */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
