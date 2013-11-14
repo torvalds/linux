@@ -869,8 +869,7 @@ static char ioat_interrupt_style[32] = "msix";
 module_param_string(ioat_interrupt_style, ioat_interrupt_style,
 		    sizeof(ioat_interrupt_style), 0644);
 MODULE_PARM_DESC(ioat_interrupt_style,
-		 "set ioat interrupt style: msix (default), "
-		 "msix-single-vector, msi, intx)");
+		 "set ioat interrupt style: msix (default), msi, intx");
 
 /**
  * ioat_dma_setup_interrupts - setup interrupt handler
@@ -888,8 +887,6 @@ int ioat_dma_setup_interrupts(struct ioatdma_device *device)
 
 	if (!strcmp(ioat_interrupt_style, "msix"))
 		goto msix;
-	if (!strcmp(ioat_interrupt_style, "msix-single-vector"))
-		goto msix_single_vector;
 	if (!strcmp(ioat_interrupt_style, "msi"))
 		goto msi;
 	if (!strcmp(ioat_interrupt_style, "intx"))
@@ -904,10 +901,8 @@ msix:
 		device->msix_entries[i].entry = i;
 
 	err = pci_enable_msix(pdev, device->msix_entries, msixcnt);
-	if (err < 0)
+	if (err)
 		goto msi;
-	if (err > 0)
-		goto msix_single_vector;
 
 	for (i = 0; i < msixcnt; i++) {
 		msix = &device->msix_entries[i];
@@ -921,27 +916,11 @@ msix:
 				chan = ioat_chan_by_index(device, j);
 				devm_free_irq(dev, msix->vector, chan);
 			}
-			goto msix_single_vector;
+			goto msi;
 		}
 	}
 	intrctrl |= IOAT_INTRCTRL_MSIX_VECTOR_CONTROL;
 	device->irq_mode = IOAT_MSIX;
-	goto done;
-
-msix_single_vector:
-	msix = &device->msix_entries[0];
-	msix->entry = 0;
-	err = pci_enable_msix(pdev, device->msix_entries, 1);
-	if (err)
-		goto msi;
-
-	err = devm_request_irq(dev, msix->vector, ioat_dma_do_interrupt, 0,
-			       "ioat-msix", device);
-	if (err) {
-		pci_disable_msix(pdev);
-		goto msi;
-	}
-	device->irq_mode = IOAT_MSIX_SINGLE;
 	goto done;
 
 msi:

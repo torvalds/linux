@@ -1468,13 +1468,6 @@ static int ioat3_irq_reinit(struct ioatdma_device *device)
 		pci_disable_msix(pdev);
 		break;
 
-	case IOAT_MSIX_SINGLE:
-		msix = &device->msix_entries[0];
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, msix->vector, chan);
-		pci_disable_msix(pdev);
-		break;
-
 	case IOAT_MSI:
 		chan = ioat_chan_by_index(device, 0);
 		devm_free_irq(&pdev->dev, pdev->irq, chan);

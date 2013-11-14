@@ -52,7 +52,6 @@
 enum ioat_irq_mode {
 	IOAT_NOIRQ = 0,
 	IOAT_MSIX,
-	IOAT_MSIX_SINGLE,
 	IOAT_MSI,
 	IOAT_INTX
 };
