@@ -90,7 +90,7 @@ static inline u32 mcasp_get_reg(void __iomem *reg)
 	return (unsigned int)__raw_readl(reg);
 }
 
-static inline void mcasp_set_ctl_reg(void __iomem *regs, u32 val)
+static void mcasp_set_ctl_reg(void __iomem *regs, u32 val)
 {
 	int i = 0;
 
