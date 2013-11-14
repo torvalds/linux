@@ -2528,7 +2528,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 	struct in6_addr addr;
 	struct net_device *dev;
 	struct net *net = dev_net(idev->dev);
-	int scope;
+	int scope, plen;
 
 	ASSERT_RTNL();
 
@@ -2538,12 +2538,14 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 	if (idev->dev->flags&IFF_POINTOPOINT) {
 		addr.s6_addr32[0] = htonl(0xfe800000);
 		scope = IFA_LINK;
+		plen = 64;
 	} else {
 		scope = IPV6_ADDR_COMPATv4;
+		plen = 96;
 	}
 
 	if (addr.s6_addr32[3]) {
-		add_addr(idev, &addr, 128, scope);
+		add_addr(idev, &addr, plen, scope);
 		return;
 	}
 
@@ -2555,7 +2557,6 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 			int flag = scope;
 
 			for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
-				int plen;
 
 				addr.s6_addr32[3] = ifa->ifa_local;
 
@@ -2566,10 +2567,6 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 						continue;
 					flag |= IFA_HOST;
 				}
-				if (idev->dev->flags&IFF_POINTOPOINT)
-					plen = 64;
-				else
-					plen = 96;
 
 				add_addr(idev, &addr, plen, flag);
 			}
