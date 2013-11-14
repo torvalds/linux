@@ -1304,7 +1304,7 @@ static void keyring_revoke(struct key *keyring)
 	}
 }
 
-static bool gc_iterator(void *object, void *iterator_data)
+static bool keyring_gc_select_iterator(void *object, void *iterator_data)
 {
 	struct key *key = keyring_ptr_to_key(object);
 	time_t *limit = iterator_data;
@@ -1315,22 +1315,47 @@ static bool gc_iterator(void *object, void *iterator_data)
 	return true;
 }
 
+static int keyring_gc_check_iterator(const void *object, void *iterator_data)
+{
+	const struct key *key = keyring_ptr_to_key(object);
+	time_t *limit = iterator_data;
+
+	key_check(key);
+	return key_is_dead(key, *limit);
+}
+
 /*
- * Collect garbage from the contents of a keyring, replacing the old list with
- * a new one with the pointers all shuffled down.
+ * Garbage collect pointers from a keyring.
  *
- * Dead keys are classed as oned that are flagged as being dead or are revoked,
- * expired or negative keys that were revoked or expired before the specified
- * limit.
+ * Not called with any locks held.  The keyring's key struct will not be
+ * deallocated under us as only our caller may deallocate it.
  */
 void keyring_gc(struct key *keyring, time_t limit)
 {
-	kenter("{%x,%s}", key_serial(keyring), keyring->description);
+	int result;
 
+	kenter("%x{%s}", keyring->serial, keyring->description ?: "");
+
+	if (keyring->flags & ((1 << KEY_FLAG_INVALIDATED) |
+			      (1 << KEY_FLAG_REVOKED)))
+		goto dont_gc;
+
+	/* scan the keyring looking for dead keys */
+	rcu_read_lock();
+	result = assoc_array_iterate(&keyring->keys,
+				     keyring_gc_check_iterator, &limit);
+	rcu_read_unlock();
+	if (result == true)
+		goto do_gc;
+
+dont_gc:
+	kleave(" [no gc]");
+	return;
+
+do_gc:
 	down_write(&keyring->sem);
 	assoc_array_gc(&keyring->keys, &keyring_assoc_array_ops,
-		       gc_iterator, &limit);
+		       keyring_gc_select_iterator, &limit);
 	up_write(&keyring->sem);
-
-	kleave("");
+	kleave(" [gc]");
 }
