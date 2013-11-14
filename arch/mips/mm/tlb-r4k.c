@@ -83,13 +83,19 @@ void local_flush_tlb_all(void)
 	entry = read_c0_wired();
 
 	/* Blast 'em all away. */
-	while (entry < current_cpu_data.tlbsize) {
-		/* Make sure all entries differ. */
-		write_c0_entryhi(UNIQUE_ENTRYHI(entry));
-		write_c0_index(entry);
+	if (cpu_has_tlbinv && current_cpu_data.tlbsize) {
+		write_c0_index(0);
 		mtc0_tlbw_hazard();
-		tlb_write_indexed();
-		entry++;
+		tlbinvf();  /* invalidate VTLB */
+	} else {
+		while (entry < current_cpu_data.tlbsize) {
+			/* Make sure all entries differ. */
+			write_c0_entryhi(UNIQUE_ENTRYHI(entry));
+			write_c0_index(entry);
+			mtc0_tlbw_hazard();
+			tlb_write_indexed();
+			entry++;
+		}
 	}
 	tlbw_use_hazard();
 	write_c0_entryhi(old_ctx);
