@@ -1456,10 +1456,14 @@ static int btrfsic_handle_extent_data(
 	btrfsic_read_from_block_data(block_ctx, &file_extent_item,
 				     file_extent_item_offset,
 				     sizeof(struct btrfs_file_extent_item));
-	next_bytenr = btrfs_stack_file_extent_disk_bytenr(&file_extent_item) +
-		      btrfs_stack_file_extent_offset(&file_extent_item);
-	generation = btrfs_stack_file_extent_generation(&file_extent_item);
-	num_bytes = btrfs_stack_file_extent_num_bytes(&file_extent_item);
+	next_bytenr = btrfs_stack_file_extent_disk_bytenr(&file_extent_item);
+	if (btrfs_stack_file_extent_compression(&file_extent_item) ==
+	    BTRFS_COMPRESS_NONE) {
+		next_bytenr += btrfs_stack_file_extent_offset(&file_extent_item);
+		num_bytes = btrfs_stack_file_extent_num_bytes(&file_extent_item);
+	} else {
+		num_bytes = btrfs_stack_file_extent_disk_num_bytes(&file_extent_item);
+	}
 	generation = btrfs_stack_file_extent_generation(&file_extent_item);
 
 	if (state->print_mask & BTRFSIC_PRINT_MASK_VERY_VERBOSE)
