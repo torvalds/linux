@@ -260,6 +260,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 		connector->encoder = NULL;
 		encoder->crtc = NULL;
 		crtc->fb = NULL;
+		crtc->enabled = false;
 
 		vmw_ldu_del_active(dev_priv, ldu);
 
@@ -285,6 +286,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 	crtc->x = set->x;
 	crtc->y = set->y;
 	crtc->mode = *mode;
+	crtc->enabled = true;
 
 	vmw_ldu_add_active(dev_priv, ldu, vfb);
 
