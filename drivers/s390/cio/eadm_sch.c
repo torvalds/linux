@@ -190,7 +190,7 @@ static struct subchannel *eadm_get_idle_sch(void)
 	return NULL;
 }
 
-static int eadm_start_aob(struct aob *aob)
+int eadm_start_aob(struct aob *aob)
 {
 	struct eadm_private *private;
 	struct subchannel *sch;
@@ -218,6 +218,7 @@ out_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(eadm_start_aob);
 
 static int eadm_subchannel_probe(struct subchannel *sch)
 {
@@ -380,11 +381,6 @@ static struct css_driver eadm_subchannel_driver = {
 	.restore = eadm_subchannel_restore,
 };
 
-static struct eadm_ops eadm_ops = {
-	.eadm_start = eadm_start_aob,
-	.owner = THIS_MODULE,
-};
-
 static int __init eadm_sch_init(void)
 {
 	int ret;
@@ -404,7 +400,6 @@ static int __init eadm_sch_init(void)
 	if (ret)
 		goto cleanup;
 
-	register_eadm_ops(&eadm_ops);
 	return ret;
 
 cleanup:
@@ -415,7 +410,6 @@ cleanup:
 
 static void __exit eadm_sch_exit(void)
 {
-	unregister_eadm_ops(&eadm_ops);
 	css_driver_unregister(&eadm_subchannel_driver);
 	isc_unregister(EADM_SCH_ISC);
 	debug_unregister(eadm_debug);
