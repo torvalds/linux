@@ -1244,6 +1244,16 @@ return_to_handler:
  */
 	.pushsection .kprobes.text, "ax"
 
+#ifdef CONFIG_TRACING
+ENTRY(trace_page_fault)
+	RING0_EC_FRAME
+	ASM_CLAC
+	pushl_cfi $trace_do_page_fault
+	jmp error_code
+	CFI_ENDPROC
+END(trace_page_fault)
+#endif
+
 ENTRY(page_fault)
 	RING0_EC_FRAME
 	ASM_CLAC
