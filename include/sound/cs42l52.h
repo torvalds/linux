@@ -16,11 +16,11 @@ struct cs42l52_platform_data {
 	/* MICBIAS Level. Check datasheet Pg48 */
 	unsigned int micbias_lvl;
 
-	/* MICA mode selection 0=Single 1=Differential */
-	unsigned int mica_cfg;
+	/* MICA mode selection Differential or Single-ended */
+	bool mica_diff_cfg;
 
-	/* MICB mode selection 0=Single 1=Differential */
-	unsigned int micb_cfg;
+	/* MICB mode selection Differential or Single-ended */
+	bool micb_diff_cfg;
 
 	/* Charge Pump Freq. Check datasheet Pg73 */
 	unsigned int chgfreq;

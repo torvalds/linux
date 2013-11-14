@@ -419,9 +419,6 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 
 	SOC_DOUBLE("Bypass Mute", CS42L52_MISC_CTL, 4, 5, 1, 0),
 
-	SOC_ENUM("MICA Select", mica_enum),
-	SOC_ENUM("MICB Select", micb_enum),
-
 	SOC_DOUBLE_R_TLV("MIC Gain Volume", CS42L52_MICA_CTL,
 			      CS42L52_MICB_CTL, 0, 0x10, 0, mic_tlv),
 
@@ -527,6 +524,30 @@ static const struct snd_kcontrol_new cs42l52_snd_controls[] = {
 	SOC_SINGLE("PGA MICB Switch", CS42L52_ADC_PGA_B, 4, 1, 0),
 
 };
+
+static const struct snd_kcontrol_new cs42l52_mica_controls[] = {
+	SOC_ENUM("MICA Select", mica_enum),
+};
+
+static const struct snd_kcontrol_new cs42l52_micb_controls[] = {
+	SOC_ENUM("MICB Select", micb_enum),
+};
+
+static int cs42l52_add_mic_controls(struct snd_soc_codec *codec)
+{
+	struct cs42l52_private *cs42l52 = snd_soc_codec_get_drvdata(codec);
+	struct cs42l52_platform_data *pdata = &cs42l52->pdata;
+
+	if (!pdata->mica_diff_cfg)
+		snd_soc_add_codec_controls(codec, cs42l52_mica_controls,
+				     ARRAY_SIZE(cs42l52_mica_controls));
+
+	if (!pdata->micb_diff_cfg)
+		snd_soc_add_codec_controls(codec, cs42l52_micb_controls,
+				     ARRAY_SIZE(cs42l52_micb_controls));
+
+	return 0;
+}
 
 static const struct snd_soc_dapm_widget cs42l52_dapm_widgets[] = {
 
@@ -1104,6 +1125,8 @@ static int cs42l52_probe(struct snd_soc_codec *codec)
 	}
 	regcache_cache_only(cs42l52->regmap, true);
 
+	cs42l52_add_mic_controls(codec);
+
 	cs42l52_init_beep(codec);
 
 	cs42l52_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1221,16 +1244,16 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
 			reg & 0xFF);
 
 	/* Set Platform Data */
-	if (cs42l52->pdata.mica_cfg)
+	if (cs42l52->pdata.mica_diff_cfg)
 		regmap_update_bits(cs42l52->regmap, CS42L52_MICA_CTL,
 				   CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.mica_cfg <<
+				cs42l52->pdata.mica_diff_cfg <<
 				CS42L52_MIC_CTL_TYPE_SHIFT);
 
-	if (cs42l52->pdata.micb_cfg)
+	if (cs42l52->pdata.micb_diff_cfg)
 		regmap_update_bits(cs42l52->regmap, CS42L52_MICB_CTL,
 				   CS42L52_MIC_CTL_TYPE_MASK,
-				cs42l52->pdata.micb_cfg <<
+				cs42l52->pdata.micb_diff_cfg <<
 				CS42L52_MIC_CTL_TYPE_SHIFT);
 
 	if (cs42l52->pdata.chgfreq)
