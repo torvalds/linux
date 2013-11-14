@@ -39,9 +39,10 @@ struct genl_info;
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
  * @attrbuf: buffer to store parsed attributes
- * @ops_list: list of all assigned operations
  * @family_list: family list
  * @mcast_groups: multicast groups list
+ * @ops: the operations supported by this family (private)
+ * @n_ops: number of operations supported by this family (private)
  */
 struct genl_family {
 	unsigned int		id;
@@ -58,7 +59,8 @@ struct genl_family {
 					     struct sk_buff *skb,
 					     struct genl_info *info);
 	struct nlattr **	attrbuf;	/* private */
-	struct list_head	ops_list;	/* private */
+	struct genl_ops *	ops;		/* private */
+	unsigned int		n_ops;		/* private */
 	struct list_head	family_list;	/* private */
 	struct list_head	mcast_groups;	/* private */
 	struct module		*module;
@@ -119,7 +121,6 @@ struct genl_ops {
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
 	int		       (*done)(struct netlink_callback *cb);
-	struct list_head	ops_list;
 };
 
 int __genl_register_family(struct genl_family *family);
