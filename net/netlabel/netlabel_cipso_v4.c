@@ -737,7 +737,7 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_cipsov4_ops[] = {
+static const struct genl_ops netlbl_cipsov4_ops[] = {
 	{
 	.cmd = NLBL_CIPSOV4_C_ADD,
 	.flags = GENL_ADMIN_PERM,

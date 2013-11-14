@@ -2097,7 +2097,7 @@ out:
 }
 
 /* Generic Netlink operations array */
-static struct genl_ops hwsim_ops[] = {
+static const struct genl_ops hwsim_ops[] = {
 	{
 		.cmd = HWSIM_CMD_REGISTER,
 		.policy = hwsim_genl_policy,

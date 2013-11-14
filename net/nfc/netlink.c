@@ -1364,7 +1364,7 @@ static int nfc_genl_se_io(struct sk_buff *skb, struct genl_info *info)
 	return dev->ops->se_io(dev, se_idx, apdu, apdu_len, se_io_cb, ctx);
 }
 
-static struct genl_ops nfc_genl_ops[] = {
+static const struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
 		.doit = nfc_genl_get_device,

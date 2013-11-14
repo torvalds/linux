@@ -109,7 +109,7 @@ out:
 	return -ENOBUFS;
 }
 
-static struct genl_ops ieee8021154_ops[] = {
+static const struct genl_ops ieee8021154_ops[] = {
 	/* see nl-phy.c */
 	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
 			ieee802154_dump_phy),

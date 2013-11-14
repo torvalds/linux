@@ -389,7 +389,7 @@ fail:
 }
 
 
-static struct genl_ops hsr_ops[] = {
+static const struct genl_ops hsr_ops[] = {
 	{
 		.cmd = HSR_C_GET_NODE_STATUS,
 		.flags = 0,

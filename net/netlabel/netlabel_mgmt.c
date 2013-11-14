@@ -705,7 +705,7 @@ version_failure:
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_mgmt_genl_ops[] = {
+static const struct genl_ops netlbl_mgmt_genl_ops[] = {
 	{
 	.cmd = NLBL_MGMT_C_ADD,
 	.flags = GENL_ADMIN_PERM,

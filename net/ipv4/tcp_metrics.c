@@ -991,7 +991,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static struct genl_ops tcp_metrics_nl_ops[] = {
+static const struct genl_ops tcp_metrics_nl_ops[] = {
 	{
 		.cmd = TCP_METRICS_CMD_GET,
 		.doit = tcp_metrics_nl_cmd_get,

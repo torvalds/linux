@@ -415,7 +415,7 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	},
 };
 
-static struct genl_ops wimax_gnl_ops[] = {
+static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
 		.flags = GENL_ADMIN_PERM,

@@ -8937,7 +8937,7 @@ static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		rtnl_unlock();
 }
 
-static struct genl_ops nl80211_ops[] = {
+static const struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
 		.doit = nl80211_get_wiphy,

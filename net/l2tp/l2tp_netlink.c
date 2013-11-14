@@ -793,7 +793,7 @@ static struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	},
 };
 
-static struct genl_ops l2tp_nl_ops[] = {
+static const struct genl_ops l2tp_nl_ops[] = {
 	{
 		.cmd = L2TP_CMD_NOOP,
 		.doit = l2tp_nl_cmd_noop,
