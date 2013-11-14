@@ -112,15 +112,15 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
  * @ops_list: operations list
  */
 struct genl_ops {
-	u8			cmd;
-	u8			internal_flags;
-	unsigned int		flags;
 	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,
 				       struct genl_info *info);
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
 	int		       (*done)(struct netlink_callback *cb);
+	u8			cmd;
+	u8			internal_flags;
+	u8			flags;
 };
 
 int __genl_register_family(struct genl_family *family);
