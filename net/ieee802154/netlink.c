@@ -109,24 +109,39 @@ out:
 	return -ENOBUFS;
 }
 
+static struct genl_ops ieee8021154_ops[] = {
+	/* see nl-phy.c */
+	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
+			ieee802154_dump_phy),
+	IEEE802154_OP(IEEE802154_ADD_IFACE, ieee802154_add_iface),
+	IEEE802154_OP(IEEE802154_DEL_IFACE, ieee802154_del_iface),
+	/* see nl-mac.c */
+	IEEE802154_OP(IEEE802154_ASSOCIATE_REQ, ieee802154_associate_req),
+	IEEE802154_OP(IEEE802154_ASSOCIATE_RESP, ieee802154_associate_resp),
+	IEEE802154_OP(IEEE802154_DISASSOCIATE_REQ, ieee802154_disassociate_req),
+	IEEE802154_OP(IEEE802154_SCAN_REQ, ieee802154_scan_req),
+	IEEE802154_OP(IEEE802154_START_REQ, ieee802154_start_req),
+	IEEE802154_DUMP(IEEE802154_LIST_IFACE, ieee802154_list_iface,
+			ieee802154_dump_iface),
+};
+
 int __init ieee802154_nl_init(void)
 {
 	int rc;
 
-	rc = genl_register_family(&nl802154_family);
+	rc = genl_register_family_with_ops(&nl802154_family, ieee8021154_ops,
+					   ARRAY_SIZE(ieee8021154_ops));
+	if (rc)
+		return rc;
+
+	rc = genl_register_mc_group(&nl802154_family, &ieee802154_coord_mcgrp);
 	if (rc)
 		goto fail;
 
-	rc = nl802154_mac_register();
+	rc = genl_register_mc_group(&nl802154_family, &ieee802154_beacon_mcgrp);
 	if (rc)
 		goto fail;
-
-	rc = nl802154_phy_register();
-	if (rc)
-		goto fail;
-
 	return 0;
-
 fail:
 	genl_unregister_family(&nl802154_family);
 	return rc;
@@ -136,4 +151,3 @@ void __exit ieee802154_nl_exit(void)
 {
 	genl_unregister_family(&nl802154_family);
 }
-

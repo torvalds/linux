@@ -39,11 +39,11 @@
 
 #include "ieee802154.h"
 
-static struct genl_multicast_group ieee802154_coord_mcgrp = {
+struct genl_multicast_group ieee802154_coord_mcgrp = {
 	.name		= IEEE802154_MCAST_COORD_NAME,
 };
 
-static struct genl_multicast_group ieee802154_beacon_mcgrp = {
+struct genl_multicast_group ieee802154_beacon_mcgrp = {
 	.name		= IEEE802154_MCAST_BEACON_NAME,
 };
 
@@ -309,8 +309,7 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 	return dev;
 }
 
-static int ieee802154_associate_req(struct sk_buff *skb,
-		struct genl_info *info)
+int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
@@ -357,8 +356,7 @@ out:
 	return ret;
 }
 
-static int ieee802154_associate_resp(struct sk_buff *skb,
-		struct genl_info *info)
+int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
@@ -390,8 +388,7 @@ out:
 	return ret;
 }
 
-static int ieee802154_disassociate_req(struct sk_buff *skb,
-		struct genl_info *info)
+int ieee802154_disassociate_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
@@ -433,7 +430,7 @@ out:
  * PAN_coordinator, battery_life_extension = 0,
  * coord_realignment = 0, security_enable = 0
 */
-static int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
+int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
@@ -492,7 +489,7 @@ out:
 	return ret;
 }
 
-static int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
+int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	int ret = -EOPNOTSUPP;
@@ -530,8 +527,7 @@ out:
 	return ret;
 }
 
-static int ieee802154_list_iface(struct sk_buff *skb,
-	struct genl_info *info)
+int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info)
 {
 	/* Request for interface name, index, type, IEEE address,
 	   PAN Id, short address */
@@ -565,8 +561,7 @@ out_dev:
 
 }
 
-static int ieee802154_dump_iface(struct sk_buff *skb,
-	struct netlink_callback *cb)
+int ieee802154_dump_iface(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_device *dev;
@@ -589,42 +584,4 @@ cont:
 	cb->args[0] = idx;
 
 	return skb->len;
-}
-
-static struct genl_ops ieee802154_coordinator_ops[] = {
-	IEEE802154_OP(IEEE802154_ASSOCIATE_REQ, ieee802154_associate_req),
-	IEEE802154_OP(IEEE802154_ASSOCIATE_RESP, ieee802154_associate_resp),
-	IEEE802154_OP(IEEE802154_DISASSOCIATE_REQ, ieee802154_disassociate_req),
-	IEEE802154_OP(IEEE802154_SCAN_REQ, ieee802154_scan_req),
-	IEEE802154_OP(IEEE802154_START_REQ, ieee802154_start_req),
-	IEEE802154_DUMP(IEEE802154_LIST_IFACE, ieee802154_list_iface,
-							ieee802154_dump_iface),
-};
-
-/*
- * No need to unregister as family unregistration will do it.
- */
-int nl802154_mac_register(void)
-{
-	int i;
-	int rc;
-
-	rc = genl_register_mc_group(&nl802154_family,
-			&ieee802154_coord_mcgrp);
-	if (rc)
-		return rc;
-
-	rc = genl_register_mc_group(&nl802154_family,
-			&ieee802154_beacon_mcgrp);
-	if (rc)
-		return rc;
-
-	for (i = 0; i < ARRAY_SIZE(ieee802154_coordinator_ops); i++) {
-		rc = genl_register_ops(&nl802154_family,
-				&ieee802154_coordinator_ops[i]);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
 }
