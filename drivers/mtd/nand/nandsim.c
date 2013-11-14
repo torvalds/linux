@@ -2372,7 +2372,7 @@ static int __init ns_init_module(void)
 	if ((retval = init_nandsim(nsmtd)) != 0)
 		goto err_exit;
 
-	if ((retval = nand_default_bbt(nsmtd)) != 0)
+	if ((retval = chip->scan_bbt(nsmtd)) != 0)
 		goto err_exit;
 
 	if ((retval = parse_badblocks(nand, nsmtd)) != 0)
