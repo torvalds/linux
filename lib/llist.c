@@ -86,7 +86,7 @@ EXPORT_SYMBOL_GPL(llist_del_first);
  * llist_reverse_order - reverse order of a llist chain
  * @head:	first item of the list to be reversed
  *
- * Reverse the oder of a chain of llist entries and return the
+ * Reverse the order of a chain of llist entries and return the
  * new first entry.
  */
 struct llist_node *llist_reverse_order(struct llist_node *head)
