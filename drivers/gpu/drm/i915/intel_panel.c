@@ -719,50 +719,75 @@ static void pch_enable_backlight(struct intel_connector *connector)
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	enum transcoder cpu_transcoder =
 		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
-	u32 tmp;
+	u32 cpu_ctl2, pch_ctl1, pch_ctl2;
 
-	tmp = I915_READ(BLC_PWM_CPU_CTL2);
-
-	/* Note that this can also get called through dpms changes. And
-	 * we don't track the backlight dpms state, hence check whether
-	 * we have to do anything first. */
-	if (tmp & BLM_PWM_ENABLE)
-		return;
-
-	if (INTEL_INFO(dev)->num_pipes == 3)
-		tmp &= ~BLM_PIPE_SELECT_IVB;
-	else
-		tmp &= ~BLM_PIPE_SELECT;
-
-	if (cpu_transcoder == TRANSCODER_EDP)
-		tmp |= BLM_TRANSCODER_EDP;
-	else
-		tmp |= BLM_PIPE(cpu_transcoder);
-	tmp &= ~BLM_PWM_ENABLE;
-
-	I915_WRITE(BLC_PWM_CPU_CTL2, tmp);
-	POSTING_READ(BLC_PWM_CPU_CTL2);
-	I915_WRITE(BLC_PWM_CPU_CTL2, tmp | BLM_PWM_ENABLE);
-
-	if (!(dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)) {
-		tmp = I915_READ(BLC_PWM_PCH_CTL1);
-		tmp |= BLM_PCH_PWM_ENABLE;
-		tmp &= ~BLM_PCH_OVERRIDE_ENABLE;
-		I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
+	cpu_ctl2 = I915_READ(BLC_PWM_CPU_CTL2);
+	if (cpu_ctl2 & BLM_PWM_ENABLE) {
+		WARN(1, "cpu backlight already enabled\n");
+		cpu_ctl2 &= ~BLM_PWM_ENABLE;
+		I915_WRITE(BLC_PWM_CPU_CTL2, cpu_ctl2);
 	}
 
-	/*
-	 * Call below after setting BLC_PWM_CPU_CTL2 and BLC_PWM_PCH_CTL1.
-	 * BLC_PWM_CPU_CTL may be cleared to zero automatically when these
-	 * registers are set.
-	 */
+	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
+	if (pch_ctl1 & BLM_PCH_PWM_ENABLE) {
+		DRM_DEBUG_KMS("pch backlight already enabled\n");
+		pch_ctl1 &= ~BLM_PCH_PWM_ENABLE;
+		I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
+	}
+
+	if (cpu_transcoder == TRANSCODER_EDP)
+		cpu_ctl2 = BLM_TRANSCODER_EDP;
+	else
+		cpu_ctl2 = BLM_PIPE(cpu_transcoder);
+	I915_WRITE(BLC_PWM_CPU_CTL2, cpu_ctl2);
+	POSTING_READ(BLC_PWM_CPU_CTL2);
+	I915_WRITE(BLC_PWM_CPU_CTL2, cpu_ctl2 | BLM_PWM_ENABLE);
+
+	/* This won't stick until the above enable. */
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+
+	pch_ctl2 = panel->backlight.max << 16;
+	I915_WRITE(BLC_PWM_PCH_CTL2, pch_ctl2);
+
+	/* XXX: transitional */
+	if (dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)
+		return;
+
+	pch_ctl1 = 0;
+	if (panel->backlight.active_low_pwm)
+		pch_ctl1 |= BLM_PCH_POLARITY;
+	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
+	POSTING_READ(BLC_PWM_PCH_CTL1);
+	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1 | BLM_PCH_PWM_ENABLE);
 }
 
 static void i9xx_enable_backlight(struct intel_connector *connector)
 {
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
+	u32 ctl, freq;
 
+	ctl = I915_READ(BLC_PWM_CTL);
+	if (ctl & BACKLIGHT_DUTY_CYCLE_MASK_PNV) {
+		WARN(1, "backlight already enabled\n");
+		I915_WRITE(BLC_PWM_CTL, 0);
+	}
+
+	freq = panel->backlight.max;
+	if (panel->backlight.combination_mode)
+		freq /= 0xff;
+
+	ctl = freq << 17;
+	if (IS_GEN2(dev) && panel->backlight.combination_mode)
+		ctl |= BLM_LEGACY_MODE;
+	if (IS_PINEVIEW(dev) && panel->backlight.active_low_pwm)
+		ctl |= BLM_POLARITY_PNV;
+
+	I915_WRITE(BLC_PWM_CTL, ctl);
+	POSTING_READ(BLC_PWM_CTL);
+
+	/* XXX: combine this into above write? */
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
 }
 
@@ -772,25 +797,33 @@ static void i965_enable_backlight(struct intel_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
-	u32 tmp;
+	u32 ctl, ctl2, freq;
 
-	tmp = I915_READ(BLC_PWM_CTL2);
+	ctl2 = I915_READ(BLC_PWM_CTL2);
+	if (ctl2 & BLM_PWM_ENABLE) {
+		WARN(1, "backlight already enabled\n");
+		ctl2 &= ~BLM_PWM_ENABLE;
+		I915_WRITE(BLC_PWM_CTL2, ctl2);
+	}
 
-	/* Note that this can also get called through dpms changes. And
-	 * we don't track the backlight dpms state, hence check whether
-	 * we have to do anything first. */
-	if (tmp & BLM_PWM_ENABLE)
-		return;
+	freq = panel->backlight.max;
+	if (panel->backlight.combination_mode)
+		freq /= 0xff;
 
-	tmp &= ~BLM_PIPE_SELECT;
-	tmp |= BLM_PIPE(pipe);
-	tmp &= ~BLM_PWM_ENABLE;
+	ctl = freq << 16;
+	I915_WRITE(BLC_PWM_CTL, ctl);
 
-	I915_WRITE(BLC_PWM_CTL2, tmp);
-	POSTING_READ(BLC_PWM_CTL2);
-	I915_WRITE(BLC_PWM_CTL2, tmp | BLM_PWM_ENABLE);
-
+	/* XXX: combine this into above write? */
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+
+	ctl2 = BLM_PIPE(pipe);
+	if (panel->backlight.combination_mode)
+		ctl2 |= BLM_COMBINATION_MODE;
+	if (panel->backlight.active_low_pwm)
+		ctl2 |= BLM_POLARITY_I965;
+	I915_WRITE(BLC_PWM_CTL2, ctl2);
+	POSTING_READ(BLC_PWM_CTL2);
+	I915_WRITE(BLC_PWM_CTL2, ctl2 | BLM_PWM_ENABLE);
 }
 
 static void vlv_enable_backlight(struct intel_connector *connector)
@@ -799,23 +832,27 @@ static void vlv_enable_backlight(struct intel_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_panel *panel = &connector->panel;
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
-	u32 tmp;
+	u32 ctl, ctl2;
 
-	tmp = I915_READ(VLV_BLC_PWM_CTL2(pipe));
+	ctl2 = I915_READ(VLV_BLC_PWM_CTL2(pipe));
+	if (ctl2 & BLM_PWM_ENABLE) {
+		WARN(1, "backlight already enabled\n");
+		ctl2 &= ~BLM_PWM_ENABLE;
+		I915_WRITE(VLV_BLC_PWM_CTL2(pipe), ctl2);
+	}
 
-	/* Note that this can also get called through dpms changes. And
-	 * we don't track the backlight dpms state, hence check whether
-	 * we have to do anything first. */
-	if (tmp & BLM_PWM_ENABLE)
-		return;
+	ctl = panel->backlight.max << 16;
+	I915_WRITE(VLV_BLC_PWM_CTL(pipe), ctl);
 
-	tmp &= ~BLM_PWM_ENABLE;
-
-	I915_WRITE(VLV_BLC_PWM_CTL2(pipe), tmp);
-	POSTING_READ(VLV_BLC_PWM_CTL2(pipe));
-	I915_WRITE(VLV_BLC_PWM_CTL2(pipe), tmp | BLM_PWM_ENABLE);
-
+	/* XXX: combine this into above write? */
 	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+
+	ctl2 = 0;
+	if (panel->backlight.active_low_pwm)
+		ctl2 |= BLM_POLARITY_I965;
+	I915_WRITE(VLV_BLC_PWM_CTL2(pipe), ctl2);
+	POSTING_READ(VLV_BLC_PWM_CTL2(pipe));
+	I915_WRITE(VLV_BLC_PWM_CTL2(pipe), ctl2 | BLM_PWM_ENABLE);
 }
 
 void intel_panel_enable_backlight(struct intel_connector *connector)
