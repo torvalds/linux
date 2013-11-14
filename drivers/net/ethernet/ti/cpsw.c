@@ -1323,6 +1323,10 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	struct cpts *cpts = priv->cpts;
 	struct hwtstamp_config cfg;
 
+	if (priv->version != CPSW_VERSION_1 &&
+	    priv->version != CPSW_VERSION_2)
+		return -EOPNOTSUPP;
+
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
@@ -1330,16 +1334,8 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 	if (cfg.flags)
 		return -EINVAL;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		cpts->tx_enable = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		cpts->tx_enable = 1;
-		break;
-	default:
+	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
-	}
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -1366,6 +1362,8 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
+	cpts->tx_enable = cfg.tx_type == HWTSTAMP_TX_ON;
+
 	switch (priv->version) {
 	case CPSW_VERSION_1:
 		cpsw_hwtstamp_v1(priv);
@@ -1374,7 +1372,7 @@ static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 		cpsw_hwtstamp_v2(priv);
 		break;
 	default:
-		return -ENOTSUPP;
+		WARN_ON(1);
 	}
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
