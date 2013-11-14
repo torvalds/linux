@@ -441,20 +441,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		range = (range & ARIZONA_HP_IMPEDANCE_RANGE_MASK)
 			   >> ARIZONA_HP_IMPEDANCE_RANGE_SHIFT;
 
-		/* Skip up or down a range? */
-		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
-			range--;
-			dev_dbg(arizona->dev, "Moving to HPDET range %d-%d\n",
-				arizona_hpdet_c_ranges[range].min,
-				arizona_hpdet_c_ranges[range].max);
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_HEADPHONE_DETECT_1,
-					   ARIZONA_HP_IMPEDANCE_RANGE_MASK,
-					   range <<
-					   ARIZONA_HP_IMPEDANCE_RANGE_SHIFT);
-			return -EAGAIN;
-		}
-
+		/* Skip up a range, or report? */
 		if (range < ARRAY_SIZE(arizona_hpdet_c_ranges) - 1 &&
 		    (val >= arizona_hpdet_c_ranges[range].max)) {
 			range++;
@@ -467,6 +454,12 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 					   range <<
 					   ARIZONA_HP_IMPEDANCE_RANGE_SHIFT);
 			return -EAGAIN;
+		}
+
+		if (range && (val < arizona_hpdet_c_ranges[range].min)) {
+			dev_dbg(arizona->dev, "Reporting range boundary %d\n",
+				arizona_hpdet_c_ranges[range].min);
+			val = arizona_hpdet_c_ranges[range].min;
 		}
 	}
 
