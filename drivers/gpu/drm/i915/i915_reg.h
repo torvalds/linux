@@ -4865,7 +4865,8 @@
 #define    GT_FIFO_IAWRERR			(1<<1)
 #define    GT_FIFO_IARDERR			(1<<0)
 
-#define  GT_FIFO_FREE_ENTRIES			0x120008
+#define  GTFIFOCTL				0x120008
+#define    GT_FIFO_FREE_ENTRIES_MASK		0x7f
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
 #define  HSW_IDICR				0x9008
