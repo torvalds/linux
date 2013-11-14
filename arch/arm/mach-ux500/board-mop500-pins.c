@@ -46,8 +46,6 @@ BIAS(gpio_out_lo, PIN_OUTPUT_LOW|PIN_GPIOMODE_ENABLED);
 /* Sleep modes */
 BIAS(slpm_in_wkup_pdis, PIN_SLEEPMODE_ENABLED|
 	PIN_SLPM_DIR_INPUT|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
-BIAS(slpm_wkup_pdis, PIN_SLEEPMODE_ENABLED|
-	PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 BIAS(slpm_out_lo_pdis, PIN_SLEEPMODE_ENABLED|
 	PIN_SLPM_OUTPUT_LOW|PIN_SLPM_WAKEUP_DISABLE|PIN_SLPM_PDIS_DISABLED);
 BIAS(slpm_out_lo_wkup_pdis, PIN_SLEEPMODE_ENABLED|
@@ -325,23 +323,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 
 /* Pin control settings */
 static struct pinctrl_map __initdata mop500_family_pinmap[] = {
-	/*
-	 * LCD, set TE0 (using LCD VSI0) and D14 (touch screen interrupt) to
-	 * pull-up
-	 * TODO: is this really correct? Snowball doesn't have a LCD.
-	 */
-	DB8500_MUX_HOG("lcdvsi0_a_1", "lcd"),
-	DB8500_PIN_HOG("GPIO68_E1", in_pu),
-	DB8500_PIN_HOG("GPIO84_C2", gpio_in_pu),
-	/* Mux in LCD data lines 8 thru 11 and LCDA CLK for MCDE TVOUT */
-	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
-	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),
-	/* Mux in LCD VSI1 and pull it up for MCDE HDMI output */
-	DB8500_MUX("lcdvsi1_a_1", "lcd", "0-0070"),
-	DB8500_PIN("GPIO69_E2", in_pu, "0-0070"),
-	/* LCD VSI1 sleep state */
-	DB8500_PIN_SLEEP("GPIO69_E2", slpm_in_wkup_pdis, "0-0070"),
-
 	/* ske default state */
 	DB8500_MUX("kp_a_2", "kp", "nmk-ske-keypad"),
 	DB8500_PIN("GPIO153_B17", in_pd, "nmk-ske-keypad"), /* I7 */
