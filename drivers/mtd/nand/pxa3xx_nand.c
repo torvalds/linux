@@ -603,18 +603,8 @@ static void set_command_address(struct pxa3xx_nand_info *info,
 	}
 }
 
-static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
-		uint16_t column, int page_addr)
+static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 {
-	int addr_cycle, exec_cmd;
-	struct pxa3xx_nand_host *host;
-	struct mtd_info *mtd;
-
-	host = info->host[info->cs];
-	mtd = host->mtd;
-	addr_cycle = 0;
-	exec_cmd = 1;
-
 	/* reset data and oob column point to handle data */
 	info->buf_start		= 0;
 	info->buf_count		= 0;
@@ -623,10 +613,6 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	info->use_spare		= 1;
 	info->retcode		= ERR_NONE;
 	info->ndcb3		= 0;
-	if (info->cs != 0)
-		info->ndcb0 = NDCB0_CSEL;
-	else
-		info->ndcb0 = 0;
 
 	switch (command) {
 	case NAND_CMD_READ0:
@@ -638,14 +624,32 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	case NAND_CMD_PARAM:
 		info->use_spare = 0;
 		break;
-	case NAND_CMD_SEQIN:
-		exec_cmd = 0;
-		break;
 	default:
 		info->ndcb1 = 0;
 		info->ndcb2 = 0;
 		break;
 	}
+}
+
+static int prepare_set_command(struct pxa3xx_nand_info *info, int command,
+		uint16_t column, int page_addr)
+{
+	int addr_cycle, exec_cmd;
+	struct pxa3xx_nand_host *host;
+	struct mtd_info *mtd;
+
+	host = info->host[info->cs];
+	mtd = host->mtd;
+	addr_cycle = 0;
+	exec_cmd = 1;
+
+	if (info->cs != 0)
+		info->ndcb0 = NDCB0_CSEL;
+	else
+		info->ndcb0 = 0;
+
+	if (command == NAND_CMD_SEQIN)
+		exec_cmd = 0;
 
 	addr_cycle = NDCB0_ADDR_CYC(host->row_addr_cycles
 				    + host->col_addr_cycles);
@@ -780,8 +784,10 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		nand_writel(info, NDTR1CS0, info->ndtr1cs0);
 	}
 
+	prepare_start_command(info, command);
+
 	info->state = STATE_PREPARED;
-	exec_cmd = prepare_command_pool(info, command, column, page_addr);
+	exec_cmd = prepare_set_command(info, command, column, page_addr);
 	if (exec_cmd) {
 		init_completion(&info->cmd_complete);
 		init_completion(&info->dev_ready);
