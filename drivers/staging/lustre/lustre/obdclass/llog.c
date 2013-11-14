@@ -62,7 +62,7 @@ struct llog_handle *llog_alloc_handle(void)
 
 	OBD_ALLOC_PTR(loghandle);
 	if (loghandle == NULL)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	init_rwsem(&loghandle->lgh_lock);
 	spin_lock_init(&loghandle->lgh_hdr_lock);
