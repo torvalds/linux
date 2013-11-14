@@ -939,9 +939,12 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	struct inode *inode = mapping->host;
 	struct nfs_direct_req *dreq;
 	struct nfs_lock_context *l_ctx;
+	loff_t end;
 	size_t count;
 
 	count = iov_length(iov, nr_segs);
+	end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
+
 	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
 
 	dfprintk(FILE, "NFS: direct write(%pD2, %zd@%Ld)\n",
@@ -958,16 +961,25 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!count)
 		goto out;
 
+	mutex_lock(&inode->i_mutex);
+
 	result = nfs_sync_mapping(mapping);
 	if (result)
-		goto out;
+		goto out_unlock;
+
+	if (mapping->nrpages) {
+		result = invalidate_inode_pages2_range(mapping,
+					pos >> PAGE_CACHE_SHIFT, end);
+		if (result)
+			goto out_unlock;
+	}
 
 	task_io_account_write(count);
 
 	result = -ENOMEM;
 	dreq = nfs_direct_req_alloc();
 	if (!dreq)
-		goto out;
+		goto out_unlock;
 
 	dreq->inode = inode;
 	dreq->bytes_left = count;
@@ -982,6 +994,14 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 		dreq->iocb = iocb;
 
 	result = nfs_direct_write_schedule_iovec(dreq, iov, nr_segs, pos, uio);
+
+	if (mapping->nrpages) {
+		invalidate_inode_pages2_range(mapping,
+					      pos >> PAGE_CACHE_SHIFT, end);
+	}
+
+	mutex_unlock(&inode->i_mutex);
+
 	if (!result) {
 		result = nfs_direct_wait(dreq);
 		if (result > 0) {
@@ -994,8 +1014,13 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 			spin_unlock(&inode->i_lock);
 		}
 	}
+	nfs_direct_req_release(dreq);
+	return result;
+
 out_release:
 	nfs_direct_req_release(dreq);
+out_unlock:
+	mutex_unlock(&inode->i_mutex);
 out:
 	return result;
 }
