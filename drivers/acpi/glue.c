@@ -217,6 +217,7 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	if (!acpi_dev)
 		return -EINVAL;
 
+	get_device(&acpi_dev->dev);
 	get_device(dev);
 	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
 	if (!physical_node) {
@@ -243,6 +244,7 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 				goto err;
 
 			put_device(dev);
+			put_device(&acpi_dev->dev);
 			return 0;
 		}
 		if (pn->node_id == node_id) {
@@ -282,6 +284,7 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
  err:
 	ACPI_COMPANION_SET(dev, NULL);
 	put_device(dev);
+	put_device(&acpi_dev->dev);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(acpi_bind_one);
@@ -307,8 +310,9 @@ int acpi_unbind_one(struct device *dev)
 			sysfs_remove_link(&acpi_dev->dev.kobj, physnode_name);
 			sysfs_remove_link(&dev->kobj, "firmware_node");
 			ACPI_COMPANION_SET(dev, NULL);
-			/* acpi_bind_one() increase refcnt by one. */
+			/* Drop references taken by acpi_bind_one(). */
 			put_device(dev);
+			put_device(&acpi_dev->dev);
 			kfree(entry);
 			break;
 		}
