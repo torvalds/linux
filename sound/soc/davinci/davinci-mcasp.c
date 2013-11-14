@@ -243,17 +243,17 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 	case SND_SOC_DAIFMT_AC97:
-		mcasp_clr_bits(mcasp->base + DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
-		mcasp_clr_bits(mcasp->base + DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
+		mcasp_clr_bits(base + DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
+		mcasp_clr_bits(base + DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
 		break;
 	default:
 		/* configure a full-word SYNC pulse (LRCLK) */
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
+		mcasp_set_bits(base + DAVINCI_MCASP_TXFMCTL_REG, FSXDUR);
+		mcasp_set_bits(base + DAVINCI_MCASP_RXFMCTL_REG, FSRDUR);
 
 		/* make 1st data bit occur one ACLK cycle after the frame sync */
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_TXFMT_REG, FSXDLY(1));
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_RXFMT_REG, FSRDLY(1));
+		mcasp_set_bits(base + DAVINCI_MCASP_TXFMT_REG, FSXDLY(1));
+		mcasp_set_bits(base + DAVINCI_MCASP_RXFMT_REG, FSRDLY(1));
 		break;
 	}
 
