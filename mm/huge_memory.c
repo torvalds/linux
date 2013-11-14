@@ -1376,9 +1376,10 @@ out:
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
+	spinlock_t *ptl;
 	int ret = 0;
 
-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
 		struct page *page;
 		pgtable_t pgtable;
 		pmd_t orig_pmd;
@@ -1393,7 +1394,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
 		if (is_huge_zero_pmd(orig_pmd)) {
 			atomic_long_dec(&tlb->mm->nr_ptes);
-			spin_unlock(&tlb->mm->page_table_lock);
+			spin_unlock(ptl);
 			put_huge_zero_page();
 		} else {
 			page = pmd_page(orig_pmd);
@@ -1402,7 +1403,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
 			VM_BUG_ON(!PageHead(page));
 			atomic_long_dec(&tlb->mm->nr_ptes);
-			spin_unlock(&tlb->mm->page_table_lock);
+			spin_unlock(ptl);
 			tlb_remove_page(tlb, page);
 		}
 		pte_free(tlb->mm, pgtable);
@@ -1415,14 +1416,15 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end,
 		unsigned char *vec)
 {
+	spinlock_t *ptl;
 	int ret = 0;
 
-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
 		/*
 		 * All logical pages in the range are present
 		 * if backed by a huge page.
 		 */
-		spin_unlock(&vma->vm_mm->page_table_lock);
+		spin_unlock(ptl);
 		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
 		ret = 1;
 	}
@@ -1435,6 +1437,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 		  unsigned long new_addr, unsigned long old_end,
 		  pmd_t *old_pmd, pmd_t *new_pmd)
 {
+	spinlock_t *old_ptl, *new_ptl;
 	int ret = 0;
 	pmd_t pmd;
 
@@ -1455,12 +1458,21 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 		goto out;
 	}
 
-	ret = __pmd_trans_huge_lock(old_pmd, vma);
+	/*
+	 * We don't have to worry about the ordering of src and dst
+	 * ptlocks because exclusive mmap_sem prevents deadlock.
+	 */
+	ret = __pmd_trans_huge_lock(old_pmd, vma, &old_ptl);
 	if (ret == 1) {
+		new_ptl = pmd_lockptr(mm, new_pmd);
+		if (new_ptl != old_ptl)
+			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
 		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
 		VM_BUG_ON(!pmd_none(*new_pmd));
 		set_pmd_at(mm, new_addr, new_pmd, pmd_mksoft_dirty(pmd));
-		spin_unlock(&mm->page_table_lock);
+		if (new_ptl != old_ptl)
+			spin_unlock(new_ptl);
+		spin_unlock(old_ptl);
 	}
 out:
 	return ret;
@@ -1476,9 +1488,10 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, pgprot_t newprot, int prot_numa)
 {
 	struct mm_struct *mm = vma->vm_mm;
+	spinlock_t *ptl;
 	int ret = 0;
 
-	if (__pmd_trans_huge_lock(pmd, vma) == 1) {
+	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
 		pmd_t entry;
 		ret = 1;
 		if (!prot_numa) {
@@ -1507,7 +1520,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		if (ret == HPAGE_PMD_NR)
 			set_pmd_at(mm, addr, pmd, entry);
 
-		spin_unlock(&vma->vm_mm->page_table_lock);
+		spin_unlock(ptl);
 	}
 
 	return ret;
@@ -1520,12 +1533,13 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
  * Note that if it returns 1, this routine returns without unlocking page
  * table locks. So callers must unlock them.
  */
-int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
+int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma,
+		spinlock_t **ptl)
 {
-	spin_lock(&vma->vm_mm->page_table_lock);
+	*ptl = pmd_lock(vma->vm_mm, pmd);
 	if (likely(pmd_trans_huge(*pmd))) {
 		if (unlikely(pmd_trans_splitting(*pmd))) {
-			spin_unlock(&vma->vm_mm->page_table_lock);
+			spin_unlock(*ptl);
 			wait_split_huge_page(vma->anon_vma, pmd);
 			return -1;
 		} else {
@@ -1534,7 +1548,7 @@ int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
 			return 1;
 		}
 	}
-	spin_unlock(&vma->vm_mm->page_table_lock);
+	spin_unlock(*ptl);
 	return 0;
 }
 
