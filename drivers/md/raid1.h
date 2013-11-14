@@ -65,6 +65,7 @@ struct r1conf {
 	int			nr_waiting;
 	int			nr_queued;
 	int			barrier;
+	int			array_frozen;
 
 	/* Set to 1 if a full sync is needed, (fresh device added).
 	 * Cleared when a sync completes.
