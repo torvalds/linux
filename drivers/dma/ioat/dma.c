@@ -934,7 +934,7 @@ msi:
 		pci_disable_msi(pdev);
 		goto intx;
 	}
-	device->irq_mode = IOAT_MSIX;
+	device->irq_mode = IOAT_MSI;
 	goto done;
 
 intx:

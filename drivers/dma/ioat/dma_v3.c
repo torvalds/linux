@@ -1449,45 +1449,36 @@ static int ioat3_dma_self_test(struct ioatdma_device *device)
 
 static int ioat3_irq_reinit(struct ioatdma_device *device)
 {
-	int msixcnt = device->common.chancnt;
 	struct pci_dev *pdev = device->pdev;
-	int i;
-	struct msix_entry *msix;
-	struct ioat_chan_common *chan;
-	int err = 0;
+	int irq = pdev->irq, i;
+
+	if (!is_bwd_ioat(pdev))
+		return 0;
 
 	switch (device->irq_mode) {
 	case IOAT_MSIX:
+		for (i = 0; i < device->common.chancnt; i++) {
+			struct msix_entry *msix = &device->msix_entries[i];
+			struct ioat_chan_common *chan;
 
-		for (i = 0; i < msixcnt; i++) {
-			msix = &device->msix_entries[i];
 			chan = ioat_chan_by_index(device, i);
 			devm_free_irq(&pdev->dev, msix->vector, chan);
 		}
 
 		pci_disable_msix(pdev);
 		break;
-
 	case IOAT_MSI:
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, pdev->irq, chan);
 		pci_disable_msi(pdev);
-		break;
-
+		/* fall through */
 	case IOAT_INTX:
-		chan = ioat_chan_by_index(device, 0);
-		devm_free_irq(&pdev->dev, pdev->irq, chan);
+		devm_free_irq(&pdev->dev, irq, device);
 		break;
-
 	default:
 		return 0;
 	}
-
 	device->irq_mode = IOAT_NOIRQ;
 
-	err = ioat_dma_setup_interrupts(device);
-
-	return err;
+	return ioat_dma_setup_interrupts(device);
 }
 
 static int ioat3_reset_hw(struct ioat_chan_common *chan)
@@ -1530,13 +1521,11 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	}
 
 	err = ioat2_reset_sync(chan, msecs_to_jiffies(200));
-	if (err) {
-		dev_err(&pdev->dev, "Failed to reset!\n");
-		return err;
-	}
-
-	if (device->irq_mode != IOAT_NOIRQ && is_bwd_ioat(pdev))
+	if (!err)
 		err = ioat3_irq_reinit(device);
+
+	if (err)
+		dev_err(&pdev->dev, "Failed to reset: %d\n", err);
 
 	return err;
 }
