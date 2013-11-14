@@ -28,7 +28,6 @@
 #include <linux/raid/pq.h>
 #include <linux/semaphore.h>
 #include <asm/div64.h>
-#include "compat.h"
 #include "ctree.h"
 #include "extent_map.h"
 #include "disk-io.h"
@@ -666,7 +665,8 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		if (device->bdev)
 			fs_devices->open_devices--;
 
-		if (device->writeable && !device->is_tgtdev_for_dev_replace) {
+		if (device->writeable &&
+		    device->devid != BTRFS_DEV_REPLACE_DEVID) {
 			list_del_init(&device->dev_alloc_list);
 			fs_devices->rw_devices--;
 		}
@@ -2041,6 +2041,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 0;
 	device->mode = FMODE_EXCL;
+	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, 4096);
 
 	if (seeding_dev) {
@@ -2208,6 +2209,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
 	device->in_fs_metadata = 1;
 	device->is_tgtdev_for_dev_replace = 1;
 	device->mode = FMODE_EXCL;
+	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, 4096);
 	device->fs_devices = fs_info->fs_devices;
 	list_add(&device->dev_list, &fs_info->fs_devices->devices);
@@ -2550,8 +2552,7 @@ again:
 		failed = 0;
 		retried = true;
 		goto again;
-	} else if (failed && retried) {
-		WARN_ON(1);
+	} else if (WARN_ON(failed && retried)) {
 		ret = -ENOSPC;
 	}
 error:
@@ -3423,6 +3424,9 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
 
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 {
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	mutex_lock(&fs_info->balance_mutex);
 	if (!fs_info->balance_ctl) {
 		mutex_unlock(&fs_info->balance_mutex);
@@ -3488,7 +3492,7 @@ static int btrfs_uuid_scan_kthread(void *data)
 	path->keep_locks = 1;
 
 	while (1) {
-		ret = btrfs_search_forward(root, &key, &max_key, path, 0);
+		ret = btrfs_search_forward(root, &key, path, 0);
 		if (ret) {
 			if (ret > 0)
 				ret = 0;
@@ -4488,6 +4492,7 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		btrfs_crit(fs_info, "Invalid mapping for %Lu-%Lu, got "
 			    "%Lu-%Lu\n", logical, logical+len, em->start,
 			    em->start + em->len);
+		free_extent_map(em);
 		return 1;
 	}
 
@@ -4668,6 +4673,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		btrfs_crit(fs_info, "found a bad mapping, wanted %Lu, "
 			   "found %Lu-%Lu\n", logical, em->start,
 			   em->start + em->len);
+		free_extent_map(em);
 		return -EINVAL;
 	}
 
@@ -4895,7 +4901,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			num_stripes = map->num_stripes;
 			max_errors = nr_parity_stripes(map);
 
-			raid_map = kmalloc(sizeof(u64) * num_stripes,
+			raid_map = kmalloc_array(num_stripes, sizeof(u64),
 					   GFP_NOFS);
 			if (!raid_map) {
 				ret = -ENOMEM;
@@ -5395,10 +5401,8 @@ static int bio_size_ok(struct block_device *bdev, struct bio *bio,
 		.bi_rw = bio->bi_rw,
 	};
 
-	if (bio->bi_vcnt == 0) {
-		WARN_ON(1);
+	if (WARN_ON(bio->bi_vcnt == 0))
 		return 1;
-	}
 
 	prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
 	if (bio_sectors(bio) > max_sectors)
@@ -5631,10 +5635,8 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	struct btrfs_device *dev;
 	u64 tmp;
 
-	if (!devid && !fs_info) {
-		WARN_ON(1);
+	if (WARN_ON(!devid && !fs_info))
 		return ERR_PTR(-EINVAL);
-	}
 
 	dev = __alloc_device();
 	if (IS_ERR(dev))

@@ -13,13 +13,13 @@
 #include <linux/cleancache.h>
 #include "extent_io.h"
 #include "extent_map.h"
-#include "compat.h"
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
 #include "check-integrity.h"
 #include "locking.h"
 #include "rcu-string.h"
+#include "backref.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -1597,11 +1597,10 @@ done:
  *
  * 1 is returned if we find something, 0 if nothing was in the tree
  */
-static noinline u64 find_lock_delalloc_range(struct inode *inode,
-					     struct extent_io_tree *tree,
-					     struct page *locked_page,
-					     u64 *start, u64 *end,
-					     u64 max_bytes)
+STATIC u64 find_lock_delalloc_range(struct inode *inode,
+				    struct extent_io_tree *tree,
+				    struct page *locked_page, u64 *start,
+				    u64 *end, u64 max_bytes)
 {
 	u64 delalloc_start;
 	u64 delalloc_end;
@@ -1740,10 +1739,8 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	u64 last = 0;
 	int found = 0;
 
-	if (search_end <= cur_start) {
-		WARN_ON(1);
+	if (WARN_ON(search_end <= cur_start))
 		return 0;
-	}
 
 	spin_lock(&tree->lock);
 	if (cur_start == 0 && bits == EXTENT_DIRTY) {
@@ -3569,9 +3566,8 @@ retry:
 			 * but no sense in crashing the users box for something
 			 * we can survive anyway.
 			 */
-			if (!eb) {
+			if (WARN_ON(!eb)) {
 				spin_unlock(&mapping->private_lock);
-				WARN_ON(1);
 				continue;
 			}
 
@@ -4038,7 +4034,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 	if (offset >= last)
 		return NULL;
 
-	while(1) {
+	while (1) {
 		len = last - offset;
 		if (len == 0)
 			break;
@@ -4060,6 +4056,19 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 			break;
 	}
 	return NULL;
+}
+
+static noinline int count_ext_ref(u64 inum, u64 offset, u64 root_id, void *ctx)
+{
+	unsigned long cnt = *((unsigned long *)ctx);
+
+	cnt++;
+	*((unsigned long *)ctx) = cnt;
+
+	/* Now we're sure that the extent is shared. */
+	if (cnt > 1)
+		return 1;
+	return 0;
 }
 
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
@@ -4128,7 +4137,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		last = found_key.offset;
 		last_for_get_extent = last + 1;
 	}
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 
 	/*
 	 * we might have some extents allocated but more delalloc past those
@@ -4198,7 +4207,24 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
 		} else {
+			unsigned long ref_cnt = 0;
+
 			disko = em->block_start + offset_in_extent;
+
+			/*
+			 * As btrfs supports shared space, this information
+			 * can be exported to userspace tools via
+			 * flag FIEMAP_EXTENT_SHARED.
+			 */
+			ret = iterate_inodes_from_logical(
+					em->block_start,
+					BTRFS_I(inode)->root->fs_info,
+					path, count_ext_ref, &ref_cnt);
+			if (ret < 0 && ret != -ENOENT)
+				goto out_free;
+
+			if (ref_cnt > 1)
+				flags |= FIEMAP_EXTENT_SHARED;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
@@ -4230,6 +4256,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 out_free:
 	free_extent_map(em);
 out:
+	btrfs_free_path(path);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state, GFP_NOFS);
 	return ret;
@@ -4455,6 +4482,23 @@ static void mark_extent_buffer_accessed(struct extent_buffer *eb)
 	}
 }
 
+struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
+					 		u64 start)
+{
+	struct extent_buffer *eb;
+
+	rcu_read_lock();
+	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
+	if (eb && atomic_inc_not_zero(&eb->refs)) {
+		rcu_read_unlock();
+		mark_extent_buffer_accessed(eb);
+		return eb;
+	}
+	rcu_read_unlock();
+
+	return NULL;
+}
+
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  u64 start, unsigned long len)
 {
@@ -4468,14 +4512,10 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	int uptodate = 1;
 	int ret;
 
-	rcu_read_lock();
-	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
-	if (eb && atomic_inc_not_zero(&eb->refs)) {
-		rcu_read_unlock();
-		mark_extent_buffer_accessed(eb);
+
+	eb = find_extent_buffer(tree, start);
+	if (eb)
 		return eb;
-	}
-	rcu_read_unlock();
 
 	eb = __alloc_extent_buffer(tree, start, len, GFP_NOFS);
 	if (!eb)
@@ -4534,24 +4574,17 @@ again:
 
 	spin_lock(&tree->buffer_lock);
 	ret = radix_tree_insert(&tree->buffer, start >> PAGE_CACHE_SHIFT, eb);
+	spin_unlock(&tree->buffer_lock);
+	radix_tree_preload_end();
 	if (ret == -EEXIST) {
-		exists = radix_tree_lookup(&tree->buffer,
-						start >> PAGE_CACHE_SHIFT);
-		if (!atomic_inc_not_zero(&exists->refs)) {
-			spin_unlock(&tree->buffer_lock);
-			radix_tree_preload_end();
-			exists = NULL;
+		exists = find_extent_buffer(tree, start);
+		if (exists)
+			goto free_eb;
+		else
 			goto again;
-		}
-		spin_unlock(&tree->buffer_lock);
-		radix_tree_preload_end();
-		mark_extent_buffer_accessed(exists);
-		goto free_eb;
 	}
 	/* add one reference for the tree */
 	check_buffer_tree_ref(eb);
-	spin_unlock(&tree->buffer_lock);
-	radix_tree_preload_end();
 
 	/*
 	 * there is a race where release page may have
@@ -4580,23 +4613,6 @@ free_eb:
 	WARN_ON(!atomic_dec_and_test(&eb->refs));
 	btrfs_release_extent_buffer(eb);
 	return exists;
-}
-
-struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
-					 u64 start, unsigned long len)
-{
-	struct extent_buffer *eb;
-
-	rcu_read_lock();
-	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
-	if (eb && atomic_inc_not_zero(&eb->refs)) {
-		rcu_read_unlock();
-		mark_extent_buffer_accessed(eb);
-		return eb;
-	}
-	rcu_read_unlock();
-
-	return NULL;
 }
 
 static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
@@ -5062,23 +5078,6 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 	}
 }
 
-static void move_pages(struct page *dst_page, struct page *src_page,
-		       unsigned long dst_off, unsigned long src_off,
-		       unsigned long len)
-{
-	char *dst_kaddr = page_address(dst_page);
-	if (dst_page == src_page) {
-		memmove(dst_kaddr + dst_off, dst_kaddr + src_off, len);
-	} else {
-		char *src_kaddr = page_address(src_page);
-		char *p = dst_kaddr + dst_off + len;
-		char *s = src_kaddr + src_off + len;
-
-		while (len--)
-			*--p = *--s;
-	}
-}
-
 static inline bool areas_overlap(unsigned long src, unsigned long dst, unsigned long len)
 {
 	unsigned long distance = (src > dst) ? src - dst : dst - src;
@@ -5189,7 +5188,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 
 		cur = min_t(unsigned long, len, src_off_in_page + 1);
 		cur = min(cur, dst_off_in_page + 1);
-		move_pages(extent_buffer_page(dst, dst_i),
+		copy_pages(extent_buffer_page(dst, dst_i),
 			   extent_buffer_page(dst, src_i),
 			   dst_off_in_page - cur + 1,
 			   src_off_in_page - cur + 1, cur);

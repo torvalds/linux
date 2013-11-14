@@ -108,8 +108,8 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
 			return node;
 		}
 		btrfs_inode->delayed_node = node;
-		atomic_inc(&node->refs);	/* can be accessed */
-		atomic_inc(&node->refs);	/* cached in the inode */
+		/* can be accessed and cached in the inode */
+		atomic_add(2, &node->refs);
 		spin_unlock(&root->inode_lock);
 		return node;
 	}
@@ -138,8 +138,8 @@ again:
 		return ERR_PTR(-ENOMEM);
 	btrfs_init_delayed_node(node, root, ino);
 
-	atomic_inc(&node->refs);	/* cached in the btrfs inode */
-	atomic_inc(&node->refs);	/* can be accessed */
+	/* cached in the btrfs inode and can be accessed */
+	atomic_add(2, &node->refs);
 
 	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
 	if (ret) {
@@ -649,14 +649,13 @@ static int btrfs_delayed_inode_reserve_metadata(
 			goto out;
 
 		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-		if (!ret)
+		if (!WARN_ON(ret))
 			goto out;
 
 		/*
 		 * Ok this is a problem, let's just steal from the global rsv
 		 * since this really shouldn't happen that often.
 		 */
-		WARN_ON(1);
 		ret = btrfs_block_rsv_migrate(&root->fs_info->global_block_rsv,
 					      dst_rsv, num_bytes);
 		goto out;
@@ -771,13 +770,13 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 	 */
 	btrfs_set_path_blocking(path);
 
-	keys = kmalloc(sizeof(struct btrfs_key) * nitems, GFP_NOFS);
+	keys = kmalloc_array(nitems, sizeof(struct btrfs_key), GFP_NOFS);
 	if (!keys) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	data_size = kmalloc(sizeof(u32) * nitems, GFP_NOFS);
+	data_size = kmalloc_array(nitems, sizeof(u32), GFP_NOFS);
 	if (!data_size) {
 		ret = -ENOMEM;
 		goto error;
@@ -1174,8 +1173,10 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	mutex_unlock(&delayed_node->mutex);
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		btrfs_release_delayed_node(delayed_node);
 		return -ENOMEM;
+	}
 	path->leave_spinning = 1;
 
 	block_rsv = trans->block_rsv;

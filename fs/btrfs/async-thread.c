@@ -262,7 +262,7 @@ static struct btrfs_work *get_next_work(struct btrfs_worker_thread *worker,
 	struct btrfs_work *work = NULL;
 	struct list_head *cur = NULL;
 
-	if(!list_empty(prio_head))
+	if (!list_empty(prio_head))
 		cur = prio_head->next;
 
 	smp_mb();

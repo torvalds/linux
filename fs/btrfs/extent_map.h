@@ -3,10 +3,10 @@
 
 #include <linux/rbtree.h>
 
-#define EXTENT_MAP_LAST_BYTE (u64)-4
-#define EXTENT_MAP_HOLE (u64)-3
-#define EXTENT_MAP_INLINE (u64)-2
-#define EXTENT_MAP_DELALLOC (u64)-1
+#define EXTENT_MAP_LAST_BYTE ((u64)-4)
+#define EXTENT_MAP_HOLE ((u64)-3)
+#define EXTENT_MAP_INLINE ((u64)-2)
+#define EXTENT_MAP_DELALLOC ((u64)-1)
 
 /* bits for the flags field */
 #define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
