@@ -1231,7 +1231,7 @@ void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 			       1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
 }
 
-int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd)
+int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	int rc;
@@ -1249,6 +1249,15 @@ int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd)
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config))
 		? -EFAULT : 0;
+}
+
+int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+{
+	if (!efx->ptp_data)
+		return -EOPNOTSUPP;
+
+	return copy_to_user(ifr->ifr_data, &efx->ptp_data->config,
+			    sizeof(efx->ptp_data->config)) ? -EFAULT : 0;
 }
 
 static void ptp_event_failure(struct efx_nic *efx, int expected_frag_len)
