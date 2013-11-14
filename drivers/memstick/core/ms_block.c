@@ -401,10 +401,10 @@ again:
 			sizeof(struct ms_status_register)))
 			return 0;
 
-		msb->state = MSB_RP_RECIVE_STATUS_REG;
+		msb->state = MSB_RP_RECEIVE_STATUS_REG;
 		return 0;
 
-	case MSB_RP_RECIVE_STATUS_REG:
+	case MSB_RP_RECEIVE_STATUS_REG:
 		msb->regs.status = *(struct ms_status_register *)mrq->data;
 		msb->state = MSB_RP_SEND_OOB_READ;
 		/* fallthrough */
