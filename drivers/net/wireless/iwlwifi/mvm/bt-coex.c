@@ -514,7 +514,7 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 	if (IS_ERR_OR_NULL(sta))
 		return 0;
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	/* nothing to do */
 	if (mvmsta->bt_reduced_txpower == enable)
@@ -846,7 +846,7 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 	if (IS_ERR_OR_NULL(sta))
 		return;
 
-	mvmsta = (void *)sta->drv_priv;
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	data->num_bss_ifaces++;
 
@@ -917,7 +917,7 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
@@ -936,7 +936,7 @@ u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
 bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)

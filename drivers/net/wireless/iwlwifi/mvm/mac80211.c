@@ -1091,7 +1091,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 				   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
