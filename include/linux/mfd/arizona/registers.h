@@ -2196,6 +2196,15 @@
 /*
  * R677 (0x2A5) - Mic Detect 3
  */
+#define ARIZONA_MICD_LVL_0                       0x0004  /* MICD_LVL - [2] */
+#define ARIZONA_MICD_LVL_1                       0x0008  /* MICD_LVL - [3] */
+#define ARIZONA_MICD_LVL_2                       0x0010  /* MICD_LVL - [4] */
+#define ARIZONA_MICD_LVL_3                       0x0020  /* MICD_LVL - [5] */
+#define ARIZONA_MICD_LVL_4                       0x0040  /* MICD_LVL - [6] */
+#define ARIZONA_MICD_LVL_5                       0x0080  /* MICD_LVL - [7] */
+#define ARIZONA_MICD_LVL_6                       0x0100  /* MICD_LVL - [8] */
+#define ARIZONA_MICD_LVL_7                       0x0200  /* MICD_LVL - [9] */
+#define ARIZONA_MICD_LVL_8                       0x0400  /* MICD_LVL - [10] */
 #define ARIZONA_MICD_LVL_MASK                    0x07FC  /* MICD_LVL - [10:2] */
 #define ARIZONA_MICD_LVL_SHIFT                        2  /* MICD_LVL - [10:2] */
 #define ARIZONA_MICD_LVL_WIDTH                        9  /* MICD_LVL - [10:2] */
