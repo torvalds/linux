@@ -189,8 +189,10 @@ static void free_pmds(pmd_t *pmds[])
 	int i;
 
 	for(i = 0; i < PREALLOCATED_PMDS; i++)
-		if (pmds[i])
+		if (pmds[i]) {
+			pgtable_pmd_page_dtor(virt_to_page(pmds[i]));
 			free_page((unsigned long)pmds[i]);
+		}
 }
 
 static int preallocate_pmds(pmd_t *pmds[])
@@ -200,8 +202,13 @@ static int preallocate_pmds(pmd_t *pmds[])
 
 	for(i = 0; i < PREALLOCATED_PMDS; i++) {
 		pmd_t *pmd = (pmd_t *)__get_free_page(PGALLOC_GFP);
-		if (pmd == NULL)
+		if (!pmd)
 			failed = true;
+		if (pmd && !pgtable_pmd_page_ctor(virt_to_page(pmd))) {
+			free_page((unsigned long)pmds[i]);
+			pmd = NULL;
+			failed = true;
+		}
 		pmds[i] = pmd;
 	}
 
