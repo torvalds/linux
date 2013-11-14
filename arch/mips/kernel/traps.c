@@ -78,6 +78,7 @@ extern asmlinkage void handle_cpu(void);
 extern asmlinkage void handle_ov(void);
 extern asmlinkage void handle_tr(void);
 extern asmlinkage void handle_fpe(void);
+extern asmlinkage void handle_ftlb(void);
 extern asmlinkage void handle_mdmx(void);
 extern asmlinkage void handle_watch(void);
 extern asmlinkage void handle_mt(void);
@@ -1460,6 +1461,34 @@ asmlinkage void cache_parity_error(void)
 	panic("Can't handle the cache error!");
 }
 
+asmlinkage void do_ftlb(void)
+{
+	const int field = 2 * sizeof(unsigned long);
+	unsigned int reg_val;
+
+	/* For the moment, report the problem and hang. */
+	if (cpu_has_mips_r2 &&
+	    ((current_cpu_data.processor_id && 0xff0000) == PRID_COMP_MIPS)) {
+		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
+		       read_c0_ecc());
+		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
+		reg_val = read_c0_cacheerr();
+		pr_err("c0_cacheerr == %08x\n", reg_val);
+
+		if ((reg_val & 0xc0000000) == 0xc0000000) {
+			pr_err("Decoded c0_cacheerr: FTLB parity error\n");
+		} else {
+			pr_err("Decoded c0_cacheerr: %s cache fault in %s reference.\n",
+			       reg_val & (1<<30) ? "secondary" : "primary",
+			       reg_val & (1<<31) ? "data" : "insn");
+		}
+	} else {
+		pr_err("FTLB error exception\n");
+	}
+	/* Just print the cacheerr bits for now */
+	cache_parity_error();
+}
+
 /*
  * SDBBP EJTAG debug exception handler.
  * We skip the instruction and return to the next instruction.
@@ -2009,6 +2038,7 @@ void __init trap_init(void)
 	if (cpu_has_fpu && !cpu_has_nofpuex)
 		set_except_vector(15, handle_fpe);
 
+	set_except_vector(16, handle_ftlb);
 	set_except_vector(22, handle_mdmx);
 
 	if (cpu_has_mcheck)

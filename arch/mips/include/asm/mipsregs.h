@@ -645,6 +645,8 @@
 #define MIPS_CONF5_K		(_ULCAST_(1) << 30)
 
 #define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
+/* proAptiv FTLB on/off bit */
+#define MIPS_CONF6_FTLBEN	(_ULCAST_(1) << 15)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
