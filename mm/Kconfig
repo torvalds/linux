@@ -222,6 +222,9 @@ config SPLIT_PTLOCK_CPUS
 	default "999999" if !64BIT && GENERIC_LOCKBREAK
 	default "4"
 
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	boolean
+
 #
 # support for memory balloon compaction
 config BALLOON_COMPACTION
