@@ -190,12 +190,6 @@ unlock:
 	return rc;
 }
 
-int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	return __inject_sigp_stop(li, action);
-}
-
 static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 {
 	int rc;
