@@ -5,7 +5,6 @@
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
 	depends on ARM_CPU_TOPOLOGY && PM_OPP && HAVE_CLK
-	select CPU_FREQ_TABLE
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
 
@@ -18,7 +17,6 @@ config ARM_DT_BL_CPUFREQ
 
 config ARM_EXYNOS_CPUFREQ
 	bool
-	select CPU_FREQ_TABLE
 
 config ARM_EXYNOS4210_CPUFREQ
 	bool "SAMSUNG EXYNOS4210"
@@ -58,7 +56,6 @@ config ARM_EXYNOS5440_CPUFREQ
 	depends on SOC_EXYNOS5440
 	depends on HAVE_CLK && PM_OPP && OF
 	default y
-	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5440
 	  SoC. The nature of exynos5440 clock controller is
@@ -85,7 +82,6 @@ config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6Q cpufreq support"
 	depends on SOC_IMX6Q
 	depends on REGULATOR_ANATOP
-	select CPU_FREQ_TABLE
 	help
 	  This adds cpufreq driver support for Freescale i.MX6Q SOC.
 
@@ -101,7 +97,6 @@ config ARM_INTEGRATOR
 
 config ARM_KIRKWOOD_CPUFREQ
 	def_bool ARCH_KIRKWOOD && OF
-	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for Marvell Kirkwood
 	  SoCs.
@@ -110,7 +105,6 @@ config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
 	depends on ARCH_OMAP2PLUS
 	default ARCH_OMAP2PLUS
-	select CPU_FREQ_TABLE
 
 config ARM_S3C_CPUFREQ
 	bool
@@ -165,7 +159,6 @@ config ARM_S3C2412_CPUFREQ
 config ARM_S3C2416_CPUFREQ
 	bool "S3C2416 CPU Frequency scaling support"
 	depends on CPU_S3C2416
-	select CPU_FREQ_TABLE
 	help
 	  This adds the CPUFreq driver for the Samsung S3C2416 and
 	  S3C2450 SoC. The S3C2416 supports changing the rate of the
@@ -196,7 +189,6 @@ config ARM_S3C2440_CPUFREQ
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"
 	depends on CPU_S3C6410
-	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung S3C6410 SoC.
@@ -206,7 +198,6 @@ config ARM_S3C64XX_CPUFREQ
 config ARM_S5PV210_CPUFREQ
 	bool "Samsung S5PV210 and S5PC110"
 	depends on CPU_S5PV210
-	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung S5PV210 and
@@ -223,7 +214,6 @@ config ARM_SA1110_CPUFREQ
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"
 	depends on PLAT_SPEAR
-	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
@@ -231,7 +221,14 @@ config ARM_SPEAR_CPUFREQ
 config ARM_TEGRA_CPUFREQ
 	bool "TEGRA CPUFreq support"
 	depends on ARCH_TEGRA
-	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver support for TEGRA SOCs.
+
+config ARM_VEXPRESS_SPC_CPUFREQ
+        tristate "Versatile Express SPC based CPUfreq driver"
+        select ARM_BIG_LITTLE_CPUFREQ
+        depends on ARCH_VEXPRESS_SPC
+        help
+          This add the CPUfreq driver support for Versatile Express
+	  big.LITTLE platforms using SPC for power management.

@@ -1167,9 +1167,8 @@ static int broadsheetfb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_unreg_fb;
 
-	printk(KERN_INFO
-	       "fb%d: Broadsheet frame buffer, using %dK of video memory\n",
-	       info->node, videomemorysize >> 10);
+	fb_info(info, "Broadsheet frame buffer, using %dK of video memory\n",
+		videomemorysize >> 10);
 
 
 	return 0;
@@ -1217,19 +1216,7 @@ static struct platform_driver broadsheetfb_driver = {
 		.name	= "broadsheetfb",
 	},
 };
-
-static int __init broadsheetfb_init(void)
-{
-	return platform_driver_register(&broadsheetfb_driver);
-}
-
-static void __exit broadsheetfb_exit(void)
-{
-	platform_driver_unregister(&broadsheetfb_driver);
-}
-
-module_init(broadsheetfb_init);
-module_exit(broadsheetfb_exit);
+module_platform_driver(broadsheetfb_driver);
 
 MODULE_DESCRIPTION("fbdev driver for Broadsheet controller");
 MODULE_AUTHOR("Jaya Kumar");

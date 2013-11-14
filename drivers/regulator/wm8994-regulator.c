@@ -165,7 +165,9 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 		ldo->init_data = *pdata->ldo[id].init_data;
 	}
 
-	ldo->regulator = regulator_register(&wm8994_ldo_desc[id], &config);
+	ldo->regulator = devm_regulator_register(&pdev->dev,
+						 &wm8994_ldo_desc[id],
+						 &config);
 	if (IS_ERR(ldo->regulator)) {
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm8994->dev, "Failed to register LDO%d: %d\n",
@@ -181,18 +183,8 @@ err:
 	return ret;
 }
 
-static int wm8994_ldo_remove(struct platform_device *pdev)
-{
-	struct wm8994_ldo *ldo = platform_get_drvdata(pdev);
-
-	regulator_unregister(ldo->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm8994_ldo_driver = {
 	.probe = wm8994_ldo_probe,
-	.remove = wm8994_ldo_remove,
 	.driver		= {
 		.name	= "wm8994-ldo",
 		.owner	= THIS_MODULE,

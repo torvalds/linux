@@ -16,6 +16,7 @@
 #include <linux/backing-dev.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
@@ -48,7 +49,7 @@ DEFINE_IDA(blk_queue_ida);
 /*
  * For the allocated request tables
  */
-static struct kmem_cache *request_cachep;
+struct kmem_cache *request_cachep = NULL;
 
 /*
  * For queue allocation
@@ -59,42 +60,6 @@ struct kmem_cache *blk_requestq_cachep;
  * Controlling structure to kblockd
  */
 static struct workqueue_struct *kblockd_workqueue;
-
-static void drive_stat_acct(struct request *rq, int new_io)
-{
-	struct hd_struct *part;
-	int rw = rq_data_dir(rq);
-	int cpu;
-
-	if (!blk_do_io_stat(rq))
-		return;
-
-	cpu = part_stat_lock();
-
-	if (!new_io) {
-		part = rq->part;
-		part_stat_inc(cpu, part, merges[rw]);
-	} else {
-		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
-		if (!hd_struct_try_get(part)) {
-			/*
-			 * The partition is already being removed,
-			 * the request will be accounted on the disk only
-			 *
-			 * We take a reference on disk->part0 although that
-			 * partition will never be deleted, so we can treat
-			 * it as any other partition.
-			 */
-			part = &rq->rq_disk->part0;
-			hd_struct_get(part);
-		}
-		part_round_stats(cpu, part);
-		part_inc_in_flight(part, rw);
-		rq->part = part;
-	}
-
-	part_stat_unlock();
-}
 
 void blk_queue_congestion_threshold(struct request_queue *q)
 {
@@ -145,7 +110,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->cmd = rq->__cmd;
 	rq->cmd_len = BLK_MAX_CDB;
 	rq->tag = -1;
-	rq->ref_count = 1;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
 	rq->part = NULL;
@@ -174,9 +138,9 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 {
 	int bit;
 
-	printk(KERN_INFO "%s: dev %s: type=%x, flags=%x\n", msg,
+	printk(KERN_INFO "%s: dev %s: type=%x, flags=%llx\n", msg,
 		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
-		rq->cmd_flags);
+		(unsigned long long) rq->cmd_flags);
 
 	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
 	       (unsigned long long)blk_rq_pos(rq),
@@ -595,9 +559,12 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (!q)
 		return NULL;
 
+	if (percpu_counter_init(&q->mq_usage_counter, 0))
+		goto fail_q;
+
 	q->id = ida_simple_get(&blk_queue_ida, 0, 0, gfp_mask);
 	if (q->id < 0)
-		goto fail_q;
+		goto fail_c;
 
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
@@ -644,13 +611,19 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->bypass_depth = 1;
 	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
 
+	init_waitqueue_head(&q->mq_freeze_wq);
+
 	if (blkcg_init_queue(q))
-		goto fail_id;
+		goto fail_bdi;
 
 	return q;
 
+fail_bdi:
+	bdi_destroy(&q->backing_dev_info);
 fail_id:
 	ida_simple_remove(&blk_queue_ida, q->id);
+fail_c:
+	percpu_counter_destroy(&q->mq_usage_counter);
 fail_q:
 	kmem_cache_free(blk_requestq_cachep, q);
 	return NULL;
@@ -739,9 +712,17 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 
 	q->sg_reserved_size = INT_MAX;
 
+	/* Protect q->elevator from elevator_change */
+	mutex_lock(&q->sysfs_lock);
+
 	/* init elevator */
-	if (elevator_init(q, NULL))
+	if (elevator_init(q, NULL)) {
+		mutex_unlock(&q->sysfs_lock);
 		return NULL;
+	}
+
+	mutex_unlock(&q->sysfs_lock);
+
 	return q;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
@@ -1109,7 +1090,8 @@ retry:
 	goto retry;
 }
 
-struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
+static struct request *blk_old_get_request(struct request_queue *q, int rw,
+		gfp_t gfp_mask)
 {
 	struct request *rq;
 
@@ -1125,6 +1107,14 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 	/* q->queue_lock is unlocked at this point */
 
 	return rq;
+}
+
+struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
+{
+	if (q->mq_ops)
+		return blk_mq_alloc_request(q, rw, gfp_mask, false);
+	else
+		return blk_old_get_request(q, rw, gfp_mask);
 }
 EXPORT_SYMBOL(blk_get_request);
 
@@ -1211,7 +1201,7 @@ EXPORT_SYMBOL(blk_requeue_request);
 static void add_acct_request(struct request_queue *q, struct request *rq,
 			     int where)
 {
-	drive_stat_acct(rq, 1);
+	blk_account_io_start(rq, true);
 	__elv_add_request(q, rq, where);
 }
 
@@ -1272,8 +1262,6 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 {
 	if (unlikely(!q))
 		return;
-	if (unlikely(--req->ref_count))
-		return;
 
 	blk_pm_put_request(req);
 
@@ -1302,12 +1290,17 @@ EXPORT_SYMBOL_GPL(__blk_put_request);
 
 void blk_put_request(struct request *req)
 {
-	unsigned long flags;
 	struct request_queue *q = req->q;
 
-	spin_lock_irqsave(q->queue_lock, flags);
-	__blk_put_request(q, req);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	if (q->mq_ops)
+		blk_mq_free_request(req);
+	else {
+		unsigned long flags;
+
+		spin_lock_irqsave(q->queue_lock, flags);
+		__blk_put_request(q, req);
+		spin_unlock_irqrestore(q->queue_lock, flags);
+	}
 }
 EXPORT_SYMBOL(blk_put_request);
 
@@ -1343,8 +1336,8 @@ void blk_add_request_payload(struct request *rq, struct page *page,
 }
 EXPORT_SYMBOL_GPL(blk_add_request_payload);
 
-static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
-				   struct bio *bio)
+bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
+			    struct bio *bio)
 {
 	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 
@@ -1361,12 +1354,12 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	req->__data_len += bio->bi_size;
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
-	drive_stat_acct(req, 0);
+	blk_account_io_start(req, false);
 	return true;
 }
 
-static bool bio_attempt_front_merge(struct request_queue *q,
-				    struct request *req, struct bio *bio)
+bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
+			     struct bio *bio)
 {
 	const int ff = bio->bi_rw & REQ_FAILFAST_MASK;
 
@@ -1391,12 +1384,12 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	req->__data_len += bio->bi_size;
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
-	drive_stat_acct(req, 0);
+	blk_account_io_start(req, false);
 	return true;
 }
 
 /**
- * attempt_plug_merge - try to merge with %current's plugged list
+ * blk_attempt_plug_merge - try to merge with %current's plugged list
  * @q: request_queue new bio is being queued at
  * @bio: new bio being queued
  * @request_count: out parameter for number of traversed plugged requests
@@ -1412,19 +1405,28 @@ static bool bio_attempt_front_merge(struct request_queue *q,
  * reliable access to the elevator outside queue lock.  Only check basic
  * merging parameters without querying the elevator.
  */
-static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			       unsigned int *request_count)
+bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
+			    unsigned int *request_count)
 {
 	struct blk_plug *plug;
 	struct request *rq;
 	bool ret = false;
+	struct list_head *plug_list;
+
+	if (blk_queue_nomerges(q))
+		goto out;
 
 	plug = current->plug;
 	if (!plug)
 		goto out;
 	*request_count = 0;
 
-	list_for_each_entry_reverse(rq, &plug->list, queuelist) {
+	if (q->mq_ops)
+		plug_list = &plug->mq_list;
+	else
+		plug_list = &plug->list;
+
+	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		int el_ret;
 
 		if (rq->q == q)
@@ -1492,7 +1494,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (attempt_plug_merge(q, bio, &request_count))
+	if (blk_attempt_plug_merge(q, bio, &request_count))
 		return;
 
 	spin_lock_irq(q->queue_lock);
@@ -1560,7 +1562,7 @@ get_rq:
 			}
 		}
 		list_add_tail(&req->queuelist, &plug->list);
-		drive_stat_acct(req, 1);
+		blk_account_io_start(req, true);
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
@@ -2014,7 +2016,7 @@ unsigned int blk_rq_err_bytes(const struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_rq_err_bytes);
 
-static void blk_account_io_completion(struct request *req, unsigned int bytes)
+void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (blk_do_io_stat(req)) {
 		const int rw = rq_data_dir(req);
@@ -2028,7 +2030,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 	}
 }
 
-static void blk_account_io_done(struct request *req)
+void blk_account_io_done(struct request *req)
 {
 	/*
 	 * Account IO completion.  flush_rq isn't accounted as a
@@ -2075,6 +2077,42 @@ static inline struct request *blk_pm_peek_request(struct request_queue *q,
 	return rq;
 }
 #endif
+
+void blk_account_io_start(struct request *rq, bool new_io)
+{
+	struct hd_struct *part;
+	int rw = rq_data_dir(rq);
+	int cpu;
+
+	if (!blk_do_io_stat(rq))
+		return;
+
+	cpu = part_stat_lock();
+
+	if (!new_io) {
+		part = rq->part;
+		part_stat_inc(cpu, part, merges[rw]);
+	} else {
+		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
+		if (!hd_struct_try_get(part)) {
+			/*
+			 * The partition is already being removed,
+			 * the request will be accounted on the disk only
+			 *
+			 * We take a reference on disk->part0 although that
+			 * partition will never be deleted, so we can treat
+			 * it as any other partition.
+			 */
+			part = &rq->rq_disk->part0;
+			hd_struct_get(part);
+		}
+		part_round_stats(cpu, part);
+		part_inc_in_flight(part, rw);
+		rq->part = part;
+	}
+
+	part_stat_unlock();
+}
 
 /**
  * blk_peek_request - peek at the top of a request queue
@@ -2227,6 +2265,7 @@ void blk_start_request(struct request *req)
 	if (unlikely(blk_bidi_rq(req)))
 		req->next_rq->resid_len = blk_rq_bytes(req->next_rq);
 
+	BUG_ON(test_bit(REQ_ATOM_COMPLETE, &req->atomic_flags));
 	blk_add_timer(req);
 }
 EXPORT_SYMBOL(blk_start_request);
@@ -2450,7 +2489,6 @@ static void blk_finish_request(struct request *req, int error)
 
 	if (req->cmd_flags & REQ_DONTPREP)
 		blk_unprep_request(req);
-
 
 	blk_account_io_done(req);
 
@@ -2873,6 +2911,7 @@ void blk_start_plug(struct blk_plug *plug)
 
 	plug->magic = PLUG_MAGIC;
 	INIT_LIST_HEAD(&plug->list);
+	INIT_LIST_HEAD(&plug->mq_list);
 	INIT_LIST_HEAD(&plug->cb_list);
 
 	/*
@@ -2970,6 +3009,10 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
 	flush_plug_callbacks(plug, from_schedule);
+
+	if (!list_empty(&plug->mq_list))
+		blk_mq_flush_plug_list(plug, from_schedule);
+
 	if (list_empty(&plug->list))
 		return;
 

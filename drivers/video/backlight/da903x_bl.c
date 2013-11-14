@@ -109,7 +109,7 @@ static const struct backlight_ops da903x_backlight_ops = {
 
 static int da903x_backlight_probe(struct platform_device *pdev)
 {
-	struct da9034_backlight_pdata *pdata = pdev->dev.platform_data;
+	struct da9034_backlight_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct da903x_backlight_data *data;
 	struct backlight_device *bl;
 	struct backlight_properties props;
@@ -144,8 +144,9 @@ static int da903x_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = max_brightness;
-	bl = backlight_device_register(pdev->name, data->da903x_dev, data,
-				       &da903x_backlight_ops, &props);
+	bl = devm_backlight_device_register(&pdev->dev, pdev->name,
+					data->da903x_dev, data,
+					&da903x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		return PTR_ERR(bl);
@@ -158,21 +159,12 @@ static int da903x_backlight_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da903x_backlight_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(bl);
-	return 0;
-}
-
 static struct platform_driver da903x_backlight_driver = {
 	.driver		= {
 		.name	= "da903x-backlight",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_backlight_probe,
-	.remove		= da903x_backlight_remove,
 };
 
 module_platform_driver(da903x_backlight_driver);

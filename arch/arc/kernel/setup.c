@@ -21,7 +21,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/unwind.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
@@ -31,7 +30,7 @@
 int running_on_hw = 1;	/* vs. on ISS */
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-struct machine_desc *machine_desc;
+const struct machine_desc *machine_desc;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
@@ -345,8 +344,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_arch_memory();
 
 	/* copy flat DT out of .init and then unflatten it */
-	copy_devtree();
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 
 	/* Can be issue if someone passes cmd line arg "ro"
 	 * But that is unlikely so keeping it as it is

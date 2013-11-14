@@ -690,7 +690,8 @@ static int metronomefb_probe(struct platform_device *dev)
 		goto err_csum_table;
 	}
 
-	if (board->setup_irq(info))
+	retval = board->setup_irq(info);
+	if (retval)
 		goto err_csum_table;
 
 	retval = metronome_init_regs(par);
@@ -769,22 +770,10 @@ static struct platform_driver metronomefb_driver = {
 		.name	= "metronomefb",
 	},
 };
-
-static int __init metronomefb_init(void)
-{
-	return platform_driver_register(&metronomefb_driver);
-}
-
-static void __exit metronomefb_exit(void)
-{
-	platform_driver_unregister(&metronomefb_driver);
-}
+module_platform_driver(metronomefb_driver);
 
 module_param(user_wfm_size, uint, 0);
 MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
-
-module_init(metronomefb_init);
-module_exit(metronomefb_exit);
 
 MODULE_DESCRIPTION("fbdev driver for Metronome controller");
 MODULE_AUTHOR("Jaya Kumar");

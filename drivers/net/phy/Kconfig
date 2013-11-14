@@ -154,6 +154,13 @@ config MDIO_SUN4I
 	  interface units of the Allwinner SoC that have an EMAC (A10,
 	  A12, A10s, etc.)
 
+config MDIO_MOXART
+        tristate "MOXA ART MDIO interface support"
+        depends on ARCH_MOXART
+        help
+          This driver supports the MDIO interface found in the network
+          interface units of the MOXA ART SoC
+
 config MDIO_BUS_MUX
 	tristate
 	depends on OF_MDIO

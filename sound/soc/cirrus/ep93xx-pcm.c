@@ -57,9 +57,22 @@ static bool ep93xx_pcm_dma_filter(struct dma_chan *chan, void *filter_param)
 	return false;
 }
 
+static struct dma_chan *ep93xx_compat_request_channel(
+	struct snd_soc_pcm_runtime *rtd,
+	struct snd_pcm_substream *substream)
+{
+	struct snd_dmaengine_dai_dma_data *dma_data;
+
+	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+
+	return snd_dmaengine_pcm_request_channel(ep93xx_pcm_dma_filter,
+						 dma_data);
+}
+
 static const struct snd_dmaengine_pcm_config ep93xx_dmaengine_pcm_config = {
 	.pcm_hardware = &ep93xx_pcm_hardware,
 	.compat_filter_fn = ep93xx_pcm_dma_filter,
+	.compat_request_channel = ep93xx_compat_request_channel,
 	.prealloc_buffer_size = 131072,
 };
 

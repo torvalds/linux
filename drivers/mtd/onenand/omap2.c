@@ -573,28 +573,6 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 static struct platform_driver omap2_onenand_driver;
 
-static int __adjust_timing(struct device *dev, void *data)
-{
-	int ret = 0;
-	struct omap2_onenand *c;
-
-	c = dev_get_drvdata(dev);
-
-	BUG_ON(c->setup == NULL);
-
-	/* DMA is not in use so this is all that is needed */
-	/* Revisit for OMAP3! */
-	ret = c->setup(c->onenand.base, &c->freq);
-
-	return ret;
-}
-
-int omap2_onenand_rephase(void)
-{
-	return driver_for_each_device(&omap2_onenand_driver.driver, NULL,
-				      NULL, __adjust_timing);
-}
-
 static void omap2_onenand_shutdown(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);

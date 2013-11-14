@@ -50,18 +50,22 @@ static void wsp_scom_unmap(scom_map_t map)
 	iounmap((void *)map);
 }
 
-static u64 wsp_scom_read(scom_map_t map, u32 reg)
+static int wsp_scom_read(scom_map_t map, u64 reg, u64 *value)
 {
 	u64 __iomem *addr = (u64 __iomem *)map;
 
-	return in_be64(addr + reg);
+	*value = in_be64(addr + reg);
+
+	return 0;
 }
 
-static void wsp_scom_write(scom_map_t map, u32 reg, u64 value)
+static int wsp_scom_write(scom_map_t map, u64 reg, u64 value)
 {
 	u64 __iomem *addr = (u64 __iomem *)map;
 
-	return out_be64(addr + reg, value);
+	out_be64(addr + reg, value);
+
+	return 0;
 }
 
 static const struct scom_controller wsp_scom_controller = {

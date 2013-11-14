@@ -621,7 +621,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	int ret = 0;
 	struct ieee_types_assoc_rsp *assoc_rsp;
 	struct mwifiex_bssdescriptor *bss_desc;
-	u8 enable_data = true;
+	bool enable_data = true;
 	u16 cap_info, status_code;
 
 	assoc_rsp = (struct ieee_types_assoc_rsp *) &resp->params;

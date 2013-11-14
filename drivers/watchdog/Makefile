@@ -66,8 +66,6 @@ obj-$(CONFIG_BFIN_WDT) += bfin_wdt.o
 
 # FRV Architecture
 
-# H8300 Architecture
-
 # X86 (i386 + ia64 + x86_64) Architecture
 obj-$(CONFIG_ACQUIRE_WDT) += acquirewdt.o
 obj-$(CONFIG_ADVANTECH_WDT) += advantechwdt.o

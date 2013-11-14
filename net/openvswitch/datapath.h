@@ -27,6 +27,7 @@
 #include <linux/u64_stats_sync.h>
 
 #include "flow.h"
+#include "flow_table.h"
 #include "vport.h"
 
 #define DP_MAX_PORTS           USHRT_MAX
@@ -45,11 +46,15 @@
  * @n_lost: Number of received packets that had no matching flow in the flow
  * table that could not be sent to userspace (normally due to an overflow in
  * one of the datapath's queues).
+ * @n_mask_hit: Number of masks looked up for flow match.
+ *   @n_mask_hit / (@n_hit + @n_missed)  will be the average masks looked
+ *   up per packet.
  */
 struct dp_stats_percpu {
 	u64 n_hit;
 	u64 n_missed;
 	u64 n_lost;
+	u64 n_mask_hit;
 	struct u64_stats_sync sync;
 };
 
@@ -57,7 +62,7 @@ struct dp_stats_percpu {
  * struct datapath - datapath for flow-based packet switching
  * @rcu: RCU callback head for deferred destruction.
  * @list_node: Element in global 'dps' list.
- * @table: Current flow table.  Protected by ovs_mutex and RCU.
+ * @table: flow table.
  * @ports: Hash table for ports.  %OVSP_LOCAL port always exists.  Protected by
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
@@ -71,7 +76,7 @@ struct datapath {
 	struct list_head list_node;
 
 	/* Flow table. */
-	struct flow_table __rcu *table;
+	struct flow_table table;
 
 	/* Switch ports. */
 	struct hlist_head *ports;

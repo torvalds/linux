@@ -24,7 +24,7 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	int res = -ENOTDIR;
-	if (!file->f_op || !file->f_op->iterate)
+	if (!file->f_op->iterate)
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);

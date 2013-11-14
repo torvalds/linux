@@ -267,17 +267,6 @@ tcp_max_orphans - INTEGER
 	more aggressively. Let me to remind again: each orphan eats
 	up to ~64K of unswappable memory.
 
-tcp_max_ssthresh - INTEGER
-	Limited Slow-Start for TCP with large congestion windows (cwnd) defined in
-	RFC3742. Limited slow-start is a mechanism to limit growth of the cwnd
-	on the region where cwnd is larger than tcp_max_ssthresh. TCP increases cwnd
-	by at most tcp_max_ssthresh segments, and by at least tcp_max_ssthresh/2
-	segments per RTT when the cwnd is above tcp_max_ssthresh.
-	If TCP connection increased cwnd to thousands (or tens of thousands) segments,
-	and thousands of packets were being dropped during slow-start, you can set
-	tcp_max_ssthresh to improve performance for new TCP connection.
-	Default: 0 (off)
-
 tcp_max_syn_backlog - INTEGER
 	Maximal number of remembered connection requests, which have not
 	received an acknowledgment from connecting client.
@@ -451,7 +440,7 @@ tcp_fastopen - INTEGER
 	connect() to perform a TCP handshake automatically.
 
 	The values (bitmap) are
-	1: Enables sending data in the opening SYN on the client.
+	1: Enables sending data in the opening SYN on the client w/ MSG_FASTOPEN.
 	2: Enables TCP Fast Open on the server side, i.e., allowing data in
 	   a SYN packet to be accepted and passed to the application before
 	   3-way hand shake finishes.
@@ -464,7 +453,7 @@ tcp_fastopen - INTEGER
 	   different ways of setting max_qlen without the TCP_FASTOPEN socket
 	   option.
 
-	Default: 0
+	Default: 1
 
 	Note that the client & server side Fast Open flags (1 and 2
 	respectively) must be also enabled before the rest of flags can take

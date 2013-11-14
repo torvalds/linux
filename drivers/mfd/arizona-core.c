@@ -569,13 +569,25 @@ static struct mfd_cell early_devs[] = {
 	{ .name = "arizona-ldo1" },
 };
 
+static const char *wm5102_supplies[] = {
+	"DBVDD2",
+	"DBVDD3",
+	"CPVDD",
+	"SPKVDDL",
+	"SPKVDDR",
+};
+
 static struct mfd_cell wm5102_devs[] = {
 	{ .name = "arizona-micsupp" },
 	{ .name = "arizona-extcon" },
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm5102-codec" },
+	{
+		.name = "wm5102-codec",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
+	},
 };
 
 static struct mfd_cell wm5110_devs[] = {
@@ -584,7 +596,17 @@ static struct mfd_cell wm5110_devs[] = {
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm5110-codec" },
+	{
+		.name = "wm5110-codec",
+		.parent_supplies = wm5102_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
+	},
+};
+
+static const char *wm8997_supplies[] = {
+	"DBVDD2",
+	"CPVDD",
+	"SPKVDD",
 };
 
 static struct mfd_cell wm8997_devs[] = {
@@ -593,7 +615,11 @@ static struct mfd_cell wm8997_devs[] = {
 	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
-	{ .name = "wm8997-codec" },
+	{
+		.name = "wm8997-codec",
+		.parent_supplies = wm8997_supplies,
+		.num_parent_supplies = ARRAY_SIZE(wm8997_supplies),
+	},
 };
 
 int arizona_dev_init(struct arizona *arizona)

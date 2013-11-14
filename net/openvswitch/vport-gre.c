@@ -24,8 +24,6 @@
 #include <linux/if_tunnel.h>
 #include <linux/if_vlan.h>
 #include <linux/in.h>
-#include <linux/if_vlan.h>
-#include <linux/in.h>
 #include <linux/in_route.h>
 #include <linux/inetdevice.h>
 #include <linux/jhash.h>

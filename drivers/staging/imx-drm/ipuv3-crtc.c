@@ -407,7 +407,9 @@ static int ipu_drm_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	ipu_crtc = devm_kzalloc(&pdev->dev, sizeof(*ipu_crtc), GFP_KERNEL);
 	if (!ipu_crtc)

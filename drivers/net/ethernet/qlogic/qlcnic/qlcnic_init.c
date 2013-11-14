@@ -236,7 +236,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		spin_lock_init(&rds_ring->lock);
 	}
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
 		sds_ring->irq = adapter->msix_entries[ring].vector;
 		sds_ring->adapter = adapter;

@@ -203,8 +203,7 @@ static int i740fb_release(struct fb_info *info, int user)
 
 	mutex_lock(&(par->open_lock));
 	if (par->ref_count == 0) {
-		printk(KERN_ERR "fb%d: release called with zero refcount\n",
-			info->node);
+		fb_err(info, "release called with zero refcount\n");
 		mutex_unlock(&(par->open_lock));
 		return -EINVAL;
 	}
@@ -1067,7 +1066,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	par->has_sgram = !((tmp & DRAM_RAS_TIMING) ||
 			   (tmp & DRAM_RAS_PRECHARGE));
 
-	printk(KERN_INFO "fb%d: Intel740 on %s, %ld KB %s\n", info->node,
+	fb_info(info, "Intel740 on %s, %ld KB %s\n",
 		pci_name(dev), info->screen_size >> 10,
 		par->has_sgram ? "SGRAM" : "SDRAM");
 
@@ -1143,8 +1142,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto err_reg_framebuffer;
 	}
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-		info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	pci_set_drvdata(dev, info);
 #ifdef CONFIG_MTRR
 	if (mtrr) {
@@ -1194,7 +1192,6 @@ static void i740fb_remove(struct pci_dev *dev)
 		pci_iounmap(dev, info->screen_base);
 		pci_release_regions(dev);
 /*		pci_disable_device(dev); */
-		pci_set_drvdata(dev, NULL);
 		framebuffer_release(info);
 	}
 }

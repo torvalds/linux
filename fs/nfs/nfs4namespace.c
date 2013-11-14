@@ -292,8 +292,7 @@ static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
 	if (locations == NULL || locations->nlocations <= 0)
 		goto out;
 
-	dprintk("%s: referral at %s/%s\n", __func__,
-		dentry->d_parent->d_name.name, dentry->d_name.name);
+	dprintk("%s: referral at %pd2\n", __func__, dentry);
 
 	page = (char *) __get_free_page(GFP_USER);
 	if (!page)
@@ -357,8 +356,8 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 	mnt = ERR_PTR(-ENOENT);
 
 	parent = dget_parent(dentry);
-	dprintk("%s: getting locations for %s/%s\n",
-		__func__, parent->d_name.name, dentry->d_name.name);
+	dprintk("%s: getting locations for %pd2\n",
+		__func__, dentry);
 
 	err = nfs4_proc_fs_locations(client, parent->d_inode, &dentry->d_name, fs_locations, page);
 	dput(parent);

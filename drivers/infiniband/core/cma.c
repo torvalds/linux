@@ -1848,6 +1848,26 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
 	return 0;
 }
 
+static int iboe_tos_to_sl(struct net_device *ndev, int tos)
+{
+	int prio;
+	struct net_device *dev;
+
+	prio = rt_tos2priority(tos);
+	dev = ndev->priv_flags & IFF_802_1Q_VLAN ?
+		vlan_dev_real_dev(ndev) : ndev;
+
+	if (dev->num_tc)
+		return netdev_get_prio_tc_map(dev, prio);
+
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	if (ndev->priv_flags & IFF_802_1Q_VLAN)
+		return (vlan_dev_get_egress_qos_mask(ndev, prio) &
+			VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+#endif
+	return 0;
+}
+
 static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 {
 	struct rdma_route *route = &id_priv->id.route;
@@ -1888,11 +1908,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->path_rec->reversible = 1;
 	route->path_rec->pkey = cpu_to_be16(0xffff);
 	route->path_rec->mtu_selector = IB_SA_EQ;
-	route->path_rec->sl = netdev_get_prio_tc_map(
-			ndev->priv_flags & IFF_802_1Q_VLAN ?
-				vlan_dev_real_dev(ndev) : ndev,
-			rt_tos2priority(id_priv->tos));
-
+	route->path_rec->sl = iboe_tos_to_sl(ndev, id_priv->tos);
 	route->path_rec->mtu = iboe_get_mtu(ndev->mtu);
 	route->path_rec->rate_selector = IB_SA_EQ;
 	route->path_rec->rate = iboe_get_rate(ndev);
@@ -2294,7 +2310,7 @@ static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 	int low, high, remaining;
 	unsigned int rover;
 
-	inet_get_local_port_range(&low, &high);
+	inet_get_local_port_range(&init_net, &low, &high);
 	remaining = (high - low) + 1;
 	rover = net_random() % remaining + low;
 retry:

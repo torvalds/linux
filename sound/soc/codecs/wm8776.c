@@ -325,7 +325,8 @@ static int wm8776_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8776_priv *wm8776 = snd_soc_codec_get_drvdata(codec);
 
-	BUG_ON(dai->driver->id >= ARRAY_SIZE(wm8776->sysclk));
+	if (WARN_ON(dai->driver->id >= ARRAY_SIZE(wm8776->sysclk)))
+		return -EINVAL;
 
 	wm8776->sysclk[dai->driver->id] = freq;
 

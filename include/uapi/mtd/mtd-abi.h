@@ -94,10 +94,10 @@ struct mtd_write_req {
 #define MTD_RAM			1
 #define MTD_ROM			2
 #define MTD_NORFLASH		3
-#define MTD_NANDFLASH		4
+#define MTD_NANDFLASH		4	/* SLC NAND */
 #define MTD_DATAFLASH		6
 #define MTD_UBIVOLUME		7
-#define MTD_MLCNANDFLASH	8
+#define MTD_MLCNANDFLASH	8	/* MLC NAND (including TLC) */
 
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
 #define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
@@ -274,5 +274,10 @@ enum mtd_file_modes {
 	MTD_FILE_MODE_OTP_USER = MTD_OTP_USER,
 	MTD_FILE_MODE_RAW,
 };
+
+static inline int mtd_type_is_nand_user(const struct mtd_info_user *mtd)
+{
+	return mtd->type == MTD_NANDFLASH || mtd->type == MTD_MLCNANDFLASH;
+}
 
 #endif /* __MTD_ABI_H__ */

@@ -57,6 +57,8 @@
 #include <linux/bitops.h>
 #include <linux/sysrq.h>
 #include <linux/mutex.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/sections.h>
 #include <asm/io.h>
 #include <asm/irq.h>

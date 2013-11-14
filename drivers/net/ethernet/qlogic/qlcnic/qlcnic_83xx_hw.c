@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/aer.h>
 
-#define QLCNIC_MAX_TX_QUEUES		1
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
 
@@ -268,20 +267,18 @@ int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *adapter, ulong addr,
 	}
 }
 
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr, int txq)
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter)
 {
 	int err, i, num_msix;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	if (!num_intr)
-		num_intr = QLCNIC_DEF_NUM_STS_DESC_RINGS;
-	num_msix = rounddown_pow_of_two(min_t(int, num_online_cpus(),
-					      num_intr));
+	num_msix = adapter->drv_sds_rings;
+
 	/* account for AEN interrupt MSI-X based interrupts */
 	num_msix += 1;
 
 	if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
-		num_msix += adapter->max_drv_tx_rings;
+		num_msix += adapter->drv_tx_rings;
 
 	err = qlcnic_enable_msix(adapter, num_msix);
 	if (err == -ENOMEM)
@@ -325,7 +322,8 @@ inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
 
 inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
 {
-	writel(1, adapter->tgt_mask_reg);
+	if (adapter->tgt_mask_reg)
+		writel(1, adapter->tgt_mask_reg);
 }
 
 /* Enable MSI-x and INT-x interrupts */
@@ -498,8 +496,11 @@ void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 		num_msix = 0;
 
 	msleep(20);
-	synchronize_irq(adapter->msix_entries[num_msix].vector);
-	free_irq(adapter->msix_entries[num_msix].vector, adapter);
+
+	if (adapter->msix_entries) {
+		synchronize_irq(adapter->msix_entries[num_msix].vector);
+		free_irq(adapter->msix_entries[num_msix].vector, adapter);
+	}
 }
 
 int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
@@ -760,6 +761,9 @@ int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *adapter,
 	int cmd_type, err, opcode;
 	unsigned long timeout;
 
+	if (!mbx)
+		return -EIO;
+
 	opcode = LSW(cmd->req.arg[0]);
 	cmd_type = cmd->type;
 	err = mbx->ops->enqueue_cmd(adapter, cmd, &timeout);
@@ -902,7 +906,7 @@ void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 			 QLCNIC_MBX_RSP(event[0]));
 		break;
 	case QLCNIC_MBX_DCBX_CONFIG_CHANGE_EVENT:
-		qlcnic_dcb_handle_aen(adapter, (void *)&event[1]);
+		qlcnic_dcb_aen_handler(adapter->dcb, (void *)&event[1]);
 		break;
 	default:
 		dev_dbg(&adapter->pdev->dev, "Unsupported AEN:0x%x.\n",
@@ -979,14 +983,14 @@ static int qlcnic_83xx_add_rings(struct qlcnic_adapter *adapter)
 
 	sds_mbx_size = sizeof(struct qlcnic_sds_mbx);
 	context_id = recv_ctx->context_id;
-	num_sds = (adapter->max_sds_rings - QLCNIC_MAX_RING_SETS);
+	num_sds = adapter->drv_sds_rings - QLCNIC_MAX_SDS_RINGS;
 	ahw->hw_ops->alloc_mbx_args(&cmd, adapter,
 				    QLCNIC_CMD_ADD_RCV_RINGS);
 	cmd.req.arg[1] = 0 | (num_sds << 8) | (context_id << 16);
 
 	/* set up status rings, mbx 2-81 */
 	index = 2;
-	for (i = 8; i < adapter->max_sds_rings; i++) {
+	for (i = 8; i < adapter->drv_sds_rings; i++) {
 		memset(&sds_mbx, 0, sds_mbx_size);
 		sds = &recv_ctx->sds_rings[i];
 		sds->consumer = 0;
@@ -1021,7 +1025,7 @@ static int qlcnic_83xx_add_rings(struct qlcnic_adapter *adapter)
 	mbx_out = (struct qlcnic_add_rings_mbx_out *)&cmd.rsp.arg[1];
 	index = 0;
 	/* status descriptor ring */
-	for (i = 8; i < adapter->max_sds_rings; i++) {
+	for (i = 8; i < adapter->drv_sds_rings; i++) {
 		sds = &recv_ctx->sds_rings[i];
 		sds->crb_sts_consumer = ahw->pci_base0 +
 					mbx_out->host_csmr[index];
@@ -1079,10 +1083,10 @@ int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	num_rds = adapter->max_rds_rings;
 
-	if (adapter->max_sds_rings <= QLCNIC_MAX_RING_SETS)
-		num_sds = adapter->max_sds_rings;
+	if (adapter->drv_sds_rings <= QLCNIC_MAX_SDS_RINGS)
+		num_sds = adapter->drv_sds_rings;
 	else
-		num_sds = QLCNIC_MAX_RING_SETS;
+		num_sds = QLCNIC_MAX_SDS_RINGS;
 
 	sds_mbx_size = sizeof(struct qlcnic_sds_mbx);
 	rds_mbx_size = sizeof(struct qlcnic_rds_mbx);
@@ -1183,7 +1187,7 @@ int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *adapter)
 		sds->crb_intr_mask = ahw->pci_base0 + intr_mask;
 	}
 
-	if (adapter->max_sds_rings > QLCNIC_MAX_RING_SETS)
+	if (adapter->drv_sds_rings > QLCNIC_MAX_SDS_RINGS)
 		err = qlcnic_83xx_add_rings(adapter);
 out:
 	qlcnic_free_mbx_args(&cmd);
@@ -1239,9 +1243,9 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	mbx.size = tx->num_desc;
 	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
 		if (!(adapter->flags & QLCNIC_TX_INTR_SHARED))
-			msix_vector = adapter->max_sds_rings + ring;
+			msix_vector = adapter->drv_sds_rings + ring;
 		else
-			msix_vector = adapter->max_sds_rings - 1;
+			msix_vector = adapter->drv_sds_rings - 1;
 		msix_id = ahw->intr_tbl[msix_vector].id;
 	} else {
 		msix_id = QLCRDX(ahw, QLCNIC_DEF_INT_ID);
@@ -1264,7 +1268,8 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 		qlcnic_pf_set_interface_id_create_tx_ctx(adapter, &temp);
 
 	cmd.req.arg[1] = QLCNIC_CAP0_LEGACY_CONTEXT;
-	cmd.req.arg[5] = QLCNIC_MAX_TX_QUEUES | temp;
+	cmd.req.arg[5] = QLCNIC_SINGLE_RING | temp;
+
 	buf = &cmd.req.arg[6];
 	memcpy(buf, &mbx, sizeof(struct qlcnic_tx_mbx));
 	/* send the mailbox command*/
@@ -1279,7 +1284,7 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	tx->ctx_id = mbx_out->ctx_id;
 	if ((adapter->flags & QLCNIC_MSIX_ENABLED) &&
 	    !(adapter->flags & QLCNIC_TX_INTR_SHARED)) {
-		intr_mask = ahw->intr_tbl[adapter->max_sds_rings + ring].src;
+		intr_mask = ahw->intr_tbl[adapter->drv_sds_rings + ring].src;
 		tx->crb_intr_mask = ahw->pci_base0 + intr_mask;
 	}
 	dev_info(&adapter->pdev->dev, "Tx Context[0x%x] Created, state:0x%x\n",
@@ -1290,7 +1295,7 @@ out:
 }
 
 static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
-				      int num_sds_ring)
+				      u8 num_sds_ring)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
@@ -1306,7 +1311,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 
 	qlcnic_detach(adapter);
 
-	adapter->max_sds_rings = 1;
+	adapter->drv_sds_rings = QLCNIC_SINGLE_RING;
 	adapter->ahw->diag_test = test;
 	adapter->ahw->linkup = 0;
 
@@ -1320,7 +1325,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 	if (ret) {
 		qlcnic_detach(adapter);
 		if (adapter_state == QLCNIC_ADAPTER_UP_MAGIC) {
-			adapter->max_sds_rings = num_sds_ring;
+			adapter->drv_sds_rings = num_sds_ring;
 			qlcnic_attach(adapter);
 		}
 		netif_device_attach(netdev);
@@ -1333,7 +1338,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 	}
 
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
-		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
 			qlcnic_83xx_enable_intr(adapter, sds_ring);
 		}
@@ -1354,7 +1359,7 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
 }
 
 static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
-					int max_sds_rings)
+				      u8 drv_sds_rings)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
@@ -1362,7 +1367,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 
 	clear_bit(__QLCNIC_DEV_UP, &adapter->state);
 	if (adapter->ahw->diag_test == QLCNIC_INTERRUPT_TEST) {
-		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx->sds_rings[ring];
 			qlcnic_83xx_disable_intr(adapter, sds_ring);
 			if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
@@ -1386,7 +1391,7 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 		}
 	}
 	adapter->ahw->diag_test = 0;
-	adapter->max_sds_rings = max_sds_rings;
+	adapter->drv_sds_rings = drv_sds_rings;
 
 	if (qlcnic_attach(adapter))
 		goto out;
@@ -1648,7 +1653,9 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	int ret = 0, loop = 0, max_sds_rings = adapter->max_sds_rings;
+	u8 drv_sds_rings = adapter->drv_sds_rings;
+	u8 drv_tx_rings = adapter->drv_tx_rings;
+	int ret = 0, loop = 0;
 
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		netdev_warn(netdev,
@@ -1670,7 +1677,7 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 		    mode == QLCNIC_ILB_MODE ? "internal" : "external");
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST,
-					 max_sds_rings);
+					 drv_sds_rings);
 	if (ret)
 		goto fail_diag_alloc;
 
@@ -1708,10 +1715,11 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	qlcnic_83xx_clear_lb_mode(adapter, mode);
 
 free_diag_res:
-	qlcnic_83xx_diag_free_res(netdev, max_sds_rings);
+	qlcnic_83xx_diag_free_res(netdev, drv_sds_rings);
 
 fail_diag_alloc:
-	adapter->max_sds_rings = max_sds_rings;
+	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
@@ -2321,19 +2329,7 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			i++;
 			memcpy(pci_info->mac + sizeof(u32), &cmd.rsp.arg[i], 2);
 			i = i + 3;
-			if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-				dev_info(dev, "id = %d active = %d type = %d\n"
-					 "\tport = %d min bw = %d max bw = %d\n"
-					 "\tmac_addr =  %pM\n", pci_info->id,
-					 pci_info->active, pci_info->type,
-					 pci_info->default_port,
-					 pci_info->tx_min_bw,
-					 pci_info->tx_max_bw, pci_info->mac);
 		}
-		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-			dev_info(dev, "Max functions = %d, active functions = %d\n",
-				 ahw->max_pci_func, ahw->act_pci_func);
-
 	} else {
 		dev_err(dev, "Failed to get PCI Info, error = %d\n", err);
 		err = -EIO;
@@ -3061,11 +3057,14 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 	int status = 0;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	/* Get port configuration info */
-	status = qlcnic_83xx_get_port_info(adapter);
-	/* Get Link Status related info */
-	config = qlcnic_83xx_test_link(adapter);
-	ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
+	if (!test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
+		/* Get port configuration info */
+		status = qlcnic_83xx_get_port_info(adapter);
+		/* Get Link Status related info */
+		config = qlcnic_83xx_test_link(adapter);
+		ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
+	}
+
 	/* hard code until there is a way to get it from flash */
 	ahw->board_type = QLCNIC_BRDTYPE_83XX_10G;
 
@@ -3279,12 +3278,12 @@ int qlcnic_83xx_reg_test(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
+inline int qlcnic_83xx_get_regs_len(struct qlcnic_adapter *adapter)
 {
 	return (ARRAY_SIZE(qlcnic_83xx_ext_reg_tbl) *
-		sizeof(adapter->ahw->ext_reg_tbl)) +
-		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) +
-		sizeof(adapter->ahw->reg_tbl));
+		sizeof(*adapter->ahw->ext_reg_tbl)) +
+		(ARRAY_SIZE(qlcnic_83xx_reg_tbl) *
+		sizeof(*adapter->ahw->reg_tbl));
 }
 
 int qlcnic_83xx_get_registers(struct qlcnic_adapter *adapter, u32 *regs_buff)
@@ -3305,10 +3304,11 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_cmd_args cmd;
+	u8 val, drv_sds_rings = adapter->drv_sds_rings;
+	u8 drv_tx_rings = adapter->drv_tx_rings;
 	u32 data;
 	u16 intrpt_id, id;
-	u8 val;
-	int ret, max_sds_rings = adapter->max_sds_rings;
+	int ret;
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 		netdev_info(netdev, "Device is resetting\n");
@@ -3321,7 +3321,7 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	}
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST,
-					 max_sds_rings);
+					 drv_sds_rings);
 	if (ret)
 		goto fail_diag_irq;
 
@@ -3358,10 +3358,11 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 
 done:
 	qlcnic_free_mbx_args(&cmd);
-	qlcnic_83xx_diag_free_res(netdev, max_sds_rings);
+	qlcnic_83xx_diag_free_res(netdev, drv_sds_rings);
 
 fail_diag_irq:
-	adapter->max_sds_rings = max_sds_rings;
+	adapter->drv_sds_rings = drv_sds_rings;
+	adapter->drv_tx_rings = drv_tx_rings;
 	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
@@ -3381,10 +3382,21 @@ void qlcnic_83xx_get_pauseparam(struct qlcnic_adapter *adapter,
 	}
 	config = ahw->port_config;
 	if (config & QLC_83XX_CFG_STD_PAUSE) {
-		if (config & QLC_83XX_CFG_STD_TX_PAUSE)
+		switch (MSW(config)) {
+		case QLC_83XX_TX_PAUSE:
 			pause->tx_pause = 1;
-		if (config & QLC_83XX_CFG_STD_RX_PAUSE)
+			break;
+		case QLC_83XX_RX_PAUSE:
 			pause->rx_pause = 1;
+			break;
+		case QLC_83XX_TX_RX_PAUSE:
+		default:
+			/* Backward compatibility for existing
+			 * flash definitions
+			 */
+			pause->tx_pause = 1;
+			pause->rx_pause = 1;
+		}
 	}
 
 	if (QLC_83XX_AUTONEG(config))
@@ -3427,7 +3439,8 @@ int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *adapter,
 		ahw->port_config &= ~QLC_83XX_CFG_STD_RX_PAUSE;
 		ahw->port_config |= QLC_83XX_CFG_STD_TX_PAUSE;
 	} else if (!pause->rx_pause && !pause->tx_pause) {
-		ahw->port_config &= ~QLC_83XX_CFG_STD_TX_RX_PAUSE;
+		ahw->port_config &= ~(QLC_83XX_CFG_STD_TX_RX_PAUSE |
+				      QLC_83XX_CFG_STD_PAUSE);
 	}
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
@@ -3503,7 +3516,7 @@ int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	if (ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE) {
+	if (ahw->nic_mode == QLCNIC_VNIC_MODE) {
 		if (ahw->op_mode == QLCNIC_MGMT_FUNC) {
 			qlcnic_83xx_set_vnic_opmode(adapter);
 		} else {
@@ -3530,6 +3543,9 @@ void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx)
 
 void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx)
 {
+	if (!mbx)
+		return;
+
 	destroy_workqueue(mbx->work_q);
 	kfree(mbx);
 }
@@ -3649,6 +3665,9 @@ static void qlcnic_83xx_encode_mbx_cmd(struct qlcnic_adapter *adapter,
 void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+
+	if (!mbx)
+		return;
 
 	clear_bit(QLC_83XX_MBX_READY, &mbx->status);
 	complete(&mbx->completion);

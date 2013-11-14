@@ -265,9 +265,6 @@ static void tsc_check_state(int state) { return; }
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 {
 
-	if (!pr)
-		return -EINVAL;
-
 	if (!pr->pblk)
 		return -ENODEV;
 
@@ -1050,12 +1047,8 @@ int acpi_processor_hotplug(struct acpi_processor *pr)
 	if (disabled_by_idle_boot_param())
 		return 0;
 
-	if (!pr)
-		return -EINVAL;
-
-	if (nocst) {
+	if (nocst)
 		return -ENODEV;
-	}
 
 	if (!pr->flags.power_setup_done)
 		return -ENODEV;
@@ -1081,9 +1074,6 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 	if (disabled_by_idle_boot_param())
 		return 0;
-
-	if (!pr)
-		return -EINVAL;
 
 	if (nocst)
 		return -ENODEV;
@@ -1156,9 +1146,6 @@ int acpi_processor_power_init(struct acpi_processor *pr)
 			       max_cstate);
 		first_run++;
 	}
-
-	if (!pr)
-		return -EINVAL;
 
 	if (acpi_gbl_FADT.cst_control && !nocst) {
 		status =

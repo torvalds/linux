@@ -84,6 +84,26 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
+config ATH9K_TX99
+	bool "Atheros ath9k TX99 testing support"
+	depends on CFG80211_CERTIFICATION_ONUS
+	default n
+	---help---
+	  Say N. This should only be enabled on systems undergoing
+	  certification testing and evaluation in a controlled environment.
+	  Enabling this will only enable TX99 support, all other modes of
+	  operation will be disabled.
+
+	  TX99 support enables Specific Absorption Rate (SAR) testing.
+	  SAR is the unit of measurement for the amount of radio frequency(RF)
+	  absorbed by the body when using a wireless device. The RF exposure
+	  limits used are expressed in the terms of SAR, which is a measure
+	  of the electric and magnetic field strength and power density for
+	  transmitters operating at frequencies from 300 kHz to 100 GHz.
+	  Regulatory bodies around the world require that wireless device
+	  be evaluated to meet the RF exposure limits set forth in the
+	  governmental SAR regulations.
+
 config ATH9K_LEGACY_RATE_CONTROL
 	bool "Atheros ath9k rate control"
 	depends on ATH9K

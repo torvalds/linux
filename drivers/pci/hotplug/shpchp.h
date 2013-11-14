@@ -191,7 +191,7 @@ static inline const char *slot_name(struct slot *slot)
 #include <linux/pci-acpi.h>
 static inline int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
-	u32 flags = OSC_SHPC_NATIVE_HP_CONTROL;
+	u32 flags = OSC_PCI_SHPC_NATIVE_HP_CONTROL;
 	return acpi_get_hp_hw_control_from_firmware(dev, flags);
 }
 #else

@@ -1263,7 +1263,7 @@ static void netdev_release(struct device *d)
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
 	kfree(dev->ifalias);
-	kfree((char *)dev - dev->padded);
+	netdev_freemem(dev);
 }
 
 static const void *net_namespace(struct device *d)

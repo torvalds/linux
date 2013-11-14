@@ -39,6 +39,8 @@
 #include <linux/bitops.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/slab.h>
 
@@ -2676,7 +2678,7 @@ static int emac_init_config(struct emac_instance *dev)
 		       np->full_name);
 		return -ENXIO;
 	}
-	memcpy(dev->ndev->dev_addr, p, 6);
+	memcpy(dev->ndev->dev_addr, p, ETH_ALEN);
 
 	/* IAHT and GAHT filter parameterization */
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC)) {

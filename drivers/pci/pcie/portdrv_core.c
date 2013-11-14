@@ -260,13 +260,14 @@ static int get_port_device_capability(struct pci_dev *dev)
 	if (pcie_ports_disabled)
 		return 0;
 
-	err = pcie_port_platform_notify(dev, &cap_mask);
-	if (!pcie_ports_auto) {
-		cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-				| PCIE_PORT_SERVICE_VC;
-		if (pci_aer_available())
-			cap_mask |= PCIE_PORT_SERVICE_AER;
-	} else if (err) {
+	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
+			| PCIE_PORT_SERVICE_VC;
+	if (pci_aer_available())
+		cap_mask |= PCIE_PORT_SERVICE_AER;
+
+	if (pcie_ports_auto) {
+		err = pcie_port_platform_notify(dev, &cap_mask);
+		if (err)
 			return 0;
 	}
 

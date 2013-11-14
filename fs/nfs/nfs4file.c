@@ -31,9 +31,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	 * -EOPENSTALE.  The VFS will retry the lookup/create/open.
 	 */
 
-	dprintk("NFS: open file(%s/%s)\n",
-		dentry->d_parent->d_name.name,
-		dentry->d_name.name);
+	dprintk("NFS: open file(%pd2)\n", dentry);
 
 	if ((openflags & O_ACCMODE) == 3)
 		openflags--;

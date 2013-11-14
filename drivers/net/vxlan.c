@@ -60,10 +60,6 @@
 
 #define VXLAN_N_VID	(1u << 24)
 #define VXLAN_VID_MASK	(VXLAN_N_VID - 1)
-/* IP header + UDP + VXLAN + Ethernet header */
-#define VXLAN_HEADROOM (20 + 8 + 8 + 14)
-/* IPv6 header + UDP + VXLAN + Ethernet header */
-#define VXLAN6_HEADROOM (40 + 8 + 8 + 14)
 #define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
 #define VXLAN_FLAGS 0x08000000	/* struct vxlanhdr.vx_flags required value. */
@@ -2087,7 +2083,7 @@ static void vxlan_setup(struct net_device *dev)
 	vxlan->age_timer.function = vxlan_cleanup;
 	vxlan->age_timer.data = (unsigned long) vxlan;
 
-	inet_get_local_port_range(&low, &high);
+	inet_get_local_port_range(dev_net(dev), &low, &high);
 	vxlan->port_min = low;
 	vxlan->port_max = high;
 	vxlan->dst_port = htons(vxlan_port);
@@ -2180,7 +2176,7 @@ static void vxlan_del_work(struct work_struct *work)
  * could be used for both IPv4 and IPv6 communications, but
  * users may set bindv6only=1.
  */
-static int create_v6_sock(struct net *net, __be16 port, struct socket **psock)
+static struct socket *create_v6_sock(struct net *net, __be16 port)
 {
 	struct sock *sk;
 	struct socket *sock;
@@ -2193,7 +2189,7 @@ static int create_v6_sock(struct net *net, __be16 port, struct socket **psock)
 	rc = sock_create_kern(AF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (rc < 0) {
 		pr_debug("UDPv6 socket create failed\n");
-		return rc;
+		return ERR_PTR(rc);
 	}
 
 	/* Put in proper namespace */
@@ -2208,28 +2204,27 @@ static int create_v6_sock(struct net *net, __be16 port, struct socket **psock)
 		pr_debug("bind for UDPv6 socket %pI6:%u (%d)\n",
 			 &vxlan_addr.sin6_addr, ntohs(vxlan_addr.sin6_port), rc);
 		sk_release_kernel(sk);
-		return rc;
+		return ERR_PTR(rc);
 	}
 	/* At this point, IPv6 module should have been loaded in
 	 * sock_create_kern().
 	 */
 	BUG_ON(!ipv6_stub);
 
-	*psock = sock;
 	/* Disable multicast loopback */
 	inet_sk(sk)->mc_loop = 0;
-	return 0;
+	return sock;
 }
 
 #else
 
-static int create_v6_sock(struct net *net, __be16 port, struct socket **psock)
+static struct socket *create_v6_sock(struct net *net, __be16 port)
 {
-		return -EPFNOSUPPORT;
+		return ERR_PTR(-EPFNOSUPPORT);
 }
 #endif
 
-static int create_v4_sock(struct net *net, __be16 port, struct socket **psock)
+static struct socket *create_v4_sock(struct net *net, __be16 port)
 {
 	struct sock *sk;
 	struct socket *sock;
@@ -2244,7 +2239,7 @@ static int create_v4_sock(struct net *net, __be16 port, struct socket **psock)
 	rc = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
 	if (rc < 0) {
 		pr_debug("UDP socket create failed\n");
-		return rc;
+		return ERR_PTR(rc);
 	}
 
 	/* Put in proper namespace */
@@ -2257,13 +2252,12 @@ static int create_v4_sock(struct net *net, __be16 port, struct socket **psock)
 		pr_debug("bind for UDP socket %pI4:%u (%d)\n",
 			 &vxlan_addr.sin_addr, ntohs(vxlan_addr.sin_port), rc);
 		sk_release_kernel(sk);
-		return rc;
+		return ERR_PTR(rc);
 	}
 
-	*psock = sock;
 	/* Disable multicast loopback */
 	inet_sk(sk)->mc_loop = 0;
-	return 0;
+	return sock;
 }
 
 /* Create new listen socket if needed */
@@ -2274,7 +2268,6 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	struct vxlan_sock *vs;
 	struct socket *sock;
 	struct sock *sk;
-	int rc = 0;
 	unsigned int h;
 
 	vs = kmalloc(sizeof(*vs), GFP_KERNEL);
@@ -2287,12 +2280,12 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	INIT_WORK(&vs->del_work, vxlan_del_work);
 
 	if (ipv6)
-		rc = create_v6_sock(net, port, &sock);
+		sock = create_v6_sock(net, port);
 	else
-		rc = create_v4_sock(net, port, &sock);
-	if (rc < 0) {
+		sock = create_v4_sock(net, port);
+	if (IS_ERR(sock)) {
 		kfree(vs);
-		return ERR_PTR(rc);
+		return ERR_CAST(sock);
 	}
 
 	vs->sock = sock;

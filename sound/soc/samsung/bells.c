@@ -356,6 +356,7 @@ static struct snd_soc_dapm_widget bells_widgets[] = {
 
 static struct snd_soc_dapm_route bells_routes[] = {
 	{ "Sub CLK_SYS", NULL, "OPCLK" },
+	{ "CLKIN", NULL, "OPCLK" },
 
 	{ "DMIC", NULL, "MICBIAS2" },
 	{ "IN2L", NULL, "DMIC" },

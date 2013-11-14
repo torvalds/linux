@@ -25,16 +25,6 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 
-/* can make br locks by using local lock for read side, global lock for write */
-#define br_lock_init(name)	lg_lock_init(name, #name)
-#define br_read_lock(name)	lg_local_lock(name)
-#define br_read_unlock(name)	lg_local_unlock(name)
-#define br_write_lock(name)	lg_global_lock(name)
-#define br_write_unlock(name)	lg_global_unlock(name)
-
-#define DEFINE_BRLOCK(name)		DEFINE_LGLOCK(name)
-#define DEFINE_STATIC_BRLOCK(name)	DEFINE_STATIC_LGLOCK(name)
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define LOCKDEP_INIT_MAP lockdep_init_map
 #else

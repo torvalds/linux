@@ -213,29 +213,11 @@ static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 	}
 };
 
-static int rx51_lp5523_setup(void)
-{
-	return gpio_request_one(RX51_LP5523_CHIP_EN_GPIO, GPIOF_DIR_OUT,
-			"lp5523_enable");
-}
-
-static void rx51_lp5523_release(void)
-{
-	gpio_free(RX51_LP5523_CHIP_EN_GPIO);
-}
-
-static void rx51_lp5523_enable(bool state)
-{
-	gpio_set_value(RX51_LP5523_CHIP_EN_GPIO, !!state);
-}
-
 static struct lp55xx_platform_data rx51_lp5523_platform_data = {
 	.led_config		= rx51_lp5523_led_config,
 	.num_channels		= ARRAY_SIZE(rx51_lp5523_led_config),
 	.clock_mode		= LP55XX_CLOCK_AUTO,
-	.setup_resources	= rx51_lp5523_setup,
-	.release_resources	= rx51_lp5523_release,
-	.enable			= rx51_lp5523_enable,
+	.enable_gpio		= RX51_LP5523_CHIP_EN_GPIO,
 };
 #endif
 

@@ -54,14 +54,6 @@ static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 };
 #endif
 
-static int s3c64xx_cpufreq_verify_speed(struct cpufreq_policy *policy)
-{
-	if (policy->cpu != 0)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s3c64xx_freq_table);
-}
-
 static unsigned int s3c64xx_cpufreq_get_speed(unsigned int cpu)
 {
 	if (cpu != 0)
@@ -71,66 +63,48 @@ static unsigned int s3c64xx_cpufreq_get_speed(unsigned int cpu)
 }
 
 static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
-				      unsigned int target_freq,
-				      unsigned int relation)
+				      unsigned int index)
 {
-	int ret;
-	unsigned int i;
-	struct cpufreq_freqs freqs;
 	struct s3c64xx_dvfs *dvfs;
+	unsigned int old_freq, new_freq;
+	int ret;
 
-	ret = cpufreq_frequency_table_target(policy, s3c64xx_freq_table,
-					     target_freq, relation, &i);
-	if (ret != 0)
-		return ret;
-
-	freqs.old = clk_get_rate(armclk) / 1000;
-	freqs.new = s3c64xx_freq_table[i].frequency;
-	freqs.flags = 0;
-	dvfs = &s3c64xx_dvfs_table[s3c64xx_freq_table[i].driver_data];
-
-	if (freqs.old == freqs.new)
-		return 0;
-
-	pr_debug("Transition %d-%dkHz\n", freqs.old, freqs.new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	old_freq = clk_get_rate(armclk) / 1000;
+	new_freq = s3c64xx_freq_table[index].frequency;
+	dvfs = &s3c64xx_dvfs_table[s3c64xx_freq_table[index].driver_data];
 
 #ifdef CONFIG_REGULATOR
-	if (vddarm && freqs.new > freqs.old) {
+	if (vddarm && new_freq > old_freq) {
 		ret = regulator_set_voltage(vddarm,
 					    dvfs->vddarm_min,
 					    dvfs->vddarm_max);
 		if (ret != 0) {
 			pr_err("Failed to set VDDARM for %dkHz: %d\n",
-			       freqs.new, ret);
-			freqs.new = freqs.old;
-			goto post_notify;
+			       new_freq, ret);
+			return ret;
 		}
 	}
 #endif
 
-	ret = clk_set_rate(armclk, freqs.new * 1000);
+	ret = clk_set_rate(armclk, new_freq * 1000);
 	if (ret < 0) {
 		pr_err("Failed to set rate %dkHz: %d\n",
-		       freqs.new, ret);
-		freqs.new = freqs.old;
+		       new_freq, ret);
+		return ret;
 	}
 
-post_notify:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	if (ret)
-		goto err;
-
 #ifdef CONFIG_REGULATOR
-	if (vddarm && freqs.new < freqs.old) {
+	if (vddarm && new_freq < old_freq) {
 		ret = regulator_set_voltage(vddarm,
 					    dvfs->vddarm_min,
 					    dvfs->vddarm_max);
 		if (ret != 0) {
 			pr_err("Failed to set VDDARM for %dkHz: %d\n",
-			       freqs.new, ret);
-			goto err_clk;
+			       new_freq, ret);
+			if (clk_set_rate(armclk, old_freq * 1000) < 0)
+				pr_err("Failed to restore original clock rate\n");
+
+			return ret;
 		}
 	}
 #endif
@@ -139,14 +113,6 @@ post_notify:
 		 clk_get_rate(armclk) / 1000);
 
 	return 0;
-
-err_clk:
-	if (clk_set_rate(armclk, freqs.old * 1000) < 0)
-		pr_err("Failed to restore original clock rate\n");
-err:
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return ret;
 }
 
 #ifdef CONFIG_REGULATOR
@@ -243,15 +209,12 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 		freq++;
 	}
 
-	policy->cur = clk_get_rate(armclk) / 1000;
-
 	/* Datasheet says PLL stabalisation time (if we were to use
 	 * the PLLs, which we don't currently) is ~300us worst case,
 	 * but add some fudge.
 	 */
-	policy->cpuinfo.transition_latency = (500 * 1000) + regulator_latency;
-
-	ret = cpufreq_frequency_table_cpuinfo(policy, s3c64xx_freq_table);
+	ret = cpufreq_generic_init(policy, s3c64xx_freq_table,
+			(500 * 1000) + regulator_latency);
 	if (ret != 0) {
 		pr_err("Failed to configure frequency table: %d\n",
 		       ret);
@@ -264,8 +227,8 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver s3c64xx_cpufreq_driver = {
 	.flags          = 0,
-	.verify		= s3c64xx_cpufreq_verify_speed,
-	.target		= s3c64xx_cpufreq_set_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= s3c64xx_cpufreq_set_target,
 	.get		= s3c64xx_cpufreq_get_speed,
 	.init		= s3c64xx_cpufreq_driver_init,
 	.name		= "s3c",

@@ -61,7 +61,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 * at least 8 bytes bytes available in headroom for IV/EIV
 	 * and 8 bytes for ICV data as tailroon.
 	 */
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev)) {
 		head_size += 8;
 		tail_size += 8;
 	}
@@ -1033,38 +1033,21 @@ EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
 
 void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 {
-	bool started;
 	bool tx_queue =
 		(queue->qid == QID_AC_VO) ||
 		(queue->qid == QID_AC_VI) ||
 		(queue->qid == QID_AC_BE) ||
 		(queue->qid == QID_AC_BK);
 
-	mutex_lock(&queue->status_lock);
 
 	/*
-	 * If the queue has been started, we must stop it temporarily
-	 * to prevent any new frames to be queued on the device. If
-	 * we are not dropping the pending frames, the queue must
-	 * only be stopped in the software and not the hardware,
-	 * otherwise the queue will never become empty on its own.
+	 * If we are not supposed to drop any pending
+	 * frames, this means we must force a start (=kick)
+	 * to the queue to make sure the hardware will
+	 * start transmitting.
 	 */
-	started = test_bit(QUEUE_STARTED, &queue->flags);
-	if (started) {
-		/*
-		 * Pause the queue
-		 */
-		rt2x00queue_pause_queue(queue);
-
-		/*
-		 * If we are not supposed to drop any pending
-		 * frames, this means we must force a start (=kick)
-		 * to the queue to make sure the hardware will
-		 * start transmitting.
-		 */
-		if (!drop && tx_queue)
-			queue->rt2x00dev->ops->lib->kick_queue(queue);
-	}
+	if (!drop && tx_queue)
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
 
 	/*
 	 * Check if driver supports flushing, if that is the case we can
@@ -1080,14 +1063,6 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	if (unlikely(!rt2x00queue_empty(queue)))
 		rt2x00_warn(queue->rt2x00dev, "Queue %d failed to flush\n",
 			    queue->qid);
-
-	/*
-	 * Restore the queue to the previous status
-	 */
-	if (started)
-		rt2x00queue_unpause_queue(queue);
-
-	mutex_unlock(&queue->status_lock);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_flush_queue);
 

@@ -23,6 +23,7 @@ FILES=					\
 	test-libpython-version		\
 	test-libslang			\
 	test-libunwind			\
+	test-libunwind-debug-frame	\
 	test-on-exit			\
 	test-stackprotector-all		\
 	test-stackprotector		\

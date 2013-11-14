@@ -269,6 +269,6 @@
 #define CS42L52_FIX_BITS1			0x3E
 #define CS42L52_FIX_BITS2			0x47
 
-#define CS42L52_MAX_REGISTER			0x34
+#define CS42L52_MAX_REGISTER			0x47
 
 #endif
