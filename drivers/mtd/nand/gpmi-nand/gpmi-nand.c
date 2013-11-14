@@ -1562,19 +1562,6 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 	return gpmi_alloc_dma_buffer(this);
 }
 
-static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
-{
-	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */
-	if (GPMI_IS_MX23(this))
-		this->swap_block_mark = false;
-	else
-		this->swap_block_mark = true;
-
-	/* Set up the medium geometry */
-	return gpmi_set_geometry(this);
-
-}
-
 static void gpmi_nfc_exit(struct gpmi_nand_data *this)
 {
 	nand_release(&this->mtd);
@@ -1589,8 +1576,11 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	struct bch_geometry *bch_geo = &this->bch_geometry;
 	int ret;
 
-	/* Prepare for the BBT scan. */
-	ret = gpmi_pre_bbt_scan(this);
+	/* Set up swap_block_mark, must be set before the gpmi_set_geometry() */
+	this->swap_block_mark = !GPMI_IS_MX23(this);
+
+	/* Set up the medium geometry */
+	ret = gpmi_set_geometry(this);
 	if (ret)
 		return ret;
 
