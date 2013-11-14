@@ -24,6 +24,12 @@ static int	total_ref_count;
 static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
+	if (tp_event->perf_perm) {
+		int ret = tp_event->perf_perm(tp_event, p_event);
+		if (ret)
+			return ret;
+	}
+
 	/* The ftrace function trace is allowed only for root. */
 	if (ftrace_event_is_function(tp_event) &&
 	    perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))

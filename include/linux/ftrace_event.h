@@ -248,6 +248,9 @@ struct ftrace_event_call {
 #ifdef CONFIG_PERF_EVENTS
 	int				perf_refcount;
 	struct hlist_head __percpu	*perf_events;
+
+	int	(*perf_perm)(struct ftrace_event_call *,
+			     struct perf_event *);
 #endif
 };
 
@@ -316,6 +319,19 @@ struct ftrace_event_file {
 		return 0;						\
 	}								\
 	early_initcall(trace_init_flags_##name);
+
+#define __TRACE_EVENT_PERF_PERM(name, expr...)				\
+	static int perf_perm_##name(struct ftrace_event_call *tp_event, \
+				    struct perf_event *p_event)		\
+	{								\
+		return ({ expr; });					\
+	}								\
+	static int __init trace_init_perf_perm_##name(void)		\
+	{								\
+		event_##name.perf_perm = &perf_perm_##name;		\
+		return 0;						\
+	}								\
+	early_initcall(trace_init_perf_perm_##name);
 
 #define PERF_MAX_TRACE_SIZE	2048
 
