@@ -131,5 +131,7 @@ extern int rpc_unlink(struct dentry *);
 extern int register_rpc_pipefs(void);
 extern void unregister_rpc_pipefs(void);
 
+extern bool gssd_running(struct net *net);
+
 #endif
 #endif

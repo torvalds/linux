@@ -33,8 +33,6 @@ struct sunrpc_net {
 	int pipe_version;
 	atomic_t pipe_users;
 	struct proc_dir_entry *use_gssp_proc;
-
-	unsigned int gssd_running;
 };
 
 extern int sunrpc_net_id;
