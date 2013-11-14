@@ -184,11 +184,7 @@ static void snd_malloc_dev_iram(struct snd_dma_buffer *dmab, size_t size)
 	/* Assign the pool into private_data field */
 	dmab->private_data = pool;
 
-	dmab->area = (void *)gen_pool_alloc(pool, size);
-	if (!dmab->area)
-		return;
-
-	dmab->addr = gen_pool_virt_to_phys(pool, (unsigned long)dmab->area);
+	dmab->area = gen_pool_dma_alloc(pool, size, &dmab->addr);
 }
 
 /**
