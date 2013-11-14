@@ -278,6 +278,7 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	return 0;
 }
+
 #ifdef CONFIG_COMPAT
 static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
