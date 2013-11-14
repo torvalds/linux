@@ -504,6 +504,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			data |= (3 << bit);
 			break;
 		default:
+			spin_unlock_irqrestore(&bank->slock, flags);
 			dev_err(info->dev, "unsupported pull setting %d\n",
 				pull);
 			return -EINVAL;
