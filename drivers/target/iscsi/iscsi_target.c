@@ -800,14 +800,7 @@ int iscsit_setup_scsi_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	int iscsi_task_attr;
 	int sam_task_attr;
 
-	spin_lock_bh(&conn->sess->session_stats_lock);
-	conn->sess->cmd_pdus++;
-	if (conn->sess->se_sess->se_node_acl) {
-		spin_lock(&conn->sess->se_sess->se_node_acl->stats_lock);
-		conn->sess->se_sess->se_node_acl->num_cmds++;
-		spin_unlock(&conn->sess->se_sess->se_node_acl->stats_lock);
-	}
-	spin_unlock_bh(&conn->sess->session_stats_lock);
+	atomic_long_inc(&conn->sess->cmd_pdus);
 
 	hdr			= (struct iscsi_scsi_req *) buf;
 	payload_length		= ntoh24(hdr->dlength);
@@ -1254,14 +1247,7 @@ iscsit_check_dataout_hdr(struct iscsi_conn *conn, unsigned char *buf,
 	}
 
 	/* iSCSI write */
-	spin_lock_bh(&conn->sess->session_stats_lock);
-	conn->sess->rx_data_octets += payload_length;
-	if (conn->sess->se_sess->se_node_acl) {
-		spin_lock(&conn->sess->se_sess->se_node_acl->stats_lock);
-		conn->sess->se_sess->se_node_acl->write_bytes += payload_length;
-		spin_unlock(&conn->sess->se_sess->se_node_acl->stats_lock);
-	}
-	spin_unlock_bh(&conn->sess->session_stats_lock);
+	atomic_long_add(payload_length, &conn->sess->rx_data_octets);
 
 	if (payload_length > conn->conn_ops->MaxXmitDataSegmentLength) {
 		pr_err("DataSegmentLength: %u is greater than"
@@ -2631,14 +2617,7 @@ static int iscsit_send_datain(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 		return -1;
 	}
 
-	spin_lock_bh(&conn->sess->session_stats_lock);
-	conn->sess->tx_data_octets += datain.length;
-	if (conn->sess->se_sess->se_node_acl) {
-		spin_lock(&conn->sess->se_sess->se_node_acl->stats_lock);
-		conn->sess->se_sess->se_node_acl->read_bytes += datain.length;
-		spin_unlock(&conn->sess->se_sess->se_node_acl->stats_lock);
-	}
-	spin_unlock_bh(&conn->sess->session_stats_lock);
+	atomic_long_add(datain.length, &conn->sess->tx_data_octets);
 	/*
 	 * Special case for successfully execution w/ both DATAIN
 	 * and Sense Data.
@@ -3163,9 +3142,7 @@ void iscsit_build_rsp_pdu(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 	if (inc_stat_sn)
 		cmd->stat_sn = conn->stat_sn++;
 
-	spin_lock_bh(&conn->sess->session_stats_lock);
-	conn->sess->rsp_pdus++;
-	spin_unlock_bh(&conn->sess->session_stats_lock);
+	atomic_long_inc(&conn->sess->rsp_pdus);
 
 	memset(hdr, 0, ISCSI_HDR_LEN);
 	hdr->opcode		= ISCSI_OP_SCSI_CMD_RSP;
@@ -4114,9 +4091,7 @@ restart:
 				 * hit default in the switch below.
 				 */
 				memset(buffer, 0xff, ISCSI_HDR_LEN);
-				spin_lock_bh(&conn->sess->session_stats_lock);
-				conn->sess->conn_digest_errors++;
-				spin_unlock_bh(&conn->sess->session_stats_lock);
+				atomic_long_inc(&conn->sess->conn_digest_errors);
 			} else {
 				pr_debug("Got HeaderDigest CRC32C"
 						" 0x%08x\n", checksum);

@@ -651,14 +651,13 @@ struct iscsi_session {
 	/* Used for session reference counting */
 	int			session_usage_count;
 	int			session_waiting_on_uc;
-	u32			cmd_pdus;
-	u32			rsp_pdus;
-	u64			tx_data_octets;
-	u64			rx_data_octets;
-	u32			conn_digest_errors;
-	u32			conn_timeout_errors;
+	atomic_long_t		cmd_pdus;
+	atomic_long_t		rsp_pdus;
+	atomic_long_t		tx_data_octets;
+	atomic_long_t		rx_data_octets;
+	atomic_long_t		conn_digest_errors;
+	atomic_long_t		conn_timeout_errors;
 	u64			creation_time;
-	spinlock_t		session_stats_lock;
 	/* Number of active connections */
 	atomic_t		nconn;
 	atomic_t		session_continuation;

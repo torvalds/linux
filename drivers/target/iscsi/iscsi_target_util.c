@@ -980,7 +980,7 @@ static void iscsit_handle_nopin_response_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		conn->sess->conn_timeout_errors++;
+		atomic_long_inc(&conn->sess->conn_timeout_errors);
 		spin_unlock_bh(&tiqn->sess_err_stats.lock);
 	}
 	}

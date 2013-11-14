@@ -785,7 +785,7 @@ static void iscsit_handle_time2retain_timeout(unsigned long data)
 		tiqn->sess_err_stats.last_sess_failure_type =
 				ISCSI_SESS_ERR_CXN_TIMEOUT;
 		tiqn->sess_err_stats.cxn_timeout_errors++;
-		sess->conn_timeout_errors++;
+		atomic_long_inc(&sess->conn_timeout_errors);
 		spin_unlock(&tiqn->sess_err_stats.lock);
 	}
 	}

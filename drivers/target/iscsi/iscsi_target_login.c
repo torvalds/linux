@@ -305,7 +305,6 @@ static int iscsi_login_zero_tsih_s1(
 	}
 
 	sess->creation_time = get_jiffies_64();
-	spin_lock_init(&sess->session_stats_lock);
 	/*
 	 * The FFP CmdSN window values will be allocated from the TPG's
 	 * Initiator Node's ACL once the login has been successfully completed.
