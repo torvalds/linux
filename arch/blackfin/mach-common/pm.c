@@ -141,7 +141,10 @@ static void flushinv_all_dcache(void)
 
 int bfin_pm_suspend_mem_enter(void)
 {
-	int wakeup, ret;
+	int ret;
+#ifndef CONFIG_BF60x
+	int wakeup;
+#endif
 
 	unsigned char *memptr = kmalloc(L1_CODE_LENGTH + L1_DATA_A_LENGTH
 					 + L1_DATA_B_LENGTH + L1_SCRATCH_LENGTH,
