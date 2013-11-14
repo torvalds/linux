@@ -796,7 +796,7 @@ static spinlock_t *xen_pte_lock(struct page *page, struct mm_struct *mm)
 {
 	spinlock_t *ptl = NULL;
 
-#if USE_SPLIT_PTLOCKS
+#if USE_SPLIT_PTE_PTLOCKS
 	ptl = __pte_lockptr(page);
 	spin_lock_nest_lock(ptl, &mm->page_table_lock);
 #endif
@@ -1637,7 +1637,7 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
 
 			__set_pfn_prot(pfn, PAGE_KERNEL_RO);
 
-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
+			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
 				__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
@@ -1671,7 +1671,7 @@ static inline void xen_release_ptpage(unsigned long pfn, unsigned level)
 		if (!PageHighMem(page)) {
 			xen_mc_batch();
 
-			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
+			if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS)
 				__pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 
 			__set_pfn_prot(pfn, PAGE_KERNEL);
