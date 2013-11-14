@@ -571,7 +571,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		trace_spi_transfer_start(msg, xfer);
 
-		INIT_COMPLETION(master->xfer_completion);
+		reinit_completion(&master->xfer_completion);
 
 		ret = master->transfer_one(master, msg->spi, xfer);
 		if (ret < 0) {

@@ -217,7 +217,7 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 		cs |= spi->chip_select;
 	}
 
-	INIT_COMPLETION(bs->done);
+	reinit_completion(&bs->done);
 	bs->tx_buf = tfr->tx_buf;
 	bs->rx_buf = tfr->rx_buf;
 	bs->len = tfr->len;

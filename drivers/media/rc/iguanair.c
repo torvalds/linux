@@ -207,7 +207,7 @@ static int iguanair_send(struct iguanair *ir, unsigned size)
 {
 	int rc;
 
-	INIT_COMPLETION(ir->completion);
+	reinit_completion(&ir->completion);
 
 	ir->urb_out->transfer_buffer_length = size;
 	rc = usb_submit_urb(ir->urb_out, GFP_KERNEL);

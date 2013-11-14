@@ -209,7 +209,7 @@ static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		platform_get_drvdata(to_platform_device(dev));
 	int ret;
 
-	INIT_COMPLETION(time_state->comp_last_time);
+	reinit_completion(&time_state->comp_last_time);
 	/* get a report with all values through requesting one value */
 	sensor_hub_input_attr_get_raw_value(time_state->common_attributes.hsdev,
 			HID_USAGE_SENSOR_TIME, hid_time_addresses[0],

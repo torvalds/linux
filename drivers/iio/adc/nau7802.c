@@ -190,7 +190,7 @@ static int nau7802_read_irq(struct iio_dev *indio_dev,
 	struct nau7802_state *st = iio_priv(indio_dev);
 	int ret;
 
-	INIT_COMPLETION(st->value_ok);
+	reinit_completion(&st->value_ok);
 	enable_irq(st->client->irq);
 
 	nau7802_sync(st);

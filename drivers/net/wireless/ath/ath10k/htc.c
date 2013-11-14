@@ -534,7 +534,7 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 	u16 credit_count;
 	u16 credit_size;
 
-	INIT_COMPLETION(htc->ctl_resp);
+	reinit_completion(&htc->ctl_resp);
 
 	status = ath10k_hif_start(htc->ar);
 	if (status) {
@@ -669,7 +669,7 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 	req_msg->flags = __cpu_to_le16(flags);
 	req_msg->service_id = __cpu_to_le16(conn_req->service_id);
 
-	INIT_COMPLETION(htc->ctl_resp);
+	reinit_completion(&htc->ctl_resp);
 
 	status = ath10k_htc_send(htc, ATH10K_HTC_EP_0, skb);
 	if (status) {

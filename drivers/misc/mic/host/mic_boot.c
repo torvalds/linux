@@ -38,7 +38,7 @@ static void mic_reset(struct mic_device *mdev)
 
 #define MIC_RESET_TO (45)
 
-	INIT_COMPLETION(mdev->reset_wait);
+	reinit_completion(&mdev->reset_wait);
 	mdev->ops->reset_fw_ready(mdev);
 	mdev->ops->reset(mdev);
 

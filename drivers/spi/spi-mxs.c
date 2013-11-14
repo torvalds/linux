@@ -202,7 +202,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 	if (!dma_xfer)
 		return -ENOMEM;
 
-	INIT_COMPLETION(spi->c);
+	reinit_completion(&spi->c);
 
 	/* Chip select was already programmed into CTRL0 */
 	ctrl0 = readl(ssp->base + HW_SSP_CTRL0);

@@ -232,7 +232,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	mpc8xxx_spi->tx = t->tx_buf;
 	mpc8xxx_spi->rx = t->rx_buf;
 
-	INIT_COMPLETION(mpc8xxx_spi->done);
+	reinit_completion(&mpc8xxx_spi->done);
 
 	/* Set SPCOM[CS] and SPCOM[TRANLEN] field */
 	if ((t->len - 1) > SPCOM_TRANLEN_MAX) {

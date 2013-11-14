@@ -105,7 +105,7 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		gpio_set_value(cs, !!(msg->spi->mode & SPI_CS_HIGH));
 
-		INIT_COMPLETION(hw->done);
+		reinit_completion(&hw->done);
 
 		hw->count = 0;
 		hw->len = xfer->len;

@@ -253,7 +253,7 @@ void memstick_new_req(struct memstick_host *host)
 {
 	if (host->card) {
 		host->retries = cmd_retries;
-		INIT_COMPLETION(host->card->mrq_complete);
+		reinit_completion(&host->card->mrq_complete);
 		host->request(host);
 	}
 }
