@@ -36,9 +36,9 @@ static struct snapshot_data {
 	struct snapshot_handle handle;
 	int swap;
 	int mode;
-	char frozen;
-	char ready;
-	char platform_support;
+	bool frozen;
+	bool ready;
+	bool platform_support;
 	bool free_bitmaps;
 } snapshot_state;
 
@@ -93,9 +93,9 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	if (error)
 		atomic_inc(&snapshot_device_available);
 
-	data->frozen = 0;
-	data->ready = 0;
-	data->platform_support = 0;
+	data->frozen = false;
+	data->ready = false;
+	data->platform_support = false;
 
  Unlock:
 	unlock_system_sleep();
@@ -229,7 +229,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		if (error)
 			thaw_processes();
 		else
-			data->frozen = 1;
+			data->frozen = true;
 
 		break;
 
@@ -240,7 +240,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		free_basic_memory_bitmaps();
 		data->free_bitmaps = false;
 		thaw_processes();
-		data->frozen = 0;
+		data->frozen = false;
 		break;
 
 	case SNAPSHOT_CREATE_IMAGE:
@@ -270,7 +270,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	case SNAPSHOT_FREE:
 		swsusp_free();
 		memset(&data->handle, 0, sizeof(struct snapshot_handle));
-		data->ready = 0;
+		data->ready = false;
 		/*
 		 * It is necessary to thaw kernel threads here, because
 		 * SNAPSHOT_CREATE_IMAGE may be invoked directly after
@@ -334,7 +334,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		 * PM_HIBERNATION_PREPARE
 		 */
 		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
-		data->ready = 0;
+		data->ready = false;
 		break;
 
 	case SNAPSHOT_PLATFORM_SUPPORT:

@@ -21,6 +21,7 @@ struct map_desc;
 void exynos_init_io(void);
 void exynos4_restart(enum reboot_mode mode, const char *cmd);
 void exynos5_restart(enum reboot_mode mode, const char *cmd);
+void exynos_cpuidle_init(void);
 void exynos_init_late(void);
 
 void exynos_firmware_init(void);

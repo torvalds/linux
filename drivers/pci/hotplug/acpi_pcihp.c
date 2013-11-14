@@ -411,13 +411,10 @@ EXPORT_SYMBOL(acpi_get_hp_hw_control_from_firmware);
 static int pcihp_is_ejectable(acpi_handle handle)
 {
 	acpi_status status;
-	acpi_handle tmp;
 	unsigned long long removable;
-	status = acpi_get_handle(handle, "_ADR", &tmp);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(handle, "_ADR"))
 		return 0;
-	status = acpi_get_handle(handle, "_EJ0", &tmp);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(handle, "_EJ0"))
 		return 1;
 	status = acpi_evaluate_integer(handle, "_RMV", NULL, &removable);
 	if (ACPI_SUCCESS(status) && removable)

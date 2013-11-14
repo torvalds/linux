@@ -60,9 +60,7 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 {
 	struct icst_vco vco;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_cpu_limits(policy);
 
 	vco = icst_hz_to_vco(&cclk_params, policy->max * 1000);
 	policy->max = icst_hz(&cclk_params, vco) / 1000;
@@ -70,10 +68,7 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 	vco = icst_hz_to_vco(&cclk_params, policy->min * 1000);
 	policy->min = icst_hz(&cclk_params, vco) / 1000;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
-
+	cpufreq_verify_within_cpu_limits(policy);
 	return 0;
 }
 
@@ -187,10 +182,9 @@ static int integrator_cpufreq_init(struct cpufreq_policy *policy)
 {
 
 	/* set default policy and cpuinfo */
-	policy->cpuinfo.max_freq = 160000;
-	policy->cpuinfo.min_freq = 12000;
+	policy->max = policy->cpuinfo.max_freq = 160000;
+	policy->min = policy->cpuinfo.min_freq = 12000;
 	policy->cpuinfo.transition_latency = 1000000; /* 1 ms, assumed */
-	policy->cur = policy->min = policy->max = integrator_get(policy->cpu);
 
 	return 0;
 }

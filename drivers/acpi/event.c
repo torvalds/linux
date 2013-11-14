@@ -127,11 +127,6 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 	}
 
 	event = nla_data(attr);
-	if (!event) {
-		nlmsg_free(skb);
-		return -EINVAL;
-	}
-
 	memset(event, 0, sizeof(struct acpi_genl_event));
 
 	strcpy(event->device_class, device_class);

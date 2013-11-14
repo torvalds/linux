@@ -30,9 +30,6 @@
 
 #include "ppc_cbe_cpufreq.h"
 
-static DEFINE_MUTEX(cbe_switch_mutex);
-
-
 /* the CBE supports an 8 step frequency scaling */
 static struct cpufreq_frequency_table cbe_freqs[] = {
 	{1,	0},
@@ -123,63 +120,28 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
 #endif
 
-	cpufreq_frequency_table_get_attr(cbe_freqs, policy->cpu);
-
 	/* this ensures that policy->cpuinfo_min
 	 * and policy->cpuinfo_max are set correctly */
-	return cpufreq_frequency_table_cpuinfo(policy, cbe_freqs);
-}
-
-static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static int cbe_cpufreq_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, cbe_freqs);
+	return cpufreq_table_validate_and_show(policy, cbe_freqs);
 }
 
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,
-			      unsigned int target_freq,
-			      unsigned int relation)
+			      unsigned int cbe_pmode_new)
 {
-	int rc;
-	struct cpufreq_freqs freqs;
-	unsigned int cbe_pmode_new;
-
-	cpufreq_frequency_table_target(policy,
-				       cbe_freqs,
-				       target_freq,
-				       relation,
-				       &cbe_pmode_new);
-
-	freqs.old = policy->cur;
-	freqs.new = cbe_freqs[cbe_pmode_new].frequency;
-
-	mutex_lock(&cbe_switch_mutex);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	pr_debug("setting frequency for cpu %d to %d kHz, " \
 		 "1/%d of max frequency\n",
 		 policy->cpu,
 		 cbe_freqs[cbe_pmode_new].frequency,
 		 cbe_freqs[cbe_pmode_new].driver_data);
 
-	rc = set_pmode(policy->cpu, cbe_pmode_new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-	mutex_unlock(&cbe_switch_mutex);
-
-	return rc;
+	return set_pmode(policy->cpu, cbe_pmode_new);
 }
 
 static struct cpufreq_driver cbe_cpufreq_driver = {
-	.verify		= cbe_cpufreq_verify,
-	.target		= cbe_cpufreq_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= cbe_cpufreq_target,
 	.init		= cbe_cpufreq_cpu_init,
-	.exit		= cbe_cpufreq_cpu_exit,
+	.exit		= cpufreq_generic_exit,
 	.name		= "cbe-cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 };

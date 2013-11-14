@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/irqchip/arm-gic.h>
@@ -267,7 +268,7 @@ static void __naked tc2_pm_power_up_setup(unsigned int affinity_level)
 
 static int __init tc2_pm_init(void)
 {
-	int ret;
+	int ret, irq;
 	void __iomem *scc;
 	u32 a15_cluster_id, a7_cluster_id, sys_info;
 	struct device_node *np;
@@ -292,13 +293,15 @@ static int __init tc2_pm_init(void)
 	tc2_nr_cpus[a15_cluster_id] = (sys_info >> 16) & 0xf;
 	tc2_nr_cpus[a7_cluster_id] = (sys_info >> 20) & 0xf;
 
+	irq = irq_of_parse_and_map(np, 0);
+
 	/*
 	 * A subset of the SCC registers is also used to communicate
 	 * with the SPC (power controller). We need to be able to
 	 * drive it very early in the boot process to power up
 	 * processors, so we initialize the SPC driver here.
 	 */
-	ret = ve_spc_init(scc + SPC_BASE, a15_cluster_id);
+	ret = ve_spc_init(scc + SPC_BASE, a15_cluster_id, irq);
 	if (ret)
 		return ret;
 

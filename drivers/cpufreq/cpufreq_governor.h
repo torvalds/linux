@@ -191,7 +191,10 @@ struct common_dbs_data {
 	struct attribute_group *attr_group_gov_sys; /* one governor - system */
 	struct attribute_group *attr_group_gov_pol; /* one governor - policy */
 
-	/* Common data for platforms that don't set have_governor_per_policy */
+	/*
+	 * Common data for platforms that don't set
+	 * CPUFREQ_HAVE_GOVERNOR_PER_POLICY
+	 */
 	struct dbs_data *gdbs_data;
 
 	struct cpu_dbs_common_info *(*get_cpu_cdbs)(int cpu);

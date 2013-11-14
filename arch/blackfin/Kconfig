@@ -1440,7 +1440,6 @@ source "drivers/cpufreq/Kconfig"
 config BFIN_CPU_FREQ
 	bool
 	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
 	default y
 
 config CPU_VOLTAGE
