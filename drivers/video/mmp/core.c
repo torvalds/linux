@@ -30,7 +30,7 @@ static struct mmp_overlay *path_get_overlay(struct mmp_path *path,
 {
 	if (path && overlay_id < path->overlay_num)
 		return &path->overlays[overlay_id];
-	return 0;
+	return NULL;
 }
 
 static int path_check_status(struct mmp_path *path)
