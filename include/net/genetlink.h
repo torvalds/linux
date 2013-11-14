@@ -52,14 +52,14 @@ struct genl_family {
 	unsigned int		maxattr;
 	bool			netnsok;
 	bool			parallel_ops;
-	int			(*pre_doit)(struct genl_ops *ops,
+	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
 					    struct genl_info *info);
-	void			(*post_doit)(struct genl_ops *ops,
+	void			(*post_doit)(const struct genl_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
 	struct nlattr **	attrbuf;	/* private */
-	struct genl_ops *	ops;		/* private */
+	const struct genl_ops *	ops;		/* private */
 	unsigned int		n_ops;		/* private */
 	struct list_head	family_list;	/* private */
 	struct list_head	mcast_groups;	/* private */
@@ -132,10 +132,10 @@ static inline int genl_register_family(struct genl_family *family)
 }
 
 int __genl_register_family_with_ops(struct genl_family *family,
-				    struct genl_ops *ops, size_t n_ops);
+				    const struct genl_ops *ops, size_t n_ops);
 
 static inline int genl_register_family_with_ops(struct genl_family *family,
-	struct genl_ops *ops, size_t n_ops)
+	const struct genl_ops *ops, size_t n_ops)
 {
 	family->module = THIS_MODULE;
 	return __genl_register_family_with_ops(family, ops, n_ops);

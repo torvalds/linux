@@ -106,7 +106,7 @@ static struct genl_family *genl_family_find_byname(char *name)
 	return NULL;
 }
 
-static struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
+static const struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
 {
 	int i;
 
@@ -283,7 +283,8 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 		__genl_unregister_mc_group(family, grp);
 }
 
-static int genl_validate_add_ops(struct genl_family *family, struct genl_ops *ops,
+static int genl_validate_add_ops(struct genl_family *family,
+				 const struct genl_ops *ops,
 				 unsigned int n_ops)
 {
 	int i, j;
@@ -294,12 +295,6 @@ static int genl_validate_add_ops(struct genl_family *family, struct genl_ops *op
 		for (j = i + 1; j < n_ops; j++)
 			if (ops[i].cmd == ops[j].cmd)
 				return -EINVAL;
-		if (ops[i].dumpit)
-			ops[i].flags |= GENL_CMD_CAP_DUMP;
-		if (ops[i].doit)
-			ops[i].flags |= GENL_CMD_CAP_DO;
-		if (ops[i].policy)
-			ops[i].flags |= GENL_CMD_CAP_HASPOL;
 	}
 
 	/* family is not registered yet, so no locking needed */
@@ -399,7 +394,7 @@ EXPORT_SYMBOL(__genl_register_family);
  * Return 0 on success or a negative error code.
  */
 int __genl_register_family_with_ops(struct genl_family *family,
-	struct genl_ops *ops, size_t n_ops)
+	const struct genl_ops *ops, size_t n_ops)
 {
 	int err;
 
@@ -479,7 +474,8 @@ EXPORT_SYMBOL(genlmsg_put);
 
 static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct genl_ops *ops = cb->data;
+	/* our ops are always const - netlink API doesn't propagate that */
+	const struct genl_ops *ops = cb->data;
 	int rc;
 
 	genl_lock();
@@ -490,7 +486,8 @@ static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 static int genl_lock_done(struct netlink_callback *cb)
 {
-	struct genl_ops *ops = cb->data;
+	/* our ops are always const - netlink API doesn't propagate that */
+	const struct genl_ops *ops = cb->data;
 	int rc = 0;
 
 	if (ops->done) {
@@ -505,7 +502,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 			       struct sk_buff *skb,
 			       struct nlmsghdr *nlh)
 {
-	struct genl_ops *ops;
+	const struct genl_ops *ops;
 	struct net *net = sock_net(skb->sk);
 	struct genl_info info;
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
@@ -537,7 +534,8 @@ static int genl_family_rcv_msg(struct genl_family *family,
 		if (!family->parallel_ops) {
 			struct netlink_dump_control c = {
 				.module = family->module,
-				.data = ops,
+				/* we have const, but the netlink API doesn't */
+				.data = (void *)ops,
 				.dump = genl_lock_dumpit,
 				.done = genl_lock_done,
 			};
@@ -669,14 +667,22 @@ static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 
 		for (i = 0; i < family->n_ops; i++) {
 			struct nlattr *nest;
-			struct genl_ops *ops = &family->ops[i];
+			const struct genl_ops *ops = &family->ops[i];
+			u32 flags = ops->flags;
+
+			if (ops->dumpit)
+				flags |= GENL_CMD_CAP_DUMP;
+			if (ops->doit)
+				flags |= GENL_CMD_CAP_DO;
+			if (ops->policy)
+				flags |= GENL_CMD_CAP_HASPOL;
 
 			nest = nla_nest_start(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
 
 			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, ops->cmd) ||
-			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, ops->flags))
+			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, flags))
 				goto nla_put_failure;
 
 			nla_nest_end(skb, nest);
