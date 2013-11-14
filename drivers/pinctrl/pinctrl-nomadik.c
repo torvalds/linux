@@ -846,14 +846,14 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		   (mode < 0) ? "unknown" : modes[mode],
 		   pull ? "pull" : "none");
 
-	if (label && !is_out) {
-		int		irq = gpio_to_irq(gpio);
+	if (!is_out) {
+		int irq = gpio_to_irq(gpio);
 		struct irq_desc	*desc = irq_to_desc(irq);
 
 		/* This races with request_irq(), set_irq_type(),
 		 * and set_irq_wake() ... but those are "rare".
 		 */
-		if (irq >= 0 && desc->action) {
+		if (irq > 0 && desc && desc->action) {
 			char *trigger;
 			u32 bitmask = nmk_gpio_get_bitmask(gpio);
 
