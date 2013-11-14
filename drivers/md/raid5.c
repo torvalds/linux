@@ -6384,12 +6384,18 @@ static int raid5_start_reshape(struct mddev *mddev)
 	if (!mddev->sync_thread) {
 		mddev->recovery = 0;
 		spin_lock_irq(&conf->device_lock);
+		write_seqcount_begin(&conf->gen_lock);
 		mddev->raid_disks = conf->raid_disks = conf->previous_raid_disks;
+		mddev->new_chunk_sectors =
+			conf->chunk_sectors = conf->prev_chunk_sectors;
+		mddev->new_layout = conf->algorithm = conf->prev_algo;
 		rdev_for_each(rdev, mddev)
 			rdev->new_data_offset = rdev->data_offset;
 		smp_wmb();
+		conf->generation --;
 		conf->reshape_progress = MaxSector;
 		mddev->reshape_position = MaxSector;
+		write_seqcount_end(&conf->gen_lock);
 		spin_unlock_irq(&conf->device_lock);
 		return -EAGAIN;
 	}
