@@ -14,6 +14,7 @@ struct sunrpc_net {
 	struct cache_detail *rsi_cache;
 
 	struct super_block *pipefs_sb;
+	struct rpc_pipe *gssd_dummy;
 	struct mutex pipefs_sb_lock;
 
 	struct list_head all_clients;
