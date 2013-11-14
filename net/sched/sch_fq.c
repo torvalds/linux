@@ -209,21 +209,15 @@ static void fq_gc(struct fq_sched_data *q,
 	}
 }
 
-static const u8 prio2band[TC_PRIO_MAX + 1] = {
-	1, 2, 2, 2, 1, 2, 0, 0 , 1, 1, 1, 1, 1, 1, 1, 1
-};
-
 static struct fq_flow *fq_classify(struct sk_buff *skb, struct fq_sched_data *q)
 {
 	struct rb_node **p, *parent;
 	struct sock *sk = skb->sk;
 	struct rb_root *root;
 	struct fq_flow *f;
-	int band;
 
 	/* warning: no starvation prevention... */
-	band = prio2band[skb->priority & TC_PRIO_MAX];
-	if (unlikely(band == 0))
+	if (unlikely((skb->priority & TC_PRIO_MAX) == TC_PRIO_CONTROL))
 		return &q->internal;
 
 	if (unlikely(!sk)) {
