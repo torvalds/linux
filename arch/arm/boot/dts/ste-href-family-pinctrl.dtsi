@@ -215,6 +215,67 @@
 				};
 			};
 
+			/* Settings for all SPI default and sleep states */
+			spi2 {
+				spi2_default_mode: spi_default {
+					default_mux {
+						ste,function = "spi2";
+						ste,pins = "spi2_oc1_2";
+					};
+					default_cfg1 {
+						ste,pins = "GPIO216_AG12"; /* FRM */
+						ste,config = <&gpio_out_hi>;
+					};
+					default_cfg2 {
+						ste,pins = "GPIO218_AH11"; /* RXD */
+						ste,config = <&in_pd>;
+					};
+					default_cfg3 {
+						ste,pins =
+						"GPIO215_AH13", /* TXD */
+						"GPIO217_AH12"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+				};
+
+				spi2_idle_mode: spi_idle {
+					/*
+					 * The idle mode is basically sleep mode sans wakeups. Also
+					 * note that we have muxes the pins off the function here
+					 * as we do not state any muxing.
+					 */
+					idle_cfg1 {
+						ste,pins = "GPIO218_AH11"; /* RXD */
+						ste,config = <&slpm_in_pdis>;
+					};
+					idle_cfg2 {
+						ste,pins = "GPIO215_AH13"; /* TXD */
+						ste,config = <&slpm_out_lo_pdis>;
+					};
+					idle_cfg3 {
+						ste,pins = "GPIO217_AH12"; /* CLK */
+						ste,config = <&slpm_pdis>;
+					};
+				};
+
+				spi2_sleep_mode: spi_sleep {
+					sleep_cfg1 {
+						ste,pins =
+						"GPIO216_AG12", /* FRM */
+						"GPIO218_AH11"; /* RXD */
+						ste,config = <&slpm_in_wkup_pdis>;
+					};
+					sleep_cfg2 {
+						ste,pins = "GPIO215_AH13"; /* TXD */
+						ste,config = <&slpm_out_lo_wkup_pdis>;
+					};
+					sleep_cfg3 {
+						ste,pins = "GPIO217_AH12"; /* CLK */
+						ste,config = <&slpm_wkup_pdis>;
+					};
+				};
+			};
+
 			/* Settings for all MMC/SD/SDIO default and sleep states */
 			sdi0 {
 				/* This is the external SD card slot, 4 bits wide */

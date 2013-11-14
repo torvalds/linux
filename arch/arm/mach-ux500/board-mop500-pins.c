@@ -342,22 +342,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	/* LCD VSI1 sleep state */
 	DB8500_PIN_SLEEP("GPIO69_E2", slpm_in_wkup_pdis, "0-0070"),
 
-	/* Mux in SPI2 pins on the "other C1" altfunction */
-	DB8500_MUX("spi2_oc1_2", "spi2", "spi2"),
-	DB8500_PIN("GPIO216_AG12", gpio_out_hi, "spi2"), /* FRM */
-	DB8500_PIN("GPIO218_AH11", in_pd, "spi2"), /* RXD */
-	DB8500_PIN("GPIO215_AH13", out_lo, "spi2"), /* TXD */
-	DB8500_PIN("GPIO217_AH12", out_lo, "spi2"), /* CLK */
-	/* SPI2 idle state */
-	DB8500_PIN_IDLE("GPIO218_AH11", slpm_in_wkup_pdis, "spi2"), /* RXD */
-	DB8500_PIN_IDLE("GPIO215_AH13", slpm_out_lo_wkup_pdis, "spi2"), /* TXD */
-	DB8500_PIN_IDLE("GPIO217_AH12", slpm_wkup_pdis, "spi2"), /* CLK */
-	/* SPI2 sleep state */
-	DB8500_PIN_SLEEP("GPIO216_AG12", slpm_in_wkup_pdis, "spi2"), /* FRM */
-	DB8500_PIN_SLEEP("GPIO218_AH11", slpm_in_wkup_pdis, "spi2"), /* RXD */
-	DB8500_PIN_SLEEP("GPIO215_AH13", slpm_out_lo_wkup_pdis, "spi2"), /* TXD */
-	DB8500_PIN_SLEEP("GPIO217_AH12", slpm_wkup_pdis, "spi2"), /* CLK */
-
 	/* ske default state */
 	DB8500_MUX("kp_a_2", "kp", "nmk-ske-keypad"),
 	DB8500_PIN("GPIO153_B17", in_pd, "nmk-ske-keypad"), /* I7 */
@@ -582,9 +566,6 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
  * on-chip pins as the HREFv60 and later does.
  */
 static struct pinctrl_map __initdata mop500_pinmap[] = {
-	/* Mux in SSP0, pull down RXD pin */
-	DB8500_MUX_HOG("ssp0_a_1", "ssp0"),
-	DB8500_PIN_HOG("GPIO145_C13", pd),
 	/*
 	 * XENON Flashgun on image processor GPIO (controlled from image
 	 * processor firmware), mux in these image processor GPIO lines 0

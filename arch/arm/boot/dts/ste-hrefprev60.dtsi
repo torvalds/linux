@@ -51,6 +51,15 @@
 			};
 		};
 
+		ssp@80002000 {
+			/*
+			 * On the first generation boards, this SSP/SPI port was connected
+			 * to the AB8500.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&ssp0_hrefprev60_mode>;
+		};
+
 		vmmci: regulator-gpio {
 			gpios = <&tc3589x_gpio 18 0x4>;
 			enable-gpio = <&tc3589x_gpio 17 0x4>;
@@ -59,6 +68,19 @@
 		};
 
 		pinctrl {
+			ssp0 {
+				ssp0_hrefprev60_mode: ssp0_hrefprev60_default {
+					hrefprev60_mux {
+						ste,function = "ssp0";
+						ste,pins = "ssp0_a_1";
+					};
+					hrefprev60_cfg1 {
+						ste,pins = "GPIO145_C13"; /* RXD */
+						ste,config = <&in_pd>;
+					};
+
+				};
+			};
 			sdi0 {
 				/* This additional pin needed on early MOP500 and HREFs previous to v60 */
 				sdi0_default_mode: sdi0_default {
