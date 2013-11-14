@@ -773,6 +773,14 @@ iss_video_qbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 }
 
 static int
+iss_video_expbuf(struct file *file, void *fh, struct v4l2_exportbuffer *e)
+{
+	struct iss_video_fh *vfh = to_iss_video_fh(fh);
+
+	return vb2_expbuf(&vfh->queue, e);
+}
+
+static int
 iss_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
@@ -1021,6 +1029,7 @@ static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_reqbufs			= iss_video_reqbufs,
 	.vidioc_querybuf		= iss_video_querybuf,
 	.vidioc_qbuf			= iss_video_qbuf,
+	.vidioc_expbuf			= iss_video_expbuf,
 	.vidioc_dqbuf			= iss_video_dqbuf,
 	.vidioc_streamon		= iss_video_streamon,
 	.vidioc_streamoff		= iss_video_streamoff,
@@ -1071,7 +1080,7 @@ static int iss_video_open(struct file *file)
 	q = &handle->queue;
 
 	q->type = video->type;
-	q->io_modes = VB2_MMAP;
+	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = handle;
 	q->ops = &iss_video_vb2ops;
 	q->mem_ops = &vb2_dma_contig_memops;
