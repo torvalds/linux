@@ -705,6 +705,19 @@ static inline int mm_insn_16bit(u16 insn)
 }
 
 /*
+ * TLB Invalidate Flush
+ */
+static inline void tlbinvf(void)
+{
+	__asm__ __volatile__(
+		".set push\n\t"
+		".set noreorder\n\t"
+		".word 0x42000004\n\t" /* tlbinvf */
+		".set pop");
+}
+
+
+/*
  * Functions to access the R10000 performance counters.	 These are basically
  * mfc0 and mtc0 instructions from and to coprocessor register with a 5-bit
  * performance counter number encoded into bits 1 ... 5 of the instruction.
