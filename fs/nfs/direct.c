@@ -235,10 +235,10 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq, bool write)
 		spin_unlock(&inode->i_lock);
 	}
 
-	if (write) {
+	if (write)
 		nfs_zap_mapping(inode, inode->i_mapping);
-		inode_dio_done(inode);
-	}
+
+	inode_dio_done(inode);
 
 	if (dreq->iocb) {
 		long res = (long) dreq->error;
@@ -419,6 +419,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 					      loff_t pos, bool uio)
 {
 	struct nfs_pageio_descriptor desc;
+	struct inode *inode = dreq->inode;
 	ssize_t result = -EINVAL;
 	size_t requested_bytes = 0;
 	unsigned long seg;
@@ -427,6 +428,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 			     &nfs_direct_read_completion_ops);
 	get_dreq(dreq);
 	desc.pg_dreq = dreq;
+	atomic_inc(&inode->i_dio_count);
 
 	for (seg = 0; seg < nr_segs; seg++) {
 		const struct iovec *vec = &iov[seg];
@@ -446,6 +448,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 	 * generic layer handle the completion.
 	 */
 	if (requested_bytes == 0) {
+		inode_dio_done(inode);
 		nfs_direct_req_release(dreq);
 		return result < 0 ? result : -EIO;
 	}
