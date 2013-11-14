@@ -356,6 +356,9 @@ static void release_inactive_stripe_list(struct r5conf *conf,
 		 */
 		if (!list_empty_careful(list)) {
 			spin_lock_irqsave(conf->hash_locks + hash, flags);
+			if (list_empty(conf->inactive_list + hash) &&
+			    !list_empty(list))
+				atomic_dec(&conf->empty_inactive_list_nr);
 			list_splice_tail_init(list, conf->inactive_list + hash);
 			do_wakeup = true;
 			spin_unlock_irqrestore(conf->hash_locks + hash, flags);
@@ -477,6 +480,8 @@ static struct stripe_head *get_free_stripe(struct r5conf *conf, int hash)
 	remove_hash(sh);
 	atomic_inc(&conf->active_stripes);
 	BUG_ON(hash != sh->hash_lock_index);
+	if (list_empty(conf->inactive_list + hash))
+		atomic_inc(&conf->empty_inactive_list_nr);
 out:
 	return sh;
 }
@@ -4059,7 +4064,7 @@ int md_raid5_congested(struct mddev *mddev, int bits)
 		return 1;
 	if (conf->quiesce)
 		return 1;
-	if (atomic_read(&conf->active_stripes) == conf->max_nr_stripes)
+	if (atomic_read(&conf->empty_inactive_list_nr))
 		return 1;
 
 	return 0;
@@ -5750,6 +5755,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 
 	memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 		 max_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
+	atomic_set(&conf->empty_inactive_list_nr, NR_STRIPE_HASH_LOCKS);
 	if (grow_stripes(conf, NR_STRIPES)) {
 		printk(KERN_ERR
 		       "md/raid:%s: couldn't allocate %dkB for buffers\n",
