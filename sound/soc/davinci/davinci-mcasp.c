@@ -53,6 +53,8 @@ struct davinci_mcasp {
 	u8	txnumevt;
 	u8	rxnumevt;
 
+	bool	dat_port;
+
 #ifdef CONFIG_PM_SLEEP
 	struct {
 		u32	txfmtctl;
@@ -482,6 +484,7 @@ static void davinci_hw_param(struct davinci_mcasp *mcasp, int stream)
 {
 	int i, active_slots;
 	u32 mask = 0;
+	u32 busel = 0;
 
 	active_slots = (mcasp->tdm_slots > 31) ? 32 : mcasp->tdm_slots;
 	for (i = 0; i < active_slots; i++)
@@ -489,11 +492,15 @@ static void davinci_hw_param(struct davinci_mcasp *mcasp, int stream)
 
 	mcasp_clr_bits(mcasp->base + DAVINCI_MCASP_ACLKXCTL_REG, TX_ASYNC);
 
+	if (!mcasp->dat_port)
+		busel = TXSEL;
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* bit stream is MSB first  with no delay */
 		/* DSP_B mode */
 		mcasp_set_reg(mcasp->base + DAVINCI_MCASP_TXTDM_REG, mask);
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_TXFMT_REG, TXORD);
+		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_TXFMT_REG,
+			       busel | TXORD);
 
 		if ((mcasp->tdm_slots >= 2) && (mcasp->tdm_slots <= 32))
 			mcasp_mod_bits(mcasp->base + DAVINCI_MCASP_TXFMCTL_REG,
@@ -504,7 +511,8 @@ static void davinci_hw_param(struct davinci_mcasp *mcasp, int stream)
 	} else {
 		/* bit stream is MSB first with no delay */
 		/* DSP_B mode */
-		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_RXFMT_REG, RXORD);
+		mcasp_set_bits(mcasp->base + DAVINCI_MCASP_RXFMT_REG,
+			       busel | RXORD);
 		mcasp_set_reg(mcasp->base + DAVINCI_MCASP_RXTDM_REG, mask);
 
 		if ((mcasp->tdm_slots >= 2) && (mcasp->tdm_slots <= 32))
@@ -928,23 +936,22 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->version = pdata->version;
 	mcasp->txnumevt = pdata->txnumevt;
 	mcasp->rxnumevt = pdata->rxnumevt;
-	if (mcasp->version < MCASP_VERSION_3)
-		mcasp->fifo_base = DAVINCI_MCASP_V2_AFIFO_BASE;
-	else
-		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
 
 	mcasp->dev = &pdev->dev;
 
 	dat = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
-	if (!dat)
-		dat = mem;
+	if (dat)
+		mcasp->dat_port = true;
 
 	dma_data = &mcasp->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data->asp_chan_q = pdata->asp_chan_q;
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_pool = pdata->sram_pool;
 	dma_data->sram_size = pdata->sram_size_playback;
-	dma_data->dma_addr = dat->start + pdata->tx_dma_offset;
+	if (dat)
+		dma_data->dma_addr = dat->start;
+	else
+		dma_data->dma_addr = mem->start + pdata->tx_dma_offset;
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (res)
@@ -957,7 +964,18 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	dma_data->ram_chan_q = pdata->ram_chan_q;
 	dma_data->sram_pool = pdata->sram_pool;
 	dma_data->sram_size = pdata->sram_size_capture;
-	dma_data->dma_addr = dat->start + pdata->rx_dma_offset;
+	if (dat)
+		dma_data->dma_addr = dat->start;
+	else
+		dma_data->dma_addr = mem->start + pdata->rx_dma_offset;
+
+	if (mcasp->version < MCASP_VERSION_3) {
+		mcasp->fifo_base = DAVINCI_MCASP_V2_AFIFO_BASE;
+		/* dma_data->dma_addr is pointing to the data port address */
+		mcasp->dat_port = true;
+	} else {
+		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (res)
