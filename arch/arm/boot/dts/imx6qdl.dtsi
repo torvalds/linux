@@ -839,7 +839,7 @@
 				status = "disabled";
 			};
 
-			mipi@021dc000 { /* MIPI-CSI */
+			mipi_csi: mipi@021dc000 {
 				reg = <0x021dc000 0x4000>;
 			};
 
