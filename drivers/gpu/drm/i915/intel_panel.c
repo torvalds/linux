@@ -352,6 +352,14 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 	return val;
 }
 
+static u32 bdw_get_backlight(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return I915_READ(BLC_PWM_PCH_CTL2) & BACKLIGHT_DUTY_CYCLE_MASK;
+}
+
 static u32 pch_get_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -412,6 +420,14 @@ static u32 intel_panel_get_backlight(struct intel_connector *connector)
 
 	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
 	return val;
+}
+
+static void bdw_set_backlight(struct intel_connector *connector, u32 level)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val = I915_READ(BLC_PWM_PCH_CTL2) & ~BACKLIGHT_DUTY_CYCLE_MASK;
+	I915_WRITE(BLC_PWM_PCH_CTL2, val | level);
 }
 
 static void pch_set_backlight(struct intel_connector *connector, u32 level)
@@ -585,6 +601,38 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 	spin_unlock_irqrestore(&dev_priv->backlight_lock, flags);
 }
 
+static void bdw_enable_backlight(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_panel *panel = &connector->panel;
+	u32 pch_ctl1, pch_ctl2;
+
+	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
+	if (pch_ctl1 & BLM_PCH_PWM_ENABLE) {
+		DRM_DEBUG_KMS("pch backlight already enabled\n");
+		pch_ctl1 &= ~BLM_PCH_PWM_ENABLE;
+		I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
+	}
+
+	pch_ctl2 = panel->backlight.max << 16;
+	I915_WRITE(BLC_PWM_PCH_CTL2, pch_ctl2);
+
+	pch_ctl1 = 0;
+	if (panel->backlight.active_low_pwm)
+		pch_ctl1 |= BLM_PCH_POLARITY;
+
+	/* BDW always uses the pch pwm controls. */
+	pch_ctl1 |= BLM_PCH_OVERRIDE_ENABLE;
+
+	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
+	POSTING_READ(BLC_PWM_PCH_CTL1);
+	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1 | BLM_PCH_PWM_ENABLE);
+
+	/* This won't stick until the above enable. */
+	intel_panel_actually_set_backlight(connector, panel->backlight.level);
+}
+
 static void pch_enable_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -626,6 +674,7 @@ static void pch_enable_backlight(struct intel_connector *connector)
 	pch_ctl1 = 0;
 	if (panel->backlight.active_low_pwm)
 		pch_ctl1 |= BLM_PCH_POLARITY;
+
 	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
 	POSTING_READ(BLC_PWM_PCH_CTL1);
 	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1 | BLM_PCH_PWM_ENABLE);
@@ -869,6 +918,30 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
  * XXX: Query mode clock or hardware clock and program PWM modulation frequency
  * appropriately when it's 0. Use VBT and/or sane defaults.
  */
+static int bdw_setup_backlight(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_panel *panel = &connector->panel;
+	u32 pch_ctl1, pch_ctl2, val;
+
+	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
+	panel->backlight.active_low_pwm = pch_ctl1 & BLM_PCH_POLARITY;
+
+	pch_ctl2 = I915_READ(BLC_PWM_PCH_CTL2);
+	panel->backlight.max = pch_ctl2 >> 16;
+	if (!panel->backlight.max)
+		return -ENODEV;
+
+	val = bdw_get_backlight(connector);
+	panel->backlight.level = intel_panel_compute_brightness(connector, val);
+
+	panel->backlight.enabled = (pch_ctl1 & BLM_PCH_PWM_ENABLE) &&
+		panel->backlight.level != 0;
+
+	return 0;
+}
+
 static int pch_setup_backlight(struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
@@ -1036,7 +1109,13 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_BROADWELL(dev)) {
+		dev_priv->display.setup_backlight = bdw_setup_backlight;
+		dev_priv->display.enable_backlight = bdw_enable_backlight;
+		dev_priv->display.disable_backlight = pch_disable_backlight;
+		dev_priv->display.set_backlight = bdw_set_backlight;
+		dev_priv->display.get_backlight = bdw_get_backlight;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.setup_backlight = pch_setup_backlight;
 		dev_priv->display.enable_backlight = pch_enable_backlight;
 		dev_priv->display.disable_backlight = pch_disable_backlight;
