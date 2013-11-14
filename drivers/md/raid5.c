@@ -340,7 +340,8 @@ static void release_stripe(struct stripe_head *sh)
 	unsigned long flags;
 	bool wakeup;
 
-	if (test_and_set_bit(STRIPE_ON_RELEASE_LIST, &sh->state))
+	if (unlikely(!conf->mddev->thread) ||
+		test_and_set_bit(STRIPE_ON_RELEASE_LIST, &sh->state))
 		goto slow_path;
 	wakeup = llist_add(&sh->release_list, &conf->released_stripes);
 	if (wakeup)
