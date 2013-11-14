@@ -2519,12 +2519,13 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
 		return pte;
 
 	page = __alloc_for_cache(mm);
-	if (page) {
-		pgtable_page_ctor(page);
-		pte = (pte_t *) page_address(page);
+	if (!page)
+		return NULL;
+	if (!pgtable_page_ctor(page)) {
+		free_hot_cold_page(page, 0);
+		return NULL;
 	}
-
-	return pte;
+	return (pte_t *) page_address(page);
 }
 
 void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
