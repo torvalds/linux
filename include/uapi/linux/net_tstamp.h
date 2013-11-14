@@ -30,13 +30,13 @@ enum {
  *
  * @flags:	no flags defined right now, must be zero
  * @tx_type:	one of HWTSTAMP_TX_*
- * @rx_type:	one of one of HWTSTAMP_FILTER_*
+ * @rx_filter:	one of HWTSTAMP_FILTER_*
  *
  * %SIOCSHWTSTAMP expects a &struct ifreq with a ifr_data pointer to
- * this structure. dev_ifsioc() in the kernel takes care of the
- * translation between 32 bit userspace and 64 bit kernel. The
- * structure is intentionally chosen so that it has the same layout on
- * 32 and 64 bit systems, don't break this!
+ * this structure.  If the driver or hardware does not support the
+ * requested @rx_filter value, the driver may use a more general
+ * filter mode.  In this case @rx_filter will indicate the actual mode
+ * on return.
  */
 struct hwtstamp_config {
 	int flags;
