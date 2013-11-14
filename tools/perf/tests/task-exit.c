@@ -28,7 +28,7 @@ int test__task_exit(void)
 	union perf_event *event;
 	struct perf_evsel *evsel;
 	struct perf_evlist *evlist;
-	struct perf_target target = {
+	struct target target = {
 		.uid		= UINT_MAX,
 		.uses_mmap	= true,
 	};

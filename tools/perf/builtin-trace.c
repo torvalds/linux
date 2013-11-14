@@ -149,21 +149,32 @@ static void perf_evsel__delete_priv(struct perf_evsel *evsel)
 	perf_evsel__delete(evsel);
 }
 
-static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction,
-						    void *handler, int idx)
+static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel, void *handler)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction, idx);
-
-	if (evsel) {
-		evsel->priv = malloc(sizeof(struct syscall_tp));
-
-		if (evsel->priv == NULL)
-			goto out_delete;
-
+	evsel->priv = malloc(sizeof(struct syscall_tp));
+	if (evsel->priv != NULL) {
 		if (perf_evsel__init_sc_tp_uint_field(evsel, id))
 			goto out_delete;
 
 		evsel->handler = handler;
+		return 0;
+	}
+
+	return -ENOMEM;
+
+out_delete:
+	free(evsel->priv);
+	evsel->priv = NULL;
+	return -ENOENT;
+}
+
+static struct perf_evsel *perf_evsel__syscall_newtp(const char *direction, void *handler)
+{
+	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+
+	if (evsel) {
+		if (perf_evsel__init_syscall_tp(evsel, handler))
+			goto out_delete;
 	}
 
 	return evsel;
@@ -186,17 +197,16 @@ static int perf_evlist__add_syscall_newtp(struct perf_evlist *evlist,
 					  void *sys_exit_handler)
 {
 	int ret = -1;
-	int idx = evlist->nr_entries;
 	struct perf_evsel *sys_enter, *sys_exit;
 
-	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler, idx++);
+	sys_enter = perf_evsel__syscall_newtp("sys_enter", sys_enter_handler);
 	if (sys_enter == NULL)
 		goto out;
 
 	if (perf_evsel__init_sc_tp_ptr_field(sys_enter, args))
 		goto out_delete_sys_enter;
 
-	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler, idx++);
+	sys_exit = perf_evsel__syscall_newtp("sys_exit", sys_exit_handler);
 	if (sys_exit == NULL)
 		goto out_delete_sys_enter;
 
@@ -953,7 +963,8 @@ static struct syscall_fmt {
 	{ .name	    = "mmap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	  /* addr */
 			     [2] = SCA_MMAP_PROT, /* prot */
-			     [3] = SCA_MMAP_FLAGS, /* flags */ }, },
+			     [3] = SCA_MMAP_FLAGS, /* flags */
+			     [4] = SCA_FD, 	  /* fd */ }, },
 	{ .name	    = "mprotect",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* start */
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
@@ -1157,6 +1168,7 @@ struct trace {
 	bool			sched;
 	bool			multiple_threads;
 	bool			summary;
+	bool			summary_only;
 	bool			show_comm;
 	bool			show_tool_stats;
 	double			duration_filter;
@@ -1342,15 +1354,8 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
-	if (perf_target__has_task(&trace->opts.target)) {
-		err = perf_event__synthesize_thread_map(&trace->tool, evlist->threads,
-							trace__tool_process,
-							trace->host);
-	} else {
-		err = perf_event__synthesize_threads(&trace->tool, trace__tool_process,
-						     trace->host);
-	}
-
+	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
+					    evlist->threads, trace__tool_process, false);
 	if (err)
 		symbol__exit();
 
@@ -1607,7 +1612,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 					   args, trace, thread);
 
 	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
-		if (!trace->duration_filter) {
+		if (!trace->duration_filter && !trace->summary_only) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
 		}
@@ -1658,6 +1663,9 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		if (trace__filter_duration(trace, duration))
 			goto out;
 	} else if (trace->duration_filter)
+		goto out;
+
+	if (trace->summary_only)
 		goto out;
 
 	trace__fprintf_entry_head(trace, thread, duration, sample->time, trace->output);
@@ -1762,16 +1770,6 @@ static int trace__process_sample(struct perf_tool *tool,
 	return err;
 }
 
-static bool
-perf_session__has_tp(struct perf_session *session, const char *name)
-{
-	struct perf_evsel *evsel;
-
-	evsel = perf_evlist__find_tracepoint_by_name(session->evlist, name);
-
-	return evsel != NULL;
-}
-
 static int parse_target_str(struct trace *trace)
 {
 	if (trace->opts.target.pid) {
@@ -1824,8 +1822,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 
 static void perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname",
-						     evlist->nr_entries);
+	struct perf_evsel *evsel = perf_evsel__newtp("probe", "vfs_getname");
 	if (evsel == NULL)
 		return;
 
@@ -2009,8 +2006,6 @@ out_error:
 static int trace__replay(struct trace *trace)
 {
 	const struct perf_evsel_str_handler handlers[] = {
-		{ "raw_syscalls:sys_enter",  trace__sys_enter, },
-		{ "raw_syscalls:sys_exit",   trace__sys_exit, },
 		{ "probe:vfs_getname",	     trace__vfs_getname, },
 	};
 	struct perf_data_file file = {
@@ -2018,6 +2013,7 @@ static int trace__replay(struct trace *trace)
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	struct perf_session *session;
+	struct perf_evsel *evsel;
 	int err = -1;
 
 	trace->tool.sample	  = trace__process_sample;
@@ -2049,13 +2045,29 @@ static int trace__replay(struct trace *trace)
 	if (err)
 		goto out;
 
-	if (!perf_session__has_tp(session, "raw_syscalls:sys_enter")) {
-		pr_err("Data file does not have raw_syscalls:sys_enter events\n");
+	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+						     "raw_syscalls:sys_enter");
+	if (evsel == NULL) {
+		pr_err("Data file does not have raw_syscalls:sys_enter event\n");
 		goto out;
 	}
 
-	if (!perf_session__has_tp(session, "raw_syscalls:sys_exit")) {
-		pr_err("Data file does not have raw_syscalls:sys_exit events\n");
+	if (perf_evsel__init_syscall_tp(evsel, trace__sys_enter) < 0 ||
+	    perf_evsel__init_sc_tp_ptr_field(evsel, args)) {
+		pr_err("Error during initialize raw_syscalls:sys_enter event\n");
+		goto out;
+	}
+
+	evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+						     "raw_syscalls:sys_exit");
+	if (evsel == NULL) {
+		pr_err("Data file does not have raw_syscalls:sys_exit event\n");
+		goto out;
+	}
+
+	if (perf_evsel__init_syscall_tp(evsel, trace__sys_exit) < 0 ||
+	    perf_evsel__init_sc_tp_uint_field(evsel, ret)) {
+		pr_err("Error during initialize raw_syscalls:sys_exit event\n");
 		goto out;
 	}
 
@@ -2082,12 +2094,7 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 {
 	size_t printed;
 
-	printed  = fprintf(fp, "\n _____________________________________________________________________________\n");
-	printed += fprintf(fp, " __)    Summary of events    (__\n\n");
-	printed += fprintf(fp, "              [ task - pid ]     [ events ] [ ratio ]  [ runtime ]\n");
-	printed += fprintf(fp, "                                  syscall  count    min     max    avg  stddev\n");
-	printed += fprintf(fp, "                                                   msec    msec   msec     %%\n");
-	printed += fprintf(fp, " _____________________________________________________________________________\n\n");
+	printed  = fprintf(fp, "\n Summary of events:\n\n");
 
 	return printed;
 }
@@ -2105,6 +2112,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 	printed += fprintf(fp, "\n");
 
+	printed += fprintf(fp, "                                                    msec/call\n");
+	printed += fprintf(fp, "   syscall            calls      min      avg      max stddev\n");
+	printed += fprintf(fp, "   --------------- -------- -------- -------- -------- ------\n");
+
 	/* each int_node is a syscall */
 	while (inode) {
 		stats = inode->priv;
@@ -2119,10 +2130,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			avg /= NSEC_PER_MSEC;
 
 			sc = &trace->syscalls.table[inode->i];
-			printed += fprintf(fp, "%24s  %14s : ", "", sc->name);
-			printed += fprintf(fp, "%5" PRIu64 "  %8.3f  %8.3f",
-					   n, min, max);
-			printed += fprintf(fp, "  %8.3f  %6.2f\n", avg, pct);
+			printed += fprintf(fp, "   %-15s", sc->name);
+			printed += fprintf(fp, " %8" PRIu64 " %8.3f %8.3f",
+					   n, min, avg);
+			printed += fprintf(fp, " %8.3f %6.2f\n", max, pct);
 		}
 
 		inode = intlist__next(inode);
@@ -2163,10 +2174,10 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	printed += color_fprintf(fp, color, "%20s", thread__comm_str(thread));
-	printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
-	printed += color_fprintf(fp, color, "%5.1f%%", ratio);
-	printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
+	printed += color_fprintf(fp, color, " %s (%d), ", thread__comm_str(thread), thread->tid);
+	printed += fprintf(fp, "%lu events, ", ttrace->nr_events);
+	printed += color_fprintf(fp, color, "%.1f%%", ratio);
+	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
 	printed += thread__dump_stats(ttrace, trace, fp);
 
 	data->printed += printed;
@@ -2275,8 +2286,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_BOOLEAN('T', "time", &trace.full_time,
 		    "Show full timestamp, not time relative to first start"),
-	OPT_BOOLEAN(0, "summary", &trace.summary,
-		    "Show syscall summary with statistics"),
+	OPT_BOOLEAN('s', "summary", &trace.summary_only,
+		    "Show only syscall summary with statistics"),
+	OPT_BOOLEAN('S', "with-summary", &trace.summary,
+		    "Show all syscalls and summary with statistics"),
 	OPT_END()
 	};
 	int err;
@@ -2286,6 +2299,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		return trace__record(argc-2, &argv[2]);
 
 	argc = parse_options(argc, argv, trace_options, trace_usage, 0);
+
+	/* summary_only implies summary option, but don't overwrite summary if set */
+	if (trace.summary_only)
+		trace.summary = trace.summary_only;
 
 	if (output_name != NULL) {
 		err = trace__open_output(&trace, output_name);
@@ -2310,21 +2327,21 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 	}
 
-	err = perf_target__validate(&trace.opts.target);
+	err = target__validate(&trace.opts.target);
 	if (err) {
-		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		fprintf(trace.output, "%s", bf);
 		goto out_close;
 	}
 
-	err = perf_target__parse_uid(&trace.opts.target);
+	err = target__parse_uid(&trace.opts.target);
 	if (err) {
-		perf_target__strerror(&trace.opts.target, err, bf, sizeof(bf));
+		target__strerror(&trace.opts.target, err, bf, sizeof(bf));
 		fprintf(trace.output, "%s", bf);
 		goto out_close;
 	}
 
-	if (!argc && perf_target__none(&trace.opts.target))
+	if (!argc && target__none(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
 	if (input_name)
