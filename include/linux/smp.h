@@ -49,6 +49,9 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
+void __smp_call_function_single(int cpuid, struct call_single_data *data,
+				int wait);
+
 #ifdef CONFIG_SMP
 
 #include <linux/preempt.h>
@@ -94,9 +97,6 @@ extern void smp_cpus_done(unsigned int max_cpus);
 int smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
 			    smp_call_func_t func, void *info, bool wait);
-
-void __smp_call_function_single(int cpuid, struct call_single_data *data,
-				int wait);
 
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait);
@@ -150,12 +150,6 @@ smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
 }
 
 static inline void kick_all_cpus_sync(void) {  }
-
-static inline void __smp_call_function_single(int cpuid,
-		struct call_single_data *data, int wait)
-{
-	on_each_cpu(data->func, data->info, wait);
-}
 
 #endif /* !SMP */
 
