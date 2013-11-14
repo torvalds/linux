@@ -37,7 +37,8 @@ Optional properties:
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details
   		 please refer to pinctrl-bindings.txt
-  
+- fck_parent : Should contain a valid clock name which will be used as parent
+	       for the McASP fck
 
 Example:
 

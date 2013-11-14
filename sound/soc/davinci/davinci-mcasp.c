@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -823,6 +824,46 @@ static const struct of_device_id mcasp_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mcasp_dt_ids);
 
+static int mcasp_reparent_fck(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct clk *gfclk, *parent_clk;
+	const char *parent_name;
+	int ret;
+
+	if (!node)
+		return 0;
+
+	parent_name = of_get_property(node, "fck_parent", NULL);
+	if (!parent_name)
+		return 0;
+
+	gfclk = clk_get(&pdev->dev, "fck");
+	if (IS_ERR(gfclk)) {
+		dev_err(&pdev->dev, "failed to get fck\n");
+		return PTR_ERR(gfclk);
+	}
+
+	parent_clk = clk_get(NULL, parent_name);
+	if (IS_ERR(parent_clk)) {
+		dev_err(&pdev->dev, "failed to get parent clock\n");
+		ret = PTR_ERR(parent_clk);
+		goto err1;
+	}
+
+	ret = clk_set_parent(gfclk, parent_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to reparent fck\n");
+		goto err2;
+	}
+
+err2:
+	clk_put(parent_clk);
+err1:
+	clk_put(gfclk);
+	return ret;
+}
+
 static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 						struct platform_device *pdev)
 {
@@ -1052,6 +1093,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE].filter_data = "rx";
 
 	dev_set_drvdata(&pdev->dev, mcasp);
+
+	mcasp_reparent_fck(pdev);
+
 	ret = snd_soc_register_component(&pdev->dev, &davinci_mcasp_component,
 					 &davinci_mcasp_dai[pdata->op_mode], 1);
 
