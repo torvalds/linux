@@ -583,6 +583,26 @@ static inline int is_buf_blank(uint8_t *buf, size_t len)
 	return 1;
 }
 
+static void set_command_address(struct pxa3xx_nand_info *info,
+		unsigned int page_size, uint16_t column, int page_addr)
+{
+	/* small page addr setting */
+	if (page_size < PAGE_CHUNK_SIZE) {
+		info->ndcb1 = ((page_addr & 0xFFFFFF) << 8)
+				| (column & 0xFF);
+
+		info->ndcb2 = 0;
+	} else {
+		info->ndcb1 = ((page_addr & 0xFFFF) << 16)
+				| (column & 0xFFFF);
+
+		if (page_addr & 0xFF0000)
+			info->ndcb2 = (page_addr & 0xFF0000) >> 16;
+		else
+			info->ndcb2 = 0;
+	}
+}
+
 static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 		uint16_t column, int page_addr)
 {
@@ -646,22 +666,8 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 			info->ndcb0 |= NDCB0_DBC | (NAND_CMD_READSTART << 8);
 
 	case NAND_CMD_SEQIN:
-		/* small page addr setting */
-		if (unlikely(mtd->writesize < PAGE_CHUNK_SIZE)) {
-			info->ndcb1 = ((page_addr & 0xFFFFFF) << 8)
-					| (column & 0xFF);
 
-			info->ndcb2 = 0;
-		} else {
-			info->ndcb1 = ((page_addr & 0xFFFF) << 16)
-					| (column & 0xFFFF);
-
-			if (page_addr & 0xFF0000)
-				info->ndcb2 = (page_addr & 0xFF0000) >> 16;
-			else
-				info->ndcb2 = 0;
-		}
-
+		set_command_address(info, mtd->writesize, column, page_addr);
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		memset(info->data_buff, 0xFF, info->buf_count);
 
