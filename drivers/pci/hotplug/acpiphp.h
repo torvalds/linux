@@ -39,16 +39,6 @@
 #include <linux/mutex.h>
 #include <linux/pci_hotplug.h>
 
-#define dbg(format, arg...)					\
-	do {							\
-		if (acpiphp_debug)				\
-			printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg);		\
-	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
-
 struct acpiphp_context;
 struct acpiphp_bridge;
 struct acpiphp_slot;

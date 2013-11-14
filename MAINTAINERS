@@ -6427,6 +6427,7 @@ S:	Supported
 F:	Documentation/PCI/
 F:	drivers/pci/
 F:	include/linux/pci*
+F:	arch/x86/pci/
 
 PCI DRIVER FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -6434,6 +6435,12 @@ L:	linux-tegra@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/pci/nvidia,tegra20-pcie.txt
 F:	drivers/pci/host/pci-tegra.c
+
+PCI DRIVER FOR SAMSUNG EXYNOS
+M:	Jingoo Han <jg1.han@samsung.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	drivers/pci/host/pci-exynos.c
 
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team

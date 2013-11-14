@@ -319,7 +319,6 @@
 #define PCI_MSIX_PBA		8	/* Pending Bit Array offset */
 #define  PCI_MSIX_PBA_BIR	0x00000007 /* BAR index */
 #define  PCI_MSIX_PBA_OFFSET	0xfffffff8 /* Offset into specified BAR */
-#define  PCI_MSIX_FLAGS_BIRMASK	(7 << 0)   /* deprecated */
 #define PCI_CAP_MSIX_SIZEOF	12	/* size of MSIX registers */
 
 /* MSI-X entry's format */
@@ -558,7 +557,8 @@
 #define  PCI_EXP_DEVCAP2_OBFF_MSG	0x00040000 /* New message signaling */
 #define  PCI_EXP_DEVCAP2_OBFF_WAKE	0x00080000 /* Re-use WAKE# for OBFF */
 #define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
-#define  PCI_EXP_DEVCTL2_ARI		0x20	/* Alternative Routing-ID */
+#define  PCI_EXP_DEVCTL2_COMP_TIMEOUT	0x000f	/* Completion Timeout Value */
+#define  PCI_EXP_DEVCTL2_ARI		0x0020	/* Alternative Routing-ID */
 #define  PCI_EXP_DEVCTL2_IDO_REQ_EN	0x0100	/* Allow IDO for requests */
 #define  PCI_EXP_DEVCTL2_IDO_CMP_EN	0x0200	/* Allow IDO for completions */
 #define  PCI_EXP_DEVCTL2_LTR_EN		0x0400	/* Enable LTR mechanism */
