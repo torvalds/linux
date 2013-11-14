@@ -684,6 +684,8 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
+	memset(cmdinfo, 0, sizeof(*cmdinfo));
+
 	if (blk_rq_tagged(cmnd->request)) {
 		cmdinfo->stream = cmnd->request->tag + 2;
 	} else {
