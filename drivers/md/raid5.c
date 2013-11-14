@@ -5214,15 +5214,18 @@ raid5_show_group_thread_cnt(struct mddev *mddev, char *page)
 		return 0;
 }
 
-static int alloc_thread_groups(struct r5conf *conf, int cnt);
+static int alloc_thread_groups(struct r5conf *conf, int cnt,
+			       int *group_cnt,
+			       int *worker_cnt_per_group,
+			       struct r5worker_group **worker_groups);
 static ssize_t
 raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 {
 	struct r5conf *conf = mddev->private;
 	unsigned long new;
 	int err;
-	struct r5worker_group *old_groups;
-	int old_group_cnt;
+	struct r5worker_group *new_groups, *old_groups;
+	int group_cnt, worker_cnt_per_group;
 
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
@@ -5238,17 +5241,19 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 	mddev_suspend(mddev);
 
 	old_groups = conf->worker_groups;
-	old_group_cnt = conf->worker_cnt_per_group;
-
 	if (old_groups)
 		flush_workqueue(raid5_wq);
 
-	conf->worker_groups = NULL;
-	err = alloc_thread_groups(conf, new);
-	if (err) {
-		conf->worker_groups = old_groups;
-		conf->worker_cnt_per_group = old_group_cnt;
-	} else {
+	err = alloc_thread_groups(conf, new,
+				  &group_cnt, &worker_cnt_per_group,
+				  &new_groups);
+	if (!err) {
+		spin_lock_irq(&conf->device_lock);
+		conf->group_cnt = group_cnt;
+		conf->worker_cnt_per_group = worker_cnt_per_group;
+		conf->worker_groups = new_groups;
+		spin_unlock_irq(&conf->device_lock);
+
 		if (old_groups)
 			kfree(old_groups[0].workers);
 		kfree(old_groups);
@@ -5278,33 +5283,36 @@ static struct attribute_group raid5_attrs_group = {
 	.attrs = raid5_attrs,
 };
 
-static int alloc_thread_groups(struct r5conf *conf, int cnt)
+static int alloc_thread_groups(struct r5conf *conf, int cnt,
+			       int *group_cnt,
+			       int *worker_cnt_per_group,
+			       struct r5worker_group **worker_groups)
 {
 	int i, j;
 	ssize_t size;
 	struct r5worker *workers;
 
-	conf->worker_cnt_per_group = cnt;
+	*worker_cnt_per_group = cnt;
 	if (cnt == 0) {
-		conf->worker_groups = NULL;
+		*group_cnt = 0;
+		*worker_groups = NULL;
 		return 0;
 	}
-	conf->group_cnt = num_possible_nodes();
+	*group_cnt = num_possible_nodes();
 	size = sizeof(struct r5worker) * cnt;
-	workers = kzalloc(size * conf->group_cnt, GFP_NOIO);
-	conf->worker_groups = kzalloc(sizeof(struct r5worker_group) *
-				conf->group_cnt, GFP_NOIO);
-	if (!conf->worker_groups || !workers) {
+	workers = kzalloc(size * *group_cnt, GFP_NOIO);
+	*worker_groups = kzalloc(sizeof(struct r5worker_group) *
+				*group_cnt, GFP_NOIO);
+	if (!*worker_groups || !workers) {
 		kfree(workers);
-		kfree(conf->worker_groups);
-		conf->worker_groups = NULL;
+		kfree(*worker_groups);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < conf->group_cnt; i++) {
+	for (i = 0; i < *group_cnt; i++) {
 		struct r5worker_group *group;
 
-		group = &conf->worker_groups[i];
+		group = &(*worker_groups)[i];
 		INIT_LIST_HEAD(&group->handle_list);
 		group->conf = conf;
 		group->workers = workers + i * cnt;
@@ -5462,6 +5470,8 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	struct md_rdev *rdev;
 	struct disk_info *disk;
 	char pers_name[6];
+	int group_cnt, worker_cnt_per_group;
+	struct r5worker_group *new_group;
 
 	if (mddev->new_level != 5
 	    && mddev->new_level != 4
@@ -5496,7 +5506,12 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	if (conf == NULL)
 		goto abort;
 	/* Don't enable multi-threading by default*/
-	if (alloc_thread_groups(conf, 0))
+	if (!alloc_thread_groups(conf, 0, &group_cnt, &worker_cnt_per_group,
+				 &new_group)) {
+		conf->group_cnt = group_cnt;
+		conf->worker_cnt_per_group = worker_cnt_per_group;
+		conf->worker_groups = new_group;
+	} else
 		goto abort;
 	spin_lock_init(&conf->device_lock);
 	seqcount_init(&conf->gen_lock);
