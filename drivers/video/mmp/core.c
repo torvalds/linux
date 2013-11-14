@@ -173,7 +173,7 @@ struct mmp_path *mmp_register_path(struct mmp_path_info *info)
 		+ sizeof(struct mmp_overlay) * info->overlay_num;
 	path = kzalloc(size, GFP_KERNEL);
 	if (!path)
-		goto failed;
+		return NULL;
 
 	/* path set */
 	mutex_init(&path->access_ok);
@@ -219,11 +219,6 @@ struct mmp_path *mmp_register_path(struct mmp_path_info *info)
 
 	mutex_unlock(&disp_lock);
 	return path;
-
-failed:
-	kfree(path);
-	mutex_unlock(&disp_lock);
-	return NULL;
 }
 EXPORT_SYMBOL_GPL(mmp_register_path);
 
