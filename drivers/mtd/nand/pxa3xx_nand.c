@@ -85,6 +85,9 @@
 #define NDCR_INT_MASK           (0xFFF)
 
 #define NDSR_MASK		(0xfff)
+#define NDSR_ERR_CNT_OFF	(16)
+#define NDSR_ERR_CNT_MASK       (0x1f)
+#define NDSR_ERR_CNT(sr)	((sr >> NDSR_ERR_CNT_OFF) & NDSR_ERR_CNT_MASK)
 #define NDSR_RDY                (0x1 << 12)
 #define NDSR_FLASH_RDY          (0x1 << 11)
 #define NDSR_CS0_PAGED		(0x1 << 10)
@@ -93,8 +96,8 @@
 #define NDSR_CS1_CMDD		(0x1 << 7)
 #define NDSR_CS0_BBD		(0x1 << 6)
 #define NDSR_CS1_BBD		(0x1 << 5)
-#define NDSR_DBERR		(0x1 << 4)
-#define NDSR_SBERR		(0x1 << 3)
+#define NDSR_UNCORERR		(0x1 << 4)
+#define NDSR_CORERR		(0x1 << 3)
 #define NDSR_WRDREQ		(0x1 << 2)
 #define NDSR_RDDREQ		(0x1 << 1)
 #define NDSR_WRCMDREQ		(0x1)
@@ -135,9 +138,9 @@ enum {
 	ERR_NONE	= 0,
 	ERR_DMABUSERR	= -1,
 	ERR_SENDCMD	= -2,
-	ERR_DBERR	= -3,
+	ERR_UNCORERR	= -3,
 	ERR_BBERR	= -4,
-	ERR_SBERR	= -5,
+	ERR_CORERR	= -5,
 };
 
 enum {
@@ -221,6 +224,8 @@ struct pxa3xx_nand_info {
 	unsigned int		oob_size;
 	unsigned int		spare_size;
 	unsigned int		ecc_size;
+	unsigned int		ecc_err_cnt;
+	unsigned int		max_bitflips;
 	int 			retcode;
 
 	/* cached register value */
@@ -567,10 +572,25 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 
 	status = nand_readl(info, NDSR);
 
-	if (status & NDSR_DBERR)
-		info->retcode = ERR_DBERR;
-	if (status & NDSR_SBERR)
-		info->retcode = ERR_SBERR;
+	if (status & NDSR_UNCORERR)
+		info->retcode = ERR_UNCORERR;
+	if (status & NDSR_CORERR) {
+		info->retcode = ERR_CORERR;
+		if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370 &&
+		    info->ecc_bch)
+			info->ecc_err_cnt = NDSR_ERR_CNT(status);
+		else
+			info->ecc_err_cnt = 1;
+
+		/*
+		 * Each chunk composing a page is corrected independently,
+		 * and we need to store maximum number of corrected bitflips
+		 * to return it to the MTD layer in ecc.read_page().
+		 */
+		info->max_bitflips = max_t(unsigned int,
+					   info->max_bitflips,
+					   info->ecc_err_cnt);
+	}
 	if (status & (NDSR_RDDREQ | NDSR_WRDREQ)) {
 		/* whether use dma to transfer data */
 		if (info->use_dma) {
@@ -668,6 +688,7 @@ static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 	info->use_ecc		= 0;
 	info->use_spare		= 1;
 	info->retcode		= ERR_NONE;
+	info->ecc_err_cnt	= 0;
 	info->ndcb3		= 0;
 
 	switch (command) {
@@ -1049,26 +1070,18 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int max_bitflips = 0;
 
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	if (info->retcode == ERR_SBERR) {
-		switch (info->use_ecc) {
-		case 1:
-			max_bitflips = 1;
-			mtd->ecc_stats.corrected++;
-			break;
-		case 0:
-		default:
-			break;
-		}
-	} else if (info->retcode == ERR_DBERR) {
+	if (info->retcode == ERR_CORERR && info->use_ecc) {
+		mtd->ecc_stats.corrected += info->ecc_err_cnt;
+
+	} else if (info->retcode == ERR_UNCORERR) {
 		/*
 		 * for blank page (all 0xff), HW will calculate its ECC as
 		 * 0, which is different from the ECC information within
-		 * OOB, ignore such double bit errors
+		 * OOB, ignore such uncorrectable errors
 		 */
 		if (is_buf_blank(buf, mtd->writesize))
 			info->retcode = ERR_NONE;
@@ -1076,7 +1089,7 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 			mtd->ecc_stats.failed++;
 	}
 
-	return max_bitflips;
+	return info->max_bitflips;
 }
 
 static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
