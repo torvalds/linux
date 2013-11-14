@@ -346,6 +346,16 @@ config I2C_BCM2835
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-bcm2835.
 
+config I2C_BCM_KONA
+	tristate "BCM Kona I2C adapter"
+	depends on ARCH_BCM_MOBILE
+	default y
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Broadcom Kona family of processors.
+
+	  If you do not need KONA I2C inteface, say N.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
