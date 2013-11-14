@@ -146,7 +146,8 @@ static void uas_do_work(struct work_struct *work)
 }
 
 static void uas_mark_cmd_dead(struct uas_dev_info *devinfo,
-			      struct uas_cmd_info *cmdinfo, const char *caller)
+			      struct uas_cmd_info *cmdinfo,
+			      int result, const char *caller)
 {
 	struct scsi_pointer *scp = (void *)cmdinfo;
 	struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd, SCp);
@@ -156,10 +157,12 @@ static void uas_mark_cmd_dead(struct uas_dev_info *devinfo,
 	WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
 	cmdinfo->state |= COMMAND_ABORTED;
 	cmdinfo->state &= ~IS_IN_WORK_LIST;
+	cmnd->result = result << 16;
 	list_move_tail(&cmdinfo->list, &devinfo->dead_list);
 }
 
-static void uas_abort_inflight(struct uas_dev_info *devinfo)
+static void uas_abort_inflight(struct uas_dev_info *devinfo, int result,
+			       const char *caller)
 {
 	struct uas_cmd_info *cmdinfo;
 	struct uas_cmd_info *temp;
@@ -167,7 +170,7 @@ static void uas_abort_inflight(struct uas_dev_info *devinfo)
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 	list_for_each_entry_safe(cmdinfo, temp, &devinfo->inflight_list, list)
-		uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
+		uas_mark_cmd_dead(devinfo, cmdinfo, result, caller);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -289,10 +292,8 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	cmdinfo->state |= COMMAND_COMPLETED;
 	usb_free_urb(cmdinfo->data_in_urb);
 	usb_free_urb(cmdinfo->data_out_urb);
-	if (cmdinfo->state & COMMAND_ABORTED) {
+	if (cmdinfo->state & COMMAND_ABORTED)
 		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
-		cmnd->result = DID_ABORT << 16;
-	}
 	list_del(&cmdinfo->list);
 	cmnd->scsi_done(cmnd);
 	return 0;
@@ -824,7 +825,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 		return FAILED;
 	}
 
-	uas_mark_cmd_dead(devinfo, cmdinfo, __func__);
+	uas_mark_cmd_dead(devinfo, cmdinfo, DID_ABORT, __func__);
 	if (cmdinfo->state & COMMAND_INFLIGHT) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
@@ -860,7 +861,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 
 	shost_printk(KERN_INFO, sdev->host, "%s start\n", __func__);
 	devinfo->resetting = 1;
-	uas_abort_inflight(devinfo);
+	uas_abort_inflight(devinfo, DID_RESET, __func__);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
@@ -1153,7 +1154,7 @@ static void uas_disconnect(struct usb_interface *intf)
 
 	devinfo->resetting = 1;
 	cancel_work_sync(&devinfo->work);
-	uas_abort_inflight(devinfo);
+	uas_abort_inflight(devinfo, DID_NO_CONNECT, __func__);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
