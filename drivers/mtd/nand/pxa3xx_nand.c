@@ -1360,9 +1360,13 @@ static int pxa_ecc_init(struct pxa3xx_nand_info *info,
 
 static int armada370_ecc_init(struct pxa3xx_nand_info *info,
 			      struct nand_ecc_ctrl *ecc,
-			      int strength, int page_size)
+			      int strength, int ecc_stepsize, int page_size)
 {
-	if (strength == 4 && page_size == 4096) {
+	/*
+	 * Required ECC: 4-bit correction per 512 bytes
+	 * Select: 16-bit correction per 2048 bytes
+	 */
+	if (strength == 4 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
 		info->chunk_size = 2048;
 		info->spare_size = 32;
@@ -1373,7 +1377,11 @@ static int armada370_ecc_init(struct pxa3xx_nand_info *info,
 		ecc->strength = 16;
 		return 1;
 
-	} else if (strength == 8 && page_size == 4096) {
+	/*
+	 * Required ECC: 8-bit correction per 512 bytes
+	 * Select: 16-bit correction per 1024 bytes
+	 */
+	} else if (strength == 8 && ecc_stepsize == 512 && page_size == 4096) {
 		info->ecc_bch = 1;
 		info->chunk_size = 1024;
 		info->spare_size = 0;
@@ -1481,6 +1489,7 @@ KEEP_CONFIG:
 	if (info->variant == PXA3XX_NAND_VARIANT_ARMADA370)
 		ret = armada370_ecc_init(info, &chip->ecc,
 				   chip->ecc_strength_ds,
+				   chip->ecc_step_ds,
 				   mtd->writesize);
 	else
 		ret = pxa_ecc_init(info, &chip->ecc,
