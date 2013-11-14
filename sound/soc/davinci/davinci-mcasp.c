@@ -987,7 +987,7 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 
 	},
 	{
-		"davinci-mcasp.1",
+		.name		= "davinci-mcasp.1",
 		.playback 	= {
 			.channels_min	= 1,
 			.channels_max	= 384,
