@@ -249,7 +249,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 			&hsr_node_if2_age,
 			&hsr_node_if2_seq);
 	if (res < 0)
-		goto fail;
+		goto nla_put_failure;
 
 	res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN,
 					nla_data(info->attrs[HSR_A_NODE_ADDR]));
