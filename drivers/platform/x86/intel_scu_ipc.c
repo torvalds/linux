@@ -235,7 +235,7 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	}
 
 	err = busy_loop();
-	if (id == IPC_CMD_PCNTRL_R) { /* Read rbuf */
+	if (!err && id == IPC_CMD_PCNTRL_R) { /* Read rbuf */
 		/* Workaround: values are read as 0 without memcpy_fromio */
 		memcpy_fromio(cbuf, ipcdev.ipc_base + 0x90, 16);
 		for (nc = 0; nc < count; nc++)
@@ -465,8 +465,10 @@ int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 	ipc_command((inlen << 16) | (sub << 12) | cmd);
 	err = busy_loop();
 
-	for (i = 0; i < outlen; i++)
-		*out++ = ipc_data_readl(4 * i);
+	if (!err) {
+		for (i = 0; i < outlen; i++)
+			*out++ = ipc_data_readl(4 * i);
+	}
 
 	mutex_unlock(&ipclock);
 	return err;
