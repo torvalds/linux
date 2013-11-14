@@ -1771,6 +1771,9 @@ static int i915_pipe_crc_open(struct inode *inode, struct file *filep)
 	struct drm_i915_private *dev_priv = info->dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[info->pipe];
 
+	if (info->pipe >= INTEL_INFO(info->dev)->num_pipes)
+		return -ENODEV;
+
 	spin_lock_irq(&pipe_crc->lock);
 
 	if (pipe_crc->opened) {
