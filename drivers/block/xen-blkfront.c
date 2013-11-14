@@ -489,7 +489,7 @@ static int blkif_queue_request(struct request *req)
 
 			if ((ring_req->operation == BLKIF_OP_INDIRECT) &&
 			    (i % SEGS_PER_INDIRECT_FRAME == 0)) {
-				unsigned long pfn;
+				unsigned long uninitialized_var(pfn);
 
 				if (segments)
 					kunmap_atomic(segments);
