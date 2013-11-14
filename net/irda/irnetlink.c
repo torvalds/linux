@@ -131,7 +131,7 @@ static const struct nla_policy irda_nl_policy[IRDA_NL_ATTR_MAX + 1] = {
 	[IRDA_NL_ATTR_MODE] = { .type = NLA_U32 },
 };
 
-static struct genl_ops irda_nl_ops[] = {
+static const struct genl_ops irda_nl_ops[] = {
 	{
 		.cmd = IRDA_NL_CMD_SET_MODE,
 		.doit = irda_nl_set_mode,

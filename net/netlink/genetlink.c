@@ -106,13 +106,13 @@ static struct genl_family *genl_family_find_byname(char *name)
 	return NULL;
 }
 
-static struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
+static const struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
 {
-	struct genl_ops *ops;
+	int i;
 
-	list_for_each_entry(ops, &family->ops_list, ops_list)
-		if (ops->cmd == cmd)
-			return ops;
+	for (i = 0; i < family->n_ops; i++)
+		if (family->ops[i].cmd == cmd)
+			return &family->ops[i];
 
 	return NULL;
 }
@@ -283,85 +283,26 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 		__genl_unregister_mc_group(family, grp);
 }
 
-/**
- * genl_register_ops - register generic netlink operations
- * @family: generic netlink family
- * @ops: operations to be registered
- *
- * Registers the specified operations and assigns them to the specified
- * family. Either a doit or dumpit callback must be specified or the
- * operation will fail. Only one operation structure per command
- * identifier may be registered.
- *
- * See include/net/genetlink.h for more documenation on the operations
- * structure.
- *
- * Returns 0 on success or a negative error code.
- */
-int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
+static int genl_validate_add_ops(struct genl_family *family,
+				 const struct genl_ops *ops,
+				 unsigned int n_ops)
 {
-	int err = -EINVAL;
+	int i, j;
 
-	if (ops->dumpit == NULL && ops->doit == NULL)
-		goto errout;
-
-	if (genl_get_cmd(ops->cmd, family)) {
-		err = -EEXIST;
-		goto errout;
+	for (i = 0; i < n_ops; i++) {
+		if (ops[i].dumpit == NULL && ops[i].doit == NULL)
+			return -EINVAL;
+		for (j = i + 1; j < n_ops; j++)
+			if (ops[i].cmd == ops[j].cmd)
+				return -EINVAL;
 	}
 
-	if (ops->dumpit)
-		ops->flags |= GENL_CMD_CAP_DUMP;
-	if (ops->doit)
-		ops->flags |= GENL_CMD_CAP_DO;
-	if (ops->policy)
-		ops->flags |= GENL_CMD_CAP_HASPOL;
+	/* family is not registered yet, so no locking needed */
+	family->ops = ops;
+	family->n_ops = n_ops;
 
-	genl_lock_all();
-	list_add_tail(&ops->ops_list, &family->ops_list);
-	genl_unlock_all();
-
-	genl_ctrl_event(CTRL_CMD_NEWOPS, ops);
-	err = 0;
-errout:
-	return err;
+	return 0;
 }
-EXPORT_SYMBOL(genl_register_ops);
-
-/**
- * genl_unregister_ops - unregister generic netlink operations
- * @family: generic netlink family
- * @ops: operations to be unregistered
- *
- * Unregisters the specified operations and unassigns them from the
- * specified family. The operation blocks until the current message
- * processing has finished and doesn't start again until the
- * unregister process has finished.
- *
- * Note: It is not necessary to unregister all operations before
- *       unregistering the family, unregistering the family will cause
- *       all assigned operations to be unregistered automatically.
- *
- * Returns 0 on success or a negative error code.
- */
-int genl_unregister_ops(struct genl_family *family, struct genl_ops *ops)
-{
-	struct genl_ops *rc;
-
-	genl_lock_all();
-	list_for_each_entry(rc, &family->ops_list, ops_list) {
-		if (rc == ops) {
-			list_del(&ops->ops_list);
-			genl_unlock_all();
-			genl_ctrl_event(CTRL_CMD_DELOPS, ops);
-			return 0;
-		}
-	}
-	genl_unlock_all();
-
-	return -ENOENT;
-}
-EXPORT_SYMBOL(genl_unregister_ops);
 
 /**
  * __genl_register_family - register a generic netlink family
@@ -384,7 +325,6 @@ int __genl_register_family(struct genl_family *family)
 	if (family->id > GENL_MAX_ID)
 		goto errout;
 
-	INIT_LIST_HEAD(&family->ops_list);
 	INIT_LIST_HEAD(&family->mcast_groups);
 
 	genl_lock_all();
@@ -451,30 +391,18 @@ EXPORT_SYMBOL(__genl_register_family);
  * See include/net/genetlink.h for more documenation on the operations
  * structure.
  *
- * This is equivalent to calling genl_register_family() followed by
- * genl_register_ops() for every operation entry in the table taking
- * care to unregister the family on error path.
- *
  * Return 0 on success or a negative error code.
  */
 int __genl_register_family_with_ops(struct genl_family *family,
-	struct genl_ops *ops, size_t n_ops)
+	const struct genl_ops *ops, size_t n_ops)
 {
-	int err, i;
+	int err;
 
-	err = __genl_register_family(family);
+	err = genl_validate_add_ops(family, ops, n_ops);
 	if (err)
 		return err;
 
-	for (i = 0; i < n_ops; ++i, ++ops) {
-		err = genl_register_ops(family, ops);
-		if (err)
-			goto err_out;
-	}
-	return 0;
-err_out:
-	genl_unregister_family(family);
-	return err;
+	return __genl_register_family(family);
 }
 EXPORT_SYMBOL(__genl_register_family_with_ops);
 
@@ -499,7 +427,7 @@ int genl_unregister_family(struct genl_family *family)
 			continue;
 
 		list_del(&rc->family_list);
-		INIT_LIST_HEAD(&family->ops_list);
+		family->n_ops = 0;
 		genl_unlock_all();
 
 		kfree(family->attrbuf);
@@ -546,7 +474,8 @@ EXPORT_SYMBOL(genlmsg_put);
 
 static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct genl_ops *ops = cb->data;
+	/* our ops are always const - netlink API doesn't propagate that */
+	const struct genl_ops *ops = cb->data;
 	int rc;
 
 	genl_lock();
@@ -557,7 +486,8 @@ static int genl_lock_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 static int genl_lock_done(struct netlink_callback *cb)
 {
-	struct genl_ops *ops = cb->data;
+	/* our ops are always const - netlink API doesn't propagate that */
+	const struct genl_ops *ops = cb->data;
 	int rc = 0;
 
 	if (ops->done) {
@@ -572,7 +502,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 			       struct sk_buff *skb,
 			       struct nlmsghdr *nlh)
 {
-	struct genl_ops *ops;
+	const struct genl_ops *ops;
 	struct net *net = sock_net(skb->sk);
 	struct genl_info info;
 	struct genlmsghdr *hdr = nlmsg_data(nlh);
@@ -604,7 +534,8 @@ static int genl_family_rcv_msg(struct genl_family *family,
 		if (!family->parallel_ops) {
 			struct netlink_dump_control c = {
 				.module = family->module,
-				.data = ops,
+				/* we have const, but the netlink API doesn't */
+				.data = (void *)ops,
 				.dump = genl_lock_dumpit,
 				.done = genl_lock_done,
 			};
@@ -726,24 +657,32 @@ static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 	    nla_put_u32(skb, CTRL_ATTR_MAXATTR, family->maxattr))
 		goto nla_put_failure;
 
-	if (!list_empty(&family->ops_list)) {
+	if (family->n_ops) {
 		struct nlattr *nla_ops;
-		struct genl_ops *ops;
-		int idx = 1;
+		int i;
 
 		nla_ops = nla_nest_start(skb, CTRL_ATTR_OPS);
 		if (nla_ops == NULL)
 			goto nla_put_failure;
 
-		list_for_each_entry(ops, &family->ops_list, ops_list) {
+		for (i = 0; i < family->n_ops; i++) {
 			struct nlattr *nest;
+			const struct genl_ops *ops = &family->ops[i];
+			u32 flags = ops->flags;
 
-			nest = nla_nest_start(skb, idx++);
+			if (ops->dumpit)
+				flags |= GENL_CMD_CAP_DUMP;
+			if (ops->doit)
+				flags |= GENL_CMD_CAP_DO;
+			if (ops->policy)
+				flags |= GENL_CMD_CAP_HASPOL;
+
+			nest = nla_nest_start(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
 
 			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, ops->cmd) ||
-			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, ops->flags))
+			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, flags))
 				goto nla_put_failure;
 
 			nla_nest_end(skb, nest);

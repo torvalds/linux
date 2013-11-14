@@ -2644,7 +2644,7 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 	return err;
 }
 
-static struct genl_ops team_nl_ops[] = {
+static const struct genl_ops team_nl_ops[] = {
 	{
 		.cmd = TEAM_CMD_NOOP,
 		.doit = team_nl_cmd_noop,
