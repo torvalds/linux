@@ -534,9 +534,16 @@ struct create_durable {
 	} Data;
 } __packed;
 
+#define COPY_CHUNK_RES_KEY_SIZE	24
+struct resume_key_req {
+	char ResumeKey[COPY_CHUNK_RES_KEY_SIZE];
+	__le32	ContextLength;	/* MBZ */
+	char	Context[0];	/* ignored, Windows sets to 4 bytes of zero */
+} __packed;
+
 /* this goes in the ioctl buffer when doing a copychunk request */
 struct copychunk_ioctl {
-	char SourceKey[24];
+	char SourceKey[COPY_CHUNK_RES_KEY_SIZE];
 	__le32 ChunkCount; /* we are only sending 1 */
 	__le32 Reserved;
 	/* array will only be one chunk long for us */
@@ -544,6 +551,12 @@ struct copychunk_ioctl {
 	__le64 TargetOffset;
 	__le32 Length; /* how many bytes to copy */
 	__u32 Reserved2;
+} __packed;
+
+struct copychunk_ioctl_rsp {
+	__le32 ChunksWritten;
+	__le32 ChunkBytesWritten;
+	__le32 TotalBytesWritten;
 } __packed;
 
 /* Response and Request are the same format */
