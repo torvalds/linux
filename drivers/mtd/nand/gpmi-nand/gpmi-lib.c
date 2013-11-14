@@ -20,6 +20,7 @@
  */
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include "gpmi-nand.h"
 #include "gpmi-regs.h"
@@ -911,9 +912,13 @@ static int enable_edo_mode(struct gpmi_nand_data *this, int mode)
 	struct resources  *r = &this->resources;
 	struct nand_chip *nand = &this->nand;
 	struct mtd_info	 *mtd = &this->mtd;
-	uint8_t feature[ONFI_SUBFEATURE_PARAM_LEN] = {};
+	uint8_t *feature;
 	unsigned long rate;
 	int ret;
+
+	feature = kzalloc(ONFI_SUBFEATURE_PARAM_LEN, GFP_KERNEL);
+	if (!feature)
+		return -ENOMEM;
 
 	nand->select_chip(mtd, 0);
 
@@ -942,11 +947,13 @@ static int enable_edo_mode(struct gpmi_nand_data *this, int mode)
 
 	this->flags |= GPMI_ASYNC_EDO_ENABLED;
 	this->timing_mode = mode;
+	kfree(feature);
 	dev_info(this->dev, "enable the asynchronous EDO mode %d\n", mode);
 	return 0;
 
 err_out:
 	nand->select_chip(mtd, -1);
+	kfree(feature);
 	dev_err(this->dev, "mode:%d ,failed in set feature.\n", mode);
 	return -EINVAL;
 }
