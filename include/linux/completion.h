@@ -19,8 +19,8 @@
  *
  * See also:  complete(), wait_for_completion() (and friends _timeout,
  * _interruptible, _interruptible_timeout, and _killable), init_completion(),
- * and macros DECLARE_COMPLETION(), DECLARE_COMPLETION_ONSTACK(), and
- * INIT_COMPLETION().
+ * reinit_completion(), and macros DECLARE_COMPLETION(),
+ * DECLARE_COMPLETION_ONSTACK().
  */
 struct completion {
 	unsigned int done;
@@ -65,7 +65,7 @@ struct completion {
 
 /**
  * init_completion - Initialize a dynamically allocated completion
- * @x:  completion structure that is to be initialized
+ * @x:  pointer to completion structure that is to be initialized
  *
  * This inline function will initialize a dynamically created completion
  * structure.
@@ -74,6 +74,18 @@ static inline void init_completion(struct completion *x)
 {
 	x->done = 0;
 	init_waitqueue_head(&x->wait);
+}
+
+/**
+ * reinit_completion - reinitialize a completion structure
+ * @x:  pointer to completion structure that is to be reinitialized
+ *
+ * This inline function should be used to reinitialize a completion structure so it can
+ * be reused. This is especially important after complete_all() is used.
+ */
+static inline void reinit_completion(struct completion *x)
+{
+	x->done = 0;
 }
 
 extern void wait_for_completion(struct completion *);
