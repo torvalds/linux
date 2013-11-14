@@ -2699,17 +2699,12 @@ int ll_inode_permission(struct inode *inode, int mask)
 	return rc;
 }
 
-#define READ_METHOD aio_read
-#define READ_FUNCTION ll_file_aio_read
-#define WRITE_METHOD aio_write
-#define WRITE_FUNCTION ll_file_aio_write
-
 /* -o localflock - only provides locally consistent flock locks */
 struct file_operations ll_file_operations = {
 	.read	   = ll_file_read,
-	.READ_METHOD    = READ_FUNCTION,
+	.aio_read = ll_file_aio_read,
 	.write	  = ll_file_write,
-	.WRITE_METHOD   = WRITE_FUNCTION,
+	.aio_write = ll_file_aio_write,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,
 	.release	= ll_file_release,
@@ -2722,9 +2717,9 @@ struct file_operations ll_file_operations = {
 
 struct file_operations ll_file_operations_flock = {
 	.read	   = ll_file_read,
-	.READ_METHOD    = READ_FUNCTION,
+	.aio_read    = ll_file_aio_read,
 	.write	  = ll_file_write,
-	.WRITE_METHOD   = WRITE_FUNCTION,
+	.aio_write   = ll_file_aio_write,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,
 	.release	= ll_file_release,
@@ -2740,9 +2735,9 @@ struct file_operations ll_file_operations_flock = {
 /* These are for -o noflock - to return ENOSYS on flock calls */
 struct file_operations ll_file_operations_noflock = {
 	.read	   = ll_file_read,
-	.READ_METHOD    = READ_FUNCTION,
+	.aio_read    = ll_file_aio_read,
 	.write	  = ll_file_write,
-	.WRITE_METHOD   = WRITE_FUNCTION,
+	.aio_write   = ll_file_aio_write,
 	.unlocked_ioctl = ll_file_ioctl,
 	.open	   = ll_file_open,
 	.release	= ll_file_release,
