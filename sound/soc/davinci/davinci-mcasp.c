@@ -35,8 +35,6 @@
 #include "davinci-pcm.h"
 #include "davinci-mcasp.h"
 
-#define DAVINCI_MCASP_NUM_SERIALIZER	16
-
 struct davinci_audio_dev {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
