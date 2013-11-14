@@ -38,6 +38,7 @@
 struct davinci_mcasp {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
+	u32 fifo_base;
 	struct device *dev;
 
 	/* McASP specific data */
@@ -153,38 +154,20 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 
 static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
 {
+	u32 reg;
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (mcasp->txnumevt) {	/* enable FIFO */
-			switch (mcasp->version) {
-			case MCASP_VERSION_3:
-				mcasp_clr_bits(mcasp->base + MCASP_VER3_WFIFOCTL,
-					       FIFO_ENABLE);
-				mcasp_set_bits(mcasp->base + MCASP_VER3_WFIFOCTL,
-					       FIFO_ENABLE);
-				break;
-			default:
-				mcasp_clr_bits(mcasp->base +
-					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
-				mcasp_set_bits(mcasp->base +
-					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
-			}
+			reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+			mcasp_clr_bits(mcasp->base + reg, FIFO_ENABLE);
+			mcasp_set_bits(mcasp->base + reg, FIFO_ENABLE);
 		}
 		mcasp_start_tx(mcasp);
 	} else {
 		if (mcasp->rxnumevt) {	/* enable FIFO */
-			switch (mcasp->version) {
-			case MCASP_VERSION_3:
-				mcasp_clr_bits(mcasp->base + MCASP_VER3_RFIFOCTL,
-					       FIFO_ENABLE);
-				mcasp_set_bits(mcasp->base + MCASP_VER3_RFIFOCTL,
-					       FIFO_ENABLE);
-				break;
-			default:
-				mcasp_clr_bits(mcasp->base +
-					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
-				mcasp_set_bits(mcasp->base +
-					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
-			}
+			reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+			mcasp_clr_bits(mcasp->base + reg, FIFO_ENABLE);
+			mcasp_set_bits(mcasp->base + reg, FIFO_ENABLE);
 		}
 		mcasp_start_rx(mcasp);
 	}
@@ -204,31 +187,18 @@ static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 
 static void davinci_mcasp_stop(struct davinci_mcasp *mcasp, int stream)
 {
+	u32 reg;
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (mcasp->txnumevt) {	/* disable FIFO */
-			switch (mcasp->version) {
-			case MCASP_VERSION_3:
-				mcasp_clr_bits(mcasp->base + MCASP_VER3_WFIFOCTL,
-					       FIFO_ENABLE);
-				break;
-			default:
-				mcasp_clr_bits(mcasp->base +
-					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
-			}
+			reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+			mcasp_clr_bits(mcasp->base + reg, FIFO_ENABLE);
 		}
 		mcasp_stop_tx(mcasp);
 	} else {
 		if (mcasp->rxnumevt) {	/* disable FIFO */
-			switch (mcasp->version) {
-			case MCASP_VERSION_3:
-				mcasp_clr_bits(mcasp->base + MCASP_VER3_RFIFOCTL,
-					       FIFO_ENABLE);
-			break;
-
-			default:
-				mcasp_clr_bits(mcasp->base +
-					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
-			}
+			reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+			mcasp_clr_bits(mcasp->base + reg, FIFO_ENABLE);
 		}
 		mcasp_stop_rx(mcasp);
 	}
@@ -438,6 +408,7 @@ static int davinci_hw_common_param(struct davinci_mcasp *mcasp, int stream,
 	u8 ser;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
+	u32 reg;
 	/* Default configuration */
 	mcasp_set_bits(mcasp->base + DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
 
@@ -488,37 +459,20 @@ static int davinci_hw_common_param(struct davinci_mcasp *mcasp, int stream,
 		if (mcasp->txnumevt * tx_ser > 64)
 			mcasp->txnumevt = 1;
 
-		switch (mcasp->version) {
-		case MCASP_VERSION_3:
-			mcasp_mod_bits(mcasp->base + MCASP_VER3_WFIFOCTL, tx_ser,
-								NUMDMA_MASK);
-			mcasp_mod_bits(mcasp->base + MCASP_VER3_WFIFOCTL,
-				((mcasp->txnumevt * tx_ser) << 8), NUMEVT_MASK);
-			break;
-		default:
-			mcasp_mod_bits(mcasp->base + DAVINCI_MCASP_WFIFOCTL,
-							tx_ser,	NUMDMA_MASK);
-			mcasp_mod_bits(mcasp->base + DAVINCI_MCASP_WFIFOCTL,
-				((mcasp->txnumevt * tx_ser) << 8), NUMEVT_MASK);
-		}
+		reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+		mcasp_mod_bits(mcasp->base + reg, tx_ser, NUMDMA_MASK);
+		mcasp_mod_bits(mcasp->base + reg,
+			       ((mcasp->txnumevt * tx_ser) << 8), NUMEVT_MASK);
 	}
 
 	if (mcasp->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (mcasp->rxnumevt * rx_ser > 64)
 			mcasp->rxnumevt = 1;
-		switch (mcasp->version) {
-		case MCASP_VERSION_3:
-			mcasp_mod_bits(mcasp->base + MCASP_VER3_RFIFOCTL, rx_ser,
-								NUMDMA_MASK);
-			mcasp_mod_bits(mcasp->base + MCASP_VER3_RFIFOCTL,
-				((mcasp->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
-			break;
-		default:
-			mcasp_mod_bits(mcasp->base + DAVINCI_MCASP_RFIFOCTL,
-							rx_ser,	NUMDMA_MASK);
-			mcasp_mod_bits(mcasp->base + DAVINCI_MCASP_RFIFOCTL,
-				((mcasp->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
-		}
+
+		reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+		mcasp_mod_bits(mcasp->base + reg, rx_ser, NUMDMA_MASK);
+		mcasp_mod_bits(mcasp->base + reg,
+			       ((mcasp->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
 	}
 
 	return 0;
@@ -974,6 +928,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->version = pdata->version;
 	mcasp->txnumevt = pdata->txnumevt;
 	mcasp->rxnumevt = pdata->rxnumevt;
+	if (mcasp->version < MCASP_VERSION_3)
+		mcasp->fifo_base = DAVINCI_MCASP_V2_AFIFO_BASE;
+	else
+		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
+
 	mcasp->dev = &pdev->dev;
 
 	dat = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
