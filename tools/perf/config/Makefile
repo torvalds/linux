@@ -142,7 +142,8 @@ CORE_FEATURE_TESTS =			\
 	libunwind			\
 	on-exit				\
 	stackprotector			\
-	stackprotector-all
+	stackprotector-all		\
+	timerfd
 
 #
 # So here we detect whether test-all was rebuilt, to be able
@@ -405,7 +406,6 @@ else
   endif
 endif
 
-$(call feature_check,timerfd)
 ifeq ($(feature-timerfd), 1)
   CFLAGS += -DHAVE_TIMERFD_SUPPORT
 else
