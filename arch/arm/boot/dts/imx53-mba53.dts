@@ -163,7 +163,7 @@
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 150>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
 	};
