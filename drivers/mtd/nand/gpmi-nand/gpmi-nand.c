@@ -486,16 +486,9 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 	void __iomem *p;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
-	if (!r) {
-		pr_err("Can't get resource for %s\n", res_name);
-		return -ENODEV;
-	}
-
-	p = ioremap(r->start, resource_size(r));
-	if (!p) {
-		pr_err("Can't remap %s\n", res_name);
-		return -ENOMEM;
-	}
+	p = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 
 	if (!strcmp(res_name, GPMI_NAND_GPMI_REGS_ADDR_RES_NAME))
 		res->gpmi_regs = p;
@@ -505,17 +498,6 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 		pr_err("unknown resource name : %s\n", res_name);
 
 	return 0;
-}
-
-static void release_register_block(struct gpmi_nand_data *this)
-{
-	struct resources *res = &this->resources;
-	if (res->gpmi_regs)
-		iounmap(res->gpmi_regs);
-	if (res->bch_regs)
-		iounmap(res->bch_regs);
-	res->gpmi_regs = NULL;
-	res->bch_regs = NULL;
 }
 
 static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
@@ -665,13 +647,11 @@ exit_clock:
 exit_dma_channels:
 	release_bch_irq(this);
 exit_regs:
-	release_register_block(this);
 	return ret;
 }
 
 static void release_resources(struct gpmi_nand_data *this)
 {
-	release_register_block(this);
 	release_bch_irq(this);
 	release_dma_channels(this);
 }
