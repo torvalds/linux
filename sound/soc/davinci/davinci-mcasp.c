@@ -48,6 +48,7 @@ struct davinci_mcasp {
 	u8	*serial_dir;
 	u8	version;
 	u16	bclk_lrclk_ratio;
+	int	streams;
 
 	/* McASP FIFO related */
 	u8	txnumevt;
@@ -110,10 +111,31 @@ static void mcasp_set_ctl_reg(void __iomem *regs, u32 val)
 		printk(KERN_ERR "GBLCTL write error\n");
 }
 
+static bool mcasp_is_synchronous(struct davinci_mcasp *mcasp)
+{
+	u32 rxfmctl = mcasp_get_reg(mcasp->base + DAVINCI_MCASP_RXFMCTL_REG);
+	u32 aclkxctl = mcasp_get_reg(mcasp->base + DAVINCI_MCASP_ACLKXCTL_REG);
+
+	return !(aclkxctl & TX_ASYNC) && rxfmctl & AFSRE;
+}
+
 static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 {
 	mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, RXHCLKRST);
 	mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, RXCLKRST);
+
+	/*
+	 * When ASYNC == 0 the transmit and receive sections operate
+	 * synchronously from the transmit clock and frame sync. We need to make
+	 * sure that the TX signlas are enabled when starting reception.
+	 */
+	if (mcasp_is_synchronous(mcasp)) {
+		mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG,
+				  TXHCLKRST);
+		mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG,
+				  TXCLKRST);
+	}
+
 	mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, RXSERCLR);
 	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_RXBUF_REG, 0);
 
@@ -123,6 +145,10 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 
 	mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, RXSMRST);
 	mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, RXFSRST);
+
+	if (mcasp_is_synchronous(mcasp))
+		mcasp_set_ctl_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG,
+				  TXFSRST);
 }
 
 static void mcasp_start_tx(struct davinci_mcasp *mcasp)
@@ -158,6 +184,8 @@ static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
 {
 	u32 reg;
 
+	mcasp->streams++;
+
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (mcasp->txnumevt) {	/* enable FIFO */
 			reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
@@ -177,19 +205,37 @@ static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
 
 static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 {
+	/*
+	 * In synchronous mode stop the TX clocks if no other stream is
+	 * running
+	 */
+	if (mcasp_is_synchronous(mcasp) && !mcasp->streams)
+		mcasp_set_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG, 0);
+
 	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_GBLCTLR_REG, 0);
 	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_RXSTAT_REG, 0xFFFFFFFF);
 }
 
 static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 {
-	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG, 0);
+	u32 val = 0;
+
+	/*
+	 * In synchronous mode keep TX clocks running if the capture stream is
+	 * still running.
+	 */
+	if (mcasp_is_synchronous(mcasp) && mcasp->streams)
+		val =  TXHCLKRST | TXCLKRST | TXFSRST;
+
+	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_GBLCTLX_REG, val);
 	mcasp_set_reg(mcasp->base + DAVINCI_MCASP_TXSTAT_REG, 0xFFFFFFFF);
 }
 
 static void davinci_mcasp_stop(struct davinci_mcasp *mcasp, int stream)
 {
 	u32 reg;
+
+	mcasp->streams--;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (mcasp->txnumevt) {	/* disable FIFO */
