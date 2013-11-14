@@ -503,7 +503,6 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 {
 	struct platform_device *pdev = this->pdev;
-	struct resources *res = &this->resources;
 	const char *res_name = GPMI_NAND_BCH_INTERRUPT_RES_NAME;
 	struct resource *r;
 	int err;
@@ -514,24 +513,11 @@ static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 		return -ENODEV;
 	}
 
-	err = request_irq(r->start, irq_h, 0, res_name, this);
-	if (err) {
-		pr_err("Can't own %s\n", res_name);
-		return err;
-	}
+	err = devm_request_irq(this->dev, r->start, irq_h, 0, res_name, this);
+	if (err)
+		dev_err(this->dev, "error requesting BCH IRQ\n");
 
-	res->bch_low_interrupt = r->start;
-	res->bch_high_interrupt = r->end;
-	return 0;
-}
-
-static void release_bch_irq(struct gpmi_nand_data *this)
-{
-	struct resources *res = &this->resources;
-	int i = res->bch_low_interrupt;
-
-	for (; i <= res->bch_high_interrupt; i++)
-		free_irq(i, this);
+	return err;
 }
 
 static void release_dma_channels(struct gpmi_nand_data *this)
@@ -635,7 +621,7 @@ static int acquire_resources(struct gpmi_nand_data *this)
 
 	ret = acquire_dma_channels(this);
 	if (ret)
-		goto exit_dma_channels;
+		goto exit_regs;
 
 	ret = gpmi_get_clks(this);
 	if (ret)
@@ -644,15 +630,12 @@ static int acquire_resources(struct gpmi_nand_data *this)
 
 exit_clock:
 	release_dma_channels(this);
-exit_dma_channels:
-	release_bch_irq(this);
 exit_regs:
 	return ret;
 }
 
 static void release_resources(struct gpmi_nand_data *this)
 {
-	release_bch_irq(this);
 	release_dma_channels(this);
 }
 
