@@ -51,9 +51,13 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
 					unsigned long addr)
 {
+	pte_t *pte;
 	struct page *page;
 
-	page = virt_to_page(pte_alloc_one_kernel(mm, addr));
+	pte = pte_alloc_one_kernel(mm, addr);
+	if (!pte)
+		return NULL;
+	page = virt_to_page(pte);
 	pgtable_page_ctor(page);
 	return page;
 }
