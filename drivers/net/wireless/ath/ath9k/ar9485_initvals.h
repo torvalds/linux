@@ -32,13 +32,6 @@ static const u32 ar9485_1_1_mac_postamble[][5] = {
 	{0x00008318, 0x00003e80, 0x00007d00, 0x00006880, 0x00003440},
 };
 
-static const u32 ar9485_1_1_pcie_phy_pll_on_clkreq_disable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18012e5e},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0000080c},
-};
-
 static const u32 ar9485Common_wo_xlna_rx_gain_1_1[][2] = {
 	/* Addr      allmodes  */
 	{0x00009e00, 0x037216a0},
@@ -1101,20 +1094,6 @@ static const u32 ar9485_common_rx_gain_1_1[][2] = {
 	{0x0000a1fc, 0x00000296},
 };
 
-static const u32 ar9485_1_1_pcie_phy_pll_on_clkreq_enable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18052e5e},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0000080c},
-};
-
-static const u32 ar9485_1_1_pcie_phy_clkreq_enable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18053e5e},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0000080c},
-};
-
 static const u32 ar9485_1_1_soc_preamble[][2] = {
 	/* Addr      allmodes  */
 	{0x00004014, 0xba280400},
@@ -1171,13 +1150,6 @@ static const u32 ar9485_1_1_baseband_postamble[][5] = {
 	{0x0000a358, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
 	{0x0000be04, 0x00802020, 0x00802020, 0x00802020, 0x00802020},
 	{0x0000be18, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
-};
-
-static const u32 ar9485_1_1_pcie_phy_clkreq_disable_L1[][2] = {
-	/* Addr      allmodes  */
-	{0x00018c00, 0x18013e5e},
-	{0x00018c04, 0x000801d8},
-	{0x00018c08, 0x0000080c},
 };
 
 static const u32 ar9485_1_1_radio_postamble[][2] = {
@@ -1356,6 +1328,20 @@ static const u32 ar9485_1_1_baseband_core_txfir_coeff_japan_2484[][2] = {
 	{0x0000a398, 0x00000000},
 	{0x0000a39c, 0x6f7f0301},
 	{0x0000a3a0, 0xca9228ee},
+};
+
+static const u32 ar9485_1_1_pcie_phy_clkreq_disable_L1[][2] = {
+	/* Addr      allmodes  */
+	{0x00018c00, 0x18013e5e},
+	{0x00018c04, 0x000801d8},
+	{0x00018c08, 0x0000080c},
+};
+
+static const u32 ar9485_1_1_pll_on_cdr_on_clkreq_disable_L1[][2] = {
+	/* Addr      allmodes  */
+	{0x00018c00, 0x1801265e},
+	{0x00018c04, 0x000801d8},
+	{0x00018c08, 0x0000080c},
 };
 
 #endif /* INITVALS_9485_H */
