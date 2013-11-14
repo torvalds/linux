@@ -29,6 +29,7 @@
 #include <linux/wait.h>
 #include <linux/blockgroup_lock.h>
 #include <linux/percpu_counter.h>
+#include <linux/ratelimit.h>
 #include <crypto/hash.h>
 #ifdef __KERNEL__
 #include <linux/compat.h>
@@ -1314,6 +1315,11 @@ struct ext4_sb_info {
 	unsigned long s_es_last_sorted;
 	struct percpu_counter s_extent_cache_cnt;
 	spinlock_t s_es_lru_lock ____cacheline_aligned_in_smp;
+
+	/* Ratelimit ext4 messages. */
+	struct ratelimit_state s_err_ratelimit_state;
+	struct ratelimit_state s_warning_ratelimit_state;
+	struct ratelimit_state s_msg_ratelimit_state;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1396,7 +1402,18 @@ static inline void ext4_clear_inode_##name(struct inode *inode, int bit) \
 	clear_bit(bit + (offset), &EXT4_I(inode)->i_##field);		\
 }
 
+/* Add these declarations here only so that these functions can be
+ * found by name.  Otherwise, they are very hard to locate. */
+static inline int ext4_test_inode_flag(struct inode *inode, int bit);
+static inline void ext4_set_inode_flag(struct inode *inode, int bit);
+static inline void ext4_clear_inode_flag(struct inode *inode, int bit);
 EXT4_INODE_BIT_FNS(flag, flags, 0)
+
+/* Add these declarations here only so that these functions can be
+ * found by name.  Otherwise, they are very hard to locate. */
+static inline int ext4_test_inode_state(struct inode *inode, int bit);
+static inline void ext4_set_inode_state(struct inode *inode, int bit);
+static inline void ext4_clear_inode_state(struct inode *inode, int bit);
 #if (BITS_PER_LONG < 64)
 EXT4_INODE_BIT_FNS(state, state_flags, 0)
 
