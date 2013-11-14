@@ -2870,8 +2870,8 @@ static int stop(struct mddev *mddev)
 			   atomic_read(&bitmap->behind_writes) == 0);
 	}
 
-	raise_barrier(conf);
-	lower_barrier(conf);
+	freeze_array(conf, 0);
+	unfreeze_array(conf);
 
 	md_unregister_thread(&mddev->thread);
 	if (conf->r1bio_pool)
@@ -3030,10 +3030,10 @@ static void raid1_quiesce(struct mddev *mddev, int state)
 		wake_up(&conf->wait_barrier);
 		break;
 	case 1:
-		raise_barrier(conf);
+		freeze_array(conf, 0);
 		break;
 	case 0:
-		lower_barrier(conf);
+		unfreeze_array(conf);
 		break;
 	}
 }
@@ -3050,7 +3050,8 @@ static void *raid1_takeover(struct mddev *mddev)
 		mddev->new_chunk_sectors = 0;
 		conf = setup_conf(mddev);
 		if (!IS_ERR(conf))
-			conf->barrier = 1;
+			/* Array must appear to be quiesced */
+			conf->array_frozen = 1;
 		return conf;
 	}
 	return ERR_PTR(-EINVAL);
