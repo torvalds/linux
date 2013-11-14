@@ -21,6 +21,7 @@
 #include <mach/at91rm9200.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
+#include <mach/hardware.h>
 
 #include "board.h"
 #include "generic.h"

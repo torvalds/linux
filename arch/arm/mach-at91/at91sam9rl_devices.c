@@ -21,6 +21,7 @@
 #include <mach/at91sam9rl_matrix.h>
 #include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
+#include <mach/hardware.h>
 #include <linux/platform_data/dma-atmel.h>
 
 #include "board.h"
