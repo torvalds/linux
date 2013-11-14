@@ -18,6 +18,7 @@
 #include <asm/mach/arch.h>
 #include <asm/cputype.h>
 #include <asm/mpu.h>
+#include <asm/procinfo.h>
 
 #include "mm.h"
 
