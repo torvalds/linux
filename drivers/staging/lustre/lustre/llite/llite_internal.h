@@ -46,6 +46,7 @@
 #include <lclient.h>
 #include <lustre_mdc.h>
 #include <linux/lustre_intent.h>
+#include <linux/compat.h>
 
 #ifndef FMODE_EXEC
 #define FMODE_EXEC 0
@@ -643,7 +644,7 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 #if BITS_PER_LONG == 32
 	return 1;
 #else
-	return unlikely(current_is_32bit() || (sbi->ll_flags & LL_SBI_32BIT_API));
+	return unlikely(is_compat_task() || (sbi->ll_flags & LL_SBI_32BIT_API));
 #endif
 }
 
