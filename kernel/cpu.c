@@ -306,7 +306,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 				__func__, cpu);
 		goto out_release;
 	}
-	smpboot_park_threads(cpu);
 
 	/*
 	 * By now we've cleared cpu_active_mask, wait for all preempt-disabled
@@ -315,11 +314,15 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 *
 	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
 	 * not imply sync_sched(), so explicitly call both.
+	 *
+	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
 #ifdef CONFIG_PREEMPT
 	synchronize_sched();
 #endif
 	synchronize_rcu();
+
+	smpboot_park_threads(cpu);
 
 	/*
 	 * So now all preempt/rcu users must observe !cpu_active().
