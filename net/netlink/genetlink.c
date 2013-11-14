@@ -283,22 +283,7 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 		__genl_unregister_mc_group(family, grp);
 }
 
-/**
- * genl_register_ops - register generic netlink operations
- * @family: generic netlink family
- * @ops: operations to be registered
- *
- * Registers the specified operations and assigns them to the specified
- * family. Either a doit or dumpit callback must be specified or the
- * operation will fail. Only one operation structure per command
- * identifier may be registered.
- *
- * See include/net/genetlink.h for more documenation on the operations
- * structure.
- *
- * Returns 0 on success or a negative error code.
- */
-int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
+static int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
 {
 	int err = -EINVAL;
 
@@ -326,42 +311,6 @@ int genl_register_ops(struct genl_family *family, struct genl_ops *ops)
 errout:
 	return err;
 }
-EXPORT_SYMBOL(genl_register_ops);
-
-/**
- * genl_unregister_ops - unregister generic netlink operations
- * @family: generic netlink family
- * @ops: operations to be unregistered
- *
- * Unregisters the specified operations and unassigns them from the
- * specified family. The operation blocks until the current message
- * processing has finished and doesn't start again until the
- * unregister process has finished.
- *
- * Note: It is not necessary to unregister all operations before
- *       unregistering the family, unregistering the family will cause
- *       all assigned operations to be unregistered automatically.
- *
- * Returns 0 on success or a negative error code.
- */
-int genl_unregister_ops(struct genl_family *family, struct genl_ops *ops)
-{
-	struct genl_ops *rc;
-
-	genl_lock_all();
-	list_for_each_entry(rc, &family->ops_list, ops_list) {
-		if (rc == ops) {
-			list_del(&ops->ops_list);
-			genl_unlock_all();
-			genl_ctrl_event(CTRL_CMD_DELOPS, ops);
-			return 0;
-		}
-	}
-	genl_unlock_all();
-
-	return -ENOENT;
-}
-EXPORT_SYMBOL(genl_unregister_ops);
 
 /**
  * __genl_register_family - register a generic netlink family
@@ -450,10 +399,6 @@ EXPORT_SYMBOL(__genl_register_family);
  *
  * See include/net/genetlink.h for more documenation on the operations
  * structure.
- *
- * This is equivalent to calling genl_register_family() followed by
- * genl_register_ops() for every operation entry in the table taking
- * care to unregister the family on error path.
  *
  * Return 0 on success or a negative error code.
  */

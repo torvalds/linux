@@ -141,8 +141,6 @@ static inline int genl_register_family_with_ops(struct genl_family *family,
 }
 
 int genl_unregister_family(struct genl_family *family);
-int genl_register_ops(struct genl_family *, struct genl_ops *ops);
-int genl_unregister_ops(struct genl_family *, struct genl_ops *ops);
 int genl_register_mc_group(struct genl_family *family,
 			   struct genl_multicast_group *grp);
 void genl_unregister_mc_group(struct genl_family *family,
