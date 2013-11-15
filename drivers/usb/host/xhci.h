@@ -1595,14 +1595,6 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 #define xhci_warn_ratelimited(xhci, fmt, args...) \
 	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
-/* TODO: copied from ehci.h - can be refactored? */
-/* xHCI spec says all registers are little endian */
-static inline void xhci_writel(struct xhci_hcd *xhci,
-		const unsigned int val, __le32 __iomem *regs)
-{
-	writel(val, regs);
-}
-
 /*
  * Registers should always be accessed with double word or quad word accesses.
  *

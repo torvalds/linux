@@ -88,7 +88,7 @@ void xhci_quiesce(struct xhci_hcd *xhci)
 
 	cmd = readl(&xhci->op_regs->command);
 	cmd &= mask;
-	xhci_writel(xhci, cmd, &xhci->op_regs->command);
+	writel(cmd, &xhci->op_regs->command);
 }
 
 /*
@@ -128,7 +128,7 @@ static int xhci_start(struct xhci_hcd *xhci)
 	temp |= (CMD_RUN);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Turn on HC, cmd = 0x%x.",
 			temp);
-	xhci_writel(xhci, temp, &xhci->op_regs->command);
+	writel(temp, &xhci->op_regs->command);
 
 	/*
 	 * Wait for the HCHalted Status bit to be 0 to indicate the host is
@@ -167,7 +167,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Reset the HC");
 	command = readl(&xhci->op_regs->command);
 	command |= CMD_RESET;
-	xhci_writel(xhci, command, &xhci->op_regs->command);
+	writel(command, &xhci->op_regs->command);
 
 	ret = xhci_handshake(xhci, &xhci->op_regs->command,
 			CMD_RESET, 0, 10 * 1000 * 1000);
@@ -614,21 +614,20 @@ int xhci_run(struct usb_hcd *hcd)
 	temp = readl(&xhci->ir_set->irq_control);
 	temp &= ~ER_IRQ_INTERVAL_MASK;
 	temp |= (u32) 160;
-	xhci_writel(xhci, temp, &xhci->ir_set->irq_control);
+	writel(temp, &xhci->ir_set->irq_control);
 
 	/* Set the HCD state before we enable the irqs */
 	temp = readl(&xhci->op_regs->command);
 	temp |= (CMD_EIE);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Enable interrupts, cmd = 0x%x.", temp);
-	xhci_writel(xhci, temp, &xhci->op_regs->command);
+	writel(temp, &xhci->op_regs->command);
 
 	temp = readl(&xhci->ir_set->irq_pending);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Enabling event ring interrupter %p by writing 0x%x to irq_pending",
 			xhci->ir_set, (unsigned int) ER_IRQ_ENABLE(temp));
-	xhci_writel(xhci, ER_IRQ_ENABLE(temp),
-			&xhci->ir_set->irq_pending);
+	writel(ER_IRQ_ENABLE(temp), &xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, 0);
 
 	if (xhci->quirks & XHCI_NEC_HOST)
@@ -699,10 +698,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Disabling event ring interrupts");
 	temp = readl(&xhci->op_regs->status);
-	xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
+	writel(temp & ~STS_EINT, &xhci->op_regs->status);
 	temp = readl(&xhci->ir_set->irq_pending);
-	xhci_writel(xhci, ER_IRQ_DISABLE(temp),
-			&xhci->ir_set->irq_pending);
+	writel(ER_IRQ_DISABLE(temp), &xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, 0);
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "cleaning up memory");
@@ -762,15 +760,15 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 
 static void xhci_restore_registers(struct xhci_hcd *xhci)
 {
-	xhci_writel(xhci, xhci->s3.command, &xhci->op_regs->command);
-	xhci_writel(xhci, xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
+	writel(xhci->s3.command, &xhci->op_regs->command);
+	writel(xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
 	xhci_write_64(xhci, xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
-	xhci_writel(xhci, xhci->s3.config_reg, &xhci->op_regs->config_reg);
-	xhci_writel(xhci, xhci->s3.erst_size, &xhci->ir_set->erst_size);
+	writel(xhci->s3.config_reg, &xhci->op_regs->config_reg);
+	writel(xhci->s3.erst_size, &xhci->ir_set->erst_size);
 	xhci_write_64(xhci, xhci->s3.erst_base, &xhci->ir_set->erst_base);
 	xhci_write_64(xhci, xhci->s3.erst_dequeue, &xhci->ir_set->erst_dequeue);
-	xhci_writel(xhci, xhci->s3.irq_pending, &xhci->ir_set->irq_pending);
-	xhci_writel(xhci, xhci->s3.irq_control, &xhci->ir_set->irq_control);
+	writel(xhci->s3.irq_pending, &xhci->ir_set->irq_pending);
+	writel(xhci->s3.irq_control, &xhci->ir_set->irq_control);
 }
 
 static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
@@ -868,7 +866,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	/* step 2: clear Run/Stop bit */
 	command = readl(&xhci->op_regs->command);
 	command &= ~CMD_RUN;
-	xhci_writel(xhci, command, &xhci->op_regs->command);
+	writel(command, &xhci->op_regs->command);
 
 	/* Some chips from Fresco Logic need an extraordinary delay */
 	delay *= (xhci->quirks & XHCI_SLOW_SUSPEND) ? 10 : 1;
@@ -887,7 +885,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	/* step 4: set CSS flag */
 	command = readl(&xhci->op_regs->command);
 	command |= CMD_CSS;
-	xhci_writel(xhci, command, &xhci->op_regs->command);
+	writel(command, &xhci->op_regs->command);
 	if (xhci_handshake(xhci, &xhci->op_regs->status,
 				STS_SAVE, 0, 10 * 1000)) {
 		xhci_warn(xhci, "WARN: xHC save state timeout\n");
@@ -953,7 +951,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		/* step 3: set CRS flag */
 		command = readl(&xhci->op_regs->command);
 		command |= CMD_CRS;
-		xhci_writel(xhci, command, &xhci->op_regs->command);
+		writel(command, &xhci->op_regs->command);
 		if (xhci_handshake(xhci, &xhci->op_regs->status,
 			      STS_RESTORE, 0, 10 * 1000)) {
 			xhci_warn(xhci, "WARN: xHC restore state timeout\n");
@@ -985,10 +983,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 
 		xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 		temp = readl(&xhci->op_regs->status);
-		xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
+		writel(temp & ~STS_EINT, &xhci->op_regs->status);
 		temp = readl(&xhci->ir_set->irq_pending);
-		xhci_writel(xhci, ER_IRQ_DISABLE(temp),
-				&xhci->ir_set->irq_pending);
+		writel(ER_IRQ_DISABLE(temp), &xhci->ir_set->irq_pending);
 		xhci_print_ir_set(xhci, 0);
 
 		xhci_dbg(xhci, "cleaning up memory\n");
@@ -1025,7 +1022,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	/* step 4: set Run/Stop bit */
 	command = readl(&xhci->op_regs->command);
 	command |= CMD_RUN;
-	xhci_writel(xhci, command, &xhci->op_regs->command);
+	writel(command, &xhci->op_regs->command);
 	xhci_handshake(xhci, &xhci->op_regs->status, STS_HALT,
 		  0, 250 * 1000);
 
@@ -4082,7 +4079,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			hlpm_val = xhci_calculate_usb2_hw_lpm_params(udev);
-			xhci_writel(xhci, hlpm_val, hlpm_addr);
+			writel(hlpm_val, hlpm_addr);
 			/* flush write */
 			readl(hlpm_addr);
 		} else {
@@ -4091,15 +4088,15 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 
 		pm_val &= ~PORT_HIRD_MASK;
 		pm_val |= PORT_HIRD(hird) | PORT_RWE | PORT_L1DS(udev->slot_id);
-		xhci_writel(xhci, pm_val, pm_addr);
+		writel(pm_val, pm_addr);
 		pm_val = readl(pm_addr);
 		pm_val |= PORT_HLE;
-		xhci_writel(xhci, pm_val, pm_addr);
+		writel(pm_val, pm_addr);
 		/* flush write */
 		readl(pm_addr);
 	} else {
 		pm_val &= ~(PORT_HLE | PORT_RWE | PORT_HIRD_MASK | PORT_L1DS_MASK);
-		xhci_writel(xhci, pm_val, pm_addr);
+		writel(pm_val, pm_addr);
 		/* flush write */
 		readl(pm_addr);
 		if (udev->usb2_hw_lpm_besl_capable) {

@@ -2254,7 +2254,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	val |= (val2 & ~HCS_SLOTS_MASK);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting Max device slots reg = 0x%x.", val);
-	xhci_writel(xhci, val, &xhci->op_regs->config_reg);
+	writel(val, &xhci->op_regs->config_reg);
 
 	/*
 	 * Section 5.4.8 - doorbell array must be
@@ -2388,7 +2388,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Write ERST size = %i to ir_set 0 (some bits preserved)",
 			val);
-	xhci_writel(xhci, val, &xhci->ir_set->erst_size);
+	writel(val, &xhci->ir_set->erst_size);
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Set ERST entries to point to event ring.");
@@ -2434,7 +2434,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	temp = readl(&xhci->op_regs->dev_notification);
 	temp &= ~DEV_NOTE_MASK;
 	temp |= DEV_NOTE_FWAKE;
-	xhci_writel(xhci, temp, &xhci->op_regs->dev_notification);
+	writel(temp, &xhci->op_regs->dev_notification);
 
 	return 0;
 
