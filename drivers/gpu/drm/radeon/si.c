@@ -80,6 +80,8 @@ extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					 bool enable);
+static void si_init_pg(struct radeon_device *rdev);
+static void si_init_cg(struct radeon_device *rdev);
 static void si_fini_pg(struct radeon_device *rdev);
 static void si_fini_cg(struct radeon_device *rdev);
 static void si_rlc_stop(struct radeon_device *rdev);
@@ -3722,6 +3724,106 @@ static void si_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	evergreen_print_gpu_status_regs(rdev);
 }
 
+static void si_set_clk_bypass_mode(struct radeon_device *rdev)
+{
+	u32 tmp, i;
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_BYPASS_EN;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp |= SPLL_CTLREQ_CHG;
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(SPLL_STATUS) & SPLL_CHG_STATUS)
+			break;
+		udelay(1);
+	}
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL_2);
+	tmp &= ~(SPLL_CTLREQ_CHG | SCLK_MUX_UPDATE);
+	WREG32(CG_SPLL_FUNC_CNTL_2, tmp);
+
+	tmp = RREG32(MPLL_CNTL_MODE);
+	tmp &= ~MPLL_MCLK_SEL;
+	WREG32(MPLL_CNTL_MODE, tmp);
+}
+
+static void si_spll_powerdown(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	tmp = RREG32(SPLL_CNTL_MODE);
+	tmp |= SPLL_SW_DIR_CONTROL;
+	WREG32(SPLL_CNTL_MODE, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_RESET;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(CG_SPLL_FUNC_CNTL);
+	tmp |= SPLL_SLEEP;
+	WREG32(CG_SPLL_FUNC_CNTL, tmp);
+
+	tmp = RREG32(SPLL_CNTL_MODE);
+	tmp &= ~SPLL_SW_DIR_CONTROL;
+	WREG32(SPLL_CNTL_MODE, tmp);
+}
+
+static void si_gpu_pci_config_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 tmp, i;
+
+	dev_info(rdev->dev, "GPU pci config reset\n");
+
+	/* disable dpm? */
+
+	/* disable cg/pg */
+	si_fini_pg(rdev);
+	si_fini_cg(rdev);
+
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+	/* dma0 */
+	tmp = RREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL + DMA0_REGISTER_OFFSET, tmp);
+	/* dma1 */
+	tmp = RREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET);
+	tmp &= ~DMA_RB_ENABLE;
+	WREG32(DMA_RB_CNTL + DMA1_REGISTER_OFFSET, tmp);
+	/* XXX other engines? */
+
+	/* halt the rlc, disable cp internal ints */
+	si_rlc_stop(rdev);
+
+	udelay(50);
+
+	/* disable mem access */
+	evergreen_mc_stop(rdev, &save);
+	if (evergreen_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timed out !\n");
+	}
+
+	/* set mclk/sclk to bypass */
+	si_set_clk_bypass_mode(rdev);
+	/* powerdown spll */
+	si_spll_powerdown(rdev);
+	/* disable BM */
+	pci_clear_master(rdev->pdev);
+	/* reset */
+	radeon_pci_config_reset(rdev);
+	/* wait for asic to come out of reset */
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(CONFIG_MEMSIZE) != 0xffffffff)
+			break;
+		udelay(1);
+	}
+}
+
 int si_asic_reset(struct radeon_device *rdev)
 {
 	u32 reset_mask;
@@ -3731,7 +3833,14 @@ int si_asic_reset(struct radeon_device *rdev)
 	if (reset_mask)
 		r600_set_bios_scratch_engine_hung(rdev, true);
 
+	/* try soft reset */
 	si_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = si_gpu_check_soft_reset(rdev);
+
+	/* try pci config reset */
+	if (reset_mask && radeon_hard_reset)
+		si_gpu_pci_config_reset(rdev);
 
 	reset_mask = si_gpu_check_soft_reset(rdev);
 
