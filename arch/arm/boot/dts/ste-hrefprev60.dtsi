@@ -68,6 +68,10 @@
 		};
 
 		pinctrl {
+			/* Set this up using hogs */
+			pinctrl-names = "default";
+			pinctrl-0 = <&ipgpio_hrefprev60_mode>;
+
 			ssp0 {
 				ssp0_hrefprev60_mode: ssp0_hrefprev60_default {
 					hrefprev60_mux {
@@ -102,6 +106,18 @@
 						ste,config = <&gpio_in_pu>;
 					};
 				};
+			};
+			ipgpio {
+				 ipgpio_hrefprev60_mode: ipgpio_hrefprev60 {
+					hrefprev60_mux {
+						ste,function = "ipgpio";
+						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1";
+					};
+					hrefprev60_cfg1 {
+						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						ste,config = <&in_pu>;
+					};
+				 };
 			};
 		};
 	};

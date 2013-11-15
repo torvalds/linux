@@ -312,28 +312,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 };
 
 /*
- * These are specifically for the MOP500 and HREFP (pre-v60) version of the
- * board, which utilized a TC35892 GPIO expander instead of using a lot of
- * on-chip pins as the HREFv60 and later does.
- */
-static struct pinctrl_map __initdata mop500_pinmap[] = {
-	/*
-	 * XENON Flashgun on image processor GPIO (controlled from image
-	 * processor firmware), mux in these image processor GPIO lines 0
-	 * (XENON_FLASH_ID) and 1 (XENON_READY) on altfunction C and pull up
-	 * the pins.
-	 */
-	DB8500_MUX_HOG("ipgpio0_c_1", "ipgpio"),
-	DB8500_MUX_HOG("ipgpio1_c_1", "ipgpio"),
-	DB8500_PIN_HOG("GPIO6_AF6", in_pu),
-	DB8500_PIN_HOG("GPIO7_AG5", in_pu),
-	/*
-	 * Runtime stuff: make it possible to mux in the SKE keypad
-	 * and bias the pins
-	 */
-};
-
-/*
  * The HREFv60 series of platforms is using available pins on the DB8500
  * insteaf of the Toshiba I2C GPIO expander, reusing some pins like the SSP0
  * and SSP1 ports (previously connected to the AB8500) as generic GPIO lines.
@@ -496,8 +474,6 @@ static void __init mop500_href_family_pinmaps_init(void)
 
 void __init mop500_pinmaps_init(void)
 {
-	pinctrl_register_mappings(mop500_pinmap,
-				  ARRAY_SIZE(mop500_pinmap));
 	mop500_href_family_pinmaps_init();
 	if (machine_is_u8520())
 		pinctrl_register_mappings(ab8505_pinmap,
