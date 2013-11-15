@@ -4,6 +4,14 @@
 
 comment "HSI clients"
 
+config SSI_PROTOCOL
+	tristate "SSI protocol"
+	depends on HSI && PHONET && (OMAP_SSI=y || OMAP_SSI=m)
+	help
+	If you say Y here, you will enable the SSI protocol aka McSAAB.
+
+	If unsure, say N.
+
 config HSI_CHAR
 	tristate "HSI/SSI character driver"
 	depends on HSI
