@@ -231,15 +231,15 @@ void inval_gtlbe_on_host(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
 		ref->flags &= ~(E500_TLB_TLB0 | E500_TLB_VALID);
 	}
 
-	/* Already invalidated in between */
-	if (!(ref->flags & E500_TLB_VALID))
-		return;
-
-	/* Guest tlbe is backed by at most one host tlbe per shadow pid. */
-	kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
+	/*
+	 * If TLB entry is still valid then it's a TLB0 entry, and thus
+	 * backed by at most one host tlbe per shadow pid
+	 */
+	if (ref->flags & E500_TLB_VALID)
+		kvmppc_e500_tlbil_one(vcpu_e500, gtlbe);
 
 	/* Mark the TLB as not backed by the host anymore */
-	ref->flags &= ~E500_TLB_VALID;
+	ref->flags = 0;
 }
 
 static inline int tlbe_is_writable(struct kvm_book3e_206_tlb_entry *tlbe)
@@ -252,7 +252,7 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 					 pfn_t pfn)
 {
 	ref->pfn = pfn;
-	ref->flags |= E500_TLB_VALID;
+	ref->flags = E500_TLB_VALID;
 
 	/* Mark the page accessed */
 	kvm_set_pfn_accessed(pfn);
