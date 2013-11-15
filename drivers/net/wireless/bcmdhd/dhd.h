@@ -790,7 +790,7 @@ extern uint dhd_force_tx_queueing;
 #endif /* WLTDLS */
 
 #define MAX_DTIM_SKIP_BEACON_INTERVAL	100 /* max allowed associated AP beacon for DTIM skip */
-#define MAX_DTIM_ALLOWED_INTERVAL 300 /* max allowed total beacon interval for DTIM skip */
+#define MAX_DTIM_ALLOWED_INTERVAL 600 /* max allowed total beacon interval for DTIM skip */
 #define NO_DTIM_SKIP 1
 
 #ifdef SDTEST
