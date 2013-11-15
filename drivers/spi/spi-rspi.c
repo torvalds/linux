@@ -885,14 +885,13 @@ static void rspi_release_dma(struct rspi_data *rspi)
 
 static int rspi_remove(struct platform_device *pdev)
 {
-	struct rspi_data *rspi = spi_master_get(platform_get_drvdata(pdev));
+	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
 	spi_unregister_master(rspi->master);
 	rspi_release_dma(rspi);
 	free_irq(platform_get_irq(pdev, 0), rspi);
 	clk_put(rspi->clk);
 	iounmap(rspi->addr);
-	spi_master_put(rspi->master);
 
 	return 0;
 }
