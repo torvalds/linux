@@ -285,7 +285,7 @@ static struct clocksource clocksource_davinci = {
 /*
  * Overwrite weak default sched_clock with something more precise
  */
-static u32 notrace davinci_read_sched_clock(void)
+static u64 notrace davinci_read_sched_clock(void)
 {
 	return timer32_read(&timers[TID_CLOCKSOURCE]);
 }
@@ -391,7 +391,7 @@ void __init davinci_timer_init(void)
 				    davinci_clock_tick_rate))
 		printk(err, clocksource_davinci.name);
 
-	setup_sched_clock(davinci_read_sched_clock, 32,
+	sched_clock_register(davinci_read_sched_clock, 32,
 			  davinci_clock_tick_rate);
 
 	/* setup clockevent */
