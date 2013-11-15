@@ -384,9 +384,10 @@ static irqreturn_t max8903_dcin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
 	struct max8903_pdata *pdata = data->pdata;
-	bool ta_in;
+	bool ta_in = false;
 
-	ta_in = gpio_get_value(pdata->dok) ? false : true;
+	if (pdata->dok)
+		ta_in = gpio_get_value(pdata->dok) ? false : true;
 
 	if (ta_in == data->ta_in)
 		return IRQ_HANDLED;
@@ -405,9 +406,10 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
 	struct max8903_pdata *pdata = data->pdata;
-	bool usb_in;
+	bool usb_in = false;
 
-	usb_in = gpio_get_value(pdata->uok) ? false : true;
+	if (pdata->uok)
+		usb_in = gpio_get_value(pdata->uok) ? false : true;
 	if (usb_in == data->usb_in)
 		return IRQ_HANDLED;
 	data->usb_in = usb_in;
@@ -602,16 +604,19 @@ static struct max8903_pdata *max8903_of_populate_pdata(
 	if (of_get_property(of_node, "fsl,adc_disable", NULL))
 		pdata->feature_flag = true;
 
-	pdata->dok = of_get_named_gpio(of_node, "dok_input", 0);
-	if (!gpio_is_valid(pdata->dok)) {
-		dev_err(dev, "pin pdata->dok: invalid gpio %d\n", pdata->dok);
-		return NULL;
+	if (pdata->dc_valid) {
+		pdata->dok = of_get_named_gpio(of_node, "dok_input", 0);
+		if (!gpio_is_valid(pdata->dok)) {
+			dev_err(dev, "pin pdata->dok: invalid gpio %d\n", pdata->dok);
+			return NULL;
+		}
 	}
-
-	pdata->uok = of_get_named_gpio(of_node, "uok_input", 0);
-	if (!gpio_is_valid(pdata->uok)) {
-		dev_err(dev, "pin pdata->uok: invalid gpio %d\n", pdata->uok);
-		return NULL;
+	if (pdata->usb_valid) {
+		pdata->uok = of_get_named_gpio(of_node, "uok_input", 0);
+		if (!gpio_is_valid(pdata->uok)) {
+			dev_err(dev, "pin pdata->uok: invalid gpio %d\n", pdata->uok);
+			return NULL;
+		}
 	}
 	pdata->chg = of_get_named_gpio(of_node, "chg_input", 0);
 	if (!gpio_is_valid(pdata->chg)) {
@@ -928,16 +933,18 @@ static int max8903_suspend(struct platform_device *pdev,
 static int max8903_resume(struct platform_device *pdev)
 {
 	struct max8903_data *data = platform_get_drvdata(pdev);
-	bool ta_in;
-	bool usb_in;
+	bool ta_in = false;
+	bool usb_in = false;
 	int irq;
 
 	if (data) {
 		struct max8903_pdata *pdata = data->pdata;
 
 		if (pdata) {
-			ta_in = gpio_get_value(pdata->dok) ? false : true;
-			usb_in = gpio_get_value(pdata->uok) ? false : true;
+			if (pdata->dok)
+				ta_in = gpio_get_value(pdata->dok) ? false : true;
+			if (pdata->uok)
+				usb_in = gpio_get_value(pdata->uok) ? false : true;
 
 			if (ta_in != data->ta_in) {
 				data->ta_in = ta_in;
