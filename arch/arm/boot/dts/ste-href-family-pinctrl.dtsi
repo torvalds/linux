@@ -631,6 +631,96 @@
 					};
 				};
 			};
+
+			ske {
+				/* SKE keys on position 2 in an 8x8 matrix */
+				ske_kpa2_default_mode: ske_kpa2_default {
+					default_mux {
+						ste,function = "kp";
+						ste,pins = "kp_a_2";
+					};
+					default_cfg1 {
+						ste,pins =
+						"GPIO153_B17", /* I7 */
+						"GPIO154_C16", /* I6 */
+						"GPIO155_C19", /* I5 */
+						"GPIO156_C17", /* I4 */
+						"GPIO161_D21", /* I3 */
+						"GPIO162_D20", /* I2 */
+						"GPIO163_C20", /* I1 */
+						"GPIO164_B21"; /* I0 */
+						ste,config = <&in_pd>;
+					};
+					default_cfg2 {
+						ste,pins =
+						"GPIO157_A18", /* O7 */
+						"GPIO158_C18", /* O6 */
+						"GPIO159_B19", /* O5 */
+						"GPIO160_B20", /* O4 */
+						"GPIO165_C21", /* O3 */
+						"GPIO166_A22", /* O2 */
+						"GPIO167_B24", /* O1 */
+						"GPIO168_C22"; /* O0 */
+						ste,config = <&out_lo>;
+					};
+				};
+				ske_kpa2_sleep_mode: ske_kpa2_sleep {
+					sleep_cfg1 {
+						ste,pins =
+						"GPIO153_B17", /* I7 */
+						"GPIO154_C16", /* I6 */
+						"GPIO155_C19", /* I5 */
+						"GPIO156_C17", /* I4 */
+						"GPIO161_D21", /* I3 */
+						"GPIO162_D20", /* I2 */
+						"GPIO163_C20", /* I1 */
+						"GPIO164_B21"; /* I0 */
+						ste,config = <&slpm_in_pu_wkup_pdis_en>;
+					};
+					sleep_cfg2 {
+						ste,pins =
+						"GPIO157_A18", /* O7 */
+						"GPIO158_C18", /* O6 */
+						"GPIO159_B19", /* O5 */
+						"GPIO160_B20", /* O4 */
+						"GPIO165_C21", /* O3 */
+						"GPIO166_A22", /* O2 */
+						"GPIO167_B24", /* O1 */
+						"GPIO168_C22"; /* O0 */
+						ste,config = <&slpm_out_lo_pdis>;
+					};
+				};
+				/*
+				 * SKE keys on position 1 and "other C1" combi giving
+				 * six rows of six keys.
+				 */
+				ske_kpaoc1_default_mode: ske_kpaoc1_default {
+					default_mux {
+						ste,function = "kp";
+						ste,pins = "kp_a_1", "kp_oc1_1";
+					};
+					default_cfg1 {
+						ste,pins =
+						"GPIO91_B6", /* KP_O0 */
+						"GPIO90_A3", /* KP_O1 */
+						"GPIO87_B3", /* KP_O2 */
+						"GPIO86_C6", /* KP_O3 */
+						"GPIO96_D8", /* KP_O6 */
+						"GPIO94_D7"; /* KP_O7 */
+						ste,config = <&out_lo>;
+					};
+					default_cfg2 {
+						ste,pins =
+						"GPIO93_B7", /* KP_I0 */
+						"GPIO92_D6", /* KP_I1 */
+						"GPIO89_E6", /* KP_I2 */
+						"GPIO88_C4", /* KP_I3 */
+						"GPIO97_D9", /* KP_I6 */
+						"GPIO95_E8"; /* KP_I7 */
+						ste,config = <&in_pu>;
+					};
+				};
+			};
 		};
 	};
 };
