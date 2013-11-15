@@ -88,7 +88,6 @@ struct fq_sched_data {
 	struct fq_flow	internal;	/* for non classified or high prio packets */
 	u32		quantum;
 	u32		initial_quantum;
-	u32		flow_default_rate;/* rate per flow : bytes per second */
 	u32		flow_max_rate;	/* optional max rate per flow */
 	u32		flow_plimit;	/* max packets per flow */
 	struct rb_root	*fq_root;
@@ -650,7 +649,8 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt)
 		q->initial_quantum = nla_get_u32(tb[TCA_FQ_INITIAL_QUANTUM]);
 
 	if (tb[TCA_FQ_FLOW_DEFAULT_RATE])
-		q->flow_default_rate = nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]);
+		pr_warn_ratelimited("sch_fq: defrate %u ignored.\n",
+				    nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]));
 
 	if (tb[TCA_FQ_FLOW_MAX_RATE])
 		q->flow_max_rate = nla_get_u32(tb[TCA_FQ_FLOW_MAX_RATE]);
@@ -699,7 +699,6 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->flow_plimit		= 100;
 	q->quantum		= 2 * psched_mtu(qdisc_dev(sch));
 	q->initial_quantum	= 10 * psched_mtu(qdisc_dev(sch));
-	q->flow_default_rate	= 0;
 	q->flow_max_rate	= ~0U;
 	q->rate_enable		= 1;
 	q->new_flows.first	= NULL;
@@ -726,9 +725,8 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 
-	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore,
-	 * do not bother giving its value
-	 */
+	/* TCA_FQ_FLOW_DEFAULT_RATE is not used anymore */
+
 	if (nla_put_u32(skb, TCA_FQ_PLIMIT, sch->limit) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_PLIMIT, q->flow_plimit) ||
 	    nla_put_u32(skb, TCA_FQ_QUANTUM, q->quantum) ||
