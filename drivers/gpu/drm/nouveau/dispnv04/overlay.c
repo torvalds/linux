@@ -58,8 +58,8 @@ struct nouveau_plane {
 };
 
 static uint32_t formats[] = {
-	DRM_FORMAT_NV12,
 	DRM_FORMAT_UYVY,
+	DRM_FORMAT_NV12,
 };
 
 /* Sine can be approximated with
@@ -254,14 +254,25 @@ nv10_overlay_init(struct drm_device *device)
 {
 	struct nouveau_device *dev = nouveau_dev(device);
 	struct nouveau_plane *plane = kzalloc(sizeof(struct nouveau_plane), GFP_KERNEL);
+	int num_formats = ARRAY_SIZE(formats);
 	int ret;
 
 	if (!plane)
 		return;
 
+	switch (dev->chipset) {
+	case 0x10:
+	case 0x11:
+	case 0x15:
+	case 0x1a:
+	case 0x20:
+		num_formats = 1;
+		break;
+	}
+
 	ret = drm_plane_init(device, &plane->base, 3 /* both crtc's */,
 			     &nv10_plane_funcs,
-			     formats, ARRAY_SIZE(formats), false);
+			     formats, num_formats, false);
 	if (ret)
 		goto err;
 
