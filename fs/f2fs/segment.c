@@ -20,6 +20,154 @@
 #include "node.h"
 #include <trace/events/f2fs.h>
 
+#define __reverse_ffz(x) __reverse_ffs(~(x))
+
+/*
+ * __reverse_ffs is copied from include/asm-generic/bitops/__ffs.h since
+ * MSB and LSB are reversed in a byte by f2fs_set_bit.
+ */
+static inline unsigned long __reverse_ffs(unsigned long word)
+{
+	int num = 0;
+
+#if BITS_PER_LONG == 64
+	if ((word & 0xffffffff) == 0) {
+		num += 32;
+		word >>= 32;
+	}
+#endif
+	if ((word & 0xffff) == 0) {
+		num += 16;
+		word >>= 16;
+	}
+	if ((word & 0xff) == 0) {
+		num += 8;
+		word >>= 8;
+	}
+	if ((word & 0xf0) == 0)
+		num += 4;
+	else
+		word >>= 4;
+	if ((word & 0xc) == 0)
+		num += 2;
+	else
+		word >>= 2;
+	if ((word & 0x2) == 0)
+		num += 1;
+	return num;
+}
+
+/*
+ * __find_rev_next(_zero)_bit is copied from lib/find_next_bit.c becasue
+ * f2fs_set_bit makes MSB and LSB reversed in a byte.
+ * Example:
+ *                             LSB <--> MSB
+ *   f2fs_set_bit(0, bitmap) => 0000 0001
+ *   f2fs_set_bit(7, bitmap) => 1000 0000
+ */
+static unsigned long __find_rev_next_bit(const unsigned long *addr,
+			unsigned long size, unsigned long offset)
+{
+	const unsigned long *p = addr + BIT_WORD(offset);
+	unsigned long result = offset & ~(BITS_PER_LONG - 1);
+	unsigned long tmp;
+	unsigned long mask, submask;
+	unsigned long quot, rest;
+
+	if (offset >= size)
+		return size;
+
+	size -= result;
+	offset %= BITS_PER_LONG;
+	if (!offset)
+		goto aligned;
+
+	tmp = *(p++);
+	quot = (offset >> 3) << 3;
+	rest = offset & 0x7;
+	mask = ~0UL << quot;
+	submask = (unsigned char)(0xff << rest) >> rest;
+	submask <<= quot;
+	mask &= submask;
+	tmp &= mask;
+	if (size < BITS_PER_LONG)
+		goto found_first;
+	if (tmp)
+		goto found_middle;
+
+	size -= BITS_PER_LONG;
+	result += BITS_PER_LONG;
+aligned:
+	while (size & ~(BITS_PER_LONG-1)) {
+		tmp = *(p++);
+		if (tmp)
+			goto found_middle;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+	tmp = *p;
+found_first:
+	tmp &= (~0UL >> (BITS_PER_LONG - size));
+	if (tmp == 0UL)		/* Are any bits set? */
+		return result + size;   /* Nope. */
+found_middle:
+	return result + __reverse_ffs(tmp);
+}
+
+static unsigned long __find_rev_next_zero_bit(const unsigned long *addr,
+			unsigned long size, unsigned long offset)
+{
+	const unsigned long *p = addr + BIT_WORD(offset);
+	unsigned long result = offset & ~(BITS_PER_LONG - 1);
+	unsigned long tmp;
+	unsigned long mask, submask;
+	unsigned long quot, rest;
+
+	if (offset >= size)
+		return size;
+
+	size -= result;
+	offset %= BITS_PER_LONG;
+	if (!offset)
+		goto aligned;
+
+	tmp = *(p++);
+	quot = (offset >> 3) << 3;
+	rest = offset & 0x7;
+	mask = ~(~0UL << quot);
+	submask = (unsigned char)~((unsigned char)(0xff << rest) >> rest);
+	submask <<= quot;
+	mask += submask;
+	tmp |= mask;
+	if (size < BITS_PER_LONG)
+		goto found_first;
+	if (~tmp)
+		goto found_middle;
+
+	size -= BITS_PER_LONG;
+	result += BITS_PER_LONG;
+aligned:
+	while (size & ~(BITS_PER_LONG - 1)) {
+		tmp = *(p++);
+		if (~tmp)
+			goto found_middle;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+	tmp = *p;
+
+found_first:
+	tmp |= ~0UL << size;
+	if (tmp == ~0UL)        /* Are any bits zero? */
+		return result + size;   /* Nope. */
+found_middle:
+	return result + __reverse_ffz(tmp);
+}
+
 /*
  * This function balances dirty node and dentry pages.
  * In addition, it controls garbage collection.
