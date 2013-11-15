@@ -2,7 +2,7 @@
  * A hwmon driver for ACPI 4.0 power meters
  * Copyright (C) 2009 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1001,7 +1001,7 @@ static void __exit acpi_power_meter_exit(void)
 	acpi_bus_unregister_driver(&acpi_power_meter_driver);
 }
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("ACPI 4.0 power meter driver");
 MODULE_LICENSE("GPL");
 

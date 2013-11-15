@@ -751,7 +751,7 @@ static void __virtscsi_set_affinity(struct virtio_scsi *vscsi, bool affinity)
 
 		vscsi->affinity_hint_set = true;
 	} else {
-		for (i = 0; i < vscsi->num_queues - VIRTIO_SCSI_VQ_BASE; i++)
+		for (i = 0; i < vscsi->num_queues; i++)
 			virtqueue_set_affinity(vscsi->req_vqs[i].vq, -1);
 
 		vscsi->affinity_hint_set = false;

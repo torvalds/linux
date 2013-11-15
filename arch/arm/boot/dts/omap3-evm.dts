@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap34xx.dtsi"
+#include "omap34xx.dtsi"
 
 / {
 	model = "TI OMAP3 EVM (OMAP3530, AM/DM37x)";
@@ -28,7 +28,7 @@
 		compatible = "gpio-leds";
 		ledb {
 			label = "omap3evm::ledb";
-			gpios = <&twl_gpio 19 0>; /* LEDB */
+			gpios = <&twl_gpio 19 GPIO_ACTIVE_HIGH>; /* LEDB */
 			linux,default-trigger = "default-on";
 		};
 	};
@@ -44,7 +44,8 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;

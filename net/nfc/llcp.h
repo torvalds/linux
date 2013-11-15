@@ -19,6 +19,8 @@
 
 enum llcp_state {
 	LLCP_CONNECTED = 1, /* wait_for_packet() wants that */
+	LLCP_CONNECTING,
+	LLCP_DISCONNECTING,
 	LLCP_CLOSED,
 	LLCP_BOUND,
 	LLCP_LISTEN,
@@ -246,7 +248,6 @@ struct nfc_llcp_sdp_tlv *nfc_llcp_build_sdreq_tlv(u8 tid, char *uri,
 void nfc_llcp_free_sdp_tlv(struct nfc_llcp_sdp_tlv *sdp);
 void nfc_llcp_free_sdp_tlv_list(struct hlist_head *sdp_head);
 void nfc_llcp_recv(void *data, struct sk_buff *skb, int err);
-int nfc_llcp_disconnect(struct nfc_llcp_sock *sock);
 int nfc_llcp_send_symm(struct nfc_dev *dev);
 int nfc_llcp_send_connect(struct nfc_llcp_sock *sock);
 int nfc_llcp_send_cc(struct nfc_llcp_sock *sock);

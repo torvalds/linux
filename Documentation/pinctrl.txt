@@ -81,7 +81,7 @@ int __init foo_probe(void)
 	struct pinctrl_dev *pctl;
 
 	pctl = pinctrl_register(&foo_desc, <PARENT>, NULL);
-	if (IS_ERR(pctl))
+	if (!pctl)
 		pr_err("could not register foo pin driver\n");
 }
 
@@ -203,15 +203,8 @@ using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
-Pin configuration can be programmed either using the explicit APIs described
-immediately below, or by adding configuration entries into the mapping table;
-see section "Board/machine configuration" below.
-
-For example, a platform may do the following to pull up a pin to VDD:
-
-#include <linux/pinctrl/consumer.h>
-
-ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
+Pin configuration can be programmed by adding configuration entries into the
+mapping table; see section "Board/machine configuration" below.
 
 The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
 above, is entirely defined by the pin controller driver.
@@ -298,7 +291,7 @@ Since the pin controller subsystem have its pinspace local to the pin
 controller we need a mapping so that the pin control subsystem can figure out
 which pin controller handles control of a certain GPIO pin. Since a single
 pin controller may be muxing several GPIO ranges (typically SoCs that have
-one set of pins but internally several GPIO silicon blocks, each modeled as
+one set of pins but internally several GPIO silicon blocks, each modelled as
 a struct gpio_chip) any number of GPIO ranges can be added to a pin controller
 instance like this:
 
@@ -350,6 +343,23 @@ chip b:
  - GPIO range : [48 .. 55]
  - pin range  : [64 .. 71]
 
+The above examples assume the mapping between the GPIOs and pins is
+linear. If the mapping is sparse or haphazard, an array of arbitrary pin
+numbers can be encoded in the range like this:
+
+static const unsigned range_pins[] = { 14, 1, 22, 17, 10, 8, 6, 2 };
+
+static struct pinctrl_gpio_range gpio_range = {
+	.name = "chip",
+	.id = 0,
+	.base = 32,
+	.pins = &range_pins,
+	.npins = ARRAY_SIZE(range_pins),
+	.gc = &chip;
+};
+
+In this case the pin_base property will be ignored.
+
 When GPIO-specific functions in the pin control subsystem are called, these
 ranges will be used to look up the appropriate pin controller by inspecting
 and matching the pin to the pin ranges across all controllers. When a
@@ -357,9 +367,9 @@ pin controller handling the matching range is found, GPIO-specific functions
 will be called on that specific pin controller.
 
 For all functionalities dealing with pin biasing, pin muxing etc, the pin
-controller subsystem will subtract the range's .base offset from the passed
-in gpio number, and add the ranges's .pin_base offset to retrive a pin number.
-After that, the subsystem passes it on to the pin control driver, so the driver
+controller subsystem will look up the corresponding pin number from the passed
+in gpio number, and use the range's internals to retrive a pin number. After
+that, the subsystem passes it on to the pin control driver, so the driver
 will get an pin number into its handled number range. Further it is also passed
 the range ID value, so that the pin controller knows which range it should
 deal with.
@@ -367,6 +377,7 @@ deal with.
 Calling pinctrl_add_gpio_range from pinctrl driver is DEPRECATED. Please see
 section 2.1 of Documentation/devicetree/bindings/gpio/gpio.txt on how to bind
 pinctrl and gpio drivers.
+
 
 PINMUX interfaces
 =================
@@ -784,17 +795,96 @@ special GPIO-handler is registered.
 GPIO mode pitfalls
 ==================
 
-Sometime the developer may be confused by a datasheet talking about a pin
-being possible to set into "GPIO mode". It appears that what hardware
-engineers mean with "GPIO mode" is not necessarily the use case that is
-implied in the kernel interface <linux/gpio.h>: a pin that you grab from
-kernel code and then either listen for input or drive high/low to
-assert/deassert some external line.
+Due to the naming conventions used by hardware engineers, where "GPIO"
+is taken to mean different things than what the kernel does, the developer
+may be confused by a datasheet talking about a pin being possible to set
+into "GPIO mode". It appears that what hardware engineers mean with
+"GPIO mode" is not necessarily the use case that is implied in the kernel
+interface <linux/gpio.h>: a pin that you grab from kernel code and then
+either listen for input or drive high/low to assert/deassert some
+external line.
 
 Rather hardware engineers think that "GPIO mode" means that you can
 software-control a few electrical properties of the pin that you would
 not be able to control if the pin was in some other mode, such as muxed in
 for a device.
+
+The GPIO portions of a pin and its relation to a certain pin controller
+configuration and muxing logic can be constructed in several ways. Here
+are two examples:
+
+(A)
+                       pin config
+                       logic regs
+                       |               +- SPI
+     Physical pins --- pad --- pinmux -+- I2C
+                               |       +- mmc
+                               |       +- GPIO
+                               pin
+                               multiplex
+                               logic regs
+
+Here some electrical properties of the pin can be configured no matter
+whether the pin is used for GPIO or not. If you multiplex a GPIO onto a
+pin, you can also drive it high/low from "GPIO" registers.
+Alternatively, the pin can be controlled by a certain peripheral, while
+still applying desired pin config properties. GPIO functionality is thus
+orthogonal to any other device using the pin.
+
+In this arrangement the registers for the GPIO portions of the pin controller,
+or the registers for the GPIO hardware module are likely to reside in a
+separate memory range only intended for GPIO driving, and the register
+range dealing with pin config and pin multiplexing get placed into a
+different memory range and a separate section of the data sheet.
+
+(B)
+
+                       pin config
+                       logic regs
+                       |               +- SPI
+     Physical pins --- pad --- pinmux -+- I2C
+                       |       |       +- mmc
+                       |       |
+                       GPIO    pin
+                               multiplex
+                               logic regs
+
+In this arrangement, the GPIO functionality can always be enabled, such that
+e.g. a GPIO input can be used to "spy" on the SPI/I2C/MMC signal while it is
+pulsed out. It is likely possible to disrupt the traffic on the pin by doing
+wrong things on the GPIO block, as it is never really disconnected. It is
+possible that the GPIO, pin config and pin multiplex registers are placed into
+the same memory range and the same section of the data sheet, although that
+need not be the case.
+
+From a kernel point of view, however, these are different aspects of the
+hardware and shall be put into different subsystems:
+
+- Registers (or fields within registers) that control electrical
+  properties of the pin such as biasing and drive strength should be
+  exposed through the pinctrl subsystem, as "pin configuration" settings.
+
+- Registers (or fields within registers) that control muxing of signals
+  from various other HW blocks (e.g. I2C, MMC, or GPIO) onto pins should
+  be exposed through the pinctrl subssytem, as mux functions.
+
+- Registers (or fields within registers) that control GPIO functionality
+  such as setting a GPIO's output value, reading a GPIO's input value, or
+  setting GPIO pin direction should be exposed through the GPIO subsystem,
+  and if they also support interrupt capabilities, through the irqchip
+  abstraction.
+
+Depending on the exact HW register design, some functions exposed by the
+GPIO subsystem may call into the pinctrl subsystem in order to
+co-ordinate register settings across HW modules. In particular, this may
+be needed for HW with separate GPIO and pin controller HW modules, where
+e.g. GPIO direction is determined by a register in the pin controller HW
+module rather than the GPIO HW module.
+
+Electrical properties of the pin such as biasing and drive strength
+may be placed at some pin-specific register in all cases or as part
+of the GPIO register in case (B) especially. This doesn't mean that such
+properties necessarily pertain to what the Linux kernel calls "GPIO".
 
 Example: a pin is usually muxed in to be used as a UART TX line. But during
 system sleep, we need to put this pin into "GPIO mode" and ground it.
@@ -845,7 +935,7 @@ static unsigned long uart_sleep_mode[] = {
     PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0),
 };
 
-static struct pinctrl_map __initdata pinmap[] = {
+static struct pinctrl_map pinmap[] __initdata = {
     PIN_MAP_MUX_GROUP("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
                       "u0_group", "u0"),
     PIN_MAP_CONFIGS_PIN("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
@@ -940,7 +1030,7 @@ Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT, "pinctrl-foo", NULL, "i2c0"),
 };
 
@@ -959,7 +1049,7 @@ static unsigned long i2c_pin_configs[] = {
 	FOO_SLEW_RATE_SLOW,
 };
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_MUX_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "i2c0"),
 	PIN_MAP_CONFIGS_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", i2c_grp_configs),
 	PIN_MAP_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0scl", i2c_pin_configs),
@@ -973,7 +1063,7 @@ order to explicitly indicate that the states were provided and intended to
 be empty. Table entry macro PIN_MAP_DUMMY_STATE serves the purpose of defining
 a named state without causing any pin controller to be programmed:
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_DUMMY_STATE("foo-i2c.0", PINCTRL_STATE_DEFAULT),
 };
 
@@ -1226,8 +1316,8 @@ setting up the config and muxing for the pins right before the device is
 probing, nevertheless orthogonal to the GPIO subsystem.
 
 But there are also situations where it makes sense for the GPIO subsystem
-to communicate directly with with the pinctrl subsystem, using the latter
-as a back-end. This is when the GPIO driver may call out to the functions
+to communicate directly with the pinctrl subsystem, using the latter as a
+back-end. This is when the GPIO driver may call out to the functions
 described in the section "Pin control interaction with the GPIO subsystem"
 above. This only involves per-pin multiplexing, and will be completely
 hidden behind the gpio_*() function namespace. In this case, the driver

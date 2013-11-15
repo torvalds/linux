@@ -174,7 +174,7 @@ static int get_name_to_buffer(struct path *path, int flags, char *buffer,
 	if (info && error) {
 		if (error == -ENOENT)
 			*info = "Failed name lookup - deleted entry";
-		else if (error == -ESTALE)
+		else if (error == -EACCES)
 			*info = "Failed name lookup - disconnected path";
 		else if (error == -ENAMETOOLONG)
 			*info = "Failed name lookup - name too long";

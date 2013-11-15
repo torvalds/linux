@@ -98,10 +98,10 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 		return -ENOMEM;
 
 	for (i = 0; i < num; i++) {
-		table[i].index = i;
+		table[i].driver_data = i;
 		table[i].frequency = freqs[i].cpufreq_mhz * 1000;
 	}
-	table[num].index = i;
+	table[num].driver_data = i;
 	table[num].frequency = CPUFREQ_TABLE_END;
 
 	pxa3xx_freqs = freqs;
@@ -213,10 +213,12 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cur = policy->min = policy->max;
 
 	if (cpu_is_pxa300() || cpu_is_pxa310())
-		ret = setup_freqs_table(policy, ARRAY_AND_SIZE(pxa300_freqs));
+		ret = setup_freqs_table(policy, pxa300_freqs,
+					ARRAY_SIZE(pxa300_freqs));
 
 	if (cpu_is_pxa320())
-		ret = setup_freqs_table(policy, ARRAY_AND_SIZE(pxa320_freqs));
+		ret = setup_freqs_table(policy, pxa320_freqs,
+					ARRAY_SIZE(pxa320_freqs));
 
 	if (ret) {
 		pr_err("failed to setup frequency table\n");

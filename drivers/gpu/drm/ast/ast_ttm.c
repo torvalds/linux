@@ -148,7 +148,9 @@ ast_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 static int ast_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct ast_bo *astbo = ast_bo(bo);
+
+	return drm_vma_node_verify_access(&astbo->gem.vma_node, filp);
 }
 
 static int ast_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -271,26 +273,19 @@ int ast_mm_init(struct ast_private *ast)
 		return ret;
 	}
 
-	ast->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 0),
-				    pci_resource_len(dev->pdev, 0),
-				    DRM_MTRR_WC);
+	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
+					pci_resource_len(dev->pdev, 0));
 
 	return 0;
 }
 
 void ast_mm_fini(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
 	ttm_bo_device_release(&ast->ttm.bdev);
 
 	ast_ttm_global_release(ast);
 
-	if (ast->fb_mtrr >= 0) {
-		drm_mtrr_del(ast->fb_mtrr,
-			     pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0), DRM_MTRR_WC);
-		ast->fb_mtrr = -1;
-	}
+	arch_phys_wc_del(ast->fb_mtrr);
 }
 
 void ast_ttm_placement(struct ast_bo *bo, int domain)
@@ -308,24 +303,6 @@ void ast_ttm_placement(struct ast_bo *bo, int domain)
 		bo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	bo->placement.num_placement = c;
 	bo->placement.num_busy_placement = c;
-}
-
-int ast_bo_reserve(struct ast_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p\n", bo);
-		return ret;
-	}
-	return 0;
-}
-
-void ast_bo_unreserve(struct ast_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
 }
 
 int ast_bo_create(struct drm_device *dev, int size, int align,
@@ -346,8 +323,8 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	astbo->gem.driver_private = NULL;
 	astbo->bo.bdev = &ast->ttm.bdev;
+	astbo->bo.bdev->dev_mapping = dev->dev_mapping;
 
 	ast_ttm_placement(astbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
 

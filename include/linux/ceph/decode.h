@@ -160,11 +160,6 @@ static inline void ceph_decode_timespec(struct timespec *ts,
 static inline void ceph_encode_timespec(struct ceph_timespec *tv,
 					const struct timespec *ts)
 {
-	BUG_ON(ts->tv_sec < 0);
-	BUG_ON(ts->tv_sec > (__kernel_time_t)U32_MAX);
-	BUG_ON(ts->tv_nsec < 0);
-	BUG_ON(ts->tv_nsec > (long)U32_MAX);
-
 	tv->tv_sec = cpu_to_le32((u32)ts->tv_sec);
 	tv->tv_nsec = cpu_to_le32((u32)ts->tv_nsec);
 }

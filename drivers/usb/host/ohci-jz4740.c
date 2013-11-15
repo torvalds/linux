@@ -221,7 +221,6 @@ static int jz4740_ohci_probe(struct platform_device *pdev)
 	return 0;
 
 err_disable:
-	platform_set_drvdata(pdev, NULL);
 	if (jz4740_ohci->vbus) {
 		regulator_disable(jz4740_ohci->vbus);
 		regulator_put(jz4740_ohci->vbus);
@@ -245,8 +244,6 @@ static int jz4740_ohci_remove(struct platform_device *pdev)
 	struct jz4740_ohci_hcd *jz4740_ohci = hcd_to_jz4740_hcd(hcd);
 
 	usb_remove_hcd(hcd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (jz4740_ohci->vbus) {
 		regulator_disable(jz4740_ohci->vbus);

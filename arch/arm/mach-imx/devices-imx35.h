@@ -17,10 +17,10 @@ extern const struct imx_fsl_usb2_udc_data imx35_fsl_usb2_udc_data;
 	imx_add_fsl_usb2_udc(&imx35_fsl_usb2_udc_data, pdata)
 
 extern const struct imx_flexcan_data imx35_flexcan_data[];
-#define imx35_add_flexcan(id, pdata)	\
-	imx_add_flexcan(&imx35_flexcan_data[id], pdata)
-#define imx35_add_flexcan0(pdata)	imx35_add_flexcan(0, pdata)
-#define imx35_add_flexcan1(pdata)	imx35_add_flexcan(1, pdata)
+#define imx35_add_flexcan(id)	\
+	imx_add_flexcan(&imx35_flexcan_data[id])
+#define imx35_add_flexcan0()		imx35_add_flexcan(0)
+#define imx35_add_flexcan1()		imx35_add_flexcan(1)
 
 extern const struct imx_imx2_wdt_data imx35_imx2_wdt_data;
 #define imx35_add_imx2_wdt()       \

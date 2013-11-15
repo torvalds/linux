@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 
 void __iomem *sirfsoc_rstc_base;
 static DEFINE_MUTEX(rstc_lock);
@@ -28,8 +29,10 @@ static int __init sirfsoc_of_rstc_init(void)
 	struct device_node *np;
 
 	np = of_find_matching_node(NULL, rstc_ids);
-	if (!np)
-		panic("unable to find compatible rstc node in dtb\n");
+	if (!np) {
+		pr_err("unable to find compatible sirf rstc node in dtb\n");
+		return -ENOENT;
+	}
 
 	sirfsoc_rstc_base = of_iomap(np, 0);
 	if (!sirfsoc_rstc_base)
@@ -82,7 +85,7 @@ int sirfsoc_reset_device(struct device *dev)
 
 #define SIRFSOC_SYS_RST_BIT  BIT(31)
 
-void sirfsoc_restart(char mode, const char *cmd)
+void sirfsoc_restart(enum reboot_mode mode, const char *cmd)
 {
 	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
 }

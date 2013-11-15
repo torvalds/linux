@@ -13,7 +13,7 @@
 * Returns	  - Zero(Success)
 ****************************************************************/
 
-static int bcm_char_open(struct inode *inode, struct file * filp)
+static int bcm_char_open(struct inode *inode, struct file *filp)
 {
 	struct bcm_mini_adapter *Adapter = NULL;
 	struct bcm_tarang_data *pTarang = NULL;
@@ -1004,9 +1004,9 @@ cntrlEnd:
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		len = min_t(ulong, IoBuffer.OutputLength, strlen(VER_FILEVERSION_STR) + 1);
+		len = min_t(ulong, IoBuffer.OutputLength, strlen(DRV_VERSION) + 1);
 
-		if (copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, len))
+		if (copy_to_user(IoBuffer.OutputBuffer, DRV_VERSION, len))
 			return -EFAULT;
 		Status = STATUS_SUCCESS;
 		break;

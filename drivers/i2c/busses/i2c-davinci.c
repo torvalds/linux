@@ -38,10 +38,7 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
-#include <linux/of_i2c.h>
 #include <linux/of_device.h>
-
-#include <mach/hardware.h>
 #include <linux/platform_data/i2c-davinci.h>
 
 /* ----- global defines ----------------------------------------------- */
@@ -646,13 +643,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	struct resource *mem, *irq;
 	int r;
 
-	/* NOTE: driver uses the static register mapping */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
 		dev_err(&pdev->dev, "no irq resource?\n");
@@ -672,7 +662,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 #endif
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
-	dev->pdata = dev->dev->platform_data;
+	dev->pdata = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, dev);
 
 	if (!dev->pdata && pdev->dev.of_node) {
@@ -697,6 +687,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	clk_prepare_enable(dev->clk);
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dev->base)) {
 		r = PTR_ERR(dev->base);
@@ -734,7 +725,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failure adding adapter\n");
 		goto err_unuse_clocks;
 	}
-	of_i2c_register_devices(adap);
 
 	return 0;
 

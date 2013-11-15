@@ -637,8 +637,8 @@ static int mal_probe(struct platform_device *ofdev)
 	bd_size = sizeof(struct mal_descriptor) *
 		(NUM_TX_BUFF * mal->num_tx_chans +
 		 NUM_RX_BUFF * mal->num_rx_chans);
-	mal->bd_virt = dma_alloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
-					  GFP_KERNEL | __GFP_ZERO);
+	mal->bd_virt = dma_zalloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
+					   GFP_KERNEL);
 	if (mal->bd_virt == NULL) {
 		err = -ENOMEM;
 		goto fail_unmap;
@@ -696,7 +696,7 @@ static int mal_probe(struct platform_device *ofdev)
 
 	/* Advertise this instance to the rest of the world */
 	wmb();
-	dev_set_drvdata(&ofdev->dev, mal);
+	platform_set_drvdata(ofdev, mal);
 
 	mal_dbg_register(mal);
 
@@ -722,7 +722,7 @@ static int mal_probe(struct platform_device *ofdev)
 
 static int mal_remove(struct platform_device *ofdev)
 {
-	struct mal_instance *mal = dev_get_drvdata(&ofdev->dev);
+	struct mal_instance *mal = platform_get_drvdata(ofdev);
 
 	MAL_DBG(mal, "remove" NL);
 
@@ -734,8 +734,6 @@ static int mal_remove(struct platform_device *ofdev)
 		WARN(1, KERN_EMERG
 		       "mal%d: commac list is not empty on remove!\n",
 		       mal->index);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	free_irq(mal->serr_irq, mal);
 	free_irq(mal->txde_irq, mal);

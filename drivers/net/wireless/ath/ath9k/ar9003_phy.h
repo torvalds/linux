@@ -148,6 +148,8 @@
 #define AR_PHY_SFCORR_SPUR_SUBCHNL_SD_S   28
 #define AR_PHY_EXT_CCA_THRESH62 0x007F0000
 #define AR_PHY_EXT_CCA_THRESH62_S       16
+#define AR_PHY_EXTCHN_PWRTHR1_ANT_DIV_ALT_ANT_MINGAINIDX    0x0000FF00
+#define AR_PHY_EXTCHN_PWRTHR1_ANT_DIV_ALT_ANT_MINGAINIDX_S  8
 #define AR_PHY_EXT_MINCCA_PWR   0x01FF0000
 #define AR_PHY_EXT_MINCCA_PWR_S 16
 #define AR_PHY_EXT_CYCPWR_THR1 0x0000FE00L
@@ -296,11 +298,6 @@
 #define AR_PHY_ANT_DIV_MAIN_GAINTB              0x40000000
 #define AR_PHY_ANT_DIV_MAIN_GAINTB_S            30
 
-#define AR_PHY_ANT_DIV_LNA1_MINUS_LNA2          0x0
-#define AR_PHY_ANT_DIV_LNA2                     0x1
-#define AR_PHY_ANT_DIV_LNA1                     0x2
-#define AR_PHY_ANT_DIV_LNA1_PLUS_LNA2           0x3
-
 #define AR_PHY_EXTCHN_PWRTHR1   (AR_AGC_BASE + 0x2c)
 #define AR_PHY_EXT_CHN_WIN      (AR_AGC_BASE + 0x30)
 #define AR_PHY_20_40_DET_THR    (AR_AGC_BASE + 0x34)
@@ -350,6 +347,8 @@
 #define AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ     -127
 
 #define AR_PHY_CCA_NOM_VAL_9330_2GHZ          -118
+
+#define AR9300_EXT_LNA_CTL_GPIO_AR9485 9
 
 /*
  * AGC Field Definitions
@@ -952,7 +951,7 @@
 #define AR_PHY_TPC_5_B1         (AR_SM1_BASE + 0x208)
 #define AR_PHY_TPC_6_B1         (AR_SM1_BASE + 0x20c)
 #define AR_PHY_TPC_11_B1        (AR_SM1_BASE + 0x220)
-#define AR_PHY_PDADC_TAB_1	(AR_SM1_BASE + (AR_SREV_AR9462(ah) ? \
+#define AR_PHY_PDADC_TAB_1	(AR_SM1_BASE + (AR_SREV_9462_20_OR_LATER(ah) ? \
 					0x280 : 0x240))
 #define AR_PHY_TPC_19_B1	(AR_SM1_BASE + 0x240)
 #define AR_PHY_TPC_19_B1_ALPHA_THERM		0xff
@@ -1046,7 +1045,7 @@
 #define AR_GLB_GPIO_CONTROL	(AR_GLB_BASE)
 #define AR_PHY_GLB_CONTROL	(AR_GLB_BASE + 0x44)
 #define AR_GLB_SCRATCH(_ah)	(AR_GLB_BASE + \
-					(AR_SREV_9462_20(_ah) ? 0x4c : 0x50))
+					(AR_SREV_9462_20_OR_LATER(_ah) ? 0x4c : 0x50))
 #define AR_GLB_STATUS		(AR_GLB_BASE + 0x48)
 
 /*

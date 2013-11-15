@@ -128,8 +128,8 @@ enum acpi_return_package_types {
 #define ARG_COUNT_IS_MINIMUM            0x8000
 #define METHOD_MAX_ARG_TYPE             ACPI_TYPE_PACKAGE
 
-#define METHOD_GET_COUNT(arg_list)      (arg_list & METHOD_ARG_MASK)
-#define METHOD_GET_NEXT_ARG(arg_list)   (arg_list >> METHOD_ARG_BIT_WIDTH)
+#define METHOD_GET_ARG_COUNT(arg_list)  ((arg_list) & METHOD_ARG_MASK)
+#define METHOD_GET_NEXT_TYPE(arg_list)  (((arg_list) >>= METHOD_ARG_BIT_WIDTH) & METHOD_ARG_MASK)
 
 /* Macros used to build the predefined info table */
 

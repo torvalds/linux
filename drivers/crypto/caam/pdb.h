@@ -44,6 +44,7 @@
 #define PDBOPTS_ESP_IPHDRSRC	0x08 /* IP header comes from PDB (encap) */
 #define PDBOPTS_ESP_INCIPHDR	0x04 /* Prepend IP header to output frame */
 #define PDBOPTS_ESP_IPVSN	0x02 /* process IPv6 header */
+#define PDBOPTS_ESP_AOFL	0x04 /* adjust out frame len (decap, SEC>=5.3)*/
 #define PDBOPTS_ESP_TUNNEL	0x01 /* tunnel mode next-header byte */
 #define PDBOPTS_ESP_IPV6	0x02 /* ip header version is V6 */
 #define PDBOPTS_ESP_DIFFSERV	0x40 /* copy TOS/TC from inner iphdr */

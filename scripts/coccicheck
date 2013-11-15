@@ -1,17 +1,31 @@
 #!/bin/bash
 
+#
+# This script requires at least spatch
+# version 1.0.0-rc11.
+#
+
 SPATCH="`which ${SPATCH:=spatch}`"
+
+trap kill_running SIGTERM SIGINT
+declare -a SPATCH_PID
 
 # The verbosity may be set by the environmental parameter V=
 # as for example with 'make V=1 coccicheck'
 
 if [ -n "$V" -a "$V" != "0" ]; then
-	VERBOSE=1
+	VERBOSE="$V"
 else
 	VERBOSE=0
 fi
 
-FLAGS="$SPFLAGS -very_quiet"
+if [ -z "$J" ]; then
+	NPROC=$(getconf _NPROCESSORS_ONLN)
+else
+	NPROC="$J"
+fi
+
+FLAGS="$SPFLAGS --very-quiet"
 
 # spatch only allows include directories with the syntax "-I include"
 # while gcc also allows "-Iinclude" and "-include include"
@@ -27,14 +41,14 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
 else
     ONLINE=0
     if [ "$KBUILD_EXTMOD" = "" ] ; then
-        OPTIONS="-dir $srctree $COCCIINCLUDE"
+        OPTIONS="--dir $srctree $COCCIINCLUDE"
     else
-        OPTIONS="-dir $KBUILD_EXTMOD $COCCIINCLUDE"
+        OPTIONS="--dir $KBUILD_EXTMOD $COCCIINCLUDE"
     fi
 fi
 
 if [ "$KBUILD_EXTMOD" != "" ] ; then
-    OPTIONS="-patch $srctree $OPTIONS"
+    OPTIONS="--patch $srctree $OPTIONS"
 fi
 
 if [ ! -x "$SPATCH" ]; then
@@ -44,13 +58,21 @@ fi
 
 if [ "$MODE" = "" ] ; then
     if [ "$ONLINE" = "0" ] ; then
-	echo 'You have not explicitly specified the mode to use. Using default "chain" mode.'
-	echo 'All available modes will be tried (in that order): patch, report, context, org'
+	echo 'You have not explicitly specified the mode to use. Using default "report" mode.'
+	echo 'Available modes are the following: patch, report, context, org'
 	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
+	echo 'Note however that some modes are not implemented by some semantic patches.'
     fi
-    MODE="chain"
+    MODE="report"
+fi
+
+if [ "$MODE" = "chain" ] ; then
+    if [ "$ONLINE" = "0" ] ; then
+	echo 'You have selected the "chain" mode.'
+	echo 'All available modes will be tried (in that order): patch, report, context, org'
+    fi
 elif [ "$MODE" = "report" -o "$MODE" = "org" ] ; then
-    FLAGS="$FLAGS -no_show_diff"
+    FLAGS="$FLAGS --no-show-diff"
 fi
 
 if [ "$ONLINE" = "0" ] ; then
@@ -61,19 +83,35 @@ if [ "$ONLINE" = "0" ] ; then
 fi
 
 run_cmd() {
+	local i
 	if [ $VERBOSE -ne 0 ] ; then
-		echo "Running: $@"
+		echo "Running ($NPROC in parallel): $@"
 	fi
-	eval $@
+	for i in $(seq 0 $(( NPROC - 1)) ); do
+		eval "$@ --max $NPROC --index $i &"
+		SPATCH_PID[$i]=$!
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "${SPATCH_PID[$i]} running"
+		fi
+	done
+	wait
 }
 
+kill_running() {
+	for i in $(seq $(( NPROC - 1 )) ); do
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "Killing ${SPATCH_PID[$i]}"
+		fi
+		kill ${SPATCH_PID[$i]} 2>/dev/null
+	done
+}
 
 coccinelle () {
     COCCI="$1"
 
     OPT=`grep "Option" $COCCI | cut -d':' -f2`
 
-#   The option '-parse_cocci' can be used to syntactically check the SmPL files.
+#   The option '--parse-cocci' can be used to syntactically check the SmPL files.
 #
 #    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
 
@@ -114,20 +152,20 @@ coccinelle () {
 
     if [ "$MODE" = "chain" ] ; then
 	run_cmd $SPATCH -D patch   \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
 	run_cmd $SPATCH -D report  \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || \
 	run_cmd $SPATCH -D context \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS               || \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
 	run_cmd $SPATCH -D org     \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff || exit 1
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || exit 1
     elif [ "$MODE" = "rep+ctxt" ] ; then
 	run_cmd $SPATCH -D report  \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS -no_show_diff && \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff && \
 	run_cmd $SPATCH -D context \
-		$FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS || exit 1
     else
-	run_cmd $SPATCH -D $MODE   $FLAGS -sp_file $COCCI $OPT $OPTIONS || exit 1
+	run_cmd $SPATCH -D $MODE   $FLAGS --cocci-file $COCCI $OPT $OPTIONS || exit 1
     fi
 
 }

@@ -180,16 +180,15 @@ struct iwl_rx_packet {
  * enum CMD_MODE - how to send the host commands ?
  *
  * @CMD_SYNC: The caller will be stalled until the fw responds to the command
- * @CMD_ASYNC: Return right away and don't want for the response
+ * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
  *	response. The caller needs to call iwl_free_resp when done.
- * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
  */
 enum CMD_MODE {
 	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
-	CMD_ON_DEMAND		= BIT(2),
+	CMD_SEND_IN_RFKILL	= BIT(2),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -219,7 +218,7 @@ struct iwl_device_cmd {
  *
  * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
- *	rather copies it to an previously allocated DMA buffer. This flag tells
+ *	rather copies it to a previously allocated DMA buffer. This flag tells
  *	the transport layer not to copy the command, but to map the existing
  *	buffer (that is passed in) instead. This saves the memcpy and allows
  *	commands that are bigger than the fixed buffer to be submitted.
@@ -244,7 +243,7 @@ enum iwl_hcmd_dataflag {
  * @handler_status: return value of the handler of the command
  *	(put in setup_rx_handlers) - valid for SYNC mode only
  * @flags: can be CMD_*
- * @len: array of the lenths of the chunks in data
+ * @len: array of the lengths of the chunks in data
  * @dataflags: IWL_HCMD_DFL_*
  * @id: id of the host command
  */
@@ -397,8 +396,6 @@ struct iwl_trans;
  *	May sleep
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
- * @suspend: stop the device unless WoWLAN is configured
- * @resume: resume activity of the device
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
@@ -427,8 +424,9 @@ struct iwl_trans_ops {
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
-	void (*d3_suspend)(struct iwl_trans *trans);
-	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status);
+	void (*d3_suspend)(struct iwl_trans *trans, bool test);
+	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
+			 bool test);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -443,10 +441,7 @@ struct iwl_trans_ops {
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
-#ifdef CONFIG_PM_SLEEP
-	int (*suspend)(struct iwl_trans *trans);
-	int (*resume)(struct iwl_trans *trans);
-#endif
+
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
@@ -455,7 +450,7 @@ struct iwl_trans_ops {
 	int (*read_mem)(struct iwl_trans *trans, u32 addr,
 			void *buf, int dwords);
 	int (*write_mem)(struct iwl_trans *trans, u32 addr,
-			 void *buf, int dwords);
+			 const void *buf, int dwords);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
@@ -587,17 +582,18 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_d3_suspend(struct iwl_trans *trans)
+static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans);
+	trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
-				      enum iwl_d3_status *status)
+				      enum iwl_d3_status *status,
+				      bool test)
 {
 	might_sleep();
-	return trans->ops->d3_resume(trans, status);
+	return trans->ops->d3_resume(trans, status, test);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
@@ -699,18 +695,6 @@ static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 	return trans->ops->dbgfs_register(trans, dir);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static inline int iwl_trans_suspend(struct iwl_trans *trans)
-{
-	return trans->ops->suspend(trans);
-}
-
-static inline int iwl_trans_resume(struct iwl_trans *trans)
-{
-	return trans->ops->resume(trans);
-}
-#endif
-
 static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
 	trans->ops->write8(trans, ofs, val);
@@ -761,7 +745,7 @@ static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 }
 
 static inline int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
-				      void *buf, int dwords)
+				      const void *buf, int dwords)
 {
 	return trans->ops->write_mem(trans, addr, buf, dwords);
 }

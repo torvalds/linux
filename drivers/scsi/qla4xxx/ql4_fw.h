@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -458,6 +458,7 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_CONN_EVENT_LOG		0x0077
 
 #define MBOX_CMD_IDC_ACK			0x0101
+#define MBOX_CMD_IDC_TIME_EXTEND		0x0102
 #define MBOX_CMD_PORT_RESET			0x0120
 #define MBOX_CMD_SET_PORT_CONFIG		0x0122
 
@@ -502,6 +503,7 @@ struct qla_flt_region {
 #define MBOX_ASTS_SYSTEM_WARNING_EVENT		0x8036
 #define MBOX_ASTS_IDC_COMPLETE			0x8100
 #define MBOX_ASTS_IDC_REQUEST_NOTIFICATION	0x8101
+#define MBOX_ASTS_IDC_TIME_EXTEND_NOTIFICATION	0x8102
 #define MBOX_ASTS_DCBX_CONF_CHANGE		0x8110
 #define MBOX_ASTS_TXSCVR_INSERTED		0x8130
 #define MBOX_ASTS_TXSCVR_REMOVED		0x8131
@@ -511,6 +513,10 @@ struct qla_flt_region {
 #define ISNS_EVENT_CONNECTION_FAILED		0x0002
 #define MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR	0x8022
 #define MBOX_ASTS_SUBNET_STATE_CHANGE		0x8027
+
+/* ACB Configuration Defines */
+#define ACB_CONFIG_DISABLE		0x00
+#define ACB_CONFIG_SET			0x01
 
 /* ACB State Defines */
 #define ACB_STATE_UNCONFIGURED	0x00
@@ -955,7 +961,7 @@ struct about_fw_info {
 	uint16_t bootload_minor;	/* 46 - 47 */
 	uint16_t bootload_patch;	/* 48 - 49 */
 	uint16_t bootload_build;	/* 4A - 4B */
-	uint8_t reserved2[180];		/* 4C - FF */
+	uint8_t extended_timestamp[180];/* 4C - FF */
 };
 
 struct crash_record {

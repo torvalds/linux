@@ -937,6 +937,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	*vfd = emmaprp_videodev;
 	vfd->lock = &pcdev->dev_mutex;
+	vfd->v4l2_dev = &pcdev->v4l2_dev;
 
 	video_set_drvdata(vfd, pcdev);
 	snprintf(vfd->name, sizeof(vfd->name), "%s", emmaprp_videodev.name);

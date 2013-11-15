@@ -49,12 +49,13 @@ __kvm_hyp_code_start:
 ENTRY(__kvm_tlb_flush_vmid_ipa)
 	push	{r2, r3}
 
+	dsb	ishst
 	add	r0, r0, #KVM_VTTBR
 	ldrd	r2, r3, [r0]
 	mcrr	p15, 6, r2, r3, c2	@ Write VTTBR
 	isb
 	mcr     p15, 0, r0, c8, c3, 0	@ TLBIALLIS (rt ignored)
-	dsb
+	dsb	ish
 	isb
 	mov	r2, #0
 	mov	r3, #0
@@ -78,7 +79,7 @@ ENTRY(__kvm_flush_vm_context)
 	mcr     p15, 4, r0, c8, c3, 4
 	/* Invalidate instruction caches Inner Shareable (ICIALLUIS) */
 	mcr     p15, 0, r0, c7, c1, 0
-	dsb
+	dsb	ish
 	isb				@ Not necessary if followed by eret
 
 	bx	lr
@@ -291,6 +292,7 @@ THUMB(	orr	r2, r2, #PSR_T_BIT	)
 	ldr	r2, =BSYM(panic)
 	msr	ELR_hyp, r2
 	ldr	r0, =\panic_str
+	clrex				@ Clear exclusive monitor
 	eret
 .endm
 
@@ -414,6 +416,10 @@ guest_trap:
 	mrcne	p15, 4, r2, c6, c0, 4	@ HPFAR
 	bne	3f
 
+	/* Preserve PAR */
+	mrrc	p15, 0, r0, r1, c7	@ PAR
+	push	{r0, r1}
+
 	/* Resolve IPA using the xFAR */
 	mcr	p15, 0, r2, c7, c8, 0	@ ATS1CPR
 	isb
@@ -424,13 +430,20 @@ guest_trap:
 	lsl	r2, r2, #4
 	orr	r2, r2, r1, lsl #24
 
+	/* Restore PAR */
+	pop	{r0, r1}
+	mcrr	p15, 0, r0, r1, c7	@ PAR
+
 3:	load_vcpu			@ Load VCPU pointer to r0
 	str	r2, [r0, #VCPU_HPFAR]
 
 1:	mov	r1, #ARM_EXCEPTION_HVC
 	b	__kvm_vcpu_return
 
-4:	pop	{r0, r1, r2}		@ Failed translation, return to guest
+4:	pop	{r0, r1}		@ Failed translation, return to guest
+	mcrr	p15, 0, r0, r1, c7	@ PAR
+	clrex
+	pop	{r0, r1, r2}
 	eret
 
 /*
@@ -456,6 +469,7 @@ switch_to_guest_vfp:
 
 	pop	{r3-r7}
 	pop	{r0-r2}
+	clrex
 	eret
 #endif
 
@@ -478,10 +492,10 @@ __kvm_hyp_code_end:
 	.section ".rodata"
 
 und_die_str:
-	.ascii	"unexpected undefined exception in Hyp mode at: %#08x"
+	.ascii	"unexpected undefined exception in Hyp mode at: %#08x\n"
 pabt_die_str:
-	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x"
+	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x\n"
 dabt_die_str:
-	.ascii	"unexpected data abort in Hyp mode at: %#08x"
+	.ascii	"unexpected data abort in Hyp mode at: %#08x\n"
 svc_die_str:
-	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x"
+	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x\n"

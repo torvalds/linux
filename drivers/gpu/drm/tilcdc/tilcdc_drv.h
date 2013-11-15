@@ -34,6 +34,18 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
+/* Defaulting to pixel clock defined on AM335x */
+#define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000
+/* Defaulting to max width as defined on AM335x */
+#define TILCDC_DEFAULT_MAX_WIDTH  2048
+/*
+ * This may need some tweaking, but want to allow at least 1280x1024@60
+ * with optimized DDR & EMIF settings tweaked 1920x1080@24 appears to
+ * be supportable
+ */
+#define TILCDC_DEFAULT_MAX_BANDWIDTH  (1280*1024*60)
+
+
 struct tilcdc_drm_private {
 	void __iomem *mmio;
 
@@ -43,6 +55,16 @@ struct tilcdc_drm_private {
 
 	/* don't attempt resolutions w/ higher W * H * Hz: */
 	uint32_t max_bandwidth;
+	/*
+	 * Pixel Clock will be restricted to some value as
+	 * defined in the device datasheet measured in KHz
+	 */
+	uint32_t max_pixelclock;
+	/*
+	 * Max allowable width is limited on a per device basis
+	 * measured in pixels
+	 */
+	uint32_t max_width;
 
 	/* register contents saved across suspend/resume: */
 	u32 saved_register[12];
@@ -89,12 +111,13 @@ struct tilcdc_module {
 	const char *name;
 	struct list_head list;
 	const struct tilcdc_module_ops *funcs;
+	unsigned int preferred_bpp;
 };
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs);
 void tilcdc_module_cleanup(struct tilcdc_module *mod);
-
+void tilcdc_slave_probedefer(bool defered);
 
 /* Panel config that needs to be set in the crtc, but is not coming from
  * the mode timings.  The display module is expected to call

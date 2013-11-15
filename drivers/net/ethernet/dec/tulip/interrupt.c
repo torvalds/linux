@@ -76,6 +76,12 @@ int tulip_refill_rx(struct net_device *dev)
 
 			mapping = pci_map_single(tp->pdev, skb->data, PKT_BUF_SZ,
 						 PCI_DMA_FROMDEVICE);
+			if (dma_mapping_error(&tp->pdev->dev, mapping)) {
+				dev_kfree_skb(skb);
+				tp->rx_buffers[entry].skb = NULL;
+				break;
+			}
+
 			tp->rx_buffers[entry].mapping = mapping;
 
 			tp->rx_ring[entry].buffer1 = cpu_to_le32(mapping);

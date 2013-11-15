@@ -296,37 +296,6 @@ add_head:
 }
 
 /**
- * virtqueue_add_buf - expose buffer to other end
- * @vq: the struct virtqueue we're talking about.
- * @sg: the description of the buffer(s).
- * @out_num: the number of sg readable by other side
- * @in_num: the number of sg which are writable (after readable ones)
- * @data: the token identifying the buffer.
- * @gfp: how to do memory allocations (if necessary).
- *
- * Caller must ensure we don't call this with other virtqueue operations
- * at the same time (except where noted).
- *
- * Returns zero or a negative error (ie. ENOSPC, ENOMEM).
- */
-int virtqueue_add_buf(struct virtqueue *_vq,
-		      struct scatterlist sg[],
-		      unsigned int out,
-		      unsigned int in,
-		      void *data,
-		      gfp_t gfp)
-{
-	struct scatterlist *sgs[2];
-
-	sgs[0] = sg;
-	sgs[1] = sg + out;
-
-	return virtqueue_add(_vq, sgs, sg_next_arr,
-			     out, in, out ? 1 : 0, in ? 1 : 0, data, gfp);
-}
-EXPORT_SYMBOL_GPL(virtqueue_add_buf);
-
-/**
  * virtqueue_add_sgs - expose buffers to other end
  * @vq: the struct virtqueue we're talking about.
  * @sgs: array of terminated scatterlists.
@@ -473,7 +442,7 @@ EXPORT_SYMBOL_GPL(virtqueue_notify);
  * virtqueue_kick - update after add_buf
  * @vq: the struct virtqueue
  *
- * After one or more virtqueue_add_buf calls, invoke this to kick
+ * After one or more virtqueue_add_* calls, invoke this to kick
  * the other side.
  *
  * Caller must ensure we don't call this with other virtqueue
@@ -530,7 +499,7 @@ static inline bool more_used(const struct vring_virtqueue *vq)
  * operations at the same time (except where noted).
  *
  * Returns NULL if there are no used buffers, or the "data" token
- * handed to virtqueue_add_buf().
+ * handed to virtqueue_add_*().
  */
 void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 {
@@ -607,6 +576,55 @@ void virtqueue_disable_cb(struct virtqueue *_vq)
 EXPORT_SYMBOL_GPL(virtqueue_disable_cb);
 
 /**
+ * virtqueue_enable_cb_prepare - restart callbacks after disable_cb
+ * @vq: the struct virtqueue we're talking about.
+ *
+ * This re-enables callbacks; it returns current queue state
+ * in an opaque unsigned value. This value should be later tested by
+ * virtqueue_poll, to detect a possible race between the driver checking for
+ * more work, and enabling callbacks.
+ *
+ * Caller must ensure we don't call this with other virtqueue
+ * operations at the same time (except where noted).
+ */
+unsigned virtqueue_enable_cb_prepare(struct virtqueue *_vq)
+{
+	struct vring_virtqueue *vq = to_vvq(_vq);
+	u16 last_used_idx;
+
+	START_USE(vq);
+
+	/* We optimistically turn back on interrupts, then check if there was
+	 * more to do. */
+	/* Depending on the VIRTIO_RING_F_EVENT_IDX feature, we need to
+	 * either clear the flags bit or point the event index at the next
+	 * entry. Always do both to keep code simple. */
+	vq->vring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
+	vring_used_event(&vq->vring) = last_used_idx = vq->last_used_idx;
+	END_USE(vq);
+	return last_used_idx;
+}
+EXPORT_SYMBOL_GPL(virtqueue_enable_cb_prepare);
+
+/**
+ * virtqueue_poll - query pending used buffers
+ * @vq: the struct virtqueue we're talking about.
+ * @last_used_idx: virtqueue state (from call to virtqueue_enable_cb_prepare).
+ *
+ * Returns "true" if there are pending used buffers in the queue.
+ *
+ * This does not need to be serialized.
+ */
+bool virtqueue_poll(struct virtqueue *_vq, unsigned last_used_idx)
+{
+	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	virtio_mb(vq->weak_barriers);
+	return (u16)last_used_idx != vq->vring.used->idx;
+}
+EXPORT_SYMBOL_GPL(virtqueue_poll);
+
+/**
  * virtqueue_enable_cb - restart callbacks after disable_cb.
  * @vq: the struct virtqueue we're talking about.
  *
@@ -619,25 +637,8 @@ EXPORT_SYMBOL_GPL(virtqueue_disable_cb);
  */
 bool virtqueue_enable_cb(struct virtqueue *_vq)
 {
-	struct vring_virtqueue *vq = to_vvq(_vq);
-
-	START_USE(vq);
-
-	/* We optimistically turn back on interrupts, then check if there was
-	 * more to do. */
-	/* Depending on the VIRTIO_RING_F_EVENT_IDX feature, we need to
-	 * either clear the flags bit or point the event index at the next
-	 * entry. Always do both to keep code simple. */
-	vq->vring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-	vring_used_event(&vq->vring) = vq->last_used_idx;
-	virtio_mb(vq->weak_barriers);
-	if (unlikely(more_used(vq))) {
-		END_USE(vq);
-		return false;
-	}
-
-	END_USE(vq);
-	return true;
+	unsigned last_used_idx = virtqueue_enable_cb_prepare(_vq);
+	return !virtqueue_poll(_vq, last_used_idx);
 }
 EXPORT_SYMBOL_GPL(virtqueue_enable_cb);
 
@@ -685,7 +686,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_delayed);
  * virtqueue_detach_unused_buf - detach first unused buffer
  * @vq: the struct virtqueue we're talking about.
  *
- * Returns NULL or the "data" token handed to virtqueue_add_buf().
+ * Returns NULL or the "data" token handed to virtqueue_add_*().
  * This is not valid on an active queue; it is useful only for device
  * shutdown.
  */

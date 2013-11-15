@@ -44,12 +44,12 @@
  *
  */
 
-typedef u32 rtas_arg_t;
+typedef __be32 rtas_arg_t;
 
 struct rtas_args {
-	u32 token;
-	u32 nargs;
-	u32 nret; 
+	__be32 token;
+	__be32 nargs;
+	__be32 nret; 
 	rtas_arg_t args[16];
 	rtas_arg_t *rets;     /* Pointer to return values in args[]. */
 };  
@@ -350,8 +350,8 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 			(devfn << 8) | (reg & 0xff);
 }
 
-extern void __cpuinit rtas_give_timebase(void);
-extern void __cpuinit rtas_take_timebase(void);
+extern void rtas_give_timebase(void);
+extern void rtas_take_timebase(void);
 
 #ifdef CONFIG_PPC_RTAS
 static inline int page_is_rtas_user_buf(unsigned long pfn)

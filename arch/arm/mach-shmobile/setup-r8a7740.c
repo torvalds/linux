@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
@@ -70,29 +72,15 @@ void __init r8a7740_map_io(void)
 }
 
 /* PFC */
-static struct resource r8a7740_pfc_resources[] = {
-	[0] = {
-		.start	= 0xe6050000,
-		.end	= 0xe6057fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= 0xe605800c,
-		.end	= 0xe605802b,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device r8a7740_pfc_device = {
-	.name		= "pfc-r8a7740",
-	.id		= -1,
-	.resource	= r8a7740_pfc_resources,
-	.num_resources	= ARRAY_SIZE(r8a7740_pfc_resources),
+static const struct resource pfc_resources[] = {
+	DEFINE_RES_MEM(0xe6050000, 0x8000),
+	DEFINE_RES_MEM(0xe605800c, 0x0020),
 };
 
 void __init r8a7740_pinmux_init(void)
 {
-	platform_device_register(&r8a7740_pfc_device);
+	platform_device_register_simple("pfc-r8a7740", -1, pfc_resources,
+					ARRAY_SIZE(pfc_resources));
 }
 
 static struct renesas_intc_irqpin_config irqpin0_platform_data = {
@@ -531,11 +519,7 @@ static struct platform_device ipmmu_device = {
 	.num_resources  = ARRAY_SIZE(ipmmu_resources),
 };
 
-static struct platform_device *r8a7740_early_devices[] __initdata = {
-	&irqpin0_device,
-	&irqpin1_device,
-	&irqpin2_device,
-	&irqpin3_device,
+static struct platform_device *r8a7740_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -546,6 +530,13 @@ static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif7_device,
 	&scifb_device,
 	&cmt10_device,
+};
+
+static struct platform_device *r8a7740_early_devices[] __initdata = {
+	&irqpin0_device,
+	&irqpin1_device,
+	&irqpin2_device,
+	&irqpin3_device,
 	&tmu00_device,
 	&tmu01_device,
 	&tmu02_device,
@@ -599,6 +590,16 @@ static const struct sh_dmae_slave_config r8a7740_dmae_slaves[] = {
 		.addr		= 0xfe1f0064,
 		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
 		.mid_rid	= 0xb5,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
+		.addr		= 0xe6bd0034,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
+		.addr		= 0xe6bd0034,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd2,
 	},
 };
 
@@ -965,6 +966,8 @@ void __init r8a7740_add_standard_devices(void)
 	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
 			    ARRAY_SIZE(r8a7740_early_devices));
+	platform_add_devices(r8a7740_devices_dt,
+			    ARRAY_SIZE(r8a7740_devices_dt));
 	platform_add_devices(r8a7740_late_devices,
 			     ARRAY_SIZE(r8a7740_late_devices));
 
@@ -986,6 +989,8 @@ void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
 				   ARRAY_SIZE(r8a7740_early_devices));
+	early_platform_add_devices(r8a7740_devices_dt,
+				   ARRAY_SIZE(r8a7740_devices_dt));
 
 	/* setup early console here as well */
 	shmobile_setup_console();
@@ -1004,20 +1009,52 @@ void __init r8a7740_add_early_devices_dt(void)
 	shmobile_setup_console();
 }
 
-static const struct of_dev_auxdata r8a7740_auxdata_lookup[] __initconst = {
-	{ }
-};
-
 void __init r8a7740_add_standard_devices_dt(void)
 {
-	/* clocks are setup late during boot in the case of DT */
+	platform_add_devices(r8a7740_devices_dt,
+			    ARRAY_SIZE(r8a7740_devices_dt));
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+void __init r8a7740_init_delay(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+};
+
+void __init r8a7740_init_irq_of(void)
+{
+	void __iomem *intc_prio_base = ioremap_nocache(0xe6900010, 0x10);
+	void __iomem *intc_msk_base = ioremap_nocache(0xe6900040, 0x10);
+	void __iomem *pfc_inta_ctrl = ioremap_nocache(0xe605807c, 0x4);
+
+	irqchip_init();
+
+	/* route signals to GIC */
+	iowrite32(0x0, pfc_inta_ctrl);
+
+	/*
+	 * To mask the shared interrupt to SPI 149 we must ensure to set
+	 * PRIO *and* MASK. Else we run into IRQ floods when registering
+	 * the intc_irqpin devices
+	 */
+	iowrite32(0x0, intc_prio_base + 0x0);
+	iowrite32(0x0, intc_prio_base + 0x4);
+	iowrite32(0x0, intc_prio_base + 0x8);
+	iowrite32(0x0, intc_prio_base + 0xc);
+	iowrite8(0xff, intc_msk_base + 0x0);
+	iowrite8(0xff, intc_msk_base + 0x4);
+	iowrite8(0xff, intc_msk_base + 0x8);
+	iowrite8(0xff, intc_msk_base + 0xc);
+
+	iounmap(intc_prio_base);
+	iounmap(intc_msk_base);
+	iounmap(pfc_inta_ctrl);
+}
+
+static void __init r8a7740_generic_init(void)
+{
 	r8a7740_clock_init(0);
-
-	platform_add_devices(r8a7740_early_devices,
-			    ARRAY_SIZE(r8a7740_early_devices));
-
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7740_auxdata_lookup, NULL);
+	r8a7740_add_standard_devices_dt();
 }
 
 static const char *r8a7740_boards_compat_dt[] __initdata = {
@@ -1027,9 +1064,9 @@ static const char *r8a7740_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.map_io		= r8a7740_map_io,
-	.init_early	= r8a7740_add_early_devices_dt,
-	.init_irq	= r8a7740_init_irq,
-	.init_machine	= r8a7740_add_standard_devices_dt,
+	.init_early	= r8a7740_init_delay,
+	.init_irq	= r8a7740_init_irq_of,
+	.init_machine	= r8a7740_generic_init,
 	.dt_compat	= r8a7740_boards_compat_dt,
 MACHINE_END
 

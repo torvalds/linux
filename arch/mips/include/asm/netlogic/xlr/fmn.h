@@ -175,6 +175,10 @@
 #define nlm_write_c2_cc14(s, v)		__write_32bit_c2_register($30, s, v)
 #define nlm_write_c2_cc15(s, v)		__write_32bit_c2_register($31, s, v)
 
+#define nlm_read_c2_status0()		__read_32bit_c2_register($2, 0)
+#define nlm_write_c2_status0(v)		__write_32bit_c2_register($2, 0, v)
+#define nlm_read_c2_status1()		__read_32bit_c2_register($2, 1)
+#define nlm_write_c2_status1(v)		__write_32bit_c2_register($2, 1, v)
 #define nlm_read_c2_status(sel)		__read_32bit_c2_register($2, 0)
 #define nlm_read_c2_config()		__read_32bit_c2_register($3, 0)
 #define nlm_write_c2_config(v)		__write_32bit_c2_register($3, 0, v)
@@ -237,7 +241,7 @@ static inline void nlm_msgwait(unsigned int mask)
 /*
  * Disable interrupts and enable COP2 access
  */
-static inline uint32_t nlm_cop2_enable(void)
+static inline uint32_t nlm_cop2_enable_irqsave(void)
 {
 	uint32_t sr = read_c0_status();
 
@@ -245,7 +249,7 @@ static inline uint32_t nlm_cop2_enable(void)
 	return sr;
 }
 
-static inline void nlm_cop2_restore(uint32_t sr)
+static inline void nlm_cop2_disable_irqrestore(uint32_t sr)
 {
 	write_c0_status(sr);
 }
@@ -296,7 +300,7 @@ static inline int nlm_fmn_send(unsigned int size, unsigned int code,
 	 */
 	for (i = 0; i < 8; i++) {
 		nlm_msgsnd(dest);
-		status = nlm_read_c2_status(0);
+		status = nlm_read_c2_status0();
 		if ((status & 0x2) == 1)
 			pr_info("Send pending fail!\n");
 		if ((status & 0x4) == 0)
@@ -316,7 +320,7 @@ static inline int nlm_fmn_receive(int bucket, int *size, int *code, int *stid,
 
 	/* wait for load pending to clear */
 	do {
-		status = nlm_read_c2_status(1);
+		status = nlm_read_c2_status0();
 	} while ((status & 0x08) != 0);
 
 	/* receive error bits */

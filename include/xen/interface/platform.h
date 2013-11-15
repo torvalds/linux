@@ -152,10 +152,11 @@ DEFINE_GUEST_HANDLE_STRUCT(xenpf_firmware_info_t);
 #define XENPF_enter_acpi_sleep    51
 struct xenpf_enter_acpi_sleep {
 	/* IN variables */
-	uint16_t pm1a_cnt_val;      /* PM1a control value. */
-	uint16_t pm1b_cnt_val;      /* PM1b control value. */
+	uint16_t val_a;             /* PM1a control / sleep type A. */
+	uint16_t val_b;             /* PM1b control / sleep type B. */
 	uint32_t sleep_state;       /* Which state to enter (Sn). */
-	uint32_t flags;             /* Must be zero. */
+#define XENPF_ACPI_SLEEP_EXTENDED 0x00000001
+	uint32_t flags;             /* XENPF_ACPI_SLEEP_*. */
 };
 DEFINE_GUEST_HANDLE_STRUCT(xenpf_enter_acpi_sleep_t);
 

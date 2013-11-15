@@ -712,6 +712,7 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 static s32 igb_set_default_fc(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+	u16 lan_offset;
 	u16 nvm_data;
 
 	/* Read and store word 0x0F of the EEPROM. This word contains bits
@@ -722,7 +723,14 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	if (hw->mac.type == e1000_i350) {
+		lan_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG
+					   + lan_offset, 1, &nvm_data);
+	 } else {
+		ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG,
+					   1, &nvm_data);
+	 }
 
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -1171,17 +1179,6 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 		hw_dbg("Half Duplex\n");
 	}
 
-	/* Check if it is an I354 2.5Gb backplane connection. */
-	if (hw->mac.type == e1000_i354) {
-		if ((status & E1000_STATUS_2P5_SKU) &&
-		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-			*speed = SPEED_2500;
-			*duplex = FULL_DUPLEX;
-			hw_dbg("2500 Mbs, ");
-			hw_dbg("Full Duplex\n");
-		}
-	}
-
 	return 0;
 }
 
@@ -1332,7 +1329,13 @@ s32 igb_id_led_init(struct e1000_hw *hw)
 	u16 data, i, temp;
 	const u16 led_mask = 0x0F;
 
-	ret_val = igb_valid_led_default(hw, &data);
+	/* i210 and i211 devices have different LED mechanism */
+	if ((hw->mac.type == e1000_i210) ||
+	    (hw->mac.type == e1000_i211))
+		ret_val = igb_valid_led_default_i210(hw, &data);
+	else
+		ret_val = igb_valid_led_default(hw, &data);
+
 	if (ret_val)
 		goto out;
 
@@ -1406,15 +1409,34 @@ s32 igb_blink_led(struct e1000_hw *hw)
 	u32 ledctl_blink = 0;
 	u32 i;
 
-	/* set the blink bit for each LED that's "on" (0x0E)
-	 * in ledctl_mode2
-	 */
-	ledctl_blink = hw->mac.ledctl_mode2;
-	for (i = 0; i < 4; i++)
-		if (((hw->mac.ledctl_mode2 >> (i * 8)) & 0xFF) ==
-		    E1000_LEDCTL_MODE_LED_ON)
-			ledctl_blink |= (E1000_LEDCTL_LED0_BLINK <<
-					 (i * 8));
+	if (hw->phy.media_type == e1000_media_type_fiber) {
+		/* always blink LED0 for PCI-E fiber */
+		ledctl_blink = E1000_LEDCTL_LED0_BLINK |
+		     (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED0_MODE_SHIFT);
+	} else {
+		/* Set the blink bit for each LED that's "on" (0x0E)
+		 * (or "off" if inverted) in ledctl_mode2.  The blink
+		 * logic in hardware only works when mode is set to "on"
+		 * so it must be changed accordingly when the mode is
+		 * "off" and inverted.
+		 */
+		ledctl_blink = hw->mac.ledctl_mode2;
+		for (i = 0; i < 32; i += 8) {
+			u32 mode = (hw->mac.ledctl_mode2 >> i) &
+			    E1000_LEDCTL_LED0_MODE_MASK;
+			u32 led_default = hw->mac.ledctl_default >> i;
+
+			if ((!(led_default & E1000_LEDCTL_LED0_IVRT) &&
+			     (mode == E1000_LEDCTL_MODE_LED_ON)) ||
+			    ((led_default & E1000_LEDCTL_LED0_IVRT) &&
+			     (mode == E1000_LEDCTL_MODE_LED_OFF))) {
+				ledctl_blink &=
+				    ~(E1000_LEDCTL_LED0_MODE_MASK << i);
+				ledctl_blink |= (E1000_LEDCTL_LED0_BLINK |
+						 E1000_LEDCTL_MODE_LED_ON) << i;
+			}
+		}
+	}
 
 	wr32(E1000_LEDCTL, ledctl_blink);
 

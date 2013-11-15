@@ -23,25 +23,45 @@ analysis phases.
 OPTIONS
 -------
 
+-a::
 --all-cpus::
         System-wide collection from all CPUs.
+
+-e::
+--expr::
+	List of events to show, currently only syscall names.
+	Prefixing with ! shows all syscalls but the ones specified.  You may
+	need to escape it.
+
+-o::
+--output=::
+	Output file name.
 
 -p::
 --pid=::
 	Record events on existing process ID (comma separated list).
 
+-t::
 --tid=::
         Record events on existing thread ID (comma separated list).
 
+-u::
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-v::
+--verbose=::
+        Verbosity level.
+
+-i::
 --no-inherit::
 	Child tasks do not inherit counters.
 
+-m::
 --mmap-pages=::
 	Number of mmap data pages. Must be a power of two.
 
+-C::
 --cpu::
 Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
 comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
@@ -53,6 +73,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --sched:
 	Accrue thread runtime and provide a summary at the end of the session.
+
+-i
+--input
+	Process events from a given perf data file.
 
 SEE ALSO
 --------

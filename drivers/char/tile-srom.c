@@ -273,61 +273,43 @@ static ssize_t srom_write(struct file *filp, const char __user *buf,
 }
 
 /* Provide our own implementation so we can use srom->total_size. */
-loff_t srom_llseek(struct file *filp, loff_t offset, int origin)
+loff_t srom_llseek(struct file *file, loff_t offset, int origin)
 {
-	struct srom_dev *srom = filp->private_data;
-
-	if (mutex_lock_interruptible(&srom->lock))
-		return -ERESTARTSYS;
-
-	switch (origin) {
-	case SEEK_END:
-		offset += srom->total_size;
-		break;
-	case SEEK_CUR:
-		offset += filp->f_pos;
-		break;
-	}
-
-	if (offset < 0 || offset > srom->total_size) {
-		offset = -EINVAL;
-	} else {
-		filp->f_pos = offset;
-		filp->f_version = 0;
-	}
-
-	mutex_unlock(&srom->lock);
-
-	return offset;
+	struct srom_dev *srom = file->private_data;
+	return fixed_size_llseek(file, offset, origin, srom->total_size);
 }
 
-static ssize_t total_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static ssize_t total_size_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct srom_dev *srom = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", srom->total_size);
 }
+static DEVICE_ATTR_RO(total_size);
 
-static ssize_t sector_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
+static ssize_t sector_size_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct srom_dev *srom = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", srom->sector_size);
 }
+static DEVICE_ATTR_RO(sector_size);
 
-static ssize_t page_show(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t page_size_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct srom_dev *srom = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", srom->page_size);
 }
+static DEVICE_ATTR_RO(page_size);
 
-static struct device_attribute srom_dev_attrs[] = {
-	__ATTR(total_size, S_IRUGO, total_show, NULL),
-	__ATTR(sector_size, S_IRUGO, sector_show, NULL),
-	__ATTR(page_size, S_IRUGO, page_show, NULL),
-	__ATTR_NULL
+static struct attribute *srom_dev_attrs[] = {
+	&dev_attr_total_size.attr,
+	&dev_attr_sector_size.attr,
+	&dev_attr_page_size.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(srom_dev);
 
 static char *srom_devnode(struct device *dev, umode_t *mode)
 {
@@ -371,7 +353,7 @@ static int srom_setup_minor(struct srom_dev *srom, int index)
 
 	dev = device_create(srom_class, &platform_bus,
 			    MKDEV(srom_major, index), srom, "%d", index);
-	return PTR_RET(dev);
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 /** srom_init() - Initialize the driver's module. */
@@ -440,7 +422,7 @@ static int srom_init(void)
 		result = PTR_ERR(srom_class);
 		goto fail_cdev;
 	}
-	srom_class->dev_attrs = srom_dev_attrs;
+	srom_class->dev_groups = srom_dev_groups;
 	srom_class->devnode = srom_devnode;
 
 	/* Do per-partition initialization */

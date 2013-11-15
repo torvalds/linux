@@ -161,7 +161,7 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	if (!pv)
 		return;
 
-	for_each_set_bit_from(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
+	for_each_set_bit_from(vid, pv->vlan_bitmap, VLAN_N_VID) {
 		f = __br_fdb_get(br, br->dev->dev_addr, vid);
 		if (f && f->is_local && !f->dst)
 			fdb_delete(br, f);
@@ -707,6 +707,11 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		}
 	}
 
+	if (is_zero_ether_addr(addr)) {
+		pr_info("bridge: RTM_NEWNEIGH with invalid ether address\n");
+		return -EINVAL;
+	}
+
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {
 		pr_info("bridge: RTM_NEWNEIGH %s not a bridge port\n",
@@ -725,7 +730,7 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		/* VID was specified, so use it. */
 		err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
+		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
 			err = __br_fdb_add(ndm, p, addr, nlh_flags, 0);
 			goto out;
 		}
@@ -734,7 +739,7 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		 * specify a VLAN.  To be nice, add/update entry for every
 		 * vlan on this port.
 		 */
-		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 			if (err)
 				goto out;
@@ -812,7 +817,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 
 		err = __br_fdb_delete(p, addr, vid);
 	} else {
-		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN)) {
+		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID)) {
 			err = __br_fdb_delete(p, addr, 0);
 			goto out;
 		}
@@ -822,7 +827,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		 * vlan on this port.
 		 */
 		err = -ENOENT;
-		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			err &= __br_fdb_delete(p, addr, vid);
 		}
 	}

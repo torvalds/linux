@@ -8,12 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/ctype.h>
 #include <linux/export.h>
-#include <linux/jhash.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_labels.h>
@@ -45,7 +41,7 @@ int nf_connlabel_set(struct nf_conn *ct, u16 bit)
 	if (test_bit(bit, labels->bits))
 		return 0;
 
-	if (test_and_set_bit(bit, labels->bits))
+	if (!test_and_set_bit(bit, labels->bits))
 		nf_conntrack_event_cache(IPCT_LABEL, ct);
 
 	return 0;

@@ -37,7 +37,7 @@ int tegra_cpu_kill(unsigned cpu)
 void __ref tegra_cpu_die(unsigned int cpu)
 {
 	/* Clean L1 data cache */
-	tegra_disable_clean_inv_dcache();
+	tegra_disable_clean_inv_dcache(TEGRA_FLUSH_CACHE_LOUIS);
 
 	/* Shut down the current CPU. */
 	tegra_hotplug_shutdown();
@@ -54,5 +54,7 @@ void __init tegra_hotplug_init(void)
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_chip_id == TEGRA20)
 		tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
+		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
 }

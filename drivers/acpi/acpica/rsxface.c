@@ -402,6 +402,7 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 		break;
 
 	default:
+
 		return (AE_BAD_PARAMETER);
 	}
 

@@ -57,17 +57,20 @@ struct ttm_validate_buffer {
 /**
  * function ttm_eu_backoff_reservation
  *
+ * @ticket:   ww_acquire_ctx from reserve call
  * @list:     thread private list of ttm_validate_buffer structs.
  *
  * Undoes all buffer validation reservations for bos pointed to by
  * the list entries.
  */
 
-extern void ttm_eu_backoff_reservation(struct list_head *list);
+extern void ttm_eu_backoff_reservation(struct ww_acquire_ctx *ticket,
+				       struct list_head *list);
 
 /**
  * function ttm_eu_reserve_buffers
  *
+ * @ticket:  [out] ww_acquire_ctx returned by call.
  * @list:    thread private list of ttm_validate_buffer structs.
  *
  * Tries to reserve bos pointed to by the list entries for validation.
@@ -90,11 +93,13 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * has failed.
  */
 
-extern int ttm_eu_reserve_buffers(struct list_head *list);
+extern int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
+				  struct list_head *list);
 
 /**
  * function ttm_eu_fence_buffer_objects.
  *
+ * @ticket:      ww_acquire_ctx from reserve call
  * @list:        thread private list of ttm_validate_buffer structs.
  * @sync_obj:    The new sync object for the buffers.
  *
@@ -104,6 +109,7 @@ extern int ttm_eu_reserve_buffers(struct list_head *list);
  *
  */
 
-extern void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj);
+extern void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
+					struct list_head *list, void *sync_obj);
 
 #endif

@@ -329,20 +329,6 @@ sysfs notes:
 
 		This attribute has poll()/select() support.
 
-	hotkey_report_mode:
-		Returns the state of the procfs ACPI event report mode
-		filter for hot keys.  If it is set to 1 (the default),
-		all hot key presses are reported both through the input
-		layer and also as ACPI events through procfs (but not
-		through netlink).  If it is set to 2, hot key presses
-		are reported only through the input layer.
-
-		This attribute is read-only in kernels 2.6.23 or later,
-		and read-write on earlier kernels.
-
-		May return -EPERM (write access locked out by module
-		parameter) or -EACCES (read-only).
-
 	wakeup_reason:
 		Set to 1 if the system is waking up because the user
 		requested a bay ejection.  Set to 2 if the system is
@@ -518,24 +504,21 @@ SW_TABLET_MODE	Tablet ThinkPads HKEY events 0x5009 and 0x500A
 Non hotkey ACPI HKEY event map:
 -------------------------------
 
-Events that are not propagated by the driver, except for legacy
-compatibility purposes when hotkey_report_mode is set to 1:
-
-0x5001		Lid closed
-0x5002		Lid opened
-0x5009		Tablet swivel: switched to tablet mode
-0x500A		Tablet swivel: switched to normal mode
-0x7000		Radio Switch may have changed state
-
 Events that are never propagated by the driver:
 
 0x2304		System is waking up from suspend to undock
 0x2305		System is waking up from suspend to eject bay
 0x2404		System is waking up from hibernation to undock
 0x2405		System is waking up from hibernation to eject bay
+0x5001		Lid closed
+0x5002		Lid opened
+0x5009		Tablet swivel: switched to tablet mode
+0x500A		Tablet swivel: switched to normal mode
 0x5010		Brightness level changed/control event
 0x6000		KEYBOARD: Numlock key pressed
 0x6005		KEYBOARD: Fn key pressed (TO BE VERIFIED)
+0x7000		Radio Switch may have changed state
+
 
 Events that are propagated by the driver to userspace:
 
@@ -573,50 +556,6 @@ The "extremely hot" alarms are emergencies.  According to Lenovo, the
 operating system is to force either an immediate suspend or hibernate
 cycle, or a system shutdown.  Obviously, something is very wrong if this
 happens.
-
-Compatibility notes:
-
-ibm-acpi and thinkpad-acpi 0.15 (mainline kernels before 2.6.23) never
-supported the input layer, and sent events over the procfs ACPI event
-interface.
-
-To avoid sending duplicate events over the input layer and the ACPI
-event interface, thinkpad-acpi 0.16 implements a module parameter
-(hotkey_report_mode), and also a sysfs device attribute with the same
-name.
-
-Make no mistake here: userspace is expected to switch to using the input
-layer interface of thinkpad-acpi, together with the ACPI netlink event
-interface in kernels 2.6.23 and later, or with the ACPI procfs event
-interface in kernels 2.6.22 and earlier.
-
-If no hotkey_report_mode module parameter is specified (or it is set to
-zero), the driver defaults to mode 1 (see below), and on kernels 2.6.22
-and earlier, also allows one to change the hotkey_report_mode through
-sysfs.  In kernels 2.6.23 and later, where the netlink ACPI event
-interface is available, hotkey_report_mode cannot be changed through
-sysfs (it is read-only).
-
-If the hotkey_report_mode module parameter is set to 1 or 2, it cannot
-be changed later through sysfs (any writes will return -EPERM to signal
-that hotkey_report_mode was locked.  On 2.6.23 and later, where
-hotkey_report_mode cannot be changed at all, writes will return -EACCES).
-
-hotkey_report_mode set to 1 makes the driver export through the procfs
-ACPI event interface all hot key presses (which are *also* sent to the
-input layer).  This is a legacy compatibility behaviour, and it is also
-the default mode of operation for the driver.
-
-hotkey_report_mode set to 2 makes the driver filter out the hot key
-presses from the procfs ACPI event interface, so these events will only
-be sent through the input layer.  Userspace that has been updated to use
-the thinkpad-acpi input layer interface should set hotkey_report_mode to
-2.
-
-Hot key press events are never sent to the ACPI netlink event interface.
-Really up-to-date userspace under kernel 2.6.23 and later is to use the
-netlink interface and the input layer interface, and don't bother at all
-with hotkey_report_mode.
 
 
 Brightness hotkey notes:

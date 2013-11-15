@@ -79,7 +79,7 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 /*printk(KERN_ERR "in irq\n"); */
 /*pr_warn("in IRQ\n"); */
 	int c;
-	spk_lock(flags);
+	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	while (inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR) {
 
 		c = inb_p(speakup_info.port_tts+UART_RX);
@@ -87,7 +87,7 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 /*printk(KERN_ERR "c = %d\n", c); */
 /*pr_warn("C = %d\n", c); */
 	}
-	spk_unlock(flags);
+	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return IRQ_HANDLED;
 }
 

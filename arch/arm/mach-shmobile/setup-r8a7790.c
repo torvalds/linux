@@ -18,26 +18,61 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clocksource.h>
 #include <linux/irq.h>
-#include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
-#include <linux/serial_sci.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
+#include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
-static const struct resource pfc_resources[] = {
+static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
-	DEFINE_RES_MEM(0xe6050000, 0x5050),
 };
+
+#define R8A7790_GPIO(idx)						\
+static struct resource r8a7790_gpio##idx##_resources[] __initdata = {	\
+	DEFINE_RES_MEM(0xe6050000 + 0x1000 * (idx), 0x50),		\
+	DEFINE_RES_IRQ(gic_spi(4 + (idx))),				\
+};									\
+									\
+static struct gpio_rcar_config r8a7790_gpio##idx##_platform_data __initdata = {	\
+	.gpio_base	= 32 * (idx),					\
+	.irq_base	= 0,						\
+	.number_of_pins	= 32,						\
+	.pctl_name	= "pfc-r8a7790",				\
+	.has_both_edge_trigger = 1,					\
+};									\
+
+R8A7790_GPIO(0);
+R8A7790_GPIO(1);
+R8A7790_GPIO(2);
+R8A7790_GPIO(3);
+R8A7790_GPIO(4);
+R8A7790_GPIO(5);
+
+#define r8a7790_register_gpio(idx)					\
+	platform_device_register_resndata(&platform_bus, "gpio_rcar", idx, \
+		r8a7790_gpio##idx##_resources,				\
+		ARRAY_SIZE(r8a7790_gpio##idx##_resources),		\
+		&r8a7790_gpio##idx##_platform_data,			\
+		sizeof(r8a7790_gpio##idx##_platform_data))
 
 void __init r8a7790_pinmux_init(void)
 {
 	platform_device_register_simple("pfc-r8a7790", -1, pfc_resources,
 					ARRAY_SIZE(pfc_resources));
+	r8a7790_register_gpio(0);
+	r8a7790_register_gpio(1);
+	r8a7790_register_gpio(2);
+	r8a7790_register_gpio(3);
+	r8a7790_register_gpio(4);
+	r8a7790_register_gpio(5);
 }
 
 #define SCIF_COMMON(scif_type, baseaddr, irq)			\
@@ -64,12 +99,20 @@ void __init r8a7790_pinmux_init(void)
 [index] = {						\
 	SCIF_COMMON(PORT_SCIF, baseaddr, irq),		\
 	.scbrr_algo_id	= SCBRR_ALGO_2,			\
-	.scscr = SCSCR_RE | SCSCR_TE | SCSCR_CKE1,	\
+	.scscr = SCSCR_RE | SCSCR_TE,	\
 }
 
-enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1 };
+#define HSCIF_DATA(index, baseaddr, irq)		\
+[index] = {						\
+	SCIF_COMMON(PORT_HSCIF, baseaddr, irq),		\
+	.scbrr_algo_id	= SCBRR_ALGO_6,			\
+	.scscr = SCSCR_RE | SCSCR_TE,	\
+}
 
-static const struct plat_sci_port scif[] = {
+enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1,
+       HSCIF0, HSCIF1 };
+
+static struct plat_sci_port scif[] __initdata = {
 	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
 	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
 	SCIFB_DATA(SCIFB0, 0xe6c20000, gic_spi(148)), /* SCIFB0 */
@@ -78,6 +121,8 @@ static const struct plat_sci_port scif[] = {
 	SCIFA_DATA(SCIFA2, 0xe6c60000, gic_spi(151)), /* SCIFA2 */
 	SCIF_DATA(SCIF0, 0xe6e60000, gic_spi(152)), /* SCIF0 */
 	SCIF_DATA(SCIF1, 0xe6e68000, gic_spi(153)), /* SCIF1 */
+	HSCIF_DATA(HSCIF0, 0xe62c0000, gic_spi(154)), /* HSCIF0 */
+	HSCIF_DATA(HSCIF1, 0xe62c8000, gic_spi(155)), /* HSCIF1 */
 };
 
 static inline void r8a7790_register_scif(int idx)
@@ -86,11 +131,11 @@ static inline void r8a7790_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
-static struct renesas_irqc_config irqc0_data = {
+static struct renesas_irqc_config irqc0_data __initdata = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 };
 
-static struct resource irqc0_resources[] = {
+static struct resource irqc0_resources[] __initdata = {
 	DEFINE_RES_MEM(0xe61c0000, 0x200), /* IRQC Event Detector Block_0 */
 	DEFINE_RES_IRQ(gic_spi(0)), /* IRQ0 */
 	DEFINE_RES_IRQ(gic_spi(1)), /* IRQ1 */
@@ -105,7 +150,37 @@ static struct resource irqc0_resources[] = {
 					  &irqc##idx##_data,		\
 					  sizeof(struct renesas_irqc_config))
 
-void __init r8a7790_add_standard_devices(void)
+static struct resource thermal_resources[] __initdata = {
+	DEFINE_RES_MEM(0xe61f0000, 0x14),
+	DEFINE_RES_MEM(0xe61f0100, 0x38),
+	DEFINE_RES_IRQ(gic_spi(69)),
+};
+
+#define r8a7790_register_thermal()					\
+	platform_device_register_simple("rcar_thermal", -1,		\
+					thermal_resources,		\
+					ARRAY_SIZE(thermal_resources))
+
+static struct sh_timer_config cmt00_platform_data __initdata = {
+	.name = "CMT00",
+	.timer_bit = 0,
+	.clockevent_rating = 80,
+};
+
+static struct resource cmt00_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffca0510, 0x0c),
+	DEFINE_RES_MEM(0xffca0500, 0x04),
+	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
+};
+
+#define r8a7790_register_cmt(idx)					\
+	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+					  idx, cmt##idx##_resources,	\
+					  ARRAY_SIZE(cmt##idx##_resources), \
+					  &cmt##idx##_platform_data,	\
+					  sizeof(struct sh_timer_config))
+
+void __init r8a7790_add_dt_devices(void)
 {
 	r8a7790_register_scif(SCIFA0);
 	r8a7790_register_scif(SCIFA1);
@@ -115,26 +190,91 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_scif(SCIFA2);
 	r8a7790_register_scif(SCIF0);
 	r8a7790_register_scif(SCIF1);
-	r8a7790_register_irqc(0);
+	r8a7790_register_scif(HSCIF0);
+	r8a7790_register_scif(HSCIF1);
+	r8a7790_register_cmt(00);
 }
+
+void __init r8a7790_add_standard_devices(void)
+{
+	r8a7790_add_dt_devices();
+	r8a7790_register_irqc(0);
+	r8a7790_register_thermal();
+}
+
+#define MODEMR 0xe6160060
+
+u32 __init r8a7790_read_mode_pins(void)
+{
+	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+	u32 mode;
+
+	BUG_ON(!modemr);
+	mode = ioread32(modemr);
+	iounmap(modemr);
+
+	return mode;
+}
+
+#define CNTCR 0
+#define CNTFID0 0x20
 
 void __init r8a7790_timer_init(void)
 {
-	void __iomem *cntcr;
+#ifdef CONFIG_ARM_ARCH_TIMER
+	u32 mode = r8a7790_read_mode_pins();
+	void __iomem *base;
+	int extal_mhz = 0;
+	u32 freq;
 
-	/* make sure arch timer is started by setting bit 0 of CNTCT */
-	cntcr = ioremap(0xe6080000, PAGE_SIZE);
-	iowrite32(1, cntcr);
-	iounmap(cntcr);
+	/* At Linux boot time the r8a7790 arch timer comes up
+	 * with the counter disabled. Moreover, it may also report
+	 * a potentially incorrect fixed 13 MHz frequency. To be
+	 * correct these registers need to be updated to use the
+	 * frequency EXTAL / 2 which can be determined by the MD pins.
+	 */
 
-	shmobile_timer_init();
+	switch (mode & (MD(14) | MD(13))) {
+	case 0:
+		extal_mhz = 15;
+		break;
+	case MD(13):
+		extal_mhz = 20;
+		break;
+	case MD(14):
+		extal_mhz = 26;
+		break;
+	case MD(13) | MD(14):
+		extal_mhz = 30;
+		break;
+	}
+
+	/* The arch timer frequency equals EXTAL / 2 */
+	freq = extal_mhz * (1000000 / 2);
+
+	/* Remap "armgcnt address map" space */
+	base = ioremap(0xe6080000, PAGE_SIZE);
+
+	/* Update registers with correct frequency */
+	iowrite32(freq, base + CNTFID0);
+	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (freq));
+
+	/* make sure arch timer is started by setting bit 0 of CNTCR */
+	iowrite32(1, base + CNTCR);
+	iounmap(base);
+#endif /* CONFIG_ARM_ARCH_TIMER */
+
+	clocksource_of_init();
+}
+
+void __init r8a7790_init_delay(void)
+{
+#ifndef CONFIG_ARM_ARCH_TIMER
+	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
+#endif
 }
 
 #ifdef CONFIG_USE_OF
-void __init r8a7790_add_standard_devices_dt(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 static const char *r8a7790_boards_compat_dt[] __initdata = {
 	"renesas,r8a7790",
@@ -142,8 +282,7 @@ static const char *r8a7790_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
-	.init_irq	= irqchip_init,
-	.init_machine	= r8a7790_add_standard_devices_dt,
+	.init_early	= r8a7790_init_delay,
 	.init_time	= r8a7790_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END

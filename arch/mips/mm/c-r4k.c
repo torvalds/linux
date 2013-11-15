@@ -12,6 +12,7 @@
 #include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
+#include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -24,6 +25,7 @@
 #include <asm/cacheops.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/cpu-type.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -107,7 +109,7 @@ static inline void r4k_blast_dcache_page_dc64(unsigned long addr)
 	blast_dcache64_page(addr);
 }
 
-static void __cpuinit r4k_blast_dcache_page_setup(void)
+static void r4k_blast_dcache_page_setup(void)
 {
 	unsigned long  dc_lsize = cpu_dcache_line_size();
 
@@ -123,7 +125,7 @@ static void __cpuinit r4k_blast_dcache_page_setup(void)
 
 static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
 
-static void __cpuinit r4k_blast_dcache_page_indexed_setup(void)
+static void r4k_blast_dcache_page_indexed_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -140,7 +142,7 @@ static void __cpuinit r4k_blast_dcache_page_indexed_setup(void)
 void (* r4k_blast_dcache)(void);
 EXPORT_SYMBOL(r4k_blast_dcache);
 
-static void __cpuinit r4k_blast_dcache_setup(void)
+static void r4k_blast_dcache_setup(void)
 {
 	unsigned long dc_lsize = cpu_dcache_line_size();
 
@@ -227,7 +229,7 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 
 static void (* r4k_blast_icache_page)(unsigned long addr);
 
-static void __cpuinit r4k_blast_icache_page_setup(void)
+static void r4k_blast_icache_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -244,7 +246,7 @@ static void __cpuinit r4k_blast_icache_page_setup(void)
 
 static void (* r4k_blast_icache_page_indexed)(unsigned long addr);
 
-static void __cpuinit r4k_blast_icache_page_indexed_setup(void)
+static void r4k_blast_icache_page_indexed_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -269,7 +271,7 @@ static void __cpuinit r4k_blast_icache_page_indexed_setup(void)
 void (* r4k_blast_icache)(void);
 EXPORT_SYMBOL(r4k_blast_icache);
 
-static void __cpuinit r4k_blast_icache_setup(void)
+static void r4k_blast_icache_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
@@ -290,7 +292,7 @@ static void __cpuinit r4k_blast_icache_setup(void)
 
 static void (* r4k_blast_scache_page)(unsigned long addr);
 
-static void __cpuinit r4k_blast_scache_page_setup(void)
+static void r4k_blast_scache_page_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -308,7 +310,7 @@ static void __cpuinit r4k_blast_scache_page_setup(void)
 
 static void (* r4k_blast_scache_page_indexed)(unsigned long addr);
 
-static void __cpuinit r4k_blast_scache_page_indexed_setup(void)
+static void r4k_blast_scache_page_indexed_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -326,7 +328,7 @@ static void __cpuinit r4k_blast_scache_page_indexed_setup(void)
 
 static void (* r4k_blast_scache)(void);
 
-static void __cpuinit r4k_blast_scache_setup(void)
+static void r4k_blast_scache_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
@@ -601,11 +603,13 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
+	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
 			blast_scache_range(addr, addr + size);
+		preempt_enable();
 		__sync();
 		return;
 	}
@@ -621,6 +625,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		blast_dcache_range(addr, addr + size);
 	}
+	preempt_enable();
 
 	bc_wback_inv(addr, size);
 	__sync();
@@ -631,6 +636,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
+	preempt_disable();
 	if (cpu_has_inclusive_pcaches) {
 		if (size >= scache_size)
 			r4k_blast_scache();
@@ -645,6 +651,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 			 */
 			blast_inv_scache_range(addr, addr + size);
 		}
+		preempt_enable();
 		__sync();
 		return;
 	}
@@ -655,6 +662,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		R4600_HIT_CACHEOP_WAR_IMPL;
 		blast_inv_dcache_range(addr, addr + size);
 	}
+	preempt_enable();
 
 	bc_inv(addr, size);
 	__sync();
@@ -780,28 +788,38 @@ static inline void rm7k_erratum31(void)
 
 static inline void alias_74k_erratum(struct cpuinfo_mips *c)
 {
+	unsigned int imp = c->processor_id & PRID_IMP_MASK;
+	unsigned int rev = c->processor_id & PRID_REV_MASK;
+
 	/*
 	 * Early versions of the 74K do not update the cache tags on a
 	 * vtag miss/ptag hit which can occur in the case of KSEG0/KUSEG
 	 * aliases. In this case it is better to treat the cache as always
 	 * having aliases.
 	 */
-	if ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(2, 4, 0))
-		c->dcache.flags |= MIPS_CACHE_VTAG;
-	if ((c->processor_id & 0xff) == PRID_REV_ENCODE_332(2, 4, 0))
-		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
-	if (((c->processor_id & 0xff00) == PRID_IMP_1074K) &&
-	    ((c->processor_id & 0xff) <= PRID_REV_ENCODE_332(1, 1, 0))) {
-		c->dcache.flags |= MIPS_CACHE_VTAG;
-		write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+	switch (imp) {
+	case PRID_IMP_74K:
+		if (rev <= PRID_REV_ENCODE_332(2, 4, 0))
+			c->dcache.flags |= MIPS_CACHE_VTAG;
+		if (rev == PRID_REV_ENCODE_332(2, 4, 0))
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+		break;
+	case PRID_IMP_1074K:
+		if (rev <= PRID_REV_ENCODE_332(1, 1, 0)) {
+			c->dcache.flags |= MIPS_CACHE_VTAG;
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+		}
+		break;
+	default:
+		BUG();
 	}
 }
 
-static char *way_string[] __cpuinitdata = { NULL, "direct mapped", "2-way",
+static char *way_string[] = { NULL, "direct mapped", "2-way",
 	"3-way", "4-way", "5-way", "6-way", "7-way", "8-way"
 };
 
-static void __cpuinit probe_pcache(void)
+static void probe_pcache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();
@@ -809,7 +827,7 @@ static void __cpuinit probe_pcache(void)
 	unsigned long config1;
 	unsigned int lsize;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4600:			/* QED style two way caches? */
 	case CPU_R4700:
 	case CPU_R5000:
@@ -1025,7 +1043,8 @@ static void __cpuinit probe_pcache(void)
 	 * presumably no vendor is shipping his hardware in the "bad"
 	 * configuration.
 	 */
-	if ((prid & 0xff00) == PRID_IMP_R4000 && (prid & 0xff) < 0x40 &&
+	if ((prid & PRID_IMP_MASK) == PRID_IMP_R4000 &&
+	    (prid & PRID_REV_MASK) < PRID_REV_R4400 &&
 	    !(config & CONF_SC) && c->icache.linesz != 16 &&
 	    PAGE_SIZE <= 0x8000)
 		panic("Improper R4000SC processor configuration detected");
@@ -1045,7 +1064,7 @@ static void __cpuinit probe_pcache(void)
 	 * normally they'd suffer from aliases but magic in the hardware deals
 	 * with that for us so we don't need to take care ourselves.
 	 */
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_20KC:
 	case CPU_25KF:
 	case CPU_SB1:
@@ -1065,7 +1084,7 @@ static void __cpuinit probe_pcache(void)
 	case CPU_34K:
 	case CPU_74K:
 	case CPU_1004K:
-		if (c->cputype == CPU_74K)
+		if (current_cpu_type() == CPU_74K)
 			alias_74k_erratum(c);
 		if ((read_c0_config7() & (1 << 16))) {
 			/* effectively physically indexed dcache,
@@ -1078,7 +1097,7 @@ static void __cpuinit probe_pcache(void)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
 	}
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_20KC:
 		/*
 		 * Some older 20Kc chips doesn't have the 'VI' bit in
@@ -1119,7 +1138,7 @@ static void __cpuinit probe_pcache(void)
  * executes in KSEG1 space or else you will crash and burn badly.  You have
  * been warned.
  */
-static int __cpuinit probe_scache(void)
+static int probe_scache(void)
 {
 	unsigned long flags, addr, begin, end, pow2;
 	unsigned int config = read_c0_config();
@@ -1196,7 +1215,7 @@ extern int r5k_sc_init(void);
 extern int rm7k_sc_init(void);
 extern int mips_sc_init(void);
 
-static void __cpuinit setup_scache(void)
+static void setup_scache(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();
@@ -1207,7 +1226,7 @@ static void __cpuinit setup_scache(void)
 	 * processors don't have a S-cache that would be relevant to the
 	 * Linux memory management.
 	 */
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -1329,7 +1348,7 @@ static void nxp_pr4450_fixup_config(void)
 	NXP_BARRIER();
 }
 
-static int __cpuinitdata cca = -1;
+static int cca = -1;
 
 static int __init cca_setup(char *str)
 {
@@ -1340,7 +1359,7 @@ static int __init cca_setup(char *str)
 
 early_param("cca", cca_setup);
 
-static void __cpuinit coherency_setup(void)
+static void coherency_setup(void)
 {
 	if (cca < 0 || cca > 7)
 		cca = read_c0_config() & CONF_CM_CMASK;
@@ -1380,13 +1399,12 @@ static void __cpuinit coherency_setup(void)
 	}
 }
 
-static void __cpuinit r4k_cache_error_setup(void)
+static void r4k_cache_error_setup(void)
 {
 	extern char __weak except_vec2_generic;
 	extern char __weak except_vec2_sb1;
-	struct cpuinfo_mips *c = &current_cpu_data;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_SB1:
 	case CPU_SB1A:
 		set_uncached_handler(0x100, &except_vec2_sb1, 0x80);
@@ -1398,7 +1416,7 @@ static void __cpuinit r4k_cache_error_setup(void)
 	}
 }
 
-void __cpuinit r4k_cache_init(void)
+void r4k_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);

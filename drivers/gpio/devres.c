@@ -34,10 +34,10 @@ static int devm_gpio_match(struct device *dev, void *res, void *data)
 }
 
 /**
- *      devm_gpio_request - request a gpio for a managed device
- *      @dev: device to request the gpio for
- *      @gpio: gpio to allocate
- *      @label: the name of the requested gpio
+ *      devm_gpio_request - request a GPIO for a managed device
+ *      @dev: device to request the GPIO for
+ *      @gpio: GPIO to allocate
+ *      @label: the name of the requested GPIO
  *
  *      Except for the extra @dev argument, this function takes the
  *      same arguments and performs the same function as
@@ -101,9 +101,9 @@ int devm_gpio_request_one(struct device *dev, unsigned gpio,
 EXPORT_SYMBOL(devm_gpio_request_one);
 
 /**
- *      devm_gpio_free - free an interrupt
- *      @dev: device to free gpio for
- *      @gpio: gpio to free
+ *      devm_gpio_free - free a GPIO
+ *      @dev: device to free GPIO for
+ *      @gpio: GPIO to free
  *
  *      Except for the extra @dev argument, this function takes the
  *      same arguments and performs the same function as gpio_free().

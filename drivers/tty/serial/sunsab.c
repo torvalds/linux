@@ -1037,7 +1037,7 @@ static int sab_probe(struct platform_device *op)
 	if (err)
 		goto out3;
 
-	dev_set_drvdata(&op->dev, &up[0]);
+	platform_set_drvdata(op, &up[0]);
 
 	inst++;
 
@@ -1059,7 +1059,7 @@ out:
 
 static int sab_remove(struct platform_device *op)
 {
-	struct uart_sunsab_port *up = dev_get_drvdata(&op->dev);
+	struct uart_sunsab_port *up = platform_get_drvdata(op);
 
 	uart_remove_one_port(&sunsab_reg, &up[1].port);
 	uart_remove_one_port(&sunsab_reg, &up[0].port);
@@ -1069,8 +1069,6 @@ static int sab_remove(struct platform_device *op)
 	of_iounmap(&op->resource[0],
 		   up[0].port.membase,
 		   sizeof(union sab82532_async_regs));
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

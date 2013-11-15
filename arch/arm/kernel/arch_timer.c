@@ -11,9 +11,9 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/sched_clock.h>
 
 #include <asm/delay.h>
-#include <asm/sched_clock.h>
 
 #include <clocksource/arm_arch_timer.h>
 

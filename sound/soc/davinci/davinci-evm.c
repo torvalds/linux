@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/edma.h>
 #include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

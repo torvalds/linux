@@ -212,9 +212,8 @@ static void meth_check_link(struct net_device *dev)
 static int meth_init_tx_ring(struct meth_private *priv)
 {
 	/* Init TX ring */
-	priv->tx_ring = dma_alloc_coherent(NULL, TX_RING_BUFFER_SIZE,
-	                                   &priv->tx_ring_dma,
-					   GFP_ATOMIC | __GFP_ZERO);
+	priv->tx_ring = dma_zalloc_coherent(NULL, TX_RING_BUFFER_SIZE,
+					    &priv->tx_ring_dma, GFP_ATOMIC);
 	if (!priv->tx_ring)
 		return -ENOMEM;
 
@@ -863,7 +862,6 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

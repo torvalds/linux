@@ -3570,10 +3570,10 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
 	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
 	nes_debug(NES_DBG_AEQ, "aeid = 0x%04X, qp-cq id = %d, aeqe = %p,"
-			" Tcp state = %d, iWARP state = %d\n",
+			" Tcp state = %s, iWARP state = %s\n",
 			async_event_id,
 			le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]), aeqe,
-			tcp_state, iwarp_state);
+			nes_tcp_state_str[tcp_state], nes_iwarp_state_str[iwarp_state]);
 
 	aeqe_cq_id = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]);
 	if (aeq_info & NES_AEQE_QP) {

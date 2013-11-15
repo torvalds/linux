@@ -1,0 +1,227 @@
+ImgTec TZ1090 pin controller
+
+Required properties:
+- compatible: "img,tz1090-pinctrl"
+- reg: Should contain the register physical address and length of the pad
+  configuration registers (CR_PADS_* and CR_IF_CTL0).
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+TZ1090's pin configuration nodes act as a container for an abitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as pull-up, drive strength, etc.
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Each subnode only affects those parameters that are explicitly listed. In
+other words, a subnode that lists a mux function but no pin configuration
+parameters implies no information about any pin configuration parameters.
+Similarly, a pin subnode that describes a pullup parameter implies no
+information about e.g. the mux function. For this reason, even seemingly boolean
+values are actually tristates in this binding: unspecified, off, or on.
+Unspecified is represented as an absent property, and off/on are represented as
+integer values 0 and 1.
+
+Required subnode-properties:
+- tz1090,pins : An array of strings. Each string contains the name of a pin or
+  group. Valid values for these names are listed below.
+
+Optional subnode-properties:
+- tz1090,function: A string containing the name of the function to mux to the
+  pin or group. Valid values for function names are listed below, including
+  which pingroups can be muxed to them.
+- supported generic pinconfig properties (for further details see
+  Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt):
+  - bias-disable
+  - bias-high-impedance
+  - bias-bus-hold
+  - bias-pull-up
+  - bias-pull-down
+  - input-schmitt-enable
+  - input-schmitt-disable
+  - drive-strength: Integer, control drive strength of pins in mA.
+      2: 2mA
+      4: 4mA
+      8: 8mA
+      12: 12mA
+
+
+Note that many of these properties are only valid for certain specific pins
+or groups. See the TZ1090 TRM for complete details regarding which groups
+support which functionality. The Linux pinctrl driver may also be a useful
+reference.
+
+Valid values for pin and group names are:
+
+  gpio pins:
+
+    These all support bias-high-impediance, bias-pull-up, bias-pull-down, and
+    bias-bus-hold (which can also be provided to any of the groups below to set
+    it for all pins in that group).
+
+    They also all support the some form of muxing. Any pins which are contained
+    in one of the mux groups (see below) can be muxed only to the functions
+    supported by the mux group. All other pins can be muxed to the "perip"
+    function which which enables them with their intended peripheral.
+
+    Different pins in the same mux group cannot be muxed to different functions,
+    however it is possible to mux only a subset of the pins in a mux group to a
+    particular function and leave the remaining pins unmuxed. This is useful if
+    the board connects certain pins in a group to other devices to be controlled
+    by GPIO, and you don't want the usual peripheral to have any control of the
+    pin.
+
+    ant_sel0, ant_sel1, gain0, gain1, gain2, gain3, gain4, gain5, gain6, gain7,
+    i2s_bclk_out, i2s_din, i2s_dout0, i2s_dout1, i2s_dout2, i2s_lrclk_out,
+    i2s_mclk, pa_on, pdm_a, pdm_b, pdm_c, pdm_d, pll_on, rx_hp, rx_on,
+    scb0_sclk, scb0_sdat, scb1_sclk, scb1_sdat, scb2_sclk, scb2_sdat, sdh_cd,
+    sdh_clk_in, sdh_wp, sdio_clk, sdio_cmd, sdio_d0, sdio_d1, sdio_d2, sdio_d3,
+    spi0_cs0, spi0_cs1, spi0_cs2, spi0_din, spi0_dout, spi0_mclk, spi1_cs0,
+    spi1_cs1, spi1_cs2, spi1_din, spi1_dout, spi1_mclk, tft_blank_ls, tft_blue0,
+    tft_blue1, tft_blue2, tft_blue3, tft_blue4, tft_blue5, tft_blue6, tft_blue7,
+    tft_green0, tft_green1, tft_green2, tft_green3, tft_green4, tft_green5,
+    tft_green6, tft_green7, tft_hsync_nr, tft_panelclk, tft_pwrsave, tft_red0,
+    tft_red1, tft_red2, tft_red3, tft_red4, tft_red5, tft_red6, tft_red7,
+    tft_vd12acb, tft_vdden_gd, tft_vsync_ns, tx_on, uart0_cts, uart0_rts,
+    uart0_rxd, uart0_txd, uart1_rxd, uart1_txd.
+
+        bias-high-impediance:  supported.
+        bias-pull-up:          supported.
+        bias-pull-down:        supported.
+        bias-bus-hold:         supported.
+        function:              perip or those supported by pin's mux group.
+
+  other pins:
+
+    These other pins are part of various pin groups below, but can't be
+    controlled as GPIOs. They do however support bias-high-impediance,
+    bias-pull-up, bias-pull-down, and bias-bus-hold (which can also be provided
+    to any of the groups below to set it for all pins in that group).
+
+    clk_out0, clk_out1, tck, tdi, tdo, tms, trst.
+
+        bias-high-impediance:  supported.
+        bias-pull-up:          supported.
+        bias-pull-down:        supported.
+        bias-bus-hold:         supported.
+
+  mux groups:
+
+    These all support function, and some support drive configs.
+
+    afe
+        pins:                  tx_on, rx_on, pll_on, pa_on, rx_hp, ant_sel0,
+                               ant_sel1, gain0, gain1, gain2, gain3, gain4,
+                               gain5, gain6, gain7.
+        function:              afe, ts_out_0.
+        input-schmitt-enable:  supported.
+        input-schmitt-disable: supported.
+        drive-strength:        supported.
+    pdm_d
+        pins:                  pdm_d.
+        function:              pdm_dac, usb_vbus.
+    sdh
+        pins:                  sdh_cd, sdh_wp, sdh_clk_in.
+        function:              sdh, sdio.
+    sdio
+        pins:                  sdio_clk, sdio_cmd, sdio_d0, sdio_d1, sdio_d2,
+                               sdio_d3.
+        function:              sdio, sdh.
+    spi1_cs2
+        pins:                  spi1_cs2.
+        function:              spi1_cs2, usb_vbus.
+    tft
+        pins:                  tft_red0, tft_red1, tft_red2, tft_red3,
+                               tft_red4, tft_red5, tft_red6, tft_red7,
+                               tft_green0, tft_green1, tft_green2, tft_green3,
+                               tft_green4, tft_green5, tft_green6, tft_green7,
+                               tft_blue0, tft_blue1, tft_blue2, tft_blue3,
+                               tft_blue4, tft_blue5, tft_blue6, tft_blue7,
+                               tft_vdden_gd, tft_panelclk, tft_blank_ls,
+                               tft_vsync_ns, tft_hsync_nr, tft_vd12acb,
+                               tft_pwrsave.
+        function:              tft, ext_dac, not_iqadc_stb, iqdac_stb, ts_out_1,
+                               lcd_trace, phy_ringosc.
+        input-schmitt-enable:  supported.
+        input-schmitt-disable: supported.
+        drive-strength:        supported.
+
+  drive groups:
+
+    These all support input-schmitt-enable, input-schmitt-disable,
+    and drive-strength.
+
+    jtag
+        pins:   tck, trst, tdi, tdo, tms.
+    scb1
+        pins:   scb1_sdat, scb1_sclk.
+    scb2
+        pins:   scb2_sdat, scb2_sclk.
+    spi0
+        pins:   spi0_mclk, spi0_cs0, spi0_cs1, spi0_cs2, spi0_dout, spi0_din.
+    spi1
+        pins:   spi1_mclk, spi1_cs0, spi1_cs1, spi1_cs2, spi1_dout, spi1_din.
+    uart
+        pins:   uart0_txd, uart0_rxd, uart0_rts, uart0_cts,
+                uart1_txd, uart1_rxd.
+    drive_i2s
+        pins:   clk_out1, i2s_din, i2s_dout0, i2s_dout1, i2s_dout2,
+                i2s_lrclk_out, i2s_bclk_out, i2s_mclk.
+    drive_pdm
+        pins:   clk_out0, pdm_b, pdm_a.
+    drive_scb0
+        pins:   scb0_sclk, scb0_sdat, pdm_d, pdm_c.
+    drive_sdio
+        pins:   sdio_clk, sdio_cmd, sdio_d0, sdio_d1, sdio_d2, sdio_d3,
+                sdh_wp, sdh_cd, sdh_clk_in.
+
+  convenience groups:
+
+    These are just convenient groupings of pins and don't support any drive
+    configs.
+
+    uart0
+        pins:   uart0_cts, uart0_rts, uart0_rxd, uart0_txd.
+    uart1
+        pins:   uart1_rxd, uart1_txd.
+    scb0
+        pins:   scb0_sclk, scb0_sdat.
+    i2s
+        pins:   i2s_bclk_out, i2s_din, i2s_dout0, i2s_dout1, i2s_dout2,
+                i2s_lrclk_out, i2s_mclk.
+
+Example:
+
+	pinctrl: pinctrl@02005800 {
+		#gpio-range-cells = <3>;
+		compatible = "img,tz1090-pinctrl";
+		reg = <0x02005800 0xe4>;
+	};
+
+Example board file extract:
+
+	&pinctrl {
+		uart0_default: uart0 {
+			uart0_cfg {
+				tz1090,pins =	"uart0_rxd",
+						"uart0_txd";
+				tz1090,function = "perip";
+			};
+		};
+		tft_default: tft {
+			tft_cfg {
+				tz1090,pins =	"tft";
+				tz1090,function = "tft";
+			};
+		};
+	};
+
+	uart@02004b00 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_default>;
+	};

@@ -5,7 +5,7 @@ can combine interrupt sources as a group and provide a single interrupt request
 for the group. The interrupt request from each group are connected to a parent
 interrupt controller, such as GIC in case of Exynos4210.
 
-The interrupt combiner controller consists of multiple combiners. Upto eight
+The interrupt combiner controller consists of multiple combiners. Up to eight
 interrupt sources can be connected to a combiner. The combiner outputs one
 combined interrupt for its eight interrupt sources. The combined interrupt
 is usually connected to a parent interrupt controller.
@@ -14,8 +14,8 @@ A single node in the device tree is used to describe the interrupt combiner
 controller module (which includes multiple combiners). A combiner in the
 interrupt controller module shares config/control registers with other
 combiners. For example, a 32-bit interrupt enable/disable config register
-can accommodate upto 4 interrupt combiners (with each combiner supporting
-upto 8 interrupt sources).
+can accommodate up to 4 interrupt combiners (with each combiner supporting
+up to 8 interrupt sources).
 
 Required properties:
 - compatible: should be "samsung,exynos4210-combiner".

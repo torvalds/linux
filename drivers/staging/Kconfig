@@ -40,8 +40,6 @@ source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/olpc_dcon/Kconfig"
 
-source "drivers/staging/asus_oled/Kconfig"
-
 source "drivers/staging/panel/Kconfig"
 
 source "drivers/staging/rtl8187se/Kconfig"
@@ -52,6 +50,8 @@ source "drivers/staging/rtl8192e/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
+source "drivers/staging/rtl8188eu/Kconfig"
+
 source "drivers/staging/rts5139/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
@@ -61,6 +61,8 @@ source "drivers/staging/phison/Kconfig"
 source "drivers/staging/line6/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
+
+source "drivers/staging/octeon-usb/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
@@ -116,9 +118,7 @@ source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
 
-source "drivers/staging/csr/Kconfig"
-
-source "drivers/staging/ti-soc-thermal/Kconfig"
+source "drivers/staging/gdm724x/Kconfig"
 
 source "drivers/staging/silicom/Kconfig"
 
@@ -132,12 +132,20 @@ source "drivers/staging/sb105x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
 
-source "drivers/staging/zcache/Kconfig"
-
 source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
 source "drivers/staging/dwc2/Kconfig"
+
+source "drivers/staging/lustre/Kconfig"
+
+source "drivers/staging/btmtk_usb/Kconfig"
+
+source "drivers/staging/xillybus/Kconfig"
+
+source "drivers/staging/dgnc/Kconfig"
+
+source "drivers/staging/dgap/Kconfig"
 
 endif # STAGING

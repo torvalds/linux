@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <asm/pgalloc.h>
+#include <asm/mmu.h>
 
 static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
 {
@@ -51,16 +52,15 @@ bad_area:
 	return 1;
 }
 
-void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
-		   unsigned long cause_code)
+void do_page_fault(struct pt_regs *regs, unsigned long address)
 {
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	siginfo_t info;
 	int fault, ret;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-				(write ? FAULT_FLAG_WRITE : 0);
+	int write = regs->ecr_cause & ECR_C_PROTV_STORE;  /* ST/EX */
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -88,6 +88,8 @@ void do_page_fault(struct pt_regs *regs, int write, unsigned long address,
 	if (in_atomic() || !mm)
 		goto no_context;
 
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, address);
@@ -109,18 +111,19 @@ good_area:
 
 	/* Handle protection violation, execute on heap or stack */
 
-	if (cause_code == ((ECR_V_PROTV << 16) | ECR_C_PROTV_INST_FETCH))
+	if ((regs->ecr_vec == ECR_V_PROTV) &&
+	    (regs->ecr_cause == ECR_C_PROTV_INST_FETCH))
 		goto bad_area;
 
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
+		flags |= FAULT_FLAG_WRITE;
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
 
-survive:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -176,7 +179,6 @@ bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		tsk->thread.fault_address = address;
-		tsk->thread.cause_code = cause_code;
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
@@ -197,17 +199,15 @@ no_context:
 	if (fixup_exception(regs))
 		return;
 
-	die("Oops", regs, address, cause_code);
+	die("Oops", regs, address);
 
 out_of_memory:
-	if (is_global_init(tsk)) {
-		yield();
-		goto survive;
-	}
 	up_read(&mm->mmap_sem);
 
-	if (user_mode(regs))
-		do_group_exit(SIGKILL);	/* This will never return */
+	if (user_mode(regs)) {
+		pagefault_out_of_memory();
+		return;
+	}
 
 	goto no_context;
 
@@ -218,7 +218,6 @@ do_sigbus:
 		goto no_context;
 
 	tsk->thread.fault_address = address;
-	tsk->thread.cause_code = cause_code;
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRERR;

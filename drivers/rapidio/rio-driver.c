@@ -199,6 +199,23 @@ static int rio_match_bus(struct device *dev, struct device_driver *drv)
       out:return 0;
 }
 
+static int rio_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct rio_dev *rdev;
+
+	if (!dev)
+		return -ENODEV;
+
+	rdev = to_rio_dev(dev);
+	if (!rdev)
+		return -ENODEV;
+
+	if (add_uevent_var(env, "MODALIAS=rapidio:v%04Xd%04Xav%04Xad%04X",
+			   rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did))
+		return -ENOMEM;
+	return 0;
+}
+
 struct device rio_bus = {
 	.init_name = "rapidio",
 };
@@ -210,6 +227,7 @@ struct bus_type rio_bus_type = {
 	.bus_attrs = rio_bus_attrs,
 	.probe = rio_device_probe,
 	.remove = rio_device_remove,
+	.uevent	= rio_uevent,
 };
 
 /**

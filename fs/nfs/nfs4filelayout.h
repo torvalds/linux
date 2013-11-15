@@ -150,6 +150,7 @@ struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
 extern void nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 extern void nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 struct nfs4_file_layout_dsaddr *
-filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags);
+filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id,
+		struct rpc_cred *cred, gfp_t gfp_flags);
 
 #endif /* FS_NFS_NFS4FILELAYOUT_H */

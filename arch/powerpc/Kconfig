@@ -114,7 +114,6 @@ config PPC
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
-	select HAVE_GENERIC_HARDIRQS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select SPARSE_IRQ
 	select IRQ_DOMAIN
@@ -138,6 +137,7 @@ config PPC
 	select ARCH_USE_BUILTIN_BSWAP
 	select OLD_SIGSUSPEND
 	select OLD_SIGACTION if PPC32
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config EARLY_PRINTK
 	bool
@@ -298,7 +298,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || PPC_MPC832x || E500
+	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -307,6 +307,30 @@ config MATH_EMULATION
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
+	  This is also useful to emulate missing (optional) instructions
+	  such as fsqrt on cores that do have an FPU but do not implement
+	  them (such as Freescale BookE).
+
+choice
+	prompt "Math emulation options"
+	default MATH_EMULATION_FULL
+	depends on MATH_EMULATION
+
+config	MATH_EMULATION_FULL
+	bool "Emulate all the floating point instructions"
+	---help---
+	  Select this option will enable the kernel to support to emulate
+	  all the floating point instructions. If your SoC doesn't have
+	  a FPU, you should select this.
+
+config MATH_EMULATION_HW_UNIMPLEMENTED
+	bool "Just emulate the FPU unimplemented instructions"
+	---help---
+	  Select this if you know there does have a hardware FPU on your
+	  SoC, but some floating point instructions are not implemented by that.
+
+endchoice
+
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64
@@ -314,17 +338,6 @@ config PPC_TRANSACTIONAL_MEM
        default n
        ---help---
          Support user-mode Transactional Memory on POWERPC.
-
-config 8XX_MINIMAL_FPEMU
-	bool "Minimal math emulation for 8xx"
-	depends on 8xx && !MATH_EMULATION
-	help
-	  Older arch/ppc kernels still emulated a few floating point
-	  instructions such as load and store, even when full math
-	  emulation is disabled.  Say "Y" here if you want to preserve
-	  this behavior.
-
-	  It is recommended that you build a soft-float userspace instead.
 
 config IOMMU_HELPER
 	def_bool PPC64
@@ -341,7 +354,7 @@ config SWIOTLB
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
-	depends on SMP && HOTPLUG && (PPC_PSERIES || \
+	depends on SMP && (PPC_PSERIES || \
 	PPC_PMAC || PPC_POWERNV || (PPC_85xx && !PPC_E500MC))
 	---help---
 	  Say Y here to be able to disable and re-enable individual
@@ -375,9 +388,9 @@ config KEXEC
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
-	  initially work for you.  It may help to enable device hotplugging
-	  support.  As of this writing the exact hardware interface is
-	  strongly in flux, so no good recommendation can be made.
+	  initially work for you.  As of this writing the exact hardware
+	  interface is strongly in flux, so no good recommendation can be
+	  made.
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
@@ -572,7 +585,7 @@ config SCHED_SMT
 config PPC_DENORMALISATION
 	bool "PowerPC denormalisation exception handling"
 	depends on PPC_BOOK3S_64
-	default "n"
+	default "y" if PPC_POWERNV
 	---help---
 	  Add support for handling denormalisation of single precision
 	  values.  Useful for bare metal only.  If unsure say Y here.
@@ -674,7 +687,6 @@ config SBUS
 
 config FSL_SOC
 	bool
-	select HAVE_CAN_FLEXCAN if NET && CAN
 
 config FSL_PCI
  	bool
@@ -734,7 +746,6 @@ config PCI
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
-	select ARCH_SUPPORTS_MSI
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -986,6 +997,7 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
+# This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"

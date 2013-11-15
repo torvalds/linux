@@ -164,20 +164,8 @@ static loff_t fnic_trace_debugfs_lseek(struct file *file,
 					int howto)
 {
 	fnic_dbgfs_t *fnic_dbg_prt = file->private_data;
-	loff_t pos = -1;
-
-	switch (howto) {
-	case 0:
-		pos = offset;
-		break;
-	case 1:
-		pos = file->f_pos + offset;
-		break;
-	case 2:
-		pos = fnic_dbg_prt->buffer_len - offset;
-	}
-	return (pos < 0 || pos > fnic_dbg_prt->buffer_len) ?
-			  -EINVAL : (file->f_pos = pos);
+	return fixed_size_llseek(file, offset, howto,
+				fnic_dbg_prt->buffer_len);
 }
 
 /*

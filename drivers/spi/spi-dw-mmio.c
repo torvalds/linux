@@ -111,8 +111,6 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 	struct resource *mem;
 
-	platform_set_drvdata(pdev, NULL);
-
 	clk_disable(dwsmmio->clk);
 	clk_put(dwsmmio->clk);
 	dwsmmio->clk = NULL;

@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -68,8 +69,6 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	rcu_read_lock();
 	opp = opp_find_freq_ceil(cpu_dev, &freq_hz);
 	if (IS_ERR(opp)) {
@@ -86,13 +85,16 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 		freqs.old / 1000, volt_old / 1000,
 		freqs.new / 1000, volt / 1000);
 
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+
 	/* scaling up?  scale voltage before frequency */
 	if (freqs.new > freqs.old) {
 		ret = regulator_set_voltage_tol(arm_reg, volt, 0);
 		if (ret) {
 			dev_err(cpu_dev,
 				"failed to scale vddarm up: %d\n", ret);
-			return ret;
+			freqs.new = freqs.old;
+			goto post_notify;
 		}
 
 		/*
@@ -116,28 +118,11 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 	 *  - Reprogram pll1_sys_clk and reparent pll1_sw_clk back to it
 	 *  - Disable pll2_pfd2_396m_clk
 	 */
-	clk_prepare_enable(pll2_pfd2_396m_clk);
 	clk_set_parent(step_clk, pll2_pfd2_396m_clk);
 	clk_set_parent(pll1_sw_clk, step_clk);
 	if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk)) {
 		clk_set_rate(pll1_sys_clk, freqs.new * 1000);
-		/*
-		 * If we are leaving 396 MHz set-point, we need to enable
-		 * pll1_sys_clk and disable pll2_pfd2_396m_clk to keep
-		 * their use count correct.
-		 */
-		if (freqs.old * 1000 <= clk_get_rate(pll2_pfd2_396m_clk)) {
-			clk_prepare_enable(pll1_sys_clk);
-			clk_disable_unprepare(pll2_pfd2_396m_clk);
-		}
 		clk_set_parent(pll1_sw_clk, pll1_sys_clk);
-		clk_disable_unprepare(pll2_pfd2_396m_clk);
-	} else {
-		/*
-		 * Disable pll1_sys_clk if pll2_pfd2_396m_clk is sufficient
-		 * to provide the frequency.
-		 */
-		clk_disable_unprepare(pll1_sys_clk);
 	}
 
 	/* Ensure the arm clock divider is what we expect */
@@ -145,15 +130,18 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 	if (ret) {
 		dev_err(cpu_dev, "failed to set clock rate: %d\n", ret);
 		regulator_set_voltage_tol(arm_reg, volt_old, 0);
-		return ret;
+		freqs.new = freqs.old;
+		goto post_notify;
 	}
 
 	/* scaling down?  scale voltage after frequency */
 	if (freqs.new < freqs.old) {
 		ret = regulator_set_voltage_tol(arm_reg, volt, 0);
-		if (ret)
+		if (ret) {
 			dev_warn(cpu_dev,
 				 "failed to scale vddarm down: %d\n", ret);
+			ret = 0;
+		}
 
 		if (freqs.old == FREQ_1P2_GHZ / 1000) {
 			regulator_set_voltage_tol(pu_reg,
@@ -163,9 +151,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 		}
 	}
 
+post_notify:
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	return 0;
+	return ret;
 }
 
 static int imx6q_cpufreq_init(struct cpufreq_policy *policy)
@@ -214,15 +203,17 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	unsigned long min_volt, max_volt;
 	int num, ret;
 
-	cpu_dev = &pdev->dev;
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev) {
+		pr_err("failed to get cpu0 device\n");
+		return -ENODEV;
+	}
 
-	np = of_find_node_by_path("/cpus/cpu@0");
+	np = of_node_get(cpu_dev->of_node);
 	if (!np) {
 		dev_err(cpu_dev, "failed to find cpu0 node\n");
 		return -ENOENT;
 	}
-
-	cpu_dev->of_node = np;
 
 	arm_clk = devm_clk_get(cpu_dev, "arm");
 	pll1_sys_clk = devm_clk_get(cpu_dev, "pll1_sys");

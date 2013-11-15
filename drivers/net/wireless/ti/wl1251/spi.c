@@ -93,8 +93,7 @@ static void wl1251_spi_wake(struct wl1251 *wl)
 	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
 
-	/*
-	 * Set WSPI_INIT_COMMAND
+	/* Set WSPI_INIT_COMMAND
 	 * the data is being send from the MSB to LSB
 	 */
 	cmd[2] = 0xff;
@@ -262,7 +261,8 @@ static int wl1251_spi_probe(struct spi_device *spi)
 	wl->if_ops = &wl1251_spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
+	 * comes from the board-peripherals file
+	 */
 	spi->bits_per_word = 32;
 
 	ret = spi_setup(spi);
@@ -329,29 +329,7 @@ static struct spi_driver wl1251_spi_driver = {
 	.remove		= wl1251_spi_remove,
 };
 
-static int __init wl1251_spi_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1251_spi_driver);
-	if (ret < 0) {
-		wl1251_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1251_spi_exit(void)
-{
-	spi_unregister_driver(&wl1251_spi_driver);
-
-	wl1251_notice("unloaded");
-}
-
-module_init(wl1251_spi_init);
-module_exit(wl1251_spi_exit);
+module_spi_driver(wl1251_spi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");

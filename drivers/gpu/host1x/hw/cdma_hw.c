@@ -44,7 +44,7 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 	u32 i;
 
 	for (i = 0; i < syncpt_incrs; i++)
-		host1x_syncpt_cpu_incr(cdma->timeout.syncpt);
+		host1x_syncpt_incr(cdma->timeout.syncpt);
 
 	/* after CPU incr, ensure shadow is up to date */
 	host1x_syncpt_load(cdma->timeout.syncpt);

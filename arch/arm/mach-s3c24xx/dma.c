@@ -1159,9 +1159,6 @@ int s3c2410_dma_devconfig(enum dma_ch channel,
 		return -EINVAL;
 	}
 
-	if (dma_sel.direction != NULL)
-		(dma_sel.direction)(chan, chan->map, source);
-
 	return 0;
 }
 

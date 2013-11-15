@@ -254,7 +254,7 @@ static void longhaul_setstate(struct cpufreq_policy *policy,
 	u32 bm_timeout = 1000;
 	unsigned int dir = 0;
 
-	mults_index = longhaul_table[table_index].index;
+	mults_index = longhaul_table[table_index].driver_data;
 	/* Safety precautions */
 	mult = mults[mults_index & 0x1f];
 	if (mult == -1)
@@ -422,7 +422,7 @@ static int guess_fsb(int mult)
 }
 
 
-static int __cpuinit longhaul_get_ranges(void)
+static int longhaul_get_ranges(void)
 {
 	unsigned int i, j, k = 0;
 	unsigned int ratio;
@@ -487,7 +487,7 @@ static int __cpuinit longhaul_get_ranges(void)
 		if (ratio > maxmult || ratio < minmult)
 			continue;
 		longhaul_table[k].frequency = calc_speed(ratio);
-		longhaul_table[k].index	= j;
+		longhaul_table[k].driver_data	= j;
 		k++;
 	}
 	if (k <= 1) {
@@ -508,8 +508,8 @@ static int __cpuinit longhaul_get_ranges(void)
 		if (min_i != j) {
 			swap(longhaul_table[j].frequency,
 			     longhaul_table[min_i].frequency);
-			swap(longhaul_table[j].index,
-			     longhaul_table[min_i].index);
+			swap(longhaul_table[j].driver_data,
+			     longhaul_table[min_i].driver_data);
 		}
 	}
 
@@ -517,7 +517,7 @@ static int __cpuinit longhaul_get_ranges(void)
 
 	/* Find index we are running on */
 	for (j = 0; j < k; j++) {
-		if (mults[longhaul_table[j].index & 0x1f] == mult) {
+		if (mults[longhaul_table[j].driver_data & 0x1f] == mult) {
 			longhaul_index = j;
 			break;
 		}
@@ -526,7 +526,7 @@ static int __cpuinit longhaul_get_ranges(void)
 }
 
 
-static void __cpuinit longhaul_setup_voltagescaling(void)
+static void longhaul_setup_voltagescaling(void)
 {
 	union msr_longhaul longhaul;
 	struct mV_pos minvid, maxvid, vid;
@@ -613,7 +613,7 @@ static void __cpuinit longhaul_setup_voltagescaling(void)
 			pos = (speed - min_vid_speed) / kHz_step + minvid.pos;
 		else
 			pos = minvid.pos;
-		longhaul_table[j].index |= mV_vrm_table[pos] << 8;
+		longhaul_table[j].driver_data |= mV_vrm_table[pos] << 8;
 		vid = vrm_mV_table[mV_vrm_table[pos]];
 		printk(KERN_INFO PFX "f: %d kHz, index: %d, vid: %d mV\n",
 				speed, j, vid.mV);
@@ -656,12 +656,12 @@ static int longhaul_target(struct cpufreq_policy *policy,
 		 * this in hardware, C3 is old and we need to do this
 		 * in software. */
 		i = longhaul_index;
-		current_vid = (longhaul_table[longhaul_index].index >> 8);
+		current_vid = (longhaul_table[longhaul_index].driver_data >> 8);
 		current_vid &= 0x1f;
 		if (table_index > longhaul_index)
 			dir = 1;
 		while (i != table_index) {
-			vid = (longhaul_table[i].index >> 8) & 0x1f;
+			vid = (longhaul_table[i].driver_data >> 8) & 0x1f;
 			if (vid != current_vid) {
 				longhaul_setstate(policy, i);
 				current_vid = vid;
@@ -780,7 +780,7 @@ static int longhaul_setup_southbridge(void)
 	return 0;
 }
 
-static int __cpuinit longhaul_cpu_init(struct cpufreq_policy *policy)
+static int longhaul_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	char *cpuname = NULL;
@@ -948,7 +948,6 @@ static struct cpufreq_driver longhaul_driver = {
 	.init	= longhaul_cpu_init,
 	.exit	= longhaul_cpu_exit,
 	.name	= "longhaul",
-	.owner	= THIS_MODULE,
 	.attr	= longhaul_attr,
 };
 

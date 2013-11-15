@@ -47,7 +47,7 @@ static int __init orion_add_irq_domain(struct device_node *np,
 	do {
 		base = of_iomap(np, i);
 		if (base) {
-			orion_irq_init(i * 32, base);
+			orion_irq_init(i * 32, base + 0x04);
 			i++;
 		}
 	} while (base);

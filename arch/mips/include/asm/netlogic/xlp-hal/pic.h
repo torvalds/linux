@@ -208,12 +208,13 @@
 #define PIC_LOCAL_SCHEDULING		1
 #define PIC_GLOBAL_SCHEDULING		0
 
-#define PIC_CLK_HZ			133333333
-
 #define nlm_read_pic_reg(b, r)	nlm_read_reg64(b, r)
 #define nlm_write_pic_reg(b, r, v) nlm_write_reg64(b, r, v)
 #define nlm_get_pic_pcibase(node) nlm_pcicfg_base(XLP_IO_PIC_OFFSET(node))
 #define nlm_get_pic_regbase(node) (nlm_get_pic_pcibase(node) + XLP_IO_PCI_HDRSZ)
+
+/* We use PIC on node 0 as a timer */
+#define pic_timer_freq()		nlm_get_pic_frequency(0)
 
 /* IRT and h/w interrupt routines */
 static inline int
@@ -315,7 +316,7 @@ nlm_pic_send_ipi(uint64_t base, int hwt, int irq, int nmi)
 {
 	uint64_t ipi;
 
-	ipi = (nmi << 31) | (irq << 20);
+	ipi = ((uint64_t)nmi << 31) | (irq << 20);
 	ipi |= ((hwt >> 4) << 16) | (1 << (hwt & 0xf)); /* cpuset and mask */
 	nlm_write_pic_reg(base, PIC_IPI_CTL, ipi);
 }

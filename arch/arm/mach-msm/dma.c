@@ -284,6 +284,7 @@ static int __init msm_init_datamover(void)
 	clk = clk_get(NULL, "adm_clk");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
+	clk_prepare(clk);
 	msm_dmov_clk = clk;
 	ret = request_irq(INT_ADM_AARM, msm_datamover_irq_handler, 0, "msmdatamover", NULL);
 	if (ret)
@@ -291,6 +292,4 @@ static int __init msm_init_datamover(void)
 	disable_irq(INT_ADM_AARM);
 	return 0;
 }
-
-arch_initcall(msm_init_datamover);
-
+module_init(msm_init_datamover);

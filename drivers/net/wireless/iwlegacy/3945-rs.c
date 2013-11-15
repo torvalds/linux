@@ -816,6 +816,7 @@ out:
 		rs_sta->last_txrate_idx = idx;
 		info->control.rates[0].idx = rs_sta->last_txrate_idx;
 	}
+	info->control.rates[0].count = 1;
 
 	D_RATE("leave: %d\n", idx);
 }
@@ -886,6 +887,7 @@ il3945_remove_debugfs(void *il, void *il_sta)
  */
 static void
 il3945_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
+			 struct cfg80211_chan_def *chandef,
 			 struct ieee80211_sta *sta, void *il_sta)
 {
 }

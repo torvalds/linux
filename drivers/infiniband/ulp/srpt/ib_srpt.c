@@ -1588,7 +1588,7 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 	int resp_data_len;
 	int resp_len;
 
-	resp_data_len = (rsp_code == SRP_TSK_MGMT_SUCCESS) ? 0 : 4;
+	resp_data_len = 4;
 	resp_len = sizeof(*srp_rsp) + resp_data_len;
 
 	srp_rsp = ioctx->ioctx.buf;
@@ -1600,11 +1600,9 @@ static int srpt_build_tskmgmt_rsp(struct srpt_rdma_ch *ch,
 				    + atomic_xchg(&ch->req_lim_delta, 0));
 	srp_rsp->tag = tag;
 
-	if (rsp_code != SRP_TSK_MGMT_SUCCESS) {
-		srp_rsp->flags |= SRP_RSP_FLAG_RSPVALID;
-		srp_rsp->resp_data_len = cpu_to_be32(resp_data_len);
-		srp_rsp->data[3] = rsp_code;
-	}
+	srp_rsp->flags |= SRP_RSP_FLAG_RSPVALID;
+	srp_rsp->resp_data_len = cpu_to_be32(resp_data_len);
+	srp_rsp->data[3] = rsp_code;
 
 	return resp_len;
 }
@@ -2358,6 +2356,8 @@ static void srpt_release_channel_work(struct work_struct *w)
 	transport_deregister_session(se_sess);
 	ch->sess = NULL;
 
+	ib_destroy_cm_id(ch->cm_id);
+
 	srpt_destroy_ch_ib(ch);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
@@ -2367,8 +2367,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 	spin_lock_irq(&sdev->spinlock);
 	list_del(&ch->list);
 	spin_unlock_irq(&sdev->spinlock);
-
-	ib_destroy_cm_id(ch->cm_id);
 
 	if (ch->release_done)
 		complete(ch->release_done);
@@ -3011,7 +3009,7 @@ static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
  * Callback function called by the TCM core. Must not block since it can be
  * invoked on the context of the IB completion handler.
  */
-static int srpt_queue_response(struct se_cmd *cmd)
+static void srpt_queue_response(struct se_cmd *cmd)
 {
 	struct srpt_rdma_ch *ch;
 	struct srpt_send_ioctx *ioctx;
@@ -3021,8 +3019,6 @@ static int srpt_queue_response(struct se_cmd *cmd)
 	enum dma_data_direction dir;
 	int resp_len;
 	u8 srp_tm_status;
-
-	ret = 0;
 
 	ioctx = container_of(cmd, struct srpt_send_ioctx, cmd);
 	ch = ioctx->ch;
@@ -3049,7 +3045,7 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		     || WARN_ON_ONCE(state == SRPT_STATE_CMD_RSP_SENT))) {
 		atomic_inc(&ch->req_lim_delta);
 		srpt_abort_cmd(ioctx);
-		goto out;
+		return;
 	}
 
 	dir = ioctx->cmd.data_direction;
@@ -3061,7 +3057,7 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		if (ret) {
 			printk(KERN_ERR "xfer_data failed for tag %llu\n",
 			       ioctx->tag);
-			goto out;
+			return;
 		}
 	}
 
@@ -3082,9 +3078,17 @@ static int srpt_queue_response(struct se_cmd *cmd)
 		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
 		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
 	}
+}
 
-out:
-	return ret;
+static int srpt_queue_data_in(struct se_cmd *cmd)
+{
+	srpt_queue_response(cmd);
+	return 0;
+}
+
+static void srpt_queue_tm_rsp(struct se_cmd *cmd)
+{
+	srpt_queue_response(cmd);
 }
 
 static int srpt_queue_status(struct se_cmd *cmd)
@@ -3097,7 +3101,8 @@ static int srpt_queue_status(struct se_cmd *cmd)
 	    (SCF_TRANSPORT_TASK_SENSE | SCF_EMULATED_TASK_SENSE))
 		WARN_ON(cmd->scsi_status != SAM_STAT_CHECK_CONDITION);
 	ioctx->queue_status_only = true;
-	return srpt_queue_response(cmd);
+	srpt_queue_response(cmd);
+	return 0;
 }
 
 static void srpt_refresh_port_work(struct work_struct *work)
@@ -3930,9 +3935,9 @@ static struct target_core_fabric_ops srpt_template = {
 	.set_default_node_attributes	= srpt_set_default_node_attrs,
 	.get_task_tag			= srpt_get_task_tag,
 	.get_cmd_state			= srpt_get_tcm_cmd_state,
-	.queue_data_in			= srpt_queue_response,
+	.queue_data_in			= srpt_queue_data_in,
 	.queue_status			= srpt_queue_status,
-	.queue_tm_rsp			= srpt_queue_response,
+	.queue_tm_rsp			= srpt_queue_tm_rsp,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

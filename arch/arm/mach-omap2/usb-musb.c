@@ -38,11 +38,8 @@ static struct musb_hdrc_config musb_config = {
 };
 
 static struct musb_hdrc_platform_data musb_plat = {
-#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	.mode		= MUSB_OTG,
-#else
-	.mode		= MUSB_HOST,
-#endif
+
 	/* .clock is set dynamically */
 	.config		= &musb_config,
 
@@ -84,9 +81,6 @@ void __init usb_musb_init(struct omap_musb_board_data *musb_board_data)
 	musb_plat.power = board_data->power >> 1;
 	musb_plat.mode = board_data->mode;
 	musb_plat.extvbus = board_data->extvbus;
-
-	if (cpu_is_omap44xx())
-		musb_plat.has_mailbox = true;
 
 	if (soc_is_am35xx()) {
 		oh_name = "am35x_otg_hs";

@@ -49,8 +49,8 @@ enum iw_cm_event_type {
 struct iw_cm_event {
 	enum iw_cm_event_type event;
 	int			 status;
-	struct sockaddr_in local_addr;
-	struct sockaddr_in remote_addr;
+	struct sockaddr_storage local_addr;
+	struct sockaddr_storage remote_addr;
 	void *private_data;
 	void *provider_data;
 	u8 private_data_len;
@@ -83,8 +83,8 @@ struct iw_cm_id {
 	iw_cm_handler		cm_handler;      /* client callback function */
 	void		        *context;	 /* client cb context */
 	struct ib_device	*device;
-	struct sockaddr_in      local_addr;
-	struct sockaddr_in	remote_addr;
+	struct sockaddr_storage local_addr;
+	struct sockaddr_storage	remote_addr;
 	void			*provider_data;	 /* provider private data */
 	iw_event_handler        event_handler;   /* cb for provider
 						    events */

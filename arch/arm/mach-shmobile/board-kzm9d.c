@@ -56,7 +56,7 @@ static struct smsc911x_platform_config smsc911x_platdata = {
 
 static struct platform_device smsc91x_device = {
 	.name	= "smsc911x",
-	.id	= 0,
+	.id	= -1,
 	.dev	= {
 		  .platform_data = &smsc911x_platdata,
 		},
@@ -85,9 +85,7 @@ static const char *kzm9d_boards_compat_dt[] __initdata = {
 DT_MACHINE_START(KZM9D_DT, "kzm9d")
 	.smp		= smp_ops(emev2_smp_ops),
 	.map_io		= emev2_map_io,
-	.init_early	= emev2_add_early_devices,
-	.nr_irqs	= NR_IRQS_LEGACY,
-	.init_irq	= emev2_init_irq,
+	.init_early	= emev2_init_delay,
 	.init_machine	= kzm9d_add_standard_devices,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= kzm9d_boards_compat_dt,

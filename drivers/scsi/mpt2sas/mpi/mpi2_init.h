@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2012 LSI Corporation.
+ *  Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.13
+ *    mpi2_init.h Version:  02.00.14
  *
  *  Version History
  *  ---------------
@@ -36,6 +36,7 @@
  *  11-10-10  02.00.11  Added MPI2_SCSIIO_NUM_SGLOFFSETS define.
  *  02-06-12  02.00.13  Added alternate defines for Task Priority / Command
  *                      Priority to match SAM-4.
+ *  07-10-12  02.00.14  Added MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION.
  *  --------------------------------------------------------------------------
  */
 
@@ -189,6 +190,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST
 #define MPI2_SCSIIO_CONTROL_ADDCDBLEN_SHIFT     (26)
 
 #define MPI2_SCSIIO_CONTROL_DATADIRECTION_MASK  (0x03000000)
+#define MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION (24)
 #define MPI2_SCSIIO_CONTROL_NODATATRANSFER      (0x00000000)
 #define MPI2_SCSIIO_CONTROL_WRITE               (0x01000000)
 #define MPI2_SCSIIO_CONTROL_READ                (0x02000000)

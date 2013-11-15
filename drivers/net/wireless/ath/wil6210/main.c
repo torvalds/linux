@@ -56,27 +56,21 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, void *bssid)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil->wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_link_off(wil);
-	clear_bit(wil_status_fwconnected, &wil->status);
-
-	switch (wdev->sme_state) {
-	case CFG80211_SME_CONNECTED:
-		cfg80211_disconnected(ndev, WLAN_STATUS_UNSPECIFIED_FAILURE,
+	if (test_bit(wil_status_fwconnected, &wil->status)) {
+		clear_bit(wil_status_fwconnected, &wil->status);
+		cfg80211_disconnected(ndev,
+				      WLAN_STATUS_UNSPECIFIED_FAILURE,
 				      NULL, 0, GFP_KERNEL);
-		break;
-	case CFG80211_SME_CONNECTING:
+	} else if (test_bit(wil_status_fwconnecting, &wil->status)) {
 		cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 					WLAN_STATUS_UNSPECIFIED_FAILURE,
 					GFP_KERNEL);
-		break;
-	default:
-		break;
 	}
-
+	clear_bit(wil_status_fwconnecting, &wil->status);
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++)
 		wil_vring_fini_tx(wil, i);
 
@@ -292,41 +286,36 @@ static int __wil_up(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
-	struct ieee80211_channel *channel = wdev->preset_chandef.chan;
 	int rc;
-	int bi;
-	u16 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
 
 	rc = wil_reset(wil);
 	if (rc)
 		return rc;
 
-	/* FIXME Firmware works now in PBSS mode(ToDS=0, FromDS=0) */
-	wmi_nettype = wil_iftype_nl2wmi(NL80211_IFTYPE_ADHOC);
+	/* Rx VRING. After MAC and beacon */
+	rc = wil_rx_init(wil);
+	if (rc)
+		return rc;
+
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 		wil_dbg_misc(wil, "type: STATION\n");
-		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_AP:
 		wil_dbg_misc(wil, "type: AP\n");
-		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_dbg_misc(wil, "type: P2P_CLIENT\n");
-		bi = 0;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_P2P_GO:
 		wil_dbg_misc(wil, "type: P2P_GO\n");
-		bi = 100;
 		ndev->type = ARPHRD_ETHER;
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		wil_dbg_misc(wil, "type: Monitor\n");
-		bi = 0;
 		ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 		/* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_RADIOTAP ? */
 		break;
@@ -334,36 +323,12 @@ static int __wil_up(struct wil6210_priv *wil)
 		return -EOPNOTSUPP;
 	}
 
-	/* Apply profile in the following order: */
-	/* SSID and channel for the AP */
-	switch (wdev->iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-		if (wdev->ssid_len == 0) {
-			wil_err(wil, "SSID not set\n");
-			return -EINVAL;
-		}
-		rc = wmi_set_ssid(wil, wdev->ssid_len, wdev->ssid);
-		if (rc)
-			return rc;
-		break;
-	default:
-		break;
-	}
-
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
-	/* Set up beaconing if required. */
-	if (bi > 0) {
-		rc = wmi_pcp_start(wil, bi, wmi_nettype,
-				   (channel ? channel->hw_value : 0));
-		if (rc)
-			return rc;
-	}
 
-	/* Rx VRING. After MAC and beacon */
-	wil_rx_init(wil);
+	napi_enable(&wil->napi_rx);
+	napi_enable(&wil->napi_tx);
 
 	return 0;
 }
@@ -381,6 +346,9 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	napi_disable(&wil->napi_rx);
+	napi_disable(&wil->napi_tx);
+
 	if (wil->scan_request) {
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;

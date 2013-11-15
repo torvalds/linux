@@ -34,6 +34,13 @@ config SND_SOC_SH4_SIU
 	select SH_DMAE
 	select FW_LOADER
 
+config SND_SOC_RCAR
+	tristate "R-Car series SRU/SCU/SSIU/SSI support"
+	select SND_SIMPLE_CARD
+	select RCAR_CLK_ADG
+	help
+	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
+
 ##
 ## Boards
 ##

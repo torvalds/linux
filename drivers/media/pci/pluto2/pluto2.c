@@ -796,18 +796,7 @@ static struct pci_driver pluto2_driver = {
 	.remove = pluto2_remove,
 };
 
-static int __init pluto2_init(void)
-{
-	return pci_register_driver(&pluto2_driver);
-}
-
-static void __exit pluto2_exit(void)
-{
-	pci_unregister_driver(&pluto2_driver);
-}
-
-module_init(pluto2_init);
-module_exit(pluto2_exit);
+module_pci_driver(pluto2_driver);
 
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");
 MODULE_DESCRIPTION("Pluto2 driver");

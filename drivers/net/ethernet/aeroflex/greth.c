@@ -1464,18 +1464,18 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = dma_alloc_coherent(greth->dev, 1024,
-					       &greth->tx_bd_base_phys,
-					       GFP_KERNEL | __GFP_ZERO);
+	greth->tx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->tx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->tx_bd_base) {
 		err = -ENOMEM;
 		goto error3;
 	}
 
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = dma_alloc_coherent(greth->dev, 1024,
-					       &greth->rx_bd_base_phys,
-					       GFP_KERNEL | __GFP_ZERO);
+	greth->rx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->rx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->rx_bd_base) {
 		err = -ENOMEM;
 		goto error4;
@@ -1565,15 +1565,13 @@ error1:
 
 static int greth_of_remove(struct platform_device *of_dev)
 {
-	struct net_device *ndev = dev_get_drvdata(&of_dev->dev);
+	struct net_device *ndev = platform_get_drvdata(of_dev);
 	struct greth_private *greth = netdev_priv(ndev);
 
 	/* Free descriptor areas */
 	dma_free_coherent(&of_dev->dev, 1024, greth->rx_bd_base, greth->rx_bd_base_phys);
 
 	dma_free_coherent(&of_dev->dev, 1024, greth->tx_bd_base, greth->tx_bd_base_phys);
-
-	dev_set_drvdata(&of_dev->dev, NULL);
 
 	if (greth->phy)
 		phy_stop(greth->phy);

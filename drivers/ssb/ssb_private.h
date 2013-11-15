@@ -243,6 +243,10 @@ static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
 extern struct platform_device ssb_pflash_dev;
 #endif
 
+#ifdef CONFIG_SSB_SFLASH
+extern struct platform_device ssb_sflash_dev;
+#endif
+
 #ifdef CONFIG_SSB_DRIVER_EXTIF
 extern u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks);
 extern u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);

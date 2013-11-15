@@ -25,7 +25,6 @@
 static struct platform_driver syscon_driver;
 
 struct syscon {
-	void __iomem *base;
 	struct regmap *regmap;
 };
 
@@ -129,6 +128,7 @@ static int syscon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct syscon *syscon;
 	struct resource *res;
+	void __iomem *base;
 
 	syscon = devm_kzalloc(dev, sizeof(*syscon), GFP_KERNEL);
 	if (!syscon)
@@ -138,12 +138,12 @@ static int syscon_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENOENT;
 
-	syscon->base = devm_ioremap(dev, res->start, resource_size(res));
-	if (!syscon->base)
+	base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!base)
 		return -ENOMEM;
 
 	syscon_regmap_config.max_register = res->end - res->start - 3;
-	syscon->regmap = devm_regmap_init_mmio(dev, syscon->base,
+	syscon->regmap = devm_regmap_init_mmio(dev, base,
 					&syscon_regmap_config);
 	if (IS_ERR(syscon->regmap)) {
 		dev_err(dev, "regmap init failed\n");

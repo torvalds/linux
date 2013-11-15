@@ -22,7 +22,6 @@ config R6040
 	tristate "RDC R6040 Fast Ethernet Adapter support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	select PHYLIB
 	---help---

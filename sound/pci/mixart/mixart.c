@@ -1377,7 +1377,6 @@ static int snd_mixart_probe(struct pci_dev *pci,
 static void snd_mixart_remove(struct pci_dev *pci)
 {
 	snd_mixart_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver mixart_driver = {

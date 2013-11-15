@@ -87,6 +87,27 @@ TRACE_EVENT(brcmf_hexdump,
 	TP_printk("hexdump [length=%lu]", __entry->len)
 );
 
+TRACE_EVENT(brcmf_bdchdr,
+	TP_PROTO(void *data),
+	TP_ARGS(data),
+	TP_STRUCT__entry(
+		__field(u8, flags)
+		__field(u8, prio)
+		__field(u8, flags2)
+		__field(u32, siglen)
+		__dynamic_array(u8, signal, *((u8 *)data + 3) * 4)
+	),
+	TP_fast_assign(
+		__entry->flags = *(u8 *)data;
+		__entry->prio = *((u8 *)data + 1);
+		__entry->flags2 = *((u8 *)data + 2);
+		__entry->siglen = *((u8 *)data + 3) * 4;
+		memcpy(__get_dynamic_array(signal),
+		       (u8 *)data + 4, __entry->siglen);
+	),
+	TP_printk("bdc: prio=%d siglen=%d", __entry->prio, __entry->siglen)
+);
+
 #ifdef CONFIG_BRCM_TRACING
 
 #undef TRACE_INCLUDE_PATH

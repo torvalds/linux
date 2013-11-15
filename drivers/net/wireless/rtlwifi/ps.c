@@ -269,6 +269,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&rtlpriv->locks.ips_lock, flags);
 }
+EXPORT_SYMBOL_GPL(rtl_ips_nic_on);
 
 /*for FW LPS*/
 
@@ -518,6 +519,7 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 			 "u_bufferd: %x, m_buffered: %x\n", u_buffed, m_buffed);
 	}
 }
+EXPORT_SYMBOL_GPL(rtl_swlps_beacon);
 
 void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 {
@@ -611,6 +613,19 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 			MSECS(sleep_intv * mac->vif->bss_conf.beacon_int - 40));
 }
 
+void rtl_lps_change_work_callback(struct work_struct *work)
+{
+	struct rtl_works *rtlworks =
+	    container_of(work, struct rtl_works, lps_change_work);
+	struct ieee80211_hw *hw = rtlworks->hw;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (rtlpriv->enter_ps)
+		rtl_lps_enter(hw);
+	else
+		rtl_lps_leave(hw);
+}
+EXPORT_SYMBOL_GPL(rtl_lps_change_work_callback);
 
 void rtl_swlps_wq_callback(void *data)
 {
@@ -673,7 +688,7 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 	find_p2p_ie = true;
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE(&ie[1]);
+		noa_len = READEF2BYTE((__le16 *)&ie[1]);
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -702,13 +717,13 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 						 READEF1BYTE(ie+index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-						 READEF4BYTE(ie+index);
+						 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 				}
 
@@ -765,7 +780,7 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 	RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD, "action frame find P2P IE.\n");
 	/*to find noa ie*/
 	while (ie + 1 < end) {
-		noa_len = READEF2BYTE(&ie[1]);
+		noa_len = READEF2BYTE((__le16 *)&ie[1]);
 		if (ie + 3 + ie[1] > end)
 			return;
 
@@ -794,13 +809,13 @@ static void rtl_p2p_action_ie(struct ieee80211_hw *hw, void *data,
 							 READEF1BYTE(ie+index);
 					index += 1;
 					p2pinfo->noa_duration[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_interval[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 					p2pinfo->noa_start_time[i] =
-							 READEF4BYTE(ie+index);
+							 READEF4BYTE((__le32 *)ie+index);
 					index += 4;
 				}
 
@@ -908,7 +923,7 @@ void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len)
 		return;
 
 	/* and only beacons from the associated BSSID, please */
-	if (compare_ether_addr(hdr->addr3, rtlpriv->mac80211.bssid))
+	if (!ether_addr_equal(hdr->addr3, rtlpriv->mac80211.bssid))
 		return;
 
 	/* check if this really is a beacon */
@@ -922,3 +937,4 @@ void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len)
 	else
 		rtl_p2p_noa_ie(hw, data, len - FCS_LEN);
 }
+EXPORT_SYMBOL_GPL(rtl_p2p_info);

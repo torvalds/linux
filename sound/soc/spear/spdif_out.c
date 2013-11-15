@@ -62,8 +62,6 @@ static int spdif_out_startup(struct snd_pcm_substream *substream,
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		return -EINVAL;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&host->dma_params);
-
 	ret = clk_enable(host->clk);
 	if (ret)
 		return ret;
@@ -84,7 +82,6 @@ static void spdif_out_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable(host->clk);
 	host->running = false;
-	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
 static void spdif_out_clock(struct spdif_out_dev *host, u32 core_freq,
@@ -243,8 +240,12 @@ static const struct snd_kcontrol_new spdif_out_controls[] = {
 			spdif_mute_get, spdif_mute_put),
 };
 
-int spdif_soc_dai_probe(struct snd_soc_dai *dai)
+static int spdif_soc_dai_probe(struct snd_soc_dai *dai)
 {
+	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(dai);
+
+	dai->playback_dma_data = &host->dma_params;
+
 	return snd_soc_add_dai_controls(dai, spdif_out_controls,
 				ARRAY_SIZE(spdif_out_controls));
 }
@@ -281,30 +282,18 @@ static int spdif_out_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				resource_size(res), pdev->name)) {
-		dev_warn(&pdev->dev, "Failed to get memory resourse\n");
-		return -ENOENT;
-	}
-
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
 		dev_warn(&pdev->dev, "kzalloc fail\n");
 		return -ENOMEM;
 	}
 
-	host->io_base = devm_ioremap(&pdev->dev, res->start,
-				resource_size(res));
-	if (!host->io_base) {
-		dev_warn(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->io_base))
+		return PTR_ERR(host->io_base);
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
@@ -320,22 +309,12 @@ static int spdif_out_probe(struct platform_device *pdev)
 
 	ret = snd_soc_register_component(&pdev->dev, &spdif_out_component,
 					 &spdif_out_dai, 1);
-	if (ret != 0) {
-		clk_put(host->clk);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int spdif_out_remove(struct platform_device *pdev)
 {
-	struct spdif_out_dev *host = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
-
-	clk_put(host->clk);
 
 	return 0;
 }

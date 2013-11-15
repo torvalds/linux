@@ -26,6 +26,7 @@
 #include <linux/serial_reg.h>
 #include <linux/smc91x.h>
 #include <linux/export.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -215,7 +216,7 @@ void voiceblue_wdt_ping(void)
 	gpio_set_value(0, wdt_gpio_state);
 }
 
-static void voiceblue_restart(char mode, const char *cmd)
+static void voiceblue_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Workaround for 5912/1611b bug mentioned in sprz209d.pdf p. 28

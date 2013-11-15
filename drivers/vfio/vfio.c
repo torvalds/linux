@@ -76,6 +76,7 @@ struct vfio_group {
 	struct notifier_block		nb;
 	struct list_head		vfio_next;
 	struct list_head		container_next;
+	atomic_t			opened;
 };
 
 struct vfio_device {
@@ -206,6 +207,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	atomic_set(&group->container_users, 0);
+	atomic_set(&group->opened, 0);
 	group->iommu_group = iommu_group;
 
 	group->nb.notifier_call = vfio_iommu_group_notifier;
@@ -492,27 +494,6 @@ static int vfio_group_nb_add_dev(struct vfio_group *group, struct device *dev)
 	return 0;
 }
 
-static int vfio_group_nb_del_dev(struct vfio_group *group, struct device *dev)
-{
-	struct vfio_device *device;
-
-	/*
-	 * Expect to fall out here.  If a device was in use, it would
-	 * have been bound to a vfio sub-driver, which would have blocked
-	 * in .remove at vfio_del_group_dev.  Sanity check that we no
-	 * longer track the device, so it's safe to remove.
-	 */
-	device = vfio_group_get_device(group, dev);
-	if (likely(!device))
-		return 0;
-
-	WARN("Device %s removed from live group %d!\n", dev_name(dev),
-	     iommu_group_id(group->iommu_group));
-
-	vfio_device_put(device);
-	return 0;
-}
-
 static int vfio_group_nb_verify(struct vfio_group *group, struct device *dev)
 {
 	/* We don't care what happens when the group isn't in use */
@@ -529,13 +510,11 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 	struct device *dev = data;
 
 	/*
-	 * Need to go through a group_lock lookup to get a reference or
-	 * we risk racing a group being removed.  Leave a WARN_ON for
-	 * debuging, but if the group no longer exists, a spurious notify
-	 * is harmless.
+	 * Need to go through a group_lock lookup to get a reference or we
+	 * risk racing a group being removed.  Ignore spurious notifies.
 	 */
 	group = vfio_group_try_get(group);
-	if (WARN_ON(!group))
+	if (!group)
 		return NOTIFY_OK;
 
 	switch (action) {
@@ -543,7 +522,13 @@ static int vfio_iommu_group_notifier(struct notifier_block *nb,
 		vfio_group_nb_add_dev(group, dev);
 		break;
 	case IOMMU_GROUP_NOTIFY_DEL_DEVICE:
-		vfio_group_nb_del_dev(group, dev);
+		/*
+		 * Nothing to do here.  If the device is in use, then the
+		 * vfio sub-driver should block the remove callback until
+		 * it is unused.  If the device is unused or attached to a
+		 * stub driver, then it should be released and we don't
+		 * care that it will be going away.
+		 */
 		break;
 	case IOMMU_GROUP_NOTIFY_BIND_DRIVER:
 		pr_debug("%s: Device %s, group %d binding to driver\n",
@@ -1124,7 +1109,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		 * We can't use anon_inode_getfd() because we need to modify
 		 * the f_mode flags directly to allow more than just ioctls
 		 */
-		ret = get_unused_fd();
+		ret = get_unused_fd_flags(O_CLOEXEC);
 		if (ret < 0) {
 			device->ops->release(device->device_data);
 			break;
@@ -1236,12 +1221,22 @@ static long vfio_group_fops_compat_ioctl(struct file *filep,
 static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 {
 	struct vfio_group *group;
+	int opened;
 
 	group = vfio_group_get_from_minor(iminor(inode));
 	if (!group)
 		return -ENODEV;
 
+	/* Do we need multiple instances of the group open?  Seems not. */
+	opened = atomic_cmpxchg(&group->opened, 0, 1);
+	if (opened) {
+		vfio_group_put(group);
+		return -EBUSY;
+	}
+
+	/* Is something still in use from a previous open? */
 	if (group->container) {
+		atomic_dec(&group->opened);
 		vfio_group_put(group);
 		return -EBUSY;
 	}
@@ -1258,6 +1253,8 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	filep->private_data = NULL;
 
 	vfio_group_try_dissolve_container(group);
+
+	atomic_dec(&group->opened);
 
 	vfio_group_put(group);
 
@@ -1356,6 +1353,68 @@ static const struct file_operations vfio_device_fops = {
 };
 
 /**
+ * External user API, exported by symbols to be linked dynamically.
+ *
+ * The protocol includes:
+ *  1. do normal VFIO init operation:
+ *	- opening a new container;
+ *	- attaching group(s) to it;
+ *	- setting an IOMMU driver for a container.
+ * When IOMMU is set for a container, all groups in it are
+ * considered ready to use by an external user.
+ *
+ * 2. User space passes a group fd to an external user.
+ * The external user calls vfio_group_get_external_user()
+ * to verify that:
+ *	- the group is initialized;
+ *	- IOMMU is set for it.
+ * If both checks passed, vfio_group_get_external_user()
+ * increments the container user counter to prevent
+ * the VFIO group from disposal before KVM exits.
+ *
+ * 3. The external user calls vfio_external_user_iommu_id()
+ * to know an IOMMU ID.
+ *
+ * 4. When the external KVM finishes, it calls
+ * vfio_group_put_external_user() to release the VFIO group.
+ * This call decrements the container user counter.
+ */
+struct vfio_group *vfio_group_get_external_user(struct file *filep)
+{
+	struct vfio_group *group = filep->private_data;
+
+	if (filep->f_op != &vfio_group_fops)
+		return ERR_PTR(-EINVAL);
+
+	if (!atomic_inc_not_zero(&group->container_users))
+		return ERR_PTR(-EINVAL);
+
+	if (!group->container->iommu_driver ||
+			!vfio_group_viable(group)) {
+		atomic_dec(&group->container_users);
+		return ERR_PTR(-EINVAL);
+	}
+
+	vfio_group_get(group);
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(vfio_group_get_external_user);
+
+void vfio_group_put_external_user(struct vfio_group *group)
+{
+	vfio_group_put(group);
+	vfio_group_try_dissolve_container(group);
+}
+EXPORT_SYMBOL_GPL(vfio_group_put_external_user);
+
+int vfio_external_user_iommu_id(struct vfio_group *group)
+{
+	return iommu_group_id(group->iommu_group);
+}
+EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
+
+/**
  * Module/class support
  */
 static char *vfio_devnode(struct device *dev, umode_t *mode)
@@ -1415,6 +1474,7 @@ static int __init vfio_init(void)
 	 * drivers.
 	 */
 	request_module_nowait("vfio_iommu_type1");
+	request_module_nowait("vfio_iommu_spapr_tce");
 
 	return 0;
 

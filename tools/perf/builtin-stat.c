@@ -87,7 +87,7 @@ static int			run_count			=  1;
 static bool			no_inherit			= false;
 static bool			scale				=  true;
 static enum aggr_mode		aggr_mode			= AGGR_GLOBAL;
-static pid_t			child_pid			= -1;
+static volatile pid_t		child_pid			= -1;
 static bool			null_run			=  false;
 static int			detailed_run			=  0;
 static bool			big_num				=  true;
@@ -100,6 +100,7 @@ static const char		*pre_cmd			= NULL;
 static const char		*post_cmd			= NULL;
 static bool			sync_run			= false;
 static unsigned int		interval			= 0;
+static unsigned int		initial_delay			= 0;
 static bool			forever				= false;
 static struct timespec		ref_time;
 static struct cpu_map		*aggr_map;
@@ -254,7 +255,8 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	if (!perf_target__has_task(&target) &&
 	    perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
-		attr->enable_on_exec = 1;
+		if (!initial_delay)
+			attr->enable_on_exec = 1;
 	}
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
@@ -414,6 +416,22 @@ static void print_interval(void)
 		list_for_each_entry(counter, &evsel_list->entries, node)
 			print_counter_aggr(counter, prefix);
 	}
+
+	fflush(output);
+}
+
+static void handle_initial_delay(void)
+{
+	struct perf_evsel *counter;
+
+	if (initial_delay) {
+		const int ncpus = cpu_map__nr(evsel_list->cpus),
+			nthreads = thread_map__nr(evsel_list->threads);
+
+		usleep(initial_delay * 1000);
+		list_for_each_entry(counter, &evsel_list->entries, node)
+			perf_evsel__enable(counter, ncpus, nthreads);
+	}
 }
 
 static int __run_perf_stat(int argc, const char **argv)
@@ -486,6 +504,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	if (forks) {
 		perf_evlist__start_workload(evsel_list);
+		handle_initial_delay();
 
 		if (interval) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
@@ -497,6 +516,7 @@ static int __run_perf_stat(int argc, const char **argv)
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
+		handle_initial_delay();
 		while (!done) {
 			nanosleep(&ts, NULL);
 			if (interval)
@@ -924,7 +944,7 @@ static void abs_printout(int cpu, int nr, struct perf_evsel *evsel, double avg)
 static void print_aggr(char *prefix)
 {
 	struct perf_evsel *counter;
-	int cpu, s, s2, id, nr;
+	int cpu, cpu2, s, s2, id, nr;
 	u64 ena, run, val;
 
 	if (!(aggr_map || aggr_get_id))
@@ -936,7 +956,8 @@ static void print_aggr(char *prefix)
 			val = ena = run = 0;
 			nr = 0;
 			for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
-				s2 = aggr_get_id(evsel_list->cpus, cpu);
+				cpu2 = perf_evsel__cpus(counter)->map[cpu];
+				s2 = aggr_get_id(evsel_list->cpus, cpu2);
 				if (s2 != id)
 					continue;
 				val += counter->counts->cpu[cpu].val;
@@ -948,7 +969,7 @@ static void print_aggr(char *prefix)
 				fprintf(output, "%s", prefix);
 
 			if (run == 0 || ena == 0) {
-				aggr_printout(counter, cpu, nr);
+				aggr_printout(counter, id, nr);
 
 				fprintf(output, "%*s%s%*s",
 					csv_output ? 0 : 18,
@@ -1148,12 +1169,33 @@ static void skip_signal(int signo)
 		done = 1;
 
 	signr = signo;
+	/*
+	 * render child_pid harmless
+	 * won't send SIGTERM to a random
+	 * process in case of race condition
+	 * and fast PID recycling
+	 */
+	child_pid = -1;
 }
 
 static void sig_atexit(void)
 {
+	sigset_t set, oset;
+
+	/*
+	 * avoid race condition with SIGCHLD handler
+	 * in skip_signal() which is modifying child_pid
+	 * goal is to avoid send SIGTERM to a random
+	 * process
+	 */
+	sigemptyset(&set);
+	sigaddset(&set, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &set, &oset);
+
 	if (child_pid != -1)
 		kill(child_pid, SIGTERM);
+
+	sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (signr == -1)
 		return;
@@ -1397,6 +1439,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-core", &aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
+	OPT_UINTEGER('D', "delay", &initial_delay,
+		     "ms to wait before starting measurement after program start"),
 	OPT_END()
 	};
 	const char * const stat_usage[] = {

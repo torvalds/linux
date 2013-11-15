@@ -60,7 +60,7 @@ s16 __apicid_to_node[MAX_LOCAL_APIC] = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-int __cpuinit numa_cpu_node(int cpu)
+int numa_cpu_node(int cpu)
 {
 	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
 
@@ -691,12 +691,12 @@ void __init init_cpu_to_node(void)
 #ifndef CONFIG_DEBUG_PER_CPU_MAPS
 
 # ifndef CONFIG_NUMA_EMU
-void __cpuinit numa_add_cpu(int cpu)
+void numa_add_cpu(int cpu)
 {
 	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
-void __cpuinit numa_remove_cpu(int cpu)
+void numa_remove_cpu(int cpu)
 {
 	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
@@ -763,17 +763,17 @@ void debug_cpumask_set_cpu(int cpu, int node, bool enable)
 }
 
 # ifndef CONFIG_NUMA_EMU
-static void __cpuinit numa_set_cpumask(int cpu, bool enable)
+static void numa_set_cpumask(int cpu, bool enable)
 {
 	debug_cpumask_set_cpu(cpu, early_cpu_to_node(cpu), enable);
 }
 
-void __cpuinit numa_add_cpu(int cpu)
+void numa_add_cpu(int cpu)
 {
 	numa_set_cpumask(cpu, true);
 }
 
-void __cpuinit numa_remove_cpu(int cpu)
+void numa_remove_cpu(int cpu)
 {
 	numa_set_cpumask(cpu, false);
 }

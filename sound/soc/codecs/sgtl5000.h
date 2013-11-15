@@ -12,7 +12,7 @@
 #define _SGTL5000_H
 
 /*
- * Register values.
+ * Registers addresses
  */
 #define SGTL5000_CHIP_ID			0x0000
 #define SGTL5000_CHIP_DIG_POWER			0x0002
@@ -347,7 +347,7 @@
 #define SGTL5000_PLL_INT_DIV_MASK		0xf800
 #define SGTL5000_PLL_INT_DIV_SHIFT		11
 #define SGTL5000_PLL_INT_DIV_WIDTH		5
-#define SGTL5000_PLL_FRAC_DIV_MASK		0x0700
+#define SGTL5000_PLL_FRAC_DIV_MASK		0x07ff
 #define SGTL5000_PLL_FRAC_DIV_SHIFT		0
 #define SGTL5000_PLL_FRAC_DIV_WIDTH		11
 

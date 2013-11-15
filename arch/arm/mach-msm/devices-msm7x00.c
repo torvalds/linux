@@ -425,7 +425,7 @@ struct platform_device msm_device_mdp = {
 	.resource = resources_mdp,
 };
 
-struct clk_lookup msm_clocks_7x01a[] = {
+static struct clk_pcom_desc msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
 	CLK_PCOM("ebi1_clk",	EBI1_CLK,	NULL, 0),
@@ -456,9 +456,9 @@ struct clk_lookup msm_clocks_7x01a[] = {
 	CLK_PCOM("tsif_ref_clk",	TSIF_REF_CLK,	NULL, 0),
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
-	CLK_PCOM("uart_clk",	UART1_CLK,	"msm_serial.0", OFF),
-	CLK_PCOM("uart_clk",	UART2_CLK,	"msm_serial.1", 0),
-	CLK_PCOM("uart_clk",	UART3_CLK,	"msm_serial.2", OFF),
+	CLK_PCOM("core",	UART1_CLK,	"msm_serial.0", OFF),
+	CLK_PCOM("core",	UART2_CLK,	"msm_serial.1", 0),
+	CLK_PCOM("core",	UART3_CLK,	"msm_serial.2", OFF),
 	CLK_PCOM("uart1dm_clk",	UART1DM_CLK,	NULL, OFF),
 	CLK_PCOM("uart2dm_clk",	UART2DM_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	"msm_hsusb", OFF),
@@ -469,4 +469,12 @@ struct clk_lookup msm_clocks_7x01a[] = {
 	CLK_PCOM("vfe_mdc_clk",	VFE_MDC_CLK,	NULL, OFF),
 };
 
-unsigned msm_num_clocks_7x01a = ARRAY_SIZE(msm_clocks_7x01a);
+static struct pcom_clk_pdata msm_clock_7x01a_pdata = {
+	.lookup = msm_clocks_7x01a,
+	.num_lookups = ARRAY_SIZE(msm_clocks_7x01a),
+};
+
+struct platform_device msm_clock_7x01a = {
+	.name = "msm-clock-pcom",
+	.dev.platform_data = &msm_clock_7x01a_pdata,
+};

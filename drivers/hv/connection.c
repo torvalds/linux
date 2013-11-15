@@ -195,7 +195,10 @@ int vmbus_connect(void)
 
 	do {
 		ret = vmbus_negotiate_version(msginfo, version);
-		if (ret == 0)
+		if (ret == -ETIMEDOUT)
+			goto cleanup;
+
+		if (vmbus_connection.conn_state == CONNECTED)
 			break;
 
 		version = vmbus_get_next_version(version);
@@ -246,12 +249,26 @@ struct vmbus_channel *relid2channel(u32 relid)
 	struct vmbus_channel *channel;
 	struct vmbus_channel *found_channel  = NULL;
 	unsigned long flags;
+	struct list_head *cur, *tmp;
+	struct vmbus_channel *cur_sc;
 
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (channel->offermsg.child_relid == relid) {
 			found_channel = channel;
 			break;
+		} else if (!list_empty(&channel->sc_list)) {
+			/*
+			 * Deal with sub-channels.
+			 */
+			list_for_each_safe(cur, tmp, &channel->sc_list) {
+				cur_sc = list_entry(cur, struct vmbus_channel,
+							sc_list);
+				if (cur_sc->offermsg.child_relid == relid) {
+					found_channel = cur_sc;
+					break;
+				}
+			}
 		}
 	}
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);

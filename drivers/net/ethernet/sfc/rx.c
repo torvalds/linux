@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2011 Solarflare Communications Inc.
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -21,6 +21,7 @@
 #include <net/checksum.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "filter.h"
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
@@ -36,7 +37,7 @@
 #define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_PREFERRED_BATCH)
 
 /* Size of buffer allocated for skb header area. */
-#define EFX_SKB_HEADERS  64u
+#define EFX_SKB_HEADERS  128u
 
 /* This is the percentage fill level below which new RX descriptors
  * will be added to the RX descriptor ring.
@@ -60,13 +61,12 @@ static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 	return page_address(buf->page) + buf->page_offset;
 }
 
-static inline u32 efx_rx_buf_hash(const u8 *eh)
+static inline u32 efx_rx_buf_hash(struct efx_nic *efx, const u8 *eh)
 {
-	/* The ethernet header is always directly after any hash. */
-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) || NET_IP_ALIGN % 4 == 0
-	return __le32_to_cpup((const __le32 *)(eh - 4));
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return __le32_to_cpup((const __le32 *)(eh + efx->rx_packet_hash_offset));
 #else
-	const u8 *data = eh - 4;
+	const u8 *data = eh + efx->rx_packet_hash_offset;
 	return (u32)data[0]	  |
 	       (u32)data[1] << 8  |
 	       (u32)data[2] << 16 |
@@ -282,14 +282,28 @@ static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
 }
 
 /* Recycle the pages that are used by buffers that have just been received. */
-static void efx_recycle_rx_buffers(struct efx_channel *channel,
-				   struct efx_rx_buffer *rx_buf,
-				   unsigned int n_frags)
+static void efx_recycle_rx_pages(struct efx_channel *channel,
+				 struct efx_rx_buffer *rx_buf,
+				 unsigned int n_frags)
 {
 	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
 
 	do {
 		efx_recycle_rx_page(channel, rx_buf);
+		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
+	} while (--n_frags);
+}
+
+static void efx_discard_rx_packet(struct efx_channel *channel,
+				  struct efx_rx_buffer *rx_buf,
+				  unsigned int n_frags)
+{
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+
+	efx_recycle_rx_pages(channel, rx_buf, n_frags);
+
+	do {
+		efx_free_rx_buffer(rx_buf);
 		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
 	} while (--n_frags);
 }
@@ -311,6 +325,9 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned int fill_level, batch_size;
 	int space, rc = 0;
+
+	if (!rx_queue->refill_enabled)
+		return;
 
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
@@ -421,7 +438,7 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 	}
 
 	if (efx->net_dev->features & NETIF_F_RXHASH)
-		skb->rxhash = efx_rx_buf_hash(eh);
+		skb->rxhash = efx_rx_buf_hash(efx, eh);
 	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
@@ -509,10 +526,11 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 	/* Validate the number of fragments and completed length */
 	if (n_frags == 1) {
-		efx_rx_packet__check_len(rx_queue, rx_buf, len);
+		if (!(flags & EFX_RX_PKT_PREFIX_LEN))
+			efx_rx_packet__check_len(rx_queue, rx_buf, len);
 	} else if (unlikely(n_frags > EFX_RX_MAX_FRAGS) ||
-		   unlikely(len <= (n_frags - 1) * EFX_RX_USR_BUF_SIZE) ||
-		   unlikely(len > n_frags * EFX_RX_USR_BUF_SIZE) ||
+		   unlikely(len <= (n_frags - 1) * efx->rx_dma_len) ||
+		   unlikely(len > n_frags * efx->rx_dma_len) ||
 		   unlikely(!efx->rx_scatter)) {
 		/* If this isn't an explicit discard request, either
 		 * the hardware or the driver is broken.
@@ -533,12 +551,11 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	if (unlikely(rx_buf->flags & EFX_RX_PKT_DISCARD)) {
 		efx_rx_flush_packet(channel);
-		put_page(rx_buf->page);
-		efx_recycle_rx_buffers(channel, rx_buf, n_frags);
+		efx_discard_rx_packet(channel, rx_buf, n_frags);
 		return;
 	}
 
-	if (n_frags == 1)
+	if (n_frags == 1 && !(flags & EFX_RX_PKT_PREFIX_LEN))
 		rx_buf->len = len;
 
 	/* Release and/or sync the DMA mapping - assumes all RX buffers
@@ -551,8 +568,8 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	prefetch(efx_rx_buf_va(rx_buf));
 
-	rx_buf->page_offset += efx->type->rx_buffer_hash_size;
-	rx_buf->len -= efx->type->rx_buffer_hash_size;
+	rx_buf->page_offset += efx->rx_prefix_size;
+	rx_buf->len -= efx->rx_prefix_size;
 
 	if (n_frags > 1) {
 		/* Release/sync DMA mapping for additional fragments.
@@ -564,15 +581,15 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
 			if (--tail_frags == 0)
 				break;
-			efx_sync_rx_buffer(efx, rx_buf, EFX_RX_USR_BUF_SIZE);
+			efx_sync_rx_buffer(efx, rx_buf, efx->rx_dma_len);
 		}
-		rx_buf->len = len - (n_frags - 1) * EFX_RX_USR_BUF_SIZE;
+		rx_buf->len = len - (n_frags - 1) * efx->rx_dma_len;
 		efx_sync_rx_buffer(efx, rx_buf, rx_buf->len);
 	}
 
-	/* All fragments have been DMA-synced, so recycle buffers and pages. */
+	/* All fragments have been DMA-synced, so recycle pages. */
 	rx_buf = efx_rx_buffer(rx_queue, index);
-	efx_recycle_rx_buffers(channel, rx_buf, n_frags);
+	efx_recycle_rx_pages(channel, rx_buf, n_frags);
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
@@ -598,6 +615,8 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 
 	/* Set the SKB flags */
 	skb_checksum_none_assert(skb);
+	if (likely(rx_buf->flags & EFX_RX_PKT_CSUMMED))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (channel->type->receive_skb)
 		if (channel->type->receive_skb(channel, skb))
@@ -615,6 +634,13 @@ void __efx_rx_packet(struct efx_channel *channel)
 		efx_rx_buffer(&channel->rx_queue, channel->rx_pkt_index);
 	u8 *eh = efx_rx_buf_va(rx_buf);
 
+	/* Read length from the prefix if necessary.  This already
+	 * excludes the length of the prefix itself.
+	 */
+	if (rx_buf->flags & EFX_RX_PKT_PREFIX_LEN)
+		rx_buf->len = le16_to_cpup((__le16 *)
+					   (eh + efx->rx_packet_len_offset));
+
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
 	 */
@@ -627,7 +653,7 @@ void __efx_rx_packet(struct efx_channel *channel)
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
-	if (!channel->type->receive_skb)
+	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
 		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
 	else
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
@@ -675,7 +701,7 @@ static void efx_init_rx_recycle_ring(struct efx_nic *efx,
 #ifdef CONFIG_PPC64
 	bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
 #else
-	if (efx->pci_dev->dev.iommu_group)
+	if (iommu_present(&pci_bus_type))
 		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
 	else
 		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_NOIOMMU;
@@ -723,9 +749,9 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	rx_queue->max_fill = max_fill;
 	rx_queue->fast_fill_trigger = trigger;
+	rx_queue->refill_enabled = true;
 
 	/* Set up RX descriptor ring */
-	rx_queue->enabled = true;
 	efx_nic_init_rx(rx_queue);
 }
 
@@ -738,11 +764,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
 		  "shutting down RX queue %d\n", efx_rx_queue_index(rx_queue));
 
-	/* A flush failure might have left rx_queue->enabled */
-	rx_queue->enabled = false;
-
 	del_timer_sync(&rx_queue->slow_fill);
-	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers from the current read ptr to the write ptr */
 	if (rx_queue->buffer) {
@@ -788,3 +810,130 @@ module_param(rx_refill_threshold, uint, 0444);
 MODULE_PARM_DESC(rx_refill_threshold,
 		 "RX descriptor ring refill threshold (%)");
 
+#ifdef CONFIG_RFS_ACCEL
+
+int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+		   u16 rxq_index, u32 flow_id)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_channel *channel;
+	struct efx_filter_spec spec;
+	const struct iphdr *ip;
+	const __be16 *ports;
+	int nhoff;
+	int rc;
+
+	nhoff = skb_network_offset(skb);
+
+	if (skb->protocol == htons(ETH_P_8021Q)) {
+		EFX_BUG_ON_PARANOID(skb_headlen(skb) <
+				    nhoff + sizeof(struct vlan_hdr));
+		if (((const struct vlan_hdr *)skb->data + nhoff)->
+		    h_vlan_encapsulated_proto != htons(ETH_P_IP))
+			return -EPROTONOSUPPORT;
+
+		/* This is IP over 802.1q VLAN.  We can't filter on the
+		 * IP 5-tuple and the vlan together, so just strip the
+		 * vlan header and filter on the IP part.
+		 */
+		nhoff += sizeof(struct vlan_hdr);
+	} else if (skb->protocol != htons(ETH_P_IP)) {
+		return -EPROTONOSUPPORT;
+	}
+
+	/* RFS must validate the IP header length before calling us */
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + sizeof(*ip));
+	ip = (const struct iphdr *)(skb->data + nhoff);
+	if (ip_is_fragment(ip))
+		return -EPROTONOSUPPORT;
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
+	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT,
+			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
+			   rxq_index);
+	rc = efx_filter_set_ipv4_full(&spec, ip->protocol,
+				      ip->daddr, ports[1], ip->saddr, ports[0]);
+	if (rc)
+		return rc;
+
+	rc = efx->type->filter_rfs_insert(efx, &spec);
+	if (rc < 0)
+		return rc;
+
+	/* Remember this so we can check whether to expire the filter later */
+	efx->rps_flow_id[rc] = flow_id;
+	channel = efx_get_channel(efx, skb_get_rx_queue(skb));
+	++channel->rfs_filters_added;
+
+	netif_info(efx, rx_status, efx->net_dev,
+		   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
+		   (ip->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
+		   &ip->saddr, ntohs(ports[0]), &ip->daddr, ntohs(ports[1]),
+		   rxq_index, flow_id, rc);
+
+	return rc;
+}
+
+bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
+{
+	bool (*expire_one)(struct efx_nic *efx, u32 flow_id, unsigned int index);
+	unsigned int index, size;
+	u32 flow_id;
+
+	if (!spin_trylock_bh(&efx->filter_lock))
+		return false;
+
+	expire_one = efx->type->filter_rfs_expire_one;
+	index = efx->rps_expire_index;
+	size = efx->type->max_rx_ip_filters;
+	while (quota--) {
+		flow_id = efx->rps_flow_id[index];
+		if (expire_one(efx, flow_id, index))
+			netif_info(efx, rx_status, efx->net_dev,
+				   "expired filter %d [flow %u]\n",
+				   index, flow_id);
+		if (++index == size)
+			index = 0;
+	}
+	efx->rps_expire_index = index;
+
+	spin_unlock_bh(&efx->filter_lock);
+	return true;
+}
+
+#endif /* CONFIG_RFS_ACCEL */
+
+/**
+ * efx_filter_is_mc_recipient - test whether spec is a multicast recipient
+ * @spec: Specification to test
+ *
+ * Return: %true if the specification is a non-drop RX filter that
+ * matches a local MAC address I/G bit value of 1 or matches a local
+ * IPv4 or IPv6 address value in the respective multicast address
+ * range.  Otherwise %false.
+ */
+bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec)
+{
+	if (!(spec->flags & EFX_FILTER_FLAG_RX) ||
+	    spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP)
+		return false;
+
+	if (spec->match_flags &
+	    (EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG) &&
+	    is_multicast_ether_addr(spec->loc_mac))
+		return true;
+
+	if ((spec->match_flags &
+	     (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) ==
+	    (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) {
+		if (spec->ether_type == htons(ETH_P_IP) &&
+		    ipv4_is_multicast(spec->loc_host[0]))
+			return true;
+		if (spec->ether_type == htons(ETH_P_IPV6) &&
+		    ((const u8 *)spec->loc_host)[0] == 0xff)
+			return true;
+	}
+
+	return false;
+}

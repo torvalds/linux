@@ -7,6 +7,7 @@
  */
 #include <linux/init.h>
 
+#include <asm/cpu.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>
@@ -34,7 +35,7 @@ static void __iomem *status_reg = (void __iomem *)0xbf000410;
  */
 static unsigned int __init estimate_cpu_frequency(void)
 {
-	unsigned int prid = read_c0_prid() & 0xffff00;
+	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
 	unsigned int tick = 0;
 	unsigned int freq;
 	unsigned int orig;
@@ -91,7 +92,7 @@ static void __init plat_perf_setup(void)
 	}
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	if (cpu_has_vint)
 		set_vi_handler(cp0_compare_irq, mips_timer_dispatch);

@@ -3,8 +3,11 @@
 Required properties:
 - compatible: Should be "fsl,<chip>-saif"
 - reg: Should contain registers location and length
-- interrupts: Should contain ERROR and DMA interrupts
-- fsl,saif-dma-channel: APBX DMA channel for the SAIF
+- interrupts: Should contain ERROR interrupt number
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and SAIF DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: Must be "rx-tx".
 
 Optional properties:
 - fsl,saif-master: phandle to the master SAIF.  It's only required for
@@ -23,14 +26,16 @@ aliases {
 saif0: saif@80042000 {
 	compatible = "fsl,imx28-saif";
 	reg = <0x80042000 2000>;
-	interrupts = <59 80>;
-	fsl,saif-dma-channel = <4>;
+	interrupts = <59>;
+	dmas = <&dma_apbx 4>;
+	dma-names = "rx-tx";
 };
 
 saif1: saif@80046000 {
 	compatible = "fsl,imx28-saif";
 	reg = <0x80046000 2000>;
-	interrupts = <58 81>;
-	fsl,saif-dma-channel = <5>;
+	interrupts = <58>;
+	dmas = <&dma_apbx 5>;
+	dma-names = "rx-tx";
 	fsl,saif-master = <&saif0>;
 };

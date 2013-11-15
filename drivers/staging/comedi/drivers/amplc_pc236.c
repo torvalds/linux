@@ -16,11 +16,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: amplc_pc236
@@ -52,6 +47,7 @@ the IRQ jumper.  If no interrupt is connected, then subdevice 1 is
 unused.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -472,10 +468,9 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pc236_private *devpriv;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	/* Process options according to bus type. */
 	if (is_isa_board(thisboard)) {
@@ -515,10 +510,9 @@ static int pc236_auto_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	dev->board_ptr = pc236_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
@@ -543,7 +537,6 @@ static void pc236_detach(struct comedi_device *dev)
 		return;
 	if (dev->iobase)
 		pc236_intr_disable(dev);
-	comedi_spriv_free(dev, 0);
 	if (is_isa_board(thisboard)) {
 		comedi_legacy_detach(dev);
 	} else if (is_pci_board(thisboard)) {

@@ -1311,7 +1311,7 @@ static int pata_macio_pci_attach(struct pci_dev *pdev,
 
 static void pata_macio_pci_detach(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 
 	ata_host_detach(host);
 }
@@ -1320,14 +1320,14 @@ static void pata_macio_pci_detach(struct pci_dev *pdev)
 
 static int pata_macio_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 
 	return pata_macio_do_suspend(host->private_data, mesg);
 }
 
 static int pata_macio_pci_resume(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 
 	return pata_macio_do_resume(host->private_data);
 }

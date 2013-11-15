@@ -64,8 +64,6 @@ static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
-
 static const struct e1000_info *e1000_info_tbl[] = {
 	[board_82571]		= &e1000_82571_info,
 	[board_82572]		= &e1000_82572_info,
@@ -1196,7 +1194,7 @@ static bool e1000_clean_tx_irq(struct e1000_ring *tx_ring)
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		bool cleaned = false;
-		rmb(); /* read buffer_info after eop_desc */
+		rmb();		/* read buffer_info after eop_desc */
 		for (; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -1385,7 +1383,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_ring *rx_ring, int *work_done,
 
 				skb_put(skb, l1);
 				goto copydone;
-			} /* if */
+			}	/* if */
 		}
 
 		for (j = 0; j < PS_PAGE_BUFFERS; j++) {
@@ -1800,7 +1798,7 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 	u32 rctl, icr = er32(ICR);
 
 	if (!icr || test_bit(__E1000_DOWN, &adapter->state))
-		return IRQ_NONE;  /* Not our interrupt */
+		return IRQ_NONE;	/* Not our interrupt */
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
 	 * not set, then the adapter didn't send an interrupt
@@ -2487,7 +2485,7 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 		else if ((packets < 5) && (bytes > 512))
 			retval = low_latency;
 		break;
-	case low_latency:  /* 50 usec aka 20000 ints/s */
+	case low_latency:	/* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
 			/* this if handles the TSO accounting */
 			if (bytes / packets > 8000)
@@ -2502,7 +2500,7 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 			retval = lowest_latency;
 		}
 		break;
-	case bulk_latency: /* 250 usec aka 4000 ints/s */
+	case bulk_latency:	/* 250 usec aka 4000 ints/s */
 		if (bytes > 25000) {
 			if (packets > 35)
 				retval = low_latency;
@@ -2554,7 +2552,7 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 		new_itr = 70000;
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = 20000;	/* aka hwitr = ~200 */
 		break;
 	case bulk_latency:
 		new_itr = 4000;
@@ -2673,7 +2671,7 @@ static int e1000e_poll(struct napi_struct *napi, int weight)
 }
 
 static int e1000_vlan_rx_add_vid(struct net_device *netdev,
-				 __be16 proto, u16 vid)
+				 __always_unused __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2699,7 +2697,7 @@ static int e1000_vlan_rx_add_vid(struct net_device *netdev,
 }
 
 static int e1000_vlan_rx_kill_vid(struct net_device *netdev,
-				  __be16 proto, u16 vid)
+				  __always_unused __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2979,17 +2977,10 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 pages = 0;
 
 	/* Workaround Si errata on PCHx - configure jumbo frame flow */
-	if (hw->mac.type >= e1000_pch2lan) {
-		s32 ret_val;
-
-		if (adapter->netdev->mtu > ETH_DATA_LEN)
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
-		else
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
-
-		if (ret_val)
-			e_dbg("failed to enable jumbo frame workaround mode\n");
-	}
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, true))
+		e_dbg("failed to enable jumbo frame workaround mode\n");
 
 	/* Program MC offset vector base */
 	rctl = er32(RCTL);
@@ -3104,13 +3095,13 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		/* UPE and MPE will be handled by normal PROMISC logic
 		 * in e1000e_set_rx_mode
 		 */
-		rctl |= (E1000_RCTL_SBP | /* Receive bad packets */
-			 E1000_RCTL_BAM | /* RX All Bcast Pkts */
-			 E1000_RCTL_PMCF); /* RX All MAC Ctrl Pkts */
+		rctl |= (E1000_RCTL_SBP |	/* Receive bad packets */
+			 E1000_RCTL_BAM |	/* RX All Bcast Pkts */
+			 E1000_RCTL_PMCF);	/* RX All MAC Ctrl Pkts */
 
-		rctl &= ~(E1000_RCTL_VFE | /* Disable VLAN filter */
-			  E1000_RCTL_DPF | /* Allow filtered pause */
-			  E1000_RCTL_CFIEN); /* Dis VLAN CFIEN Filter */
+		rctl &= ~(E1000_RCTL_VFE |	/* Disable VLAN filter */
+			  E1000_RCTL_DPF |	/* Allow filtered pause */
+			  E1000_RCTL_CFIEN);	/* Dis VLAN CFIEN Filter */
 		/* Do not mess with E1000_CTRL_VME, it affects transmit as well,
 		 * and that breaks VLANs.
 		 */
@@ -3799,7 +3790,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		hwm = min(((pba << 10) * 9 / 10),
 			  ((pba << 10) - adapter->max_frame_size));
 
-		fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
+		fc->high_water = hwm & E1000_FCRTH_RTH;	/* 8-byte granularity */
 		fc->low_water = fc->high_water - 8;
 		break;
 	case e1000_pchlan:
@@ -3808,10 +3799,10 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		 */
 		if (adapter->netdev->mtu > ETH_DATA_LEN) {
 			fc->high_water = 0x3500;
-			fc->low_water  = 0x1500;
+			fc->low_water = 0x1500;
 		} else {
 			fc->high_water = 0x5000;
-			fc->low_water  = 0x3000;
+			fc->low_water = 0x3000;
 		}
 		fc->refresh_time = 0x1000;
 		break;
@@ -3826,6 +3817,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 			break;
 		}
 
+		pba = 14;
+		ew32(PBA, pba);
 		fc->high_water = ((pba << 10) * 9 / 10) & E1000_FCRTH_RTH;
 		fc->low_water = ((pba << 10) * 8 / 10) & E1000_FCRTL_RTL;
 		break;
@@ -4033,6 +4026,12 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
+
+	/* Disable Si errata workaround on PCHx for jumbo frame flow */
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
+		e_dbg("failed to disable jumbo frame workaround mode\n");
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
@@ -4581,7 +4580,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.crcerrs += er32(CRCERRS);
 	adapter->stats.gprc += er32(GPRC);
 	adapter->stats.gorc += er32(GORCL);
-	er32(GORCH); /* Clear gorc */
+	er32(GORCH);		/* Clear gorc */
 	adapter->stats.bprc += er32(BPRC);
 	adapter->stats.mprc += er32(MPRC);
 	adapter->stats.roc += er32(ROC);
@@ -4614,7 +4613,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.xofftxc += er32(XOFFTXC);
 	adapter->stats.gptc += er32(GPTC);
 	adapter->stats.gotc += er32(GOTCL);
-	er32(GOTCH); /* Clear gotc */
+	er32(GOTCH);		/* Clear gotc */
 	adapter->stats.rnbc += er32(RNBC);
 	adapter->stats.ruc += er32(RUC);
 
@@ -4683,11 +4682,11 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
 
-	if ((er32(STATUS) & E1000_STATUS_LU) &&
+	if (!pm_runtime_suspended((&adapter->pdev->dev)->parent) &&
+	    (er32(STATUS) & E1000_STATUS_LU) &&
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
 		int ret_val;
 
-		pm_runtime_get_sync(&adapter->pdev->dev);
 		ret_val = e1e_rphy(hw, MII_BMCR, &phy->bmcr);
 		ret_val |= e1e_rphy(hw, MII_BMSR, &phy->bmsr);
 		ret_val |= e1e_rphy(hw, MII_ADVERTISE, &phy->advertise);
@@ -4698,7 +4697,6 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 		ret_val |= e1e_rphy(hw, MII_ESTATUS, &phy->estatus);
 		if (ret_val)
 			e_warn("Error reading PHY register\n");
-		pm_runtime_put_sync(&adapter->pdev->dev);
 	} else {
 		/* Do not read PHY registers if link is not up
 		 * Set values to typical power-on defaults
@@ -4870,7 +4868,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			 */
 			if ((hw->phy.type == e1000_phy_igp_3 ||
 			     hw->phy.type == e1000_phy_bm) &&
-			    (hw->mac.autoneg == true) &&
+			    hw->mac.autoneg &&
 			    (adapter->link_speed == SPEED_10 ||
 			     adapter->link_speed == SPEED_100) &&
 			    (adapter->link_duplex == HALF_DUPLEX)) {
@@ -5106,13 +5104,13 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	context_desc = E1000_CONTEXT_DESC(*tx_ring, i);
 	buffer_info = &tx_ring->buffer_info[i];
 
-	context_desc->lower_setup.ip_fields.ipcss  = ipcss;
-	context_desc->lower_setup.ip_fields.ipcso  = ipcso;
-	context_desc->lower_setup.ip_fields.ipcse  = cpu_to_le16(ipcse);
+	context_desc->lower_setup.ip_fields.ipcss = ipcss;
+	context_desc->lower_setup.ip_fields.ipcso = ipcso;
+	context_desc->lower_setup.ip_fields.ipcse = cpu_to_le16(ipcse);
 	context_desc->upper_setup.tcp_fields.tucss = tucss;
 	context_desc->upper_setup.tcp_fields.tucso = tucso;
 	context_desc->upper_setup.tcp_fields.tucse = 0;
-	context_desc->tcp_seg_setup.fields.mss     = cpu_to_le16(mss);
+	context_desc->tcp_seg_setup.fields.mss = cpu_to_le16(mss);
 	context_desc->tcp_seg_setup.fields.hdr_len = hdr_len;
 	context_desc->cmd_and_length = cpu_to_le32(cmd_length);
 
@@ -5363,7 +5361,7 @@ static void e1000_tx_queue(struct e1000_ring *tx_ring, int tx_flags, int count)
 static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 				    struct sk_buff *skb)
 {
-	struct e1000_hw *hw =  &adapter->hw;
+	struct e1000_hw *hw = &adapter->hw;
 	u16 length, offset;
 
 	if (vlan_tx_tag_present(skb) &&
@@ -5995,14 +5993,23 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	 */
 	e1000e_release_hw_control(adapter);
 
+	pci_clear_master(pdev);
+
 	/* The pci-e switch on some quad port adapters will report a
 	 * correctable error when the MAC transitions from D0 to D3.  To
 	 * prevent this we need to mask off the correctable errors on the
 	 * downstream port of the pci-e switch.
+	 *
+	 * We don't have the associated upstream bridge while assigning
+	 * the PCI device into guest. For example, the KVM on power is
+	 * one of the cases.
 	 */
 	if (adapter->flags & FLAG_IS_QUAD_PORT) {
 		struct pci_dev *us_dev = pdev->bus->self;
 		u16 devctl;
+
+		if (!us_dev)
+			return 0;
 
 		pcie_capability_read_word(us_dev, PCI_EXP_DEVCTL, &devctl);
 		pcie_capability_write_word(us_dev, PCI_EXP_DEVCTL,
@@ -6017,38 +6024,73 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	return 0;
 }
 
-#ifdef CONFIG_PCIEASPM
-static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+/**
+ * e1000e_disable_aspm - Disable ASPM states
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
-	pci_disable_link_state_locked(pdev, state);
-}
-#else
-static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
-{
-	u16 aspm_ctl = 0;
+	struct pci_dev *parent = pdev->bus->self;
+	u16 aspm_dis_mask = 0;
+	u16 pdev_aspmc, parent_aspmc;
 
-	if (state & PCIE_LINK_STATE_L0S)
-		aspm_ctl |= PCI_EXP_LNKCTL_ASPM_L0S;
-	if (state & PCIE_LINK_STATE_L1)
-		aspm_ctl |= PCI_EXP_LNKCTL_ASPM_L1;
+	switch (state) {
+	case PCIE_LINK_STATE_L0S:
+	case PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1:
+		aspm_dis_mask |= PCI_EXP_LNKCTL_ASPM_L0S;
+		/* fall-through - can't have L1 without L0s */
+	case PCIE_LINK_STATE_L1:
+		aspm_dis_mask |= PCI_EXP_LNKCTL_ASPM_L1;
+		break;
+	default:
+		return;
+	}
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &pdev_aspmc);
+	pdev_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+
+	if (parent) {
+		pcie_capability_read_word(parent, PCI_EXP_LNKCTL,
+					  &parent_aspmc);
+		parent_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+	}
+
+	/* Nothing to do if the ASPM states to be disabled already are */
+	if (!(pdev_aspmc & aspm_dis_mask) &&
+	    (!parent || !(parent_aspmc & aspm_dis_mask)))
+		return;
+
+	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
+		 (aspm_dis_mask & pdev_aspmc & PCI_EXP_LNKCTL_ASPM_L0S) ?
+		 "L0s" : "",
+		 (aspm_dis_mask & pdev_aspmc & PCI_EXP_LNKCTL_ASPM_L1) ?
+		 "L1" : "");
+
+#ifdef CONFIG_PCIEASPM
+	pci_disable_link_state_locked(pdev, state);
+
+	/* Double-check ASPM control.  If not disabled by the above, the
+	 * BIOS is preventing that from happening (or CONFIG_PCIEASPM is
+	 * not enabled); override by writing PCI config space directly.
+	 */
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &pdev_aspmc);
+	pdev_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+
+	if (!(aspm_dis_mask & pdev_aspmc))
+		return;
+#endif
 
 	/* Both device and parent should have the same ASPM setting.
 	 * Disable ASPM in downstream component first and then upstream.
 	 */
-	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, aspm_ctl);
+	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, aspm_dis_mask);
 
-	if (pdev->bus->self)
-		pcie_capability_clear_word(pdev->bus->self, PCI_EXP_LNKCTL,
-					   aspm_ctl);
-}
-#endif
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
-{
-	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
-		 (state & PCIE_LINK_STATE_L0S) ? "L0s" : "",
-		 (state & PCIE_LINK_STATE_L1) ? "L1" : "");
-
-	__e1000e_disable_aspm(pdev, state);
+	if (parent)
+		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
+					   aspm_dis_mask);
 }
 
 #ifdef CONFIG_PM
@@ -6259,7 +6301,7 @@ static void e1000_netpoll(struct net_device *netdev)
 		e1000_intr_msi(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
 		break;
-	default: /* E1000E_INT_MODE_LEGACY */
+	default:		/* E1000E_INT_MODE_LEGACY */
 		disable_irq(adapter->pdev->irq);
 		e1000_intr(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
@@ -6589,9 +6631,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
 	/* construct the net_device struct */
-	netdev->netdev_ops		= &e1000e_netdev_ops;
+	netdev->netdev_ops = &e1000e_netdev_ops;
 	e1000e_set_ethtool_ops(netdev);
-	netdev->watchdog_timeo		= 5 * HZ;
+	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000e_poll, 64);
 	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
@@ -6722,10 +6764,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.fc.requested_mode = e1000_fc_default;
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
-
-	/* ring size defaults */
-	adapter->rx_ring->count = E1000_DEFAULT_RXD;
-	adapter->tx_ring->count = E1000_DEFAULT_TXD;
 
 	/* Initial Wake on LAN setting - If APM wake is enabled in
 	 * the EEPROM, enable the ACPI Magic Packet filter
@@ -6976,6 +7014,10 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3), board_pch_lpt },
 
 	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };
@@ -7033,7 +7075,6 @@ static void __exit e1000_exit_module(void)
 	pci_unregister_driver(&e1000_driver);
 }
 module_exit(e1000_exit_module);
-
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/1000 Network Driver");

@@ -28,7 +28,6 @@
 #define OCTEON_SPI_MAX_CLOCK_HZ 16000000
 
 struct octeon_spi {
-	struct spi_master *my_master;
 	u64 register_base;
 	u64 last_cfg;
 	u64 cs_enax;
@@ -64,7 +63,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	unsigned int speed_hz;
 	int mode;
 	bool cpha, cpol;
-	int bits_per_word;
 	const u8 *tx_buf;
 	u8 *rx_buf;
 	int len;
@@ -76,12 +74,9 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	mode = msg_setup->mode;
 	cpha = mode & SPI_CPHA;
 	cpol = mode & SPI_CPOL;
-	bits_per_word = msg_setup->bits_per_word;
 
 	if (xfer->speed_hz)
 		speed_hz = xfer->speed_hz;
-	if (xfer->bits_per_word)
-		bits_per_word = xfer->bits_per_word;
 
 	if (speed_hz > OCTEON_SPI_MAX_CLOCK_HZ)
 		speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
@@ -166,19 +161,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	return xfer->len;
 }
 
-static int octeon_spi_validate_bpw(struct spi_device *spi, u32 speed)
-{
-	switch (speed) {
-	case 8:
-		break;
-	default:
-		dev_err(&spi->dev, "Error: %d bits per word not supported\n",
-			speed);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int octeon_spi_transfer_one_message(struct spi_master *master,
 					   struct spi_message *msg)
 {
@@ -194,15 +176,6 @@ static int octeon_spi_transfer_one_message(struct spi_master *master,
 	if (spi_get_ctldata(msg->spi) == NULL) {
 		status = -EINVAL;
 		goto err;
-	}
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		if (xfer->bits_per_word) {
-			status = octeon_spi_validate_bpw(msg->spi,
-							 xfer->bits_per_word);
-			if (status)
-				goto err;
-		}
 	}
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -236,13 +209,8 @@ static struct octeon_spi_setup *octeon_spi_new_setup(struct spi_device *spi)
 
 static int octeon_spi_setup(struct spi_device *spi)
 {
-	int r;
 	struct octeon_spi_setup *new_setup;
 	struct octeon_spi_setup *old_setup = spi_get_ctldata(spi);
-
-	r = octeon_spi_validate_bpw(spi, spi->bits_per_word);
-	if (r)
-		return r;
 
 	new_setup = octeon_spi_new_setup(spi);
 	if (!new_setup)
@@ -261,14 +229,8 @@ static void octeon_spi_cleanup(struct spi_device *spi)
 	kfree(old_setup);
 }
 
-static int octeon_spi_nop_transfer_hardware(struct spi_master *master)
-{
-	return 0;
-}
-
 static int octeon_spi_probe(struct platform_device *pdev)
 {
-
 	struct resource *res_mem;
 	struct spi_master *master;
 	struct octeon_spi *p;
@@ -278,8 +240,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 	p = spi_master_get_devdata(master);
-	platform_set_drvdata(pdev, p);
-	p->my_master = master;
+	platform_set_drvdata(pdev, master);
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -307,9 +268,8 @@ static int octeon_spi_probe(struct platform_device *pdev)
 
 	master->setup = octeon_spi_setup;
 	master->cleanup = octeon_spi_cleanup;
-	master->prepare_transfer_hardware = octeon_spi_nop_transfer_hardware;
 	master->transfer_one_message = octeon_spi_transfer_one_message;
-	master->unprepare_transfer_hardware = octeon_spi_nop_transfer_hardware;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	master->dev.of_node = pdev->dev.of_node;
 	err = spi_register_master(master);
@@ -328,10 +288,11 @@ fail:
 
 static int octeon_spi_remove(struct platform_device *pdev)
 {
-	struct octeon_spi *p = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct octeon_spi *p = spi_master_get_devdata(master);
 	u64 register_base = p->register_base;
 
-	spi_unregister_master(p->my_master);
+	spi_unregister_master(master);
 
 	/* Clear the CSENA* and put everything in a known state. */
 	cvmx_write_csr(register_base + OCTEON_SPI_CFG, 0);

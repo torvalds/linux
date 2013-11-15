@@ -338,6 +338,15 @@ config USB_GSPCA_STK014
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_stk014.
 
+config USB_GSPCA_STK1135
+	tristate "Syntek STK1135 USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the STK1135 chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_stk1135.
+
 config USB_GSPCA_STV0680
 	tristate "STV0680 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

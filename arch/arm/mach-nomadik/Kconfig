@@ -6,6 +6,7 @@ config ARCH_NOMADIK
 	select ARM_VIC
 	select CLKSRC_NOMADIK_MTU
 	select CLKSRC_NOMADIK_MTU_SCHED_CLOCK
+	select CLKSRC_OF
 	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
@@ -26,6 +27,7 @@ config MACH_NOMADIK_8815NHK
 	select NOMADIK_8815
 	select I2C
 	select I2C_ALGOBIT
+	select I2C_NOMADIK
 
 endmenu
 endif

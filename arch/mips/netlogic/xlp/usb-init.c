@@ -75,8 +75,7 @@ static void nlm_usb_intr_en(int node, int port)
 	port_addr = nlm_get_usb_regbase(node, port);
 	val = nlm_read_usb_reg(port_addr, USB_INT_EN);
 	val = USB_CTRL_INTERRUPT_EN  | USB_OHCI_INTERRUPT_EN |
-		USB_OHCI_INTERRUPT1_EN | USB_CTRL_INTERRUPT_EN	|
-		USB_OHCI_INTERRUPT_EN | USB_OHCI_INTERRUPT2_EN;
+		USB_OHCI_INTERRUPT1_EN | USB_OHCI_INTERRUPT2_EN;
 	nlm_write_usb_reg(port_addr, USB_INT_EN, val);
 }
 
@@ -100,6 +99,9 @@ static void nlm_usb_hw_reset(int node, int port)
 
 static int __init nlm_platform_usb_init(void)
 {
+	if (cpu_is_xlpii())
+		return 0;
+
 	pr_info("Initializing USB Interface\n");
 	nlm_usb_hw_reset(0, 0);
 	nlm_usb_hw_reset(0, 3);
@@ -119,7 +121,7 @@ static u64 xlp_usb_dmamask = ~(u32)0;
 static void nlm_usb_fixup_final(struct pci_dev *dev)
 {
 	dev->dev.dma_mask		= &xlp_usb_dmamask;
-	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(64);
+	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(32);
 	switch (dev->devfn) {
 	case 0x10:
 		dev->irq = PIC_EHCI_0_IRQ;

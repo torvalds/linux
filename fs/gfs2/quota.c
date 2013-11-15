@@ -75,17 +75,16 @@ static LIST_HEAD(qd_lru_list);
 static atomic_t qd_lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(qd_lru_lock);
 
-int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
+unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
+				  struct shrink_control *sc)
 {
 	struct gfs2_quota_data *qd;
 	struct gfs2_sbd *sdp;
 	int nr_to_scan = sc->nr_to_scan;
-
-	if (nr_to_scan == 0)
-		goto out;
+	long freed = 0;
 
 	if (!(sc->gfp_mask & __GFP_FS))
-		return -1;
+		return SHRINK_STOP;
 
 	spin_lock(&qd_lru_lock);
 	while (nr_to_scan && !list_empty(&qd_lru_list)) {
@@ -110,11 +109,16 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
 		kmem_cache_free(gfs2_quotad_cachep, qd);
 		spin_lock(&qd_lru_lock);
 		nr_to_scan--;
+		freed++;
 	}
 	spin_unlock(&qd_lru_lock);
+	return freed;
+}
 
-out:
-	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
+unsigned long gfs2_qd_shrink_count(struct shrinker *shrink,
+				   struct shrink_control *sc)
+{
+	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
 }
 
 static u64 qd2index(struct gfs2_quota_data *qd)
@@ -1154,11 +1158,6 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	return error;
 }
 
-static int gfs2_quota_sync_timeo(struct super_block *sb, int type)
-{
-	return gfs2_quota_sync(sb, type);
-}
-
 int gfs2_quota_refresh(struct gfs2_sbd *sdp, struct kqid qid)
 {
 	struct gfs2_quota_data *qd;
@@ -1414,7 +1413,7 @@ int gfs2_quotad(void *data)
 					   &tune->gt_statfs_quantum);
 
 		/* Update quota file */
-		quotad_check_timeo(sdp, "sync", gfs2_quota_sync_timeo, t,
+		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
 				   &quotad_timeo, &tune->gt_quota_quantum);
 
 		/* Check for & recover partially truncated inodes */

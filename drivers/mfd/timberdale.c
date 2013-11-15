@@ -115,11 +115,11 @@ static const struct resource timberdale_ocores_resources[] = {
 	},
 };
 
-const struct max7301_platform_data timberdale_max7301_platform_data = {
+static const struct max7301_platform_data timberdale_max7301_platform_data = {
 	.base = 200
 };
 
-const struct mc33880_platform_data timberdale_mc33880_platform_data = {
+static const struct mc33880_platform_data timberdale_mc33880_platform_data = {
 	.base = 100
 };
 
@@ -145,7 +145,6 @@ static struct spi_board_info timberdale_spi_8bit_board_info[] = {
 
 static struct xspi_platform_data timberdale_xspi_platform_data = {
 	.num_chipselect = 3,
-	.little_endian = true,
 	/* bits per word and devices will be filled in runtime depending
 	 * on the HW config
 	 */
@@ -782,7 +781,6 @@ static int timb_probe(struct pci_dev *dev,
 			priv->fw.major, priv->fw.minor, ip_setup);
 		err = -ENODEV;
 		goto err_mfd;
-		break;
 	}
 
 	if (err) {
@@ -870,34 +868,7 @@ static struct pci_driver timberdale_pci_driver = {
 	.remove = timb_remove,
 };
 
-static int __init timberdale_init(void)
-{
-	int err;
-
-	err = pci_register_driver(&timberdale_pci_driver);
-	if (err < 0) {
-		printk(KERN_ERR
-			"Failed to register PCI driver for %s device.\n",
-			timberdale_pci_driver.name);
-		return -ENODEV;
-	}
-
-	printk(KERN_INFO "Driver for %s has been successfully registered.\n",
-		timberdale_pci_driver.name);
-
-	return 0;
-}
-
-static void __exit timberdale_exit(void)
-{
-	pci_unregister_driver(&timberdale_pci_driver);
-
-	printk(KERN_INFO "Driver for %s has been successfully unregistered.\n",
-		timberdale_pci_driver.name);
-}
-
-module_init(timberdale_init);
-module_exit(timberdale_exit);
+module_pci_driver(timberdale_pci_driver);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_VERSION(DRV_VERSION);

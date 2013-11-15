@@ -1,5 +1,5 @@
 /*
- * include/linux/tipc.h: Include file for TIPC socket interface
+ * include/uapi/linux/tipc.h: Header for TIPC socket interface
  *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems

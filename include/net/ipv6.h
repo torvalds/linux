@@ -41,6 +41,7 @@
 #define NEXTHDR_ICMP		58	/* ICMP for IPv6. */
 #define NEXTHDR_NONE		59	/* No next header */
 #define NEXTHDR_DEST		60	/* Destination options header. */
+#define NEXTHDR_SCTP		132	/* SCTP message. */
 #define NEXTHDR_MOBILITY	135	/* Mobility header. */
 
 #define NEXTHDR_MAX		255
@@ -259,6 +260,12 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 }
 
 extern void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
+
+int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
+			       struct icmp6hdr *thdr, int len);
+
+struct dst_entry *icmpv6_route_lookup(struct net *net, struct sk_buff *skb,
+				      struct sock *sk, struct flowi6 *fl6);
 
 extern int 			ip6_ra_control(struct sock *sk, int sel);
 
@@ -651,6 +658,8 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 
 extern void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 
+extern int ip6_dst_hoplimit(struct dst_entry *dst);
+
 /*
  *	Header manipulation
  */
@@ -853,8 +862,8 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL
-extern ctl_table ipv6_route_table_template[];
-extern ctl_table ipv6_icmp_table_template[];
+extern struct ctl_table ipv6_route_table_template[];
+extern struct ctl_table ipv6_icmp_table_template[];
 
 extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);

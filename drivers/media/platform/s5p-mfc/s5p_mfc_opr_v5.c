@@ -1275,8 +1275,8 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_clean_ctx_int_flags(ctx);
-	mfc_debug(2, "encoding buffer with index=%d state=%d",
-			src_mb ? src_mb->b->v4l2_buf.index : -1, ctx->state);
+	mfc_debug(2, "encoding buffer with index=%d state=%d\n",
+		  src_mb ? src_mb->b->v4l2_buf.index : -1, ctx->state);
 	s5p_mfc_encode_one_frame_v5(ctx);
 	return 0;
 }

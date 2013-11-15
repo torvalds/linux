@@ -74,19 +74,33 @@
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
  * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
  * @IWL_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
+ * @IWL_UCODE_TLV_FLAGS_UAPSD: This uCode image supports uAPSD
+ * @IWL_UCODE_TLV_FLAGS_RX_ENERGY_API: supports rx signal strength api
+ * @IWL_UCODE_TLV_FLAGS_TIME_EVENT_API_V2: using the new time event API.
+ * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
+ *	(rather than two) IPv6 addresses
+ * @IWL_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
  */
 enum iwl_ucode_tlv_flag {
-	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
-	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
-	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE	= BIT(4),
+	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
+	IWL_UCODE_TLV_FLAGS_NEWSCAN		= BIT(1),
+	IWL_UCODE_TLV_FLAGS_MFP			= BIT(2),
+	IWL_UCODE_TLV_FLAGS_P2P			= BIT(3),
+	IWL_UCODE_TLV_FLAGS_DW_BC_TABLE		= BIT(4),
+	IWL_UCODE_TLV_FLAGS_UAPSD		= BIT(6),
+	IWL_UCODE_TLV_FLAGS_RX_ENERGY_API	= BIT(8),
+	IWL_UCODE_TLV_FLAGS_TIME_EVENT_API_V2	= BIT(9),
+	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
+	IWL_UCODE_TLV_FLAGS_BF_UPDATED		= BIT(11),
 };
 
 /* The default calibrate table size if not specified by firmware file */
 #define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
+
+/* The default max probe length if not specified by the firmware file */
+#define IWL_DEFAULT_MAX_PROBE_LENGTH	200
 
 /**
  * enum iwl_ucode_type
@@ -106,11 +120,14 @@ enum iwl_ucode_type {
 
 /*
  * enumeration of ucode section.
- * This enumeration is used for legacy tlv style (before 16.0 uCode).
+ * This enumeration is used directly for older firmware (before 16.0).
+ * For new firmware, there can be up to 4 sections (see below) but the
+ * first one packaged into the firmware file is the DATA section and
+ * some debugging code accesses that.
  */
 enum iwl_ucode_sec {
-	IWL_UCODE_SECTION_INST,
 	IWL_UCODE_SECTION_DATA,
+	IWL_UCODE_SECTION_INST,
 };
 /*
  * For 16.0 uCode and above, there is no differentiation between sections,

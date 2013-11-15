@@ -155,7 +155,6 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
-	loff_t new_offset;
 
 	if (vol->updating) {
 		/* Update is in progress, seeking is prohibited */
@@ -163,30 +162,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 		return -EBUSY;
 	}
 
-	switch (origin) {
-	case 0: /* SEEK_SET */
-		new_offset = offset;
-		break;
-	case 1: /* SEEK_CUR */
-		new_offset = file->f_pos + offset;
-		break;
-	case 2: /* SEEK_END */
-		new_offset = vol->used_bytes + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (new_offset < 0 || new_offset > vol->used_bytes) {
-		ubi_err("bad seek %lld", new_offset);
-		return -EINVAL;
-	}
-
-	dbg_gen("seek volume %d, offset %lld, origin %d, new offset %lld",
-		vol->vol_id, offset, origin, new_offset);
-
-	file->f_pos = new_offset;
-	return new_offset;
+	return fixed_size_llseek(file, offset, origin, vol->used_bytes);
 }
 
 static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,

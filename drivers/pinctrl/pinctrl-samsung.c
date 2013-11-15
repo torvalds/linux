@@ -50,7 +50,7 @@ static struct pin_config {
 };
 
 /* Global list of devices (struct samsung_pinctrl_drv_data) */
-LIST_HEAD(drvdata_list);
+static LIST_HEAD(drvdata_list);
 
 static unsigned int pin_base;
 
@@ -442,9 +442,17 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 
 /* set the pin config settings for a specified pin */
 static int samsung_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
-				unsigned long config)
+				unsigned long *configs, unsigned num_configs)
 {
-	return samsung_pinconf_rw(pctldev, pin, &config, true);
+	int i, ret;
+
+	for (i = 0; i < num_configs; i++) {
+		ret = samsung_pinconf_rw(pctldev, pin, &configs[i], true);
+		if (ret < 0)
+			return ret;
+	} /* for each config */
+
+	return 0;
 }
 
 /* get the pin config settings for a specified pin */
@@ -456,7 +464,8 @@ static int samsung_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 /* set the pin config settings for a specified pin group */
 static int samsung_pinconf_group_set(struct pinctrl_dev *pctldev,
-			unsigned group, unsigned long config)
+			unsigned group, unsigned long *configs,
+			unsigned num_configs)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
 	const unsigned int *pins;
@@ -466,7 +475,7 @@ static int samsung_pinconf_group_set(struct pinctrl_dev *pctldev,
 	pins = drvdata->pin_groups[group].pins;
 
 	for (cnt = 0; cnt < drvdata->pin_groups[group].num_pins; cnt++)
-		samsung_pinconf_set(pctldev, pins[cnt], config);
+		samsung_pinconf_set(pctldev, pins[cnt], configs, num_configs);
 
 	return 0;
 }
@@ -767,6 +776,10 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		}
 	}
 
+	ret = samsung_pinctrl_parse_dt(pdev, drvdata);
+	if (ret)
+		return ret;
+
 	drvdata->pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, drvdata);
 	if (!drvdata->pctl_dev) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
@@ -782,12 +795,6 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
 		pin_bank->grange.gc = &pin_bank->gpio_chip;
 		pinctrl_add_gpio_range(drvdata->pctl_dev, &pin_bank->grange);
-	}
-
-	ret = samsung_pinctrl_parse_dt(pdev, drvdata);
-	if (ret) {
-		pinctrl_unregister(drvdata->pctl_dev);
-		return ret;
 	}
 
 	return 0;
@@ -1113,10 +1120,24 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = (void *)exynos4x12_pin_ctrl },
 	{ .compatible = "samsung,exynos5250-pinctrl",
 		.data = (void *)exynos5250_pin_ctrl },
+	{ .compatible = "samsung,exynos5420-pinctrl",
+		.data = (void *)exynos5420_pin_ctrl },
+	{ .compatible = "samsung,s5pv210-pinctrl",
+		.data = (void *)s5pv210_pin_ctrl },
 #endif
 #ifdef CONFIG_PINCTRL_S3C64XX
 	{ .compatible = "samsung,s3c64xx-pinctrl",
 		.data = s3c64xx_pin_ctrl },
+#endif
+#ifdef CONFIG_PINCTRL_S3C24XX
+	{ .compatible = "samsung,s3c2412-pinctrl",
+		.data = s3c2412_pin_ctrl },
+	{ .compatible = "samsung,s3c2416-pinctrl",
+		.data = s3c2416_pin_ctrl },
+	{ .compatible = "samsung,s3c2440-pinctrl",
+		.data = s3c2440_pin_ctrl },
+	{ .compatible = "samsung,s3c2450-pinctrl",
+		.data = s3c2450_pin_ctrl },
 #endif
 	{},
 };

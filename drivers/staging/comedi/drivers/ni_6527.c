@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: ni_6527
@@ -41,6 +36,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define DEBUG 1
 #define DEBUG_FLAGS
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -340,10 +336,9 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)

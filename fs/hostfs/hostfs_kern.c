@@ -277,7 +277,7 @@ static const struct super_operations hostfs_sbops = {
 	.show_options	= hostfs_show_options,
 };
 
-int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
+int hostfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	void *dir;
 	char *name;
@@ -292,12 +292,11 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	__putname(name);
 	if (dir == NULL)
 		return -error;
-	next = file->f_pos;
+	next = ctx->pos;
 	while ((name = read_dir(dir, &next, &ino, &len, &type)) != NULL) {
-		error = (*filldir)(ent, name, len, file->f_pos,
-				   ino, type);
-		if (error) break;
-		file->f_pos = next;
+		if (!dir_emit(ctx, name, len, ino, type))
+			break;
+		ctx->pos = next;
 	}
 	close_dir(dir);
 	return 0;
@@ -362,6 +361,13 @@ retry:
 	return 0;
 }
 
+static int hostfs_file_release(struct inode *inode, struct file *file)
+{
+	filemap_write_and_wait(inode->i_mapping);
+
+	return 0;
+}
+
 int hostfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
@@ -387,13 +393,13 @@ static const struct file_operations hostfs_file_fops = {
 	.write		= do_sync_write,
 	.mmap		= generic_file_mmap,
 	.open		= hostfs_file_open,
-	.release	= NULL,
+	.release	= hostfs_file_release,
 	.fsync		= hostfs_fsync,
 };
 
 static const struct file_operations hostfs_dir_fops = {
 	.llseek		= generic_file_llseek,
-	.readdir	= hostfs_readdir,
+	.iterate	= hostfs_readdir,
 	.read		= generic_read_dir,
 };
 

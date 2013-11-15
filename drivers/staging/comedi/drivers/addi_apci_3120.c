@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -65,10 +66,9 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->pc_DriverName;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -103,8 +103,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		if (devpriv->ul_DmaBufferVirtual[i]) {
 			devpriv->ui_DmaBufferPages[i] = pages;
 			devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
-			devpriv->ui_DmaBufferSamples[i] =
-				devpriv->ui_DmaBufferSize[i] >> 1;
 			devpriv->ul_DmaBufferHw[i] =
 				virt_to_bus((void *)devpriv->
 				ul_DmaBufferVirtual[i]);
@@ -137,9 +135,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = &range_apci3120_ai;
-
-	/* Set the initialisation flag */
-	devpriv->b_AiInitialisation = 1;
 
 	s->insn_config = i_APCI3120_InsnConfigAnalogInput;
 	s->insn_read = i_APCI3120_InsnReadAnalogInput;

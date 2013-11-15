@@ -235,9 +235,60 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: To spoof as Windows 98: ="Microsoft Windows"
 
 	acpi_osi=	[HW,ACPI] Modify list of supported OS interface strings
-			acpi_osi="string1"	# add string1 -- only one string
-			acpi_osi="!string2"	# remove built-in string2
+			acpi_osi="string1"	# add string1
+			acpi_osi="!string2"	# remove string2
+			acpi_osi=!*		# remove all strings
+			acpi_osi=!		# disable all built-in OS vendor
+						  strings
 			acpi_osi=		# disable all strings
+
+			'acpi_osi=!' can be used in combination with single or
+			multiple 'acpi_osi="string1"' to support specific OS
+			vendor string(s).  Note that such command can only
+			affect the default state of the OS vendor strings, thus
+			it cannot affect the default state of the feature group
+			strings and the current state of the OS vendor strings,
+			specifying it multiple times through kernel command line
+			is meaningless.  This command is useful when one do not
+			care about the state of the feature group strings which
+			should be controlled by the OSPM.
+			Examples:
+			  1. 'acpi_osi=! acpi_osi="Windows 2000"' is equivalent
+			     to 'acpi_osi="Windows 2000" acpi_osi=!', they all
+			     can make '_OSI("Windows 2000")' TRUE.
+
+			'acpi_osi=' cannot be used in combination with other
+			'acpi_osi=' command lines, the _OSI method will not
+			exist in the ACPI namespace.  NOTE that such command can
+			only affect the _OSI support state, thus specifying it
+			multiple times through kernel command line is also
+			meaningless.
+			Examples:
+			  1. 'acpi_osi=' can make 'CondRefOf(_OSI, Local1)'
+			     FALSE.
+
+			'acpi_osi=!*' can be used in combination with single or
+			multiple 'acpi_osi="string1"' to support specific
+			string(s).  Note that such command can affect the
+			current state of both the OS vendor strings and the
+			feature group strings, thus specifying it multiple times
+			through kernel command line is meaningful.  But it may
+			still not able to affect the final state of a string if
+			there are quirks related to this string.  This command
+			is useful when one want to control the state of the
+			feature group strings to debug BIOS issues related to
+			the OSPM features.
+			Examples:
+			  1. 'acpi_osi="Module Device" acpi_osi=!*' can make
+			     '_OSI("Module Device")' FALSE.
+			  2. 'acpi_osi=!* acpi_osi="Module Device"' can make
+			     '_OSI("Module Device")' TRUE.
+			  3. 'acpi_osi=! acpi_osi=!* acpi_osi="Windows 2000"' is
+			     equivalent to
+			     'acpi_osi=!* acpi_osi=! acpi_osi="Windows 2000"'
+			     and
+			     'acpi_osi=!* acpi_osi="Windows 2000" acpi_osi=!',
+			     they all will make '_OSI("Windows 2000")' TRUE.
 
 	acpi_pm_good	[X86]
 			Override the pmtimer bug detection: force the kernel
@@ -428,6 +479,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			BayCom Serial Port AX.25 Modem (Half Duplex Mode)
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
+
+	blkdevparts=	Manual partition parsing of block device(s) for
+			embedded devices based on command line input.
+			See Documentation/block/cmdline-partition.txt
 
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
@@ -1129,11 +1184,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
-	ima_audit=	[IMA]
-			Format: { "0" | "1" }
-			0 -- integrity auditing messages. (Default)
-			1 -- enable informational integrity auditing messages.
-
 	ima_hash=	[IMA]
 			Format: { "sha1" | "md5" }
 			default: "sha1"
@@ -1157,6 +1207,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
+
+	int_pln_enable  [x86] Enable power limit notification interrupt
+
+	integrity_audit=[IMA]
+			Format: { "0" | "1" }
+			0 -- basic integrity auditing messages. (Default)
+			1 -- additional integrity auditing messages.
 
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
 		on
@@ -1304,7 +1361,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			pages. In the event, a node is too small to have both
 			kernelcore and Movable pages, kernelcore pages will
 			take priority and other nodes will have a larger number
-			of kernelcore pages.  The Movable zone is used for the
+			of Movable pages.  The Movable zone is used for the
 			allocation of pages that may be reclaimed or moved
 			by the page migration subsystem.  This means that
 			HugeTLB pages may not be allocated from this zone.
@@ -1455,6 +1512,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			  hot-unplug link recovery
 
 			* dump_id: dump IDENTIFY data.
+
+			* atapi_dmadir: Enable ATAPI DMADIR bridge support
 
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
@@ -1843,6 +1902,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			will be sent.
 			The default is to send the implementation identification
 			information.
+	
+	nfs.recover_lost_locks =
+			[NFSv4] Attempt to recover locks that were lost due
+			to a lease timeout on the server. Please note that
+			doing this risks data corruption, since there are
+			no guarantees that the file will remain unchanged
+			after the locks are lost.
+			If you want to enable the kernel legacy behaviour of
+			attempting to recover these locks, then set this
+			parameter to '1'.
+			The default parameter value of '0' causes the kernel
+			not to attempt recovery of lost locks.
 
 	nfsd.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', the NFSv4
@@ -2677,9 +2748,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Run specified binary instead of /init from the ramdisk,
 			used for early userspace startup. See initrd.
 
-	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
-			Format: <reboot_mode>[,<reboot_mode2>[,...]]
-			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
+	reboot=		[KNL]
+			Format (x86 or x86_64):
+				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] \
+				[[,]s[mp]#### \
+				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
+				[[,]f[orce]
+			Where reboot_mode is one of warm (soft) or cold (hard) or gpio,
+			      reboot_type is one of bios, acpi, kbd, triple, efi, or pci,
+			      reboot_force is either force or not specified,
+			      reboot_cpu is s[mp]#### with #### being the processor
+					to be used for rebooting.
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
@@ -2941,7 +3020,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			improve throughput, but will also increase the
 			amount of memory reserved for use by the client.
 
-	swapaccount[=0|1]
+	swapaccount=[0|1]
 			[KNL] Enable accounting of swap in memory resource
 			controller if no parameter or 1 is given or disable
 			it if 0 is given (See Documentation/cgroups/memory.txt)
@@ -3068,6 +3147,19 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/trace/ftrace.txt "trace options"
 			section.
+
+	traceoff_on_warning
+			[FTRACE] enable this option to disable tracing when a
+			warning is hit. This turns off "tracing_on". Tracing can
+			be enabled again by echoing '1' into the "tracing_on"
+			file located in /sys/kernel/debug/tracing/
+
+			This option is useful, as it disables the trace before
+			the WARNING dump is called, which prevents the trace to
+			be filled with content caused by the warning output.
+
+			This option can also be set at run time via the sysctl
+			option:  kernel/traceoff_on_warning
 
 	transparent_hugepage=
 			[KNL]
@@ -3229,6 +3321,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
 
+	video.brightness_switch_enabled= [0,1]
+			If set to 1, on receiving an ACPI notify event
+			generated by hotkey, video driver will adjust brightness
+			level and then send out the event to user space through
+			the allocated input device; If set to 0, video driver
+			will only send out the event without touching backlight
+			brightness level.
+			default: 1
+
 	virtio_mmio.device=
 			[VMMIO] Memory mapped virtio (platform) device.
 
@@ -3288,6 +3389,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			            them quite hard to use for exploits but
 			            might break your system.
 
+	vt.color=	[VT] Default text color.
+			Format: 0xYX, X = foreground, Y = background.
+			Default: 0x07 = light gray on black.
+
 	vt.cur_default=	[VT] Default cursor shape.
 			Format: 0xCCBBAA, where AA, BB, and CC are the same as
 			the parameters of the <Esc>[?A;B;Cc escape sequence;
@@ -3327,6 +3432,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			overridden by individual drivers. 0 will hide
 			cursors, 1 will display them.
 
+	vt.italic=	[VT] Default color for italic text; 0-15.
+			Default: 2 = green.
+
+	vt.underline=	[VT] Default color for underlined text; 0-15.
+			Default: 3 = cyan.
+
 	watchdog timers	[HW,WDT] For information on watchdog timers,
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
@@ -3341,6 +3452,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			that this also can be controlled per-workqueue for
 			workqueues visible under /sys/bus/workqueue/.
 
+	workqueue.power_efficient
+			Per-cpu workqueues are generally preferred because
+			they show better performance thanks to cache
+			locality; unfortunately, per-cpu workqueues tend to
+			be more power hungry than unbound workqueues.
+
+			Enabling this makes the per-cpu workqueues which
+			were observed to contribute significantly to power
+			consumption unbound, leading to measurably lower
+			power usage at the cost of small performance
+			overhead.
+
+			The default value of this parameter is determined by
+			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
+
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
 			supporting x2apic.
@@ -3350,9 +3476,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Two valid options are apbt timer only and lapic timer
 			plus one apbt timer for broadcast timer.
 			x86_mrst_timer=apbt_only | lapic_and_apbt
-
-	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
-	xd_geo=		See header of drivers/block/xd.c.
 
 	xen_emul_unplug=		[HW,X86,XEN]
 			Unplug Xen emulated devices
@@ -3365,6 +3488,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				unnecessary even if the host did not respond to
 				the unplug protocol
 			never -- do not unplug even if version check succeeds
+
+	xen_nopvspin	[X86,XEN]
+			Disables the ticketlock slowpath using Xen PV
+			optimizations.
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:

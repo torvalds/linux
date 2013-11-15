@@ -32,9 +32,12 @@ static inline void set_eiem(unsigned long val)
 	cr;				\
 })
 
-#define mtsp(gr, cr) \
-	__asm__ __volatile__("mtsp %0,%1" \
+#define mtsp(val, cr) \
+	{ if (__builtin_constant_p(val) && ((val) == 0)) \
+	 __asm__ __volatile__("mtsp %%r0,%0" : : "i" (cr) : "memory"); \
+	else \
+	 __asm__ __volatile__("mtsp %0,%1" \
 		: /* no outputs */ \
-		: "r" (gr), "i" (cr) : "memory")
+		: "r" (val), "i" (cr) : "memory"); }
 
 #endif /* __PARISC_SPECIAL_INSNS_H */

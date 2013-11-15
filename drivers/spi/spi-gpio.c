@@ -239,9 +239,6 @@ static int spi_gpio_setup(struct spi_device *spi)
 	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
 	struct device_node	*np = spi->master->dev.of_node;
 
-	if (spi->bits_per_word > 32)
-		return -EINVAL;
-
 	if (np) {
 		/*
 		 * In DT environments, the CS GPIOs have already been
@@ -423,7 +420,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (status > 0)
 		use_of = 1;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 #ifdef GENERIC_BITBANG
 	if (!pdata || !pdata->num_chipselect)
 		return -ENODEV;
@@ -446,6 +443,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (pdata)
 		spi_gpio->pdata = *pdata;
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->flags = master_flags;
 	master->bus_num = pdev->id;
 	master->num_chipselect = SPI_N_CHIPSEL;
@@ -508,13 +506,11 @@ static int spi_gpio_remove(struct platform_device *pdev)
 	int				status;
 
 	spi_gpio = platform_get_drvdata(pdev);
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	/* stop() unregisters child devices too */
 	status = spi_bitbang_stop(&spi_gpio->bitbang);
 	spi_master_put(spi_gpio->bitbang.master);
-
-	platform_set_drvdata(pdev, NULL);
 
 	if (SPI_MISO_GPIO != SPI_GPIO_NO_MISO)
 		gpio_free(SPI_MISO_GPIO);

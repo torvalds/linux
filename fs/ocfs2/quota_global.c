@@ -234,7 +234,7 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 		len = sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE - offset;
 	}
 
-	if (gqinode->i_size < off + len) {
+	if (i_size_read(gqinode) < off + len) {
 		loff_t rounded_end =
 				ocfs2_align_bytes_to_blocks(sb, off + len);
 
@@ -778,8 +778,8 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 		 */
 		WARN_ON(journal_current_handle());
 		status = ocfs2_extend_no_holes(gqinode, NULL,
-			gqinode->i_size + (need_alloc << sb->s_blocksize_bits),
-			gqinode->i_size);
+			i_size_read(gqinode) + (need_alloc << sb->s_blocksize_bits),
+			i_size_read(gqinode));
 		if (status < 0)
 			goto out_dq;
 	}

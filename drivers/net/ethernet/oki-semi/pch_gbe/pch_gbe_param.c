@@ -237,16 +237,17 @@ static int pch_gbe_validate_option(int *value,
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			pr_debug("%s Enabled\n", opt->name);
+			netdev_dbg(adapter->netdev, "%s Enabled\n", opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			pr_debug("%s Disabled\n", opt->name);
+			netdev_dbg(adapter->netdev, "%s Disabled\n", opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			pr_debug("%s set to %i\n", opt->name, *value);
+			netdev_dbg(adapter->netdev, "%s set to %i\n",
+				   opt->name, *value);
 			return 0;
 		}
 		break;
@@ -258,7 +259,8 @@ static int pch_gbe_validate_option(int *value,
 			ent = &opt->arg.l.p[i];
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')
-					pr_debug("%s\n", ent->str);
+					netdev_dbg(adapter->netdev, "%s\n",
+						   ent->str);
 				return 0;
 			}
 		}
@@ -268,8 +270,8 @@ static int pch_gbe_validate_option(int *value,
 		BUG();
 	}
 
-	pr_debug("Invalid %s value specified (%i) %s\n",
-		 opt->name, *value, opt->err);
+	netdev_dbg(adapter->netdev, "Invalid %s value specified (%i) %s\n",
+		   opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
 }
@@ -318,7 +320,8 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 					 .p = an_list} }
 		};
 		if (speed || dplx) {
-			pr_debug("AutoNeg specified along with Speed or Duplex, AutoNeg parameter ignored\n");
+			netdev_dbg(adapter->netdev,
+				   "AutoNeg specified along with Speed or Duplex, AutoNeg parameter ignored\n");
 			hw->phy.autoneg_advertised = opt.def;
 		} else {
 			int tmp = AutoNeg;
@@ -332,13 +335,16 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 	case 0:
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		if ((speed || dplx))
-			pr_debug("Speed and duplex autonegotiation enabled\n");
+			netdev_dbg(adapter->netdev,
+				   "Speed and duplex autonegotiation enabled\n");
 		hw->mac.link_speed = SPEED_10;
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case HALF_DUPLEX:
-		pr_debug("Half Duplex specified without Speed\n");
-		pr_debug("Using Autonegotiation at Half Duplex only\n");
+		netdev_dbg(adapter->netdev,
+			   "Half Duplex specified without Speed\n");
+		netdev_dbg(adapter->netdev,
+			   "Using Autonegotiation at Half Duplex only\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		hw->phy.autoneg_advertised = PHY_ADVERTISE_10_HALF |
 						PHY_ADVERTISE_100_HALF;
@@ -346,8 +352,10 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case FULL_DUPLEX:
-		pr_debug("Full Duplex specified without Speed\n");
-		pr_debug("Using Autonegotiation at Full Duplex only\n");
+		netdev_dbg(adapter->netdev,
+			   "Full Duplex specified without Speed\n");
+		netdev_dbg(adapter->netdev,
+			   "Using Autonegotiation at Full Duplex only\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		hw->phy.autoneg_advertised = PHY_ADVERTISE_10_FULL |
 						PHY_ADVERTISE_100_FULL |
@@ -356,8 +364,10 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		hw->mac.link_duplex = DUPLEX_FULL;
 		break;
 	case SPEED_10:
-		pr_debug("10 Mbps Speed specified without Duplex\n");
-		pr_debug("Using Autonegotiation at 10 Mbps only\n");
+		netdev_dbg(adapter->netdev,
+			   "10 Mbps Speed specified without Duplex\n");
+		netdev_dbg(adapter->netdev,
+			   "Using Autonegotiation at 10 Mbps only\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		hw->phy.autoneg_advertised = PHY_ADVERTISE_10_HALF |
 						PHY_ADVERTISE_10_FULL;
@@ -365,22 +375,24 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case SPEED_10 + HALF_DUPLEX:
-		pr_debug("Forcing to 10 Mbps Half Duplex\n");
+		netdev_dbg(adapter->netdev, "Forcing to 10 Mbps Half Duplex\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 0;
 		hw->phy.autoneg_advertised = 0;
 		hw->mac.link_speed = SPEED_10;
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case SPEED_10 + FULL_DUPLEX:
-		pr_debug("Forcing to 10 Mbps Full Duplex\n");
+		netdev_dbg(adapter->netdev, "Forcing to 10 Mbps Full Duplex\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 0;
 		hw->phy.autoneg_advertised = 0;
 		hw->mac.link_speed = SPEED_10;
 		hw->mac.link_duplex = DUPLEX_FULL;
 		break;
 	case SPEED_100:
-		pr_debug("100 Mbps Speed specified without Duplex\n");
-		pr_debug("Using Autonegotiation at 100 Mbps only\n");
+		netdev_dbg(adapter->netdev,
+			   "100 Mbps Speed specified without Duplex\n");
+		netdev_dbg(adapter->netdev,
+			   "Using Autonegotiation at 100 Mbps only\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		hw->phy.autoneg_advertised = PHY_ADVERTISE_100_HALF |
 						PHY_ADVERTISE_100_FULL;
@@ -388,28 +400,33 @@ static void pch_gbe_check_copper_options(struct pch_gbe_adapter *adapter)
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case SPEED_100 + HALF_DUPLEX:
-		pr_debug("Forcing to 100 Mbps Half Duplex\n");
+		netdev_dbg(adapter->netdev,
+			   "Forcing to 100 Mbps Half Duplex\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 0;
 		hw->phy.autoneg_advertised = 0;
 		hw->mac.link_speed = SPEED_100;
 		hw->mac.link_duplex = DUPLEX_HALF;
 		break;
 	case SPEED_100 + FULL_DUPLEX:
-		pr_debug("Forcing to 100 Mbps Full Duplex\n");
+		netdev_dbg(adapter->netdev,
+			   "Forcing to 100 Mbps Full Duplex\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 0;
 		hw->phy.autoneg_advertised = 0;
 		hw->mac.link_speed = SPEED_100;
 		hw->mac.link_duplex = DUPLEX_FULL;
 		break;
 	case SPEED_1000:
-		pr_debug("1000 Mbps Speed specified without Duplex\n");
+		netdev_dbg(adapter->netdev,
+			   "1000 Mbps Speed specified without Duplex\n");
 		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
-		pr_debug("Half Duplex is not supported at 1000 Mbps\n");
+		netdev_dbg(adapter->netdev,
+			   "Half Duplex is not supported at 1000 Mbps\n");
 		/* fall through */
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:
-		pr_debug("Using Autonegotiation at 1000 Mbps Full Duplex only\n");
+		netdev_dbg(adapter->netdev,
+			   "Using Autonegotiation at 1000 Mbps Full Duplex only\n");
 		hw->mac.autoneg = hw->mac.fc_autoneg = 1;
 		hw->phy.autoneg_advertised = PHY_ADVERTISE_1000_FULL;
 		hw->mac.link_speed = SPEED_1000;

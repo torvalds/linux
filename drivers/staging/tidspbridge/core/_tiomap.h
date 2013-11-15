@@ -145,8 +145,8 @@ struct map_l4_peripheral {
 #define L4_PERIPHERAL_MBOX        0x48094000
 #define DSPVA_PERIPHERAL_MBOX     0x11808000
 
-#define PM_GRPSEL_BASE 			0x48307000
-#define DSPVA_GRPSEL_BASE 		0x11821000
+#define PM_GRPSEL_BASE	0x48307000
+#define DSPVA_GRPSEL_BASE	0x11821000
 
 #define L4_PERIPHERAL_SIDETONE_MCBSP2        0x49028000
 #define DSPVA_PERIPHERAL_SIDETONE_MCBSP2 0x11824000
@@ -311,7 +311,7 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 #define SET_GROUP_BITS16(reg, position, width, value) \
 	do {\
-		reg &= ~((0xFFFF >> (16 - (width))) << (position)) ; \
+		reg &= ~((0xFFFF >> (16 - (width))) << (position)); \
 		reg |= ((value & (0xFFFF >> (16 - (width)))) << (position)); \
 	} while (0);
 

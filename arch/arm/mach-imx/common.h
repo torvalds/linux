@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_MXC_COMMON_H__
 #define __ASM_ARCH_MXC_COMMON_H__
 
+#include <linux/reboot.h>
+
 struct platform_device;
 struct pt_regs;
 struct clk;
@@ -68,12 +70,12 @@ extern int mx27_clocks_init_dt(void);
 extern int mx31_clocks_init_dt(void);
 extern int mx51_clocks_init_dt(void);
 extern int mx53_clocks_init_dt(void);
-extern int mx6q_clocks_init(void);
 extern struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 extern void mxc_set_cpu_type(unsigned int type);
-extern void mxc_restart(char, const char *);
+extern void mxc_restart(enum reboot_mode, const char *);
 extern void mxc_arch_reset_init(void __iomem *);
+extern void mxc_arch_reset_init_dt(void);
 extern int mx53_revision(void);
 extern int imx6q_revision(void);
 extern int mx53_display_revision(void);
@@ -135,7 +137,6 @@ extern void imx_gpc_restore_all(void);
 extern void imx_anatop_init(void);
 extern void imx_anatop_pre_suspend(void);
 extern void imx_anatop_post_resume(void);
-extern void imx_anatop_usb_chrg_detect_disable(void);
 extern u32 imx_anatop_get_digprog(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 extern void imx6q_set_chicken_bit(void);
@@ -145,18 +146,22 @@ extern int imx_cpu_kill(unsigned int cpu);
 
 #ifdef CONFIG_PM
 extern void imx6q_pm_init(void);
-extern void imx51_pm_init(void);
-extern void imx53_pm_init(void);
+extern void imx5_pm_init(void);
 #else
 static inline void imx6q_pm_init(void) {}
-static inline void imx51_pm_init(void) {}
-static inline void imx53_pm_init(void) {}
+static inline void imx5_pm_init(void) {}
 #endif
 
 #ifdef CONFIG_NEON
 extern int mx51_neon_fixup(void);
 #else
 static inline int mx51_neon_fixup(void) { return 0; }
+#endif
+
+#ifdef CONFIG_CACHE_L2X0
+extern void imx_init_l2cache(void);
+#else
+static inline void imx_init_l2cache(void) {}
 #endif
 
 extern struct smp_operations imx_smp_ops;

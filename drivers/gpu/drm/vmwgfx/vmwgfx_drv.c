@@ -124,7 +124,7 @@
  * Ioctl definitions.
  */
 
-static struct drm_ioctl_desc vmw_ioctls[] = {
+static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
@@ -565,8 +565,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->has_gmr = false;
 	}
 
-	dev_priv->mmio_mtrr = drm_mtrr_add(dev_priv->mmio_start,
-					   dev_priv->mmio_size, DRM_MTRR_WC);
+	dev_priv->mmio_mtrr = arch_phys_wc_add(dev_priv->mmio_start,
+					       dev_priv->mmio_size);
 
 	dev_priv->mmio_virt = ioremap_wc(dev_priv->mmio_start,
 					 dev_priv->mmio_size);
@@ -622,8 +622,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
-	if (unlikely(dev_priv->fman == NULL))
+	if (unlikely(dev_priv->fman == NULL)) {
+		ret = -ENOMEM;
 		goto out_no_fman;
+	}
 
 	vmw_kms_save_vga(dev_priv);
 
@@ -664,8 +666,7 @@ out_no_device:
 out_err4:
 	iounmap(dev_priv->mmio_virt);
 out_err3:
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -709,8 +710,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -784,7 +784,7 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 	    && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		struct drm_ioctl_desc *ioctl =
+		const struct drm_ioctl_desc *ioctl =
 		    &vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (unlikely(ioctl->cmd_drv != cmd)) {
@@ -797,29 +797,12 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	return drm_ioctl(filp, cmd, arg);
 }
 
-static int vmw_firstopen(struct drm_device *dev)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	dev_priv->is_opened = true;
-
-	return 0;
-}
-
 static void vmw_lastclose(struct drm_device *dev)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_crtc *crtc;
 	struct drm_mode_set set;
 	int ret;
 
-	/**
-	 * Do nothing on the lastclose call from drm_unload.
-	 */
-
-	if (!dev_priv->is_opened)
-		return;
-
-	dev_priv->is_opened = false;
 	set.x = 0;
 	set.y = 0;
 	set.fb = NULL;
@@ -1122,7 +1105,6 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.mmap = vmw_mmap,
 	.poll = vmw_fops_poll,
 	.read = vmw_fops_read,
-	.fasync = drm_fasync,
 #if defined(CONFIG_COMPAT)
 	.compat_ioctl = drm_compat_ioctl,
 #endif
@@ -1134,7 +1116,6 @@ static struct drm_driver driver = {
 	DRIVER_MODESET,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
-	.firstopen = vmw_firstopen,
 	.lastclose = vmw_lastclose,
 	.irq_preinstall = vmw_irq_preinstall,
 	.irq_postinstall = vmw_irq_postinstall,
@@ -1145,7 +1126,6 @@ static struct drm_driver driver = {
 	.disable_vblank = vmw_disable_vblank,
 	.ioctls = vmw_ioctls,
 	.num_ioctls = DRM_ARRAY_SIZE(vmw_ioctls),
-	.dma_quiescent = NULL,	/*vmw_dma_quiescent, */
 	.master_create = vmw_master_create,
 	.master_destroy = vmw_master_destroy,
 	.master_set = vmw_master_set,

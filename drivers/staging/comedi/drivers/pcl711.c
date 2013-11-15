@@ -17,11 +17,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: pcl711
@@ -58,10 +53,10 @@ supported.
 
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
 
 #include "comedi_fc.h"
@@ -479,10 +474,9 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	/* AI subdevice */

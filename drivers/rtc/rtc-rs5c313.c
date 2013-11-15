@@ -47,10 +47,10 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define DRV_NAME	"rs5c313"
-#define DRV_VERSION 	"1.13"
+#define DRV_VERSION	"1.13"
 
 #ifdef CONFIG_SH_LANDISK
 /*****************************************************/
@@ -301,7 +301,7 @@ static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	rs5c313_write_reg(RS5C313_ADDR_SEC10, (data >> 4));
 
 	data = bin2bcd(tm->tm_min);
-	rs5c313_write_reg(RS5C313_ADDR_MIN, data );
+	rs5c313_write_reg(RS5C313_ADDR_MIN, data);
 	rs5c313_write_reg(RS5C313_ADDR_MIN10, (data >> 4));
 
 	data = bin2bcd(tm->tm_hour);
@@ -310,7 +310,7 @@ static int rs5c313_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	data = bin2bcd(tm->tm_mday);
 	rs5c313_write_reg(RS5C313_ADDR_DAY, data);
-	rs5c313_write_reg(RS5C313_ADDR_DAY10, (data>> 4));
+	rs5c313_write_reg(RS5C313_ADDR_DAY10, (data >> 4));
 
 	data = bin2bcd(tm->tm_mon + 1);
 	rs5c313_write_reg(RS5C313_ADDR_MON, data);
@@ -349,9 +349,9 @@ static void rs5c313_check_xstp_bit(void)
 		}
 
 		memset(&tm, 0, sizeof(struct rtc_time));
-		tm.tm_mday 	= 1;
-		tm.tm_mon 	= 1 - 1;
-		tm.tm_year 	= 2000 - 1900;
+		tm.tm_mday	= 1;
+		tm.tm_mon	= 1 - 1;
+		tm.tm_year	= 2000 - 1900;
 
 		rs5c313_rtc_set_time(NULL, &tm);
 		pr_err("invalid value, resetting to 1 Jan 2000\n");
@@ -378,18 +378,12 @@ static int rs5c313_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rs5c313_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver rs5c313_rtc_platform_driver = {
 	.driver         = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
 	},
-	.probe 	= rs5c313_rtc_probe,
-	.remove = rs5c313_rtc_remove,
+	.probe	= rs5c313_rtc_probe,
 };
 
 static int __init rs5c313_rtc_init(void)
@@ -408,7 +402,7 @@ static int __init rs5c313_rtc_init(void)
 
 static void __exit rs5c313_rtc_exit(void)
 {
-	platform_driver_unregister( &rs5c313_rtc_platform_driver );
+	platform_driver_unregister(&rs5c313_rtc_platform_driver);
 }
 
 module_init(rs5c313_rtc_init);

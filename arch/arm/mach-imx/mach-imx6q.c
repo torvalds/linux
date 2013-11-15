@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/cpu.h>
@@ -26,10 +27,11 @@
 #include <linux/of_platform.h>
 #include <linux/opp.h>
 #include <linux/phy.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
-#include <asm/hardware/cache-l2x0.h>
+#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
@@ -66,7 +68,7 @@ static void __init imx6q_init_revision(void)
 	mxc_set_cpu_type(rev >> 16 & 0xff);
 }
 
-static void imx6q_restart(char mode, const char *cmd)
+static void imx6q_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *wdog_base;
@@ -101,48 +103,77 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		/* min rx data delay */
-		phy_write(phydev, 0x0b, 0x8105);
-		phy_write(phydev, 0x0c, 0x0000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0x0000);
 
 		/* max rx/tx clock delay, min rx/tx control delay */
-		phy_write(phydev, 0x0b, 0x8104);
-		phy_write(phydev, 0x0c, 0xf0f0);
-		phy_write(phydev, 0x0b, 0x104);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0xf0f0);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
 	}
 
 	return 0;
 }
 
-static void __init imx6q_sabrelite_cko1_setup(void)
+static void mmd_write_reg(struct phy_device *dev, int device, int reg, int val)
 {
-	struct clk *cko1_sel, *ahb, *cko1;
-	unsigned long rate;
-
-	cko1_sel = clk_get_sys(NULL, "cko1_sel");
-	ahb = clk_get_sys(NULL, "ahb");
-	cko1 = clk_get_sys(NULL, "cko1");
-	if (IS_ERR(cko1_sel) || IS_ERR(ahb) || IS_ERR(cko1)) {
-		pr_err("cko1 setup failed!\n");
-		goto put_clk;
-	}
-	clk_set_parent(cko1_sel, ahb);
-	rate = clk_round_rate(cko1, 16000000);
-	clk_set_rate(cko1, rate);
-put_clk:
-	if (!IS_ERR(cko1_sel))
-		clk_put(cko1_sel);
-	if (!IS_ERR(ahb))
-		clk_put(ahb);
-	if (!IS_ERR(cko1))
-		clk_put(cko1);
+	phy_write(dev, 0x0d, device);
+	phy_write(dev, 0x0e, reg);
+	phy_write(dev, 0x0d, (1 << 14) | device);
+	phy_write(dev, 0x0e, val);
 }
 
-static void __init imx6q_sabrelite_init(void)
+static int ksz9031rn_phy_fixup(struct phy_device *dev)
 {
-	if (IS_BUILTIN(CONFIG_PHYLIB))
+	/*
+	 * min rx data delay, max rx/tx clock delay,
+	 * min rx/tx control delay
+	 */
+	mmd_write_reg(dev, 2, 4, 0);
+	mmd_write_reg(dev, 2, 5, 0);
+	mmd_write_reg(dev, 2, 8, 0x003ff);
+
+	return 0;
+}
+
+static int ar8031_phy_fixup(struct phy_device *dev)
+{
+	u16 val;
+
+	/* To enable AR8031 output a 125MHz clk from CLK_25M */
+	phy_write(dev, 0xd, 0x7);
+	phy_write(dev, 0xe, 0x8016);
+	phy_write(dev, 0xd, 0x4007);
+
+	val = phy_read(dev, 0xe);
+	val &= 0xffe3;
+	val |= 0x18;
+	phy_write(dev, 0xe, val);
+
+	/* introduce tx clock delay */
+	phy_write(dev, 0x1d, 0x5);
+	val = phy_read(dev, 0x1e);
+	val |= 0x0100;
+	phy_write(dev, 0x1e, val);
+
+	return 0;
+}
+
+#define PHY_ID_AR8031	0x004dd074
+
+static void __init imx6q_enet_phy_init(void)
+{
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
-	imx6q_sabrelite_cko1_setup();
+		phy_register_fixup_for_uid(PHY_ID_KSZ9031, MICREL_PHY_ID_MASK,
+				ksz9031rn_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
+				ar8031_phy_fixup);
+	}
 }
 
 static void __init imx6q_1588_init(void)
@@ -151,26 +182,22 @@ static void __init imx6q_1588_init(void)
 
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr))
-		regmap_update_bits(gpr, 0x4, 1 << 21, 1 << 21);
+		regmap_update_bits(gpr, IOMUXC_GPR1,
+				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
+				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
 	else
 		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 
 }
-static void __init imx6q_usb_init(void)
-{
-	imx_anatop_usb_chrg_detect_disable();
-}
 
 static void __init imx6q_init_machine(void)
 {
-	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
-		imx6q_sabrelite_init();
+	imx6q_enet_phy_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	imx_anatop_init();
 	imx6q_pm_init();
-	imx6q_usb_init();
 	imx6q_1588_init();
 }
 
@@ -206,17 +233,21 @@ put_node:
 	of_node_put(np);
 }
 
-static void __init imx6q_opp_init(struct device *cpu_dev)
+static void __init imx6q_opp_init(void)
 {
 	struct device_node *np;
+	struct device *cpu_dev = get_cpu_device(0);
 
-	np = of_find_node_by_path("/cpus/cpu@0");
+	if (!cpu_dev) {
+		pr_warn("failed to get cpu0 device\n");
+		return;
+	}
+	np = of_node_get(cpu_dev->of_node);
 	if (!np) {
 		pr_warn("failed to find cpu0 node\n");
 		return;
 	}
 
-	cpu_dev->of_node = np;
 	if (of_init_opp_table(cpu_dev)) {
 		pr_warn("failed to init OPP table\n");
 		goto put_node;
@@ -242,7 +273,7 @@ static void __init imx6q_init_late(void)
 		imx6q_cpuidle_init();
 
 	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ)) {
-		imx6q_opp_init(&imx6q_cpufreq_pdev.dev);
+		imx6q_opp_init();
 		platform_device_register(&imx6q_cpufreq_pdev);
 	}
 }
@@ -256,7 +287,7 @@ static void __init imx6q_map_io(void)
 static void __init imx6q_init_irq(void)
 {
 	imx6q_init_revision();
-	l2x0_of_init(0, ~0UL);
+	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();
@@ -264,7 +295,7 @@ static void __init imx6q_init_irq(void)
 
 static void __init imx6q_timer_init(void)
 {
-	mx6q_clocks_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
 			      imx6q_revision());

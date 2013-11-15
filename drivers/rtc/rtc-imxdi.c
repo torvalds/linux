@@ -375,24 +375,16 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	struct imxdi_dev *imxdi;
 	int rc;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
 	if (!imxdi)
 		return -ENOMEM;
 
 	imxdi->pdev = pdev;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
-				pdev->name))
-		return -EBUSY;
-
-	imxdi->ioaddr = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
-	if (imxdi->ioaddr == NULL)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	imxdi->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(imxdi->ioaddr))
+		return PTR_ERR(imxdi->ioaddr);
 
 	spin_lock_init(&imxdi->irq_lock);
 

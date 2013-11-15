@@ -3,7 +3,7 @@
  * This file contains the Linux/SCSI LLD virtual SCSI initiator driver
  * for emulated SAS initiator ports
  *
- * © Copyright 2011 RisingTide Systems LLC.
+ * © Copyright 2011-2013 Datera, Inc.
  *
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *
@@ -786,7 +786,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
+static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	struct tcm_loop_tmr *tl_tmr = se_tmr->fabric_tmr_ptr;
@@ -796,7 +796,6 @@ static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 	 */
 	atomic_set(&tl_tmr->tmr_complete, 1);
 	wake_up(&tl_tmr->tl_tmr_wait);
-	return 0;
 }
 
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)

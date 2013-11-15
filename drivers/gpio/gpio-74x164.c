@@ -129,7 +129,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (!chip)
 		return -ENOMEM;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (pdata && pdata->base)
 		chip->gpio_chip.base = pdata->base;
 	else

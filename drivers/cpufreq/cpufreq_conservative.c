@@ -11,19 +11,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/cpufreq.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/kernel_stat.h>
-#include <linux/kobject.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/notifier.h>
-#include <linux/percpu-defs.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/types.h>
-
 #include "cpufreq_governor.h"
 
 /* Conservative governor macros */
@@ -79,8 +67,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq > policy->max)
-			dbs_info->requested_freq = policy->max;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
@@ -101,8 +87,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq -= get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq < policy->min)
-			dbs_info->requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
@@ -221,8 +205,8 @@ static ssize_t store_down_threshold(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
-static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
-		size_t count)
+static ssize_t store_ignore_nice_load(struct dbs_data *dbs_data,
+		const char *buf, size_t count)
 {
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int input, j;
@@ -235,10 +219,10 @@ static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
 	if (input > 1)
 		input = 1;
 
-	if (input == cs_tuners->ignore_nice) /* nothing to do */
+	if (input == cs_tuners->ignore_nice_load) /* nothing to do */
 		return count;
 
-	cs_tuners->ignore_nice = input;
+	cs_tuners->ignore_nice_load = input;
 
 	/* we need to re-evaluate prev_cpu_idle */
 	for_each_online_cpu(j) {
@@ -246,7 +230,7 @@ static ssize_t store_ignore_nice(struct dbs_data *dbs_data, const char *buf,
 		dbs_info = &per_cpu(cs_cpu_dbs_info, j);
 		dbs_info->cdbs.prev_cpu_idle = get_cpu_idle_time(j,
 					&dbs_info->cdbs.prev_cpu_wall, 0);
-		if (cs_tuners->ignore_nice)
+		if (cs_tuners->ignore_nice_load)
 			dbs_info->cdbs.prev_cpu_nice =
 				kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 	}
@@ -279,7 +263,7 @@ show_store_one(cs, sampling_rate);
 show_store_one(cs, sampling_down_factor);
 show_store_one(cs, up_threshold);
 show_store_one(cs, down_threshold);
-show_store_one(cs, ignore_nice);
+show_store_one(cs, ignore_nice_load);
 show_store_one(cs, freq_step);
 declare_show_sampling_rate_min(cs);
 
@@ -287,7 +271,7 @@ gov_sys_pol_attr_rw(sampling_rate);
 gov_sys_pol_attr_rw(sampling_down_factor);
 gov_sys_pol_attr_rw(up_threshold);
 gov_sys_pol_attr_rw(down_threshold);
-gov_sys_pol_attr_rw(ignore_nice);
+gov_sys_pol_attr_rw(ignore_nice_load);
 gov_sys_pol_attr_rw(freq_step);
 gov_sys_pol_attr_ro(sampling_rate_min);
 
@@ -297,7 +281,7 @@ static struct attribute *dbs_attributes_gov_sys[] = {
 	&sampling_down_factor_gov_sys.attr,
 	&up_threshold_gov_sys.attr,
 	&down_threshold_gov_sys.attr,
-	&ignore_nice_gov_sys.attr,
+	&ignore_nice_load_gov_sys.attr,
 	&freq_step_gov_sys.attr,
 	NULL
 };
@@ -313,7 +297,7 @@ static struct attribute *dbs_attributes_gov_pol[] = {
 	&sampling_down_factor_gov_pol.attr,
 	&up_threshold_gov_pol.attr,
 	&down_threshold_gov_pol.attr,
-	&ignore_nice_gov_pol.attr,
+	&ignore_nice_load_gov_pol.attr,
 	&freq_step_gov_pol.attr,
 	NULL
 };
@@ -329,7 +313,7 @@ static int cs_init(struct dbs_data *dbs_data)
 {
 	struct cs_dbs_tuners *tuners;
 
-	tuners = kzalloc(sizeof(struct cs_dbs_tuners), GFP_KERNEL);
+	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
 	if (!tuners) {
 		pr_err("%s: kzalloc failed\n", __func__);
 		return -ENOMEM;
@@ -338,7 +322,7 @@ static int cs_init(struct dbs_data *dbs_data)
 	tuners->up_threshold = DEF_FREQUENCY_UP_THRESHOLD;
 	tuners->down_threshold = DEF_FREQUENCY_DOWN_THRESHOLD;
 	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
-	tuners->ignore_nice = 0;
+	tuners->ignore_nice_load = 0;
 	tuners->freq_step = DEF_FREQUENCY_STEP;
 
 	dbs_data->tuners = tuners;

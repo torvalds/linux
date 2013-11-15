@@ -102,7 +102,8 @@ BEGIN_FW_FTR_SECTION
 	/* if from user, see if there are any DTL entries to process */
 	ld	r10,PACALPPACAPTR(r13)	/* get ptr to VPA */
 	ld	r11,PACA_DTL_RIDX(r13)	/* get log read index */
-	ld	r10,LPPACA_DTLIDX(r10)	/* get log write index */
+	addi	r10,r10,LPPACA_DTLIDX
+	LDX_BE	r10,0,r10		/* get log write index */
 	cmpd	cr1,r11,r10
 	beq+	cr1,33f
 	bl	.accumulate_stolen_time
@@ -449,15 +450,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_DSCR)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_FTR_SECTION
-	/*
-	 * Back up the TAR across context switches.  Note that the TAR is not
-	 * available for use in the kernel.  (To provide this, the TAR should
-	 * be backed up/restored on exception entry/exit instead, and be in
-	 * pt_regs.  FIXME, this should be in pt_regs anyway (for debug).)
-	 */
-	mfspr	r0,SPRN_TAR
-	std	r0,THREAD_TAR(r3)
-
 	/* Event based branch registers */
 	mfspr	r0, SPRN_BESCR
 	std	r0, THREAD_BESCR(r3)
@@ -465,20 +457,6 @@ BEGIN_FTR_SECTION
 	std	r0, THREAD_EBBHR(r3)
 	mfspr	r0, SPRN_EBBRR
 	std	r0, THREAD_EBBRR(r3)
-
-	/* PMU registers made user read/(write) by EBB */
-	mfspr	r0, SPRN_SIAR
-	std	r0, THREAD_SIAR(r3)
-	mfspr	r0, SPRN_SDAR
-	std	r0, THREAD_SDAR(r3)
-	mfspr	r0, SPRN_SIER
-	std	r0, THREAD_SIER(r3)
-	mfspr	r0, SPRN_MMCR0
-	std	r0, THREAD_MMCR0(r3)
-	mfspr	r0, SPRN_MMCR2
-	std	r0, THREAD_MMCR2(r3)
-	mfspr	r0, SPRN_MMCRA
-	std	r0, THREAD_MMCRA(r3)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
@@ -545,9 +523,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	 */
 	ld	r9,PACA_SLBSHADOWPTR(r13)
 	li	r12,0
-	std	r12,SLBSHADOW_STACKESID(r9) /* Clear ESID */
-	std	r7,SLBSHADOW_STACKVSID(r9)  /* Save VSID */
-	std	r0,SLBSHADOW_STACKESID(r9)  /* Save ESID */
+	std	r12,SLBSHADOW_STACKESID(r9)	/* Clear ESID */
+	li	r12,SLBSHADOW_STACKVSID
+	STDX_BE	r7,r12,r9			/* Save VSID */
+	li	r12,SLBSHADOW_STACKESID
+	STDX_BE	r0,r12,r9			/* Save ESID */
 
 	/* No need to check for MMU_FTR_NO_SLBIE_B here, since when
 	 * we have 1TB segments, the only CPUs known to have the errata
@@ -581,20 +561,6 @@ BEGIN_FTR_SECTION
 	ld	r0, THREAD_EBBRR(r4)
 	mtspr	SPRN_EBBRR, r0
 
-	/* PMU registers made user read/(write) by EBB */
-	ld	r0, THREAD_SIAR(r4)
-	mtspr	SPRN_SIAR, r0
-	ld	r0, THREAD_SDAR(r4)
-	mtspr	SPRN_SDAR, r0
-	ld	r0, THREAD_SIER(r4)
-	mtspr	SPRN_SIER, r0
-	ld	r0, THREAD_MMCR0(r4)
-	mtspr	SPRN_MMCR0, r0
-	ld	r0, THREAD_MMCR2(r4)
-	mtspr	SPRN_MMCR2, r0
-	ld	r0, THREAD_MMCRA(r4)
-	mtspr	SPRN_MMCRA, r0
-
 	ld	r0,THREAD_TAR(r4)
 	mtspr	SPRN_TAR,r0
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
@@ -614,7 +580,13 @@ BEGIN_FTR_SECTION
 	cmpwi	r6,0
 	bne	1f
 	ld	r0,0(r7)
-1:	cmpd	r0,r25
+1:
+BEGIN_FTR_SECTION_NESTED(70)
+	mfspr	r8, SPRN_FSCR
+	rldimi	r8, r6, FSCR_DSCR_LG, (63 - FSCR_DSCR_LG)
+	mtspr	SPRN_FSCR, r8
+END_FTR_SECTION_NESTED(CPU_FTR_ARCH_207S, CPU_FTR_ARCH_207S, 70)
+	cmpd	r0,r25
 	beq	2f
 	mtspr	SPRN_DSCR,r0
 2:
@@ -657,21 +629,43 @@ _GLOBAL(ret_from_except_lite)
 
 	CURRENT_THREAD_INFO(r9, r1)
 	ld	r3,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3E
+	ld	r10,PACACURRENT(r13)
+#endif /* CONFIG_PPC_BOOK3E */
 	ld	r4,TI_FLAGS(r9)
 	andi.	r3,r3,MSR_PR
 	beq	resume_kernel
+#ifdef CONFIG_PPC_BOOK3E
+	lwz	r3,(THREAD+THREAD_DBCR0)(r10)
+#endif /* CONFIG_PPC_BOOK3E */
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
+#ifdef CONFIG_PPC_BOOK3E
+	bne	1f
+	/*
+	 * Check to see if the dbcr0 register is set up to debug.
+	 * Use the internal debug mode bit to do this.
+	 */
+	andis.	r0,r3,DBCR0_IDM@h
 	beq	restore
-
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
+	mfmsr	r0
+	rlwinm	r0,r0,0,~MSR_DE	/* Clear MSR.DE */
+	mtmsr	r0
+	mtspr	SPRN_DBCR0,r3
+	li	r10, -1
+	mtspr	SPRN_DBSR,r10
+	b	restore
+#else
+	beq	restore
+#endif
+1:	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	2f
 	bl	.restore_interrupts
 	SCHEDULE_USER
 	b	.ret_from_except_lite
 
-1:	bl	.save_nvgprs
+2:	bl	.save_nvgprs
 	bl	.restore_interrupts
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_notify_resume
@@ -727,9 +721,9 @@ resume_kernel:
 
 	/*
 	 * Here we are preempting the current task. We want to make
-	 * sure we are soft-disabled first
+	 * sure we are soft-disabled first and reconcile irq state.
 	 */
-	SOFT_DISABLE_INTS(r3,r4)
+	RECONCILE_IRQ_STATE(r3,r4)
 1:	bl	.preempt_schedule_irq
 
 	/* Re-test flags and eventually loop */

@@ -104,23 +104,19 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	ec_dev->command_sendrecv = cros_ec_command_sendrecv;
 
 	if (ec_dev->din_size) {
-		ec_dev->din = kmalloc(ec_dev->din_size, GFP_KERNEL);
-		if (!ec_dev->din) {
-			err = -ENOMEM;
-			goto fail_din;
-		}
+		ec_dev->din = devm_kzalloc(dev, ec_dev->din_size, GFP_KERNEL);
+		if (!ec_dev->din)
+			return -ENOMEM;
 	}
 	if (ec_dev->dout_size) {
-		ec_dev->dout = kmalloc(ec_dev->dout_size, GFP_KERNEL);
-		if (!ec_dev->dout) {
-			err = -ENOMEM;
-			goto fail_dout;
-		}
+		ec_dev->dout = devm_kzalloc(dev, ec_dev->dout_size, GFP_KERNEL);
+		if (!ec_dev->dout)
+			return -ENOMEM;
 	}
 
 	if (!ec_dev->irq) {
 		dev_dbg(dev, "no valid IRQ: %d\n", ec_dev->irq);
-		goto fail_irq;
+		return err;
 	}
 
 	err = request_threaded_irq(ec_dev->irq, NULL, ec_irq_thread,
@@ -128,7 +124,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 				   "chromeos-ec", ec_dev);
 	if (err) {
 		dev_err(dev, "request irq %d: error %d\n", ec_dev->irq, err);
-		goto fail_irq;
+		return err;
 	}
 
 	err = mfd_add_devices(dev, 0, cros_devs,
@@ -145,11 +141,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 fail_mfd:
 	free_irq(ec_dev->irq, ec_dev);
-fail_irq:
-	kfree(ec_dev->dout);
-fail_dout:
-	kfree(ec_dev->din);
-fail_din:
+
 	return err;
 }
 EXPORT_SYMBOL(cros_ec_register);
@@ -158,8 +150,6 @@ int cros_ec_remove(struct cros_ec_device *ec_dev)
 {
 	mfd_remove_devices(ec_dev->dev);
 	free_irq(ec_dev->irq, ec_dev);
-	kfree(ec_dev->dout);
-	kfree(ec_dev->din);
 
 	return 0;
 }

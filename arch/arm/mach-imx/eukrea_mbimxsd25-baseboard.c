@@ -279,7 +279,7 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 	imx25_add_imx_fb(&eukrea_mximxsd_fb_pdata);
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
-	imx25_add_flexcan1(NULL);
+	imx25_add_flexcan1();
 	imx25_add_sdhci_esdhc_imx(0, &sd1_pdata);
 
 	gpio_request(GPIO_LED1, "LED1");

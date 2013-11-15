@@ -15,11 +15,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 /*
@@ -63,6 +58,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/delay.h>
 #include "8255.h"
 #include "mite.h"
 #include "comedi_fc.h"
@@ -3532,37 +3528,21 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_dio_insn_config(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	int ret;
 
-#ifdef DEBUG_DIO
-	printk("ni_dio_insn_config() chan=%d io=%d\n",
-	       CR_CHAN(insn->chanspec), data[0]);
-#endif
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->
-		     io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT :
-		    COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	devpriv->dio_control &= ~DIO_Pins_Dir_Mask;
 	devpriv->dio_control |= DIO_Pins_Dir(s->io_bits);
 	devpriv->stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_dio_insn_bits(struct comedi_device *dev,
@@ -3600,32 +3580,15 @@ static int ni_m_series_dio_insn_config(struct comedi_device *dev,
 				       unsigned int *data)
 {
 	struct ni_private *devpriv __maybe_unused = dev->private;
+	int ret;
 
-#ifdef DEBUG_DIO
-	printk("ni_m_series_dio_insn_config() chan=%d io=%d\n",
-	       CR_CHAN(insn->chanspec), data[0]);
-#endif
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->
-		     io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT :
-		    COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	ni_writel(s->io_bits, M_Offset_DIO_Direction);
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
@@ -4077,7 +4040,6 @@ static void mio_common_detach(struct comedi_device *dev)
 			ni_gpct_device_destroy(devpriv->counter_dev);
 		}
 	}
-	comedi_spriv_free(dev, NI_8255_DIO_SUBDEV);
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -4369,10 +4331,9 @@ static int ni_alloc_private(struct comedi_device *dev)
 {
 	struct ni_private *devpriv;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->window_lock);
 	spin_lock_init(&devpriv->soft_reg_copy_lock);

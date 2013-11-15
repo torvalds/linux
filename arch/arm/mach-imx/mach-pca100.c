@@ -398,8 +398,8 @@ static void __init pca100_init(void)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
+	usbh2_pdata.otg = imx_otg_ulpi_create(
+			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
 	if (usbh2_pdata.otg)
 		imx27_add_mxc_ehci_hs(2, &usbh2_pdata);

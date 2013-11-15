@@ -72,5 +72,7 @@ extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 extern void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 extern void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
 extern int gfs2_logd(void *data);
+extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
+extern void gfs2_write_revokes(struct gfs2_sbd *sdp);
 
 #endif /* __LOG_DOT_H__ */

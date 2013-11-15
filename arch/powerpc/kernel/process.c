@@ -74,6 +74,7 @@ struct task_struct *last_task_used_vsx = NULL;
 struct task_struct *last_task_used_spe = NULL;
 #endif
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -107,6 +108,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	}
 }
 EXPORT_SYMBOL_GPL(flush_fp_to_thread);
+#endif
 
 void enable_kernel_fp(void)
 {
@@ -399,7 +401,8 @@ static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 static inline int __set_dabr(unsigned long dabr, unsigned long dabrx)
 {
 	mtspr(SPRN_DABR, dabr);
-	mtspr(SPRN_DABRX, dabrx);
+	if (cpu_has_feature(CPU_FTR_DABRX))
+		mtspr(SPRN_DABRX, dabrx);
 	return 0;
 }
 #else
@@ -598,6 +601,16 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct ppc64_tlb_batch *batch;
 #endif
+
+	/* Back up the TAR across context switches.
+	 * Note that the TAR is not available for use in the kernel.  (To
+	 * provide this, the TAR should be backed up/restored on exception
+	 * entry/exit instead, and be in pt_regs.  FIXME, this should be in
+	 * pt_regs anyway (for debug).)
+	 * Save the TAR here before we do treclaim/trecheckpoint as these
+	 * will change the TAR.
+	 */
+	save_tar(&prev->thread);
 
 	__switch_to_tm(prev);
 
@@ -915,7 +928,11 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	flush_altivec_to_thread(src);
 	flush_vsx_to_thread(src);
 	flush_spe_to_thread(src);
+
 	*dst = *src;
+
+	clear_task_ebb(dst);
+
 	return 0;
 }
 
@@ -983,9 +1000,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
+#ifdef CONFIG_PPC32
 	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
 				_ALIGN_UP(sizeof(struct thread_info), 16);
-
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	p->thread.ptrace_bps[0] = NULL;
 #endif
@@ -1368,7 +1386,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 
 #ifdef CONFIG_PPC64
 /* Called with hard IRQs off */
-void __ppc64_runlatch_on(void)
+void notrace __ppc64_runlatch_on(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
@@ -1381,7 +1399,7 @@ void __ppc64_runlatch_on(void)
 }
 
 /* Called with hard IRQs off */
-void __ppc64_runlatch_off(void)
+void notrace __ppc64_runlatch_off(void)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;

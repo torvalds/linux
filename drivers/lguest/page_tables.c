@@ -70,7 +70,7 @@
 /*H:320
  * The page table code is curly enough to need helper functions to keep it
  * clear and clean.  The kernel itself provides many of them; one advantage
- * of insisting that the Guest and Host use the same CONFIG_PAE setting.
+ * of insisting that the Guest and Host use the same CONFIG_X86_PAE setting.
  *
  * There are two functions which return pointers to the shadow (aka "real")
  * page tables.
@@ -669,8 +669,10 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 
 #ifdef CONFIG_X86_PAE
 	gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
-	if (!(pmd_flags(gpmd) & _PAGE_PRESENT))
+	if (!(pmd_flags(gpmd) & _PAGE_PRESENT)) {
 		kill_guest(cpu, "Bad address %#lx", vaddr);
+		return -1UL;
+	}
 	gpte = lgread(cpu, gpte_addr(cpu, gpmd, vaddr), pte_t);
 #else
 	gpte = lgread(cpu, gpte_addr(cpu, gpgd, vaddr), pte_t);

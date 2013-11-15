@@ -351,6 +351,7 @@ Description:
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
+		500kohm_to_gnd: connected to ground via a 500kOhm resistor,
 		three_state: left floating.
 		For a list of available output power down options read
 		outX_powerdown_mode_available. If Y is not present the
@@ -690,45 +691,45 @@ Description:
 		Actually start the buffer capture up.  Will start trigger
 		if first device and appropriate.
 
-What:		/sys/bus/iio/devices/iio:deviceX/buffer/scan_elements
+What:		/sys/bus/iio/devices/iio:deviceX/scan_elements
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Directory containing interfaces for elements that will be
 		captured for a single triggered sample set in the buffer.
 
-What:		/sys/.../buffer/scan_elements/in_accel_x_en
-What:		/sys/.../buffer/scan_elements/in_accel_y_en
-What:		/sys/.../buffer/scan_elements/in_accel_z_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_x_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_y_en
-What:		/sys/.../buffer/scan_elements/in_anglvel_z_en
-What:		/sys/.../buffer/scan_elements/in_magn_x_en
-What:		/sys/.../buffer/scan_elements/in_magn_y_en
-What:		/sys/.../buffer/scan_elements/in_magn_z_en
-What:		/sys/.../buffer/scan_elements/in_timestamp_en
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_en
-What:		/sys/.../buffer/scan_elements/in_voltageY_en
-What:		/sys/.../buffer/scan_elements/in_voltageY-voltageZ_en
-What:		/sys/.../buffer/scan_elements/in_incli_x_en
-What:		/sys/.../buffer/scan_elements/in_incli_y_en
-What:		/sys/.../buffer/scan_elements/in_pressureY_en
-What:		/sys/.../buffer/scan_elements/in_pressure_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_en
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_en
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY-voltageZ_en
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_en
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_en
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_en
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_en
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Scan element control for triggered data capture.
 
-What:		/sys/.../buffer/scan_elements/in_accel_type
-What:		/sys/.../buffer/scan_elements/in_anglvel_type
-What:		/sys/.../buffer/scan_elements/in_magn_type
-What:		/sys/.../buffer/scan_elements/in_incli_type
-What:		/sys/.../buffer/scan_elements/in_voltageY_type
-What:		/sys/.../buffer/scan_elements/in_voltage_type
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_type
-What:		/sys/.../buffer/scan_elements/in_timestamp_type
-What:		/sys/.../buffer/scan_elements/in_pressureY_type
-What:		/sys/.../buffer/scan_elements/in_pressure_type
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_type
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_type
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_type
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltage_type
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_type
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_type
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_type
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_type
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -752,29 +753,29 @@ Description:
 		For other storage combinations this attribute will be extended
 		appropriately.
 
-What:		/sys/.../buffer/scan_elements/in_accel_type_available
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_type_available
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If the type parameter can take one of a small set of values,
 		this attribute lists them.
 
-What:		/sys/.../buffer/scan_elements/in_voltageY_index
-What:		/sys/.../buffer/scan_elements/in_voltageY_supply_index
-What:		/sys/.../buffer/scan_elements/in_accel_x_index
-What:		/sys/.../buffer/scan_elements/in_accel_y_index
-What:		/sys/.../buffer/scan_elements/in_accel_z_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_x_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_y_index
-What:		/sys/.../buffer/scan_elements/in_anglvel_z_index
-What:		/sys/.../buffer/scan_elements/in_magn_x_index
-What:		/sys/.../buffer/scan_elements/in_magn_y_index
-What:		/sys/.../buffer/scan_elements/in_magn_z_index
-What:		/sys/.../buffer/scan_elements/in_incli_x_index
-What:		/sys/.../buffer/scan_elements/in_incli_y_index
-What:		/sys/.../buffer/scan_elements/in_timestamp_index
-What:		/sys/.../buffer/scan_elements/in_pressureY_index
-What:		/sys/.../buffer/scan_elements/in_pressure_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_index
+What:		/sys/.../iio:deviceX/scan_elements/in_voltageY_supply_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_accel_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_anglvel_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_magn_z_index
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_x_index
+What:		/sys/.../iio:deviceX/scan_elements/in_incli_y_index
+What:		/sys/.../iio:deviceX/scan_elements/in_timestamp_index
+What:		/sys/.../iio:deviceX/scan_elements/in_pressureY_index
+What:		/sys/.../iio:deviceX/scan_elements/in_pressure_index
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -792,3 +793,21 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the amount of quadrature error
 		present in the device at a given time.
+
+What:		/sys/.../iio:deviceX/in_accelX_power_mode
+KernelVersion:	3.11
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the chip power mode.
+		low_noise: reduce noise level from ADC,
+		low_power: enable low current consumption.
+		For a list of available output power modes read
+		in_accel_power_mode_available.
+
+What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing '1' stores the current device configuration into
+		on-chip EEPROM. After power-up or chip reset the device will
+		automatically load the saved configuration.

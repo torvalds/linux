@@ -25,7 +25,7 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "intel_bios.h"
-
+#include "psb_device.h"
 
 static int psb_output_init(struct drm_device *dev)
 {
@@ -380,6 +380,7 @@ const struct psb_ops psb_chip_ops = {
 
 	.crtc_helper = &psb_intel_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
+	.clock_funcs = &psb_clock_funcs,
 
 	.output_init = psb_output_init,
 

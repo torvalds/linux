@@ -72,6 +72,7 @@ Code  Seq#(hex)	Include File		Comments
 0x06	all	linux/lp.h
 0x09	all	linux/raid/md_u.h
 0x10	00-0F	drivers/char/s390/vmcp.h
+0x10	10-1F	arch/s390/include/uapi/sclp_ctl.h
 0x12	all	linux/fs.h
 		linux/blkpg.h
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>

@@ -51,8 +51,7 @@ static unsigned char caseorder[256] = {
 /*
  * Hash a string to an integer in a case-independent way
  */
-int hfs_hash_dentry(const struct dentry *dentry, const struct inode *inode,
-		struct qstr *this)
+int hfs_hash_dentry(const struct dentry *dentry, struct qstr *this)
 {
 	const unsigned char *name = this->name;
 	unsigned int hash, len = this->len;
@@ -93,8 +92,7 @@ int hfs_strcmp(const unsigned char *s1, unsigned int len1,
  * Test for equality of two strings in the HFS filename character ordering.
  * return 1 on failure and 0 on success
  */
-int hfs_compare_dentry(const struct dentry *parent, const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+int hfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	const unsigned char *n1, *n2;

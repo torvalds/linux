@@ -215,16 +215,21 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(REPLY_RX_PHY_CMD, iwl_mvm_rx_rx_phy_cmd, false),
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, false),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, false),
+
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
+	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
+	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics, true),
+
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif, false),
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 
-	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
-	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
-
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
+
+	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
+		   false),
 
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, false),
 };
@@ -270,6 +275,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BEACON_NOTIFICATION),
 	CMD(BEACON_TEMPLATE_CMD),
 	CMD(STATISTICS_NOTIFICATION),
+	CMD(REDUCE_TX_POWER_CMD),
 	CMD(TX_ANT_CONFIGURATION_CMD),
 	CMD(D3_CONFIG_CMD),
 	CMD(PROT_OFFLOAD_CONFIG_CMD),
@@ -288,11 +294,15 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(NET_DETECT_HOTSPOTS_CMD),
 	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
 	CMD(CARD_STATE_NOTIFICATION),
+	CMD(MISSED_BEACONS_NOTIFICATION),
 	CMD(BT_COEX_PRIO_TABLE),
 	CMD(BT_COEX_PROT_ENV),
 	CMD(BT_PROFILE_NOTIFICATION),
 	CMD(BT_CONFIG),
 	CMD(MCAST_FILTER_CMD),
+	CMD(REPLY_BEACON_FILTERING_CMD),
+	CMD(REPLY_THERMAL_MNG_BACKOFF),
+	CMD(MAC_PM_POWER_TABLE),
 };
 #undef CMD
 
@@ -331,6 +341,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->cfg = cfg;
 	mvm->fw = fw;
 	mvm->hw = hw;
+
+	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
 	mutex_init(&mvm->mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
@@ -393,10 +405,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_free;
 
+	iwl_mvm_tt_initialize(mvm);
+
 	mutex_lock(&mvm->mutex);
 	err = iwl_run_init_mvm_ucode(mvm, true);
 	mutex_unlock(&mvm->mutex);
-	if (err && !iwlmvm_mod_params.init_dbg) {
+	/* returns 0 if successful, 1 if success but in rfkill */
+	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
 		goto out_free;
 	}
@@ -420,6 +435,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_unregister;
 
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)
+		mvm->pm_ops = &pm_mac_ops;
+	else
+		mvm->pm_ops = &pm_legacy_ops;
+
+	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
+
 	return op_mode;
 
  out_unregister:
@@ -439,9 +461,15 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_mvm_leds_exit(mvm);
 
+	iwl_mvm_tt_exit(mvm);
+
 	ieee80211_unregister_hw(mvm->hw);
 
 	kfree(mvm->scan_cmd);
+
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
+	kfree(mvm->d3_resume_sram);
+#endif
 
 	iwl_trans_stop_hw(mvm->trans, true);
 
@@ -589,6 +617,16 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	ieee80211_wake_queue(mvm->hw, mq);
 }
 
+void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
+{
+	if (state)
+		set_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
+	else
+		clear_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
+
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
+}
+
 static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -598,7 +636,7 @@ static void iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	else
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
 
-	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, state);
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, iwl_mvm_is_radio_killed(mvm));
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
@@ -609,6 +647,22 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 	iwl_trans_free_tx_cmd(mvm->trans, info->driver_data[1]);
 	ieee80211_free_txskb(mvm->hw, skb);
+}
+
+struct iwl_mvm_reprobe {
+	struct device *dev;
+	struct work_struct work;
+};
+
+static void iwl_mvm_reprobe_wk(struct work_struct *wk)
+{
+	struct iwl_mvm_reprobe *reprobe;
+
+	reprobe = container_of(wk, struct iwl_mvm_reprobe, work);
+	if (device_reprobe(reprobe->dev))
+		dev_err(reprobe->dev, "reprobe failed!\n");
+	kfree(reprobe);
+	module_put(THIS_MODULE);
 }
 
 static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
@@ -622,9 +676,30 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		IWL_ERR(mvm, "Firmware error during reconfiguration! Abort.\n");
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
-		   iwlwifi_mod_params.restart_fw) {
+		struct iwl_mvm_reprobe *reprobe;
+
+		IWL_ERR(mvm,
+			"Firmware error during reconfiguration - reprobe!\n");
+
+		/*
+		 * get a module reference to avoid doing this while unloading
+		 * anyway and to avoid scheduling a work with code that's
+		 * being removed.
+		 */
+		if (!try_module_get(THIS_MODULE)) {
+			IWL_ERR(mvm, "Module is being unloaded - abort\n");
+			return;
+		}
+
+		reprobe = kzalloc(sizeof(*reprobe), GFP_ATOMIC);
+		if (!reprobe) {
+			module_put(THIS_MODULE);
+			return;
+		}
+		reprobe->dev = mvm->trans->dev;
+		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
+		schedule_work(&reprobe->work);
+	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR && mvm->restart_fw) {
 		/*
 		 * This is a bit racy, but worst case we tell mac80211 about
 		 * a stopped/aborted (sched) scan when that was already done
@@ -642,6 +717,8 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			break;
 		}
 
+		if (mvm->restart_fw > 0)
+			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);
 	}
 }
@@ -651,6 +728,8 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
+	if (!mvm->restart_fw)
+		iwl_mvm_dump_sram(mvm);
 
 	iwl_mvm_nic_restart(mvm);
 }

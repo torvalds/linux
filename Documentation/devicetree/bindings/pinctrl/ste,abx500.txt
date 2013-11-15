@@ -1,0 +1,352 @@
+ST Ericsson abx500 pinmux controller
+
+Required properties:
+- compatible: "stericsson,ab8500-gpio",  "stericsson,ab8540-gpio",
+	      "stericsson,ab8505-gpio", "stericsson,ab9540-gpio",
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+ST Ericsson's pin configuration nodes act as a container for an arbitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as input, output, pull up, pull down...
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Required subnode-properties:
+- ste,pins : An array of strings. Each string contains the name of a pin or
+    group.
+
+Optional subnode-properties:
+- ste,function: A string containing the name of the function to mux to the
+  pin or group.
+
+- generic pin configuration option to use. Example :
+
+	default_cfg {
+		ste,pins = "GPIO1";
+		bias-disable;
+	};
+
+- ste,config: Handle of pin configuration node containing the generic
+  pinconfig options to use, as described in pinctrl-bindings.txt in
+  this directory. Example :
+
+	pcfg_bias_disable: pcfg_bias_disable {
+		bias-disable;
+	};
+
+	default_cfg {
+		ste,pins = "GPIO1";
+		ste.config = <&pcfg_bias_disable>;
+	};
+
+Example board file extract:
+
+&pinctrl_abx500 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sysclkreq2_default_mode>, <&sysclkreq3_default_mode>, <&gpio3_default_mode>, <&sysclkreq6_default_mode>, <&pwmout1_default_mode>, <&pwmout2_default_mode>, <&pwmout3_default_mode>, <&adi1_default_mode>, <&dmic12_default_mode>, <&dmic34_default_mode>, <&dmic56_default_mode>, <&sysclkreq5_default_mode>, <&batremn_default_mode>, <&service_default_mode>, <&pwrctrl0_default_mode>, <&pwrctrl1_default_mode>, <&pwmextvibra1_default_mode>, <&pwmextvibra2_default_mode>, <&gpio51_default_mode>, <&gpio52_default_mode>, <&gpio53_default_mode>, <&gpio54_default_mode>, <&pdmclkdat_default_mode>;
+
+	sysclkreq2 {
+		sysclkreq2_default_mode: sysclkreq2_default {
+			default_mux {
+				ste,function = "sysclkreq";
+				ste,pins = "sysclkreq2_d_1";
+			};
+			default_cfg {
+				ste,pins = "GPIO1";
+				bias-disable;
+			};
+		};
+	};
+	sysclkreq3 {
+		sysclkreq3_default_mode: sysclkreq3_default {
+			default_mux {
+				ste,function = "sysclkreq";
+				ste,pins = "sysclkreq3_d_1";
+			};
+			default_cfg {
+				ste,pins = "GPIO2";
+				output-low;
+			};
+		};
+	};
+	gpio3 {
+		gpio3_default_mode: gpio3_default {
+			default_mux {
+				ste,function = "gpio";
+				ste,pins = "gpio3_a_1";
+			};
+			default_cfg {
+				ste,pins = "GPIO3";
+				output-low;
+			};
+		};
+	};
+	sysclkreq6 {
+		sysclkreq6_default_mode: sysclkreq6_default {
+			default_mux {
+				ste,function = "sysclkreq";
+				ste,pins = "sysclkreq6_d_1";
+			};
+			default_cfg {
+				ste,pins = "GPIO4";
+				bias-disable;
+			};
+		};
+	};
+	pwmout1 {
+		pwmout1_default_mode: pwmout1_default {
+			default_mux {
+				ste,function = "pwmout";
+				ste,pins = "pwmout1_d_1";
+			};
+			default_cfg {
+				ste,pins = "GPIO14";
+				output-low;
+			};
+		};
+	};
+	pwmout2 {
+		pwmout2_default_mode: pwmout2_default {
+			pwmout2_default_mux {
+				ste,function = "pwmout";
+				ste,pins = "pwmout2_d_1";
+			};
+			pwmout2_default_cfg {
+				ste,pins = "GPIO15";
+				output-low;
+			};
+		};
+	};
+	pwmout3 {
+		pwmout3_default_mode: pwmout3_default {
+			pwmout3_default_mux {
+				ste,function = "pwmout";
+				ste,pins = "pwmout3_d_1";
+			};
+			pwmout3_default_cfg {
+				ste,pins = "GPIO16";
+				output-low;
+			};
+		};
+	};
+	adi1 {
+
+		adi1_default_mode: adi1_default {
+			adi1_default_mux {
+				ste,function = "adi1";
+				ste,pins = "adi1_d_1";
+			};
+			adi1_default_cfg1 {
+				ste,pins = "GPIO17","GPIO19","GPIO20";
+				bias-disable;
+			};
+			adi1_default_cfg2 {
+				ste,pins = "GPIO18";
+				output-low;
+			};
+		};
+	};
+	dmic12 {
+		dmic12_default_mode: dmic12_default {
+			dmic12_default_mux {
+				ste,function = "dmic";
+				ste,pins = "dmic12_d_1";
+			};
+			dmic12_default_cfg1 {
+				ste,pins = "GPIO27";
+				output-low;
+			};
+			dmic12_default_cfg2 {
+				ste,pins = "GPIO28";
+				bias-disable;
+			};
+		};
+	};
+	dmic34 {
+		dmic34_default_mode: dmic34_default {
+			dmic34_default_mux {
+				ste,function = "dmic";
+				ste,pins = "dmic34_d_1";
+			};
+			dmic34_default_cfg1 {
+				ste,pins = "GPIO29";
+				output-low;
+			};
+			dmic34_default_cfg2 {
+				ste,pins = "GPIO30";
+				bias-disable;{
+
+			};
+		};
+	};
+	dmic56 {
+		dmic56_default_mode: dmic56_default {
+			dmic56_default_mux {
+				ste,function = "dmic";
+				ste,pins = "dmic56_d_1";
+			};
+			dmic56_default_cfg1 {
+				ste,pins = "GPIO31";
+				output-low;
+			};
+			dmic56_default_cfg2 {
+				ste,pins = "GPIO32";
+				bias-disable;
+			};
+		};
+	};
+	sysclkreq5 {
+		sysclkreq5_default_mode: sysclkreq5_default {
+			sysclkreq5_default_mux {
+				ste,function = "sysclkreq";
+				ste,pins = "sysclkreq5_d_1";
+			};
+			sysclkreq5_default_cfg {
+				ste,pins = "GPIO42";
+				output-low;
+			};
+		};
+	};
+	batremn {
+		batremn_default_mode: batremn_default {
+			batremn_default_mux {
+				ste,function = "batremn";
+				ste,pins = "batremn_d_1";
+			};
+			batremn_default_cfg {
+				ste,pins = "GPIO43";
+				bias-disable;
+			};
+		};
+	};
+	service {
+		service_default_mode: service_default {
+			service_default_mux {
+				ste,function = "service";
+				ste,pins = "service_d_1";
+			};
+			service_default_cfg {
+				ste,pins = "GPIO44";
+				bias-disable;
+			};
+		};
+	};
+	pwrctrl0 {
+		pwrctrl0_default_mux: pwrctrl0_mux {
+			pwrctrl0_default_mux {
+				ste,function = "pwrctrl";
+				ste,pins = "pwrctrl0_d_1";
+			};
+		};
+		pwrctrl0_default_mode: pwrctrl0_default {
+			pwrctrl0_default_cfg {
+				ste,pins = "GPIO45";
+				bias-disable;
+			};
+		};
+	};
+	pwrctrl1 {
+		pwrctrl1_default_mux: pwrctrl1_mux {
+			pwrctrl1_default_mux {
+				ste,function = "pwrctrl";
+				ste,pins = "pwrctrl1_d_1";
+			};
+		};
+		pwrctrl1_default_mode: pwrctrl1_default {
+			pwrctrl1_default_cfg {
+				ste,pins = "GPIO46";
+				bias-disable;
+			};
+		};
+	};
+	pwmextvibra1 {
+		pwmextvibra1_default_mode: pwmextvibra1_default {
+			pwmextvibra1_default_mux {
+				ste,function = "pwmextvibra";
+				ste,pins = "pwmextvibra1_d_1";
+			};
+			pwmextvibra1_default_cfg {
+				ste,pins = "GPIO47";
+				bias-disable;
+			};
+		};
+	};
+	pwmextvibra2 {
+		pwmextvibra2_default_mode: pwmextvibra2_default {
+			pwmextvibra2_default_mux {
+				ste,function = "pwmextvibra";
+				ste,pins = "pwmextvibra2_d_1";
+			};
+			pwmextvibra1_default_cfg {
+				ste,pins = "GPIO48";
+				bias-disable;
+			};
+		};
+	};
+	gpio51 {
+		gpio51_default_mode: gpio51_default {
+				gpio51_default_mux {
+				ste,function = "gpio";
+				ste,pins = "gpio51_a_1";
+			};
+			gpio51_default_cfg {
+				ste,pins = "GPIO51";
+				output-low;
+			};
+		};
+	};
+	gpio52 {
+		gpio52_default_mode: gpio52_default {
+			gpio52_default_mux {
+				ste,function = "gpio";
+				ste,pins = "gpio52_a_1";
+			};
+			gpio52_default_cfg {
+				ste,pins = "GPIO52";
+				bias-pull-down;
+			};
+		};
+	};
+	gpio53 {
+		gpio53_default_mode: gpio53_default {
+			gpio53_default_mux {
+				ste,function = "gpio";
+				ste,pins = "gpio53_a_1";
+			};
+			gpio53_default_cfg {
+				ste,pins = "GPIO53";
+				bias-pull-down;
+			};
+		};
+	};
+	gpio54 {
+		gpio54_default_mode: gpio54_default {
+			gpio54_default_mux {
+				ste,function = "gpio";
+				ste,pins = "gpio54_a_1";
+			};
+			gpio54_default_cfg {
+				ste,pins = "GPIO54";
+				output-low;
+			};
+		};
+	};
+	pdmclkdat {
+		pdmclkdat_default_mode: pdmclkdat_default {
+			pdmclkdat_default_mux {
+				ste,function = "pdm";
+				ste,pins = "pdmclkdat_d_1";
+			};
+			pdmclkdat_default_cfg {
+				ste,pins = "GPIO55", "GPIO56";
+				bias-disable;
+			};
+		};
+	};
+};

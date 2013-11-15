@@ -99,7 +99,7 @@ static inline void hdlc_proto_stop(struct net_device *dev)
 static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	hdlc_device *hdlc;
 	unsigned long flags;
 	int on;

@@ -42,7 +42,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <asm/mach-types.h>
-#include <asm/mach/arch.h>
 
 #include "setup.h"
 #include "devices.h"
@@ -325,20 +324,18 @@ static struct lp55xx_platform_data __initdata lp5521_sec_data = {
        .clock_mode     = LP55XX_CLOCK_EXT,
 };
 
+/* I2C0 devices only available on the first HREF/MOP500 */
 static struct i2c_board_info __initdata mop500_i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("tc3589x", 0x42),
 		.irq		= NOMADIK_GPIO_TO_IRQ(217),
 		.platform_data  = &mop500_tc35892_data,
 	},
-	/* I2C0 devices only available prior to HREFv60 */
 	{
 		I2C_BOARD_INFO("tps61052", 0x33),
 		.platform_data  = &mop500_tps61052_data,
 	},
 };
-
-#define NUM_PRE_V60_I2C0_DEVICES 1
 
 static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 	{
@@ -356,6 +353,17 @@ static struct i2c_board_info __initdata mop500_i2c2_devices[] = {
 		I2C_BOARD_INFO("bh1780", 0x29),
 	},
 };
+
+static int __init mop500_i2c_board_init(void)
+{
+	if (machine_is_u8500())
+		mop500_uib_i2c_add(0, mop500_i2c0_devices,
+				   ARRAY_SIZE(mop500_i2c0_devices));
+	mop500_uib_i2c_add(2, mop500_i2c2_devices,
+			   ARRAY_SIZE(mop500_i2c2_devices));
+	return 0;
+}
+device_initcall(mop500_i2c_board_init);
 
 static void __init mop500_i2c_init(struct device *parent)
 {
@@ -413,47 +421,23 @@ static void mop500_prox_deactivate(struct device *dev)
 	regulator_put(prox_regulator);
 }
 
-void mop500_snowball_ethernet_clock_enable(void)
-{
-	struct clk *clk;
-
-	clk = clk_get_sys("fsmc", NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
-}
-
 static struct cryp_platform_data u8500_cryp1_platform_data = {
 		.mem_to_engine = {
-				.dir = STEDMA40_MEM_TO_PERIPH,
-				.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-				.dst_dev_type = DB8500_DMA_DEV48_CAC1_TX,
-				.src_info.data_width = STEDMA40_WORD_WIDTH,
-				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.dir = DMA_MEM_TO_DEV,
+				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
-				.src_info.psize = STEDMA40_PSIZE_LOG_4,
-				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
 		},
 		.engine_to_mem = {
-				.dir = STEDMA40_PERIPH_TO_MEM,
-				.src_dev_type = DB8500_DMA_DEV48_CAC1_RX,
-				.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-				.src_info.data_width = STEDMA40_WORD_WIDTH,
-				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.dir = DMA_DEV_TO_MEM,
+				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
-				.src_info.psize = STEDMA40_PSIZE_LOG_4,
-				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
 		}
 };
 
 static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
-		.dir = STEDMA40_MEM_TO_PERIPH,
-		.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-		.dst_dev_type = DB8500_DMA_DEV50_HAC1_TX,
-		.src_info.data_width = STEDMA40_WORD_WIDTH,
-		.dst_info.data_width = STEDMA40_WORD_WIDTH,
+		.dir = DMA_MEM_TO_DEV,
+		.dev_type = DB8500_DMA_DEV50_HAC1_TX,
 		.mode = STEDMA40_MODE_LOGICAL,
-		.src_info.psize = STEDMA40_PSIZE_LOG_16,
-		.dst_info.psize = STEDMA40_PSIZE_LOG_16,
 };
 
 static struct hash_platform_data u8500_hash1_platform_data = {
@@ -470,20 +454,14 @@ static struct platform_device *mop500_platform_devs[] __initdata = {
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg ssp0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV8_SSP0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 
 static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV8_SSP0_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 #endif
 
@@ -511,56 +489,38 @@ static void __init mop500_spi_init(struct device *parent)
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg uart0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV13_UART0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV13_UART0_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV12_UART1_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV12_UART1_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV11_UART2_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV11_UART2_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 #endif
 
@@ -613,7 +573,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
-	int i2c0_devs;
 	int i;
 
 	platform_device_register(&db8500_prcmu_device);
@@ -636,18 +595,12 @@ static void __init mop500_init_machine(void)
 	mop500_spi_init(parent);
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
-
 	u8500_cryp1_hash1_init(parent);
-
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
+
 
 static void __init snowball_init_machine(void)
 {
@@ -674,7 +627,7 @@ static void __init snowball_init_machine(void)
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
 
-	mop500_snowball_ethernet_clock_enable();
+	u8500_cryp1_hash1_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
@@ -683,7 +636,6 @@ static void __init snowball_init_machine(void)
 static void __init hrefv60_init_machine(void)
 {
 	struct device *parent = NULL;
-	int i2c0_devs;
 	int i;
 
 	platform_device_register(&db8500_prcmu_device);
@@ -712,14 +664,6 @@ static void __init hrefv60_init_machine(void)
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
 
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-
-	i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
-
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
@@ -734,6 +678,7 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
@@ -743,6 +688,7 @@ MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
@@ -753,6 +699,7 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.init_time	= ux500_timer_init,
 	.init_machine	= hrefv60_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
@@ -764,4 +711,5 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= snowball_init_machine,
 	.init_late	= NULL,
+	.restart        = ux500_restart,
 MACHINE_END

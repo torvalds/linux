@@ -31,7 +31,7 @@ static struct clk *reset_virt_prcm_set_ck, *reset_sys_ck;
  * Set the DPLL to bypass so that reboot completes successfully.  No
  * return value.
  */
-void omap2xxx_restart(char mode, const char *cmd)
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 rate;
 

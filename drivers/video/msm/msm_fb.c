@@ -26,7 +26,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/video-msm_fb.h>
-#include <mach/board.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>

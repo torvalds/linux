@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap2.dtsi"
+#include "omap2.dtsi"
 
 / {
 	compatible = "ti,omap2430", "ti,omap2";

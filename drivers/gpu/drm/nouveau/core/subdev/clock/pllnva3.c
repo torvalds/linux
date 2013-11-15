@@ -29,7 +29,7 @@
 #include "pll.h"
 
 int
-nva3_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
+nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
 	      u32 freq, int *pN, int *pfN, int *pM, int *P)
 {
 	u32 best_err = ~0, err;
@@ -50,8 +50,15 @@ nva3_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 		u32 tmp = freq * *P * M;
 		N  = tmp / info->refclk;
 		fN = tmp % info->refclk;
-		if (!pfN && fN >= info->refclk / 2)
-			N++;
+
+		if (!pfN) {
+			if (fN >= info->refclk / 2)
+				N++;
+		} else {
+			if (fN <  info->refclk / 2)
+				N--;
+			fN = tmp - (N * info->refclk);
+		}
 
 		if (N < info->vco1.min_n)
 			continue;
@@ -66,13 +73,14 @@ nva3_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 		}
 
 		if (pfN) {
-			*pfN = (((fN << 13) / info->refclk) - 4096) & 0xffff;
+			*pfN = ((fN << 13) + info->refclk / 2) / info->refclk;
+			*pfN = (*pfN - 4096) & 0xffff;
 			return freq;
 		}
 	}
 
 	if (unlikely(best_err == ~0)) {
-		nv_error(clock, "unable to find matching pll values\n");
+		nv_error(subdev, "unable to find matching pll values\n");
 		return -EINVAL;
 	}
 

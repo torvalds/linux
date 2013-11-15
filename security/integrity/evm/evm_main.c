@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/crypto.h>
+#include <linux/audit.h>
 #include <linux/xattr.h>
 #include <linux/integrity.h>
 #include <linux/evm.h>
@@ -24,6 +25,9 @@
 
 int evm_initialized;
 
+static char *integrity_status_msg[] = {
+	"pass", "fail", "no_label", "no_xattrs", "unknown"
+};
 char *evm_hmac = "hmac(sha1)";
 char *evm_hash = "sha1";
 int evm_hmac_version = CONFIG_EVM_HMAC_VERSION;
@@ -262,9 +266,15 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 		if ((evm_status == INTEGRITY_PASS) ||
 		    (evm_status == INTEGRITY_NOXATTRS))
 			return 0;
-		return -EPERM;
+		goto out;
 	}
 	evm_status = evm_verify_current_integrity(dentry);
+out:
+	if (evm_status != INTEGRITY_PASS)
+		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, dentry->d_inode,
+				    dentry->d_name.name, "appraise_metadata",
+				    integrity_status_msg[evm_status],
+				    -EPERM, 0);
 	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
 }
 
@@ -357,6 +367,9 @@ int evm_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	if ((evm_status == INTEGRITY_PASS) ||
 	    (evm_status == INTEGRITY_NOXATTRS))
 		return 0;
+	integrity_audit_msg(AUDIT_INTEGRITY_METADATA, dentry->d_inode,
+			    dentry->d_name.name, "appraise_metadata",
+			    integrity_status_msg[evm_status], -EPERM, 0);
 	return -EPERM;
 }
 
@@ -405,7 +418,7 @@ int evm_inode_init_security(struct inode *inode,
 
 	evm_xattr->value = xattr_data;
 	evm_xattr->value_len = sizeof(*xattr_data);
-	evm_xattr->name = kstrdup(XATTR_EVM_SUFFIX, GFP_NOFS);
+	evm_xattr->name = XATTR_EVM_SUFFIX;
 	return 0;
 out:
 	kfree(xattr_data);

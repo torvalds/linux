@@ -455,6 +455,8 @@ void bna_bfi_rx_enet_stop_rsp(struct bna_rx *rx,
 void bna_bfi_rxf_cfg_rsp(struct bna_rxf *rxf, struct bfi_msgq_mhdr *msghdr);
 void bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
 			       struct bfi_msgq_mhdr *msghdr);
+void bna_bfi_rxf_ucast_set_rsp(struct bna_rxf *rxf,
+			       struct bfi_msgq_mhdr *msghdr);
 
 /* APIs for BNA */
 void bna_rx_mod_init(struct bna_rx_mod *rx_mod, struct bna *bna,

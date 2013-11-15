@@ -75,7 +75,7 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 	cl->device.bus = &hsi_bus_type;
 	cl->device.parent = &port->device;
 	cl->device.release = hsi_client_release;
-	dev_set_name(&cl->device, info->name);
+	dev_set_name(&cl->device, "%s", info->name);
 	cl->device.platform_data = info->platform_data;
 	if (info->archdata)
 		cl->device.archdata = *info->archdata;

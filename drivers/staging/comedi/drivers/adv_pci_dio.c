@@ -29,6 +29,7 @@ Configuration options:
 
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 
@@ -1107,10 +1108,9 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 	dev->board_ptr = this_board;
 	dev->board_name = this_board->name;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1173,18 +1173,10 @@ static int pci_dio_auto_attach(struct comedi_device *dev,
 static void pci_dio_detach(struct comedi_device *dev)
 {
 	struct pci_dio_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	int i;
 
 	if (devpriv) {
 		if (devpriv->valid)
 			pci_dio_reset(dev);
-	}
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-		if (s->type == COMEDI_SUBD_DIO)
-			comedi_spriv_free(dev, i);
-		s->private = NULL; /* some private data is static */
 	}
 	comedi_pci_disable(dev);
 }

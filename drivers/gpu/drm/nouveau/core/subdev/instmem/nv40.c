@@ -22,15 +22,9 @@
  * Authors: Ben Skeggs
  */
 
-#include "nv04.h"
+#include <engine/graph/nv40.h>
 
-static inline int
-nv44_graph_class(struct nv04_instmem_priv *priv)
-{
-	if ((nv_device(priv)->chipset & 0xf0) == 0x60)
-		return 1;
-	return !(0x0baf & (1 << (nv_device(priv)->chipset & 0x0f)));
-}
+#include "nv04.h"
 
 static int
 nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,

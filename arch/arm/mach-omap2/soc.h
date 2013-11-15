@@ -8,6 +8,7 @@
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
  * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
+ * Added DRA7xxx specific defines - Sricharan R<r.sricharan@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +36,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
+#include <linux/of.h>
 
 /*
  * Test if multicore OMAP support is needed
@@ -93,6 +95,24 @@
 #  define MULTI_OMAP2
 # else
 #  define OMAP_NAME am33xx
+# endif
+#endif
+
+#ifdef CONFIG_SOC_AM43XX
+# ifdef OMAP_NAME
+#  undef  MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME am43xx
+# endif
+#endif
+
+#ifdef CONFIG_SOC_DRA7XX
+# ifdef OMAP_NAME
+#  undef MULTI_OMAP2
+#  define MULTI_OMAP2
+# else
+#  define OMAP_NAME DRA7XX
 # endif
 #endif
 
@@ -187,6 +207,7 @@ IS_OMAP_CLASS(44xx, 0x44)
 IS_AM_CLASS(35xx, 0x35)
 IS_OMAP_CLASS(54xx, 0x54)
 IS_AM_CLASS(33xx, 0x33)
+IS_AM_CLASS(43xx, 0x43)
 
 IS_TI_CLASS(81xx, 0x81)
 
@@ -202,6 +223,7 @@ IS_OMAP_SUBCLASS(543x, 0x543)
 IS_TI_SUBCLASS(816x, 0x816)
 IS_TI_SUBCLASS(814x, 0x814)
 IS_AM_SUBCLASS(335x, 0x335)
+IS_AM_SUBCLASS(437x, 0x437)
 
 #define cpu_is_omap24xx()		0
 #define cpu_is_omap242x()		0
@@ -214,12 +236,15 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define soc_is_am35xx()			0
 #define soc_is_am33xx()			0
 #define soc_is_am335x()			0
+#define soc_is_am43xx()			0
+#define soc_is_am437x()			0
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 #define cpu_is_omap446x()		0
 #define cpu_is_omap447x()		0
 #define soc_is_omap54xx()		0
 #define soc_is_omap543x()		0
+#define soc_is_dra7xx()			0
 
 #if defined(MULTI_OMAP2)
 # if defined(CONFIG_ARCH_OMAP2)
@@ -341,6 +366,13 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define soc_is_am335x()		is_am335x()
 #endif
 
+#ifdef	CONFIG_SOC_AM43XX
+# undef soc_is_am43xx
+# undef soc_is_am437x
+# define soc_is_am43xx()		is_am43xx()
+# define soc_is_am437x()		is_am437x()
+#endif
+
 # if defined(CONFIG_ARCH_OMAP4)
 # undef cpu_is_omap44xx
 # undef cpu_is_omap443x
@@ -357,6 +389,11 @@ IS_OMAP_TYPE(3430, 0x3430)
 # undef soc_is_omap543x
 # define soc_is_omap54xx()		is_omap54xx()
 # define soc_is_omap543x()		is_omap543x()
+#endif
+
+#if defined(CONFIG_SOC_DRA7XX)
+#undef soc_is_dra7xx
+#define soc_is_dra7xx()	(of_machine_is_compatible("ti,dra7"))
 #endif
 
 /* Various silicon revisions for omap2 */
@@ -383,6 +420,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define TI816X_CLASS		0x81600034
 #define TI8168_REV_ES1_0	TI816X_CLASS
 #define TI8168_REV_ES1_1	(TI816X_CLASS | (0x1 << 8))
+#define TI8168_REV_ES2_0	(TI816X_CLASS | (0x2 << 8))
+#define TI8168_REV_ES2_1	(TI816X_CLASS | (0x3 << 8))
 
 #define TI814X_CLASS		0x81400034
 #define TI8148_REV_ES1_0	TI814X_CLASS
@@ -397,6 +436,9 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM335X_REV_ES1_0	AM335X_CLASS
 #define AM335X_REV_ES2_0	(AM335X_CLASS | (0x1 << 8))
 #define AM335X_REV_ES2_1	(AM335X_CLASS | (0x2 << 8))
+
+#define AM437X_CLASS		0x43700000
+#define AM437X_REV_ES1_0	AM437X_CLASS
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -424,6 +466,7 @@ void omap4xxx_check_revision(void);
 void omap5xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
+void am33xx_check_features(void);
 void omap4xxx_check_features(void);
 
 /*

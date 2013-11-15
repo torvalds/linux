@@ -45,7 +45,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 
 static int dvb_usb_it913x_firmware;
 module_param_named(firmware, dvb_usb_it913x_firmware, int, 0644);
-MODULE_PARM_DESC(firmware, "set firmware 0=auto"\
+MODULE_PARM_DESC(firmware, "set firmware 0=auto "\
 	"1=IT9137 2=IT9135 V1 3=IT9135 V2");
 #define FW_IT9137 "dvb-usb-it9137-01.fw"
 #define FW_IT9135_V1 "dvb-usb-it9135-01.fw"
@@ -796,6 +796,9 @@ static const struct usb_device_id it913x_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_4835,
 		&it913x_properties, "Avermedia A835B(4835)",
 			RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CTVDIGDUAL_V2,
+		&it913x_properties, "Digital Dual TV Receiver CTVDIGDUAL_V2",
+			RC_MAP_IT913X_V1) },
 	{}		/* Terminating entry */
 };
 

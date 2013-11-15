@@ -103,6 +103,7 @@
 
 		apbx@80040000 {
 			lradc@80050000 {
+				fsl,lradc-touchscreen-wires = <4>;
 				status = "okay";
 			};
 

@@ -3002,7 +3002,8 @@ static int mtip_hw_debugfs_init(struct driver_data *dd)
 
 static void mtip_hw_debugfs_exit(struct driver_data *dd)
 {
-	debugfs_remove_recursive(dd->dfs_node);
+	if (dd->dfs_node)
+		debugfs_remove_recursive(dd->dfs_node);
 }
 
 
@@ -3863,7 +3864,7 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 	struct driver_data *dd = queue->queuedata;
 	struct scatterlist *sg;
 	struct bio_vec *bvec;
-	int nents = 0;
+	int i, nents = 0;
 	int tag = 0, unaligned = 0;
 
 	if (unlikely(dd->dd_flag & MTIP_DDF_STOP_IO)) {
@@ -3921,11 +3922,12 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 		}
 
 		/* Create the scatter list for this bio. */
-		bio_for_each_segment(bvec, bio, nents) {
+		bio_for_each_segment(bvec, bio, i) {
 			sg_set_page(&sg[nents],
 					bvec->bv_page,
 					bvec->bv_len,
 					bvec->bv_offset);
+			nents++;
 		}
 
 		/* Issue the read/write. */
@@ -4085,7 +4087,8 @@ skip_create_disk:
 start_service_thread:
 	sprintf(thd_name, "mtip_svc_thd_%02d", index);
 	dd->mtip_svc_handler = kthread_create_on_node(mtip_service_thread,
-						dd, dd->numa_node, thd_name);
+						dd, dd->numa_node, "%s",
+						thd_name);
 
 	if (IS_ERR(dd->mtip_svc_handler)) {
 		dev_err(&dd->pdev->dev, "service thread failed to start\n");

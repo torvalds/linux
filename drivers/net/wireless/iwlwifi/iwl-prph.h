@@ -100,6 +100,18 @@
 /* Device system time */
 #define DEVICE_SYSTEM_TIME_REG 0xA0206C
 
+/*****************************************************************************
+ *                        7000/3000 series SHR DTS addresses                 *
+ *****************************************************************************/
+
+#define SHR_MISC_WFM_DTS_EN	(0x00a10024)
+#define DTSC_CFG_MODE		(0x00a10604)
+#define DTSC_VREF_AVG		(0x00a10648)
+#define DTSC_VREF5_AVG		(0x00a1064c)
+#define DTSC_CFG_MODE_PERIODIC	(0x2)
+#define DTSC_PTAT_AVG		(0x00a10650)
+
+
 /**
  * Tx Scheduler
  *

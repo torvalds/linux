@@ -24,7 +24,7 @@
 
 extern void secondary_startup(void);
 
-static int __cpuinit highbank_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int highbank_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	highbank_set_cpu_jump(cpu, secondary_startup);
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));

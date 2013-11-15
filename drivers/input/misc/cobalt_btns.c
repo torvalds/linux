@@ -131,7 +131,6 @@ static int cobalt_buttons_probe(struct platform_device *pdev)
  err_free_mem:
 	input_free_polled_device(poll_dev);
 	kfree(bdev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	return error;
 }
 
@@ -144,7 +143,6 @@ static int cobalt_buttons_remove(struct platform_device *pdev)
 	input_free_polled_device(bdev->poll_dev);
 	iounmap(bdev->reg);
 	kfree(bdev);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }

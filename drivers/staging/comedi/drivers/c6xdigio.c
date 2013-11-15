@@ -16,11 +16,6 @@
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
 /*
 Driver: c6xdigio
@@ -40,8 +35,6 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>

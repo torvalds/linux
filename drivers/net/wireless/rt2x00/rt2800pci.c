@@ -507,9 +507,13 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00mmio_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
 	if (rt2x00_is_pcie(rt2x00dev) &&
-	    (rt2x00_rt(rt2x00dev, RT3572) ||
+	    (rt2x00_rt(rt2x00dev, RT3090) ||
+	     rt2x00_rt(rt2x00dev, RT3390) ||
+	     rt2x00_rt(rt2x00dev, RT3572) ||
+	     rt2x00_rt(rt2x00dev, RT3593) ||
 	     rt2x00_rt(rt2x00dev, RT5390) ||
-	     rt2x00_rt(rt2x00dev, RT5392))) {
+	     rt2x00_rt(rt2x00dev, RT5392) ||
+	     rt2x00_rt(rt2x00dev, RT5592))) {
 		rt2x00mmio_register_read(rt2x00dev, AUX_CTRL, &reg);
 		rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
 		rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
@@ -637,6 +641,7 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	struct queue_entry_priv_mmio *entry_priv = entry->priv_data;
 	__le32 *txd = entry_priv->desc;
 	u32 word;
+	const unsigned int txwi_size = entry->queue->winfo_size;
 
 	/*
 	 * The buffers pointed by SD_PTR0/SD_LEN0 and SD_PTR1/SD_LEN1
@@ -659,14 +664,14 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W1_SD_LEN0, TXWI_DESC_SIZE);
+	rt2x00_set_field32(&word, TXD_W1_SD_LEN0, txwi_size);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC0, 0);
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
 	word = 0;
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
-			   skbdesc->skb_dma + TXWI_DESC_SIZE);
+			   skbdesc->skb_dma + txwi_size);
 	rt2x00_desc_write(txd, 2, word);
 
 	word = 0;
@@ -1014,7 +1019,7 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
+	for (i = 0; i < rt2x00dev->tx->limit; i++) {
 		rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO, &status);
 
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
@@ -1186,29 +1191,48 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.sta_remove		= rt2800_sta_remove,
 };
 
-static const struct data_queue_desc rt2800pci_queue_rx = {
-	.entry_num		= 128,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXD_DESC_SIZE,
-	.winfo_size		= RXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+static void rt2800pci_queue_init(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	unsigned short txwi_size, rxwi_size;
 
-static const struct data_queue_desc rt2800pci_queue_tx = {
-	.entry_num		= 64,
-	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	rt2800_get_txwi_rxwi_size(rt2x00dev, &txwi_size, &rxwi_size);
 
-static const struct data_queue_desc rt2800pci_queue_bcn = {
-	.entry_num		= 8,
-	.data_size		= 0, /* No DMA required for beacons */
-	.desc_size		= TXD_DESC_SIZE,
-	.winfo_size		= TXWI_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_mmio),
-};
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 128;
+		queue->data_size = AGGREGATION_SIZE;
+		queue->desc_size = RXD_DESC_SIZE;
+		queue->winfo_size = rxwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
+
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 64;
+		queue->data_size = AGGREGATION_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->winfo_size = txwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
+
+	case QID_BEACON:
+		queue->limit = 8;
+		queue->data_size = 0; /* No DMA required for beacons */
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->winfo_size = txwi_size;
+		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
+		break;
+
+	case QID_ATIM:
+		/* fallthrough */
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt2800pci_ops = {
 	.name			= KBUILD_MODNAME,
@@ -1217,10 +1241,7 @@ static const struct rt2x00_ops rt2800pci_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= TXWI_DESC_SIZE,
-	.rx			= &rt2800pci_queue_rx,
-	.tx			= &rt2800pci_queue_tx,
-	.bcn			= &rt2800pci_queue_bcn,
+	.queue_init		= rt2800pci_queue_init,
 	.lib			= &rt2800pci_rt2x00_ops,
 	.drv			= &rt2800pci_rt2800_ops,
 	.hw			= &rt2800pci_mac80211_ops,

@@ -1756,17 +1756,18 @@ static inline int input_state_high(struct logical_input *input)
 
 			if (input->high_timer == 0) {
 				char *press_str = input->u.kbd.press_str;
-				if (press_str[0])
-					keypad_send_key(press_str,
-							sizeof(input->u.kbd.press_str));
+				if (press_str[0]) {
+					int s = sizeof(input->u.kbd.press_str);
+					keypad_send_key(press_str, s);
+				}
 			}
 
 			if (input->u.kbd.repeat_str[0]) {
 				char *repeat_str = input->u.kbd.repeat_str;
 				if (input->high_timer >= KEYPAD_REP_START) {
+					int s = sizeof(input->u.kbd.repeat_str);
 					input->high_timer -= KEYPAD_REP_DELAY;
-					keypad_send_key(repeat_str,
-							sizeof(input->u.kbd.repeat_str));
+					keypad_send_key(repeat_str, s);
 				}
 				/* we will need to come back here soon */
 				inputs_stable = 0;
@@ -1802,10 +1803,11 @@ static inline void input_state_falling(struct logical_input *input)
 
 			if (input->u.kbd.repeat_str[0]) {
 				char *repeat_str = input->u.kbd.repeat_str;
-				if (input->high_timer >= KEYPAD_REP_START)
+				if (input->high_timer >= KEYPAD_REP_START) {
+					int s = sizeof(input->u.kbd.repeat_str);
 					input->high_timer -= KEYPAD_REP_DELAY;
-					keypad_send_key(repeat_str,
-							sizeof(input->u.kbd.repeat_str));
+					keypad_send_key(repeat_str, s);
+				}
 				/* we will need to come back here soon */
 				inputs_stable = 0;
 			}
@@ -1822,9 +1824,10 @@ static inline void input_state_falling(struct logical_input *input)
 				release_fct(input->u.std.release_data);
 		} else if (input->type == INPUT_TYPE_KBD) {
 			char *release_str = input->u.kbd.release_str;
-			if (release_str[0])
-				keypad_send_key(release_str,
-						sizeof(input->u.kbd.release_str));
+			if (release_str[0]) {
+				int s = sizeof(input->u.kbd.release_str);
+				keypad_send_key(release_str, s);
+			}
 		}
 
 		input->state = INPUT_ST_LOW;

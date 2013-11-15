@@ -139,7 +139,7 @@ ehci_orion_conf_mbus_windows(struct usb_hcd *hcd,
 
 static int ehci_orion_drv_probe(struct platform_device *pdev)
 {
-	struct orion_ehci_data *pd = pdev->dev.platform_data;
+	struct orion_ehci_data *pd = dev_get_platdata(&pdev->dev);
 	const struct mbus_dram_target_info *dram;
 	struct resource *res;
 	struct usb_hcd *hcd;
@@ -303,7 +303,7 @@ static struct platform_driver ehci_orion_driver = {
 	.driver = {
 		.name	= "orion-ehci",
 		.owner  = THIS_MODULE,
-		.of_match_table = of_match_ptr(ehci_orion_dt_ids),
+		.of_match_table = ehci_orion_dt_ids,
 	},
 };
 

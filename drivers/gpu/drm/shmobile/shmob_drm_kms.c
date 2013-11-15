@@ -116,7 +116,7 @@ shmob_drm_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	}
 
 	if (mode_cmd->pitches[0] & 7 || mode_cmd->pitches[0] >= 65536) {
-		dev_dbg(dev->dev, "valid pitch value %u\n",
+		dev_dbg(dev->dev, "invalid pitch value %u\n",
 			mode_cmd->pitches[0]);
 		return ERR_PTR(-EINVAL);
 	}

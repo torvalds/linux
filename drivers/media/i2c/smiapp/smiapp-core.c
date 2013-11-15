@@ -1122,9 +1122,9 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 		rval = sensor->platform_data->set_xclk(
 			&sensor->src->sd, sensor->platform_data->ext_clk);
 	else
-		rval = clk_enable(sensor->ext_clk);
+		rval = clk_prepare_enable(sensor->ext_clk);
 	if (rval < 0) {
-		dev_dbg(&client->dev, "failed to set xclk\n");
+		dev_dbg(&client->dev, "failed to enable xclk\n");
 		goto out_xclk_fail;
 	}
 	usleep_range(1000, 1000);
@@ -1244,7 +1244,7 @@ out_cci_addr_fail:
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 	else
-		clk_disable(sensor->ext_clk);
+		clk_disable_unprepare(sensor->ext_clk);
 
 out_xclk_fail:
 	regulator_disable(sensor->vana);
@@ -1270,7 +1270,7 @@ static void smiapp_power_off(struct smiapp_sensor *sensor)
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 	else
-		clk_disable(sensor->ext_clk);
+		clk_disable_unprepare(sensor->ext_clk);
 	usleep_range(5000, 5000);
 	regulator_disable(sensor->vana);
 	sensor->streaming = 0;
@@ -1835,12 +1835,12 @@ static void smiapp_set_compose_scaler(struct v4l2_subdev *subdev,
 		* sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN]
 		/ sensor->limits[SMIAPP_LIMIT_MIN_X_OUTPUT_SIZE];
 
-	a = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		max(a, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
-	b = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		max(b, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
-	max_m = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		    max(max_m, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
+	a = clamp(a, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		  sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
+	b = clamp(b, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		  sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
+	max_m = clamp(max_m, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		      sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
 
 	dev_dbg(&client->dev, "scaling: a %d b %d max_m %d\n", a, b, max_m);
 
@@ -2363,11 +2363,9 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	if (!sensor->platform_data->set_xclk) {
-		sensor->ext_clk = devm_clk_get(&client->dev,
-					sensor->platform_data->ext_clk_name);
+		sensor->ext_clk = devm_clk_get(&client->dev, "ext_clk");
 		if (IS_ERR(sensor->ext_clk)) {
-			dev_err(&client->dev, "could not get clock %s\n",
-				sensor->platform_data->ext_clk_name);
+			dev_err(&client->dev, "could not get clock\n");
 			return -ENODEV;
 		}
 
@@ -2375,16 +2373,16 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 				    sensor->platform_data->ext_clk);
 		if (rval < 0) {
 			dev_err(&client->dev,
-				"unable to set clock %s freq to %u\n",
-				sensor->platform_data->ext_clk_name,
+				"unable to set clock freq to %u\n",
 				sensor->platform_data->ext_clk);
 			return -ENODEV;
 		}
 	}
 
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN) {
-		if (gpio_request_one(sensor->platform_data->xshutdown, 0,
-				     "SMIA++ xshutdown") != 0) {
+		if (devm_gpio_request_one(&client->dev,
+					  sensor->platform_data->xshutdown, 0,
+					  "SMIA++ xshutdown") != 0) {
 			dev_err(&client->dev,
 				"unable to acquire reset gpio %d\n",
 				sensor->platform_data->xshutdown);
@@ -2393,10 +2391,8 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	rval = smiapp_power_on(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_smiapp_power_on;
-	}
+	if (rval)
+		return -ENODEV;
 
 	rval = smiapp_identify_module(subdev);
 	if (rval) {
@@ -2656,11 +2652,6 @@ out_ident_release:
 
 out_power_off:
 	smiapp_power_off(sensor);
-
-out_smiapp_power_on:
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
-		gpio_free(sensor->platform_data->xshutdown);
-
 	return rval;
 }
 
@@ -2845,7 +2836,7 @@ static int smiapp_remove(struct i2c_client *client)
 		if (sensor->platform_data->set_xclk)
 			sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 		else
-			clk_disable(sensor->ext_clk);
+			clk_disable_unprepare(sensor->ext_clk);
 		sensor->power_count = 0;
 	}
 
@@ -2854,12 +2845,10 @@ static int smiapp_remove(struct i2c_client *client)
 		device_remove_file(&client->dev, &dev_attr_nvm);
 
 	for (i = 0; i < sensor->ssds_used; i++) {
-		media_entity_cleanup(&sensor->ssds[i].sd.entity);
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
+		media_entity_cleanup(&sensor->ssds[i].sd.entity);
 	}
 	smiapp_free_controls(sensor);
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
-		gpio_free(sensor->platform_data->xshutdown);
 
 	return 0;
 }

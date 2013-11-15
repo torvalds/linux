@@ -312,10 +312,7 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 		bool cs_high = spi->mode & SPI_CS_HIGH;
 		u16 qmr = MCFQSPI_QMR_MSTR;
 
-		if (t->bits_per_word)
-			qmr |= t->bits_per_word << 10;
-		else
-			qmr |= spi->bits_per_word << 10;
+		qmr |= t->bits_per_word << 10;
 		if (spi->mode & SPI_CPHA)
 			qmr |= MCFQSPI_QMR_CPHA;
 		if (spi->mode & SPI_CPOL)
@@ -357,31 +354,8 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 
 }
 
-static int mcfqspi_prepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(mcfqspi->dev);
-
-	return 0;
-}
-
-static int mcfqspi_unprepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_put_sync(mcfqspi->dev);
-
-	return 0;
-}
-
 static int mcfqspi_setup(struct spi_device *spi)
 {
-	if ((spi->bits_per_word < 8) || (spi->bits_per_word > 16)) {
-		dev_dbg(&spi->dev, "%d bits per word is not supported\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 	if (spi->chip_select >= spi->master->num_chipselect) {
 		dev_dbg(&spi->dev, "%d chip select is out of range\n",
 			spi->chip_select);
@@ -407,6 +381,12 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct mcfqspi_platform_data *pdata;
 	int status;
+
+	pdata = dev_get_platdata(&pdev->dev);
+	if (!pdata) {
+		dev_dbg(&pdev->dev, "platform data is missing\n");
+		return -ENOENT;
+	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*mcfqspi));
 	if (master == NULL) {
@@ -458,11 +438,6 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	}
 	clk_enable(mcfqspi->clk);
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_dbg(&pdev->dev, "platform data is missing\n");
-		goto fail4;
-	}
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
 
@@ -477,10 +452,10 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	mcfqspi->dev = &pdev->dev;
 
 	master->mode_bits = SPI_CS_HIGH | SPI_CPOL | SPI_CPHA;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->setup = mcfqspi_setup;
 	master->transfer_one_message = mcfqspi_transfer_one_message;
-	master->prepare_transfer_hardware = mcfqspi_prepare_transfer_hw;
-	master->unprepare_transfer_hardware = mcfqspi_unprepare_transfer_hw;
+	master->auto_runtime_pm = true;
 
 	platform_set_drvdata(pdev, master);
 
@@ -524,7 +499,6 @@ static int mcfqspi_remove(struct platform_device *pdev)
 	/* disable the hardware (set the baud rate to 0) */
 	mcfqspi_wr_qmr(mcfqspi, MCFQSPI_QMR_MSTR);
 
-	platform_set_drvdata(pdev, NULL);
 	mcfqspi_cs_teardown(mcfqspi);
 	clk_disable(mcfqspi->clk);
 	clk_put(mcfqspi->clk);
@@ -565,7 +539,7 @@ static int mcfqspi_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int mcfqspi_runtime_suspend(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_disable(mcfqspi->clk);
 
@@ -574,7 +548,7 @@ static int mcfqspi_runtime_suspend(struct device *dev)
 
 static int mcfqspi_runtime_resume(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_enable(mcfqspi->clk);
 

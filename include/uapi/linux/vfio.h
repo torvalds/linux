@@ -22,6 +22,7 @@
 /* Extensions */
 
 #define VFIO_TYPE1_IOMMU		1
+#define VFIO_SPAPR_TCE_IOMMU		2
 
 /*
  * The IOCTL interface is designed for extensibility by embedding the
@@ -323,6 +324,44 @@ enum {
 	VFIO_PCI_NUM_IRQS
 };
 
+/**
+ * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO - _IORW(VFIO_TYPE, VFIO_BASE + 12,
+ *					      struct vfio_pci_hot_reset_info)
+ *
+ * Return: 0 on success, -errno on failure:
+ *	-enospc = insufficient buffer, -enodev = unsupported for device.
+ */
+struct vfio_pci_dependent_device {
+	__u32	group_id;
+	__u16	segment;
+	__u8	bus;
+	__u8	devfn; /* Use PCI_SLOT/PCI_FUNC */
+};
+
+struct vfio_pci_hot_reset_info {
+	__u32	argsz;
+	__u32	flags;
+	__u32	count;
+	struct vfio_pci_dependent_device	devices[];
+};
+
+#define VFIO_DEVICE_GET_PCI_HOT_RESET_INFO	_IO(VFIO_TYPE, VFIO_BASE + 12)
+
+/**
+ * VFIO_DEVICE_PCI_HOT_RESET - _IOW(VFIO_TYPE, VFIO_BASE + 13,
+ *				    struct vfio_pci_hot_reset)
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+struct vfio_pci_hot_reset {
+	__u32	argsz;
+	__u32	flags;
+	__u32	count;
+	__s32	group_fds[];
+};
+
+#define VFIO_DEVICE_PCI_HOT_RESET	_IO(VFIO_TYPE, VFIO_BASE + 13)
+
 /* -------- API for Type1 VFIO IOMMU -------- */
 
 /**
@@ -361,10 +400,14 @@ struct vfio_iommu_type1_dma_map {
 #define VFIO_IOMMU_MAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 13)
 
 /**
- * VFIO_IOMMU_UNMAP_DMA - _IOW(VFIO_TYPE, VFIO_BASE + 14, struct vfio_dma_unmap)
+ * VFIO_IOMMU_UNMAP_DMA - _IOWR(VFIO_TYPE, VFIO_BASE + 14,
+ *							struct vfio_dma_unmap)
  *
  * Unmap IO virtual addresses using the provided struct vfio_dma_unmap.
- * Caller sets argsz.
+ * Caller sets argsz.  The actual unmapped size is returned in the size
+ * field.  No guarantee is made to the user that arbitrary unmaps of iova
+ * or size different from those used in the original mapping call will
+ * succeed.
  */
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;
@@ -374,5 +417,38 @@ struct vfio_iommu_type1_dma_unmap {
 };
 
 #define VFIO_IOMMU_UNMAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 14)
+
+/*
+ * IOCTLs to enable/disable IOMMU container usage.
+ * No parameters are supported.
+ */
+#define VFIO_IOMMU_ENABLE	_IO(VFIO_TYPE, VFIO_BASE + 15)
+#define VFIO_IOMMU_DISABLE	_IO(VFIO_TYPE, VFIO_BASE + 16)
+
+/* -------- Additional API for SPAPR TCE (Server POWERPC) IOMMU -------- */
+
+/*
+ * The SPAPR TCE info struct provides the information about the PCI bus
+ * address ranges available for DMA, these values are programmed into
+ * the hardware so the guest has to know that information.
+ *
+ * The DMA 32 bit window start is an absolute PCI bus address.
+ * The IOVA address passed via map/unmap ioctls are absolute PCI bus
+ * addresses too so the window works as a filter rather than an offset
+ * for IOVA addresses.
+ *
+ * A flag will need to be added if other page sizes are supported,
+ * so as defined here, it is always 4k.
+ */
+struct vfio_iommu_spapr_tce_info {
+	__u32 argsz;
+	__u32 flags;			/* reserved for future use */
+	__u32 dma32_window_start;	/* 32 bit window start (bytes) */
+	__u32 dma32_window_size;	/* 32 bit window size (bytes) */
+};
+
+#define VFIO_IOMMU_SPAPR_TCE_GET_INFO	_IO(VFIO_TYPE, VFIO_BASE + 12)
+
+/* ***************************************************************** */
 
 #endif /* _UAPIVFIO_H */

@@ -78,22 +78,6 @@
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
-/* Default calibration values for WkP - set to INIT image w/o running */
-static const u8 wkp_calib_values_rx_iq_skew[] = { 0x00, 0x00, 0x01, 0x00 };
-static const u8 wkp_calib_values_tx_iq_skew[] = { 0x01, 0x00, 0x00, 0x00 };
-
-struct iwl_calib_default_data {
-	u16 size;
-	void *data;
-};
-
-#define CALIB_SIZE_N_DATA(_buf) {.size = sizeof(_buf), .data = &_buf}
-
-static const struct iwl_calib_default_data wkp_calib_default_data[12] = {
-	[9] = CALIB_SIZE_N_DATA(wkp_calib_values_tx_iq_skew),
-	[11] = CALIB_SIZE_N_DATA(wkp_calib_values_rx_iq_skew),
-};
-
 struct iwl_mvm_alive_data {
 	bool valid;
 	u32 scd_base_addr;
@@ -248,40 +232,6 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 				    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
 }
 
-static int iwl_set_default_calibrations(struct iwl_mvm *mvm)
-{
-	u8 cmd_raw[16]; /* holds the variable size commands */
-	struct iwl_set_calib_default_cmd *cmd =
-		(struct iwl_set_calib_default_cmd *)cmd_raw;
-	int ret, i;
-
-	/* Setting default values for calibrations we don't run */
-	for (i = 0; i < ARRAY_SIZE(wkp_calib_default_data); i++) {
-		u16 cmd_len;
-
-		if (wkp_calib_default_data[i].size == 0)
-			continue;
-
-		memset(cmd_raw, 0, sizeof(cmd_raw));
-		cmd_len = wkp_calib_default_data[i].size + sizeof(cmd);
-		cmd->calib_index = cpu_to_le16(i);
-		cmd->length = cpu_to_le16(wkp_calib_default_data[i].size);
-		if (WARN_ONCE(cmd_len > sizeof(cmd_raw),
-			      "Need to enlarge cmd_raw to %d\n", cmd_len))
-			break;
-		memcpy(cmd->data, wkp_calib_default_data[i].data,
-		       wkp_calib_default_data[i].size);
-		ret = iwl_mvm_send_cmd_pdu(mvm, SET_CALIB_DEFAULT_CMD, 0,
-					   sizeof(*cmd) +
-					   wkp_calib_default_data[i].size,
-					   cmd);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
 	struct iwl_notification_wait calib_wait;
@@ -326,13 +276,19 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
 
+	/*
+	 * abort after reading the nvm in case RF Kill is on, we will complete
+	 * the init seq later when RF kill will switch to off
+	 */
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		IWL_DEBUG_RF_KILL(mvm,
+				  "jump over all phy activities due to RF kill\n");
+		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
+		return 1;
+	}
+
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
-	if (ret)
-		goto error;
-
-	/* need to set default values */
-	ret = iwl_set_default_calibrations(mvm);
 	if (ret)
 		goto error;
 
@@ -388,6 +344,8 @@ out:
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
+	struct ieee80211_channel *chan;
+	struct cfg80211_chan_def chandef;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -400,8 +358,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_run_init_mvm_ucode(mvm, false);
 		if (ret && !iwlmvm_mod_params.init_dbg) {
 			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+			/* this can't happen */
+			if (WARN_ON(ret > 0))
+				ret = -ERFKILL;
 			goto error;
 		}
+		/* should stop & start HW since that INIT image just loaded */
+		iwl_trans_stop_hw(mvm->trans, false);
+		ret = iwl_trans_start_hw(mvm->trans);
+		if (ret)
+			return ret;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -443,8 +409,22 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
+	/* Add all the PHY contexts */
+	chan = &mvm->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels[0];
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		/*
+		 * The channel used here isn't relevant as it's
+		 * going to be overwritten in the other flows.
+		 * For now use the first channel we have.
+		 */
+		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
+					   &chandef, 1, 1);
+		if (ret)
+			goto error;
+	}
 
+	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
 	iwl_trans_stop_device(mvm->trans);

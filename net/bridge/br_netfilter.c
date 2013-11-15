@@ -992,7 +992,7 @@ static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 
 #ifdef CONFIG_SYSCTL
 static
-int brnf_sysctl_call_tables(ctl_table * ctl, int write,
+int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
 			    void __user * buffer, size_t * lenp, loff_t * ppos)
 {
 	int ret;
@@ -1004,7 +1004,7 @@ int brnf_sysctl_call_tables(ctl_table * ctl, int write,
 	return ret;
 }
 
-static ctl_table brnf_table[] = {
+static struct ctl_table brnf_table[] = {
 	{
 		.procname	= "bridge-nf-call-arptables",
 		.data		= &brnf_call_arptables,

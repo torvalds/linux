@@ -883,17 +883,24 @@ int dlm_release_lockspace(void *lockspace, int force)
 void dlm_stop_lockspaces(void)
 {
 	struct dlm_ls *ls;
+	int count;
 
  restart:
+	count = 0;
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
-		if (!test_bit(LSFL_RUNNING, &ls->ls_flags))
+		if (!test_bit(LSFL_RUNNING, &ls->ls_flags)) {
+			count++;
 			continue;
+		}
 		spin_unlock(&lslist_lock);
 		log_error(ls, "no userland control daemon, stopping lockspace");
 		dlm_ls_stop(ls);
 		goto restart;
 	}
 	spin_unlock(&lslist_lock);
+
+	if (count)
+		log_print("dlm user daemon left %d lockspaces", count);
 }
 

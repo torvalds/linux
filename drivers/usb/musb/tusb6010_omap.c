@@ -66,28 +66,6 @@ struct tusb_omap_dma {
 	unsigned			multichannel:1;
 };
 
-static int tusb_omap_dma_start(struct dma_controller *c)
-{
-	struct tusb_omap_dma	*tusb_dma;
-
-	tusb_dma = container_of(c, struct tusb_omap_dma, controller);
-
-	/* dev_dbg(musb->controller, "ep%i ch: %i\n", chdat->epnum, chdat->ch); */
-
-	return 0;
-}
-
-static int tusb_omap_dma_stop(struct dma_controller *c)
-{
-	struct tusb_omap_dma	*tusb_dma;
-
-	tusb_dma = container_of(c, struct tusb_omap_dma, controller);
-
-	/* dev_dbg(musb->controller, "ep%i ch: %i\n", chdat->epnum, chdat->ch); */
-
-	return 0;
-}
-
 /*
  * Allocate dmareq0 to the current channel unless it's already taken
  */
@@ -695,8 +673,6 @@ struct dma_controller *dma_controller_create(struct musb *musb, void __iomem *ba
 	tusb_dma->dmareq = -1;
 	tusb_dma->sync_dev = -1;
 
-	tusb_dma->controller.start = tusb_omap_dma_start;
-	tusb_dma->controller.stop = tusb_omap_dma_stop;
 	tusb_dma->controller.channel_alloc = tusb_omap_dma_allocate;
 	tusb_dma->controller.channel_release = tusb_omap_dma_release;
 	tusb_dma->controller.channel_program = tusb_omap_dma_program;

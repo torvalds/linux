@@ -153,7 +153,13 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 		NI_OUTPUT_CSC_OVL_MODE(NI_OUTPUT_CSC_BYPASS)));
 	/* XXX match this to the depth of the crtc fmt block, move to modeset? */
 	WREG32(0x6940 + radeon_crtc->crtc_offset, 0);
-
+	if (ASIC_IS_DCE8(rdev)) {
+		/* XXX this only needs to be programmed once per crtc at startup,
+		 * not sure where the best place for it is
+		 */
+		WREG32(CIK_ALPHA_CONTROL + radeon_crtc->crtc_offset,
+		       CIK_CURSOR_ALPHA_BLND_ENA);
+	}
 }
 
 static void legacy_crtc_load_lut(struct drm_crtc *crtc)
@@ -339,7 +345,8 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
-				 struct drm_pending_vblank_event *event)
+				 struct drm_pending_vblank_event *event,
+				 uint32_t page_flip_flags)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -512,6 +519,14 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	radeon_crtc->crtc_id = index;
 	rdev->mode_info.crtcs[index] = radeon_crtc;
 
+	if (rdev->family >= CHIP_BONAIRE) {
+		radeon_crtc->max_cursor_width = CIK_CURSOR_WIDTH;
+		radeon_crtc->max_cursor_height = CIK_CURSOR_HEIGHT;
+	} else {
+		radeon_crtc->max_cursor_width = CURSOR_WIDTH;
+		radeon_crtc->max_cursor_height = CURSOR_HEIGHT;
+	}
+
 #if 0
 	radeon_crtc->mode_set.crtc = &radeon_crtc->base;
 	radeon_crtc->mode_set.connectors = (struct drm_connector **)(radeon_crtc + 1);
@@ -530,7 +545,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 		radeon_legacy_init_crtc(dev, radeon_crtc);
 }
 
-static const char *encoder_names[37] = {
+static const char *encoder_names[38] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -567,7 +582,8 @@ static const char *encoder_names[37] = {
 	"INTERNAL_UNIPHY2",
 	"NUTMEG",
 	"TRAVIS",
-	"INTERNAL_VCE"
+	"INTERNAL_VCE",
+	"INTERNAL_UNIPHY3",
 };
 
 static const char *hpd_names[6] = {
@@ -1156,6 +1172,12 @@ static struct drm_prop_enum_list radeon_underscan_enum_list[] =
 	{ UNDERSCAN_AUTO, "auto" },
 };
 
+static struct drm_prop_enum_list radeon_audio_enum_list[] =
+{	{ RADEON_AUDIO_DISABLE, "off" },
+	{ RADEON_AUDIO_ENABLE, "on" },
+	{ RADEON_AUDIO_AUTO, "auto" },
+};
+
 static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int sz;
@@ -1206,6 +1228,12 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 	if (!rdev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
 
+	sz = ARRAY_SIZE(radeon_audio_enum_list);
+	rdev->mode_info.audio_property =
+		drm_property_create_enum(rdev->ddev, 0,
+					 "audio",
+					 radeon_audio_enum_list, sz);
+
 	return 0;
 }
 
@@ -1239,41 +1267,41 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 	for (i = 0; i < RADEON_MAX_AFMT_BLOCKS; i++)
 		rdev->mode_info.afmt[i] = NULL;
 
-	if (ASIC_IS_DCE6(rdev)) {
-		/* todo */
+	if (ASIC_IS_NODCE(rdev)) {
+		/* nothing to do */
 	} else if (ASIC_IS_DCE4(rdev)) {
+		static uint32_t eg_offsets[] = {
+			EVERGREEN_CRTC0_REGISTER_OFFSET,
+			EVERGREEN_CRTC1_REGISTER_OFFSET,
+			EVERGREEN_CRTC2_REGISTER_OFFSET,
+			EVERGREEN_CRTC3_REGISTER_OFFSET,
+			EVERGREEN_CRTC4_REGISTER_OFFSET,
+			EVERGREEN_CRTC5_REGISTER_OFFSET,
+			0x13830 - 0x7030,
+		};
+		int num_afmt;
+
+		/* DCE8 has 7 audio blocks tied to DIG encoders */
+		/* DCE6 has 6 audio blocks tied to DIG encoders */
 		/* DCE4/5 has 6 audio blocks tied to DIG encoders */
 		/* DCE4.1 has 2 audio blocks tied to DIG encoders */
-		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-		if (rdev->mode_info.afmt[0]) {
-			rdev->mode_info.afmt[0]->offset = EVERGREEN_CRTC0_REGISTER_OFFSET;
-			rdev->mode_info.afmt[0]->id = 0;
-		}
-		rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-		if (rdev->mode_info.afmt[1]) {
-			rdev->mode_info.afmt[1]->offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
-			rdev->mode_info.afmt[1]->id = 1;
-		}
-		if (!ASIC_IS_DCE41(rdev)) {
-			rdev->mode_info.afmt[2] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-			if (rdev->mode_info.afmt[2]) {
-				rdev->mode_info.afmt[2]->offset = EVERGREEN_CRTC2_REGISTER_OFFSET;
-				rdev->mode_info.afmt[2]->id = 2;
-			}
-			rdev->mode_info.afmt[3] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-			if (rdev->mode_info.afmt[3]) {
-				rdev->mode_info.afmt[3]->offset = EVERGREEN_CRTC3_REGISTER_OFFSET;
-				rdev->mode_info.afmt[3]->id = 3;
-			}
-			rdev->mode_info.afmt[4] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-			if (rdev->mode_info.afmt[4]) {
-				rdev->mode_info.afmt[4]->offset = EVERGREEN_CRTC4_REGISTER_OFFSET;
-				rdev->mode_info.afmt[4]->id = 4;
-			}
-			rdev->mode_info.afmt[5] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
-			if (rdev->mode_info.afmt[5]) {
-				rdev->mode_info.afmt[5]->offset = EVERGREEN_CRTC5_REGISTER_OFFSET;
-				rdev->mode_info.afmt[5]->id = 5;
+		if (ASIC_IS_DCE8(rdev))
+			num_afmt = 7;
+		else if (ASIC_IS_DCE6(rdev))
+			num_afmt = 6;
+		else if (ASIC_IS_DCE5(rdev))
+			num_afmt = 6;
+		else if (ASIC_IS_DCE41(rdev))
+			num_afmt = 2;
+		else /* DCE4 */
+			num_afmt = 6;
+
+		BUG_ON(num_afmt > ARRAY_SIZE(eg_offsets));
+		for (i = 0; i < num_afmt; i++) {
+			rdev->mode_info.afmt[i] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			if (rdev->mode_info.afmt[i]) {
+				rdev->mode_info.afmt[i]->offset = eg_offsets[i];
+				rdev->mode_info.afmt[i]->id = i;
 			}
 		}
 	} else if (ASIC_IS_DCE3(rdev)) {

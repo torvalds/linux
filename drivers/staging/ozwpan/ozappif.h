@@ -6,8 +6,6 @@
 #ifndef _OZAPPIF_H
 #define _OZAPPIF_H
 
-#include "ozeventdef.h"
-
 #define OZ_IOCTL_MAGIC	0xf4
 
 struct oz_mac_addr {

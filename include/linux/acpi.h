@@ -352,8 +352,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 
 /* Enable _OST when all relevant hotplug operations are enabled */
 #if defined(CONFIG_ACPI_HOTPLUG_CPU) &&			\
-	(defined(CONFIG_ACPI_HOTPLUG_MEMORY) ||		\
-	 defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) &&	\
+	defined(CONFIG_ACPI_HOTPLUG_MEMORY) &&		\
 	defined(CONFIG_ACPI_CONTAINER)
 #define ACPI_HOTPLUG_OST
 #endif
@@ -482,6 +481,13 @@ void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
 
 acpi_status acpi_os_prepare_sleep(u8 sleep_state,
 				  u32 pm1a_control, u32 pm1b_control);
+
+void acpi_os_set_prepare_extended_sleep(int (*func)(u8 sleep_state,
+				        u32 val_a,  u32 val_b));
+
+acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state,
+					   u32 val_a, u32 val_b);
+
 #ifdef CONFIG_X86
 void arch_reserve_mem_area(acpi_physical_address addr, size_t size);
 #else

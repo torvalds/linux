@@ -83,7 +83,6 @@ void __init imx51_init_early(void)
 	imx51_ipu_mipi_setup();
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
 	imx_src_init();
 }
 
@@ -91,7 +90,6 @@ void __init imx53_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX53);
 	mxc_iomux_v3_init(MX53_IO_ADDRESS(MX53_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX53_IO_ADDRESS(MX53_WDOG1_BASE_ADDR));
 	imx_src_init();
 }
 
@@ -105,22 +103,8 @@ void __init mx53_init_irq(void)
 	tzic_init_irq(MX53_IO_ADDRESS(MX53_TZIC_BASE_ADDR));
 }
 
-static struct sdma_script_start_addrs imx51_sdma_script __initdata = {
-	.ap_2_ap_addr = 642,
-	.uart_2_mcu_addr = 817,
-	.mcu_2_app_addr = 747,
-	.mcu_2_shp_addr = 961,
-	.ata_2_mcu_addr = 1473,
-	.mcu_2_ata_addr = 1392,
-	.app_2_per_addr = 1033,
-	.app_2_mcu_addr = 683,
-	.shp_2_per_addr = 1251,
-	.shp_2_mcu_addr = 892,
-};
-
 static struct sdma_platform_data imx51_sdma_pdata __initdata = {
 	.fw_name = "sdma-imx51.bin",
-	.script_addrs = &imx51_sdma_script,
 };
 
 static const struct resource imx51_audmux_res[] __initconst = {
@@ -129,6 +113,7 @@ static const struct resource imx51_audmux_res[] __initconst = {
 
 void __init imx51_soc_init(void)
 {
+	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
 	mxc_device_init();
 
 	/* i.mx51 has the i.mx35 type gpio */
@@ -154,10 +139,10 @@ void __init imx51_soc_init(void)
 void __init imx51_init_late(void)
 {
 	mx51_neon_fixup();
-	imx51_pm_init();
+	imx5_pm_init();
 }
 
 void __init imx53_init_late(void)
 {
-	imx53_pm_init();
+	imx5_pm_init();
 }

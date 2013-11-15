@@ -433,6 +433,11 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* Sample rate generator drives the FS */
 		regs->srgr2	|= FSGM;
 		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		/* McBSP slave. FS clock as output */
+		regs->srgr2	|= FSGM;
+		regs->pcr0	|= FSXM;
+		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* McBSP slave */
 		break;
@@ -813,8 +818,6 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 	omap_mcbsp_sysfs_remove(mcbsp);
 
 	clk_put(mcbsp->fclk);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

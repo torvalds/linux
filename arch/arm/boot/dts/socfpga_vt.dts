@@ -41,6 +41,11 @@
 			};
 		};
 
+		ethernet@ff700000 {
+			phy-mode = "gmii";
+			status = "okay";
+		};
+
 		timer0@ffc08000 {
 			clock-frequency = <7000000>;
 		};

@@ -100,6 +100,13 @@
 #define IPR_SUBS_DEV_ID_57D6    0x03FC
 #define IPR_SUBS_DEV_ID_57D7    0x03FF
 #define IPR_SUBS_DEV_ID_57D8    0x03FE
+#define IPR_SUBS_DEV_ID_57D9    0x046D
+#define IPR_SUBS_DEV_ID_57EB    0x0474
+#define IPR_SUBS_DEV_ID_57EC    0x0475
+#define IPR_SUBS_DEV_ID_57ED    0x0499
+#define IPR_SUBS_DEV_ID_57EE    0x049A
+#define IPR_SUBS_DEV_ID_57EF    0x049B
+#define IPR_SUBS_DEV_ID_57F0    0x049C
 #define IPR_NAME				"ipr"
 
 /*
@@ -1440,9 +1447,9 @@ struct ipr_ioa_cfg {
 	/*
 	 * Bitmaps for SIS64 generated target values
 	 */
-	unsigned long *target_ids;
-	unsigned long *array_ids;
-	unsigned long *vset_ids;
+	unsigned long target_ids[BITS_TO_LONGS(IPR_MAX_SIS64_DEVS)];
+	unsigned long array_ids[BITS_TO_LONGS(IPR_MAX_SIS64_DEVS)];
+	unsigned long vset_ids[BITS_TO_LONGS(IPR_MAX_SIS64_DEVS)];
 
 	u16 type; /* CCIN of the card */
 

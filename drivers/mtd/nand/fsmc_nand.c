@@ -889,6 +889,24 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
 		pdata->options = NAND_SKIP_BBTSCAN;
 
+	pdata->nand_timings = devm_kzalloc(&pdev->dev,
+				sizeof(*pdata->nand_timings), GFP_KERNEL);
+	if (!pdata->nand_timings) {
+		dev_err(&pdev->dev, "no memory for nand_timing\n");
+		return -ENOMEM;
+	}
+	of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
+						sizeof(*pdata->nand_timings));
+
+	/* Set default NAND bank to 0 */
+	pdata->bank = 0;
+	if (!of_property_read_u32(np, "bank", &val)) {
+		if (val > 3) {
+			dev_err(&pdev->dev, "invalid bank %u\n", val);
+			return -EINVAL;
+		}
+		pdata->bank = val;
+	}
 	return 0;
 }
 #else
@@ -940,9 +958,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
-	if (!res)
-		return -EINVAL;
-
 	host->data_va = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->data_va))
 		return PTR_ERR(host->data_va);
@@ -950,25 +965,16 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->data_pa = (dma_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
-	if (!res)
-		return -EINVAL;
-
 	host->addr_va = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->addr_va))
 		return PTR_ERR(host->addr_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
-	if (!res)
-		return -EINVAL;
-
 	host->cmd_va = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->cmd_va))
 		return PTR_ERR(host->cmd_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fsmc_regs");
-	if (!res)
-		return -EINVAL;
-
 	host->regs_va = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->regs_va))
 		return PTR_ERR(host->regs_va);
@@ -1174,8 +1180,6 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 {
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (host) {
 		nand_release(&host->mtd);
 
@@ -1190,7 +1194,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int fsmc_nand_suspend(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
@@ -1210,9 +1214,9 @@ static int fsmc_nand_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
@@ -1229,9 +1233,7 @@ static struct platform_driver fsmc_nand_driver = {
 		.owner = THIS_MODULE,
 		.name = "fsmc-nand",
 		.of_match_table = of_match_ptr(fsmc_nand_id_table),
-#ifdef CONFIG_PM
 		.pm = &fsmc_nand_pm_ops,
-#endif
 	},
 };
 

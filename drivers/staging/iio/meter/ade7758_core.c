@@ -313,21 +313,6 @@ static int ade7758_reset(struct device *dev)
 	return ret;
 }
 
-static ssize_t ade7758_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return ade7758_reset(dev);
-	}
-	return len;
-}
-
 static IIO_DEV_ATTR_VPEAK(S_IWUSR | S_IRUGO,
 		ade7758_read_8bit,
 		ade7758_write_8bit,
@@ -591,8 +576,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7758_read_frequency,
 		ade7758_write_frequency);
 
-static IIO_DEV_ATTR_RESET(ade7758_write_reset);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26040 13020 6510 3255");
 
 static struct attribute *ade7758_attributes[] = {
@@ -601,7 +584,6 @@ static struct attribute *ade7758_attributes[] = {
 	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_awatthr.dev_attr.attr,
 	&iio_dev_attr_bwatthr.dev_attr.attr,
 	&iio_dev_attr_cwatthr.dev_attr.attr,

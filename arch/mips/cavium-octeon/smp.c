@@ -173,7 +173,7 @@ static void octeon_boot_secondary(int cpu, struct task_struct *idle)
  * After we've done initial boot, this function is called to allow the
  * board code to clean up state, if needed
  */
-static void __cpuinit octeon_init_secondary(void)
+static void octeon_init_secondary(void)
 {
 	unsigned int sr;
 
@@ -255,8 +255,6 @@ static void octeon_cpus_done(void)
 /* State of each CPU. */
 DEFINE_PER_CPU(int, cpu_state);
 
-extern void fixup_irqs(void);
-
 static int octeon_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -267,7 +265,7 @@ static int octeon_cpu_disable(void)
 	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
 	local_irq_disable();
-	fixup_irqs();
+	octeon_fixup_irqs();
 	local_irq_enable();
 
 	flush_cache_all();
@@ -375,7 +373,7 @@ static int octeon_update_boot_vector(unsigned int cpu)
 	return 0;
 }
 
-static int __cpuinit octeon_cpu_callback(struct notifier_block *nfb,
+static int octeon_cpu_callback(struct notifier_block *nfb,
 	unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -394,7 +392,7 @@ static int __cpuinit octeon_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static int __cpuinit register_cavium_notifier(void)
+static int register_cavium_notifier(void)
 {
 	hotcpu_notifier(octeon_cpu_callback, 0);
 	return 0;

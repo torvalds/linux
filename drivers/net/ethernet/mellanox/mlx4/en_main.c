@@ -310,7 +310,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 err_mr:
 	(void) mlx4_mr_free(dev, &mdev->mr);
 err_map:
-	if (!mdev->uar_map)
+	if (mdev->uar_map)
 		iounmap(mdev->uar_map);
 err_uar:
 	mlx4_uar_free(dev, &mdev->priv_uar);

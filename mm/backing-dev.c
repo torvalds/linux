@@ -180,7 +180,8 @@ static ssize_t name##_show(struct device *dev,				\
 	struct backing_dev_info *bdi = dev_get_drvdata(dev);		\
 									\
 	return snprintf(page, PAGE_SIZE-1, "%lld\n", (long long)expr);	\
-}
+}									\
+static DEVICE_ATTR_RW(name);
 
 BDI_SHOW(read_ahead_kb, K(bdi->ra_pages))
 
@@ -231,16 +232,16 @@ static ssize_t stable_pages_required_show(struct device *dev,
 	return snprintf(page, PAGE_SIZE-1, "%d\n",
 			bdi_cap_stable_pages_required(bdi) ? 1 : 0);
 }
+static DEVICE_ATTR_RO(stable_pages_required);
 
-#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
-
-static struct device_attribute bdi_dev_attrs[] = {
-	__ATTR_RW(read_ahead_kb),
-	__ATTR_RW(min_ratio),
-	__ATTR_RW(max_ratio),
-	__ATTR_RO(stable_pages_required),
-	__ATTR_NULL,
+static struct attribute *bdi_dev_attrs[] = {
+	&dev_attr_read_ahead_kb.attr,
+	&dev_attr_min_ratio.attr,
+	&dev_attr_max_ratio.attr,
+	&dev_attr_stable_pages_required.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(bdi_dev);
 
 static __init int bdi_class_init(void)
 {
@@ -248,7 +249,7 @@ static __init int bdi_class_init(void)
 	if (IS_ERR(bdi_class))
 		return PTR_ERR(bdi_class);
 
-	bdi_class->dev_attrs = bdi_dev_attrs;
+	bdi_class->dev_groups = bdi_dev_groups;
 	bdi_debug_init();
 	return 0;
 }
@@ -515,7 +516,6 @@ EXPORT_SYMBOL(bdi_destroy);
 int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
 			   unsigned int cap)
 {
-	char tmp[32];
 	int err;
 
 	bdi->name = name;
@@ -524,8 +524,8 @@ int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
 	if (err)
 		return err;
 
-	sprintf(tmp, "%.28s%s", name, "-%d");
-	err = bdi_register(bdi, NULL, tmp, atomic_long_inc_return(&bdi_seq));
+	err = bdi_register(bdi, NULL, "%.28s-%ld", name,
+			   atomic_long_inc_return(&bdi_seq));
 	if (err) {
 		bdi_destroy(bdi);
 		return err;
@@ -652,7 +652,7 @@ int pdflush_proc_obsolete(struct ctl_table *table, int write,
 {
 	char kbuf[] = "0\n";
 
-	if (*ppos) {
+	if (*ppos || *lenp < sizeof(kbuf)) {
 		*lenp = 0;
 		return 0;
 	}

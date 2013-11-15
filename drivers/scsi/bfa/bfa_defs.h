@@ -45,6 +45,7 @@ enum {
 	BFA_MFG_TYPE_PROWLER_C = 1710,   /*  Prowler CNA only cards	*/
 	BFA_MFG_TYPE_PROWLER_D = 1860,   /*  Prowler Dual cards		*/
 	BFA_MFG_TYPE_CHINOOK   = 1867,   /*  Chinook cards		*/
+	BFA_MFG_TYPE_CHINOOK2   = 1869,	 /*!< Chinook2 cards		*/
 	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type		*/
 };
 
@@ -59,7 +60,8 @@ enum {
 	(type) == BFA_MFG_TYPE_ASTRA || \
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
 	(type) == BFA_MFG_TYPE_LIGHTNING || \
-	(type) == BFA_MFG_TYPE_CHINOOK))
+	(type) == BFA_MFG_TYPE_CHINOOK || \
+	(type) == BFA_MFG_TYPE_CHINOOK2))
 
 /*
  * Check if the card having old wwn/mac handling
@@ -185,6 +187,8 @@ enum bfa_status {
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
 	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
+	BFA_STATUS_BBCR_FC_ONLY = 201, /*!< BBCredit Recovery is supported for *
+					* FC mode only */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
@@ -197,7 +201,34 @@ enum bfa_status {
 	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
 	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
 	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
+	BFA_STATUS_DPORT_NO_SFP = 243, /* SFP is not present.\n D-port will be
+					* enabled but it will be operational
+					* only after inserting a valid SFP. */
 	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
+	BFA_STATUS_DPORT_ENOSYS = 254, /* Switch has no D_Port functionality */
+	BFA_STATUS_DPORT_CANT_PERF = 255, /* Switch port is not D_Port capable
+					* or D_Port is disabled */
+	BFA_STATUS_DPORT_LOGICALERR = 256, /* Switch D_Port fail */
+	BFA_STATUS_DPORT_SWBUSY = 257, /* Switch port busy */
+	BFA_STATUS_ERR_BBCR_SPEED_UNSUPPORT = 258, /*!< BB credit recovery is
+					* supported at max port speed alone */
+	BFA_STATUS_ERROR_BBCR_ENABLED  = 259, /*!< BB credit recovery
+					* is enabled */
+	BFA_STATUS_INVALID_BBSCN = 260, /*!< Invalid BBSCN value.
+					 * Valid range is [1-15] */
+	BFA_STATUS_DDPORT_ERR = 261, /* Dynamic D_Port mode is active.\n To
+					* exit dynamic mode, disable D_Port on
+					* the remote port */
+	BFA_STATUS_DPORT_SFPWRAP_ERR = 262, /* Clear e/o_wrap fail, check or
+						* replace SFP */
+	BFA_STATUS_BBCR_CFG_NO_CHANGE = 265, /*!< BBCR is operational.
+			* Disable BBCR and try this operation again. */
+	BFA_STATUS_DPORT_SW_NOTREADY = 268, /* Remote port is not ready to
+					* start dport test. Check remote
+					* port status. */
+	BFA_STATUS_DPORT_INV_SFP = 271, /* Invalid SFP for D-PORT mode. */
+	BFA_STATUS_DPORT_CMD_NOTSUPP    = 273, /* Dport is not supported by
+					* remote port */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -234,6 +265,7 @@ enum {
 	BFA_ADAPTER_MFG_NAME_LEN    = 8,   /*  manufacturer name length */
 	BFA_ADAPTER_SYM_NAME_LEN    = 64,  /*  adapter symbolic name length */
 	BFA_ADAPTER_OS_TYPE_LEN	    = 64,  /*  adapter os type length */
+	BFA_ADAPTER_UUID_LEN	    = 16,  /* adapter uuid length */
 };
 
 struct bfa_adapter_attr_s {
@@ -267,6 +299,7 @@ struct bfa_adapter_attr_s {
 	u8		mfg_month;	/* manufacturing month */
 	u16		mfg_year;	/* manufacturing year */
 	u16		rsvd;
+	u8		uuid[BFA_ADAPTER_UUID_LEN];
 };
 
 /*
@@ -380,7 +413,8 @@ struct bfa_ioc_attr_s {
 	u8				port_mode;	/*  bfa_mode_s	*/
 	u8				cap_bm;		/*  capability	*/
 	u8				port_mode_cfg;	/*  bfa_mode_s	*/
-	u8				rsvd[4];	/*  64bit align	*/
+	u8				def_fn;		/* 1 if default fn */
+	u8				rsvd[3];	/*  64bit align	*/
 };
 
 /*
@@ -517,17 +551,6 @@ struct bfa_ioc_aen_data_s {
 };
 
 /*
- *	D-port states
- *
-*/
-enum bfa_dport_state {
-	BFA_DPORT_ST_DISABLED	= 0,	/* D-port is Disabled */
-	BFA_DPORT_ST_DISABLING	= 1,	/* D-port is Disabling */
-	BFA_DPORT_ST_ENABLING	= 2,	/* D-port is Enabling */
-	BFA_DPORT_ST_ENABLED	= 3,	/* D-port is Enabled */
-};
-
-/*
  * ---------------------- mfg definitions ------------
  */
 
@@ -614,6 +637,7 @@ enum {
 	BFA_PCI_DEVICE_ID_CT		= 0x14,
 	BFA_PCI_DEVICE_ID_CT_FC		= 0x21,
 	BFA_PCI_DEVICE_ID_CT2		= 0x22,
+	BFA_PCI_DEVICE_ID_CT2_QUAD	= 0x23,
 };
 
 #define bfa_asic_id_cb(__d)			\
@@ -622,7 +646,9 @@ enum {
 #define bfa_asic_id_ct(__d)			\
 	((__d) == BFA_PCI_DEVICE_ID_CT ||	\
 	 (__d) == BFA_PCI_DEVICE_ID_CT_FC)
-#define bfa_asic_id_ct2(__d)	((__d) == BFA_PCI_DEVICE_ID_CT2)
+#define bfa_asic_id_ct2(__d)			\
+	((__d) == BFA_PCI_DEVICE_ID_CT2 ||	\
+	(__d) == BFA_PCI_DEVICE_ID_CT2_QUAD)
 #define bfa_asic_id_ctc(__d)	\
 	(bfa_asic_id_ct(__d) || bfa_asic_id_ct2(__d))
 
@@ -1126,6 +1152,7 @@ struct bfa_flash_attr_s {
 #define LB_PATTERN_DEFAULT	0xB5B5B5B5
 #define QTEST_CNT_DEFAULT	10
 #define QTEST_PAT_DEFAULT	LB_PATTERN_DEFAULT
+#define DPORT_ENABLE_LOOPCNT_DEFAULT (1024 * 1024)
 
 struct bfa_diag_memtest_s {
 	u8	algo;
@@ -1152,6 +1179,54 @@ struct bfa_diag_loopback_result_s {
 	u32	badfrmnum;      /* mis-match fram number */
 	u8	status;         /* loopback test result */
 	u8	rsvd[3];
+};
+
+enum bfa_diag_dport_test_status {
+	DPORT_TEST_ST_IDLE	= 0,    /* the test has not started yet. */
+	DPORT_TEST_ST_FINAL	= 1,    /* the test done successfully */
+	DPORT_TEST_ST_SKIP	= 2,    /* the test skipped */
+	DPORT_TEST_ST_FAIL	= 3,    /* the test failed */
+	DPORT_TEST_ST_INPRG	= 4,    /* the testing is in progress */
+	DPORT_TEST_ST_RESPONDER	= 5,    /* test triggered from remote port */
+	DPORT_TEST_ST_STOPPED	= 6,    /* the test stopped by user. */
+	DPORT_TEST_ST_MAX
+};
+
+enum bfa_diag_dport_test_type {
+	DPORT_TEST_ELOOP	= 0,
+	DPORT_TEST_OLOOP	= 1,
+	DPORT_TEST_ROLOOP	= 2,
+	DPORT_TEST_LINK		= 3,
+	DPORT_TEST_MAX
+};
+
+enum bfa_diag_dport_test_opmode {
+	BFA_DPORT_OPMODE_AUTO	= 0,
+	BFA_DPORT_OPMODE_MANU	= 1,
+};
+
+struct bfa_diag_dport_subtest_result_s {
+	u8	status;		/* bfa_diag_dport_test_status */
+	u8	rsvd[7];	/* 64bit align */
+	u64	start_time;	/* timestamp  */
+};
+
+struct bfa_diag_dport_result_s {
+	wwn_t	rp_pwwn;	/* switch port wwn  */
+	wwn_t	rp_nwwn;	/* switch node wwn  */
+	u64	start_time;	/* user/sw start time */
+	u64	end_time;	/* timestamp  */
+	u8	status;		/* bfa_diag_dport_test_status */
+	u8	mode;		/* bfa_diag_dport_test_opmode */
+	u8	rsvd;		/* 64bit align */
+	u8	speed;		/* link speed for buf_reqd */
+	u16	buffer_required;
+	u16	frmsz;		/* frame size for buf_reqd */
+	u32	lpcnt;		/* Frame count */
+	u32	pat;		/* Pattern */
+	u32	roundtrip_latency;	/* in nano sec */
+	u32	est_cable_distance;	/* in meter */
+	struct bfa_diag_dport_subtest_result_s subtest[DPORT_TEST_MAX];
 };
 
 struct bfa_diag_ledtest_s {

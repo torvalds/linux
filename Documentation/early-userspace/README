@@ -71,7 +71,7 @@ can really be interpreted as any legal argument to
 gen_initramfs_list.sh.  If a directory is specified as an argument then
 the contents are scanned, uid/gid translation is performed, and
 usr/gen_init_cpio file directives are output.  If a directory is
-specified as an arugemnt to scripts/gen_initramfs_list.sh then the
+specified as an argument to scripts/gen_initramfs_list.sh then the
 contents of the file are simply copied to the output.  All of the output
 directives from directory scanning and file contents copying are
 processed by usr/gen_init_cpio.
@@ -83,8 +83,7 @@ Where's this all leading?
 
 The klibc distribution contains some of the necessary software to make
 early userspace useful.  The klibc distribution is currently
-maintained separately from the kernel, but this may change early in
-the 2.7 era (it missed the boat for 2.5).
+maintained separately from the kernel.
 
 You can obtain somewhat infrequent snapshots of klibc from
 ftp://ftp.kernel.org/pub/linux/libs/klibc/

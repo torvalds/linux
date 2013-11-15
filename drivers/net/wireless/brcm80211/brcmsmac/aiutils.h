@@ -183,9 +183,6 @@ extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);
 extern bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode);
 extern bool ai_deviceremoved(struct si_pub *sih);
 
-extern void ai_pci_down(struct si_pub *sih);
-extern void ai_pci_up(struct si_pub *sih);
-
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
 

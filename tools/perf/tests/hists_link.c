@@ -88,7 +88,8 @@ static struct machine *setup_fake_machine(struct machines *machines)
 	for (i = 0; i < ARRAY_SIZE(fake_threads); i++) {
 		struct thread *thread;
 
-		thread = machine__findnew_thread(machine, fake_threads[i].pid);
+		thread = machine__findnew_thread(machine, fake_threads[i].pid,
+						 fake_threads[i].pid);
 		if (thread == NULL)
 			goto out;
 
@@ -210,17 +211,15 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		for (k = 0; k < ARRAY_SIZE(fake_common_samples); k++) {
 			const union perf_event event = {
-				.ip = {
-					.header = {
-						.misc = PERF_RECORD_MISC_USER,
-					},
-					.pid = fake_common_samples[k].pid,
-					.ip  = fake_common_samples[k].ip,
+				.header = {
+					.misc = PERF_RECORD_MISC_USER,
 				},
 			};
 
+			sample.pid = fake_common_samples[k].pid;
+			sample.ip = fake_common_samples[k].ip;
 			if (perf_event__preprocess_sample(&event, machine, &al,
-							  &sample, 0) < 0)
+							  &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(&evsel->hists, &al, NULL, 1, 1);
@@ -234,17 +233,15 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 
 		for (k = 0; k < ARRAY_SIZE(fake_samples[i]); k++) {
 			const union perf_event event = {
-				.ip = {
-					.header = {
-						.misc = PERF_RECORD_MISC_USER,
-					},
-					.pid = fake_samples[i][k].pid,
-					.ip  = fake_samples[i][k].ip,
+				.header = {
+					.misc = PERF_RECORD_MISC_USER,
 				},
 			};
 
+			sample.pid = fake_samples[i][k].pid;
+			sample.ip = fake_samples[i][k].ip;
 			if (perf_event__preprocess_sample(&event, machine, &al,
-							  &sample, 0) < 0)
+							  &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(&evsel->hists, &al, NULL, 1, 1);

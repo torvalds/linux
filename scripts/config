@@ -1,6 +1,8 @@
 #!/bin/bash
 # Manipulate options in a .config file from the command line
 
+myname=${0##*/}
+
 # If no prefix forced, use the default CONFIG_
 CONFIG_="${CONFIG_-CONFIG_}"
 
@@ -8,7 +10,7 @@ usage() {
 	cat >&2 <<EOL
 Manipulate options in a .config file from the command line.
 Usage:
-config options command ...
+$myname options command ...
 commands:
 	--enable|-e option   Enable option
 	--disable|-d option  Disable option
@@ -33,14 +35,14 @@ options:
 	--file config-file   .config file to change (default .config)
 	--keep-case|-k       Keep next symbols' case (dont' upper-case it)
 
-config doesn't check the validity of the .config file. This is done at next
+$myname doesn't check the validity of the .config file. This is done at next
 make time.
 
-By default, config will upper-case the given symbol. Use --keep-case to keep
+By default, $myname will upper-case the given symbol. Use --keep-case to keep
 the case of all following symbols unchanged.
 
-config uses 'CONFIG_' as the default symbol prefix. Set the environment
-variable CONFIG_ to the prefix to use. Eg.: CONFIG_="FOO_" config ...
+$myname uses 'CONFIG_' as the default symbol prefix. Set the environment
+variable CONFIG_ to the prefix to use. Eg.: CONFIG_="FOO_" $myname ...
 EOL
 	exit 1
 }
@@ -60,15 +62,52 @@ checkarg() {
 	fi
 }
 
+txt_append() {
+	local anchor="$1"
+	local insert="$2"
+	local infile="$3"
+	local tmpfile="$infile.swp"
+
+	# sed append cmd: 'a\' + newline + text + newline
+	cmd="$(printf "a\\%b$insert" "\n")"
+
+	sed -e "/$anchor/$cmd" "$infile" >"$tmpfile"
+	# replace original file with the edited one
+	mv "$tmpfile" "$infile"
+}
+
+txt_subst() {
+	local before="$1"
+	local after="$2"
+	local infile="$3"
+	local tmpfile="$infile.swp"
+
+	sed -e "s:$before:$after:" "$infile" >"$tmpfile"
+	# replace original file with the edited one
+	mv "$tmpfile" "$infile"
+}
+
+txt_delete() {
+	local text="$1"
+	local infile="$2"
+	local tmpfile="$infile.swp"
+
+	sed -e "/$text/d" "$infile" >"$tmpfile"
+	# replace original file with the edited one
+	mv "$tmpfile" "$infile"
+}
+
 set_var() {
 	local name=$1 new=$2 before=$3
 
 	name_re="^($name=|# $name is not set)"
 	before_re="^($before=|# $before is not set)"
 	if test -n "$before" && grep -Eq "$before_re" "$FN"; then
-		sed -ri "/$before_re/a $new" "$FN"
+		txt_append "^$before=" "$new" "$FN"
+		txt_append "^# $before is not set" "$new" "$FN"
 	elif grep -Eq "$name_re" "$FN"; then
-		sed -ri "s:$name_re.*:$new:" "$FN"
+		txt_subst "^$name=.*" "$new" "$FN"
+		txt_subst "^# $name is not set" "$new" "$FN"
 	else
 		echo "$new" >>"$FN"
 	fi
@@ -77,7 +116,8 @@ set_var() {
 undef_var() {
 	local name=$1
 
-	sed -ri "/^($name=|# $name is not set)/d" "$FN"
+	txt_delete "^$name=" "$FN"
+	txt_delete "^# $name is not set" "$FN"
 }
 
 if [ "$1" = "--file" ]; then

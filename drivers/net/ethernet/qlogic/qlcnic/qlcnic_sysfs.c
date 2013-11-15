@@ -47,7 +47,7 @@ static ssize_t qlcnic_store_bridged_mode(struct device *dev,
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		goto err_out;
 
-	if (strict_strtoul(buf, 2, &new))
+	if (kstrtoul(buf, 2, &new))
 		goto err_out;
 
 	if (!qlcnic_config_bridged_mode(adapter, !!new))
@@ -77,7 +77,7 @@ static ssize_t qlcnic_store_diag_mode(struct device *dev,
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long new;
 
-	if (strict_strtoul(buf, 2, &new))
+	if (kstrtoul(buf, 2, &new))
 		return -EINVAL;
 
 	if (!!new != !!(adapter->flags & QLCNIC_DIAG_ENABLED))
@@ -114,57 +114,51 @@ static int qlcnic_validate_beacon(struct qlcnic_adapter *adapter, u16 beacon,
 	return 0;
 }
 
-static ssize_t qlcnic_store_beacon(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t len)
+static int qlcnic_83xx_store_beacon(struct qlcnic_adapter *adapter,
+				    const char *buf, size_t len)
 {
-	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	unsigned long h_beacon;
+	int err;
+
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EIO;
+
+	if (kstrtoul(buf, 2, &h_beacon))
+		return -EINVAL;
+
+	if (ahw->beacon_state == h_beacon)
+		return len;
+
+	rtnl_lock();
+	if (!ahw->beacon_state) {
+		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state)) {
+			rtnl_unlock();
+			return -EBUSY;
+		}
+	}
+
+	if (h_beacon)
+		err = qlcnic_83xx_config_led(adapter, 1, h_beacon);
+	else
+		err = qlcnic_83xx_config_led(adapter, 0, !h_beacon);
+	if (!err)
+		ahw->beacon_state = h_beacon;
+
+	if (!ahw->beacon_state)
+		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
+
+	rtnl_unlock();
+	return len;
+}
+
+static int qlcnic_82xx_store_beacon(struct qlcnic_adapter *adapter,
+				    const char *buf, size_t len)
+{
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err, max_sds_rings = adapter->max_sds_rings;
 	u16 beacon;
-	u8 b_state, b_rate;
-	unsigned long h_beacon;
-
-	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		dev_warn(dev,
-			 "LED test not supported in non privileged mode\n");
-		return -EOPNOTSUPP;
-	}
-
-	if (qlcnic_83xx_check(adapter) &&
-	    !test_bit(__QLCNIC_RESETTING, &adapter->state)) {
-		if (kstrtoul(buf, 2, &h_beacon))
-			return -EINVAL;
-
-		if (ahw->beacon_state == h_beacon)
-			return len;
-
-		rtnl_lock();
-		if (!ahw->beacon_state) {
-			if (test_and_set_bit(__QLCNIC_LED_ENABLE,
-					     &adapter->state)) {
-				rtnl_unlock();
-				return -EBUSY;
-			}
-		}
-		if (h_beacon) {
-			err = qlcnic_83xx_config_led(adapter, 1, h_beacon);
-			if (err)
-				goto beacon_err;
-		} else {
-			err = qlcnic_83xx_config_led(adapter, 0, !h_beacon);
-			if (err)
-				goto beacon_err;
-		}
-		/* set the current beacon state */
-		ahw->beacon_state = h_beacon;
-beacon_err:
-		if (!ahw->beacon_state)
-			clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
-
-		rtnl_unlock();
-		return len;
-	}
+	u8 h_beacon_state, b_state, b_rate;
 
 	if (len != sizeof(u16))
 		return QL_STATUS_INVALID_PARAM;
@@ -174,16 +168,29 @@ beacon_err:
 	if (err)
 		return err;
 
-	if (adapter->ahw->beacon_state == b_state)
+	if (ahw->extra_capability[0] & QLCNIC_FW_CAPABILITY_2_BEACON) {
+		err = qlcnic_get_beacon_state(adapter, &h_beacon_state);
+		if (err) {
+			netdev_err(adapter->netdev,
+				   "Failed to get current beacon state\n");
+		} else {
+			if (h_beacon_state == QLCNIC_BEACON_DISABLE)
+				ahw->beacon_state = 0;
+			else if (h_beacon_state == QLCNIC_BEACON_EANBLE)
+				ahw->beacon_state = 2;
+		}
+	}
+
+	if (ahw->beacon_state == b_state)
 		return len;
 
 	rtnl_lock();
-
-	if (!adapter->ahw->beacon_state)
+	if (!ahw->beacon_state) {
 		if (test_and_set_bit(__QLCNIC_LED_ENABLE, &adapter->state)) {
 			rtnl_unlock();
 			return -EBUSY;
 		}
+	}
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 		err = -EIO;
@@ -206,10 +213,33 @@ beacon_err:
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);
 
- out:
-	if (!adapter->ahw->beacon_state)
+out:
+	if (!ahw->beacon_state)
 		clear_bit(__QLCNIC_LED_ENABLE, &adapter->state);
 	rtnl_unlock();
+
+	return err;
+}
+
+static ssize_t qlcnic_store_beacon(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
+{
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+	int err = 0;
+
+	if (adapter->ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		dev_warn(dev,
+			 "LED test not supported in non privileged mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (qlcnic_82xx_check(adapter))
+		err = qlcnic_82xx_store_beacon(adapter, buf, len);
+	else if (qlcnic_83xx_check(adapter))
+		err = qlcnic_83xx_store_beacon(adapter, buf, len);
+	else
+		return -EIO;
 
 	return err;
 }
@@ -435,8 +465,14 @@ static ssize_t qlcnic_sysfs_read_pm_config(struct file *filp,
 	memset(&pm_cfg, 0,
 	       sizeof(struct qlcnic_pm_func_cfg) * QLCNIC_MAX_PCI_FUNC);
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pci_func = adapter->npars[i].pci_func;
+		if (!adapter->npars[i].active)
+			continue;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		pm_cfg[pci_func].action = adapter->npars[i].enable_pm;
 		pm_cfg[pci_func].dest_npar = 0;
 		pm_cfg[pci_func].pci_func = i;
@@ -602,8 +638,14 @@ static ssize_t qlcnic_sysfs_read_esw_config(struct file *file,
 	memset(&esw_cfg, 0,
 	       sizeof(struct qlcnic_esw_func_cfg) * QLCNIC_MAX_PCI_FUNC);
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pci_func = adapter->npars[i].pci_func;
+		if (!adapter->npars[i].active)
+			continue;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		esw_cfg[pci_func].pci_func = pci_func;
 		if (qlcnic_get_eswitch_port_config(adapter, &esw_cfg[pci_func]))
 			return QL_STATUS_INVALID_PARAM;
@@ -701,6 +743,9 @@ static ssize_t qlcnic_sysfs_read_npar_config(struct file *file,
 		ret = qlcnic_get_nic_info(adapter, &nic_info, i);
 		if (ret)
 			return ret;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
 
 		np_cfg[i].pci_func = i;
 		np_cfg[i].op_mode = (u8)nic_info.op_mode;
@@ -1227,6 +1272,7 @@ void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter)
 void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+	u32 state;
 
 	if (device_create_bin_file(dev, &bin_attr_port_stats))
 		dev_info(dev, "failed to create port stats sysfs entry");
@@ -1240,8 +1286,13 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 	if (device_create_bin_file(dev, &bin_attr_mem))
 		dev_info(dev, "failed to create mem sysfs entry\n");
 
+	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
+	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD)
+		return;
+
 	if (device_create_bin_file(dev, &bin_attr_pci_config))
 		dev_info(dev, "failed to create pci config sysfs entry");
+
 	if (device_create_file(dev, &dev_attr_beacon))
 		dev_info(dev, "failed to create beacon sysfs entry");
 
@@ -1262,6 +1313,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+	u32 state;
 
 	device_remove_bin_file(dev, &bin_attr_port_stats);
 
@@ -1270,6 +1322,11 @@ void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
+
+	state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
+	if (state == QLCNIC_DEV_FAILED || state == QLCNIC_DEV_BADBAD)
+		return;
+
 	device_remove_bin_file(dev, &bin_attr_pci_config);
 	device_remove_file(dev, &dev_attr_beacon);
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))

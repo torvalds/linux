@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -33,8 +29,8 @@
  * 340914a (pci-1200)
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"
@@ -50,11 +46,9 @@ static const struct labpc_boardinfo labpc_pci_boards[] = {
 	[BOARD_NI_PCI1200] = {
 		.name			= "ni_pci-1200",
 		.ai_speed		= 10000,
-		.register_layout	= labpc_1200_layout,
-		.has_ao			= 1,
-		.ai_range_table		= &range_labpc_1200_ai,
-		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_scan_up		= 1,
+		.has_ao			= 1,
+		.is_labpc1200		= 1,
 		.has_mmio		= 1,
 	},
 };
@@ -78,10 +72,9 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
@@ -97,8 +90,6 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 static void labpc_pci_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-
-	labpc_common_detach(dev);
 
 	if (devpriv && devpriv->mite) {
 		mite_unsetup(devpriv->mite);

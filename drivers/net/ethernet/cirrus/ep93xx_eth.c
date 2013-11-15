@@ -783,7 +783,6 @@ static int ep93xx_eth_remove(struct platform_device *pdev)
 	dev = platform_get_drvdata(pdev);
 	if (dev == NULL)
 		return 0;
-	platform_set_drvdata(pdev, NULL);
 
 	ep = netdev_priv(dev);
 
@@ -815,7 +814,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 
 	if (pdev == NULL)
 		return -ENODEV;
-	data = pdev->dev.platform_data;
+	data = dev_get_platdata(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);

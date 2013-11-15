@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 /*
@@ -31,10 +26,10 @@ Status: in development
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -724,10 +719,9 @@ static int serial2002_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];

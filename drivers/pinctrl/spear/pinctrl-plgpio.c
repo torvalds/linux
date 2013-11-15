@@ -441,7 +441,7 @@ static int spear310_p2o(int pin)
 	return offset;
 }
 
-int spear310_o2p(int offset)
+static int spear310_o2p(int offset)
 {
 	if (offset <= 3)
 		return 101 - offset;
@@ -528,18 +528,13 @@ static int plgpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq, i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "invalid IORESOURCE_MEM\n");
-		return -EBUSY;
-	}
-
 	plgpio = devm_kzalloc(&pdev->dev, sizeof(*plgpio), GFP_KERNEL);
 	if (!plgpio) {
 		dev_err(&pdev->dev, "memory allocation fail\n");
 		return -ENOMEM;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	plgpio->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(plgpio->base))
 		return PTR_ERR(plgpio->base);

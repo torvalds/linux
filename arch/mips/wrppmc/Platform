@@ -1,7 +1,0 @@
-#
-# Wind River PPMC Board (4KC + GT64120)
-#
-platform-$(CONFIG_WR_PPMC)	+= wrppmc/
-cflags-$(CONFIG_WR_PPMC)	+=					\
-		-I$(srctree)/arch/mips/include/asm/mach-wrppmc
-load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000

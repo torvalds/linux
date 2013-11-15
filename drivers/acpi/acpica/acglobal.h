@@ -132,6 +132,18 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_truncate_io_addresses, FALSE);
  */
 u8 ACPI_INIT_GLOBAL(acpi_gbl_disable_auto_repair, FALSE);
 
+/*
+ * Optionally do not load any SSDTs from the RSDT/XSDT during initialization.
+ * This can be useful for debugging ACPI problems on some machines.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_disable_ssdt_table_load, FALSE);
+
+/*
+ * We keep track of the latest version of Windows that has been requested by
+ * the BIOS.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_osi_data, 0);
+
 /* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
 struct acpi_table_fadt acpi_gbl_FADT;
@@ -279,7 +291,6 @@ ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
-ACPI_EXTERN u8 acpi_gbl_osi_data;
 ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
 ACPI_EXTERN struct acpi_address_range
     *acpi_gbl_address_range_list[ACPI_ADDRESS_RANGE_MAX];

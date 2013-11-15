@@ -495,7 +495,7 @@ static int uwire_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(&pdev->dev, uwire);
+	platform_set_drvdata(pdev, uwire);
 
 	uwire->ck = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(uwire->ck)) {
@@ -538,7 +538,7 @@ static int uwire_probe(struct platform_device *pdev)
 
 static int uwire_remove(struct platform_device *pdev)
 {
-	struct uwire_spi	*uwire = dev_get_drvdata(&pdev->dev);
+	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
 	int			status;
 
 	// FIXME remove all child devices, somewhere ...

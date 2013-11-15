@@ -188,12 +188,15 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
 	struct ip_tunnel *tunnel;
-	const struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph;
 
+	iph = ip_hdr(skb);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			iph->saddr, iph->daddr, 0);
 	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
+		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
 		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 	}
@@ -222,7 +225,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->encapsulation = 1;
 	}
 
-	ip_tunnel_xmit(skb, dev, tiph);
+	ip_tunnel_xmit(skb, dev, tiph, tiph->protocol);
 	return NETDEV_TX_OK;
 
 tx_error:
@@ -240,11 +243,13 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
 
-	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
-			p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
-		return -EINVAL;
-	if (p.i_key || p.o_key || p.i_flags || p.o_flags)
-		return -EINVAL;
+	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
+		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
+		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
+			return -EINVAL;
+	}
+
+	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 
@@ -280,7 +285,6 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
-	dev->features		|= NETIF_F_NETNS_LOCAL;
 	dev->features		|= NETIF_F_LLTX;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 
@@ -431,7 +435,7 @@ static int __net_init ipip_init_net(struct net *net)
 static void __net_exit ipip_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipip_link_ops);
 }
 
 static struct pernet_operations ipip_net_ops = {

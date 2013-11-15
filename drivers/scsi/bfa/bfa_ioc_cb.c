@@ -22,6 +22,8 @@
 
 BFA_TRC_FILE(CNA, IOC_CB);
 
+#define bfa_ioc_cb_join_pos(__ioc) ((u32) (1 << BFA_IOC_CB_JOIN_SH))
+
 /*
  * forward declarations
  */
@@ -37,6 +39,12 @@ static void bfa_ioc_cb_sync_join(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_sync_leave(struct bfa_ioc_s *ioc);
 static void bfa_ioc_cb_sync_ack(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_set_cur_ioc_fwstate(
+			struct bfa_ioc_s *ioc, enum bfi_ioc_state fwstate);
+static enum bfi_ioc_state bfa_ioc_cb_get_cur_ioc_fwstate(struct bfa_ioc_s *ioc);
+static void bfa_ioc_cb_set_alt_ioc_fwstate(
+			struct bfa_ioc_s *ioc, enum bfi_ioc_state fwstate);
+static enum bfi_ioc_state bfa_ioc_cb_get_alt_ioc_fwstate(struct bfa_ioc_s *ioc);
 
 static struct bfa_ioc_hwif_s hwif_cb;
 
@@ -59,6 +67,10 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 	hwif_cb.ioc_sync_leave = bfa_ioc_cb_sync_leave;
 	hwif_cb.ioc_sync_ack = bfa_ioc_cb_sync_ack;
 	hwif_cb.ioc_sync_complete = bfa_ioc_cb_sync_complete;
+	hwif_cb.ioc_set_fwstate = bfa_ioc_cb_set_cur_ioc_fwstate;
+	hwif_cb.ioc_get_fwstate = bfa_ioc_cb_get_cur_ioc_fwstate;
+	hwif_cb.ioc_set_alt_fwstate = bfa_ioc_cb_set_alt_ioc_fwstate;
+	hwif_cb.ioc_get_alt_fwstate = bfa_ioc_cb_get_alt_ioc_fwstate;
 
 	ioc->ioc_hwif = &hwif_cb;
 }
@@ -187,6 +199,20 @@ bfa_ioc_cb_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 static bfa_boolean_t
 bfa_ioc_cb_sync_start(struct bfa_ioc_s *ioc)
 {
+	u32 ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+
+	/**
+	 * Driver load time.  If the join bit is set,
+	 * it is due to an unclean exit by the driver for this
+	 * PCI fn in the previous incarnation. Whoever comes here first
+	 * should clean it up, no matter which PCI fn.
+	 */
+	if (ioc_fwstate & BFA_IOC_CB_JOIN_MASK) {
+		writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
+		writel(BFI_IOC_UNINIT, ioc->ioc_regs.alt_ioc_fwstate);
+		return BFA_TRUE;
+	}
+
 	return bfa_ioc_cb_sync_complete(ioc);
 }
 
@@ -212,24 +238,66 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_cb_sync_join(struct bfa_ioc_s *ioc)
 {
+	u32 r32 = readl(ioc->ioc_regs.ioc_fwstate);
+	u32 join_pos = bfa_ioc_cb_join_pos(ioc);
+
+	writel((r32 | join_pos), ioc->ioc_regs.ioc_fwstate);
 }
 
 static void
 bfa_ioc_cb_sync_leave(struct bfa_ioc_s *ioc)
 {
+	u32 r32 = readl(ioc->ioc_regs.ioc_fwstate);
+	u32 join_pos = bfa_ioc_cb_join_pos(ioc);
+
+	writel((r32 & ~join_pos), ioc->ioc_regs.ioc_fwstate);
+}
+
+static void
+bfa_ioc_cb_set_cur_ioc_fwstate(struct bfa_ioc_s *ioc,
+			enum bfi_ioc_state fwstate)
+{
+	u32 r32 = readl(ioc->ioc_regs.ioc_fwstate);
+
+	writel((fwstate | (r32 & BFA_IOC_CB_JOIN_MASK)),
+				ioc->ioc_regs.ioc_fwstate);
+}
+
+static enum bfi_ioc_state
+bfa_ioc_cb_get_cur_ioc_fwstate(struct bfa_ioc_s *ioc)
+{
+	return (enum bfi_ioc_state)(readl(ioc->ioc_regs.ioc_fwstate) &
+			BFA_IOC_CB_FWSTATE_MASK);
+}
+
+static void
+bfa_ioc_cb_set_alt_ioc_fwstate(struct bfa_ioc_s *ioc,
+			enum bfi_ioc_state fwstate)
+{
+	u32 r32 = readl(ioc->ioc_regs.alt_ioc_fwstate);
+
+	writel((fwstate | (r32 & BFA_IOC_CB_JOIN_MASK)),
+				ioc->ioc_regs.alt_ioc_fwstate);
+}
+
+static enum bfi_ioc_state
+bfa_ioc_cb_get_alt_ioc_fwstate(struct bfa_ioc_s *ioc)
+{
+	return (enum bfi_ioc_state)(readl(ioc->ioc_regs.alt_ioc_fwstate) &
+			BFA_IOC_CB_FWSTATE_MASK);
 }
 
 static void
 bfa_ioc_cb_sync_ack(struct bfa_ioc_s *ioc)
 {
-	writel(BFI_IOC_FAIL, ioc->ioc_regs.ioc_fwstate);
+	bfa_ioc_cb_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 }
 
 static bfa_boolean_t
 bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 {
-	uint32_t fwstate, alt_fwstate;
-	fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	u32 fwstate, alt_fwstate;
+	fwstate = bfa_ioc_cb_get_cur_ioc_fwstate(ioc);
 
 	/*
 	 * At this point, this IOC is hoding the hw sem in the
@@ -257,7 +325,7 @@ bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 		fwstate == BFI_IOC_OP)
 		return BFA_TRUE;
 	else {
-		alt_fwstate = readl(ioc->ioc_regs.alt_ioc_fwstate);
+		alt_fwstate = bfa_ioc_cb_get_alt_ioc_fwstate(ioc);
 		if (alt_fwstate == BFI_IOC_FAIL ||
 			alt_fwstate == BFI_IOC_DISABLED ||
 			alt_fwstate == BFI_IOC_UNINIT ||
@@ -272,7 +340,7 @@ bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 bfa_status_t
 bfa_ioc_cb_pll_init(void __iomem *rb, enum bfi_asic_mode fcmode)
 {
-	u32	pll_sclk, pll_fclk;
+	u32	pll_sclk, pll_fclk, join_bits;
 
 	pll_sclk = __APP_PLL_SCLK_ENABLE | __APP_PLL_SCLK_LRESETN |
 		__APP_PLL_SCLK_P0_1(3U) |
@@ -282,8 +350,12 @@ bfa_ioc_cb_pll_init(void __iomem *rb, enum bfi_asic_mode fcmode)
 		__APP_PLL_LCLK_RSEL200500 | __APP_PLL_LCLK_P0_1(3U) |
 		__APP_PLL_LCLK_JITLMT0_1(3U) |
 		__APP_PLL_LCLK_CNTLMT0_1(3U);
-	writel(BFI_IOC_UNINIT, (rb + BFA_IOC0_STATE_REG));
-	writel(BFI_IOC_UNINIT, (rb + BFA_IOC1_STATE_REG));
+	join_bits = readl(rb + BFA_IOC0_STATE_REG) &
+			BFA_IOC_CB_JOIN_MASK;
+	writel((BFI_IOC_UNINIT | join_bits), (rb + BFA_IOC0_STATE_REG));
+	join_bits = readl(rb + BFA_IOC1_STATE_REG) &
+			BFA_IOC_CB_JOIN_MASK;
+	writel((BFI_IOC_UNINIT | join_bits), (rb + BFA_IOC1_STATE_REG));
 	writel(0xffffffffU, (rb + HOSTFN0_INT_MSK));
 	writel(0xffffffffU, (rb + HOSTFN1_INT_MSK));
 	writel(0xffffffffU, (rb + HOSTFN0_INT_STATUS));

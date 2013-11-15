@@ -121,9 +121,9 @@ static struct packet_type caif_usb_type __read_mostly = {
 };
 
 static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
-				void *arg)
+				void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
 	struct usbnet *usbnet;

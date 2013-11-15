@@ -1,0 +1,294 @@
+* Marvell EBU PCIe interfaces
+
+Mandatory properties:
+
+- compatible: one of the following values:
+    marvell,armada-370-pcie
+    marvell,armada-xp-pcie
+    marvell,kirkwood-pcie
+- #address-cells, set to <3>
+- #size-cells, set to <2>
+- #interrupt-cells, set to <1>
+- bus-range: PCI bus numbers covered
+- device_type, set to "pci"
+- ranges: ranges describing the MMIO registers to control the PCIe
+  interfaces, and ranges describing the MBus windows needed to access
+  the memory and I/O regions of each PCIe interface.
+
+The ranges describing the MMIO registers have the following layout:
+
+    0x82000000 0 r MBUS_ID(0xf0, 0x01) r 0 s
+
+where:
+
+  * r is a 32-bits value that gives the offset of the MMIO
+  registers of this PCIe interface, from the base of the internal
+  registers.
+
+  * s is a 32-bits value that give the size of this MMIO
+  registers area. This range entry translates the '0x82000000 0 r' PCI
+  address into the 'MBUS_ID(0xf0, 0x01) r' CPU address, which is part
+  of the internal register window (as identified by MBUS_ID(0xf0,
+  0x01)).
+
+The ranges describing the MBus windows have the following layout:
+
+    0x8t000000 s 0     MBUS_ID(w, a) 0 1 0
+
+where:
+
+   * t is the type of the MBus window (as defined by the standard PCI DT
+   bindings), 1 for I/O and 2 for memory.
+
+   * s is the PCI slot that corresponds to this PCIe interface
+
+   * w is the 'target ID' value for the MBus window
+
+   * a the 'attribute' value for the MBus window.
+
+Since the location and size of the different MBus windows is not fixed in
+hardware, and only determined in runtime, those ranges cover the full first
+4 GB of the physical address space, and do not translate into a valid CPU
+address.
+
+In addition, the device tree node must have sub-nodes describing each
+PCIe interface, having the following mandatory properties:
+
+- reg: used only for interrupt mapping, so only the first four bytes
+  are used to refer to the correct bus number and device number.
+- assigned-addresses: reference to the MMIO registers used to control
+  this PCIe interface.
+- clocks: the clock associated to this PCIe interface
+- marvell,pcie-port: the physical PCIe port number
+- status: either "disabled" or "okay"
+- device_type, set to "pci"
+- #address-cells, set to <3>
+- #size-cells, set to <2>
+- #interrupt-cells, set to <1>
+- ranges, translating the MBus windows ranges of the parent node into
+  standard PCI addresses.
+- interrupt-map-mask and interrupt-map, standard PCI properties to
+  define the mapping of the PCIe interface to interrupt numbers.
+
+and the following optional properties:
+- marvell,pcie-lane: the physical PCIe lane number, for ports having
+  multiple lanes. If this property is not found, we assume that the
+  value is 0.
+
+Example:
+
+pcie-controller {
+	compatible = "marvell,armada-xp-pcie";
+	status = "disabled";
+	device_type = "pci";
+
+	#address-cells = <3>;
+	#size-cells = <2>;
+
+	bus-range = <0x00 0xff>;
+
+	ranges =
+	       <0x82000000 0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x00002000	/* Port 0.0 registers */
+		0x82000000 0 0x42000 MBUS_ID(0xf0, 0x01) 0x42000 0 0x00002000	/* Port 2.0 registers */
+		0x82000000 0 0x44000 MBUS_ID(0xf0, 0x01) 0x44000 0 0x00002000	/* Port 0.1 registers */
+		0x82000000 0 0x48000 MBUS_ID(0xf0, 0x01) 0x48000 0 0x00002000	/* Port 0.2 registers */
+		0x82000000 0 0x4c000 MBUS_ID(0xf0, 0x01) 0x4c000 0 0x00002000	/* Port 0.3 registers */
+		0x82000000 0 0x80000 MBUS_ID(0xf0, 0x01) 0x80000 0 0x00002000	/* Port 1.0 registers */
+		0x82000000 0 0x82000 MBUS_ID(0xf0, 0x01) 0x82000 0 0x00002000	/* Port 3.0 registers */
+		0x82000000 0 0x84000 MBUS_ID(0xf0, 0x01) 0x84000 0 0x00002000	/* Port 1.1 registers */
+		0x82000000 0 0x88000 MBUS_ID(0xf0, 0x01) 0x88000 0 0x00002000	/* Port 1.2 registers */
+		0x82000000 0 0x8c000 MBUS_ID(0xf0, 0x01) 0x8c000 0 0x00002000	/* Port 1.3 registers */
+		0x82000000 0x1 0     MBUS_ID(0x04, 0xe8) 0 1 0 /* Port 0.0 MEM */
+		0x81000000 0x1 0     MBUS_ID(0x04, 0xe0) 0 1 0 /* Port 0.0 IO  */
+		0x82000000 0x2 0     MBUS_ID(0x04, 0xd8) 0 1 0 /* Port 0.1 MEM */
+		0x81000000 0x2 0     MBUS_ID(0x04, 0xd0) 0 1 0 /* Port 0.1 IO  */
+		0x82000000 0x3 0     MBUS_ID(0x04, 0xb8) 0 1 0 /* Port 0.2 MEM */
+		0x81000000 0x3 0     MBUS_ID(0x04, 0xb0) 0 1 0 /* Port 0.2 IO  */
+		0x82000000 0x4 0     MBUS_ID(0x04, 0x78) 0 1 0 /* Port 0.3 MEM */
+		0x81000000 0x4 0     MBUS_ID(0x04, 0x70) 0 1 0 /* Port 0.3 IO  */
+
+		0x82000000 0x5 0     MBUS_ID(0x08, 0xe8) 0 1 0 /* Port 1.0 MEM */
+		0x81000000 0x5 0     MBUS_ID(0x08, 0xe0) 0 1 0 /* Port 1.0 IO  */
+		0x82000000 0x6 0     MBUS_ID(0x08, 0xd8) 0 1 0 /* Port 1.1 MEM */
+		0x81000000 0x6 0     MBUS_ID(0x08, 0xd0) 0 1 0 /* Port 1.1 IO  */
+		0x82000000 0x7 0     MBUS_ID(0x08, 0xb8) 0 1 0 /* Port 1.2 MEM */
+		0x81000000 0x7 0     MBUS_ID(0x08, 0xb0) 0 1 0 /* Port 1.2 IO  */
+		0x82000000 0x8 0     MBUS_ID(0x08, 0x78) 0 1 0 /* Port 1.3 MEM */
+		0x81000000 0x8 0     MBUS_ID(0x08, 0x70) 0 1 0 /* Port 1.3 IO  */
+
+		0x82000000 0x9 0     MBUS_ID(0x04, 0xf8) 0 1 0 /* Port 2.0 MEM */
+		0x81000000 0x9 0     MBUS_ID(0x04, 0xf0) 0 1 0 /* Port 2.0 IO  */
+
+		0x82000000 0xa 0     MBUS_ID(0x08, 0xf8) 0 1 0 /* Port 3.0 MEM */
+		0x81000000 0xa 0     MBUS_ID(0x08, 0xf0) 0 1 0 /* Port 3.0 IO  */>;
+
+	pcie@1,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+		reg = <0x0800 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
+			  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 58>;
+		marvell,pcie-port = <0>;
+		marvell,pcie-lane = <0>;
+		clocks = <&gateclk 5>;
+		status = "disabled";
+	};
+
+	pcie@2,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82001000 0 0x44000 0 0x2000>;
+		reg = <0x1000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
+			  0x81000000 0 0 0x81000000 0x2 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 59>;
+		marvell,pcie-port = <0>;
+		marvell,pcie-lane = <1>;
+		clocks = <&gateclk 6>;
+		status = "disabled";
+	};
+
+	pcie@3,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82001800 0 0x48000 0 0x2000>;
+		reg = <0x1800 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x3 0 1 0
+			  0x81000000 0 0 0x81000000 0x3 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 60>;
+		marvell,pcie-port = <0>;
+		marvell,pcie-lane = <2>;
+		clocks = <&gateclk 7>;
+		status = "disabled";
+	};
+
+	pcie@4,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82002000 0 0x4c000 0 0x2000>;
+		reg = <0x2000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x4 0 1 0
+			  0x81000000 0 0 0x81000000 0x4 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 61>;
+		marvell,pcie-port = <0>;
+		marvell,pcie-lane = <3>;
+		clocks = <&gateclk 8>;
+		status = "disabled";
+	};
+
+	pcie@5,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
+		reg = <0x2800 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x5 0 1 0
+			  0x81000000 0 0 0x81000000 0x5 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 62>;
+		marvell,pcie-port = <1>;
+		marvell,pcie-lane = <0>;
+		clocks = <&gateclk 9>;
+		status = "disabled";
+	};
+
+	pcie@6,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82003000 0 0x84000 0 0x2000>;
+		reg = <0x3000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x6 0 1 0
+			  0x81000000 0 0 0x81000000 0x6 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 63>;
+		marvell,pcie-port = <1>;
+		marvell,pcie-lane = <1>;
+		clocks = <&gateclk 10>;
+		status = "disabled";
+	};
+
+	pcie@7,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82003800 0 0x88000 0 0x2000>;
+		reg = <0x3800 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x7 0 1 0
+			  0x81000000 0 0 0x81000000 0x7 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 64>;
+		marvell,pcie-port = <1>;
+		marvell,pcie-lane = <2>;
+		clocks = <&gateclk 11>;
+		status = "disabled";
+	};
+
+	pcie@8,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82004000 0 0x8c000 0 0x2000>;
+		reg = <0x4000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x8 0 1 0
+			  0x81000000 0 0 0x81000000 0x8 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 65>;
+		marvell,pcie-port = <1>;
+		marvell,pcie-lane = <3>;
+		clocks = <&gateclk 12>;
+		status = "disabled";
+	};
+
+	pcie@9,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82004800 0 0x42000 0 0x2000>;
+		reg = <0x4800 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0x9 0 1 0
+			  0x81000000 0 0 0x81000000 0x9 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 99>;
+		marvell,pcie-port = <2>;
+		marvell,pcie-lane = <0>;
+		clocks = <&gateclk 26>;
+		status = "disabled";
+	};
+
+	pcie@10,0 {
+		device_type = "pci";
+		assigned-addresses = <0x82005000 0 0x82000 0 0x2000>;
+		reg = <0x5000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <1>;
+		ranges = <0x82000000 0 0 0x82000000 0xa 0 1 0
+			  0x81000000 0 0 0x81000000 0xa 0 1 0>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &mpic 103>;
+		marvell,pcie-port = <3>;
+		marvell,pcie-lane = <0>;
+		clocks = <&gateclk 27>;
+		status = "disabled";
+	};
+};

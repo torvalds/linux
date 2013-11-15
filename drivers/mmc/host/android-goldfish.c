@@ -546,8 +546,6 @@ static int goldfish_mmc_remove(struct platform_device *pdev)
 {
 	struct goldfish_mmc_host *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	BUG_ON(host == NULL);
 
 	mmc_remove_host(host->mmc);

@@ -21,8 +21,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
-#include <linux/pinctrl/consumer.h>
+#include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
@@ -132,12 +131,14 @@ struct imx_tve {
 };
 
 static void tve_lock(void *__tve)
+__acquires(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_lock(&tve->lock);
 }
 
 static void tve_unlock(void *__tve)
+__releases(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_unlock(&tve->lock);
@@ -165,7 +166,10 @@ static void tve_enable(struct imx_tve *tve)
 		regmap_write(tve->regmap, TVE_INT_CONT_REG, 0);
 	else
 		regmap_write(tve->regmap, TVE_INT_CONT_REG,
-			     TVE_CD_SM_IEN | TVE_CD_LM_IEN | TVE_CD_MON_END_IEN);
+			     TVE_CD_SM_IEN |
+			     TVE_CD_LM_IEN |
+			     TVE_CD_MON_END_IEN);
+
 	spin_unlock_irqrestore(&tve->enable_lock, flags);
 }
 
@@ -466,7 +470,9 @@ static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		val = TVE_DAC_FULL_RATE;
 
-	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_DAC_SAMP_RATE_MASK, val);
+	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				 TVE_DAC_SAMP_RATE_MASK, val);
+
 	if (ret < 0) {
 		dev_err(tve->dev, "failed to set divider: %d\n", ret);
 		return ret;
@@ -610,22 +616,17 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	if (tve->mode == TVE_MODE_VGA) {
-		struct pinctrl *pinctrl;
+		ret = of_property_read_u32(np, "fsl,hsync-pin",
+					   &tve->hsync_pin);
 
-		pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-		if (IS_ERR(pinctrl)) {
-			ret = PTR_ERR(pinctrl);
-			dev_warn(&pdev->dev, "failed to setup pinctrl: %d", ret);
-			return ret;
-		}
-
-		ret = of_property_read_u32(np, "fsl,hsync-pin", &tve->hsync_pin);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
 		}
 
-		ret |= of_property_read_u32(np, "fsl,vsync-pin", &tve->vsync_pin);
+		ret |= of_property_read_u32(np, "fsl,vsync-pin",
+					    &tve->vsync_pin);
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
@@ -633,16 +634,9 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get memory region\n");
-		return -ENOENT;
-	}
-
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base) {
-		dev_err(&pdev->dev, "failed to remap memory region\n");
-		return -ENOENT;
-	}
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	tve_regmap_config.lock_arg = tve;
 	tve->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "tve", base,
@@ -755,3 +749,4 @@ module_platform_driver(imx_tve_driver);
 MODULE_DESCRIPTION("i.MX Television Encoder driver");
 MODULE_AUTHOR("Philipp Zabel, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-tve");

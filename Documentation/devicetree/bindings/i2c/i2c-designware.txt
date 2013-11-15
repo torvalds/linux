@@ -10,6 +10,10 @@ Recommended properties :
 
  - clock-frequency : desired I2C bus clock frequency in Hz.
 
+Optional properties :
+ - i2c-sda-hold-time-ns : should contain the SDA hold time in nanoseconds.
+   This option is only supported in hardware blocks version 1.11a or newer.
+
 Example :
 
 	i2c@f0000 {
@@ -19,4 +23,15 @@ Example :
 		reg = <0xf0000 0x1000>;
 		interrupts = <11>;
 		clock-frequency = <400000>;
+	};
+
+	i2c@1120000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,designware-i2c";
+		reg = <0x1120000 0x1000>;
+		interrupt-parent = <&ictl>;
+		interrupts = <12 1>;
+		clock-frequency = <400000>;
+		i2c-sda-hold-time-ns = <300>;
 	};

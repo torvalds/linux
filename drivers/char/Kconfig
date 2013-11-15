@@ -15,18 +15,6 @@ config DEVKMEM
 	  kind of kernel debugging operations.
 	  When in doubt, say "N".
 
-config STALDRV
-	bool "Stallion multiport serial support"
-	depends on SERIAL_NONSTANDARD
-	help
-	  Stallion cards give you many serial ports.  You would need something
-	  like this to connect more than two modems to your Linux box, for
-	  instance in order to become a dial-in server.  If you say Y here,
-	  you will be asked for your specific card model in the next
-	  questions.  Make sure to read <file:Documentation/serial/stallion.txt>
-	  in this case.  If you have never heard about all this, it's safe to
-	  say N.
-
 config SGI_SNSC
 	bool "SGI Altix system controller communication support"
 	depends on (IA64_SGI_SN2 || IA64_GENERIC)

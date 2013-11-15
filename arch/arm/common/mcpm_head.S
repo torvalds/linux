@@ -32,11 +32,11 @@
 1901:	adr	r0, 1902b
 	bl	printascii
 	mov	r0, r9
-	bl	printhex8
+	bl	printhex2
 	adr	r0, 1903b
 	bl	printascii
 	mov	r0, r10
-	bl	printhex8
+	bl	printhex2
 	adr	r0, 1904b
 	bl	printascii
 #endif
@@ -151,7 +151,7 @@ mcpm_setup_leave:
 
 	mov	r0, #INBOUND_NOT_COMING_UP
 	strb	r0, [r8, #MCPM_SYNC_CLUSTER_INBOUND]
-	dsb
+	dsb	st
 	sev
 
 	mov	r0, r11

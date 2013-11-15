@@ -1309,22 +1309,8 @@ static void sis900_timer(unsigned long data)
 	struct sis900_private *sis_priv = netdev_priv(net_dev);
 	struct mii_phy *mii_phy = sis_priv->mii;
 	static const int next_tick = 5*HZ;
+	int speed = 0, duplex = 0;
 	u16 status;
-
-	if (!sis_priv->autong_complete){
-		int uninitialized_var(speed), duplex = 0;
-
-		sis900_read_mode(net_dev, &speed, &duplex);
-		if (duplex){
-			sis900_set_mode(sis_priv, speed, duplex);
-			sis630_set_eq(net_dev, sis_priv->chipset_rev);
-			netif_start_queue(net_dev);
-		}
-
-		sis_priv->timer.expires = jiffies + HZ;
-		add_timer(&sis_priv->timer);
-		return;
-	}
 
 	status = mdio_read(net_dev, sis_priv->cur_phy, MII_STATUS);
 	status = mdio_read(net_dev, sis_priv->cur_phy, MII_STATUS);
@@ -1336,9 +1322,15 @@ static void sis900_timer(unsigned long data)
 		status = sis900_default_phy(net_dev);
 		mii_phy = sis_priv->mii;
 
-		if (status & MII_STAT_LINK){
-			sis900_check_mode(net_dev, mii_phy);
-			netif_carrier_on(net_dev);
+		if (status & MII_STAT_LINK) {
+			WARN_ON(!(status & MII_STAT_AUTO_DONE));
+
+			sis900_read_mode(net_dev, &speed, &duplex);
+			if (duplex) {
+				sis900_set_mode(sis_priv, speed, duplex);
+				sis630_set_eq(net_dev, sis_priv->chipset_rev);
+				netif_carrier_on(net_dev);
+			}
 		}
 	} else {
 	/* Link ON -> OFF */
@@ -1612,12 +1604,6 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	unsigned int  index_cur_tx, index_dirty_tx;
 	unsigned int  count_dirty_tx;
 
-	/* Don't transmit data before the complete of auto-negotiation */
-	if(!sis_priv->autong_complete){
-		netif_stop_queue(net_dev);
-		return NETDEV_TX_BUSY;
-	}
-
 	spin_lock_irqsave(&sis_priv->lock, flags);
 
 	/* Calculate the next Tx descriptor entry. */
@@ -1723,7 +1709,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 
 	if(netif_msg_intr(sis_priv))
 		printk(KERN_DEBUG "%s: exiting interrupt, "
-		       "interrupt status = 0x%#8.8x.\n",
+		       "interrupt status = %#8.8x\n",
 		       net_dev->name, sr32(isr));
 
 	spin_unlock (&sis_priv->lock);

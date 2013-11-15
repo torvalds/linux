@@ -65,18 +65,30 @@
  ***************************************************/
 static int iwl_queue_space(const struct iwl_queue *q)
 {
-	int s = q->read_ptr - q->write_ptr;
+	unsigned int max;
+	unsigned int used;
 
-	if (q->read_ptr > q->write_ptr)
-		s -= q->n_bd;
+	/*
+	 * To avoid ambiguity between empty and completely full queues, there
+	 * should always be less than q->n_bd elements in the queue.
+	 * If q->n_window is smaller than q->n_bd, there is no need to reserve
+	 * any queue entries for this purpose.
+	 */
+	if (q->n_window < q->n_bd)
+		max = q->n_window;
+	else
+		max = q->n_bd - 1;
 
-	if (s <= 0)
-		s += q->n_window;
-	/* keep some reserve to not confuse empty and full situations */
-	s -= 2;
-	if (s < 0)
-		s = 0;
-	return s;
+	/*
+	 * q->n_bd is a power of 2, so the following is equivalent to modulo by
+	 * q->n_bd and is well defined for negative dividends.
+	 */
+	used = (q->write_ptr - q->read_ptr) & (q->n_bd - 1);
+
+	if (WARN_ON(used > max))
+		return 0;
+
+	return max - used;
 }
 
 /*
@@ -224,13 +236,13 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 
 	switch (sec_ctl & TX_CMD_SEC_MSK) {
 	case TX_CMD_SEC_CCM:
-		len += CCMP_MIC_LEN;
+		len += IEEE80211_CCMP_MIC_LEN;
 		break;
 	case TX_CMD_SEC_TKIP:
-		len += TKIP_ICV_LEN;
+		len += IEEE80211_TKIP_ICV_LEN;
 		break;
 	case TX_CMD_SEC_WEP:
-		len += WEP_IV_LEN + WEP_ICV_LEN;
+		len += IEEE80211_WEP_IV_LEN + IEEE80211_WEP_ICV_LEN;
 		break;
 	}
 
@@ -451,12 +463,9 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 		return -EINVAL;
 	}
 
-	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
+	if (WARN(addr & ~IWL_TX_DMA_MASK,
+		 "Unaligned address = %llx\n", (unsigned long long)addr))
 		return -EINVAL;
-
-	if (unlikely(addr & ~IWL_TX_DMA_MASK))
-		IWL_ERR(trans, "Unaligned address = %llx\n",
-			(unsigned long long)addr);
 
 	iwl_pcie_tfd_set_tb(tfd, num_tbs, addr, len);
 
@@ -576,10 +585,16 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (q->write_ptr != q->read_ptr) {
+		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
+				   txq_id, q->read_ptr);
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
+	txq->active = false;
 	spin_unlock_bh(&txq->lock);
+
+	/* just in case - this queue may have been stopped */
+	iwl_wake_queue(trans, txq);
 }
 
 /*
@@ -823,7 +838,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 				  sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto error;
 	}
 
@@ -926,6 +941,12 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		return;
 
 	spin_lock_bh(&txq->lock);
+
+	if (!txq->active) {
+		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+				    txq_id, ssn);
+		goto out;
+	}
 
 	if (txq->q.read_ptr == tfd_num)
 		goto out;
@@ -1045,6 +1066,10 @@ static inline void iwl_pcie_txq_set_inactive(struct iwl_trans *trans,
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
+/* Receiver address (actually, Rx station's index into station table),
+ * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
+#define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
+
 void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 			       int sta_id, int tid, int frame_limit, u16 ssn)
 {
@@ -1069,6 +1094,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 
 		/* enable aggregations for the queue */
 		iwl_set_bits_prph(trans, SCD_AGGR_SEL, BIT(txq_id));
+		trans_pcie->txq[txq_id].ampdu = true;
 	} else {
 		/*
 		 * disable aggregations for the queue, this will also make the
@@ -1103,6 +1129,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		       (fifo << SCD_QUEUE_STTS_REG_POS_TXF) |
 		       (1 << SCD_QUEUE_STTS_REG_POS_WSL) |
 		       SCD_QUEUE_STTS_REG_MSK);
+	trans_pcie->txq[txq_id].active = true;
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d on FIFO %d WrPtr: %d\n",
 			    txq_id, fifo, ssn & 0xff);
 }
@@ -1125,6 +1152,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 			    ARRAY_SIZE(zero_val));
 
 	iwl_pcie_txq_unmap(trans, txq_id);
+	trans_pcie->txq[txq_id].ampdu = false;
 
 	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
@@ -1134,10 +1162,10 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 /*
  * iwl_pcie_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
- * @cmd: a point to the ucode command structure
+ * @cmd: a pointer to the ucode command structure
  *
- * The function returns < 0 values to indicate the operation is
- * failed. On success, it turns the index (> 0) of command in the
+ * The function returns < 0 values to indicate the operation
+ * failed. On success, it returns the index (>= 0) of command in the
  * command queue.
  */
 static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
@@ -1518,11 +1546,13 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			get_cmd_string(trans_pcie, cmd->id));
+		dump_stack();
 		ret = -EIO;
 		goto cancel;
 	}
 
-	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
@@ -1564,7 +1594,8 @@ int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status))
 		return -EIO;
 
-	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
+	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
+	    test_bit(STATUS_RFKILL, &trans_pcie->status)) {
 		IWL_DEBUG_RF_KILL(trans, "Dropping CMD 0x%x: RF KILL\n",
 				  cmd->id);
 		return -ERFKILL;
@@ -1592,15 +1623,14 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	u8 wait_write_ptr = 0;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
-	u16 __maybe_unused wifi_seq;
+	u16 wifi_seq;
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
 
-	if (unlikely(!test_bit(txq_id, trans_pcie->queue_used))) {
-		WARN_ON_ONCE(1);
+	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
+		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
-	}
 
 	spin_lock(&txq->lock);
 
@@ -1609,13 +1639,11 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 * the BA.
 	 * Check here that the packets are in the right place on the ring.
 	 */
-#ifdef CONFIG_IWLWIFI_DEBUG
 	wifi_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	WARN_ONCE((iwl_read_prph(trans, SCD_AGGR_SEL) & BIT(txq_id)) &&
-		  ((wifi_seq & 0xff) != q->write_ptr),
+	WARN_ONCE(txq->ampdu &&
+		  (wifi_seq & 0xff) != q->write_ptr,
 		  "Q: %d WiFi Seq %d tfdNum %d",
 		  txq_id, wifi_seq, q->write_ptr);
-#endif
 
 	/* Set up driver data for this TFD */
 	txq->entries[q->write_ptr].skb = skb;
@@ -1644,7 +1672,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 */
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_HCMD_SCRATCHBUF_SIZE;
-	tb1_len = (len + 3) & ~3;
+	tb1_len = ALIGN(len, 4);
 
 	/* Tell NIC about any 2-byte padding after MAC header */
 	if (tb1_len != len)

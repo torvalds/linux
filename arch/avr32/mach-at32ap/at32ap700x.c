@@ -1060,7 +1060,9 @@ struct platform_device *__init at32_add_device_usart(unsigned int id)
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
+#ifdef CONFIG_SERIAL_ATMEL
 	atmel_default_console_device = at32_usarts[usart_id];
+#endif
 }
 
 /* --------------------------------------------------------------------
@@ -1980,6 +1982,9 @@ at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
 	if (platform_device_add_resources(pdev, smc_cs3_resource,
 				ARRAY_SIZE(smc_cs3_resource)))
 		goto fail;
+
+	/* For at32ap7000, we use the reset workaround for nand driver */
+	data->need_reset_workaround = true;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct atmel_nand_data)))

@@ -99,6 +99,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -117,7 +118,6 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	switch (obj_desc->common.type) {
 	case ACPI_TYPE_STRING:
-
 		/*
 		 * Convert string to an integer - for most cases, the string must be
 		 * hexadecimal as per the ACPI specification. The only exception (as
@@ -161,6 +161,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 	default:
 
 		/* No other types can get here */
+
 		break;
 	}
 
@@ -213,7 +214,6 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_OK);
 
 	case ACPI_TYPE_INTEGER:
-
 		/*
 		 * Create a new Buffer object.
 		 * Need enough space for one integer
@@ -233,7 +233,6 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		break;
 
 	case ACPI_TYPE_STRING:
-
 		/*
 		 * Create a new Buffer object
 		 * Size will be the string length
@@ -258,6 +257,7 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -304,15 +304,18 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 
 		switch (data_width) {
 		case 1:
+
 			decimal_length = ACPI_MAX8_DECIMAL_DIGITS;
 			break;
 
 		case 4:
+
 			decimal_length = ACPI_MAX32_DECIMAL_DIGITS;
 			break;
 
 		case 8:
 		default:
+
 			decimal_length = ACPI_MAX64_DECIMAL_DIGITS;
 			break;
 		}
@@ -546,6 +549,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -599,6 +603,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			break;
 
 		default:
+
 			/* No conversion allowed for these types */
 
 			if (destination_type != source_desc->common.type) {
@@ -649,6 +654,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			break;
 
 		default:
+
 			ACPI_ERROR((AE_INFO,
 				    "Bad destination type during conversion: 0x%X",
 				    destination_type));
@@ -664,6 +670,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		break;
 
 	default:
+
 		ACPI_ERROR((AE_INFO,
 			    "Unknown Target type ID 0x%X AmlOpcode 0x%X DestType %s",
 			    GET_CURRENT_ARG_TYPE(walk_state->op_info->

@@ -3,7 +3,7 @@
  * 
  */
 
-#include <mach/hardware.h>
+#include <mach/ixp4xx-regs.h>
 
 /*
  * We use IXP425 General purpose timer for our timer needs, it runs at 

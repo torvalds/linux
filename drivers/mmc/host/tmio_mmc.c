@@ -112,8 +112,6 @@ static int tmio_mmc_remove(struct platform_device *pdev)
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (mmc) {
 		struct tmio_mmc_host *host = mmc_priv(mmc);
 		free_irq(platform_get_irq(pdev, 0), host);

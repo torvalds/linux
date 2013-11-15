@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: ke_counter
@@ -34,6 +29,7 @@ This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../comedidev.h"

@@ -16,7 +16,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinmux.h>
@@ -353,6 +352,8 @@ static int tfp410_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
 		goto fail;
 	}
+
+	mod->preferred_bpp = dvi_info.bpp;
 
 	i2c_node = of_find_node_by_phandle(i2c_phandle);
 	if (!i2c_node) {

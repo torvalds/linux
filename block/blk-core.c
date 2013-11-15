@@ -1549,11 +1549,9 @@ get_rq:
 	if (plug) {
 		/*
 		 * If this is the first request added after a plug, fire
-		 * of a plug trace. If others have been added before, check
-		 * if we have multiple devices in this plug. If so, make a
-		 * note to sort the list before dispatch.
+		 * of a plug trace.
 		 */
-		if (list_empty(&plug->list))
+		if (!request_count)
 			trace_block_plug(q);
 		else {
 			if (request_count >= BLK_MAX_REQUEST_COUNT) {
@@ -2314,6 +2312,15 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 			break;
 		case -EBADE:
 			error_type = "critical nexus";
+			break;
+		case -ETIMEDOUT:
+			error_type = "timeout";
+			break;
+		case -ENOSPC:
+			error_type = "critical space allocation";
+			break;
+		case -ENODATA:
+			error_type = "critical medium";
 			break;
 		case -EIO:
 		default:
@@ -3164,7 +3171,7 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 		q->rpm_status = RPM_ACTIVE;
 		__blk_run_queue(q);
 		pm_runtime_mark_last_busy(q->dev);
-		pm_runtime_autosuspend(q->dev);
+		pm_request_autosuspend(q->dev);
 	} else {
 		q->rpm_status = RPM_SUSPENDED;
 	}
@@ -3180,7 +3187,8 @@ int __init blk_dev_init(void)
 
 	/* used for unplugging and affects IO latency/throughput - HIGHPRI */
 	kblockd_workqueue = alloc_workqueue("kblockd",
-					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+					    WQ_MEM_RECLAIM | WQ_HIGHPRI |
+					    WQ_POWER_EFFICIENT, 0);
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
 

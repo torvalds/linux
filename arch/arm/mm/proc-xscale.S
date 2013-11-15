@@ -558,8 +558,6 @@ ENTRY(cpu_xscale_do_resume)
 ENDPROC(cpu_xscale_do_resume)
 #endif
 
-	__CPUINIT
-
 	.type	__xscale_setup, #function
 __xscale_setup:
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I, D caches & BTB

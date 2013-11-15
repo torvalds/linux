@@ -88,7 +88,7 @@ static const char *const aa_audit_type[] = {
 	"HINT",
 	"STATUS",
 	"ERROR",
-	"KILLED"
+	"KILLED",
 	"AUTO"
 };
 

@@ -46,7 +46,7 @@ struct pppoe_addr {
  * PPTP addressing definition
  */
 struct pptp_addr {
-	__be16		call_id;
+	__u16		call_id;
 	struct in_addr	sin_addr;
 };
 
@@ -135,11 +135,11 @@ struct pppoe_tag {
 
 struct pppoe_hdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8 ver : 4;
 	__u8 type : 4;
+	__u8 ver : 4;
 #elif defined(__BIG_ENDIAN_BITFIELD)
-	__u8 type : 4;
 	__u8 ver : 4;
+	__u8 type : 4;
 #else
 #error	"Please fix <asm/byteorder.h>"
 #endif

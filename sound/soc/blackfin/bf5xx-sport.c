@@ -46,10 +46,10 @@
 /* note: multichannel is in units of 8 channels,
  * tdm_count is # channels NOT / 8 ! */
 int sport_set_multichannel(struct sport_device *sport,
-		int tdm_count, u32 mask, int packed)
+		int tdm_count, u32 tx_mask, u32 rx_mask, int packed)
 {
-	pr_debug("%s tdm_count=%d mask:0x%08x packed=%d\n", __func__,
-			tdm_count, mask, packed);
+	pr_debug("%s tdm_count=%d tx_mask:0x%08x rx_mask:0x%08x packed=%d\n",
+			__func__, tdm_count, tx_mask, rx_mask, packed);
 
 	if ((sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN))
 		return -EBUSY;
@@ -65,8 +65,8 @@ int sport_set_multichannel(struct sport_device *sport,
 		sport->regs->mcmc2 = FRAME_DELAY | MCMEN | \
 				(packed ? (MCDTXPE|MCDRXPE) : 0);
 
-		sport->regs->mtcs0 = mask;
-		sport->regs->mrcs0 = mask;
+		sport->regs->mtcs0 = tx_mask;
+		sport->regs->mrcs0 = rx_mask;
 		sport->regs->mtcs1 = 0;
 		sport->regs->mrcs1 = 0;
 		sport->regs->mtcs2 = 0;

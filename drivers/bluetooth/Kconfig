@@ -201,7 +201,7 @@ config BT_MRVL
 	  The core driver to support Marvell Bluetooth devices.
 
 	  This driver is required if you want to support
-	  Marvell Bluetooth devices, such as 8688/8787/8797.
+	  Marvell Bluetooth devices, such as 8688/8787/8797/8897.
 
 	  Say Y here to compile Marvell Bluetooth driver
 	  into the kernel or say M to compile it as module.
@@ -214,7 +214,7 @@ config BT_MRVL_SDIO
 	  The driver for Marvell Bluetooth chipsets with SDIO interface.
 
 	  This driver is required if you want to use Marvell Bluetooth
-	  devices with SDIO interface. Currently SD8688/SD8787/SD8797
+	  devices with SDIO interface. Currently SD8688/SD8787/SD8797/SD8897
 	  chipsets are supported.
 
 	  Say Y here to compile support for Marvell BT-over-SDIO driver

@@ -312,16 +312,8 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int lp8788_rtc_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver lp8788_rtc_driver = {
 	.probe = lp8788_rtc_probe,
-	.remove = lp8788_rtc_remove,
 	.driver = {
 		.name = LP8788_DEV_RTC,
 		.owner = THIS_MODULE,

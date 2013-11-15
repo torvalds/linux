@@ -76,7 +76,7 @@ compiled with the <constant>CONFIG_VIDEO_ADV_DEBUG</constant> option
 to enable these ioctls.</para>
 
     <para>To write a register applications must initialize all fields
-of a &v4l2-dbg-register; and call
+of a &v4l2-dbg-register; except for <structfield>size</structfield> and call
 <constant>VIDIOC_DBG_S_REGISTER</constant> with a pointer to this
 structure. The <structfield>match.type</structfield> and
 <structfield>match.addr</structfield> or <structfield>match.name</structfield>
@@ -91,8 +91,8 @@ written into the register.</para>
 <structfield>reg</structfield> fields, and call
 <constant>VIDIOC_DBG_G_REGISTER</constant> with a pointer to this
 structure. On success the driver stores the register value in the
-<structfield>val</structfield> field. On failure the structure remains
-unchanged.</para>
+<structfield>val</structfield> field and the size (in bytes) of the
+value in <structfield>size</structfield>.</para>
 
     <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_BRIDGE</constant>,
@@ -102,38 +102,8 @@ chip connected to the PCI or USB bus. You can find out which chips are
 present with the &VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
 
     <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant>,
-<structfield>match.name</structfield> contains the I2C driver name.
-For instance
-<constant>"saa7127"</constant> will match any chip
-supported by the saa7127 driver, regardless of its &i2c; bus address.
-When multiple chips supported by the same driver are present, the
-effect of these ioctls is undefined. Again with the
-&VIDIOC-DBG-G-CHIP-INFO; ioctl you can find out which &i2c; chips are
-present.</para>
-
-    <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_I2C_ADDR</constant>,
-<structfield>match.addr</structfield> selects a chip by its 7 bit &i2c;
-bus address.</para>
-
-    <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_AC97</constant>,
-<structfield>match.addr</structfield> selects the nth AC97 chip
-on the TV card.</para>
-
-    <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
 <structfield>match.addr</structfield> selects the nth sub-device.</para>
-
-    <note>
-      <title>Success not guaranteed</title>
-
-      <para>Due to a flaw in the Linux &i2c; bus driver these ioctls may
-return successfully without actually reading or writing a register. To
-catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-INFO;
-call confirming the presence of the selected &i2c; chip.</para>
-    </note>
 
     <para>These ioctls are optional, not all drivers may support them.
 However when a driver supports these ioctls it must also support
@@ -150,7 +120,7 @@ LinuxTV v4l-dvb repository; see <ulink
 url="http://linuxtv.org/repo/">http://linuxtv.org/repo/</ulink> for
 access instructions.</para>
 
-    <!-- Note for convenience vidioc-dbg-g-chip-ident.sgml
+    <!-- Note for convenience vidioc-dbg-g-chip-info.sgml
 	 contains a duplicate of this table. -->
     <table pgwide="1" frame="none" id="v4l2-dbg-match">
       <title>struct <structname>v4l2_dbg_match</structname></title>
@@ -160,7 +130,7 @@ access instructions.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
-	    <entry>See <xref linkend="ident-chip-match-types" /> for a list of
+	    <entry>See <xref linkend="chip-match-types" /> for a list of
 possible types.</entry>
 	  </row>
 	  <row>
@@ -179,7 +149,7 @@ to the <structfield>type</structfield> field.</entry>
 	    <entry>char</entry>
 	    <entry><structfield>name[32]</structfield></entry>
 	    <entry>Match a chip by this name, interpreted according
-to the <structfield>type</structfield> field.</entry>
+to the <structfield>type</structfield> field. Currently unused.</entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -199,6 +169,11 @@ to the <structfield>type</structfield> field.</entry>
 	    <entry>How to match the chip, see <xref linkend="v4l2-dbg-match" />.</entry>
 	  </row>
 	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>size</structfield></entry>
+	    <entry>The register size in bytes.</entry>
+	  </row>
+	  <row>
 	    <entry>__u64</entry>
 	    <entry><structfield>reg</structfield></entry>
 	    <entry>A register number.</entry>
@@ -213,7 +188,7 @@ register.</entry>
       </tgroup>
     </table>
 
-    <!-- Note for convenience vidioc-dbg-g-chip-ident.sgml
+    <!-- Note for convenience vidioc-dbg-g-chip-info.sgml
 	 contains a duplicate of this table. -->
     <table pgwide="1" frame="none" id="chip-match-types">
       <title>Chip Match Types</title>
@@ -225,21 +200,6 @@ register.</entry>
 	    <entry>0</entry>
 	    <entry>Match the nth chip on the card, zero for the
 	    bridge chip. Does not match sub-devices.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant></entry>
-	    <entry>1</entry>
-	    <entry>Match an &i2c; chip by its driver name.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_I2C_ADDR</constant></entry>
-	    <entry>2</entry>
-	    <entry>Match a chip by its 7 bit &i2c; bus address.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_AC97</constant></entry>
-	    <entry>3</entry>
-	    <entry>Match the nth anciliary AC97 chip.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>

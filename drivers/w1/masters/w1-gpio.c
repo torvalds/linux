@@ -16,7 +16,6 @@
 #include <linux/gpio.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/err.h>
 #include <linux/of.h>
 
@@ -78,12 +77,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 {
 	struct w1_bus_master *master;
 	struct w1_gpio_platform_data *pdata;
-	struct pinctrl *pinctrl;
 	int err;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	if (of_have_populated_dt()) {
 		err = w1_gpio_probe_dt(pdev);

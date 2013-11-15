@@ -61,6 +61,7 @@ nv40_mpeg_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	nv_wo32(&chan->base.base, 0x78, 0x02001ec1);
 	return 0;
 }
 

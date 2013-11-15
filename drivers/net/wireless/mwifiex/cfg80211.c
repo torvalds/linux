@@ -20,9 +20,14 @@
 #include "cfg80211.h"
 #include "main.h"
 
+static char *reg_alpha2;
+module_param(reg_alpha2, charp, 0);
+
 static const struct ieee80211_iface_limit mwifiex_ap_sta_limits[] = {
 	{
-		.max = 2, .types = BIT(NL80211_IFTYPE_STATION),
+		.max = 2, .types = BIT(NL80211_IFTYPE_STATION) |
+				   BIT(NL80211_IFTYPE_P2P_GO) |
+				   BIT(NL80211_IFTYPE_P2P_CLIENT),
 	},
 	{
 		.max = 1, .types = BIT(NL80211_IFTYPE_AP),
@@ -186,6 +191,7 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct sk_buff *skb;
 	u16 pkt_len;
 	const struct ieee80211_mgmt *mgmt;
+	struct mwifiex_txinfo *tx_info;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 
 	if (!buf || !len) {
@@ -213,6 +219,10 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return -ENOMEM;
 	}
 
+	tx_info = MWIFIEX_SKB_TXCB(skb);
+	tx_info->bss_num = priv->bss_num;
+	tx_info->bss_type = priv->bss_type;
+
 	mwifiex_form_mgmt_frame(skb, buf, len);
 	mwifiex_queue_tx_pkt(priv, skb);
 
@@ -232,16 +242,20 @@ mwifiex_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 				     u16 frame_type, bool reg)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	u32 mask;
 
 	if (reg)
-		priv->mgmt_frame_mask |= BIT(frame_type >> 4);
+		mask = priv->mgmt_frame_mask | BIT(frame_type >> 4);
 	else
-		priv->mgmt_frame_mask &= ~BIT(frame_type >> 4);
+		mask = priv->mgmt_frame_mask & ~BIT(frame_type >> 4);
 
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
-			       HostCmd_ACT_GEN_SET, 0, &priv->mgmt_frame_mask);
-
-	wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+	if (mask != priv->mgmt_frame_mask) {
+		priv->mgmt_frame_mask = mask;
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
+				       HostCmd_ACT_GEN_SET, 0,
+				       &priv->mgmt_frame_mask);
+		wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+	}
 }
 
 /*
@@ -1231,6 +1245,51 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
 	return 0;
 }
 
+/* cfg80211 operation handler for del_station.
+ * Function deauthenticates station which value is provided in mac parameter.
+ * If mac is NULL/broadcast, all stations in associated station list are
+ * deauthenticated. If bss is not started or there are no stations in
+ * associated stations list, no action is taken.
+ */
+static int
+mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+			     u8 *mac)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_sta_node *sta_node;
+	unsigned long flags;
+
+	if (list_empty(&priv->sta_list) || !priv->bss_started)
+		return 0;
+
+	if (!mac || is_broadcast_ether_addr(mac)) {
+		wiphy_dbg(wiphy, "%s: NULL/broadcast mac address\n", __func__);
+		list_for_each_entry(sta_node, &priv->sta_list, list) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	} else {
+		wiphy_dbg(wiphy, "%s: mac address %pM\n", __func__, mac);
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		sta_node = mwifiex_get_sta_entry(priv, mac);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		if (sta_node) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	}
+
+	return 0;
+}
+
 static int
 mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 {
@@ -1449,6 +1508,7 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		" reason code %d\n", priv->cfg_bssid, reason_code);
 
 	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	priv->hs2_enabled = false;
 
 	return 0;
 }
@@ -1668,9 +1728,9 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret;
 
-	if (priv->bss_mode != NL80211_IFTYPE_STATION) {
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA) {
 		wiphy_err(wiphy,
-			  "%s: reject infra assoc request in non-STA mode\n",
+			  "%s: reject infra assoc request in non-STA role\n",
 			  dev->name);
 		return -EINVAL;
 	}
@@ -1859,6 +1919,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	int i, offset, ret;
 	struct ieee80211_channel *chan;
 	struct ieee_types_header *ie;
+	struct mwifiex_user_scan_cfg *user_scan_cfg;
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
@@ -1869,20 +1930,22 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	if (priv->user_scan_cfg) {
+	/* Block scan request if scan operation or scan cleanup when interface
+	 * is disabled is in process
+	 */
+	if (priv->scan_request || priv->scan_aborting) {
 		dev_err(priv->adapter->dev, "cmd: Scan already in process..\n");
 		return -EBUSY;
 	}
 
-	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
-				      GFP_KERNEL);
-	if (!priv->user_scan_cfg)
+	user_scan_cfg = kzalloc(sizeof(*user_scan_cfg), GFP_KERNEL);
+	if (!user_scan_cfg)
 		return -ENOMEM;
 
 	priv->scan_request = request;
 
-	priv->user_scan_cfg->num_ssids = request->n_ssids;
-	priv->user_scan_cfg->ssid_list = request->ssids;
+	user_scan_cfg->num_ssids = request->n_ssids;
+	user_scan_cfg->ssid_list = request->ssids;
 
 	if (request->ie && request->ie_len) {
 		offset = 0;
@@ -1902,25 +1965,25 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	for (i = 0; i < min_t(u32, request->n_channels,
 			      MWIFIEX_USER_SCAN_CHAN_MAX); i++) {
 		chan = request->channels[i];
-		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
-		priv->user_scan_cfg->chan_list[i].radio_type = chan->band;
+		user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
+		user_scan_cfg->chan_list[i].radio_type = chan->band;
 
 		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_ACTIVE;
 
-		priv->user_scan_cfg->chan_list[i].scan_time = 0;
+		user_scan_cfg->chan_list[i].scan_time = 0;
 	}
 
-	ret = mwifiex_scan_networks(priv, priv->user_scan_cfg);
+	ret = mwifiex_scan_networks(priv, user_scan_cfg);
+	kfree(user_scan_cfg);
 	if (ret) {
 		dev_err(priv->adapter->dev, "scan failed: %d\n", ret);
+		priv->scan_aborting = false;
 		priv->scan_request = NULL;
-		kfree(priv->user_scan_cfg);
-		priv->user_scan_cfg = NULL;
 		return ret;
 	}
 
@@ -2245,10 +2308,9 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 }
 EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
 
-#ifdef CONFIG_PM
 static bool
-mwifiex_is_pattern_supported(struct cfg80211_wowlan_trig_pkt_pattern *pat,
-			     s8 *byte_seq)
+mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
+			     u8 max_byte_seq)
 {
 	int j, k, valid_byte_cnt = 0;
 	bool dont_care_byte = false;
@@ -2266,16 +2328,17 @@ mwifiex_is_pattern_supported(struct cfg80211_wowlan_trig_pkt_pattern *pat,
 					dont_care_byte = true;
 			}
 
-			if (valid_byte_cnt > MAX_BYTESEQ)
+			if (valid_byte_cnt > max_byte_seq)
 				return false;
 		}
 	}
 
-	byte_seq[MAX_BYTESEQ] = valid_byte_cnt;
+	byte_seq[max_byte_seq] = valid_byte_cnt;
 
 	return true;
 }
 
+#ifdef CONFIG_PM
 static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 				    struct cfg80211_wowlan *wowlan)
 {
@@ -2284,7 +2347,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	struct mwifiex_mef_entry *mef_entry;
 	int i, filt_num = 0, ret;
 	bool first_pat = true;
-	u8 byte_seq[MAX_BYTESEQ + 1];
+	u8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	const u8 ipv4_mc_mac[] = {0x33, 0x33};
 	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
 	struct mwifiex_private *priv =
@@ -2314,7 +2377,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	for (i = 0; i < wowlan->n_patterns; i++) {
 		memset(byte_seq, 0, sizeof(byte_seq));
 		if (!mwifiex_is_pattern_supported(&wowlan->patterns[i],
-						  byte_seq)) {
+						  byte_seq,
+						  MWIFIEX_MEF_MAX_BYTESEQ)) {
 			wiphy_err(wiphy, "Pattern not supported\n");
 			kfree(mef_entry);
 			return -EOPNOTSUPP;
@@ -2322,16 +2386,16 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 
 		if (!wowlan->patterns[i].pkt_offset) {
 			if (!(byte_seq[0] & 0x01) &&
-			    (byte_seq[MAX_BYTESEQ] == 1)) {
+			    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 1)) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
 				continue;
 			} else if (is_broadcast_ether_addr(byte_seq)) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_BROADCAST;
 				continue;
 			} else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
-				    (byte_seq[MAX_BYTESEQ] == 2)) ||
+				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 2)) ||
 				   (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
-				    (byte_seq[MAX_BYTESEQ] == 3))) {
+				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 3))) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_MULTICAST;
 				continue;
 			}
@@ -2357,7 +2421,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		mef_entry->filter[filt_num].repeat = 16;
 		memcpy(mef_entry->filter[filt_num].byte_seq, priv->curr_addr,
 		       ETH_ALEN);
-		mef_entry->filter[filt_num].byte_seq[MAX_BYTESEQ] = ETH_ALEN;
+		mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
+								ETH_ALEN;
 		mef_entry->filter[filt_num].offset = 14;
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		if (filt_num)
@@ -2391,6 +2456,119 @@ static void mwifiex_cfg80211_set_wakeup(struct wiphy *wiphy,
 }
 #endif
 
+static int mwifiex_get_coalesce_pkt_type(u8 *byte_seq)
+{
+	const u8 ipv4_mc_mac[] = {0x33, 0x33};
+	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
+	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff};
+
+	if ((byte_seq[0] & 0x01) &&
+	    (byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 1))
+		return PACKET_TYPE_UNICAST;
+	else if (!memcmp(byte_seq, bc_mac, 4))
+		return PACKET_TYPE_BROADCAST;
+	else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
+		  byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 2) ||
+		 (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
+		  byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 3))
+		return PACKET_TYPE_MULTICAST;
+
+	return 0;
+}
+
+static int
+mwifiex_fill_coalesce_rule_info(struct mwifiex_private *priv,
+				struct cfg80211_coalesce_rules *crule,
+				struct mwifiex_coalesce_rule *mrule)
+{
+	u8 byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ + 1];
+	struct filt_field_param *param;
+	int i;
+
+	mrule->max_coalescing_delay = crule->delay;
+
+	param = mrule->params;
+
+	for (i = 0; i < crule->n_patterns; i++) {
+		memset(byte_seq, 0, sizeof(byte_seq));
+		if (!mwifiex_is_pattern_supported(&crule->patterns[i],
+						  byte_seq,
+						MWIFIEX_COALESCE_MAX_BYTESEQ)) {
+			dev_err(priv->adapter->dev, "Pattern not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (!crule->patterns[i].pkt_offset) {
+			u8 pkt_type;
+
+			pkt_type = mwifiex_get_coalesce_pkt_type(byte_seq);
+			if (pkt_type && mrule->pkt_type) {
+				dev_err(priv->adapter->dev,
+					"Multiple packet types not allowed\n");
+				return -EOPNOTSUPP;
+			} else if (pkt_type) {
+				mrule->pkt_type = pkt_type;
+				continue;
+			}
+		}
+
+		if (crule->condition == NL80211_COALESCE_CONDITION_MATCH)
+			param->operation = RECV_FILTER_MATCH_TYPE_EQ;
+		else
+			param->operation = RECV_FILTER_MATCH_TYPE_NE;
+
+		param->operand_len = byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ];
+		memcpy(param->operand_byte_stream, byte_seq,
+		       param->operand_len);
+		param->offset = crule->patterns[i].pkt_offset;
+		param++;
+
+		mrule->num_of_fields++;
+	}
+
+	if (!mrule->pkt_type) {
+		dev_err(priv->adapter->dev,
+			"Packet type can not be determined\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
+					 struct cfg80211_coalesce *coalesce)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	int i, ret;
+	struct mwifiex_ds_coalesce_cfg coalesce_cfg;
+	struct mwifiex_private *priv =
+			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	memset(&coalesce_cfg, 0, sizeof(coalesce_cfg));
+	if (!coalesce) {
+		dev_dbg(adapter->dev,
+			"Disable coalesce and reset all previous rules\n");
+		return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
+					     HostCmd_ACT_GEN_SET, 0,
+					     &coalesce_cfg);
+	}
+
+	coalesce_cfg.num_of_rules = coalesce->n_rules;
+	for (i = 0; i < coalesce->n_rules; i++) {
+		ret = mwifiex_fill_coalesce_rule_info(priv, &coalesce->rules[i],
+						      &coalesce_cfg.rule[i]);
+		if (ret) {
+			dev_err(priv->adapter->dev,
+				"Recheck the patterns provided for rule %d\n",
+				i + 1);
+			return ret;
+		}
+	}
+
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
+				     HostCmd_ACT_GEN_SET, 0, &coalesce_cfg);
+}
+
 /* station cfg80211 operations */
 static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_virtual_intf = mwifiex_add_virtual_intf,
@@ -2419,11 +2597,43 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.change_beacon = mwifiex_cfg80211_change_beacon,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
+	.del_station = mwifiex_cfg80211_del_station,
 #ifdef CONFIG_PM
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,
 	.set_wakeup = mwifiex_cfg80211_set_wakeup,
 #endif
+	.set_coalesce = mwifiex_cfg80211_set_coalesce,
+};
+
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT,
+	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+};
+#endif
+
+static bool mwifiex_is_valid_alpha2(const char *alpha2)
+{
+	if (!alpha2 || strlen(alpha2) != 2)
+		return false;
+
+	if (isalpha(alpha2[0]) && isalpha(alpha2[1]))
+		return true;
+
+	return false;
+}
+
+static const struct wiphy_coalesce_support mwifiex_coalesce_support = {
+	.n_rules = MWIFIEX_COALESCE_MAX_RULES,
+	.max_delay = MWIFIEX_MAX_COALESCING_DELAY,
+	.n_patterns = MWIFIEX_COALESCE_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
 };
 
 /*
@@ -2478,17 +2688,16 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_CUSTOM_REGULATORY |
+			WIPHY_FLAG_STRICT_REGULATORY |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
 #ifdef CONFIG_PM
-	wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT;
-	wiphy->wowlan.n_patterns = MWIFIEX_MAX_FILTERS;
-	wiphy->wowlan.pattern_min_len = 1;
-	wiphy->wowlan.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN;
-	wiphy->wowlan.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN;
+	wiphy->wowlan = &mwifiex_wowlan_support;
 #endif
+
+	wiphy->coalesce = &mwifiex_coalesce_support;
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
@@ -2519,10 +2728,16 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 		wiphy_free(wiphy);
 		return ret;
 	}
-	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
-	if (country_code)
-		dev_info(adapter->dev,
-			 "ignoring F/W country code %2.2s\n", country_code);
+
+	if (reg_alpha2 && mwifiex_is_valid_alpha2(reg_alpha2)) {
+		wiphy_info(wiphy, "driver hint alpha2: %2.2s\n", reg_alpha2);
+		regulatory_hint(wiphy, reg_alpha2);
+	} else {
+		country_code = mwifiex_11d_code_2_region(adapter->region_code);
+		if (country_code)
+			wiphy_info(wiphy, "ignoring F/W country code %2.2s\n",
+				   country_code);
+	}
 
 	adapter->wiphy = wiphy;
 	return ret;

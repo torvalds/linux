@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: ni_pcidio
@@ -55,10 +50,10 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 /* #define DEBUG 1 */
 /* #define DEBUG_FLAGS */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -645,32 +640,19 @@ static void debug_int(struct comedi_device *dev)
 
 static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct nidio96_private *devpriv = dev->private;
+	int ret;
 
-	if (insn->n != 1)
-		return -EINVAL;
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->
-		     io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT :
-		    COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
 	writel(s->io_bits, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_pcidio_insn_bits(struct comedi_device *dev,
@@ -971,11 +953,13 @@ static int ni_pcidio_change(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
-			      const u8 *data, size_t data_len)
+static int pci_6534_load_fpga(struct comedi_device *dev,
+			      const u8 *data, size_t data_len,
+			      unsigned long context)
 {
 	struct nidio96_private *devpriv = dev->private;
 	static const int timeout = 1000;
+	int fpga_index = context;
 	int i;
 	size_t j;
 
@@ -1033,7 +1017,7 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 
 static int pci_6534_reset_fpga(struct comedi_device *dev, int fpga_index)
 {
-	return pci_6534_load_fpga(dev, fpga_index, NULL, 0);
+	return pci_6534_load_fpga(dev, NULL, 0, fpga_index);
 }
 
 static int pci_6534_reset_fpgas(struct comedi_device *dev)
@@ -1067,13 +1051,12 @@ static void pci_6534_init_main_fpga(struct comedi_device *dev)
 static int pci_6534_upload_firmware(struct comedi_device *dev)
 {
 	struct nidio96_private *devpriv = dev->private;
-	int ret;
-	const struct firmware *fw;
 	static const char *const fw_file[3] = {
 		FW_PCI_6534_SCARAB_DI,	/* loaded into scarab A for DI */
 		FW_PCI_6534_SCARAB_DO,	/* loaded into scarab B for DO */
 		FW_PCI_6534_MAIN,	/* loaded into main FPGA */
 	};
+	int ret;
 	int n;
 
 	ret = pci_6534_reset_fpgas(dev);
@@ -1081,14 +1064,11 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 		return ret;
 	/* load main FPGA first, then the two scarabs */
 	for (n = 2; n >= 0; n--) {
-		ret = request_firmware(&fw, fw_file[n],
-				       &devpriv->mite->pcidev->dev);
-		if (ret == 0) {
-			ret = pci_6534_load_fpga(dev, n, fw->data, fw->size);
-			if (ret == 0 && n == 2)
-				pci_6534_init_main_fpga(dev);
-			release_firmware(fw);
-		}
+		ret = comedi_load_firmware(dev, &devpriv->mite->pcidev->dev,
+					   fw_file[n],
+					   pci_6534_load_fpga, n);
+		if (ret == 0 && n == 2)
+			pci_6534_init_main_fpga(dev);
 		if (ret < 0)
 			break;
 	}
@@ -1116,10 +1096,9 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 

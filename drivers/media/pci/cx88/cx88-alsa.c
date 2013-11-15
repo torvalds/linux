@@ -615,7 +615,7 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 	int changed = 0;
 	u32 old;
 
-	if (core->board.audio_chip == V4L2_IDENT_WM8775)
+	if (core->sd_wm8775)
 		snd_cx88_wm8775_volume_put(kcontrol, value);
 
 	left = value->value.integer.value[0] & 0x3f;
@@ -682,8 +682,7 @@ static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
 		vol ^= bit;
 		cx_swrite(SHADOW_AUD_VOL_CTL, AUD_VOL_CTL, vol);
 		/* Pass mute onto any WM8775 */
-		if ((core->board.audio_chip == V4L2_IDENT_WM8775) &&
-		    ((1<<6) == bit))
+		if (core->sd_wm8775 && ((1<<6) == bit))
 			wm8775_s_ctrl(core, V4L2_CID_AUDIO_MUTE, 0 != (vol & bit));
 		ret = 1;
 	}
@@ -903,7 +902,7 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 		goto error;
 
 	/* If there's a wm8775 then add a Line-In ALC switch */
-	if (core->board.audio_chip == V4L2_IDENT_WM8775)
+	if (core->sd_wm8775)
 		snd_ctl_add(card, snd_ctl_new1(&snd_cx88_alc_switch, chip));
 
 	strcpy (card->driver, "CX88x");

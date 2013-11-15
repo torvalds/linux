@@ -440,7 +440,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 	uwb_dev_init(uwb_dev);		/* This sets refcnt to one, we own it */
 	uwb_dev->mac_addr = *bce->mac_addr;
 	uwb_dev->dev_addr = bce->dev_addr;
-	dev_set_name(&uwb_dev->dev, macbuf);
+	dev_set_name(&uwb_dev->dev, "%s", macbuf);
 	result = uwb_dev_add(uwb_dev, &rc->uwb_dev.dev, rc);
 	if (result < 0) {
 		dev_err(dev, "new device %s: cannot instantiate device\n",

@@ -23,8 +23,6 @@
 #include "ulist.h"
 #include "extent_io.h"
 
-#define BTRFS_BACKREF_SEARCH_COMMIT_ROOT ((struct btrfs_trans_handle *)0)
-
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
 	struct btrfs_root		*fs_root;
@@ -74,4 +72,6 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 			  struct btrfs_inode_extref **ret_extref,
 			  u64 *found_off);
 
+int __init btrfs_prelim_ref_init(void);
+void btrfs_prelim_ref_exit(void);
 #endif

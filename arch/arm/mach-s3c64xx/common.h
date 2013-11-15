@@ -17,13 +17,15 @@
 #ifndef __ARCH_ARM_MACH_S3C64XX_COMMON_H
 #define __ARCH_ARM_MACH_S3C64XX_COMMON_H
 
+#include <linux/reboot.h>
+
 void s3c64xx_init_irq(u32 vic0, u32 vic1);
 void s3c64xx_init_io(struct map_desc *mach_desc, int size);
 
 void s3c64xx_register_clocks(unsigned long xtal, unsigned armclk_limit);
 void s3c64xx_setup_clocks(void);
 
-void s3c64xx_restart(char mode, const char *cmd);
+void s3c64xx_restart(enum reboot_mode mode, const char *cmd);
 void s3c64xx_init_late(void);
 
 #ifdef CONFIG_CPU_S3C6400

@@ -238,7 +238,7 @@ const struct file_operations spufs_context_fops = {
 	.release	= spufs_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
+	.iterate	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 EXPORT_SYMBOL_GPL(spufs_context_fops);
@@ -620,12 +620,16 @@ spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
 				return 0;
-			root->i_uid = option;
+			root->i_uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(root->i_uid))
+				return 0;
 			break;
 		case Opt_gid:
 			if (match_int(&args[0], &option))
 				return 0;
-			root->i_gid = option;
+			root->i_gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(root->i_gid))
+				return 0;
 			break;
 		case Opt_mode:
 			if (match_octal(&args[0], &option))

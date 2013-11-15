@@ -2,7 +2,7 @@
  * A driver for the Integrated Circuits ICS932S401
  * Copyright (C) 2008 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -482,7 +482,7 @@ static int ics932s401_remove(struct i2c_client *client)
 
 module_i2c_driver(ics932s401_driver);
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("ICS932S401 driver");
 MODULE_LICENSE("GPL");
 

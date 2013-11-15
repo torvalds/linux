@@ -1,4 +1,5 @@
-/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+/*
+ * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -120,21 +121,25 @@
 
 #define P_NR_CLKS		102
 
-struct clk_ops;
-extern struct clk_ops clk_ops_pcom;
+struct clk_pcom_desc {
+	unsigned id;
+	const char *name;
+	const char *con;
+	const char *dev;
+	unsigned long flags;
+};
 
-int pc_clk_reset(unsigned id, enum clk_reset_action action);
+struct pcom_clk_pdata {
+	struct clk_pcom_desc *lookup;
+	u32 num_lookups;
+};
 
 #define CLK_PCOM(clk_name, clk_id, clk_dev, clk_flags) {	\
-	.con_id = clk_name, \
-	.dev_id = clk_dev, \
-	.clk = &(struct clk){ \
-		.id = P_##clk_id, \
-		.remote_id = P_##clk_id, \
-		.ops = &clk_ops_pcom, \
-		.flags = clk_flags, \
-		.dbg_name = #clk_id, \
-	}, \
+	.id = P_##clk_id,					\
+	.name = #clk_id,					\
+	.con = clk_name,					\
+	.dev = clk_dev,						\
+	.flags = clk_flags,					\
 	}
 
 #endif

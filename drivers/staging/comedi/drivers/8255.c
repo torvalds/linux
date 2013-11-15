@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: 8255
@@ -78,10 +73,8 @@ I/O port base address can be found in the output of 'lspci -v'.
    will copy the latched value to a Comedi buffer.
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-
-#include <linux/ioport.h>
-#include <linux/slab.h>
 
 #include "comedi_fc.h"
 #include "8255.h"
@@ -191,39 +184,29 @@ static void subdev_8255_do_config(struct comedi_device *dev,
 
 static int subdev_8255_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask;
-	unsigned int bits;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-	if (mask & 0x0000ff)
-		bits = 0x0000ff;
-	else if (mask & 0x00ff00)
-		bits = 0x00ff00;
-	else if (mask & 0x0f0000)
-		bits = 0x0f0000;
+	if (chan < 8)
+		mask = 0x0000ff;
+	else if (chan < 16)
+		mask = 0x00ff00;
+	else if (chan < 20)
+		mask = 0x0f0000;
 	else
-		bits = 0xf00000;
+		mask = 0xf00000;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	subdev_8255_do_config(dev, s);
 
-	return 1;
+	return insn->n;
 }
 
 static int subdev_8255_cmdtest(struct comedi_device *dev,
@@ -290,14 +273,12 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct subdev_8255_private *spriv;
 
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
 	if (!spriv)
 		return -ENOMEM;
 
 	spriv->iobase	= iobase;
 	spriv->io	= io ? io : subdev_8255_io;
-
-	s->private	= spriv;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -391,7 +372,6 @@ static void dev_8255_detach(struct comedi_device *dev)
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
 		}
-		comedi_spriv_free(dev, i);
 	}
 }
 

@@ -280,7 +280,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 
 	tlv_buf = ((u8 *)rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
-	tlv_buf_len = *(u16 *) (tlv_buf + sizeof(u16));
+	tlv_buf_len = le16_to_cpu(*(__le16 *) (tlv_buf + sizeof(u16)));
 
 	while (tlv_buf && tlv_buf_len > 0) {
 		tlv = (*tlv_buf);
@@ -818,6 +818,18 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function handles the command response of set_cfg_data */
+static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *resp)
+{
+	if (resp->result != HostCmd_RESULT_OK) {
+		dev_err(priv->adapter->dev, "Cal data cmd resp failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -840,6 +852,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	switch (cmdresp_no) {
 	case HostCmd_CMD_GET_HW_SPEC:
 		ret = mwifiex_ret_get_hw_spec(priv, resp);
+		break;
+	case HostCmd_CMD_CFG_DATA:
+		ret = mwifiex_ret_cfg_data(priv, resp);
 		break;
 	case HostCmd_CMD_MAC_CONTROL:
 		break;
@@ -978,7 +993,11 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_UAP_BSS_STOP:
 		priv->bss_started = 0;
 		break;
+	case HostCmd_CMD_UAP_STA_DEAUTH:
+		break;
 	case HostCmd_CMD_MEF_CFG:
+		break;
+	case HostCmd_CMD_COALESCE_CFG:
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd response %#x\n",

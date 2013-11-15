@@ -99,7 +99,7 @@ static int *check_rtc_access_enable(struct nuc900_rtc *nuc900_rtc)
 	if (!timeout)
 		return ERR_PTR(-EPERM);
 
-	return 0;
+	return NULL;
 }
 
 static int nuc900_rtc_bcd2bin(unsigned int timereg,
@@ -260,15 +260,7 @@ static int __init nuc900_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit nuc900_rtc_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver nuc900_rtc_driver = {
-	.remove		= __exit_p(nuc900_rtc_remove),
 	.driver		= {
 		.name	= "nuc900-rtc",
 		.owner	= THIS_MODULE,

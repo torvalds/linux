@@ -112,9 +112,8 @@ static struct team_port *lb_hash_select_tx_port(struct team *team,
 						struct sk_buff *skb,
 						unsigned char hash)
 {
-	int port_index;
+	int port_index = team_num_to_port_index(team, hash);
 
-	port_index = hash % team->en_port_count;
 	return team_get_port_by_index_rcu(team, port_index);
 }
 

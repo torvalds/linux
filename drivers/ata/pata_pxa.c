@@ -238,7 +238,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	struct resource *ctl_res;
 	struct resource *dma_res;
 	struct resource *irq_res;
-	struct pata_pxa_pdata *pdata = pdev->dev.platform_data;
+	struct pata_pxa_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int ret = 0;
 
 	/*
@@ -371,7 +371,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 
 static int pxa_ata_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct pata_pxa_data *data = host->ports[0]->private_data;
 
 	pxa_free_dma(data->dma_channel);

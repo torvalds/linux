@@ -699,6 +699,8 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->cnt = req->length;
 	req->id = que_id;
 	reg = ISP_QUE_REG(ha, que_id);
+	req->req_q_in = &reg->isp25mq.req_q_in;
+	req->req_q_out = &reg->isp25mq.req_q_out;
 	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
 	mutex_unlock(&ha->vport_lock);
 	ql_dbg(ql_dbg_multiq, base_vha, 0xc004,

@@ -59,6 +59,9 @@ struct usb_hub {
 	struct usb_tt		tt;		/* Transaction Translator */
 
 	unsigned		mA_per_port;	/* current for each child */
+#ifdef	CONFIG_PM
+	unsigned		wakeup_enabled_descendants;
+#endif
 
 	unsigned		limited_power:1;
 	unsigned		quiescing:1;
@@ -100,7 +103,7 @@ extern int usb_hub_create_port_device(struct usb_hub *hub,
 		int port1);
 extern void usb_hub_remove_port_device(struct usb_hub *hub,
 		int port1);
-extern int usb_hub_set_port_power(struct usb_device *hdev,
+extern int usb_hub_set_port_power(struct usb_device *hdev, struct usb_hub *hub,
 		int port1, bool set);
 extern struct usb_hub *usb_hub_to_struct_hub(struct usb_device *hdev);
 extern int hub_port_debounce(struct usb_hub *hub, int port1,

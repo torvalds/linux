@@ -68,6 +68,9 @@ void bcm63xx_machine_reboot(void)
 
 	/* mask and clear all external irq */
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM3368_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_3368;
+		break;
 	case BCM6328_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6328;
 		break;

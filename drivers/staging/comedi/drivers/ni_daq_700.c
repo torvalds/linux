@@ -15,11 +15,6 @@
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /*
@@ -40,7 +35,7 @@ port, bit 0; channel 8 corresponds to the input port, bit 0.
 Digital direction configuration: channels 0-7 output, 8-15 input (8225 device
 emu as port A output, port B input, port C N/A).
 
-Analog: The input  range is 0 to 4095 for -10 to +10 volts 
+Analog: The input  range is 0 to 4095 for -10 to +10 volts
 IRQ is assigned but not used.
 
 Version 0.1	Original DIO only driver
@@ -50,9 +45,9 @@ Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
 		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
 */
 
-#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -95,21 +90,17 @@ static int daq700_dio_insn_bits(struct comedi_device *dev,
 
 static int daq700_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan = 1 << CR_CHAN(insn->chanspec);
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* The DIO channels are not configurable, fix the io_bits */
+	s->io_bits = 0x00ff;
 
 	return insn->n;
 }
@@ -183,7 +174,7 @@ static int daq700_ai_rinsn(struct comedi_device *dev,
  */
 static void daq700_ai_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
-{			
+{
 	unsigned long iobase = dev->iobase;
 
 	outb(0x80, iobase + CMD_R1);	/* disable scanning, ADC to chan 0 */

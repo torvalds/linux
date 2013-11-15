@@ -29,9 +29,6 @@
 /* For automatically allocated device IDs */
 static DEFINE_IDA(platform_devid_ida);
 
-#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
-				 driver))
-
 struct device platform_bus = {
 	.init_name	= "platform",
 };
@@ -523,11 +520,14 @@ static void platform_drv_shutdown(struct device *_dev)
 }
 
 /**
- * platform_driver_register - register a driver for platform-level devices
+ * __platform_driver_register - register a driver for platform-level devices
  * @drv: platform driver structure
+ * @owner: owning module/driver
  */
-int platform_driver_register(struct platform_driver *drv)
+int __platform_driver_register(struct platform_driver *drv,
+				struct module *owner)
 {
+	drv->driver.owner = owner;
 	drv->driver.bus = &platform_bus_type;
 	if (drv->probe)
 		drv->driver.probe = platform_drv_probe;
@@ -538,7 +538,7 @@ int platform_driver_register(struct platform_driver *drv)
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(platform_driver_register);
+EXPORT_SYMBOL_GPL(__platform_driver_register);
 
 /**
  * platform_driver_unregister - unregister a driver for platform-level devices
@@ -672,11 +672,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute platform_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *platform_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(platform_dev);
 
 static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -888,13 +890,12 @@ int platform_pm_restore(struct device *dev)
 static const struct dev_pm_ops platform_dev_pm_ops = {
 	.runtime_suspend = pm_generic_runtime_suspend,
 	.runtime_resume = pm_generic_runtime_resume,
-	.runtime_idle = pm_generic_runtime_idle,
 	USE_PLATFORM_PM_SLEEP_OPS
 };
 
 struct bus_type platform_bus_type = {
 	.name		= "platform",
-	.dev_attrs	= platform_dev_attrs,
+	.dev_groups	= platform_dev_groups,
 	.match		= platform_match,
 	.uevent		= platform_uevent,
 	.pm		= &platform_dev_pm_ops,
@@ -1055,7 +1056,7 @@ void __init early_platform_driver_register_all(char *class_str)
  * @epdrv: early platform driver structure
  * @id: id to match against
  */
-static  __init struct platform_device *
+static struct platform_device * __init
 early_platform_match(struct early_platform_driver *epdrv, int id)
 {
 	struct platform_device *pd;
@@ -1073,7 +1074,7 @@ early_platform_match(struct early_platform_driver *epdrv, int id)
  * @epdrv: early platform driver structure
  * @id: return true if id or above exists
  */
-static  __init int early_platform_left(struct early_platform_driver *epdrv,
+static int __init early_platform_left(struct early_platform_driver *epdrv,
 				       int id)
 {
 	struct platform_device *pd;

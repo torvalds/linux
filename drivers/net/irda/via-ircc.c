@@ -210,8 +210,7 @@ static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 			pci_write_config_byte(pcidev,0x42,(bTmp | 0xf0));
 			pci_write_config_byte(pcidev,0x5a,0xc0);
 			WriteLPCReg(0x28, 0x70 );
-			if (via_ircc_open(pcidev, &info, 0x3076) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3076);
 		} else
 			rc = -ENODEV; //IR not turn on	 
 	} else { //Not VT1211
@@ -249,8 +248,7 @@ static int via_init_one(struct pci_dev *pcidev, const struct pci_device_id *id)
 			info.irq=FirIRQ;
 			info.dma=FirDRQ1;
 			info.dma2=FirDRQ0;
-			if (via_ircc_open(pcidev, &info, 0x3096) == 0)
-				rc=0;
+			rc = via_ircc_open(pcidev, &info, 0x3096);
 		} else
 			rc = -ENODEV; //IR not turn on !!!!!
 	}//Not VT1211
@@ -363,16 +361,16 @@ static int via_ircc_open(struct pci_dev *pdev, chipio_t *info, unsigned int id)
 
 	/* Allocate memory if needed */
 	self->rx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->rx_buff.truesize,
+				    &self->rx_buff_dma, GFP_KERNEL);
 	if (self->rx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out2;
 	}
 
 	self->tx_buff.head =
-		dma_alloc_coherent(&pdev->dev, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+		dma_zalloc_coherent(&pdev->dev, self->tx_buff.truesize,
+				    &self->tx_buff_dma, GFP_KERNEL);
 	if (self->tx_buff.head == NULL) {
 		err = -ENOMEM;
 		goto err_out3;

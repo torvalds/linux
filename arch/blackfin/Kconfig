@@ -32,7 +32,6 @@ config BLACKFIN
 	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select VIRT_TO_BUS
 	select ARCH_WANT_IPC_PARSE_VERSION
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_PROBE
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -41,6 +40,7 @@ config BLACKFIN
 	select ARCH_USES_GETTIMEOFFSET if !GENERIC_CLOCKEVENTS
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config GENERIC_CSUM
 	def_bool y
@@ -253,7 +253,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG
+	depends on SMP
 	default y
 
 config BF_REV_MIN
@@ -282,7 +282,7 @@ config BF_REV_0_0
 
 config BF_REV_0_1
 	bool "0.1"
-	depends on (BF51x || BF52x || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || (BF54x && !BF54xM) || BF60x)
 
 config BF_REV_0_2
 	bool "0.2"

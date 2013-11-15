@@ -250,7 +250,7 @@ extern struct ino_bucket *ivector_table;
 extern unsigned long ivector_table_pa;
 
 extern void init_irqwork_curcpu(void);
-extern void __cpuinit sun4v_register_mondo_queues(int this_cpu);
+extern void sun4v_register_mondo_queues(int this_cpu);
 
 #endif /* CONFIG_SPARC32 */
 #endif /* _ENTRY_H */

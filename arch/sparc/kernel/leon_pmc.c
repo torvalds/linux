@@ -47,6 +47,10 @@ void pmc_leon_idle_fixup(void)
 	 * MMU does not get a TLB miss here by using the MMU BYPASS ASI.
 	 */
 	register unsigned int address = (unsigned int)leon3_irqctrl_regs;
+
+	/* Interrupts need to be enabled to not hang the CPU */
+	local_irq_enable();
+
 	__asm__ __volatile__ (
 		"wr	%%g0, %%asr19\n"
 		"lda	[%0] %1, %%g0\n"
@@ -60,6 +64,9 @@ void pmc_leon_idle_fixup(void)
  */
 void pmc_leon_idle(void)
 {
+	/* Interrupts need to be enabled to not hang the CPU */
+	local_irq_enable();
+
 	/* For systems without power-down, this will be no-op */
 	__asm__ __volatile__ ("wr	%g0, %asr19\n\t");
 }

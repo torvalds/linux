@@ -186,22 +186,6 @@ static int ade7854_reset(struct device *dev)
 	return st->write_reg_16(dev, ADE7854_CONFIG, val);
 }
 
-
-static ssize_t ade7854_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return ade7854_reset(dev);
-	}
-	return -1;
-}
-
 static IIO_DEV_ATTR_AIGAIN(S_IWUSR | S_IRUGO,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
@@ -468,8 +452,6 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_RESET(ade7854_write_reset);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("8000");
 
 static IIO_CONST_ATTR(name, "ade7854");
@@ -515,7 +497,6 @@ static struct attribute *ade7854_attributes[] = {
 	&iio_dev_attr_bvahr.dev_attr.attr,
 	&iio_dev_attr_cvahr.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
 	&iio_dev_attr_vpeak.dev_attr.attr,
 	&iio_dev_attr_ipeak.dev_attr.attr,

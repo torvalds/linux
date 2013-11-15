@@ -22,8 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/devinit.h>
-#include <subdev/vga.h>
+#include "priv.h"
 
 struct nv1a_devinit_priv {
 	struct nouveau_devinit base;
@@ -43,6 +42,7 @@ nv1a_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	priv->base.pll_set = nv04_devinit_pll_set;
 	return 0;
 }
 

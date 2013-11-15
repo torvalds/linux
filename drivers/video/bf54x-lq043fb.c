@@ -681,7 +681,6 @@ out3:
 out2:
 	free_dma(CH_EPPI0);
 out1:
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }

@@ -396,7 +396,7 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	new_bw = ieee80211_sta_cur_vht_bw(sta);
 	if (new_bw != sta->sta.bandwidth) {
 		sta->sta.bandwidth = new_bw;
-		changed |= IEEE80211_RC_NSS_CHANGED;
+		changed |= IEEE80211_RC_BW_CHANGED;
 	}
 
  change:

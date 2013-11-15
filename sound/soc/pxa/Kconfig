@@ -11,7 +11,7 @@ config SND_PXA2XX_SOC
 config SND_MMP_SOC
 	bool "Soc Audio for Marvell MMP chips"
 	depends on ARCH_MMP
-	select SND_SOC_DMAENGINE_PCM
+	select SND_DMAENGINE_PCM
 	select SND_ARM
 	help
 	  Say Y if you want to add support for codecs attached to
@@ -129,26 +129,6 @@ config SND_PXA2XX_SOC_PALM27X
 	help
 	  Say Y if you want to add support for SoC audio on
 	  Palm T|X, T5, E2 or LifeDrive handheld computer.
-
-config SND_SOC_SAARB
-	tristate "SoC Audio support for Marvell Saarb"
-	depends on SND_PXA2XX_SOC && MACH_SAARB
-	select MFD_88PM860X
-	select SND_PXA_SOC_SSP
-	select SND_SOC_88PM860X
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  Marvell Saarb reference platform.
-
-config SND_SOC_TAVOREVB3
-	tristate "SoC Audio support for Marvell Tavor EVB3"
-	depends on SND_PXA2XX_SOC && MACH_TAVOREVB3
-	select MFD_88PM860X
-	select SND_PXA_SOC_SSP
-	select SND_SOC_88PM860X
-	help
-	  Say Y if you want to add support for SoC audio on the
-	  Marvell Saarb reference platform.
 
 config SND_PXA910_SOC
 	tristate "SoC Audio for Marvell PXA910 chip"

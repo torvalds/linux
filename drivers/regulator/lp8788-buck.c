@@ -533,7 +533,6 @@ static int lp8788_buck_remove(struct platform_device *pdev)
 {
 	struct lp8788_buck *buck = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(buck->regulator);
 
 	return 0;

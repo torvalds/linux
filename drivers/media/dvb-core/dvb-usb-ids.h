@@ -367,4 +367,8 @@
 #define USB_PID_TECHNISAT_USB2_HDCI_V2			0x0002
 #define USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2		0x0004
 #define USB_PID_TECHNISAT_USB2_DVB_S2			0x0500
+#define USB_PID_CPYTO_REDI_PC50A			0xa803
+#define USB_PID_CTVDIGDUAL_V2				0xe410
+#define USB_PID_PCTV_2002E                              0x025c
+#define USB_PID_PCTV_2002E_SE                           0x025d
 #endif

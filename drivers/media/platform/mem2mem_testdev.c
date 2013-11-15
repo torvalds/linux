@@ -1051,6 +1051,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 
 	*vfd = m2mtest_videodev;
 	vfd->lock = &dev->dev_mutex;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
@@ -1061,7 +1062,7 @@ static int m2mtest_probe(struct platform_device *pdev)
 	video_set_drvdata(vfd, dev);
 	snprintf(vfd->name, sizeof(vfd->name), "%s", m2mtest_videodev.name);
 	dev->vfd = vfd;
-	v4l2_info(&dev->v4l2_dev, MEM2MEM_TEST_MODULE_NAME
+	v4l2_info(&dev->v4l2_dev,
 			"Device registered as /dev/video%d\n", vfd->num);
 
 	setup_timer(&dev->timer, device_isr, (long)dev);

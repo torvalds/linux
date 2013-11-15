@@ -4,7 +4,7 @@
  * This file contains the Storage Engine <-> Ramdisk transport
  * specific functions.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
@@ -139,6 +139,11 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 			rd_dev->rd_page_count);
 		return -EINVAL;
 	}
+
+	/* Don't need backing pages for NULLIO */
+	if (rd_dev->rd_flags & RDF_NULLIO)
+		return 0;
+
 	total_sg_needed = rd_dev->rd_page_count;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
@@ -275,11 +280,9 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 }
 
 static sense_reason_t
-rd_execute_rw(struct se_cmd *cmd)
+rd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+	      enum dma_data_direction data_direction)
 {
-	struct scatterlist *sgl = cmd->t_data_sg;
-	u32 sgl_nents = cmd->t_data_nents;
-	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *se_dev = cmd->se_dev;
 	struct rd_dev *dev = RD_DEV(se_dev);
 	struct rd_dev_sg_table *table;

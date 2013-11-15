@@ -1225,20 +1225,7 @@ static struct pci_driver pt1_driver = {
 	.id_table	= pt1_id_table,
 };
 
-
-static int __init pt1_init(void)
-{
-	return pci_register_driver(&pt1_driver);
-}
-
-
-static void __exit pt1_cleanup(void)
-{
-	pci_unregister_driver(&pt1_driver);
-}
-
-module_init(pt1_init);
-module_exit(pt1_cleanup);
+module_pci_driver(pt1_driver);
 
 MODULE_AUTHOR("Takahito HIRANO <hiranotaka@zng.info>");
 MODULE_DESCRIPTION("Earthsoft PT1/PT2 Driver");

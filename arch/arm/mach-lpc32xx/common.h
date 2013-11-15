@@ -21,6 +21,7 @@
 
 #include <mach/board.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 
 /*
  * Other arch specific structures and functions
@@ -29,7 +30,7 @@ extern void lpc32xx_timer_init(void);
 extern void __init lpc32xx_init_irq(void);
 extern void __init lpc32xx_map_io(void);
 extern void __init lpc32xx_serial_init(void);
-extern void lpc23xx_restart(char, const char *);
+extern void lpc23xx_restart(enum reboot_mode, const char *);
 
 
 /*

@@ -11,7 +11,6 @@ config OPENRISC
 	select HAVE_MEMBLOCK
 	select ARCH_REQUIRE_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
-	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -22,6 +21,7 @@ config OPENRISC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select MODULES_USE_ELF_RELA
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config MMU
 	def_bool y
@@ -54,6 +54,7 @@ config GENERIC_CSUM
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -127,16 +128,6 @@ config CMDLINE
           here.
 
 menu "Debugging options"
-
-config DEBUG_STACKOVERFLOW
-	bool "Check for kernel stack overflow"
-	default y
-	help
-	  Make extra checks for space available on stack in some
-          critical functions. This will cause kernel to run a bit slower,
-	  but will catch most of kernel stack overruns and exit gracefully.
-
-	  Say Y if you are unsure.
 
 config JUMP_UPON_UNHANDLED_EXCEPTION
 	bool "Try to die gracefully"

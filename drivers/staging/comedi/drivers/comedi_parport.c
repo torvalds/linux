@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: comedi_parport
@@ -81,9 +76,9 @@ pin, which can be used to wake up tasks.
    or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
  */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/interrupt.h>
-#include <linux/ioport.h>
 
 #include "comedi_fc.h"
 
@@ -284,10 +279,9 @@ static int parport_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;

@@ -984,7 +984,6 @@ out:
 static void snd_card_als4000_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

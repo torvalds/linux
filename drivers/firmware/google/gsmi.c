@@ -525,7 +525,7 @@ static ssize_t gsmi_clear_eventlog_store(struct kobject *kobj,
 		u32 data_type;
 	} param;
 
-	rc = strict_strtoul(buf, 0, &val);
+	rc = kstrtoul(buf, 0, &val);
 	if (rc)
 		return rc;
 

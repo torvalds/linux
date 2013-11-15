@@ -41,12 +41,18 @@ struct callchain_param;
 typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_root *,
 				 u64, struct callchain_param *);
 
+enum chain_key {
+	CCKEY_FUNCTION,
+	CCKEY_ADDRESS
+};
+
 struct callchain_param {
 	enum chain_mode 	mode;
 	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
 	enum chain_order	order;
+	enum chain_key		key;
 };
 
 struct callchain_list {
@@ -103,11 +109,6 @@ int callchain_append(struct callchain_root *root,
 int callchain_merge(struct callchain_cursor *cursor,
 		    struct callchain_root *dst, struct callchain_root *src);
 
-struct ip_callchain;
-union perf_event;
-
-bool ip_callchain__valid(struct ip_callchain *chain,
-			 const union perf_event *event);
 /*
  * Initialize a cursor before adding entries inside, but keep
  * the previously allocated entries as a cache.

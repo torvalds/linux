@@ -639,7 +639,8 @@ static int vpfe_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_free_dev_mem;
 
-	if (vpfe_initialize_modules(vpfe_dev, pdev))
+	ret = vpfe_initialize_modules(vpfe_dev, pdev);
+	if (ret)
 		goto probe_disable_clock;
 
 	vpfe_dev->media_dev.dev = vpfe_dev->pdev;
@@ -663,7 +664,8 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, vpfe_dev);
 	/* register subdevs/entities */
-	if (vpfe_register_entities(vpfe_dev))
+	ret = vpfe_register_entities(vpfe_dev);
+	if (ret)
 		goto probe_out_v4l2_unregister;
 
 	ret = vpfe_attach_irq(vpfe_dev);

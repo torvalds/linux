@@ -279,7 +279,6 @@ out_release:
 		release_region(res_gpi->start, resource_size(res_gpi));
 	if (vg->gpo_reserved)
 		release_region(res_gpi->start, resource_size(res_gpo));
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return ret;
 }
@@ -301,7 +300,6 @@ static int vx855gpio_remove(struct platform_device *pdev)
 		release_region(res->start, resource_size(res));
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return 0;
 }

@@ -1,5 +1,8 @@
 include ../../scripts/Makefile.include
 
+CC = $(CROSS_COMPILE)gcc
+AR = $(CROSS_COMPILE)ar
+
 # guard against environment variables
 LIB_H=
 LIB_OBJS=
@@ -11,7 +14,7 @@ LIB_OBJS += $(OUTPUT)debugfs.o
 LIBFILE = liblk.a
 
 CFLAGS = -ggdb3 -Wall -Wextra -std=gnu99 -Werror -O6 -D_FORTIFY_SOURCE=2 $(EXTRA_WARNINGS) $(EXTRA_CFLAGS) -fPIC
-EXTLIBS = -lpthread -lrt -lelf -lm
+EXTLIBS = -lelf -lpthread -lrt -lm
 ALL_CFLAGS = $(CFLAGS) $(BASIC_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 ALL_LDFLAGS = $(LDFLAGS)
 

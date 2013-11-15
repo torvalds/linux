@@ -566,7 +566,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 /**
  * __next_free_mem_range - next function for for_each_free_mem_range()
  * @idx: pointer to u64 loop variable
- * @nid: nid: node selector, %MAX_NUMNODES for all nodes
+ * @nid: node selector, %MAX_NUMNODES for all nodes
  * @out_start: ptr to phys_addr_t for start address of the range, can be %NULL
  * @out_end: ptr to phys_addr_t for end address of the range, can be %NULL
  * @out_nid: ptr to int for nid of the range, can be %NULL
@@ -913,6 +913,24 @@ int __init_memblock memblock_is_memory(phys_addr_t addr)
 {
 	return memblock_search(&memblock.memory, addr) != -1;
 }
+
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
+			 unsigned long *start_pfn, unsigned long *end_pfn)
+{
+	struct memblock_type *type = &memblock.memory;
+	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
+
+	if (mid == -1)
+		return -1;
+
+	*start_pfn = type->regions[mid].base >> PAGE_SHIFT;
+	*end_pfn = (type->regions[mid].base + type->regions[mid].size)
+			>> PAGE_SHIFT;
+
+	return type->regions[mid].nid;
+}
+#endif
 
 /**
  * memblock_is_region_memory - check if a region is a subset of memory

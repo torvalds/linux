@@ -211,6 +211,7 @@ struct channel_info {
 	short max_power;
 	short default_power1;
 	short default_power2;
+	short default_power3;
 };
 
 /*
@@ -648,11 +649,7 @@ struct rt2x00_ops {
 	const unsigned int eeprom_size;
 	const unsigned int rf_size;
 	const unsigned int tx_queues;
-	const unsigned int extra_tx_headroom;
-	const struct data_queue_desc *rx;
-	const struct data_queue_desc *tx;
-	const struct data_queue_desc *bcn;
-	const struct data_queue_desc *atim;
+	void (*queue_init)(struct data_queue *queue);
 	const struct rt2x00lib_ops *lib;
 	const void *drv;
 	const struct ieee80211_ops *hw;
@@ -1010,6 +1007,9 @@ struct rt2x00_dev {
 	 */
 	struct list_head bar_list;
 	spinlock_t bar_list_lock;
+
+	/* Extra TX headroom required for alignment purposes. */
+	unsigned int extra_tx_headroom;
 };
 
 struct rt2x00_bar_list_entry {

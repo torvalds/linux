@@ -2,7 +2,7 @@
  * net/tipc/link.c: TIPC link code
  *
  * Copyright (c) 1996-2007, 2012, Ericsson AB
- * Copyright (c) 2004-2007, 2010-2011, Wind River Systems
+ * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
 #include "name_distr.h"
 #include "discover.h"
 #include "config.h"
+
+#include <linux/pkt_sched.h>
 
 /*
  * Error message prefixes
@@ -771,8 +773,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
  * link_bundle_buf(): Append contents of a buffer to
  * the tail of an existing one.
  */
-static int link_bundle_buf(struct tipc_link *l_ptr,
-			   struct sk_buff *bundler,
+static int link_bundle_buf(struct tipc_link *l_ptr, struct sk_buff *bundler,
 			   struct sk_buff *buf)
 {
 	struct tipc_msg *bundler_msg = buf_msg(bundler);
@@ -1057,40 +1058,6 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
 }
 
 /*
- * tipc_send_buf_fast: Entry for data messages where the
- * destination node is known and the header is complete,
- * inclusive total message length.
- * Returns user data length.
- */
-int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
-{
-	struct tipc_link *l_ptr;
-	struct tipc_node *n_ptr;
-	int res;
-	u32 selector = msg_origport(buf_msg(buf)) & 1;
-	u32 dummy;
-
-	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_find(destnode);
-	if (likely(n_ptr)) {
-		tipc_node_lock(n_ptr);
-		l_ptr = n_ptr->active_links[selector];
-		if (likely(l_ptr)) {
-			res = link_send_buf_fast(l_ptr, buf, &dummy);
-			tipc_node_unlock(n_ptr);
-			read_unlock_bh(&tipc_net_lock);
-			return res;
-		}
-		tipc_node_unlock(n_ptr);
-	}
-	read_unlock_bh(&tipc_net_lock);
-	res = msg_data_sz(buf_msg(buf));
-	tipc_reject_msg(buf, TIPC_ERR_NO_NODE);
-	return res;
-}
-
-
-/*
  * tipc_link_send_sections_fast: Entry for messages where the
  * destination processor is known and the header is complete,
  * except for total message length.
@@ -1098,8 +1065,7 @@ int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
  */
 int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
-				 const u32 num_sect,
-				 unsigned int total_len,
+				 const u32 num_sect, unsigned int total_len,
 				 u32 destaddr)
 {
 	struct tipc_msg *hdr = &sender->phdr;
@@ -1115,7 +1081,10 @@ again:
 	 * (Must not hold any locks while building message.)
 	 */
 	res = tipc_msg_build(hdr, msg_sect, num_sect, total_len,
-			     sender->max_pkt, !sender->user_port, &buf);
+			     sender->max_pkt, &buf);
+	/* Exit if build request was invalid */
+	if (unlikely(res < 0))
+		return res;
 
 	read_lock_bh(&tipc_net_lock);
 	node = tipc_node_find(destaddr);
@@ -1131,10 +1100,6 @@ exit:
 				read_unlock_bh(&tipc_net_lock);
 				return res;
 			}
-
-			/* Exit if build request was invalid */
-			if (unlikely(res < 0))
-				goto exit;
 
 			/* Exit if link (or bearer) is congested */
 			if (link_congested(l_ptr) ||
@@ -1189,8 +1154,7 @@ exit:
  */
 static int link_send_sections_long(struct tipc_port *sender,
 				   struct iovec const *msg_sect,
-				   u32 num_sect,
-				   unsigned int total_len,
+				   u32 num_sect, unsigned int total_len,
 				   u32 destaddr)
 {
 	struct tipc_link *l_ptr;
@@ -1204,6 +1168,7 @@ static int link_send_sections_long(struct tipc_port *sender,
 	const unchar *sect_crs;
 	int curr_sect;
 	u32 fragm_no;
+	int res = 0;
 
 again:
 	fragm_no = 1;
@@ -1250,18 +1215,15 @@ again:
 		else
 			sz = fragm_rest;
 
-		if (likely(!sender->user_port)) {
-			if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
+		if (copy_from_user(buf->data + fragm_crs, sect_crs, sz)) {
+			res = -EFAULT;
 error:
-				for (; buf_chain; buf_chain = buf) {
-					buf = buf_chain->next;
-					kfree_skb(buf_chain);
-				}
-				return -EFAULT;
+			for (; buf_chain; buf_chain = buf) {
+				buf = buf_chain->next;
+				kfree_skb(buf_chain);
 			}
-		} else
-			skb_copy_to_linear_data_offset(buf, fragm_crs,
-						       sect_crs, sz);
+			return res;
+		}
 		sect_crs += sz;
 		sect_rest -= sz;
 		fragm_crs += sz;
@@ -1281,8 +1243,10 @@ error:
 			msg_set_fragm_no(&fragm_hdr, ++fragm_no);
 			prev = buf;
 			buf = tipc_buf_acquire(fragm_sz + INT_H_SIZE);
-			if (!buf)
+			if (!buf) {
+				res = -ENOMEM;
 				goto error;
+			}
 
 			buf->next = NULL;
 			prev->next = buf;
@@ -1446,7 +1410,7 @@ static void link_reset_all(unsigned long addr)
 }
 
 static void link_retransmit_failure(struct tipc_link *l_ptr,
-					struct sk_buff *buf)
+				    struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 
@@ -1901,8 +1865,8 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
  * Send protocol message to the other endpoint.
  */
 void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
-				int probe_msg, u32 gap, u32 tolerance,
-				u32 priority, u32 ack_mtu)
+			      int probe_msg, u32 gap, u32 tolerance,
+			      u32 priority, u32 ack_mtu)
 {
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = l_ptr->pmsg;
@@ -1988,6 +1952,7 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 		return;
 
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
+	buf->priority = TC_PRIO_CONTROL;
 
 	/* Defer message if bearer is already blocked */
 	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
@@ -2145,8 +2110,7 @@ exit:
  * another bearer. Owner node is locked.
  */
 static void tipc_link_tunnel(struct tipc_link *l_ptr,
-			     struct tipc_msg *tunnel_hdr,
-			     struct tipc_msg  *msg,
+			     struct tipc_msg *tunnel_hdr, struct tipc_msg *msg,
 			     u32 selector)
 {
 	struct tipc_link *tunnel;

@@ -27,6 +27,7 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8350 *wm8350;
+	struct wm8350_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
 
 	wm8350 = devm_kzalloc(&i2c->dev, sizeof(struct wm8350), GFP_KERNEL);
@@ -44,7 +45,7 @@ static int wm8350_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, wm8350);
 	wm8350->dev = &i2c->dev;
 
-	return wm8350_device_init(wm8350, i2c->irq, i2c->dev.platform_data);
+	return wm8350_device_init(wm8350, i2c->irq, pdata);
 }
 
 static int wm8350_i2c_remove(struct i2c_client *i2c)

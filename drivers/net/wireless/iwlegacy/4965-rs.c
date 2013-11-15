@@ -2268,7 +2268,7 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		info->control.rates[0].flags = 0;
 	}
 	info->control.rates[0].idx = rate_idx;
-
+	info->control.rates[0].count = 1;
 }
 
 static void *
@@ -2803,6 +2803,7 @@ il4965_rs_remove_debugfs(void *il, void *il_sta)
  */
 static void
 il4965_rs_rate_init_stub(void *il_r, struct ieee80211_supported_band *sband,
+			 struct cfg80211_chan_def *chandef,
 			 struct ieee80211_sta *sta, void *il_sta)
 {
 }

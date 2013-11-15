@@ -13,7 +13,7 @@
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK		(~(PAGE_SIZE-1))
+#define PAGE_MASK		(~((1 << PAGE_SHIFT) - 1))
 
 #ifndef __ASSEMBLY__
 
@@ -142,7 +142,9 @@ extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);
 
+#ifdef CONFIG_KUSER_HELPERS
 #define __HAVE_ARCH_GATE_AREA 1
+#endif
 
 #ifdef CONFIG_ARM_LPAE
 #include <asm/pgtable-3level-types.h>

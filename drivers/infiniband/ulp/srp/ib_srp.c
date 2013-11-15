@@ -53,8 +53,8 @@
 
 #define DRV_NAME	"ib_srp"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"0.2"
-#define DRV_RELDATE	"November 1, 2005"
+#define DRV_VERSION	"1.0"
+#define DRV_RELDATE	"July 1, 2013"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator "
@@ -231,14 +231,16 @@ static int srp_create_target_ib(struct srp_target_port *target)
 		return -ENOMEM;
 
 	recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-			       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
+			       srp_recv_completion, NULL, target, SRP_RQ_SIZE,
+			       target->comp_vector);
 	if (IS_ERR(recv_cq)) {
 		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
 	send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-			       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
+			       srp_send_completion, NULL, target, SRP_SQ_SIZE,
+			       target->comp_vector);
 	if (IS_ERR(send_cq)) {
 		ret = PTR_ERR(send_cq);
 		goto err_recv_cq;
@@ -542,11 +544,11 @@ static void srp_remove_work(struct work_struct *work)
 
 	WARN_ON_ONCE(target->state != SRP_TARGET_REMOVED);
 
+	srp_remove_target(target);
+
 	spin_lock(&target->srp_host->target_lock);
 	list_del(&target->list);
 	spin_unlock(&target->srp_host->target_lock);
-
-	srp_remove_target(target);
 }
 
 static void srp_rport_delete(struct srp_rport *rport)
@@ -1744,18 +1746,24 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_request *req = (struct srp_request *) scmnd->host_scribble;
+	int ret;
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
 	if (!req || !srp_claim_req(target, req, scmnd))
 		return FAILED;
-	srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
-			  SRP_TSK_ABORT_TASK);
+	if (srp_send_tsk_mgmt(target, req->index, scmnd->device->lun,
+			      SRP_TSK_ABORT_TASK) == 0)
+		ret = SUCCESS;
+	else if (target->transport_offline)
+		ret = FAST_IO_FAIL;
+	else
+		ret = FAILED;
 	srp_free_req(target, req, scmnd, 0);
 	scmnd->result = DID_ABORT << 16;
 	scmnd->scsi_done(scmnd);
 
-	return SUCCESS;
+	return ret;
 }
 
 static int srp_reset_device(struct scsi_cmnd *scmnd)
@@ -1891,6 +1899,14 @@ static ssize_t show_local_ib_device(struct device *dev,
 	return sprintf(buf, "%s\n", target->srp_host->srp_dev->dev->name);
 }
 
+static ssize_t show_comp_vector(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct srp_target_port *target = host_to_target(class_to_shost(dev));
+
+	return sprintf(buf, "%d\n", target->comp_vector);
+}
+
 static ssize_t show_cmd_sg_entries(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -1917,6 +1933,7 @@ static DEVICE_ATTR(req_lim,         S_IRUGO, show_req_lim,         NULL);
 static DEVICE_ATTR(zero_req_lim,    S_IRUGO, show_zero_req_lim,	   NULL);
 static DEVICE_ATTR(local_ib_port,   S_IRUGO, show_local_ib_port,   NULL);
 static DEVICE_ATTR(local_ib_device, S_IRUGO, show_local_ib_device, NULL);
+static DEVICE_ATTR(comp_vector,     S_IRUGO, show_comp_vector,     NULL);
 static DEVICE_ATTR(cmd_sg_entries,  S_IRUGO, show_cmd_sg_entries,  NULL);
 static DEVICE_ATTR(allow_ext_sg,    S_IRUGO, show_allow_ext_sg,    NULL);
 
@@ -1931,6 +1948,7 @@ static struct device_attribute *srp_host_attrs[] = {
 	&dev_attr_zero_req_lim,
 	&dev_attr_local_ib_port,
 	&dev_attr_local_ib_device,
+	&dev_attr_comp_vector,
 	&dev_attr_cmd_sg_entries,
 	&dev_attr_allow_ext_sg,
 	NULL
@@ -1946,6 +1964,7 @@ static struct scsi_host_template srp_template = {
 	.eh_abort_handler		= srp_abort,
 	.eh_device_reset_handler	= srp_reset_device,
 	.eh_host_reset_handler		= srp_reset_host,
+	.skip_settle_delay		= true,
 	.sg_tablesize			= SRP_DEF_SG_TABLESIZE,
 	.can_queue			= SRP_CMD_SQ_SIZE,
 	.this_id			= -1,
@@ -2001,6 +2020,36 @@ static struct class srp_class = {
 	.dev_release = srp_release_dev
 };
 
+/**
+ * srp_conn_unique() - check whether the connection to a target is unique
+ */
+static bool srp_conn_unique(struct srp_host *host,
+			    struct srp_target_port *target)
+{
+	struct srp_target_port *t;
+	bool ret = false;
+
+	if (target->state == SRP_TARGET_REMOVED)
+		goto out;
+
+	ret = true;
+
+	spin_lock(&host->target_lock);
+	list_for_each_entry(t, &host->target_list, list) {
+		if (t != target &&
+		    target->id_ext == t->id_ext &&
+		    target->ioc_guid == t->ioc_guid &&
+		    target->initiator_ext == t->initiator_ext) {
+			ret = false;
+			break;
+		}
+	}
+	spin_unlock(&host->target_lock);
+
+out:
+	return ret;
+}
+
 /*
  * Target ports are added by writing
  *
@@ -2023,6 +2072,7 @@ enum {
 	SRP_OPT_CMD_SG_ENTRIES	= 1 << 9,
 	SRP_OPT_ALLOW_EXT_SG	= 1 << 10,
 	SRP_OPT_SG_TABLESIZE	= 1 << 11,
+	SRP_OPT_COMP_VECTOR	= 1 << 12,
 	SRP_OPT_ALL		= (SRP_OPT_ID_EXT	|
 				   SRP_OPT_IOC_GUID	|
 				   SRP_OPT_DGID		|
@@ -2043,6 +2093,7 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_CMD_SG_ENTRIES,	"cmd_sg_entries=%u"	},
 	{ SRP_OPT_ALLOW_EXT_SG,		"allow_ext_sg=%u"	},
 	{ SRP_OPT_SG_TABLESIZE,		"sg_tablesize=%u"	},
+	{ SRP_OPT_COMP_VECTOR,		"comp_vector=%u"	},
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
@@ -2198,6 +2249,14 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 			target->sg_tablesize = token;
 			break;
 
+		case SRP_OPT_COMP_VECTOR:
+			if (match_int(args, &token) || token < 0) {
+				pr_warn("bad comp_vector parameter '%s'\n", p);
+				goto out;
+			}
+			target->comp_vector = token;
+			break;
+
 		default:
 			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
 				p);
@@ -2256,6 +2315,16 @@ static ssize_t srp_create_target(struct device *dev,
 	ret = srp_parse_options(buf, target);
 	if (ret)
 		goto err;
+
+	if (!srp_conn_unique(target->srp_host, target)) {
+		shost_printk(KERN_INFO, target->scsi_host,
+			     PFX "Already connected to target port with id_ext=%016llx;ioc_guid=%016llx;initiator_ext=%016llx\n",
+			     be64_to_cpu(target->id_ext),
+			     be64_to_cpu(target->ioc_guid),
+			     be64_to_cpu(target->initiator_ext));
+		ret = -EEXIST;
+		goto err;
+	}
 
 	if (!host->srp_dev->fmr_pool && !target->allow_ext_sg &&
 				target->cmd_sg_cnt < target->sg_tablesize) {
@@ -2507,6 +2576,8 @@ static void srp_remove_one(struct ib_device *device)
 	struct srp_target_port *target;
 
 	srp_dev = ib_get_client_data(device, &srp_client);
+	if (!srp_dev)
+		return;
 
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		device_unregister(&host->dev);

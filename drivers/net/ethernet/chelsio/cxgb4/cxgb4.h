@@ -51,7 +51,7 @@
 #include "t4_hw.h"
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 1
+#define FW_VERSION_MINOR 4
 #define FW_VERSION_MICRO 0
 
 #define FW_VERSION_MAJOR_T5 0
@@ -576,6 +576,7 @@ struct adapter {
 	struct l2t_data *l2t;
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
+	struct list_head rcu_node;
 
 	struct tid_info tids;
 	void **tid_release_head;

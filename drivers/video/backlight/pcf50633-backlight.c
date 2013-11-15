@@ -153,8 +153,6 @@ static int pcf50633_bl_remove(struct platform_device *pdev)
 
 	backlight_device_unregister(pcf_bl->bl);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

@@ -140,6 +140,7 @@ static void smsdvb_stats_not_ready(struct dvb_frontend *fe)
 	case DEVICE_MODE_ISDBT:
 	case DEVICE_MODE_ISDBT_BDA:
 		n_layers = 4;
+		break;
 	default:
 		n_layers = 1;
 	}
@@ -275,7 +276,8 @@ static void smsdvb_update_per_slices(struct smsdvb_client_t *client,
 
 	/* Legacy PER/BER */
 	tmp = p->ets_packets * 65535;
-	do_div(tmp, p->ts_packets + p->ets_packets);
+	if (p->ts_packets + p->ets_packets)
+		do_div(tmp, p->ts_packets + p->ets_packets);
 	client->legacy_per = tmp;
 }
 

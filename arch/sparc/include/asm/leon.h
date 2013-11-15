@@ -108,7 +108,7 @@ static inline int sparc_leon3_snooping_enabled(void)
 {
 	u32 cctrl;
 	__asm__ __volatile__("lda [%%g0] 2, %0\n\t" : "=r"(cctrl));
-        return (cctrl >> 23) & 1;
+	return ((cctrl >> 23) & 1) && ((cctrl >> 17) & 1);
 };
 
 static inline void sparc_leon3_disable_cache(void)
@@ -135,7 +135,7 @@ static inline int sparc_leon3_cpuid(void)
 
 #ifdef CONFIG_SMP
 # define LEON3_IRQ_IPI_DEFAULT		13
-# define LEON3_IRQ_TICKER		(leon3_ticker_irq)
+# define LEON3_IRQ_TICKER		(leon3_gptimer_irq)
 # define LEON3_IRQ_CROSS_CALL		15
 #endif
 

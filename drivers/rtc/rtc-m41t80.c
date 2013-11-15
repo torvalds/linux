@@ -168,7 +168,7 @@ static int m41t80_set_datetime(struct i2c_client *client, struct rtc_time *tm)
 	buf[M41T80_REG_MIN] =
 		bin2bcd(tm->tm_min) | (buf[M41T80_REG_MIN] & ~0x7f);
 	buf[M41T80_REG_HOUR] =
-		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f) ;
+		bin2bcd(tm->tm_hour) | (buf[M41T80_REG_HOUR] & ~0x3f);
 	buf[M41T80_REG_WDAY] =
 		(tm->tm_wday & 0x07) | (buf[M41T80_REG_WDAY] & ~0x07);
 	buf[M41T80_REG_DAY] =

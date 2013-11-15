@@ -103,10 +103,26 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
+static void uvc_wait_prepare(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+
+	mutex_unlock(&queue->mutex);
+}
+
+static void uvc_wait_finish(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+
+	mutex_lock(&queue->mutex);
+}
+
 static struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
 	.buf_queue = uvc_buffer_queue,
+	.wait_prepare = uvc_wait_prepare,
+	.wait_finish = uvc_wait_finish,
 };
 
 static int uvc_queue_init(struct uvc_video_queue *queue,
@@ -177,12 +193,16 @@ static int uvc_queue_buffer(struct uvc_video_queue *queue,
 
 	mutex_lock(&queue->mutex);
 	ret = vb2_qbuf(&queue->queue, buf);
+	if (ret < 0)
+		goto done;
+
 	spin_lock_irqsave(&queue->irqlock, flags);
 	ret = (queue->flags & UVC_QUEUE_PAUSED) != 0;
 	queue->flags &= ~UVC_QUEUE_PAUSED;
 	spin_unlock_irqrestore(&queue->irqlock, flags);
-	mutex_unlock(&queue->mutex);
 
+done:
+	mutex_unlock(&queue->mutex);
 	return ret;
 }
 

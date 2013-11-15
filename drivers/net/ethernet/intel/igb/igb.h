@@ -322,11 +322,6 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
 }
 
-struct igb_i2c_client_list {
-	struct i2c_client *client;
-	struct igb_i2c_client_list *next;
-};
-
 #ifdef CONFIG_IGB_HWMON
 
 #define IGB_HWMON_TYPE_LOC	0
@@ -347,6 +342,8 @@ struct hwmon_buff {
 	unsigned int n_hwmon;
 	};
 #endif
+
+#define IGB_RETA_SIZE	128
 
 /* board specific private data structure */
 struct igb_adapter {
@@ -449,6 +446,10 @@ struct igb_adapter {
 	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_adapter i2c_adap;
 	struct i2c_client *i2c_client;
+	u32 rss_indir_tbl_init;
+	u8 rss_indir_tbl[IGB_RETA_SIZE];
+
+	unsigned long link_check_timeout;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -460,6 +461,7 @@ struct igb_adapter {
 #define IGB_FLAG_RSS_FIELD_IPV4_UDP	(1 << 6)
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
+#define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408
@@ -485,6 +487,7 @@ extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
 extern void igb_reset(struct igb_adapter *);
+extern void igb_write_rss_indir_tbl(struct igb_adapter *);
 extern int igb_set_spd_dplx(struct igb_adapter *, u32, u8);
 extern int igb_setup_tx_resources(struct igb_ring *);
 extern int igb_setup_rx_resources(struct igb_ring *);
@@ -514,13 +517,18 @@ extern void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 extern void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
 				unsigned char *va,
 				struct sk_buff *skb);
-static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
+static inline void igb_ptp_rx_hwtstamp(struct igb_ring *rx_ring,
 				       union e1000_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
 {
 	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TS) &&
 	    !igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP))
-		igb_ptp_rx_rgtstamp(q_vector, skb);
+		igb_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
+
+	/* Update the last_rx_timestamp timer in order to enable watchdog check
+	 * for error case of latched timestamp on a dropped packet.
+	 */
+	rx_ring->last_rx_timestamp = jiffies;
 }
 
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,

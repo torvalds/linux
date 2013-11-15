@@ -2422,7 +2422,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->mach = pdev->dev.platform_data;
+	udc->mach = dev_get_platdata(&pdev->dev);
 	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	gpio = udc->mach->gpio_pullup;
@@ -2505,7 +2505,6 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_put_phy(udc->transceiver);
 
 	udc->transceiver = NULL;
-	platform_set_drvdata(_dev, NULL);
 	the_controller = NULL;
 	clk_put(udc->clk);
 	iounmap(udc->regs);

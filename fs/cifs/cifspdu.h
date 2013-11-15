@@ -142,6 +142,11 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
+/*
+ * Size of the smb3 signing key
+ */
+#define SMB3_SIGN_KEY_SIZE (16)
+
 #define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
@@ -531,7 +536,7 @@ typedef struct lanman_neg_rsp {
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
 #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
-
+#define SMB1_CLIENT_GUID_SIZE (16)
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
@@ -553,7 +558,7 @@ typedef struct negotiate_rsp {
 		/* followed by 16 bytes of server GUID */
 		/* then security blob if cap_extended_security negotiated */
 		struct {
-			unsigned char GUID[16];
+			unsigned char GUID[SMB1_CLIENT_GUID_SIZE];
 			unsigned char SecurityBlob[1];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
@@ -1315,6 +1320,14 @@ typedef struct smb_com_ntransact_rsp {
 	/* parms and data follow */
 } __attribute__((packed)) NTRANSACT_RSP;
 
+/* See MS-SMB 2.2.7.2.1.1 */
+struct srv_copychunk {
+	__le64 SourceOffset;
+	__le64 DestinationOffset;
+	__le32 CopyLength;
+	__u32  Reserved;
+} __packed;
+
 typedef struct smb_com_transaction_ioctl_req {
 	struct smb_hdr hdr;	/* wct = 23 */
 	__u8 MaxSetupCount;
@@ -1482,11 +1495,12 @@ struct reparse_data {
 	__u32	ReparseTag;
 	__u16	ReparseDataLength;
 	__u16	Reserved;
-	__u16	AltNameOffset;
-	__u16	AltNameLen;
-	__u16	TargetNameOffset;
-	__u16	TargetNameLen;
-	char	LinkNamesBuf[1];
+	__u16	SubstituteNameOffset;
+	__u16	SubstituteNameLength;
+	__u16	PrintNameOffset;
+	__u16	PrintNameLength;
+	__u32	Flags;
+	char	PathBuffer[0];
 } __attribute__((packed));
 
 struct cifs_quota_data {
@@ -2638,26 +2652,7 @@ typedef struct file_xattr_info {
 } __attribute__((packed)) FILE_XATTR_INFO; /* extended attribute info
 					      level 0x205 */
 
-
-/* flags for chattr command */
-#define EXT_SECURE_DELETE		0x00000001 /* EXT3_SECRM_FL */
-#define EXT_ENABLE_UNDELETE		0x00000002 /* EXT3_UNRM_FL */
-/* Reserved for compress file 0x4 */
-#define EXT_SYNCHRONOUS			0x00000008 /* EXT3_SYNC_FL */
-#define EXT_IMMUTABLE_FL		0x00000010 /* EXT3_IMMUTABLE_FL */
-#define EXT_OPEN_APPEND_ONLY		0x00000020 /* EXT3_APPEND_FL */
-#define EXT_DO_NOT_BACKUP		0x00000040 /* EXT3_NODUMP_FL */
-#define EXT_NO_UPDATE_ATIME		0x00000080 /* EXT3_NOATIME_FL */
-/* 0x100 through 0x800 reserved for compression flags and are GET-ONLY */
-#define EXT_HASH_TREE_INDEXED_DIR	0x00001000 /* GET-ONLY EXT3_INDEX_FL */
-/* 0x2000 reserved for IMAGIC_FL */
-#define EXT_JOURNAL_THIS_FILE	0x00004000 /* GET-ONLY EXT3_JOURNAL_DATA_FL */
-/* 0x8000 reserved for EXT3_NOTAIL_FL */
-#define EXT_SYNCHRONOUS_DIR		0x00010000 /* EXT3_DIRSYNC_FL */
-#define EXT_TOPDIR			0x00020000 /* EXT3_TOPDIR_FL */
-
-#define EXT_SET_MASK			0x000300FF
-#define EXT_GET_MASK			0x0003DFFF
+/* flags for lsattr and chflags commands removed arein uapi/linux/fs.h */
 
 typedef struct file_chattr_info {
 	__le64	mask; /* list of all possible attribute bits */

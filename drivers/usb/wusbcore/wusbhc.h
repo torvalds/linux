@@ -69,6 +69,8 @@
  * zone 0.
  */
 #define WUSB_CHANNEL_STOP_DELAY_MS 8
+#define WUSB_RETRY_COUNT_MAX 15
+#define WUSB_RETRY_COUNT_INFINITE 0
 
 /**
  * Wireless USB device
@@ -252,6 +254,9 @@ struct wusbhc {
 	unsigned trust_timeout;			/* in jiffies */
 	struct wusb_ckhdid chid;
 	uint8_t phy_rate;
+	uint8_t dnts_num_slots;
+	uint8_t dnts_interval;
+	uint8_t retry_count;
 	struct wuie_host_info *wuie_host_info;
 
 	struct mutex mutex;			/* locks everything else */
@@ -399,8 +404,6 @@ extern void wusbhc_rh_destroy(struct wusbhc *);
 
 extern int wusbhc_rh_status_data(struct usb_hcd *, char *);
 extern int wusbhc_rh_control(struct usb_hcd *, u16, u16, u16, char *, u16);
-extern int wusbhc_rh_suspend(struct usb_hcd *);
-extern int wusbhc_rh_resume(struct usb_hcd *);
 extern int wusbhc_rh_start_port_reset(struct usb_hcd *, unsigned);
 
 /* MMC handling */

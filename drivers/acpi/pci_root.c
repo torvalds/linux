@@ -65,10 +65,6 @@ static struct acpi_scan_handler pci_root_handler = {
 	.detach = acpi_pci_root_remove,
 };
 
-/* Lock to protect both acpi_pci_roots lists */
-static DEFINE_MUTEX(acpi_pci_root_lock);
-static LIST_HEAD(acpi_pci_roots);
-
 static DEFINE_MUTEX(osc_lock);
 
 /**
@@ -100,13 +96,12 @@ get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {
 	struct resource *res = data;
 	struct acpi_resource_address64 address;
+	acpi_status status;
 
-	if (resource->type != ACPI_RESOURCE_TYPE_ADDRESS16 &&
-	    resource->type != ACPI_RESOURCE_TYPE_ADDRESS32 &&
-	    resource->type != ACPI_RESOURCE_TYPE_ADDRESS64)
+	status = acpi_resource_to_address64(resource, &address);
+	if (ACPI_FAILURE(status))
 		return AE_OK;
 
-	acpi_resource_to_address64(resource, &address);
 	if ((address.address_length > 0) &&
 	    (address.resource_type == ACPI_BUS_NUMBER_RANGE)) {
 		res->start = address.minimum;
@@ -382,23 +377,25 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	int result;
 	struct acpi_pci_root *root;
 	u32 flags, base_flags;
+	acpi_handle handle = device->handle;
+	bool no_aspm = false, clear_aspm = false;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
 		return -ENOMEM;
 
 	segment = 0;
-	status = acpi_evaluate_integer(device->handle, METHOD_NAME__SEG, NULL,
+	status = acpi_evaluate_integer(handle, METHOD_NAME__SEG, NULL,
 				       &segment);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		printk(KERN_ERR PREFIX "can't evaluate _SEG\n");
+		dev_err(&device->dev,  "can't evaluate _SEG\n");
 		result = -ENODEV;
 		goto end;
 	}
 
 	/* Check _CRS first, then _BBN.  If no _BBN, default to zero. */
 	root->secondary.flags = IORESOURCE_BUS;
-	status = try_get_root_bridge_busnr(device->handle, &root->secondary);
+	status = try_get_root_bridge_busnr(handle, &root->secondary);
 	if (ACPI_FAILURE(status)) {
 		/*
 		 * We need both the start and end of the downstream bus range
@@ -407,33 +404,32 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		 * can do is assume [_BBN-0xFF] or [0-0xFF].
 		 */
 		root->secondary.end = 0xFF;
-		printk(KERN_WARNING FW_BUG PREFIX
-		       "no secondary bus range in _CRS\n");
-		status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN,
+		dev_warn(&device->dev,
+			 FW_BUG "no secondary bus range in _CRS\n");
+		status = acpi_evaluate_integer(handle, METHOD_NAME__BBN,
 					       NULL, &bus);
 		if (ACPI_SUCCESS(status))
 			root->secondary.start = bus;
 		else if (status == AE_NOT_FOUND)
 			root->secondary.start = 0;
 		else {
-			printk(KERN_ERR PREFIX "can't evaluate _BBN\n");
+			dev_err(&device->dev, "can't evaluate _BBN\n");
 			result = -ENODEV;
 			goto end;
 		}
 	}
 
-	INIT_LIST_HEAD(&root->node);
 	root->device = device;
 	root->segment = segment & 0xFFFF;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
-	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
+	pr_info(PREFIX "%s [%s] (domain %04x %pR)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
 	       root->segment, &root->secondary);
 
-	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(device->handle);
+	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
 	/*
 	 * All supported architectures that use ACPI have support for
@@ -442,31 +438,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	acpi_pci_osc_support(root, flags);
 
-	/*
-	 * TBD: Need PCI interface for enumeration/configuration of roots.
-	 */
-
-	mutex_lock(&acpi_pci_root_lock);
-	list_add_tail(&root->node, &acpi_pci_roots);
-	mutex_unlock(&acpi_pci_root_lock);
-
-	/*
-	 * Scan the Root Bridge
-	 * --------------------
-	 * Must do this prior to any attempt to bind the root device, as the
-	 * PCI namespace does not get created until this call is made (and
-	 * thus the root bridge's pci_dev does not exist).
-	 */
-	root->bus = pci_acpi_scan_root(root);
-	if (!root->bus) {
-		printk(KERN_ERR PREFIX
-			    "Bus %04x:%02x not present in PCI namespace\n",
-			    root->segment, (unsigned int)root->secondary.start);
-		result = -ENODEV;
-		goto out_del_root;
-	}
-
-	/* Indicate support for various _OSC capabilities. */
 	if (pci_ext_cfg_avail())
 		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
 	if (pcie_aspm_support_enabled()) {
@@ -480,7 +451,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		if (ACPI_FAILURE(status)) {
 			dev_info(&device->dev, "ACPI _OSC support "
 				"notification failed, disabling PCIe ASPM\n");
-			pcie_no_aspm();
+			no_aspm = true;
 			flags = base_flags;
 		}
 	}
@@ -502,7 +473,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		dev_info(&device->dev,
 			"Requesting ACPI _OSC control (0x%02x)\n", flags);
 
-		status = acpi_pci_osc_control_set(device->handle, &flags,
+		status = acpi_pci_osc_control_set(handle, &flags,
 				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
 		if (ACPI_SUCCESS(status)) {
 			dev_info(&device->dev,
@@ -512,16 +483,23 @@ static int acpi_pci_root_add(struct acpi_device *device,
 				 * We have ASPM control, but the FADT indicates
 				 * that it's unsupported. Clear it.
 				 */
-				pcie_clear_aspm(root->bus);
+				clear_aspm = true;
 			}
 		} else {
 			dev_info(&device->dev,
 				"ACPI _OSC request failed (%s), "
 				"returned control mask: 0x%02x\n",
 				acpi_format_exception(status), flags);
-			pr_info("ACPI _OSC control for PCIe not granted, "
-				"disabling ASPM\n");
-			pcie_no_aspm();
+			dev_info(&device->dev,
+				 "ACPI _OSC control for PCIe not granted, disabling ASPM\n");
+			/*
+			 * We want to disable ASPM here, but aspm_disabled
+			 * needs to remain in its state from boot so that we
+			 * properly handle PCIe 1.1 devices.  So we set this
+			 * flag here, to defer the action until after the ACPI
+			 * root scan.
+			 */
+			no_aspm = true;
 		}
 	} else {
 		dev_info(&device->dev,
@@ -529,26 +507,44 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			 "(_OSC support mask: 0x%02x)\n", flags);
 	}
 
+	/*
+	 * TBD: Need PCI interface for enumeration/configuration of roots.
+	 */
+
+	/*
+	 * Scan the Root Bridge
+	 * --------------------
+	 * Must do this prior to any attempt to bind the root device, as the
+	 * PCI namespace does not get created until this call is made (and
+	 * thus the root bridge's pci_dev does not exist).
+	 */
+	root->bus = pci_acpi_scan_root(root);
+	if (!root->bus) {
+		dev_err(&device->dev,
+			"Bus %04x:%02x not present in PCI namespace\n",
+			root->segment, (unsigned int)root->secondary.start);
+		result = -ENODEV;
+		goto end;
+	}
+
+	if (clear_aspm) {
+		dev_info(&device->dev, "Disabling ASPM (FADT indicates it is unsupported)\n");
+		pcie_clear_aspm(root->bus);
+	}
+	if (no_aspm)
+		pcie_no_aspm();
+
 	pci_acpi_add_bus_pm_notifier(device, root->bus);
 	if (device->wakeup.flags.run_wake)
 		device_set_run_wake(root->bus->bridge, true);
 
 	if (system_state != SYSTEM_BOOTING) {
 		pcibios_resource_survey_bus(root->bus);
-		pci_assign_unassigned_bus_resources(root->bus);
+		pci_assign_unassigned_root_bus_resources(root->bus);
 	}
-
-	/* need to after hot-added ioapic is registered */
-	if (system_state != SYSTEM_BOOTING)
-		pci_enable_bridges(root->bus);
 
 	pci_bus_add_devices(root->bus);
 	return 1;
-
-out_del_root:
-	mutex_lock(&acpi_pci_root_lock);
-	list_del(&root->node);
-	mutex_unlock(&acpi_pci_root_lock);
 
 end:
 	kfree(root);
@@ -566,9 +562,6 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_remove_root_bus(root->bus);
 
-	mutex_lock(&acpi_pci_root_lock);
-	list_del(&root->node);
-	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
 }
 
@@ -588,12 +581,13 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 	struct acpi_device *device;
 
 	if (!acpi_bus_get_device(handle, &device)) {
-		printk(KERN_DEBUG "acpi device exists...\n");
+		dev_printk(KERN_DEBUG, &device->dev,
+			   "acpi device already exists; ignoring notify\n");
 		return;
 	}
 
 	if (acpi_bus_scan(handle))
-		printk(KERN_ERR "cannot add bridge to acpi list\n");
+		acpi_handle_err(handle, "cannot add bridge to acpi list\n");
 }
 
 static void handle_root_bridge_removal(struct acpi_device *device)
@@ -622,7 +616,6 @@ static void handle_root_bridge_removal(struct acpi_device *device)
 static void _handle_hotplug_event_root(struct work_struct *work)
 {
 	struct acpi_pci_root *root;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER };
 	struct acpi_hp_work *hp_work;
 	acpi_handle handle;
 	u32 type;
@@ -634,13 +627,12 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 	acpi_scan_lock_acquire();
 
 	root = acpi_pci_find_root(handle);
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 		/* bus enumerate */
-		printk(KERN_DEBUG "%s: Bus check notify on %s\n", __func__,
-				 (char *)buffer.pointer);
+		acpi_handle_printk(KERN_DEBUG, handle,
+				   "Bus check notify on %s\n", __func__);
 		if (root)
 			acpiphp_check_host_bridge(handle);
 		else
@@ -650,28 +642,28 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
-		printk(KERN_DEBUG "%s: Device check notify on %s\n", __func__,
-				 (char *)buffer.pointer);
+		acpi_handle_printk(KERN_DEBUG, handle,
+				   "Device check notify on %s\n", __func__);
 		if (!root)
 			handle_root_bridge_insertion(handle);
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
-		printk(KERN_DEBUG "%s: Device eject notify on %s\n", __func__,
-				 (char *)buffer.pointer);
+		acpi_handle_printk(KERN_DEBUG, handle,
+				   "Device eject notify on %s\n", __func__);
 		if (root)
 			handle_root_bridge_removal(root->device);
 		break;
 	default:
-		printk(KERN_WARNING "notify_handler: unknown event type 0x%x for %s\n",
-				 type, (char *)buffer.pointer);
+		acpi_handle_warn(handle,
+				 "notify_handler: unknown event type 0x%x\n",
+				 type);
 		break;
 	}
 
 	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
-	kfree(buffer.pointer);
 }
 
 static void handle_hotplug_event_root(acpi_handle handle, u32 type,
@@ -685,9 +677,6 @@ static acpi_status __init
 find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	acpi_status status;
-	char objname[64];
-	struct acpi_buffer buffer = { .length = sizeof(objname),
-				      .pointer = objname };
 	int *count = (int *)context;
 
 	if (!acpi_is_root_bridge(handle))
@@ -695,16 +684,15 @@ find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	(*count)++;
 
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-
 	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					handle_hotplug_event_root, NULL);
 	if (ACPI_FAILURE(status))
-		printk(KERN_DEBUG "acpi root: %s notify handler is not installed, exit status: %u\n",
-				  objname, (unsigned int)status);
+		acpi_handle_printk(KERN_DEBUG, handle,
+			"notify handler is not installed, exit status: %u\n",
+			 (unsigned int)status);
 	else
-		printk(KERN_DEBUG "acpi root: %s notify handler is installed\n",
-				 objname);
+		acpi_handle_printk(KERN_DEBUG, handle,
+				   "notify handler is installed\n");
 
 	return AE_OK;
 }

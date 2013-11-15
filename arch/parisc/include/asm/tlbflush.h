@@ -63,13 +63,14 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 	unsigned long addr)
 {
-	unsigned long flags;
+	unsigned long flags, sid;
 
 	/* For one page, it's not worth testing the split_tlb variable */
 
 	mb();
-	mtsp(vma->vm_mm->context,1);
+	sid = vma->vm_mm->context;
 	purge_tlb_start(flags);
+	mtsp(sid, 1);
 	pdtlb(addr);
 	pitlb(addr);
 	purge_tlb_end(flags);

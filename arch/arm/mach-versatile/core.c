@@ -38,6 +38,7 @@
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
 #include <linux/bitops.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
@@ -733,7 +734,7 @@ static void versatile_leds_event(led_event_t ledevt)
 }
 #endif	/* CONFIG_LEDS */
 
-void versatile_restart(char mode, const char *cmd)
+void versatile_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
 	u32 val;

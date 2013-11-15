@@ -4513,6 +4513,13 @@ bail:
 	return ret;
 }
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+static int qib_7220_notify_dca(struct qib_devdata *dd, unsigned long event)
+{
+	return 0;
+}
+#endif
+
 /* Dummy function, as 7220 boards never disable EEPROM Write */
 static int qib_7220_eeprom_wen(struct qib_devdata *dd, int wen)
 {
@@ -4587,6 +4594,9 @@ struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *pdev,
 	dd->f_xgxs_reset        = qib_7220_xgxs_reset;
 	dd->f_writescratch      = writescratch;
 	dd->f_tempsense_rd	= qib_7220_tempsense_rd;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dd->f_notify_dca = qib_7220_notify_dca;
+#endif
 	/*
 	 * Do remaining pcie setup and save pcie values in dd.
 	 * Any error printing is already done by the init code.

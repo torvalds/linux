@@ -115,10 +115,10 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	cmd->skb = skb;
 	cmd->hif_dev = hif_dev;
 
-	usb_fill_bulk_urb(urb, hif_dev->udev,
-			 usb_sndbulkpipe(hif_dev->udev, USB_REG_OUT_PIPE),
+	usb_fill_int_urb(urb, hif_dev->udev,
+			 usb_sndintpipe(hif_dev->udev, USB_REG_OUT_PIPE),
 			 skb->data, skb->len,
-			 hif_usb_regout_cb, cmd);
+			 hif_usb_regout_cb, cmd, 1);
 
 	usb_anchor_urb(urb, &hif_dev->regout_submitted);
 	ret = usb_submit_urb(urb, GFP_KERNEL);
@@ -234,10 +234,15 @@ static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(queue)) != NULL) {
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+		int ln = skb->len;
+#endif
 		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
 					  skb, txok);
-		if (txok)
+		if (txok) {
 			TX_STAT_INC(skb_success);
+			TX_STAT_ADD(skb_success_bytes, ln);
+		}
 		else
 			TX_STAT_INC(skb_failed);
 	}
@@ -620,6 +625,7 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 err:
 	for (i = 0; i < pool_index; i++) {
+		RX_STAT_ADD(skb_completed_bytes, skb_pool[i]->len);
 		ath9k_htc_rx_msg(hif_dev->htc_handle, skb_pool[i],
 				 skb_pool[i]->len, USB_WLAN_RX_PIPE);
 		RX_STAT_INC(skb_completed);
@@ -717,11 +723,11 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 			return;
 		}
 
-		usb_fill_bulk_urb(urb, hif_dev->udev,
-				 usb_rcvbulkpipe(hif_dev->udev,
+		usb_fill_int_urb(urb, hif_dev->udev,
+				 usb_rcvintpipe(hif_dev->udev,
 						 USB_REG_IN_PIPE),
 				 nskb->data, MAX_REG_IN_BUF_SIZE,
-				 ath9k_hif_usb_reg_in_cb, nskb);
+				 ath9k_hif_usb_reg_in_cb, nskb, 1);
 	}
 
 resubmit:
@@ -903,11 +909,11 @@ static int ath9k_hif_usb_alloc_reg_in_urbs(struct hif_device_usb *hif_dev)
 			goto err_skb;
 		}
 
-		usb_fill_bulk_urb(urb, hif_dev->udev,
-				  usb_rcvbulkpipe(hif_dev->udev,
+		usb_fill_int_urb(urb, hif_dev->udev,
+				  usb_rcvintpipe(hif_dev->udev,
 						  USB_REG_IN_PIPE),
 				  skb->data, MAX_REG_IN_BUF_SIZE,
-				  ath9k_hif_usb_reg_in_cb, skb);
+				  ath9k_hif_usb_reg_in_cb, skb, 1);
 
 		/* Anchor URB */
 		usb_anchor_urb(urb, &hif_dev->reg_in_submitted);
@@ -1025,9 +1031,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 
 static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
-	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
-	struct usb_endpoint_descriptor *endp;
-	int ret, idx;
+	int ret;
 
 	ret = ath9k_hif_usb_download_fw(hif_dev);
 	if (ret) {
@@ -1035,20 +1039,6 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 			"ath9k_htc: Firmware - %s download failed\n",
 			hif_dev->fw_name);
 		return ret;
-	}
-
-	/* On downloading the firmware to the target, the USB descriptor of EP4
-	 * is 'patched' to change the type of the endpoint to Bulk. This will
-	 * bring down CPU usage during the scan period.
-	 */
-	for (idx = 0; idx < alt->desc.bNumEndpoints; idx++) {
-		endp = &alt->endpoint[idx].desc;
-		if ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				== USB_ENDPOINT_XFER_INT) {
-			endp->bmAttributes &= ~USB_ENDPOINT_XFERTYPE_MASK;
-			endp->bmAttributes |= USB_ENDPOINT_XFER_BULK;
-			endp->bInterval = 0;
-		}
 	}
 
 	/* Alloc URBs */
@@ -1076,7 +1066,7 @@ static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
 	struct device *dev = &hif_dev->udev->dev;
 	struct device *parent = dev->parent;
 
-	complete(&hif_dev->fw_done);
+	complete_all(&hif_dev->fw_done);
 
 	if (parent)
 		device_lock(parent);
@@ -1125,7 +1115,7 @@ static void ath9k_hif_usb_firmware_cb(const struct firmware *fw, void *context)
 
 	release_firmware(fw);
 	hif_dev->flags |= HIF_USB_READY;
-	complete(&hif_dev->fw_done);
+	complete_all(&hif_dev->fw_done);
 
 	return;
 
@@ -1262,7 +1252,7 @@ static void ath9k_hif_usb_reboot(struct usb_device *udev)
 	if (!buf)
 		return;
 
-	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
+	ret = usb_interrupt_msg(udev, usb_sndintpipe(udev, USB_REG_OUT_PIPE),
 			   buf, 4, NULL, HZ);
 	if (ret)
 		dev_err(&udev->dev, "ath9k_htc: USB reboot failed\n");
@@ -1289,7 +1279,9 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 
-	if (!unplugged && (hif_dev->flags & HIF_USB_START))
+	/* If firmware was loaded we should drop it
+	 * go back to first stage bootloader. */
+	if (!unplugged && (hif_dev->flags & HIF_USB_READY))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);
@@ -1310,7 +1302,10 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 	if (!(hif_dev->flags & HIF_USB_START))
 		ath9k_htc_suspend(hif_dev->htc_handle);
 
-	ath9k_hif_usb_dealloc_urbs(hif_dev);
+	wait_for_completion(&hif_dev->fw_done);
+
+	if (hif_dev->flags & HIF_USB_READY)
+		ath9k_hif_usb_dealloc_urbs(hif_dev);
 
 	return 0;
 }

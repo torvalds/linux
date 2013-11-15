@@ -204,12 +204,16 @@ struct mddev {
 	struct md_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
-	struct list_head 		disks;
+	struct list_head		disks;
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
+#define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
+#define MD_STILL_CLOSED	4	/* If set, then array has not been opened since
+				 * md_ioctl checked on it.
+				 */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -218,7 +222,7 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	int				ready; /* See when safe to pass 
+	int				ready; /* See when safe to pass
 						* IO requests down */
 	struct gendisk			*gendisk;
 
@@ -268,6 +272,14 @@ struct mddev {
 
 	struct md_thread		*thread;	/* management thread */
 	struct md_thread		*sync_thread;	/* doing resync or reconstruct */
+
+	/* 'last_sync_action' is initialized to "none".  It is set when a
+	 * sync operation (i.e "data-check", "requested-resync", "resync",
+	 * "recovery", or "reshape") is started.  It holds this value even
+	 * when the sync thread is "frozen" (interrupted) or "idle" (stopped
+	 * or finished).  It is overwritten when a new sync operation is begun.
+	 */
+	char				*last_sync_action;
 	sector_t			curr_resync;	/* last block scheduled */
 	/* As resync requests can complete out of order, we cannot easily track
 	 * how much resync has been completed.  So we occasionally pause until

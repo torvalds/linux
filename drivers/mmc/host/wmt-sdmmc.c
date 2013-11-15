@@ -927,8 +927,6 @@ static int wmt_mci_remove(struct platform_device *pdev)
 
 	mmc_free_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_info(&pdev->dev, "WMT MCI device removed\n");
 
 	return 0;

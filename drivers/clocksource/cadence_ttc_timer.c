@@ -21,7 +21,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/slab.h>
-#include <linux/clk-provider.h>
+#include <linux/sched_clock.h>
 
 /*
  * This driver configures the 2 16-bit count-up timers as follows:
@@ -50,6 +50,8 @@
 #define TTC_IER_OFFSET		0x60 /* Interrupt Enable Reg, RW */
 
 #define TTC_CNT_CNTRL_DISABLE_MASK	0x1
+
+#define TTC_CLK_CNTRL_CSRC_MASK		(1 << 5)	/* clock source */
 
 /*
  * Setup the timers to use pre-scaling, using a fixed value for now that will
@@ -92,6 +94,8 @@ struct ttc_timer_clockevent {
 
 #define to_ttc_timer_clkevent(x) \
 		container_of(x, struct ttc_timer_clockevent, ce)
+
+static void __iomem *ttc_sched_clock_val_reg;
 
 /**
  * ttc_set_interval - Set the timer interval value
@@ -152,6 +156,11 @@ static cycle_t __ttc_clocksource_read(struct clocksource *cs)
 
 	return (cycle_t)__raw_readl(timer->base_addr +
 				TTC_COUNT_VAL_OFFSET);
+}
+
+static u32 notrace ttc_sched_clock_read(void)
+{
+	return __raw_readl(ttc_sched_clock_val_reg);
 }
 
 /**
@@ -295,6 +304,10 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 		kfree(ttccs);
 		return;
 	}
+
+	ttc_sched_clock_val_reg = base + TTC_COUNT_VAL_OFFSET;
+	setup_sched_clock(ttc_sched_clock_read, 16,
+			clk_get_rate(ttccs->ttc.clk) / PRESCALE);
 }
 
 static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
@@ -396,8 +409,9 @@ static void __init ttc_timer_init(struct device_node *timer)
 {
 	unsigned int irq;
 	void __iomem *timer_baseaddr;
-	struct clk *clk;
+	struct clk *clk_cs, *clk_ce;
 	static int initialized;
+	int clksel;
 
 	if (initialized)
 		return;
@@ -421,14 +435,24 @@ static void __init ttc_timer_init(struct device_node *timer)
 		BUG();
 	}
 
-	clk = of_clk_get_by_name(timer, "cpu_1x");
-	if (IS_ERR(clk)) {
+	clksel = __raw_readl(timer_baseaddr + TTC_CLK_CNTRL_OFFSET);
+	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
+	clk_cs = of_clk_get(timer, clksel);
+	if (IS_ERR(clk_cs)) {
 		pr_err("ERROR: timer input clock not found\n");
 		BUG();
 	}
 
-	ttc_setup_clocksource(clk, timer_baseaddr);
-	ttc_setup_clockevent(clk, timer_baseaddr + 4, irq);
+	clksel = __raw_readl(timer_baseaddr + 4 + TTC_CLK_CNTRL_OFFSET);
+	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
+	clk_ce = of_clk_get(timer, clksel);
+	if (IS_ERR(clk_ce)) {
+		pr_err("ERROR: timer input clock not found\n");
+		BUG();
+	}
+
+	ttc_setup_clocksource(clk_cs, timer_baseaddr);
+	ttc_setup_clockevent(clk_ce, timer_baseaddr + 4, irq);
 
 	pr_info("%s #0 at %p, irq=%d\n", timer->name, timer_baseaddr, irq);
 }

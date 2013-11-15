@@ -452,7 +452,9 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 	err = -ENODEV;
 
 	etsects->caps = ptp_gianfar_caps;
-	etsects->cksel = DEFAULT_CKSEL;
+
+	if (get_of_u32(node, "fsl,cksel", &etsects->cksel))
+		etsects->cksel = DEFAULT_CKSEL;
 
 	if (get_of_u32(node, "fsl,tclk-period", &etsects->tclk_period) ||
 	    get_of_u32(node, "fsl,tmr-prsc", &etsects->tmr_prsc) ||
@@ -519,7 +521,7 @@ static int gianfar_ptp_probe(struct platform_device *dev)
 	}
 	gfar_phc_index = ptp_clock_index(etsects->clock);
 
-	dev_set_drvdata(&dev->dev, etsects);
+	platform_set_drvdata(dev, etsects);
 
 	return 0;
 
@@ -537,7 +539,7 @@ no_memory:
 
 static int gianfar_ptp_remove(struct platform_device *dev)
 {
-	struct etsects *etsects = dev_get_drvdata(&dev->dev);
+	struct etsects *etsects = platform_get_drvdata(dev);
 
 	gfar_write(&etsects->regs->tmr_temask, 0);
 	gfar_write(&etsects->regs->tmr_ctrl,   0);

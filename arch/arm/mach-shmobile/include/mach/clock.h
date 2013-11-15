@@ -24,16 +24,16 @@ struct clk name = {			\
 }
 
 #define SH_FIXED_RATIO_CLK(name, p, r)		\
-static SH_FIXED_RATIO_CLKg(name, p, r);
+static SH_FIXED_RATIO_CLKg(name, p, r)
 
 #define SH_FIXED_RATIO_CLK_SET(name, p, m, d)	\
 	SH_CLK_RATIO(name, m, d);		\
-	SH_FIXED_RATIO_CLK(name, p, name);
+	SH_FIXED_RATIO_CLK(name, p, name)
 
 #define SH_CLK_SET_RATIO(p, m, d)	\
-{			\
+do {			\
 	(p)->mul = m;	\
 	(p)->div = d;	\
-}
+} while (0)
 
 #endif

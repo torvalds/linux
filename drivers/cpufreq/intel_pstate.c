@@ -103,10 +103,10 @@ struct pstate_adjust_policy {
 static struct pstate_adjust_policy default_policy = {
 	.sample_rate_ms = 10,
 	.deadband = 0,
-	.setpoint = 109,
-	.p_gain_pct = 17,
+	.setpoint = 97,
+	.p_gain_pct = 20,
 	.d_gain_pct = 0,
-	.i_gain_pct = 4,
+	.i_gain_pct = 0,
 };
 
 struct perf_limits {
@@ -394,7 +394,10 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	trace_cpu_frequency(pstate * 100000, cpu->cpu);
 
 	cpu->pstate.current_pstate = pstate;
-	wrmsrl(MSR_IA32_PERF_CTL, pstate << 8);
+	if (limits.no_turbo)
+		wrmsrl(MSR_IA32_PERF_CTL, BIT(32) | (pstate << 8));
+	else
+		wrmsrl(MSR_IA32_PERF_CTL, pstate << 8);
 
 }
 
@@ -468,12 +471,12 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 static inline int intel_pstate_get_scaled_busy(struct cpudata *cpu)
 {
 	int32_t busy_scaled;
-	int32_t core_busy, turbo_pstate, current_pstate;
+	int32_t core_busy, max_pstate, current_pstate;
 
 	core_busy = int_tofp(cpu->samples[cpu->sample_ptr].core_pct_busy);
-	turbo_pstate = int_tofp(cpu->pstate.turbo_pstate);
+	max_pstate = int_tofp(cpu->pstate.max_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
-	busy_scaled = mul_fp(core_busy, div_fp(turbo_pstate, current_pstate));
+	busy_scaled = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
 
 	return fp_toint(busy_scaled);
 }
@@ -522,6 +525,11 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x2a, default_policy),
 	ICPU(0x2d, default_policy),
 	ICPU(0x3a, default_policy),
+	ICPU(0x3c, default_policy),
+	ICPU(0x3e, default_policy),
+	ICPU(0x3f, default_policy),
+	ICPU(0x45, default_policy),
+	ICPU(0x46, default_policy),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
@@ -617,7 +625,7 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
+static int intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 {
 	int cpu = policy->cpu;
 
@@ -627,7 +635,7 @@ static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
+static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
 	int rc, min_pstate, max_pstate;
 	struct cpudata *cpu;
@@ -665,7 +673,6 @@ static struct cpufreq_driver intel_pstate_driver = {
 	.init		= intel_pstate_cpu_init,
 	.exit		= intel_pstate_cpu_exit,
 	.name		= "intel_pstate",
-	.owner		= THIS_MODULE,
 };
 
 static int __initdata no_load;

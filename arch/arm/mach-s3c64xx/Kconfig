@@ -17,13 +17,11 @@ config PLAT_S3C64XX
 # Configuration options for the S3C6410 CPU
 
 config CPU_S3C6400
-	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6400 CPU support
 
 config CPU_S3C6410
-	select SAMSUNG_HRT
 	bool
 	help
 	  Enable S3C6410 CPU support

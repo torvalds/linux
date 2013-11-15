@@ -451,9 +451,9 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"tpcc1",	&tpcc1_clk),
 	CLK(NULL,		"tptc2",	&tptc2_clk),
 	CLK("pruss_uio",	"pruss",	&pruss_clk),
-	CLK(NULL,		"uart0",	&uart0_clk),
-	CLK(NULL,		"uart1",	&uart1_clk),
-	CLK(NULL,		"uart2",	&uart2_clk),
+	CLK("serial8250.0",	NULL,		&uart0_clk),
+	CLK("serial8250.1",	NULL,		&uart1_clk),
+	CLK("serial8250.2",	NULL,		&uart2_clk),
 	CLK(NULL,		"aintc",	&aintc_clk),
 	CLK(NULL,		"gpio",		&gpio_clk),
 	CLK("i2c_davinci.2",	NULL,		&i2c1_clk),
@@ -461,6 +461,7 @@ static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"arm",		&arm_clk),
 	CLK(NULL,		"rmii",		&rmii_clk),
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
+	CLK("davinci_mdio.0",	"fck",		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	"fck",		&lcdc_clk),
 	CLK("da830-mmc.0",	NULL,		&mmcsd0_clk),
@@ -1004,7 +1005,7 @@ static const struct da850_opp da850_opp_96 = {
 
 #define OPP(freq) 		\
 	{				\
-		.index = (unsigned int) &da850_opp_##freq,	\
+		.driver_data = (unsigned int) &da850_opp_##freq,	\
 		.frequency = freq * 1000, \
 	}
 
@@ -1016,7 +1017,7 @@ static struct cpufreq_frequency_table da850_freq_table[] = {
 	OPP(200),
 	OPP(96),
 	{
-		.index		= 0,
+		.driver_data		= 0,
 		.frequency	= CPUFREQ_TABLE_END,
 	},
 };
@@ -1044,7 +1045,7 @@ static int da850_set_voltage(unsigned int index)
 	if (!cvdd)
 		return -ENODEV;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
 
 	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
 }
@@ -1125,7 +1126,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	struct pll_data *pll = clk->pll_data;
 	int ret;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;
@@ -1301,7 +1302,6 @@ static struct davinci_soc_info davinci_soc_info_da850 = {
 	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 144,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
-	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
 	.sram_dma		= DA8XX_SHARED_RAM_BASE,
 	.sram_len		= SZ_128K,

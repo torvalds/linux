@@ -564,11 +564,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].type = 0; /* BSS */
 	cmd.slots[1].type = 1; /* PAN */
 
-	if (priv->hw_roc_setup) {
-		/* both contexts must be used for this to happen */
-		slot1 = IWL_MIN_SLOT_TIME;
-		slot0 = 3000;
-	} else if (ctx_bss->vif && ctx_pan->vif) {
+	if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
 
@@ -1378,7 +1374,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if (!(priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED))
+	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
 		return;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&

@@ -43,7 +43,7 @@
 #define HOST_DIAG_WRITE_ENABLE			    0x80
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
-#define MAX_MSIX_QUEUES_FUSION			    16
+#define MAX_MSIX_QUEUES_FUSION			    128
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -61,6 +61,9 @@
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
+
+#define MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET   (0x0000030C)
+#define MPI2_REPLY_POST_HOST_INDEX_OFFSET	(0x0000006C)
 
 /*
  * Raid context flags
@@ -85,13 +88,18 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define MEGASAS_FUSION_IN_RESET 0
 
 /*
- * Raid Context structure which describes MegaRAID specific IO Paramenters
+ * Raid Context structure which describes MegaRAID specific IO Parameters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
 
 struct RAID_CONTEXT {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u8	nseg:4;
+	u8	Type:4;
+#else
 	u8	Type:4;
 	u8	nseg:4;
+#endif
 	u8	resvd0;
 	u16     timeoutValue;
 	u8      regLockFlags;
@@ -295,8 +303,13 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
  * MPT RAID MFA IO Descriptor.
  */
 struct MEGASAS_RAID_MFA_IO_REQUEST_DESCRIPTOR {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+	u32     MessageAddress1:24; /* bits 31:8*/
+	u32     RequestFlags:8;
+#else
 	u32     RequestFlags:8;
 	u32     MessageAddress1:24; /* bits 31:8*/
+#endif
 	u32     MessageAddress2;      /* bits 61:32 */
 };
 
@@ -460,6 +473,7 @@ struct MPI2_IOC_INIT_REQUEST {
 /* mrpriv defines */
 #define MR_PD_INVALID 0xFFFF
 #define MAX_SPAN_DEPTH 8
+#define MAX_QUAD_DEPTH	MAX_SPAN_DEPTH
 #define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
 #define MAX_ROW_SIZE 32
 #define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
@@ -501,7 +515,9 @@ struct MR_LD_SPAN {
 	u64      startBlk;
 	u64      numBlks;
 	u16      arrayRef;
-	u8       reserved[6];
+	u8       spanRowSize;
+	u8       spanRowDataSize;
+	u8       reserved[4];
 };
 
 struct MR_SPAN_BLOCK_INFO {
@@ -512,6 +528,19 @@ struct MR_SPAN_BLOCK_INFO {
 
 struct MR_LD_RAID {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved4:7;
+		u32	fpNonRWCapable:1;
+		u32     fpReadAcrossStripe:1;
+		u32     fpWriteAcrossStripe:1;
+		u32     fpReadCapable:1;
+		u32     fpWriteCapable:1;
+		u32     encryptionType:8;
+		u32     pdPiMode:4;
+		u32     ldPiMode:4;
+		u32     reserved5:3;
+		u32     fpCapable:1;
+#else
 		u32     fpCapable:1;
 		u32     reserved5:3;
 		u32     ldPiMode:4;
@@ -521,7 +550,9 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32     reserved4:8;
+		u32	fpNonRWCapable:1;
+		u32     reserved4:7;
+#endif
 	} capability;
 	u32     reserved6;
 	u64     size;
@@ -545,7 +576,9 @@ struct MR_LD_RAID {
 		u32 reserved:31;
 	} flags;
 
-	u8      reserved3[0x5C];
+	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
+	u8	fpIoTimeoutForLd;/*0x2C timeout value used by driver in FP IO*/
+	u8      reserved3[0x80-0x2D]; /* 0x2D */
 };
 
 struct MR_LD_SPAN_MAP {
@@ -587,6 +620,10 @@ struct IO_REQUEST_INFO {
 	u16 devHandle;
 	u64 pdBlock;
 	u8 fpOkForIo;
+	u8 IoforUnevenSpan;
+	u8 start_span;
+	u8 reserved;
+	u64 start_row;
 };
 
 struct MR_LD_TARGET_SYNC {
@@ -648,6 +685,26 @@ struct LD_LOAD_BALANCE_INFO {
 	u64     last_accessed_block[2];
 };
 
+/* SPAN_SET is info caclulated from span info from Raid map per LD */
+typedef struct _LD_SPAN_SET {
+	u64  log_start_lba;
+	u64  log_end_lba;
+	u64  span_row_start;
+	u64  span_row_end;
+	u64  data_strip_start;
+	u64  data_strip_end;
+	u64  data_row_start;
+	u64  data_row_end;
+	u8   strip_offset[MAX_SPAN_DEPTH];
+	u32    span_row_data_width;
+	u32    diff;
+	u32    reserved[2];
+} LD_SPAN_SET, *PLD_SPAN_SET;
+
+typedef struct LOG_BLOCK_SPAN_INFO {
+	LD_SPAN_SET  span_set[MAX_SPAN_DEPTH];
+} LD_SPAN_INFO, *PLD_SPAN_INFO;
+
 struct MR_FW_RAID_MAP_ALL {
 	struct MR_FW_RAID_MAP raidMap;
 	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
@@ -692,6 +749,7 @@ struct fusion_context {
 	u32 map_sz;
 	u8 fast_path_io;
 	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
+	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES];
 };
 
 union desc_value {

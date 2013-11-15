@@ -26,10 +26,6 @@
 	};
 
 	clocks {
-		ckih1 {
-			clock-frequency = <0>;
-		};
-
 		osc {
 			clock-frequency = <33554432>;
 		};
@@ -42,6 +38,13 @@
 	phy-mode = "mii";
 	phy-reset-gpios = <&gpio3 0 0>;
 	phy-reset-duration = <1>;
+	status = "okay";
+};
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	nand-on-flash-bbt;
 	status = "okay";
 };
 

@@ -146,7 +146,7 @@ void __init smp_prepare_boot_cpu(void)
  * to point to current thread info
  */
 
-void __cpuinit start_secondary(void)
+void start_secondary(void)
 {
 	unsigned int cpu;
 	unsigned long thread_ptr;
@@ -194,7 +194,7 @@ void __cpuinit start_secondary(void)
  * maintains control until "cpu_online(cpu)" is set.
  */
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	struct thread_info *thread = (struct thread_info *)idle->stack;
 	void *stack_start;

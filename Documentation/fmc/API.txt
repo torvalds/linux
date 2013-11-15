@@ -1,0 +1,47 @@
+Functions Exported by fmc.ko
+****************************
+
+The FMC core exports the usual 4 functions that are needed for a bus to
+work, and a few more:
+
+        int fmc_driver_register(struct fmc_driver *drv);
+        void fmc_driver_unregister(struct fmc_driver *drv);
+        int fmc_device_register(struct fmc_device *fmc);
+        void fmc_device_unregister(struct fmc_device *fmc);
+
+        int fmc_device_register_n(struct fmc_device **fmc, int n);
+        void fmc_device_unregister_n(struct fmc_device **fmc, int n);
+
+        uint32_t fmc_readl(struct fmc_device *fmc, int offset);
+        void fmc_writel(struct fmc_device *fmc, uint32_t val, int off);
+        void *fmc_get_drvdata(struct fmc_device *fmc);
+        void fmc_set_drvdata(struct fmc_device *fmc, void *data);
+
+        int fmc_reprogram(struct fmc_device *f, struct fmc_driver *d, char *gw,
+                          int sdb_entry);
+
+The data structure that describe a device is detailed in *note FMC
+Device::, the one that describes a driver is detailed in *note FMC
+Driver::.  Please note that structures of type fmc_device must be
+allocated by the caller, but must not be released after unregistering.
+The fmc-bus itself takes care of releasing the structure when their use
+count reaches zero - actually, the device model does that in lieu of us.
+
+The functions to register and unregister n devices are meant to be used
+by carriers that host more than one mezzanine. The devices must all be
+registered at the same time because if the FPGA is reprogrammed, all
+devices in the array are affected. Usually, the driver matching the
+first device will reprogram the FPGA, so other devices must know they
+are already driven by a reprogrammed FPGA.
+
+If a carrier hosts slots that are driven by different FPGA devices, it
+should register as a group only mezzanines that are driven by the same
+FPGA, for the reason outlined above.
+
+Finally, the fmc_reprogram function calls the reprogram method (see
+*note The API Offered by Carriers:: and also scans the memory area for
+an SDB tree. You can pass -1 as sdb_entry to disable such scan.
+Otherwise, the function fails if no tree is found at the specified
+entry point.  The function is meant to factorize common code, and by
+the time you read this it is already used by the spec-sw and fine-delay
+modules.

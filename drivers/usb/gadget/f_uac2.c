@@ -90,6 +90,7 @@ struct uac2_req {
 };
 
 struct uac2_rtd_params {
+	struct snd_uac2_chip *uac2; /* parent chip */
 	bool ep_enabled; /* if the ep is enabled */
 	/* Size of the ring buffer */
 	size_t dma_bytes;
@@ -169,18 +170,6 @@ struct snd_uac2_chip *pdev_to_uac2(struct platform_device *p)
 }
 
 static inline
-struct snd_uac2_chip *prm_to_uac2(struct uac2_rtd_params *r)
-{
-	struct snd_uac2_chip *uac2 = container_of(r,
-					struct snd_uac2_chip, c_prm);
-
-	if (&uac2->c_prm != r)
-		uac2 = container_of(r, struct snd_uac2_chip, p_prm);
-
-	return uac2;
-}
-
-static inline
 uint num_channels(uint chanmask)
 {
 	uint num = 0;
@@ -204,7 +193,7 @@ agdev_iso_complete(struct usb_ep *ep, struct usb_request *req)
 	struct uac2_req *ur = req->context;
 	struct snd_pcm_substream *substream;
 	struct uac2_rtd_params *prm = ur->pp;
-	struct snd_uac2_chip *uac2 = prm_to_uac2(prm);
+	struct snd_uac2_chip *uac2 = prm->uac2;
 
 	/* i/f shutting down */
 	if (!prm->ep_enabled)
@@ -894,7 +883,7 @@ struct cntrl_range_lay3 {
 static inline void
 free_ep(struct uac2_rtd_params *prm, struct usb_ep *ep)
 {
-	struct snd_uac2_chip *uac2 = prm_to_uac2(prm);
+	struct snd_uac2_chip *uac2 = prm->uac2;
 	int i;
 
 	prm->ep_enabled = false;
@@ -969,6 +958,9 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		goto err;
 	}
 	agdev->in_ep->driver_data = agdev;
+
+	uac2->p_prm.uac2 = uac2;
+	uac2->c_prm.uac2 = uac2;
 
 	hs_epout_desc.bEndpointAddress = fs_epout_desc.bEndpointAddress;
 	hs_epout_desc.wMaxPacketSize = fs_epout_desc.wMaxPacketSize;

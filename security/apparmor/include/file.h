@@ -186,11 +186,6 @@ static inline void aa_free_file_rules(struct aa_file_rules *rules)
 	aa_free_domain_entries(&rules->trans);
 }
 
-#define ACC_FMODE(x) (("\000\004\002\006"[(x)&O_ACCMODE]) | (((x) << 1) & 0x40))
-
-/* from namei.c */
-#define MAP_OPEN_FLAGS(x) ((((x) + 1) & O_ACCMODE) ? (x) + 1 : (x))
-
 /**
  * aa_map_file_perms - map file flags to AppArmor permissions
  * @file: open file to map flags to AppArmor permissions
@@ -199,8 +194,13 @@ static inline void aa_free_file_rules(struct aa_file_rules *rules)
  */
 static inline u32 aa_map_file_to_perms(struct file *file)
 {
-	int flags = MAP_OPEN_FLAGS(file->f_flags);
-	u32 perms = ACC_FMODE(file->f_mode);
+	int flags = file->f_flags;
+	u32 perms = 0;
+
+	if (file->f_mode & FMODE_WRITE)
+		perms |= MAY_WRITE;
+	if (file->f_mode & FMODE_READ)
+		perms |= MAY_READ;
 
 	if ((flags & O_APPEND) && (perms & MAY_WRITE))
 		perms = (perms & ~MAY_WRITE) | MAY_APPEND;

@@ -34,7 +34,7 @@
 void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte)
 {
 	ppc_md.hpte_invalidate(pte->slot, pte->host_vpn,
-			       MMU_PAGE_4K, MMU_SEGSIZE_256M,
+			       MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M,
 			       false);
 }
 
@@ -301,6 +301,23 @@ out:
 	return r;
 }
 
+void kvmppc_mmu_flush_segment(struct kvm_vcpu *vcpu, ulong ea, ulong seg_size)
+{
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong seg_mask = -seg_size;
+	int i;
+
+	for (i = 1; i < svcpu->slb_max; i++) {
+		if ((svcpu->slb[i].esid & SLB_ESID_V) &&
+		    (svcpu->slb[i].esid & seg_mask) == ea) {
+			/* Invalidate this entry */
+			svcpu->slb[i].esid = 0;
+		}
+	}
+
+	svcpu_put(svcpu);
+}
+
 void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
@@ -325,9 +342,9 @@ int kvmppc_mmu_init(struct kvm_vcpu *vcpu)
 		return -1;
 	vcpu3s->context_id[0] = err;
 
-	vcpu3s->proto_vsid_max = ((vcpu3s->context_id[0] + 1)
+	vcpu3s->proto_vsid_max = ((u64)(vcpu3s->context_id[0] + 1)
 				  << ESID_BITS) - 1;
-	vcpu3s->proto_vsid_first = vcpu3s->context_id[0] << ESID_BITS;
+	vcpu3s->proto_vsid_first = (u64)vcpu3s->context_id[0] << ESID_BITS;
 	vcpu3s->proto_vsid_next = vcpu3s->proto_vsid_first;
 
 	kvmppc_mmu_hpte_init(vcpu);

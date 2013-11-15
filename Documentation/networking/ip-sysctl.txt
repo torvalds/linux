@@ -183,7 +183,7 @@ tcp_early_retrans - INTEGER
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
 	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occuring due to tail
+	Tail loss probe (TLP) that converts RTOs occurring due to tail
 	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER
@@ -420,10 +420,10 @@ tcp_synack_retries - INTEGER
 	for a passive TCP connection will happen after 63seconds.
 
 tcp_syncookies - BOOLEAN
-	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
+	Only valid when the kernel was compiled with CONFIG_SYN_COOKIES
 	Send out syncookies when the syn backlog queue of a socket
 	overflows. This is to prevent against the common 'SYN flood attack'
-	Default: FALSE
+	Default: 1
 
 	Note, that syncookies is fallback facility.
 	It MUST NOT be used to help highly loaded servers to stand
@@ -439,6 +439,10 @@ tcp_syncookies - BOOLEAN
 	but your clients and relays, contacting you. While you see
 	SYN flood warnings in logs not being really flooded, your server
 	is seriously misconfigured.
+
+	If you want to test which effects syncookies have to your
+	network connections you can set this knob to 2 to enable
+	unconditionally generation of syncookies.
 
 tcp_fastopen - INTEGER
 	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
@@ -478,6 +482,15 @@ tcp_syn_retries - INTEGER
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
 
+tcp_min_tso_segs - INTEGER
+	Minimal number of segments per TSO frame.
+	Since linux-3.12, TCP does an automatic sizing of TSO frames,
+	depending on flow rate, instead of filling 64Kbytes packets.
+	For specific usages, it's possible to force TCP to build big
+	TSO frames. Note that TCP stack might split too big TSO packets
+	if available window is too small.
+	Default: 2
+
 tcp_tso_win_divisor - INTEGER
 	This allows control over what percentage of the congestion window
 	can be consumed by a single TSO frame.
@@ -515,6 +528,19 @@ tcp_wmem - vector of 3 INTEGERs: min, default, max
 	automatic tuning of that socket's send buffer size, in which case
 	this value is ignored.
 	Default: between 64K and 4MB, depending on RAM size.
+
+tcp_notsent_lowat - UNSIGNED INTEGER
+	A TCP socket can control the amount of unsent bytes in its write queue,
+	thanks to TCP_NOTSENT_LOWAT socket option. poll()/select()/epoll()
+	reports POLLOUT events if the amount of unsent bytes is below a per
+	socket value, and if the write queue is not full. sendmsg() will
+	also not add new buffers if the limit is hit.
+
+	This global variable controls the amount of unsent data for
+	sockets not using TCP_NOTSENT_LOWAT. For these sockets, a change
+	to the global variable has immediate effect.
+
+	Default: UINT_MAX (0xFFFFFFFF)
 
 tcp_workaround_signed_windows - BOOLEAN
 	If set, assume no receipt of a window scaling option means the
@@ -685,6 +711,15 @@ ip_dynaddr - BOOLEAN
 	occurs.
 	Default: 0
 
+ip_early_demux - BOOLEAN
+	Optimize input packet processing down to one demux for
+	certain kinds of local sockets.  Currently we only do this
+	for established TCP sockets.
+
+	It may add an additional cost for pure routing workloads that
+	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
 icmp_echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it.
@@ -729,7 +764,7 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	frames.  Such violations are normally logged via a kernel warning.
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
-	Default: FALSE
+	Default: 1
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 
@@ -1013,7 +1048,15 @@ disable_policy - BOOLEAN
 disable_xfrm - BOOLEAN
 	Disable IPSEC encryption on this interface, whatever the policy
 
+igmpv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv1 or IGMPv2 report retransmit will take place.
+	Default: 10000 (10 seconds)
 
+igmpv3_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	IGMPv3 report retransmit will take place.
+	Default: 1000 (1 seconds)
 
 tag - INTEGER
 	Allows you to write a number, which can be used as required.
@@ -1304,6 +1347,27 @@ ndisc_notify - BOOLEAN
 	0 - (default): do nothing
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
+
+mldv1_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv1 report retransmit will take place.
+	Default: 10000 (10 seconds)
+
+mldv2_unsolicited_report_interval - INTEGER
+	The interval in milliseconds in which the next unsolicited
+	MLDv2 report retransmit will take place.
+	Default: 1000 (1 second)
+
+force_mld_version - INTEGER
+	0 - (default) No enforcement of a MLD version, MLDv1 fallback allowed
+	1 - Enforce to use MLD version 1
+	2 - Enforce to use MLD version 2
+
+suppress_frag_ndisc - INTEGER
+	Control RFC 6980 (Security Implications of IPv6 Fragmentation
+	with IPv6 Neighbor Discovery) behavior:
+	1 - (default) discard fragmented neighbor discovery packets
+	0 - allow fragmented neighbor discovery packets
 
 icmp/*:
 ratelimit - INTEGER

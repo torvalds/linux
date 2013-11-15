@@ -279,7 +279,7 @@ The dyndbg option is a "fake" module parameter, which means:
 
 - modules do not need to define it explicitly
 - every module gets it tacitly, whether they use pr_debug or not
-- it doesnt appear in /sys/module/$module/parameters/
+- it doesn't appear in /sys/module/$module/parameters/
   To see it, grep the control file, or inspect /proc/cmdline.
 
 For CONFIG_DYNAMIC_DEBUG kernels, any settings given at boot-time (or

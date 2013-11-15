@@ -338,6 +338,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 {
 	u8 *target;
 	char *name;
+	const char *reference_name;
 	u8 count;
 
 	if (!info) {
@@ -357,6 +358,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 
 		switch (info->opcode) {
 		case ACPI_EXD_INIT:
+
 			break;
 
 		case ACPI_EXD_TYPE:
@@ -425,10 +427,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 
 		case ACPI_EXD_REFERENCE:
 
+			reference_name = acpi_ut_get_reference_name(obj_desc);
 			acpi_ex_out_string("Class Name",
-					   ACPI_CAST_PTR(char,
-							 acpi_ut_get_reference_name
-							 (obj_desc)));
+					   ACPI_CAST_PTR(char, reference_name));
 			acpi_ex_dump_reference_obj(obj_desc);
 			break;
 
@@ -718,6 +719,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 		break;
 
 	default:
+
 		/* Unknown Type */
 
 		acpi_os_printf("Unknown Type %X\n", obj_desc->common.type);

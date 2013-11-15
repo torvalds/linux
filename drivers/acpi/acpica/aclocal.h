@@ -362,23 +362,6 @@ union acpi_predefined_info {
 
 #pragma pack()
 
-/* Data block used during object validation */
-
-struct acpi_predefined_data {
-	char *pathname;
-	const union acpi_predefined_info *predefined;
-	union acpi_operand_object *parent_package;
-	struct acpi_namespace_node *node;
-	u32 flags;
-	u32 return_btype;
-	u8 node_flags;
-};
-
-/* Defines for Flags field above */
-
-#define ACPI_OBJECT_REPAIRED    1
-#define ACPI_OBJECT_WRAPPED     2
-
 /* Return object auto-repair info */
 
 typedef acpi_status(*acpi_object_converter) (union acpi_operand_object
@@ -948,19 +931,6 @@ struct acpi_bit_register_info {
 
 /* Structs and definitions for _OSI support and I/O port validation */
 
-#define ACPI_OSI_WIN_2000               0x01
-#define ACPI_OSI_WIN_XP                 0x02
-#define ACPI_OSI_WIN_XP_SP1             0x03
-#define ACPI_OSI_WINSRV_2003            0x04
-#define ACPI_OSI_WIN_XP_SP2             0x05
-#define ACPI_OSI_WINSRV_2003_SP1        0x06
-#define ACPI_OSI_WIN_VISTA              0x07
-#define ACPI_OSI_WINSRV_2008            0x08
-#define ACPI_OSI_WIN_VISTA_SP1          0x09
-#define ACPI_OSI_WIN_VISTA_SP2          0x0A
-#define ACPI_OSI_WIN_7                  0x0B
-#define ACPI_OSI_WIN_8                  0x0C
-
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
 struct acpi_interface_info {
@@ -972,6 +942,9 @@ struct acpi_interface_info {
 
 #define ACPI_OSI_INVALID                0x01
 #define ACPI_OSI_DYNAMIC                0x02
+#define ACPI_OSI_FEATURE                0x04
+#define ACPI_OSI_DEFAULT_INVALID        0x08
+#define ACPI_OSI_OPTIONAL_FEATURE       (ACPI_OSI_FEATURE | ACPI_OSI_DEFAULT_INVALID | ACPI_OSI_INVALID)
 
 struct acpi_port_info {
 	char *name;
@@ -1060,6 +1033,7 @@ struct acpi_external_list {
 	u8 type;
 	u8 flags;
 	u8 resolved;
+	u8 emitted;
 };
 
 /* Values for Flags field above */

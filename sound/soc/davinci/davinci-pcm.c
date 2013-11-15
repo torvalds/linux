@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/genalloc.h>
+#include <linux/platform_data/edma.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

@@ -17,6 +17,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_format.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
@@ -28,6 +29,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -62,7 +64,8 @@ int xfs_dqerror_mod = 33;
 struct kmem_zone		*xfs_qm_dqtrxzone;
 static struct kmem_zone		*xfs_qm_dqzone;
 
-static struct lock_class_key xfs_dquot_other_class;
+static struct lock_class_key xfs_dquot_group_class;
+static struct lock_class_key xfs_dquot_project_class;
 
 /*
  * This is called to free all the memory associated with a dquot
@@ -570,13 +573,13 @@ xfs_qm_dqtobp(
 	xfs_buf_t		**O_bpp,
 	uint			flags)
 {
-	xfs_bmbt_irec_t map;
-	int		nmaps = 1, error;
-	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
-	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
+	struct xfs_bmbt_irec	map;
+	int			nmaps = 1, error;
+	struct xfs_buf		*bp;
+	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
+	struct xfs_mount	*mp = dqp->q_mount;
+	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
+	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
@@ -701,8 +704,20 @@ xfs_qm_dqread(
 	 * Make sure group quotas have a different lock class than user
 	 * quotas.
 	 */
-	if (!(type & XFS_DQ_USER))
-		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_other_class);
+	switch (type) {
+	case XFS_DQ_USER:
+		/* uses the default lock class */
+		break;
+	case XFS_DQ_GROUP:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_group_class);
+		break;
+	case XFS_DQ_PROJ:
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_project_class);
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
 
 	XFS_STATS_INC(xs_qm_dquot);
 
@@ -710,10 +725,8 @@ xfs_qm_dqread(
 
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
-		error = xfs_trans_reserve(tp, XFS_QM_DQALLOC_SPACE_RES(mp),
-					  XFS_QM_DQALLOC_LOG_RES(mp), 0,
-					  XFS_TRANS_PERM_LOG_RES,
-					  XFS_WRITE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_attrsetm,
+					  XFS_QM_DQALLOC_SPACE_RES(mp), 0);
 		if (error)
 			goto error1;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
@@ -804,7 +817,7 @@ xfs_qm_dqget(
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root *tree = XFS_DQUOT_TREE(qi, type);
+	struct radix_tree_root *tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -936,34 +949,38 @@ xfs_qm_dqput_final(
 {
 	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 
 	trace_xfs_dqput_free(dqp);
 
-	mutex_lock(&qi->qi_lru_lock);
-	if (list_empty(&dqp->q_lru)) {
-		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
-		qi->qi_lru_count++;
+	if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
 		XFS_STATS_INC(xs_qm_dquot_unused);
-	}
-	mutex_unlock(&qi->qi_lru_lock);
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release
-	 * the gdquot reference that it (probably) has. Otherwise it'll keep
-	 * the gdquot from getting reclaimed.
+	 * the gdquot/pdquot reference that it (probably) has. Otherwise it'll
+	 * keep the gdquot/pdquot from getting reclaimed.
 	 */
 	gdqp = dqp->q_gdquot;
 	if (gdqp) {
 		xfs_dqlock(gdqp);
 		dqp->q_gdquot = NULL;
 	}
+
+	pdqp = dqp->q_pdquot;
+	if (pdqp) {
+		xfs_dqlock(pdqp);
+		dqp->q_pdquot = NULL;
+	}
 	xfs_dqunlock(dqp);
 
 	/*
-	 * If we had a group quota hint, release it now.
+	 * If we had a group/project quota hint, release it now.
 	 */
 	if (gdqp)
 		xfs_qm_dqput(gdqp);
+	if (pdqp)
+		xfs_qm_dqput(pdqp);
 }
 
 /*

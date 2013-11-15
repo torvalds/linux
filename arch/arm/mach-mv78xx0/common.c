@@ -413,7 +413,7 @@ void __init mv78xx0_init(void)
 	clk_init();
 }
 
-void mv78xx0_restart(char mode, const char *cmd)
+void mv78xx0_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable soft reset to assert RSTOUTn.

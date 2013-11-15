@@ -18,6 +18,8 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -80,24 +82,20 @@ int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 	unsigned int offset;
 	unsigned int i;
 
-	if (pfc->info->ranges == NULL)
-		return pin;
-
-	for (i = 0, offset = 0; i < pfc->info->nr_ranges; ++i) {
-		const struct pinmux_range *range = &pfc->info->ranges[i];
+	for (i = 0, offset = 0; i < pfc->nr_ranges; ++i) {
+		const struct sh_pfc_pin_range *range = &pfc->ranges[i];
 
 		if (pin <= range->end)
-			return pin >= range->begin
-			     ? offset + pin - range->begin : -1;
+			return pin >= range->start
+			     ? offset + pin - range->start : -1;
 
-		offset += range->end - range->begin + 1;
+		offset += range->end - range->start + 1;
 	}
 
 	return -EINVAL;
 }
 
-static int sh_pfc_enum_in_range(pinmux_enum_t enum_id,
-				const struct pinmux_range *r)
+static int sh_pfc_enum_in_range(u16 enum_id, const struct pinmux_range *r)
 {
 	if (enum_id < r->begin)
 		return 0;
@@ -192,7 +190,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 	sh_pfc_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
-static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
+static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 				 const struct pinmux_cfg_reg **crp, int *fieldp,
 				 int *valuep)
 {
@@ -236,10 +234,10 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 	return -EINVAL;
 }
 
-static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
-			      pinmux_enum_t *enum_idp)
+static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
+			      u16 *enum_idp)
 {
-	const pinmux_enum_t *data = pfc->info->gpio_data;
+	const u16 *data = pfc->info->gpio_data;
 	int k;
 
 	if (pos) {
@@ -262,7 +260,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 {
 	const struct pinmux_cfg_reg *cr = NULL;
-	pinmux_enum_t enum_id;
+	u16 enum_id;
 	const struct pinmux_range *range;
 	int in_range, pos, field, value;
 	int ret;
@@ -279,14 +277,6 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 
 	case PINMUX_TYPE_INPUT:
 		range = &pfc->info->input;
-		break;
-
-	case PINMUX_TYPE_INPUT_PULLUP:
-		range = &pfc->info->input_pu;
-		break;
-
-	case PINMUX_TYPE_INPUT_PULLDOWN:
-		range = &pfc->info->input_pd;
 		break;
 
 	default:
@@ -348,14 +338,133 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
+static int sh_pfc_init_ranges(struct sh_pfc *pfc)
+{
+	struct sh_pfc_pin_range *range;
+	unsigned int nr_ranges;
+	unsigned int i;
+
+	if (pfc->info->pins[0].pin == (u16)-1) {
+		/* Pin number -1 denotes that the SoC doesn't report pin numbers
+		 * in its pin arrays yet. Consider the pin numbers range as
+		 * continuous and allocate a single range.
+		 */
+		pfc->nr_ranges = 1;
+		pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges),
+					   GFP_KERNEL);
+		if (pfc->ranges == NULL)
+			return -ENOMEM;
+
+		pfc->ranges->start = 0;
+		pfc->ranges->end = pfc->info->nr_pins - 1;
+		pfc->nr_gpio_pins = pfc->info->nr_pins;
+
+		return 0;
+	}
+
+	/* Count, allocate and fill the ranges. The PFC SoC data pins array must
+	 * be sorted by pin numbers, and pins without a GPIO port must come
+	 * last.
+	 */
+	for (i = 1, nr_ranges = 1; i < pfc->info->nr_pins; ++i) {
+		if (pfc->info->pins[i-1].pin != pfc->info->pins[i].pin - 1)
+			nr_ranges++;
+	}
+
+	pfc->nr_ranges = nr_ranges;
+	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
+				   GFP_KERNEL);
+	if (pfc->ranges == NULL)
+		return -ENOMEM;
+
+	range = pfc->ranges;
+	range->start = pfc->info->pins[0].pin;
+
+	for (i = 1; i < pfc->info->nr_pins; ++i) {
+		if (pfc->info->pins[i-1].pin == pfc->info->pins[i].pin - 1)
+			continue;
+
+		range->end = pfc->info->pins[i-1].pin;
+		if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+			pfc->nr_gpio_pins = range->end + 1;
+
+		range++;
+		range->start = pfc->info->pins[i].pin;
+	}
+
+	range->end = pfc->info->pins[i-1].pin;
+	if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+		pfc->nr_gpio_pins = range->end + 1;
+
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id sh_pfc_of_table[] = {
+#ifdef CONFIG_PINCTRL_PFC_R8A73A4
+	{
+		.compatible = "renesas,pfc-r8a73a4",
+		.data = &r8a73a4_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7740
+	{
+		.compatible = "renesas,pfc-r8a7740",
+		.data = &r8a7740_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7778
+	{
+		.compatible = "renesas,pfc-r8a7778",
+		.data = &r8a7778_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7779
+	{
+		.compatible = "renesas,pfc-r8a7779",
+		.data = &r8a7779_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
+	{
+		.compatible = "renesas,pfc-r8a7790",
+		.data = &r8a7790_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_SH7372
+	{
+		.compatible = "renesas,pfc-sh7372",
+		.data = &sh7372_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_SH73A0
+	{
+		.compatible = "renesas,pfc-sh73a0",
+		.data = &sh73a0_pinmux_info,
+	},
+#endif
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sh_pfc_of_table);
+#endif
+
 static int sh_pfc_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
+#ifdef CONFIG_OF
+	struct device_node *np = pdev->dev.of_node;
+#endif
 	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
 
-	info = pdev->id_entry->driver_data
-	      ? (void *)pdev->id_entry->driver_data : pdev->dev.platform_data;
+#ifdef CONFIG_OF
+	if (np)
+		info = of_match_device(sh_pfc_of_table, &pdev->dev)->data;
+	else
+#endif
+		info = platid ? (const void *)platid->driver_data : NULL;
+
 	if (info == NULL)
 		return -ENODEV;
 
@@ -372,14 +481,24 @@ static int sh_pfc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pfc->lock);
 
+	if (info->ops && info->ops->init) {
+		ret = info->ops->init(pfc);
+		if (ret < 0)
+			return ret;
+	}
+
 	pinctrl_provide_dummies();
+
+	ret = sh_pfc_init_ranges(pfc);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Initialize pinctrl bindings first
 	 */
 	ret = sh_pfc_register_pinctrl(pfc);
 	if (unlikely(ret != 0))
-		return ret;
+		goto error;
 
 #ifdef CONFIG_GPIO_SH_PFC
 	/*
@@ -401,6 +520,11 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	dev_info(pfc->dev, "%s support registered\n", info->name);
 
 	return 0;
+
+error:
+	if (info->ops && info->ops->exit)
+		info->ops->exit(pfc);
+	return ret;
 }
 
 static int sh_pfc_remove(struct platform_device *pdev)
@@ -412,7 +536,8 @@ static int sh_pfc_remove(struct platform_device *pdev)
 #endif
 	sh_pfc_unregister_pinctrl(pfc);
 
-	platform_set_drvdata(pdev, NULL);
+	if (pfc->info->ops && pfc->info->ops->exit)
+		pfc->info->ops->exit(pfc);
 
 	return 0;
 }
@@ -424,8 +549,14 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_R8A7740
 	{ "pfc-r8a7740", (kernel_ulong_t)&r8a7740_pinmux_info },
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7778
+	{ "pfc-r8a7778", (kernel_ulong_t)&r8a7778_pinmux_info },
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7779
 	{ "pfc-r8a7779", (kernel_ulong_t)&r8a7779_pinmux_info },
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7790
+	{ "pfc-r8a7790", (kernel_ulong_t)&r8a7790_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7203
 	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },
@@ -481,6 +612,7 @@ static struct platform_driver sh_pfc_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(sh_pfc_of_table),
 	},
 };
 

@@ -113,9 +113,6 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 #define pte_clear(mm, addr, xp)		\
 	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 /*
  * The "pgd_xxx()" functions here are trivial for a folded two-level
  * setup: the pgd is never bad, and a pmd always exists (as it's folded

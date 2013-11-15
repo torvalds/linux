@@ -15,12 +15,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************
 */
 /*
 Driver: das800
@@ -62,10 +56,10 @@ cmd triggers supported:
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/ioport.h>
 #include <linux/delay.h>
 
 #include "8253.h"
@@ -706,10 +700,9 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int board;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
 	if (ret)

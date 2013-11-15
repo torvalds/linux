@@ -14,7 +14,9 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -72,11 +74,214 @@ static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", DRV_NAME);
 }
 
+#ifdef CONFIG_OF
+static int sh_pfc_map_add_config(struct pinctrl_map *map,
+				 const char *group_or_pin,
+				 enum pinctrl_map_type type,
+				 unsigned long *configs,
+				 unsigned int num_configs)
+{
+	unsigned long *cfgs;
+
+	cfgs = kmemdup(configs, num_configs * sizeof(*cfgs),
+		       GFP_KERNEL);
+	if (cfgs == NULL)
+		return -ENOMEM;
+
+	map->type = type;
+	map->data.configs.group_or_pin = group_or_pin;
+	map->data.configs.configs = cfgs;
+	map->data.configs.num_configs = num_configs;
+
+	return 0;
+}
+
+static int sh_pfc_dt_subnode_to_map(struct device *dev, struct device_node *np,
+				    struct pinctrl_map **map,
+				    unsigned int *num_maps, unsigned int *index)
+{
+	struct pinctrl_map *maps = *map;
+	unsigned int nmaps = *num_maps;
+	unsigned int idx = *index;
+	unsigned int num_configs;
+	const char *function = NULL;
+	unsigned long *configs;
+	struct property *prop;
+	unsigned int num_groups;
+	unsigned int num_pins;
+	const char *group;
+	const char *pin;
+	int ret;
+
+	/* Parse the function and configuration properties. At least a function
+	 * or one configuration must be specified.
+	 */
+	ret = of_property_read_string(np, "renesas,function", &function);
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(dev, "Invalid function in DT\n");
+		return ret;
+	}
+
+	ret = pinconf_generic_parse_dt_config(np, &configs, &num_configs);
+	if (ret < 0)
+		return ret;
+
+	if (!function && num_configs == 0) {
+		dev_err(dev,
+			"DT node must contain at least a function or config\n");
+		goto done;
+	}
+
+	/* Count the number of pins and groups and reallocate mappings. */
+	ret = of_property_count_strings(np, "renesas,pins");
+	if (ret == -EINVAL) {
+		num_pins = 0;
+	} else if (ret < 0) {
+		dev_err(dev, "Invalid pins list in DT\n");
+		goto done;
+	} else {
+		num_pins = ret;
+	}
+
+	ret = of_property_count_strings(np, "renesas,groups");
+	if (ret == -EINVAL) {
+		num_groups = 0;
+	} else if (ret < 0) {
+		dev_err(dev, "Invalid pin groups list in DT\n");
+		goto done;
+	} else {
+		num_groups = ret;
+	}
+
+	if (!num_pins && !num_groups) {
+		dev_err(dev, "No pin or group provided in DT node\n");
+		ret = -ENODEV;
+		goto done;
+	}
+
+	if (function)
+		nmaps += num_groups;
+	if (configs)
+		nmaps += num_pins + num_groups;
+
+	maps = krealloc(maps, sizeof(*maps) * nmaps, GFP_KERNEL);
+	if (maps == NULL) {
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	*map = maps;
+	*num_maps = nmaps;
+
+	/* Iterate over pins and groups and create the mappings. */
+	of_property_for_each_string(np, "renesas,groups", prop, group) {
+		if (function) {
+			maps[idx].type = PIN_MAP_TYPE_MUX_GROUP;
+			maps[idx].data.mux.group = group;
+			maps[idx].data.mux.function = function;
+			idx++;
+		}
+
+		if (configs) {
+			ret = sh_pfc_map_add_config(&maps[idx], group,
+						    PIN_MAP_TYPE_CONFIGS_GROUP,
+						    configs, num_configs);
+			if (ret < 0)
+				goto done;
+
+			idx++;
+		}
+	}
+
+	if (!configs) {
+		ret = 0;
+		goto done;
+	}
+
+	of_property_for_each_string(np, "renesas,pins", prop, pin) {
+		ret = sh_pfc_map_add_config(&maps[idx], pin,
+					    PIN_MAP_TYPE_CONFIGS_PIN,
+					    configs, num_configs);
+		if (ret < 0)
+			goto done;
+
+		idx++;
+	}
+
+done:
+	*index = idx;
+	kfree(configs);
+	return ret;
+}
+
+static void sh_pfc_dt_free_map(struct pinctrl_dev *pctldev,
+			       struct pinctrl_map *map, unsigned num_maps)
+{
+	unsigned int i;
+
+	if (map == NULL)
+		return;
+
+	for (i = 0; i < num_maps; ++i) {
+		if (map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP ||
+		    map[i].type == PIN_MAP_TYPE_CONFIGS_PIN)
+			kfree(map[i].data.configs.configs);
+	}
+
+	kfree(map);
+}
+
+static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
+				 struct device_node *np,
+				 struct pinctrl_map **map, unsigned *num_maps)
+{
+	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct device *dev = pmx->pfc->dev;
+	struct device_node *child;
+	unsigned int index;
+	int ret;
+
+	*map = NULL;
+	*num_maps = 0;
+	index = 0;
+
+	for_each_child_of_node(np, child) {
+		ret = sh_pfc_dt_subnode_to_map(dev, child, map, num_maps,
+					       &index);
+		if (ret < 0)
+			goto done;
+	}
+
+	/* If no mapping has been found in child nodes try the config node. */
+	if (*num_maps == 0) {
+		ret = sh_pfc_dt_subnode_to_map(dev, np, map, num_maps, &index);
+		if (ret < 0)
+			goto done;
+	}
+
+	if (*num_maps)
+		return 0;
+
+	dev_err(dev, "no mapping found in node %s\n", np->full_name);
+	ret = -EINVAL;
+
+done:
+	if (ret < 0)
+		sh_pfc_dt_free_map(pctldev, *map, *num_maps);
+
+	return ret;
+}
+#endif /* CONFIG_OF */
+
 static const struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_groups_count	= sh_pfc_get_groups_count,
 	.get_group_name		= sh_pfc_get_group_name,
 	.get_group_pins		= sh_pfc_get_group_pins,
 	.pin_dbg_show		= sh_pfc_pin_dbg_show,
+#ifdef CONFIG_OF
+	.dt_node_to_map		= sh_pfc_dt_node_to_map,
+	.dt_free_map		= sh_pfc_dt_free_map,
+#endif
 };
 
 static int sh_pfc_get_functions_count(struct pinctrl_dev *pctldev)
@@ -324,38 +529,44 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 }
 
 static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
-			      unsigned long config)
+			      unsigned long *configs, unsigned num_configs)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct sh_pfc *pfc = pmx->pfc;
-	enum pin_config_param param = pinconf_to_config_param(config);
+	enum pin_config_param param;
 	unsigned long flags;
+	unsigned int i;
 
-	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
-		return -ENOTSUPP;
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-	case PIN_CONFIG_BIAS_DISABLE:
-		if (!pfc->info->ops || !pfc->info->ops->set_bias)
+		if (!sh_pfc_pinconf_validate(pfc, _pin, param))
 			return -ENOTSUPP;
 
-		spin_lock_irqsave(&pfc->lock, flags);
-		pfc->info->ops->set_bias(pfc, _pin, param);
-		spin_unlock_irqrestore(&pfc->lock, flags);
+		switch (param) {
+		case PIN_CONFIG_BIAS_PULL_UP:
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+		case PIN_CONFIG_BIAS_DISABLE:
+			if (!pfc->info->ops || !pfc->info->ops->set_bias)
+				return -ENOTSUPP;
 
-		break;
+			spin_lock_irqsave(&pfc->lock, flags);
+			pfc->info->ops->set_bias(pfc, _pin, param);
+			spin_unlock_irqrestore(&pfc->lock, flags);
 
-	default:
-		return -ENOTSUPP;
-	}
+			break;
+
+		default:
+			return -ENOTSUPP;
+		}
+	} /* for each config */
 
 	return 0;
 }
 
 static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
-				    unsigned long config)
+				    unsigned long *configs,
+				    unsigned num_configs)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
@@ -366,7 +577,7 @@ static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	num_pins = pmx->pfc->info->groups[group].nr_pins;
 
 	for (i = 0; i < num_pins; ++i)
-		sh_pfc_pinconf_set(pctldev, pins[i], config);
+		sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
 
 	return 0;
 }
@@ -382,22 +593,9 @@ static const struct pinconf_ops sh_pfc_pinconf_ops = {
 /* PFC ranges -> pinctrl pin descs */
 static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
-	const struct pinmux_range *ranges;
-	struct pinmux_range def_range;
-	unsigned int nr_ranges;
-	unsigned int nr_pins;
 	unsigned int i;
 
-	if (pfc->info->ranges == NULL) {
-		def_range.begin = 0;
-		def_range.end = pfc->info->nr_pins - 1;
-		ranges = &def_range;
-		nr_ranges = 1;
-	} else {
-		ranges = pfc->info->ranges;
-		nr_ranges = pfc->info->nr_ranges;
-	}
-
+	/* Allocate and initialize the pins and configs arrays. */
 	pmx->pins = devm_kzalloc(pfc->dev,
 				 sizeof(*pmx->pins) * pfc->info->nr_pins,
 				 GFP_KERNEL);
@@ -410,32 +608,24 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	if (unlikely(!pmx->configs))
 		return -ENOMEM;
 
-	for (i = 0, nr_pins = 0; i < nr_ranges; ++i) {
-		const struct pinmux_range *range = &ranges[i];
-		unsigned int number;
+	for (i = 0; i < pfc->info->nr_pins; ++i) {
+		const struct sh_pfc_pin *info = &pfc->info->pins[i];
+		struct sh_pfc_pin_config *cfg = &pmx->configs[i];
+		struct pinctrl_pin_desc *pin = &pmx->pins[i];
 
-		for (number = range->begin; number <= range->end;
-		     number++, nr_pins++) {
-			struct sh_pfc_pin_config *cfg = &pmx->configs[nr_pins];
-			struct pinctrl_pin_desc *pin = &pmx->pins[nr_pins];
-			const struct sh_pfc_pin *info =
-				&pfc->info->pins[nr_pins];
-
-			pin->number = number;
-			pin->name = info->name;
-			cfg->type = PINMUX_TYPE_NONE;
-		}
+		/* If the pin number is equal to -1 all pins are considered */
+		pin->number = info->pin != (u16)-1 ? info->pin : i;
+		pin->name = info->name;
+		cfg->type = PINMUX_TYPE_NONE;
 	}
 
-	pfc->nr_pins = ranges[nr_ranges-1].end + 1;
-
-	return nr_ranges;
+	return 0;
 }
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pinctrl *pmx;
-	int nr_ranges;
+	int ret;
 
 	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
 	if (unlikely(!pmx))
@@ -444,9 +634,9 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pfc = pfc;
 	pfc->pinctrl = pmx;
 
-	nr_ranges = sh_pfc_map_pins(pfc, pmx);
-	if (unlikely(nr_ranges < 0))
-		return nr_ranges;
+	ret = sh_pfc_map_pins(pfc, pmx);
+	if (ret < 0)
+		return ret;
 
 	pmx->pctl_desc.name = DRV_NAME;
 	pmx->pctl_desc.owner = THIS_MODULE;

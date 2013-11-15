@@ -48,7 +48,7 @@ struct clk_pllv3 {
 static int clk_pllv3_prepare(struct clk_hw *hw)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	unsigned long timeout;
 	u32 val;
 
 	val = readl_relaxed(pll->base);
@@ -59,12 +59,19 @@ static int clk_pllv3_prepare(struct clk_hw *hw)
 		val &= ~BM_PLL_POWER;
 	writel_relaxed(val, pll->base);
 
+	timeout = jiffies + msecs_to_jiffies(10);
 	/* Wait for PLL to lock */
-	while (!(readl_relaxed(pll->base) & BM_PLL_LOCK))
+	do {
+		if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+			break;
 		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
+			break;
+	} while (1);
 
-	return 0;
+	if (readl_relaxed(pll->base) & BM_PLL_LOCK)
+		return 0;
+	else
+		return -ETIMEDOUT;
 }
 
 static void clk_pllv3_unprepare(struct clk_hw *hw)
@@ -296,13 +303,6 @@ static const struct clk_ops clk_pllv3_enet_ops = {
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
 };
 
-static const struct clk_ops clk_pllv3_mlb_ops = {
-	.prepare	= clk_pllv3_prepare,
-	.unprepare	= clk_pllv3_unprepare,
-	.enable		= clk_pllv3_enable,
-	.disable	= clk_pllv3_disable,
-};
-
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 			  const char *parent_name, void __iomem *base,
 			  u32 div_mask)
@@ -329,9 +329,6 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		break;
 	case IMX_PLLV3_ENET:
 		ops = &clk_pllv3_enet_ops;
-		break;
-	case IMX_PLLV3_MLB:
-		ops = &clk_pllv3_mlb_ops;
 		break;
 	default:
 		ops = &clk_pllv3_ops;

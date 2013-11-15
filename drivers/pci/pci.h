@@ -6,6 +6,9 @@
 #define PCI_CFG_SPACE_SIZE	256
 #define PCI_CFG_SPACE_EXP_SIZE	4096
 
+extern const unsigned char pcix_bus_speed[];
+extern const unsigned char pcie_link_speed[];
+
 /* Functions internal to the PCI core code */
 
 int pci_create_sysfs_dev_files(struct pci_dev *pdev);
@@ -151,7 +154,7 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 
 }
 extern struct device_attribute pci_dev_attrs[];
-extern struct device_attribute pcibus_dev_attrs[];
+extern const struct attribute_group *pcibus_groups[];
 extern struct device_type pci_dev_type;
 extern struct bus_attribute pci_bus_attrs[];
 
@@ -202,6 +205,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
 int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type);
 void pci_configure_ari(struct pci_dev *dev);
+void __ref __pci_bus_size_bridges(struct pci_bus *bus,
+			struct list_head *realloc_head);
+void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
+				      struct list_head *realloc_head,
+				      struct list_head *fail_head);
 
 /**
  * pci_ari_enabled - query ARI forwarding status

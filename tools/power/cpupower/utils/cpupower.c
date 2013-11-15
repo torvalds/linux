@@ -17,12 +17,6 @@
 #include "helpers/helpers.h"
 #include "helpers/bitmask.h"
 
-struct cmd_struct {
-	const char *cmd;
-	int (*main)(int, const char **);
-	int needs_root;
-};
-
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 static int cmd_help(int argc, const char **argv);
@@ -43,10 +37,17 @@ int be_verbose;
 
 static void print_help(void);
 
+struct cmd_struct {
+	const char *cmd;
+	int (*main)(int, const char **);
+	int needs_root;
+};
+
 static struct cmd_struct commands[] = {
 	{ "frequency-info",	cmd_freq_info,	0	},
 	{ "frequency-set",	cmd_freq_set,	1	},
 	{ "idle-info",		cmd_idle_info,	0	},
+	{ "idle-set",		cmd_idle_set,	1	},
 	{ "set",		cmd_set,	1	},
 	{ "info",		cmd_info,	0	},
 	{ "monitor",		cmd_monitor,	0	},

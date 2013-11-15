@@ -79,8 +79,12 @@ static int ft1000_probe(struct usb_interface *interface,
 	ft1000dev->dev = dev;
 	ft1000dev->status = 0;
 	ft1000dev->net = NULL;
-	ft1000dev->tx_urb = usb_alloc_urb(0, GFP_ATOMIC);
-	ft1000dev->rx_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	ft1000dev->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
+	ft1000dev->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!ft1000dev->tx_urb || !ft1000dev->rx_urb) {
+		ret = -ENOMEM;
+		goto err_fw;
+	}
 
 	DEBUG("ft1000_probe is called\n");
 	numaltsetting = interface->num_altsetting;
@@ -209,6 +213,8 @@ err_thread:
 err_load:
 	kfree(pFileStart);
 err_fw:
+	usb_free_urb(ft1000dev->rx_urb);
+	usb_free_urb(ft1000dev->tx_urb);
 	kfree(ft1000dev);
 	return ret;
 }

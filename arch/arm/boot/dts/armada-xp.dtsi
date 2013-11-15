@@ -16,13 +16,24 @@
  * common to all Armada SoCs.
  */
 
-/include/ "armada-370-xp.dtsi"
+#include "armada-370-xp.dtsi"
 
 / {
 	model = "Marvell Armada XP family SoC";
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
+	aliases {
+		eth2 = &eth2;
+	};
+
 	soc {
+		compatible = "marvell,armadaxp-mbus", "simple-bus";
+
+		bootrom {
+			compatible = "marvell,bootrom";
+			reg = <MBUS_ID(0x01, 0x1d) 0 0x100000>;
+		};
+
 		internal-regs {
 			L2: l2-cache {
 				compatible = "marvell,aurora-system-cache";
@@ -58,7 +69,9 @@
 			};
 
 			timer@20300 {
-				marvell,timer-25Mhz;
+				compatible = "marvell,armada-xp-timer";
+				clocks = <&coreclk 2>, <&refclk>;
+				clock-names = "nbclk", "fixed";
 			};
 
 			coreclk: mvebu-sar@18230 {
@@ -86,9 +99,9 @@
 				reg = <0x18200 0x500>;
 			};
 
-			ethernet@30000 {
+			eth2: ethernet@30000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0x30000 0x2500>;
+				reg = <0x30000 0x4000>;
 				interrupts = <12>;
 				clocks = <&gateclk 2>;
 				status = "disabled";
@@ -156,6 +169,15 @@
 					0x184d0 0x4>;
 				status = "okay";
 			};
+		};
+	};
+
+	clocks {
+		/* 25 MHz reference crystal */
+		refclk: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
 		};
 	};
 };

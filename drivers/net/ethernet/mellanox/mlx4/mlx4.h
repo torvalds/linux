@@ -482,6 +482,7 @@ struct mlx4_vport_state {
 	u8  default_qos;
 	u32 tx_rate;
 	bool spoofchk;
+	u32 link_state;
 };
 
 struct mlx4_vf_admin_state {
@@ -553,6 +554,17 @@ struct mlx4_mfunc {
 	struct mlx4_mfunc_master_ctx	master;
 };
 
+#define MGM_QPN_MASK       0x00FFFFFF
+#define MGM_BLCK_LB_BIT    30
+
+struct mlx4_mgm {
+	__be32			next_gid_index;
+	__be32			members_count;
+	u32			reserved[2];
+	u8			gid[16];
+	__be32			qp[MLX4_MAX_QP_PER_MGM];
+};
+
 struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
@@ -569,6 +581,25 @@ struct mlx4_cmd {
 	u8			toggle;
 	u8			comm_toggle;
 };
+
+enum {
+	MLX4_VF_IMMED_VLAN_FLAG_VLAN = 1 << 0,
+	MLX4_VF_IMMED_VLAN_FLAG_QOS = 1 << 1,
+	MLX4_VF_IMMED_VLAN_FLAG_LINK_DISABLE = 1 << 2,
+};
+struct mlx4_vf_immed_vlan_work {
+	struct work_struct	work;
+	struct mlx4_priv	*priv;
+	int			flags;
+	int			slave;
+	int			vlan_ix;
+	int			orig_vlan_ix;
+	u8			port;
+	u8			qos;
+	u16			vlan_id;
+	u16			orig_vlan_id;
+};
+
 
 struct mlx4_uar_table {
 	struct mlx4_bitmap	bitmap;
@@ -782,6 +813,8 @@ struct mlx4_priv {
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
 
+	atomic_t		opreq_count;
+	struct work_struct	opreq_task;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -1216,5 +1249,7 @@ static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
 }
 
 #define NOT_MASKED_PD_BITS 17
+
+void mlx4_vf_immed_vlan_work_handler(struct work_struct *_work);
 
 #endif /* MLX4_H */

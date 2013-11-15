@@ -18,11 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
+#include <linux/platform_data/edma.h>
 
 #include <asm/mach/map.h>
 
 #include <mach/cputype.h>
-#include <mach/edma.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
 #include <mach/irqs.h>
@@ -455,8 +455,8 @@ static struct clk_lookup dm365_clks[] = {
 	CLK("vpss", "master", &vpss_master_clk),
 	CLK("vpss", "slave", &vpss_slave_clk),
 	CLK(NULL, "arm", &arm_clk),
-	CLK(NULL, "uart0", &uart0_clk),
-	CLK(NULL, "uart1", &uart1_clk),
+	CLK("serial8250.0", NULL, &uart0_clk),
+	CLK("serial8250.1", NULL, &uart1_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("da830-mmc.0", NULL, &mmcsd0_clk),
 	CLK("da830-mmc.1", NULL, &mmcsd1_clk),
@@ -477,6 +477,7 @@ static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "timer3", &timer3_clk),
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
+	CLK("davinci_mdio.0", "fck", &emac_clk),
 	CLK("davinci_voicecodec", NULL, &voicecodec_clk),
 	CLK("davinci-mcbsp", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
@@ -826,7 +827,7 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 };
 
 /* Four Transfer Controllers on DM365 */
-static const s8
+static s8
 dm365_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
@@ -836,7 +837,7 @@ dm365_queue_tc_mapping[][2] = {
 	{-1, -1},
 };
 
-static const s8
+static s8
 dm365_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 7},
@@ -1041,7 +1042,7 @@ static struct davinci_timer_info dm365_timer_info = {
 
 #define DM365_UART1_BASE	(IO_PHYS + 0x106000)
 
-static struct plat_serial8250_port dm365_serial_platform_data[] = {
+static struct plat_serial8250_port dm365_serial0_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
 		.irq		= IRQ_UARTINT0,
@@ -1051,6 +1052,11 @@ static struct plat_serial8250_port dm365_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port dm365_serial1_platform_data[] = {
+	{
 		.mapbase	= DM365_UART1_BASE,
 		.irq		= IRQ_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
@@ -1059,16 +1065,27 @@ static struct plat_serial8250_port dm365_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
-		.flags		= 0
-	},
+		.flags	= 0,
+	}
 };
 
-static struct platform_device dm365_serial_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= dm365_serial_platform_data,
+struct platform_device dm365_serial_device[] = {
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM,
+		.dev			= {
+			.platform_data	= dm365_serial0_platform_data,
+		}
 	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM1,
+		.dev			= {
+			.platform_data	= dm365_serial1_platform_data,
+		}
+	},
+	{
+	}
 };
 
 static struct davinci_soc_info davinci_soc_info_dm365 = {
@@ -1093,7 +1110,6 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM365_GPIO0,
 	.gpio_unbanked		= 8,	/* really 16 ... skip muxed GPIOs */
-	.serial_dev		= &dm365_serial_device,
 	.emac_pdata		= &dm365_emac_pdata,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
@@ -1349,7 +1365,7 @@ static struct platform_device dm365_vpbe_display = {
 	},
 };
 
-struct venc_platform_data dm365_venc_pdata = {
+static struct venc_platform_data dm365_venc_pdata = {
 	.setup_pinmux	= dm365_vpbe_setup_pinmux,
 	.setup_clock	= dm365_venc_setup_clock,
 };
@@ -1407,8 +1423,6 @@ static int __init dm365_init_devices(void)
 
 	platform_device_register(&dm365_mdio_device);
 	platform_device_register(&dm365_emac_device);
-	clk_add_alias(NULL, dev_name(&dm365_mdio_device.dev),
-		      NULL, &dm365_emac_device.dev);
 
 	return 0;
 }

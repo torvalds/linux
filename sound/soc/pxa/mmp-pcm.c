@@ -17,6 +17,7 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/platform_data/mmp_audio.h>
+
 #include <sound/pxa2xx-lib.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -67,7 +68,7 @@ static int mmp_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct pxa2xx_pcm_dma_params *dma_params;
+	struct snd_dmaengine_dai_dma_data *dma_params;
 	struct dma_slave_config slave_config;
 	int ret;
 
@@ -80,10 +81,10 @@ static int mmp_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.dst_addr     = dma_params->dev_addr;
+		slave_config.dst_addr     = dma_params->addr;
 		slave_config.dst_maxburst = 4;
 	} else {
-		slave_config.src_addr	  = dma_params->dev_addr;
+		slave_config.src_addr	  = dma_params->addr;
 		slave_config.src_maxburst = 4;
 	}
 
@@ -147,7 +148,7 @@ static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-struct snd_pcm_ops mmp_pcm_ops = {
+static struct snd_pcm_ops mmp_pcm_ops = {
 	.open		= mmp_pcm_open,
 	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -208,7 +209,7 @@ static int mmp_pcm_preallocate_dma_buffer(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -229,7 +230,7 @@ err:
 	return ret;
 }
 
-struct snd_soc_platform_driver mmp_soc_platform = {
+static struct snd_soc_platform_driver mmp_soc_platform = {
 	.ops		= &mmp_pcm_ops,
 	.pcm_new	= mmp_pcm_new,
 	.pcm_free	= mmp_pcm_free_dma_buffers,

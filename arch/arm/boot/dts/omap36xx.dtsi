@@ -8,7 +8,7 @@
  * kind, whether express or implied.
  */
 
-/include/ "omap3.dtsi"
+#include "omap3.dtsi"
 
 / {
 	aliases {

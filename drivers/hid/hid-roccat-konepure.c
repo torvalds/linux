@@ -94,7 +94,8 @@ KONEPURE_SYSFS_W(thingy, THINGY) \
 KONEPURE_SYSFS_R(thingy, THINGY)
 
 #define KONEPURE_BIN_ATTRIBUTE_RW(thingy, THINGY) \
-{ \
+KONEPURE_SYSFS_RW(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KONEPURE_SIZE_ ## THINGY, \
 	.read = konepure_sysfs_read_ ## thingy, \
@@ -102,43 +103,55 @@ KONEPURE_SYSFS_R(thingy, THINGY)
 }
 
 #define KONEPURE_BIN_ATTRIBUTE_R(thingy, THINGY) \
-{ \
+KONEPURE_SYSFS_R(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = KONEPURE_SIZE_ ## THINGY, \
 	.read = konepure_sysfs_read_ ## thingy, \
 }
 
 #define KONEPURE_BIN_ATTRIBUTE_W(thingy, THINGY) \
-{ \
+KONEPURE_SYSFS_W(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KONEPURE_SIZE_ ## THINGY, \
 	.write = konepure_sysfs_write_ ## thingy \
 }
 
-KONEPURE_SYSFS_RW(actual_profile, ACTUAL_PROFILE)
-KONEPURE_SYSFS_W(control, CONTROL)
-KONEPURE_SYSFS_RW(info, INFO)
-KONEPURE_SYSFS_W(talk, TALK)
-KONEPURE_SYSFS_W(macro, MACRO)
-KONEPURE_SYSFS_RW(sensor, SENSOR)
-KONEPURE_SYSFS_RW(tcu, TCU)
-KONEPURE_SYSFS_R(tcu_image, TCU_IMAGE)
-KONEPURE_SYSFS_RW(profile_settings, PROFILE_SETTINGS)
-KONEPURE_SYSFS_RW(profile_buttons, PROFILE_BUTTONS)
+KONEPURE_BIN_ATTRIBUTE_RW(actual_profile, ACTUAL_PROFILE);
+KONEPURE_BIN_ATTRIBUTE_RW(info, INFO);
+KONEPURE_BIN_ATTRIBUTE_RW(sensor, SENSOR);
+KONEPURE_BIN_ATTRIBUTE_RW(tcu, TCU);
+KONEPURE_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS);
+KONEPURE_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS);
+KONEPURE_BIN_ATTRIBUTE_W(control, CONTROL);
+KONEPURE_BIN_ATTRIBUTE_W(talk, TALK);
+KONEPURE_BIN_ATTRIBUTE_W(macro, MACRO);
+KONEPURE_BIN_ATTRIBUTE_R(tcu_image, TCU_IMAGE);
 
-static struct bin_attribute konepure_bin_attributes[] = {
-	KONEPURE_BIN_ATTRIBUTE_RW(actual_profile, ACTUAL_PROFILE),
-	KONEPURE_BIN_ATTRIBUTE_W(control, CONTROL),
-	KONEPURE_BIN_ATTRIBUTE_RW(info, INFO),
-	KONEPURE_BIN_ATTRIBUTE_W(talk, TALK),
-	KONEPURE_BIN_ATTRIBUTE_W(macro, MACRO),
-	KONEPURE_BIN_ATTRIBUTE_RW(sensor, SENSOR),
-	KONEPURE_BIN_ATTRIBUTE_RW(tcu, TCU),
-	KONEPURE_BIN_ATTRIBUTE_R(tcu_image, TCU_IMAGE),
-	KONEPURE_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS),
-	KONEPURE_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS),
-	__ATTR_NULL
+static struct bin_attribute *konepure_bin_attributes[] = {
+	&bin_attr_actual_profile,
+	&bin_attr_info,
+	&bin_attr_sensor,
+	&bin_attr_tcu,
+	&bin_attr_profile_settings,
+	&bin_attr_profile_buttons,
+	&bin_attr_control,
+	&bin_attr_talk,
+	&bin_attr_macro,
+	&bin_attr_tcu_image,
+	NULL,
 };
+
+static const struct attribute_group konepure_group = {
+	.bin_attrs = konepure_bin_attributes,
+};
+
+static const struct attribute_group *konepure_groups[] = {
+	&konepure_group,
+	NULL,
+};
+
 
 static int konepure_init_konepure_device_struct(struct usb_device *usb_dev,
 		struct konepure_device *konepure)
@@ -262,6 +275,7 @@ static int konepure_raw_event(struct hid_device *hdev,
 
 static const struct hid_device_id konepure_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_KONEPURE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_KONEPURE_OPTICAL) },
 	{ }
 };
 
@@ -282,7 +296,7 @@ static int __init konepure_init(void)
 	konepure_class = class_create(THIS_MODULE, "konepure");
 	if (IS_ERR(konepure_class))
 		return PTR_ERR(konepure_class);
-	konepure_class->dev_bin_attrs = konepure_bin_attributes;
+	konepure_class->dev_groups = konepure_groups;
 
 	retval = hid_register_driver(&konepure_driver);
 	if (retval)
@@ -300,5 +314,5 @@ module_init(konepure_init);
 module_exit(konepure_exit);
 
 MODULE_AUTHOR("Stefan Achatz");
-MODULE_DESCRIPTION("USB Roccat KonePure driver");
+MODULE_DESCRIPTION("USB Roccat KonePure/Optical driver");
 MODULE_LICENSE("GPL v2");

@@ -37,7 +37,7 @@ MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes)
 	mpi_limb_t a;
 	MPI val = NULL;
 
-	while (nbytes >= 0 && buffer[0] == 0) {
+	while (nbytes > 0 && buffer[0] == 0) {
 		buffer++;
 		nbytes--;
 	}

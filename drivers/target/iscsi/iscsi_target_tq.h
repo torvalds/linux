@@ -64,10 +64,6 @@ struct iscsi_thread_set {
 	struct iscsi_conn	*conn;
 	/* used for controlling ts state accesses */
 	spinlock_t	ts_state_lock;
-	/* Used for rx side post startup */
-	struct completion	rx_post_start_comp;
-	/* Used for tx side post startup */
-	struct completion	tx_post_start_comp;
 	/* used for restarting thread queue */
 	struct completion	rx_restart_comp;
 	/* used for restarting thread queue */
@@ -82,6 +78,7 @@ struct iscsi_thread_set {
 	struct task_struct	*tx_thread;
 	/* struct iscsi_thread_set in list list head*/
 	struct list_head	ts_list;
+	struct semaphore	ts_activate_sem;
 };
 
 #endif   /*** ISCSI_THREAD_QUEUE_H ***/

@@ -1597,87 +1597,6 @@ out:
 	return rv;
 }
 
-static int
-csio_config_global_rss(struct csio_hw *hw)
-{
-	struct csio_mb	*mbp;
-	enum fw_retval retval;
-
-	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
-	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
-		return -ENOMEM;
-	}
-
-	csio_rss_glb_config(hw, mbp, CSIO_MB_DEFAULT_TMO,
-			    FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
-			    FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
-			    FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
-			    FW_RSS_GLB_CONFIG_CMD_TNLALLLKP,
-			    NULL);
-
-	if (csio_mb_issue(hw, mbp)) {
-		csio_err(hw, "Issue of FW_RSS_GLB_CONFIG_CMD failed!\n");
-		mempool_free(mbp, hw->mb_mempool);
-		return -EINVAL;
-	}
-
-	retval = csio_mb_fw_retval(mbp);
-	if (retval != FW_SUCCESS) {
-		csio_err(hw, "FW_RSS_GLB_CONFIG_CMD returned 0x%x!\n", retval);
-		mempool_free(mbp, hw->mb_mempool);
-		return -EINVAL;
-	}
-
-	mempool_free(mbp, hw->mb_mempool);
-
-	return 0;
-}
-
-/*
- * csio_config_pfvf - Configure Physical/Virtual functions settings.
- * @hw: HW module
- *
- */
-static int
-csio_config_pfvf(struct csio_hw *hw)
-{
-	struct csio_mb	*mbp;
-	enum fw_retval retval;
-
-	mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
-	if (!mbp) {
-		CSIO_INC_STATS(hw, n_err_nomem);
-		return -ENOMEM;
-	}
-
-	/*
-	 * For now, allow all PFs to access to all ports using a pmask
-	 * value of 0xF (M_FW_PFVF_CMD_PMASK). Once we have VFs, we will
-	 * need to provide access based on some rule.
-	 */
-	csio_mb_pfvf(hw, mbp, CSIO_MB_DEFAULT_TMO, hw->pfn, 0, CSIO_NEQ,
-		     CSIO_NETH_CTRL, CSIO_NIQ_FLINT, 0, 0, CSIO_NVI, CSIO_CMASK,
-		     CSIO_PMASK, CSIO_NEXACTF, CSIO_R_CAPS, CSIO_WX_CAPS, NULL);
-
-	if (csio_mb_issue(hw, mbp)) {
-		csio_err(hw, "Issue of FW_PFVF_CMD failed!\n");
-		mempool_free(mbp, hw->mb_mempool);
-		return -EINVAL;
-	}
-
-	retval = csio_mb_fw_retval(mbp);
-	if (retval != FW_SUCCESS) {
-		csio_err(hw, "FW_PFVF_CMD returned 0x%x!\n", retval);
-		mempool_free(mbp, hw->mb_mempool);
-		return -EINVAL;
-	}
-
-	mempool_free(mbp, hw->mb_mempool);
-
-	return 0;
-}
-
 /*
  * csio_enable_ports - Bring up all available ports.
  * @hw: HW module.
@@ -2053,16 +1972,6 @@ csio_hw_no_fwconfig(struct csio_hw *hw, int reset)
 
 	/* Get and set device capabilities */
 	rv = csio_config_device_caps(hw);
-	if (rv != 0)
-		goto out;
-
-	/* Config Global RSS command */
-	rv = csio_config_global_rss(hw);
-	if (rv != 0)
-		goto out;
-
-	/* Configure PF/VF capabilities of device */
-	rv = csio_config_pfvf(hw);
 	if (rv != 0)
 		goto out;
 

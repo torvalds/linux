@@ -40,14 +40,15 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 {
 	struct stack_frame *sf;
 	struct pt_regs *regs;
+	unsigned long addr;
 
 	while (1) {
 		sp = sp & PSW_ADDR_INSN;
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
-		printk("([<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
-		print_symbol("%s)\n", sf->gprs[8] & PSW_ADDR_INSN);
+		addr = sf->gprs[8] & PSW_ADDR_INSN;
+		printk("([<%016lx>] %pSR)\n", addr, (void *)addr);
 		/* Follow the backchain. */
 		while (1) {
 			low = sp;
@@ -57,16 +58,16 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
-			printk(" [<%016lx>] ", sf->gprs[8] & PSW_ADDR_INSN);
-			print_symbol("%s\n", sf->gprs[8] & PSW_ADDR_INSN);
+			addr = sf->gprs[8] & PSW_ADDR_INSN;
+			printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
 		}
 		/* Zero backchain detected, check for interrupt frame. */
 		sp = (unsigned long) (sf + 1);
 		if (sp <= low || sp > high - sizeof(*regs))
 			return sp;
 		regs = (struct pt_regs *) sp;
-		printk(" [<%016lx>] ", regs->psw.addr & PSW_ADDR_INSN);
-		print_symbol("%s\n", regs->psw.addr & PSW_ADDR_INSN);
+		addr = regs->psw.addr & PSW_ADDR_INSN;
+		printk(" [<%016lx>] %pSR\n", addr, (void *)addr);
 		low = sp;
 		sp = regs->gprs[15];
 	}
@@ -74,6 +75,8 @@ __show_trace(unsigned long sp, unsigned long low, unsigned long high)
 
 static void show_trace(struct task_struct *task, unsigned long *stack)
 {
+	const unsigned long frame_size =
+		STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	register unsigned long __r15 asm ("15");
 	unsigned long sp;
 
@@ -82,11 +85,13 @@ static void show_trace(struct task_struct *task, unsigned long *stack)
 		sp = task ? task->thread.ksp : __r15;
 	printk("Call Trace:\n");
 #ifdef CONFIG_CHECK_STACK
-	sp = __show_trace(sp, S390_lowcore.panic_stack - 4096,
-			  S390_lowcore.panic_stack);
+	sp = __show_trace(sp,
+			  S390_lowcore.panic_stack + frame_size - 4096,
+			  S390_lowcore.panic_stack + frame_size);
 #endif
-	sp = __show_trace(sp, S390_lowcore.async_stack - ASYNC_SIZE,
-			  S390_lowcore.async_stack);
+	sp = __show_trace(sp,
+			  S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
+			  S390_lowcore.async_stack + frame_size);
 	if (task)
 		__show_trace(sp, (unsigned long) task_stack_page(task),
 			     (unsigned long) task_stack_page(task) + THREAD_SIZE);
@@ -124,8 +129,7 @@ static void show_last_breaking_event(struct pt_regs *regs)
 {
 #ifdef CONFIG_64BIT
 	printk("Last Breaking-Event-Address:\n");
-	printk(" [<%016lx>] ", regs->args[0] & PSW_ADDR_INSN);
-	print_symbol("%s\n", regs->args[0] & PSW_ADDR_INSN);
+	printk(" [<%016lx>] %pSR\n", regs->args[0], (void *)regs->args[0]);
 #endif
 }
 
@@ -139,10 +143,10 @@ void show_registers(struct pt_regs *regs)
 	char *mode;
 
 	mode = user_mode(regs) ? "User" : "Krnl";
-	printk("%s PSW : %p %p",
+	printk("%s PSW : %p %p (%pSR)\n",
 	       mode, (void *) regs->psw.mask,
+	       (void *) regs->psw.addr,
 	       (void *) regs->psw.addr);
-	print_symbol(" (%s)\n", regs->psw.addr & PSW_ADDR_INSN);
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
 	       "P:%x AS:%x CC:%x PM:%x", mask_bits(regs, PSW_MASK_PER),
 	       mask_bits(regs, PSW_MASK_DAT), mask_bits(regs, PSW_MASK_IO),

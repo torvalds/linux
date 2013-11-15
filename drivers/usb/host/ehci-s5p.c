@@ -50,6 +50,8 @@ struct s5p_ehci_hcd {
 	struct s5p_ehci_platdata *pdata;
 };
 
+static struct s5p_ehci_platdata empty_platdata;
+
 #define to_s5p_ehci(hcd)      (struct s5p_ehci_hcd *)(hcd_to_ehci(hcd)->priv)
 
 static void s5p_setup_vbus_gpio(struct platform_device *pdev)
@@ -73,7 +75,7 @@ static void s5p_setup_vbus_gpio(struct platform_device *pdev)
 
 static int s5p_ehci_probe(struct platform_device *pdev)
 {
-	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
+	struct s5p_ehci_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct s5p_ehci_hcd *s5p_ehci;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
@@ -101,6 +103,13 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	s5p_ehci = to_s5p_ehci(hcd);
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+					"samsung,exynos5440-ehci")) {
+		s5p_ehci->pdata = &empty_platdata;
+		goto skip_phy;
+	}
+
 	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(phy)) {
 		/* Fallback to pdata */
@@ -115,6 +124,8 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 		s5p_ehci->phy = phy;
 		s5p_ehci->otg = phy->otg;
 	}
+
+skip_phy:
 
 	s5p_ehci->clk = devm_clk_get(&pdev->dev, "usbhost");
 
@@ -209,14 +220,6 @@ static int s5p_ehci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void s5p_ehci_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 #ifdef CONFIG_PM
 static int s5p_ehci_suspend(struct device *dev)
 {
@@ -277,6 +280,7 @@ static const struct dev_pm_ops s5p_ehci_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_ehci_match[] = {
 	{ .compatible = "samsung,exynos4210-ehci" },
+	{ .compatible = "samsung,exynos5440-ehci" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_ehci_match);
@@ -285,7 +289,7 @@ MODULE_DEVICE_TABLE(of, exynos_ehci_match);
 static struct platform_driver s5p_ehci_driver = {
 	.probe		= s5p_ehci_probe,
 	.remove		= s5p_ehci_remove,
-	.shutdown	= s5p_ehci_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "s5p-ehci",
 		.owner	= THIS_MODULE,

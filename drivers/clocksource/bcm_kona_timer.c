@@ -99,19 +99,14 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 }
 
 static const struct of_device_id bcm_timer_ids[] __initconst = {
-	{.compatible = "bcm,kona-timer"},
+	{.compatible = "brcm,kona-timer"},
+	{.compatible = "bcm,kona-timer"}, /* deprecated name */
 	{},
 };
 
-static void __init kona_timers_init(void)
+static void __init kona_timers_init(struct device_node *node)
 {
-	struct device_node *node;
 	u32 freq;
-
-	node = of_find_matching_node(NULL, bcm_timer_ids);
-
-	if (!node)
-		panic("No timer");
 
 	if (!of_property_read_u32(node, "clock-frequency", &freq))
 		arch_timer_rate = freq;
@@ -199,13 +194,17 @@ static struct irqaction kona_timer_irq = {
 	.handler = kona_timer_interrupt,
 };
 
-static void __init kona_timer_init(void)
+static void __init kona_timer_init(struct device_node *node)
 {
-	kona_timers_init();
+	kona_timers_init(node);
 	kona_timer_clockevents_init();
 	setup_irq(timers.tmr_irq, &kona_timer_irq);
 	kona_timer_set_next_event((arch_timer_rate / HZ), NULL);
 }
 
-CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer",
-	kona_timer_init);
+CLOCKSOURCE_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
+/*
+ * bcm,kona-timer is deprecated by brcm,kona-timer
+ * being kept here for driver compatibility
+ */
+CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);

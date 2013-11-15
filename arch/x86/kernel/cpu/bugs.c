@@ -17,15 +17,6 @@
 #include <asm/paravirt.h>
 #include <asm/alternative.h>
 
-static int __init no_387(char *s)
-{
-	boot_cpu_data.hard_math = 0;
-	write_cr0(X86_CR0_TS | X86_CR0_EM | X86_CR0_MP | read_cr0());
-	return 1;
-}
-
-__setup("no387", no_387);
-
 static double __initdata x = 4195835.0;
 static double __initdata y = 3145727.0;
 
@@ -43,15 +34,6 @@ static double __initdata y = 3145727.0;
 static void __init check_fpu(void)
 {
 	s32 fdiv_bug;
-
-	if (!boot_cpu_data.hard_math) {
-#ifndef CONFIG_MATH_EMULATION
-		pr_emerg("No coprocessor found and no math emulation present\n");
-		pr_emerg("Giving up\n");
-		for (;;) ;
-#endif
-		return;
-	}
 
 	kernel_fpu_begin();
 
@@ -107,5 +89,6 @@ void __init check_bugs(void)
 	 * kernel_fpu_begin/end() in check_fpu() relies on the patched
 	 * alternative instructions.
 	 */
-	check_fpu();
+	if (cpu_has_fpu)
+		check_fpu();
 }

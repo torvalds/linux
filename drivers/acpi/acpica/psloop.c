@@ -164,7 +164,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			case AML_IF_OP:
 			case AML_ELSE_OP:
 			case AML_WHILE_OP:
-
 				/*
 				 * Currently supported module-level opcodes are:
 				 * IF/ELSE/WHILE. These appear to be the most common,
@@ -289,6 +288,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		default:
 
 			/* No action for all other opcodes */
+
 			break;
 		}
 

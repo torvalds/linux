@@ -367,49 +367,16 @@ static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 }
 
 /**
- * aer_do_secondary_bus_reset - perform secondary bus reset
- * @dev: pointer to bridge's pci_dev data structure
+ * default_reset_link - default reset function
+ * @dev: pointer to pci_dev data structure
  *
- * Invoked when performing link reset at Root Port or Downstream Port.
+ * Invoked when performing link reset on a Downstream Port or a
+ * Root Port with no aer driver.
  */
-void aer_do_secondary_bus_reset(struct pci_dev *dev)
+static pci_ers_result_t default_reset_link(struct pci_dev *dev)
 {
-	u16 p2p_ctrl;
-
-	/* Assert Secondary Bus Reset */
-	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
-	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * we should send hot reset message for 2ms to allow it time to
-	 * propagate to all downstream ports
-	 */
-	msleep(2);
-
-	/* De-assert Secondary Bus Reset */
-	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
-
-	/*
-	 * System software must wait for at least 100ms from the end
-	 * of a reset of one or more device before it is permitted
-	 * to issue Configuration Requests to those devices.
-	 */
-	msleep(200);
-}
-
-/**
- * default_downstream_reset_link - default reset function for Downstream Port
- * @dev: pointer to downstream port's pci_dev data structure
- *
- * Invoked when performing link reset at Downstream Port w/ no aer driver.
- */
-static pci_ers_result_t default_downstream_reset_link(struct pci_dev *dev)
-{
-	aer_do_secondary_bus_reset(dev);
-	dev_printk(KERN_DEBUG, &dev->dev,
-		"Downstream Port link has been reset\n");
+	pci_reset_bridge_secondary_bus(dev);
+	dev_printk(KERN_DEBUG, &dev->dev, "downstream link has been reset\n");
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -458,8 +425,9 @@ static pci_ers_result_t reset_link(struct pci_dev *dev)
 
 	if (driver && driver->reset_link) {
 		status = driver->reset_link(udev);
-	} else if (pci_pcie_type(udev) == PCI_EXP_TYPE_DOWNSTREAM) {
-		status = default_downstream_reset_link(udev);
+	} else if (pci_pcie_type(udev) == PCI_EXP_TYPE_DOWNSTREAM ||
+		pci_pcie_type(udev) == PCI_EXP_TYPE_ROOT_PORT) {
+		status = default_reset_link(udev);
 	} else {
 		dev_printk(KERN_DEBUG, &dev->dev,
 			"no link-reset support at upstream device %s\n",

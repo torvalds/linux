@@ -382,7 +382,7 @@ static int ea_read(struct inode *ip, struct jfs_ea_list *ealist)
 
 	nbytes = sizeDXD(&ji->ea);
 	if (!nbytes) {
-		jfs_error(sb, "ea_read: nbytes is 0");
+		jfs_error(sb, "nbytes is 0\n");
 		return -EIO;
 	}
 
@@ -482,7 +482,7 @@ static int ea_get(struct inode *inode, struct ea_buffer *ea_buf, int min_size)
 		current_blocks = 0;
 	} else {
 		if (!(ji->ea.flag & DXD_EXTENT)) {
-			jfs_error(sb, "ea_get: invalid ea.flag)");
+			jfs_error(sb, "invalid ea.flag\n");
 			return -EIO;
 		}
 		current_blocks = (ea_size + sb->s_blocksize - 1) >>
@@ -1089,8 +1089,8 @@ int jfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 #ifdef CONFIG_JFS_SECURITY
-int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		   void *fs_info)
+static int jfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+			  void *fs_info)
 {
 	const struct xattr *xattr;
 	tid_t *tid = fs_info;

@@ -212,7 +212,7 @@ static int at91_pm_enter(suspend_state_t state)
 			(at91_pmc_read(AT91_PMC_PCSR)
 					| (1 << AT91_ID_FIQ)
 					| (1 << AT91_ID_SYS)
-					| (at91_extern_irq))
+					| (at91_get_extern_irq()))
 				& at91_aic_read(AT91_AIC_IMR),
 			state);
 

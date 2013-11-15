@@ -64,6 +64,7 @@
 #define CPDMA_DESC_TO_PORT_EN	BIT(20)
 #define CPDMA_TO_PORT_SHIFT	16
 #define CPDMA_DESC_PORT_MASK	(BIT(18) | BIT(17) | BIT(16))
+#define CPDMA_DESC_CRC_LEN	4
 
 #define CPDMA_TEARDOWN_VALUE	0xfffffffc
 
@@ -590,6 +591,7 @@ int cpdma_chan_get_stats(struct cpdma_chan *chan,
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpdma_chan_get_stats);
 
 int cpdma_chan_dump(struct cpdma_chan *chan)
 {
@@ -705,6 +707,13 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	}
 
 	buffer = dma_map_single(ctlr->dev, data, len, chan->dir);
+	ret = dma_mapping_error(ctlr->dev, buffer);
+	if (ret) {
+		cpdma_desc_free(ctlr->pool, desc, 1);
+		ret = -EINVAL;
+		goto unlock_ret;
+	}
+
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
 	cpdma_desc_to_port(chan, mode, directed);
 
@@ -798,6 +807,10 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 		status = -EBUSY;
 		goto unlock_ret;
 	}
+
+	if (status & CPDMA_DESC_PASS_CRC)
+		outlen -= CPDMA_DESC_CRC_LEN;
+
 	status	= status & (CPDMA_DESC_EOQ | CPDMA_DESC_TD_COMPLETE |
 			    CPDMA_DESC_PORT_MASK);
 

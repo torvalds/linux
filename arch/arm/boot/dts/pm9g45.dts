@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 /dts-v1/;
-/include/ "at91sam9g45.dtsi"
+#include "at91sam9g45.dtsi"
 
 / {
 	model = "Ronetix pm9g45";
@@ -42,15 +42,15 @@
 				board {
 					pinctrl_board_nand: nand0-board {
 						atmel,pins =
-							<3 3 0x0 0x1	/* PD3 gpio RDY pin pull_up*/
-							 2 14 0x0 0x1>;	/* PC14 gpio enable pin pull_up */
+							<AT91_PIOD 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PD3 gpio RDY pin pull_up*/
+							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
 					};
 				};
 
 				mmc {
 					pinctrl_board_mmc: mmc0-board {
 						atmel,pins =
-							<3 6 0x0 0x5>;	/* PD6 gpio CD pin pull_up and deglitch */
+							<AT91_PIOD 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD6 gpio CD pin pull_up and deglitch */
 					};
 				};
 			};
@@ -64,7 +64,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 6 0>;
+					cd-gpios = <&pioD 6 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -81,8 +81,8 @@
 			nand-on-flash-bbt;
 			pinctrl-0 = <&pinctrl_board_nand>;
 
-			gpios = <&pioD 3 0
-				 &pioC 14 0
+			gpios = <&pioD 3 GPIO_ACTIVE_HIGH
+				 &pioC 14 GPIO_ACTIVE_HIGH
 				 0
 				>;
 
@@ -134,13 +134,13 @@
 
 		led0 {
 			label = "led0";
-			gpios = <&pioD 0 1>;
+			gpios = <&pioD 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		led1 {
 			label = "led1";
-			gpios = <&pioD 31 0>;
+			gpios = <&pioD 31 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -152,13 +152,13 @@
 
 		right {
 			label = "SW4";
-			gpios = <&pioE 7 1>;
+			gpios = <&pioE 7 GPIO_ACTIVE_LOW>;
 			linux,code = <106>;
 		};
 
 		up {
 			label = "SW3";
-			gpios = <&pioE 8 1>;
+			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
 			linux,code = <103>;
 		};
 	};

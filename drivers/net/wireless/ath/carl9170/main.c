@@ -1448,6 +1448,8 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		tid_info->state = CARL9170_TID_STATE_PROGRESS;
 		tid_info->tid = tid;
 		tid_info->max = sta_info->ampdu_max_len;
+		tid_info->sta = sta;
+		tid_info->vif = vif;
 
 		INIT_LIST_HEAD(&tid_info->list);
 		INIT_LIST_HEAD(&tid_info->tmp_list);
@@ -1857,7 +1859,9 @@ void *carl9170_alloc(size_t priv_size)
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
 		     IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		     IEEE80211_HW_SIGNAL_DBM;
+		     IEEE80211_HW_SUPPORTS_RC_TABLE |
+		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (!modparam_noht) {
 		/*

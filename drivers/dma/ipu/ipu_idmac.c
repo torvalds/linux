@@ -1593,10 +1593,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 static enum dma_status idmac_tx_status(struct dma_chan *chan,
 		       dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
-	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
-	if (cookie != chan->cookie)
-		return DMA_ERROR;
-	return DMA_SUCCESS;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static int __init ipu_idmac_init(struct ipu *ipu)
@@ -1767,7 +1764,6 @@ static int ipu_remove(struct platform_device *pdev)
 	iounmap(ipu->reg_ic);
 	iounmap(ipu->reg_ipu);
 	tasklet_kill(&ipu->tasklet);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

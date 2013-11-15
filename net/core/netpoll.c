@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/moduleparam.h>
+#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
@@ -247,7 +248,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	zap_completion_queue();
 }
 
-int netpoll_rx_disable(struct net_device *dev)
+void netpoll_rx_disable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	int idx;
@@ -257,7 +258,6 @@ int netpoll_rx_disable(struct net_device *dev)
 	if (ni)
 		down(&ni->dev_lock);
 	srcu_read_unlock(&netpoll_srcu, idx);
-	return 0;
 }
 EXPORT_SYMBOL(netpoll_rx_disable);
 
@@ -550,7 +550,7 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 		return;
 
 	proto = ntohs(eth_hdr(skb)->h_proto);
-	if (proto == ETH_P_IP) {
+	if (proto == ETH_P_ARP) {
 		struct arphdr *arp;
 		unsigned char *arp_ptr;
 		/* No arp on this interface */
@@ -690,25 +690,20 @@ static void netpoll_neigh_reply(struct sk_buff *skb, struct netpoll_info *npinfo
 			send_skb->dev = skb->dev;
 
 			skb_reset_network_header(send_skb);
-			skb_put(send_skb, sizeof(struct ipv6hdr));
-			hdr = ipv6_hdr(send_skb);
-
+			hdr = (struct ipv6hdr *) skb_put(send_skb, sizeof(struct ipv6hdr));
 			*(__be32*)hdr = htonl(0x60000000);
-
 			hdr->payload_len = htons(size);
 			hdr->nexthdr = IPPROTO_ICMPV6;
 			hdr->hop_limit = 255;
 			hdr->saddr = *saddr;
 			hdr->daddr = *daddr;
 
-			send_skb->transport_header = send_skb->tail;
-			skb_put(send_skb, size);
-
-			icmp6h = (struct icmp6hdr *)skb_transport_header(skb);
+			icmp6h = (struct icmp6hdr *) skb_put(send_skb, sizeof(struct icmp6hdr));
 			icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
 			icmp6h->icmp6_router = 0;
 			icmp6h->icmp6_solicited = 1;
-			target = (struct in6_addr *)(skb_transport_header(send_skb) + sizeof(struct icmp6hdr));
+
+			target = (struct in6_addr *) skb_put(send_skb, sizeof(struct in6_addr));
 			*target = msg->target;
 			icmp6h->icmp6_cksum = csum_ipv6_magic(saddr, daddr, size,
 							      IPPROTO_ICMPV6,
@@ -1289,15 +1284,14 @@ EXPORT_SYMBOL_GPL(__netpoll_free_async);
 
 void netpoll_cleanup(struct netpoll *np)
 {
-	if (!np->dev)
-		return;
-
 	rtnl_lock();
+	if (!np->dev)
+		goto out;
 	__netpoll_cleanup(np);
-	rtnl_unlock();
-
 	dev_put(np->dev);
 	np->dev = NULL;
+out:
+	rtnl_unlock();
 }
 EXPORT_SYMBOL(netpoll_cleanup);
 

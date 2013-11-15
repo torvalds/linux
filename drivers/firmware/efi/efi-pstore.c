@@ -35,6 +35,7 @@ struct pstore_read_data {
 	enum pstore_type_id *type;
 	int *count;
 	struct timespec *timespec;
+	bool *compressed;
 	char **buf;
 };
 
@@ -42,7 +43,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 {
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct pstore_read_data *cb_data = data;
-	char name[DUMP_NAME_LEN];
+	char name[DUMP_NAME_LEN], data_type;
 	int i;
 	int cnt;
 	unsigned int part;
@@ -54,12 +55,23 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		name[i] = entry->var.VariableName[i];
 
-	if (sscanf(name, "dump-type%u-%u-%d-%lu",
+	if (sscanf(name, "dump-type%u-%u-%d-%lu-%c",
+		   cb_data->type, &part, &cnt, &time, &data_type) == 5) {
+		*cb_data->id = part;
+		*cb_data->count = cnt;
+		cb_data->timespec->tv_sec = time;
+		cb_data->timespec->tv_nsec = 0;
+		if (data_type == 'C')
+			*cb_data->compressed = true;
+		else
+			*cb_data->compressed = false;
+	} else if (sscanf(name, "dump-type%u-%u-%d-%lu",
 		   cb_data->type, &part, &cnt, &time) == 4) {
 		*cb_data->id = part;
 		*cb_data->count = cnt;
 		cb_data->timespec->tv_sec = time;
 		cb_data->timespec->tv_nsec = 0;
+		*cb_data->compressed = false;
 	} else if (sscanf(name, "dump-type%u-%u-%lu",
 			  cb_data->type, &part, &time) == 3) {
 		/*
@@ -71,6 +83,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 		*cb_data->count = 0;
 		cb_data->timespec->tv_sec = time;
 		cb_data->timespec->tv_nsec = 0;
+		*cb_data->compressed = false;
 	} else
 		return 0;
 
@@ -79,16 +92,16 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 			   &entry->var.DataSize, entry->var.Data);
 	size = entry->var.DataSize;
 
-	*cb_data->buf = kmalloc(size, GFP_KERNEL);
+	*cb_data->buf = kmemdup(entry->var.Data, size, GFP_KERNEL);
 	if (*cb_data->buf == NULL)
 		return -ENOMEM;
-	memcpy(*cb_data->buf, entry->var.Data, size);
 	return size;
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 			       int *count, struct timespec *timespec,
-			       char **buf, struct pstore_info *psi)
+			       char **buf, bool *compressed,
+			       struct pstore_info *psi)
 {
 	struct pstore_read_data data;
 
@@ -96,6 +109,7 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	data.type = type;
 	data.count = count;
 	data.timespec = timespec;
+	data.compressed = compressed;
 	data.buf = buf;
 
 	return __efivar_entry_iter(efi_pstore_read_func, &efivar_sysfs_list, &data,
@@ -104,7 +118,7 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 
 static int efi_pstore_write(enum pstore_type_id type,
 		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, size_t size,
+		unsigned int part, int count, bool compressed, size_t size,
 		struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
@@ -112,8 +126,8 @@ static int efi_pstore_write(enum pstore_type_id type,
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	int i, ret = 0;
 
-	sprintf(name, "dump-type%u-%u-%d-%lu", type, part, count,
-		get_seconds());
+	sprintf(name, "dump-type%u-%u-%d-%lu-%c", type, part, count,
+		get_seconds(), compressed ? 'C' : 'D');
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
 		efi_name[i] = name[i];
@@ -236,7 +250,11 @@ static __init int efivars_pstore_init(void)
 	efi_pstore_info.bufsize = 1024;
 	spin_lock_init(&efi_pstore_info.buf_lock);
 
-	pstore_register(&efi_pstore_info);
+	if (pstore_register(&efi_pstore_info)) {
+		kfree(efi_pstore_info.buf);
+		efi_pstore_info.buf = NULL;
+		efi_pstore_info.bufsize = 0;
+	}
 
 	return 0;
 }

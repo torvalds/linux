@@ -53,12 +53,6 @@ void __init corenet_ds_setup_arch(void)
 {
 	mpc85xx_smp_init();
 
-#if defined(CONFIG_PCI) && defined(CONFIG_PPC64)
-	pci_devs_phb_init();
-#endif
-
-	fsl_pci_assign_primary();
-
 	swiotlb_detect_4g();
 
 	pr_info("%s board from Freescale Semiconductor\n", ppc_md.name);

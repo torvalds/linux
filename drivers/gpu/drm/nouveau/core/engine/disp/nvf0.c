@@ -54,6 +54,9 @@ nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
+	if (nv_rd32(parent, 0x022500) & 0x00000001)
+		return -ENODEV;
+
 	ret = nouveau_disp_create(parent, engine, oclass, heads,
 				  "PDISP", "display", &priv);
 	*pobject = nv_object(priv);

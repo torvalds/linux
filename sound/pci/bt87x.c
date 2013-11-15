@@ -953,7 +953,6 @@ _error:
 static void snd_bt87x_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 /* default entries for all Bt87x cards - it's not exported */

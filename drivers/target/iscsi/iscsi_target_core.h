@@ -9,7 +9,7 @@
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 
-#define ISCSIT_VERSION			"v4.1.0-rc2"
+#define ISCSIT_VERSION			"v4.1.0"
 #define ISCSI_MAX_DATASN_MISSING_COUNT	16
 #define ISCSI_TX_THREAD_TCP_TIMEOUT	2
 #define ISCSI_RX_THREAD_TCP_TIMEOUT	2
@@ -17,6 +17,9 @@
 #define SECONDS_FOR_ASYNC_TEXT		10
 #define SECONDS_FOR_LOGOUT_COMP		15
 #define WHITE_SPACE			" \t\v\f\n\r"
+#define ISCSIT_MIN_TAGS			16
+#define ISCSIT_EXTRA_TAGS		8
+#define ISCSIT_TCP_BACKLOG		256
 
 /* struct iscsi_node_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
@@ -47,7 +50,7 @@
 #define TA_NETIF_TIMEOUT_MAX		15
 #define TA_NETIF_TIMEOUT_MIN		2
 #define TA_GENERATE_NODE_ACLS		0
-#define TA_DEFAULT_CMDSN_DEPTH		16
+#define TA_DEFAULT_CMDSN_DEPTH		64
 #define TA_DEFAULT_CMDSN_DEPTH_MAX	512
 #define TA_DEFAULT_CMDSN_DEPTH_MIN	1
 #define TA_CACHE_DYNAMIC_ACLS		0
@@ -132,7 +135,8 @@ enum cmd_flags_table {
 	ICF_CONTIG_MEMORY			= 0x00000020,
 	ICF_ATTACHED_TO_RQUEUE			= 0x00000040,
 	ICF_OOO_CMDSN				= 0x00000080,
-	ICF_REJECT_FAIL_CONN			= 0x00000100,
+	IFC_SENDTARGETS_ALL			= 0x00000100,
+	IFC_SENDTARGETS_SINGLE			= 0x00000200,
 };
 
 /* struct iscsi_cmd->i_state */
@@ -366,6 +370,8 @@ struct iscsi_cmd {
 	u8			maxcmdsn_inc;
 	/* Immediate Unsolicited Dataout */
 	u8			unsolicited_data;
+	/* Reject reason code */
+	u8			reject_reason;
 	/* CID contained in logout PDU when opcode == ISCSI_INIT_LOGOUT_CMND */
 	u16			logout_cid;
 	/* Command flags */
@@ -427,6 +433,8 @@ struct iscsi_cmd {
 	u32			tx_size;
 	/* Buffer used for various purposes */
 	void			*buf_ptr;
+	/* Used by SendTargets=[iqn.,eui.] discovery */
+	void			*text_in_ptr;
 	/* See include/linux/dma-mapping.h */
 	enum dma_data_direction	data_direction;
 	/* iSCSI PDU Header + CRC */
@@ -446,7 +454,6 @@ struct iscsi_cmd {
 	struct list_head	datain_list;
 	/* R2T List */
 	struct list_head	cmd_r2t_list;
-	struct completion	reject_comp;
 	/* Timer for DataOUT */
 	struct timer_list	dataout_timer;
 	/* Iovecs for SCSI data payload RX/TX w/ kernel level sockets */
@@ -485,7 +492,6 @@ struct iscsi_cmd {
 	u32			first_data_sg_off;
 	u32			kmapped_nents;
 	sense_reason_t		sense_reason;
-	void (*release_cmd)(struct iscsi_cmd *);
 }  ____cacheline_aligned;
 
 struct iscsi_tmr_req {
@@ -528,8 +534,6 @@ struct iscsi_conn {
 	u32			of_marker;
 	/* Used for calculating OFMarker offset to next PDU */
 	u32			of_marker_offset;
-	/* Complete Bad PDU for sending reject */
-	unsigned char		bad_hdr[ISCSI_HDR_LEN];
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
 	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
@@ -552,9 +556,19 @@ struct iscsi_conn {
 	struct completion	rx_half_close_comp;
 	/* socket used by this connection */
 	struct socket		*sock;
+	void			(*orig_data_ready)(struct sock *, int);
+	void			(*orig_state_change)(struct sock *);
+#define LOGIN_FLAGS_READ_ACTIVE		1
+#define LOGIN_FLAGS_CLOSED		2
+#define LOGIN_FLAGS_READY		4
+	unsigned long		login_flags;
+	struct delayed_work	login_work;
+	struct delayed_work	login_cleanup_work;
+	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;
 	struct timer_list	transport_timer;
+	struct task_struct	*login_kworker;
 	/* Spinlock used for add/deleting cmd's from conn_cmd_list */
 	spinlock_t		cmd_lock;
 	spinlock_t		conn_usage_lock;
@@ -582,6 +596,7 @@ struct iscsi_conn {
 	void			*context;
 	struct iscsi_login_thread_s *login_thread;
 	struct iscsi_portal_group *tpg;
+	struct iscsi_tpg_np	*tpg_np;
 	/* Pointer to parent session */
 	struct iscsi_session	*sess;
 	/* Pointer to thread_set in use for this conn's threads */
@@ -680,6 +695,7 @@ struct iscsi_login {
 	u8 version_max;
 	u8 login_complete;
 	u8 login_failed;
+	bool zero_tsih;
 	char isid[6];
 	u32 cmd_sn;
 	itt_t init_task_tag;
@@ -692,6 +708,7 @@ struct iscsi_login {
 	char *req_buf;
 	char *rsp_buf;
 	struct iscsi_conn *conn;
+	struct iscsi_np *np;
 } ____cacheline_aligned;
 
 struct iscsi_node_attrib {
@@ -771,7 +788,6 @@ struct iscsi_np {
 	struct __kernel_sockaddr_storage np_sockaddr;
 	struct task_struct	*np_thread;
 	struct timer_list	np_login_timer;
-	struct iscsi_portal_group *np_login_tpg;
 	void			*np_context;
 	struct iscsit_transport *np_transport;
 	struct list_head	np_list;
@@ -786,6 +802,8 @@ struct iscsi_tpg_np {
 	struct list_head	tpg_np_parent_list;
 	struct se_tpg_np	se_tpg_np;
 	spinlock_t		tpg_np_parent_lock;
+	struct completion	tpg_np_comp;
+	struct kref		tpg_np_kref;
 };
 
 struct iscsi_portal_group {
@@ -807,8 +825,9 @@ struct iscsi_portal_group {
 	spinlock_t		tpg_state_lock;
 	struct se_portal_group tpg_se_tpg;
 	struct mutex		tpg_access_lock;
-	struct mutex		np_login_lock;
+	struct semaphore	np_login_sem;
 	struct iscsi_tpg_attrib	tpg_attrib;
+	struct iscsi_node_auth	tpg_demo_auth;
 	/* Pointer to default list of iSCSI parameters for TPG */
 	struct iscsi_param_list	*param_list;
 	struct iscsi_tiqn	*tpg_tiqn;

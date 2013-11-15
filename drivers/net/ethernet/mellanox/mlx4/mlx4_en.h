@@ -96,13 +96,14 @@
 
 /* Use the maximum between 16384 and a single page */
 #define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
-#define MLX4_EN_ALLOC_ORDER	get_order(MLX4_EN_ALLOC_SIZE)
 
-/* Receive fragment sizes; we use at most 4 fragments (for 9600 byte MTU
+#define MLX4_EN_ALLOC_PREFER_ORDER	PAGE_ALLOC_COSTLY_ORDER
+
+/* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
  * and 4K allocations) */
 enum {
-	FRAG_SZ0 = 512 - NET_IP_ALIGN,
-	FRAG_SZ1 = 1024,
+	FRAG_SZ0 = 1536 - NET_IP_ALIGN,
+	FRAG_SZ1 = 4096,
 	FRAG_SZ2 = 4096,
 	FRAG_SZ3 = MLX4_EN_ALLOC_SIZE
 };
@@ -234,9 +235,10 @@ struct mlx4_en_tx_desc {
 #define MLX4_EN_CX3_HIGH_ID	0x1005
 
 struct mlx4_en_rx_alloc {
-	struct page *page;
-	dma_addr_t dma;
-	u16 offset;
+	struct page	*page;
+	dma_addr_t	dma;
+	u32		offset;
+	u32		size;
 };
 
 struct mlx4_en_tx_ring {
@@ -290,6 +292,11 @@ struct mlx4_en_rx_ring {
 	void *rx_info;
 	unsigned long bytes;
 	unsigned long packets;
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned long yields;
+	unsigned long misses;
+	unsigned long cleaned;
+#endif
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	int hwtstamp_rx_filter;
@@ -310,6 +317,19 @@ struct mlx4_en_cq {
 	u16 moder_cnt;
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int state;
+#define MLX4_EN_CQ_STATE_IDLE        0
+#define MLX4_EN_CQ_STATE_NAPI     1    /* NAPI owns this CQ */
+#define MLX4_EN_CQ_STATE_POLL     2    /* poll owns this CQ */
+#define MLX4_CQ_LOCKED (MLX4_EN_CQ_STATE_NAPI | MLX4_EN_CQ_STATE_POLL)
+#define MLX4_EN_CQ_STATE_NAPI_YIELD  4    /* NAPI yielded this CQ */
+#define MLX4_EN_CQ_STATE_POLL_YIELD  8    /* poll yielded this CQ */
+#define CQ_YIELD (MLX4_EN_CQ_STATE_NAPI_YIELD | MLX4_EN_CQ_STATE_POLL_YIELD)
+#define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
+	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
+#endif  /* CONFIG_NET_RX_BUSY_POLL */
 };
 
 struct mlx4_en_port_profile {
@@ -421,8 +441,6 @@ struct mlx4_en_frag_info {
 	u16 frag_prefix_size;
 	u16 frag_stride;
 	u16 frag_align;
-	u16 last_offset;
-
 };
 
 #ifdef CONFIG_MLX4_EN_DCB
@@ -561,6 +579,115 @@ struct mlx4_mac_entry {
 	u64 reg_id;
 	struct rcu_head rcu;
 };
+
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
+{
+	spin_lock_init(&cq->poll_lock);
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
+}
+
+/* called from the device poll rutine to get ownership of a cq */
+static inline bool mlx4_en_cq_lock_napi(struct mlx4_en_cq *cq)
+{
+	int rc = true;
+	spin_lock(&cq->poll_lock);
+	if (cq->state & MLX4_CQ_LOCKED) {
+		WARN_ON(cq->state & MLX4_EN_CQ_STATE_NAPI);
+		cq->state |= MLX4_EN_CQ_STATE_NAPI_YIELD;
+		rc = false;
+	} else
+		/* we don't care if someone yielded */
+		cq->state = MLX4_EN_CQ_STATE_NAPI;
+	spin_unlock(&cq->poll_lock);
+	return rc;
+}
+
+/* returns true is someone tried to get the cq while napi had it */
+static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
+{
+	int rc = false;
+	spin_lock(&cq->poll_lock);
+	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_POLL |
+			       MLX4_EN_CQ_STATE_NAPI_YIELD));
+
+	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
+		rc = true;
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
+	spin_unlock(&cq->poll_lock);
+	return rc;
+}
+
+/* called from mlx4_en_low_latency_poll() */
+static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
+{
+	int rc = true;
+	spin_lock_bh(&cq->poll_lock);
+	if ((cq->state & MLX4_CQ_LOCKED)) {
+		struct net_device *dev = cq->dev;
+		struct mlx4_en_priv *priv = netdev_priv(dev);
+		struct mlx4_en_rx_ring *rx_ring = &priv->rx_ring[cq->ring];
+
+		cq->state |= MLX4_EN_CQ_STATE_POLL_YIELD;
+		rc = false;
+		rx_ring->yields++;
+	} else
+		/* preserve yield marks */
+		cq->state |= MLX4_EN_CQ_STATE_POLL;
+	spin_unlock_bh(&cq->poll_lock);
+	return rc;
+}
+
+/* returns true if someone tried to get the cq while it was locked */
+static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
+{
+	int rc = false;
+	spin_lock_bh(&cq->poll_lock);
+	WARN_ON(cq->state & (MLX4_EN_CQ_STATE_NAPI));
+
+	if (cq->state & MLX4_EN_CQ_STATE_POLL_YIELD)
+		rc = true;
+	cq->state = MLX4_EN_CQ_STATE_IDLE;
+	spin_unlock_bh(&cq->poll_lock);
+	return rc;
+}
+
+/* true if a socket is polling, even if it did not get the lock */
+static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+{
+	WARN_ON(!(cq->state & MLX4_CQ_LOCKED));
+	return cq->state & CQ_USER_PEND;
+}
+#else
+static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
+{
+}
+
+static inline bool mlx4_en_cq_lock_napi(struct mlx4_en_cq *cq)
+{
+	return true;
+}
+
+static inline bool mlx4_en_cq_unlock_napi(struct mlx4_en_cq *cq)
+{
+	return false;
+}
+
+static inline bool mlx4_en_cq_lock_poll(struct mlx4_en_cq *cq)
+{
+	return false;
+}
+
+static inline bool mlx4_en_cq_unlock_poll(struct mlx4_en_cq *cq)
+{
+	return false;
+}
+
+static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
+{
+	return false;
+}
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
 

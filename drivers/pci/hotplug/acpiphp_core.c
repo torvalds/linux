@@ -155,15 +155,11 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
-	int retval;
 
 	dbg("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	/* disable the specified slot */
-	retval = acpiphp_disable_slot(slot->acpi_slot);
-	if (!retval)
-		retval = acpiphp_eject_slot(slot->acpi_slot);
-	return retval;
+	return acpiphp_disable_and_eject_slot(slot->acpi_slot);
 }
 
 
@@ -290,7 +286,8 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 }
 
 /* callback routine to initialize 'struct slot' for each slot */
-int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
+int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
+				  unsigned int sun)
 {
 	struct slot *slot;
 	int retval = -ENOMEM;
@@ -317,12 +314,11 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	slot->hotplug_slot->info->adapter_status = acpiphp_get_adapter_status(slot->acpi_slot);
 
 	acpiphp_slot->slot = slot;
-	snprintf(name, SLOT_NAME_SIZE, "%llu", slot->acpi_slot->sun);
+	slot->sun = sun;
+	snprintf(name, SLOT_NAME_SIZE, "%u", sun);
 
-	retval = pci_hp_register(slot->hotplug_slot,
-					acpiphp_slot->bridge->pci_bus,
-					acpiphp_slot->device,
-					name);
+	retval = pci_hp_register(slot->hotplug_slot, acpiphp_slot->bus,
+				 acpiphp_slot->device, name);
 	if (retval == -EBUSY)
 		goto error_hpslot;
 	if (retval) {

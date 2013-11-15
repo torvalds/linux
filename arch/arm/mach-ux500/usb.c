@@ -14,25 +14,15 @@
 
 #define MUSB_DMA40_RX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
-		.dir = STEDMA40_PERIPH_TO_MEM, \
-		.dst_dev_type = STEDMA40_DEV_DST_MEMORY, \
-		.src_info.data_width = STEDMA40_WORD_WIDTH, \
-		.dst_info.data_width = STEDMA40_WORD_WIDTH, \
-		.src_info.psize = STEDMA40_PSIZE_LOG_16, \
-		.dst_info.psize = STEDMA40_PSIZE_LOG_16, \
+		.dir = DMA_DEV_TO_MEM, \
 	}
 
 #define MUSB_DMA40_TX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
-		.dir = STEDMA40_MEM_TO_PERIPH, \
-		.src_dev_type = STEDMA40_DEV_SRC_MEMORY, \
-		.src_info.data_width = STEDMA40_WORD_WIDTH, \
-		.dst_info.data_width = STEDMA40_WORD_WIDTH, \
-		.src_info.psize = STEDMA40_PSIZE_LOG_16, \
-		.dst_info.psize = STEDMA40_PSIZE_LOG_16, \
+		.dir = DMA_MEM_TO_DEV, \
 	}
 
-static struct stedma40_chan_cfg musb_dma_rx_ch[UX500_MUSB_DMA_NUM_RX_CHANNELS]
+static struct stedma40_chan_cfg musb_dma_rx_ch[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS]
 	= {
 	MUSB_DMA40_RX_CH,
 	MUSB_DMA40_RX_CH,
@@ -44,7 +34,7 @@ static struct stedma40_chan_cfg musb_dma_rx_ch[UX500_MUSB_DMA_NUM_RX_CHANNELS]
 	MUSB_DMA40_RX_CH
 };
 
-static struct stedma40_chan_cfg musb_dma_tx_ch[UX500_MUSB_DMA_NUM_TX_CHANNELS]
+static struct stedma40_chan_cfg musb_dma_tx_ch[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS]
 	= {
 	MUSB_DMA40_TX_CH,
 	MUSB_DMA40_TX_CH,
@@ -56,7 +46,7 @@ static struct stedma40_chan_cfg musb_dma_tx_ch[UX500_MUSB_DMA_NUM_TX_CHANNELS]
 	MUSB_DMA40_TX_CH,
 };
 
-static void *ux500_dma_rx_param_array[UX500_MUSB_DMA_NUM_RX_CHANNELS] = {
+static void *ux500_dma_rx_param_array[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS] = {
 	&musb_dma_rx_ch[0],
 	&musb_dma_rx_ch[1],
 	&musb_dma_rx_ch[2],
@@ -67,7 +57,7 @@ static void *ux500_dma_rx_param_array[UX500_MUSB_DMA_NUM_RX_CHANNELS] = {
 	&musb_dma_rx_ch[7]
 };
 
-static void *ux500_dma_tx_param_array[UX500_MUSB_DMA_NUM_TX_CHANNELS] = {
+static void *ux500_dma_tx_param_array[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS] = {
 	&musb_dma_tx_ch[0],
 	&musb_dma_tx_ch[1],
 	&musb_dma_tx_ch[2],
@@ -81,23 +71,11 @@ static void *ux500_dma_tx_param_array[UX500_MUSB_DMA_NUM_TX_CHANNELS] = {
 static struct ux500_musb_board_data musb_board_data = {
 	.dma_rx_param_array = ux500_dma_rx_param_array,
 	.dma_tx_param_array = ux500_dma_tx_param_array,
-	.num_rx_channels = UX500_MUSB_DMA_NUM_RX_CHANNELS,
-	.num_tx_channels = UX500_MUSB_DMA_NUM_TX_CHANNELS,
 	.dma_filter = stedma40_filter,
-};
-
-static u64 ux500_musb_dmamask = DMA_BIT_MASK(32);
-
-static struct musb_hdrc_config musb_hdrc_config = {
-	.multipoint	= true,
-	.dyn_fifo	= true,
-	.num_eps	= 16,
-	.ram_bits	= 16,
 };
 
 static struct musb_hdrc_platform_data musb_platform_data = {
 	.mode = MUSB_OTG,
-	.config = &musb_hdrc_config,
 	.board_data = &musb_board_data,
 };
 
@@ -118,27 +96,26 @@ struct platform_device ux500_musb_device = {
 	.id = 0,
 	.dev = {
 		.platform_data = &musb_platform_data,
-		.dma_mask = &ux500_musb_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources = ARRAY_SIZE(usb_resources),
 	.resource = usb_resources,
 };
 
-static inline void ux500_usb_dma_update_rx_ch_config(int *src_dev_type)
+static inline void ux500_usb_dma_update_rx_ch_config(int *dev_type)
 {
 	u32 idx;
 
-	for (idx = 0; idx < UX500_MUSB_DMA_NUM_RX_CHANNELS; idx++)
-		musb_dma_rx_ch[idx].src_dev_type = src_dev_type[idx];
+	for (idx = 0; idx < UX500_MUSB_DMA_NUM_RX_TX_CHANNELS; idx++)
+		musb_dma_rx_ch[idx].dev_type = dev_type[idx];
 }
 
-static inline void ux500_usb_dma_update_tx_ch_config(int *dst_dev_type)
+static inline void ux500_usb_dma_update_tx_ch_config(int *dev_type)
 {
 	u32 idx;
 
-	for (idx = 0; idx < UX500_MUSB_DMA_NUM_TX_CHANNELS; idx++)
-		musb_dma_tx_ch[idx].dst_dev_type = dst_dev_type[idx];
+	for (idx = 0; idx < UX500_MUSB_DMA_NUM_RX_TX_CHANNELS; idx++)
+		musb_dma_tx_ch[idx].dev_type = dev_type[idx];
 }
 
 void ux500_add_usb(struct device *parent, resource_size_t base, int irq,

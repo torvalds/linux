@@ -1837,7 +1837,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	if (NULL == ccdc_cfg) {
 		v4l2_err(pdev->dev.driver,
 			 "Memory allocation failed for ccdc_cfg\n");
-		goto probe_free_lock;
+		goto probe_free_dev_mem;
 	}
 
 	mutex_lock(&ccdc_lock);
@@ -1991,7 +1991,6 @@ probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 probe_free_ccdc_cfg_mem:
 	kfree(ccdc_cfg);
-probe_free_lock:
 	mutex_unlock(&ccdc_lock);
 probe_free_dev_mem:
 	kfree(vpfe_dev);

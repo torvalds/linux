@@ -39,10 +39,16 @@
  * Common SMP definitions
  */
 #define RESET_VEC_PHYS		0x1fc00000
+#define RESET_VEC_SIZE		8192		/* 8KB reset code and data */
 #define RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
+
+/* Offsets of parameters in the RESET_DATA_PHYS area */
 #define BOOT_THREAD_MODE	0
 #define BOOT_NMI_LOCK		4
 #define BOOT_NMI_HANDLER	8
+
+/* CPU ready flags for each CPU */
+#define BOOT_CPU_READY		2048
 
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
@@ -59,22 +65,31 @@ int nlm_wakeup_secondary_cpus(void);
 void nlm_rmiboot_preboot(void);
 void nlm_percpu_init(int hwcpuid);
 
+static inline void *
+nlm_get_boot_data(int offset)
+{
+	return (void *)(CKSEG1ADDR(RESET_DATA_PHYS) + offset);
+}
+
 static inline void
 nlm_set_nmi_handler(void *handler)
 {
-	char *reset_data;
+	void *nmih = nlm_get_boot_data(BOOT_NMI_HANDLER);
 
-	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);
-	*(int64_t *)(reset_data + BOOT_NMI_HANDLER) = (long)handler;
+	*(int64_t *)nmih = (long)handler;
 }
 
 /*
  * Misc.
  */
+void nlm_init_boot_cpu(void);
 unsigned int nlm_get_cpu_frequency(void);
 void nlm_node_init(int node);
 extern struct plat_smp_ops nlm_smp_ops;
 extern char nlm_reset_entry[], nlm_reset_entry_end[];
+
+/* SWIOTLB */
+extern struct dma_map_ops nlm_swiotlb_dma_ops;
 
 extern unsigned int nlm_threads_per_core;
 extern cpumask_t nlm_cpumask;

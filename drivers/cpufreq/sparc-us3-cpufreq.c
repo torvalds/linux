@@ -169,13 +169,13 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 	struct cpufreq_frequency_table *table =
 		&us3_freq_table[cpu].table[0];
 
-	table[0].index = 0;
+	table[0].driver_data = 0;
 	table[0].frequency = clock_tick / 1;
-	table[1].index = 1;
+	table[1].driver_data = 1;
 	table[1].frequency = clock_tick / 2;
-	table[2].index = 2;
+	table[2].driver_data = 2;
 	table[2].frequency = clock_tick / 32;
-	table[3].index = 0;
+	table[3].driver_data = 0;
 	table[3].frequency = CPUFREQ_TABLE_END;
 
 	policy->cpuinfo.transition_latency = 0;
@@ -212,12 +212,11 @@ static int __init us3_freq_init(void)
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;
-		driver = kzalloc(sizeof(struct cpufreq_driver), GFP_KERNEL);
+		driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 		if (!driver)
 			goto err_out;
 
-		us3_freq_table = kzalloc(
-			(NR_CPUS * sizeof(struct us3_freq_percpu_info)),
+		us3_freq_table = kzalloc((NR_CPUS * sizeof(*us3_freq_table)),
 			GFP_KERNEL);
 		if (!us3_freq_table)
 			goto err_out;
@@ -227,7 +226,6 @@ static int __init us3_freq_init(void)
 		driver->target = us3_freq_target;
 		driver->get = us3_freq_get;
 		driver->exit = us3_freq_cpu_exit;
-		driver->owner = THIS_MODULE,
 		strcpy(driver->name, "UltraSPARC-III");
 
 		cpufreq_us3_driver = driver;

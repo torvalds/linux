@@ -14,9 +14,9 @@ struct vme_master {
 	u32 cycle;		/* Cycle properties */
 	u32 dwidth;		/* Maximum Data Width */
 #if 0
-	char prefetchEnable;		/* Prefetch Read Enable State */
-	int prefetchSize;		/* Prefetch Read Size (Cache Lines) */
-	char wrPostEnable;		/* Write Post State */
+	char prefetchenable;		/* Prefetch Read Enable State */
+	int prefetchsize;		/* Prefetch Read Size (Cache Lines) */
+	char wrpostenable;		/* Write Post State */
 #endif
 };
 
@@ -37,9 +37,9 @@ struct vme_slave {
 	u32 aspace;			/* Address Space */
 	u32 cycle;		/* Cycle properties */
 #if 0
-	char wrPostEnable;		/* Write Post State */
-	char rmwLock;			/* Lock PCI during RMW Cycles */
-	char data64BitCapable;		/* non-VMEbus capable of 64-bit Data */
+	char wrpostenable;		/* Write Post State */
+	char rmwlock;			/* Lock PCI during RMW Cycles */
+	char data64bitcapable;		/* non-VMEbus capable of 64-bit Data */
 #endif
 };
 

@@ -867,7 +867,6 @@ stu300_probe(struct platform_device *pdev)
 	struct resource *res;
 	int bus_nr;
 	int ret = 0;
-	char clk_name[] = "I2C0";
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct stu300_dev), GFP_KERNEL);
 	if (!dev) {
@@ -876,8 +875,7 @@ stu300_probe(struct platform_device *pdev)
 	}
 
 	bus_nr = pdev->id;
-	clk_name[3] += (char)bus_nr;
-	dev->clk = devm_clk_get(&pdev->dev, clk_name);
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		dev_err(&pdev->dev, "could not retrieve i2c bus clock\n");
 		return PTR_ERR(dev->clk);
@@ -885,9 +883,6 @@ stu300_probe(struct platform_device *pdev)
 
 	dev->pdev = pdev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	dev->virtbase = devm_ioremap_resource(&pdev->dev, res);
 	dev_dbg(&pdev->dev, "initialize bus device I2C%d on virtual "
 		"base %p\n", bus_nr, dev->virtbase);
@@ -923,6 +918,7 @@ stu300_probe(struct platform_device *pdev)
 	adap->nr = bus_nr;
 	adap->algo = &stu300_algo;
 	adap->dev.parent = &pdev->dev;
+	adap->dev.of_node = pdev->dev.of_node;
 	i2c_set_adapdata(adap, dev);
 
 	/* i2c device drivers may be active on return from add_adapter() */
@@ -934,10 +930,13 @@ stu300_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, dev);
+	dev_info(&pdev->dev, "ST DDC I2C @ %p, irq %d\n",
+		 dev->virtbase, dev->irq);
+
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int stu300_suspend(struct device *device)
 {
 	struct stu300_dev *dev = dev_get_drvdata(device);
@@ -978,11 +977,17 @@ stu300_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id stu300_dt_match[] = {
+	{ .compatible = "st,ddci2c" },
+	{},
+};
+
 static struct platform_driver stu300_i2c_driver = {
 	.driver = {
 		.name	= NAME,
 		.owner	= THIS_MODULE,
 		.pm	= STU300_I2C_PM,
+		.of_match_table = stu300_dt_match,
 	},
 	.remove		= __exit_p(stu300_remove),
 

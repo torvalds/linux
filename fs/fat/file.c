@@ -114,6 +114,12 @@ out:
 	return err;
 }
 
+static int fat_ioctl_get_volume_id(struct inode *inode, u32 __user *user_attr)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	return put_user(sbi->vol_id, user_attr);
+}
+
 long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -124,6 +130,8 @@ long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return fat_ioctl_get_attributes(inode, user_attr);
 	case FAT_IOCTL_SET_ATTRIBUTES:
 		return fat_ioctl_set_attributes(filp, user_attr);
+	case FAT_IOCTL_GET_VOLUME_ID:
+		return fat_ioctl_get_volume_id(inode, user_attr);
 	default:
 		return -ENOTTY;	/* Inappropriate ioctl for device */
 	}

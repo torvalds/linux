@@ -83,7 +83,11 @@ static int pseries_eeh_init(void)
 	ibm_configure_pe		= rtas_token("ibm,configure-pe");
 	ibm_configure_bridge		= rtas_token("ibm,configure-bridge");
 
-	/* necessary sanity check */
+	/*
+	 * Necessary sanity check. We needn't check "get-config-addr-info"
+	 * and its variant since the old firmware probably support address
+	 * of domain/bus/slot/function for EEH RTAS operations.
+	 */
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE) {
 		pr_warning("%s: RTAS service <ibm,set-eeh-option> invalid\n",
 			__func__);
@@ -100,12 +104,6 @@ static int pseries_eeh_init(void)
 		return -EINVAL;
 	} else if (ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE) {
 		pr_warning("%s: RTAS service <ibm,slot-error-detail> invalid\n",
-			__func__);
-		return -EINVAL;
-	} else if (ibm_get_config_addr_info2 == RTAS_UNKNOWN_SERVICE &&
-		   ibm_get_config_addr_info == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm,get-config-addr-info2> and "
-			"<ibm,get-config-addr-info> invalid\n",
 			__func__);
 		return -EINVAL;
 	} else if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE &&
@@ -135,6 +133,48 @@ static int pseries_eeh_init(void)
 	return 0;
 }
 
+static int pseries_eeh_cap_start(struct device_node *dn)
+{
+	struct pci_dn *pdn = PCI_DN(dn);
+	u32 status;
+
+	if (!pdn)
+		return 0;
+
+	rtas_read_config(pdn, PCI_STATUS, 2, &status);
+	if (!(status & PCI_STATUS_CAP_LIST))
+		return 0;
+
+	return PCI_CAPABILITY_LIST;
+}
+
+
+static int pseries_eeh_find_cap(struct device_node *dn, int cap)
+{
+	struct pci_dn *pdn = PCI_DN(dn);
+	int pos = pseries_eeh_cap_start(dn);
+	int cnt = 48;	/* Maximal number of capabilities */
+	u32 id;
+
+	if (!pos)
+		return 0;
+
+        while (cnt--) {
+		rtas_read_config(pdn, pos, 1, &pos);
+		if (pos < 0x40)
+			break;
+		pos &= ~3;
+		rtas_read_config(pdn, pos + PCI_CAP_LIST_ID, 1, &id);
+		if (id == 0xff)
+			break;
+		if (id == cap)
+			return pos;
+		pos += PCI_CAP_LIST_NEXT;
+	}
+
+	return 0;
+}
+
 /**
  * pseries_eeh_of_probe - EEH probe on the given device
  * @dn: OF node
@@ -148,14 +188,16 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 {
 	struct eeh_dev *edev;
 	struct eeh_pe pe;
+	struct pci_dn *pdn = PCI_DN(dn);
 	const u32 *class_code, *vendor_id, *device_id;
 	const u32 *regs;
+	u32 pcie_flags;
 	int enable = 0;
 	int ret;
 
 	/* Retrieve OF node and eeh device */
 	edev = of_node_to_eeh_dev(dn);
-	if (!of_device_is_available(dn))
+	if (edev->pe || !of_device_is_available(dn))
 		return NULL;
 
 	/* Retrieve class/vendor/device IDs */
@@ -169,9 +211,26 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	if (dn->type && !strcmp(dn->type, "isa"))
 		return NULL;
 
-	/* Update class code and mode of eeh device */
+	/*
+	 * Update class code and mode of eeh device. We need
+	 * correctly reflects that current device is root port
+	 * or PCIe switch downstream port.
+	 */
 	edev->class_code = *class_code;
-	edev->mode = 0;
+	edev->pcie_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_EXP);
+	edev->mode &= 0xFFFFFF00;
+	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		edev->mode |= EEH_DEV_BRIDGE;
+		if (edev->pcie_cap) {
+			rtas_read_config(pdn, edev->pcie_cap + PCI_EXP_FLAGS,
+					 2, &pcie_flags);
+			pcie_flags = (pcie_flags & PCI_EXP_FLAGS_TYPE) >> 4;
+			if (pcie_flags == PCI_EXP_TYPE_ROOT_PORT)
+				edev->mode |= EEH_DEV_ROOT_PORT;
+			else if (pcie_flags == PCI_EXP_TYPE_DOWNSTREAM)
+				edev->mode |= EEH_DEV_DS_PORT;
+		}
+	}
 
 	/* Retrieve the device address */
 	regs = of_get_property(dn, "reg", NULL);

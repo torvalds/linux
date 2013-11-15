@@ -72,7 +72,7 @@ int test__basic_mmap(void)
 		}
 
 		evsels[i]->attr.wakeup_events = 1;
-		perf_evsel__set_sample_id(evsels[i]);
+		perf_evsel__set_sample_id(evsels[i], false);
 
 		perf_evlist__add(evlist, evsels[i]);
 

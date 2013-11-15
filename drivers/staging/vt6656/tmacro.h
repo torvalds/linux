@@ -45,14 +45,8 @@
 #define HIWORD(d)           ((u16)((((u32)(d)) >> 16) & 0xFFFF))
 #endif
 
-#define LODWORD(q)          ((q).u.dwLowDword)
-#define HIDWORD(q)          ((q).u.dwHighDword)
-
 #if !defined(MAKEWORD)
 #define MAKEWORD(lb, hb)    ((u16)(((u8)(lb)) | (((u16)((u8)(hb))) << 8)))
-#endif
-#if !defined(MAKEDWORD)
-#define MAKEDWORD(lw, hw)   ((u32)(((u16)(lw)) | (((u32)((u16)(hw))) << 16)))
 #endif
 
 #endif /* __TMACRO_H__ */

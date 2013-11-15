@@ -41,7 +41,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/mxs-spi.h>
 
@@ -103,12 +102,15 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 		  BM_SSP_STATUS_CARD_DETECT) ^ host->cd_inverted;
 }
 
-static void mxs_mmc_reset(struct mxs_mmc_host *host)
+static int mxs_mmc_reset(struct mxs_mmc_host *host)
 {
 	struct mxs_ssp *ssp = &host->ssp;
 	u32 ctrl0, ctrl1;
+	int ret;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		return ret;
 
 	ctrl0 = BM_SSP_CTRL0_IGNORE_CRC;
 	ctrl1 = BF_SSP(0x3, CTRL1_SSP_MODE) |
@@ -133,6 +135,7 @@ static void mxs_mmc_reset(struct mxs_mmc_host *host)
 
 	writel(ctrl0, ssp->base + HW_SSP_CTRL0);
 	writel(ctrl1, ssp->base + HW_SSP_CTRL1(ssp));
+	return 0;
 }
 
 static void mxs_mmc_start_cmd(struct mxs_mmc_host *host,
@@ -580,7 +583,6 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	struct resource *iores;
-	struct pinctrl *pinctrl;
 	int ret = 0, irq_err;
 	struct regulator *reg_vmmc;
 	enum of_gpio_flags flags;
@@ -620,26 +622,25 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto out_mmc_free;
-	}
-
-	ssp->clk = clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ssp->clk)) {
 		ret = PTR_ERR(ssp->clk);
 		goto out_mmc_free;
 	}
 	clk_prepare_enable(ssp->clk);
 
-	mxs_mmc_reset(host);
+	ret = mxs_mmc_reset(host);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to reset mmc: %d\n", ret);
+		goto out_clk_disable;
+	}
 
 	ssp->dmach = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!ssp->dmach) {
 		dev_err(mmc_dev(host->mmc),
 			"%s: failed to request dma\n", __func__);
-		goto out_clk_put;
+		ret = -ENODEV;
+		goto out_clk_disable;
 	}
 
 	/* set mmc core parameters */
@@ -692,9 +693,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 out_free_dma:
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
-out_clk_put:
+out_clk_disable:
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 out_mmc_free:
 	mmc_free_host(mmc);
 	return ret;
@@ -708,13 +708,10 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
 
 	clk_disable_unprepare(ssp->clk);
-	clk_put(ssp->clk);
 
 	mmc_free_host(mmc);
 

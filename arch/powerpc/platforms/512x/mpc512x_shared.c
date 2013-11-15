@@ -35,8 +35,10 @@ static struct mpc512x_reset_module __iomem *reset_module_base;
 static void __init mpc512x_restart_init(void)
 {
 	struct device_node *np;
+	const char *reset_compat;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-reset");
+	reset_compat = mpc512x_select_reset_compat();
+	np = of_find_compatible_node(NULL, NULL, reset_compat);
 	if (!np)
 		return;
 
@@ -58,7 +60,7 @@ void mpc512x_restart(char *cmd)
 		;
 }
 
-#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+#if IS_ENABLED(CONFIG_FB_FSL_DIU)
 
 struct fsl_diu_shared_fb {
 	u8		gamma[0x300];	/* 32-bit aligned! */
@@ -355,6 +357,17 @@ const char *mpc512x_select_psc_compat(void)
 	return NULL;
 }
 
+const char *mpc512x_select_reset_compat(void)
+{
+	if (of_machine_is_compatible("fsl,mpc5121"))
+		return "fsl,mpc5121-reset";
+
+	if (of_machine_is_compatible("fsl,mpc5125"))
+		return "fsl,mpc5125-reset";
+
+	return NULL;
+}
+
 static unsigned int __init get_fifo_size(struct device_node *np,
 					 char *prop_name)
 {
@@ -436,12 +449,24 @@ void __init mpc512x_psc_fifo_init(void)
 	}
 }
 
+void __init mpc512x_init_early(void)
+{
+	mpc512x_restart_init();
+	if (IS_ENABLED(CONFIG_FB_FSL_DIU))
+		mpc512x_init_diu();
+}
+
 void __init mpc512x_init(void)
 {
 	mpc5121_clk_init();
 	mpc512x_declare_of_platform_devices();
-	mpc512x_restart_init();
 	mpc512x_psc_fifo_init();
+}
+
+void __init mpc512x_setup_arch(void)
+{
+	if (IS_ENABLED(CONFIG_FB_FSL_DIU))
+		mpc512x_setup_diu();
 }
 
 /**

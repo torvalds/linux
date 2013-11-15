@@ -34,9 +34,9 @@
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
 #include <subdev/bios/pll.h>
+#include <subdev/devinit.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/clock.h>
 
 #include "nv50.h"
 
@@ -628,7 +628,7 @@ nv50_disp_base_init(struct nouveau_object *object)
 	}
 
 	/* ... PIOR caps */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < priv->pior.nr; i++) {
 		tmp = nv_rd32(priv, 0x61e000 + (i * 0x800));
 		nv_wr32(priv, 0x6101f0 + (i * 0x04), tmp);
 	}
@@ -834,10 +834,11 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	u8  ver, hdr, cnt, len;
 	u16 data;
 	u32 ctrl = 0x00000000;
+	u32 reg;
 	int i;
 
 	/* DAC */
-	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+	for (i = 0; !(ctrl & (1 << head)) && i < priv->dac.nr; i++)
 		ctrl = nv_rd32(priv, 0x610b5c + (i * 8));
 
 	/* SOR */
@@ -845,19 +846,18 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 		if (nv_device(priv)->chipset  < 0x90 ||
 		    nv_device(priv)->chipset == 0x92 ||
 		    nv_device(priv)->chipset == 0xa0) {
-			for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
-				ctrl = nv_rd32(priv, 0x610b74 + (i * 8));
-			i += 4;
+			reg = 0x610b74;
 		} else {
-			for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
-				ctrl = nv_rd32(priv, 0x610798 + (i * 8));
-			i += 4;
+			reg = 0x610798;
 		}
+		for (i = 0; !(ctrl & (1 << head)) && i < priv->sor.nr; i++)
+			ctrl = nv_rd32(priv, reg + (i * 8));
+		i += 4;
 	}
 
 	/* PIOR */
 	if (!(ctrl & (1 << head))) {
-		for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+		for (i = 0; !(ctrl & (1 << head)) && i < priv->pior.nr; i++)
 			ctrl = nv_rd32(priv, 0x610b84 + (i * 8));
 		i += 8;
 	}
@@ -893,10 +893,11 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 	u8  ver, hdr, cnt, len;
 	u32 ctrl = 0x00000000;
 	u32 data, conf = ~0;
+	u32 reg;
 	int i;
 
 	/* DAC */
-	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+	for (i = 0; !(ctrl & (1 << head)) && i < priv->dac.nr; i++)
 		ctrl = nv_rd32(priv, 0x610b58 + (i * 8));
 
 	/* SOR */
@@ -904,19 +905,18 @@ exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
 		if (nv_device(priv)->chipset  < 0x90 ||
 		    nv_device(priv)->chipset == 0x92 ||
 		    nv_device(priv)->chipset == 0xa0) {
-			for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
-				ctrl = nv_rd32(priv, 0x610b70 + (i * 8));
-			i += 4;
+			reg = 0x610b70;
 		} else {
-			for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
-				ctrl = nv_rd32(priv, 0x610794 + (i * 8));
-			i += 4;
+			reg = 0x610794;
 		}
+		for (i = 0; !(ctrl & (1 << head)) && i < priv->sor.nr; i++)
+			ctrl = nv_rd32(priv, reg + (i * 8));
+		i += 4;
 	}
 
 	/* PIOR */
 	if (!(ctrl & (1 << head))) {
-		for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+		for (i = 0; !(ctrl & (1 << head)) && i < priv->pior.nr; i++)
 			ctrl = nv_rd32(priv, 0x610b80 + (i * 8));
 		i += 8;
 	}
@@ -987,10 +987,10 @@ nv50_disp_intr_unk20_0(struct nv50_disp_priv *priv, int head)
 static void
 nv50_disp_intr_unk20_1(struct nv50_disp_priv *priv, int head)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_devinit *devinit = nouveau_devinit(priv);
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	if (pclk)
-		clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+		devinit->pll_set(devinit, PLL_VPLL0 + head, pclk);
 }
 
 static void
@@ -1107,6 +1107,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 	u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
 	u32 hval, hreg = 0x614200 + (head * 0x800);
 	u32 oval, oreg;
+	u32 mask;
 	u32 conf = exec_clkcmp(priv, head, 0xff, pclk, &outp);
 	if (conf != ~0) {
 		if (outp.location == 0 && outp.type == DCB_OUTPUT_DP) {
@@ -1133,6 +1134,7 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			oreg = 0x614280 + (ffs(outp.or) - 1) * 0x800;
 			oval = 0x00000000;
 			hval = 0x00000000;
+			mask = 0xffffffff;
 		} else
 		if (!outp.location) {
 			if (outp.type == DCB_OUTPUT_DP)
@@ -1140,14 +1142,16 @@ nv50_disp_intr_unk20_2(struct nv50_disp_priv *priv, int head)
 			oreg = 0x614300 + (ffs(outp.or) - 1) * 0x800;
 			oval = (conf & 0x0100) ? 0x00000101 : 0x00000000;
 			hval = 0x00000000;
+			mask = 0x00000707;
 		} else {
 			oreg = 0x614380 + (ffs(outp.or) - 1) * 0x800;
 			oval = 0x00000001;
 			hval = 0x00000001;
+			mask = 0x00000707;
 		}
 
 		nv_mask(priv, hreg, 0x0000000f, hval);
-		nv_mask(priv, oreg, 0x00000707, oval);
+		nv_mask(priv, oreg, mask, oval);
 	}
 }
 

@@ -176,7 +176,7 @@ static int mgag200_device_init(struct drm_device *dev,
 
 	/* stash G200 SE model number for later use */
 	if (IS_G200_SE(mdev))
-		mdev->reg_1e24 = RREG32(0x1e24);
+		mdev->unique_rev_id = RREG32(0x1e24);
 
 	ret = mga_vram_init(mdev);
 	if (ret)
@@ -209,7 +209,7 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	r = mgag200_device_init(dev, flags);
 	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during GPU init: %d\n", r);
-		goto out;
+		return r;
 	}
 	r = mgag200_mm_init(mdev);
 	if (r)
@@ -221,8 +221,27 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.prefer_shadow = 1;
 
 	r = mgag200_modeset_init(mdev);
-	if (r)
+	if (r) {
 		dev_err(&dev->pdev->dev, "Fatal error during modeset init: %d\n", r);
+		goto out;
+	}
+
+	/* Make small buffers to store a hardware cursor (double buffered icon updates) */
+	mgag200_bo_create(dev, roundup(48*64, PAGE_SIZE), 0, 0,
+					  &mdev->cursor.pixels_1);
+	mgag200_bo_create(dev, roundup(48*64, PAGE_SIZE), 0, 0,
+					  &mdev->cursor.pixels_2);
+	if (!mdev->cursor.pixels_2 || !mdev->cursor.pixels_1)
+		goto cursor_nospace;
+	mdev->cursor.pixels_current = mdev->cursor.pixels_1;
+	mdev->cursor.pixels_prev = mdev->cursor.pixels_2;
+	goto cursor_done;
+ cursor_nospace:
+	mdev->cursor.pixels_1 = NULL;
+	mdev->cursor.pixels_2 = NULL;
+	dev_warn(&dev->pdev->dev, "Could not allocate space for cursors. Not doing hardware cursors.\n");
+ cursor_done:
+
 out:
 	if (r)
 		mgag200_driver_unload(dev);
@@ -291,13 +310,6 @@ int mgag200_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-int mgag200_dumb_destroy(struct drm_file *file,
-		     struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 int mgag200_gem_init_object(struct drm_gem_object *obj)
 {
 	BUG();
@@ -330,7 +342,7 @@ void mgag200_gem_free_object(struct drm_gem_object *obj)
 
 static inline u64 mgag200_bo_mmap_offset(struct mgag200_bo *bo)
 {
-	return bo->bo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->bo.vma_node);
 }
 
 int

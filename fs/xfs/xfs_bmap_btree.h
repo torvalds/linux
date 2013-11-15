@@ -196,6 +196,8 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 #define XFS_BMDR_SPACE_CALC(nrecs) \
 	(int)(sizeof(xfs_bmdr_block_t) + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
+#define XFS_BMAP_BMDR_SPACE(bb) \
+	(XFS_BMDR_SPACE_CALC(be16_to_cpu((bb)->bb_numrecs)))
 
 /*
  * Maximum number of bmap btree levels.
@@ -233,6 +235,10 @@ extern void xfs_bmbt_to_bmdr(struct xfs_mount *, struct xfs_btree_block *, int,
 extern int xfs_bmbt_get_maxrecs(struct xfs_btree_cur *, int level);
 extern int xfs_bmdr_maxrecs(struct xfs_mount *, int blocklen, int leaf);
 extern int xfs_bmbt_maxrecs(struct xfs_mount *, int blocklen, int leaf);
+
+extern int xfs_bmbt_change_owner(struct xfs_trans *tp, struct xfs_inode *ip,
+				 int whichfork, xfs_ino_t new_owner,
+				 struct list_head *buffer_list);
 
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_inode *, int);

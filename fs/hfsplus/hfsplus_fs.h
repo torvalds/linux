@@ -30,6 +30,7 @@
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 #define DBG_ATTR_MOD	0x00000080
+#define DBG_ACL_MOD	0x00000100
 
 #if 0
 #define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
@@ -495,11 +496,8 @@ int hfsplus_uni2asc(struct super_block *,
 		const struct hfsplus_unistr *, char *, int *);
 int hfsplus_asc2uni(struct super_block *,
 		struct hfsplus_unistr *, int, const char *, int);
-int hfsplus_hash_dentry(const struct dentry *dentry,
-		const struct inode *inode, struct qstr *str);
-int hfsplus_compare_dentry(const struct dentry *parent,
-		const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str);
+int hfsplus_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 /* wrapper.c */

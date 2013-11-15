@@ -289,9 +289,10 @@ htab_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_4K		/* base page size */
+	li	r7,MMU_PAGE_4K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* Patched by htab_finish_init() */
 
@@ -649,9 +650,10 @@ htab_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_4K		/* base page size */
+	li	r7,MMU_PAGE_4K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 
@@ -937,9 +939,10 @@ ht64_modify_pte:
 
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* vpn */
-	li	r6,MMU_PAGE_64K
-	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
-	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
+	li	r6,MMU_PAGE_64K		/* base page size */
+	li	r7,MMU_PAGE_64K		/* actual page size */
+	ld	r8,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(ht64_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 

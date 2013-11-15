@@ -119,18 +119,30 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 	 * The layout is as follows:
 	 * - gpr 2 contains the subchannel id (passed as addr)
 	 * - gpr 3 contains the virtqueue index (passed as datamatch)
+	 * - gpr 4 contains the index on the bus (optionally)
 	 */
-	ret = kvm_io_bus_write(vcpu->kvm, KVM_VIRTIO_CCW_NOTIFY_BUS,
-				vcpu->run->s.regs.gprs[2],
-				8, &vcpu->run->s.regs.gprs[3]);
+	ret = kvm_io_bus_write_cookie(vcpu->kvm, KVM_VIRTIO_CCW_NOTIFY_BUS,
+				      vcpu->run->s.regs.gprs[2],
+				      8, &vcpu->run->s.regs.gprs[3],
+				      vcpu->run->s.regs.gprs[4]);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-	/* kvm_io_bus_write returns -EOPNOTSUPP if it found no match. */
+
+	/*
+	 * Return cookie in gpr 2, but don't overwrite the register if the
+	 * diagnose will be handled by userspace.
+	 */
+	if (ret != -EOPNOTSUPP)
+		vcpu->run->s.regs.gprs[2] = ret;
+	/* kvm_io_bus_write_cookie returns -EOPNOTSUPP if it found no match. */
 	return ret < 0 ? ret : 0;
 }
 
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
 	int code = (vcpu->arch.sie_block->ipb & 0xfff0000) >> 16;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	trace_kvm_s390_handle_diag(vcpu, code);
 	switch (code) {

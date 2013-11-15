@@ -2,6 +2,7 @@
 #include <linux/cdrom.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
+#include <linux/pm_qos.h>
 #include <scsi/scsi_device.h>
 
 #include "libata.h"
@@ -32,13 +33,14 @@ struct zpodd {
 
 static int eject_tray(struct ata_device *dev)
 {
-	struct ata_taskfile tf = {};
+	struct ata_taskfile tf;
 	const char cdb[] = {  GPCMD_START_STOP_UNIT,
 		0, 0, 0,
 		0x02,     /* LoEj */
 		0, 0, 0, 0, 0, 0, 0,
 	};
 
+	ata_tf_init(dev, &tf);
 	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_NODATA;
@@ -52,8 +54,7 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 	char buf[16];
 	unsigned int ret;
 	struct rm_feature_desc *desc = (void *)(buf + 8);
-	struct ata_taskfile tf = {};
-
+	struct ata_taskfile tf;
 	char cdb[] = {  GPCMD_GET_CONFIGURATION,
 			2,      /* only 1 feature descriptor requested */
 			0, 3,   /* 3, removable medium feature */
@@ -62,6 +63,7 @@ static enum odd_mech_type zpodd_get_mech_type(struct ata_device *dev)
 			0, 0, 0,
 	};
 
+	ata_tf_init(dev, &tf);
 	tf.flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.command = ATA_CMD_PACKET;
 	tf.protocol = ATAPI_PROT_PIO;
@@ -189,8 +191,8 @@ void zpodd_enable_run_wake(struct ata_device *dev)
 	sdev_disable_disk_events(dev->sdev);
 
 	zpodd->powered_off = true;
-	device_set_run_wake(&dev->sdev->sdev_gendev, true);
-	acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, true);
+	device_set_run_wake(&dev->tdev, true);
+	acpi_pm_device_run_wake(&dev->tdev, true);
 }
 
 /* Disable runtime wake capability if it is enabled */
@@ -199,8 +201,8 @@ void zpodd_disable_run_wake(struct ata_device *dev)
 	struct zpodd *zpodd = dev->zpodd;
 
 	if (zpodd->powered_off) {
-		acpi_pm_device_run_wake(&dev->sdev->sdev_gendev, false);
-		device_set_run_wake(&dev->sdev->sdev_gendev, false);
+		acpi_pm_device_run_wake(&dev->tdev, false);
+		device_set_run_wake(&dev->tdev, false);
 	}
 }
 
@@ -261,7 +263,7 @@ static void ata_acpi_add_pm_notifier(struct ata_device *dev)
 
 static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
 {
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->sdev->sdev_gendev);
+	acpi_handle handle = ata_dev_acpi_handle(dev);
 	acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
 }
 
@@ -289,6 +291,7 @@ void zpodd_init(struct ata_device *dev)
 	ata_acpi_add_pm_notifier(dev);
 	zpodd->dev = dev;
 	dev->zpodd = zpodd;
+	dev_pm_qos_expose_flags(&dev->tdev, 0);
 }
 
 void zpodd_exit(struct ata_device *dev)

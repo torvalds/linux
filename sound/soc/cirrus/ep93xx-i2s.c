@@ -60,11 +60,10 @@ struct ep93xx_i2s_info {
 	struct clk			*mclk;
 	struct clk			*sclk;
 	struct clk			*lrclk;
-	struct ep93xx_dma_data		*dma_data;
 	void __iomem			*regs;
 };
 
-struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
+static struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
 	[SNDRV_PCM_STREAM_PLAYBACK] = {
 		.name		= "i2s-pcm-out",
 		.port		= EP93XX_DMA_I2S1,
@@ -139,15 +138,11 @@ static void ep93xx_i2s_disable(struct ep93xx_i2s_info *info, int stream)
 	}
 }
 
-static int ep93xx_i2s_startup(struct snd_pcm_substream *substream,
-			      struct snd_soc_dai *dai)
+static int ep93xx_i2s_dai_probe(struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct ep93xx_i2s_info *info = snd_soc_dai_get_drvdata(dai);
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	dai->playback_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	dai->capture_dma_data = &ep93xx_i2s_dma_data[SNDRV_PCM_STREAM_CAPTURE];
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &info->dma_data[substream->stream]);
 	return 0;
 }
 
@@ -338,7 +333,6 @@ static int ep93xx_i2s_resume(struct snd_soc_dai *dai)
 #endif
 
 static const struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
-	.startup	= ep93xx_i2s_startup,
 	.shutdown	= ep93xx_i2s_shutdown,
 	.hw_params	= ep93xx_i2s_hw_params,
 	.set_sysclk	= ep93xx_i2s_set_sysclk,
@@ -349,6 +343,7 @@ static const struct snd_soc_dai_ops ep93xx_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.symmetric_rates= 1,
+	.probe		= ep93xx_i2s_dai_probe,
 	.suspend	= ep93xx_i2s_suspend,
 	.resume		= ep93xx_i2s_resume,
 	.playback	= {
@@ -381,9 +376,6 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	info->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
@@ -407,7 +399,6 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, info);
-	info->dma_data = ep93xx_i2s_dma_data;
 
 	err = snd_soc_register_component(&pdev->dev, &ep93xx_i2s_component,
 					 &ep93xx_i2s_dai, 1);
@@ -417,7 +408,6 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	return 0;
 
 fail_put_lrclk:
-	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 fail_put_sclk:
 	clk_put(info->sclk);
@@ -432,7 +422,6 @@ static int ep93xx_i2s_remove(struct platform_device *pdev)
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);
 	clk_put(info->mclk);

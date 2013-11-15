@@ -17,15 +17,10 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -561,7 +556,7 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	const struct dio200_layout *layout = dio200_dev_layout(dev);
 	struct dio200_subdev_intr *subpriv;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
 
@@ -573,7 +568,6 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* Disable interrupt sources. */
 		dio200_write8(dev, subpriv->ofs, 0);
 
-	s->private = subpriv;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 	if (layout->has_int_sce) {
@@ -888,11 +882,10 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct dio200_subdev_8254 *subpriv;
 	unsigned int chan;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
 
-	s->private = subpriv;
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 	s->n_chan = 3;
@@ -983,34 +976,26 @@ static int dio200_subdev_8255_config(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask;
-	unsigned int bits;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-	if (mask & 0x0000ff)
-		bits = 0x0000ff;
-	else if (mask & 0x00ff00)
-		bits = 0x00ff00;
-	else if (mask & 0x0f0000)
-		bits = 0x0f0000;
+	if (chan < 8)
+		mask = 0x0000ff;
+	else if (chan < 16)
+		mask = 0x00ff00;
+	else if (chan < 20)
+		mask = 0x0f0000;
 	else
-		bits = 0xf00000;
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+		mask = 0xf00000;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
 	dio200_subdev_8255_set_dir(dev, s);
-	return 1;
+
+	return insn->n;
 }
 
 /*
@@ -1024,11 +1009,12 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 {
 	struct dio200_subdev_8255 *subpriv;
 
-	subpriv = kzalloc(sizeof(*subpriv), GFP_KERNEL);
+	subpriv = comedi_alloc_spriv(s, sizeof(*subpriv));
 	if (!subpriv)
 		return -ENOMEM;
+
 	subpriv->ofs = offset;
-	s->private = subpriv;
+
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 24;
@@ -1230,28 +1216,11 @@ void amplc_dio200_common_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv = dev->private;
-	const struct dio200_layout *layout;
-	unsigned n;
 
 	if (!thisboard || !devpriv)
 		return;
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->subdevices) {
-		layout = dio200_board_layout(thisboard);
-		for (n = 0; n < dev->n_subdevices; n++) {
-			switch (layout->sdtype[n]) {
-			case sd_8254:
-			case sd_8255:
-			case sd_intr:
-				comedi_spriv_free(dev, n);
-				break;
-			case sd_timer:
-			default:
-				break;
-			}
-		}
-	}
 }
 EXPORT_SYMBOL_GPL(amplc_dio200_common_detach);
 

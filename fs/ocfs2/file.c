@@ -370,7 +370,7 @@ static int ocfs2_cow_file_pos(struct inode *inode,
 	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
 		goto out;
 
-	return ocfs2_refcount_cow(inode, NULL, fe_bh, cpos, 1, cpos+1);
+	return ocfs2_refcount_cow(inode, fe_bh, cpos, 1, cpos+1);
 
 out:
 	return status;
@@ -671,11 +671,7 @@ restarted_transaction:
 		} else {
 			BUG_ON(why != RESTART_TRANS);
 
-			/* TODO: This can be more intelligent. */
-			credits = ocfs2_calc_extend_credits(osb->sb,
-							    &fe->id2.i_list,
-							    clusters_to_add);
-			status = ocfs2_extend_trans(handle, credits);
+			status = ocfs2_allocate_extend_trans(handle, 1);
 			if (status < 0) {
 				/* handle still has to be committed at
 				 * this point. */
@@ -899,7 +895,7 @@ static int ocfs2_zero_extend_get_range(struct inode *inode,
 		zero_clusters = last_cpos - zero_cpos;
 
 	if (needs_cow) {
-		rc = ocfs2_refcount_cow(inode, NULL, di_bh, zero_cpos,
+		rc = ocfs2_refcount_cow(inode, di_bh, zero_cpos,
 					zero_clusters, UINT_MAX);
 		if (rc) {
 			mlog_errno(rc);
@@ -1800,6 +1796,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	ocfs2_truncate_cluster_pages(inode, byte_start, byte_len);
 
 out:
+	ocfs2_free_path(path);
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 	ocfs2_run_deallocs(osb, &dealloc);
 
@@ -2078,7 +2075,7 @@ static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
 
 	*meta_level = 1;
 
-	ret = ocfs2_refcount_cow(inode, file, di_bh, cpos, clusters, UINT_MAX);
+	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters, UINT_MAX);
 	if (ret)
 		mlog_errno(ret);
 out:
@@ -2245,7 +2242,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		file->f_path.dentry->d_name.name,
 		(unsigned int)nr_segs);
 
-	if (iocb->ki_left == 0)
+	if (iocb->ki_nbytes == 0)
 		return 0;
 
 	appending = file->f_flags & O_APPEND ? 1 : 0;
@@ -2296,7 +2293,7 @@ relock:
 
 	can_do_direct = direct_io;
 	ret = ocfs2_prepare_inode_for_write(file, ppos,
-					    iocb->ki_left, appending,
+					    iocb->ki_nbytes, appending,
 					    &can_do_direct, &has_refcount);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2304,7 +2301,7 @@ relock:
 	}
 
 	if (direct_io && !is_sync_kiocb(iocb))
-		unaligned_dio = ocfs2_is_io_unaligned(inode, iocb->ki_left,
+		unaligned_dio = ocfs2_is_io_unaligned(inode, iocb->ki_nbytes,
 						      *ppos);
 
 	/*
@@ -2646,17 +2643,7 @@ static loff_t ocfs2_file_llseek(struct file *file, loff_t offset, int whence)
 		goto out;
 	}
 
-	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
-		ret = -EINVAL;
-	if (!ret && offset > inode->i_sb->s_maxbytes)
-		ret = -EINVAL;
-	if (ret)
-		goto out;
-
-	if (offset != file->f_pos) {
-		file->f_pos = offset;
-		file->f_version = 0;
-	}
+	offset = vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 
 out:
 	mutex_unlock(&inode->i_mutex);
@@ -2712,7 +2699,7 @@ const struct file_operations ocfs2_fops = {
 const struct file_operations ocfs2_dops = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= ocfs2_readdir,
+	.iterate	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_dir_release,
 	.open		= ocfs2_dir_open,
@@ -2759,7 +2746,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
 const struct file_operations ocfs2_dops_no_plocks = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= ocfs2_readdir,
+	.iterate	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
 	.release	= ocfs2_dir_release,
 	.open		= ocfs2_dir_open,

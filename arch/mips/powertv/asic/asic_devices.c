@@ -147,20 +147,10 @@ static __init noinline void platform_set_family(void)
 	if (check_forcefamily(forced_family) == 0)
 		bootldr_family = BOOTLDRFAMILY(forced_family[0],
 			forced_family[1]);
-	else {
-
-#ifdef CONFIG_BOOTLOADER_DRIVER
-		bootldr_family = (unsigned short) kbldr_GetSWFamily();
-#else
-#if defined(CONFIG_BOOTLOADER_FAMILY)
+	else
 		bootldr_family = (unsigned short) BOOTLDRFAMILY(
 			CONFIG_BOOTLOADER_FAMILY[0],
 			CONFIG_BOOTLOADER_FAMILY[1]);
-#else
-#error "Unknown Bootloader Family"
-#endif
-#endif
-	}
 
 	pr_info("Bootloader Family = 0x%04X\n", bootldr_family);
 
@@ -529,17 +519,7 @@ EXPORT_SYMBOL(asic_resource_get);
  */
 void platform_release_memory(void *ptr, int size)
 {
-	unsigned long addr;
-	unsigned long end;
-
-	addr = ((unsigned long)ptr + (PAGE_SIZE - 1)) & PAGE_MASK;
-	end = ((unsigned long)ptr + size) & PAGE_MASK;
-
-	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(__va(addr)));
-		init_page_count(virt_to_page(__va(addr)));
-		free_page((unsigned long)__va(addr));
-	}
+	free_reserved_area(ptr, ptr + size, -1, NULL);
 }
 EXPORT_SYMBOL(platform_release_memory);
 

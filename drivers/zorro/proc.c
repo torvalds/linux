@@ -21,27 +21,7 @@
 static loff_t
 proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 {
-	loff_t new = -1;
-	struct inode *inode = file_inode(file);
-
-	mutex_lock(&inode->i_mutex);
-	switch (whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	case 2:
-		new = sizeof(struct ConfigDev) + off;
-		break;
-	}
-	if (new < 0 || new > sizeof(struct ConfigDev))
-		new = -EINVAL;
-	else
-		file->f_pos = new;
-	mutex_unlock(&inode->i_mutex);
-	return new;
+	return fixed_size_llseek(file, off, whence, sizeof(struct ConfigDev));
 }
 
 static ssize_t

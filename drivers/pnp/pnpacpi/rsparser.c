@@ -180,7 +180,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = data;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_vendor_typed *vendor_typed;
-	struct resource r;
+	struct resource r = {0};
 	int i, flags;
 
 	if (acpi_dev_resource_memory(res, &r)

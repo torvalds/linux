@@ -43,12 +43,12 @@ enum hist_column {
 	HISTC_COMM,
 	HISTC_PARENT,
 	HISTC_CPU,
+	HISTC_SRCLINE,
 	HISTC_MISPREDICT,
 	HISTC_SYMBOL_FROM,
 	HISTC_SYMBOL_TO,
 	HISTC_DSO_FROM,
 	HISTC_DSO_TO,
-	HISTC_SRCLINE,
 	HISTC_LOCAL_WEIGHT,
 	HISTC_GLOBAL_WEIGHT,
 	HISTC_MEM_DADDR_SYMBOL,
@@ -104,13 +104,9 @@ struct hist_entry *__hists__add_mem_entry(struct hists *self,
 					  u64 weight);
 
 void hists__output_resort(struct hists *self);
-void hists__output_resort_threaded(struct hists *hists);
 void hists__collapse_resort(struct hists *self);
-void hists__collapse_resort_threaded(struct hists *hists);
 
 void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel);
-void hists__decay_entries_threaded(struct hists *hists, bool zap_user,
-				   bool zap_kernel);
 void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 
 void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h);
@@ -119,7 +115,7 @@ void events_stats__inc(struct events_stats *stats, u32 type);
 size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
-		      int max_cols, FILE *fp);
+		      int max_cols, float min_pcnt, FILE *fp);
 
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);
@@ -145,10 +141,12 @@ struct perf_hpp {
 };
 
 struct perf_hpp_fmt {
-	int (*header)(struct perf_hpp *hpp);
-	int (*width)(struct perf_hpp *hpp);
-	int (*color)(struct perf_hpp *hpp, struct hist_entry *he);
-	int (*entry)(struct perf_hpp *hpp, struct hist_entry *he);
+	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp);
+	int (*width)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp);
+	int (*color)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		     struct hist_entry *he);
+	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		     struct hist_entry *he);
 
 	struct list_head list;
 };
@@ -161,7 +159,7 @@ extern struct list_head perf_hpp__list;
 extern struct perf_hpp_fmt perf_hpp__format[];
 
 enum {
-	PERF_HPP__BASELINE,
+	/* Matches perf_hpp__format array. */
 	PERF_HPP__OVERHEAD,
 	PERF_HPP__OVERHEAD_SYS,
 	PERF_HPP__OVERHEAD_US,
@@ -169,11 +167,6 @@ enum {
 	PERF_HPP__OVERHEAD_GUEST_US,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
-	PERF_HPP__PERIOD_BASELINE,
-	PERF_HPP__DELTA,
-	PERF_HPP__RATIO,
-	PERF_HPP__WEIGHTED_DIFF,
-	PERF_HPP__FORMULA,
 
 	PERF_HPP__MAX_INDEX
 };
@@ -181,8 +174,6 @@ enum {
 void perf_hpp__init(void);
 void perf_hpp__column_register(struct perf_hpp_fmt *format);
 void perf_hpp__column_enable(unsigned col);
-int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
-				bool color);
 
 struct perf_evlist;
 
@@ -199,6 +190,7 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
+				  float min_pcnt,
 				  struct perf_session_env *env);
 int script_browse(const char *script_opt);
 #else
@@ -206,6 +198,7 @@ static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
 				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt __maybe_unused,
 				  struct perf_session_env *env __maybe_unused)
 {
 	return 0;
@@ -233,23 +226,18 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 
 #ifdef GTK2_SUPPORT
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused);
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt);
 #else
 static inline
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt __maybe_unused)
 {
 	return 0;
 }
 #endif
 
 unsigned int hists__sort_list_width(struct hists *self);
-
-double perf_diff__compute_delta(struct hist_entry *he, struct hist_entry *pair);
-double perf_diff__compute_ratio(struct hist_entry *he, struct hist_entry *pair);
-s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair);
-int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
-		       char *buf, size_t size);
-double perf_diff__period_percent(struct hist_entry *he, u64 period);
 #endif	/* __PERF_HIST_H */

@@ -1114,7 +1114,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	/* Default values for STD and resolutions */
 	dev->width = 720;
 	dev->height = 480;
-	dev->norm = V4L2_STD_PAL_M;
+	dev->norm = V4L2_STD_NTSC_M;
 
 	/* Configure tuner */
 	tm6000_config_tuner(dev);

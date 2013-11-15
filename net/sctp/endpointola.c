@@ -29,10 +29,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -40,9 +37,6 @@
  *    Jon Grimm <jgrimm@austin.ibm.com>
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Dajiang Zhang <dajiang.zhang@nokia.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -192,9 +186,10 @@ struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 	struct sctp_endpoint *ep;
 
 	/* Build a local endpoint. */
-	ep = t_new(struct sctp_endpoint, gfp);
+	ep = kzalloc(sizeof(*ep), gfp);
 	if (!ep)
 		goto fail;
+
 	if (!sctp_endpoint_init(ep, sk, gfp))
 		goto fail_init;
 
@@ -246,10 +241,12 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 /* Final destructor for endpoint.  */
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
-	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
+	struct sock *sk;
 
-	/* Free up the HMAC transform. */
-	crypto_free_hash(sctp_sk(ep->base.sk)->hmac);
+	if (unlikely(!ep->base.dead)) {
+		WARN(1, "Attempt to destroy undead endpoint %p!\n", ep);
+		return;
+	}
 
 	/* Free the digest buffer */
 	kfree(ep->digest);
@@ -270,13 +267,15 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
-	/* Remove and free the port */
-	if (sctp_sk(ep->base.sk)->bind_hash)
-		sctp_put_port(ep->base.sk);
-
 	/* Give up our hold on the sock. */
-	if (ep->base.sk)
-		sock_put(ep->base.sk);
+	sk = ep->base.sk;
+	if (sk != NULL) {
+		/* Remove and free the port */
+		if (sctp_sk(sk)->bind_hash)
+			sctp_put_port(sk);
+
+		sock_put(sk);
+	}
 
 	kfree(ep);
 	SCTP_DBG_OBJCNT_DEC(ep);

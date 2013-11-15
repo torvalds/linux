@@ -449,8 +449,7 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	 * WRITEX header, not including the 4 byte RFC1001 length.
 	 */
 	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
-	    (!(server->capabilities & CAP_UNIX) &&
-	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
+	    (!(server->capabilities & CAP_UNIX) && server->sign))
 		wsize = min_t(unsigned int, wsize,
 				server->maxBuf - sizeof(WRITE_REQ) + 4);
 
@@ -675,20 +674,23 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 }
 
 static int
-cifs_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
-	       int disposition, int desired_access, int create_options,
-	       struct cifs_fid *fid, __u32 *oplock, FILE_ALL_INFO *buf,
-	       struct cifs_sb_info *cifs_sb)
+cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
+	       __u32 *oplock, FILE_ALL_INFO *buf)
 {
-	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
-		return SMBLegacyOpen(xid, tcon, path, disposition,
-				     desired_access, create_options,
-				     &fid->netfid, oplock, buf,
-				     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+	if (!(oparms->tcon->ses->capabilities & CAP_NT_SMBS))
+		return SMBLegacyOpen(xid, oparms->tcon, oparms->path,
+				     oparms->disposition,
+				     oparms->desired_access,
+				     oparms->create_options,
+				     &oparms->fid->netfid, oplock, buf,
+				     oparms->cifs_sb->local_nls,
+				     oparms->cifs_sb->mnt_cifs_flags
 						& CIFS_MOUNT_MAP_SPECIAL_CHR);
-	return CIFSSMBOpen(xid, tcon, path, disposition, desired_access,
-			   create_options, &fid->netfid, oplock, buf,
-			   cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+	return CIFSSMBOpen(xid, oparms->tcon, oparms->path,
+			   oparms->disposition, oparms->desired_access,
+			   oparms->create_options, &oparms->fid->netfid, oplock,
+			   buf, oparms->cifs_sb->local_nls,
+			   oparms->cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 }
 
@@ -698,7 +700,7 @@ cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 	cfile->fid.netfid = fid->netfid;
 	cifs_set_oplock_level(cinode, oplock);
-	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
+	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
 }
 
 static void
@@ -765,20 +767,14 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	}
 	tcon = tlink_tcon(tlink);
 
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't really
-	 * work.
-	 */
-	if (!(tcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf,
-					cifs_sb->local_nls,
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
-			goto out;
-		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
+	if (rc == 0) {
+		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+		goto out;
+	} else if (rc != -EOPNOTSUPP && rc != -EINVAL) {
+		goto out;
 	}
 
 	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");
@@ -841,7 +837,7 @@ cifs_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 {
 	return CIFSSMBLock(0, tcon, fid->netfid, current->tgid, 0, 0, 0, 0,
 			   LOCKING_ANDX_OPLOCK_RELEASE, false,
-			   cinode->clientCanCacheRead ? 1 : 0);
+			   CIFS_CACHE_READ(cinode) ? 1 : 0);
 }
 
 static int
@@ -883,6 +879,43 @@ cifs_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 	return CIFSSMBLock(xid, tlink_tcon(cfile->tlink), cfile->fid.netfid,
 			   current->tgid, length, offset, unlock, lock,
 			   (__u8)type, wait, 0);
+}
+
+static int
+cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
+		   const char *full_path, char **target_path,
+		   struct cifs_sb_info *cifs_sb)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 FILE_READ_ATTRIBUTES, OPEN_REPARSE_POINT, &netfid,
+			 &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc)
+		return rc;
+
+	rc = CIFSSMBQuerySymLink(xid, tcon, netfid, target_path,
+				 cifs_sb->local_nls);
+	if (rc) {
+		CIFSSMBClose(xid, tcon, netfid);
+		return rc;
+	}
+
+	convert_delimiter(*target_path, '/');
+	CIFSSMBClose(xid, tcon, netfid);
+	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+	return rc;
+}
+
+static bool
+cifs_is_read_op(__u32 oplock)
+{
+	return oplock == OPLOCK_READ;
 }
 
 struct smb_version_operations smb1_operations = {
@@ -931,6 +964,7 @@ struct smb_version_operations smb1_operations = {
 	.rename_pending_delete = cifs_rename_pending_delete,
 	.rename = CIFSSMBRename,
 	.create_hardlink = CIFSCreateHardLink,
+	.query_symlink = cifs_query_symlink,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,
@@ -948,6 +982,8 @@ struct smb_version_operations smb1_operations = {
 	.mand_lock = cifs_mand_lock,
 	.mand_unlock_range = cifs_unlock_range,
 	.push_mand_locks = cifs_push_mandatory_locks,
+	.query_mf_symlink = open_query_close_cifs_symlink,
+	.is_read_op = cifs_is_read_op,
 };
 
 struct smb_version_values smb1_values = {
@@ -963,5 +999,6 @@ struct smb_version_values smb1_values = {
 	.cap_unix = CAP_UNIX,
 	.cap_nt_find = CAP_NT_SMBS | CAP_NT_FIND,
 	.cap_large_files = CAP_LARGE_FILES,
-	.oplock_read = OPLOCK_READ,
+	.signing_enabled = SECMODE_SIGN_ENABLED,
+	.signing_required = SECMODE_SIGN_REQUIRED,
 };

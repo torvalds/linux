@@ -37,7 +37,7 @@ int aa_getprocattr(struct aa_profile *profile, char **string)
 {
 	char *str;
 	int len = 0, mode_len = 0, ns_len = 0, name_len;
-	const char *mode_str = profile_mode_names[profile->mode];
+	const char *mode_str = aa_profile_mode_names[profile->mode];
 	const char *ns_name = NULL;
 	struct aa_namespace *ns = profile->ns;
 	struct aa_namespace *current_ns = __aa_current_profile()->ns;
@@ -162,10 +162,4 @@ int aa_setprocattr_changeprofile(char *fqname, bool onexec, int test)
 
 	name = aa_split_fqname(fqname, &ns_name);
 	return aa_change_profile(ns_name, name, onexec, test);
-}
-
-int aa_setprocattr_permipc(char *fqname)
-{
-	/* TODO: add ipc permission querying */
-	return -ENOTSUPP;
 }

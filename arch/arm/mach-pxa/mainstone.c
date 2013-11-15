@@ -408,7 +408,7 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 	return err;
 }
 
-static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
+static int mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -420,6 +420,7 @@ static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 		printk(KERN_DEBUG "%s: off\n", __func__);
 		MST_MSCWR1 &= ~MST_MSCWR1_MMC_ON;
 	}
+	return 0;
 }
 
 static void mainstone_mci_exit(struct device *dev, void *data)

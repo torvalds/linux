@@ -89,6 +89,33 @@ int sysfs_is_cpu_online(unsigned int cpu)
 
 /* CPUidle idlestate specific /sys/devices/system/cpu/cpuX/cpuidle/ access */
 
+
+/* CPUidle idlestate specific /sys/devices/system/cpu/cpuX/cpuidle/ access */
+
+/*
+ * helper function to check whether a file under "../cpuX/cpuidle/stateX/" dir
+ * exists.
+ * For example the functionality to disable c-states was introduced in later
+ * kernel versions, this function can be used to explicitly check for this
+ * feature.
+ *
+ * returns 1 if the file exists, 0 otherwise.
+ */
+unsigned int sysfs_idlestate_file_exists(unsigned int cpu,
+					 unsigned int idlestate,
+					 const char *fname)
+{
+	char path[SYSFS_PATH_MAX];
+	struct stat statbuf;
+
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/cpuidle/state%u/%s",
+		 cpu, idlestate, fname);
+	if (stat(path, &statbuf) != 0)
+		return 0;
+	return 1;
+}
+
 /*
  * helper function to read file from /sys into given buffer
  * fname is a relative path under "cpuX/cpuidle/stateX/" dir
@@ -121,6 +148,40 @@ unsigned int sysfs_idlestate_read_file(unsigned int cpu, unsigned int idlestate,
 	return (unsigned int) numread;
 }
 
+/* 
+ * helper function to write a new value to a /sys file
+ * fname is a relative path under "../cpuX/cpuidle/cstateY/" dir
+ *
+ * Returns the number of bytes written or 0 on error
+ */
+static
+unsigned int sysfs_idlestate_write_file(unsigned int cpu,
+					unsigned int idlestate,
+					const char *fname,
+					const char *value, size_t len)
+{
+	char path[SYSFS_PATH_MAX];
+	int fd;
+	ssize_t numwrite;
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/cpuidle/state%u/%s",
+		 cpu, idlestate, fname);
+
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return 0;
+
+	numwrite = write(fd, value, len);
+	if (numwrite < 1) {
+		close(fd);
+		return 0;
+	}
+
+	close(fd);
+
+	return (unsigned int) numwrite;
+}
+
 /* read access to files which contain one numeric value */
 
 enum idlestate_value {
@@ -128,6 +189,7 @@ enum idlestate_value {
 	IDLESTATE_POWER,
 	IDLESTATE_LATENCY,
 	IDLESTATE_TIME,
+	IDLESTATE_DISABLE,
 	MAX_IDLESTATE_VALUE_FILES
 };
 
@@ -136,6 +198,7 @@ static const char *idlestate_value_files[MAX_IDLESTATE_VALUE_FILES] = {
 	[IDLESTATE_POWER] = "power",
 	[IDLESTATE_LATENCY] = "latency",
 	[IDLESTATE_TIME]  = "time",
+	[IDLESTATE_DISABLE]  = "disable",
 };
 
 static unsigned long long sysfs_idlestate_get_one_value(unsigned int cpu,
@@ -205,8 +268,59 @@ static char *sysfs_idlestate_get_one_string(unsigned int cpu,
 	return result;
 }
 
+/*
+ * Returns:
+ *    1  if disabled
+ *    0  if enabled
+ *    -1 if idlestate is not available
+ *    -2 if disabling is not supported by the kernel
+ */
+int sysfs_is_idlestate_disabled(unsigned int cpu,
+				unsigned int idlestate)
+{
+	if (sysfs_get_idlestate_count(cpu) < idlestate)
+		return -1;
+
+	if (!sysfs_idlestate_file_exists(cpu, idlestate,
+				 idlestate_value_files[IDLESTATE_DISABLE]))
+		return -2;
+	return sysfs_idlestate_get_one_value(cpu, idlestate, IDLESTATE_DISABLE);
+}
+
+/*
+ * Pass 1 as last argument to disable or 0 to enable the state
+ * Returns:
+ *    0  on success
+ *    negative values on error, for example:
+ *      -1 if idlestate is not available
+ *      -2 if disabling is not supported by the kernel
+ *      -3 No write access to disable/enable C-states
+ */
+int sysfs_idlestate_disable(unsigned int cpu,
+			    unsigned int idlestate,
+			    unsigned int disable)
+{
+	char value[SYSFS_PATH_MAX];
+	int bytes_written;
+
+	if (sysfs_get_idlestate_count(cpu) < idlestate)
+		return -1;
+
+	if (!sysfs_idlestate_file_exists(cpu, idlestate,
+				 idlestate_value_files[IDLESTATE_DISABLE]))
+		return -2;
+
+	snprintf(value, SYSFS_PATH_MAX, "%u", disable);
+
+	bytes_written = sysfs_idlestate_write_file(cpu, idlestate, "disable",
+						   value, sizeof(disable));
+	if (bytes_written)
+		return 0;
+	return -3;
+}
+
 unsigned long sysfs_get_idlestate_latency(unsigned int cpu,
-					unsigned int idlestate)
+					  unsigned int idlestate)
 {
 	return sysfs_idlestate_get_one_value(cpu, idlestate, IDLESTATE_LATENCY);
 }
@@ -238,7 +352,7 @@ char *sysfs_get_idlestate_desc(unsigned int cpu, unsigned int idlestate)
  * Negativ in error case
  * Zero if cpuidle does not export any C-states
  */
-int sysfs_get_idlestate_count(unsigned int cpu)
+unsigned int sysfs_get_idlestate_count(unsigned int cpu)
 {
 	char file[SYSFS_PATH_MAX];
 	struct stat statbuf;

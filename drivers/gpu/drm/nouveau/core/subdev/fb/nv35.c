@@ -24,7 +24,7 @@
  *
  */
 
-#include <subdev/fb.h>
+#include "priv.h"
 
 struct nv35_fb_priv {
 	struct nouveau_fb base;
@@ -35,7 +35,7 @@ nv35_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 		  struct nouveau_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
-	u32 tags  = round_up(tiles / pfb->ram.parts, 0x40);
+	u32 tags  = round_up(tiles / pfb->ram->parts, 0x40);
 	if (!nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
 		if (flags & 2) tile->zcomp |= 0x04000000; /* Z16 */
 		else           tile->zcomp |= 0x08000000; /* Z24S8 */
@@ -55,19 +55,18 @@ nv35_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv35_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nouveau_fb_create(parent, engine, oclass, &nv20_ram_oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->base.memtype_valid = nv04_fb_memtype_valid;
-	priv->base.ram.init = nv20_fb_vram_init;
 	priv->base.tile.regions = 8;
 	priv->base.tile.init = nv30_fb_tile_init;
 	priv->base.tile.comp = nv35_fb_tile_comp;
 	priv->base.tile.fini = nv20_fb_tile_fini;
 	priv->base.tile.prog = nv20_fb_tile_prog;
-	return nouveau_fb_preinit(&priv->base);
+	return 0;
 }
 
 struct nouveau_oclass

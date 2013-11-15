@@ -2323,7 +2323,6 @@ static void snd_echo_remove(struct pci_dev *pci)
 	chip = pci_get_drvdata(pci);
 	if (chip)
 		snd_card_free(chip->card);
-	pci_set_drvdata(pci, NULL);
 }
 
 

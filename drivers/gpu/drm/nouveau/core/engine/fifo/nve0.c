@@ -29,7 +29,6 @@
 #include <core/engctx.h>
 #include <core/event.h>
 #include <core/class.h>
-#include <core/math.h>
 #include <core/enum.h>
 
 #include <subdev/timer.h>
@@ -44,7 +43,8 @@ static const struct {
 	u64 subdev;
 	u64 mask;
 } fifo_engine[] = {
-	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW)),
+	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW) |
+				 (1ULL << NVDEV_ENGINE_COPY2)),
 	_(NVDEV_ENGINE_VP      , 0),
 	_(NVDEV_ENGINE_PPP     , 0),
 	_(NVDEV_ENGINE_BSP     , 0),
@@ -96,18 +96,6 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = engn->playlist[engn->cur_playlist];
-	if (unlikely(cur == NULL)) {
-		int ret = nouveau_gpuobj_new(nv_object(priv), NULL,
-					     0x8000, 0x1000, 0, &cur);
-		if (ret) {
-			mutex_unlock(&nv_subdev(priv)->mutex);
-			nv_error(priv, "playlist alloc failed\n");
-			return;
-		}
-
-		engn->playlist[engn->cur_playlist] = cur;
-	}
-
 	engn->cur_playlist = !engn->cur_playlist;
 
 	for (i = 0, p = 0; i < priv->base.max; i++) {
@@ -138,10 +126,12 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	int ret;
 
 	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   :
+	case NVDEV_ENGINE_SW   :
 	case NVDEV_ENGINE_COPY0:
-	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_COPY1:
+	case NVDEV_ENGINE_COPY2:
+		return 0;
+	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
 	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
@@ -176,9 +166,10 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   :
 	case NVDEV_ENGINE_COPY0:
-	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_COPY1:
+	case NVDEV_ENGINE_COPY2: addr = 0x0000; break;
+	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
 	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
@@ -194,9 +185,12 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
-	bar->flush(bar);
+	if (addr) {
+		nv_wo32(base, addr + 0x00, 0x00000000);
+		nv_wo32(base, addr + 0x04, 0x00000000);
+		bar->flush(bar);
+	}
+
 	return 0;
 }
 
@@ -226,8 +220,10 @@ nve0_fifo_chan_ctor(struct nouveau_object *parent,
 		}
 	}
 
-	if (i == FIFO_ENGINE_NR)
+	if (i == FIFO_ENGINE_NR) {
+		nv_error(priv, "unsupported engines 0x%08x\n", args->engine);
 		return -ENODEV;
+	}
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x200,
@@ -243,7 +239,7 @@ nve0_fifo_chan_ctor(struct nouveau_object *parent,
 
 	usermem = chan->base.chid * 0x200;
 	ioffset = args->ioffset;
-	ilength = log2i(args->ilength / 8);
+	ilength = order_base_2(args->ilength / 8);
 
 	for (i = 0; i < 0x200; i += 4)
 		nv_wo32(priv->user.mem, usermem + i, 0x00000000);
@@ -592,12 +588,24 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_object **pobject)
 {
 	struct nve0_fifo_priv *priv;
-	int ret;
+	int ret, i;
 
 	ret = nouveau_fifo_create(parent, engine, oclass, 0, 4095, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
+		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
+					 0, &priv->engine[i].playlist[0]);
+		if (ret)
+			return ret;
+
+		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
+					 0, &priv->engine[i].playlist[1]);
+		if (ret)
+			return ret;
+	}
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 4096 * 0x200, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->user.mem);
@@ -629,7 +637,7 @@ nve0_fifo_dtor(struct nouveau_object *object)
 	nouveau_gpuobj_unmap(&priv->user.bar);
 	nouveau_gpuobj_ref(NULL, &priv->user.mem);
 
-	for (i = 0; i < ARRAY_SIZE(priv->engine); i++) {
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
 		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[1]);
 		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[0]);
 	}

@@ -384,8 +384,6 @@ static int jz4740_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

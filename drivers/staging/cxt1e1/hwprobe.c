@@ -31,12 +31,6 @@
 #include "sbeproc.h"
 #endif
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
 extern int  cxt1e1_log_level;
 extern int  error_flag;
 extern int  drvr_state;
@@ -50,7 +44,7 @@ struct s_hdw_info hdw_info[MAX_BOARDS];
 
 
 void        __init
-show_two (hdw_info_t * hi, int brdno)
+show_two (hdw_info_t *hi, int brdno)
 {
     ci_t       *ci;
     struct pci_dev *pdev;
@@ -102,7 +96,7 @@ show_two (hdw_info_t * hi, int brdno)
 
 
 void        __init
-hdw_sn_get (hdw_info_t * hi, int brdno)
+hdw_sn_get (hdw_info_t *hi, int brdno)
 {
     /* obtain hardware EEPROM information */
     long        addr;
@@ -221,8 +215,8 @@ cleanup_devs (void)
 }
 
 
-STATIC int  __init
-c4_hdw_init (struct pci_dev * pdev, int found)
+static int  __init
+c4_hdw_init (struct pci_dev *pdev, int found)
 {
     hdw_info_t *hi;
     int         i;

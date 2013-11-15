@@ -38,9 +38,9 @@ enum si476x_digital_io_output_format {
 	SI476X_DIGITAL_IO_SAMPLE_SIZE_SHIFT	= 8,
 };
 
-#define SI476X_DIGITAL_IO_OUTPUT_WIDTH_MASK	((0b111 << SI476X_DIGITAL_IO_SLOT_SIZE_SHIFT) | \
-						  (0b111 << SI476X_DIGITAL_IO_SAMPLE_SIZE_SHIFT))
-#define SI476X_DIGITAL_IO_OUTPUT_FORMAT_MASK	(0b1111110)
+#define SI476X_DIGITAL_IO_OUTPUT_WIDTH_MASK	((0x7 << SI476X_DIGITAL_IO_SLOT_SIZE_SHIFT) | \
+						  (0x7 << SI476X_DIGITAL_IO_SAMPLE_SIZE_SHIFT))
+#define SI476X_DIGITAL_IO_OUTPUT_FORMAT_MASK	(0x7e)
 
 enum si476x_daudio_formats {
 	SI476X_DAUDIO_MODE_I2S		= (0x0 << 1),
@@ -101,6 +101,16 @@ static int si476x_codec_write(struct snd_soc_codec *codec,
 
 	return err;
 }
+
+static const struct snd_soc_dapm_widget si476x_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("LOUT"),
+SND_SOC_DAPM_OUTPUT("ROUT"),
+};
+
+static const struct snd_soc_dapm_route si476x_dapm_routes[] = {
+	{ "Capture", NULL, "LOUT" },
+	{ "Capture", NULL, "ROUT" },
+};
 
 static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 				    unsigned int fmt)
@@ -260,6 +270,10 @@ static struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.probe  = si476x_codec_probe,
 	.read   = si476x_codec_read,
 	.write  = si476x_codec_write,
+	.dapm_widgets = si476x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
+	.dapm_routes = si476x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(si476x_dapm_routes),
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)

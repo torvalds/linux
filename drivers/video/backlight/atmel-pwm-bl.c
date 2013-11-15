@@ -195,7 +195,6 @@ static int __init atmel_pwm_bl_probe(struct platform_device *pdev)
 	return 0;
 
 err_free_bl_dev:
-	platform_set_drvdata(pdev, NULL);
 	backlight_device_unregister(bldev);
 err_free_pwm:
 	pwm_channel_free(&pwmbl->pwmc);
@@ -212,7 +211,6 @@ static int __exit atmel_pwm_bl_remove(struct platform_device *pdev)
 	pwm_channel_disable(&pwmbl->pwmc);
 	pwm_channel_free(&pwmbl->pwmc);
 	backlight_device_unregister(pwmbl->bldev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

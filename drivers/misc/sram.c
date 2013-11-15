@@ -45,14 +45,11 @@ static int sram_probe(struct platform_device *pdev)
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	virt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(virt_base))
+		return PTR_ERR(virt_base);
 
 	size = resource_size(res);
-
-	virt_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!virt_base)
-		return -EADDRNOTAVAIL;
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
@@ -71,7 +68,8 @@ static int sram_probe(struct platform_device *pdev)
 	ret = gen_pool_add_virt(sram->pool, (unsigned long)virt_base,
 				res->start, size, -1);
 	if (ret < 0) {
-		gen_pool_destroy(sram->pool);
+		if (sram->clk)
+			clk_disable_unprepare(sram->clk);
 		return ret;
 	}
 

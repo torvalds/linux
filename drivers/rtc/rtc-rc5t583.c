@@ -273,7 +273,7 @@ static int rc5t583_rtc_probe(struct platform_device *pdev)
  */
 static int rc5t583_rtc_remove(struct platform_device *pdev)
 {
-	struct rc5t583_rtc *rc5t583_rtc = dev_get_drvdata(&pdev->dev);
+	struct rc5t583_rtc *rc5t583_rtc = platform_get_drvdata(pdev);
 
 	rc5t583_rtc_alarm_irq_enable(&rc5t583_rtc->rtc->dev, 0);
 	return 0;

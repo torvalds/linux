@@ -36,8 +36,8 @@
  * @last_time: Monotonic clock when the wakeup source's was touched last time.
  * @prevent_sleep_time: Total time this source has been preventing autosleep.
  * @event_count: Number of signaled wakeup events.
- * @active_count: Number of times the wakeup sorce was activated.
- * @relax_count: Number of times the wakeup sorce was deactivated.
+ * @active_count: Number of times the wakeup source was activated.
+ * @relax_count: Number of times the wakeup source was deactivated.
  * @expire_count: Number of times the wakeup source's timeout has expired.
  * @wakeup_count: Number of times the wakeup source might abort suspend.
  * @active: Status of the wakeup source.

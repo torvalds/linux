@@ -22,7 +22,7 @@
  * unmapping a portion of the virtual address space, these hooks are called according to
  * the following template:
  *
- *	tlb <- tlb_gather_mmu(mm, full_mm_flush);	// start unmap for address space MM
+ *	tlb <- tlb_gather_mmu(mm, start, end);		// start unmap for address space MM
  *	{
  *	  for each vma that needs a shootdown do {
  *	    tlb_start_vma(tlb, vma);
@@ -58,6 +58,7 @@ struct mmu_gather {
 	unsigned int		max;
 	unsigned char		fullmm;		/* non-zero means full mm flush */
 	unsigned char		need_flush;	/* really unmapped some PTEs? */
+	unsigned long		start, end;
 	unsigned long		start_addr;
 	unsigned long		end_addr;
 	struct page		**pages;
@@ -155,13 +156,15 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
 
 
 static inline void
-tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned int full_mm_flush)
+tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
 	tlb->max = ARRAY_SIZE(tlb->local);
 	tlb->pages = tlb->local;
 	tlb->nr = 0;
-	tlb->fullmm = full_mm_flush;
+	tlb->fullmm = !(start | (end+1));
+	tlb->start = start;
+	tlb->end = end;
 	tlb->start_addr = ~0UL;
 }
 

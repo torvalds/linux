@@ -767,13 +767,11 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	unsigned long flags;
 	unsigned int residual;
 
-	spin_lock_irqsave(&tdc->lock, flags);
-
 	ret = dma_cookie_status(dc, cookie, txstate);
-	if (ret == DMA_SUCCESS) {
-		spin_unlock_irqrestore(&tdc->lock, flags);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
+
+	spin_lock_irqsave(&tdc->lock, flags);
 
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
@@ -1191,6 +1189,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 	list_splice_init(&tdc->free_dma_desc, &dma_desc_list);
 	INIT_LIST_HEAD(&tdc->cb_desc);
 	tdc->config_init = false;
+	tdc->isr_handler = NULL;
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
 	while (!list_empty(&dma_desc_list)) {
@@ -1334,7 +1333,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"request_irq failed with err %d channel %d\n",
-				i, ret);
+				ret, i);
 			goto err_irq;
 		}
 

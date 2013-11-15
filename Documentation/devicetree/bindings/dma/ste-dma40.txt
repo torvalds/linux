@@ -1,0 +1,66 @@
+* DMA40 DMA Controller
+
+Required properties:
+- compatible: "stericsson,dma40"
+- reg: Address range of the DMAC registers
+- reg-names: Names of the above areas to use during resource look-up
+- interrupt: Should contain the DMAC interrupt number
+- #dma-cells: must be <3>
+- memcpy-channels: Channels to be used for memcpy
+
+Optional properties:
+- dma-channels: Number of channels supported by hardware - if not present
+		the driver will attempt to obtain the information from H/W
+- disabled-channels: Channels which can not be used
+
+Example:
+
+	dma: dma-controller@801C0000 {
+		compatible = "stericsson,db8500-dma40", "stericsson,dma40";
+		reg = <0x801C0000 0x1000  0x40010000 0x800>;
+		reg-names = "base", "lcpa";
+		interrupt-parent = <&intc>;
+		interrupts = <0 25 0x4>;
+
+		#dma-cells = <2>;
+		memcpy-channels  = <56 57 58 59 60>;
+		disabled-channels  = <12>;
+		dma-channels = <8>;
+	};
+
+Clients
+Required properties:
+- dmas: Comma separated list of dma channel requests
+- dma-names: Names of the aforementioned requested channels
+
+Each dmas request consists of 4 cells:
+  1. A phandle pointing to the DMA controller
+  2. Device Type
+  3. The DMA request line number (only when 'use fixed channel' is set)
+  4. A 32bit mask specifying; mode, direction and endianness [NB: This list will grow]
+        0x00000001: Mode:
+                Logical channel when unset
+                Physical channel when set
+        0x00000002: Direction:
+                Memory to Device when unset
+                Device to Memory when set
+        0x00000004: Endianness:
+                Little endian when unset
+                Big endian when set
+        0x00000008: Use fixed channel:
+                Use automatic channel selection when unset
+                Use DMA request line number when set
+
+Example:
+
+	uart@80120000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0x80120000 0x1000>;
+		interrupts = <0 11 0x4>;
+
+		dmas = <&dma 13 0 0x2>, /* Logical - DevToMem */
+		       <&dma 13 0 0x0>; /* Logical - MemToDev */
+		dma-names = "rx", "rx";
+
+		status = "disabled";
+	};

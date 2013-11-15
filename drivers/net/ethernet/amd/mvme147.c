@@ -188,7 +188,7 @@ static struct net_device *dev_mvme147_lance;
 int __init init_module(void)
 {
 	dev_mvme147_lance = mvme147lance_probe(-1);
-	return PTR_RET(dev_mvme147_lance);
+	return PTR_ERR_OR_ZERO(dev_mvme147_lance);
 }
 
 void __exit cleanup_module(void)

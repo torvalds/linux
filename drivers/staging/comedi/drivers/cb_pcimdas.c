@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: cb_pcimdas
@@ -40,8 +35,8 @@ No interrupts, multi channel or FIFO AI, although the card looks like it could s
 See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
+#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
@@ -215,10 +210,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	unsigned long iobase_8255;
 	int ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

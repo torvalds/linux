@@ -409,10 +409,11 @@ enum mm_32f_73_minor_op {
 enum mm_16c_minor_op {
 	mm_lwm16_op = 0x04,
 	mm_swm16_op = 0x05,
-	mm_jr16_op = 0x18,
-	mm_jrc_op = 0x1a,
-	mm_jalr16_op = 0x1c,
-	mm_jalrs16_op = 0x1e,
+	mm_jr16_op = 0x0c,
+	mm_jrc_op = 0x0d,
+	mm_jalr16_op = 0x0e,
+	mm_jalrs16_op = 0x0f,
+	mm_jraddiusp_op = 0x18,
 };
 
 /*

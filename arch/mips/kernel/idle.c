@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/cpu-type.h>
 #include <asm/idle.h>
 #include <asm/mipsregs.h>
 
@@ -93,26 +94,27 @@ static void rm7k_wait_irqoff(void)
 }
 
 /*
- * The Au1xxx wait is available only if using 32khz counter or
- * external timer source, but specifically not CP0 Counter.
- * alchemy/common/time.c may override cpu_wait!
+ * Au1 'wait' is only useful when the 32kHz counter is used as timer,
+ * since coreclock (and the cp0 counter) stops upon executing it. Only an
+ * interrupt can wake it, so they must be enabled before entering idle modes.
  */
 static void au1k_wait(void)
 {
+	unsigned long c0status = read_c0_status() | 1;	/* irqs on */
+
 	__asm__(
 	"	.set	mips3			\n"
 	"	cache	0x14, 0(%0)		\n"
 	"	cache	0x14, 32(%0)		\n"
 	"	sync				\n"
-	"	nop				\n"
+	"	mtc0	%1, $12			\n" /* wr c0status */
 	"	wait				\n"
 	"	nop				\n"
 	"	nop				\n"
 	"	nop				\n"
 	"	nop				\n"
 	"	.set	mips0			\n"
-	: : "r" (au1k_wait));
-	local_irq_enable();
+	: : "r" (au1k_wait), "r" (c0status));
 }
 
 static int __initdata nowait;
@@ -135,7 +137,7 @@ void __init check_wait(void)
 		return;
 	}
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R3081:
 	case CPU_R3081E:
 		cpu_wait = r3081_wait;
@@ -165,6 +167,7 @@ void __init check_wait(void)
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
 	case CPU_JZRISC:
 	case CPU_LOONGSON1:
 	case CPU_XLR:

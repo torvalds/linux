@@ -116,19 +116,11 @@ out_err:
 	return ret;
 }
 
-static int au1xtoy_rtc_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver au1xrtc_driver = {
 	.driver		= {
 		.name	= "rtc-au1xxx",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= au1xtoy_rtc_remove,
 };
 
 module_platform_driver_probe(au1xrtc_driver, au1xtoy_rtc_probe);

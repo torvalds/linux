@@ -31,6 +31,7 @@
 #include <asm/xics.h>
 #include <asm/rtas.h>
 #include <asm/opal.h>
+#include <asm/kexec.h>
 
 #include "powernv.h"
 
@@ -54,6 +55,12 @@ static void __init pnv_setup_arch(void)
 
 static void __init pnv_init_early(void)
 {
+	/*
+	 * Initialize the LPC bus now so that legacy serial
+	 * ports can be found on it
+	 */
+	opal_lpc_init();
+
 #ifdef CONFIG_HVC_OPAL
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		hvc_opal_init_early();
@@ -93,6 +100,8 @@ static void  __noreturn pnv_restart(char *cmd)
 {
 	long rc = OPAL_BUSY;
 
+	opal_notifier_disable();
+
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_reboot();
 		if (rc == OPAL_BUSY_EVENT)
@@ -107,6 +116,8 @@ static void  __noreturn pnv_restart(char *cmd)
 static void __noreturn pnv_power_off(void)
 {
 	long rc = OPAL_BUSY;
+
+	opal_notifier_disable();
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
 		rc = opal_cec_power_down(0);
@@ -143,6 +154,16 @@ static void pnv_shutdown(void)
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	xics_kexec_teardown_cpu(secondary);
+
+	/* Return secondary CPUs to firmware on OPAL v3 */
+	if (firmware_has_feature(FW_FEATURE_OPALv3) && secondary) {
+		mb();
+		get_paca()->kexec_state = KEXEC_STATE_REAL_MODE;
+		mb();
+
+		/* Return the CPU to OPAL */
+		opal_return_cpu();
+	}
 }
 #endif /* CONFIG_KEXEC */
 

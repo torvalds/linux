@@ -49,7 +49,7 @@
 
 #include "uasm.c"
 
-static struct insn insn_table_MM[] __uasminitdata = {
+static struct insn insn_table_MM[] = {
 	{ insn_addu, M(mm_pool32a_op, 0, 0, 0, 0, mm_addu32_op), RT | RS | RD },
 	{ insn_addiu, M(mm_addiu32_op, 0, 0, 0, 0, 0), RT | RS | SIMM },
 	{ insn_and, M(mm_pool32a_op, 0, 0, 0, 0, mm_and_op), RT | RS | RD },
@@ -118,7 +118,7 @@ static struct insn insn_table_MM[] __uasminitdata = {
 
 #undef M
 
-static inline __uasminit u32 build_bimm(s32 arg)
+static inline u32 build_bimm(s32 arg)
 {
 	WARN(arg > 0xffff || arg < -0x10000,
 	     KERN_WARNING "Micro-assembler field overflow\n");
@@ -128,7 +128,7 @@ static inline __uasminit u32 build_bimm(s32 arg)
 	return ((arg < 0) ? (1 << 15) : 0) | ((arg >> 1) & 0x7fff);
 }
 
-static inline __uasminit u32 build_jimm(u32 arg)
+static inline u32 build_jimm(u32 arg)
 {
 
 	WARN(arg & ~((JIMM_MASK << 2) | 1),
@@ -141,7 +141,7 @@ static inline __uasminit u32 build_jimm(u32 arg)
  * The order of opcode arguments is implicitly left to right,
  * starting with RS and ending with FUNC or IMM.
  */
-static void __uasminit build_insn(u32 **buf, enum opcode opc, ...)
+static void build_insn(u32 **buf, enum opcode opc, ...)
 {
 	struct insn *ip = NULL;
 	unsigned int i;
@@ -199,7 +199,7 @@ static void __uasminit build_insn(u32 **buf, enum opcode opc, ...)
 	(*buf)++;
 }
 
-static inline void __uasminit
+static inline void
 __resolve_relocs(struct uasm_reloc *rel, struct uasm_label *lab)
 {
 	long laddr = (long)lab->addr;

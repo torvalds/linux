@@ -65,10 +65,8 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_HDMI:
 		return DRM_MODE_CONNECTOR_HDMIA;
-	case OMAP_DISPLAY_TYPE_DPI:
-		if (!strcmp(dssdev->name, "dvi"))
-			return DRM_MODE_CONNECTOR_DVID;
-		/* fallthrough */
+	case OMAP_DISPLAY_TYPE_DVI:
+		return DRM_MODE_CONNECTOR_DVID;
 	default:
 		return DRM_MODE_CONNECTOR_Unknown;
 	}
@@ -97,6 +95,9 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_mgrs = dss_feat_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
+	int r;
+
+	omap_crtc_pre_init();
 
 	drm_mode_config_init(dev);
 
@@ -116,6 +117,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		enum omap_channel channel;
+		struct omap_overlay_manager *mgr;
 
 		if (!dssdev->driver) {
 			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
@@ -128,6 +130,13 @@ static int omap_modeset_init(struct drm_device *dev)
 			dev_warn(dev->dev, "%s driver does not support "
 				"get_timings or read_edid.. skipping it!\n",
 				dssdev->name);
+			continue;
+		}
+
+		r = dssdev->driver->connect(dssdev);
+		if (r) {
+			dev_err(dev->dev, "could not connect display: %s\n",
+					dssdev->name);
 			continue;
 		}
 
@@ -172,8 +181,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * other possible channels to which the encoder can connect are
 		 * not considered.
 		 */
-		channel = dssdev->output->dispc_channel;
 
+		mgr = omapdss_find_mgr_from_display(dssdev);
+		channel = mgr->id;
 		/*
 		 * if this channel hasn't already been taken by a previously
 		 * allocated crtc, we create a new crtc for it
@@ -247,6 +257,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder = priv->encoders[i];
 		struct omap_dss_device *dssdev =
 					omap_encoder_get_dssdev(encoder);
+		struct omap_dss_device *output;
+
+		output = omapdss_find_output_from_display(dssdev);
 
 		/* figure out which crtc's we can connect the encoder to: */
 		encoder->possible_crtcs = 0;
@@ -259,9 +272,11 @@ static int omap_modeset_init(struct drm_device *dev)
 			supported_outputs =
 				dss_feat_get_supported_outputs(crtc_channel);
 
-			if (supported_outputs & dssdev->output->id)
+			if (supported_outputs & output->id)
 				encoder->possible_crtcs |= (1 << id);
 		}
+
+		omap_dss_put_device(output);
 	}
 
 	DBG("registered %d planes, %d crtcs, %d encoders and %d connectors\n",
@@ -404,7 +419,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	return ret;
 }
 
-static struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
+static const struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param, DRM_UNLOCKED|DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new, DRM_UNLOCKED|DRM_AUTH),
@@ -509,12 +524,6 @@ static int dev_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static int dev_firstopen(struct drm_device *dev)
-{
-	DBG("firstopen: dev=%p", dev);
-	return 0;
-}
-
 /**
  * lastclose - clean up after all DRM clients have exited
  * @dev: DRM device
@@ -583,7 +592,6 @@ static const struct file_operations omapdriver_fops = {
 		.release = drm_release,
 		.mmap = omap_gem_mmap,
 		.poll = drm_poll,
-		.fasync = drm_fasync,
 		.read = drm_read,
 		.llseek = noop_llseek,
 };
@@ -594,7 +602,6 @@ static struct drm_driver omap_drm_driver = {
 		.load = dev_load,
 		.unload = dev_unload,
 		.open = dev_open,
-		.firstopen = dev_firstopen,
 		.lastclose = dev_lastclose,
 		.preclose = dev_preclose,
 		.postclose = dev_postclose,
@@ -618,7 +625,7 @@ static struct drm_driver omap_drm_driver = {
 		.gem_vm_ops = &omap_gem_vm_ops,
 		.dumb_create = omap_gem_dumb_create,
 		.dumb_map_offset = omap_gem_dumb_map_offset,
-		.dumb_destroy = omap_gem_dumb_destroy,
+		.dumb_destroy = drm_gem_dumb_destroy,
 		.ioctls = ioctls,
 		.num_ioctls = DRM_OMAP_NUM_IOCTLS,
 		.fops = &omapdriver_fops,

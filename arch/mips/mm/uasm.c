@@ -63,35 +63,35 @@ struct insn {
 	enum fields fields;
 };
 
-static inline __uasminit u32 build_rs(u32 arg)
+static inline u32 build_rs(u32 arg)
 {
 	WARN(arg & ~RS_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RS_MASK) << RS_SH;
 }
 
-static inline __uasminit u32 build_rt(u32 arg)
+static inline u32 build_rt(u32 arg)
 {
 	WARN(arg & ~RT_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RT_MASK) << RT_SH;
 }
 
-static inline __uasminit u32 build_rd(u32 arg)
+static inline u32 build_rd(u32 arg)
 {
 	WARN(arg & ~RD_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RD_MASK) << RD_SH;
 }
 
-static inline __uasminit u32 build_re(u32 arg)
+static inline u32 build_re(u32 arg)
 {
 	WARN(arg & ~RE_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RE_MASK) << RE_SH;
 }
 
-static inline __uasminit u32 build_simm(s32 arg)
+static inline u32 build_simm(s32 arg)
 {
 	WARN(arg > 0x7fff || arg < -0x8000,
 	     KERN_WARNING "Micro-assembler field overflow\n");
@@ -99,14 +99,14 @@ static inline __uasminit u32 build_simm(s32 arg)
 	return arg & 0xffff;
 }
 
-static inline __uasminit u32 build_uimm(u32 arg)
+static inline u32 build_uimm(u32 arg)
 {
 	WARN(arg & ~IMM_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & IMM_MASK;
 }
 
-static inline __uasminit u32 build_scimm(u32 arg)
+static inline u32 build_scimm(u32 arg)
 {
 	WARN(arg & ~SCIMM_MASK,
 	     KERN_WARNING "Micro-assembler field overflow\n");
@@ -114,21 +114,21 @@ static inline __uasminit u32 build_scimm(u32 arg)
 	return (arg & SCIMM_MASK) << SCIMM_SH;
 }
 
-static inline __uasminit u32 build_func(u32 arg)
+static inline u32 build_func(u32 arg)
 {
 	WARN(arg & ~FUNC_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & FUNC_MASK;
 }
 
-static inline __uasminit u32 build_set(u32 arg)
+static inline u32 build_set(u32 arg)
 {
 	WARN(arg & ~SET_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & SET_MASK;
 }
 
-static void __uasminit build_insn(u32 **buf, enum opcode opc, ...);
+static void build_insn(u32 **buf, enum opcode opc, ...);
 
 #define I_u1u2u3(op)					\
 Ip_u1u2u3(op)						\
@@ -286,7 +286,7 @@ I_u3u1u2(_ldx)
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 #include <asm/octeon/octeon.h>
-void __uasminit ISAFUNC(uasm_i_pref)(u32 **buf, unsigned int a, signed int b,
+void ISAFUNC(uasm_i_pref)(u32 **buf, unsigned int a, signed int b,
 			    unsigned int c)
 {
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) && a <= 24 && a != 5)
@@ -304,7 +304,7 @@ I_u2s3u1(_pref)
 #endif
 
 /* Handle labels. */
-void __uasminit ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr, int lid)
+void ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr, int lid)
 {
 	(*lab)->addr = addr;
 	(*lab)->lab = lid;
@@ -312,7 +312,7 @@ void __uasminit ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr, in
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_build_label));
 
-int __uasminit ISAFUNC(uasm_in_compat_space_p)(long addr)
+int ISAFUNC(uasm_in_compat_space_p)(long addr)
 {
 	/* Is this address in 32bit compat space? */
 #ifdef CONFIG_64BIT
@@ -323,7 +323,7 @@ int __uasminit ISAFUNC(uasm_in_compat_space_p)(long addr)
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_in_compat_space_p));
 
-static int __uasminit uasm_rel_highest(long val)
+static int uasm_rel_highest(long val)
 {
 #ifdef CONFIG_64BIT
 	return ((((val + 0x800080008000L) >> 48) & 0xffff) ^ 0x8000) - 0x8000;
@@ -332,7 +332,7 @@ static int __uasminit uasm_rel_highest(long val)
 #endif
 }
 
-static int __uasminit uasm_rel_higher(long val)
+static int uasm_rel_higher(long val)
 {
 #ifdef CONFIG_64BIT
 	return ((((val + 0x80008000L) >> 32) & 0xffff) ^ 0x8000) - 0x8000;
@@ -341,19 +341,19 @@ static int __uasminit uasm_rel_higher(long val)
 #endif
 }
 
-int __uasminit ISAFUNC(uasm_rel_hi)(long val)
+int ISAFUNC(uasm_rel_hi)(long val)
 {
 	return ((((val + 0x8000L) >> 16) & 0xffff) ^ 0x8000) - 0x8000;
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_rel_hi));
 
-int __uasminit ISAFUNC(uasm_rel_lo)(long val)
+int ISAFUNC(uasm_rel_lo)(long val)
 {
 	return ((val & 0xffff) ^ 0x8000) - 0x8000;
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_rel_lo));
 
-void __uasminit ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr)
+void ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr)
 {
 	if (!ISAFUNC(uasm_in_compat_space_p)(addr)) {
 		ISAFUNC(uasm_i_lui)(buf, rs, uasm_rel_highest(addr));
@@ -371,7 +371,7 @@ void __uasminit ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr)
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(UASM_i_LA_mostly));
 
-void __uasminit ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr)
+void ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr)
 {
 	ISAFUNC(UASM_i_LA_mostly)(buf, rs, addr);
 	if (ISAFUNC(uasm_rel_lo(addr))) {
@@ -386,8 +386,7 @@ void __uasminit ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr)
 UASM_EXPORT_SYMBOL(ISAFUNC(UASM_i_LA));
 
 /* Handle relocations. */
-void __uasminit
-ISAFUNC(uasm_r_mips_pc16)(struct uasm_reloc **rel, u32 *addr, int lid)
+void ISAFUNC(uasm_r_mips_pc16)(struct uasm_reloc **rel, u32 *addr, int lid)
 {
 	(*rel)->addr = addr;
 	(*rel)->type = R_MIPS_PC16;
@@ -396,11 +395,11 @@ ISAFUNC(uasm_r_mips_pc16)(struct uasm_reloc **rel, u32 *addr, int lid)
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_r_mips_pc16));
 
-static inline void __uasminit
-__resolve_relocs(struct uasm_reloc *rel, struct uasm_label *lab);
+static inline void __resolve_relocs(struct uasm_reloc *rel,
+				    struct uasm_label *lab);
 
-void __uasminit
-ISAFUNC(uasm_resolve_relocs)(struct uasm_reloc *rel, struct uasm_label *lab)
+void ISAFUNC(uasm_resolve_relocs)(struct uasm_reloc *rel,
+				  struct uasm_label *lab)
 {
 	struct uasm_label *l;
 
@@ -411,8 +410,8 @@ ISAFUNC(uasm_resolve_relocs)(struct uasm_reloc *rel, struct uasm_label *lab)
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_resolve_relocs));
 
-void __uasminit
-ISAFUNC(uasm_move_relocs)(struct uasm_reloc *rel, u32 *first, u32 *end, long off)
+void ISAFUNC(uasm_move_relocs)(struct uasm_reloc *rel, u32 *first, u32 *end,
+			       long off)
 {
 	for (; rel->lab != UASM_LABEL_INVALID; rel++)
 		if (rel->addr >= first && rel->addr < end)
@@ -420,8 +419,8 @@ ISAFUNC(uasm_move_relocs)(struct uasm_reloc *rel, u32 *first, u32 *end, long off
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_move_relocs));
 
-void __uasminit
-ISAFUNC(uasm_move_labels)(struct uasm_label *lab, u32 *first, u32 *end, long off)
+void ISAFUNC(uasm_move_labels)(struct uasm_label *lab, u32 *first, u32 *end,
+			       long off)
 {
 	for (; lab->lab != UASM_LABEL_INVALID; lab++)
 		if (lab->addr >= first && lab->addr < end)
@@ -429,9 +428,8 @@ ISAFUNC(uasm_move_labels)(struct uasm_label *lab, u32 *first, u32 *end, long off
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_move_labels));
 
-void __uasminit
-ISAFUNC(uasm_copy_handler)(struct uasm_reloc *rel, struct uasm_label *lab, u32 *first,
-		  u32 *end, u32 *target)
+void ISAFUNC(uasm_copy_handler)(struct uasm_reloc *rel, struct uasm_label *lab,
+				u32 *first, u32 *end, u32 *target)
 {
 	long off = (long)(target - first);
 
@@ -442,7 +440,7 @@ ISAFUNC(uasm_copy_handler)(struct uasm_reloc *rel, struct uasm_label *lab, u32 *
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_copy_handler));
 
-int __uasminit ISAFUNC(uasm_insn_has_bdelay)(struct uasm_reloc *rel, u32 *addr)
+int ISAFUNC(uasm_insn_has_bdelay)(struct uasm_reloc *rel, u32 *addr)
 {
 	for (; rel->lab != UASM_LABEL_INVALID; rel++) {
 		if (rel->addr == addr
@@ -456,83 +454,79 @@ int __uasminit ISAFUNC(uasm_insn_has_bdelay)(struct uasm_reloc *rel, u32 *addr)
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_insn_has_bdelay));
 
 /* Convenience functions for labeled branches. */
-void __uasminit
-ISAFUNC(uasm_il_bltz)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_bltz)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			   int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bltz)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bltz));
 
-void __uasminit
-ISAFUNC(uasm_il_b)(u32 **p, struct uasm_reloc **r, int lid)
+void ISAFUNC(uasm_il_b)(u32 **p, struct uasm_reloc **r, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_b)(p, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_b));
 
-void __uasminit
-ISAFUNC(uasm_il_beqz)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_beqz)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			   int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_beqz)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_beqz));
 
-void __uasminit
-ISAFUNC(uasm_il_beqzl)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_beqzl)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			    int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_beqzl)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_beqzl));
 
-void __uasminit
-ISAFUNC(uasm_il_bne)(u32 **p, struct uasm_reloc **r, unsigned int reg1,
-	unsigned int reg2, int lid)
+void ISAFUNC(uasm_il_bne)(u32 **p, struct uasm_reloc **r, unsigned int reg1,
+			  unsigned int reg2, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bne)(p, reg1, reg2, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bne));
 
-void __uasminit
-ISAFUNC(uasm_il_bnez)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_bnez)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			   int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bnez)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bnez));
 
-void __uasminit
-ISAFUNC(uasm_il_bgezl)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_bgezl)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			    int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bgezl)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bgezl));
 
-void __uasminit
-ISAFUNC(uasm_il_bgez)(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
+void ISAFUNC(uasm_il_bgez)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			   int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bgez)(p, reg, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bgez));
 
-void __uasminit
-ISAFUNC(uasm_il_bbit0)(u32 **p, struct uasm_reloc **r, unsigned int reg,
-	      unsigned int bit, int lid)
+void ISAFUNC(uasm_il_bbit0)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			    unsigned int bit, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bbit0)(p, reg, bit, 0);
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_il_bbit0));
 
-void __uasminit
-ISAFUNC(uasm_il_bbit1)(u32 **p, struct uasm_reloc **r, unsigned int reg,
-	      unsigned int bit, int lid)
+void ISAFUNC(uasm_il_bbit1)(u32 **p, struct uasm_reloc **r, unsigned int reg,
+			    unsigned int bit, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	ISAFUNC(uasm_i_bbit1)(p, reg, bit, 0);

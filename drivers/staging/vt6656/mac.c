@@ -101,7 +101,7 @@ void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
                         MESSAGE_TYPE_WRITE_MASK,
                         MAC_REG_ENCFG0,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -122,17 +122,9 @@ void MACvSetBBType(struct vnt_private *pDevice, u8 byType)
  */
 void MACvDisableKeyEntry(struct vnt_private *pDevice, u32 uEntryIdx)
 {
-	u16 wOffset;
 	u8 byData;
 
     byData = (u8) uEntryIdx;
-
-    wOffset = MISCFIFO_KEYETRY0;
-    wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
-
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-    //VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, 0);
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
 
     //issue write misc fifo command to device
     CONTROLnsRequestOut(pDevice,
@@ -182,12 +174,6 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"1. wOffset: %d, Data: %X,"\
 		" KeyCtl:%X\n", wOffset, dwData1, wKeyCtl);
 
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-    //VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-
-    //wOffset++;
-
     dwData2 = 0;
     dwData2 |= *(pbyAddr+3);
     dwData2 <<= 8;
@@ -200,21 +186,6 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"2. wOffset: %d, Data: %X\n",
 		wOffset, dwData2);
 
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset);
-    //VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, dwData);
-    //VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-
-    //wOffset++;
-
-    //wOffset += (uKeyIdx * 4);
-/*    for (ii=0;ii<4;ii++) {
-        // alway push 128 bits
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"3.(%d) wOffset: %d, Data: %lX\n", ii, wOffset+ii, *pdwKey);
-        VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+ii);
-        VNSvOutPortD(dwIoBase + MAC_REG_MISCFFDATA, *pdwKey++);
-        VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
-    }
-*/
     pbyKey = (u8 *)pdwKey;
 
     pbyData[0] = (u8)dwData1;
@@ -232,7 +203,7 @@ void MACvSetKeyEntry(struct vnt_private *pDevice, u16 wKeyCtl, u32 uEntryIdx,
                         MESSAGE_TYPE_SETKEY,
                         wOffset,
                         (u16)uKeyIdx,
-                        24,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 
@@ -249,7 +220,7 @@ void MACvRegBitsOff(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
                         MESSAGE_TYPE_WRITE_MASK,
                         byRegOfs,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -265,7 +236,7 @@ void MACvRegBitsOn(struct vnt_private *pDevice, u8 byRegOfs, u8 byBits)
                         MESSAGE_TYPE_WRITE_MASK,
                         byRegOfs,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -281,7 +252,7 @@ void MACvWriteWord(struct vnt_private *pDevice, u8 byRegOfs, u16 wData)
                         MESSAGE_TYPE_WRITE,
                         byRegOfs,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 
@@ -302,7 +273,7 @@ void MACvWriteBSSIDAddress(struct vnt_private *pDevice, u8 *pbyEtherAddr)
                         MESSAGE_TYPE_WRITE,
                         MAC_REG_BSSID0,
                         MESSAGE_REQUEST_MACREG,
-                        6,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -318,7 +289,7 @@ void MACvEnableProtectMD(struct vnt_private *pDevice)
                         MESSAGE_TYPE_WRITE_MASK,
                         MAC_REG_ENCFG0,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -334,7 +305,7 @@ void MACvDisableProtectMD(struct vnt_private *pDevice)
                         MESSAGE_TYPE_WRITE_MASK,
                         MAC_REG_ENCFG0,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -350,7 +321,7 @@ void MACvEnableBarkerPreambleMd(struct vnt_private *pDevice)
                         MESSAGE_TYPE_WRITE_MASK,
                         MAC_REG_ENCFG2,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -366,7 +337,7 @@ void MACvDisableBarkerPreambleMd(struct vnt_private *pDevice)
                         MESSAGE_TYPE_WRITE_MASK,
                         MAC_REG_ENCFG2,
                         MESSAGE_REQUEST_MACREG,
-                        2,
+			ARRAY_SIZE(pbyData),
                         pbyData
                         );
 }
@@ -382,7 +353,7 @@ void MACvWriteBeaconInterval(struct vnt_private *pDevice, u16 wInterval)
 			MESSAGE_TYPE_WRITE,
 			MAC_REG_BI,
 			MESSAGE_REQUEST_MACREG,
-			2,
+			ARRAY_SIZE(pbyData),
 			pbyData
 			);
 }

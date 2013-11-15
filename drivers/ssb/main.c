@@ -553,6 +553,14 @@ static int ssb_devices_register(struct ssb_bus *bus)
 	}
 #endif
 
+#ifdef CONFIG_SSB_SFLASH
+	if (bus->mipscore.sflash.present) {
+		err = platform_device_register(&ssb_sflash_dev);
+		if (err)
+			pr_err("Error registering serial flash\n");
+	}
+#endif
+
 	return 0;
 error:
 	/* Unwind the already registered devices. */

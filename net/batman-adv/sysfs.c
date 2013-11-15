@@ -385,6 +385,10 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 		    curr_gw_mode_str, buff);
 
 	batadv_gw_deselect(bat_priv);
+	/* always call batadv_gw_check_client_stop() before changing the gateway
+	 * state
+	 */
+	batadv_gw_check_client_stop(bat_priv);
 	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
 	return count;
 }
@@ -582,10 +586,7 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
 		goto out;
 
-	if (!rtnl_trylock()) {
-		ret = -ERESTARTSYS;
-		goto out;
-	}
+	rtnl_lock();
 
 	if (status_tmp == BATADV_IF_NOT_IN_USE) {
 		batadv_hardif_disable_interface(hard_iface,

@@ -77,8 +77,8 @@ struct crystalhd_adp {
 	int		chd_dec_major;
 	unsigned int		cfg_users;
 
-	struct crystalhd_ioctl_data	*idata_free_head;	/* ioctl data pool */
-	struct crystalhd_elem		*elem_pool_head;	/* Queue element pool */
+	struct crystalhd_ioctl_data	*idata_free_head; /* ioctl data pool */
+	struct crystalhd_elem	*elem_pool_head; /* Queue element pool */
 
 	struct crystalhd_cmd	cmds;
 

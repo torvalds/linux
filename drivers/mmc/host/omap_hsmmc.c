@@ -21,6 +21,7 @@
 #include <linux/debugfs.h>
 #include <linux/dmaengine.h>
 #include <linux/seq_file.h>
+#include <linux/sizes.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -1041,6 +1042,7 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 		}
 	}
 
+	OMAP_HSMMC_WRITE(host->base, STAT, status);
 	if (end_cmd || ((status & CC_EN) && host->cmd))
 		omap_hsmmc_cmd_done(host, host->cmd);
 	if ((end_trans || (status & TC_EN)) && host->mrq)
@@ -1060,7 +1062,6 @@ static irqreturn_t omap_hsmmc_irq(int irq, void *dev_id)
 		omap_hsmmc_do_irq(host, status);
 
 		/* Flush posted write */
-		OMAP_HSMMC_WRITE(host->base, STAT, status);
 		status = OMAP_HSMMC_READ(host->base, STAT);
 	}
 
@@ -2047,7 +2048,6 @@ err_irq:
 	}
 err1:
 	iounmap(host->base);
-	platform_set_drvdata(pdev, NULL);
 	mmc_free_host(mmc);
 err_alloc:
 	omap_hsmmc_gpio_free(pdata);
@@ -2093,7 +2093,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

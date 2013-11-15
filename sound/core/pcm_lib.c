@@ -184,7 +184,7 @@ static void xrun(struct snd_pcm_substream *substream)
 	do {								\
 		if (xrun_debug(substream, XRUN_DEBUG_BASIC)) {		\
 			xrun_log_show(substream);			\
-			if (printk_ratelimit()) {			\
+			if (snd_printd_ratelimit()) {			\
 				snd_printd("PCM: " fmt, ##args);	\
 			}						\
 			dump_stack_on_xrun(substream);			\
@@ -342,7 +342,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		return -EPIPE;
 	}
 	if (pos >= runtime->buffer_size) {
-		if (printk_ratelimit()) {
+		if (snd_printd_ratelimit()) {
 			char name[16];
 			snd_pcm_debug_name(substream, name, sizeof(name));
 			xrun_log_show(substream);
@@ -568,7 +568,8 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
  *
  * Sets the given PCM operators to the pcm instance.
  */
-void snd_pcm_set_ops(struct snd_pcm *pcm, int direction, struct snd_pcm_ops *ops)
+void snd_pcm_set_ops(struct snd_pcm *pcm, int direction,
+		     const struct snd_pcm_ops *ops)
 {
 	struct snd_pcm_str *stream = &pcm->streams[direction];
 	struct snd_pcm_substream *substream;

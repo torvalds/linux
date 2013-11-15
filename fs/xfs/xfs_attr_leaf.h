@@ -128,6 +128,7 @@ struct xfs_attr3_leaf_hdr {
 	__u8			holes;
 	__u8			pad1;
 	struct xfs_attr_leaf_map freemap[XFS_ATTR_LEAF_MAPSIZE];
+	__be32			pad2;		/* 64 bit alignment */
 };
 
 #define XFS_ATTR3_LEAF_CRC_OFF	(offsetof(struct xfs_attr3_leaf_hdr, info.crc))
@@ -332,6 +333,8 @@ int	xfs_attr3_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
 			struct xfs_buf **bpp);
 void	xfs_attr3_leaf_hdr_from_disk(struct xfs_attr3_icleaf_hdr *to,
 				     struct xfs_attr_leafblock *from);
+void	xfs_attr3_leaf_hdr_to_disk(struct xfs_attr_leafblock *to,
+				   struct xfs_attr3_icleaf_hdr *from);
 
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
 

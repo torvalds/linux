@@ -22,7 +22,6 @@ config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
 	depends on PCI && SGI_IP27
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read

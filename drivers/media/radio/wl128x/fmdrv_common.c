@@ -715,7 +715,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 	struct fm_rdsdata_format rds_fmt;
 	struct fm_rds *rds = &fmdev->rx.rds;
 	unsigned long group_idx, flags;
-	u8 *rds_data, meta_data, tmpbuf[3];
+	u8 *rds_data, meta_data, tmpbuf[FM_RDS_BLK_SIZE];
 	u8 type, blk_idx;
 	u16 cur_picode;
 	u32 rds_len;
@@ -1073,6 +1073,7 @@ int fmc_transfer_rds_from_internal_buff(struct fmdev *fmdev, struct file *file,
 		u8 __user *buf, size_t count)
 {
 	u32 block_count;
+	u8 tmpbuf[FM_RDS_BLK_SIZE];
 	unsigned long flags;
 	int ret;
 
@@ -1087,29 +1088,32 @@ int fmc_transfer_rds_from_internal_buff(struct fmdev *fmdev, struct file *file,
 	}
 
 	/* Calculate block count from byte count */
-	count /= 3;
+	count /= FM_RDS_BLK_SIZE;
 	block_count = 0;
 	ret = 0;
 
-	spin_lock_irqsave(&fmdev->rds_buff_lock, flags);
-
 	while (block_count < count) {
-		if (fmdev->rx.rds.wr_idx == fmdev->rx.rds.rd_idx)
-			break;
+		spin_lock_irqsave(&fmdev->rds_buff_lock, flags);
 
-		if (copy_to_user(buf, &fmdev->rx.rds.buff[fmdev->rx.rds.rd_idx],
-					FM_RDS_BLK_SIZE))
+		if (fmdev->rx.rds.wr_idx == fmdev->rx.rds.rd_idx) {
+			spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
 			break;
-
+		}
+		memcpy(tmpbuf, &fmdev->rx.rds.buff[fmdev->rx.rds.rd_idx],
+					FM_RDS_BLK_SIZE);
 		fmdev->rx.rds.rd_idx += FM_RDS_BLK_SIZE;
 		if (fmdev->rx.rds.rd_idx >= fmdev->rx.rds.buf_size)
 			fmdev->rx.rds.rd_idx = 0;
+
+		spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
+
+		if (copy_to_user(buf, tmpbuf, FM_RDS_BLK_SIZE))
+			break;
 
 		block_count++;
 		buf += FM_RDS_BLK_SIZE;
 		ret += FM_RDS_BLK_SIZE;
 	}
-	spin_unlock_irqrestore(&fmdev->rds_buff_lock, flags);
 	return ret;
 }
 

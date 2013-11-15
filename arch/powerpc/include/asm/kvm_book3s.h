@@ -107,8 +107,9 @@ struct kvmppc_vcpu_book3s {
 #define CONTEXT_GUEST		1
 #define CONTEXT_GUEST_END	2
 
-#define VSID_REAL	0x1fffffffffc00000ULL
-#define VSID_BAT	0x1fffffffffb00000ULL
+#define VSID_REAL	0x0fffffffffc00000ULL
+#define VSID_BAT	0x0fffffffffb00000ULL
+#define VSID_1T		0x1000000000000000ULL
 #define VSID_REAL_DR	0x2000000000000000ULL
 #define VSID_REAL_IR	0x4000000000000000ULL
 #define VSID_PR		0x8000000000000000ULL
@@ -123,6 +124,7 @@ extern void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
+extern void kvmppc_mmu_flush_segment(struct kvm_vcpu *vcpu, ulong eaddr, ulong seg_size);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
 extern int kvmppc_book3s_hv_page_fault(struct kvm_run *run,
 			struct kvm_vcpu *vcpu, unsigned long addr,
@@ -332,6 +334,27 @@ static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+/*
+ * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
+ * Because the sc instruction sets SRR0 to point to the following
+ * instruction, we have to fetch from pc - 4.
+ */
+static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu) - 4;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
+
+	r = svcpu->last_inst;
+	svcpu_put(svcpu);
+	return r;
+}
+
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
@@ -435,6 +458,23 @@ static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
+
+	return vcpu->arch.last_inst;
+}
+
+/*
+ * Like kvmppc_get_last_inst(), but for fetching a sc instruction.
+ * Because the sc instruction sets SRR0 to point to the following
+ * instruction, we have to fetch from pc - 4.
+ */
+static inline u32 kvmppc_get_last_sc(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu) - 4;
 
 	/* Load the instruction manually if it failed to do so in the
 	 * exit path */

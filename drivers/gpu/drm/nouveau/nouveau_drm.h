@@ -70,6 +70,8 @@ nouveau_cli(struct drm_file *fpriv)
 	return fpriv ? fpriv->driver_priv : NULL;
 }
 
+extern int nouveau_runtime_pm;
+
 struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
@@ -96,6 +98,7 @@ struct nouveau_drm {
 		int (*move)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
+		struct nouveau_channel *chan;
 		int mtrr;
 	} ttm;
 
@@ -128,6 +131,12 @@ struct nouveau_drm {
 
 	/* power management */
 	struct nouveau_pm *pm;
+
+	/* display power reference */
+	bool have_disp_power_ref;
+
+	struct dev_pm_domain vga_pm_domain;
+	struct pci_dev *hdmi_device;
 };
 
 static inline struct nouveau_drm *
@@ -145,6 +154,7 @@ nouveau_dev(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
+#define NV_SUSPEND(cli, fmt, args...) nv_suspend((cli), fmt, ##args)
 #define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
 #define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
 #define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)

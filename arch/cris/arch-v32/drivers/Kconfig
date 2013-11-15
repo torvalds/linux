@@ -2,9 +2,7 @@ if ETRAX_ARCH_V32
 
 config ETRAX_ETHERNET
 	bool "Ethernet support"
-	depends on ETRAX_ARCH_V32
-	select ETHERNET
-	select NET_CORE
+	depends on ETRAX_ARCH_V32 && NETDEVICES
 	select MII
 	help
 	  This option enables the ETRAX FS built-in 10/100Mbit Ethernet
@@ -20,64 +18,6 @@ config ETRAX_NO_PHY
 	  typically be enabled if the MII interface is connected to a
 	  switch. This option should normally be disabled. If enabled,
 	  speed and duplex will be locked to 100 Mbit and full duplex.
-
-config ETRAX_ETHERNET_IFACE0
-	depends on ETRAX_ETHERNET
-	bool "Enable network interface 0"
-
-config ETRAX_ETHERNET_IFACE1
-	depends on (ETRAX_ETHERNET && ETRAXFS)
-	bool "Enable network interface 1 (uses DMA6 and DMA7)"
-
-config ETRAX_ETHERNET_GBIT
-	depends on (ETRAX_ETHERNET && CRIS_MACH_ARTPEC3)
-	bool "Enable gigabit Ethernet support"
-
-choice
-	prompt "Eth0 led group"
-	depends on ETRAX_ETHERNET_IFACE0
-	default ETRAX_ETH0_USE_LEDGRP0
-
-config ETRAX_ETH0_USE_LEDGRP0
-	bool "Use LED grp 0"
-	depends on ETRAX_NBR_LED_GRP_ONE || ETRAX_NBR_LED_GRP_TWO
-	help
-	  Use LED grp 0 for eth0
-
-config ETRAX_ETH0_USE_LEDGRP1
-	bool "Use LED grp 1"
-	depends on ETRAX_NBR_LED_GRP_TWO
-	help
-	  Use LED grp 1 for eth0
-
-config ETRAX_ETH0_USE_LEDGRPNULL
-	bool "Use no LEDs for eth0"
-	help
-	  Use no LEDs for eth0
-endchoice
-
-choice
-	prompt "Eth1 led group"
-	depends on ETRAX_ETHERNET_IFACE1
-	default ETRAX_ETH1_USE_LEDGRP1
-
-config ETRAX_ETH1_USE_LEDGRP0
-	bool "Use LED grp 0"
-	depends on ETRAX_NBR_LED_GRP_ONE || ETRAX_NBR_LED_GRP_TWO
-	help
-	  Use LED grp 0 for eth1
-
-config ETRAX_ETH1_USE_LEDGRP1
-	bool "Use LED grp 1"
-	depends on ETRAX_NBR_LED_GRP_TWO
-	help
-	  Use LED grp 1 for eth1
-
-config ETRAX_ETH1_USE_LEDGRPNULL
-	bool "Use no LEDs for eth1"
-	help
-	  Use no LEDs for eth1
-endchoice
 
 config ETRAXFS_SERIAL
 	bool "Serial-port support"
@@ -110,93 +50,11 @@ config ETRAX_SERIAL_PORT0
 	  if you do not need DMA to something else.
 	  ser0 can use dma4 or dma6 for output and dma5 or dma7 for input.
 
-choice
-	prompt "Ser0 default port type "
-	depends on ETRAX_SERIAL_PORT0
-	default ETRAX_SERIAL_PORT0_TYPE_232
-	help
-	  Type of serial port.
-
-config ETRAX_SERIAL_PORT0_TYPE_232
-	bool "Ser0 is a RS-232 port"
-	help
-	  Configure serial port 0 to be a RS-232 port.
-
-config ETRAX_SERIAL_PORT0_TYPE_485HD
-	bool "Ser0 is a half duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 0 to be a half duplex (two wires) RS-485 port.
-
-config ETRAX_SERIAL_PORT0_TYPE_485FD
-	bool "Ser0 is a full duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 0 to be a full duplex (four wires) RS-485 port.
-endchoice
-
-config ETRAX_SER0_DTR_BIT
-	string "Ser 0 DTR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT0
-
-config ETRAX_SER0_RI_BIT
-	string "Ser 0 RI bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT0
-
-config ETRAX_SER0_DSR_BIT
-	string "Ser 0 DSR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT0
-
-config ETRAX_SER0_CD_BIT
-	string "Ser 0 CD bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT0
-
 config ETRAX_SERIAL_PORT1
 	bool "Serial port 1 enabled"
 	depends on ETRAXFS_SERIAL
 	help
 	  Enables the ETRAX FS serial driver for ser1 (ttyS1).
-
-choice
-	prompt "Ser1 default port type"
-	depends on ETRAX_SERIAL_PORT1
-	default ETRAX_SERIAL_PORT1_TYPE_232
-	help
-	  Type of serial port.
-
-config ETRAX_SERIAL_PORT1_TYPE_232
-	bool "Ser1 is a RS-232 port"
-	help
-	  Configure serial port 1 to be a RS-232 port.
-
-config ETRAX_SERIAL_PORT1_TYPE_485HD
-	bool "Ser1 is a half duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 1 to be a half duplex (two wires) RS-485 port.
-
-config ETRAX_SERIAL_PORT1_TYPE_485FD
-	bool "Ser1 is a full duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 1 to be a full duplex (four wires) RS-485 port.
-endchoice
-
-config ETRAX_SER1_DTR_BIT
-	string "Ser 1 DTR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT1
-
-config ETRAX_SER1_RI_BIT
-	string "Ser 1 RI bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT1
-
-config ETRAX_SER1_DSR_BIT
-	string "Ser 1 DSR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT1
-
-config ETRAX_SER1_CD_BIT
-	string "Ser 1 CD bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT1
 
 config ETRAX_SERIAL_PORT2
 	bool "Serial port 2 enabled"
@@ -204,166 +62,11 @@ config ETRAX_SERIAL_PORT2
 	help
 	  Enables the ETRAX FS serial driver for ser2 (ttyS2).
 
-choice
-	prompt "Ser2 default port type"
-	depends on ETRAX_SERIAL_PORT2
-	default ETRAX_SERIAL_PORT2_TYPE_232
-	help
-	  What DMA channel to use for ser2
-
-config ETRAX_SERIAL_PORT2_TYPE_232
-	bool "Ser2 is a RS-232 port"
-	help
-	  Configure serial port 2 to be a RS-232 port.
-
-config ETRAX_SERIAL_PORT2_TYPE_485HD
-	bool "Ser2 is a half duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 2 to be a half duplex (two wires) RS-485 port.
-
-config ETRAX_SERIAL_PORT2_TYPE_485FD
-	bool "Ser2 is a full duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 2 to be a full duplex (four wires) RS-485 port.
-endchoice
-
-
-config ETRAX_SER2_DTR_BIT
-	string "Ser 2 DTR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT2
-
-config ETRAX_SER2_RI_BIT
-	string "Ser 2 RI bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT2
-
-config ETRAX_SER2_DSR_BIT
-	string "Ser 2 DSR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT2
-
-config ETRAX_SER2_CD_BIT
-	string "Ser 2 CD bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT2
-
 config ETRAX_SERIAL_PORT3
 	bool "Serial port 3 enabled"
 	depends on ETRAXFS_SERIAL
 	help
 	  Enables the ETRAX FS serial driver for ser3 (ttyS3).
-
-choice
-	prompt "Ser3 default port type"
-	depends on ETRAX_SERIAL_PORT3
-	default ETRAX_SERIAL_PORT3_TYPE_232
-	help
-	  What DMA channel to use for ser3.
-
-config ETRAX_SERIAL_PORT3_TYPE_232
-	bool "Ser3 is a RS-232 port"
-	help
-	  Configure serial port 3 to be a RS-232 port.
-
-config ETRAX_SERIAL_PORT3_TYPE_485HD
-	bool "Ser3 is a half duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 3 to be a half duplex (two wires) RS-485 port.
-
-config ETRAX_SERIAL_PORT3_TYPE_485FD
-	bool "Ser3 is a full duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 3 to be a full duplex (four wires) RS-485 port.
-endchoice
-
-config ETRAX_SER3_DTR_BIT
-	string "Ser 3 DTR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT3
-
-config ETRAX_SER3_RI_BIT
-	string "Ser 3 RI bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT3
-
-config ETRAX_SER3_DSR_BIT
-	string "Ser 3 DSR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT3
-
-config ETRAX_SER3_CD_BIT
-	string "Ser 3 CD bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT3
-
-config ETRAX_SERIAL_PORT4
-	bool "Serial port 4 enabled"
-	depends on ETRAXFS_SERIAL && CRIS_MACH_ARTPEC3
-	help
-	  Enables the ETRAX FS serial driver for ser4 (ttyS4).
-
-choice
-	prompt "Ser4 default port type"
-	depends on ETRAX_SERIAL_PORT4
-	default ETRAX_SERIAL_PORT4_TYPE_232
-	help
-	  What DMA channel to use for ser4.
-
-config ETRAX_SERIAL_PORT4_TYPE_232
-	bool "Ser4 is a RS-232 port"
-	help
-	  Configure serial port 4 to be a RS-232 port.
-
-config ETRAX_SERIAL_PORT4_TYPE_485HD
-	bool "Ser4 is a half duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 4 to be a half duplex (two wires) RS-485 port.
-
-config ETRAX_SERIAL_PORT4_TYPE_485FD
-	bool "Ser4 is a full duplex RS-485 port"
-	depends on ETRAX_RS485
-	help
-	  Configure serial port 4 to be a full duplex (four wires) RS-485 port.
-endchoice
-
-choice
-	prompt "Ser4 DMA in channel "
-	depends on ETRAX_SERIAL_PORT4
-	default ETRAX_SERIAL_PORT4_NO_DMA_IN
-	help
-	  What DMA channel to use for ser4.
-
-
-config ETRAX_SERIAL_PORT4_NO_DMA_IN
-	bool "Ser4 uses no DMA for input"
-	help
-	  Do not use DMA for ser4 input.
-
-config ETRAX_SERIAL_PORT4_DMA9_IN
-	bool "Ser4 uses DMA9 for input"
-	depends on ETRAX_SERIAL_PORT4
-	help
-	  Enables the DMA9 input channel for ser4 (ttyS4).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiving data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
-endchoice
-
-config ETRAX_SER4_DTR_BIT
-	string "Ser 4 DTR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT4
-
-config ETRAX_SER4_RI_BIT
-	string "Ser 4 RI bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT4
-
-config ETRAX_SER4_DSR_BIT
-	string "Ser 4 DSR bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT4
-
-config ETRAX_SER4_CD_BIT
-	string "Ser 4 CD bit (empty = not used)"
-	depends on ETRAX_SERIAL_PORT4
 
 config ETRAX_SYNCHRONOUS_SERIAL
 	bool "Synchronous serial-port support"
@@ -617,7 +320,6 @@ config ETRAX_PV_CHANGEABLE_BITS
 config ETRAX_CARDBUS
         bool "Cardbus support"
         depends on ETRAX_ARCH_V32
-        select HOTPLUG
         help
 	 Enabled the ETRAX Cardbus driver.
 
@@ -640,8 +342,6 @@ config ETRAX_STREAMCOPROC
 	help
 	  This option enables a driver for the stream co-processor
 	  for cryptographic operations.
-
-source drivers/mmc/Kconfig
 
 config ETRAX_MMC_IOP
 	tristate "MMC/SD host driver using IO-processor"
@@ -708,32 +408,6 @@ config ETRAX_SPI_SSER0
 	  want to build it as a module, which will be named spi_crisv32_sser.
 	  (You need to select MMC separately.)
 
-config ETRAX_SPI_SSER0_DMA
-	bool "DMA for SPI on sser0 enabled"
-	depends on ETRAX_SPI_SSER0
-	depends on !ETRAX_SERIAL_PORT1_DMA4_OUT && !ETRAX_SERIAL_PORT1_DMA5_IN
-	default y
-	help
-	  Say Y if using DMA (dma4/dma5) for SPI on synchronous serial port 0.
-
-config ETRAX_SPI_MMC_CD_SSER0_PIN
-	string "MMC/SD card detect pin for SPI on sser0"
-	depends on ETRAX_SPI_SSER0 && MMC_SPI
-	default "pd11"
-	help
-	  The pin to use for SD/MMC card detect.  This pin should be pulled up
-	  and grounded when a card is present.  If defined as " " (space), no
-	  pin is selected.  A card must then always be inserted for proper
-	  action.
-
-config ETRAX_SPI_MMC_WP_SSER0_PIN
-	string "MMC/SD card write-protect pin for SPI on sser0"
-	depends on ETRAX_SPI_SSER0 && MMC_SPI
-	default "pd10"
-	help
-	  The pin to use for the SD/MMC write-protect signal for a memory
-	  card.  If defined as " " (space), the card is considered writable.
-
 config ETRAX_SPI_SSER1
 	tristate "SPI using synchronous serial port 1 (sser1)"
 	depends on ETRAX_SPI_MMC
@@ -746,32 +420,6 @@ config ETRAX_SPI_SSER1
 	  or for devices using the SPI protocol on that port.  Say m if you
 	  want to build it as a module, which will be named spi_crisv32_sser.
 	  (You need to select MMC separately.)
-
-config ETRAX_SPI_SSER1_DMA
-	bool "DMA for SPI on sser1 enabled"
-	depends on ETRAX_SPI_SSER1 && !ETRAX_ETHERNET_IFACE1
-	depends on !ETRAX_SERIAL_PORT0_DMA6_OUT && !ETRAX_SERIAL_PORT0_DMA7_IN
-	default y
-	help
-	  Say Y if using DMA (dma6/dma7) for SPI on synchronous serial port 1.
-
-config ETRAX_SPI_MMC_CD_SSER1_PIN
-	string "MMC/SD card detect pin for SPI on sser1"
-	depends on ETRAX_SPI_SSER1 && MMC_SPI
-	default "pd12"
-	help
-	  The pin to use for SD/MMC card detect.  This pin should be pulled up
-	  and grounded when a card is present.  If defined as " " (space), no
-	  pin is selected.  A card must then always be inserted for proper
-	  action.
-
-config ETRAX_SPI_MMC_WP_SSER1_PIN
-	string "MMC/SD card write-protect pin for SPI on sser1"
-	depends on ETRAX_SPI_SSER1 && MMC_SPI
-	default "pd9"
-	help
-	  The pin to use for the SD/MMC write-protect signal for a memory
-	  card.  If defined as " " (space), the card is considered writable.
 
 config ETRAX_SPI_GPIO
 	tristate "Bitbanged SPI using gpio pins"
@@ -786,57 +434,5 @@ config ETRAX_SPI_GPIO
 	  protocol on general I/O pins.  Slow and slows down the system.
 	  Say m to build it as a module, which will be called spi_crisv32_gpio.
 	  (You need to select MMC separately.)
-
-# The default match that of sser0, only because that's how it was tested.
-config ETRAX_SPI_CS_PIN
-	string "SPI chip select pin"
-	depends on ETRAX_SPI_GPIO
-	default "pc3"
-	help
-	  The pin to use for SPI chip select.
-
-config ETRAX_SPI_CLK_PIN
-	string "SPI clock pin"
-	depends on ETRAX_SPI_GPIO
-	default "pc1"
-	help
-	  The pin to use for the SPI clock.
-
-config ETRAX_SPI_DATAIN_PIN
-	string "SPI MISO (data in) pin"
-	depends on ETRAX_SPI_GPIO
-	default "pc16"
-	help
-	  The pin to use for SPI data in from the device.
-
-config ETRAX_SPI_DATAOUT_PIN
-	string "SPI MOSI (data out) pin"
-	depends on ETRAX_SPI_GPIO
-	default "pc0"
-	help
-	  The pin to use for SPI data out to the device.
-
-config ETRAX_SPI_MMC_CD_GPIO_PIN
-	string "MMC/SD card detect pin for SPI using gpio (space for none)"
-	depends on ETRAX_SPI_GPIO && MMC_SPI
-	default "pd11"
-	help
-	  The pin to use for SD/MMC card detect.  This pin should be pulled up
-	  and grounded when a card is present.  If defined as " " (space), no
-	  pin is selected.  A card must then always be inserted for proper
-	  action.
-
-config ETRAX_SPI_MMC_WP_GPIO_PIN
-	string "MMC/SD card write-protect pin for SPI using gpio (space for none)"
-	depends on ETRAX_SPI_GPIO && MMC_SPI
-	default "pd10"
-	help
-	  The pin to use for the SD/MMC write-protect signal for a memory
-	  card.  If defined as " " (space), the card is considered writable.
-
-# Avoid choices causing non-working configs by conditionalizing the inclusion.
-if ETRAX_SPI_MMC
-source drivers/spi/Kconfig
-endif
 
 endif

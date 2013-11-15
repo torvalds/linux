@@ -19,6 +19,15 @@ config DT_XLP_SVP
 	  pointer to the kernel.  The corresponding DTS file is at
 	  arch/mips/netlogic/dts/xlp_svp.dts
 
+config DT_XLP_FVP
+	bool "Built-in device tree for XLP FVP boards"
+	default y
+	help
+	  Add an FDT blob for XLP FVP board into the kernel.
+	  This DTB will be used if the firmware does not pass in a DTB
+	  pointer to the kernel.  The corresponding DTS file is at
+	  arch/mips/netlogic/dts/xlp_fvp.dts
+
 config NLM_MULTINODE
 	bool "Support for multi-chip boards"
 	depends on NLM_XLP_BOARD
@@ -50,5 +59,16 @@ endif
 
 config NLM_COMMON
 	bool
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	def_bool y
+	select NEED_SG_DMA_LENGTH
+	select IOMMU_HELPER
 
 endif

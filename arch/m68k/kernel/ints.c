@@ -101,7 +101,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt)
 	BUG_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
-		irq_set_chip(IRQ_USER + i, &user_irq_chip);
+		irq_set_chip_and_handler(i, &user_irq_chip, handle_simple_irq);
 	*user_irqvec_fixup = vec - IRQ_USER;
 	flush_icache();
 }

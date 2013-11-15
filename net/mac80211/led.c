@@ -12,27 +12,22 @@
 #include <linux/export.h>
 #include "led.h"
 
+#define MAC80211_BLINK_DELAY 50 /* ms */
+
 void ieee80211_led_rx(struct ieee80211_local *local)
 {
+	unsigned long led_delay = MAC80211_BLINK_DELAY;
 	if (unlikely(!local->rx_led))
 		return;
-	if (local->rx_led_counter++ % 2 == 0)
-		led_trigger_event(local->rx_led, LED_OFF);
-	else
-		led_trigger_event(local->rx_led, LED_FULL);
+	led_trigger_blink_oneshot(local->rx_led, &led_delay, &led_delay, 0);
 }
 
-/* q is 1 if a packet was enqueued, 0 if it has been transmitted */
-void ieee80211_led_tx(struct ieee80211_local *local, int q)
+void ieee80211_led_tx(struct ieee80211_local *local)
 {
+	unsigned long led_delay = MAC80211_BLINK_DELAY;
 	if (unlikely(!local->tx_led))
 		return;
-	/* not sure how this is supposed to work ... */
-	local->tx_led_counter += 2*q-1;
-	if (local->tx_led_counter % 2 == 0)
-		led_trigger_event(local->tx_led, LED_OFF);
-	else
-		led_trigger_event(local->tx_led, LED_FULL);
+	led_trigger_blink_oneshot(local->tx_led, &led_delay, &led_delay, 0);
 }
 
 void ieee80211_led_assoc(struct ieee80211_local *local, bool associated)

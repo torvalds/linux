@@ -73,7 +73,7 @@ static int min_lap_keepalive_time = 100;	/* 100us */
 /* For other sysctl, I've no idea of the range. Maybe Dag could help
  * us on that - Jean II */
 
-static int do_devname(ctl_table *table, int write,
+static int do_devname(struct ctl_table *table, int write,
 		      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -90,7 +90,7 @@ static int do_devname(ctl_table *table, int write,
 }
 
 
-static int do_discovery(ctl_table *table, int write,
+static int do_discovery(struct ctl_table *table, int write,
                     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
        int ret;
@@ -111,7 +111,7 @@ static int do_discovery(ctl_table *table, int write,
 }
 
 /* One file */
-static ctl_table irda_table[] = {
+static struct ctl_table irda_table[] = {
 	{
 		.procname	= "discovery",
 		.data		= &sysctl_discovery,

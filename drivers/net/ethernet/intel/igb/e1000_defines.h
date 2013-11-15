@@ -61,20 +61,22 @@
 /* Clear Interrupt timers after IMS clear */
 /* packet buffer parity error detection enabled */
 /* descriptor FIFO parity error detection enable */
-#define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
-#define E1000_I2CCMD_REG_ADDR_SHIFT   16
-#define E1000_I2CCMD_PHY_ADDR_SHIFT   24
-#define E1000_I2CCMD_OPCODE_READ      0x08000000
-#define E1000_I2CCMD_OPCODE_WRITE     0x00000000
-#define E1000_I2CCMD_READY            0x20000000
-#define E1000_I2CCMD_ERROR            0x80000000
-#define E1000_MAX_SGMII_PHY_REG_ADDR  255
-#define E1000_I2CCMD_PHY_TIMEOUT      200
-#define E1000_IVAR_VALID              0x80
-#define E1000_GPIE_NSICR              0x00000001
-#define E1000_GPIE_MSIX_MODE          0x00000010
-#define E1000_GPIE_EIAME              0x40000000
-#define E1000_GPIE_PBA                0x80000000
+#define E1000_CTRL_EXT_PBA_CLR		0x80000000 /* PBA Clear */
+#define E1000_I2CCMD_REG_ADDR_SHIFT	16
+#define E1000_I2CCMD_PHY_ADDR_SHIFT	24
+#define E1000_I2CCMD_OPCODE_READ	0x08000000
+#define E1000_I2CCMD_OPCODE_WRITE	0x00000000
+#define E1000_I2CCMD_READY		0x20000000
+#define E1000_I2CCMD_ERROR		0x80000000
+#define E1000_I2CCMD_SFP_DATA_ADDR(a)	(0x0000 + (a))
+#define E1000_I2CCMD_SFP_DIAG_ADDR(a)	(0x0100 + (a))
+#define E1000_MAX_SGMII_PHY_REG_ADDR	255
+#define E1000_I2CCMD_PHY_TIMEOUT	200
+#define E1000_IVAR_VALID		0x80
+#define E1000_GPIE_NSICR		0x00000001
+#define E1000_GPIE_MSIX_MODE		0x00000010
+#define E1000_GPIE_EIAME		0x40000000
+#define E1000_GPIE_PBA			0x80000000
 
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
@@ -270,8 +272,10 @@
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT   E1000_ALL_SPEED_DUPLEX
 
 /* LED Control */
-#define E1000_LEDCTL_LED0_MODE_SHIFT      0
-#define E1000_LEDCTL_LED0_BLINK           0x00000080
+#define E1000_LEDCTL_LED0_MODE_SHIFT	0
+#define E1000_LEDCTL_LED0_BLINK		0x00000080
+#define E1000_LEDCTL_LED0_MODE_MASK	0x0000000F
+#define E1000_LEDCTL_LED0_IVRT		0x00000040
 
 #define E1000_LEDCTL_MODE_LED_ON        0xE
 #define E1000_LEDCTL_MODE_LED_OFF       0xF
@@ -616,6 +620,7 @@
 #define E1000_EECD_SIZE_EX_SHIFT     11
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
+#define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
 #define E1000_FLUDONE_ATTEMPTS		20000
 #define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
 #define E1000_I210_FIFO_SEL_RX		0x00
@@ -623,6 +628,11 @@
 #define E1000_I210_FIFO_SEL_TX_LEGACY	E1000_I210_FIFO_SEL_TX_QAV(0)
 #define E1000_I210_FIFO_SEL_BMC2OS_TX	0x06
 #define E1000_I210_FIFO_SEL_BMC2OS_RX	0x01
+#define E1000_I210_FLASH_SECTOR_SIZE	0x1000 /* 4KB FLASH sector unit size */
+/* Secure FLASH mode requires removing MSb */
+#define E1000_I210_FW_PTR_MASK		0x7FFF
+/* Firmware code revision field word offset*/
+#define E1000_I210_FW_VER_OFFSET	328
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
 #define E1000_FLUDONE_ATTEMPTS		20000
@@ -661,20 +671,26 @@
 #define NVM_INIT_CTRL_4            0x0013
 #define NVM_LED_1_CFG              0x001C
 #define NVM_LED_0_2_CFG            0x001F
-
-/* NVM version defines */
 #define NVM_ETRACK_WORD            0x0042
+#define NVM_ETRACK_HIWORD          0x0043
 #define NVM_COMB_VER_OFF           0x0083
 #define NVM_COMB_VER_PTR           0x003d
-#define NVM_MAJOR_MASK             0xF000
-#define NVM_MINOR_MASK             0x0FF0
-#define NVM_BUILD_MASK             0x000F
-#define NVM_COMB_VER_MASK          0x00FF
-#define NVM_MAJOR_SHIFT                12
-#define NVM_MINOR_SHIFT                 4
-#define NVM_COMB_VER_SHFT               8
-#define NVM_VER_INVALID            0xFFFF
-#define NVM_ETRACK_SHIFT               16
+
+/* NVM version defines */
+#define NVM_MAJOR_MASK			0xF000
+#define NVM_MINOR_MASK			0x0FF0
+#define NVM_IMAGE_ID_MASK		0x000F
+#define NVM_COMB_VER_MASK		0x00FF
+#define NVM_MAJOR_SHIFT			12
+#define NVM_MINOR_SHIFT			4
+#define NVM_COMB_VER_SHFT		8
+#define NVM_VER_INVALID			0xFFFF
+#define NVM_ETRACK_SHIFT		16
+#define NVM_ETRACK_VALID		0x8000
+#define NVM_NEW_DEC_MASK		0x0F00
+#define NVM_HEX_CONV			16
+#define NVM_HEX_TENS			10
+
 #define NVM_ETS_CFG			0x003E
 #define NVM_ETS_LTHRES_DELTA_MASK	0x07C0
 #define NVM_ETS_LTHRES_DELTA_SHIFT	6
@@ -771,7 +787,7 @@
 #define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 #define I210_I_PHY_ID        0x01410C00
-#define M88E1545_E_PHY_ID    0x01410EA0
+#define M88E1543_E_PHY_ID    0x01410EA0
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -893,9 +909,9 @@
 #define E1000_EEE_LP_ADV_DEV_I210    7           /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210   61          /* EEE LP Adv Register */
 #define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, no post increment */
-#define E1000_M88E1545_PAGE_ADDR	0x16       /* Page Offset Register */
-#define E1000_M88E1545_EEE_CTRL_1	0x0
-#define E1000_M88E1545_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_M88E1543_PAGE_ADDR	0x16       /* Page Offset Register */
+#define E1000_M88E1543_EEE_CTRL_1	0x0
+#define E1000_M88E1543_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
 #define E1000_EEE_ADV_DEV_I354		7
 #define E1000_EEE_ADV_ADDR_I354		60
 #define E1000_EEE_ADV_100_SUPPORTED	(1 << 1)   /* 100BaseTx EEE Supported */

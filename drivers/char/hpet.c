@@ -725,7 +725,7 @@ static int hpet_is_known(struct hpet_data *hdp)
 	return 0;
 }
 
-static ctl_table hpet_table[] = {
+static struct ctl_table hpet_table[] = {
 	{
 	 .procname = "max-user-freq",
 	 .data = &hpet_max_freq,
@@ -736,7 +736,7 @@ static ctl_table hpet_table[] = {
 	{}
 };
 
-static ctl_table hpet_root[] = {
+static struct ctl_table hpet_root[] = {
 	{
 	 .procname = "hpet",
 	 .maxlen = 0,
@@ -746,7 +746,7 @@ static ctl_table hpet_root[] = {
 	{}
 };
 
-static ctl_table dev_root[] = {
+static struct ctl_table dev_root[] = {
 	{
 	 .procname = "dev",
 	 .maxlen = 0,

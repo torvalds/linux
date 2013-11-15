@@ -85,7 +85,8 @@ nv50_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				     &nouveau_i2c_bit_algo, &port);
+				      &nouveau_i2c_bit_algo, &nv50_i2c_func,
+				      &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -93,7 +94,6 @@ nv50_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (info->drive >= nv50_i2c_addr_nr)
 		return -EINVAL;
 
-	port->base.func = &nv50_i2c_func;
 	port->state = 0x00000007;
 	port->addr = nv50_i2c_addr[info->drive];
 	return 0;

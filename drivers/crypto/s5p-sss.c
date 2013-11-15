@@ -647,7 +647,6 @@ static int s5p_aes_probe(struct platform_device *pdev)
 	clk_disable(pdata->clk);
 
 	s5p_dev = NULL;
-	platform_set_drvdata(pdev, NULL);
 
 	return err;
 }
@@ -668,7 +667,6 @@ static int s5p_aes_remove(struct platform_device *pdev)
 	clk_disable(pdata->clk);
 
 	s5p_dev = NULL;
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

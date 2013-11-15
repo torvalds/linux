@@ -149,8 +149,6 @@ typedef struct {
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
-	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
-
 #ifdef CONFIG_PPC64
 	unsigned long	ksp_vsid;
 #endif
@@ -162,16 +160,17 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
+	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
 #endif
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/*
 	 * The following help to manage the use of Debug Control Registers
 	 * om the BookE platforms.
 	 */
-	unsigned long	dbcr0;
-	unsigned long	dbcr1;
+	uint32_t	dbcr0;
+	uint32_t	dbcr1;
 #ifdef CONFIG_BOOKE
-	unsigned long	dbcr2;
+	uint32_t	dbcr2;
 #endif
 	/*
 	 * The stored value of the DBSR register will be the value at the
@@ -179,7 +178,7 @@ struct thread_struct {
 	 * user (will never be written to) and has value while helping to
 	 * describe the reason for the last debug trap.  Torez
 	 */
-	unsigned long	dbsr;
+	uint32_t	dbsr;
 	/*
 	 * The following will contain addresses used by debug applications
 	 * to help trace and trap on particular address locations.
@@ -200,7 +199,7 @@ struct thread_struct {
 #endif
 #endif
 	/* FP and VSX 0-31 register set */
-	double		fpr[32][TS_FPRWIDTH];
+	double		fpr[32][TS_FPRWIDTH] __attribute__((aligned(16)));
 	struct {
 
 		unsigned int pad;
@@ -247,6 +246,10 @@ struct thread_struct {
 	unsigned long	tm_orig_msr;	/* Thread's MSR on ctx switch */
 	struct pt_regs	ckpt_regs;	/* Checkpointed registers */
 
+	unsigned long	tm_tar;
+	unsigned long	tm_ppr;
+	unsigned long	tm_dscr;
+
 	/*
 	 * Transactional FP and VSX 0-31 register set.
 	 * NOTE: the sense of these is the opposite of the integer ckpt_regs!
@@ -287,9 +290,9 @@ struct thread_struct {
 	unsigned long	siar;
 	unsigned long	sdar;
 	unsigned long	sier;
-	unsigned long	mmcr0;
 	unsigned long	mmcr2;
-	unsigned long	mmcra;
+	unsigned 	mmcr0;
+	unsigned 	used_ebb;
 #endif
 };
 
@@ -317,7 +320,6 @@ struct thread_struct {
 #else
 #define INIT_THREAD  { \
 	.ksp = INIT_SP, \
-	.ksp_limit = INIT_SP_LIMIT, \
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.fs = KERNEL_DS, \
 	.fpr = {{0}}, \
@@ -404,9 +406,7 @@ static inline void prefetchw(const void *x)
 
 #define spin_lock_prefetch(x)	prefetchw(x)
 
-#ifdef CONFIG_PPC64
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
-#endif
 
 #ifdef CONFIG_PPC64
 static inline unsigned long get_clean_sp(unsigned long sp, int is_32)

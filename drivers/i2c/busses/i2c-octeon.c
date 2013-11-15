@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -598,8 +597,6 @@ static int octeon_i2c_probe(struct platform_device *pdev)
 		goto out;
 	}
 	dev_info(i2c->dev, "version %s\n", DRV_VERSION);
-
-	of_i2c_register_devices(&i2c->adap);
 
 	return 0;
 

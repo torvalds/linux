@@ -249,6 +249,17 @@ config MMC_SDHCI_S3C_DMA
 
 	  YMMV.
 
+config MMC_SDHCI_BCM_KONA
+	tristate "SDHCI support on Broadcom KONA platform"
+	depends on ARCH_BCM
+	select MMC_SDHCI_PLTFM
+	help
+	  This selects the Broadcom Kona Secure Digital Host Controller
+	  Interface(SDHCI) support.
+	  This is used in Broadcom mobile SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+
 config MMC_SDHCI_BCM2835
 	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
 	depends on ARCH_BCM2835
@@ -273,11 +284,11 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on SOC_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
-	  If you have an OMAP2430 or OMAP3 board or OMAP4 board with a
-	  Multimedia Card slot, say Y or M here.
+	  If you have an omap2plus board with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
@@ -476,7 +487,7 @@ config MMC_SDHI
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
-	depends on PCI && GENERIC_HARDIRQS
+	depends on PCI
 	select CB710_CORE
 	help
 	  This option enables support for MMC/SD part of ENE CB710/720 Flash
@@ -519,7 +530,7 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on ARM
+	depends on ARC || ARM
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
@@ -555,6 +566,14 @@ config MMC_DW_EXYNOS
 	  This selects support for Samsung Exynos SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Exynos4 and Exynos5 SoC's.
+
+config MMC_DW_SOCFPGA
+	tristate "SOCFPGA specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && MFD_SYSCON
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Altera SoCFPGA specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver.
 
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"

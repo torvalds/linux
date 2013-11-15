@@ -477,7 +477,7 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 	}
 
 	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
-		 net_adj) & ~(align - 1)) + (net_adj - 2);
+		 net_adj) & ~(align - 1)) + net_adj - 2;
 }
 
 static void esp4_err(struct sk_buff *skb, u32 info)
@@ -502,12 +502,9 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	if (!x)
 		return;
 
-	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH) {
-		atomic_inc(&flow_cache_genid);
-		rt_genid_bump(net);
-
+	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
 		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ESP, 0);
-	} else
+	else
 		ipv4_redirect(skb, net, 0, 0, IPPROTO_ESP, 0);
 	xfrm_state_put(x);
 }

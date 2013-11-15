@@ -160,16 +160,15 @@ const struct inode_operations proc_net_inode_operations = {
 	.getattr	= proc_tgid_net_getattr,
 };
 
-static int proc_tgid_net_readdir(struct file *filp, void *dirent,
-		filldir_t filldir)
+static int proc_tgid_net_readdir(struct file *file, struct dir_context *ctx)
 {
 	int ret;
 	struct net *net;
 
 	ret = -EINVAL;
-	net = get_proc_task_net(file_inode(filp));
+	net = get_proc_task_net(file_inode(file));
 	if (net != NULL) {
-		ret = proc_readdir_de(net->proc_net, filp, dirent, filldir);
+		ret = proc_readdir_de(net->proc_net, file, ctx);
 		put_net(net);
 	}
 	return ret;
@@ -178,7 +177,7 @@ static int proc_tgid_net_readdir(struct file *filp, void *dirent,
 const struct file_operations proc_net_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= proc_tgid_net_readdir,
+	.iterate	= proc_tgid_net_readdir,
 };
 
 static __net_init int proc_net_ns_init(struct net *net)

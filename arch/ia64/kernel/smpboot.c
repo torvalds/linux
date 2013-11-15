@@ -351,7 +351,7 @@ static inline void smp_setup_percpu_timer(void)
 {
 }
 
-static void __cpuinit
+static void
 smp_callin (void)
 {
 	int cpuid, phys_id, itc_master;
@@ -442,7 +442,7 @@ smp_callin (void)
 /*
  * Activate a secondary processor.  head.S calls this.
  */
-int __cpuinit
+int
 start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
@@ -459,7 +459,7 @@ start_secondary (void *unused)
 	return 0;
 }
 
-static int __cpuinit
+static int
 do_boot_cpu (int sapicid, int cpu, struct task_struct *idle)
 {
 	int timeout;
@@ -728,7 +728,7 @@ static inline void set_cpu_sibling_map(int cpu)
 	}
 }
 
-int __cpuinit
+int
 __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int ret;

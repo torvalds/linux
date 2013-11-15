@@ -191,7 +191,7 @@ static int pxa_cpufreq_change_voltage(pxa_freqs_t *pxa_freq)
 	return ret;
 }
 
-static __init void pxa_cpufreq_init_voltages(void)
+static void __init pxa_cpufreq_init_voltages(void)
 {
 	vcc_core = regulator_get(NULL, "vcc_core");
 	if (IS_ERR(vcc_core)) {
@@ -207,7 +207,7 @@ static int pxa_cpufreq_change_voltage(pxa_freqs_t *pxa_freq)
 	return 0;
 }
 
-static __init void pxa_cpufreq_init_voltages(void) { }
+static void __init pxa_cpufreq_init_voltages(void) { }
 #endif
 
 static void find_freq_tables(struct cpufreq_frequency_table **freq_table,
@@ -420,7 +420,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	/* Generate pxa25x the run cpufreq_frequency_table struct */
 	for (i = 0; i < NUM_PXA25x_RUN_FREQS; i++) {
 		pxa255_run_freq_table[i].frequency = pxa255_run_freqs[i].khz;
-		pxa255_run_freq_table[i].index = i;
+		pxa255_run_freq_table[i].driver_data = i;
 	}
 	pxa255_run_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
@@ -428,7 +428,7 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	for (i = 0; i < NUM_PXA25x_TURBO_FREQS; i++) {
 		pxa255_turbo_freq_table[i].frequency =
 			pxa255_turbo_freqs[i].khz;
-		pxa255_turbo_freq_table[i].index = i;
+		pxa255_turbo_freq_table[i].driver_data = i;
 	}
 	pxa255_turbo_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
@@ -440,9 +440,9 @@ static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		if (freq > pxa27x_maxfreq)
 			break;
 		pxa27x_freq_table[i].frequency = freq;
-		pxa27x_freq_table[i].index = i;
+		pxa27x_freq_table[i].driver_data = i;
 	}
-	pxa27x_freq_table[i].index = i;
+	pxa27x_freq_table[i].driver_data = i;
 	pxa27x_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	/*

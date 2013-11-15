@@ -323,7 +323,7 @@ next_desc:
 	/* Never use the same address on both ends of the link, even
 	 * if the buggy firmware told us to.
 	 */
-	if (!compare_ether_addr(dev->net->dev_addr, default_modem_addr))
+	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr))
 		eth_hw_addr_random(dev->net);
 
 	/* make MAC addr easily distinguishable from an IP header */
@@ -518,10 +518,141 @@ static const struct usb_device_id products[] = {
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
+	{QMI_FIXED_INTF(0x05c6, 0x7000, 0)},
+	{QMI_FIXED_INTF(0x05c6, 0x7001, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7002, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x7101, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x7102, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x8000, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x8001, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9000, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9003, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9005, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x900a, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900b, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x900c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x900d, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x900f, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9010, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9010, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9011, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9011, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9021, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x9022, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9025, 4)},	/* Alcatel-sbell ASB TL131 TDD LTE  (China Mobile) */
+	{QMI_FIXED_INTF(0x05c6, 0x9026, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x902e, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9031, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9032, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9033, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9034, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9035, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9036, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9037, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9038, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x903b, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x903c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x903d, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x903e, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9043, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9046, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9047, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9048, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x904c, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9050, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9052, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9053, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9053, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9054, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9054, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9055, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9056, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9062, 9)},
+	{QMI_FIXED_INTF(0x05c6, 0x9064, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9065, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9065, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9066, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9066, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9067, 1)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 2)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9068, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9069, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9070, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9070, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9075, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9076, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9077, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9078, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9079, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 5)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 6)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 7)},
+	{QMI_FIXED_INTF(0x05c6, 0x9080, 8)},
+	{QMI_FIXED_INTF(0x05c6, 0x9083, 3)},
+	{QMI_FIXED_INTF(0x05c6, 0x9084, 4)},
+	{QMI_FIXED_INTF(0x05c6, 0x920d, 0)},
+	{QMI_FIXED_INTF(0x05c6, 0x920d, 5)},
 	{QMI_FIXED_INTF(0x12d1, 0x140c, 1)},	/* Huawei E173 */
+	{QMI_FIXED_INTF(0x12d1, 0x14ac, 1)},	/* Huawei E1820 */
 	{QMI_FIXED_INTF(0x19d2, 0x0002, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0012, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0017, 3)},
+	{QMI_FIXED_INTF(0x19d2, 0x0019, 3)},	/* ONDA MT689DC */
 	{QMI_FIXED_INTF(0x19d2, 0x0021, 4)},
 	{QMI_FIXED_INTF(0x19d2, 0x0025, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0031, 4)},
@@ -581,15 +712,22 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x1199, 0x901c, 8)},    /* Sierra Wireless EM7700 */
 	{QMI_FIXED_INTF(0x1bbb, 0x011e, 4)},	/* Telekom Speedstick LTE II (Alcatel One Touch L100V LTE) */
 	{QMI_FIXED_INTF(0x2357, 0x0201, 4)},	/* TP-LINK HSUPA Modem MA180 */
+	{QMI_FIXED_INTF(0x2357, 0x9000, 4)},	/* TP-LINK MA260 */
 	{QMI_FIXED_INTF(0x1bc7, 0x1200, 5)},	/* Telit LE920 */
-	{QMI_FIXED_INTF(0x1e2d, 0x12d1, 4)},	/* Cinterion PLxx */
+	{QMI_FIXED_INTF(0x1e2d, 0x0060, 4)},	/* Cinterion PLxx */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{QMI_GOBI1K_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
 	{QMI_GOBI1K_DEVICE(0x04da, 0x250d)},	/* Panasonic Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x413c, 0x8172)},	/* Dell Gobi Modem device */
-	{QMI_GOBI1K_DEVICE(0x1410, 0xa001)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa001)},	/* Novatel/Verizon USB-1000 */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa002)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa003)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa004)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa005)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa006)},	/* Novatel Gobi Modem device */
+	{QMI_GOBI1K_DEVICE(0x1410, 0xa007)},	/* Novatel Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x0b05, 0x1776)},	/* Asus Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x19d2, 0xfff3)},	/* ONDA Gobi Modem device */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9001)},	/* Generic Gobi Modem device */
@@ -603,7 +741,6 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x413c, 0x8186)},	/* Dell Gobi 2000 Modem device (N0218, VU936) */
 	{QMI_GOBI_DEVICE(0x413c, 0x8194)},	/* Dell Gobi 3000 Composite */
 	{QMI_GOBI_DEVICE(0x05c6, 0x920b)},	/* Generic Gobi 2000 Modem device */
-	{QMI_GOBI_DEVICE(0x05c6, 0x920d)},	/* Gobi 3000 Composite */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9225)},	/* Sony Gobi 2000 Modem device (N0279, VU730) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9245)},	/* Samsung Gobi 2000 Modem device (VL176) */
 	{QMI_GOBI_DEVICE(0x03f0, 0x251d)},	/* HP Gobi 2000 Modem device (VP412) */
@@ -611,6 +748,7 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
+	{QMI_GOBI_DEVICE(0x0af0, 0x8120)},	/* Option GTM681W */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a5)},	/* Sierra Wireless Modem */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a9)},	/* Sierra Wireless Modem */
 	{QMI_GOBI_DEVICE(0x1199, 0x9001)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
@@ -624,7 +762,6 @@ static const struct usb_device_id products[] = {
 	{QMI_GOBI_DEVICE(0x1199, 0x9009)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
 	{QMI_GOBI_DEVICE(0x1199, 0x900a)},	/* Sierra Wireless Gobi 2000 Modem device (VT773) */
 	{QMI_GOBI_DEVICE(0x1199, 0x9011)},	/* Sierra Wireless Gobi 2000 Modem device (MC8305) */
-	{QMI_FIXED_INTF(0x1199, 0x9011, 5)},	/* alternate interface number!? */
 	{QMI_GOBI_DEVICE(0x16d8, 0x8002)},	/* CMDTech Gobi 2000 Modem device (VU922) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9205)},	/* Gobi 2000 Modem device */
 	{QMI_GOBI_DEVICE(0x1199, 0x9013)},	/* Sierra Wireless Gobi 3000 Modem device (MC8355) */

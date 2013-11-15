@@ -82,11 +82,6 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 		goto fail;
 	}
 
-	if (btrfs_root_refs(&root->root_item) == 0) {
-		err = -ENOENT;
-		goto fail;
-	}
-
 	key.objectid = objectid;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;

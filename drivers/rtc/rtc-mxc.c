@@ -377,22 +377,16 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
 	pdata->devtype = pdev->id_entry->driver_data;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name))
-		return -EBUSY;
-
-	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pdata->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pdata->ioaddr))
+		return PTR_ERR(pdata->ioaddr);
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pdata->clk)) {
@@ -436,22 +430,20 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 		pdata->irq = -1;
 	}
 
-	if (pdata->irq >=0)
+	if (pdata->irq >= 0)
 		device_init_wakeup(&pdev->dev, 1);
 
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
-		goto exit_clr_drvdata;
+		goto exit_put_clk;
 	}
 
 	pdata->rtc = rtc;
 
 	return 0;
 
-exit_clr_drvdata:
-	platform_set_drvdata(pdev, NULL);
 exit_put_clk:
 	clk_disable_unprepare(pdata->clk);
 
@@ -465,7 +457,6 @@ static int mxc_rtc_remove(struct platform_device *pdev)
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(pdata->clk);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

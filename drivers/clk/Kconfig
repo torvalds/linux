@@ -27,7 +27,7 @@ config COMMON_CLK_DEBUG
 	bool "DebugFS representation of clock tree"
 	select DEBUG_FS
 	---help---
-	  Creates a directory hierchy in debugfs for visualizing the clk
+	  Creates a directory hierarchy in debugfs for visualizing the clk
 	  tree structure.  Each directory contains read-only members
 	  that export information specific to that clk node: clk_rate,
 	  clk_flags, clk_prepare_count, clk_enable_count &
@@ -42,7 +42,7 @@ config COMMON_CLK_WM831X
 
 config COMMON_CLK_VERSATILE
 	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS || ARM64
 	---help---
           Supports clocking on ARM Reference designs:
 	  - Integrator/AP and Integrator/CP
@@ -58,12 +58,17 @@ config COMMON_CLK_MAX77686
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
-	depends on OF
 	select REGMAP_I2C
 	select RATIONAL
 	---help---
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
+
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS11 MFD"
+	depends on MFD_SEC_CORE
+	---help---
+	  This driver supports S2MPS11 crystal oscillator clock.
 
 config CLK_TWL6040
 	tristate "External McPDM functional clock from twl6040"
@@ -80,6 +85,13 @@ config COMMON_CLK_AXI_CLKGEN
 	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_PPC_CORENET
+	bool "Clock driver for PowerPC corenet platforms"
+	depends on PPC_E500MC && OF
+	---help---
+	  This adds the clock driver support for Freescale PowerPC corenet
+	  platforms using common clock framework.
 
 endmenu
 

@@ -2043,7 +2043,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 		return SUCCESS;
 	}
-	/* grab a ref so the fsp and sc_cmd cannot be relased from under us */
+	/* grab a ref so the fsp and sc_cmd cannot be released from under us */
 	fc_fcp_pkt_hold(fsp);
 	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 

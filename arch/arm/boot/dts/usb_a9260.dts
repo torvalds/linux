@@ -6,8 +6,8 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9260.dtsi"
-/include/ "usb_a9260_common.dtsi"
+#include "at91sam9260.dtsi"
+#include "usb_a9260_common.dtsi"
 
 / {
 	model = "Calao USB A9260";
@@ -19,5 +19,14 @@
 
 	memory {
 		reg = <0x20000000 0x4000000>;
+	};
+
+	ahb {
+		apb {
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
+		};
 	};
 };

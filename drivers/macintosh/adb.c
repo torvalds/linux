@@ -697,7 +697,7 @@ static ssize_t adb_read(struct file *file, char __user *buf,
 	int ret = 0;
 	struct adbdev_state *state = file->private_data;
 	struct adb_request *req;
-	wait_queue_t wait = __WAITQUEUE_INITIALIZER(wait,current);
+	DECLARE_WAITQUEUE(wait,current);
 	unsigned long flags;
 
 	if (count < 2)

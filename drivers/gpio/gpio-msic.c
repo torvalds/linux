@@ -259,7 +259,7 @@ static void msic_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 static int platform_msic_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct intel_msic_gpio_pdata *pdata = dev->platform_data;
+	struct intel_msic_gpio_pdata *pdata = dev_get_platdata(dev);
 	struct msic_gpio *mg;
 	int irq = platform_get_irq(pdev, 0);
 	int retval;

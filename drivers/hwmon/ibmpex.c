@@ -2,7 +2,7 @@
  * A hwmon driver for the IBM PowerExecutive temperature/power sensors
  * Copyright (C) 2007 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -606,7 +606,7 @@ static void __exit ibmpex_exit(void)
 		ibmpex_bmc_delete(p);
 }
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("IBM PowerExecutive power/temperature sensor driver");
 MODULE_LICENSE("GPL");
 

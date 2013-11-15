@@ -21,6 +21,33 @@
 		reg = <0x70000000 0x40000000>;
 	};
 
+	display@di0 {
+		compatible = "fsl,imx-parallel-display";
+		crtcs = <&ipu 0>;
+		interface-pix-fmt = "rgb565";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp0_1>;
+		status = "disabled";
+		display-timings {
+			claawvga {
+				native-mode;
+				clock-frequency = <27000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <60>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <20>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -65,6 +92,15 @@
 			regulator-min-microvolt = <3200000>;
 			regulator-max-microvolt = <3200000>;
 			regulator-always-on;
+		};
+
+		reg_usb_vbus: usb_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio7 8 0>;
+			enable-active-high;
 		};
 	};
 
@@ -118,6 +154,7 @@
 				MX53_PAD_EIM_DA12__GPIO3_12       0x80000000
 				MX53_PAD_EIM_DA13__GPIO3_13       0x80000000
 				MX53_PAD_PATA_DA_0__GPIO7_6       0x80000000
+				MX53_PAD_PATA_DA_2__GPIO7_8	  0x80000000
 				MX53_PAD_GPIO_16__GPIO7_11        0x80000000
 			>;
 		};
@@ -147,6 +184,7 @@
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
+		clocks = <&clks 150>;
 	};
 };
 
@@ -267,4 +305,18 @@
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio7 6 0>;
 	status = "okay";
+};
+
+&vpu {
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usb_vbus>;
+	phy_type = "utmi";
+	status = "okay";
+};
+
+&usbotg {
+       status = "okay";
 };

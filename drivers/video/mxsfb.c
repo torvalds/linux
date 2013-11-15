@@ -46,7 +46,6 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/fb.h>
 #include <linux/regulator/consumer.h>
 #include <video/of_display_timing.h>
@@ -239,24 +238,6 @@ static const struct fb_bitfield def_rgb565[] = {
 	}
 };
 
-static const struct fb_bitfield def_rgb666[] = {
-	[RED] = {
-		.offset = 16,
-		.length = 6,
-	},
-	[GREEN] = {
-		.offset = 8,
-		.length = 6,
-	},
-	[BLUE] = {
-		.offset = 0,
-		.length = 6,
-	},
-	[TRANSP] = {	/* no support for transparency */
-		.length = 0,
-	}
-};
-
 static const struct fb_bitfield def_rgb888[] = {
 	[RED] = {
 		.offset = 16,
@@ -309,9 +290,6 @@ static int mxsfb_check_var(struct fb_var_screeninfo *var,
 			break;
 		case STMLCDIF_16BIT:
 		case STMLCDIF_18BIT:
-			/* 24 bit to 18 bit mapping */
-			rgb = def_rgb666;
-			break;
 		case STMLCDIF_24BIT:
 			/* real 24 bit */
 			rgb = def_rgb888;
@@ -453,11 +431,6 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 			return -EINVAL;
 		case STMLCDIF_16BIT:
 		case STMLCDIF_18BIT:
-			/* 24 bit to 18 bit mapping */
-			ctrl |= CTRL_DF24; /* ignore the upper 2 bits in
-					    *  each colour component
-					    */
-			break;
 		case STMLCDIF_24BIT:
 			/* real 24 bit */
 			break;
@@ -647,6 +620,7 @@ static int mxsfb_restore_mode(struct mxsfb_info *host)
 		break;
 	case 3:
 		bits_per_pixel = 32;
+		break;
 	case 1:
 	default:
 		return -EINVAL;
@@ -877,17 +851,10 @@ static int mxsfb_probe(struct platform_device *pdev)
 	struct mxsfb_info *host;
 	struct fb_info *fb_info;
 	struct fb_modelist *modelist;
-	struct pinctrl *pinctrl;
 	int ret;
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Cannot get memory IO resource\n");
-		return -ENODEV;
-	}
 
 	fb_info = framebuffer_alloc(sizeof(struct mxsfb_info), &pdev->dev);
 	if (!fb_info) {
@@ -897,9 +864,9 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	host = to_imxfb_host(fb_info);
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base)) {
-		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = PTR_ERR(host->base);
 		goto fb_release;
 	}
@@ -908,12 +875,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 
 	host->devdata = &mxsfb_devdata[pdev->id_entry->driver_data];
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto fb_release;
-	}
 
 	host->clk = devm_clk_get(&host->pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -985,8 +946,6 @@ static int mxsfb_remove(struct platform_device *pdev)
 	mxsfb_free_videomem(host);
 
 	framebuffer_release(fb_info);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

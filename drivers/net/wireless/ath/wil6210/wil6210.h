@@ -34,9 +34,11 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_RX_RING_SIZE (128)
-#define WIL6210_TX_RING_SIZE (128)
-#define WIL6210_MAX_TX_RINGS (24)
+#define WIL6210_RX_RING_SIZE	(128)
+#define WIL6210_TX_RING_SIZE	(128)
+#define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
+#define WIL6210_MAX_CID		(8) /* HW limit */
+#define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 
 /* Hardware definitions begin */
 
@@ -154,11 +156,22 @@ struct wil6210_mbox_hdr {
 /* max. value for wil6210_mbox_hdr.len */
 #define MAX_MBOXITEM_SIZE   (240)
 
+/**
+ * struct wil6210_mbox_hdr_wmi - WMI header
+ *
+ * @mid: MAC ID
+ *	00 - default, created by FW
+ *	01..0f - WiFi ports, driver to create
+ *	10..fe - debug
+ *	ff - broadcast
+ * @id: command/event ID
+ * @timestamp: FW fills for events, free-running msec timer
+ */
 struct wil6210_mbox_hdr_wmi {
-	u8 reserved0[2];
+	u8 mid;
+	u8 reserved;
 	__le16 id;
-	__le16 info1; /* bits [0..3] - device_id, rest - unused */
-	u8 reserved1[2];
+	__le32 timestamp;
 } __packed;
 
 struct pending_wmi_event {
@@ -170,6 +183,14 @@ struct pending_wmi_event {
 	} __packed event;
 };
 
+/**
+ * struct wil_ctx - software context for Vring descriptor
+ */
+struct wil_ctx {
+	struct sk_buff *skb;
+	u8 mapped_as_page:1;
+};
+
 union vring_desc;
 
 struct vring {
@@ -179,11 +200,12 @@ struct vring {
 	u32 swtail;
 	u32 swhead;
 	u32 hwtail; /* write here to inform hw */
-	void **ctx; /* void *ctx[size] - software context */
+	struct wil_ctx *ctx; /* ctx[size] - software context */
 };
 
 enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
+	wil_status_fwconnecting,
 	wil_status_fwconnected,
 	wil_status_dontscan,
 	wil_status_reset_done,
@@ -239,6 +261,8 @@ struct wil6210_priv {
 	 * - consumed in thread by wmi_event_worker
 	 */
 	spinlock_t wmi_ev_lock;
+	struct napi_struct napi_rx;
+	struct napi_struct napi_tx;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -267,9 +291,13 @@ struct wil6210_priv {
 #define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
 
-#define wil_dbg(wil, fmt, arg...) netdev_dbg(wil_to_ndev(wil), fmt, ##arg)
-#define wil_info(wil, fmt, arg...) netdev_info(wil_to_ndev(wil), fmt, ##arg)
-#define wil_err(wil, fmt, arg...) netdev_err(wil_to_ndev(wil), fmt, ##arg)
+int wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_err(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_info(struct wil6210_priv *wil, const char *fmt, ...);
+#define wil_dbg(wil, fmt, arg...) do { \
+	netdev_dbg(wil_to_ndev(wil), fmt, ##arg); \
+	wil_dbg_trace(wil, fmt, ##arg); \
+} while (0)
 
 #define wil_dbg_irq(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
 #define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)
@@ -320,7 +348,6 @@ int wmi_set_ssid(struct wil6210_priv *wil, u8 ssid_len, const void *ssid);
 int wmi_get_ssid(struct wil6210_priv *wil, u8 *ssid_len, void *ssid);
 int wmi_set_channel(struct wil6210_priv *wil, int channel);
 int wmi_get_channel(struct wil6210_priv *wil, int *channel);
-int wmi_tx_eapol(struct wil6210_priv *wil, struct sk_buff *skb);
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
 		       const void *mac_addr);
 int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
@@ -356,10 +383,12 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
-void wil_tx_complete(struct wil6210_priv *wil, int ringid);
+int wil_tx_complete(struct wil6210_priv *wil, int ringid);
+void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
 
 /* RX API */
-void wil_rx_handle(struct wil6210_priv *wil);
+void wil_rx_handle(struct wil6210_priv *wil, int *quota);
+void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 

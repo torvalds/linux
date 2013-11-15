@@ -84,6 +84,10 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	unsigned int fpos_offset;
 	unsigned int reg_offset;
 
+	/* Suppress the cache if we're using a subrange */
+	if (base)
+		return base;
+
 	/*
 	 * If we don't have a cache build one so we don't have to do a
 	 * linear scan each time.
@@ -145,7 +149,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			reg_offset = fpos_offset / map->debugfs_tot_len;
 			*pos = c->min + (reg_offset * map->debugfs_tot_len);
 			mutex_unlock(&map->cache_lock);
-			return c->base_reg + reg_offset;
+			return c->base_reg + (reg_offset * map->reg_stride);
 		}
 
 		*pos = c->max;
@@ -265,6 +269,7 @@ static ssize_t regmap_map_write_file(struct file *file,
 	char *start = buf;
 	unsigned long reg, value;
 	struct regmap *map = file->private_data;
+	int ret;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -276,13 +281,15 @@ static ssize_t regmap_map_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
+	if (kstrtoul(start, 16, &value))
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */
-	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 
-	regmap_write(map, reg, value);
+	ret = regmap_write(map, reg, value);
+	if (ret < 0)
+		return ret;
 	return buf_size;
 }
 #else

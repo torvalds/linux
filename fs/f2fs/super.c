@@ -18,23 +18,28 @@
 #include <linux/parser.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 #include <linux/random.h>
 #include <linux/exportfs.h>
 #include <linux/blkdev.h>
 #include <linux/f2fs_fs.h>
+#include <linux/sysfs.h>
 
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
 #include "xattr.h"
+#include "gc.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/f2fs.h>
 
+static struct proc_dir_entry *f2fs_proc_root;
 static struct kmem_cache *f2fs_inode_cachep;
+static struct kset *f2fs_kset;
 
 enum {
-	Opt_gc_background_off,
+	Opt_gc_background,
 	Opt_disable_roll_forward,
 	Opt_discard,
 	Opt_noheap,
@@ -42,11 +47,12 @@ enum {
 	Opt_noacl,
 	Opt_active_logs,
 	Opt_disable_ext_identify,
+	Opt_inline_xattr,
 	Opt_err,
 };
 
 static match_table_t f2fs_tokens = {
-	{Opt_gc_background_off, "background_gc_off"},
+	{Opt_gc_background, "background_gc=%s"},
 	{Opt_disable_roll_forward, "disable_roll_forward"},
 	{Opt_discard, "discard"},
 	{Opt_noheap, "no_heap"},
@@ -54,7 +60,115 @@ static match_table_t f2fs_tokens = {
 	{Opt_noacl, "noacl"},
 	{Opt_active_logs, "active_logs=%u"},
 	{Opt_disable_ext_identify, "disable_ext_identify"},
+	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_err, NULL},
+};
+
+/* Sysfs support for f2fs */
+struct f2fs_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct f2fs_attr *, struct f2fs_sb_info *, char *);
+	ssize_t (*store)(struct f2fs_attr *, struct f2fs_sb_info *,
+			 const char *, size_t);
+	int offset;
+};
+
+static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi, char *buf)
+{
+	struct f2fs_gc_kthread *gc_kth = sbi->gc_thread;
+	unsigned int *ui;
+
+	if (!gc_kth)
+		return -EINVAL;
+
+	ui = (unsigned int *)(((char *)gc_kth) + a->offset);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
+}
+
+static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi,
+			const char *buf, size_t count)
+{
+	struct f2fs_gc_kthread *gc_kth = sbi->gc_thread;
+	unsigned long t;
+	unsigned int *ui;
+	ssize_t ret;
+
+	if (!gc_kth)
+		return -EINVAL;
+
+	ui = (unsigned int *)(((char *)gc_kth) + a->offset);
+
+	ret = kstrtoul(skip_spaces(buf), 0, &t);
+	if (ret < 0)
+		return ret;
+	*ui = t;
+	return count;
+}
+
+static ssize_t f2fs_attr_show(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+								s_kobj);
+	struct f2fs_attr *a = container_of(attr, struct f2fs_attr, attr);
+
+	return a->show ? a->show(a, sbi, buf) : 0;
+}
+
+static ssize_t f2fs_attr_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t len)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+									s_kobj);
+	struct f2fs_attr *a = container_of(attr, struct f2fs_attr, attr);
+
+	return a->store ? a->store(a, sbi, buf, len) : 0;
+}
+
+static void f2fs_sb_release(struct kobject *kobj)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+								s_kobj);
+	complete(&sbi->s_kobj_unregister);
+}
+
+#define F2FS_ATTR_OFFSET(_name, _mode, _show, _store, _elname) \
+static struct f2fs_attr f2fs_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,					\
+	.store	= _store,					\
+	.offset = offsetof(struct f2fs_gc_kthread, _elname),	\
+}
+
+#define F2FS_RW_ATTR(name, elname)	\
+	F2FS_ATTR_OFFSET(name, 0644, f2fs_sbi_show, f2fs_sbi_store, elname)
+
+F2FS_RW_ATTR(gc_min_sleep_time, min_sleep_time);
+F2FS_RW_ATTR(gc_max_sleep_time, max_sleep_time);
+F2FS_RW_ATTR(gc_no_gc_sleep_time, no_gc_sleep_time);
+F2FS_RW_ATTR(gc_idle, gc_idle);
+
+#define ATTR_LIST(name) (&f2fs_attr_##name.attr)
+static struct attribute *f2fs_attrs[] = {
+	ATTR_LIST(gc_min_sleep_time),
+	ATTR_LIST(gc_max_sleep_time),
+	ATTR_LIST(gc_no_gc_sleep_time),
+	ATTR_LIST(gc_idle),
+	NULL,
+};
+
+static const struct sysfs_ops f2fs_attr_ops = {
+	.show	= f2fs_attr_show,
+	.store	= f2fs_attr_store,
+};
+
+static struct kobj_type f2fs_ktype = {
+	.default_attrs	= f2fs_attrs,
+	.sysfs_ops	= &f2fs_attr_ops,
+	.release	= f2fs_sb_release,
 };
 
 void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
@@ -76,6 +190,98 @@ static void init_once(void *foo)
 	inode_init_once(&fi->vfs_inode);
 }
 
+static int parse_options(struct super_block *sb, char *options)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	substring_t args[MAX_OPT_ARGS];
+	char *p, *name;
+	int arg = 0;
+
+	if (!options)
+		return 0;
+
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+		/*
+		 * Initialize args struct so we know whether arg was
+		 * found; some options take optional arguments.
+		 */
+		args[0].to = args[0].from = NULL;
+		token = match_token(p, f2fs_tokens, args);
+
+		switch (token) {
+		case Opt_gc_background:
+			name = match_strdup(&args[0]);
+
+			if (!name)
+				return -ENOMEM;
+			if (!strncmp(name, "on", 2))
+				set_opt(sbi, BG_GC);
+			else if (!strncmp(name, "off", 3))
+				clear_opt(sbi, BG_GC);
+			else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_disable_roll_forward:
+			set_opt(sbi, DISABLE_ROLL_FORWARD);
+			break;
+		case Opt_discard:
+			set_opt(sbi, DISCARD);
+			break;
+		case Opt_noheap:
+			set_opt(sbi, NOHEAP);
+			break;
+#ifdef CONFIG_F2FS_FS_XATTR
+		case Opt_nouser_xattr:
+			clear_opt(sbi, XATTR_USER);
+			break;
+		case Opt_inline_xattr:
+			set_opt(sbi, INLINE_XATTR);
+			break;
+#else
+		case Opt_nouser_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"nouser_xattr options not supported");
+			break;
+		case Opt_inline_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"inline_xattr options not supported");
+			break;
+#endif
+#ifdef CONFIG_F2FS_FS_POSIX_ACL
+		case Opt_noacl:
+			clear_opt(sbi, POSIX_ACL);
+			break;
+#else
+		case Opt_noacl:
+			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
+			break;
+#endif
+		case Opt_active_logs:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
+				return -EINVAL;
+			sbi->active_logs = arg;
+			break;
+		case Opt_disable_ext_identify:
+			set_opt(sbi, DISABLE_EXT_IDENTIFY);
+			break;
+		default:
+			f2fs_msg(sb, KERN_ERR,
+				"Unrecognized mount option \"%s\" or missing value",
+				p);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static struct inode *f2fs_alloc_inode(struct super_block *sb)
 {
 	struct f2fs_inode_info *fi;
@@ -95,6 +301,9 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 
 	set_inode_flag(fi, FI_NEW_INODE);
 
+	if (test_opt(F2FS_SB(sb), INLINE_XATTR))
+		set_inode_flag(fi, FI_INLINE_XATTR);
+
 	return &fi->vfs_inode;
 }
 
@@ -112,6 +321,16 @@ static int f2fs_drop_inode(struct inode *inode)
 	return generic_drop_inode(inode);
 }
 
+/*
+ * f2fs_dirty_inode() is called from __mark_inode_dirty()
+ *
+ * We should call set_dirty_inode to write the dirty inode through write_inode.
+ */
+static void f2fs_dirty_inode(struct inode *inode, int flags)
+{
+	set_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
+}
+
 static void f2fs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
@@ -127,6 +346,12 @@ static void f2fs_put_super(struct super_block *sb)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 
+	if (sbi->s_proc) {
+		remove_proc_entry("segment_info", sbi->s_proc);
+		remove_proc_entry(sb->s_id, f2fs_proc_root);
+	}
+	kobject_del(&sbi->s_kobj);
+
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
@@ -140,6 +365,8 @@ static void f2fs_put_super(struct super_block *sb)
 	destroy_segment_manager(sbi);
 
 	kfree(sbi->ckpt);
+	kobject_put(&sbi->s_kobj);
+	wait_for_completion(&sbi->s_kobj_unregister);
 
 	sb->s_fs_info = NULL;
 	brelse(sbi->raw_super_buf);
@@ -170,7 +397,7 @@ static int f2fs_freeze(struct super_block *sb)
 {
 	int err;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (f2fs_readonly(sb))
 		return 0;
 
 	err = f2fs_sync_fs(sb, 1);
@@ -214,10 +441,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(root->d_sb);
 
-	if (test_opt(sbi, BG_GC))
-		seq_puts(seq, ",background_gc_on");
+	if (!(root->d_sb->s_flags & MS_RDONLY) && test_opt(sbi, BG_GC))
+		seq_printf(seq, ",background_gc=%s", "on");
 	else
-		seq_puts(seq, ",background_gc_off");
+		seq_printf(seq, ",background_gc=%s", "off");
 	if (test_opt(sbi, DISABLE_ROLL_FORWARD))
 		seq_puts(seq, ",disable_roll_forward");
 	if (test_opt(sbi, DISCARD))
@@ -229,6 +456,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",user_xattr");
 	else
 		seq_puts(seq, ",nouser_xattr");
+	if (test_opt(sbi, INLINE_XATTR))
+		seq_puts(seq, ",inline_xattr");
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	if (test_opt(sbi, POSIX_ACL))
@@ -244,11 +473,94 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
+static int segment_info_seq_show(struct seq_file *seq, void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	unsigned int total_segs = le32_to_cpu(sbi->raw_super->segment_count_main);
+	int i;
+
+	for (i = 0; i < total_segs; i++) {
+		seq_printf(seq, "%u", get_valid_blocks(sbi, i, 1));
+		if (i != 0 && (i % 10) == 0)
+			seq_puts(seq, "\n");
+		else
+			seq_puts(seq, " ");
+	}
+	return 0;
+}
+
+static int segment_info_open_fs(struct inode *inode, struct file *file)
+{
+	return single_open(file, segment_info_seq_show, PDE_DATA(inode));
+}
+
+static const struct file_operations f2fs_seq_segment_info_fops = {
+	.owner = THIS_MODULE,
+	.open = segment_info_open_fs,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int f2fs_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct f2fs_mount_info org_mount_opt;
+	int err, active_logs;
+
+	/*
+	 * Save the old mount options in case we
+	 * need to restore them.
+	 */
+	org_mount_opt = sbi->mount_opt;
+	active_logs = sbi->active_logs;
+
+	/* parse mount options */
+	err = parse_options(sb, data);
+	if (err)
+		goto restore_opts;
+
+	/*
+	 * Previous and new state of filesystem is RO,
+	 * so no point in checking GC conditions.
+	 */
+	if ((sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
+		goto skip;
+
+	/*
+	 * We stop the GC thread if FS is mounted as RO
+	 * or if background_gc = off is passed in mount
+	 * option. Also sync the filesystem.
+	 */
+	if ((*flags & MS_RDONLY) || !test_opt(sbi, BG_GC)) {
+		if (sbi->gc_thread) {
+			stop_gc_thread(sbi);
+			f2fs_sync_fs(sb, 1);
+		}
+	} else if (test_opt(sbi, BG_GC) && !sbi->gc_thread) {
+		err = start_gc_thread(sbi);
+		if (err)
+			goto restore_opts;
+	}
+skip:
+	/* Update the POSIXACL Flag */
+	 sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
+	return 0;
+
+restore_opts:
+	sbi->mount_opt = org_mount_opt;
+	sbi->active_logs = active_logs;
+	return err;
+}
+
 static struct super_operations f2fs_sops = {
 	.alloc_inode	= f2fs_alloc_inode,
 	.drop_inode	= f2fs_drop_inode,
 	.destroy_inode	= f2fs_destroy_inode,
 	.write_inode	= f2fs_write_inode,
+	.dirty_inode	= f2fs_dirty_inode,
 	.show_options	= f2fs_show_options,
 	.evict_inode	= f2fs_evict_inode,
 	.put_super	= f2fs_put_super,
@@ -256,6 +568,7 @@ static struct super_operations f2fs_sops = {
 	.freeze_fs	= f2fs_freeze,
 	.unfreeze_fs	= f2fs_unfreeze,
 	.statfs		= f2fs_statfs,
+	.remount_fs	= f2fs_remount,
 };
 
 static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
@@ -303,82 +616,9 @@ static const struct export_operations f2fs_export_ops = {
 	.get_parent = f2fs_get_parent,
 };
 
-static int parse_options(struct super_block *sb, struct f2fs_sb_info *sbi,
-				char *options)
-{
-	substring_t args[MAX_OPT_ARGS];
-	char *p;
-	int arg = 0;
-
-	if (!options)
-		return 0;
-
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		if (!*p)
-			continue;
-		/*
-		 * Initialize args struct so we know whether arg was
-		 * found; some options take optional arguments.
-		 */
-		args[0].to = args[0].from = NULL;
-		token = match_token(p, f2fs_tokens, args);
-
-		switch (token) {
-		case Opt_gc_background_off:
-			clear_opt(sbi, BG_GC);
-			break;
-		case Opt_disable_roll_forward:
-			set_opt(sbi, DISABLE_ROLL_FORWARD);
-			break;
-		case Opt_discard:
-			set_opt(sbi, DISCARD);
-			break;
-		case Opt_noheap:
-			set_opt(sbi, NOHEAP);
-			break;
-#ifdef CONFIG_F2FS_FS_XATTR
-		case Opt_nouser_xattr:
-			clear_opt(sbi, XATTR_USER);
-			break;
-#else
-		case Opt_nouser_xattr:
-			f2fs_msg(sb, KERN_INFO,
-				"nouser_xattr options not supported");
-			break;
-#endif
-#ifdef CONFIG_F2FS_FS_POSIX_ACL
-		case Opt_noacl:
-			clear_opt(sbi, POSIX_ACL);
-			break;
-#else
-		case Opt_noacl:
-			f2fs_msg(sb, KERN_INFO, "noacl options not supported");
-			break;
-#endif
-		case Opt_active_logs:
-			if (args->from && match_int(args, &arg))
-				return -EINVAL;
-			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
-				return -EINVAL;
-			sbi->active_logs = arg;
-			break;
-		case Opt_disable_ext_identify:
-			set_opt(sbi, DISABLE_EXT_IDENTIFY);
-			break;
-		default:
-			f2fs_msg(sb, KERN_ERR,
-				"Unrecognized mount option \"%s\" or missing value",
-				p);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
 static loff_t max_file_size(unsigned bits)
 {
-	loff_t result = ADDRS_PER_INODE;
+	loff_t result = (DEF_ADDRS_PER_INODE - F2FS_INLINE_XATTR_ADDRS);
 	loff_t leaf_count = ADDRS_PER_BLOCK;
 
 	/* two direct node blocks */
@@ -541,6 +781,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto free_sb_buf;
 	}
+	sb->s_fs_info = sbi;
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
 
@@ -553,7 +794,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	set_opt(sbi, POSIX_ACL);
 #endif
 	/* parse mount options */
-	err = parse_options(sb, sbi, (char *)data);
+	err = parse_options(sb, (char *)data);
 	if (err)
 		goto free_sb_buf;
 
@@ -565,7 +806,6 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = f2fs_xattr_handlers;
 	sb->s_export_op = &f2fs_export_ops;
 	sb->s_magic = F2FS_SUPER_MAGIC;
-	sb->s_fs_info = sbi;
 	sb->s_time_gran = 1;
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
@@ -674,14 +914,27 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 				"Cannot recover all fsync data errno=%ld", err);
 	}
 
-	/* After POR, we can run background GC thread */
-	err = start_gc_thread(sbi);
-	if (err)
-		goto fail;
+	/*
+	 * If filesystem is not mounted as read-only then
+	 * do start the gc_thread.
+	 */
+	if (!(sb->s_flags & MS_RDONLY)) {
+		/* After POR, we can run background GC thread.*/
+		err = start_gc_thread(sbi);
+		if (err)
+			goto fail;
+	}
 
 	err = f2fs_build_stats(sbi);
 	if (err)
 		goto fail;
+
+	if (f2fs_proc_root)
+		sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
+
+	if (sbi->s_proc)
+		proc_create_data("segment_info", S_IRUGO, sbi->s_proc,
+				 &f2fs_seq_segment_info_fops, sb);
 
 	if (test_opt(sbi, DISCARD)) {
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
@@ -690,6 +943,13 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 					"mounting with \"discard\" option, but "
 					"the device does not support discard");
 	}
+
+	sbi->s_kobj.kset = f2fs_kset;
+	init_completion(&sbi->s_kobj_unregister);
+	err = kobject_init_and_add(&sbi->s_kobj, &f2fs_ktype, NULL,
+							"%s", sb->s_id);
+	if (err)
+		goto fail;
 
 	return 0;
 fail:
@@ -758,29 +1018,49 @@ static int __init init_f2fs_fs(void)
 		goto fail;
 	err = create_node_manager_caches();
 	if (err)
-		goto fail;
+		goto free_inodecache;
 	err = create_gc_caches();
 	if (err)
-		goto fail;
+		goto free_node_manager_caches;
 	err = create_checkpoint_caches();
 	if (err)
-		goto fail;
+		goto free_gc_caches;
+	f2fs_kset = kset_create_and_add("f2fs", NULL, fs_kobj);
+	if (!f2fs_kset) {
+		err = -ENOMEM;
+		goto free_checkpoint_caches;
+	}
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
-		goto fail;
+		goto free_kset;
 	f2fs_create_root_stats();
+	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
+	return 0;
+
+free_kset:
+	kset_unregister(f2fs_kset);
+free_checkpoint_caches:
+	destroy_checkpoint_caches();
+free_gc_caches:
+	destroy_gc_caches();
+free_node_manager_caches:
+	destroy_node_manager_caches();
+free_inodecache:
+	destroy_inodecache();
 fail:
 	return err;
 }
 
 static void __exit exit_f2fs_fs(void)
 {
+	remove_proc_entry("fs/f2fs", NULL);
 	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
 	destroy_checkpoint_caches();
 	destroy_gc_caches();
 	destroy_node_manager_caches();
 	destroy_inodecache();
+	kset_unregister(f2fs_kset);
 }
 
 module_init(init_f2fs_fs)

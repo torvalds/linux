@@ -51,26 +51,27 @@ static void irq_remapping_disable_io_apic(void)
 
 static int do_setup_msi_irqs(struct pci_dev *dev, int nvec)
 {
-	int node, ret, sub_handle, index = 0;
+	int node, ret, sub_handle, nvec_pow2, index = 0;
 	unsigned int irq;
 	struct msi_desc *msidesc;
-
-	nvec = __roundup_pow_of_two(nvec);
 
 	WARN_ON(!list_is_singular(&dev->msi_list));
 	msidesc = list_entry(dev->msi_list.next, struct msi_desc, list);
 	WARN_ON(msidesc->irq);
 	WARN_ON(msidesc->msi_attrib.multiple);
+	WARN_ON(msidesc->nvec_used);
 
 	node = dev_to_node(&dev->dev);
 	irq = __create_irqs(get_nr_irqs_gsi(), nvec, node);
 	if (irq == 0)
 		return -ENOSPC;
 
-	msidesc->msi_attrib.multiple = ilog2(nvec);
+	nvec_pow2 = __roundup_pow_of_two(nvec);
+	msidesc->nvec_used = nvec;
+	msidesc->msi_attrib.multiple = ilog2(nvec_pow2);
 	for (sub_handle = 0; sub_handle < nvec; sub_handle++) {
 		if (!sub_handle) {
-			index = msi_alloc_remapped_irq(dev, irq, nvec);
+			index = msi_alloc_remapped_irq(dev, irq, nvec_pow2);
 			if (index < 0) {
 				ret = index;
 				goto error;
@@ -95,6 +96,7 @@ error:
 	 * IRQs from tearing down again in default_teardown_msi_irqs()
 	 */
 	msidesc->irq = 0;
+	msidesc->nvec_used = 0;
 	msidesc->msi_attrib.multiple = 0;
 
 	return ret;

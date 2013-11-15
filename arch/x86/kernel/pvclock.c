@@ -128,46 +128,7 @@ void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
 	set_normalized_timespec(ts, now.tv_sec, now.tv_nsec);
 }
 
-static struct pvclock_vsyscall_time_info *pvclock_vdso_info;
-
-static struct pvclock_vsyscall_time_info *
-pvclock_get_vsyscall_user_time_info(int cpu)
-{
-	if (!pvclock_vdso_info) {
-		BUG();
-		return NULL;
-	}
-
-	return &pvclock_vdso_info[cpu];
-}
-
-struct pvclock_vcpu_time_info *pvclock_get_vsyscall_time_info(int cpu)
-{
-	return &pvclock_get_vsyscall_user_time_info(cpu)->pvti;
-}
-
 #ifdef CONFIG_X86_64
-static int pvclock_task_migrate(struct notifier_block *nb, unsigned long l,
-			        void *v)
-{
-	struct task_migration_notifier *mn = v;
-	struct pvclock_vsyscall_time_info *pvti;
-
-	pvti = pvclock_get_vsyscall_user_time_info(mn->from_cpu);
-
-	/* this is NULL when pvclock vsyscall is not initialized */
-	if (unlikely(pvti == NULL))
-		return NOTIFY_DONE;
-
-	pvti->migrate_count++;
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block pvclock_migrate = {
-	.notifier_call = pvclock_task_migrate,
-};
-
 /*
  * Initialize the generic pvclock vsyscall state.  This will allocate
  * a/some page(s) for the per-vcpu pvclock information, set up a
@@ -181,16 +142,11 @@ int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
 
 	WARN_ON (size != PVCLOCK_VSYSCALL_NR_PAGES*PAGE_SIZE);
 
-	pvclock_vdso_info = i;
-
 	for (idx = 0; idx <= (PVCLOCK_FIXMAP_END-PVCLOCK_FIXMAP_BEGIN); idx++) {
 		__set_fixmap(PVCLOCK_FIXMAP_BEGIN + idx,
 			     __pa(i) + (idx*PAGE_SIZE),
 			     PAGE_KERNEL_VVAR);
 	}
-
-
-	register_task_migration_notifier(&pvclock_migrate);
 
 	return 0;
 }

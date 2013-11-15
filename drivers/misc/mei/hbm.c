@@ -35,11 +35,15 @@ static void mei_hbm_me_cl_allocate(struct mei_device *dev)
 	struct mei_me_client *clients;
 	int b;
 
+	dev->me_clients_num = 0;
+	dev->me_client_presentation_num = 0;
+	dev->me_client_index = 0;
+
 	/* count how many ME clients we have */
 	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
 		dev->me_clients_num++;
 
-	if (dev->me_clients_num <= 0)
+	if (dev->me_clients_num == 0)
 		return;
 
 	kfree(dev->me_clients);
@@ -139,7 +143,7 @@ int mei_hbm_start_wait(struct mei_device *dev)
 
 	if (ret <= 0 && (dev->hbm_state <= MEI_HBM_START)) {
 		dev->hbm_state = MEI_HBM_IDLE;
-		dev_err(&dev->pdev->dev, "wating for mei start failed\n");
+		dev_err(&dev->pdev->dev, "waiting for mei start failed\n");
 		return -ETIMEDOUT;
 	}
 	return 0;
@@ -167,7 +171,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 
 	dev->hbm_state = MEI_HBM_IDLE;
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
-		dev_err(&dev->pdev->dev, "version message writet failed\n");
+		dev_err(&dev->pdev->dev, "version message write failed\n");
 		dev->dev_state = MEI_DEV_RESETTING;
 		mei_reset(dev, 1);
 		return -ENODEV;
@@ -221,7 +225,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
 	unsigned long next_client_index;
-	u8 client_num;
+	unsigned long client_num;
 
 
 	client_num = dev->me_client_presentation_num;
@@ -536,6 +540,20 @@ static void mei_hbm_fw_disconnect_req(struct mei_device *dev,
 
 
 /**
+ * mei_hbm_version_is_supported - checks whether the driver can
+ *     support the hbm version of the device
+ *
+ * @dev: the device structure
+ * returns true if driver can support hbm version of the device
+ */
+bool mei_hbm_version_is_supported(struct mei_device *dev)
+{
+	return	(dev->version.major_version < HBM_MAJOR_VERSION) ||
+		(dev->version.major_version == HBM_MAJOR_VERSION &&
+		 dev->version.minor_version <= HBM_MINOR_VERSION);
+}
+
+/**
  * mei_hbm_dispatch - bottom half read routine after ISR to
  * handle the read bus message cmd processing.
  *
@@ -562,9 +580,24 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	switch (mei_msg->hbm_cmd) {
 	case HOST_START_RES_CMD:
 		version_res = (struct hbm_host_version_response *)mei_msg;
-		if (!version_res->host_version_supported) {
-			dev->version = version_res->me_max_version;
-			dev_dbg(&dev->pdev->dev, "version mismatch.\n");
+
+		dev_dbg(&dev->pdev->dev, "HBM VERSION: DRIVER=%02d:%02d DEVICE=%02d:%02d\n",
+				HBM_MAJOR_VERSION, HBM_MINOR_VERSION,
+				version_res->me_max_version.major_version,
+				version_res->me_max_version.minor_version);
+
+		if (version_res->host_version_supported) {
+			dev->version.major_version = HBM_MAJOR_VERSION;
+			dev->version.minor_version = HBM_MINOR_VERSION;
+		} else {
+			dev->version.major_version =
+				version_res->me_max_version.major_version;
+			dev->version.minor_version =
+				version_res->me_max_version.minor_version;
+		}
+
+		if (!mei_hbm_version_is_supported(dev)) {
+			dev_warn(&dev->pdev->dev, "hbm version mismatch: stopping the driver.\n");
 
 			dev->hbm_state = MEI_HBM_STOP;
 			mei_hbm_stop_req_prepare(dev, &dev->wr_msg.hdr,
@@ -575,8 +608,6 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return;
 		}
 
-		dev->version.major_version = HBM_MAJOR_VERSION;
-		dev->version.minor_version = HBM_MINOR_VERSION;
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->hbm_state == MEI_HBM_START) {
 			dev->init_clients_timer = 0;
@@ -650,8 +681,6 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->hbm_state == MEI_HBM_ENUM_CLIENTS) {
 				dev->init_clients_timer = 0;
-				dev->me_client_presentation_num = 0;
-				dev->me_client_index = 0;
 				mei_hbm_me_cl_allocate(dev);
 				dev->hbm_state = MEI_HBM_CLIENT_PROPERTIES;
 

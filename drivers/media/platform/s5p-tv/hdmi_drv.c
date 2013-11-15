@@ -37,6 +37,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-dv-timings.h>
 
 #include "regs-hdmi.h"
 
@@ -576,16 +577,22 @@ static int hdmi_s_stream(struct v4l2_subdev *sd, int enable)
 	return hdmi_streamoff(hdev);
 }
 
-static void hdmi_resource_poweron(struct hdmi_resources *res)
+static int hdmi_resource_poweron(struct hdmi_resources *res)
 {
+	int ret;
+
 	/* turn HDMI power on */
-	regulator_bulk_enable(res->regul_count, res->regul_bulk);
+	ret = regulator_bulk_enable(res->regul_count, res->regul_bulk);
+	if (ret < 0)
+		return ret;
 	/* power-on hdmi physical interface */
 	clk_enable(res->hdmiphy);
 	/* use VPP as parent clock; HDMIPHY is not working yet */
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 	/* turn clocks on */
 	clk_enable(res->sclk_hdmi);
+
+	return 0;
 }
 
 static void hdmi_resource_poweroff(struct hdmi_resources *res)
@@ -619,7 +626,7 @@ static int hdmi_s_dv_timings(struct v4l2_subdev *sd,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_timings); i++)
-		if (v4l_match_dv_timings(&hdmi_timings[i].dv_timings,
+		if (v4l2_match_dv_timings(&hdmi_timings[i].dv_timings,
 					timings, 0))
 			break;
 	if (i == ARRAY_SIZE(hdmi_timings)) {
@@ -728,11 +735,13 @@ static int hdmi_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
-	int ret = 0;
+	int ret;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	hdmi_resource_poweron(&hdev->res);
+	ret = hdmi_resource_poweron(&hdev->res);
+	if (ret < 0)
+		return ret;
 
 	/* starting MHL */
 	ret = v4l2_subdev_call(hdev->mhl_sd, core, s_power, 1);
@@ -755,6 +764,15 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 	.runtime_resume	 = hdmi_runtime_resume,
 };
 
+static void hdmi_resource_clear_clocks(struct hdmi_resources *res)
+{
+	res->hdmi	 = ERR_PTR(-EINVAL);
+	res->sclk_hdmi	 = ERR_PTR(-EINVAL);
+	res->sclk_pixel	 = ERR_PTR(-EINVAL);
+	res->sclk_hdmiphy = ERR_PTR(-EINVAL);
+	res->hdmiphy	 = ERR_PTR(-EINVAL);
+}
+
 static void hdmi_resources_cleanup(struct hdmi_device *hdev)
 {
 	struct hdmi_resources *res = &hdev->res;
@@ -765,17 +783,18 @@ static void hdmi_resources_cleanup(struct hdmi_device *hdev)
 		regulator_bulk_free(res->regul_count, res->regul_bulk);
 	/* kfree is NULL-safe */
 	kfree(res->regul_bulk);
-	if (!IS_ERR_OR_NULL(res->hdmiphy))
+	if (!IS_ERR(res->hdmiphy))
 		clk_put(res->hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmiphy))
+	if (!IS_ERR(res->sclk_hdmiphy))
 		clk_put(res->sclk_hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_pixel))
+	if (!IS_ERR(res->sclk_pixel))
 		clk_put(res->sclk_pixel);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
+	if (!IS_ERR(res->sclk_hdmi))
 		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->hdmi))
+	if (!IS_ERR(res->hdmi))
 		clk_put(res->hdmi);
 	memset(res, 0, sizeof(*res));
+	hdmi_resource_clear_clocks(res);
 }
 
 static int hdmi_resources_init(struct hdmi_device *hdev)
@@ -793,8 +812,9 @@ static int hdmi_resources_init(struct hdmi_device *hdev)
 	dev_dbg(dev, "HDMI resource init\n");
 
 	memset(res, 0, sizeof(*res));
-	/* get clocks, power */
+	hdmi_resource_clear_clocks(res);
 
+	/* get clocks, power */
 	res->hdmi = clk_get(dev, "hdmi");
 	if (IS_ERR(res->hdmi)) {
 		dev_err(dev, "failed to get clock 'hdmi'\n");

@@ -391,6 +391,12 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 		return 0;
 	}
 
+	if (bss_desc->chan_sw_ie_present) {
+		dev_err(adapter->dev,
+			"Don't connect to AP with WLAN_EID_CHANNEL_SWITCH\n");
+		return -1;
+	}
+
 	if (mwifiex_is_bss_wapi(priv, bss_desc)) {
 		dev_dbg(adapter->dev, "info: return success for WAPI AP\n");
 		return 0;
@@ -537,6 +543,37 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 	return chan_idx;
 }
 
+/* This function appends rate TLV to scan config command. */
+static int
+mwifiex_append_rate_tlv(struct mwifiex_private *priv,
+			struct mwifiex_scan_cmd_config *scan_cfg_out,
+			u8 radio)
+{
+	struct mwifiex_ie_types_rates_param_set *rates_tlv;
+	u8 rates[MWIFIEX_SUPPORTED_RATES], *tlv_pos;
+	u32 rates_size;
+
+	memset(rates, 0, sizeof(rates));
+
+	tlv_pos = (u8 *)scan_cfg_out->tlv_buf + scan_cfg_out->tlv_buf_len;
+
+	if (priv->scan_request)
+		rates_size = mwifiex_get_rates_from_cfg80211(priv, rates,
+							     radio);
+	else
+		rates_size = mwifiex_get_supported_rates(priv, rates);
+
+	dev_dbg(priv->adapter->dev, "info: SCAN_CMD: Rates size = %d\n",
+		rates_size);
+	rates_tlv = (struct mwifiex_ie_types_rates_param_set *)tlv_pos;
+	rates_tlv->header.type = cpu_to_le16(WLAN_EID_SUPP_RATES);
+	rates_tlv->header.len = cpu_to_le16((u16) rates_size);
+	memcpy(rates_tlv->rates, rates, rates_size);
+	scan_cfg_out->tlv_buf_len += sizeof(rates_tlv->header) + rates_size;
+
+	return rates_size;
+}
+
 /*
  * This function constructs and sends multiple scan config commands to
  * the firmware.
@@ -558,9 +595,10 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
 	struct mwifiex_chan_scan_param_set *start_chan;
 
-	u32 tlv_idx;
+	u32 tlv_idx, rates_size;
 	u32 total_scan_time;
 	u32 done_early;
+	u8 radio_type;
 
 	if (!scan_cfg_out || !chan_tlv_out || !scan_chan_list) {
 		dev_dbg(priv->adapter->dev,
@@ -568,6 +606,9 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		       scan_cfg_out, chan_tlv_out, scan_chan_list);
 		return -1;
 	}
+
+	/* Check csa channel expiry before preparing scan list */
+	mwifiex_11h_get_csa_closed_channel(priv);
 
 	chan_tlv_out->header.type = cpu_to_le16(TLV_TYPE_CHANLIST);
 
@@ -582,6 +623,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 
 		tlv_idx = 0;
 		total_scan_time = 0;
+		radio_type = 0;
 		chan_tlv_out->header.len = 0;
 		start_chan = tmp_chan_list;
 		done_early = false;
@@ -598,6 +640,12 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		while (tlv_idx < max_chan_per_scan &&
 		       tmp_chan_list->chan_number && !done_early) {
 
+			if (tmp_chan_list->chan_number == priv->csa_chan) {
+				tmp_chan_list++;
+				continue;
+			}
+
+			radio_type = tmp_chan_list->radio_type;
 			dev_dbg(priv->adapter->dev,
 				"info: Scan: Chan(%3d), Radio(%d),"
 				" Mode(%d, %d), Dur(%d)\n",
@@ -678,6 +726,9 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 			break;
 		}
 
+		rates_size = mwifiex_append_rate_tlv(priv, scan_cfg_out,
+						     radio_type);
+
 		priv->adapter->scan_channels = start_chan;
 
 		/* Send the scan command to the firmware with the specified
@@ -685,6 +736,14 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SCAN,
 					     HostCmd_ACT_GEN_SET, 0,
 					     scan_cfg_out);
+
+		/* rate IE is updated per scan command but same starting
+		 * pointer is used each time so that rate IE from earlier
+		 * scan_cfg_out->buf is overwritten with new one.
+		 */
+		scan_cfg_out->tlv_buf_len -=
+			    sizeof(struct mwifiex_ie_types_header) + rates_size;
+
 		if (ret)
 			break;
 	}
@@ -727,7 +786,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ie_types_num_probes *num_probes_tlv;
 	struct mwifiex_ie_types_wildcard_ssid_params *wildcard_ssid_tlv;
-	struct mwifiex_ie_types_rates_param_set *rates_tlv;
 	u8 *tlv_pos;
 	u32 num_probes;
 	u32 ssid_len;
@@ -739,8 +797,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u8 radio_type;
 	int i;
 	u8 ssid_filter;
-	u8 rates[MWIFIEX_SUPPORTED_RATES];
-	u32 rates_size;
 	struct mwifiex_ie_types_htcap *ht_cap;
 
 	/* The tlv_buf_len is calculated for each scan command.  The TLVs added
@@ -874,19 +930,6 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 			le16_to_cpu(num_probes_tlv->header.len);
 
 	}
-
-	/* Append rates tlv */
-	memset(rates, 0, sizeof(rates));
-
-	rates_size = mwifiex_get_supported_rates(priv, rates);
-
-	rates_tlv = (struct mwifiex_ie_types_rates_param_set *) tlv_pos;
-	rates_tlv->header.type = cpu_to_le16(WLAN_EID_SUPP_RATES);
-	rates_tlv->header.len = cpu_to_le16((u16) rates_size);
-	memcpy(rates_tlv->rates, rates, rates_size);
-	tlv_pos += sizeof(rates_tlv->header) + rates_size;
-
-	dev_dbg(adapter->dev, "info: SCAN_CMD: Rates size = %d\n", rates_size);
 
 	if (ISSUPP_11NENABLED(priv->adapter->fw_cap_info) &&
 	    (priv->adapter->config_bands & BAND_GN ||
@@ -1168,6 +1211,19 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 		case WLAN_EID_ERP_INFO:
 			bss_entry->erp_flags = *(current_ptr + 2);
 			break;
+
+		case WLAN_EID_PWR_CONSTRAINT:
+			bss_entry->local_constraint = *(current_ptr + 2);
+			bss_entry->sensed_11h = true;
+			break;
+
+		case WLAN_EID_CHANNEL_SWITCH:
+			bss_entry->chan_sw_ie_present = true;
+		case WLAN_EID_PWR_CAPABILITY:
+		case WLAN_EID_TPC_REPORT:
+		case WLAN_EID_QUIET:
+			bss_entry->sensed_11h = true;
+		    break;
 
 		case WLAN_EID_EXT_SUPP_RATES:
 			/*
@@ -1575,6 +1631,9 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		goto check_next_scan;
 	}
 
+	/* Check csa channel expiry before parsing scan response */
+	mwifiex_11h_get_csa_closed_channel(priv);
+
 	bytes_left = le16_to_cpu(scan_rsp->bss_descript_size);
 	dev_dbg(adapter->dev, "info: SCAN_RESP: bss_descript_size %d\n",
 		bytes_left);
@@ -1727,6 +1786,13 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			struct ieee80211_channel *chan;
 			u8 band;
 
+			/* Skip entry if on csa closed channel */
+			if (channel == priv->csa_chan) {
+				dev_dbg(adapter->dev,
+					"Dropping entry on csa closed channel\n");
+				continue;
+			}
+
 			band = BAND_G;
 			if (chan_band_tlv) {
 				chan_band =
@@ -1784,22 +1850,17 @@ check_next_scan:
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
 
-		if (priv->user_scan_cfg) {
-			if (priv->scan_request) {
-				dev_dbg(priv->adapter->dev,
-					"info: notifying scan done\n");
-				cfg80211_scan_done(priv->scan_request, 0);
-				priv->scan_request = NULL;
-			} else {
-				dev_dbg(priv->adapter->dev,
-					"info: scan already aborted\n");
-			}
-
-			kfree(priv->user_scan_cfg);
-			priv->user_scan_cfg = NULL;
+		if (priv->scan_request) {
+			dev_dbg(adapter->dev, "info: notifying scan done\n");
+			cfg80211_scan_done(priv->scan_request, 0);
+			priv->scan_request = NULL;
+		} else {
+			priv->scan_aborting = false;
+			dev_dbg(adapter->dev, "info: scan already aborted\n");
 		}
 	} else {
-		if (priv->user_scan_cfg && !priv->scan_request) {
+		if ((priv->scan_aborting && !priv->scan_request) ||
+		    priv->scan_block) {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 			adapter->scan_delay_cnt = MWIFIEX_MAX_SCAN_DELAY_CNT;

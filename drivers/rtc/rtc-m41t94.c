@@ -134,18 +134,12 @@ static int m41t94_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int m41t94_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static struct spi_driver m41t94_driver = {
 	.driver = {
 		.name	= "rtc-m41t94",
 		.owner	= THIS_MODULE,
 	},
 	.probe	= m41t94_probe,
-	.remove = m41t94_remove,
 };
 
 module_spi_driver(m41t94_driver);

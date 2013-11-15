@@ -49,24 +49,8 @@ static const struct snd_pcm_hardware snd_mxs_hardware = {
 	.fifo_size		= 32,
 };
 
-static bool filter(struct dma_chan *chan, void *param)
-{
-	struct mxs_pcm_dma_params *dma_params = param;
-
-	if (!mxs_dma_is_apbx(chan))
-		return false;
-
-	if (chan->chan_id != dma_params->chan_num)
-		return false;
-
-	chan->private = &dma_params->dma_data;
-
-	return true;
-}
-
 static const struct snd_dmaengine_pcm_config mxs_dmaengine_pcm_config = {
 	.pcm_hardware = &snd_mxs_hardware,
-	.compat_filter_fn = filter,
 	.prealloc_buffer_size = 64 * 1024,
 };
 
@@ -74,8 +58,6 @@ int mxs_pcm_platform_register(struct device *dev)
 {
 	return snd_dmaengine_pcm_register(dev, &mxs_dmaengine_pcm_config,
 		SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
-		SND_DMAENGINE_PCM_FLAG_NO_DT |
-		SND_DMAENGINE_PCM_FLAG_COMPAT |
 		SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX);
 }
 EXPORT_SYMBOL_GPL(mxs_pcm_platform_register);

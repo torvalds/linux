@@ -146,7 +146,8 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 		    (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
-		     !(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))))
+		     !(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF) &&
+		     !(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))))
 		return -EINVAL;
 
 	trace_drv_add_interface(local, sdata);
@@ -1070,5 +1071,18 @@ static inline void drv_ipv6_addr_change(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 #endif
+
+static inline void
+drv_channel_switch_beacon(struct ieee80211_sub_if_data *sdata,
+			  struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (local->ops->channel_switch_beacon) {
+		trace_drv_channel_switch_beacon(local, sdata, chandef);
+		local->ops->channel_switch_beacon(&local->hw, &sdata->vif,
+						  chandef);
+	}
+}
 
 #endif /* __MAC80211_DRIVER_OPS */
