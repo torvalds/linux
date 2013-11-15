@@ -131,6 +131,7 @@
 #include <linux/static_key.h>
 #include <linux/hashtable.h>
 #include <linux/vmalloc.h>
+#include <linux/if_macvlan.h>
 
 #include "net-sysfs.h"
 
@@ -1423,6 +1424,10 @@ void dev_disable_lro(struct net_device *dev)
 	 */
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
+
+	/* the same for macvlan devices */
+	if (netif_is_macvlan(dev))
+		dev = macvlan_dev_real_dev(dev);
 
 	dev->wanted_features &= ~NETIF_F_LRO;
 	netdev_update_features(dev);
