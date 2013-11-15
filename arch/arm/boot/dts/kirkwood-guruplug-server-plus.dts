@@ -45,10 +45,10 @@
 			nr-ports = <1>;
 		};
 
+		/* AzureWave AW-GH381 WiFi/BT */
 		mvsdio@90000 {
 			status = "okay";
-			/* No CD or WP GPIOs */
-			broken-cd;
+			non-removable;
 		};
 	};
 
