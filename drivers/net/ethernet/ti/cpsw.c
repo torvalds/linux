@@ -967,14 +967,19 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 		priv->host_port, ALE_VLAN, slave->port_vlan);
 }
 
-static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
+static void soft_reset_slave(struct cpsw_slave *slave)
 {
 	char name[32];
+
+	snprintf(name, sizeof(name), "slave-%d", slave->slave_num);
+	soft_reset(name, &slave->sliver->soft_reset);
+}
+
+static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
 	u32 slave_port;
 
-	sprintf(name, "slave-%d", slave->slave_num);
-
-	soft_reset(name, &slave->sliver->soft_reset);
+	soft_reset_slave(slave);
 
 	/* setup priority mapping */
 	__raw_writel(RX_PRIORITY_MAPPING, &slave->sliver->rx_pri_map);
@@ -2171,8 +2176,9 @@ static int cpsw_suspend(struct device *dev)
 
 	if (netif_running(ndev))
 		cpsw_ndo_stop(ndev);
-	soft_reset("sliver 0", &priv->slaves[0].sliver->soft_reset);
-	soft_reset("sliver 1", &priv->slaves[1].sliver->soft_reset);
+
+	for_each_slave(priv, soft_reset_slave);
+
 	pm_runtime_put_sync(&pdev->dev);
 
 	/* Select sleep pin state */
