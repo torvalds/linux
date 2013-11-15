@@ -678,14 +678,9 @@ static struct mtd_partition ezkit_partitions[] = {
 int bf609_nor_flash_init(struct platform_device *pdev)
 {
 #define CONFIG_SMC_GCTL_VAL     0x00000010
-	const unsigned short pins[] = {
-		P_A3, P_A4, P_A5, P_A6, P_A7, P_A8, P_A9, P_A10, P_A11, P_A12,
-		P_A13, P_A14, P_A15, P_A16, P_A17, P_A18, P_A19, P_A20, P_A21,
-		P_A22, P_A23, P_A24, P_A25, P_NORCK, 0,
-	};
 
-	peripheral_request_list(pins, "smc0");
-
+	if (!devm_pinctrl_get_select_default(&pdev->dev))
+		return -EBUSY;
 	bfin_write32(SMC_GCTL, CONFIG_SMC_GCTL_VAL);
 	bfin_write32(SMC_B0CTL, 0x01002011);
 	bfin_write32(SMC_B0TIM, 0x08170977);
@@ -693,16 +688,9 @@ int bf609_nor_flash_init(struct platform_device *pdev)
 	return 0;
 }
 
-void bf609_nor_flash_exit(struct platform_device *dev)
+void bf609_nor_flash_exit(struct platform_device *pdev)
 {
-	const unsigned short pins[] = {
-		P_A3, P_A4, P_A5, P_A6, P_A7, P_A8, P_A9, P_A10, P_A11, P_A12,
-		P_A13, P_A14, P_A15, P_A16, P_A17, P_A18, P_A19, P_A20, P_A21,
-		P_A22, P_A23, P_A24, P_A25, P_NORCK, 0,
-	};
-
-	peripheral_free_list(pins);
-
+	devm_pinctrl_put(pdev->dev.pins->p);
 	bfin_write32(SMC_GCTL, 0);
 }
 
@@ -1319,17 +1307,6 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.pen_down_acc_interval 	= 1,
 };
 #endif
-
-#ifdef CONFIG_PINCTRL_ADI2
-
-# define ADI_PINT_DEVNAME "adi-gpio-pint"
-# define ADI_GPIO_DEVNAME "adi-gpio"
-# define ADI_PINCTRL_DEVNAME "pinctrl-adi2"
-
-static struct platform_device bfin_pinctrl_device = {
-	.name = ADI_PINCTRL_DEVNAME,
-	.id = 0,
-};
 
 #ifdef CONFIG_PINCTRL_ADI2
 
@@ -2077,45 +2054,6 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", NULL, "ppi2_16b"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
-#if defined(CONFIG_VIDEO_MT9M114) || defined(CONFIG_VIDEO_MT9M114_MODULE)
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_8b"),
-#elif defined(CONFIG_VIDEO_VS6624) || defined(CONFIG_VIDEO_VS6624_MODULE)
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
-#else
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_24b"),
-#endif
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.0",  "pinctrl-adi2.0", NULL, "sport0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.0",  "pinctrl-adi2.0", NULL, "sport0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.1",  "pinctrl-adi2.0", NULL, "sport1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.1",  "pinctrl-adi2.0", NULL, "sport1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-i2s.2",  "pinctrl-adi2.0", NULL, "sport2"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-tdm.2",  "pinctrl-adi2.0", NULL, "sport2"),
-};
-
-/* Pin control settings */
-static struct pinctrl_map __initdata bfin_pinmux_map[] = {
-	/* per-device maps */
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.0",  "pinctrl-adi2.0", NULL, "uart0"),
-#ifdef CONFIG_BFIN_UART0_CTSRTS
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.0",  "pinctrl-adi2.0", NULL, "uart0_ctsrts"),
-#endif
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.1",  "pinctrl-adi2.0", NULL, "uart1"),
-#ifdef CONFIG_BFIN_UART1_CTSRTS
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-uart.1",  "pinctrl-adi2.0", NULL, "uart1_ctsrts"),
-#endif
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.0",  "pinctrl-adi2.0", NULL, "uart0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_sir.1",  "pinctrl-adi2.0", NULL, "uart1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-sdh.0",  "pinctrl-adi2.0", NULL, "rsi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("stmmaceth.0",  "pinctrl-adi2.0", NULL, "eth0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi3.0",  "pinctrl-adi2.0", NULL, "spi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-spi3.1",  "pinctrl-adi2.0", NULL, "spi1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.0",  "pinctrl-adi2.0", NULL, "twi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("i2c-bfin-twi.1",  "pinctrl-adi2.0", NULL, "twi1"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin-rotary",  "pinctrl-adi2.0", NULL, "rotary"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_can.0",  "pinctrl-adi2.0", NULL, "can0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", NULL, "ppi2_16b"),
-	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", NULL, "ppi2_16b"),
 #if defined(CONFIG_VIDEO_MT9M114) || defined(CONFIG_VIDEO_MT9M114_MODULE)
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_8b"),
 #elif defined(CONFIG_VIDEO_VS6624) || defined(CONFIG_VIDEO_VS6624_MODULE)
