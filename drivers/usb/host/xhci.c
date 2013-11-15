@@ -762,11 +762,11 @@ static void xhci_restore_registers(struct xhci_hcd *xhci)
 {
 	writel(xhci->s3.command, &xhci->op_regs->command);
 	writel(xhci->s3.dev_nt, &xhci->op_regs->dev_notification);
-	xhci_write_64(xhci, xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
+	writeq(xhci->s3.dcbaa_ptr, &xhci->op_regs->dcbaa_ptr);
 	writel(xhci->s3.config_reg, &xhci->op_regs->config_reg);
 	writel(xhci->s3.erst_size, &xhci->ir_set->erst_size);
-	xhci_write_64(xhci, xhci->s3.erst_base, &xhci->ir_set->erst_base);
-	xhci_write_64(xhci, xhci->s3.erst_dequeue, &xhci->ir_set->erst_dequeue);
+	writeq(xhci->s3.erst_base, &xhci->ir_set->erst_base);
+	writeq(xhci->s3.erst_dequeue, &xhci->ir_set->erst_dequeue);
 	writel(xhci->s3.irq_pending, &xhci->ir_set->irq_pending);
 	writel(xhci->s3.irq_control, &xhci->ir_set->irq_control);
 }
@@ -785,7 +785,7 @@ static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting command ring address to 0x%llx",
 			(long unsigned long) val_64);
-	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
+	writeq(val_64, &xhci->op_regs->cmd_ring);
 }
 
 /*

@@ -319,8 +319,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 		return 0;
 	}
 	xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
-	xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
-			&xhci->op_regs->cmd_ring);
+	writeq(temp_64 | CMD_RING_ABORT, &xhci->op_regs->cmd_ring);
 
 	/* Section 4.6.1.2 of xHCI 1.0 spec says software should
 	 * time the completion od all xHCI commands, including
@@ -2872,8 +2871,7 @@ hw_died:
 		 * the event ring should be empty.
 		 */
 		temp_64 = readq(&xhci->ir_set->erst_dequeue);
-		xhci_write_64(xhci, temp_64 | ERST_EHB,
-				&xhci->ir_set->erst_dequeue);
+		writeq(temp_64 | ERST_EHB, &xhci->ir_set->erst_dequeue);
 		spin_unlock(&xhci->lock);
 
 		return IRQ_HANDLED;
@@ -2900,7 +2898,7 @@ hw_died:
 
 	/* Clear the event handler busy flag (RW1C); event ring is empty. */
 	temp_64 |= ERST_EHB;
-	xhci_write_64(xhci, temp_64, &xhci->ir_set->erst_dequeue);
+	writeq(temp_64, &xhci->ir_set->erst_dequeue);
 
 	spin_unlock(&xhci->lock);
 

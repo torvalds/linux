@@ -28,6 +28,15 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 
+/*
+ * Registers should always be accessed with double word or quad word accesses.
+ *
+ * Some xHCI implementations may support 64-bit address pointers.  Registers
+ * with 64-bit address pointers should be written to with dword accesses by
+ * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
+ * xHCI implementations that do not support 64-bit address pointers will ignore
+ * the high dword, and write order is irrelevant.
+ */
 #include <asm-generic/io-64-nonatomic-lo-hi.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
@@ -1596,26 +1605,6 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn_ratelimited(xhci, fmt, args...) \
 	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
-
-/*
- * Registers should always be accessed with double word or quad word accesses.
- *
- * Some xHCI implementations may support 64-bit address pointers.  Registers
- * with 64-bit address pointers should be written to with dword accesses by
- * writing the low dword first (ptr[0]), then the high dword (ptr[1]) second.
- * xHCI implementations that do not support 64-bit address pointers will ignore
- * the high dword, and write order is irrelevant.
- */
-static inline void xhci_write_64(struct xhci_hcd *xhci,
-				 const u64 val, __le64 __iomem *regs)
-{
-	__u32 __iomem *ptr = (__u32 __iomem *) regs;
-	u32 val_lo = lower_32_bits(val);
-	u32 val_hi = upper_32_bits(val);
-
-	writel(val_lo, ptr);
-	writel(val_hi, ptr + 1);
-}
 
 static inline int xhci_link_trb_quirk(struct xhci_hcd *xhci)
 {
