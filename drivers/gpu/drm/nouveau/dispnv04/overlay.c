@@ -58,6 +58,7 @@ struct nouveau_plane {
 };
 
 static uint32_t formats[] = {
+	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_NV12,
 };
@@ -140,10 +141,10 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nv_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
 	nv_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
 
-	if (fb->pixel_format == DRM_FORMAT_NV12) {
+	if (fb->pixel_format != DRM_FORMAT_UYVY)
 		format |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
+	if (fb->pixel_format == DRM_FORMAT_NV12)
 		format |= NV_PVIDEO_FORMAT_PLANAR;
-	}
 	if (nv_plane->iturbt_709)
 		format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 	if (nv_plane->colorkey & (1 << 24))
@@ -266,7 +267,7 @@ nv10_overlay_init(struct drm_device *device)
 	case 0x15:
 	case 0x1a:
 	case 0x20:
-		num_formats = 1;
+		num_formats = 2;
 		break;
 	}
 
