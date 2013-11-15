@@ -277,12 +277,13 @@ static void xennet_alloc_rx_buffers(struct net_device *dev)
 		if (!page) {
 			kfree_skb(skb);
 no_skb:
-			/* Any skbuffs queued for refill? Force them out. */
-			if (i != 0)
-				goto refill;
 			/* Could not allocate any skbuffs. Try again later. */
 			mod_timer(&np->rx_refill_timer,
 				  jiffies + (HZ/10));
+
+			/* Any skbuffs queued for refill? Force them out. */
+			if (i != 0)
+				goto refill;
 			break;
 		}
 
