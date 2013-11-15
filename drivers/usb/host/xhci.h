@@ -1597,11 +1597,6 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 
 /* TODO: copied from ehci.h - can be refactored? */
 /* xHCI spec says all registers are little endian */
-static inline unsigned int xhci_readl(const struct xhci_hcd *xhci,
-		__le32 __iomem *regs)
-{
-	return readl(regs);
-}
 static inline void xhci_writel(struct xhci_hcd *xhci,
 		const unsigned int val, __le32 __iomem *regs)
 {
