@@ -306,7 +306,8 @@ nouveau_fence_unref(struct nouveau_fence **pfence)
 struct nouveau_fence *
 nouveau_fence_ref(struct nouveau_fence *fence)
 {
-	kref_get(&fence->kref);
+	if (fence)
+		kref_get(&fence->kref);
 	return fence;
 }
 

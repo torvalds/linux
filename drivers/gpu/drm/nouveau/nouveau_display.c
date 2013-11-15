@@ -26,7 +26,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/ttm/ttm_execbuf_util.h>
 
 #include "nouveau_fbcon.h"
 #include "dispnv04/hw.h"
@@ -399,6 +398,11 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
+	if (nv_device(drm->device)->chipset < 0x11)
+		dev->mode_config.async_page_flip = false;
+	else
+		dev->mode_config.async_page_flip = true;
+
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
@@ -555,19 +559,15 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 3);
+	ret = RING_SPACE(chan, 2);
 	if (ret)
 		goto fail;
 
-	if (nv_device(drm->device)->card_type < NV_C0) {
+	if (nv_device(drm->device)->card_type < NV_C0)
 		BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-		OUT_RING  (chan, 0x00000000);
-		OUT_RING  (chan, 0x00000000);
-	} else {
-		BEGIN_NVC0(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_IMC0(chan, 0, NVSW_SUBCHAN_PAGE_FLIP, 0x0000);
-	}
+	else
+		BEGIN_NVC0(chan, FermiSw, NV_SW_PAGE_FLIP, 1);
+	OUT_RING  (chan, 0x00000000);
 	FIRE_RING (chan);
 
 	ret = nouveau_fence_new(chan, false, pfence);
@@ -584,22 +584,16 @@ fail:
 
 int
 nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		       struct drm_pending_vblank_event *event,
-		       uint32_t page_flip_flags)
+		       struct drm_pending_vblank_event *event, u32 flags)
 {
+	const int swap_interval = (flags & DRM_MODE_PAGE_FLIP_ASYNC) ? 0 : 1;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->fb)->nvbo;
 	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
 	struct nouveau_page_flip_state *s;
-	struct nouveau_channel *chan = NULL;
+	struct nouveau_channel *chan = drm->channel;
 	struct nouveau_fence *fence;
-	struct ttm_validate_buffer resv[2] = {
-		{ .bo = &old_bo->bo },
-		{ .bo = &new_bo->bo },
-	};
-	struct ww_acquire_ctx ticket;
-	LIST_HEAD(res);
 	int ret;
 
 	if (!drm->channel)
@@ -609,26 +603,22 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!s)
 		return -ENOMEM;
 
-	/* Choose the channel the flip will be handled in */
-	spin_lock(&old_bo->bo.bdev->fence_lock);
-	fence = new_bo->bo.sync_obj;
-	if (fence)
-		chan = fence->channel;
-	if (!chan)
-		chan = drm->channel;
-	spin_unlock(&old_bo->bo.bdev->fence_lock);
+	/* synchronise rendering channel with the kernel's channel */
+	spin_lock(&new_bo->bo.bdev->fence_lock);
+	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
+	spin_unlock(&new_bo->bo.bdev->fence_lock);
+	ret = nouveau_fence_sync(fence, chan);
+	if (ret)
+		return ret;
 
 	if (new_bo != old_bo) {
 		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
 		if (ret)
 			goto fail_free;
-
-		list_add(&resv[1].head, &res);
 	}
-	list_add(&resv[0].head, &res);
 
 	mutex_lock(&chan->cli->mutex);
-	ret = ttm_eu_reserve_buffers(&ticket, &res);
+	ret = ttm_bo_reserve(&old_bo->bo, true, false, false, NULL);
 	if (ret)
 		goto fail_unpin;
 
@@ -640,12 +630,29 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
-		ret = nv50_display_flip_next(crtc, fb, chan, 0);
+		ret = nv50_display_flip_next(crtc, fb, chan, swap_interval);
 		if (ret)
 			goto fail_unreserve;
 	} else {
 		struct nv04_display *dispnv04 = nv04_display(dev);
-		nouveau_bo_ref(new_bo, &dispnv04->image[nouveau_crtc(crtc)->index]);
+		int head = nouveau_crtc(crtc)->index;
+
+		if (swap_interval) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				goto fail_unreserve;
+
+			BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
+			OUT_RING  (chan, 0);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
+			OUT_RING  (chan, head);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
+			OUT_RING  (chan, 0);
+			BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
+			OUT_RING  (chan, 0);
+		}
+
+		nouveau_bo_ref(new_bo, &dispnv04->image[head]);
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
@@ -656,14 +663,15 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->fb = fb;
 
-	ttm_eu_fence_buffer_objects(&ticket, &res, fence);
+	nouveau_bo_fence(old_bo, fence);
+	ttm_bo_unreserve(&old_bo->bo);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(old_bo);
 	nouveau_fence_unref(&fence);
 	return 0;
 
 fail_unreserve:
-	ttm_eu_backoff_reservation(&ticket, &res);
+	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
 	mutex_unlock(&chan->cli->mutex);
 	if (old_bo != new_bo)

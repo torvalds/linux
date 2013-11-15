@@ -32,6 +32,11 @@ nouveau_pwr_send(struct nouveau_pwr *ppwr, u32 reply[2],
 	struct nouveau_subdev *subdev = nv_subdev(ppwr);
 	u32 addr;
 
+	/* wait for a free slot in the fifo */
+	addr  = nv_rd32(ppwr, 0x10a4a0);
+	if (!nv_wait_ne(ppwr, 0x10a4b0, 0xffffffff, addr ^ 8))
+		return -EBUSY;
+
 	/* we currently only support a single process at a time waiting
 	 * on a synchronous reply, take the PPWR mutex and tell the
 	 * receive handler what we're waiting for
@@ -41,11 +46,6 @@ nouveau_pwr_send(struct nouveau_pwr *ppwr, u32 reply[2],
 		ppwr->recv.message = message;
 		ppwr->recv.process = process;
 	}
-
-	/* wait for a free slot in the fifo */
-	addr  = nv_rd32(ppwr, 0x10a4a0);
-	if (!nv_wait_ne(ppwr, 0x10a4b0, 0xffffffff, addr ^ 8))
-		return -EBUSY;
 
 	/* acquire data segment access */
 	do {
