@@ -998,12 +998,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);
 
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-		if (priv)
-			kfree(priv->wdev);
-	}
-
 	mwifiex_terminate_workqueue(adapter);
 
 	/* Unregister device */

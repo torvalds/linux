@@ -2310,7 +2310,10 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 		unregister_netdevice(wdev->netdev);
 
 	/* Clear the priv in adapter */
+	priv->netdev->ieee80211_ptr = NULL;
 	priv->netdev = NULL;
+	kfree(wdev);
+	priv->wdev = NULL;
 
 	priv->media_connected = false;
 
