@@ -27,7 +27,6 @@ BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
 
 /* These also force them into GPIO mode */
 BIAS(gpio_in_pu, PIN_INPUT_PULLUP|PIN_GPIOMODE_ENABLED);
-BIAS(gpio_in_pd, PIN_INPUT_PULLDOWN|PIN_GPIOMODE_ENABLED);
 BIAS(gpio_out_hi, PIN_OUTPUT_HIGH|PIN_GPIOMODE_ENABLED);
 BIAS(gpio_out_lo, PIN_OUTPUT_LOW|PIN_GPIOMODE_ENABLED);
 
@@ -299,56 +298,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 	AB8505_PIN_HOG("GPIO53_D15", in_pd),
 };
 
-/*
- * The HREFv60 series of platforms is using available pins on the DB8500
- * insteaf of the Toshiba I2C GPIO expander, reusing some pins like the SSP0
- * and SSP1 ports (previously connected to the AB8500) as generic GPIO lines.
- */
-static struct pinctrl_map __initdata hrefv60_pinmap[] = {
-	/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
-	DB8500_PIN_HOG("GPIO31_V3", gpio_in_pu), /* EN1 */
-	DB8500_PIN_HOG("GPIO32_V2", gpio_in_pd), /* DRDY */
-	/*
-	 * Touch screen uses GPIO 143 for RST1, GPIO 146 for RST2 and
-	 * GPIO 67 for interrupts. Pull-up the IRQ line and drive both
-	 * reset signals low.
-	 */
-	DB8500_PIN_HOG("GPIO143_D12", gpio_out_lo), /* TOUCH_RST1 */
-	DB8500_PIN_HOG("GPIO67_G2", gpio_in_pu), /* TOUCH_INT2 */
-	DB8500_PIN_HOG("GPIO146_D13", gpio_out_lo), /* TOUCH_RST2 */
-	/*
-	 * Drive D19-D23 for the ETM PTM trace interface low,
-	 * (presumably pins are unconnected therefore grounded here,
-	 * the "other alt C1" setting enables these pins)
-	 */
-	DB8500_PIN_HOG("GPIO70_G5", gpio_out_lo),
-	DB8500_PIN_HOG("GPIO71_G4", gpio_out_lo),
-	DB8500_PIN_HOG("GPIO72_H4", gpio_out_lo),
-	DB8500_PIN_HOG("GPIO73_H3", gpio_out_lo),
-	DB8500_PIN_HOG("GPIO74_J3", gpio_out_lo),
-	/* NAHJ CTRL on GPIO 76 to low, CTRL_INV on GPIO216 to high */
-	DB8500_PIN_HOG("GPIO76_J2", gpio_out_lo), /* CTRL */
-	DB8500_PIN_HOG("GPIO216_AG12", gpio_out_hi), /* CTRL_INV */
-	/* NFC ENA and RESET to low, pulldown IRQ line */
-	DB8500_PIN_HOG("GPIO77_H1", gpio_out_lo), /* NFC_ENA */
-	DB8500_PIN_HOG("GPIO144_B13", gpio_in_pd), /* NFC_IRQ */
-	DB8500_PIN_HOG("GPIO142_C11", gpio_out_lo), /* NFC_RESET */
-	DB8500_PIN_HOG("GPIO91_B6", gpio_in_pu), /* FORCE_SENSING_INT */
-	DB8500_PIN_HOG("GPIO92_D6", gpio_out_lo), /* FORCE_SENSING_RST */
-	DB8500_PIN_HOG("GPIO97_D9", gpio_out_lo), /* FORCE_SENSING_WU */
-	/* DiPro Sensor interrupt */
-	DB8500_PIN_HOG("GPIO139_C9", gpio_in_pu), /* DIPRO_INT */
-	/* Audio Amplifier HF enable */
-	DB8500_PIN_HOG("GPIO149_B14", gpio_out_hi), /* VAUDIO_HF_EN, enable MAX8968 */
-	/* GBF interface, pull low to reset state */
-	DB8500_PIN_HOG("GPIO171_D23", gpio_out_lo), /* GBF_ENA_RESET */
-	/* MSP : HDTV INTERFACE GPIO line */
-	DB8500_PIN_HOG("GPIO192_AJ27", gpio_in_pd),
-	/* Accelerometer interrupt lines */
-	DB8500_PIN_HOG("GPIO82_C1", gpio_in_pu), /* ACC_INT1 */
-	DB8500_PIN_HOG("GPIO83_D3", gpio_in_pu), /* ACC_INT2 */
-};
-
 static struct pinctrl_map __initdata snowball_pinmap[] = {
 	/* Mux in SSP0 connected to AB8500, pull down RXD pin */
 	DB8500_MUX_HOG("ssp0_a_1", "ssp0"),
@@ -390,8 +339,6 @@ void __init snowball_pinmaps_init(void)
 
 void __init hrefv60_pinmaps_init(void)
 {
-	pinctrl_register_mappings(hrefv60_pinmap,
-				  ARRAY_SIZE(hrefv60_pinmap));
 	pinctrl_register_mappings(ab8500_pinmap,
 				  ARRAY_SIZE(ab8500_pinmap));
 }
