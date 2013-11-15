@@ -1236,20 +1236,13 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 	bool txiqcal_done = false;
 	bool is_reusable = true, status = true;
 	bool run_agc_cal = false, sep_iq_cal = false;
-	u32 rx_delay = 0;
 
 	/* Use chip chainmask only for calibration */
 	ar9003_hw_set_chain_masks(ah, ah->caps.rx_chainmask, ah->caps.tx_chainmask);
 
 	if (ah->enabled_cals & TX_CL_CAL) {
-		if (caldata && test_bit(TXCLCAL_DONE, &caldata->cal_flags))
-			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
-				    AR_PHY_CL_CAL_ENABLE);
-		else {
-			REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL,
-				    AR_PHY_CL_CAL_ENABLE);
-			run_agc_cal = true;
-		}
+		REG_SET_BIT(ah, AR_PHY_CL_CAL_CTL, AR_PHY_CL_CAL_ENABLE);
+		run_agc_cal = true;
 	}
 
 	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
@@ -1285,15 +1278,6 @@ skip_tx_iqcal:
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 	}
 
-	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
-		rx_delay = REG_READ(ah, AR_PHY_RX_DELAY);
-		/* Disable BB_active */
-		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
-		udelay(5);
-		REG_WRITE(ah, AR_PHY_RX_DELAY, AR_PHY_RX_DELAY_DELAY);
-		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
-	}
-
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
 		/* Calibrate the AGC */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
@@ -1304,11 +1288,6 @@ skip_tx_iqcal:
 		status = ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
 				       AR_PHY_AGC_CONTROL_CAL,
 				       0, AH_WAIT_TIMEOUT);
-	}
-
-	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
-		REG_WRITE(ah, AR_PHY_RX_DELAY, rx_delay);
-		udelay(5);
 	}
 
 	if (!status) {
@@ -1322,8 +1301,6 @@ skip_tx_iqcal:
 		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
 	else if (caldata && test_bit(TXIQCAL_DONE, &caldata->cal_flags))
 		ar9003_hw_tx_iq_cal_reload(ah);
-
-	ar9003_hw_cl_cal_post_proc(ah, is_reusable);
 
 	/* Revert chainmask to runtime parameters */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
