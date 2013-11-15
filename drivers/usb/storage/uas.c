@@ -379,9 +379,19 @@ static void uas_stat_cmplt(struct urb *urb)
 		uas_try_complete(cmnd, __func__);
 		break;
 	case IU_ID_READ_READY:
+		if (!cmdinfo->data_in_urb ||
+				(cmdinfo->state & DATA_IN_URB_INFLIGHT)) {
+			scmd_printk(KERN_ERR, cmnd, "unexpected read rdy\n");
+			break;
+		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_IN_URB);
 		break;
 	case IU_ID_WRITE_READY:
+		if (!cmdinfo->data_out_urb ||
+				(cmdinfo->state & DATA_OUT_URB_INFLIGHT)) {
+			scmd_printk(KERN_ERR, cmnd, "unexpected write rdy\n");
+			break;
+		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
 		break;
 	default:
