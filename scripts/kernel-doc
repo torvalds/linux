@@ -2128,8 +2128,7 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file);
     } else {
-	print STDERR "Error(${file}:$.): cannot understand prototype: '$prototype'\n";
-	++$errors;
+	print STDERR "Warning(${file}:$.): cannot understand function prototype: '$prototype'\n";
 	return;
     }
 
