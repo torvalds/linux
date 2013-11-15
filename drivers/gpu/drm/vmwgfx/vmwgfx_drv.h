@@ -177,6 +177,58 @@ struct vmw_res_cache_entry {
 	struct vmw_resource_val_node *node;
 };
 
+/**
+ * enum vmw_dma_map_mode - indicate how to perform TTM page dma mappings.
+ */
+enum vmw_dma_map_mode {
+	vmw_dma_phys,           /* Use physical page addresses */
+	vmw_dma_alloc_coherent, /* Use TTM coherent pages */
+	vmw_dma_map_populate,   /* Unmap from DMA just after unpopulate */
+	vmw_dma_map_bind,       /* Unmap from DMA just before unbind */
+	vmw_dma_map_max
+};
+
+/**
+ * struct vmw_sg_table - Scatter/gather table for binding, with additional
+ * device-specific information.
+ *
+ * @sgt: Pointer to a struct sg_table with binding information
+ * @num_regions: Number of regions with device-address contigous pages
+ */
+struct vmw_sg_table {
+	enum vmw_dma_map_mode mode;
+	struct page **pages;
+	const dma_addr_t *addrs;
+	struct sg_table *sgt;
+	unsigned long num_regions;
+	unsigned long num_pages;
+};
+
+/**
+ * struct vmw_piter - Page iterator that iterates over a list of pages
+ * and DMA addresses that could be either a scatter-gather list or
+ * arrays
+ *
+ * @pages: Array of page pointers to the pages.
+ * @addrs: DMA addresses to the pages if coherent pages are used.
+ * @iter: Scatter-gather page iterator. Current position in SG list.
+ * @i: Current position in arrays.
+ * @num_pages: Number of pages total.
+ * @next: Function to advance the iterator. Returns false if past the list
+ * of pages, true otherwise.
+ * @dma_address: Function to return the DMA address of the current page.
+ */
+struct vmw_piter {
+	struct page **pages;
+	const dma_addr_t *addrs;
+	struct sg_page_iter iter;
+	unsigned long i;
+	unsigned long num_pages;
+	bool (*next)(struct vmw_piter *);
+	dma_addr_t (*dma_address)(struct vmw_piter *);
+	struct page *(*page)(struct vmw_piter *);
+};
+
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
@@ -358,6 +410,11 @@ struct vmw_private {
 
 	struct list_head res_lru[vmw_res_max];
 	uint32_t used_memory_size;
+
+	/*
+	 * DMA mapping stuff.
+	 */
+	enum vmw_dma_map_mode map_mode;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -405,7 +462,7 @@ void vmw_3d_resource_dec(struct vmw_private *dev_priv, bool hide_svga);
  */
 
 extern int vmw_gmr_bind(struct vmw_private *dev_priv,
-			struct page *pages[],
+			const struct vmw_sg_table *vsgt,
 			unsigned long num_pages,
 			int gmr_id);
 extern void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id);
@@ -568,6 +625,45 @@ extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
+extern void vmw_piter_start(struct vmw_piter *viter,
+			    const struct vmw_sg_table *vsgt,
+			    unsigned long p_offs);
+
+/**
+ * vmw_piter_next - Advance the iterator one page.
+ *
+ * @viter: Pointer to the iterator to advance.
+ *
+ * Returns false if past the list of pages, true otherwise.
+ */
+static inline bool vmw_piter_next(struct vmw_piter *viter)
+{
+	return viter->next(viter);
+}
+
+/**
+ * vmw_piter_dma_addr - Return the DMA address of the current page.
+ *
+ * @viter: Pointer to the iterator
+ *
+ * Returns the DMA address of the page pointed to by @viter.
+ */
+static inline dma_addr_t vmw_piter_dma_addr(struct vmw_piter *viter)
+{
+	return viter->dma_address(viter);
+}
+
+/**
+ * vmw_piter_page - Return a pointer to the current page.
+ *
+ * @viter: Pointer to the iterator
+ *
+ * Returns the DMA address of the page pointed to by @viter.
+ */
+static inline struct page *vmw_piter_page(struct vmw_piter *viter)
+{
+	return viter->page(viter);
+}
 
 /**
  * Command submission - vmwgfx_execbuf.c

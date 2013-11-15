@@ -1434,7 +1434,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
-		return -EINVAL;
+		return -ENOENT;
 	}
 	crtc = obj_to_crtc(obj);
 	radeon_crtc = to_radeon_crtc(crtc);

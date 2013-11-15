@@ -32,6 +32,7 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_module.h>
+#include <linux/dma_remapping.h>
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
@@ -185,6 +186,9 @@ static struct pci_device_id vmw_pci_id_list[] = {
 MODULE_DEVICE_TABLE(pci, vmw_pci_id_list);
 
 static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
+static int vmw_force_iommu;
+static int vmw_restrict_iommu;
+static int vmw_force_coherent;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
@@ -193,6 +197,13 @@ static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
 
 MODULE_PARM_DESC(enable_fbdev, "Enable vmwgfx fbdev");
 module_param_named(enable_fbdev, enable_fbdev, int, 0600);
+MODULE_PARM_DESC(force_dma_api, "Force using the DMA API for TTM pages");
+module_param_named(force_dma_api, vmw_force_iommu, int, 0600);
+MODULE_PARM_DESC(restrict_iommu, "Try to limit IOMMU usage for TTM pages");
+module_param_named(restrict_iommu, vmw_restrict_iommu, int, 0600);
+MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
+module_param_named(force_coherent, vmw_force_coherent, int, 0600);
+
 
 static void vmw_print_capabilities(uint32_t capabilities)
 {
@@ -427,12 +438,85 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 	dev_priv->initial_height = height;
 }
 
+/**
+ * vmw_dma_select_mode - Determine how DMA mappings should be set up for this
+ * system.
+ *
+ * @dev_priv: Pointer to a struct vmw_private
+ *
+ * This functions tries to determine the IOMMU setup and what actions
+ * need to be taken by the driver to make system pages visible to the
+ * device.
+ * If this function decides that DMA is not possible, it returns -EINVAL.
+ * The driver may then try to disable features of the device that require
+ * DMA.
+ */
+static int vmw_dma_select_mode(struct vmw_private *dev_priv)
+{
+	static const char *names[vmw_dma_map_max] = {
+		[vmw_dma_phys] = "Using physical TTM page addresses.",
+		[vmw_dma_alloc_coherent] = "Using coherent TTM pages.",
+		[vmw_dma_map_populate] = "Keeping DMA mappings.",
+		[vmw_dma_map_bind] = "Giving up DMA mappings early."};
+#ifdef CONFIG_X86
+	const struct dma_map_ops *dma_ops = get_dma_ops(dev_priv->dev->dev);
+
+#ifdef CONFIG_INTEL_IOMMU
+	if (intel_iommu_enabled) {
+		dev_priv->map_mode = vmw_dma_map_populate;
+		goto out_fixup;
+	}
+#endif
+
+	if (!(vmw_force_iommu || vmw_force_coherent)) {
+		dev_priv->map_mode = vmw_dma_phys;
+		DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
+		return 0;
+	}
+
+	dev_priv->map_mode = vmw_dma_map_populate;
+
+	if (dma_ops->sync_single_for_cpu)
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl() == 0)
+		dev_priv->map_mode = vmw_dma_map_populate;
+#endif
+
+#ifdef CONFIG_INTEL_IOMMU
+out_fixup:
+#endif
+	if (dev_priv->map_mode == vmw_dma_map_populate &&
+	    vmw_restrict_iommu)
+		dev_priv->map_mode = vmw_dma_map_bind;
+
+	if (vmw_force_coherent)
+		dev_priv->map_mode = vmw_dma_alloc_coherent;
+
+#if !defined(CONFIG_SWIOTLB) && !defined(CONFIG_INTEL_IOMMU)
+	/*
+	 * No coherent page pool
+	 */
+	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
+		return -EINVAL;
+#endif
+
+#else /* CONFIG_X86 */
+	dev_priv->map_mode = vmw_dma_map_populate;
+#endif /* CONFIG_X86 */
+
+	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
+
+	return 0;
+}
+
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
 	int ret;
 	uint32_t svga_id;
 	enum vmw_res_type i;
+	bool refuse_dma = false;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (unlikely(dev_priv == NULL)) {
@@ -481,6 +565,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
+	ret = vmw_dma_select_mode(dev_priv);
+	if (unlikely(ret != 0)) {
+		DRM_INFO("Restricting capabilities due to IOMMU setup.\n");
+		refuse_dma = true;
+	}
 
 	dev_priv->vram_size = vmw_read(dev_priv, SVGA_REG_VRAM_SIZE);
 	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
@@ -558,8 +647,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->has_gmr = true;
-	if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
-			   dev_priv->max_gmr_ids) != 0) {
+	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
+	    refuse_dma || ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
+					 dev_priv->max_gmr_ids) != 0) {
 		DRM_INFO("No GMR memory available. "
 			 "Graphics memory resources are very limited.\n");
 		dev_priv->has_gmr = false;

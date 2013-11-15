@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
+#include "nv40.h"
 
 static int
 nv44_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -30,7 +30,7 @@ nv44_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_object **pobject)
 {
 	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_ram *ram;
+	struct nv40_ram *ram;
 	u32 pfb474 = nv_rd32(pfb, 0x100474);
 	int ret;
 
@@ -40,13 +40,16 @@ nv44_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	if (pfb474 & 0x00000004)
-		ram->type = NV_MEM_TYPE_GDDR3;
+		ram->base.type = NV_MEM_TYPE_GDDR3;
 	if (pfb474 & 0x00000002)
-		ram->type = NV_MEM_TYPE_DDR2;
+		ram->base.type = NV_MEM_TYPE_DDR2;
 	if (pfb474 & 0x00000001)
-		ram->type = NV_MEM_TYPE_DDR1;
+		ram->base.type = NV_MEM_TYPE_DDR1;
 
-	ram->size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	ram->base.size = nv_rd32(pfb, 0x10020c) & 0xff000000;
+	ram->base.calc = nv40_ram_calc;
+	ram->base.prog = nv40_ram_prog;
+	ram->base.tidy = nv40_ram_tidy;
 	return 0;
 }
 

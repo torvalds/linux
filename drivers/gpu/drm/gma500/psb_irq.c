@@ -271,15 +271,15 @@ void psb_irq_preinstall(struct drm_device *dev)
 
 	if (gma_power_is_on(dev))
 		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEB_FLAG;
 
 	/* FIXME: Handle Medfield irq mask
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEB_EVENT_FLAG;
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		dev_priv->vdc_irq_mask |= _MDFLD_PIPEC_EVENT_FLAG;
 	*/
 
@@ -305,17 +305,17 @@ int psb_irq_postinstall(struct drm_device *dev)
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_enable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_enable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_enable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 	else
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
@@ -339,13 +339,13 @@ void psb_irq_uninstall(struct drm_device *dev)
 
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	if (dev->vblank_enabled[0])
+	if (dev->vblank[0].enabled)
 		psb_disable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[1])
+	if (dev->vblank[1].enabled)
 		psb_disable_pipestat(dev_priv, 1, PIPE_VBLANK_INTERRUPT_ENABLE);
 
-	if (dev->vblank_enabled[2])
+	if (dev->vblank[2].enabled)
 		psb_disable_pipestat(dev_priv, 2, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	dev_priv->vdc_irq_mask &= _PSB_IRQ_SGX_FLAG |
@@ -456,7 +456,7 @@ static int psb_vblank_do_wait(struct drm_device *dev,
 {
 	unsigned int cur_vblank;
 	int ret = 0;
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev->vblank.queue, 3 * DRM_HZ,
 		    (((cur_vblank = atomic_read(counter))
 		      - *sequence) <= (1 << 23)));
 	*sequence = cur_vblank;

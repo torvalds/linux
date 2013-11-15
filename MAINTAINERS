@@ -2849,7 +2849,9 @@ L:	dri-devel@lists.freedesktop.org
 L:	linux-tegra@vger.kernel.org
 T:	git git://anongit.freedesktop.org/tegra/linux.git
 S:	Supported
+F:	drivers/gpu/drm/tegra/
 F:	drivers/gpu/host1x/
+F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/gpu/nvidia,tegra20-host1x.txt
 

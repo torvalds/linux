@@ -225,7 +225,6 @@ static struct drm_driver qxl_driver = {
 	.debugfs_init = qxl_debugfs_init,
 	.debugfs_cleanup = qxl_debugfs_takedown,
 #endif
-	.gem_init_object = qxl_gem_object_init,
 	.gem_free_object = qxl_gem_object_free,
 	.gem_open_object = qxl_gem_object_open,
 	.gem_close_object = qxl_gem_object_close,

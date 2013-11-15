@@ -508,17 +508,21 @@ static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
 	} else if (strncmp("auto", buf, strlen("auto")) == 0) {
 		level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	} else {
-		mutex_unlock(&rdev->pm.mutex);
 		count = -EINVAL;
 		goto fail;
 	}
 	if (rdev->asic->dpm.force_performance_level) {
+		if (rdev->pm.dpm.thermal_active) {
+			count = -EINVAL;
+			goto fail;
+		}
 		ret = radeon_dpm_force_performance_level(rdev, level);
 		if (ret)
 			count = -EINVAL;
 	}
-	mutex_unlock(&rdev->pm.mutex);
 fail:
+	mutex_unlock(&rdev->pm.mutex);
+
 	return count;
 }
 
@@ -881,11 +885,12 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 		}
 	}
 
-	printk("switching from power state:\n");
-	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
-	printk("switching to power state:\n");
-	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
-
+	if (radeon_dpm == 1) {
+		printk("switching from power state:\n");
+		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
+		printk("switching to power state:\n");
+		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
+	}
 	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
@@ -918,12 +923,16 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 	radeon_dpm_post_set_power_state(rdev);
 
 	if (rdev->asic->dpm.force_performance_level) {
-		if (rdev->pm.dpm.thermal_active)
+		if (rdev->pm.dpm.thermal_active) {
+			enum radeon_dpm_forced_level level = rdev->pm.dpm.forced_level;
 			/* force low perf level for thermal */
 			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_LOW);
-		else
-			/* otherwise, enable auto */
-			radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
+			/* save the user's level */
+			rdev->pm.dpm.forced_level = level;
+		} else {
+			/* otherwise, user selected level */
+			radeon_dpm_force_performance_level(rdev, rdev->pm.dpm.forced_level);
+		}
 	}
 
 done:
@@ -1179,7 +1188,8 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	mutex_lock(&rdev->pm.mutex);
 	radeon_dpm_init(rdev);
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps = rdev->pm.dpm.boot_ps;
-	radeon_dpm_print_power_states(rdev);
+	if (radeon_dpm == 1)
+		radeon_dpm_print_power_states(rdev);
 	radeon_dpm_setup_asic(rdev);
 	ret = radeon_dpm_enable(rdev);
 	mutex_unlock(&rdev->pm.mutex);
@@ -1241,6 +1251,24 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_RV670:
 	case CHIP_RS780:
 	case CHIP_RS880:
+	case CHIP_CAYMAN:
+	case CHIP_ARUBA:
+	case CHIP_BONAIRE:
+	case CHIP_KABINI:
+	case CHIP_KAVERI:
+	case CHIP_HAWAII:
+		/* DPM requires the RLC, RV770+ dGPU requires SMC */
+		if (!rdev->rlc_fw)
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else if ((rdev->family >= CHIP_RV770) &&
+			 (!(rdev->flags & RADEON_IS_IGP)) &&
+			 (!rdev->smc_fw))
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else if (radeon_dpm == 1)
+			rdev->pm.pm_method = PM_METHOD_DPM;
+		else
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		break;
 	case CHIP_RV770:
 	case CHIP_RV730:
 	case CHIP_RV710:
@@ -1256,16 +1284,11 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_BARTS:
 	case CHIP_TURKS:
 	case CHIP_CAICOS:
-	case CHIP_CAYMAN:
-	case CHIP_ARUBA:
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
 	case CHIP_OLAND:
 	case CHIP_HAINAN:
-	case CHIP_BONAIRE:
-	case CHIP_KABINI:
-	case CHIP_KAVERI:
 		/* DPM requires the RLC, RV770+ dGPU requires SMC */
 		if (!rdev->rlc_fw)
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
@@ -1273,10 +1296,10 @@ int radeon_pm_init(struct radeon_device *rdev)
 			 (!(rdev->flags & RADEON_IS_IGP)) &&
 			 (!rdev->smc_fw))
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
-		else if (radeon_dpm == 1)
-			rdev->pm.pm_method = PM_METHOD_DPM;
-		else
+		else if (radeon_dpm == 0)
 			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		else
+			rdev->pm.pm_method = PM_METHOD_DPM;
 		break;
 	default:
 		/* default to profile method */
@@ -1468,7 +1491,7 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 	 */
 	for (crtc = 0; (crtc < rdev->num_crtc) && in_vbl; crtc++) {
 		if (rdev->pm.active_crtcs & (1 << crtc)) {
-			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev, crtc, &vpos, &hpos);
+			vbl_status = radeon_get_crtc_scanoutpos(rdev->ddev, crtc, &vpos, &hpos, NULL, NULL);
 			if ((vbl_status & DRM_SCANOUTPOS_VALID) &&
 			    !(vbl_status & DRM_SCANOUTPOS_INVBL))
 				in_vbl = false;

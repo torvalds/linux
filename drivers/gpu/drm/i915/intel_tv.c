@@ -912,7 +912,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	if (!tv_mode)
 		return false;
 
-	pipe_config->adjusted_mode.clock = tv_mode->clock;
+	pipe_config->adjusted_mode.crtc_clock = tv_mode->clock;
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;
 
@@ -1044,7 +1044,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 		tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
 	/* Enable two fixes for the chips that need them. */
-	if (dev->pci_device < 0x2772)
+	if (dev->pdev->device < 0x2772)
 		tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
 	I915_WRITE(TV_H_CTL_1, hctl1);
@@ -1094,7 +1094,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 		unsigned int xsize, ysize;
 		/* Pipe must be off here */
 		I915_WRITE(dspcntr_reg, dspcntr & ~DISPLAY_PLANE_ENABLE);
-		intel_flush_display_plane(dev_priv, intel_crtc->plane);
+		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 
 		/* Wait for vblank for the disable to take effect */
 		if (IS_GEN2(dev))
@@ -1123,7 +1123,7 @@ static void intel_tv_mode_set(struct intel_encoder *encoder)
 
 		I915_WRITE(pipeconf_reg, pipeconf);
 		I915_WRITE(dspcntr_reg, dspcntr);
-		intel_flush_display_plane(dev_priv, intel_crtc->plane);
+		intel_flush_primary_plane(dev_priv, intel_crtc->plane);
 	}
 
 	j = 0;
@@ -1433,7 +1433,6 @@ intel_tv_get_modes(struct drm_connector *connector)
 static void
 intel_tv_destroy(struct drm_connector *connector)
 {
-	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1518,7 +1517,7 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 static int tv_is_present_in_vbt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct child_device_config *p_child;
+	union child_device_config *p_child;
 	int i, ret;
 
 	if (!dev_priv->vbt.child_dev_num)
@@ -1530,13 +1529,13 @@ static int tv_is_present_in_vbt(struct drm_device *dev)
 		/*
 		 * If the device type is not TV, continue.
 		 */
-		if (p_child->device_type != DEVICE_TYPE_INT_TV &&
-			p_child->device_type != DEVICE_TYPE_TV)
+		if (p_child->old.device_type != DEVICE_TYPE_INT_TV &&
+			p_child->old.device_type != DEVICE_TYPE_TV)
 			continue;
 		/* Only when the addin_offset is non-zero, it is regarded
 		 * as present.
 		 */
-		if (p_child->addin_offset) {
+		if (p_child->old.addin_offset) {
 			ret = 1;
 			break;
 		}
@@ -1590,12 +1589,12 @@ intel_tv_init(struct drm_device *dev)
 	    (tv_dac_off & TVDAC_STATE_CHG_EN) != 0)
 		return;
 
-	intel_tv = kzalloc(sizeof(struct intel_tv), GFP_KERNEL);
+	intel_tv = kzalloc(sizeof(*intel_tv), GFP_KERNEL);
 	if (!intel_tv) {
 		return;
 	}
 
-	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_tv);
 		return;

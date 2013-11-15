@@ -572,7 +572,7 @@ int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 
 	if (!drmmode_obj) {
 		dev_err(dev->dev, "no such CRTC id\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	crtc = to_gma_crtc(obj_to_crtc(drmmode_obj));
