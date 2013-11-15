@@ -102,6 +102,23 @@
 					};
 				 };
 			};
+			mcde {
+				lcd_hrefv60_mode: lcd_hrefv60 {
+					/*
+					 * Display Interface 1 uses GPIO 65 for RST (reset).
+					 * Display Interface 2 uses GPIO 66 for RST (reset).
+					 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
+					 */
+					hrefv60_cfg1 {
+						ste,pins ="GPIO65_F1";
+						ste,config = <&gpio_out_hi>;
+					};
+					hrefv60_cfg2 {
+						ste,pins ="GPIO66_G3";
+						ste,config = <&gpio_out_lo>;
+					};
+				};
+			};
 		};
 	};
 };

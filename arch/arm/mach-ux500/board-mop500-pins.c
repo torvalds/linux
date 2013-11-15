@@ -309,13 +309,6 @@ static struct pinctrl_map __initdata hrefv60_pinmap[] = {
 	DB8500_PIN_HOG("GPIO31_V3", gpio_in_pu), /* EN1 */
 	DB8500_PIN_HOG("GPIO32_V2", gpio_in_pd), /* DRDY */
 	/*
-	 * Display Interface 1 uses GPIO 65 for RST (reset).
-	 * Display Interface 2 uses GPIO 66 for RST (reset).
-	 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
-	 */
-	DB8500_PIN_HOG("GPIO65_F1", gpio_out_hi), /* DISP1 NO RST */
-	DB8500_PIN_HOG("GPIO66_G3", gpio_out_lo), /* DISP2 RST */
-	/*
 	 * Touch screen uses GPIO 143 for RST1, GPIO 146 for RST2 and
 	 * GPIO 67 for interrupts. Pull-up the IRQ line and drive both
 	 * reset signals low.
