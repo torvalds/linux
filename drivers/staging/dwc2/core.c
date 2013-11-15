@@ -451,9 +451,6 @@ void dwc2_enable_host_interrupts(struct dwc2_hsotg *hsotg)
 	writel(0, hsotg->regs + GINTMSK);
 	writel(0, hsotg->regs + HAINTMSK);
 
-	/* Clear any pending interrupts */
-	writel(0xffffffff, hsotg->regs + GINTSTS);
-
 	/* Enable the common interrupts */
 	dwc2_enable_common_interrupts(hsotg);
 
