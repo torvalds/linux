@@ -1218,6 +1218,26 @@ static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 		WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE_V6);
 	}
 
+	/* frame QP */
+	reg &= ~(0x7F);
+	reg |= p_vp8->rc_frame_qp & 0x7F;
+	WRITEL(reg, S5P_FIMV_E_RC_CONFIG_V6);
+
+	/* other QPs */
+	WRITEL(0x0, S5P_FIMV_E_FIXED_PICTURE_QP_V6);
+	if (!p->rc_frame && !p->rc_mb) {
+		reg = 0;
+		reg |= ((p_vp8->rc_p_frame_qp & 0x7F) << 8);
+		reg |= p_vp8->rc_frame_qp & 0x7F;
+		WRITEL(reg, S5P_FIMV_E_FIXED_PICTURE_QP_V6);
+	}
+
+	/* max QP */
+	reg = ((p_vp8->rc_max_qp & 0x7F) << 8);
+	/* min QP */
+	reg |= p_vp8->rc_min_qp & 0x7F;
+	WRITEL(reg, S5P_FIMV_E_RC_QP_BOUND_V6);
+
 	/* vbv buffer size */
 	if (p->frame_skip_mode ==
 			V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT) {

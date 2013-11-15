@@ -422,6 +422,10 @@ struct s5p_mfc_vp8_enc_params {
 	enum v4l2_vp8_golden_frame_sel golden_frame_sel;
 	u8 hier_layer;
 	u8 hier_layer_qp[3];
+	u8 rc_min_qp;
+	u8 rc_max_qp;
+	u8 rc_frame_qp;
+	u8 rc_p_frame_qp;
 };
 
 /**
