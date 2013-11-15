@@ -207,6 +207,14 @@ int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
 	return ret;
 }
 
+static atomic_t reset_hung_task = ATOMIC_INIT(0);
+
+void reset_hung_task_detector(void)
+{
+	atomic_set(&reset_hung_task, 1);
+}
+EXPORT_SYMBOL_GPL(reset_hung_task_detector);
+
 /*
  * kthread which checks for tasks stuck in D state
  */
@@ -219,6 +227,9 @@ static int watchdog(void *dummy)
 
 		while (schedule_timeout_interruptible(timeout_jiffies(timeout)))
 			timeout = sysctl_hung_task_timeout_secs;
+
+		if (atomic_xchg(&reset_hung_task, 0))
+			continue;
 
 		check_hung_uninterruptible_tasks(timeout);
 	}

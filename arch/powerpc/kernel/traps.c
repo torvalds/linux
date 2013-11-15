@@ -1529,7 +1529,7 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 	 * back on or not.
 	 */
 	if (DBCR_ACTIVE_EVENTS(current->thread.debug.dbcr0,
-	    current->thread.debug.dbcr1))
+			       current->thread.debug.dbcr1))
 		regs->msr |= MSR_DE;
 	else
 		/* Make sure the IDM flag is off */
