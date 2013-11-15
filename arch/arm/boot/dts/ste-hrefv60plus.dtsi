@@ -62,6 +62,10 @@
 		};
 
 		pinctrl {
+			/* Set this up using hogs */
+			pinctrl-names = "default";
+			pinctrl-0 = <&ipgpio_hrefv60_mode>;
+
 			sdi0 {
 				/* SD card detect GPIO pin, extend default state */
 				sdi0_default_mode: sdi0_default {
@@ -70,6 +74,33 @@
 						ste,config = <&gpio_in_pu>;
 					};
 				};
+			};
+			ipgpio {
+				/*
+				 * XENON Flashgun on image processor GPIO (controlled from image
+				 * processor firmware), mux in these image processor GPIO lines 0
+				 * (XENON_FLASH_ID), 1 (XENON_READY) and there is an assistant
+				 * LED on IP GPIO 4 (XENON_EN2) on altfunction C, that need bias
+				 * from GPIO21 so pull up 0, 1 and drive 4 and GPIO21 low as output.
+				 */
+				ipgpio_hrefv60_mode: ipgpio_hrefv60 {
+					hrefv60_mux {
+						ste,function = "ipgpio";
+						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
+					};
+					hrefv60_cfg1 {
+						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						ste,config = <&in_pu>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO21_AB3";
+						ste,config = <&gpio_out_lo>;
+					};
+					hrefv60_cfg3 {
+						ste,pins = "GPIO64_F3";
+						ste,config = <&out_lo>;
+					};
+				 };
 			};
 		};
 	};

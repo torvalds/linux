@@ -20,8 +20,6 @@
 #define BIAS(a,b) static unsigned long a[] = { b }
 
 BIAS(pd, PIN_PULL_DOWN);
-BIAS(in_pu, PIN_INPUT_PULLUP);
-BIAS(out_lo, PIN_OUTPUT_LOW);
 
 BIAS(abx500_out_lo, PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0));
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
@@ -307,20 +305,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
  * and SSP1 ports (previously connected to the AB8500) as generic GPIO lines.
  */
 static struct pinctrl_map __initdata hrefv60_pinmap[] = {
-	/*
-	 * XENON Flashgun on image processor GPIO (controlled from image
-	 * processor firmware), mux in these image processor GPIO lines 0
-	 * (XENON_FLASH_ID), 1 (XENON_READY) and there is an assistant
-	 * LED on IP GPIO 4 (XENON_EN2) on altfunction C, that need bias
-	 * from GPIO21 so pull up 0, 1 and drive 4 and GPIO21 low as output.
-	 */
-	DB8500_MUX_HOG("ipgpio0_c_1", "ipgpio"),
-	DB8500_MUX_HOG("ipgpio1_c_1", "ipgpio"),
-	DB8500_MUX_HOG("ipgpio4_c_1", "ipgpio"),
-	DB8500_PIN_HOG("GPIO6_AF6", in_pu), /* XENON_FLASH_ID */
-	DB8500_PIN_HOG("GPIO7_AG5", in_pu), /* XENON_READY */
-	DB8500_PIN_HOG("GPIO21_AB3", gpio_out_lo), /* XENON_EN1 */
-	DB8500_PIN_HOG("GPIO64_F3", out_lo), /* XENON_EN2 */
 	/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
 	DB8500_PIN_HOG("GPIO31_V3", gpio_in_pu), /* EN1 */
 	DB8500_PIN_HOG("GPIO32_V2", gpio_in_pd), /* DRDY */
