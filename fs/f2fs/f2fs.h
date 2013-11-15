@@ -97,6 +97,13 @@ struct dir_inode_entry {
 	struct inode *inode;	/* vfs inode pointer */
 };
 
+/* for the list of blockaddresses to be discarded */
+struct discard_entry {
+	struct list_head list;	/* list head */
+	block_t blkaddr;	/* block address to be discarded */
+	int len;		/* # of consecutive blocks of the discard */
+};
+
 /* for the list of fsync inodes, used only during recovery */
 struct fsync_inode_entry {
 	struct list_head list;	/* list head */
@@ -308,6 +315,11 @@ struct f2fs_sm_info {
 
 	/* a threshold to reclaim prefree segments */
 	unsigned int rec_prefree_segments;
+
+	/* for small discard management */
+	struct list_head discard_list;		/* 4KB discard list */
+	int nr_discards;			/* # of discards in the list */
+	int max_discards;			/* max. discards to be issued */
 };
 
 /*
@@ -1079,6 +1091,8 @@ int lookup_journal_in_cursum(struct f2fs_summary_block *,
 void flush_sit_entries(struct f2fs_sb_info *);
 int build_segment_manager(struct f2fs_sb_info *);
 void destroy_segment_manager(struct f2fs_sb_info *);
+int __init create_segment_manager_caches(void);
+void destroy_segment_manager_caches(void);
 
 /*
  * checkpoint.c

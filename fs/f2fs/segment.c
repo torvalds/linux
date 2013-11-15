@@ -22,6 +22,8 @@
 
 #define __reverse_ffz(x) __reverse_ffs(~(x))
 
+static struct kmem_cache *discard_entry_slab;
+
 /*
  * __reverse_ffs is copied from include/asm-generic/bitops/__ffs.h since
  * MSB and LSB are reversed in a byte by f2fs_set_bit.
@@ -1798,6 +1800,10 @@ int build_segment_manager(struct f2fs_sb_info *sbi)
 	sm_info->ssa_blkaddr = le32_to_cpu(raw_super->ssa_blkaddr);
 	sm_info->rec_prefree_segments = DEF_RECLAIM_PREFREE_SEGMENTS;
 
+	INIT_LIST_HEAD(&sm_info->discard_list);
+	sm_info->nr_discards = 0;
+	sm_info->max_discards = 0;
+
 	err = build_sit_info(sbi);
 	if (err)
 		return err;
@@ -1912,4 +1918,18 @@ void destroy_segment_manager(struct f2fs_sb_info *sbi)
 	destroy_sit_info(sbi);
 	sbi->sm_info = NULL;
 	kfree(sm_info);
+}
+
+int __init create_segment_manager_caches(void)
+{
+	discard_entry_slab = f2fs_kmem_cache_create("discard_entry",
+			sizeof(struct discard_entry), NULL);
+	if (!discard_entry_slab)
+		return -ENOMEM;
+	return 0;
+}
+
+void destroy_segment_manager_caches(void)
+{
+	kmem_cache_destroy(discard_entry_slab);
 }

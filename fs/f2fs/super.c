@@ -1078,9 +1078,12 @@ static int __init init_f2fs_fs(void)
 	err = create_node_manager_caches();
 	if (err)
 		goto free_inodecache;
-	err = create_gc_caches();
+	err = create_segment_manager_caches();
 	if (err)
 		goto free_node_manager_caches;
+	err = create_gc_caches();
+	if (err)
+		goto free_segment_manager_caches;
 	err = create_checkpoint_caches();
 	if (err)
 		goto free_gc_caches;
@@ -1102,6 +1105,8 @@ free_checkpoint_caches:
 	destroy_checkpoint_caches();
 free_gc_caches:
 	destroy_gc_caches();
+free_segment_manager_caches:
+	destroy_segment_manager_caches();
 free_node_manager_caches:
 	destroy_node_manager_caches();
 free_inodecache:
