@@ -1022,6 +1022,11 @@ static int __init i915_init(void)
 
 static void __exit i915_exit(void)
 {
+#ifndef CONFIG_DRM_I915_UMS
+	if (!(driver.driver_features & DRIVER_MODESET))
+		return; /* Never loaded a driver. */
+#endif
+
 	drm_pci_exit(&driver, &i915_pci_driver);
 }
 
