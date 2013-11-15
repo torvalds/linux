@@ -6,6 +6,7 @@ menu "Processor type and features"
 
 config IA64
 	bool
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
 	select PM if (!IA64_HP_SIM)

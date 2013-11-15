@@ -12,6 +12,7 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT if SPARC64 && PCI
 	select OF
 	select OF_PROMTREE
 	select HAVE_IDE
