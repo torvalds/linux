@@ -25,20 +25,10 @@
 
 #ifdef CONFIG_MSM_BUS_SCALING
 #include <mach/board.h>
-#include <mach/kgsl.h>
-static void bs_init(struct msm_gpu *gpu, struct platform_device *pdev)
+static void bs_init(struct msm_gpu *gpu)
 {
-	struct drm_device *dev = gpu->dev;
-	struct kgsl_device_platform_data *pdata;
-
-	if (!pdev) {
-		dev_err(dev->dev, "could not find dtv pdata\n");
-		return;
-	}
-
-	pdata = pdev->dev.platform_data;
-	if (pdata->bus_scale_table) {
-		gpu->bsc = msm_bus_scale_register_client(pdata->bus_scale_table);
+	if (gpu->bus_scale_table) {
+		gpu->bsc = msm_bus_scale_register_client(gpu->bus_scale_table);
 		DBG("bus scale client: %08x", gpu->bsc);
 	}
 }
@@ -59,7 +49,7 @@ static void bs_set(struct msm_gpu *gpu, int idx)
 	}
 }
 #else
-static void bs_init(struct msm_gpu *gpu, struct platform_device *pdev) {}
+static void bs_init(struct msm_gpu *gpu) {}
 static void bs_fini(struct msm_gpu *gpu) {}
 static void bs_set(struct msm_gpu *gpu, int idx) {}
 #endif
@@ -452,7 +442,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		goto fail;
 	}
 
-	bs_init(gpu, pdev);
+	bs_init(gpu);
 
 	return 0;
 
