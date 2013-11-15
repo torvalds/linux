@@ -95,6 +95,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/interrupt.h>
+#include <linux/regulator/consumer.h>
 
 /*
  * Addresses to scan
@@ -366,6 +367,7 @@ enum lm90_temp11_reg_index {
 struct lm90_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
+	struct regulator *regulator;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	int kind;
@@ -1516,7 +1518,19 @@ static int lm90_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
 	struct lm90_data *data;
+	struct regulator *regulator;
 	int err;
+
+	regulator = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(regulator))
+		return PTR_ERR(regulator);
+
+	err = regulator_enable(regulator);
+	if (err < 0) {
+		dev_err(&client->dev,
+			"Failed to enable regulator: %d\n", err);
+		return err;
+	}
 
 	data = devm_kzalloc(&client->dev, sizeof(struct lm90_data), GFP_KERNEL);
 	if (!data)
@@ -1524,6 +1538,8 @@ static int lm90_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
+
+	data->regulator = regulator;
 
 	/* Set the device type */
 	data->kind = id->driver_data;
@@ -1604,6 +1620,8 @@ exit_remove_files:
 	lm90_remove_files(client, data);
 exit_restore:
 	lm90_restore_conf(client, data);
+	regulator_disable(data->regulator);
+
 	return err;
 }
 
@@ -1614,6 +1632,7 @@ static int lm90_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	lm90_remove_files(client, data);
 	lm90_restore_conf(client, data);
+	regulator_disable(data->regulator);
 
 	return 0;
 }
