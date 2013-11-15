@@ -2164,7 +2164,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	else
 		dspcntr &= ~DISPPLANE_TILED;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
 	else
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
@@ -2184,7 +2184,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_MODIFY_DISPBASE(DSPSURF(plane),
 			     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -3401,15 +3401,26 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	 * only after intel_enable_plane. And intel_enable_plane already waits
 	 * for a vblank, so all we need to do here is to enable the IPS bit. */
 	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, IPS_ENABLE);
-
-	/* The bit only becomes 1 in the next vblank, so this wait here is
-	 * essentially intel_wait_for_vblank. If we don't have this and don't
-	 * wait for vblanks until the end of crtc_enable, then the HW state
-	 * readout code will complain that the expected IPS_CTL value is not the
-	 * one we read. */
-	if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
-		DRM_ERROR("Timed out waiting for IPS enable\n");
+	if (IS_BROADWELL(crtc->base.dev)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+		/* Quoting Art Runyan: "its not safe to expect any particular
+		 * value in IPS_CTL bit 31 after enabling IPS through the
+		 * mailbox." Therefore we need to defer waiting on the state
+		 * change.
+		 * TODO: need to fix this for state checker
+		 */
+	} else {
+		I915_WRITE(IPS_CTL, IPS_ENABLE);
+		/* The bit only becomes 1 in the next vblank, so this wait here
+		 * is essentially intel_wait_for_vblank. If we don't have this
+		 * and don't wait for vblanks until the end of crtc_enable, then
+		 * the HW state readout code will complain that the expected
+		 * IPS_CTL value is not the one we read. */
+		if (wait_for(I915_READ_NOTRACE(IPS_CTL) & IPS_ENABLE, 50))
+			DRM_ERROR("Timed out waiting for IPS enable\n");
+	}
 }
 
 void hsw_disable_ips(struct intel_crtc *crtc)
@@ -3421,7 +3432,12 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		return;
 
 	assert_plane_enabled(dev_priv, crtc->plane);
-	I915_WRITE(IPS_CTL, 0);
+	if (IS_BROADWELL(crtc->base.dev)) {
+		mutex_lock(&dev_priv->rps.hw_lock);
+		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
+		mutex_unlock(&dev_priv->rps.hw_lock);
+	} else
+		I915_WRITE(IPS_CTL, 0);
 	POSTING_READ(IPS_CTL);
 
 	/* We need to wait for a vblank before we can disable the plane. */
@@ -4420,7 +4436,7 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		return false;
 	}
 
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		if (pipe_config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("only 2 lanes on haswell, required: %i lanes\n",
 				      pipe_config->fdi_lanes);
@@ -5994,14 +6010,16 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 
 static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t val;
 
 	val = 0;
 
-	if (intel_crtc->config.dither)
+	if (IS_HASWELL(dev) && intel_crtc->config.dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
@@ -6014,6 +6032,33 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
+
+	if (IS_BROADWELL(dev)) {
+		val = 0;
+
+		switch (intel_crtc->config.pipe_bpp) {
+		case 18:
+			val |= PIPEMISC_DITHER_6_BPC;
+			break;
+		case 24:
+			val |= PIPEMISC_DITHER_8_BPC;
+			break;
+		case 30:
+			val |= PIPEMISC_DITHER_10_BPC;
+			break;
+		case 36:
+			val |= PIPEMISC_DITHER_12_BPC;
+			break;
+		default:
+			/* Case prevented by pipe_config_set_bpp. */
+			BUG();
+		}
+
+		if (intel_crtc->config.dither)
+			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+
+		I915_WRITE(PIPEMISC(pipe), val);
+	}
 }
 
 static bool ironlake_compute_clocks(struct drm_crtc *crtc,
@@ -7165,6 +7210,11 @@ static void ironlake_write_eld(struct drm_connector *connector,
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
+	} else if (IS_VALLEYVIEW(connector->dev)) {
+		hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
+		aud_config = VLV_AUD_CFG(pipe);
+		aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
+		aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
 	} else {
 		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
 		aud_config = CPT_AUD_CFG(pipe);
@@ -7174,8 +7224,19 @@ static void ironlake_write_eld(struct drm_connector *connector,
 
 	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
 
-	i = I915_READ(aud_cntl_st);
-	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
+	if (IS_VALLEYVIEW(connector->dev))  {
+		struct intel_encoder *intel_encoder;
+		struct intel_digital_port *intel_dig_port;
+
+		intel_encoder = intel_attached_encoder(connector);
+		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+		i = intel_dig_port->port;
+	} else {
+		i = I915_READ(aud_cntl_st);
+		i = (i >> 29) & DIP_PORT_SEL_MASK;
+		/* DIP_Port_Select, 0x1 = PortB */
+	}
+
 	if (!i) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */
@@ -7319,7 +7380,7 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev)) {
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
 		}
@@ -7375,7 +7436,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		I915_WRITE(CURPOS_IVB(pipe), pos);
 		ivb_update_cursor(crtc, base);
 	} else {
@@ -10049,6 +10110,18 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 }
 
+enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
+{
+	struct drm_encoder *encoder = connector->base.encoder;
+
+	WARN_ON(!mutex_is_locked(&connector->base.dev->mode_config.mutex));
+
+	if (!encoder)
+		return INVALID_PIPE;
+
+	return to_intel_crtc(encoder->crtc)->pipe;
+}
+
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file)
 {
@@ -10064,7 +10137,7 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 
 	if (!drmmode_obj) {
 		DRM_ERROR("no such CRTC id\n");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
@@ -10500,7 +10573,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 			dev_priv->display.modeset_global_resources =
 				ivb_modeset_global_resources;
-		} else if (IS_HASWELL(dev)) {
+		} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 			dev_priv->display.write_eld = haswell_write_eld;
 			dev_priv->display.modeset_global_resources =
@@ -10511,6 +10584,7 @@ static void intel_init_display(struct drm_device *dev)
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.modeset_global_resources =
 			valleyview_modeset_global_resources;
+		dev_priv->display.write_eld = ironlake_write_eld;
 	}
 
 	/* Default just returns -ENODEV to indicate unsupported */
@@ -10534,9 +10608,12 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_gen6_queue_flip;
 		break;
 	case 7:
+	case 8: /* FIXME(BDW): Check that the gen8 RCS flip works. */
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	}
+
+	intel_panel_init_backlight_funcs(dev);
 }
 
 /*
@@ -10571,17 +10648,6 @@ static void quirk_invert_brightness(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	dev_priv->quirks |= QUIRK_INVERT_BRIGHTNESS;
 	DRM_INFO("applying inverted panel brightness quirk\n");
-}
-
-/*
- * Some machines (Dell XPS13) suffer broken backlight controls if
- * BLM_PCH_PWM_ENABLE is set.
- */
-static void quirk_no_pcm_pwm_enable(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
-	DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
 }
 
 struct intel_quirk {
@@ -10643,11 +10709,6 @@ static struct intel_quirk intel_quirks[] = {
 	 * seem to use inverted backlight PWM.
 	 */
 	{ 0x2a42, 0x1025, PCI_ANY_ID, quirk_invert_brightness },
-
-	/* Dell XPS13 HD Sandy Bridge */
-	{ 0x0116, 0x1028, 0x052e, quirk_no_pcm_pwm_enable },
-	/* Dell XPS13 HD and XPS13 FHD Ivy Bridge */
-	{ 0x0166, 0x1028, 0x058b, quirk_no_pcm_pwm_enable },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -11189,12 +11250,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
 
-	/* destroy backlight, if any, before the connectors */
-	intel_panel_destroy_backlight(dev);
-
-	/* destroy the sysfs files before encoders/connectors */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	/* destroy the backlight and sysfs files before encoders/connectors */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		intel_panel_destroy_backlight(connector);
 		drm_sysfs_connector_remove(connector);
+	}
 
 	drm_mode_config_cleanup(dev);
 

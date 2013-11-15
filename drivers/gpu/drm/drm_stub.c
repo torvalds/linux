@@ -255,16 +255,20 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Get a secondary minor number.
+ * drm_get_minor - Allocate and register new DRM minor
+ * @dev: DRM device
+ * @minor: Pointer to where new minor is stored
+ * @type: Type of minor
  *
- * \param dev device data structure
- * \param sec-minor structure to hold the assigned minor
- * \return negative number on failure.
+ * Allocate a new minor of the given type and register it. A pointer to the new
+ * minor is returned in @minor.
+ * Caller must hold the global DRM mutex.
  *
- * Search an empty entry and initialize it to the given parameters. This
- * routines assigns minor numbers to secondary heads of multi-headed cards
+ * RETURNS:
+ * 0 on success, negative error code on failure.
  */
-int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
+static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor,
+			 int type)
 {
 	struct drm_minor *new_minor;
 	int ret;
@@ -321,37 +325,48 @@ err_idr:
 	*minor = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_minor);
 
 /**
- * Put a secondary minor number.
+ * drm_unplug_minor - Unplug DRM minor
+ * @minor: Minor to unplug
  *
- * \param sec_minor - structure to be released
- * \return always zero
+ * Unplugs the given DRM minor but keeps the object. So after this returns,
+ * minor->dev is still valid so existing open-files can still access it to get
+ * device information from their drm_file ojects.
+ * If the minor is already unplugged or if @minor is NULL, nothing is done.
+ * The global DRM mutex must be held by the caller.
  */
-int drm_put_minor(struct drm_minor **minor_p)
+static void drm_unplug_minor(struct drm_minor *minor)
 {
-	struct drm_minor *minor = *minor_p;
-
-	DRM_DEBUG("release secondary minor %d\n", minor->index);
+	if (!minor || !device_is_registered(minor->kdev))
+		return;
 
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_cleanup(minor);
 #endif
 
 	drm_sysfs_device_remove(minor);
-
 	idr_remove(&drm_minors_idr, minor->index);
-
-	kfree(minor);
-	*minor_p = NULL;
-	return 0;
 }
-EXPORT_SYMBOL(drm_put_minor);
 
-static void drm_unplug_minor(struct drm_minor *minor)
+/**
+ * drm_put_minor - Destroy DRM minor
+ * @minor: Minor to destroy
+ *
+ * This calls drm_unplug_minor() on the given minor and then frees it. Nothing
+ * is done if @minor is NULL. It is fine to call this on already unplugged
+ * minors.
+ * The global DRM mutex must be held by the caller.
+ */
+static void drm_put_minor(struct drm_minor *minor)
 {
-	drm_sysfs_device_remove(minor);
+	if (!minor)
+		return;
+
+	DRM_DEBUG("release secondary minor %d\n", minor->index);
+
+	drm_unplug_minor(minor);
+	kfree(minor);
 }
 
 /**
@@ -472,6 +487,10 @@ EXPORT_SYMBOL(drm_dev_alloc);
  */
 void drm_dev_free(struct drm_device *dev)
 {
+	drm_put_minor(dev->control);
+	drm_put_minor(dev->render);
+	drm_put_minor(dev->primary);
+
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);
 
@@ -547,13 +566,11 @@ err_unload:
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 err_primary_node:
-	drm_put_minor(&dev->primary);
+	drm_put_minor(dev->primary);
 err_render_node:
-	if (dev->render)
-		drm_put_minor(&dev->render);
+	drm_put_minor(dev->render);
 err_control_node:
-	if (dev->control)
-		drm_put_minor(&dev->control);
+	drm_put_minor(dev->control);
 err_agp:
 	if (dev->driver->bus->agp_destroy)
 		dev->driver->bus->agp_destroy(dev);
@@ -588,11 +605,9 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
 
-	if (dev->control)
-		drm_put_minor(&dev->control);
-	if (dev->render)
-		drm_put_minor(&dev->render);
-	drm_put_minor(&dev->primary);
+	drm_unplug_minor(dev->control);
+	drm_unplug_minor(dev->render);
+	drm_unplug_minor(dev->primary);
 
 	list_del(&dev->driver_item);
 }

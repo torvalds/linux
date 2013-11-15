@@ -335,6 +335,24 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 };
 
+static const struct intel_device_info intel_broadwell_d_info = {
+	.is_preliminary = 1,
+	.gen = 8, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+};
+
+static const struct intel_device_info intel_broadwell_m_info = {
+	.is_preliminary = 1,
+	.gen = 8, .is_mobile = 1, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -366,7 +384,9 @@ static const struct intel_device_info intel_haswell_m_info = {
 	INTEL_HSW_D_IDS(&intel_haswell_d_info), \
 	INTEL_HSW_M_IDS(&intel_haswell_m_info), \
 	INTEL_VLV_M_IDS(&intel_valleyview_m_info),	\
-	INTEL_VLV_D_IDS(&intel_valleyview_d_info)
+	INTEL_VLV_D_IDS(&intel_valleyview_d_info),	\
+	INTEL_BDW_M_IDS(&intel_broadwell_m_info),	\
+	INTEL_BDW_D_IDS(&intel_broadwell_d_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -427,6 +447,12 @@ void intel_detect_pch(struct drm_device *dev)
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(IS_ULT(dev));
+			} else if (IS_BROADWELL(dev)) {
+				dev_priv->pch_type = PCH_LPT;
+				dev_priv->pch_id =
+					INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
+				DRM_DEBUG_KMS("This is Broadwell, assuming "
+					      "LynxPoint LP PCH\n");
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
@@ -450,6 +476,12 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
+
+	/* Until we get further testing... */
+	if (IS_GEN8(dev)) {
+		WARN_ON(!i915_preliminary_hw_support);
+		return 0;
+	}
 
 	if (i915_semaphores >= 0)
 		return i915_semaphores;

@@ -239,7 +239,8 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 
 	priv->ioctl_count = 0;
 	/* for compatibility root is always authenticated */
-	priv->authenticated = capable(CAP_SYS_ADMIN);
+	priv->always_authenticated = capable(CAP_SYS_ADMIN);
+	priv->authenticated = priv->always_authenticated;
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
@@ -378,8 +379,10 @@ static void drm_events_release(struct drm_file *file_priv)
 		}
 
 	/* Remove unconsumed events */
-	list_for_each_entry_safe(e, et, &file_priv->event_list, link)
+	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
+		list_del(&e->link);
 		e->destroy(e);
+	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -531,7 +534,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		list_for_each_entry(temp, &dev->filelist, lhead) {
 			if ((temp->master == file_priv->master) &&
 			    (temp != file_priv))
-				temp->authenticated = 0;
+				temp->authenticated = temp->always_authenticated;
 		}
 
 		/**

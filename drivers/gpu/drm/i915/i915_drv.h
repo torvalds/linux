@@ -54,6 +54,7 @@
 #define DRIVER_DATE		"20080730"
 
 enum pipe {
+	INVALID_PIPE = -1,
 	PIPE_A = 0,
 	PIPE_B,
 	PIPE_C,
@@ -129,6 +130,10 @@ enum intel_display_power_domain {
 #define HSW_ALWAYS_ON_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PIPE_A) |		\
 	BIT(POWER_DOMAIN_TRANSCODER_EDP))
+#define BDW_ALWAYS_ON_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_PIPE_A) |		\
+	BIT(POWER_DOMAIN_TRANSCODER_EDP) |	\
+	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER))
 
 enum hpd_pin {
 	HPD_NONE = 0,
@@ -254,6 +259,7 @@ struct intel_opregion {
 	struct opregion_asle __iomem *asle;
 	void __iomem *vbt;
 	u32 __iomem *lid_state;
+	struct work_struct asle_work;
 };
 #define OPREGION_SIZE            (8*1024)
 
@@ -357,6 +363,7 @@ struct drm_i915_error_state {
 	enum intel_ring_hangcheck_action hangcheck_action[I915_NUM_RINGS];
 };
 
+struct intel_connector;
 struct intel_crtc_config;
 struct intel_crtc;
 struct intel_limit;
@@ -419,6 +426,13 @@ struct drm_i915_display_funcs {
 	/* render clock increase/decrease */
 	/* display clock increase/decrease */
 	/* pll clock increase/decrease */
+
+	int (*setup_backlight)(struct intel_connector *connector);
+	uint32_t (*get_backlight)(struct intel_connector *connector);
+	void (*set_backlight)(struct intel_connector *connector,
+			      uint32_t level);
+	void (*disable_backlight)(struct intel_connector *connector);
+	void (*enable_backlight)(struct intel_connector *connector);
 };
 
 struct intel_uncore_funcs {
@@ -585,10 +599,21 @@ struct i915_gtt {
 struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	unsigned num_pd_entries;
-	struct page **pt_pages;
-	uint32_t pd_offset;
-	dma_addr_t *pt_dma_addr;
-
+	union {
+		struct page **pt_pages;
+		struct page *gen8_pt_pages;
+	};
+	struct page *pd_pages;
+	int num_pd_pages;
+	int num_pt_pages;
+	union {
+		uint32_t pd_offset;
+		dma_addr_t pd_dma_addr[4];
+	};
+	union {
+		dma_addr_t *pt_dma_addr;
+		dma_addr_t *gen8_pt_dma_addr[4];
+	};
 	int (*enable)(struct drm_device *dev);
 };
 
@@ -703,7 +728,6 @@ enum intel_sbi_destination {
 #define QUIRK_PIPEA_FORCE (1<<0)
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
-#define QUIRK_NO_PCH_PWM_ENABLE (1<<3)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -755,6 +779,7 @@ struct i915_suspend_saved_registers {
 	u32 saveBLC_HIST_CTL;
 	u32 saveBLC_PWM_CTL;
 	u32 saveBLC_PWM_CTL2;
+	u32 saveBLC_HIST_CTL_B;
 	u32 saveBLC_CPU_PWM_CTL;
 	u32 saveBLC_CPU_PWM_CTL2;
 	u32 saveFPB0;
@@ -1325,7 +1350,10 @@ typedef struct drm_i915_private {
 	struct mutex dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 irq_mask;
+	union {
+		u32 irq_mask;
+		u32 de_irq_mask[I915_MAX_PIPES];
+	};
 	u32 gt_irq_mask;
 	u32 pm_irq_mask;
 
@@ -1353,13 +1381,8 @@ typedef struct drm_i915_private {
 	struct intel_overlay *overlay;
 	unsigned int sprite_scaling_enabled;
 
-	/* backlight */
-	struct {
-		int level;
-		bool enabled;
-		spinlock_t lock; /* bl registers and the above bl fields */
-		struct backlight_device *device;
-	} backlight;
+	/* backlight registers and fields in struct intel_panel */
+	spinlock_t backlight_lock;
 
 	/* LVDS info */
 	bool no_aux_handshake;
@@ -1736,11 +1759,17 @@ struct drm_i915_file_private {
 				 (dev)->pdev->device == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
+#define IS_BROADWELL(dev)	(INTEL_INFO(dev)->gen == 8)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0C00)
-#define IS_ULT(dev)		(IS_HASWELL(dev) && \
+#define IS_BDW_ULT(dev)		(IS_BROADWELL(dev) && \
+				 (((dev)->pdev->device & 0xf) == 0x2  || \
+				 ((dev)->pdev->device & 0xf) == 0x6 || \
+				 ((dev)->pdev->device & 0xf) == 0xe))
+#define IS_HSW_ULT(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0xFF00) == 0x0A00)
+#define IS_ULT(dev)		(IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 #define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pdev->device & 0x00F0) == 0x0020)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
@@ -1757,6 +1786,7 @@ struct drm_i915_file_private {
 #define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
 #define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
 #define IS_GEN7(dev)	(INTEL_INFO(dev)->gen == 7)
+#define IS_GEN8(dev)	(INTEL_INFO(dev)->gen == 8)
 
 #define RENDER_RING		(1<<RCS)
 #define BSD_RING		(1<<VCS)
@@ -1793,12 +1823,12 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
-#define HAS_IPS(dev)		(IS_ULT(dev))
+#define HAS_IPS(dev)		(IS_ULT(dev) || IS_BROADWELL(dev))
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
-#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
+#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev) || IS_BROADWELL(dev))
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
-#define HAS_PSR(dev)		(IS_HASWELL(dev))
+#define HAS_PSR(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00

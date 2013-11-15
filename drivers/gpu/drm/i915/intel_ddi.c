@@ -72,6 +72,45 @@ static const u32 hsw_ddi_translations_hdmi[] = {
 	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
 };
 
+static const u32 bdw_ddi_translations_edp[] = {
+	0x00FFFFFF, 0x00000012,		/* DP parameters */
+	0x00EBAFFF, 0x00020011,
+	0x00C71FFF, 0x0006000F,
+	0x00FFFFFF, 0x00020011,
+	0x00DB6FFF, 0x0005000F,
+	0x00BEEFFF, 0x000A000C,
+	0x00FFFFFF, 0x0005000F,
+	0x00DB6FFF, 0x000A000C,
+	0x00FFFFFF, 0x000A000C,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+static const u32 bdw_ddi_translations_dp[] = {
+	0x00FFFFFF, 0x0007000E,		/* DP parameters */
+	0x00D75FFF, 0x000E000A,
+	0x00BEFFFF, 0x00140006,
+	0x00FFFFFF, 0x000E000A,
+	0x00D75FFF, 0x00180004,
+	0x80CB2FFF, 0x001B0002,
+	0x00F7DFFF, 0x00180004,
+	0x80D75FFF, 0x001B0002,
+	0x80FFFFFF, 0x001B0002,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
+static const u32 bdw_ddi_translations_fdi[] = {
+	0x00FFFFFF, 0x0001000E,		/* FDI parameters */
+	0x00D75FFF, 0x0004000A,
+	0x00C30FFF, 0x00070006,
+	0x00AAAFFF, 0x000C0000,
+	0x00FFFFFF, 0x0004000A,
+	0x00D75FFF, 0x00090004,
+	0x00C30FFF, 0x000C0000,
+	0x00FFFFFF, 0x00070006,
+	0x00D75FFF, 0x000C0000,
+	0x00FFFFFF, 0x00140006		/* HDMI parameters 800mV 0dB*/
+};
+
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -92,8 +131,9 @@ enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 	}
 }
 
-/* On Haswell, DDI port buffers must be programmed with correct values
- * in advance. The buffer values are different for FDI and DP modes,
+/*
+ * Starting with Haswell, DDI port buffers must be programmed with correct
+ * values in advance. The buffer values are different for FDI and DP modes,
  * but the HDMI/DVI fields are shared among those. So we program the DDI
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
@@ -103,10 +143,47 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 	int i;
-	const u32 *ddi_translations = (port == PORT_E) ?
-		hsw_ddi_translations_fdi :
-		hsw_ddi_translations_dp;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
+	const u32 *ddi_translations_fdi;
+	const u32 *ddi_translations_dp;
+	const u32 *ddi_translations_edp;
+	const u32 *ddi_translations;
+
+	if (IS_BROADWELL(dev)) {
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+		ddi_translations_edp = bdw_ddi_translations_edp;
+	} else if (IS_HASWELL(dev)) {
+		ddi_translations_fdi = hsw_ddi_translations_fdi;
+		ddi_translations_dp = hsw_ddi_translations_dp;
+		ddi_translations_edp = hsw_ddi_translations_dp;
+	} else {
+		WARN(1, "ddi translation table missing\n");
+		ddi_translations_edp = bdw_ddi_translations_dp;
+		ddi_translations_fdi = bdw_ddi_translations_fdi;
+		ddi_translations_dp = bdw_ddi_translations_dp;
+	}
+
+	switch (port) {
+	case PORT_A:
+		ddi_translations = ddi_translations_edp;
+		break;
+	case PORT_B:
+	case PORT_C:
+		ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_D:
+		if (intel_dpd_is_edp(dev))
+			ddi_translations = ddi_translations_edp;
+		else
+			ddi_translations = ddi_translations_dp;
+		break;
+	case PORT_E:
+		ddi_translations = ddi_translations_fdi;
+		break;
+	default:
+		BUG();
+	}
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
@@ -756,7 +833,8 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
@@ -792,10 +870,11 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
 		case PIPE_A:
-			/* Can only use the always-on power well for eDP when
-			 * not using the panel fitter, and when not using motion
-			  * blur mitigation (which we don't support). */
-			if (intel_crtc->config.pch_pfit.enabled)
+			/* On Haswell, can only use the always-on power well for
+			 * eDP when not using the panel fitter, and when not
+			 * using motion blur mitigation (which we don't
+			 * support). */
+			if (IS_HASWELL(dev) && intel_crtc->config.pch_pfit.enabled)
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
 			else
 				temp |= TRANS_DDI_EDP_INPUT_A_ON;
@@ -1156,18 +1235,29 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
+	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
-	if (lcpll & LCPLL_CD_SOURCE_FCLK)
+	if (lcpll & LCPLL_CD_SOURCE_FCLK) {
 		return 800000;
-	else if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
+	} else if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT) {
 		return 450000;
-	else if ((lcpll & LCPLL_CLK_FREQ_MASK) == LCPLL_CLK_FREQ_450)
+	} else if (freq == LCPLL_CLK_FREQ_450) {
 		return 450000;
-	else if (IS_ULT(dev_priv->dev))
-		return 337500;
-	else
-		return 540000;
+	} else if (IS_HASWELL(dev)) {
+		if (IS_ULT(dev))
+			return 337500;
+		else
+			return 540000;
+	} else {
+		if (freq == LCPLL_CLK_FREQ_54O_BDW)
+			return 540000;
+		else if (freq == LCPLL_CLK_FREQ_337_5_BDW)
+			return 337500;
+		else
+			return 675000;
+	}
 }
 
 void intel_ddi_pll_init(struct drm_device *dev)

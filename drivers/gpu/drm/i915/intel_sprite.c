@@ -260,14 +260,14 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		sprctl |= SPRITE_TILED;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl &= ~SPRITE_TRICKLE_FEED_DISABLE;
 	else
 		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 
 	sprctl |= SPRITE_ENABLE;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
 	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
@@ -306,7 +306,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
 	 * register */
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
 	else if (obj->tiling_mode != I915_TILING_NONE)
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);
@@ -955,7 +955,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, set->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_unlock;
 	}
 
@@ -984,7 +984,7 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 	obj = drm_mode_object_find(dev, get->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto out_unlock;
 	}
 
@@ -1092,6 +1092,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		break;
 
 	case 7:
+	case 8:
 		if (IS_IVYBRIDGE(dev)) {
 			intel_plane->can_scale = true;
 			intel_plane->max_downscale = 2;

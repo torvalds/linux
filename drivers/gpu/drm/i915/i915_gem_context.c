@@ -117,6 +117,9 @@ static int get_context_size(struct drm_device *dev)
 		else
 			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
+	case 8:
+		ret = GEN8_CXT_TOTAL_SIZE;
+		break;
 	default:
 		BUG();
 	}

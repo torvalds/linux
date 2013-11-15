@@ -458,6 +458,15 @@ static const struct drm_display_mode drm_dmt_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
 };
 
+/*
+ * These more or less come from the DMT spec.  The 720x400 modes are
+ * inferred from historical 80x25 practice.  The 640x480@67 and 832x624@75
+ * modes are old-school Mac modes.  The EDID spec says the 1152x864@75 mode
+ * should be 1152x870, again for the Mac, but instead we use the x864 DMT
+ * mode.
+ *
+ * The DMT modes have been fact-checked; the rest are mild guesses.
+ */
 static const struct drm_display_mode edid_est_modes[] = {
 	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
 		   968, 1056, 0, 600, 601, 605, 628, 0,
@@ -560,7 +569,7 @@ static const struct minimode est3_modes[] = {
 	{ 1600, 1200, 75, 0 },
 	{ 1600, 1200, 85, 0 },
 	{ 1792, 1344, 60, 0 },
-	{ 1792, 1344, 85, 0 },
+	{ 1792, 1344, 75, 0 },
 	{ 1856, 1392, 60, 0 },
 	{ 1856, 1392, 75, 0 },
 	{ 1920, 1200, 60, 1 },
@@ -1320,7 +1329,7 @@ static u32 edid_get_quirks(struct edid *edid)
 }
 
 #define MODE_SIZE(m) ((m)->hdisplay * (m)->vdisplay)
-#define MODE_REFRESH_DIFF(m,r) (abs((m)->vrefresh - target_refresh))
+#define MODE_REFRESH_DIFF(c,t) (abs((c) - (t)))
 
 /**
  * edid_fixup_preferred - set preferred modes based on quirk list
@@ -1335,6 +1344,7 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 {
 	struct drm_display_mode *t, *cur_mode, *preferred_mode;
 	int target_refresh = 0;
+	int cur_vrefresh, preferred_vrefresh;
 
 	if (list_empty(&connector->probed_modes))
 		return;
@@ -1357,10 +1367,14 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 		if (MODE_SIZE(cur_mode) > MODE_SIZE(preferred_mode))
 			preferred_mode = cur_mode;
 
+		cur_vrefresh = cur_mode->vrefresh ?
+			cur_mode->vrefresh : drm_mode_vrefresh(cur_mode);
+		preferred_vrefresh = preferred_mode->vrefresh ?
+			preferred_mode->vrefresh : drm_mode_vrefresh(preferred_mode);
 		/* At a given size, try to get closest to target refresh */
 		if ((MODE_SIZE(cur_mode) == MODE_SIZE(preferred_mode)) &&
-		    MODE_REFRESH_DIFF(cur_mode, target_refresh) <
-		    MODE_REFRESH_DIFF(preferred_mode, target_refresh)) {
+		    MODE_REFRESH_DIFF(cur_vrefresh, target_refresh) <
+		    MODE_REFRESH_DIFF(preferred_vrefresh, target_refresh)) {
 			preferred_mode = cur_mode;
 		}
 	}
@@ -2080,7 +2094,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 	u8 *est = ((u8 *)timing) + 5;
 
 	for (i = 0; i < 6; i++) {
-		for (j = 7; j > 0; j--) {
+		for (j = 7; j >= 0; j--) {
 			m = (i * 8) + (7 - j);
 			if (m >= ARRAY_SIZE(est3_modes))
 				break;
@@ -3472,6 +3486,19 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	return num_modes;
 }
 EXPORT_SYMBOL(drm_add_modes_noedid);
+
+void drm_set_preferred_mode(struct drm_connector *connector,
+			   int hpref, int vpref)
+{
+	struct drm_display_mode *mode;
+
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		if (drm_mode_width(mode)  == hpref &&
+		    drm_mode_height(mode) == vpref)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+	}
+}
+EXPORT_SYMBOL(drm_set_preferred_mode);
 
 /**
  * drm_hdmi_avi_infoframe_from_display_mode() - fill an HDMI AVI infoframe with

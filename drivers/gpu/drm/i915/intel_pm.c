@@ -2291,7 +2291,9 @@ static uint32_t ilk_compute_fbc_wm(const struct hsw_pipe_wm_parameters *params,
 
 static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
 {
-	if (INTEL_INFO(dev)->gen >= 7)
+	if (INTEL_INFO(dev)->gen >= 8)
+		return 3072;
+	else if (INTEL_INFO(dev)->gen >= 7)
 		return 768;
 	else
 		return 512;
@@ -2336,7 +2338,9 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 	}
 
 	/* clamp to max that the registers can hold */
-	if (INTEL_INFO(dev)->gen >= 7)
+	if (INTEL_INFO(dev)->gen >= 8)
+		max = level == 0 ? 255 : 2047;
+	else if (INTEL_INFO(dev)->gen >= 7)
 		/* IVB/HSW primary/sprite plane watermarks */
 		max = level == 0 ? 127 : 1023;
 	else if (!is_sprite)
@@ -2366,10 +2370,13 @@ static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
 }
 
 /* Calculate the maximum FBC watermark */
-static unsigned int ilk_fbc_wm_max(void)
+static unsigned int ilk_fbc_wm_max(struct drm_device *dev)
 {
 	/* max that registers can hold */
-	return 15;
+	if (INTEL_INFO(dev)->gen >= 8)
+		return 31;
+	else
+		return 15;
 }
 
 static void ilk_compute_wm_maximums(struct drm_device *dev,
@@ -2381,7 +2388,7 @@ static void ilk_compute_wm_maximums(struct drm_device *dev,
 	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
 	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
 	max->cur = ilk_cursor_wm_max(dev, level, config);
-	max->fbc = ilk_fbc_wm_max();
+	max->fbc = ilk_fbc_wm_max(dev);
 }
 
 static bool ilk_validate_wm_level(int level,
@@ -2722,10 +2729,18 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 		if (!r->enable)
 			break;
 
-		results->wm_lp[wm_lp - 1] = HSW_WM_LP_VAL(level * 2,
-							  r->fbc_val,
-							  r->pri_val,
-							  r->cur_val);
+		results->wm_lp[wm_lp - 1] = WM3_LP_EN |
+			((level * 2) << WM1_LP_LATENCY_SHIFT) |
+			(r->pri_val << WM1_LP_SR_SHIFT) |
+			r->cur_val;
+
+		if (INTEL_INFO(dev)->gen >= 8)
+			results->wm_lp[wm_lp - 1] |=
+				r->fbc_val << WM1_LP_FBC_SHIFT_BDW;
+		else
+			results->wm_lp[wm_lp - 1] |=
+				r->fbc_val << WM1_LP_FBC_SHIFT;
+
 		results->wm_lp_spr[wm_lp - 1] = r->spr_val;
 	}
 
@@ -3710,6 +3725,78 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(GEN6_PMINTRMSK, ~enabled_intrs);
 }
 
+static void gen8_enable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	uint32_t rc6_mask = 0, rp_state_cap;
+	int unused;
+
+	/* 1a: Software RC state - RC0 */
+	I915_WRITE(GEN6_RC_STATE, 0);
+
+	/* 1c & 1d: Get forcewake during program sequence. Although the driver
+	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
+	gen6_gt_force_wake_get(dev_priv);
+
+	/* 2a: Disable RC states. */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+
+	/* 2b: Program RC6 thresholds.*/
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
+	for_each_ring(ring, dev_priv, unused)
+		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	I915_WRITE(GEN6_RC_SLEEP, 0);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
+
+	/* 3: Enable RC6 */
+	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
+		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
+	DRM_INFO("RC6 %s\n", (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
+	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
+			GEN6_RC_CTL_EI_MODE(1) |
+			rc6_mask);
+
+	/* 4 Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RPNSWREQ, HSW_FREQUENCY(10)); /* Request 500 MHz */
+	I915_WRITE(GEN6_RC_VIDEO_FREQ, HSW_FREQUENCY(12)); /* Request 600 MHz */
+	/* NB: Docs say 1s, and 1000000 - which aren't equivalent */
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 100000000 / 128); /* 1 second timeout */
+
+	/* Docs recommend 900MHz, and 300 MHz respectively */
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+		   dev_priv->rps.max_delay << 24 |
+		   dev_priv->rps.min_delay << 16);
+
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 7600000 / 128); /* 76ms busyness per EI, 90% */
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 31300000 / 128); /* 313ms busyness per EI, 70%*/
+	I915_WRITE(GEN6_RP_UP_EI, 66000); /* 84.48ms, XXX: random? */
+	I915_WRITE(GEN6_RP_DOWN_EI, 350000); /* 448ms, XXX: random? */
+
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
+
+	/* 5: Enable RPS */
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_TURBO |
+		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
+
+	/* 6: Ring frequency + overclocking (our driver does this later */
+
+	gen6_set_rps(dev, (I915_READ(GEN6_GT_PERF_STATUS) & 0xff00) >> 8);
+
+	gen6_enable_rps_interrupts(dev);
+
+	gen6_gt_force_wake_put(dev_priv);
+}
+
 static void gen6_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3872,7 +3959,10 @@ void gen6_update_ring_freq(struct drm_device *dev)
 		int diff = dev_priv->rps.max_delay - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
-		if (IS_HASWELL(dev)) {
+		if (INTEL_INFO(dev)->gen >= 8) {
+			/* max(2 * GT, DDR). NB: GT is 50MHz units */
+			ring_freq = max(min_ring_freq, gpu_freq);
+		} else if (IS_HASWELL(dev)) {
 			ring_freq = mult_frac(gpu_freq, 5, 4);
 			ring_freq = max(min_ring_freq, ring_freq);
 			/* leave ia_freq as the default, chosen by cpufreq */
@@ -4818,6 +4908,9 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 
 	if (IS_VALLEYVIEW(dev)) {
 		valleyview_enable_rps(dev);
+	} else if (IS_BROADWELL(dev)) {
+		gen8_enable_rps(dev);
+		gen6_update_ring_freq(dev);
 	} else {
 		gen6_enable_rps(dev);
 		gen6_update_ring_freq(dev);
@@ -5123,6 +5216,50 @@ static void lpt_suspend_hw(struct drm_device *dev)
 
 		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
 		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+	}
+}
+
+static void gen8_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe i;
+
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
+
+	/* FIXME(BDW): Check all the w/a, some might only apply to
+	 * pre-production hw. */
+
+	WARN(!i915_preliminary_hw_support,
+	     "GEN8_CENTROID_PIXEL_OPT_DIS not be needed for production\n");
+	I915_WRITE(HALF_SLICE_CHICKEN3,
+		   _MASKED_BIT_ENABLE(GEN8_CENTROID_PIXEL_OPT_DIS));
+	I915_WRITE(HALF_SLICE_CHICKEN3,
+		   _MASKED_BIT_ENABLE(GEN8_SAMPLER_POWER_BYPASS_DIS));
+	I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_BWGTLB_DISABLE));
+
+	I915_WRITE(_3D_CHICKEN3,
+		   _3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(2));
+
+	I915_WRITE(COMMON_SLICE_CHICKEN2,
+		   _MASKED_BIT_ENABLE(GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE));
+
+	I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
+		   _MASKED_BIT_ENABLE(GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE));
+
+	/* WaSwitchSolVfFArbitrationPriority */
+	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
+
+	/* WaPsrDPAMaskVBlankInSRD */
+	I915_WRITE(CHICKEN_PAR1_1,
+		   I915_READ(CHICKEN_PAR1_1) | DPA_MASK_VBLANK_SRD);
+
+	/* WaPsrDPRSUnmaskVBlankInSRD */
+	for_each_pipe(i) {
+		I915_WRITE(CHICKEN_PIPESL_1(i),
+			   I915_READ(CHICKEN_PIPESL_1(i) |
+				     DPRS_MASK_VBLANK_SRD));
 	}
 }
 
@@ -5476,7 +5613,9 @@ static bool is_always_on_power_domain(struct drm_device *dev,
 
 	BUG_ON(BIT(domain) & ~POWER_DOMAIN_MASK);
 
-	if (IS_HASWELL(dev)) {
+	if (IS_BROADWELL(dev)) {
+		always_on_domains = BDW_ALWAYS_ON_POWER_DOMAINS;
+	} else if (IS_HASWELL(dev)) {
 		always_on_domains = HSW_ALWAYS_ON_POWER_DOMAINS;
 	} else {
 		WARN_ON(1);
@@ -5510,6 +5649,7 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool is_enabled, enable_requested;
+	unsigned long irqflags;
 	uint32_t tmp;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
@@ -5527,9 +5667,24 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
+
+		if (IS_BROADWELL(dev)) {
+			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_B),
+				   dev_priv->de_irq_mask[PIPE_B]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_B),
+				   ~dev_priv->de_irq_mask[PIPE_B] |
+				   GEN8_PIPE_VBLANK);
+			I915_WRITE(GEN8_DE_PIPE_IMR(PIPE_C),
+				   dev_priv->de_irq_mask[PIPE_C]);
+			I915_WRITE(GEN8_DE_PIPE_IER(PIPE_C),
+				   ~dev_priv->de_irq_mask[PIPE_C] |
+				   GEN8_PIPE_VBLANK);
+			POSTING_READ(GEN8_DE_PIPE_IER(PIPE_C));
+			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+		}
 	} else {
 		if (enable_requested) {
-			unsigned long irqflags;
 			enum pipe p;
 
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
@@ -5798,6 +5953,8 @@ void intel_init_pm(struct drm_device *dev)
 				dev_priv->display.update_wm = NULL;
 			}
 			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
+		} else if (INTEL_INFO(dev)->gen == 8) {
+			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -5949,4 +6106,3 @@ void intel_pm_init(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }
-

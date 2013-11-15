@@ -150,6 +150,7 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_BUS_PCI 0x1
 #define DRIVER_BUS_PLATFORM 0x2
 #define DRIVER_BUS_USB 0x3
+#define DRIVER_BUS_HOST1X 0x4
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -412,7 +413,12 @@ struct drm_prime_file_private {
 
 /** File private data */
 struct drm_file {
-	int authenticated;
+	unsigned always_authenticated :1;
+	unsigned authenticated :1;
+	unsigned is_master :1; /* this file private is a master for a minor */
+	/* true when the client has asked us to expose stereo 3D mode flags */
+	unsigned stereo_allowed :1;
+
 	struct pid *pid;
 	kuid_t uid;
 	drm_magic_t magic;
@@ -429,13 +435,8 @@ struct drm_file {
 	struct file *filp;
 	void *driver_priv;
 
-	int is_master; /* this file private is a master for a minor */
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
-
-	/* true when the client has asked us to expose stereo 3D mode flags */
-	bool stereo_allowed;
-
 	/**
 	 * fbs - List of framebuffers associated with this file.
 	 *
@@ -835,12 +836,17 @@ struct drm_driver {
 	/**
 	 * Called by vblank timestamping code.
 	 *
-	 * Return the current display scanout position from a crtc.
+	 * Return the current display scanout position from a crtc, and an
+	 * optional accurate ktime_get timestamp of when position was measured.
 	 *
 	 * \param dev  DRM device.
 	 * \param crtc Id of the crtc to query.
 	 * \param *vpos Target location for current vertical scanout position.
 	 * \param *hpos Target location for current horizontal scanout position.
+	 * \param *stime Target location for timestamp taken immediately before
+	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param *etime Target location for timestamp taken immediately after
+	 *               scanout position query. Can be NULL to skip timestamp.
 	 *
 	 * Returns vpos as a positive number while in active scanout area.
 	 * Returns vpos as a negative number inside vblank, counting the number
@@ -857,7 +863,8 @@ struct drm_driver {
 	 *
 	 */
 	int (*get_scanout_position) (struct drm_device *dev, int crtc,
-				     int *vpos, int *hpos);
+				     int *vpos, int *hpos, ktime_t *stime,
+				     ktime_t *etime);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
@@ -997,27 +1004,6 @@ struct drm_driver {
 #define DRM_MINOR_CONTROL 2
 #define DRM_MINOR_RENDER 3
 
-
-/**
- * debugfs node list. This structure represents a debugfs file to
- * be created by the drm core
- */
-struct drm_debugfs_list {
-	const char *name; /** file name */
-	int (*show)(struct seq_file*, void*); /** show callback */
-	u32 driver_features; /**< Required driver features for this entry */
-};
-
-/**
- * debugfs node structure. This structure represents a debugfs file.
- */
-struct drm_debugfs_node {
-	struct list_head list;
-	struct drm_minor *minor;
-	struct drm_debugfs_list *debugfs_ent;
-	struct dentry *dent;
-};
-
 /**
  * Info file list entry. This structure represents a debugfs or proc file to
  * be created by the drm core
@@ -1046,7 +1032,7 @@ struct drm_minor {
 	int index;			/**< Minor device number */
 	int type;                       /**< Control or render */
 	dev_t device;			/**< Device number for mknod */
-	struct device kdev;		/**< Linux device */
+	struct device *kdev;		/**< Linux device */
 	struct drm_device *dev;
 
 	struct dentry *debugfs_root;
@@ -1450,7 +1436,6 @@ extern struct drm_master *drm_master_get(struct drm_master *master);
 extern void drm_master_put(struct drm_master **master);
 
 extern void drm_put_dev(struct drm_device *dev);
-extern int drm_put_minor(struct drm_minor **minor);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern unsigned int drm_rnodes;
@@ -1470,10 +1455,11 @@ extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 #if defined(CONFIG_DEBUG_FS)
 extern int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 			    struct dentry *root);
-extern int drm_debugfs_create_files(struct drm_info_list *files, int count,
-				    struct dentry *root, struct drm_minor *minor);
-extern int drm_debugfs_remove_files(struct drm_info_list *files, int count,
-                                    struct drm_minor *minor);
+extern int drm_debugfs_create_files(const struct drm_info_list *files,
+				    int count, struct dentry *root,
+				    struct drm_minor *minor);
+extern int drm_debugfs_remove_files(const struct drm_info_list *files,
+				    int count, struct drm_minor *minor);
 extern int drm_debugfs_cleanup(struct drm_minor *minor);
 #endif
 
@@ -1644,7 +1630,6 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 void drm_dev_free(struct drm_device *dev);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 void drm_dev_unregister(struct drm_device *dev);
-int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
 /*@}*/
 
 /* PCI section */

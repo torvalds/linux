@@ -20,10 +20,10 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 
-#include "cdma.h"
-#include "channel.h"
-#include "dev.h"
-#include "debug.h"
+#include "../cdma.h"
+#include "../channel.h"
+#include "../dev.h"
+#include "../debug.h"
 
 /*
  * Put the restart at the end of pushbuffer memor

@@ -212,6 +212,7 @@ static int
 relocate_entry_cpu(struct drm_i915_gem_object *obj,
 		   struct drm_i915_gem_relocation_entry *reloc)
 {
+	struct drm_device *dev = obj->base.dev;
 	uint32_t page_offset = offset_in_page(reloc->offset);
 	char *vaddr;
 	int ret = -EINVAL;
@@ -223,6 +224,19 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
 				reloc->offset >> PAGE_SHIFT));
 	*(uint32_t *)(vaddr + page_offset) = reloc->delta;
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		page_offset = offset_in_page(page_offset + sizeof(uint32_t));
+
+		if (page_offset == 0) {
+			kunmap_atomic(vaddr);
+			vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+			    (reloc->offset + sizeof(uint32_t)) >> PAGE_SHIFT));
+		}
+
+		*(uint32_t *)(vaddr + page_offset) = 0;
+	}
+
 	kunmap_atomic(vaddr);
 
 	return 0;
@@ -253,6 +267,21 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 	reloc_entry = (uint32_t __iomem *)
 		(reloc_page + offset_in_page(reloc->offset));
 	iowrite32(reloc->delta, reloc_entry);
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		reloc_entry += 1;
+
+		if (offset_in_page(reloc->offset + sizeof(uint32_t)) == 0) {
+			io_mapping_unmap_atomic(reloc_page);
+			reloc_page = io_mapping_map_atomic_wc(
+					dev_priv->gtt.mappable,
+					reloc->offset + sizeof(uint32_t));
+			reloc_entry = reloc_page;
+		}
+
+		iowrite32(0, reloc_entry);
+	}
+
 	io_mapping_unmap_atomic(reloc_page);
 
 	return 0;
@@ -323,7 +352,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return 0;
 
 	/* Check that the relocation address is valid... */
-	if (unlikely(reloc->offset > obj->base.size - 4)) {
+	if (unlikely(reloc->offset >
+		obj->base.size - (INTEL_INFO(dev)->gen >= 8 ? 8 : 4))) {
 		DRM_DEBUG("Relocation beyond object bounds: "
 			  "obj %p target %d offset %d size %d.\n",
 			  obj, reloc->target_handle,
@@ -1116,8 +1146,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
-	 * hsw should have this fixed, but let's be paranoid and do it
-	 * unconditionally for now. */
+	 * hsw should have this fixed, but bdw mucks it up again. */
 	if (flags & I915_DISPATCH_SECURE && !batch_obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(batch_obj, batch_obj->cache_level);
 

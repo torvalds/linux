@@ -396,6 +396,9 @@ int intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_connector *connector;
+	struct intel_connector *intel_connector;
+	struct intel_panel *panel;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
@@ -407,9 +410,23 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (bclp > 255)
 		return ASLC_BACKLIGHT_FAILED;
 
+	mutex_lock(&dev->mode_config.mutex);
+
+	/*
+	 * Update backlight on all connectors that support backlight (usually
+	 * only one).
+	 */
 	DRM_DEBUG_KMS("updating opregion backlight %d/255\n", bclp);
-	intel_panel_set_backlight(dev, bclp, 255);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		intel_connector = to_intel_connector(connector);
+		panel = &intel_connector->panel;
+		if (panel->backlight.present)
+			intel_panel_set_backlight(intel_connector, bclp, 255);
+	}
 	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
+
+	mutex_unlock(&dev->mode_config.mutex);
+
 
 	return 0;
 }
@@ -486,9 +503,13 @@ static u32 asle_isct_state(struct drm_device *dev)
 	return ASLC_ISCT_STATE_FAILED;
 }
 
-void intel_opregion_asle_intr(struct drm_device *dev)
+static void asle_work(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion =
+		container_of(work, struct intel_opregion, asle_work);
+	struct drm_i915_private *dev_priv =
+		container_of(opregion, struct drm_i915_private, opregion);
+	struct drm_device *dev = dev_priv->dev;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
 	u32 aslc_stat = 0;
 	u32 aslc_req;
@@ -533,6 +554,14 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 		aslc_stat |= asle_isct_state(dev);
 
 	iowrite32(aslc_stat, &asle->aslc);
+}
+
+void intel_opregion_asle_intr(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->opregion.asle)
+		schedule_work(&dev_priv->opregion.asle_work);
 }
 
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)
@@ -735,6 +764,8 @@ void intel_opregion_fini(struct drm_device *dev)
 	if (opregion->asle)
 		iowrite32(ASLE_ARDY_NOT_READY, &opregion->asle->ardy);
 
+	cancel_work_sync(&dev_priv->opregion.asle_work);
+
 	if (opregion->acpi) {
 		iowrite32(0, &opregion->acpi->drdy);
 
@@ -827,6 +858,10 @@ int intel_opregion_setup(struct drm_device *dev)
 		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
 		return -ENOTSUPP;
 	}
+
+#ifdef CONFIG_ACPI
+	INIT_WORK(&opregion->asle_work, asle_work);
+#endif
 
 	base = acpi_os_ioremap(asls, OPREGION_SIZE);
 	if (!base)

@@ -87,6 +87,7 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 	case NV_04:
 		return 0x006e;
 	case NV_10:
+	case NV_11:
 	case NV_20:
 	case NV_30:
 	case NV_40:

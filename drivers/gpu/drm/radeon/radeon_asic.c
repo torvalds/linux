@@ -1622,8 +1622,7 @@ static struct radeon_asic cayman_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cayman_vm_set_page,
+		.set_page = &cayman_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &cayman_gfx_ring,
@@ -1723,8 +1722,7 @@ static struct radeon_asic trinity_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cayman_vm_set_page,
+		.set_page = &cayman_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &cayman_gfx_ring,
@@ -1854,8 +1852,7 @@ static struct radeon_asic si_asic = {
 	.vm = {
 		.init = &si_vm_init,
 		.fini = &si_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &si_vm_set_page,
+		.set_page = &si_dma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &si_gfx_ring,
@@ -1879,7 +1876,7 @@ static struct radeon_asic si_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = NULL,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &si_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -2000,8 +1997,7 @@ static struct radeon_asic ci_asic = {
 	.vm = {
 		.init = &cik_vm_init,
 		.fini = &cik_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cik_vm_set_page,
+		.set_page = &cik_sdma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &ci_gfx_ring,
@@ -2100,8 +2096,7 @@ static struct radeon_asic kv_asic = {
 	.vm = {
 		.init = &cik_vm_init,
 		.fini = &cik_vm_fini,
-		.pt_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.set_page = &cik_vm_set_page,
+		.set_page = &cik_sdma_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &ci_gfx_ring,
@@ -2442,27 +2437,48 @@ int radeon_asic_init(struct radeon_device *rdev)
 		}
 		break;
 	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
 		rdev->asic = &ci_asic;
 		rdev->num_crtc = 6;
 		rdev->has_uvd = true;
-		rdev->cg_flags =
-			RADEON_CG_SUPPORT_GFX_MGCG |
-			RADEON_CG_SUPPORT_GFX_MGLS |
-			/*RADEON_CG_SUPPORT_GFX_CGCG |*/
-			RADEON_CG_SUPPORT_GFX_CGLS |
-			RADEON_CG_SUPPORT_GFX_CGTS |
-			RADEON_CG_SUPPORT_GFX_CGTS_LS |
-			RADEON_CG_SUPPORT_GFX_CP_LS |
-			RADEON_CG_SUPPORT_MC_LS |
-			RADEON_CG_SUPPORT_MC_MGCG |
-			RADEON_CG_SUPPORT_SDMA_MGCG |
-			RADEON_CG_SUPPORT_SDMA_LS |
-			RADEON_CG_SUPPORT_BIF_LS |
-			RADEON_CG_SUPPORT_VCE_MGCG |
-			RADEON_CG_SUPPORT_UVD_MGCG |
-			RADEON_CG_SUPPORT_HDP_LS |
-			RADEON_CG_SUPPORT_HDP_MGCG;
-		rdev->pg_flags = 0;
+		if (rdev->family == CHIP_BONAIRE) {
+			rdev->cg_flags =
+				RADEON_CG_SUPPORT_GFX_MGCG |
+				RADEON_CG_SUPPORT_GFX_MGLS |
+				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
+				RADEON_CG_SUPPORT_GFX_CGLS |
+				RADEON_CG_SUPPORT_GFX_CGTS |
+				RADEON_CG_SUPPORT_GFX_CGTS_LS |
+				RADEON_CG_SUPPORT_GFX_CP_LS |
+				RADEON_CG_SUPPORT_MC_LS |
+				RADEON_CG_SUPPORT_MC_MGCG |
+				RADEON_CG_SUPPORT_SDMA_MGCG |
+				RADEON_CG_SUPPORT_SDMA_LS |
+				RADEON_CG_SUPPORT_BIF_LS |
+				RADEON_CG_SUPPORT_VCE_MGCG |
+				RADEON_CG_SUPPORT_UVD_MGCG |
+				RADEON_CG_SUPPORT_HDP_LS |
+				RADEON_CG_SUPPORT_HDP_MGCG;
+			rdev->pg_flags = 0;
+		} else {
+			rdev->cg_flags =
+				RADEON_CG_SUPPORT_GFX_MGCG |
+				RADEON_CG_SUPPORT_GFX_MGLS |
+				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
+				RADEON_CG_SUPPORT_GFX_CGLS |
+				RADEON_CG_SUPPORT_GFX_CGTS |
+				RADEON_CG_SUPPORT_GFX_CP_LS |
+				RADEON_CG_SUPPORT_MC_LS |
+				RADEON_CG_SUPPORT_MC_MGCG |
+				RADEON_CG_SUPPORT_SDMA_MGCG |
+				RADEON_CG_SUPPORT_SDMA_LS |
+				RADEON_CG_SUPPORT_BIF_LS |
+				RADEON_CG_SUPPORT_VCE_MGCG |
+				RADEON_CG_SUPPORT_UVD_MGCG |
+				RADEON_CG_SUPPORT_HDP_LS |
+				RADEON_CG_SUPPORT_HDP_MGCG;
+			rdev->pg_flags = 0;
+		}
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:

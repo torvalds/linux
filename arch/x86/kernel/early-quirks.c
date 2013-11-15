@@ -313,6 +313,16 @@ static size_t __init gen6_stolen_size(int num, int slot, int func)
 	return gmch_ctrl << 25; /* 32 MB units */
 }
 
+static inline size_t gen8_stolen_size(int num, int slot, int func)
+{
+	u16 gmch_ctrl;
+
+	gmch_ctrl = read_pci_config_16(num, slot, func, SNB_GMCH_CTRL);
+	gmch_ctrl >>= BDW_GMCH_GMS_SHIFT;
+	gmch_ctrl &= BDW_GMCH_GMS_MASK;
+	return gmch_ctrl << 25; /* 32 MB units */
+}
+
 typedef size_t (*stolen_size_fn)(int num, int slot, int func);
 
 static struct pci_device_id intel_stolen_ids[] __initdata = {
@@ -336,6 +346,8 @@ static struct pci_device_id intel_stolen_ids[] __initdata = {
 	INTEL_IVB_D_IDS(gen6_stolen_size),
 	INTEL_HSW_D_IDS(gen6_stolen_size),
 	INTEL_HSW_M_IDS(gen6_stolen_size),
+	INTEL_BDW_M_IDS(gen8_stolen_size),
+	INTEL_BDW_D_IDS(gen8_stolen_size)
 };
 
 static void __init intel_graphics_stolen(int num, int slot, int func)
