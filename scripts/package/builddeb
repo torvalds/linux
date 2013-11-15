@@ -172,8 +172,15 @@ fi
 
 # Install the maintainer scripts
 # Note: hook scripts under /etc/kernel are also executed by official Debian
-# kernel packages, as well as kernel packages built using make-kpkg
+# kernel packages, as well as kernel packages built using make-kpkg.
+# make-kpkg sets $INITRD to indicate whether an initramfs is wanted, and
+# so do we; recent versions of dracut and initramfs-tools will obey this.
 debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
+if grep -q '^CONFIG_BLK_DEV_INITRD=y' $KCONFIG_CONFIG; then
+	want_initrd=Yes
+else
+	want_initrd=No
+fi
 for script in postinst postrm preinst prerm ; do
 	mkdir -p "$tmpdir$debhookdir/$script.d"
 	cat <<EOF > "$tmpdir/DEBIAN/$script"
@@ -183,6 +190,9 @@ set -e
 
 # Pass maintainer script parameters to hook scripts
 export DEB_MAINT_PARAMS="\$*"
+
+# Tell initramfs builder whether it's wanted
+export INITRD=$want_initrd
 
 test -d $debhookdir/$script.d && run-parts --arg="$version" --arg="/$installed_image_path" $debhookdir/$script.d
 exit 0
