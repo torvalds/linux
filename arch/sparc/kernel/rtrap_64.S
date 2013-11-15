@@ -18,10 +18,16 @@
 #define		RTRAP_PSTATE_IRQOFF	(PSTATE_TSO|PSTATE_PEF|PSTATE_PRIV)
 #define		RTRAP_PSTATE_AG_IRQOFF	(PSTATE_TSO|PSTATE_PEF|PSTATE_PRIV|PSTATE_AG)
 
+#ifdef CONFIG_CONTEXT_TRACKING
+# define SCHEDULE_USER schedule_user
+#else
+# define SCHEDULE_USER schedule
+#endif
+
 		.text
 		.align			32
 __handle_preemption:
-		call			schedule
+		call			SCHEDULE_USER
 		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		ba,pt			%xcc, __handle_preemption_continue
 		 wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate

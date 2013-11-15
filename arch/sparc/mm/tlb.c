@@ -161,8 +161,8 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	if (mm == &init_mm)
 		return;
 
-	if ((pmd_val(pmd) ^ pmd_val(orig)) & PMD_ISHUGE) {
-		if (pmd_val(pmd) & PMD_ISHUGE)
+	if ((pmd_val(pmd) ^ pmd_val(orig)) & _PAGE_PMD_HUGE) {
+		if (pmd_val(pmd) & _PAGE_PMD_HUGE)
 			mm->context.huge_pte_count++;
 		else
 			mm->context.huge_pte_count--;
@@ -178,13 +178,16 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	}
 
 	if (!pmd_none(orig)) {
-		bool exec = ((pmd_val(orig) & PMD_HUGE_EXEC) != 0);
+		pte_t orig_pte = __pte(pmd_val(orig));
+		bool exec = pte_exec(orig_pte);
 
 		addr &= HPAGE_MASK;
-		if (pmd_val(orig) & PMD_ISHUGE)
+		if (pmd_trans_huge(orig)) {
 			tlb_batch_add_one(mm, addr, exec);
-		else
+			tlb_batch_add_one(mm, addr + REAL_HPAGE_SIZE, exec);
+		} else {
 			tlb_batch_pmd_scan(mm, addr, orig, exec);
+		}
 	}
 }
 
