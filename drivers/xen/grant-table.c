@@ -49,6 +49,7 @@
 #include <xen/grant_table.h>
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
+#include <xen/swiotlb-xen.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
@@ -898,8 +899,16 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			gnttab_retry_eagain_gop(GNTTABOP_map_grant_ref, map_ops + i,
 						&map_ops[i].status, __func__);
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	/* this is basically a nop on x86 */
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		for (i = 0; i < count; i++) {
+			if (map_ops[i].status)
+				continue;
+			set_phys_to_machine(map_ops[i].host_addr >> PAGE_SHIFT,
+					map_ops[i].dev_bus_addr >> PAGE_SHIFT);
+		}
 		return ret;
+	}
 
 	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
 		arch_enter_lazy_mmu_mode();
@@ -942,8 +951,14 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (ret)
 		return ret;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	/* this is basically a nop on x86 */
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		for (i = 0; i < count; i++) {
+			set_phys_to_machine(unmap_ops[i].host_addr >> PAGE_SHIFT,
+					INVALID_P2M_ENTRY);
+		}
 		return ret;
+	}
 
 	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
 		arch_enter_lazy_mmu_mode();

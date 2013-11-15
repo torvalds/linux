@@ -26,6 +26,7 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include "../pci/pci.h"
+#include <asm/pci_x86.h>
 
 static bool __read_mostly pci_seg_supported = true;
 
@@ -192,3 +193,49 @@ static int __init register_xen_pci_notifier(void)
 }
 
 arch_initcall(register_xen_pci_notifier);
+
+#ifdef CONFIG_PCI_MMCONFIG
+static int __init xen_mcfg_late(void)
+{
+	struct pci_mmcfg_region *cfg;
+	int rc;
+
+	if (!xen_initial_domain())
+		return 0;
+
+	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
+		return 0;
+
+	if (list_empty(&pci_mmcfg_list))
+		return 0;
+
+	/* Check whether they are in the right area. */
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+		struct physdev_pci_mmcfg_reserved r;
+
+		r.address = cfg->address;
+		r.segment = cfg->segment;
+		r.start_bus = cfg->start_bus;
+		r.end_bus = cfg->end_bus;
+		r.flags = XEN_PCI_MMCFG_RESERVED;
+
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_pci_mmcfg_reserved, &r);
+		switch (rc) {
+		case 0:
+		case -ENOSYS:
+			continue;
+
+		default:
+			pr_warn("Failed to report MMCONFIG reservation"
+				" state for %s to hypervisor"
+				" (%d)\n",
+				cfg->name, rc);
+		}
+	}
+	return 0;
+}
+/*
+ * Needs to be done after acpi_init which are subsys_initcall.
+ */
+subsys_initcall_sync(xen_mcfg_late);
+#endif
