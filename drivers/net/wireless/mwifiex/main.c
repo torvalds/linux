@@ -470,7 +470,7 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 	if (mwifiex_register_cfg80211(adapter)) {
 		dev_err(adapter->dev, "cannot register with cfg80211\n");
-		goto err_register_cfg80211;
+		goto err_init_fw;
 	}
 
 	rtnl_lock();
@@ -489,7 +489,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
-err_register_cfg80211:
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
 err_init_fw:
