@@ -1255,22 +1255,19 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 
 	/*
 	 * For AR9485 or later chips, TxIQ cal runs as part of
-	 * AGC calibration
+	 * AGC calibration. Specifically, AR9550 in SoC chips.
 	 */
 	if (ah->enabled_cals & TX_IQ_ON_AGC_CAL) {
-		if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags))
-			REG_SET_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
-				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
-		else
-			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
-				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
-		txiqcal_done = run_agc_cal = true;
-	} else if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags)) {
+		txiqcal_done = true;
 		run_agc_cal = true;
+	} else {
 		sep_iq_cal = true;
+		run_agc_cal = true;
 	}
 
-skip_tx_iqcal:
+	/*
+	 * In the SoC family, this will run for AR9300, AR9331 and AR9340.
+	 */
 	if (sep_iq_cal) {
 		txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
@@ -1278,6 +1275,7 @@ skip_tx_iqcal:
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 	}
 
+skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
 		/* Calibrate the AGC */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
@@ -1299,8 +1297,6 @@ skip_tx_iqcal:
 
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
-	else if (caldata && test_bit(TXIQCAL_DONE, &caldata->cal_flags))
-		ar9003_hw_tx_iq_cal_reload(ah);
 
 	/* Revert chainmask to runtime parameters */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
