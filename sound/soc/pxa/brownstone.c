@@ -163,6 +163,7 @@ static struct platform_driver mmp_driver = {
 	.driver		= {
 		.name	= "brownstone-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= brownstone_probe,
 	.remove		= brownstone_remove,

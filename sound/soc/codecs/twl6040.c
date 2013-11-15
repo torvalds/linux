@@ -54,12 +54,7 @@ enum twl6040_dai_id {
 #define TWL6040_OUTHF_0dB 0x03
 #define TWL6040_OUTHF_M52dB 0x1D
 
-/* Shadow register used by the driver */
-#define TWL6040_REG_SW_SHADOW	0x2F
-#define TWL6040_CACHEREGNUM	(TWL6040_REG_SW_SHADOW + 1)
-
-/* TWL6040_REG_SW_SHADOW (0x2F) fields */
-#define TWL6040_EAR_PATH_ENABLE	0x01
+#define TWL6040_CACHEREGNUM	(TWL6040_REG_STATUS + 1)
 
 struct twl6040_jack_data {
 	struct snd_soc_jack *jack;
@@ -135,8 +130,6 @@ static const u8 twl6040_reg[TWL6040_CACHEREGNUM] = {
 	0x00, /* REG_HFOTRIM	0x2C	*/
 	0x09, /* REG_ACCCTL	0x2D	*/
 	0x00, /* REG_STATUS	0x2E (ro) */
-
-	0x00, /* REG_SW_SHADOW	0x2F - Shadow, non HW register */
 };
 
 /* List of registers to be restored after power up */
@@ -220,12 +213,8 @@ static int twl6040_read_reg_volatile(struct snd_soc_codec *codec,
 	if (reg >= TWL6040_CACHEREGNUM)
 		return -EIO;
 
-	if (likely(reg < TWL6040_REG_SW_SHADOW)) {
-		value = twl6040_reg_read(twl6040, reg);
-		twl6040_write_reg_cache(codec, reg, value);
-	} else {
-		value = twl6040_read_reg_cache(codec, reg);
-	}
+	value = twl6040_reg_read(twl6040, reg);
+	twl6040_write_reg_cache(codec, reg, value);
 
 	return value;
 }
@@ -246,7 +235,7 @@ static bool twl6040_is_path_unmuted(struct snd_soc_codec *codec,
 		return priv->dl2_unmuted;
 	default:
 		return 1;
-	};
+	}
 }
 
 /*
@@ -261,8 +250,7 @@ static int twl6040_write(struct snd_soc_codec *codec,
 		return -EIO;
 
 	twl6040_write_reg_cache(codec, reg, value);
-	if (likely(reg < TWL6040_REG_SW_SHADOW) &&
-	    twl6040_is_path_unmuted(codec, reg))
+	if (twl6040_is_path_unmuted(codec, reg))
 		return twl6040_reg_write(twl6040, reg, value);
 	else
 		return 0;
@@ -555,7 +543,7 @@ static const struct snd_kcontrol_new hfr_mux_controls =
 	SOC_DAPM_ENUM("Route", twl6040_hf_enum[1]);
 
 static const struct snd_kcontrol_new ep_path_enable_control =
-	SOC_DAPM_SINGLE("Switch", TWL6040_REG_SW_SHADOW, 0, 1, 0);
+	SOC_DAPM_SINGLE_VIRT("Switch", 1);
 
 static const struct snd_kcontrol_new auxl_switch_control =
 	SOC_DAPM_SINGLE("Switch", TWL6040_REG_HFLCTL, 6, 1, 0);
@@ -1100,7 +1088,7 @@ static void twl6040_mute_path(struct snd_soc_codec *codec, enum twl6040_dai_id i
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static int twl6040_digital_mute(struct snd_soc_dai *dai, int mute)
