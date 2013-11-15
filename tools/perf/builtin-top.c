@@ -1172,7 +1172,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	status = target__validate(target);
 	if (status) {
 		target__strerror(target, status, errbuf, BUFSIZ);
-		ui__warning("%s", errbuf);
+		ui__warning("%s\n", errbuf);
 	}
 
 	status = target__parse_uid(target);
@@ -1180,7 +1180,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		int saved_errno = errno;
 
 		target__strerror(target, status, errbuf, BUFSIZ);
-		ui__error("%s", errbuf);
+		ui__error("%s\n", errbuf);
 
 		status = -saved_errno;
 		goto out_delete_evlist;
