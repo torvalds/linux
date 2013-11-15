@@ -31,6 +31,10 @@
 #include <tools/be_byteshift.h>
 #include <tools/le_byteshift.h>
 
+#ifndef EM_ARCOMPACT
+#define EM_ARCOMPACT	93
+#endif
+
 #ifndef EM_AARCH64
 #define EM_AARCH64	183
 #endif
@@ -268,6 +272,7 @@ do_file(char const *const fname)
 	case EM_S390:
 		custom_sort = sort_relative_table;
 		break;
+	case EM_ARCOMPACT:
 	case EM_ARM:
 	case EM_AARCH64:
 	case EM_MIPS:
