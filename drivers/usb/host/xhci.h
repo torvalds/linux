@@ -28,6 +28,8 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 
+#include <asm-generic/io-64-nonatomic-lo-hi.h>
+
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
 #include "pci-quirks.h"
@@ -1604,14 +1606,6 @@ static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
  * xHCI implementations that do not support 64-bit address pointers will ignore
  * the high dword, and write order is irrelevant.
  */
-static inline u64 xhci_read_64(const struct xhci_hcd *xhci,
-		__le64 __iomem *regs)
-{
-	__u32 __iomem *ptr = (__u32 __iomem *) regs;
-	u64 val_lo = readl(ptr);
-	u64 val_hi = readl(ptr + 1);
-	return val_lo + (val_hi << 32);
-}
 static inline void xhci_write_64(struct xhci_hcd *xhci,
 				 const u64 val, __le64 __iomem *regs)
 {

@@ -313,7 +313,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 		return 0;
 	}
 
-	temp_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	temp_64 = readq(&xhci->op_regs->cmd_ring);
 	if (!(temp_64 & CMD_RING_RUNNING)) {
 		xhci_dbg(xhci, "Command ring had been stopped\n");
 		return 0;
@@ -2871,7 +2871,7 @@ hw_died:
 		/* Clear the event handler busy flag (RW1C);
 		 * the event ring should be empty.
 		 */
-		temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+		temp_64 = readq(&xhci->ir_set->erst_dequeue);
 		xhci_write_64(xhci, temp_64 | ERST_EHB,
 				&xhci->ir_set->erst_dequeue);
 		spin_unlock(&xhci->lock);
@@ -2885,7 +2885,7 @@ hw_died:
 	 */
 	while (xhci_handle_event(xhci) > 0) {}
 
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 = readq(&xhci->ir_set->erst_dequeue);
 	/* If necessary, update the HW's version of the event ring deq ptr. */
 	if (event_ring_deq != xhci->event_ring->dequeue) {
 		deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,

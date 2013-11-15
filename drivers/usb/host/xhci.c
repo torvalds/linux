@@ -604,7 +604,7 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_ring(xhci, xhci->event_ring);
 	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	temp_64 = readq(&xhci->ir_set->erst_dequeue);
 	temp_64 &= ~ERST_PTR_MASK;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"ERST deq = 64'h%0lx", (long unsigned int) temp_64);
@@ -749,11 +749,11 @@ static void xhci_save_registers(struct xhci_hcd *xhci)
 {
 	xhci->s3.command = readl(&xhci->op_regs->command);
 	xhci->s3.dev_nt = readl(&xhci->op_regs->dev_notification);
-	xhci->s3.dcbaa_ptr = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	xhci->s3.dcbaa_ptr = readq(&xhci->op_regs->dcbaa_ptr);
 	xhci->s3.config_reg = readl(&xhci->op_regs->config_reg);
 	xhci->s3.erst_size = readl(&xhci->ir_set->erst_size);
-	xhci->s3.erst_base = xhci_read_64(xhci, &xhci->ir_set->erst_base);
-	xhci->s3.erst_dequeue = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
+	xhci->s3.erst_base = readq(&xhci->ir_set->erst_base);
+	xhci->s3.erst_dequeue = readq(&xhci->ir_set->erst_dequeue);
 	xhci->s3.irq_pending = readl(&xhci->ir_set->irq_pending);
 	xhci->s3.irq_control = readl(&xhci->ir_set->irq_control);
 }
@@ -776,7 +776,7 @@ static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
 	u64	val_64;
 
 	/* step 2: initialize command ring buffer */
-	val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	val_64 = readq(&xhci->op_regs->cmd_ring);
 	val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
 		(xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 				      xhci->cmd_ring->dequeue) &
@@ -3832,7 +3832,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	if (ret) {
 		return ret;
 	}
-	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
+	temp_64 = readq(&xhci->op_regs->dcbaa_ptr);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
 			"Op regs DCBAA ptr = %#016llx", temp_64);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
