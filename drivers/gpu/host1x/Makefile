@@ -9,6 +9,7 @@ host1x-y = \
 	debug.o \
 	mipi.o \
 	hw/host1x01.o \
-	hw/host1x02.o
+	hw/host1x02.o \
+	hw/host1x04.o
 
 obj-$(CONFIG_TEGRA_HOST1X) += host1x.o
