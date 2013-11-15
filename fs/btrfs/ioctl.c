@@ -368,8 +368,13 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 
 int btrfs_is_empty_uuid(u8 *uuid)
 {
-	BUILD_BUG_ON(BTRFS_UUID_SIZE > PAGE_SIZE);
-	return !memcmp(uuid, empty_zero_page, BTRFS_UUID_SIZE);
+	int i;
+
+	for (i = 0; i < BTRFS_UUID_SIZE; i++) {
+		if (uuid[i])
+			return 0;
+	}
+	return 1;
 }
 
 static noinline int create_subvol(struct inode *dir,
