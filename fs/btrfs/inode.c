@@ -6187,8 +6187,7 @@ insert:
 	write_unlock(&em_tree->lock);
 out:
 
-	if (em)
-		trace_btrfs_get_extent(root, em);
+	trace_btrfs_get_extent(root, em);
 
 	if (path)
 		btrfs_free_path(path);
