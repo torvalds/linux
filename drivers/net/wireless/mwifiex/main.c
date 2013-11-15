@@ -411,7 +411,7 @@ static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
  */
 static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
-	int ret, i;
+	int ret;
 	char fmt[64];
 	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
@@ -479,6 +479,7 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 					NL80211_IFTYPE_STATION, NULL, NULL);
 	if (IS_ERR(wdev)) {
 		dev_err(adapter->dev, "cannot create default STA interface\n");
+		rtnl_unlock();
 		goto err_add_intf;
 	}
 	rtnl_unlock();
@@ -488,16 +489,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-
-		if (!priv)
-			continue;
-
-		if (priv->wdev && priv->netdev)
-			mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
-	}
-	rtnl_unlock();
 err_register_cfg80211:
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
