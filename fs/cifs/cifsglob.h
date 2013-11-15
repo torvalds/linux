@@ -858,6 +858,9 @@ struct cifs_tcon {
 	__le64 vol_create_time;
 	__u32 ss_flags;		/* sector size flags */
 	__u32 perf_sector_size; /* best sector size for perf */
+	__u32 max_chunks;
+	__u32 max_bytes_chunk;
+	__u32 max_bytes_copy;
 #endif /* CONFIG_CIFS_SMB2 */
 #ifdef CONFIG_CIFS_FSCACHE
 	u64 resource_id;		/* server resource id */
