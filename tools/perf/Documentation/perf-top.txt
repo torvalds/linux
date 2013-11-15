@@ -50,7 +50,6 @@ Default is to monitor all CPUS.
 --count-filter=<count>::
 	Only display functions with more events than this.
 
--g::
 --group::
         Put the counters into a counter group.
 
@@ -143,12 +142,12 @@ Default is to monitor all CPUS.
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
 
--G::
+-g::
 	Enables call-graph (stack chain/backtrace) recording.
 
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
-	implies -G.
+	implies -g.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
