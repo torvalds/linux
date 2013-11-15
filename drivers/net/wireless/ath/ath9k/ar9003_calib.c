@@ -1252,8 +1252,7 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 		}
 	}
 
-	if ((IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan)) ||
-	    !(ah->enabled_cals & TX_IQ_CAL))
+	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
 		goto skip_tx_iqcal;
 
 	/* Do Tx IQ Calibration */
