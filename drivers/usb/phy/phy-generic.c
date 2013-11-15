@@ -162,7 +162,7 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 
 	if (dev->of_node) {
 		struct device_node *node = dev->of_node;
-		enum of_gpio_flags flags;
+		enum of_gpio_flags flags = 0;
 
 		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
 			clk_rate = 0;
