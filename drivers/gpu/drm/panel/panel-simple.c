@@ -361,6 +361,28 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	},
 };
 
+static const struct drm_display_mode lg_lp129qe_mode = {
+	.clock = 285250,
+	.hdisplay = 2560,
+	.hsync_start = 2560 + 48,
+	.hsync_end = 2560 + 48 + 32,
+	.htotal = 2560 + 48 + 32 + 80,
+	.vdisplay = 1700,
+	.vsync_start = 1700 + 3,
+	.vsync_end = 1700 + 3 + 10,
+	.vtotal = 1700 + 3 + 10 + 36,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lp129qe = {
+	.modes = &lg_lp129qe_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 272,
+		.height = 181,
+	},
+};
+
 static const struct drm_display_mode samsung_ltn101nt05_mode = {
 	.clock = 54030,
 	.hdisplay = 1024,
@@ -393,6 +415,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "lg,lp129qe",
+		.data = &lg_lp129qe,
 	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
