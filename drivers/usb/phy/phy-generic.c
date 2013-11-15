@@ -180,6 +180,8 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
 		clk_rate = pdata->clk_rate;
 		needs_vcc = pdata->needs_vcc;
 		nop->gpio_reset = pdata->gpio_reset;
+	} else {
+		nop->gpio_reset = -1;
 	}
 
 	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
