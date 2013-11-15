@@ -283,11 +283,17 @@ static void genl_unregister_mc_groups(struct genl_family *family)
 		__genl_unregister_mc_group(family, grp);
 }
 
-static int genl_validate_add_ops(struct genl_family *family,
-				 const struct genl_ops *ops,
-				 unsigned int n_ops)
+static int genl_validate_ops(struct genl_family *family)
 {
+	const struct genl_ops *ops = family->ops;
+	unsigned int n_ops = family->n_ops;
 	int i, j;
+
+	if (WARN_ON(n_ops && !ops))
+		return -EINVAL;
+
+	if (!n_ops)
+		return 0;
 
 	for (i = 0; i < n_ops; i++) {
 		if (ops[i].dumpit == NULL && ops[i].doit == NULL)
@@ -313,6 +319,9 @@ static int genl_validate_add_ops(struct genl_family *family,
  * The family id may equal GENL_ID_GENERATE causing an unique id to
  * be automatically generated and assigned.
  *
+ * The family's ops array must already be assigned, you can use the
+ * genl_register_family_with_ops() helper function.
+ *
  * Return 0 on success or a negative error code.
  */
 int __genl_register_family(struct genl_family *family)
@@ -324,6 +333,10 @@ int __genl_register_family(struct genl_family *family)
 
 	if (family->id > GENL_MAX_ID)
 		goto errout;
+
+	err = genl_validate_ops(family);
+	if (err)
+		return err;
 
 	INIT_LIST_HEAD(&family->mcast_groups);
 
@@ -371,40 +384,6 @@ errout:
 	return err;
 }
 EXPORT_SYMBOL(__genl_register_family);
-
-/**
- * __genl_register_family_with_ops - register a generic netlink family
- * @family: generic netlink family
- * @ops: operations to be registered
- * @n_ops: number of elements to register
- *
- * Registers the specified family and operations from the specified table.
- * Only one family may be registered with the same family name or identifier.
- *
- * The family id may equal GENL_ID_GENERATE causing an unique id to
- * be automatically generated and assigned.
- *
- * Either a doit or dumpit callback must be specified for every registered
- * operation or the function will fail. Only one operation structure per
- * command identifier may be registered.
- *
- * See include/net/genetlink.h for more documenation on the operations
- * structure.
- *
- * Return 0 on success or a negative error code.
- */
-int __genl_register_family_with_ops(struct genl_family *family,
-	const struct genl_ops *ops, size_t n_ops)
-{
-	int err;
-
-	err = genl_validate_add_ops(family, ops, n_ops);
-	if (err)
-		return err;
-
-	return __genl_register_family(family);
-}
-EXPORT_SYMBOL(__genl_register_family_with_ops);
 
 /**
  * genl_unregister_family - unregister generic netlink family

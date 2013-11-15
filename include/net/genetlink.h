@@ -131,14 +131,34 @@ static inline int genl_register_family(struct genl_family *family)
 	return __genl_register_family(family);
 }
 
-int __genl_register_family_with_ops(struct genl_family *family,
-				    const struct genl_ops *ops, size_t n_ops);
-
+/**
+ * genl_register_family_with_ops - register a generic netlink family with ops
+ * @family: generic netlink family
+ * @ops: operations to be registered
+ * @n_ops: number of elements to register
+ *
+ * Registers the specified family and operations from the specified table.
+ * Only one family may be registered with the same family name or identifier.
+ *
+ * The family id may equal GENL_ID_GENERATE causing an unique id to
+ * be automatically generated and assigned.
+ *
+ * Either a doit or dumpit callback must be specified for every registered
+ * operation or the function will fail. Only one operation structure per
+ * command identifier may be registered.
+ *
+ * See include/net/genetlink.h for more documenation on the operations
+ * structure.
+ *
+ * Return 0 on success or a negative error code.
+ */
 static inline int genl_register_family_with_ops(struct genl_family *family,
 	const struct genl_ops *ops, size_t n_ops)
 {
 	family->module = THIS_MODULE;
-	return __genl_register_family_with_ops(family, ops, n_ops);
+	family->ops = ops;
+	family->n_ops = n_ops;
+	return __genl_register_family(family);
 }
 
 int genl_unregister_family(struct genl_family *family);
