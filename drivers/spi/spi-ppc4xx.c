@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/interrupt.h>
@@ -396,7 +398,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	master->dev.of_node = np;
 	platform_set_drvdata(op, master);
 	hw = spi_master_get_devdata(master);
-	hw->master = spi_master_get(master);
+	hw->master = master;
 	hw->dev = dev;
 
 	init_completion(&hw->done);
@@ -558,6 +560,7 @@ static int spi_ppc4xx_of_remove(struct platform_device *op)
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);
 	free_gpios(hw);
+	spi_master_put(master);
 	return 0;
 }
 

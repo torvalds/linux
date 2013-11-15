@@ -429,7 +429,8 @@ static void snd_cs4231_advance_dma(struct cs4231_dma_control *dma_cont,
 		unsigned int period_size = snd_pcm_lib_period_bytes(substream);
 		unsigned int offset = period_size * (*periods_sent);
 
-		BUG_ON(period_size >= (1 << 24));
+		if (WARN_ON(period_size >= (1 << 24)))
+			return;
 
 		if (dma_cont->request(dma_cont,
 				      runtime->dma_addr + offset, period_size))
@@ -912,7 +913,8 @@ static int snd_cs4231_playback_prepare(struct snd_pcm_substream *substream)
 	chip->image[CS4231_IFACE_CTRL] &= ~(CS4231_PLAYBACK_ENABLE |
 					    CS4231_PLAYBACK_PIO);
 
-	BUG_ON(runtime->period_size > 0xffff + 1);
+	if (WARN_ON(runtime->period_size > 0xffff + 1))
+		return -EINVAL;
 
 	chip->p_periods_sent = 0;
 	spin_unlock_irqrestore(&chip->lock, flags);

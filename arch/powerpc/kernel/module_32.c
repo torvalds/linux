@@ -26,8 +26,7 @@
 #include <linux/cache.h>
 #include <linux/bug.h>
 #include <linux/sort.h>
-
-#include "setup.h"
+#include <asm/setup.h>
 
 #if 0
 #define DEBUGP printk

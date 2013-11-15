@@ -28,6 +28,7 @@
 #include <linux/cpufreq.h>
 #include <linux/timer.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
 
 #include <asm/hw_irq.h>
 #include <asm/io.h>

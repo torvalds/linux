@@ -632,7 +632,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_master;
 
-	sspi->bitbang.master = spi_master_get(master);
+	sspi->bitbang.master = master;
 	sspi->bitbang.chipselect = spi_sirfsoc_chipselect;
 	sspi->bitbang.setup_transfer = spi_sirfsoc_setup_transfer;
 	sspi->bitbang.txrx_bufs = spi_sirfsoc_transfer;

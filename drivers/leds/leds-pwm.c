@@ -232,7 +232,7 @@ static struct platform_driver led_pwm_driver = {
 	.driver		= {
 		.name	= "leds_pwm",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(of_pwm_leds_match),
+		.of_match_table = of_pwm_leds_match,
 	},
 };
 

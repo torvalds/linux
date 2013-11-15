@@ -173,7 +173,7 @@ static unsigned tegra_sflash_calculate_curr_xfer_param(
 	unsigned remain_len = t->len - tsd->cur_pos;
 	unsigned max_word;
 
-	tsd->bytes_per_word = (t->bits_per_word - 1) / 8 + 1;
+	tsd->bytes_per_word = DIV_ROUND_UP(t->bits_per_word, 8);
 	max_word = remain_len / tsd->bytes_per_word;
 	if (max_word > SPI_FIFO_DEPTH)
 		max_word = SPI_FIFO_DEPTH;
@@ -529,7 +529,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 
 	master->dev.of_node = pdev->dev.of_node;
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
 		goto exit_pm_disable;
@@ -553,7 +553,6 @@ static int tegra_sflash_remove(struct platform_device *pdev)
 	struct tegra_sflash_data	*tsd = spi_master_get_devdata(master);
 
 	free_irq(tsd->irq, tsd);
-	spi_unregister_master(master);
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))

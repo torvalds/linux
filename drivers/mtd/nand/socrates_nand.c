@@ -15,6 +15,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 

@@ -35,5 +35,6 @@ void __init clocksource_of_init(void)
 
 		init_func = match->data;
 		init_func(np);
+		of_node_put(np);
 	}
 }

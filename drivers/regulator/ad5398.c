@@ -219,7 +219,6 @@ static int ad5398_probe(struct i2c_client *client,
 	struct ad5398_chip_info *chip;
 	const struct ad5398_current_data_format *df =
 			(struct ad5398_current_data_format *)id->driver_data;
-	int ret;
 
 	if (!init_data)
 		return -EINVAL;
@@ -240,33 +239,21 @@ static int ad5398_probe(struct i2c_client *client,
 	chip->current_offset = df->current_offset;
 	chip->current_mask = (chip->current_level - 1) << chip->current_offset;
 
-	chip->rdev = regulator_register(&ad5398_reg, &config);
+	chip->rdev = devm_regulator_register(&client->dev, &ad5398_reg,
+					     &config);
 	if (IS_ERR(chip->rdev)) {
-		ret = PTR_ERR(chip->rdev);
 		dev_err(&client->dev, "failed to register %s %s\n",
 			id->name, ad5398_reg.name);
-		goto err;
+		return PTR_ERR(chip->rdev);
 	}
 
 	i2c_set_clientdata(client, chip);
 	dev_dbg(&client->dev, "%s regulator driver is registered.\n", id->name);
 	return 0;
-
-err:
-	return ret;
-}
-
-static int ad5398_remove(struct i2c_client *client)
-{
-	struct ad5398_chip_info *chip = i2c_get_clientdata(client);
-
-	regulator_unregister(chip->rdev);
-	return 0;
 }
 
 static struct i2c_driver ad5398_driver = {
 	.probe = ad5398_probe,
-	.remove = ad5398_remove,
 	.driver		= {
 		.name	= "ad5398",
 	},

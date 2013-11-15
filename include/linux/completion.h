@@ -5,7 +5,7 @@
  * (C) Copyright 2001 Linus Torvalds
  *
  * Atomic wait-for-completion handler data structures.
- * See kernel/sched/core.c for details.
+ * See kernel/sched/completion.c for details.
  */
 
 #include <linux/wait.h>

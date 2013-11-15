@@ -17,6 +17,7 @@
 #include <asm/firmware.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
+#include <asm/prom.h>
 
 static int opal_lpc_chip_id = -1;
 

@@ -413,16 +413,12 @@ static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 			&pdata->ext_regulator[i];
 
 		/* register regulator with framework */
-		info->rdev = regulator_register(&info->desc, &config);
+		info->rdev = devm_regulator_register(&pdev->dev, &info->desc,
+						     &config);
 		if (IS_ERR(info->rdev)) {
 			err = PTR_ERR(info->rdev);
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					info->desc.name);
-			/* when we fail, un-register all earlier regulators */
-			while (--i >= 0) {
-				info = &ab8500_ext_regulator_info[i];
-				regulator_unregister(info->rdev);
-			}
 			return err;
 		}
 
@@ -433,26 +429,8 @@ static int ab8500_ext_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_ext_regulator_remove(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ab8500_ext_regulator_info); i++) {
-		struct ab8500_ext_regulator_info *info = NULL;
-		info = &ab8500_ext_regulator_info[i];
-
-		dev_vdbg(rdev_get_dev(info->rdev),
-			"%s-remove\n", info->desc.name);
-
-		regulator_unregister(info->rdev);
-	}
-
-	return 0;
-}
-
 static struct platform_driver ab8500_ext_regulator_driver = {
 	.probe = ab8500_ext_regulator_probe,
-	.remove = ab8500_ext_regulator_remove,
 	.driver         = {
 		.name   = "ab8500-ext-regulator",
 		.owner  = THIS_MODULE,

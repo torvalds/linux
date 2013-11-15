@@ -429,9 +429,6 @@ static int __init pseries_nvram_init_os_partition(struct nvram_os_partition
 	loff_t p;
 	int size;
 
-	/* Scan nvram for partitions */
-	nvram_scan_partitions();
-
 	/* Look for ours */
 	p = nvram_find_partition(part->name, NVRAM_SIG_OS, &size);
 
@@ -795,6 +792,9 @@ static int __init pseries_nvram_init_log_partitions(void)
 {
 	int rc;
 
+	/* Scan nvram for partitions */
+	nvram_scan_partitions();
+
 	rc = pseries_nvram_init_os_partition(&rtas_log_partition);
 	nvram_init_oops_partition(rc == 0);
 	return 0;
@@ -804,7 +804,7 @@ machine_arch_initcall(pseries, pseries_nvram_init_log_partitions);
 int __init pSeries_nvram_init(void)
 {
 	struct device_node *nvram;
-	const unsigned int *nbytes_p;
+	const __be32 *nbytes_p;
 	unsigned int proplen;
 
 	nvram = of_find_node_by_type(NULL, "nvram");
@@ -817,7 +817,7 @@ int __init pSeries_nvram_init(void)
 		return -EIO;
 	}
 
-	nvram_size = *nbytes_p;
+	nvram_size = be32_to_cpup(nbytes_p);
 
 	nvram_fetch = rtas_token("nvram-fetch");
 	nvram_store = rtas_token("nvram-store");

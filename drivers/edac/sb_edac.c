@@ -50,7 +50,7 @@ static int probed;
  * Get a bit field at register value <v>, from bit <lo> to bit <hi>
  */
 #define GET_BITFIELD(v, lo, hi)	\
-	(((v) & ((1ULL << ((hi) - (lo) + 1)) - 1) << (lo)) >> (lo))
+	(((v) & GENMASK_ULL(hi, lo)) >> (lo))
 
 /*
  * sbridge Memory Controller Registers

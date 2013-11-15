@@ -628,12 +628,12 @@ static const struct net_device_ops arc_emac_netdev_ops = {
 
 static int arc_emac_probe(struct platform_device *pdev)
 {
-	struct resource res_regs, res_irq;
+	struct resource res_regs;
 	struct device_node *phy_node;
 	struct arc_emac_priv *priv;
 	struct net_device *ndev;
 	const char *mac_addr;
-	unsigned int id, clock_frequency;
+	unsigned int id, clock_frequency, irq;
 	int err;
 
 	if (!pdev->dev.of_node)
@@ -661,8 +661,8 @@ static int arc_emac_probe(struct platform_device *pdev)
 	}
 
 	/* Get IRQ from device tree */
-	err = of_irq_to_resource(pdev->dev.of_node, 0, &res_irq);
-	if (!err) {
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (!irq) {
 		dev_err(&pdev->dev, "failed to retrieve <irq> value from device tree\n");
 		return -ENODEV;
 	}
@@ -711,7 +711,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	ndev->irq = res_irq.start;
+	ndev->irq = irq;
 	dev_info(&pdev->dev, "IRQ is %d\n", ndev->irq);
 
 	/* Register interrupt handler for device */

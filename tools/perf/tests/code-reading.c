@@ -276,7 +276,7 @@ static int process_event(struct machine *machine, struct perf_evlist *evlist,
 		return process_sample_event(machine, evlist, event, state);
 
 	if (event->header.type < PERF_RECORD_MAX)
-		return machine__process_event(machine, event);
+		return machine__process_event(machine, event, NULL);
 
 	return 0;
 }
