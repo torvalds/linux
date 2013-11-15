@@ -4480,6 +4480,142 @@ out_unlock:
 	return ret;
 }
 
+#define INIT_FEATURE_FLAGS(suffix) \
+	{ .compat_flags = BTRFS_FEATURE_COMPAT_##suffix, \
+	  .compat_ro_flags = BTRFS_FEATURE_COMPAT_RO_##suffix, \
+	  .incompat_flags = BTRFS_FEATURE_INCOMPAT_##suffix }
+
+static int btrfs_ioctl_get_supported_features(struct file *file,
+					      void __user *arg)
+{
+	static struct btrfs_ioctl_feature_flags features[3] = {
+		INIT_FEATURE_FLAGS(SUPP),
+		INIT_FEATURE_FLAGS(SAFE_SET),
+		INIT_FEATURE_FLAGS(SAFE_CLEAR)
+	};
+
+	if (copy_to_user(arg, &features, sizeof(features)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int btrfs_ioctl_get_features(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
+	struct btrfs_super_block *super_block = root->fs_info->super_copy;
+	struct btrfs_ioctl_feature_flags features;
+
+	features.compat_flags = btrfs_super_compat_flags(super_block);
+	features.compat_ro_flags = btrfs_super_compat_ro_flags(super_block);
+	features.incompat_flags = btrfs_super_incompat_flags(super_block);
+
+	if (copy_to_user(arg, &features, sizeof(features)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int check_feature_bits(struct btrfs_root *root, const char *type,
+			      u64 change_mask, u64 flags, u64 supported_flags,
+			      u64 safe_set, u64 safe_clear)
+{
+	u64 disallowed, unsupported;
+	u64 set_mask = flags & change_mask;
+	u64 clear_mask = ~flags & change_mask;
+
+	unsupported = set_mask & ~supported_flags;
+	if (unsupported) {
+		btrfs_warn(root->fs_info,
+			   "this kernel does not support %s bits 0x%llx",
+			   type, unsupported);
+		return -EOPNOTSUPP;
+	}
+
+	disallowed = set_mask & ~safe_set;
+	if (disallowed) {
+		btrfs_warn(root->fs_info,
+			   "can't set %s bits 0x%llx while mounted",
+			   type, disallowed);
+		return -EPERM;
+	}
+
+	disallowed = clear_mask & ~safe_clear;
+	if (disallowed) {
+		btrfs_warn(root->fs_info,
+			   "can't clear %s bits 0x%llx while mounted",
+			   type, disallowed);
+		return -EPERM;
+	}
+
+	return 0;
+}
+
+#define check_feature(root, change_mask, flags, mask_base)	\
+check_feature_bits(root, # mask_base, change_mask, flags,	\
+		   BTRFS_FEATURE_ ## mask_base ## _SUPP,	\
+		   BTRFS_FEATURE_ ## mask_base ## _SAFE_SET,	\
+		   BTRFS_FEATURE_ ## mask_base ## _SAFE_CLEAR)
+
+static int btrfs_ioctl_set_features(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
+	struct btrfs_super_block *super_block = root->fs_info->super_copy;
+	struct btrfs_ioctl_feature_flags flags[2];
+	struct btrfs_trans_handle *trans;
+	u64 newflags;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(flags, arg, sizeof(flags)))
+		return -EFAULT;
+
+	/* Nothing to do */
+	if (!flags[0].compat_flags && !flags[0].compat_ro_flags &&
+	    !flags[0].incompat_flags)
+		return 0;
+
+	ret = check_feature(root, flags[0].compat_flags,
+			    flags[1].compat_flags, COMPAT);
+	if (ret)
+		return ret;
+
+	ret = check_feature(root, flags[0].compat_ro_flags,
+			    flags[1].compat_ro_flags, COMPAT_RO);
+	if (ret)
+		return ret;
+
+	ret = check_feature(root, flags[0].incompat_flags,
+			    flags[1].incompat_flags, INCOMPAT);
+	if (ret)
+		return ret;
+
+	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	spin_lock(&root->fs_info->super_lock);
+	newflags = btrfs_super_compat_flags(super_block);
+	newflags |= flags[0].compat_flags & flags[1].compat_flags;
+	newflags &= ~(flags[0].compat_flags & ~flags[1].compat_flags);
+	btrfs_set_super_compat_flags(super_block, newflags);
+
+	newflags = btrfs_super_compat_ro_flags(super_block);
+	newflags |= flags[0].compat_ro_flags & flags[1].compat_ro_flags;
+	newflags &= ~(flags[0].compat_ro_flags & ~flags[1].compat_ro_flags);
+	btrfs_set_super_compat_ro_flags(super_block, newflags);
+
+	newflags = btrfs_super_incompat_flags(super_block);
+	newflags |= flags[0].incompat_flags & flags[1].incompat_flags;
+	newflags &= ~(flags[0].incompat_flags & ~flags[1].incompat_flags);
+	btrfs_set_super_incompat_flags(super_block, newflags);
+	spin_unlock(&root->fs_info->super_lock);
+
+	return btrfs_end_transaction(trans, root);
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -4598,6 +4734,12 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_set_fslabel(file, argp);
 	case BTRFS_IOC_FILE_EXTENT_SAME:
 		return btrfs_ioctl_file_extent_same(file, argp);
+	case BTRFS_IOC_GET_SUPPORTED_FEATURES:
+		return btrfs_ioctl_get_supported_features(file, argp);
+	case BTRFS_IOC_GET_FEATURES:
+		return btrfs_ioctl_get_features(file, argp);
+	case BTRFS_IOC_SET_FEATURES:
+		return btrfs_ioctl_set_features(file, argp);
 	}
 
 	return -ENOTTY;
