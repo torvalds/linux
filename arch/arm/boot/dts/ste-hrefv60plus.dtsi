@@ -16,12 +16,6 @@
 	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
 	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
 
-	gpio_keys {
-		button@1 {
-			gpios = <&gpio5 25 0x4>;
-		};
-	};
-
 	soc {
 		// External Micro SD slot
 		sdi0_per1@80126000 {

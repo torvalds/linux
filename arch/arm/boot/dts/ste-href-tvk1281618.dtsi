@@ -14,6 +14,28 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		vdd-supply = <&ab8500_ldo_aux1_reg>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&prox_tvk_mode>, <&hall_tvk_mode>;
+
+		button@139 {
+			/* Proximity sensor */
+			gpios = <&gpio6 25 0x4>;
+			linux,code = <11>; /* SW_FRONT_PROXIMITY */
+			label = "SFH7741 Proximity Sensor";
+		};
+		button@145 {
+			/* Hall sensor */
+			gpios = <&gpio4 17 0x4>;
+			linux,code = <0>; /* SW_LID */
+			label = "HED54XXU11 Hall Effect Sensor";
+		};
+	};
+
 	soc {
 		/* Add Synaptics touch screen, TC35893 keypad etc here */
 		i2c@80004000 {
@@ -72,6 +94,22 @@
 				tc35893_tvk_mode: tc35893_tvk {
 					tvk_cfg {
 						ste,pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			prox {
+				prox_tvk_mode: prox_tvk {
+					tvk_cfg {
+						ste,pins = "GPIO217_AH12";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			hall {
+				hall_tvk_mode: hall_tvk {
+					tvk_cfg {
+						ste,pins = "GPIO145_C13";
 						ste,config = <&gpio_in_pu>;
 					};
 				};

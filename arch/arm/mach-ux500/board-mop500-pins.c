@@ -382,14 +382,6 @@ static struct pinctrl_map __initdata hrefv60_pinmap[] = {
 	/* Accelerometer interrupt lines */
 	DB8500_PIN_HOG("GPIO82_C1", gpio_in_pu), /* ACC_INT1 */
 	DB8500_PIN_HOG("GPIO83_D3", gpio_in_pu), /* ACC_INT2 */
-	/*
-	 * Runtime stuff
-	 * Pull up/down of some sensor GPIO pins, for proximity, HAL sensor
-	 * etc.
-	 */
-	DB8500_PIN("GPIO217_AH12", gpio_in_pu_slpm_gpio_nopull, "gpio-keys.0"),
-	DB8500_PIN("GPIO145_C13", gpio_in_pd_slpm_gpio_nopull, "gpio-keys.0"),
-	DB8500_PIN("GPIO139_C9", gpio_in_pu_slpm_gpio_nopull, "gpio-keys.0"),
 };
 
 static struct pinctrl_map __initdata u9500_pinmap[] = {
