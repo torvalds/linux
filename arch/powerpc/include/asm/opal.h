@@ -443,6 +443,58 @@ struct opal_machine_check_event {
 	} u;
 };
 
+/* FSP memory errors handling */
+enum OpalMemErr_Version {
+	OpalMemErr_V1 = 1,
+};
+
+enum OpalMemErrType {
+	OPAL_MEM_ERR_TYPE_RESILIENCE	= 0,
+	OPAL_MEM_ERR_TYPE_DYN_DALLOC,
+	OPAL_MEM_ERR_TYPE_SCRUB,
+};
+
+/* Memory Reilience error type */
+enum OpalMemErr_ResilErrType {
+	OPAL_MEM_RESILIENCE_CE		= 0,
+	OPAL_MEM_RESILIENCE_UE,
+	OPAL_MEM_RESILIENCE_UE_SCRUB,
+};
+
+/* Dynamic Memory Deallocation type */
+enum OpalMemErr_DynErrType {
+	OPAL_MEM_DYNAMIC_DEALLOC	= 0,
+};
+
+/* OpalMemoryErrorData->flags */
+#define OPAL_MEM_CORRECTED_ERROR	0x0001
+#define OPAL_MEM_THRESHOLD_EXCEEDED	0x0002
+#define OPAL_MEM_ACK_REQUIRED		0x8000
+
+struct OpalMemoryErrorData {
+	enum OpalMemErr_Version	version:8;	/* 0x00 */
+	enum OpalMemErrType	type:8;		/* 0x01 */
+	uint16_t		flags;		/* 0x02 */
+	uint8_t			reserved_1[4];	/* 0x04 */
+
+	union {
+		/* Memory Resilience corrected/uncorrected error info */
+		struct {
+			enum OpalMemErr_ResilErrType resil_err_type:8;
+			uint8_t		reserved_1[7];
+			uint64_t	physical_address_start;
+			uint64_t	physical_address_end;
+		} resilience;
+		/* Dynamic memory deallocation error info */
+		struct {
+			enum OpalMemErr_DynErrType dyn_err_type:8;
+			uint8_t		reserved_1[7];
+			uint64_t	physical_address_start;
+			uint64_t	physical_address_end;
+		} dyn_dealloc;
+	} u;
+};
+
 enum {
 	OPAL_P7IOC_DIAG_TYPE_NONE	= 0,
 	OPAL_P7IOC_DIAG_TYPE_RGC	= 1,
