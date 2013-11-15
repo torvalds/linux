@@ -53,6 +53,11 @@ static const struct adreno_info gpulist[] = {
 	},
 };
 
+MODULE_FIRMWARE("a300_pm4.fw");
+MODULE_FIRMWARE("a300_pfp.fw");
+MODULE_FIRMWARE("a330_pm4.fw");
+MODULE_FIRMWARE("a330_pfp.fw");
+
 #define RB_SIZE    SZ_32K
 #define RB_BLKSIZE 16
 
