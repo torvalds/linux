@@ -99,10 +99,17 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
 	bool flip = nv_plane->flip;
-	int format = ALIGN(src_w * 4, 0x100);
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
-	int ret;
+	int format, ret;
+
+	/* Source parameters given in 16.16 fixed point, ignore fractional. */
+	src_x >>= 16;
+	src_y >>= 16;
+	src_w >>= 16;
+	src_h >>= 16;
+
+	format = ALIGN(src_w * 4, 0x100);
 
 	if (format > 0xffff)
 		return -EINVAL;
@@ -112,12 +119,6 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		return ret;
 
 	nv_plane->cur = nv_fb->nvbo;
-
-	/* Source parameters given in 16.16 fixed point, ignore fractional. */
-	src_x = src_x >> 16;
-	src_y = src_y >> 16;
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
 
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
 	nv_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
