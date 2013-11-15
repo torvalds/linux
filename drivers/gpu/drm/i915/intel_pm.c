@@ -4110,7 +4110,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0xc350);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
