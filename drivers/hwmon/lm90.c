@@ -60,6 +60,11 @@
  * This driver also supports the G781 from GMT. This device is compatible
  * with the ADM1032.
  *
+ * This driver also supports TMP451 from Texas Instruments. This device is
+ * supported in both compatibility and extended mode. It's mostly compatible
+ * with ADT7461 except for local temperature low byte register and max
+ * conversion rate.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -111,7 +116,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004, g781 };
+	max6646, w83l771, max6696, sa56004, g781, tmp451 };
 
 /*
  * The LM90 registers
@@ -168,6 +173,9 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_DEF_CONVRATE_RVAL	6	/* Def conversion rate register value */
 #define LM90_MAX_CONVRATE_MS	16000	/* Maximum conversion rate in ms */
 
+/* TMP451 registers */
+#define TMP451_REG_R_LOCAL_TEMPL	0x15
+
 /*
  * Device flags
  */
@@ -223,6 +231,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "nct1008", adt7461 },
 	{ "w83l771", w83l771 },
 	{ "sa56004", sa56004 },
+	{ "tmp451", tmp451 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
@@ -311,6 +320,13 @@ static const struct lm90_params lm90_params[] = {
 		.max_convrate = 9,
 		.reg_local_ext = SA56004_REG_R_LOCAL_TEMPL,
 	},
+	[tmp451] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT,
+		.alert_alarms = 0x7c,
+		.max_convrate = 9,
+		.reg_local_ext = TMP451_REG_R_LOCAL_TEMPL,
+	}
 };
 
 /*
@@ -746,7 +762,7 @@ static ssize_t show_temp8(struct device *dev, struct device_attribute *devattr,
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
 
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(data->temp8[attr->index]);
@@ -790,7 +806,7 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 		val -= 16000;
 
 	mutex_lock(&data->update_lock);
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp8[nr] = temp_to_u8_adt7461(data, val);
 	else if (data->kind == max6646)
 		data->temp8[nr] = temp_to_u8(val);
@@ -812,7 +828,7 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
 
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u16_adt7461(data, data->temp11[attr->index]);
 	else if (data->kind == max6646)
 		temp = temp_from_u16(data->temp11[attr->index]);
@@ -858,7 +874,7 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 		val -= 16000;
 
 	mutex_lock(&data->update_lock);
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		data->temp11[index] = temp_to_u16_adt7461(data, val);
 	else if (data->kind == max6646)
 		data->temp11[index] = temp_to_u8(val) << 8;
@@ -887,7 +903,7 @@ static ssize_t show_temphyst(struct device *dev,
 	struct lm90_data *data = lm90_update_device(dev);
 	int temp;
 
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(data->temp8[attr->index]);
@@ -915,7 +931,7 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	if (data->kind == adt7461)
+	if (data->kind == adt7461 || data->kind == tmp451)
 		temp = temp_from_u8_adt7461(data, data->temp8[LOCAL_CRIT]);
 	else if (data->kind == max6646)
 		temp = temp_from_u8(data->temp8[LOCAL_CRIT]);
@@ -1348,6 +1364,19 @@ static int lm90_detect(struct i2c_client *client,
 		 && (config1 & 0x3F) == 0x00
 		 && convrate <= 0x08)
 			name = "g781";
+	} else
+	if (address == 0x4C
+	 && man_id == 0x55) { /* Texas Instruments */
+		int local_ext;
+
+		local_ext = i2c_smbus_read_byte_data(client,
+						     TMP451_REG_R_LOCAL_TEMPL);
+
+		if (chip_id == 0x00 /* TMP451 */
+		 && (config1 & 0x1B) == 0x00
+		 && convrate <= 0x09
+		 && (local_ext & 0x0F) == 0x00)
+			name = "tmp451";
 	}
 
 	if (!name) { /* identification failed */
@@ -1409,7 +1438,7 @@ static void lm90_init_client(struct i2c_client *client)
 	data->config_orig = config;
 
 	/* Check Temperature Range Select */
-	if (data->kind == adt7461) {
+	if (data->kind == adt7461 || data->kind == tmp451) {
 		if (config & 0x04)
 			data->flags |= LM90_FLAG_ADT7461_EXT;
 	}

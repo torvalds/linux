@@ -122,6 +122,12 @@ Supported chips:
     Prefix: 'g781'
     Addresses scanned: I2C 0x4c, 0x4d
     Datasheet: Not publicly available from GMT
+  * Texas Instruments TMP451
+    Prefix: 'tmp451'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at TI website
+               http://www.ti.com/litv/pdf/sbos686
+
 
 Author: Jean Delvare <khali@linux-fr.org>
 
