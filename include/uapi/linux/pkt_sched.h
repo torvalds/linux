@@ -764,6 +764,9 @@ enum {
 	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
 
 	TCA_FQ_BUCKETS_LOG,	/* log2(number of buckets) */
+
+	TCA_FQ_FLOW_REFILL_DELAY,	/* flow credit refill delay in usec */
+
 	__TCA_FQ_MAX
 };
 
