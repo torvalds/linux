@@ -292,6 +292,8 @@ static void virtblk_done(struct virtqueue *vq)
 				req_done = true;
 			}
 		}
+		if (unlikely(virtqueue_is_broken(vq)))
+			break;
 	} while (!virtqueue_enable_cb(vq));
 	/* In case queue is stopped waiting for more buffers. */
 	if (req_done)
@@ -456,18 +458,15 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 {
 	struct virtio_blk *vblk = bd->bd_disk->private_data;
-	struct virtio_blk_geometry vgeo;
-	int err;
 
 	/* see if the host passed in geometry config */
-	err = virtio_config_val(vblk->vdev, VIRTIO_BLK_F_GEOMETRY,
-				offsetof(struct virtio_blk_config, geometry),
-				&vgeo);
-
-	if (!err) {
-		geo->heads = vgeo.heads;
-		geo->sectors = vgeo.sectors;
-		geo->cylinders = vgeo.cylinders;
+	if (virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_GEOMETRY)) {
+		virtio_cread(vblk->vdev, struct virtio_blk_config,
+			     geometry.cylinders, &geo->cylinders);
+		virtio_cread(vblk->vdev, struct virtio_blk_config,
+			     geometry.heads, &geo->heads);
+		virtio_cread(vblk->vdev, struct virtio_blk_config,
+			     geometry.sectors, &geo->sectors);
 	} else {
 		/* some standard values, similar to sd */
 		geo->heads = 1 << 6;
@@ -529,8 +528,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 		goto done;
 
 	/* Host must always specify the capacity. */
-	vdev->config->get(vdev, offsetof(struct virtio_blk_config, capacity),
-			  &capacity, sizeof(capacity));
+	virtio_cread(vdev, struct virtio_blk_config, capacity, &capacity);
 
 	/* If capacity is too big, truncate with warning. */
 	if ((sector_t)capacity != capacity) {
@@ -608,9 +606,9 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
 	u8 writeback;
 	int err;
 
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_CONFIG_WCE,
-				offsetof(struct virtio_blk_config, wce),
-				&writeback);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE,
+				   struct virtio_blk_config, wce,
+				   &writeback);
 	if (err)
 		writeback = virtio_has_feature(vdev, VIRTIO_BLK_F_WCE);
 
@@ -642,7 +640,6 @@ virtblk_cache_type_store(struct device *dev, struct device_attribute *attr,
 	struct virtio_blk *vblk = disk->private_data;
 	struct virtio_device *vdev = vblk->vdev;
 	int i;
-	u8 writeback;
 
 	BUG_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
 	for (i = ARRAY_SIZE(virtblk_cache_types); --i >= 0; )
@@ -652,11 +649,7 @@ virtblk_cache_type_store(struct device *dev, struct device_attribute *attr,
 	if (i < 0)
 		return -EINVAL;
 
-	writeback = i;
-	vdev->config->set(vdev,
-			  offsetof(struct virtio_blk_config, wce),
-			  &writeback, sizeof(writeback));
-
+	virtio_cwrite8(vdev, offsetof(struct virtio_blk_config, wce), i);
 	virtblk_update_cache_mode(vdev);
 	return count;
 }
@@ -699,9 +692,9 @@ static int virtblk_probe(struct virtio_device *vdev)
 	index = err;
 
 	/* We need to know how many segments before we allocate. */
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
-				offsetof(struct virtio_blk_config, seg_max),
-				&sg_elems);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_SEG_MAX,
+				   struct virtio_blk_config, seg_max,
+				   &sg_elems);
 
 	/* We need at least one SG element, whatever they say. */
 	if (err || !sg_elems)
@@ -772,8 +765,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		set_disk_ro(vblk->disk, 1);
 
 	/* Host must always specify the capacity. */
-	vdev->config->get(vdev, offsetof(struct virtio_blk_config, capacity),
-			  &cap, sizeof(cap));
+	virtio_cread(vdev, struct virtio_blk_config, capacity, &cap);
 
 	/* If capacity is too big, truncate with warning. */
 	if ((sector_t)cap != cap) {
@@ -794,46 +786,45 @@ static int virtblk_probe(struct virtio_device *vdev)
 
 	/* Host can optionally specify maximum segment size and number of
 	 * segments. */
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_SIZE_MAX,
-				offsetof(struct virtio_blk_config, size_max),
-				&v);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_SIZE_MAX,
+				   struct virtio_blk_config, size_max, &v);
 	if (!err)
 		blk_queue_max_segment_size(q, v);
 	else
 		blk_queue_max_segment_size(q, -1U);
 
 	/* Host can optionally specify the block size of the device */
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_BLK_SIZE,
-				offsetof(struct virtio_blk_config, blk_size),
-				&blk_size);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_BLK_SIZE,
+				   struct virtio_blk_config, blk_size,
+				   &blk_size);
 	if (!err)
 		blk_queue_logical_block_size(q, blk_size);
 	else
 		blk_size = queue_logical_block_size(q);
 
 	/* Use topology information if available */
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_TOPOLOGY,
-			offsetof(struct virtio_blk_config, physical_block_exp),
-			&physical_block_exp);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
+				   struct virtio_blk_config, physical_block_exp,
+				   &physical_block_exp);
 	if (!err && physical_block_exp)
 		blk_queue_physical_block_size(q,
 				blk_size * (1 << physical_block_exp));
 
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_TOPOLOGY,
-			offsetof(struct virtio_blk_config, alignment_offset),
-			&alignment_offset);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
+				   struct virtio_blk_config, alignment_offset,
+				   &alignment_offset);
 	if (!err && alignment_offset)
 		blk_queue_alignment_offset(q, blk_size * alignment_offset);
 
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_TOPOLOGY,
-			offsetof(struct virtio_blk_config, min_io_size),
-			&min_io_size);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
+				   struct virtio_blk_config, min_io_size,
+				   &min_io_size);
 	if (!err && min_io_size)
 		blk_queue_io_min(q, blk_size * min_io_size);
 
-	err = virtio_config_val(vdev, VIRTIO_BLK_F_TOPOLOGY,
-			offsetof(struct virtio_blk_config, opt_io_size),
-			&opt_io_size);
+	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
+				   struct virtio_blk_config, opt_io_size,
+				   &opt_io_size);
 	if (!err && opt_io_size)
 		blk_queue_io_opt(q, blk_size * opt_io_size);
 
@@ -899,7 +890,7 @@ static void virtblk_remove(struct virtio_device *vdev)
 		ida_simple_remove(&vd_index_ida, index);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int virtblk_freeze(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
@@ -959,7 +950,7 @@ static struct virtio_driver virtio_blk = {
 	.probe			= virtblk_probe,
 	.remove			= virtblk_remove,
 	.config_changed		= virtblk_config_changed,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.freeze			= virtblk_freeze,
 	.restore		= virtblk_restore,
 #endif
