@@ -2439,6 +2439,9 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 	int err;
 	struct sk_buff_head seg_queue;
 
+	if (!chan->conn)
+		return -ENOTCONN;
+
 	/* Connectionless channel */
 	if (chan->chan_type == L2CAP_CHAN_CONN_LESS) {
 		skb = l2cap_create_connless_pdu(chan, msg, len, priority);
