@@ -318,6 +318,85 @@ static const struct tmds_config tegra114_tmds_config[] = {
 	},
 };
 
+static const struct tmds_config tegra124_tmds_config[] = {
+	{ /* 480p/576p / 25.2MHz/27MHz modes */
+		.pclk = 27000000,
+		.pll0 = SOR_PLL_ICHPMP(1) | SOR_PLL_BG_V17_S(3) |
+			SOR_PLL_VCOCAP(0) | SOR_PLL_RESISTORSEL,
+		.pll1 = SOR_PLL_LOADADJ(3) | SOR_PLL_TMDS_TERMADJ(0),
+		.pe_current = PE_CURRENT0(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT1(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT2(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT3(PE_CURRENT_0_mA_T114),
+		.drive_current =
+			DRIVE_CURRENT_LANE0_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE1_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE2_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE3_T114(DRIVE_CURRENT_10_400_mA_T114),
+		.peak_current = PEAK_CURRENT_LANE0(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE1(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE2(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE3(PEAK_CURRENT_0_000_mA),
+	}, { /* 720p / 74.25MHz modes */
+		.pclk = 74250000,
+		.pll0 = SOR_PLL_ICHPMP(1) | SOR_PLL_BG_V17_S(3) |
+			SOR_PLL_VCOCAP(1) | SOR_PLL_RESISTORSEL,
+		.pll1 = SOR_PLL_PE_EN | SOR_PLL_LOADADJ(3) |
+			SOR_PLL_TMDS_TERMADJ(0),
+		.pe_current = PE_CURRENT0(PE_CURRENT_15_mA_T114) |
+			PE_CURRENT1(PE_CURRENT_15_mA_T114) |
+			PE_CURRENT2(PE_CURRENT_15_mA_T114) |
+			PE_CURRENT3(PE_CURRENT_15_mA_T114),
+		.drive_current =
+			DRIVE_CURRENT_LANE0_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE1_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE2_T114(DRIVE_CURRENT_10_400_mA_T114) |
+			DRIVE_CURRENT_LANE3_T114(DRIVE_CURRENT_10_400_mA_T114),
+		.peak_current = PEAK_CURRENT_LANE0(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE1(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE2(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE3(PEAK_CURRENT_0_000_mA),
+	}, { /* 1080p / 148.5MHz modes */
+		.pclk = 148500000,
+		.pll0 = SOR_PLL_ICHPMP(1) | SOR_PLL_BG_V17_S(3) |
+			SOR_PLL_VCOCAP(3) | SOR_PLL_RESISTORSEL,
+		.pll1 = SOR_PLL_PE_EN | SOR_PLL_LOADADJ(3) |
+			SOR_PLL_TMDS_TERMADJ(0),
+		.pe_current = PE_CURRENT0(PE_CURRENT_10_mA_T114) |
+			PE_CURRENT1(PE_CURRENT_10_mA_T114) |
+			PE_CURRENT2(PE_CURRENT_10_mA_T114) |
+			PE_CURRENT3(PE_CURRENT_10_mA_T114),
+		.drive_current =
+			DRIVE_CURRENT_LANE0_T114(DRIVE_CURRENT_12_400_mA_T114) |
+			DRIVE_CURRENT_LANE1_T114(DRIVE_CURRENT_12_400_mA_T114) |
+			DRIVE_CURRENT_LANE2_T114(DRIVE_CURRENT_12_400_mA_T114) |
+			DRIVE_CURRENT_LANE3_T114(DRIVE_CURRENT_12_400_mA_T114),
+		.peak_current = PEAK_CURRENT_LANE0(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE1(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE2(PEAK_CURRENT_0_000_mA) |
+			PEAK_CURRENT_LANE3(PEAK_CURRENT_0_000_mA),
+	}, { /* 225/297MHz modes */
+		.pclk = UINT_MAX,
+		.pll0 = SOR_PLL_ICHPMP(1) | SOR_PLL_BG_V17_S(3) |
+			SOR_PLL_VCOCAP(0xf) | SOR_PLL_RESISTORSEL,
+		.pll1 = SOR_PLL_LOADADJ(3) | SOR_PLL_TMDS_TERMADJ(7)
+			| SOR_PLL_TMDS_TERM_ENABLE,
+		.pe_current = PE_CURRENT0(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT1(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT2(PE_CURRENT_0_mA_T114) |
+			PE_CURRENT3(PE_CURRENT_0_mA_T114),
+		.drive_current =
+			DRIVE_CURRENT_LANE0_T114(DRIVE_CURRENT_25_200_mA_T114) |
+			DRIVE_CURRENT_LANE1_T114(DRIVE_CURRENT_25_200_mA_T114) |
+			DRIVE_CURRENT_LANE2_T114(DRIVE_CURRENT_25_200_mA_T114) |
+			DRIVE_CURRENT_LANE3_T114(DRIVE_CURRENT_19_200_mA_T114),
+		.peak_current = PEAK_CURRENT_LANE0(PEAK_CURRENT_3_000_mA) |
+			PEAK_CURRENT_LANE1(PEAK_CURRENT_3_000_mA) |
+			PEAK_CURRENT_LANE2(PEAK_CURRENT_3_000_mA) |
+			PEAK_CURRENT_LANE3(PEAK_CURRENT_0_800_mA),
+	},
+};
+
 static const struct tegra_hdmi_audio_config *
 tegra_hdmi_get_audio_config(unsigned int audio_freq, unsigned int pclk)
 {
@@ -1356,7 +1435,16 @@ static const struct tegra_hdmi_config tegra114_hdmi_config = {
 	.has_sor_io_peak_current = true,
 };
 
+static const struct tegra_hdmi_config tegra124_hdmi_config = {
+	.tmds = tegra124_tmds_config,
+	.num_tmds = ARRAY_SIZE(tegra124_tmds_config),
+	.fuse_override_offset = HDMI_NV_PDISP_SOR_PAD_CTLS0,
+	.fuse_override_value = 1 << 31,
+	.has_sor_io_peak_current = true,
+};
+
 static const struct of_device_id tegra_hdmi_of_match[] = {
+	{ .compatible = "nvidia,tegra124-hdmi", .data = &tegra124_hdmi_config },
 	{ .compatible = "nvidia,tegra114-hdmi", .data = &tegra114_hdmi_config },
 	{ .compatible = "nvidia,tegra30-hdmi", .data = &tegra30_hdmi_config },
 	{ .compatible = "nvidia,tegra20-hdmi", .data = &tegra20_hdmi_config },
