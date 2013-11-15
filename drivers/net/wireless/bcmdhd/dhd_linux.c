@@ -217,16 +217,16 @@ typedef struct dhd_if {
 	/* OS/stack specifics */
 	struct net_device *net;
 	struct net_device_stats stats;
-	int idx;			/* iface idx in dongle */
-	dhd_if_state_t state;			/* interface state */
-	uint			subunit;		/* subunit */
+	int 			idx;			/* iface idx in dongle */
+	dhd_if_state_t	state;			/* interface state */
+	uint 			subunit;		/* subunit */
 	uint8			mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
 	bool			attached;		/* Delayed attachment when unset */
 	bool			txflowcontrol;	/* Per interface flow control indicator */
 	char			name[IFNAMSIZ+1]; /* linux interface name */
 	uint8			bssidx;			/* bsscfg index for the interface */
 	bool			set_multicast;
-	struct			list_head ipv6_list;
+	struct list_head ipv6_list;
 	spinlock_t		ipv6_lock;
 	bool			event2cfg80211;	/* To determine if pass event to cfg80211 */
 } dhd_if_t;
@@ -673,7 +673,7 @@ static int dhd_process_cid_mac(dhd_pub_t *dhdp, bool prepost)
 		dhd_read_macaddr(dhd);
 	} else { /* post process */
 		dhd_write_macaddr(&dhd->pub.mac);
-	}	
+	}
 
 	return 0;
 }
@@ -5501,7 +5501,7 @@ done:
 }
 
 #ifdef PNO_SUPPORT
-/* Linux wrapper to call common dhd_pno_clean */
+/* Linux wrapper to call common dhd_pno_stop_for_ssid */
 int
 dhd_dev_pno_stop_for_ssid(struct net_device *dev)
 {
