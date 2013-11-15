@@ -112,7 +112,15 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	format = ALIGN(src_w * 4, 0x100);
 
 	if (format > 0xffff)
-		return -EINVAL;
+		return -ERANGE;
+
+	if (dev->chipset >= 0x30) {
+		if (crtc_w < (src_w >> 1) || crtc_h < (src_h >> 1))
+			return -ERANGE;
+	} else {
+		if (crtc_w < (src_w >> 3) || crtc_h < (src_h >> 3))
+			return -ERANGE;
+	}
 
 	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM);
 	if (ret)
