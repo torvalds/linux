@@ -989,20 +989,38 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	}
 	case AUDIT_TTY_SET: {
-		struct audit_tty_status s;
+		struct audit_tty_status s, old;
 		struct task_struct *tsk = current;
+		struct audit_buffer	*ab;
+		int res = 0;
+
+		spin_lock(&tsk->sighand->siglock);
+		old.enabled = tsk->signal->audit_tty;
+		old.log_passwd = tsk->signal->audit_tty_log_passwd;
+		spin_unlock(&tsk->sighand->siglock);
 
 		memset(&s, 0, sizeof(s));
 		/* guard against past and future API changes */
 		memcpy(&s, data, min_t(size_t, sizeof(s), nlmsg_len(nlh)));
-		if ((s.enabled != 0 && s.enabled != 1) ||
-		    (s.log_passwd != 0 && s.log_passwd != 1))
+		if ((s.enabled == 0 || s.enabled == 1) &&
+		    (s.log_passwd == 0 || s.log_passwd == 1))
+			res = 1;
+		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
+		audit_log_format(ab, " op=tty_set"
+				 " old-enabled=%d old-log_passwd=%d"
+				 " new-enabled=%d new-log_passwd=%d"
+				 " res=%d",
+				 old.enabled, old.log_passwd,
+				 s.enabled, s.log_passwd,
+				 res);
+		audit_log_end(ab);
+		if (res) {
+			spin_lock(&tsk->sighand->siglock);
+			tsk->signal->audit_tty = s.enabled;
+			tsk->signal->audit_tty_log_passwd = s.log_passwd;
+			spin_unlock(&tsk->sighand->siglock);
+		} else
 			return -EINVAL;
-
-		spin_lock(&tsk->sighand->siglock);
-		tsk->signal->audit_tty = s.enabled;
-		tsk->signal->audit_tty_log_passwd = s.log_passwd;
-		spin_unlock(&tsk->sighand->siglock);
 		break;
 	}
 	default:
