@@ -92,7 +92,7 @@ static int ath10k_install_key(struct ath10k_vif *arvif,
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	INIT_COMPLETION(ar->install_key_done);
+	reinit_completion(&ar->install_key_done);
 
 	ret = ath10k_send_key(arvif, key, cmd, macaddr);
 	if (ret)
@@ -438,7 +438,7 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	INIT_COMPLETION(ar->vdev_setup_done);
+	reinit_completion(&ar->vdev_setup_done);
 
 	arg.vdev_id = arvif->vdev_id;
 	arg.dtim_period = arvif->dtim_period;
@@ -491,7 +491,7 @@ static int ath10k_vdev_stop(struct ath10k_vif *arvif)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	INIT_COMPLETION(ar->vdev_setup_done);
+	reinit_completion(&ar->vdev_setup_done);
 
 	ret = ath10k_wmi_vdev_stop(ar, arvif->vdev_id);
 	if (ret) {
@@ -1666,7 +1666,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		}
 
 		spin_lock_bh(&ar->data_lock);
-		INIT_COMPLETION(ar->offchan_tx_completed);
+		reinit_completion(&ar->offchan_tx_completed);
 		ar->offchan_tx_skb = skb;
 		spin_unlock_bh(&ar->data_lock);
 
@@ -2476,8 +2476,8 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	INIT_COMPLETION(ar->scan.started);
-	INIT_COMPLETION(ar->scan.completed);
+	reinit_completion(&ar->scan.started);
+	reinit_completion(&ar->scan.completed);
 	ar->scan.in_progress = true;
 	ar->scan.aborting = false;
 	ar->scan.is_roc = false;
@@ -2832,9 +2832,9 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	INIT_COMPLETION(ar->scan.started);
-	INIT_COMPLETION(ar->scan.completed);
-	INIT_COMPLETION(ar->scan.on_channel);
+	reinit_completion(&ar->scan.started);
+	reinit_completion(&ar->scan.completed);
+	reinit_completion(&ar->scan.on_channel);
 	ar->scan.in_progress = true;
 	ar->scan.aborting = false;
 	ar->scan.is_roc = true;

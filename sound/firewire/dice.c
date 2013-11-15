@@ -543,7 +543,7 @@ static int dice_change_rate(struct dice *dice, unsigned int clock_rate)
 	__be32 value;
 	int err;
 
-	INIT_COMPLETION(dice->clock_accepted);
+	reinit_completion(&dice->clock_accepted);
 
 	value = cpu_to_be32(clock_rate | CLOCK_SOURCE_ARX1);
 	err = snd_fw_transaction(dice->unit, TCODE_WRITE_QUADLET_REQUEST,

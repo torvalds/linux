@@ -3017,7 +3017,7 @@ static inline void ata_eh_pull_park_action(struct ata_port *ap)
 	 * ourselves at the beginning of each pass over the loop.
 	 *
 	 * Additionally, all write accesses to &ap->park_req_pending
-	 * through INIT_COMPLETION() (see below) or complete_all()
+	 * through reinit_completion() (see below) or complete_all()
 	 * (see ata_scsi_park_store()) are protected by the host lock.
 	 * As a result we have that park_req_pending.done is zero on
 	 * exit from this function, i.e. when ATA_EH_PARK actions for
@@ -3031,7 +3031,7 @@ static inline void ata_eh_pull_park_action(struct ata_port *ap)
 	 */
 
 	spin_lock_irqsave(ap->lock, flags);
-	INIT_COMPLETION(ap->park_req_pending);
+	reinit_completion(&ap->park_req_pending);
 	ata_for_each_link(link, ap, EDGE) {
 		ata_for_each_dev(dev, link, ALL) {
 			struct ata_eh_info *ehi = &link->eh_info;

@@ -218,8 +218,10 @@ config SPLIT_PTLOCK_CPUS
 	int
 	default "999999" if ARM && !CPU_CACHE_VIPT
 	default "999999" if PARISC && !PA20
-	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
 	default "4"
+
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	boolean
 
 #
 # support for memory balloon compaction

@@ -3537,7 +3537,7 @@ int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
 
 void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx)
 {
-	INIT_COMPLETION(mbx->completion);
+	reinit_completion(&mbx->completion);
 	set_bit(QLC_83XX_MBX_READY, &mbx->status);
 }
 

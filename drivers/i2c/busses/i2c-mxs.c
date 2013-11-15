@@ -505,7 +505,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 				return err;
 		}
 	} else {
-		INIT_COMPLETION(i2c->cmd_complete);
+		reinit_completion(&i2c->cmd_complete);
 		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
 		if (ret)
 			return ret;

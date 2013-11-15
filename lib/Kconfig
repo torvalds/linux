@@ -51,13 +51,6 @@ config PERCPU_RWSEM
 config ARCH_USE_CMPXCHG_LOCKREF
 	bool
 
-config CMPXCHG_LOCKREF
-	def_bool y if ARCH_USE_CMPXCHG_LOCKREF
-	depends on SMP
-	depends on !GENERIC_LOCKBREAK
-	depends on !DEBUG_SPINLOCK
-	depends on !DEBUG_LOCK_ALLOC
-
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

@@ -129,7 +129,7 @@ static int can_set_xattr(struct inode *inode, const char *name,
 
 static void hfsplus_init_header_node(struct inode *attr_file,
 					u32 clump_size,
-					char *buf, size_t node_size)
+					char *buf, u16 node_size)
 {
 	struct hfs_bnode_desc *desc;
 	struct hfs_btree_header_rec *head;
@@ -139,8 +139,9 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	char *bmp;
 	u32 used_nodes;
 	u32 used_bmp_bytes;
+	loff_t tmp;
 
-	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %zu\n",
+	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
 				clump_size, node_size);
 
 	/* The end of the node contains list of record offsets */
@@ -154,7 +155,9 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 
 	head = (struct hfs_btree_header_rec *)(buf + offset);
 	head->node_size = cpu_to_be16(node_size);
-	head->node_count = cpu_to_be32(i_size_read(attr_file) / node_size);
+	tmp = i_size_read(attr_file);
+	do_div(tmp, node_size);
+	head->node_count = cpu_to_be32(tmp);
 	head->free_nodes = cpu_to_be32(be32_to_cpu(head->node_count) - 1);
 	head->clump_size = cpu_to_be32(clump_size);
 	head->attributes |= cpu_to_be32(HFS_TREE_BIGKEYS | HFS_TREE_VARIDXKEYS);
