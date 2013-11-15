@@ -965,11 +965,7 @@ nouveau_vma_getmap(struct nouveau_channel *chan, struct nouveau_bo *nvbo,
 	if (ret)
 		return ret;
 
-	if (mem->mem_type == TTM_PL_VRAM)
-		nouveau_vm_map(vma, node);
-	else
-		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT, node);
-
+	nouveau_vm_map(vma, node);
 	return 0;
 }
 
@@ -1147,19 +1143,10 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 		return;
 
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (new_mem && new_mem->mem_type == TTM_PL_VRAM) {
+		if (new_mem && new_mem->mem_type != TTM_PL_SYSTEM &&
+			      (new_mem->mem_type == TTM_PL_VRAM ||
+			       nvbo->page_shift != vma->vm->vmm->lpg_shift)) {
 			nouveau_vm_map(vma, new_mem->mm_node);
-		} else
-		if (new_mem && new_mem->mem_type == TTM_PL_TT &&
-		    nvbo->page_shift == vma->vm->vmm->spg_shift) {
-			if (((struct nouveau_mem *)new_mem->mm_node)->sg)
-				nouveau_vm_map_sg_table(vma, 0, new_mem->
-						  num_pages << PAGE_SHIFT,
-						  new_mem->mm_node);
-			else
-				nouveau_vm_map_sg(vma, 0, new_mem->
-						  num_pages << PAGE_SHIFT,
-						  new_mem->mm_node);
 		} else {
 			nouveau_vm_unmap(vma);
 		}
@@ -1535,7 +1522,6 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 		   struct nouveau_vma *vma)
 {
 	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	struct nouveau_mem *node = nvbo->bo.mem.mm_node;
 	int ret;
 
 	ret = nouveau_vm_get(vm, size, nvbo->page_shift,
@@ -1543,15 +1529,10 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 	if (ret)
 		return ret;
 
-	if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
+	if ( nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
+	    (nvbo->bo.mem.mem_type == TTM_PL_VRAM ||
+	     nvbo->page_shift != vma->vm->vmm->lpg_shift))
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
-	else if (nvbo->bo.mem.mem_type == TTM_PL_TT &&
-		 nvbo->page_shift == vma->vm->vmm->spg_shift) {
-		if (node->sg)
-			nouveau_vm_map_sg_table(vma, 0, size, node);
-		else
-			nouveau_vm_map_sg(vma, 0, size, node);
-	}
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
 	vma->refcount = 1;
