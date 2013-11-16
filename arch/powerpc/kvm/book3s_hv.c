@@ -591,7 +591,9 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (list_empty(&vcpu->kvm->arch.rtas_tokens))
 			return RESUME_HOST;
 
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		rc = kvmppc_rtas_hcall(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 		if (rc == -ENOENT)
 			return RESUME_HOST;
