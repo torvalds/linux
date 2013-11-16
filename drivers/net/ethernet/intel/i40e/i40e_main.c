@@ -7141,6 +7141,13 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_adminq(hw);
 	dev_info(&pdev->dev, "%s\n", i40e_fw_version_str(hw));
+	if (((hw->nvm.version & I40E_NVM_VERSION_HI_MASK)
+		 >> I40E_NVM_VERSION_HI_SHIFT) != I40E_CURRENT_NVM_VERSION_HI) {
+		dev_info(&pdev->dev,
+			 "warning: NVM version not supported, supported version: %02x.%02x\n",
+			 I40E_CURRENT_NVM_VERSION_HI,
+			 I40E_CURRENT_NVM_VERSION_LO);
+	}
 	if (err) {
 		dev_info(&pdev->dev,
 			 "init_adminq failed: %d expecting API %02x.%02x\n",
