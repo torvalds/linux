@@ -344,31 +344,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	/* move myself to free_list */
 	list_move(&desc->desc_node, &atchan->free_list);
 
-	/* unmap dma addresses (not on slave channels) */
-	if (!atchan->chan_common.private) {
-		struct device *parent = chan2parent(&atchan->chan_common);
-		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
-			if (txd->flags & DMA_COMPL_DEST_UNMAP_SINGLE)
-				dma_unmap_single(parent,
-						desc->lli.daddr,
-						desc->len, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(parent,
-						desc->lli.daddr,
-						desc->len, DMA_FROM_DEVICE);
-		}
-		if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
-			if (txd->flags & DMA_COMPL_SRC_UNMAP_SINGLE)
-				dma_unmap_single(parent,
-						desc->lli.saddr,
-						desc->len, DMA_TO_DEVICE);
-			else
-				dma_unmap_page(parent,
-						desc->lli.saddr,
-						desc->len, DMA_TO_DEVICE);
-		}
-	}
-
+	dma_descriptor_unmap(txd);
 	/* for cyclic transfers,
 	 * no need to replay callback function while stopping */
 	if (!atc_chan_is_cyclic(atchan)) {
