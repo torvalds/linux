@@ -466,10 +466,15 @@ static i40e_status i40e_shutdown_asq(struct i40e_hw *hw)
 		return I40E_ERR_NOT_READY;
 
 	/* Stop firmware AdminQ processing */
-	if (hw->mac.type == I40E_MAC_VF)
+	if (hw->mac.type == I40E_MAC_VF) {
 		wr32(hw, I40E_VF_ATQLEN1, 0);
-	else
+		wr32(hw, I40E_VF_ATQH1, 0);
+		wr32(hw, I40E_VF_ATQT1, 0);
+	} else {
 		wr32(hw, I40E_PF_ATQLEN, 0);
+		wr32(hw, I40E_PF_ATQH, 0);
+		wr32(hw, I40E_PF_ATQT, 0);
+	}
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.asq_mutex);
@@ -500,10 +505,15 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
 		return I40E_ERR_NOT_READY;
 
 	/* Stop firmware AdminQ processing */
-	if (hw->mac.type == I40E_MAC_VF)
+	if (hw->mac.type == I40E_MAC_VF) {
 		wr32(hw, I40E_VF_ARQLEN1, 0);
-	else
+		wr32(hw, I40E_VF_ARQH1, 0);
+		wr32(hw, I40E_VF_ARQT1, 0);
+	} else {
 		wr32(hw, I40E_PF_ARQLEN, 0);
+		wr32(hw, I40E_PF_ARQH, 0);
+		wr32(hw, I40E_PF_ARQT, 0);
+	}
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.arq_mutex);
