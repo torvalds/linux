@@ -2790,11 +2790,11 @@ static irqreturn_t i40e_intr(int irq, void *data)
 		val = rd32(hw, I40E_GLGEN_RSTAT);
 		val = (val & I40E_GLGEN_RSTAT_RESET_TYPE_MASK)
 		       >> I40E_GLGEN_RSTAT_RESET_TYPE_SHIFT;
-		if (val & I40E_RESET_CORER)
+		if (val == I40E_RESET_CORER)
 			pf->corer_count++;
-		else if (val & I40E_RESET_GLOBR)
+		else if (val == I40E_RESET_GLOBR)
 			pf->globr_count++;
-		else if (val & I40E_RESET_EMPR)
+		else if (val == I40E_RESET_EMPR)
 			pf->empr_count++;
 	}
 
