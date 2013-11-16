@@ -219,7 +219,7 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 	/* Load PM4: */
 	ptr = (uint32_t *)(adreno_gpu->pm4->data);
 	len = adreno_gpu->pm4->size / 4;
-	DBG("loading PM4 ucode version: %u", ptr[0]);
+	DBG("loading PM4 ucode version: %x", ptr[1]);
 
 	gpu_write(gpu, REG_AXXX_CP_DEBUG,
 			AXXX_CP_DEBUG_DYNAMIC_CLK_DISABLE |
@@ -231,7 +231,7 @@ static int a3xx_hw_init(struct msm_gpu *gpu)
 	/* Load PFP: */
 	ptr = (uint32_t *)(adreno_gpu->pfp->data);
 	len = adreno_gpu->pfp->size / 4;
-	DBG("loading PFP ucode version: %u", ptr[0]);
+	DBG("loading PFP ucode version: %x", ptr[5]);
 
 	gpu_write(gpu, REG_A3XX_CP_PFP_UCODE_ADDR, 0);
 	for (i = 1; i < len; i++)
@@ -469,7 +469,7 @@ static int a3xx_probe(struct platform_device *pdev)
 		config.slow_rate = 27000000;
 		config.bus_freq  = 4;
 		config.rev = ADRENO_REV(3, 2, 1, 0);
-	} else if (cpu_is_apq8064() || cpu_is_msm8960ab()) {
+	} else if (cpu_is_apq8064()) {
 		config.fast_rate = 400000000;
 		config.slow_rate = 27000000;
 		config.bus_freq  = 4;
@@ -481,6 +481,16 @@ static int a3xx_probe(struct platform_device *pdev)
 			config.rev = ADRENO_REV(3, 2, 0, 1);
 		else
 			config.rev = ADRENO_REV(3, 2, 0, 0);
+
+	} else if (cpu_is_msm8960ab()) {
+		config.fast_rate = 400000000;
+		config.slow_rate = 320000000;
+		config.bus_freq  = 4;
+
+		if (SOCINFO_VERSION_MINOR(version) == 0)
+			config.rev = ADRENO_REV(3, 2, 1, 0);
+		else
+			config.rev = ADRENO_REV(3, 2, 1, 1);
 
 	} else if (cpu_is_msm8930()) {
 		config.fast_rate = 400000000;

@@ -32,7 +32,9 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	pm_runtime_get_sync(dev->dev);
 
+	mdp4_enable(mdp4_kms);
 	version = mdp4_read(mdp4_kms, REG_MDP4_VERSION);
+	mdp4_disable(mdp4_kms);
 
 	major = FIELD(version, MDP4_VERSION_MAJOR);
 	minor = FIELD(version, MDP4_VERSION_MINOR);
@@ -328,9 +330,11 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
 	 */
+	mdp4_enable(mdp4_kms);
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_LCDC_ENABLE, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
+	mdp4_disable(mdp4_kms);
 	mdelay(16);
 
 	if (config->iommu) {

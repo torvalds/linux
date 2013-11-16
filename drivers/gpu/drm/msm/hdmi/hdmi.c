@@ -122,7 +122,7 @@ int hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 
 	hdmi->mvs = devm_regulator_get(&pdev->dev, "8901_hdmi_mvs");
 	if (IS_ERR(hdmi->mvs))
-		hdmi->mvs = devm_regulator_get(&pdev->dev, "hdmi_mvs");
+		hdmi->mvs = devm_regulator_get(&pdev->dev, "8921_hdmi_mvs");
 	if (IS_ERR(hdmi->mvs)) {
 		ret = PTR_ERR(hdmi->mvs);
 		dev_err(dev->dev, "failed to get mvs regulator: %d\n", ret);
@@ -230,7 +230,7 @@ static int hdmi_dev_probe(struct platform_device *pdev)
 		config.ddc_data_gpio = 71;
 		config.hpd_gpio      = 72;
 		config.pmic_gpio     = 13 + NR_GPIO_IRQS;
-	} else if (cpu_is_msm8960()) {
+	} else if (cpu_is_msm8960() || cpu_is_msm8960ab()) {
 		config.phy_init      = hdmi_phy_8960_init;
 		config.ddc_clk_gpio  = 100;
 		config.ddc_data_gpio = 101;
