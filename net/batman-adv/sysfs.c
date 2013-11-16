@@ -450,6 +450,74 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
+/**
+ * batadv_show_isolation_mark - print the current isolation mark/mask
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer that will contain the data to send back to the user
+ *
+ * Returns the number of bytes written into 'buff' on success or a negative
+ * error code in case of failure
+ */
+static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
+					  struct attribute *attr, char *buff)
+{
+	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
+
+	return sprintf(buff, "%#.8x/%#.8x\n", bat_priv->isolation_mark,
+		       bat_priv->isolation_mark_mask);
+}
+
+/**
+ * batadv_store_isolation_mark - parse and store the isolation mark/mask entered
+ *  by the user
+ * @kobj: kobject representing the private mesh sysfs directory
+ * @attr: the batman-adv attribute the user is interacting with
+ * @buff: the buffer containing the user data
+ * @count: number of bytes in the buffer
+ *
+ * Returns 'count' on success or a negative error code in case of failure
+ */
+static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
+					   struct attribute *attr, char *buff,
+					   size_t count)
+{
+	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	uint32_t mark, mask;
+	char *mask_ptr;
+
+	/* parse the mask if it has been specified, otherwise assume the mask is
+	 * the biggest possible
+	 */
+	mask = 0xFFFFFFFF;
+	mask_ptr = strchr(buff, '/');
+	if (mask_ptr) {
+		*mask_ptr = '\0';
+		mask_ptr++;
+
+		/* the mask must be entered in hex base as it is going to be a
+		 * bitmask and not a prefix length
+		 */
+		if (kstrtou32(mask_ptr, 16, &mask) < 0)
+			return -EINVAL;
+	}
+
+	/* the mark can be entered in any base */
+	if (kstrtou32(buff, 0, &mark) < 0)
+		return -EINVAL;
+
+	bat_priv->isolation_mark_mask = mask;
+	/* erase bits not covered by the mask */
+	bat_priv->isolation_mark = mark & bat_priv->isolation_mark_mask;
+
+	batadv_info(net_dev,
+		    "New skb mark for extended isolation: %#.8x/%#.8x\n",
+		    bat_priv->isolation_mark, bat_priv->isolation_mark_mask);
+
+	return count;
+}
+
 BATADV_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
 BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -478,6 +546,8 @@ BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR,
 		     batadv_nc_status_update);
 #endif
+static BATADV_ATTR(isolation_mark, S_IRUGO | S_IWUSR,
+		   batadv_show_isolation_mark, batadv_store_isolation_mark);
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -501,6 +571,7 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 #ifdef CONFIG_BATMAN_ADV_NC
 	&batadv_attr_network_coding,
 #endif
+	&batadv_attr_isolation_mark,
 	NULL,
 };
 

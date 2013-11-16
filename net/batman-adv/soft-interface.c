@@ -701,6 +701,8 @@ static int batadv_softif_init_late(struct net_device *dev)
 #endif
 	bat_priv->tt.last_changeset = NULL;
 	bat_priv->tt.last_changeset_len = 0;
+	bat_priv->isolation_mark = 0;
+	bat_priv->isolation_mark_mask = 0;
 
 	/* randomize initial seqno to avoid collision */
 	get_random_bytes(&random_seqno, sizeof(random_seqno));
