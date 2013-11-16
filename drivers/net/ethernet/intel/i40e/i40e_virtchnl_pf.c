@@ -1603,7 +1603,7 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		struct i40e_mac_filter *f;
 
 		f = i40e_find_mac(vsi, al->list[i].addr, true, false);
-		if (f) {
+		if (!f) {
 			if (i40e_is_vsi_in_vlan(vsi))
 				f = i40e_put_mac_in_vlan(vsi, al->list[i].addr,
 							 true, false);
