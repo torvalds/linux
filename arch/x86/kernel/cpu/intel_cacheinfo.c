@@ -1,5 +1,5 @@
 /*
- *	Routines to indentify caches on Intel CPU.
+ *	Routines to identify caches on Intel CPU.
  *
  *	Changes:
  *	Venkatesh Pallipadi	: Adding cache identification through cpuid(4)

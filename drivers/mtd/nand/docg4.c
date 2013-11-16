@@ -491,7 +491,7 @@ static uint8_t docg4_read_byte(struct mtd_info *mtd)
 		return status;
 	}
 
-	dev_warn(doc->dev, "unexpectd call to read_byte()\n");
+	dev_warn(doc->dev, "unexpected call to read_byte()\n");
 
 	return 0;
 }

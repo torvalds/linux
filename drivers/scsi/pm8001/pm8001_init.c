@@ -909,7 +909,6 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 	struct pm8001_hba_info *pm8001_ha;
 	int i;
 	pm8001_ha = sha->lldd_ha;
-	pci_set_drvdata(pdev, NULL);
 	sas_unregister_ha(sha);
 	sas_remove_host(pm8001_ha->shost);
 	list_del(&pm8001_ha->list);

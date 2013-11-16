@@ -67,7 +67,7 @@ static int exynos_cpufreq_scale(unsigned int target_freq)
 	/*
 	 * The policy max have been changed so that we cannot get proper
 	 * old_index with cpufreq_frequency_table_target(). Thus, ignore
-	 * policy and get the index from the raw freqeuncy table.
+	 * policy and get the index from the raw frequency table.
 	 */
 	old_index = exynos_cpufreq_get_index(old_freq);
 	if (old_index < 0) {

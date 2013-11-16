@@ -84,7 +84,7 @@ set_match_v0_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_warning("Cannot find set indentified by id %u to match\n",
+		pr_warning("Cannot find set identified by id %u to match\n",
 			   info->match_set.index);
 		return -ENOENT;
 	}
@@ -134,7 +134,7 @@ set_match_v1_checkentry(const struct xt_mtchk_param *par)
 	index = ip_set_nfnl_get_byindex(par->net, info->match_set.index);
 
 	if (index == IPSET_INVALID_ID) {
-		pr_warning("Cannot find set indentified by id %u to match\n",
+		pr_warning("Cannot find set identified by id %u to match\n",
 			   info->match_set.index);
 		return -ENOENT;
 	}

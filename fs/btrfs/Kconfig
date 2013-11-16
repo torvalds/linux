@@ -59,7 +59,8 @@ config BTRFS_FS_RUN_SANITY_TESTS
 	help
 	  This will run some basic sanity tests on the free space cache
 	  code to make sure it is acting as it should.  These are mostly
-	  regression tests and are only really interesting to btrfs devlopers.
+	  regression tests and are only really interesting to btrfs
+	  developers.
 
 	  If unsure, say N.
 

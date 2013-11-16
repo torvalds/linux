@@ -4861,7 +4861,6 @@ static void dc395x_remove_one(struct pci_dev *dev)
 	adapter_uninit(acb);
 	pci_disable_device(dev);
 	scsi_host_put(scsi_host);
-	pci_set_drvdata(dev, NULL);
 }
 
 

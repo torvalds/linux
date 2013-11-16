@@ -129,7 +129,7 @@ config X86_AMD_FREQ_SENSITIVITY
 	help
 	  This adds AMD-specific powersave bias function to the ondemand
 	  governor, which allows it to make more power-conscious frequency
-	  change decisions based on feedback from hardware (availble on AMD
+	  change decisions based on feedback from hardware (available on AMD
 	  Family 16h and above).
 
 	  Hardware feedback tells software how "sensitive" to frequency changes

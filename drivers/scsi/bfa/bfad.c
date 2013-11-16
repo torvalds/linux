@@ -804,7 +804,6 @@ bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 	/* Disable PCIE Advanced Error Recovery (AER) */
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 bfa_status_t

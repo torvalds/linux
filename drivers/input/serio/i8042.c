@@ -1036,7 +1036,7 @@ static void i8042_controller_reset(bool force_reset)
 /*
  * i8042_panic_blink() will turn the keyboard LEDs on or off and is called
  * when kernel panics. Flashing LEDs is useful for users running X who may
- * not see the console and will help distingushing panics from "real"
+ * not see the console and will help distinguishing panics from "real"
  * lockups.
  *
  * Note that DELAY has a limit of 10ms so we will not get stuck here

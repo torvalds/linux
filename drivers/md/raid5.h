@@ -49,7 +49,7 @@
  * can't distinguish between a clean block that has been generated
  * from parity calculations, and a clean block that has been
  * successfully written to the spare ( or to parity when resyncing).
- * To distingush these states we have a stripe bit STRIPE_INSYNC that
+ * To distinguish these states we have a stripe bit STRIPE_INSYNC that
  * is set whenever a write is scheduled to the spare, or to the parity
  * disc if there is no spare.  A sync request clears this bit, and
  * when we find it set with no buffers locked, we know the sync is

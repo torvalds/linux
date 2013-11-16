@@ -313,7 +313,7 @@ config MMP_PDMA
 	depends on (ARCH_MMP || ARCH_PXA)
 	select DMA_ENGINE
 	help
-	  Support the MMP PDMA engine for PXA and MMP platfrom.
+	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config DMA_JZ4740
 	tristate "JZ4740 DMA support"

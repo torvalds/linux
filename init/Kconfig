@@ -851,7 +851,7 @@ config NUMA_BALANCING_DEFAULT_ENABLED
 	default y
 	depends on NUMA_BALANCING
 	help
-	  If set, autonumic NUMA balancing will be enabled if running on a NUMA
+	  If set, automatic NUMA balancing will be enabled if running on a NUMA
 	  machine.
 
 config NUMA_BALANCING
@@ -862,7 +862,7 @@ config NUMA_BALANCING
 	help
 	  This option adds support for automatic NUMA aware memory/task placement.
 	  The mechanism is quite primitive and is based on migrating memory when
-	  it is references to the node the task is running on.
+	  it has references to the node the task is running on.
 
 	  This system will be inactive on UMA systems.
 

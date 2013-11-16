@@ -2363,7 +2363,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		break;
 	default:
 		ret = -ENODEV;
-		ath10k_err("Unkown device ID: %d\n", pci_dev->device);
+		ath10k_err("Unknown device ID: %d\n", pci_dev->device);
 		goto err_ar_pci;
 	}
 

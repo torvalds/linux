@@ -240,7 +240,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_PSM_RFCOMM	0x0003
 #define L2CAP_PSM_3DSP		0x0021
 
-/* channel indentifier */
+/* channel identifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002
 #define L2CAP_CID_A2MP		0x0003
