@@ -695,7 +695,7 @@ int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 	while (nr) {
 		if (dump_interrupted())
 			return 0;
-		n = vfs_write(file, addr, nr, &pos);
+		n = __kernel_write(file, addr, nr, &pos);
 		if (n <= 0)
 			return 0;
 		file->f_pos = pos;
