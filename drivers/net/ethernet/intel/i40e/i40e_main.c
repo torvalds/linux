@@ -2752,6 +2752,11 @@ static irqreturn_t i40e_intr(int irq, void *data)
 
 	ena_mask = rd32(hw, I40E_PFINT_ICR0_ENA);
 
+	/* if interrupt but no bits showing, must be SWINT */
+	if (((icr0 & ~I40E_PFINT_ICR0_INTEVENT_MASK) == 0) ||
+	    (icr0 & I40E_PFINT_ICR0_SWINT_MASK))
+		pf->sw_int_count++;
+
 	/* only q0 is used in MSI/Legacy mode, and none are used in MSIX */
 	if (icr0 & I40E_PFINT_ICR0_QUEUE_0_MASK) {
 
