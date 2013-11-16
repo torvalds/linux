@@ -235,17 +235,6 @@ config ACPI_INITRD_TABLE_OVERRIDE
 	  initrd, therefore it's safe to say Y.
 	  See Documentation/acpi/initrd_table_override.txt for details
 
-config ACPI_BLACKLIST_YEAR
-	int "Disable ACPI for systems before Jan 1st this year" if X86_32
-	default 0
-	help
-	  Enter a 4-digit year, e.g., 2001, to disable ACPI by default
-	  on platforms with DMI BIOS date before January 1st that year.
-	  "acpi=force" can be used to override this mechanism.
-
-	  Enter 0 to disable this mechanism and allow ACPI to
-	  run by default no matter what the year.  (default)
-
 config ACPI_DEBUG
 	bool "Debug Statements"
 	default n
