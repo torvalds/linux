@@ -119,7 +119,7 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 		batadv_tt_local_remove(bat_priv, old_addr, BATADV_NO_FLAGS,
 				       "mac address changed", false);
 		batadv_tt_local_add(dev, addr->sa_data, BATADV_NO_FLAGS,
-				    BATADV_NULL_IFINDEX);
+				    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
 	}
 
 	return 0;
@@ -199,7 +199,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	/* Register the client MAC in the transtable */
 	if (!is_multicast_ether_addr(ethhdr->h_source)) {
 		client_added = batadv_tt_local_add(soft_iface, ethhdr->h_source,
-						   vid, skb->skb_iif);
+						   vid, skb->skb_iif,
+						   skb->mark);
 		if (!client_added)
 			goto dropped;
 	}
@@ -489,7 +490,7 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 	 */
 	batadv_tt_local_add(bat_priv->soft_iface,
 			    bat_priv->soft_iface->dev_addr, vid,
-			    BATADV_NULL_IFINDEX);
+			    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
 
 	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
 	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);

@@ -474,11 +474,13 @@ static void batadv_tt_global_free(struct batadv_priv *bat_priv,
  * @vid: VLAN identifier
  * @ifindex: index of the interface where the client is connected to (useful to
  *  identify wireless clients)
+ * @mark: the value contained in the skb->mark field of the received packet (if
+ *  any)
  *
  * Returns true if the client was successfully added, false otherwise.
  */
 bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
-			 unsigned short vid, int ifindex)
+			 unsigned short vid, int ifindex, uint32_t mark)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	struct batadv_tt_local_entry *tt_local;
@@ -489,6 +491,7 @@ bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	int hash_added, table_size, packet_size_max;
 	bool ret = false, roamed_back = false;
 	uint8_t remote_flags;
+	uint32_t match_mark;
 
 	if (ifindex != BATADV_NULL_IFINDEX)
 		in_dev = dev_get_by_index(&init_net, ifindex);
@@ -612,6 +615,17 @@ check_roaming:
 		tt_local->common.flags |= BATADV_TT_CLIENT_WIFI;
 	else
 		tt_local->common.flags &= ~BATADV_TT_CLIENT_WIFI;
+
+	/* check the mark in the skb: if it's equal to the configured
+	 * isolation_mark, it means the packet is coming from an isolated
+	 * non-mesh client
+	 */
+	match_mark = (mark & bat_priv->isolation_mark_mask);
+	if (bat_priv->isolation_mark_mask &&
+	    match_mark == bat_priv->isolation_mark)
+		tt_local->common.flags |= BATADV_TT_CLIENT_ISOLA;
+	else
+		tt_local->common.flags &= ~BATADV_TT_CLIENT_ISOLA;
 
 	/* if any "dynamic" flag has been modified, resend an ADD event for this
 	 * entry so that all the nodes can get the new flags
