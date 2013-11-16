@@ -535,8 +535,9 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
  **/
 i40e_status i40e_init_adminq(struct i40e_hw *hw)
 {
-	u16 eetrack_lo, eetrack_hi;
 	i40e_status ret_code;
+	u16 eetrack_lo, eetrack_hi;
+	int retry = 0;
 
 	/* verify input for valid configuration */
 	if ((hw->aq.num_arq_entries == 0) ||
@@ -564,11 +565,24 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	if (ret_code)
 		goto init_adminq_free_asq;
 
-	ret_code = i40e_aq_get_firmware_version(hw,
-				     &hw->aq.fw_maj_ver, &hw->aq.fw_min_ver,
-				     &hw->aq.api_maj_ver, &hw->aq.api_min_ver,
-				     NULL);
-	if (ret_code)
+	/* There are some cases where the firmware may not be quite ready
+	 * for AdminQ operations, so we retry the AdminQ setup a few times
+	 * if we see timeouts in this first AQ call.
+	 */
+	do {
+		ret_code = i40e_aq_get_firmware_version(hw,
+							&hw->aq.fw_maj_ver,
+							&hw->aq.fw_min_ver,
+							&hw->aq.api_maj_ver,
+							&hw->aq.api_min_ver,
+							NULL);
+		if (ret_code != I40E_ERR_ADMIN_QUEUE_TIMEOUT)
+			break;
+		retry++;
+		msleep(100);
+		i40e_resume_aq(hw);
+	} while (retry < 10);
+	if (ret_code != I40E_SUCCESS)
 		goto init_adminq_free_arq;
 
 	if (hw->aq.api_maj_ver != I40E_FW_API_VERSION_MAJOR ||
