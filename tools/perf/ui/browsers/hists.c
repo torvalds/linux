@@ -1847,15 +1847,15 @@ browse_hists:
 			switch (key) {
 			case K_TAB:
 				if (pos->node.next == &evlist->entries)
-					pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+					pos = perf_evlist__first(evlist);
 				else
-					pos = list_entry(pos->node.next, struct perf_evsel, node);
+					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
 				if (pos->node.prev == &evlist->entries)
-					pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
+					pos = perf_evlist__last(evlist);
 				else
-					pos = list_entry(pos->node.prev, struct perf_evsel, node);
+					pos = perf_evsel__prev(pos);
 				goto browse_hists;
 			case K_ESC:
 				if (!ui_browser__dialog_yesno(&menu->b,
@@ -1943,8 +1943,7 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 
 single_entry:
 	if (nr_entries == 1) {
-		struct perf_evsel *first = list_entry(evlist->entries.next,
-						      struct perf_evsel, node);
+		struct perf_evsel *first = perf_evlist__first(evlist);
 		const char *ev_name = perf_evsel__name(first);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,

@@ -12,6 +12,7 @@ struct target {
 	uid_t	     uid;
 	bool	     system_wide;
 	bool	     uses_mmap;
+	bool	     force_per_cpu;
 };
 
 enum target_errno {

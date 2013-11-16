@@ -201,6 +201,12 @@ abort events and some memory events in precise mode on modern Intel CPUs.
 --transaction::
 Record transaction flags for transaction related events.
 
+--force-per-cpu::
+Force the use of per-cpu mmaps.  By default, when tasks are specified (i.e. -p,
+-t or -u options) per-thread mmaps are created.  This option overrides that and
+forces per-cpu mmaps.  A side-effect of that is that inheritance is
+automatically enabled.  Add the -i option also to disable inheritance.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

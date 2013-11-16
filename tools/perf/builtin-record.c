@@ -888,6 +888,8 @@ const struct option record_options[] = {
 		    "sample by weight (on special events only)"),
 	OPT_BOOLEAN(0, "transaction", &record.opts.sample_transaction,
 		    "sample transaction flags (special events only)"),
+	OPT_BOOLEAN(0, "force-per-cpu", &record.opts.target.force_per_cpu,
+		    "force the use of per-cpu mmaps"),
 	OPT_END()
 };
 

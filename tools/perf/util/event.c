@@ -209,8 +209,10 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 		       &event->mmap.start, &event->mmap.len, prot,
 		       &event->mmap.pgoff,
 		       execname);
-
-		if (n != 5)
+		/*
+ 		 * Anon maps don't have the execname.
+ 		 */
+		if (n < 4)
 			continue;
 		/*
 		 * Just like the kernel, see __perf_event_mmap in kernel/perf_event.c

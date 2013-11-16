@@ -279,6 +279,11 @@ static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 	return list_entry(evsel->node.next, struct perf_evsel, node);
 }
 
+static inline struct perf_evsel *perf_evsel__prev(struct perf_evsel *evsel)
+{
+	return list_entry(evsel->node.prev, struct perf_evsel, node);
+}
+
 /**
  * perf_evsel__is_group_leader - Return whether given evsel is a leader event
  *
