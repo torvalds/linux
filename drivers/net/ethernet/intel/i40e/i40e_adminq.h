@@ -56,6 +56,7 @@ struct i40e_adminq_ring {
 	/* used for queue tracking */
 	u32 head;
 	u32 tail;
+	u32 len;
 };
 
 /* ASQ transaction details */
