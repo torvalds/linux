@@ -3111,11 +3111,6 @@ static inline u32 btrfs_level_size(struct btrfs_root *root, int level)
 	((unsigned long)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset_nr(leaf, slot)))
 
-static inline struct dentry *fdentry(struct file *file)
-{
-	return file->f_path.dentry;
-}
-
 static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
