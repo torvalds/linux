@@ -70,7 +70,7 @@ static inline bool i40e_vc_isvalid_vector_id(struct i40e_vf *vf, u8 vector_id)
 {
 	struct i40e_pf *pf = vf->pf;
 
-	return vector_id < pf->hw.func_caps.num_msix_vectors_vf;
+	return vector_id <= pf->hw.func_caps.num_msix_vectors_vf;
 }
 
 /***********************vf resource mgmt routines*****************/
