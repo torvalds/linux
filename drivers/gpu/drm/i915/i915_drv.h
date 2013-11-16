@@ -1920,7 +1920,6 @@ extern void intel_pm_init(struct drm_device *dev);
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev);
 extern void intel_uncore_init(struct drm_device *dev);
-extern void intel_uncore_clear_errors(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 

@@ -828,15 +828,6 @@ int intel_gpu_reset(struct drm_device *dev)
 	}
 }
 
-void intel_uncore_clear_errors(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* XXX needs spinlock around caller's grouping */
-	if (HAS_FPGA_DBG_UNCLAIMED(dev))
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-}
-
 void intel_uncore_check_errors(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
