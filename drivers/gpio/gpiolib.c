@@ -14,6 +14,7 @@
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/gpio/driver.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
@@ -2274,7 +2275,8 @@ void gpiod_add_table(struct gpiod_lookup *table, size_t size)
 
 #ifdef CONFIG_OF
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx, unsigned long *flags)
+				      unsigned int idx,
+				      enum gpio_lookup_flags *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
@@ -2292,7 +2294,7 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		return desc;
 
 	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		*flags |= GPIOF_ACTIVE_LOW;
+		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
 }
@@ -2305,7 +2307,8 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 #endif
 
 static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
-					unsigned int idx, unsigned long *flags)
+					unsigned int idx,
+					enum gpio_lookup_flags *flags)
 {
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
@@ -2315,13 +2318,14 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 		return desc;
 
 	if (info.gpioint && info.active_low)
-		*flags |= GPIOF_ACTIVE_LOW;
+		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
 }
 
 static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
-				    unsigned int idx, unsigned long *flags)
+				    unsigned int idx,
+				    enum gpio_lookup_flags *flags)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct gpio_desc *desc = ERR_PTR(-ENODEV);
@@ -2413,7 +2417,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 {
 	struct gpio_desc *desc;
 	int status;
-	unsigned long flags = 0;
+	enum gpio_lookup_flags flags = 0;
 
 	dev_dbg(dev, "GPIO lookup for consumer %s\n", con_id);
 
@@ -2439,8 +2443,12 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	if (status < 0)
 		return ERR_PTR(status);
 
-	if (flags & GPIOF_ACTIVE_LOW)
+	if (flags & GPIO_ACTIVE_LOW)
 		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	if (flags & GPIO_OPEN_DRAIN)
+		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+	if (flags & GPIO_OPEN_SOURCE)
+		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
 	return desc;
 }
