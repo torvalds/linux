@@ -299,7 +299,7 @@ static int handle_remove(const char *nodename, struct device *dev)
 {
 	struct path parent;
 	struct dentry *dentry;
-	int deleted = 1;
+	int deleted = 0;
 	int err;
 
 	dentry = kern_path_locked(nodename, &parent);
