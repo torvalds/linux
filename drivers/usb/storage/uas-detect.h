@@ -70,13 +70,23 @@ static int uas_find_endpoints(struct usb_host_interface *alt,
 static int uas_use_uas_driver(struct usb_interface *intf,
 			      const struct usb_device_id *id)
 {
+	struct usb_host_endpoint *eps[4] = { };
 	struct usb_device *udev = interface_to_usbdev(intf);
 	unsigned long flags = id->driver_info;
+	int r, alt;
 
 	usb_stor_adjust_quirks(udev, &flags);
 
 	if (flags & US_FL_IGNORE_UAS)
 		return 0;
 
-	return uas_find_uas_alt_setting(intf) >= 0;
+	alt = uas_find_uas_alt_setting(intf);
+	if (alt < 0)
+		return 0;
+
+	r = uas_find_endpoints(&intf->altsetting[alt], eps);
+	if (r < 0)
+		return 0;
+
+	return 1;
 }
