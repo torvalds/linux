@@ -714,8 +714,7 @@ static int f2fs_write_end(struct file *file,
 		update_inode_page(inode);
 	}
 
-	unlock_page(page);
-	page_cache_release(page);
+	f2fs_put_page(page, 1);
 	return copied;
 }
 
