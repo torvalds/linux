@@ -162,49 +162,6 @@ static struct spi_board_info n800_spi_board_info[] __initdata = {
 	},
 };
 
-#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
-	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
-
-static struct mtd_partition onenand_partitions[] = {
-	{
-		.name           = "bootloader",
-		.offset         = 0,
-		.size           = 0x20000,
-		.mask_flags     = MTD_WRITEABLE,	/* Force read-only */
-	},
-	{
-		.name           = "config",
-		.offset         = MTDPART_OFS_APPEND,
-		.size           = 0x60000,
-	},
-	{
-		.name           = "kernel",
-		.offset         = MTDPART_OFS_APPEND,
-		.size           = 0x200000,
-	},
-	{
-		.name           = "initfs",
-		.offset         = MTDPART_OFS_APPEND,
-		.size           = 0x400000,
-	},
-	{
-		.name           = "rootfs",
-		.offset         = MTDPART_OFS_APPEND,
-		.size           = MTDPART_SIZ_FULL,
-	},
-};
-
-static struct omap_onenand_platform_data board_onenand_data[] = {
-	{
-		.cs		= 0,
-		.gpio_irq	= 26,
-		.parts		= onenand_partitions,
-		.nr_parts	= ARRAY_SIZE(onenand_partitions),
-		.flags		= ONENAND_SYNC_READ,
-	}
-};
-#endif
-
 #if defined(CONFIG_MENELAUS) &&						\
 	(defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE))
 
@@ -639,7 +596,6 @@ static int __init n8x0_late_initcall(void)
 	if (!board_caps)
 		return -ENODEV;
 
-	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();
 
