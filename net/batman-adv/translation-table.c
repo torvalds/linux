@@ -1900,19 +1900,8 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	struct batadv_tt_global_entry *tt_global_entry = NULL;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_tt_orig_list_entry *best_entry;
-	bool ap_isolation_enabled = false;
-	struct batadv_softif_vlan *vlan;
 
-	/* if the AP isolation is requested on a VLAN, then check for its
-	 * setting in the proper VLAN private data structure
-	 */
-	vlan = batadv_softif_vlan_get(bat_priv, vid);
-	if (vlan) {
-		ap_isolation_enabled = atomic_read(&vlan->ap_isolation);
-		batadv_softif_vlan_free_ref(vlan);
-	}
-
-	if (src && ap_isolation_enabled) {
+	if (src && batadv_vlan_ap_isola_get(bat_priv, vid)) {
 		tt_local_entry = batadv_tt_local_hash_find(bat_priv, src, vid);
 		if (!tt_local_entry ||
 		    (tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING))

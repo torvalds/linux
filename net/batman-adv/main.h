@@ -369,5 +369,6 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, uint8_t *src,
 			      uint8_t *dst, uint8_t type, uint8_t version,
 			      void *tvlv_value, uint16_t tvlv_value_len);
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
+bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */
