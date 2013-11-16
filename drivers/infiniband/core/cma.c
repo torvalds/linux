@@ -2480,8 +2480,11 @@ static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 		return 0;
 
 	sin6 = (struct sockaddr_in6 *) addr;
-	if ((ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
-	    !sin6->sin6_scope_id)
+
+	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
+		return 0;
+
+	if (!sin6->sin6_scope_id)
 			return -EINVAL;
 
 	dev_addr->bound_dev_if = sin6->sin6_scope_id;
