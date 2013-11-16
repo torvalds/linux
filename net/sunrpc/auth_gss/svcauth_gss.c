@@ -1167,8 +1167,8 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	if (!ud->found_creds) {
 		/* userspace seem buggy, we should always get at least a
 		 * mapping to nobody */
-		dprintk("RPC:       No creds found, marking Negative!\n");
-		set_bit(CACHE_NEGATIVE, &rsci.h.flags);
+		dprintk("RPC:       No creds found!\n");
+		goto out;
 	} else {
 
 		/* steal creds */
