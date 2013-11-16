@@ -630,6 +630,8 @@ ssetup_ntlmssp_authenticate:
 		goto ssetup_exit;
 
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+		cifs_dbg(VFS, "SMB3 encryption not supported yet\n");
 ssetup_exit:
 	free_rsp_buf(resp_buftype, rsp);
 

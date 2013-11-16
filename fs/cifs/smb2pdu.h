@@ -122,6 +122,23 @@ struct smb2_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
+struct smb2_transform_hdr {
+	__be32 smb2_buf_length;	/* big endian on wire */
+				/* length is only two or three bytes - with
+				 one or two byte type preceding it that MBZ */
+	__u8   ProtocolId[4];	/* 0xFD 'S' 'M' 'B' */
+	__u8   Signature[16];
+	__u8   Nonce[11];
+	__u8   Reserved[5];
+	__le32 OriginalMessageSize;
+	__u16  Reserved1;
+	__le16 EncryptionAlgorithm;
+	__u64  SessionId;
+} __packed;
+
+/* Encryption Algorithms */
+#define SMB2_ENCRYPTION_AES128_CCM	__constant_cpu_to_le16(0x0001)
+
 /*
  *	SMB2 flag definitions
  */
@@ -237,6 +254,7 @@ struct smb2_sess_setup_req {
 /* Currently defined SessionFlags */
 #define SMB2_SESSION_FLAG_IS_GUEST	0x0001
 #define SMB2_SESSION_FLAG_IS_NULL	0x0002
+#define SMB2_SESSION_FLAG_ENCRYPT_DATA	0x0004
 struct smb2_sess_setup_rsp {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 9 */
