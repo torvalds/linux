@@ -15,6 +15,10 @@
 / {
 	interrupt-parent = <&intc>;
 
+	aliases {
+		ethernet0 = &emac;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
