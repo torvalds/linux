@@ -78,7 +78,7 @@ struct msm_gpu {
 	void __iomem *mmio;
 	int irq;
 
-	struct iommu_domain *iommu;
+	struct msm_mmu *mmu;
 	int id;
 
 	/* Power Control: */

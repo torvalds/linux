@@ -17,6 +17,7 @@
 
 #include "msm_gpu.h"
 #include "msm_gem.h"
+#include "msm_mmu.h"
 
 
 /*
@@ -353,6 +354,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct msm_gpu *gpu, const struct msm_gpu_funcs *funcs,
 		const char *name, const char *ioname, const char *irqname, int ringsz)
 {
+	struct iommu_domain *iommu;
 	int i, ret;
 
 	gpu->dev = drm;
@@ -418,13 +420,14 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	 * and have separate page tables per context.  For now, to keep things
 	 * simple and to get something working, just use a single address space:
 	 */
-	gpu->iommu = iommu_domain_alloc(&platform_bus_type);
-	if (!gpu->iommu) {
-		dev_err(drm->dev, "failed to allocate IOMMU\n");
-		ret = -ENOMEM;
-		goto fail;
+	iommu = iommu_domain_alloc(&platform_bus_type);
+	if (iommu) {
+		dev_info(drm->dev, "%s: using IOMMU\n", name);
+		gpu->mmu = msm_iommu_new(drm, iommu);
+	} else {
+		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	}
-	gpu->id = msm_register_iommu(drm, gpu->iommu);
+	gpu->id = msm_register_mmu(drm, gpu->mmu);
 
 	/* Create ringbuffer: */
 	gpu->rb = msm_ringbuffer_new(gpu, ringsz);
@@ -464,6 +467,6 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 		msm_ringbuffer_destroy(gpu->rb);
 	}
 
-	if (gpu->iommu)
-		iommu_domain_free(gpu->iommu);
+	if (gpu->mmu)
+		gpu->mmu->funcs->destroy(gpu->mmu);
 }

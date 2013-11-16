@@ -17,6 +17,7 @@
 
 
 #include "msm_drv.h"
+#include "msm_mmu.h"
 #include "mdp4_kms.h"
 
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev);
@@ -260,6 +261,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
+	struct msm_mmu *mmu;
 	int ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
@@ -322,12 +324,6 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
 
-	if (!config->iommu) {
-		dev_err(dev->dev, "no iommu\n");
-		ret = -ENXIO;
-		goto fail;
-	}
-
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
 	 * we don't disable):
@@ -337,12 +333,23 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdp4_write(mdp4_kms, REG_MDP4_DSI_ENABLE, 0);
 	mdelay(16);
 
-	ret = msm_iommu_attach(dev, config->iommu,
-			iommu_ports, ARRAY_SIZE(iommu_ports));
-	if (ret)
-		goto fail;
+	if (config->iommu) {
+		mmu = msm_iommu_new(dev, config->iommu);
+		if (IS_ERR(mmu)) {
+			ret = PTR_ERR(mmu);
+			goto fail;
+		}
+		ret = mmu->funcs->attach(mmu, iommu_ports,
+				ARRAY_SIZE(iommu_ports));
+		if (ret)
+			goto fail;
+	} else {
+		dev_info(dev->dev, "no iommu, fallback to phys "
+				"contig buffers for scanout\n");
+		mmu = NULL;
+	}
 
-	mdp4_kms->id = msm_register_iommu(dev, config->iommu);
+	mdp4_kms->id = msm_register_mmu(dev, mmu);
 	if (mdp4_kms->id < 0) {
 		ret = mdp4_kms->id;
 		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);

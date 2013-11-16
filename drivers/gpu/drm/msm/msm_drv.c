@@ -30,48 +30,17 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.output_poll_changed = msm_fb_output_poll_changed,
 };
 
-static int msm_fault_handler(struct iommu_domain *iommu, struct device *dev,
-		unsigned long iova, int flags, void *arg)
-{
-	DBG("*** fault: iova=%08lx, flags=%d", iova, flags);
-	return 0;
-}
-
-int msm_register_iommu(struct drm_device *dev, struct iommu_domain *iommu)
+int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	int idx = priv->num_iommus++;
+	int idx = priv->num_mmus++;
 
-	if (WARN_ON(idx >= ARRAY_SIZE(priv->iommus)))
+	if (WARN_ON(idx >= ARRAY_SIZE(priv->mmus)))
 		return -EINVAL;
 
-	priv->iommus[idx] = iommu;
-
-	iommu_set_fault_handler(iommu, msm_fault_handler, dev);
-
-	/* need to iommu_attach_device() somewhere??  on resume?? */
+	priv->mmus[idx] = mmu;
 
 	return idx;
-}
-
-int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
-		const char **names, int cnt)
-{
-	int i, ret;
-
-	for (i = 0; i < cnt; i++) {
-		/* TODO maybe some day msm iommu won't require this hack: */
-		struct device *msm_iommu_get_ctx(const char *ctx_name);
-		struct device *ctx = msm_iommu_get_ctx(names[i]);
-		if (!ctx)
-			continue;
-		ret = iommu_attach_device(iommu, ctx);
-		if (ret) {
-			dev_warn(dev->dev, "could not attach iommu to %s", names[i]);
-			return ret;
-		}
-	}
-	return 0;
 }
 
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
@@ -81,6 +50,10 @@ module_param(reglog, bool, 0600);
 #else
 #define reglog 0
 #endif
+
+static char *vram;
+MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
+module_param(vram, charp, 0);
 
 void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 		const char *dbgname)
@@ -161,6 +134,14 @@ static int msm_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 	}
 
+	if (priv->vram.paddr) {
+		DEFINE_DMA_ATTRS(attrs);
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		drm_mm_takedown(&priv->vram.mm);
+		dma_free_attrs(dev->dev, priv->vram.size, NULL,
+				priv->vram.paddr, &attrs);
+	}
+
 	dev->dev_private = NULL;
 
 	kfree(priv);
@@ -190,6 +171,41 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	INIT_LIST_HEAD(&priv->fence_cbs);
 
 	drm_mode_config_init(dev);
+
+	/* if we have no IOMMU, then we need to use carveout allocator.
+	 * Grab the entire CMA chunk carved out in early startup in
+	 * mach-msm:
+	 */
+	if (!iommu_present(&platform_bus_type)) {
+		DEFINE_DMA_ATTRS(attrs);
+		unsigned long size;
+		void *p;
+
+		DBG("using %s VRAM carveout", vram);
+		size = memparse(vram, NULL);
+		priv->vram.size = size;
+
+		drm_mm_init(&priv->vram.mm, 0, (size >> PAGE_SHIFT) - 1);
+
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
+		/* note that for no-kernel-mapping, the vaddr returned
+		 * is bogus, but non-null if allocation succeeded:
+		 */
+		p = dma_alloc_attrs(dev->dev, size,
+				&priv->vram.paddr, 0, &attrs);
+		if (!p) {
+			dev_err(dev->dev, "failed to allocate VRAM\n");
+			priv->vram.paddr = 0;
+			ret = -ENOMEM;
+			goto fail;
+		}
+
+		dev_info(dev->dev, "VRAM: %08x->%08x\n",
+				(uint32_t)priv->vram.paddr,
+				(uint32_t)(priv->vram.paddr + size));
+	}
 
 	kms = mdp4_kms_init(dev);
 	if (IS_ERR(kms)) {
@@ -778,6 +794,7 @@ static const struct dev_pm_ops msm_pm_ops = {
 
 static int msm_pdev_probe(struct platform_device *pdev)
 {
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return drm_platform_init(&msm_driver, pdev);
 }
 
