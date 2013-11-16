@@ -116,7 +116,6 @@ config PINCTRL_IMX1_CORE
 
 config PINCTRL_IMX27
 	bool "IMX27 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX27
 	select PINCTRL_IMX1_CORE
 	help
@@ -124,7 +123,6 @@ config PINCTRL_IMX27
 
 config PINCTRL_IMX35
 	bool "IMX35 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX35
 	select PINCTRL_IMX
 	help
@@ -132,7 +130,6 @@ config PINCTRL_IMX35
 
 config PINCTRL_IMX50
 	bool "IMX50 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX50
 	select PINCTRL_IMX
 	help
@@ -140,7 +137,6 @@ config PINCTRL_IMX50
 
 config PINCTRL_IMX51
 	bool "IMX51 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX51
 	select PINCTRL_IMX
 	help
@@ -148,7 +144,6 @@ config PINCTRL_IMX51
 
 config PINCTRL_IMX53
 	bool "IMX53 pinctrl driver"
-	depends on OF
 	depends on SOC_IMX53
 	select PINCTRL_IMX
 	help
@@ -156,7 +151,6 @@ config PINCTRL_IMX53
 
 config PINCTRL_IMX6Q
 	bool "IMX6Q/DL pinctrl driver"
-	depends on OF
 	depends on SOC_IMX6Q
 	select PINCTRL_IMX
 	help
@@ -164,7 +158,6 @@ config PINCTRL_IMX6Q
 
 config PINCTRL_IMX6SL
 	bool "IMX6SL pinctrl driver"
-	depends on OF
 	depends on SOC_IMX6SL
 	select PINCTRL_IMX
 	help
@@ -172,7 +165,6 @@ config PINCTRL_IMX6SL
 
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"
-	depends on OF
 	depends on SOC_VF610
 	select PINCTRL_IMX
 	help
