@@ -1308,6 +1308,18 @@ struct gpio_chip *gpiochip_find(void *data,
 }
 EXPORT_SYMBOL_GPL(gpiochip_find);
 
+static int gpiochip_match_name(struct gpio_chip *chip, void *data)
+{
+	const char *name = data;
+
+	return !strcmp(chip->label, name);
+}
+
+static struct gpio_chip *find_chip_by_name(const char *name)
+{
+	return gpiochip_find((void *)name, gpiochip_match_name);
+}
+
 #ifdef CONFIG_PINCTRL
 
 /**
@@ -2258,23 +2270,6 @@ void gpiod_add_table(struct gpiod_lookup *table, size_t size)
 	}
 
 	mutex_unlock(&gpio_lookup_lock);
-}
-
-/*
- * Caller must have a acquired gpio_lookup_lock
- */
-static struct gpio_chip *find_chip_by_name(const char *name)
-{
-	struct gpio_chip *chip = NULL;
-
-	list_for_each_entry(chip, &gpio_lookup_list, list) {
-		if (chip->label == NULL)
-			continue;
-		if (!strcmp(chip->label, name))
-			break;
-	}
-
-	return chip;
 }
 
 #ifdef CONFIG_OF
