@@ -500,8 +500,6 @@ int bch_cached_dev_writeback_init(struct cached_dev *dc)
 	if (IS_ERR(dc->writeback_thread))
 		return PTR_ERR(dc->writeback_thread);
 
-	set_task_state(dc->writeback_thread, TASK_INTERRUPTIBLE);
-
 	INIT_DELAYED_WORK(&dc->writeback_rate_update, update_writeback_rate);
 	schedule_delayed_work(&dc->writeback_rate_update,
 			      dc->writeback_rate_update_seconds * HZ);
