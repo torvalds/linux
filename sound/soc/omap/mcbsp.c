@@ -36,10 +36,10 @@ static void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 
 	if (mcbsp->pdata->reg_size == 2) {
 		((u16 *)mcbsp->reg_cache)[reg] = (u16)val;
-		__raw_writew((u16)val, addr);
+		writew_relaxed((u16)val, addr);
 	} else {
 		((u32 *)mcbsp->reg_cache)[reg] = val;
-		__raw_writel(val, addr);
+		writel_relaxed(val, addr);
 	}
 }
 
@@ -48,22 +48,22 @@ static int omap_mcbsp_read(struct omap_mcbsp *mcbsp, u16 reg, bool from_cache)
 	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
 
 	if (mcbsp->pdata->reg_size == 2) {
-		return !from_cache ? __raw_readw(addr) :
+		return !from_cache ? readw_relaxed(addr) :
 				     ((u16 *)mcbsp->reg_cache)[reg];
 	} else {
-		return !from_cache ? __raw_readl(addr) :
+		return !from_cache ? readl_relaxed(addr) :
 				     ((u32 *)mcbsp->reg_cache)[reg];
 	}
 }
 
 static void omap_mcbsp_st_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 {
-	__raw_writel(val, mcbsp->st_data->io_base_st + reg);
+	writel_relaxed(val, mcbsp->st_data->io_base_st + reg);
 }
 
 static int omap_mcbsp_st_read(struct omap_mcbsp *mcbsp, u16 reg)
 {
-	return __raw_readl(mcbsp->st_data->io_base_st + reg);
+	return readl_relaxed(mcbsp->st_data->io_base_st + reg);
 }
 
 #define MCBSP_READ(mcbsp, reg) \
