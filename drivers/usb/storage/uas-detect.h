@@ -1,5 +1,6 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include "usb.h"
 
 static int uas_is_interface(struct usb_host_interface *intf)
 {
@@ -42,7 +43,10 @@ static int uas_find_uas_alt_setting(struct usb_interface *intf)
 static int uas_use_uas_driver(struct usb_interface *intf,
 			      const struct usb_device_id *id)
 {
+	struct usb_device *udev = interface_to_usbdev(intf);
 	unsigned long flags = id->driver_info;
+
+	usb_stor_adjust_quirks(udev, &flags);
 
 	if (flags & US_FL_IGNORE_UAS)
 		return 0;
