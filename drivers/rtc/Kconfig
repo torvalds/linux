@@ -1104,6 +1104,13 @@ config RTC_DRV_SUN4V
 	  If you say Y here you will get support for the Hypervisor
 	  based RTC on SUN4V systems.
 
+config RTC_DRV_SUNXI
+	tristate "Allwinner sun4i/sun7i RTC"
+	depends on ARCH_SUNXI
+	help
+	  If you say Y here you will get support for the RTC found on
+	  Allwinner A10/A20.
+
 config RTC_DRV_STARFIRE
 	bool "Starfire RTC"
 	depends on SPARC64
