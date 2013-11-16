@@ -125,6 +125,7 @@ static struct platform_pwm_backlight_data zylonite_backlight_data = {
 	.max_brightness	= 100,
 	.dft_brightness	= 100,
 	.pwm_period_ns	= 10000,
+	.enable_gpio	= -1,
 };
 
 static struct platform_device zylonite_backlight_device = {

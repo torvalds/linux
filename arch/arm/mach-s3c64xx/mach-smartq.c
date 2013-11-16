@@ -151,6 +151,7 @@ static struct platform_pwm_backlight_data smartq_backlight_data = {
 	.max_brightness	= 1000,
 	.dft_brightness	= 600,
 	.pwm_period_ns	= 1000000000 / (1000 * 20),
+	.enable_gpio	= -1,
 	.init		= smartq_bl_init,
 };
 
