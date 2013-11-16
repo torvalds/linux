@@ -733,7 +733,7 @@ int dump_align(struct coredump_params *cprm, int align)
 {
 	unsigned mod = cprm->written & (align - 1);
 	if (align & (align - 1))
-		return -EINVAL;
-	return mod ? dump_skip(cprm, align - mod) : 0;
+		return 0;
+	return mod ? dump_skip(cprm, align - mod) : 1;
 }
 EXPORT_SYMBOL(dump_align);
