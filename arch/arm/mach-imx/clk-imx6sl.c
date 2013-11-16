@@ -63,7 +63,7 @@ static struct clk_div_table video_div_table[] = {
 	{ }
 };
 
-static struct clk *clks[IMX6SL_CLK_CLK_END];
+static struct clk *clks[IMX6SL_CLK_END];
 static struct clk_onecell_data clk_data;
 
 static void __init imx6sl_clocks_init(struct device_node *ccm_node)
