@@ -225,6 +225,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		is_io = pa & (HPTE_R_I | HPTE_R_W);
 		pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
 		pa &= PAGE_MASK;
+		pa |= gpa & ~PAGE_MASK;
 	} else {
 		/* Translate to host virtual address */
 		hva = __gfn_to_hva_memslot(memslot, gfn);
@@ -238,13 +239,12 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 				ptel = hpte_make_readonly(ptel);
 			is_io = hpte_cache_bits(pte_val(pte));
 			pa = pte_pfn(pte) << PAGE_SHIFT;
+			pa |= hva & (pte_size - 1);
 		}
 	}
 
 	if (pte_size < psize)
 		return H_PARAMETER;
-	if (pa && pte_size > psize)
-		pa |= gpa & (pte_size - 1);
 
 	ptel &= ~(HPTE_R_PP0 - psize);
 	ptel |= pa;

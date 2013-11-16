@@ -665,6 +665,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			return -EFAULT;
 	} else {
 		page = pages[0];
+		pfn = page_to_pfn(page);
 		if (PageHuge(page)) {
 			page = compound_head(page);
 			pte_size <<= compound_order(page);
@@ -689,7 +690,6 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			}
 			rcu_read_unlock_sched();
 		}
-		pfn = page_to_pfn(page);
 	}
 
 	ret = -EFAULT;
@@ -707,8 +707,14 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = (r & ~(HPTE_R_W|HPTE_R_I|HPTE_R_G)) | HPTE_R_M;
 	}
 
-	/* Set the HPTE to point to pfn */
-	r = (r & ~(HPTE_R_PP0 - pte_size)) | (pfn << PAGE_SHIFT);
+	/*
+	 * Set the HPTE to point to pfn.
+	 * Since the pfn is at PAGE_SIZE granularity, make sure we
+	 * don't mask out lower-order bits if psize < PAGE_SIZE.
+	 */
+	if (psize < PAGE_SIZE)
+		psize = PAGE_SIZE;
+	r = (r & ~(HPTE_R_PP0 - psize)) | ((pfn << PAGE_SHIFT) & ~(psize - 1));
 	if (hpte_is_writable(r) && !write_ok)
 		r = hpte_make_readonly(r);
 	ret = RESUME_GUEST;
