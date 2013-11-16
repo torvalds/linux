@@ -399,9 +399,23 @@ void batadv_interface_rx(struct net_device *soft_iface,
 		batadv_tt_add_temporary_global_entry(bat_priv, orig_node,
 						     ethhdr->h_source, vid);
 
-	if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source, ethhdr->h_dest,
-				  vid))
+	if (is_multicast_ether_addr(ethhdr->h_dest)) {
+		/* set the mark on broadcast packets if AP isolation is ON and
+		 * the packet is coming from an "isolated" client
+		 */
+		if (batadv_vlan_ap_isola_get(bat_priv, vid) &&
+		    batadv_tt_global_is_isolated(bat_priv, ethhdr->h_source,
+						 vid)) {
+			/* save bits in skb->mark not covered by the mask and
+			 * apply the mark on the rest
+			 */
+			skb->mark &= ~bat_priv->isolation_mark_mask;
+			skb->mark |= bat_priv->isolation_mark;
+		}
+	} else if (batadv_is_ap_isolated(bat_priv, ethhdr->h_source,
+					 ethhdr->h_dest, vid)) {
 		goto dropped;
+	}
 
 	netif_rx(skb);
 	goto out;

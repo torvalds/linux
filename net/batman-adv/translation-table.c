@@ -3577,3 +3577,29 @@ int batadv_tt_init(struct batadv_priv *bat_priv)
 
 	return 1;
 }
+
+/**
+ * batadv_tt_global_is_isolated - check if a client is marked as isolated
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the client
+ * @vid: the identifier of the VLAN where this client is connected
+ *
+ * Returns true if the client is marked with the TT_CLIENT_ISOLA flag, false
+ * otherwise
+ */
+bool batadv_tt_global_is_isolated(struct batadv_priv *bat_priv,
+				  const uint8_t *addr, unsigned short vid)
+{
+	struct batadv_tt_global_entry *tt;
+	bool ret;
+
+	tt = batadv_tt_global_hash_find(bat_priv, addr, vid);
+	if (!tt)
+		return false;
+
+	ret = tt->common.flags & BATADV_TT_CLIENT_ISOLA;
+
+	batadv_tt_global_entry_free_ref(tt);
+
+	return ret;
+}
