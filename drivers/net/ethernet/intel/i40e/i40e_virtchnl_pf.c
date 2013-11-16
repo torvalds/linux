@@ -620,13 +620,13 @@ int i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		if (ret)
 			dev_info(&pf->pdev->dev,
 				 "Queue control check failed on Tx queue %d of VSI %d VF %d\n",
-				 vf->lan_vsi_index, j, vf->vf_id);
+				 j, vf->lan_vsi_index, vf->vf_id);
 		ret = i40e_ctrl_vsi_rx_queue(vf, vf->lan_vsi_index, j,
 					     I40E_QUEUE_CTRL_FASTDISABLECHECK);
 		if (ret)
 			dev_info(&pf->pdev->dev,
 				 "Queue control check failed on Rx queue %d of VSI %d VF %d\n",
-				 vf->lan_vsi_index, j, vf->vf_id);
+				 j, vf->lan_vsi_index, vf->vf_id);
 	}
 
 	/* clear the irq settings */
