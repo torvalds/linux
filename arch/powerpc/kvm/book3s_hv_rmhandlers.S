@@ -153,7 +153,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 13:	b	machine_check_fwnmi
 
-
 /*
  * We come in here when wakened from nap mode on a secondary hw thread.
  * Relocation is off and most register values are lost.
@@ -224,6 +223,11 @@ kvm_start_guest:
 	/* Clear our vcpu pointer so we don't come back in early */
 	li	r0, 0
 	std	r0, HSTATE_KVM_VCPU(r13)
+	/*
+	 * Make sure we clear HSTATE_KVM_VCPU(r13) before incrementing
+	 * the nap_count, because once the increment to nap_count is
+	 * visible we could be given another vcpu.
+	 */
 	lwsync
 	/* Clear any pending IPI - we're an offline thread */
 	ld	r5, HSTATE_XICS_PHYS(r13)
@@ -241,7 +245,6 @@ kvm_start_guest:
 	/* increment the nap count and then go to nap mode */
 	ld	r4, HSTATE_KVM_VCORE(r13)
 	addi	r4, r4, VCORE_NAP_COUNT
-	lwsync				/* make previous updates visible */
 51:	lwarx	r3, 0, r4
 	addi	r3, r3, 1
 	stwcx.	r3, 0, r4
@@ -990,14 +993,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	 */
 	/* Increment the threads-exiting-guest count in the 0xff00
 	   bits of vcore->entry_exit_count */
-	lwsync
 	ld	r5,HSTATE_KVM_VCORE(r13)
 	addi	r6,r5,VCORE_ENTRY_EXIT
 41:	lwarx	r3,0,r6
 	addi	r0,r3,0x100
 	stwcx.	r0,0,r6
 	bne	41b
-	lwsync
+	isync		/* order stwcx. vs. reading napping_threads */
 
 	/*
 	 * At this point we have an interrupt that we have to pass
@@ -1030,6 +1032,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	sld	r0,r0,r4
 	andc.	r3,r3,r0		/* no sense IPI'ing ourselves */
 	beq	43f
+	/* Order entry/exit update vs. IPIs */
+	sync
 	mulli	r4,r4,PACA_SIZE		/* get paca for thread 0 */
 	subf	r6,r4,r13
 42:	andi.	r0,r3,1
@@ -1638,10 +1642,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	bge	kvm_cede_exit
 	stwcx.	r4,0,r6
 	bne	31b
+	/* order napping_threads update vs testing entry_exit_count */
+	isync
 	li	r0,1
 	stb	r0,HSTATE_NAPPING(r13)
-	/* order napping_threads update vs testing entry_exit_count */
-	lwsync
 	mr	r4,r3
 	lwz	r7,VCORE_ENTRY_EXIT(r5)
 	cmpwi	r7,0x100
