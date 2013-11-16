@@ -163,6 +163,15 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "80860F41", (unsigned long)&byt_i2c_dev_desc },
 	{ "INT33B2", },
 
+	{ "INT3430", (unsigned long)&lpt_dev_desc },
+	{ "INT3431", (unsigned long)&lpt_dev_desc },
+	{ "INT3432", (unsigned long)&lpt_dev_desc },
+	{ "INT3433", (unsigned long)&lpt_dev_desc },
+	{ "INT3434", (unsigned long)&lpt_uart_dev_desc },
+	{ "INT3435", (unsigned long)&lpt_uart_dev_desc },
+	{ "INT3436", (unsigned long)&lpt_sdio_dev_desc },
+	{ "INT3437", },
+
 	{ }
 };
 
