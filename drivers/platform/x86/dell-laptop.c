@@ -409,15 +409,14 @@ static int dell_rfkill_set(void *data, bool blocked)
 	dell_send_request(buffer, 17, 11);
 
 	/* If the hardware switch controls this radio, and the hardware
-	   switch is disabled, don't allow changing the software state */
+	   switch is disabled, always disable the radio */
 	if ((hwswitch_state & BIT(hwswitch_bit)) &&
 	    !(buffer->output[1] & BIT(16)))
-		goto out;
+		disable = 1;
 
 	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
 	dell_send_request(buffer, 17, 11);
 
-out:
 	release_buffer();
 	return 0;
 }
