@@ -14,6 +14,9 @@ enum nv_clk_src {
 	nv_clk_src_hclk,
 	nv_clk_src_hclkm3,
 	nv_clk_src_hclkm3d2,
+	nv_clk_src_hclkm2d3, /* NVAA */
+	nv_clk_src_hclkm4, /* NVAA */
+	nv_clk_src_cclk, /* NVAA */
 
 	nv_clk_src_host,
 
@@ -127,6 +130,7 @@ extern struct nouveau_oclass nv04_clock_oclass;
 extern struct nouveau_oclass nv40_clock_oclass;
 extern struct nouveau_oclass *nv50_clock_oclass;
 extern struct nouveau_oclass *nv84_clock_oclass;
+extern struct nouveau_oclass *nvaa_clock_oclass;
 extern struct nouveau_oclass nva3_clock_oclass;
 extern struct nouveau_oclass nvc0_clock_oclass;
 extern struct nouveau_oclass nve0_clock_oclass;

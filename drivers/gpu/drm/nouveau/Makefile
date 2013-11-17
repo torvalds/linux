@@ -59,6 +59,7 @@ nouveau-y += core/subdev/clock/nv40.o
 nouveau-y += core/subdev/clock/nv50.o
 nouveau-y += core/subdev/clock/nv84.o
 nouveau-y += core/subdev/clock/nva3.o
+nouveau-y += core/subdev/clock/nvaa.o
 nouveau-y += core/subdev/clock/nvc0.o
 nouveau-y += core/subdev/clock/nve0.o
 nouveau-y += core/subdev/clock/pllnv04.o
