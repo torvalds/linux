@@ -428,7 +428,10 @@ out:
 static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 					int status)
 {
-	rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
+	if (!(status & BIT(0))) {
+		/* No hw-switch, sync BIOS state to sw_state */
+		rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
+	}
 }
 
 static void dell_rfkill_update_hw_state(struct rfkill *rfkill, int radio,
