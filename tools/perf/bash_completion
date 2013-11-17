@@ -94,6 +94,12 @@ __perfcomp ()
 	COMPREPLY=( $( compgen -W "$1" -- "$2" ) )
 }
 
+__perfcomp_colon ()
+{
+	__perfcomp "$1" "$2"
+	__ltrim_colon_completions $cur
+}
+
 __perf_main ()
 {
 	local cmd
@@ -114,8 +120,7 @@ __perf_main ()
 	# List possible events for -e option
 	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
-		__perfcomp "$evts" "$cur"
-		__ltrim_colon_completions $cur
+		__perfcomp_colon "$evts" "$cur"
 	# List long option names
 	elif [[ $cur == --* ]];  then
 		subcmd=${words[1]}
