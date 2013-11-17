@@ -494,6 +494,85 @@ smb2_close_file(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
+SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
+		     u64 persistent_fid, u64 volatile_fid,
+		     struct copychunk_ioctl *pcchunk)
+{
+	int rc;
+	unsigned int ret_data_len;
+	struct resume_key_req *res_key;
+
+	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
+			FSCTL_SRV_REQUEST_RESUME_KEY, true /* is_fsctl */,
+			NULL, 0 /* no input */,
+			(char **)&res_key, &ret_data_len);
+
+	if (rc) {
+		cifs_dbg(VFS, "refcpy ioctl error %d getting resume key\n", rc);
+		goto req_res_key_exit;
+	}
+	if (ret_data_len < sizeof(struct resume_key_req)) {
+		cifs_dbg(VFS, "Invalid refcopy resume key length\n");
+		rc = -EINVAL;
+		goto req_res_key_exit;
+	}
+	memcpy(pcchunk->SourceKey, res_key->ResumeKey, COPY_CHUNK_RES_KEY_SIZE);
+
+req_res_key_exit:
+	kfree(res_key);
+	return rc;
+}
+
+static int
+smb2_clone_range(const unsigned int xid,
+			struct cifsFileInfo *srcfile,
+			struct cifsFileInfo *trgtfile, u64 src_off,
+			u64 len, u64 dest_off)
+{
+	int rc;
+	unsigned int ret_data_len;
+	struct copychunk_ioctl *pcchunk;
+	char *retbuf = NULL;
+
+	pcchunk = kmalloc(sizeof(struct copychunk_ioctl), GFP_KERNEL);
+
+	if (pcchunk == NULL)
+		return -ENOMEM;
+
+	cifs_dbg(FYI, "in smb2_clone_range - about to call request res key\n");
+	/* Request a key from the server to identify the source of the copy */
+	rc = SMB2_request_res_key(xid, tlink_tcon(srcfile->tlink),
+				srcfile->fid.persistent_fid,
+				srcfile->fid.volatile_fid, pcchunk);
+
+	/* Note: request_res_key sets res_key null only if rc !=0 */
+	if (rc)
+		return rc;
+
+	/* For now array only one chunk long, will make more flexible later */
+	pcchunk->ChunkCount = __constant_cpu_to_le32(1);
+	pcchunk->Reserved = 0;
+	pcchunk->SourceOffset = cpu_to_le64(src_off);
+	pcchunk->TargetOffset = cpu_to_le64(dest_off);
+	pcchunk->Length = cpu_to_le32(len);
+	pcchunk->Reserved2 = 0;
+
+	/* Request that server copy to target from src file identified by key */
+	rc = SMB2_ioctl(xid, tlink_tcon(trgtfile->tlink),
+			trgtfile->fid.persistent_fid,
+			trgtfile->fid.volatile_fid, FSCTL_SRV_COPYCHUNK_WRITE,
+			true /* is_fsctl */, (char *)pcchunk,
+			sizeof(struct copychunk_ioctl),	&retbuf, &ret_data_len);
+
+	/* BB need to special case rc = EINVAL to alter chunk size */
+
+	cifs_dbg(FYI, "rc %d data length out %d\n", rc, ret_data_len);
+
+	kfree(pcchunk);
+	return rc;
+}
+
+static int
 smb2_flush_file(const unsigned int xid, struct cifs_tcon *tcon,
 		struct cifs_fid *fid)
 {
@@ -1017,6 +1096,7 @@ struct smb_version_operations smb20_operations = {
 	.set_oplock_level = smb2_set_oplock_level,
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
+	.clone_range = smb2_clone_range,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1090,6 +1170,7 @@ struct smb_version_operations smb21_operations = {
 	.set_oplock_level = smb21_set_oplock_level,
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
+	.clone_range = smb2_clone_range,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1165,6 +1246,7 @@ struct smb_version_operations smb30_operations = {
 	.set_oplock_level = smb3_set_oplock_level,
 	.create_lease_buf = smb3_create_lease_buf,
 	.parse_lease_buf = smb3_parse_lease_buf,
+	.clone_range = smb2_clone_range,
 };
 
 struct smb_version_values smb20_values = {

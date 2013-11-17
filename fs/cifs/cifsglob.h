@@ -261,7 +261,7 @@ struct smb_version_operations {
 	/* query path data from the server */
 	int (*query_path_info)(const unsigned int, struct cifs_tcon *,
 			       struct cifs_sb_info *, const char *,
-			       FILE_ALL_INFO *, bool *);
+			       FILE_ALL_INFO *, bool *, bool *);
 	/* query file data from the server */
 	int (*query_file_info)(const unsigned int, struct cifs_tcon *,
 			       struct cifs_fid *, FILE_ALL_INFO *);
@@ -381,6 +381,9 @@ struct smb_version_operations {
 	char * (*create_lease_buf)(u8 *, u8);
 	/* parse lease context buffer and return oplock/epoch info */
 	__u8 (*parse_lease_buf)(void *, unsigned int *);
+	int (*clone_range)(const unsigned int, struct cifsFileInfo *src_file,
+			struct cifsFileInfo *target_file, u64 src_off, u64 len,
+			u64 dest_off);
 };
 
 struct smb_version_values {
@@ -855,6 +858,9 @@ struct cifs_tcon {
 	__le64 vol_create_time;
 	__u32 ss_flags;		/* sector size flags */
 	__u32 perf_sector_size; /* best sector size for perf */
+	__u32 max_chunks;
+	__u32 max_bytes_chunk;
+	__u32 max_bytes_copy;
 #endif /* CONFIG_CIFS_SMB2 */
 #ifdef CONFIG_CIFS_FSCACHE
 	u64 resource_id;		/* server resource id */
