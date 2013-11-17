@@ -425,10 +425,15 @@ out:
 	return ret;
 }
 
-static void dell_rfkill_update(struct rfkill *rfkill, int radio, int status)
+static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
+					int status)
 {
 	rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
+}
 
+static void dell_rfkill_update_hw_state(struct rfkill *rfkill, int radio,
+					int status)
+{
 	if (hwswitch_state & (BIT(radio - 1)))
 		rfkill_set_hw_state(rfkill, !(status & BIT(16)));
 }
@@ -442,7 +447,7 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 	status = buffer->output[1];
 	release_buffer();
 
-	dell_rfkill_update(rfkill, (unsigned long)data, status);
+	dell_rfkill_update_hw_state(rfkill, (unsigned long)data, status);
 }
 
 static const struct rfkill_ops dell_rfkill_ops = {
@@ -528,12 +533,18 @@ static void dell_update_rfkill(struct work_struct *ignored)
 	status = buffer->output[1];
 	release_buffer();
 
-	if (wifi_rfkill)
-		dell_rfkill_update(wifi_rfkill, 1, status);
-	if (bluetooth_rfkill)
-		dell_rfkill_update(bluetooth_rfkill, 2, status);
-	if (wwan_rfkill)
-		dell_rfkill_update(wwan_rfkill, 3, status);
+	if (wifi_rfkill) {
+		dell_rfkill_update_hw_state(wifi_rfkill, 1, status);
+		dell_rfkill_update_sw_state(wifi_rfkill, 1, status);
+	}
+	if (bluetooth_rfkill) {
+		dell_rfkill_update_hw_state(bluetooth_rfkill, 2, status);
+		dell_rfkill_update_sw_state(bluetooth_rfkill, 2, status);
+	}
+	if (wwan_rfkill) {
+		dell_rfkill_update_hw_state(wwan_rfkill, 3, status);
+		dell_rfkill_update_sw_state(wwan_rfkill, 3, status);
+	}
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
