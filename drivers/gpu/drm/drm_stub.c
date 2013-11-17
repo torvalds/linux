@@ -99,13 +99,19 @@ void drm_ut_debug_printk(unsigned int request_level,
 			 const char *function_name,
 			 const char *format, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (drm_debug & request_level) {
-		if (function_name)
-			printk(KERN_DEBUG "[%s:%s], ", prefix, function_name);
 		va_start(args, format);
-		vprintk(format, args);
+		vaf.fmt = format;
+		vaf.va = &args;
+
+		if (function_name)
+			printk(KERN_DEBUG "[%s:%s], %pV", prefix,
+			       function_name, &vaf);
+		else
+			printk(KERN_DEBUG "%pV", &vaf);
 		va_end(args);
 	}
 }
