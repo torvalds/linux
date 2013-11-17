@@ -577,7 +577,9 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
 	if (rc) {
 		BNX2X_ERR("DMAE returned failure %d\n", rc);
+#ifdef BNX2X_STOP_ON_ERROR
 		bnx2x_panic();
+#endif
 	}
 }
 
@@ -614,7 +616,9 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	rc = bnx2x_issue_dmae_with_comp(bp, &dmae, bnx2x_sp(bp, wb_comp));
 	if (rc) {
 		BNX2X_ERR("DMAE returned failure %d\n", rc);
+#ifdef BNX2X_STOP_ON_ERROR
 		bnx2x_panic();
+#endif
 	}
 }
 
@@ -9351,6 +9355,10 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	/* reset the chip */
 	bnx2x_process_kill_chip_reset(bp, global);
 	barrier();
+
+	/* clear errors in PGB */
+	if (!CHIP_IS_E1x(bp))
+		REG_WR(bp, PGLUE_B_REG_LATCHED_ERRORS_CLR, 0x7f);
 
 	/* Recover after reset: */
 	/* MCP */
