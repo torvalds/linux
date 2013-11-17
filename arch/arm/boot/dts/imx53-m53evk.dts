@@ -51,6 +51,7 @@
 		pwms = <&pwm1 0 3000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+		power-supply = <&reg_backlight>;
 	};
 
 	leds {
@@ -84,6 +85,17 @@
 			regulator-max-microvolt = <3200000>;
 			regulator-always-on;
 		};
+
+
+		reg_backlight: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "lcd-supply";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
+
 	};
 
 	sound {
@@ -210,8 +222,6 @@
 				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x80000000
 				MX53_PAD_EIM_EB3__GPIO2_31		0x80000000
 				MX53_PAD_PATA_DA_0__GPIO7_6		0x80000000
-				MX53_PAD_DISP0_DAT8__PWM1_PWMO		0x5
-
 			>;
 		};
 
