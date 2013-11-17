@@ -123,13 +123,13 @@
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xe0000006
-	movi	a4, 0xf0000000 + CA_WRITEBACK
+	movi	a5, XCHAL_KIO_CACHED_VADDR + 6
+	movi	a4, XCHAL_KIO_PADDR + CA_WRITEBACK
 	wdtlb	a4, a5
 	witlb	a4, a5
 
-	movi	a5, 0xf0000006
-	movi	a4, 0xf0000000 + CA_BYPASS
+	movi	a5, XCHAL_KIO_BYPASS_VADDR + 6
+	movi	a4, XCHAL_KIO_PADDR + CA_BYPASS
 	wdtlb	a4, a5
 	witlb	a4, a5
 

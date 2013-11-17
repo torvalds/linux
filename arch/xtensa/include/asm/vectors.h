@@ -20,6 +20,11 @@
 
 #include <variant/core.h>
 
+#define XCHAL_KIO_CACHED_VADDR		0xe0000000
+#define XCHAL_KIO_BYPASS_VADDR		0xf0000000
+#define XCHAL_KIO_PADDR			0xf0000000
+#define XCHAL_KIO_SIZE			0x10000000
+
 #if defined(CONFIG_MMU)
 
 /* Will Become VECBASE */

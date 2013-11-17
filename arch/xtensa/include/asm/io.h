@@ -14,15 +14,11 @@
 #ifdef __KERNEL__
 #include <asm/byteorder.h>
 #include <asm/page.h>
+#include <asm/vectors.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
 
 #include <linux/types.h>
-
-#define XCHAL_KIO_CACHED_VADDR	0xe0000000
-#define XCHAL_KIO_BYPASS_VADDR	0xf0000000
-#define XCHAL_KIO_PADDR		0xf0000000
-#define XCHAL_KIO_SIZE		0x10000000
 
 #define IOADDR(x)		(XCHAL_KIO_BYPASS_VADDR + (x))
 #define IO_SPACE_LIMIT ~0
