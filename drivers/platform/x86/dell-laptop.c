@@ -548,6 +548,9 @@ static int __init dell_setup_rfkill(void)
 	buffer->input[0] = 0x2;
 	dell_send_request(buffer, 17, 11);
 	hwswitch_state = buffer->output[1];
+	/* If there is no hwswitch, then clear all hw-controlled bits */
+	if (!(status & BIT(0)))
+		hwswitch_state &= ~7;
 	release_buffer();
 
 	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
