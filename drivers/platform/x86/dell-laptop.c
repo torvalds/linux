@@ -422,10 +422,16 @@ out:
 	return 0;
 }
 
+/* Must be called with the buffer held */
 static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
 					int status)
 {
-	if (!(status & BIT(0))) {
+	if (status & BIT(0)) {
+		/* Has hw-switch, sync sw_state to BIOS */
+		int block = rfkill_blocked(rfkill);
+		buffer->input[0] = (1 | (radio << 8) | (block << 16));
+		dell_send_request(buffer, 17, 11);
+	} else {
 		/* No hw-switch, sync BIOS state to sw_state */
 		rfkill_set_sw_state(rfkill, !!(status & BIT(radio + 16)));
 	}
@@ -445,9 +451,10 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
 	status = buffer->output[1];
-	release_buffer();
 
 	dell_rfkill_update_hw_state(rfkill, (unsigned long)data, status);
+
+	release_buffer();
 }
 
 static const struct rfkill_ops dell_rfkill_ops = {
@@ -531,7 +538,6 @@ static void dell_update_rfkill(struct work_struct *ignored)
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
 	status = buffer->output[1];
-	release_buffer();
 
 	if (wifi_rfkill) {
 		dell_rfkill_update_hw_state(wifi_rfkill, 1, status);
@@ -545,6 +551,8 @@ static void dell_update_rfkill(struct work_struct *ignored)
 		dell_rfkill_update_hw_state(wwan_rfkill, 3, status);
 		dell_rfkill_update_sw_state(wwan_rfkill, 3, status);
 	}
+
+	release_buffer();
 }
 static DECLARE_DELAYED_WORK(dell_rfkill_work, dell_update_rfkill);
 
