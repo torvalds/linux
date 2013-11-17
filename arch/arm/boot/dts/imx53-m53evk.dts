@@ -96,6 +96,15 @@
 			regulator-always-on;
 		};
 
+		reg_usbh1_vbus: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 2 0>;
+			enable-active-low;
+		};
 	};
 
 	sound {
@@ -222,6 +231,8 @@
 				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK	0x80000000
 				MX53_PAD_EIM_EB3__GPIO2_31		0x80000000
 				MX53_PAD_PATA_DA_0__GPIO7_6		0x80000000
+				MX53_PAD_GPIO_2__GPIO1_2		0x80000000
+				MX53_PAD_GPIO_3__USBOH3_USBH1_OC	0x80000000
 			>;
 		};
 
@@ -424,5 +435,16 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&usbh1 {
+	vbus-supply = <&reg_usbh1_vbus>;
+	phy_type = "utmi";
+	status = "okay";
+};
+
+&usbotg {
+	dr_mode = "peripheral";
 	status = "okay";
 };
