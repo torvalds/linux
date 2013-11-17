@@ -19,8 +19,6 @@
 /* These simply sets bias for pins */
 #define BIAS(a,b) static unsigned long a[] = { b }
 
-BIAS(pd, PIN_PULL_DOWN);
-
 BIAS(abx500_out_lo, PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0));
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
 BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
@@ -299,9 +297,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 };
 
 static struct pinctrl_map __initdata snowball_pinmap[] = {
-	/* Mux in SSP0 connected to AB8500, pull down RXD pin */
-	DB8500_MUX_HOG("ssp0_a_1", "ssp0"),
-	DB8500_PIN_HOG("GPIO145_C13", pd),
 	/* User LED */
 	DB8500_PIN_HOG("GPIO142_C11", gpio_out_hi),
 	/*  Accelerometer/Magnetometer */
