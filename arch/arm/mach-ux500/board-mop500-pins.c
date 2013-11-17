@@ -302,12 +302,8 @@ static struct pinctrl_map __initdata snowball_pinmap[] = {
 	/* Mux in SSP0 connected to AB8500, pull down RXD pin */
 	DB8500_MUX_HOG("ssp0_a_1", "ssp0"),
 	DB8500_PIN_HOG("GPIO145_C13", pd),
-	/* Mux in "SM" which is used for the SMSC911x Ethernet adapter */
-	DB8500_MUX_HOG("sm_b_1", "sm"),
 	/* User LED */
 	DB8500_PIN_HOG("GPIO142_C11", gpio_out_hi),
-	/* Drive RSTn_LAN high */
-	DB8500_PIN_HOG("GPIO141_C12", gpio_out_hi),
 	/*  Accelerometer/Magnetometer */
 	DB8500_PIN_HOG("GPIO163_C20", gpio_in_pu), /* ACCEL_IRQ1 */
 	DB8500_PIN_HOG("GPIO164_B21", gpio_in_pu), /* ACCEL_IRQ2 */

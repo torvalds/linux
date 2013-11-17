@@ -130,6 +130,8 @@
 				interrupt-parent = <&gpio4>;
 				vdd33a-supply = <&en_3v3_reg>;
 				vddvario-supply = <&db8500_vape_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&eth_snowball_mode>;
 
 				reg-shift = <1>;
 				reg-io-width = <2>;
@@ -348,6 +350,29 @@
 		};
 
 		pinctrl {
+			ethernet {
+				/*
+				 * Mux in "SM" which is used for the
+				 * SMSC911x Ethernet adapter
+				 */
+				eth_snowball_mode: eth_snowball {
+					snowball_mux {
+						ste,function = "sm";
+						ste,pins = "sm_b_1";
+					};
+					/* LAN IRQ pin */
+					snowball_cfg1 {
+						ste,pins = "GPIO140_B11";
+						ste,config = <&in_nopull>;
+					};
+					/* LAN reset pin */
+					snowball_cfg2 {
+						ste,pins = "GPIO141_C12";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
 			sdi0 {
 				sdi0_default_mode: sdi0_default {
 					snowball_mux {
