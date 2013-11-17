@@ -404,7 +404,6 @@ static int dell_rfkill_set(void *data, bool blocked)
 	int disable = blocked ? 1 : 0;
 	unsigned long radio = (unsigned long)data;
 	int hwswitch_bit = (unsigned long)data - 1;
-	int ret = 0;
 
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
@@ -412,17 +411,15 @@ static int dell_rfkill_set(void *data, bool blocked)
 	/* If the hardware switch controls this radio, and the hardware
 	   switch is disabled, don't allow changing the software state */
 	if ((hwswitch_state & BIT(hwswitch_bit)) &&
-	    !(buffer->output[1] & BIT(16))) {
-		ret = -EINVAL;
+	    !(buffer->output[1] & BIT(16)))
 		goto out;
-	}
 
 	buffer->input[0] = (1 | (radio<<8) | (disable << 16));
 	dell_send_request(buffer, 17, 11);
 
 out:
 	release_buffer();
-	return ret;
+	return 0;
 }
 
 static void dell_rfkill_update_sw_state(struct rfkill *rfkill, int radio,
