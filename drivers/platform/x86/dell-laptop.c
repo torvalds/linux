@@ -93,6 +93,10 @@ static struct backlight_device *dell_backlight_device;
 static struct rfkill *wifi_rfkill;
 static struct rfkill *bluetooth_rfkill;
 static struct rfkill *wwan_rfkill;
+static bool force_rfkill;
+
+module_param(force_rfkill, bool, 0444);
+MODULE_PARM_DESC(force_rfkill, "enable rfkill on non whitelisted models");
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
@@ -567,7 +571,7 @@ static int __init dell_setup_rfkill(void)
 	 * actually testing the rfkill functionality is only done on Latitudes.
 	 */
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	if (!product || strncmp(product, "Latitude", 8))
+	if (!force_rfkill && (!product || strncmp(product, "Latitude", 8)))
 		return 0;
 
 	get_buffer();
