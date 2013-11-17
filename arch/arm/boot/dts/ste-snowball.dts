@@ -76,6 +76,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioled_snowball_mode>;
 		used-led {
 			label = "user_led";
 			gpios = <&gpio4 14 0x4>;
@@ -410,6 +412,15 @@
 						"GPIO146_D13", /* TXD */
 						"GPIO143_D12"; /* CLK */
 						ste,config = <&out_lo>;
+					};
+
+				};
+			};
+			gpio_led {
+				gpioled_snowball_mode: gpioled_default {
+					snowball_cfg1 {
+						ste,pins = "GPIO142_C11";
+						ste,config = <&gpio_out_hi>;
 					};
 
 				};

@@ -297,8 +297,6 @@ static struct pinctrl_map __initdata ab8505_pinmap[] = {
 };
 
 static struct pinctrl_map __initdata snowball_pinmap[] = {
-	/* User LED */
-	DB8500_PIN_HOG("GPIO142_C11", gpio_out_hi),
 	/*  Accelerometer/Magnetometer */
 	DB8500_PIN_HOG("GPIO163_C20", gpio_in_pu), /* ACCEL_IRQ1 */
 	DB8500_PIN_HOG("GPIO164_B21", gpio_in_pu), /* ACCEL_IRQ2 */
