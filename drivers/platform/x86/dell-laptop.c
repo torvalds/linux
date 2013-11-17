@@ -119,53 +119,6 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 };
 MODULE_DEVICE_TABLE(dmi, dell_device_table);
 
-static struct dmi_system_id dell_blacklist[] = {
-	/* Supported by compal-laptop */
-	{
-		.ident = "Dell Mini 9",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 910"),
-		},
-	},
-	{
-		.ident = "Dell Mini 10",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1010"),
-		},
-	},
-	{
-		.ident = "Dell Mini 10v",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1011"),
-		},
-	},
-	{
-		.ident = "Dell Mini 1012",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1012"),
-		},
-	},
-	{
-		.ident = "Dell Inspiron 11z",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1110"),
-		},
-	},
-	{
-		.ident = "Dell Mini 12",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 1210"),
-		},
-	},
-	{}
-};
-
 static struct dmi_system_id dell_quirks[] = {
 	{
 		.callback = dmi_matched,
@@ -579,11 +532,15 @@ static int __init dell_setup_rfkill(void)
 {
 	int status;
 	int ret;
+	const char *product;
 
-	if (dmi_check_system(dell_blacklist)) {
-		pr_info("Blacklisted hardware detected - not enabling rfkill\n");
+	/*
+	 * rfkill causes trouble on various non Latitudes, according to Dell
+	 * actually testing the rfkill functionality is only done on Latitudes.
+	 */
+	product = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (!product || strncmp(product, "Latitude", 8))
 		return 0;
-	}
 
 	get_buffer();
 	dell_send_request(buffer, 17, 11);
