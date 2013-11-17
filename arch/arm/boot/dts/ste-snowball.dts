@@ -357,6 +357,16 @@
 		};
 
 		pinctrl {
+			/*
+			 * Set this up using hogs, as time goes by and as seems fit, these
+			 * can be moved over to being controlled by respective device.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&accel_snowball_mode>,
+				  <&magneto_snowball_mode>,
+				  <&gbf_snowball_mode>,
+				  <&wlan_snowball_mode>;
+
 			ethernet {
 				/*
 				 * Mux in "SM" which is used for the
@@ -423,6 +433,55 @@
 						ste,config = <&gpio_out_hi>;
 					};
 
+				};
+			};
+			accelerometer {
+				accel_snowball_mode: accel_snowball {
+					/* Accelerometer lines */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO163_C20", /* ACCEL_IRQ1 */
+						"GPIO164_B21"; /* ACCEL_IRQ2 */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_snowball_mode: magneto_snowball {
+					snowball_cfg1 {
+						ste,pins = "GPIO165_C21"; /* MAG_DRDY */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gbf {
+				gbf_snowball_mode: gbf_snowball {
+					/*
+					 * GBF (GPS, Bluetooth, FM-radio) interface,
+					 * pull low to reset state
+					 */
+					snowball_cfg1 {
+						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			wlan {
+				wlan_snowball_mode: wlan_snowball {
+					/*
+					 * Activate this mode with the WLAN chip.
+					 * These are plain GPIO pins used by WLAN
+					 */
+					snowball_cfg1 {
+						ste,pins =
+						"GPIO161_D21", /* WLAN_PMU_EN */
+						"GPIO215_AH13"; /* WLAN_ENA */
+						ste,config = <&gpio_out_lo>;
+					};
+					snowball_cfg2 {
+						ste,pins = "GPIO216_AG12"; /* WLAN_IRQ */
+						ste,config = <&gpio_in_pu>;
+					};
 				};
 			};
 		};
