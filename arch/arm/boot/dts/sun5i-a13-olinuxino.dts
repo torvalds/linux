@@ -18,10 +18,6 @@
 	model = "Olimex A13-Olinuxino";
 	compatible = "olimex,a13-olinuxino", "allwinner,sun5i-a13";
 
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
-
 	soc@01c00000 {
 		pinctrl@01c20800 {
 			led_pins_olinuxino: led_pins@0 {
