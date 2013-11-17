@@ -759,7 +759,7 @@ static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 		switch (data) {
 		case 0x8:
 			schedule_delayed_work(&dell_rfkill_work,
-					      round_jiffies_relative(HZ));
+					      round_jiffies_relative(HZ / 4));
 			break;
 		}
 		extended = false;
