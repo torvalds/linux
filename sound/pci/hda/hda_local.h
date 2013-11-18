@@ -353,6 +353,7 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
  * generic codec parser
  */
 int snd_hda_parse_generic_codec(struct hda_codec *codec);
+int snd_hda_parse_hdmi_codec(struct hda_codec *codec);
 
 /*
  * generic proc interface

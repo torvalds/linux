@@ -3214,6 +3214,15 @@ static int patch_via_hdmi(struct hda_codec *codec)
 }
 
 /*
+ * called from hda_codec.c for generic HDMI support
+ */
+int snd_hda_parse_hdmi_codec(struct hda_codec *codec)
+{
+	return patch_generic_hdmi(codec);
+}
+EXPORT_SYMBOL_HDA(snd_hda_parse_hdmi_codec);
+
+/*
  * patch entries
  */
 static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
