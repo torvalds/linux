@@ -1079,7 +1079,7 @@ static int be_vid_config(struct be_adapter *adapter)
 			vids[num++] = cpu_to_le16(i);
 
 	status = be_cmd_vlan_config(adapter, adapter->if_handle,
-				    vids, num, 1, 0);
+				    vids, num, 0);
 
 	if (status) {
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
