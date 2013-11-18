@@ -2025,7 +2025,7 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-static int mlx4_en_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
+static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -2084,11 +2084,21 @@ static int mlx4_en_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 			    sizeof(config)) ? -EFAULT : 0;
 }
 
+static int mlx4_en_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return copy_to_user(ifr->ifr_data, &priv->hwtstamp_config,
+			    sizeof(priv->hwtstamp_config)) ? -EFAULT : 0;
+}
+
 static int mlx4_en_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx4_en_hwtstamp_ioctl(dev, ifr);
+		return mlx4_en_hwtstamp_set(dev, ifr);
+	case SIOCGHWTSTAMP:
+		return mlx4_en_hwtstamp_get(dev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
