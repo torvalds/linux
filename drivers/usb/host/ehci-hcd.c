@@ -714,13 +714,6 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	cmd = ehci_readl(ehci, &ehci->regs->command);
 	bh = 0;
 
-#ifdef	VERBOSE_DEBUG
-	/* unrequested/ignored: Frame List Rollover */
-	dbg_status (ehci, "irq", status);
-#endif
-
-	/* INT, ERR, and IAA interrupt rates can be throttled */
-
 	/* normal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely ((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely ((status & STS_ERR) == 0))
