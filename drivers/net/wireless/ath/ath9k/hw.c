@@ -1502,8 +1502,9 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	int r;
 
 	if (pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) {
-		band_switch = IS_CHAN_5GHZ(ah->curchan) != IS_CHAN_5GHZ(chan);
-		mode_diff = (chan->channelFlags != ah->curchan->channelFlags);
+		u32 flags_diff = chan->channelFlags ^ ah->curchan->channelFlags;
+		band_switch = !!(flags_diff & CHANNEL_5GHZ);
+		mode_diff = !!(flags_diff & ~CHANNEL_HT);
 	}
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
@@ -1815,7 +1816,7 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * If cross-band fcc is not supoprted, bail out if channelFlags differ.
 	 */
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_FCC_BAND_SWITCH) &&
-	    chan->channelFlags != ah->curchan->channelFlags)
+	    ((chan->channelFlags ^ ah->curchan->channelFlags) & ~CHANNEL_HT))
 		goto fail;
 
 	if (!ath9k_hw_check_alive(ah))
