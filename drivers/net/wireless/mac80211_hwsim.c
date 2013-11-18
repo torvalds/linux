@@ -1302,6 +1302,9 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 
 	mac80211_hwsim_tx_frame(hw, skb,
 				rcu_dereference(vif->chanctx_conf)->def.chan);
+
+	if (vif->csa_active && ieee80211_csa_is_complete(vif))
+		ieee80211_csa_finish(vif);
 }
 
 static enum hrtimer_restart
@@ -2063,13 +2066,15 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_WANT_MONITOR_VIF |
 		    IEEE80211_HW_QUEUE_CONTROL |
-		    IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
+		    IEEE80211_HW_SUPPORTS_HT_CCK_RATES |
+		    IEEE80211_HW_CHANCTX_STA_CSA;
 	if (rctbl)
 		hw->flags |= IEEE80211_HW_SUPPORTS_RC_TABLE;
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			    WIPHY_FLAG_AP_UAPSD;
+			    WIPHY_FLAG_AP_UAPSD |
+			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 
 	/* ask mac80211 to reserve space for magic */
