@@ -266,8 +266,16 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
+	int i;
+
 	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
+
+	if (sta->tx_lat) {
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
+			kfree(sta->tx_lat[i].bins);
+		kfree(sta->tx_lat);
+	}
 
 	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
 
@@ -333,6 +341,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct timespec uptime;
+	struct ieee80211_tx_latency_bin_ranges *tx_latency;
 	int i;
 
 	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
@@ -409,6 +418,31 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 			WARN_ON(1);
 		}
 	}
+
+	rcu_read_lock();
+
+	tx_latency = rcu_dereference(local->tx_latency);
+	/* init stations Tx latency statistics && TID bins */
+	if (tx_latency)
+		sta->tx_lat = kzalloc(IEEE80211_NUM_TIDS *
+				      sizeof(struct ieee80211_tx_latency_stat),
+				      GFP_ATOMIC);
+
+	/*
+	 * if Tx latency and bins are enabled and the previous allocation
+	 * succeeded
+	 */
+	if (tx_latency && tx_latency->n_ranges && sta->tx_lat)
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+			/* size of bins is size of the ranges +1 */
+			sta->tx_lat[i].bin_count =
+				tx_latency->n_ranges + 1;
+			sta->tx_lat[i].bins  = kcalloc(sta->tx_lat[i].bin_count,
+						       sizeof(u32),
+						       GFP_ATOMIC);
+		}
+
+	rcu_read_unlock();
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 

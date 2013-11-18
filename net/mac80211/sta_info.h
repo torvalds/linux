@@ -220,6 +220,25 @@ struct sta_ampdu_mlme {
 	u8 dialog_token_allocator;
 };
 
+/*
+ * struct ieee80211_tx_latency_stat - Tx latency statistics
+ *
+ * Measures TX latency and jitter for a station per TID.
+ *
+ * @max: worst case latency
+ * @sum: sum of all latencies
+ * @counter: amount of Tx frames sent from interface
+ * @bins: each bin counts how many frames transmitted within a certain
+ * latency range. when disabled it is NULL.
+ * @bin_count: amount of bins.
+ */
+struct ieee80211_tx_latency_stat {
+	u32 max;
+	u32 sum;
+	u32 counter;
+	u32 *bins;
+	u32 bin_count;
+};
 
 /**
  * struct sta_info - STA information
@@ -276,6 +295,7 @@ struct sta_ampdu_mlme {
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
+ * @tx_lat: Tx latency statistics
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
@@ -384,6 +404,8 @@ struct sta_info {
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
+
+	struct ieee80211_tx_latency_stat *tx_lat;
 
 #ifdef CONFIG_MAC80211_MESH
 	/*

@@ -19,6 +19,7 @@
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
 #include <linux/export.h>
+#include <linux/time.h>
 #include <net/net_namespace.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
@@ -1741,6 +1742,26 @@ fail:
 	return NETDEV_TX_OK; /* meaning, we dealt with the skb */
 }
 
+/*
+ * Measure Tx frame arrival time for Tx latency statistics calculation
+ * A single Tx frame latency should be measured from when it is entering the
+ * Kernel until we receive Tx complete confirmation indication and the skb is
+ * freed.
+ */
+static void ieee80211_tx_latency_start_msrmnt(struct ieee80211_local *local,
+					      struct sk_buff *skb)
+{
+	struct timespec skb_arv;
+	struct ieee80211_tx_latency_bin_ranges *tx_latency;
+
+	tx_latency = rcu_dereference(local->tx_latency);
+	if (!tx_latency)
+		return;
+
+	ktime_get_ts(&skb_arv);
+	skb->tstamp = ktime_set(skb_arv.tv_sec, skb_arv.tv_nsec);
+}
+
 /**
  * ieee80211_subif_start_xmit - netif start_xmit function for Ethernet-type
  * subinterfaces (wlan#, WDS, and VLAN interfaces)
@@ -1790,6 +1811,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
 	rcu_read_lock();
+
+	/* Measure frame arrival for Tx latency statistics calculation */
+	ieee80211_tx_latency_start_msrmnt(local, skb);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:

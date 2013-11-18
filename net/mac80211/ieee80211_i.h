@@ -898,6 +898,24 @@ struct tpt_led_trigger {
 };
 #endif
 
+/*
+ * struct ieee80211_tx_latency_bin_ranges - Tx latency statistics bins ranges
+ *
+ * Measuring Tx latency statistics. Counts how many Tx frames transmitted in a
+ * certain latency range (in Milliseconds). Each station that uses these
+ * ranges will have bins to count the amount of frames received in that range.
+ * The user can configure the ranges via debugfs.
+ * If ranges is NULL then Tx latency statistics bins are disabled for all
+ * stations.
+ *
+ * @n_ranges: number of ranges that are taken in account
+ * @ranges: the ranges that the user requested or NULL if disabled.
+ */
+struct ieee80211_tx_latency_bin_ranges {
+	int n_ranges;
+	u32 ranges[];
+};
+
 /**
  * mac80211 scan flags - currently active scan mode
  *
@@ -1049,6 +1067,12 @@ struct ieee80211_local {
 	struct sta_info __rcu *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 	int sta_generation;
+
+	/*
+	 * Tx latency statistics parameters for all stations.
+	 * Can enable via debugfs (NULL when disabled).
+	 */
+	struct ieee80211_tx_latency_bin_ranges __rcu *tx_latency;
 
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
