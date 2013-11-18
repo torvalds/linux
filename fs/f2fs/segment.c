@@ -869,9 +869,14 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 
 void f2fs_submit_bio(struct f2fs_sb_info *sbi, enum page_type type, bool sync)
 {
-	down_write(&sbi->bio_sem);
+	enum page_type btype = PAGE_TYPE_OF_BIO(type);
+
+	if (!sbi->bio[btype])
+		return;
+
+	mutex_lock(&sbi->write_mutex[btype]);
 	do_submit_bio(sbi, type, sync);
-	up_write(&sbi->bio_sem);
+	mutex_unlock(&sbi->write_mutex[btype]);
 }
 
 static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
@@ -882,7 +887,7 @@ static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 
 	verify_block_addr(sbi, blk_addr);
 
-	down_write(&sbi->bio_sem);
+	mutex_lock(&sbi->write_mutex[type]);
 
 	inc_page_count(sbi, F2FS_WRITEBACK);
 
@@ -917,7 +922,7 @@ retry:
 
 	sbi->last_block_in_bio[type] = blk_addr;
 
-	up_write(&sbi->bio_sem);
+	mutex_unlock(&sbi->write_mutex[type]);
 	trace_f2fs_submit_write_page(page, blk_addr, type);
 }
 
