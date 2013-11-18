@@ -127,10 +127,6 @@ static int ohci_urb_enqueue (
 	unsigned long	flags;
 	int		retval = 0;
 
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "SUB", usb_pipein(pipe), -EINPROGRESS);
-#endif
-
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
 	if (! (ed = ed_get (ohci, urb->ep, urb->dev, pipe, urb->interval)))
 		return -ENOMEM;
@@ -283,10 +279,6 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	unsigned long		flags;
 	int			rc;
-
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "UNLINK", 1, status);
-#endif
 
 	spin_lock_irqsave (&ohci->lock, flags);
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);

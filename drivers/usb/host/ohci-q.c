@@ -68,10 +68,6 @@ __acquires(ohci->lock)
 		break;
 	}
 
-#ifdef OHCI_VERBOSE_DEBUG
-	urb_print(urb, "RET", usb_pipeout (urb->pipe), status);
-#endif
-
 	/* urb->complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
