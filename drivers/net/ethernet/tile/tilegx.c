@@ -481,8 +481,7 @@ static void tile_tx_timestamp(struct sk_buff *skb, int instance)
 }
 
 /* Use ioctl() to enable or disable TX or RX timestamping. */
-static int tile_hwtstamp_ioctl(struct net_device *dev, struct ifreq *rq,
-			       int cmd)
+static int tile_hwtstamp_set(struct net_device *dev, struct ifreq *rq)
 {
 #ifdef CONFIG_PTP_1588_CLOCK_TILEGX
 	struct hwtstamp_config config;
@@ -529,6 +528,21 @@ static int tile_hwtstamp_ioctl(struct net_device *dev, struct ifreq *rq,
 		return -EFAULT;
 
 	priv->stamp_cfg = config;
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int tile_hwtstamp_get(struct net_device *dev, struct ifreq *rq)
+{
+#ifdef CONFIG_PTP_1588_CLOCK_TILEGX
+	struct tile_net_priv *priv = netdev_priv(dev);
+
+	if (copy_to_user(rq->ifr_data, &priv->stamp_cfg,
+			 sizeof(priv->stamp_cfg)))
+		return -EFAULT;
+
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -2098,7 +2112,9 @@ static void tile_net_tx_timeout(struct net_device *dev)
 static int tile_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	if (cmd == SIOCSHWTSTAMP)
-		return tile_hwtstamp_ioctl(dev, rq, cmd);
+		return tile_hwtstamp_set(dev, rq);
+	if (cmd == SIOCGHWTSTAMP)
+		return tile_hwtstamp_get(dev, rq);
 
 	return -EOPNOTSUPP;
 }
