@@ -1761,10 +1761,8 @@ static int fotg210_hub_control(
 		if (test_bit(wIndex, &fotg210->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port(fotg210, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(fotg210, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:
@@ -2225,13 +2223,12 @@ static void fotg210_clear_tt_buffer(struct fotg210_hcd *fotg210,
 	 * Note: this routine is never called for Isochronous transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
-#ifdef DEBUG
 		struct usb_device *tt = urb->dev->tt->hub;
 		dev_dbg(&tt->dev,
 			"clear tt buffer port %d, a%d ep%d t%08x\n",
 			urb->dev->ttport, urb->dev->devnum,
 			usb_pipeendpoint(urb->pipe), token);
-#endif /* DEBUG */
+
 		if (urb->dev->tt->hub !=
 		    fotg210_to_hcd(fotg210)->self.root_hub) {
 			if (usb_hub_clear_tt_buffer(urb) == 0)
@@ -3534,11 +3531,9 @@ periodic_usecs(struct fotg210_hcd *fotg210, unsigned frame, unsigned uframe)
 			break;
 		}
 	}
-#ifdef	DEBUG
 	if (usecs > fotg210->uframe_periodic_max)
 		fotg210_err(fotg210, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
-#endif
 	return usecs;
 }
 
@@ -5395,10 +5390,8 @@ static irqreturn_t fotg210_irq(struct usb_hcd *hcd)
 	cmd = fotg210_readl(fotg210, &fotg210->regs->command);
 	bh = 0;
 
-#ifdef	VERBOSE_DEBUG
 	/* unrequested/ignored: Frame List Rollover */
 	dbg_status(fotg210, "irq", status);
-#endif
 
 	/* INT, ERR, and IAA interrupt rates can be throttled */
 
