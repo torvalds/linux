@@ -33,6 +33,28 @@ struct opal_takeover_args {
 	u64	rd_loc;			/* r11 */
 };
 
+/*
+ * SG entry
+ *
+ * WARNING: The current implementation requires each entry
+ * to represent a block that is 4k aligned *and* each block
+ * size except the last one in the list to be as well.
+ */
+struct opal_sg_entry {
+	void    *data;
+	long    length;
+};
+
+/* sg list */
+struct opal_sg_list {
+	unsigned long num_entries;
+	struct opal_sg_list *next;
+	struct opal_sg_entry entry[];
+};
+
+/* We calculate number of sg entries based on PAGE_SIZE */
+#define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
+
 extern long opal_query_takeover(u64 *hal_size, u64 *hal_align);
 
 extern long opal_do_takeover(struct opal_takeover_args *args);
