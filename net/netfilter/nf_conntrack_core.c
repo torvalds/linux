@@ -764,9 +764,10 @@ void nf_conntrack_free(struct nf_conn *ct)
 	struct net *net = nf_ct_net(ct);
 
 	nf_ct_ext_destroy(ct);
-	atomic_dec(&net->ct.count);
 	nf_ct_ext_free(ct);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&net->ct.count);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
