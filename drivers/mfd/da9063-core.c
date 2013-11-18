@@ -75,7 +75,7 @@ static struct resource da9063_hwmon_resources[] = {
 };
 
 
-static struct mfd_cell da9063_devs[] = {
+static const struct mfd_cell da9063_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_REGULATORS,
 		.num_resources	= ARRAY_SIZE(da9063_regulators_resources),
