@@ -53,12 +53,6 @@
 			status = "disabled";
 		};
 
-		memory-controller@fff00000 {
-			compatible = "calxeda,hb-ddr-ctrl";
-			reg = <0xfff00000 0x1000>;
-			interrupts = <0 91 4>;
-		};
-
 		ipc@fff20000 {
 			compatible = "arm,pl320", "arm,primecell";
 			reg = <0xfff20000 0x1000>;
