@@ -2580,7 +2580,7 @@ static int __init init_mac80211_hwsim(void)
 
 		tasklet_hrtimer_init(&data->beacon_timer,
 				     mac80211_hwsim_beacon,
-				     CLOCK_REALTIME, HRTIMER_MODE_ABS);
+				     CLOCK_MONOTONIC_RAW, HRTIMER_MODE_ABS);
 
 		list_add_tail(&data->list, &hwsim_radios);
 	}
