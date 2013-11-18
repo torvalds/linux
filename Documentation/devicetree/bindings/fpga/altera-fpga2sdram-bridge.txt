@@ -37,6 +37,11 @@ Optional properties:
 	/sys/class/fpga-bridge.
 	Default is br<device#> if this is not specified
 
+    - init-val :0 if driver should disable bridge at startup
+		1 if driver should enable bridge at startup
+		driver leaves bridge in current state if property not specified
+
+
 Example:
 	fpga2sdram_br: fpgabridge@3 {
 		compatible = "altr,socfpga-fpga2sdram-bridge";
@@ -44,4 +49,5 @@ Example:
 		read-ports-mask = <3>;
 		write-ports-mask = <3>;
 		cmd-ports-mask = <0xd>;
+		init-val = <0>;
 	};

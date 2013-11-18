@@ -63,9 +63,9 @@ static int alt_hps2fpga_enable_show(struct fpga_bridge *bridge)
 	return ((value & priv->reset_mask) == 0);
 }
 
-static void alt_hps2fpga_enable_set(struct fpga_bridge *bridge, bool enable)
+static inline void _alt_hps2fpga_enable_set(struct altera_hps2fpga_data *priv,
+	 bool enable)
 {
-	struct altera_hps2fpga_data *priv = bridge->priv;
 	unsigned int value;
 
 	/* bring bridge out of reset */
@@ -88,6 +88,11 @@ static void alt_hps2fpga_enable_set(struct fpga_bridge *bridge, bool enable)
 
 		regmap_write(priv->l3reg, ALT_L3_REMAP_OFST, l3_remap_value);
 	}
+}
+
+static void alt_hps2fpga_enable_set(struct fpga_bridge *bridge, bool enable)
+{
+	_alt_hps2fpga_enable_set(bridge->priv, enable);
 }
 
 struct fpga_bridge_ops altera_hps2fpga_br_ops = {
@@ -116,6 +121,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 {
 	struct altera_hps2fpga_data *priv;
 	const struct of_device_id *of_id;
+	uint32_t init_val;
 	int rc;
 	struct clk *clk;
 
@@ -152,8 +158,24 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	return register_fpga_bridge(pdev, &altera_hps2fpga_br_ops,
+	rc = register_fpga_bridge(pdev, &altera_hps2fpga_br_ops,
 				    priv->name, priv);
+	if (rc)
+		return rc;
+
+	if (of_property_read_u32(priv->np, "init-val", &init_val))
+		dev_info(&priv->pdev->dev, "init-val not specified\n");
+	else if (init_val > 1)
+		dev_warn(&priv->pdev->dev, "invalid init-val %u > 1\n",
+			init_val);
+	else {
+		dev_info(&priv->pdev->dev, "%s bridge\n",
+			(init_val ? "enabling" : "disabling"));
+
+		_alt_hps2fpga_enable_set(priv, init_val);
+	}
+
+	return rc;
 }
 
 static int alt_fpga_bridge_remove(struct platform_device *pdev)

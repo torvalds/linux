@@ -59,9 +59,9 @@ static int alt_fpga2sdram_enable_show(struct fpga_bridge *bridge)
 	return ((value & priv->mask) == priv->mask);
 }
 
-static void alt_fpga2sdram_enable_set(struct fpga_bridge *bridge, bool enable)
+static inline void _alt_fpga2sdram_enable_set(struct alt_fpga2sdram_data *priv,
+	bool enable)
 {
-	struct alt_fpga2sdram_data *priv = bridge->priv;
 	int value;
 
 	if (enable)
@@ -71,6 +71,10 @@ static void alt_fpga2sdram_enable_set(struct fpga_bridge *bridge, bool enable)
 
 	regmap_update_bits(priv->sdrctl, ALT_SDR_CTL_FPGAPORTRST_OFST,
 			   priv->mask, value);
+}
+static void alt_fpga2sdram_enable_set(struct fpga_bridge *bridge, bool enable)
+{
+	_alt_fpga2sdram_enable_set(bridge->priv, enable);
 }
 
 struct prop_map {
@@ -125,6 +129,7 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 {
 	struct alt_fpga2sdram_data *priv;
 	struct alt_fpga2sdram_data *data;
+	uint32_t init_val;
 	const struct of_device_id *of_id = of_match_device(altera_fpga_of_match,
 						     &pdev->dev);
 	int ret = 0;
@@ -162,8 +167,26 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return register_fpga_bridge(pdev, &altera_fpga2sdram_br_ops,
+	ret = register_fpga_bridge(pdev, &altera_fpga2sdram_br_ops,
 				    priv->name, priv);
+
+	if (!ret)
+		return ret;
+
+	if (of_property_read_u32(priv->np, "init-val", &init_val))
+		dev_info(&priv->pdev->dev, "init-val not specified\n");
+	else if (init_val > 1)
+		dev_warn(&priv->pdev->dev, "invalid init-val %u > 1\n",
+			init_val);
+	else {
+		dev_info(&priv->pdev->dev,
+			"%s bridge\n",
+			(init_val ? "enabling" : "disabling"));
+
+		_alt_fpga2sdram_enable_set(priv, init_val);
+	}
+
+	return ret;
 }
 
 static int alt_fpga_bridge_remove(struct platform_device *pdev)

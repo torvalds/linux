@@ -19,17 +19,23 @@ Optional properties:
   - label : name that you want this bridge to show up as under
 	/sys/class/fpga-bridge.  Default is br<device#> if this is not specified
 
+  - init-val : 	0 if driver should disable bridge at startup
+		1 if driver should enable bridge at startup
+		driver leaves bridge in current state if property not specified
+
 Example:
 	hps_fpgabridge0: fpgabridge@0 {
 		compatible = "altr,socfpga-hps2fpga-bridge";
 		label = "hps2fpga";
 		clocks = <&l4_main_clk>;
+		init-val = <1>;
 	};
 
 	hps_fpgabridge1: fpgabridge@1 {
 		compatible = "altr,socfpga-lwhps2fpga-bridge";
 		label = "lwhps2fpga";
 		clocks = <&l4_main_clk>;
+		init-val = <0>;
 	};
 
 	hps_fpgabridge2: fpgabridge@2 {
