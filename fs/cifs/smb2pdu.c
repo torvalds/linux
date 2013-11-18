@@ -2161,11 +2161,9 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive2(xid, ses, iov, num, &resp_buftype, 0);
 	rsp = (struct smb2_set_info_rsp *)iov[0].iov_base;
 
-	if (rc != 0) {
+	if (rc != 0)
 		cifs_stats_fail_inc(tcon, SMB2_SET_INFO_HE);
-		goto out;
-	}
-out:
+
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(iov);
 	return rc;
