@@ -37,7 +37,7 @@
 
 #define RTC_I2C_ADDR		(0x0c >> 1)
 
-static struct mfd_cell max8998_devs[] = {
+static const struct mfd_cell max8998_devs[] = {
 	{
 		.name = "max8998-pmic",
 	}, {
@@ -47,7 +47,7 @@ static struct mfd_cell max8998_devs[] = {
 	},
 };
 
-static struct mfd_cell lp3974_devs[] = {
+static const struct mfd_cell lp3974_devs[] = {
 	{
 		.name = "lp3974-pmic",
 	}, {

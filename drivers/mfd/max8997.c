@@ -40,7 +40,7 @@
 #define I2C_ADDR_RTC	(0x0C >> 1)
 #define I2C_ADDR_HAPTIC	(0x90 >> 1)
 
-static struct mfd_cell max8997_devs[] = {
+static const struct mfd_cell max8997_devs[] = {
 	{ .name = "max8997-pmic", },
 	{ .name = "max8997-rtc", },
 	{ .name = "max8997-battery", },
