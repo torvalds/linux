@@ -288,12 +288,27 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	int error, node;
 	struct drv_dev_and_id ddi = { drv, dev, id };
 
-	/* Execute driver initialization on node where the device's
-	   bus is attached to.  This way the driver likely allocates
-	   its local memory on the right node without any need to
-	   change it. */
+	/*
+	 * Execute driver initialization on node where the device is
+	 * attached.  This way the driver likely allocates its local memory
+	 * on the right node.
+	 */
 	node = dev_to_node(&dev->dev);
-	if (node >= 0) {
+
+	/*
+	 * On NUMA systems, we are likely to call a PF probe function using
+	 * work_on_cpu().  If that probe calls pci_enable_sriov() (which
+	 * adds the VF devices via pci_bus_add_device()), we may re-enter
+	 * this function to call the VF probe function.  Calling
+	 * work_on_cpu() again will cause a lockdep warning.  Since VFs are
+	 * always on the same node as the PF, we can work around this by
+	 * avoiding work_on_cpu() when we're already on the correct node.
+	 *
+	 * Preemption is enabled, so it's theoretically unsafe to use
+	 * numa_node_id(), but even if we run the probe function on the
+	 * wrong node, it should be functionally correct.
+	 */
+	if (node >= 0 && node != numa_node_id()) {
 		int cpu;
 
 		get_online_cpus();
@@ -305,6 +320,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 		put_online_cpus();
 	} else
 		error = local_pci_probe(&ddi);
+
 	return error;
 }
 
