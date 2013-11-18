@@ -105,12 +105,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 #define fotg210_warn(fotg210, fmt, args...) \
 	dev_warn(fotg210_to_hcd(fotg210)->self.controller , fmt , ## args)
 
-#ifdef VERBOSE_DEBUG
-#	define fotg210_vdbg fotg210_dbg
-#else
-	static inline void fotg210_vdbg(struct fotg210_hcd *fotg210, ...) {}
-#endif
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -1349,7 +1343,7 @@ static void fotg210_iaa_watchdog(struct fotg210_hcd *fotg210)
 				       &fotg210->regs->status);
 		}
 
-		fotg210_vdbg(fotg210, "IAA watchdog: status %x cmd %x\n",
+		fotg210_dbg(fotg210, "IAA watchdog: status %x cmd %x\n",
 				status, cmd);
 		end_unlink_async(fotg210);
 	}
@@ -1805,7 +1799,7 @@ static int fotg210_hub_control(
 			 * which can be fine if this root hub has a
 			 * transaction translator built in.
 			 */
-			fotg210_vdbg(fotg210, "port %d reset\n", wIndex + 1);
+			fotg210_dbg(fotg210, "port %d reset\n", wIndex + 1);
 			temp |= PORT_RESET;
 			temp &= ~PORT_PE;
 
@@ -2289,7 +2283,7 @@ static int qtd_copy_status(
 			status = -EPROTO;
 		}
 
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"dev%d ep%d%s qtd token %08x --> status %d\n",
 			usb_pipedevice(urb->pipe),
 			usb_pipeendpoint(urb->pipe),
@@ -4592,7 +4586,7 @@ static void itd_link_urb(
 	if (unlikely(list_empty(&stream->td_list))) {
 		fotg210_to_hcd(fotg210)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
 			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -4725,7 +4719,7 @@ static bool itd_complete(struct fotg210_hcd *fotg210, struct fotg210_itd *itd)
 	if (unlikely(list_is_singular(&stream->td_list))) {
 		fotg210_to_hcd(fotg210)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		fotg210_vdbg(fotg210,
+		fotg210_dbg(fotg210,
 			"deschedule devp %s ep%d%s-iso\n",
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
