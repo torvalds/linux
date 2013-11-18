@@ -224,6 +224,24 @@ static int parse_long_opt(struct parse_opt_ctx_t *p, const char *arg,
 			return 0;
 		}
 		if (!rest) {
+			if (!prefixcmp(options->long_name, "no-")) {
+				/*
+				 * The long name itself starts with "no-", so
+				 * accept the option without "no-" so that users
+				 * do not have to enter "no-no-" to get the
+				 * negation.
+				 */
+				rest = skip_prefix(arg, options->long_name + 3);
+				if (rest) {
+					flags |= OPT_UNSET;
+					goto match;
+				}
+				/* Abbreviated case */
+				if (!prefixcmp(options->long_name + 3, arg)) {
+					flags |= OPT_UNSET;
+					goto is_abbreviated;
+				}
+			}
 			/* abbreviated? */
 			if (!strncmp(options->long_name, arg, arg_end - arg)) {
 is_abbreviated:
@@ -259,6 +277,7 @@ is_abbreviated:
 			if (!rest)
 				continue;
 		}
+match:
 		if (*rest) {
 			if (*rest != '=')
 				continue;
