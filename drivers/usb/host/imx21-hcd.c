@@ -62,6 +62,10 @@
 
 #include "imx21-hcd.h"
 
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
+
 #ifdef DEBUG
 #define DEBUG_LOG_FRAME(imx21, etd, event) \
 	(etd)->event##_frame = readl((imx21)->regs + USBH_FRMNUB)

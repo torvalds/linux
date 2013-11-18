@@ -69,7 +69,7 @@ MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
  *            show all queues in /sys/kernel/debug/uhci/[pci_addr]
  * debug = 3, show all TDs in URBs when dumping
  */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 
 static int debug = 1;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -870,7 +870,7 @@ static int __init uhci_hcd_init(void)
 			ignore_oc ? ", overcurrent ignored" : "");
 	set_bit(USB_UHCI_LOADED, &usb_hcds_loaded);
 
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
 	if (!errbuf)
 		goto errbuf_failed;
@@ -931,7 +931,7 @@ static void __exit uhci_hcd_cleanup(void)
 #endif
 	kmem_cache_destroy(uhci_up_cachep);
 	debugfs_remove(uhci_debugfs_root);
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	kfree(errbuf);
 #endif
 	clear_bit(USB_UHCI_LOADED, &usb_hcds_loaded);

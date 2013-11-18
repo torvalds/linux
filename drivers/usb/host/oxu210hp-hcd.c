@@ -60,6 +60,10 @@
 #define oxu_info(oxu, fmt, args...) \
 		dev_info(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
 
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
+
 static inline struct usb_hcd *oxu_to_hcd(struct oxu_hcd *oxu)
 {
 	return container_of((void *) oxu, struct usb_hcd, hcd_priv);

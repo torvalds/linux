@@ -38,7 +38,7 @@ typedef __u16 __bitwise __hc16;
 #endif
 
 /* statistics can be kept for tuning/monitoring */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 #define EHCI_STATS
 #endif
 
@@ -248,7 +248,7 @@ struct ehci_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
+#ifdef CONFIG_DYNAMIC_DEBUG
 	struct dentry		*debug_dir;
 #endif
 
@@ -832,9 +832,9 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 	dev_warn(ehci_to_hcd(ehci)->self.controller , fmt , ## args)
 
 
-#if !defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
+#ifndef CONFIG_DYNAMIC_DEBUG
 #define STUB_DEBUG_FILES
-#endif	/* !DEBUG && !CONFIG_DYNAMIC_DEBUG */
+#endif
 
 /*-------------------------------------------------------------------------*/
 
