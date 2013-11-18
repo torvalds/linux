@@ -2173,6 +2173,10 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	int i, ret;
 	bool bypass;
 
+	if (WARN_ONCE(num_regs <= 0, "invalid registers number (%d)\n",
+	    num_regs))
+		return 0;
+
 	map->lock(map->lock_arg);
 
 	bypass = map->cache_bypass;
