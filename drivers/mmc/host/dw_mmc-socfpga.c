@@ -38,21 +38,6 @@ struct dw_mci_socfpga_priv_data {
 
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 {
-	struct dw_mci_socfpga_priv_data *priv;
-
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
-		return -ENOMEM;
-	}
-
-	priv->sysreg = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
-	if (IS_ERR(priv->sysreg)) {
-		dev_err(host->dev, "regmap for altr,sys-mgr lookup failed.\n");
-		return PTR_ERR(priv->sysreg);
-	}
-	host->priv = priv;
-
 	return 0;
 }
 
@@ -79,11 +64,23 @@ static void dw_mci_socfpga_prepare_command(struct dw_mci *host, u32 *cmdr)
 
 static int dw_mci_socfpga_parse_dt(struct dw_mci *host)
 {
-	struct dw_mci_socfpga_priv_data *priv = host->priv;
+	struct dw_mci_socfpga_priv_data *priv;
 	struct device_node *np = host->dev->of_node;
 	u32 timing[2];
 	u32 div = 0;
 	int ret;
+
+	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		dev_err(host->dev, "mem alloc failed for private data\n");
+		return -ENOMEM;
+	}
+
+	priv->sysreg = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
+	if (IS_ERR(priv->sysreg)) {
+		dev_err(host->dev, "regmap for altr,sys-mgr lookup failed.\n");
+		return PTR_ERR(priv->sysreg);
+	}
 
 	ret = of_property_read_u32(np, "altr,dw-mshc-ciu-div", &div);
 	if (ret)
@@ -96,6 +93,7 @@ static int dw_mci_socfpga_parse_dt(struct dw_mci *host)
 		return ret;
 
 	priv->hs_timing = SYSMGR_SDMMC_CTRL_SET(timing[0], timing[1]);
+	host->priv = priv;
 	return 0;
 }
 
@@ -113,7 +111,7 @@ static const struct of_device_id dw_mci_socfpga_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_mci_socfpga_match);
 
-int dw_mci_socfpga_probe(struct platform_device *pdev)
+static int dw_mci_socfpga_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
@@ -128,7 +126,7 @@ static struct platform_driver dw_mci_socfpga_pltfm_driver = {
 	.remove		= __exit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dwmmc_socfpga",
-		.of_match_table	= of_match_ptr(dw_mci_socfpga_match),
+		.of_match_table	= dw_mci_socfpga_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
 };
