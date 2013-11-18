@@ -38,7 +38,7 @@ static inline void stmpe_dump_bytes(const char *str, const void *buf,
  *		enable and altfunc callbacks
  */
 struct stmpe_variant_block {
-	struct mfd_cell		*cell;
+	const struct mfd_cell	*cell;
 	int			irq;
 	enum stmpe_block	block;
 };
