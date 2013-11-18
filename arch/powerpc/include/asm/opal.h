@@ -132,6 +132,8 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_FLASH_VALIDATE			76
 #define OPAL_FLASH_MANAGE			77
 #define OPAL_FLASH_UPDATE			78
+#define OPAL_GET_MSG				85
+#define OPAL_CHECK_ASYNC_COMPLETION		86
 
 #ifndef __ASSEMBLY__
 
@@ -211,7 +213,16 @@ enum OpalPendingState {
 	OPAL_EVENT_ERROR_LOG		= 0x40,
 	OPAL_EVENT_EPOW			= 0x80,
 	OPAL_EVENT_LED_STATUS		= 0x100,
-	OPAL_EVENT_PCI_ERROR		= 0x200
+	OPAL_EVENT_PCI_ERROR		= 0x200,
+	OPAL_EVENT_MSG_PENDING		= 0x800,
+};
+
+enum OpalMessageType {
+	OPAL_MSG_ASYNC_COMP		= 0,
+	OPAL_MSG_MEM_ERR,
+	OPAL_MSG_EPOW,
+	OPAL_MSG_SHUTDOWN,
+	OPAL_MSG_TYPE_MAX,
 };
 
 /* Machine check related definitions */
@@ -354,6 +365,12 @@ enum OpalLPCAddressType {
 	OPAL_LPC_MEM	= 0,
 	OPAL_LPC_IO	= 1,
 	OPAL_LPC_FW	= 2,
+};
+
+struct opal_msg {
+	uint32_t msg_type;
+	uint32_t reserved;
+	uint64_t params[8];
 };
 
 struct opal_machine_check_event {
@@ -731,6 +748,9 @@ int64_t opal_validate_flash(uint64_t buffer, uint32_t *size, uint32_t *result);
 int64_t opal_manage_flash(uint8_t op);
 int64_t opal_update_flash(uint64_t blk_list);
 
+int64_t opal_get_msg(uint64_t buffer, size_t size);
+int64_t opal_check_completion(uint64_t buffer, size_t size, uint64_t token);
+
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname, int depth, void *data);
 
@@ -744,6 +764,8 @@ extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
 
 extern int opal_notifier_register(struct notifier_block *nb);
+extern int opal_message_notifier_register(enum OpalMessageType msg_type,
+						struct notifier_block *nb);
 extern void opal_notifier_enable(void);
 extern void opal_notifier_disable(void);
 extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);

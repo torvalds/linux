@@ -40,6 +40,7 @@ extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
 static unsigned int opal_irq_count;
 static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
+static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static DEFINE_SPINLOCK(opal_notifier_lock);
 static uint64_t last_notified_mask = 0x0ul;
 static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
@@ -166,6 +167,95 @@ void opal_notifier_disable(void)
 {
 	atomic_set(&opal_notifier_hold, 1);
 }
+
+/*
+ * Opal message notifier based on message type. Allow subscribers to get
+ * notified for specific messgae type.
+ */
+int opal_message_notifier_register(enum OpalMessageType msg_type,
+					struct notifier_block *nb)
+{
+	if (!nb) {
+		pr_warning("%s: Invalid argument (%p)\n",
+			   __func__, nb);
+		return -EINVAL;
+	}
+	if (msg_type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Invalid message type argument (%d)\n",
+			   __func__, msg_type);
+		return -EINVAL;
+	}
+	return atomic_notifier_chain_register(
+				&opal_msg_notifier_head[msg_type], nb);
+}
+
+static void opal_message_do_notify(uint32_t msg_type, void *msg)
+{
+	/* notify subscribers */
+	atomic_notifier_call_chain(&opal_msg_notifier_head[msg_type],
+					msg_type, msg);
+}
+
+static void opal_handle_message(void)
+{
+	s64 ret;
+	/*
+	 * TODO: pre-allocate a message buffer depending on opal-msg-size
+	 * value in /proc/device-tree.
+	 */
+	static struct opal_msg msg;
+
+	ret = opal_get_msg(__pa(&msg), sizeof(msg));
+	/* No opal message pending. */
+	if (ret == OPAL_RESOURCE)
+		return;
+
+	/* check for errors. */
+	if (ret) {
+		pr_warning("%s: Failed to retrive opal message, err=%lld\n",
+				__func__, ret);
+		return;
+	}
+
+	/* Sanity check */
+	if (msg.msg_type > OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Unknown message type: %u\n",
+				__func__, msg.msg_type);
+		return;
+	}
+	opal_message_do_notify(msg.msg_type, (void *)&msg);
+}
+
+static int opal_message_notify(struct notifier_block *nb,
+			  unsigned long events, void *change)
+{
+	if (events & OPAL_EVENT_MSG_PENDING)
+		opal_handle_message();
+	return 0;
+}
+
+static struct notifier_block opal_message_nb = {
+	.notifier_call	= opal_message_notify,
+	.next		= NULL,
+	.priority	= 0,
+};
+
+static int __init opal_message_init(void)
+{
+	int ret, i;
+
+	for (i = 0; i < OPAL_MSG_TYPE_MAX; i++)
+		ATOMIC_INIT_NOTIFIER_HEAD(&opal_msg_notifier_head[i]);
+
+	ret = opal_notifier_register(&opal_message_nb);
+	if (ret) {
+		pr_err("%s: Can't register OPAL event notifier (%d)\n",
+		       __func__, ret);
+		return ret;
+	}
+	return 0;
+}
+early_initcall(opal_message_init);
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {
