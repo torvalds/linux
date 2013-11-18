@@ -159,8 +159,6 @@ static inline void dbg_hcc_params (struct fusbh200_hcd *fusbh200, char *label) {
 
 #endif
 
-#ifdef	DEBUG
-
 static void __maybe_unused
 dbg_qtd (const char *label, struct fusbh200_hcd *fusbh200, struct fusbh200_qtd *qtd)
 {
@@ -301,29 +299,6 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_CSC) ? " CSC" : "",
 		(status & PORT_CONNECT) ? " CONNECT" : "");
 }
-
-#else
-static inline void __maybe_unused
-dbg_qh (char *label, struct fusbh200_hcd *fusbh200, struct fusbh200_qh *qh)
-{}
-
-static inline int __maybe_unused
-dbg_status_buf (char *buf, unsigned len, const char *label, u32 status)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_command_buf (char *buf, unsigned len, const char *label, u32 command)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_intr_buf (char *buf, unsigned len, const char *label, u32 enable)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
-{ return 0; }
-
-#endif	/* DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(fusbh200, label, status) { \
@@ -5936,13 +5911,11 @@ static int __init fusbh200_hcd_init(void)
 		 sizeof(struct fusbh200_qh), sizeof(struct fusbh200_qtd),
 		 sizeof(struct fusbh200_itd));
 
-#ifdef DEBUG
 	fusbh200_debug_root = debugfs_create_dir("fusbh200", usb_debug_root);
 	if (!fusbh200_debug_root) {
 		retval = -ENOENT;
 		goto err_debug;
 	}
-#endif
 
 	retval = platform_driver_register(&fusbh200_hcd_fusbh200_driver);
 	if (retval < 0)
@@ -5951,11 +5924,9 @@ static int __init fusbh200_hcd_init(void)
 
 	platform_driver_unregister(&fusbh200_hcd_fusbh200_driver);
 clean:
-#ifdef DEBUG
 	debugfs_remove(fusbh200_debug_root);
 	fusbh200_debug_root = NULL;
 err_debug:
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
@@ -5964,9 +5935,7 @@ module_init(fusbh200_hcd_init);
 static void __exit fusbh200_hcd_cleanup(void)
 {
 	platform_driver_unregister(&fusbh200_hcd_fusbh200_driver);
-#ifdef DEBUG
 	debugfs_remove(fusbh200_debug_root);
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(fusbh200_hcd_cleanup);

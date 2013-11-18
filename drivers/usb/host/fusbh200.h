@@ -173,9 +173,7 @@ struct fusbh200_hcd {			/* one per controller */
 #endif
 
 	/* debug files */
-#ifdef DEBUG
 	struct dentry		*debug_dir;
-#endif
 };
 
 /* convert between an HCD pointer and the corresponding FUSBH200_HCD */
@@ -732,12 +730,6 @@ static inline unsigned fusbh200_read_frame_index(struct fusbh200_hcd *fusbh200)
 	(desc)->length - FUSBH200_ITD_LENGTH(t) :			\
 	FUSBH200_ITD_LENGTH(t);					\
 })
-/*-------------------------------------------------------------------------*/
-
-#ifndef DEBUG
-#define STUB_DEBUG_FILES
-#endif	/* DEBUG */
-
 /*-------------------------------------------------------------------------*/
 
 #endif /* __LINUX_FUSBH200_H */
