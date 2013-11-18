@@ -60,7 +60,7 @@ static struct resource vx855_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell vx855_cells[] = {
+static const struct mfd_cell vx855_cells[] = {
 	{
 		.name = "vx855_gpio",
 		.num_resources = ARRAY_SIZE(vx855_gpio_resources),

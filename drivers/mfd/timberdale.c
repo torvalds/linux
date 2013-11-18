@@ -374,7 +374,7 @@ static const struct resource timberdale_dma_resources[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg0[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -431,7 +431,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg1[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -498,7 +498,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg2[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -548,7 +548,7 @@ static struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar0_cfg3[] = {
+static const struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 	{
 		.name = "timb-dma",
 		.num_resources = ARRAY_SIZE(timberdale_dma_resources),
@@ -619,7 +619,7 @@ static const struct resource timberdale_sdhc_resources[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar1[] = {
+static const struct mfd_cell timberdale_cells_bar1[] = {
 	{
 		.name = "sdhci",
 		.num_resources = ARRAY_SIZE(timberdale_sdhc_resources),
@@ -627,7 +627,7 @@ static struct mfd_cell timberdale_cells_bar1[] = {
 	},
 };
 
-static struct mfd_cell timberdale_cells_bar2[] = {
+static const struct mfd_cell timberdale_cells_bar2[] = {
 	{
 		.name = "sdhci",
 		.num_resources = ARRAY_SIZE(timberdale_sdhc_resources),

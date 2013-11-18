@@ -56,7 +56,7 @@ static struct resource rdc321x_gpio_resources[] = {
 	}
 };
 
-static struct mfd_cell rdc321x_sb_cells[] = {
+static const struct mfd_cell rdc321x_sb_cells[] = {
 	{
 		.name		= "rdc321x-wdt",
 		.resources	= rdc321x_wdt_resource,

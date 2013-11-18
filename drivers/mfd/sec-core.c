@@ -31,7 +31,7 @@
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
 
-static struct mfd_cell s5m8751_devs[] = {
+static const struct mfd_cell s5m8751_devs[] = {
 	{
 		.name = "s5m8751-pmic",
 	}, {
@@ -41,7 +41,7 @@ static struct mfd_cell s5m8751_devs[] = {
 	},
 };
 
-static struct mfd_cell s5m8763_devs[] = {
+static const struct mfd_cell s5m8763_devs[] = {
 	{
 		.name = "s5m8763-pmic",
 	}, {
@@ -51,7 +51,7 @@ static struct mfd_cell s5m8763_devs[] = {
 	},
 };
 
-static struct mfd_cell s5m8767_devs[] = {
+static const struct mfd_cell s5m8767_devs[] = {
 	{
 		.name = "s5m8767-pmic",
 	}, {
@@ -59,7 +59,7 @@ static struct mfd_cell s5m8767_devs[] = {
 	},
 };
 
-static struct mfd_cell s2mps11_devs[] = {
+static const struct mfd_cell s2mps11_devs[] = {
 	{
 		.name = "s2mps11-pmic",
 	}, {
