@@ -229,15 +229,39 @@
 				i2c-parent = <&i2c1>;
 
 				i2c@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
+
+					adc0: nau7802@2a {
+						compatible = "nuvoton,nau7802";
+						reg = <0x2a>;
+						nuvoton,vldo = <3000>;
+					};
 				};
 
 				i2c@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <1>;
+
+					adc1: nau7802@2a {
+						compatible = "nuvoton,nau7802";
+						reg = <0x2a>;
+						nuvoton,vldo = <3000>;
+					};
 				};
 
 				i2c@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <2>;
+
+					adc2: nau7802@2a {
+						compatible = "nuvoton,nau7802";
+						reg = <0x2a>;
+						nuvoton,vldo = <3000>;
+					};
 				};
 
 				i2c@3 {
