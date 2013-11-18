@@ -150,7 +150,7 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	btrfs_info(fs_info, "%s %s feature flag",
 		   val ? "Setting" : "Clearing", fa->kobj_attr.attr.name);
 
-	trans = btrfs_start_transaction(fs_info->fs_root, 1);
+	trans = btrfs_start_transaction(fs_info->fs_root, 0);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
