@@ -871,7 +871,8 @@ void show_regs(struct pt_regs * regs)
 	printk("SOFTE: %ld ", regs->softe);
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	printk("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
+	if (MSR_TM_ACTIVE(regs->msr))
+		printk("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
 #endif
 
 	for (i = 0;  i < 32;  i++) {
