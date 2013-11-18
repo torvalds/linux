@@ -60,10 +60,6 @@ static const char	hcd_name [] = "fusbh200_hcd";
 #undef VERBOSE_DEBUG
 #undef FUSBH200_URB_TRACE
 
-#ifdef DEBUG
-#define FUSBH200_STATS
-#endif
-
 /* magic numbers that can affect system performance */
 #define	FUSBH200_TUNE_CERR		3	/* 0-3 qtd retries; 0 == don't stop */
 #define	FUSBH200_TUNE_RL_HS		4	/* nak throttle; see 4.9 */
@@ -729,7 +725,6 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		next += temp;
 	}
 
-#ifdef FUSBH200_STATS
 	temp = scnprintf (next, size,
 		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
 		fusbh200->stats.normal, fusbh200->stats.error, fusbh200->stats.iaa,
@@ -741,7 +736,6 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		fusbh200->stats.complete, fusbh200->stats.unlink);
 	size -= temp;
 	next += temp;
-#endif
 
 done:
 	spin_unlock_irqrestore (&fusbh200->lock, flags);
@@ -1722,10 +1716,8 @@ static int fusbh200_hub_control (
 		if (test_bit(wIndex, &fusbh200->port_c_suspend))
 			status |= USB_PORT_STAT_C_SUSPEND << 16;
 
-#ifndef	VERBOSE_DEBUG
-	if (status & ~0xffff)	/* only if wPortChange is interesting */
-#endif
-		dbg_port (fusbh200, "GetStatus", wIndex + 1, temp);
+		if (status & ~0xffff)	/* only if wPortChange is interesting */
+			dbg_port(fusbh200, "GetStatus", wIndex + 1, temp);
 		put_unaligned_le32(status, buf);
 		break;
 	case SetHubFeature:
@@ -2183,13 +2175,13 @@ static void fusbh200_clear_tt_buffer(struct fusbh200_hcd *fusbh200, struct fusbh
 	 * Note: this routine is never called for Isochronous transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
-#ifdef DEBUG
 		struct usb_device *tt = urb->dev->tt->hub;
+
 		dev_dbg(&tt->dev,
 			"clear tt buffer port %d, a%d ep%d t%08x\n",
 			urb->dev->ttport, urb->dev->devnum,
 			usb_pipeendpoint(urb->pipe), token);
-#endif /* DEBUG */
+
 		if (urb->dev->tt->hub !=
 		    fusbh200_to_hcd(fusbh200)->self.root_hub) {
 			if (usb_hub_clear_tt_buffer(urb) == 0)
@@ -3482,11 +3474,9 @@ periodic_usecs (struct fusbh200_hcd *fusbh200, unsigned frame, unsigned uframe)
 			break;
 		}
 	}
-#ifdef	DEBUG
 	if (usecs > fusbh200->uframe_periodic_max)
 		fusbh200_err (fusbh200, "uframe %d sched overrun: %d usecs\n",
 			frame * 8 + uframe, usecs);
-#endif
 	return usecs;
 }
 
@@ -5068,13 +5058,11 @@ static void fusbh200_stop (struct usb_hcd *hcd)
 	spin_unlock_irq (&fusbh200->lock);
 	fusbh200_mem_cleanup (fusbh200);
 
-#ifdef	FUSBH200_STATS
 	fusbh200_dbg(fusbh200, "irq normal %ld err %ld iaa %ld (lost %ld)\n",
 		fusbh200->stats.normal, fusbh200->stats.error, fusbh200->stats.iaa,
 		fusbh200->stats.lost_iaa);
 	fusbh200_dbg (fusbh200, "complete %ld unlink %ld\n",
 		fusbh200->stats.complete, fusbh200->stats.unlink);
-#endif
 
 	dbg_status (fusbh200, "fusbh200_stop completed",
 		    fusbh200_readl(fusbh200, &fusbh200->regs->status));

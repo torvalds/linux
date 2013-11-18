@@ -165,12 +165,8 @@ struct fusbh200_hcd {			/* one per controller */
 	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
-#ifdef FUSBH200_STATS
 	struct fusbh200_stats	stats;
 #	define COUNT(x) do { (x)++; } while (0)
-#else
-#	define COUNT(x) do {} while (0)
-#endif
 
 	/* debug files */
 	struct dentry		*debug_dir;
