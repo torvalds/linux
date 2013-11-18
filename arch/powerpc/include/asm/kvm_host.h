@@ -540,6 +540,7 @@ struct kvm_vcpu_arch {
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
+	pgd_t *pgdir;
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
@@ -597,7 +598,6 @@ struct kvm_vcpu_arch {
 	struct list_head run_list;
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
-	pgd_t *pgdir;
 
 	spinlock_t vpa_update_lock;
 	struct kvmppc_vpa vpa;
