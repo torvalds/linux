@@ -25,6 +25,50 @@ config SQUASHFS
 
 	  If unsure, say N.
 
+choice
+	prompt "Decompressor parallelisation options"
+	depends on SQUASHFS
+	help
+	  Squashfs now supports three parallelisation options for
+	  decompression.  Each one exhibits various trade-offs between
+	  decompression performance and CPU and memory usage.
+
+	  If in doubt, select "Single threaded compression"
+
+config SQUASHFS_DECOMP_SINGLE
+	bool "Single threaded compression"
+	help
+	  Traditionally Squashfs has used single-threaded decompression.
+	  Only one block (data or metadata) can be decompressed at any
+	  one time.  This limits CPU and memory usage to a minimum.
+
+config SQUASHFS_DECOMP_MULTI
+	bool "Use multiple decompressors for parallel I/O"
+	help
+	  By default Squashfs uses a single decompressor but it gives
+	  poor performance on parallel I/O workloads when using multiple CPU
+	  machines due to waiting on decompressor availability.
+
+	  If you have a parallel I/O workload and your system has enough memory,
+	  using this option may improve overall I/O performance.
+
+	  This decompressor implementation uses up to two parallel
+	  decompressors per core.  It dynamically allocates decompressors
+	  on a demand basis.
+
+config SQUASHFS_DECOMP_MULTI_PERCPU
+	bool "Use percpu multiple decompressors for parallel I/O"
+	help
+	  By default Squashfs uses a single decompressor but it gives
+	  poor performance on parallel I/O workloads when using multiple CPU
+	  machines due to waiting on decompressor availability.
+
+	  This decompressor implementation uses a maximum of one
+	  decompressor per core.  It uses percpu variables to ensure
+	  decompression is load-balanced across the cores.
+
+endchoice
+
 config SQUASHFS_XATTR
 	bool "Squashfs XATTR support"
 	depends on SQUASHFS
@@ -60,19 +104,6 @@ config SQUASHFS_LZO
 
 	  LZO is not the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
-
-	  If unsure, say N.
-
-config SQUASHFS_MULTI_DECOMPRESSOR
-	bool "Use multiple decompressors for handling parallel I/O"
-	depends on SQUASHFS
-	help
-	  By default Squashfs uses a single decompressor but it gives
-	  poor performance on parallel I/O workloads when using multiple CPU
-	  machines due to waiting on decompressor availability.
-
-	  If you have a parallel I/O workload and your system has enough memory,
-	  using this option may improve overall I/O performance.
 
 	  If unsure, say N.
 
