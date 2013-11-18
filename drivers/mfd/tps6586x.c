@@ -103,7 +103,7 @@ static struct resource tps6586x_rtc_resources[] = {
 	},
 };
 
-static struct mfd_cell tps6586x_cell[] = {
+static const struct mfd_cell tps6586x_cell[] = {
 	{
 		.name = "tps6586x-gpio",
 	},

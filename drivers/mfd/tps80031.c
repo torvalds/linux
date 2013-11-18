@@ -44,7 +44,7 @@ static struct resource tps80031_rtc_resources[] = {
 };
 
 /* TPS80031 sub mfd devices */
-static struct mfd_cell tps80031_cell[] = {
+static const struct mfd_cell tps80031_cell[] = {
 	{
 		.name = "tps80031-pmic",
 	},
