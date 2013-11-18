@@ -9252,8 +9252,7 @@ check_crtc_state(struct drm_device *dev)
 			enum pipe pipe;
 			if (encoder->base.crtc != &crtc->base)
 				continue;
-			if (encoder->get_config &&
-			    encoder->get_hw_state(encoder, &pipe))
+			if (encoder->get_hw_state(encoder, &pipe))
 				encoder->get_config(encoder, &pipe_config);
 		}
 
@@ -10913,8 +10912,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (encoder->get_hw_state(encoder, &pipe)) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			encoder->base.crtc = &crtc->base;
-			if (encoder->get_config)
-				encoder->get_config(encoder, &crtc->config);
+			encoder->get_config(encoder, &crtc->config);
 		} else {
 			encoder->base.crtc = NULL;
 		}
