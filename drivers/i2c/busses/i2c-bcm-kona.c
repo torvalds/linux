@@ -792,7 +792,8 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* Parse bus speed */
-	if (bcm_kona_i2c_assign_bus_speed(dev))
+	rc = bcm_kona_i2c_assign_bus_speed(dev);
+	if (rc)
 		goto probe_disable_clk;
 
 	/* Enable internal clocks */
