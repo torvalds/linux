@@ -59,9 +59,7 @@ static const char	hcd_name[] = "fotg210_hcd";
 #undef VERBOSE_DEBUG
 #undef FOTG210_URB_TRACE
 
-#ifdef DEBUG
 #define FOTG210_STATS
-#endif
 
 /* magic numbers that can affect system performance */
 #define	FOTG210_TUNE_CERR		3 /* 0-3 qtd retries; 0 == don't stop */
@@ -113,8 +111,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 	static inline void fotg210_vdbg(struct fotg210_hcd *fotg210, ...) {}
 #endif
 
-#ifdef	DEBUG
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -129,13 +125,6 @@ static void dbg_hcs_params(struct fotg210_hcd *fotg210, char *label)
 		HCS_N_PORTS(params)
 		);
 }
-#else
-
-static inline void dbg_hcs_params(struct fotg210_hcd *fotg210, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -152,13 +141,6 @@ static void dbg_hcc_params(struct fotg210_hcd *fotg210, char *label)
 		HCC_PGM_FRAMELISTLEN(params) ? "256/512/1024" : "1024",
 		HCC_CANPARK(params) ? " park" : "");
 }
-#else
-
-static inline void dbg_hcc_params(struct fotg210_hcd *fotg210, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 static void __maybe_unused
 dbg_qtd(const char *label, struct fotg210_hcd *fotg210, struct fotg210_qtd *qtd)
@@ -307,29 +289,6 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_CSC) ? " CSC" : "",
 		(status & PORT_CONNECT) ? " CONNECT" : "");
 }
-
-#else
-static inline void __maybe_unused
-dbg_qh(char *label, struct fotg210_hcd *fotg210, struct fotg210_qh *qh)
-{}
-
-static inline int __maybe_unused
-dbg_status_buf(char *buf, unsigned len, const char *label, u32 status)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_intr_buf(char *buf, unsigned len, const char *label, u32 enable)
-{ return 0; }
-
-static inline int __maybe_unused
-dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
-{ return 0; }
-
-#endif	/* DEBUG */
 
 /* functions have the "wrong" filename when they're output... */
 #define dbg_status(fotg210, label, status) { \
@@ -6005,13 +5964,11 @@ static int __init fotg210_hcd_init(void)
 		 sizeof(struct fotg210_qh), sizeof(struct fotg210_qtd),
 		 sizeof(struct fotg210_itd));
 
-#ifdef DEBUG
 	fotg210_debug_root = debugfs_create_dir("fotg210", usb_debug_root);
 	if (!fotg210_debug_root) {
 		retval = -ENOENT;
 		goto err_debug;
 	}
-#endif
 
 	retval = platform_driver_register(&fotg210_hcd_driver);
 	if (retval < 0)
@@ -6020,11 +5977,9 @@ static int __init fotg210_hcd_init(void)
 
 	platform_driver_unregister(&fotg210_hcd_driver);
 clean:
-#ifdef DEBUG
 	debugfs_remove(fotg210_debug_root);
 	fotg210_debug_root = NULL;
 err_debug:
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
@@ -6033,9 +5988,7 @@ module_init(fotg210_hcd_init);
 static void __exit fotg210_hcd_cleanup(void)
 {
 	platform_driver_unregister(&fotg210_hcd_driver);
-#ifdef DEBUG
 	debugfs_remove(fotg210_debug_root);
-#endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(fotg210_hcd_cleanup);
