@@ -439,19 +439,21 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 #define TEGRA_CLK_PERIPH(_mux_shift, _mux_mask, _mux_flags,		\
 			 _div_shift, _div_width, _div_frac_width,	\
 			 _div_flags, _clk_num,\
-			 _gate_flags, _table)				\
+			 _gate_flags, _table, _lock)			\
 	{								\
 		.mux = {						\
 			.flags = _mux_flags,				\
 			.shift = _mux_shift,				\
 			.mask = _mux_mask,				\
 			.table = _table,				\
+			.lock = _lock,					\
 		},							\
 		.divider = {						\
 			.flags = _div_flags,				\
 			.shift = _div_shift,				\
 			.width = _div_width,				\
 			.frac_width = _div_frac_width,			\
+			.lock = _lock,					\
 		},							\
 		.gate = {						\
 			.flags = _gate_flags,				\
@@ -481,7 +483,7 @@ struct tegra_periph_init_data {
 			_mux_shift, _mux_mask, _mux_flags, _div_shift,	\
 			_div_width, _div_frac_width, _div_flags,	\
 			_clk_num, _gate_flags, _clk_id, _table,		\
-			_flags) \
+			_flags, _lock) \
 	{								\
 		.name = _name,						\
 		.clk_id = _clk_id,					\
@@ -491,7 +493,7 @@ struct tegra_periph_init_data {
 					   _mux_flags, _div_shift,	\
 					   _div_width, _div_frac_width,	\
 					   _div_flags, _clk_num,	\
-					   _gate_flags, _table),	\
+					   _gate_flags, _table, _lock),	\
 		.offset = _offset,					\
 		.con_id = _con_id,					\
 		.dev_id = _dev_id,					\
@@ -506,7 +508,7 @@ struct tegra_periph_init_data {
 			_mux_shift, BIT(_mux_width) - 1, _mux_flags,	\
 			_div_shift, _div_width, _div_frac_width, _div_flags, \
 			_clk_num, _gate_flags, _clk_id,\
-			NULL, 0)
+			NULL, 0, NULL)
 
 /**
  * struct clk_super_mux - super clock
