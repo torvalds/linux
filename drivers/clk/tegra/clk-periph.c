@@ -170,6 +170,14 @@ const struct clk_ops tegra_clk_periph_nodiv_ops = {
 	.disable = clk_periph_disable,
 };
 
+const struct clk_ops tegra_clk_periph_no_gate_ops = {
+	.get_parent = clk_periph_get_parent,
+	.set_parent = clk_periph_set_parent,
+	.recalc_rate = clk_periph_recalc_rate,
+	.round_rate = clk_periph_round_rate,
+	.set_rate = clk_periph_set_rate,
+};
+
 static struct clk *_tegra_clk_register_periph(const char *name,
 			const char **parent_names, int num_parents,
 			struct tegra_clk_periph *periph,
@@ -181,11 +189,15 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 	struct tegra_clk_periph_regs *bank;
 	bool div = !(periph->gate.flags & TEGRA_PERIPH_NO_DIV);
 
-	flags |= periph->gate.flags & TEGRA_PERIPH_NO_DIV ?
-			CLK_SET_RATE_PARENT : 0;
+	if (periph->gate.flags & TEGRA_PERIPH_NO_DIV) {
+		flags |= CLK_SET_RATE_PARENT;
+		init.ops = &tegra_clk_periph_nodiv_ops;
+	} else if (periph->gate.flags & TEGRA_PERIPH_NO_GATE)
+		init.ops = &tegra_clk_periph_no_gate_ops;
+	else
+		init.ops = &tegra_clk_periph_ops;
 
 	init.name = name;
-	init.ops = div ? &tegra_clk_periph_ops : &tegra_clk_periph_nodiv_ops;
 	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
