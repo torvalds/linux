@@ -2565,8 +2565,6 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
 {
 	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
 				       __GFP_REPEAT | __GFP_ZERO);
-	pte_t *pte = NULL;
-
 	if (!page)
 		return NULL;
 	if (!pgtable_page_ctor(page)) {
