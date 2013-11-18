@@ -114,8 +114,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 	static inline void fusbh200_vdbg(struct fusbh200_hcd *fusbh200, ...) {}
 #endif
 
-#ifdef	DEBUG
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -130,13 +128,6 @@ static void dbg_hcs_params (struct fusbh200_hcd *fusbh200, char *label)
 		HCS_N_PORTS (params)
 		);
 }
-#else
-
-static inline void dbg_hcs_params (struct fusbh200_hcd *fusbh200, char *label) {}
-
-#endif
-
-#ifdef	DEBUG
 
 /* check the values in the HCCPARAMS register
  * (host controller _Capability_ parameters)
@@ -153,11 +144,6 @@ static void dbg_hcc_params (struct fusbh200_hcd *fusbh200, char *label)
 		HCC_PGM_FRAMELISTLEN(params) ? "256/512/1024" : "1024",
 		HCC_CANPARK(params) ? " park" : "");
 }
-#else
-
-static inline void dbg_hcc_params (struct fusbh200_hcd *fusbh200, char *label) {}
-
-#endif
 
 static void __maybe_unused
 dbg_qtd (const char *label, struct fusbh200_hcd *fusbh200, struct fusbh200_qtd *qtd)
