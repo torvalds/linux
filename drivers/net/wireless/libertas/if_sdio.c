@@ -907,8 +907,8 @@ static int if_sdio_power_on(struct if_sdio_card *card)
 	sdio_release_host(func);
 	ret = if_sdio_prog_firmware(card);
 	if (ret) {
-		sdio_disable_func(func);
-		return ret;
+		sdio_claim_host(func);
+		goto disable;
 	}
 
 	return 0;
