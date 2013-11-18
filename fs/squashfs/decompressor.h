@@ -27,8 +27,9 @@ struct squashfs_decompressor {
 	void	*(*init)(struct squashfs_sb_info *, void *);
 	void	*(*comp_opts)(struct squashfs_sb_info *, void *, int);
 	void	(*free)(void *);
-	int	(*decompress)(struct squashfs_sb_info *, void *, void **,
-		struct buffer_head **, int, int, int, int, int);
+	int	(*decompress)(struct squashfs_sb_info *, void *,
+		struct buffer_head **, int, int, int,
+		struct squashfs_page_actor *);
 	int	id;
 	char	*name;
 	int	supported;

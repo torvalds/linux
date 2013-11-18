@@ -50,6 +50,7 @@ struct squashfs_cache_entry {
 	wait_queue_head_t	wait_queue;
 	struct squashfs_cache	*cache;
 	void			**data;
+	struct squashfs_page_actor	*actor;
 };
 
 struct squashfs_sb_info {
