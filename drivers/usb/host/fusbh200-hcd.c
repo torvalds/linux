@@ -307,13 +307,6 @@ dbg_port_buf (char *buf, unsigned len, const char *label, int port, u32 status)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILES
-
-static inline void create_debug_files (struct fusbh200_hcd *bus) { }
-static inline void remove_debug_files (struct fusbh200_hcd *bus) { }
-
-#else
-
 /* troubleshooting help: expose state in debugfs */
 
 static int debug_async_open(struct inode *, struct file *);
@@ -889,7 +882,6 @@ static inline void remove_debug_files (struct fusbh200_hcd *fusbh200)
 	debugfs_remove_recursive(fusbh200->debug_dir);
 }
 
-#endif /* STUB_DEBUG_FILES */
 /*-------------------------------------------------------------------------*/
 
 /*
