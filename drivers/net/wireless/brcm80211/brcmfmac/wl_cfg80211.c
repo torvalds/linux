@@ -3973,11 +3973,12 @@ brcmf_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 
 static int
 brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-		       struct ieee80211_channel *chan, bool offchan,
-		       unsigned int wait, const u8 *buf, size_t len,
-		       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+		       struct cfg80211_mgmt_tx_params *params, u64 *cookie)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct ieee80211_channel *chan = params->chan;
+	const u8 *buf = params->buf;
+	size_t len = params->len;
 	const struct ieee80211_mgmt *mgmt;
 	struct brcmf_cfg80211_vif *vif;
 	s32 err = 0;

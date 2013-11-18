@@ -1944,6 +1944,29 @@ struct cfg80211_update_ft_ies_params {
 };
 
 /**
+ * struct cfg80211_mgmt_tx_params - mgmt tx parameters
+ *
+ * This structure provides information needed to transmit a mgmt frame
+ *
+ * @chan: channel to use
+ * @offchan: indicates wether off channel operation is required
+ * @wait: duration for ROC
+ * @buf: buffer to transmit
+ * @len: buffer length
+ * @no_cck: don't use cck rates for this frame
+ * @dont_wait_for_ack: tells the low level not to wait for an ack
+ */
+struct cfg80211_mgmt_tx_params {
+	struct ieee80211_channel *chan;
+	bool offchan;
+	unsigned int wait;
+	const u8 *buf;
+	size_t len;
+	bool no_cck;
+	bool dont_wait_for_ack;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -2341,9 +2364,8 @@ struct cfg80211_ops {
 					    u64 cookie);
 
 	int	(*mgmt_tx)(struct wiphy *wiphy, struct wireless_dev *wdev,
-			  struct ieee80211_channel *chan, bool offchan,
-			  unsigned int wait, const u8 *buf, size_t len,
-			  bool no_cck, bool dont_wait_for_ack, u64 *cookie);
+			   struct cfg80211_mgmt_tx_params *params,
+			   u64 *cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       u64 cookie);

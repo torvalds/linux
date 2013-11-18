@@ -3167,26 +3167,25 @@ static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			     struct ieee80211_channel *chan, bool offchan,
-			     unsigned int wait, const u8 *buf, size_t len,
-			     bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			     struct cfg80211_mgmt_tx_params *params,
+			     u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct sta_info *sta;
-	const struct ieee80211_mgmt *mgmt = (void *)buf;
+	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
 	bool need_offchan = false;
 	u32 flags;
 	int ret;
 
-	if (dont_wait_for_ack)
+	if (params->dont_wait_for_ack)
 		flags = IEEE80211_TX_CTL_NO_ACK;
 	else
 		flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
 			IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	if (no_cck)
+	if (params->no_cck)
 		flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 
 	switch (sdata->vif.type) {
@@ -3234,7 +3233,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	/* configurations requiring offchan cannot work if no channel has been
 	 * specified
 	 */
-	if (need_offchan && !chan)
+	if (need_offchan && !params->chan)
 		return -EINVAL;
 
 	mutex_lock(&local->mtx);
@@ -3247,8 +3246,10 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
 		if (chanctx_conf) {
-			need_offchan = chan && (chan != chanctx_conf->def.chan);
-		} else if (!chan) {
+			need_offchan = params->chan &&
+				       (params->chan !=
+					chanctx_conf->def.chan);
+		} else if (!params->chan) {
 			ret = -EINVAL;
 			rcu_read_unlock();
 			goto out_unlock;
@@ -3258,19 +3259,19 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		rcu_read_unlock();
 	}
 
-	if (need_offchan && !offchan) {
+	if (need_offchan && !params->offchan) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + params->len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	memcpy(skb_put(skb, len), buf, len);
+	memcpy(skb_put(skb, params->len), params->buf, params->len);
 
 	IEEE80211_SKB_CB(skb)->flags = flags;
 
@@ -3290,8 +3291,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			local->hw.offchannel_tx_hw_queue;
 
 	/* This will handle all kinds of coalescing and immediate TX */
-	ret = ieee80211_start_roc_work(local, sdata, chan,
-				       wait, cookie, skb,
+	ret = ieee80211_start_roc_work(local, sdata, params->chan,
+				       params->wait, cookie, skb,
 				       IEEE80211_ROC_TYPE_MGMT_TX);
 	if (ret)
 		kfree_skb(skb);
