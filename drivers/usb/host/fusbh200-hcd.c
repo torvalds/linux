@@ -104,12 +104,6 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 #define fusbh200_warn(fusbh200, fmt, args...) \
 	dev_warn (fusbh200_to_hcd(fusbh200)->self.controller , fmt , ## args )
 
-#ifdef VERBOSE_DEBUG
-#	define fusbh200_vdbg fusbh200_dbg
-#else
-	static inline void fusbh200_vdbg(struct fusbh200_hcd *fusbh200, ...) {}
-#endif
-
 /* check the values in the HCSPARAMS register
  * (host controller _Structural_ parameters)
  * see EHCI spec, Table 2-4 for each value
@@ -1309,7 +1303,7 @@ static void fusbh200_iaa_watchdog(struct fusbh200_hcd *fusbh200)
 			fusbh200_writel(fusbh200, STS_IAA, &fusbh200->regs->status);
 		}
 
-		fusbh200_vdbg(fusbh200, "IAA watchdog: status %x cmd %x\n",
+		fusbh200_dbg(fusbh200, "IAA watchdog: status %x cmd %x\n",
 				status, cmd);
 		end_unlink_async(fusbh200);
 	}
@@ -1759,7 +1753,7 @@ static int fusbh200_hub_control (
 			 * which can be fine if this root hub has a
 			 * transaction translator built in.
 			 */
-			fusbh200_vdbg (fusbh200, "port %d reset\n", wIndex + 1);
+			fusbh200_dbg(fusbh200, "port %d reset\n", wIndex + 1);
 			temp |= PORT_RESET;
 			temp &= ~PORT_PE;
 
@@ -2242,7 +2236,7 @@ static int qtd_copy_status (
 			status = -EPROTO;
 		}
 
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"dev%d ep%d%s qtd token %08x --> status %d\n",
 			usb_pipedevice (urb->pipe),
 			usb_pipeendpoint (urb->pipe),
@@ -4529,7 +4523,7 @@ static void itd_link_urb(
 	if (unlikely (list_empty(&stream->td_list))) {
 		fusbh200_to_hcd(fusbh200)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
 			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -4660,7 +4654,7 @@ static bool itd_complete(struct fusbh200_hcd *fusbh200, struct fusbh200_itd *itd
 	if (unlikely(list_is_singular(&stream->td_list))) {
 		fusbh200_to_hcd(fusbh200)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		fusbh200_vdbg (fusbh200,
+		fusbh200_dbg(fusbh200,
 			"deschedule devp %s ep%d%s-iso\n",
 			dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
