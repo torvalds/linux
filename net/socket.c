@@ -2964,11 +2964,8 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 			 struct compat_ifreq __user *ifr32)
 {
 	struct ifreq kifr;
-	struct ifreq __user *uifr;
 	mm_segment_t old_fs;
 	int err;
-	u32 data;
-	void __user *datap;
 
 	switch (cmd) {
 	case SIOCBONDENSLAVE:
@@ -2985,26 +2982,13 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 		set_fs(old_fs);
 
 		return err;
-	case SIOCBONDSLAVEINFOQUERY:
-	case SIOCBONDINFOQUERY:
-		uifr = compat_alloc_user_space(sizeof(*uifr));
-		if (copy_in_user(&uifr->ifr_name, &ifr32->ifr_name, IFNAMSIZ))
-			return -EFAULT;
-
-		if (get_user(data, &ifr32->ifr_ifru.ifru_data))
-			return -EFAULT;
-
-		datap = compat_ptr(data);
-		if (put_user(datap, &uifr->ifr_ifru.ifru_data))
-			return -EFAULT;
-
-		return dev_ioctl(net, cmd, uifr);
 	default:
 		return -ENOIOCTLCMD;
 	}
 }
 
-static int siocdevprivate_ioctl(struct net *net, unsigned int cmd,
+/* Handle ioctls that use ifreq::ifr_data and just need struct ifreq converted */
+static int compat_ifr_data_ioctl(struct net *net, unsigned int cmd,
 				 struct compat_ifreq __user *u_ifreq32)
 {
 	struct ifreq __user *u_ifreq64;
@@ -3102,27 +3086,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 			err = -EFAULT;
 	}
 	return err;
-}
-
-static int compat_siocshwtstamp(struct net *net, struct compat_ifreq __user *uifr32)
-{
-	void __user *uptr;
-	compat_uptr_t uptr32;
-	struct ifreq __user *uifr;
-
-	uifr = compat_alloc_user_space(sizeof(*uifr));
-	if (copy_in_user(uifr, uifr32, sizeof(struct compat_ifreq)))
-		return -EFAULT;
-
-	if (get_user(uptr32, &uifr32->ifr_data))
-		return -EFAULT;
-
-	uptr = compat_ptr(uptr32);
-
-	if (put_user(uptr, &uifr->ifr_data))
-		return -EFAULT;
-
-	return dev_ioctl(net, SIOCSHWTSTAMP, uifr);
 }
 
 struct rtentry32 {
@@ -3236,7 +3199,7 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	struct net *net = sock_net(sk);
 
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15))
-		return siocdevprivate_ioctl(net, cmd, argp);
+		return compat_ifr_data_ioctl(net, cmd, argp);
 
 	switch (cmd) {
 	case SIOCSIFBR:
@@ -3256,8 +3219,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCBONDENSLAVE:
 	case SIOCBONDRELEASE:
 	case SIOCBONDSETHWADDR:
-	case SIOCBONDSLAVEINFOQUERY:
-	case SIOCBONDINFOQUERY:
 	case SIOCBONDCHANGEACTIVE:
 		return bond_ioctl(net, cmd, argp);
 	case SIOCADDRT:
@@ -3267,8 +3228,10 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 		return do_siocgstamp(net, sock, cmd, argp);
 	case SIOCGSTAMPNS:
 		return do_siocgstampns(net, sock, cmd, argp);
+	case SIOCBONDSLAVEINFOQUERY:
+	case SIOCBONDINFOQUERY:
 	case SIOCSHWTSTAMP:
-		return compat_siocshwtstamp(net, argp);
+		return compat_ifr_data_ioctl(net, cmd, argp);
 
 	case FIOSETOWN:
 	case SIOCSPGRP:
