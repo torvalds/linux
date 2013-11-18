@@ -1018,6 +1018,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_PTP_PPS:
 		efx_ptp_event(efx, event);
 		break;
+	case MCDI_EVENT_CODE_PTP_TIME:
+		efx_time_sync_event(channel, event);
+		break;
 	case MCDI_EVENT_CODE_TX_FLUSH:
 	case MCDI_EVENT_CODE_RX_FLUSH:
 		/* Two flush events will be sent: one to the same event

@@ -369,6 +369,13 @@ enum efx_rx_alloc_method {
 	RX_ALLOC_METHOD_PAGE = 2,
 };
 
+enum efx_sync_events_state {
+	SYNC_EVENTS_DISABLED = 0,
+	SYNC_EVENTS_QUIESCENT,
+	SYNC_EVENTS_REQUESTED,
+	SYNC_EVENTS_VALID,
+};
+
 /**
  * struct efx_channel - An Efx channel
  *
@@ -408,6 +415,9 @@ enum efx_rx_alloc_method {
  *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
+ * @sync_events_state: Current state of sync events on this channel
+ * @sync_timestamp_major: Major part of the last ptp sync event
+ * @sync_timestamp_minor: Minor part of the last ptp sync event
  */
 struct efx_channel {
 	struct efx_nic *efx;
@@ -446,6 +456,10 @@ struct efx_channel {
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
+
+	enum efx_sync_events_state sync_events_state;
+	u32 sync_timestamp_major;
+	u32 sync_timestamp_minor;
 };
 
 /**
@@ -686,6 +700,8 @@ struct vfdi_status;
  *	(valid only if @rx_prefix_size != 0; always negative)
  * @rx_packet_len_offset: Offset of RX packet length from start of packet data
  *	(valid only for NICs that set %EFX_RX_PKT_PREFIX_LEN; always negative)
+ * @rx_packet_ts_offset: Offset of timestamp from start of packet data
+ *	(valid only if channel->sync_timestamps_enabled; always negative)
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
@@ -820,6 +836,7 @@ struct efx_nic {
 	unsigned int rx_prefix_size;
 	int rx_packet_hash_offset;
 	int rx_packet_len_offset;
+	int rx_packet_ts_offset;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
@@ -1035,6 +1052,8 @@ struct efx_mtd_partition {
  *	also notifies the driver that a writer has finished using this
  *	partition.
  * @ptp_write_host_time: Send host time to MC as part of sync protocol
+ * @ptp_set_ts_sync_events: Enable or disable sync events for inline RX
+ *	timestamping, possibly only temporarily for the purposes of a reset.
  * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
@@ -1047,6 +1066,7 @@ struct efx_mtd_partition {
  * @max_dma_mask: Maximum possible DMA mask
  * @rx_prefix_size: Size of RX prefix before packet data
  * @rx_hash_offset: Offset of RX flow hash within prefix
+ * @rx_ts_offset: Offset of timestamp within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
  * @can_rx_scatter: NIC is able to scatter packets to multiple buffers
  * @always_rx_scatter: NIC will always scatter packets to multiple buffers
@@ -1158,6 +1178,7 @@ struct efx_nic_type {
 	int (*mtd_sync)(struct mtd_info *mtd);
 #endif
 	void (*ptp_write_host_time)(struct efx_nic *efx, u32 host_time);
+	int (*ptp_set_ts_sync_events)(struct efx_nic *efx, bool en, bool temp);
 	int (*ptp_set_ts_config)(struct efx_nic *efx,
 				 struct hwtstamp_config *init);
 
@@ -1170,6 +1191,7 @@ struct efx_nic_type {
 	u64 max_dma_mask;
 	unsigned int rx_prefix_size;
 	unsigned int rx_hash_offset;
+	unsigned int rx_ts_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	bool always_rx_scatter;

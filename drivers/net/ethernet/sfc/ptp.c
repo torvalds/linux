@@ -216,6 +216,8 @@ struct efx_ptp_timeset {
  * struct efx_ptp_data - Precision Time Protocol (PTP) state
  * @efx: The NIC context
  * @channel: The PTP channel (Siena only)
+ * @rx_ts_inline: Flag for whether RX timestamps are inline (else they are
+ *	separate events)
  * @rxq: Receive queue (awaiting timestamps)
  * @txq: Transmit queue
  * @evt_list: List of MC receive events awaiting packets
@@ -258,6 +260,7 @@ struct efx_ptp_timeset {
 struct efx_ptp_data {
 	struct efx_nic *efx;
 	struct efx_channel *channel;
+	bool rx_ts_inline;
 	struct sk_buff_head rxq;
 	struct sk_buff_head txq;
 	struct list_head evt_list;
@@ -317,8 +320,8 @@ static void efx_ptp_ns_to_s_ns(s64 ns, u32 *nic_major, u32 *nic_minor)
 	*nic_minor = ts.tv_nsec;
 }
 
-static ktime_t efx_ptp_s_ns_to_ktime(u32 nic_major, u32 nic_minor,
-				     s32 correction)
+static ktime_t efx_ptp_s_ns_to_ktime_correction(u32 nic_major, u32 nic_minor,
+						s32 correction)
 {
 	ktime_t kt = ktime_set(nic_major, nic_minor);
 	if (correction >= 0)
@@ -359,11 +362,16 @@ static void efx_ptp_ns_to_s27(s64 ns, u32 *nic_major, u32 *nic_minor)
 	*nic_minor = min;
 }
 
-static ktime_t efx_ptp_s27_to_ktime(u32 nic_major, u32 nic_minor,
-				    s32 correction)
+static inline ktime_t efx_ptp_s27_to_ktime(u32 nic_major, u32 nic_minor)
 {
-	u32 ns;
+	u32 ns = (u32)(((u64)nic_minor * NSEC_PER_SEC +
+			(1ULL << (S27_TO_NS_SHIFT - 1))) >> S27_TO_NS_SHIFT);
+	return ktime_set(nic_major, ns);
+}
 
+static ktime_t efx_ptp_s27_to_ktime_correction(u32 nic_major, u32 nic_minor,
+					       s32 correction)
+{
 	/* Apply the correction and deal with carry */
 	nic_minor += correction;
 	if ((s32)nic_minor < 0) {
@@ -374,10 +382,7 @@ static ktime_t efx_ptp_s27_to_ktime(u32 nic_major, u32 nic_minor,
 		nic_major++;
 	}
 
-	ns = (u32)(((u64)nic_minor * NSEC_PER_SEC +
-		    (1ULL << (S27_TO_NS_SHIFT - 1))) >> S27_TO_NS_SHIFT);
-
-	return ktime_set(nic_major, ns);
+	return efx_ptp_s27_to_ktime(nic_major, nic_minor);
 }
 
 /* Get PTP attributes and set up time conversions */
@@ -407,10 +412,10 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 
 	if (fmt == MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_27FRACTION) {
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s27;
-		ptp->nic_to_kernel_time = efx_ptp_s27_to_ktime;
+		ptp->nic_to_kernel_time = efx_ptp_s27_to_ktime_correction;
 	} else if (fmt == MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_NANOSECONDS) {
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s_ns;
-		ptp->nic_to_kernel_time = efx_ptp_s_ns_to_ktime;
+		ptp->nic_to_kernel_time = efx_ptp_s_ns_to_ktime_correction;
 	} else {
 		return -ERANGE;
 	}
@@ -806,6 +811,9 @@ static void efx_ptp_drop_time_expired_events(struct efx_nic *efx)
 	struct list_head *cursor;
 	struct list_head *next;
 
+	if (ptp->rx_ts_inline)
+		return;
+
 	/* Drop time-expired events */
 	spin_lock_bh(&ptp->evt_lock);
 	if (!list_empty(&ptp->evt_list)) {
@@ -838,6 +846,8 @@ static enum ptp_packet_state efx_ptp_match_rx(struct efx_nic *efx,
 	struct list_head *next;
 	struct efx_ptp_match *match;
 	enum ptp_packet_state rc = PTP_PACKET_STATE_UNMATCHED;
+
+	WARN_ON_ONCE(ptp->rx_ts_inline);
 
 	spin_lock_bh(&ptp->evt_lock);
 	evts_waiting = !list_empty(&ptp->evt_list);
@@ -1061,8 +1071,6 @@ static void efx_ptp_pps_worker(struct work_struct *work)
 	ptp_clock_event(ptp->phc_clock, &ptp_evt);
 }
 
-/* Process any pending transmissions and timestamp any received packets.
- */
 static void efx_ptp_worker(struct work_struct *work)
 {
 	struct efx_ptp_data *ptp_data =
@@ -1120,6 +1128,7 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 
 	ptp->efx = efx;
 	ptp->channel = channel;
+	ptp->rx_ts_inline = efx_nic_rev(efx) >= EFX_REV_HUNT_A0;
 
 	rc = efx_nic_alloc_buffer(efx, &ptp->start, sizeof(int), GFP_KERNEL);
 	if (rc != 0)
@@ -1491,6 +1500,9 @@ static void ptp_event_rx(struct efx_nic *efx, struct efx_ptp_data *ptp)
 {
 	struct efx_ptp_event_rx *evt = NULL;
 
+	if (WARN_ON_ONCE(ptp->rx_ts_inline))
+		return;
+
 	if (ptp->evt_frag_idx != 3) {
 		ptp_event_failure(efx, 3);
 		return;
@@ -1585,6 +1597,93 @@ void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
 			  "PTP too many event fragments\n");
 		ptp->evt_frag_idx = 0;
 	}
+}
+
+void efx_time_sync_event(struct efx_channel *channel, efx_qword_t *ev)
+{
+	channel->sync_timestamp_major = MCDI_EVENT_FIELD(*ev, PTP_TIME_MAJOR);
+	channel->sync_timestamp_minor =
+		MCDI_EVENT_FIELD(*ev, PTP_TIME_MINOR_26_19) << 19;
+	/* if sync events have been disabled then we want to silently ignore
+	 * this event, so throw away result.
+	 */
+	(void) cmpxchg(&channel->sync_events_state, SYNC_EVENTS_REQUESTED,
+		       SYNC_EVENTS_VALID);
+}
+
+/* make some assumptions about the time representation rather than abstract it,
+ * since we currently only support one type of inline timestamping and only on
+ * EF10.
+ */
+#define MINOR_TICKS_PER_SECOND 0x8000000
+/* Fuzz factor for sync events to be out of order with RX events */
+#define FUZZ (MINOR_TICKS_PER_SECOND / 10)
+#define EXPECTED_SYNC_EVENTS_PER_SECOND 4
+
+static inline u32 efx_rx_buf_timestamp_minor(struct efx_nic *efx, const u8 *eh)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return __le32_to_cpup((const __le32 *)(eh + efx->rx_packet_ts_offset));
+#else
+	const u8 *data = eh + efx->rx_packet_ts_offset;
+	return (u32)data[0]       |
+	       (u32)data[1] << 8  |
+	       (u32)data[2] << 16 |
+	       (u32)data[3] << 24;
+#endif
+}
+
+void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
+				   struct sk_buff *skb)
+{
+	struct efx_nic *efx = channel->efx;
+	u32 pkt_timestamp_major, pkt_timestamp_minor;
+	u32 diff, carry;
+	struct skb_shared_hwtstamps *timestamps;
+
+	pkt_timestamp_minor = (efx_rx_buf_timestamp_minor(efx,
+							  skb_mac_header(skb)) +
+			       (u32) efx->ptp_data->ts_corrections.rx) &
+			      (MINOR_TICKS_PER_SECOND - 1);
+
+	/* get the difference between the packet and sync timestamps,
+	 * modulo one second
+	 */
+	diff = (pkt_timestamp_minor - channel->sync_timestamp_minor) &
+		(MINOR_TICKS_PER_SECOND - 1);
+	/* do we roll over a second boundary and need to carry the one? */
+	carry = channel->sync_timestamp_minor + diff > MINOR_TICKS_PER_SECOND ?
+		1 : 0;
+
+	if (diff <= MINOR_TICKS_PER_SECOND / EXPECTED_SYNC_EVENTS_PER_SECOND +
+		    FUZZ) {
+		/* packet is ahead of the sync event by a quarter of a second or
+		 * less (allowing for fuzz)
+		 */
+		pkt_timestamp_major = channel->sync_timestamp_major + carry;
+	} else if (diff >= MINOR_TICKS_PER_SECOND - FUZZ) {
+		/* packet is behind the sync event but within the fuzz factor.
+		 * This means the RX packet and sync event crossed as they were
+		 * placed on the event queue, which can sometimes happen.
+		 */
+		pkt_timestamp_major = channel->sync_timestamp_major - 1 + carry;
+	} else {
+		/* it's outside tolerance in both directions. this might be
+		 * indicative of us missing sync events for some reason, so
+		 * we'll call it an error rather than risk giving a bogus
+		 * timestamp.
+		 */
+		netif_vdbg(efx, drv, efx->net_dev,
+			  "packet timestamp %x too far from sync event %x:%x\n",
+			  pkt_timestamp_minor, channel->sync_timestamp_major,
+			  channel->sync_timestamp_minor);
+		return;
+	}
+
+	/* attach the timestamps to the skb */
+	timestamps = skb_hwtstamps(skb);
+	timestamps->hwtstamp =
+		efx_ptp_s27_to_ktime(pkt_timestamp_major, pkt_timestamp_minor);
 }
 
 static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
@@ -1728,9 +1827,15 @@ void efx_ptp_start_datapath(struct efx_nic *efx)
 {
 	if (efx_ptp_restart(efx))
 		netif_err(efx, drv, efx->net_dev, "Failed to restart PTP.\n");
+	/* re-enable timestamping if it was previously enabled */
+	if (efx->type->ptp_set_ts_sync_events)
+		efx->type->ptp_set_ts_sync_events(efx, true, true);
 }
 
 void efx_ptp_stop_datapath(struct efx_nic *efx)
 {
+	/* temporarily disable timestamping */
+	if (efx->type->ptp_set_ts_sync_events)
+		efx->type->ptp_set_ts_sync_events(efx, false, true);
 	efx_ptp_stop(efx);
 }

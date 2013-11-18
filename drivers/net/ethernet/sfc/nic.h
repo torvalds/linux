@@ -566,6 +566,15 @@ int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 			unsigned int new_mode);
 int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
+void efx_time_sync_event(struct efx_channel *channel, efx_qword_t *ev);
+void __efx_rx_skb_attach_timestamp(struct efx_channel *channel,
+				   struct sk_buff *skb);
+static inline void efx_rx_skb_attach_timestamp(struct efx_channel *channel,
+					       struct sk_buff *skb)
+{
+	if (channel->sync_events_state == SYNC_EVENTS_VALID)
+		__efx_rx_skb_attach_timestamp(channel, skb);
+}
 void efx_ptp_start_datapath(struct efx_nic *efx);
 void efx_ptp_stop_datapath(struct efx_nic *efx);
 

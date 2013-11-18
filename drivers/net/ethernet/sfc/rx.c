@@ -624,6 +624,8 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 	if (likely(rx_buf->flags & EFX_RX_PKT_CSUMMED))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+	efx_rx_skb_attach_timestamp(channel, skb);
+
 	if (channel->type->receive_skb)
 		if (channel->type->receive_skb(channel, skb))
 			return;
