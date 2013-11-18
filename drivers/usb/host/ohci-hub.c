@@ -725,10 +725,8 @@ static int ohci_hub_control (
 		temp = roothub_portstatus (ohci, wIndex);
 		put_unaligned_le32(temp, buf);
 
-#ifndef	OHCI_VERBOSE_DEBUG
-	if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
-#endif
-		dbg_port (ohci, "GetStatus", wIndex, temp);
+		if (*(u16*)(buf+2))	/* only if wPortChange is interesting */
+			dbg_port(ohci, "GetStatus", wIndex, temp);
 		break;
 	case SetHubFeature:
 		switch (wValue) {
