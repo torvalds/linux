@@ -245,9 +245,8 @@ static void rsnd_dma_do_work(struct work_struct *work)
 			return;
 		}
 
+		dma_async_issue_pending(dma->chan);
 	}
-
-	dma_async_issue_pending(dma->chan);
 }
 
 int rsnd_dma_available(struct rsnd_dma *dma)
