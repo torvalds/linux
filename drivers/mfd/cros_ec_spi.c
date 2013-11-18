@@ -76,7 +76,9 @@ static void debug_packet(struct device *dev, const char *name, u8 *ptr,
 
 	dev_dbg(dev, "%s: ", name);
 	for (i = 0; i < len; i++)
-		dev_cont(dev, " %02x", ptr[i]);
+		pr_cont(" %02x", ptr[i]);
+
+	pr_cont("\n");
 #endif
 }
 
