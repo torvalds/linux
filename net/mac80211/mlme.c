@@ -330,6 +330,16 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON_ONCE(!sta))
 		return -EINVAL;
 
+	/*
+	 * if bss configuration changed store the new one -
+	 * this may be applicable even if channel is identical
+	 */
+	ht_opmode = le16_to_cpu(ht_oper->operation_mode);
+	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
+		*changed |= BSS_CHANGED_HT;
+		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+	}
+
 	chan = sdata->vif.bss_conf.chandef.chan;
 	sband = local->hw.wiphy->bands[chan->band];
 
@@ -414,14 +424,6 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		sta->sta.bandwidth = new_sta_bw;
 		rate_control_rate_update(local, sband, sta,
 					 IEEE80211_RC_BW_CHANGED);
-	}
-
-	ht_opmode = le16_to_cpu(ht_oper->operation_mode);
-
-	/* if bss configuration changed store the new one */
-	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
-		*changed |= BSS_CHANGED_HT;
-		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
 	}
 
 	return 0;
