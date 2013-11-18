@@ -15,6 +15,8 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/reg_a2.h>
 #include <asm/irq.h>
