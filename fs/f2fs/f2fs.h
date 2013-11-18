@@ -350,6 +350,7 @@ enum count_type {
  *			with waiting the bio's completion
  * ...			Only can be used with META.
  */
+#define PAGE_TYPE_OF_BIO(type)	((type) > META ? META : (type))
 enum page_type {
 	DATA,
 	NODE,

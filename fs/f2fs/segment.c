@@ -835,32 +835,35 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 				enum page_type type, bool sync)
 {
 	int rw = sync ? WRITE_SYNC : WRITE;
-	enum page_type btype = type > META ? META : type;
+	enum page_type btype = PAGE_TYPE_OF_BIO(type);
+	struct bio *bio = sbi->bio[btype];
+	struct bio_private *p;
+
+	if (!bio)
+		return;
+
+	sbi->bio[btype] = NULL;
 
 	if (type >= META_FLUSH)
 		rw = WRITE_FLUSH_FUA;
-
 	if (btype == META)
 		rw |= REQ_META;
 
-	if (sbi->bio[btype]) {
-		struct bio_private *p = sbi->bio[btype]->bi_private;
-		p->sbi = sbi;
-		sbi->bio[btype]->bi_end_io = f2fs_end_io_write;
+	p = bio->bi_private;
+	p->sbi = sbi;
+	bio->bi_end_io = f2fs_end_io_write;
 
-		trace_f2fs_do_submit_bio(sbi->sb, btype, sync, sbi->bio[btype]);
+	trace_f2fs_do_submit_bio(sbi->sb, btype, sync, bio);
 
-		if (type == META_FLUSH) {
-			DECLARE_COMPLETION_ONSTACK(wait);
-			p->is_sync = true;
-			p->wait = &wait;
-			submit_bio(rw, sbi->bio[btype]);
-			wait_for_completion(&wait);
-		} else {
-			p->is_sync = false;
-			submit_bio(rw, sbi->bio[btype]);
-		}
-		sbi->bio[btype] = NULL;
+	if (type == META_FLUSH) {
+		DECLARE_COMPLETION_ONSTACK(wait);
+		p->is_sync = true;
+		p->wait = &wait;
+		submit_bio(rw, bio);
+		wait_for_completion(&wait);
+	} else {
+		p->is_sync = false;
+		submit_bio(rw, bio);
 	}
 }
 
