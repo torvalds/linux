@@ -5,7 +5,7 @@ controllers within the Exynos5250 SoC.
 
 Required Properties:
 
-- comptible: should be one of the following.
+- compatible: should be one of the following.
   - "samsung,exynos5250-clock" - controller compatible with Exynos5250 SoC.
 
 - reg: physical base address of the controller and length of memory mapped
