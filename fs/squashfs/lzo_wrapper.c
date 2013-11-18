@@ -31,6 +31,7 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs.h"
 #include "decompressor.h"
+#include "page_actor.h"
 
 struct squashfs_lzo {
 	void	*input;
@@ -75,13 +76,13 @@ static void lzo_free(void *strm)
 
 
 static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
-	void **buffer, struct buffer_head **bh, int b, int offset, int length,
-	int srclength, int pages)
+	struct buffer_head **bh, int b, int offset, int length,
+	struct squashfs_page_actor *output)
 {
 	struct squashfs_lzo *stream = strm;
-	void *buff = stream->input;
+	void *buff = stream->input, *data;
 	int avail, i, bytes = length, res;
-	size_t out_len = srclength;
+	size_t out_len = output->length;
 
 	for (i = 0; i < b; i++) {
 		avail = min(bytes, msblk->devblksize - offset);
@@ -98,12 +99,20 @@ static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
 		goto failed;
 
 	res = bytes = (int)out_len;
-	for (i = 0, buff = stream->output; bytes && i < pages; i++) {
-		avail = min_t(int, bytes, PAGE_CACHE_SIZE);
-		memcpy(buffer[i], buff, avail);
-		buff += avail;
-		bytes -= avail;
+	data = squashfs_first_page(output);
+	buff = stream->output;
+	while (data) {
+		if (bytes <= PAGE_CACHE_SIZE) {
+			memcpy(data, buff, bytes);
+			break;
+		} else {
+			memcpy(data, buff, PAGE_CACHE_SIZE);
+			buff += PAGE_CACHE_SIZE;
+			bytes -= PAGE_CACHE_SIZE;
+			data = squashfs_next_page(output);
+		}
 	}
+	squashfs_finish_page(output);
 
 	return res;
 

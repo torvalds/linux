@@ -74,15 +74,14 @@ void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk)
 	}
 }
 
-int squashfs_decompress(struct squashfs_sb_info *msblk,
-	void **buffer, struct buffer_head **bh, int b, int offset, int length,
-	int srclength, int pages)
+int squashfs_decompress(struct squashfs_sb_info *msblk, struct buffer_head **bh,
+	int b, int offset, int length, struct squashfs_page_actor *output)
 {
 	struct squashfs_stream __percpu *percpu =
 			(struct squashfs_stream __percpu *) msblk->stream;
 	struct squashfs_stream *stream = get_cpu_ptr(percpu);
-	int res = msblk->decompressor->decompress(msblk, stream->stream, buffer,
-		bh, b, offset, length, srclength, pages);
+	int res = msblk->decompressor->decompress(msblk, stream->stream, bh, b,
+		offset, length, output);
 	put_cpu_ptr(stream);
 
 	if (res < 0)

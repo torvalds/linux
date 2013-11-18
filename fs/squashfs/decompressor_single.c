@@ -61,16 +61,15 @@ void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk)
 	}
 }
 
-int squashfs_decompress(struct squashfs_sb_info *msblk,
-	void **buffer, struct buffer_head **bh, int b, int offset, int length,
-	int srclength, int pages)
+int squashfs_decompress(struct squashfs_sb_info *msblk, struct buffer_head **bh,
+	int b, int offset, int length, struct squashfs_page_actor *output)
 {
 	int res;
 	struct squashfs_stream *stream = msblk->stream;
 
 	mutex_lock(&stream->mutex);
-	res = msblk->decompressor->decompress(msblk, stream->stream, buffer,
-		bh, b, offset, length, srclength, pages);
+	res = msblk->decompressor->decompress(msblk, stream->stream, bh, b,
+		offset, length, output);
 	mutex_unlock(&stream->mutex);
 
 	if (res < 0)
