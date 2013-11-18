@@ -254,6 +254,7 @@ struct perf_record_opts {
 	bool	     inherit_stat;
 	bool	     no_delay;
 	bool	     no_inherit;
+	bool	     no_inherit_set;
 	bool	     no_samples;
 	bool	     raw_samples;
 	bool	     sample_address;

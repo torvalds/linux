@@ -57,6 +57,8 @@ OPTIONS
 -t::
 --tid=::
         Record events on existing thread ID (comma separated list).
+        This option also disables inheritance by default.  Enable it by adding
+        --inherit.
 
 -u::
 --uid=::
