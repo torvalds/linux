@@ -459,14 +459,12 @@ xfs_vn_getattr(
 
 static void
 xfs_setattr_mode(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
-	struct inode	*inode = VFS_I(ip);
-	umode_t		mode = iattr->ia_mode;
+	struct inode		*inode = VFS_I(ip);
+	umode_t			mode = iattr->ia_mode;
 
-	ASSERT(tp);
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	ip->i_d.di_mode &= S_IFMT;
@@ -633,7 +631,7 @@ xfs_setattr_nonsize(
 	 * Change file access modes.
 	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
+		xfs_setattr_mode(ip, iattr);
 
 	/*
 	 * Change file access or modified times.
@@ -871,7 +869,7 @@ xfs_setattr_size(
 	 * Change file access modes.
 	 */
 	if (mask & ATTR_MODE)
-		xfs_setattr_mode(tp, ip, iattr);
+		xfs_setattr_mode(ip, iattr);
 
 	if (mask & ATTR_CTIME) {
 		inode->i_ctime = iattr->ia_ctime;
