@@ -78,6 +78,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 	case OPTION_BOOLEAN:
 		*(bool *)opt->value = unset ? false : true;
+		if (opt->set)
+			*(bool *)opt->set = true;
 		return 0;
 
 	case OPTION_INCR:
