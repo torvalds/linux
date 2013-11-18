@@ -449,6 +449,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		}
 		break;
+	case RADEON_INFO_CIK_MACROTILE_MODE_ARRAY:
+		if (rdev->family >= CHIP_BONAIRE) {
+			value = rdev->config.cik.macrotile_mode_array;
+			value_size = sizeof(uint32_t)*16;
+		} else {
+			DRM_DEBUG_KMS("macrotile mode array is cik+ only!\n");
+			return -EINVAL;
+		}
+		break;
 	case RADEON_INFO_SI_CP_DMA_COMPUTE:
 		*value = 1;
 		break;

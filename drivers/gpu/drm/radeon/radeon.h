@@ -1982,6 +1982,7 @@ struct cik_asic {
 
 	unsigned tile_config;
 	uint32_t tile_mode_array[32];
+	uint32_t macrotile_mode_array[16];
 };
 
 union radeon_asic_config {
