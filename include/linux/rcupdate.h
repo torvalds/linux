@@ -1015,11 +1015,13 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-#ifdef CONFIG_RCU_NOCB_CPU
+#if defined(CONFIG_RCU_NOCB_CPU_ALL)
+static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
+#elif defined(CONFIG_RCU_NOCB_CPU)
 bool rcu_is_nocb_cpu(int cpu);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
-#endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+#endif
 
 
 /* Only for use by adaptive-ticks code. */
