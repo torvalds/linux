@@ -832,7 +832,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	}
 
 	if (ints & OHCI_INTR_RHSC) {
-		ohci_vdbg(ohci, "rhsc\n");
+		ohci_dbg(ohci, "rhsc\n");
 		ohci->next_statechange = jiffies + STATECHANGE_DELAY;
 		ohci_writel(ohci, OHCI_INTR_RD | OHCI_INTR_RHSC,
 				&regs->intrstatus);
@@ -854,7 +854,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 * this might not happen.
 	 */
 	else if (ints & OHCI_INTR_RD) {
-		ohci_vdbg(ohci, "resume detect\n");
+		ohci_dbg(ohci, "resume detect\n");
 		ohci_writel(ohci, OHCI_INTR_RD, &regs->intrstatus);
 		set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 		if (ohci->autostop) {
