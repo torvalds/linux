@@ -176,6 +176,16 @@
 		status = "disabled";
 	};
 
+	pwm@7000a000 {
+		compatible = "nvidia,tegra124-pwm", "nvidia,tegra20-pwm";
+		reg = <0x7000a000 0x100>;
+		#pwm-cells = <2>;
+		clocks = <&tegra_car TEGRA124_CLK_PWM>;
+		resets = <&tegra_car 17>;
+		reset-names = "pwm";
+		status = "disabled";
+	};
+
 	i2c@7000c000 {
 		compatible = "nvidia,tegra124-i2c", "nvidia,tegra114-i2c";
 		reg = <0x7000c000 0x100>;
