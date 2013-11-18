@@ -56,7 +56,6 @@
 
 static const char	hcd_name[] = "fotg210_hcd";
 
-#undef VERBOSE_DEBUG
 #undef FOTG210_URB_TRACE
 
 #define FOTG210_STATS

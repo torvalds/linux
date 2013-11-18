@@ -51,8 +51,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-#undef OHCI_VERBOSE_DEBUG	/* not always helpful */
-
 /* For initializing controller (mask in an HCFS mode too) */
 #define	OHCI_CONTROL_INIT	OHCI_CTRL_CBSR
 #define	OHCI_INTR_INIT \

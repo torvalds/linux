@@ -71,7 +71,6 @@
 static const char	hcd_name [] = "ehci_hcd";
 
 
-#undef VERBOSE_DEBUG
 #undef EHCI_URB_TRACE
 
 /* magic numbers that can affect system performance */

@@ -57,7 +57,6 @@
 
 static const char	hcd_name [] = "fusbh200_hcd";
 
-#undef VERBOSE_DEBUG
 #undef FUSBH200_URB_TRACE
 
 /* magic numbers that can affect system performance */
