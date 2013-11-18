@@ -392,6 +392,25 @@ config RETU_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called retu_wdt.
 
+config MOXART_WDT
+	tristate "MOXART watchdog"
+	depends on ARCH_MOXART
+	help
+	  Say Y here to include Watchdog timer support for the watchdog
+	  existing on the MOXA ART SoC series platforms.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called moxart_wdt.
+
+config SIRFSOC_WATCHDOG
+	tristate "SiRFSOC watchdog"
+	depends on ARCH_SIRF
+	select WATCHDOG_CORE
+	default y
+	help
+	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
+	  the watchdog triggers the system will be reset.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
@@ -866,6 +885,7 @@ config VIA_WDT
 config W83627HF_WDT
 	tristate "W83627HF/W83627DHG Watchdog Timer"
 	depends on X86
+	select WATCHDOG_CORE
 	---help---
 	  This is the driver for the hardware watchdog on the W83627HF chipset
 	  as used in Advantech PC-9578 and Tyan S2721-533 motherboards
@@ -1124,6 +1144,13 @@ config LANTIQ_WDT
 	depends on LANTIQ
 	help
 	  Hardware driver for the Lantiq SoC Watchdog Timer.
+
+config RALINK_WDT
+	tristate "Ralink SoC watchdog"
+	select WATCHDOG_CORE
+	depends on RALINK
+	help
+	  Hardware driver for the Ralink SoC Watchdog Timer.
 
 # PARISC Architecture
 
