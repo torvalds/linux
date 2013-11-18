@@ -647,21 +647,21 @@ static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 		for (i = 0; i < family->n_ops; i++) {
 			struct nlattr *nest;
 			const struct genl_ops *ops = &family->ops[i];
-			u32 flags = ops->flags;
+			u32 op_flags = ops->flags;
 
 			if (ops->dumpit)
-				flags |= GENL_CMD_CAP_DUMP;
+				op_flags |= GENL_CMD_CAP_DUMP;
 			if (ops->doit)
-				flags |= GENL_CMD_CAP_DO;
+				op_flags |= GENL_CMD_CAP_DO;
 			if (ops->policy)
-				flags |= GENL_CMD_CAP_HASPOL;
+				op_flags |= GENL_CMD_CAP_HASPOL;
 
 			nest = nla_nest_start(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
 
 			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, ops->cmd) ||
-			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, flags))
+			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, op_flags))
 				goto nla_put_failure;
 
 			nla_nest_end(skb, nest);
