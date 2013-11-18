@@ -254,8 +254,8 @@ dbg_command_buf(char *buf, unsigned len, const char *label, u32 command)
 		);
 }
 
-static int
-dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
+static char
+*dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 {
 	char	*sig;
 
@@ -275,7 +275,7 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		break;
 	}
 
-	return scnprintf(buf, len,
+	scnprintf(buf, len,
 		"%s%sport:%d status %06x %d "
 		"sig=%s%s%s%s%s%s%s%s",
 		label, label[0] ? " " : "", port, status,
@@ -288,6 +288,7 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 		(status & PORT_PE) ? " PE" : "",
 		(status & PORT_CSC) ? " CSC" : "",
 		(status & PORT_CONNECT) ? " CONNECT" : "");
+	return buf;
 }
 
 /* functions have the "wrong" filename when they're output... */
@@ -305,8 +306,7 @@ dbg_port_buf(char *buf, unsigned len, const char *label, int port, u32 status)
 
 #define dbg_port(fotg210, label, port, status) { \
 	char _buf[80]; \
-	dbg_port_buf(_buf, sizeof(_buf), label, port, status); \
-	fotg210_dbg(fotg210, "%s\n", _buf); \
+	fotg210_dbg(fotg210, "%s\n", dbg_port_buf(_buf, sizeof(_buf), label, port, status) ); \
 }
 
 /*-------------------------------------------------------------------------*/
