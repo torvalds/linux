@@ -720,6 +720,19 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		goto err;
 #endif
 
+	if (!debugfs_create_blob("nvm_hw", S_IRUSR,
+				  mvm->debugfs_dir, &mvm->nvm_hw_blob))
+		goto err;
+	if (!debugfs_create_blob("nvm_sw", S_IRUSR,
+				  mvm->debugfs_dir, &mvm->nvm_sw_blob))
+		goto err;
+	if (!debugfs_create_blob("nvm_calib", S_IRUSR,
+				  mvm->debugfs_dir, &mvm->nvm_calib_blob))
+		goto err;
+	if (!debugfs_create_blob("nvm_prod", S_IRUSR,
+				  mvm->debugfs_dir, &mvm->nvm_prod_blob))
+		goto err;
+
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
 	 * exists (before the opmode exists which removes the target.)
