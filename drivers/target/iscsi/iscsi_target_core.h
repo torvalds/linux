@@ -193,6 +193,7 @@ enum recover_cmdsn_ret_table {
 	CMDSN_NORMAL_OPERATION		= 0,
 	CMDSN_LOWER_THAN_EXP		= 1,
 	CMDSN_HIGHER_THAN_EXP		= 2,
+	CMDSN_MAXCMDSN_OVERRUN		= 3,
 };
 
 /* Used for iscsi_handle_immediate_data() return values */
