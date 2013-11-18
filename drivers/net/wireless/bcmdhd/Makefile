@@ -52,6 +52,10 @@ ifeq ($(CONFIG_BCMDHD),m)
 EXTRA_LDFLAGS += --strip-debug
 endif
 
+DHDCFLAGS += -DCUSTOM_TDLS_RSSI_THRESHOLD_HIGH=-60
+DHDCFLAGS += -DCUSTOM_TDLS_RSSI_THRESHOLD_LOW=-70
+DHDCFLAGS += -DCUSTOM_TDLS_IDLE_MODE_SETTING=40000
+
 #########################
 # Chip dependent feature
 #########################
