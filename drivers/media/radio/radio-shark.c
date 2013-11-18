@@ -271,6 +271,7 @@ static void shark_unregister_leds(struct shark_device *shark)
 	cancel_work_sync(&shark->led_work);
 }
 
+#ifdef CONFIG_PM
 static void shark_resume_leds(struct shark_device *shark)
 {
 	if (test_bit(BLUE_IS_PULSE, &shark->brightness_new))
@@ -280,6 +281,7 @@ static void shark_resume_leds(struct shark_device *shark)
 	set_bit(RED_LED, &shark->brightness_new);
 	schedule_work(&shark->led_work);
 }
+#endif
 #else
 static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {

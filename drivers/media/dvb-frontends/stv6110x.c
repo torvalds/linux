@@ -32,6 +32,9 @@
 #include "stv6110x.h"
 #include "stv6110x_priv.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
@@ -61,13 +64,21 @@ static int stv6110x_write_regs(struct stv6110x_state *stv6110x, int start, u8 da
 {
 	int ret;
 	const struct stv6110x_config *config = stv6110x->config;
-	u8 buf[len + 1];
+	u8 buf[MAX_XFER_SIZE];
+
 	struct i2c_msg msg = {
 		.addr = config->addr,
 		.flags = 0,
 		.buf = buf,
 		.len = len + 1
 	};
+
+	if (1 + len > sizeof(buf)) {
+		printk(KERN_WARNING
+		       "%s: i2c wr: len=%d is too big!\n",
+		       KBUILD_MODNAME, len);
+		return -EINVAL;
+	}
 
 	if (start + len > 8)
 		return -EINVAL;
