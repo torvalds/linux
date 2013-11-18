@@ -1011,7 +1011,7 @@ static struct resource wm831x_wdt_resources[] = {
 	},
 };
 
-static struct mfd_cell wm8310_devs[] = {
+static const struct mfd_cell wm8310_devs[] = {
 	{
 		.name = "wm831x-backup",
 	},
@@ -1165,7 +1165,7 @@ static struct mfd_cell wm8310_devs[] = {
 	},
 };
 
-static struct mfd_cell wm8311_devs[] = {
+static const struct mfd_cell wm8311_devs[] = {
 	{
 		.name = "wm831x-backup",
 	},
@@ -1295,7 +1295,7 @@ static struct mfd_cell wm8311_devs[] = {
 	},
 };
 
-static struct mfd_cell wm8312_devs[] = {
+static const struct mfd_cell wm8312_devs[] = {
 	{
 		.name = "wm831x-backup",
 	},
@@ -1449,7 +1449,7 @@ static struct mfd_cell wm8312_devs[] = {
 	},
 };
 
-static struct mfd_cell wm8320_devs[] = {
+static const struct mfd_cell wm8320_devs[] = {
 	{
 		.name = "wm831x-backup",
 	},
@@ -1578,7 +1578,7 @@ static struct mfd_cell wm8320_devs[] = {
 	},
 };
 
-static struct mfd_cell touch_devs[] = {
+static const struct mfd_cell touch_devs[] = {
 	{
 		.name = "wm831x-touch",
 		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
@@ -1586,7 +1586,7 @@ static struct mfd_cell touch_devs[] = {
 	},
 };
 
-static struct mfd_cell rtc_devs[] = {
+static const struct mfd_cell rtc_devs[] = {
 	{
 		.name = "wm831x-rtc",
 		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
@@ -1594,7 +1594,7 @@ static struct mfd_cell rtc_devs[] = {
 	},
 };
 
-static struct mfd_cell backlight_devs[] = {
+static const struct mfd_cell backlight_devs[] = {
 	{
 		.name = "wm831x-backlight",
 	},
