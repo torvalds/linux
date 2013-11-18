@@ -945,9 +945,6 @@ find_codec_preset(struct hda_codec *codec)
 	const struct hda_codec_preset *preset;
 	unsigned int mod_requested = 0;
 
-	if (is_generic_config(codec))
-		return NULL; /* use the generic parser */
-
  again:
 	mutex_lock(&preset_mutex);
 	list_for_each_entry(tbl, &hda_preset_tables, list) {
@@ -1330,6 +1327,28 @@ get_hda_cvt_setup(struct hda_codec *codec, hda_nid_t nid)
 }
 
 /*
+ * Dynamic symbol binding for the codec parsers
+ */
+#ifdef MODULE
+#define load_parser_sym(sym)		((int (*)(struct hda_codec *))symbol_request(sym))
+#define unload_parser_addr(addr)	symbol_put_addr(addr)
+#else
+#define load_parser_sym(sym)		(sym)
+#define unload_parser_addr(addr)	do {} while (0)
+#endif
+
+#define load_parser(codec, sym) \
+	((codec)->parser = load_parser_sym(sym))
+
+static void unload_parser(struct hda_codec *codec)
+{
+	if (codec->parser) {
+		unload_parser_addr(codec->parser);
+		codec->parser = NULL;
+	}
+}
+
+/*
  * codec destructor
  */
 static void snd_hda_codec_free(struct hda_codec *codec)
@@ -1356,6 +1375,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (!codec->pm_down_notified) /* cancel leftover refcounts */
 		hda_call_pm_notify(codec->bus, false);
 #endif
+	unload_parser(codec);
 	module_put(codec->owner);
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
@@ -1548,6 +1568,7 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_update_widgets);
  */
 int snd_hda_codec_configure(struct hda_codec *codec)
 {
+	int (*patch)(struct hda_codec *) = NULL;
 	int err;
 
 	codec->preset = find_codec_preset(codec);
@@ -1557,29 +1578,38 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 			return err;
 	}
 
-	if (is_generic_config(codec)) {
-		err = snd_hda_parse_generic_codec(codec);
-		goto patched;
-	}
-	if (codec->preset && codec->preset->patch) {
-		err = codec->preset->patch(codec);
-		goto patched;
+	if (!is_generic_config(codec) && codec->preset)
+		patch = codec->preset->patch;
+	if (!patch) {
+		unload_parser(codec); /* to be sure */
+#ifdef CONFIG_SND_HDA_GENERIC
+		if (!patch)
+			patch = load_parser(codec, snd_hda_parse_generic_codec);
+#endif
+		if (!patch) {
+			printk(KERN_ERR "hda-codec: No codec parser is available\n");
+			return -ENODEV;
+		}
 	}
 
-	/* call the default parser */
-	err = snd_hda_parse_generic_codec(codec);
-	if (err < 0)
-		printk(KERN_ERR "hda-codec: No codec parser is available\n");
+	err = patch(codec);
+	if (err < 0) {
+		unload_parser(codec);
+		return err;
+	}
 
- patched:
-	if (!err && codec->patch_ops.unsol_event)
+	if (codec->patch_ops.unsol_event) {
 		err = init_unsol_queue(codec->bus);
+		if (err < 0)
+			return err;
+	}
+
 	/* audio codec should override the mixer name */
-	if (!err && (codec->afg || !*codec->bus->card->mixername))
+	if (codec->afg || !*codec->bus->card->mixername)
 		snprintf(codec->bus->card->mixername,
 			 sizeof(codec->bus->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_configure);
 
@@ -2610,6 +2640,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	codec->preset = NULL;
 	codec->slave_dig_outs = NULL;
 	codec->spdif_status_reset = 0;
+	unload_parser(codec);
 	module_put(codec->owner);
 	codec->owner = NULL;
 
