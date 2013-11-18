@@ -41,7 +41,8 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 	if (!client)
 		return false;
 
-	if (!client->driver || client->driver->detect(client, info)) {
+	if (!client->dev.driver ||
+	    to_i2c_driver(client->dev.driver)->detect(client, info)) {
 		i2c_unregister_device(client);
 		return false;
 	}
