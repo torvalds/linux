@@ -67,12 +67,14 @@ enum rdma_node_type {
 	RDMA_NODE_IB_CA 	= 1,
 	RDMA_NODE_IB_SWITCH,
 	RDMA_NODE_IB_ROUTER,
-	RDMA_NODE_RNIC
+	RDMA_NODE_RNIC,
+	RDMA_NODE_USNIC,
 };
 
 enum rdma_transport_type {
 	RDMA_TRANSPORT_IB,
-	RDMA_TRANSPORT_IWARP
+	RDMA_TRANSPORT_IWARP,
+	RDMA_TRANSPORT_USNIC
 };
 
 enum rdma_transport_type
@@ -1436,6 +1438,7 @@ struct ib_device {
 
 	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
+	u64			     uverbs_ex_cmd_mask;
 
 	char			     node_desc[64];
 	__be64			     node_guid;
@@ -2383,5 +2386,18 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 struct ib_flow *ib_create_flow(struct ib_qp *qp,
 			       struct ib_flow_attr *flow_attr, int domain);
 int ib_destroy_flow(struct ib_flow *flow_id);
+
+static inline int ib_check_mr_access(int flags)
+{
+	/*
+	 * Local write permission is required if remote write or
+	 * remote atomic permission is also requested.
+	 */
+	if (flags & (IB_ACCESS_REMOTE_ATOMIC | IB_ACCESS_REMOTE_WRITE) &&
+	    !(flags & IB_ACCESS_LOCAL_WRITE))
+		return -EINVAL;
+
+	return 0;
+}
 
 #endif /* IB_VERBS_H */
