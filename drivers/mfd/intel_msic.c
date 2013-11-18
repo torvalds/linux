@@ -178,7 +178,7 @@ static struct mfd_cell msic_devs[] = {
  * These devices appear only after the MSIC driver itself is initialized so
  * we can guarantee that the SCU IPC interface is ready.
  */
-static struct mfd_cell msic_other_devs[] = {
+static const struct mfd_cell msic_other_devs[] = {
 	/* Audio codec in the MSIC */
 	{
 		.id			= -1,
