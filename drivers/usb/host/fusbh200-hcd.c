@@ -5326,13 +5326,6 @@ static irqreturn_t fusbh200_irq (struct usb_hcd *hcd)
 	cmd = fusbh200_readl(fusbh200, &fusbh200->regs->command);
 	bh = 0;
 
-#ifdef	VERBOSE_DEBUG
-	/* unrequested/ignored: Frame List Rollover */
-	dbg_status (fusbh200, "irq", status);
-#endif
-
-	/* INT, ERR, and IAA interrupt rates can be throttled */
-
 	/* normal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely ((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely ((status & STS_ERR) == 0))
