@@ -340,7 +340,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_BACKEND_MAP:
 		if (rdev->family >= CHIP_BONAIRE)
-			return -EINVAL;
+			*value = rdev->config.cik.backend_map;
 		else if (rdev->family >= CHIP_TAHITI)
 			*value = rdev->config.si.backend_map;
 		else if (rdev->family >= CHIP_CAYMAN)
