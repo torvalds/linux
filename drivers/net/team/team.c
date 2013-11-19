@@ -2677,8 +2677,9 @@ static struct genl_multicast_group team_change_event_mcgrp = {
 static int team_nl_send_multicast(struct sk_buff *skb,
 				  struct team *team, u32 portid)
 {
-	return genlmsg_multicast_netns(dev_net(team->dev), skb, 0,
-				       team_change_event_mcgrp.id, GFP_KERNEL);
+	return genlmsg_multicast_netns(&team_nl_family, dev_net(team->dev),
+				       skb, 0, team_change_event_mcgrp.id,
+				       GFP_KERNEL);
 }
 
 static int team_nl_send_event_options_get(struct team *team,

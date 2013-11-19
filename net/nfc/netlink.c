@@ -194,7 +194,8 @@ int nfc_genl_targets_found(struct nfc_dev *dev)
 
 	genlmsg_end(msg, hdr);
 
-	return genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_ATOMIC);
+	return genlmsg_multicast(&nfc_genl_family, msg, 0,
+				 nfc_genl_event_mcgrp.id, GFP_ATOMIC);
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
@@ -223,7 +224,8 @@ int nfc_genl_target_lost(struct nfc_dev *dev, u32 target_idx)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -255,7 +257,8 @@ int nfc_genl_tm_activated(struct nfc_dev *dev, u32 protocol)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -285,7 +288,8 @@ int nfc_genl_tm_deactivated(struct nfc_dev *dev)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -318,7 +322,8 @@ int nfc_genl_device_added(struct nfc_dev *dev)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -348,7 +353,8 @@ int nfc_genl_device_removed(struct nfc_dev *dev)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -414,7 +420,8 @@ int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list)
 
 	genlmsg_end(msg, hdr);
 
-	return genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_ATOMIC);
+	return genlmsg_multicast(&nfc_genl_family, msg, 0,
+				 nfc_genl_event_mcgrp.id, GFP_ATOMIC);
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
@@ -448,7 +455,8 @@ int nfc_genl_se_added(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -479,7 +487,8 @@ int nfc_genl_se_removed(struct nfc_dev *dev, u32 se_idx)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -600,7 +609,8 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 
 	dev->dep_link_up = true;
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_ATOMIC);
 
 	return 0;
 
@@ -632,7 +642,8 @@ int nfc_genl_dep_link_down_event(struct nfc_dev *dev)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_ATOMIC);
 
 	return 0;
 
@@ -1137,7 +1148,8 @@ int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	return 0;
 
@@ -1308,7 +1320,8 @@ static void se_io_cb(void *context, u8 *apdu, size_t apdu_len, int err)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(&nfc_genl_family, msg, 0,
+			  nfc_genl_event_mcgrp.id, GFP_KERNEL);
 
 	kfree(ctx);
 

@@ -146,7 +146,8 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 		return result;
 	}
 
-	genlmsg_multicast(skb, 0, acpi_event_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&acpi_event_genl_family,
+			  skb, 0, acpi_event_mcgrp.id, GFP_ATOMIC);
 	return 0;
 }
 

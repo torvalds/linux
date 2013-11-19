@@ -883,11 +883,12 @@ static int genl_ctrl_event(int event, struct genl_family *family,
 		return PTR_ERR(msg);
 
 	if (!family->netnsok) {
-		genlmsg_multicast_netns(&init_net, msg, 0,
+		genlmsg_multicast_netns(&genl_ctrl, &init_net, msg, 0,
 					GENL_ID_CTRL, GFP_KERNEL);
 	} else {
 		rcu_read_lock();
-		genlmsg_multicast_allns(msg, 0, GENL_ID_CTRL, GFP_ATOMIC);
+		genlmsg_multicast_allns(&genl_ctrl, msg, 0,
+					GENL_ID_CTRL, GFP_ATOMIC);
 		rcu_read_unlock();
 	}
 
@@ -993,14 +994,15 @@ static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 	return err;
 }
 
-int genlmsg_multicast_allns(struct sk_buff *skb, u32 portid, unsigned int group,
-			    gfp_t flags)
+int genlmsg_multicast_allns(struct genl_family *family, struct sk_buff *skb,
+			    u32 portid, unsigned int group, gfp_t flags)
 {
 	return genlmsg_mcast(skb, portid, group, flags);
 }
 EXPORT_SYMBOL(genlmsg_multicast_allns);
 
-void genl_notify(struct sk_buff *skb, struct net *net, u32 portid, u32 group,
+void genl_notify(struct genl_family *family,
+		 struct sk_buff *skb, struct net *net, u32 portid, u32 group,
 		 struct nlmsghdr *nlh, gfp_t flags)
 {
 	struct sock *sk = net->genl_sock;

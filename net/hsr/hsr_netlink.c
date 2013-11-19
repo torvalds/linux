@@ -129,7 +129,8 @@ void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(skb, 0, hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0,
+			  hsr_network_genl_mcgrp.id, GFP_ATOMIC);
 
 	return;
 
@@ -163,7 +164,8 @@ void hsr_nl_nodedown(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN])
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(skb, 0, hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0,
+			  hsr_network_genl_mcgrp.id, GFP_ATOMIC);
 
 	return;
 

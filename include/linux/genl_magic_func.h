@@ -286,7 +286,8 @@ static int CONCAT_(GENL_MAGIC_FAMILY, _genl_multicast_ ## group)(	\
 		CONCAT_(GENL_MAGIC_FAMILY, _mcg_ ## group).id;	\
 	if (!group_id)							\
 		return -EINVAL;						\
-	return genlmsg_multicast(skb, 0, group_id, flags);		\
+	return genlmsg_multicast(&ZZZ_genl_family, skb, 0,		\
+				 group_id, flags);			\
 }
 
 #include GENL_MAGIC_INCLUDE_FILE

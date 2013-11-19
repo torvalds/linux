@@ -88,7 +88,7 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
 
-	genlmsg_multicast(skb, 0, quota_mcgrp.id, GFP_NOFS);
+	genlmsg_multicast(&quota_genl_family, skb, 0, quota_mcgrp.id, GFP_NOFS);
 	return;
 attr_err_out:
 	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");

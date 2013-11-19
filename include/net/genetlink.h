@@ -166,7 +166,8 @@ static inline int _genl_register_family_with_ops(struct genl_family *family,
 int genl_unregister_family(struct genl_family *family);
 int genl_register_mc_group(struct genl_family *family,
 			   struct genl_multicast_group *grp);
-void genl_notify(struct sk_buff *skb, struct net *net, u32 portid,
+void genl_notify(struct genl_family *family,
+		 struct sk_buff *skb, struct net *net, u32 portid,
 		 u32 group, struct nlmsghdr *nlh, gfp_t flags);
 
 void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -246,13 +247,15 @@ static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 
 /**
  * genlmsg_multicast_netns - multicast a netlink message to a specific netns
+ * @family: the generic netlink family
  * @net: the net namespace
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  */
-static inline int genlmsg_multicast_netns(struct net *net, struct sk_buff *skb,
+static inline int genlmsg_multicast_netns(struct genl_family *family,
+					  struct net *net, struct sk_buff *skb,
 					  u32 portid, unsigned int group, gfp_t flags)
 {
 	return nlmsg_multicast(net->genl_sock, skb, portid, group, flags);
@@ -260,19 +263,23 @@ static inline int genlmsg_multicast_netns(struct net *net, struct sk_buff *skb,
 
 /**
  * genlmsg_multicast - multicast a netlink message to the default netns
+ * @family: the generic netlink family
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
  * @flags: allocation flags
  */
-static inline int genlmsg_multicast(struct sk_buff *skb, u32 portid,
+static inline int genlmsg_multicast(struct genl_family *family,
+				    struct sk_buff *skb, u32 portid,
 				    unsigned int group, gfp_t flags)
 {
-	return genlmsg_multicast_netns(&init_net, skb, portid, group, flags);
+	return genlmsg_multicast_netns(family, &init_net, skb,
+				       portid, group, flags);
 }
 
 /**
  * genlmsg_multicast_allns - multicast a netlink message to all net namespaces
+ * @family: the generic netlink family
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
  * @group: multicast group id
@@ -280,7 +287,8 @@ static inline int genlmsg_multicast(struct sk_buff *skb, u32 portid,
  *
  * This function must hold the RTNL or rcu_read_lock().
  */
-int genlmsg_multicast_allns(struct sk_buff *skb, u32 portid,
+int genlmsg_multicast_allns(struct genl_family *family,
+			    struct sk_buff *skb, u32 portid,
 			    unsigned int group, gfp_t flags);
 
 /**
@@ -353,6 +361,7 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
 
 /**
  * genl_set_err - report error to genetlink broadcast listeners
+ * @family: the generic netlink family
  * @net: the network namespace to report the error to
  * @portid: the PORTID of a process that we want to skip (if any)
  * @group: the broadcast group that will notice the error
@@ -361,7 +370,8 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
  * This function returns the number of broadcast listeners that have set the
  * NETLINK_RECV_NO_ENOBUFS socket option.
  */
-static inline int genl_set_err(struct net *net, u32 portid, u32 group, int code)
+static inline int genl_set_err(struct genl_family *family, struct net *net,
+			       u32 portid, u32 group, int code)
 {
 	return netlink_set_err(net->genl_sock, portid, group, code);
 }

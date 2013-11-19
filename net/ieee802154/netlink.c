@@ -70,7 +70,7 @@ int ieee802154_nl_mcast(struct sk_buff *msg, unsigned int group)
 	if (genlmsg_end(msg, hdr) < 0)
 		goto out;
 
-	return genlmsg_multicast(msg, 0, group, GFP_ATOMIC);
+	return genlmsg_multicast(&nl802154_family, msg, 0, group, GFP_ATOMIC);
 out:
 	nlmsg_free(msg);
 	return -ENOBUFS;

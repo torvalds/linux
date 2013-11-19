@@ -120,7 +120,8 @@ static void send_dm_alert(struct work_struct *work)
 	skb = reset_per_cpu_data(data);
 
 	if (skb)
-		genlmsg_multicast(skb, 0, dm_mcgrp.id, GFP_KERNEL);
+		genlmsg_multicast(&net_drop_monitor_family, skb, 0,
+				  dm_mcgrp.id, GFP_KERNEL);
 }
 
 /*
