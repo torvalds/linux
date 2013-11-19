@@ -161,7 +161,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 			qspi->spi_max_frequency, clk_div);
 
 	ret = pm_runtime_get_sync(qspi->dev);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
 		return ret;
 	}
