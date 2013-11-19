@@ -13,10 +13,8 @@
  * @id: multicast group ID, assigned by the core, to use with
  *      genlmsg_multicast().
  * @list: list entry for linking
- * @family: pointer to family, need not be set before registering
  */
 struct genl_multicast_group {
-	struct genl_family	*family;	/* private */
 	struct list_head	list;		/* private */
 	char			name[GENL_NAMSIZ];
 	u32			id;
