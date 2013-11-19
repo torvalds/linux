@@ -383,14 +383,6 @@ typedef enum {
 typedef unsigned LNET_SEQ_BASETYPE lnet_seq_t;
 #define LNET_SEQ_GT(a,b)	(((signed LNET_SEQ_BASETYPE)((a) - (b))) > 0)
 
-/* XXX
- * cygwin need the pragma line, not clear if it's needed in other places.
- * checking!!!
- */
-#ifdef __CYGWIN__
-#pragma pack(push, 4)
-#endif
-
 /**
  * Information about an event on a MD.
  */
@@ -462,9 +454,6 @@ typedef struct {
 	 */
 	volatile lnet_seq_t sequence;
 } lnet_event_t;
-#ifdef __CYGWIN__
-#pragma pop
-#endif
 
 /**
  * Event queue handler function type.

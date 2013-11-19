@@ -175,12 +175,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* ------------------------------------------------------------------ */
 
-#ifdef __CYGWIN__
-# ifndef BITS_PER_LONG
-#   define BITS_PER_LONG 64
-# endif
-#endif
-
 # define LI_POISON 0x5a5a5a5a
 #if BITS_PER_LONG > 32
 # define LL_POISON 0x5a5a5a5a5a5a5a5aL
