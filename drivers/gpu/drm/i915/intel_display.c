@@ -6518,6 +6518,9 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_enable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6525,6 +6528,9 @@ void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_disable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6562,6 +6568,9 @@ static void hsw_update_package_c8(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool allow;
 
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	if (!i915_enable_pc8)
 		return;
 
@@ -6585,6 +6594,9 @@ done:
 
 static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	if (!dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = true;
@@ -6595,6 +6607,9 @@ static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
 
 static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	if (dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = false;
