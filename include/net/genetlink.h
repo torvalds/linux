@@ -168,8 +168,6 @@ static inline int _genl_register_family_with_ops(struct genl_family *family,
 int genl_unregister_family(struct genl_family *family);
 int genl_register_mc_group(struct genl_family *family,
 			   struct genl_multicast_group *grp);
-void genl_unregister_mc_group(struct genl_family *family,
-			      struct genl_multicast_group *grp);
 void genl_notify(struct sk_buff *skb, struct net *net, u32 portid,
 		 u32 group, struct nlmsghdr *nlh, gfp_t flags);
 

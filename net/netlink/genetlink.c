@@ -265,29 +265,6 @@ static void __genl_unregister_mc_group(struct genl_family *family,
 	grp->family = NULL;
 }
 
-/**
- * genl_unregister_mc_group - unregister a multicast group
- *
- * Unregisters the specified multicast group and notifies userspace
- * about it. All current listeners on the group are removed.
- *
- * Note: It is not necessary to unregister all multicast groups before
- *       unregistering the family, unregistering the family will cause
- *       all assigned multicast groups to be unregistered automatically.
- *
- * @family: Generic netlink family the group belongs to.
- * @grp: The group to unregister, must have been registered successfully
- *	 previously.
- */
-void genl_unregister_mc_group(struct genl_family *family,
-			      struct genl_multicast_group *grp)
-{
-	genl_lock_all();
-	__genl_unregister_mc_group(family, grp);
-	genl_unlock_all();
-}
-EXPORT_SYMBOL(genl_unregister_mc_group);
-
 static void genl_unregister_mc_groups(struct genl_family *family)
 {
 	struct genl_multicast_group *grp, *tmp;
