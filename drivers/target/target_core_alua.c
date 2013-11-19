@@ -566,12 +566,12 @@ target_alua_state_check(struct se_cmd *cmd)
 	nonop_delay_msecs = tg_pt_gp->tg_pt_gp_nonop_delay_msecs;
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 	/*
-	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTMIZED in a separate conditional
+	 * Process ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED in a separate conditional
 	 * statement so the compiler knows explicitly to check this case first.
 	 * For the Optimized ALUA access state case, we want to process the
 	 * incoming fabric cmd ASAP..
 	 */
-	if (out_alua_state == ALUA_ACCESS_STATE_ACTIVE_OPTMIZED)
+	if (out_alua_state == ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED)
 		return 0;
 
 	switch (out_alua_state) {
@@ -626,7 +626,7 @@ static sense_reason_t
 core_alua_check_transition(int state, int *primary)
 {
 	switch (state) {
-	case ALUA_ACCESS_STATE_ACTIVE_OPTMIZED:
+	case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
 	case ALUA_ACCESS_STATE_STANDBY:
 	case ALUA_ACCESS_STATE_UNAVAILABLE:
@@ -654,7 +654,7 @@ core_alua_check_transition(int state, int *primary)
 static char *core_alua_dump_state(int state)
 {
 	switch (state) {
-	case ALUA_ACCESS_STATE_ACTIVE_OPTMIZED:
+	case ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED:
 		return "Active/Optimized";
 	case ALUA_ACCESS_STATE_ACTIVE_NON_OPTIMIZED:
 		return "Active/NonOptimized";
@@ -1354,7 +1354,7 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	tg_pt_gp->tg_pt_gp_dev = dev;
 	tg_pt_gp->tg_pt_gp_md_buf_len = ALUA_MD_BUF_LEN;
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
-		ALUA_ACCESS_STATE_ACTIVE_OPTMIZED);
+		ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED);
 	/*
 	 * Enable both explicit and implicit ALUA support by default
 	 */
