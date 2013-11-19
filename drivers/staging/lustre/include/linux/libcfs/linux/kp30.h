@@ -206,7 +206,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* compat macroses */
 
-#define INIT_CTL_NAME(a)
 #define INIT_STRATEGY(a)
 
 #endif
