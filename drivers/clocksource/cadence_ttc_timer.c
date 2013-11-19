@@ -158,7 +158,7 @@ static cycle_t __ttc_clocksource_read(struct clocksource *cs)
 				TTC_COUNT_VAL_OFFSET);
 }
 
-static u32 notrace ttc_sched_clock_read(void)
+static u64 notrace ttc_sched_clock_read(void)
 {
 	return __raw_readl(ttc_sched_clock_val_reg);
 }
@@ -306,7 +306,7 @@ static void __init ttc_setup_clocksource(struct clk *clk, void __iomem *base)
 	}
 
 	ttc_sched_clock_val_reg = base + TTC_COUNT_VAL_OFFSET;
-	setup_sched_clock(ttc_sched_clock_read, 16,
+	sched_clock_register(ttc_sched_clock_read, 16,
 			clk_get_rate(ttccs->ttc.clk) / PRESCALE);
 }
 
