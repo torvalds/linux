@@ -2164,7 +2164,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		 * we need to try again.
 		 */
 		if ((!ordered ||
-		    (ordered->file_offset + ordered->len < lockstart ||
+		    (ordered->file_offset + ordered->len <= lockstart ||
 		     ordered->file_offset > lockend)) &&
 		     !test_range_bit(&BTRFS_I(inode)->io_tree, lockstart,
 				     lockend, EXTENT_UPTODATE, 0,
