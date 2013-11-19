@@ -185,8 +185,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* this is a bit chunky */
 
-#define _LWORDSIZE BITS_PER_LONG
-
 # define LPU64 "%llu"
 # define LPD64 "%lld"
 # define LPX64 "%#llx"
@@ -205,9 +203,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
  * pid_t
  */
 # define LPPID "%d"
-
-
-#undef _LWORDSIZE
 
 /* compat macroses */
 
