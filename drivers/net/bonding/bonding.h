@@ -63,6 +63,9 @@
 		(((mode) == BOND_MODE_TLB) ||	\
 		 ((mode) == BOND_MODE_ALB))
 
+#define IS_IP_TARGET_UNUSABLE_ADDRESS(a)	\
+	((htonl(INADDR_BROADCAST) == a) ||	\
+	 ipv4_is_zeronet(a))
 /*
  * Less bad way to call ioctl from within the kernel; this needs to be
  * done some other way to get the call out of interrupt context.

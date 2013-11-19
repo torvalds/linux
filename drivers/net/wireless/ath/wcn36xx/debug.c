@@ -126,7 +126,7 @@ static ssize_t write_file_dump(struct file *file,
 		if (begin == NULL)
 			break;
 
-		if (kstrtoul(begin, 0, (unsigned long *)(arg + i)) != 0)
+		if (kstrtou32(begin, 0, &arg[i]) != 0)
 			break;
 	}
 

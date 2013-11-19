@@ -1758,7 +1758,7 @@ err:
 
 /* Uses sycnhronous mcc */
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-			u32 num, bool untagged, bool promiscuous)
+		       u32 num, bool promiscuous)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_vlan_config *req;
@@ -1778,7 +1778,7 @@ int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 
 	req->interface_id = if_id;
 	req->promiscuous = promiscuous;
-	req->untagged = untagged;
+	req->untagged = BE_IF_FLAGS_UNTAGGED & be_if_cap_flags(adapter) ? 1 : 0;
 	req->num_vlan = num;
 	if (!promiscuous) {
 		memcpy(req->normal_vlan, vtag_array,
@@ -1847,7 +1847,19 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
 
+	if ((req->if_flags_mask & cpu_to_le32(be_if_cap_flags(adapter))) !=
+	     req->if_flags_mask) {
+		dev_warn(&adapter->pdev->dev,
+			 "Cannot set rx filter flags 0x%x\n",
+			 req->if_flags_mask);
+		dev_warn(&adapter->pdev->dev,
+			 "Interface is capable of 0x%x flags only\n",
+			 be_if_cap_flags(adapter));
+	}
+	req->if_flags_mask &= cpu_to_le32(be_if_cap_flags(adapter));
+
 	status = be_mcc_notify_wait(adapter);
+
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;

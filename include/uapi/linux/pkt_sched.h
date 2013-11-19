@@ -763,13 +763,14 @@ enum {
 
 	TCA_FQ_RATE_ENABLE,	/* enable/disable rate limiting */
 
-	TCA_FQ_FLOW_DEFAULT_RATE,/* for sockets with unspecified sk_rate,
-				  * use the following rate
-				  */
+	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do not use */
 
 	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
 
 	TCA_FQ_BUCKETS_LOG,	/* log2(number of buckets) */
+
+	TCA_FQ_FLOW_REFILL_DELAY,	/* flow credit refill delay in usec */
+
 	__TCA_FQ_MAX
 };
 

@@ -90,8 +90,8 @@ static struct genl_family hsr_genl_family = {
 	.maxattr = HSR_A_MAX,
 };
 
-static struct genl_multicast_group hsr_network_genl_mcgrp = {
-	.name = "hsr-network",
+static const struct genl_multicast_group hsr_mcgrps[] = {
+	{ .name = "hsr-network", },
 };
 
 
@@ -129,7 +129,7 @@ void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(skb, 0, hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0, 0, GFP_ATOMIC);
 
 	return;
 
@@ -163,7 +163,7 @@ void hsr_nl_nodedown(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN])
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(skb, 0, hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0, 0, GFP_ATOMIC);
 
 	return;
 
@@ -249,7 +249,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 			&hsr_node_if2_age,
 			&hsr_node_if2_seq);
 	if (res < 0)
-		goto fail;
+		goto nla_put_failure;
 
 	res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN,
 					nla_data(info->attrs[HSR_A_NODE_ADDR]));
@@ -305,15 +305,6 @@ nla_put_failure:
 fail:
 	return res;
 }
-
-static struct genl_ops hsr_ops_get_node_status = {
-	.cmd = HSR_C_GET_NODE_STATUS,
-	.flags = 0,
-	.policy = hsr_genl_policy,
-	.doit = hsr_get_node_status,
-	.dumpit = NULL,
-};
-
 
 /* Get a list of MacAddressA of all nodes known to this node (other than self).
  */
@@ -398,12 +389,21 @@ fail:
 }
 
 
-static struct genl_ops hsr_ops_get_node_list = {
-	.cmd = HSR_C_GET_NODE_LIST,
-	.flags = 0,
-	.policy = hsr_genl_policy,
-	.doit = hsr_get_node_list,
-	.dumpit = NULL,
+static const struct genl_ops hsr_ops[] = {
+	{
+		.cmd = HSR_C_GET_NODE_STATUS,
+		.flags = 0,
+		.policy = hsr_genl_policy,
+		.doit = hsr_get_node_status,
+		.dumpit = NULL,
+	},
+	{
+		.cmd = HSR_C_GET_NODE_LIST,
+		.flags = 0,
+		.policy = hsr_genl_policy,
+		.doit = hsr_get_node_list,
+		.dumpit = NULL,
+	},
 };
 
 int __init hsr_netlink_init(void)
@@ -414,30 +414,13 @@ int __init hsr_netlink_init(void)
 	if (rc)
 		goto fail_rtnl_link_register;
 
-	rc = genl_register_family(&hsr_genl_family);
+	rc = genl_register_family_with_ops_groups(&hsr_genl_family, hsr_ops,
+						  hsr_mcgrps);
 	if (rc)
 		goto fail_genl_register_family;
 
-	rc = genl_register_ops(&hsr_genl_family, &hsr_ops_get_node_status);
-	if (rc)
-		goto fail_genl_register_ops;
-
-	rc = genl_register_ops(&hsr_genl_family, &hsr_ops_get_node_list);
-	if (rc)
-		goto fail_genl_register_ops_node_list;
-
-	rc = genl_register_mc_group(&hsr_genl_family, &hsr_network_genl_mcgrp);
-	if (rc)
-		goto fail_genl_register_mc_group;
-
 	return 0;
 
-fail_genl_register_mc_group:
-	genl_unregister_ops(&hsr_genl_family, &hsr_ops_get_node_list);
-fail_genl_register_ops_node_list:
-	genl_unregister_ops(&hsr_genl_family, &hsr_ops_get_node_status);
-fail_genl_register_ops:
-	genl_unregister_family(&hsr_genl_family);
 fail_genl_register_family:
 	rtnl_link_unregister(&hsr_link_ops);
 fail_rtnl_link_register:
@@ -447,10 +430,7 @@ fail_rtnl_link_register:
 
 void __exit hsr_netlink_exit(void)
 {
-	genl_unregister_mc_group(&hsr_genl_family, &hsr_network_genl_mcgrp);
-	genl_unregister_ops(&hsr_genl_family, &hsr_ops_get_node_status);
 	genl_unregister_family(&hsr_genl_family);
-
 	rtnl_link_unregister(&hsr_link_ops);
 }
 

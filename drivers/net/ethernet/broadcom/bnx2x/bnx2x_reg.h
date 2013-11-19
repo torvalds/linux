@@ -2864,6 +2864,17 @@
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
 #define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_WRITE		 0x9434
 #define PGLUE_B_REG_INTERNAL_VFID_ENABLE			 0x9438
+/* [W 7] Writing 1 to each bit in this register clears a corresponding error
+ * details register and enables logging new error details. Bit 0 - clears
+ * INCORRECT_RCV_DETAILS; Bit 1 - clears RX_ERR_DETAILS; Bit 2 - clears
+ * TX_ERR_WR_ADD_31_0 TX_ERR_WR_ADD_63_32 TX_ERR_WR_DETAILS
+ * TX_ERR_WR_DETAILS2 TX_ERR_RD_ADD_31_0 TX_ERR_RD_ADD_63_32
+ * TX_ERR_RD_DETAILS TX_ERR_RD_DETAILS2 TX_ERR_WR_DETAILS_ICPL; Bit 3 -
+ * clears VF_LENGTH_VIOLATION_DETAILS. Bit 4 - clears
+ * VF_GRC_SPACE_VIOLATION_DETAILS. Bit 5 - clears RX_TCPL_ERR_DETAILS. Bit 6
+ * - clears TCPL_IN_TWO_RCBS_DETAILS. */
+#define PGLUE_B_REG_LATCHED_ERRORS_CLR				 0x943c
+
 /* [R 9] Interrupt register #0 read */
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */

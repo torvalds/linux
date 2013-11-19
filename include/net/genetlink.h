@@ -10,16 +10,9 @@
 /**
  * struct genl_multicast_group - generic netlink multicast group
  * @name: name of the multicast group, names are per-family
- * @id: multicast group ID, assigned by the core, to use with
- *      genlmsg_multicast().
- * @list: list entry for linking
- * @family: pointer to family, need not be set before registering
  */
 struct genl_multicast_group {
-	struct genl_family	*family;	/* private */
-	struct list_head	list;		/* private */
 	char			name[GENL_NAMSIZ];
-	u32			id;
 };
 
 struct genl_ops;
@@ -39,9 +32,12 @@ struct genl_info;
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
  * @attrbuf: buffer to store parsed attributes
- * @ops_list: list of all assigned operations
  * @family_list: family list
- * @mcast_groups: multicast groups list
+ * @mcgrps: multicast groups used by this family (private)
+ * @n_mcgrps: number of multicast groups (private)
+ * @mcgrp_offset: starting number of multicast group IDs in this family
+ * @ops: the operations supported by this family (private)
+ * @n_ops: number of operations supported by this family (private)
  */
 struct genl_family {
 	unsigned int		id;
@@ -51,16 +47,19 @@ struct genl_family {
 	unsigned int		maxattr;
 	bool			netnsok;
 	bool			parallel_ops;
-	int			(*pre_doit)(struct genl_ops *ops,
+	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
 					    struct genl_info *info);
-	void			(*post_doit)(struct genl_ops *ops,
+	void			(*post_doit)(const struct genl_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
 	struct nlattr **	attrbuf;	/* private */
-	struct list_head	ops_list;	/* private */
+	const struct genl_ops *	ops;		/* private */
+	const struct genl_multicast_group *mcgrps; /* private */
+	unsigned int		n_ops;		/* private */
+	unsigned int		n_mcgrps;	/* private */
+	unsigned int		mcgrp_offset;	/* private */
 	struct list_head	family_list;	/* private */
-	struct list_head	mcast_groups;	/* private */
 	struct module		*module;
 };
 
@@ -110,16 +109,15 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
  * @ops_list: operations list
  */
 struct genl_ops {
-	u8			cmd;
-	u8			internal_flags;
-	unsigned int		flags;
 	const struct nla_policy	*policy;
 	int		       (*doit)(struct sk_buff *skb,
 				       struct genl_info *info);
 	int		       (*dumpit)(struct sk_buff *skb,
 					 struct netlink_callback *cb);
 	int		       (*done)(struct netlink_callback *cb);
-	struct list_head	ops_list;
+	u8			cmd;
+	u8			internal_flags;
+	u8			flags;
 };
 
 int __genl_register_family(struct genl_family *family);
@@ -130,24 +128,53 @@ static inline int genl_register_family(struct genl_family *family)
 	return __genl_register_family(family);
 }
 
-int __genl_register_family_with_ops(struct genl_family *family,
-				    struct genl_ops *ops, size_t n_ops);
-
-static inline int genl_register_family_with_ops(struct genl_family *family,
-	struct genl_ops *ops, size_t n_ops)
+/**
+ * genl_register_family_with_ops - register a generic netlink family with ops
+ * @family: generic netlink family
+ * @ops: operations to be registered
+ * @n_ops: number of elements to register
+ *
+ * Registers the specified family and operations from the specified table.
+ * Only one family may be registered with the same family name or identifier.
+ *
+ * The family id may equal GENL_ID_GENERATE causing an unique id to
+ * be automatically generated and assigned.
+ *
+ * Either a doit or dumpit callback must be specified for every registered
+ * operation or the function will fail. Only one operation structure per
+ * command identifier may be registered.
+ *
+ * See include/net/genetlink.h for more documenation on the operations
+ * structure.
+ *
+ * Return 0 on success or a negative error code.
+ */
+static inline int
+_genl_register_family_with_ops_grps(struct genl_family *family,
+				    const struct genl_ops *ops, size_t n_ops,
+				    const struct genl_multicast_group *mcgrps,
+				    size_t n_mcgrps)
 {
 	family->module = THIS_MODULE;
-	return __genl_register_family_with_ops(family, ops, n_ops);
+	family->ops = ops;
+	family->n_ops = n_ops;
+	family->mcgrps = mcgrps;
+	family->n_mcgrps = n_mcgrps;
+	return __genl_register_family(family);
 }
 
+#define genl_register_family_with_ops(family, ops)			\
+	_genl_register_family_with_ops_grps((family),			\
+					    (ops), ARRAY_SIZE(ops),	\
+					    NULL, 0)
+#define genl_register_family_with_ops_groups(family, ops, grps)	\
+	_genl_register_family_with_ops_grps((family),			\
+					    (ops), ARRAY_SIZE(ops),	\
+					    (grps), ARRAY_SIZE(grps))
+
 int genl_unregister_family(struct genl_family *family);
-int genl_register_ops(struct genl_family *, struct genl_ops *ops);
-int genl_unregister_ops(struct genl_family *, struct genl_ops *ops);
-int genl_register_mc_group(struct genl_family *family,
-			   struct genl_multicast_group *grp);
-void genl_unregister_mc_group(struct genl_family *family,
-			      struct genl_multicast_group *grp);
-void genl_notify(struct sk_buff *skb, struct net *net, u32 portid,
+void genl_notify(struct genl_family *family,
+		 struct sk_buff *skb, struct net *net, u32 portid,
 		 u32 group, struct nlmsghdr *nlh, gfp_t flags);
 
 void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -227,41 +254,54 @@ static inline void genlmsg_cancel(struct sk_buff *skb, void *hdr)
 
 /**
  * genlmsg_multicast_netns - multicast a netlink message to a specific netns
+ * @family: the generic netlink family
  * @net: the net namespace
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
- * @group: multicast group id
+ * @group: offset of multicast group in groups array
  * @flags: allocation flags
  */
-static inline int genlmsg_multicast_netns(struct net *net, struct sk_buff *skb,
+static inline int genlmsg_multicast_netns(struct genl_family *family,
+					  struct net *net, struct sk_buff *skb,
 					  u32 portid, unsigned int group, gfp_t flags)
 {
+	if (group >= family->n_mcgrps)
+		return -EINVAL;
+	group = family->mcgrp_offset + group;
 	return nlmsg_multicast(net->genl_sock, skb, portid, group, flags);
 }
 
 /**
  * genlmsg_multicast - multicast a netlink message to the default netns
+ * @family: the generic netlink family
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
- * @group: multicast group id
+ * @group: offset of multicast group in groups array
  * @flags: allocation flags
  */
-static inline int genlmsg_multicast(struct sk_buff *skb, u32 portid,
+static inline int genlmsg_multicast(struct genl_family *family,
+				    struct sk_buff *skb, u32 portid,
 				    unsigned int group, gfp_t flags)
 {
-	return genlmsg_multicast_netns(&init_net, skb, portid, group, flags);
+	if (group >= family->n_mcgrps)
+		return -EINVAL;
+	group = family->mcgrp_offset + group;
+	return genlmsg_multicast_netns(family, &init_net, skb,
+				       portid, group, flags);
 }
 
 /**
  * genlmsg_multicast_allns - multicast a netlink message to all net namespaces
+ * @family: the generic netlink family
  * @skb: netlink message as socket buffer
  * @portid: own netlink portid to avoid sending to yourself
- * @group: multicast group id
+ * @group: offset of multicast group in groups array
  * @flags: allocation flags
  *
  * This function must hold the RTNL or rcu_read_lock().
  */
-int genlmsg_multicast_allns(struct sk_buff *skb, u32 portid,
+int genlmsg_multicast_allns(struct genl_family *family,
+			    struct sk_buff *skb, u32 portid,
 			    unsigned int group, gfp_t flags);
 
 /**
@@ -332,5 +372,22 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
 	return nlmsg_new(genlmsg_total_size(payload), flags);
 }
 
+/**
+ * genl_set_err - report error to genetlink broadcast listeners
+ * @family: the generic netlink family
+ * @net: the network namespace to report the error to
+ * @portid: the PORTID of a process that we want to skip (if any)
+ * @group: the broadcast group that will notice the error
+ * 	(this is the offset of the multicast group in the groups array)
+ * @code: error code, must be negative (as usual in kernelspace)
+ *
+ * This function returns the number of broadcast listeners that have set the
+ * NETLINK_RECV_NO_ENOBUFS socket option.
+ */
+static inline int genl_set_err(struct genl_family *family, struct net *net,
+			       u32 portid, u32 group, int code)
+{
+	return netlink_set_err(net->genl_sock, portid, group, code);
+}
 
 #endif	/* __NET_GENERIC_NETLINK_H */

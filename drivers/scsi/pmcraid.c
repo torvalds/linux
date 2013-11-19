@@ -1512,7 +1512,8 @@ static int pmcraid_notify_aen(
 	}
 
 	result =
-		genlmsg_multicast(skb, 0, pmcraid_event_family.id, GFP_ATOMIC);
+		genlmsg_multicast(&pmcraid_event_family, skb, 0,
+				  pmcraid_event_family.id, GFP_ATOMIC);
 
 	/* If there are no listeners, genlmsg_multicast may return non-zero
 	 * value.
