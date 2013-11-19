@@ -11,30 +11,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include <asm/smp_twd.h>
-
 #include "setup.h"
-#include "irqs.h"
 
 #include "db8500-regs.h"
 #include "id.h"
-
-#ifdef CONFIG_HAVE_ARM_TWD
-static DEFINE_TWD_LOCAL_TIMER(u8500_twd_local_timer,
-			      U8500_TWD_BASE, IRQ_LOCALTIMER);
-
-static void __init ux500_twd_init(void)
-{
-	struct twd_local_timer *twd_local_timer;
-
-	/* Use this to switch local timer base if changed in new ASICs */
-	twd_local_timer = &u8500_twd_local_timer;
-
-	clocksource_of_init();
-}
-#else
-#define ux500_twd_init()	do { } while(0)
-#endif
 
 const static struct of_device_id prcmu_timer_of_match[] __initconst = {
 	{ .compatible = "stericsson,db8500-prcmu-timer-4", },
@@ -64,5 +44,5 @@ void __init ux500_timer_init(void)
 
 dt_fail:
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
-	ux500_twd_init();
+	clocksource_of_init();
 }
