@@ -265,7 +265,7 @@ lstcon_group_decref(lstcon_group_t *grp)
 }
 
 static int
-lstcon_group_find(char *name, lstcon_group_t **grpp)
+lstcon_group_find(const char *name, lstcon_group_t **grpp)
 {
 	lstcon_group_t   *grp;
 
@@ -831,7 +831,7 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
 }
 
 int
-lstcon_batch_find(char *name, lstcon_batch_t **batpp)
+lstcon_batch_find(const char *name, lstcon_batch_t **batpp)
 {
 	lstcon_batch_t   *bat;
 
