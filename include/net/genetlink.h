@@ -152,14 +152,18 @@ static inline int genl_register_family(struct genl_family *family)
  *
  * Return 0 on success or a negative error code.
  */
-static inline int genl_register_family_with_ops(struct genl_family *family,
-	const struct genl_ops *ops, size_t n_ops)
+static inline int _genl_register_family_with_ops(struct genl_family *family,
+						 const struct genl_ops *ops,
+						 size_t n_ops)
 {
 	family->module = THIS_MODULE;
 	family->ops = ops;
 	family->n_ops = n_ops;
 	return __genl_register_family(family);
 }
+
+#define genl_register_family_with_ops(family, ops)	\
+	_genl_register_family_with_ops((family), (ops), ARRAY_SIZE(ops))
 
 int genl_unregister_family(struct genl_family *family);
 int genl_register_mc_group(struct genl_family *family,

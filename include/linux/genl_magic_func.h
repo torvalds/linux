@@ -293,8 +293,7 @@ static int CONCAT_(GENL_MAGIC_FAMILY, _genl_multicast_ ## group)(	\
 
 int CONCAT_(GENL_MAGIC_FAMILY, _genl_register)(void)
 {
-	int err = genl_register_family_with_ops(&ZZZ_genl_family,
-		ZZZ_genl_ops, ARRAY_SIZE(ZZZ_genl_ops));
+	int err = genl_register_family_with_ops(&ZZZ_genl_family, ZZZ_genl_ops);
 	if (err)
 		return err;
 #undef GENL_mc_group

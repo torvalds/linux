@@ -906,11 +906,13 @@ static int genl_ctrl_event(int event, void *data)
 	return 0;
 }
 
-static struct genl_ops genl_ctrl_ops = {
-	.cmd		= CTRL_CMD_GETFAMILY,
-	.doit		= ctrl_getfamily,
-	.dumpit		= ctrl_dumpfamily,
-	.policy		= ctrl_policy,
+static struct genl_ops genl_ctrl_ops[] = {
+	{
+		.cmd		= CTRL_CMD_GETFAMILY,
+		.doit		= ctrl_getfamily,
+		.dumpit		= ctrl_dumpfamily,
+		.policy		= ctrl_policy,
+	},
 };
 
 static struct genl_multicast_group notify_grp = {
@@ -954,7 +956,7 @@ static int __init genl_init(void)
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++)
 		INIT_LIST_HEAD(&family_ht[i]);
 
-	err = genl_register_family_with_ops(&genl_ctrl, &genl_ctrl_ops, 1);
+	err = genl_register_family_with_ops(&genl_ctrl, genl_ctrl_ops);
 	if (err < 0)
 		goto problem;
 

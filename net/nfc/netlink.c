@@ -1536,8 +1536,7 @@ int __init nfc_genl_init(void)
 {
 	int rc;
 
-	rc = genl_register_family_with_ops(&nfc_genl_family, nfc_genl_ops,
-					   ARRAY_SIZE(nfc_genl_ops));
+	rc = genl_register_family_with_ops(&nfc_genl_family, nfc_genl_ops);
 	if (rc)
 		return rc;
 

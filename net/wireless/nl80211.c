@@ -11329,8 +11329,7 @@ int nl80211_init(void)
 {
 	int err;
 
-	err = genl_register_family_with_ops(&nl80211_fam,
-		nl80211_ops, ARRAY_SIZE(nl80211_ops));
+	err = genl_register_family_with_ops(&nl80211_fam, nl80211_ops);
 	if (err)
 		return err;
 

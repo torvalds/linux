@@ -597,8 +597,8 @@ int __init wimax_subsys_init(void)
 
 	snprintf(wimax_gnl_family.name, sizeof(wimax_gnl_family.name),
 		 "WiMAX");
-	result = genl_register_family_with_ops(&wimax_gnl_family, wimax_gnl_ops,
-					       ARRAY_SIZE(wimax_gnl_ops));
+	result = genl_register_family_with_ops(&wimax_gnl_family,
+					       wimax_gnl_ops);
 	if (unlikely(result < 0)) {
 		printk(KERN_ERR "cannot register generic netlink family: %d\n",
 		       result);

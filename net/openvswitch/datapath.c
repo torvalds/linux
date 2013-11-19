@@ -1817,8 +1817,9 @@ static int dp_register_genl(void)
 	for (i = 0; i < ARRAY_SIZE(dp_genl_families); i++) {
 		const struct genl_family_and_ops *f = &dp_genl_families[i];
 
-		err = genl_register_family_with_ops(f->family, f->ops,
-						    f->n_ops);
+		f->family->ops = f->ops;
+		f->family->n_ops = f->n_ops;
+		err = genl_register_family(f->family);
 		if (err)
 			goto error;
 		n_registered++;

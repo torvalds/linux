@@ -783,5 +783,5 @@ static const struct genl_ops netlbl_cipsov4_ops[] = {
 int __init netlbl_cipsov4_genl_init(void)
 {
 	return genl_register_family_with_ops(&netlbl_cipsov4_gnl_family,
-		netlbl_cipsov4_ops, ARRAY_SIZE(netlbl_cipsov4_ops));
+					     netlbl_cipsov4_ops);
 }

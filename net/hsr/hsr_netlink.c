@@ -414,8 +414,7 @@ int __init hsr_netlink_init(void)
 	if (rc)
 		goto fail_rtnl_link_register;
 
-	rc = genl_register_family_with_ops(&hsr_genl_family, hsr_ops,
-					   ARRAY_SIZE(hsr_ops));
+	rc = genl_register_family_with_ops(&hsr_genl_family, hsr_ops);
 	if (rc)
 		goto fail_genl_register_family;
 

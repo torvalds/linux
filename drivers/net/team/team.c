@@ -2699,8 +2699,7 @@ static int team_nl_init(void)
 {
 	int err;
 
-	err = genl_register_family_with_ops(&team_nl_family, team_nl_ops,
-					    ARRAY_SIZE(team_nl_ops));
+	err = genl_register_family_with_ops(&team_nl_family, team_nl_ops);
 	if (err)
 		return err;
 
