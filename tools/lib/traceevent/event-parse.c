@@ -3465,7 +3465,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		 * is in the bottom half of the 32 bit field.
 		 */
 		offset &= 0xffff;
-		val = (unsigned long long)(data + offset);
+		val = (unsigned long long)((unsigned long)data + offset);
 		break;
 	default: /* not sure what to do there */
 		return 0;
