@@ -1549,7 +1549,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	if (gtkdata.unhandled_cipher)
 		return false;
 	if (!gtkdata.num_keys)
-		return true;
+		goto out;
 	if (!gtkdata.last_gtk)
 		return false;
 
@@ -1600,6 +1600,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 					   (void *)&replay_ctr, GFP_KERNEL);
 	}
 
+out:
 	mvmvif->seqno_valid = true;
 	/* +0x10 because the set API expects next-to-use, not last-used */
 	mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
