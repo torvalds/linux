@@ -121,7 +121,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static int tsc2007_get_pendown_state(void)
+static int tsc2007_get_pendown_state(struct device *dev)
 {
 	if (mx51_revision() < IMX_CHIP_REVISION_3_0)
 		return !gpio_get_value(TSC2007_IRQGPIO_REV2);

@@ -14,9 +14,9 @@ struct tsc2007_platform_data {
 	int	fuzzy;
 	int	fuzzz;
 
-	int	(*get_pendown_state)(void);
-	void	(*clear_penirq)(void);		/* If needed, clear 2nd level
-						   interrupt source */
+	int	(*get_pendown_state)(struct device *);
+	/* If needed, clear 2nd level interrupt source */
+	void	(*clear_penirq)(void);
 	int	(*init_platform_hw)(void);
 	void	(*exit_platform_hw)(void);
 };
