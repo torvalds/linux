@@ -138,7 +138,7 @@ static struct irqaction sun4i_timer_irq = {
 	.dev_id = &sun4i_clockevent,
 };
 
-static u32 sun4i_timer_sched_read(void)
+static u64 notrace sun4i_timer_sched_read(void)
 {
 	return ~readl(timer_base + TIMER_CNTVAL_REG(1));
 }
@@ -170,7 +170,7 @@ static void __init sun4i_timer_init(struct device_node *node)
 	       TIMER_CTL_CLK_SRC(TIMER_CTL_CLK_SRC_OSC24M),
 	       timer_base + TIMER_CTL_REG(1));
 
-	setup_sched_clock(sun4i_timer_sched_read, 32, rate);
+	sched_clock_register(sun4i_timer_sched_read, 32, rate);
 	clocksource_mmio_init(timer_base + TIMER_CNTVAL_REG(1), node->name,
 			      rate, 350, 32, clocksource_mmio_readl_down);
 
