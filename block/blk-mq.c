@@ -171,9 +171,12 @@ bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
 }
 EXPORT_SYMBOL(blk_mq_can_queue);
 
-static void blk_mq_rq_ctx_init(struct blk_mq_ctx *ctx, struct request *rq,
-			       unsigned int rw_flags)
+static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
+			       struct request *rq, unsigned int rw_flags)
 {
+	if (blk_queue_io_stat(q))
+		rw_flags |= REQ_IO_STAT;
+
 	rq->mq_ctx = ctx;
 	rq->cmd_flags = rw_flags;
 	ctx->rq_dispatched[rw_is_sync(rw_flags)]++;
@@ -197,7 +200,7 @@ static struct request *blk_mq_alloc_request_pinned(struct request_queue *q,
 
 		rq = __blk_mq_alloc_request(hctx, gfp & ~__GFP_WAIT, reserved);
 		if (rq) {
-			blk_mq_rq_ctx_init(ctx, rq, rw);
+			blk_mq_rq_ctx_init(q, ctx, rq, rw);
 			break;
 		} else if (!(gfp & __GFP_WAIT))
 			break;
@@ -921,7 +924,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	trace_block_getrq(q, bio, rw);
 	rq = __blk_mq_alloc_request(hctx, GFP_ATOMIC, false);
 	if (likely(rq))
-		blk_mq_rq_ctx_init(ctx, rq, rw);
+		blk_mq_rq_ctx_init(q, ctx, rq, rw);
 	else {
 		blk_mq_put_ctx(ctx);
 		trace_block_sleeprq(q, bio, rw);
@@ -1377,6 +1380,7 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_reg *reg,
 	q->queue_hw_ctx = hctxs;
 
 	q->mq_ops = reg->ops;
+	q->queue_flags |= QUEUE_FLAG_MQ_DEFAULT;
 
 	blk_queue_make_request(q, blk_mq_make_request);
 	blk_queue_rq_timed_out(q, reg->ops->timeout);
