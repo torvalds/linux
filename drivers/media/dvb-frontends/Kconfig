@@ -37,7 +37,7 @@ config DVB_STV6110x
 
 config DVB_M88DS3103
 	tristate "Montage M88DS3103"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.

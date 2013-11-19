@@ -1108,15 +1108,16 @@ static int m88ds3103_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static u32 m88ds3103_tuner_i2c_func(struct i2c_adapter *adapter)
+static void m88ds3103_release(struct dvb_frontend *fe)
 {
-	return I2C_FUNC_I2C;
+	struct m88ds3103_priv *priv = fe->demodulator_priv;
+	i2c_del_mux_adapter(priv->i2c_adapter);
+	kfree(priv);
 }
 
-static int m88ds3103_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
-		struct i2c_msg msg[], int num)
+static int m88ds3103_select(struct i2c_adapter *adap, void *mux_priv, u32 chan)
 {
-	struct m88ds3103_priv *priv = i2c_get_adapdata(i2c_adap);
+	struct m88ds3103_priv *priv = mux_priv;
 	int ret;
 	struct i2c_msg gate_open_msg[1] = {
 		{
@@ -1126,43 +1127,31 @@ static int m88ds3103_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
 			.buf = "\x03\x11",
 		}
 	};
-	dev_dbg(&priv->i2c->dev, "%s: num=%d\n", __func__, num);
 
 	mutex_lock(&priv->i2c_mutex);
 
-	/* open i2c-gate */
+	/* open tuner I2C repeater for 1 xfer, closes automatically */
 	ret = i2c_transfer(priv->i2c, gate_open_msg, 1);
 	if (ret != 1) {
-		mutex_unlock(&priv->i2c_mutex);
-		dev_warn(&priv->i2c->dev,
-				"%s: i2c wr failed=%d\n",
+		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d\n",
 				KBUILD_MODNAME, ret);
-		ret = -EREMOTEIO;
-		goto err;
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+
+		return ret;
 	}
 
-	ret = i2c_transfer(priv->i2c, msg, num);
-	mutex_unlock(&priv->i2c_mutex);
-	if (ret < 0)
-		dev_warn(&priv->i2c->dev, "%s: i2c failed=%d\n",
-				KBUILD_MODNAME, ret);
-
-	return ret;
-err:
-	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
+	return 0;
 }
 
-static struct i2c_algorithm m88ds3103_tuner_i2c_algo = {
-	.master_xfer   = m88ds3103_tuner_i2c_xfer,
-	.functionality = m88ds3103_tuner_i2c_func,
-};
-
-static void m88ds3103_release(struct dvb_frontend *fe)
+static int m88ds3103_deselect(struct i2c_adapter *adap, void *mux_priv,
+		u32 chan)
 {
-	struct m88ds3103_priv *priv = fe->demodulator_priv;
-	i2c_del_adapter(&priv->i2c_adapter);
-	kfree(priv);
+	struct m88ds3103_priv *priv = mux_priv;
+
+	mutex_unlock(&priv->i2c_mutex);
+
+	return 0;
 }
 
 struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
@@ -1228,23 +1217,17 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	if (ret)
 		goto err;
 
+	/* create mux i2c adapter for tuner */
+	priv->i2c_adapter = i2c_add_mux_adapter(i2c, &i2c->dev, priv, 0, 0, 0,
+			m88ds3103_select, m88ds3103_deselect);
+	if (priv->i2c_adapter == NULL)
+		goto err;
+
+	*tuner_i2c_adapter = priv->i2c_adapter;
+
 	/* create dvb_frontend */
 	memcpy(&priv->fe.ops, &m88ds3103_ops, sizeof(struct dvb_frontend_ops));
 	priv->fe.demodulator_priv = priv;
-
-	/* create i2c adapter for tuner */
-	strlcpy(priv->i2c_adapter.name, KBUILD_MODNAME,
-			sizeof(priv->i2c_adapter.name));
-	priv->i2c_adapter.algo = &m88ds3103_tuner_i2c_algo;
-	priv->i2c_adapter.algo_data = NULL;
-	i2c_set_adapdata(&priv->i2c_adapter, priv);
-	ret = i2c_add_adapter(&priv->i2c_adapter);
-	if (ret) {
-		dev_err(&i2c->dev, "%s: i2c bus could not be initialized\n",
-				KBUILD_MODNAME);
-		goto err;
-	}
-	*tuner_i2c_adapter = &priv->i2c_adapter;
 
 	return &priv->fe;
 err:
