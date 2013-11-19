@@ -887,13 +887,8 @@ EXPORT_SYMBOL_GPL(l2tp_nl_unregister_ops);
 
 static int l2tp_nl_init(void)
 {
-	int err;
-
 	pr_info("L2TP netlink interface\n");
-	err = genl_register_family_with_ops(&l2tp_nl_family, l2tp_nl_ops,
-					    ARRAY_SIZE(l2tp_nl_ops));
-
-	return err;
+	return genl_register_family_with_ops(&l2tp_nl_family, l2tp_nl_ops);
 }
 
 static void l2tp_nl_cleanup(void)

@@ -703,8 +703,7 @@ static int __init taskstats_init(void)
 {
 	int rc;
 
-	rc = genl_register_family_with_ops(&family, taskstats_ops,
-					   ARRAY_SIZE(taskstats_ops));
+	rc = genl_register_family_with_ops(&family, taskstats_ops);
 	if (rc)
 		return rc;
 

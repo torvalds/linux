@@ -779,5 +779,5 @@ static const struct genl_ops netlbl_mgmt_genl_ops[] = {
 int __init netlbl_mgmt_genl_init(void)
 {
 	return genl_register_family_with_ops(&netlbl_mgmt_gnl_family,
-		netlbl_mgmt_genl_ops, ARRAY_SIZE(netlbl_mgmt_genl_ops));
+					     netlbl_mgmt_genl_ops);
 }

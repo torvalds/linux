@@ -2670,15 +2670,15 @@ static const struct genl_ops team_nl_ops[] = {
 	},
 };
 
-static struct genl_multicast_group team_change_event_mcgrp = {
-	.name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME,
+static const struct genl_multicast_group team_nl_mcgrps[] = {
+	{ .name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME, },
 };
 
 static int team_nl_send_multicast(struct sk_buff *skb,
 				  struct team *team, u32 portid)
 {
-	return genlmsg_multicast_netns(dev_net(team->dev), skb, 0,
-				       team_change_event_mcgrp.id, GFP_KERNEL);
+	return genlmsg_multicast_netns(&team_nl_family, dev_net(team->dev),
+				       skb, 0, 0, GFP_KERNEL);
 }
 
 static int team_nl_send_event_options_get(struct team *team,
@@ -2697,23 +2697,8 @@ static int team_nl_send_event_port_get(struct team *team,
 
 static int team_nl_init(void)
 {
-	int err;
-
-	err = genl_register_family_with_ops(&team_nl_family, team_nl_ops,
-					    ARRAY_SIZE(team_nl_ops));
-	if (err)
-		return err;
-
-	err = genl_register_mc_group(&team_nl_family, &team_change_event_mcgrp);
-	if (err)
-		goto err_change_event_grp_reg;
-
-	return 0;
-
-err_change_event_grp_reg:
-	genl_unregister_family(&team_nl_family);
-
-	return err;
+	return genl_register_family_with_ops_groups(&team_nl_family, team_nl_ops,
+						    team_nl_mcgrps);
 }
 
 static void team_nl_fini(void)
