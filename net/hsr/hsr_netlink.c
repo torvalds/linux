@@ -435,9 +435,7 @@ fail_rtnl_link_register:
 
 void __exit hsr_netlink_exit(void)
 {
-	genl_unregister_mc_group(&hsr_genl_family, &hsr_network_genl_mcgrp);
 	genl_unregister_family(&hsr_genl_family);
-
 	rtnl_link_unregister(&hsr_link_ops);
 }
 
