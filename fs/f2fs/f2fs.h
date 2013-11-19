@@ -169,6 +169,8 @@ enum {
 #define F2FS_LINK_MAX		32000	/* maximum link count per file */
 
 /* for in-memory extent cache entry */
+#define F2FS_MIN_EXTENT_LEN	16	/* minimum extent length */
+
 struct extent_info {
 	rwlock_t ext_lock;	/* rwlock for consistency */
 	unsigned int fofs;	/* start offset in a file */
@@ -889,6 +891,7 @@ enum {
 	FI_NO_ALLOC,		/* should not allocate any blocks */
 	FI_UPDATE_DIR,		/* should update inode block for consistency */
 	FI_DELAY_IPUT,		/* used for the recovery */
+	FI_NO_EXTENT,		/* not to use the extent cache */
 	FI_INLINE_XATTR,	/* used for inline xattr */
 };
 

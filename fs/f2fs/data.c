@@ -71,6 +71,9 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 	pgoff_t start_fofs, end_fofs;
 	block_t start_blkaddr;
 
+	if (is_inode_flag_set(fi, FI_NO_EXTENT))
+		return 0;
+
 	read_lock(&fi->ext.ext_lock);
 	if (fi->ext.len == 0) {
 		read_unlock(&fi->ext.ext_lock);
@@ -109,6 +112,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	pgoff_t fofs, start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
+	int need_update = true;
 
 	f2fs_bug_on(blk_addr == NEW_ADDR);
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
@@ -116,6 +120,9 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 
 	/* Update the page address in the parent node */
 	__set_data_blkaddr(dn, blk_addr);
+
+	if (is_inode_flag_set(fi, FI_NO_EXTENT))
+		return;
 
 	write_lock(&fi->ext.ext_lock);
 
@@ -163,14 +170,21 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 					fofs - start_fofs + 1;
 			fi->ext.len -= fofs - start_fofs + 1;
 		}
-		goto end_update;
+	} else {
+		need_update = false;
 	}
-	write_unlock(&fi->ext.ext_lock);
-	return;
 
+	/* Finally, if the extent is very fragmented, let's drop the cache. */
+	if (fi->ext.len < F2FS_MIN_EXTENT_LEN) {
+		fi->ext.len = 0;
+		set_inode_flag(fi, FI_NO_EXTENT);
+		need_update = true;
+	}
 end_update:
 	write_unlock(&fi->ext.ext_lock);
-	sync_inode_page(dn);
+	if (need_update)
+		sync_inode_page(dn);
+	return;
 }
 
 struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
