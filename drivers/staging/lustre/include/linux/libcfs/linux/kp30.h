@@ -77,8 +77,6 @@
 	module_param(name, type, perm);\
 	MODULE_PARM_DESC(name, desc)
 
-#define CFS_SYSFS_MODULE_PARM  1 /* module parameters accessible via sysfs */
-
 /******************************************************************************/
 /* Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect. */
