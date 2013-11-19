@@ -2302,7 +2302,8 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 }
 #else
 static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
-				      unsigned int idx, unsigned long *flags)
+				      unsigned int idx,
+				      enum gpio_lookup_flags *flags)
 {
 	return ERR_PTR(-ENODEV);
 }
