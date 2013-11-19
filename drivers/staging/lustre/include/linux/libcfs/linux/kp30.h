@@ -206,18 +206,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* compat macroses */
 
-
-#ifndef get_cpu
-# ifdef CONFIG_PREEMPT
-#  define get_cpu()  ({ preempt_disable(); smp_processor_id(); })
-#  define put_cpu()  preempt_enable()
-# else
-#  define get_cpu()  smp_processor_id()
-#  define put_cpu()
-# endif
-#else
-#endif /* get_cpu & put_cpu */
-
 #define INIT_CTL_NAME(a)
 #define INIT_STRATEGY(a)
 
