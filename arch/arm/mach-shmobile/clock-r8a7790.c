@@ -329,10 +329,10 @@ void __init r8a7790_clock_init(void)
 		R8A7790_CLOCK_ROOT(20, &extal_clk, 130, 156, 80, 66);
 		break;
 	case MD(14):
-		R8A7790_CLOCK_ROOT(26, &extal_div2_clk, 200, 240, 122, 102);
+		R8A7790_CLOCK_ROOT(26 / 2, &extal_div2_clk, 200, 240, 122, 102);
 		break;
 	case MD(13) | MD(14):
-		R8A7790_CLOCK_ROOT(30, &extal_div2_clk, 172, 208, 106, 88);
+		R8A7790_CLOCK_ROOT(30 / 2, &extal_div2_clk, 172, 208, 106, 88);
 		break;
 	}
 
