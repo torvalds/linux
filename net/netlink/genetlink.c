@@ -69,8 +69,11 @@ static struct list_head family_ht[GENL_FAM_TAB_SIZE];
  * abuses the API and thinks it can statically use group 1.
  * That group will typically conflict with other groups that
  * any proper users use.
+ * Bit 17 is marked as already used since the VFS quota code
+ * also abused this API and relied on family == group ID, we
+ * cater to that by giving it a static family and group ID.
  */
-static unsigned long mc_group_start = 0x3;
+static unsigned long mc_group_start = 0x3 | BIT(GENL_ID_VFS_DQUOT);
 static unsigned long *mc_groups = &mc_group_start;
 static unsigned long mc_groups_longs = 1;
 
@@ -130,7 +133,8 @@ static u16 genl_generate_id(void)
 	int i;
 
 	for (i = 0; i <= GENL_MAX_ID - GENL_MIN_ID; i++) {
-		if (!genl_family_find_byid(id_gen_idx))
+		if (id_gen_idx != GENL_ID_VFS_DQUOT &&
+		    !genl_family_find_byid(id_gen_idx))
 			return id_gen_idx;
 		if (++id_gen_idx > GENL_MAX_ID)
 			id_gen_idx = GENL_MIN_ID;
@@ -169,6 +173,8 @@ int genl_register_mc_group(struct genl_family *family,
 		id = GENL_ID_CTRL;
 	else if (strcmp(family->name, "NET_DM") == 0)
 		id = 1;
+	else if (strcmp(family->name, "VFS_DQUOT") == 0)
+		id = GENL_ID_VFS_DQUOT;
 	else
 		id = find_first_zero_bit(mc_groups,
 					 mc_groups_longs * BITS_PER_LONG);
