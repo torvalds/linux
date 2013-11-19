@@ -181,18 +181,8 @@ int ksocknal_tunables_init(void)
 	ksocknal_tunables.ksnd_protocol	   = &protocol;
 #endif
 
-#if defined(CONFIG_SYSCTL) && !CFS_SYSFS_MODULE_PARM
-	ksocknal_tunables.ksnd_sysctl	     =  NULL;
-#endif
-
 	if (*ksocknal_tunables.ksnd_zc_min_payload < (2 << 10))
 		*ksocknal_tunables.ksnd_zc_min_payload = (2 << 10);
 
-	/* initialize platform-sepcific tunables */
-	return ksocknal_lib_tunables_init();
+	return 0;
 };
-
-void ksocknal_tunables_fini(void)
-{
-	ksocknal_lib_tunables_fini();
-}
