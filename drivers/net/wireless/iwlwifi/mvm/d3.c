@@ -895,7 +895,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 		/* new API returns next, not last-used seqno */
 		if (mvm->fw->ucode_capa.flags &
 				IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
-			err -= 0x10;
+			err = (u16) (err - 0x10);
 	}
 
 	iwl_free_resp(&cmd);
