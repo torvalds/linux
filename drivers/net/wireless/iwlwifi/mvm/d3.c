@@ -1227,10 +1227,11 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	mvm->aux_sta.sta_id = old_aux_sta_id;
 	mvm_ap_sta->sta_id = old_ap_sta_id;
 	mvmvif->ap_sta_id = old_ap_sta_id;
- out_noreset:
-	kfree(key_data.rsc_tsc);
+
 	if (ret < 0)
 		ieee80211_restart_hw(mvm->hw);
+ out_noreset:
+	kfree(key_data.rsc_tsc);
 
 	mutex_unlock(&mvm->mutex);
 
