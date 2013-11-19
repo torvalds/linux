@@ -63,9 +63,7 @@
 #include <linux/smp.h>
 #include <linux/ctype.h>
 #include <linux/compiler.h>
-#ifdef HAVE_MM_INLINE
-# include <linux/mm_inline.h>
-#endif
+#include <linux/mm_inline.h>
 #include <linux/kallsyms.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
