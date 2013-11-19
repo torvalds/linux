@@ -136,6 +136,7 @@ static inline void coherent_icache_guest_page(struct kvm *kvm, hva_t hva,
 }
 
 #define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+#define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */
