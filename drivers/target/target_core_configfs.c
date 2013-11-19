@@ -2131,6 +2131,55 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_type(
 SE_DEV_ALUA_TG_PT_ATTR(alua_access_type, S_IRUGO | S_IWUSR);
 
 /*
+ * alua_supported_states
+ */
+static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_supported_states(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	char *page)
+{
+	return sprintf(page, "%02x\n",
+		tg_pt_gp->tg_pt_gp_alua_supported_states);
+}
+
+static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_supported_states(
+	struct t10_alua_tg_pt_gp *tg_pt_gp,
+	const char *page,
+	size_t count)
+{
+	unsigned long tmp;
+	int new_states, valid_states, ret;
+
+	if (!tg_pt_gp->tg_pt_gp_valid_id) {
+		pr_err("Unable to do set supported ALUA states on non"
+			" valid tg_pt_gp ID: %hu\n",
+			tg_pt_gp->tg_pt_gp_valid_id);
+		return -EINVAL;
+	}
+
+	ret = strict_strtoul(page, 0, &tmp);
+	if (ret < 0) {
+		pr_err("Unable to extract new supported ALUA states"
+				" from %s\n", page);
+		return -EINVAL;
+	}
+	new_states = (int)tmp;
+	valid_states = ALUA_T_SUP | ALUA_O_SUP | ALUA_LBD_SUP | \
+	    ALUA_U_SUP | ALUA_S_SUP | ALUA_AN_SUP | ALUA_AO_SUP;
+
+
+	if (new_states & ~valid_states) {
+		pr_err("Illegal supported ALUA states: 0x%02x\n",
+				new_states);
+		return -EINVAL;
+	}
+
+	tg_pt_gp->tg_pt_gp_alua_supported_states = new_states;
+	return count;
+}
+
+SE_DEV_ALUA_TG_PT_ATTR(alua_supported_states, S_IRUGO | S_IWUSR);
+
+/*
  * alua_write_metadata
  */
 static ssize_t target_core_alua_tg_pt_gp_show_attr_alua_write_metadata(
@@ -2350,6 +2399,7 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_access_state.attr,
 	&target_core_alua_tg_pt_gp_alua_access_status.attr,
 	&target_core_alua_tg_pt_gp_alua_access_type.attr,
+	&target_core_alua_tg_pt_gp_alua_supported_states.attr,
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
