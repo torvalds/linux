@@ -114,7 +114,6 @@ int ptrace_setregs(struct task_struct *child, __s64 __user *data)
 int ptrace_getfpregs(struct task_struct *child, __u32 __user *data)
 {
 	int i;
-	unsigned int tmp;
 
 	if (!access_ok(VERIFY_WRITE, data, 33 * 8))
 		return -EIO;
@@ -130,29 +129,7 @@ int ptrace_getfpregs(struct task_struct *child, __u32 __user *data)
 	}
 
 	__put_user(child->thread.fpu.fcr31, data + 64);
-
-	preempt_disable();
-	if (cpu_has_fpu) {
-		unsigned int flags;
-
-		if (cpu_has_mipsmt) {
-			unsigned int vpflags = dvpe();
-			flags = read_c0_status();
-			__enable_fpu(FPU_AS_IS);
-			__asm__ __volatile__("cfc1\t%0,$0" : "=r" (tmp));
-			write_c0_status(flags);
-			evpe(vpflags);
-		} else {
-			flags = read_c0_status();
-			__enable_fpu(FPU_AS_IS);
-			__asm__ __volatile__("cfc1\t%0,$0" : "=r" (tmp));
-			write_c0_status(flags);
-		}
-	} else {
-		tmp = 0;
-	}
-	preempt_enable();
-	__put_user(tmp, data + 65);
+	__put_user(current_cpu_data.fpu_id, data + 65);
 
 	return 0;
 }
