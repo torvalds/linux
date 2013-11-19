@@ -351,5 +351,19 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
 	return nlmsg_new(genlmsg_total_size(payload), flags);
 }
 
+/**
+ * genl_set_err - report error to genetlink broadcast listeners
+ * @net: the network namespace to report the error to
+ * @portid: the PORTID of a process that we want to skip (if any)
+ * @group: the broadcast group that will notice the error
+ * @code: error code, must be negative (as usual in kernelspace)
+ *
+ * This function returns the number of broadcast listeners that have set the
+ * NETLINK_RECV_NO_ENOBUFS socket option.
+ */
+static inline int genl_set_err(struct net *net, u32 portid, u32 group, int code)
+{
+	return netlink_set_err(net->genl_sock, portid, group, code);
+}
 
 #endif	/* __NET_GENERIC_NETLINK_H */

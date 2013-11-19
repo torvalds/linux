@@ -879,8 +879,8 @@ static int ovs_flow_cmd_new_or_set(struct sk_buff *skb, struct genl_info *info)
 	if (!IS_ERR(reply))
 		ovs_notify(reply, info, &ovs_dp_flow_multicast_group);
 	else
-		netlink_set_err(sock_net(skb->sk)->genl_sock, 0,
-				ovs_dp_flow_multicast_group.id, PTR_ERR(reply));
+		genl_set_err(sock_net(skb->sk), 0,
+			     ovs_dp_flow_multicast_group.id, PTR_ERR(reply));
 	return 0;
 
 err_flow_free:
@@ -1326,8 +1326,8 @@ static int ovs_dp_cmd_set(struct sk_buff *skb, struct genl_info *info)
 				      info->snd_seq, OVS_DP_CMD_NEW);
 	if (IS_ERR(reply)) {
 		err = PTR_ERR(reply);
-		netlink_set_err(sock_net(skb->sk)->genl_sock, 0,
-				ovs_dp_datapath_multicast_group.id, err);
+		genl_set_err(sock_net(skb->sk), 0,
+			     ovs_dp_datapath_multicast_group.id, err);
 		err = 0;
 		goto unlock;
 	}

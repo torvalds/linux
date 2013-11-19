@@ -34,9 +34,9 @@ static void dp_detach_port_notify(struct vport *vport)
 					  OVS_VPORT_CMD_DEL);
 	ovs_dp_detach_port(vport);
 	if (IS_ERR(notify)) {
-		netlink_set_err(ovs_dp_get_net(dp)->genl_sock, 0,
-				ovs_dp_vport_multicast_group.id,
-				PTR_ERR(notify));
+		genl_set_err(ovs_dp_get_net(dp), 0,
+			     ovs_dp_vport_multicast_group.id,
+			     PTR_ERR(notify));
 		return;
 	}
 
