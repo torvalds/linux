@@ -223,6 +223,7 @@ static const unsigned int buzz_keymap[] = {
 };
 
 struct sony_sc {
+	struct led_classdev *leds[4];
 	unsigned long quirks;
 
 #ifdef CONFIG_SONY_FF
@@ -232,12 +233,7 @@ struct sony_sc {
 	__u8 right;
 #endif
 
-	void *extra;
-};
-
-struct buzz_extra {
-	int led_state;
-	struct led_classdev *leds[4];
+	__u8 led_state;
 };
 
 static __u8 *ps3remote_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -472,26 +468,24 @@ static void sony_led_set_brightness(struct led_classdev *led,
 	struct device *dev = led->dev->parent;
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct sony_sc *drv_data;
-	struct buzz_extra *buzz;
 
 	int n;
 
 	drv_data = hid_get_drvdata(hdev);
-	if (!drv_data || !drv_data->extra) {
+	if (!drv_data) {
 		hid_err(hdev, "No device data\n");
 		return;
 	}
-	buzz = drv_data->extra;
 
 	for (n = 0; n < 4; n++) {
-		if (led == buzz->leds[n]) {
-			int on = !! (buzz->led_state & (1 << n));
+		if (led == drv_data->leds[n]) {
+			int on = !!(drv_data->led_state & (1 << n));
 			if (value == LED_OFF && on) {
-				buzz->led_state &= ~(1 << n);
-				buzz_set_leds(hdev, buzz->led_state);
+				drv_data->led_state &= ~(1 << n);
+				buzz_set_leds(hdev, drv_data->led_state);
 			} else if (value != LED_OFF && !on) {
-				buzz->led_state |= (1 << n);
-				buzz_set_leds(hdev, buzz->led_state);
+				drv_data->led_state |= (1 << n);
+				buzz_set_leds(hdev, drv_data->led_state);
 			}
 			break;
 		}
@@ -503,21 +497,19 @@ static enum led_brightness sony_led_get_brightness(struct led_classdev *led)
 	struct device *dev = led->dev->parent;
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct sony_sc *drv_data;
-	struct buzz_extra *buzz;
 
 	int n;
 	int on = 0;
 
 	drv_data = hid_get_drvdata(hdev);
-	if (!drv_data || !drv_data->extra) {
+	if (!drv_data) {
 		hid_err(hdev, "No device data\n");
 		return LED_OFF;
 	}
-	buzz = drv_data->extra;
 
 	for (n = 0; n < 4; n++) {
-		if (led == buzz->leds[n]) {
-			on = !! (buzz->led_state & (1 << n));
+		if (led == drv_data->leds[n]) {
+			on = !!(drv_data->led_state & (1 << n));
 			break;
 		}
 	}
@@ -528,7 +520,6 @@ static enum led_brightness sony_led_get_brightness(struct led_classdev *led)
 static int sony_leds_init(struct hid_device *hdev)
 {
 	struct sony_sc *drv_data;
-	struct buzz_extra *buzz;
 	int n, ret = 0;
 	struct led_classdev *led;
 	size_t name_sz;
@@ -540,13 +531,6 @@ static int sony_leds_init(struct hid_device *hdev)
 	/* Validate expected report characteristics. */
 	if (!hid_validate_values(hdev, HID_OUTPUT_REPORT, 0, 0, 7))
 		return -ENODEV;
-
-	buzz = kzalloc(sizeof(*buzz), GFP_KERNEL);
-	if (!buzz) {
-		hid_err(hdev, "Insufficient memory, cannot allocate driver data\n");
-		return -ENOMEM;
-	}
-	drv_data->extra = buzz;
 
 	/* Clear LEDs as we have no way of reading their initial state. This is
 	 * only relevant if the driver is loaded after somebody actively set the
@@ -576,49 +560,41 @@ static int sony_leds_init(struct hid_device *hdev)
 			goto error_leds;
 		}
 
-		buzz->leds[n] = led;
+		drv_data->leds[n] = led;
 	}
 
 	return ret;
 
 error_leds:
 	for (n = 0; n < 4; n++) {
-		led = buzz->leds[n];
-		buzz->leds[n] = NULL;
+		led = drv_data->leds[n];
+		drv_data->leds[n] = NULL;
 		if (!led)
 			continue;
 		led_classdev_unregister(led);
 		kfree(led);
 	}
 
-	kfree(drv_data->extra);
-	drv_data->extra = NULL;
 	return ret;
 }
 
 static void sony_leds_remove(struct hid_device *hdev)
 {
 	struct sony_sc *drv_data;
-	struct buzz_extra *buzz;
 	struct led_classdev *led;
 	int n;
 
 	drv_data = hid_get_drvdata(hdev);
 	BUG_ON(!(drv_data->quirks & BUZZ_CONTROLLER));
 
-	buzz = drv_data->extra;
-
 	for (n = 0; n < 4; n++) {
-		led = buzz->leds[n];
-		buzz->leds[n] = NULL;
+		led = drv_data->leds[n];
+		drv_data->leds[n] = NULL;
 		if (!led)
 			continue;
 		led_classdev_unregister(led);
 		kfree(led);
 	}
-
-	kfree(drv_data->extra);
-	drv_data->extra = NULL;
 }
 
 #ifdef CONFIG_SONY_FF
