@@ -462,7 +462,7 @@ void transport_deregister_session(struct se_session *se_sess)
 	pr_debug("TARGET_CORE[%s]: Deregistered fabric_sess\n",
 		se_tpg->se_tpg_tfo->get_fabric_name());
 	/*
-	 * If last kref is dropping now for an explict NodeACL, awake sleeping
+	 * If last kref is dropping now for an explicit NodeACL, awake sleeping
 	 * ->acl_free_comp caller to wakeup configfs se_node_acl->acl_group
 	 * removal context.
 	 */
@@ -636,7 +636,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		cmd->transport_state |= CMD_T_FAILED;
 
 	/*
-	 * Check for case where an explict ABORT_TASK has been received
+	 * Check for case where an explicit ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
 	 */
 	if (cmd->transport_state & CMD_T_ABORTED &&

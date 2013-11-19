@@ -44,7 +44,7 @@
 static sense_reason_t core_alua_check_transition(int state, int *primary);
 static int core_alua_set_tg_pt_secondary_state(
 		struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem,
-		struct se_port *port, int explict, int offline);
+		struct se_port *port, int explicit, int offline);
 
 static u16 alua_lu_gps_counter;
 static u32 alua_lu_gps_count;
@@ -175,7 +175,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 	if (ext_hdr != 0) {
 		buf[4] = 0x10;
 		/*
-		 * Set the implict transition time (in seconds) for the application
+		 * Set the implicit transition time (in seconds) for the application
 		 * client to use as a base for it's transition timeout value.
 		 *
 		 * Use the current tg_pt_gp_mem -> tg_pt_gp membership from the LUN
@@ -188,7 +188,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 			spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 			tg_pt_gp = tg_pt_gp_mem->tg_pt_gp;
 			if (tg_pt_gp)
-				buf[5] = tg_pt_gp->tg_pt_gp_implict_trans_secs;
+				buf[5] = tg_pt_gp->tg_pt_gp_implicit_trans_secs;
 			spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 		}
 	}
@@ -199,7 +199,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 }
 
 /*
- * SET_TARGET_PORT_GROUPS for explict ALUA operation.
+ * SET_TARGET_PORT_GROUPS for explicit ALUA operation.
  *
  * See spc4r17 section 6.35
  */
@@ -232,7 +232,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
-	 * Determine if explict ALUA via SET_TARGET_PORT_GROUPS is allowed
+	 * Determine if explicit ALUA via SET_TARGET_PORT_GROUPS is allowed
 	 * for the local tg_pt_gp.
 	 */
 	l_tg_pt_gp_mem = l_port->sep_alua_tg_pt_gp_mem;
@@ -251,9 +251,9 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 	}
 	spin_unlock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
 
-	if (!(l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA)) {
+	if (!(l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA)) {
 		pr_debug("Unable to process SET_TARGET_PORT_GROUPS"
-				" while TPGS_EXPLICT_ALUA is disabled\n");
+				" while TPGS_EXPLICIT_ALUA is disabled\n");
 		rc = TCM_UNSUPPORTED_SCSI_OPCODE;
 		goto out;
 	}
@@ -620,7 +620,7 @@ out:
 }
 
 /*
- * Check implict and explict ALUA state change request.
+ * Check implicit and explicit ALUA state change request.
  */
 static sense_reason_t
 core_alua_check_transition(int state, int *primary)
@@ -676,10 +676,10 @@ char *core_alua_dump_status(int status)
 	switch (status) {
 	case ALUA_STATUS_NONE:
 		return "None";
-	case ALUA_STATUS_ALTERED_BY_EXPLICT_STPG:
-		return "Altered by Explict STPG";
-	case ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA:
-		return "Altered by Implict ALUA";
+	case ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG:
+		return "Altered by Explicit STPG";
+	case ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA:
+		return "Altered by Implicit ALUA";
 	default:
 		return "Unknown";
 	}
@@ -770,7 +770,7 @@ static int core_alua_do_transition_tg_pt(
 	struct se_node_acl *nacl,
 	unsigned char *md_buf,
 	int new_state,
-	int explict)
+	int explicit)
 {
 	struct se_dev_entry *se_deve;
 	struct se_lun_acl *lacl;
@@ -784,9 +784,9 @@ static int core_alua_do_transition_tg_pt(
 	old_state = atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state);
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 			ALUA_ACCESS_STATE_TRANSITION);
-	tg_pt_gp->tg_pt_gp_alua_access_status = (explict) ?
-				ALUA_STATUS_ALTERED_BY_EXPLICT_STPG :
-				ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA;
+	tg_pt_gp->tg_pt_gp_alua_access_status = (explicit) ?
+				ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG :
+				ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA;
 	/*
 	 * Check for the optional ALUA primary state transition delay
 	 */
@@ -821,12 +821,12 @@ static int core_alua_do_transition_tg_pt(
 			lacl = se_deve->se_lun_acl;
 			/*
 			 * se_deve->se_lun_acl pointer may be NULL for a
-			 * entry created without explict Node+MappedLUN ACLs
+			 * entry created without explicit Node+MappedLUN ACLs
 			 */
 			if (!lacl)
 				continue;
 
-			if (explict &&
+			if (explicit &&
 			   (nacl != NULL) && (nacl == lacl->se_lun_nacl) &&
 			   (l_port != NULL) && (l_port == port))
 				continue;
@@ -866,8 +866,8 @@ static int core_alua_do_transition_tg_pt(
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state, new_state);
 
 	pr_debug("Successful %s ALUA transition TG PT Group: %s ID: %hu"
-		" from primary access state %s to %s\n", (explict) ? "explict" :
-		"implict", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
+		" from primary access state %s to %s\n", (explicit) ? "explicit" :
+		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
 		tg_pt_gp->tg_pt_gp_id, core_alua_dump_state(old_state),
 		core_alua_dump_state(new_state));
 
@@ -880,7 +880,7 @@ int core_alua_do_port_transition(
 	struct se_port *l_port,
 	struct se_node_acl *l_nacl,
 	int new_state,
-	int explict)
+	int explicit)
 {
 	struct se_device *dev;
 	struct se_port *port;
@@ -917,7 +917,7 @@ int core_alua_do_port_transition(
 		 * success.
 		 */
 		core_alua_do_transition_tg_pt(l_tg_pt_gp, l_port, l_nacl,
-					md_buf, new_state, explict);
+					md_buf, new_state, explicit);
 		atomic_dec(&lu_gp->lu_gp_ref_cnt);
 		smp_mb__after_atomic_dec();
 		kfree(md_buf);
@@ -970,7 +970,7 @@ int core_alua_do_port_transition(
 			 * success.
 			 */
 			core_alua_do_transition_tg_pt(tg_pt_gp, port,
-					nacl, md_buf, new_state, explict);
+					nacl, md_buf, new_state, explicit);
 
 			spin_lock(&dev->t10_alua.tg_pt_gps_lock);
 			atomic_dec(&tg_pt_gp->tg_pt_gp_ref_cnt);
@@ -987,7 +987,7 @@ int core_alua_do_port_transition(
 	pr_debug("Successfully processed LU Group: %s all ALUA TG PT"
 		" Group IDs: %hu %s transition to primary state: %s\n",
 		config_item_name(&lu_gp->lu_gp_group.cg_item),
-		l_tg_pt_gp->tg_pt_gp_id, (explict) ? "explict" : "implict",
+		l_tg_pt_gp->tg_pt_gp_id, (explicit) ? "explicit" : "implicit",
 		core_alua_dump_state(new_state));
 
 	atomic_dec(&lu_gp->lu_gp_ref_cnt);
@@ -1034,7 +1034,7 @@ static int core_alua_update_tpg_secondary_metadata(
 static int core_alua_set_tg_pt_secondary_state(
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem,
 	struct se_port *port,
-	int explict,
+	int explicit,
 	int offline)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
@@ -1061,13 +1061,13 @@ static int core_alua_set_tg_pt_secondary_state(
 		atomic_set(&port->sep_tg_pt_secondary_offline, 0);
 
 	md_buf_len = tg_pt_gp->tg_pt_gp_md_buf_len;
-	port->sep_tg_pt_secondary_stat = (explict) ?
-			ALUA_STATUS_ALTERED_BY_EXPLICT_STPG :
-			ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA;
+	port->sep_tg_pt_secondary_stat = (explicit) ?
+			ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG :
+			ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA;
 
 	pr_debug("Successful %s ALUA transition TG PT Group: %s ID: %hu"
-		" to secondary access state: %s\n", (explict) ? "explict" :
-		"implict", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
+		" to secondary access state: %s\n", (explicit) ? "explicit" :
+		"implicit", config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item),
 		tg_pt_gp->tg_pt_gp_id, (offline) ? "OFFLINE" : "ONLINE");
 
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
@@ -1356,16 +1356,16 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 		ALUA_ACCESS_STATE_ACTIVE_OPTMIZED);
 	/*
-	 * Enable both explict and implict ALUA support by default
+	 * Enable both explicit and implicit ALUA support by default
 	 */
 	tg_pt_gp->tg_pt_gp_alua_access_type =
-			TPGS_EXPLICT_ALUA | TPGS_IMPLICT_ALUA;
+			TPGS_EXPLICIT_ALUA | TPGS_IMPLICIT_ALUA;
 	/*
 	 * Set the default Active/NonOptimized Delay in milliseconds
 	 */
 	tg_pt_gp->tg_pt_gp_nonop_delay_msecs = ALUA_DEFAULT_NONOP_DELAY_MSECS;
 	tg_pt_gp->tg_pt_gp_trans_delay_msecs = ALUA_DEFAULT_TRANS_DELAY_MSECS;
-	tg_pt_gp->tg_pt_gp_implict_trans_secs = ALUA_DEFAULT_IMPLICT_TRANS_SECS;
+	tg_pt_gp->tg_pt_gp_implicit_trans_secs = ALUA_DEFAULT_IMPLICIT_TRANS_SECS;
 
 	if (def_group) {
 		spin_lock(&dev->t10_alua.tg_pt_gps_lock);
@@ -1465,7 +1465,7 @@ void core_alua_free_tg_pt_gp(
 	 * been called from target_core_alua_drop_tg_pt_gp().
 	 *
 	 * Here we remove *tg_pt_gp from the global list so that
-	 * no assications *OR* explict ALUA via SET_TARGET_PORT_GROUPS
+	 * no assications *OR* explicit ALUA via SET_TARGET_PORT_GROUPS
 	 * can be made while we are releasing struct t10_alua_tg_pt_gp.
 	 */
 	spin_lock(&dev->t10_alua.tg_pt_gps_lock);
@@ -1740,13 +1740,13 @@ ssize_t core_alua_show_access_type(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	if ((tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA) &&
-	    (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA))
-		return sprintf(page, "Implict and Explict\n");
-	else if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)
-		return sprintf(page, "Implict\n");
-	else if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA)
-		return sprintf(page, "Explict\n");
+	if ((tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA) &&
+	    (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICIT_ALUA))
+		return sprintf(page, "Implicit and Explicit\n");
+	else if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICIT_ALUA)
+		return sprintf(page, "Implicit\n");
+	else if (tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICIT_ALUA)
+		return sprintf(page, "Explicit\n");
 	else
 		return sprintf(page, "None\n");
 }
@@ -1771,11 +1771,11 @@ ssize_t core_alua_store_access_type(
 	}
 	if (tmp == 3)
 		tg_pt_gp->tg_pt_gp_alua_access_type =
-			TPGS_IMPLICT_ALUA | TPGS_EXPLICT_ALUA;
+			TPGS_IMPLICIT_ALUA | TPGS_EXPLICIT_ALUA;
 	else if (tmp == 2)
-		tg_pt_gp->tg_pt_gp_alua_access_type = TPGS_EXPLICT_ALUA;
+		tg_pt_gp->tg_pt_gp_alua_access_type = TPGS_EXPLICIT_ALUA;
 	else if (tmp == 1)
-		tg_pt_gp->tg_pt_gp_alua_access_type = TPGS_IMPLICT_ALUA;
+		tg_pt_gp->tg_pt_gp_alua_access_type = TPGS_IMPLICIT_ALUA;
 	else
 		tg_pt_gp->tg_pt_gp_alua_access_type = 0;
 
@@ -1844,14 +1844,14 @@ ssize_t core_alua_store_trans_delay_msecs(
 	return count;
 }
 
-ssize_t core_alua_show_implict_trans_secs(
+ssize_t core_alua_show_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	return sprintf(page, "%d\n", tg_pt_gp->tg_pt_gp_implict_trans_secs);
+	return sprintf(page, "%d\n", tg_pt_gp->tg_pt_gp_implicit_trans_secs);
 }
 
-ssize_t core_alua_store_implict_trans_secs(
+ssize_t core_alua_store_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	const char *page,
 	size_t count)
@@ -1861,16 +1861,16 @@ ssize_t core_alua_store_implict_trans_secs(
 
 	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {
-		pr_err("Unable to extract implict_trans_secs\n");
+		pr_err("Unable to extract implicit_trans_secs\n");
 		return ret;
 	}
-	if (tmp > ALUA_MAX_IMPLICT_TRANS_SECS) {
-		pr_err("Passed implict_trans_secs: %lu, exceeds"
-			" ALUA_MAX_IMPLICT_TRANS_SECS: %d\n", tmp,
-			ALUA_MAX_IMPLICT_TRANS_SECS);
+	if (tmp > ALUA_MAX_IMPLICIT_TRANS_SECS) {
+		pr_err("Passed implicit_trans_secs: %lu, exceeds"
+			" ALUA_MAX_IMPLICIT_TRANS_SECS: %d\n", tmp,
+			ALUA_MAX_IMPLICIT_TRANS_SECS);
 		return  -EINVAL;
 	}
-	tg_pt_gp->tg_pt_gp_implict_trans_secs = (int)tmp;
+	tg_pt_gp->tg_pt_gp_implicit_trans_secs = (int)tmp;
 
 	return count;
 }
@@ -1970,8 +1970,8 @@ ssize_t core_alua_store_secondary_status(
 		return ret;
 	}
 	if ((tmp != ALUA_STATUS_NONE) &&
-	    (tmp != ALUA_STATUS_ALTERED_BY_EXPLICT_STPG) &&
-	    (tmp != ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA)) {
+	    (tmp != ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG) &&
+	    (tmp != ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA)) {
 		pr_err("Illegal value for alua_tg_pt_status: %lu\n",
 				tmp);
 		return -EINVAL;

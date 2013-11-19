@@ -313,14 +313,14 @@ int core_enable_device_list_for_node(
 	deve = nacl->device_list[mapped_lun];
 
 	/*
-	 * Check if the call is handling demo mode -> explict LUN ACL
+	 * Check if the call is handling demo mode -> explicit LUN ACL
 	 * transition.  This transition must be for the same struct se_lun
 	 * + mapped_lun that was setup in demo mode..
 	 */
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		if (deve->se_lun_acl != NULL) {
 			pr_err("struct se_dev_entry->se_lun_acl"
-			       " already set for demo mode -> explict"
+			       " already set for demo mode -> explicit"
 			       " LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
@@ -328,7 +328,7 @@ int core_enable_device_list_for_node(
 		if (deve->se_lun != lun) {
 			pr_err("struct se_dev_entry->se_lun does"
 			       " match passed struct se_lun for demo mode"
-			       " -> explict LUN ACL transition\n");
+			       " -> explicit LUN ACL transition\n");
 			spin_unlock_irq(&nacl->device_list_lock);
 			return -EINVAL;
 		}

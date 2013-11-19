@@ -2036,7 +2036,7 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 	int new_state, ret;
 
 	if (!tg_pt_gp->tg_pt_gp_valid_id) {
-		pr_err("Unable to do implict ALUA on non valid"
+		pr_err("Unable to do implicit ALUA on non valid"
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
@@ -2049,9 +2049,9 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 	}
 	new_state = (int)tmp;
 
-	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)) {
-		pr_err("Unable to process implict configfs ALUA"
-			" transition while TPGS_IMPLICT_ALUA is disabled\n");
+	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICIT_ALUA)) {
+		pr_err("Unable to process implicit configfs ALUA"
+			" transition while TPGS_IMPLICIT_ALUA is disabled\n");
 		return -EINVAL;
 	}
 
@@ -2097,8 +2097,8 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_status(
 	new_status = (int)tmp;
 
 	if ((new_status != ALUA_STATUS_NONE) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICT_STPG) &&
-	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICT_ALUA)) {
+	    (new_status != ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG) &&
+	    (new_status != ALUA_STATUS_ALTERED_BY_IMPLICIT_ALUA)) {
 		pr_err("Illegal ALUA access status: 0x%02x\n",
 				new_status);
 		return -EINVAL;
@@ -2210,24 +2210,24 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_trans_delay_msecs(
 SE_DEV_ALUA_TG_PT_ATTR(trans_delay_msecs, S_IRUGO | S_IWUSR);
 
 /*
- * implict_trans_secs
+ * implicit_trans_secs
  */
-static ssize_t target_core_alua_tg_pt_gp_show_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_show_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	return core_alua_show_implict_trans_secs(tg_pt_gp, page);
+	return core_alua_show_implicit_trans_secs(tg_pt_gp, page);
 }
 
-static ssize_t target_core_alua_tg_pt_gp_store_attr_implict_trans_secs(
+static ssize_t target_core_alua_tg_pt_gp_store_attr_implicit_trans_secs(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	const char *page,
 	size_t count)
 {
-	return core_alua_store_implict_trans_secs(tg_pt_gp, page, count);
+	return core_alua_store_implicit_trans_secs(tg_pt_gp, page, count);
 }
 
-SE_DEV_ALUA_TG_PT_ATTR(implict_trans_secs, S_IRUGO | S_IWUSR);
+SE_DEV_ALUA_TG_PT_ATTR(implicit_trans_secs, S_IRUGO | S_IWUSR);
 
 /*
  * preferred
@@ -2353,7 +2353,7 @@ static struct configfs_attribute *target_core_alua_tg_pt_gp_attrs[] = {
 	&target_core_alua_tg_pt_gp_alua_write_metadata.attr,
 	&target_core_alua_tg_pt_gp_nonop_delay_msecs.attr,
 	&target_core_alua_tg_pt_gp_trans_delay_msecs.attr,
-	&target_core_alua_tg_pt_gp_implict_trans_secs.attr,
+	&target_core_alua_tg_pt_gp_implicit_trans_secs.attr,
 	&target_core_alua_tg_pt_gp_preferred.attr,
 	&target_core_alua_tg_pt_gp_tg_pt_gp_id.attr,
 	&target_core_alua_tg_pt_gp_members.attr,

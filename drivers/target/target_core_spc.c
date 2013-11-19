@@ -48,7 +48,7 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	buf[5]	= 0x80;
 
 	/*
-	 * Set TPGS field for explict and/or implict ALUA access type
+	 * Set TPGS field for explicit and/or implicit ALUA access type
 	 * and opteration.
 	 *
 	 * See spc4r17 section 6.4.2 Table 135
@@ -1257,7 +1257,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[3] << 8) + cdb[4];
 
 		/*
-		 * Do implict HEAD_OF_QUEUE processing for INQUIRY.
+		 * Do implicit HEAD_OF_QUEUE processing for INQUIRY.
 		 * See spc4r17 section 5.3
 		 */
 		cmd->sam_task_attr = MSG_HEAD_TAG;
@@ -1291,7 +1291,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_report_luns;
 		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		/*
-		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
+		 * Do implicit HEAD_OF_QUEUE processing for REPORT_LUNS
 		 * See spc4r17 section 5.3
 		 */
 		cmd->sam_task_attr = MSG_HEAD_TAG;
