@@ -686,6 +686,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 5:	mtspr	SPRN_SRR0, r6
 	mtspr	SPRN_SRR1, r7
 
+/*
+ * Required state:
+ * R4 = vcpu
+ * R10: value for HSRR0
+ * R11: value for HSRR1
+ * R13 = PACA
+ */
 fast_guest_return:
 	li	r0,0
 	stb	r0,VCPU_CEDED(r4)	/* cancel cede */
@@ -1471,7 +1478,8 @@ kvmppc_hisi:
 hcall_try_real_mode:
 	ld	r3,VCPU_GPR(R3)(r9)
 	andi.	r0,r11,MSR_PR
-	bne	guest_exit_cont
+	/* sc 1 from userspace - reflect to guest syscall */
+	bne	sc_1_fast_return
 	clrrdi	r3,r3,2
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
 	bge	guest_exit_cont
@@ -1490,6 +1498,15 @@ hcall_try_real_mode:
 	std	r3,VCPU_GPR(R3)(r4)
 	ld	r10,VCPU_PC(r4)
 	ld	r11,VCPU_MSR(r4)
+	b	fast_guest_return
+
+sc_1_fast_return:
+	mtspr	SPRN_SRR0,r10
+	mtspr	SPRN_SRR1,r11
+	li	r10, BOOK3S_INTERRUPT_SYSCALL
+	li	r11, (MSR_ME << 1) | 1  /* synthesize MSR_SF | MSR_ME */
+	rotldi	r11, r11, 63
+	mr	r4,r9
 	b	fast_guest_return
 
 	/* We've attempted a real mode hcall, but it's punted it back
