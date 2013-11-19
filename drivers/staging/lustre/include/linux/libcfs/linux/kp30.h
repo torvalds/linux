@@ -175,8 +175,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* ------------------------------------------------------------------ */
 
-#define IOCTL_LIBCFS_TYPE long
-
 #ifdef __CYGWIN__
 # ifndef BITS_PER_LONG
 #   define BITS_PER_LONG 64
