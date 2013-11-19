@@ -6761,18 +6761,22 @@ done:
 
 static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
 {
+	mutex_lock(&dev_priv->pc8.lock);
 	if (!dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = true;
-		hsw_enable_package_c8(dev_priv);
+		__hsw_enable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 {
+	mutex_lock(&dev_priv->pc8.lock);
 	if (dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = false;
-		hsw_disable_package_c8(dev_priv);
+		__hsw_disable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 #define for_each_power_domain(domain, mask)				\
