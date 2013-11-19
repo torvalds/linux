@@ -73,6 +73,17 @@ struct uprobe {
 	struct inode		*inode;		/* Also hold a ref to inode */
 	loff_t			offset;
 	unsigned long		flags;
+
+	/*
+	 * The generic code assumes that it has two members of unknown type
+	 * owned by the arch-specific code:
+	 *
+	 * 	insn -	copy_insn() saves the original instruction here for
+	 *		arch_uprobe_analyze_insn().
+	 *
+	 *	ixol -	potentially modified instruction to execute out of
+	 *		line, copied to xol_area by xol_get_insn_slot().
+	 */
 	struct arch_uprobe	arch;
 };
 
@@ -86,6 +97,10 @@ struct return_instance {
 };
 
 /*
+ * Execute out of line area: anonymous executable mapping installed
+ * by the probed task to execute the copy of the original instruction
+ * mangled by set_swbp().
+ *
  * On a breakpoint hit, thread contests for a slot.  It frees the
  * slot after singlestep. Currently a fixed number of slots are
  * allocated.
