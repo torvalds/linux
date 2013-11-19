@@ -175,7 +175,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 #else
 	if (!msr) {
 		pr_info("!!!Your kernel not setup MSR instruction but ");
-		pr_cont"CPU have it %x\n", msr);
+		pr_cont("CPU have it %x\n", msr);
 	}
 #endif
 
