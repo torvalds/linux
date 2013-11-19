@@ -125,25 +125,17 @@ static const struct genl_ops ieee8021154_ops[] = {
 			ieee802154_dump_iface),
 };
 
+static const struct genl_multicast_group ieee802154_mcgrps[] = {
+	[IEEE802154_COORD_MCGRP] = { .name = IEEE802154_MCAST_COORD_NAME, },
+	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
+};
+
+
 int __init ieee802154_nl_init(void)
 {
-	int rc;
-
-	rc = genl_register_family_with_ops(&nl802154_family, ieee8021154_ops);
-	if (rc)
-		return rc;
-
-	rc = genl_register_mc_group(&nl802154_family, &ieee802154_coord_mcgrp);
-	if (rc)
-		goto fail;
-
-	rc = genl_register_mc_group(&nl802154_family, &ieee802154_beacon_mcgrp);
-	if (rc)
-		goto fail;
-	return 0;
-fail:
-	genl_unregister_family(&nl802154_family);
-	return rc;
+	return genl_register_family_with_ops_groups(&nl802154_family,
+						    ieee8021154_ops,
+						    ieee802154_mcgrps);
 }
 
 void __exit ieee802154_nl_exit(void)

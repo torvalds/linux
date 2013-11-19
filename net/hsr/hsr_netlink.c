@@ -90,8 +90,8 @@ static struct genl_family hsr_genl_family = {
 	.maxattr = HSR_A_MAX,
 };
 
-static struct genl_multicast_group hsr_network_genl_mcgrp = {
-	.name = "hsr-network",
+static const struct genl_multicast_group hsr_mcgrps[] = {
+	{ .name = "hsr-network", },
 };
 
 
@@ -129,8 +129,7 @@ void hsr_nl_ringerror(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN],
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(&hsr_genl_family, skb, 0,
-			  hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0, 0, GFP_ATOMIC);
 
 	return;
 
@@ -164,8 +163,7 @@ void hsr_nl_nodedown(struct hsr_priv *hsr_priv, unsigned char addr[ETH_ALEN])
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_multicast(&hsr_genl_family, skb, 0,
-			  hsr_network_genl_mcgrp.id, GFP_ATOMIC);
+	genlmsg_multicast(&hsr_genl_family, skb, 0, 0, GFP_ATOMIC);
 
 	return;
 
@@ -416,18 +414,13 @@ int __init hsr_netlink_init(void)
 	if (rc)
 		goto fail_rtnl_link_register;
 
-	rc = genl_register_family_with_ops(&hsr_genl_family, hsr_ops);
+	rc = genl_register_family_with_ops_groups(&hsr_genl_family, hsr_ops,
+						  hsr_mcgrps);
 	if (rc)
 		goto fail_genl_register_family;
 
-	rc = genl_register_mc_group(&hsr_genl_family, &hsr_network_genl_mcgrp);
-	if (rc)
-		goto fail_genl_register_mc_group;
-
 	return 0;
 
-fail_genl_register_mc_group:
-	genl_unregister_family(&hsr_genl_family);
 fail_genl_register_family:
 	rtnl_link_unregister(&hsr_link_ops);
 fail_rtnl_link_register:

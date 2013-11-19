@@ -86,7 +86,6 @@ void wimax_rfkill_rm(struct wimax_dev *);
 
 /* generic netlink */
 extern struct genl_family wimax_gnl_family;
-extern struct genl_multicast_group wimax_gnl_mcg;
 
 /* ops */
 int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info);

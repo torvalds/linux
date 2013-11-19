@@ -54,8 +54,10 @@ int ieee802154_dump_phy(struct sk_buff *skb, struct netlink_callback *cb);
 int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_del_iface(struct sk_buff *skb, struct genl_info *info);
 
-extern struct genl_multicast_group ieee802154_coord_mcgrp;
-extern struct genl_multicast_group ieee802154_beacon_mcgrp;
+enum ieee802154_mcgrp_ids {
+	IEEE802154_COORD_MCGRP,
+	IEEE802154_BEACON_MCGRP,
+};
 
 int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info);

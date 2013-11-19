@@ -35,15 +35,13 @@ static void dp_detach_port_notify(struct vport *vport)
 	ovs_dp_detach_port(vport);
 	if (IS_ERR(notify)) {
 		genl_set_err(&dp_vport_genl_family, ovs_dp_get_net(dp), 0,
-			     ovs_dp_vport_multicast_group.id,
-			     PTR_ERR(notify));
+			     0, PTR_ERR(notify));
 		return;
 	}
 
 	genlmsg_multicast_netns(&dp_vport_genl_family,
 				ovs_dp_get_net(dp), notify, 0,
-				ovs_dp_vport_multicast_group.id,
-				GFP_KERNEL);
+				0, GFP_KERNEL);
 }
 
 void ovs_dp_notify_wq(struct work_struct *work)

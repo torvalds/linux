@@ -116,8 +116,9 @@ struct sk_buff *wimax_gnl_re_state_change_alloc(
 		dev_err(dev, "RE_STCH: can't create message\n");
 		goto error_new;
 	}
-	data = genlmsg_put(report_skb, 0, wimax_gnl_mcg.id, &wimax_gnl_family,
-			   0, WIMAX_GNL_RE_STATE_CHANGE);
+	/* FIXME: sending a group ID as the seq is wrong */
+	data = genlmsg_put(report_skb, 0, wimax_gnl_family.mcgrp_offset,
+			   &wimax_gnl_family, 0, WIMAX_GNL_RE_STATE_CHANGE);
 	if (data == NULL) {
 		dev_err(dev, "RE_STCH: can't put data into message\n");
 		goto error_put;
@@ -177,8 +178,7 @@ int wimax_gnl_re_state_change_send(
 		goto out;
 	}
 	genlmsg_end(report_skb, header);
-	genlmsg_multicast(&wimax_gnl_family, report_skb, 0,
-			  wimax_gnl_mcg.id, GFP_KERNEL);
+	genlmsg_multicast(&wimax_gnl_family, report_skb, 0, 0, GFP_KERNEL);
 out:
 	d_fnend(3, dev, "(wimax_dev %p report_skb %p) = %d\n",
 		wimax_dev, report_skb, result);
@@ -580,8 +580,8 @@ struct genl_family wimax_gnl_family = {
 	.maxattr = WIMAX_GNL_ATTR_MAX,
 };
 
-struct genl_multicast_group wimax_gnl_mcg = {
-	.name = "msg",
+static const struct genl_multicast_group wimax_gnl_mcgrps[] = {
+	{ .name = "msg", },
 };
 
 
@@ -598,21 +598,18 @@ int __init wimax_subsys_init(void)
 
 	snprintf(wimax_gnl_family.name, sizeof(wimax_gnl_family.name),
 		 "WiMAX");
-	result = genl_register_family_with_ops(&wimax_gnl_family,
-					       wimax_gnl_ops);
+	result = genl_register_family_with_ops_groups(&wimax_gnl_family,
+						      wimax_gnl_ops,
+						      wimax_gnl_mcgrps);
 	if (unlikely(result < 0)) {
 		printk(KERN_ERR "cannot register generic netlink family: %d\n",
 		       result);
 		goto error_register_family;
 	}
 
-	result = genl_register_mc_group(&wimax_gnl_family, &wimax_gnl_mcg);
-	if (result < 0)
-		goto error_mc_group;
 	d_fnend(4, NULL, "() = 0\n");
 	return 0;
 
-error_mc_group:
 	genl_unregister_family(&wimax_gnl_family);
 error_register_family:
 	d_fnend(4, NULL, "() = %d\n", result);

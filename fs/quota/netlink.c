@@ -9,6 +9,10 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
+static const struct genl_multicast_group quota_mcgrps[] = {
+	{ .name = "events", },
+};
+
 /* Netlink family structure for quota */
 static struct genl_family quota_genl_family = {
 	/*
@@ -22,10 +26,8 @@ static struct genl_family quota_genl_family = {
 	.name = "VFS_DQUOT",
 	.version = 1,
 	.maxattr = QUOTA_NL_A_MAX,
-};
-
-static struct genl_multicast_group quota_mcgrp = {
-	.name = "events",
+	.mcgrps = quota_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(quota_mcgrps),
 };
 
 /**
@@ -88,7 +90,7 @@ void quota_send_warning(struct kqid qid, dev_t dev,
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
 
-	genlmsg_multicast(&quota_genl_family, skb, 0, quota_mcgrp.id, GFP_NOFS);
+	genlmsg_multicast(&quota_genl_family, skb, 0, 0, GFP_NOFS);
 	return;
 attr_err_out:
 	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");
@@ -102,9 +104,6 @@ static int __init quota_init(void)
 	if (genl_register_family(&quota_genl_family) != 0)
 		printk(KERN_ERR
 		       "VFS: Failed to create quota netlink interface.\n");
-	if (genl_register_mc_group(&quota_genl_family, &quota_mcgrp))
-		printk(KERN_ERR
-		       "VFS: Failed to register quota mcast group.\n");
 	return 0;
 };
 

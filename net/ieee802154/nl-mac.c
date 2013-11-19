@@ -39,14 +39,6 @@
 
 #include "ieee802154.h"
 
-struct genl_multicast_group ieee802154_coord_mcgrp = {
-	.name		= IEEE802154_MCAST_COORD_NAME,
-};
-
-struct genl_multicast_group ieee802154_beacon_mcgrp = {
-	.name		= IEEE802154_MCAST_BEACON_NAME,
-};
-
 int ieee802154_nl_assoc_indic(struct net_device *dev,
 		struct ieee802154_addr *addr, u8 cap)
 {
@@ -72,7 +64,7 @@ int ieee802154_nl_assoc_indic(struct net_device *dev,
 	    nla_put_u8(msg, IEEE802154_ATTR_CAPABILITY, cap))
 		goto nla_put_failure;
 
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -98,7 +90,7 @@ int ieee802154_nl_assoc_confirm(struct net_device *dev, u16 short_addr,
 	    nla_put_u16(msg, IEEE802154_ATTR_SHORT_ADDR, short_addr) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -133,7 +125,7 @@ int ieee802154_nl_disassoc_indic(struct net_device *dev,
 	}
 	if (nla_put_u8(msg, IEEE802154_ATTR_REASON, reason))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -157,7 +149,7 @@ int ieee802154_nl_disassoc_confirm(struct net_device *dev, u8 status)
 		    dev->dev_addr) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -183,7 +175,7 @@ int ieee802154_nl_beacon_indic(struct net_device *dev,
 	    nla_put_u16(msg, IEEE802154_ATTR_COORD_SHORT_ADDR, coord_addr) ||
 	    nla_put_u16(msg, IEEE802154_ATTR_COORD_PAN_ID, panid))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -214,7 +206,7 @@ int ieee802154_nl_scan_confirm(struct net_device *dev,
 	    (edl &&
 	     nla_put(msg, IEEE802154_ATTR_ED_LIST, 27, edl)))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
@@ -238,7 +230,7 @@ int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
 		    dev->dev_addr) ||
 	    nla_put_u8(msg, IEEE802154_ATTR_STATUS, status))
 		goto nla_put_failure;
-	return ieee802154_nl_mcast(msg, ieee802154_coord_mcgrp.id);
+	return ieee802154_nl_mcast(msg, IEEE802154_COORD_MCGRP);
 
 nla_put_failure:
 	nlmsg_free(msg);
