@@ -1,7 +1,7 @@
 /*
  * bq2415x charger driver
  *
- * Copyright (C) 2011-2012  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2011-2013  Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -170,6 +170,7 @@ struct bq2415x_device {
 	struct bq2415x_platform_data init_data;
 	struct power_supply charger;
 	struct delayed_work work;
+	struct notifier_block nb;
 	enum bq2415x_mode reported_mode;/* mode reported by hook function */
 	enum bq2415x_mode mode;		/* current configured mode */
 	enum bq2415x_chip chip;
@@ -795,24 +796,53 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 
 }
 
-/* hook function called by other driver which set reported mode */
-static void bq2415x_hook_function(enum bq2415x_mode mode, void *data)
+static int bq2415x_notifier_call(struct notifier_block *nb,
+		unsigned long val, void *v)
 {
-	struct bq2415x_device *bq = data;
+	struct bq2415x_device *bq =
+		container_of(nb, struct bq2415x_device, nb);
+	struct power_supply *psy = v;
+	enum bq2415x_mode mode;
+	union power_supply_propval prop;
+	int ret;
+	int mA;
 
-	if (!bq)
-		return;
+	if (val != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
 
-	dev_dbg(bq->dev, "hook function was called\n");
+	if (strcmp(psy->name, bq->init_data.notify_device) != 0)
+		return NOTIFY_OK;
+
+	dev_dbg(bq->dev, "notifier call was called\n");
+
+	ret = psy->get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
+	if (ret != 0)
+		return NOTIFY_OK;
+
+	mA = prop.intval;
+
+	if (mA == 0)
+		mode = BQ2415X_MODE_OFF;
+	else if (mA < 500)
+		mode = BQ2415X_MODE_NONE;
+	else if (mA < 1800)
+		mode = BQ2415X_MODE_HOST_CHARGER;
+	else
+		mode = BQ2415X_MODE_DEDICATED_CHARGER;
+
+	if (bq->reported_mode == mode)
+		return NOTIFY_OK;
+
 	bq->reported_mode = mode;
 
 	/* if automode is not enabled do not tell about reported_mode */
 	if (bq->automode < 1)
-		return;
+		return NOTIFY_OK;
 
 	sysfs_notify(&bq->charger.dev->kobj, NULL, "reported_mode");
 	bq2415x_set_mode(bq, bq->reported_mode);
 
+	return NOTIFY_OK;
 }
 
 /**** timer functions ****/
@@ -1512,6 +1542,7 @@ static int bq2415x_probe(struct i2c_client *client,
 	int num;
 	char *name;
 	struct bq2415x_device *bq;
+	struct power_supply *psy;
 
 	if (!client->dev.platform_data) {
 		dev_err(&client->dev, "platform data not set\n");
@@ -1573,16 +1604,27 @@ static int bq2415x_probe(struct i2c_client *client,
 		goto error_4;
 	}
 
-	if (bq->init_data.set_mode_hook) {
-		if (bq->init_data.set_mode_hook(
-				bq2415x_hook_function, bq)) {
-			bq->automode = 1;
-			bq2415x_set_mode(bq, bq->reported_mode);
-			dev_info(bq->dev, "automode enabled\n");
-		} else {
-			bq->automode = -1;
-			dev_info(bq->dev, "automode failed\n");
+	if (bq->init_data.notify_device) {
+		bq->nb.notifier_call = bq2415x_notifier_call;
+		ret = power_supply_reg_notifier(&bq->nb);
+		if (ret) {
+			dev_err(bq->dev, "failed to reg notifier: %d\n", ret);
+			goto error_5;
 		}
+		psy = power_supply_get_by_name(bq->init_data.notify_device);
+		if (psy) {
+			/* Query for initial reported_mode and set it */
+			bq2415x_notifier_call(&bq->nb,
+					PSY_EVENT_PROP_CHANGED, psy);
+			bq2415x_set_mode(bq, bq->reported_mode);
+		} else {
+			dev_info(bq->dev, "notifier power supply device (%s) "
+				"for automode is not registred yet... "
+				"automode will not work without that device\n",
+				bq->init_data.notify_device);
+		}
+		bq->automode = 1;
+		dev_info(bq->dev, "automode enabled\n");
 	} else {
 		bq->automode = -1;
 		dev_info(bq->dev, "automode not supported\n");
@@ -1594,6 +1636,7 @@ static int bq2415x_probe(struct i2c_client *client,
 	dev_info(bq->dev, "driver registered\n");
 	return 0;
 
+error_5:
 error_4:
 	bq2415x_sysfs_exit(bq);
 error_3:
@@ -1614,8 +1657,8 @@ static int bq2415x_remove(struct i2c_client *client)
 {
 	struct bq2415x_device *bq = i2c_get_clientdata(client);
 
-	if (bq->init_data.set_mode_hook)
-		bq->init_data.set_mode_hook(NULL, NULL);
+	if (bq->init_data.notify_device)
+		power_supply_unreg_notifier(&bq->nb);
 
 	bq2415x_sysfs_exit(bq);
 	bq2415x_power_supply_exit(bq);
