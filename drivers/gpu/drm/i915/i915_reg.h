@@ -3793,7 +3793,7 @@
 
 #define _SPACNTR		(VLV_DISPLAY_BASE + 0x72180)
 #define   SP_ENABLE			(1<<31)
-#define   SP_GEAMMA_ENABLE		(1<<30)
+#define   SP_GAMMA_ENABLE		(1<<30)
 #define   SP_PIXFORMAT_MASK		(0xf<<26)
 #define   SP_FORMAT_YUV422		(0<<26)
 #define   SP_FORMAT_BGR565		(5<<26)
