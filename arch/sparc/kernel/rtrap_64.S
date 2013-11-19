@@ -312,12 +312,10 @@ to_kernel:
 		 nop
 		cmp			%l4, 0
 		bne,pn			%xcc, kern_fpucheck
-		 sethi			%hi(PREEMPT_ACTIVE), %l6
-		stw			%l6, [%g6 + TI_PRE_COUNT]
-		call			schedule
+		 nop
+		call			preempt_schedule_irq
 		 nop
 		ba,pt			%xcc, rtrap
-		 stw			%g0, [%g6 + TI_PRE_COUNT]
 #endif
 kern_fpucheck:	ldub			[%g6 + TI_FPDEPTH], %l5
 		brz,pt			%l5, rt_continue
