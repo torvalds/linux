@@ -300,12 +300,13 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 
 static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 {
-	struct list_head *head, *this, *next;
+	struct list_head *head;
 	struct f2fs_orphan_block *orphan_blk = NULL;
 	struct page *page = NULL;
 	unsigned int nentries = 0;
 	unsigned short index = 1;
 	unsigned short orphan_blocks;
+	struct orphan_inode_entry *orphan = NULL;
 
 	orphan_blocks = (unsigned short)((sbi->n_orphans +
 		(F2FS_ORPHANS_PER_BLOCK - 1)) / F2FS_ORPHANS_PER_BLOCK);
@@ -314,12 +315,17 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 	head = &sbi->orphan_inode_list;
 
 	/* loop for each orphan inode entry and write them in Jornal block */
-	list_for_each_safe(this, next, head) {
-		struct orphan_inode_entry *orphan;
+	list_for_each_entry(orphan, head, list) {
+		if (!page) {
+			page = grab_meta_page(sbi, start_blk);
+			orphan_blk =
+				(struct f2fs_orphan_block *)page_address(page);
+			memset(orphan_blk, 0, sizeof(*orphan_blk));
+		}
 
-		orphan = list_entry(this, struct orphan_inode_entry, list);
+		orphan_blk->ino[nentries] = cpu_to_le32(orphan->ino);
 
-		if (nentries == F2FS_ORPHANS_PER_BLOCK) {
+		if (nentries++ == F2FS_ORPHANS_PER_BLOCK) {
 			/*
 			 * an orphan block is full of 1020 entries,
 			 * then we need to flush current orphan blocks
@@ -335,24 +341,16 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 			nentries = 0;
 			page = NULL;
 		}
-		if (page)
-			goto page_exist;
-
-		page = grab_meta_page(sbi, start_blk);
-		orphan_blk = (struct f2fs_orphan_block *)page_address(page);
-		memset(orphan_blk, 0, sizeof(*orphan_blk));
-page_exist:
-		orphan_blk->ino[nentries++] = cpu_to_le32(orphan->ino);
 	}
-	if (!page)
-		goto end;
 
-	orphan_blk->blk_addr = cpu_to_le16(index);
-	orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
-	orphan_blk->entry_count = cpu_to_le32(nentries);
-	set_page_dirty(page);
-	f2fs_put_page(page, 1);
-end:
+	if (page) {
+		orphan_blk->blk_addr = cpu_to_le16(index);
+		orphan_blk->blk_count = cpu_to_le16(orphan_blocks);
+		orphan_blk->entry_count = cpu_to_le32(nentries);
+		set_page_dirty(page);
+		f2fs_put_page(page, 1);
+	}
+
 	mutex_unlock(&sbi->orphan_inode_mutex);
 }
 
