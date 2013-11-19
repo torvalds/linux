@@ -606,7 +606,7 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	return true;
 }
 
-static inline int dec_valid_block_count(struct f2fs_sb_info *sbi,
+static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 						struct inode *inode,
 						blkcnt_t count)
 {
@@ -616,7 +616,6 @@ static inline int dec_valid_block_count(struct f2fs_sb_info *sbi,
 	inode->i_blocks -= count;
 	sbi->total_valid_block_count -= (block_t)count;
 	spin_unlock(&sbi->stat_lock);
-	return 0;
 }
 
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
