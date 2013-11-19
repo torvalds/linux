@@ -139,6 +139,7 @@
 #define ARIZONA_INPUT_ENABLES_STATUS             0x301
 #define ARIZONA_INPUT_RATE                       0x308
 #define ARIZONA_INPUT_VOLUME_RAMP                0x309
+#define ARIZONA_HPF_CONTROL                      0x30C
 #define ARIZONA_IN1L_CONTROL                     0x310
 #define ARIZONA_ADC_DIGITAL_VOLUME_1L            0x311
 #define ARIZONA_DMIC1L_CONTROL                   0x312
@@ -160,6 +161,7 @@
 #define ARIZONA_IN4L_CONTROL                     0x328
 #define ARIZONA_ADC_DIGITAL_VOLUME_4L            0x329
 #define ARIZONA_DMIC4L_CONTROL                   0x32A
+#define ARIZONA_IN4R_CONTROL                     0x32C
 #define ARIZONA_ADC_DIGITAL_VOLUME_4R            0x32D
 #define ARIZONA_DMIC4R_CONTROL                   0x32E
 #define ARIZONA_OUTPUT_ENABLES_1                 0x400
@@ -2293,8 +2295,18 @@
 #define ARIZONA_IN_VI_RAMP_WIDTH                      3  /* IN_VI_RAMP - [2:0] */
 
 /*
+ * R780 (0x30C) - HPF Control
+ */
+#define ARIZONA_IN_HPF_CUT_MASK                  0x0007  /* IN_HPF_CUT [2:0] */
+#define ARIZONA_IN_HPF_CUT_SHIFT                      0  /* IN_HPF_CUT [2:0] */
+#define ARIZONA_IN_HPF_CUT_WIDTH                      3  /* IN_HPF_CUT [2:0] */
+
+/*
  * R784 (0x310) - IN1L Control
  */
+#define ARIZONA_IN1L_HPF_MASK                    0x8000  /* IN1L_HPF - [15] */
+#define ARIZONA_IN1L_HPF_SHIFT                       15  /* IN1L_HPF - [15] */
+#define ARIZONA_IN1L_HPF_WIDTH                        1  /* IN1L_HPF - [15] */
 #define ARIZONA_IN1_OSR_MASK                     0x6000  /* IN1_OSR - [14:13] */
 #define ARIZONA_IN1_OSR_SHIFT                        13  /* IN1_OSR - [14:13] */
 #define ARIZONA_IN1_OSR_WIDTH                         2  /* IN1_OSR - [14:13] */
@@ -2333,6 +2345,9 @@
 /*
  * R788 (0x314) - IN1R Control
  */
+#define ARIZONA_IN1R_HPF_MASK                    0x8000  /* IN1R_HPF - [15] */
+#define ARIZONA_IN1R_HPF_SHIFT                       15  /* IN1R_HPF - [15] */
+#define ARIZONA_IN1R_HPF_WIDTH                        1  /* IN1R_HPF - [15] */
 #define ARIZONA_IN1R_PGA_VOL_MASK                0x00FE  /* IN1R_PGA_VOL - [7:1] */
 #define ARIZONA_IN1R_PGA_VOL_SHIFT                    1  /* IN1R_PGA_VOL - [7:1] */
 #define ARIZONA_IN1R_PGA_VOL_WIDTH                    7  /* IN1R_PGA_VOL - [7:1] */
@@ -2362,6 +2377,9 @@
 /*
  * R792 (0x318) - IN2L Control
  */
+#define ARIZONA_IN2L_HPF_MASK                    0x8000  /* IN2L_HPF - [15] */
+#define ARIZONA_IN2L_HPF_SHIFT                       15  /* IN2L_HPF - [15] */
+#define ARIZONA_IN2L_HPF_WIDTH                        1  /* IN2L_HPF - [15] */
 #define ARIZONA_IN2_OSR_MASK                     0x6000  /* IN2_OSR - [14:13] */
 #define ARIZONA_IN2_OSR_SHIFT                        13  /* IN2_OSR - [14:13] */
 #define ARIZONA_IN2_OSR_WIDTH                         2  /* IN2_OSR - [14:13] */
@@ -2400,6 +2418,9 @@
 /*
  * R796 (0x31C) - IN2R Control
  */
+#define ARIZONA_IN2R_HPF_MASK                    0x8000  /* IN2R_HPF - [15] */
+#define ARIZONA_IN2R_HPF_SHIFT                       15  /* IN2R_HPF - [15] */
+#define ARIZONA_IN2R_HPF_WIDTH                        1  /* IN2R_HPF - [15] */
 #define ARIZONA_IN2R_PGA_VOL_MASK                0x00FE  /* IN2R_PGA_VOL - [7:1] */
 #define ARIZONA_IN2R_PGA_VOL_SHIFT                    1  /* IN2R_PGA_VOL - [7:1] */
 #define ARIZONA_IN2R_PGA_VOL_WIDTH                    7  /* IN2R_PGA_VOL - [7:1] */
@@ -2429,6 +2450,9 @@
 /*
  * R800 (0x320) - IN3L Control
  */
+#define ARIZONA_IN3L_HPF_MASK                    0x8000  /* IN3L_HPF - [15] */
+#define ARIZONA_IN3L_HPF_SHIFT                       15  /* IN3L_HPF - [15] */
+#define ARIZONA_IN3L_HPF_WIDTH                        1  /* IN3L_HPF - [15] */
 #define ARIZONA_IN3_OSR_MASK                     0x6000  /* IN3_OSR - [14:13] */
 #define ARIZONA_IN3_OSR_SHIFT                        13  /* IN3_OSR - [14:13] */
 #define ARIZONA_IN3_OSR_WIDTH                         2  /* IN3_OSR - [14:13] */
@@ -2467,6 +2491,9 @@
 /*
  * R804 (0x324) - IN3R Control
  */
+#define ARIZONA_IN3R_HPF_MASK                    0x8000  /* IN3R_HPF - [15] */
+#define ARIZONA_IN3R_HPF_SHIFT                       15  /* IN3R_HPF - [15] */
+#define ARIZONA_IN3R_HPF_WIDTH                        1  /* IN3R_HPF - [15] */
 #define ARIZONA_IN3R_PGA_VOL_MASK                0x00FE  /* IN3R_PGA_VOL - [7:1] */
 #define ARIZONA_IN3R_PGA_VOL_SHIFT                    1  /* IN3R_PGA_VOL - [7:1] */
 #define ARIZONA_IN3R_PGA_VOL_WIDTH                    7  /* IN3R_PGA_VOL - [7:1] */
@@ -2496,6 +2523,9 @@
 /*
  * R808 (0x328) - IN4 Control
  */
+#define ARIZONA_IN4L_HPF_MASK                    0x8000  /* IN4L_HPF - [15] */
+#define ARIZONA_IN4L_HPF_SHIFT                       15  /* IN4L_HPF - [15] */
+#define ARIZONA_IN4L_HPF_WIDTH                        1  /* IN4L_HPF - [15] */
 #define ARIZONA_IN4_OSR_MASK                     0x6000  /* IN4_OSR - [14:13] */
 #define ARIZONA_IN4_OSR_SHIFT                        13  /* IN4_OSR - [14:13] */
 #define ARIZONA_IN4_OSR_WIDTH                         2  /* IN4_OSR - [14:13] */
@@ -2524,6 +2554,13 @@
 #define ARIZONA_IN4L_DMIC_DLY_MASK               0x003F  /* IN4L_DMIC_DLY - [5:0] */
 #define ARIZONA_IN4L_DMIC_DLY_SHIFT                   0  /* IN4L_DMIC_DLY - [5:0] */
 #define ARIZONA_IN4L_DMIC_DLY_WIDTH                   6  /* IN4L_DMIC_DLY - [5:0] */
+
+/*
+ * R812 (0x32C) - IN4R Control
+ */
+#define ARIZONA_IN4R_HPF_MASK                    0x8000  /* IN4R_HPF - [15] */
+#define ARIZONA_IN4R_HPF_SHIFT                       15  /* IN4R_HPF - [15] */
+#define ARIZONA_IN4R_HPF_WIDTH                        1  /* IN4R_HPF - [15] */
 
 /*
  * R813 (0x32D) - ADC Digital Volume 4R

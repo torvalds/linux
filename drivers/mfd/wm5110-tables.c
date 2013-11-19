@@ -518,6 +518,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000300, 0x0000 },    /* R768   - Input Enables */
 	{ 0x00000308, 0x0000 },    /* R776   - Input Rate */
 	{ 0x00000309, 0x0022 },    /* R777   - Input Volume Ramp */
+	{ 0x0000030C, 0x0002 },    /* R780   - HPF Control */
 	{ 0x00000310, 0x2080 },    /* R784   - IN1L Control */
 	{ 0x00000311, 0x0180 },    /* R785   - ADC Digital Volume 1L */
 	{ 0x00000312, 0x0000 },    /* R786   - DMIC1L Control */
@@ -539,6 +540,7 @@ static const struct reg_default wm5110_reg_default[] = {
 	{ 0x00000328, 0x2000 },    /* R808   - IN4L Control */
 	{ 0x00000329, 0x0180 },    /* R809   - ADC Digital Volume 4L */
 	{ 0x0000032A, 0x0000 },    /* R810   - DMIC4L Control */
+	{ 0x0000032C, 0x0000 },    /* R812   - IN4R Control */
 	{ 0x0000032D, 0x0180 },    /* R813   - ADC Digital Volume 4R */
 	{ 0x0000032E, 0x0000 },    /* R814   - DMIC4R Control */
 	{ 0x00000400, 0x0000 },    /* R1024  - Output Enables 1 */
@@ -1512,6 +1514,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INPUT_ENABLES_STATUS:
 	case ARIZONA_INPUT_RATE:
 	case ARIZONA_INPUT_VOLUME_RAMP:
+	case ARIZONA_HPF_CONTROL:
 	case ARIZONA_IN1L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_1L:
 	case ARIZONA_DMIC1L_CONTROL:
@@ -1533,6 +1536,7 @@ static bool wm5110_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_IN4L_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4L:
 	case ARIZONA_DMIC4L_CONTROL:
+	case ARIZONA_IN4R_CONTROL:
 	case ARIZONA_ADC_DIGITAL_VOLUME_4R:
 	case ARIZONA_DMIC4R_CONTROL:
 	case ARIZONA_OUTPUT_ENABLES_1:
