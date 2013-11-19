@@ -661,7 +661,6 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 err_cleanup:
 	aio_nr_sub(ctx->max_reqs);
 err:
-	aio_free_ring(ctx);
 	free_percpu(ctx->cpu);
 	free_percpu(ctx->reqs.pcpu_count);
 	free_percpu(ctx->users.pcpu_count);
