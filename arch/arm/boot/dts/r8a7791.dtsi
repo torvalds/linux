@@ -9,6 +9,9 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	compatible = "renesas,r8a7791";
 	interrupt-parent = <&gic>;
@@ -43,14 +46,14 @@
 			<0 0xf1002000 0 0x1000>,
 			<0 0xf1004000 0 0x2000>,
 			<0 0xf1006000 0 0x2000>;
-		interrupts = <1 9 0xf04>;
+		interrupts = <1 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	gpio0: gpio@ffc40000 {
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc40000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 4 0x4>;
+		interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 0 32>;
@@ -62,7 +65,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc41000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 5 0x4>;
+		interrupts = <0 5 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 32 32>;
@@ -74,7 +77,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc42000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 6 0x4>;
+		interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 64 32>;
@@ -86,7 +89,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc43000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 7 0x4>;
+		interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 96 32>;
@@ -98,7 +101,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc44000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 8 0x4>;
+		interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 128 32>;
@@ -110,7 +113,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc45000 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 9 0x4>;
+		interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 160 32>;
@@ -122,7 +125,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc45400 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 10 0x4>;
+		interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 192 32>;
@@ -134,7 +137,7 @@
 		compatible = "renesas,gpio-r8a7791", "renesas,gpio-rcar";
 		reg = <0 0xffc45800 0 0x50>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 11 0x4>;
+		interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		gpio-ranges = <&pfc 0 224 26>;
@@ -144,10 +147,10 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <1 13 0xf08>,
-				<1 14 0xf08>,
-				<1 11 0xf08>,
-				<1 10 0xf08>;
+		interrupts = <1 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <1 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <1 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <1 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
 	irqc0: interrupt-controller@e61c0000 {
@@ -156,16 +159,16 @@
 		interrupt-controller;
 		reg = <0 0xe61c0000 0 0x200>;
 		interrupt-parent = <&gic>;
-		interrupts = <0 0 4>,
-			      <0 1 4>,
-			      <0 2 4>,
-			      <0 3 4>,
-			      <0 12 4>,
-			      <0 13 4>,
-			      <0 14 4>,
-			      <0 15 4>,
-			      <0 16 4>,
-			      <0 17 4>;
+		interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 1 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 12 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 13 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 14 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 15 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 16 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 17 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pfc: pfc@e6060000 {
