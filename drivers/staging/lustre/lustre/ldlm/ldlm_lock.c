@@ -1129,6 +1129,11 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		if (lock == old_lock)
 			break;
 
+		/* Check if this lock can be matched.
+		 * Used by LU-2919(exclusive open) for open lease lock */
+		if (ldlm_is_excl(lock))
+			continue;
+
 		/* llite sometimes wants to match locks that will be
 		 * canceled when their users drop, but we allow it to match
 		 * if it passes in CBPENDING and the lock still has users.

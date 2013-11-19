@@ -35,7 +35,7 @@
 #ifndef LDLM_ALL_FLAGS_MASK
 
 /** l_flags bits marked as "all_flags" bits */
-#define LDLM_FL_ALL_FLAGS_MASK          0x007FFFFFC08F132FULL
+#define LDLM_FL_ALL_FLAGS_MASK          0x00FFFFFFC08F132FULL
 
 /** l_flags bits marked as "ast" bits */
 #define LDLM_FL_AST_MASK                0x0000000080000000ULL
@@ -53,7 +53,7 @@
 #define LDLM_FL_INHERIT_MASK            0x0000000000800000ULL
 
 /** l_flags bits marked as "local_only" bits */
-#define LDLM_FL_LOCAL_ONLY_MASK         0x007FFFFF00000000ULL
+#define LDLM_FL_LOCAL_ONLY_MASK         0x00FFFFFF00000000ULL
 
 /** l_flags bits marked as "on_wire" bits */
 #define LDLM_FL_ON_WIRE_MASK            0x00000000C08F132FULL
@@ -358,6 +358,12 @@
 #define ldlm_set_ns_srv(_l)             LDLM_SET_FLAG((  _l), 1ULL << 54)
 #define ldlm_clear_ns_srv(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 54)
 
+/** Flag whether this lock can be reused. Used by exclusive open. */
+#define LDLM_FL_EXCL                    0x0080000000000000ULL /* bit  55 */
+#define ldlm_is_excl(_l)                LDLM_TEST_FLAG((_l), 1ULL << 55)
+#define ldlm_set_excl(_l)               LDLM_SET_FLAG((_l), 1ULL << 55)
+#define ldlm_clear_excl(_l)             LDLM_CLEAR_FLAG((_l), 1ULL << 55)
+
 /** test for ldlm_lock flag bit set */
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
@@ -414,6 +420,7 @@ static int hf_lustre_ldlm_fl_server_lock         = -1;
 static int hf_lustre_ldlm_fl_res_locked          = -1;
 static int hf_lustre_ldlm_fl_waited              = -1;
 static int hf_lustre_ldlm_fl_ns_srv              = -1;
+static int hf_lustre_ldlm_fl_excl                = -1;
 
 const value_string lustre_ldlm_flags_vals[] = {
   {LDLM_FL_LOCK_CHANGED,        "LDLM_FL_LOCK_CHANGED"},
@@ -454,6 +461,7 @@ const value_string lustre_ldlm_flags_vals[] = {
   {LDLM_FL_RES_LOCKED,          "LDLM_FL_RES_LOCKED"},
   {LDLM_FL_WAITED,              "LDLM_FL_WAITED"},
   {LDLM_FL_NS_SRV,              "LDLM_FL_NS_SRV"},
+  {LDLM_FL_EXCL,                "LDLM_FL_EXCL"},
   { 0, NULL }
 };
 #endif /*  WIRESHARK_COMPILE */

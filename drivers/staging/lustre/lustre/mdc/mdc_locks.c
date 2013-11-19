@@ -75,6 +75,12 @@ EXPORT_SYMBOL(it_clear_disposition);
 
 int it_open_error(int phase, struct lookup_intent *it)
 {
+	if (it_disposition(it, DISP_OPEN_LEASE)) {
+		if (phase >= DISP_OPEN_LEASE)
+			return it->d.lustre.it_status;
+		else
+			return 0;
+	}
 	if (it_disposition(it, DISP_OPEN_OPEN)) {
 		if (phase >= DISP_OPEN_OPEN)
 			return it->d.lustre.it_status;
@@ -281,14 +287,21 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	/* XXX: openlock is not cancelled for cross-refs. */
 	/* If inode is known, cancel conflicting OPEN locks. */
 	if (fid_is_sane(&op_data->op_fid2)) {
-		if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
-			mode = LCK_CW;
+		if (it->it_flags & MDS_OPEN_LEASE) { /* try to get lease */
+			if (it->it_flags & FMODE_WRITE)
+				mode = LCK_EX;
+			else
+				mode = LCK_PR;
+		} else {
+			if (it->it_flags & (FMODE_WRITE|MDS_OPEN_TRUNC))
+				mode = LCK_CW;
 #ifdef FMODE_EXEC
-		else if (it->it_flags & FMODE_EXEC)
-			mode = LCK_PR;
+			else if (it->it_flags & FMODE_EXEC)
+				mode = LCK_PR;
 #endif
-		else
-			mode = LCK_CR;
+			else
+				mode = LCK_CR;
+		}
 		count = mdc_resource_get_unused(exp, &op_data->op_fid2,
 						&cancels, mode,
 						MDS_INODELOCK_OPEN);
@@ -1065,10 +1078,10 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	LASSERT(it);
 
 	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
-	       ", intent: %s flags %#o\n", op_data->op_namelen,
-	       op_data->op_name, PFID(&op_data->op_fid2),
-	       PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
-	       it->it_flags);
+		", intent: %s flags %#Lo\n", op_data->op_namelen,
+		op_data->op_name, PFID(&op_data->op_fid2),
+		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),
+		it->it_flags);
 
 	lockh.cookie = 0;
 	if (fid_is_sane(&op_data->op_fid2) &&
@@ -1194,9 +1207,10 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
 
-	CDEBUG(D_DLMTRACE,"name: %.*s in inode "DFID", intent: %s flags %#o\n",
-	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
-	       ldlm_it2str(it->it_op), it->it_flags);
+	CDEBUG(D_DLMTRACE,
+		"name: %.*s in inode "DFID", intent: %s flags %#Lo\n",
+		op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),
+		ldlm_it2str(it->it_op), it->it_flags);
 
 	fid_build_reg_res_name(&op_data->op_fid1, &res_id);
 	req = mdc_intent_getattr_pack(exp, it, op_data);

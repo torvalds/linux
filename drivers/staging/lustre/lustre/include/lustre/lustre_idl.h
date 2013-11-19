@@ -2120,6 +2120,7 @@ extern void lustre_swab_generic_32s (__u32 *val);
 #define DISP_ENQ_OPEN_REF    0x00800000
 #define DISP_ENQ_CREATE_REF  0x01000000
 #define DISP_OPEN_LOCK       0x02000000
+#define DISP_OPEN_LEASE      0x04000000
 
 /* INODE LOCK PARTS */
 #define MDS_INODELOCK_LOOKUP 0x000001       /* dentry, mode, owner, group */
@@ -2373,6 +2374,10 @@ extern void lustre_swab_mdt_rec_setattr (struct mdt_rec_setattr *sa);
 					      * hsm restore) */
 #define MDS_OPEN_VOLATILE   0400000000000ULL /* File is volatile = created
 						unlinked */
+#define MDS_OPEN_LEASE	   01000000000000ULL /* Open the file and grant lease
+					      * delegation, succeed if it's not
+					      * being opened with conflict mode.
+					      */
 
 /* permission for create non-directory file */
 #define MAY_CREATE      (1 << 7)
