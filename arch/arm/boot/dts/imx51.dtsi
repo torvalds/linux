@@ -82,6 +82,19 @@
 		};
 	};
 
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usbphy0: usbphy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+			clock-names = "main_clk";
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -201,13 +214,6 @@
 					bus-width = <4>;
 					status = "disabled";
 				};
-			};
-
-			usbphy0: usbphy@0 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
-				clock-names = "main_clk";
-				status = "okay";
 			};
 
 			usbotg: usb@73f80000 {
