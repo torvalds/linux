@@ -1284,18 +1284,18 @@ lstcon_test_add(char *name, int type, int loop, int concur,
 	}
 
 	memset(test, 0, offsetof(lstcon_test_t, tes_param[paramlen]));
-	test->tes_hdr.tsb_id    = batch->bat_hdr.tsb_id;
-	test->tes_batch	 = batch;
-	test->tes_type	  = type;
-	test->tes_oneside       = 0; /* TODO */
-	test->tes_loop	  = loop;
+	test->tes_hdr.tsb_id	= batch->bat_hdr.tsb_id;
+	test->tes_batch		= batch;
+	test->tes_type		= type;
+	test->tes_oneside	= 0; /* TODO */
+	test->tes_loop		= loop;
 	test->tes_concur	= concur;
-	test->tes_stop_onerr    = 1; /* TODO */
-	test->tes_span	  = span;
-	test->tes_dist	  = dist;
+	test->tes_stop_onerr	= 1; /* TODO */
+	test->tes_span		= span;
+	test->tes_dist		= dist;
 	test->tes_cliidx	= 0; /* just used for creating RPC */
-	test->tes_src_grp       = src_grp;
-	test->tes_dst_grp       = dst_grp;
+	test->tes_src_grp	= src_grp;
+	test->tes_dst_grp	= dst_grp;
 	INIT_LIST_HEAD(&test->tes_trans_list);
 
 	if (param != NULL) {
