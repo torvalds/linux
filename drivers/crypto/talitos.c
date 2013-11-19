@@ -790,7 +790,7 @@ static void ipsec_esp_unmap(struct device *dev,
 
 	if (edesc->assoc_chained)
 		talitos_unmap_sg_chain(dev, areq->assoc, DMA_TO_DEVICE);
-	else
+	else if (areq->assoclen)
 		/* assoc_nents counts also for IV in non-contiguous cases */
 		dma_unmap_sg(dev, areq->assoc,
 			     edesc->assoc_nents ? edesc->assoc_nents - 1 : 1,
@@ -973,7 +973,11 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 		dma_sync_single_for_device(dev, edesc->dma_link_tbl,
 					   edesc->dma_len, DMA_BIDIRECTIONAL);
 	} else {
-		to_talitos_ptr(&desc->ptr[1], sg_dma_address(areq->assoc));
+		if (areq->assoclen)
+			to_talitos_ptr(&desc->ptr[1],
+				       sg_dma_address(areq->assoc));
+		else
+			to_talitos_ptr(&desc->ptr[1], edesc->iv_dma);
 		desc->ptr[1].j_extent = 0;
 	}
 
@@ -1122,10 +1126,10 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (iv)
+	if (ivsize)
 		iv_dma = dma_map_single(dev, iv, ivsize, DMA_TO_DEVICE);
 
-	if (assoc) {
+	if (assoclen) {
 		/*
 		 * Currently it is assumed that iv is provided whenever assoc
 		 * is.
@@ -1173,9 +1177,16 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 
 	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
-		talitos_unmap_sg_chain(dev, assoc, DMA_TO_DEVICE);
+		if (assoc_chained)
+			talitos_unmap_sg_chain(dev, assoc, DMA_TO_DEVICE);
+		else if (assoclen)
+			dma_unmap_sg(dev, assoc,
+				     assoc_nents ? assoc_nents - 1 : 1,
+				     DMA_TO_DEVICE);
+
 		if (iv_dma)
 			dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
+
 		dev_err(dev, "could not allocate edescriptor\n");
 		return ERR_PTR(-ENOMEM);
 	}
