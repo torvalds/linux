@@ -65,8 +65,12 @@ static struct list_head family_ht[GENL_FAM_TAB_SIZE];
  * To avoid an allocation at boot of just one unsigned long,
  * declare it global instead.
  * Bit 0 is marked as already used since group 0 is invalid.
+ * Bit 1 is marked as already used since the drop-monitor code
+ * abuses the API and thinks it can statically use group 1.
+ * That group will typically conflict with other groups that
+ * any proper users use.
  */
-static unsigned long mc_group_start = 0x1;
+static unsigned long mc_group_start = 0x3;
 static unsigned long *mc_groups = &mc_group_start;
 static unsigned long mc_groups_longs = 1;
 
@@ -160,9 +164,11 @@ int genl_register_mc_group(struct genl_family *family,
 
 	genl_lock_all();
 
-	/* special-case our own group */
+	/* special-case our own group and hacks */
 	if (grp == &notify_grp)
 		id = GENL_ID_CTRL;
+	else if (strcmp(family->name, "NET_DM") == 0)
+		id = 1;
 	else
 		id = find_first_zero_bit(mc_groups,
 					 mc_groups_longs * BITS_PER_LONG);
@@ -245,7 +251,8 @@ static void __genl_unregister_mc_group(struct genl_family *family,
 	rcu_read_unlock();
 	netlink_table_ungrab();
 
-	clear_bit(grp->id, mc_groups);
+	if (grp->id != 1)
+		clear_bit(grp->id, mc_groups);
 	list_del(&grp->list);
 	genl_ctrl_event(CTRL_CMD_DELMCAST_GRP, grp);
 	grp->id = 0;
