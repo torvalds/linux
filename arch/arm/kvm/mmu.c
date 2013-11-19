@@ -916,9 +916,9 @@ int kvm_mmu_init(void)
 {
 	int err;
 
-	hyp_idmap_start = virt_to_phys(__hyp_idmap_text_start);
-	hyp_idmap_end = virt_to_phys(__hyp_idmap_text_end);
-	hyp_idmap_vector = virt_to_phys(__kvm_hyp_init);
+	hyp_idmap_start = kvm_virt_to_phys(__hyp_idmap_text_start);
+	hyp_idmap_end = kvm_virt_to_phys(__hyp_idmap_text_end);
+	hyp_idmap_vector = kvm_virt_to_phys(__kvm_hyp_init);
 
 	if ((hyp_idmap_start ^ hyp_idmap_end) & PAGE_MASK) {
 		/*
@@ -945,7 +945,7 @@ int kvm_mmu_init(void)
 		 */
 		kvm_flush_dcache_to_poc(init_bounce_page, len);
 
-		phys_base = virt_to_phys(init_bounce_page);
+		phys_base = kvm_virt_to_phys(init_bounce_page);
 		hyp_idmap_vector += phys_base - hyp_idmap_start;
 		hyp_idmap_start = phys_base;
 		hyp_idmap_end = phys_base + len;
