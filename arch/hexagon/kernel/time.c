@@ -229,6 +229,15 @@ void __init time_init(void)
 	late_time_init = time_init_deferred;
 }
 
+void __delay(unsigned long cycles)
+{
+	unsigned long long start = __vmgettime();
+
+	while ((__vmgettime() - start) < cycles)
+		cpu_relax();
+}
+EXPORT_SYMBOL(__delay);
+
 /*
  * This could become parametric or perhaps even computed at run-time,
  * but for now we take the observed simulator jitter.
