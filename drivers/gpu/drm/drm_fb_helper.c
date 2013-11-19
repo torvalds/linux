@@ -331,6 +331,10 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
 
+		/* NOTE: we use lockless flag below to avoid grabbing other
+		 * modeset locks.  So just trylock the underlying mutex
+		 * directly:
+		 */
 		if (!mutex_trylock(&dev->mode_config.mutex)) {
 			error = true;
 			continue;

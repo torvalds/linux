@@ -55,7 +55,7 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 	int scanline, min, max, vblank_start;
 	DEFINE_WAIT(wait);
 
-	WARN_ON(!mutex_is_locked(&crtc->base.mutex));
+	WARN_ON(!drm_modeset_is_locked(&crtc->base.mutex));
 
 	vblank_start = mode->crtc_vblank_start;
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)

@@ -876,12 +876,12 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 	struct intel_connector *connector = bl_get_data(bd);
 	struct drm_device *dev = connector->base.dev;
 
-	mutex_lock(&dev->mode_config.connection_mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	DRM_DEBUG_KMS("updating intel_backlight, brightness=%d/%d\n",
 		      bd->props.brightness, bd->props.max_brightness);
 	intel_panel_set_backlight(connector, bd->props.brightness,
 				  bd->props.max_brightness);
-	mutex_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 	return 0;
 }
 
@@ -893,9 +893,9 @@ static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 	int ret;
 
 	intel_runtime_pm_get(dev_priv);
-	mutex_lock(&dev->mode_config.connection_mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	ret = intel_panel_get_backlight(connector);
-	mutex_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 	intel_runtime_pm_put(dev_priv);
 
 	return ret;

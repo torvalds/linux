@@ -1186,11 +1186,6 @@ static inline int drm_device_is_unplugged(struct drm_device *dev)
 	return ret;
 }
 
-static inline bool drm_modeset_is_locked(struct drm_device *dev)
-{
-	return mutex_is_locked(&dev->mode_config.mutex);
-}
-
 static inline bool drm_is_render_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_RENDER;

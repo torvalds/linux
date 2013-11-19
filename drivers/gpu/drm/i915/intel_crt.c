@@ -630,6 +630,7 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	enum intel_display_power_domain power_domain;
 	enum drm_connector_status status;
 	struct intel_load_detect_pipe tmp;
+	struct drm_modeset_acquire_ctx ctx;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -673,12 +674,12 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	}
 
 	/* for pre-945g platforms use load detect */
-	if (intel_get_load_detect_pipe(connector, NULL, &tmp)) {
+	if (intel_get_load_detect_pipe(connector, NULL, &tmp, &ctx)) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(connector, &tmp);
+		intel_release_load_detect_pipe(connector, &tmp, &ctx);
 	} else
 		status = connector_status_unknown;
 

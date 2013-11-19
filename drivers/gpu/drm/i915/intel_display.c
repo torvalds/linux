@@ -2576,7 +2576,7 @@ void intel_display_handle_reset(struct drm_device *dev)
 	for_each_crtc(dev, crtc) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-		mutex_lock(&crtc->mutex);
+		drm_modeset_lock(&crtc->mutex, NULL);
 		/*
 		 * FIXME: Once we have proper support for primary planes (and
 		 * disabling them without disabling the entire crtc) allow again
@@ -2587,7 +2587,7 @@ void intel_display_handle_reset(struct drm_device *dev)
 							       crtc->primary->fb,
 							       crtc->x,
 							       crtc->y);
-		mutex_unlock(&crtc->mutex);
+		drm_modeset_unlock(&crtc->mutex);
 	}
 }
 
@@ -8307,7 +8307,8 @@ mode_fits_in_fbdev(struct drm_device *dev,
 
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
-				struct intel_load_detect_pipe *old)
+				struct intel_load_detect_pipe *old,
+				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_crtc *intel_crtc;
 	struct intel_encoder *intel_encoder =
@@ -8317,13 +8318,19 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
 	struct drm_framebuffer *fb;
-	int i = -1;
+	struct drm_mode_config *config = &dev->mode_config;
+	int ret, i = -1;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
 		      encoder->base.id, encoder->name);
 
-	mutex_lock(&dev->mode_config.connection_mutex);
+	drm_modeset_acquire_init(ctx, 0);
+
+retry:
+	ret = drm_modeset_lock(&config->connection_mutex, ctx);
+	if (ret)
+		goto fail_unlock;
 
 	/*
 	 * Algorithm gets a little messy:
@@ -8339,7 +8346,9 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
 
-		mutex_lock(&crtc->mutex);
+		ret = drm_modeset_lock(&crtc->mutex, ctx);
+		if (ret)
+			goto fail_unlock;
 
 		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
@@ -8367,10 +8376,12 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	 */
 	if (!crtc) {
 		DRM_DEBUG_KMS("no pipe available for load-detect\n");
-		goto fail_unlock_connector;
+		goto fail_unlock;
 	}
 
-	mutex_lock(&crtc->mutex);
+	ret = drm_modeset_lock(&crtc->mutex, ctx);
+	if (ret)
+		goto fail_unlock;
 	intel_encoder->new_crtc = to_intel_crtc(crtc);
 	to_intel_connector(connector)->new_encoder = intel_encoder;
 
@@ -8420,15 +8431,21 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		intel_crtc->new_config = &intel_crtc->config;
 	else
 		intel_crtc->new_config = NULL;
-	mutex_unlock(&crtc->mutex);
-fail_unlock_connector:
-	mutex_unlock(&dev->mode_config.connection_mutex);
+fail_unlock:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(ctx);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(ctx);
+	drm_modeset_acquire_fini(ctx);
 
 	return false;
 }
 
 void intel_release_load_detect_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old)
+				    struct intel_load_detect_pipe *old,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
@@ -8452,8 +8469,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 			drm_framebuffer_unreference(old->release_fb);
 		}
 
-		mutex_unlock(&crtc->mutex);
-		mutex_unlock(&connector->dev->mode_config.connection_mutex);
+		goto unlock;
 		return;
 	}
 
@@ -8461,8 +8477,9 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	if (old->dpms_mode != DRM_MODE_DPMS_ON)
 		connector->funcs->dpms(connector, old->dpms_mode);
 
-	mutex_unlock(&crtc->mutex);
-	mutex_unlock(&connector->dev->mode_config.connection_mutex);
+unlock:
+	drm_modeset_drop_locks(ctx);
+	drm_modeset_acquire_fini(ctx);
 }
 
 static int i9xx_pll_refclk(struct drm_device *dev,
@@ -10995,7 +11012,7 @@ enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
 	struct drm_encoder *encoder = connector->base.encoder;
 	struct drm_device *dev = connector->base.dev;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.connection_mutex));
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
 	if (!encoder)
 		return INVALID_PIPE;
@@ -11805,6 +11822,7 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	struct intel_connector *connector;
 	struct drm_connector *crt = NULL;
 	struct intel_load_detect_pipe load_detect_temp;
+	struct drm_modeset_acquire_ctx ctx;
 
 	/* We can't just switch on the pipe A, we need to set things up with a
 	 * proper mode and output configuration. As a gross hack, enable pipe A
@@ -11821,8 +11839,8 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	if (!crt)
 		return;
 
-	if (intel_get_load_detect_pipe(crt, NULL, &load_detect_temp))
-		intel_release_load_detect_pipe(crt, &load_detect_temp);
+	if (intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, &ctx))
+		intel_release_load_detect_pipe(crt, &load_detect_temp, &ctx);
 
 
 }

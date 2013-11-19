@@ -33,6 +33,7 @@
 #include <linux/hdmi.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_modeset_lock.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -205,6 +206,10 @@ struct drm_property {
 	struct list_head enum_blob_list;
 };
 
+void drm_modeset_lock_all(struct drm_device *dev);
+void drm_modeset_unlock_all(struct drm_device *dev);
+void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
+
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
@@ -280,6 +285,7 @@ struct drm_crtc_funcs {
  * drm_crtc - central CRTC control structure
  * @dev: parent DRM device
  * @head: list management
+ * @mutex: per-CRTC locking
  * @base: base KMS object for ID tracking etc.
  * @primary: primary plane for this CRTC
  * @cursor: cursor plane for this CRTC
@@ -314,7 +320,7 @@ struct drm_crtc {
 	 * state, ...) and a write lock for everything which can be update
 	 * without a full modeset (fb, cursor data, ...)
 	 */
-	struct mutex mutex;
+	struct drm_modeset_lock mutex;
 
 	struct drm_mode_object base;
 
@@ -738,7 +744,8 @@ struct drm_mode_group {
  */
 struct drm_mode_config {
 	struct mutex mutex; /* protects configuration (mode lists etc.) */
-	struct mutex connection_mutex; /* protects connector->encoder and encoder->crtc links */
+	struct drm_modeset_lock connection_mutex; /* protects connector->encoder and encoder->crtc links */
+	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
 	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
@@ -838,10 +845,6 @@ struct drm_prop_enum_list {
 	int type;
 	char *name;
 };
-
-extern void drm_modeset_lock_all(struct drm_device *dev);
-extern void drm_modeset_unlock_all(struct drm_device *dev);
-extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
 extern int drm_crtc_init_with_planes(struct drm_device *dev,
 				     struct drm_crtc *crtc,
