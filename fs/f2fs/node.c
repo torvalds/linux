@@ -803,29 +803,25 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
  * Caller should grab and release a mutex by calling mutex_lock_op() and
  * mutex_unlock_op().
  */
-int remove_inode_page(struct inode *inode)
+void remove_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 	nid_t ino = inode->i_ino;
 	struct dnode_of_data dn;
-	int err;
 
 	page = get_node_page(sbi, ino);
 	if (IS_ERR(page))
-		return PTR_ERR(page);
+		return;
 
-	err = truncate_xattr_node(inode, page);
-	if (err) {
+	if (truncate_xattr_node(inode, page)) {
 		f2fs_put_page(page, 1);
-		return err;
+		return;
 	}
-
 	/* 0 is possible, after f2fs_new_inode() is failed */
 	f2fs_bug_on(inode->i_blocks != 0 && inode->i_blocks != 1);
 	set_new_dnode(&dn, inode, page, page, ino);
 	truncate_node(&dn);
-	return 0;
 }
 
 struct page *new_inode_page(struct inode *inode, const struct qstr *name)
