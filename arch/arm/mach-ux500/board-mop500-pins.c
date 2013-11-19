@@ -10,7 +10,6 @@
 #include <linux/string.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/mach-types.h>
 
@@ -22,28 +21,6 @@
 BIAS(abx500_out_lo, PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0));
 BIAS(abx500_in_pd, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 1));
 BIAS(abx500_in_nopull, PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_DOWN, 0));
-
-/* We use these to define hog settings that are always done on boot */
-#define DB8500_MUX_HOG(group,func) \
-	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-db8500", group, func)
-#define DB8500_PIN_HOG(pin,conf) \
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-db8500", pin, conf)
-
-/* These are default states associated with device and changed runtime */
-#define DB8500_MUX(group,func,dev) \
-	PIN_MAP_MUX_GROUP_DEFAULT(dev, "pinctrl-db8500", group, func)
-#define DB8500_PIN(pin,conf,dev) \
-	PIN_MAP_CONFIGS_PIN_DEFAULT(dev, "pinctrl-db8500", pin, conf)
-#define DB8500_PIN_IDLE(pin, conf, dev) \
-	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_IDLE, "pinctrl-db8500",	\
-			    pin, conf)
-#define DB8500_PIN_SLEEP(pin, conf, dev) \
-	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
-			    pin, conf)
-#define DB8500_MUX_STATE(group, func, dev, state) \
-	PIN_MAP_MUX_GROUP(dev, state, "pinctrl-db8500", group, func)
-#define DB8500_PIN_STATE(pin, conf, dev, state) \
-	PIN_MAP_CONFIGS_PIN(dev, state, "pinctrl-db8500", pin, conf)
 
 #define AB8500_MUX_HOG(group, func) \
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-ab8500.0", group, func)
