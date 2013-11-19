@@ -361,6 +361,12 @@ enum page_type {
 	META_FLUSH,
 };
 
+struct f2fs_bio_info {
+	struct bio *bio;		/* bios to merge */
+	sector_t last_block_in_bio;	/* last block number */
+	struct mutex io_mutex;		/* mutex for bio */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -374,9 +380,9 @@ struct f2fs_sb_info {
 
 	/* for segment-related operations */
 	struct f2fs_sm_info *sm_info;		/* segment manager */
-	struct bio *bio[NR_PAGE_TYPE];		/* bios to merge */
-	sector_t last_block_in_bio[NR_PAGE_TYPE];	/* last block number */
-	struct mutex write_mutex[NR_PAGE_TYPE];	/* mutex for writing IOs */
+
+	/* for bio operations */
+	struct f2fs_bio_info write_io[NR_PAGE_TYPE];	/* for write bios */
 
 	/* for checkpoint */
 	struct f2fs_checkpoint *ckpt;		/* raw checkpoint pointer */

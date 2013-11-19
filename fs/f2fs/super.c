@@ -879,7 +879,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	spin_lock_init(&sbi->stat_lock);
 
 	for (i = 0; i < NR_PAGE_TYPE; i++)
-		mutex_init(&sbi->write_mutex[i]);
+		mutex_init(&sbi->write_io[i].io_mutex);
 
 	init_rwsem(&sbi->cp_rwsem);
 	init_waitqueue_head(&sbi->cp_wait);

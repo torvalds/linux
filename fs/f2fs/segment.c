@@ -836,65 +836,65 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 {
 	int rw = sync ? WRITE_SYNC : WRITE;
 	enum page_type btype = PAGE_TYPE_OF_BIO(type);
-	struct bio *bio = sbi->bio[btype];
+	struct f2fs_bio_info *io = &sbi->write_io[btype];
 	struct bio_private *p;
 
-	if (!bio)
+	if (!io->bio)
 		return;
-
-	sbi->bio[btype] = NULL;
 
 	if (type >= META_FLUSH)
 		rw = WRITE_FLUSH_FUA;
 	if (btype == META)
 		rw |= REQ_META;
 
-	p = bio->bi_private;
+	p = io->bio->bi_private;
 	p->sbi = sbi;
-	bio->bi_end_io = f2fs_end_io_write;
+	io->bio->bi_end_io = f2fs_end_io_write;
 
-	trace_f2fs_do_submit_bio(sbi->sb, btype, sync, bio);
+	trace_f2fs_do_submit_bio(sbi->sb, btype, sync, io->bio);
 
 	if (type == META_FLUSH) {
 		DECLARE_COMPLETION_ONSTACK(wait);
 		p->is_sync = true;
 		p->wait = &wait;
-		submit_bio(rw, bio);
+		submit_bio(rw, io->bio);
 		wait_for_completion(&wait);
 	} else {
 		p->is_sync = false;
-		submit_bio(rw, bio);
+		submit_bio(rw, io->bio);
 	}
+	io->bio = NULL;
 }
 
 void f2fs_submit_bio(struct f2fs_sb_info *sbi, enum page_type type, bool sync)
 {
-	enum page_type btype = PAGE_TYPE_OF_BIO(type);
+	struct f2fs_bio_info *io = &sbi->write_io[PAGE_TYPE_OF_BIO(type)];
 
-	if (!sbi->bio[btype])
+	if (!io->bio)
 		return;
 
-	mutex_lock(&sbi->write_mutex[btype]);
+	mutex_lock(&io->io_mutex);
 	do_submit_bio(sbi, type, sync);
-	mutex_unlock(&sbi->write_mutex[btype]);
+	mutex_unlock(&io->io_mutex);
 }
 
 static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 				block_t blk_addr, enum page_type type)
 {
 	struct block_device *bdev = sbi->sb->s_bdev;
+	struct f2fs_bio_info *io = &sbi->write_io[type];
 	int bio_blocks;
 
 	verify_block_addr(sbi, blk_addr);
 
-	mutex_lock(&sbi->write_mutex[type]);
+	mutex_lock(&io->io_mutex);
 
 	inc_page_count(sbi, F2FS_WRITEBACK);
 
-	if (sbi->bio[type] && sbi->last_block_in_bio[type] != blk_addr - 1)
+	if (io->bio && io->last_block_in_bio != blk_addr - 1)
 		do_submit_bio(sbi, type, false);
 alloc_new:
-	if (sbi->bio[type] == NULL) {
+	if (io->bio == NULL) {
 		struct bio_private *priv;
 retry:
 		priv = kmalloc(sizeof(struct bio_private), GFP_NOFS);
@@ -904,9 +904,9 @@ retry:
 		}
 
 		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
-		sbi->bio[type] = f2fs_bio_alloc(bdev, bio_blocks);
-		sbi->bio[type]->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
-		sbi->bio[type]->bi_private = priv;
+		io->bio = f2fs_bio_alloc(bdev, bio_blocks);
+		io->bio->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
+		io->bio->bi_private = priv;
 		/*
 		 * The end_io will be assigned at the sumbission phase.
 		 * Until then, let bio_add_page() merge consecutive IOs as much
@@ -914,15 +914,15 @@ retry:
 		 */
 	}
 
-	if (bio_add_page(sbi->bio[type], page, PAGE_CACHE_SIZE, 0) <
+	if (bio_add_page(io->bio, page, PAGE_CACHE_SIZE, 0) <
 							PAGE_CACHE_SIZE) {
 		do_submit_bio(sbi, type, false);
 		goto alloc_new;
 	}
 
-	sbi->last_block_in_bio[type] = blk_addr;
+	io->last_block_in_bio = blk_addr;
 
-	mutex_unlock(&sbi->write_mutex[type]);
+	mutex_unlock(&io->io_mutex);
 	trace_f2fs_submit_write_page(page, blk_addr, type);
 }
 
