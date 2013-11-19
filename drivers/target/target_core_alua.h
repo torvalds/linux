@@ -23,6 +23,17 @@
 #define ALUA_ACCESS_STATE_TRANSITION		0xf
 
 /*
+ * from spc4r36j section 6.37 Table 306
+ */
+#define ALUA_T_SUP		0x80
+#define ALUA_O_SUP		0x40
+#define ALUA_LBD_SUP		0x10
+#define ALUA_U_SUP		0x08
+#define ALUA_S_SUP		0x04
+#define ALUA_AN_SUP		0x02
+#define ALUA_AO_SUP		0x01
+
+/*
  * REPORT_TARGET_PORT_GROUP STATUS CODE
  *
  * from spc4r17 section 6.27 Table 246

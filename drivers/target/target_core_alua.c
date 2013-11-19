@@ -117,12 +117,7 @@ target_emulate_report_target_port_groups(struct se_cmd *cmd)
 		/*
 		 * Set supported ASYMMETRIC ACCESS State bits
 		 */
-		buf[off] = 0x80; /* T_SUP */
-		buf[off] |= 0x40; /* O_SUP */
-		buf[off] |= 0x8; /* U_SUP */
-		buf[off] |= 0x4; /* S_SUP */
-		buf[off] |= 0x2; /* AN_SUP */
-		buf[off++] |= 0x1; /* AO_SUP */
+		buf[off++] |= tg_pt_gp->tg_pt_gp_alua_supported_states;
 		/*
 		 * TARGET PORT GROUP
 		 */
@@ -1366,6 +1361,13 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	tg_pt_gp->tg_pt_gp_nonop_delay_msecs = ALUA_DEFAULT_NONOP_DELAY_MSECS;
 	tg_pt_gp->tg_pt_gp_trans_delay_msecs = ALUA_DEFAULT_TRANS_DELAY_MSECS;
 	tg_pt_gp->tg_pt_gp_implicit_trans_secs = ALUA_DEFAULT_IMPLICIT_TRANS_SECS;
+
+	/*
+	 * Enable all supported states
+	 */
+	tg_pt_gp->tg_pt_gp_alua_supported_states =
+	    ALUA_T_SUP | ALUA_O_SUP |
+	    ALUA_U_SUP | ALUA_S_SUP | ALUA_AN_SUP | ALUA_AO_SUP;
 
 	if (def_group) {
 		spin_lock(&dev->t10_alua.tg_pt_gps_lock);
