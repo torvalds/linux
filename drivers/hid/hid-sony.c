@@ -33,11 +33,11 @@
 
 #include "hid-ids.h"
 
-#define VAIO_RDESC_CONSTANT     (1 << 0)
-#define SIXAXIS_CONTROLLER_USB  (1 << 1)
-#define SIXAXIS_CONTROLLER_BT   (1 << 2)
-#define BUZZ_CONTROLLER         (1 << 3)
-#define PS3REMOTE		(1 << 4)
+#define VAIO_RDESC_CONSTANT     BIT(0)
+#define SIXAXIS_CONTROLLER_USB  BIT(1)
+#define SIXAXIS_CONTROLLER_BT   BIT(2)
+#define BUZZ_CONTROLLER         BIT(3)
+#define PS3REMOTE		BIT(4)
 
 static const u8 sixaxis_rdesc_fixup[] = {
 	0x95, 0x13, 0x09, 0x01, 0x81, 0x02, 0x95, 0x0C,
