@@ -4842,14 +4842,19 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	    time_after(jiffies, conf->reshape_checkpoint + 10*HZ)) {
 		/* Cannot proceed until we've updated the superblock... */
 		wait_event(conf->wait_for_overlap,
-			   atomic_read(&conf->reshape_stripes)==0);
+			   atomic_read(&conf->reshape_stripes)==0
+			   || test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (atomic_read(&conf->reshape_stripes) != 0)
+			return 0;
 		mddev->reshape_position = conf->reshape_progress;
 		mddev->curr_resync_completed = sector_nr;
 		conf->reshape_checkpoint = jiffies;
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
 		wait_event(mddev->sb_wait, mddev->flags == 0 ||
-			   kthread_should_stop());
+			   test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+			return 0;
 		spin_lock_irq(&conf->device_lock);
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
@@ -4932,7 +4937,10 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 	    >= mddev->resync_max - mddev->curr_resync_completed) {
 		/* Cannot proceed until we've updated the superblock... */
 		wait_event(conf->wait_for_overlap,
-			   atomic_read(&conf->reshape_stripes) == 0);
+			   atomic_read(&conf->reshape_stripes) == 0
+			   || test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (atomic_read(&conf->reshape_stripes) != 0)
+			goto ret;
 		mddev->reshape_position = conf->reshape_progress;
 		mddev->curr_resync_completed = sector_nr;
 		conf->reshape_checkpoint = jiffies;
@@ -4940,13 +4948,16 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr, int *sk
 		md_wakeup_thread(mddev->thread);
 		wait_event(mddev->sb_wait,
 			   !test_bit(MD_CHANGE_DEVS, &mddev->flags)
-			   || kthread_should_stop());
+			   || test_bit(MD_RECOVERY_INTR, &mddev->recovery));
+		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery))
+			goto ret;
 		spin_lock_irq(&conf->device_lock);
 		conf->reshape_safe = mddev->reshape_position;
 		spin_unlock_irq(&conf->device_lock);
 		wake_up(&conf->wait_for_overlap);
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	}
+ret:
 	return reshape_sectors;
 }
 
