@@ -82,6 +82,7 @@ void hibernation_set_ops(const struct platform_hibernation_ops *ops)
 
 	unlock_system_sleep();
 }
+EXPORT_SYMBOL_GPL(hibernation_set_ops);
 
 static bool entering_platform_hibernation;
 
