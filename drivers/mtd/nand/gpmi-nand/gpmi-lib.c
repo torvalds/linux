@@ -1128,10 +1128,8 @@ int gpmi_send_command(struct gpmi_nand_data *this)
 	desc = dmaengine_prep_slave_sg(channel,
 					(struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE, 0);
-	if (!desc) {
-		pr_err("step 1 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [2] send out the COMMAND + ADDRESS string stored in @buffer */
 	sgl = &this->cmd_sgl;
@@ -1141,11 +1139,8 @@ int gpmi_send_command(struct gpmi_nand_data *this)
 	desc = dmaengine_prep_slave_sg(channel,
 				sgl, 1, DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-
-	if (!desc) {
-		pr_err("step 2 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [3] submit the DMA */
 	set_dma_type(this, DMA_FOR_COMMAND);
@@ -1174,20 +1169,17 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 	pio[1] = 0;
 	desc = dmaengine_prep_slave_sg(channel, (struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE, 0);
-	if (!desc) {
-		pr_err("step 1 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [2] send DMA request */
 	prepare_data_dma(this, DMA_TO_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		pr_err("step 2 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
+
 	/* [3] submit the DMA */
 	set_dma_type(this, DMA_FOR_WRITE_DATA);
 	return start_dma_without_bch_irq(this, desc);
@@ -1211,20 +1203,16 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 	desc = dmaengine_prep_slave_sg(channel,
 					(struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE, 0);
-	if (!desc) {
-		pr_err("step 1 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [2] : send DMA request */
 	prepare_data_dma(this, DMA_FROM_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		pr_err("step 2 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [3] : submit the DMA */
 	set_dma_type(this, DMA_FOR_READ_DATA);
@@ -1269,10 +1257,9 @@ int gpmi_send_page(struct gpmi_nand_data *this,
 					(struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE,
 					DMA_CTRL_ACK);
-	if (!desc) {
-		pr_err("step 2 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
+
 	set_dma_type(this, DMA_FOR_WRITE_ECC_PAGE);
 	return start_dma_with_bch_irq(this, desc);
 }
@@ -1304,10 +1291,8 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 	desc = dmaengine_prep_slave_sg(channel,
 				(struct scatterlist *)pio, 2,
 				DMA_TRANS_NONE, 0);
-	if (!desc) {
-		pr_err("step 1 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [2] Enable the BCH block and read. */
 	command_mode = BV_GPMI_CTRL0_COMMAND_MODE__READ;
@@ -1334,10 +1319,8 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 					(struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		pr_err("step 2 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [3] Disable the BCH block */
 	command_mode = BV_GPMI_CTRL0_COMMAND_MODE__WAIT_FOR_READY;
@@ -1355,10 +1338,8 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 				(struct scatterlist *)pio, 3,
 				DMA_TRANS_NONE,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc) {
-		pr_err("step 3 error\n");
-		return -1;
-	}
+	if (!desc)
+		return -EINVAL;
 
 	/* [4] submit the DMA */
 	set_dma_type(this, DMA_FOR_READ_ECC_PAGE);
