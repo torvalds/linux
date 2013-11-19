@@ -75,7 +75,7 @@
 
 		power {
 			label = "Power Button";
-			gpios = <&gpio2 21 0>;
+			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
 			linux,code = <116>; /* KEY_POWER */
 			gpio-key,wakeup;
 		};
@@ -105,7 +105,7 @@
 			reg=<0>;
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
-			gpios = <&gpio4 26 1>;
+			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -121,8 +121,8 @@
 &esdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc2>;
-	cd-gpios = <&gpio1 6 0>;
-	wp-gpios = <&gpio1 5 0>;
+	cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -137,7 +137,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>,
+		   <&gpio4 25 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	pmic: mc13892@0 {

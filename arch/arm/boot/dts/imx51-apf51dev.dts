@@ -48,7 +48,7 @@
 
 		user-key {
 			label = "user";
-			gpios = <&gpio1 3 0>;
+			gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 			linux,code = <256>; /* BTN_0 */
 		};
 	};
@@ -58,7 +58,7 @@
 
 		user {
 			label = "Heartbeat";
-			gpios = <&gpio1 2 0>;
+			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -68,7 +68,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>,
+		   <&gpio4 25 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
@@ -76,14 +77,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
 	fsl,spi-num-chipselects = <2>;
-	cs-gpios = <&gpio3 28 1>, <&gpio3 27 1>;
+	cs-gpios = <&gpio3 28 GPIO_ACTIVE_LOW>,
+		   <&gpio3 27 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
-	cd-gpios = <&gpio2 29 0>;
+	cd-gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
 	bus-width = <4>;
 	status = "okay";
 };
