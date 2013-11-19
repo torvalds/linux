@@ -154,6 +154,17 @@ struct cond_bool_datum {
 struct cond_node;
 
 /*
+ * type set preserves data needed to determine constraint info from
+ * policy source. This is not used by the kernel policy but allows
+ * utilities such as audit2allow to determine constraint denials.
+ */
+struct type_set {
+	struct ebitmap types;
+	struct ebitmap negset;
+	u32 flags;
+};
+
+/*
  * The configuration data includes security contexts for
  * initial SIDs, unlabeled file systems, TCP and UDP port numbers,
  * network interfaces, and nodes.  This structure stores the
