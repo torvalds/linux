@@ -452,7 +452,6 @@ static ctl_table_t lnet_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0444,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
 		.procname = "catastrophe",
@@ -460,7 +459,6 @@ static ctl_table_t lnet_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0444,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
 		.procname = "panic_on_lbug",
@@ -468,7 +466,6 @@ static ctl_table_t lnet_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec,
-		INIT_STRATEGY(&sysctl_intvec)
 	},
 	{
 		.procname = "dump_kernel",
