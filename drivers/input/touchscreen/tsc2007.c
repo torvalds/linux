@@ -75,7 +75,6 @@ struct tsc2007 {
 	u16			model;
 	u16			x_plate_ohms;
 	u16			max_rt;
-	unsigned long		poll_delay;
 	unsigned long		poll_period;
 	int			fuzzx;
 	int			fuzzy;
@@ -351,7 +350,6 @@ static int tsc2007_probe_pdev(struct i2c_client *client, struct tsc2007 *ts,
 	ts->model             = pdata->model;
 	ts->x_plate_ohms      = pdata->x_plate_ohms;
 	ts->max_rt            = pdata->max_rt ? : MAX_12BIT;
-	ts->poll_delay        = pdata->poll_delay ? : 1;
 	ts->poll_period       = pdata->poll_period ? : 1;
 	ts->get_pendown_state = pdata->get_pendown_state;
 	ts->clear_penirq      = pdata->clear_penirq;
