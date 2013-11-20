@@ -213,40 +213,35 @@ EXPORT_SYMBOL(local_bh_enable_ip);
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 /*
- * Convoluted means of passing __do_softirq() a message through the various
- * architecture execute_on_stack() bits.
- *
  * When we run softirqs from irq_exit() and thus on the hardirq stack we need
  * to keep the lockdep irq context tracking as tight as possible in order to
  * not miss-qualify lock contexts and miss possible deadlocks.
  */
-static DEFINE_PER_CPU(int, softirq_from_hardirq);
 
-static inline void lockdep_softirq_from_hardirq(void)
+static inline bool lockdep_softirq_start(void)
 {
-	this_cpu_write(softirq_from_hardirq, 1);
-}
+	bool in_hardirq = false;
 
-static inline void lockdep_softirq_start(void)
-{
-	if (this_cpu_read(softirq_from_hardirq))
+	if (trace_hardirq_context(current)) {
+		in_hardirq = true;
 		trace_hardirq_exit();
+	}
+
 	lockdep_softirq_enter();
+
+	return in_hardirq;
 }
 
-static inline void lockdep_softirq_end(void)
+static inline void lockdep_softirq_end(bool in_hardirq)
 {
 	lockdep_softirq_exit();
-	if (this_cpu_read(softirq_from_hardirq)) {
-		this_cpu_write(softirq_from_hardirq, 0);
-		trace_hardirq_enter();
-	}
-}
 
+	if (in_hardirq)
+		trace_hardirq_enter();
+}
 #else
-static inline void lockdep_softirq_from_hardirq(void) { }
-static inline void lockdep_softirq_start(void) { }
-static inline void lockdep_softirq_end(void) { }
+static inline bool lockdep_softirq_start(void) { return false; }
+static inline void lockdep_softirq_end(bool in_hardirq) { }
 #endif
 
 asmlinkage void __do_softirq(void)
@@ -255,6 +250,7 @@ asmlinkage void __do_softirq(void)
 	unsigned long old_flags = current->flags;
 	int max_restart = MAX_SOFTIRQ_RESTART;
 	struct softirq_action *h;
+	bool in_hardirq;
 	__u32 pending;
 	int cpu;
 
@@ -269,7 +265,7 @@ asmlinkage void __do_softirq(void)
 	account_irq_enter_time(current);
 
 	__local_bh_disable(_RET_IP_, SOFTIRQ_OFFSET);
-	lockdep_softirq_start();
+	in_hardirq = lockdep_softirq_start();
 
 	cpu = smp_processor_id();
 restart:
@@ -316,7 +312,7 @@ restart:
 		wakeup_softirqd();
 	}
 
-	lockdep_softirq_end();
+	lockdep_softirq_end(in_hardirq);
 	account_irq_exit_time(current);
 	__local_bh_enable(SOFTIRQ_OFFSET);
 	WARN_ON_ONCE(in_interrupt());
@@ -365,7 +361,6 @@ void irq_enter(void)
 static inline void invoke_softirq(void)
 {
 	if (!force_irqthreads) {
-		lockdep_softirq_from_hardirq();
 #ifdef CONFIG_HAVE_IRQ_EXIT_ON_IRQ_STACK
 		/*
 		 * We can safely execute softirq on the current stack if
