@@ -809,6 +809,14 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_74K;
 		__cpu_name[cpu] = "MIPS 1074Kc";
 		break;
+	case PRID_IMP_INTERAPTIV_UP:
+		c->cputype = CPU_INTERAPTIV;
+		__cpu_name[cpu] = "MIPS interAptiv";
+		break;
+	case PRID_IMP_INTERAPTIV_MP:
+		c->cputype = CPU_INTERAPTIV;
+		__cpu_name[cpu] = "MIPS interAptiv (multi)";
+		break;
 	case PRID_IMP_PROAPTIV_UP:
 		c->cputype = CPU_PROAPTIV;
 		__cpu_name[cpu] = "MIPS proAptiv";
