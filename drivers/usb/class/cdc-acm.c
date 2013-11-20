@@ -888,7 +888,13 @@ static int acm_tty_ioctl(struct tty_struct *tty,
 		rv = set_serial_info(acm, (struct serial_struct __user *) arg);
 		break;
 	case TIOCMIWAIT:
+		rv = usb_autopm_get_interface(acm->control);
+		if (rv < 0) {
+			rv = -EIO;
+			break;
+		}
 		rv = wait_serial_change(acm, arg);
+		usb_autopm_put_interface(acm->control);
 		break;
 	case TIOCGICOUNT:
 		rv = get_serial_usage(acm, (struct serial_icounter_struct __user *) arg);
