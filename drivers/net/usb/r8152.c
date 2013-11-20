@@ -1388,53 +1388,13 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 					    struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
-	struct net_device_stats *stats = rtl8152_get_stats(netdev);
-	unsigned long flags;
-	struct tx_agg *agg = NULL;
-	struct tx_desc *tx_desc;
-	unsigned int len;
-	u8 *tx_data;
-	int res;
 
 	skb_tx_timestamp(skb);
 
-	/* If tx_queue is not empty, it means at least one previous packt */
-	/* is waiting for sending. Don't send current one before it.      */
-	if (skb_queue_empty(&tp->tx_queue))
-		agg = r8152_get_tx_agg(tp);
+	skb_queue_tail(&tp->tx_queue, skb);
 
-	if (!agg) {
-		skb_queue_tail(&tp->tx_queue, skb);
-		return NETDEV_TX_OK;
-	}
-
-	tx_desc = (struct tx_desc *)agg->head;
-	tx_data = agg->head + sizeof(*tx_desc);
-	agg->skb_num = agg->skb_len = 0;
-
-	len = skb->len;
-	r8152_tx_csum(tp, tx_desc, skb);
-	memcpy(tx_data, skb->data, len);
-	dev_kfree_skb_any(skb);
-	agg->skb_num++;
-	agg->skb_len += len;
-	usb_fill_bulk_urb(agg->urb, tp->udev, usb_sndbulkpipe(tp->udev, 2),
-			  agg->head, len + sizeof(*tx_desc),
-			  (usb_complete_t)write_bulk_callback, agg);
-	res = usb_submit_urb(agg->urb, GFP_ATOMIC);
-	if (res) {
-		/* Can we get/handle EPIPE here? */
-		if (res == -ENODEV) {
-			netif_device_detach(tp->netdev);
-		} else {
-			netif_warn(tp, tx_err, netdev,
-				   "failed tx_urb %d\n", res);
-			stats->tx_dropped++;
-			spin_lock_irqsave(&tp->tx_lock, flags);
-			list_add_tail(&agg->list, &tp->tx_free);
-			spin_unlock_irqrestore(&tp->tx_lock, flags);
-		}
-	}
+	if (!list_empty(&tp->tx_free))
+		tasklet_schedule(&tp->tl);
 
 	return NETDEV_TX_OK;
 }
