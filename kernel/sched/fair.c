@@ -6914,6 +6914,69 @@ out_unlock:
 	return 0;
 }
 
+/*
+ * Move task in a runnable state to another CPU.
+ *
+ * Tailored on 'active_load_balance_stop_cpu' with slight
+ * modification to locking and pre-transfer checks.  Note
+ * rq->lock must be held before calling.
+ */
+static void hmp_migrate_runnable_task(struct rq *rq)
+{
+	struct sched_domain *sd;
+	int src_cpu = cpu_of(rq);
+	struct rq *src_rq = rq;
+	int dst_cpu = rq->push_cpu;
+	struct rq *dst_rq = cpu_rq(dst_cpu);
+	struct task_struct *p = rq->migrate_task;
+	/*
+	 * One last check to make sure nobody else is playing
+	 * with the source rq.
+	 */
+	if (src_rq->active_balance)
+		return;
+
+	if (src_rq->nr_running <= 1)
+		return;
+
+	if (task_rq(p) != src_rq)
+		return;
+	/*
+	 * Not sure if this applies here but one can never
+	 * be too cautious
+	 */
+	BUG_ON(src_rq == dst_rq);
+
+	double_lock_balance(src_rq, dst_rq);
+
+	rcu_read_lock();
+	for_each_domain(dst_cpu, sd) {
+		if (cpumask_test_cpu(src_cpu, sched_domain_span(sd)))
+			break;
+	}
+
+	if (likely(sd)) {
+		struct lb_env env = {
+			.sd             = sd,
+			.dst_cpu        = dst_cpu,
+			.dst_rq         = dst_rq,
+			.src_cpu        = src_cpu,
+			.src_rq         = src_rq,
+			.idle           = CPU_IDLE,
+		};
+
+		schedstat_inc(sd, alb_count);
+
+		if (move_specific_task(&env, p))
+			schedstat_inc(sd, alb_pushed);
+		else
+			schedstat_inc(sd, alb_failed);
+	}
+
+	rcu_read_unlock();
+	double_unlock_balance(src_rq, dst_rq);
+}
+
 static DEFINE_SPINLOCK(hmp_force_migration);
 
 /*
@@ -6926,13 +6989,14 @@ static void hmp_force_up_migration(int this_cpu)
 	struct sched_entity *curr, *orig;
 	struct rq *target;
 	unsigned long flags;
-	unsigned int force;
+	unsigned int force, got_target;
 	struct task_struct *p;
 
 	if (!spin_trylock(&hmp_force_migration))
 		return;
 	for_each_online_cpu(cpu) {
 		force = 0;
+		got_target = 0;
 		target = cpu_rq(cpu);
 		raw_spin_lock_irqsave(&target->lock, flags);
 		curr = target->cfs.curr;
@@ -6955,15 +7019,14 @@ static void hmp_force_up_migration(int this_cpu)
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			if (!target->active_balance) {
 				get_task_struct(p);
-				target->active_balance = 1;
 				target->push_cpu = target_cpu;
 				target->migrate_task = p;
-				force = 1;
+				got_target = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_FORCE);
 				hmp_next_up_delay(&p->se, target->push_cpu);
 			}
 		}
-		if (!force && !target->active_balance) {
+		if (!got_target && !target->active_balance) {
 			/*
 			 * For now we just check the currently running task.
 			 * Selecting the lightest task for offloading will
@@ -6974,14 +7037,29 @@ static void hmp_force_up_migration(int this_cpu)
 			target->push_cpu = hmp_offload_down(cpu, curr);
 			if (target->push_cpu < NR_CPUS) {
 				get_task_struct(p);
-				target->active_balance = 1;
 				target->migrate_task = p;
-				force = 1;
+				got_target = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_OFFLOAD);
 				hmp_next_down_delay(&p->se, target->push_cpu);
 			}
 		}
+		/*
+		 * We have a target with no active_balance.  If the task
+		 * is not currently running move it, otherwise let the
+		 * CPU stopper take care of it.
+		 */
+		if (got_target && !target->active_balance) {
+			if (!task_running(target, p)) {
+				trace_sched_hmp_migrate_force_running(p, 0);
+				hmp_migrate_runnable_task(target);
+			} else {
+				target->active_balance = 1;
+				force = 1;
+			}
+		}
+
 		raw_spin_unlock_irqrestore(&target->lock, flags);
+
 		if (force)
 			stop_one_cpu_nowait(cpu_of(target),
 				hmp_active_task_migration_cpu_stop,
@@ -7001,7 +7079,7 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	int cpu;
 	struct sched_entity *curr, *orig;
 	struct hmp_domain *hmp_domain = NULL;
-	struct rq *target, *rq;
+	struct rq *target = NULL, *rq;
 	unsigned long flags, ratio = 0;
 	unsigned int force = 0;
 	struct task_struct *p = NULL;
@@ -7053,14 +7131,25 @@ static unsigned int hmp_idle_pull(int this_cpu)
 	raw_spin_lock_irqsave(&target->lock, flags);
 	if (!target->active_balance && task_rq(p) == target) {
 		get_task_struct(p);
-		target->active_balance = 1;
 		target->push_cpu = this_cpu;
 		target->migrate_task = p;
-		force = 1;
 		trace_sched_hmp_migrate(p, target->push_cpu, HMP_MIGRATE_IDLE_PULL);
 		hmp_next_up_delay(&p->se, target->push_cpu);
+		/*
+		 * if the task isn't running move it right away.
+		 * Otherwise setup the active_balance mechanic and let
+		 * the CPU stopper do its job.
+		 */
+		if (!task_running(target, p)) {
+			trace_sched_hmp_migrate_idle_running(p, 0);
+			hmp_migrate_runnable_task(target);
+		} else {
+			target->active_balance = 1;
+			force = 1;
+		}
 	}
 	raw_spin_unlock_irqrestore(&target->lock, flags);
+
 	if (force) {
 		stop_one_cpu_nowait(cpu_of(target),
 			hmp_idle_pull_cpu_stop,
