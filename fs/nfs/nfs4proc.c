@@ -2518,9 +2518,8 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 						     calldata->roc_barrier);
 			nfs_set_open_stateid(state, &calldata->res.stateid, 0);
 			renew_lease(server, calldata->timestamp);
-			nfs4_close_clear_stateid_flags(state,
-					calldata->arg.fmode);
 			break;
+		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_BAD_STATEID:
@@ -2528,9 +2527,13 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			if (calldata->arg.fmode == 0)
 				break;
 		default:
-			if (nfs4_async_handle_error(task, server, state) == -EAGAIN)
+			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
 				rpc_restart_call_prepare(task);
+				goto out_release;
+			}
 	}
+	nfs4_close_clear_stateid_flags(state, calldata->arg.fmode);
+out_release:
 	nfs_release_seqid(calldata->arg.seqid);
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
 	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
