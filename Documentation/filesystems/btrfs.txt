@@ -244,24 +244,14 @@ available from the git repository at the following location:
 
 These include the following tools:
 
-mkfs.btrfs: create a filesystem
+* mkfs.btrfs: create a filesystem
 
-btrfsctl: control program to create snapshots and subvolumes:
+* btrfs: a single tool to manage the filesystems, refer to the manpage for more details
 
-	mount /dev/sda2 /mnt
-	btrfsctl -s new_subvol_name /mnt
-	btrfsctl -s snapshot_of_default /mnt/default
-	btrfsctl -s snapshot_of_new_subvol /mnt/new_subvol_name
-	btrfsctl -s snapshot_of_a_snapshot /mnt/snapshot_of_new_subvol
-	ls /mnt
-	default snapshot_of_a_snapshot snapshot_of_new_subvol
-	new_subvol_name snapshot_of_default
+* 'btrfsck' or 'btrfs check': do a consistency check of the filesystem
 
-	Snapshots and subvolumes cannot be deleted right now, but you can
-	rm -rf all the files and directories inside them.
+Other tools for specific tasks:
 
-btrfsck: do a limited check of the FS extent trees.
+* btrfs-convert: in-place conversion from ext2/3/4 filesystems
 
-btrfs-debug-tree: print all of the FS metadata in text form.  Example:
-
-	btrfs-debug-tree /dev/sda2 >& big_output_file
+* btrfs-image: dump filesystem metadata for debugging
