@@ -18,9 +18,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -884,7 +881,7 @@ static void gpmi_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 	struct nand_chip *chip = mtd->priv;
 	struct gpmi_nand_data *this = chip->priv;
 
-	pr_debug("len is %d\n", len);
+	dev_dbg(this->dev, "len is %d\n", len);
 	this->upper_buf	= buf;
 	this->upper_len	= len;
 
@@ -896,7 +893,7 @@ static void gpmi_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 	struct nand_chip *chip = mtd->priv;
 	struct gpmi_nand_data *this = chip->priv;
 
-	pr_debug("len is %d\n", len);
+	dev_dbg(this->dev, "len is %d\n", len);
 	this->upper_buf	= (uint8_t *)buf;
 	this->upper_len	= len;
 
@@ -975,7 +972,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	unsigned int  max_bitflips = 0;
 	int           ret;
 
-	pr_debug("page number is : %d\n", page);
+	dev_dbg(this->dev, "page number is : %d\n", page);
 	ret = read_page_prepare(this, buf, mtd->writesize,
 					this->payload_virt, this->payload_phys,
 					nfc_geo->payload_size,
@@ -1051,7 +1048,7 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	dma_addr_t auxiliary_phys;
 	int        ret;
 
-	pr_debug("ecc write page.\n");
+	dev_dbg(this->dev, "ecc write page.\n");
 	if (this->swap_block_mark) {
 		/*
 		 * If control arrives here, we're doing block mark swapping.
@@ -1189,7 +1186,7 @@ static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct gpmi_nand_data *this = chip->priv;
 
-	pr_debug("page number is %d\n", page);
+	dev_dbg(this->dev, "page number is %d\n", page);
 	/* clear the OOB buffer */
 	memset(chip->oob_poi, ~0, mtd->oobsize);
 
