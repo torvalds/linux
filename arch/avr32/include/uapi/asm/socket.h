@@ -1,5 +1,5 @@
-#ifndef __ASM_AVR32_SOCKET_H
-#define __ASM_AVR32_SOCKET_H
+#ifndef _UAPI__ASM_AVR32_SOCKET_H
+#define _UAPI__ASM_AVR32_SOCKET_H
 
 #include <asm/sockios.h>
 
@@ -78,4 +78,4 @@
 
 #define SO_MAX_PACING_RATE	47
 
-#endif /* __ASM_AVR32_SOCKET_H */
+#endif /* _UAPI__ASM_AVR32_SOCKET_H */
