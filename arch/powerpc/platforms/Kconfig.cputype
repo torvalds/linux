@@ -403,3 +403,14 @@ config PPC_DOORBELL
 	default n
 
 endmenu
+
+config CPU_LITTLE_ENDIAN
+	bool "Build little endian kernel"
+	default n
+	help
+	  This option selects whether a big endian or little endian kernel will
+	  be built.
+
+	  Note that if cross compiling a little endian kernel,
+	  CROSS_COMPILE must point to a toolchain capable of targeting
+	  little endian powerpc.

@@ -31,6 +31,8 @@
 extern unsigned long randomize_et_dyn(unsigned long base);
 #define ELF_ET_DYN_BASE		(randomize_et_dyn(0x20000000))
 
+#define ELF_CORE_EFLAGS (is_elf2_task() ? 2 : 0)
+
 /*
  * Our registers are always unsigned longs, whether we're a 32 bit
  * process or 64 bit, on either a 64 bit or 32 bit kernel.
@@ -86,6 +88,8 @@ typedef elf_vrregset_t elf_fpxregset_t;
 #ifdef __powerpc64__
 # define SET_PERSONALITY(ex)					\
 do {								\
+	if (((ex).e_flags & 0x3) == 2)				\
+		set_thread_flag(TIF_ELF2ABI);			\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
 		set_thread_flag(TIF_32BIT);			\
 	else							\
