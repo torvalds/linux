@@ -226,7 +226,7 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
 		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate];
-	tp = 1000000 * ((mr->probability * 1000) / nsecs);
+	tp = 1000000 * ((prob * 1000) / nsecs);
 
 	mr->cur_tp = MINSTREL_TRUNC(tp);
 }
