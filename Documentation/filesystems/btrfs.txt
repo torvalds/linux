@@ -70,6 +70,12 @@ Unless otherwise specified, all options default to off.
 
 	See comments at the top of fs/btrfs/check-integrity.c for more info.
 
+  commit=<seconds>
+	Set the interval of periodic commit, 30 seconds by default. Higher
+	values defer data being synced to permanent storage with obvious
+	consequences when the system crashes. The upper bound is not forced,
+	but a warning is printed if it's more than 300 seconds (5 minutes).
+
   compress
   compress=<type>
   compress-force
@@ -154,7 +160,11 @@ Unless otherwise specified, all options default to off.
 	Currently this scans a list of several previous tree roots and tries to 
 	use the first readable.
 
- skip_balance
+  rescan_uuid_tree
+	Force check and rebuild procedure of the UUID tree. This should not
+	normally be needed.
+
+  skip_balance
 	Skip automatic resume of interrupted balance operation after mount.
 	May be resumed with "btrfs balance resume."
 
