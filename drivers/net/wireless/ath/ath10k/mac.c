@@ -1442,8 +1442,19 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath10k *ar = hw->priv;
+	bool result;
 
 	ath_reg_notifier_apply(wiphy, request, &ar->ath_common.regulatory);
+
+	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
+		ath10k_dbg(ATH10K_DBG_REGULATORY, "dfs region 0x%x\n",
+			   request->dfs_region);
+		result = ar->dfs_detector->set_dfs_domain(ar->dfs_detector,
+							  request->dfs_region);
+		if (!result)
+			ath10k_warn("dfs region 0x%X not supported, will trigger radar for every pulse\n",
+				    request->dfs_region);
+	}
 
 	mutex_lock(&ar->conf_mutex);
 	if (ar->state == ATH10K_STATE_ON)
@@ -3531,6 +3542,16 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->netdev_features = NETIF_F_HW_CSUM;
 
+	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+		/* Init ath dfs pattern detector */
+		ar->ath_common.debug_mask = ATH_DBG_DFS;
+		ar->dfs_detector = dfs_pattern_detector_init(&ar->ath_common,
+							     NL80211_DFS_UNSET);
+
+		if (!ar->dfs_detector)
+			ath10k_warn("dfs pattern detector init failed\n");
+	}
+
 	ret = ath_regd_init(&ar->ath_common.regulatory, ar->hw->wiphy,
 			    ath10k_reg_notifier);
 	if (ret) {
@@ -3565,6 +3586,9 @@ err_free:
 void ath10k_mac_unregister(struct ath10k *ar)
 {
 	ieee80211_unregister_hw(ar->hw);
+
+	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector)
+		ar->dfs_detector->exit(ar->dfs_detector);
 
 	kfree(ar->mac.sbands[IEEE80211_BAND_2GHZ].channels);
 	kfree(ar->mac.sbands[IEEE80211_BAND_5GHZ].channels);

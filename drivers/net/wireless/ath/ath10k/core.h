@@ -30,6 +30,7 @@
 #include "wmi.h"
 #include "../ath.h"
 #include "../regd.h"
+#include "../dfs_pattern_detector.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -192,6 +193,14 @@ struct ath10k_target_stats {
 
 };
 
+struct ath10k_dfs_stats {
+	u32 phy_errors;
+	u32 pulses_total;
+	u32 pulses_detected;
+	u32 pulses_discarded;
+	u32 radar_detected;
+};
+
 #define ATH10K_MAX_NUM_PEER_IDS (1 << 11) /* htt rx_desc limit */
 
 struct ath10k_peer {
@@ -261,6 +270,8 @@ struct ath10k_debug {
 
 	unsigned long htt_stats_mask;
 	struct delayed_work htt_stats_dwork;
+	struct ath10k_dfs_stats dfs_stats;
+	struct ath_dfs_pool_stats dfs_pool_stats;
 };
 
 enum ath10k_state {
@@ -427,6 +438,8 @@ struct ath10k {
 	u32 survey_last_rx_clear_count;
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
+
+	struct dfs_pattern_detector *dfs_detector;
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
