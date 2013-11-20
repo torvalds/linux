@@ -385,7 +385,7 @@ void prepare_data_dma(struct gpmi_nand_data *this, enum dma_data_direction dr)
 
 		ret = dma_map_sg(this->dev, sgl, 1, dr);
 		if (ret == 0)
-			pr_err("DMA mapping failed.\n");
+			dev_err(this->dev, "DMA mapping failed.\n");
 
 		this->direct_dma_map_ok = false;
 	}
@@ -419,7 +419,7 @@ static void dma_irq_callback(void *param)
 		break;
 
 	default:
-		pr_err("in wrong DMA operation.\n");
+		dev_err(this->dev, "in wrong DMA operation.\n");
 	}
 
 	complete(dma_c);
@@ -441,7 +441,8 @@ int start_dma_without_bch_irq(struct gpmi_nand_data *this,
 	/* Wait for the interrupt from the DMA block. */
 	err = wait_for_completion_timeout(dma_c, msecs_to_jiffies(1000));
 	if (!err) {
-		pr_err("DMA timeout, last DMA :%d\n", this->last_dma_type);
+		dev_err(this->dev, "DMA timeout, last DMA :%d\n",
+			this->last_dma_type);
 		gpmi_dump_info(this);
 		return -ETIMEDOUT;
 	}
@@ -470,7 +471,8 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 	/* Wait for the interrupt from the BCH block. */
 	err = wait_for_completion_timeout(bch_c, msecs_to_jiffies(1000));
 	if (!err) {
-		pr_err("BCH timeout, last DMA :%d\n", this->last_dma_type);
+		dev_err(this->dev, "BCH timeout, last DMA :%d\n",
+			this->last_dma_type);
 		gpmi_dump_info(this);
 		return -ETIMEDOUT;
 	}
@@ -495,7 +497,7 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 	else if (!strcmp(res_name, GPMI_NAND_BCH_REGS_ADDR_RES_NAME))
 		res->bch_regs = p;
 	else
-		pr_err("unknown resource name : %s\n", res_name);
+		dev_err(this->dev, "unknown resource name : %s\n", res_name);
 
 	return 0;
 }
@@ -509,7 +511,7 @@ static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, res_name);
 	if (!r) {
-		pr_err("Can't get resource for %s\n", res_name);
+		dev_err(this->dev, "Can't get resource for %s\n", res_name);
 		return -ENODEV;
 	}
 
@@ -538,7 +540,7 @@ static int acquire_dma_channels(struct gpmi_nand_data *this)
 	/* request dma channel */
 	dma_chan = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!dma_chan) {
-		pr_err("Failed to request DMA channel.\n");
+		dev_err(this->dev, "Failed to request DMA channel.\n");
 		goto acquire_err;
 	}
 
@@ -681,8 +683,7 @@ static int read_page_prepare(struct gpmi_nand_data *this,
 						length, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dest_phys)) {
 			if (alt_size < length) {
-				pr_err("%s, Alternate buffer is too small\n",
-					__func__);
+				dev_err(dev, "Alternate buffer is too small\n");
 				return -ENOMEM;
 			}
 			goto map_failed;
@@ -732,8 +733,7 @@ static int send_page_prepare(struct gpmi_nand_data *this,
 						DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, source_phys)) {
 			if (alt_size < length) {
-				pr_err("%s, Alternate buffer is too small\n",
-					__func__);
+				dev_err(dev, "Alternate buffer is too small\n");
 				return -ENOMEM;
 			}
 			goto map_failed;
@@ -821,7 +821,6 @@ static int gpmi_alloc_dma_buffer(struct gpmi_nand_data *this)
 
 error_alloc:
 	gpmi_free_dma_buffer(this);
-	pr_err("Error allocating DMA buffers!\n");
 	return -ENOMEM;
 }
 
@@ -853,7 +852,8 @@ static void gpmi_cmd_ctrl(struct mtd_info *mtd, int data, unsigned int ctrl)
 
 	ret = gpmi_send_command(this);
 	if (ret)
-		pr_err("Chip: %u, Error %d\n", this->current_chip, ret);
+		dev_err(this->dev, "Chip: %u, Error %d\n",
+			this->current_chip, ret);
 
 	this->command_length = 0;
 }
@@ -981,7 +981,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 					nfc_geo->payload_size,
 					&payload_virt, &payload_phys);
 	if (ret) {
-		pr_err("Inadequate DMA buffer\n");
+		dev_err(this->dev, "Inadequate DMA buffer\n");
 		ret = -ENOMEM;
 		return ret;
 	}
@@ -995,7 +995,7 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			nfc_geo->payload_size,
 			payload_virt, payload_phys);
 	if (ret) {
-		pr_err("Error in ECC-based read: %d\n", ret);
+		dev_err(this->dev, "Error in ECC-based read: %d\n", ret);
 		return ret;
 	}
 
@@ -1081,7 +1081,7 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				nfc_geo->payload_size,
 				&payload_virt, &payload_phys);
 		if (ret) {
-			pr_err("Inadequate payload DMA buffer\n");
+			dev_err(this->dev, "Inadequate payload DMA buffer\n");
 			return 0;
 		}
 
@@ -1091,7 +1091,7 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				nfc_geo->auxiliary_size,
 				&auxiliary_virt, &auxiliary_phys);
 		if (ret) {
-			pr_err("Inadequate auxiliary DMA buffer\n");
+			dev_err(this->dev, "Inadequate auxiliary DMA buffer\n");
 			goto exit_auxiliary;
 		}
 	}
@@ -1099,7 +1099,7 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	/* Ask the NFC. */
 	ret = gpmi_send_page(this, payload_phys, auxiliary_phys);
 	if (ret)
-		pr_err("Error in ECC-based write: %d\n", ret);
+		dev_err(this->dev, "Error in ECC-based write: %d\n", ret);
 
 	if (!this->swap_block_mark) {
 		send_page_end(this, chip->oob_poi, mtd->oobsize,
@@ -1516,7 +1516,7 @@ static int gpmi_set_geometry(struct gpmi_nand_data *this)
 	/* Set up the NFC geometry which is used by BCH. */
 	ret = bch_set_geometry(this);
 	if (ret) {
-		pr_err("Error setting BCH geometry : %d\n", ret);
+		dev_err(this->dev, "Error setting BCH geometry : %d\n", ret);
 		return ret;
 	}
 
@@ -1666,15 +1666,13 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	if (of_id) {
 		pdev->id_entry = of_id->data;
 	} else {
-		pr_err("Failed to find the right device id.\n");
+		dev_err(&pdev->dev, "Failed to find the right device id.\n");
 		return -ENODEV;
 	}
 
 	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
-	if (!this) {
-		pr_err("Failed to allocate per-device memory\n");
+	if (!this)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, this);
 	this->pdev  = pdev;

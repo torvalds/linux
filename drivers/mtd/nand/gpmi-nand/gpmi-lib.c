@@ -208,30 +208,41 @@ void gpmi_dump_info(struct gpmi_nand_data *this)
 	u32 reg;
 	int i;
 
-	pr_err("Show GPMI registers :\n");
+	dev_err(this->dev, "Show GPMI registers :\n");
 	for (i = 0; i <= HW_GPMI_DEBUG / 0x10 + 1; i++) {
 		reg = readl(r->gpmi_regs + i * 0x10);
-		pr_err("offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
+		dev_err(this->dev, "offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
 	}
 
 	/* start to print out the BCH info */
-	pr_err("Show BCH registers :\n");
+	dev_err(this->dev, "Show BCH registers :\n");
 	for (i = 0; i <= HW_BCH_VERSION / 0x10 + 1; i++) {
 		reg = readl(r->bch_regs + i * 0x10);
-		pr_err("offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
+		dev_err(this->dev, "offset 0x%.3x : 0x%.8x\n", i * 0x10, reg);
 	}
-	pr_err("BCH Geometry :\n");
-	pr_err("GF length              : %u\n", geo->gf_len);
-	pr_err("ECC Strength           : %u\n", geo->ecc_strength);
-	pr_err("Page Size in Bytes     : %u\n", geo->page_size);
-	pr_err("Metadata Size in Bytes : %u\n", geo->metadata_size);
-	pr_err("ECC Chunk Size in Bytes: %u\n", geo->ecc_chunk_size);
-	pr_err("ECC Chunk Count        : %u\n", geo->ecc_chunk_count);
-	pr_err("Payload Size in Bytes  : %u\n", geo->payload_size);
-	pr_err("Auxiliary Size in Bytes: %u\n", geo->auxiliary_size);
-	pr_err("Auxiliary Status Offset: %u\n", geo->auxiliary_status_offset);
-	pr_err("Block Mark Byte Offset : %u\n", geo->block_mark_byte_offset);
-	pr_err("Block Mark Bit Offset  : %u\n", geo->block_mark_bit_offset);
+	dev_err(this->dev, "BCH Geometry :\n"
+		"GF length              : %u\n"
+		"ECC Strength           : %u\n"
+		"Page Size in Bytes     : %u\n"
+		"Metadata Size in Bytes : %u\n"
+		"ECC Chunk Size in Bytes: %u\n"
+		"ECC Chunk Count        : %u\n"
+		"Payload Size in Bytes  : %u\n"
+		"Auxiliary Size in Bytes: %u\n"
+		"Auxiliary Status Offset: %u\n"
+		"Block Mark Byte Offset : %u\n"
+		"Block Mark Bit Offset  : %u\n",
+		geo->gf_len,
+		geo->ecc_strength,
+		geo->page_size,
+		geo->metadata_size,
+		geo->ecc_chunk_size,
+		geo->ecc_chunk_count,
+		geo->payload_size,
+		geo->auxiliary_size,
+		geo->auxiliary_status_offset,
+		geo->block_mark_byte_offset,
+		geo->block_mark_bit_offset);
 }
 
 /* Configures the geometry for BCH.  */
@@ -993,7 +1004,7 @@ void gpmi_begin(struct gpmi_nand_data *this)
 	/* Enable the clock. */
 	ret = gpmi_enable_clk(this);
 	if (ret) {
-		pr_err("We failed in enable the clk\n");
+		dev_err(this->dev, "We failed in enable the clk\n");
 		goto err_out;
 	}
 
@@ -1097,7 +1108,7 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 		mask = MX28_BF_GPMI_STAT_READY_BUSY(1 << chip);
 		reg = readl(r->gpmi_regs + HW_GPMI_STAT);
 	} else
-		pr_err("unknow arch.\n");
+		dev_err(this->dev, "unknow arch.\n");
 	return reg & mask;
 }
 
