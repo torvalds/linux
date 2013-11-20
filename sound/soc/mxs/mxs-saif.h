@@ -124,6 +124,11 @@ struct mxs_saif {
 
 	u32 fifo_underrun;
 	u32 fifo_overrun;
+
+	enum {
+		MXS_SAIF_STATE_STOPPED,
+		MXS_SAIF_STATE_RUNNING,
+	} state;
 };
 
 extern int mxs_saif_put_mclk(unsigned int saif_id);

@@ -103,53 +103,8 @@
  *	rsnd_platform functions
  */
 #define rsnd_platform_call(priv, dai, func, param...)	\
-	(!(priv->info->func) ? -ENODEV :		\
+	(!(priv->info->func) ? 0 :		\
 	 priv->info->func(param))
-
-
-/*
- *	basic function
- */
-u32 rsnd_read(struct rsnd_priv *priv,
-	      struct rsnd_mod *mod, enum rsnd_reg reg)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-
-	BUG_ON(!base);
-
-	return ioread32(base);
-}
-
-void rsnd_write(struct rsnd_priv *priv,
-		struct rsnd_mod *mod,
-		enum rsnd_reg reg, u32 data)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	BUG_ON(!base);
-
-	dev_dbg(dev, "w %p : %08x\n", base, data);
-
-	iowrite32(data, base);
-}
-
-void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
-	       enum rsnd_reg reg, u32 mask, u32 data)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 val;
-
-	BUG_ON(!base);
-
-	val = ioread32(base);
-	val &= ~mask;
-	val |= data & mask;
-	iowrite32(val, base);
-
-	dev_dbg(dev, "s %p : %08x\n", base, val);
-}
 
 /*
  *	rsnd_mod functions
@@ -363,6 +318,9 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
+	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+		return NULL;
+
 	return priv->rdai + id;
 }
 

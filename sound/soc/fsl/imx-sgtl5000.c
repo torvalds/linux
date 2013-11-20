@@ -159,7 +159,7 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	data->card.dapm_widgets = imx_sgtl5000_dapm_widgets;
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_sgtl5000_dapm_widgets);
 
-	ret = snd_soc_register_card(&data->card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &data->card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		goto fail;
@@ -186,7 +186,6 @@ static int imx_sgtl5000_remove(struct platform_device *pdev)
 {
 	struct imx_sgtl5000_data *data = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_card(&data->card);
 	clk_put(data->codec_clk);
 
 	return 0;
@@ -202,6 +201,7 @@ static struct platform_driver imx_sgtl5000_driver = {
 	.driver = {
 		.name = "imx-sgtl5000",
 		.owner = THIS_MODULE,
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_sgtl5000_dt_ids,
 	},
 	.probe = imx_sgtl5000_probe,
