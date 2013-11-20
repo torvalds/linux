@@ -64,6 +64,13 @@ static struct gpio_keys_button gpio_buttons[] = {
 	GPIO_KEY(KEY_3,		RCAR_GP_PIN(5, 2),	"SW2-pin3"),
 	GPIO_KEY(KEY_2,		RCAR_GP_PIN(5, 1),	"SW2-pin2"),
 	GPIO_KEY(KEY_1,		RCAR_GP_PIN(5, 0),	"SW2-pin1"),
+	GPIO_KEY(KEY_G,		RCAR_GP_PIN(7, 6),	"SW36"),
+	GPIO_KEY(KEY_F,		RCAR_GP_PIN(7, 5),	"SW35"),
+	GPIO_KEY(KEY_E,		RCAR_GP_PIN(7, 4),	"SW34"),
+	GPIO_KEY(KEY_D,		RCAR_GP_PIN(7, 3),	"SW33"),
+	GPIO_KEY(KEY_C,		RCAR_GP_PIN(7, 2),	"SW32"),
+	GPIO_KEY(KEY_B,		RCAR_GP_PIN(7, 1),	"SW31"),
+	GPIO_KEY(KEY_A,		RCAR_GP_PIN(7, 0),	"SW30"),
 };
 
 static const struct gpio_keys_platform_data koelsch_keys_pdata __initconst = {
