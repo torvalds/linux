@@ -1023,47 +1023,20 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 }
 
 /**
- * audit_receive_filter - apply all rules to the specified message type
+ * audit_rule_change - apply all rules to the specified message type
  * @type: audit message type
  * @portid: target port id for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
  */
-int audit_receive_filter(int type, __u32 portid, int seq, void *data,
-			 size_t datasz)
+int audit_rule_change(int type, __u32 portid, int seq, void *data,
+			size_t datasz)
 {
-	struct task_struct *tsk;
-	struct audit_netlink_list *dest;
 	int err = 0;
 	struct audit_entry *entry;
 
 	switch (type) {
-	case AUDIT_LIST_RULES:
-		/* We can't just spew out the rules here because we might fill
-		 * the available socket buffer space and deadlock waiting for
-		 * auditctl to read from it... which isn't ever going to
-		 * happen if we're actually running in the context of auditctl
-		 * trying to _send_ the stuff */
-
-		dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
-		if (!dest)
-			return -ENOMEM;
-		dest->portid = portid;
-		dest->pid = task_pid_vnr(current);
-		skb_queue_head_init(&dest->q);
-
-		mutex_lock(&audit_filter_mutex);
-		audit_list_rules(portid, seq, &dest->q);
-		mutex_unlock(&audit_filter_mutex);
-
-		tsk = kthread_run(audit_send_list, dest, "audit_send_list");
-		if (IS_ERR(tsk)) {
-			skb_queue_purge(&dest->q);
-			kfree(dest);
-			err = PTR_ERR(tsk);
-		}
-		break;
 	case AUDIT_ADD_RULE:
 		entry = audit_data_to_entry(data, datasz);
 		if (IS_ERR(entry))
@@ -1085,6 +1058,44 @@ int audit_receive_filter(int type, __u32 portid, int seq, void *data,
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	return err;
+}
+
+/**
+ * audit_list_rules_send - list the audit rules
+ * @portid: target portid for netlink audit messages
+ * @seq: netlink audit message sequence (serial) number
+ */
+int audit_list_rules_send(__u32 portid, int seq)
+{
+	struct task_struct *tsk;
+	struct audit_netlink_list *dest;
+	int err = 0;
+
+	/* We can't just spew out the rules here because we might fill
+	 * the available socket buffer space and deadlock waiting for
+	 * auditctl to read from it... which isn't ever going to
+	 * happen if we're actually running in the context of auditctl
+	 * trying to _send_ the stuff */
+
+	dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+	dest->portid = portid;
+	dest->pid = task_pid_vnr(current);
+	skb_queue_head_init(&dest->q);
+
+	mutex_lock(&audit_filter_mutex);
+	audit_list_rules(portid, seq, &dest->q);
+	mutex_unlock(&audit_filter_mutex);
+
+	tsk = kthread_run(audit_send_list, dest, "audit_send_list");
+	if (IS_ERR(tsk)) {
+		skb_queue_purge(&dest->q);
+		kfree(dest);
+		err = PTR_ERR(tsk);
 	}
 
 	return err;

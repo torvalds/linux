@@ -461,8 +461,10 @@ extern int		    audit_update_lsm_rules(void);
 				/* Private API (for audit.c only) */
 extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
-extern int  audit_receive_filter(int type, __u32 portid, int seq,
+extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
+extern int audit_list_rules_send(__u32 portid, int seq);
+
 extern int audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)

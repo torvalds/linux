@@ -903,10 +903,11 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_log_end(ab);
 			return -EPERM;
 		}
-		/* fallthrough */
-	case AUDIT_LIST_RULES:
-		err = audit_receive_filter(msg_type, NETLINK_CB(skb).portid,
+		err = audit_rule_change(msg_type, NETLINK_CB(skb).portid,
 					   seq, data, nlmsg_len(nlh));
+		break;
+	case AUDIT_LIST_RULES:
+		err = audit_list_rules_send(NETLINK_CB(skb).portid, seq);
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
