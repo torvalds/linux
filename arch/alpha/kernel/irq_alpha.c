@@ -66,21 +66,7 @@ do_entInt(unsigned long type, unsigned long vector,
 		break;
 	case 1:
 		old_regs = set_irq_regs(regs);
-#ifdef CONFIG_SMP
-	  {
-		long cpu;
-
-		smp_percpu_timer_interrupt(regs);
-		cpu = smp_processor_id();
-		if (cpu != boot_cpuid) {
-		        kstat_incr_irqs_this_cpu(RTC_IRQ, irq_to_desc(RTC_IRQ));
-		} else {
-			handle_irq(RTC_IRQ);
-		}
-	  }
-#else
 		handle_irq(RTC_IRQ);
-#endif
 		set_irq_regs(old_regs);
 		return;
 	case 2:
@@ -228,7 +214,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
  */
 
 struct irqaction timer_irqaction = {
-	.handler	= timer_interrupt,
+	.handler	= rtc_timer_interrupt,
 	.name		= "timer",
 };
 
