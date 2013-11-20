@@ -6195,7 +6195,7 @@ static const char *btrfs_raid_type_names[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID6]	= "raid6",
 };
 
-const char *get_raid_name(enum btrfs_raid_types type)
+static const char *get_raid_name(enum btrfs_raid_types type)
 {
 	if (type >= BTRFS_NR_RAID_TYPES)
 		return NULL;
@@ -8423,7 +8423,7 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 
 		kobject_get(&space_info->kobj); /* put in release */
 		ret = kobject_init_and_add(kobj, &btrfs_raid_ktype,
-					   &space_info->kobj,
+					   &space_info->kobj, "%s",
 					   get_raid_name(index));
 		if (ret) {
 			pr_warn("btrfs: failed to add kobject for block cache. ignoring.\n");
