@@ -6525,11 +6525,13 @@ void i40e_veb_release(struct i40e_veb *veb)
 static int i40e_add_veb(struct i40e_veb *veb, struct i40e_vsi *vsi)
 {
 	bool is_default = (vsi->idx == vsi->back->lan_vsi);
+	bool is_cloud = false;
 	int ret;
 
 	/* get a VEB from the hardware */
 	ret = i40e_aq_add_veb(&veb->pf->hw, veb->uplink_seid, vsi->seid,
-			      veb->enabled_tc, is_default, &veb->seid, NULL);
+			      veb->enabled_tc, is_default,
+			      is_cloud, &veb->seid, NULL);
 	if (ret) {
 		dev_info(&veb->pf->pdev->dev,
 			 "couldn't add VEB, err %d, aq_err %d\n",

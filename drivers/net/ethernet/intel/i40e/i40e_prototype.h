@@ -106,7 +106,8 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc,
-				bool default_port, u16 *pveb_seid,
+				bool default_port, bool enable_l2_filtering,
+				u16 *pveb_seid,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_get_veb_parameters(struct i40e_hw *hw,
 				u16 veb_seid, u16 *switch_id, bool *floating,
