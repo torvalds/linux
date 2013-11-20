@@ -421,6 +421,14 @@ static int kye_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			goto enabling_err;
 		}
 		break;
+	case USB_DEVICE_ID_GENIUS_MANTICORE:
+		/*
+		 * The manticore keyboard needs to have all the interfaces
+		 * opened at least once to be fully functional.
+		 */
+		if (hid_hw_open(hdev))
+			hid_hw_close(hdev);
+		break;
 	}
 
 	return 0;
