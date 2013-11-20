@@ -706,8 +706,12 @@ static int i40e_get_ts_info(struct net_device *dev,
 	return ethtool_op_get_ts_info(dev, info);
 }
 
-static int i40e_link_test(struct i40e_pf *pf, u64 *data)
+static int i40e_link_test(struct net_device *netdev, u64 *data)
 {
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+
+	netdev_info(netdev, "link test\n");
 	if (i40e_get_link_status(&pf->hw))
 		*data = 0;
 	else
@@ -716,30 +720,36 @@ static int i40e_link_test(struct i40e_pf *pf, u64 *data)
 	return *data;
 }
 
-static int i40e_reg_test(struct i40e_pf *pf, u64 *data)
+static int i40e_reg_test(struct net_device *netdev, u64 *data)
 {
-	i40e_status ret;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
 
-	ret = i40e_diag_reg_test(&pf->hw);
-	*data = ret;
+	netdev_info(netdev, "register test\n");
+	*data = i40e_diag_reg_test(&pf->hw);
 
-	return ret;
+	i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
+	return *data;
 }
 
-static int i40e_eeprom_test(struct i40e_pf *pf, u64 *data)
+static int i40e_eeprom_test(struct net_device *netdev, u64 *data)
 {
-	i40e_status ret;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
 
-	ret = i40e_diag_eeprom_test(&pf->hw);
-	*data = ret;
+	netdev_info(netdev, "eeprom test\n");
+	*data = i40e_diag_eeprom_test(&pf->hw);
 
-	return ret;
+	return *data;
 }
 
-static int i40e_intr_test(struct i40e_pf *pf, u64 *data)
+static int i40e_intr_test(struct net_device *netdev, u64 *data)
 {
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
 	u16 swc_old = pf->sw_int_count;
 
+	netdev_info(netdev, "interrupt test\n");
 	wr32(&pf->hw, I40E_PFINT_DYN_CTL0,
 	     (I40E_PFINT_DYN_CTL0_INTENA_MASK |
 	      I40E_PFINT_DYN_CTL0_SWINT_TRIG_MASK));
@@ -749,8 +759,9 @@ static int i40e_intr_test(struct i40e_pf *pf, u64 *data)
 	return *data;
 }
 
-static int i40e_loopback_test(struct i40e_pf *pf, u64 *data)
+static int i40e_loopback_test(struct net_device *netdev, u64 *data)
 {
+	netdev_info(netdev, "loopback test not implemented\n");
 	*data = 0;
 
 	return *data;
@@ -771,33 +782,25 @@ static void i40e_diag_test(struct net_device *netdev,
 		/* Link test performed before hardware reset
 		 * so autoneg doesn't interfere with test result
 		 */
-		netdev_info(netdev, "link test starting\n");
-		if (i40e_link_test(pf, &data[I40E_ETH_TEST_LINK]))
+		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		netdev_info(netdev, "register test starting\n");
-		if (i40e_reg_test(pf, &data[I40E_ETH_TEST_REG]))
+		if (i40e_reg_test(netdev, &data[I40E_ETH_TEST_REG]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
-		netdev_info(netdev, "eeprom test starting\n");
-		if (i40e_eeprom_test(pf, &data[I40E_ETH_TEST_EEPROM]))
+		if (i40e_eeprom_test(netdev, &data[I40E_ETH_TEST_EEPROM]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
-		netdev_info(netdev, "interrupt test starting\n");
-		if (i40e_intr_test(pf, &data[I40E_ETH_TEST_INTR]))
+		if (i40e_intr_test(netdev, &data[I40E_ETH_TEST_INTR]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		i40e_do_reset(pf, (1 << __I40E_PF_RESET_REQUESTED));
-		netdev_info(netdev, "loopback test starting\n");
-		if (i40e_loopback_test(pf, &data[I40E_ETH_TEST_LOOPBACK]))
+		if (i40e_loopback_test(netdev, &data[I40E_ETH_TEST_LOOPBACK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 	} else {
 		netdev_info(netdev, "online test starting\n");
 		/* Online tests */
-		if (i40e_link_test(pf, &data[I40E_ETH_TEST_LINK]))
+		if (i40e_link_test(netdev, &data[I40E_ETH_TEST_LINK]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		/* Offline only tests, not run in online; pass by default */
