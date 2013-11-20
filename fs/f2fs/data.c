@@ -462,6 +462,7 @@ alloc_new:
 	io->last_block_in_bio = blk_addr;
 
 	mutex_unlock(&io->io_mutex);
+	trace_f2fs_submit_read_page(page, rw, META, blk_addr);
 }
 
 /*

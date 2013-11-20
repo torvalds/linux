@@ -923,7 +923,7 @@ retry:
 	io->last_block_in_bio = blk_addr;
 
 	mutex_unlock(&io->io_mutex);
-	trace_f2fs_submit_write_page(page, blk_addr, type);
+	trace_f2fs_submit_write_page(page, WRITE, type, blk_addr);
 }
 
 void f2fs_wait_on_page_writeback(struct page *page,

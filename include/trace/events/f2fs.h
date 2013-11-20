@@ -674,15 +674,16 @@ DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
 	TP_ARGS(page, type)
 );
 
-TRACE_EVENT(f2fs_submit_write_page,
+DECLARE_EVENT_CLASS(f2fs_io_page,
 
-	TP_PROTO(struct page *page, block_t blk_addr, int type),
+	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
 
-	TP_ARGS(page, blk_addr, type),
+	TP_ARGS(page, rw, type, blk_addr),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
 		__field(ino_t,	ino)
+		__field(int, rw)
 		__field(int, type)
 		__field(pgoff_t, index)
 		__field(block_t, block)
@@ -691,16 +692,32 @@ TRACE_EVENT(f2fs_submit_write_page,
 	TP_fast_assign(
 		__entry->dev	= page->mapping->host->i_sb->s_dev;
 		__entry->ino	= page->mapping->host->i_ino;
+		__entry->rw	= rw;
 		__entry->type	= type;
 		__entry->index	= page->index;
 		__entry->block	= blk_addr;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s, index = %lu, blkaddr = 0x%llx",
+	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, blkaddr = 0x%llx",
 		show_dev_ino(__entry),
+		show_bio_type(__entry->rw),
 		show_block_type(__entry->type),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->block)
+);
+
+DEFINE_EVENT(f2fs_io_page, f2fs_submit_write_page,
+
+	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
+
+	TP_ARGS(page, rw, type, blk_addr)
+);
+
+DEFINE_EVENT(f2fs_io_page, f2fs_submit_read_page,
+
+	TP_PROTO(struct page *page, int rw, int type, block_t blk_addr),
+
+	TP_ARGS(page, rw, type, blk_addr)
 );
 
 TRACE_EVENT(f2fs_write_checkpoint,
