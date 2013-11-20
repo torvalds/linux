@@ -562,6 +562,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw_link_info->link_info = resp->link_info;
 	hw_link_info->an_info = resp->an_info;
 	hw_link_info->ext_info = resp->ext_info;
+	hw_link_info->loopback = resp->loopback;
 
 	if (resp->command_flags & cpu_to_le16(I40E_AQ_LSE_ENABLE))
 		hw_link_info->lse_enable = true;

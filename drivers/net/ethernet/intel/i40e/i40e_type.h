@@ -172,6 +172,7 @@ struct i40e_link_status {
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
+	u8 loopback;
 	/* is Link Status Event notification to SW enabled */
 	bool lse_enable;
 };
