@@ -99,16 +99,24 @@ EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
-static inline void hda_call_pm_notify(struct hda_bus *bus, bool power_up)
+
+static void hda_call_pm_notify(struct hda_codec *codec, bool power_up)
 {
+	struct hda_bus *bus = codec->bus;
+
+	if ((power_up && codec->pm_up_notified) ||
+	    (!power_up && !codec->pm_up_notified))
+		return;
 	if (bus->ops.pm_notify)
 		bus->ops.pm_notify(bus, power_up);
+	codec->pm_up_notified = power_up;
 }
+
 #else
 #define codec_in_pm(codec)	0
 static inline void hda_keep_power_on(struct hda_codec *codec) {}
 #define hda_codec_is_power_on(codec)	1
-#define hda_call_pm_notify(bus, state) {}
+#define hda_call_pm_notify(codec, state) {}
 #endif
 
 /**
@@ -1371,10 +1379,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
-#ifdef CONFIG_PM
-	if (!codec->pm_down_notified) /* cancel leftover refcounts */
-		hda_call_pm_notify(codec->bus, false);
-#endif
+	hda_call_pm_notify(codec, false); /* cancel leftover refcounts */
 	unload_parser(codec);
 	module_put(codec->owner);
 	free_hda_cache(&codec->amp_cache);
@@ -1453,7 +1458,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 	 * phase.
 	 */
 	hda_keep_power_on(codec);
-	hda_call_pm_notify(bus, true);
 #endif
 
 	if (codec->bus->modelname) {
@@ -4058,10 +4062,6 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	 * in the resume / power-save sequence
 	 */
 	hda_keep_power_on(codec);
-	if (codec->pm_down_notified) {
-		codec->pm_down_notified = 0;
-		hda_call_pm_notify(codec->bus, true);
-	}
 	hda_set_power_state(codec, AC_PWRST_D0);
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
@@ -4935,11 +4935,8 @@ static void hda_power_work(struct work_struct *work)
 	spin_unlock(&codec->power_lock);
 
 	state = hda_call_codec_suspend(codec, true);
-	if (!codec->pm_down_notified &&
-	    !bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK)) {
-		codec->pm_down_notified = 1;
-		hda_call_pm_notify(bus, false);
-	}
+	if (!bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK))
+		hda_call_pm_notify(codec, false);
 }
 
 static void hda_keep_power_on(struct hda_codec *codec)
@@ -4949,6 +4946,7 @@ static void hda_keep_power_on(struct hda_codec *codec)
 	codec->power_on = 1;
 	codec->power_jiffies = jiffies;
 	spin_unlock(&codec->power_lock);
+	hda_call_pm_notify(codec, true);
 }
 
 /* update the power on/off account with the current jiffies */
@@ -4968,8 +4966,6 @@ void snd_hda_update_power_acct(struct hda_codec *codec)
 /* call this with codec->power_lock held! */
 static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 {
-	struct hda_bus *bus = codec->bus;
-
 	/* Return if power_on or transitioning to power_on, unless currently
 	 * powering down. */
 	if ((codec->power_on || codec->power_transition > 0) &&
@@ -4995,11 +4991,6 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	codec->power_jiffies = jiffies;
 	codec->power_transition = 1; /* avoid reentrance */
 	spin_unlock(&codec->power_lock);
-
-	if (codec->pm_down_notified) {
-		codec->pm_down_notified = 0;
-		hda_call_pm_notify(bus, true);
-	}
 
 	hda_call_codec_resume(codec);
 
