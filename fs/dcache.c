@@ -88,35 +88,6 @@ EXPORT_SYMBOL(rename_lock);
 
 static struct kmem_cache *dentry_cache __read_mostly;
 
-/**
- * read_seqbegin_or_lock - begin a sequence number check or locking block
- * @lock: sequence lock
- * @seq : sequence number to be checked
- *
- * First try it once optimistically without taking the lock. If that fails,
- * take the lock. The sequence number is also used as a marker for deciding
- * whether to be a reader (even) or writer (odd).
- * N.B. seq must be initialized to an even number to begin with.
- */
-static inline void read_seqbegin_or_lock(seqlock_t *lock, int *seq)
-{
-	if (!(*seq & 1))	/* Even */
-		*seq = read_seqbegin(lock);
-	else			/* Odd */
-		read_seqlock_excl(lock);
-}
-
-static inline int need_seqretry(seqlock_t *lock, int seq)
-{
-	return !(seq & 1) && read_seqretry(lock, seq);
-}
-
-static inline void done_seqretry(seqlock_t *lock, int seq)
-{
-	if (seq & 1)
-		read_sequnlock_excl(lock);
-}
-
 /*
  * This is the single most critical data structure when it comes
  * to the dcache: the hashtable for lookups. Somebody should try
@@ -125,8 +96,6 @@ static inline void done_seqretry(seqlock_t *lock, int seq)
  * This hash-function tries to avoid losing too many bits of hash
  * information, yet avoid using a prime hash-size or similar.
  */
-#define D_HASHBITS     d_hash_shift
-#define D_HASHMASK     d_hash_mask
 
 static unsigned int d_hash_mask __read_mostly;
 static unsigned int d_hash_shift __read_mostly;
@@ -137,8 +106,8 @@ static inline struct hlist_bl_head *d_hash(const struct dentry *parent,
 					unsigned int hash)
 {
 	hash += (unsigned long) parent / L1_CACHE_BYTES;
-	hash = hash + (hash >> D_HASHBITS);
-	return dentry_hashtable + (hash & D_HASHMASK);
+	hash = hash + (hash >> d_hash_shift);
+	return dentry_hashtable + (hash & d_hash_mask);
 }
 
 /* Statistics gathering. */
@@ -469,7 +438,7 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 {
 	list_del(&dentry->d_u.d_child);
 	/*
-	 * Inform try_to_ascend() that we are no longer attached to the
+	 * Inform d_walk() that we are no longer attached to the
 	 * dentry tree
 	 */
 	dentry->d_flags |= DCACHE_DENTRY_KILLED;
@@ -1069,34 +1038,6 @@ void shrink_dcache_sb(struct super_block *sb)
 }
 EXPORT_SYMBOL(shrink_dcache_sb);
 
-/*
- * This tries to ascend one level of parenthood, but
- * we can race with renaming, so we need to re-check
- * the parenthood after dropping the lock and check
- * that the sequence number still matches.
- */
-static struct dentry *try_to_ascend(struct dentry *old, unsigned seq)
-{
-	struct dentry *new = old->d_parent;
-
-	rcu_read_lock();
-	spin_unlock(&old->d_lock);
-	spin_lock(&new->d_lock);
-
-	/*
-	 * might go back up the wrong parent if we have had a rename
-	 * or deletion
-	 */
-	if (new != old->d_parent ||
-		 (old->d_flags & DCACHE_DENTRY_KILLED) ||
-		 need_seqretry(&rename_lock, seq)) {
-		spin_unlock(&new->d_lock);
-		new = NULL;
-	}
-	rcu_read_unlock();
-	return new;
-}
-
 /**
  * enum d_walk_ret - action to talke during tree walk
  * @D_WALK_CONTINUE:	contrinue walk
@@ -1185,9 +1126,24 @@ resume:
 	 */
 	if (this_parent != parent) {
 		struct dentry *child = this_parent;
-		this_parent = try_to_ascend(this_parent, seq);
-		if (!this_parent)
+		this_parent = child->d_parent;
+
+		rcu_read_lock();
+		spin_unlock(&child->d_lock);
+		spin_lock(&this_parent->d_lock);
+
+		/*
+		 * might go back up the wrong parent if we have had a rename
+		 * or deletion
+		 */
+		if (this_parent != child->d_parent ||
+			 (child->d_flags & DCACHE_DENTRY_KILLED) ||
+			 need_seqretry(&rename_lock, seq)) {
+			spin_unlock(&this_parent->d_lock);
+			rcu_read_unlock();
 			goto rename_retry;
+		}
+		rcu_read_unlock();
 		next = child->d_u.d_child.next;
 		goto resume;
 	}
