@@ -793,11 +793,11 @@ static int wm0010_set_sysclk(struct snd_soc_codec *codec, int source,
 		wm0010->max_spi_freq = 0;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(pll_clock_map); i++)
-			if (freq >= pll_clock_map[i].max_sysclk)
+			if (freq >= pll_clock_map[i].max_sysclk) {
+				wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
+				wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
 				break;
-
-		wm0010->max_spi_freq = pll_clock_map[i].max_pll_spi_speed;
-		wm0010->pll_clkctrl1 = pll_clock_map[i].pll_clkctrl1;
+			}
 	}
 
 	return 0;
