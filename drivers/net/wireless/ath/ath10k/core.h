@@ -409,6 +409,7 @@ struct ath10k {
 	bool monitor_present;
 	unsigned int filter_flags;
 	unsigned long dev_flags;
+	u32 dfs_block_radar_events;
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;

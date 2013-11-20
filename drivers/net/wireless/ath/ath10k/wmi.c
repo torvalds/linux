@@ -1453,6 +1453,14 @@ static void ath10k_dfs_radar_report(struct ath10k *ar,
 
 	ath10k_dbg(ATH10K_DBG_REGULATORY, "dfs radar detected\n");
 	ATH10K_DFS_STAT_INC(ar, radar_detected);
+
+	/* Control radar events reporting in debugfs file
+	   dfs_block_radar_events */
+	if (ar->dfs_block_radar_events) {
+		ath10k_info("DFS Radar detected, but ignored as requested\n");
+		return;
+	}
+
 	ieee80211_radar_detected(ar->hw);
 }
 
