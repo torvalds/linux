@@ -33,6 +33,8 @@
 
 #include "tmio_mmc.h"
 
+#define EXT_ACC           0xe4
+
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 };
@@ -137,6 +139,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 	struct tmio_mmc_dma *dma_priv;
+	u16 ver;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -217,6 +220,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)
 		goto eprobe;
+
+	/*
+	 * FIXME:
+	 * this Workaround can be more clever method
+	 */
+	ver = sd_ctrl_read16(host, CTL_VERSION);
+	if (ver == 0xCB0D)
+		sd_ctrl_write16(host, EXT_ACC, 1);
 
 	/*
 	 * Allow one or more specific (named) ISRs or
