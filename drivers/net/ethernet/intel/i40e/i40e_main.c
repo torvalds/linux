@@ -7176,6 +7176,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct i40e_driver_version dv;
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
+	static u16 pfs_found;
 	int err = 0;
 	u32 len;
 
@@ -7241,6 +7242,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->subsystem_device_id = pdev->subsystem_device;
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
+	pf->instance = pfs_found;
 
 	/* do a special CORER for clearing PXE mode once at init */
 	if (hw->revision_id == 0 &&
@@ -7390,6 +7392,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		wr32(hw, I40E_PFGEN_PORTMDIO_NUM, val);
 		i40e_flush(hw);
 	}
+
+	pfs_found++;
 
 	i40e_dbg_pf_init(pf);
 

@@ -276,6 +276,8 @@ struct i40e_pf {
 	struct dentry *i40e_dbg_pf;
 #endif /* CONFIG_DEBUG_FS */
 
+	u16 instance; /* A unique number per i40e_pf instance in the system */
+
 	/* sr-iov config info */
 	struct i40e_vf *vf;
 	int num_alloc_vfs;	/* actual number of VFs allocated */
