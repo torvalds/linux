@@ -460,8 +460,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	u16tmp = (((c->symbol_rate / 1000) << 15) + (M88DS3103_MCLK_KHZ / 4)) /
-			(M88DS3103_MCLK_KHZ / 2);
+	u16tmp = DIV_ROUND_CLOSEST((c->symbol_rate / 1000) << 15, M88DS3103_MCLK_KHZ / 2);
 	buf[0] = (u16tmp >> 0) & 0xff;
 	buf[1] = (u16tmp >> 8) & 0xff;
 	ret = m88ds3103_wr_regs(priv, 0x61, buf, 2);
@@ -484,7 +483,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			(tuner_frequency - c->frequency));
 
 	s32tmp = 0x10000 * (tuner_frequency - c->frequency);
-	s32tmp = (2 * s32tmp + M88DS3103_MCLK_KHZ) / (2 * M88DS3103_MCLK_KHZ);
+	s32tmp = DIV_ROUND_CLOSEST(s32tmp, M88DS3103_MCLK_KHZ);
 	if (s32tmp < 0)
 		s32tmp += 0x10000;
 
