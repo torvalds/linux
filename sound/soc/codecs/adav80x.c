@@ -939,7 +939,7 @@ static struct spi_driver adav80x_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static const struct regmap_config adav80x_i2c_regmap_config = {
 	.val_bits = 8,
 	.pad_bits = 1,
@@ -985,7 +985,7 @@ static int __init adav80x_init(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&adav80x_i2c_driver);
 	if (ret)
 		return ret;
@@ -1001,7 +1001,7 @@ module_init(adav80x_init);
 
 static void __exit adav80x_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&adav80x_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)
