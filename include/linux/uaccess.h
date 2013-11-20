@@ -25,13 +25,16 @@ static inline void pagefault_disable(void)
 
 static inline void pagefault_enable(void)
 {
+#ifndef CONFIG_PREEMPT
 	/*
 	 * make sure to issue those last loads/stores before enabling
 	 * the pagefault handler again.
 	 */
 	barrier();
 	preempt_count_dec();
-	preempt_check_resched();
+#else
+	preempt_enable();
+#endif
 }
 
 #ifndef ARCH_HAS_NOCACHE_UACCESS
