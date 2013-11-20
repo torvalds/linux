@@ -24,6 +24,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "zcrypt"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
@@ -372,6 +375,11 @@ static int convert_type86(struct zcrypt_device *zdev,
 		if (service_rc == 8 && service_rs == 72)
 			return -EINVAL;
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%drc%d",
+			       zdev->ap_dev->qid, zdev->online,
+			       msg->hdr.reply_code);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 	data = msg->text;
@@ -425,6 +433,10 @@ static int convert_response(struct zcrypt_device *zdev,
 		/* no break, incorrect cprb version is an unknown response */
 	default: /* Unknown response type, this should NEVER EVER happen */
 		zdev->online = 0;
+		pr_err("Cryptographic device %x failed and was set offline\n",
+		       zdev->ap_dev->qid);
+		ZCRYPT_DBF_DEV(DBF_ERR, zdev, "dev%04xo%dfail",
+			       zdev->ap_dev->qid, zdev->online);
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
