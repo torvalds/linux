@@ -292,6 +292,10 @@ const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"AIF1RX8",
 	"AIF2RX1",
 	"AIF2RX2",
+	"AIF2RX3",
+	"AIF2RX4",
+	"AIF2RX5",
+	"AIF2RX6",
 	"AIF3RX1",
 	"AIF3RX2",
 	"SLIMRX1",
@@ -395,6 +399,10 @@ int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x27,
 	0x28,  /* AIF2RX1 */
 	0x29,
+	0x2a,
+	0x2b,
+	0x2c,
+	0x2d,
 	0x30,  /* AIF3RX1 */
 	0x31,
 	0x38,  /* SLIMRX1 */

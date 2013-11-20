@@ -511,6 +511,38 @@
 #define ARIZONA_AIF2TX2MIX_INPUT_3_VOLUME        0x74D
 #define ARIZONA_AIF2TX2MIX_INPUT_4_SOURCE        0x74E
 #define ARIZONA_AIF2TX2MIX_INPUT_4_VOLUME        0x74F
+#define ARIZONA_AIF2TX3MIX_INPUT_1_SOURCE        0x750
+#define ARIZONA_AIF2TX3MIX_INPUT_1_VOLUME        0x751
+#define ARIZONA_AIF2TX3MIX_INPUT_2_SOURCE        0x752
+#define ARIZONA_AIF2TX3MIX_INPUT_2_VOLUME        0x753
+#define ARIZONA_AIF2TX3MIX_INPUT_3_SOURCE        0x754
+#define ARIZONA_AIF2TX3MIX_INPUT_3_VOLUME        0x755
+#define ARIZONA_AIF2TX3MIX_INPUT_4_SOURCE        0x756
+#define ARIZONA_AIF2TX3MIX_INPUT_4_VOLUME        0x757
+#define ARIZONA_AIF2TX4MIX_INPUT_1_SOURCE        0x758
+#define ARIZONA_AIF2TX4MIX_INPUT_1_VOLUME        0x759
+#define ARIZONA_AIF2TX4MIX_INPUT_2_SOURCE        0x75A
+#define ARIZONA_AIF2TX4MIX_INPUT_2_VOLUME        0x75B
+#define ARIZONA_AIF2TX4MIX_INPUT_3_SOURCE        0x75C
+#define ARIZONA_AIF2TX4MIX_INPUT_3_VOLUME        0x75D
+#define ARIZONA_AIF2TX4MIX_INPUT_4_SOURCE        0x75E
+#define ARIZONA_AIF2TX4MIX_INPUT_4_VOLUME        0x75F
+#define ARIZONA_AIF2TX5MIX_INPUT_1_SOURCE        0x760
+#define ARIZONA_AIF2TX5MIX_INPUT_1_VOLUME        0x761
+#define ARIZONA_AIF2TX5MIX_INPUT_2_SOURCE        0x762
+#define ARIZONA_AIF2TX5MIX_INPUT_2_VOLUME        0x763
+#define ARIZONA_AIF2TX5MIX_INPUT_3_SOURCE        0x764
+#define ARIZONA_AIF2TX5MIX_INPUT_3_VOLUME        0x765
+#define ARIZONA_AIF2TX5MIX_INPUT_4_SOURCE        0x766
+#define ARIZONA_AIF2TX5MIX_INPUT_4_VOLUME        0x767
+#define ARIZONA_AIF2TX6MIX_INPUT_1_SOURCE        0x768
+#define ARIZONA_AIF2TX6MIX_INPUT_1_VOLUME        0x769
+#define ARIZONA_AIF2TX6MIX_INPUT_2_SOURCE        0x76A
+#define ARIZONA_AIF2TX6MIX_INPUT_2_VOLUME        0x76B
+#define ARIZONA_AIF2TX6MIX_INPUT_3_SOURCE        0x76C
+#define ARIZONA_AIF2TX6MIX_INPUT_3_VOLUME        0x76D
+#define ARIZONA_AIF2TX6MIX_INPUT_4_SOURCE        0x76E
+#define ARIZONA_AIF2TX6MIX_INPUT_4_VOLUME        0x76F
 #define ARIZONA_AIF3TX1MIX_INPUT_1_SOURCE        0x780
 #define ARIZONA_AIF3TX1MIX_INPUT_1_VOLUME        0x781
 #define ARIZONA_AIF3TX1MIX_INPUT_2_SOURCE        0x782
@@ -3726,6 +3758,35 @@
 #define ARIZONA_AIF2TX2_SLOT_WIDTH                    6  /* AIF2TX2_SLOT - [5:0] */
 
 /*
+ * R1355 (0x54B) - AIF2 Frame Ctrl 5
+ */
+#define ARIZONA_AIF2TX3_SLOT_MASK                0x003F  /* AIF2TX3_SLOT - [5:0] */
+#define ARIZONA_AIF2TX3_SLOT_SHIFT                    0  /* AIF2TX3_SLOT - [5:0] */
+#define ARIZONA_AIF2TX3_SLOT_WIDTH                    6  /* AIF2TX3_SLOT - [5:0] */
+
+/*
+ * R1356 (0x54C) - AIF2 Frame Ctrl 6
+ */
+#define ARIZONA_AIF2TX4_SLOT_MASK                0x003F  /* AIF2TX4_SLOT - [5:0] */
+#define ARIZONA_AIF2TX4_SLOT_SHIFT                    0  /* AIF2TX4_SLOT - [5:0] */
+#define ARIZONA_AIF2TX4_SLOT_WIDTH                    6  /* AIF2TX4_SLOT - [5:0] */
+
+
+/*
+ * R1357 (0x54D) - AIF2 Frame Ctrl 7
+ */
+#define ARIZONA_AIF2TX5_SLOT_MASK                0x003F  /* AIF2TX5_SLOT - [5:0] */
+#define ARIZONA_AIF2TX5_SLOT_SHIFT                    0  /* AIF2TX5_SLOT - [5:0] */
+#define ARIZONA_AIF2TX5_SLOT_WIDTH                    6  /* AIF2TX5_SLOT - [5:0] */
+
+/*
+ * R1358 (0x54E) - AIF2 Frame Ctrl 8
+ */
+#define ARIZONA_AIF2TX6_SLOT_MASK                0x003F  /* AIF2TX6_SLOT - [5:0] */
+#define ARIZONA_AIF2TX6_SLOT_SHIFT                    0  /* AIF2TX6_SLOT - [5:0] */
+#define ARIZONA_AIF2TX6_SLOT_WIDTH                    6  /* AIF2TX6_SLOT - [5:0] */
+
+/*
  * R1361 (0x551) - AIF2 Frame Ctrl 11
  */
 #define ARIZONA_AIF2RX1_SLOT_MASK                0x003F  /* AIF2RX1_SLOT - [5:0] */
@@ -3740,8 +3801,52 @@
 #define ARIZONA_AIF2RX2_SLOT_WIDTH                    6  /* AIF2RX2_SLOT - [5:0] */
 
 /*
+ * R1363 (0x553) - AIF2 Frame Ctrl 13
+ */
+#define ARIZONA_AIF2RX3_SLOT_MASK                0x003F  /* AIF2RX3_SLOT - [5:0] */
+#define ARIZONA_AIF2RX3_SLOT_SHIFT                    0  /* AIF2RX3_SLOT - [5:0] */
+#define ARIZONA_AIF2RX3_SLOT_WIDTH                    6  /* AIF2RX3_SLOT - [5:0] */
+
+/*
+ * R1364 (0x554) - AIF2 Frame Ctrl 14
+ */
+#define ARIZONA_AIF2RX4_SLOT_MASK                0x003F  /* AIF2RX4_SLOT - [5:0] */
+#define ARIZONA_AIF2RX4_SLOT_SHIFT                    0  /* AIF2RX4_SLOT - [5:0] */
+#define ARIZONA_AIF2RX4_SLOT_WIDTH                    6  /* AIF2RX4_SLOT - [5:0] */
+
+/*
+ * R1365 (0x555) - AIF2 Frame Ctrl 15
+ */
+#define ARIZONA_AIF2RX5_SLOT_MASK                0x003F  /* AIF2RX5_SLOT - [5:0] */
+#define ARIZONA_AIF2RX5_SLOT_SHIFT                    0  /* AIF2RX5_SLOT - [5:0] */
+#define ARIZONA_AIF2RX5_SLOT_WIDTH                    6  /* AIF2RX5_SLOT - [5:0] */
+
+/*
+ * R1366 (0x556) - AIF2 Frame Ctrl 16
+ */
+#define ARIZONA_AIF2RX6_SLOT_MASK                0x003F  /* AIF2RX6_SLOT - [5:0] */
+#define ARIZONA_AIF2RX6_SLOT_SHIFT                    0  /* AIF2RX6_SLOT - [5:0] */
+#define ARIZONA_AIF2RX6_SLOT_WIDTH                    6  /* AIF2RX6_SLOT - [5:0] */
+
+/*
  * R1369 (0x559) - AIF2 Tx Enables
  */
+#define ARIZONA_AIF2TX6_ENA                      0x0020  /* AIF2TX6_ENA */
+#define ARIZONA_AIF2TX6_ENA_MASK                 0x0020  /* AIF2TX6_ENA */
+#define ARIZONA_AIF2TX6_ENA_SHIFT                     5  /* AIF2TX6_ENA */
+#define ARIZONA_AIF2TX6_ENA_WIDTH                     1  /* AIF2TX6_ENA */
+#define ARIZONA_AIF2TX5_ENA                      0x0010  /* AIF2TX5_ENA */
+#define ARIZONA_AIF2TX5_ENA_MASK                 0x0010  /* AIF2TX5_ENA */
+#define ARIZONA_AIF2TX5_ENA_SHIFT                     4  /* AIF2TX5_ENA */
+#define ARIZONA_AIF2TX5_ENA_WIDTH                     1  /* AIF2TX5_ENA */
+#define ARIZONA_AIF2TX4_ENA                      0x0008  /* AIF2TX4_ENA */
+#define ARIZONA_AIF2TX4_ENA_MASK                 0x0008  /* AIF2TX4_ENA */
+#define ARIZONA_AIF2TX4_ENA_SHIFT                     3  /* AIF2TX4_ENA */
+#define ARIZONA_AIF2TX4_ENA_WIDTH                     1  /* AIF2TX4_ENA */
+#define ARIZONA_AIF2TX3_ENA                      0x0004  /* AIF2TX3_ENA */
+#define ARIZONA_AIF2TX3_ENA_MASK                 0x0004  /* AIF2TX3_ENA */
+#define ARIZONA_AIF2TX3_ENA_SHIFT                     2  /* AIF2TX3_ENA */
+#define ARIZONA_AIF2TX3_ENA_WIDTH                     1  /* AIF2TX3_ENA */
 #define ARIZONA_AIF2TX2_ENA                      0x0002  /* AIF2TX2_ENA */
 #define ARIZONA_AIF2TX2_ENA_MASK                 0x0002  /* AIF2TX2_ENA */
 #define ARIZONA_AIF2TX2_ENA_SHIFT                     1  /* AIF2TX2_ENA */
@@ -3754,6 +3859,22 @@
 /*
  * R1370 (0x55A) - AIF2 Rx Enables
  */
+#define ARIZONA_AIF2RX6_ENA                      0x0020  /* AIF2RX6_ENA */
+#define ARIZONA_AIF2RX6_ENA_MASK                 0x0020  /* AIF2RX6_ENA */
+#define ARIZONA_AIF2RX6_ENA_SHIFT                     5  /* AIF2RX6_ENA */
+#define ARIZONA_AIF2RX6_ENA_WIDTH                     1  /* AIF2RX6_ENA */
+#define ARIZONA_AIF2RX5_ENA                      0x0010  /* AIF2RX5_ENA */
+#define ARIZONA_AIF2RX5_ENA_MASK                 0x0010  /* AIF2RX5_ENA */
+#define ARIZONA_AIF2RX5_ENA_SHIFT                     4  /* AIF2RX5_ENA */
+#define ARIZONA_AIF2RX5_ENA_WIDTH                     1  /* AIF2RX5_ENA */
+#define ARIZONA_AIF2RX4_ENA                      0x0008  /* AIF2RX4_ENA */
+#define ARIZONA_AIF2RX4_ENA_MASK                 0x0008  /* AIF2RX4_ENA */
+#define ARIZONA_AIF2RX4_ENA_SHIFT                     3  /* AIF2RX4_ENA */
+#define ARIZONA_AIF2RX4_ENA_WIDTH                     1  /* AIF2RX4_ENA */
+#define ARIZONA_AIF2RX3_ENA                      0x0004  /* AIF2RX3_ENA */
+#define ARIZONA_AIF2RX3_ENA_MASK                 0x0004  /* AIF2RX3_ENA */
+#define ARIZONA_AIF2RX3_ENA_SHIFT                     2  /* AIF2RX3_ENA */
+#define ARIZONA_AIF2RX3_ENA_WIDTH                     1  /* AIF2RX3_ENA */
 #define ARIZONA_AIF2RX2_ENA                      0x0002  /* AIF2RX2_ENA */
 #define ARIZONA_AIF2RX2_ENA_MASK                 0x0002  /* AIF2RX2_ENA */
 #define ARIZONA_AIF2RX2_ENA_SHIFT                     1  /* AIF2RX2_ENA */

@@ -81,7 +81,7 @@ struct arizona_priv {
 	unsigned int spk_ena_pending:1;
 };
 
-#define ARIZONA_NUM_MIXER_INPUTS 99
+#define ARIZONA_NUM_MIXER_INPUTS 103
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
