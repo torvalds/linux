@@ -777,6 +777,26 @@ int of_get_ibm_chip_id(struct device_node *np)
 	return -1;
 }
 
+/**
+ * cpu_to_chip_id - Return the cpus chip-id
+ * @cpu: The logical cpu number.
+ *
+ * Return the value of the ibm,chip-id property corresponding to the given
+ * logical cpu number. If the chip-id can not be found, returns -1.
+ */
+int cpu_to_chip_id(int cpu)
+{
+	struct device_node *np;
+
+	np = of_get_cpu_node(cpu, NULL);
+	if (!np)
+		return -1;
+
+	of_node_put(np);
+	return of_get_ibm_chip_id(np);
+}
+EXPORT_SYMBOL(cpu_to_chip_id);
+
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Fix up the uninitialized fields in a new device node:

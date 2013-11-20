@@ -19,6 +19,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 
 struct powernv_rng {
