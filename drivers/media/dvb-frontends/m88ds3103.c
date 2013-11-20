@@ -321,32 +321,32 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	case M88DS3103_TS_SERIAL:
 		u8tmp1 = 0x00;
 		ts_clk = 0;
-		u8tmp = 0x04;
+		u8tmp = 0x46;
 		break;
 	case M88DS3103_TS_SERIAL_D7:
 		u8tmp1 = 0x20;
 		ts_clk = 0;
-		u8tmp = 0x04;
+		u8tmp = 0x46;
 		break;
 	case M88DS3103_TS_PARALLEL:
 		ts_clk = 24000;
-		u8tmp = 0x00;
+		u8tmp = 0x42;
 		break;
 	case M88DS3103_TS_PARALLEL_12:
 		ts_clk = 12000;
-		u8tmp = 0x00;
+		u8tmp = 0x42;
 		break;
 	case M88DS3103_TS_PARALLEL_16:
 		ts_clk = 16000;
-		u8tmp = 0x00;
+		u8tmp = 0x42;
 		break;
 	case M88DS3103_TS_PARALLEL_19_2:
 		ts_clk = 19200;
-		u8tmp = 0x00;
+		u8tmp = 0x42;
 		break;
 	case M88DS3103_TS_CI:
 		ts_clk = 6000;
-		u8tmp = 0x01;
+		u8tmp = 0x43;
 		break;
 	default:
 		dev_dbg(&priv->i2c->dev, "%s: invalid ts_mode\n", __func__);
@@ -355,7 +355,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* TS mode */
-	ret = m88ds3103_wr_reg_mask(priv, 0xfd, u8tmp, 0x05);
+	ret = m88ds3103_wr_reg(priv, 0xfd, u8tmp);
 	if (ret)
 		goto err;
 
