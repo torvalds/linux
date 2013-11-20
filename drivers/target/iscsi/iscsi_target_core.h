@@ -37,9 +37,6 @@
 #define NA_RANDOM_DATAIN_PDU_OFFSETS	0
 #define NA_RANDOM_DATAIN_SEQ_OFFSETS	0
 #define NA_RANDOM_R2T_OFFSETS		0
-#define NA_DEFAULT_ERL			0
-#define NA_DEFAULT_ERL_MAX		2
-#define NA_DEFAULT_ERL_MIN		0
 
 /* struct iscsi_tpg_attrib sanity values */
 #define TA_AUTHENTICATION		1
@@ -59,6 +56,7 @@
 /* Disabled by default in production mode w/ explict ACLs */
 #define TA_PROD_MODE_WRITE_PROTECT	0
 #define TA_DEMO_MODE_DISCOVERY		1
+#define TA_DEFAULT_ERL			0
 #define TA_CACHE_CORE_NPS		0
 
 
@@ -766,6 +764,7 @@ struct iscsi_tpg_attrib {
 	u32			demo_mode_write_protect;
 	u32			prod_mode_write_protect;
 	u32			demo_mode_discovery;
+	u32			default_erl;
 	struct iscsi_portal_group *tpg;
 };
 

@@ -1046,6 +1046,11 @@ TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
  */
 DEF_TPG_ATTRIB(demo_mode_discovery);
 TPG_ATTR(demo_mode_discovery, S_IRUGO | S_IWUSR);
+/*
+ * Define iscsi_tpg_attrib_s_default_erl
+ */
+DEF_TPG_ATTRIB(default_erl);
+TPG_ATTR(default_erl, S_IRUGO | S_IWUSR);
 
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_authentication.attr,
@@ -1057,6 +1062,7 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_demo_mode_write_protect.attr,
 	&iscsi_tpg_attrib_prod_mode_write_protect.attr,
 	&iscsi_tpg_attrib_demo_mode_discovery.attr,
+	&iscsi_tpg_attrib_default_erl.attr,
 	NULL,
 };
 
@@ -1919,9 +1925,12 @@ static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
 {
 	struct iscsi_node_acl *acl = container_of(se_acl, struct iscsi_node_acl,
 				se_node_acl);
+	struct se_portal_group *se_tpg = se_acl->se_tpg;
+	struct iscsi_portal_group *tpg = container_of(se_tpg,
+				struct iscsi_portal_group, tpg_se_tpg);
 
 	acl->node_attrib.nacl = acl;
-	iscsit_set_default_node_attribues(acl);
+	iscsit_set_default_node_attribues(acl, tpg);
 }
 
 static int lio_check_stop_free(struct se_cmd *se_cmd)
