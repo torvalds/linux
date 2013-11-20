@@ -805,9 +805,10 @@ static void i40e_diag_test(struct net_device *netdev,
 		data[I40E_ETH_TEST_EEPROM] = 0;
 		data[I40E_ETH_TEST_INTR] = 0;
 		data[I40E_ETH_TEST_LOOPBACK] = 0;
-
-		clear_bit(__I40E_TESTING, &pf->state);
 	}
+	clear_bit(__I40E_TESTING, &pf->state);
+
+	netdev_info(netdev, "testing finished\n");
 }
 
 static void i40e_get_wol(struct net_device *netdev,
