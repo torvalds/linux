@@ -74,6 +74,9 @@ static const struct mfd_cell as3722_devs[] = {
 	{
 		.name = "as3722-power-off",
 	},
+	{
+		.name = "as3722-wdt",
+	},
 };
 
 static const struct regmap_irq as3722_irqs[] = {
