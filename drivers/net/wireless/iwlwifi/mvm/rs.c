@@ -1107,7 +1107,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 		 *    "active" throughput (under perfect conditions).
 		 */
 		if ((((100 * tpt_tbl[rate]) > lq_sta->last_tpt) &&
-		     ((active_sr > IWL_RATE_DECREASE_TH) &&
+		     ((active_sr > RS_SR_FORCE_DECREASE) &&
 		      (active_sr <= IWL_RATE_HIGH_TH) &&
 		      (tpt_tbl[rate] <= active_tpt))) ||
 		    ((active_sr >= IWL_RATE_SCALE_SWITCH) &&
@@ -1928,7 +1928,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	scale_action = 0;
 
 	/* Too many failures, decrease rate */
-	if ((sr <= IWL_RATE_DECREASE_TH) || (current_tpt == 0)) {
+	if ((sr <= RS_SR_FORCE_DECREASE) || (current_tpt == 0)) {
 		IWL_DEBUG_RATE(mvm,
 			       "decrease rate because of low SR\n");
 		scale_action = -1;

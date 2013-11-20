@@ -155,7 +155,7 @@ enum {
 #define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
 #define IWL_RATE_HIGH_TH		10880	/*  85% */
 #define IWL_RATE_INCREASE_TH		6400	/*  50% */
-#define IWL_RATE_DECREASE_TH		1920	/*  15% */
+#define RS_SR_FORCE_DECREASE		1920	/*  15% */
 
 /* possible actions when in legacy mode */
 enum {
