@@ -365,6 +365,7 @@ struct r8152 {
 	struct mii_if_info mii;
 	int intr_interval;
 	u32 msg_enable;
+	u32 tx_qlen;
 	u16 ocp_base;
 	u8 *intr_buff;
 	u8 version;
@@ -1173,6 +1174,14 @@ static int r8152_tx_agg_fill(struct r8152 *tp, struct tx_agg *agg)
 		remain = rx_buf_sz - (int)(tx_agg_align(tx_data) - agg->head);
 	}
 
+	netif_tx_lock(tp->netdev);
+
+	if (netif_queue_stopped(tp->netdev) &&
+	    skb_queue_len(&tp->tx_queue) < tp->tx_qlen)
+		netif_wake_queue(tp->netdev);
+
+	netif_tx_unlock(tp->netdev);
+
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_sndbulkpipe(tp->udev, 2),
 			  agg->head, (int)(tx_data - (u8 *)agg->head),
 			  (usb_complete_t)write_bulk_callback, agg);
@@ -1393,6 +1402,10 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 
 	skb_queue_tail(&tp->tx_queue, skb);
 
+	if (list_empty(&tp->tx_free) &&
+	    skb_queue_len(&tp->tx_queue) > tp->tx_qlen)
+		netif_stop_queue(netdev);
+
 	if (!list_empty(&tp->tx_free))
 		tasklet_schedule(&tp->tl);
 
@@ -1423,6 +1436,14 @@ static void rtl8152_nic_reset(struct r8152 *tp)
 	}
 }
 
+static void set_tx_qlen(struct r8152 *tp)
+{
+	struct net_device *netdev = tp->netdev;
+
+	tp->tx_qlen = rx_buf_sz / (netdev->mtu + VLAN_ETH_HLEN + VLAN_HLEN +
+				   sizeof(struct tx_desc));
+}
+
 static inline u8 rtl8152_get_speed(struct r8152 *tp)
 {
 	return ocp_read_byte(tp, MCU_TYPE_PLA, PLA_PHYSTATUS);
@@ -1434,6 +1455,7 @@ static int rtl8152_enable(struct r8152 *tp)
 	int i, ret;
 	u8 speed;
 
+	set_tx_qlen(tp);
 	speed = rtl8152_get_speed(tp);
 	if (speed & _10bps) {
 		ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_EEEP_CR);
