@@ -1717,6 +1717,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	u16 high_low;
 	s32 sr;
 	u8 tid = IWL_MAX_TID_COUNT;
+	u8 prev_agg = lq_sta->is_agg;
 	struct iwl_mvm_sta *sta_priv = (void *)sta->drv_priv;
 	struct iwl_mvm_tid_data *tid_data;
 
@@ -1751,6 +1752,13 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		active_tbl = 1 - lq_sta->active_tbl;
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
+
+	if (prev_agg != lq_sta->is_agg) {
+		IWL_DEBUG_RATE(mvm,
+			       "Aggregation changed: prev %d current %d. Update expected TPT table\n",
+			       prev_agg, lq_sta->is_agg);
+		rs_set_expected_tpt_table(lq_sta, tbl);
+	}
 
 	/* current tx rate */
 	index = lq_sta->last_txrate_idx;
@@ -1837,8 +1845,6 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	 * actual average throughput */
 	if (window->average_tpt != ((window->success_ratio *
 			tbl->expected_tpt[index] + 64) / 128)) {
-		IWL_ERR(mvm,
-			"expected_tpt should have been calculated by now\n");
 		window->average_tpt = ((window->success_ratio *
 					tbl->expected_tpt[index] + 64) / 128);
 	}
