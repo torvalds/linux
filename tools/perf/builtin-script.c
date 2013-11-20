@@ -280,6 +280,30 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		set_print_ip_opts(&evsel->attr);
 	}
 
+	/*
+	 * set default for tracepoints to print symbols only
+	 * if callchains are present
+	 */
+	if (symbol_conf.use_callchain &&
+	    !output[PERF_TYPE_TRACEPOINT].user_set) {
+		struct perf_event_attr *attr;
+
+		j = PERF_TYPE_TRACEPOINT;
+		evsel = perf_session__find_first_evtype(session, j);
+		if (evsel == NULL)
+			goto out;
+
+		attr = &evsel->attr;
+
+		if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
+			output[j].fields |= PERF_OUTPUT_IP;
+			output[j].fields |= PERF_OUTPUT_SYM;
+			output[j].fields |= PERF_OUTPUT_DSO;
+			set_print_ip_opts(attr);
+		}
+	}
+
+out:
 	return 0;
 }
 
