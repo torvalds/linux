@@ -1319,6 +1319,7 @@ struct smb_version_operations smb30_operations = {
 	.create_lease_buf = smb3_create_lease_buf,
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.validate_negotiate = smb3_validate_negotiate,
 };
 
 struct smb_version_values smb20_values = {
