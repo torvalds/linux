@@ -29,6 +29,7 @@
 
 &uart1 {
 	fsl,uart-has-rtscts;
+	status = "okay";
 };
 
 &uart2 {

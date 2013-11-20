@@ -165,10 +165,6 @@
 	status = "okay";
 };
 
-&uart1 {
-	status = "okay";
-};
-
 &weim {
 	status = "okay";
 
