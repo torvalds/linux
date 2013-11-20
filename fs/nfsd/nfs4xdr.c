@@ -190,6 +190,15 @@ static int zero_clientid(clientid_t *clid)
 	return (clid->cl_boot == 0) && (clid->cl_id == 0);
 }
 
+/**
+ * defer_free - mark an allocation as deferred freed
+ * @argp: NFSv4 compound argument structure to be freed with
+ * @release: release callback to free @p, typically kfree()
+ * @p: pointer to be freed
+ *
+ * Marks @p to be freed when processing the compound operation
+ * described in @argp finishes.
+ */
 static int
 defer_free(struct nfsd4_compoundargs *argp,
 		void (*release)(const void *), void *p)
@@ -206,6 +215,16 @@ defer_free(struct nfsd4_compoundargs *argp,
 	return 0;
 }
 
+/**
+ * savemem - duplicate a chunk of memory for later processing
+ * @argp: NFSv4 compound argument structure to be freed with
+ * @p: pointer to be duplicated
+ * @nbytes: length to be duplicated
+ *
+ * Returns a pointer to a copy of @nbytes bytes of memory at @p
+ * that are preserved until processing of the NFSv4 compound
+ * operation described by @argp finishes.
+ */
 static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 {
 	if (p == argp->tmp) {
