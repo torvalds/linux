@@ -59,12 +59,12 @@ static int xen_add_device(struct device *dev)
 			add.flags = XEN_PCI_DEV_EXTFN;
 
 #ifdef CONFIG_ACPI
-		handle = DEVICE_ACPI_HANDLE(&pci_dev->dev);
+		handle = ACPI_HANDLE(&pci_dev->dev);
 		if (!handle && pci_dev->bus->bridge)
-			handle = DEVICE_ACPI_HANDLE(pci_dev->bus->bridge);
+			handle = ACPI_HANDLE(pci_dev->bus->bridge);
 #ifdef CONFIG_PCI_IOV
 		if (!handle && pci_dev->is_virtfn)
-			handle = DEVICE_ACPI_HANDLE(physfn->bus->bridge);
+			handle = ACPI_HANDLE(physfn->bus->bridge);
 #endif
 		if (handle) {
 			acpi_status status;

@@ -1008,7 +1008,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid->hid_get_raw_report = i2c_hid_get_raw_report;
 	hid->hid_output_raw_report = i2c_hid_output_raw_report;
 	hid->dev.parent = &client->dev;
-	ACPI_HANDLE_SET(&hid->dev, ACPI_HANDLE(&client->dev));
+	ACPI_COMPANION_SET(&hid->dev, ACPI_COMPANION(&client->dev));
 	hid->bus = BUS_I2C;
 	hid->version = le16_to_cpu(ihid->hdesc.bcdVersion);
 	hid->vendor = le16_to_cpu(ihid->hdesc.wVendorID);

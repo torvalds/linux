@@ -615,6 +615,22 @@ void i2c_unlock_adapter(struct i2c_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(i2c_unlock_adapter);
 
+static void i2c_dev_set_name(struct i2c_adapter *adap,
+			     struct i2c_client *client)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+
+	if (adev) {
+		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
+		return;
+	}
+
+	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
+	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+		     client->addr | ((client->flags & I2C_CLIENT_TEN)
+				     ? 0xa000 : 0));
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -671,12 +687,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
 	client->dev.of_node = info->of_node;
-	ACPI_HANDLE_SET(&client->dev, info->acpi_node.handle);
+	ACPI_COMPANION_SET(&client->dev, info->acpi_node.companion);
 
-	/* For 10-bit clients, add an arbitrary offset to avoid collisions */
-	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
-		     client->addr | ((client->flags & I2C_CLIENT_TEN)
-				     ? 0xa000 : 0));
+	i2c_dev_set_name(adap, client);
 	status = device_register(&client->dev);
 	if (status)
 		goto out_err;
@@ -1100,7 +1113,7 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 		return AE_OK;
 
 	memset(&info, 0, sizeof(info));
-	info.acpi_node.handle = handle;
+	info.acpi_node.companion = adev;
 	info.irq = -1;
 
 	INIT_LIST_HEAD(&resource_list);

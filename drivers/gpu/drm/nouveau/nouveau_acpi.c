@@ -256,7 +256,7 @@ static int nouveau_dsm_pci_probe(struct pci_dev *pdev)
 	acpi_handle dhandle;
 	int retval = 0;
 
-	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 
@@ -414,7 +414,7 @@ bool nouveau_acpi_rom_supported(struct pci_dev *pdev)
 	if (!nouveau_dsm_priv.dsm_detected && !nouveau_dsm_priv.optimus_detected)
 		return false;
 
-	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	dhandle = ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
 		return false;
 
@@ -448,7 +448,7 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 		return NULL;
 	}
 
-	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	handle = ACPI_HANDLE(&dev->pdev->dev);
 	if (!handle)
 		return NULL;
 

@@ -176,7 +176,6 @@ u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot);
 
 /* variables */
-extern bool acpiphp_debug;
 extern bool acpiphp_disabled;
 
 #endif /* _ACPIPHP_H */

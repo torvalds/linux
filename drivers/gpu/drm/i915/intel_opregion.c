@@ -638,7 +638,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	u32 temp;
 	int i = 0;
 
-	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	handle = ACPI_HANDLE(&dev->pdev->dev);
 	if (!handle || acpi_bus_get_device(handle, &acpi_dev))
 		return;
 

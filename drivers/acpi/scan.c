@@ -289,24 +289,17 @@ void acpi_bus_device_eject(void *data, u32 ost_src)
 {
 	struct acpi_device *device = data;
 	acpi_handle handle = device->handle;
-	struct acpi_scan_handler *handler;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
 
 	lock_device_hotplug();
 	mutex_lock(&acpi_scan_lock);
 
-	handler = device->handler;
-	if (!handler || !handler->hotplug.enabled) {
-		put_device(&device->dev);
-		goto err_support;
-	}
-
 	if (ost_src == ACPI_NOTIFY_EJECT_REQUEST)
 		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
 					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 
-	if (handler->hotplug.mode == AHM_CONTAINER)
+	if (device->handler && device->handler->hotplug.mode == AHM_CONTAINER)
 		kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 
 	error = acpi_scan_hot_remove(device);
@@ -411,8 +404,7 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
-		status = acpi_bus_get_device(handle, &adev);
-		if (ACPI_FAILURE(status))
+		if (acpi_bus_get_device(handle, &adev))
 			goto err_out;
 
 		get_device(&adev->dev);
@@ -1997,6 +1989,7 @@ static int acpi_bus_scan_fixed(void)
 		if (result)
 			return result;
 
+		device->flags.match_driver = true;
 		result = device_attach(&device->dev);
 		if (result < 0)
 			return result;
@@ -2013,6 +2006,7 @@ static int acpi_bus_scan_fixed(void)
 		if (result)
 			return result;
 
+		device->flags.match_driver = true;
 		result = device_attach(&device->dev);
 	}
 

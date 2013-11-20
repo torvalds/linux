@@ -56,7 +56,6 @@ static int ac_sleep_before_get_state_ms;
 
 struct acpi_ac {
 	struct power_supply charger;
-	struct acpi_device *adev;
 	struct platform_device *pdev;
 	unsigned long long state;
 };
@@ -70,8 +69,9 @@ struct acpi_ac {
 static int acpi_ac_get_state(struct acpi_ac *ac)
 {
 	acpi_status status;
+	acpi_handle handle = ACPI_HANDLE(&ac->pdev->dev);
 
-	status = acpi_evaluate_integer(ac->adev->handle, "_PSR", NULL,
+	status = acpi_evaluate_integer(handle, "_PSR", NULL,
 				       &ac->state);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
@@ -119,6 +119,7 @@ static enum power_supply_property ac_props[] = {
 static void acpi_ac_notify_handler(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_ac *ac = data;
+	struct acpi_device *adev;
 
 	if (!ac)
 		return;
@@ -141,10 +142,11 @@ static void acpi_ac_notify_handler(acpi_handle handle, u32 event, void *data)
 			msleep(ac_sleep_before_get_state_ms);
 
 		acpi_ac_get_state(ac);
-		acpi_bus_generate_netlink_event(ac->adev->pnp.device_class,
+		adev = ACPI_COMPANION(&ac->pdev->dev);
+		acpi_bus_generate_netlink_event(adev->pnp.device_class,
 						dev_name(&ac->pdev->dev),
 						event, (u32) ac->state);
-		acpi_notifier_call_chain(ac->adev, event, (u32) ac->state);
+		acpi_notifier_call_chain(adev, event, (u32) ac->state);
 		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
 	}
 
@@ -178,8 +180,8 @@ static int acpi_ac_probe(struct platform_device *pdev)
 	if (!pdev)
 		return -EINVAL;
 
-	result = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
-	if (result)
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
 		return -ENODEV;
 
 	ac = kzalloc(sizeof(struct acpi_ac), GFP_KERNEL);
@@ -188,7 +190,6 @@ static int acpi_ac_probe(struct platform_device *pdev)
 
 	strcpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
 	strcpy(acpi_device_class(adev), ACPI_AC_CLASS);
-	ac->adev = adev;
 	ac->pdev = pdev;
 	platform_set_drvdata(pdev, ac);
 
