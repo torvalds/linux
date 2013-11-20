@@ -206,6 +206,15 @@ void sysfs_remove_group(struct kobject *kobj,
 	struct sysfs_dirent *dir_sd = kobj->sd;
 	struct sysfs_dirent *sd;
 
+	/*
+	 * Sysfs directories are now removed recursively by
+	 * sysfs_remove_dir(). This means that the function can be called
+	 * for a group whose sysfs entry is already removed. In that case
+	 * all its groups are guaranteed to be already removed.
+	 */
+	if (dir_sd->s_flags & SYSFS_FLAG_REMOVED)
+		return;
+
 	if (grp->name) {
 		sd = sysfs_get_dirent(dir_sd, grp->name);
 		if (!sd) {
