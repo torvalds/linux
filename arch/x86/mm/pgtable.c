@@ -209,7 +209,7 @@ static int preallocate_pmds(pmd_t *pmds[])
 		if (!pmd)
 			failed = true;
 		if (pmd && !pgtable_pmd_page_ctor(virt_to_page(pmd))) {
-			free_page((unsigned long)pmds[i]);
+			free_page((unsigned long)pmd);
 			pmd = NULL;
 			failed = true;
 		}
