@@ -944,17 +944,25 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 	.enable_sdio_irq = tmio_mmc_enable_sdio_irq,
 };
 
-static void tmio_mmc_init_ocr(struct tmio_mmc_host *host)
+static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 {
 	struct tmio_mmc_data *pdata = host->pdata;
 	struct mmc_host *mmc = host->mmc;
 
 	mmc_regulator_get_supply(mmc);
 
+	/* use ocr_mask if no regulator */
 	if (!mmc->ocr_avail)
-		mmc->ocr_avail = pdata->ocr_mask ? : MMC_VDD_32_33 | MMC_VDD_33_34;
-	else if (pdata->ocr_mask)
-		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
+		mmc->ocr_avail =  pdata->ocr_mask;
+
+	/*
+	 * try again.
+	 * There is possibility that regulator has not been probed
+	 */
+	if (!mmc->ocr_avail)
+		return -EPROBE_DEFER;
+
+	return 0;
 }
 
 static void tmio_mmc_of_parse(struct platform_device *pdev,
@@ -1008,6 +1016,10 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	_host->bus_shift = resource_size(res_ctl) >> 10;
 
+	ret = tmio_mmc_init_ocr(_host);
+	if (ret < 0)
+		goto host_free;
+
 	_host->ctl = ioremap(res_ctl->start, resource_size(res_ctl));
 	if (!_host->ctl) {
 		ret = -ENOMEM;
@@ -1023,7 +1035,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 		mmc->max_segs;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
-	tmio_mmc_init_ocr(_host);
 
 	_host->native_hotplug = !(pdata->flags & TMIO_MMC_USE_GPIO_CD ||
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
