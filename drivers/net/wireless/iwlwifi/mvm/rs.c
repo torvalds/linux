@@ -47,7 +47,7 @@
 #define IWL_HT_NUMBER_TRY   3
 
 #define IWL_RATE_MAX_WINDOW		62	/* # tx in history window */
-#define IWL_RATE_MIN_FAILURE_TH		6	/* min failures to calc tpt */
+#define IWL_RATE_MIN_FAILURE_TH		3	/* min failures to calc tpt */
 #define IWL_RATE_MIN_SUCCESS_TH		8	/* min successes to calc tpt */
 
 /* max allowed rate miss before sync LQ cmd */
