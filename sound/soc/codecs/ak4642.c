@@ -511,7 +511,7 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4648 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static struct of_device_id ak4642_of_match[];
 static int ak4642_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -576,7 +576,7 @@ static struct i2c_driver ak4642_i2c_driver = {
 static int __init ak4642_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&ak4642_i2c_driver);
 #endif
 	return ret;
@@ -586,7 +586,7 @@ module_init(ak4642_modinit);
 
 static void __exit ak4642_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&ak4642_i2c_driver);
 #endif
 
