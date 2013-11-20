@@ -102,6 +102,7 @@ struct tmio_mmc_data {
 	unsigned long			capabilities;
 	unsigned long			capabilities2;
 	unsigned long			flags;
+	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
 	struct tmio_mmc_dma		*dma;
 	struct device			*dev;

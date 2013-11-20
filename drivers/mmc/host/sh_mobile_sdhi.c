@@ -133,9 +133,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	struct tmio_mmc_data *mmc_data;
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	struct tmio_mmc_host *host;
+	struct resource *res;
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 	struct tmio_mmc_dma *dma_priv;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct sh_mobile_sdhi), GFP_KERNEL);
 	if (priv == NULL) {
@@ -205,6 +210,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
 		mmc_data->flags |= of_data->tmio_flags;
 	}
+
+	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
+	mmc_data->bus_shift = resource_size(res) >> 9;
 
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)

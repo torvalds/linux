@@ -1013,9 +1013,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	_host->set_pwr = pdata->set_pwr;
 	_host->set_clk_div = pdata->set_clk_div;
 
-	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
-	_host->bus_shift = resource_size(res_ctl) >> 10;
-
 	ret = tmio_mmc_init_ocr(_host);
 	if (ret < 0)
 		goto host_free;
