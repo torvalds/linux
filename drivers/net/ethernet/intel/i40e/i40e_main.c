@@ -5087,12 +5087,11 @@ static int i40e_vsi_alloc_arrays(struct i40e_vsi *vsi)
 	int size;
 	int ret = 0;
 
-	/* allocate memory for ring pointers */
+	/* allocate memory for both Tx and Rx ring pointers */
 	size = sizeof(struct i40e_ring *) * vsi->alloc_queue_pairs * 2;
 	vsi->tx_rings = kzalloc(size, GFP_KERNEL);
 	if (!vsi->tx_rings)
 		return -ENOMEM;
-
 	vsi->rx_rings = &vsi->tx_rings[vsi->alloc_queue_pairs];
 
 	/* allocate memory for q_vector pointers */
@@ -5265,7 +5264,7 @@ static s32 i40e_vsi_clear_rings(struct i40e_vsi *vsi)
 	int i;
 
 	if (vsi->tx_rings[0])
-		for (i = 0; i < vsi->alloc_queue_pairs; i++) {
+		for (i = 0; i < vsi->num_queue_pairs; i++) {
 			kfree_rcu(vsi->tx_rings[i], rcu);
 			vsi->tx_rings[i] = NULL;
 			vsi->rx_rings[i] = NULL;
@@ -5284,10 +5283,11 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 	int i;
 
 	/* Set basic values in the rings to be used later during open() */
-	for (i = 0; i < vsi->alloc_queue_pairs; i++) {
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		struct i40e_ring *tx_ring;
 		struct i40e_ring *rx_ring;
 
+		/* allocate space for both Tx and Rx in one shot */
 		tx_ring = kzalloc(sizeof(struct i40e_ring) * 2, GFP_KERNEL);
 		if (!tx_ring)
 			goto err_out;
@@ -5858,7 +5858,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	int etherdev_size;
 
 	etherdev_size = sizeof(struct i40e_netdev_priv);
-	netdev = alloc_etherdev_mq(etherdev_size, vsi->alloc_queue_pairs);
+	netdev = alloc_etherdev_mq(etherdev_size, vsi->num_queue_pairs);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -6939,8 +6939,8 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf)
 		 * into the pf, since this newer code pushes the pf queue
 		 * info down a level into a VSI
 		 */
-		pf->num_rx_queues = vsi->alloc_queue_pairs;
-		pf->num_tx_queues = vsi->alloc_queue_pairs;
+		pf->num_rx_queues = vsi->num_queue_pairs;
+		pf->num_tx_queues = vsi->num_queue_pairs;
 	} else {
 		/* force a reset of TC and queue layout configurations */
 		u8 enabled_tc = pf->vsi[pf->lan_vsi]->tc_config.enabled_tc;
