@@ -701,7 +701,7 @@ nouveau_finish_page_flip(struct nouveau_channel *chan,
 
 	s = list_first_entry(&fctx->flip, struct nouveau_page_flip_state, head);
 	if (s->event)
-		drm_send_vblank_event(dev, -1, s->event);
+		drm_send_vblank_event(dev, s->crtc, s->event);
 
 	list_del(&s->head);
 	if (ps)
