@@ -84,6 +84,7 @@ enum iwl_device_family {
 	IWL_DEVICE_FAMILY_6050,
 	IWL_DEVICE_FAMILY_6150,
 	IWL_DEVICE_FAMILY_7000,
+	IWL_DEVICE_FAMILY_8000,
 };
 
 /*
@@ -307,6 +308,7 @@ extern const struct iwl_cfg iwl3160_n_cfg;
 extern const struct iwl_cfg iwl7265_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2n_cfg;
 extern const struct iwl_cfg iwl7265_n_cfg;
+extern const struct iwl_cfg iwl8260_2ac_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */
