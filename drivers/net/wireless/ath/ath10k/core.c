@@ -597,10 +597,8 @@ static int ath10k_init_uart(struct ath10k *ar)
 		return ret;
 	}
 
-	if (!uart_print) {
-		ath10k_info("UART prints disabled\n");
+	if (!uart_print)
 		return 0;
-	}
 
 	ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin, 7);
 	if (ret) {
@@ -645,8 +643,8 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 
 	ar->hw_params = *hw_params;
 
-	ath10k_info("Hardware name %s version 0x%x\n",
-		    ar->hw_params.name, ar->target_version);
+	ath10k_dbg(ATH10K_DBG_BOOT, "Hardware name %s version 0x%x\n",
+		   ar->hw_params.name, ar->target_version);
 
 	return 0;
 }
@@ -807,7 +805,8 @@ int ath10k_core_start(struct ath10k *ar)
 	if (status)
 		goto err_htt_detach;
 
-	ath10k_info("firmware %s booted\n", ar->hw->wiphy->fw_version);
+	ath10k_dbg(ATH10K_DBG_BOOT, "firmware %s booted\n",
+		   ar->hw->wiphy->fw_version);
 
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {
@@ -832,6 +831,11 @@ int ath10k_core_start(struct ath10k *ar)
 
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 	INIT_LIST_HEAD(&ar->arvifs);
+
+	ath10k_info("%s (0x%x) fw %s api %d htt %d.%d\n",
+		    ar->hw_params.name, ar->target_version,
+		    ar->hw->wiphy->fw_version, ar->fw_api,
+		    ar->htt.target_version_major, ar->htt.target_version_minor);
 
 	return 0;
 
