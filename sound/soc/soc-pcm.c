@@ -450,19 +450,6 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	codec_dai->active--;
 	codec->active--;
 
-	/* clear the corresponding DAIs rate when inactive */
-	if (!cpu_dai->active) {
-		cpu_dai->rate = 0;
-		cpu_dai->channels = 0;
-		cpu_dai->sample_bits = 0;
-	}
-
-	if (!codec_dai->active) {
-		codec_dai->rate = 0;
-		codec_dai->channels = 0;
-		codec_dai->sample_bits = 0;
-	}
-
 	/* Muting the DAC suppresses artifacts caused during digital
 	 * shutdown, for example from stopping clocks.
 	 */
@@ -681,6 +668,19 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_codec *codec = rtd->codec;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
+
+	/* clear the corresponding DAIs parameters when going to be inactive */
+	if (cpu_dai->active == 1) {
+		cpu_dai->rate = 0;
+		cpu_dai->channels = 0;
+		cpu_dai->sample_bits = 0;
+	}
+
+	if (codec_dai->active == 1) {
+		codec_dai->rate = 0;
+		codec_dai->channels = 0;
+		codec_dai->sample_bits = 0;
+	}
 
 	/* apply codec digital mute */
 	if (!codec->active)
