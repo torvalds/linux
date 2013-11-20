@@ -177,18 +177,19 @@ static ssize_t show_temp(struct device *dev,
 	/* Check whether the time interval has elapsed */
 	if (!tdata->valid || time_after(jiffies, tdata->last_updated + HZ)) {
 		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-		tdata->valid = 0;
-		/* Check whether the data is valid */
-		if (eax & 0x80000000) {
-			tdata->temp = tdata->tjmax -
-					((eax >> 16) & 0x7f) * 1000;
-			tdata->valid = 1;
-		}
+		/*
+		 * Ignore the valid bit. In all observed cases the register
+		 * value is either low or zero if the valid bit is 0.
+		 * Return it instead of reporting an error which doesn't
+		 * really help at all.
+		 */
+		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->valid = 1;
 		tdata->last_updated = jiffies;
 	}
 
 	mutex_unlock(&tdata->update_lock);
-	return tdata->valid ? sprintf(buf, "%d\n", tdata->temp) : -EAGAIN;
+	return sprintf(buf, "%d\n", tdata->temp);
 }
 
 struct tjmax_pci {
