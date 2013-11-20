@@ -878,6 +878,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->por_doing = false;
 	spin_lock_init(&sbi->stat_lock);
 
+	mutex_init(&sbi->read_io.io_mutex);
 	for (i = 0; i < NR_PAGE_TYPE; i++)
 		mutex_init(&sbi->write_io[i].io_mutex);
 

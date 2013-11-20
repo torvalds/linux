@@ -414,6 +414,56 @@ int f2fs_readpage(struct f2fs_sb_info *sbi, struct page *page,
 	return 0;
 }
 
+void f2fs_submit_read_bio(struct f2fs_sb_info *sbi, int rw)
+{
+	struct f2fs_bio_info *io = &sbi->read_io;
+
+	if (!io->bio)
+		return;
+
+	mutex_lock(&io->io_mutex);
+	if (io->bio) {
+		submit_bio(rw, io->bio);
+		io->bio = NULL;
+	}
+	mutex_unlock(&io->io_mutex);
+}
+
+void submit_read_page(struct f2fs_sb_info *sbi, struct page *page,
+					block_t blk_addr, int rw)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	struct f2fs_bio_info *io = &sbi->read_io;
+	int bio_blocks;
+
+	verify_block_addr(sbi, blk_addr);
+
+	mutex_lock(&io->io_mutex);
+
+	if (io->bio && io->last_block_in_bio != blk_addr - 1) {
+		submit_bio(rw, io->bio);
+		io->bio = NULL;
+	}
+alloc_new:
+	if (io->bio == NULL) {
+		bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+		io->bio = f2fs_bio_alloc(bdev, bio_blocks);
+		io->bio->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
+		io->bio->bi_end_io = read_end_io;
+	}
+
+	if (bio_add_page(io->bio, page, PAGE_CACHE_SIZE, 0) <
+							PAGE_CACHE_SIZE) {
+		submit_bio(rw, io->bio);
+		io->bio = NULL;
+		goto alloc_new;
+	}
+
+	io->last_block_in_bio = blk_addr;
+
+	mutex_unlock(&io->io_mutex);
+}
+
 /*
  * This function should be used by the data read flow only where it
  * does not check the "create" flag that indicates block allocation.
