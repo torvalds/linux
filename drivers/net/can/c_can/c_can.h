@@ -172,6 +172,8 @@ struct c_can_priv {
 	u32 __iomem *raminit_ctrlreg;
 	unsigned int instance;
 	void (*raminit) (const struct c_can_priv *priv, bool enable);
+	u32 (*read_reg32) (struct c_can_priv *priv, enum reg index);
+	void (*write_reg32) (struct c_can_priv *priv, enum reg index, u32 val);
 };
 
 struct net_device *alloc_c_can_dev(void);
