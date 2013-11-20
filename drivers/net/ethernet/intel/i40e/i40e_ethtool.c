@@ -211,6 +211,10 @@ static int i40e_get_settings(struct net_device *netdev,
 		ecmd->supported |= SUPPORTED_TP;
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->port = PORT_TP;
+	} else if (hw->phy.media_type == I40E_MEDIA_TYPE_DA) {
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_DA;
 	} else {
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;

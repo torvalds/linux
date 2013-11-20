@@ -267,6 +267,52 @@ i40e_status i40e_validate_mac_addr(u8 *mac_addr)
 }
 
 /**
+ * i40e_get_media_type - Gets media type
+ * @hw: pointer to the hardware structure
+ **/
+static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
+{
+	enum i40e_media_type media;
+
+	switch (hw->phy.link_info.phy_type) {
+	case I40E_PHY_TYPE_10GBASE_SR:
+	case I40E_PHY_TYPE_10GBASE_LR:
+	case I40E_PHY_TYPE_40GBASE_SR4:
+	case I40E_PHY_TYPE_40GBASE_LR4:
+		media = I40E_MEDIA_TYPE_FIBER;
+		break;
+	case I40E_PHY_TYPE_100BASE_TX:
+	case I40E_PHY_TYPE_1000BASE_T:
+	case I40E_PHY_TYPE_10GBASE_T:
+		media = I40E_MEDIA_TYPE_BASET;
+		break;
+	case I40E_PHY_TYPE_10GBASE_CR1_CU:
+	case I40E_PHY_TYPE_40GBASE_CR4_CU:
+	case I40E_PHY_TYPE_10GBASE_CR1:
+	case I40E_PHY_TYPE_40GBASE_CR4:
+	case I40E_PHY_TYPE_10GBASE_SFPP_CU:
+		media = I40E_MEDIA_TYPE_DA;
+		break;
+	case I40E_PHY_TYPE_1000BASE_KX:
+	case I40E_PHY_TYPE_10GBASE_KX4:
+	case I40E_PHY_TYPE_10GBASE_KR:
+	case I40E_PHY_TYPE_40GBASE_KR4:
+		media = I40E_MEDIA_TYPE_BACKPLANE;
+		break;
+	case I40E_PHY_TYPE_SGMII:
+	case I40E_PHY_TYPE_XAUI:
+	case I40E_PHY_TYPE_XFI:
+	case I40E_PHY_TYPE_XLAUI:
+	case I40E_PHY_TYPE_XLPPI:
+	default:
+		media = I40E_MEDIA_TYPE_UNKNOWN;
+		break;
+	}
+
+	return media;
+}
+
+/**
  * i40e_pf_reset - Reset the PF
  * @hw: pointer to the hardware structure
  *
@@ -499,6 +545,7 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)resp->phy_type;
+	hw->phy.media_type = i40e_get_media_type(hw);
 	hw_link_info->link_speed = (enum i40e_aq_link_speed)resp->link_speed;
 	hw_link_info->link_info = resp->link_info;
 	hw_link_info->an_info = resp->an_info;
