@@ -916,6 +916,7 @@ struct wmi_channel_arg {
 	bool allow_ht;
 	bool allow_vht;
 	bool ht40plus;
+	bool chan_radar;
 	/* note: power unit is 0.5 dBm */
 	u32 min_power;
 	u32 max_power;

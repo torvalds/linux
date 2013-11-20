@@ -945,6 +945,11 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				continue;
 			}
 
+			if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
+				ath10k_htt_rx_free_msdu_chain(msdu_head);
+				continue;
+			}
+
 			/* FIXME: we do not support chaining yet.
 			 * this needs investigation */
 			if (msdu_chaining) {

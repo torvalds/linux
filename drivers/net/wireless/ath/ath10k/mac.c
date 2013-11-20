@@ -463,6 +463,10 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 		arg.ssid = arvif->u.ap.ssid;
 		arg.ssid_len = arvif->u.ap.ssid_len;
 		arg.hidden_ssid = arvif->u.ap.hidden_ssid;
+
+		/* For now allow DFS for AP mode */
+		arg.channel.chan_radar =
+			!!(channel->flags & IEEE80211_CHAN_RADAR);
 	} else if (arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
 		arg.ssid = arvif->vif->bss_conf.ssid;
 		arg.ssid_len = arvif->vif->bss_conf.ssid_len;
@@ -532,6 +536,8 @@ static int ath10k_monitor_start(struct ath10k *ar, int vdev_id)
 	/* TODO setup this dynamically, what in case we
 	   don't have any vifs? */
 	arg.channel.mode = chan_to_phymode(&ar->hw->conf.chandef);
+	arg.channel.chan_radar =
+			!!(channel->flags & IEEE80211_CHAN_RADAR);
 
 	arg.channel.min_power = 0;
 	arg.channel.max_power = channel->max_power * 2;
@@ -664,6 +670,107 @@ static int ath10k_monitor_destroy(struct ath10k *ar)
 	ath10k_dbg(ATH10K_DBG_MAC, "mac monitor vdev %d deleted\n",
 		   ar->monitor_vdev_id);
 	return ret;
+}
+
+static int ath10k_start_cac(struct ath10k *ar)
+{
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	set_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
+
+	ret = ath10k_monitor_create(ar);
+	if (ret) {
+		clear_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
+		return ret;
+	}
+
+	ret = ath10k_monitor_start(ar, ar->monitor_vdev_id);
+	if (ret) {
+		clear_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
+		ath10k_monitor_destroy(ar);
+		return ret;
+	}
+
+	ath10k_dbg(ATH10K_DBG_MAC, "mac cac start monitor vdev %d\n",
+		   ar->monitor_vdev_id);
+
+	return 0;
+}
+
+static int ath10k_stop_cac(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->conf_mutex);
+
+	/* CAC is not running - do nothing */
+	if (!test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags))
+		return 0;
+
+	ath10k_monitor_stop(ar);
+	ath10k_monitor_destroy(ar);
+	clear_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
+
+	ath10k_dbg(ATH10K_DBG_MAC, "mac cac finished\n");
+
+	return 0;
+}
+
+static const char *ath10k_dfs_state(enum nl80211_dfs_state dfs_state)
+{
+	switch (dfs_state) {
+	case NL80211_DFS_USABLE:
+		return "USABLE";
+	case NL80211_DFS_UNAVAILABLE:
+		return "UNAVAILABLE";
+	case NL80211_DFS_AVAILABLE:
+		return "AVAILABLE";
+	default:
+		WARN_ON(1);
+		return "bug";
+	}
+}
+
+static void ath10k_config_radar_detection(struct ath10k *ar)
+{
+	struct ieee80211_channel *chan = ar->hw->conf.chandef.chan;
+	bool radar = ar->hw->conf.radar_enabled;
+	bool chan_radar = !!(chan->flags & IEEE80211_CHAN_RADAR);
+	enum nl80211_dfs_state dfs_state = chan->dfs_state;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	ath10k_dbg(ATH10K_DBG_MAC,
+		   "mac radar config update: chan %dMHz radar %d chan radar %d chan state %s\n",
+		   chan->center_freq, radar, chan_radar,
+		   ath10k_dfs_state(dfs_state));
+
+	/*
+	 * It's safe to call it even if CAC is not started.
+	 * This call here guarantees changing channel, etc. will stop CAC.
+	 */
+	ath10k_stop_cac(ar);
+
+	if (!radar)
+		return;
+
+	if (!chan_radar)
+		return;
+
+	if (dfs_state != NL80211_DFS_USABLE)
+		return;
+
+	ret = ath10k_start_cac(ar);
+	if (ret) {
+		/*
+		 * Not possible to start CAC on current channel so starting
+		 * radiation is not allowed, make this channel DFS_UNAVAILABLE
+		 * by indicating that radar was detected.
+		 */
+		ath10k_warn("failed to start CAC (%d)\n", ret);
+		ieee80211_radar_detected(ar->hw);
+	}
 }
 
 static void ath10k_control_beaconing(struct ath10k_vif *arvif,
@@ -1375,6 +1482,9 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			ch->ht40plus =
 				!(channel->flags & IEEE80211_CHAN_NO_HT40PLUS);
 
+			ch->chan_radar =
+				!!(channel->flags & IEEE80211_CHAN_RADAR);
+
 			passive = channel->flags & IEEE80211_CHAN_PASSIVE_SCAN;
 			ch->passive = passive;
 
@@ -1921,6 +2031,7 @@ void ath10k_halt(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
+	ath10k_stop_cac(ar);
 	del_timer_sync(&ar->scan.timeout);
 	ath10k_offchan_tx_purge(ar);
 	ath10k_mgmt_over_wmi_tx_purge(ar);
@@ -2035,11 +2146,16 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&ar->conf_mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ath10k_dbg(ATH10K_DBG_MAC, "mac config channel %d mhz\n",
-			   conf->chandef.chan->center_freq);
+		ath10k_dbg(ATH10K_DBG_MAC,
+			   "mac config channel %d mhz flags 0x%x\n",
+			   conf->chandef.chan->center_freq,
+			   conf->chandef.chan->flags);
+
 		spin_lock_bh(&ar->data_lock);
 		ar->rx_channel = conf->chandef.chan;
 		spin_unlock_bh(&ar->data_lock);
+
+		ath10k_config_radar_detection(ar);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -3308,12 +3424,36 @@ static const struct ieee80211_iface_limit ath10k_if_limits[] = {
 	},
 };
 
-static const struct ieee80211_iface_combination ath10k_if_comb = {
-	.limits = ath10k_if_limits,
-	.n_limits = ARRAY_SIZE(ath10k_if_limits),
-	.max_interfaces = 8,
-	.num_different_channels = 1,
-	.beacon_int_infra_match = true,
+#ifdef CONFIG_ATH10K_DFS_CERTIFIED
+static const struct ieee80211_iface_limit ath10k_if_dfs_limits[] = {
+	{
+	.max	= 8,
+	.types	= BIT(NL80211_IFTYPE_AP)
+	},
+};
+#endif
+
+static const struct ieee80211_iface_combination ath10k_if_comb[] = {
+	{
+		.limits = ath10k_if_limits,
+		.n_limits = ARRAY_SIZE(ath10k_if_limits),
+		.max_interfaces = 8,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+	},
+#ifdef CONFIG_ATH10K_DFS_CERTIFIED
+	{
+		.limits = ath10k_if_dfs_limits,
+		.n_limits = ARRAY_SIZE(ath10k_if_dfs_limits),
+		.max_interfaces = 8,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+		.radar_detect_widths =	BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+					BIT(NL80211_CHAN_WIDTH_20) |
+					BIT(NL80211_CHAN_WIDTH_40) |
+					BIT(NL80211_CHAN_WIDTH_80),
+	}
+#endif
 };
 
 static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
@@ -3537,8 +3677,8 @@ int ath10k_mac_register(struct ath10k *ar)
 	 */
 	ar->hw->queues = 4;
 
-	ar->hw->wiphy->iface_combinations = &ath10k_if_comb;
-	ar->hw->wiphy->n_iface_combinations = 1;
+	ar->hw->wiphy->iface_combinations = ath10k_if_comb;
+	ar->hw->wiphy->n_iface_combinations = ARRAY_SIZE(ath10k_if_comb);
 
 	ar->hw->netdev_features = NETIF_F_HW_CSUM;
 

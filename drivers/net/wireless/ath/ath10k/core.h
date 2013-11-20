@@ -310,6 +310,11 @@ enum ath10k_fw_features {
 	ATH10K_FW_FEATURE_COUNT,
 };
 
+enum ath10k_dev_flags {
+	/* Indicates that ath10k device is during CAC phase of DFS */
+	ATH10K_CAC_RUNNING,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -403,6 +408,7 @@ struct ath10k {
 	bool monitor_enabled;
 	bool monitor_present;
 	unsigned int filter_flags;
+	unsigned long dev_flags;
 
 	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
