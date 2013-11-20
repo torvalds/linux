@@ -53,7 +53,7 @@ static inline void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
 		if (!need_resched())
 			__mwait(eax, ecx);
 	}
-	__current_clr_polling();
+	current_clr_polling();
 }
 
 #endif /* _ASM_X86_MWAIT_H */
