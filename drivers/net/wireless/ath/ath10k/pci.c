@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/bitops.h>
 
 #include "core.h"
 #include "debug.h"
@@ -1925,7 +1926,8 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	else
 		irq_mode = "legacy";
 
-	ath10k_info("pci irq %s\n", irq_mode);
+	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
+		ath10k_info("pci irq %s\n", irq_mode);
 
 	return 0;
 

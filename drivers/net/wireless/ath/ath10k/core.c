@@ -832,10 +832,14 @@ int ath10k_core_start(struct ath10k *ar)
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 	INIT_LIST_HEAD(&ar->arvifs);
 
-	ath10k_info("%s (0x%x) fw %s api %d htt %d.%d\n",
-		    ar->hw_params.name, ar->target_version,
-		    ar->hw->wiphy->fw_version, ar->fw_api,
-		    ar->htt.target_version_major, ar->htt.target_version_minor);
+	if (!test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
+		ath10k_info("%s (0x%x) fw %s api %d htt %d.%d\n",
+			    ar->hw_params.name, ar->target_version,
+			    ar->hw->wiphy->fw_version, ar->fw_api,
+			    ar->htt.target_version_major,
+			    ar->htt.target_version_minor);
+
+	__set_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags);
 
 	return 0;
 
