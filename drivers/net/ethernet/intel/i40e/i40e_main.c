@@ -5765,6 +5765,9 @@ static int i40e_sw_init(struct i40e_pf *pf)
 		pf->num_req_vfs = min_t(int,
 					pf->hw.func_caps.num_vfs,
 					I40E_MAX_VF_COUNT);
+		dev_info(&pf->pdev->dev,
+			 "Number of VFs being requested for PF[%d] = %d\n",
+			 pf->hw.pf_id, pf->num_req_vfs);
 	}
 #endif /* CONFIG_PCI_IOV */
 	pf->eeprom_version = 0xDEAD;
