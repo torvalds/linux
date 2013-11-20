@@ -236,64 +236,72 @@
 				status = "disabled";
 			};
 
-			gpio1: gpio@10015000 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015000 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
+			iomuxc: iomuxc@10015000 {
+				compatible = "fsl,imx27-iomuxc";
+				reg = <0x10015000 0x600>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
 
-			gpio2: gpio@10015100 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015100 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
+				gpio1: gpio@10015000 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015000 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
-			gpio3: gpio@10015200 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015200 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
+				gpio2: gpio@10015100 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015100 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
-			gpio4: gpio@10015300 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015300 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
+				gpio3: gpio@10015200 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015200 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
-			gpio5: gpio@10015400 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015400 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-			};
+				gpio4: gpio@10015300 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015300 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
-			gpio6: gpio@10015500 {
-				compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
-				reg = <0x10015500 0x100>;
-				interrupts = <8>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
+				gpio5: gpio@10015400 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015400 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio6: gpio@10015500 {
+					compatible = "fsl,imx27-gpio", "fsl,imx21-gpio";
+					reg = <0x10015500 0x100>;
+					interrupts = <8>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 			};
 
 			audmux: audmux@10016000 {
