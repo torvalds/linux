@@ -76,6 +76,13 @@
  */
 #define TMIO_MMC_USE_GPIO_CD		(1 << 5)
 
+/*
+ * Some controllers doesn't have over 0x100 register.
+ * it is used to checking accessibility of
+ * CTL_SD_CARD_CLK_CTL / CTL_CLK_AND_WAIT_CTL
+ */
+#define TMIO_MMC_HAVE_HIGH_REG		(1 << 6)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);

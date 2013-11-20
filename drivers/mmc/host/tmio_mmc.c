@@ -91,6 +91,7 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	pdata->bus_shift = resource_size(res_ctl) >> 10;
+	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
 	ret = tmio_mmc_host_probe(&host, pdev, pdata);
 	if (ret)
