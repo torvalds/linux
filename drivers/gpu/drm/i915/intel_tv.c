@@ -902,6 +902,13 @@ intel_tv_mode_valid(struct drm_connector *connector,
 }
 
 
+static void
+intel_tv_get_config(struct intel_encoder *encoder,
+		    struct intel_crtc_config *pipe_config)
+{
+	pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+}
+
 static bool
 intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_config *pipe_config)
@@ -1621,6 +1628,7 @@ intel_tv_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_TVDAC);
 
 	intel_encoder->compute_config = intel_tv_compute_config;
+	intel_encoder->get_config = intel_tv_get_config;
 	intel_encoder->mode_set = intel_tv_mode_set;
 	intel_encoder->enable = intel_enable_tv;
 	intel_encoder->disable = intel_disable_tv;

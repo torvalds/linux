@@ -6518,6 +6518,9 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_enable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6525,6 +6528,9 @@ void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 
 void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	mutex_lock(&dev_priv->pc8.lock);
 	__hsw_disable_package_c8(dev_priv);
 	mutex_unlock(&dev_priv->pc8.lock);
@@ -6562,6 +6568,9 @@ static void hsw_update_package_c8(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool allow;
 
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
 	if (!i915_enable_pc8)
 		return;
 
@@ -6585,18 +6594,28 @@ done:
 
 static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
+	mutex_lock(&dev_priv->pc8.lock);
 	if (!dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = true;
-		hsw_enable_package_c8(dev_priv);
+		__hsw_enable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PC8(dev_priv->dev))
+		return;
+
+	mutex_lock(&dev_priv->pc8.lock);
 	if (dev_priv->pc8.gpu_idle) {
 		dev_priv->pc8.gpu_idle = false;
-		hsw_disable_package_c8(dev_priv);
+		__hsw_disable_package_c8(dev_priv);
 	}
+	mutex_unlock(&dev_priv->pc8.lock);
 }
 
 #define for_each_power_domain(domain, mask)				\
@@ -7184,7 +7203,9 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
+	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
+	POSTING_READ(CURBASE(pipe));
 }
 
 static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
@@ -7213,7 +7234,9 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 		intel_crtc->cursor_visible = visible;
 	}
 	/* and commit changes on next vblank */
+	POSTING_READ(CURCNTR_IVB(pipe));
 	I915_WRITE(CURBASE_IVB(pipe), base);
+	POSTING_READ(CURBASE_IVB(pipe));
 }
 
 /* If no-part of the cursor is visible on the framebuffer, then the GPU may hang... */
@@ -9248,8 +9271,7 @@ check_crtc_state(struct drm_device *dev)
 			enum pipe pipe;
 			if (encoder->base.crtc != &crtc->base)
 				continue;
-			if (encoder->get_config &&
-			    encoder->get_hw_state(encoder, &pipe))
+			if (encoder->get_hw_state(encoder, &pipe))
 				encoder->get_config(encoder, &pipe_config);
 		}
 
@@ -10909,8 +10931,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (encoder->get_hw_state(encoder, &pipe)) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			encoder->base.crtc = &crtc->base;
-			if (encoder->get_config)
-				encoder->get_config(encoder, &crtc->config);
+			encoder->get_config(encoder, &crtc->config);
 		} else {
 			encoder->base.crtc = NULL;
 		}
