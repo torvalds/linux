@@ -1059,7 +1059,7 @@ static void request_write(struct cached_dev *dc, struct search *s)
 
 		if (bio->bi_rw & REQ_FLUSH) {
 			/* Also need to send a flush to the backing device */
-			struct bio *flush = bio_alloc_bioset(0, GFP_NOIO,
+			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
 							     dc->disk.bio_split);
 
 			flush->bi_rw	= WRITE_FLUSH;
