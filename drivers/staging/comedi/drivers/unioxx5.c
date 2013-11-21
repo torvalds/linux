@@ -235,9 +235,11 @@ static int __unioxx5_digital_write(struct comedi_subdevice *s,
 	return 1;
 }
 
-static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
+static int __unioxx5_analog_write(struct comedi_subdevice *s,
 				  unsigned int *data, int channel, int minor)
 {
+	struct unioxx5_subd_priv *usp = s->private;
+	struct device *csdev = s->device->class_dev;
 	int module, i;
 
 	module = channel / 2;	/* definig module number(0 .. 11) */
@@ -245,7 +247,7 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
 
 	/* defining if given module can work on output */
 	if (!(usp->usp_module_type[module] & MODULE_OUTPUT_MASK)) {
-		pr_err("comedi%d: module in position %d with id 0x%0x is for input only!\n",
+		dev_err(csdev, "comedi%d: module in position %d with id 0x%0x is for input only!\n",
 		       minor, module, usp->usp_module_type[module]);
 		return 0;
 	}
@@ -308,7 +310,7 @@ static int unioxx5_subdev_write(struct comedi_device *dev,
 		if (!__unioxx5_digital_write(subdev, data, channel, dev->minor))
 			return -1;
 	} else {
-		if (!__unioxx5_analog_write(usp, data, channel, dev->minor))
+		if (!__unioxx5_analog_write(subdev, data, channel, dev->minor))
 			return -1;
 	}
 
