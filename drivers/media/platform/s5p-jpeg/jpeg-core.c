@@ -624,10 +624,11 @@ static void skip(struct s5p_jpeg_buffer *buf, long len)
 }
 
 static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
-			       unsigned long buffer, unsigned long size)
+			       unsigned long buffer, unsigned long size,
+			       struct s5p_jpeg_ctx *ctx)
 {
 	int c, components, notfound;
-	unsigned int height, width, word;
+	unsigned int height, width, word, subsampling = 0;
 	long length;
 	struct s5p_jpeg_buffer jpeg_buffer;
 
@@ -666,7 +667,15 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 				break;
 			notfound = 0;
 
-			skip(&jpeg_buffer, components * 3);
+			if (components == 1) {
+				subsampling = 0x33;
+			} else {
+				skip(&jpeg_buffer, 1);
+				subsampling = get_byte(&jpeg_buffer);
+				skip(&jpeg_buffer, 1);
+			}
+
+			skip(&jpeg_buffer, components * 2);
 			break;
 
 		/* skip payload-less markers */
@@ -688,6 +697,24 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 	result->w = width;
 	result->h = height;
 	result->size = components;
+
+	switch (subsampling) {
+	case 0x11:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_444;
+		break;
+	case 0x21:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_422;
+		break;
+	case 0x22:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_420;
+		break;
+	case 0x33:
+		ctx->subsampling = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
+		break;
+	default:
+		return false;
+	}
+
 	return !notfound;
 }
 
@@ -1438,7 +1465,7 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 		ctx->hdr_parsed = s5p_jpeg_parse_hdr(&tmp,
 		     (unsigned long)vb2_plane_vaddr(vb, 0),
 		     min((unsigned long)ctx->out_q.size,
-			 vb2_get_plane_payload(vb, 0)));
+			 vb2_get_plane_payload(vb, 0)), ctx);
 		if (!ctx->hdr_parsed) {
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 			return;
