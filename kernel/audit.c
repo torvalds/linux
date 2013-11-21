@@ -1859,7 +1859,8 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 		if (mm->exe_file)
 			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
 		up_read(&mm->mmap_sem);
-	}
+	} else
+		audit_log_format(ab, " exe=(null)");
 	audit_log_task_context(ab);
 }
 EXPORT_SYMBOL(audit_log_task_info);
