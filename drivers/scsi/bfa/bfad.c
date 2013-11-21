@@ -204,6 +204,7 @@ static void
 bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 {
 	unsigned long flags;
+	bfa_status_t ret;
 
 	bfa_trc(bfad, event);
 
@@ -217,7 +218,7 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		if (bfad_setup_intr(bfad)) {
 			printk(KERN_WARNING "bfad%d: bfad_setup_intr failed\n",
 					bfad->inst_no);
-			bfa_sm_send_event(bfad, BFAD_E_INTR_INIT_FAILED);
+			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 			break;
 		}
 
@@ -242,8 +243,26 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 			printk(KERN_WARNING
 				"bfa %s: bfa init failed\n",
 				bfad->pci_name);
+			spin_lock_irqsave(&bfad->bfad_lock, flags);
+			bfa_fcs_init(&bfad->bfa_fcs);
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+			ret = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+			if (ret != BFA_STATUS_OK) {
+				init_completion(&bfad->comp);
+
+				spin_lock_irqsave(&bfad->bfad_lock, flags);
+				bfad->pport.flags |= BFAD_PORT_DELETE;
+				bfa_fcs_exit(&bfad->bfa_fcs);
+				spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+				wait_for_completion(&bfad->comp);
+
+				bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
+				break;
+			}
 			bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
-			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
+			bfa_sm_send_event(bfad, BFAD_E_HAL_INIT_FAILED);
 		}
 
 		break;
@@ -273,12 +292,14 @@ bfad_sm_initializing(struct bfad_s *bfad, enum bfad_sm_event event)
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 		retval = bfad_start_ops(bfad);
-		if (retval != BFA_STATUS_OK)
+		if (retval != BFA_STATUS_OK) {
+			bfa_sm_set_state(bfad, bfad_sm_failed);
 			break;
+		}
 		bfa_sm_set_state(bfad, bfad_sm_operational);
 		break;
 
-	case BFAD_E_INTR_INIT_FAILED:
+	case BFAD_E_INIT_FAILED:
 		bfa_sm_set_state(bfad, bfad_sm_uninit);
 		kthread_stop(bfad->bfad_tsk);
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -286,7 +307,7 @@ bfad_sm_initializing(struct bfad_s *bfad, enum bfad_sm_event event)
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		break;
 
-	case BFAD_E_INIT_FAILED:
+	case BFAD_E_HAL_INIT_FAILED:
 		bfa_sm_set_state(bfad, bfad_sm_failed);
 		break;
 	default:
@@ -310,13 +331,8 @@ bfad_sm_failed(struct bfad_s *bfad, enum bfad_sm_event event)
 		break;
 
 	case BFAD_E_STOP:
-		if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
-			bfad_uncfg_pport(bfad);
-		if (bfad->bfad_flags & BFAD_FC4_PROBE_DONE) {
-			bfad_im_probe_undo(bfad);
-			bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
-		}
-		bfad_stop(bfad);
+		bfa_sm_set_state(bfad, bfad_sm_fcs_exit);
+		bfa_sm_send_event(bfad, BFAD_E_FCS_EXIT_COMP);
 		break;
 
 	case BFAD_E_EXIT_COMP:
@@ -824,7 +840,7 @@ bfad_drv_init(struct bfad_s *bfad)
 		printk(KERN_WARNING
 			"Not enough memory to attach all Brocade HBA ports, %s",
 			"System may need more memory.\n");
-		goto out_hal_mem_alloc_failure;
+		return BFA_STATUS_FAILED;
 	}
 
 	bfad->bfa.trcmod = bfad->trcmod;
@@ -841,31 +857,11 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfad->bfa_fcs.trcmod = bfad->trcmod;
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfad->bfa_fcs.fdmi_enabled = fdmi_enable;
-	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;
 
-	/* configure base port */
-	rc = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
-	if (rc != BFA_STATUS_OK)
-		goto out_cfg_pport_fail;
-
 	return BFA_STATUS_OK;
-
-out_cfg_pport_fail:
-	/* fcs exit - on cfg pport failure */
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	init_completion(&bfad->comp);
-	bfad->pport.flags |= BFAD_PORT_DELETE;
-	bfa_fcs_exit(&bfad->bfa_fcs);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	wait_for_completion(&bfad->comp);
-	/* bfa detach - free hal memory */
-	bfa_detach(&bfad->bfa);
-	bfad_hal_mem_release(bfad);
-out_hal_mem_alloc_failure:
-	return BFA_STATUS_FAILED;
 }
 
 void
@@ -1009,13 +1005,19 @@ bfad_start_ops(struct bfad_s *bfad) {
 	/* FCS driver info init */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
+
+	if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
+		bfa_fcs_update_cfg(&bfad->bfa_fcs);
+	else
+		bfa_fcs_init(&bfad->bfa_fcs);
+
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	/*
-	 * FCS update cfg - reset the pwwn/nwwn of fabric base logical port
-	 * with values learned during bfa_init firmware GETATTR REQ.
-	 */
-	bfa_fcs_update_cfg(&bfad->bfa_fcs);
+	if (!(bfad->bfad_flags & BFAD_CFG_PPORT_DONE)) {
+		retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+		if (retval != BFA_STATUS_OK)
+			return BFA_STATUS_FAILED;
+	}
 
 	/* Setup fc host fixed attribute if the lk supports */
 	bfad_fc_host_init(bfad->pport.im_port);
@@ -1026,10 +1028,6 @@ bfad_start_ops(struct bfad_s *bfad) {
 		printk(KERN_WARNING "bfad_im_probe failed\n");
 		if (bfa_sm_cmp_state(bfad, bfad_sm_initializing))
 			bfa_sm_set_state(bfad, bfad_sm_failed);
-		bfad_im_probe_undo(bfad);
-		bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
-		bfad_uncfg_pport(bfad);
-		bfad_stop(bfad);
 		return BFA_STATUS_FAILED;
 	} else
 		bfad->bfad_flags |= BFAD_FC4_PROBE_DONE;
@@ -1399,7 +1397,6 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	return 0;
 
 out_bfad_sm_failure:
-	bfa_detach(&bfad->bfa);
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
 	/* Remove the debugfs node for this bfad */
@@ -1534,7 +1531,7 @@ restart_bfa(struct bfad_s *bfad)
 	if (bfad_setup_intr(bfad)) {
 		dev_printk(KERN_WARNING, &pdev->dev,
 			   "%s: bfad_setup_intr failed\n", bfad->pci_name);
-		bfa_sm_send_event(bfad, BFAD_E_INTR_INIT_FAILED);
+		bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 		return -1;
 	}
 
