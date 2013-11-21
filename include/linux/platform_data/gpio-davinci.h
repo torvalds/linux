@@ -28,7 +28,6 @@ enum davinci_gpio_type {
 struct davinci_gpio_platform_data {
 	u32	ngpio;
 	u32	gpio_unbanked;
-	u32	intc_irq_num;
 };
 
 
