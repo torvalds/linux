@@ -91,12 +91,14 @@ static int __unioxx5_define_chan_offset(int chan_num)
 }
 
 #if 0				/* not used? */
-static void __unioxx5_digital_config(struct unioxx5_subd_priv *usp, int mode)
+static void __unioxx5_digital_config(struct comedi_subdevice *s, int mode)
 {
+	struct unioxx5_subd_priv *usp = s->private;
+	struct device *csdev = s->device->class_dev;
 	int i, mask;
 
 	mask = (mode == ALL_2_OUTPUT) ? 0xFF : 0x00;
-	printk("COMEDI: mode = %d\n", mask);
+	dev_dbg(csdev, "mode = %d\n", mask);
 
 	outb(1, usp->usp_iobase + 0);
 
@@ -135,15 +137,18 @@ static void __unioxx5_analog_config(struct unioxx5_subd_priv *usp, int channel)
 	usp->usp_prev_cn_val[channel_offset - 1] = conf;
 }
 
-static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp,
+static int __unioxx5_digital_read(struct comedi_subdevice *s,
 				  unsigned int *data, int channel, int minor)
 {
+	struct unioxx5_subd_priv *usp = s->private;
+	struct device *csdev = s->device->class_dev;
 	int channel_offset, mask = 1 << (channel & 0x07);
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
-		pr_err("comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-		       minor, channel);
+		dev_err(csdev,
+			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
+			minor, channel);
 		return 0;
 	}
 
@@ -157,9 +162,11 @@ static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp,
 	return 1;
 }
 
-static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
+static int __unioxx5_analog_read(struct comedi_subdevice *s,
 				 unsigned int *data, int channel, int minor)
 {
+	struct unioxx5_subd_priv *usp = s->private;
+	struct device *csdev = s->device->class_dev;
 	int module_no, read_ch;
 	char control;
 
@@ -185,7 +192,8 @@ static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
 
 	/* if four bytes readding error occurs - return 0(false) */
 	if ((control & Rx4CA_ERR_MASK)) {
-		printk("COMEDI: 4 bytes error\n");
+		dev_err(csdev,
+			"comedi%d: 4 bytes error\n", minor);
 		return 0;
 	}
 
@@ -273,10 +281,10 @@ static int unioxx5_subdev_read(struct comedi_device *dev,
 	type = usp->usp_module_type[channel / 2];
 
 	if (type == MODULE_DIGITAL) {
-		if (!__unioxx5_digital_read(usp, data, channel, dev->minor))
+		if (!__unioxx5_digital_read(subdev, data, channel, dev->minor))
 			return -1;
 	} else {
-		if (!__unioxx5_analog_read(usp, data, channel, dev->minor))
+		if (!__unioxx5_analog_read(subdev, data, channel, dev->minor))
 			return -1;
 	}
 
