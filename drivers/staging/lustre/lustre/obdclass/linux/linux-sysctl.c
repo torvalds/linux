@@ -392,7 +392,8 @@ static ctl_table_t obd_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_at_history
-	}
+	},
+	{}
 };
 
 static ctl_table_t parent_table[] = {
@@ -402,7 +403,8 @@ static ctl_table_t parent_table[] = {
 		.maxlen   = 0,
 		.mode     = 0555,
 		.child    = obd_table
-	}
+	},
+	{}
 };
 #endif
 
