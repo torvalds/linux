@@ -1144,7 +1144,8 @@ struct bfi_diag_dport_scn_teststart_s {
 	wwn_t	pwwn;	/* switch port wwn. 8 bytes */
 	wwn_t	nwwn;	/* switch node wwn. 8 bytes */
 	u8	type;	/* bfa_diag_dport_test_type_e */
-	u8	rsvd[3];
+	u8	mode;	/* bfa_diag_dport_test_opmode */
+	u8	rsvd[2];
 	u32	numfrm; /* from switch uint in 1M */
 };
 
