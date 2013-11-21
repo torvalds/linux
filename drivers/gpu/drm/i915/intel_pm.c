@@ -222,7 +222,9 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
 	/* Set persistent mode for front-buffer rendering, ala X. */
 	dpfc_ctl |= DPFC_CTL_PERSISTENT_MODE;
-	dpfc_ctl |= (DPFC_CTL_FENCE_EN | obj->fence_reg);
+	dpfc_ctl |= DPFC_CTL_FENCE_EN;
+	if (IS_GEN5(dev))
+		dpfc_ctl |= obj->fence_reg;
 	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
