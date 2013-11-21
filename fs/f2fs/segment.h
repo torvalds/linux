@@ -20,13 +20,8 @@
 #define GET_L2R_SEGNO(free_i, segno)	(segno - free_i->start_segno)
 #define GET_R2L_SEGNO(free_i, segno)	(segno + free_i->start_segno)
 
-#define IS_DATASEG(t)							\
-	((t == CURSEG_HOT_DATA) || (t == CURSEG_COLD_DATA) ||		\
-	(t == CURSEG_WARM_DATA))
-
-#define IS_NODESEG(t)							\
-	((t == CURSEG_HOT_NODE) || (t == CURSEG_COLD_NODE) ||		\
-	(t == CURSEG_WARM_NODE))
+#define IS_DATASEG(t)	(t <= CURSEG_COLD_DATA)
+#define IS_NODESEG(t)	(t >= CURSEG_HOT_NODE)
 
 #define IS_CURSEG(sbi, seg)						\
 	((seg == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
