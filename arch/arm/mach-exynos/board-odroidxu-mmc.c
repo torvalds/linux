@@ -233,10 +233,13 @@ static int exynos_dwmci2_get_bus_wd(u32 slot_id)
 
 static struct dw_mci_board smdk5410_dwmci2_pdata __initdata = {
 	.num_slots		= 1,
-	.quirks			= DW_MCI_QUIRK_HIGHSPEED,
+	.quirks			= DW_MCI_QUIRK_BROKEN_CARD_DETECTION | DW_MCI_QUIRK_HIGHSPEED,
 	.bus_hz			= 80 * 1000 * 1000,
-	.caps			= 	MMC_CAP_CMD23 | MMC_CAP_4_BIT_DATA | 
-						MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
+	.caps			= MMC_CAP_CMD23 | MMC_CAP_4_BIT_DATA |
+						MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR104 |
+						MMC_CAP_1_8V_DDR | MMC_CAP_UHS_DDR50 |
+						MMC_CAP_ERASE,
+						
 	.fifo_depth		= 0x80,
 	.detect_delay_ms	= 200,
 	.hclk_name		= "dwmci",

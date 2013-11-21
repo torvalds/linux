@@ -70,6 +70,10 @@ static struct regulator_consumer_supply max77802_buck5 =
 static struct regulator_consumer_supply max77802_buck6 =
 	REGULATOR_SUPPLY("vdd_kfc", NULL);
 
+static struct regulator_consumer_supply max77802_buck8 =
+    REGULATOR_SUPPLY("vmmc", "dw_mmc.0");
+
+
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
 static struct regulator_consumer_supply ldo1_supply[] = {
@@ -85,7 +89,7 @@ static struct regulator_consumer_supply ldo3_supply[] = {
 };
 
 static struct regulator_consumer_supply ldo4_supply[] = {
-	REGULATOR_SUPPLY("vddq_mmc2", NULL),
+	REGULATOR_SUPPLY("vqmmc", "dw_mmc.2"),
 };
 
 static struct regulator_consumer_supply ldo5_supply[] = {
@@ -145,7 +149,7 @@ static struct regulator_consumer_supply ldo20_supply[] = {
 };
 
 static struct regulator_consumer_supply ldo21_supply[] = {
-	REGULATOR_SUPPLY("vmmc", "dw_mmc.0"),
+	REGULATOR_SUPPLY("vmmc", "dw_mmc.2"),
 };
 
 static struct regulator_consumer_supply ldo23_supply[] = {
@@ -288,6 +292,39 @@ static struct regulator_init_data max77802_buck6_data = {
 	.consumer_supplies	= &max77802_buck6,
 };
 
+static struct regulator_init_data max77802_buck8_data = {
+       .constraints    = {
+               .name           = "vdd_emmc range",
+               .min_uV         = 2850000,
+               .max_uV         = 2850000,
+               .valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+                                 REGULATOR_CHANGE_STATUS,  
+               .always_on = 1,
+               .boot_on = 1,  
+               .state_mem      = {
+                       .disabled       = 1,
+               },
+       },
+       .num_consumer_supplies  = 1,
+       .consumer_supplies      = &max77802_buck8,
+};
+  
+static struct regulator_init_data max77802_buck9_data = {
+       .constraints    = {
+               .name           = "vdd_emmc range",
+               .min_uV         = 3000000,
+               .max_uV         = 3000000,
+               .valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+                                 REGULATOR_CHANGE_STATUS,  
+               .always_on = 1,
+               .boot_on = 1,  
+               .state_mem      = {
+                       .disabled       = 1,
+               },
+       },
+};
+
+
 #if 0
 static struct regulator_init_data max77802_enp32khz_data = {
 	.constraints = {
@@ -327,7 +364,7 @@ static struct regulator_init_data max77802_enp32khz_data = {
 REGULATOR_INIT(ldo1, "vdd_alive",		1000000, 1000000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo2, "vddq_M1_M2",		1200000, 1200000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo3, "vddq_gpio", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
-REGULATOR_INIT(ldo4, "vddq_mmc2", 		2800000, 2800000, 1, REGULATOR_CHANGE_STATUS, 0);
+REGULATOR_INIT(ldo4, "vdd_mmc2_1v8",   1800000, 3000000, 1, REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo5, "vdd18_hsic", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo6, "vdd18_BPLL", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo7, "vddq_lcd", 		1800000, 1800000, 0, REGULATOR_CHANGE_STATUS, 0);
@@ -339,7 +376,7 @@ REGULATOR_INIT(ldo13, "vddq_abb0", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATU
 REGULATOR_INIT(ldo14, "vddq_abb1", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo15, "vdd10_USB30", 	1000000, 1000000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo18, "LDO18",			1800000, 1800000, 0, REGULATOR_CHANGE_STATUS, 0);
-REGULATOR_INIT(ldo20, "vdd_emmc_1v8",	1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
+REGULATOR_INIT(ldo20, "vdd_emmc_1v8",  1800000, 3000000, 1, REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo21, "VDDF_2V8",		2850000, 2850000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo23, "DP_P3V3", 		3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo25, "ETH_P3V3",	 	3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
@@ -362,6 +399,8 @@ static struct max77802_regulator_data max77802_regulators[] = {
 	{MAX77802_BUCK4, &max77802_buck4_data,},
 	{MAX77802_BUCK5, &max77802_buck5_data,},
 	{MAX77802_BUCK6, &max77802_buck6_data,},
+    {MAX77802_BUCK8, &max77802_buck8_data,},
+    {MAX77802_BUCK9, &max77802_buck9_data,},
 
 	{MAX77802_LDO1, &ldo1_init_data,},
 	{MAX77802_LDO2, &ldo2_init_data,},
@@ -422,6 +461,9 @@ struct max77802_opmode_data max77802_opmode_data[MAX77802_REG_MAX] = {
 	[MAX77802_BUCK3] = {MAX77802_BUCK3, MAX77802_OPMODE_NORMAL},
 	[MAX77802_BUCK4] = {MAX77802_BUCK4, MAX77802_OPMODE_NORMAL},
 	[MAX77802_BUCK6] = {MAX77802_BUCK6, MAX77802_OPMODE_NORMAL},
+    [MAX77802_BUCK8] = {MAX77802_BUCK8, MAX77802_OPMODE_NORMAL},
+    [MAX77802_BUCK9] = {MAX77802_BUCK9, MAX77802_OPMODE_NORMAL},
+
 };
 
 struct max77802_platform_data exynos5_max77802_info = {
