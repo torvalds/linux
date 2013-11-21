@@ -49,7 +49,6 @@
 #include <linux/libcfs/linux/linux-mem.h>
 #include <linux/libcfs/linux/linux-prim.h>
 #include <linux/libcfs/linux/linux-lock.h>
-#include <linux/libcfs/linux/linux-fs.h>
 #include <linux/libcfs/linux/linux-tcpip.h>
 #include <linux/libcfs/linux/linux-bitops.h>
 #include <linux/libcfs/linux/linux-types.h>
