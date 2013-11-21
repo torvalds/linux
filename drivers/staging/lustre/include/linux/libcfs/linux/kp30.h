@@ -70,16 +70,6 @@
 
 #include <linux/libcfs/linux/portals_compat25.h>
 
-/* ------------------------------------------------------------------ */
-
-# define LI_POISON 0x5a5a5a5a
-#if BITS_PER_LONG > 32
-# define LL_POISON 0x5a5a5a5a5a5a5a5aL
-#else
-# define LL_POISON 0x5a5a5a5aL
-#endif
-# define LP_POISON ((void *)LL_POISON)
-
 /* this is a bit chunky */
 
 # define LPU64 "%llu"
