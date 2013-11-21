@@ -1635,7 +1635,7 @@ xfs_bmap_last_extent(
  * blocks at the end of the file which do not start at the previous data block,
  * we will try to align the new blocks at stripe unit boundaries.
  *
- * Returns 0 in bma->aeof if the file (fork) is empty as any new write will be
+ * Returns 1 in bma->aeof if the file (fork) is empty as any new write will be
  * at, or past the EOF.
  */
 STATIC int
@@ -1650,8 +1650,13 @@ xfs_bmap_isaeof(
 	bma->aeof = 0;
 	error = xfs_bmap_last_extent(NULL, bma->ip, whichfork, &rec,
 				     &is_empty);
-	if (error || is_empty)
+	if (error)
 		return error;
+
+	if (is_empty) {
+		bma->aeof = 1;
+		return 0;
+	}
 
 	/*
 	 * Check if we are allocation or past the last extent, or at least into
