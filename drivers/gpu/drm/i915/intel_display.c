@@ -6514,7 +6514,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	val = I915_READ(DEIMR);
-	WARN((val & ~DE_PCH_EVENT_IVB) != val,
+	WARN((val | DE_PCH_EVENT_IVB) != 0xffffffff,
 	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
 	val = I915_READ(SDEIMR);
 	WARN((val | SDE_HOTPLUG_MASK_CPT) != 0xffffffff,
