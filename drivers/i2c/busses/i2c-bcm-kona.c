@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/slab.h>
 
 /* Hardware register offsets and field defintions */
