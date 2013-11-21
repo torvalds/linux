@@ -2349,7 +2349,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-	u32 val;
+	u32 val = 0; /* shut up gcc */
 	int ret;
 
 	if (pipe_crc->source == source)
