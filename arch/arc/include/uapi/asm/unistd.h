@@ -8,6 +8,9 @@
 
 /******** no-legacy-syscalls-ABI *******/
 
+#ifndef _UAPI_ASM_ARC_UNISTD_H
+#define _UAPI_ASM_ARC_UNISTD_H
+
 #define __ARCH_WANT_SYS_EXECVE
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_VFORK
@@ -32,3 +35,5 @@ __SYSCALL(__NR_arc_gettls, sys_arc_gettls)
 /* Generic syscall (fs/filesystems.c - lost in asm-generic/unistd.h */
 #define __NR_sysfs		(__NR_arch_specific_syscall + 3)
 __SYSCALL(__NR_sysfs, sys_sysfs)
+
+#endif
