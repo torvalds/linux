@@ -2184,8 +2184,8 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 }
 
 static void
-efx_farch_filter_init_rx_for_stack(struct efx_nic *efx,
-				   struct efx_farch_filter_spec *spec)
+efx_farch_filter_init_rx_auto(struct efx_nic *efx,
+			      struct efx_farch_filter_spec *spec)
 {
 	/* If there's only one channel then disable RSS for non VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
@@ -2547,7 +2547,7 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 		return -ENOENT;
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
-		efx_farch_filter_init_rx_for_stack(efx, spec);
+		efx_farch_filter_init_rx_auto(efx, spec);
 		efx_farch_filter_push_rx_config(efx);
 	} else {
 		efx_farch_filter_table_clear_entry(efx, table, filter_idx);
@@ -2815,7 +2815,7 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 		for (i = 0; i < EFX_FARCH_FILTER_SIZE_RX_DEF; i++) {
 			spec = &table->spec[i];
 			spec->type = EFX_FARCH_FILTER_UC_DEF + i;
-			efx_farch_filter_init_rx_for_stack(efx, spec);
+			efx_farch_filter_init_rx_auto(efx, spec);
 			__set_bit(i, table->used_bitmap);
 		}
 	}
