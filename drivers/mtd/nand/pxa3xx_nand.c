@@ -1320,7 +1320,12 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		struct mtd_info *mtd = info->host[cs]->mtd;
 
-		mtd->name = pdev->name;
+		/*
+		 * The mtd name matches the one used in 'mtdparts' kernel
+		 * parameter. This name cannot be changed or otherwise
+		 * user's mtd partitions configuration would get broken.
+		 */
+		mtd->name = "pxa3xx_nand-0";
 		info->cs = cs;
 		ret = pxa3xx_nand_scan(mtd);
 		if (ret) {

@@ -473,7 +473,7 @@ static void __init fill_ipi_map(void)
 {
 	int cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		fill_ipi_map1(gic_resched_int_base, cpu, GIC_CPU_INT1);
 		fill_ipi_map1(gic_call_int_base, cpu, GIC_CPU_INT2);
 	}
@@ -574,8 +574,9 @@ void __init arch_init_irq(void)
 		/* FIXME */
 		int i;
 #if defined(CONFIG_MIPS_MT_SMP)
-		gic_call_int_base = GIC_NUM_INTRS - NR_CPUS;
-		gic_resched_int_base = gic_call_int_base - NR_CPUS;
+		gic_call_int_base = GIC_NUM_INTRS -
+			(NR_CPUS - nr_cpu_ids) * 2 - nr_cpu_ids;
+		gic_resched_int_base = gic_call_int_base - nr_cpu_ids;
 		fill_ipi_map();
 #endif
 		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map,
@@ -599,7 +600,7 @@ void __init arch_init_irq(void)
 		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
 		write_c0_status(0x1100dc00);
 		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
-		for (i = 0; i < NR_CPUS; i++) {
+		for (i = 0; i < nr_cpu_ids; i++) {
 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
 					 GIC_RESCHED_INT(i), &irq_resched);
 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +

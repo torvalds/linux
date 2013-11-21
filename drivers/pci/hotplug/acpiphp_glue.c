@@ -552,9 +552,8 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 	struct acpiphp_func *func;
 	int max, pass;
 	LIST_HEAD(add_list);
-	int nr_found;
 
-	nr_found = acpiphp_rescan_slot(slot);
+	acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
 		list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -574,9 +573,6 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 		}
 	}
 	__pci_bus_assign_resources(bus, &add_list, NULL);
-	/* Nothing more to do here if there are no new devices on this bus. */
-	if (!nr_found && (slot->flags & SLOT_ENABLED))
-		return;
 
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);

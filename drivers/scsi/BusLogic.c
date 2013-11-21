@@ -696,7 +696,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 	while ((pci_device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC,
 					PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER,
 					pci_device)) != NULL) {
-		struct blogic_adapter *adapter = adapter;
+		struct blogic_adapter *host_adapter = adapter;
 		struct blogic_adapter_info adapter_info;
 		enum blogic_isa_ioport mod_ioaddr_req;
 		unsigned char bus;
@@ -744,9 +744,9 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   known and enabled, note that the particular Standard ISA I/O
 		   Address should not be probed.
 		 */
-		adapter->io_addr = io_addr;
-		blogic_intreset(adapter);
-		if (blogic_cmd(adapter, BLOGIC_INQ_PCI_INFO, NULL, 0,
+		host_adapter->io_addr = io_addr;
+		blogic_intreset(host_adapter);
+		if (blogic_cmd(host_adapter, BLOGIC_INQ_PCI_INFO, NULL, 0,
 				&adapter_info, sizeof(adapter_info)) ==
 				sizeof(adapter_info)) {
 			if (adapter_info.isa_port < 6)
@@ -762,7 +762,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   I/O Address assigned at system initialization.
 		 */
 		mod_ioaddr_req = BLOGIC_IO_DISABLE;
-		blogic_cmd(adapter, BLOGIC_MOD_IOADDR, &mod_ioaddr_req,
+		blogic_cmd(host_adapter, BLOGIC_MOD_IOADDR, &mod_ioaddr_req,
 				sizeof(mod_ioaddr_req), NULL, 0);
 		/*
 		   For the first MultiMaster Host Adapter enumerated,
@@ -779,12 +779,12 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 
 			fetch_localram.offset = BLOGIC_AUTOSCSI_BASE + 45;
 			fetch_localram.count = sizeof(autoscsi_byte45);
-			blogic_cmd(adapter, BLOGIC_FETCH_LOCALRAM,
+			blogic_cmd(host_adapter, BLOGIC_FETCH_LOCALRAM,
 					&fetch_localram, sizeof(fetch_localram),
 					&autoscsi_byte45,
 					sizeof(autoscsi_byte45));
-			blogic_cmd(adapter, BLOGIC_GET_BOARD_ID, NULL, 0, &id,
-					sizeof(id));
+			blogic_cmd(host_adapter, BLOGIC_GET_BOARD_ID, NULL, 0,
+					&id, sizeof(id));
 			if (id.fw_ver_digit1 == '5')
 				force_scan_order =
 					autoscsi_byte45.force_scan_order;

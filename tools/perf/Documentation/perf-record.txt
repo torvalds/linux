@@ -90,8 +90,20 @@ OPTIONS
 	Number of mmap data pages. Must be a power of two.
 
 -g::
+	Enables call-graph (stack chain/backtrace) recording.
+
 --call-graph::
-	Do call-graph (stack chain/backtrace) recording.
+	Setup and enable call-graph (stack chain/backtrace) recording,
+	implies -g.
+
+	Allows specifying "fp" (frame pointer) or "dwarf"
+	(DWARF's CFI - Call Frame Information) as the method to collect
+	the information used to show the call graphs.
+
+	In some systems, where binaries are build with gcc
+	--fomit-frame-pointer, using the "fp" method will produce bogus
+	call graphs, using "dwarf", if available (perf tools linked to
+	the libunwind library) should be used instead.
 
 -q::
 --quiet::
