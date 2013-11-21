@@ -608,6 +608,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	fence = nouveau_fence_ref(new_bo->bo.sync_obj);
 	spin_unlock(&new_bo->bo.bdev->fence_lock);
 	ret = nouveau_fence_sync(fence, chan);
+	nouveau_fence_unref(&fence);
 	if (ret)
 		return ret;
 
