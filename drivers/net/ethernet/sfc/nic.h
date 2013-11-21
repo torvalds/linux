@@ -693,8 +693,8 @@ int efx_farch_filter_remove_safe(struct efx_nic *efx,
 int efx_farch_filter_get_safe(struct efx_nic *efx,
 			      enum efx_filter_priority priority, u32 filter_id,
 			      struct efx_filter_spec *);
-void efx_farch_filter_clear_rx(struct efx_nic *efx,
-			       enum efx_filter_priority priority);
+int efx_farch_filter_clear_rx(struct efx_nic *efx,
+			      enum efx_filter_priority priority);
 u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
 				   enum efx_filter_priority priority);
 u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);

@@ -2519,7 +2519,7 @@ static void efx_ef10_filter_update_rx_scatter(struct efx_nic *efx)
  * Filter ID may come from userland and must be range-checked.
  */
 static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
-					   enum efx_filter_priority priority,
+					   unsigned int priority_mask,
 					   u32 filter_id, bool by_index)
 {
 	unsigned int filter_idx = filter_id % HUNT_FILTER_TBL_ROWS;
@@ -2555,7 +2555,7 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 	}
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO &&
-	    priority == EFX_FILTER_PRI_AUTO) {
+	    priority_mask == (1U << EFX_FILTER_PRI_AUTO)) {
 		/* Just remove flags */
 		spec->flags &= ~EFX_FILTER_FLAG_RX_OVER_AUTO;
 		table->entry[filter_idx].spec &= ~EFX_EF10_FILTER_FLAG_AUTO_OLD;
@@ -2563,7 +2563,7 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 		goto out_unlock;
 	}
 
-	if (spec->priority != priority) {
+	if (!(priority_mask & (1U << spec->priority))) {
 		rc = -ENOENT;
 		goto out_unlock;
 	}
@@ -2619,7 +2619,8 @@ static int efx_ef10_filter_remove_safe(struct efx_nic *efx,
 				       enum efx_filter_priority priority,
 				       u32 filter_id)
 {
-	return efx_ef10_filter_remove_internal(efx, priority, filter_id, false);
+	return efx_ef10_filter_remove_internal(efx, 1U << priority,
+					       filter_id, false);
 }
 
 static int efx_ef10_filter_get_safe(struct efx_nic *efx,
@@ -2645,10 +2646,24 @@ static int efx_ef10_filter_get_safe(struct efx_nic *efx,
 	return rc;
 }
 
-static void efx_ef10_filter_clear_rx(struct efx_nic *efx,
+static int efx_ef10_filter_clear_rx(struct efx_nic *efx,
 				     enum efx_filter_priority priority)
 {
-	/* TODO */
+	unsigned int priority_mask;
+	unsigned int i;
+	int rc;
+
+	priority_mask = (((1U << (priority + 1)) - 1) &
+			 ~(1U << EFX_FILTER_PRI_AUTO));
+
+	for (i = 0; i < HUNT_FILTER_TBL_ROWS; i++) {
+		rc = efx_ef10_filter_remove_internal(efx, priority_mask,
+						     i, true);
+		if (rc && rc != -ENOENT)
+			return rc;
+	}
+
+	return 0;
 }
 
 static u32 efx_ef10_filter_count_rx_used(struct efx_nic *efx,
@@ -3210,7 +3225,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		if (ACCESS_ONCE(table->entry[i].spec) &
 		    EFX_EF10_FILTER_FLAG_AUTO_OLD) {
 			if (efx_ef10_filter_remove_internal(
-				    efx, EFX_FILTER_PRI_AUTO, i, true) < 0)
+				    efx, 1U << EFX_FILTER_PRI_AUTO,
+				    i, true) < 0)
 				remove_failed = true;
 		}
 	}

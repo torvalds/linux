@@ -134,20 +134,6 @@ efx_filter_get_filter_safe(struct efx_nic *efx,
 	return efx->type->filter_get_safe(efx, priority, filter_id, spec);
 }
 
-/**
- * efx_farch_filter_clear_rx - remove RX filters by priority
- * @efx: NIC from which to remove the filters
- * @priority: Maximum priority to remove
- *
- * Remove all RX filters whose priority is less than or equal to the
- * given @priority and is not %EFX_FILTER_PRI_AUTO.
- */
-static inline void efx_filter_clear_rx(struct efx_nic *efx,
-				       enum efx_filter_priority priority)
-{
-	return efx->type->filter_clear_rx(efx, priority);
-}
-
 static inline u32 efx_filter_count_rx_used(struct efx_nic *efx,
 					   enum efx_filter_priority priority)
 {

@@ -1044,7 +1044,8 @@ struct efx_mtd_partition {
  * @filter_insert: add or replace a filter
  * @filter_remove_safe: remove a filter by ID, carefully
  * @filter_get_safe: retrieve a filter by ID, carefully
- * @filter_clear_rx: remove RX filters by priority
+ * @filter_clear_rx: Remove all RX filters whose priority is less than or
+ *	equal to the given priority and is not %EFX_FILTER_PRI_AUTO
  * @filter_count_rx_used: Get the number of filters in use at a given priority
  * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
  * @filter_get_rx_ids: Get list of RX filters at a given priority
@@ -1166,8 +1167,8 @@ struct efx_nic_type {
 	int (*filter_get_safe)(struct efx_nic *efx,
 			       enum efx_filter_priority priority,
 			       u32 filter_id, struct efx_filter_spec *);
-	void (*filter_clear_rx)(struct efx_nic *efx,
-				enum efx_filter_priority priority);
+	int (*filter_clear_rx)(struct efx_nic *efx,
+			       enum efx_filter_priority priority);
 	u32 (*filter_count_rx_used)(struct efx_nic *efx,
 				    enum efx_filter_priority priority);
 	u32 (*filter_get_rx_id_limit)(struct efx_nic *efx);

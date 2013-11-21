@@ -2638,7 +2638,7 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	spin_unlock_bh(&efx->filter_lock);
 }
 
-void efx_farch_filter_clear_rx(struct efx_nic *efx,
+int efx_farch_filter_clear_rx(struct efx_nic *efx,
 			       enum efx_filter_priority priority)
 {
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_IP,
@@ -2647,6 +2647,7 @@ void efx_farch_filter_clear_rx(struct efx_nic *efx,
 				     priority);
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_DEF,
 				     priority);
+	return 0;
 }
 
 u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
