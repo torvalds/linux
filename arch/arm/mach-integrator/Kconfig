@@ -30,6 +30,7 @@ config ARCH_CINTEGRATOR
 config INTEGRATOR_IMPD1
 	tristate "Include support for Integrator/IM-PD1"
 	depends on ARCH_INTEGRATOR_AP
+	select ARM_VIC
 	help
 	  The IM-PD1 is an add-on logic module for the Integrator which
 	  allows ARM(R) Ltd PrimeCells to be developed and evaluated.

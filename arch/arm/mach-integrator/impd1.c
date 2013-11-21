@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/clk-integrator.h>
 #include <linux/slab.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <mach/lm.h>
 #include <mach/impd1.h>
@@ -35,6 +36,7 @@ MODULE_PARM_DESC(lmid, "logic module stack position");
 
 struct impd1_module {
 	void __iomem	*base;
+	void __iomem	*vic_base;
 };
 
 void impd1_tweak_control(struct device *dev, u32 mask, u32 val)
@@ -262,9 +264,6 @@ struct impd1_device {
 
 static struct impd1_device impd1_devs[] = {
 	{
-		.offset	= 0x03000000,
-		.id	= 0x00041190,
-	}, {
 		.offset	= 0x00100000,
 		.irq	= { 1 },
 		.id	= 0x00141011,
@@ -304,9 +303,15 @@ static struct impd1_device impd1_devs[] = {
 	}
 };
 
-static int impd1_probe(struct lm_device *dev)
+/*
+ * Valid IRQs: 0 thru 9 and 11, 10 unused.
+ */
+#define IMPD1_VALID_IRQS 0x00000bffU
+
+static int __init impd1_probe(struct lm_device *dev)
 {
 	struct impd1_module *impd1;
+	int irq_base;
 	int i;
 
 	if (dev->id != module_id)
@@ -325,23 +330,45 @@ static int impd1_probe(struct lm_device *dev)
 	if (!impd1->base)
 		return -ENOMEM;
 
+	integrator_impd1_clk_init(impd1->base, dev->id);
+
+	if (!devm_request_mem_region(&dev->dev,
+				     dev->resource.start + 0x03000000,
+				     SZ_4K, "VIC"))
+		return -EBUSY;
+
+	impd1->vic_base = devm_ioremap(&dev->dev,
+				       dev->resource.start + 0x03000000,
+				       SZ_4K);
+	if (!impd1->vic_base)
+		return -ENOMEM;
+
+	irq_base = vic_init_cascaded(impd1->vic_base, dev->irq,
+				     IMPD1_VALID_IRQS, 0);
+
 	lm_set_drvdata(dev, impd1);
 
-	printk("IM-PD1 found at 0x%08lx\n",
-		(unsigned long)dev->resource.start);
-
-	integrator_impd1_clk_init(impd1->base, dev->id);
+	dev_info(&dev->dev, "IM-PD1 found at 0x%08lx\n",
+		 (unsigned long)dev->resource.start);
 
 	for (i = 0; i < ARRAY_SIZE(impd1_devs); i++) {
 		struct impd1_device *idev = impd1_devs + i;
 		struct amba_device *d;
 		unsigned long pc_base;
 		char devname[32];
+		int irq1 = idev->irq[0];
+		int irq2 = idev->irq[1];
+
+		/* Translate IRQs to IM-PD1 local numberspace */
+		if (irq1)
+			irq1 += irq_base;
+		if (irq2)
+			irq2 += irq_base;
 
 		pc_base = dev->resource.start + idev->offset;
 		snprintf(devname, 32, "lm%x:%5.5lx", dev->id, idev->offset >> 12);
 		d = amba_ahb_device_add_res(&dev->dev, devname, pc_base, SZ_4K,
-					    dev->irq, dev->irq,
+					    irq1, irq2,
 					    idev->platform_data, idev->id,
 					    &dev->resource);
 		if (IS_ERR(d)) {
