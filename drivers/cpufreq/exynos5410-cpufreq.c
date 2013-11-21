@@ -53,6 +53,8 @@ struct cpufreq_clkdiv {
 	unsigned int	clkdiv1;
 };
 
+extern bool get_asv_is_bin2(void);
+
 static unsigned int exynos5410_volt_table_CA7[CPUFREQ_LEVEL_END_CA7];
 static unsigned int exynos5410_volt_table_CA15[CPUFREQ_LEVEL_END_CA15];
 struct pm_qos_request exynos5_cpu_int_qos;
@@ -293,7 +295,7 @@ static unsigned int exynos5410_kpll_pms_table_CA7[CPUFREQ_LEVEL_END_CA7] = {
 	((175 << 16) | (3 << 8) | (0x1)),
 
 	/* KPLL FOUT L7: 600MHz */
-	((150 << 16) | (3 << 8) | (0x1)),
+	((200 << 16) | (2 << 8) | (0x2)),
 
 	/* KPLL FOUT L8: 500MHz */
 	((250 << 16) | (3 << 8) | (0x2)),
@@ -302,7 +304,7 @@ static unsigned int exynos5410_kpll_pms_table_CA7[CPUFREQ_LEVEL_END_CA7] = {
 	((200 << 16) | (3 << 8) | (0x2)),
 
 	/* KPLL FOUT L10: 300MHz */
-	((150 << 16) | (3 << 8) | (0x2)),
+	((200 << 16) | (2 << 8) | (0x3)),
 
 	/* KPLL FOUT L11: 200MHz */
 	((200 << 16) | (3 << 8) | (0x3)),
@@ -334,7 +336,7 @@ static unsigned int exynos5410_apll_pms_table_CA15[CPUFREQ_LEVEL_END_CA15] = {
 	((325 << 16) | (6 << 8) | (0x0)),
 
 	/* APLL FOUT L8: 1.2GHz */
-	((200 << 16) | (4 << 8) | (0x0)),
+	((200 << 16) | (2 << 8) | (0x1)),
 
 	/* APLL FOUT L9: 1.1GHz */
 	((275 << 16) | (3 << 8) | (0x1)),
@@ -352,7 +354,7 @@ static unsigned int exynos5410_apll_pms_table_CA15[CPUFREQ_LEVEL_END_CA15] = {
 	((175 << 16) | (3 << 8) | (0x1)),
 
 	/* APLL FOUT L14: 600MHz */
-	((200 << 16) | (4 << 8) | (0x1)),
+	((200 << 16) | (2 << 8) | (0x2)),
 
 	/* APLL FOUT L15: 500MHz */
 	((250 << 16) | (3 << 8) | (0x2)),
@@ -462,10 +464,18 @@ static const unsigned int exynos5410_max_op_freq_b_evt1[NR_CPUS + 1] = {
 
 static const unsigned int exynos5410_max_op_freq_b_evt2[NR_CPUS + 1] = {
 	UINT_MAX,
-	1800000,
-	1800000,
 	1600000,
 	1600000,
+	1600000,
+	1600000,
+};
+
+static const unsigned int exynos5410_max_op_freq_b_bin2[NR_CPUS + 1] = {
+	UINT_MAX,
+	1400000,
+	1400000,
+	1400000,
+	1400000,
 };
 #else
 static const unsigned int exynos5410_max_op_freq_b_evt1[NR_CPUS + 1] = {
@@ -478,8 +488,8 @@ static const unsigned int exynos5410_max_op_freq_b_evt1[NR_CPUS + 1] = {
 
 static const unsigned int exynos5410_max_op_freq_b_evt2[NR_CPUS + 1] = {
 	UINT_MAX,
-	1800000,
-	1800000,
+	1600000,
+	1600000,
 	1600000,
 	1600000,
 };
@@ -806,9 +816,9 @@ static void __init set_volt_table_CA7(void)
 			else
 				exynos5410_volt_table_CA7[i] = asv_volt;
 		}
-#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
-		pr_info("CPUFREQ of CA7  L%d : %d uV\n", i, exynos5410_volt_table_CA7[i]);
-#endif
+
+		pr_info("CPUFREQ of CA7  L%d : %d uV\n", i,
+				exynos5410_volt_table_CA7[i]);
 	}
 
 	max_support_idx_CA7 = L1;
@@ -848,18 +858,18 @@ static void __init set_volt_table_CA15(void)
 			else
 				exynos5410_volt_table_CA15[i] = asv_volt;
 		}
-#ifdef CONFIG_ODROIDXU_DEBUG_MESSAGES
-		pr_info("CPUFREQ of CA15 L%d : %d uV\n", i, exynos5410_volt_table_CA15[i]);
-#endif
+
+		pr_info("CPUFREQ of CA15 L%d : %d uV\n", i,
+				exynos5410_volt_table_CA15[i]);
 	}
 
-	max_support_idx_CA15 = L2;
+	max_support_idx_CA15 = L4;
 
 	exynos5410_freq_table_CA15[L0].frequency = CPUFREQ_ENTRY_INVALID;
 	exynos5410_freq_table_CA15[L1].frequency = CPUFREQ_ENTRY_INVALID;
+	exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
+	exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
 	if (samsung_rev() < EXYNOS5410_REV_2_0) {
-		exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
-		exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L4].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L5].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L6].frequency = CPUFREQ_ENTRY_INVALID;
@@ -884,6 +894,13 @@ static void __init set_volt_table_CA15(void)
 		exynos5410_freq_table_CA15[L18].frequency = CPUFREQ_ENTRY_INVALID;
 
 		min_support_idx_CA15 = L12;
+	}
+	
+	if (get_asv_is_bin2()) {
+		exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
+
+		max_support_idx_CA15 = L4;
 	}
 }
 
@@ -1053,6 +1070,10 @@ int __init exynos5410_cpufreq_CA15_init(struct exynos_dvfs_info *info)
 		info->max_op_freqs = exynos5410_max_op_freq_b_evt1;
 	else
 		info->max_op_freqs = exynos5410_max_op_freq_b_evt2;
+
+	if(get_asv_is_bin2()) {
+		info->max_op_freqs = exynos5410_max_op_freq_b_bin2;
+	}
 
 	info->volt_table = exynos5410_volt_table_CA15;
 	info->freq_table = exynos5410_freq_table_CA15;

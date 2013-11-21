@@ -19,7 +19,8 @@
 #include <linux/slab.h>
 
 #include <mach/asv-exynos.h>
-#include <mach/asv-exynos5410.h>
+#include <mach/asv-exynos5410.h>       
+#include <mach/asv-exynos5410-bin2.h> 
 #include <mach/map.h>
 #include <mach/regs-pmu.h>
 
@@ -79,7 +80,7 @@ enum table_version {
 	ASV_TABLE_VER0,
 	ASV_TABLE_VER1,
 	ASV_TABLE_VER2,
-	ASV_TABLE_VER3,
+	ASV_TABLE_VER_BIN2,
 };
 
 enum volt_offset {
@@ -100,6 +101,56 @@ static const char *special_lot_list[] = {
 	"NZXKR",
 	"NZXT6",
 };
+
+static int set_arm_volt;
+static int set_kfc_volt;
+static int set_int_volt;
+static int set_mif_volt;
+static int set_g3d_volt;
+
+#ifdef CONFIG_ASV_MARGIN_TEST
+static int __init get_arm_volt(char *str)
+{
+	get_option(&str, &set_arm_volt);
+	return 0;
+}
+early_param("arm", get_arm_volt);
+
+static int __init get_kfc_volt(char *str)
+{
+	get_option(&str, &set_kfc_volt);
+	return 0;
+}
+early_param("kfc", get_kfc_volt);
+
+static int __init get_int_volt(char *str)
+{
+	get_option(&str, &set_int_volt);
+	return 0;
+}
+early_param("int", get_int_volt);
+
+static int __init get_mif_volt(char *str)
+{
+	get_option(&str, &set_mif_volt);
+	return 0;
+}
+early_param("mif", get_mif_volt);
+
+static int __init get_g3d_volt(char *str)
+{
+	get_option(&str, &set_g3d_volt);
+	return 0;
+}
+early_param("g3d", get_g3d_volt);
+#endif
+
+bool get_asv_is_bin2(void)
+{
+	return asv_table_version == ASV_TABLE_VER_BIN2;
+}
+EXPORT_SYMBOL_GPL(get_asv_is_bin2);
+
 
 unsigned int exynos5410_add_volt_offset(unsigned int voltage, enum volt_offset offset)
 {
@@ -192,9 +243,12 @@ static void exynos5410_set_asv_info_arm(struct asv_info *asv_inform, bool show_v
 	asv_inform->asv_abb  = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = arm_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ? arm_asv_volt_info_bin2[i][0] : arm_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(arm_asv_volt_info[i][target_asv_grp_nr + 1], ID_ARM);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? arm_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							arm_asv_volt_info[i][target_asv_grp_nr + 1]), ID_ARM)
+				+ set_arm_volt;
 	}
 
 	if (show_value) {
@@ -243,9 +297,12 @@ static void exynos5410_set_asv_info_kfc(struct asv_info *asv_inform, bool show_v
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = kfc_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ? kfc_asv_volt_info[i][0] : kfc_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(kfc_asv_volt_info[i][target_asv_grp_nr + 1], ID_KFC);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? kfc_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							kfc_asv_volt_info[i][target_asv_grp_nr + 1]), ID_KFC)
+				+ set_kfc_volt;
 	}
 
 	if (show_value) {
@@ -293,9 +350,13 @@ static void exynos5410_set_asv_info_int_mif_lv0(struct asv_info *asv_inform, boo
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = int_mif_lv0_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ?
+			int_mif_lv0_asv_volt_info[i][0] : int_mif_lv0_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(int_mif_lv0_asv_volt_info[i][target_asv_grp_nr + 1], ID_INT);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? int_mif_lv0_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							int_mif_lv0_asv_volt_info[i][target_asv_grp_nr + 1]), ID_INT)
+				+ set_int_volt;
 	}
 
 	if (show_value) {
@@ -321,9 +382,13 @@ static void exynos5410_set_asv_info_int_mif_lvl(struct asv_info *asv_inform, boo
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = int_mif_lv1_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ?
+							int_mif_lv1_asv_volt_info_bin2[i][0] : int_mif_lv1_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(int_mif_lv1_asv_volt_info[i][target_asv_grp_nr + 1], ID_INT);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? int_mif_lv1_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							int_mif_lv1_asv_volt_info[i][target_asv_grp_nr + 1]), ID_INT)
+				+ set_int_volt;
 	}
 
 	if (show_value) {
@@ -349,9 +414,13 @@ static void exynos5410_set_asv_info_int_mif_lv2(struct asv_info *asv_inform, boo
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = int_mif_lv2_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ?
+			int_mif_lv2_asv_volt_info_bin2[i][0] : int_mif_lv2_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(int_mif_lv2_asv_volt_info[i][target_asv_grp_nr + 1], ID_INT);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? int_mif_lv2_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							int_mif_lv2_asv_volt_info[i][target_asv_grp_nr + 1]), ID_INT)
+				+ set_int_volt;
 	}
 
 	if (show_value) {
@@ -377,9 +446,13 @@ static void exynos5410_set_asv_info_int_mif_lv3(struct asv_info *asv_inform, boo
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = int_mif_lv3_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ?
+			int_mif_lv3_asv_volt_info_bin2[i][0] : int_mif_lv3_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(int_mif_lv3_asv_volt_info[i][target_asv_grp_nr + 1], ID_INT);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? int_mif_lv3_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							int_mif_lv3_asv_volt_info[i][target_asv_grp_nr + 1]), ID_INT)
+				+ set_int_volt;
 	}
 
 	if (show_value) {
@@ -430,9 +503,12 @@ static void exynos5410_set_asv_info_mif(struct asv_info *asv_inform, bool show_v
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = mif_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ? mif_asv_volt_info_bin2[i][0] : mif_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(mif_asv_volt_info[i][target_asv_grp_nr + 1], ID_MIF);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? mif_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							mif_asv_volt_info[i][target_asv_grp_nr + 1]), ID_MIF)
+				+ set_mif_volt;
 	}
 
 	if (show_value) {
@@ -480,9 +556,12 @@ static void exynos5410_set_asv_info_g3d(struct asv_info *asv_inform, bool show_v
 	asv_inform->asv_abb = kmalloc((sizeof(struct asv_freq_table) * asv_inform->dvfs_level_nr), GFP_KERNEL);
 
 	for (i = 0; i < asv_inform->dvfs_level_nr; i++) {
-		asv_inform->asv_volt[i].asv_freq = g3d_asv_volt_info[i][0];
+		asv_inform->asv_volt[i].asv_freq = (get_asv_is_bin2() ? g3d_asv_volt_info_bin2[i][0] : g3d_asv_volt_info[i][0]);
 		asv_inform->asv_volt[i].asv_value =
-			exynos5410_apply_volt_offset(g3d_asv_volt_info[i][target_asv_grp_nr + 1], ID_G3D);
+			exynos5410_apply_volt_offset(
+				(get_asv_is_bin2() ? g3d_asv_volt_info_bin2[i][target_asv_grp_nr + 1] :
+							g3d_asv_volt_info[i][target_asv_grp_nr + 1]), ID_G3D)
+				+ set_g3d_volt;
 	}
 
 	if (show_value) {
@@ -640,7 +719,6 @@ int exynos5410_init_asv(struct asv_common *asv_info)
 			special_lot_group = ((chip_id3_value >> EXYNOS5410_SG_A_OFFSET) & EXYNOS5410_SG_A_MASK)
 					+ ((chip_id3_value >> EXYNOS5410_SG_B_OFFSET) & EXYNOS5410_SG_B_MASK);
 		is_speedgroup = true;
-		special_lot_group++;
 		pr_info("Exynos5410 ASV : Use Fusing Speed Group %d\n", special_lot_group);
 	} else {
 		asv_info->hpm_value = (chip_id4_value >> EXYNOS5410_TMCB_OFFSET) & EXYNOS5410_TMCB_MASK;
@@ -656,6 +734,34 @@ int exynos5410_init_asv(struct asv_common *asv_info)
 				asv_info->ids_value, asv_info->hpm_value);
 
 	asv_table_version = (chip_id3_value >> EXYNOS5410_TABLE_OFFSET) & EXYNOS5410_TABLE_MASK;
+
+	if (get_asv_is_bin2()) {
+		exynos5410_asv_member[0].asv_group_nr = ASV_GRP_NR(ARM_BIN2);
+		exynos5410_asv_member[0].dvfs_level_nr = DVFS_LEVEL_NR(ARM_BIN2);
+		exynos5410_asv_member[0].max_volt_value = MAX_VOLT(ARM_BIN2);
+		exynos5410_asv_member[1].asv_group_nr = ASV_GRP_NR(KFC_BIN2);
+		exynos5410_asv_member[1].dvfs_level_nr = DVFS_LEVEL_NR(KFC_BIN2);
+		exynos5410_asv_member[1].max_volt_value = MAX_VOLT(KFC_BIN2);
+		exynos5410_asv_member[2].asv_group_nr = ASV_GRP_NR(INT_BIN2);
+		exynos5410_asv_member[2].dvfs_level_nr = DVFS_LEVEL_NR(INT_BIN2);
+		exynos5410_asv_member[2].max_volt_value = MAX_VOLT(INT_BIN2);
+		exynos5410_asv_member[3].asv_group_nr = ASV_GRP_NR(MIF_BIN2);
+		exynos5410_asv_member[3].dvfs_level_nr = DVFS_LEVEL_NR(MIF_BIN2);
+		exynos5410_asv_member[3].max_volt_value = MAX_VOLT(MIF_BIN2);
+		exynos5410_asv_member[4].asv_group_nr = ASV_GRP_NR(G3D_BIN2);
+		exynos5410_asv_member[4].dvfs_level_nr = DVFS_LEVEL_NR(G3D_BIN2);
+		exynos5410_asv_member[4].max_volt_value = MAX_VOLT(G3D_BIN2);
+		exynos5410_asv_member[5].asv_group_nr = ASV_GRP_NR(INT_BIN2);
+		exynos5410_asv_member[5].dvfs_level_nr = DVFS_LEVEL_NR(INT_BIN2);
+		exynos5410_asv_member[5].max_volt_value = MAX_VOLT(INT_BIN2);
+		exynos5410_asv_member[6].asv_group_nr = ASV_GRP_NR(INT_BIN2);
+		exynos5410_asv_member[6].dvfs_level_nr = DVFS_LEVEL_NR(INT_BIN2);
+		exynos5410_asv_member[6].max_volt_value = MAX_VOLT(INT_BIN2);
+		exynos5410_asv_member[7].asv_group_nr = ASV_GRP_NR(INT_BIN2);
+		exynos5410_asv_member[7].dvfs_level_nr = DVFS_LEVEL_NR(INT_BIN2);
+		exynos5410_asv_member[7].max_volt_value = MAX_VOLT(INT_BIN2);
+	}
+	
 	asv_volt_offset[ID_ARM][0] = (chip_id4_value >> EXYNOS5410_EGLLOCK_UP_OFFSET) & EXYNOS5410_EGLLOCK_UP_MASK;
 	asv_volt_offset[ID_ARM][1] = (chip_id4_value >> EXYNOS5410_EGLLOCK_DN_OFFSET) & EXYNOS5410_EGLLOCK_DN_MASK;
 	asv_volt_offset[ID_KFC][0] = (chip_id4_value >> EXYNOS5410_KFCLOCK_UP_OFFSET) & EXYNOS5410_KFCLOCK_UP_MASK;
