@@ -12,6 +12,7 @@
 #define SIGP_SET_PREFIX		     13
 #define SIGP_STORE_STATUS_AT_ADDRESS 14
 #define SIGP_SET_ARCHITECTURE	     18
+#define SIGP_COND_EMERGENCY_SIGNAL   19
 #define SIGP_SENSE_RUNNING	     21
 
 /* SIGP condition codes */
