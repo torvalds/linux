@@ -1,0 +1,136 @@
+Small Task Packing in the big.LITTLE MP Reference Patch Set
+
+What is small task packing?
+----
+Simply that the scheduler will fit as many small tasks on a single CPU
+as possible before using other CPUs. A small task is defined as one
+whose tracked load is less than 90% of a NICE_0 task. This is a change
+from the usual behavior since the scheduler will normally use an idle
+CPU for a waking task unless that task is considered cache hot.
+
+
+How is it implemented?
+----
+Since all small tasks must wake up relatively frequently, the main
+requirement for packing small tasks is to select a partly-busy CPU when
+waking rather than looking for an idle CPU. We use the tracked load of
+the CPU runqueue to determine how heavily loaded each CPU is and the
+tracked load of the task to determine if it will fit on the CPU. We
+always start with the lowest-numbered CPU in a sched domain and stop
+looking when we find a CPU with enough space for the task.
+
+Some further tweaks are necessary to suppress load balancing when the
+CPU is not fully loaded, otherwise the scheduler attempts to spread
+tasks evenly across the domain.
+
+
+How does it interact with the HMP patches?
+----
+Firstly, we only enable packing on the little domain. The intent is that
+the big domain is intended to spread tasks amongst the available CPUs
+one-task-per-CPU. The little domain however is attempting to use as
+little power as possible while servicing its tasks.
+
+Secondly, since we offload big tasks onto little CPUs in order to try
+to devote one CPU to each task, we have a threshold above which we do
+not try to pack a task and instead will select an idle CPU if possible.
+This maintains maximum forward progress for busy tasks temporarily
+demoted from big CPUs.
+
+
+Can the behaviour be tuned?
+----
+Yes, the load level of a 'full' CPU can be easily modified in the source
+and is exposed through sysfs as /sys/kernel/hmp/packing_limit to be
+changed at runtime. The presence of the packing behaviour is controlled
+by CONFIG_SCHED_HMP_LITTLE_PACKING and can be disabled at run-time
+using /sys/kernel/hmp/packing_enable.
+The definition of a small task is hard coded as 90% of NICE_0_LOAD
+and cannot be modified at run time.
+
+
+Why do I need to tune it?
+----
+The optimal configuration is likely to be different depending upon the
+design and manufacturing of your SoC.
+
+In the main, there are two system effects from enabling small task
+packing.
+
+1. CPU operating point may increase
+2. wakeup latency of tasks may be increased
+
+There are also likely to be secondary effects from loading one CPU
+rather than spreading tasks.
+
+Note that all of these system effects are dependent upon the workload
+under consideration.
+
+
+CPU Operating Point
+----
+The primary impact of loading one CPU with a number of light tasks is to
+increase the compute requirement of that CPU since it is no longer idle
+as often. Increased compute requirement causes an increase in the
+frequency of the CPU through CPUfreq.
+
+Consider this example:
+We have a system with 3 CPUs which can operate at any frequency between
+350MHz and 1GHz. The system has 6 tasks which would each produce 10%
+load at 1GHz. The scheduler has frequency-invariant load scaling
+enabled. Our DVFS governor aims for 80% utilization at the chosen
+frequency.
+
+Without task packing, these tasks will be spread out amongst all CPUs
+such that each has 2. This will produce roughly 20% system load, and
+the frequency of the package will remain at 350MHz.
+
+With task packing set to the default packing_limit, all of these tasks
+will sit on one CPU and require a package frequency of ~750MHz to reach
+80% utilization. (0.75 = 0.6 * 0.8).
+
+When a package operates on a single frequency domain, all CPUs in that
+package share frequency and voltage.
+
+Depending upon the SoC implementation there can be a significant amount
+of energy lost to leakage from idle CPUs. The decision about how
+loaded a CPU must be to be considered 'full' is therefore controllable
+through sysfs (sys/kernel/hmp/packing_limit) and directly in the code.
+
+Continuing the example, lets set packing_limit to 450 which means we
+will pack tasks until the total load of all running tasks >= 450. In
+practise, this is very similar to a 55% idle 1Ghz CPU.
+
+Now we are only able to place 4 tasks on CPU0, and two will overflow
+onto CPU1. CPU0 will have a load of 40% and CPU1 will have a load of
+20%. In order to still hit 80% utilization, CPU0 now only needs to
+operate at (0.4*0.8=0.32) 320MHz, which means that the lowest operating
+point will be selected, the same as in the non-packing case, except that
+now CPU2 is no longer needed and can be power-gated.
+
+In order to use less energy, the saving from power-gating CPU2 must be
+more than the energy spent running CPU0 for the extra cycles. This
+depends upon the SoC implementation.
+
+This is obviously a contrived example requiring all the tasks to
+be runnable at the same time, but it illustrates the point.
+
+
+Wakeup Latency
+----
+This is an unavoidable consequence of trying to pack tasks together
+rather than giving them a CPU each. If you cannot find an acceptable
+level of wakeup latency, you should turn packing off.
+
+Cyclictest is a good test application for determining the added latency
+when configuring packing.
+
+
+Why is it turned off for the VersatileExpress V2P_CA15A7 CoreTile?
+----
+Simply, this core tile only has power gating for the whole A7 package.
+When small task packing is enabled, all our low-energy use cases
+normally fit onto one A7 CPU. We therefore end up with 2 mostly-idle
+CPUs and one mostly-busy CPU. This decreases the amount of time
+available where the whole package is idle and can be turned off.
+
