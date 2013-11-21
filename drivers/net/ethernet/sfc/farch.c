@@ -2543,7 +2543,7 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 	struct efx_farch_filter_spec *spec = &table->spec[filter_idx];
 
 	if (!test_bit(filter_idx, table->used_bitmap) ||
-	    spec->priority > priority)
+	    spec->priority != priority)
 		return -ENOENT;
 
 	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {

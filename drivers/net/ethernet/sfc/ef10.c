@@ -2563,7 +2563,7 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 		goto out_unlock;
 	}
 
-	if (spec->priority > priority) {
+	if (spec->priority != priority) {
 		rc = -ENOENT;
 		goto out_unlock;
 	}
