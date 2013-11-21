@@ -52,17 +52,11 @@
 #include <linux/backing-dev.h>
 #include <linux/posix_acl_xattr.h>
 
-# define do_fsync(fp, flag)				\
-	((fp)->f_op->fsync(fp, 0, LLONG_MAX, flag))
-
 #define filp_read(fp, buf, size, pos)			\
 	((fp)->f_op->read((fp), (buf), (size), pos))
 
 #define filp_write(fp, buf, size, pos)			\
 	((fp)->f_op->write((fp), (buf), (size), pos))
-
-#define filp_fsync(fp)					\
-	do_fsync(fp, 1)
 
 #define flock_type(fl)			((fl)->fl_type)
 #define flock_set_type(fl, type)	do { (fl)->fl_type = (type); } while (0)
