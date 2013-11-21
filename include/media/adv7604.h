@@ -21,6 +21,8 @@
 #ifndef _ADV7604_
 #define _ADV7604_
 
+#include <linux/types.h>
+
 /* Analog input muxing modes (AFE register 0x02, [2:0]) */
 enum adv7604_ain_sel {
 	ADV7604_AIN1_2_3_NC_SYNC_1_2 = 0,
