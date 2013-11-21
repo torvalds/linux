@@ -1094,6 +1094,7 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 	struct vb2_queue *vq;
 	struct s5p_jpeg_q_data *q_data = NULL;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_ctrl *ctrl_subs;
 	unsigned int f_type;
 
 	vq = v4l2_m2m_get_vq(ct->fh.m2m_ctx, f->type);
@@ -1118,6 +1119,13 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 		q_data->size = q_data->w * q_data->h * q_data->fmt->depth >> 3;
 	else
 		q_data->size = pix->sizeimage;
+
+	if (f_type == FMT_TYPE_OUTPUT) {
+		ctrl_subs = v4l2_ctrl_find(&ct->ctrl_handler,
+					V4L2_CID_JPEG_CHROMA_SUBSAMPLING);
+		if (ctrl_subs)
+			v4l2_ctrl_s_ctrl(ctrl_subs, q_data->fmt->subsampling);
+	}
 
 	return 0;
 }
