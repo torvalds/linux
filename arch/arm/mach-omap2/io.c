@@ -606,6 +606,7 @@ void __init am43xx_init_early(void)
 	am43xx_clockdomains_init();
 	am43xx_hwmod_init();
 	omap_hwmod_init_postsetup();
+	omap_clk_soc_init = am43xx_dt_clk_init;
 }
 
 void __init am43xx_init_late(void)
