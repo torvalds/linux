@@ -443,6 +443,11 @@ struct iwl_trans;
  * @release_nic_access: let the NIC go to sleep. The "flags" parameter
  *	must be the same one that was sent before to the grab_nic_access.
  * @set_bits_mask - set SRAM register according to value and mask.
+ * @ref: grab a reference to the transport/FW layers, disallowing
+ *	certain low power states
+ * @unref: release a reference previously taken with @ref. Note that
+ *	initially the reference count is 1, making an initial @unref
+ *	necessary to allow low power states.
  */
 struct iwl_trans_ops {
 
@@ -489,6 +494,8 @@ struct iwl_trans_ops {
 				   unsigned long *flags);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
 			      u32 value);
+	void (*ref)(struct iwl_trans *trans);
+	void (*unref)(struct iwl_trans *trans);
 };
 
 /**
@@ -628,6 +635,18 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 {
 	might_sleep();
 	return trans->ops->d3_resume(trans, status, test);
+}
+
+static inline void iwl_trans_ref(struct iwl_trans *trans)
+{
+	if (trans->ops->ref)
+		trans->ops->ref(trans);
+}
+
+static inline void iwl_trans_unref(struct iwl_trans *trans)
+{
+	if (trans->ops->unref)
+		trans->ops->unref(trans);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
