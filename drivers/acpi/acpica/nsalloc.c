@@ -134,6 +134,12 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 		obj_desc = next_desc;
 	}
 
+	/* Special case for the statically allocated root node */
+
+	if (node == acpi_gbl_root_node) {
+		return;
+	}
+
 	/* Now we can delete the node */
 
 	(void)acpi_os_release_object(acpi_gbl_namespace_cache, node);
