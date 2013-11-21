@@ -1237,40 +1237,76 @@ again:
 	goto again;
 }
 
-int
-lstcon_test_add(char *name, int type, int loop, int concur,
-		int dist, int span, char *src_name, char * dst_name,
-		void *param, int paramlen, int *retp,
-		struct list_head *result_up)
+static int
+lstcon_verify_batch(const char *name, lstcon_batch_t **batch)
 {
-	lstcon_group_t  *src_grp = NULL;
-	lstcon_group_t  *dst_grp = NULL;
-	lstcon_test_t   *test    = NULL;
-	lstcon_batch_t  *batch;
-	int	      rc;
+	int rc;
 
-	rc = lstcon_batch_find(name, &batch);
+	rc = lstcon_batch_find(name, batch);
 	if (rc != 0) {
 		CDEBUG(D_NET, "Can't find batch %s\n", name);
 		return rc;
 	}
 
-	if (batch->bat_state != LST_BATCH_IDLE) {
+	if ((*batch)->bat_state != LST_BATCH_IDLE) {
 		CDEBUG(D_NET, "Can't change running batch %s\n", name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+lstcon_verify_group(const char *name, lstcon_group_t **grp)
+{
+	int			rc;
+	lstcon_ndlink_t		*ndl;
+
+	rc = lstcon_group_find(name, grp);
+	if (rc != 0) {
+		CDEBUG(D_NET, "can't find group %s\n", name);
 		return rc;
 	}
 
-	rc = lstcon_group_find(src_name, &src_grp);
-	if (rc != 0) {
-		CDEBUG(D_NET, "Can't find group %s\n", src_name);
-		goto out;
+	list_for_each_entry(ndl, &(*grp)->grp_ndl_list, ndl_link) {
+		if (ndl->ndl_node->nd_state == LST_NODE_ACTIVE)
+			return 0;
 	}
 
-	rc = lstcon_group_find(dst_name, &dst_grp);
-	if (rc != 0) {
-		CDEBUG(D_NET, "Can't find group %s\n", dst_name);
+	CDEBUG(D_NET, "Group %s has no ACTIVE nodes\n", name);
+
+	return -EINVAL;
+}
+
+int
+lstcon_test_add(char *batch_name, int type, int loop,
+		int concur, int dist, int span,
+		char *src_name, char *dst_name,
+		void *param, int paramlen, int *retp,
+		struct list_head *result_up)
+{
+	lstcon_test_t	 *test	 = NULL;
+	int		 rc;
+	lstcon_group_t	 *src_grp = NULL;
+	lstcon_group_t	 *dst_grp = NULL;
+	lstcon_batch_t	 *batch = NULL;
+
+	/*
+	 * verify that a batch of the given name exists, and the groups
+	 * that will be part of the batch exist and have at least one
+	 * active node
+	 */
+	rc = lstcon_verify_batch(batch_name, &batch);
+	if (rc != 0)
 		goto out;
-	}
+
+	rc = lstcon_verify_group(src_name, &src_grp);
+	if (rc != 0)
+		goto out;
+
+	rc = lstcon_verify_group(dst_name, &dst_grp);
+	if (rc != 0)
+		goto out;
 
 	if (dst_grp->grp_userland)
 		*retp = 1;
@@ -1310,7 +1346,8 @@ lstcon_test_add(char *name, int type, int loop, int concur,
 
 	if (lstcon_trans_stat()->trs_rpc_errno != 0 ||
 	    lstcon_trans_stat()->trs_fwk_errno != 0)
-		CDEBUG(D_NET, "Failed to add test %d to batch %s\n", type, name);
+		CDEBUG(D_NET, "Failed to add test %d to batch %s\n", type,
+		       batch_name);
 
 	/* add to test list anyway, so user can check what's going on */
 	list_add_tail(&test->tes_link, &batch->bat_test_list);
