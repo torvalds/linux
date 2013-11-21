@@ -118,6 +118,54 @@ out:
 
 /**************************************************************************
  *
+ * PTP
+ *
+ **************************************************************************
+ */
+
+static void siena_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
+{
+	_efx_writed(efx, cpu_to_le32(host_time),
+		    FR_CZ_MC_TREG_SMEM + MC_SMEM_P0_PTP_TIME_OFST);
+}
+
+static int siena_ptp_set_ts_config(struct efx_nic *efx,
+				   struct hwtstamp_config *init)
+{
+	int rc;
+
+	switch (init->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		/* if TX timestamping is still requested then leave PTP on */
+		return efx_ptp_change_mode(efx,
+					   init->tx_type != HWTSTAMP_TX_OFF,
+					   efx_ptp_get_mode(efx));
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		init->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		return efx_ptp_change_mode(efx, true, MC_CMD_PTP_MODE_V1);
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		init->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+		rc = efx_ptp_change_mode(efx, true,
+					 MC_CMD_PTP_MODE_V2_ENHANCED);
+		/* bug 33070 - old versions of the firmware do not support the
+		 * improved UUID filtering option. Similarly old versions of the
+		 * application do not expect it to be enabled. If the firmware
+		 * does not accept the enhanced mode, fall back to the standard
+		 * PTP v2 UUID filtering. */
+		if (rc != 0)
+			rc = efx_ptp_change_mode(efx, true, MC_CMD_PTP_MODE_V2);
+		return rc;
+	default:
+		return -ERANGE;
+	}
+}
+
+/**************************************************************************
+ *
  * Device reset
  *
  **************************************************************************
@@ -839,19 +887,6 @@ fail:
 
 /**************************************************************************
  *
- * PTP
- *
- **************************************************************************
- */
-
-static void siena_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
-{
-	_efx_writed(efx, cpu_to_le32(host_time),
-		    FR_CZ_MC_TREG_SMEM + MC_SMEM_P0_PTP_TIME_OFST);
-}
-
-/**************************************************************************
- *
  * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
@@ -942,6 +977,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.mtd_sync = efx_mcdi_mtd_sync,
 #endif
 	.ptp_write_host_time = siena_ptp_write_host_time,
+	.ptp_set_ts_config = siena_ptp_set_ts_config,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
@@ -960,4 +996,11 @@ const struct efx_nic_type siena_a0_nic_type = {
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 	.mcdi_max_ver = 1,
 	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
+	.hwtstamp_filters = (1 << HWTSTAMP_FILTER_NONE |
+			     1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT |
+			     1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC |
+			     1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ |
+			     1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT |
+			     1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC |
+			     1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ),
 };
