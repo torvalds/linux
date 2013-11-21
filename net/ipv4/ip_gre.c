@@ -335,7 +335,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 				  iph->saddr, iph->daddr, tpi.key);
 
 	if (tunnel) {
-		ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
+		ip_tunnel_rcv(tunnel, skb, &tpi, hdr_len, log_ecn_error);
 		return 0;
 	}
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);

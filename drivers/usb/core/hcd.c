@@ -1010,6 +1010,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 					dev_name(&usb_dev->dev), retval);
 			return retval;
 		}
+		usb_dev->lpm_capable = usb_device_supports_lpm(usb_dev);
 	}
 
 	retval = usb_new_device (usb_dev);
