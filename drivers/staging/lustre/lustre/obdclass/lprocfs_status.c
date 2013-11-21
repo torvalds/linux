@@ -49,8 +49,8 @@
 #if defined(LPROCFS)
 
 static int lprocfs_no_percpu_stats = 0;
-CFS_MODULE_PARM(lprocfs_no_percpu_stats, "i", int, 0644,
-		"Do not alloc percpu data for lprocfs stats");
+module_param(lprocfs_no_percpu_stats, int, 0644);
+MODULE_PARM_DESC(lprocfs_no_percpu_stats, "Do not alloc percpu data for lprocfs stats");
 
 #define MAX_STRING_SIZE 128
 

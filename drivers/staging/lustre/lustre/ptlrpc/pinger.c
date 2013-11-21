@@ -45,7 +45,8 @@
 #include "ptlrpc_internal.h"
 
 static int suppress_pings;
-CFS_MODULE_PARM(suppress_pings, "i", int, 0644, "Suppress pings");
+module_param(suppress_pings, int, 0644);
+MODULE_PARM_DESC(suppress_pings, "Suppress pings");
 
 struct mutex pinger_mutex;
 static LIST_HEAD(pinger_imports);

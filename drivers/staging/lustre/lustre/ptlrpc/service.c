@@ -44,19 +44,19 @@
 
 /* The following are visible and mutable through /sys/module/ptlrpc */
 int test_req_buffer_pressure = 0;
-CFS_MODULE_PARM(test_req_buffer_pressure, "i", int, 0444,
-		"set non-zero to put pressure on request buffer pools");
-CFS_MODULE_PARM(at_min, "i", int, 0644,
-		"Adaptive timeout minimum (sec)");
-CFS_MODULE_PARM(at_max, "i", int, 0644,
-		"Adaptive timeout maximum (sec)");
-CFS_MODULE_PARM(at_history, "i", int, 0644,
-		"Adaptive timeouts remember the slowest event that took place "
-		"within this period (sec)");
-CFS_MODULE_PARM(at_early_margin, "i", int, 0644,
-		"How soon before an RPC deadline to send an early reply");
-CFS_MODULE_PARM(at_extra, "i", int, 0644,
-		"How much extra time to give with each early reply");
+module_param(test_req_buffer_pressure, int, 0444);
+MODULE_PARM_DESC(test_req_buffer_pressure, "set non-zero to put pressure on request buffer pools");
+module_param(at_min, int, 0644);
+MODULE_PARM_DESC(at_min, "Adaptive timeout minimum (sec)");
+module_param(at_max, int, 0644);
+MODULE_PARM_DESC(at_max, "Adaptive timeout maximum (sec)");
+module_param(at_history, int, 0644);
+MODULE_PARM_DESC(at_history,
+		 "Adaptive timeouts remember the slowest event that took place within this period (sec)");
+module_param(at_early_margin, int, 0644);
+MODULE_PARM_DESC(at_early_margin, "How soon before an RPC deadline to send an early reply");
+module_param(at_extra, int, 0644);
+MODULE_PARM_DESC(at_extra, "How much extra time to give with each early reply");
 
 
 /* forward ref */

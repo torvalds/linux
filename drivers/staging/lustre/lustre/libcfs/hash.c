@@ -112,8 +112,8 @@
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
 static unsigned int warn_on_depth = 8;
-CFS_MODULE_PARM(warn_on_depth, "i", uint, 0644,
-		"warning when hash depth is high.");
+module_param(warn_on_depth, uint, 0644);
+MODULE_PARM_DESC(warn_on_depth, "warning when hash depth is high.");
 #endif
 
 struct cfs_wi_sched *cfs_sched_rehash;

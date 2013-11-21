@@ -70,13 +70,6 @@
 
 #include <linux/libcfs/linux/portals_compat25.h>
 
-
-/******************************************************************************/
-/* Module parameter support */
-#define CFS_MODULE_PARM(name, t, type, perm, desc) \
-	module_param(name, type, perm);\
-	MODULE_PARM_DESC(name, desc)
-
 /* ------------------------------------------------------------------ */
 
 # define LI_POISON 0x5a5a5a5a

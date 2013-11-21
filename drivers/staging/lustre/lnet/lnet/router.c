@@ -34,25 +34,25 @@
 #define LNET_NRB_LARGE		(LNET_NRB_LARGE_MIN * 4)
 
 static char *forwarding = "";
-CFS_MODULE_PARM(forwarding, "s", charp, 0444,
-		"Explicitly enable/disable forwarding between networks");
+module_param(forwarding, charp, 0444);
+MODULE_PARM_DESC(forwarding, "Explicitly enable/disable forwarding between networks");
 
 static int tiny_router_buffers;
-CFS_MODULE_PARM(tiny_router_buffers, "i", int, 0444,
-		"# of 0 payload messages to buffer in the router");
+module_param(tiny_router_buffers, int, 0444);
+MODULE_PARM_DESC(tiny_router_buffers, "# of 0 payload messages to buffer in the router");
 static int small_router_buffers;
-CFS_MODULE_PARM(small_router_buffers, "i", int, 0444,
-		"# of small (1 page) messages to buffer in the router");
+module_param(small_router_buffers, int, 0444);
+MODULE_PARM_DESC(small_router_buffers, "# of small (1 page) messages to buffer in the router");
 static int large_router_buffers;
-CFS_MODULE_PARM(large_router_buffers, "i", int, 0444,
-		"# of large messages to buffer in the router");
+module_param(large_router_buffers, int, 0444);
+MODULE_PARM_DESC(large_router_buffers, "# of large messages to buffer in the router");
 static int peer_buffer_credits = 0;
-CFS_MODULE_PARM(peer_buffer_credits, "i", int, 0444,
-		"# router buffer credits per peer");
+module_param(peer_buffer_credits, int, 0444);
+MODULE_PARM_DESC(peer_buffer_credits, "# router buffer credits per peer");
 
 static int auto_down = 1;
-CFS_MODULE_PARM(auto_down, "i", int, 0444,
-		"Automatically mark peers down on comms error");
+module_param(auto_down, int, 0444);
+MODULE_PARM_DESC(auto_down, "Automatically mark peers down on comms error");
 
 int
 lnet_peer_buffer_credits(lnet_ni_t *ni)
@@ -81,24 +81,24 @@ lnet_peer_buffer_credits(lnet_ni_t *ni)
 #endif
 
 static int check_routers_before_use = 0;
-CFS_MODULE_PARM(check_routers_before_use, "i", int, 0444,
-		"Assume routers are down and ping them before use");
+module_param(check_routers_before_use, int, 0444);
+MODULE_PARM_DESC(check_routers_before_use, "Assume routers are down and ping them before use");
 
 static int avoid_asym_router_failure = 1;
-CFS_MODULE_PARM(avoid_asym_router_failure, "i", int, 0644,
-		"Avoid asymmetrical router failures (0 to disable)");
+module_param(avoid_asym_router_failure, int, 0644);
+MODULE_PARM_DESC(avoid_asym_router_failure, "Avoid asymmetrical router failures (0 to disable)");
 
 static int dead_router_check_interval = 60;
-CFS_MODULE_PARM(dead_router_check_interval, "i", int, 0644,
-		"Seconds between dead router health checks (<= 0 to disable)");
+module_param(dead_router_check_interval, int, 0644);
+MODULE_PARM_DESC(dead_router_check_interval, "Seconds between dead router health checks (<= 0 to disable)");
 
 static int live_router_check_interval = 60;
-CFS_MODULE_PARM(live_router_check_interval, "i", int, 0644,
-		"Seconds between live router health checks (<= 0 to disable)");
+module_param(live_router_check_interval, int, 0644);
+MODULE_PARM_DESC(live_router_check_interval, "Seconds between live router health checks (<= 0 to disable)");
 
 static int router_ping_timeout = 50;
-CFS_MODULE_PARM(router_ping_timeout, "i", int, 0644,
-		"Seconds to wait for the reply to a router health query");
+module_param(router_ping_timeout, int, 0644);
+MODULE_PARM_DESC(router_ping_timeout, "Seconds to wait for the reply to a router health query");
 
 int
 lnet_peers_start_down(void)

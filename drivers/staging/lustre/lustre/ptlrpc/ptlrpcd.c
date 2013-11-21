@@ -77,12 +77,12 @@ struct ptlrpcd {
 };
 
 static int max_ptlrpcds;
-CFS_MODULE_PARM(max_ptlrpcds, "i", int, 0644,
-		"Max ptlrpcd thread count to be started.");
+module_param(max_ptlrpcds, int, 0644);
+MODULE_PARM_DESC(max_ptlrpcds, "Max ptlrpcd thread count to be started.");
 
 static int ptlrpcd_bind_policy = PDB_POLICY_PAIR;
-CFS_MODULE_PARM(ptlrpcd_bind_policy, "i", int, 0644,
-		"Ptlrpcd threads binding mode.");
+module_param(ptlrpcd_bind_policy, int, 0644);
+MODULE_PARM_DESC(ptlrpcd_bind_policy, "Ptlrpcd threads binding mode.");
 static struct ptlrpcd *ptlrpcds;
 
 struct mutex ptlrpcd_mutex;

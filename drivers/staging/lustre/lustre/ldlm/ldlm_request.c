@@ -68,8 +68,8 @@
 #include "ldlm_internal.h"
 
 int ldlm_enqueue_min = OBD_TIMEOUT_DEFAULT;
-CFS_MODULE_PARM(ldlm_enqueue_min, "i", int, 0644,
-		"lock enqueue timeout minimum");
+module_param(ldlm_enqueue_min, int, 0644);
+MODULE_PARM_DESC(ldlm_enqueue_min, "lock enqueue timeout minimum");
 
 /* in client side, whether the cached locks will be canceled before replay */
 unsigned int ldlm_cancel_unused_locks_before_replay = 1;
