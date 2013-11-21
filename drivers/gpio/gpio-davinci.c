@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-davinci.h>
 
@@ -282,8 +283,7 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	while (1) {
 		u32		status;
-		int		n;
-		int		res;
+		int		bit;
 
 		/* ack any irqs */
 		status = readl_relaxed(&g->intstat) & mask;
@@ -292,17 +292,13 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		writel_relaxed(status, &g->intstat);
 
 		/* now demux them to the right lowlevel handler */
-		n = d->irq_base;
-		if (irq & 1) {
-			n += 16;
-			status >>= 16;
-		}
 
 		while (status) {
-			res = ffs(status);
-			n += res;
-			generic_handle_irq(n - 1);
-			status >>= res;
+			bit = __ffs(status);
+			status &= ~BIT(bit);
+			generic_handle_irq(
+				irq_find_mapping(d->irq_domain,
+						 d->chip.base + bit));
 		}
 	}
 	desc->irq_data.chip->irq_unmask(&desc->irq_data);
@@ -313,10 +309,7 @@ static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
 {
 	struct davinci_gpio_controller *d = chip2controller(chip);
 
-	if (d->irq_base >= 0)
-		return d->irq_base + offset;
-	else
-		return -ENODEV;
+	return irq_create_mapping(d->irq_domain, d->chip.base + offset);
 }
 
 static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
@@ -354,6 +347,27 @@ static int gpio_irq_type_unbanked(struct irq_data *data, unsigned trigger)
 	return 0;
 }
 
+static int
+davinci_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+		     irq_hw_number_t hw)
+{
+	struct davinci_gpio_regs __iomem *g = gpio2regs(hw);
+
+	irq_set_chip_and_handler_name(irq, &gpio_irqchip, handle_simple_irq,
+				"davinci_gpio");
+	irq_set_irq_type(irq, IRQ_TYPE_NONE);
+	irq_set_chip_data(irq, (__force void *)g);
+	irq_set_handler_data(irq, (void *)__gpio_mask(hw));
+	set_irq_flags(irq, IRQF_VALID);
+
+	return 0;
+}
+
+static const struct irq_domain_ops davinci_gpio_irq_ops = {
+	.map = davinci_gpio_irq_map,
+	.xlate = irq_domain_xlate_onetwocell,
+};
+
 /*
  * NOTE:  for suspend/resume, probably best to make a platform_device with
  * suspend_late/resume_resume calls hooking into results of the set_wake()
@@ -373,6 +387,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	struct davinci_gpio_controller *chips = platform_get_drvdata(pdev);
 	struct davinci_gpio_platform_data *pdata = dev->platform_data;
 	struct davinci_gpio_regs __iomem *g;
+	struct irq_domain	*irq_domain;
 
 	ngpio = pdata->ngpio;
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -396,6 +411,20 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	}
 	clk_prepare_enable(clk);
 
+	irq = irq_alloc_descs(-1, 0, ngpio, 0);
+	if (irq < 0) {
+		dev_err(dev, "Couldn't allocate IRQ numbers\n");
+		return irq;
+	}
+
+	irq_domain = irq_domain_add_legacy(NULL, ngpio, irq, 0,
+						&davinci_gpio_irq_ops,
+						chips);
+	if (!irq_domain) {
+		dev_err(dev, "Couldn't register an IRQ domain\n");
+		return -ENODEV;
+	}
+
 	/*
 	 * Arrange gpio_to_irq() support, handling either direct IRQs or
 	 * banked IRQs.  Having GPIOs in the first GPIO bank use direct
@@ -404,9 +433,8 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	 */
 	for (gpio = 0, bank = 0; gpio < ngpio; bank++, gpio += 32) {
 		chips[bank].chip.to_irq = gpio_to_irq_banked;
-		chips[bank].irq_base = pdata->gpio_unbanked
-			? -EINVAL
-			: (pdata->intc_irq_num + gpio);
+		if (!pdata->gpio_unbanked)
+			chips[bank].irq_domain = irq_domain;
 	}
 
 	/*
@@ -449,11 +477,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	 * Or, AINTC can handle IRQs for banks of 16 GPIO IRQs, which we
 	 * then chain through our own handler.
 	 */
-	for (gpio = 0, irq = gpio_to_irq(0), bank = 0;
-			gpio < ngpio;
-			bank++, bank_irq++) {
-		unsigned		i;
-
+	for (gpio = 0, bank = 0; gpio < ngpio; bank++, bank_irq++, gpio += 16) {
 		/* disabled by default, enabled only as needed */
 		g = gpio2regs(gpio);
 		writel_relaxed(~0, &g->clr_falling);
@@ -469,14 +493,6 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 		 */
 		irq_set_handler_data(bank_irq, &chips[gpio / 32]);
 
-		for (i = 0; i < 16 && gpio < ngpio; i++, irq++, gpio++) {
-			irq_set_chip(irq, &gpio_irqchip);
-			irq_set_chip_data(irq, (__force void *)g);
-			irq_set_handler_data(irq, (void *)__gpio_mask(gpio));
-			irq_set_handler(irq, handle_simple_irq);
-			set_irq_flags(irq, IRQF_VALID);
-		}
-
 		binten |= BIT(bank);
 	}
 
@@ -486,8 +502,6 @@ done:
 	 * bits be set/cleared dynamically.
 	 */
 	writel_relaxed(binten, gpio_base + BINTEN);
-
-	printk(KERN_INFO "DaVinci: %d gpio irqs\n", irq - gpio_to_irq(0));
 
 	return 0;
 }
