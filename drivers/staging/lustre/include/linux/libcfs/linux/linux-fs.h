@@ -52,11 +52,6 @@
 #include <linux/backing-dev.h>
 #include <linux/posix_acl_xattr.h>
 
-#define filp_size(f)					\
-	(i_size_read((f)->f_dentry->d_inode))
-#define filp_poff(f)					\
-	(&(f)->f_pos)
-
 # define do_fsync(fp, flag)				\
 	((fp)->f_op->fsync(fp, 0, LLONG_MAX, flag))
 

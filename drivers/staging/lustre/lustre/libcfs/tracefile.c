@@ -709,7 +709,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		__LASSERT_TAGE_INVARIANT(tage);
 
 		rc = filp_write(filp, page_address(tage->page),
-				tage->used, filp_poff(filp));
+				tage->used, &filp->f_pos);
 		if (rc != (int)tage->used) {
 			printk(KERN_WARNING "wanted to write %u but wrote "
 			       "%d\n", tage->used, rc);
@@ -1020,8 +1020,8 @@ static int tracefiled(void *arg)
 
 			if (f_pos >= (off_t)cfs_tracefile_size)
 				f_pos = 0;
-			else if (f_pos > (off_t)filp_size(filp))
-				f_pos = filp_size(filp);
+			else if (f_pos > i_size_read(filp->f_dentry->d_inode))
+				f_pos = i_size_read(filp->f_dentry->d_inode);
 
 			rc = filp_write(filp, page_address(tage->page),
 					tage->used, &f_pos);
