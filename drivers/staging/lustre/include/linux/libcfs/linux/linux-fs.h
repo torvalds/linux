@@ -61,15 +61,4 @@
 #define flock_end(fl)			((fl)->fl_end)
 #define flock_set_end(fl, end)		do { (fl)->fl_end = (end); } while (0)
 
-#ifndef IFSHIFT
-#define IFSHIFT			12
-#endif
-
-#ifndef IFTODT
-#define IFTODT(type)		(((type) & S_IFMT) >> IFSHIFT)
-#endif
-#ifndef DTTOIF
-#define DTTOIF(dirtype)		((dirtype) << IFSHIFT)
-#endif
-
 #endif

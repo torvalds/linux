@@ -1025,6 +1025,18 @@ struct luda_type {
 	__u16 lt_type;
 };
 
+#ifndef IFSHIFT
+#define IFSHIFT                 12
+#endif
+
+#ifndef IFTODT
+#define IFTODT(type)		(((type) & S_IFMT) >> IFSHIFT)
+#endif
+#ifndef DTTOIF
+#define DTTOIF(dirtype)		((dirtype) << IFSHIFT)
+#endif
+
+
 struct lu_dirpage {
 	__u64	    ldp_hash_start;
 	__u64	    ldp_hash_end;
