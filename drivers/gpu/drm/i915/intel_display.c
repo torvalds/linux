@@ -6638,6 +6638,8 @@ void hsw_enable_pc8_work(struct work_struct *__work)
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t val;
 
+	WARN_ON(!HAS_PC8(dev));
+
 	if (dev_priv->pc8.enabled)
 		return;
 
@@ -6682,6 +6684,8 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 	dev_priv->pc8.disable_count++;
 	if (dev_priv->pc8.disable_count != 1)
 		return;
+
+	WARN_ON(!HAS_PC8(dev));
 
 	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
 	if (!dev_priv->pc8.enabled)
