@@ -813,6 +813,9 @@ static inline void sdata_unlock(struct ieee80211_sub_if_data *sdata)
 	__release(&sdata->wdev.mtx);
 }
 
+#define sdata_dereference(p, sdata) \
+	rcu_dereference_protected(p, lockdep_is_held(&sdata->wdev.mtx))
+
 static inline void
 sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
 {
