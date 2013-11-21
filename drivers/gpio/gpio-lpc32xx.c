@@ -25,10 +25,10 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/gpio-lpc32xx.h>
 #include <mach/irqs.h>
 
 #define LPC32XX_GPIO_P3_INP_STATE		_GPREG(0x000)
