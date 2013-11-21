@@ -17,6 +17,9 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-davinci.h>
 
@@ -134,6 +137,40 @@ davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	writel_relaxed((1 << offset), value ? &g->set_data : &g->clr_data);
 }
 
+static struct davinci_gpio_platform_data *
+davinci_gpio_get_pdata(struct platform_device *pdev)
+{
+	struct device_node *dn = pdev->dev.of_node;
+	struct davinci_gpio_platform_data *pdata;
+	int ret;
+	u32 val;
+
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+		return pdev->dev.platform_data;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	ret = of_property_read_u32(dn, "ti,ngpio", &val);
+	if (ret)
+		goto of_err;
+
+	pdata->ngpio = val;
+
+	ret = of_property_read_u32(dn, "ti,davinci-gpio-unbanked", &val);
+	if (ret)
+		goto of_err;
+
+	pdata->gpio_unbanked = val;
+
+	return pdata;
+
+of_err:
+	dev_err(&pdev->dev, "Populating pdata from DT failed: err %d\n", ret);
+	return NULL;
+}
+
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
 	int i, base;
@@ -144,11 +181,13 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 
-	pdata = dev->platform_data;
+	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
 		dev_err(dev, "No platform data found\n");
 		return -EINVAL;
 	}
+
+	dev->platform_data = pdata;
 
 	/*
 	 * The gpio banks conceptually expose a segmented bitmap,
@@ -195,6 +234,9 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		if (chips[i].chip.ngpio > 32)
 			chips[i].chip.ngpio = 32;
 
+#ifdef CONFIG_OF_GPIO
+		chips[i].chip.of_node = dev->of_node;
+#endif
 		spin_lock_init(&chips[i].lock);
 
 		regs = gpio2regs(base);
@@ -506,11 +548,20 @@ done:
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id davinci_gpio_ids[] = {
+	{ .compatible = "ti,dm6441-gpio", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, davinci_gpio_ids);
+#endif
+
 static struct platform_driver davinci_gpio_driver = {
 	.probe		= davinci_gpio_probe,
 	.driver		= {
-		.name	= "davinci_gpio",
-		.owner	= THIS_MODULE,
+		.name		= "davinci_gpio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(davinci_gpio_ids),
 	},
 };
 
