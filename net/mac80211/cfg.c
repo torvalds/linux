@@ -2988,13 +2988,18 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	struct ieee80211_local *local = sdata->local;
 	int err, changed = 0;
 
+	sdata_lock(sdata);
+	/* AP might have been stopped while waiting for the lock. */
+	if (!sdata->vif.csa_active)
+		goto unlock;
+
 	if (!ieee80211_sdata_running(sdata))
-		return;
+		goto unlock;
 
 	sdata->radar_required = sdata->csa_radar_required;
 	err = ieee80211_vif_change_channel(sdata, &changed);
 	if (WARN_ON(err < 0))
-		return;
+		goto unlock;
 
 	if (!local->use_chanctx) {
 		local->_oper_chandef = sdata->csa_chandef;
@@ -3003,11 +3008,13 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 
+	sdata->vif.csa_active = false;
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
 		if (err < 0)
-			return;
+			goto unlock;
+
 		changed |= err;
 		kfree(sdata->u.ap.next_beacon);
 		sdata->u.ap.next_beacon = NULL;
@@ -3021,20 +3028,22 @@ void ieee80211_csa_finalize_work(struct work_struct *work)
 	case NL80211_IFTYPE_MESH_POINT:
 		err = ieee80211_mesh_finish_csa(sdata);
 		if (err < 0)
-			return;
+			goto unlock;
 		break;
 #endif
 	default:
 		WARN_ON(1);
-		return;
+		goto unlock;
 	}
-	sdata->vif.csa_active = false;
 
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 
 	cfg80211_ch_switch_notify(sdata->dev, &sdata->csa_chandef);
+
+unlock:
+	sdata_unlock(sdata);
 }
 
 static int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,

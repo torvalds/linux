@@ -4286,7 +4286,8 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  * @dev: the device which switched channels
  * @chandef: the new channel definition
  *
- * Acquires wdev_lock, so must only be called from sleepable driver context!
+ * Caller must acquire wdev_lock, therefore must only be called from sleepable
+ * driver context!
  */
 void cfg80211_ch_switch_notify(struct net_device *dev,
 			       struct cfg80211_chan_def *chandef);
