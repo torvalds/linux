@@ -52,9 +52,6 @@
 #include <linux/backing-dev.h>
 #include <linux/posix_acl_xattr.h>
 
-#define filp_write(fp, buf, size, pos)			\
-	((fp)->f_op->write((fp), (buf), (size), pos))
-
 #define flock_type(fl)			((fl)->fl_type)
 #define flock_set_type(fl, type)	do { (fl)->fl_type = (type); } while (0)
 #define flock_pid(fl)			((fl)->fl_pid)
