@@ -1080,7 +1080,6 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	/* abort any running channel switch */
 	sdata->vif.csa_active = false;
-	cancel_work_sync(&sdata->csa_finalize_work);
 	cancel_work_sync(&sdata->u.ap.request_smps_work);
 
 	/* turn off carrier for this interface and dependent VLANs */
