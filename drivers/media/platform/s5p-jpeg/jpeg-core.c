@@ -1213,6 +1213,40 @@ static int s5p_jpeg_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int s5p_jpeg_try_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct s5p_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&ctx->jpeg->slock, flags);
+
+	if (ctrl->id == V4L2_CID_JPEG_CHROMA_SUBSAMPLING) {
+		if (ctx->jpeg->variant->version == SJPEG_S5P)
+			goto error_free;
+		/*
+		 * The exynos4x12 device requires input raw image fourcc
+		 * to be V4L2_PIX_FMT_GREY if gray jpeg format
+		 * is to be set.
+		 */
+		if (ctx->out_q.fmt->fourcc != V4L2_PIX_FMT_GREY &&
+		    ctrl->val == V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY) {
+			ret = -EINVAL;
+			goto error_free;
+		}
+		/*
+		 * The exynos4x12 device requires resulting jpeg subsampling
+		 * not to be lower than the input raw image subsampling.
+		 */
+		if (ctx->out_q.fmt->subsampling > ctrl->val)
+			ctrl->val = ctx->out_q.fmt->subsampling;
+	}
+
+error_free:
+	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
+	return ret;
+}
+
 static int s5p_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct s5p_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
@@ -1238,6 +1272,7 @@ static int s5p_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static const struct v4l2_ctrl_ops s5p_jpeg_ctrl_ops = {
 	.g_volatile_ctrl	= s5p_jpeg_g_volatile_ctrl,
+	.try_ctrl		= s5p_jpeg_try_ctrl,
 	.s_ctrl			= s5p_jpeg_s_ctrl,
 };
 
