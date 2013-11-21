@@ -224,10 +224,9 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
-		if (sk->sk_shutdown & RCV_SHUTDOWN) {
-			msg->msg_namelen = 0;
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			return 0;
-		}
+
 		return err;
 	}
 
@@ -245,8 +244,6 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (bt_sk(sk)->skb_msg_name)
 			bt_sk(sk)->skb_msg_name(skb, msg->msg_name,
 						&msg->msg_namelen);
-		else
-			msg->msg_namelen = 0;
 	}
 
 	skb_free_datagram(sk, skb);
@@ -294,8 +291,6 @@ int bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
-
-	msg->msg_namelen = 0;
 
 	BT_DBG("sk %p size %zu", sk, size);
 
