@@ -77,9 +77,8 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 		page = ion_heap_alloc_pages(buffer, gfp_flags, order);
 		if (!page)
 			return 0;
-		arm_dma_ops.sync_single_for_device(NULL,
-			pfn_to_dma(NULL, page_to_pfn(page)),
-			PAGE_SIZE << order, DMA_BIDIRECTIONAL);
+		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << order,
+						DMA_BIDIRECTIONAL);
 	}
 	if (!page)
 		return 0;
@@ -210,7 +209,7 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 
 	for_each_sg(table->sgl, sg, table->nents, i)
 		free_buffer_page(sys_heap, buffer, sg_page(sg),
-				get_order(sg_dma_len(sg)));
+				get_order(sg->length));
 	sg_free_table(table);
 	kfree(table);
 }

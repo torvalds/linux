@@ -37,6 +37,8 @@
 #define ADF_SHORT_FENCE_TIMEOUT (1 * MSEC_PER_SEC)
 #define ADF_LONG_FENCE_TIMEOUT (10 * MSEC_PER_SEC)
 
+static DEFINE_IDR(adf_devices);
+
 static void adf_fence_wait(struct adf_device *dev, struct sync_fence *fence)
 {
 	/* sync_fence_wait() dumps debug information on timeout.  Experience
@@ -455,23 +457,20 @@ static int adf_obj_init(struct adf_obj *obj, enum adf_obj_type type,
 		struct idr *idr, struct adf_device *parent,
 		const struct adf_obj_ops *ops, const char *fmt, va_list args)
 {
+	int ret;
+
 	if (ops && ops->supports_event && !ops->set_event) {
 		pr_err("%s: %s implements supports_event but not set_event\n",
 				__func__, adf_obj_type_str(type));
 		return -EINVAL;
 	}
 
-	if (idr) {
-		int ret = idr_alloc(idr, obj, 0, 0, GFP_KERNEL);
-		if (ret < 0) {
-			pr_err("%s: allocating object id failed: %d\n",
-					__func__, ret);
-			return ret;
-		}
-		obj->id = ret;
-	} else {
-		obj->id = -1;
+	ret = idr_alloc(idr, obj, 0, 0, GFP_KERNEL);
+	if (ret < 0) {
+		pr_err("%s: allocating object id failed: %d\n", __func__, ret);
+		return ret;
 	}
+	obj->id = ret;
 
 	vscnprintf(obj->name, sizeof(obj->name), fmt, args);
 
@@ -498,8 +497,7 @@ static void adf_obj_destroy(struct adf_obj *obj, struct idr *idr)
 	}
 
 	mutex_destroy(&obj->event_lock);
-	if (idr)
-		idr_remove(idr, obj->id);
+	idr_remove(idr, obj->id);
 }
 
 /**
@@ -543,8 +541,8 @@ int adf_device_init(struct adf_device *dev, struct device *parent,
 	memset(dev, 0, sizeof(*dev));
 
 	va_start(args, fmt);
-	ret = adf_obj_init(&dev->base, ADF_OBJ_DEVICE, NULL, dev, &ops->base,
-			fmt, args);
+	ret = adf_obj_init(&dev->base, ADF_OBJ_DEVICE, &adf_devices, dev,
+			&ops->base, fmt, args);
 	va_end(args);
 	if (ret < 0)
 		return ret;
@@ -612,7 +610,7 @@ void adf_device_destroy(struct adf_device *dev)
 	}
 	mutex_destroy(&dev->post_lock);
 	mutex_destroy(&dev->client_lock);
-	adf_obj_destroy(&dev->base, NULL);
+	adf_obj_destroy(&dev->base, &adf_devices);
 }
 EXPORT_SYMBOL(adf_device_destroy);
 
