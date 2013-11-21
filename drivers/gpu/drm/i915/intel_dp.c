@@ -1094,6 +1094,8 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (ironlake_edp_have_panel_vdd(intel_dp))
 		return;
 
+	intel_runtime_pm_get(dev_priv);
+
 	DRM_DEBUG_KMS("Turning eDP VDD on\n");
 
 	if (!ironlake_edp_have_panel_power(intel_dp))
@@ -1143,6 +1145,8 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 		I915_READ(pp_stat_reg), I915_READ(pp_ctrl_reg));
 		msleep(intel_dp->panel_power_down_delay);
+
+		intel_runtime_pm_put(dev_priv);
 	}
 }
 
@@ -1250,6 +1254,9 @@ void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	intel_dp->want_panel_vdd = false;
 
 	ironlake_wait_panel_off(intel_dp);
+
+	/* We got a reference when we enabled the VDD. */
+	intel_runtime_pm_put(dev_priv);
 }
 
 void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
