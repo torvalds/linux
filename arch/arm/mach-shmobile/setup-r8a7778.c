@@ -319,6 +319,29 @@ void __init r8a7778_add_dt_devices(void)
 #define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE	BIT(1)	/* SDHI0 */
 #define HPB_DMAE_ASYNCMDR_ASMD21_MULTI	0	/* SDHI0 */
 
+#define HPBDMA_HPBIF(_id)				\
+{							\
+	.id	= HPBDMA_SLAVE_HPBIF## _id ##_TX,	\
+	.addr	= 0xffda0000 + (_id * 0x1000),		\
+	.dcr	= HPB_DMAE_DCR_CT |			\
+		  HPB_DMAE_DCR_DIP |			\
+		  HPB_DMAE_DCR_SPDS_32BIT |		\
+		  HPB_DMAE_DCR_DMDL |			\
+		  HPB_DMAE_DCR_DPDS_32BIT,		\
+	.port   = 0x1111,				\
+	.dma_ch = (28 + _id),				\
+}, {							\
+	.id	= HPBDMA_SLAVE_HPBIF## _id ##_RX,	\
+	.addr	= 0xffda0000 + (_id * 0x1000),		\
+	.dcr	= HPB_DMAE_DCR_CT |			\
+		  HPB_DMAE_DCR_DIP |			\
+		  HPB_DMAE_DCR_SMDL |			\
+		  HPB_DMAE_DCR_SPDS_32BIT |		\
+		  HPB_DMAE_DCR_DPDS_32BIT,		\
+	.port   = 0x1111,				\
+	.dma_ch = (28 + _id),				\
+}
+
 static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 	{
 		.id	= HPBDMA_SLAVE_SDHI0_TX,
@@ -349,11 +372,39 @@ static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
 		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
 		.dma_ch	= 22,
 	},
+
+	HPBDMA_HPBIF(0),
+	HPBDMA_HPBIF(1),
+	HPBDMA_HPBIF(2),
+	HPBDMA_HPBIF(3),
+	HPBDMA_HPBIF(4),
+	HPBDMA_HPBIF(5),
+	HPBDMA_HPBIF(6),
+	HPBDMA_HPBIF(7),
+	HPBDMA_HPBIF(8),
 };
 
 static const struct hpb_dmae_channel hpb_dmae_channels[] = {
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
 	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF0_TX), /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF0_RX), /* ch. 28 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF1_TX), /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF1_RX), /* ch. 29 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF2_TX), /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF2_RX), /* ch. 30 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF3_TX), /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF3_RX), /* ch. 31 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF4_TX), /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF4_RX), /* ch. 32 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF5_TX), /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF5_RX), /* ch. 33 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF6_TX), /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF6_RX), /* ch. 34 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF7_TX), /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF7_RX), /* ch. 35 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF8_TX), /* ch. 36 */
+	HPB_DMAE_CHANNEL(0x7f, HPBDMA_SLAVE_HPBIF8_RX), /* ch. 36 */
 };
 
 static struct hpb_dmae_pdata dma_platform_data __initdata = {
