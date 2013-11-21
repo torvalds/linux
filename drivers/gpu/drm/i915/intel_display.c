@@ -6656,6 +6656,8 @@ void hsw_enable_pc8_work(struct work_struct *__work)
 	lpt_disable_clkout_dp(dev);
 	hsw_pc8_disable_interrupts(dev);
 	hsw_disable_lcpll(dev_priv, true, true);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
@@ -6692,6 +6694,8 @@ static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
 		return;
 
 	DRM_DEBUG_KMS("Disabling package C8+\n");
+
+	intel_runtime_pm_get(dev_priv);
 
 	hsw_restore_lcpll(dev_priv);
 	hsw_pc8_restore_interrupts(dev);
