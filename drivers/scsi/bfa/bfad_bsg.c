@@ -229,6 +229,18 @@ bfad_iocmd_iocfc_get_attr(struct bfad_s *bfad, void *cmd)
 }
 
 int
+bfad_iocmd_ioc_fw_sig_inv(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ioc_fwsig_invalidate(&bfad->bfa.ioc);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
 bfad_iocmd_iocfc_set_intr(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_iocfc_intr_s *iocmd = (struct bfa_bsg_iocfc_intr_s *)cmd;
@@ -2892,6 +2904,9 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_IOC_PCIFN_CFG:
 		rc = bfad_iocmd_ioc_get_pcifn_cfg(bfad, iocmd);
+		break;
+	case IOCMD_IOC_FW_SIG_INV:
+		rc = bfad_iocmd_ioc_fw_sig_inv(bfad, iocmd);
 		break;
 	case IOCMD_PCIFN_CREATE:
 		rc = bfad_iocmd_pcifn_create(bfad, iocmd);
