@@ -850,6 +850,33 @@ static void iwl_mvm_enter_d0i3_iterator(void *_data, u8 *mac,
 	data->vif_count++;
 }
 
+static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
+				    struct iwl_wowlan_config_cmd_v3 *cmd,
+				    struct iwl_d0i3_iter_data *iter_data)
+{
+	struct ieee80211_sta *ap_sta;
+	struct iwl_mvm_sta *mvm_ap_sta;
+
+	if (iter_data->ap_sta_id == IWL_MVM_STATION_COUNT)
+		return;
+
+	rcu_read_lock();
+
+	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[iter_data->ap_sta_id]);
+	if (IS_ERR_OR_NULL(ap_sta))
+		goto out;
+
+	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
+	cmd->common.is_11n_connection = ap_sta->ht_cap.ht_supported;
+
+	/*
+	 * The d0i3 uCode takes care of the nonqos counters,
+	 * so configure only the qos seq ones.
+	 */
+	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, &cmd->common);
+out:
+	rcu_read_unlock();
+}
 static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
@@ -858,11 +885,14 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	struct iwl_d0i3_iter_data d0i3_iter_data = {
 		.mvm = mvm,
 	};
-	struct iwl_wowlan_config_cmd wowlan_config_cmd = {
-		.wakeup_filter = cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
-					     IWL_WOWLAN_WAKEUP_BEACON_MISS |
-					     IWL_WOWLAN_WAKEUP_LINK_CHANGE |
-					     IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+	struct iwl_wowlan_config_cmd_v3 wowlan_config_cmd = {
+		.common = {
+			.wakeup_filter =
+				cpu_to_le32(IWL_WOWLAN_WAKEUP_RX_FRAME |
+					    IWL_WOWLAN_WAKEUP_BEACON_MISS |
+					    IWL_WOWLAN_WAKEUP_LINK_CHANGE |
+					    IWL_WOWLAN_WAKEUP_BCN_FILTERING),
+		},
 	};
 	struct iwl_d3_manager_config d3_cfg_cmd = {
 		.min_sleep_time = cpu_to_le32(1000),
@@ -881,6 +911,7 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 	}
 
+	iwl_mvm_set_wowlan_data(mvm, &wowlan_config_cmd, &d0i3_iter_data);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, flags,
 				   sizeof(wowlan_config_cmd),
 				   &wowlan_config_cmd);

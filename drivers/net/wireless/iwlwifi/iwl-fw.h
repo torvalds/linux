@@ -126,6 +126,14 @@ enum iwl_ucode_tlv_flag {
 };
 
 /**
+ * enum iwl_ucode_tlv_api - ucode api
+ * @IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID: wowlan config includes tid field.
+ */
+enum iwl_ucode_tlv_api {
+	IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID	= BIT(0),
+};
+
+/**
  * enum iwl_ucode_tlv_capa - ucode capabilities
  * @IWL_UCODE_TLV_CAPA_D0I3_SUPPORT: supports D0i3
  */
