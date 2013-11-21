@@ -644,7 +644,7 @@ static const struct regmap_config wm8737_regmap = {
 	.volatile_reg = wm8737_volatile,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8737_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -758,7 +758,7 @@ static struct spi_driver wm8737_spi_driver = {
 static int __init wm8737_modinit(void)
 {
 	int ret;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8737_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register WM8737 I2C driver: %d\n",
@@ -781,7 +781,7 @@ static void __exit wm8737_exit(void)
 #if defined(CONFIG_SPI_MASTER)
 	spi_unregister_driver(&wm8737_spi_driver);
 #endif
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8737_i2c_driver);
 #endif
 }
