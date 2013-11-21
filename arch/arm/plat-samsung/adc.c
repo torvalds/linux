@@ -198,6 +198,9 @@ int s3c_adc_start(struct s3c_adc_client *client,
 		return -EINVAL;
 	}
 
+	if(nr_samples == 0)
+		return -EINVAL;
+	
 	spin_lock_irqsave(&adc->lock, flags);
 
 	if (client->is_ts && adc->ts_pend) {
