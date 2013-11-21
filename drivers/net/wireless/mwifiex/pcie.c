@@ -232,7 +232,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	}
 
 	mwifiex_remove_card(card->adapter, &add_remove_card_sem);
-	kfree(card);
 }
 
 static void mwifiex_pcie_shutdown(struct pci_dev *pdev)
@@ -2313,6 +2312,7 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 		pci_release_region(pdev, 0);
 		pci_set_drvdata(pdev, NULL);
 	}
+	kfree(card);
 }
 
 /*

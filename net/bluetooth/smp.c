@@ -742,6 +742,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	BT_DBG("conn %p", conn);
 
+	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
+		return SMP_CMD_NOTSUPP;
+
 	hcon->pending_sec_level = authreq_to_seclevel(rp->auth_req);
 
 	if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
