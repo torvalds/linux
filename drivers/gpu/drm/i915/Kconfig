@@ -44,7 +44,7 @@ config DRM_I915_KMS
 	  If in doubt, say "Y".
 
 config DRM_I915_FBDEV
-	bool "Enable legacy fbdev support for the modesettting intel driver"
+	bool "Enable legacy fbdev support for the modesetting intel driver"
 	depends on DRM_I915
 	select DRM_KMS_FB_HELPER
 	select FB_CFB_FILLRECT
