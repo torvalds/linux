@@ -1006,6 +1006,12 @@ again:
 	cl_io_fini(env, io);
 	if (unlikely(io->ci_need_restart))
 		goto again;
+	/* HSM import case: file is released, cannot be restored
+	 * no need to fail except if restore registration failed
+	 * with -ENODATA */
+	if (result == -ENODATA && io->ci_restore_needed &&
+	    io->ci_result != -ENODATA)
+		result = 0;
 	cl_env_put(env, &refcheck);
 	return result;
 }
