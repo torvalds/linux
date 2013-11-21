@@ -918,6 +918,7 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "sclk", .dt_id = TEGRA114_CLK_SCLK },
 	{ .con_id = "hclk", .dt_id = TEGRA114_CLK_HCLK },
 	{ .con_id = "pclk", .dt_id = TEGRA114_CLK_PCLK },
+	{ .con_id = "fuse", .dt_id = TEGRA114_CLK_FUSE },
 	{ .dev_id = "rtc-tegra", .dt_id = TEGRA114_CLK_RTC },
 	{ .dev_id = "timer", .dt_id = TEGRA114_CLK_TIMER },
 };

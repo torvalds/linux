@@ -446,6 +446,7 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "sclk", .dt_id = TEGRA20_CLK_SCLK },
 	{ .con_id = "hclk", .dt_id = TEGRA20_CLK_HCLK },
 	{ .con_id = "pclk", .dt_id = TEGRA20_CLK_PCLK },
+	{ .con_id = "fuse", .dt_id = TEGRA20_CLK_FUSE },
 	{ .con_id = "twd", .dt_id = TEGRA20_CLK_TWD },
 	{ .con_id = "audio", .dt_id = TEGRA20_CLK_AUDIO },
 	{ .con_id = "audio_2x", .dt_id = TEGRA20_CLK_AUDIO_2X },
