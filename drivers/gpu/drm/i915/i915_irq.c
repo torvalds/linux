@@ -3900,8 +3900,8 @@ void hsw_pc8_disable_interrupts(struct drm_device *dev)
 	dev_priv->pc8.regsave.gtier = I915_READ(GTIER);
 	dev_priv->pc8.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
 
-	ironlake_disable_display_irq(dev_priv, ~DE_PCH_EVENT_IVB);
-	ibx_disable_display_interrupt(dev_priv, ~SDE_HOTPLUG_MASK_CPT);
+	ironlake_disable_display_irq(dev_priv, 0xffffffff);
+	ibx_disable_display_interrupt(dev_priv, 0xffffffff);
 	ilk_disable_gt_irq(dev_priv, 0xffffffff);
 	snb_disable_pm_irq(dev_priv, 0xffffffff);
 
@@ -3915,34 +3915,26 @@ void hsw_pc8_restore_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-	uint32_t val, expected;
+	uint32_t val;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
 	val = I915_READ(DEIMR);
-	expected = ~DE_PCH_EVENT_IVB;
-	WARN(val != expected, "DEIMR is 0x%08x, not 0x%08x\n", val, expected);
+	WARN(val != 0xffffffff, "DEIMR is 0x%08x\n", val);
 
-	val = I915_READ(SDEIMR) & ~SDE_HOTPLUG_MASK_CPT;
-	expected = ~SDE_HOTPLUG_MASK_CPT;
-	WARN(val != expected, "SDEIMR non-HPD bits are 0x%08x, not 0x%08x\n",
-	     val, expected);
+	val = I915_READ(SDEIMR);
+	WARN(val != 0xffffffff, "SDEIMR is 0x%08x\n", val);
 
 	val = I915_READ(GTIMR);
-	expected = 0xffffffff;
-	WARN(val != expected, "GTIMR is 0x%08x, not 0x%08x\n", val, expected);
+	WARN(val != 0xffffffff, "GTIMR is 0x%08x\n", val);
 
 	val = I915_READ(GEN6_PMIMR);
-	expected = 0xffffffff;
-	WARN(val != expected, "GEN6_PMIMR is 0x%08x, not 0x%08x\n", val,
-	     expected);
+	WARN(val != 0xffffffff, "GEN6_PMIMR is 0x%08x\n", val);
 
 	dev_priv->pc8.irqs_disabled = false;
 
 	ironlake_enable_display_irq(dev_priv, ~dev_priv->pc8.regsave.deimr);
-	ibx_enable_display_interrupt(dev_priv,
-				     ~dev_priv->pc8.regsave.sdeimr &
-				     ~SDE_HOTPLUG_MASK_CPT);
+	ibx_enable_display_interrupt(dev_priv, ~dev_priv->pc8.regsave.sdeimr);
 	ilk_enable_gt_irq(dev_priv, ~dev_priv->pc8.regsave.gtimr);
 	snb_enable_pm_irq(dev_priv, ~dev_priv->pc8.regsave.gen6_pmimr);
 	I915_WRITE(GTIER, dev_priv->pc8.regsave.gtier);
