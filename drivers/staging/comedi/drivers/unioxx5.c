@@ -175,7 +175,7 @@ static int __unioxx5_analog_read(struct comedi_subdevice *s,
 
 	/* defining if given module can work on input */
 	if (usp->usp_module_type[module_no] & MODULE_OUTPUT_MASK) {
-		pr_err("comedi%d: module in position %d with id 0x%02x is for output only",
+		dev_err(csdev, "comedi%d: module in position %d with id 0x%02x is for output only",
 		       minor, module_no, usp->usp_module_type[module_no]);
 		return 0;
 	}
