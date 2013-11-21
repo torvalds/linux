@@ -1777,9 +1777,11 @@ batadv_iv_ogm_orig_print_neigh(struct batadv_orig_node *orig_node,
  * batadv_iv_ogm_orig_print - print the originator table
  * @bat_priv: the bat priv with all the soft interface information
  * @seq: debugfs table seq_file struct
+ * @if_outgoing: the outgoing interface for which this should be printed
  */
 static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
-				     struct seq_file *seq)
+				     struct seq_file *seq,
+				     struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_neigh_node *neigh_node;
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
@@ -1801,12 +1803,12 @@ static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 			neigh_node = batadv_orig_router_get(orig_node,
-							    BATADV_IF_DEFAULT);
+							    if_outgoing);
 			if (!neigh_node)
 				continue;
 
 			n_ifinfo = batadv_neigh_ifinfo_get(neigh_node,
-							   BATADV_IF_DEFAULT);
+							   if_outgoing);
 			if (!n_ifinfo)
 				goto next;
 
@@ -1824,8 +1826,8 @@ static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			batadv_iv_ogm_orig_print_neigh(orig_node,
-						       BATADV_IF_DEFAULT, seq);
+			batadv_iv_ogm_orig_print_neigh(orig_node, if_outgoing,
+						       seq);
 			seq_puts(seq, "\n");
 			batman_count++;
 

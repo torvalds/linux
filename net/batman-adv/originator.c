@@ -940,8 +940,54 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 		return 0;
 	}
 
-	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq);
+	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq,
+					       BATADV_IF_DEFAULT);
 
+	return 0;
+}
+
+/**
+ * batadv_orig_hardif_seq_print_text - writes originator infos for a specific
+ *  outgoing interface
+ * @seq: debugfs table seq_file struct
+ * @offset: not used
+ *
+ * Returns 0
+ */
+int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct batadv_hard_iface *hard_iface;
+	struct batadv_priv *bat_priv;
+
+	hard_iface = batadv_hardif_get_by_netdev(net_dev);
+
+	if (!hard_iface || !hard_iface->soft_iface) {
+		seq_puts(seq, "Interface not known to B.A.T.M.A.N.\n");
+		goto out;
+	}
+
+	bat_priv = netdev_priv(hard_iface->soft_iface);
+	if (!bat_priv->bat_algo_ops->bat_orig_print) {
+		seq_puts(seq,
+			 "No printing function for this routing protocol\n");
+		goto out;
+	}
+
+	if (hard_iface->if_status != BATADV_IF_ACTIVE) {
+		seq_puts(seq, "Interface not active\n");
+		goto out;
+	}
+
+	seq_printf(seq, "[B.A.T.M.A.N. adv %s, IF/MAC: %s/%pM (%s %s)]\n",
+		   BATADV_SOURCE_VERSION, hard_iface->net_dev->name,
+		   hard_iface->net_dev->dev_addr,
+		   hard_iface->soft_iface->name, bat_priv->bat_algo_ops->name);
+
+	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq, hard_iface);
+
+out:
+	batadv_hardif_free_ref(hard_iface);
 	return 0;
 }
 

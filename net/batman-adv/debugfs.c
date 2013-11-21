@@ -248,6 +248,19 @@ static int batadv_originators_open(struct inode *inode, struct file *file)
 	return single_open(file, batadv_orig_seq_print_text, net_dev);
 }
 
+/**
+ * batadv_originators_hardif_open - handles debugfs output for the
+ *  originator table of an hard interface
+ * @inode: inode pointer to debugfs file
+ * @file: pointer to the seq_file
+ */
+static int batadv_originators_hardif_open(struct inode *inode,
+					  struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	return single_open(file, batadv_orig_hardif_seq_print_text, net_dev);
+}
+
 static int batadv_gateways_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
@@ -383,8 +396,11 @@ struct batadv_debuginfo batadv_hardif_debuginfo_##_name = {	\
 		.release = single_release,			\
 	},							\
 };
+static BATADV_HARDIF_DEBUGINFO(originators, S_IRUGO,
+			       batadv_originators_hardif_open);
 
 static struct batadv_debuginfo *batadv_hardif_debuginfos[] = {
+	&batadv_hardif_debuginfo_originators,
 	NULL,
 };
 
