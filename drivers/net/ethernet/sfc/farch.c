@@ -2190,8 +2190,8 @@ efx_farch_filter_init_rx_for_stack(struct efx_nic *efx,
 	/* If there's only one channel then disable RSS for non VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
-	spec->priority = EFX_FILTER_PRI_REQUIRED;
-	spec->flags = (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_STACK |
+	spec->priority = EFX_FILTER_PRI_AUTO;
+	spec->flags = (EFX_FILTER_FLAG_RX |
 		       (efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0) |
 		       (efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0));
 	spec->dmaq_id = 0;
@@ -2456,20 +2456,13 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 			rc = -EEXIST;
 			goto out;
 		}
-		if (spec.priority < saved_spec->priority &&
-		    !(saved_spec->priority == EFX_FILTER_PRI_REQUIRED &&
-		      saved_spec->flags & EFX_FILTER_FLAG_RX_STACK)) {
+		if (spec.priority < saved_spec->priority) {
 			rc = -EPERM;
 			goto out;
 		}
-		if (spec.flags & EFX_FILTER_FLAG_RX_STACK) {
-			/* Just make sure it won't be removed */
-			saved_spec->flags |= EFX_FILTER_FLAG_RX_STACK;
-			rc = 0;
-			goto out;
-		}
-		/* Retain the RX_STACK flag */
-		spec.flags |= saved_spec->flags & EFX_FILTER_FLAG_RX_STACK;
+		if (saved_spec->priority == EFX_FILTER_PRI_AUTO ||
+		    saved_spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO)
+			spec.flags |= EFX_FILTER_FLAG_RX_OVER_AUTO;
 	}
 
 	/* Insert the filter */
@@ -2553,7 +2546,7 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 	    spec->priority > priority)
 		return -ENOENT;
 
-	if (spec->flags & EFX_FILTER_FLAG_RX_STACK) {
+	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
 		efx_farch_filter_init_rx_for_stack(efx, spec);
 		efx_farch_filter_push_rx_config(efx);
 	} else {
@@ -2637,8 +2630,11 @@ efx_farch_filter_table_clear(struct efx_nic *efx,
 	unsigned int filter_idx;
 
 	spin_lock_bh(&efx->filter_lock);
-	for (filter_idx = 0; filter_idx < table->size; ++filter_idx)
-		efx_farch_filter_remove(efx, table, filter_idx, priority);
+	for (filter_idx = 0; filter_idx < table->size; ++filter_idx) {
+		if (table->spec[filter_idx].priority != EFX_FILTER_PRI_AUTO)
+			efx_farch_filter_remove(efx, table,
+						filter_idx, priority);
+	}
 	spin_unlock_bh(&efx->filter_lock);
 }
 

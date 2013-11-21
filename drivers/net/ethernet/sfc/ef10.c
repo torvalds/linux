@@ -2341,10 +2341,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 				    EFX_EF10_FILTER_FLAG_BUSY)
 					break;
 				if (spec->priority < saved_spec->priority &&
-				    !(saved_spec->priority ==
-				      EFX_FILTER_PRI_REQUIRED &&
-				      saved_spec->flags &
-				      EFX_FILTER_FLAG_RX_STACK)) {
+				    spec->priority != EFX_FILTER_PRI_AUTO) {
 					rc = -EPERM;
 					goto out_unlock;
 				}
@@ -2398,9 +2395,11 @@ found:
 	 */
 	saved_spec = efx_ef10_filter_entry_spec(table, ins_index);
 	if (saved_spec) {
-		if (spec->flags & EFX_FILTER_FLAG_RX_STACK) {
+		if (spec->priority == EFX_FILTER_PRI_AUTO &&
+		    saved_spec->priority >= EFX_FILTER_PRI_AUTO) {
 			/* Just make sure it won't be removed */
-			saved_spec->flags |= EFX_FILTER_FLAG_RX_STACK;
+			if (saved_spec->priority > EFX_FILTER_PRI_AUTO)
+				saved_spec->flags |= EFX_FILTER_FLAG_RX_OVER_AUTO;
 			table->entry[ins_index].spec &=
 				~EFX_EF10_FILTER_FLAG_STACK_OLD;
 			rc = ins_index;
@@ -2442,8 +2441,11 @@ found:
 	if (rc == 0) {
 		if (replacing) {
 			/* Update the fields that may differ */
+			if (saved_spec->priority == EFX_FILTER_PRI_AUTO)
+				saved_spec->flags |=
+					EFX_FILTER_FLAG_RX_OVER_AUTO;
 			saved_spec->priority = spec->priority;
-			saved_spec->flags &= EFX_FILTER_FLAG_RX_STACK;
+			saved_spec->flags &= EFX_FILTER_FLAG_RX_OVER_AUTO;
 			saved_spec->flags |= spec->flags;
 			saved_spec->rss_context = spec->rss_context;
 			saved_spec->dmaq_id = spec->dmaq_id;
@@ -2542,26 +2544,41 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 		spin_unlock_bh(&efx->filter_lock);
 		schedule();
 	}
+
 	spec = efx_ef10_filter_entry_spec(table, filter_idx);
-	if (!spec || spec->priority > priority ||
+	if (!spec ||
 	    (!stack_requested &&
 	     efx_ef10_filter_rx_match_pri(table, spec->match_flags) !=
 	     filter_id / HUNT_FILTER_TBL_ROWS)) {
 		rc = -ENOENT;
 		goto out_unlock;
 	}
+
+	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO &&
+	    priority == EFX_FILTER_PRI_AUTO) {
+		/* Just remove flags */
+		spec->flags &= ~EFX_FILTER_FLAG_RX_OVER_AUTO;
+		table->entry[filter_idx].spec &= ~EFX_EF10_FILTER_FLAG_STACK_OLD;
+		rc = 0;
+		goto out_unlock;
+	}
+
+	if (spec->priority > priority) {
+		rc = -ENOENT;
+		goto out_unlock;
+	}
+
 	table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_BUSY;
 	spin_unlock_bh(&efx->filter_lock);
 
-	if (spec->flags & EFX_FILTER_FLAG_RX_STACK && !stack_requested) {
+	if (spec->flags & EFX_FILTER_FLAG_RX_OVER_AUTO) {
 		/* Reset steering of a stack-owned filter */
 
 		struct efx_filter_spec new_spec = *spec;
 
-		new_spec.priority = EFX_FILTER_PRI_REQUIRED;
+		new_spec.priority = EFX_FILTER_PRI_AUTO;
 		new_spec.flags = (EFX_FILTER_FLAG_RX |
-				  EFX_FILTER_FLAG_RX_RSS |
-				  EFX_FILTER_FLAG_RX_STACK);
+				  EFX_FILTER_FLAG_RX_RSS);
 		new_spec.dmaq_id = 0;
 		new_spec.rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
 		rc = efx_ef10_filter_push(efx, &new_spec,
@@ -2589,6 +2606,7 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 			efx_ef10_filter_set_entry(table, filter_idx, NULL, 0);
 		}
 	}
+
 	table->entry[filter_idx].spec &= ~EFX_EF10_FILTER_FLAG_BUSY;
 	wake_up_all(&table->waitq);
 out_unlock:
@@ -2731,8 +2749,6 @@ static s32 efx_ef10_filter_rfs_insert(struct efx_nic *efx,
 				rc = -EBUSY;
 				goto fail_unlock;
 			}
-			EFX_WARN_ON_PARANOID(saved_spec->flags &
-					     EFX_FILTER_FLAG_RX_STACK);
 			if (spec->priority < saved_spec->priority) {
 				rc = -EPERM;
 				goto fail_unlock;
@@ -3118,9 +3134,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	/* Insert/renew unicast filters */
 	if (table->stack_uc_count >= 0) {
 		for (i = 0; i < table->stack_uc_count; i++) {
-			efx_filter_init_rx(&spec, EFX_FILTER_PRI_REQUIRED,
-					   EFX_FILTER_FLAG_RX_RSS |
-					   EFX_FILTER_FLAG_RX_STACK,
+			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+					   EFX_FILTER_FLAG_RX_RSS,
 					   0);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 table->stack_uc_list[i].addr);
@@ -3129,7 +3144,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 				/* Fall back to unicast-promisc */
 				while (i--)
 					efx_ef10_filter_remove_safe(
-						efx, EFX_FILTER_PRI_REQUIRED,
+						efx, EFX_FILTER_PRI_AUTO,
 						table->stack_uc_list[i].id);
 				table->stack_uc_count = -1;
 				break;
@@ -3138,9 +3153,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		}
 	}
 	if (table->stack_uc_count < 0) {
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_REQUIRED,
-				   EFX_FILTER_FLAG_RX_RSS |
-				   EFX_FILTER_FLAG_RX_STACK,
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+				   EFX_FILTER_FLAG_RX_RSS,
 				   0);
 		efx_filter_set_uc_def(&spec);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3155,9 +3169,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	/* Insert/renew multicast filters */
 	if (table->stack_mc_count >= 0) {
 		for (i = 0; i < table->stack_mc_count; i++) {
-			efx_filter_init_rx(&spec, EFX_FILTER_PRI_REQUIRED,
-					   EFX_FILTER_FLAG_RX_RSS |
-					   EFX_FILTER_FLAG_RX_STACK,
+			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+					   EFX_FILTER_FLAG_RX_RSS,
 					   0);
 			efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC,
 						 table->stack_mc_list[i].addr);
@@ -3166,7 +3179,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 				/* Fall back to multicast-promisc */
 				while (i--)
 					efx_ef10_filter_remove_safe(
-						efx, EFX_FILTER_PRI_REQUIRED,
+						efx, EFX_FILTER_PRI_AUTO,
 						table->stack_mc_list[i].id);
 				table->stack_mc_count = -1;
 				break;
@@ -3175,9 +3188,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		}
 	}
 	if (table->stack_mc_count < 0) {
-		efx_filter_init_rx(&spec, EFX_FILTER_PRI_REQUIRED,
-				   EFX_FILTER_FLAG_RX_RSS |
-				   EFX_FILTER_FLAG_RX_STACK,
+		efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+				   EFX_FILTER_FLAG_RX_RSS,
 				   0);
 		efx_filter_set_mc_def(&spec);
 		rc = efx_ef10_filter_insert(efx, &spec, true);
@@ -3197,9 +3209,8 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	for (i = 0; i < HUNT_FILTER_TBL_ROWS; i++) {
 		if (ACCESS_ONCE(table->entry[i].spec) &
 		    EFX_EF10_FILTER_FLAG_STACK_OLD) {
-			if (efx_ef10_filter_remove_internal(efx,
-					EFX_FILTER_PRI_REQUIRED,
-					i, true) < 0)
+			if (efx_ef10_filter_remove_internal(
+				    efx, EFX_FILTER_PRI_AUTO, i, true) < 0)
 				remove_failed = true;
 		}
 	}
