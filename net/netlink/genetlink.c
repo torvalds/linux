@@ -1045,7 +1045,7 @@ static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 int genlmsg_multicast_allns(struct genl_family *family, struct sk_buff *skb,
 			    u32 portid, unsigned int group, gfp_t flags)
 {
-	if (group >= family->n_mcgrps)
+	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return -EINVAL;
 	group = family->mcgrp_offset + group;
 	return genlmsg_mcast(skb, portid, group, flags);
@@ -1062,7 +1062,7 @@ void genl_notify(struct genl_family *family,
 	if (nlh)
 		report = nlmsg_report(nlh);
 
-	if (group >= family->n_mcgrps)
+	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return;
 	group = family->mcgrp_offset + group;
 	nlmsg_notify(sk, skb, portid, group, report, flags);
