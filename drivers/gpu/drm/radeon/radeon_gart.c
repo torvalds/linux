@@ -651,7 +651,7 @@ retry:
 	radeon_asic_vm_set_page(rdev, &ib, vm->pd_gpu_addr,
 				0, pd_entries, 0, 0);
 
-	radeon_ib_sync_to(&ib, vm->fence);
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_ib_free(rdev, &ib);
@@ -1209,6 +1209,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		return -ENOMEM;
 
 	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
+	if (r)
+		return r;
 	ib.length_dw = 0;
 
 	r = radeon_vm_update_pdes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset);
@@ -1220,7 +1222,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset,
 			      addr, radeon_vm_page_flags(bo_va->flags));
 
-	radeon_ib_sync_to(&ib, vm->fence);
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_ib_free(rdev, &ib);

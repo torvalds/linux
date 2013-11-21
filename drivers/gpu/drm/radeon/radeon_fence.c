@@ -472,6 +472,36 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 }
 
 /**
+ * radeon_fence_wait_locked - wait for a fence to signal
+ *
+ * @fence: radeon fence object
+ *
+ * Wait for the requested fence to signal (all asics).
+ * Returns 0 if the fence has passed, error for all other cases.
+ */
+int radeon_fence_wait_locked(struct radeon_fence *fence)
+{
+	uint64_t seq[RADEON_NUM_RINGS] = {};
+	int r;
+
+	if (fence == NULL) {
+		WARN(1, "Querying an invalid fence : %p !\n", fence);
+		return -EINVAL;
+	}
+
+	seq[fence->ring] = fence->seq;
+	if (seq[fence->ring] == RADEON_FENCE_SIGNALED_SEQ)
+		return 0;
+
+	r = radeon_fence_wait_seq(fence->rdev, seq, false, false);
+	if (r)
+		return r;
+
+	fence->seq = RADEON_FENCE_SIGNALED_SEQ;
+	return 0;
+}
+
+/**
  * radeon_fence_wait_next_locked - wait for the next fence to signal
  *
  * @rdev: radeon device pointer

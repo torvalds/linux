@@ -299,7 +299,9 @@ void cypress_program_response_times(struct radeon_device *rdev)
 static int cypress_pcie_performance_request(struct radeon_device *rdev,
 					    u8 perf_req, bool advertise)
 {
+#if defined(CONFIG_ACPI)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+#endif
 	u32 tmp;
 
 	udelay(10);
