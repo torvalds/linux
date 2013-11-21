@@ -730,7 +730,7 @@ static struct spi_driver ssm2602_spi_driver = {
 };
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 /*
  * ssm2602 2 wire address is determined by GPIO5
  * state during powerup.
@@ -797,7 +797,7 @@ static int __init ssm2602_modinit(void)
 		return ret;
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&ssm2602_i2c_driver);
 	if (ret)
 		return ret;
@@ -813,7 +813,7 @@ static void __exit ssm2602_exit(void)
 	spi_unregister_driver(&ssm2602_spi_driver);
 #endif
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&ssm2602_i2c_driver);
 #endif
 }
