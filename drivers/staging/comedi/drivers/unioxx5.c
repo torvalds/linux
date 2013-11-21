@@ -205,15 +205,17 @@ static int __unioxx5_analog_read(struct comedi_subdevice *s,
 	return 1;
 }
 
-static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp,
+static int __unioxx5_digital_write(struct comedi_subdevice *s,
 				   unsigned int *data, int channel, int minor)
 {
+	struct unioxx5_subd_priv *usp = s->private;
+	struct device *csdev = s->device->class_dev;
 	int channel_offset, val;
 	int mask = 1 << (channel & 0x07);
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
-		pr_err("comedi%d: undefined channel %d. channel range is 0 .. 23\n",
+		dev_err(csdev, "comedi%d: undefined channel %d. channel range is 0 .. 23\n",
 		       minor, channel);
 		return 0;
 	}
@@ -303,7 +305,7 @@ static int unioxx5_subdev_write(struct comedi_device *dev,
 	type = usp->usp_module_type[channel / 2];
 
 	if (type == MODULE_DIGITAL) {
-		if (!__unioxx5_digital_write(usp, data, channel, dev->minor))
+		if (!__unioxx5_digital_write(subdev, data, channel, dev->minor))
 			return -1;
 	} else {
 		if (!__unioxx5_analog_write(usp, data, channel, dev->minor))
