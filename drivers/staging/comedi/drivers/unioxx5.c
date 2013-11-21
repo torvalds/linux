@@ -435,9 +435,10 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 	dev->iobase = iobase;
 	iobase += UNIOXX5_SUBDEV_BASE;
+	n_subd = 0;
 
 	/* defining number of subdevices and getting they types (it must be 'g01')  */
-	for (i = n_subd = 0, ba = iobase; i < 4; i++, ba += UNIOXX5_SUBDEV_ODDS) {
+	for (i = 0, ba = iobase; i < 4; i++, ba += UNIOXX5_SUBDEV_ODDS) {
 		id = inb(ba + 0xE);
 		num = inb(ba + 0xF);
 
