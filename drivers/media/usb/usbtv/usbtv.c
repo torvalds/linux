@@ -33,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
@@ -91,17 +90,78 @@ struct usbtv {
 	u32 frame_id;
 	int chunks_done;
 
+	enum {
+		USBTV_COMPOSITE_INPUT,
+		USBTV_SVIDEO_INPUT,
+	} input;
 	int iso_size;
 	unsigned int sequence;
 	struct urb *isoc_urbs[USBTV_ISOC_TRANSFERS];
 };
 
-static int usbtv_setup_capture(struct usbtv *usbtv)
+static int usbtv_set_regs(struct usbtv *usbtv, const u16 regs[][2], int size)
 {
 	int ret;
 	int pipe = usb_rcvctrlpipe(usbtv->udev, 0);
 	int i;
-	static const u16 protoregs[][2] = {
+
+	for (i = 0; i < size; i++) {
+		u16 index = regs[i][0];
+		u16 value = regs[i][1];
+
+		ret = usb_control_msg(usbtv->udev, pipe, USBTV_REQUEST_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			value, index, NULL, 0, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int usbtv_select_input(struct usbtv *usbtv, int input)
+{
+	int ret;
+
+	static const u16 composite[][2] = {
+		{ USBTV_BASE + 0x0105, 0x0060 },
+		{ USBTV_BASE + 0x011f, 0x00f2 },
+		{ USBTV_BASE + 0x0127, 0x0060 },
+		{ USBTV_BASE + 0x00ae, 0x0010 },
+		{ USBTV_BASE + 0x0284, 0x00aa },
+		{ USBTV_BASE + 0x0239, 0x0060 },
+	};
+
+	static const u16 svideo[][2] = {
+		{ USBTV_BASE + 0x0105, 0x0010 },
+		{ USBTV_BASE + 0x011f, 0x00ff },
+		{ USBTV_BASE + 0x0127, 0x0060 },
+		{ USBTV_BASE + 0x00ae, 0x0030 },
+		{ USBTV_BASE + 0x0284, 0x0088 },
+		{ USBTV_BASE + 0x0239, 0x0060 },
+	};
+
+	switch (input) {
+	case USBTV_COMPOSITE_INPUT:
+		ret = usbtv_set_regs(usbtv, composite, ARRAY_SIZE(composite));
+		break;
+	case USBTV_SVIDEO_INPUT:
+		ret = usbtv_set_regs(usbtv, svideo, ARRAY_SIZE(svideo));
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	if (!ret)
+		usbtv->input = input;
+
+	return ret;
+}
+
+static int usbtv_setup_capture(struct usbtv *usbtv)
+{
+	int ret;
+	static const u16 setup[][2] = {
 		/* These seem to enable the device. */
 		{ USBTV_BASE + 0x0008, 0x0001 },
 		{ USBTV_BASE + 0x01d0, 0x00ff },
@@ -189,16 +249,13 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		{ USBTV_BASE + 0x024f, 0x0002 },
 	};
 
-	for (i = 0; i < ARRAY_SIZE(protoregs); i++) {
-		u16 index = protoregs[i][0];
-		u16 value = protoregs[i][1];
+	ret = usbtv_set_regs(usbtv, setup, ARRAY_SIZE(setup));
+	if (ret)
+		return ret;
 
-		ret = usb_control_msg(usbtv->udev, pipe, USBTV_REQUEST_REG,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			value, index, NULL, 0, 0);
-		if (ret < 0)
-			return ret;
-	}
+	ret = usbtv_select_input(usbtv, usbtv->input);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -443,10 +500,17 @@ static int usbtv_querycap(struct file *file, void *priv,
 static int usbtv_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
 {
-	if (i->index > 0)
+	switch (i->index) {
+	case USBTV_COMPOSITE_INPUT:
+		strlcpy(i->name, "Composite", sizeof(i->name));
+		break;
+	case USBTV_SVIDEO_INPUT:
+		strlcpy(i->name, "S-Video", sizeof(i->name));
+		break;
+	default:
 		return -EINVAL;
+	}
 
-	strlcpy(i->name, "Composite", sizeof(i->name));
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = V4L2_STD_525_60;
 	return 0;
@@ -486,15 +550,15 @@ static int usbtv_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 
 static int usbtv_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	*i = 0;
+	struct usbtv *usbtv = video_drvdata(file);
+	*i = usbtv->input;
 	return 0;
 }
 
 static int usbtv_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i > 0)
-		return -EINVAL;
-	return 0;
+	struct usbtv *usbtv = video_drvdata(file);
+	return usbtv_select_input(usbtv, i);
 }
 
 static int usbtv_s_std(struct file *file, void *priv, v4l2_std_id norm)

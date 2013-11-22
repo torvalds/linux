@@ -25,6 +25,7 @@
 #include <linux/llc.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/openvswitch.h>
 
 #include <net/llc.h>
 
@@ -74,6 +75,15 @@ static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 	return RX_HANDLER_CONSUMED;
 }
 
+static struct net_device *get_dpdev(struct datapath *dp)
+{
+	struct vport *local;
+
+	local = ovs_vport_ovsl(dp, OVSP_LOCAL);
+	BUG_ON(!local);
+	return netdev_vport_priv(local)->dev;
+}
+
 static struct vport *netdev_create(const struct vport_parms *parms)
 {
 	struct vport *vport;
@@ -103,10 +113,15 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 	}
 
 	rtnl_lock();
+	err = netdev_master_upper_dev_link(netdev_vport->dev,
+					   get_dpdev(vport->dp));
+	if (err)
+		goto error_unlock;
+
 	err = netdev_rx_handler_register(netdev_vport->dev, netdev_frame_hook,
 					 vport);
 	if (err)
-		goto error_unlock;
+		goto error_master_upper_dev_unlink;
 
 	dev_set_promiscuity(netdev_vport->dev, 1);
 	netdev_vport->dev->priv_flags |= IFF_OVS_DATAPATH;
@@ -114,6 +129,8 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 
 	return vport;
 
+error_master_upper_dev_unlink:
+	netdev_upper_dev_unlink(netdev_vport->dev, get_dpdev(vport->dp));
 error_unlock:
 	rtnl_unlock();
 error_put:
@@ -140,6 +157,7 @@ static void netdev_destroy(struct vport *vport)
 	rtnl_lock();
 	netdev_vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
 	netdev_rx_handler_unregister(netdev_vport->dev);
+	netdev_upper_dev_unlink(netdev_vport->dev, get_dpdev(vport->dp));
 	dev_set_promiscuity(netdev_vport->dev, -1);
 	rtnl_unlock();
 

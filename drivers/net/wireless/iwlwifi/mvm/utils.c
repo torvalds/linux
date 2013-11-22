@@ -453,6 +453,29 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
+void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
+{
+	const struct fw_img *img;
+	int ofs, len = 0;
+	u8 *buf;
+
+	if (!mvm->ucode_loaded)
+		return;
+
+	img = &mvm->fw->img[mvm->cur_ucode];
+	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+	len = img->sec[IWL_UCODE_SECTION_DATA].len;
+
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	iwl_trans_read_mem_bytes(mvm->trans, ofs, buf, len);
+	iwl_print_hex_error(mvm->trans, buf, len);
+
+	kfree(buf);
+}
+
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command
  * @init: This command is sent as part of station initialization right

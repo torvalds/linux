@@ -1004,9 +1004,9 @@ cntrlEnd:
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		len = min_t(ulong, IoBuffer.OutputLength, strlen(VER_FILEVERSION_STR) + 1);
+		len = min_t(ulong, IoBuffer.OutputLength, strlen(DRV_VERSION) + 1);
 
-		if (copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, len))
+		if (copy_to_user(IoBuffer.OutputBuffer, DRV_VERSION, len))
 			return -EFAULT;
 		Status = STATUS_SUCCESS;
 		break;
@@ -1960,6 +1960,7 @@ cntrlEnd:
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
 
+		memset(&DevInfo, 0, sizeof(DevInfo));
 		DevInfo.MaxRDMBufferSize = BUFFER_4K;
 		DevInfo.u32DSDStartOffset = EEPROM_CALPARAM_START;
 		DevInfo.u32RxAlignmentCorrection = 0;

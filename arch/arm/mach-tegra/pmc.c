@@ -21,11 +21,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "flowctrl.h"
 #include "fuse.h"
 #include "pm.h"
 #include "pmc.h"
 #include "sleep.h"
 
+#define TEGRA_POWER_SYSCLK_POLARITY	(1 << 10)  /* sys clk polarity */
+#define TEGRA_POWER_SYSCLK_OE		(1 << 11)  /* system clock enable */
 #define TEGRA_POWER_EFFECT_LP0		(1 << 14)  /* LP0 when CPU pwr gated */
 #define TEGRA_POWER_CPU_PWRREQ_POLARITY	(1 << 15)  /* CPU pwr req polarity */
 #define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
@@ -193,16 +196,50 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 	return pmc_pm_data.suspend_mode;
 }
 
+void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
+{
+	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
+		return;
+
+	pmc_pm_data.suspend_mode = mode;
+}
+
+void tegra_pmc_suspend(void)
+{
+	tegra_pmc_writel(virt_to_phys(tegra_resume), PMC_SCRATCH41);
+}
+
+void tegra_pmc_resume(void)
+{
+	tegra_pmc_writel(0x0, PMC_SCRATCH41);
+}
+
 void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 {
-	u32 reg;
+	u32 reg, csr_reg;
 	unsigned long rate = 0;
 
 	reg = tegra_pmc_readl(PMC_CTRL);
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	reg &= ~TEGRA_POWER_EFFECT_LP0;
 
+	switch (tegra_chip_id) {
+	case TEGRA20:
+	case TEGRA30:
+		break;
+	default:
+		/* Turn off CRAIL */
+		csr_reg = flowctrl_read_cpu_csr(0);
+		csr_reg &= ~FLOW_CTRL_CSR_ENABLE_EXT_MASK;
+		csr_reg |= FLOW_CTRL_CSR_ENABLE_EXT_CRAIL;
+		flowctrl_write_cpu_csr(0, csr_reg);
+		break;
+	}
+
 	switch (mode) {
+	case TEGRA_SUSPEND_LP1:
+		rate = 32768;
+		break;
 	case TEGRA_SUSPEND_LP2:
 		rate = clk_get_rate(tegra_pclk);
 		break;
@@ -223,6 +260,20 @@ void tegra_pmc_suspend_init(void)
 	/* Always enable CPU power request */
 	reg = tegra_pmc_readl(PMC_CTRL);
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
+	tegra_pmc_writel(reg, PMC_CTRL);
+
+	reg = tegra_pmc_readl(PMC_CTRL);
+
+	if (!pmc_pm_data.sysclkreq_high)
+		reg |= TEGRA_POWER_SYSCLK_POLARITY;
+	else
+		reg &= ~TEGRA_POWER_SYSCLK_POLARITY;
+
+	/* configure the output polarity while the request is tristated */
+	tegra_pmc_writel(reg, PMC_CTRL);
+
+	/* now enable the request */
+	reg |= TEGRA_POWER_SYSCLK_OE;
 	tegra_pmc_writel(reg, PMC_CTRL);
 }
 #endif

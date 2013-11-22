@@ -97,6 +97,15 @@ DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
 	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
 };
 
+/*
+ * MCA banks controlled through firmware first for corrected errors.
+ * This is a global list of banks for which we won't enable CMCI and we
+ * won't poll. Firmware controls these banks and is responsible for
+ * reporting corrected errors through GHES. Uncorrected/recoverable
+ * errors are still notified through a machine check.
+ */
+mce_banks_t mce_banks_ce_disabled;
+
 static DEFINE_PER_CPU(struct work_struct, mce_work);
 
 static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
@@ -1934,6 +1943,25 @@ static struct miscdevice mce_chrdev_device = {
 	"mcelog",
 	&mce_chrdev_ops,
 };
+
+static void __mce_disable_bank(void *arg)
+{
+	int bank = *((int *)arg);
+	__clear_bit(bank, __get_cpu_var(mce_poll_banks));
+	cmci_disable_bank(bank);
+}
+
+void mce_disable_bank(int bank)
+{
+	if (bank >= mca_cfg.banks) {
+		pr_warn(FW_BUG
+			"Ignoring request to disable invalid MCA bank %d.\n",
+			bank);
+		return;
+	}
+	set_bit(bank, mce_banks_ce_disabled);
+	on_each_cpu(__mce_disable_bank, &bank, 1);
+}
 
 /*
  * mce=off Disables machine check

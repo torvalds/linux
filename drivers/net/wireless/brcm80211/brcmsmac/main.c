@@ -882,8 +882,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr)
-		brcms_err(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
-			  txs->phyerr, txh->MainRates);
+		brcms_dbg_tx(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
+			     txs->phyerr, txh->MainRates);
 
 	if (txs->frameid != le16_to_cpu(txh->TxFrameID)) {
 		brcms_err(wlc->hw->d11core, "frameid != txh->TxFrameID\n");
@@ -4652,7 +4652,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc->band->phyrev = wlc_hw->band->phyrev;
 		wlc->band->radioid = wlc_hw->band->radioid;
 		wlc->band->radiorev = wlc_hw->band->radiorev;
-
+		brcms_dbg_info(core, "wl%d: phy %u/%u radio %x/%u\n", unit,
+			       wlc->band->phytype, wlc->band->phyrev,
+			       wlc->band->radioid, wlc->band->radiorev);
 		/* default contention windows size limits */
 		wlc_hw->band->CWmin = APHY_CWMIN;
 		wlc_hw->band->CWmax = PHY_CWMAX;
@@ -4667,7 +4669,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	ai_pci_down(wlc_hw->sih);
+	bcma_core_pci_down(wlc_hw->d11core->bus);
 
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
@@ -5010,12 +5012,12 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	if (brcms_b_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		ai_pci_down(wlc_hw->sih);
+		bcma_core_pci_down(wlc_hw->d11core->bus);
 		brcms_b_xtal(wlc_hw, OFF);
 		return -ENOMEDIUM;
 	}
 
-	ai_pci_up(wlc_hw->sih);
+	bcma_core_pci_up(wlc_hw->d11core->bus);
 
 	/* reset the d11 core */
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
@@ -5212,7 +5214,7 @@ static int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			ai_pci_down(wlc_hw->sih);
+			bcma_core_pci_down(wlc_hw->d11core->bus);
 			brcms_b_xtal(wlc_hw, OFF);
 		}
 	}

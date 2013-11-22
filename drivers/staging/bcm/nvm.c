@@ -2966,7 +2966,7 @@ int BcmFlash2xBulkWrite(struct bcm_mini_adapter *Adapter,
  * @Adapter :-Drivers private Data Structure
  *
  * Return Value:-
- * Return STATUS_SUCESS if get success in setting the right DSD else negaive error code
+ * Return STATUS_SUCESS if get success in setting the right DSD else negative error code
  *
  */
 

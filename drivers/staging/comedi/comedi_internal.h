@@ -24,6 +24,7 @@ extern unsigned int comedi_default_buf_maxsize_kb;
 /* drivers.c */
 
 extern struct comedi_driver *comedi_drivers;
+extern struct mutex comedi_drivers_list_lock;
 
 int insn_inval(struct comedi_device *, struct comedi_subdevice *,
 	       struct comedi_insn *, unsigned int *);

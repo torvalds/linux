@@ -1,5 +1,5 @@
 /*
- * OMAP4 SMP source file. It contains platform specific fucntions
+ * OMAP4 SMP source file. It contains platform specific functions
  * needed for the linux smp kernel.
  *
  * Copyright (C) 2009 Texas Instruments, Inc.

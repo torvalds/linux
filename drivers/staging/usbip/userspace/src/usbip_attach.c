@@ -144,7 +144,7 @@ static int query_import_device(int sockfd, char *busid)
 		return -1;
 	}
 
-	/* recieve a reply */
+	/* receive a reply */
 	rc = usbip_net_recv_op_common(sockfd, &code);
 	if (rc < 0) {
 		err("recv op_common");
@@ -175,7 +175,7 @@ static int attach_device(char *host, char *busid)
 	int rc;
 	int rhport;
 
-	sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
 		err("tcp connect");
 		return -1;
@@ -189,7 +189,7 @@ static int attach_device(char *host, char *busid)
 
 	close(sockfd);
 
-	rc = record_connection(host, USBIP_PORT_STRING, busid, rhport);
+	rc = record_connection(host, usbip_port_string, busid, rhport);
 	if (rc < 0) {
 		err("record connection");
 		return -1;

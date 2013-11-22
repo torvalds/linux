@@ -87,22 +87,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 
 #define LTIME_S(time)		   (time.tv_sec)
 
-#define ll_permission(inode,mask,nd)    inode_permission(inode,mask)
-
-# define ll_generic_permission(inode, mask, flags, check_acl) \
-	 generic_permission(inode, mask)
-
-#define ll_blkdev_put(a, b) blkdev_put(a, b)
-
-#define ll_dentry_open(a,b,c)	dentry_open(a,b,c)
-
-#define ll_vfs_symlink(dir, dentry, mnt, path, mode) \
-		       vfs_symlink(dir, dentry, path)
-
-
-#define ll_generic_file_llseek_size(file, offset, origin, maxbytes, eof) \
-		generic_file_llseek_size(file, offset, origin, maxbytes, eof);
-
 /* inode_dio_wait(i) use as-is for write lock */
 # define inode_dio_write_done(i)	do {} while (0) /* for write unlock */
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
@@ -111,87 +95,9 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define TREE_READ_LOCK_IRQ(mapping)	spin_lock_irq(&(mapping)->tree_lock)
 #define TREE_READ_UNLOCK_IRQ(mapping)	spin_unlock_irq(&(mapping)->tree_lock)
 
-static inline
-int ll_unregister_blkdev(unsigned int dev, const char *name)
-{
-	unregister_blkdev(dev, name);
-	return 0;
-}
-
-#define ll_invalidate_bdev(a,b)	 invalidate_bdev((a))
-
 #ifndef FS_HAS_FIEMAP
 #define FS_HAS_FIEMAP			(0)
 #endif
-
-
-
-/* add a lustre compatible layer for crypto API */
-#include <linux/crypto.h>
-#define ll_crypto_hash	  crypto_hash
-#define ll_crypto_cipher	crypto_blkcipher
-#define ll_crypto_alloc_hash(name, type, mask)  crypto_alloc_hash(name, type, mask)
-#define ll_crypto_hash_setkey(tfm, key, keylen) crypto_hash_setkey(tfm, key, keylen)
-#define ll_crypto_hash_init(desc)	       crypto_hash_init(desc)
-#define ll_crypto_hash_update(desc, sl, bytes)  crypto_hash_update(desc, sl, bytes)
-#define ll_crypto_hash_final(desc, out)	 crypto_hash_final(desc, out)
-#define ll_crypto_blkcipher_setkey(tfm, key, keylen) \
-		crypto_blkcipher_setkey(tfm, key, keylen)
-#define ll_crypto_blkcipher_set_iv(tfm, src, len) \
-		crypto_blkcipher_set_iv(tfm, src, len)
-#define ll_crypto_blkcipher_get_iv(tfm, dst, len) \
-		crypto_blkcipher_get_iv(tfm, dst, len)
-#define ll_crypto_blkcipher_encrypt(desc, dst, src, bytes) \
-		crypto_blkcipher_encrypt(desc, dst, src, bytes)
-#define ll_crypto_blkcipher_decrypt(desc, dst, src, bytes) \
-		crypto_blkcipher_decrypt(desc, dst, src, bytes)
-#define ll_crypto_blkcipher_encrypt_iv(desc, dst, src, bytes) \
-		crypto_blkcipher_encrypt_iv(desc, dst, src, bytes)
-#define ll_crypto_blkcipher_decrypt_iv(desc, dst, src, bytes) \
-		crypto_blkcipher_decrypt_iv(desc, dst, src, bytes)
-
-static inline
-struct ll_crypto_cipher *ll_crypto_alloc_blkcipher(const char *name,
-						   u32 type, u32 mask)
-{
-	struct ll_crypto_cipher *rtn = crypto_alloc_blkcipher(name, type, mask);
-
-	return (rtn == NULL ? ERR_PTR(-ENOMEM) : rtn);
-}
-
-static inline int ll_crypto_hmac(struct ll_crypto_hash *tfm,
-				 u8 *key, unsigned int *keylen,
-				 struct scatterlist *sg,
-				 unsigned int size, u8 *result)
-{
-	struct hash_desc desc;
-	int	      rv;
-	desc.tfm   = tfm;
-	desc.flags = 0;
-	rv = crypto_hash_setkey(desc.tfm, key, *keylen);
-	if (rv) {
-		CERROR("failed to hash setkey: %d\n", rv);
-		return rv;
-	}
-	return crypto_hash_digest(&desc, sg, size, result);
-}
-static inline
-unsigned int ll_crypto_tfm_alg_max_keysize(struct crypto_blkcipher *tfm)
-{
-	return crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher.max_keysize;
-}
-static inline
-unsigned int ll_crypto_tfm_alg_min_keysize(struct crypto_blkcipher *tfm)
-{
-	return crypto_blkcipher_tfm(tfm)->__crt_alg->cra_blkcipher.min_keysize;
-}
-
-#define ll_crypto_hash_blocksize(tfm)       crypto_hash_blocksize(tfm)
-#define ll_crypto_hash_digestsize(tfm)      crypto_hash_digestsize(tfm)
-#define ll_crypto_blkcipher_ivsize(tfm)     crypto_blkcipher_ivsize(tfm)
-#define ll_crypto_blkcipher_blocksize(tfm)  crypto_blkcipher_blocksize(tfm)
-#define ll_crypto_free_hash(tfm)	    crypto_free_hash(tfm)
-#define ll_crypto_free_blkcipher(tfm)       crypto_free_blkcipher(tfm)
 
 #define ll_vfs_rmdir(dir,entry,mnt)	     vfs_rmdir(dir,entry)
 #define ll_vfs_mkdir(inode,dir,mnt,mode)	vfs_mkdir(inode,dir,mode)
@@ -201,12 +107,6 @@ unsigned int ll_crypto_tfm_alg_min_keysize(struct crypto_blkcipher *tfm)
 #define ll_security_inode_unlink(dir,entry,mnt) security_inode_unlink(dir,entry)
 #define ll_vfs_rename(old,old_dir,mnt,new,new_dir,mnt1) \
 		vfs_rename(old,old_dir,new,new_dir)
-
-#ifdef for_each_possible_cpu
-#define cfs_for_each_possible_cpu(cpu) for_each_possible_cpu(cpu)
-#elif defined(for_each_cpu)
-#define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
-#endif
 
 #define cfs_bio_io_error(a,b)   bio_io_error((a))
 #define cfs_bio_endio(a,b,c)    bio_endio((a),(c))
@@ -265,9 +165,6 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 
 #define queue_max_phys_segments(rq)       queue_max_segments(rq)
 #define queue_max_hw_segments(rq)	 queue_max_segments(rq)
-
-#define ll_kmap_atomic(a, b)	kmap_atomic(a)
-#define ll_kunmap_atomic(a, b)	kunmap_atomic(a)
 
 
 #define ll_d_hlist_node hlist_node

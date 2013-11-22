@@ -440,14 +440,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 	if (ehci->amd_pll_fix == 1)
 		usb_amd_dev_put();
 
-#ifdef	EHCI_STATS
-	ehci_dbg(ehci, "irq normal %ld err %ld iaa %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
-		ehci->stats.lost_iaa);
-	ehci_dbg (ehci, "complete %ld unlink %ld\n",
-		ehci->stats.complete, ehci->stats.unlink);
-#endif
-
 	dbg_status (ehci, "ehci_stop completed",
 		    ehci_readl(ehci, &ehci->regs->status));
 }
@@ -487,6 +479,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	ehci->periodic_size = DEFAULT_I_TDPS;
 	INIT_LIST_HEAD(&ehci->async_unlink);
 	INIT_LIST_HEAD(&ehci->async_idle);
+	INIT_LIST_HEAD(&ehci->intr_unlink_wait);
 	INIT_LIST_HEAD(&ehci->intr_unlink);
 	INIT_LIST_HEAD(&ehci->intr_qh_list);
 	INIT_LIST_HEAD(&ehci->cached_itd_list);
@@ -942,7 +935,7 @@ ehci_endpoint_disable (struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	unsigned long		flags;
-	struct ehci_qh		*qh, *tmp;
+	struct ehci_qh		*qh;
 
 	/* ASSERT:  any requests/urbs are being unlinked */
 	/* ASSERT:  nobody can be submitting urbs for this any more */
@@ -972,17 +965,13 @@ rescan:
 		qh->qh_state = QH_STATE_IDLE;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
-	case QH_STATE_COMPLETING:
-		for (tmp = ehci->async->qh_next.qh;
-				tmp && tmp != qh;
-				tmp = tmp->qh_next.qh)
-			continue;
-		/* periodic qh self-unlinks on empty, and a COMPLETING qh
-		 * may already be unlinked.
-		 */
-		if (tmp)
+		WARN_ON(!list_empty(&qh->qtd_list));
+		if (usb_endpoint_type(&ep->desc) != USB_ENDPOINT_XFER_INT)
 			start_unlink_async(ehci, qh);
+		else
+			start_unlink_intr(ehci, qh);
 		/* FALL THROUGH */
+	case QH_STATE_COMPLETING:	/* already in unlinking */
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 	case QH_STATE_UNLINK_WAIT:
 idle_timeout:
@@ -1303,7 +1292,7 @@ static int __init ehci_hcd_init(void)
 		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
 		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	ehci_debug_root = debugfs_create_dir("ehci", usb_debug_root);
 	if (!ehci_debug_root) {
 		retval = -ENOENT;
@@ -1352,7 +1341,7 @@ clean2:
 	platform_driver_unregister(&PLATFORM_DRIVER);
 clean0:
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	debugfs_remove(ehci_debug_root);
 	ehci_debug_root = NULL;
 err_debug:
@@ -1376,7 +1365,7 @@ static void __exit ehci_hcd_cleanup(void)
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 	debugfs_remove(ehci_debug_root);
 #endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);

@@ -554,6 +554,17 @@ struct mlx4_mfunc {
 	struct mlx4_mfunc_master_ctx	master;
 };
 
+#define MGM_QPN_MASK       0x00FFFFFF
+#define MGM_BLCK_LB_BIT    30
+
+struct mlx4_mgm {
+	__be32			next_gid_index;
+	__be32			members_count;
+	u32			reserved[2];
+	u8			gid[16];
+	__be32			qp[MLX4_MAX_QP_PER_MGM];
+};
+
 struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
@@ -802,6 +813,8 @@ struct mlx4_priv {
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
 
+	atomic_t		opreq_count;
+	struct work_struct	opreq_task;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)

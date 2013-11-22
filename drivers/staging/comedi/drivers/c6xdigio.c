@@ -35,8 +35,6 @@ http://robot0.ge.uiuc.edu/~spong/mecha/
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/timer.h>

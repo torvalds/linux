@@ -119,7 +119,7 @@ enum imx5_clks {
 	srtc_gate, pata_gate, sata_gate, spdif_xtal_sel, spdif0_sel,
 	spdif1_sel, spdif0_pred, spdif0_podf, spdif1_pred, spdif1_podf,
 	spdif0_com_s, spdif1_com_sel, spdif0_gate, spdif1_gate, spdif_ipg_gate,
-	clk_max
+	ocram, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -328,7 +328,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
 	clk_register_clkdev(clk[ssi3_ipg_gate], NULL, "imx-ssi.2");
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[cpu_podf], NULL, "cpufreq-cpu0.0");
+	clk_register_clkdev(clk[cpu_podf], NULL, "cpu0");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.1");
@@ -397,7 +397,7 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx51_spdif_xtal_sel, ARRAY_SIZE(mx51_spdif_xtal_sel));
 	clk[spdif1_sel] = imx_clk_mux("spdif1_sel", MXC_CCM_CSCMR2, 2, 2,
 				spdif_sel, ARRAY_SIZE(spdif_sel));
-	clk[spdif1_pred] = imx_clk_divider("spdif1_podf", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
+	clk[spdif1_pred] = imx_clk_divider("spdif1_pred", "spdif1_sel", MXC_CCM_CDCDR, 16, 3);
 	clk[spdif1_podf] = imx_clk_divider("spdif1_podf", "spdif1_pred", MXC_CCM_CDCDR, 9, 6);
 	clk[spdif1_com_sel] = imx_clk_mux("spdif1_com_sel", MXC_CCM_CSCMR2, 5, 1,
 				mx51_spdif1_com_sel, ARRAY_SIZE(mx51_spdif1_com_sel));
@@ -506,6 +506,7 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx53_can_sel, ARRAY_SIZE(mx53_can_sel));
 	clk[can1_serial_gate] = imx_clk_gate2("can1_serial_gate", "can_sel", MXC_CCM_CCGR6, 22);
 	clk[can1_ipg_gate] = imx_clk_gate2("can1_ipg_gate", "ipg", MXC_CCM_CCGR6, 20);
+	clk[ocram] = imx_clk_gate2("ocram", "ahb", MXC_CCM_CCGR6, 2);
 	clk[can2_serial_gate] = imx_clk_gate2("can2_serial_gate", "can_sel", MXC_CCM_CCGR4, 8);
 	clk[can2_ipg_gate] = imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[i2c3_gate] = imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);

@@ -660,6 +660,64 @@ static void exynos_pinctrl_resume(struct samsung_pinctrl_drv_data *drvdata)
 			exynos_pinctrl_resume_bank(drvdata, bank);
 }
 
+/* pin banks of s5pv210 pin-controller */
+static struct samsung_pin_bank s5pv210_pin_bank[] = {
+	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpa0", 0x00),
+	EXYNOS_PIN_BANK_EINTG(4, 0x020, "gpa1", 0x04),
+	EXYNOS_PIN_BANK_EINTG(8, 0x040, "gpb", 0x08),
+	EXYNOS_PIN_BANK_EINTG(5, 0x060, "gpc0", 0x0c),
+	EXYNOS_PIN_BANK_EINTG(5, 0x080, "gpc1", 0x10),
+	EXYNOS_PIN_BANK_EINTG(4, 0x0a0, "gpd0", 0x14),
+	EXYNOS_PIN_BANK_EINTG(6, 0x0c0, "gpd1", 0x18),
+	EXYNOS_PIN_BANK_EINTG(8, 0x0e0, "gpe0", 0x1c),
+	EXYNOS_PIN_BANK_EINTG(5, 0x100, "gpe1", 0x20),
+	EXYNOS_PIN_BANK_EINTG(8, 0x120, "gpf0", 0x24),
+	EXYNOS_PIN_BANK_EINTG(8, 0x140, "gpf1", 0x28),
+	EXYNOS_PIN_BANK_EINTG(8, 0x160, "gpf2", 0x2c),
+	EXYNOS_PIN_BANK_EINTG(6, 0x180, "gpf3", 0x30),
+	EXYNOS_PIN_BANK_EINTG(7, 0x1a0, "gpg0", 0x34),
+	EXYNOS_PIN_BANK_EINTG(7, 0x1c0, "gpg1", 0x38),
+	EXYNOS_PIN_BANK_EINTG(7, 0x1e0, "gpg2", 0x3c),
+	EXYNOS_PIN_BANK_EINTG(7, 0x200, "gpg3", 0x40),
+	EXYNOS_PIN_BANK_EINTN(7, 0x220, "gpi"),
+	EXYNOS_PIN_BANK_EINTG(8, 0x240, "gpj0", 0x44),
+	EXYNOS_PIN_BANK_EINTG(6, 0x260, "gpj1", 0x48),
+	EXYNOS_PIN_BANK_EINTG(8, 0x280, "gpj2", 0x4c),
+	EXYNOS_PIN_BANK_EINTG(8, 0x2a0, "gpj3", 0x50),
+	EXYNOS_PIN_BANK_EINTG(5, 0x2c0, "gpj4", 0x54),
+	EXYNOS_PIN_BANK_EINTN(8, 0x2e0, "mp01"),
+	EXYNOS_PIN_BANK_EINTN(4, 0x300, "mp02"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x320, "mp03"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x340, "mp04"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x360, "mp05"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x380, "mp06"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x3a0, "mp07"),
+	EXYNOS_PIN_BANK_EINTW(8, 0xc00, "gph0", 0x00),
+	EXYNOS_PIN_BANK_EINTW(8, 0xc20, "gph1", 0x04),
+	EXYNOS_PIN_BANK_EINTW(8, 0xc40, "gph2", 0x08),
+	EXYNOS_PIN_BANK_EINTW(8, 0xc60, "gph3", 0x0c),
+};
+
+struct samsung_pin_ctrl s5pv210_pin_ctrl[] = {
+	{
+		/* pin-controller instance 0 data */
+		.pin_banks	= s5pv210_pin_bank,
+		.nr_banks	= ARRAY_SIZE(s5pv210_pin_bank),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.weint_con	= EXYNOS_WKUP_ECON_OFFSET,
+		.weint_mask	= EXYNOS_WKUP_EMASK_OFFSET,
+		.weint_pend	= EXYNOS_WKUP_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.eint_wkup_init = exynos_eint_wkup_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+		.label		= "s5pv210-gpio-ctrl0",
+	},
+};
+
 /* pin banks of exynos4210 pin-controller 0 */
 static struct samsung_pin_bank exynos4210_pin_banks0[] = {
 	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpa0", 0x00),

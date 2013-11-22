@@ -107,6 +107,7 @@ static ssize_t osdname_show(struct device *dev, struct device_attribute *attr,
 						   class_dev);
 	return sprintf(buf, "%s\n", ould->odi.osdname);
 }
+static DEVICE_ATTR_RO(osdname);
 
 static ssize_t systemid_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -117,17 +118,19 @@ static ssize_t systemid_show(struct device *dev, struct device_attribute *attr,
 	memcpy(buf, ould->odi.systemid, ould->odi.systemid_len);
 	return ould->odi.systemid_len;
 }
+static DEVICE_ATTR_RO(systemid);
 
-static struct device_attribute osd_uld_attrs[] = {
-	__ATTR(osdname, S_IRUGO, osdname_show, NULL),
-	__ATTR(systemid, S_IRUGO, systemid_show, NULL),
-	__ATTR_NULL,
+static struct attribute *osd_uld_attrs[] = {
+	&dev_attr_osdname.attr,
+	&dev_attr_systemid.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(osd_uld);
 
 static struct class osd_uld_class = {
 	.owner		= THIS_MODULE,
 	.name		= "scsi_osd",
-	.dev_attrs	= osd_uld_attrs,
+	.dev_groups	= osd_uld_groups,
 };
 
 /*

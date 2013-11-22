@@ -64,8 +64,6 @@ static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
-
 static const struct e1000_info *e1000_info_tbl[] = {
 	[board_82571]		= &e1000_82571_info,
 	[board_82572]		= &e1000_82572_info,
@@ -2979,17 +2977,10 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 pages = 0;
 
 	/* Workaround Si errata on PCHx - configure jumbo frame flow */
-	if (hw->mac.type >= e1000_pch2lan) {
-		s32 ret_val;
-
-		if (adapter->netdev->mtu > ETH_DATA_LEN)
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
-		else
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
-
-		if (ret_val)
-			e_dbg("failed to enable jumbo frame workaround mode\n");
-	}
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, true))
+		e_dbg("failed to enable jumbo frame workaround mode\n");
 
 	/* Program MC offset vector base */
 	rctl = er32(RCTL);
@@ -3826,6 +3817,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 			break;
 		}
 
+		pba = 14;
+		ew32(PBA, pba);
 		fc->high_water = ((pba << 10) * 9 / 10) & E1000_FCRTH_RTH;
 		fc->low_water = ((pba << 10) * 8 / 10) & E1000_FCRTL_RTL;
 		break;
@@ -4033,6 +4026,12 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
+
+	/* Disable Si errata workaround on PCHx for jumbo frame flow */
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
+		e_dbg("failed to disable jumbo frame workaround mode\n");
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
@@ -4683,11 +4682,11 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
 
-	if ((er32(STATUS) & E1000_STATUS_LU) &&
+	if (!pm_runtime_suspended((&adapter->pdev->dev)->parent) &&
+	    (er32(STATUS) & E1000_STATUS_LU) &&
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
 		int ret_val;
 
-		pm_runtime_get_sync(&adapter->pdev->dev);
 		ret_val = e1e_rphy(hw, MII_BMCR, &phy->bmcr);
 		ret_val |= e1e_rphy(hw, MII_BMSR, &phy->bmsr);
 		ret_val |= e1e_rphy(hw, MII_ADVERTISE, &phy->advertise);
@@ -4698,7 +4697,6 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 		ret_val |= e1e_rphy(hw, MII_ESTATUS, &phy->estatus);
 		if (ret_val)
 			e_warn("Error reading PHY register\n");
-		pm_runtime_put_sync(&adapter->pdev->dev);
 	} else {
 		/* Do not read PHY registers if link is not up
 		 * Set values to typical power-on defaults
@@ -4870,7 +4868,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 			 */
 			if ((hw->phy.type == e1000_phy_igp_3 ||
 			     hw->phy.type == e1000_phy_bm) &&
-			    (hw->mac.autoneg == true) &&
+			    hw->mac.autoneg &&
 			    (adapter->link_speed == SPEED_10 ||
 			     adapter->link_speed == SPEED_100) &&
 			    (adapter->link_duplex == HALF_DUPLEX)) {
@@ -5995,14 +5993,23 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	 */
 	e1000e_release_hw_control(adapter);
 
+	pci_clear_master(pdev);
+
 	/* The pci-e switch on some quad port adapters will report a
 	 * correctable error when the MAC transitions from D0 to D3.  To
 	 * prevent this we need to mask off the correctable errors on the
 	 * downstream port of the pci-e switch.
+	 *
+	 * We don't have the associated upstream bridge while assigning
+	 * the PCI device into guest. For example, the KVM on power is
+	 * one of the cases.
 	 */
 	if (adapter->flags & FLAG_IS_QUAD_PORT) {
 		struct pci_dev *us_dev = pdev->bus->self;
 		u16 devctl;
+
+		if (!us_dev)
+			return 0;
 
 		pcie_capability_read_word(us_dev, PCI_EXP_DEVCTL, &devctl);
 		pcie_capability_write_word(us_dev, PCI_EXP_DEVCTL,
@@ -6017,38 +6024,73 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	return 0;
 }
 
-#ifdef CONFIG_PCIEASPM
-static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
+/**
+ * e1000e_disable_aspm - Disable ASPM states
+ * @pdev: pointer to PCI device struct
+ * @state: bit-mask of ASPM states to disable
+ *
+ * Some devices *must* have certain ASPM states disabled per hardware errata.
+ **/
+static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
-	pci_disable_link_state_locked(pdev, state);
-}
-#else
-static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
-{
-	u16 aspm_ctl = 0;
+	struct pci_dev *parent = pdev->bus->self;
+	u16 aspm_dis_mask = 0;
+	u16 pdev_aspmc, parent_aspmc;
 
-	if (state & PCIE_LINK_STATE_L0S)
-		aspm_ctl |= PCI_EXP_LNKCTL_ASPM_L0S;
-	if (state & PCIE_LINK_STATE_L1)
-		aspm_ctl |= PCI_EXP_LNKCTL_ASPM_L1;
+	switch (state) {
+	case PCIE_LINK_STATE_L0S:
+	case PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1:
+		aspm_dis_mask |= PCI_EXP_LNKCTL_ASPM_L0S;
+		/* fall-through - can't have L1 without L0s */
+	case PCIE_LINK_STATE_L1:
+		aspm_dis_mask |= PCI_EXP_LNKCTL_ASPM_L1;
+		break;
+	default:
+		return;
+	}
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &pdev_aspmc);
+	pdev_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+
+	if (parent) {
+		pcie_capability_read_word(parent, PCI_EXP_LNKCTL,
+					  &parent_aspmc);
+		parent_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+	}
+
+	/* Nothing to do if the ASPM states to be disabled already are */
+	if (!(pdev_aspmc & aspm_dis_mask) &&
+	    (!parent || !(parent_aspmc & aspm_dis_mask)))
+		return;
+
+	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
+		 (aspm_dis_mask & pdev_aspmc & PCI_EXP_LNKCTL_ASPM_L0S) ?
+		 "L0s" : "",
+		 (aspm_dis_mask & pdev_aspmc & PCI_EXP_LNKCTL_ASPM_L1) ?
+		 "L1" : "");
+
+#ifdef CONFIG_PCIEASPM
+	pci_disable_link_state_locked(pdev, state);
+
+	/* Double-check ASPM control.  If not disabled by the above, the
+	 * BIOS is preventing that from happening (or CONFIG_PCIEASPM is
+	 * not enabled); override by writing PCI config space directly.
+	 */
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &pdev_aspmc);
+	pdev_aspmc &= PCI_EXP_LNKCTL_ASPMC;
+
+	if (!(aspm_dis_mask & pdev_aspmc))
+		return;
+#endif
 
 	/* Both device and parent should have the same ASPM setting.
 	 * Disable ASPM in downstream component first and then upstream.
 	 */
-	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, aspm_ctl);
+	pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, aspm_dis_mask);
 
-	if (pdev->bus->self)
-		pcie_capability_clear_word(pdev->bus->self, PCI_EXP_LNKCTL,
-					   aspm_ctl);
-}
-#endif
-static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
-{
-	dev_info(&pdev->dev, "Disabling ASPM %s %s\n",
-		 (state & PCIE_LINK_STATE_L0S) ? "L0s" : "",
-		 (state & PCIE_LINK_STATE_L1) ? "L1" : "");
-
-	__e1000e_disable_aspm(pdev, state);
+	if (parent)
+		pcie_capability_clear_word(parent, PCI_EXP_LNKCTL,
+					   aspm_dis_mask);
 }
 
 #ifdef CONFIG_PM
@@ -6723,10 +6765,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
-	/* ring size defaults */
-	adapter->rx_ring->count = E1000_DEFAULT_RXD;
-	adapter->tx_ring->count = E1000_DEFAULT_TXD;
-
 	/* Initial Wake on LAN setting - If APM wake is enabled in
 	 * the EEPROM, enable the ACPI Magic Packet filter
 	 */
@@ -6976,6 +7014,10 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3), board_pch_lpt },
 
 	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };

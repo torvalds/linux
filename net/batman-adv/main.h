@@ -26,7 +26,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.3.0"
+#define BATADV_SOURCE_VERSION "2013.4.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -184,6 +184,7 @@ void batadv_mesh_free(struct net_device *soft_iface);
 int batadv_is_my_mac(struct batadv_priv *bat_priv, const uint8_t *addr);
 struct batadv_hard_iface *
 batadv_seq_print_text_primary_if_get(struct seq_file *seq);
+void batadv_skb_set_priority(struct sk_buff *skb, int offset);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev);
@@ -253,7 +254,7 @@ static inline void batadv_dbg(int type __always_unused,
 
 /* returns 1 if they are the same ethernet addr
  *
- * note: can't use compare_ether_addr() as it requires aligned memory
+ * note: can't use ether_addr_equal() as it requires aligned memory
  */
 static inline int batadv_compare_eth(const void *data1, const void *data2)
 {

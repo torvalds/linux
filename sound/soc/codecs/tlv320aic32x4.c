@@ -338,18 +338,6 @@ static inline int aic32x4_get_divs(int mclk, int rate)
 	return -EINVAL;
 }
 
-static int aic32x4_add_widgets(struct snd_soc_codec *codec)
-{
-	snd_soc_dapm_new_controls(&codec->dapm, aic32x4_dapm_widgets,
-				  ARRAY_SIZE(aic32x4_dapm_widgets));
-
-	snd_soc_dapm_add_routes(&codec->dapm, aic32x4_dapm_routes,
-				ARRAY_SIZE(aic32x4_dapm_routes));
-
-	snd_soc_dapm_new_widgets(&codec->dapm);
-	return 0;
-}
-
 static int aic32x4_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
@@ -683,9 +671,6 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	}
 
 	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_codec_controls(codec, aic32x4_snd_controls,
-			     ARRAY_SIZE(aic32x4_snd_controls));
-	aic32x4_add_widgets(codec);
 
 	/*
 	 * Workaround: for an unknown reason, the ADC needs to be powered up
@@ -714,6 +699,13 @@ static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
 	.suspend = aic32x4_suspend,
 	.resume = aic32x4_resume,
 	.set_bias_level = aic32x4_set_bias_level,
+
+	.controls = aic32x4_snd_controls,
+	.num_controls = ARRAY_SIZE(aic32x4_snd_controls),
+	.dapm_widgets = aic32x4_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic32x4_dapm_widgets),
+	.dapm_routes = aic32x4_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(aic32x4_dapm_routes),
 };
 
 static int aic32x4_i2c_probe(struct i2c_client *i2c,

@@ -255,7 +255,7 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 
 static int __init tegra_cpufreq_init(void)
 {
-	cpu_clk = clk_get_sys(NULL, "cpu");
+	cpu_clk = clk_get_sys(NULL, "cclk");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
 
@@ -263,7 +263,7 @@ static int __init tegra_cpufreq_init(void)
 	if (IS_ERR(pll_x_clk))
 		return PTR_ERR(pll_x_clk);
 
-	pll_p_clk = clk_get_sys(NULL, "pll_p_cclk");
+	pll_p_clk = clk_get_sys(NULL, "pll_p");
 	if (IS_ERR(pll_p_clk))
 		return PTR_ERR(pll_p_clk);
 

@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Iomega Iconnect";
@@ -16,6 +16,17 @@
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
 		linux,initrd-start = <0x4500040>;
 		linux,initrd-end   = <0x4800000>;
+	};
+
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	ocp@f1000000 {
@@ -101,14 +112,6 @@
 				reg = <0x980000 0x1f400000>;
 			};
 		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 
 	gpio-leds {
@@ -174,5 +177,21 @@
 			gpios = <&gpio0 12 1>;
 			debounce-interval = <100>;
 		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@11 {
+		device_type = "ethernet-phy";
+		reg = <11>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

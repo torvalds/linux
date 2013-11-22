@@ -100,8 +100,10 @@ static unsigned long __kprobes dform_ea(unsigned int instr, struct pt_regs *regs
 	ea = (signed short) instr;		/* sign-extend */
 	if (ra) {
 		ea += regs->gpr[ra];
-		if (instr & 0x04000000)		/* update forms */
-			regs->gpr[ra] = ea;
+		if (instr & 0x04000000) {		/* update forms */
+			if ((instr>>26) != 47) 		/* stmw is not an update form */
+				regs->gpr[ra] = ea;
+		}
 	}
 
 	return truncate_if_32bit(regs->msr, ea);
@@ -279,7 +281,7 @@ static int __kprobes write_mem_unaligned(unsigned long val, unsigned long ea,
 		err = write_mem_aligned(val >> (nb - c) * 8, ea, c);
 		if (err)
 			return err;
-		++ea;
+		ea += c;
 	}
 	return 0;
 }
@@ -1503,6 +1505,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		 */
 		if ((ra == 1) && !(regs->msr & MSR_PR) \
 			&& (val3 >= (regs->gpr[1] - STACK_INT_FRAME_SIZE))) {
+#ifdef CONFIG_PPC32
 			/*
 			 * Check if we will touch kernel sack overflow
 			 */
@@ -1511,7 +1514,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 				err = -EINVAL;
 				break;
 			}
-
+#endif /* CONFIG_PPC32 */
 			/*
 			 * Check if we already set since that means we'll
 			 * lose the previous value.

@@ -1422,12 +1422,19 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
  */
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 {
+	int ret = 0;
+
 	if (!priv->media_connected)
 		return 0;
 
 	switch (priv->bss_mode) {
 	case NL80211_IFTYPE_STATION:
-		return mwifiex_deauthenticate_infra(priv, mac);
+	case NL80211_IFTYPE_P2P_CLIENT:
+		ret = mwifiex_deauthenticate_infra(priv, mac);
+		if (ret)
+			cfg80211_disconnected(priv->netdev, 0, NULL, 0,
+					      GFP_KERNEL);
+		break;
 	case NL80211_IFTYPE_ADHOC:
 		return mwifiex_send_cmd_sync(priv,
 					     HostCmd_CMD_802_11_AD_HOC_STOP,
@@ -1439,7 +1446,7 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_deauthenticate);
 

@@ -15,7 +15,7 @@ config DRM_IMX_FB_HELPER
 	help
 	  The DRM framework can provide a legacy /dev/fb0 framebuffer
 	  for your device. This is necessary to get a framebuffer console
-	  and also for appplications using the legacy framebuffer API
+	  and also for applications using the legacy framebuffer API
 
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
@@ -32,7 +32,7 @@ config DRM_IMX_TVE
 
 config DRM_IMX_LDB
 	tristate "Support for LVDS displays"
-	depends on DRM_IMX
+	depends on DRM_IMX && MFD_SYSCON
 	help
 	  Choose this to enable the internal LVDS Display Bridge (LDB)
 	  found on i.MX53 and i.MX6 processors.

@@ -347,7 +347,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	slave_dev->features = master->vlan_features;
 	SET_ETHTOOL_OPS(slave_dev, &dsa_slave_ethtool_ops);
-	memcpy(slave_dev->dev_addr, master->dev_addr, ETH_ALEN);
+	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
 
 	switch (ds->dst->tag_protocol) {

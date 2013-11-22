@@ -454,6 +454,8 @@ The generic parser supports the following hints:
 - need_dac_fix (bool): limits the DACs depending on the channel count
 - primary_hp (bool): probe headphone jacks as the primary outputs;
   default true
+- multi_io (bool): try probing multi-I/O config (e.g. shared
+  line-in/surround, mic/clfe jacks)
 - multi_cap_vol (bool): provide multiple capture volumes
 - inv_dmic_split (bool): provide split internal mic volume/switch for
   phase-inverted digital mics

@@ -56,12 +56,9 @@ extern void hvc_vio_init_early(void);
 /* Dynamic logical Partitioning/Mobility */
 extern void dlpar_free_cc_nodes(struct device_node *);
 extern void dlpar_free_cc_property(struct property *);
-extern struct device_node *dlpar_configure_connector(u32);
+extern struct device_node *dlpar_configure_connector(u32, struct device_node *);
 extern int dlpar_attach_node(struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
-
-/* Snooze Delay, pseries_idle */
-DECLARE_PER_CPU(long, smt_snooze_delay);
 
 /* PCI root bridge prepare function override for pseries */
 struct pci_host_bridge;

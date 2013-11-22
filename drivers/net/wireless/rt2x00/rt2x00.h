@@ -211,6 +211,7 @@ struct channel_info {
 	short max_power;
 	short default_power1;
 	short default_power2;
+	short default_power3;
 };
 
 /*

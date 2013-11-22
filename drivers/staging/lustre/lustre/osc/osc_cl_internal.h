@@ -374,7 +374,7 @@ struct osc_page {
 	/**
 	 * Thread that submitted this page for transfer. For debugging.
 	 */
-	task_t	   *ops_submitter;
+	struct task_struct	*ops_submitter;
 	/**
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
@@ -660,7 +660,7 @@ struct osc_extent {
 	/** lock covering this extent */
 	struct cl_lock    *oe_osclock;
 	/** terminator of this extent. Must be true if this extent is in IO. */
-	task_t	*oe_owner;
+	struct task_struct	*oe_owner;
 	/** return value of writeback. If somebody is waiting for this extent,
 	 * this value can be known by outside world. */
 	int		oe_rc;

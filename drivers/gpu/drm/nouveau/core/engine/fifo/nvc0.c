@@ -29,7 +29,6 @@
 #include <core/engctx.h>
 #include <core/event.h>
 #include <core/class.h>
-#include <core/math.h>
 #include <core/enum.h>
 
 #include <subdev/timer.h>
@@ -200,7 +199,7 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 
 	usermem = chan->base.chid * 0x1000;
 	ioffset = args->ioffset;
-	ilength = log2i(args->ilength / 8);
+	ilength = order_base_2(args->ilength / 8);
 
 	for (i = 0; i < 0x1000; i += 4)
 		nv_wo32(priv->user.mem, usermem + i, 0x00000000);

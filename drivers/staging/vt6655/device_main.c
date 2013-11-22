@@ -3370,8 +3370,8 @@ viawget_resume(struct pci_dev *pcid)
 	PSMgmtObject  pMgmt = pDevice->pMgmt;
 	int power_status;   // to silence the compiler
 
-	power_status = pci_set_power_state(pcid, 0);
-	power_status = pci_enable_wake(pcid, 0, 0);
+	power_status = pci_set_power_state(pcid, PCI_D0);
+	power_status = pci_enable_wake(pcid, PCI_D0, 0);
 	pci_restore_state(pcid);
 	if (netif_running(pDevice->dev)) {
 		spin_lock_irq(&pDevice->lock);

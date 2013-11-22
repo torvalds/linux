@@ -112,6 +112,14 @@
 	.quad	TEXT_OFFSET			// Image load offset from start of RAM
 	.quad	0				// reserved
 	.quad	0				// reserved
+	.quad	0				// reserved
+	.quad	0				// reserved
+	.quad	0				// reserved
+	.byte	0x41				// Magic number, "ARM\x64"
+	.byte	0x52
+	.byte	0x4d
+	.byte	0x64
+	.word	0				// reserved
 
 ENTRY(stext)
 	mov	x21, x0				// x21=FDT

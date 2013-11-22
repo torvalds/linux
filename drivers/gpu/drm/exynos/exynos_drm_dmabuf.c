@@ -11,6 +11,7 @@
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
+#include "exynos_drm_dmabuf.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
@@ -21,6 +22,11 @@ struct exynos_drm_dmabuf_attachment {
 	enum dma_data_direction dir;
 	bool is_mapped;
 };
+
+static struct exynos_drm_gem_obj *dma_buf_to_obj(struct dma_buf *buf)
+{
+	return to_exynos_gem_obj(buf->priv);
+}
 
 static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
 					struct device *dev,
@@ -63,7 +69,7 @@ static struct sg_table *
 					enum dma_data_direction dir)
 {
 	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
-	struct exynos_drm_gem_obj *gem_obj = attach->dmabuf->priv;
+	struct exynos_drm_gem_obj *gem_obj = dma_buf_to_obj(attach->dmabuf);
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
 	struct scatterlist *rd, *wr;
@@ -127,27 +133,6 @@ static void exynos_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 	/* Nothing to do. */
 }
 
-static void exynos_dmabuf_release(struct dma_buf *dmabuf)
-{
-	struct exynos_drm_gem_obj *exynos_gem_obj = dmabuf->priv;
-
-	/*
-	 * exynos_dmabuf_release() call means that file object's
-	 * f_count is 0 and it calls drm_gem_object_handle_unreference()
-	 * to drop the references that these values had been increased
-	 * at drm_prime_handle_to_fd()
-	 */
-	if (exynos_gem_obj->base.export_dma_buf == dmabuf) {
-		exynos_gem_obj->base.export_dma_buf = NULL;
-
-		/*
-		 * drop this gem object refcount to release allocated buffer
-		 * and resources.
-		 */
-		drm_gem_object_unreference_unlocked(&exynos_gem_obj->base);
-	}
-}
-
 static void *exynos_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
 						unsigned long page_num)
 {
@@ -193,7 +178,7 @@ static struct dma_buf_ops exynos_dmabuf_ops = {
 	.kunmap			= exynos_gem_dmabuf_kunmap,
 	.kunmap_atomic		= exynos_gem_dmabuf_kunmap_atomic,
 	.mmap			= exynos_gem_dmabuf_mmap,
-	.release		= exynos_dmabuf_release,
+	.release		= drm_gem_dmabuf_release,
 };
 
 struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
@@ -201,7 +186,7 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	return dma_buf_export(exynos_gem_obj, &exynos_dmabuf_ops,
+	return dma_buf_export(obj, &exynos_dmabuf_ops,
 				exynos_gem_obj->base.size, flags);
 }
 
@@ -219,8 +204,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	if (dma_buf->ops == &exynos_dmabuf_ops) {
 		struct drm_gem_object *obj;
 
-		exynos_gem_obj = dma_buf->priv;
-		obj = &exynos_gem_obj->base;
+		obj = dma_buf->priv;
 
 		/* is it from our device? */
 		if (obj->dev == drm_dev) {
@@ -247,7 +231,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer) {
-		DRM_ERROR("failed to allocate exynos_drm_gem_buf.\n");
 		ret = -ENOMEM;
 		goto err_unmap_attach;
 	}

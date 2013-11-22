@@ -202,7 +202,6 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	struct list_head *layers;
 	int clean;
 	int result;
-	ENTRY;
 
 	/*
 	 * Create top-level object slice. This will also create
@@ -210,9 +209,9 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	 */
 	top = dev->ld_ops->ldo_object_alloc(env, NULL, dev);
 	if (top == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 	if (IS_ERR(top))
-		RETURN(top);
+		return top;
 	/*
 	 * This is the only place where object fid is assigned. It's constant
 	 * after this point.
@@ -233,7 +232,7 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 			result = scan->lo_ops->loo_object_init(env, scan, conf);
 			if (result != 0) {
 				lu_object_free(env, top);
-				RETURN(ERR_PTR(result));
+				return ERR_PTR(result);
 			}
 			scan->lo_flags |= LU_OBJECT_ALLOCATED;
 		}
@@ -244,13 +243,13 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 			result = scan->lo_ops->loo_object_start(env, scan);
 			if (result != 0) {
 				lu_object_free(env, top);
-				RETURN(ERR_PTR(result));
+				return ERR_PTR(result);
 			}
 		}
 	}
 
 	lprocfs_counter_incr(dev->ld_site->ls_stats, LU_SS_CREATED);
-	RETURN(top);
+	return top;
 }
 
 /**
@@ -317,7 +316,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	int		      i;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OBD_NO_LRU))
-		RETURN(0);
+		return 0;
 
 	INIT_LIST_HEAD(&dispose);
 	/*
@@ -538,7 +537,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	__u64  ver = cfs_hash_bd_version_get(bd);
 
 	if (*version == ver)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
 	*version = ver;
 	bkt = cfs_hash_bd_extra_get(s->ls_obj_hash, bd);
@@ -547,7 +546,7 @@ static struct lu_object *htable_lookup(struct lu_site *s,
 	hnode = cfs_hash_bd_peek_locked(s->ls_obj_hash, bd, (void *)f);
 	if (hnode == NULL) {
 		lprocfs_counter_incr(s->ls_stats, LU_SS_CACHE_MISS);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	h = container_of0(hnode, struct lu_object_header, loh_hash);
@@ -651,7 +650,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	cfs_hash_bd_get_and_lock(hs, (void *)f, &bd, 1);
 	o = htable_lookup(s, &bd, f, waiter, &version);
 	cfs_hash_bd_unlock(hs, &bd, 1);
-	if (o != NULL)
+	if (!IS_ERR(o) || PTR_ERR(o) != -ENOENT)
 		return o;
 
 	/*
@@ -667,7 +666,7 @@ static struct lu_object *lu_object_find_try(const struct lu_env *env,
 	cfs_hash_bd_lock(hs, &bd, 1);
 
 	shadow = htable_lookup(s, &bd, f, waiter, &version);
-	if (likely(shadow == NULL)) {
+	if (likely(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT)) {
 		struct lu_site_bkt_data *bkt;
 
 		bkt = cfs_hash_bd_extra_get(hs, &bd);
@@ -849,7 +848,7 @@ static int lu_htable_order(void)
 	 *
 	 * Size of lu_object is (arbitrary) taken as 1K (together with inode).
 	 */
-	cache_size = num_physpages;
+	cache_size = totalram_pages;
 
 #if BITS_PER_LONG == 32
 	/* limit hashtable size for lowmem systems to low RAM */
@@ -980,7 +979,6 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 	char name[16];
 	int bits;
 	int i;
-	ENTRY;
 
 	memset(s, 0, sizeof *s);
 	bits = lu_htable_order();
@@ -1041,7 +1039,7 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 
 	lu_dev_add_linkage(s, top);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lu_site_init);
 
@@ -1147,15 +1145,16 @@ EXPORT_SYMBOL(lu_device_fini);
  * Initialize object \a o that is part of compound object \a h and was created
  * by device \a d.
  */
-int lu_object_init(struct lu_object *o,
-		   struct lu_object_header *h, struct lu_device *d)
+int lu_object_init(struct lu_object *o, struct lu_object_header *h,
+		   struct lu_device *d)
 {
-	memset(o, 0, sizeof *o);
+	memset(o, 0, sizeof(*o));
 	o->lo_header = h;
-	o->lo_dev    = d;
+	o->lo_dev = d;
 	lu_device_get(d);
-	o->lo_dev_ref = lu_ref_add(&d->ld_reference, "lu_object", o);
+	lu_ref_add_at(&d->ld_reference, &o->lo_dev_ref, "lu_object", o);
 	INIT_LIST_HEAD(&o->lo_linkage);
+
 	return 0;
 }
 EXPORT_SYMBOL(lu_object_init);
@@ -1170,8 +1169,8 @@ void lu_object_fini(struct lu_object *o)
 	LASSERT(list_empty(&o->lo_linkage));
 
 	if (dev != NULL) {
-		lu_ref_del_at(&dev->ld_reference,
-			      o->lo_dev_ref , "lu_object", o);
+		lu_ref_del_at(&dev->ld_reference, &o->lo_dev_ref,
+			      "lu_object", o);
 		lu_device_put(dev);
 		o->lo_dev = NULL;
 	}
@@ -1315,7 +1314,6 @@ int lu_context_key_register(struct lu_context_key *key)
 	LASSERT(key->lct_init != NULL);
 	LASSERT(key->lct_fini != NULL);
 	LASSERT(key->lct_tags != 0);
-	LASSERT(key->lct_owner != NULL);
 
 	result = -ENFILE;
 	spin_lock(&lu_keys_guard);
@@ -1349,7 +1347,6 @@ static void key_fini(struct lu_context *ctx, int index)
 		lu_ref_del(&key->lct_reference, "ctx", ctx);
 		atomic_dec(&key->lct_used);
 
-		LASSERT(key->lct_owner != NULL);
 		if ((ctx->lc_tags & LCT_NOREF) == 0) {
 #ifdef CONFIG_MODULE_UNLOAD
 			LINVRNT(module_refcount(key->lct_owner) > 0);
@@ -1557,7 +1554,6 @@ static int keys_fill(struct lu_context *ctx)
 			if (unlikely(IS_ERR(value)))
 				return PTR_ERR(value);
 
-			LASSERT(key->lct_owner != NULL);
 			if (!(ctx->lc_tags & LCT_NOREF))
 				try_module_get(key->lct_owner);
 			lu_ref_add_atomic(&key->lct_reference, "ctx", ctx);
@@ -1783,7 +1779,6 @@ int lu_env_refill_by_tags(struct lu_env *env, __u32 ctags,
 }
 EXPORT_SYMBOL(lu_env_refill_by_tags);
 
-static struct shrinker *lu_site_shrinker = NULL;
 
 typedef struct lu_site_stats{
 	unsigned	lss_populated;
@@ -1839,59 +1834,66 @@ static void lu_site_stats_get(cfs_hash_t *hs,
  * objects without taking the  lu_sites_guard lock, but this is not
  * possible in the current implementation.
  */
-static int lu_cache_shrink(SHRINKER_ARGS(sc, nr_to_scan, gfp_mask))
+static unsigned long lu_cache_shrink_count(struct shrinker *sk,
+					   struct shrink_control *sc)
 {
 	lu_site_stats_t stats;
 	struct lu_site *s;
 	struct lu_site *tmp;
-	int cached = 0;
-	int remain = shrink_param(sc, nr_to_scan);
-	LIST_HEAD(splice);
+	unsigned long cached = 0;
 
-	if (!(shrink_param(sc, gfp_mask) & __GFP_FS)) {
-		if (remain != 0)
-			return -1;
-		else
-			/* We must not take the lu_sites_guard lock when
-			 * __GFP_FS is *not* set because of the deadlock
-			 * possibility detailed above. Additionally,
-			 * since we cannot determine the number of
-			 * objects in the cache without taking this
-			 * lock, we're in a particularly tough spot. As
-			 * a result, we'll just lie and say our cache is
-			 * empty. This _should_ be ok, as we can't
-			 * reclaim objects when __GFP_FS is *not* set
-			 * anyways.
-			 */
-			return 0;
-	}
-
-	CDEBUG(D_INODE, "Shrink %d objects\n", remain);
+	if (!(sc->gfp_mask & __GFP_FS))
+		return 0;
 
 	mutex_lock(&lu_sites_guard);
 	list_for_each_entry_safe(s, tmp, &lu_sites, ls_linkage) {
-		if (shrink_param(sc, nr_to_scan) != 0) {
-			remain = lu_site_purge(&lu_shrink_env, s, remain);
-			/*
-			 * Move just shrunk site to the tail of site list to
-			 * assure shrinking fairness.
-			 */
-			list_move_tail(&s->ls_linkage, &splice);
-		}
-
 		memset(&stats, 0, sizeof(stats));
 		lu_site_stats_get(s->ls_obj_hash, &stats, 0);
 		cached += stats.lss_total - stats.lss_busy;
-		if (shrink_param(sc, nr_to_scan) && remain <= 0)
-			break;
+	}
+	mutex_unlock(&lu_sites_guard);
+
+	cached = (cached / 100) * sysctl_vfs_cache_pressure;
+	CDEBUG(D_INODE, "%ld objects cached\n", cached);
+	return cached;
+}
+
+static unsigned long lu_cache_shrink_scan(struct shrinker *sk,
+					  struct shrink_control *sc)
+{
+	struct lu_site *s;
+	struct lu_site *tmp;
+	unsigned long remain = sc->nr_to_scan, freed = 0;
+	LIST_HEAD(splice);
+
+	if (!(sc->gfp_mask & __GFP_FS))
+		/* We must not take the lu_sites_guard lock when
+		 * __GFP_FS is *not* set because of the deadlock
+		 * possibility detailed above. Additionally,
+		 * since we cannot determine the number of
+		 * objects in the cache without taking this
+		 * lock, we're in a particularly tough spot. As
+		 * a result, we'll just lie and say our cache is
+		 * empty. This _should_ be ok, as we can't
+		 * reclaim objects when __GFP_FS is *not* set
+		 * anyways.
+		 */
+		return SHRINK_STOP;
+
+	mutex_lock(&lu_sites_guard);
+	list_for_each_entry_safe(s, tmp, &lu_sites, ls_linkage) {
+		freed = lu_site_purge(&lu_shrink_env, s, remain);
+		remain -= freed;
+		/*
+		 * Move just shrunk site to the tail of site list to
+		 * assure shrinking fairness.
+		 */
+		list_move_tail(&s->ls_linkage, &splice);
 	}
 	list_splice(&splice, lu_sites.prev);
 	mutex_unlock(&lu_sites_guard);
 
-	cached = (cached / 100) * sysctl_vfs_cache_pressure;
-	if (shrink_param(sc, nr_to_scan) == 0)
-		CDEBUG(D_INODE, "%d objects cached\n", cached);
-	return cached;
+	return sc->nr_to_scan - remain;
 }
 
 /*
@@ -1916,6 +1918,12 @@ int lu_printk_printer(const struct lu_env *env,
 	va_end(args);
 	return 0;
 }
+
+static struct shrinker lu_site_shrinker = {
+	.count_objects	= lu_cache_shrink_count,
+	.scan_objects	= lu_cache_shrink_scan,
+	.seeks 		= DEFAULT_SEEKS,
+};
 
 /**
  * Initialization of global lu_* data.
@@ -1951,9 +1959,7 @@ int lu_global_init(void)
 	 * inode, one for ea. Unfortunately setting this high value results in
 	 * lu_object/inode cache consuming all the memory.
 	 */
-	lu_site_shrinker = set_shrinker(DEFAULT_SEEKS, lu_cache_shrink);
-	if (lu_site_shrinker == NULL)
-		return -ENOMEM;
+	register_shrinker(&lu_site_shrinker);
 
 	return result;
 }
@@ -1963,11 +1969,7 @@ int lu_global_init(void)
  */
 void lu_global_fini(void)
 {
-	if (lu_site_shrinker != NULL) {
-		remove_shrinker(lu_site_shrinker);
-		lu_site_shrinker = NULL;
-	}
-
+	unregister_shrinker(&lu_site_shrinker);
 	lu_context_key_degister(&lu_global_key);
 
 	/*
@@ -2079,7 +2081,7 @@ void lu_object_assign_fid(const struct lu_env *env, struct lu_object *o,
 	cfs_hash_bd_get_and_lock(hs, (void *)fid, &bd, 1);
 	shadow = htable_lookup(s, &bd, fid, &waiter, &version);
 	/* supposed to be unique */
-	LASSERT(shadow == NULL);
+	LASSERT(IS_ERR(shadow) && PTR_ERR(shadow) == -ENOENT);
 	*old = *fid;
 	bkt = cfs_hash_bd_extra_get(hs, &bd);
 	cfs_hash_bd_add_locked(hs, &bd, &o->lo_header->loh_hash);

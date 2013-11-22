@@ -20,6 +20,12 @@
 #include "debug.h"
 #include "htc.h"
 
+void ath10k_bmi_start(struct ath10k *ar)
+{
+	ath10k_dbg(ATH10K_DBG_CORE, "BMI started\n");
+	ar->bmi.done_sent = false;
+}
+
 int ath10k_bmi_done(struct ath10k *ar)
 {
 	struct bmi_cmd cmd;
@@ -105,7 +111,8 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen,
 						  &resp, &rxlen);
 		if (ret) {
-			ath10k_warn("unable to read from the device\n");
+			ath10k_warn("unable to read from the device (%d)\n",
+				    ret);
 			return ret;
 		}
 
@@ -149,7 +156,8 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, hdrlen + txlen,
 						  NULL, NULL);
 		if (ret) {
-			ath10k_warn("unable to write to the device\n");
+			ath10k_warn("unable to write to the device (%d)\n",
+				    ret);
 			return ret;
 		}
 

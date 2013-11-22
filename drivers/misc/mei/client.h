@@ -84,6 +84,19 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */
+static inline bool mei_cl_is_connected(struct mei_cl *cl)
+{
+	return (cl->dev &&
+		cl->dev->dev_state == MEI_DEV_ENABLED &&
+		cl->state == MEI_FILE_CONNECTED);
+}
+static inline bool mei_cl_is_transitioning(struct mei_cl *cl)
+{
+	return (MEI_FILE_INITIALIZING == cl->state ||
+		MEI_FILE_DISCONNECTED == cl->state ||
+		MEI_FILE_DISCONNECTING == cl->state);
+}
+
 bool mei_cl_is_other_connecting(struct mei_cl *cl);
 int mei_cl_disconnect(struct mei_cl *cl);
 int mei_cl_connect(struct mei_cl *cl, struct file *file);
@@ -99,7 +112,7 @@ void mei_host_client_init(struct work_struct *work);
 
 
 void mei_cl_all_disconnect(struct mei_device *dev);
-void mei_cl_all_read_wakeup(struct mei_device *dev);
+void mei_cl_all_wakeup(struct mei_device *dev);
 void mei_cl_all_write_clear(struct mei_device *dev);
 
 #endif /* _MEI_CLIENT_H_ */

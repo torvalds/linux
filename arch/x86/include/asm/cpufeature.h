@@ -366,14 +366,15 @@ extern bool __static_cpu_has_safe(u16 bit);
  */
 static __always_inline __pure bool __static_cpu_has(u16 bit)
 {
-#if __GNUC__ > 4 || __GNUC_MINOR__ >= 5
+#ifdef CC_HAVE_ASM_GOTO
 
 #ifdef CONFIG_X86_DEBUG_STATIC_CPU_HAS
+
 		/*
 		 * Catch too early usage of this before alternatives
 		 * have run.
 		 */
-		asm goto("1: jmp %l[t_warn]\n"
+		asm_volatile_goto("1: jmp %l[t_warn]\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"
@@ -384,9 +385,10 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 			 ".previous\n"
 			 /* skipping size check since replacement size = 0 */
 			 : : "i" (X86_FEATURE_ALWAYS) : : t_warn);
+
 #endif
 
-		asm goto("1: jmp %l[t_no]\n"
+		asm_volatile_goto("1: jmp %l[t_no]\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"
@@ -406,7 +408,9 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 		warn_pre_alternatives();
 		return false;
 #endif
-#else /* GCC_VERSION >= 40500 */
+
+#else /* CC_HAVE_ASM_GOTO */
+
 		u8 flag;
 		/* Open-coded due to __stringify() in ALTERNATIVE() */
 		asm volatile("1: movb $0,%0\n"
@@ -427,7 +431,8 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 			     ".previous\n"
 			     : "=qm" (flag) : "i" (bit));
 		return flag;
-#endif
+
+#endif /* CC_HAVE_ASM_GOTO */
 }
 
 #define static_cpu_has(bit)					\
@@ -441,14 +446,14 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 
 static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 {
-#if __GNUC__ > 4 || __GNUC_MINOR__ >= 5
+#ifdef CC_HAVE_ASM_GOTO
 /*
  * We need to spell the jumps to the compiler because, depending on the offset,
  * the replacement jump can be bigger than the original jump, and this we cannot
  * have. Thus, we force the jump to the widest, 4-byte, signed relative
  * offset even though the last would often fit in less bytes.
  */
-		asm goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
+		asm_volatile_goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
 			 "2:\n"
 			 ".section .altinstructions,\"a\"\n"
 			 " .long 1b - .\n"		/* src offset */
@@ -475,7 +480,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 		return false;
 	t_dynamic:
 		return __static_cpu_has_safe(bit);
-#else /* GCC_VERSION >= 40500 */
+#else
 		u8 flag;
 		/* Open-coded due to __stringify() in ALTERNATIVE() */
 		asm volatile("1: movb $2,%0\n"
@@ -511,7 +516,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 			     : "=qm" (flag)
 			     : "i" (bit), "i" (X86_FEATURE_ALWAYS));
 		return (flag == 2 ? __static_cpu_has_safe(bit) : flag);
-#endif
+#endif /* CC_HAVE_ASM_GOTO */
 }
 
 #define static_cpu_has_safe(bit)				\

@@ -135,7 +135,7 @@ static int add_class_attrs(struct class *cls)
 	int error = 0;
 
 	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++) {
+		for (i = 0; cls->class_attrs[i].attr.name; i++) {
 			error = class_create_file(cls, &cls->class_attrs[i]);
 			if (error)
 				goto error;
@@ -154,7 +154,7 @@ static void remove_class_attrs(struct class *cls)
 	int i;
 
 	if (cls->class_attrs) {
-		for (i = 0; attr_name(cls->class_attrs[i]); i++)
+		for (i = 0; cls->class_attrs[i].attr.name; i++)
 			class_remove_file(cls, &cls->class_attrs[i]);
 	}
 }

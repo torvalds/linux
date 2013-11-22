@@ -668,7 +668,7 @@ static void smsc47m1_remove_files(struct device *dev)
 static int __init smsc47m1_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct smsc47m1_sio_data *sio_data = dev->platform_data;
+	struct smsc47m1_sio_data *sio_data = dev_get_platdata(dev);
 	struct smsc47m1_data *data;
 	struct resource *res;
 	int err;
@@ -940,7 +940,7 @@ exit_device:
 static void __exit sm_smsc47m1_exit(void)
 {
 	platform_driver_unregister(&smsc47m1_driver);
-	smsc47m1_restore(pdev->dev.platform_data);
+	smsc47m1_restore(dev_get_platdata(&pdev->dev));
 	platform_device_unregister(pdev);
 }
 

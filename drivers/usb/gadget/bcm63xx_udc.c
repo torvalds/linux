@@ -2313,7 +2313,7 @@ static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
 static int bcm63xx_udc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct bcm63xx_usbd_platform_data *pd = dev->platform_data;
+	struct bcm63xx_usbd_platform_data *pd = dev_get_platdata(dev);
 	struct bcm63xx_udc *udc;
 	struct resource *res;
 	int rc = -ENOMEM, i, irq;

@@ -1004,6 +1004,4 @@ void __init s3c64xx_register_clocks(unsigned long xtal,
 	for (cnt = 0; cnt < ARRAY_SIZE(clksrc_cdev); cnt++)
 		s3c_register_clksrc(clksrc_cdev[cnt], 1);
 	clkdev_add_table(s3c64xx_clk_lookup, ARRAY_SIZE(s3c64xx_clk_lookup));
-
-	s3c_pwmclk_init();
 }

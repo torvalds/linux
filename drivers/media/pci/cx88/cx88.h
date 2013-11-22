@@ -259,7 +259,7 @@ struct cx88_input {
 };
 
 enum cx88_audio_chip {
-	CX88_AUDIO_WM8775,
+	CX88_AUDIO_WM8775 = 1,
 	CX88_AUDIO_TVAUDIO,
 };
 

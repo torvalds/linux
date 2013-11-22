@@ -305,13 +305,14 @@ static void _rtl88ee_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	psaddr = ieee80211_get_SA(hdr);
 	memcpy(pstatus->psaddr, psaddr, ETH_ALEN);
 
-	addr = (!compare_ether_addr(mac->bssid, (ufc & IEEE80211_FCTL_TODS) ?
-		hdr->addr1 : (ufc & IEEE80211_FCTL_FROMDS) ?
-		hdr->addr2 : hdr->addr3));
+	addr = ether_addr_equal(mac->bssid,
+				(ufc & IEEE80211_FCTL_TODS) ? hdr->addr1 :
+				(ufc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 :
+				hdr->addr3);
 	match_bssid = ((IEEE80211_FTYPE_CTL != type) && (!pstatus->hwerror) &&
 		       (!pstatus->crc) && (!pstatus->icv)) && addr;
 
-	addr = (!compare_ether_addr(praddr, rtlefuse->dev_addr));
+	addr = ether_addr_equal(praddr, rtlefuse->dev_addr);
 	packet_toself = match_bssid && addr;
 
 	if (ieee80211_is_beacon(fc))

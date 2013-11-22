@@ -73,6 +73,7 @@
  *             can be the same as first irq!)
  */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -232,27 +233,19 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
 	int asic = s->index / 2;
 	int port = (s->index % 2) ? 3 : 0;
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= chan_mask;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~chan_mask;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	if (data[0] == INSN_CONFIG_DIO_INPUT)
 		pcmuio_write(dev, s->io_bits, asic, 0, port);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan_mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
 
 	return insn->n;
 }
@@ -609,10 +602,9 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	for (asic = 0; asic < PCMUIO_MAX_ASICS; ++asic)
 		spin_lock_init(&devpriv->asics[asic].spinlock);
@@ -680,12 +672,13 @@ static void pcmuio_detach(struct comedi_device *dev)
 	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
-	for (i = 0; i < PCMUIO_MAX_ASICS; ++i) {
-		if (devpriv->asics[i].irq)
-			free_irq(devpriv->asics[i].irq, dev);
-	}
-	if (devpriv && devpriv->sprivs)
+	if (devpriv) {
+		for (i = 0; i < PCMUIO_MAX_ASICS; ++i) {
+			if (devpriv->asics[i].irq)
+				free_irq(devpriv->asics[i].irq, dev);
+		}
 		kfree(devpriv->sprivs);
+	}
 	comedi_legacy_detach(dev);
 }
 

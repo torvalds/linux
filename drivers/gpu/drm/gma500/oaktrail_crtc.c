@@ -23,7 +23,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_display.h"
+#include "gma_display.h"
 #include "power.h"
 
 struct psb_intel_range_t {
@@ -88,8 +88,8 @@ static const struct oaktrail_limit_t *oaktrail_limit(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
-	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
+	if (gma_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
+	    || gma_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
 		switch (dev_priv->core_freq) {
 		case 100:
 			limit = &oaktrail_limits[MRST_LIMIT_LVDS_100L];
@@ -163,8 +163,8 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
@@ -212,7 +212,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 			REG_WRITE(map->base, REG_READ(map->base));
 		}
 
-		psb_intel_crtc_load_lut(crtc);
+		gma_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
 		   if it's on this pipe */
@@ -242,7 +242,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 			REG_READ(map->conf);
 		}
 		/* Wait for for the pipe disable to take effect. */
-		psb_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -292,9 +292,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
 	struct oaktrail_clock_t clock;
@@ -303,7 +303,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_lvds = false;
 	bool is_mipi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct psb_intel_encoder *psb_intel_encoder = NULL;
+	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_connector *connector;
 
@@ -313,10 +313,10 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&psb_intel_crtc->saved_mode,
+	memcpy(&gma_crtc->saved_mode,
 		mode,
 		sizeof(struct drm_display_mode));
-	memcpy(&psb_intel_crtc->saved_adjusted_mode,
+	memcpy(&gma_crtc->saved_adjusted_mode,
 		adjusted_mode,
 		sizeof(struct drm_display_mode));
 
@@ -324,9 +324,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		if (!connector->encoder || connector->encoder->crtc != crtc)
 			continue;
 
-		psb_intel_encoder = psb_intel_attached_encoder(connector);
+		gma_encoder = gma_attached_encoder(connector);
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
@@ -350,7 +350,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		  ((mode->crtc_hdisplay - 1) << 16) |
 		  (mode->crtc_vdisplay - 1));
 
-	if (psb_intel_encoder)
+	if (gma_encoder)
 		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
@@ -484,21 +484,14 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 
 	REG_WRITE(map->conf, pipeconf);
 	REG_READ(map->conf);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, dspcntr);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 oaktrail_crtc_mode_set_exit:
 	gma_power_end(dev);
 	return 0;
-}
-
-static bool oaktrail_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
 }
 
 static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
@@ -506,9 +499,9 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 
@@ -563,24 +556,12 @@ pipe_set_base_exit:
 	return ret;
 }
 
-static void oaktrail_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void oaktrail_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
 const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.dpms = oaktrail_crtc_dpms,
-	.mode_fixup = oaktrail_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = oaktrail_crtc_mode_set,
 	.mode_set_base = oaktrail_pipe_set_base,
-	.prepare = oaktrail_crtc_prepare,
-	.commit = oaktrail_crtc_commit,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
 };
 

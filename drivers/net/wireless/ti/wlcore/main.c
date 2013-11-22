@@ -1315,7 +1315,7 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 #ifdef CONFIG_PM
 static int
-wl1271_validate_wowlan_pattern(struct cfg80211_wowlan_trig_pkt_pattern *p)
+wl1271_validate_wowlan_pattern(struct cfg80211_pkt_pattern *p)
 {
 	int num_fields = 0, in_field = 0, fields_size = 0;
 	int i, pattern_len = 0;
@@ -1458,9 +1458,9 @@ void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
  * Allocates an RX filter returned through f
  * which needs to be freed using rx_filter_free()
  */
-static int wl1271_convert_wowlan_pattern_to_rx_filter(
-	struct cfg80211_wowlan_trig_pkt_pattern *p,
-	struct wl12xx_rx_filter **f)
+static int
+wl1271_convert_wowlan_pattern_to_rx_filter(struct cfg80211_pkt_pattern *p,
+					   struct wl12xx_rx_filter **f)
 {
 	int i, j, ret = 0;
 	struct wl12xx_rx_filter *filter;
@@ -1562,7 +1562,7 @@ static int wl1271_configure_wowlan(struct wl1271 *wl,
 
 	/* Translate WoWLAN patterns into filters */
 	for (i = 0; i < wow->n_patterns; i++) {
-		struct cfg80211_wowlan_trig_pkt_pattern *p;
+		struct cfg80211_pkt_pattern *p;
 		struct wl12xx_rx_filter *filter = NULL;
 
 		p = &wow->patterns[i];
@@ -5623,7 +5623,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_remain_on_channel_duration = 5000;
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
-				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+				WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +

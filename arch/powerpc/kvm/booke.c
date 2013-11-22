@@ -674,8 +674,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	kvm_guest_enter();
-
 #ifdef CONFIG_PPC_FPU
 	/* Save userspace FPU state in stack */
 	enable_kernel_fp();
@@ -698,7 +696,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvmppc_load_guest_fp(vcpu);
 #endif
 
-	kvmppc_lazy_ee_enable();
+	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
@@ -1168,7 +1166,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			local_irq_enable();
 			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
 		} else {
-			kvmppc_lazy_ee_enable();
+			kvmppc_fix_ee_before_entry();
 		}
 	}
 

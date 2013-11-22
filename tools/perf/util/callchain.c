@@ -15,18 +15,11 @@
 #include <errno.h>
 #include <math.h>
 
+#include "hist.h"
 #include "util.h"
 #include "callchain.h"
 
 __thread struct callchain_cursor callchain_cursor;
-
-bool ip_callchain__valid(struct ip_callchain *chain,
-			 const union perf_event *event)
-{
-	unsigned int chain_size = event->header.size;
-	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
-	return chain->nr * sizeof(u64) <= chain_size;
-}
 
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, siblings)
@@ -327,7 +320,8 @@ append_chain(struct callchain_node *root,
 	/*
 	 * Lookup in the current node
 	 * If we have a symbol, then compare the start to match
-	 * anywhere inside a function.
+	 * anywhere inside a function, unless function
+	 * mode is disabled.
 	 */
 	list_for_each_entry(cnode, &root->val, list) {
 		struct callchain_cursor_node *node;
@@ -339,7 +333,8 @@ append_chain(struct callchain_node *root,
 
 		sym = node->sym;
 
-		if (cnode->ms.sym && sym) {
+		if (cnode->ms.sym && sym &&
+		    callchain_param.key == CCKEY_FUNCTION) {
 			if (cnode->ms.sym->start != sym->start)
 				break;
 		} else if (cnode->ip != node->ip)

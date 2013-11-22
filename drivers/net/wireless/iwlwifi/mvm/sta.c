@@ -826,8 +826,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * method for HT traffic
 		 * this function also sends the LQ command
 		 */
-		return iwl_mvm_tx_protection(mvm, &mvmsta->lq_sta.lq,
-					     mvmsta, true);
+		return iwl_mvm_tx_protection(mvm, mvmsta, true);
 		/*
 		 * TODO: remove the TLC_RTS flag when we tear down the last
 		 * AGG session (agg_tids_count in DVM)

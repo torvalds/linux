@@ -24,8 +24,8 @@ There are three main ways of managing scheduling-clock interrupts
 	workloads, you will normally -not- want this option.
 
 These three cases are described in the following three sections, followed
-by a third section on RCU-specific considerations and a fourth and final
-section listing known issues.
+by a third section on RCU-specific considerations, a fourth section
+discussing testing, and a fifth and final section listing known issues.
 
 
 NEVER OMIT SCHEDULING-CLOCK TICKS
@@ -121,14 +121,15 @@ boot parameter specifies the adaptive-ticks CPUs.  For example,
 "nohz_full=1,6-8" says that CPUs 1, 6, 7, and 8 are to be adaptive-ticks
 CPUs.  Note that you are prohibited from marking all of the CPUs as
 adaptive-tick CPUs:  At least one non-adaptive-tick CPU must remain
-online to handle timekeeping tasks in order to ensure that system calls
-like gettimeofday() returns accurate values on adaptive-tick CPUs.
-(This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no
-running user processes to observe slight drifts in clock rate.)
-Therefore, the boot CPU is prohibited from entering adaptive-ticks
-mode.  Specifying a "nohz_full=" mask that includes the boot CPU will
-result in a boot-time error message, and the boot CPU will be removed
-from the mask.
+online to handle timekeeping tasks in order to ensure that system
+calls like gettimeofday() returns accurate values on adaptive-tick CPUs.
+(This is not an issue for CONFIG_NO_HZ_IDLE=y because there are no running
+user processes to observe slight drifts in clock rate.)  Therefore, the
+boot CPU is prohibited from entering adaptive-ticks mode.  Specifying a
+"nohz_full=" mask that includes the boot CPU will result in a boot-time
+error message, and the boot CPU will be removed from the mask.  Note that
+this means that your system must have at least two CPUs in order for
+CONFIG_NO_HZ_FULL=y to do anything for you.
 
 Alternatively, the CONFIG_NO_HZ_FULL_ALL=y Kconfig parameter specifies
 that all CPUs other than the boot CPU are adaptive-ticks CPUs.  This
@@ -230,6 +231,29 @@ or adaptive-tick mode.  That said, note that it is up to userspace to
 pin the "rcuo" kthreads to specific CPUs if desired.  Otherwise, the
 scheduler will decide where to run them, which might or might not be
 where you want them to run.
+
+
+TESTING
+
+So you enable all the OS-jitter features described in this document,
+but do not see any change in your workload's behavior.  Is this because
+your workload isn't affected that much by OS jitter, or is it because
+something else is in the way?  This section helps answer this question
+by providing a simple OS-jitter test suite, which is available on branch
+master of the following git archive:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/frederic/dynticks-testing.git
+
+Clone this archive and follow the instructions in the README file.
+This test procedure will produce a trace that will allow you to evaluate
+whether or not you have succeeded in removing OS jitter from your system.
+If this trace shows that you have removed OS jitter as much as is
+possible, then you can conclude that your workload is not all that
+sensitive to OS jitter.
+
+Note: this test requires that your system have at least two CPUs.
+We do not currently have a good way to remove OS jitter from single-CPU
+systems.
 
 
 KNOWN ISSUES

@@ -31,14 +31,14 @@
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
-#include "xfs_dir2.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
-#include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};
+struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
+
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -90,6 +90,9 @@ void
 xfs_dir_mount(
 	xfs_mount_t	*mp)
 {
+	int	nodehdr_size;
+
+
 	ASSERT(xfs_sb_version_hasdirv2(&mp->m_sb));
 	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
 	       XFS_MAX_BLOCKSIZE);
@@ -98,12 +101,13 @@ xfs_dir_mount(
 	mp->m_dirdatablk = xfs_dir2_db_to_da(mp, XFS_DIR2_DATA_FIRSTDB(mp));
 	mp->m_dirleafblk = xfs_dir2_db_to_da(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
 	mp->m_dirfreeblk = xfs_dir2_db_to_da(mp, XFS_DIR2_FREE_FIRSTDB(mp));
-	mp->m_attr_node_ents =
-		(mp->m_sb.sb_blocksize - (uint)sizeof(xfs_da_node_hdr_t)) /
-		(uint)sizeof(xfs_da_node_entry_t);
-	mp->m_dir_node_ents =
-		(mp->m_dirblksize - (uint)sizeof(xfs_da_node_hdr_t)) /
-		(uint)sizeof(xfs_da_node_entry_t);
+
+	nodehdr_size = __xfs_da3_node_hdr_size(xfs_sb_version_hascrc(&mp->m_sb));
+	mp->m_attr_node_ents = (mp->m_sb.sb_blocksize - nodehdr_size) /
+				(uint)sizeof(xfs_da_node_entry_t);
+	mp->m_dir_node_ents = (mp->m_dirblksize - nodehdr_size) /
+				(uint)sizeof(xfs_da_node_entry_t);
+
 	mp->m_dir_magicpct = (mp->m_dirblksize * 37) / 100;
 	if (xfs_sb_version_hasasciici(&mp->m_sb))
 		mp->m_dirnameops = &xfs_ascii_ci_nameops;
@@ -209,6 +213,7 @@ xfs_dir_createname(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = inum;
 	args.dp = dp;
@@ -283,6 +288,7 @@ xfs_dir_lookup(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;
@@ -338,6 +344,7 @@ xfs_dir_removename(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = ino;
 	args.dp = dp;
@@ -359,37 +366,6 @@ xfs_dir_removename(
 		rval = xfs_dir2_leaf_removename(&args);
 	else
 		rval = xfs_dir2_node_removename(&args);
-	return rval;
-}
-
-/*
- * Read a directory.
- */
-int
-xfs_readdir(
-	xfs_inode_t	*dp,
-	struct dir_context *ctx,
-	size_t		bufsize)
-{
-	int		rval;		/* return value */
-	int		v;		/* type-checking value */
-
-	trace_xfs_readdir(dp);
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return XFS_ERROR(EIO);
-
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_getdents);
-
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
-		rval = xfs_dir2_sf_getdents(dp, ctx);
-	else if ((rval = xfs_dir2_isblock(NULL, dp, &v)))
-		;
-	else if (v)
-		rval = xfs_dir2_block_getdents(dp, ctx);
-	else
-		rval = xfs_dir2_leaf_getdents(dp, ctx, bufsize);
 	return rval;
 }
 
@@ -418,6 +394,7 @@ xfs_dir_replace(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = inum;
 	args.dp = dp;
@@ -465,6 +442,7 @@ xfs_dir_canenter(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;

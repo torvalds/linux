@@ -114,7 +114,6 @@ config PPC
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
-	select HAVE_GENERIC_HARDIRQS
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select SPARSE_IRQ
 	select IRQ_DOMAIN
@@ -312,6 +311,26 @@ config MATH_EMULATION
 	  such as fsqrt on cores that do have an FPU but do not implement
 	  them (such as Freescale BookE).
 
+choice
+	prompt "Math emulation options"
+	default MATH_EMULATION_FULL
+	depends on MATH_EMULATION
+
+config	MATH_EMULATION_FULL
+	bool "Emulate all the floating point instructions"
+	---help---
+	  Select this option will enable the kernel to support to emulate
+	  all the floating point instructions. If your SoC doesn't have
+	  a FPU, you should select this.
+
+config MATH_EMULATION_HW_UNIMPLEMENTED
+	bool "Just emulate the FPU unimplemented instructions"
+	---help---
+	  Select this if you know there does have a hardware FPU on your
+	  SoC, but some floating point instructions are not implemented by that.
+
+endchoice
+
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64
@@ -369,9 +388,9 @@ config KEXEC
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
-	  initially work for you.  It may help to enable device hotplugging
-	  support.  As of this writing the exact hardware interface is
-	  strongly in flux, so no good recommendation can be made.
+	  initially work for you.  As of this writing the exact hardware
+	  interface is strongly in flux, so no good recommendation can be
+	  made.
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
@@ -727,7 +746,6 @@ config PCI
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
-	select ARCH_SUPPORTS_MSI
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of

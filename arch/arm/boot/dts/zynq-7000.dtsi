@@ -41,8 +41,8 @@
 		L2: cache-controller {
 			compatible = "arm,pl310-cache";
 			reg = <0xF8F02000 0x1000>;
-			arm,data-latency = <2 3 2>;
-			arm,tag-latency = <2 3 2>;
+			arm,data-latency = <3 2 2>;
+			arm,tag-latency = <2 2 2>;
 			cache-unified;
 			cache-level = <2>;
 		};

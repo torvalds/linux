@@ -15,18 +15,11 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#undef DEBUG
 #undef VERBOSE
 
-#ifdef DEBUG
-#define DBG(fmt, args...) printk(KERN_DEBUG "[%s]  " fmt , \
-				 __func__, ## args)
-#else
-#define DBG(fmt, args...)	do {} while (0)
-#endif
-
 #ifdef VERBOSE
-#define VDBG		DBG
+#define VDBG(fmt, args...) pr_debug("[%s]  " fmt , \
+				 __func__, ## args)
 #else
 #define VDBG(stuff...)	do {} while (0)
 #endif

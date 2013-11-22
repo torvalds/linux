@@ -18,31 +18,42 @@
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
 
+/*
+ * utmi_pll_config_in_car_module: true if the UTMI PLL configuration registers
+ *     should be set up by clk-tegra, false if by the PHY code
+ * has_hostpc: true if the USB controller has the HOSTPC extension, which
+ *     changes the location of the PHCD and PTS fields
+ * requires_usbmode_setup: true if the USBMODE register needs to be set to
+ *      enter host mode
+ * requires_extra_tuning_parameters: true if xcvr_hsslew, hssquelch_level
+ *      and hsdiscon_level should be set for adequate signal quality
+ */
+
+struct tegra_phy_soc_config {
+	bool utmi_pll_config_in_car_module;
+	bool has_hostpc;
+	bool requires_usbmode_setup;
+	bool requires_extra_tuning_parameters;
+};
+
 struct tegra_utmip_config {
 	u8 hssync_start_delay;
 	u8 elastic_limit;
 	u8 idle_wait_delay;
 	u8 term_range_adj;
+	bool xcvr_setup_use_fuses;
 	u8 xcvr_setup;
 	u8 xcvr_lsfslew;
 	u8 xcvr_lsrslew;
-};
-
-struct tegra_ulpi_config {
-	int reset_gpio;
-	const char *clk;
+	u8 xcvr_hsslew;
+	u8 hssquelch_level;
+	u8 hsdiscon_level;
 };
 
 enum tegra_usb_phy_port_speed {
 	TEGRA_USB_PHY_PORT_SPEED_FULL = 0,
 	TEGRA_USB_PHY_PORT_SPEED_LOW,
 	TEGRA_USB_PHY_PORT_SPEED_HIGH,
-};
-
-enum tegra_usb_phy_mode {
-	TEGRA_USB_PHY_MODE_DEVICE,
-	TEGRA_USB_PHY_MODE_HOST,
-	TEGRA_USB_PHY_MODE_OTG,
 };
 
 struct tegra_xtal_freq;
@@ -55,17 +66,16 @@ struct tegra_usb_phy {
 	struct clk *clk;
 	struct clk *pll_u;
 	struct clk *pad_clk;
-	enum tegra_usb_phy_mode mode;
+	struct regulator *vbus;
+	enum usb_dr_mode mode;
 	void *config;
+	const struct tegra_phy_soc_config *soc_config;
 	struct usb_phy *ulpi;
 	struct usb_phy u_phy;
-	struct device *dev;
 	bool is_legacy_phy;
 	bool is_ulpi_phy;
 	int reset_gpio;
 };
-
-struct usb_phy *tegra_usb_get_phy(struct device_node *dn);
 
 void tegra_usb_phy_preresume(struct usb_phy *phy);
 

@@ -166,7 +166,7 @@ static void __init s3c64xx_cpufreq_config_regulator(void)
 		if (freq->frequency == CPUFREQ_ENTRY_INVALID)
 			continue;
 
-		dvfs = &s3c64xx_dvfs_table[freq->index];
+		dvfs = &s3c64xx_dvfs_table[freq->driver_data];
 		found = 0;
 
 		for (i = 0; i < count; i++) {
@@ -263,7 +263,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver s3c64xx_cpufreq_driver = {
-	.owner		= THIS_MODULE,
 	.flags          = 0,
 	.verify		= s3c64xx_cpufreq_verify_speed,
 	.target		= s3c64xx_cpufreq_set_target,

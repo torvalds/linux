@@ -256,7 +256,7 @@ static inline void __smp_reschedule_interrupt(void)
 	scheduler_ipi();
 }
 
-void smp_reschedule_interrupt(struct pt_regs *regs)
+__visible void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	__smp_reschedule_interrupt();
@@ -271,7 +271,7 @@ static inline void smp_entering_irq(void)
 	irq_enter();
 }
 
-void smp_trace_reschedule_interrupt(struct pt_regs *regs)
+__visible void smp_trace_reschedule_interrupt(struct pt_regs *regs)
 {
 	/*
 	 * Need to call irq_enter() before calling the trace point.
@@ -295,14 +295,14 @@ static inline void __smp_call_function_interrupt(void)
 	inc_irq_stat(irq_call_count);
 }
 
-void smp_call_function_interrupt(struct pt_regs *regs)
+__visible void smp_call_function_interrupt(struct pt_regs *regs)
 {
 	smp_entering_irq();
 	__smp_call_function_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_call_function_interrupt(struct pt_regs *regs)
+__visible void smp_trace_call_function_interrupt(struct pt_regs *regs)
 {
 	smp_entering_irq();
 	trace_call_function_entry(CALL_FUNCTION_VECTOR);
@@ -317,14 +317,14 @@ static inline void __smp_call_function_single_interrupt(void)
 	inc_irq_stat(irq_call_count);
 }
 
-void smp_call_function_single_interrupt(struct pt_regs *regs)
+__visible void smp_call_function_single_interrupt(struct pt_regs *regs)
 {
 	smp_entering_irq();
 	__smp_call_function_single_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_call_function_single_interrupt(struct pt_regs *regs)
+__visible void smp_trace_call_function_single_interrupt(struct pt_regs *regs)
 {
 	smp_entering_irq();
 	trace_call_function_single_entry(CALL_FUNCTION_SINGLE_VECTOR);

@@ -191,7 +191,7 @@ try_again:
 	frames = bytes_to_frames(runtime, count);
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	result = snd_pcm_lib_write(snd->substream, buf, frames);
+	result = snd_pcm_lib_write(snd->substream, (void __user *)buf, frames);
 	if (result != frames) {
 		ERROR(card, "Playback error: %d\n", (int)result);
 		set_fs(old_fs);

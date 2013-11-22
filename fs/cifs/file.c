@@ -313,8 +313,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	 * If the server returned a read oplock and we have mandatory brlocks,
 	 * set oplock level to None.
 	 */
-	if (oplock == server->vals->oplock_read &&
-						cifs_has_mand_locks(cinode)) {
+	if (server->ops->is_read_op(oplock) && cifs_has_mand_locks(cinode)) {
 		cifs_dbg(FYI, "Reset oplock val from read to None due to mand locks\n");
 		oplock = 0;
 	}
@@ -324,6 +323,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		oplock = fid->pending_open->oplock;
 	list_del(&fid->pending_open->olist);
 
+	fid->purge_cache = false;
 	server->ops->set_fid(cfile, fid, oplock);
 
 	list_add(&cfile->tlist, &tcon->openFileList);
@@ -333,6 +333,9 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	else
 		list_add_tail(&cfile->flist, &cinode->openFileList);
 	spin_unlock(&cifs_file_list_lock);
+
+	if (fid->purge_cache)
+		cifs_invalidate_mapping(inode);
 
 	file->private_data = cfile;
 	return cfile;
@@ -1524,12 +1527,12 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		 * read won't conflict with non-overlapted locks due to
 		 * pagereading.
 		 */
-		if (!CIFS_I(inode)->clientCanCacheAll &&
-					CIFS_I(inode)->clientCanCacheRead) {
+		if (!CIFS_CACHE_WRITE(CIFS_I(inode)) &&
+					CIFS_CACHE_READ(CIFS_I(inode))) {
 			cifs_invalidate_mapping(inode);
 			cifs_dbg(FYI, "Set no oplock for inode=%p due to mand locks\n",
 				 inode);
-			CIFS_I(inode)->clientCanCacheRead = false;
+			CIFS_I(inode)->oplock = 0;
 		}
 
 		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
@@ -2213,7 +2216,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	cifs_dbg(FYI, "Sync file - name: %s datasync: 0x%x\n",
 		 file->f_path.dentry->d_name.name, datasync);
 
-	if (!CIFS_I(inode)->clientCanCacheRead) {
+	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
 		rc = cifs_invalidate_mapping(inode);
 		if (rc) {
 			cifs_dbg(FYI, "rc: %d during invalidate phase\n", rc);
@@ -2553,7 +2556,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 		mutex_unlock(&inode->i_mutex);
 	}
 
-	if (rc > 0 || rc == -EIOCBQUEUED) {
+	if (rc > 0) {
 		ssize_t err;
 
 		err = generic_write_sync(file, pos, rc);
@@ -2577,7 +2580,7 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	ssize_t written;
 
-	if (cinode->clientCanCacheAll) {
+	if (CIFS_CACHE_WRITE(cinode)) {
 		if (cap_unix(tcon->ses) &&
 		(CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability))
 		    && ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
@@ -2591,7 +2594,7 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 	 * these pages but not on the region from pos to ppos+len-1.
 	 */
 	written = cifs_user_writev(iocb, iov, nr_segs, pos);
-	if (written > 0 && cinode->clientCanCacheRead) {
+	if (written > 0 && CIFS_CACHE_READ(cinode)) {
 		/*
 		 * Windows 7 server can delay breaking level2 oplock if a write
 		 * request comes - break it on the client to prevent reading
@@ -2600,7 +2603,7 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 		cifs_invalidate_mapping(inode);
 		cifs_dbg(FYI, "Set no oplock for inode=%p after a write operation\n",
 			 inode);
-		cinode->clientCanCacheRead = false;
+		cinode->oplock = 0;
 	}
 	return written;
 }
@@ -2957,7 +2960,7 @@ cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 	 * on pages affected by this read but not on the region from pos to
 	 * pos+len-1.
 	 */
-	if (!cinode->clientCanCacheRead)
+	if (!CIFS_CACHE_READ(cinode))
 		return cifs_user_readv(iocb, iov, nr_segs, pos);
 
 	if (cap_unix(tcon->ses) &&
@@ -3093,7 +3096,7 @@ int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 
 	xid = get_xid();
 
-	if (!CIFS_I(inode)->clientCanCacheRead) {
+	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
 		rc = cifs_invalidate_mapping(inode);
 		if (rc)
 			return rc;
@@ -3251,6 +3254,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	/*
 	 * Reads as many pages as possible from fscache. Returns -ENOBUFS
 	 * immediately if the cookie is negative
+	 *
+	 * After this point, every page in the list might have PG_fscache set,
+	 * so we will need to clean that up off of every page we don't use.
 	 */
 	rc = cifs_readpages_from_fscache(mapping->host, mapping, page_list,
 					 &num_pages);
@@ -3373,9 +3379,17 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		kref_put(&rdata->refcount, cifs_readdata_release);
 	}
 
+	/* Any pages that have been shown to fscache but didn't get added to
+	 * the pagecache must be uncached before they get returned to the
+	 * allocator.
+	 */
+	cifs_fscache_readpages_cancel(mapping->host, page_list);
 	return rc;
 }
 
+/*
+ * cifs_readpage_worker must be called with the page pinned
+ */
 static int cifs_readpage_worker(struct file *file, struct page *page,
 	loff_t *poffset)
 {
@@ -3387,7 +3401,6 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	if (rc == 0)
 		goto read_complete;
 
-	page_cache_get(page);
 	read_data = kmap(page);
 	/* for reads over a certain size could initiate async read ahead */
 
@@ -3414,7 +3427,7 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 io_error:
 	kunmap(page);
-	page_cache_release(page);
+	unlock_page(page);
 
 read_complete:
 	return rc;
@@ -3438,8 +3451,6 @@ static int cifs_readpage(struct file *file, struct page *page)
 		 page, (int)offset, (int)offset);
 
 	rc = cifs_readpage_worker(file, page, &offset);
-
-	unlock_page(page);
 
 	free_xid(xid);
 	return rc;
@@ -3494,6 +3505,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int oncethru = 0;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	loff_t offset = pos & (PAGE_CACHE_SIZE - 1);
 	loff_t page_start = pos & PAGE_MASK;
@@ -3503,6 +3515,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 
 	cifs_dbg(FYI, "write_begin from %lld len %d\n", (long long)pos, len);
 
+start:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		rc = -ENOMEM;
@@ -3526,7 +3539,7 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 	 * is, when the page lies beyond the EOF, or straddles the EOF
 	 * and the write will cover all of the existing data.
 	 */
-	if (CIFS_I(mapping->host)->clientCanCacheRead) {
+	if (CIFS_CACHE_READ(CIFS_I(mapping->host))) {
 		i_size = i_size_read(mapping->host);
 		if (page_start >= i_size ||
 		    (offset == 0 && (pos + len) >= i_size)) {
@@ -3544,13 +3557,16 @@ static int cifs_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
+	if ((file->f_flags & O_ACCMODE) != O_WRONLY && !oncethru) {
 		/*
 		 * might as well read a page, it is fast enough. If we get
 		 * an error, we don't need to return it. cifs_write_end will
 		 * do a sync write instead since PG_uptodate isn't set.
 		 */
 		cifs_readpage_worker(file, page, &page_start);
+		page_cache_release(page);
+		oncethru = 1;
+		goto start;
 	} else {
 		/* we could try using another file handle if there is one -
 		   but how would we lock it to prevent close of that handle
@@ -3609,20 +3625,20 @@ void cifs_oplock_break(struct work_struct *work)
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
-	if (!cinode->clientCanCacheAll && cinode->clientCanCacheRead &&
+	if (!CIFS_CACHE_WRITE(cinode) && CIFS_CACHE_READ(cinode) &&
 						cifs_has_mand_locks(cinode)) {
 		cifs_dbg(FYI, "Reset oplock to None for inode=%p due to mand locks\n",
 			 inode);
-		cinode->clientCanCacheRead = false;
+		cinode->oplock = 0;
 	}
 
 	if (inode && S_ISREG(inode->i_mode)) {
-		if (cinode->clientCanCacheRead)
+		if (CIFS_CACHE_READ(cinode))
 			break_lease(inode, O_RDONLY);
 		else
 			break_lease(inode, O_WRONLY);
 		rc = filemap_fdatawrite(inode->i_mapping);
-		if (cinode->clientCanCacheRead == 0) {
+		if (!CIFS_CACHE_READ(cinode)) {
 			rc = filemap_fdatawait(inode->i_mapping);
 			mapping_set_error(inode->i_mapping, rc);
 			cifs_invalidate_mapping(inode);

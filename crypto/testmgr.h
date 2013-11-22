@@ -450,6 +450,39 @@ static struct hash_testvec rmd320_tv_template[] = {
 	}
 };
 
+#define CRCT10DIF_TEST_VECTORS	3
+static struct hash_testvec crct10dif_tv_template[] = {
+	{
+		.plaintext = "abc",
+		.psize  = 3,
+#ifdef __LITTLE_ENDIAN
+		.digest = "\x3b\x44",
+#else
+		.digest = "\x44\x3b",
+#endif
+	}, {
+		.plaintext = "1234567890123456789012345678901234567890"
+			     "123456789012345678901234567890123456789",
+		.psize	= 79,
+#ifdef __LITTLE_ENDIAN
+		.digest	= "\x70\x4b",
+#else
+		.digest	= "\x4b\x70",
+#endif
+	}, {
+		.plaintext =
+		"abcddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+		.psize  = 56,
+#ifdef __LITTLE_ENDIAN
+		.digest = "\xe3\x9c",
+#else
+		.digest = "\x9c\xe3",
+#endif
+		.np     = 2,
+		.tap    = { 28, 28 }
+	}
+};
+
 /*
  * SHA1 test vectors  from from FIPS PUB 180-1
  * Long vector from CAVS 5.0

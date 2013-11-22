@@ -732,10 +732,10 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 {
 	int i;
 
-	priv->descs = dma_alloc_coherent(priv->dev,
-					 sizeof(struct ftmac100_descs),
-					 &priv->descs_dma_addr,
-					 GFP_KERNEL | __GFP_ZERO);
+	priv->descs = dma_zalloc_coherent(priv->dev,
+					  sizeof(struct ftmac100_descs),
+					  &priv->descs_dma_addr,
+					  GFP_KERNEL);
 	if (!priv->descs)
 		return -ENOMEM;
 

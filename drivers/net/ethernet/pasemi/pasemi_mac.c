@@ -191,7 +191,7 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 	struct device_node *dn = pci_device_to_OF_node(pdev);
 	int len;
 	const u8 *maddr;
-	u8 addr[6];
+	u8 addr[ETH_ALEN];
 
 	if (!dn) {
 		dev_dbg(&pdev->dev,
@@ -201,8 +201,8 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 
 	maddr = of_get_property(dn, "local-mac-address", &len);
 
-	if (maddr && len == 6) {
-		memcpy(mac->mac_addr, maddr, 6);
+	if (maddr && len == ETH_ALEN) {
+		memcpy(mac->mac_addr, maddr, ETH_ALEN);
 		return 0;
 	}
 
@@ -219,14 +219,15 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 		return -ENOENT;
 	}
 
-	if (sscanf(maddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &addr[0],
-		   &addr[1], &addr[2], &addr[3], &addr[4], &addr[5]) != 6) {
+	if (sscanf(maddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5])
+	    != ETH_ALEN) {
 		dev_warn(&pdev->dev,
 			 "can't parse mac address, not configuring\n");
 		return -EINVAL;
 	}
 
-	memcpy(mac->mac_addr, addr, 6);
+	memcpy(mac->mac_addr, addr, ETH_ALEN);
 
 	return 0;
 }
@@ -439,10 +440,9 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	if (pasemi_dma_alloc_ring(&ring->chan, RX_RING_SIZE))
 		goto out_ring_desc;
 
-	ring->buffers = dma_alloc_coherent(&mac->dma_pdev->dev,
-					   RX_RING_SIZE * sizeof(u64),
-					   &ring->buf_dma,
-					   GFP_KERNEL | __GFP_ZERO);
+	ring->buffers = dma_zalloc_coherent(&mac->dma_pdev->dev,
+					    RX_RING_SIZE * sizeof(u64),
+					    &ring->buf_dma, GFP_KERNEL);
 	if (!ring->buffers)
 		goto out_ring_desc;
 
@@ -1219,7 +1219,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	snprintf(mac->tx_irq_name, sizeof(mac->tx_irq_name), "%s tx",
 		 dev->name);
 
-	ret = request_irq(mac->tx->chan.irq, pasemi_mac_tx_intr, IRQF_DISABLED,
+	ret = request_irq(mac->tx->chan.irq, pasemi_mac_tx_intr, 0,
 			  mac->tx_irq_name, mac->tx);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",
@@ -1230,7 +1230,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	snprintf(mac->rx_irq_name, sizeof(mac->rx_irq_name), "%s rx",
 		 dev->name);
 
-	ret = request_irq(mac->rx->chan.irq, pasemi_mac_rx_intr, IRQF_DISABLED,
+	ret = request_irq(mac->rx->chan.irq, pasemi_mac_rx_intr, 0,
 			  mac->rx_irq_name, mac->rx);
 	if (ret) {
 		dev_err(&mac->pdev->dev, "request_irq of irq %d failed: %d\n",

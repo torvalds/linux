@@ -106,15 +106,15 @@ static const u32 src_pixfmt_map[8][2] = {
 void camif_hw_set_source_format(struct camif_dev *camif)
 {
 	struct v4l2_mbus_framefmt *mf = &camif->mbus_fmt;
-	unsigned int i = ARRAY_SIZE(src_pixfmt_map);
+	int i;
 	u32 cfg;
 
-	while (i-- >= 0) {
+	for (i = ARRAY_SIZE(src_pixfmt_map) - 1; i >= 0; i--) {
 		if (src_pixfmt_map[i][0] == mf->code)
 			break;
 	}
-
-	if (i == 0 && src_pixfmt_map[i][0] != mf->code) {
+	if (i < 0) {
+		i = 0;
 		dev_err(camif->dev,
 			"Unsupported pixel code, falling back to %#08x\n",
 			src_pixfmt_map[i][0]);

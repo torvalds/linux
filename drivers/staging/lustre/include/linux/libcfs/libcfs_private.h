@@ -210,7 +210,6 @@ do {								    \
 #define ntohs(x) ___ntohs(x)
 #endif
 
-void libcfs_debug_dumpstack(task_t *tsk);
 void libcfs_run_upcall(char **argv);
 void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *);
 void libcfs_debug_dumplog(void);
@@ -230,7 +229,7 @@ void libcfs_debug_set_level(unsigned int debug_level);
  */
 void *cfs_percpt_alloc(struct cfs_cpt_table *cptab, unsigned int size);
 /*
- * destory per-cpu-partition variable
+ * destroy per-cpu-partition variable
  */
 void  cfs_percpt_free(void *vars);
 int   cfs_percpt_number(void *vars);
@@ -455,10 +454,6 @@ int	 cfs_match_nid(lnet_nid_t nid, struct list_head *list);
 #define ergo(a, b) (!(a) || (b))
 /* logical equivalence */
 #define equi(a, b) (!!(a) == !!(b))
-
-#ifndef CFS_CURRENT_TIME
-# define CFS_CURRENT_TIME time(0)
-#endif
 
 /* --------------------------------------------------------------------
  * Light-weight trace

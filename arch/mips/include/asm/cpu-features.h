@@ -13,12 +13,6 @@
 #include <asm/cpu-info.h>
 #include <cpu-feature-overrides.h>
 
-#ifndef current_cpu_type
-#define current_cpu_type()	current_cpu_data.cputype
-#endif
-
-#define boot_cpu_type()		cpu_data[0].cputype
-
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
  * This is true for all known MIPS systems.
@@ -193,7 +187,7 @@
 
 /*
  * MIPS32, MIPS64, VR5500, IDT32332, IDT32334 and maybe a few other
- * pre-MIPS32/MIPS53 processors have CLO, CLZ.	The IDT RC64574 is 64-bit and
+ * pre-MIPS32/MIPS64 processors have CLO, CLZ.	The IDT RC64574 is 64-bit and
  * has CLO and CLZ but not DCLO nor DCLZ.  For 64-bit kernels
  * cpu_has_clo_clz also indicates the availability of DCLO and DCLZ.
  */

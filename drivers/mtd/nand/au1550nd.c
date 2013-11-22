@@ -411,7 +411,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, cs;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		return -ENODEV;

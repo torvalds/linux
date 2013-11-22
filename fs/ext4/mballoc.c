@@ -751,13 +751,15 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 
 	if (free != grp->bb_free) {
 		ext4_grp_locked_error(sb, group, 0, 0,
-				      "%u clusters in bitmap, %u in gd",
+				      "%u clusters in bitmap, %u in gd; "
+				      "block bitmap corrupt.",
 				      free, grp->bb_free);
 		/*
-		 * If we intent to continue, we consider group descritor
+		 * If we intend to continue, we consider group descriptor
 		 * corrupt and update bb_free using bitmap value
 		 */
 		grp->bb_free = free;
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
 	}
 	mb_set_largest_free_order(sb, grp);
 
@@ -1398,6 +1400,10 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 
 	BUG_ON(last >= (sb->s_blocksize << 3));
 	assert_spin_locked(ext4_group_lock_ptr(sb, e4b->bd_group));
+	/* Don't bother if the block group is corrupt. */
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(e4b->bd_info)))
+		return;
+
 	mb_check_buddy(e4b);
 	mb_free_blocks_double(inode, e4b, first, count);
 
@@ -1423,7 +1429,11 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 				      inode ? inode->i_ino : 0,
 				      blocknr,
 				      "freeing already freed block "
-				      "(bit %u)", block);
+				      "(bit %u); block bitmap corrupt.",
+				      block);
+		/* Mark the block group as corrupt. */
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT,
+			&e4b->bd_info->bb_state);
 		mb_regenerate_buddy(e4b);
 		goto done;
 	}
@@ -1790,6 +1800,11 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	if (err)
 		return err;
 
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(e4b->bd_info))) {
+		ext4_mb_unload_buddy(e4b);
+		return 0;
+	}
+
 	ext4_lock_group(ac->ac_sb, group);
 	max = mb_find_extent(e4b, ac->ac_g_ex.fe_start,
 			     ac->ac_g_ex.fe_len, &ex);
@@ -1985,6 +2000,9 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	if (free == 0)
 		return 0;
 	if (cr <= 2 && free < ac->ac_g_ex.fe_len)
+		return 0;
+
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		return 0;
 
 	/* We only do this if the grp has never been initialized */
@@ -4585,6 +4603,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	struct buffer_head *gd_bh;
 	ext4_group_t block_group;
 	struct ext4_sb_info *sbi;
+	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_buddy e4b;
 	unsigned int count_clusters;
 	int err = 0;
@@ -4672,6 +4691,10 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 do_more:
 	overflow = 0;
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
+
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(
+			ext4_get_group_info(sb, block_group))))
+		return;
 
 	/*
 	 * Check to see if we are freeing blocks across a group
@@ -4784,7 +4807,6 @@ do_more:
 	ext4_block_bitmap_csum_set(sb, block_group, gdp, bitmap_bh);
 	ext4_group_desc_csum_set(sb, block_group, gdp);
 	ext4_unlock_group(sb, block_group);
-	percpu_counter_add(&sbi->s_freeclusters_counter, count_clusters);
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi, block_group);
@@ -4792,10 +4814,23 @@ do_more:
 			     &sbi->s_flex_groups[flex_group].free_clusters);
 	}
 
-	ext4_mb_unload_buddy(&e4b);
-
-	if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
+	if (flags & EXT4_FREE_BLOCKS_RESERVE && ei->i_reserved_data_blocks) {
+		percpu_counter_add(&sbi->s_dirtyclusters_counter,
+				   count_clusters);
+		spin_lock(&ei->i_block_reservation_lock);
+		if (flags & EXT4_FREE_BLOCKS_METADATA)
+			ei->i_reserved_meta_blocks += count_clusters;
+		else
+			ei->i_reserved_data_blocks += count_clusters;
+		spin_unlock(&ei->i_block_reservation_lock);
+		if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
+			dquot_reclaim_block(inode,
+					EXT4_C2B(sbi, count_clusters));
+	} else if (!(flags & EXT4_FREE_BLOCKS_NO_QUOT_UPDATE))
 		dquot_free_block(inode, EXT4_C2B(sbi, count_clusters));
+	percpu_counter_add(&sbi->s_freeclusters_counter, count_clusters);
+
+	ext4_mb_unload_buddy(&e4b);
 
 	/* We dirtied the bitmap block */
 	BUFFER_TRACE(bitmap_bh, "dirtied bitmap block");

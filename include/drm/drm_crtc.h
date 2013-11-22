@@ -49,6 +49,7 @@ struct drm_clip_rect;
 #define DRM_MODE_OBJECT_FB 0xfbfbfbfb
 #define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
 #define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
+#define DRM_MODE_OBJECT_BRIDGE 0xbdbdbdbd
 
 struct drm_mode_object {
 	uint32_t id;
@@ -305,6 +306,7 @@ struct drm_connector;
 struct drm_encoder;
 struct drm_pending_vblank_event;
 struct drm_plane;
+struct drm_bridge;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
@@ -363,7 +365,8 @@ struct drm_crtc_funcs {
 	 */
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
-			 struct drm_pending_vblank_event *event);
+			 struct drm_pending_vblank_event *event,
+			 uint32_t flags);
 
 	int (*set_property)(struct drm_crtc *crtc,
 			    struct drm_property *property, uint64_t val);
@@ -494,8 +497,6 @@ struct drm_encoder_funcs {
 	void (*destroy)(struct drm_encoder *encoder);
 };
 
-#define DRM_CONNECTOR_MAX_UMODES 16
-#define DRM_CONNECTOR_LEN 32
 #define DRM_CONNECTOR_MAX_ENCODER 3
 
 /**
@@ -507,6 +508,7 @@ struct drm_encoder_funcs {
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
  * @crtc: currently bound CRTC
+ * @bridge: bridge associated to the encoder
  * @funcs: control functions
  * @helper_private: mid-layer private data
  *
@@ -523,6 +525,7 @@ struct drm_encoder {
 	uint32_t possible_clones;
 
 	struct drm_crtc *crtc;
+	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
 	void *helper_private;
 };
@@ -683,6 +686,48 @@ struct drm_plane {
 };
 
 /**
+ * drm_bridge_funcs - drm_bridge control functions
+ * @mode_fixup: Try to fixup (or reject entirely) proposed mode for this bridge
+ * @disable: Called right before encoder prepare, disables the bridge
+ * @post_disable: Called right after encoder prepare, for lockstepped disable
+ * @mode_set: Set this mode to the bridge
+ * @pre_enable: Called right before encoder commit, for lockstepped commit
+ * @enable: Called right after encoder commit, enables the bridge
+ * @destroy: make object go away
+ */
+struct drm_bridge_funcs {
+	bool (*mode_fixup)(struct drm_bridge *bridge,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
+	void (*disable)(struct drm_bridge *bridge);
+	void (*post_disable)(struct drm_bridge *bridge);
+	void (*mode_set)(struct drm_bridge *bridge,
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode);
+	void (*pre_enable)(struct drm_bridge *bridge);
+	void (*enable)(struct drm_bridge *bridge);
+	void (*destroy)(struct drm_bridge *bridge);
+};
+
+/**
+ * drm_bridge - central DRM bridge control structure
+ * @dev: DRM device this bridge belongs to
+ * @head: list management
+ * @base: base mode object
+ * @funcs: control functions
+ * @driver_private: pointer to the bridge driver's internal context
+ */
+struct drm_bridge {
+	struct drm_device *dev;
+	struct list_head head;
+
+	struct drm_mode_object base;
+
+	const struct drm_bridge_funcs *funcs;
+	void *driver_private;
+};
+
+/**
  * drm_mode_set - new values for a CRTC config change
  * @head: list management
  * @fb: framebuffer to use for new config
@@ -742,6 +787,7 @@ struct drm_mode_group {
 	uint32_t num_crtcs;
 	uint32_t num_encoders;
 	uint32_t num_connectors;
+	uint32_t num_bridges;
 
 	/* list of object IDs for this group */
 	uint32_t *id_list;
@@ -756,6 +802,8 @@ struct drm_mode_group {
  * @fb_list: list of framebuffers available
  * @num_connector: number of connectors on this device
  * @connector_list: list of connector objects
+ * @num_bridge: number of bridges on this device
+ * @bridge_list: list of bridge objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
  * @num_crtc: number of CRTCs on this device
@@ -793,6 +841,8 @@ struct drm_mode_config {
 
 	int num_connector;
 	struct list_head connector_list;
+	int num_bridge;
+	struct list_head bridge_list;
 	int num_encoder;
 	struct list_head encoder_list;
 	int num_plane;
@@ -839,11 +889,13 @@ struct drm_mode_config {
 
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
-	struct drm_property *dithering_mode_property;
 	struct drm_property *dirty_info_property;
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/* whether async page flip is supported or not */
+	bool async_page_flip;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -869,6 +921,8 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 
+extern void drm_connector_ida_init(void);
+extern void drm_connector_ida_destroy(void);
 extern int drm_connector_init(struct drm_device *dev,
 			      struct drm_connector *connector,
 			      const struct drm_connector_funcs *funcs,
@@ -877,6 +931,10 @@ extern int drm_connector_init(struct drm_device *dev,
 extern void drm_connector_cleanup(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */
 extern void drm_connector_unplug_all(struct drm_device *dev);
+
+extern int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
+			   const struct drm_bridge_funcs *funcs);
+extern void drm_bridge_cleanup(struct drm_bridge *bridge);
 
 extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
@@ -908,7 +966,6 @@ extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
-extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src);
 extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 						   const struct drm_display_mode *mode);
@@ -925,14 +982,9 @@ extern int drm_mode_height(const struct drm_display_mode *mode);
 /* for us by fb module */
 extern struct drm_display_mode *drm_mode_create(struct drm_device *dev);
 extern void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode);
-extern void drm_mode_list_concat(struct list_head *head,
-				 struct list_head *new);
 extern void drm_mode_validate_size(struct drm_device *dev,
 				   struct list_head *mode_list,
 				   int maxX, int maxY, int maxPitch);
-extern void drm_mode_validate_clocks(struct drm_device *dev,
-				     struct list_head *mode_list,
-				     int *min, int *max, int n_ranges);
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
@@ -949,9 +1001,6 @@ extern int drm_object_property_set_value(struct drm_mode_object *obj,
 extern int drm_object_property_get_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t *value);
-extern struct drm_display_mode *drm_crtc_mode_create(struct drm_device *dev);
-extern void drm_framebuffer_set_object(struct drm_device *dev,
-				       unsigned long handle);
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
@@ -962,10 +1011,6 @@ extern void drm_framebuffer_reference(struct drm_framebuffer *fb);
 extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
 extern void drm_framebuffer_unregister_private(struct drm_framebuffer *fb);
-extern int drmfb_probe(struct drm_device *dev, struct drm_crtc *crtc);
-extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
-extern void drm_crtc_probe_connector_modes(struct drm_device *dev, int maxX, int maxY);
-extern bool drm_crtc_in_use(struct drm_crtc *crtc);
 
 extern void drm_object_attach_property(struct drm_mode_object *obj,
 				       struct drm_property *property,
@@ -990,7 +1035,6 @@ extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
 extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats,
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
-extern int drm_mode_create_dithering_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
@@ -1040,17 +1084,12 @@ extern int drm_mode_getblob_ioctl(struct drm_device *dev,
 				  void *data, struct drm_file *file_priv);
 extern int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 					      void *data, struct drm_file *file_priv);
-extern int drm_mode_hotplug_ioctl(struct drm_device *dev,
-				  void *data, struct drm_file *file_priv);
-extern int drm_mode_replacefb(struct drm_device *dev,
-			      void *data, struct drm_file *file_priv);
 extern int drm_mode_getencoder(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
-extern u8 *drm_find_cea_extension(struct edid *edid);
 extern u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);

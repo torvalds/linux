@@ -264,9 +264,6 @@ int mgag200_gem_init_object(struct drm_gem_object *obj);
 int mgag200_dumb_create(struct drm_file *file,
 			struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-int mgag200_dumb_destroy(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle);
 void mgag200_gem_free_object(struct drm_gem_object *obj);
 int
 mgag200_dumb_mmap_offset(struct drm_file *file,

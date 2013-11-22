@@ -1109,7 +1109,7 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		 * We can't use anon_inode_getfd() because we need to modify
 		 * the f_mode flags directly to allow more than just ioctls
 		 */
-		ret = get_unused_fd();
+		ret = get_unused_fd_flags(O_CLOEXEC);
 		if (ret < 0) {
 			device->ops->release(device->device_data);
 			break;
@@ -1351,6 +1351,68 @@ static const struct file_operations vfio_device_fops = {
 #endif
 	.mmap		= vfio_device_fops_mmap,
 };
+
+/**
+ * External user API, exported by symbols to be linked dynamically.
+ *
+ * The protocol includes:
+ *  1. do normal VFIO init operation:
+ *	- opening a new container;
+ *	- attaching group(s) to it;
+ *	- setting an IOMMU driver for a container.
+ * When IOMMU is set for a container, all groups in it are
+ * considered ready to use by an external user.
+ *
+ * 2. User space passes a group fd to an external user.
+ * The external user calls vfio_group_get_external_user()
+ * to verify that:
+ *	- the group is initialized;
+ *	- IOMMU is set for it.
+ * If both checks passed, vfio_group_get_external_user()
+ * increments the container user counter to prevent
+ * the VFIO group from disposal before KVM exits.
+ *
+ * 3. The external user calls vfio_external_user_iommu_id()
+ * to know an IOMMU ID.
+ *
+ * 4. When the external KVM finishes, it calls
+ * vfio_group_put_external_user() to release the VFIO group.
+ * This call decrements the container user counter.
+ */
+struct vfio_group *vfio_group_get_external_user(struct file *filep)
+{
+	struct vfio_group *group = filep->private_data;
+
+	if (filep->f_op != &vfio_group_fops)
+		return ERR_PTR(-EINVAL);
+
+	if (!atomic_inc_not_zero(&group->container_users))
+		return ERR_PTR(-EINVAL);
+
+	if (!group->container->iommu_driver ||
+			!vfio_group_viable(group)) {
+		atomic_dec(&group->container_users);
+		return ERR_PTR(-EINVAL);
+	}
+
+	vfio_group_get(group);
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(vfio_group_get_external_user);
+
+void vfio_group_put_external_user(struct vfio_group *group)
+{
+	vfio_group_put(group);
+	vfio_group_try_dissolve_container(group);
+}
+EXPORT_SYMBOL_GPL(vfio_group_put_external_user);
+
+int vfio_external_user_iommu_id(struct vfio_group *group)
+{
+	return iommu_group_id(group->iommu_group);
+}
+EXPORT_SYMBOL_GPL(vfio_external_user_iommu_id);
 
 /**
  * Module/class support

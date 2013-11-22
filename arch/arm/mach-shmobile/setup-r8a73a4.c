@@ -18,11 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/irq.h>
-#include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a73a4.h>
@@ -169,7 +169,26 @@ static const struct resource thermal0_resources[] = {
 					thermal0_resources,		\
 					ARRAY_SIZE(thermal0_resources))
 
-void __init r8a73a4_add_standard_devices(void)
+static struct sh_timer_config cmt10_platform_data = {
+	.name = "CMT10",
+	.timer_bit = 0,
+	.clockevent_rating = 80,
+};
+
+static struct resource cmt10_resources[] = {
+	DEFINE_RES_MEM(0xe6130010, 0x0c),
+	DEFINE_RES_MEM(0xe6130000, 0x04),
+	DEFINE_RES_IRQ(gic_spi(120)), /* CMT1_0 */
+};
+
+#define r8a7790_register_cmt(idx)					\
+	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+					  idx, cmt##idx##_resources,	\
+					  ARRAY_SIZE(cmt##idx##_resources), \
+					  &cmt##idx##_platform_data,	\
+					  sizeof(struct sh_timer_config))
+
+void __init r8a73a4_add_dt_devices(void)
 {
 	r8a73a4_register_scif(SCIFA0);
 	r8a73a4_register_scif(SCIFA1);
@@ -177,16 +196,25 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a73a4_register_scif(SCIFB1);
 	r8a73a4_register_scif(SCIFB2);
 	r8a73a4_register_scif(SCIFB3);
+	r8a7790_register_cmt(10);
+}
+
+void __init r8a73a4_add_standard_devices(void)
+{
+	r8a73a4_add_dt_devices();
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();
 }
 
-#ifdef CONFIG_USE_OF
-void __init r8a73a4_add_standard_devices_dt(void)
+void __init r8a73a4_init_delay(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+#ifndef CONFIG_ARM_ARCH_TIMER
+	shmobile_setup_delay(1500, 2, 4); /* Cortex-A15 @ 1500MHz */
+#endif
 }
+
+#ifdef CONFIG_USE_OF
 
 static const char *r8a73a4_boards_compat_dt[] __initdata = {
 	"renesas,r8a73a4",
@@ -194,9 +222,7 @@ static const char *r8a73a4_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A73A4_DT, "Generic R8A73A4 (Flattened Device Tree)")
-	.init_irq	= irqchip_init,
-	.init_machine	= r8a73a4_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
+	.init_early	= r8a73a4_init_delay,
 	.dt_compat	= r8a73a4_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

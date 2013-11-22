@@ -17,13 +17,13 @@
  */
 
 #include "xfs.h"
+#include "xfs_log_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_acl.h"
-#include "xfs_vnodeops.h"
 
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>

@@ -823,7 +823,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* set up nand options */
 	chip->bbt_options = NAND_BBT_USE_FLASH;
-
+	chip->options = NAND_NO_SUBPAGE_WRITE;
 
 	if (ioread32be(&ifc->cspr_cs[priv->bank].cspr) & CSPR_PORT_SIZE_16) {
 		chip->read_byte = fsl_ifc_read_byte16;
@@ -908,7 +908,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
 	dev_set_drvdata(priv->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }

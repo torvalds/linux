@@ -773,8 +773,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 				else
 					set_lcd_level(newb);
 			}
-			acpi_bus_generate_proc_event(fujitsu->dev,
-				ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS, 0);
 			keycode = KEY_BRIGHTNESSUP;
 		} else if (oldb > newb) {
 			if (disable_brightness_adjust != 1) {
@@ -783,8 +781,6 @@ static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 				else
 					set_lcd_level(newb);
 			}
-			acpi_bus_generate_proc_event(fujitsu->dev,
-				ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS, 0);
 			keycode = KEY_BRIGHTNESSDOWN;
 		}
 		break;

@@ -192,10 +192,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCPOLEN_TIMESTAMP      10
 #define TCPOLEN_MD5SIG         18
 #define TCPOLEN_EXP_FASTOPEN_BASE  4
-#define TCPOLEN_COOKIE_BASE    2	/* Cookie-less header extension */
-#define TCPOLEN_COOKIE_PAIR    3	/* Cookie pair header extension */
-#define TCPOLEN_COOKIE_MIN     (TCPOLEN_COOKIE_BASE+TCP_COOKIE_MIN)
-#define TCPOLEN_COOKIE_MAX     (TCPOLEN_COOKIE_BASE+TCP_COOKIE_MAX)
 
 /* But this is what stacks really send out. */
 #define TCPOLEN_TSTAMP_ALIGNED		12
@@ -284,6 +280,8 @@ extern int sysctl_tcp_thin_dupack;
 extern int sysctl_tcp_early_retrans;
 extern int sysctl_tcp_limit_output_bytes;
 extern int sysctl_tcp_challenge_ack_limit;
+extern unsigned int sysctl_tcp_notsent_lowat;
+extern int sysctl_tcp_min_tso_segs;
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -373,8 +371,8 @@ extern void tcp_delack_timer_handler(struct sock *sk);
 extern int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				 const struct tcphdr *th, unsigned int len);
-extern int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			       const struct tcphdr *th, unsigned int len);
+extern void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
+				const struct tcphdr *th, unsigned int len);
 extern void tcp_rcv_space_adjust(struct sock *sk);
 extern void tcp_cleanup_rbuf(struct sock *sk, int copied);
 extern int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp);
@@ -479,9 +477,13 @@ void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
+extern int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
+			     u32 cookie);
 extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb, 
 				    struct ip_options *opt);
 #ifdef CONFIG_SYN_COOKIES
+extern u32 __cookie_v4_init_sequence(const struct iphdr *iph,
+				     const struct tcphdr *th, u16 *mssp);
 extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, 
 				     __u16 *mss);
 #else
@@ -498,8 +500,12 @@ extern bool cookie_check_timestamp(struct tcp_options_received *opt,
 				struct net *net, bool *ecn_ok);
 
 /* From net/ipv6/syncookies.c */
+extern int __cookie_v6_check(const struct ipv6hdr *iph, const struct tcphdr *th,
+			     u32 cookie);
 extern struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb);
 #ifdef CONFIG_SYN_COOKIES
+extern u32 __cookie_v6_init_sequence(const struct ipv6hdr *iph,
+				     const struct tcphdr *th, u16 *mssp);
 extern __u32 cookie_v6_init_sequence(struct sock *sk, const struct sk_buff *skb,
 				     __u16 *mss);
 #else
@@ -591,7 +597,6 @@ extern void tcp_initialize_rcv_mss(struct sock *sk);
 extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 extern int tcp_mss_to_mtu(struct sock *sk, int mss);
 extern void tcp_mtup_init(struct sock *sk);
-extern void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt);
 extern void tcp_init_buffer_space(struct sock *sk);
 
 static inline void tcp_bound_rto(const struct sock *sk)
@@ -1094,15 +1099,6 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->loc_port = tcp_hdr(skb)->dest;
 }
 
-/* Compute time elapsed between SYNACK and the ACK completing 3WHS */
-static inline void tcp_synack_rtt_meas(struct sock *sk,
-				       struct request_sock *req)
-{
-	if (tcp_rsk(req)->snt_synack)
-		tcp_valid_rtt_meas(sk,
-		    tcp_time_stamp - tcp_rsk(req)->snt_synack);
-}
-
 extern void tcp_enter_memory_pressure(struct sock *sk);
 
 static inline int keepalive_intvl_when(const struct tcp_sock *tp)
@@ -1313,7 +1309,8 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc);
+extern void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
+				    struct tcp_fastopen_cookie *foc);
 
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
@@ -1548,6 +1545,19 @@ extern int tcp_gro_complete(struct sk_buff *skb);
 
 extern void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr,
 				__be32 daddr);
+
+static inline u32 tcp_notsent_lowat(const struct tcp_sock *tp)
+{
+	return tp->notsent_lowat ?: sysctl_tcp_notsent_lowat;
+}
+
+static inline bool tcp_stream_memory_free(const struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 notsent_bytes = tp->write_seq - tp->snd_nxt;
+
+	return notsent_bytes < tcp_notsent_lowat(tp);
+}
 
 #ifdef CONFIG_PROC_FS
 extern int tcp4_proc_init(void);

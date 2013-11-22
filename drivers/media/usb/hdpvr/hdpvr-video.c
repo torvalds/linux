@@ -24,6 +24,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include "hdpvr.h"
@@ -641,7 +642,7 @@ static int vidioc_s_dv_timings(struct file *file, void *_fh,
 	if (dev->status != STATUS_IDLE)
 		return -EBUSY;
 	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++)
-		if (v4l_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
+		if (v4l2_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
 			break;
 	if (i == ARRAY_SIZE(hdpvr_dv_timings))
 		return -EINVAL;
@@ -689,10 +690,8 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 		unsigned vsize;
 		unsigned fps;
 
-		hsize = bt->hfrontporch + bt->hsync + bt->hbackporch + bt->width;
-		vsize = bt->vfrontporch + bt->vsync + bt->vbackporch +
-			bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch +
-			bt->height;
+		hsize = V4L2_DV_BT_FRAME_WIDTH(bt);
+		vsize = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		fps = (unsigned)bt->pixelclock / (hsize * vsize);
 		if (bt->width != vid_info.width ||
 		    bt->height != vid_info.height ||

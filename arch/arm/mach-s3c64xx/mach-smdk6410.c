@@ -274,6 +274,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&s3c_device_ohci,
+	&samsung_device_pwm,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iisv4,
 	&samsung_device_keypad,
@@ -691,9 +692,9 @@ static void __init smdk6410_machine_init(void)
 
 	s3c_ide_set_platdata(&smdk6410_ide_pdata);
 
-	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
-
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
+
+	samsung_bl_set(&smdk6410_bl_gpio_info, &smdk6410_bl_data);
 }
 
 MACHINE_START(SMDK6410, "SMDK6410")

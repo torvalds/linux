@@ -66,8 +66,8 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dst->output = dssdev;
-	dssdev->device = dst;
+	dst->src = dssdev;
+	dssdev->dst = dst;
 
 	INIT_COMPLETION(ddata->hpd_completion);
 
@@ -95,15 +95,15 @@ static void tpd_disconnect(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	WARN_ON(dst != dssdev->device);
+	WARN_ON(dst != dssdev->dst);
 
-	if (dst != dssdev->device)
+	if (dst != dssdev->dst)
 		return;
 
 	gpio_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
 
-	dst->output = NULL;
-	dssdev->device = NULL;
+	dst->src = NULL;
+	dssdev->dst = NULL;
 
 	in->ops.hdmi->disconnect(in, &ddata->dssdev);
 }
@@ -372,7 +372,7 @@ static int __exit tpd_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		tpd_disconnect(dssdev, dssdev->device);
+		tpd_disconnect(dssdev, dssdev->dst);
 
 	omap_dss_put_device(in);
 

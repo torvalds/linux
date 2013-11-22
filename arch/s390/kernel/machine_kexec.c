@@ -50,7 +50,7 @@ static void add_elf_notes(int cpu)
 /*
  * Initialize CPU ELF notes
  */
-void setup_regs(void)
+static void setup_regs(void)
 {
 	unsigned long sa = S390_lowcore.prefixreg_save_area + SAVE_AREA_BASE;
 	int cpu, this_cpu;

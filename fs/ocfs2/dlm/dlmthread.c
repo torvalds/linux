@@ -286,8 +286,6 @@ static void dlm_shuffle_lists(struct dlm_ctxt *dlm,
 			      struct dlm_lock_resource *res)
 {
 	struct dlm_lock *lock, *target;
-	struct list_head *iter;
-	struct list_head *head;
 	int can_grant = 1;
 
 	/*
@@ -314,9 +312,7 @@ converting:
 		     dlm->name, res->lockname.len, res->lockname.name);
 		BUG();
 	}
-	head = &res->granted;
-	list_for_each(iter, head) {
-		lock = list_entry(iter, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->granted, list) {
 		if (lock==target)
 			continue;
 		if (!dlm_lock_compatible(lock->ml.type,
@@ -333,9 +329,8 @@ converting:
 					target->ml.convert_type;
 		}
 	}
-	head = &res->converting;
-	list_for_each(iter, head) {
-		lock = list_entry(iter, struct dlm_lock, list);
+
+	list_for_each_entry(lock, &res->converting, list) {
 		if (lock==target)
 			continue;
 		if (!dlm_lock_compatible(lock->ml.type,
@@ -384,9 +379,7 @@ blocked:
 		goto leave;
 	target = list_entry(res->blocked.next, struct dlm_lock, list);
 
-	head = &res->granted;
-	list_for_each(iter, head) {
-		lock = list_entry(iter, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->granted, list) {
 		if (lock==target)
 			continue;
 		if (!dlm_lock_compatible(lock->ml.type, target->ml.type)) {
@@ -400,9 +393,7 @@ blocked:
 		}
 	}
 
-	head = &res->converting;
-	list_for_each(iter, head) {
-		lock = list_entry(iter, struct dlm_lock, list);
+	list_for_each_entry(lock, &res->converting, list) {
 		if (lock==target)
 			continue;
 		if (!dlm_lock_compatible(lock->ml.type, target->ml.type)) {

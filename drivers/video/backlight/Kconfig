@@ -425,6 +425,25 @@ config BACKLIGHT_AS3711
 	  If you have an Austrian Microsystems AS3711 say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_GPIO
+	tristate "Generic GPIO based Backlight Driver"
+	depends on GPIOLIB
+	help
+	  If you have a LCD backlight adjustable by GPIO, say Y to enable
+	  this driver.
+
+config BACKLIGHT_LV5207LP
+	tristate "Sanyo LV5207LP Backlight"
+	depends on I2C
+	help
+	  If you have a Sanyo LV5207LP say Y to enable the backlight driver.
+
+config BACKLIGHT_BD6107
+	tristate "Rohm BD6107 Backlight"
+	depends on I2C
+	help
+	  If you have a Rohm BD6107 say Y to enable the backlight driver.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT

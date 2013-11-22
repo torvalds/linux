@@ -251,7 +251,7 @@ static bool is_bwd_noraid(struct pci_dev *pdev)
 }
 
 static void pq16_set_src(struct ioat_raw_descriptor *desc[3],
-			dma_addr_t addr, u32 offset, u8 coef, int idx)
+			dma_addr_t addr, u32 offset, u8 coef, unsigned idx)
 {
 	struct ioat_pq_descriptor *pq = (struct ioat_pq_descriptor *)desc[0];
 	struct ioat_pq16a_descriptor *pq16 =
@@ -1775,15 +1775,12 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
 
-	if (is_xeon_cb32(pdev))
-		dma->copy_align = 6;
-
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
 	device->cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
 
-	if (is_bwd_noraid(pdev))
+	if (is_xeon_cb32(pdev) || is_bwd_noraid(pdev))
 		device->cap &= ~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
 
 	/* dca is incompatible with raid operations */
@@ -1793,7 +1790,6 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	if (device->cap & IOAT_CAP_XOR) {
 		is_raid_device = true;
 		dma->max_xor = 8;
-		dma->xor_align = 6;
 
 		dma_cap_set(DMA_XOR, dma->cap_mask);
 		dma->device_prep_dma_xor = ioat3_prep_xor;
@@ -1812,13 +1808,8 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 		if (device->cap & IOAT_CAP_RAID16SS) {
 			dma_set_maxpq(dma, 16, 0);
-			dma->pq_align = 0;
 		} else {
 			dma_set_maxpq(dma, 8, 0);
-			if (is_xeon_cb32(pdev))
-				dma->pq_align = 6;
-			else
-				dma->pq_align = 0;
 		}
 
 		if (!(device->cap & IOAT_CAP_XOR)) {
@@ -1829,13 +1820,8 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 			if (device->cap & IOAT_CAP_RAID16SS) {
 				dma->max_xor = 16;
-				dma->xor_align = 0;
 			} else {
 				dma->max_xor = 8;
-				if (is_xeon_cb32(pdev))
-					dma->xor_align = 6;
-				else
-					dma->xor_align = 0;
 			}
 		}
 	}
@@ -1843,14 +1829,6 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_tx_status = ioat3_tx_status;
 	device->cleanup_fn = ioat3_cleanup_event;
 	device->timer_fn = ioat3_timer_event;
-
-	if (is_xeon_cb32(pdev)) {
-		dma_cap_clear(DMA_XOR_VAL, dma->cap_mask);
-		dma->device_prep_dma_xor_val = NULL;
-
-		dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
-		dma->device_prep_dma_pq_val = NULL;
-	}
 
 	/* starting with CB3.3 super extended descriptors are supported */
 	if (device->cap & IOAT_CAP_RAID16SS) {

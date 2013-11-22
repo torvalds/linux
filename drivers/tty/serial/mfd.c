@@ -386,7 +386,7 @@ static void serial_hsu_stop_tx(struct uart_port *port)
 
 /* This is always called in spinlock protected mode, so
  * modify timeout timer is safe here */
-void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
+void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts, unsigned long *flags)
 {
 	struct hsu_dma_buffer *dbuf = &up->rxbuf;
 	struct hsu_dma_chan *chan = up->rxc;
@@ -438,7 +438,9 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 					 | (0x1 << 16)
 					 | (0x1 << 24)	/* timeout bit, see HSU Errata 1 */
 					 );
+	spin_unlock_irqrestore(&up->port.lock, *flags);
 	tty_flip_buffer_push(tport);
+	spin_lock_irqsave(&up->port.lock, *flags);
 
 	chan_writel(chan, HSU_CH_CR, 0x3);
 
@@ -459,7 +461,8 @@ static void serial_hsu_stop_rx(struct uart_port *port)
 	}
 }
 
-static inline void receive_chars(struct uart_hsu_port *up, int *status)
+static inline void receive_chars(struct uart_hsu_port *up, int *status,
+		unsigned long *flags)
 {
 	unsigned int ch, flag;
 	unsigned int max_count = 256;
@@ -519,7 +522,10 @@ static inline void receive_chars(struct uart_hsu_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && max_count--);
+
+	spin_unlock_irqrestore(&up->port.lock, *flags);
 	tty_flip_buffer_push(&up->port.state->port);
+	spin_lock_irqsave(&up->port.lock, *flags);
 }
 
 static void transmit_chars(struct uart_hsu_port *up)
@@ -613,7 +619,7 @@ static irqreturn_t port_irq(int irq, void *dev_id)
 
 	lsr = serial_in(up, UART_LSR);
 	if (lsr & UART_LSR_DR)
-		receive_chars(up, &lsr);
+		receive_chars(up, &lsr, &flags);
 	check_modem_status(up);
 
 	/* lsr will be renewed during the receive_chars */
@@ -643,7 +649,7 @@ static inline void dma_chan_irq(struct hsu_dma_chan *chan)
 
 	/* Rx channel */
 	if (chan->dirt == DMA_FROM_DEVICE)
-		hsu_dma_rx(up, int_sts);
+		hsu_dma_rx(up, int_sts, &flags);
 
 	/* Tx channel */
 	if (chan->dirt == DMA_TO_DEVICE) {

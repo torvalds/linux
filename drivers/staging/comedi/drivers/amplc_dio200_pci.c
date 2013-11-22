@@ -220,9 +220,9 @@
  * order they appear in the channel list.
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 
 #include "../comedidev.h"
 
@@ -380,10 +380,9 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 	dev_info(dev->class_dev, "%s: attach pci %s (%s)\n",
 		 dev->driver->driver_name, pci_name(pci_dev), dev->board_name);
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

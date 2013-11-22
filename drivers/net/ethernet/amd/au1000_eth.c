@@ -1131,7 +1131,7 @@ static int au1000_probe(struct platform_device *pdev)
 	writel(0, aup->enable);
 	aup->mac_enabled = 0;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_info(&pdev->dev, "no platform_data passed,"
 					" PHY search on MAC0\n");

@@ -1424,8 +1424,8 @@ static const struct usb_gadget_ops net2280_ops = {
  */
 
 /* "function" sysfs attribute */
-static ssize_t
-show_function (struct device *_dev, struct device_attribute *attr, char *buf)
+static ssize_t function_show(struct device *_dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct net2280	*dev = dev_get_drvdata (_dev);
 
@@ -1435,10 +1435,10 @@ show_function (struct device *_dev, struct device_attribute *attr, char *buf)
 		return 0;
 	return scnprintf (buf, PAGE_SIZE, "%s\n", dev->driver->function);
 }
-static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
+static DEVICE_ATTR_RO(function);
 
-static ssize_t net2280_show_registers(struct device *_dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t registers_show(struct device *_dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct net2280		*dev;
 	char			*next;
@@ -1590,10 +1590,10 @@ static ssize_t net2280_show_registers(struct device *_dev,
 
 	return PAGE_SIZE - size;
 }
-static DEVICE_ATTR(registers, S_IRUGO, net2280_show_registers, NULL);
+static DEVICE_ATTR_RO(registers);
 
-static ssize_t
-show_queues (struct device *_dev, struct device_attribute *attr, char *buf)
+static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct net2280		*dev;
 	char			*next;
@@ -1690,7 +1690,7 @@ done:
 	spin_unlock_irqrestore (&dev->lock, flags);
 	return PAGE_SIZE - size;
 }
-static DEVICE_ATTR (queues, S_IRUGO, show_queues, NULL);
+static DEVICE_ATTR_RO(queues);
 
 
 #else

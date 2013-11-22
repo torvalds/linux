@@ -1356,7 +1356,7 @@ lstcon_rpc_cleanup_wait(void)
 
 	lst_wait_until((atomic_read(&console_session.ses_rpc_counter) == 0),
 		       console_session.ses_rpc_lock,
-		       "Network is not accessable or target is down, "
+		       "Network is not accessible or target is down, "
 		       "waiting for %d console RPCs to being recycled\n",
 		       atomic_read(&console_session.ses_rpc_counter));
 

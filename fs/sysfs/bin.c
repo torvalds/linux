@@ -22,8 +22,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sysfs.h"
 
@@ -391,7 +390,7 @@ out_unlock:
 	return rc;
 }
 
-static int open(struct inode * inode, struct file * file)
+static int open(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
@@ -435,7 +434,7 @@ static int open(struct inode * inode, struct file * file)
 	return error;
 }
 
-static int release(struct inode * inode, struct file * file)
+static int release(struct inode *inode, struct file *file)
 {
 	struct bin_buffer *bb = file->private_data;
 
@@ -481,7 +480,6 @@ void unmap_bin_file(struct sysfs_dirent *attr_sd)
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
  */
-
 int sysfs_create_bin_file(struct kobject *kobj,
 			  const struct bin_attribute *attr)
 {
@@ -489,19 +487,16 @@ int sysfs_create_bin_file(struct kobject *kobj,
 
 	return sysfs_add_file(kobj->sd, &attr->attr, SYSFS_KOBJ_BIN_ATTR);
 }
-
+EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 
 /**
  *	sysfs_remove_bin_file - remove binary file for object.
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
  */
-
 void sysfs_remove_bin_file(struct kobject *kobj,
 			   const struct bin_attribute *attr)
 {
 	sysfs_hash_and_remove(kobj->sd, NULL, attr->attr.name);
 }
-
-EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_bin_file);

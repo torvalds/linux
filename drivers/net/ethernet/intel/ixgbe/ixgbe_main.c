@@ -63,7 +63,7 @@ char ixgbe_default_device_descr[] =
 static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
-#define DRV_VERSION "3.13.10-k"
+#define DRV_VERSION "3.15.1-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2013 Intel Corporation.";
@@ -109,6 +109,7 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T), board_X540 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_QSFP_SF_QP), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T1), board_X540 },
@@ -193,6 +194,86 @@ static s32 ixgbe_get_parent_bus_info(struct ixgbe_adapter *adapter)
 	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
 
 	return 0;
+}
+
+/**
+ * ixgbe_check_from_parent - Determine whether PCIe info should come from parent
+ * @hw: hw specific details
+ *
+ * This function is used by probe to determine whether a device's PCI-Express
+ * bandwidth details should be gathered from the parent bus instead of from the
+ * device. Used to ensure that various locations all have the correct device ID
+ * checks.
+ */
+static inline bool ixgbe_pcie_from_parent(struct ixgbe_hw *hw)
+{
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82599_SFP_SF_QP:
+	case IXGBE_DEV_ID_82599_QSFP_SF_QP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void ixgbe_check_minimum_link(struct ixgbe_adapter *adapter,
+				     int expected_gts)
+{
+	int max_gts = 0;
+	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
+	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
+	struct pci_dev *pdev;
+
+	/* determine whether to use the the parent device
+	 */
+	if (ixgbe_pcie_from_parent(&adapter->hw))
+		pdev = adapter->pdev->bus->parent->self;
+	else
+		pdev = adapter->pdev;
+
+	if (pcie_get_minimum_link(pdev, &speed, &width) ||
+	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN) {
+		e_dev_warn("Unable to determine PCI Express bandwidth.\n");
+		return;
+	}
+
+	switch (speed) {
+	case PCIE_SPEED_2_5GT:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		max_gts = 2 * width;
+		break;
+	case PCIE_SPEED_5_0GT:
+		/* 8b/10b encoding reduces max throughput by 20% */
+		max_gts = 4 * width;
+		break;
+	case PCIE_SPEED_8_0GT:
+		/* 128b/130b encoding only reduces throughput by 1% */
+		max_gts = 8 * width;
+		break;
+	default:
+		e_dev_warn("Unable to determine PCI Express bandwidth.\n");
+		return;
+	}
+
+	e_dev_info("PCI Express bandwidth of %dGT/s available\n",
+		   max_gts);
+	e_dev_info("(Speed:%s, Width: x%d, Encoding Loss:%s)\n",
+		   (speed == PCIE_SPEED_8_0GT ? "8.0GT/s" :
+		    speed == PCIE_SPEED_5_0GT ? "5.0GT/s" :
+		    speed == PCIE_SPEED_2_5GT ? "2.5GT/s" :
+		    "Unknown"),
+		   width,
+		   (speed == PCIE_SPEED_2_5GT ? "20%" :
+		    speed == PCIE_SPEED_5_0GT ? "20%" :
+		    speed == PCIE_SPEED_8_0GT ? "N/a" :
+		    "Unknown"));
+
+	if (max_gts < expected_gts) {
+		e_dev_warn("This is not sufficient for optimal performance of this card.\n");
+		e_dev_warn("For optimal performance, at least %dGT/s of bandwidth is required.\n",
+			expected_gts);
+		e_dev_warn("A slot with more lanes and/or higher speed is suggested.\n");
+	}
 }
 
 static void ixgbe_service_event_schedule(struct ixgbe_adapter *adapter)
@@ -3490,7 +3571,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
-	u32 rxctrl;
+	u32 rxctrl, rfctl;
 
 	/* disable receives while setting up the descriptors */
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
@@ -3498,6 +3579,13 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 	ixgbe_setup_psrtype(adapter);
 	ixgbe_setup_rdrxctl(adapter);
+
+	/* RSC Setup */
+	rfctl = IXGBE_READ_REG(hw, IXGBE_RFCTL);
+	rfctl &= ~IXGBE_RFCTL_RSC_DIS;
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
+		rfctl |= IXGBE_RFCTL_RSC_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_RFCTL, rfctl);
 
 	/* Program registers for the distribution of queues */
 	ixgbe_setup_mrqc(adapter);
@@ -3724,8 +3812,15 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		vmolr |= (IXGBE_VMOLR_ROPE | IXGBE_VMOLR_MPE);
-		/* don't hardware filter vlans in promisc mode */
-		ixgbe_vlan_filter_disable(adapter);
+		/* Only disable hardware filter vlans in promiscuous mode
+		 * if SR-IOV and VMDQ are disabled - otherwise ensure
+		 * that hardware VLAN filters remain enabled.
+		 */
+		if (!(adapter->flags & (IXGBE_FLAG_VMDQ_ENABLED |
+					IXGBE_FLAG_SRIOV_ENABLED)))
+			ixgbe_vlan_filter_disable(adapter);
+		else
+			ixgbe_vlan_filter_enable(adapter);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
@@ -4087,6 +4182,10 @@ static inline bool ixgbe_is_sfp(struct ixgbe_hw *hw)
 	case ixgbe_phy_sfp_passive_unknown:
 	case ixgbe_phy_sfp_active_unknown:
 	case ixgbe_phy_sfp_ftl_active:
+	case ixgbe_phy_qsfp_passive_unknown:
+	case ixgbe_phy_qsfp_active_unknown:
+	case ixgbe_phy_qsfp_intel:
+	case ixgbe_phy_qsfp_unknown:
 		return true;
 	case ixgbe_phy_nl:
 		if (hw->mac.type == ixgbe_mac_82598EB)
@@ -4352,7 +4451,7 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	if (hw->mac.san_mac_rar_index)
 		hw->mac.ops.set_vmdq_san_mac(hw, VMDQ_P(0));
 
-	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
+	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		ixgbe_ptp_reset(adapter);
 }
 
@@ -4714,8 +4813,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	ixgbe_pbthresh_setup(adapter);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
-	hw->fc.disable_fc_autoneg =
-		(ixgbe_device_supports_autoneg_fc(hw) == 0) ? false : true;
+	hw->fc.disable_fc_autoneg = ixgbe_device_supports_autoneg_fc(hw);
 
 #ifdef CONFIG_PCI_IOV
 	/* assign number of SR-IOV VFs */
@@ -5205,6 +5303,9 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		return retval;
 
 #endif
+	if (hw->mac.ops.stop_link_on_d3)
+		hw->mac.ops.stop_link_on_d3(hw);
+
 	if (wufc) {
 		ixgbe_set_rx_mode(netdev);
 
@@ -5681,7 +5782,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 
 	adapter->last_rx_ptp_check = jiffies;
 
-	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
+	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		ixgbe_ptp_start_cyclecounter(adapter);
 
 	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
@@ -5727,7 +5828,7 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 	if (ixgbe_is_sfp(hw) && hw->mac.type == ixgbe_mac_82598EB)
 		adapter->flags2 |= IXGBE_FLAG2_SEARCH_FOR_SFP;
 
-	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
+	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state))
 		ixgbe_ptp_start_cyclecounter(adapter);
 
 	e_info(drv, "NIC Link is Down\n");
@@ -5826,10 +5927,6 @@ static void ixgbe_sfp_detection_subtask(struct ixgbe_adapter *adapter)
 	    !(adapter->flags2 & IXGBE_FLAG2_SFP_NEEDS_RESET))
 		return;
 
-	/* concurent i2c reads are not supported */
-	if (test_bit(__IXGBE_READ_I2C, &adapter->state))
-		return;
-
 	/* someone else is in init, wait until next service event */
 	if (test_and_set_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
 		return;
@@ -5903,8 +6000,16 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 	adapter->flags &= ~IXGBE_FLAG_NEED_LINK_CONFIG;
 
 	speed = hw->phy.autoneg_advertised;
-	if ((!speed) && (hw->mac.ops.get_link_capabilities))
+	if ((!speed) && (hw->mac.ops.get_link_capabilities)) {
 		hw->mac.ops.get_link_capabilities(hw, &speed, &autoneg);
+
+		/* setup the highest link when no autoneg */
+		if (!autoneg) {
+			if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+				speed = IXGBE_LINK_SPEED_10GB_FULL;
+		}
+	}
+
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, speed, true);
 
@@ -6038,7 +6143,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
 
-	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED) {
+	if (test_bit(__IXGBE_PTP_RUNNING, &adapter->state)) {
 		ixgbe_ptp_overflow_check(adapter);
 		ixgbe_ptp_rx_hang(adapter);
 	}
@@ -7247,6 +7352,42 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 };
 
 /**
+ * ixgbe_enumerate_functions - Get the number of ports this device has
+ * @adapter: adapter structure
+ *
+ * This function enumerates the phsyical functions co-located on a single slot,
+ * in order to determine how many ports a device has. This is most useful in
+ * determining the required GT/s of PCIe bandwidth necessary for optimal
+ * performance.
+ **/
+static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct list_head *entry;
+	int physfns = 0;
+
+	/* Some cards can not use the generic count PCIe functions method, and
+	 * so must be hardcoded to the correct value.
+	 */
+	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82599_SFP_SF_QP:
+	case IXGBE_DEV_ID_82599_QSFP_SF_QP:
+		physfns = 4;
+		break;
+	default:
+		list_for_each(entry, &adapter->pdev->bus_list) {
+			struct pci_dev *pdev =
+				list_entry(entry, struct pci_dev, bus_list);
+			/* don't count virtual functions */
+			if (!pdev->is_virtfn)
+				physfns++;
+		}
+	}
+
+	return physfns;
+}
+
+/**
  * ixgbe_wol_supported - Check whether device supports WoL
  * @hw: hw specific details
  * @device_id: the device ID
@@ -7328,7 +7469,7 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ixgbe_hw *hw;
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
-	int i, err, pci_using_dac;
+	int i, err, pci_using_dac, expected_gts;
 	unsigned int indices = MAX_TX_QUEUES;
 	u8 part_str[IXGBE_PBANUM_LENGTH];
 #ifdef IXGBE_FCOE
@@ -7483,10 +7624,8 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    hw->mac.type == ixgbe_mac_82598EB) {
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		e_dev_err("failed to load because an unsupported SFP+ "
-			  "module type was detected.\n");
-		e_dev_err("Reload the driver after installing a supported "
-			  "module.\n");
+		e_dev_err("failed to load because an unsupported SFP+ or QSFP module type was detected.\n");
+		e_dev_err("Reload the driver after installing a supported module.\n");
 		goto err_sw_init;
 	} else if (err) {
 		e_dev_err("HW Init failed: %d\n", err);
@@ -7617,7 +7756,7 @@ skip_sriov:
 
 	/* pick up the PCI bus settings for reporting later */
 	hw->mac.ops.get_bus_info(hw);
-	if (hw->device_id == IXGBE_DEV_ID_82599_SFP_SF_QP)
+	if (ixgbe_pcie_from_parent(hw))
 		ixgbe_get_parent_bus_info(adapter);
 
 	/* print bus type/speed/width info */
@@ -7643,12 +7782,20 @@ skip_sriov:
 		e_dev_info("MAC: %d, PHY: %d, PBA No: %s\n",
 			   hw->mac.type, hw->phy.type, part_str);
 
-	if (hw->bus.width <= ixgbe_bus_width_pcie_x4) {
-		e_dev_warn("PCI-Express bandwidth available for this card is "
-			   "not sufficient for optimal performance.\n");
-		e_dev_warn("For optimal performance a x8 PCI-Express slot "
-			   "is required.\n");
+	/* calculate the expected PCIe bandwidth required for optimal
+	 * performance. Note that some older parts will never have enough
+	 * bandwidth due to being older generation PCIe parts. We clamp these
+	 * parts to ensure no warning is displayed if it can't be fixed.
+	 */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		expected_gts = min(ixgbe_enumerate_functions(adapter) * 10, 16);
+		break;
+	default:
+		expected_gts = ixgbe_enumerate_functions(adapter) * 10;
+		break;
 	}
+	ixgbe_check_minimum_link(adapter, expected_gts);
 
 	/* reset the hardware with the new settings */
 	err = hw->mac.ops.start_hw(hw);

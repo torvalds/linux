@@ -171,8 +171,7 @@ LU_TYPE_INIT_FINI(osc, &osc_key, &osc_session_key);
 static int osc_cl_process_config(const struct lu_env *env,
 				 struct lu_device *d, struct lustre_cfg *cfg)
 {
-	ENTRY;
-	RETURN(osc_process_config_base(d->ld_obd, cfg));
+	return osc_process_config_base(d->ld_obd, cfg);
 }
 
 static const struct lu_device_operations osc_lu_ops = {
@@ -188,7 +187,7 @@ static const struct cl_device_operations osc_cl_ops = {
 static int osc_device_init(const struct lu_env *env, struct lu_device *d,
 			   const char *name, struct lu_device *next)
 {
-	RETURN(0);
+	return 0;
 }
 
 static struct lu_device *osc_device_fini(const struct lu_env *env,
@@ -218,7 +217,7 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 
 	OBD_ALLOC_PTR(od);
 	if (od == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	cl_device_init(&od->od_cl, t);
 	d = osc2lu_dev(od);
@@ -231,10 +230,10 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 	rc = osc_setup(obd, cfg);
 	if (rc) {
 		osc_device_free(env, d);
-		RETURN(ERR_PTR(rc));
+		return ERR_PTR(rc);
 	}
 	od->od_exp = obd->obd_self_export;
-	RETURN(d);
+	return d;
 }
 
 static const struct lu_device_type_operations osc_device_type_ops = {

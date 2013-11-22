@@ -99,7 +99,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, siginfo_t *from)
 			break;
 		}
 	}
-	return err;
+	return err ? -EFAULT : 0;
 }
 
 int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
@@ -148,7 +148,7 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 			break;
 		}
 	}
-	return err;
+	return err ? -EFAULT : 0;
 }
 
 static int save_sigregs32(struct pt_regs *regs, _sigregs32 __user *sregs)
@@ -332,9 +332,9 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		regs->gprs[14] = (__u64) ka->sa.sa_restorer | PSW32_ADDR_AMODE;
+		regs->gprs[14] = (__u64 __force) ka->sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
-		regs->gprs[14] = (__u64) frame->retcode | PSW32_ADDR_AMODE;
+		regs->gprs[14] = (__u64 __force) frame->retcode | PSW32_ADDR_AMODE;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn,
 			       (u16 __force __user *)(frame->retcode)))
 			goto give_sigsegv;
@@ -400,9 +400,9 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		regs->gprs[14] = (__u64) ka->sa.sa_restorer | PSW32_ADDR_AMODE;
+		regs->gprs[14] = (__u64 __force) ka->sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
-		regs->gprs[14] = (__u64) frame->retcode | PSW32_ADDR_AMODE;
+		regs->gprs[14] = (__u64 __force) frame->retcode | PSW32_ADDR_AMODE;
 		err |= __put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn,
 				  (u16 __force __user *)(frame->retcode));
 	}
@@ -417,7 +417,7 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->psw.mask = PSW_MASK_BA |
 		(psw_user_bits & PSW_MASK_ASC) |
 		(regs->psw.mask & ~PSW_MASK_ASC);
-	regs->psw.addr = (__u64) ka->sa.sa_handler;
+	regs->psw.addr = (__u64 __force) ka->sa.sa_handler;
 
 	regs->gprs[2] = map_signal(sig);
 	regs->gprs[3] = (__force __u64) &frame->info;

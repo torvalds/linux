@@ -56,6 +56,14 @@ static int trinity_notify_message_to_smu(struct radeon_device *rdev, u32 id)
 	return 0;
 }
 
+int trinity_dpm_bapm_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		return trinity_notify_message_to_smu(rdev, PPSMC_MSG_EnableBAPM);
+	else
+		return trinity_notify_message_to_smu(rdev, PPSMC_MSG_DisableBAPM);
+}
+
 int trinity_dpm_config(struct radeon_device *rdev, bool enable)
 {
 	if (enable)

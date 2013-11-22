@@ -73,6 +73,23 @@ static void nlm_fixup_mem(void)
 	}
 }
 
+static void __init xlp_init_mem_from_bars(void)
+{
+	uint64_t map[16];
+	int i, n;
+
+	n = xlp_get_dram_map(-1, map);	/* -1: info for all nodes */
+	for (i = 0; i < n; i += 2) {
+		/* exclude 0x1000_0000-0x2000_0000, u-boot device */
+		if (map[i] <= 0x10000000 && map[i+1] > 0x10000000)
+			map[i+1] = 0x10000000;
+		if (map[i] > 0x10000000 && map[i] < 0x20000000)
+			map[i] = 0x20000000;
+
+		add_memory_region(map[i], map[i+1] - map[i], BOOT_MEM_RAM);
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 	panic_timeout	= 5;
@@ -82,12 +99,23 @@ void __init plat_mem_setup(void)
 
 	/* memory and bootargs from DT */
 	early_init_devtree(initial_boot_params);
+
+	if (boot_mem_map.nr_map == 0) {
+		pr_info("Using DRAM BARs for memory map.\n");
+		xlp_init_mem_from_bars();
+	}
+	/* Calculate and setup wired entries for mapped kernel */
 	nlm_fixup_mem();
 }
 
 const char *get_system_type(void)
 {
-	return "Netlogic XLP Series";
+	switch (read_c0_prid() & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLP2XX:
+		return "Broadcom XLPII Series";
+	default:
+		return "Netlogic XLP Series";
+	}
 }
 
 void __init prom_free_prom_memory(void)
@@ -97,12 +125,20 @@ void __init prom_free_prom_memory(void)
 
 void xlp_mmu_init(void)
 {
-	/* enable extended TLB and Large Fixed TLB */
-	write_c0_config6(read_c0_config6() | 0x24);
+	u32 conf4;
 
-	/* set page mask of Fixed TLB in config7 */
-	write_c0_config7(PM_DEFAULT_MASK >>
-		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
+	if (cpu_is_xlpii()) {
+		/* XLPII series has extended pagesize in config 4 */
+		conf4 = read_c0_config4() & ~0x1f00u;
+		write_c0_config4(conf4 | ((PAGE_SHIFT - 10) / 2 << 8));
+	} else {
+		/* enable extended TLB and Large Fixed TLB */
+		write_c0_config6(read_c0_config6() | 0x24);
+
+		/* set page mask of extended Fixed TLB in config7 */
+		write_c0_config7(PM_DEFAULT_MASK >>
+			(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
+	}
 }
 
 void nlm_percpu_init(int hwcpuid)

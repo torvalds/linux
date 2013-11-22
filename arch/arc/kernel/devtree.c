@@ -18,12 +18,6 @@
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 
-/* called from unflatten_device_tree() to bootstrap devicetree itself */
-void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return __va(memblock_alloc(size, align));
-}
-
 /**
  * setup_machine_fdt - Machine setup when an dtb was passed to the kernel
  * @dt:		virtual address pointer to dt blob

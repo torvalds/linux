@@ -225,6 +225,9 @@ struct mxs_lradc {
 #define	LRADC_CTRL4_LRADCSELECT_MASK(n)		(0xf << ((n) * 4))
 #define	LRADC_CTRL4_LRADCSELECT_OFFSET(n)	((n) * 4)
 
+#define LRADC_RESOLUTION			12
+#define LRADC_SINGLE_SAMPLE_MASK		((1 << LRADC_RESOLUTION) - 1)
+
 /*
  * Raw I/O operations
  */
@@ -540,9 +543,10 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(BTN_TOUCH, input->keybit);
-	input_set_abs_params(input, ABS_X, 0, LRADC_CH_VALUE_MASK, 0, 0);
-	input_set_abs_params(input, ABS_Y, 0, LRADC_CH_VALUE_MASK, 0, 0);
-	input_set_abs_params(input, ABS_PRESSURE, 0, LRADC_CH_VALUE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_X, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_Y, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, LRADC_SINGLE_SAMPLE_MASK,
+			     0, 0);
 
 	lradc->ts_input = input;
 	input_set_drvdata(input, lradc);
@@ -817,7 +821,7 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
 	.channel = (idx),					\
 	.scan_type = {						\
 		.sign = 'u',					\
-		.realbits = 18,					\
+		.realbits = LRADC_RESOLUTION,			\
 		.storagebits = 32,				\
 	},							\
 }
@@ -841,14 +845,16 @@ static const struct iio_chan_spec mxs_lradc_chan_spec[] = {
 	MXS_ADC_CHAN(15, IIO_VOLTAGE),	/* VDD5V */
 };
 
-static void mxs_lradc_hw_init(struct mxs_lradc *lradc)
+static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 {
 	/* The ADC always uses DELAY CHANNEL 0. */
 	const uint32_t adc_cfg =
 		(1 << (LRADC_DELAY_TRIGGER_DELAYS_OFFSET + 0)) |
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
 
-	stmp_reset_block(lradc->base);
+	int ret = stmp_reset_block(lradc->base);
+	if (ret)
+		return ret;
 
 	/* Configure DELAY CHANNEL 0 for generic ADC sampling. */
 	writel(adc_cfg, lradc->base + LRADC_DELAY(0));
@@ -869,6 +875,8 @@ static void mxs_lradc_hw_init(struct mxs_lradc *lradc)
 
 	/* Start internal temperature sensing. */
 	writel(0, lradc->base + LRADC_CTRL2);
+
+	return 0;
 }
 
 static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
@@ -905,7 +913,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	int i;
 
 	/* Allocate the IIO device. */
-	iio = iio_device_alloc(sizeof(*lradc));
+	iio = devm_iio_device_alloc(dev, sizeof(*lradc));
 	if (!iio) {
 		dev_err(dev, "Failed to allocate IIO device\n");
 		return -ENOMEM;
@@ -917,10 +925,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lradc->dev = &pdev->dev;
 	lradc->base = devm_ioremap_resource(dev, iores);
-	if (IS_ERR(lradc->base)) {
-		ret = PTR_ERR(lradc->base);
-		goto err_addr;
-	}
+	if (IS_ERR(lradc->base))
+		return PTR_ERR(lradc->base);
 
 	INIT_WORK(&lradc->ts_work, mxs_lradc_ts_work);
 
@@ -940,16 +946,14 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
-		if (lradc->irq[i] < 0) {
-			ret = -EINVAL;
-			goto err_addr;
-		}
+		if (lradc->irq[i] < 0)
+			return -EINVAL;
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
 					of_cfg->irq_name[i], iio);
 		if (ret)
-			goto err_addr;
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, iio);
@@ -969,14 +973,16 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 				&mxs_lradc_trigger_handler,
 				&mxs_lradc_buffer_ops);
 	if (ret)
-		goto err_addr;
+		return ret;
 
 	ret = mxs_lradc_trigger_init(iio);
 	if (ret)
 		goto err_trig;
 
 	/* Configure the hardware. */
-	mxs_lradc_hw_init(lradc);
+	ret = mxs_lradc_hw_init(lradc);
+	if (ret)
+		goto err_dev;
 
 	/* Register the touchscreen input device. */
 	ret = mxs_lradc_ts_register(lradc);
@@ -998,8 +1004,6 @@ err_dev:
 	mxs_lradc_trigger_remove(iio);
 err_trig:
 	iio_triggered_buffer_cleanup(iio);
-err_addr:
-	iio_device_free(iio);
 	return ret;
 }
 
@@ -1015,7 +1019,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	iio_device_unregister(iio);
 	iio_triggered_buffer_cleanup(iio);
 	mxs_lradc_trigger_remove(iio);
-	iio_device_free(iio);
 
 	return 0;
 }

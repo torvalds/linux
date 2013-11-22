@@ -171,6 +171,8 @@ static void ehci_wait_for_companions(struct pci_dev *pdev, struct usb_hcd *hcd,
  * through the hotplug entry's driver_data.
  *
  * Store this function in the HCD's struct pci_driver as probe().
+ *
+ * Return: 0 if successful.
  */
 int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {

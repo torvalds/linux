@@ -18,6 +18,26 @@ Optional properties:
 
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
 
+Pins on the device (for linking into audio routes):
+
+  * DMIC1
+  * DMIC2
+  * MICBIAS1
+  * IN1P
+  * IN1R
+  * IN2P
+  * IN2R
+  * HPOL
+  * HPOR
+  * LOUTL
+  * LOUTR
+  * MONOP
+  * MONON
+  * SPOLP
+  * SPOLN
+  * SPORP
+  * SPORN
+
 Example:
 
 rt5640 {

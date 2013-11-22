@@ -1,7 +1,7 @@
 Linux* Base Driver for the Intel(R) PRO/100 Family of Adapters
 ==============================================================
 
-November 15, 2005
+March 15, 2011
 
 Contents
 ========
@@ -122,7 +122,7 @@ Additional Configurations
   NOTE: This setting is not saved across reboots.
 
 
-  Ethtool
+  ethtool
   -------
 
   The driver utilizes the ethtool interface for driver configuration and

@@ -32,6 +32,8 @@
 /* Error code if probe fails */
 #define TLB_LKUP_ERR		0x80000000
 
+#define TLB_DUP_ERR	(TLB_LKUP_ERR | 0x00000001)
+
 /* TLB Commands */
 #define TLBWrite    0x1
 #define TLBRead     0x2
@@ -46,21 +48,18 @@
 #ifndef __ASSEMBLY__
 
 typedef struct {
-	unsigned long asid;	/* Pvt Addr-Space ID for mm */
-#ifdef CONFIG_ARC_TLB_DBG
-	struct task_struct *tsk;
-#endif
+	unsigned long asid;	/* 8 bit MMU PID + Generation cycle */
 } mm_context_t;
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
+void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
 #else
 #define tlb_paranoid_check(a, b)
 #endif
 
 void arc_mmu_init(void);
 extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
-void __init read_decode_mmu_bcr(void);
+void read_decode_mmu_bcr(void);
 
 #endif	/* !__ASSEMBLY__ */
 

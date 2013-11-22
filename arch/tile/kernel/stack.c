@@ -23,12 +23,14 @@
 #include <linux/mmzone.h>
 #include <linux/dcache.h>
 #include <linux/fs.h>
+#include <linux/string.h>
 #include <asm/backtrace.h>
 #include <asm/page.h>
 #include <asm/ucontext.h>
 #include <asm/switch_to.h>
 #include <asm/sigframe.h>
 #include <asm/stack.h>
+#include <asm/vdso.h>
 #include <arch/abi.h>
 #include <arch/interrupts.h>
 
@@ -102,9 +104,8 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 	    p->sp >= sp) {
 		if (kbt->verbose)
 			pr_err("  <%s while in kernel mode>\n", fault);
-	} else if (EX1_PL(p->ex1) == USER_PL &&
-	    p->pc < PAGE_OFFSET &&
-	    p->sp < PAGE_OFFSET) {
+	} else if (user_mode(p) &&
+		   p->sp < PAGE_OFFSET && p->sp != 0) {
 		if (kbt->verbose)
 			pr_err("  <%s while in user mode>\n", fault);
 	} else if (kbt->verbose) {
@@ -120,7 +121,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 /* Is the pc pointing to a sigreturn trampoline? */
 static int is_sigreturn(unsigned long pc)
 {
-	return (pc == VDSO_BASE);
+	return current->mm && (pc == VDSO_SYM(&__vdso_rt_sigreturn));
 }
 
 /* Return a pt_regs pointer for a valid signal handler frame */
@@ -129,7 +130,7 @@ static struct pt_regs *valid_sigframe(struct KBacktraceIterator* kbt,
 {
 	BacktraceIterator *b = &kbt->it;
 
-	if (b->pc == VDSO_BASE && b->sp < PAGE_OFFSET &&
+	if (is_sigreturn(b->pc) && b->sp < PAGE_OFFSET &&
 	    b->sp % sizeof(long) == 0) {
 		int retval;
 		pagefault_disable();
@@ -195,21 +196,21 @@ static int KBacktraceIterator_next_item_inclusive(
  */
 static void validate_stack(struct pt_regs *regs)
 {
-	int cpu = smp_processor_id();
+	int cpu = raw_smp_processor_id();
 	unsigned long ksp0 = get_current_ksp0();
-	unsigned long ksp0_base = ksp0 - THREAD_SIZE;
+	unsigned long ksp0_base = ksp0 & -THREAD_SIZE;
 	unsigned long sp = stack_pointer;
 
 	if (EX1_PL(regs->ex1) == KERNEL_PL && regs->sp >= ksp0) {
-		pr_err("WARNING: cpu %d: kernel stack page %#lx underrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack %#lx..%#lx underrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
-		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
+		       cpu, ksp0_base, ksp0, sp, regs->sp, regs->pc, regs->lr);
 	}
 
 	else if (sp < ksp0_base + sizeof(struct thread_info)) {
-		pr_err("WARNING: cpu %d: kernel stack page %#lx overrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack %#lx..%#lx overrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
-		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
+		       cpu, ksp0_base, ksp0, sp, regs->sp, regs->pc, regs->lr);
 	}
 }
 
@@ -332,23 +333,40 @@ static void describe_addr(struct KBacktraceIterator *kbt,
 	}
 
 	if (vma->vm_file) {
-		char *s;
 		p = d_path(&vma->vm_file->f_path, buf, bufsize);
 		if (IS_ERR(p))
 			p = "?";
-		s = strrchr(p, '/');
-		if (s)
-			p = s+1;
+		name = kbasename(p);
 	} else {
-		p = "anon";
+		name = "anon";
 	}
 
 	/* Generate a string description of the vma info. */
-	namelen = strlen(p);
+	namelen = strlen(name);
 	remaining = (bufsize - 1) - namelen;
-	memmove(buf, p, namelen);
+	memmove(buf, name, namelen);
 	snprintf(buf + namelen, remaining, "[%lx+%lx] ",
 		 vma->vm_start, vma->vm_end - vma->vm_start);
+}
+
+/*
+ * Avoid possible crash recursion during backtrace.  If it happens, it
+ * makes it easy to lose the actual root cause of the failure, so we
+ * put a simple guard on all the backtrace loops.
+ */
+static bool start_backtrace(void)
+{
+	if (current->thread.in_backtrace) {
+		pr_err("Backtrace requested while in backtrace!\n");
+		return false;
+	}
+	current->thread.in_backtrace = true;
+	return true;
+}
+
+static void end_backtrace(void)
+{
+	current->thread.in_backtrace = false;
 }
 
 /*
@@ -361,6 +379,8 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 	int i;
 	int have_mmap_sem = 0;
 
+	if (!start_backtrace())
+		return;
 	if (headers) {
 		/*
 		 * Add a blank line since if we are called from panic(),
@@ -371,7 +391,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		pr_err("Starting stack dump of tid %d, pid %d (%s)"
 		       " on cpu %d at cycle %lld\n",
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
-		       smp_processor_id(), get_cycles());
+		       raw_smp_processor_id(), get_cycles());
 	}
 	kbt->verbose = 1;
 	i = 0;
@@ -402,6 +422,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		pr_err("Stack dump complete\n");
 	if (have_mmap_sem)
 		up_read(&kbt->task->mm->mmap_sem);
+	end_backtrace();
 }
 EXPORT_SYMBOL(tile_show_stack);
 
@@ -463,6 +484,8 @@ void save_stack_trace_tsk(struct task_struct *task, struct stack_trace *trace)
 	int skip = trace->skip;
 	int i = 0;
 
+	if (!start_backtrace())
+		goto done;
 	if (task == NULL || task == current)
 		KBacktraceIterator_init_current(&kbt);
 	else
@@ -476,6 +499,8 @@ void save_stack_trace_tsk(struct task_struct *task, struct stack_trace *trace)
 			break;
 		trace->entries[i++] = kbt.it.pc;
 	}
+	end_backtrace();
+done:
 	trace->nr_entries = i;
 }
 EXPORT_SYMBOL(save_stack_trace_tsk);

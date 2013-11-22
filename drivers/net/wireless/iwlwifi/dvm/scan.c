@@ -100,9 +100,6 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 		ieee80211_scan_completed(priv->hw, aborted);
 	}
 
-	if (priv->scan_type == IWL_SCAN_ROC)
-		iwl_scan_roc_expired(priv);
-
 	priv->scan_type = IWL_SCAN_NORMAL;
 	priv->scan_vif = NULL;
 	priv->scan_request = NULL;
@@ -129,9 +126,6 @@ static void iwl_process_scan_complete(struct iwl_priv *priv)
 		IWL_DEBUG_SCAN(priv, "Scan already completed.\n");
 		goto out_settings;
 	}
-
-	if (priv->scan_type == IWL_SCAN_ROC)
-		iwl_scan_roc_expired(priv);
 
 	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
 		int err;
@@ -283,12 +277,6 @@ static int iwl_rx_scan_start_notif(struct iwl_priv *priv,
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
 		       notif->status, notif->beacon_timer);
-
-	if (priv->scan_type == IWL_SCAN_ROC &&
-	    !priv->hw_roc_start_notified) {
-		ieee80211_ready_on_channel(priv->hw);
-		priv->hw_roc_start_notified = true;
-	}
 
 	return 0;
 }
@@ -697,8 +685,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
-	if (priv->scan_type != IWL_SCAN_ROC &&
-	    iwl_is_any_associated(priv)) {
+	if (iwl_is_any_associated(priv)) {
 		u16 interval = 0;
 		u32 extra;
 		u32 suspend_time = 100;
@@ -706,9 +693,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 		switch (priv->scan_type) {
-		case IWL_SCAN_ROC:
-			WARN_ON(1);
-			break;
 		case IWL_SCAN_RADIO_RESET:
 			interval = 0;
 			break;
@@ -728,11 +712,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		scan->suspend_time = cpu_to_le32(scan_suspend_time);
 		IWL_DEBUG_SCAN(priv, "suspend_time 0x%X beacon interval %d\n",
 			       scan_suspend_time, interval);
-	} else if (priv->scan_type == IWL_SCAN_ROC) {
-		scan->suspend_time = 0;
-		scan->max_out_time = 0;
-		scan->quiet_time = 0;
-		scan->quiet_plcp_th = 0;
 	}
 
 	switch (priv->scan_type) {
@@ -773,9 +752,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			is_active = true;
 		} else
 			IWL_DEBUG_SCAN(priv, "Start passive scan.\n");
-		break;
-	case IWL_SCAN_ROC:
-		IWL_DEBUG_SCAN(priv, "Start ROC scan.\n");
 		break;
 	}
 
@@ -898,7 +874,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					scan_cmd_size - sizeof(*scan));
 		break;
 	case IWL_SCAN_RADIO_RESET:
-	case IWL_SCAN_ROC:
 		/* use bcast addr, will not be transmitted but must be valid */
 		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
@@ -925,46 +900,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			iwl_get_channels_for_scan(priv, vif, band,
 				is_active, n_probes,
 				(void *)&scan->data[cmd_len]);
-		break;
-	case IWL_SCAN_ROC: {
-		struct iwl_scan_channel *scan_ch;
-		int n_chan, i;
-		u16 dwell;
-
-		dwell = iwl_limit_dwell(priv, priv->hw_roc_duration);
-		n_chan = DIV_ROUND_UP(priv->hw_roc_duration, dwell);
-
-		scan->channel_count = n_chan;
-
-		scan_ch = (void *)&scan->data[cmd_len];
-
-		for (i = 0; i < n_chan; i++) {
-			scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
-			scan_ch->channel =
-				cpu_to_le16(priv->hw_roc_channel->hw_value);
-
-			if (i == n_chan - 1)
-				dwell = priv->hw_roc_duration - i * dwell;
-
-			scan_ch->active_dwell =
-			scan_ch->passive_dwell = cpu_to_le16(dwell);
-
-			/* Set txpower levels to defaults */
-			scan_ch->dsp_atten = 110;
-
-			/* NOTE: if we were doing 6Mb OFDM for scans we'd use
-			 * power level:
-			 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
-			 */
-			if (priv->hw_roc_channel->band == IEEE80211_BAND_5GHZ)
-				scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
-			else
-				scan_ch->tx_gain = ((1 << 5) | (5 << 3));
-
-			scan_ch++;
-		}
-		}
-
 		break;
 	}
 
@@ -1035,7 +970,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Starting %sscan...\n",
 			scan_type == IWL_SCAN_NORMAL ? "" :
-			scan_type == IWL_SCAN_ROC ? "remain-on-channel " :
 			"internal short ");
 
 	set_bit(STATUS_SCANNING, &priv->status);
@@ -1147,42 +1081,5 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 		mutex_lock(&priv->mutex);
 		iwl_force_scan_end(priv);
 		mutex_unlock(&priv->mutex);
-	}
-}
-
-void iwl_scan_roc_expired(struct iwl_priv *priv)
-{
-	/*
-	 * The status bit should be set here, to prevent a race
-	 * where the atomic_read returns 1, but before the execution continues
-	 * iwl_scan_offchannel_skb_status() checks if the status bit is set
-	 */
-	set_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status);
-
-	if (atomic_read(&priv->num_aux_in_flight) == 0) {
-		ieee80211_remain_on_channel_expired(priv->hw);
-		priv->hw_roc_channel = NULL;
-		schedule_delayed_work(&priv->hw_roc_disable_work,
-				      10 * HZ);
-
-		clear_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status);
-	} else {
-		IWL_DEBUG_SCAN(priv, "ROC done with %d frames in aux\n",
-			       atomic_read(&priv->num_aux_in_flight));
-	}
-}
-
-void iwl_scan_offchannel_skb(struct iwl_priv *priv)
-{
-	WARN_ON(!priv->hw_roc_start_notified);
-	atomic_inc(&priv->num_aux_in_flight);
-}
-
-void iwl_scan_offchannel_skb_status(struct iwl_priv *priv)
-{
-	if (atomic_dec_return(&priv->num_aux_in_flight) == 0 &&
-	    test_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "0 aux frames. Calling ROC expired\n");
-		iwl_scan_roc_expired(priv);
 	}
 }

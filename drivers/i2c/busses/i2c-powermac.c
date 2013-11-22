@@ -398,7 +398,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 
 static int i2c_powermac_probe(struct platform_device *dev)
 {
-	struct pmac_i2c_bus *bus = dev->dev.platform_data;
+	struct pmac_i2c_bus *bus = dev_get_platdata(&dev->dev);
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
 	const char *basename;
@@ -440,22 +440,24 @@ static int i2c_powermac_probe(struct platform_device *dev)
 	adapter->algo = &i2c_powermac_algorithm;
 	i2c_set_adapdata(adapter, bus);
 	adapter->dev.parent = &dev->dev;
-	adapter->dev.of_node = dev->dev.of_node;
+
+	/* Clear of_node to skip automatic registration of i2c child nodes */
+	adapter->dev.of_node = NULL;
 	rc = i2c_add_adapter(adapter);
 	if (rc) {
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
 		       "failed\n", adapter->name);
 		memset(adapter, 0, sizeof(*adapter));
+		return rc;
 	}
 
 	printk(KERN_INFO "PowerMac i2c bus %s registered\n", adapter->name);
 
-	/* Cannot use of_i2c_register_devices() due to Apple device-tree
-	 * funkyness
-	 */
+	/* Use custom child registration due to Apple device-tree funkyness */
+	adapter->dev.of_node = dev->dev.of_node;
 	i2c_powermac_register_devices(adapter, bus);
 
-	return rc;
+	return 0;
 }
 
 static struct platform_driver i2c_powermac_driver = {

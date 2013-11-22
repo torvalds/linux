@@ -1776,7 +1776,7 @@ asmlinkage void plat_irq_dispatch(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-void fixup_irqs(void)
+void octeon_fixup_irqs(void)
 {
 	irq_cpu_offline();
 }

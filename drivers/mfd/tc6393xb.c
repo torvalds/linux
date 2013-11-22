@@ -604,7 +604,7 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 
 static int tc6393xb_probe(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb;
 	struct resource *iomem, *rscr;
 	int ret, temp;
@@ -733,7 +733,7 @@ err_kzalloc:
 
 static int tc6393xb_remove(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
 
@@ -765,7 +765,7 @@ static int tc6393xb_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int i, ret;
 
@@ -788,7 +788,7 @@ static int tc6393xb_suspend(struct platform_device *dev, pm_message_t state)
 
 static int tc6393xb_resume(struct platform_device *dev)
 {
-	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
+	struct tc6393xb_platform_data *tcpd = dev_get_platdata(&dev->dev);
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
 	int i;

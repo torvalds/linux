@@ -226,7 +226,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), hw);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
-		clk_put(hw->spi_clk);
 		goto clk_out;
 	}
 
@@ -239,18 +238,14 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	}
 
 	dev_err(&pdev->dev, "Failed to register master\n");
-	devm_free_irq(&pdev->dev, IRQ_SSEOTI, hw);
 
 clk_out:
-	devm_clk_put(&pdev->dev, hw->spi_clk);
-
 err_out:
 	while (--i >= 0)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -261,15 +256,11 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct spi_clps711x_data *hw = spi_master_get_devdata(master);
 
-	devm_free_irq(&pdev->dev, IRQ_SSEOTI, hw);
-
 	for (i = 0; i < master->num_chipselect; i++)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
-	devm_clk_put(&pdev->dev, hw->spi_clk);
 	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }

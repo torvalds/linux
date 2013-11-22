@@ -112,31 +112,32 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	struct ptlrpc_request *req;
 	int xattr_type, rc;
 	struct obd_capa *oc;
+#ifdef CONFIG_FS_POSIX_ACL
 	posix_acl_xattr_header *new_value = NULL;
 	struct rmtacl_ctl_entry *rce = NULL;
 	ext_acl_xattr_header *acl = NULL;
+#endif
 	const char *pv = value;
-	ENTRY;
 
 	xattr_type = get_xattr_type(name);
 	rc = xattr_type_filter(sbi, xattr_type);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	/* b10667: ignore lustre special xattr for now */
 	if ((xattr_type == XATTR_TRUSTED_T && strcmp(name, "trusted.lov") == 0) ||
 	    (xattr_type == XATTR_LUSTRE_T && strcmp(name, "lustre.lov") == 0))
-		RETURN(0);
+		return 0;
 
 	/* b15587: ignore security.capability xattr for now */
 	if ((xattr_type == XATTR_SECURITY_T &&
 	    strcmp(name, "security.capability") == 0))
-		RETURN(0);
+		return 0;
 
 	/* LU-549:  Disable security.selinux when selinux is disabled */
 	if (xattr_type == XATTR_SECURITY_T && !selinux_is_enabled() &&
 	    strcmp(name, "security.selinux") == 0)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT &&
@@ -146,7 +147,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 		if (rce == NULL ||
 		    (rce->rce_ops != RMT_LSETFACL &&
 		    rce->rce_ops != RMT_RSETFACL))
-			RETURN(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 
 		if (rce->rce_ops == RMT_LSETFACL) {
 			struct eacl_entry *ee;
@@ -160,7 +161,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 						size, ee->ee_acl);
 				if (IS_ERR(acl)) {
 					ee_free(ee);
-					RETURN(PTR_ERR(acl));
+					return PTR_ERR(acl);
 				}
 				size =  CFS_ACL_XATTR_SIZE(\
 						le32_to_cpu(acl->a_count), \
@@ -173,11 +174,11 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 						(posix_acl_xattr_header *)value,
 						size, &new_value);
 			if (unlikely(size < 0))
-				RETURN(size);
+				return size;
 
 			pv = (const char *)new_value;
 		} else
-			RETURN(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 
 		valid |= rce_ops2valid(rce->rce_ops);
 	}
@@ -199,11 +200,11 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 				      "it is not supported on the server\n");
 			sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 		}
-		RETURN(rc);
+		return rc;
 	}
 
 	ptlrpc_req_finished(req);
-	RETURN(0);
+	return 0;
 }
 
 int ll_setxattr(struct dentry *dentry, const char *name,
@@ -285,7 +286,6 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	void *xdata;
 	struct obd_capa *oc;
 	struct rmtacl_ctl_entry *rce = NULL;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n",
 	       inode->i_ino, inode->i_generation, inode);
@@ -302,17 +302,17 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	xattr_type = get_xattr_type(name);
 	rc = xattr_type_filter(sbi, xattr_type);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	/* b15587: ignore security.capability xattr for now */
 	if ((xattr_type == XATTR_SECURITY_T &&
 	    strcmp(name, "security.capability") == 0))
-		RETURN(-ENODATA);
+		return -ENODATA;
 
 	/* LU-549:  Disable security.selinux when selinux is disabled */
 	if (xattr_type == XATTR_SECURITY_T && !selinux_is_enabled() &&
 	    strcmp(name, "security.selinux") == 0)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT &&
@@ -324,7 +324,7 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 		    rce->rce_ops != RMT_LGETFACL &&
 		    rce->rce_ops != RMT_RSETFACL &&
 		    rce->rce_ops != RMT_RGETFACL))
-			RETURN(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 	}
 
 	/* posix acl is under protection of LOOKUP lock. when calling to this,
@@ -341,14 +341,14 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 		spin_unlock(&lli->lli_lock);
 
 		if (!acl)
-			RETURN(-ENODATA);
+			return -ENODATA;
 
 		rc = posix_acl_to_xattr(&init_user_ns, acl, buffer, size);
 		posix_acl_release(acl);
-		RETURN(rc);
+		return rc;
 	}
 	if (xattr_type == XATTR_ACL_DEFAULT_T && !S_ISDIR(inode->i_mode))
-		RETURN(-ENODATA);
+		return -ENODATA;
 #endif
 
 do_getxattr:
@@ -363,7 +363,7 @@ do_getxattr:
 				      "it is not supported on the server\n");
 			sbi->ll_flags &= ~LL_SBI_USER_XATTR;
 		}
-		RETURN(rc);
+		return rc;
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
@@ -413,7 +413,6 @@ do_getxattr:
 		memcpy(buffer, xdata, body->eadatasize);
 		rc = body->eadatasize;
 	}
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -562,7 +561,12 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		const size_t name_len   = sizeof("lov") - 1;
 		const size_t total_len  = prefix_len + name_len + 1;
 
-		if (buffer && (rc + total_len) <= size) {
+		if (((rc + total_len) > size) && (buffer != NULL)) {
+			ptlrpc_req_finished(request);
+			return -ERANGE;
+		}
+
+		if (buffer != NULL) {
 			buffer += rc;
 			memcpy(buffer, XATTR_LUSTRE_PREFIX, prefix_len);
 			memcpy(buffer + prefix_len, "lov", name_len);

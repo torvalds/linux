@@ -145,7 +145,7 @@ static int ads7828_remove(struct i2c_client *client)
 static int ads7828_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct ads7828_platform_data *pdata = client->dev.platform_data;
+	struct ads7828_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct ads7828_data *data;
 	int err;
 

@@ -152,6 +152,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	}
 
 out:
+	ocfs2_free_path(path);
 	return ret;
 }
 
@@ -845,7 +846,7 @@ static int __ocfs2_move_extents_range(struct buffer_head *di_bh,
 	struct ocfs2_move_extents *range = context->range;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	if ((inode->i_size == 0) || (range->me_len == 0))
+	if ((i_size_read(inode) == 0) || (range->me_len == 0))
 		return 0;
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)

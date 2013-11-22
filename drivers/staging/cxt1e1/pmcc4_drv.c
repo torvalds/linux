@@ -39,13 +39,6 @@
 #include "comet.h"
 #include "sbe_bid.h"
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
-
 #define KERN_WARN KERN_WARNING
 
 /* forward references */
@@ -458,7 +451,7 @@ checkPorts (ci_t *ci)
 }
 
 
-STATIC void
+static void
 c4_watchdog (ci_t *ci)
 {
     if (drvr_state != SBE_DRVR_AVAILABLE)
@@ -1184,7 +1177,7 @@ c4_get_chan_stats (int channum, struct sbecom_chan_stats *p)
     return 0;
 }
 
-STATIC int
+static int
 c4_fifo_alloc (mpi_t *pi, int chan, int *len)
 {
     int         i, l = 0, start = 0, max = 0, maxstart = 0;

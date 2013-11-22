@@ -216,7 +216,7 @@ static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
 	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	oc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc" );
+		: "+Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc");
 }
 
 static inline void 
@@ -244,7 +244,7 @@ __clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	nc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr) : "Q" (_ni_bitmap[nr & 7]) : "cc" );
+		: "+Q" (*(char *) addr) : "Q" (_ni_bitmap[nr & 7]) : "cc");
 }
 
 static inline void 
@@ -271,7 +271,7 @@ static inline void __change_bit(unsigned long nr, volatile unsigned long *ptr)
 	addr = (unsigned long) ptr + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 	asm volatile(
 		"	xc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc" );
+		: "+Q" (*(char *) addr) : "Q" (_oi_bitmap[nr & 7]) : "cc");
 }
 
 static inline void 
@@ -301,7 +301,7 @@ test_and_set_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	oc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
+		: "+Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
 		: "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }
@@ -320,7 +320,7 @@ test_and_clear_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	nc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr)	: "Q" (_ni_bitmap[nr & 7])
+		: "+Q" (*(char *) addr)	: "Q" (_ni_bitmap[nr & 7])
 		: "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }
@@ -339,7 +339,7 @@ test_and_change_bit_simple(unsigned long nr, volatile unsigned long *ptr)
 	ch = *(unsigned char *) addr;
 	asm volatile(
 		"	xc	%O0(1,%R0),%1"
-		: "=Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
+		: "+Q" (*(char *) addr)	: "Q" (_oi_bitmap[nr & 7])
 		: "cc", "memory");
 	return (ch >> (nr & 7)) & 1;
 }

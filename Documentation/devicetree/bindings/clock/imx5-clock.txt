@@ -197,6 +197,7 @@ clocks and IDs.
 	spdif0_gate		183
 	spdif1_gate		184
 	spdif_ipg_gate		185
+	ocram			186
 
 Examples (for mx53):
 

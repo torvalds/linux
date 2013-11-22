@@ -33,11 +33,12 @@ struct  intel_hw_status_page {
 #define I915_READ_IMR(ring) I915_READ(RING_IMR((ring)->mmio_base))
 #define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 
-#define I915_READ_NOPID(ring) I915_READ(RING_NOPID((ring)->mmio_base))
-#define I915_READ_SYNC_0(ring) I915_READ(RING_SYNC_0((ring)->mmio_base))
-#define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
-
-enum intel_ring_hangcheck_action { wait, active, kick, hung };
+enum intel_ring_hangcheck_action {
+	HANGCHECK_WAIT,
+	HANGCHECK_ACTIVE,
+	HANGCHECK_KICK,
+	HANGCHECK_HUNG,
+};
 
 struct intel_ring_hangcheck {
 	bool deadlock;
@@ -78,10 +79,7 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	struct {
-		u32	gt; /*  protected by dev_priv->irq_lock */
-		u32	pm; /*  protected by dev_priv->rps.lock (sucks) */
-	} irq_refcount;
+	unsigned irq_refcount; /* protected by dev_priv->irq_lock */
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
@@ -157,7 +155,11 @@ struct  intel_ring_buffer {
 
 	struct intel_ring_hangcheck hangcheck;
 
-	void *private;
+	struct {
+		struct drm_i915_gem_object *obj;
+		u32 gtt_offset;
+		volatile u32 *cpu_page;
+	} scratch;
 };
 
 static inline bool

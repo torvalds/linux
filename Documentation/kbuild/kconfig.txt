@@ -175,11 +175,9 @@ Searching in menuconfig:
 		/^hotplug
 
 	When searching, symbols are sorted thus:
-	  - exact match first: an exact match is when the search matches
-	    the complete symbol name;
-	  - alphabetical order: when two symbols do not match exactly,
-	    they are sorted in alphabetical order (in the user's current
-	    locale).
+	  - first, exact matches, sorted alphabetically (an exact match
+	    is when the search matches the complete symbol name);
+	  - then, other matches, sorted alphabetically.
 	For example: ^ATH.K matches:
 	    ATH5K ATH9K ATH5K_AHB ATH5K_DEBUG [...] ATH6KL ATH6KL_DEBUG
 	    [...] ATH9K_AHB ATH9K_BTCOEX_SUPPORT ATH9K_COMMON [...]

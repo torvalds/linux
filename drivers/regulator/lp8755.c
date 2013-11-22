@@ -228,6 +228,7 @@ err_i2c:
 }
 
 static struct regulator_ops lp8755_buck_ops = {
+	.map_voltage = regulator_map_voltage_linear,
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
@@ -449,7 +450,7 @@ static int lp8755_probe(struct i2c_client *client,
 {
 	int ret, icnt;
 	struct lp8755_chip *pchip;
-	struct lp8755_platform_data *pdata = client->dev.platform_data;
+	struct lp8755_platform_data *pdata = dev_get_platdata(&client->dev);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");

@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6282.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6282.dtsi"
 
 / {
 	model = "Univeral Scientific Industrial Co. Topkick-1281P2";
@@ -201,5 +201,21 @@
 			regulator-boot-on;
 			gpio = <&gpio1 4 0>;
 		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
 	};
 };

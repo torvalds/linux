@@ -725,15 +725,15 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 
 	/*
 	 * check for the special corner case 'get_device_id' in the printer
-	 * class specification, where wIndex is (interface << 8 | altsetting)
-	 * instead of just interface
+	 * class specification, which we always want to allow as it is used
+	 * to query things like ink level, etc.
 	 */
 	if (requesttype == 0xa1 && request == 0) {
 		alt_setting = usb_find_alt_setting(ps->dev->actconfig,
 						   index >> 8, index & 0xff);
 		if (alt_setting
 		 && alt_setting->desc.bInterfaceClass == USB_CLASS_PRINTER)
-			index >>= 8;
+			return 0;
 	}
 
 	index &= 0xff;
@@ -742,6 +742,22 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype,
 		if ((index & ~USB_DIR_IN) == 0)
 			return 0;
 		ret = findintfep(ps->dev, index);
+		if (ret < 0) {
+			/*
+			 * Some not fully compliant Win apps seem to get
+			 * index wrong and have the endpoint number here
+			 * rather than the endpoint address (with the
+			 * correct direction). Win does let this through,
+			 * so we'll not reject it here but leave it to
+			 * the device to not break KVM. But we warn.
+			 */
+			ret = findintfep(ps->dev, index ^ 0x80);
+			if (ret >= 0)
+				dev_info(&ps->dev->dev,
+					"%s: process %i (%s) requesting ep %02x but needs %02x\n",
+					__func__, task_pid_nr(current),
+					current->comm, index, index ^ 0x80);
+		}
 		if (ret >= 0)
 			ret = checkintf(ps, ret);
 		break;

@@ -600,7 +600,7 @@ out:
 	return ret;
 }
 
-int ioc4_ide_attach_one(struct ioc4_driver_data *idd)
+static int ioc4_ide_attach_one(struct ioc4_driver_data *idd)
 {
 	/*
 	 * PCI-RT does not bring out IDE connection.

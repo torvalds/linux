@@ -141,8 +141,8 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (args[0] == ATA_CMD_SMART) {
 		tf->nsect = args[3];
 		tf->lbal  = args[1];
-		tf->lbam  = 0x4f;
-		tf->lbah  = 0xc2;
+		tf->lbam  = ATA_SMART_LBAM_PASS;
+		tf->lbah  = ATA_SMART_LBAH_PASS;
 		cmd.valid.out.tf = IDE_VALID_OUT_TF;
 		cmd.valid.in.tf  = IDE_VALID_NSECT;
 	} else {

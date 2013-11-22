@@ -28,6 +28,7 @@
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <linux/scatterlist.h>
+#include <uapi/linux/cifs/cifs_mount.h>
 #ifdef CONFIG_CIFS_SMB2
 #include "smb2pdu.h"
 #endif
@@ -41,12 +42,7 @@
 #define MAX_SES_INFO 2
 #define MAX_TCON_INFO 4
 
-#define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1)
-#define MAX_SERVER_SIZE 15
-#define MAX_SHARE_SIZE 80
-#define CIFS_MAX_DOMAINNAME_LEN 256 /* max domain name length */
-#define MAX_USERNAME_SIZE 256	/* reasonable maximum for current servers */
-#define MAX_PASSWORD_SIZE 512	/* max for windows seems to be 256 wide chars */
+#define MAX_TREE_SIZE (2 + CIFS_NI_MAXHOST + 1 + CIFS_MAX_SHARE_LEN + 1)
 
 #define CIFS_MIN_RCV_POOL 4
 
@@ -135,6 +131,7 @@ struct cifs_secmech {
 
 /* per smb session structure/fields */
 struct ntlmssp_auth {
+	bool sesskey_per_smbsess; /* whether session key is per smb session */
 	__u32 client_flags; /* sent by client in type 1 ntlmsssp exchange */
 	__u32 server_flags; /* sent by server in type 2 ntlmssp exchange */
 	unsigned char ciphertext[CIFS_CPHTXT_SIZE]; /* sent to server */
@@ -308,6 +305,9 @@ struct smb_version_operations {
 	int (*create_hardlink)(const unsigned int, struct cifs_tcon *,
 			       const char *, const char *,
 			       struct cifs_sb_info *);
+	/* query symlink target */
+	int (*query_symlink)(const unsigned int, struct cifs_tcon *,
+			     const char *, char **, struct cifs_sb_info *);
 	/* open a file for non-posix mounts */
 	int (*open)(const unsigned int, struct cifs_open_parms *,
 		    __u32 *, FILE_ALL_INFO *);
@@ -361,18 +361,24 @@ struct smb_version_operations {
 	/* push brlocks from the cache to the server */
 	int (*push_mand_locks)(struct cifsFileInfo *);
 	/* get lease key of the inode */
-	void (*get_lease_key)(struct inode *, struct cifs_fid *fid);
+	void (*get_lease_key)(struct inode *, struct cifs_fid *);
 	/* set lease key of the inode */
-	void (*set_lease_key)(struct inode *, struct cifs_fid *fid);
+	void (*set_lease_key)(struct inode *, struct cifs_fid *);
 	/* generate new lease key */
-	void (*new_lease_key)(struct cifs_fid *fid);
-	/* The next two functions will need to be changed to per smb session */
-	void (*generate_signingkey)(struct TCP_Server_Info *server);
-	int (*calc_signature)(struct smb_rqst *rqst,
-				   struct TCP_Server_Info *server);
-	int (*query_mf_symlink)(const unsigned char *path, char *pbuf,
-			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
-			unsigned int xid);
+	void (*new_lease_key)(struct cifs_fid *);
+	int (*generate_signingkey)(struct cifs_ses *);
+	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *);
+	int (*query_mf_symlink)(const unsigned char *, char *, unsigned int *,
+				struct cifs_sb_info *, unsigned int);
+	/* if we can do cache read operations */
+	bool (*is_read_op)(__u32);
+	/* set oplock level for the inode */
+	void (*set_oplock_level)(struct cifsInodeInfo *, __u32, unsigned int,
+				 bool *);
+	/* create lease context buffer for CREATE request */
+	char * (*create_lease_buf)(u8 *, u8);
+	/* parse lease context buffer and return oplock/epoch info */
+	__u8 (*parse_lease_buf)(void *, unsigned int *);
 };
 
 struct smb_version_values {
@@ -390,9 +396,9 @@ struct smb_version_values {
 	unsigned int	cap_unix;
 	unsigned int	cap_nt_find;
 	unsigned int	cap_large_files;
-	unsigned int	oplock_read;
 	__u16		signing_enabled;
 	__u16		signing_required;
+	size_t		create_lease_size;
 };
 
 #define HEADER_SIZE(server) (server->vals->header_size)
@@ -541,14 +547,10 @@ struct TCP_Server_Info {
 	unsigned int max_rw;	/* maxRw specifies the maximum */
 	/* message size the server can send or receive for */
 	/* SMB_COM_WRITE_RAW or SMB_COM_READ_RAW. */
-	unsigned int max_vcs;	/* maximum number of smb sessions, at least
-				   those that can be specified uniquely with
-				   vcnumbers */
 	unsigned int capabilities; /* selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u64 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
-	char smb3signingkey[SMB3_SIGN_KEY_SIZE]; /* for signing smb3 packets */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* for signing, protected by srv_mutex */
@@ -710,7 +712,6 @@ struct cifs_ses {
 	enum statusEnum status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
-	__u16 vcnum;
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
@@ -731,6 +732,7 @@ struct cifs_ses {
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 #ifdef CONFIG_CIFS_SMB2
 	__u16 session_flags;
+	char smb3signingkey[SMB3_SIGN_KEY_SIZE]; /* for signing smb3 packets */
 #endif /* CONFIG_CIFS_SMB2 */
 };
 
@@ -935,6 +937,8 @@ struct cifs_fid {
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
 #endif
 	struct cifs_pending_open *pending_open;
+	unsigned int epoch;
+	bool purge_cache;
 };
 
 struct cifs_fid_locks {
@@ -1032,6 +1036,17 @@ cifsFileInfo_get_locked(struct cifsFileInfo *cifs_file)
 struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 
+#define CIFS_CACHE_READ_FLG	1
+#define CIFS_CACHE_HANDLE_FLG	2
+#define CIFS_CACHE_RH_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_HANDLE_FLG)
+#define CIFS_CACHE_WRITE_FLG	4
+#define CIFS_CACHE_RW_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG)
+#define CIFS_CACHE_RHW_FLG	(CIFS_CACHE_RW_FLG | CIFS_CACHE_HANDLE_FLG)
+
+#define CIFS_CACHE_READ(cinode) (cinode->oplock & CIFS_CACHE_READ_FLG)
+#define CIFS_CACHE_HANDLE(cinode) (cinode->oplock & CIFS_CACHE_HANDLE_FLG)
+#define CIFS_CACHE_WRITE(cinode) (cinode->oplock & CIFS_CACHE_WRITE_FLG)
+
 /*
  * One of these for each file inode
  */
@@ -1043,8 +1058,8 @@ struct cifsInodeInfo {
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
-	bool clientCanCacheRead;	/* read oplock */
-	bool clientCanCacheAll;		/* read and writebehind oplock */
+	unsigned int oplock;		/* oplock/lease level we have */
+	unsigned int epoch;		/* used to track lease state changes */
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
 	unsigned long time;		/* jiffies of last update of inode */
@@ -1253,6 +1268,7 @@ struct dfs_info3_param {
 #define CIFS_FATTR_DELETE_PENDING	0x2
 #define CIFS_FATTR_NEED_REVAL		0x4
 #define CIFS_FATTR_INO_COLLISION	0x8
+#define CIFS_FATTR_UNKNOWN_NLINK	0x10
 
 struct cifs_fattr {
 	u32		cf_flags;
@@ -1502,7 +1518,7 @@ extern mempool_t *cifs_mid_poolp;
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
 #define SMB20_VERSION_STRING	"2.0"
-/*extern struct smb_version_operations smb20_operations; */ /* not needed yet */
+extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
 #define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;

@@ -207,7 +207,6 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	port->port.drain_delay = 256;
 	return 0;
 }
 
@@ -321,6 +320,8 @@ static int f81232_port_probe(struct usb_serial_port *port)
 	spin_lock_init(&priv->lock);
 
 	usb_set_serial_port_data(port, priv);
+
+	port->port.drain_delay = 256;
 
 	return 0;
 }

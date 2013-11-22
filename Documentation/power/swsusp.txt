@@ -50,6 +50,19 @@ echo N > /sys/power/image_size
 
 before suspend (it is limited to 500 MB by default).
 
+. The resume process checks for the presence of the resume device,
+if found, it then checks the contents for the hibernation image signature.
+If both are found, it resumes the hibernation image.
+
+. The resume process may be triggered in two ways:
+  1) During lateinit:  If resume=/dev/your_swap_partition is specified on
+     the kernel command line, lateinit runs the resume process.  If the
+     resume device has not been probed yet, the resume process fails and
+     bootup continues.
+  2) Manually from an initrd or initramfs:  May be run from
+     the init script by using the /sys/power/resume file.  It is vital
+     that this be done prior to remounting any filesystems (even as
+     read-only) otherwise data may be corrupted.
 
 Article about goals and implementation of Software Suspend for Linux
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -326,7 +339,7 @@ Q: How can distributions ship a swsusp-supporting kernel with modular
 disk drivers (especially SATA)?
 
 A: Well, it can be done, load the drivers, then do echo into
-/sys/power/disk/resume file from initrd. Be sure not to mount
+/sys/power/resume file from initrd. Be sure not to mount
 anything, not even read-only mount, or you are going to lose your
 data.
 

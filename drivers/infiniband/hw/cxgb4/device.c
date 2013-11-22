@@ -103,18 +103,43 @@ static int dump_qp(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	if (qp->ep)
-		cc = snprintf(qpd->buf + qpd->pos, space,
-			     "qp sq id %u rq id %u state %u onchip %u "
-			     "ep tid %u state %u %pI4:%u->%pI4:%u\n",
-			     qp->wq.sq.qid, qp->wq.rq.qid, (int)qp->attr.state,
-			     qp->wq.sq.flags & T4_SQ_ONCHIP,
-			     qp->ep->hwtid, (int)qp->ep->com.state,
-			     &qp->ep->com.local_addr.sin_addr.s_addr,
-			     ntohs(qp->ep->com.local_addr.sin_port),
-			     &qp->ep->com.remote_addr.sin_addr.s_addr,
-			     ntohs(qp->ep->com.remote_addr.sin_port));
-	else
+	if (qp->ep) {
+		if (qp->ep->com.local_addr.ss_family == AF_INET) {
+			struct sockaddr_in *lsin = (struct sockaddr_in *)
+				&qp->ep->com.local_addr;
+			struct sockaddr_in *rsin = (struct sockaddr_in *)
+				&qp->ep->com.remote_addr;
+
+			cc = snprintf(qpd->buf + qpd->pos, space,
+				      "rc qp sq id %u rq id %u state %u "
+				      "onchip %u ep tid %u state %u "
+				      "%pI4:%u->%pI4:%u\n",
+				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      (int)qp->attr.state,
+				      qp->wq.sq.flags & T4_SQ_ONCHIP,
+				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      &lsin->sin_addr, ntohs(lsin->sin_port),
+				      &rsin->sin_addr, ntohs(rsin->sin_port));
+		} else {
+			struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+				&qp->ep->com.local_addr;
+			struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
+				&qp->ep->com.remote_addr;
+
+			cc = snprintf(qpd->buf + qpd->pos, space,
+				      "rc qp sq id %u rq id %u state %u "
+				      "onchip %u ep tid %u state %u "
+				      "%pI6:%u->%pI6:%u\n",
+				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      (int)qp->attr.state,
+				      qp->wq.sq.flags & T4_SQ_ONCHIP,
+				      qp->ep->hwtid, (int)qp->ep->com.state,
+				      &lsin6->sin6_addr,
+				      ntohs(lsin6->sin6_port),
+				      &rsin6->sin6_addr,
+				      ntohs(rsin6->sin6_port));
+		}
+	} else
 		cc = snprintf(qpd->buf + qpd->pos, space,
 			     "qp sq id %u rq id %u state %u onchip %u\n",
 			      qp->wq.sq.qid, qp->wq.rq.qid,
@@ -351,15 +376,37 @@ static int dump_ep(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	cc = snprintf(epd->buf + epd->pos, space,
-			"ep %p cm_id %p qp %p state %d flags 0x%lx history 0x%lx "
-			"hwtid %d atid %d %pI4:%d <-> %pI4:%d\n",
-			ep, ep->com.cm_id, ep->com.qp, (int)ep->com.state,
-			ep->com.flags, ep->com.history, ep->hwtid, ep->atid,
-			&ep->com.local_addr.sin_addr.s_addr,
-			ntohs(ep->com.local_addr.sin_port),
-			&ep->com.remote_addr.sin_addr.s_addr,
-			ntohs(ep->com.remote_addr.sin_port));
+	if (ep->com.local_addr.ss_family == AF_INET) {
+		struct sockaddr_in *lsin = (struct sockaddr_in *)
+			&ep->com.local_addr;
+		struct sockaddr_in *rsin = (struct sockaddr_in *)
+			&ep->com.remote_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
+			      "history 0x%lx hwtid %d atid %d "
+			      "%pI4:%d <-> %pI4:%d\n",
+			      ep, ep->com.cm_id, ep->com.qp,
+			      (int)ep->com.state, ep->com.flags,
+			      ep->com.history, ep->hwtid, ep->atid,
+			      &lsin->sin_addr, ntohs(lsin->sin_port),
+			      &rsin->sin_addr, ntohs(rsin->sin_port));
+	} else {
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+			&ep->com.local_addr;
+		struct sockaddr_in6 *rsin6 = (struct sockaddr_in6 *)
+			&ep->com.remote_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p qp %p state %d flags 0x%lx "
+			      "history 0x%lx hwtid %d atid %d "
+			      "%pI6:%d <-> %pI6:%d\n",
+			      ep, ep->com.cm_id, ep->com.qp,
+			      (int)ep->com.state, ep->com.flags,
+			      ep->com.history, ep->hwtid, ep->atid,
+			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port),
+			      &rsin6->sin6_addr, ntohs(rsin6->sin6_port));
+	}
 	if (cc < space)
 		epd->pos += cc;
 	return 0;
@@ -376,12 +423,27 @@ static int dump_listen_ep(int id, void *p, void *data)
 	if (space == 0)
 		return 1;
 
-	cc = snprintf(epd->buf + epd->pos, space,
-			"ep %p cm_id %p state %d flags 0x%lx stid %d backlog %d "
-			"%pI4:%d\n", ep, ep->com.cm_id, (int)ep->com.state,
-			ep->com.flags, ep->stid, ep->backlog,
-			&ep->com.local_addr.sin_addr.s_addr,
-			ntohs(ep->com.local_addr.sin_port));
+	if (ep->com.local_addr.ss_family == AF_INET) {
+		struct sockaddr_in *lsin = (struct sockaddr_in *)
+			&ep->com.local_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
+			      "backlog %d %pI4:%d\n",
+			      ep, ep->com.cm_id, (int)ep->com.state,
+			      ep->com.flags, ep->stid, ep->backlog,
+			      &lsin->sin_addr, ntohs(lsin->sin_port));
+	} else {
+		struct sockaddr_in6 *lsin6 = (struct sockaddr_in6 *)
+			&ep->com.local_addr;
+
+		cc = snprintf(epd->buf + epd->pos, space,
+			      "ep %p cm_id %p state %d flags 0x%lx stid %d "
+			      "backlog %d %pI6:%d\n",
+			      ep, ep->com.cm_id, (int)ep->com.state,
+			      ep->com.flags, ep->stid, ep->backlog,
+			      &lsin6->sin6_addr, ntohs(lsin6->sin6_port));
+	}
 	if (cc < space)
 		epd->pos += cc;
 	return 0;

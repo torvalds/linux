@@ -42,7 +42,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
 	struct thread_info *t = task_thread_info(p);
 	extern unsigned int switch_to_pc;
-	extern unsigned int ret_from_syscall;
+	extern unsigned int ret_from_fork;
 	struct reg_window *win;
 	unsigned long pc, cwp;
 	int i;
@@ -66,7 +66,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 		gdb_regs[i] = 0;
 
 	if (t->new_child)
-		pc = (unsigned long) &ret_from_syscall;
+		pc = (unsigned long) &ret_from_fork;
 	else
 		pc = (unsigned long) &switch_to_pc;
 

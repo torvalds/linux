@@ -76,29 +76,6 @@ static const struct ieee80211_iface_limit iwlagn_2sta_limits[] = {
 	},
 };
 
-static const struct ieee80211_iface_limit iwlagn_p2p_sta_go_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_GO) |
-			 BIT(NL80211_IFTYPE_AP),
-	},
-};
-
-static const struct ieee80211_iface_limit iwlagn_p2p_2sta_limits[] = {
-	{
-		.max = 2,
-		.types = BIT(NL80211_IFTYPE_STATION),
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT),
-	},
-};
-
 static const struct ieee80211_iface_combination
 iwlagn_iface_combinations_dualmode[] = {
 	{ .num_different_channels = 1,
@@ -111,21 +88,6 @@ iwlagn_iface_combinations_dualmode[] = {
 	  .max_interfaces = 2,
 	  .limits = iwlagn_2sta_limits,
 	  .n_limits = ARRAY_SIZE(iwlagn_2sta_limits),
-	},
-};
-
-static const struct ieee80211_iface_combination
-iwlagn_iface_combinations_p2p[] = {
-	{ .num_different_channels = 1,
-	  .max_interfaces = 2,
-	  .beacon_int_infra_match = true,
-	  .limits = iwlagn_p2p_sta_go_limits,
-	  .n_limits = ARRAY_SIZE(iwlagn_p2p_sta_go_limits),
-	},
-	{ .num_different_channels = 1,
-	  .max_interfaces = 2,
-	  .limits = iwlagn_p2p_2sta_limits,
-	  .n_limits = ARRAY_SIZE(iwlagn_p2p_2sta_limits),
 	},
 };
 
@@ -186,18 +148,12 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
-	if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)) {
-		hw->wiphy->iface_combinations = iwlagn_iface_combinations_p2p;
-		hw->wiphy->n_iface_combinations =
-			ARRAY_SIZE(iwlagn_iface_combinations_p2p);
-	} else if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
+	if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
 		hw->wiphy->iface_combinations =
 			iwlagn_iface_combinations_dualmode;
 		hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
-
-	hw->wiphy->max_remain_on_channel_duration = 500;
 
 	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
@@ -1159,126 +1115,6 @@ done:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     struct ieee80211_channel *channel,
-				     int duration,
-				     enum ieee80211_roc_type type)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
-	int err = 0;
-
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
-		return -EOPNOTSUPP;
-
-	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
-		return -EOPNOTSUPP;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
-
-	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-		/* mac80211 should not scan while ROC or ROC while scanning */
-		if (WARN_ON_ONCE(priv->scan_type != IWL_SCAN_RADIO_RESET)) {
-			err = -EBUSY;
-			goto out;
-		}
-
-		iwl_scan_cancel_timeout(priv, 100);
-
-		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-			err = -EBUSY;
-			goto out;
-		}
-	}
-
-	priv->hw_roc_channel = channel;
-	/* convert from ms to TU */
-	priv->hw_roc_duration = DIV_ROUND_UP(1000 * duration, 1024);
-	priv->hw_roc_start_notified = false;
-	cancel_delayed_work(&priv->hw_roc_disable_work);
-
-	if (!ctx->is_active) {
-		static const struct iwl_qos_info default_qos_data = {
-			.def_qos_parm = {
-				.ac[0] = {
-					.cw_min = cpu_to_le16(3),
-					.cw_max = cpu_to_le16(7),
-					.aifsn = 2,
-					.edca_txop = cpu_to_le16(1504),
-				},
-				.ac[1] = {
-					.cw_min = cpu_to_le16(7),
-					.cw_max = cpu_to_le16(15),
-					.aifsn = 2,
-					.edca_txop = cpu_to_le16(3008),
-				},
-				.ac[2] = {
-					.cw_min = cpu_to_le16(15),
-					.cw_max = cpu_to_le16(1023),
-					.aifsn = 3,
-				},
-				.ac[3] = {
-					.cw_min = cpu_to_le16(15),
-					.cw_max = cpu_to_le16(1023),
-					.aifsn = 7,
-				},
-			},
-		};
-
-		ctx->is_active = true;
-		ctx->qos_data = default_qos_data;
-		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
-		memcpy(ctx->staging.node_addr,
-		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
-		       ETH_ALEN);
-		memcpy(ctx->staging.bssid_addr,
-		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
-		       ETH_ALEN);
-		err = iwlagn_commit_rxon(priv, ctx);
-		if (err)
-			goto out;
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK |
-					     RXON_FILTER_PROMISC_MSK |
-					     RXON_FILTER_CTL2HOST_MSK;
-
-		err = iwlagn_commit_rxon(priv, ctx);
-		if (err) {
-			iwlagn_disable_roc(priv);
-			goto out;
-		}
-		priv->hw_roc_setup = true;
-	}
-
-	err = iwl_scan_initiate(priv, ctx->vif, IWL_SCAN_ROC, channel->band);
-	if (err)
-		iwlagn_disable_roc(priv);
-
- out:
-	mutex_unlock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return err;
-}
-
-static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
-		return -EOPNOTSUPP;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->mutex);
-	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
-	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return 0;
-}
-
 static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     enum ieee80211_rssi_event rssi_event)
@@ -1434,11 +1270,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
 			   viftype, vif->addr);
 
-	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
-
 	mutex_lock(&priv->mutex);
-
-	iwlagn_disable_roc(priv);
 
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_WARN(priv, "Try to add interface when device not ready\n");
@@ -1766,8 +1598,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
-	.remain_on_channel = iwlagn_mac_remain_on_channel,
-	.cancel_remain_on_channel = iwlagn_mac_cancel_remain_on_channel,
 	.rssi_callback = iwlagn_mac_rssi_callback,
 	.set_tim = iwlagn_mac_set_tim,
 };

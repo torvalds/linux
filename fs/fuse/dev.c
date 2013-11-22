@@ -1765,11 +1765,9 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 /* Look up request on processing list by unique ID */
 static struct fuse_req *request_find(struct fuse_conn *fc, u64 unique)
 {
-	struct list_head *entry;
+	struct fuse_req *req;
 
-	list_for_each(entry, &fc->processing) {
-		struct fuse_req *req;
-		req = list_entry(entry, struct fuse_req, list);
+	list_for_each_entry(req, &fc->processing, list) {
 		if (req->in.h.unique == unique || req->intr_unique == unique)
 			return req;
 	}

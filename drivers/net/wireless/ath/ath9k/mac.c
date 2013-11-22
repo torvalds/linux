@@ -583,9 +583,9 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	rs->rs_rate = MS(ads.ds_rxstatus0, AR_RxRate);
 	rs->rs_more = (ads.ds_rxstatus1 & AR_RxMore) ? 1 : 0;
 
+	rs->rs_firstaggr = (ads.ds_rxstatus8 & AR_RxFirstAggr) ? 1 : 0;
 	rs->rs_isaggr = (ads.ds_rxstatus8 & AR_RxAggr) ? 1 : 0;
-	rs->rs_moreaggr =
-		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
+	rs->rs_moreaggr = (ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
 	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
 
 	/* directly mapped flags for ieee80211_rx_status */

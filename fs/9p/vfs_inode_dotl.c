@@ -267,14 +267,8 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT))
+	if (!(flags & O_CREAT) || dentry->d_inode)
 		return	finish_no_open(file, res);
-	else if (dentry->d_inode) {
-		if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
-			return -EEXIST;
-		else
-			return finish_no_open(file, res);
-	}
 
 	v9ses = v9fs_inode2v9ses(dir);
 

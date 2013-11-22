@@ -470,6 +470,8 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_remove_interface(acpi_string interface_name);
 
+acpi_status acpi_ut_update_interfaces(u8 action);
+
 struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
@@ -616,7 +618,7 @@ int acpi_ut_stricmp(char *string1, char *string2);
 
 acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
 
-void acpi_ut_print_string(char *string, u8 max_length);
+void acpi_ut_print_string(char *string, u16 max_length);
 
 void ut_convert_backslashes(char *pathname);
 

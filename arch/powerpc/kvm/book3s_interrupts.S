@@ -92,6 +92,11 @@ kvm_start_lightweight:
 	PPC_LL	r3, VCPU_HFLAGS(r4)
 	rldicl	r3, r3, 0, 63		/* r3 &= 1 */
 	stb	r3, HSTATE_RESTORE_HID5(r13)
+
+	/* Load up guest SPRG3 value, since it's user readable */
+	ld	r3, VCPU_SHARED(r4)
+	ld	r3, VCPU_SHARED_SPRG3(r3)
+	mtspr	SPRN_SPRG3, r3
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 	PPC_LL	r4, VCPU_SHADOW_MSR(r4)	/* get shadow_msr */
@@ -122,6 +127,15 @@ kvmppc_handler_highmem:
 
 	/* R7 = vcpu */
 	PPC_LL	r7, GPR4(r1)
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/*
+	 * Reload kernel SPRG3 value.
+	 * No need to save guest value as usermode can't modify SPRG3.
+	 */
+	ld	r3, PACA_SPRG3(r13)
+	mtspr	SPRN_SPRG3, r3
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 	PPC_STL	r14, VCPU_GPR(R14)(r7)
 	PPC_STL	r15, VCPU_GPR(R15)(r7)

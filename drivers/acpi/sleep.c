@@ -31,12 +31,9 @@ static u8 sleep_states[ACPI_S_STATE_COUNT];
 
 static void acpi_sleep_tts_switch(u32 acpi_state)
 {
-	union acpi_object in_arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &in_arg };
-	acpi_status status = AE_OK;
+	acpi_status status;
 
-	in_arg.integer.value = acpi_state;
-	status = acpi_evaluate_object(NULL, "\\_TTS", &arg_list, NULL);
+	status = acpi_execute_simple_method(NULL, "\\_TTS", acpi_state);
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
 		/*
 		 * OS can't evaluate the _TTS object correctly. Some warning
@@ -141,7 +138,7 @@ static int __init init_nvs_nosave(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
+static struct dmi_system_id acpisleep_dmi_table[] __initdata = {
 	{
 	.callback = init_old_suspend_ordering,
 	.ident = "Abit KN9 (nForce4 variant)",
@@ -423,10 +420,21 @@ static void acpi_pm_finish(void)
 }
 
 /**
- *	acpi_pm_end - Finish up suspend sequence.
+ * acpi_pm_start - Start system PM transition.
+ */
+static void acpi_pm_start(u32 acpi_state)
+{
+	acpi_target_sleep_state = acpi_state;
+	acpi_sleep_tts_switch(acpi_target_sleep_state);
+	acpi_scan_lock_acquire();
+}
+
+/**
+ * acpi_pm_end - Finish up system PM transition.
  */
 static void acpi_pm_end(void)
 {
+	acpi_scan_lock_release();
 	/*
 	 * This is necessary in case acpi_pm_finish() is not called during a
 	 * failing transition to a sleep state.
@@ -454,21 +462,19 @@ static u32 acpi_suspend_states[] = {
 static int acpi_suspend_begin(suspend_state_t pm_state)
 {
 	u32 acpi_state = acpi_suspend_states[pm_state];
-	int error = 0;
+	int error;
 
 	error = (nvs_nosave || nvs_nosave_s3) ? 0 : suspend_nvs_alloc();
 	if (error)
 		return error;
 
-	if (sleep_states[acpi_state]) {
-		acpi_target_sleep_state = acpi_state;
-		acpi_sleep_tts_switch(acpi_target_sleep_state);
-	} else {
-		printk(KERN_ERR "ACPI does not support this state: %d\n",
-			pm_state);
-		error = -ENOSYS;
+	if (!sleep_states[acpi_state]) {
+		pr_err("ACPI does not support sleep state S%u\n", acpi_state);
+		return -ENOSYS;
 	}
-	return error;
+
+	acpi_pm_start(acpi_state);
+	return 0;
 }
 
 /**
@@ -634,10 +640,8 @@ static int acpi_hibernation_begin(void)
 	int error;
 
 	error = nvs_nosave ? 0 : suspend_nvs_alloc();
-	if (!error) {
-		acpi_target_sleep_state = ACPI_STATE_S4;
-		acpi_sleep_tts_switch(acpi_target_sleep_state);
-	}
+	if (!error)
+		acpi_pm_start(ACPI_STATE_S4);
 
 	return error;
 }
@@ -716,8 +720,10 @@ static int acpi_hibernation_begin_old(void)
 	if (!error) {
 		if (!nvs_nosave)
 			error = suspend_nvs_alloc();
-		if (!error)
+		if (!error) {
 			acpi_target_sleep_state = ACPI_STATE_S4;
+			acpi_scan_lock_acquire();
+		}
 	}
 	return error;
 }

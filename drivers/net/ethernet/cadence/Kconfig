@@ -22,7 +22,7 @@ if NET_CADENCE
 
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
-	depends on GENERIC_HARDIRQS && HAS_DMA
+	depends on HAS_DMA
 	select MACB
 	---help---
 	  If you wish to compile a kernel for the AT91RM9200 and enable

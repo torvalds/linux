@@ -343,6 +343,8 @@ static int oti6858_port_probe(struct usb_serial_port *port)
 
 	usb_set_serial_port_data(port, priv);
 
+	port->port.drain_delay = 256;	/* FIXME: check the FIFO length */
+
 	return 0;
 }
 
@@ -410,9 +412,6 @@ static void oti6858_set_termios(struct tty_struct *tty,
 	u8 frame_fmt, control;
 	__le16 divisor;
 	int br;
-
-	if (!tty)
-		return;
 
 	cflag = tty->termios.c_cflag;
 
@@ -509,7 +508,6 @@ static void oti6858_set_termios(struct tty_struct *tty,
 static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
-	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
 	struct oti6858_control_pkt *buf;
 	unsigned long flags;
@@ -560,8 +558,8 @@ static int oti6858_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* setup termios */
 	if (tty)
-		oti6858_set_termios(tty, port, &tmp_termios);
-	port->port.drain_delay = 256;	/* FIXME: check the FIFO length */
+		oti6858_set_termios(tty, port, NULL);
+
 	return 0;
 }
 

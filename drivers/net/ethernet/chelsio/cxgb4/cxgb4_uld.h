@@ -154,6 +154,11 @@ struct in6_addr;
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, __be16 vlan,
 			unsigned int queue);
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue);
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       __be32 sip, __be16 sport, __be16 vlan,
 			       unsigned int queue,

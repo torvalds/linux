@@ -124,24 +124,15 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	ieee80211_rx_ni(mvm->hw, skb);
 }
 
-/*
- * iwl_mvm_calc_rssi - calculate the rssi in dBm
- * @phy_info: the phy information for the coming packet
- */
-static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
-			     struct iwl_rx_phy_info *phy_info)
+static void iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
+			      struct iwl_rx_phy_info *phy_info,
+			      struct ieee80211_rx_status *rx_status)
 {
 	int rssi_a, rssi_b, rssi_a_dbm, rssi_b_dbm, max_rssi_dbm;
 	int rssi_all_band_a, rssi_all_band_b;
 	u32 agc_a, agc_b, max_agc;
 	u32 val;
 
-	/* Find max rssi among 2 possible receivers.
-	 * These values are measured by the Digital Signal Processor (DSP).
-	 * They should stay fairly constant even as the signal strength varies,
-	 * if the radio's Automatic Gain Control (AGC) is working right.
-	 * AGC value (see below) will provide the "interesting" info.
-	 */
 	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_AGC_IDX]);
 	agc_a = (val & IWL_OFDM_AGC_A_MSK) >> IWL_OFDM_AGC_A_POS;
 	agc_b = (val & IWL_OFDM_AGC_B_MSK) >> IWL_OFDM_AGC_B_POS;
@@ -166,7 +157,51 @@ static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 	IWL_DEBUG_STATS(mvm, "Rssi In A %d B %d Max %d AGCA %d AGCB %d\n",
 			rssi_a_dbm, rssi_b_dbm, max_rssi_dbm, agc_a, agc_b);
 
-	return max_rssi_dbm;
+	rx_status->signal = max_rssi_dbm;
+	rx_status->chains = (le16_to_cpu(phy_info->phy_flags) &
+				RX_RES_PHY_FLAGS_ANTENNA)
+					>> RX_RES_PHY_FLAGS_ANTENNA_POS;
+	rx_status->chain_signal[0] = rssi_a_dbm;
+	rx_status->chain_signal[1] = rssi_b_dbm;
+}
+
+/*
+ * iwl_mvm_get_signal_strength - use new rx PHY INFO API
+ * values are reported by the fw as positive values - need to negate
+ * to obtain their dBM.  Account for missing antennas by replacing 0
+ * values by -256dBm: practically 0 power and a non-feasible 8 bit value.
+ */
+static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
+					struct iwl_rx_phy_info *phy_info,
+					struct ieee80211_rx_status *rx_status)
+{
+	int energy_a, energy_b, energy_c, max_energy;
+	u32 val;
+
+	val =
+	    le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_ENERGY_ANT_ABC_IDX]);
+	energy_a = (val & IWL_RX_INFO_ENERGY_ANT_A_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_A_POS;
+	energy_a = energy_a ? -energy_a : -256;
+	energy_b = (val & IWL_RX_INFO_ENERGY_ANT_B_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_B_POS;
+	energy_b = energy_b ? -energy_b : -256;
+	energy_c = (val & IWL_RX_INFO_ENERGY_ANT_C_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_C_POS;
+	energy_c = energy_c ? -energy_c : -256;
+	max_energy = max(energy_a, energy_b);
+	max_energy = max(max_energy, energy_c);
+
+	IWL_DEBUG_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
+			energy_a, energy_b, energy_c, max_energy);
+
+	rx_status->signal = max_energy;
+	rx_status->chains = (le16_to_cpu(phy_info->phy_flags) &
+				RX_RES_PHY_FLAGS_ANTENNA)
+					>> RX_RES_PHY_FLAGS_ANTENNA_POS;
+	rx_status->chain_signal[0] = energy_a;
+	rx_status->chain_signal[1] = energy_b;
+	rx_status->chain_signal[2] = energy_c;
 }
 
 /*
@@ -289,28 +324,13 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	 */
 	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
 
-	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
-	rx_status.signal = iwl_mvm_calc_rssi(mvm, phy_info);
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_RX_ENERGY_API)
+		iwl_mvm_get_signal_strength(mvm, phy_info, &rx_status);
+	else
+		iwl_mvm_calc_rssi(mvm, phy_info, &rx_status);
 
 	IWL_DEBUG_STATS_LIMIT(mvm, "Rssi %d, TSF %llu\n", rx_status.signal,
 			      (unsigned long long)rx_status.mactime);
-
-	/*
-	 * "antenna number"
-	 *
-	 * It seems that the antenna field in the phy flags value
-	 * is actually a bit field. This is undefined by radiotap,
-	 * it wants an actual antenna number but I always get "7"
-	 * for most legacy frames I receive indicating that the
-	 * same frame was received on all three RX chains.
-	 *
-	 * I think this field should be removed in favor of a
-	 * new 802.11n radiotap field "RX chains" that is defined
-	 * as a bitmask.
-	 */
-	rx_status.antenna = (le16_to_cpu(phy_info->phy_flags) &
-				RX_RES_PHY_FLAGS_ANTENNA)
-				>> RX_RES_PHY_FLAGS_ANTENNA_POS;
 
 	/* set the preamble flag if appropriate */
 	if (phy_info->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_SHORT_PREAMBLE))
@@ -364,11 +384,74 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	return 0;
 }
 
+static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
+					 struct iwl_notif_statistics *stats)
+{
+	/*
+	 * NOTE FW aggregates the statistics - BUT the statistics are cleared
+	 * when the driver issues REPLY_STATISTICS_CMD 0x9c with CLEAR_STATS
+	 * bit set.
+	 */
+	lockdep_assert_held(&mvm->mutex);
+	memcpy(&mvm->rx_stats, &stats->rx, sizeof(struct mvm_statistics_rx));
+}
+
+struct iwl_mvm_stat_data {
+	struct iwl_notif_statistics *stats;
+	struct iwl_mvm *mvm;
+};
+
+static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
+				  struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_stat_data *data = _data;
+	struct iwl_notif_statistics *stats = data->stats;
+	struct iwl_mvm *mvm = data->mvm;
+	int sig = -stats->general.beacon_filter_average_energy;
+	int last_event;
+	int thold = vif->bss_conf.cqm_rssi_thold;
+	int hyst = vif->bss_conf.cqm_rssi_hyst;
+	u16 id = le32_to_cpu(stats->rx.general.mac_id);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->id != id)
+		return;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	mvmvif->bf_data.ave_beacon_signal = sig;
+
+	if (!(vif->driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return;
+
+	/* CQM Notification */
+	last_event = mvmvif->bf_data.last_cqm_event;
+	if (thold && sig < thold && (last_event == 0 ||
+				     sig < last_event - hyst)) {
+		mvmvif->bf_data.last_cqm_event = sig;
+		IWL_DEBUG_RX(mvm, "cqm_iterator cqm low %d\n",
+			     sig);
+		ieee80211_cqm_rssi_notify(
+			vif,
+			NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+			GFP_KERNEL);
+	} else if (sig > thold &&
+		   (last_event == 0 || sig > last_event + hyst)) {
+		mvmvif->bf_data.last_cqm_event = sig;
+		IWL_DEBUG_RX(mvm, "cqm_iterator cqm high %d\n",
+			     sig);
+		ieee80211_cqm_rssi_notify(
+			vif,
+			NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+			GFP_KERNEL);
+	}
+}
+
 /*
  * iwl_mvm_rx_statistics - STATISTICS_NOTIFICATION handler
  *
  * TODO: This handler is implemented partially.
- * It only gets the NIC's temperature.
  */
 int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb,
@@ -377,11 +460,20 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_notif_statistics *stats = (void *)&pkt->data;
 	struct mvm_statistics_general_common *common = &stats->general.common;
+	struct iwl_mvm_stat_data data = {
+		.stats = stats,
+		.mvm = mvm,
+	};
 
 	if (mvm->temperature != le32_to_cpu(common->temperature)) {
 		mvm->temperature = le32_to_cpu(common->temperature);
 		iwl_mvm_tt_handler(mvm);
 	}
+	iwl_mvm_update_rx_statistics(mvm, stats);
 
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_stat_iterator,
+					    &data);
 	return 0;
 }

@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/init.h>

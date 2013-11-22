@@ -82,6 +82,10 @@ static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
+static int max_msix_vectors = 8;
+module_param(max_msix_vectors, int, 0);
+MODULE_PARM_DESC(max_msix_vectors,
+	" max msix vectors - (default=8)");
 
 static int mpt3sas_fwfault_debug;
 MODULE_PARM_DESC(mpt3sas_fwfault_debug,
@@ -1709,8 +1713,6 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	int i;
 	u8 try_msix = 0;
 
-	INIT_LIST_HEAD(&ioc->reply_queue_list);
-
 	if (msix_disable == -1 || msix_disable == 0)
 		try_msix = 1;
 
@@ -1722,6 +1724,16 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 
 	ioc->reply_queue_count = min_t(int, ioc->cpu_count,
 	    ioc->msix_vector_count);
+
+	printk(MPT3SAS_FMT "MSI-X vectors supported: %d, no of cores"
+	  ": %d, max_msix_vectors: %d\n", ioc->name, ioc->msix_vector_count,
+	  ioc->cpu_count, max_msix_vectors);
+
+	if (max_msix_vectors > 0) {
+		ioc->reply_queue_count = min_t(int, max_msix_vectors,
+			ioc->reply_queue_count);
+		ioc->msix_vector_count = ioc->reply_queue_count;
+	}
 
 	entries = kcalloc(ioc->reply_queue_count, sizeof(struct msix_entry),
 	    GFP_KERNEL);
@@ -1790,6 +1802,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	if (pci_enable_device_mem(pdev)) {
 		pr_warn(MPT3SAS_FMT "pci_enable_device_mem: failed\n",
 			ioc->name);
+		ioc->bars = 0;
 		return -ENODEV;
 	}
 
@@ -1798,6 +1811,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	    MPT3SAS_DRIVER_NAME)) {
 		pr_warn(MPT3SAS_FMT "pci_request_selected_regions: failed\n",
 			ioc->name);
+		ioc->bars = 0;
 		r = -ENODEV;
 		goto out_fail;
 	}
@@ -4393,18 +4407,25 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
 	dexitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
 	    __func__));
 
-	_base_mask_interrupts(ioc);
-	ioc->shost_recovery = 1;
-	_base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
-	ioc->shost_recovery = 0;
+	if (ioc->chip_phys && ioc->chip) {
+		_base_mask_interrupts(ioc);
+		ioc->shost_recovery = 1;
+		_base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
+		ioc->shost_recovery = 0;
+	}
+
 	_base_free_irq(ioc);
 	_base_disable_msix(ioc);
-	if (ioc->chip_phys)
+
+	if (ioc->chip_phys && ioc->chip)
 		iounmap(ioc->chip);
 	ioc->chip_phys = 0;
-	pci_release_selected_regions(ioc->pdev, ioc->bars);
-	pci_disable_pcie_error_reporting(pdev);
-	pci_disable_device(pdev);
+
+	if (pci_is_enabled(pdev)) {
+		pci_release_selected_regions(ioc->pdev, ioc->bars);
+		pci_disable_pcie_error_reporting(pdev);
+		pci_disable_device(pdev);
+	}
 	return;
 }
 
