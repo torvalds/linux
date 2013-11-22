@@ -276,18 +276,72 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
+static int acpi_scan_device_not_present(struct acpi_device *adev)
+{
+	if (!acpi_device_enumerated(adev)) {
+		dev_warn(&adev->dev, "Still not present\n");
+		return -EALREADY;
+	}
+	acpi_bus_trim(adev);
+	return 0;
+}
+
 static int acpi_scan_device_check(struct acpi_device *adev)
 {
 	int error;
+
+	acpi_bus_get_status(adev);
+	if (adev->status.present || adev->status.functional) {
+		/*
+		 * This function is only called for device objects for which
+		 * matching scan handlers exist.  The only situation in which
+		 * the scan handler is not attached to this device object yet
+		 * is when the device has just appeared (either it wasn't
+		 * present at all before or it was removed and then added
+		 * again).
+		 */
+		if (adev->handler) {
+			dev_warn(&adev->dev, "Already enumerated\n");
+			return -EALREADY;
+		}
+		error = acpi_bus_scan(adev->handle);
+		if (error) {
+			dev_warn(&adev->dev, "Namespace scan failure\n");
+			return error;
+		}
+		if (!adev->handler) {
+			dev_warn(&adev->dev, "Enumeration failure\n");
+			error = -ENODEV;
+		}
+	} else {
+		error = acpi_scan_device_not_present(adev);
+	}
+	return error;
+}
+
+static int acpi_scan_bus_check(struct acpi_device *adev)
+{
+	struct acpi_scan_handler *handler = adev->handler;
+	struct acpi_device *child;
+	int error;
+
+	acpi_bus_get_status(adev);
+	if (!(adev->status.present || adev->status.functional)) {
+		acpi_scan_device_not_present(adev);
+		return 0;
+	}
+	if (handler && handler->hotplug.scan_dependent)
+		return handler->hotplug.scan_dependent(adev);
 
 	error = acpi_bus_scan(adev->handle);
 	if (error) {
 		dev_warn(&adev->dev, "Namespace scan failure\n");
 		return error;
 	}
-	if (!adev->handler) {
-		dev_warn(&adev->dev, "Enumeration failure\n");
-		return -ENODEV;
+	list_for_each_entry(child, &adev->children, node) {
+		error = acpi_scan_bus_check(child);
+		if (error)
+			return error;
 	}
 	return 0;
 }
@@ -296,7 +350,6 @@ static void acpi_device_hotplug(void *data, u32 src)
 {
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	struct acpi_device *adev = data;
-	struct acpi_scan_handler *handler;
 	int error;
 
 	lock_device_hotplug();
@@ -310,32 +363,12 @@ static void acpi_device_hotplug(void *data, u32 src)
 	if (adev->handle == INVALID_ACPI_HANDLE)
 		goto out;
 
-	handler = adev->handler;
-
 	switch (src) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		if (handler) {
-			error = handler->hotplug.scan_dependent ?
-					handler->hotplug.scan_dependent(adev) :
-					acpi_bus_scan(adev->handle);
-		} else {
-			error = acpi_scan_device_check(adev);
-		}
+		error = acpi_scan_bus_check(adev);
 		break;
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		/*
-		 * This code is only run for device objects for which matching
-		 * scan handlers exist.  The only situation in which the scan
-		 * handler is not attached to this device object yet is when the
-		 * device has just appeared (either it wasn't present at all
-		 * before or it was removed and then added again).
-		 */
-		if (adev->handler) {
-			dev_warn(&adev->dev, "Already enumerated\n");
-			error = -EBUSY;
-		} else {
-			error = acpi_scan_device_check(adev);
-		}
+		error = acpi_scan_device_check(adev);
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 	case ACPI_OST_EC_OSPM_EJECT:
