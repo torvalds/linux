@@ -444,7 +444,7 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 	return 0;
 }
 
-static int punch_hole(struct inode *inode, loff_t offset, loff_t len, int mode)
+static int punch_hole(struct inode *inode, loff_t offset, loff_t len)
 {
 	pgoff_t pg_start, pg_end;
 	loff_t off_start, off_end;
@@ -482,12 +482,6 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len, int mode)
 			ret = truncate_hole(inode, pg_start, pg_end);
 			f2fs_unlock_op(sbi);
 		}
-	}
-
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-		i_size_read(inode) <= (offset + len)) {
-		i_size_write(inode, offset);
-		mark_inode_dirty(inode);
 	}
 
 	return ret;
@@ -552,7 +546,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 		return -EOPNOTSUPP;
 
 	if (mode & FALLOC_FL_PUNCH_HOLE)
-		ret = punch_hole(inode, offset, len, mode);
+		ret = punch_hole(inode, offset, len);
 	else
 		ret = expand_inode_data(inode, offset, len, mode);
 
