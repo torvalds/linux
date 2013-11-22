@@ -410,6 +410,7 @@ struct qla_flt_region {
 #define DDB_DS_LOGIN_IN_PROCESS			0x07
 #define MBOX_CMD_GET_FW_STATE			0x0069
 #define MBOX_CMD_GET_INIT_FW_CTRL_BLOCK_DEFAULTS 0x006A
+#define MBOX_CMD_DIAG_TEST			0x0075
 #define MBOX_CMD_GET_SYS_INFO			0x0078
 #define MBOX_CMD_GET_NVRAM			0x0078	/* For 40xx */
 #define MBOX_CMD_SET_NVRAM			0x0079	/* For 40xx */
@@ -425,7 +426,16 @@ struct qla_flt_region {
 #define MBOX_CMD_GET_IP_ADDR_STATE		0x0091
 #define MBOX_CMD_SEND_IPV6_ROUTER_SOL		0x0092
 #define MBOX_CMD_GET_DB_ENTRY_CURRENT_IP_ADDR	0x0093
+#define MBOX_CMD_SET_PORT_CONFIG		0x0122
+#define MBOX_CMD_GET_PORT_CONFIG		0x0123
+#define MBOX_CMD_SET_LED_CONFIG			0x0125
+#define MBOX_CMD_GET_LED_CONFIG			0x0126
 #define MBOX_CMD_MINIDUMP			0x0129
+
+/* Port Config */
+#define ENABLE_INTERNAL_LOOPBACK		0x04
+#define ENABLE_EXTERNAL_LOOPBACK		0x08
+#define ENABLE_DCBX				0x10
 
 /* Minidump subcommand */
 #define MINIDUMP_GET_SIZE_SUBCOMMAND		0x00
@@ -534,10 +544,6 @@ struct qla_flt_region {
 #define FLASH_OPT_RMW_INIT	1
 #define FLASH_OPT_COMMIT	2
 #define FLASH_OPT_RMW_COMMIT	3
-
-/* Loopback type */
-#define ENABLE_INTERNAL_LOOPBACK	0x04
-#define ENABLE_EXTERNAL_LOOPBACK	0x08
 
 /* generic defines to enable/disable params */
 #define QL4_PARAM_DISABLE	0

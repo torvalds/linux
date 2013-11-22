@@ -73,6 +73,7 @@
 
 #define QLA_SUCCESS			0
 #define QLA_ERROR			1
+#define STATUS(status)		status == QLA_ERROR ? "FAILED" : "SUCCEEDED"
 
 /*
  * Data bit definitions
@@ -210,6 +211,8 @@
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
 #define IDC_EXTEND_TOV			8
+#define IDC_COMP_TOV			5
+#define LINK_UP_COMP_TOV		30
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -822,6 +825,11 @@ struct scsi_qla_host {
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 	struct addr_ctrl_blk *saved_acb;
+	int notify_idc_comp;
+	int notify_link_up_comp;
+	int idc_extend_tmo;
+	struct completion idc_comp;
+	struct completion link_up_comp;
 };
 
 struct ql4_task_data {
