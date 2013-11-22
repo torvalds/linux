@@ -231,7 +231,7 @@ struct mem_cgroup_eventfd_list {
 /*
  * cgroup_event represents events which userspace want to receive.
  */
-struct cgroup_event {
+struct mem_cgroup_event {
 	/*
 	 * memcg which the event belongs to.
 	 */
@@ -6002,14 +6002,27 @@ static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
 #endif
 
 /*
+ * DO NOT USE IN NEW FILES.
+ *
+ * "cgroup.event_control" implementation.
+ *
+ * This is way over-engineered.  It tries to support fully configurable
+ * events for each user.  Such level of flexibility is completely
+ * unnecessary especially in the light of the planned unified hierarchy.
+ *
+ * Please deprecate this and replace with something simpler if at all
+ * possible.
+ */
+
+/*
  * Unregister event and free resources.
  *
  * Gets called from workqueue.
  */
-static void cgroup_event_remove(struct work_struct *work)
+static void memcg_event_remove(struct work_struct *work)
 {
-	struct cgroup_event *event = container_of(work, struct cgroup_event,
-			remove);
+	struct mem_cgroup_event *event =
+		container_of(work, struct mem_cgroup_event, remove);
 	struct mem_cgroup *memcg = event->memcg;
 
 	remove_wait_queue(event->wqh, &event->wait);
@@ -6029,11 +6042,11 @@ static void cgroup_event_remove(struct work_struct *work)
  *
  * Called with wqh->lock held and interrupts disabled.
  */
-static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
-		int sync, void *key)
+static int memcg_event_wake(wait_queue_t *wait, unsigned mode,
+			    int sync, void *key)
 {
-	struct cgroup_event *event = container_of(wait,
-			struct cgroup_event, wait);
+	struct mem_cgroup_event *event =
+		container_of(wait, struct mem_cgroup_event, wait);
 	struct mem_cgroup *memcg = event->memcg;
 	unsigned long flags = (unsigned long)key;
 
@@ -6062,27 +6075,29 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 	return 0;
 }
 
-static void cgroup_event_ptable_queue_proc(struct file *file,
+static void memcg_event_ptable_queue_proc(struct file *file,
 		wait_queue_head_t *wqh, poll_table *pt)
 {
-	struct cgroup_event *event = container_of(pt,
-			struct cgroup_event, pt);
+	struct mem_cgroup_event *event =
+		container_of(pt, struct mem_cgroup_event, pt);
 
 	event->wqh = wqh;
 	add_wait_queue(wqh, &event->wait);
 }
 
 /*
+ * DO NOT USE IN NEW FILES.
+ *
  * Parse input and register new cgroup event handler.
  *
  * Input must be in format '<event_fd> <control_fd> <args>'.
  * Interpretation of args is defined by control file implementation.
  */
-static int cgroup_write_event_control(struct cgroup_subsys_state *css,
-				      struct cftype *cft, const char *buffer)
+static int memcg_write_event_control(struct cgroup_subsys_state *css,
+				     struct cftype *cft, const char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	struct cgroup_event *event;
+	struct mem_cgroup_event *event;
 	struct cgroup_subsys_state *cfile_css;
 	unsigned int efd, cfd;
 	struct fd efile;
@@ -6107,9 +6122,9 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 
 	event->memcg = memcg;
 	INIT_LIST_HEAD(&event->list);
-	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
-	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
-	INIT_WORK(&event->remove, cgroup_event_remove);
+	init_poll_funcptr(&event->pt, memcg_event_ptable_queue_proc);
+	init_waitqueue_func_entry(&event->wait, memcg_event_wake);
+	INIT_WORK(&event->remove, memcg_event_remove);
 
 	efile = fdget(efd);
 	if (!efile.file) {
@@ -6140,6 +6155,8 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	 * to be done via struct cftype but cgroup core no longer knows
 	 * about these events.  The following is crude but the whole thing
 	 * is for compatibility anyway.
+	 *
+	 * DO NOT ADD NEW FILES.
 	 */
 	name = cfile.file->f_dentry->d_name.name;
 
@@ -6251,8 +6268,8 @@ static struct cftype mem_cgroup_files[] = {
 		.read_u64 = mem_cgroup_hierarchy_read,
 	},
 	{
-		.name = "cgroup.event_control",
-		.write_string = cgroup_write_event_control,
+		.name = "cgroup.event_control",		/* XXX: for compat */
+		.write_string = memcg_write_event_control,
 		.flags = CFTYPE_NO_PREFIX,
 		.mode = S_IWUGO,
 	},
@@ -6585,7 +6602,7 @@ static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
 static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	struct cgroup_event *event, *tmp;
+	struct mem_cgroup_event *event, *tmp;
 
 	/*
 	 * Unregister events and notify userspace.
