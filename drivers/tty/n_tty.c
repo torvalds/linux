@@ -2005,7 +2005,10 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 		found = 1;
 
 	size = N_TTY_BUF_SIZE - tail;
-	n = (found + eol + size) & (N_TTY_BUF_SIZE - 1);
+	n = eol - tail;
+	if (n > 4096)
+		n += 4096;
+	n += found;
 	c = n;
 
 	if (found && read_buf(ldata, eol) == __DISABLED_CHAR) {
