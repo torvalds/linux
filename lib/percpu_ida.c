@@ -117,8 +117,7 @@ static inline void alloc_global_tags(struct percpu_ida *pool,
 		  min(pool->nr_free, pool->percpu_batch_size));
 }
 
-static inline unsigned alloc_local_tag(struct percpu_ida *pool,
-				       struct percpu_ida_cpu *tags)
+static inline unsigned alloc_local_tag(struct percpu_ida_cpu *tags)
 {
 	int tag = -ENOSPC;
 
@@ -159,7 +158,7 @@ int percpu_ida_alloc(struct percpu_ida *pool, gfp_t gfp)
 	tags = this_cpu_ptr(pool->tag_cpu);
 
 	/* Fastpath */
-	tag = alloc_local_tag(pool, tags);
+	tag = alloc_local_tag(tags);
 	if (likely(tag >= 0)) {
 		local_irq_restore(flags);
 		return tag;
