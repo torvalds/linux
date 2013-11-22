@@ -3717,6 +3717,7 @@ disable_slot:
 static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 			     enum xhci_setup_dev setup)
 {
+	const char *act = setup == SETUP_CONTEXT_ONLY ? "context" : "address";
 	unsigned long flags;
 	int timeleft;
 	struct xhci_virt_device *virt_dev;
@@ -3792,8 +3793,8 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	 * command on a timeout.
 	 */
 	if (timeleft <= 0) {
-		xhci_warn(xhci, "%s while waiting for address device command\n",
-				timeleft == 0 ? "Timeout" : "Signal");
+		xhci_warn(xhci, "%s while waiting for setup %s command\n",
+			  timeleft == 0 ? "Timeout" : "Signal", act);
 		/* cancel the address device command */
 		ret = xhci_cancel_cmd(xhci, NULL, cmd_trb);
 		if (ret < 0)
@@ -3804,26 +3805,27 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	switch (virt_dev->cmd_status) {
 	case COMP_CTX_STATE:
 	case COMP_EBADSLT:
-		xhci_err(xhci, "Setup ERROR: address device command for slot %d.\n",
-				udev->slot_id);
+		xhci_err(xhci, "Setup ERROR: setup %s command for slot %d.\n",
+			 act, udev->slot_id);
 		ret = -EINVAL;
 		break;
 	case COMP_TX_ERR:
-		dev_warn(&udev->dev, "Device not responding to set address.\n");
+		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
 		ret = -EPROTO;
 		break;
 	case COMP_DEV_ERR:
-		dev_warn(&udev->dev, "ERROR: Incompatible device for address "
-				"device command.\n");
+		dev_warn(&udev->dev,
+			 "ERROR: Incompatible device for setup %s command\n", act);
 		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
 		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
-				"Successful Address Device command");
+			       "Successful setup %s command", act);
 		break;
 	default:
-		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", virt_dev->cmd_status);
+		xhci_err(xhci,
+			 "ERROR: unexpected setup %s command completion code 0x%x.\n",
+			 act, virt_dev->cmd_status);
 		xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
 		trace_xhci_address_ctx(xhci, virt_dev->out_ctx, 1);
