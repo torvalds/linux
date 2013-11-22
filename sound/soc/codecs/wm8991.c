@@ -764,7 +764,7 @@ static const struct snd_soc_dapm_widget wm8991_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Internal DAC Sink"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8991_dapm_routes[] = {
 	/* Make DACs turn on when playing even if not mixed into any outputs */
 	{"Internal DAC Sink", NULL, "Left DAC"},
 	{"Internal DAC Sink", NULL, "Right DAC"},
@@ -1278,13 +1278,6 @@ static int wm8991_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8991_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8991_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	snd_soc_add_codec_controls(codec, wm8991_snd_controls,
-			     ARRAY_SIZE(wm8991_snd_controls));
-
-	snd_soc_dapm_new_controls(&codec->dapm, wm8991_dapm_widgets,
-				  ARRAY_SIZE(wm8991_dapm_widgets));
-	snd_soc_dapm_add_routes(&codec->dapm, audio_map,
-				ARRAY_SIZE(audio_map));
 	return 0;
 }
 
@@ -1333,6 +1326,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
 	.suspend = wm8991_suspend,
 	.resume = wm8991_resume,
 	.set_bias_level = wm8991_set_bias_level,
+	.controls = wm8991_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8991_snd_controls),
+	.dapm_widgets = wm8991_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8991_dapm_widgets),
+	.dapm_routes = wm8991_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8991_dapm_routes),
 	.reg_cache_size = WM8991_MAX_REGISTER + 1,
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8991_reg_defs
