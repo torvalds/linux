@@ -274,6 +274,10 @@ static struct sk_buff **tcp4_gro_receive(struct sk_buff **head, struct sk_buff *
 	__wsum wsum;
 	__sum16 sum;
 
+	/* Don't bother verifying checksum if we're going to flush anyway. */
+	if (NAPI_GRO_CB(skb)->flush)
+		goto skip_csum;
+
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
 		if (!tcp_v4_check(skb_gro_len(skb), iph->saddr, iph->daddr,
@@ -299,6 +303,7 @@ flush:
 		break;
 	}
 
+skip_csum:
 	return tcp_gro_receive(head, skb);
 }
 
