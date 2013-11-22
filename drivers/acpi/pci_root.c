@@ -634,9 +634,10 @@ void __init acpi_pci_root_init(void)
 
 static void handle_root_bridge_insertion(acpi_handle handle)
 {
-	struct acpi_device *device;
+	struct acpi_device *device = NULL;
 
-	if (!acpi_bus_get_device(handle, &device)) {
+	acpi_bus_get_device(handle, &device);
+	if (acpi_device_enumerated(device)) {
 		dev_printk(KERN_DEBUG, &device->dev,
 			   "acpi device already exists; ignoring notify\n");
 		return;

@@ -169,7 +169,7 @@ static int acpi_memory_get_device(acpi_handle handle,
 	acpi_scan_lock_acquire();
 
 	acpi_bus_get_device(handle, &device);
-	if (device)
+	if (acpi_device_enumerated(device))
 		goto end;
 
 	/*
@@ -182,8 +182,9 @@ static int acpi_memory_get_device(acpi_handle handle,
 		result = -EINVAL;
 		goto out;
 	}
-	result = acpi_bus_get_device(handle, &device);
-	if (result) {
+	device = NULL;
+	acpi_bus_get_device(handle, &device);
+	if (!acpi_device_enumerated(device)) {
 		pr_warn(PREFIX "Missing device object\n");
 		result = -EINVAL;
 		goto out;

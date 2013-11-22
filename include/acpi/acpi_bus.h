@@ -169,7 +169,9 @@ struct acpi_device_flags {
 	u32 ejectable:1;
 	u32 power_manageable:1;
 	u32 match_driver:1;
-	u32 reserved:27;
+	u32 initialized:1;
+	u32 visited:1;
+	u32 reserved:25;
 };
 
 /* File System */
@@ -385,6 +387,11 @@ int acpi_match_device_ids(struct acpi_device *device,
 			  const struct acpi_device_id *ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
+
+static inline bool acpi_device_enumerated(struct acpi_device *adev)
+{
+	return adev && adev->flags.initialized && adev->flags.visited;
+}
 
 typedef void (*acpi_hp_callback)(void *data, u32 src);
 

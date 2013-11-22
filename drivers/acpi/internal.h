@@ -90,6 +90,7 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 int acpi_bind_one(struct device *dev, acpi_handle handle);
 int acpi_unbind_one(struct device *dev);
 void acpi_bus_device_eject(void *data, u32 ost_src);
+bool acpi_device_is_present(struct acpi_device *adev);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
@@ -106,6 +107,8 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
 int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
+
+int acpi_device_update_power(struct acpi_device *device, int *state_p);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);

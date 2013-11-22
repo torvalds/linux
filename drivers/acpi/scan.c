@@ -259,7 +259,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 
 	acpi_bus_trim(device);
 
-	/* Device node has been unregistered. */
 	put_device(&device->dev);
 	device = NULL;
 
@@ -328,7 +327,7 @@ void acpi_bus_device_eject(void *data, u32 ost_src)
 static void acpi_scan_bus_device_check(void *data, u32 ost_source)
 {
 	acpi_handle handle = data;
-	struct acpi_device *device = NULL;
+	struct acpi_device *device;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	int error;
 
@@ -336,8 +335,9 @@ static void acpi_scan_bus_device_check(void *data, u32 ost_source)
 	mutex_lock(&acpi_scan_lock);
 
 	if (ost_source != ACPI_NOTIFY_BUS_CHECK) {
+		device = NULL;
 		acpi_bus_get_device(handle, &device);
-		if (device) {
+		if (acpi_device_enumerated(device)) {
 			dev_warn(&device->dev, "Attempt to re-insert\n");
 			goto out;
 		}
@@ -347,9 +347,10 @@ static void acpi_scan_bus_device_check(void *data, u32 ost_source)
 		acpi_handle_warn(handle, "Namespace scan failure\n");
 		goto out;
 	}
-	error = acpi_bus_get_device(handle, &device);
-	if (error) {
-		acpi_handle_warn(handle, "Missing device node object\n");
+	device = NULL;
+	acpi_bus_get_device(handle, &device);
+	if (!acpi_device_enumerated(device)) {
+		acpi_handle_warn(handle, "Device not enumerated\n");
 		goto out;
 	}
 	ost_code = ACPI_OST_SC_SUCCESS;
@@ -1111,20 +1112,6 @@ int acpi_device_add(struct acpi_device *device,
 	return result;
 }
 
-static void acpi_device_unregister(struct acpi_device *device)
-{
-	acpi_detach_data(device->handle, acpi_scan_drop_device);
-	acpi_device_del(device);
-	/*
-	 * Transition the device to D3cold to drop the reference counts of all
-	 * power resources the device depends on and turn off the ones that have
-	 * no more references.
-	 */
-	acpi_device_set_power(device, ACPI_STATE_D3_COLD);
-	device->handle = NULL;
-	put_device(&device->dev);
-}
-
 /* --------------------------------------------------------------------------
                                  Driver Management
    -------------------------------------------------------------------------- */
@@ -1703,6 +1690,8 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	acpi_set_pnp_ids(handle, &device->pnp, type);
 	acpi_bus_get_flags(device);
 	device->flags.match_driver = false;
+	device->flags.initialized = true;
+	device->flags.visited = false;
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
 }
@@ -1785,6 +1774,15 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 	}
 
 	return 0;
+}
+
+bool acpi_device_is_present(struct acpi_device *adev)
+{
+	if (adev->status.present || adev->status.functional)
+		return true;
+
+	adev->flags.initialized = false;
+	return false;
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
@@ -1880,18 +1878,6 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 
 	acpi_scan_init_hotplug(handle, type);
 
-	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
-	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
-		struct acpi_device_wakeup wakeup;
-
-		if (acpi_has_method(handle, "_PRW")) {
-			acpi_bus_extract_wakeup_device_power_package(handle,
-								     &wakeup);
-			acpi_power_resources_list_free(&wakeup.resources);
-		}
-		return AE_CTRL_DEPTH;
-	}
-
 	acpi_add_single_object(&device, handle, type, sta);
 	if (!device)
 		return AE_CTRL_DEPTH;
@@ -1930,32 +1916,50 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 					  void *not_used, void **ret_not_used)
 {
 	struct acpi_device *device;
-	unsigned long long sta_not_used;
+	unsigned long long sta;
 	int ret;
 
 	/*
 	 * Ignore errors ignored by acpi_bus_check_add() to avoid terminating
 	 * namespace walks prematurely.
 	 */
-	if (acpi_bus_type_and_status(handle, &ret, &sta_not_used))
+	if (acpi_bus_type_and_status(handle, &ret, &sta))
 		return AE_OK;
 
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
 
+	STRUCT_TO_INT(device->status) = sta;
+	/* Skip devices that are not present. */
+	if (!acpi_device_is_present(device))
+		goto err;
+
 	if (device->handler)
 		return AE_OK;
 
+	if (!device->flags.initialized) {
+		acpi_bus_update_power(device, NULL);
+		device->flags.initialized = true;
+	}
 	ret = acpi_scan_attach_handler(device);
 	if (ret < 0)
-		return AE_CTRL_DEPTH;
+		goto err;
 
 	device->flags.match_driver = true;
 	if (ret > 0)
-		return AE_OK;
+		goto ok;
 
 	ret = device_attach(&device->dev);
-	return ret >= 0 ? AE_OK : AE_CTRL_DEPTH;
+	if (ret < 0)
+		goto err;
+
+ ok:
+	device->flags.visited = true;
+	return AE_OK;
+
+ err:
+	device->flags.visited = false;
+	return AE_CTRL_DEPTH;
 }
 
 /**
@@ -2007,18 +2011,14 @@ static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
 		} else {
 			device_release_driver(&device->dev);
 		}
+		/*
+		 * Most likely, the device is going away, so put it into D3cold
+		 * before that.
+		 */
+		acpi_device_set_power(device, ACPI_STATE_D3_COLD);
+		device->flags.initialized = false;
+		device->flags.visited = false;
 	}
-	return AE_OK;
-}
-
-static acpi_status acpi_bus_remove(acpi_handle handle, u32 lvl_not_used,
-				   void *not_used, void **ret_not_used)
-{
-	struct acpi_device *device = NULL;
-
-	if (!acpi_bus_get_device(handle, &device))
-		acpi_device_unregister(device);
-
 	return AE_OK;
 }
 
@@ -2037,13 +2037,6 @@ void acpi_bus_trim(struct acpi_device *start)
 	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
 			    acpi_bus_device_detach, NULL, NULL);
 	acpi_bus_device_detach(start->handle, 0, NULL, NULL);
-	/*
-	 * Execute acpi_bus_remove() as a post-order callback to remove device
-	 * nodes in the given namespace scope.
-	 */
-	acpi_walk_namespace(ACPI_TYPE_ANY, start->handle, ACPI_UINT32_MAX, NULL,
-			    acpi_bus_remove, NULL, NULL);
-	acpi_bus_remove(start->handle, 0, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
@@ -2121,7 +2114,9 @@ int __init acpi_scan_init(void)
 
 	result = acpi_bus_scan_fixed();
 	if (result) {
-		acpi_device_unregister(acpi_root);
+		acpi_detach_data(acpi_root->handle, acpi_scan_drop_device);
+		acpi_device_del(acpi_root);
+		put_device(&acpi_root->dev);
 		goto out;
 	}
 
