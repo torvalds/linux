@@ -456,3 +456,19 @@ ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 				  size);
 }
 EXPORT_SYMBOL(drm_dp_dpcd_write);
+
+/**
+ * drm_dp_dpcd_read_link_status() - read DPCD link status (bytes 0x202-0x207)
+ * @aux: DisplayPort AUX channel
+ * @status: buffer to store the link status in (must be at least 6 bytes)
+ *
+ * Returns the number of bytes transferred on success or a negative error
+ * code on failure.
+ */
+int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
+				 u8 status[DP_LINK_STATUS_SIZE])
+{
+	return drm_dp_dpcd_read(aux, DP_LANE0_1_STATUS, status,
+				DP_LINK_STATUS_SIZE);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
