@@ -359,17 +359,12 @@ static int dt2801_reset(struct comedi_device *dev)
 	unsigned int stat;
 	int timeout;
 
-	DPRINTK("dt2801: resetting board...\n");
-	DPRINTK("fingerprint: 0x%02x 0x%02x\n", inb_p(dev->iobase),
-		inb_p(dev->iobase + 1));
-
 	/* pull random data from data port */
 	inb_p(dev->iobase + DT2801_DATA);
 	inb_p(dev->iobase + DT2801_DATA);
 	inb_p(dev->iobase + DT2801_DATA);
 	inb_p(dev->iobase + DT2801_DATA);
 
-	DPRINTK("dt2801: stop\n");
 	/* dt2801_writecmd(dev,DT_C_STOP); */
 	outb_p(DT_C_STOP, dev->iobase + DT2801_CMD);
 
@@ -387,7 +382,6 @@ static int dt2801_reset(struct comedi_device *dev)
 	/* printk("dt2801: reading dummy\n"); */
 	/* dt2801_readdata(dev,&board_code); */
 
-	DPRINTK("dt2801: reset\n");
 	outb_p(DT_C_RESET, dev->iobase + DT2801_CMD);
 	/* dt2801_writecmd(dev,DT_C_RESET); */
 
@@ -401,10 +395,7 @@ static int dt2801_reset(struct comedi_device *dev)
 	if (!timeout)
 		printk("dt2801: timeout 2 status=0x%02x\n", stat);
 
-	DPRINTK("dt2801: reading code\n");
 	dt2801_readdata(dev, &board_code);
-
-	DPRINTK("dt2801: ok.  code=0x%02x\n", board_code);
 
 	return board_code;
 }
