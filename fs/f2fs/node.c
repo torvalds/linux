@@ -1565,47 +1565,84 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	return 0;
 }
 
+/*
+ * ra_sum_pages() merge contiguous pages into one bio and submit.
+ * these pre-readed pages are linked in pages list.
+ */
+static int ra_sum_pages(struct f2fs_sb_info *sbi, struct list_head *pages,
+				int start, int nrpages)
+{
+	struct page *page;
+	int page_idx = start;
+
+	for (; page_idx < start + nrpages; page_idx++) {
+		/* alloc temporal page for read node summary info*/
+		page = alloc_page(GFP_NOFS | __GFP_ZERO);
+		if (!page) {
+			struct page *tmp;
+			list_for_each_entry_safe(page, tmp, pages, lru) {
+				list_del(&page->lru);
+				unlock_page(page);
+				__free_pages(page, 0);
+			}
+			return -ENOMEM;
+		}
+
+		lock_page(page);
+		page->index = page_idx;
+		list_add_tail(&page->lru, pages);
+	}
+
+	list_for_each_entry(page, pages, lru)
+		f2fs_submit_page_mbio(sbi, page, page->index, META, READ);
+
+	f2fs_submit_merged_bio(sbi, META, true, READ);
+	return 0;
+}
+
 int restore_node_summary(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct f2fs_summary_block *sum)
 {
 	struct f2fs_node *rn;
 	struct f2fs_summary *sum_entry;
-	struct page *page;
+	struct page *page, *tmp;
 	block_t addr;
-	int i, last_offset;
-
-	/* alloc temporal page for read node */
-	page = alloc_page(GFP_NOFS | __GFP_ZERO);
-	if (!page)
-		return -ENOMEM;
-	lock_page(page);
+	int bio_blocks = MAX_BIO_BLOCKS(max_hw_blocks(sbi));
+	int i, last_offset, nrpages, err = 0;
+	LIST_HEAD(page_list);
 
 	/* scan the node segment */
 	last_offset = sbi->blocks_per_seg;
 	addr = START_BLOCK(sbi, segno);
 	sum_entry = &sum->entries[0];
 
-	for (i = 0; i < last_offset; i++, sum_entry++) {
-		/*
-		 * In order to read next node page,
-		 * we must clear PageUptodate flag.
-		 */
-		ClearPageUptodate(page);
+	for (i = 0; i < last_offset; i += nrpages, addr += nrpages) {
+		nrpages = min(last_offset - i, bio_blocks);
 
-		if (f2fs_submit_page_bio(sbi, page, addr, READ_SYNC))
-			goto out;
+		/* read ahead node pages */
+		err = ra_sum_pages(sbi, &page_list, addr, nrpages);
+		if (err)
+			return err;
 
-		lock_page(page);
-		rn = F2FS_NODE(page);
-		sum_entry->nid = rn->footer.nid;
-		sum_entry->version = 0;
-		sum_entry->ofs_in_node = 0;
-		addr++;
+		list_for_each_entry_safe(page, tmp, &page_list, lru) {
+
+			lock_page(page);
+			if(PageUptodate(page)) {
+				rn = F2FS_NODE(page);
+				sum_entry->nid = rn->footer.nid;
+				sum_entry->version = 0;
+				sum_entry->ofs_in_node = 0;
+				sum_entry++;
+			} else {
+				err = -EIO;
+			}
+
+			list_del(&page->lru);
+			unlock_page(page);
+			__free_pages(page, 0);
+		}
 	}
-	unlock_page(page);
-out:
-	__free_pages(page, 0);
-	return 0;
+	return err;
 }
 
 static bool flush_nats_in_journal(struct f2fs_sb_info *sbi)
