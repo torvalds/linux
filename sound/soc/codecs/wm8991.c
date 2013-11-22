@@ -111,8 +111,6 @@ static bool wm8991_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-#define wm8991_reset(c) snd_soc_write(c, WM8991_RESET, 0)
-
 static const unsigned int rec_mix_tlv[] = {
 	TLV_DB_RANGE_HEAD(1),
 	0, 7, TLV_DB_LINEAR_ITEM(-1500, 600),
@@ -1264,30 +1262,7 @@ static int wm8991_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = wm8991_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
-	}
-
 	wm8991_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	snd_soc_update_bits(codec, WM8991_AUDIO_INTERFACE_4,
-			    WM8991_ALRCGPIO1, WM8991_ALRCGPIO1);
-
-	snd_soc_update_bits(codec, WM8991_GPIO1_GPIO2,
-			    WM8991_GPIO1_SEL_MASK, 1);
-
-	snd_soc_update_bits(codec, WM8991_POWER_MANAGEMENT_1,
-			    WM8991_VREF_ENA | WM8991_VMID_MODE_MASK,
-			    WM8991_VREF_ENA | WM8991_VMID_MODE_MASK);
-
-	snd_soc_update_bits(codec, WM8991_POWER_MANAGEMENT_2,
-			    WM8991_OPCLK_ENA, WM8991_OPCLK_ENA);
-
-	snd_soc_write(codec, WM8991_DAC_CTRL, 0);
-	snd_soc_write(codec, WM8991_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
-	snd_soc_write(codec, WM8991_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
 	return 0;
 }
@@ -1371,6 +1346,31 @@ static int wm8991_i2c_probe(struct i2c_client *i2c,
 		return PTR_ERR(wm8991->regmap);
 
 	i2c_set_clientdata(i2c, wm8991);
+
+	ret = regmap_write(wm8991->regmap, WM8991_RESET, 0);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
+		return ret;
+	}
+
+	regmap_update_bits(wm8991->regmap, WM8991_AUDIO_INTERFACE_4,
+			   WM8991_ALRCGPIO1, WM8991_ALRCGPIO1);
+
+	regmap_update_bits(wm8991->regmap, WM8991_GPIO1_GPIO2,
+			   WM8991_GPIO1_SEL_MASK, 1);
+
+	regmap_update_bits(wm8991->regmap, WM8991_POWER_MANAGEMENT_1,
+			   WM8991_VREF_ENA | WM8991_VMID_MODE_MASK,
+			   WM8991_VREF_ENA | WM8991_VMID_MODE_MASK);
+
+	regmap_update_bits(wm8991->regmap, WM8991_POWER_MANAGEMENT_2,
+			   WM8991_OPCLK_ENA, WM8991_OPCLK_ENA);
+
+	regmap_write(wm8991->regmap, WM8991_DAC_CTRL, 0);
+	regmap_write(wm8991->regmap, WM8991_LEFT_OUTPUT_VOLUME,
+		     0x50 | (1<<8));
+	regmap_write(wm8991->regmap, WM8991_RIGHT_OUTPUT_VOLUME,
+		     0x50 | (1<<8));
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8991, &wm8991_dai, 1);
