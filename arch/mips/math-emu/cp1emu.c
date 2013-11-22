@@ -859,20 +859,20 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
  * In the Linux kernel, we support selection of FPR format on the
  * basis of the Status.FR bit.	If an FPU is not present, the FR bit
  * is hardwired to zero, which would imply a 32-bit FPU even for
- * 64-bit CPUs so we rather look at TIF_32BIT_REGS.
+ * 64-bit CPUs so we rather look at TIF_32BIT_FPREGS.
  * FPU emu is slow and bulky and optimizing this function offers fairly
  * sizeable benefits so we try to be clever and make this function return
  * a constant whenever possible, that is on 64-bit kernels without O32
- * compatibility enabled and on 32-bit kernels.
+ * compatibility enabled and on 32-bit without 64-bit FPU support.
  */
 static inline int cop1_64bit(struct pt_regs *xcp)
 {
 #if defined(CONFIG_64BIT) && !defined(CONFIG_MIPS32_O32)
 	return 1;
-#elif defined(CONFIG_64BIT) && defined(CONFIG_MIPS32_O32)
-	return !test_thread_flag(TIF_32BIT_REGS);
-#else
+#elif defined(CONFIG_32BIT) && !defined(CONFIG_MIPS_O32_FP64_SUPPORT)
 	return 0;
+#else
+	return !test_thread_flag(TIF_32BIT_FPREGS);
 #endif
 }
 

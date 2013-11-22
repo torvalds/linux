@@ -112,7 +112,7 @@ static inline unsigned long cpu_get_fpu_id(void)
 	unsigned long tmp, fpu_id;
 
 	tmp = read_c0_status();
-	__enable_fpu();
+	__enable_fpu(FPU_AS_IS);
 	fpu_id = read_32bit_cp1_register(CP1_REVISION);
 	write_c0_status(tmp);
 	return fpu_id;

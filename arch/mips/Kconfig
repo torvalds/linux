@@ -2335,6 +2335,23 @@ config CC_STACKPROTECTOR
 
 	  This feature requires gcc version 4.2 or above.
 
+config MIPS_O32_FP64_SUPPORT
+	bool "Support for O32 binaries using 64-bit FP"
+	depends on 32BIT || MIPS32_O32
+	default y
+	help
+	  When this is enabled, the kernel will support use of 64-bit floating
+	  point registers with binaries using the O32 ABI along with the
+	  EF_MIPS_FP64 ELF header flag (typically built with -mfp64). On
+	  32-bit MIPS systems this support is at the cost of increasing the
+	  size and complexity of the compiled FPU emulator. Thus if you are
+	  running a MIPS32 system and know that none of your userland binaries
+	  will require 64-bit floating point, you may wish to reduce the size
+	  of your kernel & potentially improve FP emulation performance by
+	  saying N here.
+
+	  If unsure, say Y.
+
 config USE_OF
 	bool
 	select OF
