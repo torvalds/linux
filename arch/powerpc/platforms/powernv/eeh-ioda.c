@@ -588,11 +588,8 @@ static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
 		return -EIO;
 	}
 
-	/*
-	 * FIXME: We probably need log the error in somewhere.
-	 * Lets make it up in future.
-	 */
-	/* pr_info("%s", phb->diag.blob); */
+	/* The PHB diag-data is always indicative */
+	pnv_pci_dump_phb_diag_data(hose, phb->diag.blob);
 
 	spin_unlock_irqrestore(&phb->lock, flags);
 
