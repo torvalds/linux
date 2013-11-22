@@ -105,6 +105,12 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	extcon_data->state_off = pdata->state_off;
 	if (pdata->state_on && pdata->state_off)
 		extcon_data->edev.print_state = extcon_gpio_print_state;
+
+	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
+				    pdev->name);
+	if (ret < 0)
+		return ret;
+
 	if (pdata->debounce) {
 		ret = gpio_set_debounce(extcon_data->gpio,
 					pdata->debounce * 1000);
@@ -116,11 +122,6 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	ret = extcon_dev_register(&extcon_data->edev);
 	if (ret < 0)
 		return ret;
-
-	ret = devm_gpio_request_one(&pdev->dev, extcon_data->gpio, GPIOF_DIR_IN,
-				    pdev->name);
-	if (ret < 0)
-		goto err;
 
 	INIT_DELAYED_WORK(&extcon_data->work, gpio_extcon_work);
 
