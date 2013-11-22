@@ -318,6 +318,10 @@ struct drbd_request {
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
 
+	/* see struct drbd_device */
+	struct list_head req_pending_master_completion;
+	struct list_head req_pending_local;
+
 	/* for generic IO accounting */
 	unsigned long start_jif;
 
@@ -738,7 +742,7 @@ struct submit_worker {
 	struct workqueue_struct *wq;
 	struct work_struct worker;
 
-	spinlock_t lock;
+	/* protected by ..->resource->req_lock */
 	struct list_head writes;
 };
 
@@ -794,6 +798,11 @@ struct drbd_device {
 	/* Interval tree of pending local requests */
 	struct rb_root read_requests;
 	struct rb_root write_requests;
+
+	/* for statistics and timeouts */
+	/* [0] read, [1] write */
+	struct list_head pending_master_completion[2];
+	struct list_head pending_completion[2];
 
 	/* use checksums for *this* resync */
 	bool use_csums;

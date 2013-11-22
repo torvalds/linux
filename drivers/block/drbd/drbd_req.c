@@ -84,6 +84,8 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device,
 
 	INIT_LIST_HEAD(&req->tl_requests);
 	INIT_LIST_HEAD(&req->w.list);
+	INIT_LIST_HEAD(&req->req_pending_master_completion);
+	INIT_LIST_HEAD(&req->req_pending_local);
 
 	/* one reference to be put by __drbd_make_request */
 	atomic_set(&req->completion_ref, 1);
@@ -120,12 +122,14 @@ void drbd_req_destroy(struct kref *kref)
 		return;
 	}
 
-	/* remove it from the transfer log.
-	 * well, only if it had been there in the first
-	 * place... if it had not (local only or conflicting
-	 * and never sent), it should still be "empty" as
-	 * initialized in drbd_req_new(), so we can list_del() it
-	 * here unconditionally */
+	/* If called from mod_rq_state (expected normal case) or
+	 * drbd_send_and_submit (the less likely normal path), this holds the
+	 * req_lock, and req->tl_requests will typicaly be on ->transfer_log,
+	 * though it may be still empty (never added to the transfer log).
+	 *
+	 * If called from do_retry(), we do NOT hold the req_lock, but we are
+	 * still allowed to unconditionally list_del(&req->tl_requests),
+	 * because it will be on a local on-stack list only. */
 	list_del_init(&req->tl_requests);
 
 	/* finally remove the request from the conflict detection
@@ -312,8 +316,15 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 
 	if (req->i.waiting)
 		wake_up(&device->misc_wait);
+
+	/* Either we are about to complete to upper layers,
+	 * or we will restart this request.
+	 * In either case, the request object will be destroyed soon,
+	 * so better remove it from all lists. */
+	list_del_init(&req->req_pending_master_completion);
 }
 
+/* still holds resource->req_lock */
 static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
 {
 	struct drbd_device *device = req->device;
@@ -400,6 +411,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 			++k_put;
 		else
 			++c_put;
+		list_del_init(&req->req_pending_local);
 	}
 
 	if ((s & RQ_NET_PENDING) && (clear & RQ_NET_PENDING)) {
@@ -1070,9 +1082,11 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 
 static void drbd_queue_write(struct drbd_device *device, struct drbd_request *req)
 {
-	spin_lock(&device->submit.lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_add_tail(&req->tl_requests, &device->submit.writes);
-	spin_unlock(&device->submit.lock);
+	list_add_tail(&req->req_pending_master_completion,
+			&device->pending_master_completion[1 /* WRITE */]);
+	spin_unlock_irq(&device->resource->req_lock);
 	queue_work(device->submit.wq, &device->submit.worker);
 }
 
@@ -1186,8 +1200,15 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 			no_remote = true;
 	}
 
+	/* If it took the fast path in drbd_request_prepare, add it here.
+	 * The slow path has added it already. */
+	if (list_empty(&req->req_pending_master_completion))
+		list_add_tail(&req->req_pending_master_completion,
+			&device->pending_master_completion[rw == WRITE]);
 	if (req->private_bio) {
 		/* needs to be marked within the same spinlock */
+		list_add_tail(&req->req_pending_local,
+			&device->pending_completion[rw == WRITE]);
 		_req_mod(req, TO_BE_SUBMITTED);
 		/* but we need to give up the spinlock to submit */
 		submit_private_bio = true;
@@ -1278,9 +1299,9 @@ void do_submit(struct work_struct *ws)
 	struct drbd_request *req, *tmp;
 
 	for (;;) {
-		spin_lock(&device->submit.lock);
+		spin_lock_irq(&device->resource->req_lock);
 		list_splice_tail_init(&device->submit.writes, &incoming);
-		spin_unlock(&device->submit.lock);
+		spin_unlock_irq(&device->resource->req_lock);
 
 		submit_fast_path(device, &incoming);
 		if (list_empty(&incoming))
@@ -1304,9 +1325,9 @@ skip_fast_path:
 			if (list_empty(&device->submit.writes))
 				break;
 
-			spin_lock(&device->submit.lock);
+			spin_lock_irq(&device->resource->req_lock);
 			list_splice_tail_init(&device->submit.writes, &more_incoming);
-			spin_unlock(&device->submit.lock);
+			spin_unlock_irq(&device->resource->req_lock);
 
 			if (list_empty(&more_incoming))
 				break;

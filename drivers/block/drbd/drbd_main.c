@@ -1934,6 +1934,10 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	INIT_LIST_HEAD(&device->resync_work.list);
 	INIT_LIST_HEAD(&device->unplug_work.list);
 	INIT_LIST_HEAD(&device->bm_io_work.w.list);
+	INIT_LIST_HEAD(&device->pending_master_completion[0]);
+	INIT_LIST_HEAD(&device->pending_master_completion[1]);
+	INIT_LIST_HEAD(&device->pending_completion[0]);
+	INIT_LIST_HEAD(&device->pending_completion[1]);
 
 	device->resync_work.cb  = w_resync_timer;
 	device->unplug_work.cb  = w_send_write_hint;
@@ -2268,6 +2272,8 @@ static void do_retry(struct work_struct *ws)
 	}
 }
 
+/* called via drbd_req_put_completion_ref(),
+ * holds resource->req_lock */
 void drbd_restart_request(struct drbd_request *req)
 {
 	unsigned long flags;
@@ -2687,7 +2693,6 @@ static int init_submitter(struct drbd_device *device)
 		return -ENOMEM;
 
 	INIT_WORK(&device->submit.worker, do_submit);
-	spin_lock_init(&device->submit.lock);
 	INIT_LIST_HEAD(&device->submit.writes);
 	return 0;
 }
