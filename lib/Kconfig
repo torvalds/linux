@@ -345,6 +345,7 @@ config HAVE_PIE
 config PIE
 	bool "Embedded position independant executables"
 	depends on HAVE_PIE
+	select GENERIC_ALLOCATOR
 	help
 	  This option adds support for embedding position indepentant (PIE)
 	  executables into the kernel. The PIEs can then be copied into
