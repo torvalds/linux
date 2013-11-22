@@ -560,28 +560,6 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 }
 
 
-/* GPU-assisted copy using NV_MEMORY_TO_MEMORY_FORMAT, can access
- * TTM_PL_{VRAM,TT} directly.
- */
-
-static int
-nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
-			      struct nouveau_bo *nvbo, bool evict,
-			      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
-{
-	struct nouveau_fence *fence = NULL;
-	int ret;
-
-	ret = nouveau_fence_new(chan, false, &fence);
-	if (ret)
-		return ret;
-
-	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, evict,
-					no_wait_gpu, new_mem);
-	nouveau_fence_unref(&fence);
-	return ret;
-}
-
 static int
 nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 {
@@ -967,6 +945,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
+	struct nouveau_fence *fence;
 	int ret;
 
 	/* create temporary vmas for the transfer and attach them to the
@@ -980,14 +959,20 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	}
 
 	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
-
-	ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
+	ret = nouveau_fence_sync(bo->sync_obj, chan);
 	if (ret == 0) {
-		struct nouveau_bo *nvbo = nouveau_bo(bo);
-		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
-						    no_wait_gpu, new_mem);
+		ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
+		if (ret == 0) {
+			ret = nouveau_fence_new(chan, false, &fence);
+			if (ret == 0) {
+				ret = ttm_bo_move_accel_cleanup(bo, fence,
+								evict,
+								no_wait_gpu,
+								new_mem);
+				nouveau_fence_unref(&fence);
+			}
+		}
 	}
-
 	mutex_unlock(&chan->cli->mutex);
 	return ret;
 }
