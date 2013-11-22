@@ -1214,7 +1214,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 {
 	struct ceph_mds_session *session = arg;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int used, oissued, mine;
+	int used, wanted, oissued, mine;
 
 	if (session->s_trim_caps <= 0)
 		return -1;
@@ -1222,14 +1222,19 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	spin_lock(&ci->i_ceph_lock);
 	mine = cap->issued | cap->implemented;
 	used = __ceph_caps_used(ci);
+	wanted = __ceph_caps_file_wanted(ci);
 	oissued = __ceph_caps_issued_other(ci, cap);
 
-	dout("trim_caps_cb %p cap %p mine %s oissued %s used %s\n",
+	dout("trim_caps_cb %p cap %p mine %s oissued %s used %s wanted %s\n",
 	     inode, cap, ceph_cap_string(mine), ceph_cap_string(oissued),
-	     ceph_cap_string(used));
-	if (ci->i_dirty_caps)
-		goto out;   /* dirty caps */
-	if ((used & ~oissued) & mine)
+	     ceph_cap_string(used), ceph_cap_string(wanted));
+	if (cap == ci->i_auth_cap) {
+		if (ci->i_dirty_caps | ci->i_flushing_caps)
+			goto out;
+		if ((used | wanted) & CEPH_CAP_ANY_WR)
+			goto out;
+	}
+	if ((used | wanted) & ~oissued & mine)
 		goto out;   /* we need these caps */
 
 	session->s_trim_caps--;
