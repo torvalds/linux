@@ -7515,9 +7515,10 @@ SELINUX SECURITY MODULE
 M:	Stephen Smalley <sds@tycho.nsa.gov>
 M:	James Morris <james.l.morris@oracle.com>
 M:	Eric Paris <eparis@parisplace.org>
+M:	Paul Moore <paul@paul-moore.com>
 L:	selinux@tycho.nsa.gov (subscribers-only, general discussion)
 W:	http://selinuxproject.org
-T:	git git://git.infradead.org/users/eparis/selinux.git
+T:	git git://git.infradead.org/users/pcmoore/selinux
 S:	Supported
 F:	include/linux/selinux*
 F:	security/selinux/
@@ -8664,6 +8665,7 @@ F:	drivers/media/usb/tm6000/
 TPM DEVICE DRIVER
 M:	Leonidas Da Silva Barbosa <leosilva@linux.vnet.ibm.com>
 M:	Ashley Lai <ashley@ashleylai.com>
+M:	Peter Huewe <peterhuewe@gmx.de>
 M:	Rajiv Andrade <mail@srajiv.net>
 W:	http://tpmdd.sourceforge.net
 M:	Marcel Selhorst <tpmdd@selhorst.net>

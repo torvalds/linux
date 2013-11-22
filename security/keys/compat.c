@@ -138,6 +138,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 	case KEYCTL_INVALIDATE:
 		return keyctl_invalidate_key(arg2);
 
+	case KEYCTL_GET_PERSISTENT:
+		return keyctl_get_persistent(arg2, arg3);
+
 	default:
 		return -EOPNOTSUPP;
 	}

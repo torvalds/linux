@@ -10,13 +10,13 @@
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
  * Device driver for TCG/TCPA TPM (trusted platform module).
- * Specifications at www.trustedcomputinggroup.org	 
+ * Specifications at www.trustedcomputinggroup.org
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- * 
+ *
  * Note, the TPM chip is not interrupt driven (only polling)
  * and can have very long timeouts (minutes!). Hence the unusual
  * calls to msleep.
@@ -371,13 +371,14 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		return -ENODATA;
 	if (count > bufsiz) {
 		dev_err(chip->dev,
-			"invalid count value %x %zx \n", count, bufsiz);
+			"invalid count value %x %zx\n", count, bufsiz);
 		return -E2BIG;
 	}
 
 	mutex_lock(&chip->tpm_mutex);
 
-	if ((rc = chip->vendor.send(chip, (u8 *) buf, count)) < 0) {
+	rc = chip->vendor.send(chip, (u8 *) buf, count);
+	if (rc < 0) {
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_send: error %zd\n", rc);
 		goto out;
@@ -444,7 +445,7 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 {
 	int err;
 
-	len = tpm_transmit(chip,(u8 *) cmd, len);
+	len = tpm_transmit(chip, (u8 *) cmd, len);
 	if (len <  0)
 		return len;
 	else if (len < TPM_HEADER_SIZE)
@@ -658,7 +659,7 @@ static int tpm_continue_selftest(struct tpm_chip *chip)
 	return rc;
 }
 
-ssize_t tpm_show_enabled(struct device * dev, struct device_attribute * attr,
+ssize_t tpm_show_enabled(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	cap_t cap;
@@ -674,7 +675,7 @@ ssize_t tpm_show_enabled(struct device * dev, struct device_attribute * attr,
 }
 EXPORT_SYMBOL_GPL(tpm_show_enabled);
 
-ssize_t tpm_show_active(struct device * dev, struct device_attribute * attr,
+ssize_t tpm_show_active(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	cap_t cap;
@@ -690,7 +691,7 @@ ssize_t tpm_show_active(struct device * dev, struct device_attribute * attr,
 }
 EXPORT_SYMBOL_GPL(tpm_show_active);
 
-ssize_t tpm_show_owned(struct device * dev, struct device_attribute * attr,
+ssize_t tpm_show_owned(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	cap_t cap;
@@ -706,8 +707,8 @@ ssize_t tpm_show_owned(struct device * dev, struct device_attribute * attr,
 }
 EXPORT_SYMBOL_GPL(tpm_show_owned);
 
-ssize_t tpm_show_temp_deactivated(struct device * dev,
-				struct device_attribute * attr, char *buf)
+ssize_t tpm_show_temp_deactivated(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -769,10 +770,10 @@ static int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 
 /**
  * tpm_pcr_read - read a pcr value
- * @chip_num: 	tpm idx # or ANY
+ * @chip_num:	tpm idx # or ANY
  * @pcr_idx:	pcr idx to retrieve
- * @res_buf: 	TPM_PCR value
- * 		size of res_buf is 20 bytes (or NULL if you don't care)
+ * @res_buf:	TPM_PCR value
+ *		size of res_buf is 20 bytes (or NULL if you don't care)
  *
  * The TPM driver should be built-in, but for whatever reason it
  * isn't, protect against the chip disappearing, by incrementing
@@ -794,9 +795,9 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
 
 /**
  * tpm_pcr_extend - extend pcr value with hash
- * @chip_num: 	tpm idx # or AN&
+ * @chip_num:	tpm idx # or AN&
  * @pcr_idx:	pcr idx to extend
- * @hash: 	hash value used to extend pcr value
+ * @hash:	hash value used to extend pcr value
  *
  * The TPM driver should be built-in, but for whatever reason it
  * isn't, protect against the chip disappearing, by incrementing
@@ -847,8 +848,7 @@ int tpm_do_selftest(struct tpm_chip *chip)
 	unsigned long duration;
 	struct tpm_cmd_t cmd;
 
-	duration = tpm_calc_ordinal_duration(chip,
-	                                     TPM_ORD_CONTINUE_SELFTEST);
+	duration = tpm_calc_ordinal_duration(chip, TPM_ORD_CONTINUE_SELFTEST);
 
 	loops = jiffies_to_msecs(duration) / delay_msec;
 
@@ -965,12 +965,12 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 	if (err)
 		goto out;
 
-	/* 
+	/*
 	   ignore header 10 bytes
 	   algorithm 32 bits (1 == RSA )
 	   encscheme 16 bits
 	   sigscheme 16 bits
-	   parameters (RSA 12->bytes: keybit, #primes, expbit)  
+	   parameters (RSA 12->bytes: keybit, #primes, expbit)
 	   keylenbytes 32 bits
 	   256 byte modulus
 	   ignore checksum 20 bytes
@@ -1020,43 +1020,33 @@ ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
 	str += sprintf(str, "Manufacturer: 0x%x\n",
 		       be32_to_cpu(cap.manufacturer_id));
 
-	rc = tpm_getcap(dev, CAP_VERSION_1_1, &cap,
-		        "attempting to determine the 1.1 version");
-	if (rc)
-		return 0;
-	str += sprintf(str,
-		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       cap.tpm_version.Major, cap.tpm_version.Minor,
-		       cap.tpm_version.revMajor, cap.tpm_version.revMinor);
+	/* Try to get a TPM version 1.2 TPM_CAP_VERSION_INFO */
+	rc = tpm_getcap(dev, CAP_VERSION_1_2, &cap,
+			 "attempting to determine the 1.2 version");
+	if (!rc) {
+		str += sprintf(str,
+			       "TCG version: %d.%d\nFirmware version: %d.%d\n",
+			       cap.tpm_version_1_2.Major,
+			       cap.tpm_version_1_2.Minor,
+			       cap.tpm_version_1_2.revMajor,
+			       cap.tpm_version_1_2.revMinor);
+	} else {
+		/* Otherwise just use TPM_STRUCT_VER */
+		rc = tpm_getcap(dev, CAP_VERSION_1_1, &cap,
+				"attempting to determine the 1.1 version");
+		if (rc)
+			return 0;
+		str += sprintf(str,
+			       "TCG version: %d.%d\nFirmware version: %d.%d\n",
+			       cap.tpm_version.Major,
+			       cap.tpm_version.Minor,
+			       cap.tpm_version.revMajor,
+			       cap.tpm_version.revMinor);
+	}
+
 	return str - buf;
 }
 EXPORT_SYMBOL_GPL(tpm_show_caps);
-
-ssize_t tpm_show_caps_1_2(struct device * dev,
-			  struct device_attribute * attr, char *buf)
-{
-	cap_t cap;
-	ssize_t rc;
-	char *str = buf;
-
-	rc = tpm_getcap(dev, TPM_CAP_PROP_MANUFACTURER, &cap,
-			"attempting to determine the manufacturer");
-	if (rc)
-		return 0;
-	str += sprintf(str, "Manufacturer: 0x%x\n",
-		       be32_to_cpu(cap.manufacturer_id));
-	rc = tpm_getcap(dev, CAP_VERSION_1_2, &cap,
-			 "attempting to determine the 1.2 version");
-	if (rc)
-		return 0;
-	str += sprintf(str,
-		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       cap.tpm_version_1_2.Major, cap.tpm_version_1_2.Minor,
-		       cap.tpm_version_1_2.revMajor,
-		       cap.tpm_version_1_2.revMinor);
-	return str - buf;
-}
-EXPORT_SYMBOL_GPL(tpm_show_caps_1_2);
 
 ssize_t tpm_show_durations(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -1102,8 +1092,8 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 }
 EXPORT_SYMBOL_GPL(tpm_store_cancel);
 
-static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask, bool check_cancel,
-				   bool *canceled)
+static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask,
+					bool check_cancel, bool *canceled)
 {
 	u8 status = chip->vendor.status(chip);
 
@@ -1170,38 +1160,25 @@ EXPORT_SYMBOL_GPL(wait_for_tpm_stat);
  */
 int tpm_open(struct inode *inode, struct file *file)
 {
-	int minor = iminor(inode);
-	struct tpm_chip *chip = NULL, *pos;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &tpm_chip_list, list) {
-		if (pos->vendor.miscdev.minor == minor) {
-			chip = pos;
-			get_device(chip->dev);
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	if (!chip)
-		return -ENODEV;
+	struct miscdevice *misc = file->private_data;
+	struct tpm_chip *chip = container_of(misc, struct tpm_chip,
+					     vendor.miscdev);
 
 	if (test_and_set_bit(0, &chip->is_open)) {
 		dev_dbg(chip->dev, "Another process owns this TPM\n");
-		put_device(chip->dev);
 		return -EBUSY;
 	}
 
 	chip->data_buffer = kzalloc(TPM_BUFSIZE, GFP_KERNEL);
 	if (chip->data_buffer == NULL) {
 		clear_bit(0, &chip->is_open);
-		put_device(chip->dev);
 		return -ENOMEM;
 	}
 
 	atomic_set(&chip->data_pending, 0);
 
 	file->private_data = chip;
+	get_device(chip->dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_open);
@@ -1463,7 +1440,6 @@ void tpm_dev_vendor_release(struct tpm_chip *chip)
 		chip->vendor.release(chip->dev);
 
 	clear_bit(chip->dev_num, dev_mask);
-	kfree(chip->vendor.miscdev.name);
 }
 EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
 
@@ -1487,7 +1463,7 @@ void tpm_dev_release(struct device *dev)
 EXPORT_SYMBOL_GPL(tpm_dev_release);
 
 /*
- * Called from tpm_<specific>.c probe function only for devices 
+ * Called from tpm_<specific>.c probe function only for devices
  * the driver has determined it should claim.  Prior to calling
  * this function the specific probe function has called pci_enable_device
  * upon errant exit from this function specific probe function should call
@@ -1496,17 +1472,13 @@ EXPORT_SYMBOL_GPL(tpm_dev_release);
 struct tpm_chip *tpm_register_hardware(struct device *dev,
 					const struct tpm_vendor_specific *entry)
 {
-#define DEVNAME_SIZE 7
-
-	char *devname;
 	struct tpm_chip *chip;
 
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 
-	if (chip == NULL || devname == NULL)
-		goto out_free;
+	if (chip == NULL)
+		return NULL;
 
 	mutex_init(&chip->buffer_mutex);
 	mutex_init(&chip->tpm_mutex);
@@ -1531,8 +1503,9 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	set_bit(chip->dev_num, dev_mask);
 
-	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
-	chip->vendor.miscdev.name = devname;
+	scnprintf(chip->devname, sizeof(chip->devname), "%s%d", "tpm",
+		  chip->dev_num);
+	chip->vendor.miscdev.name = chip->devname;
 
 	chip->vendor.miscdev.parent = dev;
 	chip->dev = get_device(dev);
@@ -1558,7 +1531,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto put_device;
 	}
 
-	chip->bios_dir = tpm_bios_log_setup(devname);
+	chip->bios_dir = tpm_bios_log_setup(chip->devname);
 
 	/* Make chip available */
 	spin_lock(&driver_lock);
@@ -1571,7 +1544,6 @@ put_device:
 	put_device(chip->dev);
 out_free:
 	kfree(chip);
-	kfree(devname);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
