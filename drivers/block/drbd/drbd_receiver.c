@@ -1151,7 +1151,7 @@ static void drbd_flush(struct drbd_connection *connection)
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
-	if (connection->write_ordering >= WO_bdev_flush) {
+	if (connection->resource->write_ordering >= WO_bdev_flush) {
 		rcu_read_lock();
 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 			struct drbd_device *device = peer_device->device;
@@ -1168,7 +1168,7 @@ static void drbd_flush(struct drbd_connection *connection)
 				/* would rather check on EOPNOTSUPP, but that is not reliable.
 				 * don't try again for ANY return value != 0
 				 * if (rv == -EOPNOTSUPP) */
-				drbd_bump_write_ordering(connection, WO_drain_io);
+				drbd_bump_write_ordering(connection->resource, WO_drain_io);
 			}
 			put_ldev(device);
 			kref_put(&device->kref, drbd_destroy_device);
@@ -1262,10 +1262,10 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_connection *connectio
  * @connection:	DRBD connection.
  * @wo:		Write ordering method to try.
  */
-void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo)
+void drbd_bump_write_ordering(struct drbd_resource *resource, enum write_ordering_e wo)
 {
 	struct disk_conf *dc;
-	struct drbd_peer_device *peer_device;
+	struct drbd_device *device;
 	enum write_ordering_e pwo;
 	int vnr;
 	static char *write_ordering_str[] = {
@@ -1274,12 +1274,10 @@ void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ord
 		[WO_bdev_flush] = "flush",
 	};
 
-	pwo = connection->write_ordering;
+	pwo = resource->write_ordering;
 	wo = min(pwo, wo);
 	rcu_read_lock();
-	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
-		struct drbd_device *device = peer_device->device;
-
+	idr_for_each_entry(&resource->devices, device, vnr) {
 		if (!get_ldev_if_state(device, D_ATTACHING))
 			continue;
 		dc = rcu_dereference(device->ldev->disk_conf);
@@ -1291,9 +1289,9 @@ void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ord
 		put_ldev(device);
 	}
 	rcu_read_unlock();
-	connection->write_ordering = wo;
-	if (pwo != connection->write_ordering || wo == WO_bdev_flush)
-		drbd_info(connection, "Method to ensure write ordering: %s\n", write_ordering_str[connection->write_ordering]);
+	resource->write_ordering = wo;
+	if (pwo != resource->write_ordering || wo == WO_bdev_flush)
+		drbd_info(resource, "Method to ensure write ordering: %s\n", write_ordering_str[resource->write_ordering]);
 }
 
 /**
@@ -1471,7 +1469,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 	 * R_PRIMARY crashes now.
 	 * Therefore we must send the barrier_ack after the barrier request was
 	 * completed. */
-	switch (connection->write_ordering) {
+	switch (connection->resource->write_ordering) {
 	case WO_none:
 		if (rv == FE_RECYCLED)
 			return 0;
@@ -1498,7 +1496,8 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 
 		return 0;
 	default:
-		drbd_err(connection, "Strangeness in connection->write_ordering %d\n", connection->write_ordering);
+		drbd_err(connection, "Strangeness in connection->write_ordering %d\n",
+			 connection->resource->write_ordering);
 		return -EIO;
 	}
 

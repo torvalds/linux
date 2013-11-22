@@ -594,6 +594,8 @@ struct drbd_resource {
 	unsigned susp_nod:1;		/* IO suspended because no data */
 	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 
+	enum write_ordering_e write_ordering;
+
 	cpumask_var_t cpu_mask;
 };
 
@@ -636,7 +638,6 @@ struct drbd_connection {
 	struct drbd_epoch *current_epoch;
 	spinlock_t epoch_lock;
 	unsigned int epochs;
-	enum write_ordering_e write_ordering;
 	atomic_t current_tle_nr;	/* transfer log epoch number */
 	unsigned current_tle_writes;	/* writes seen within this tl epoch */
 
@@ -1478,7 +1479,7 @@ static inline void drbd_generic_make_request(struct drbd_device *device,
 		generic_make_request(bio);
 }
 
-void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo);
+void drbd_bump_write_ordering(struct drbd_resource *resource, enum write_ordering_e wo);
 
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;

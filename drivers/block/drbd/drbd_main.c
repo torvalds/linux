@@ -2579,6 +2579,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	kref_init(&resource->kref);
 	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
+	resource->write_ordering = WO_bdev_flush;
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	mutex_init(&resource->conf_update);
 	mutex_init(&resource->adm_mutex);
@@ -2617,7 +2618,6 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	INIT_LIST_HEAD(&connection->current_epoch->list);
 	connection->epochs = 1;
 	spin_lock_init(&connection->epoch_lock);
-	connection->write_ordering = WO_bdev_flush;
 
 	connection->send.seen_any_write_yet = false;
 	connection->send.current_epoch_nr = 0;

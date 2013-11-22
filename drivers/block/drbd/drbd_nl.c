@@ -1399,7 +1399,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	else
 		set_bit(MD_NO_FUA, &device->flags);
 
-	drbd_bump_write_ordering(first_peer_device(device)->connection, WO_bdev_flush);
+	drbd_bump_write_ordering(device->resource, WO_bdev_flush);
 
 	drbd_md_sync(device);
 
@@ -1704,7 +1704,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	new_disk_conf = NULL;
 	new_plan = NULL;
 
-	drbd_bump_write_ordering(first_peer_device(device)->connection, WO_bdev_flush);
+	drbd_bump_write_ordering(device->resource, WO_bdev_flush);
 
 	if (drbd_md_test_flag(device->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &device->flags);
