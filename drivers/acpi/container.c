@@ -44,19 +44,24 @@ static const struct acpi_device_id container_device_ids[] = {
 	{"", 0},
 };
 
-static int container_device_attach(struct acpi_device *device,
+static int container_device_attach(struct acpi_device *adev,
 				   const struct acpi_device_id *not_used)
 {
-	/* This is necessary for container hotplug to work. */
+	kobject_uevent(&adev->dev.kobj, KOBJ_ONLINE);
 	return 1;
+}
+
+static void container_device_detach(struct acpi_device *adev)
+{
+	kobject_uevent(&adev->dev.kobj, KOBJ_OFFLINE);
 }
 
 static struct acpi_scan_handler container_handler = {
 	.ids = container_device_ids,
 	.attach = container_device_attach,
+	.detach = container_device_detach,
 	.hotplug = {
 		.enabled = true,
-		.mode = AHM_CONTAINER,
 	},
 };
 

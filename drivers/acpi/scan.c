@@ -206,9 +206,6 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	acpi_status status;
 	unsigned long long sta;
 
-	if (device->handler && device->handler->hotplug.mode == AHM_CONTAINER)
-		kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-
 	/*
 	 * Carry out two passes here and ignore errors in the first pass,
 	 * because if the devices in question are memory blocks and
@@ -288,10 +285,7 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 		dev_warn(&adev->dev, "Namespace scan failure\n");
 		return error;
 	}
-	if (adev->handler) {
-		if (adev->handler->hotplug.mode == AHM_CONTAINER)
-			kobject_uevent(&adev->dev.kobj, KOBJ_ONLINE);
-	} else {
+	if (!adev->handler) {
 		dev_warn(&adev->dev, "Enumeration failure\n");
 		return -ENODEV;
 	}
