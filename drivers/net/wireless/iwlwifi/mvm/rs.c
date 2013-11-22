@@ -597,15 +597,7 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *ucode_rate,
 	return 1;
 }
 
-/**
- * rs_get_supported_rates - get the available rates
- *
- * if management frame or broadcast frame only return
- * basic available rates.
- *
- */
 static u16 rs_get_supported_rates(struct iwl_lq_sta *lq_sta,
-				  struct ieee80211_hdr *hdr,
 				  struct rs_rate *rate)
 {
 	if (is_legacy(rate))
@@ -704,7 +696,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 		rate->sgi = false;
 	}
 
-	rate_mask = rs_get_supported_rates(lq_sta, NULL, rate);
+	rate_mask = rs_get_supported_rates(lq_sta, rate);
 
 	/* Mask with station rate restriction */
 	if (is_legacy(rate)) {
@@ -1762,7 +1754,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	index = lq_sta->last_txrate_idx;
 
 	/* rates available for this association, and for modulation mode */
-	rate_mask = rs_get_supported_rates(lq_sta, hdr, rate);
+	rate_mask = rs_get_supported_rates(lq_sta, rate);
 
 	/* mask with station rate restriction */
 	if (is_legacy(rate)) {
