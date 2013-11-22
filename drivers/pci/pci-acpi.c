@@ -141,7 +141,7 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
  * if (_PRW at S-state x)
  *	choose from highest power _SxD to lowest power _SxW
  * else // no _PRW at S-state x
- * 	choose highest power _SxD or any lower power
+ *	choose highest power _SxD or any lower power
  */
 
 static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)

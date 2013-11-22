@@ -198,7 +198,7 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
 }
 
 /**
- * pci_find_capability - query for devices' capabilities 
+ * pci_find_capability - query for devices' capabilities
  * @dev: PCI device to query
  * @cap: capability code
  *
@@ -207,12 +207,12 @@ static int __pci_bus_find_cap_start(struct pci_bus *bus,
  * device's PCI configuration space or 0 in case the device does not
  * support it.  Possible values for @cap:
  *
- *  %PCI_CAP_ID_PM           Power Management 
- *  %PCI_CAP_ID_AGP          Accelerated Graphics Port 
- *  %PCI_CAP_ID_VPD          Vital Product Data 
- *  %PCI_CAP_ID_SLOTID       Slot Identification 
+ *  %PCI_CAP_ID_PM           Power Management
+ *  %PCI_CAP_ID_AGP          Accelerated Graphics Port
+ *  %PCI_CAP_ID_VPD          Vital Product Data
+ *  %PCI_CAP_ID_SLOTID       Slot Identification
  *  %PCI_CAP_ID_MSI          Message Signalled Interrupts
- *  %PCI_CAP_ID_CHSWP        CompactPCI HotSwap 
+ *  %PCI_CAP_ID_CHSWP        CompactPCI HotSwap
  *  %PCI_CAP_ID_PCIX         PCI-X
  *  %PCI_CAP_ID_EXP          PCI Express
  */
@@ -228,13 +228,13 @@ int pci_find_capability(struct pci_dev *dev, int cap)
 }
 
 /**
- * pci_bus_find_capability - query for devices' capabilities 
+ * pci_bus_find_capability - query for devices' capabilities
  * @bus:   the PCI bus to query
  * @devfn: PCI device to query
  * @cap:   capability code
  *
  * Like pci_find_capability() but works for pci devices that do not have a
- * pci_dev structure set up yet. 
+ * pci_dev structure set up yet.
  *
  * Returns the address of the requested capability structure within the
  * device's PCI configuration space or 0 in case the device does not
@@ -515,7 +515,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -EINVAL;
 
 	/* Validate current state:
-	 * Can enter D0 from any state, but if we can only go deeper 
+	 * Can enter D0 from any state, but if we can only go deeper
 	 * to sleep if we're already in a low power state
 	 */
 	if (state != PCI_D0 && dev->current_state <= PCI_D3cold
@@ -998,7 +998,7 @@ static void pci_restore_config_space(struct pci_dev *pdev)
 	}
 }
 
-/** 
+/**
  * pci_restore_state - Restore the saved state of a PCI device
  * @dev: - PCI device that we're dealing with
  */
@@ -1030,7 +1030,7 @@ struct pci_saved_state {
  *			   the device saved state.
  * @dev: PCI device that we're dealing with
  *
- * Rerturn NULL if no state or error.
+ * Return NULL if no state or error.
  */
 struct pci_saved_state *pci_store_saved_state(struct pci_dev *dev)
 {
@@ -1880,7 +1880,7 @@ int pci_finish_runtime_suspend(struct pci_dev *dev)
  * pci_dev_run_wake - Check if device can generate run-time wake-up events.
  * @dev: Device to check.
  *
- * Return true if the device itself is cabable of generating wake-up events
+ * Return true if the device itself is capable of generating wake-up events
  * (through the platform or using the native PCIe PME) or if the device supports
  * PME and one of its upstream bridges can generate wake-up events.
  */
@@ -2447,7 +2447,7 @@ bool pci_acs_enabled(struct pci_dev *pdev, u16 acs_flags)
 	switch (pci_pcie_type(pdev)) {
 	/*
 	 * PCI/X-to-PCIe bridges are not specifically mentioned by the spec,
-	 * but since their primary inteface is PCI/X, we conservatively
+	 * but since their primary interface is PCI/X, we conservatively
 	 * handle them as we would a non-PCIe device.
 	 */
 	case PCI_EXP_TYPE_PCIE_BRIDGE:
@@ -2471,7 +2471,7 @@ bool pci_acs_enabled(struct pci_dev *pdev, u16 acs_flags)
 	/*
 	 * PCIe 3.0, 6.12.1.2 specifies ACS capabilities that should be
 	 * implemented by the remaining PCIe types to indicate peer-to-peer
-	 * capabilities, but only when they are part of a multifunciton
+	 * capabilities, but only when they are part of a multifunction
 	 * device.  The footnote for section 6.12 indicates the specific
 	 * PCIe types included here.
 	 */
@@ -2486,7 +2486,7 @@ bool pci_acs_enabled(struct pci_dev *pdev, u16 acs_flags)
 	}
 
 	/*
-	 * PCIe 3.0, 6.12.1.3 specifies no ACS capabilties are applicable
+	 * PCIe 3.0, 6.12.1.3 specifies no ACS capabilities are applicable
 	 * to single function devices with the exception of downstream ports.
 	 */
 	return true;
@@ -2622,7 +2622,7 @@ void pci_release_region(struct pci_dev *pdev, int bar)
  *
  *	If @exclusive is set, then the region is marked so that userspace
  *	is explicitly not allowed to map the resource via /dev/mem or
- * 	sysfs MMIO access.
+ *	sysfs MMIO access.
  *
  *	Returns 0 on success, or %EBUSY on error.  A warning
  *	message is also printed on failure.
@@ -2634,7 +2634,7 @@ static int __pci_request_region(struct pci_dev *pdev, int bar, const char *res_n
 
 	if (pci_resource_len(pdev, bar) == 0)
 		return 0;
-		
+
 	if (pci_resource_flags(pdev, bar) & IORESOURCE_IO) {
 		if (!request_region(pci_resource_start(pdev, bar),
 			    pci_resource_len(pdev, bar), res_name))
@@ -2694,7 +2694,7 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
  *
  *	The key difference that _exclusive makes it that userspace is
  *	explicitly not allowed to map the resource via /dev/mem or
- * 	sysfs.
+ *	sysfs.
  */
 int pci_request_region_exclusive(struct pci_dev *pdev, int bar, const char *res_name)
 {
@@ -2799,7 +2799,7 @@ int pci_request_regions(struct pci_dev *pdev, const char *res_name)
  *	successfully.
  *
  *	pci_request_regions_exclusive() will mark the region so that
- * 	/dev/mem and the sysfs MMIO access will not be allowed.
+ *	/dev/mem and the sysfs MMIO access will not be allowed.
  *
  *	Returns 0 on success, or %EBUSY on error.  A warning
  *	message is also printed on failure.
@@ -2967,7 +2967,7 @@ pci_set_mwi(struct pci_dev *dev)
 		cmd |= PCI_COMMAND_INVALIDATE;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
-	
+
 	return 0;
 }
 
@@ -3292,7 +3292,7 @@ clear:
  *
  * NOTE: This causes the caller to sleep for twice the device power transition
  * cooldown period, which for the D0->D3hot and D3hot->D0 transitions is 10 ms
- * by devault (i.e. unless the @dev's d3_delay field has a different value).
+ * by default (i.e. unless the @dev's d3_delay field has a different value).
  * Moreover, only devices in D0 can be reset by this function.
  */
 static int pci_pm_reset(struct pci_dev *dev, int probe)
@@ -3341,7 +3341,7 @@ void pci_reset_bridge_secondary_bus(struct pci_dev *dev)
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, ctrl);
 	/*
 	 * PCI spec v3.0 7.6.4.2 requires minimum Trst of 1ms.  Double
-	 * this to 2ms to ensure that we meet the minium requirement.
+	 * this to 2ms to ensure that we meet the minimum requirement.
 	 */
 	msleep(2);
 
@@ -3998,7 +3998,7 @@ int pcie_set_mps(struct pci_dev *dev, int mps)
 		return -EINVAL;
 
 	v = ffs(mps) - 8;
-	if (v > dev->pcie_mpss) 
+	if (v > dev->pcie_mpss)
 		return -EINVAL;
 	v <<= 5;
 
