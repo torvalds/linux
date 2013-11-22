@@ -816,7 +816,7 @@ int __ceph_caps_revoking_other(struct ceph_inode_info *ci,
 
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
-		if (cap != ocap && __cap_is_valid(cap) &&
+		if (cap != ocap &&
 		    (cap->implemented & ~cap->issued & mask))
 			return 1;
 	}

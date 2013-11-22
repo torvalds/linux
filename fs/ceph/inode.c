@@ -1466,7 +1466,8 @@ static void ceph_invalidate_work(struct work_struct *work)
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
 	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-		/* nevermind! */
+		if (__ceph_caps_revoking_other(ci, NULL, CEPH_CAP_FILE_CACHE))
+			check = 1;
 		spin_unlock(&ci->i_ceph_lock);
 		mutex_unlock(&ci->i_truncate_mutex);
 		goto out;
@@ -1487,13 +1488,14 @@ static void ceph_invalidate_work(struct work_struct *work)
 		dout("invalidate_pages %p gen %d raced, now %d revoking %d\n",
 		     inode, orig_gen, ci->i_rdcache_gen,
 		     ci->i_rdcache_revoking);
+		if (__ceph_caps_revoking_other(ci, NULL, CEPH_CAP_FILE_CACHE))
+			check = 1;
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	mutex_unlock(&ci->i_truncate_mutex);
-
+out:
 	if (check)
 		ceph_check_caps(ci, 0, NULL);
-out:
 	iput(inode);
 }
 
