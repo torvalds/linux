@@ -1335,6 +1335,7 @@ static int wm8991_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8991_priv *wm8991;
+	unsigned int val;
 	int ret;
 
 	wm8991 = devm_kzalloc(&i2c->dev, sizeof(*wm8991), GFP_KERNEL);
@@ -1346,6 +1347,16 @@ static int wm8991_i2c_probe(struct i2c_client *i2c,
 		return PTR_ERR(wm8991->regmap);
 
 	i2c_set_clientdata(i2c, wm8991);
+
+	ret = regmap_read(wm8991->regmap, WM8991_RESET, &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read device ID: %d\n", ret);
+		return ret;
+	}
+	if (val != 0x8991) {
+		dev_err(&i2c->dev, "Device with ID %x is not a WM8991\n", val);
+		return -EINVAL;
+	}
 
 	ret = regmap_write(wm8991->regmap, WM8991_RESET, 0);
 	if (ret < 0) {
