@@ -233,9 +233,9 @@ struct mem_cgroup_eventfd_list {
  */
 struct cgroup_event {
 	/*
-	 * css which the event belongs to.
+	 * memcg which the event belongs to.
 	 */
-	struct cgroup_subsys_state *css;
+	struct mem_cgroup *memcg;
 	/*
 	 * eventfd to signal userspace about the event.
 	 */
@@ -249,14 +249,14 @@ struct cgroup_event {
 	 * waiter for changes related to this event.  Use eventfd_signal()
 	 * on eventfd to send notification to userspace.
 	 */
-	int (*register_event)(struct cgroup_subsys_state *css,
+	int (*register_event)(struct mem_cgroup *memcg,
 			      struct eventfd_ctx *eventfd, const char *args);
 	/*
 	 * unregister_event() callback will be called when userspace closes
 	 * the eventfd or on cgroup removing.  This callback must be set,
 	 * if you want provide notification functionality.
 	 */
-	void (*unregister_event)(struct cgroup_subsys_state *css,
+	void (*unregister_event)(struct mem_cgroup *memcg,
 				 struct eventfd_ctx *eventfd);
 	/*
 	 * All fields below needed to unregister event when
@@ -533,11 +533,6 @@ struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
 struct cgroup_subsys_state *vmpressure_to_css(struct vmpressure *vmpr)
 {
 	return &container_of(vmpr, struct mem_cgroup, vmpressure)->css;
-}
-
-struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css)
-{
-	return &mem_cgroup_from_css(css)->vmpressure;
 }
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
@@ -5682,10 +5677,9 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
 		mem_cgroup_oom_notify_cb(iter);
 }
 
-static int __mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd, const char *args, enum res_type type)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
 	u64 threshold, usage;
@@ -5764,22 +5758,21 @@ unlock:
 	return ret;
 }
 
-static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+static int mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd, const char *args)
 {
-	return __mem_cgroup_usage_register_event(css, eventfd, args, _MEM);
+	return __mem_cgroup_usage_register_event(memcg, eventfd, args, _MEM);
 }
 
-static int memsw_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+static int memsw_cgroup_usage_register_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd, const char *args)
 {
-	return __mem_cgroup_usage_register_event(css, eventfd, args, _MEMSWAP);
+	return __mem_cgroup_usage_register_event(memcg, eventfd, args, _MEMSWAP);
 }
 
-static void __mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+static void __mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd, enum res_type type)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
 	u64 usage;
@@ -5854,22 +5847,21 @@ unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
 
-static void mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+static void mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd)
 {
-	return __mem_cgroup_usage_unregister_event(css, eventfd, _MEM);
+	return __mem_cgroup_usage_unregister_event(memcg, eventfd, _MEM);
 }
 
-static void memsw_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+static void memsw_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd)
 {
-	return __mem_cgroup_usage_unregister_event(css, eventfd, _MEMSWAP);
+	return __mem_cgroup_usage_unregister_event(memcg, eventfd, _MEMSWAP);
 }
 
-static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
+static int mem_cgroup_oom_register_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd, const char *args)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_eventfd_list *event;
 
 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
@@ -5889,10 +5881,9 @@ static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static void mem_cgroup_oom_unregister_event(struct cgroup_subsys_state *css,
+static void mem_cgroup_oom_unregister_event(struct mem_cgroup *memcg,
 	struct eventfd_ctx *eventfd)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_eventfd_list *ev, *tmp;
 
 	spin_lock(&memcg_oom_lock);
@@ -6019,18 +6010,18 @@ static void cgroup_event_remove(struct work_struct *work)
 {
 	struct cgroup_event *event = container_of(work, struct cgroup_event,
 			remove);
-	struct cgroup_subsys_state *css = event->css;
+	struct mem_cgroup *memcg = event->memcg;
 
 	remove_wait_queue(event->wqh, &event->wait);
 
-	event->unregister_event(css, event->eventfd);
+	event->unregister_event(memcg, event->eventfd);
 
 	/* Notify userspace the event is going away. */
 	eventfd_signal(event->eventfd, 1);
 
 	eventfd_ctx_put(event->eventfd);
 	kfree(event);
-	css_put(css);
+	css_put(&memcg->css);
 }
 
 /*
@@ -6043,7 +6034,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 {
 	struct cgroup_event *event = container_of(wait,
 			struct cgroup_event, wait);
-	struct mem_cgroup *memcg = mem_cgroup_from_css(event->css);
+	struct mem_cgroup *memcg = event->memcg;
 	unsigned long flags = (unsigned long)key;
 
 	if (flags & POLLHUP) {
@@ -6114,7 +6105,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	if (!event)
 		return -ENOMEM;
 
-	event->css = css;
+	event->memcg = memcg;
 	INIT_LIST_HEAD(&event->list);
 	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
 	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
@@ -6186,7 +6177,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	if (ret)
 		goto out_put_cfile;
 
-	ret = event->register_event(css, event->eventfd, buffer);
+	ret = event->register_event(memcg, event->eventfd, buffer);
 	if (ret)
 		goto out_put_css;
 
