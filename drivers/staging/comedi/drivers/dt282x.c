@@ -63,8 +63,6 @@ Notes:
 
 #include "comedi_fc.h"
 
-#define DEBUG
-
 #define DT2821_TIMEOUT		100	/* 500 us */
 #define DT2821_SIZE 0x10
 
@@ -1130,14 +1128,6 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
 	i = inw(dev->iobase + DT2821_ADCSR);
-#ifdef DEBUG
-	printk(KERN_DEBUG " fingerprint=%x,%x,%x,%x,%x",
-	       inw(dev->iobase + DT2821_ADCSR),
-	       inw(dev->iobase + DT2821_CHANCSR),
-	       inw(dev->iobase + DT2821_DACSR),
-	       inw(dev->iobase + DT2821_SUPCSR),
-	       inw(dev->iobase + DT2821_TMRCTR));
-#endif
 
 	if (((inw(dev->iobase + DT2821_ADCSR) & DT2821_ADCSR_MASK)
 	     != DT2821_ADCSR_VAL) ||
