@@ -720,6 +720,13 @@ struct drbd_connection {
 	struct drbd_thread worker;
 	struct drbd_thread asender;
 
+	/* cached pointers,
+	 * so we can look up the oldest pending requests more quickly.
+	 * protected by resource->req_lock */
+	struct drbd_request *req_next; /* DRBD 9: todo.req_next */
+	struct drbd_request *req_ack_pending;
+	struct drbd_request *req_not_net_done;
+
 	/* sender side */
 	struct drbd_work_queue sender_work;
 
