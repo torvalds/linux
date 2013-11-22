@@ -787,7 +787,7 @@ SND_SOC_DAPM_OUTPUT("RON"),
 SND_SOC_DAPM_OUTPUT("Internal DAC Sink"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8990_dapm_routes[] = {
 	/* Make DACs turn on when playing even if not mixed into any outputs */
 	{"Internal DAC Sink", NULL, "Left DAC"},
 	{"Internal DAC Sink", NULL, "Right DAC"},
@@ -911,18 +911,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"ROP", NULL, "ROPMIX"},
 	{"RON", NULL, "RONMIX"},
 };
-
-static int wm8990_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8990_dapm_widgets,
-				  ARRAY_SIZE(wm8990_dapm_widgets));
-	/* set up the WM8990 audio map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 /* PLL divisors */
 struct _pll_div {
@@ -1352,10 +1340,6 @@ static int wm8990_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8990_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8990_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	snd_soc_add_codec_controls(codec, wm8990_snd_controls,
-				ARRAY_SIZE(wm8990_snd_controls));
-	wm8990_add_widgets(codec);
-
 	return 0;
 }
 
@@ -1376,6 +1360,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8990 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8990_reg,
 	.volatile_register = wm8990_volatile_register,
+	.controls =	wm8990_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8990_snd_controls),
+	.dapm_widgets = wm8990_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8990_dapm_widgets),
+	.dapm_routes =	wm8990_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8990_dapm_routes),
 };
 
 static int wm8990_i2c_probe(struct i2c_client *i2c,
