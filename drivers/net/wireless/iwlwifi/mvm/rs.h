@@ -257,7 +257,6 @@ struct iwl_rate_scale_data {
 	s32 success_ratio;	/* per-cent * 128  */
 	s32 counter;		/* number of frames attempted */
 	s32 average_tpt;	/* success ratio * expected throughput */
-	unsigned long stamp;
 };
 
 /**

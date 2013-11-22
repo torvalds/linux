@@ -271,7 +271,6 @@ static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 	window->success_ratio = IWL_INVALID_VALUE;
 	window->counter = 0;
 	window->average_tpt = IWL_INVALID_VALUE;
-	window->stamp = 0;
 }
 
 static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
@@ -427,9 +426,6 @@ static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
 		window->average_tpt = (window->success_ratio * tpt + 64) / 128;
 	else
 		window->average_tpt = IWL_INVALID_VALUE;
-
-	/* Tag this window as having been updated */
-	window->stamp = jiffies;
 
 	return 0;
 }
