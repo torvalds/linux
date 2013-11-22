@@ -3414,7 +3414,7 @@ static void alc_update_headset_mode_hook(struct hda_codec *codec,
 static void alc_update_headset_jack_cb(struct hda_codec *codec, struct hda_jack_tbl *jack)
 {
 	struct alc_spec *spec = codec->spec;
-	spec->current_headset_type = ALC_HEADSET_MODE_UNKNOWN;
+	spec->current_headset_type = ALC_HEADSET_TYPE_UNKNOWN;
 	snd_hda_gen_hp_automute(codec, jack);
 }
 
