@@ -936,19 +936,28 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 static int
-nouveau_vma_getmap(struct nouveau_channel *chan, struct nouveau_bo *nvbo,
-		   struct ttm_mem_reg *mem, struct nouveau_vma *vma)
+nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
+		     struct ttm_mem_reg *mem)
 {
-	struct nouveau_mem *node = mem->mm_node;
+	struct nouveau_mem *old_node = bo->mem.mm_node;
+	struct nouveau_mem *new_node = mem->mm_node;
+	u64 size = (u64)mem->num_pages << PAGE_SHIFT;
 	int ret;
 
-	ret = nouveau_vm_get(nv_client(chan->cli)->vm, mem->num_pages <<
-			     PAGE_SHIFT, node->page_shift,
-			     NV_MEM_ACCESS_RW, vma);
+	ret = nouveau_vm_get(nv_client(drm)->vm, size, old_node->page_shift,
+			     NV_MEM_ACCESS_RW, &old_node->vma[0]);
 	if (ret)
 		return ret;
 
-	nouveau_vm_map(vma, node);
+	ret = nouveau_vm_get(nv_client(drm)->vm, size, new_node->page_shift,
+			     NV_MEM_ACCESS_RW, &old_node->vma[1]);
+	if (ret) {
+		nouveau_vm_put(&old_node->vma[0]);
+		return ret;
+	}
+
+	nouveau_vm_map(&old_node->vma[0], old_node);
+	nouveau_vm_map(&old_node->vma[1], new_node);
 	return 0;
 }
 
@@ -958,35 +967,27 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_channel *chan = drm->ttm.chan;
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
-
-	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
 
 	/* create temporary vmas for the transfer and attach them to the
 	 * old nouveau_mem node, these will get cleaned up after ttm has
 	 * destroyed the ttm_mem_reg
 	 */
 	if (nv_device(drm->device)->card_type >= NV_50) {
-		struct nouveau_mem *node = old_mem->mm_node;
-
-		ret = nouveau_vma_getmap(chan, nvbo, old_mem, &node->vma[0]);
+		ret = nouveau_bo_move_prep(drm, bo, new_mem);
 		if (ret)
-			goto out;
-
-		ret = nouveau_vma_getmap(chan, nvbo, new_mem, &node->vma[1]);
-		if (ret)
-			goto out;
+			return ret;
 	}
+
+	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
 
 	ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
 	if (ret == 0) {
+		struct nouveau_bo *nvbo = nouveau_bo(bo);
 		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
 						    no_wait_gpu, new_mem);
 	}
 
-out:
 	mutex_unlock(&chan->cli->mutex);
 	return ret;
 }
