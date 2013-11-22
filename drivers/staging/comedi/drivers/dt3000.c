@@ -48,8 +48,6 @@ AO commands are not supported.
    you the docs without one, also.
 */
 
-#define DEBUG 1
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -253,24 +251,6 @@ struct dt3k_private {
 	unsigned int ai_rear;
 };
 
-#ifdef DEBUG
-static char *intr_flags[] = {
-	"AdFull", "AdSwError", "AdHwError", "DaEmpty",
-	"DaSwError", "DaHwError", "CtDone", "CmDone",
-};
-
-static void debug_intr_flags(unsigned int flags)
-{
-	int i;
-	printk(KERN_DEBUG "dt3k: intr_flags:");
-	for (i = 0; i < 8; i++) {
-		if (flags & (1 << i))
-			printk(KERN_CONT " %s", intr_flags[i]);
-	}
-	printk(KERN_CONT "\n");
-}
-#endif
-
 #define TIMEOUT 100
 
 static void dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
@@ -380,9 +360,6 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 
 	s = &dev->subdevices[0];
 	status = readw(devpriv->io_addr + DPR_Intr_Flag);
-#ifdef DEBUG
-	debug_intr_flags(status);
-#endif
 
 	if (status & DT3000_ADFULL) {
 		dt3k_ai_empty_fifo(dev, s);
