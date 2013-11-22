@@ -2,15 +2,10 @@ config ARCH_MVEBU
 	bool "Marvell SOCs with Device Tree support" if ARCH_MULTI_V7
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
 	select PINCTRL
 	select PLAT_ORION
-	select SPARSE_IRQ
-	select CLKDEV_LOOKUP
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
 	select ARCH_REQUIRE_GPIOLIB

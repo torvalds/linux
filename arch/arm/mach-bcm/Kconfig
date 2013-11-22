@@ -16,12 +16,7 @@ config ARCH_BCM_MOBILE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
-	select CPU_V7
-	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	select GPIO_BCM_KONA
-	select SPARSE_IRQ
 	select TICK_ONESHOT
 	select CACHE_L2X0
 	select HAVE_ARM_ARCH_TIMER

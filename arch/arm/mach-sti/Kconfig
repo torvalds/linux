@@ -1,7 +1,5 @@
 menuconfig ARCH_STI
 	bool "STMicroelectronics Consumer Electronics SOCs with Device Trees" if ARCH_MULTI_V7
-	select GENERIC_CLOCKEVENTS
-	select CLKDEV_LOOKUP
 	select ARM_GIC
 	select ARM_GLOBAL_TIMER
 	select PINCTRL

@@ -5,8 +5,6 @@ config ARCH_SHMOBILE_MULTI
 	bool "Renesas ARM SoCs" if ARCH_MULTI_V7
 	depends on MMU
 	select ARCH_SHMOBILE
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
@@ -16,7 +14,6 @@ config ARCH_SHMOBILE_MULTI
 	select NO_IOPORT
 	select PINCTRL
 	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
 
 if ARCH_SHMOBILE_MULTI
 

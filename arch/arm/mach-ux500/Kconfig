@@ -11,9 +11,6 @@ config ARCH_U8500
 	select ARM_GIC
 	select CACHE_L2X0
 	select CLKSRC_NOMADIK_MTU
-	select COMMON_CLK
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select HAVE_SMP
@@ -76,7 +73,6 @@ config UX500_AUTO_PLATFORM
 config MACH_UX500_DT
 	bool "Generic U8500 support using device tree"
 	depends on MACH_MOP500
-	select USE_OF
 
 endmenu
 
