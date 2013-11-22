@@ -291,8 +291,8 @@ struct fwtty_port {
 #define FREQ_BREAKS        (HZ / 50)
 
 /* Ports are allocated in blocks of num_ports for each fw_card */
-#define MAX_CARD_PORTS           32	/* max # of ports per card */
-#define MAX_TOTAL_PORTS          64	/* max # of ports total    */
+#define MAX_CARD_PORTS           CONFIG_FWTTY_MAX_CARD_PORTS
+#define MAX_TOTAL_PORTS          CONFIG_FWTTY_MAX_TOTAL_PORTS
 
 /* tuning parameters */
 #define FWTTY_PORT_TXFIFO_LEN	4096
