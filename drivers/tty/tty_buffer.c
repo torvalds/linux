@@ -373,34 +373,6 @@ int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
 
-/**
- *	tty_prepare_flip_string_flags	-	make room for characters
- *	@port: tty port
- *	@chars: return pointer for character write area
- *	@flags: return pointer for status flag write area
- *	@size: desired size
- *
- *	Prepare a block of space in the buffer for data. Returns the length
- *	available and buffer pointer to the space which is now allocated and
- *	accounted for as ready for characters. This is used for drivers
- *	that need their own block copy routines into the buffer. There is no
- *	guarantee the buffer is a DMA target!
- */
-
-int tty_prepare_flip_string_flags(struct tty_port *port,
-			unsigned char **chars, char **flags, size_t size)
-{
-	int space = tty_buffer_request_room(port, size);
-	if (likely(space)) {
-		struct tty_buffer *tb = port->buf.tail;
-		*chars = char_buf_ptr(tb, tb->used);
-		*flags = flag_buf_ptr(tb, tb->used);
-		tb->used += space;
-	}
-	return space;
-}
-EXPORT_SYMBOL_GPL(tty_prepare_flip_string_flags);
-
 
 static int
 receive_buf(struct tty_struct *tty, struct tty_buffer *head, int count)

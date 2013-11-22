@@ -10,8 +10,6 @@ extern int tty_insert_flip_string_fixed_flag(struct tty_port *port,
 		const unsigned char *chars, char flag, size_t size);
 extern int tty_prepare_flip_string(struct tty_port *port,
 		unsigned char **chars, size_t size);
-extern int tty_prepare_flip_string_flags(struct tty_port *port,
-		unsigned char **chars, char **flags, size_t size);
 extern void tty_flip_buffer_push(struct tty_port *port);
 void tty_schedule_flip(struct tty_port *port);
 
