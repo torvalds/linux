@@ -952,6 +952,8 @@ enum drbd_state_rv
 __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	         enum chg_state_flags flags, struct completion *done)
 {
+	struct drbd_peer_device *peer_device = first_peer_device(device);
+	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
 	union drbd_state os;
 	enum drbd_state_rv rv = SS_SUCCESS;
 	enum sanitize_state_warnings ssw;
@@ -978,9 +980,9 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 			   this happen...*/
 
 			if (is_valid_state(device, os) == rv)
-				rv = is_valid_soft_transition(os, ns, first_peer_device(device)->connection);
+				rv = is_valid_soft_transition(os, ns, connection);
 		} else
-			rv = is_valid_soft_transition(os, ns, first_peer_device(device)->connection);
+			rv = is_valid_soft_transition(os, ns, connection);
 	}
 
 	if (rv < SS_SUCCESS) {
@@ -997,7 +999,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	   sanitize_state(). Only display it here if we where not called from
 	   _conn_request_state() */
 	if (!(flags & CS_DC_SUSP))
-		conn_pr_state_change(first_peer_device(device)->connection, os, ns,
+		conn_pr_state_change(connection, os, ns,
 				     (flags & ~CS_DC_MASK) | CS_DC_SUSP);
 
 	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
@@ -1017,19 +1019,19 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	/* put replicated vs not-replicated requests in seperate epochs */
 	if (did_remote != should_do_remote)
-		start_new_tl_epoch(first_peer_device(device)->connection);
+		start_new_tl_epoch(connection);
 
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
 		drbd_print_uuids(device, "attached to UUIDs");
 
 	/* Wake up role changes, that were delayed because of connection establishing */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS &&
-	    no_peer_wf_report_params(first_peer_device(device)->connection))
-		clear_bit(STATE_SENT, &first_peer_device(device)->connection->flags);
+	    no_peer_wf_report_params(connection))
+		clear_bit(STATE_SENT, &connection->flags);
 
 	wake_up(&device->misc_wait);
 	wake_up(&device->state_wait);
-	wake_up(&first_peer_device(device)->connection->ping_wait);
+	wake_up(&connection->ping_wait);
 
 	/* Aborted verify run, or we reached the stop sector.
 	 * Log the last position, unless end-of-device. */
@@ -1118,21 +1120,21 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	/* Receiver should clean up itself */
 	if (os.conn != C_DISCONNECTING && ns.conn == C_DISCONNECTING)
-		drbd_thread_stop_nowait(&first_peer_device(device)->connection->receiver);
+		drbd_thread_stop_nowait(&connection->receiver);
 
 	/* Now the receiver finished cleaning up itself, it should die */
 	if (os.conn != C_STANDALONE && ns.conn == C_STANDALONE)
-		drbd_thread_stop_nowait(&first_peer_device(device)->connection->receiver);
+		drbd_thread_stop_nowait(&connection->receiver);
 
 	/* Upon network failure, we need to restart the receiver. */
 	if (os.conn > C_WF_CONNECTION &&
 	    ns.conn <= C_TEAR_DOWN && ns.conn >= C_TIMEOUT)
-		drbd_thread_restart_nowait(&first_peer_device(device)->connection->receiver);
+		drbd_thread_restart_nowait(&connection->receiver);
 
 	/* Resume AL writing if we get a connection */
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 		drbd_resume_al(device);
-		first_peer_device(device)->connection->connect_cnt++;
+		connection->connect_cnt++;
 	}
 
 	/* remember last attach time so request_timer_fn() won't
@@ -1150,7 +1152,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		ascw->w.cb = w_after_state_ch;
 		ascw->device = device;
 		ascw->done = done;
-		drbd_queue_work(&first_peer_device(device)->connection->sender_work,
+		drbd_queue_work(&connection->sender_work,
 				&ascw->w);
 	} else {
 		drbd_err(device, "Could not kmalloc an ascw\n");
@@ -1222,6 +1224,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
 	struct drbd_resource *resource = device->resource;
+	struct drbd_peer_device *peer_device = first_peer_device(device);
+	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
 	struct sib_info sib;
 
 	sib.sib_reason = SIB_STATE_CHANGE;
@@ -1245,7 +1249,6 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	   state change. This function might sleep */
 
 	if (ns.susp_nod) {
-		struct drbd_connection *connection = first_peer_device(device)->connection;
 		enum drbd_req_event what = NOTHING;
 
 		spin_lock_irq(&device->resource->req_lock);
@@ -1267,8 +1270,6 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	}
 
 	if (ns.susp_fen) {
-		struct drbd_connection *connection = first_peer_device(device)->connection;
-
 		spin_lock_irq(&device->resource->req_lock);
 		if (resource->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
 			/* case2: The connection was established again: */
@@ -1294,8 +1295,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	 * which is unexpected. */
 	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
 	    (ns.conn == C_SYNC_SOURCE || ns.conn == C_PAUSED_SYNC_S) &&
-	    first_peer_device(device)->connection->agreed_pro_version >= 96 && get_ldev(device)) {
-		drbd_gen_and_send_sync_uuid(first_peer_device(device));
+	    connection->agreed_pro_version >= 96 && get_ldev(device)) {
+		drbd_gen_and_send_sync_uuid(peer_device);
 		put_ldev(device);
 	}
 
@@ -1309,8 +1310,8 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		atomic_set(&device->rs_pending_cnt, 0);
 		drbd_rs_cancel_all(device);
 
-		drbd_send_uuids(first_peer_device(device));
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_uuids(peer_device);
+		drbd_send_state(peer_device, ns);
 	}
 	/* No point in queuing send_bitmap if we don't have a connection
 	 * anymore, so check also the _current_ state, not only the new state
@@ -1335,7 +1336,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 					set_bit(NEW_CUR_UUID, &device->flags);
 				} else {
 					drbd_uuid_new_current(device);
-					drbd_send_uuids(first_peer_device(device));
+					drbd_send_uuids(peer_device);
 				}
 			}
 			put_ldev(device);
@@ -1346,7 +1347,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		if (os.peer == R_SECONDARY && ns.peer == R_PRIMARY &&
 		    device->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
 			drbd_uuid_new_current(device);
-			drbd_send_uuids(first_peer_device(device));
+			drbd_send_uuids(peer_device);
 		}
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
@@ -1373,16 +1374,16 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	/* Last part of the attaching process ... */
 	if (ns.conn >= C_CONNECTED &&
 	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
-		drbd_send_sizes(first_peer_device(device), 0, 0);  /* to start sync... */
-		drbd_send_uuids(first_peer_device(device));
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_sizes(peer_device, 0, 0);  /* to start sync... */
+		drbd_send_uuids(peer_device);
+		drbd_send_state(peer_device, ns);
 	}
 
 	/* We want to pause/continue resync, tell peer. */
 	if (ns.conn >= C_CONNECTED &&
 	     ((os.aftr_isp != ns.aftr_isp) ||
 	      (os.user_isp != ns.user_isp)))
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	/* In case one of the isp bits got set, suspend other devices. */
 	if ((!os.aftr_isp && !os.peer_isp && !os.user_isp) &&
@@ -1392,10 +1393,10 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	/* Make sure the peer gets informed about eventual state
 	   changes (ISP bits) while we were in WFReportParams. */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn >= C_CONNECTED)
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	if (os.conn != C_AHEAD && ns.conn == C_AHEAD)
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	/* We are in the progress to start a full sync... */
 	if ((os.conn != C_STARTING_SYNC_T && ns.conn == C_STARTING_SYNC_T) ||
@@ -1449,7 +1450,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 					drbd_disk_str(device->state.disk));
 
 			if (ns.conn >= C_CONNECTED)
-				drbd_send_state(first_peer_device(device), ns);
+				drbd_send_state(peer_device, ns);
 
 			drbd_rs_cancel_all(device);
 
@@ -1473,7 +1474,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 				 drbd_disk_str(device->state.disk));
 
 		if (ns.conn >= C_CONNECTED)
-			drbd_send_state(first_peer_device(device), ns);
+			drbd_send_state(peer_device, ns);
 		/* corresponding get_ldev in __drbd_set_state
 		 * this may finally trigger drbd_ldev_destroy. */
 		put_ldev(device);
@@ -1481,7 +1482,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 
 	/* Notify peer that I had a local IO error, and did not detached.. */
 	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT && ns.conn >= C_CONNECTED)
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	/* Disks got bigger while they were detached */
 	if (ns.disk > D_NEGOTIATING && ns.pdsk > D_NEGOTIATING &&
@@ -1499,14 +1500,14 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 	/* sync target done with resync.  Explicitly notify peer, even though
 	 * it should (at least for non-empty resyncs) already know itself. */
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	/* Verify finished, or reached stop sector.  Peer did not know about
 	 * the stop sector, and we may even have changed the stop sector during
 	 * verify to interrupt/stop early.  Send the new state. */
 	if (os.conn == C_VERIFY_S && ns.conn == C_CONNECTED
 	&& verify_can_do_stop_sector(device))
-		drbd_send_state(first_peer_device(device), ns);
+		drbd_send_state(peer_device, ns);
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk

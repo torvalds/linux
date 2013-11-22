@@ -583,8 +583,10 @@ static int drbd_rs_number_requests(struct drbd_device *device)
 	return number;
 }
 
-static int make_resync_request(struct drbd_device *device, int cancel)
+static int make_resync_request(struct drbd_device *const device, int cancel)
 {
+	struct drbd_peer_device *const peer_device = first_peer_device(device);
+	struct drbd_connection *const connection = peer_device ? peer_device->connection : NULL;
 	unsigned long bit;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(device->this_bdev);
@@ -618,15 +620,15 @@ static int make_resync_request(struct drbd_device *device, int cancel)
 
 	for (i = 0; i < number; i++) {
 		/* Stop generating RS requests, when half of the send buffer is filled */
-		mutex_lock(&first_peer_device(device)->connection->data.mutex);
-		if (first_peer_device(device)->connection->data.socket) {
-			queued = first_peer_device(device)->connection->data.socket->sk->sk_wmem_queued;
-			sndbuf = first_peer_device(device)->connection->data.socket->sk->sk_sndbuf;
+		mutex_lock(&connection->data.mutex);
+		if (connection->data.socket) {
+			queued = connection->data.socket->sk->sk_wmem_queued;
+			sndbuf = connection->data.socket->sk->sk_sndbuf;
 		} else {
 			queued = 1;
 			sndbuf = 0;
 		}
-		mutex_unlock(&first_peer_device(device)->connection->data.mutex);
+		mutex_unlock(&connection->data.mutex);
 		if (queued > sndbuf / 2)
 			goto requeue;
 
@@ -696,9 +698,9 @@ next_sector:
 		/* adjust very last sectors, in case we are oddly sized */
 		if (sector + (size>>9) > capacity)
 			size = (capacity-sector)<<9;
-		if (first_peer_device(device)->connection->agreed_pro_version >= 89 &&
-		    first_peer_device(device)->connection->csums_tfm) {
-			switch (read_for_csum(first_peer_device(device), sector, size)) {
+		if (connection->agreed_pro_version >= 89 &&
+		    connection->csums_tfm) {
+			switch (read_for_csum(peer_device, sector, size)) {
 			case -EIO: /* Disk failure */
 				put_ldev(device);
 				return -EIO;
@@ -717,7 +719,7 @@ next_sector:
 			int err;
 
 			inc_rs_pending(device);
-			err = drbd_send_drequest(first_peer_device(device), P_RS_DATA_REQUEST,
+			err = drbd_send_drequest(peer_device, P_RS_DATA_REQUEST,
 						 sector, size, ID_SYNCER);
 			if (err) {
 				drbd_err(device, "drbd_send_drequest() failed, aborting...\n");
@@ -1351,7 +1353,8 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 	struct drbd_device *device = req->device;
-	struct drbd_connection *connection = first_peer_device(device)->connection;
+	struct drbd_peer_device *const peer_device = first_peer_device(device);
+	struct drbd_connection *const connection = peer_device->connection;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1365,7 +1368,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 	 * No more barriers will be sent, until we leave AHEAD mode again. */
 	maybe_send_barrier(connection, req->epoch);
 
-	err = drbd_send_out_of_sync(first_peer_device(device), req);
+	err = drbd_send_out_of_sync(peer_device, req);
 	req_mod(req, OOS_HANDED_TO_NETWORK);
 
 	return err;
@@ -1380,7 +1383,8 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 	struct drbd_device *device = req->device;
-	struct drbd_connection *connection = first_peer_device(device)->connection;
+	struct drbd_peer_device *const peer_device = first_peer_device(device);
+	struct drbd_connection *connection = peer_device->connection;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1392,7 +1396,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	maybe_send_barrier(connection, req->epoch);
 	connection->send.current_epoch_writes++;
 
-	err = drbd_send_dblock(first_peer_device(device), req);
+	err = drbd_send_dblock(peer_device, req);
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
 
 	return err;
@@ -1407,7 +1411,8 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 	struct drbd_device *device = req->device;
-	struct drbd_connection *connection = first_peer_device(device)->connection;
+	struct drbd_peer_device *const peer_device = first_peer_device(device);
+	struct drbd_connection *connection = peer_device->connection;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1419,7 +1424,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	 * if there was any yet. */
 	maybe_send_barrier(connection, req->epoch);
 
-	err = drbd_send_drequest(first_peer_device(device), P_DATA_REQUEST, req->i.sector, req->i.size,
+	err = drbd_send_drequest(peer_device, P_DATA_REQUEST, req->i.sector, req->i.size,
 				 (unsigned long)req);
 
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
@@ -1633,6 +1638,8 @@ int w_start_resync(struct drbd_work *w, int cancel)
  */
 void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 {
+	struct drbd_peer_device *peer_device = first_peer_device(device);
+	struct drbd_connection *connection = peer_device ? peer_device->connection : NULL;
 	union drbd_state ns;
 	int r;
 
@@ -1651,7 +1658,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 			if (r > 0) {
 				drbd_info(device, "before-resync-target handler returned %d, "
 					 "dropping connection.\n", r);
-				conn_request_state(first_peer_device(device)->connection, NS(conn, C_DISCONNECTING), CS_HARD);
+				conn_request_state(connection, NS(conn, C_DISCONNECTING), CS_HARD);
 				return;
 			}
 		} else /* C_SYNC_SOURCE */ {
@@ -1664,7 +1671,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 				} else {
 					drbd_info(device, "before-resync-source handler returned %d, "
 						 "dropping connection.\n", r);
-					conn_request_state(first_peer_device(device)->connection,
+					conn_request_state(connection,
 							   NS(conn, C_DISCONNECTING), CS_HARD);
 					return;
 				}
@@ -1672,7 +1679,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		}
 	}
 
-	if (current == first_peer_device(device)->connection->worker.task) {
+	if (current == connection->worker.task) {
 		/* The worker should not sleep waiting for state_mutex,
 		   that can take long */
 		if (!mutex_trylock(device->state_mutex)) {
@@ -1756,12 +1763,10 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		 * drbd_resync_finished from here in that case.
 		 * We drbd_gen_and_send_sync_uuid here for protocol < 96,
 		 * and from after_state_ch otherwise. */
-		if (side == C_SYNC_SOURCE &&
-		    first_peer_device(device)->connection->agreed_pro_version < 96)
-			drbd_gen_and_send_sync_uuid(first_peer_device(device));
+		if (side == C_SYNC_SOURCE && connection->agreed_pro_version < 96)
+			drbd_gen_and_send_sync_uuid(peer_device);
 
-		if (first_peer_device(device)->connection->agreed_pro_version < 95 &&
-		    device->rs_total == 0) {
+		if (connection->agreed_pro_version < 95 && device->rs_total == 0) {
 			/* This still has a race (about when exactly the peers
 			 * detect connection loss) that can lead to a full sync
 			 * on next handshake. In 8.3.9 we fixed this with explicit
@@ -1777,7 +1782,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 				int timeo;
 
 				rcu_read_lock();
-				nc = rcu_dereference(first_peer_device(device)->connection->net_conf);
+				nc = rcu_dereference(connection->net_conf);
 				timeo = nc->ping_int * HZ + nc->ping_timeo * HZ / 9;
 				rcu_read_unlock();
 				schedule_timeout_interruptible(timeo);
