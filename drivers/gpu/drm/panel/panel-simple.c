@@ -31,6 +31,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 
 struct panel_desc {
@@ -378,6 +379,13 @@ static struct platform_driver panel_simple_platform_driver = {
 	.remove = panel_simple_platform_remove,
 };
 
+struct panel_desc_dsi {
+	struct panel_desc desc;
+
+	enum mipi_dsi_pixel_format format;
+	unsigned int lanes;
+};
+
 static const struct drm_display_mode panasonic_vvx10f004b00_mode = {
 	.clock = 157200,
 	.hdisplay = 1920,
@@ -391,23 +399,95 @@ static const struct drm_display_mode panasonic_vvx10f004b00_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc panasonic_vvx10f004b00 = {
-	.modes = &panasonic_vvx10f004b00_mode,
-	.num_modes = 1,
-	.size = {
-		.width = 217,
-		.height = 136,
+static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
+	.desc = {
+		.modes = &panasonic_vvx10f004b00_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 217,
+			.height = 136,
+		},
 	},
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
+static const struct of_device_id dsi_of_match[] = {
+	{
+		.compatible = "panasonic,vvx10f004b00",
+		.data = &panasonic_vvx10f004b00
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, dsi_of_match);
+
+static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
+{
+	const struct panel_desc_dsi *desc;
+	const struct of_device_id *id;
+	int err;
+
+	id = of_match_node(dsi_of_match, dsi->dev.of_node);
+	if (!id)
+		return -ENODEV;
+
+	desc = id->data;
+
+	err = panel_simple_probe(&dsi->dev, &desc->desc);
+	if (err < 0)
+		return err;
+
+	dsi->format = desc->format;
+	dsi->lanes = desc->lanes;
+
+	return mipi_dsi_attach(dsi);
+}
+
+static int panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
+{
+	int err;
+
+	err = mipi_dsi_detach(dsi);
+	if (err < 0)
+		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
+
+	return panel_simple_remove(&dsi->dev);
+}
+
+static struct mipi_dsi_driver panel_simple_dsi_driver = {
+	.driver = {
+		.name = "panel-simple-dsi",
+		.owner = THIS_MODULE,
+		.of_match_table = dsi_of_match,
+	},
+	.probe = panel_simple_dsi_probe,
+	.remove = panel_simple_dsi_remove,
 };
 
 static int __init panel_simple_init(void)
 {
-	return platform_driver_register(&panel_simple_platform_driver);
+	int err;
+
+	err = platform_driver_register(&panel_simple_platform_driver);
+	if (err < 0)
+		return err;
+
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI)) {
+		err = mipi_dsi_driver_register(&panel_simple_dsi_driver);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 module_init(panel_simple_init);
 
 static void __exit panel_simple_exit(void)
 {
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI))
+		mipi_dsi_driver_unregister(&panel_simple_dsi_driver);
+
 	platform_driver_unregister(&panel_simple_platform_driver);
 }
 module_exit(panel_simple_exit);
