@@ -2129,7 +2129,8 @@ static noinline bool record_extent_backrefs(struct btrfs_path *path,
 						  old->extent_offset, fs_info,
 						  path, record_one_backref,
 						  old);
-		BUG_ON(ret < 0 && ret != -ENOENT);
+		if (ret < 0 && ret != -ENOENT)
+			return false;
 
 		/* no backref to be processed for this extent */
 		if (!old->count) {
@@ -6186,8 +6187,7 @@ insert:
 	write_unlock(&em_tree->lock);
 out:
 
-	if (em)
-		trace_btrfs_get_extent(root, em);
+	trace_btrfs_get_extent(root, em);
 
 	if (path)
 		btrfs_free_path(path);

@@ -638,6 +638,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr)
 			WARN_ON(nr < 0);
 		}
 	}
+	list_splice_tail(&splice, &fs_info->ordered_roots);
 	spin_unlock(&fs_info->ordered_root_lock);
 }
 
@@ -803,7 +804,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
-		if (ordered->file_offset + ordered->len < start) {
+		if (ordered->file_offset + ordered->len <= start) {
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}

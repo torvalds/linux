@@ -3697,7 +3697,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			ret = btrfs_truncate_inode_items(trans, log,
 							 inode, 0, 0);
 		} else if (test_and_clear_bit(BTRFS_INODE_COPY_EVERYTHING,
-					      &BTRFS_I(inode)->runtime_flags)) {
+					      &BTRFS_I(inode)->runtime_flags) ||
+			   inode_only == LOG_INODE_EXISTS) {
 			if (inode_only == LOG_INODE_ALL)
 				fast_search = true;
 			max_key.type = BTRFS_XATTR_ITEM_KEY;
@@ -3801,7 +3802,7 @@ log_extents:
 			err = ret;
 			goto out_unlock;
 		}
-	} else {
+	} else if (inode_only == LOG_INODE_ALL) {
 		struct extent_map_tree *tree = &BTRFS_I(inode)->extent_tree;
 		struct extent_map *em, *n;
 

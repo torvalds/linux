@@ -5394,7 +5394,7 @@ static int bio_size_ok(struct block_device *bdev, struct bio *bio,
 {
 	struct bio_vec *prev;
 	struct request_queue *q = bdev_get_queue(bdev);
-	unsigned short max_sectors = queue_max_sectors(q);
+	unsigned int max_sectors = queue_max_sectors(q);
 	struct bvec_merge_data bvm = {
 		.bi_bdev = bdev,
 		.bi_sector = sector,

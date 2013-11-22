@@ -3517,7 +3517,6 @@ int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 int btrfs_commit_super(struct btrfs_root *root)
 {
 	struct btrfs_trans_handle *trans;
-	int ret;
 
 	mutex_lock(&root->fs_info->cleaner_mutex);
 	btrfs_run_delayed_iputs(root);
@@ -3531,25 +3530,7 @@ int btrfs_commit_super(struct btrfs_root *root)
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-	ret = btrfs_commit_transaction(trans, root);
-	if (ret)
-		return ret;
-	/* run commit again to drop the original snapshot */
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-	ret = btrfs_commit_transaction(trans, root);
-	if (ret)
-		return ret;
-	ret = btrfs_write_and_wait_transaction(NULL, root);
-	if (ret) {
-		btrfs_error(root->fs_info, ret,
-			    "Failed to sync btree inode to disk.");
-		return ret;
-	}
-
-	ret = write_ctree_super(NULL, root, 0);
-	return ret;
+	return btrfs_commit_transaction(trans, root);
 }
 
 int close_ctree(struct btrfs_root *root)
