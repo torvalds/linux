@@ -16,8 +16,6 @@
     GNU General Public License for more details.
 */
 
-#undef DEBUG
-
 #include "comedi_compat32.h"
 
 #include <linux/module.h>
@@ -46,15 +44,6 @@
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
-
-#ifdef CONFIG_COMEDI_DEBUG
-int comedi_debug;
-EXPORT_SYMBOL_GPL(comedi_debug);
-module_param(comedi_debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(comedi_debug,
-		 "enable comedi core and driver debugging if non-zero (default 0)"
-		);
-#endif
 
 static int comedi_num_legacy_minors;
 module_param(comedi_num_legacy_minors, int, S_IRUGO);

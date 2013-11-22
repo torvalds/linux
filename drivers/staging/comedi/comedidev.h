@@ -27,10 +27,7 @@
 
 #include "comedi.h"
 
-#define DPRINTK(format, args...)	do {		\
-	if (comedi_debug)				\
-		pr_debug("comedi: " format, ## args);	\
-} while (0)
+#define DPRINTK(format, args...)	pr_debug("comedi: " format, ## args);
 
 #define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
 #define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION, \
@@ -215,12 +212,6 @@ static inline const void *comedi_board(const struct comedi_device *dev)
 {
 	return dev->board_ptr;
 }
-
-#ifdef CONFIG_COMEDI_DEBUG
-extern int comedi_debug;
-#else
-static const int comedi_debug;
-#endif
 
 /*
  * function prototypes

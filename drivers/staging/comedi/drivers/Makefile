@@ -1,5 +1,6 @@
 # Makefile for individual comedi drivers
 #
+ccflags-$(CONFIG_COMEDI_DEBUG)		:= -DDEBUG
 
 # Comedi "helper" modules
 
