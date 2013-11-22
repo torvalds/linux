@@ -44,8 +44,6 @@ Configuration Options:
 #include "comedi_fc.h"
 #include "8253.h"
 
-#define DEBUG(x) x
-
 /* boards constants */
 /* IO space len */
 #define PCLx1x_RANGE 16
@@ -405,22 +403,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 
 /*
 ==============================================================================
-   COMMAND MODE
-*/
-static void pcl816_cmdtest_out(int e, struct comedi_cmd *cmd)
-{
-	printk(KERN_INFO "pcl816 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
-	       cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
-	printk(KERN_INFO "pcl816 e=%d startarg=%d scanarg=%d convarg=%d\n", e,
-	       cmd->start_arg, cmd->scan_begin_arg, cmd->convert_arg);
-	printk(KERN_INFO "pcl816 e=%d stopsrc=%x scanend=%x\n", e,
-	       cmd->stop_src, cmd->scan_end_src);
-	printk(KERN_INFO "pcl816 e=%d stoparg=%d scanendarg=%d chanlistlen=%d\n",
-	       e, cmd->stop_arg, cmd->scan_end_arg, cmd->chanlist_len);
-}
-
-/*
-==============================================================================
 */
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
@@ -428,10 +410,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	const struct pcl816_board *board = comedi_board(dev);
 	int err = 0;
 	int tmp, divisor1 = 0, divisor2 = 0;
-
-	DEBUG(printk(KERN_INFO "pcl816 pcl812_ai_cmdtest\n");
-	      pcl816_cmdtest_out(-1, cmd);
-	     );
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -685,8 +663,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 {
 	struct pcl816_private *devpriv = dev->private;
 
-/* DEBUG(printk("pcl816_ai_cancel()\n");) */
-
 	if (devpriv->irq_blocked > 0) {
 		switch (devpriv->int816_mode) {
 		case INT_TYPE_AI1_DMA:
@@ -719,9 +695,7 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			break;
 		}
 	}
-
-	DEBUG(printk("comedi: pcl816_ai_cancel() successful\n");)
-	    return 0;
+	return 0;
 }
 
 /*
@@ -823,11 +797,6 @@ check_channel_list(struct comedi_device *dev,
 		/*  first channel is every time ok */
 		chansegment[0] = chanlist[0];
 		for (i = 1, seglen = 1; i < chanlen; i++, seglen++) {
-			/*  build part of chanlist */
-			DEBUG(printk(KERN_INFO "%d. %d %d\n", i,
-				     CR_CHAN(chanlist[i]),
-				     CR_RANGE(chanlist[i]));)
-
 			/*  we detect loop, this must by finish */
 			    if (chanlist[0] == chanlist[i])
 				break;
@@ -849,11 +818,6 @@ check_channel_list(struct comedi_device *dev,
 
 		/*  check whole chanlist */
 		for (i = 0, segpos = 0; i < chanlen; i++) {
-			DEBUG(printk("%d %d=%d %d\n",
-				     CR_CHAN(chansegment[i % seglen]),
-				     CR_RANGE(chansegment[i % seglen]),
-				     CR_CHAN(chanlist[i]),
-				     CR_RANGE(chanlist[i]));)
 			    if (chanlist[i] != chansegment[i % seglen]) {
 				printk(KERN_WARNING
 				       "comedi%d: pcl816: bad channel or range"
