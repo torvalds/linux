@@ -3289,6 +3289,7 @@ sub process {
 			}
 		}
 		if (!defined $suppress_whiletrailers{$linenr} &&
+		    defined($stat) && defined($cond) &&
 		    $line =~ /\b(?:if|while|for)\s*\(/ && $line !~ /^.\s*#/) {
 			my ($s, $c) = ($stat, $cond);
 

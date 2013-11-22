@@ -31,6 +31,7 @@ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
 void hugepage_put_subpool(struct hugepage_subpool *spool);
 
 int PageHuge(struct page *page);
+int PageHeadHuge(struct page *page_head);
 
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
@@ -69,7 +70,6 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
 bool isolate_huge_page(struct page *page, struct list_head *list);
 void putback_active_hugepage(struct page *page);
 bool is_hugepage_active(struct page *page);
-void copy_huge_page(struct page *dst, struct page *src);
 
 #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
 pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
@@ -100,6 +100,11 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 #else /* !CONFIG_HUGETLB_PAGE */
 
 static inline int PageHuge(struct page *page)
+{
+	return 0;
+}
+
+static inline int PageHeadHuge(struct page *page_head)
 {
 	return 0;
 }
@@ -140,9 +145,6 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
 #define isolate_huge_page(p, l) false
 #define putback_active_hugepage(p)	do {} while (0)
 #define is_hugepage_active(x)	false
-static inline void copy_huge_page(struct page *dst, struct page *src)
-{
-}
 
 static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 		unsigned long address, unsigned long end, pgprot_t newprot)

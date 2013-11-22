@@ -2950,7 +2950,7 @@ void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 		return;
 	}
 
-	p += snprintf(p, maxlen, policy_modes[mode]);
+	p += snprintf(p, maxlen, "%s", policy_modes[mode]);
 
 	if (flags & MPOL_MODE_FLAGS) {
 		p += snprintf(p, buffer + maxlen - p, "=");
