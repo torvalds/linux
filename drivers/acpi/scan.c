@@ -20,7 +20,6 @@
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("scan");
-#define STRUCT_TO_INT(s)	(*((int*)&s))
 extern struct acpi_device *acpi_root;
 
 #define ACPI_BUS_CLASS			"system_bus"
@@ -1683,7 +1682,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	STRUCT_TO_INT(device->status) = sta;
+	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
 	acpi_bus_get_flags(device);
@@ -1927,7 +1926,7 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
 
-	STRUCT_TO_INT(device->status) = sta;
+	acpi_set_device_status(device, sta);
 	/* Skip devices that are not present. */
 	if (!acpi_device_is_present(device))
 		goto err;

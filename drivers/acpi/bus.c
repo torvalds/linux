@@ -52,9 +52,6 @@ struct acpi_device *acpi_root;
 struct proc_dir_entry *acpi_root_dir;
 EXPORT_SYMBOL(acpi_root_dir);
 
-#define STRUCT_TO_INT(s)	(*((int*)&s))
-
-
 #ifdef CONFIG_X86
 static int set_copy_dsdt(const struct dmi_system_id *id)
 {
@@ -115,18 +112,16 @@ int acpi_bus_get_status(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	STRUCT_TO_INT(device->status) = (int) sta;
+	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
 		       "functional but not present;\n",
-			device->pnp.bus_id,
-			(u32) STRUCT_TO_INT(device->status)));
+			device->pnp.bus_id, (u32)sta));
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]\n",
-			  device->pnp.bus_id,
-			  (u32) STRUCT_TO_INT(device->status)));
+			  device->pnp.bus_id, (u32)sta));
 	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_get_status);

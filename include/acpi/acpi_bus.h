@@ -320,6 +320,11 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 #define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
 #define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
 
+static inline void acpi_set_device_status(struct acpi_device *adev, u32 sta)
+{
+	*((u32 *)&adev->status) = sta;
+}
+
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern struct bus_type acpi_bus_type;
 
