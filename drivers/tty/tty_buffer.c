@@ -89,7 +89,7 @@ void tty_buffer_unlock_exclusive(struct tty_port *port)
 
 int tty_buffer_space_avail(struct tty_port *port)
 {
-	int space = port->buf.mem_limit - atomic_read(&port->buf.memory_used);
+	int space = port->buf.mem_limit - atomic_read(&port->buf.mem_used);
 	return max(space, 0);
 }
 
@@ -129,7 +129,7 @@ void tty_buffer_free_all(struct tty_port *port)
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;
 
-	atomic_set(&buf->memory_used, 0);
+	atomic_set(&buf->mem_used, 0);
 }
 
 /**
@@ -162,7 +162,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 
 	/* Should possibly check if this fails for the largest buffer we
 	   have queued and recycle that ? */
-	if (atomic_read(&port->buf.memory_used) > port->buf.mem_limit)
+	if (atomic_read(&port->buf.mem_used) > port->buf.mem_limit)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
 	if (p == NULL)
@@ -170,7 +170,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 
 found:
 	tty_buffer_reset(p, size);
-	atomic_add(size, &port->buf.memory_used);
+	atomic_add(size, &port->buf.mem_used);
 	return p;
 }
 
@@ -188,7 +188,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 	struct tty_bufhead *buf = &port->buf;
 
 	/* Dumb strategy for now - should keep some stats */
-	WARN_ON(atomic_sub_return(b->size, &buf->memory_used) < 0);
+	WARN_ON(atomic_sub_return(b->size, &buf->mem_used) < 0);
 
 	if (b->size > MIN_TTYB_SIZE)
 		kfree(b);
@@ -533,7 +533,7 @@ void tty_buffer_init(struct tty_port *port)
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;
 	init_llist_head(&buf->free);
-	atomic_set(&buf->memory_used, 0);
+	atomic_set(&buf->mem_used, 0);
 	atomic_set(&buf->priority, 0);
 	INIT_WORK(&buf->work, flush_to_ldisc);
 	buf->mem_limit = TTYB_DEFAULT_MEM_LIMIT;
