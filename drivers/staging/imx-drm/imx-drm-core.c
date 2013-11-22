@@ -443,6 +443,8 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	if (!imx_drm_device_get())
 		ret = -EINVAL;
 
+	platform_set_drvdata(drm->platformdev, drm);
+
 	ret = 0;
 
 err_init:
@@ -828,7 +830,7 @@ static int imx_drm_platform_probe(struct platform_device *pdev)
 
 static int imx_drm_platform_remove(struct platform_device *pdev)
 {
-	drm_platform_exit(&imx_drm_driver, pdev);
+	drm_put_dev(platform_get_drvdata(pdev));
 
 	return 0;
 }

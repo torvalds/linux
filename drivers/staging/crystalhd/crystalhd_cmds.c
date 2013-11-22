@@ -1059,7 +1059,7 @@ bool crystalhd_cmd_interrupt(struct crystalhd_cmd *ctx)
 {
 	if (!ctx) {
 		BCMLOG_ERR("Invalid arg..\n");
-		return 0;
+		return false;
 	}
 
 	return crystalhd_hw_interrupt(ctx->adp, &ctx->hw_ctx);

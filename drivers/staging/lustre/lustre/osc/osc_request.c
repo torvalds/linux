@@ -46,10 +46,6 @@
 #include <obd_ost.h>
 #include <obd_lov.h>
 
-#ifdef  __CYGWIN__
-# include <ctype.h>
-#endif
-
 #include <lustre_ha.h>
 #include <lprocfs_status.h>
 #include <lustre_log.h>

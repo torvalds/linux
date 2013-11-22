@@ -1725,10 +1725,7 @@ static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
 #define OBD_MD_MDS	 (0x0000000100000000ULL) /* where an inode lives on */
 #define OBD_MD_REINT       (0x0000000200000000ULL) /* reintegrate oa */
 #define OBD_MD_MEA	 (0x0000000400000000ULL) /* CMD split EA  */
-
-/* OBD_MD_MDTIDX is used to get MDT index, but it is never been used overwire,
- * and it is already obsolete since 2.3 */
-/* #define OBD_MD_MDTIDX      (0x0000000800000000ULL) */
+#define OBD_MD_TSTATE      (0x0000000800000000ULL) /* transient state field */
 
 #define OBD_MD_FLXATTR       (0x0000001000000000ULL) /* xattr */
 #define OBD_MD_FLXATTRLS     (0x0000002000000000ULL) /* xattr list */
@@ -2120,6 +2117,7 @@ extern void lustre_swab_generic_32s (__u32 *val);
 #define DISP_ENQ_OPEN_REF    0x00800000
 #define DISP_ENQ_CREATE_REF  0x01000000
 #define DISP_OPEN_LOCK       0x02000000
+#define DISP_OPEN_LEASE      0x04000000
 
 /* INODE LOCK PARTS */
 #define MDS_INODELOCK_LOOKUP 0x000001       /* dentry, mode, owner, group */
@@ -2207,6 +2205,11 @@ static inline int ll_inode_to_ext_flags(int iflags)
 		((iflags & S_IMMUTABLE) ? LUSTRE_IMMUTABLE_FL : 0));
 }
 
+/* 64 possible states */
+enum md_transient_state {
+	MS_RESTORE	= (1 << 0),	/* restore is running */
+};
+
 struct mdt_body {
 	struct lu_fid  fid1;
 	struct lu_fid  fid2;
@@ -2218,7 +2221,9 @@ struct mdt_body {
        obd_time	ctime;
 	__u64	  blocks; /* XID, in the case of MDS_READPAGE */
 	__u64	  ioepoch;
-	__u64	       unused1; /* was "ino" until 2.4.0 */
+	__u64	       t_state; /* transient file state defined in
+				 * enum md_transient_state
+				 * was "ino" until 2.4.0 */
 	__u32	  fsuid;
 	__u32	  fsgid;
 	__u32	  capability;
@@ -2373,6 +2378,10 @@ extern void lustre_swab_mdt_rec_setattr (struct mdt_rec_setattr *sa);
 					      * hsm restore) */
 #define MDS_OPEN_VOLATILE   0400000000000ULL /* File is volatile = created
 						unlinked */
+#define MDS_OPEN_LEASE	   01000000000000ULL /* Open the file and grant lease
+					      * delegation, succeed if it's not
+					      * being opened with conflict mode.
+					      */
 
 /* permission for create non-directory file */
 #define MAY_CREATE      (1 << 7)

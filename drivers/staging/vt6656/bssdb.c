@@ -62,14 +62,14 @@
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-const u16             awHWRetry0[5][5] = {
+static const u16             awHWRetry0[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
                                             {RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
                                             {RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
                                            };
-const u16             awHWRetry1[5][5] = {
+static const u16             awHWRetry1[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},

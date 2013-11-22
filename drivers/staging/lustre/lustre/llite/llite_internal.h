@@ -46,6 +46,7 @@
 #include <lclient.h>
 #include <lustre_mdc.h>
 #include <linux/lustre_intent.h>
+#include <linux/compat.h>
 
 #ifndef FMODE_EXEC
 #define FMODE_EXEC 0
@@ -124,6 +125,8 @@ enum lli_flags {
 	LLIF_SRVLOCK	    = (1 << 5),
 	/* File data is modified. */
 	LLIF_DATA_MODIFIED      = (1 << 6),
+	/* File is being restored */
+	LLIF_FILE_RESTORING	= (1 << 7),
 };
 
 struct ll_inode_info {
@@ -458,7 +461,7 @@ struct ll_sb_info {
 	struct lu_fid	     ll_root_fid; /* root object fid */
 
 	int		       ll_flags;
-	int			  ll_umounting:1;
+	unsigned int			  ll_umounting:1;
 	struct list_head		ll_conn_chain; /* per-conn chain of SBs */
 	struct lustre_client_ocd  ll_lco;
 
@@ -607,10 +610,14 @@ extern struct kmem_cache *ll_file_data_slab;
 struct lustre_handle;
 struct ll_file_data {
 	struct ll_readahead_state fd_ras;
-	int fd_omode;
 	struct ccc_grouplock fd_grouplock;
 	__u64 lfd_pos;
 	__u32 fd_flags;
+	fmode_t fd_omode;
+	/* openhandle if lease exists for this file.
+	 * Borrow lli->lli_och_mutex to protect assignment */
+	struct obd_client_handle *fd_lease_och;
+	struct obd_client_handle *fd_och;
 	struct file *fd_file;
 	/* Indicate whether need to report failure when close.
 	 * true: failure is known, not report again.
@@ -643,7 +650,7 @@ static inline int ll_need_32bit_api(struct ll_sb_info *sbi)
 #if BITS_PER_LONG == 32
 	return 1;
 #else
-	return unlikely(current_is_32bit() || (sbi->ll_flags & LL_SBI_32BIT_API));
+	return unlikely(is_compat_task() || (sbi->ll_flags & LL_SBI_32BIT_API));
 #endif
 }
 
@@ -775,6 +782,11 @@ int ll_get_grouplock(struct inode *inode, struct file *file, unsigned long arg);
 int ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg);
 int ll_fid2path(struct inode *inode, void *arg);
 int ll_data_version(struct inode *inode, __u64 *data_version, int extent_lock);
+
+struct obd_client_handle *ll_lease_open(struct inode *inode, struct file *file,
+					fmode_t mode);
+int ll_lease_close(struct obd_client_handle *och, struct inode *inode,
+		   bool *lease_broken);
 
 /* llite/dcache.c */
 
@@ -1578,5 +1590,6 @@ enum {
 
 int ll_layout_conf(struct inode *inode, const struct cl_object_conf *conf);
 int ll_layout_refresh(struct inode *inode, __u32 *gen);
+int ll_layout_restore(struct inode *inode);
 
 #endif /* LLITE_INTERNAL_H */

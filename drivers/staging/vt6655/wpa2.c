@@ -42,14 +42,14 @@ static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Variables  --------------------------*/
 
-const unsigned char abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
-const unsigned char abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const unsigned char abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
-const unsigned char abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
-const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
+static const unsigned char abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
+static const unsigned char abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+static const unsigned char abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
+static const unsigned char abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
+static const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 
-const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
+static const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+static const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -192,7 +192,7 @@ WPA2vParseRSN(
 					break;
 			} //for
 
-			if (bUseGK == true) {
+			if (bUseGK) {
 				if (j != 1) {
 					// invalid CSS, This should be only PK CSS.
 					return;
@@ -335,7 +335,7 @@ WPA2uSetIEs(
 		pRSNIEs->len += 2;
 
 		if ((pMgmt->gsPMKIDCache.BSSIDInfoCount > 0) &&
-		    (pMgmt->bRoaming == true) &&
+		    pMgmt->bRoaming &&
 		    (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
 			// RSN PMKID
 			pwPMKID = (unsigned short *)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count

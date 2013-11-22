@@ -337,7 +337,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 	oz_dbg(RX_FRAMES, "RX frame PN=0x%x LPN=0x%x control=0x%x\n",
 	       oz_hdr->pkt_num, oz_hdr->last_pkt_num, oz_hdr->control);
 	mac_hdr = skb_mac_header(skb);
-	src_addr = &mac_hdr[ETH_ALEN] ;
+	src_addr = &mac_hdr[ETH_ALEN];
 	length = skb->len;
 
 	/* Check the version field */

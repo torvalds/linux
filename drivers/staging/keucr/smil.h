@@ -189,12 +189,6 @@ struct keucr_media_area {
 	WORD PhyBlock;	/* Physical Block Number on Zone 0 */
 };
 
-
-extern BYTE IsSSFDCCompliance;
-extern BYTE IsXDCompliance;
-
-extern DWORD	ErrXDCode;
-extern DWORD	ErrCode;
 extern WORD	ReadBlock;
 extern WORD	WriteBlock;
 extern DWORD	MediaChange;

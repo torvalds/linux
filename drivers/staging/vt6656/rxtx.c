@@ -64,16 +64,16 @@
 
 static int          msglevel                = MSG_LEVEL_INFO;
 
-const u16 wTimeStampOff[2][MAX_RATE] = {
+static const u16 wTimeStampOff[2][MAX_RATE] = {
         {384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble
         {384, 192, 130, 113, 54, 43, 37, 31, 28, 25, 24, 23}, // Short Preamble
     };
 
-const u16 wFB_Opt0[2][5] = {
+static const u16 wFB_Opt0[2][5] = {
         {RATE_12M, RATE_18M, RATE_24M, RATE_36M, RATE_48M}, // fallback_rate0
         {RATE_12M, RATE_12M, RATE_18M, RATE_24M, RATE_36M}, // fallback_rate1
     };
-const u16 wFB_Opt1[2][5] = {
+static const u16 wFB_Opt1[2][5] = {
         {RATE_12M, RATE_18M, RATE_24M, RATE_24M, RATE_36M}, // fallback_rate0
         {RATE_6M , RATE_6M,  RATE_12M, RATE_12M, RATE_18M}, // fallback_rate1
     };

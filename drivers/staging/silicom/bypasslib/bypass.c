@@ -47,13 +47,13 @@ static int do_cmd(struct net_device *dev, struct ifreq *ifr, int cmd, int *data)
 {
 	int ret = -1;
 	struct if_bypass *bypass_cb;
-	static int (*ioctl) (struct net_device *, struct ifreq *, int);
 
 	bypass_cb = (struct if_bypass *)ifr;
 	bypass_cb->cmd = cmd;
 	bypass_cb->data = *data;
-	if ((dev->netdev_ops) && (ioctl = dev->netdev_ops->ndo_do_ioctl)) {
-		ret = ioctl(dev, ifr, SIOCGIFBYPASS);
+
+	if (dev->netdev_ops && dev->netdev_ops->ndo_do_ioctl) {
+		ret = dev->netdev_ops->ndo_do_ioctl(dev, ifr, SIOCGIFBYPASS);
 		*data = bypass_cb->data;
 	}
 
@@ -480,7 +480,6 @@ static int get_bypass_info(int if_index, struct bp_info *bp_info)
 		SET_BPLIB_INT_FN2(get_bypass_info, int, if_index,
 				  struct bp_info *, bp_info, ret);
 	} else {
-		static int (*ioctl) (struct net_device *, struct ifreq *, int);
 		struct net_device *dev;
 
 		struct net_device *n;
@@ -493,9 +492,10 @@ static int get_bypass_info(int if_index, struct bp_info *bp_info)
 				bypass_cb = (struct if_bypass_info *)&ifr;
 				bypass_cb->cmd = GET_BYPASS_INFO;
 
-				if ((dev->netdev_ops) &&
-				    (ioctl = dev->netdev_ops->ndo_do_ioctl)) {
-					ret = ioctl(dev, &ifr, SIOCGIFBYPASS);
+				if (dev->netdev_ops &&
+					dev->netdev_ops->ndo_do_ioctl) {
+					ret = dev->netdev_ops->ndo_do_ioctl(dev,
+						&ifr, SIOCGIFBYPASS);
 				}
 
 				else

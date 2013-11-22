@@ -110,7 +110,7 @@ unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	unsigned int ii;
 
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
-		if ((pDevice->sRxDFCB[ii].bInUse == true) &&
+		if (pDevice->sRxDFCB[ii].bInUse &&
 		    ether_addr_equal(pDevice->sRxDFCB[ii].abyAddr2,
 				     pMACHeader->abyAddr2)) {
 			//
@@ -141,7 +141,7 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 	if (pDevice->cbFreeDFCB == 0)
 		return pDevice->cbDFCB;
 	for (ii = 0; ii < pDevice->cbDFCB; ii++) {
-		if (pDevice->sRxDFCB[ii].bInUse == false) {
+		if (!pDevice->sRxDFCB[ii].bInUse) {
 			pDevice->cbFreeDFCB--;
 			pDevice->sRxDFCB[ii].uLifetime = pDevice->dwMaxReceiveLifetime;
 			pDevice->sRxDFCB[ii].bInUse = true;
@@ -174,7 +174,7 @@ bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned i
 {
 	unsigned int uHeaderSize;
 
-	if (bWEP == true) {
+	if (bWEP) {
 		uHeaderSize = 28;
 		if (bExtIV)
 			// ExtIV

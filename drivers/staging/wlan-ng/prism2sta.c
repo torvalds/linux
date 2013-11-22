@@ -1279,7 +1279,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				     HFA384x_RID_CURRENTSSID, result);
 				return;
 			}
-			prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
+			prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *) &ssid,
 						(p80211pstrd_t *) &
 						wlandev->ssid);
 
@@ -1361,7 +1361,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				 HFA384x_RID_CURRENTSSID, result);
 			return;
 		}
-		prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
+		prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *) &ssid,
 					(p80211pstrd_t *) &wlandev->ssid);
 
 		hw->link_status = HFA384x_LINK_CONNECTED;
@@ -2037,7 +2037,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 			 HFA384x_RID_CURRENTSSID, result);
 		return;
 	}
-	prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
+	prism2mgmt_bytestr2pstr((struct hfa384x_bytestr *) &ssid,
 				(p80211pstrd_t *) &wlandev->ssid);
 
 	/* Reschedule timer */

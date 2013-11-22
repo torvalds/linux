@@ -246,7 +246,7 @@ int local_object_create(const struct lu_env *env,
 			struct dt_object_format *dof, struct thandle *th)
 {
 	struct dt_thread_info	*dti = dt_info(env);
-	obd_id			 lastid;
+	__le64			 lastid;
 	int			 rc;
 
 	rc = dt_create(env, o, attr, NULL, dof, th);

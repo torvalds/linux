@@ -135,7 +135,7 @@ MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
 
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
-		.name = (char *)dwc2_driver_name,
+		.name = dwc2_driver_name,
 		.of_match_table = dwc2_of_match_table,
 	},
 	.probe = dwc2_driver_probe,

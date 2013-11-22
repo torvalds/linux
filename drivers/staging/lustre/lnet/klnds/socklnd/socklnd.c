@@ -2866,7 +2866,6 @@ void __exit
 ksocknal_module_fini (void)
 {
 	lnet_unregister_lnd(&the_ksocklnd);
-	ksocknal_tunables_fini();
 }
 
 int __init

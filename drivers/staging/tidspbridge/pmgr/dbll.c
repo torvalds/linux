@@ -378,8 +378,8 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, "
-		"status 0x%x\n", __func__, lib, name, paddr, psize, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p psize: %p, status 0x%x\n",
+			__func__, lib, name, paddr, psize, status);
 
 	return status;
 }
@@ -705,8 +705,8 @@ func_cont:
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, "
-		"status 0x%x\n", __func__, lib, name, buf, size, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, status 0x%x\n",
+			__func__, lib, name, buf, size, status);
 	return status;
 }
 
@@ -915,10 +915,10 @@ static struct dynload_symbol *dbll_find_symbol(struct dynamic_loader_sym *this,
 			status = dbll_get_addr((struct dbll_library_obj *)lib,
 					       (char *)name, &dbll_sym);
 			if (!status) {
-				status =
-				    dbll_get_c_addr((struct dbll_library_obj *)
-						    lib, (char *)name,
-						    &dbll_sym);
+				status = dbll_get_c_addr(
+						(struct dbll_library_obj *)
+						lib, (char *)name,
+						&dbll_sym);
 			}
 		}
 	}
@@ -1172,8 +1172,7 @@ func_cont:
 		if (!run_addr_flag)
 			info->run_addr = info->load_addr;
 		info->context = (u32) rmm_addr_obj.segid;
-		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, "
-			"info->run_addr 0x%x, info->load_addr 0x%x\n",
+		dev_dbg(bridge, "%s: %s base = 0x%x len = 0x%x, info->run_addr 0x%x, info->load_addr 0x%x\n",
 			__func__, info->name, info->load_addr / DSPWORDSIZE,
 			info->size / DSPWORDSIZE, info->run_addr,
 			info->load_addr);
@@ -1399,7 +1398,7 @@ void find_symbol_callback(void *elem, void *user_data)
  * @sym_addr_output:	Symbol Output address
  * @name_output:		String with the dsp symbol
  *
- * 	This function retrieves the dsp symbol from the dsp binary.
+ *	This function retrieves the dsp symbol from the dsp binary.
  */
 bool dbll_find_dsp_symbol(struct dbll_library_obj *zl_lib, u32 address,
 				u32 offset_range, u32 *sym_addr_output,

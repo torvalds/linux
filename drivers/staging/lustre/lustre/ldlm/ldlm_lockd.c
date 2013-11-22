@@ -597,45 +597,6 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		rc = ldlm_handle_setinfo(req);
 		ldlm_callback_reply(req, rc);
 		return 0;
-	case OBD_LOG_CANCEL: /* remove this eventually - for 1.4.0 compat */
-		CERROR("shouldn't be handling OBD_LOG_CANCEL on DLM thread\n");
-		req_capsule_set(&req->rq_pill, &RQF_LOG_CANCEL);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_NET))
-			return 0;
-		rc = llog_origin_handle_cancel(req);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_REP))
-			return 0;
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_CREATE:
-		req_capsule_set(&req->rq_pill, &RQF_LLOG_ORIGIN_HANDLE_CREATE);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_open(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_NEXT_BLOCK:
-		req_capsule_set(&req->rq_pill,
-				&RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_next_block(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_READ_HEADER:
-		req_capsule_set(&req->rq_pill,
-				&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER);
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_read_header(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
-	case LLOG_ORIGIN_HANDLE_CLOSE:
-		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			return 0;
-		rc = llog_origin_handle_close(req);
-		ldlm_callback_reply(req, rc);
-		return 0;
 	case OBD_QC_CALLBACK:
 		req_capsule_set(&req->rq_pill, &RQF_QC_CALLBACK);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_QC_CALLBACK_NET))

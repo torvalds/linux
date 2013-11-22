@@ -69,7 +69,7 @@ void mdc_create_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
 		     const void *data, int datalen, __u32 mode, __u32 uid,
 		     __u32 gid, cfs_cap_t capability, __u64 rdev);
 void mdc_open_pack(struct ptlrpc_request *req, struct md_op_data *op_data,
-		   __u32 mode, __u64 rdev, __u32 flags, const void *data,
+		   __u32 mode, __u64 rdev, __u64 flags, const void *data,
 		   int datalen);
 void mdc_unlink_pack(struct ptlrpc_request *req, struct md_op_data *op_data);
 void mdc_link_pack(struct ptlrpc_request *req, struct md_op_data *op_data);

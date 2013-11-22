@@ -44,6 +44,7 @@
 #include <net/cfg80211.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
+#include <linux/crc32.h>
 
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
@@ -75,6 +76,7 @@
 #include "desc.h"
 #include "key.h"
 #include "card.h"
+#include "rndis.h"
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
@@ -149,11 +151,9 @@ typedef enum __device_msg_level {
 	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
-typedef enum __device_init_type {
-	DEVICE_INIT_COLD = 0,       /* cold init */
-	DEVICE_INIT_RESET,          /* reset init or Dx to D0 power remain */
-	DEVICE_INIT_DXPL            /* Dx to D0 power lost init */
-} DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
+#define DEVICE_INIT_COLD	0x0 /* cold init */
+#define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
+#define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
 
 /* USB */
 
@@ -467,6 +467,8 @@ struct vnt_private {
 	u8 byOriginalZonetype;
 
 	int bLinkPass; /* link status: OK or fail */
+	struct vnt_cmd_card_init init_command;
+	struct vnt_rsp_card_init init_response;
 	u8 abyCurrentNetAddr[ETH_ALEN];
 	u8 abyPermanentNetAddr[ETH_ALEN];
 

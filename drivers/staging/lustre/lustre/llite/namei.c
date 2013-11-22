@@ -233,12 +233,9 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			ll_have_md_lock(inode, &bits, mode);
 
 		fid = ll_inode2fid(inode);
-		if (lock->l_resource->lr_name.name[0] != fid_seq(fid) ||
-		    lock->l_resource->lr_name.name[1] != fid_oid(fid) ||
-		    lock->l_resource->lr_name.name[2] != fid_ver(fid)) {
+		if (!fid_res_name_eq(fid, &lock->l_resource->lr_name))
 			LDLM_ERROR(lock, "data mismatch with object "
 				   DFID" (%p)", PFID(fid), inode);
-		}
 
 		if (bits & MDS_INODELOCK_OPEN) {
 			int flags = 0;

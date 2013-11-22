@@ -753,7 +753,7 @@ static void pcl818_ai_mode13dma_int(int mode, struct comedi_device *dev,
 	} else {
 		devpriv->ai_mode = INT_TYPE_AI3_DMA;
 		outb(0x86 | (dev->irq << 4), dev->iobase + PCL818_CONTROL);	/* Ext trig+IRQ+DMA */
-	};
+	}
 }
 
 /*

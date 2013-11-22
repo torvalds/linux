@@ -3470,15 +3470,6 @@ static inline void ptlrpc_lprocfs_brw(struct ptlrpc_request *req, int bytes) {}
 #endif
 /** @} */
 
-/* ptlrpc/llog_server.c */
-int llog_origin_handle_open(struct ptlrpc_request *req);
-int llog_origin_handle_destroy(struct ptlrpc_request *req);
-int llog_origin_handle_prev_block(struct ptlrpc_request *req);
-int llog_origin_handle_next_block(struct ptlrpc_request *req);
-int llog_origin_handle_read_header(struct ptlrpc_request *req);
-int llog_origin_handle_close(struct ptlrpc_request *req);
-int llog_origin_handle_cancel(struct ptlrpc_request *req);
-
 /* ptlrpc/llog_client.c */
 extern struct llog_operations llog_client_ops;
 

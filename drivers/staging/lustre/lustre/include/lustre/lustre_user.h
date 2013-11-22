@@ -245,6 +245,9 @@ struct ost_id {
 #define LL_IOC_LMV_GETSTRIPE	    _IOWR('f', 241, struct lmv_user_md)
 #define LL_IOC_REMOVE_ENTRY	    _IOWR('f', 242, __u64)
 
+#define LL_IOC_SET_LEASE		_IOWR('f', 243, long)
+#define LL_IOC_GET_LEASE		_IO('f', 244)
+
 #define LL_STATFS_LMV	   1
 #define LL_STATFS_LOV	   2
 #define LL_STATFS_NODELAY	4

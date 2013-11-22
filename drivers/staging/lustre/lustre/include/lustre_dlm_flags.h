@@ -35,7 +35,7 @@
 #ifndef LDLM_ALL_FLAGS_MASK
 
 /** l_flags bits marked as "all_flags" bits */
-#define LDLM_FL_ALL_FLAGS_MASK          0x007FFFFFC08F132FULL
+#define LDLM_FL_ALL_FLAGS_MASK          0x00FFFFFFC08F132FULL
 
 /** l_flags bits marked as "ast" bits */
 #define LDLM_FL_AST_MASK                0x0000000080000000ULL
@@ -53,7 +53,7 @@
 #define LDLM_FL_INHERIT_MASK            0x0000000000800000ULL
 
 /** l_flags bits marked as "local_only" bits */
-#define LDLM_FL_LOCAL_ONLY_MASK         0x007FFFFF00000000ULL
+#define LDLM_FL_LOCAL_ONLY_MASK         0x00FFFFFF00000000ULL
 
 /** l_flags bits marked as "on_wire" bits */
 #define LDLM_FL_ON_WIRE_MASK            0x00000000C08F132FULL
@@ -358,6 +358,12 @@
 #define ldlm_set_ns_srv(_l)             LDLM_SET_FLAG((  _l), 1ULL << 54)
 #define ldlm_clear_ns_srv(_l)           LDLM_CLEAR_FLAG((_l), 1ULL << 54)
 
+/** Flag whether this lock can be reused. Used by exclusive open. */
+#define LDLM_FL_EXCL                    0x0080000000000000ULL /* bit  55 */
+#define ldlm_is_excl(_l)                LDLM_TEST_FLAG((_l), 1ULL << 55)
+#define ldlm_set_excl(_l)               LDLM_SET_FLAG((_l), 1ULL << 55)
+#define ldlm_clear_excl(_l)             LDLM_CLEAR_FLAG((_l), 1ULL << 55)
+
 /** test for ldlm_lock flag bit set */
 #define LDLM_TEST_FLAG(_l, _b)        (((_l)->l_flags & (_b)) != 0)
 
@@ -414,47 +420,49 @@ static int hf_lustre_ldlm_fl_server_lock         = -1;
 static int hf_lustre_ldlm_fl_res_locked          = -1;
 static int hf_lustre_ldlm_fl_waited              = -1;
 static int hf_lustre_ldlm_fl_ns_srv              = -1;
+static int hf_lustre_ldlm_fl_excl                = -1;
 
 const value_string lustre_ldlm_flags_vals[] = {
-  {LDLM_FL_LOCK_CHANGED,        "LDLM_FL_LOCK_CHANGED"},
-  {LDLM_FL_BLOCK_GRANTED,       "LDLM_FL_BLOCK_GRANTED"},
-  {LDLM_FL_BLOCK_CONV,          "LDLM_FL_BLOCK_CONV"},
-  {LDLM_FL_BLOCK_WAIT,          "LDLM_FL_BLOCK_WAIT"},
-  {LDLM_FL_AST_SENT,            "LDLM_FL_AST_SENT"},
-  {LDLM_FL_REPLAY,              "LDLM_FL_REPLAY"},
-  {LDLM_FL_INTENT_ONLY,         "LDLM_FL_INTENT_ONLY"},
-  {LDLM_FL_HAS_INTENT,          "LDLM_FL_HAS_INTENT"},
-  {LDLM_FL_DISCARD_DATA,        "LDLM_FL_DISCARD_DATA"},
-  {LDLM_FL_NO_TIMEOUT,          "LDLM_FL_NO_TIMEOUT"},
-  {LDLM_FL_BLOCK_NOWAIT,        "LDLM_FL_BLOCK_NOWAIT"},
-  {LDLM_FL_TEST_LOCK,           "LDLM_FL_TEST_LOCK"},
-  {LDLM_FL_CANCEL_ON_BLOCK,     "LDLM_FL_CANCEL_ON_BLOCK"},
-  {LDLM_FL_DENY_ON_CONTENTION,  "LDLM_FL_DENY_ON_CONTENTION"},
-  {LDLM_FL_AST_DISCARD_DATA,    "LDLM_FL_AST_DISCARD_DATA"},
-  {LDLM_FL_FAIL_LOC,            "LDLM_FL_FAIL_LOC"},
-  {LDLM_FL_SKIPPED,             "LDLM_FL_SKIPPED"},
-  {LDLM_FL_CBPENDING,           "LDLM_FL_CBPENDING"},
-  {LDLM_FL_WAIT_NOREPROC,       "LDLM_FL_WAIT_NOREPROC"},
-  {LDLM_FL_CANCEL,              "LDLM_FL_CANCEL"},
-  {LDLM_FL_LOCAL_ONLY,          "LDLM_FL_LOCAL_ONLY"},
-  {LDLM_FL_FAILED,              "LDLM_FL_FAILED"},
-  {LDLM_FL_CANCELING,           "LDLM_FL_CANCELING"},
-  {LDLM_FL_LOCAL,               "LDLM_FL_LOCAL"},
-  {LDLM_FL_LVB_READY,           "LDLM_FL_LVB_READY"},
-  {LDLM_FL_KMS_IGNORE,          "LDLM_FL_KMS_IGNORE"},
-  {LDLM_FL_CP_REQD,             "LDLM_FL_CP_REQD"},
-  {LDLM_FL_CLEANED,             "LDLM_FL_CLEANED"},
-  {LDLM_FL_ATOMIC_CB,           "LDLM_FL_ATOMIC_CB"},
-  {LDLM_FL_BL_AST,              "LDLM_FL_BL_AST"},
-  {LDLM_FL_BL_DONE,             "LDLM_FL_BL_DONE"},
-  {LDLM_FL_NO_LRU,              "LDLM_FL_NO_LRU"},
-  {LDLM_FL_FAIL_NOTIFIED,       "LDLM_FL_FAIL_NOTIFIED"},
-  {LDLM_FL_DESTROYED,           "LDLM_FL_DESTROYED"},
-  {LDLM_FL_SERVER_LOCK,         "LDLM_FL_SERVER_LOCK"},
-  {LDLM_FL_RES_LOCKED,          "LDLM_FL_RES_LOCKED"},
-  {LDLM_FL_WAITED,              "LDLM_FL_WAITED"},
-  {LDLM_FL_NS_SRV,              "LDLM_FL_NS_SRV"},
-  { 0, NULL }
+	{LDLM_FL_LOCK_CHANGED,        "LDLM_FL_LOCK_CHANGED"},
+	{LDLM_FL_BLOCK_GRANTED,       "LDLM_FL_BLOCK_GRANTED"},
+	{LDLM_FL_BLOCK_CONV,          "LDLM_FL_BLOCK_CONV"},
+	{LDLM_FL_BLOCK_WAIT,          "LDLM_FL_BLOCK_WAIT"},
+	{LDLM_FL_AST_SENT,            "LDLM_FL_AST_SENT"},
+	{LDLM_FL_REPLAY,              "LDLM_FL_REPLAY"},
+	{LDLM_FL_INTENT_ONLY,         "LDLM_FL_INTENT_ONLY"},
+	{LDLM_FL_HAS_INTENT,          "LDLM_FL_HAS_INTENT"},
+	{LDLM_FL_DISCARD_DATA,        "LDLM_FL_DISCARD_DATA"},
+	{LDLM_FL_NO_TIMEOUT,          "LDLM_FL_NO_TIMEOUT"},
+	{LDLM_FL_BLOCK_NOWAIT,        "LDLM_FL_BLOCK_NOWAIT"},
+	{LDLM_FL_TEST_LOCK,           "LDLM_FL_TEST_LOCK"},
+	{LDLM_FL_CANCEL_ON_BLOCK,     "LDLM_FL_CANCEL_ON_BLOCK"},
+	{LDLM_FL_DENY_ON_CONTENTION,  "LDLM_FL_DENY_ON_CONTENTION"},
+	{LDLM_FL_AST_DISCARD_DATA,    "LDLM_FL_AST_DISCARD_DATA"},
+	{LDLM_FL_FAIL_LOC,            "LDLM_FL_FAIL_LOC"},
+	{LDLM_FL_SKIPPED,             "LDLM_FL_SKIPPED"},
+	{LDLM_FL_CBPENDING,           "LDLM_FL_CBPENDING"},
+	{LDLM_FL_WAIT_NOREPROC,       "LDLM_FL_WAIT_NOREPROC"},
+	{LDLM_FL_CANCEL,              "LDLM_FL_CANCEL"},
+	{LDLM_FL_LOCAL_ONLY,          "LDLM_FL_LOCAL_ONLY"},
+	{LDLM_FL_FAILED,              "LDLM_FL_FAILED"},
+	{LDLM_FL_CANCELING,           "LDLM_FL_CANCELING"},
+	{LDLM_FL_LOCAL,               "LDLM_FL_LOCAL"},
+	{LDLM_FL_LVB_READY,           "LDLM_FL_LVB_READY"},
+	{LDLM_FL_KMS_IGNORE,          "LDLM_FL_KMS_IGNORE"},
+	{LDLM_FL_CP_REQD,             "LDLM_FL_CP_REQD"},
+	{LDLM_FL_CLEANED,             "LDLM_FL_CLEANED"},
+	{LDLM_FL_ATOMIC_CB,           "LDLM_FL_ATOMIC_CB"},
+	{LDLM_FL_BL_AST,              "LDLM_FL_BL_AST"},
+	{LDLM_FL_BL_DONE,             "LDLM_FL_BL_DONE"},
+	{LDLM_FL_NO_LRU,              "LDLM_FL_NO_LRU"},
+	{LDLM_FL_FAIL_NOTIFIED,       "LDLM_FL_FAIL_NOTIFIED"},
+	{LDLM_FL_DESTROYED,           "LDLM_FL_DESTROYED"},
+	{LDLM_FL_SERVER_LOCK,         "LDLM_FL_SERVER_LOCK"},
+	{LDLM_FL_RES_LOCKED,          "LDLM_FL_RES_LOCKED"},
+	{LDLM_FL_WAITED,              "LDLM_FL_WAITED"},
+	{LDLM_FL_NS_SRV,              "LDLM_FL_NS_SRV"},
+	{LDLM_FL_EXCL,                "LDLM_FL_EXCL"},
+	{ 0, NULL }
 };
 #endif /*  WIRESHARK_COMPILE */
 #endif /* LDLM_ALL_FLAGS_MASK */

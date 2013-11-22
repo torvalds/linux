@@ -341,22 +341,22 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 		// If is_broadcast_ether_addr, set the key as every key entry's group key.
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Groupe Key Assign.\n");
 
-		if ((KeybSetAllGroupKey(&(pDevice->sKey),
+		if (KeybSetAllGroupKey(&(pDevice->sKey),
 					dwKeyIndex,
 					param->u.wpa_key.key_len,
 					(PQWORD) &(KeyRSC),
 					(unsigned char *)abyKey,
 					byKeyDecMode,
 					pDevice->PortOffset,
-					pDevice->byLocalID) == true) &&
-		    (KeybSetDefaultKey(&(pDevice->sKey),
+					pDevice->byLocalID) &&
+		    KeybSetDefaultKey(&(pDevice->sKey),
 				       dwKeyIndex,
 				       param->u.wpa_key.key_len,
 				       (PQWORD) &(KeyRSC),
 				       (unsigned char *)abyKey,
 				       byKeyDecMode,
 				       pDevice->PortOffset,
-				       pDevice->byLocalID) == true)) {
+				       pDevice->byLocalID)) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "GROUP Key Assign.\n");
 
 		} else {
@@ -389,7 +389,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx, bool fcpfkernel)
 			       (unsigned char *)abyKey,
 			       byKeyDecMode,
 			       pDevice->PortOffset,
-			       pDevice->byLocalID) == true) {
+			       pDevice->byLocalID)) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 
 		} else {
@@ -804,7 +804,7 @@ static int wpa_set_associate(PSDevice pDevice,
 	else
 		pDevice->bEncryptionEnable = false;
 	if (!((pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) ||
-	      ((pMgmt->eAuthenMode == WMAC_AUTH_OPEN) && (bWepEnabled == true))))  //DavidWang  //20080717-06,<Modify> by chester//Not to initial WEP
+	      ((pMgmt->eAuthenMode == WMAC_AUTH_OPEN) && bWepEnabled)))  //DavidWang  //20080717-06,<Modify> by chester//Not to initial WEP
 		KeyvInitTable(&pDevice->sKey, pDevice->PortOffset);
 	spin_lock_irq(&pDevice->lock);
 	pDevice->bLinkPass = false;

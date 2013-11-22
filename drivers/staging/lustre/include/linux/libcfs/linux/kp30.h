@@ -63,9 +63,7 @@
 #include <linux/smp.h>
 #include <linux/ctype.h>
 #include <linux/compiler.h>
-#ifdef HAVE_MM_INLINE
-# include <linux/mm_inline.h>
-#endif
+#include <linux/mm_inline.h>
 #include <linux/kallsyms.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
@@ -78,8 +76,6 @@
 #define CFS_MODULE_PARM(name, t, type, perm, desc) \
 	module_param(name, type, perm);\
 	MODULE_PARM_DESC(name, desc)
-
-#define CFS_SYSFS_MODULE_PARM  1 /* module parameters accessible via sysfs */
 
 /******************************************************************************/
 /* Light-weight trace
@@ -179,14 +175,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 
 /* ------------------------------------------------------------------ */
 
-#define IOCTL_LIBCFS_TYPE long
-
-#ifdef __CYGWIN__
-# ifndef BITS_PER_LONG
-#   define BITS_PER_LONG 64
-# endif
-#endif
-
 # define LI_POISON 0x5a5a5a5a
 #if BITS_PER_LONG > 32
 # define LL_POISON 0x5a5a5a5a5a5a5a5aL
@@ -196,8 +184,6 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 # define LP_POISON ((void *)LL_POISON)
 
 /* this is a bit chunky */
-
-#define _LWORDSIZE BITS_PER_LONG
 
 # define LPU64 "%llu"
 # define LPD64 "%lld"
@@ -217,25 +203,5 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
  * pid_t
  */
 # define LPPID "%d"
-
-
-#undef _LWORDSIZE
-
-/* compat macroses */
-
-
-#ifndef get_cpu
-# ifdef CONFIG_PREEMPT
-#  define get_cpu()  ({ preempt_disable(); smp_processor_id(); })
-#  define put_cpu()  preempt_enable()
-# else
-#  define get_cpu()  smp_processor_id()
-#  define put_cpu()
-# endif
-#else
-#endif /* get_cpu & put_cpu */
-
-#define INIT_CTL_NAME(a)
-#define INIT_STRATEGY(a)
 
 #endif

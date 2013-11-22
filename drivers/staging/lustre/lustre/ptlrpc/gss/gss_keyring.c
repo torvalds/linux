@@ -165,7 +165,7 @@ void ctx_start_timer_kr(struct ptlrpc_cli_ctx *ctx, long timeout)
 
 	init_timer(timer);
 	timer->expires = timeout;
-	timer->data = (unsigned long ) ctx;
+	timer->data = (unsigned long) ctx;
 	timer->function = ctx_upcall_timeout_kr;
 
 	add_timer(timer);
