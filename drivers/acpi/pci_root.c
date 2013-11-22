@@ -683,11 +683,13 @@ static void hotplug_event_root(void *data, u32 type)
 		if (!root)
 			break;
 
+		acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
+					  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 		get_device(&root->device->dev);
 
 		acpi_scan_lock_release();
 
-		acpi_bus_device_eject(root->device, ACPI_NOTIFY_EJECT_REQUEST);
+		acpi_device_hotplug(root->device, ACPI_NOTIFY_EJECT_REQUEST);
 		return;
 	default:
 		acpi_handle_warn(handle,
