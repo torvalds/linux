@@ -47,7 +47,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 */
 
 #define USE_DMA
-/* #define DEBUG 1 */
 /* #define DEBUG_FLAGS */
 
 #include <linux/module.h>
@@ -59,13 +58,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #include "comedi_fc.h"
 #include "mite.h"
-
-#undef DPRINTK
-#ifdef DEBUG
-#define DPRINTK(format, args...) pr_debug(format, ## args)
-#else
-#define DPRINTK(format, args...) do { } while (0)
-#endif
 
 #define PCI_DIO_SIZE 4096
 #define PCI_MITE_SIZE 4096
