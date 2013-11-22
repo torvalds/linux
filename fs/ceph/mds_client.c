@@ -1137,6 +1137,21 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 	return 0;
 }
 
+static int send_flushmsg_ack(struct ceph_mds_client *mdsc,
+			     struct ceph_mds_session *session, u64 seq)
+{
+	struct ceph_msg *msg;
+
+	dout("send_flushmsg_ack to mds%d (%s)s seq %lld\n",
+	     session->s_mds, session_state_name(session->s_state), seq);
+	msg = create_session_msg(CEPH_SESSION_FLUSHMSG_ACK, seq);
+	if (!msg)
+		return -ENOMEM;
+	ceph_con_send(&session->s_con, msg);
+	return 0;
+}
+
+
 /*
  * Note new cap ttl, and any transition from stale -> not stale (fresh?).
  *
@@ -2394,6 +2409,10 @@ static void handle_session(struct ceph_mds_session *session,
 
 	case CEPH_SESSION_RECALL_STATE:
 		trim_caps(mdsc, session, le32_to_cpu(h->max_caps));
+		break;
+
+	case CEPH_SESSION_FLUSHMSG:
+		send_flushmsg_ack(mdsc, session, seq);
 		break;
 
 	default:
