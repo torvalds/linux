@@ -818,9 +818,9 @@ static int pci230_ai_rinsn(struct comedi_device *dev,
 	if (aref == AREF_DIFF) {
 		/* Differential. */
 		if (chan >= s->n_chan / 2) {
-			DPRINTK("comedi%d: amplc_pci230: ai_rinsn: "
-				"differential channel number out of range "
-				"0 to %u\n", dev->minor, (s->n_chan / 2) - 1);
+			dev_dbg(dev->class_dev,
+				"%s: differential channel number out of range 0 to %u\n",
+				__func__, (s->n_chan / 2) - 1);
 			return -EINVAL;
 		}
 	}
@@ -1092,14 +1092,14 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		if (errors != 0) {
 			err++;
 			if ((errors & seq_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
-					"channel numbers must increase\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel numbers must increase\n",
+					__func__);
 			}
 			if ((errors & range_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ao_cmdtest: "
-					"channels must have the same range\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channels must have the same range\n",
+					__func__);
 			}
 		}
 	}
@@ -1835,33 +1835,29 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		if (errors != 0) {
 			err++;
 			if ((errors & seq_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel numbers must increase or "
-					"sequence must repeat exactly\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel numbers must increase or sequence must repeat exactly\n",
+					__func__);
 			}
 			if ((errors & rangepair_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"single-ended channel pairs must "
-					"have the same range\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: single-ended channel pairs must have the same range\n",
+					__func__);
 			}
 			if ((errors & polarity_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel sequence ranges must be all "
-					"bipolar or all unipolar\n",
-					dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence ranges must be all bipolar or all unipolar\n",
+					__func__);
 			}
 			if ((errors & aref_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"channel sequence analogue references "
-					"must be all the same (single-ended "
-					"or differential)\n", dev->minor);
+				dev_dbg(dev->class_dev,
+					"%s: channel sequence analogue references must be all the same (single-ended or differential)\n",
+					__func__);
 			}
 			if ((errors & diffchan_err) != 0) {
-				DPRINTK("comedi%d: amplc_pci230: ai_cmdtest: "
-					"differential channel number out of "
-					"range 0 to %u\n", dev->minor,
-					(s->n_chan / 2) - 1);
+				dev_dbg(dev->class_dev,
+					"%s: differential channel number out of range 0 to %u\n",
+					__func__, (s->n_chan / 2) - 1);
 			}
 			if ((errors & buggy_chan0_err) != 0) {
 				dev_info(dev->class_dev,
