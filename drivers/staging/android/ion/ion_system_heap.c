@@ -166,8 +166,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		max_order = info->order;
 		i++;
 	}
-
-	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		goto err;
 
@@ -189,7 +188,7 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 err1:
 	kfree(table);
 err:
-	list_for_each_entry(info, &pages, list) {
+	list_for_each_entry_safe(info, tmp_info, &pages, list) {
 		free_buffer_page(sys_heap, buffer, info->page, info->order);
 		kfree(info);
 	}
