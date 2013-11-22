@@ -1693,16 +1693,12 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 	}
 
 #ifdef CONFIG_PM
-	/* We're seeing some problems with unsolicited hot plug events on
-	 * PantherPoint after S3, if this is not enabled */
-	if (codec->vendor_id == 0x80862806)
-		codec->bus->power_keep_link_on = 1;
 	/*
 	 * G45/IbexPeak don't support EPSS: the unsolicited pin hot plug event
 	 * can be lost and presence sense verb will become inaccurate if the
 	 * HDA link is powered off at hot plug or hw initialization time.
 	 */
-	else if (!(snd_hda_param_read(codec, codec->afg, AC_PAR_POWER_STATE) &
+	if (!(snd_hda_param_read(codec, codec->afg, AC_PAR_POWER_STATE) &
 	      AC_PWRST_EPSS))
 		codec->bus->power_keep_link_on = 1;
 #endif
