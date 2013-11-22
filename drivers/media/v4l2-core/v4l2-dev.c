@@ -31,6 +31,10 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/v4l2.h>
+
 #define VIDEO_NUM_DEVICES	256
 #define VIDEO_NAME              "video4linux"
 
@@ -390,6 +394,11 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			mutex_unlock(m);
 	} else
 		ret = -ENOTTY;
+
+	if (cmd == VIDIOC_DQBUF)
+		trace_v4l2_dqbuf(vdev->minor, (struct v4l2_buffer *)arg);
+	else if (cmd == VIDIOC_QBUF)
+		trace_v4l2_qbuf(vdev->minor, (struct v4l2_buffer *)arg);
 
 	return ret;
 }
