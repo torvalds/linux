@@ -1,0 +1,28 @@
+config ARCH_ROCKCHIP
+	bool "Rockchip SoCs" if ARCH_MULTI_V7
+	select PIE
+	select PINCTRL
+	select PINCTRL_ROCKCHIP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_GIC
+	select CACHE_L2X0
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select LOCAL_TIMERS if SMP
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select CLKSRC_OF if OF
+	help
+	  Support for Rockchip's Cortex-A9 Single-to-Quad-Core-SoCs
+	  containing the RK2928, RK30xx and RK31xx series.
+
+if ARCH_ROCKCHIP
+
+config RK_DEBUG_UART
+	int "Debug UART"
+	default 2
+	help
+	  Select a UART for debugging. -1 disable.
+
+endif
