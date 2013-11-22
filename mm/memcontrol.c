@@ -6056,10 +6056,10 @@ static void cgroup_event_ptable_queue_proc(struct file *file,
  * Input must be in format '<event_fd> <control_fd> <args>'.
  * Interpretation of args is defined by control file implementation.
  */
-static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
+static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 				      struct cftype *cft, const char *buffer)
 {
-	struct cgroup *cgrp = dummy_css->cgroup;
+	struct cgroup *cgrp = css->cgroup;
 	struct cgroup_event *event;
 	struct cgroup_subsys_state *cfile_css;
 	unsigned int efd, cfd;
@@ -6082,6 +6082,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 	if (!event)
 		return -ENOMEM;
 
+	event->css = css;
 	INIT_LIST_HEAD(&event->list);
 	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
 	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
@@ -6117,23 +6118,17 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 		goto out_put_cfile;
 	}
 
-	if (!event->cft->ss) {
-		ret = -EBADF;
-		goto out_put_cfile;
-	}
-
 	/*
-	 * Determine the css of @cfile, verify it belongs to the same
-	 * cgroup as cgroup.event_control, and associate @event with it.
-	 * Remaining events are automatically removed on cgroup destruction
-	 * but the removal is asynchronous, so take an extra ref.
+	 * Verify @cfile should belong to @css.  Also, remaining events are
+	 * automatically removed on cgroup destruction but the removal is
+	 * asynchronous, so take an extra ref on @css.
 	 */
 	rcu_read_lock();
 
 	ret = -EINVAL;
-	event->css = cgroup_css(cgrp, event->cft->ss);
-	cfile_css = css_from_dir(cfile.file->f_dentry->d_parent, event->cft->ss);
-	if (event->css && event->css == cfile_css && css_tryget(event->css))
+	cfile_css = css_from_dir(cfile.file->f_dentry->d_parent,
+				 &mem_cgroup_subsys);
+	if (cfile_css == css && css_tryget(css))
 		ret = 0;
 
 	rcu_read_unlock();
@@ -6145,7 +6140,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 		goto out_put_css;
 	}
 
-	ret = event->cft->register_event(event->css, event->cft,
+	ret = event->cft->register_event(css, event->cft,
 			event->eventfd, buffer);
 	if (ret)
 		goto out_put_css;
@@ -6162,7 +6157,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 	return 0;
 
 out_put_css:
-	css_put(event->css);
+	css_put(css);
 out_put_cfile:
 	fdput(cfile);
 out_put_eventfd:
