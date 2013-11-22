@@ -26,7 +26,7 @@
  * Byte threshold to limit memory consumption for flip buffers.
  * The actual memory limit is > 2x this amount.
  */
-#define TTYB_MEM_LIMIT	65536
+#define TTYB_DEFAULT_MEM_LIMIT	65536
 
 /*
  * We default to dicing tty buffer allocations to this many characters
@@ -89,7 +89,7 @@ void tty_buffer_unlock_exclusive(struct tty_port *port)
 
 int tty_buffer_space_avail(struct tty_port *port)
 {
-	int space = TTYB_MEM_LIMIT - atomic_read(&port->buf.memory_used);
+	int space = port->buf.mem_limit - atomic_read(&port->buf.memory_used);
 	return max(space, 0);
 }
 
@@ -162,7 +162,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 
 	/* Should possibly check if this fails for the largest buffer we
 	   have queued and recycle that ? */
-	if (atomic_read(&port->buf.memory_used) > TTYB_MEM_LIMIT)
+	if (atomic_read(&port->buf.memory_used) > port->buf.mem_limit)
 		return NULL;
 	p = kmalloc(sizeof(struct tty_buffer) + 2 * size, GFP_ATOMIC);
 	if (p == NULL)
@@ -536,4 +536,22 @@ void tty_buffer_init(struct tty_port *port)
 	atomic_set(&buf->memory_used, 0);
 	atomic_set(&buf->priority, 0);
 	INIT_WORK(&buf->work, flush_to_ldisc);
+	buf->mem_limit = TTYB_DEFAULT_MEM_LIMIT;
 }
+
+/**
+ *	tty_buffer_set_limit	-	change the tty buffer memory limit
+ *	@port: tty port to change
+ *
+ *	Change the tty buffer memory limit.
+ *	Must be called before the other tty buffer functions are used.
+ */
+
+int tty_buffer_set_limit(struct tty_port *port, int limit)
+{
+	if (limit < MIN_TTYB_SIZE)
+		return -EINVAL;
+	port->buf.mem_limit = limit;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tty_buffer_set_limit);

@@ -61,6 +61,7 @@ struct tty_bufhead {
 	struct tty_buffer sentinel;
 	struct llist_head free;		/* Free queue head */
 	atomic_t	   memory_used; /* In-use buffers excluding free list */
+	int		   mem_limit;
 	struct tty_buffer *tail;	/* Active buffer */
 };
 /*
