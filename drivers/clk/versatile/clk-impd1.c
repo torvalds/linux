@@ -66,8 +66,8 @@ void integrator_impd1_clk_init(void __iomem *base, unsigned int id)
 	}
 	imc = &impd1_clks[id];
 
-	clk = icst_clk_register(NULL, &impd1_icst1_desc, base);
-	imc->vcoclk = clk;
+	clk = icst_clk_register(NULL, &impd1_icst1_desc, "icst1", base);
+	imc->vco1clk = clk;
 	imc->clks[0] = clkdev_alloc(clk, NULL, "lm%x:01000", id);
 
 	/* UART reference clock */
