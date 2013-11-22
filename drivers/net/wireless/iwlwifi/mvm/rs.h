@@ -224,22 +224,45 @@ enum iwl_table_type {
 	LQ_MAX,
 };
 
-#define is_legacy(tbl) (((tbl) == LQ_LEGACY_G) || ((tbl) == LQ_LEGACY_A))
-#define is_ht_siso(tbl) ((tbl) == LQ_HT_SISO)
-#define is_ht_mimo2(tbl) ((tbl) == LQ_HT_MIMO2)
-#define is_vht_siso(tbl) ((tbl) == LQ_VHT_SISO)
-#define is_vht_mimo2(tbl) ((tbl) == LQ_VHT_MIMO2)
-#define is_siso(tbl) (is_ht_siso(tbl) || is_vht_siso(tbl))
-#define is_mimo2(tbl) (is_ht_mimo2(tbl) || is_vht_mimo2(tbl))
-#define is_mimo(tbl) (is_mimo2(tbl))
-#define is_ht(tbl) (is_ht_siso(tbl) || is_ht_mimo2(tbl))
-#define is_vht(tbl) (is_vht_siso(tbl) || is_vht_mimo2(tbl))
-#define is_a_band(tbl) ((tbl) == LQ_LEGACY_A)
-#define is_g_band(tbl) ((tbl) == LQ_LEGACY_G)
+struct rs_rate {
+	int index;
+	enum iwl_table_type type;
+	u8 ant;
+	u32 bw;
+	bool sgi;
+};
 
-#define is_ht20(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_20)
-#define is_ht40(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_40)
-#define is_ht80(tbl) (tbl->bw == RATE_MCS_CHAN_WIDTH_80)
+
+#define is_type_legacy(type) (((type) == LQ_LEGACY_G) || \
+			      ((type) == LQ_LEGACY_A))
+#define is_type_ht_siso(type) ((type) == LQ_HT_SISO)
+#define is_type_ht_mimo2(type) ((type) == LQ_HT_MIMO2)
+#define is_type_vht_siso(type) ((type) == LQ_VHT_SISO)
+#define is_type_vht_mimo2(type) ((type) == LQ_VHT_MIMO2)
+#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type))
+#define is_type_mimo2(type) (is_type_ht_mimo2(type) || is_type_vht_mimo2(type))
+#define is_type_mimo(type) (is_type_mimo2(type))
+#define is_type_ht(type) (is_type_ht_siso(type) || is_type_ht_mimo2(type))
+#define is_type_vht(type) (is_type_vht_siso(type) || is_type_vht_mimo2(type))
+#define is_type_a_band(type) ((type) == LQ_LEGACY_A)
+#define is_type_g_band(type) ((type) == LQ_LEGACY_G)
+
+#define is_legacy(rate)       is_type_legacy((rate)->type)
+#define is_ht_siso(rate)      is_type_ht_siso((rate)->type)
+#define is_ht_mimo2(rate)     is_type_ht_mimo2((rate)->type)
+#define is_vht_siso(rate)     is_type_vht_siso((rate)->type)
+#define is_vht_mimo2(rate)    is_type_vht_mimo2((rate)->type)
+#define is_siso(rate)         is_type_siso((rate)->type)
+#define is_mimo2(rate)        is_type_mimo2((rate)->type)
+#define is_mimo(rate)         is_type_mimo((rate)->type)
+#define is_ht(rate)           is_type_ht((rate)->type)
+#define is_vht(rate)          is_type_vht((rate)->type)
+#define is_a_band(rate)       is_type_a_band((rate)->type)
+#define is_g_band(rate)       is_type_g_band((rate)->type)
+
+#define is_ht20(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_20)
+#define is_ht40(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_40)
+#define is_ht80(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_80)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
@@ -266,10 +289,7 @@ struct iwl_rate_scale_data {
  * one for "active", and one for "search".
  */
 struct iwl_scale_tbl_info {
-	enum iwl_table_type lq_type;
-	u8 ant_type;
-	u8 is_SGI;	/* 1 = short guard interval */
-	u32 bw;	        /* channel bandwidth; RATE_MCS_CHAN_WIDTH_XX */
+	struct rs_rate rate;
 	u8 action;	/* change modulation; IWL_[LEGACY/SISO/MIMO]_SWITCH_* */
 	u8 max_search;	/* maximun number of tables we can search */
 	s32 *expected_tpt;	/* throughput metrics; expected_tpt_G, etc. */
