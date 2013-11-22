@@ -374,30 +374,6 @@ static const struct snd_kcontrol_new wm8991_snd_controls[] = {
 /*
  * _DAPM_ Controls
  */
-static int inmixer_event(struct snd_soc_dapm_widget *w,
-			 struct snd_kcontrol *kcontrol, int event)
-{
-	u16 reg, fakepower;
-
-	reg = snd_soc_read(w->codec, WM8991_POWER_MANAGEMENT_2);
-	fakepower = snd_soc_read(w->codec, WM8991_INTDRIVBITS);
-
-	if (fakepower & ((1 << WM8991_INMIXL_PWR_BIT) |
-			 (1 << WM8991_AINLMUX_PWR_BIT)))
-		reg |= WM8991_AINL_ENA;
-	else
-		reg &= ~WM8991_AINL_ENA;
-
-	if (fakepower & ((1 << WM8991_INMIXR_PWR_BIT) |
-			 (1 << WM8991_AINRMUX_PWR_BIT)))
-		reg |= WM8991_AINR_ENA;
-	else
-		reg &= ~WM8991_AINR_ENA;
-
-	snd_soc_write(w->codec, WM8991_POWER_MANAGEMENT_2, reg);
-	return 0;
-}
-
 static int outmixer_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
@@ -655,6 +631,11 @@ static const struct snd_soc_dapm_widget wm8991_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RIN2"),
 	SND_SOC_DAPM_INPUT("Internal ADC Source"),
 
+	SND_SOC_DAPM_SUPPLY("INL", WM8991_POWER_MANAGEMENT_2,
+			    WM8991_AINL_ENA_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("INR", WM8991_POWER_MANAGEMENT_2,
+			    WM8991_AINR_ENA_BIT, 0, NULL, 0),
+
 	/* DACs */
 	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", WM8991_POWER_MANAGEMENT_2,
 		WM8991_ADCL_ENA_BIT, 0),
@@ -676,26 +657,22 @@ static const struct snd_soc_dapm_widget wm8991_dapm_widgets[] = {
 		ARRAY_SIZE(wm8991_dapm_rin34_pga_controls)),
 
 	/* INMIXL */
-	SND_SOC_DAPM_MIXER_E("INMIXL", WM8991_INTDRIVBITS, WM8991_INMIXL_PWR_BIT, 0,
+	SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_NOPM, 0, 0,
 		&wm8991_dapm_inmixl_controls[0],
-		ARRAY_SIZE(wm8991_dapm_inmixl_controls),
-		inmixer_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+		ARRAY_SIZE(wm8991_dapm_inmixl_controls)),
 
 	/* AINLMUX */
-	SND_SOC_DAPM_MUX_E("AINLMUX", WM8991_INTDRIVBITS, WM8991_AINLMUX_PWR_BIT, 0,
-		&wm8991_dapm_ainlmux_controls, inmixer_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("AINLMUX", SND_SOC_NOPM, 0, 0,
+		&wm8991_dapm_ainlmux_controls),
 
 	/* INMIXR */
-	SND_SOC_DAPM_MIXER_E("INMIXR", WM8991_INTDRIVBITS, WM8991_INMIXR_PWR_BIT, 0,
+	SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_NOPM, 0, 0,
 		&wm8991_dapm_inmixr_controls[0],
-		ARRAY_SIZE(wm8991_dapm_inmixr_controls),
-		inmixer_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+		ARRAY_SIZE(wm8991_dapm_inmixr_controls)),
 
 	/* AINRMUX */
-	SND_SOC_DAPM_MUX_E("AINRMUX", WM8991_INTDRIVBITS, WM8991_AINRMUX_PWR_BIT, 0,
-		&wm8991_dapm_ainrmux_controls, inmixer_event,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("AINRMUX", SND_SOC_NOPM, 0, 0,
+		&wm8991_dapm_ainrmux_controls),
 
 	/* Output Side */
 	/* DACs */
@@ -797,6 +774,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Right ADC", NULL, "Internal ADC Source"},
 
 	/* Input Side */
+	{"INMIXL", NULL, "INL"},
+	{"AINLMUX", NULL, "INL"},
+	{"INMIXR", NULL, "INR"},
+	{"AINRMUX", NULL, "INR"},
 	/* LIN12 PGA */
 	{"LIN12 PGA", "LIN1 Switch", "LIN1"},
 	{"LIN12 PGA", "LIN2 Switch", "LIN2"},
