@@ -270,21 +270,27 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	if (pdata) {
 		chip->gc.base = pdata->gpio_base;
 		irq_base = pdata->irq_base;
-		if (irq_base <= 0)
+		if (irq_base <= 0) {
+			dev_err(&adev->dev, "invalid IRQ base in pdata\n");
 			return -ENODEV;
+		}
 	} else {
 		chip->gc.base = -1;
 		irq_base = 0;
 	}
 
 	if (!devm_request_mem_region(dev, adev->res.start,
-				     resource_size(&adev->res), "pl061"))
+				     resource_size(&adev->res), "pl061")) {
+		dev_err(&adev->dev, "no memory region\n");
 		return -EBUSY;
+	}
 
 	chip->base = devm_ioremap(dev, adev->res.start,
 				  resource_size(&adev->res));
-	if (!chip->base)
+	if (!chip->base) {
+		dev_err(&adev->dev, "could not remap memory\n");
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&chip->lock);
 
@@ -309,16 +315,20 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	 */
 	writeb(0, chip->base + GPIOIE); /* disable irqs */
 	irq = adev->irq[0];
-	if (irq < 0)
+	if (irq < 0) {
+		dev_err(&adev->dev, "invalid IRQ\n");
 		return -ENODEV;
+	}
 
 	irq_set_chained_handler(irq, pl061_irq_handler);
 	irq_set_handler_data(irq, chip);
 
 	chip->domain = irq_domain_add_simple(adev->dev.of_node, PL061_GPIO_NR,
 					     irq_base, &pl061_domain_ops, chip);
-	if (!chip->domain)
+	if (!chip->domain) {
+		dev_err(&adev->dev, "no irq domain\n");
 		return -ENODEV;
+	}
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
 		if (pdata) {
@@ -331,6 +341,8 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	amba_set_drvdata(adev, chip);
+	dev_info(&adev->dev, "PL061 GPIO chip @%08x registered\n",
+		adev->res.start);
 
 	return 0;
 }
