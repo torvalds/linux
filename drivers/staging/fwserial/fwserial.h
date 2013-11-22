@@ -22,14 +22,14 @@
 #ifdef FWTTY_PROFILING
 #define DISTRIBUTION_MAX_SIZE     8192
 #define DISTRIBUTION_MAX_INDEX    (ilog2(DISTRIBUTION_MAX_SIZE) + 1)
-static inline void profile_size_distrib(unsigned stat[], unsigned val)
+static inline void fwtty_profile_data(unsigned stat[], unsigned val)
 {
 	int n = (val) ? min(ilog2(val) + 1, DISTRIBUTION_MAX_INDEX) : 0;
 	++stat[n];
 }
 #else
 #define DISTRIBUTION_MAX_INDEX    0
-#define profile_size_distrib(st, n)
+#define fwtty_profile_data(st, n)
 #endif
 
 /* Parameters for both VIRT_CABLE_PLUG & VIRT_CABLE_PLUG_RSP mgmt codes */

@@ -136,14 +136,14 @@ static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
 
 #ifdef FWTTY_PROFILING
 
-static void profile_fifo_avail(struct fwtty_port *port, unsigned *stat)
+static void fwtty_profile_fifo(struct fwtty_port *port, unsigned *stat)
 {
 	spin_lock_bh(&port->lock);
-	profile_size_distrib(stat, dma_fifo_avail(&port->tx_fifo));
+	fwtty_profile_data(stat, dma_fifo_avail(&port->tx_fifo));
 	spin_unlock_bh(&port->lock);
 }
 
-static void dump_profile(struct seq_file *m, struct stats *stats)
+static void fwtty_dump_profile(struct seq_file *m, struct stats *stats)
 {
 	/* for each stat, print sum of 0 to 2^k, then individually */
 	int k = 4;
@@ -183,8 +183,8 @@ static void dump_profile(struct seq_file *m, struct stats *stats)
 }
 
 #else
-#define profile_fifo_avail(port, stat)
-#define dump_profile(m, stats)
+#define fwtty_profile_fifo(port, stat)
+#define fwtty_dump_profile(m, stats)
 #endif
 
 /*
@@ -550,7 +550,7 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	int err = 0;
 
 	fwtty_dbg(port, "%d\n", n);
-	profile_size_distrib(port->stats.reads, n);
+	fwtty_profile_data(port->stats.reads, n);
 
 	if (port->write_only) {
 		n = 0;
@@ -759,7 +759,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 			if (n == -EAGAIN)
 				++port->stats.tx_stall;
 			else if (n == -ENODATA)
-				profile_size_distrib(port->stats.txns, 0);
+				fwtty_profile_data(port->stats.txns, 0);
 			else {
 				++port->stats.fifo_errs;
 				fwtty_err_ratelimited(port, "fifo err: %d\n",
@@ -768,7 +768,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 			break;
 		}
 
-		profile_size_distrib(port->stats.txns, txn->dma_pended.len);
+		fwtty_profile_data(port->stats.txns, txn->dma_pended.len);
 
 		fwtty_send_txn_async(peer, txn, TCODE_WRITE_BLOCK_REQUEST,
 				     peer->fifo_addr, txn->dma_pended.data,
@@ -1115,7 +1115,7 @@ static int fwtty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 	int n, len;
 
 	fwtty_dbg(port, "%d\n", c);
-	profile_size_distrib(port->stats.writes, c);
+	fwtty_profile_data(port->stats.writes, c);
 
 	spin_lock_bh(&port->lock);
 	n = dma_fifo_in(&port->tx_fifo, buf, c);
@@ -1193,7 +1193,7 @@ static void fwtty_unthrottle(struct tty_struct *tty)
 
 	fwtty_dbg(port, "CRTSCTS: %d\n", (C_CRTSCTS(tty) != 0));
 
-	profile_fifo_avail(port, port->stats.unthrottle);
+	fwtty_profile_fifo(port, port->stats.unthrottle);
 
 	spin_lock_bh(&port->lock);
 	port->mctrl &= ~OOB_RX_THROTTLE;
@@ -1459,7 +1459,7 @@ static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
 		(*port->fwcon_ops->proc_show)(m, port->con_data);
 	}
 
-	dump_profile(m, &port->stats);
+	fwtty_dump_profile(m, &port->stats);
 }
 
 static void fwtty_debugfs_show_peer(struct seq_file *m, struct fwtty_peer *peer)
