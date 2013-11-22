@@ -18,7 +18,6 @@
 #include <linux/err.h>
 
 #include <acpi/acpi.h>
-#include <acpi/acpixf.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 
