@@ -100,8 +100,8 @@ enum acpi_hotplug_mode {
 struct acpi_hotplug_profile {
 	struct kobject kobj;
 	bool enabled:1;
-	bool ignore:1;
 	enum acpi_hotplug_mode mode;
+	int (*scan_dependent)(struct acpi_device *adev);
 };
 
 static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(

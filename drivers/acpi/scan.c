@@ -283,17 +283,6 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 {
 	int error;
 
-	/*
-	 * This function is only called for device objects for which matching
-	 * scan handlers exist.  The only situation in which the scan handler is
-	 * not attached to this device object yet is when the device has just
-	 * appeared (either it wasn't present at all before or it was removed
-	 * and then added again).
-	 */
-	if (adev->handler) {
-		dev_warn(&adev->dev, "Already enumerated\n");
-		return -EBUSY;
-	}
 	error = acpi_bus_scan(adev->handle);
 	if (error) {
 		dev_warn(&adev->dev, "Namespace scan failure\n");
@@ -309,10 +298,11 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 	return 0;
 }
 
-void acpi_device_hotplug(void *data, u32 src)
+static void acpi_device_hotplug(void *data, u32 src)
 {
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	struct acpi_device *adev = data;
+	struct acpi_scan_handler *handler;
 	int error;
 
 	lock_device_hotplug();
@@ -326,12 +316,32 @@ void acpi_device_hotplug(void *data, u32 src)
 	if (adev->handle == INVALID_ACPI_HANDLE)
 		goto out;
 
+	handler = adev->handler;
+
 	switch (src) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		error = acpi_bus_scan(adev->handle);
+		if (handler) {
+			error = handler->hotplug.scan_dependent ?
+					handler->hotplug.scan_dependent(adev) :
+					acpi_bus_scan(adev->handle);
+		} else {
+			error = acpi_scan_device_check(adev);
+		}
 		break;
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		error = acpi_scan_device_check(adev);
+		/*
+		 * This code is only run for device objects for which matching
+		 * scan handlers exist.  The only situation in which the scan
+		 * handler is not attached to this device object yet is when the
+		 * device has just appeared (either it wasn't present at all
+		 * before or it was removed and then added again).
+		 */
+		if (adev->handler) {
+			dev_warn(&adev->dev, "Already enumerated\n");
+			error = -EBUSY;
+		} else {
+			error = acpi_scan_device_check(adev);
+		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 	case ACPI_OST_EC_OSPM_EJECT:
@@ -1805,7 +1815,7 @@ static void acpi_scan_init_hotplug(acpi_handle handle, int type)
 	 */
 	list_for_each_entry(hwid, &pnp.ids, list) {
 		handler = acpi_scan_match_handler(hwid->id, NULL);
-		if (handler && !handler->hotplug.ignore) {
+		if (handler) {
 			acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					acpi_hotplug_notify_cb, handler);
 			break;
@@ -2082,8 +2092,6 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
-
-	acpi_pci_root_hp_init();
 
  out:
 	mutex_unlock(&acpi_scan_lock);
