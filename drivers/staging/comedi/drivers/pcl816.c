@@ -174,7 +174,6 @@ static int pcl816_ai_insn_read(struct comedi_device *dev,
 	int n;
 	int timeout;
 
-	DPRINTK("mode 0 analog input\n");
 	/*  software trigger, DMA and INT off */
 	outb(0, dev->iobase + PCL816_CONTROL);
 	/*  clear INT (conversion end) flag */
@@ -369,8 +368,6 @@ static irqreturn_t interrupt_pcl816(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct pcl816_private *devpriv = dev->private;
-
-	DPRINTK("<I>");
 
 	if (!dev->attached) {
 		comedi_error(dev, "premature interrupt");
@@ -608,7 +605,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	}
 
-	DPRINTK("pcl816 END: pcl812_ai_cmd()\n");
 	return 0;
 }
 
@@ -762,8 +758,8 @@ start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
 	udelay(1);
 
 	if (mode == 1) {
-		DPRINTK("mode %d, divisor1 %d, divisor2 %d\n", mode, divisor1,
-			divisor2);
+		dev_dbg(dev->class_dev, "mode %d, divisor1 %d, divisor2 %d\n",
+			mode, divisor1, divisor2);
 		outb(divisor2 & 0xff, dev->iobase + PCL816_CTR2);
 		outb((divisor2 >> 8) & 0xff, dev->iobase + PCL816_CTR2);
 		outb(divisor1 & 0xff, dev->iobase + PCL816_CTR1);
