@@ -363,42 +363,12 @@ static void acpi_scan_bus_device_check(void *data, u32 ost_source)
 	unlock_device_hotplug();
 }
 
-static void acpi_hotplug_unsupported(acpi_handle handle, u32 type)
-{
-	u32 ost_status;
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_handle_debug(handle,
-			"ACPI_NOTIFY_BUS_CHECK event: unsupported\n");
-		ost_status = ACPI_OST_SC_INSERT_NOT_SUPPORTED;
-		break;
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_handle_debug(handle,
-			"ACPI_NOTIFY_DEVICE_CHECK event: unsupported\n");
-		ost_status = ACPI_OST_SC_INSERT_NOT_SUPPORTED;
-		break;
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		acpi_handle_debug(handle,
-			"ACPI_NOTIFY_EJECT_REQUEST event: unsupported\n");
-		ost_status = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
-		break;
-	default:
-		/* non-hotplug event; possibly handled by other handler */
-		return;
-	}
-
-	acpi_evaluate_hotplug_ost(handle, type, ost_status, NULL);
-}
-
 static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 {
+	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
 	struct acpi_scan_handler *handler = data;
 	struct acpi_device *adev;
 	acpi_status status;
-
-	if (!handler->hotplug.enabled)
-		return acpi_hotplug_unsupported(handle, type);
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
@@ -409,6 +379,11 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		acpi_handle_debug(handle, "ACPI_NOTIFY_EJECT_REQUEST event\n");
+		if (!handler->hotplug.enabled) {
+			acpi_handle_err(handle, "Eject disabled\n");
+			ost_code = ACPI_OST_SC_EJECT_NOT_SUPPORTED;
+			goto err_out;
+		}
 		if (acpi_bus_get_device(handle, &adev))
 			goto err_out;
 
@@ -428,8 +403,7 @@ static void acpi_hotplug_notify_cb(acpi_handle handle, u32 type, void *data)
 		return;
 
  err_out:
-	acpi_evaluate_hotplug_ost(handle, type,
-				  ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
+	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 }
 
 static ssize_t real_power_state_show(struct device *dev,
