@@ -237,10 +237,6 @@ struct cgroup_event {
 	 */
 	struct cgroup_subsys_state *css;
 	/*
-	 * Control file which the event associated.
-	 */
-	struct cftype *cft;
-	/*
 	 * eventfd to signal userspace about the event.
 	 */
 	struct eventfd_ctx *eventfd;
@@ -254,15 +250,13 @@ struct cgroup_event {
 	 * on eventfd to send notification to userspace.
 	 */
 	int (*register_event)(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct eventfd_ctx *eventfd,
-			      const char *args);
+			      struct eventfd_ctx *eventfd, const char *args);
 	/*
 	 * unregister_event() callback will be called when userspace closes
 	 * the eventfd or on cgroup removing.  This callback must be set,
 	 * if you want provide notification functionality.
 	 */
 	void (*unregister_event)(struct cgroup_subsys_state *css,
-				 struct cftype *cft,
 				 struct eventfd_ctx *eventfd);
 	/*
 	 * All fields below needed to unregister event when
@@ -5688,13 +5682,12 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
 		mem_cgroup_oom_notify_cb(iter);
 }
 
-static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+static int __mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd, const char *args, enum res_type type)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
-	enum res_type type = MEMFILE_TYPE(cft->private);
 	u64 threshold, usage;
 	int i, size, ret;
 
@@ -5771,13 +5764,24 @@ unlock:
 	return ret;
 }
 
-static void mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd)
+static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd, const char *args)
+{
+	return __mem_cgroup_usage_register_event(css, eventfd, args, _MEM);
+}
+
+static int memsw_cgroup_usage_register_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd, const char *args)
+{
+	return __mem_cgroup_usage_register_event(css, eventfd, args, _MEMSWAP);
+}
+
+static void __mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd, enum res_type type)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
-	enum res_type type = MEMFILE_TYPE(cft->private);
 	u64 usage;
 	int i, j, size;
 
@@ -5850,14 +5854,24 @@ unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
 
+static void mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd)
+{
+	return __mem_cgroup_usage_unregister_event(css, eventfd, _MEM);
+}
+
+static void memsw_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
+	struct eventfd_ctx *eventfd)
+{
+	return __mem_cgroup_usage_unregister_event(css, eventfd, _MEMSWAP);
+}
+
 static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+	struct eventfd_ctx *eventfd, const char *args)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_eventfd_list *event;
-	enum res_type type = MEMFILE_TYPE(cft->private);
 
-	BUG_ON(type != _OOM_TYPE);
 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
@@ -5876,13 +5890,10 @@ static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
 }
 
 static void mem_cgroup_oom_unregister_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd)
+	struct eventfd_ctx *eventfd)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_eventfd_list *ev, *tmp;
-	enum res_type type = MEMFILE_TYPE(cft->private);
-
-	BUG_ON(type != _OOM_TYPE);
 
 	spin_lock(&memcg_oom_lock);
 
@@ -6012,7 +6023,7 @@ static void cgroup_event_remove(struct work_struct *work)
 
 	remove_wait_queue(event->wqh, &event->wait);
 
-	event->unregister_event(css, event->cft, event->eventfd);
+	event->unregister_event(css, event->eventfd);
 
 	/* Notify userspace the event is going away. */
 	eventfd_signal(event->eventfd, 1);
@@ -6133,12 +6144,6 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	if (ret < 0)
 		goto out_put_cfile;
 
-	event->cft = __file_cft(cfile.file);
-	if (IS_ERR(event->cft)) {
-		ret = PTR_ERR(event->cft);
-		goto out_put_cfile;
-	}
-
 	/*
 	 * Determine the event callbacks and set them in @event.  This used
 	 * to be done via struct cftype but cgroup core no longer knows
@@ -6157,8 +6162,8 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 		event->register_event = vmpressure_register_event;
 		event->unregister_event = vmpressure_unregister_event;
 	} else if (!strcmp(name, "memory.memsw.usage_in_bytes")) {
-		event->register_event = mem_cgroup_usage_register_event;
-		event->unregister_event = mem_cgroup_usage_unregister_event;
+		event->register_event = memsw_cgroup_usage_register_event;
+		event->unregister_event = memsw_cgroup_usage_unregister_event;
 	} else {
 		ret = -EINVAL;
 		goto out_put_cfile;
@@ -6181,7 +6186,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	if (ret)
 		goto out_put_cfile;
 
-	ret = event->register_event(css, event->cft, event->eventfd, buffer);
+	ret = event->register_event(css, event->eventfd, buffer);
 	if (ret)
 		goto out_put_css;
 
