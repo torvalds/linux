@@ -2225,6 +2225,7 @@ static int fwserial_create(struct fw_unit *unit)
 		port->index = FWTTY_INVALID_INDEX;
 		port->port.ops = &fwtty_port_ops;
 		port->serial = serial;
+		tty_buffer_set_limit(&port->port, 128 * 1024);
 
 		spin_lock_init(&port->lock);
 		INIT_DELAYED_WORK(&port->drain, fwtty_drain_tx);
