@@ -1378,7 +1378,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8990 = {
 	.volatile_register = wm8990_volatile_register,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int wm8990_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1420,29 +1419,8 @@ static struct i2c_driver wm8990_i2c_driver = {
 	.remove =   wm8990_i2c_remove,
 	.id_table = wm8990_i2c_id,
 };
-#endif
 
-static int __init wm8990_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm8990_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8990 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm8990_modinit);
-
-static void __exit wm8990_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm8990_i2c_driver);
-#endif
-}
-module_exit(wm8990_exit);
+module_i2c_driver(wm8990_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8990 driver");
 MODULE_AUTHOR("Liam Girdwood");
