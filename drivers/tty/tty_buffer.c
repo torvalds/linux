@@ -92,6 +92,7 @@ int tty_buffer_space_avail(struct tty_port *port)
 	int space = port->buf.mem_limit - atomic_read(&port->buf.mem_used);
 	return max(space, 0);
 }
+EXPORT_SYMBOL_GPL(tty_buffer_space_avail);
 
 static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 {

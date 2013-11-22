@@ -456,9 +456,16 @@ static int fwtty_write_port_status(struct fwtty_port *port)
 	return err;
 }
 
-static void __fwtty_throttle(struct fwtty_port *port, struct tty_struct *tty)
+static void fwtty_throttle_port(struct fwtty_port *port)
 {
+	struct tty_struct *tty;
 	unsigned old;
+
+	tty = tty_port_tty_get(&port->port);
+	if (!tty)
+		return;
+
+	spin_lock_bh(&port->lock);
 
 	old = port->mctrl;
 	port->mctrl |= OOB_RX_THROTTLE;
@@ -466,6 +473,10 @@ static void __fwtty_throttle(struct fwtty_port *port, struct tty_struct *tty)
 		port->mctrl &= ~TIOCM_RTS;
 	if (~old & OOB_RX_THROTTLE)
 		__fwtty_write_port_status(port);
+
+	spin_unlock_bh(&port->lock);
+
+	tty_kref_put(tty);
 }
 
 /**
@@ -532,74 +543,8 @@ static void fwtty_emit_breaks(struct work_struct *work)
 	port->icount.brk += brk;
 }
 
-static void fwtty_pushrx(struct work_struct *work)
-{
-	struct fwtty_port *port = to_port(work, push);
-	struct tty_struct *tty;
-	struct buffered_rx *buf, *next;
-	int n, c = 0;
-
-	spin_lock_bh(&port->lock);
-	list_for_each_entry_safe(buf, next, &port->buf_list, list) {
-		n = tty_insert_flip_string_fixed_flag(&port->port, buf->data,
-						      TTY_NORMAL, buf->n);
-		c += n;
-		port->buffered -= n;
-		if (n < buf->n) {
-			if (n > 0) {
-				memmove(buf->data, buf->data + n, buf->n - n);
-				buf->n -= n;
-			}
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				__fwtty_throttle(port, tty);
-				tty_kref_put(tty);
-			}
-			break;
-		} else {
-			list_del(&buf->list);
-			kfree(buf);
-		}
-	}
-	if (c > 0)
-		tty_flip_buffer_push(&port->port);
-
-	if (list_empty(&port->buf_list))
-		clear_bit(BUFFERING_RX, &port->flags);
-	spin_unlock_bh(&port->lock);
-}
-
-static int fwtty_buffer_rx(struct fwtty_port *port, unsigned char *d, size_t n)
-{
-	struct buffered_rx *buf;
-	size_t size = (n + sizeof(struct buffered_rx) + 0xFF) & ~0xFF;
-
-	if (port->buffered + n > HIGH_WATERMARK) {
-		fwtty_err_ratelimited(port, "overflowed rx buffer: buffered: %d new: %zu wtrmk: %d\n",
-				      port->buffered, n, HIGH_WATERMARK);
-		return 0;
-	}
-	buf = kmalloc(size, GFP_ATOMIC);
-	if (!buf)
-		return 0;
-	INIT_LIST_HEAD(&buf->list);
-	buf->n = n;
-	memcpy(buf->data, d, n);
-
-	spin_lock_bh(&port->lock);
-	list_add_tail(&buf->list, &port->buf_list);
-	port->buffered += n;
-	if (port->buffered > port->stats.watermark)
-		port->stats.watermark = port->buffered;
-	set_bit(BUFFERING_RX, &port->flags);
-	spin_unlock_bh(&port->lock);
-
-	return n;
-}
-
 static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 {
-	struct tty_struct *tty;
 	int c, n = len;
 	unsigned lsr;
 	int err = 0;
@@ -636,31 +581,24 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 		goto out;
 	}
 
-	if (!test_bit(BUFFERING_RX, &port->flags)) {
-		c = tty_insert_flip_string_fixed_flag(&port->port, data,
-				TTY_NORMAL, n);
-		if (c > 0)
-			tty_flip_buffer_push(&port->port);
-		n -= c;
-
-		if (n) {
-			/* start buffering and throttling */
-			n -= fwtty_buffer_rx(port, &data[c], n);
-
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				spin_lock_bh(&port->lock);
-				__fwtty_throttle(port, tty);
-				spin_unlock_bh(&port->lock);
-				tty_kref_put(tty);
-			}
-		}
-	} else
-		n -= fwtty_buffer_rx(port, data, n);
+	c = tty_insert_flip_string_fixed_flag(&port->port, data, TTY_NORMAL, n);
+	if (c > 0)
+		tty_flip_buffer_push(&port->port);
+	n -= c;
 
 	if (n) {
 		port->overrun = true;
 		err = -EIO;
+		fwtty_err_ratelimited(port, "flip buffer overrun\n");
+
+	} else {
+		/* throttle the sender if remaining flip buffer space has
+		 * reached high watermark to avoid losing data which may be
+		 * in-flight. Since the AR request context is 32k, that much
+		 * data may have _already_ been acked.
+		 */
+		if (tty_buffer_space_avail(&port->port) < HIGH_WATERMARK)
+			fwtty_throttle_port(port);
 	}
 
 out:
@@ -1101,20 +1039,13 @@ static int fwtty_port_activate(struct tty_port *tty_port,
 static void fwtty_port_shutdown(struct tty_port *tty_port)
 {
 	struct fwtty_port *port = to_port(tty_port, port);
-	struct buffered_rx *buf, *next;
 
 	/* TODO: cancel outstanding transactions */
 
 	cancel_delayed_work_sync(&port->emit_breaks);
 	cancel_delayed_work_sync(&port->drain);
-	cancel_work_sync(&port->push);
 
 	spin_lock_bh(&port->lock);
-	list_for_each_entry_safe(buf, next, &port->buf_list, list) {
-		list_del(&buf->list);
-		kfree(buf);
-	}
-	port->buffered = 0;
 	port->flags = 0;
 	port->break_ctl = 0;
 	port->overrun = 0;
@@ -1263,8 +1194,6 @@ static void fwtty_unthrottle(struct tty_struct *tty)
 	fwtty_dbg(port, "CRTSCTS: %d\n", (C_CRTSCTS(tty) != 0));
 
 	profile_fifo_avail(port, port->stats.unthrottle);
-
-	schedule_work(&port->push);
 
 	spin_lock_bh(&port->lock);
 	port->mctrl &= ~OOB_RX_THROTTLE;
@@ -1523,8 +1452,7 @@ static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
 
 	seq_printf(m, " dr:%d st:%d err:%d lost:%d", stats.dropped,
 		   stats.tx_stall, stats.fifo_errs, stats.lost);
-	seq_printf(m, " pkts:%d thr:%d wtrmk:%d", stats.sent, stats.throttled,
-		   stats.watermark);
+	seq_printf(m, " pkts:%d thr:%d", stats.sent, stats.throttled);
 
 	if (port->port.console) {
 		seq_puts(m, "\n    ");
@@ -2302,8 +2230,6 @@ static int fwserial_create(struct fw_unit *unit)
 		INIT_DELAYED_WORK(&port->drain, fwtty_drain_tx);
 		INIT_DELAYED_WORK(&port->emit_breaks, fwtty_emit_breaks);
 		INIT_WORK(&port->hangup, fwtty_do_hangup);
-		INIT_WORK(&port->push, fwtty_pushrx);
-		INIT_LIST_HEAD(&port->buf_list);
 		init_waitqueue_head(&port->wait_tx);
 		port->max_payload = link_speed_to_max_payload(SCODE_100);
 		dma_fifo_init(&port->tx_fifo);

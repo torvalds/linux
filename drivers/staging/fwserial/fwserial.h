@@ -166,7 +166,6 @@ struct stats {
 	unsigned	sent;
 	unsigned	lost;
 	unsigned	throttled;
-	unsigned	watermark;
 	unsigned	reads[DISTRIBUTION_MAX_INDEX + 1];
 	unsigned	writes[DISTRIBUTION_MAX_INDEX + 1];
 	unsigned	txns[DISTRIBUTION_MAX_INDEX + 1];
@@ -182,12 +181,6 @@ struct fwconsole_ops {
 /* codes for console ops notify */
 #define FWCON_NOTIFY_ATTACH		1
 #define FWCON_NOTIFY_DETACH		2
-
-struct buffered_rx {
-	struct list_head	list;
-	size_t			n;
-	unsigned char		data[0];
-};
 
 /**
  * fwtty_port: structure used to track/represent underlying tty_port
@@ -223,11 +216,6 @@ struct buffered_rx {
  *         The work can race with the writer but concurrent sending is
  *         prevented with the IN_TX flag. Scheduled under lock to
  *         limit scheduling when fifo has just been drained.
- * @push: work responsible for pushing buffered rx to the ldisc.
- *	  rx can become buffered if the tty buffer is filled before the
- *	  ldisc throttles the sender.
- * @buf_list: list of buffered rx yet to be sent to ldisc
- * @buffered: byte count of buffered rx
  * @tx_fifo: fifo used to store & block-up writes for dma to remote
  * @max_payload: max bytes transmissable per dma (based on peer's max_payload)
  * @status_mask: UART_LSR_* bitmask significant to rx (based on termios)
@@ -267,9 +255,6 @@ struct fwtty_port {
 	spinlock_t		   lock;
 	unsigned		   mctrl;
 	struct delayed_work	   drain;
-	struct work_struct	   push;
-	struct list_head	   buf_list;
-	int			   buffered;
 	struct dma_fifo		   tx_fifo;
 	int			   max_payload;
 	unsigned		   status_mask;
@@ -291,7 +276,6 @@ struct fwtty_port {
 /* bit #s for flags field */
 #define IN_TX                      0
 #define STOP_TX                    1
-#define BUFFERING_RX		   2
 
 /* bitmasks for special mctrl/mstatus bits */
 #define OOB_RX_THROTTLE   0x00010000
