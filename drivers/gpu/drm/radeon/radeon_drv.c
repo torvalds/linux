@@ -76,9 +76,10 @@
  *   2.32.0 - new info request for rings working
  *   2.33.0 - Add SI tiling mode array query
  *   2.34.0 - Add CIK tiling mode array query
+ *   2.35.0 - Add CIK macrotile mode array query
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	34
+#define KMS_DRIVER_MINOR	35
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

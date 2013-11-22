@@ -159,7 +159,8 @@ static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 		if (!p->relocs[i].robj)
 			continue;
 
-		radeon_ib_sync_to(&p->ib, p->relocs[i].robj->tbo.sync_obj);
+		radeon_semaphore_sync_to(p->ib.semaphore,
+					 p->relocs[i].robj->tbo.sync_obj);
 	}
 }
 
@@ -411,9 +412,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		goto out;
 	}
 	radeon_cs_sync_rings(parser);
-	radeon_ib_sync_to(&parser->ib, vm->fence);
-	radeon_ib_sync_to(&parser->ib, radeon_vm_grab_id(
-		rdev, vm, parser->ring));
+	radeon_semaphore_sync_to(parser->ib.semaphore, vm->fence);
+	radeon_semaphore_sync_to(parser->ib.semaphore,
+				 radeon_vm_grab_id(rdev, vm, parser->ring));
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {

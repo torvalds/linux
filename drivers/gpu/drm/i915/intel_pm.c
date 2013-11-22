@@ -1625,7 +1625,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 			&to_intel_crtc(enabled)->config.adjusted_mode;
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->htotal;
-		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
+		int hdisplay = to_intel_crtc(enabled)->config.pipe_src_w;
 		int pixel_size = enabled->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -3888,7 +3888,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
-	if (INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev))
 		I915_WRITE(GEN6_RC6_THRESHOLD, 125000);
 	else
 		I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
