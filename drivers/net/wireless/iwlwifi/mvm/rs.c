@@ -52,8 +52,8 @@
 
 /* max allowed rate miss before sync LQ cmd */
 #define IWL_MISSED_RATE_MAX		15
-/* max time to accum history 2 seconds */
-#define IWL_RATE_SCALE_FLUSH_INTVL   (3*HZ)
+#define RS_STAY_IN_COLUMN_TIMEOUT       (5*HZ)
+
 
 static u8 rs_ht_to_legacy[] = {
 	[IWL_RATE_1M_INDEX] = IWL_RATE_6M_INDEX,
@@ -1599,7 +1599,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 			flush_interval_passed =
 				time_after(jiffies,
 					   (unsigned long)(lq_sta->flush_timer +
-						IWL_RATE_SCALE_FLUSH_INTVL));
+						RS_STAY_IN_COLUMN_TIMEOUT));
 
 		/*
 		 * Check if we should allow search for new modulation mode.
