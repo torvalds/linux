@@ -1479,7 +1479,7 @@ static int read_super_block(struct super_block *s, int offset)
 	if (!bh) {
 		reiserfs_warning(s, "sh-2006",
 				 "bread failed (dev %s, block %lu, size %lu)",
-				 reiserfs_bdevname(s), offset / s->s_blocksize,
+				 s->s_id, offset / s->s_blocksize,
 				 s->s_blocksize);
 		return 1;
 	}
@@ -1500,7 +1500,7 @@ static int read_super_block(struct super_block *s, int offset)
 	if (!bh) {
 		reiserfs_warning(s, "sh-2007",
 				 "bread failed (dev %s, block %lu, size %lu)",
-				 reiserfs_bdevname(s), offset / s->s_blocksize,
+				 s->s_id, offset / s->s_blocksize,
 				 s->s_blocksize);
 		return 1;
 	}
@@ -1509,7 +1509,7 @@ static int read_super_block(struct super_block *s, int offset)
 	if (sb_blocksize(rs) != s->s_blocksize) {
 		reiserfs_warning(s, "sh-2011", "can't find a reiserfs "
 				 "filesystem on (dev %s, block %Lu, size %lu)",
-				 reiserfs_bdevname(s),
+				 s->s_id,
 				 (unsigned long long)bh->b_blocknr,
 				 s->s_blocksize);
 		brelse(bh);
@@ -1825,7 +1825,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	/* try new format (64-th 1k block), which can contain reiserfs super block */
 	else if (read_super_block(s, REISERFS_DISK_OFFSET_IN_BYTES)) {
 		SWARN(silent, s, "sh-2021", "can not find reiserfs on %s",
-		      reiserfs_bdevname(s));
+		      s->s_id);
 		goto error_unlocked;
 	}
 
