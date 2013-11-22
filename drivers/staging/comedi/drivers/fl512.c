@@ -16,8 +16,6 @@ Configuration options:
   [0] - I/O port base address
 */
 
-#define DEBUG 0
-
 #include <linux/module.h>
 #include "../comedidev.h"
 
