@@ -421,6 +421,7 @@ static umode_t qla4_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_EXP_STATSN:
 		case ISCSI_PARAM_DISCOVERY_PARENT_IDX:
 		case ISCSI_PARAM_DISCOVERY_PARENT_TYPE:
+		case ISCSI_PARAM_LOCAL_IPADDR:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -3622,6 +3623,7 @@ static void qla4xxx_copy_to_sess_conn_params(struct iscsi_conn *conn,
 	unsigned long options = 0;
 	uint16_t ddb_link;
 	uint16_t disc_parent;
+	char ip_addr[DDB_IPADDR_LEN];
 
 	options = le16_to_cpu(fw_ddb_entry->options);
 	conn->is_fw_assigned_ipv6 = test_bit(OPT_IS_FW_ASSIGNED_IPV6, &options);
@@ -3703,6 +3705,14 @@ static void qla4xxx_copy_to_sess_conn_params(struct iscsi_conn *conn,
 
 	iscsi_set_param(conn->cls_conn, ISCSI_PARAM_TARGET_ALIAS,
 			(char *)fw_ddb_entry->iscsi_alias, 0);
+
+	options = le16_to_cpu(fw_ddb_entry->options);
+	if (options & DDB_OPT_IPV6_DEVICE) {
+		memset(ip_addr, 0, sizeof(ip_addr));
+		sprintf(ip_addr, "%pI6", fw_ddb_entry->link_local_ipv6_addr);
+		iscsi_set_param(conn->cls_conn, ISCSI_PARAM_LOCAL_IPADDR,
+				(char *)ip_addr, 0);
+	}
 }
 
 static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
