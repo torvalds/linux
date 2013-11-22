@@ -45,6 +45,7 @@
 #include <linux/swapops.h>
 #include <linux/spinlock.h>
 #include <linux/eventfd.h>
+#include <linux/poll.h>
 #include <linux/sort.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
@@ -55,6 +56,7 @@
 #include <linux/cpu.h>
 #include <linux/oom.h>
 #include <linux/lockdep.h>
+#include <linux/file.h>
 #include "internal.h"
 #include <net/sock.h>
 #include <net/ip.h>
@@ -227,6 +229,46 @@ struct mem_cgroup_eventfd_list {
 	struct eventfd_ctx *eventfd;
 };
 
+/*
+ * cgroup_event represents events which userspace want to receive.
+ */
+struct mem_cgroup_event {
+	/*
+	 * memcg which the event belongs to.
+	 */
+	struct mem_cgroup *memcg;
+	/*
+	 * eventfd to signal userspace about the event.
+	 */
+	struct eventfd_ctx *eventfd;
+	/*
+	 * Each of these stored in a list by the cgroup.
+	 */
+	struct list_head list;
+	/*
+	 * register_event() callback will be used to add new userspace
+	 * waiter for changes related to this event.  Use eventfd_signal()
+	 * on eventfd to send notification to userspace.
+	 */
+	int (*register_event)(struct mem_cgroup *memcg,
+			      struct eventfd_ctx *eventfd, const char *args);
+	/*
+	 * unregister_event() callback will be called when userspace closes
+	 * the eventfd or on cgroup removing.  This callback must be set,
+	 * if you want provide notification functionality.
+	 */
+	void (*unregister_event)(struct mem_cgroup *memcg,
+				 struct eventfd_ctx *eventfd);
+	/*
+	 * All fields below needed to unregister event when
+	 * userspace closes eventfd.
+	 */
+	poll_table pt;
+	wait_queue_head_t *wqh;
+	wait_queue_t wait;
+	struct work_struct remove;
+};
+
 static void mem_cgroup_threshold(struct mem_cgroup *memcg);
 static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
 
@@ -330,6 +372,10 @@ struct mem_cgroup {
 	atomic_t	numainfo_events;
 	atomic_t	numainfo_updating;
 #endif
+
+	/* List of events which userspace want to receive */
+	struct list_head event_list;
+	spinlock_t event_list_lock;
 
 	struct mem_cgroup_per_node *nodeinfo[0];
 	/* WARNING: nodeinfo must be the last member here */
@@ -488,11 +534,6 @@ struct vmpressure *memcg_to_vmpressure(struct mem_cgroup *memcg)
 struct cgroup_subsys_state *vmpressure_to_css(struct vmpressure *vmpr)
 {
 	return &container_of(vmpr, struct mem_cgroup, vmpressure)->css;
-}
-
-struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css)
-{
-	return &mem_cgroup_from_css(css)->vmpressure;
 }
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
@@ -5648,13 +5689,11 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg)
 		mem_cgroup_oom_notify_cb(iter);
 }
 
-static int mem_cgroup_usage_register_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd, const char *args, enum res_type type)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
-	enum res_type type = MEMFILE_TYPE(cft->private);
 	u64 threshold, usage;
 	int i, size, ret;
 
@@ -5731,13 +5770,23 @@ unlock:
 	return ret;
 }
 
-static void mem_cgroup_usage_unregister_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd)
+static int mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd, const char *args)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	return __mem_cgroup_usage_register_event(memcg, eventfd, args, _MEM);
+}
+
+static int memsw_cgroup_usage_register_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd, const char *args)
+{
+	return __mem_cgroup_usage_register_event(memcg, eventfd, args, _MEMSWAP);
+}
+
+static void __mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd, enum res_type type)
+{
 	struct mem_cgroup_thresholds *thresholds;
 	struct mem_cgroup_threshold_ary *new;
-	enum res_type type = MEMFILE_TYPE(cft->private);
 	u64 usage;
 	int i, j, size;
 
@@ -5810,14 +5859,23 @@ unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
 
-static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+static void mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	struct mem_cgroup_eventfd_list *event;
-	enum res_type type = MEMFILE_TYPE(cft->private);
+	return __mem_cgroup_usage_unregister_event(memcg, eventfd, _MEM);
+}
 
-	BUG_ON(type != _OOM_TYPE);
+static void memsw_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd)
+{
+	return __mem_cgroup_usage_unregister_event(memcg, eventfd, _MEMSWAP);
+}
+
+static int mem_cgroup_oom_register_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd, const char *args)
+{
+	struct mem_cgroup_eventfd_list *event;
+
 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
@@ -5835,14 +5893,10 @@ static int mem_cgroup_oom_register_event(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static void mem_cgroup_oom_unregister_event(struct cgroup_subsys_state *css,
-	struct cftype *cft, struct eventfd_ctx *eventfd)
+static void mem_cgroup_oom_unregister_event(struct mem_cgroup *memcg,
+	struct eventfd_ctx *eventfd)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_eventfd_list *ev, *tmp;
-	enum res_type type = MEMFILE_TYPE(cft->private);
-
-	BUG_ON(type != _OOM_TYPE);
 
 	spin_lock(&memcg_oom_lock);
 
@@ -5959,13 +6013,233 @@ static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
 }
 #endif
 
+/*
+ * DO NOT USE IN NEW FILES.
+ *
+ * "cgroup.event_control" implementation.
+ *
+ * This is way over-engineered.  It tries to support fully configurable
+ * events for each user.  Such level of flexibility is completely
+ * unnecessary especially in the light of the planned unified hierarchy.
+ *
+ * Please deprecate this and replace with something simpler if at all
+ * possible.
+ */
+
+/*
+ * Unregister event and free resources.
+ *
+ * Gets called from workqueue.
+ */
+static void memcg_event_remove(struct work_struct *work)
+{
+	struct mem_cgroup_event *event =
+		container_of(work, struct mem_cgroup_event, remove);
+	struct mem_cgroup *memcg = event->memcg;
+
+	remove_wait_queue(event->wqh, &event->wait);
+
+	event->unregister_event(memcg, event->eventfd);
+
+	/* Notify userspace the event is going away. */
+	eventfd_signal(event->eventfd, 1);
+
+	eventfd_ctx_put(event->eventfd);
+	kfree(event);
+	css_put(&memcg->css);
+}
+
+/*
+ * Gets called on POLLHUP on eventfd when user closes it.
+ *
+ * Called with wqh->lock held and interrupts disabled.
+ */
+static int memcg_event_wake(wait_queue_t *wait, unsigned mode,
+			    int sync, void *key)
+{
+	struct mem_cgroup_event *event =
+		container_of(wait, struct mem_cgroup_event, wait);
+	struct mem_cgroup *memcg = event->memcg;
+	unsigned long flags = (unsigned long)key;
+
+	if (flags & POLLHUP) {
+		/*
+		 * If the event has been detached at cgroup removal, we
+		 * can simply return knowing the other side will cleanup
+		 * for us.
+		 *
+		 * We can't race against event freeing since the other
+		 * side will require wqh->lock via remove_wait_queue(),
+		 * which we hold.
+		 */
+		spin_lock(&memcg->event_list_lock);
+		if (!list_empty(&event->list)) {
+			list_del_init(&event->list);
+			/*
+			 * We are in atomic context, but cgroup_event_remove()
+			 * may sleep, so we have to call it in workqueue.
+			 */
+			schedule_work(&event->remove);
+		}
+		spin_unlock(&memcg->event_list_lock);
+	}
+
+	return 0;
+}
+
+static void memcg_event_ptable_queue_proc(struct file *file,
+		wait_queue_head_t *wqh, poll_table *pt)
+{
+	struct mem_cgroup_event *event =
+		container_of(pt, struct mem_cgroup_event, pt);
+
+	event->wqh = wqh;
+	add_wait_queue(wqh, &event->wait);
+}
+
+/*
+ * DO NOT USE IN NEW FILES.
+ *
+ * Parse input and register new cgroup event handler.
+ *
+ * Input must be in format '<event_fd> <control_fd> <args>'.
+ * Interpretation of args is defined by control file implementation.
+ */
+static int memcg_write_event_control(struct cgroup_subsys_state *css,
+				     struct cftype *cft, const char *buffer)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct mem_cgroup_event *event;
+	struct cgroup_subsys_state *cfile_css;
+	unsigned int efd, cfd;
+	struct fd efile;
+	struct fd cfile;
+	const char *name;
+	char *endp;
+	int ret;
+
+	efd = simple_strtoul(buffer, &endp, 10);
+	if (*endp != ' ')
+		return -EINVAL;
+	buffer = endp + 1;
+
+	cfd = simple_strtoul(buffer, &endp, 10);
+	if ((*endp != ' ') && (*endp != '\0'))
+		return -EINVAL;
+	buffer = endp + 1;
+
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
+
+	event->memcg = memcg;
+	INIT_LIST_HEAD(&event->list);
+	init_poll_funcptr(&event->pt, memcg_event_ptable_queue_proc);
+	init_waitqueue_func_entry(&event->wait, memcg_event_wake);
+	INIT_WORK(&event->remove, memcg_event_remove);
+
+	efile = fdget(efd);
+	if (!efile.file) {
+		ret = -EBADF;
+		goto out_kfree;
+	}
+
+	event->eventfd = eventfd_ctx_fileget(efile.file);
+	if (IS_ERR(event->eventfd)) {
+		ret = PTR_ERR(event->eventfd);
+		goto out_put_efile;
+	}
+
+	cfile = fdget(cfd);
+	if (!cfile.file) {
+		ret = -EBADF;
+		goto out_put_eventfd;
+	}
+
+	/* the process need read permission on control file */
+	/* AV: shouldn't we check that it's been opened for read instead? */
+	ret = inode_permission(file_inode(cfile.file), MAY_READ);
+	if (ret < 0)
+		goto out_put_cfile;
+
+	/*
+	 * Determine the event callbacks and set them in @event.  This used
+	 * to be done via struct cftype but cgroup core no longer knows
+	 * about these events.  The following is crude but the whole thing
+	 * is for compatibility anyway.
+	 *
+	 * DO NOT ADD NEW FILES.
+	 */
+	name = cfile.file->f_dentry->d_name.name;
+
+	if (!strcmp(name, "memory.usage_in_bytes")) {
+		event->register_event = mem_cgroup_usage_register_event;
+		event->unregister_event = mem_cgroup_usage_unregister_event;
+	} else if (!strcmp(name, "memory.oom_control")) {
+		event->register_event = mem_cgroup_oom_register_event;
+		event->unregister_event = mem_cgroup_oom_unregister_event;
+	} else if (!strcmp(name, "memory.pressure_level")) {
+		event->register_event = vmpressure_register_event;
+		event->unregister_event = vmpressure_unregister_event;
+	} else if (!strcmp(name, "memory.memsw.usage_in_bytes")) {
+		event->register_event = memsw_cgroup_usage_register_event;
+		event->unregister_event = memsw_cgroup_usage_unregister_event;
+	} else {
+		ret = -EINVAL;
+		goto out_put_cfile;
+	}
+
+	/*
+	 * Verify @cfile should belong to @css.  Also, remaining events are
+	 * automatically removed on cgroup destruction but the removal is
+	 * asynchronous, so take an extra ref on @css.
+	 */
+	rcu_read_lock();
+
+	ret = -EINVAL;
+	cfile_css = css_from_dir(cfile.file->f_dentry->d_parent,
+				 &mem_cgroup_subsys);
+	if (cfile_css == css && css_tryget(css))
+		ret = 0;
+
+	rcu_read_unlock();
+	if (ret)
+		goto out_put_cfile;
+
+	ret = event->register_event(memcg, event->eventfd, buffer);
+	if (ret)
+		goto out_put_css;
+
+	efile.file->f_op->poll(efile.file, &event->pt);
+
+	spin_lock(&memcg->event_list_lock);
+	list_add(&event->list, &memcg->event_list);
+	spin_unlock(&memcg->event_list_lock);
+
+	fdput(cfile);
+	fdput(efile);
+
+	return 0;
+
+out_put_css:
+	css_put(css);
+out_put_cfile:
+	fdput(cfile);
+out_put_eventfd:
+	eventfd_ctx_put(event->eventfd);
+out_put_efile:
+	fdput(efile);
+out_kfree:
+	kfree(event);
+
+	return ret;
+}
+
 static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
 		.read = mem_cgroup_read,
-		.register_event = mem_cgroup_usage_register_event,
-		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
 	{
 		.name = "max_usage_in_bytes",
@@ -6006,6 +6280,12 @@ static struct cftype mem_cgroup_files[] = {
 		.read_u64 = mem_cgroup_hierarchy_read,
 	},
 	{
+		.name = "cgroup.event_control",		/* XXX: for compat */
+		.write_string = memcg_write_event_control,
+		.flags = CFTYPE_NO_PREFIX,
+		.mode = S_IWUGO,
+	},
+	{
 		.name = "swappiness",
 		.read_u64 = mem_cgroup_swappiness_read,
 		.write_u64 = mem_cgroup_swappiness_write,
@@ -6019,14 +6299,10 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "oom_control",
 		.read_map = mem_cgroup_oom_control_read,
 		.write_u64 = mem_cgroup_oom_control_write,
-		.register_event = mem_cgroup_oom_register_event,
-		.unregister_event = mem_cgroup_oom_unregister_event,
 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
 	},
 	{
 		.name = "pressure_level",
-		.register_event = vmpressure_register_event,
-		.unregister_event = vmpressure_unregister_event,
 	},
 #ifdef CONFIG_NUMA
 	{
@@ -6074,8 +6350,6 @@ static struct cftype memsw_cgroup_files[] = {
 		.name = "memsw.usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
 		.read = mem_cgroup_read,
-		.register_event = mem_cgroup_usage_register_event,
-		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
 	{
 		.name = "memsw.max_usage_in_bytes",
@@ -6265,6 +6539,8 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	mutex_init(&memcg->thresholds_lock);
 	spin_lock_init(&memcg->move_lock);
 	vmpressure_init(&memcg->vmpressure);
+	INIT_LIST_HEAD(&memcg->event_list);
+	spin_lock_init(&memcg->event_list_lock);
 
 	return &memcg->css;
 
@@ -6340,6 +6616,19 @@ static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
 static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct mem_cgroup_event *event, *tmp;
+
+	/*
+	 * Unregister events and notify userspace.
+	 * Notify userspace about cgroup removing only after rmdir of cgroup
+	 * directory to avoid race between userspace and kernelspace.
+	 */
+	spin_lock(&memcg->event_list_lock);
+	list_for_each_entry_safe(event, tmp, &memcg->event_list, list) {
+		list_del_init(&event->list);
+		schedule_work(&event->remove);
+	}
+	spin_unlock(&memcg->event_list_lock);
 
 	kmem_cgroup_css_offline(memcg);
 

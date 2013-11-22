@@ -848,7 +848,6 @@ config NUMA_BALANCING
 
 menuconfig CGROUPS
 	boolean "Control Group support"
-	depends on EVENTFD
 	help
 	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
@@ -915,6 +914,7 @@ config MEMCG
 	bool "Memory Resource Controller for Control Groups"
 	depends on RESOURCE_COUNTERS
 	select MM_OWNER
+	select EVENTFD
 	help
 	  Provides a memory resource controller that manages both anonymous
 	  memory and page cache. (See Documentation/cgroups/memory.txt)
@@ -1154,7 +1154,6 @@ config UIDGID_STRICT_TYPE_CHECKS
 
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"
-	select EVENTFD
 	select CGROUPS
 	select CGROUP_SCHED
 	select FAIR_GROUP_SCHED

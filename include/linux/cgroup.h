@@ -29,7 +29,6 @@ struct cgroup_subsys;
 struct inode;
 struct cgroup;
 struct css_id;
-struct eventfd_ctx;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
@@ -238,10 +237,6 @@ struct cgroup {
 	/* For css percpu_ref killing and RCU-protected deletion */
 	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
-
-	/* List of events which userspace want to receive */
-	struct list_head event_list;
-	spinlock_t event_list_lock;
 
 	/* directory xattrs */
 	struct simple_xattrs xattrs;
@@ -506,25 +501,6 @@ struct cftype {
 	int (*trigger)(struct cgroup_subsys_state *css, unsigned int event);
 
 	int (*release)(struct inode *inode, struct file *file);
-
-	/*
-	 * register_event() callback will be used to add new userspace
-	 * waiter for changes related to the cftype. Implement it if
-	 * you want to provide this functionality. Use eventfd_signal()
-	 * on eventfd to send notification to userspace.
-	 */
-	int (*register_event)(struct cgroup_subsys_state *css,
-			      struct cftype *cft, struct eventfd_ctx *eventfd,
-			      const char *args);
-	/*
-	 * unregister_event() callback will be called when userspace
-	 * closes the eventfd or on cgroup removing.
-	 * This callback must be implemented, if you want provide
-	 * notification functionality.
-	 */
-	void (*unregister_event)(struct cgroup_subsys_state *css,
-				 struct cftype *cft,
-				 struct eventfd_ctx *eventfd);
 };
 
 /*
