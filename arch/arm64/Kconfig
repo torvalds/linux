@@ -152,8 +152,7 @@ config NR_CPUS
 	range 2 32
 	depends on SMP
 	# These have to remain sorted largest to smallest
-	default "8" if ARCH_XGENE
-	default "4"
+	default "8"
 
 source kernel/Kconfig.preempt
 
