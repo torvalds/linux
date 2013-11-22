@@ -358,6 +358,99 @@ static const unsigned char hactblg0[162] = {
 	0xf9, 0xfa
 };
 
+/*
+ * Fourcc downgrade schema lookup tables for 422 and 420
+ * chroma subsampling - fourcc on each position maps on the
+ * fourcc from the table fourcc_to_dwngrd_schema_id which allows
+ * to get the most suitable fourcc counterpart for the given
+ * downgraded subsampling property.
+ */
+static const u32 subs422_fourcc_dwngrd_schema[] = {
+	V4L2_PIX_FMT_NV16,
+	V4L2_PIX_FMT_NV61,
+};
+
+static const u32 subs420_fourcc_dwngrd_schema[] = {
+	V4L2_PIX_FMT_NV12,
+	V4L2_PIX_FMT_NV21,
+	V4L2_PIX_FMT_NV12,
+	V4L2_PIX_FMT_NV21,
+	V4L2_PIX_FMT_NV12,
+	V4L2_PIX_FMT_NV21,
+	V4L2_PIX_FMT_GREY,
+	V4L2_PIX_FMT_GREY,
+	V4L2_PIX_FMT_GREY,
+	V4L2_PIX_FMT_GREY,
+};
+
+/*
+ * Lookup table for translation of a fourcc to the position
+ * of its downgraded counterpart in the *fourcc_dwngrd_schema
+ * tables.
+ */
+static const u32 fourcc_to_dwngrd_schema_id[] = {
+	V4L2_PIX_FMT_NV24,
+	V4L2_PIX_FMT_NV42,
+	V4L2_PIX_FMT_NV16,
+	V4L2_PIX_FMT_NV61,
+	V4L2_PIX_FMT_YUYV,
+	V4L2_PIX_FMT_YVYU,
+	V4L2_PIX_FMT_NV12,
+	V4L2_PIX_FMT_NV21,
+	V4L2_PIX_FMT_YUV420,
+	V4L2_PIX_FMT_GREY,
+};
+
+static int s5p_jpeg_get_dwngrd_sch_id_by_fourcc(u32 fourcc)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(fourcc_to_dwngrd_schema_id); ++i) {
+		if (fourcc_to_dwngrd_schema_id[i] == fourcc)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int s5p_jpeg_adjust_fourcc_to_subsampling(
+					enum v4l2_jpeg_chroma_subsampling subs,
+					u32 in_fourcc,
+					u32 *out_fourcc,
+					struct s5p_jpeg_ctx *ctx)
+{
+	int dwngrd_sch_id;
+
+	if (ctx->subsampling != V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY) {
+		dwngrd_sch_id =
+			s5p_jpeg_get_dwngrd_sch_id_by_fourcc(in_fourcc);
+		if (dwngrd_sch_id < 0)
+			return -EINVAL;
+	}
+
+	switch (ctx->subsampling) {
+	case V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY:
+		*out_fourcc = V4L2_PIX_FMT_GREY;
+		break;
+	case V4L2_JPEG_CHROMA_SUBSAMPLING_420:
+		if (dwngrd_sch_id >
+				ARRAY_SIZE(subs420_fourcc_dwngrd_schema) - 1)
+			return -EINVAL;
+		*out_fourcc = subs420_fourcc_dwngrd_schema[dwngrd_sch_id];
+		break;
+	case V4L2_JPEG_CHROMA_SUBSAMPLING_422:
+		if (dwngrd_sch_id >
+				ARRAY_SIZE(subs422_fourcc_dwngrd_schema) - 1)
+			return -EINVAL;
+		*out_fourcc = subs422_fourcc_dwngrd_schema[dwngrd_sch_id];
+		break;
+	default:
+		*out_fourcc = V4L2_PIX_FMT_GREY;
+		break;
+	}
+
+	return 0;
+}
+
 static inline struct s5p_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *c)
 {
 	return container_of(c->handler, struct s5p_jpeg_ctx, ctrl_handler);
@@ -941,7 +1034,9 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct s5p_jpeg_fmt *fmt;
+	int ret;
 
 	fmt = s5p_jpeg_find_format(ctx, f->fmt.pix.pixelformat,
 						FMT_TYPE_CAPTURE);
@@ -950,6 +1045,27 @@ static int s5p_jpeg_try_fmt_vid_cap(struct file *file, void *priv,
 			 "Fourcc format (0x%08x) invalid.\n",
 			 f->fmt.pix.pixelformat);
 		return -EINVAL;
+	}
+
+	/*
+	 * The exynos4x12 device requires resulting YUV image
+	 * subsampling not to be lower than the input jpeg subsampling.
+	 * If this requirement is not met then downgrade the requested
+	 * capture format to the one with subsampling equal to the input jpeg.
+	 */
+	if ((ctx->jpeg->variant->version != SJPEG_S5P) &&
+	    (ctx->mode == S5P_JPEG_DECODE) &&
+	    (fmt->flags & SJPEG_FMT_NON_RGB) &&
+	    (fmt->subsampling < ctx->subsampling)) {
+		ret = s5p_jpeg_adjust_fourcc_to_subsampling(ctx->subsampling,
+							    fmt->fourcc,
+							    &pix->pixelformat,
+							    ctx);
+		if (ret < 0)
+			pix->pixelformat = V4L2_PIX_FMT_GREY;
+
+		fmt = s5p_jpeg_find_format(ctx, pix->pixelformat,
+							FMT_TYPE_CAPTURE);
 	}
 
 	return vidioc_try_fmt(f, fmt, ctx, FMT_TYPE_CAPTURE);
