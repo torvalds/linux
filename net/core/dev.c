@@ -6010,7 +6010,7 @@ EXPORT_SYMBOL_GPL(netdev_set_default_ethtool_ops);
  *	@rxqs:		the number of RX subqueues to allocate
  *
  *	Allocates a struct net_device with private data area for driver use
- *	and performs basic initialization.  Also allocates subquue structs
+ *	and performs basic initialization.  Also allocates subqueue structs
  *	for each queue on the device.
  */
 struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
