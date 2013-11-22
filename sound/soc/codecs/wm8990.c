@@ -376,32 +376,6 @@ SOC_SINGLE("RIN34 Mute Switch", WM8990_RIGHT_LINE_INPUT_3_4_VOLUME,
  * _DAPM_ Controls
  */
 
-static int inmixer_event(struct snd_soc_dapm_widget *w,
-	struct snd_kcontrol *kcontrol, int event)
-{
-	u16 reg, fakepower;
-
-	reg = snd_soc_read(w->codec, WM8990_POWER_MANAGEMENT_2);
-	fakepower = snd_soc_read(w->codec, WM8990_INTDRIVBITS);
-
-	if (fakepower & ((1 << WM8990_INMIXL_PWR_BIT) |
-		(1 << WM8990_AINLMUX_PWR_BIT))) {
-		reg |= WM8990_AINL_ENA;
-	} else {
-		reg &= ~WM8990_AINL_ENA;
-	}
-
-	if (fakepower & ((1 << WM8990_INMIXR_PWR_BIT) |
-		(1 << WM8990_AINRMUX_PWR_BIT))) {
-		reg |= WM8990_AINR_ENA;
-	} else {
-		reg &= ~WM8990_AINR_ENA;
-	}
-	snd_soc_write(w->codec, WM8990_POWER_MANAGEMENT_2, reg);
-
-	return 0;
-}
-
 static int outmixer_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -656,6 +630,11 @@ SND_SOC_DAPM_INPUT("RIN1"),
 SND_SOC_DAPM_INPUT("RIN2"),
 SND_SOC_DAPM_INPUT("Internal ADC Source"),
 
+SND_SOC_DAPM_SUPPLY("INL", WM8990_POWER_MANAGEMENT_2, WM8990_AINL_ENA_BIT, 0,
+		    NULL, 0),
+SND_SOC_DAPM_SUPPLY("INR", WM8990_POWER_MANAGEMENT_2, WM8990_AINR_ENA_BIT, 0,
+		    NULL, 0),
+
 /* DACs */
 SND_SOC_DAPM_ADC("Left ADC", "Left Capture", WM8990_POWER_MANAGEMENT_2,
 	WM8990_ADCL_ENA_BIT, 0),
@@ -677,26 +656,20 @@ SND_SOC_DAPM_MIXER("RIN34 PGA", WM8990_POWER_MANAGEMENT_2, WM8990_RIN34_ENA_BIT,
 	ARRAY_SIZE(wm8990_dapm_rin34_pga_controls)),
 
 /* INMIXL */
-SND_SOC_DAPM_MIXER_E("INMIXL", WM8990_INTDRIVBITS, WM8990_INMIXL_PWR_BIT, 0,
+SND_SOC_DAPM_MIXER("INMIXL", SND_SOC_NOPM, 0, 0,
 	&wm8990_dapm_inmixl_controls[0],
-	ARRAY_SIZE(wm8990_dapm_inmixl_controls),
-	inmixer_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	ARRAY_SIZE(wm8990_dapm_inmixl_controls)),
 
 /* AINLMUX */
-SND_SOC_DAPM_MUX_E("AINLMUX", WM8990_INTDRIVBITS, WM8990_AINLMUX_PWR_BIT, 0,
-	&wm8990_dapm_ainlmux_controls, inmixer_event,
-	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+SND_SOC_DAPM_MUX("AINLMUX", SND_SOC_NOPM, 0, 0, &wm8990_dapm_ainlmux_controls),
 
 /* INMIXR */
-SND_SOC_DAPM_MIXER_E("INMIXR", WM8990_INTDRIVBITS, WM8990_INMIXR_PWR_BIT, 0,
+SND_SOC_DAPM_MIXER("INMIXR", SND_SOC_NOPM, 0, 0,
 	&wm8990_dapm_inmixr_controls[0],
-	ARRAY_SIZE(wm8990_dapm_inmixr_controls),
-	inmixer_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	ARRAY_SIZE(wm8990_dapm_inmixr_controls)),
 
 /* AINRMUX */
-SND_SOC_DAPM_MUX_E("AINRMUX", WM8990_INTDRIVBITS, WM8990_AINRMUX_PWR_BIT, 0,
-	&wm8990_dapm_ainrmux_controls, inmixer_event,
-	SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+SND_SOC_DAPM_MUX("AINRMUX", SND_SOC_NOPM, 0, 0, &wm8990_dapm_ainrmux_controls),
 
 /* Output Side */
 /* DACs */
@@ -795,6 +768,11 @@ static const struct snd_soc_dapm_route wm8990_dapm_routes[] = {
 	/* Make ADCs turn on when recording even if not mixed from any inputs */
 	{"Left ADC", NULL, "Internal ADC Source"},
 	{"Right ADC", NULL, "Internal ADC Source"},
+
+	{"AINLMUX", NULL, "INL"},
+	{"INMIXL", NULL, "INL"},
+	{"AINRMUX", NULL, "INR"},
+	{"INMIXR", NULL, "INR"},
 
 	/* Input Side */
 	/* LIN12 PGA */
