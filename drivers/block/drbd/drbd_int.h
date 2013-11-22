@@ -317,7 +317,59 @@ struct drbd_request {
 
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
-	unsigned long start_time;
+
+	/* for generic IO accounting */
+	unsigned long start_jif;
+
+	/* for DRBD internal statistics */
+
+	/* Minimal set of time stamps to determine if we wait for activity log
+	 * transactions, local disk or peer.  32 bit "jiffies" are good enough,
+	 * we don't expect a DRBD request to be stalled for several month.
+	 */
+
+	/* before actual request processing */
+	unsigned long in_actlog_jif;
+
+	/* local disk */
+	unsigned long pre_submit_jif;
+
+	/* per connection */
+	unsigned long pre_send_jif;
+	unsigned long acked_jif;
+	unsigned long net_done_jif;
+
+	/* Possibly even more detail to track each phase:
+	 *  master_completion_jif
+	 *      how long did it take to complete the master bio
+	 *      (application visible latency)
+	 *  allocated_jif
+	 *      how long the master bio was blocked until we finally allocated
+	 *      a tracking struct
+	 *  in_actlog_jif
+	 *      how long did we wait for activity log transactions
+	 *
+	 *  net_queued_jif
+	 *      when did we finally queue it for sending
+	 *  pre_send_jif
+	 *      when did we start sending it
+	 *  post_send_jif
+	 *      how long did we block in the network stack trying to send it
+	 *  acked_jif
+	 *      when did we receive (or fake, in protocol A) a remote ACK
+	 *  net_done_jif
+	 *      when did we receive final acknowledgement (P_BARRIER_ACK),
+	 *      or decide, e.g. on connection loss, that we do no longer expect
+	 *      anything from this peer for this request.
+	 *
+	 *  pre_submit_jif
+	 *  post_sub_jif
+	 *      when did we start submiting to the lower level device,
+	 *      and how long did we block in that submit function
+	 *  local_completion_jif
+	 *      how long did it take the lower level device to complete this request
+	 */
+
 
 	/* once it hits 0, we may complete the master_bio */
 	atomic_t completion_ref;

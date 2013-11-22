@@ -29,6 +29,7 @@
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/jiffies.h>
 #include <linux/drbd.h>
 #include <asm/uaccess.h>
 #include <asm/types.h>
@@ -264,7 +265,7 @@ bail:
 
 /**
  * _tl_restart() - Walks the transfer log, and applies an action to all requests
- * @device:	DRBD device.
+ * @connection:	DRBD connection to operate on.
  * @what:       The action/event to perform with all request objects
  *
  * @what might be one of CONNECTION_LOST_WHILE_PENDING, RESEND, FAIL_FROZEN_DISK_IO,
@@ -2228,7 +2229,7 @@ static void do_retry(struct work_struct *ws)
 	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
 		struct drbd_device *device = req->device;
 		struct bio *bio = req->master_bio;
-		unsigned long start_time = req->start_time;
+		unsigned long start_jif = req->start_jif;
 		bool expected;
 
 		expected =
@@ -2263,7 +2264,7 @@ static void do_retry(struct work_struct *ws)
 		/* We are not just doing generic_make_request(),
 		 * as we want to keep the start_time information. */
 		inc_ap_bio(device);
-		__drbd_make_request(device, bio, start_time);
+		__drbd_make_request(device, bio, start_jif);
 	}
 }
 
