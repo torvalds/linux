@@ -500,7 +500,7 @@ odd-numbered bank is idle, one can see the new value of the pointer P (&B),
 but the old value of the variable B (2).
 
 
-Another example of where data dependency barriers might by required is where a
+Another example of where data dependency barriers might be required is where a
 number is read from memory and then used to calculate the index for an array
 access:
 
@@ -882,12 +882,12 @@ cache it for later use.
 
 Consider:
 
-	CPU 1	   		CPU 2
+	CPU 1			CPU 2
 	=======================	=======================
-	 	   		LOAD B
-	 	   		DIVIDE		} Divide instructions generally
-	 	   		DIVIDE		} take a long time to perform
-	 	   		LOAD A
+				LOAD B
+				DIVIDE		} Divide instructions generally
+				DIVIDE		} take a long time to perform
+				LOAD A
 
 Which might appear as this:
 
@@ -910,13 +910,13 @@ Which might appear as this:
 Placing a read barrier or a data dependency barrier just before the second
 load:
 
-	CPU 1	   		CPU 2
+	CPU 1			CPU 2
 	=======================	=======================
-	 	   		LOAD B
-	 	   		DIVIDE
-	 	   		DIVIDE
+				LOAD B
+				DIVIDE
+				DIVIDE
 				<read barrier>
-	 	   		LOAD A
+				LOAD A
 
 will force any value speculatively obtained to be reconsidered to an extent
 dependent on the type of barrier used.  If there was no change made to the
@@ -1887,8 +1887,8 @@ functions:
      space should suffice for PCI.
 
      [*] NOTE! attempting to load from the same location as was written to may
-     	 cause a malfunction - consider the 16550 Rx/Tx serial registers for
-     	 example.
+	 cause a malfunction - consider the 16550 Rx/Tx serial registers for
+	 example.
 
      Used with prefetchable I/O memory, an mmiowb() barrier may be required to
      force stores to be ordered.
@@ -1955,19 +1955,19 @@ barriers for the most part act at the interface between the CPU and its cache
 	                          :
 	+--------+    +--------+  :   +--------+    +-----------+
 	|        |    |        |  :   |        |    |           |    +--------+
-	|  CPU   |    | Memory |  :   | CPU    |    |           |    |	      |
-	|  Core  |--->| Access |----->| Cache  |<-->|           |    |	      |
+	|  CPU   |    | Memory |  :   | CPU    |    |           |    |        |
+	|  Core  |--->| Access |----->| Cache  |<-->|           |    |        |
 	|        |    | Queue  |  :   |        |    |           |--->| Memory |
-	|        |    |        |  :   |        |    |           |    |	      |
-	+--------+    +--------+  :   +--------+    |           |    | 	      |
+	|        |    |        |  :   |        |    |           |    |        |
+	+--------+    +--------+  :   +--------+    |           |    |        |
 	                          :                 | Cache     |    +--------+
 	                          :                 | Coherency |
 	                          :                 | Mechanism |    +--------+
 	+--------+    +--------+  :   +--------+    |           |    |	      |
 	|        |    |        |  :   |        |    |           |    |        |
 	|  CPU   |    | Memory |  :   | CPU    |    |           |--->| Device |
-	|  Core  |--->| Access |----->| Cache  |<-->|           |    | 	      |
-	|        |    | Queue  |  :   |        |    |           |    | 	      |
+	|  Core  |--->| Access |----->| Cache  |<-->|           |    |        |
+	|        |    | Queue  |  :   |        |    |           |    |        |
 	|        |    |        |  :   |        |    |           |    +--------+
 	+--------+    +--------+  :   +--------+    +-----------+
 	                          :
@@ -2090,7 +2090,7 @@ CPU's caches by some other cache event:
 	p = &v;		q = p;
 			<D:request p>
 	<B:modify p=&v>	<D:commit p=&v>
-		  	<D:read p>
+			<D:read p>
 			x = *q;
 			<C:read *q>	Reads from v before v updated in cache
 			<C:unbusy>
@@ -2115,7 +2115,7 @@ queue before processing any further requests:
 	p = &v;		q = p;
 			<D:request p>
 	<B:modify p=&v>	<D:commit p=&v>
-		  	<D:read p>
+			<D:read p>
 			smp_read_barrier_depends()
 			<C:unbusy>
 			<C:commit v=2>
