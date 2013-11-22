@@ -70,6 +70,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_LOGOUT_FLASHNODE	= UEVENT_BASE + 29,
 	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
 	ISCSI_UEVENT_SET_CHAP		= UEVENT_BASE + 31,
+	ISCSI_UEVENT_GET_HOST_STATS	= UEVENT_BASE + 32,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -242,6 +243,9 @@ struct iscsi_uevent {
 			uint32_t	host_no;
 			uint32_t	sid;
 		} logout_flashnode_sid;
+		struct msg_get_host_stats {
+			uint32_t host_no;
+		} get_host_stats;
 	} u;
 	union {
 		/* messages k -> u */
@@ -843,6 +847,114 @@ struct iscsi_chap_rec {
 	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
 	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
 	uint8_t password_length;
+};
+
+#define ISCSI_HOST_STATS_CUSTOM_MAX             32
+#define ISCSI_HOST_STATS_CUSTOM_DESC_MAX        64
+struct iscsi_host_stats_custom {
+	char desc[ISCSI_HOST_STATS_CUSTOM_DESC_MAX];
+	uint64_t value;
+};
+
+/* struct iscsi_offload_host_stats: Host statistics,
+ * Include statistics for MAC, IP, TCP & iSCSI.
+ */
+struct iscsi_offload_host_stats {
+	/* MAC */
+	uint64_t mactx_frames;
+	uint64_t mactx_bytes;
+	uint64_t mactx_multicast_frames;
+	uint64_t mactx_broadcast_frames;
+	uint64_t mactx_pause_frames;
+	uint64_t mactx_control_frames;
+	uint64_t mactx_deferral;
+	uint64_t mactx_excess_deferral;
+	uint64_t mactx_late_collision;
+	uint64_t mactx_abort;
+	uint64_t mactx_single_collision;
+	uint64_t mactx_multiple_collision;
+	uint64_t mactx_collision;
+	uint64_t mactx_frames_dropped;
+	uint64_t mactx_jumbo_frames;
+	uint64_t macrx_frames;
+	uint64_t macrx_bytes;
+	uint64_t macrx_unknown_control_frames;
+	uint64_t macrx_pause_frames;
+	uint64_t macrx_control_frames;
+	uint64_t macrx_dribble;
+	uint64_t macrx_frame_length_error;
+	uint64_t macrx_jabber;
+	uint64_t macrx_carrier_sense_error;
+	uint64_t macrx_frame_discarded;
+	uint64_t macrx_frames_dropped;
+	uint64_t mac_crc_error;
+	uint64_t mac_encoding_error;
+	uint64_t macrx_length_error_large;
+	uint64_t macrx_length_error_small;
+	uint64_t macrx_multicast_frames;
+	uint64_t macrx_broadcast_frames;
+	/* IP */
+	uint64_t iptx_packets;
+	uint64_t iptx_bytes;
+	uint64_t iptx_fragments;
+	uint64_t iprx_packets;
+	uint64_t iprx_bytes;
+	uint64_t iprx_fragments;
+	uint64_t ip_datagram_reassembly;
+	uint64_t ip_invalid_address_error;
+	uint64_t ip_error_packets;
+	uint64_t ip_fragrx_overlap;
+	uint64_t ip_fragrx_outoforder;
+	uint64_t ip_datagram_reassembly_timeout;
+	uint64_t ipv6tx_packets;
+	uint64_t ipv6tx_bytes;
+	uint64_t ipv6tx_fragments;
+	uint64_t ipv6rx_packets;
+	uint64_t ipv6rx_bytes;
+	uint64_t ipv6rx_fragments;
+	uint64_t ipv6_datagram_reassembly;
+	uint64_t ipv6_invalid_address_error;
+	uint64_t ipv6_error_packets;
+	uint64_t ipv6_fragrx_overlap;
+	uint64_t ipv6_fragrx_outoforder;
+	uint64_t ipv6_datagram_reassembly_timeout;
+	/* TCP */
+	uint64_t tcptx_segments;
+	uint64_t tcptx_bytes;
+	uint64_t tcprx_segments;
+	uint64_t tcprx_byte;
+	uint64_t tcp_duplicate_ack_retx;
+	uint64_t tcp_retx_timer_expired;
+	uint64_t tcprx_duplicate_ack;
+	uint64_t tcprx_pure_ackr;
+	uint64_t tcptx_delayed_ack;
+	uint64_t tcptx_pure_ack;
+	uint64_t tcprx_segment_error;
+	uint64_t tcprx_segment_outoforder;
+	uint64_t tcprx_window_probe;
+	uint64_t tcprx_window_update;
+	uint64_t tcptx_window_probe_persist;
+	/* ECC */
+	uint64_t ecc_error_correction;
+	/* iSCSI */
+	uint64_t iscsi_pdu_tx;
+	uint64_t iscsi_data_bytes_tx;
+	uint64_t iscsi_pdu_rx;
+	uint64_t iscsi_data_bytes_rx;
+	uint64_t iscsi_io_completed;
+	uint64_t iscsi_unexpected_io_rx;
+	uint64_t iscsi_format_error;
+	uint64_t iscsi_hdr_digest_error;
+	uint64_t iscsi_data_digest_error;
+	uint64_t iscsi_sequence_error;
+	/*
+	 * iSCSI Custom Host Statistics support, i.e. Transport could
+	 * extend existing host statistics with its own specific statistics
+	 * up to ISCSI_HOST_STATS_CUSTOM_MAX
+	 */
+	uint32_t custom_length;
+	struct iscsi_host_stats_custom custom[0]
+		__aligned(sizeof(uint64_t));
 };
 
 #endif
