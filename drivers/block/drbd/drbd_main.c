@@ -3466,23 +3466,19 @@ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
  *
  * Sets all bits in the bitmap and writes the whole bitmap to stable storage.
  */
-int drbd_bmio_set_n_write(struct drbd_device *device)
+int drbd_bmio_set_n_write(struct drbd_device *device) __must_hold(local)
 {
 	int rv = -EIO;
 
-	if (get_ldev_if_state(device, D_ATTACHING)) {
-		drbd_md_set_flag(device, MDF_FULL_SYNC);
+	drbd_md_set_flag(device, MDF_FULL_SYNC);
+	drbd_md_sync(device);
+	drbd_bm_set_all(device);
+
+	rv = drbd_bm_write(device);
+
+	if (!rv) {
+		drbd_md_clear_flag(device, MDF_FULL_SYNC);
 		drbd_md_sync(device);
-		drbd_bm_set_all(device);
-
-		rv = drbd_bm_write(device);
-
-		if (!rv) {
-			drbd_md_clear_flag(device, MDF_FULL_SYNC);
-			drbd_md_sync(device);
-		}
-
-		put_ldev(device);
 	}
 
 	return rv;
@@ -3494,18 +3490,11 @@ int drbd_bmio_set_n_write(struct drbd_device *device)
  *
  * Clears all bits in the bitmap and writes the whole bitmap to stable storage.
  */
-int drbd_bmio_clear_n_write(struct drbd_device *device)
+int drbd_bmio_clear_n_write(struct drbd_device *device) __must_hold(local)
 {
-	int rv = -EIO;
-
 	drbd_resume_al(device);
-	if (get_ldev_if_state(device, D_ATTACHING)) {
-		drbd_bm_clear_all(device);
-		rv = drbd_bm_write(device);
-		put_ldev(device);
-	}
-
-	return rv;
+	drbd_bm_clear_all(device);
+	return drbd_bm_write(device);
 }
 
 static int w_bitmap_io(struct drbd_work *w, int unused)
@@ -3603,6 +3592,9 @@ static int w_go_diskless(struct drbd_work *w, int unused)
  * that drbd_set_out_of_sync() can not be called. This function MAY ONLY be
  * called from worker context. It MUST NOT be used while a previous such
  * work is still pending!
+ *
+ * Its worker function encloses the call of io_fn() by get_ldev() and
+ * put_ldev().
  */
 void drbd_queue_bitmap_io(struct drbd_device *device,
 			  int (*io_fn)(struct drbd_device *),

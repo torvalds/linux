@@ -1085,6 +1085,8 @@ static int bm_rw(struct drbd_device *device, int rw, unsigned flags, unsigned la
 		kfree(ctx);
 		return -ENODEV;
 	}
+	/* Here D_ATTACHING is sufficient since drbd_bm_read() is called only from
+	   drbd_adm_attach(), after device->ldev was assigned. */
 
 	if (!ctx->flags)
 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
@@ -1260,7 +1262,7 @@ int drbd_bm_write_page(struct drbd_device *device, unsigned int idx) __must_hold
 		.kref = { ATOMIC_INIT(2) },
 	};
 
-	if (!get_ldev_if_state(device, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+	if (!get_ldev(device)) {  /* put is in bm_aio_ctx_destroy() */
 		drbd_err(device, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
 		kfree(ctx);
 		return -ENODEV;
