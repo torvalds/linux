@@ -259,6 +259,7 @@ synproxy_recv_client_ack(const struct synproxy_net *snet,
 
 	this_cpu_inc(snet->stats->cookie_valid);
 	opts->mss = mss;
+	opts->options |= XT_SYNPROXY_OPT_MSS;
 
 	if (opts->options & XT_SYNPROXY_OPT_TIMESTAMP)
 		synproxy_check_timestamp_cookie(opts);
