@@ -1,5 +1,6 @@
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "kirkwood.dtsi"
 #include "kirkwood-6282.dtsi"
 
@@ -58,6 +59,10 @@
 			};
 			pmx_led_blue_backup: pmx-led-blue-backup {
 				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_poweroff: pmx-poweroff {
+				marvell,pins = "mpp30";
 				marvell,function = "gpio";
 			};
 		};
@@ -156,6 +161,13 @@
 			linux,code = <133>;     /* KEY_COPY */
 			gpios = <&gpio1 13 1>;
 		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
 	};
 
         regulators {
