@@ -1180,28 +1180,27 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 		goto out;
 	}
 
-	/* CPU copy if we have no accelerated method available */
-	if (!drm->ttm.move) {
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
-		goto out;
+	/* Hardware assisted copy. */
+	if (drm->ttm.move) {
+		if (new_mem->mem_type == TTM_PL_SYSTEM)
+			ret = nouveau_bo_move_flipd(bo, evict, intr,
+						    no_wait_gpu, new_mem);
+		else if (old_mem->mem_type == TTM_PL_SYSTEM)
+			ret = nouveau_bo_move_flips(bo, evict, intr,
+						    no_wait_gpu, new_mem);
+		else
+			ret = nouveau_bo_move_m2mf(bo, evict, intr,
+						   no_wait_gpu, new_mem);
+		if (!ret)
+			goto out;
 	}
 
-	/* Hardware assisted copy. */
-	if (new_mem->mem_type == TTM_PL_SYSTEM)
-		ret = nouveau_bo_move_flipd(bo, evict, intr,
-					    no_wait_gpu, new_mem);
-	else if (old_mem->mem_type == TTM_PL_SYSTEM)
-		ret = nouveau_bo_move_flips(bo, evict, intr,
-					    no_wait_gpu, new_mem);
-	else
-		ret = nouveau_bo_move_m2mf(bo, evict, intr,
-					   no_wait_gpu, new_mem);
-
-	if (!ret)
-		goto out;
-
 	/* Fallback to software copy. */
-	ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+	spin_lock(&bo->bdev->fence_lock);
+	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
+	spin_unlock(&bo->bdev->fence_lock);
+	if (ret == 0)
+		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 
 out:
 	if (nv_device(drm->device)->card_type < NV_50) {
