@@ -508,6 +508,7 @@ __fixup_smp:
 	teq	r0, #0x0		@ '0' on actual UP A9 hardware
 	beq	__fixup_smp_on_up	@ So its an A9 UP
 	ldr	r0, [r0, #4]		@ read SCU Config
+ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	and	r0, r0, #0x3		@ number of CPUs
 	teq	r0, #0x0		@ is 1?
 	movne	pc, lr
@@ -644,7 +645,11 @@ ARM_BE8(rev16	ip, ip)
 	bcc	1b
 	bx	lr
 #else
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	moveq	r0, #0x00004000	@ set bit 22, mov to mvn instruction
+#else
 	moveq	r0, #0x400000	@ set bit 22, mov to mvn instruction
+#endif
 	b	2f
 1:	ldr	ip, [r7, r3]
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -653,7 +658,7 @@ ARM_BE8(rev16	ip, ip)
 	tst	ip, #0x000f0000	@ check the rotation field
 	orrne	ip, ip, r6, lsl #24 @ mask in offset bits 31-24
 	biceq	ip, ip, #0x00004000 @ clear bit 22
-	orreq	ip, ip, r0, lsl #24 @ mask in offset bits 7-0
+	orreq	ip, ip, r0      @ mask in offset bits 7-0
 #else
 	bic	ip, ip, #0x000000ff
 	tst	ip, #0xf00	@ check the rotation field

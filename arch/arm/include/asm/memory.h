@@ -226,7 +226,14 @@ static inline phys_addr_t __virt_to_phys(unsigned long x)
 static inline unsigned long __phys_to_virt(phys_addr_t x)
 {
 	unsigned long t;
-	__pv_stub(x, t, "sub", __PV_BITS_31_24);
+
+	/*
+	 * 'unsigned long' cast discard upper word when
+	 * phys_addr_t is 64 bit, and makes sure that inline
+	 * assembler expression receives 32 bit argument
+	 * in place where 'r' 32 bit operand is expected.
+	 */
+	__pv_stub((unsigned long) x, t, "sub", __PV_BITS_31_24);
 	return t;
 }
 
