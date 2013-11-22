@@ -1380,10 +1380,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 	if (retval)
 		return retval;
 
-	retval = audit_bprm(bprm);
-	if (retval)
-		return retval;
-
 	retval = -ENOENT;
  retry:
 	read_lock(&binfmt_lock);
@@ -1431,6 +1427,7 @@ static int exec_binprm(struct linux_binprm *bprm)
 
 	ret = search_binary_handler(bprm);
 	if (ret >= 0) {
+		audit_bprm(bprm);
 		trace_sched_process_exec(current, old_pid, bprm);
 		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 		current->did_exec = 1;

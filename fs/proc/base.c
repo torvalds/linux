@@ -1151,10 +1151,16 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		goto out_free_page;
 
 	}
-	kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
-	if (!uid_valid(kloginuid)) {
-		length = -EINVAL;
-		goto out_free_page;
+
+	/* is userspace tring to explicitly UNSET the loginuid? */
+	if (loginuid == AUDIT_UID_UNSET) {
+		kloginuid = INVALID_UID;
+	} else {
+		kloginuid = make_kuid(file->f_cred->user_ns, loginuid);
+		if (!uid_valid(kloginuid)) {
+			length = -EINVAL;
+			goto out_free_page;
+		}
 	}
 
 	length = audit_set_loginuid(kloginuid);
