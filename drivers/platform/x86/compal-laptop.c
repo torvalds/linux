@@ -173,8 +173,7 @@
 /* ======= */
 struct compal_data{
 	/* Fan control */
-	struct device *hwmon_dev;
-	int pwm_enable; /* 0:full on, 1:set by pwm1, 2:control by moterboard */
+	int pwm_enable; /* 0:full on, 1:set by pwm1, 2:control by motherboard */
 	unsigned char curr_pwm;
 
 	/* Power supply */
@@ -401,15 +400,6 @@ SIMPLE_MASKED_STORE_SHOW(wake_up_lan,	WAKE_UP_ADDR, WAKE_UP_LAN)
 SIMPLE_MASKED_STORE_SHOW(wake_up_wlan,	WAKE_UP_ADDR, WAKE_UP_WLAN)
 SIMPLE_MASKED_STORE_SHOW(wake_up_key,	WAKE_UP_ADDR, WAKE_UP_KEY)
 SIMPLE_MASKED_STORE_SHOW(wake_up_mouse,	WAKE_UP_ADDR, WAKE_UP_MOUSE)
-
-
-/* General hwmon interface */
-static ssize_t hwmon_name_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%s\n", DRIVER_NAME);
-}
-
 
 /* Fan control interface */
 static ssize_t pwm_enable_show(struct device *dev,
@@ -665,7 +655,6 @@ static DEVICE_ATTR(wake_up_key,
 static DEVICE_ATTR(wake_up_mouse,
 		0644, wake_up_mouse_show,	wake_up_mouse_store);
 
-static DEVICE_ATTR(name,        S_IRUGO, hwmon_name_show,   NULL);
 static DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL);
 static DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL);
 static DEVICE_ATTR(temp2_input, S_IRUGO, temp_cpu_local,    NULL);
@@ -683,16 +672,20 @@ static DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, pwm_show, pwm_store);
 static DEVICE_ATTR(pwm1_enable,
 		   S_IRUGO | S_IWUSR, pwm_enable_show, pwm_enable_store);
 
-static struct attribute *compal_attributes[] = {
+static struct attribute *compal_platform_attrs[] = {
 	&dev_attr_wake_up_pme.attr,
 	&dev_attr_wake_up_modem.attr,
 	&dev_attr_wake_up_lan.attr,
 	&dev_attr_wake_up_wlan.attr,
 	&dev_attr_wake_up_key.attr,
 	&dev_attr_wake_up_mouse.attr,
-	/* Maybe put the sensor-stuff in a separate hwmon-driver? That way,
-	 * the hwmon sysfs won't be cluttered with the above files. */
-	&dev_attr_name.attr,
+	NULL
+};
+static struct attribute_group compal_platform_attr_group = {
+	.attrs = compal_platform_attrs
+};
+
+static struct attribute *compal_hwmon_attrs[] = {
 	&dev_attr_pwm1_enable.attr,
 	&dev_attr_pwm1.attr,
 	&dev_attr_fan1_input.attr,
@@ -710,10 +703,7 @@ static struct attribute *compal_attributes[] = {
 	&dev_attr_temp6_label.attr,
 	NULL
 };
-
-static struct attribute_group compal_attribute_group = {
-	.attrs = compal_attributes
-};
+ATTRIBUTE_GROUPS(compal_hwmon);
 
 static int compal_probe(struct platform_device *);
 static int compal_remove(struct platform_device *);
@@ -1021,6 +1011,7 @@ static int compal_probe(struct platform_device *pdev)
 {
 	int err;
 	struct compal_data *data;
+	struct device *hwmon_dev;
 
 	if (!extra_features)
 		return 0;
@@ -1032,16 +1023,16 @@ static int compal_probe(struct platform_device *pdev)
 
 	initialize_fan_control_data(data);
 
-	err = sysfs_create_group(&pdev->dev.kobj, &compal_attribute_group);
+	err = sysfs_create_group(&pdev->dev.kobj, &compal_platform_attr_group);
 	if (err)
 		return err;
 
-	data->hwmon_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		sysfs_remove_group(&pdev->dev.kobj,
-				&compal_attribute_group);
-		return err;
+	hwmon_dev = hwmon_device_register_with_groups(&pdev->dev,
+						      DRIVER_NAME, data,
+						      compal_hwmon_groups);
+	if (IS_ERR(hwmon_dev)) {
+		err = PTR_ERR(hwmon_dev);
+		goto remove;
 	}
 
 	/* Power supply */
@@ -1051,6 +1042,10 @@ static int compal_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	return 0;
+
+remove:
+	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
+	return err;
 }
 
 static void __exit compal_cleanup(void)
@@ -1077,10 +1072,9 @@ static int compal_remove(struct platform_device *pdev)
 	pwm_disable_control();
 
 	data = platform_get_drvdata(pdev);
-	hwmon_device_unregister(data->hwmon_dev);
 	power_supply_unregister(&data->psy);
 
-	sysfs_remove_group(&pdev->dev.kobj, &compal_attribute_group);
+	sysfs_remove_group(&pdev->dev.kobj, &compal_platform_attr_group);
 
 	return 0;
 }
