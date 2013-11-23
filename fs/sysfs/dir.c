@@ -829,8 +829,8 @@ static struct sysfs_dirent *sysfs_next_descendant_post(struct sysfs_dirent *pos,
 	return pos->s_parent;
 }
 
-static void __sysfs_remove(struct sysfs_addrm_cxt *acxt,
-			   struct sysfs_dirent *sd)
+static void __kernfs_remove(struct sysfs_addrm_cxt *acxt,
+			    struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent *pos, *next;
 
@@ -849,22 +849,22 @@ static void __sysfs_remove(struct sysfs_addrm_cxt *acxt,
 }
 
 /**
- * sysfs_remove - remove a sysfs_dirent recursively
+ * kernfs_remove - remove a sysfs_dirent recursively
  * @sd: the sysfs_dirent to remove
  *
  * Remove @sd along with all its subdirectories and files.
  */
-void sysfs_remove(struct sysfs_dirent *sd)
+void kernfs_remove(struct sysfs_dirent *sd)
 {
 	struct sysfs_addrm_cxt acxt;
 
 	sysfs_addrm_start(&acxt);
-	__sysfs_remove(&acxt, sd);
+	__kernfs_remove(&acxt, sd);
 	sysfs_addrm_finish(&acxt);
 }
 
 /**
- * sysfs_hash_and_remove - find a sysfs_dirent by name and remove it
+ * kernfs_remove_by_name_ns - find a sysfs_dirent by name and remove it
  * @dir_sd: parent of the target
  * @name: name of the sysfs_dirent to remove
  * @ns: namespace tag of the sysfs_dirent to remove
@@ -872,8 +872,8 @@ void sysfs_remove(struct sysfs_dirent *sd)
  * Look for the sysfs_dirent with @name and @ns under @dir_sd and remove
  * it.  Returns 0 on success, -ENOENT if such entry doesn't exist.
  */
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
-			  const void *ns)
+int kernfs_remove_by_name_ns(struct sysfs_dirent *dir_sd, const char *name,
+			     const void *ns)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
@@ -888,7 +888,7 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
 
 	sd = sysfs_find_dirent(dir_sd, name, ns);
 	if (sd)
-		__sysfs_remove(&acxt, sd);
+		__kernfs_remove(&acxt, sd);
 
 	sysfs_addrm_finish(&acxt);
 
@@ -928,7 +928,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 
 	if (sd) {
 		WARN_ON_ONCE(sysfs_type(sd) != SYSFS_DIR);
-		sysfs_remove(sd);
+		kernfs_remove(sd);
 	}
 }
 

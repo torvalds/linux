@@ -153,7 +153,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 	if (targ->sd && (kobj->sd->s_flags & SYSFS_FLAG_NS))
 		ns = targ->sd->s_ns;
 	spin_unlock(&sysfs_symlink_target_lock);
-	sysfs_hash_and_remove(kobj->sd, name, ns);
+	kernfs_remove_by_name_ns(kobj->sd, name, ns);
 }
 
 /**
@@ -170,7 +170,7 @@ void sysfs_remove_link(struct kobject *kobj, const char *name)
 	else
 		parent_sd = kobj->sd;
 
-	sysfs_hash_and_remove(parent_sd, name, NULL);
+	kernfs_remove_by_name(parent_sd, name);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
