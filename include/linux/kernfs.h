@@ -20,6 +20,8 @@ struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
 void kernfs_remove(struct sysfs_dirent *sd);
 int kernfs_remove_by_name_ns(struct sysfs_dirent *parent, const char *name,
 			     const void *ns);
+int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
+		     const char *new_name, const void *new_ns);
 
 #else	/* CONFIG_SYSFS */
 
@@ -32,6 +34,11 @@ static inline void kernfs_remove(struct sysfs_dirent *sd) { }
 
 static inline int kernfs_remove_by_name_ns(struct sysfs_dirent *parent,
 					   const char *name, const void *ns)
+{ return -ENOSYS; }
+
+static inline int kernfs_rename_ns(struct sysfs_dirent *sd,
+				   struct sysfs_dirent *new_parent,
+				   const char *new_name, const void *new_ns)
 { return -ENOSYS; }
 
 #endif	/* CONFIG_SYSFS */

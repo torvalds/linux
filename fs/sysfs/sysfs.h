@@ -185,9 +185,6 @@ void release_sysfs_dirent(struct sysfs_dirent *sd);
 int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd);
 
-int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
-		 const char *new_name, const void *new_ns);
-
 static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
 	if (sd) {

@@ -932,20 +932,27 @@ void sysfs_remove_dir(struct kobject *kobj)
 	}
 }
 
-int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
-		 const char *new_name, const void *new_ns)
+/**
+ * kernfs_rename_ns - move and rename a kernfs_node
+ * @sd: target node
+ * @new_parent: new parent to put @sd under
+ * @new_name: new name
+ * @new_ns: new namespace tag
+ */
+int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
+		     const char *new_name, const void *new_ns)
 {
 	int error;
 
 	mutex_lock(&sysfs_mutex);
 
 	error = 0;
-	if ((sd->s_parent == new_parent_sd) && (sd->s_ns == new_ns) &&
+	if ((sd->s_parent == new_parent) && (sd->s_ns == new_ns) &&
 	    (strcmp(sd->s_name, new_name) == 0))
 		goto out;	/* nothing to rename */
 
 	error = -EEXIST;
-	if (sysfs_find_dirent(new_parent_sd, new_name, new_ns))
+	if (sysfs_find_dirent(new_parent, new_name, new_ns))
 		goto out;
 
 	/* rename sysfs_dirent */
@@ -963,11 +970,11 @@ int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
 	 * Move to the appropriate place in the appropriate directories rbtree.
 	 */
 	sysfs_unlink_sibling(sd);
-	sysfs_get(new_parent_sd);
+	sysfs_get(new_parent);
 	sysfs_put(sd->s_parent);
 	sd->s_ns = new_ns;
 	sd->s_hash = sysfs_name_hash(sd->s_name, sd->s_ns);
-	sd->s_parent = new_parent_sd;
+	sd->s_parent = new_parent;
 	sysfs_link_sibling(sd);
 
 	error = 0;
@@ -981,7 +988,7 @@ int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 {
 	struct sysfs_dirent *parent_sd = kobj->sd->s_parent;
 
-	return sysfs_rename(kobj->sd, parent_sd, new_name, new_ns);
+	return kernfs_rename_ns(kobj->sd, parent_sd, new_name, new_ns);
 }
 
 int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
@@ -994,7 +1001,7 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 	new_parent_sd = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : &sysfs_root;
 
-	return sysfs_rename(sd, new_parent_sd, sd->s_name, new_ns);
+	return kernfs_rename_ns(sd, new_parent_sd, sd->s_name, new_ns);
 }
 
 /**
