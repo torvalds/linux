@@ -2418,7 +2418,7 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 					       const char *con_id,
 					       unsigned int idx)
 {
-	struct gpio_desc *desc;
+	struct gpio_desc *desc = NULL;
 	int status;
 	enum gpio_lookup_flags flags = 0;
 
@@ -2431,9 +2431,19 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	} else if (IS_ENABLED(CONFIG_ACPI) && dev && ACPI_HANDLE(dev)) {
 		dev_dbg(dev, "using ACPI for GPIO lookup\n");
 		desc = acpi_find_gpio(dev, con_id, idx, &flags);
-	} else {
+	}
+
+	/*
+	 * Either we are not using DT or ACPI, or their lookup did not return
+	 * a result. In that case, use platform lookup as a fallback.
+	 */
+	if (!desc || IS_ERR(desc)) {
+		struct gpio_desc *pdesc;
 		dev_dbg(dev, "using lookup tables for GPIO lookup");
-		desc = gpiod_find(dev, con_id, idx, &flags);
+		pdesc = gpiod_find(dev, con_id, idx, &flags);
+		/* If used as fallback, do not replace the previous error */
+		if (!IS_ERR(pdesc) || !desc)
+			desc = pdesc;
 	}
 
 	if (IS_ERR(desc)) {
