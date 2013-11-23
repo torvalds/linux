@@ -2733,7 +2733,7 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 
 u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
 {
-	return (u16)(hsotg->core_params->otg_ver == 1 ? 0x0200 : 0x0103);
+	return hsotg->core_params->otg_ver == 1 ? 0x0200 : 0x0103;
 }
 
 int dwc2_check_core_status(struct dwc2_hsotg *hsotg)
