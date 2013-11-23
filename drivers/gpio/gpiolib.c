@@ -2368,7 +2368,7 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 				continue;
 			}
 
-			if (chip->ngpio >= p->chip_hwnum) {
+			if (chip->ngpio <= p->chip_hwnum) {
 				dev_warn(dev, "GPIO chip %s has %d GPIOs\n",
 					 chip->label, chip->ngpio);
 				continue;
