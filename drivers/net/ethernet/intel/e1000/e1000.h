@@ -317,8 +317,6 @@ struct e1000_adapter {
 	struct delayed_work watchdog_task;
 	struct delayed_work fifo_stall_task;
 	struct delayed_work phy_info_task;
-
-	struct mutex mutex;
 };
 
 enum e1000_state_t {
