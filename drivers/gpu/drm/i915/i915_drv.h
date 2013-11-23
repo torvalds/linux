@@ -437,8 +437,10 @@ struct drm_i915_display_funcs {
 };
 
 struct intel_uncore_funcs {
-	void (*force_wake_get)(struct drm_i915_private *dev_priv);
-	void (*force_wake_put)(struct drm_i915_private *dev_priv);
+	void (*force_wake_get)(struct drm_i915_private *dev_priv,
+							int fw_engine);
+	void (*force_wake_put)(struct drm_i915_private *dev_priv,
+							int fw_engine);
 
 	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
 	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
@@ -2438,8 +2440,8 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
-void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
-void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
@@ -2467,6 +2469,11 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
+
+#define FORCEWAKE_RENDER	(1 << 0)
+#define FORCEWAKE_MEDIA		(1 << 1)
+#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA)
+
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
