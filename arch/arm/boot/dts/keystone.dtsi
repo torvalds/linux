@@ -6,14 +6,12 @@
  * published by the Free Software Foundation.
  */
 
-/dts-v1/;
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 #include "skeleton.dtsi"
 
 / {
 	model = "Texas Instruments Keystone 2 SoC";
-	compatible =  "ti,keystone-evm";
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&gic>;
