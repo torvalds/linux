@@ -214,7 +214,7 @@ static int genl_validate_assign_mc_groups(struct genl_family *family)
 {
 	int first_id;
 	int n_groups = family->n_mcgrps;
-	int err, i;
+	int err = 0, i;
 	bool groups_allocated = false;
 
 	if (!n_groups)
