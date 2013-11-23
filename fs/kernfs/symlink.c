@@ -140,6 +140,9 @@ static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
 
 const struct inode_operations sysfs_symlink_inode_operations = {
 	.setxattr	= sysfs_setxattr,
+	.removexattr	= sysfs_removexattr,
+	.getxattr	= sysfs_getxattr,
+	.listxattr	= sysfs_listxattr,
 	.readlink	= generic_readlink,
 	.follow_link	= sysfs_follow_link,
 	.put_link	= sysfs_put_link,

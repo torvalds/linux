@@ -35,6 +35,9 @@ static const struct inode_operations sysfs_inode_operations = {
 	.setattr	= sysfs_setattr,
 	.getattr	= sysfs_getattr,
 	.setxattr	= sysfs_setxattr,
+	.removexattr	= sysfs_removexattr,
+	.getxattr	= sysfs_getxattr,
+	.listxattr	= sysfs_listxattr,
 };
 
 void __init sysfs_inode_init(void)
@@ -60,6 +63,8 @@ static struct sysfs_inode_attrs *sysfs_inode_attrs(struct sysfs_dirent *sd)
 	iattrs->ia_uid = GLOBAL_ROOT_UID;
 	iattrs->ia_gid = GLOBAL_ROOT_GID;
 	iattrs->ia_atime = iattrs->ia_mtime = iattrs->ia_ctime = CURRENT_TIME;
+
+	simple_xattrs_init(&sd->s_iattr->xattrs);
 
 	return sd->s_iattr;
 }
@@ -162,23 +167,25 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct sysfs_inode_attrs *attrs;
 	void *secdata;
 	int error;
 	u32 secdata_len = 0;
 
-	if (!sd)
-		return -EINVAL;
+	attrs = sysfs_inode_attrs(sd);
+	if (!attrs)
+		return -ENOMEM;
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
 		error = security_inode_setsecurity(dentry->d_inode, suffix,
 						value, size, flags);
 		if (error)
-			goto out;
+			return error;
 		error = security_inode_getsecctx(dentry->d_inode,
 						&secdata, &secdata_len);
 		if (error)
-			goto out;
+			return error;
 
 		mutex_lock(&sysfs_mutex);
 		error = sysfs_sd_setsecdata(sd, &secdata, &secdata_len);
@@ -186,10 +193,50 @@ int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 
 		if (secdata)
 			security_release_secctx(secdata, secdata_len);
-	} else
-		return -EINVAL;
-out:
-	return error;
+		return error;
+	} else if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN)) {
+		return simple_xattr_set(&attrs->xattrs, name, value, size,
+					flags);
+	}
+
+	return -EINVAL;
+}
+
+int sysfs_removexattr(struct dentry *dentry, const char *name)
+{
+	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct sysfs_inode_attrs *attrs;
+
+	attrs = sysfs_inode_attrs(sd);
+	if (!attrs)
+		return -ENOMEM;
+
+	return simple_xattr_remove(&attrs->xattrs, name);
+}
+
+ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
+		       size_t size)
+{
+	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct sysfs_inode_attrs *attrs;
+
+	attrs = sysfs_inode_attrs(sd);
+	if (!attrs)
+		return -ENOMEM;
+
+	return simple_xattr_get(&attrs->xattrs, name, buf, size);
+}
+
+ssize_t sysfs_listxattr(struct dentry *dentry, char *buf, size_t size)
+{
+	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct sysfs_inode_attrs *attrs;
+
+	attrs = sysfs_inode_attrs(sd);
+	if (!attrs)
+		return -ENOMEM;
+
+	return simple_xattr_list(&attrs->xattrs, buf, size);
 }
 
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)

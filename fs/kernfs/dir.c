@@ -243,9 +243,12 @@ void kernfs_put(struct sysfs_dirent *sd)
 		kernfs_put(sd->s_symlink.target_sd);
 	if (sysfs_type(sd) & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
-	if (sd->s_iattr && sd->s_iattr->ia_secdata)
-		security_release_secctx(sd->s_iattr->ia_secdata,
-					sd->s_iattr->ia_secdata_len);
+	if (sd->s_iattr) {
+		if (sd->s_iattr->ia_secdata)
+			security_release_secctx(sd->s_iattr->ia_secdata,
+						sd->s_iattr->ia_secdata_len);
+		simple_xattrs_free(&sd->s_iattr->xattrs);
+	}
 	kfree(sd->s_iattr);
 	ida_simple_remove(&root->ino_ida, sd->s_ino);
 	kmem_cache_free(sysfs_dir_cachep, sd);
@@ -718,6 +721,9 @@ const struct inode_operations sysfs_dir_inode_operations = {
 	.setattr	= sysfs_setattr,
 	.getattr	= sysfs_getattr,
 	.setxattr	= sysfs_setxattr,
+	.removexattr	= sysfs_removexattr,
+	.getxattr	= sysfs_getxattr,
+	.listxattr	= sysfs_listxattr,
 };
 
 static struct sysfs_dirent *sysfs_leftmost_descendant(struct sysfs_dirent *pos)

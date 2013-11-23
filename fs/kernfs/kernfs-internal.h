@@ -14,6 +14,7 @@
 #include <linux/lockdep.h>
 #include <linux/fs.h>
 #include <linux/mutex.h>
+#include <linux/xattr.h>
 
 #include <linux/kernfs.h>
 
@@ -21,6 +22,8 @@ struct sysfs_inode_attrs {
 	struct iattr		ia_iattr;
 	void			*ia_secdata;
 	u32			ia_secdata_len;
+
+	struct simple_xattrs	xattrs;
 };
 
 #define SD_DEACTIVATED_BIAS		INT_MIN
@@ -81,6 +84,10 @@ int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		   size_t size, int flags);
+int sysfs_removexattr(struct dentry *dentry, const char *name);
+ssize_t sysfs_getxattr(struct dentry *dentry, const char *name, void *buf,
+		       size_t size);
+ssize_t sysfs_listxattr(struct dentry *dentry, char *buf, size_t size);
 void sysfs_inode_init(void);
 
 /*
