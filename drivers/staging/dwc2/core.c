@@ -1941,7 +1941,7 @@ void dwc2_flush_rx_fifo(struct dwc2_hsotg *hsotg)
 	udelay(1);
 }
 
-#define DWC2_PARAM_TEST(a, b, c)	((a) < (b) || (a) > (c))
+#define DWC2_OUT_OF_BOUNDS(a, b, c)	((a) < (b) || (a) > (c))
 
 /* Parameter access functions */
 int dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val)
@@ -2055,7 +2055,7 @@ int dwc2_set_param_host_support_fs_ls_low_power(struct dwc2_hsotg *hsotg,
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"Wrong value for host_support_fs_low_power\n");
@@ -2238,8 +2238,8 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 #endif
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, DWC2_PHY_TYPE_PARAM_FS,
-			    DWC2_PHY_TYPE_PARAM_ULPI)) {
+	if (DWC2_OUT_OF_BOUNDS(val, DWC2_PHY_TYPE_PARAM_FS,
+			       DWC2_PHY_TYPE_PARAM_ULPI)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for phy_type\n");
 			dev_err(hsotg->dev, "phy_type must be 0, 1 or 2\n");
@@ -2301,7 +2301,7 @@ int dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 	int valid = 1;
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for speed parameter\n");
 			dev_err(hsotg->dev, "max_speed parameter must be 0 or 1\n");
@@ -2333,8 +2333,8 @@ int dwc2_set_param_host_ls_low_power_phy_clk(struct dwc2_hsotg *hsotg, int val)
 	int valid = 1;
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ,
-			    DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ)) {
+	if (DWC2_OUT_OF_BOUNDS(val, DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_48MHZ,
+			       DWC2_HOST_LS_LOW_POWER_PHY_CLK_PARAM_6MHZ)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"Wrong value for host_ls_low_power_phy_clk parameter\n");
@@ -2369,7 +2369,7 @@ int dwc2_set_param_phy_ulpi_ddr(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for phy_ulpi_ddr\n");
 			dev_err(hsotg->dev, "phy_upli_ddr must be 0 or 1\n");
@@ -2387,7 +2387,7 @@ int dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"Wrong value for phy_ulpi_ext_vbus\n");
@@ -2440,7 +2440,7 @@ int dwc2_set_param_ulpi_fs_ls(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for ulpi_fs_ls\n");
 			dev_err(hsotg->dev, "ulpi_fs_ls must be 0 or 1\n");
@@ -2458,7 +2458,7 @@ int dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for ts_dline\n");
 			dev_err(hsotg->dev, "ts_dline must be 0 or 1\n");
@@ -2479,7 +2479,7 @@ int dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
 #endif
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev, "Wrong value for i2c_enable\n");
 			dev_err(hsotg->dev, "i2c_enable must be 0 or 1\n");
@@ -2518,7 +2518,7 @@ int dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg, int val)
 	int valid = 1;
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"Wrong value for en_multiple_tx_fifo,\n");
@@ -2550,7 +2550,7 @@ int dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val)
 	int valid = 1;
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"'%d' invalid for parameter reload_ctl\n", val);
@@ -2590,7 +2590,7 @@ int dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"'%d' invalid for parameter otg_ver\n", val);
@@ -2769,7 +2769,7 @@ int dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 {
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
 			dev_err(hsotg->dev,
 				"'%d' invalid for parameter uframe_sched\n",
