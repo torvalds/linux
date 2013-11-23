@@ -665,23 +665,23 @@ static DEVICE_ATTR(wake_up_key,
 static DEVICE_ATTR(wake_up_mouse,
 		0644, wake_up_mouse_show,	wake_up_mouse_store);
 
-static SENSOR_DEVICE_ATTR(name,        S_IRUGO, hwmon_name_show,   NULL, 1);
-static SENSOR_DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, temp_cpu_local,    NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, temp_cpu_DTS,      NULL, 1);
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, temp_northbridge,  NULL, 1);
-static SENSOR_DEVICE_ATTR(temp5_input, S_IRUGO, temp_vga,          NULL, 1);
-static SENSOR_DEVICE_ATTR(temp6_input, S_IRUGO, temp_SKIN,         NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, label_cpu,         NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_label, S_IRUGO, label_cpu_local,   NULL, 1);
-static SENSOR_DEVICE_ATTR(temp3_label, S_IRUGO, label_cpu_DTS,     NULL, 1);
-static SENSOR_DEVICE_ATTR(temp4_label, S_IRUGO, label_northbridge, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp5_label, S_IRUGO, label_vga,         NULL, 1);
-static SENSOR_DEVICE_ATTR(temp6_label, S_IRUGO, label_SKIN,        NULL, 1);
-static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, pwm_show, pwm_store, 1);
-static SENSOR_DEVICE_ATTR(pwm1_enable,
-		S_IRUGO | S_IWUSR, pwm_enable_show, pwm_enable_store, 0);
+static DEVICE_ATTR(name,        S_IRUGO, hwmon_name_show,   NULL);
+static DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL);
+static DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL);
+static DEVICE_ATTR(temp2_input, S_IRUGO, temp_cpu_local,    NULL);
+static DEVICE_ATTR(temp3_input, S_IRUGO, temp_cpu_DTS,      NULL);
+static DEVICE_ATTR(temp4_input, S_IRUGO, temp_northbridge,  NULL);
+static DEVICE_ATTR(temp5_input, S_IRUGO, temp_vga,          NULL);
+static DEVICE_ATTR(temp6_input, S_IRUGO, temp_SKIN,         NULL);
+static DEVICE_ATTR(temp1_label, S_IRUGO, label_cpu,         NULL);
+static DEVICE_ATTR(temp2_label, S_IRUGO, label_cpu_local,   NULL);
+static DEVICE_ATTR(temp3_label, S_IRUGO, label_cpu_DTS,     NULL);
+static DEVICE_ATTR(temp4_label, S_IRUGO, label_northbridge, NULL);
+static DEVICE_ATTR(temp5_label, S_IRUGO, label_vga,         NULL);
+static DEVICE_ATTR(temp6_label, S_IRUGO, label_SKIN,        NULL);
+static DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, pwm_show, pwm_store);
+static DEVICE_ATTR(pwm1_enable,
+		   S_IRUGO | S_IWUSR, pwm_enable_show, pwm_enable_store);
 
 static struct attribute *compal_attributes[] = {
 	&dev_attr_wake_up_pme.attr,
@@ -692,22 +692,22 @@ static struct attribute *compal_attributes[] = {
 	&dev_attr_wake_up_mouse.attr,
 	/* Maybe put the sensor-stuff in a separate hwmon-driver? That way,
 	 * the hwmon sysfs won't be cluttered with the above files. */
-	&sensor_dev_attr_name.dev_attr.attr,
-	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
-	&sensor_dev_attr_pwm1.dev_attr.attr,
-	&sensor_dev_attr_fan1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp5_input.dev_attr.attr,
-	&sensor_dev_attr_temp6_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_label.dev_attr.attr,
-	&sensor_dev_attr_temp2_label.dev_attr.attr,
-	&sensor_dev_attr_temp3_label.dev_attr.attr,
-	&sensor_dev_attr_temp4_label.dev_attr.attr,
-	&sensor_dev_attr_temp5_label.dev_attr.attr,
-	&sensor_dev_attr_temp6_label.dev_attr.attr,
+	&dev_attr_name.attr,
+	&dev_attr_pwm1_enable.attr,
+	&dev_attr_pwm1.attr,
+	&dev_attr_fan1_input.attr,
+	&dev_attr_temp1_input.attr,
+	&dev_attr_temp2_input.attr,
+	&dev_attr_temp3_input.attr,
+	&dev_attr_temp4_input.attr,
+	&dev_attr_temp5_input.attr,
+	&dev_attr_temp6_input.attr,
+	&dev_attr_temp1_label.attr,
+	&dev_attr_temp2_label.attr,
+	&dev_attr_temp3_label.attr,
+	&dev_attr_temp4_label.attr,
+	&dev_attr_temp5_label.attr,
+	&dev_attr_temp6_label.attr,
 	NULL
 };
 
