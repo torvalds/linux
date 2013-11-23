@@ -384,7 +384,6 @@ void __init arm_memblock_init(struct meminfo *mi,
 	dma_contiguous_reserve(min(arm_dma_limit, arm_lowmem_limit));
 
 	arm_memblock_steal_permitted = false;
-	memblock_allow_resize();
 	memblock_dump_all();
 }
 
@@ -392,6 +391,7 @@ void __init bootmem_init(void)
 {
 	unsigned long min, max_low, max_high;
 
+	memblock_allow_resize();
 	max_low = max_high = 0;
 
 	find_limits(&min, &max_low, &max_high);
