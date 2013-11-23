@@ -18,9 +18,9 @@
 #include <linux/kernfs.h>
 
 struct sysfs_inode_attrs {
-	struct iattr	ia_iattr;
-	void		*ia_secdata;
-	u32		ia_secdata_len;
+	struct iattr		ia_iattr;
+	void			*ia_secdata;
+	u32			ia_secdata_len;
 };
 
 #define SD_DEACTIVATED_BIAS		INT_MIN
