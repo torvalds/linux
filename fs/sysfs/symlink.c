@@ -21,14 +21,48 @@
 
 #include "sysfs.h"
 
+/**
+ * kernfs_create_link - create a symlink
+ * @parent: directory to create the symlink in
+ * @name: name of the symlink
+ * @target: target node for the symlink to point to
+ *
+ * Returns the created node on success, ERR_PTR() value on error.
+ */
+struct sysfs_dirent *kernfs_create_link(struct sysfs_dirent *parent,
+					const char *name,
+					struct sysfs_dirent *target)
+{
+	struct sysfs_dirent *sd;
+	struct sysfs_addrm_cxt acxt;
+	int error;
+
+	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
+	if (!sd)
+		return ERR_PTR(-ENOMEM);
+
+	if (parent->s_flags & SYSFS_FLAG_NS)
+		sd->s_ns = target->s_ns;
+	sd->s_symlink.target_sd = target;
+	sysfs_get(target);	/* ref owned by symlink */
+
+	sysfs_addrm_start(&acxt);
+	error = __sysfs_add_one(&acxt, sd, parent);
+	sysfs_addrm_finish(&acxt);
+
+	if (!error)
+		return sd;
+
+	sysfs_put(sd);
+	return ERR_PTR(error);
+}
+
+
 static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 				   struct kobject *target,
 				   const char *name, int warn)
 {
-	struct sysfs_dirent *target_sd = NULL;
-	struct sysfs_dirent *sd = NULL;
-	struct sysfs_addrm_cxt acxt;
-	int error;
+	struct sysfs_dirent *sd, *target_sd = NULL;
 
 	BUG_ON(!name || !parent_sd);
 
@@ -42,36 +76,18 @@ static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
 		target_sd = sysfs_get(target->sd);
 	spin_unlock(&sysfs_symlink_target_lock);
 
-	error = -ENOENT;
 	if (!target_sd)
-		goto out_put;
+		return -ENOENT;
 
-	error = -ENOMEM;
-	sd = sysfs_new_dirent(name, S_IFLNK|S_IRWXUGO, SYSFS_KOBJ_LINK);
-	if (!sd)
-		goto out_put;
-
-	if (parent_sd->s_flags & SYSFS_FLAG_NS)
-		sd->s_ns = target_sd->s_ns;
-	sd->s_symlink.target_sd = target_sd;
-	target_sd = NULL;	/* reference is now owned by the symlink */
-
-	sysfs_addrm_start(&acxt);
-	if (warn)
-		error = sysfs_add_one(&acxt, sd, parent_sd);
-	else
-		error = __sysfs_add_one(&acxt, sd, parent_sd);
-	sysfs_addrm_finish(&acxt);
-
-	if (error)
-		goto out_put;
-
-	return 0;
-
- out_put:
+	sd = kernfs_create_link(parent_sd, name, target_sd);
 	sysfs_put(target_sd);
-	sysfs_put(sd);
-	return error;
+
+	if (!IS_ERR(sd))
+		return 0;
+
+	if (warn && PTR_ERR(sd) == -EEXIST)
+		sysfs_warn_dup(parent_sd, name);
+	return PTR_ERR(sd);
 }
 
 /**
