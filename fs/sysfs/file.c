@@ -922,19 +922,16 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 	struct iattr newattrs;
 	int rc;
 
-	mutex_lock(&sysfs_mutex);
-
-	rc = -ENOENT;
-	sd = sysfs_find_dirent(kobj->sd, attr->name, NULL);
+	sd = sysfs_get_dirent(kobj->sd, attr->name);
 	if (!sd)
-		goto out;
+		return -ENOENT;
 
 	newattrs.ia_mode = (mode & S_IALLUGO) | (sd->s_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE;
-	rc = sysfs_sd_setattr(sd, &newattrs);
 
- out:
-	mutex_unlock(&sysfs_mutex);
+	rc = kernfs_setattr(sd, &newattrs);
+
+	sysfs_put(sd);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);

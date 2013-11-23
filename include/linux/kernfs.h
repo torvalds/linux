@@ -10,6 +10,9 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 
+struct file;
+struct iattr;
+
 struct sysfs_dirent;
 
 #ifdef CONFIG_SYSFS
@@ -22,6 +25,7 @@ int kernfs_remove_by_name_ns(struct sysfs_dirent *parent, const char *name,
 			     const void *ns);
 int kernfs_rename_ns(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent,
 		     const char *new_name, const void *new_ns);
+int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr);
 
 #else	/* CONFIG_SYSFS */
 
@@ -39,6 +43,10 @@ static inline int kernfs_remove_by_name_ns(struct sysfs_dirent *parent,
 static inline int kernfs_rename_ns(struct sysfs_dirent *sd,
 				   struct sysfs_dirent *new_parent,
 				   const char *new_name, const void *new_ns)
+{ return -ENOSYS; }
+
+static inline int kernfs_setattr(struct sysfs_dirent *sd,
+				 const struct iattr *iattr)
 { return -ENOSYS; }
 
 #endif	/* CONFIG_SYSFS */

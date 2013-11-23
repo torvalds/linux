@@ -67,7 +67,7 @@ static struct sysfs_inode_attrs *sysfs_init_inode_attrs(struct sysfs_dirent *sd)
 	return attrs;
 }
 
-int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr)
+static int __kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr)
 {
 	struct sysfs_inode_attrs *sd_attrs;
 	struct iattr *iattrs;
@@ -102,6 +102,23 @@ int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr)
 	return 0;
 }
 
+/**
+ * kernfs_setattr - set iattr on a node
+ * @sd: target node
+ * @iattr: iattr to set
+ *
+ * Returns 0 on success, -errno on failure.
+ */
+int kernfs_setattr(struct sysfs_dirent *sd, const struct iattr *iattr)
+{
+	int ret;
+
+	mutex_lock(&sysfs_mutex);
+	ret = __kernfs_setattr(sd, iattr);
+	mutex_unlock(&sysfs_mutex);
+	return ret;
+}
+
 int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
@@ -116,7 +133,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		goto out;
 
-	error = sysfs_sd_setattr(sd, iattr);
+	error = __kernfs_setattr(sd, iattr);
 	if (error)
 		goto out;
 
