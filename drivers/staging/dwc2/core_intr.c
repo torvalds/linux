@@ -451,8 +451,8 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	u32 gintsts;
 	irqreturn_t retval = IRQ_NONE;
 
-	if (dwc2_check_core_status(hsotg) < 0) {
-		dev_warn(hsotg->dev, "Controller is disconnected\n");
+	if (!dwc2_is_controller_alive(hsotg)) {
+		dev_warn(hsotg->dev, "Controller is dead\n");
 		goto out;
 	}
 

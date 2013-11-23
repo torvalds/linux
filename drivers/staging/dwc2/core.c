@@ -2736,12 +2736,12 @@ u16 dwc2_get_otg_version(struct dwc2_hsotg *hsotg)
 	return hsotg->core_params->otg_ver == 1 ? 0x0200 : 0x0103;
 }
 
-int dwc2_check_core_status(struct dwc2_hsotg *hsotg)
+bool dwc2_is_controller_alive(struct dwc2_hsotg *hsotg)
 {
 	if (readl(hsotg->regs + GSNPSID) == 0xffffffff)
-		return -1;
+		return false;
 	else
-		return 0;
+		return true;
 }
 
 /**
