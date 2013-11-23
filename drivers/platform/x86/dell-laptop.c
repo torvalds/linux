@@ -684,7 +684,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 
 out:
 	release_buffer();
-	return 0;
+	return ret;
 }
 
 static int dell_get_intensity(struct backlight_device *bd)
