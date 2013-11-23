@@ -124,6 +124,15 @@ clocks {
 		clock-output-names = "chipclk13";
 	};
 
+	paclk13: paclk13 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&papllclk>;
+		clock-div = <3>;
+		clock-mult = <1>;
+		clock-output-names = "paclk13";
+	};
+
 	chipclk14: chipclk14 {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
