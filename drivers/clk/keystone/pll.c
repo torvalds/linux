@@ -24,6 +24,8 @@
 #define MAIN_PLLM_HIGH_MASK	0x7f000
 #define PLLM_HIGH_SHIFT		6
 #define PLLD_MASK		0x3f
+#define CLKOD_MASK		0x780000
+#define CLKOD_SHIFT		19
 
 /**
  * struct clk_pll_data - pll data structure
@@ -41,7 +43,10 @@
  * @pllm_upper_mask: multiplier upper mask
  * @pllm_upper_shift: multiplier upper shift
  * @plld_mask: divider mask
- * @postdiv: Post divider
+ * @clkod_mask: output divider mask
+ * @clkod_shift: output divider shift
+ * @plld_mask: divider mask
+ * @postdiv: Fixed post divider
  */
 struct clk_pll_data {
 	bool has_pllctrl;
@@ -53,6 +58,8 @@ struct clk_pll_data {
 	u32 pllm_upper_mask;
 	u32 pllm_upper_shift;
 	u32 plld_mask;
+	u32 clkod_mask;
+	u32 clkod_shift;
 	u32 postdiv;
 };
 
@@ -90,7 +97,13 @@ static unsigned long clk_pllclk_recalc(struct clk_hw *hw,
 	mult |= ((val & pll_data->pllm_upper_mask)
 			>> pll_data->pllm_upper_shift);
 	prediv = (val & pll_data->plld_mask);
-	postdiv = pll_data->postdiv;
+
+	if (!pll_data->has_pllctrl)
+		/* read post divider from od bits*/
+		postdiv = ((val & pll_data->clkod_mask) >>
+				 pll_data->clkod_shift) + 1;
+	else
+		postdiv = pll_data->postdiv;
 
 	rate /= (prediv + 1);
 	rate = (rate * (mult + 1));
@@ -155,8 +168,11 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 	}
 
 	parent_name = of_clk_get_parent_name(node, 0);
-	if (of_property_read_u32(node, "fixed-postdiv",	&pll_data->postdiv))
-		goto out;
+	if (of_property_read_u32(node, "fixed-postdiv",	&pll_data->postdiv)) {
+		/* assume the PLL has output divider register bits */
+		pll_data->clkod_mask = CLKOD_MASK;
+		pll_data->clkod_shift = CLKOD_SHIFT;
+	}
 
 	i = of_property_match_string(node, "reg-names", "control");
 	pll_data->pll_ctl0 = of_iomap(node, i);
