@@ -288,12 +288,9 @@ struct efx_rx_buffer {
  * Used to facilitate sharing dma mappings between recycled rx buffers
  * and those passed up to the kernel.
  *
- * @refcnt: Number of struct efx_rx_buffer's referencing this page.
- *	When refcnt falls to zero, the page is unmapped for dma
  * @dma_addr: The dma address of this page.
  */
 struct efx_rx_page_state {
-	unsigned refcnt;
 	dma_addr_t dma_addr;
 
 	unsigned int __pad[0] ____cacheline_aligned;
