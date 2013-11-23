@@ -74,7 +74,6 @@ int __init keystone_pm_runtime_init(void)
 	if (!np)
 		return 0;
 
-	of_clk_init(NULL);
 	pm_clk_add_notifier(&platform_bus_type, &platform_domain_notifier);
 
 	return 0;
