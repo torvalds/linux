@@ -175,38 +175,112 @@ static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 	__raw_posting_read(dev_priv, FORCEWAKE_ACK_VLV);
 }
 
-static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
+static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
+						int fw_engine)
 {
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, FORCEWAKE_ACK_VLV) & FORCEWAKE_KERNEL) == 0,
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
+	/* Check for Render Engine */
+	if (FORCEWAKE_RENDER & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_VLV) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Render forcewake old ack to clear.\n");
 
-	__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
-			   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
-			   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
+		__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
 
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, FORCEWAKE_ACK_VLV) & FORCEWAKE_KERNEL),
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for GT to ack forcewake request.\n");
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_VLV) &
+						FORCEWAKE_KERNEL),
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: waiting for Render to ack.\n");
+	}
 
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, FORCEWAKE_ACK_MEDIA_VLV) &
-			     FORCEWAKE_KERNEL),
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for media to ack forcewake request.\n");
+	/* Check for Media Engine */
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_MEDIA_VLV) &
+						FORCEWAKE_KERNEL) == 0,
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: Media forcewake old ack to clear.\n");
+
+		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
+
+		if (wait_for_atomic((__raw_i915_read32(dev_priv,
+						FORCEWAKE_ACK_MEDIA_VLV) &
+						FORCEWAKE_KERNEL),
+					FORCEWAKE_ACK_TIMEOUT_MS))
+			DRM_ERROR("Timed out: waiting for media to ack.\n");
+	}
 
 	/* WaRsForcewakeWaitTC0:vlv */
 	__gen6_gt_wait_for_thread_c0(dev_priv);
+
 }
 
-static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
+static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
+					int fw_engine)
 {
-	__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
-			   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
-			   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+
+	/* Check for Render Engine */
+	if (FORCEWAKE_RENDER & fw_engine)
+		__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
+					_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+
+
+	/* Check for Media Engine */
+	if (FORCEWAKE_MEDIA & fw_engine)
+		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
+				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+
 	/* The below doubles as a POSTING_READ */
 	gen6_gt_check_fifodbg(dev_priv);
+
+}
+
+void vlv_force_wake_get(struct drm_i915_private *dev_priv,
+						int fw_engine)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	if (FORCEWAKE_RENDER & fw_engine) {
+		if (dev_priv->uncore.fw_rendercount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_RENDER);
+	}
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		if (dev_priv->uncore.fw_mediacount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							FORCEWAKE_MEDIA);
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+}
+
+void vlv_force_wake_put(struct drm_i915_private *dev_priv,
+						int fw_engine)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	if (FORCEWAKE_RENDER & fw_engine) {
+		WARN_ON(dev_priv->uncore.fw_rendercount == 0);
+		if (--dev_priv->uncore.fw_rendercount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_RENDER);
+	}
+
+	if (FORCEWAKE_MEDIA & fw_engine) {
+		WARN_ON(dev_priv->uncore.fw_mediacount == 0);
+		if (--dev_priv->uncore.fw_mediacount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							FORCEWAKE_MEDIA);
+	}
+
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void gen6_force_wake_work(struct work_struct *work)
@@ -290,6 +364,10 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
+	/* Redirect to VLV specific routine */
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		return vlv_force_wake_get(dev_priv, fw_engine);
+
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (dev_priv->uncore.forcewake_count++ == 0)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
@@ -305,6 +383,11 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
+
+	/* Redirect to VLV specific routine */
+	if (IS_VALLEYVIEW(dev_priv->dev))
+		return vlv_force_wake_put(dev_priv, fw_engine);
+
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	if (--dev_priv->uncore.forcewake_count == 0) {
@@ -393,6 +476,39 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	REG_READ_FOOTER; \
 }
 
+#define __vlv_read(x) \
+static u##x \
+vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	unsigned fwengine = 0; \
+	unsigned *fwcount = 0; \
+	REG_READ_HEADER(x); \
+	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) {   \
+		fwengine = FORCEWAKE_RENDER;            \
+		fwcount = &dev_priv->uncore.fw_rendercount;    \
+	}                                               \
+	else if (FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)) {       \
+		fwengine = FORCEWAKE_MEDIA;             \
+		fwcount = &dev_priv->uncore.fw_mediacount;     \
+	}  \
+	if (fwengine != 0) {		\
+		if ((*fwcount)++ == 0) \
+			(dev_priv)->uncore.funcs.force_wake_get(dev_priv, \
+								fwengine); \
+		val = __raw_i915_read##x(dev_priv, reg); \
+		if (--(*fwcount) == 0) \
+			(dev_priv)->uncore.funcs.force_wake_put(dev_priv, \
+							FORCEWAKE_ALL); \
+	} else { \
+		val = __raw_i915_read##x(dev_priv, reg); \
+	} \
+	REG_READ_FOOTER; \
+}
+
+
+__vlv_read(8)
+__vlv_read(16)
+__vlv_read(32)
+__vlv_read(64)
 __gen6_read(8)
 __gen6_read(16)
 __gen6_read(32)
@@ -406,6 +522,7 @@ __gen4_read(16)
 __gen4_read(32)
 __gen4_read(64)
 
+#undef __vlv_read
 #undef __gen6_read
 #undef __gen5_read
 #undef __gen4_read
@@ -540,8 +657,8 @@ void intel_uncore_init(struct drm_device *dev)
 			  gen6_force_wake_work);
 
 	if (IS_VALLEYVIEW(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = vlv_force_wake_get;
-		dev_priv->uncore.funcs.force_wake_put = vlv_force_wake_put;
+		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
+		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
 	} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __gen6_gt_force_wake_mt_get;
 		dev_priv->uncore.funcs.force_wake_put = __gen6_gt_force_wake_mt_put;
@@ -607,10 +724,18 @@ void intel_uncore_init(struct drm_device *dev)
 			dev_priv->uncore.funcs.mmio_writel  = gen6_write32;
 			dev_priv->uncore.funcs.mmio_writeq  = gen6_write64;
 		}
-		dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
-		dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
-		dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
-		dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+
+		if (IS_VALLEYVIEW(dev)) {
+			dev_priv->uncore.funcs.mmio_readb  = vlv_read8;
+			dev_priv->uncore.funcs.mmio_readw  = vlv_read16;
+			dev_priv->uncore.funcs.mmio_readl  = vlv_read32;
+			dev_priv->uncore.funcs.mmio_readq  = vlv_read64;
+		} else {
+			dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
+			dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
+			dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
+			dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+		}
 		break;
 	case 5:
 		dev_priv->uncore.funcs.mmio_writeb  = gen5_write8;

@@ -191,7 +191,10 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 	u32 blt_ecoskpd;
 
 	/* Make sure blitter notifies FBC of writes */
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	/* Blitter is part of Media powerwell on VLV. No impact of
+	 * his param in other platforms for now */
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_MEDIA);
 
 	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
 	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
@@ -204,7 +207,7 @@ static void sandybridge_blit_fbc_update(struct drm_device *dev)
 	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
 	POSTING_READ(GEN6_BLITTER_ECOSKPD);
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
 static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)

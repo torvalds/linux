@@ -465,6 +465,9 @@ struct intel_uncore {
 	unsigned fifo_count;
 	unsigned forcewake_count;
 
+	unsigned fw_rendercount;
+	unsigned fw_mediacount;
+
 	struct delayed_work force_wake_work;
 };
 
@@ -2469,6 +2472,20 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
+
+void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
+void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
+
+#define FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg) \
+	(((reg) >= 0x2000 && (reg) < 0x4000) ||\
+	((reg) >= 0x5000 && (reg) < 0x8000) ||\
+	((reg) >= 0xB000 && (reg) < 0x12000) ||\
+	((reg) >= 0x2E000 && (reg) < 0x30000))
+
+#define FORCEWAKE_VLV_MEDIA_RANGE_OFFSET(reg)\
+	(((reg) >= 0x12000 && (reg) < 0x14000) ||\
+	((reg) >= 0x22000 && (reg) < 0x24000) ||\
+	((reg) >= 0x30000 && (reg) < 0x40000))
 
 #define FORCEWAKE_RENDER	(1 << 0)
 #define FORCEWAKE_MEDIA		(1 << 1)
