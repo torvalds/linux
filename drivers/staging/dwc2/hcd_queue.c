@@ -354,7 +354,7 @@ static int dwc2_find_single_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 			return i;
 		}
 	}
-	return -1;
+	return -ENOSPC;
 }
 
 /*
@@ -413,7 +413,7 @@ static int dwc2_find_multi_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 				continue;
 		}
 	}
-	return -1;
+	return -ENOSPC;
 }
 
 static int dwc2_find_uframe(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
@@ -487,12 +487,12 @@ static int dwc2_schedule_periodic(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 			frame = status - 1;
 
 		/* Set the new frame up */
-		if (frame > -1) {
+		if (frame >= 0) {
 			qh->sched_frame &= ~0x7;
 			qh->sched_frame |= (frame & 7);
 		}
 
-		if (status != -1)
+		if (status > 0)
 			status = 0;
 	} else {
 		status = dwc2_periodic_channel_available(hsotg);

@@ -369,7 +369,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 	dwc2_hcd_qtd_init(qtd, urb);
 	retval = dwc2_hcd_qtd_add(hsotg, qtd, (struct dwc2_qh **)ep_handle,
 				  mem_flags);
-	if (retval < 0) {
+	if (retval) {
 		dev_err(hsotg->dev,
 			"DWC OTG HCD URB Enqueue failed adding QTD. Error status %d\n",
 			retval);
@@ -378,7 +378,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 	}
 
 	intr_mask = readl(hsotg->regs + GINTMSK);
-	if (!(intr_mask & GINTSTS_SOF) && retval == 0) {
+	if (!(intr_mask & GINTSTS_SOF)) {
 		enum dwc2_transaction_type tr_type;
 
 		if (qtd->qh->ep_type == USB_ENDPOINT_XFER_BULK &&
@@ -396,7 +396,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 		spin_unlock_irqrestore(&hsotg->lock, flags);
 	}
 
-	return retval;
+	return 0;
 }
 
 /* Must be called with interrupt disabled and spinlock held */
