@@ -429,6 +429,9 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd,
 		return -EINVAL;
 	}
 
+	if (sysfs_type(parent_sd) != SYSFS_DIR)
+		return -EINVAL;
+
 	sd->s_hash = sysfs_name_hash(sd->s_name, sd->s_ns);
 	sd->s_parent = sysfs_get(parent_sd);
 
