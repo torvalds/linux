@@ -2198,10 +2198,8 @@ void dwc2_set_param_host_channels(struct dwc2_hsotg *hsotg, int val)
 
 void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 {
-#ifndef NO_FS_PHY_HW_CHECKS
 	int valid = 0;
 	u32 hs_phy_type, fs_phy_type;
-#endif
 
 	if (DWC2_OUT_OF_BOUNDS(val, DWC2_PHY_TYPE_PARAM_FS,
 			       DWC2_PHY_TYPE_PARAM_ULPI)) {
@@ -2210,15 +2208,9 @@ void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev, "phy_type must be 0, 1 or 2\n");
 		}
 
-#ifndef NO_FS_PHY_HW_CHECKS
 		valid = 0;
-#else
-		val = DWC2_PHY_TYPE_PARAM_FS;
-		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
-#endif
 	}
 
-#ifndef NO_FS_PHY_HW_CHECKS
 	hs_phy_type = hsotg->hw_params.hs_phy_type;
 	fs_phy_type = hsotg->hw_params.fs_phy_type;
 	if (val == DWC2_PHY_TYPE_PARAM_UTMI &&
@@ -2248,7 +2240,6 @@ void dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 		}
 		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
 	}
-#endif
 
 	hsotg->core_params->phy_type = val;
 }
@@ -2411,9 +2402,7 @@ void dwc2_set_param_ts_dline(struct dwc2_hsotg *hsotg, int val)
 
 void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
 {
-#ifndef NO_FS_PHY_HW_CHECKS
 	int valid = 1;
-#endif
 
 	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
 		if (val >= 0) {
@@ -2421,15 +2410,9 @@ void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev, "i2c_enable must be 0 or 1\n");
 		}
 
-#ifndef NO_FS_PHY_HW_CHECKS
 		valid = 0;
-#else
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting i2c_enable to %d\n", val);
-#endif
 	}
 
-#ifndef NO_FS_PHY_HW_CHECKS
 	if (val == 1 && !(hsotg->hw_params.i2c_enable))
 		valid = 0;
 
@@ -2441,7 +2424,6 @@ void dwc2_set_param_i2c_enable(struct dwc2_hsotg *hsotg, int val)
 		val = hsotg->hw_params.i2c_enable;
 		dev_dbg(hsotg->dev, "Setting i2c_enable to %d\n", val);
 	}
-#endif
 
 	hsotg->core_params->i2c_enable = val;
 }
