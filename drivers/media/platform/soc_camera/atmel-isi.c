@@ -725,10 +725,12 @@ static int isi_camera_clock_start(struct soc_camera_host *ici)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(isi->mck);
-	if (ret) {
-		clk_disable_unprepare(isi->pclk);
-		return ret;
+	if (!IS_ERR(isi->mck)) {
+		ret = clk_prepare_enable(isi->mck);
+		if (ret) {
+			clk_disable_unprepare(isi->pclk);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -739,7 +741,8 @@ static void isi_camera_clock_stop(struct soc_camera_host *ici)
 {
 	struct atmel_isi *isi = ici->priv;
 
-	clk_disable_unprepare(isi->mck);
+	if (!IS_ERR(isi->mck))
+		clk_disable_unprepare(isi->mck);
 	clk_disable_unprepare(isi->pclk);
 }
 
@@ -883,7 +886,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	struct isi_platform_data *pdata;
 
 	pdata = dev->platform_data;
-	if (!pdata || !pdata->data_width_flags || !pdata->mck_hz) {
+	if (!pdata || !pdata->data_width_flags) {
 		dev_err(&pdev->dev,
 			"No config available for Atmel ISI\n");
 		return -EINVAL;
@@ -905,17 +908,20 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&isi->video_buffer_list);
 	INIT_LIST_HEAD(&isi->dma_desc_head);
 
-	/* Get ISI_MCK, provided by programmable clock or external clock */
+	/* ISI_MCK is the sensor master clock. It should be handled by the
+	 * sensor driver directly, as the ISI has no use for that clock. Make
+	 * the clock optional here while platforms transition to the correct
+	 * model.
+	 */
 	isi->mck = devm_clk_get(dev, "isi_mck");
-	if (IS_ERR(isi->mck)) {
-		dev_err(dev, "Failed to get isi_mck\n");
-		return PTR_ERR(isi->mck);
+	if (!IS_ERR(isi->mck)) {
+		/* Set ISI_MCK's frequency, it should be faster than pixel
+		 * clock.
+		 */
+		ret = clk_set_rate(isi->mck, pdata->mck_hz);
+		if (ret < 0)
+			return ret;
 	}
-
-	/* Set ISI_MCK's frequency, it should be faster than pixel clock */
-	ret = clk_set_rate(isi->mck, pdata->mck_hz);
-	if (ret < 0)
-		return ret;
 
 	isi->p_fb_descriptors = dma_alloc_coherent(&pdev->dev,
 				sizeof(struct fbd) * MAX_BUFFER_NUM,
