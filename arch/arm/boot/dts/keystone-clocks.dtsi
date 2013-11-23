@@ -31,7 +31,7 @@ clocks {
 		reg-names = "control";
 	};
 
-	ddr3allclk: ddr3apllclk@2620360 {
+	ddr3apllclk: ddr3apllclk@2620360 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
 		clocks = <&refclkddr3a>;
@@ -40,7 +40,7 @@ clocks {
 		reg-names = "control";
 	};
 
-	ddr3bllclk: ddr3bpllclk@2620368 {
+	ddr3bpllclk: ddr3bpllclk@2620368 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
 		clocks = <&refclkddr3b>;
