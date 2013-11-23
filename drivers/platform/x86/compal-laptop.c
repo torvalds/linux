@@ -1026,24 +1026,21 @@ static int compal_probe(struct platform_device *pdev)
 		return 0;
 
 	/* Fan control */
-	data = kzalloc(sizeof(struct compal_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct compal_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	initialize_fan_control_data(data);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &compal_attribute_group);
-	if (err) {
-		kfree(data);
+	if (err)
 		return err;
-	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
 		sysfs_remove_group(&pdev->dev.kobj,
 				&compal_attribute_group);
-		kfree(data);
 		return err;
 	}
 
@@ -1082,8 +1079,6 @@ static int compal_remove(struct platform_device *pdev)
 	data = platform_get_drvdata(pdev);
 	hwmon_device_unregister(data->hwmon_dev);
 	power_supply_unregister(&data->psy);
-
-	kfree(data);
 
 	sysfs_remove_group(&pdev->dev.kobj, &compal_attribute_group);
 
