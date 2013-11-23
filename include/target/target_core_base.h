@@ -517,10 +517,6 @@ struct se_node_acl {
 	u32			acl_index;
 #define MAX_ACL_TAG_SIZE 64
 	char			acl_tag[MAX_ACL_TAG_SIZE];
-	u64			num_cmds;
-	u64			read_bytes;
-	u64			write_bytes;
-	spinlock_t		stats_lock;
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
 	atomic_t		acl_pr_ref_count;
 	struct se_dev_entry	**device_list;

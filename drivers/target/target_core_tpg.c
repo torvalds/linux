@@ -278,7 +278,6 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-	spin_lock_init(&acl->stats_lock);
 	acl->dynamic_node_acl = 1;
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
@@ -406,7 +405,6 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(
 	snprintf(acl->initiatorname, TRANSPORT_IQN_LEN, "%s", initiatorname);
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
-	spin_lock_init(&acl->stats_lock);
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
 
