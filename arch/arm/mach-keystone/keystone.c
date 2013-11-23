@@ -68,6 +68,9 @@ void keystone_restart(enum reboot_mode mode, const char *cmd)
 }
 
 DT_MACHINE_START(KEYSTONE, "Keystone")
+#if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
+	.dma_zone_size	= SZ_2G,
+#endif
 	.smp		= smp_ops(keystone_smp_ops),
 	.init_machine	= keystone_init,
 	.dt_compat	= keystone_match,
