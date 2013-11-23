@@ -79,4 +79,3 @@ int __init keystone_pm_runtime_init(void)
 
 	return 0;
 }
-subsys_initcall(keystone_pm_runtime_init);

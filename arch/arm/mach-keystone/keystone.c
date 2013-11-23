@@ -41,6 +41,7 @@ static void __init keystone_init(void)
 	if (WARN_ON(!keystone_rstctrl))
 		pr_warn("ti,keystone-reset iomap error\n");
 
+	keystone_pm_runtime_init();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
