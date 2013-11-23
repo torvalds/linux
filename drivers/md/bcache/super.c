@@ -739,8 +739,6 @@ static void bcache_device_free(struct bcache_device *d)
 	}
 
 	bio_split_pool_free(&d->bio_split_hook);
-	if (d->unaligned_bvec)
-		mempool_destroy(d->unaligned_bvec);
 	if (d->bio_split)
 		bioset_free(d->bio_split);
 	if (is_vmalloc_addr(d->full_dirty_stripes))
@@ -793,8 +791,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 		return minor;
 
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
-	    !(d->unaligned_bvec = mempool_create_kmalloc_pool(1,
-				sizeof(struct bio_vec) * BIO_MAX_PAGES)) ||
 	    bio_split_pool_init(&d->bio_split_hook) ||
 	    !(d->disk = alloc_disk(1))) {
 		ida_simple_remove(&bcache_minor, minor);

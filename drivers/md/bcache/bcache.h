@@ -279,7 +279,6 @@ struct bcache_device {
 	unsigned long		sectors_dirty_last;
 	long			sectors_dirty_derivative;
 
-	mempool_t		*unaligned_bvec;
 	struct bio_set		*bio_split;
 
 	unsigned		data_csum:1;
