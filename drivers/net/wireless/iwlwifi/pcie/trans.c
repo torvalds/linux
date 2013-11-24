@@ -641,6 +641,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
+	bool hw_rfkill;
 
 	/* tell the device to stop sending interrupts */
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
@@ -681,8 +682,6 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
-	iwl_enable_rfkill_int(trans);
-
 	/* stop and reset the on-board processor */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
@@ -692,6 +691,25 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
 	clear_bit(STATUS_RFKILL, &trans_pcie->status);
+
+	/*
+	 * Even if we stop the HW, we still want the RF kill
+	 * interrupt
+	 */
+	iwl_enable_rfkill_int(trans);
+
+	/*
+	 * Check again since the RF kill state may have changed while
+	 * all the interrupts were disabled, in this case we couldn't
+	 * receive the RF kill interrupt and update the state in the
+	 * op_mode.
+	 */
+	hw_rfkill = iwl_is_rfkill_set(trans);
+	if (hw_rfkill)
+		set_bit(STATUS_RFKILL, &trans_pcie->status);
+	else
+		clear_bit(STATUS_RFKILL, &trans_pcie->status);
+	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 }
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
@@ -806,13 +824,12 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
-				   bool op_mode_leaving)
+static void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	bool hw_rfkill;
 	unsigned long flags;
 
+	/* disable interrupts - don't enable HW RF kill interrupt */
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
@@ -824,27 +841,6 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	iwl_pcie_disable_ict(trans);
-
-	if (!op_mode_leaving) {
-		/*
-		 * Even if we stop the HW, we still want the RF kill
-		 * interrupt
-		 */
-		iwl_enable_rfkill_int(trans);
-
-		/*
-		 * Check again since the RF kill state may have changed while
-		 * all the interrupts were disabled, in this case we couldn't
-		 * receive the RF kill interrupt and update the state in the
-		 * op_mode.
-		 */
-		hw_rfkill = iwl_is_rfkill_set(trans);
-		if (hw_rfkill)
-			set_bit(STATUS_RFKILL, &trans_pcie->status);
-		else
-			clear_bit(STATUS_RFKILL, &trans_pcie->status);
-		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
-	}
 }
 
 static void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val)
@@ -1457,7 +1453,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 
 static const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
-	.stop_hw = iwl_trans_pcie_stop_hw,
+	.op_mode_leave = iwl_trans_pcie_op_mode_leave,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_fw = iwl_trans_pcie_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,

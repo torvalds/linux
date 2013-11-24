@@ -100,8 +100,7 @@
  *	   start_fw
  *
  *	5) Then when finished (or reset):
- *	   stop_fw (a.k.a. stop device for the moment)
- *	   stop_hw
+ *	   stop_device
  *
  *	6) Eventually, the free function will be called.
  */
@@ -361,9 +360,7 @@ struct iwl_trans;
  *
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  *	May sleep
- * @stop_hw: stops the HW- from that point on, the HW will be in low power but
- *	will still issue interrupt if the HW RF kill is triggered unless
- *	op_mode_leaving is true.
+ * @op_mode_leave: Turn off the HW RF kill indication if on
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
@@ -371,8 +368,11 @@ struct iwl_trans;
  * @fw_alive: called when the fw sends alive notification. If the fw provides
  *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
- * @stop_device:stops the whole device (embedded CPU put to reset)
- *	May sleep
+ * @stop_device: stops the whole device (embedded CPU put to reset) and stops
+ *	the HW. From that point on, the HW will be in low power but will still
+ *	issue interrupt if the HW RF kill is triggered. This callback must do
+ *	the right thing and not crash even if start_hw() was called but not
+ *	start_fw(). May sleep
  * @d3_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
@@ -418,7 +418,7 @@ struct iwl_trans;
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
-	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
+	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
@@ -540,15 +540,14 @@ static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 	return trans->ops->start_hw(trans);
 }
 
-static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
-				     bool op_mode_leaving)
+static inline void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	trans->ops->stop_hw(trans, op_mode_leaving);
+	if (trans->ops->op_mode_leave)
+		trans->ops->op_mode_leave(trans);
 
-	if (op_mode_leaving)
-		trans->op_mode = NULL;
+	trans->op_mode = NULL;
 
 	trans->state = IWL_TRANS_NO_FW;
 }

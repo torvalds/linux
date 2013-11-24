@@ -405,7 +405,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
 	iwl_trans_stop_device(mvm->trans);
-	iwl_trans_stop_hw(mvm->trans, false);
 
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
@@ -477,7 +476,6 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&mvm->roc_done_wk);
 
 	iwl_trans_stop_device(mvm->trans);
-	iwl_trans_stop_hw(mvm->trans, false);
 
 	iwl_mvm_async_handlers_purge(mvm);
 	/* async_handlers_list is empty and will stay empty: HW is stopped */
