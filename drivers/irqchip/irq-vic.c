@@ -273,7 +273,6 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->base = base;
 	v->valid_sources = valid_sources;
 	v->resume_sources = resume_sources;
-	v->irq = irq;
 	set_handle_irq(vic_handle_irq);
 	vic_id++;
 	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
@@ -282,6 +281,11 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	for (i = 0; i < fls(valid_sources); i++)
 		if (valid_sources & (1 << i))
 			irq_create_mapping(v->domain, i);
+	/* If no base IRQ was passed, figure out our allocated base */
+	if (irq)
+		v->irq = irq;
+	else
+		v->irq = irq_find_mapping(v->domain, 0);
 }
 
 static void vic_ack_irq(struct irq_data *d)
