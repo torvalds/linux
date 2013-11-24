@@ -341,6 +341,32 @@ struct power_supply *power_supply_get_by_name(const char *name)
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
+#ifdef CONFIG_OF
+static int power_supply_match_device_node(struct device *dev, const void *data)
+{
+	return dev->parent && dev->parent->of_node == data;
+}
+
+struct power_supply *power_supply_get_by_phandle(struct device_node *np,
+							const char *property)
+{
+	struct device_node *power_supply_np;
+	struct device *dev;
+
+	power_supply_np = of_parse_phandle(np, property, 0);
+	if (!power_supply_np)
+		return ERR_PTR(-ENODEV);
+
+	dev = class_find_device(power_supply_class, NULL, power_supply_np,
+						power_supply_match_device_node);
+
+	of_node_put(power_supply_np);
+
+	return dev ? dev_get_drvdata(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(power_supply_get_by_phandle);
+#endif /* CONFIG_OF */
+
 int power_supply_powers(struct power_supply *psy, struct device *dev)
 {
 	return sysfs_create_link(&psy->dev->kobj, &dev->kobj, "powers");
