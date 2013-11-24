@@ -697,7 +697,6 @@ struct vnt_private {
 	u8 byBBPreEDIndex;
 
 	int bRadioCmd;
-	u32 dwDiagRefCount;
 
 	/* For FOE Tuning */
 	u8  byFOETuning;

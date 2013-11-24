@@ -740,9 +740,6 @@ int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
 	int ret = true;
 	u8 power = priv->byCCKPwr;
 
-	if (priv->dwDiagRefCount)
-		return true;
-
 	if (channel == 0)
 		return -EINVAL;
 

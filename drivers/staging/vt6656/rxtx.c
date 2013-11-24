@@ -978,28 +978,19 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 			bSoftWEP = true; /* WEP 256 */
 	}
 
-    // Get pkt type
-    if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN) {
-        if (pDevice->dwDiagRefCount == 0) {
-            cb802_1_H_len = 8;
-        } else {
-            cb802_1_H_len = 2;
-        }
-    } else {
-        cb802_1_H_len = 0;
-    }
+	/* Get pkt type */
+	if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN)
+		cb802_1_H_len = 8;
+	else
+		cb802_1_H_len = 0;
 
     cbFrameBodySize = uSkbPacketLen - ETH_HLEN + cb802_1_H_len;
 
     //Set packet type
     pTxBufHead->wFIFOCtl |= (u16)(byPktType<<8);
 
-    if (pDevice->dwDiagRefCount != 0) {
-        bNeedACK = false;
-        pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
-    } else { //if (pDevice->dwDiagRefCount != 0) {
 	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
+			(pDevice->eOPMode == OP_MODE_AP)) {
 		if (is_multicast_ether_addr(psEthHeader->h_dest)) {
 			bNeedACK = false;
 			pTxBufHead->wFIFOCtl =
@@ -1008,13 +999,11 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 			bNeedACK = true;
 			pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
 		}
-        }
-        else {
-            // MSDUs in Infra mode always need ACK
-            bNeedACK = true;
-            pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
-        }
-    } //if (pDevice->dwDiagRefCount != 0) {
+	} else {
+		/* MSDUs in Infra mode always need ACK */
+		bNeedACK = true;
+		pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
+	}
 
     pTxBufHead->wTimeStamp = DEFAULT_MSDU_LIFETIME_RES_64us;
 
@@ -1183,24 +1172,19 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         }
     }
 
-    // 802.1H
-    if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN) {
-	if (pDevice->dwDiagRefCount == 0) {
+	/* 802.1H */
+	if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN) {
 		if ((psEthHeader->h_proto == cpu_to_be16(ETH_P_IPX)) ||
-		    (psEthHeader->h_proto == cpu_to_le16(0xF380))) {
+			(psEthHeader->h_proto == cpu_to_le16(0xF380)))
 			memcpy((u8 *) (pbyPayloadHead),
-			       abySNAP_Bridgetunnel, 6);
-            } else {
-                memcpy((u8 *) (pbyPayloadHead), &abySNAP_RFC1042[0], 6);
-            }
-            pbyType = (u8 *) (pbyPayloadHead + 6);
-            memcpy(pbyType, &(psEthHeader->h_proto), sizeof(u16));
-        } else {
-            memcpy((u8 *) (pbyPayloadHead), &(psEthHeader->h_proto), sizeof(u16));
+					abySNAP_Bridgetunnel, 6);
+		else
+			memcpy((u8 *) (pbyPayloadHead), &abySNAP_RFC1042[0], 6);
 
-        }
+		pbyType = (u8 *) (pbyPayloadHead + 6);
 
-    }
+		memcpy(pbyType, &(psEthHeader->h_proto), sizeof(u16));
+	}
 
     if (pPacket != NULL) {
         // Copy the Packet into a tx Buffer

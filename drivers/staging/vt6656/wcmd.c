@@ -283,8 +283,6 @@ void vRunCommand(struct work_struct *work)
 	if (pDevice->Flags & fMP_DISCONNECTED)
 		return;
 
-	if (pDevice->dwDiagRefCount != 0)
-		return;
 	if (pDevice->bCmdRunning != true)
 		return;
 
