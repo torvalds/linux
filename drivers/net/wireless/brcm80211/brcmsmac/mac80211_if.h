@@ -88,26 +88,26 @@ struct brcms_info {
 };
 
 /* misc callbacks */
-extern void brcms_init(struct brcms_info *wl);
-extern uint brcms_reset(struct brcms_info *wl);
-extern void brcms_intrson(struct brcms_info *wl);
-extern u32 brcms_intrsoff(struct brcms_info *wl);
-extern void brcms_intrsrestore(struct brcms_info *wl, u32 macintmask);
-extern int brcms_up(struct brcms_info *wl);
-extern void brcms_down(struct brcms_info *wl);
-extern void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
-				bool state, int prio);
-extern bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
+void brcms_init(struct brcms_info *wl);
+uint brcms_reset(struct brcms_info *wl);
+void brcms_intrson(struct brcms_info *wl);
+u32 brcms_intrsoff(struct brcms_info *wl);
+void brcms_intrsrestore(struct brcms_info *wl, u32 macintmask);
+int brcms_up(struct brcms_info *wl);
+void brcms_down(struct brcms_info *wl);
+void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
+			 bool state, int prio);
+bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
 
 /* timer functions */
-extern struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
-				      void (*fn) (void *arg), void *arg,
-				      const char *name);
-extern void brcms_free_timer(struct brcms_timer *timer);
-extern void brcms_add_timer(struct brcms_timer *timer, uint ms, int periodic);
-extern bool brcms_del_timer(struct brcms_timer *timer);
-extern void brcms_dpc(unsigned long data);
-extern void brcms_timer(struct brcms_timer *t);
-extern void brcms_fatal_error(struct brcms_info *wl);
+struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
+				     void (*fn) (void *arg), void *arg,
+				     const char *name);
+void brcms_free_timer(struct brcms_timer *timer);
+void brcms_add_timer(struct brcms_timer *timer, uint ms, int periodic);
+bool brcms_del_timer(struct brcms_timer *timer);
+void brcms_dpc(unsigned long data);
+void brcms_timer(struct brcms_timer *t);
+void brcms_fatal_error(struct brcms_info *wl);
 
 #endif				/* _BRCM_MAC80211_IF_H_ */

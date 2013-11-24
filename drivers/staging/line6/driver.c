@@ -205,7 +205,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 			__func__, retval);
 		usb_free_urb(urb);
 		kfree(msg);
-		return -EINVAL;
+		return retval;
 	}
 
 	return 0;
@@ -340,7 +340,7 @@ static void line6_data_received(struct urb *urb)
 		line6->message_length = done;
 		line6_midi_receive(line6, line6->buffer_message, done);
 
-		switch (line6->usbdev->descriptor.idProduct) {
+		switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
 		case LINE6_DEVID_BASSPODXT:
 		case LINE6_DEVID_BASSPODXTLIVE:
 		case LINE6_DEVID_BASSPODXTPRO:
@@ -1010,7 +1010,7 @@ static void line6_disconnect(struct usb_interface *interface)
 			dev_err(line6->ifcdev,
 				"driver bug: inconsistent usb device\n");
 
-		switch (line6->usbdev->descriptor.idProduct) {
+		switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
 		case LINE6_DEVID_BASSPODXT:
 		case LINE6_DEVID_BASSPODXTLIVE:
 		case LINE6_DEVID_BASSPODXTPRO:
@@ -1114,7 +1114,7 @@ static int line6_reset_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
-	switch (line6->usbdev->descriptor.idProduct) {
+	switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
 	case LINE6_DEVID_PODSTUDIO_GX:
 	case LINE6_DEVID_PODSTUDIO_UX1:
 	case LINE6_DEVID_PODSTUDIO_UX2:

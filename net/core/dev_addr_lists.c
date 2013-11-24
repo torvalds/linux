@@ -752,7 +752,7 @@ int dev_mc_del_global(struct net_device *dev, const unsigned char *addr)
 EXPORT_SYMBOL(dev_mc_del_global);
 
 /**
- *	dev_mc_sync - Synchronize device's unicast list to another device
+ *	dev_mc_sync - Synchronize device's multicast list to another device
  *	@to: destination device
  *	@from: source device
  *
@@ -780,7 +780,7 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_mc_sync);
 
 /**
- *	dev_mc_sync_multiple - Synchronize device's unicast list to another
+ *	dev_mc_sync_multiple - Synchronize device's multicast list to another
  *	device, but allow for multiple calls to sync to multiple devices.
  *	@to: destination device
  *	@from: source device

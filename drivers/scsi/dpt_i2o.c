@@ -448,19 +448,8 @@ static int adpt_queue_lck(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd
 	}
 
 	rmb();
-	/*
-	 * TODO: I need to block here if I am processing ioctl cmds
-	 * but if the outstanding cmds all finish before the ioctl,
-	 * the scsi-core will not know to start sending cmds to me again.
-	 * I need to a way to restart the scsi-cores queues or should I block
-	 * calling scsi_done on the outstanding cmds instead
-	 * for now we don't set the IOCTL state
-	 */
-	if(((pHba->state) & DPTI_STATE_IOCTL) || ((pHba->state) & DPTI_STATE_RESET)) {
-		pHba->host->last_reset = jiffies;
-		pHba->host->resetting = 1;
-		return 1;
-	}
+	if ((pHba->state) & DPTI_STATE_RESET)
+		return SCSI_MLQUEUE_HOST_BUSY;
 
 	// TODO if the cmd->device if offline then I may need to issue a bus rescan
 	// followed by a get_lct to see if the device is there anymore
@@ -1811,21 +1800,23 @@ static int adpt_i2o_passthru(adpt_hba* pHba, u32 __user *arg)
 	}
 
 	do {
-		if(pHba->host)
+		/*
+		 * Stop any new commands from enterring the
+		 * controller while processing the ioctl
+		 */
+		if (pHba->host) {
+			scsi_block_requests(pHba->host);
 			spin_lock_irqsave(pHba->host->host_lock, flags);
-		// This state stops any new commands from enterring the
-		// controller while processing the ioctl
-//		pHba->state |= DPTI_STATE_IOCTL;
-//		We can't set this now - The scsi subsystem sets host_blocked and
-//		the queue empties and stops.  We need a way to restart the queue
+		}
 		rcode = adpt_i2o_post_wait(pHba, msg, size, FOREVER);
 		if (rcode != 0)
 			printk("adpt_i2o_passthru: post wait failed %d %p\n",
 					rcode, reply);
-//		pHba->state &= ~DPTI_STATE_IOCTL;
-		if(pHba->host)
+		if (pHba->host) {
 			spin_unlock_irqrestore(pHba->host->host_lock, flags);
-	} while(rcode == -ETIMEDOUT);  
+			scsi_unblock_requests(pHba->host);
+		}
+	} while (rcode == -ETIMEDOUT);
 
 	if(rcode){
 		goto cleanup;

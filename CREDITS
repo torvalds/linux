@@ -2576,7 +2576,7 @@ S: Toronto, Ontario
 S: Canada
 
 N: Zwane Mwaikambo
-E: zwane@arm.linux.org.uk
+E: zwanem@gmail.com
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
 D: General debugging
@@ -2895,6 +2895,11 @@ S: Framewood Road
 S: Wexham SL3 6PJ
 S: United Kingdom
 
+N: Richard Purdie
+E: rpurdie@rpsys.net
+D: Backlight subsystem maintainer
+S: United Kingdom
+
 N: Daniel Quinlan
 E: quinlan@pathname.com
 W: http://www.pathname.com/~quinlan/
@@ -3151,6 +3156,11 @@ S: France
 N: Dipankar Sarma
 E: dipankar@in.ibm.com
 D: RCU
+
+N: Yoshinori Sato
+E: ysato@users.sourceforge.jp
+D: uClinux for Renesas H8/300 (H8300)
+D: http://uclinux-h8.sourceforge.jp/
 
 N: Hannu Savolainen
 E: hannu@opensound.com

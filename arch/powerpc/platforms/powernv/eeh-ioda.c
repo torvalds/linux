@@ -59,26 +59,60 @@ static struct notifier_block ioda_eeh_nb = {
 };
 
 #ifdef CONFIG_DEBUG_FS
-static int ioda_eeh_dbgfs_set(void *data, u64 val)
+static int ioda_eeh_dbgfs_set(void *data, int offset, u64 val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	out_be64(phb->regs + 0xD10, val);
+	out_be64(phb->regs + offset, val);
 	return 0;
 }
 
-static int ioda_eeh_dbgfs_get(void *data, u64 *val)
+static int ioda_eeh_dbgfs_get(void *data, int offset, u64 *val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	*val = in_be64(phb->regs + 0xD10);
+	*val = in_be64(phb->regs + offset);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_dbgfs_ops, ioda_eeh_dbgfs_get,
-			ioda_eeh_dbgfs_set, "0x%llx\n");
+static int ioda_eeh_outb_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD10, val);
+}
+
+static int ioda_eeh_outb_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD10, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xE10, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xE10, val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_outb_dbgfs_ops, ioda_eeh_outb_dbgfs_get,
+			ioda_eeh_outb_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbA_dbgfs_ops, ioda_eeh_inbA_dbgfs_get,
+			ioda_eeh_inbA_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbB_dbgfs_ops, ioda_eeh_inbB_dbgfs_get,
+			ioda_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
 
 /**
@@ -106,27 +140,30 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 		ioda_eeh_nb_init = 1;
 	}
 
-	/* FIXME: Enable it for PHB3 later */
-	if (phb->type == PNV_PHB_IODA1) {
+	/* We needn't HUB diag-data on PHB3 */
+	if (phb->type == PNV_PHB_IODA1 && !hub_diag) {
+		hub_diag = (char *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 		if (!hub_diag) {
-			hub_diag = (char *)__get_free_page(GFP_KERNEL |
-							   __GFP_ZERO);
-			if (!hub_diag) {
-				pr_err("%s: Out of memory !\n",
-				       __func__);
-				return -ENOMEM;
-			}
+			pr_err("%s: Out of memory !\n", __func__);
+			return -ENOMEM;
 		}
+	}
 
 #ifdef CONFIG_DEBUG_FS
-		if (phb->dbgfs)
-			debugfs_create_file("err_injct", 0600,
-					    phb->dbgfs, hose,
-					    &ioda_eeh_dbgfs_ops);
+	if (phb->dbgfs) {
+		debugfs_create_file("err_injct_outbound", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_outb_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundA", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbA_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundB", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbB_dbgfs_ops);
+	}
 #endif
 
-		phb->eeh_state |= PNV_EEH_STATE_ENABLED;
-	}
+	phb->eeh_state |= PNV_EEH_STATE_ENABLED;
 
 	return 0;
 }
@@ -546,8 +583,8 @@ static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
 			phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
 	if (ret) {
 		spin_unlock_irqrestore(&phb->lock, flags);
-		pr_warning("%s: Failed to get log for PHB#%x-PE#%x\n",
-			   __func__, hose->global_number, pe->addr);
+		pr_warning("%s: Can't get log for PHB#%x-PE#%x (%lld)\n",
+			   __func__, hose->global_number, pe->addr, ret);
 		return -EIO;
 	}
 
@@ -710,6 +747,73 @@ static void ioda_eeh_p7ioc_phb_diag(struct pci_controller *hose,
 	}
 }
 
+static void ioda_eeh_phb3_phb_diag(struct pci_controller *hose,
+				    struct OpalIoPhbErrorCommon *common)
+{
+	struct OpalIoPhb3ErrorData *data;
+	int i;
+
+	data = (struct OpalIoPhb3ErrorData*)common;
+	pr_info("PHB3 PHB#%x Diag-data (Version: %d)\n\n",
+		hose->global_number, common->version);
+
+	pr_info("  brdgCtl:              %08x\n", data->brdgCtl);
+
+	pr_info("  portStatusReg:        %08x\n", data->portStatusReg);
+	pr_info("  rootCmplxStatus:      %08x\n", data->rootCmplxStatus);
+	pr_info("  busAgentStatus:       %08x\n", data->busAgentStatus);
+
+	pr_info("  deviceStatus:         %08x\n", data->deviceStatus);
+	pr_info("  slotStatus:           %08x\n", data->slotStatus);
+	pr_info("  linkStatus:           %08x\n", data->linkStatus);
+	pr_info("  devCmdStatus:         %08x\n", data->devCmdStatus);
+	pr_info("  devSecStatus:         %08x\n", data->devSecStatus);
+
+	pr_info("  rootErrorStatus:      %08x\n", data->rootErrorStatus);
+	pr_info("  uncorrErrorStatus:    %08x\n", data->uncorrErrorStatus);
+	pr_info("  corrErrorStatus:      %08x\n", data->corrErrorStatus);
+	pr_info("  tlpHdr1:              %08x\n", data->tlpHdr1);
+	pr_info("  tlpHdr2:              %08x\n", data->tlpHdr2);
+	pr_info("  tlpHdr3:              %08x\n", data->tlpHdr3);
+	pr_info("  tlpHdr4:              %08x\n", data->tlpHdr4);
+	pr_info("  sourceId:             %08x\n", data->sourceId);
+	pr_info("  errorClass:           %016llx\n", data->errorClass);
+	pr_info("  correlator:           %016llx\n", data->correlator);
+	pr_info("  nFir:                 %016llx\n", data->nFir);
+	pr_info("  nFirMask:             %016llx\n", data->nFirMask);
+	pr_info("  nFirWOF:              %016llx\n", data->nFirWOF);
+	pr_info("  PhbPlssr:             %016llx\n", data->phbPlssr);
+	pr_info("  PhbCsr:               %016llx\n", data->phbCsr);
+	pr_info("  lemFir:               %016llx\n", data->lemFir);
+	pr_info("  lemErrorMask:         %016llx\n", data->lemErrorMask);
+	pr_info("  lemWOF:               %016llx\n", data->lemWOF);
+	pr_info("  phbErrorStatus:       %016llx\n", data->phbErrorStatus);
+	pr_info("  phbFirstErrorStatus:  %016llx\n", data->phbFirstErrorStatus);
+	pr_info("  phbErrorLog0:         %016llx\n", data->phbErrorLog0);
+	pr_info("  phbErrorLog1:         %016llx\n", data->phbErrorLog1);
+	pr_info("  mmioErrorStatus:      %016llx\n", data->mmioErrorStatus);
+	pr_info("  mmioFirstErrorStatus: %016llx\n", data->mmioFirstErrorStatus);
+	pr_info("  mmioErrorLog0:        %016llx\n", data->mmioErrorLog0);
+	pr_info("  mmioErrorLog1:        %016llx\n", data->mmioErrorLog1);
+	pr_info("  dma0ErrorStatus:      %016llx\n", data->dma0ErrorStatus);
+	pr_info("  dma0FirstErrorStatus: %016llx\n", data->dma0FirstErrorStatus);
+	pr_info("  dma0ErrorLog0:        %016llx\n", data->dma0ErrorLog0);
+	pr_info("  dma0ErrorLog1:        %016llx\n", data->dma0ErrorLog1);
+	pr_info("  dma1ErrorStatus:      %016llx\n", data->dma1ErrorStatus);
+	pr_info("  dma1FirstErrorStatus: %016llx\n", data->dma1FirstErrorStatus);
+	pr_info("  dma1ErrorLog0:        %016llx\n", data->dma1ErrorLog0);
+	pr_info("  dma1ErrorLog1:        %016llx\n", data->dma1ErrorLog1);
+
+	for (i = 0; i < OPAL_PHB3_NUM_PEST_REGS; i++) {
+		if ((data->pestA[i] >> 63) == 0 &&
+		    (data->pestB[i] >> 63) == 0)
+			continue;
+
+		pr_info("  PE[%3d] PESTA:        %016llx\n", i, data->pestA[i]);
+		pr_info("          PESTB:        %016llx\n", data->pestB[i]);
+	}
+}
+
 static void ioda_eeh_phb_diag(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
@@ -727,6 +831,9 @@ static void ioda_eeh_phb_diag(struct pci_controller *hose)
 	switch (common->ioType) {
 	case OPAL_PHB_ERROR_DATA_TYPE_P7IOC:
 		ioda_eeh_p7ioc_phb_diag(hose, common);
+		break;
+	case OPAL_PHB_ERROR_DATA_TYPE_PHB3:
+		ioda_eeh_phb3_phb_diag(hose, common);
 		break;
 	default:
 		pr_warning("%s: Unrecognized I/O chip %d\n",

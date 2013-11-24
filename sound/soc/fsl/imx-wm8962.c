@@ -215,7 +215,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		goto fail;
 	}
 	codec_dev = of_find_i2c_device_by_node(codec_np);
-	if (!codec_dev || !codec_dev->driver) {
+	if (!codec_dev || !codec_dev->dev.driver) {
 		dev_err(&pdev->dev, "failed to find codec platform device\n");
 		ret = -EINVAL;
 		goto fail;
@@ -279,8 +279,7 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	return 0;
 
 clk_fail:
-	if (!IS_ERR(data->codec_clk))
-		clk_disable_unprepare(data->codec_clk);
+	clk_disable_unprepare(data->codec_clk);
 fail:
 	if (ssi_np)
 		of_node_put(ssi_np);

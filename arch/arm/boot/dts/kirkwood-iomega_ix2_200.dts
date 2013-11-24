@@ -113,31 +113,6 @@
 			status = "ok";
 		};
 
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "u-boot";
-				reg = <0x0000000 0x100000>;
-				read-only;
-			};
-
-			partition@a0000 {
-				label = "env";
-				reg = <0xa0000 0x20000>;
-				read-only;
-			};
-
-			partition@100000 {
-				label = "uImage";
-				reg = <0x100000 0x300000>;
-			};
-
-			partition@400000 {
-				label = "uInitrd";
-				reg = <0x540000 0x1000000>;
-			};
-		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
@@ -192,6 +167,32 @@
 			linux,code = <133>;
 			gpios = <&gpio1 3 1>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@a0000 {
+		label = "env";
+		reg = <0xa0000 0x20000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x100000 0x300000>;
+	};
+
+	partition@400000 {
+		label = "uInitrd";
+		reg = <0x540000 0x1000000>;
 	};
 };
 

@@ -341,8 +341,7 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 	ctx->xt->dir = DMA_MEM_TO_MEM;
 	ctx->xt->src_sgl = false;
 	ctx->xt->dst_sgl = true;
-	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT |
-		DMA_COMPL_SKIP_DEST_UNMAP | DMA_COMPL_SKIP_SRC_UNMAP;
+	flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
 	tx = dmadev->device_prep_interleaved_dma(chan, ctx->xt, flags);
 	if (tx == NULL) {
@@ -1084,8 +1083,7 @@ free_dev:
 
 static int deinterlace_remove(struct platform_device *pdev)
 {
-	struct deinterlace_dev *pcdev =
-		(struct deinterlace_dev *)platform_get_drvdata(pdev);
+	struct deinterlace_dev *pcdev = platform_get_drvdata(pdev);
 
 	v4l2_info(&pcdev->v4l2_dev, "Removing " MEM2MEM_TEST_MODULE_NAME);
 	v4l2_m2m_release(pcdev->m2m_dev);

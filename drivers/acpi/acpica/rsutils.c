@@ -784,7 +784,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 
 	acpi_ut_remove_reference(args[0]);
 
-      cleanup:
+cleanup:
 	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }

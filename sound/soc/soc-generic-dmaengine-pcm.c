@@ -25,7 +25,7 @@
 #include <sound/dmaengine_pcm.h>
 
 struct dmaengine_pcm {
-	struct dma_chan *chan[SNDRV_PCM_STREAM_CAPTURE + 1];
+	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
 	const struct snd_dmaengine_pcm_config *config;
 	struct snd_soc_platform platform;
 	unsigned int flags;
@@ -89,6 +89,8 @@ static int dmaengine_pcm_hw_params(struct snd_pcm_substream *substream,
 			struct dma_slave_config *slave_config);
 	struct dma_slave_config slave_config;
 	int ret;
+
+	memset(&slave_config, 0, sizeof(slave_config));
 
 	if (!pcm->config)
 		prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config;
@@ -228,7 +230,7 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		}
 
 		ret = snd_pcm_lib_preallocate_pages(substream,
-				SNDRV_DMA_TYPE_DEV,
+				SNDRV_DMA_TYPE_DEV_IRAM,
 				dmaengine_dma_dev(pcm, substream),
 				prealloc_buffer_size,
 				max_buffer_size);

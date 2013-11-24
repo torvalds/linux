@@ -208,7 +208,7 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 		pxa_ac97_warm_pxa3xx();
 	else
 #endif
-		BUG();
+		snd_BUG();
 
 	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);
@@ -245,7 +245,7 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 		pxa_ac97_cold_pxa3xx();
 	else
 #endif
-		BUG();
+		snd_BUG();
 
 	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);

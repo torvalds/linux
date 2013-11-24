@@ -3663,6 +3663,27 @@ void cifs_oplock_break(struct work_struct *work)
 	}
 }
 
+/*
+ * The presence of cifs_direct_io() in the address space ops vector
+ * allowes open() O_DIRECT flags which would have failed otherwise.
+ *
+ * In the non-cached mode (mount with cache=none), we shunt off direct read and write requests
+ * so this method should never be called.
+ *
+ * Direct IO is not yet supported in the cached mode. 
+ */
+static ssize_t
+cifs_direct_io(int rw, struct kiocb *iocb, const struct iovec *iov,
+               loff_t pos, unsigned long nr_segs)
+{
+        /*
+         * FIXME
+         * Eventually need to support direct IO for non forcedirectio mounts
+         */
+        return -EINVAL;
+}
+
+
 const struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
 	.readpages = cifs_readpages,
@@ -3672,6 +3693,7 @@ const struct address_space_operations cifs_addr_ops = {
 	.write_end = cifs_write_end,
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
+	.direct_IO = cifs_direct_io,
 	.invalidatepage = cifs_invalidate_page,
 	.launder_page = cifs_launder_page,
 };

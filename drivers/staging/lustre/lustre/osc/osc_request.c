@@ -2554,7 +2554,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		}
 
 		req_capsule_set_size(&req->rq_pill, &RMF_DLM_LVB, RCL_SERVER,
-				     sizeof *lvb);
+				     sizeof(*lvb));
 		ptlrpc_request_set_replen(req);
 	}
 

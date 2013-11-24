@@ -933,10 +933,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		ttl = iph6->hop_limit;
 	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
+	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_SIT);
+	if (IS_ERR(skb))
+		goto out;
 
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
 			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
@@ -946,8 +945,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
-	dev->stats.tx_errors++;
 	dev_kfree_skb(skb);
+out:
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -956,12 +956,14 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 
-	if (likely(!skb->encapsulation)) {
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
-	}
+	skb = iptunnel_handle_offloads(skb, false, SKB_GSO_IPIP);
+	if (IS_ERR(skb))
+		goto out;
 
 	ip_tunnel_xmit(skb, dev, tiph, IPPROTO_IPIP);
+	return NETDEV_TX_OK;
+out:
+	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
 
@@ -1292,6 +1294,12 @@ static void ipip6_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+#define SIT_FEATURES (NETIF_F_SG	   | \
+		      NETIF_F_FRAGLIST	   | \
+		      NETIF_F_HIGHDMA	   | \
+		      NETIF_F_GSO_SOFTWARE | \
+		      NETIF_F_HW_CSUM)
+
 static void ipip6_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip6_netdev_ops;
@@ -1305,11 +1313,14 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
+	dev->features		|= SIT_FEATURES;
+	dev->hw_features	|= SIT_FEATURES;
 }
 
 static int ipip6_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	int i;
 
 	tunnel->dev = dev;
 	tunnel->net = dev_net(dev);
@@ -1322,6 +1333,12 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipip6_tunnel_stats;
+		ipip6_tunnel_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipip6_tunnel_stats->syncp);
+	}
+
 	return 0;
 }
 
@@ -1331,6 +1348,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	struct iphdr *iph = &tunnel->parms.iph;
 	struct net *net = dev_net(dev);
 	struct sit_net *sitn = net_generic(net, sit_net_id);
+	int i;
 
 	tunnel->dev = dev;
 	tunnel->net = dev_net(dev);
@@ -1344,6 +1362,13 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipip6_fb_stats;
+		ipip6_fb_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipip6_fb_stats->syncp);
+	}
+
 	dev_hold(dev);
 	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;
@@ -1594,6 +1619,15 @@ static const struct nla_policy ipip6_policy[IFLA_IPTUN_MAX + 1] = {
 #endif
 };
 
+static void ipip6_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct net *net = dev_net(dev);
+	struct sit_net *sitn = net_generic(net, sit_net_id);
+
+	if (dev != sitn->fb_tunnel_dev)
+		unregister_netdevice_queue(dev, head);
+}
+
 static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.kind		= "sit",
 	.maxtype	= IFLA_IPTUN_MAX,
@@ -1605,6 +1639,7 @@ static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.changelink	= ipip6_changelink,
 	.get_size	= ipip6_get_size,
 	.fill_info	= ipip6_fill_info,
+	.dellink	= ipip6_dellink,
 };
 
 static struct xfrm_tunnel sit_handler __read_mostly = {
@@ -1619,9 +1654,10 @@ static struct xfrm_tunnel ipip_handler __read_mostly = {
 	.priority	=	2,
 };
 
-static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
+static void __net_exit sit_destroy_tunnels(struct net *net,
+					   struct list_head *head)
 {
-	struct net *net = dev_net(sitn->fb_tunnel_dev);
+	struct sit_net *sitn = net_generic(net, sit_net_id);
 	struct net_device *dev, *aux;
 	int prio;
 
@@ -1696,11 +1732,10 @@ err_alloc_dev:
 
 static void __net_exit sit_exit_net(struct net *net)
 {
-	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	sit_destroy_tunnels(sitn, &list);
+	sit_destroy_tunnels(net, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }

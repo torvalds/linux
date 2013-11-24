@@ -259,7 +259,7 @@ static int ux500_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	clk = clk_get(&pdev->dev, "usb");
+	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
@@ -376,16 +376,9 @@ static int ux500_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops ux500_pm_ops = {
-	.suspend	= ux500_suspend,
-	.resume		= ux500_resume,
-};
-
-#define DEV_PM_OPS	(&ux500_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ux500_pm_ops, ux500_suspend, ux500_resume);
 
 static const struct of_device_id ux500_match[] = {
         { .compatible = "stericsson,db8500-musb", },
@@ -397,7 +390,7 @@ static struct platform_driver ux500_driver = {
 	.remove		= ux500_remove,
 	.driver		= {
 		.name	= "musb-ux500",
-		.pm	= DEV_PM_OPS,
+		.pm	= &ux500_pm_ops,
 		.of_match_table = ux500_match,
 	},
 };

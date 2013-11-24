@@ -1159,18 +1159,23 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		/* If the caller supplied the value we can use it safely. */
 		memcpy(async->work_buf, map->work_buf, map->format.pad_bytes +
 		       map->format.reg_bytes + map->format.val_bytes);
-		if (val == work_val)
-			val = async->work_buf + map->format.pad_bytes +
-				map->format.reg_bytes;
 
 		spin_lock_irqsave(&map->async_lock, flags);
 		list_add_tail(&async->list, &map->async_list);
 		spin_unlock_irqrestore(&map->async_lock, flags);
 
-		ret = map->bus->async_write(map->bus_context, async->work_buf,
-					    map->format.reg_bytes +
-					    map->format.pad_bytes,
-					    val, val_len, async);
+		if (val != work_val)
+			ret = map->bus->async_write(map->bus_context,
+						    async->work_buf,
+						    map->format.reg_bytes +
+						    map->format.pad_bytes,
+						    val, val_len, async);
+		else
+			ret = map->bus->async_write(map->bus_context,
+						    async->work_buf,
+						    map->format.reg_bytes +
+						    map->format.pad_bytes +
+						    val_len, NULL, 0, async);
 
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to schedule write: %d\n",
@@ -1539,10 +1544,10 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 	 */
 	if (map->use_single_rw) {
 		for (i = 0; i < val_count; i++) {
-			ret = regmap_raw_write(map,
-					       reg + (i * map->reg_stride),
-					       val + (i * val_bytes),
-					       val_bytes);
+			ret = _regmap_raw_write(map,
+						reg + (i * map->reg_stride),
+						val + (i * val_bytes),
+						val_bytes);
 			if (ret != 0)
 				return ret;
 		}
@@ -1558,6 +1563,47 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_write);
+
+/*
+ * regmap_multi_reg_write(): Write multiple registers to the device
+ *
+ * where the set of register are supplied in any order
+ *
+ * @map: Register map to write to
+ * @regs: Array of structures containing register,value to be written
+ * @num_regs: Number of registers to write
+ *
+ * This function is intended to be used for writing a large block of data
+ * atomically to the device in single transfer for those I2C client devices
+ * that implement this alternative block write mode.
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_multi_reg_write(struct regmap *map, struct reg_default *regs,
+				int num_regs)
+{
+	int ret = 0, i;
+
+	for (i = 0; i < num_regs; i++) {
+		int reg = regs[i].reg;
+		if (reg % map->reg_stride)
+			return -EINVAL;
+	}
+
+	map->lock(map->lock_arg);
+
+	for (i = 0; i < num_regs; i++) {
+		ret = _regmap_write(map, regs[i].reg, regs[i].def);
+		if (ret != 0)
+			goto out;
+	}
+out:
+	map->unlock(map->lock_arg);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_multi_reg_write);
 
 /**
  * regmap_raw_write_async(): Write raw values to one or more registers
@@ -2132,6 +2178,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	bypass = map->cache_bypass;
 
 	map->cache_bypass = true;
+	map->async = true;
 
 	/* Write out first; it's useful to apply even if we fail later. */
 	for (i = 0; i < num_regs; i++) {
@@ -2155,9 +2202,12 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	}
 
 out:
+	map->async = false;
 	map->cache_bypass = bypass;
 
 	map->unlock(map->lock_arg);
+
+	regmap_async_complete(map);
 
 	return ret;
 }

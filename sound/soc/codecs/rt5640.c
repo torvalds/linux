@@ -1604,8 +1604,8 @@ static int rt5640_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-	unsigned int val_len = 0, val_clk, mask_clk, dai_sel;
-	int pre_div, bclk_ms, frame_size;
+	unsigned int val_len = 0, val_clk, mask_clk;
+	int dai_sel, pre_div, bclk_ms, frame_size;
 
 	rt5640->lrck[dai->id] = params_rate(params);
 	pre_div = get_clk_info(rt5640->sysclk, rt5640->lrck[dai->id]);
@@ -1675,7 +1675,8 @@ static int rt5640_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
-	unsigned int reg_val = 0, dai_sel;
+	unsigned int reg_val = 0;
+	int dai_sel;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:

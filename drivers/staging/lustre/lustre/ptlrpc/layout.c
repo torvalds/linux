@@ -1669,7 +1669,7 @@ void req_capsule_init(struct req_capsule *pill,
 	if (req != NULL && pill == &req->rq_pill && req->rq_pill_init)
 		return;
 
-	memset(pill, 0, sizeof *pill);
+	memset(pill, 0, sizeof(*pill));
 	pill->rc_req = req;
 	pill->rc_loc = location;
 	req_capsule_init_area(pill);

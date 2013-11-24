@@ -19,7 +19,6 @@
 	};
 
 	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 
@@ -82,35 +81,6 @@
 		};
 		serial@12000 {
 			status = "ok";
-		};
-
-		nand@3000000 {
-			status = "okay";
-
-			partition@0 {
-				label = "uboot";
-				reg = <0x0000000 0xc0000>;
-			};
-
-			partition@a0000 {
-				label = "env";
-				reg = <0xa0000 0x20000>;
-			};
-
-			partition@100000 {
-				label = "zImage";
-				reg = <0x100000 0x300000>;
-			};
-
-			partition@540000 {
-				label = "initrd";
-				reg = <0x540000 0x300000>;
-			};
-
-			partition@980000 {
-				label = "boot";
-				reg = <0x980000 0x1f400000>;
-			};
 		};
 	};
 
@@ -177,6 +147,35 @@
 			gpios = <&gpio0 12 1>;
 			debounce-interval = <100>;
 		};
+	};
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0xc0000>;
+	};
+
+	partition@a0000 {
+		label = "env";
+		reg = <0xa0000 0x20000>;
+	};
+
+	partition@100000 {
+		label = "zImage";
+		reg = <0x100000 0x300000>;
+	};
+
+	partition@540000 {
+		label = "initrd";
+		reg = <0x540000 0x300000>;
+	};
+
+	partition@980000 {
+		label = "boot";
+		reg = <0x980000 0x1f400000>;
 	};
 };
 

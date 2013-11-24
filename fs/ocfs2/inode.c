@@ -386,18 +386,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	u32 generation = 0;
 
 	status = -EINVAL;
-	if (inode == NULL || inode->i_sb == NULL) {
-		mlog(ML_ERROR, "bad inode\n");
-		return status;
-	}
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
-
-	if (!args) {
-		mlog(ML_ERROR, "bad inode args\n");
-		make_bad_inode(inode);
-		return status;
-	}
 
 	/*
 	 * To improve performance of cold-cache inode stats, we take

@@ -11,92 +11,37 @@
 * warranty of any kind, whether express or implied.
 */
 
-#include <linux/signal.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/signal.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 
+#include "ohci.h"
+
+#define DRIVER_DESC "OHCI SPEAr driver"
+
+static const char hcd_name[] = "SPEAr-ohci";
 struct spear_ohci {
-	struct ohci_hcd ohci;
 	struct clk *clk;
 };
 
-#define to_spear_ohci(hcd)	(struct spear_ohci *)hcd_to_ohci(hcd)
+#define to_spear_ohci(hcd)     (struct spear_ohci *)(hcd_to_ohci(hcd)->priv)
 
-static void spear_start_ohci(struct spear_ohci *ohci)
-{
-	clk_prepare_enable(ohci->clk);
-}
-
-static void spear_stop_ohci(struct spear_ohci *ohci)
-{
-	clk_disable_unprepare(ohci->clk);
-}
-
-static int ohci_spear_start(struct usb_hcd *hcd)
-{
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-	int ret;
-
-	ret = ohci_init(ohci);
-	if (ret < 0)
-		return ret;
-	ohci->regs = hcd->regs;
-
-	ret = ohci_run(ohci);
-	if (ret < 0) {
-		dev_err(hcd->self.controller, "can't start\n");
-		ohci_stop(hcd);
-		return ret;
-	}
-
-	create_debug_files(ohci);
-
-#ifdef DEBUG
-	ohci_dump(ohci, 1);
-#endif
-	return 0;
-}
-
-static const struct hc_driver ohci_spear_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "SPEAr OHCI",
-	.hcd_priv_size		= sizeof(struct spear_ohci),
-
-	/* generic hardware linkage */
-	.irq			= ohci_irq,
-	.flags			= HCD_USB11 | HCD_MEMORY,
-
-	/* basic lifecycle operations */
-	.start			= ohci_spear_start,
-	.stop			= ohci_stop,
-	.shutdown		= ohci_shutdown,
-#ifdef	CONFIG_PM
-	.bus_suspend		= ohci_bus_suspend,
-	.bus_resume		= ohci_bus_resume,
-#endif
-
-	/* managing i/o requests and associated device resources */
-	.urb_enqueue		= ohci_urb_enqueue,
-	.urb_dequeue		= ohci_urb_dequeue,
-	.endpoint_disable	= ohci_endpoint_disable,
-
-	/* scheduling support */
-	.get_frame_number	= ohci_get_frame,
-
-	/* root hub support */
-	.hub_status_data	= ohci_hub_status_data,
-	.hub_control		= ohci_hub_control,
-
-	.start_port_reset	= ohci_start_port_reset,
-};
+static struct hc_driver __read_mostly ohci_spear_hc_driver;
 
 static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 {
 	const struct hc_driver *driver = &ohci_spear_hc_driver;
+	struct ohci_hcd *ohci;
 	struct usb_hcd *hcd = NULL;
 	struct clk *usbh_clk;
-	struct spear_ohci *ohci_p;
+	struct spear_ohci *sohci_p;
 	struct resource *res;
 	int retval, irq;
 
@@ -111,10 +56,9 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	retval = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto fail;
 
 	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
@@ -151,16 +95,18 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	ohci_p = (struct spear_ohci *)hcd_to_ohci(hcd);
-	ohci_p->clk = usbh_clk;
-	spear_start_ohci(ohci_p);
-	ohci_hcd_init(hcd_to_ohci(hcd));
+	sohci_p = to_spear_ohci(hcd);
+	sohci_p->clk = usbh_clk;
+
+	clk_prepare_enable(sohci_p->clk);
+
+	ohci = hcd_to_ohci(hcd);
 
 	retval = usb_add_hcd(hcd, platform_get_irq(pdev, 0), 0);
 	if (retval == 0)
 		return retval;
 
-	spear_stop_ohci(ohci_p);
+	clk_disable_unprepare(sohci_p->clk);
 err_put_hcd:
 	usb_put_hcd(hcd);
 fail:
@@ -172,11 +118,11 @@ fail:
 static int spear_ohci_hcd_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct spear_ohci *ohci_p = to_spear_ohci(hcd);
+	struct spear_ohci *sohci_p = to_spear_ohci(hcd);
 
 	usb_remove_hcd(hcd);
-	if (ohci_p->clk)
-		spear_stop_ohci(ohci_p);
+	if (sohci_p->clk)
+		clk_disable_unprepare(sohci_p->clk);
 
 	usb_put_hcd(hcd);
 	return 0;
@@ -188,13 +134,14 @@ static int spear_ohci_hcd_drv_suspend(struct platform_device *dev,
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
-	struct spear_ohci *ohci_p = to_spear_ohci(hcd);
+	struct spear_ohci *sohci_p = to_spear_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	spear_stop_ohci(ohci_p);
+	clk_disable_unprepare(sohci_p->clk);
+
 	return 0;
 }
 
@@ -202,13 +149,13 @@ static int spear_ohci_hcd_drv_resume(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
-	struct spear_ohci *ohci_p = to_spear_ohci(hcd);
+	struct spear_ohci *sohci_p = to_spear_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
-	spear_start_ohci(ohci_p);
+	clk_prepare_enable(sohci_p->clk);
 	ohci_resume(hcd, false);
 	return 0;
 }
@@ -234,4 +181,28 @@ static struct platform_driver spear_ohci_hcd_driver = {
 	},
 };
 
+static const struct ohci_driver_overrides spear_overrides __initconst = {
+	.extra_priv_size = sizeof(struct spear_ohci),
+};
+static int __init ohci_spear_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ohci_init_driver(&ohci_spear_hc_driver, &spear_overrides);
+	return platform_driver_register(&spear_ohci_hcd_driver);
+}
+module_init(ohci_spear_init);
+
+static void __exit ohci_spear_cleanup(void)
+{
+	platform_driver_unregister(&spear_ohci_hcd_driver);
+}
+module_exit(ohci_spear_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Deepak Sikri");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spear-ohci");

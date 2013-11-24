@@ -768,7 +768,7 @@ static int softing_pdev_remove(struct platform_device *pdev)
 
 static int softing_pdev_probe(struct platform_device *pdev)
 {
-	const struct softing_platform_data *pdat = pdev->dev.platform_data;
+	const struct softing_platform_data *pdat = dev_get_platdata(&pdev->dev);
 	struct softing *card;
 	struct net_device *netdev;
 	struct softing_priv *priv;

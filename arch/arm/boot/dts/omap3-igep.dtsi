@@ -77,6 +77,8 @@
 			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
 		>;
 	};
+
+	leds_pins: pinmux_leds_pins { };
 };
 
 &i2c1 {
@@ -140,4 +142,13 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
+	phys = <&usb2_phy>;
+	phy-names = "usb2-phy";
+	mode = <3>;
+	power = <50>;
 };

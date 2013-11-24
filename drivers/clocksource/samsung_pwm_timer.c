@@ -331,7 +331,7 @@ static struct clocksource samsung_clocksource = {
  * this wraps around for now, since it is just a relative time
  * stamp. (Inspired by U300 implementation.)
  */
-static u32 notrace samsung_read_sched_clock(void)
+static u64 notrace samsung_read_sched_clock(void)
 {
 	return samsung_clocksource_read(NULL);
 }
@@ -357,7 +357,7 @@ static void __init samsung_clocksource_init(void)
 	else
 		pwm.source_reg = pwm.base + pwm.source_id * 0x0c + 0x14;
 
-	setup_sched_clock(samsung_read_sched_clock,
+	sched_clock_register(samsung_read_sched_clock,
 						pwm.variant.bits, clock_rate);
 
 	samsung_clocksource.mask = CLOCKSOURCE_MASK(pwm.variant.bits);

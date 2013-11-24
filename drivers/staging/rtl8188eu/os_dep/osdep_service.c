@@ -356,214 +356,6 @@ inline int ATOMIC_DEC_RETURN(ATOMIC_T *v)
 	return atomic_dec_return(v);
 }
 
-/* Open a file with the specific @param path, @param flag, @param mode
- * @param fpp the pointer of struct file pointer to get struct file pointer while file opening is success
- * @param path the path of the file to open
- * @param flag file operation flags, please refer to linux document
- * @param mode please refer to linux document
- * @return Linux specific error code
- */
-static int openfile(struct file **fpp, char *path, int flag, int mode)
-{
-	struct file *fp;
-
-	fp = filp_open(path, flag, mode);
-	if (IS_ERR(fp)) {
-		*fpp = NULL;
-		return PTR_ERR(fp);
-	} else {
-		*fpp = fp;
-		return 0;
-	}
-}
-
-/* Close the file with the specific @param fp
- * @param fp the pointer of struct file to close
- * @return always 0
- */
-static int closefile(struct file *fp)
-{
-	filp_close(fp, NULL);
-	return 0;
-}
-
-static int readfile(struct file *fp, char __user *buf, int len)
-{
-	int rlen = 0, sum = 0;
-
-	if (!fp->f_op || !fp->f_op->read)
-		return -EPERM;
-
-	while (sum < len) {
-		rlen = fp->f_op->read(fp, buf+sum, len-sum, &fp->f_pos);
-		if (rlen > 0)
-			sum += rlen;
-		else if (0 != rlen)
-			return rlen;
-		else
-			break;
-	}
-	return  sum;
-}
-
-static int writefile(struct file *fp, char __user *buf, int len)
-{
-	int wlen = 0, sum = 0;
-
-	if (!fp->f_op || !fp->f_op->write)
-		return -EPERM;
-
-	while (sum < len) {
-		wlen = fp->f_op->write(fp, buf+sum, len-sum, &fp->f_pos);
-		if (wlen > 0)
-			sum += wlen;
-		else if (0 != wlen)
-			return wlen;
-		else
-			break;
-	}
-	return sum;
-}
-
-/* Test if the specifi @param path is a file and readable
- * @param path the path of the file to test
- * @return Linux specific error code
- */
-static int isfilereadable(char *path)
-{
-	struct file *fp;
-	int ret = 0;
-	mm_segment_t oldfs;
-	char __user buf;
-
-	fp = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		ret = PTR_ERR(fp);
-	} else {
-		oldfs = get_fs(); set_fs(get_ds());
-
-		if (1 != readfile(fp, &buf, 1))
-			ret = PTR_ERR(fp);
-
-		set_fs(oldfs);
-		filp_close(fp, NULL);
-	}
-	return ret;
-}
-
-/* Open the file with @param path and retrive the file content into
- * memory starting from @param buf for @param sz at most
- * @param path the path of the file to open and read
- * @param buf the starting address of the buffer to store file content
- * @param sz how many bytes to read at most
- * @return the byte we've read, or Linux specific error code
- */
-static int retrievefromfile(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = -1;
-	mm_segment_t oldfs;
-	struct file *fp;
-
-	if (path && buf) {
-		ret = openfile(&fp, path, O_RDONLY, 0);
-		if (0 == ret) {
-			DBG_88E("%s openfile path:%s fp =%p\n", __func__,
-				path, fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			ret = readfile(fp, buf, sz);
-			set_fs(oldfs);
-			closefile(fp);
-
-			DBG_88E("%s readfile, ret:%d\n", __func__, ret);
-
-		} else {
-			DBG_88E("%s openfile path:%s Fail, ret:%d\n", __func__,
-				path, ret);
-		}
-	} else {
-		DBG_88E("%s NULL pointer\n", __func__);
-		ret =  -EINVAL;
-	}
-	return ret;
-}
-
-/*
-* Open the file with @param path and wirte @param sz byte of data starting from @param buf into the file
-* @param path the path of the file to open and write
-* @param buf the starting address of the data to write into file
-* @param sz how many bytes to write at most
-* @return the byte we've written, or Linux specific error code
-*/
-static int storetofile(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = 0;
-	mm_segment_t oldfs;
-	struct file *fp;
-
-	if (path && buf) {
-		ret = openfile(&fp, path, O_CREAT|O_WRONLY, 0666);
-		if (0 == ret) {
-			DBG_88E("%s openfile path:%s fp =%p\n", __func__, path, fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			ret = writefile(fp, buf, sz);
-			set_fs(oldfs);
-			closefile(fp);
-
-			DBG_88E("%s writefile, ret:%d\n", __func__, ret);
-
-		} else {
-			DBG_88E("%s openfile path:%s Fail, ret:%d\n", __func__, path, ret);
-		}
-	} else {
-		DBG_88E("%s NULL pointer\n", __func__);
-		ret =  -EINVAL;
-	}
-	return ret;
-}
-
-/*
-* Test if the specifi @param path is a file and readable
-* @param path the path of the file to test
-* @return true or false
-*/
-int rtw_is_file_readable(char *path)
-{
-	if (isfilereadable(path) == 0)
-		return true;
-	else
-		return false;
-}
-
-/*
-* Open the file with @param path and retrive the file content into memory starting from @param buf for @param sz at most
-* @param path the path of the file to open and read
-* @param buf the starting address of the buffer to store file content
-* @param sz how many bytes to read at most
-* @return the byte we've read
-*/
-int rtw_retrive_from_file(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = retrievefromfile(path, buf, sz);
-
-	return ret >= 0 ? ret : 0;
-}
-
-/*
- * Open the file with @param path and wirte @param sz byte of data
- * starting from @param buf into the file
- * @param path the path of the file to open and write
- * @param buf the starting address of the data to write into file
- * @param sz how many bytes to write at most
- * @return the byte we've written
- */
-int rtw_store_to_file(char *path, u8 __user *buf, u32 sz)
-{
-	int ret = storetofile(path, buf, sz);
-	return ret >= 0 ? ret : 0;
-}
-
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv)
 {
@@ -627,13 +419,14 @@ RETURN:
 int rtw_change_ifname(struct adapter *padapter, const char *ifname)
 {
 	struct net_device *pnetdev;
-	struct net_device *cur_pnetdev = padapter->pnetdev;
+	struct net_device *cur_pnetdev;
 	struct rereg_nd_name_data *rereg_priv;
 	int ret;
 
 	if (!padapter)
 		goto error;
 
+	cur_pnetdev = padapter->pnetdev;
 	rereg_priv = &padapter->rereg_nd_name_priv;
 
 	/* free the old_pnetdev */
@@ -794,7 +587,7 @@ void *rtw_cbuf_pop(struct rtw_cbuf *cbuf)
 }
 
 /**
- * rtw_cbuf_alloc - allocte a rtw_cbuf with given size and do initialization
+ * rtw_cbuf_alloc - allocate a rtw_cbuf with given size and do initialization
  * @size: size of pointer
  *
  * Returns: pointer of srtuct rtw_cbuf, NULL for allocation failure

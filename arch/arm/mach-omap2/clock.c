@@ -543,6 +543,44 @@ int omap2_clk_disable_autoidle_all(void)
 }
 
 /**
+ * omap2_clk_deny_idle - disable autoidle on an OMAP clock
+ * @clk: struct clk * to disable autoidle for
+ *
+ * Disable autoidle on an OMAP clock.
+ */
+int omap2_clk_deny_idle(struct clk *clk)
+{
+	struct clk_hw_omap *c;
+
+	if (__clk_get_flags(clk) & CLK_IS_BASIC)
+		return -EINVAL;
+
+	c = to_clk_hw_omap(__clk_get_hw(clk));
+	if (c->ops && c->ops->deny_idle)
+		c->ops->deny_idle(c);
+	return 0;
+}
+
+/**
+ * omap2_clk_allow_idle - enable autoidle on an OMAP clock
+ * @clk: struct clk * to enable autoidle for
+ *
+ * Enable autoidle on an OMAP clock.
+ */
+int omap2_clk_allow_idle(struct clk *clk)
+{
+	struct clk_hw_omap *c;
+
+	if (__clk_get_flags(clk) & CLK_IS_BASIC)
+		return -EINVAL;
+
+	c = to_clk_hw_omap(__clk_get_hw(clk));
+	if (c->ops && c->ops->allow_idle)
+		c->ops->allow_idle(c);
+	return 0;
+}
+
+/**
  * omap2_clk_enable_init_clocks - prepare & enable a list of clocks
  * @clk_names: ptr to an array of strings of clock names to enable
  * @num_clocks: number of clock names in @clk_names

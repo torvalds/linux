@@ -648,7 +648,7 @@ nx_p3_sre_macaddr_change(struct netxen_adapter *adapter, u8 *addr, unsigned op)
 
 	mac_req = (nx_mac_req_t *)&req.words[0];
 	mac_req->op = op;
-	memcpy(mac_req->mac_addr, addr, 6);
+	memcpy(mac_req->mac_addr, addr, ETH_ALEN);
 
 	return netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }

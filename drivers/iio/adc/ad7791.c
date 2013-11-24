@@ -202,7 +202,6 @@ static int ad7791_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad7791_state *st = iio_priv(indio_dev);
 	bool unipolar = !!(st->mode & AD7791_MODE_UNIPOLAR);
-	unsigned long long scale_pv;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
@@ -220,23 +219,26 @@ static int ad7791_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		/* The monitor channel uses an internal reference. */
 		if (chan->address == AD7791_CH_AVDD_MONITOR) {
-			scale_pv = 5850000000000ULL;
+			/*
+			 * The signal is attenuated by a factor of 5 and
+			 * compared against a 1.17V internal reference.
+			 */
+			*val = 1170 * 5;
 		} else {
 			int voltage_uv;
 
 			voltage_uv = regulator_get_voltage(st->reg);
 			if (voltage_uv < 0)
 				return voltage_uv;
-			scale_pv = (unsigned long long)voltage_uv * 1000000;
+
+			*val = voltage_uv / 1000;
 		}
 		if (unipolar)
-			scale_pv >>= chan->scan_type.realbits;
+			*val2 = chan->scan_type.realbits;
 		else
-			scale_pv >>= chan->scan_type.realbits - 1;
-		*val2 = do_div(scale_pv, 1000000000);
-		*val = scale_pv;
+			*val2 = chan->scan_type.realbits - 1;
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_FRACTIONAL_LOG2;
 	}
 
 	return -EINVAL;

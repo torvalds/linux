@@ -462,6 +462,20 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 }
 EXPORT_SYMBOL_GPL(pinctrl_find_and_add_gpio_range);
 
+int pinctrl_get_group_pins(struct pinctrl_dev *pctldev, const char *pin_group,
+				const unsigned **pins, unsigned *num_pins)
+{
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	int gs;
+
+	gs = pinctrl_get_group_selector(pctldev, pin_group);
+	if (gs < 0)
+		return gs;
+
+	return pctlops->get_group_pins(pctldev, gs, pins, num_pins);
+}
+EXPORT_SYMBOL_GPL(pinctrl_get_group_pins);
+
 /**
  * pinctrl_find_gpio_range_from_pin() - locate the GPIO range for a pin
  * @pctldev: the pin controller device to look in

@@ -236,17 +236,21 @@ static void pnv_pci_config_check_eeh(struct pnv_phb *phb,
 {
 	s64	rc;
 	u8	fstate;
-	u16	pcierr;
+	__be16	pcierr;
 	u32	pe_no;
 
 	/*
 	 * Get the PE#. During the PCI probe stage, we might not
 	 * setup that yet. So all ER errors should be mapped to
-	 * PE#0
+	 * reserved PE.
 	 */
 	pe_no = PCI_DN(dn)->pe_number;
-	if (pe_no == IODA_INVALID_PE)
-		pe_no = 0;
+	if (pe_no == IODA_INVALID_PE) {
+		if (phb->type == PNV_PHB_P5IOC2)
+			pe_no = 0;
+		else
+			pe_no = phb->ioda.reserved_pe;
+	}
 
 	/* Read freeze status */
 	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no, &fstate, &pcierr,
@@ -283,16 +287,16 @@ int pnv_pci_cfg_read(struct device_node *dn,
 		break;
 	}
 	case 2: {
-		u16 v16;
+		__be16 v16;
 		rc = opal_pci_config_read_half_word(phb->opal_id, bdfn, where,
 						   &v16);
-		*val = (rc == OPAL_SUCCESS) ? v16 : 0xffff;
+		*val = (rc == OPAL_SUCCESS) ? be16_to_cpu(v16) : 0xffff;
 		break;
 	}
 	case 4: {
-		u32 v32;
+		__be32 v32;
 		rc = opal_pci_config_read_word(phb->opal_id, bdfn, where, &v32);
-		*val = (rc == OPAL_SUCCESS) ? v32 : 0xffffffff;
+		*val = (rc == OPAL_SUCCESS) ? be32_to_cpu(v32) : 0xffffffff;
 		break;
 	}
 	default:
@@ -401,10 +405,10 @@ struct pci_ops pnv_pci_ops = {
 
 static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 			 unsigned long uaddr, enum dma_data_direction direction,
-			 struct dma_attrs *attrs)
+			 struct dma_attrs *attrs, bool rm)
 {
 	u64 proto_tce;
-	u64 *tcep, *tces;
+	__be64 *tcep, *tces;
 	u64 rpn;
 
 	proto_tce = TCE_PCI_READ; // Read allowed
@@ -412,38 +416,66 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 	rpn = __pa(uaddr) >> TCE_SHIFT;
 
 	while (npages--)
-		*(tcep++) = proto_tce | (rpn++ << TCE_RPN_SHIFT);
+		*(tcep++) = cpu_to_be64(proto_tce | (rpn++ << TCE_RPN_SHIFT));
 
 	/* Some implementations won't cache invalid TCEs and thus may not
 	 * need that flush. We'll probably turn it_type into a bit mask
 	 * of flags if that becomes the case
 	 */
 	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
-		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1, rm);
 
 	return 0;
 }
 
-static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
+static int pnv_tce_build_vm(struct iommu_table *tbl, long index, long npages,
+			    unsigned long uaddr,
+			    enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
 {
-	u64 *tcep, *tces;
+	return pnv_tce_build(tbl, index, npages, uaddr, direction, attrs,
+			false);
+}
 
-	tces = tcep = ((u64 *)tbl->it_base) + index - tbl->it_offset;
+static void pnv_tce_free(struct iommu_table *tbl, long index, long npages,
+		bool rm)
+{
+	__be64 *tcep, *tces;
+
+	tces = tcep = ((__be64 *)tbl->it_base) + index - tbl->it_offset;
 
 	while (npages--)
-		*(tcep++) = 0;
+		*(tcep++) = cpu_to_be64(0);
 
 	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1, rm);
+}
+
+static void pnv_tce_free_vm(struct iommu_table *tbl, long index, long npages)
+{
+	pnv_tce_free(tbl, index, npages, false);
 }
 
 static unsigned long pnv_tce_get(struct iommu_table *tbl, long index)
 {
 	return ((u64 *)tbl->it_base)[index - tbl->it_offset];
+}
+
+static int pnv_tce_build_rm(struct iommu_table *tbl, long index, long npages,
+			    unsigned long uaddr,
+			    enum dma_data_direction direction,
+			    struct dma_attrs *attrs)
+{
+	return pnv_tce_build(tbl, index, npages, uaddr, direction, attrs, true);
+}
+
+static void pnv_tce_free_rm(struct iommu_table *tbl, long index, long npages)
+{
+	pnv_tce_free(tbl, index, npages, true);
 }
 
 void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
@@ -484,8 +516,8 @@ static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
 				 NULL);
 	if (swinvp) {
-		tbl->it_busno = swinvp[1];
-		tbl->it_index = (unsigned long)ioremap(swinvp[0], 8);
+		tbl->it_busno = be64_to_cpu(swinvp[1]);
+		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
 		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
 	}
 	return tbl;
@@ -610,8 +642,10 @@ void __init pnv_pci_init(void)
 
 	/* Configure IOMMU DMA hooks */
 	ppc_md.pci_dma_dev_setup = pnv_pci_dma_dev_setup;
-	ppc_md.tce_build = pnv_tce_build;
-	ppc_md.tce_free = pnv_tce_free;
+	ppc_md.tce_build = pnv_tce_build_vm;
+	ppc_md.tce_free = pnv_tce_free_vm;
+	ppc_md.tce_build_rm = pnv_tce_build_rm;
+	ppc_md.tce_free_rm = pnv_tce_free_rm;
 	ppc_md.tce_get = pnv_tce_get;
 	ppc_md.pci_probe_mode = pnv_pci_probe_mode;
 	set_pci_dma_ops(&dma_iommu_ops);

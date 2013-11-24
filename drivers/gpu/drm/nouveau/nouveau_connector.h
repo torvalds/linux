@@ -69,7 +69,7 @@ struct nouveau_connector {
 
 	struct dcb_gpio_func hpd;
 	struct work_struct hpd_work;
-	struct nouveau_eventh hpd_func;
+	struct nouveau_eventh *hpd_func;
 
 	int dithering_mode;
 	int dithering_depth;
@@ -106,8 +106,5 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, int index);
-
-int
-nouveau_connector_bpp(struct drm_connector *);
 
 #endif /* __NOUVEAU_CONNECTOR_H__ */

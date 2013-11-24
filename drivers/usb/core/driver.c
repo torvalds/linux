@@ -1179,8 +1179,8 @@ static int usb_resume_interface(struct usb_device *udev,
 						"reset_resume", status);
 		} else {
 			intf->needs_binding = 1;
-			dev_warn(&intf->dev, "no %s for driver %s?\n",
-					"reset_resume", driver->name);
+			dev_dbg(&intf->dev, "no reset_resume for driver %s?\n",
+					driver->name);
 		}
 	} else {
 		status = driver->resume(intf);
@@ -1789,6 +1789,9 @@ int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 {
 	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 	int ret = -EPERM;
+
+	if (enable && !udev->usb2_hw_lpm_allowed)
+		return 0;
 
 	if (hcd->driver->set_usb2_hw_lpm) {
 		ret = hcd->driver->set_usb2_hw_lpm(hcd, udev, enable);

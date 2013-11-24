@@ -13,10 +13,29 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/kobj_completion.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
+
+/**
+ * kobject_namespace - return @kobj's namespace tag
+ * @kobj: kobject in question
+ *
+ * Returns namespace tag of @kobj if its parent has namespace ops enabled
+ * and thus @kobj should have a namespace tag associated with it.  Returns
+ * %NULL otherwise.
+ */
+const void *kobject_namespace(struct kobject *kobj)
+{
+	const struct kobj_ns_type_operations *ns_ops = kobj_ns_ops(kobj);
+
+	if (!ns_ops || ns_ops->type == KOBJ_NS_TYPE_NONE)
+		return NULL;
+
+	return kobj->ktype->namespace(kobj);
+}
 
 /*
  * populate_dir - populate directory with attributes.
@@ -46,13 +65,21 @@ static int populate_dir(struct kobject *kobj)
 
 static int create_dir(struct kobject *kobj)
 {
-	int error = 0;
-	error = sysfs_create_dir(kobj);
+	int error;
+
+	error = sysfs_create_dir_ns(kobj, kobject_namespace(kobj));
 	if (!error) {
 		error = populate_dir(kobj);
 		if (error)
 			sysfs_remove_dir(kobj);
 	}
+
+	/*
+	 * @kobj->sd may be deleted by an ancestor going away.  Hold an
+	 * extra reference so that it stays until @kobj is gone.
+	 */
+	sysfs_get(kobj->sd);
+
 	return error;
 }
 
@@ -428,7 +455,7 @@ int kobject_rename(struct kobject *kobj, const char *new_name)
 		goto out;
 	}
 
-	error = sysfs_rename_dir(kobj, new_name);
+	error = sysfs_rename_dir_ns(kobj, new_name, kobject_namespace(kobj));
 	if (error)
 		goto out;
 
@@ -472,6 +499,7 @@ int kobject_move(struct kobject *kobj, struct kobject *new_parent)
 		if (kobj->kset)
 			new_parent = kobject_get(&kobj->kset->kobj);
 	}
+
 	/* old object path */
 	devpath = kobject_get_path(kobj, GFP_KERNEL);
 	if (!devpath) {
@@ -486,7 +514,7 @@ int kobject_move(struct kobject *kobj, struct kobject *new_parent)
 	sprintf(devpath_string, "DEVPATH_OLD=%s", devpath);
 	envp[0] = devpath_string;
 	envp[1] = NULL;
-	error = sysfs_move_dir(kobj, new_parent);
+	error = sysfs_move_dir_ns(kobj, new_parent, kobject_namespace(kobj));
 	if (error)
 		goto out;
 	old_parent = kobj->parent;
@@ -508,10 +536,15 @@ out:
  */
 void kobject_del(struct kobject *kobj)
 {
+	struct sysfs_dirent *sd;
+
 	if (!kobj)
 		return;
 
+	sd = kobj->sd;
 	sysfs_remove_dir(kobj);
+	sysfs_put(sd);
+
 	kobj->state_in_sysfs = 0;
 	kobj_kset_leave(kobj);
 	kobject_put(kobj->parent);
@@ -725,6 +758,55 @@ const struct sysfs_ops kobj_sysfs_ops = {
 	.show	= kobj_attr_show,
 	.store	= kobj_attr_store,
 };
+
+/**
+ * kobj_completion_init - initialize a kobj_completion object.
+ * @kc: kobj_completion
+ * @ktype: type of kobject to initialize
+ *
+ * kobj_completion structures can be embedded within structures with different
+ * lifetime rules.  During the release of the enclosing object, we can
+ * wait on the release of the kobject so that we don't free it while it's
+ * still busy.
+ */
+void kobj_completion_init(struct kobj_completion *kc, struct kobj_type *ktype)
+{
+	init_completion(&kc->kc_unregister);
+	kobject_init(&kc->kc_kobj, ktype);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_init);
+
+/**
+ * kobj_completion_release - release a kobj_completion object
+ * @kobj: kobject embedded in kobj_completion
+ *
+ * Used with kobject_release to notify waiters that the kobject has been
+ * released.
+ */
+void kobj_completion_release(struct kobject *kobj)
+{
+	struct kobj_completion *kc = kobj_to_kobj_completion(kobj);
+	complete(&kc->kc_unregister);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_release);
+
+/**
+ * kobj_completion_del_and_wait - release the kobject and wait for it
+ * @kc: kobj_completion object to release
+ *
+ * Delete the kobject from sysfs and drop the reference count.  Then wait
+ * until any other outstanding references are also dropped.  This routine
+ * is only necessary once other references may have been taken on the
+ * kobject.  Typically this happens when the kobject has been published
+ * to sysfs via kobject_add.
+ */
+void kobj_completion_del_and_wait(struct kobj_completion *kc)
+{
+	kobject_del(&kc->kc_kobj);
+	kobject_put(&kc->kc_kobj);
+	wait_for_completion(&kc->kc_unregister);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_del_and_wait);
 
 /**
  * kset_register - initialize and add a kset.

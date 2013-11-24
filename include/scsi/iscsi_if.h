@@ -69,6 +69,7 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_LOGIN_FLASHNODE	= UEVENT_BASE + 28,
 	ISCSI_UEVENT_LOGOUT_FLASHNODE	= UEVENT_BASE + 29,
 	ISCSI_UEVENT_LOGOUT_FLASHNODE_SID	= UEVENT_BASE + 30,
+	ISCSI_UEVENT_SET_CHAP		= UEVENT_BASE + 31,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -309,7 +310,15 @@ enum iscsi_param_type {
 	ISCSI_HOST_PARAM,	/* iscsi_host_param */
 	ISCSI_NET_PARAM,	/* iscsi_net_param */
 	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashnode_param */
+	ISCSI_CHAP_PARAM,	/* iscsi_chap_param */
 };
+
+/* structure for minimalist usecase */
+struct iscsi_param_info {
+	uint32_t len;		/* Actual length of the param value */
+	uint16_t param;		/* iscsi param */
+	uint8_t value[0];	/* length sized value follows */
+} __packed;
 
 struct iscsi_iface_param_info {
 	uint32_t iface_num;	/* iface number, 0 - n */
@@ -737,6 +746,14 @@ struct iscsi_stats {
 enum chap_type_e {
 	CHAP_TYPE_OUT,
 	CHAP_TYPE_IN,
+};
+
+enum iscsi_chap_param {
+	ISCSI_CHAP_PARAM_INDEX,
+	ISCSI_CHAP_PARAM_CHAP_TYPE,
+	ISCSI_CHAP_PARAM_USERNAME,
+	ISCSI_CHAP_PARAM_PASSWORD,
+	ISCSI_CHAP_PARAM_PASSWORD_LEN
 };
 
 #define ISCSI_CHAP_AUTH_NAME_MAX_LEN	256

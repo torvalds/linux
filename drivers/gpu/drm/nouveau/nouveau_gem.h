@@ -12,14 +12,13 @@
 static inline struct nouveau_bo *
 nouveau_gem_object(struct drm_gem_object *gem)
 {
-	return gem ? gem->driver_private : NULL;
+	return gem ? container_of(gem, struct nouveau_bo, gem) : NULL;
 }
 
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, int size, int align,
 			   uint32_t domain, uint32_t tile_mode,
 			   uint32_t tile_flags, struct nouveau_bo **);
-extern int nouveau_gem_object_new(struct drm_gem_object *);
 extern void nouveau_gem_object_del(struct drm_gem_object *);
 extern int nouveau_gem_object_open(struct drm_gem_object *, struct drm_file *);
 extern void nouveau_gem_object_close(struct drm_gem_object *,

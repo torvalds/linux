@@ -47,7 +47,7 @@ struct neo_uart_struct {
 	u8 fctr;		/* WR  FCTR - Feature Control Reg */
 	u8 efr;		/* WR  EFR - Enhanced Function Reg */
 	u8 tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
-	u8 rfifo;		/* WR  RXCNT/RXTRG - Recieve  FIFO Reg */
+	u8 rfifo;		/* WR  RXCNT/RXTRG - Receive  FIFO Reg */
 	u8 xoffchar1;	/* WR  XOFF 1 - XOff Character 1 Reg */
 	u8 xoffchar2;	/* WR  XOFF 2 - XOff Character 2 Reg */
 	u8 xonchar1;	/* WR  XON 1 - Xon Character 1 Reg */

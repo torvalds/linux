@@ -235,7 +235,6 @@ static bool loss_4state(struct netem_sched_data *q)
 			clg->state = 2;
 		else if (clg->a3 < rnd && rnd < clg->a2 + clg->a3) {
 			clg->state = 1;
-			return true;
 		} else if (clg->a2 + clg->a3 < rnd) {
 			clg->state = 3;
 			return true;

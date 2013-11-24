@@ -11,14 +11,10 @@
 
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/memblock.h>
 #include <linux/io.h>
-#include <linux/clocksource.h>
 
 #include <asm/mach/arch.h>
 #include <mach/regs-pmu.h>
-
-#include <plat/cpu.h>
 #include <plat/mfc.h>
 
 #include "common.h"
@@ -46,6 +42,8 @@ static void __init exynos5_dt_machine_init(void)
 			}
 		}
 	}
+
+	exynos_cpuidle_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
@@ -76,7 +74,6 @@ DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	.map_io		= exynos_init_io,
 	.init_machine	= exynos5_dt_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos_init_time,
 	.dt_compat	= exynos5_dt_compat,
 	.restart        = exynos5_restart,
 	.reserve	= exynos5_reserve,

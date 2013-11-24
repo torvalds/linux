@@ -27,6 +27,7 @@
 #include "fnic_io.h"
 #include "fnic_res.h"
 #include "fnic_trace.h"
+#include "fnic_stats.h"
 #include "vnic_dev.h"
 #include "vnic_wq.h"
 #include "vnic_rq.h"
@@ -38,7 +39,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.5.0.23"
+#define DRV_VERSION		"1.5.0.45"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -231,6 +232,13 @@ struct fnic {
 
 	unsigned int wq_count;
 	unsigned int cq_count;
+
+	struct dentry *fnic_stats_debugfs_host;
+	struct dentry *fnic_stats_debugfs_file;
+	struct dentry *fnic_reset_debugfs_file;
+	unsigned int reset_stats;
+	atomic64_t io_cmpl_skip;
+	struct fnic_stats fnic_stats;
 
 	u32 vlan_hw_insert:1;	        /* let hw insert the tag */
 	u32 in_remove:1;                /* fnic device in removal */

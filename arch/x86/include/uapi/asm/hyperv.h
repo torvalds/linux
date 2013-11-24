@@ -27,6 +27,19 @@
 #define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
 #define HV_X64_MSR_TIME_REF_COUNT_AVAILABLE	(1 << 1)
+
+/*
+ * There is a single feature flag that signifies the presence of the MSR
+ * that can be used to retrieve both the local APIC Timer frequency as
+ * well as the TSC frequency.
+ */
+
+/* Local APIC timer frequency MSR (HV_X64_MSR_APIC_FREQUENCY) is available */
+#define HV_X64_MSR_APIC_FREQUENCY_AVAILABLE (1 << 11)
+
+/* TSC frequency MSR (HV_X64_MSR_TSC_FREQUENCY) is available */
+#define HV_X64_MSR_TSC_FREQUENCY_AVAILABLE (1 << 11)
+
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
  * and HV_X64_MSR_SINT0 through HV_X64_MSR_SINT15) available
@@ -135,6 +148,12 @@
 
 /* MSR used to read the per-partition time reference counter */
 #define HV_X64_MSR_TIME_REF_COUNT		0x40000020
+
+/* MSR used to retrieve the TSC frequency */
+#define HV_X64_MSR_TSC_FREQUENCY		0x40000022
+
+/* MSR used to retrieve the local APIC timer frequency */
+#define HV_X64_MSR_APIC_FREQUENCY		0x40000023
 
 /* Define the virtual APIC registers */
 #define HV_X64_MSR_EOI				0x40000070

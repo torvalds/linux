@@ -351,6 +351,7 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 	.read = adf4350_read, \
 	.write = adf4350_write, \
 	.private = _ident, \
+	.shared = IIO_SEPARATE, \
 }
 
 static const struct iio_chan_spec_ext_info adf4350_ext_info[] = {

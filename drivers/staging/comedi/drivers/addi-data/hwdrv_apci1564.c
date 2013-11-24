@@ -260,18 +260,13 @@ static int apci1564_do_insn_bits(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	s->state = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 			APCI1564_DIGITAL_OP_RW);
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
 
+	if (comedi_dio_update_state(s, data))
 		outl(s->state, devpriv->i_IobaseAmcc + APCI1564_DIGITAL_OP +
 			APCI1564_DIGITAL_OP_RW);
-	}
 
 	data[1] = s->state;
 

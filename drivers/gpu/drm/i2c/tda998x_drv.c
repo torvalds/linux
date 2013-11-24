@@ -17,6 +17,7 @@
 
 
 
+#include <linux/hdmi.h>
 #include <linux/module.h>
 
 #include <drm/drmP.h>
@@ -549,6 +550,8 @@ tda998x_write_avi(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	buf[HB(0)] = 0x82;
 	buf[HB(1)] = 0x02;
 	buf[HB(2)] = 13;
+	buf[PB(1)] = HDMI_SCAN_MODE_UNDERSCAN;
+	buf[PB(3)] = HDMI_QUANTIZATION_RANGE_FULL << 2;
 	buf[PB(4)] = drm_match_cea_mode(mode);
 
 	tda998x_write_if(encoder, DIP_IF_FLAGS_IF2, REG_IF2_HB0, buf,

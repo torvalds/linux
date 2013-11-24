@@ -36,7 +36,7 @@ static int ulpi_viewport_wait(void __iomem *view, u32 mask)
 			return 0;
 
 		udelay(1);
-	};
+	}
 
 	return -ETIMEDOUT;
 }

@@ -12,6 +12,10 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used when booting with Device Tree support.
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -24,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/amba/pl080.h>
+#include <linux/of.h>
 
 #include <mach/dma.h>
 #include <mach/map.h>
@@ -677,7 +682,7 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 		goto err_map;
 	}
 
-	clk_enable(dmac->clk);
+	clk_prepare_enable(dmac->clk);
 
 	dmac->regs = regs;
 	dmac->chanbase = chbase;
@@ -711,7 +716,7 @@ static int s3c64xx_dma_init1(int chno, enum dma_ch chbase,
 	return 0;
 
 err_clk:
-	clk_disable(dmac->clk);
+	clk_disable_unprepare(dmac->clk);
 	clk_put(dmac->clk);
 err_map:
 	iounmap(regs);
@@ -725,6 +730,10 @@ err_alloc:
 static int __init s3c64xx_dma_init(void)
 {
 	int ret;
+
+	/* This driver is not supported when booting with device tree. */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	printk(KERN_INFO "%s: Registering DMA channels\n", __func__);
 

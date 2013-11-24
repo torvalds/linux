@@ -137,7 +137,7 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct nlattr **tb,
 			   struct nlattr *est)
 {
-	int err = -EINVAL;
+	int err;
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
 

@@ -1,6 +1,6 @@
 /* Keyring key type
  *
- * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2008, 2013 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -13,19 +13,6 @@
 #define _KEYS_KEYRING_TYPE_H
 
 #include <linux/key.h>
-#include <linux/rcupdate.h>
-
-/*
- * the keyring payload contains a list of the keys to which the keyring is
- * subscribed
- */
-struct keyring_list {
-	struct rcu_head	rcu;		/* RCU deletion hook */
-	unsigned short	maxkeys;	/* max keys this list can hold */
-	unsigned short	nkeys;		/* number of keys currently held */
-	unsigned short	delkey;		/* key to be unlinked by RCU */
-	struct key __rcu *keys[0];
-};
-
+#include <linux/assoc_array.h>
 
 #endif /* _KEYS_KEYRING_TYPE_H */

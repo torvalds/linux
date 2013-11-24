@@ -61,7 +61,7 @@
 #include <linux/delay.h>	/* For mdelay function */
 #include <linux/timer.h>	/* For timer related operations */
 #include <linux/jiffies.h>	/* For jiffies stuff */
-#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/miscdevice.h>	/* For struct miscdevice */
 #include <linux/watchdog.h>	/* For the watchdog specific items */
 #include <linux/reboot.h>	/* For kernel_power_off() */
 #include <linux/init.h>		/* For __init/__exit/... */
@@ -1011,5 +1011,3 @@ MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>, "
 MODULE_DESCRIPTION("Berkshire ISA-PC Watchdog driver");
 MODULE_VERSION(WATCHDOG_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
-MODULE_ALIAS_MISCDEV(TEMP_MINOR);

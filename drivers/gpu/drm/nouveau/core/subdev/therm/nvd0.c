@@ -148,6 +148,6 @@ nvd0_therm_oclass = {
 		.ctor = nvd0_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
 		.init = nvd0_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = nv84_therm_fini,
 	},
 };

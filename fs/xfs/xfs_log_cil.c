@@ -17,11 +17,9 @@
 
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
-#include "xfs_log_priv.h"
+#include "xfs_log_format.h"
+#include "xfs_shared.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -29,6 +27,10 @@
 #include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
 #include "xfs_discard.h"
+#include "xfs_trans.h"
+#include "xfs_trans_priv.h"
+#include "xfs_log.h"
+#include "xfs_log_priv.h"
 
 /*
  * Allocate a new ticket. Failing to get a new ticket makes it really hard to
@@ -709,6 +711,20 @@ xlog_cil_push_foreground(
 
 	/* do the push now */
 	xlog_cil_push(log);
+}
+
+bool
+xlog_cil_empty(
+	struct xlog	*log)
+{
+	struct xfs_cil	*cil = log->l_cilp;
+	bool		empty = false;
+
+	spin_lock(&cil->xc_push_lock);
+	if (list_empty(&cil->xc_cil))
+		empty = true;
+	spin_unlock(&cil->xc_push_lock);
+	return empty;
 }
 
 /*

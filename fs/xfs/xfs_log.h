@@ -18,8 +18,6 @@
 #ifndef	__XFS_LOG_H__
 #define __XFS_LOG_H__
 
-#include "xfs_log_format.h"
-
 struct xfs_log_vec {
 	struct xfs_log_vec	*lv_next;	/* next lv in build list */
 	int			lv_niovecs;	/* number of iovecs in lv */
@@ -82,11 +80,7 @@ struct xlog_ticket;
 struct xfs_log_item;
 struct xfs_item_ops;
 struct xfs_trans;
-
-void	xfs_log_item_init(struct xfs_mount	*mp,
-			struct xfs_log_item	*item,
-			int			type,
-			const struct xfs_item_ops *ops);
+struct xfs_log_callback;
 
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,
@@ -114,7 +108,7 @@ xfs_lsn_t xlog_assign_tail_lsn_locked(struct xfs_mount *mp);
 void	  xfs_log_space_wake(struct xfs_mount *mp);
 int	  xfs_log_notify(struct xfs_mount	*mp,
 			 struct xlog_in_core	*iclog,
-			 xfs_log_callback_t	*callback_entry);
+			 struct xfs_log_callback *callback_entry);
 int	  xfs_log_release_iclog(struct xfs_mount *mp,
 			 struct xlog_in_core	 *iclog);
 int	  xfs_log_reserve(struct xfs_mount *mp,

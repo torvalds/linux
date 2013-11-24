@@ -111,6 +111,4 @@ static inline struct thread_info *current_thread_info(void)
 #define is_32bit_task()		(1)
 #endif
 
-#define PREEMPT_ACTIVE		0x4000000
-
 #endif /* _ASM_THREAD_INFO_H */

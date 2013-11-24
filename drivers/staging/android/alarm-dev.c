@@ -60,7 +60,12 @@ struct devalarm {
 
 static struct devalarm alarms[ANDROID_ALARM_TYPE_COUNT];
 
-
+/**
+ * is_wakeup() - Checks to see if this alarm can wake the device
+ * @type:	 The type of alarm being checked
+ *
+ * Return: 1 if this is a wakeup alarm, otherwise 0
+ */
 static int is_wakeup(enum android_alarm_type type)
 {
 	return (type == ANDROID_ALARM_RTC_WAKEUP ||
@@ -75,7 +80,6 @@ static void devalarm_start(struct devalarm *alrm, ktime_t exp)
 	else
 		hrtimer_start(&alrm->u.hrt, exp, HRTIMER_MODE_ABS);
 }
-
 
 static int devalarm_try_to_cancel(struct devalarm *alrm)
 {

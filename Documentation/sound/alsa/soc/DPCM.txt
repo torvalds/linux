@@ -192,7 +192,7 @@ This BE DAI link connects DAI0 to the codec (in this case RT5460 AIF1). It sets
 the "no_pcm" flag to mark it has a BE and sets flags for supported stream
 directions using "dpcm_playback" and "dpcm_capture" above.
 
-The BE has also flags set for ignoreing suspend and PM down time. This allows
+The BE has also flags set for ignoring suspend and PM down time. This allows
 the BE to work in a hostless mode where the host CPU is not transferring data
 like a BT phone call :-
 
@@ -328,7 +328,7 @@ The host can control the hostless link either by :-
     between both DAIs.
 
  2) Hostless FE. This FE has a virtual connection to the BE DAI links on the DAPM
-    graph. Control is then carried out by the FE as regualar PCM operations.
+    graph. Control is then carried out by the FE as regular PCM operations.
     This method gives more control over the DAI links, but requires much more
     userspace code to control the link. Its recommended to use CODEC<->CODEC
     unless your HW needs more fine grained sequencing of the PCM ops.

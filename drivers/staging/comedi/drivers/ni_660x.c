@@ -1213,7 +1213,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = ni_660x_dio_insn_bits;
 	s->insn_config = ni_660x_dio_insn_config;
-	s->io_bits = 0;		/* all bits default to input */
 	/*  we use the ioconfig registers to control dio direction, so zero
 	output enables in stc dio control reg */
 	ni_660x_write_register(dev, 0, 0, STCDIOControl);

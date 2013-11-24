@@ -305,8 +305,9 @@ static const struct iio_trigger_ops st_gyro_trigger_ops = {
 int st_gyro_common_probe(struct iio_dev *indio_dev,
 					struct st_sensors_platform_data *pdata)
 {
-	int err;
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
+	int irq = gdata->get_irq_data_ready(indio_dev);
+	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &gyro_info;
@@ -314,7 +315,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	err = st_sensors_check_device_support(indio_dev,
 				ARRAY_SIZE(st_gyro_sensors), st_gyro_sensors);
 	if (err < 0)
-		goto st_gyro_common_probe_error;
+		return err;
 
 	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
 	gdata->multiread_bit = gdata->sensor->multi_read_bit;
@@ -327,13 +328,13 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 
 	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
-		goto st_gyro_common_probe_error;
+		return err;
 
-	if (gdata->get_irq_data_ready(indio_dev) > 0) {
-		err = st_gyro_allocate_ring(indio_dev);
-		if (err < 0)
-			goto st_gyro_common_probe_error;
+	err = st_gyro_allocate_ring(indio_dev);
+	if (err < 0)
+		return err;
 
+	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_GYRO_TRIGGER_OPS);
 		if (err < 0)
@@ -344,15 +345,14 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	if (err)
 		goto st_gyro_device_register_error;
 
-	return err;
+	return 0;
 
 st_gyro_device_register_error:
-	if (gdata->get_irq_data_ready(indio_dev) > 0)
+	if (irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_gyro_probe_trigger_error:
-	if (gdata->get_irq_data_ready(indio_dev) > 0)
-		st_gyro_deallocate_ring(indio_dev);
-st_gyro_common_probe_error:
+	st_gyro_deallocate_ring(indio_dev);
+
 	return err;
 }
 EXPORT_SYMBOL(st_gyro_common_probe);
@@ -362,10 +362,10 @@ void st_gyro_common_remove(struct iio_dev *indio_dev)
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (gdata->get_irq_data_ready(indio_dev) > 0) {
+	if (gdata->get_irq_data_ready(indio_dev) > 0)
 		st_sensors_deallocate_trigger(indio_dev);
-		st_gyro_deallocate_ring(indio_dev);
-	}
+
+	st_gyro_deallocate_ring(indio_dev);
 }
 EXPORT_SYMBOL(st_gyro_common_remove);
 

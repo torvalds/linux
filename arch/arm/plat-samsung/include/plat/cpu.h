@@ -87,8 +87,12 @@ IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
 #endif
 
 #if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410)
+# define soc_is_s3c6400()	is_samsung_s3c6400()
+# define soc_is_s3c6410()	is_samsung_s3c6410()
 # define soc_is_s3c64xx()	(is_samsung_s3c6400() || is_samsung_s3c6410())
 #else
+# define soc_is_s3c6400()	0
+# define soc_is_s3c6410()	0
 # define soc_is_s3c64xx()	0
 #endif
 

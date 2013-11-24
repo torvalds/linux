@@ -1758,6 +1758,9 @@ SOC_DOUBLE_R_TLV("EQ4 Volume", WM8962_EQ3, WM8962_EQ23,
 		 WM8962_EQL_B4_GAIN_SHIFT, 31, 0, eq_tlv),
 SOC_DOUBLE_R_TLV("EQ5 Volume", WM8962_EQ3, WM8962_EQ23,
 		 WM8962_EQL_B5_GAIN_SHIFT, 31, 0, eq_tlv),
+SND_SOC_BYTES("EQL Coefficients", WM8962_EQ4, 18),
+SND_SOC_BYTES("EQR Coefficients", WM8962_EQ24, 18),
+
 
 SOC_SINGLE("3D Switch", WM8962_THREED1, 0, 1, 0),
 SND_SOC_BYTES_MASK("3D Coefficients", WM8962_THREED1, 4, WM8962_THREED_ENA),
@@ -1775,6 +1778,11 @@ WM8962_DSP2_ENABLE("HPF2 Switch", WM8962_HPF2_ENA_SHIFT),
 SND_SOC_BYTES("HPF Coefficients", WM8962_LHPF2, 1),
 WM8962_DSP2_ENABLE("HD Bass Switch", WM8962_HDBASS_ENA_SHIFT),
 SND_SOC_BYTES("HD Bass Coefficients", WM8962_HDBASS_AI_1, 30),
+
+SOC_DOUBLE("ALC Switch", WM8962_ALC1, WM8962_ALCL_ENA_SHIFT,
+		WM8962_ALCR_ENA_SHIFT, 1, 0),
+SND_SOC_BYTES_MASK("ALC Coefficients", WM8962_ALC1, 4,
+		WM8962_ALCL_ENA_MASK | WM8962_ALCR_ENA_MASK),
 };
 
 static const struct snd_kcontrol_new wm8962_spk_mono_controls[] = {
@@ -1845,7 +1853,7 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -1937,7 +1945,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	
 	}
@@ -1966,7 +1974,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		reg = WM8962_SPKOUTL_VOLUME;
 		break;
 	default:
-		BUG();
+		WARN(1, "Invalid shift %d\n", w->shift);
 		return -EINVAL;
 	}
 
@@ -1974,7 +1982,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		return snd_soc_write(codec, reg, snd_soc_read(codec, reg));
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 }
@@ -1997,7 +2005,7 @@ static int dsp2_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		BUG();
+		WARN(1, "Invalid event %d\n", event);
 		return -EINVAL;
 	}
 
@@ -3616,28 +3624,28 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 			   0);
 
 	/* Apply static configuration for GPIOs */
-	for (i = 0; i < ARRAY_SIZE(pdata->gpio_init); i++)
-		if (pdata->gpio_init[i]) {
+	for (i = 0; i < ARRAY_SIZE(wm8962->pdata.gpio_init); i++)
+		if (wm8962->pdata.gpio_init[i]) {
 			wm8962_set_gpio_mode(wm8962, i + 1);
 			regmap_write(wm8962->regmap, 0x200 + i,
-				     pdata->gpio_init[i] & 0xffff);
+				     wm8962->pdata.gpio_init[i] & 0xffff);
 		}
 
 
 	/* Put the speakers into mono mode? */
-	if (pdata->spk_mono)
+	if (wm8962->pdata.spk_mono)
 		regmap_update_bits(wm8962->regmap, WM8962_CLASS_D_CONTROL_2,
 				   WM8962_SPK_MONO_MASK, WM8962_SPK_MONO);
 
 	/* Micbias setup, detection enable and detection
 	 * threasholds. */
-	if (pdata->mic_cfg)
+	if (wm8962->pdata.mic_cfg)
 		regmap_update_bits(wm8962->regmap, WM8962_ADDITIONAL_CONTROL_4,
 				   WM8962_MICDET_ENA |
 				   WM8962_MICDET_THR_MASK |
 				   WM8962_MICSHORT_THR_MASK |
 				   WM8962_MICBIAS_LVL,
-				   pdata->mic_cfg);
+				   wm8962->pdata.mic_cfg);
 
 	/* Latch volume update bits */
 	regmap_update_bits(wm8962->regmap, WM8962_LEFT_INPUT_VOLUME,
@@ -3682,7 +3690,7 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (wm8962->irq) {
-		if (pdata->irq_active_low) {
+		if (wm8962->pdata.irq_active_low) {
 			trigger = IRQF_TRIGGER_LOW;
 			irq_pol = WM8962_IRQ_POL;
 		} else {
@@ -3719,6 +3727,8 @@ static int wm8962_i2c_probe(struct i2c_client *i2c,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
 	if (ret < 0)
 		goto err_enable;
+
+	regcache_cache_only(wm8962->regmap, true);
 
 	/* The drivers should power up as needed */
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);

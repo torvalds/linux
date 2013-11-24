@@ -2447,7 +2447,6 @@ static void bdx_remove(struct pci_dev *pdev)
 	iounmap(nic->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	vfree(nic);
 
 	RET();

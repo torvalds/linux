@@ -151,14 +151,13 @@ unsigned long __kprobes prepare_ftrace_return(unsigned long parent,
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
 	ip = (ip & PSW_ADDR_INSN) - MCOUNT_INSN_SIZE;
+	trace.func = ip;
+	trace.depth = current->curr_ret_stack + 1;
+	/* Only trace if the calling function expects to. */
+	if (!ftrace_graph_entry(&trace))
+		goto out;
 	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0) == -EBUSY)
 		goto out;
-	trace.func = ip;
-	/* Only trace if the calling function expects to. */
-	if (!ftrace_graph_entry(&trace)) {
-		current->curr_ret_stack--;
-		goto out;
-	}
 	parent = (unsigned long) return_to_handler;
 out:
 	return parent;

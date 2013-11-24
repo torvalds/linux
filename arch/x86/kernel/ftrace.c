@@ -248,6 +248,15 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
+static int is_ftrace_caller(unsigned long ip)
+{
+	if (ip == (unsigned long)(&ftrace_call) ||
+		ip == (unsigned long)(&ftrace_regs_call))
+		return 1;
+
+	return 0;
+}
+
 /*
  * A breakpoint was added to the code address we are about to
  * modify, and this is the handle that will just skip over it.
@@ -257,10 +266,13 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
  */
 int ftrace_int3_handler(struct pt_regs *regs)
 {
+	unsigned long ip;
+
 	if (WARN_ON_ONCE(!regs))
 		return 0;
 
-	if (!ftrace_location(regs->ip - 1))
+	ip = regs->ip - 1;
+	if (!ftrace_location(ip) && !is_ftrace_caller(ip))
 		return 0;
 
 	regs->ip += MCOUNT_INSN_SIZE - 1;

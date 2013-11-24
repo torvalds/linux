@@ -95,6 +95,18 @@ unsigned autoresume = DEFAULT_AUTORESUME;
 module_param(autoresume, uint, S_IRUGO);
 MODULE_PARM_DESC(autoresume, "zero, or seconds before remote wakeup");
 
+/* Maximum Autoresume time */
+unsigned max_autoresume;
+module_param(max_autoresume, uint, S_IRUGO);
+MODULE_PARM_DESC(max_autoresume, "maximum seconds before remote wakeup");
+
+/* Interval between two remote wakeups */
+unsigned autoresume_interval_ms;
+module_param(autoresume_interval_ms, uint, S_IRUGO);
+MODULE_PARM_DESC(autoresume_interval_ms,
+		"milliseconds to increase successive wakeup delays");
+
+static unsigned autoresume_step_ms;
 /*-------------------------------------------------------------------------*/
 
 static struct usb_device_descriptor device_desc = {
@@ -183,8 +195,16 @@ static void zero_suspend(struct usb_composite_dev *cdev)
 		return;
 
 	if (autoresume) {
-		mod_timer(&autoresume_timer, jiffies + (HZ * autoresume));
-		DBG(cdev, "suspend, wakeup in %d seconds\n", autoresume);
+		if (max_autoresume &&
+			(autoresume_step_ms > max_autoresume * 1000))
+				autoresume_step_ms = autoresume * 1000;
+
+		mod_timer(&autoresume_timer, jiffies +
+			msecs_to_jiffies(autoresume_step_ms));
+		DBG(cdev, "suspend, wakeup in %d milliseconds\n",
+			autoresume_step_ms);
+
+		autoresume_step_ms += autoresume_interval_ms;
 	} else
 		DBG(cdev, "%s\n", __func__);
 }
@@ -316,6 +336,7 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	if (autoresume) {
 		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+		autoresume_step_ms = autoresume * 1000;
 	}
 
 	/* support OTG systems */

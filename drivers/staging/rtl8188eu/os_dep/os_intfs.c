@@ -85,7 +85,7 @@ static int rtw_uapsd_acvi_en;
 static int rtw_uapsd_acvo_en;
 
 int rtw_ht_enable = 1;
-int rtw_cbw40_enable = 3; /*  0 :diable, bit(0): enable 2.4g, bit(1): enable 5g */
+int rtw_cbw40_enable = 3; /*  0 :disable, bit(0): enable 2.4g, bit(1): enable 5g */
 int rtw_ampdu_enable = 1;/* for enable tx_ampdu */
 static int rtw_rx_stbc = 1;/*  0: disable, bit(0):enable 2.4g, bit(1):enable 5g, default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ */
 static int rtw_ampdu_amsdu;/*  0: disabled, 1:enabled, 2:auto */
@@ -707,6 +707,10 @@ int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname)
 	return 0;
 }
 
+static const struct device_type wlan_type = {
+	.name = "wlan",
+};
+
 struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 {
 	struct adapter *padapter;
@@ -722,6 +726,7 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	if (!pnetdev)
 		return NULL;
 
+	pnetdev->dev.type = &wlan_type;
 	padapter = rtw_netdev_priv(pnetdev);
 	padapter->pnetdev = pnetdev;
 	DBG_88E("register rtw_netdev_ops to netdev_ops\n");

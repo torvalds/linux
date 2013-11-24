@@ -22,8 +22,10 @@
 #include <linux/of_platform.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <mach/common.h>
+#include <mach/dma-register.h>
 #include <mach/irqs.h>
 #include <mach/r8a73a4.h>
 #include <asm/mach/arch.h>
@@ -199,15 +201,104 @@ void __init r8a73a4_add_dt_devices(void)
 	r8a7790_register_cmt(10);
 }
 
+/* DMA */
+static const struct sh_dmae_slave_config dma_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_MMCIF0_TX,
+		.addr		= 0xee200034,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF0_RX,
+		.addr		= 0xee200034,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xd2,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF1_TX,
+		.addr		= 0xee220034,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xe1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_MMCIF1_RX,
+		.addr		= 0xee220034,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0xe2,
+	},
+};
+
+#define DMAE_CHANNEL(a, b)				\
+	{						\
+		.offset         = (a) - 0x20,		\
+		.dmars          = (a) - 0x20 + 0x40,	\
+		.chclr_bit	= (b),			\
+		.chclr_offset	= 0x80 - 0x20,		\
+	}
+
+static const struct sh_dmae_channel dma_channels[] = {
+	DMAE_CHANNEL(0x8000, 0),
+	DMAE_CHANNEL(0x8080, 1),
+	DMAE_CHANNEL(0x8100, 2),
+	DMAE_CHANNEL(0x8180, 3),
+	DMAE_CHANNEL(0x8200, 4),
+	DMAE_CHANNEL(0x8280, 5),
+	DMAE_CHANNEL(0x8300, 6),
+	DMAE_CHANNEL(0x8380, 7),
+	DMAE_CHANNEL(0x8400, 8),
+	DMAE_CHANNEL(0x8480, 9),
+	DMAE_CHANNEL(0x8500, 10),
+	DMAE_CHANNEL(0x8580, 11),
+	DMAE_CHANNEL(0x8600, 12),
+	DMAE_CHANNEL(0x8680, 13),
+	DMAE_CHANNEL(0x8700, 14),
+	DMAE_CHANNEL(0x8780, 15),
+	DMAE_CHANNEL(0x8800, 16),
+	DMAE_CHANNEL(0x8880, 17),
+	DMAE_CHANNEL(0x8900, 18),
+	DMAE_CHANNEL(0x8980, 19),
+};
+
+static const struct sh_dmae_pdata dma_pdata = {
+	.slave		= dma_slaves,
+	.slave_num	= ARRAY_SIZE(dma_slaves),
+	.channel	= dma_channels,
+	.channel_num	= ARRAY_SIZE(dma_channels),
+	.ts_low_shift	= TS_LOW_SHIFT,
+	.ts_low_mask	= TS_LOW_BIT << TS_LOW_SHIFT,
+	.ts_high_shift	= TS_HI_SHIFT,
+	.ts_high_mask	= TS_HI_BIT << TS_HI_SHIFT,
+	.ts_shift	= dma_ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_ts_shift),
+	.dmaor_init     = DMAOR_DME,
+	.chclr_present	= 1,
+	.chclr_bitwise	= 1,
+};
+
+static struct resource dma_resources[] = {
+	DEFINE_RES_MEM(0xe6700020, 0x89e0),
+	DEFINE_RES_IRQ_NAMED(gic_spi(220), "error_irq"),
+	{
+		/* IRQ for channels 0-19 */
+		.start  = gic_spi(200),
+		.end    = gic_spi(219),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+#define r8a73a4_register_dmac()							\
+	platform_device_register_resndata(&platform_bus, "sh-dma-engine", 0,	\
+				dma_resources, ARRAY_SIZE(dma_resources),	\
+				&dma_pdata, sizeof(dma_pdata))
+
 void __init r8a73a4_add_standard_devices(void)
 {
 	r8a73a4_add_dt_devices();
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();
+	r8a73a4_register_dmac();
 }
 
-void __init r8a73a4_init_delay(void)
+void __init r8a73a4_init_early(void)
 {
 #ifndef CONFIG_ARM_ARCH_TIMER
 	shmobile_setup_delay(1500, 2, 4); /* Cortex-A15 @ 1500MHz */
@@ -222,7 +313,7 @@ static const char *r8a73a4_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A73A4_DT, "Generic R8A73A4 (Flattened Device Tree)")
-	.init_early	= r8a73a4_init_delay,
+	.init_early	= r8a73a4_init_early,
 	.dt_compat	= r8a73a4_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

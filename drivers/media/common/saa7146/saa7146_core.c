@@ -411,7 +411,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	saa7146_write(dev, MC2, 0xf8000000);
 
 	/* request an interrupt for the saa7146 */
-	err = request_irq(pci->irq, interrupt_hw, IRQF_SHARED | IRQF_DISABLED,
+	err = request_irq(pci->irq, interrupt_hw, IRQF_SHARED,
 			  dev->name, dev);
 	if (err < 0) {
 		ERR("request_irq() failed\n");
@@ -524,8 +524,6 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 	DEB_EE("dev:%p\n", dev);
 
 	dev->ext->detach(dev);
-	/* Zero the PCI drvdata after use. */
-	pci_set_drvdata(pdev, NULL);
 
 	/* shut down all video dma transfers */
 	saa7146_write(dev, MC1, 0x00ff0000);

@@ -358,7 +358,12 @@ static struct pinctrl_gpio_range gpio_range = {
 	.gc = &chip;
 };
 
-In this case the pin_base property will be ignored.
+In this case the pin_base property will be ignored. If the name of a pin
+group is known, the pins and npins elements of the above structure can be
+initialised using the function pinctrl_get_group_pins(), e.g. for pin
+group "foo":
+
+pinctrl_get_group_pins(pctl, "foo", &gpio_range.pins, &gpio_range.npins);
 
 When GPIO-specific functions in the pin control subsystem are called, these
 ranges will be used to look up the appropriate pin controller by inspecting

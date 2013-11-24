@@ -542,7 +542,8 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 /* Fill a cifs_fattr struct with info from FILE_ALL_INFO */
 static void
 cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
-		       struct cifs_sb_info *cifs_sb, bool adjust_tz)
+		       struct cifs_sb_info *cifs_sb, bool adjust_tz,
+		       bool symlink)
 {
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
@@ -569,7 +570,11 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
-	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+
+	if (symlink) {
+		fattr->cf_mode = S_IFLNK;
+		fattr->cf_dtype = DT_LNK;
+	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
 		fattr->cf_dtype = DT_DIR;
 		/*
@@ -578,10 +583,6 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		 */
 		if (!tcon->unix_ext)
 			fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
-	} else if (fattr->cf_cifsattrs & ATTR_REPARSE) {
-		fattr->cf_mode = S_IFLNK;
-		fattr->cf_dtype = DT_LNK;
-		fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 	} else {
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
@@ -626,7 +627,8 @@ cifs_get_file_info(struct file *filp)
 	rc = server->ops->query_file_info(xid, tcon, &cfile->fid, &find_data);
 	switch (rc) {
 	case 0:
-		cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false);
+		cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false,
+				       false);
 		break;
 	case -EREMOTE:
 		cifs_create_dfs_fattr(&fattr, inode->i_sb);
@@ -673,6 +675,7 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	bool adjust_tz = false;
 	struct cifs_fattr fattr;
 	struct cifs_search_info *srchinf = NULL;
+	bool symlink = false;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -702,12 +705,12 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 		}
 		data = (FILE_ALL_INFO *)buf;
 		rc = server->ops->query_path_info(xid, tcon, cifs_sb, full_path,
-						  data, &adjust_tz);
+						  data, &adjust_tz, &symlink);
 	}
 
 	if (!rc) {
-		cifs_all_info_to_fattr(&fattr, (FILE_ALL_INFO *)data, cifs_sb,
-				       adjust_tz);
+		cifs_all_info_to_fattr(&fattr, data, cifs_sb, adjust_tz,
+				       symlink);
 	} else if (rc == -EREMOTE) {
 		cifs_create_dfs_fattr(&fattr, sb);
 		rc = 0;

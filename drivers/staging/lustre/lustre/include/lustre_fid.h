@@ -590,7 +590,7 @@ fid_build_pdo_res_name(const struct lu_fid *fid, unsigned int hash,
 static inline void ostid_build_res_name(struct ost_id *oi,
 					struct ldlm_res_id *name)
 {
-	memset(name, 0, sizeof *name);
+	memset(name, 0, sizeof(*name));
 	if (fid_seq_is_mdt0(ostid_seq(oi))) {
 		name->name[LUSTRE_RES_ID_SEQ_OFF] = ostid_id(oi);
 		name->name[LUSTRE_RES_ID_VER_OID_OFF] = ostid_seq(oi);

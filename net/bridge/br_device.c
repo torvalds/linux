@@ -64,7 +64,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 			br_flood_deliver(br, skb, false);
 			goto out;
 		}
-		if (br_multicast_rcv(br, NULL, skb)) {
+		if (br_multicast_rcv(br, NULL, skb, vid)) {
 			kfree_skb(skb);
 			goto out;
 		}
@@ -88,10 +88,17 @@ out:
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
+	int i;
 
 	br->stats = alloc_percpu(struct br_cpu_netstats);
 	if (!br->stats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct br_cpu_netstats *br_dev_stats;
+		br_dev_stats = per_cpu_ptr(br->stats, i);
+		u64_stats_init(&br_dev_stats->syncp);
+	}
 
 	return 0;
 }

@@ -101,22 +101,6 @@ static inline int tcp_probe_avail(void)
 		si4.sin_addr.s_addr = inet->inet_##mem##addr;	\
 	} while (0)						\
 
-#if IS_ENABLED(CONFIG_IPV6)
-#define tcp_probe_copy_fl_to_si6(inet, si6, mem)		\
-	do {							\
-		struct ipv6_pinfo *pi6 = inet->pinet6;		\
-		si6.sin6_family = AF_INET6;			\
-		si6.sin6_port = inet->inet_##mem##port;		\
-		si6.sin6_addr = pi6->mem##addr;			\
-		si6.sin6_flowinfo = 0; /* No need here. */	\
-		si6.sin6_scope_id = 0;	/* No need here. */	\
-	} while (0)
-#else
-#define tcp_probe_copy_fl_to_si6(fl, si6, mem)			\
-	do {							\
-		memset(&si6, 0, sizeof(si6));			\
-	} while (0)
-#endif
 
 /*
  * Hook inserted to be called before each receive packet.
@@ -147,8 +131,17 @@ static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				tcp_probe_copy_fl_to_si4(inet, p->dst.v4, d);
 				break;
 			case AF_INET6:
-				tcp_probe_copy_fl_to_si6(inet, p->src.v6, s);
-				tcp_probe_copy_fl_to_si6(inet, p->dst.v6, d);
+				memset(&p->src.v6, 0, sizeof(p->src.v6));
+				memset(&p->dst.v6, 0, sizeof(p->dst.v6));
+#if IS_ENABLED(CONFIG_IPV6)
+				p->src.v6.sin6_family = AF_INET6;
+				p->src.v6.sin6_port = inet->inet_sport;
+				p->src.v6.sin6_addr = inet6_sk(sk)->saddr;
+
+				p->dst.v6.sin6_family = AF_INET6;
+				p->dst.v6.sin6_port = inet->inet_dport;
+				p->dst.v6.sin6_addr = sk->sk_v6_daddr;
+#endif
 				break;
 			default:
 				BUG();

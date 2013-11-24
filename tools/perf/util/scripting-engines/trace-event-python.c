@@ -250,7 +250,7 @@ static void python_process_tracepoint(union perf_event *perf_event
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
-	char *comm = thread->comm;
+	const char *comm = thread__comm_str(thread);
 
 	t = PyTuple_New(MAX_FIELDS);
 	if (!t)
@@ -389,7 +389,7 @@ static void python_process_general_event(union perf_event *perf_event
 	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
-			PyString_FromString(thread->comm));
+			PyString_FromString(thread__comm_str(thread)));
 	if (al->map) {
 		pydict_set_item_string_decref(dict, "dso",
 			PyString_FromString(al->map->dso->name));

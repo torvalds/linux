@@ -343,7 +343,7 @@ static int mc13783_set_tdm_slot_dac(struct snd_soc_dai *dai,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	snd_soc_update_bits(codec, MC13783_SSI_NETWORK, mask, val);
 

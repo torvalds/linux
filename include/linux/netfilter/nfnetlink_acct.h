@@ -6,8 +6,8 @@
 
 struct nf_acct;
 
-extern struct nf_acct *nfnl_acct_find_get(const char *filter_name);
-extern void nfnl_acct_put(struct nf_acct *acct);
-extern void nfnl_acct_update(const struct sk_buff *skb, struct nf_acct *nfacct);
+struct nf_acct *nfnl_acct_find_get(const char *filter_name);
+void nfnl_acct_put(struct nf_acct *acct);
+void nfnl_acct_update(const struct sk_buff *skb, struct nf_acct *nfacct);
 
 #endif /* _NFNL_ACCT_H */

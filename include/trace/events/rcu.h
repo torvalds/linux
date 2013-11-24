@@ -39,15 +39,26 @@ TRACE_EVENT(rcu_utilization,
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 
 /*
- * Tracepoint for grace-period events: starting and ending a grace
- * period ("start" and "end", respectively), a CPU noting the start
- * of a new grace period or the end of an old grace period ("cpustart"
- * and "cpuend", respectively), a CPU passing through a quiescent
- * state ("cpuqs"), a CPU coming online or going offline ("cpuonl"
- * and "cpuofl", respectively), a CPU being kicked for being too
- * long in dyntick-idle mode ("kick"), a CPU accelerating its new
- * callbacks to RCU_NEXT_READY_TAIL ("AccReadyCB"), and a CPU
- * accelerating its new callbacks to RCU_WAIT_TAIL ("AccWaitCB").
+ * Tracepoint for grace-period events.  Takes a string identifying the
+ * RCU flavor, the grace-period number, and a string identifying the
+ * grace-period-related event as follows:
+ *
+ *	"AccReadyCB": CPU acclerates new callbacks to RCU_NEXT_READY_TAIL.
+ *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
+ *	"newreq": Request a new grace period.
+ *	"start": Start a grace period.
+ *	"cpustart": CPU first notices a grace-period start.
+ *	"cpuqs": CPU passes through a quiescent state.
+ *	"cpuonl": CPU comes online.
+ *	"cpuofl": CPU goes offline.
+ *	"reqwait": GP kthread sleeps waiting for grace-period request.
+ *	"reqwaitsig": GP kthread awakened by signal from reqwait state.
+ *	"fqswait": GP kthread waiting until time to force quiescent states.
+ *	"fqsstart": GP kthread starts forcing quiescent states.
+ *	"fqsend": GP kthread done forcing quiescent states.
+ *	"fqswaitsig": GP kthread awakened by signal from fqswait state.
+ *	"end": End a grace period.
+ *	"cpuend": CPU first notices a grace-period end.
  */
 TRACE_EVENT(rcu_grace_period,
 
@@ -158,6 +169,46 @@ TRACE_EVENT(rcu_grace_period_init,
 	TP_printk("%s %lu %u %d %d %lx",
 		  __entry->rcuname, __entry->gpnum, __entry->level,
 		  __entry->grplo, __entry->grphi, __entry->qsmask)
+);
+
+/*
+ * Tracepoint for RCU no-CBs CPU callback handoffs.  This event is intended
+ * to assist debugging of these handoffs.
+ *
+ * The first argument is the name of the RCU flavor, and the second is
+ * the number of the offloaded CPU are extracted.  The third and final
+ * argument is a string as follows:
+ *
+ *	"WakeEmpty": Wake rcuo kthread, first CB to empty list.
+ *	"WakeOvf": Wake rcuo kthread, CB list is huge.
+ *	"WakeNot": Don't wake rcuo kthread.
+ *	"WakeNotPoll": Don't wake rcuo kthread because it is polling.
+ *	"Poll": Start of new polling cycle for rcu_nocb_poll.
+ *	"Sleep": Sleep waiting for CBs for !rcu_nocb_poll.
+ *	"WokeEmpty": rcuo kthread woke to find empty list.
+ *	"WokeNonEmpty": rcuo kthread woke to find non-empty list.
+ *	"WaitQueue": Enqueue partially done, timed wait for it to complete.
+ *	"WokeQueue": Partial enqueue now complete.
+ */
+TRACE_EVENT(rcu_nocb_wake,
+
+	TP_PROTO(const char *rcuname, int cpu, const char *reason),
+
+	TP_ARGS(rcuname, cpu, reason),
+
+	TP_STRUCT__entry(
+		__field(const char *, rcuname)
+		__field(int, cpu)
+		__field(const char *, reason)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->cpu = cpu;
+		__entry->reason = reason;
+	),
+
+	TP_printk("%s %d %s", __entry->rcuname, __entry->cpu, __entry->reason)
 );
 
 /*
@@ -540,17 +591,17 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
 TRACE_EVENT(rcu_batch_end,
 
 	TP_PROTO(const char *rcuname, int callbacks_invoked,
-		 bool cb, bool nr, bool iit, bool risk),
+		 char cb, char nr, char iit, char risk),
 
 	TP_ARGS(rcuname, callbacks_invoked, cb, nr, iit, risk),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
 		__field(int, callbacks_invoked)
-		__field(bool, cb)
-		__field(bool, nr)
-		__field(bool, iit)
-		__field(bool, risk)
+		__field(char, cb)
+		__field(char, nr)
+		__field(char, iit)
+		__field(char, risk)
 	),
 
 	TP_fast_assign(
@@ -656,6 +707,7 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_future_grace_period(rcuname, gpnum, completed, c, \
 				      level, grplo, grphi, event) \
 				      do { } while (0)
+#define trace_rcu_nocb_wake(rcuname, cpu, reason) do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gpnum) do { } while (0)
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)
 #define trace_rcu_quiescent_state_report(rcuname, gpnum, mask, qsmask, level, \

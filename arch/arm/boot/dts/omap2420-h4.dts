@@ -50,15 +50,15 @@
 			label = "bootloader";
 			reg = <0 0x20000>;
 		};
-		partition@0x20000 {
+		partition@20000 {
 			label = "params";
 			reg = <0x20000 0x20000>;
 		};
-		partition@0x40000 {
+		partition@40000 {
 			label = "kernel";
 			reg = <0x40000 0x200000>;
 		};
-		partition@0x240000 {
+		partition@240000 {
 			label = "file-system";
 			reg = <0x240000 0x3dc0000>;
 		};

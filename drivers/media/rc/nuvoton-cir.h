@@ -84,8 +84,8 @@ struct nvt_dev {
 	} tx;
 
 	/* EFER Config register index/data pair */
-	u8 cr_efir;
-	u8 cr_efdr;
+	u32 cr_efir;
+	u32 cr_efdr;
 
 	/* hardware I/O settings */
 	unsigned long cir_addr;

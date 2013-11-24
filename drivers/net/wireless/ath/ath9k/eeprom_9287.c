@@ -125,8 +125,8 @@ static u32 ath9k_hw_ar9287_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	struct base_eep_ar9287_header *pBase = &eep->baseEepHeader;
 
 	if (!dump_base_hdr) {
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "2GHz modal Header");
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "2GHz modal Header");
 		len = ar9287_dump_modal_eeprom(buf, len, size,
 						&eep->modalHeader);
 		goto out;
@@ -157,8 +157,8 @@ static u32 ath9k_hw_ar9287_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	PR_EEP("Power Table Offset", pBase->pwrTableOffset);
 	PR_EEP("OpenLoop Power Ctrl", pBase->openLoopPwrCntl);
 
-	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			pBase->macAddr);
+	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			 pBase->macAddr);
 
 out:
 	if (len > size)

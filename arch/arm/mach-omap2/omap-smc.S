@@ -1,9 +1,11 @@
 /*
- * OMAP44xx secure APIs file.
+ * OMAP34xx and OMAP44xx secure APIs file.
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Written by Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
+ * Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
+ * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software,you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -53,6 +55,23 @@ ENTRY(omap_smc2)
 	smc	#0
 	ldmfd   sp!, {r4-r12, pc}
 ENDPROC(omap_smc2)
+
+/**
+ * u32 omap_smc3(u32 service_id, u32 process_id, u32 flag, u32 pargs)
+ * Low level common routine for secure HAL and PPA APIs via smc #1
+ * r0 - @service_id: Secure Service ID
+ * r1 - @process_id: Process ID
+ * r2 - @flag: Flag to indicate the criticality of operation
+ * r3 - @pargs: Physical address of parameter list
+ */
+ENTRY(omap_smc3)
+	stmfd	sp!, {r4-r11, lr}
+	mov	r12, r0		@ Copy the secure service ID
+	mov	r6, #0xff	@ Indicate new Task call
+	dsb			@ Memory Barrier (not sure if needed, copied from omap_smc2)
+	smc	#1		@ Call PPA service
+	ldmfd	sp!, {r4-r11, pc}
+ENDPROC(omap_smc3)
 
 ENTRY(omap_modify_auxcoreboot0)
 	stmfd   sp!, {r1-r12, lr}

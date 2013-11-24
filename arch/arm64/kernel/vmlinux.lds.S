@@ -54,7 +54,6 @@ SECTIONS
 	}
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
-			*(.smp.pen.text)
 			__exception_text_start = .;
 			*(.exception.text)
 			__exception_text_end = .;
@@ -97,30 +96,13 @@ SECTIONS
 	PERCPU_SECTION(64)
 
 	__init_end = .;
-	. = ALIGN(THREAD_SIZE);
-	__data_loc = .;
 
-	.data : AT(__data_loc) {
-		_data = .;		/* address in memory */
-		_sdata = .;
-
-		/*
-		 * first, the init task union, aligned
-		 * to an 8192 byte boundary.
-		 */
-		INIT_TASK_DATA(THREAD_SIZE)
-		NOSAVE_DATA
-		CACHELINE_ALIGNED_DATA(64)
-		READ_MOSTLY_DATA(64)
-
-		/*
-		 * and the usual data section
-		 */
-		DATA_DATA
-		CONSTRUCTORS
-
-		_edata = .;
-	}
+	. = ALIGN(PAGE_SIZE);
+	_data = .;
+	__data_loc = _data - LOAD_OFFSET;
+	_sdata = .;
+	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
+	_edata = .;
 	_edata_loc = __data_loc + SIZEOF(.data);
 
 	BSS_SECTION(0, 0, 0)

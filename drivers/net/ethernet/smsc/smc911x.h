@@ -227,7 +227,7 @@ static inline void SMC_outsl(struct smc911x_local *lp, int reg,
 #define SMC_DMA_ACK_IRQ(dev, dma)					\
 {									\
 	if (DCSR(dma) & DCSR_BUSERR) {					\
-		printk("%s: DMA %d bus error!\n", dev->name, dma);	\
+		netdev_err(dev, "DMA %d bus error!\n", dma);		\
 	}								\
 	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;		\
 }

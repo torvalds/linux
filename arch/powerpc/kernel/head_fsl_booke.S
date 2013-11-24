@@ -555,27 +555,27 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
+	NORMAL_EXCEPTION_PROLOG(SPE_ALTIVEC_UNAVAIL)
 	beq	1f
 	bl	load_up_spe
 	b	fast_exception_return
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
 #else
-	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
+	EXCEPTION(0x2020, SPE_ALTIVEC_UNAVAIL, SPEUnavailable, \
 		  unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData, \
-		  SPEFloatingPointException, EXC_XFER_EE);
+	EXCEPTION(0x2030, SPE_FP_DATA_ALTIVEC_ASSIST, SPEFloatingPointData,
+		  SPEFloatingPointException, EXC_XFER_EE)
 
 	/* SPE Floating Point Round */
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
 		  SPEFloatingPointRoundException, EXC_XFER_EE)
 #else
-	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, \
+	EXCEPTION(0x2040, SPE_FP_DATA_ALTIVEC_ASSIST, SPEFloatingPointData,
 		  unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
 		  unknown_exception, EXC_XFER_EE)

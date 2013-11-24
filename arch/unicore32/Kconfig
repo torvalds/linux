@@ -1,5 +1,6 @@
 config UNICORE32
 	def_bool y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_MEMBLOCK
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_DMA_ATTRS

@@ -156,14 +156,259 @@ struct xfs_dsymlink_hdr {
 	((bufsize) - (xfs_sb_version_hascrc(&(mp)->m_sb) ? \
 			sizeof(struct xfs_dsymlink_hdr) : 0))
 
-int xfs_symlink_blocks(struct xfs_mount *mp, int pathlen);
-int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-bool xfs_symlink_hdr_ok(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
-				 struct xfs_inode *ip, struct xfs_ifork *ifp);
 
-extern const struct xfs_buf_ops xfs_symlink_buf_ops;
+/*
+ * Allocation Btree format definitions
+ *
+ * There are two on-disk btrees, one sorted by blockno and one sorted
+ * by blockcount and blockno.  All blocks look the same to make the code
+ * simpler; if we have time later, we'll make the optimizations.
+ */
+#define	XFS_ABTB_MAGIC		0x41425442	/* 'ABTB' for bno tree */
+#define	XFS_ABTB_CRC_MAGIC	0x41423342	/* 'AB3B' */
+#define	XFS_ABTC_MAGIC		0x41425443	/* 'ABTC' for cnt tree */
+#define	XFS_ABTC_CRC_MAGIC	0x41423343	/* 'AB3C' */
+
+/*
+ * Data record/key structure
+ */
+typedef struct xfs_alloc_rec {
+	__be32		ar_startblock;	/* starting block number */
+	__be32		ar_blockcount;	/* count of free blocks */
+} xfs_alloc_rec_t, xfs_alloc_key_t;
+
+typedef struct xfs_alloc_rec_incore {
+	xfs_agblock_t	ar_startblock;	/* starting block number */
+	xfs_extlen_t	ar_blockcount;	/* count of free blocks */
+} xfs_alloc_rec_incore_t;
+
+/* btree pointer type */
+typedef __be32 xfs_alloc_ptr_t;
+
+/*
+ * Block numbers in the AG:
+ * SB is sector 0, AGF is sector 1, AGI is sector 2, AGFL is sector 3.
+ */
+#define	XFS_BNO_BLOCK(mp)	((xfs_agblock_t)(XFS_AGFL_BLOCK(mp) + 1))
+#define	XFS_CNT_BLOCK(mp)	((xfs_agblock_t)(XFS_BNO_BLOCK(mp) + 1))
+
+
+/*
+ * Inode Allocation Btree format definitions
+ *
+ * There is a btree for the inode map per allocation group.
+ */
+#define	XFS_IBT_MAGIC		0x49414254	/* 'IABT' */
+#define	XFS_IBT_CRC_MAGIC	0x49414233	/* 'IAB3' */
+
+typedef	__uint64_t	xfs_inofree_t;
+#define	XFS_INODES_PER_CHUNK		(NBBY * sizeof(xfs_inofree_t))
+#define	XFS_INODES_PER_CHUNK_LOG	(XFS_NBBYLOG + 3)
+#define	XFS_INOBT_ALL_FREE		((xfs_inofree_t)-1)
+#define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
+
+static inline xfs_inofree_t xfs_inobt_maskn(int i, int n)
+{
+	return ((n >= XFS_INODES_PER_CHUNK ? 0 : XFS_INOBT_MASK(n)) - 1) << i;
+}
+
+/*
+ * Data record structure
+ */
+typedef struct xfs_inobt_rec {
+	__be32		ir_startino;	/* starting inode number */
+	__be32		ir_freecount;	/* count of free inodes (set bits) */
+	__be64		ir_free;	/* free inode mask */
+} xfs_inobt_rec_t;
+
+typedef struct xfs_inobt_rec_incore {
+	xfs_agino_t	ir_startino;	/* starting inode number */
+	__int32_t	ir_freecount;	/* count of free inodes (set bits) */
+	xfs_inofree_t	ir_free;	/* free inode mask */
+} xfs_inobt_rec_incore_t;
+
+
+/*
+ * Key structure
+ */
+typedef struct xfs_inobt_key {
+	__be32		ir_startino;	/* starting inode number */
+} xfs_inobt_key_t;
+
+/* btree pointer type */
+typedef __be32 xfs_inobt_ptr_t;
+
+/*
+ * block numbers in the AG.
+ */
+#define	XFS_IBT_BLOCK(mp)		((xfs_agblock_t)(XFS_CNT_BLOCK(mp) + 1))
+#define	XFS_PREALLOC_BLOCKS(mp)		((xfs_agblock_t)(XFS_IBT_BLOCK(mp) + 1))
+
+
+
+/*
+ * BMAP Btree format definitions
+ *
+ * This includes both the root block definition that sits inside an inode fork
+ * and the record/pointer formats for the leaf/node in the blocks.
+ */
+#define XFS_BMAP_MAGIC		0x424d4150	/* 'BMAP' */
+#define XFS_BMAP_CRC_MAGIC	0x424d4133	/* 'BMA3' */
+
+/*
+ * Bmap root header, on-disk form only.
+ */
+typedef struct xfs_bmdr_block {
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+} xfs_bmdr_block_t;
+
+/*
+ * Bmap btree record and extent descriptor.
+ *  l0:63 is an extent flag (value 1 indicates non-normal).
+ *  l0:9-62 are startoff.
+ *  l0:0-8 and l1:21-63 are startblock.
+ *  l1:0-20 are blockcount.
+ */
+#define BMBT_EXNTFLAG_BITLEN	1
+#define BMBT_STARTOFF_BITLEN	54
+#define BMBT_STARTBLOCK_BITLEN	52
+#define BMBT_BLOCKCOUNT_BITLEN	21
+
+typedef struct xfs_bmbt_rec {
+	__be64			l0, l1;
+} xfs_bmbt_rec_t;
+
+typedef __uint64_t	xfs_bmbt_rec_base_t;	/* use this for casts */
+typedef xfs_bmbt_rec_t xfs_bmdr_rec_t;
+
+typedef struct xfs_bmbt_rec_host {
+	__uint64_t		l0, l1;
+} xfs_bmbt_rec_host_t;
+
+/*
+ * Values and macros for delayed-allocation startblock fields.
+ */
+#define STARTBLOCKVALBITS	17
+#define STARTBLOCKMASKBITS	(15 + XFS_BIG_BLKNOS * 20)
+#define DSTARTBLOCKMASKBITS	(15 + 20)
+#define STARTBLOCKMASK		\
+	(((((xfs_fsblock_t)1) << STARTBLOCKMASKBITS) - 1) << STARTBLOCKVALBITS)
+#define DSTARTBLOCKMASK		\
+	(((((xfs_dfsbno_t)1) << DSTARTBLOCKMASKBITS) - 1) << STARTBLOCKVALBITS)
+
+static inline int isnullstartblock(xfs_fsblock_t x)
+{
+	return ((x) & STARTBLOCKMASK) == STARTBLOCKMASK;
+}
+
+static inline int isnulldstartblock(xfs_dfsbno_t x)
+{
+	return ((x) & DSTARTBLOCKMASK) == DSTARTBLOCKMASK;
+}
+
+static inline xfs_fsblock_t nullstartblock(int k)
+{
+	ASSERT(k < (1 << STARTBLOCKVALBITS));
+	return STARTBLOCKMASK | (k);
+}
+
+static inline xfs_filblks_t startblockval(xfs_fsblock_t x)
+{
+	return (xfs_filblks_t)((x) & ~STARTBLOCKMASK);
+}
+
+/*
+ * Possible extent formats.
+ */
+typedef enum {
+	XFS_EXTFMT_NOSTATE = 0,
+	XFS_EXTFMT_HASSTATE
+} xfs_exntfmt_t;
+
+/*
+ * Possible extent states.
+ */
+typedef enum {
+	XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
+	XFS_EXT_DMAPI_OFFLINE, XFS_EXT_INVALID
+} xfs_exntst_t;
+
+/*
+ * Incore version of above.
+ */
+typedef struct xfs_bmbt_irec
+{
+	xfs_fileoff_t	br_startoff;	/* starting file offset */
+	xfs_fsblock_t	br_startblock;	/* starting block number */
+	xfs_filblks_t	br_blockcount;	/* number of blocks */
+	xfs_exntst_t	br_state;	/* extent state */
+} xfs_bmbt_irec_t;
+
+/*
+ * Key structure for non-leaf levels of the tree.
+ */
+typedef struct xfs_bmbt_key {
+	__be64		br_startoff;	/* starting file offset */
+} xfs_bmbt_key_t, xfs_bmdr_key_t;
+
+/* btree pointer type */
+typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
+
+
+/*
+ * Generic Btree block format definitions
+ *
+ * This is a combination of the actual format used on disk for short and long
+ * format btrees.  The first three fields are shared by both format, but the
+ * pointers are different and should be used with care.
+ *
+ * To get the size of the actual short or long form headers please use the size
+ * macros below.  Never use sizeof(xfs_btree_block).
+ *
+ * The blkno, crc, lsn, owner and uuid fields are only available in filesystems
+ * with the crc feature bit, and all accesses to them must be conditional on
+ * that flag.
+ */
+struct xfs_btree_block {
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+	union {
+		struct {
+			__be32		bb_leftsib;
+			__be32		bb_rightsib;
+
+			__be64		bb_blkno;
+			__be64		bb_lsn;
+			uuid_t		bb_uuid;
+			__be32		bb_owner;
+			__le32		bb_crc;
+		} s;			/* short form pointers */
+		struct	{
+			__be64		bb_leftsib;
+			__be64		bb_rightsib;
+
+			__be64		bb_blkno;
+			__be64		bb_lsn;
+			uuid_t		bb_uuid;
+			__be64		bb_owner;
+			__le32		bb_crc;
+			__be32		bb_pad; /* padding for alignment */
+		} l;			/* long form pointers */
+	} bb_u;				/* rest */
+};
+
+#define XFS_BTREE_SBLOCK_LEN	16	/* size of a short form block */
+#define XFS_BTREE_LBLOCK_LEN	24	/* size of a long form block */
+
+/* sizes of CRC enabled btree blocks */
+#define XFS_BTREE_SBLOCK_CRC_LEN	(XFS_BTREE_SBLOCK_LEN + 40)
+#define XFS_BTREE_LBLOCK_CRC_LEN	(XFS_BTREE_LBLOCK_LEN + 48)
+
+#define XFS_BTREE_SBLOCK_CRC_OFF \
+	offsetof(struct xfs_btree_block, bb_u.s.bb_crc)
+#define XFS_BTREE_LBLOCK_CRC_OFF \
+	offsetof(struct xfs_btree_block, bb_u.l.bb_crc)
 
 #endif /* __XFS_FORMAT_H__ */

@@ -1,10 +1,10 @@
-* Gated Clock bindings for Marvell Orion SoCs
+* Gated Clock bindings for Marvell EBU SoCs
 
-Marvell Dove and Kirkwood allow some peripheral clocks to be gated to save
-some power. The clock consumer should specify the desired clock by having
-the clock ID in its "clocks" phandle cell. The clock ID is directly mapped to
-the corresponding clock gating control bit in HW to ease manual clock lookup
-in datasheet.
+Marvell Armada 370/XP, Dove and Kirkwood allow some peripheral clocks to be
+gated to save some power. The clock consumer should specify the desired clock
+by having the clock ID in its "clocks" phandle cell. The clock ID is directly
+mapped to the corresponding clock gating control bit in HW to ease manual clock
+lookup in datasheet.
 
 The following is a list of provided IDs for Armada 370:
 ID	Clock	Peripheral
@@ -94,6 +94,8 @@ ID	Clock	Peripheral
 
 Required properties:
 - compatible : shall be one of the following:
+	"marvell,armada-370-gating-clock" - for Armada 370 SoC clock gating
+	"marvell,armada-xp-gating-clock" - for Armada XP SoC clock gating
 	"marvell,dove-gating-clock" - for Dove SoC clock gating
 	"marvell,kirkwood-gating-clock" - for Kirkwood SoC clock gating
 - reg : shall be the register address of the Clock Gating Control register

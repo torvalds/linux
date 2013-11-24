@@ -23,6 +23,7 @@ struct device;
 struct i2c_client;
 struct irq_domain;
 struct spi_device;
+struct spmi_device;
 struct regmap;
 struct regmap_range_cfg;
 struct regmap_field;
@@ -69,6 +70,8 @@ struct regmap_range {
 	unsigned int range_min;
 	unsigned int range_max;
 };
+
+#define regmap_reg_range(low, high) { .range_min = low, .range_max = high, }
 
 /*
  * A table of ranges including some yes ranges and some no ranges.
@@ -318,6 +321,8 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
+struct regmap *regmap_init_spmi(struct spmi_device *dev,
+			       const struct regmap_config *config);
 struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 				    void __iomem *regs,
 				    const struct regmap_config *config);
@@ -330,6 +335,8 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config);
 struct regmap *devm_regmap_init_spi(struct spi_device *dev,
 				    const struct regmap_config *config);
+struct regmap *devm_regmap_init_spmi(struct spmi_device *dev,
+				     const struct regmap_config *config);
 struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
 					 void __iomem *regs,
 					 const struct regmap_config *config);
@@ -379,6 +386,8 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
 int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 			size_t val_count);
+int regmap_multi_reg_write(struct regmap *map, struct reg_default *regs,
+			int num_regs);
 int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);

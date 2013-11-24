@@ -637,14 +637,13 @@ int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 	unsigned count;
 	struct scatterlist *sg;
 	struct page *page;
-	u32 len, offset;
+	u32 len;
 	int pg_index;
 	dma_addr_t addr;
 
 	pg_index = 0;
 	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
 		len = sg->length;
-		offset = sg->offset;
 		page = sg_page(sg);
 		addr = sg_dma_address(sg);
 

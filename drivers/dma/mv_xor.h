@@ -34,13 +34,13 @@
 #define XOR_OPERATION_MODE_MEMCPY	2
 #define XOR_DESCRIPTOR_SWAP		BIT(14)
 
-#define XOR_CURR_DESC(chan)	(chan->mmr_base + 0x210 + (chan->idx * 4))
-#define XOR_NEXT_DESC(chan)	(chan->mmr_base + 0x200 + (chan->idx * 4))
-#define XOR_BYTE_COUNT(chan)	(chan->mmr_base + 0x220 + (chan->idx * 4))
-#define XOR_DEST_POINTER(chan)	(chan->mmr_base + 0x2B0 + (chan->idx * 4))
-#define XOR_BLOCK_SIZE(chan)	(chan->mmr_base + 0x2C0 + (chan->idx * 4))
-#define XOR_INIT_VALUE_LOW(chan)	(chan->mmr_base + 0x2E0)
-#define XOR_INIT_VALUE_HIGH(chan)	(chan->mmr_base + 0x2E4)
+#define XOR_CURR_DESC(chan)	(chan->mmr_high_base + 0x10 + (chan->idx * 4))
+#define XOR_NEXT_DESC(chan)	(chan->mmr_high_base + 0x00 + (chan->idx * 4))
+#define XOR_BYTE_COUNT(chan)	(chan->mmr_high_base + 0x20 + (chan->idx * 4))
+#define XOR_DEST_POINTER(chan)	(chan->mmr_high_base + 0xB0 + (chan->idx * 4))
+#define XOR_BLOCK_SIZE(chan)	(chan->mmr_high_base + 0xC0 + (chan->idx * 4))
+#define XOR_INIT_VALUE_LOW(chan)	(chan->mmr_high_base + 0xE0)
+#define XOR_INIT_VALUE_HIGH(chan)	(chan->mmr_high_base + 0xE4)
 
 #define XOR_CONFIG(chan)	(chan->mmr_base + 0x10 + (chan->idx * 4))
 #define XOR_ACTIVATION(chan)	(chan->mmr_base + 0x20 + (chan->idx * 4))
@@ -50,11 +50,11 @@
 #define XOR_ERROR_ADDR(chan)	(chan->mmr_base + 0x60)
 #define XOR_INTR_MASK_VALUE	0x3F5
 
-#define WINDOW_BASE(w)		(0x250 + ((w) << 2))
-#define WINDOW_SIZE(w)		(0x270 + ((w) << 2))
-#define WINDOW_REMAP_HIGH(w)	(0x290 + ((w) << 2))
-#define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
-#define WINDOW_OVERRIDE_CTRL(chan)	(0x2A0 + ((chan) << 2))
+#define WINDOW_BASE(w)		(0x50 + ((w) << 2))
+#define WINDOW_SIZE(w)		(0x70 + ((w) << 2))
+#define WINDOW_REMAP_HIGH(w)	(0x90 + ((w) << 2))
+#define WINDOW_BAR_ENABLE(chan)	(0x40 + ((chan) << 2))
+#define WINDOW_OVERRIDE_CTRL(chan)	(0xA0 + ((chan) << 2))
 
 struct mv_xor_device {
 	void __iomem	     *xor_base;
@@ -82,6 +82,7 @@ struct mv_xor_chan {
 	int			pending;
 	spinlock_t		lock; /* protects the descriptor slot pool */
 	void __iomem		*mmr_base;
+	void __iomem		*mmr_high_base;
 	unsigned int		idx;
 	int                     irq;
 	enum dma_transaction_type	current_type;

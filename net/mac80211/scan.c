@@ -394,8 +394,7 @@ static bool ieee80211_can_scan(struct ieee80211_local *local,
 		return false;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    sdata->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
-				  IEEE80211_STA_CONNECTION_POLL))
+	    sdata->u.mgd.flags & IEEE80211_STA_CONNECTION_POLL)
 		return false;
 
 	return true;

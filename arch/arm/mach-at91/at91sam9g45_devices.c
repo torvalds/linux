@@ -965,7 +965,7 @@ void __init at91_add_device_isi(struct isi_platform_data *data,
 
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
 static u64 lcdc_dmamask = DMA_BIT_MASK(32);
-static struct atmel_lcdfb_info lcdc_data;
+static struct atmel_lcdfb_pdata lcdc_data;
 
 static struct resource lcdc_resources[] = {
 	[0] = {
@@ -991,7 +991,7 @@ static struct platform_device at91_lcdc_device = {
 	.num_resources	= ARRAY_SIZE(lcdc_resources),
 };
 
-void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
+void __init at91_add_device_lcdc(struct atmel_lcdfb_pdata *data)
 {
 	if (!data)
 		return;
@@ -1037,7 +1037,7 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	platform_device_register(&at91_lcdc_device);
 }
 #else
-void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data) {}
+void __init at91_add_device_lcdc(struct atmel_lcdfb_pdata *data) {}
 #endif
 
 

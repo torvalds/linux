@@ -84,19 +84,18 @@ DO_ERROR_INFO(SIGBUS, "Invalid Mem Access", do_memory_error, BUS_ADRERR)
 DO_ERROR_INFO(SIGTRAP, "Breakpoint Set", trap_is_brkpt, TRAP_BRKPT)
 DO_ERROR_INFO(SIGBUS, "Misaligned Access", do_misaligned_error, BUS_ADRALN)
 
-#ifdef CONFIG_ARC_MISALIGN_ACCESS
 /*
  * Entry Point for Misaligned Data access Exception, for emulating in software
  */
 int do_misaligned_access(unsigned long address, struct pt_regs *regs,
 			 struct callee_regs *cregs)
 {
+	/* If emulation not enabled, or failed, kill the task */
 	if (misaligned_fixup(address, regs, cregs) != 0)
 		return do_misaligned_error(address, regs);
 
 	return 0;
 }
-#endif
 
 /*
  * Entry point for miscll errors such as Nested Exceptions

@@ -102,8 +102,7 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_WD80x3
 	{wd_probe, 0},
 #endif
-#if defined(CONFIG_NE2000) || \
-    defined(CONFIG_NE_H8300)  /* ISA (use ne2k-pci for PCI cards) */
+#if defined(CONFIG_NE2000) /* ISA (use ne2k-pci for PCI cards) */
 	{ne_probe, 0},
 #endif
 #ifdef CONFIG_LANCE		/* ISA/VLB (use pcnet32 for PCI cards) */

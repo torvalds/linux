@@ -185,7 +185,7 @@ void ata_acpi_bind_port(struct ata_port *ap)
 	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_handle)
 		return;
 
-	ACPI_HANDLE_SET(&ap->tdev, acpi_get_child(host_handle, ap->port_no));
+	acpi_preset_companion(&ap->tdev, host_handle, ap->port_no);
 
 	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
@@ -222,7 +222,7 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 		parent_handle = port_handle;
 	}
 
-	ACPI_HANDLE_SET(&dev->tdev, acpi_get_child(parent_handle, adr));
+	acpi_preset_companion(&dev->tdev, parent_handle, adr);
 
 	register_hotplug_dock_device(ata_dev_acpi_handle(dev),
 				     &ata_acpi_dev_dock_ops, dev, NULL, NULL);

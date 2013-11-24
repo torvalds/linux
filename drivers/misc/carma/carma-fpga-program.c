@@ -10,6 +10,8 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/completion.h>
 #include <linux/miscdevice.h>

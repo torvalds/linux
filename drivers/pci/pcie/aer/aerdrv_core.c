@@ -525,7 +525,7 @@ static void handle_error_source(struct pcie_device *aerdev,
 
 	if (info->severity == AER_CORRECTABLE) {
 		/*
-		 * Correctable error does not need software intevention.
+		 * Correctable error does not need software intervention.
 		 * No need to go through error recovery process.
 		 */
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
@@ -574,7 +574,7 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 	};
 
 	spin_lock_irqsave(&aer_recover_ring_lock, flags);
-	if (kfifo_put(&aer_recover_ring, &entry))
+	if (kfifo_put(&aer_recover_ring, entry))
 		schedule_work(&aer_recover_work);
 	else
 		pr_err("AER recover: Buffer overflow when recovering AER for %04x:%02x:%02x:%x\n",

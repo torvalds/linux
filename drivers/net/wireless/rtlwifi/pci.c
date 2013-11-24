@@ -736,7 +736,6 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 
 	struct rtl_stats stats = {
 		.signal = 0,
-		.noise = -98,
 		.rate = 0,
 	};
 	int index = rtlpci->rx_ring[rx_queue_idx].idx;
@@ -2009,7 +2008,6 @@ fail2:
 fail1:
 	if (hw)
 		ieee80211_free_hw(hw);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 
 	return err;
@@ -2063,8 +2061,6 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 
 	rtl_pci_disable_aspm(hw);
-
-	pci_set_drvdata(pdev, NULL);
 
 	ieee80211_free_hw(hw);
 }

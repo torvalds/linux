@@ -27,6 +27,7 @@
 #include "job.h"
 
 struct host1x_syncpt;
+struct host1x_syncpt_base;
 struct host1x_channel;
 struct host1x_cdma;
 struct host1x_job;
@@ -102,6 +103,7 @@ struct host1x {
 
 	void __iomem *regs;
 	struct host1x_syncpt *syncpt;
+	struct host1x_syncpt_base *bases;
 	struct device *dev;
 	struct clk *clk;
 
@@ -125,7 +127,10 @@ struct host1x {
 
 	struct dentry *debugfs;
 
-	void *drm_data;
+	struct mutex devices_lock;
+	struct list_head devices;
+
+	struct list_head list;
 };
 
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
@@ -300,9 +305,5 @@ static inline void host1x_hw_show_mlocks(struct host1x *host, struct output *o)
 {
 	host->debug_op->show_mlocks(host, o);
 }
-
-extern struct platform_driver tegra_dc_driver;
-extern struct platform_driver tegra_hdmi_driver;
-extern struct platform_driver tegra_gr2d_driver;
 
 #endif

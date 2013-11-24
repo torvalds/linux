@@ -135,6 +135,7 @@ start:
 		.word	_edata			@ zImage end address
  THUMB(		.thumb			)
 1:
+ ARM_BE8(	setend	be )			@ go BE8 if compiled for BE8
 		mrs	r9, cpsr
 #ifdef CONFIG_ARM_VIRT_EXT
 		bl	__hyp_stub_install	@ get into SVC mode, reversibly
@@ -699,9 +700,7 @@ __armv4_mmu_cache_on:
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x0030
-#ifdef CONFIG_CPU_ENDIAN_BE8
-		orr	r0, r0, #1 << 25	@ big-endian page tables
-#endif
+ ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
 		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
@@ -728,9 +727,7 @@ __armv7_mmu_cache_on:
 		orr	r0, r0, #1 << 22	@ U (v6 unaligned access model)
 						@ (needed for ARM1176)
 #ifdef CONFIG_MMU
-#ifdef CONFIG_CPU_ENDIAN_BE8
-		orr	r0, r0, #1 << 25	@ big-endian page tables
-#endif
+ ARM_BE8(	orr	r0, r0, #1 << 25 )	@ big-endian page tables
 		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
 		orrne	r0, r0, #1		@ MMU enabled
 		movne	r1, #0xfffffffd		@ domain 0 = client

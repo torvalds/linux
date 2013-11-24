@@ -389,16 +389,8 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	ch = PORT2CHANNEL(port);
 	regs = (struct ixp46x_ts_regs __iomem *) IXP4XX_TIMESYNC_BASE_VIRT;
 
-	switch (cfg.tx_type) {
-	case HWTSTAMP_TX_OFF:
-		port->hwts_tx_en = 0;
-		break;
-	case HWTSTAMP_TX_ON:
-		port->hwts_tx_en = 1;
-		break;
-	default:
+	if (cfg.tx_type != HWTSTAMP_TX_OFF && cfg.tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
-	}
 
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
@@ -415,6 +407,8 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	default:
 		return -ERANGE;
 	}
+
+	port->hwts_tx_en = cfg.tx_type == HWTSTAMP_TX_ON;
 
 	/* Clear out any old time stamps. */
 	__raw_writel(TX_SNAPSHOT_LOCKED | RX_SNAPSHOT_LOCKED,

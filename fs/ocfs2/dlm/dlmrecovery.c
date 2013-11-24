@@ -1886,6 +1886,13 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 		if (ml->type == LKM_NLMODE)
 			goto skip_lvb;
 
+		/*
+		 * If the lock is in the blocked list it can't have a valid lvb,
+		 * so skip it
+		 */
+		if (ml->list == DLM_BLOCKED_LIST)
+			goto skip_lvb;
+
 		if (!dlm_lvb_is_empty(mres->lvb)) {
 			if (lksb->flags & DLM_LKSB_PUT_LVB) {
 				/* other node was trying to update

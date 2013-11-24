@@ -343,7 +343,7 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 
-	INIT_COMPLETION(devrec->tx_complete);
+	reinit_completion(&devrec->tx_complete);
 
 	/* Set TXNTRIG bit of TXNCON to send packet */
 	ret = read_short_reg(devrec, REG_TXNCON, &val);

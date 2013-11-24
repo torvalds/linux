@@ -662,6 +662,8 @@ int snd_soc_suspend(struct device *dev)
 				codec->cache_sync = 1;
 				if (codec->using_regmap)
 					regcache_mark_dirty(codec->control_data);
+				/* deactivate pins to sleep state */
+				pinctrl_pm_select_sleep_state(codec->dev);
 				break;
 			default:
 				dev_dbg(codec->dev,
@@ -679,6 +681,9 @@ int snd_soc_suspend(struct device *dev)
 
 		if (cpu_dai->driver->suspend && cpu_dai->driver->ac97_control)
 			cpu_dai->driver->suspend(cpu_dai);
+
+		/* deactivate pins to sleep state */
+		pinctrl_pm_select_sleep_state(cpu_dai->dev);
 	}
 
 	if (card->suspend_post)
@@ -806,6 +811,16 @@ int snd_soc_resume(struct device *dev)
 	 */
 	if (list_empty(&card->codec_dev_list))
 		return 0;
+
+	/* activate pins from sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		if (cpu_dai->active)
+			pinctrl_pm_select_default_state(cpu_dai->dev);
+		if (codec_dai->active)
+			pinctrl_pm_select_default_state(codec_dai->dev);
+	}
 
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
@@ -1929,6 +1944,14 @@ int snd_soc_poweroff(struct device *dev)
 
 	snd_soc_dapm_shutdown(card);
 
+	/* deactivate pins to sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		pinctrl_pm_select_sleep_state(codec_dai->dev);
+		pinctrl_pm_select_sleep_state(cpu_dai->dev);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_poweroff);
@@ -2551,8 +2574,9 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 
 	if (uinfo->value.enumerated.item > e->max - 1)
 		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
+	strlcpy(uinfo->value.enumerated.name,
+		e->texts[uinfo->value.enumerated.item],
+		sizeof(uinfo->value.enumerated.name));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_enum_double);
@@ -3765,6 +3789,16 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	ret = snd_soc_instantiate_card(card);
 	if (ret != 0)
 		soc_cleanup_card_debugfs(card);
+
+	/* deactivate pins to sleep state */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
+		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
+		if (!codec_dai->active)
+			pinctrl_pm_select_sleep_state(codec_dai->dev);
+		if (!cpu_dai->active)
+			pinctrl_pm_select_sleep_state(cpu_dai->dev);
+	}
 
 	return ret;
 }

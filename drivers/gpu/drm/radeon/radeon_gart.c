@@ -607,8 +607,8 @@ static int radeon_vm_evict(struct radeon_device *rdev, struct radeon_vm *vm)
  */
 int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 {
-	unsigned pd_size, pts_size;
-	u64 *pd_addr;
+	unsigned pd_size, pd_entries, pts_size;
+	struct radeon_ib ib;
 	int r;
 
 	if (vm == NULL) {
@@ -619,8 +619,10 @@ int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 		return 0;
 	}
 
-retry:
 	pd_size = radeon_vm_directory_size(rdev);
+	pd_entries = radeon_vm_num_pdes(rdev);
+
+retry:
 	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
 			     &vm->page_directory, pd_size,
 			     RADEON_VM_PTB_ALIGN_SIZE, false);
@@ -637,9 +639,31 @@ retry:
 	vm->pd_gpu_addr = radeon_sa_bo_gpu_addr(vm->page_directory);
 
 	/* Initially clear the page directory */
-	pd_addr = radeon_sa_bo_cpu_addr(vm->page_directory);
-	memset(pd_addr, 0, pd_size);
+	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib,
+			  NULL, pd_entries * 2 + 64);
+	if (r) {
+		radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
+		return r;
+	}
 
+	ib.length_dw = 0;
+
+	radeon_asic_vm_set_page(rdev, &ib, vm->pd_gpu_addr,
+				0, pd_entries, 0, 0);
+
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
+	r = radeon_ib_schedule(rdev, &ib, NULL);
+	if (r) {
+		radeon_ib_free(rdev, &ib);
+		radeon_sa_bo_free(rdev, &vm->page_directory, vm->fence);
+		return r;
+	}
+	radeon_fence_unref(&vm->fence);
+	vm->fence = radeon_fence_ref(ib.fence);
+	radeon_ib_free(rdev, &ib);
+	radeon_fence_unref(&vm->last_flush);
+
+	/* allocate page table array */
 	pts_size = radeon_vm_num_pdes(rdev) * sizeof(struct radeon_sa_bo *);
 	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
 
@@ -914,6 +938,26 @@ uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 }
 
 /**
+ * radeon_vm_page_flags - translate page flags to what the hw uses
+ *
+ * @flags: flags comming from userspace
+ *
+ * Translate the flags the userspace ABI uses to hw flags.
+ */
+static uint32_t radeon_vm_page_flags(uint32_t flags)
+{
+        uint32_t hw_flags = 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_VALID) ? R600_PTE_VALID : 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_READABLE) ? R600_PTE_READABLE : 0;
+        hw_flags |= (flags & RADEON_VM_PAGE_WRITEABLE) ? R600_PTE_WRITEABLE : 0;
+        if (flags & RADEON_VM_PAGE_SYSTEM) {
+                hw_flags |= R600_PTE_SYSTEM;
+                hw_flags |= (flags & RADEON_VM_PAGE_SNOOPED) ? R600_PTE_SNOOPED : 0;
+        }
+        return hw_flags;
+}
+
+/**
  * radeon_vm_update_pdes - make sure that page directory is valid
  *
  * @rdev: radeon_device pointer
@@ -974,7 +1018,11 @@ retry:
 			if (count) {
 				radeon_asic_vm_set_page(rdev, ib, last_pde,
 							last_pt, count, incr,
-							RADEON_VM_PAGE_VALID);
+							R600_PTE_VALID);
+
+				count *= RADEON_VM_PTE_COUNT;
+				radeon_asic_vm_set_page(rdev, ib, last_pt, 0,
+							count, 0, 0);
 			}
 
 			count = 1;
@@ -987,8 +1035,11 @@ retry:
 
 	if (count) {
 		radeon_asic_vm_set_page(rdev, ib, last_pde, last_pt, count,
-					incr, RADEON_VM_PAGE_VALID);
+					incr, R600_PTE_VALID);
 
+		count *= RADEON_VM_PTE_COUNT;
+		radeon_asic_vm_set_page(rdev, ib, last_pt, 0,
+					count, 0, 0);
 	}
 
 	return 0;
@@ -1082,7 +1133,6 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_bo *bo,
 			    struct ttm_mem_reg *mem)
 {
-	unsigned ridx = rdev->asic->vm.pt_ring_index;
 	struct radeon_ib ib;
 	struct radeon_bo_va *bo_va;
 	unsigned nptes, npdes, ndw;
@@ -1151,11 +1201,16 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	/* reserve space for pde addresses */
 	ndw += npdes * 2;
 
+	/* reserve space for clearing new page tables */
+	ndw += npdes * 2 * RADEON_VM_PTE_COUNT;
+
 	/* update too big for an IB */
 	if (ndw > 0xfffff)
 		return -ENOMEM;
 
-	r = radeon_ib_get(rdev, ridx, &ib, NULL, ndw * 4);
+	r = radeon_ib_get(rdev, R600_RING_TYPE_DMA_INDEX, &ib, NULL, ndw * 4);
+	if (r)
+		return r;
 	ib.length_dw = 0;
 
 	r = radeon_vm_update_pdes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset);
@@ -1165,9 +1220,9 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	}
 
 	radeon_vm_update_ptes(rdev, vm, &ib, bo_va->soffset, bo_va->eoffset,
-			      addr, bo_va->flags);
+			      addr, radeon_vm_page_flags(bo_va->flags));
 
-	radeon_ib_sync_to(&ib, vm->fence);
+	radeon_semaphore_sync_to(ib.semaphore, vm->fence);
 	r = radeon_ib_schedule(rdev, &ib, NULL);
 	if (r) {
 		radeon_ib_free(rdev, &ib);

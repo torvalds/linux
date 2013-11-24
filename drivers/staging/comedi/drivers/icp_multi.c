@@ -118,9 +118,7 @@ struct icp_multi_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	short *ai_data;		/*  data buffer */
-	short ao_data[4];	/*  data output buffer */
-	short di_data;		/*  Digital input data */
+	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
@@ -348,18 +346,13 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 
 static int icp_multi_insn_bits_do(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		printk(KERN_DEBUG "Digital outputs = %4x \n", s->state);
-
+	if (comedi_dio_update_state(s, data))
 		writew(s->state, devpriv->io_addr + ICP_MULTI_DO);
-	}
 
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
@@ -548,7 +541,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = 16;
 	s->range_table = &range_digital;
-	s->io_bits = 0;
 	s->insn_bits = icp_multi_insn_bits_di;
 
 	s = &dev->subdevices[3];
@@ -558,8 +550,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->len_chanlist = 8;
 	s->range_table = &range_digital;
-	s->io_bits = 0xff;
-	s->state = 0;
 	s->insn_bits = icp_multi_insn_bits_do;
 
 	s = &dev->subdevices[4];

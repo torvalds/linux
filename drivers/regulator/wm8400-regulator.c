@@ -20,10 +20,8 @@
 #include <linux/mfd/wm8400-private.h>
 
 static const struct regulator_linear_range wm8400_ldo_ranges[] = {
-	{ .min_uV =  900000, .max_uV = 1600000, .min_sel = 0, .max_sel = 14,
-	  .uV_step =  50000 },
-	{ .min_uV = 1700000, .max_uV = 3300000, .min_sel = 15, .max_sel = 31,
-	  .uV_step = 100000 },
+	REGULATOR_LINEAR_RANGE(900000, 0, 14, 50000),
+	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };
 
 static struct regulator_ops wm8400_ldo_ops = {
@@ -219,20 +217,12 @@ static int wm8400_regulator_probe(struct platform_device *pdev)
 	config.driver_data = wm8400;
 	config.regmap = wm8400->regmap;
 
-	rdev = regulator_register(&regulators[pdev->id], &config);
+	rdev = devm_regulator_register(&pdev->dev, &regulators[pdev->id],
+				       &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
 	platform_set_drvdata(pdev, rdev);
-
-	return 0;
-}
-
-static int wm8400_regulator_remove(struct platform_device *pdev)
-{
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
-
-	regulator_unregister(rdev);
 
 	return 0;
 }
@@ -242,7 +232,6 @@ static struct platform_driver wm8400_regulator_driver = {
 		.name = "wm8400-regulator",
 	},
 	.probe = wm8400_regulator_probe,
-	.remove = wm8400_regulator_remove,
 };
 
 /**

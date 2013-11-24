@@ -786,7 +786,7 @@ irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
 }
 
 /*
- * Interrupts explicitely requested as threaded interupts want to be
+ * Interrupts explicitly requested as threaded interrupts want to be
  * preemtible - many of them need to sleep and wait for slow busses to
  * complete.
  */
@@ -956,7 +956,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 			goto out_mput;
 		}
 
-		sched_setscheduler(t, SCHED_FIFO, &param);
+		sched_setscheduler_nocheck(t, SCHED_FIFO, &param);
 
 		/*
 		 * We keep the reference to the task struct even if

@@ -403,7 +403,7 @@ try_again:
 	if (rc < 0)
 		return rc;
 
-	printk(KERN_INFO "fb%d: Apple Platinum frame buffer device\n", info->node);
+	fb_info(info, "Apple Platinum frame buffer device\n");
 
 	return 0;
 }
@@ -639,7 +639,6 @@ static int platinumfb_probe(struct platform_device* odev)
 		iounmap(pinfo->frame_buffer);
 		iounmap(pinfo->platinum_regs);
 		iounmap(pinfo->cmap_regs);
-		dev_set_drvdata(&odev->dev, NULL);
 		framebuffer_release(info);
 	}
 
