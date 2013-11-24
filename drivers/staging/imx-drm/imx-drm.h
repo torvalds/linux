@@ -64,8 +64,7 @@ void imx_drm_fb_helper_set(struct drm_fbdev_cma *fbdev_helper);
 
 struct device_node;
 
-int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
-		struct drm_crtc *crtc);
+int imx_drm_encoder_get_mux_id(struct drm_encoder *encoder);
 int imx_drm_encoder_add_possible_crtcs(struct imx_drm_encoder *imx_drm_encoder,
 		struct device_node *np);
 

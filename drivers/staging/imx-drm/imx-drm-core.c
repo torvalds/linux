@@ -53,6 +53,7 @@ struct imx_drm_crtc {
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
 	struct module				*owner;
 	struct crtc_cookie			cookie;
+	int					mux_id;
 };
 
 struct imx_drm_encoder {
@@ -503,7 +504,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
 	imx_drm_crtc->pipe = imxdrm->pipes++;
 	imx_drm_crtc->cookie.cookie = cookie;
 	imx_drm_crtc->cookie.id = id;
-
+	imx_drm_crtc->mux_id = imx_drm_crtc->pipe;
 	imx_drm_crtc->crtc = crtc;
 	imx_drm_crtc->imxdrm = imxdrm;
 
@@ -657,22 +658,16 @@ int imx_drm_encoder_add_possible_crtcs(
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_add_possible_crtcs);
 
-int imx_drm_encoder_get_mux_id(struct imx_drm_encoder *imx_drm_encoder,
-		struct drm_crtc *crtc)
+int imx_drm_encoder_get_mux_id(struct drm_encoder *encoder)
 {
 	struct imx_drm_device *imxdrm = __imx_drm_device();
 	struct imx_drm_crtc *imx_crtc;
-	int i = 0;
 
-	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list) {
-		if (imx_crtc->crtc == crtc)
-			goto found;
-		i++;
-	}
+	list_for_each_entry(imx_crtc, &imxdrm->crtc_list, list)
+		if (imx_crtc->crtc == encoder->crtc)
+			return imx_crtc->mux_id;
 
 	return -EINVAL;
-found:
-	return i;
 }
 EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
 

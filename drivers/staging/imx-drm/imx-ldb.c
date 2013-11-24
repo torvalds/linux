@@ -179,8 +179,7 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 	u32 pixel_fmt;
 	unsigned long serial_clk;
 	unsigned long di_clk = mode->clock * 1000;
-	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->imx_drm_encoder,
-					     encoder->crtc);
+	int mux = imx_drm_encoder_get_mux_id(encoder);
 
 	if (ldb->ldb_ctrl & LDB_SPLIT_MODE_EN) {
 		/* dual channel LVDS mode */
@@ -216,8 +215,7 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
-	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->imx_drm_encoder,
-					     encoder->crtc);
+	int mux = imx_drm_encoder_get_mux_id(encoder);
 
 	if (dual) {
 		clk_prepare_enable(ldb->clk[0]);
