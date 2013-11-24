@@ -336,12 +336,10 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_hold_caps_min = 0;
 	ci->i_hold_caps_max = 0;
 	INIT_LIST_HEAD(&ci->i_cap_delay_list);
-	ci->i_cap_exporting_mds = 0;
-	ci->i_cap_exporting_mseq = 0;
-	ci->i_cap_exporting_issued = 0;
 	INIT_LIST_HEAD(&ci->i_cap_snaps);
 	ci->i_head_snapc = NULL;
 	ci->i_snap_caps = 0;
+	ci->i_cap_exporting_issued = 0;
 
 	for (i = 0; i < CEPH_FILE_MODE_NUM; i++)
 		ci->i_nr_by_mode[i] = 0;
