@@ -502,7 +502,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 
 	/* Restore original bio completion handler */
 	bio->bi_end_io = bip->bip_end_io;
-	bio_endio(bio, error);
+	bio_endio_nodec(bio, error);
 }
 
 /**
