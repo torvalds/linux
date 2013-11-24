@@ -1952,11 +1952,6 @@ static int free_io_failure(struct inode *inode, struct io_failure_record *rec,
 	return err;
 }
 
-static void repair_io_failure_callback(struct bio *bio, int err)
-{
-	complete(bio->bi_private);
-}
-
 /*
  * this bypasses the standard btrfs submit functions deliberately, as
  * the standard behavior is to write all copies in a raid setup. here we only
@@ -1973,7 +1968,6 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 {
 	struct bio *bio;
 	struct btrfs_device *dev;
-	DECLARE_COMPLETION_ONSTACK(compl);
 	u64 map_length = 0;
 	u64 sector;
 	struct btrfs_bio *bbio = NULL;
@@ -1990,8 +1984,6 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
 		return -EIO;
-	bio->bi_private = &compl;
-	bio->bi_end_io = repair_io_failure_callback;
 	bio->bi_size = 0;
 	map_length = length;
 
@@ -2012,10 +2004,8 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	}
 	bio->bi_bdev = dev->bdev;
 	bio_add_page(bio, page, length, start - page_offset(page));
-	btrfsic_submit_bio(WRITE_SYNC, bio);
-	wait_for_completion(&compl);
 
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
+	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio)) {
 		/* try to remap that extent elsewhere? */
 		bio_put(bio);
 		btrfs_dev_stat_inc_and_print(dev, BTRFS_DEV_STAT_WRITE_ERRS);
