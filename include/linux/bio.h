@@ -63,10 +63,13 @@
  */
 #define bio_iovec_idx(bio, idx)	(&((bio)->bi_io_vec[(idx)]))
 #define __bio_iovec(bio)	bio_iovec_idx((bio), (bio)->bi_iter.bi_idx)
-#define bio_iovec(bio)		(*__bio_iovec(bio))
+
+#define bio_iter_iovec(bio, iter) ((bio)->bi_io_vec[(iter).bi_idx])
 
 #define bio_page(bio)		(bio_iovec((bio)).bv_page)
 #define bio_offset(bio)		(bio_iovec((bio)).bv_offset)
+#define bio_iovec(bio)		(*__bio_iovec(bio))
+
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_iter.bi_idx)
 #define bio_sectors(bio)	((bio)->bi_iter.bi_size >> 9)
 #define bio_end_sector(bio)	((bio)->bi_iter.bi_sector + bio_sectors((bio)))
@@ -134,15 +137,6 @@ static inline void *bio_data(struct bio *bio)
 #define bio_io_error(bio) bio_endio((bio), -EIO)
 
 /*
- * drivers should not use the __ version unless they _really_ know what
- * they're doing
- */
-#define __bio_for_each_segment(bvl, bio, i, start_idx)			\
-	for (bvl = bio_iovec_idx((bio), (start_idx)), i = (start_idx);	\
-	     i < (bio)->bi_vcnt;					\
-	     bvl++, i++)
-
-/*
  * drivers should _never_ use the all version - the bio may have been split
  * before it got to the driver and the driver won't own all of it
  */
@@ -151,10 +145,16 @@ static inline void *bio_data(struct bio *bio)
 	     bvl = bio_iovec_idx((bio), (i)), i < (bio)->bi_vcnt;	\
 	     i++)
 
-#define bio_for_each_segment(bvl, bio, i)				\
-	for (i = (bio)->bi_iter.bi_idx;					\
-	     bvl = bio_iovec_idx((bio), (i)), i < (bio)->bi_vcnt;	\
-	     i++)
+#define __bio_for_each_segment(bvl, bio, iter, start)			\
+	for (iter = (start);						\
+	     bvl = bio_iter_iovec((bio), (iter)),			\
+	     (iter).bi_idx < (bio)->bi_vcnt;				\
+	     (iter).bi_idx++)
+
+#define bio_for_each_segment(bvl, bio, iter)				\
+	__bio_for_each_segment(bvl, bio, iter, (bio)->bi_iter)
+
+#define bio_iter_last(bio, iter) ((iter).bi_idx == (bio)->bi_vcnt - 1)
 
 /*
  * get a reference to a bio, so it won't disappear. the intended use is

@@ -550,9 +550,11 @@ static int nvme_split_and_submit(struct bio *bio, struct nvme_queue *nvmeq,
 static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
-	struct bio_vec *bvec, *bvprv = NULL;
+	struct bio_vec bvec, bvprv;
+	struct bvec_iter iter;
 	struct scatterlist *sg = NULL;
-	int i, length = 0, nsegs = 0, split_len = bio->bi_iter.bi_size;
+	int length = 0, nsegs = 0, split_len = bio->bi_iter.bi_size;
+	int first = 1;
 
 	if (nvmeq->dev->stripe_size)
 		split_len = nvmeq->dev->stripe_size -
@@ -560,25 +562,28 @@ static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 			 (nvmeq->dev->stripe_size - 1));
 
 	sg_init_table(iod->sg, psegs);
-	bio_for_each_segment(bvec, bio, i) {
-		if (bvprv && BIOVEC_PHYS_MERGEABLE(bvprv, bvec)) {
-			sg->length += bvec->bv_len;
+	bio_for_each_segment(bvec, bio, iter) {
+		if (!first && BIOVEC_PHYS_MERGEABLE(&bvprv, &bvec)) {
+			sg->length += bvec.bv_len;
 		} else {
-			if (bvprv && BIOVEC_NOT_VIRT_MERGEABLE(bvprv, bvec))
-				return nvme_split_and_submit(bio, nvmeq, i,
-								length, 0);
+			if (!first && BIOVEC_NOT_VIRT_MERGEABLE(&bvprv, &bvec))
+				return nvme_split_and_submit(bio, nvmeq,
+							     iter.bi_idx,
+							     length, 0);
 
 			sg = sg ? sg + 1 : iod->sg;
-			sg_set_page(sg, bvec->bv_page, bvec->bv_len,
-							bvec->bv_offset);
+			sg_set_page(sg, bvec.bv_page,
+				    bvec.bv_len, bvec.bv_offset);
 			nsegs++;
 		}
 
-		if (split_len - length < bvec->bv_len)
-			return nvme_split_and_submit(bio, nvmeq, i, split_len,
-							split_len - length);
-		length += bvec->bv_len;
+		if (split_len - length < bvec.bv_len)
+			return nvme_split_and_submit(bio, nvmeq, iter.bi_idx,
+						     split_len,
+						     split_len - length);
+		length += bvec.bv_len;
 		bvprv = bvec;
+		first = 0;
 	}
 	iod->nents = nsegs;
 	sg_mark_end(sg);

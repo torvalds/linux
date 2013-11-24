@@ -122,7 +122,7 @@ static void scm_prepare_cluster_request(struct scm_request *scmrq)
 	struct aidaw *aidaw = scmrq->aidaw;
 	struct msb *msb = &scmrq->aob->msb[0];
 	struct req_iterator iter;
-	struct bio_vec *bv;
+	struct bio_vec bv;
 	int i = 0;
 	u64 addr;
 
@@ -163,7 +163,7 @@ static void scm_prepare_cluster_request(struct scm_request *scmrq)
 			i++;
 		}
 		rq_for_each_segment(bv, req, iter) {
-			aidaw->data_addr = (u64) page_address(bv->bv_page);
+			aidaw->data_addr = (u64) page_address(bv.bv_page);
 			aidaw++;
 			i++;
 		}

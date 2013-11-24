@@ -362,7 +362,7 @@ static void btree_node_write_done(struct closure *cl)
 	struct bio_vec *bv;
 	int n;
 
-	__bio_for_each_segment(bv, b->bio, n, 0)
+	bio_for_each_segment_all(bv, b->bio, n)
 		__free_page(bv->bv_page);
 
 	__btree_node_write_done(cl);
@@ -421,7 +421,7 @@ static void do_btree_node_write(struct btree *b)
 		struct bio_vec *bv;
 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
 
-		bio_for_each_segment(bv, b->bio, j)
+		bio_for_each_segment_all(bv, b->bio, j)
 			memcpy(page_address(bv->bv_page),
 			       base + j * PAGE_SIZE, PAGE_SIZE);
 

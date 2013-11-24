@@ -299,25 +299,26 @@ static void bio_integrity_generate(struct bio *bio)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	struct blk_integrity_exchg bix;
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	sector_t sector = bio->bi_iter.bi_sector;
-	unsigned int i, sectors, total;
+	unsigned int sectors, total;
 	void *prot_buf = bio->bi_integrity->bip_buf;
 
 	total = 0;
 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	bix.sector_size = bi->sector_size;
 
-	bio_for_each_segment(bv, bio, i) {
-		void *kaddr = kmap_atomic(bv->bv_page);
-		bix.data_buf = kaddr + bv->bv_offset;
-		bix.data_size = bv->bv_len;
+	bio_for_each_segment(bv, bio, iter) {
+		void *kaddr = kmap_atomic(bv.bv_page);
+		bix.data_buf = kaddr + bv.bv_offset;
+		bix.data_size = bv.bv_len;
 		bix.prot_buf = prot_buf;
 		bix.sector = sector;
 
 		bi->generate_fn(&bix);
 
-		sectors = bv->bv_len / bi->sector_size;
+		sectors = bv.bv_len / bi->sector_size;
 		sector += sectors;
 		prot_buf += sectors * bi->tuple_size;
 		total += sectors * bi->tuple_size;
@@ -441,19 +442,20 @@ static int bio_integrity_verify(struct bio *bio)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 	struct blk_integrity_exchg bix;
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	sector_t sector = bio->bi_integrity->bip_sector;
-	unsigned int i, sectors, total, ret;
+	unsigned int sectors, total, ret;
 	void *prot_buf = bio->bi_integrity->bip_buf;
 
 	ret = total = 0;
 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	bix.sector_size = bi->sector_size;
 
-	bio_for_each_segment(bv, bio, i) {
-		void *kaddr = kmap_atomic(bv->bv_page);
-		bix.data_buf = kaddr + bv->bv_offset;
-		bix.data_size = bv->bv_len;
+	bio_for_each_segment(bv, bio, iter) {
+		void *kaddr = kmap_atomic(bv.bv_page);
+		bix.data_buf = kaddr + bv.bv_offset;
+		bix.data_size = bv.bv_len;
 		bix.prot_buf = prot_buf;
 		bix.sector = sector;
 
@@ -464,7 +466,7 @@ static int bio_integrity_verify(struct bio *bio)
 			return ret;
 		}
 
-		sectors = bv->bv_len / bi->sector_size;
+		sectors = bv.bv_len / bi->sector_size;
 		sector += sectors;
 		prot_buf += sectors * bi->tuple_size;
 		total += sectors * bi->tuple_size;

@@ -1109,23 +1109,23 @@ static void bio_chain_put(struct bio *chain)
  */
 static void zero_bio_chain(struct bio *chain, int start_ofs)
 {
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	unsigned long flags;
 	void *buf;
-	int i;
 	int pos = 0;
 
 	while (chain) {
-		bio_for_each_segment(bv, chain, i) {
-			if (pos + bv->bv_len > start_ofs) {
+		bio_for_each_segment(bv, chain, iter) {
+			if (pos + bv.bv_len > start_ofs) {
 				int remainder = max(start_ofs - pos, 0);
-				buf = bvec_kmap_irq(bv, &flags);
+				buf = bvec_kmap_irq(&bv, &flags);
 				memset(buf + remainder, 0,
-				       bv->bv_len - remainder);
-				flush_dcache_page(bv->bv_page);
+				       bv.bv_len - remainder);
+				flush_dcache_page(bv.bv_page);
 				bvec_kunmap_irq(buf, &flags);
 			}
-			pos += bv->bv_len;
+			pos += bv.bv_len;
 		}
 
 		chain = chain->bi_next;
@@ -1173,11 +1173,11 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 					unsigned int len,
 					gfp_t gfpmask)
 {
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
+	struct bvec_iter end_iter;
 	unsigned int resid;
-	unsigned short idx;
 	unsigned int voff;
-	unsigned short end_idx;
 	unsigned short vcnt;
 	struct bio *bio;
 
@@ -1196,22 +1196,22 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 	/* Find first affected segment... */
 
 	resid = offset;
-	bio_for_each_segment(bv, bio_src, idx) {
-		if (resid < bv->bv_len)
+	bio_for_each_segment(bv, bio_src, iter) {
+		if (resid < bv.bv_len)
 			break;
-		resid -= bv->bv_len;
+		resid -= bv.bv_len;
 	}
 	voff = resid;
 
 	/* ...and the last affected segment */
 
 	resid += len;
-	__bio_for_each_segment(bv, bio_src, end_idx, idx) {
-		if (resid <= bv->bv_len)
+	__bio_for_each_segment(bv, bio_src, end_iter, iter) {
+		if (resid <= bv.bv_len)
 			break;
-		resid -= bv->bv_len;
+		resid -= bv.bv_len;
 	}
-	vcnt = end_idx - idx + 1;
+	vcnt = end_iter.bi_idx = iter.bi_idx + 1;
 
 	/* Build the clone */
 
@@ -1229,7 +1229,7 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 	 * Copy over our part of the bio_vec, then update the first
 	 * and last (or only) entries.
 	 */
-	memcpy(&bio->bi_io_vec[0], &bio_src->bi_io_vec[idx],
+	memcpy(&bio->bi_io_vec[0], &bio_src->bi_io_vec[iter.bi_idx],
 			vcnt * sizeof (struct bio_vec));
 	bio->bi_io_vec[0].bv_offset += voff;
 	if (vcnt > 1) {

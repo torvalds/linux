@@ -2746,10 +2746,10 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 void rq_flush_dcache_pages(struct request *rq)
 {
 	struct req_iterator iter;
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
 
 	rq_for_each_segment(bvec, rq, iter)
-		flush_dcache_page(bvec->bv_page);
+		flush_dcache_page(bvec.bv_page);
 }
 EXPORT_SYMBOL_GPL(rq_flush_dcache_pages);
 #endif

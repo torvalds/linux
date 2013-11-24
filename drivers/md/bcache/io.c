@@ -22,12 +22,12 @@ static void bch_bi_idx_hack_endio(struct bio *bio, int error)
 static void bch_generic_make_request_hack(struct bio *bio)
 {
 	if (bio->bi_iter.bi_idx) {
-		int i;
-		struct bio_vec *bv;
+		struct bio_vec bv;
+		struct bvec_iter iter;
 		struct bio *clone = bio_alloc(GFP_NOIO, bio_segments(bio));
 
-		bio_for_each_segment(bv, bio, i)
-			clone->bi_io_vec[clone->bi_vcnt++] = *bv;
+		bio_for_each_segment(bv, bio, iter)
+			clone->bi_io_vec[clone->bi_vcnt++] = bv;
 
 		clone->bi_iter.bi_sector = bio->bi_iter.bi_sector;
 		clone->bi_bdev		= bio->bi_bdev;
@@ -73,8 +73,9 @@ static void bch_generic_make_request_hack(struct bio *bio)
 struct bio *bch_bio_split(struct bio *bio, int sectors,
 			  gfp_t gfp, struct bio_set *bs)
 {
-	unsigned idx = bio->bi_iter.bi_idx, vcnt = 0, nbytes = sectors << 9;
-	struct bio_vec *bv;
+	unsigned vcnt = 0, nbytes = sectors << 9;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	struct bio *ret = NULL;
 
 	BUG_ON(sectors <= 0);
@@ -86,49 +87,35 @@ struct bio *bch_bio_split(struct bio *bio, int sectors,
 		ret = bio_alloc_bioset(gfp, 1, bs);
 		if (!ret)
 			return NULL;
-		idx = 0;
 		goto out;
 	}
 
-	bio_for_each_segment(bv, bio, idx) {
-		vcnt = idx - bio->bi_iter.bi_idx;
+	bio_for_each_segment(bv, bio, iter) {
+		vcnt++;
 
-		if (!nbytes) {
-			ret = bio_alloc_bioset(gfp, vcnt, bs);
-			if (!ret)
-				return NULL;
-
-			memcpy(ret->bi_io_vec, __bio_iovec(bio),
-			       sizeof(struct bio_vec) * vcnt);
-
+		if (nbytes <= bv.bv_len)
 			break;
-		} else if (nbytes < bv->bv_len) {
-			ret = bio_alloc_bioset(gfp, ++vcnt, bs);
-			if (!ret)
-				return NULL;
 
-			memcpy(ret->bi_io_vec, __bio_iovec(bio),
-			       sizeof(struct bio_vec) * vcnt);
-
-			ret->bi_io_vec[vcnt - 1].bv_len = nbytes;
-			bv->bv_offset	+= nbytes;
-			bv->bv_len	-= nbytes;
-			break;
-		}
-
-		nbytes -= bv->bv_len;
+		nbytes -= bv.bv_len;
 	}
+
+	ret = bio_alloc_bioset(gfp, vcnt, bs);
+	if (!ret)
+		return NULL;
+
+	bio_for_each_segment(bv, bio, iter) {
+		ret->bi_io_vec[ret->bi_vcnt++] = bv;
+
+		if (ret->bi_vcnt == vcnt)
+			break;
+	}
+
+	ret->bi_io_vec[ret->bi_vcnt - 1].bv_len = nbytes;
 out:
 	ret->bi_bdev	= bio->bi_bdev;
 	ret->bi_iter.bi_sector	= bio->bi_iter.bi_sector;
 	ret->bi_iter.bi_size	= sectors << 9;
 	ret->bi_rw	= bio->bi_rw;
-	ret->bi_vcnt	= vcnt;
-	ret->bi_max_vecs = vcnt;
-
-	bio->bi_iter.bi_sector	+= sectors;
-	bio->bi_iter.bi_size	-= sectors << 9;
-	bio->bi_iter.bi_idx	 = idx;
 
 	if (bio_integrity(bio)) {
 		if (bio_integrity_clone(ret, bio, gfp)) {
@@ -137,8 +124,9 @@ out:
 		}
 
 		bio_integrity_trim(ret, 0, bio_sectors(ret));
-		bio_integrity_trim(bio, bio_sectors(ret), bio_sectors(bio));
 	}
+
+	bio_advance(bio, ret->bi_iter.bi_size);
 
 	return ret;
 }
@@ -155,12 +143,13 @@ static unsigned bch_bio_max_sectors(struct bio *bio)
 
 	if (bio_segments(bio) > max_segments ||
 	    q->merge_bvec_fn) {
-		struct bio_vec *bv;
-		int i, seg = 0;
+		struct bio_vec bv;
+		struct bvec_iter iter;
+		unsigned seg = 0;
 
 		ret = 0;
 
-		bio_for_each_segment(bv, bio, i) {
+		bio_for_each_segment(bv, bio, iter) {
 			struct bvec_merge_data bvm = {
 				.bi_bdev	= bio->bi_bdev,
 				.bi_sector	= bio->bi_iter.bi_sector,
@@ -172,11 +161,11 @@ static unsigned bch_bio_max_sectors(struct bio *bio)
 				break;
 
 			if (q->merge_bvec_fn &&
-			    q->merge_bvec_fn(q, &bvm, bv) < (int) bv->bv_len)
+			    q->merge_bvec_fn(q, &bvm, &bv) < (int) bv.bv_len)
 				break;
 
 			seg++;
-			ret += bv->bv_len >> 9;
+			ret += bv.bv_len >> 9;
 		}
 	}
 

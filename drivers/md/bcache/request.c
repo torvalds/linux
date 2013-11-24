@@ -198,14 +198,14 @@ static bool verify(struct cached_dev *dc, struct bio *bio)
 
 static void bio_csum(struct bio *bio, struct bkey *k)
 {
-	struct bio_vec *bv;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 	uint64_t csum = 0;
-	int i;
 
-	bio_for_each_segment(bv, bio, i) {
-		void *d = kmap(bv->bv_page) + bv->bv_offset;
-		csum = bch_crc64_update(csum, d, bv->bv_len);
-		kunmap(bv->bv_page);
+	bio_for_each_segment(bv, bio, iter) {
+		void *d = kmap(bv.bv_page) + bv.bv_offset;
+		csum = bch_crc64_update(csum, d, bv.bv_len);
+		kunmap(bv.bv_page);
 	}
 
 	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
@@ -1182,17 +1182,17 @@ void bch_cached_dev_request_init(struct cached_dev *dc)
 static int flash_dev_cache_miss(struct btree *b, struct search *s,
 				struct bio *bio, unsigned sectors)
 {
-	struct bio_vec *bv;
-	int i;
+	struct bio_vec bv;
+	struct bvec_iter iter;
 
 	/* Zero fill bio */
 
-	bio_for_each_segment(bv, bio, i) {
-		unsigned j = min(bv->bv_len >> 9, sectors);
+	bio_for_each_segment(bv, bio, iter) {
+		unsigned j = min(bv.bv_len >> 9, sectors);
 
-		void *p = kmap(bv->bv_page);
-		memset(p + bv->bv_offset, 0, j << 9);
-		kunmap(bv->bv_page);
+		void *p = kmap(bv.bv_page);
+		memset(p + bv.bv_offset, 0, j << 9);
+		kunmap(bv.bv_page);
 
 		sectors	-= j;
 	}

@@ -288,9 +288,10 @@ static int lo_send(struct loop_device *lo, struct bio *bio, loff_t pos)
 {
 	int (*do_lo_send)(struct loop_device *, struct bio_vec *, loff_t,
 			struct page *page);
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	struct page *page = NULL;
-	int i, ret = 0;
+	int ret = 0;
 
 	if (lo->transfer != transfer_none) {
 		page = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
@@ -302,11 +303,11 @@ static int lo_send(struct loop_device *lo, struct bio *bio, loff_t pos)
 		do_lo_send = do_lo_send_direct_write;
 	}
 
-	bio_for_each_segment(bvec, bio, i) {
-		ret = do_lo_send(lo, bvec, pos, page);
+	bio_for_each_segment(bvec, bio, iter) {
+		ret = do_lo_send(lo, &bvec, pos, page);
 		if (ret < 0)
 			break;
-		pos += bvec->bv_len;
+		pos += bvec.bv_len;
 	}
 	if (page) {
 		kunmap(page);
@@ -392,20 +393,20 @@ do_lo_receive(struct loop_device *lo,
 static int
 lo_receive(struct loop_device *lo, struct bio *bio, int bsize, loff_t pos)
 {
-	struct bio_vec *bvec;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 	ssize_t s;
-	int i;
 
-	bio_for_each_segment(bvec, bio, i) {
-		s = do_lo_receive(lo, bvec, bsize, pos);
+	bio_for_each_segment(bvec, bio, iter) {
+		s = do_lo_receive(lo, &bvec, bsize, pos);
 		if (s < 0)
 			return s;
 
-		if (s != bvec->bv_len) {
+		if (s != bvec.bv_len) {
 			zero_fill_bio(bio);
 			break;
 		}
-		pos += bvec->bv_len;
+		pos += bvec.bv_len;
 	}
 	return 0;
 }

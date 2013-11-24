@@ -194,10 +194,10 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 	struct cl_object     *obj = ll_i2info(inode)->lli_clob;
 	pgoff_t	       offset;
 	int		   ret;
-	int		   i;
 	int		   rw;
 	obd_count	     page_count = 0;
-	struct bio_vec       *bvec;
+	struct bio_vec       bvec;
+	struct bvec_iter   iter;
 	struct bio	   *bio;
 	ssize_t	       bytes;
 
@@ -221,14 +221,14 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 		LASSERT(rw == bio->bi_rw);
 
 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
-		bio_for_each_segment(bvec, bio, i) {
-			BUG_ON(bvec->bv_offset != 0);
-			BUG_ON(bvec->bv_len != PAGE_CACHE_SIZE);
+		bio_for_each_segment(bvec, bio, iter) {
+			BUG_ON(bvec.bv_offset != 0);
+			BUG_ON(bvec.bv_len != PAGE_CACHE_SIZE);
 
-			pages[page_count] = bvec->bv_page;
+			pages[page_count] = bvec.bv_page;
 			offsets[page_count] = offset;
 			page_count++;
-			offset += bvec->bv_len;
+			offset += bvec.bv_len;
 		}
 		LASSERT(page_count <= LLOOP_MAX_SEGMENTS);
 	}
