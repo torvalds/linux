@@ -40,6 +40,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/trusted_foundations.h>
 
 #include "apbio.h"
 #include "board.h"
@@ -90,6 +91,7 @@ static void __init tegra_init_cache(void)
 
 static void __init tegra_init_early(void)
 {
+	of_register_trusted_foundations();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_cpu_reset_handler_init();
