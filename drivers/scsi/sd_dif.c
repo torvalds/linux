@@ -365,7 +365,6 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
 	struct bio *bio;
 	struct scsi_disk *sdkp;
 	struct sd_dif_tuple *sdt;
-	unsigned int i, j;
 	u32 phys, virt;
 
 	sdkp = rq->bio->bi_bdev->bd_disk->private_data;
@@ -376,19 +375,21 @@ void sd_dif_prepare(struct request *rq, sector_t hw_sector,
 	phys = hw_sector & 0xffffffff;
 
 	__rq_for_each_bio(bio, rq) {
-		struct bio_vec *iv;
+		struct bio_vec iv;
+		struct bvec_iter iter;
+		unsigned int j;
 
 		/* Already remapped? */
 		if (bio_flagged(bio, BIO_MAPPED_INTEGRITY))
 			break;
 
-		virt = bio->bi_integrity->bip_sector & 0xffffffff;
+		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, i) {
-			sdt = kmap_atomic(iv->bv_page)
-				+ iv->bv_offset;
+		bip_for_each_vec(iv, bio->bi_integrity, iter) {
+			sdt = kmap_atomic(iv.bv_page)
+				+ iv.bv_offset;
 
-			for (j = 0 ; j < iv->bv_len ; j += tuple_sz, sdt++) {
+			for (j = 0; j < iv.bv_len; j += tuple_sz, sdt++) {
 
 				if (be32_to_cpu(sdt->ref_tag) == virt)
 					sdt->ref_tag = cpu_to_be32(phys);
@@ -414,7 +415,7 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 	struct scsi_disk *sdkp;
 	struct bio *bio;
 	struct sd_dif_tuple *sdt;
-	unsigned int i, j, sectors, sector_sz;
+	unsigned int j, sectors, sector_sz;
 	u32 phys, virt;
 
 	sdkp = scsi_disk(scmd->request->rq_disk);
@@ -430,15 +431,16 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 		phys >>= 3;
 
 	__rq_for_each_bio(bio, scmd->request) {
-		struct bio_vec *iv;
+		struct bio_vec iv;
+		struct bvec_iter iter;
 
-		virt = bio->bi_integrity->bip_sector & 0xffffffff;
+		virt = bio->bi_integrity->bip_iter.bi_sector & 0xffffffff;
 
-		bip_for_each_vec(iv, bio->bi_integrity, i) {
-			sdt = kmap_atomic(iv->bv_page)
-				+ iv->bv_offset;
+		bip_for_each_vec(iv, bio->bi_integrity, iter) {
+			sdt = kmap_atomic(iv.bv_page)
+				+ iv.bv_offset;
 
-			for (j = 0 ; j < iv->bv_len ; j += tuple_sz, sdt++) {
+			for (j = 0; j < iv.bv_len; j += tuple_sz, sdt++) {
 
 				if (sectors == 0) {
 					kunmap_atomic(sdt);
