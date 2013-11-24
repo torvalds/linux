@@ -647,6 +647,11 @@
 
 		};
 
+		ocram: sram@ffff0000 {
+			compatible = "mmio-sram";
+			reg = <0xffff0000 0x10000>;
+		};
+
 		pmu {
 			#address-cells = <1>;
 			#size-cells = <1>;
