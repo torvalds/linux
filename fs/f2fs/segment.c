@@ -844,14 +844,15 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 
 	if (type >= META_FLUSH)
 		rw = WRITE_FLUSH_FUA;
+
+	trace_f2fs_submit_write_bio(sbi->sb, rw, btype, io->bio);
+
 	if (btype == META)
 		rw |= REQ_META;
 
 	p = io->bio->bi_private;
 	p->sbi = sbi;
 	io->bio->bi_end_io = f2fs_end_io_write;
-
-	trace_f2fs_do_submit_bio(sbi->sb, btype, sync, io->bio);
 
 	if (type == META_FLUSH) {
 		DECLARE_COMPLETION_ONSTACK(wait);

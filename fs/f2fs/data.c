@@ -421,6 +421,8 @@ void f2fs_submit_read_bio(struct f2fs_sb_info *sbi, int rw)
 	if (!io->bio)
 		return;
 
+	trace_f2fs_submit_read_bio(sbi->sb, rw, META, io->bio);
+
 	mutex_lock(&io->io_mutex);
 	if (io->bio) {
 		submit_bio(rw, io->bio);
