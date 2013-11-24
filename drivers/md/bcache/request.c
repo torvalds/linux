@@ -371,7 +371,7 @@ static void bch_data_insert_start(struct closure *cl)
 				       op->writeback))
 			goto err;
 
-		n = bch_bio_split(bio, KEY_SIZE(k), GFP_NOIO, split);
+		n = bio_next_split(bio, KEY_SIZE(k), GFP_NOIO, split);
 
 		n->bi_end_io	= bch_data_insert_endio;
 		n->bi_private	= cl;
@@ -679,9 +679,9 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 	if (KEY_DIRTY(k))
 		s->read_dirty_data = true;
 
-	n = bch_bio_split(bio, min_t(uint64_t, INT_MAX,
-				     KEY_OFFSET(k) - bio->bi_iter.bi_sector),
-			  GFP_NOIO, s->d->bio_split);
+	n = bio_next_split(bio, min_t(uint64_t, INT_MAX,
+				      KEY_OFFSET(k) - bio->bi_iter.bi_sector),
+			   GFP_NOIO, s->d->bio_split);
 
 	bio_key = &container_of(n, struct bbio, bio)->key;
 	bch_bkey_copy_single_ptr(bio_key, k, ptr);
@@ -920,7 +920,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	struct bio *miss, *cache_bio;
 
 	if (s->cache_miss || s->iop.bypass) {
-		miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
+		miss = bio_next_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 		ret = miss == bio ? MAP_DONE : MAP_CONTINUE;
 		goto out_submit;
 	}
@@ -943,7 +943,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	s->iop.replace = true;
 
-	miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
+	miss = bio_next_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 
 	/* btree_search_recurse()'s btree iterator is no good anymore */
 	ret = miss == bio ? MAP_DONE : -EINTR;

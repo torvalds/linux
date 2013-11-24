@@ -11,84 +11,6 @@
 
 #include <linux/blkdev.h>
 
-/**
- * bch_bio_split - split a bio
- * @bio:	bio to split
- * @sectors:	number of sectors to split from the front of @bio
- * @gfp:	gfp mask
- * @bs:		bio set to allocate from
- *
- * Allocates and returns a new bio which represents @sectors from the start of
- * @bio, and updates @bio to represent the remaining sectors.
- *
- * If bio_sectors(@bio) was less than or equal to @sectors, returns @bio
- * unchanged.
- *
- * The newly allocated bio will point to @bio's bi_io_vec, if the split was on a
- * bvec boundry; it is the caller's responsibility to ensure that @bio is not
- * freed before the split.
- */
-struct bio *bch_bio_split(struct bio *bio, int sectors,
-			  gfp_t gfp, struct bio_set *bs)
-{
-	unsigned vcnt = 0, nbytes = sectors << 9;
-	struct bio_vec bv;
-	struct bvec_iter iter;
-	struct bio *ret = NULL;
-
-	BUG_ON(sectors <= 0);
-
-	if (sectors >= bio_sectors(bio))
-		return bio;
-
-	if (bio->bi_rw & REQ_DISCARD) {
-		ret = bio_alloc_bioset(gfp, 1, bs);
-		if (!ret)
-			return NULL;
-		goto out;
-	}
-
-	bio_for_each_segment(bv, bio, iter) {
-		vcnt++;
-
-		if (nbytes <= bv.bv_len)
-			break;
-
-		nbytes -= bv.bv_len;
-	}
-
-	ret = bio_alloc_bioset(gfp, vcnt, bs);
-	if (!ret)
-		return NULL;
-
-	bio_for_each_segment(bv, bio, iter) {
-		ret->bi_io_vec[ret->bi_vcnt++] = bv;
-
-		if (ret->bi_vcnt == vcnt)
-			break;
-	}
-
-	ret->bi_io_vec[ret->bi_vcnt - 1].bv_len = nbytes;
-out:
-	ret->bi_bdev	= bio->bi_bdev;
-	ret->bi_iter.bi_sector	= bio->bi_iter.bi_sector;
-	ret->bi_iter.bi_size	= sectors << 9;
-	ret->bi_rw	= bio->bi_rw;
-
-	if (bio_integrity(bio)) {
-		if (bio_integrity_clone(ret, bio, gfp)) {
-			bio_put(ret);
-			return NULL;
-		}
-
-		bio_integrity_trim(ret, 0, bio_sectors(ret));
-	}
-
-	bio_advance(bio, ret->bi_iter.bi_size);
-
-	return ret;
-}
-
 static unsigned bch_bio_max_sectors(struct bio *bio)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
@@ -172,8 +94,8 @@ void bch_generic_make_request(struct bio *bio, struct bio_split_pool *p)
 	bio_get(bio);
 
 	do {
-		n = bch_bio_split(bio, bch_bio_max_sectors(bio),
-				  GFP_NOIO, s->p->bio_split);
+		n = bio_next_split(bio, bch_bio_max_sectors(bio),
+				   GFP_NOIO, s->p->bio_split);
 
 		n->bi_end_io	= bch_bio_submit_split_endio;
 		n->bi_private	= &s->cl;

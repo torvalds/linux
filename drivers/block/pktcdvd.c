@@ -2338,75 +2338,29 @@ static void pkt_end_io_read_cloned(struct bio *bio, int err)
 	pkt_bio_finished(pd);
 }
 
-static void pkt_make_request(struct request_queue *q, struct bio *bio)
+static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct pktcdvd_device *pd;
-	char b[BDEVNAME_SIZE];
+	struct bio *cloned_bio = bio_clone(bio, GFP_NOIO);
+	struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
+
+	psd->pd = pd;
+	psd->bio = bio;
+	cloned_bio->bi_bdev = pd->bdev;
+	cloned_bio->bi_private = psd;
+	cloned_bio->bi_end_io = pkt_end_io_read_cloned;
+	pd->stats.secs_r += bio_sectors(bio);
+	pkt_queue_bio(pd, cloned_bio);
+}
+
+static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
+{
+	struct pktcdvd_device *pd = q->queuedata;
 	sector_t zone;
 	struct packet_data *pkt;
 	int was_empty, blocked_bio;
 	struct pkt_rb_node *node;
 
-	pd = q->queuedata;
-	if (!pd) {
-		pr_err("%s incorrect request queue\n",
-		       bdevname(bio->bi_bdev, b));
-		goto end_io;
-	}
-
-	/*
-	 * Clone READ bios so we can have our own bi_end_io callback.
-	 */
-	if (bio_data_dir(bio) == READ) {
-		struct bio *cloned_bio = bio_clone(bio, GFP_NOIO);
-		struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
-
-		psd->pd = pd;
-		psd->bio = bio;
-		cloned_bio->bi_bdev = pd->bdev;
-		cloned_bio->bi_private = psd;
-		cloned_bio->bi_end_io = pkt_end_io_read_cloned;
-		pd->stats.secs_r += bio_sectors(bio);
-		pkt_queue_bio(pd, cloned_bio);
-		return;
-	}
-
-	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
-		pkt_notice(pd, "WRITE for ro device (%llu)\n",
-			   (unsigned long long)bio->bi_iter.bi_sector);
-		goto end_io;
-	}
-
-	if (!bio->bi_iter.bi_size || (bio->bi_iter.bi_size % CD_FRAMESIZE)) {
-		pkt_err(pd, "wrong bio size\n");
-		goto end_io;
-	}
-
-	blk_queue_bounce(q, &bio);
-
 	zone = get_zone(bio->bi_iter.bi_sector, pd);
-	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
-		(unsigned long long)bio->bi_iter.bi_sector,
-		(unsigned long long)bio_end_sector(bio));
-
-	/* Check if we have to split the bio */
-	{
-		struct bio_pair *bp;
-		sector_t last_zone;
-		int first_sectors;
-
-		last_zone = get_zone(bio_end_sector(bio) - 1, pd);
-		if (last_zone != zone) {
-			BUG_ON(last_zone != zone + pd->settings.size);
-			first_sectors = last_zone - bio->bi_iter.bi_sector;
-			bp = bio_pair_split(bio, first_sectors);
-			BUG_ON(!bp);
-			pkt_make_request(q, &bp->bio1);
-			pkt_make_request(q, &bp->bio2);
-			bio_pair_release(bp);
-			return;
-		}
-	}
 
 	/*
 	 * If we find a matching packet in state WAITING or READ_WAIT, we can
@@ -2480,6 +2434,64 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 		 */
 		wake_up(&pd->wqueue);
 	}
+}
+
+static void pkt_make_request(struct request_queue *q, struct bio *bio)
+{
+	struct pktcdvd_device *pd;
+	char b[BDEVNAME_SIZE];
+	struct bio *split;
+
+	pd = q->queuedata;
+	if (!pd) {
+		pr_err("%s incorrect request queue\n",
+		       bdevname(bio->bi_bdev, b));
+		goto end_io;
+	}
+
+	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
+		(unsigned long long)bio->bi_iter.bi_sector,
+		(unsigned long long)bio_end_sector(bio));
+
+	/*
+	 * Clone READ bios so we can have our own bi_end_io callback.
+	 */
+	if (bio_data_dir(bio) == READ) {
+		pkt_make_request_read(pd, bio);
+		return;
+	}
+
+	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
+		pkt_notice(pd, "WRITE for ro device (%llu)\n",
+			   (unsigned long long)bio->bi_iter.bi_sector);
+		goto end_io;
+	}
+
+	if (!bio->bi_iter.bi_size || (bio->bi_iter.bi_size % CD_FRAMESIZE)) {
+		pkt_err(pd, "wrong bio size\n");
+		goto end_io;
+	}
+
+	blk_queue_bounce(q, &bio);
+
+	do {
+		sector_t zone = get_zone(bio->bi_iter.bi_sector, pd);
+		sector_t last_zone = get_zone(bio_end_sector(bio) - 1, pd);
+
+		if (last_zone != zone) {
+			BUG_ON(last_zone != zone + pd->settings.size);
+
+			split = bio_split(bio, last_zone -
+					  bio->bi_iter.bi_sector,
+					  GFP_NOIO, fs_bio_set);
+			bio_chain(split, bio);
+		} else {
+			split = bio;
+		}
+
+		pkt_make_request_write(q, split);
+	} while (split != bio);
+
 	return;
 end_io:
 	bio_io_error(bio);

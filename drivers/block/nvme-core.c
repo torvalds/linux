@@ -441,104 +441,19 @@ int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
 	return total_len;
 }
 
-struct nvme_bio_pair {
-	struct bio b1, b2, *parent;
-	struct bio_vec *bv1, *bv2;
-	int err;
-	atomic_t cnt;
-};
-
-static void nvme_bio_pair_endio(struct bio *bio, int err)
-{
-	struct nvme_bio_pair *bp = bio->bi_private;
-
-	if (err)
-		bp->err = err;
-
-	if (atomic_dec_and_test(&bp->cnt)) {
-		bio_endio(bp->parent, bp->err);
-		kfree(bp->bv1);
-		kfree(bp->bv2);
-		kfree(bp);
-	}
-}
-
-static struct nvme_bio_pair *nvme_bio_split(struct bio *bio, int idx,
-							int len, int offset)
-{
-	struct nvme_bio_pair *bp;
-
-	BUG_ON(len > bio->bi_iter.bi_size);
-	BUG_ON(idx > bio->bi_vcnt);
-
-	bp = kmalloc(sizeof(*bp), GFP_ATOMIC);
-	if (!bp)
-		return NULL;
-	bp->err = 0;
-
-	bp->b1 = *bio;
-	bp->b2 = *bio;
-
-	bp->b1.bi_iter.bi_size = len;
-	bp->b2.bi_iter.bi_size -= len;
-	bp->b1.bi_vcnt = idx;
-	bp->b2.bi_iter.bi_idx = idx;
-	bp->b2.bi_iter.bi_sector += len >> 9;
-
-	if (offset) {
-		bp->bv1 = kmalloc(bio->bi_max_vecs * sizeof(struct bio_vec),
-								GFP_ATOMIC);
-		if (!bp->bv1)
-			goto split_fail_1;
-
-		bp->bv2 = kmalloc(bio->bi_max_vecs * sizeof(struct bio_vec),
-								GFP_ATOMIC);
-		if (!bp->bv2)
-			goto split_fail_2;
-
-		memcpy(bp->bv1, bio->bi_io_vec,
-			bio->bi_max_vecs * sizeof(struct bio_vec));
-		memcpy(bp->bv2, bio->bi_io_vec,
-			bio->bi_max_vecs * sizeof(struct bio_vec));
-
-		bp->b1.bi_io_vec = bp->bv1;
-		bp->b2.bi_io_vec = bp->bv2;
-		bp->b2.bi_io_vec[idx].bv_offset += offset;
-		bp->b2.bi_io_vec[idx].bv_len -= offset;
-		bp->b1.bi_io_vec[idx].bv_len = offset;
-		bp->b1.bi_vcnt++;
-	} else
-		bp->bv1 = bp->bv2 = NULL;
-
-	bp->b1.bi_private = bp;
-	bp->b2.bi_private = bp;
-
-	bp->b1.bi_end_io = nvme_bio_pair_endio;
-	bp->b2.bi_end_io = nvme_bio_pair_endio;
-
-	bp->parent = bio;
-	atomic_set(&bp->cnt, 2);
-
-	return bp;
-
- split_fail_2:
-	kfree(bp->bv1);
- split_fail_1:
-	kfree(bp);
-	return NULL;
-}
-
 static int nvme_split_and_submit(struct bio *bio, struct nvme_queue *nvmeq,
-						int idx, int len, int offset)
+				 int len)
 {
-	struct nvme_bio_pair *bp = nvme_bio_split(bio, idx, len, offset);
-	if (!bp)
+	struct bio *split = bio_split(bio, len >> 9, GFP_ATOMIC, NULL);
+	if (!split)
 		return -ENOMEM;
+
+	bio_chain(split, bio);
 
 	if (bio_list_empty(&nvmeq->sq_cong))
 		add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
-	bio_list_add(&nvmeq->sq_cong, &bp->b1);
-	bio_list_add(&nvmeq->sq_cong, &bp->b2);
+	bio_list_add(&nvmeq->sq_cong, split);
+	bio_list_add(&nvmeq->sq_cong, bio);
 
 	return 0;
 }
@@ -568,8 +483,7 @@ static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 		} else {
 			if (!first && BIOVEC_NOT_VIRT_MERGEABLE(&bvprv, &bvec))
 				return nvme_split_and_submit(bio, nvmeq,
-							     iter.bi_idx,
-							     length, 0);
+							     length);
 
 			sg = sg ? sg + 1 : iod->sg;
 			sg_set_page(sg, bvec.bv_page,
@@ -578,9 +492,7 @@ static int nvme_map_bio(struct nvme_queue *nvmeq, struct nvme_iod *iod,
 		}
 
 		if (split_len - length < bvec.bv_len)
-			return nvme_split_and_submit(bio, nvmeq, iter.bi_idx,
-						     split_len,
-						     split_len - length);
+			return nvme_split_and_submit(bio, nvmeq, split_len);
 		length += bvec.bv_len;
 		bvprv = bvec;
 		first = 0;
