@@ -162,6 +162,8 @@ static enum hrtimer_restart ina231_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+extern bool xupluse;
+
 //[*]--------------------------------------------------------------------------------------------------[*]
 static int __devinit 	ina231_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -229,6 +231,7 @@ static int __devinit 	ina231_i2c_probe(struct i2c_client *client, const struct i
 #else
     printk("odroidxu+e: ina231, probed: %s\n", sensor->pd->name);
 #endif    
+	xupluse = true;
     return  0;
 out:
     printk("============= Probe INA231 Fail! : %s (0x%04X) ============= \n", sensor->pd->name, rc); 

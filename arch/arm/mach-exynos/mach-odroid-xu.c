@@ -132,6 +132,8 @@ static int exynos5_notifier_call(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+bool xupluse = false;
+
 static struct notifier_block exynos5_reboot_notifier = {
 	.notifier_call = exynos5_notifier_call,
 };
