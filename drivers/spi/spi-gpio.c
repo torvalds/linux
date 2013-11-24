@@ -115,17 +115,17 @@ spi_to_pdata(const struct spi_device *spi)
 
 static inline void setsck(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_SCK_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_SCK_GPIO, is_on);
 }
 
 static inline void setmosi(const struct spi_device *spi, int is_on)
 {
-	gpio_set_value(SPI_MOSI_GPIO, is_on);
+	gpio_set_value_cansleep(SPI_MOSI_GPIO, is_on);
 }
 
 static inline int getmiso(const struct spi_device *spi)
 {
-	return !!gpio_get_value(SPI_MISO_GPIO);
+	return !!gpio_get_value_cansleep(SPI_MISO_GPIO);
 }
 
 #undef pdata
@@ -229,7 +229,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 
 	if (cs != SPI_GPIO_NO_CHIPSELECT) {
 		/* SPI is normally active-low */
-		gpio_set_value(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
+		gpio_set_value_cansleep(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
 }
 
