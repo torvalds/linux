@@ -61,7 +61,7 @@ repeat:
 	if (PageUptodate(page))
 		goto out;
 
-	if (f2fs_readpage(sbi, page, index, READ_SYNC))
+	if (f2fs_readpage(sbi, page, index, READ_SYNC | REQ_META | REQ_PRIO))
 		goto repeat;
 
 	lock_page(page);

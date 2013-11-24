@@ -106,11 +106,11 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 			f2fs_put_page(page, 1);
 			continue;
 		}
-		submit_read_page(sbi, page, index, READ_SYNC);
+		submit_read_page(sbi, page, index, READ_SYNC | REQ_META);
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
-	f2fs_submit_read_bio(sbi, READ_SYNC);
+	f2fs_submit_read_bio(sbi, READ_SYNC | REQ_META);
 }
 
 static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)

@@ -1734,13 +1734,13 @@ repeat:
 			continue;
 		}
 
-		submit_read_page(sbi, page, blk_addr, READ_SYNC);
+		submit_read_page(sbi, page, blk_addr, READ_SYNC | REQ_META);
 
 		mark_page_accessed(page);
 		f2fs_put_page(page, 0);
 	}
 
-	f2fs_submit_read_bio(sbi, READ_SYNC);
+	f2fs_submit_read_bio(sbi, READ_SYNC | REQ_META);
 	return blkno - start;
 }
 
