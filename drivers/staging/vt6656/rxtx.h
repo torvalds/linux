@@ -243,6 +243,7 @@ struct vnt_beacon_buffer {
 	u8 byPKTNO;
 	u16 wTxByteCount;
 	struct vnt_tx_short_buf_head short_head;
+	struct ieee80211_hdr hdr;
 } __packed;
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);

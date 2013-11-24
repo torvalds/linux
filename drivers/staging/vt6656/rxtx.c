@@ -1650,7 +1650,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	u16 wCurrentRate;
 	u32 cbFrameBodySize;
 	u32 cbReqCount;
-	u8 *pbyTxBufferAddr;
 	struct vnt_usb_send_context *pContext;
 	CMD_STATUS status;
 
@@ -1663,7 +1662,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 
 	pTX_Buffer = (struct vnt_beacon_buffer *)&pContext->Data[0];
 	short_head = &pTX_Buffer->short_head;
-	pbyTxBufferAddr = (u8 *)&short_head->fifo_ctl;
 
     cbFrameBodySize = pPacket->cbPayloadLen;
 
@@ -1697,15 +1695,16 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	}
 
 
-    //Generate Beacon Header
-    pMACHeader = (struct ieee80211_hdr *)(pbyTxBufferAddr + cbHeaderSize);
-    memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
+	/* Generate Beacon Header */
+	pMACHeader = &pTX_Buffer->hdr;
 
-    pMACHeader->duration_id = 0;
-    pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
-    pDevice->wSeqCounter++ ;
-    if (pDevice->wSeqCounter > 0x0fff)
-        pDevice->wSeqCounter = 0;
+	memcpy(pMACHeader, pPacket->p80211Header, pPacket->cbMPDULen);
+
+	pMACHeader->duration_id = 0;
+	pMACHeader->seq_ctrl = cpu_to_le16(pDevice->wSeqCounter << 4);
+	pDevice->wSeqCounter++;
+	if (pDevice->wSeqCounter > 0x0fff)
+		pDevice->wSeqCounter = 0;
 
     cbReqCount = cbHeaderSize + WLAN_HDR_ADDR3_LEN + cbFrameBodySize;
 
