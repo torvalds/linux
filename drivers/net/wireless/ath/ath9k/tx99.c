@@ -76,6 +76,7 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 	tx_info->band = hw->conf.chandef.chan->band;
 	tx_info->flags = IEEE80211_TX_CTL_NO_ACK;
 	tx_info->control.vif = sc->tx99_vif;
+	tx_info->control.rates[0].count = 1;
 
 	memcpy(skb->data + sizeof(*hdr), PN9Data, sizeof(PN9Data));
 
