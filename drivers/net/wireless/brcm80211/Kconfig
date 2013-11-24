@@ -8,8 +8,6 @@ config BRCMSMAC
 	select BCMA
 	select BRCMUTIL
 	select FW_LOADER
-	select CRC_CCITT
-	select CRC8
 	select CORDIC
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
