@@ -613,7 +613,6 @@ struct search {
 
 	struct btree_op		op;
 	struct data_insert_op	iop;
-	struct bio_vec		bv[BIO_MAX_PAGES];
 };
 
 static void bch_cache_read_endio(struct bio *bio, int error)
@@ -761,9 +760,7 @@ static void do_bio_hook(struct search *s)
 	struct bio *bio = &s->bio.bio;
 
 	bio_init(bio);
-	bio->bi_io_vec		= s->bv;
-	bio->bi_max_vecs	= BIO_MAX_PAGES;
-	__bio_clone(bio, s->orig_bio);
+	__bio_clone_fast(bio, s->orig_bio);
 	bio->bi_end_io		= request_endio;
 	bio->bi_private		= &s->cl;
 
@@ -1065,8 +1062,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			closure_bio_submit(flush, cl, s->d);
 		}
 	} else {
-		s->iop.bio = bio_clone_bioset(bio, GFP_NOIO,
-					      dc->disk.bio_split);
+		s->iop.bio = bio_clone_fast(bio, GFP_NOIO, dc->disk.bio_split);
 
 		closure_bio_submit(bio, cl, s->d);
 	}

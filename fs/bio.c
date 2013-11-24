@@ -549,6 +549,66 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
 EXPORT_SYMBOL(__bio_clone);
 
 /**
+ * 	__bio_clone_fast - clone a bio that shares the original bio's biovec
+ * 	@bio: destination bio
+ * 	@bio_src: bio to clone
+ *
+ *	Clone a &bio. Caller will own the returned bio, but not
+ *	the actual data it points to. Reference count of returned
+ * 	bio will be one.
+ *
+ * 	Caller must ensure that @bio_src is not freed before @bio.
+ */
+void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
+{
+	BUG_ON(bio->bi_pool && BIO_POOL_IDX(bio) != BIO_POOL_NONE);
+
+	/*
+	 * most users will be overriding ->bi_bdev with a new target,
+	 * so we don't set nor calculate new physical/hw segment counts here
+	 */
+	bio->bi_bdev = bio_src->bi_bdev;
+	bio->bi_flags |= 1 << BIO_CLONED;
+	bio->bi_rw = bio_src->bi_rw;
+	bio->bi_iter = bio_src->bi_iter;
+	bio->bi_io_vec = bio_src->bi_io_vec;
+}
+EXPORT_SYMBOL(__bio_clone_fast);
+
+/**
+ *	bio_clone_fast - clone a bio that shares the original bio's biovec
+ *	@bio: bio to clone
+ *	@gfp_mask: allocation priority
+ *	@bs: bio_set to allocate from
+ *
+ * 	Like __bio_clone_fast, only also allocates the returned bio
+ */
+struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
+{
+	struct bio *b;
+
+	b = bio_alloc_bioset(gfp_mask, 0, bs);
+	if (!b)
+		return NULL;
+
+	__bio_clone_fast(b, bio);
+
+	if (bio_integrity(bio)) {
+		int ret;
+
+		ret = bio_integrity_clone(b, bio, gfp_mask);
+
+		if (ret < 0) {
+			bio_put(b);
+			return NULL;
+		}
+	}
+
+	return b;
+}
+EXPORT_SYMBOL(bio_clone_fast);
+
+/**
  * 	bio_clone_bioset - clone a bio
  * 	@bio_src: bio to clone
  *	@gfp_mask: allocation priority

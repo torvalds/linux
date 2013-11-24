@@ -328,6 +328,8 @@ extern mempool_t *biovec_create_pool(struct bio_set *bs, int pool_entries);
 extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
 
+extern void __bio_clone_fast(struct bio *, struct bio *);
+extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 extern void __bio_clone(struct bio *, struct bio *);
 extern struct bio *bio_clone_bioset(struct bio *, gfp_t, struct bio_set *bs);
 
