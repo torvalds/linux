@@ -846,10 +846,10 @@ static void do_submit_bio(struct f2fs_sb_info *sbi,
 	if (type >= META_FLUSH)
 		rw = WRITE_FLUSH_FUA;
 
-	trace_f2fs_submit_write_bio(sbi->sb, rw, btype, io->bio);
-
 	if (btype == META)
 		rw |= REQ_META;
+
+	trace_f2fs_submit_write_bio(sbi->sb, rw, btype, io->bio);
 
 	p = io->bio->bi_private;
 	p->sbi = sbi;

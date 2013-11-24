@@ -16,8 +16,13 @@
 		{ META,		"META" },				\
 		{ META_FLUSH,	"META_FLUSH" })
 
-#define show_bio_type(type)						\
-	__print_symbolic(type,						\
+#define F2FS_BIO_MASK(t)	(t & (READA | WRITE_FLUSH_FUA))
+#define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
+
+#define show_bio_type(type)	show_bio_base(type), show_bio_extra(type)
+
+#define show_bio_base(type)						\
+	__print_symbolic(F2FS_BIO_MASK(type),				\
 		{ READ, 		"READ" },			\
 		{ READA, 		"READAHEAD" },			\
 		{ READ_SYNC, 		"READ_SYNC" },			\
@@ -26,6 +31,13 @@
 		{ WRITE_FLUSH,		"WRITE_FLUSH" },		\
 		{ WRITE_FUA, 		"WRITE_FUA" },			\
 		{ WRITE_FLUSH_FUA,	"WRITE_FLUSH_FUA" })
+
+#define show_bio_extra(type)						\
+	__print_symbolic(F2FS_BIO_EXTRA_MASK(type),			\
+		{ REQ_META, 		"(M)" },			\
+		{ REQ_PRIO, 		"(P)" },			\
+		{ REQ_META | REQ_PRIO,	"(MP)" },			\
+		{ 0, " \b" })
 
 #define show_data_type(type)						\
 	__print_symbolic(type,						\
@@ -447,7 +459,7 @@ TRACE_EVENT_CONDITION(f2fs_readpage,
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
-		"blkaddr = 0x%llx, bio_type = %s",
+		"blkaddr = 0x%llx, bio_type = %s%s",
 		show_dev_ino(__entry),
 		(unsigned long)__entry->index,
 		(unsigned long long)__entry->blkaddr,
@@ -621,7 +633,7 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 		__entry->size		= bio->bi_size;
 	),
 
-	TP_printk("dev = (%d,%d), %s, %s, sector = %lld, size = %u",
+	TP_printk("dev = (%d,%d), %s%s, %s, sector = %lld, size = %u",
 		show_dev(__entry),
 		show_bio_type(__entry->rw),
 		show_block_type(__entry->type),
@@ -713,7 +725,7 @@ DECLARE_EVENT_CLASS(f2fs_io_page,
 		__entry->block	= blk_addr;
 	),
 
-	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, blkaddr = 0x%llx",
+	TP_printk("dev = (%d,%d), ino = %lu, %s%s, %s, index = %lu, blkaddr = 0x%llx",
 		show_dev_ino(__entry),
 		show_bio_type(__entry->rw),
 		show_block_type(__entry->type),
