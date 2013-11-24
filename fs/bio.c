@@ -549,36 +549,70 @@ void __bio_clone(struct bio *bio, struct bio *bio_src)
 EXPORT_SYMBOL(__bio_clone);
 
 /**
- *	bio_clone_bioset -	clone a bio
- *	@bio: bio to clone
+ * 	bio_clone_bioset - clone a bio
+ * 	@bio_src: bio to clone
  *	@gfp_mask: allocation priority
  *	@bs: bio_set to allocate from
  *
- * 	Like __bio_clone, only also allocates the returned bio
+ *	Clone bio. Caller will own the returned bio, but not the actual data it
+ *	points to. Reference count of returned bio will be one.
  */
-struct bio *bio_clone_bioset(struct bio *bio, gfp_t gfp_mask,
+struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 			     struct bio_set *bs)
 {
-	struct bio *b;
+	unsigned nr_iovecs = 0;
+	struct bvec_iter iter;
+	struct bio_vec bv;
+	struct bio *bio;
 
-	b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs, bs);
-	if (!b)
+	/*
+	 * Pre immutable biovecs, __bio_clone() used to just do a memcpy from
+	 * bio_src->bi_io_vec to bio->bi_io_vec.
+	 *
+	 * We can't do that anymore, because:
+	 *
+	 *  - The point of cloning the biovec is to produce a bio with a biovec
+	 *    the caller can modify: bi_idx and bi_bvec_done should be 0.
+	 *
+	 *  - The original bio could've had more than BIO_MAX_PAGES biovecs; if
+	 *    we tried to clone the whole thing bio_alloc_bioset() would fail.
+	 *    But the clone should succeed as long as the number of biovecs we
+	 *    actually need to allocate is fewer than BIO_MAX_PAGES.
+	 *
+	 *  - Lastly, bi_vcnt should not be looked at or relied upon by code
+	 *    that does not own the bio - reason being drivers don't use it for
+	 *    iterating over the biovec anymore, so expecting it to be kept up
+	 *    to date (i.e. for clones that share the parent biovec) is just
+	 *    asking for trouble and would force extra work on
+	 *    __bio_clone_fast() anyways.
+	 */
+
+	bio_for_each_segment(bv, bio_src, iter)
+		nr_iovecs++;
+
+	bio = bio_alloc_bioset(gfp_mask, nr_iovecs, bs);
+	if (!bio)
 		return NULL;
 
-	__bio_clone(b, bio);
+	bio->bi_bdev		= bio_src->bi_bdev;
+	bio->bi_rw		= bio_src->bi_rw;
+	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
+	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 
-	if (bio_integrity(bio)) {
+	bio_for_each_segment(bv, bio_src, iter)
+		bio->bi_io_vec[bio->bi_vcnt++] = bv;
+
+	if (bio_integrity(bio_src)) {
 		int ret;
 
-		ret = bio_integrity_clone(b, bio, gfp_mask);
-
+		ret = bio_integrity_clone(bio, bio_src, gfp_mask);
 		if (ret < 0) {
-			bio_put(b);
+			bio_put(bio);
 			return NULL;
 		}
 	}
 
-	return b;
+	return bio;
 }
 EXPORT_SYMBOL(bio_clone_bioset);
 
