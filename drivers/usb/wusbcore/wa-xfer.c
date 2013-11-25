@@ -1848,6 +1848,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		pr_debug("%s: xfer %p id 0x%08X has no RPIPE.  %s",
 			__func__, xfer, wa_xfer_id(xfer),
 			"Probably already aborted.\n" );
+		result = -ENOENT;
 		goto out_unlock;
 	}
 	/* Check the delayed list -> if there, release and complete */
@@ -1878,6 +1879,7 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 			 * segments will be completed in the DTI interrupt.
 			 */
 			seg->status = WA_SEG_ABORTED;
+			seg->result = -ENOENT;
 			spin_lock_irqsave(&rpipe->seg_lock, flags2);
 			list_del(&seg->list_node);
 			xfer->segs_done++;
@@ -1917,12 +1919,12 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 		wa_xfer_completion(xfer);
 	if (rpipe_ready)
 		wa_xfer_delayed_run(rpipe);
-	return 0;
+	return result;
 
 out_unlock:
 	spin_unlock_irqrestore(&xfer->lock, flags);
 out:
-	return 0;
+	return result;
 
 dequeue_delayed:
 	list_del_init(&xfer->list_node);
@@ -1958,7 +1960,7 @@ static int wa_xfer_status_to_errno(u8 status)
 		[WA_XFER_STATUS_NOT_FOUND] =		0,
 		[WA_XFER_STATUS_INSUFFICIENT_RESOURCE] = -ENOMEM,
 		[WA_XFER_STATUS_TRANSACTION_ERROR] = 	-EILSEQ,
-		[WA_XFER_STATUS_ABORTED] = 		-EINTR,
+		[WA_XFER_STATUS_ABORTED] =		-ENOENT,
 		[WA_XFER_STATUS_RPIPE_NOT_READY] = 	EINVAL,
 		[WA_XFER_INVALID_FORMAT] = 		EINVAL,
 		[WA_XFER_UNEXPECTED_SEGMENT_NUMBER] = 	EINVAL,
