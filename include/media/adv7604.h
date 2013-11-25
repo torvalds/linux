@@ -86,6 +86,13 @@ enum adv7604_drive_strength {
 	ADV7604_DR_STR_HIGH = 3,
 };
 
+enum adv7604_int1_config {
+	ADV7604_INT1_CONFIG_OPEN_DRAIN,
+	ADV7604_INT1_CONFIG_ACTIVE_LOW,
+	ADV7604_INT1_CONFIG_ACTIVE_HIGH,
+	ADV7604_INT1_CONFIG_DISABLED,
+};
+
 /* Platform dependent definition */
 struct adv7604_platform_data {
 	/* DIS_PWRDNB: 1 if the PWRDNB pin is unused and unconnected */
@@ -102,6 +109,9 @@ struct adv7604_platform_data {
 
 	/* Select output format */
 	enum adv7604_op_format_sel op_format_sel;
+
+	/* Configuration of the INT1 pin */
+	enum adv7604_int1_config int1_config;
 
 	/* IO register 0x02 */
 	unsigned alt_gamma:1;
