@@ -43,7 +43,7 @@ struct eb_vmas {
 };
 
 static struct eb_vmas *
-eb_create(struct drm_i915_gem_execbuffer2 *args, struct i915_address_space *vm)
+eb_create(struct drm_i915_gem_execbuffer2 *args)
 {
 	struct eb_vmas *eb = NULL;
 
@@ -454,8 +454,7 @@ i915_gem_execbuffer_relocate_vma_slow(struct i915_vma *vma,
 }
 
 static int
-i915_gem_execbuffer_relocate(struct eb_vmas *eb,
-			     struct i915_address_space *vm)
+i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 {
 	struct i915_vma *vma;
 	int ret = 0;
@@ -1102,7 +1101,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto pre_mutex_err;
 	}
 
-	eb = eb_create(args, vm);
+	eb = eb_create(args);
 	if (eb == NULL) {
 		mutex_unlock(&dev->struct_mutex);
 		ret = -ENOMEM;
@@ -1125,7 +1124,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* The objects are in their final locations, apply the relocations. */
 	if (need_relocs)
-		ret = i915_gem_execbuffer_relocate(eb, vm);
+		ret = i915_gem_execbuffer_relocate(eb);
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, args, file, ring,
