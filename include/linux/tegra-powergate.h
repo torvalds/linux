@@ -45,6 +45,7 @@ struct clk;
 
 #define TEGRA_POWERGATE_3D0	TEGRA_POWERGATE_3D
 
+#ifdef CONFIG_ARCH_TEGRA
 int tegra_powergate_is_powered(int id);
 int tegra_powergate_power_on(int id);
 int tegra_powergate_power_off(int id);
@@ -52,5 +53,31 @@ int tegra_powergate_remove_clamping(int id);
 
 /* Must be called with clk disabled, and returns with clk enabled */
 int tegra_powergate_sequence_power_up(int id, struct clk *clk);
+#else
+static inline int tegra_powergate_is_powered(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_power_on(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_power_off(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_remove_clamping(int id)
+{
+	return -ENOSYS;
+}
+
+static inline int tegra_powergate_sequence_power_up(int id, struct clk *clk)
+{
+	return -ENOSYS;
+}
+#endif
 
 #endif /* _MACH_TEGRA_POWERGATE_H_ */
