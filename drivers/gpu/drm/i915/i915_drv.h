@@ -950,11 +950,16 @@ struct intel_ilk_power_mgmt {
 
 /* Power well structure for haswell */
 struct i915_power_well {
+	const char *name;
 	/* power well enable/disable usage count */
 	int count;
+	unsigned long domains;
+	void *data;
+	void (*set)(struct drm_device *dev, struct i915_power_well *power_well,
+		    bool enable);
+	bool (*is_enabled)(struct drm_device *dev,
+			   struct i915_power_well *power_well);
 };
-
-#define I915_MAX_POWER_WELLS 1
 
 struct i915_power_domains {
 	/*
@@ -962,9 +967,10 @@ struct i915_power_domains {
 	 * time are on. They are kept on until after the first modeset.
 	 */
 	bool init_power_on;
+	int power_well_count;
 
 	struct mutex lock;
-	struct i915_power_well power_wells[I915_MAX_POWER_WELLS];
+	struct i915_power_well *power_wells;
 };
 
 struct i915_dri1_state {
