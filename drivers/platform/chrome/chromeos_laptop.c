@@ -41,7 +41,7 @@ static struct i2c_client *als;
 static struct i2c_client *tp;
 static struct i2c_client *ts;
 
-const char *i2c_adapter_names[] = {
+static const char *i2c_adapter_names[] = {
 	"SMBus I801 adapter",
 	"i915 gmbus vga",
 	"i915 gmbus panel",
