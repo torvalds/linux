@@ -601,11 +601,11 @@ static int request_code_segment(struct ft1000_usb *ft1000dev, u16 **s_file,
 		status = write_blk(ft1000dev, s_file, c_file, word_length);
 		/*DEBUG("write_blk returned %d\n", status); */
 	} else {
-		write_blk_fifo(ft1000dev, s_file, c_file, word_length);
+		status = write_blk_fifo(ft1000dev, s_file, c_file, word_length);
 		if (ft1000dev->usbboot == 0)
 			ft1000dev->usbboot++;
 		if (ft1000dev->usbboot == 1)
-			ft1000_write_dpram16(ft1000dev,
+			status |= ft1000_write_dpram16(ft1000dev,
 					DWNLD_MAG1_PS_HDR_LOC, 0, 0);
 	}
 	return status;
