@@ -32,7 +32,7 @@
 
 #include "common.h"
 #include "mmc.h"
-
+#include "soc.h"
 #include "mux.h"
 #include "gpmc-onenand.h"
 
@@ -597,7 +597,8 @@ static void __init n8x0_mmc_init(void)
 	}
 
 	mmc_data[0] = &mmc1_data;
-	omap242x_init_mmc(mmc_data);
+	if (!of_have_populated_dt())
+		omap242x_init_mmc(mmc_data);
 }
 #else
 
@@ -730,6 +731,21 @@ static inline void board_serial_init(void)
 
 #endif
 
+static int __init n8x0_late_initcall(void)
+{
+	if (!board_caps)
+		return -ENODEV;
+
+	gpmc_onenand_init(board_onenand_data);
+	n8x0_mmc_init();
+	n8x0_usb_init();
+	if (!of_have_populated_dt())
+		n8x0_cbus_init();
+
+	return 0;
+}
+omap_late_initcall(n8x0_late_initcall);
+
 static void __init n8x0_init_machine(void)
 {
 	board_check_revision();
@@ -743,12 +759,10 @@ static void __init n8x0_init_machine(void)
 	if (board_is_n810())
 		i2c_register_board_info(2, n810_i2c_board_info_2,
 					ARRAY_SIZE(n810_i2c_board_info_2));
-	board_serial_init();
-	omap_sdrc_init(NULL, NULL);
-	gpmc_onenand_init(board_onenand_data);
-	n8x0_mmc_init();
-	n8x0_usb_init();
-	n8x0_cbus_init();
+	if (!of_have_populated_dt()) {
+		board_serial_init();
+		omap_sdrc_init(NULL, NULL);
+	}
 }
 
 MACHINE_START(NOKIA_N800, "Nokia N800")
