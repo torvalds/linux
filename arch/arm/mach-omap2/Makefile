@@ -66,8 +66,6 @@ obj-$(CONFIG_SOC_OMAP5)			+= omap4-restart.o
 obj-$(CONFIG_SOC_DRA7XX)		+= omap4-restart.o
 
 # Pin multiplexing
-obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
-obj-$(CONFIG_SOC_OMAP2430)		+= mux2430.o
 obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
 
 # SMS/SDRC
