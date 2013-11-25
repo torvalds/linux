@@ -100,40 +100,48 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	return 0;
 }
 
+static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
+{
+	void *addr = vm_map_ram(pages, num, -1, pgprot);
+	if (!addr)
+		return -ENOMEM;
+	memset(addr, 0, PAGE_SIZE * num);
+	vm_unmap_ram(addr, num);
+
+	return 0;
+}
+
 int ion_heap_buffer_zero(struct ion_buffer *buffer)
 {
 	struct sg_table *table = buffer->sg_table;
 	pgprot_t pgprot;
 	struct scatterlist *sg;
-	struct vm_struct *vm_struct;
 	int i, j, ret = 0;
+	struct page *pages[32];
+	int k = 0;
 
 	if (buffer->flags & ION_FLAG_CACHED)
 		pgprot = PAGE_KERNEL;
 	else
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 
-	vm_struct = get_vm_area(PAGE_SIZE, VM_ALLOC);
-	if (!vm_struct)
-		return -ENOMEM;
-
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 		unsigned long len = sg->length;
 
 		for (j = 0; j < len / PAGE_SIZE; j++) {
-			struct page *sub_page = page + j;
-			struct page **pages = &sub_page;
-			ret = map_vm_area(vm_struct, pgprot, &pages);
-			if (ret)
-				goto end;
-			memset(vm_struct->addr, 0, PAGE_SIZE);
-			unmap_kernel_range((unsigned long)vm_struct->addr,
-					   PAGE_SIZE);
+			pages[k++] = page + j;
+			if (k == ARRAY_SIZE(pages)) {
+				ret = ion_heap_clear_pages(pages, k, pgprot);
+				if (ret)
+					goto end;
+				k = 0;
+			}
 		}
+		if (k)
+			ret = ion_heap_clear_pages(pages, k, pgprot);
 	}
 end:
-	free_vm_area(vm_struct);
 	return ret;
 }
 
