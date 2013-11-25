@@ -122,8 +122,8 @@ struct sw_flow_key {
 } __aligned(BITS_PER_LONG/8); /* Ensure that we can do comparisons as longs. */
 
 struct sw_flow_key_range {
-	size_t start;
-	size_t end;
+	unsigned short int start;
+	unsigned short int end;
 };
 
 struct sw_flow_mask {
