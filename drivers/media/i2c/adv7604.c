@@ -2663,13 +2663,58 @@ static const struct adv7604_chip_info adv7604_chip_info[] = {
 	},
 };
 
+static struct i2c_device_id adv7604_i2c_id[] = {
+	{ "adv7604", (kernel_ulong_t)&adv7604_chip_info[ADV7604] },
+	{ "adv7611", (kernel_ulong_t)&adv7604_chip_info[ADV7611] },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adv7604_i2c_id);
+
+static struct of_device_id adv7604_of_id[] __maybe_unused = {
+	{ .compatible = "adi,adv7611", .data = &adv7604_chip_info[ADV7611] },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adv7604_of_id);
+
+static int adv7604_parse_dt(struct adv7604_state *state)
+{
+	/* Disable the interrupt for now as no DT-based board uses it. */
+	state->pdata.int1_config = ADV7604_INT1_CONFIG_DISABLED;
+
+	/* Use the default I2C addresses. */
+	state->pdata.i2c_addresses[ADV7604_PAGE_AVLINK] = 0x42;
+	state->pdata.i2c_addresses[ADV7604_PAGE_CEC] = 0x40;
+	state->pdata.i2c_addresses[ADV7604_PAGE_INFOFRAME] = 0x3e;
+	state->pdata.i2c_addresses[ADV7604_PAGE_ESDP] = 0x38;
+	state->pdata.i2c_addresses[ADV7604_PAGE_DPP] = 0x3c;
+	state->pdata.i2c_addresses[ADV7604_PAGE_AFE] = 0x26;
+	state->pdata.i2c_addresses[ADV7604_PAGE_REP] = 0x32;
+	state->pdata.i2c_addresses[ADV7604_PAGE_EDID] = 0x36;
+	state->pdata.i2c_addresses[ADV7604_PAGE_HDMI] = 0x34;
+	state->pdata.i2c_addresses[ADV7604_PAGE_TEST] = 0x30;
+	state->pdata.i2c_addresses[ADV7604_PAGE_CP] = 0x22;
+	state->pdata.i2c_addresses[ADV7604_PAGE_VDP] = 0x24;
+
+	/* Hardcode the remaining platform data fields. */
+	state->pdata.disable_pwrdnb = 0;
+	state->pdata.disable_cable_det_rst = 0;
+	state->pdata.default_input = -1;
+	state->pdata.blank_data = 1;
+	state->pdata.op_656_range = 1;
+	state->pdata.alt_data_sat = 1;
+	state->pdata.insert_av_codes = 1;
+	state->pdata.op_format_mode_sel = ADV7604_OP_FORMAT_MODE0;
+	state->pdata.bus_order = ADV7604_BUS_ORDER_RGB;
+
+	return 0;
+}
+
 static int adv7604_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	static const struct v4l2_dv_timings cea640x480 =
 		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv7604_state *state;
-	struct adv7604_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
 	struct v4l2_subdev *sd;
 	unsigned int i;
@@ -2688,19 +2733,32 @@ static int adv7604_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	state->info = &adv7604_chip_info[id->driver_data];
 	state->i2c_clients[ADV7604_PAGE_IO] = client;
 
 	/* initialize variables */
 	state->restart_stdi_once = true;
 	state->selected_input = ~0;
 
-	/* platform data */
-	if (!pdata) {
+	if (IS_ENABLED(CONFIG_OF) && client->dev.of_node) {
+		const struct of_device_id *oid;
+
+		oid = of_match_node(adv7604_of_id, client->dev.of_node);
+		state->info = oid->data;
+
+		err = adv7604_parse_dt(state);
+		if (err < 0) {
+			v4l_err(client, "DT parsing error\n");
+			return err;
+		}
+	} else if (client->dev.platform_data) {
+		struct adv7604_platform_data *pdata = client->dev.platform_data;
+
+		state->info = (const struct adv7604_chip_info *)id->driver_data;
+		state->pdata = *pdata;
+	} else {
 		v4l_err(client, "No platform data!\n");
 		return -ENODEV;
 	}
-	state->pdata = *pdata;
 
 	/* Request GPIOs. */
 	for (i = 0; i < state->info->num_dv_ports; ++i) {
@@ -2799,7 +2857,7 @@ static int adv7604_probe(struct i2c_client *client,
 			continue;
 
 		state->i2c_clients[i] =
-			adv7604_dummy_client(sd, pdata->i2c_addresses[i],
+			adv7604_dummy_client(sd, state->pdata.i2c_addresses[i],
 					     0xf2 + i);
 		if (state->i2c_clients[i] == NULL) {
 			err = -ENOMEM;
@@ -2873,21 +2931,15 @@ static int adv7604_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id adv7604_id[] = {
-	{ "adv7604", ADV7604 },
-	{ "adv7611", ADV7611 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, adv7604_id);
-
 static struct i2c_driver adv7604_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "adv7604",
+		.of_match_table = of_match_ptr(adv7604_of_id),
 	},
 	.probe = adv7604_probe,
 	.remove = adv7604_remove,
-	.id_table = adv7604_id,
+	.id_table = adv7604_i2c_id,
 };
 
 module_i2c_driver(adv7604_driver);
