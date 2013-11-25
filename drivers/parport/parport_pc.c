@@ -2862,8 +2862,6 @@ static void parport_pc_pci_remove(struct pci_dev *dev)
 	struct pci_parport_data *data = pci_get_drvdata(dev);
 	int i;
 
-	pci_set_drvdata(dev, NULL);
-
 	if (data) {
 		for (i = data->num - 1; i >= 0; i--)
 			parport_pc_unregister_port(data->ports[i]);
