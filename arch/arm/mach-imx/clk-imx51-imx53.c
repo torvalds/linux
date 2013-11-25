@@ -584,6 +584,9 @@ static void __init mx53_clocks_init(struct device_node *np)
 	clk_set_rate(clk[IMX5_CLK_ESDHC_A_PODF], 200000000);
 	clk_set_rate(clk[IMX5_CLK_ESDHC_B_PODF], 200000000);
 
+	/* move can bus clk to 24MHz */
+	clk_set_parent(clk[IMX5_CLK_CAN_SEL], clk[IMX5_CLK_LP_APM]);
+
 	clk_prepare_enable(clk[IMX5_CLK_IIM_GATE]);
 	imx_print_silicon_rev("i.MX53", mx53_revision());
 	clk_disable_unprepare(clk[IMX5_CLK_IIM_GATE]);
