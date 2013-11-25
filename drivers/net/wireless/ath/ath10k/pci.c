@@ -33,9 +33,20 @@
 #include "ce.h"
 #include "pci.h"
 
+enum ath10k_pci_irq_mode {
+	ATH10K_PCI_IRQ_AUTO = 0,
+	ATH10K_PCI_IRQ_LEGACY = 1,
+	ATH10K_PCI_IRQ_MSI = 2,
+};
+
 static unsigned int ath10k_target_ps;
+static unsigned int ath10k_pci_irq_mode = ATH10K_PCI_IRQ_AUTO;
+
 module_param(ath10k_target_ps, uint, 0644);
 MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
+
+module_param_named(irq_mode, ath10k_pci_irq_mode, uint, 0644);
+MODULE_PARM_DESC(irq_mode, "0: auto, 1: legacy, 2: msi (default: 0)");
 
 #define QCA988X_2_0_DEVICE_ID	(0x003c)
 
@@ -2387,27 +2398,37 @@ static void ath10k_pci_init_irq_tasklets(struct ath10k *ar)
 static int ath10k_pci_init_irq(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	bool msix_supported = test_bit(ATH10K_PCI_FEATURE_MSI_X,
+				       ar_pci->features);
 	int ret;
 
 	ath10k_pci_init_irq_tasklets(ar);
 
-	if (!test_bit(ATH10K_PCI_FEATURE_MSI_X, ar_pci->features))
-		goto msi;
+	if (ath10k_pci_irq_mode != ATH10K_PCI_IRQ_AUTO &&
+	    !test_bit(ATH10K_FLAG_FIRST_BOOT_DONE, &ar->dev_flags))
+		ath10k_info("limiting irq mode to: %d\n", ath10k_pci_irq_mode);
 
 	/* Try MSI-X */
-	ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
-	ret = pci_enable_msi_block(ar_pci->pdev, ar_pci->num_msi_intrs);
-	if (ret == 0)
-		return 0;
-	if (ret > 0)
-		pci_disable_msi(ar_pci->pdev);
+	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO && msix_supported) {
+		ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
+		ret = pci_enable_msi_block(ar_pci->pdev, ar_pci->num_msi_intrs);
+		if (ret == 0)
+			return 0;
+		if (ret > 0)
+			pci_disable_msi(ar_pci->pdev);
 
-msi:
+		/* fall-through */
+	}
+
 	/* Try MSI */
-	ar_pci->num_msi_intrs = 1;
-	ret = pci_enable_msi(ar_pci->pdev);
-	if (ret == 0)
-		return 0;
+	if (ath10k_pci_irq_mode != ATH10K_PCI_IRQ_LEGACY) {
+		ar_pci->num_msi_intrs = 1;
+		ret = pci_enable_msi(ar_pci->pdev);
+		if (ret == 0)
+			return 0;
+
+		/* fall-through */
+	}
 
 	/* Try legacy irq
 	 *
