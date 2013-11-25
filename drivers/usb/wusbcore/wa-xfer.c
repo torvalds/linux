@@ -282,6 +282,7 @@ static void wa_xfer_giveback(struct wa_xfer *xfer)
 
 	spin_lock_irqsave(&xfer->wa->xfer_list_lock, flags);
 	list_del_init(&xfer->list_node);
+	usb_hcd_unlink_urb_from_ep(&(xfer->wa->wusb->usb_hcd), xfer->urb);
 	spin_unlock_irqrestore(&xfer->wa->xfer_list_lock, flags);
 	/* FIXME: segmentation broken -- kills DWA */
 	wusbhc_giveback_urb(xfer->wa->wusb, xfer->urb, xfer->result);
@@ -1730,6 +1731,12 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 		dump_stack();
 	}
 
+	spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+	result = usb_hcd_link_urb_to_ep(&(wa->wusb->usb_hcd), urb);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
+	if (result < 0)
+		goto error_link_urb;
+
 	result = -ENOMEM;
 	xfer = kzalloc(sizeof(*xfer), gfp);
 	if (xfer == NULL)
@@ -1769,6 +1776,9 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 			   __func__, result);
 			wa_put(xfer->wa);
 			wa_xfer_put(xfer);
+			spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+			usb_hcd_unlink_urb_from_ep(&(wa->wusb->usb_hcd), urb);
+			spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
 			return result;
 		}
 	}
@@ -1777,6 +1787,10 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 error_dequeued:
 	kfree(xfer);
 error_kmalloc:
+	spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
+	usb_hcd_unlink_urb_from_ep(&(wa->wusb->usb_hcd), urb);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
+error_link_urb:
 	return result;
 }
 EXPORT_SYMBOL_GPL(wa_urb_enqueue);
@@ -1799,7 +1813,7 @@ EXPORT_SYMBOL_GPL(wa_urb_enqueue);
  * asynch request] and then make sure we cancel each segment.
  *
  */
-int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
+int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 {
 	unsigned long flags, flags2;
 	struct wa_xfer *xfer;
@@ -1807,6 +1821,14 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 	struct wa_rpipe *rpipe;
 	unsigned cnt, done = 0, xfer_abort_pending;
 	unsigned rpipe_ready = 0;
+	int result;
+
+	/* check if it is safe to unlink. */
+	spin_lock_irqsave(&wa->xfer_list_lock, flags);
+	result = usb_hcd_check_unlink_urb(&(wa->wusb->usb_hcd), urb, status);
+	spin_unlock_irqrestore(&wa->xfer_list_lock, flags);
+	if (result)
+		return result;
 
 	xfer = urb->hcpriv;
 	if (xfer == NULL) {
@@ -2172,7 +2194,7 @@ error_complete:
 
 error_bad_seg:
 	spin_unlock_irqrestore(&xfer->lock, flags);
-	wa_urb_dequeue(wa, xfer->urb);
+	wa_urb_dequeue(wa, xfer->urb, -ENOENT);
 	if (printk_ratelimit())
 		dev_err(dev, "xfer %p#%u: bad segment\n", xfer, seg_idx);
 	if (edc_inc(&wa->dti_edc, EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {

@@ -332,7 +332,7 @@ static inline int rpipe_avail_inc(struct wa_rpipe *rpipe)
 /* Transferring data */
 extern int wa_urb_enqueue(struct wahc *, struct usb_host_endpoint *,
 			  struct urb *, gfp_t);
-extern int wa_urb_dequeue(struct wahc *, struct urb *);
+extern int wa_urb_dequeue(struct wahc *, struct urb *, int);
 extern void wa_handle_notif_xfer(struct wahc *, struct wa_notif_hdr *);
 
 
