@@ -220,6 +220,34 @@ static bool ath10k_pci_irq_pending(struct ath10k *ar)
 	return false;
 }
 
+static void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
+{
+	/* IMPORTANT: INTR_CLR register has to be set after
+	 * INTR_ENABLE is set to 0, otherwise interrupt can not be
+	 * really cleared. */
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
+			   0);
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_CLR_ADDRESS,
+			   PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
+
+	/* IMPORTANT: this extra read transaction is required to
+	 * flush the posted write buffer. */
+	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				 PCIE_INTR_ENABLE_ADDRESS);
+}
+
+static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
+{
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
+			   PCIE_INTR_ENABLE_ADDRESS,
+			   PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
+
+	/* IMPORTANT: this extra read transaction is required to
+	 * flush the posted write buffer. */
+	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				 PCIE_INTR_ENABLE_ADDRESS);
+}
+
 /*
  * Diagnostic read/write access is provided for startup/config/debug usage.
  * Caller must guarantee proper alignment, when applicable, and single user
@@ -2128,25 +2156,7 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 		if (!ath10k_pci_irq_pending(ar))
 			return IRQ_NONE;
 
-		/*
-		 * IMPORTANT: INTR_CLR regiser has to be set after
-		 * INTR_ENABLE is set to 0, otherwise interrupt can not be
-		 * really cleared.
-		 */
-		iowrite32(0, ar_pci->mem +
-			  (SOC_CORE_BASE_ADDRESS |
-			   PCIE_INTR_ENABLE_ADDRESS));
-		iowrite32(PCIE_INTR_FIRMWARE_MASK |
-			  PCIE_INTR_CE_MASK_ALL,
-			  ar_pci->mem + (SOC_CORE_BASE_ADDRESS |
-					 PCIE_INTR_CLR_ADDRESS));
-		/*
-		 * IMPORTANT: this extra read transaction is required to
-		 * flush the posted write buffer.
-		 */
-		(void) ioread32(ar_pci->mem +
-				(SOC_CORE_BASE_ADDRESS |
-				 PCIE_INTR_ENABLE_ADDRESS));
+		ath10k_pci_disable_and_clear_legacy_irq(ar);
 	}
 
 	tasklet_schedule(&ar_pci->intr_tq);
@@ -2162,20 +2172,9 @@ static void ath10k_pci_tasklet(unsigned long data)
 	ath10k_pci_fw_interrupt_handler(ar); /* FIXME: Handle FW error */
 	ath10k_ce_per_engine_service_any(ar);
 
-	if (ar_pci->num_msi_intrs == 0) {
-		/* Enable Legacy PCI line interrupts */
-		iowrite32(PCIE_INTR_FIRMWARE_MASK |
-			  PCIE_INTR_CE_MASK_ALL,
-			  ar_pci->mem + (SOC_CORE_BASE_ADDRESS |
-					 PCIE_INTR_ENABLE_ADDRESS));
-		/*
-		 * IMPORTANT: this extra read transaction is required to
-		 * flush the posted write buffer
-		 */
-		(void) ioread32(ar_pci->mem +
-				(SOC_CORE_BASE_ADDRESS |
-				 PCIE_INTR_ENABLE_ADDRESS));
-	}
+	/* Re-enable legacy irq that was disabled in the irq handler */
+	if (ar_pci->num_msi_intrs == 0)
+		ath10k_pci_enable_legacy_irq(ar);
 }
 
 static int ath10k_pci_request_irq_msix(struct ath10k *ar)
