@@ -919,13 +919,6 @@ static void ath10k_pci_stop_ce(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_compl *compl;
 	struct sk_buff *skb;
-	int ret;
-
-	ret = ath10k_ce_disable_interrupts(ar);
-	if (ret)
-		ath10k_warn("failed to disable CE interrupts: %d\n", ret);
-
-	ath10k_pci_kill_tasklet(ar);
 
 	/* Mark pending completions as aborted, so that upper layers free up
 	 * their associated resources */
@@ -1236,10 +1229,17 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 		return ret;
 	}
 
+	ret = ath10k_pci_request_irq(ar);
+	if (ret) {
+		ath10k_warn("failed to post RX buffers for all pipes: %d\n",
+			    ret);
+		goto err_free_compl;
+	}
+
 	ret = ath10k_pci_setup_ce_irq(ar);
 	if (ret) {
 		ath10k_warn("failed to setup CE interrupts: %d\n", ret);
-		goto err_free_compl;
+		goto err_stop;
 	}
 
 	/* Post buffers once to start things off. */
@@ -1247,13 +1247,16 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	if (ret) {
 		ath10k_warn("failed to post RX buffers for all pipes: %d\n",
 			    ret);
-		goto err_stop_ce;
+		goto err_stop;
 	}
 
 	ar_pci->started = 1;
 	return 0;
 
-err_stop_ce:
+err_stop:
+	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_stop_ce(ar);
 	ath10k_pci_process_ce(ar);
 err_free_compl:
@@ -1376,25 +1379,19 @@ static void ath10k_pci_ce_deinit(struct ath10k *ar)
 	}
 }
 
-static void ath10k_pci_disable_irqs(struct ath10k *ar)
-{
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int i;
-
-	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
-		disable_irq(ar_pci->pdev->irq + i);
-}
-
 static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
 
 	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
 
-	/* Irqs are never explicitly re-enabled. They are implicitly re-enabled
-	 * by upon power_up. */
-	ath10k_pci_disable_irqs(ar);
+	ret = ath10k_ce_disable_interrupts(ar);
+	if (ret)
+		ath10k_warn("failed to disable CE interrupts: %d\n", ret);
 
+	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_stop_ce(ar);
 
 	/* At this point, asynchronous threads are stopped, the target should
@@ -1945,34 +1942,22 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 		goto err_ce;
 	}
 
-	ret = ath10k_pci_request_irq(ar);
-	if (ret) {
-		ath10k_err("failed to request irqs: %d\n", ret);
-		goto err_deinit_irq;
-	}
-
 	ret = ath10k_pci_wait_for_target_init(ar);
 	if (ret) {
 		ath10k_err("failed to wait for target to init: %d\n", ret);
-		goto err_free_irq;
-	}
-
-	ret = ath10k_ce_enable_err_irq(ar);
-	if (ret) {
-		ath10k_err("failed to enable CE error irq: %d\n", ret);
-		goto err_free_irq;
+		goto err_deinit_irq;
 	}
 
 	ret = ath10k_pci_init_config(ar);
 	if (ret) {
 		ath10k_err("failed to setup init config: %d\n", ret);
-		goto err_free_irq;
+		goto err_deinit_irq;
 	}
 
 	ret = ath10k_pci_wake_target_cpu(ar);
 	if (ret) {
 		ath10k_err("could not wake up target CPU: %d\n", ret);
-		goto err_free_irq;
+		goto err_deinit_irq;
 	}
 
 	if (ar_pci->num_msi_intrs > 1)
@@ -1987,14 +1972,11 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 
 	return 0;
 
-err_free_irq:
-	ath10k_pci_free_irq(ar);
-	ath10k_pci_kill_tasklet(ar);
-	ath10k_pci_device_reset(ar);
 err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
 err_ce:
 	ath10k_pci_ce_deinit(ar);
+	ath10k_pci_device_reset(ar);
 err_ps:
 	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
@@ -2006,7 +1988,6 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
-	ath10k_pci_free_irq(ar);
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_device_reset(ar);
 
