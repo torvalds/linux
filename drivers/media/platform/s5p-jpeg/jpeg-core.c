@@ -865,6 +865,7 @@ static int s5p_jpeg_controls_create(struct s5p_jpeg_ctx *ctx)
 {
 	unsigned int mask = ~0x27; /* 444, 422, 420, GRAY */
 	struct v4l2_ctrl *ctrl;
+	int ret;
 
 	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
 
@@ -884,13 +885,24 @@ static int s5p_jpeg_controls_create(struct s5p_jpeg_ctx *ctx)
 				      V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, mask,
 				      V4L2_JPEG_CHROMA_SUBSAMPLING_422);
 
-	if (ctx->ctrl_handler.error)
-		return ctx->ctrl_handler.error;
+	if (ctx->ctrl_handler.error) {
+		ret = ctx->ctrl_handler.error;
+		goto error_free;
+	}
 
 	if (ctx->mode == S5P_JPEG_DECODE)
 		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE |
 			V4L2_CTRL_FLAG_READ_ONLY;
-	return 0;
+
+	ret = v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
+	if (ret < 0)
+		goto error_free;
+
+	return ret;
+
+error_free:
+	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+	return ret;
 }
 
 static const struct v4l2_ioctl_ops s5p_jpeg_ioctl_ops = {
