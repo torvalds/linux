@@ -2687,7 +2687,7 @@ void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 
 /*
  * This function is called during module intialization to pass module parameters
- * for the DWC_otg core. It returns non-0 if any parameters are invalid.
+ * for the DWC_otg core.
  */
 void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 			 const struct dwc2_core_params *params)
