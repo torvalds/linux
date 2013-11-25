@@ -670,7 +670,7 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct s5p_jpeg_fmt *fmt,
 			bpl = pix->width; /* planar */
 
 		if (fmt->colplanes == 1 && /* packed */
-		    (bpl << 3) * fmt->depth < pix->width)
+		    (bpl << 3) / fmt->depth < pix->width)
 			bpl = (pix->width * fmt->depth) >> 3;
 
 		pix->bytesperline = bpl;
