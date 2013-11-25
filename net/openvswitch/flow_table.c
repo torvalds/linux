@@ -514,11 +514,7 @@ static struct sw_flow_mask *flow_mask_find(const struct flow_table *tbl,
 	return NULL;
 }
 
-/**
- * add a new mask into the mask list.
- * The caller needs to make sure that 'mask' is not the same
- * as any masks that are already on the list.
- */
+/* Add 'mask' into the mask list, if it is not already there. */
 static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 			    struct sw_flow_mask *new)
 {
