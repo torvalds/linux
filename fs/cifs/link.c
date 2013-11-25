@@ -91,10 +91,8 @@ symlink_hash_err:
 }
 
 static int
-CIFSParseMFSymlink(const u8 *buf,
-		   unsigned int buf_len,
-		   unsigned int *_link_len,
-		   char **_link_str)
+parse_mf_symlink(const u8 *buf, unsigned int buf_len, unsigned int *_link_len,
+		 char **_link_str)
 {
 	int rc;
 	unsigned int link_len;
@@ -137,7 +135,7 @@ CIFSParseMFSymlink(const u8 *buf,
 }
 
 static int
-CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
+format_mf_symlink(u8 *buf, unsigned int buf_len, const char *link_str)
 {
 	int rc;
 	unsigned int link_len;
@@ -181,7 +179,7 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 }
 
 static int
-CIFSCreateMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
+create_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 		    const char *fromName, const char *toName,
 		    struct cifs_sb_info *cifs_sb)
 {
@@ -202,7 +200,7 @@ CIFSCreateMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 	if (!buf)
 		return -ENOMEM;
 
-	rc = CIFSFormatMFSymlink(buf, CIFS_MF_SYMLINK_FILE_SIZE, toName);
+	rc = format_mf_symlink(buf, CIFS_MF_SYMLINK_FILE_SIZE, toName);
 	if (rc != 0) {
 		kfree(buf);
 		return rc;
@@ -238,7 +236,7 @@ CIFSCreateMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static int
-CIFSQueryMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
+query_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 		   const unsigned char *searchName, char **symlinkinfo,
 		   const struct nls_table *nls_codepage, int remap)
 {
@@ -282,7 +280,7 @@ CIFSQueryMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, symlinkinfo);
+	rc = parse_mf_symlink(buf, bytes_read, &link_len, symlinkinfo);
 	kfree(buf);
 	if (rc != 0)
 		return rc;
@@ -291,7 +289,7 @@ CIFSQueryMFSymLink(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 bool
-CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
+couldbe_mf_symlink(const struct cifs_fattr *fattr)
 {
 	if (!(fattr->cf_mode & S_IFREG))
 		/* it's not a symlink */
@@ -341,16 +339,16 @@ out:
 }
 
 int
-CIFSCheckMFSymlink(unsigned int xid, struct cifs_tcon *tcon,
-		   struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		   const unsigned char *path)
+check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+		 struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
+		 const unsigned char *path)
 {
 	int rc;
 	u8 *buf = NULL;
 	unsigned int link_len = 0;
 	unsigned int bytes_read = 0;
 
-	if (!CIFSCouldBeMFSymlink(fattr))
+	if (!couldbe_mf_symlink(fattr))
 		/* it's not a symlink */
 		return 0;
 
@@ -370,7 +368,7 @@ CIFSCheckMFSymlink(unsigned int xid, struct cifs_tcon *tcon,
 	if (bytes_read == 0) /* not a symlink */
 		goto out;
 
-	rc = CIFSParseMFSymlink(buf, bytes_read, &link_len, NULL);
+	rc = parse_mf_symlink(buf, bytes_read, &link_len, NULL);
 	if (rc == -EINVAL) {
 		/* it's not a symlink */
 		rc = 0;
@@ -519,7 +517,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	 * and fallback to UNIX Extensions Symlinks.
 	 */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-		rc = CIFSQueryMFSymLink(xid, tcon, full_path, &target_path,
+		rc = query_mf_symlink(xid, tcon, full_path, &target_path,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -576,7 +574,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 
 	/* BB what if DFS and this volume is on different share? BB */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-		rc = CIFSCreateMFSymLink(xid, pTcon, full_path, symname,
+		rc = create_mf_symlink(xid, pTcon, full_path, symname,
 					cifs_sb);
 	else if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
