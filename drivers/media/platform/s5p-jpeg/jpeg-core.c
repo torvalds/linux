@@ -930,7 +930,9 @@ static void s5p_jpeg_device_run(void *priv)
 	struct s5p_jpeg_ctx *ctx = priv;
 	struct s5p_jpeg *jpeg = ctx->jpeg;
 	struct vb2_buffer *src_buf, *dst_buf;
-	unsigned long src_addr, dst_addr;
+	unsigned long src_addr, dst_addr, flags;
+
+	spin_lock_irqsave(&ctx->jpeg->slock, flags);
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -998,6 +1000,8 @@ static void s5p_jpeg_device_run(void *priv)
 	}
 
 	jpeg_start(jpeg->regs);
+
+	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
 }
 
 static int s5p_jpeg_job_ready(void *priv)
@@ -1418,11 +1422,14 @@ static int s5p_jpeg_runtime_suspend(struct device *dev)
 static int s5p_jpeg_runtime_resume(struct device *dev)
 {
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
+	unsigned long flags;
 	int ret;
 
 	ret = clk_prepare_enable(jpeg->clk);
 	if (ret < 0)
 		return ret;
+
+	spin_lock_irqsave(&jpeg->slock, flags);
 
 	/*
 	 * JPEG IP allows storing two Huffman tables for each component
@@ -1432,6 +1439,8 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 	s5p_jpeg_set_hdctblg(jpeg->regs);
 	s5p_jpeg_set_hactbl(jpeg->regs);
 	s5p_jpeg_set_hactblg(jpeg->regs);
+
+	spin_unlock_irqrestore(&jpeg->slock, flags);
 
 	return 0;
 }
