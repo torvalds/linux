@@ -237,55 +237,36 @@ create_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 
 static int
 query_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		   const unsigned char *searchName, char **symlinkinfo,
-		   const struct nls_table *nls_codepage, int remap)
+		 struct cifs_sb_info *cifs_sb, const unsigned char *path,
+		 char **symlinkinfo)
 {
 	int rc;
-	int oplock = 0;
-	__u16 netfid = 0;
-	u8 *buf;
-	char *pbuf;
-	unsigned int bytes_read = 0;
-	int buf_type = CIFS_NO_BUFFER;
+	u8 *buf = NULL;
 	unsigned int link_len = 0;
-	struct cifs_io_parms io_parms;
-	FILE_ALL_INFO file_info;
-
-	rc = CIFSSMBOpen(xid, tcon, searchName, FILE_OPEN, GENERIC_READ,
-			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
-			 nls_codepage, remap);
-	if (rc != 0)
-		return rc;
-
-	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
-		CIFSSMBClose(xid, tcon, netfid);
-		/* it's not a symlink */
-		return -EINVAL;
-	}
+	unsigned int bytes_read = 0;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	pbuf = buf;
-	io_parms.netfid = netfid;
-	io_parms.pid = current->tgid;
-	io_parms.tcon = tcon;
-	io_parms.offset = 0;
-	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
-	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
-	CIFSSMBClose(xid, tcon, netfid);
-	if (rc != 0) {
-		kfree(buf);
-		return rc;
+	if (tcon->ses->server->ops->query_mf_symlink)
+		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
+					      cifs_sb, path, buf, &bytes_read);
+	else
+		rc = -ENOSYS;
+
+	if (rc)
+		goto out;
+
+	if (bytes_read == 0) { /* not a symlink */
+		rc = -EINVAL;
+		goto out;
 	}
 
 	rc = parse_mf_symlink(buf, bytes_read, &link_len, symlinkinfo);
+out:
 	kfree(buf);
-	if (rc != 0)
-		return rc;
-
-	return 0;
+	return rc;
 }
 
 bool
@@ -517,10 +498,8 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	 * and fallback to UNIX Extensions Symlinks.
 	 */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-		rc = query_mf_symlink(xid, tcon, full_path, &target_path,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		rc = query_mf_symlink(xid, tcon, cifs_sb, full_path,
+				      &target_path);
 
 	if ((rc != 0) && cap_unix(tcon->ses))
 		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
