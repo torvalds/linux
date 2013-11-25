@@ -935,7 +935,7 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 
 	frame_desc->actual_length += len;
 
-	if (chan->align_buf && len) {
+	if (chan->align_buf) {
 		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
 		dma_sync_single_for_cpu(hsotg->dev, qtd->urb->dma,
 					qtd->urb->length, DMA_FROM_DEVICE);
