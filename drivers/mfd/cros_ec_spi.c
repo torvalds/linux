@@ -284,7 +284,7 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 	return 0;
 }
 
-static int cros_ec_probe_spi(struct spi_device *spi)
+static int cros_ec_spi_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct cros_ec_device *ec_dev;
@@ -326,7 +326,7 @@ static int cros_ec_probe_spi(struct spi_device *spi)
 	return 0;
 }
 
-static int cros_ec_remove_spi(struct spi_device *spi)
+static int cros_ec_spi_remove(struct spi_device *spi)
 {
 	struct cros_ec_device *ec_dev;
 
@@ -367,8 +367,8 @@ static struct spi_driver cros_ec_driver_spi = {
 		.owner	= THIS_MODULE,
 		.pm	= &cros_ec_spi_pm_ops,
 	},
-	.probe		= cros_ec_probe_spi,
-	.remove		= cros_ec_remove_spi,
+	.probe		= cros_ec_spi_probe,
+	.remove		= cros_ec_spi_remove,
 	.id_table	= cros_ec_spi_id,
 };
 
