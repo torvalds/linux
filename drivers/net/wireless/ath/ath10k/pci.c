@@ -62,6 +62,7 @@ static void ath10k_pci_free_irq(struct ath10k *ar);
 static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
 			       struct ath10k_ce_pipe *rx_pipe,
 			       struct bmi_xfer *xfer);
+static void ath10k_pci_cleanup_ce(struct ath10k *ar);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* CE0: host->target HTC control and raw streams */
@@ -824,14 +825,13 @@ static void ath10k_pci_hif_set_callbacks(struct ath10k *ar,
 	       sizeof(ar_pci->msg_callbacks_current));
 }
 
-static int ath10k_pci_start_ce(struct ath10k *ar)
+static int ath10k_pci_alloc_compl(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_ce_pipe *ce_diag = ar_pci->ce_diag;
 	const struct ce_attr *attr;
 	struct ath10k_pci_pipe *pipe_info;
 	struct ath10k_pci_compl *compl;
-	int i, pipe_num, completions, disable_interrupts;
+	int i, pipe_num, completions;
 
 	spin_lock_init(&ar_pci->compl_lock);
 	INIT_LIST_HEAD(&ar_pci->compl_process);
@@ -843,40 +843,60 @@ static int ath10k_pci_start_ce(struct ath10k *ar)
 		INIT_LIST_HEAD(&pipe_info->compl_free);
 
 		/* Handle Diagnostic CE specially */
-		if (pipe_info->ce_hdl == ce_diag)
+		if (pipe_info->ce_hdl == ar_pci->ce_diag)
 			continue;
 
 		attr = &host_ce_config_wlan[pipe_num];
 		completions = 0;
 
-		if (attr->src_nentries) {
-			disable_interrupts = attr->flags & CE_ATTR_DIS_INTR;
-			ath10k_ce_send_cb_register(pipe_info->ce_hdl,
-						   ath10k_pci_ce_send_done,
-						   disable_interrupts);
+		if (attr->src_nentries)
 			completions += attr->src_nentries;
-		}
 
-		if (attr->dest_nentries) {
-			ath10k_ce_recv_cb_register(pipe_info->ce_hdl,
-						   ath10k_pci_ce_recv_data);
+		if (attr->dest_nentries)
 			completions += attr->dest_nentries;
-		}
-
-		if (completions == 0)
-			continue;
 
 		for (i = 0; i < completions; i++) {
 			compl = kmalloc(sizeof(*compl), GFP_KERNEL);
 			if (!compl) {
 				ath10k_warn("No memory for completion state\n");
-				ath10k_pci_stop_ce(ar);
+				ath10k_pci_cleanup_ce(ar);
 				return -ENOMEM;
 			}
 
 			compl->state = ATH10K_PCI_COMPL_FREE;
 			list_add_tail(&compl->list, &pipe_info->compl_free);
 		}
+	}
+
+	return 0;
+}
+
+static int ath10k_pci_setup_ce_irq(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	const struct ce_attr *attr;
+	struct ath10k_pci_pipe *pipe_info;
+	int pipe_num, disable_interrupts;
+
+	for (pipe_num = 0; pipe_num < CE_COUNT; pipe_num++) {
+		pipe_info = &ar_pci->pipe_info[pipe_num];
+
+		/* Handle Diagnostic CE specially */
+		if (pipe_info->ce_hdl == ar_pci->ce_diag)
+			continue;
+
+		attr = &host_ce_config_wlan[pipe_num];
+
+		if (attr->src_nentries) {
+			disable_interrupts = attr->flags & CE_ATTR_DIS_INTR;
+			ath10k_ce_send_cb_register(pipe_info->ce_hdl,
+						   ath10k_pci_ce_send_done,
+						   disable_interrupts);
+		}
+
+		if (attr->dest_nentries)
+			ath10k_ce_recv_cb_register(pipe_info->ce_hdl,
+						   ath10k_pci_ce_recv_data);
 	}
 
 	return 0;
@@ -1210,10 +1230,16 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
-	ret = ath10k_pci_start_ce(ar);
+	ret = ath10k_pci_alloc_compl(ar);
 	if (ret) {
-		ath10k_warn("failed to start CE: %d\n", ret);
+		ath10k_warn("failed to allocate CE completions: %d\n", ret);
 		return ret;
+	}
+
+	ret = ath10k_pci_setup_ce_irq(ar);
+	if (ret) {
+		ath10k_warn("failed to setup CE interrupts: %d\n", ret);
+		goto err_free_compl;
 	}
 
 	/* Post buffers once to start things off. */
@@ -1221,11 +1247,18 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	if (ret) {
 		ath10k_warn("failed to post RX buffers for all pipes: %d\n",
 			    ret);
-		return ret;
+		goto err_stop_ce;
 	}
 
 	ar_pci->started = 1;
 	return 0;
+
+err_stop_ce:
+	ath10k_pci_stop_ce(ar);
+	ath10k_pci_process_ce(ar);
+err_free_compl:
+	ath10k_pci_cleanup_ce(ar);
+	return ret;
 }
 
 static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
