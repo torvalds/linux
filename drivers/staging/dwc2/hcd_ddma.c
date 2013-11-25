@@ -621,8 +621,8 @@ static void dwc2_fill_host_dma_desc(struct dwc2_hsotg *hsotg,
 	struct dwc2_hcd_dma_desc *dma_desc = &qh->desc_list[n_desc];
 	int len = chan->xfer_len;
 
-	if (len > MAX_DMA_DESC_SIZE)
-		len = MAX_DMA_DESC_SIZE - chan->max_packet + 1;
+	if (len > MAX_DMA_DESC_SIZE - (chan->max_packet - 1))
+		len = MAX_DMA_DESC_SIZE - (chan->max_packet - 1);
 
 	if (chan->ep_is_in) {
 		int num_packets;
