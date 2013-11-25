@@ -5914,6 +5914,9 @@ void intel_power_domains_init_hw(struct drm_device *dev)
 	intel_display_set_init_power(dev, true);
 	intel_power_domains_resume(dev);
 
+	if (!(IS_HASWELL(dev) || IS_BROADWELL(dev)))
+		return;
+
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */
 	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
