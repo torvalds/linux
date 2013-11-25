@@ -744,7 +744,7 @@ err:
 	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
-		vlan->dev->stats.tx_dropped++;
+		this_cpu_inc(vlan->pcpu_stats->tx_dropped);
 	rcu_read_unlock();
 
 	return err;
