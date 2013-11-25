@@ -270,12 +270,12 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(void)
 {
 	machine_halt();
 }
 
-static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi, int cpu)
+static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi)
 {
 	unsigned long msg = 0;
 
@@ -292,11 +292,10 @@ static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi, int cpu)
 			break;
 
 		case IPI_CPU_STOP:
-			ipi_cpu_stop(cpu);
+			ipi_cpu_stop();
 			break;
 		}
 	} while (msg < BITS_PER_LONG);
-
 }
 
 /*
@@ -317,7 +316,7 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	 * And do we need to move ipi_clean inside
 	 */
 	while ((ops = xchg(&ipi->bits, 0)) != 0)
-		__do_IPI(&ops, ipi, cpu);
+		__do_IPI(&ops, ipi);
 
 	return IRQ_HANDLED;
 }
