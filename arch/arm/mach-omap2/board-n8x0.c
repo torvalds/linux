@@ -21,7 +21,6 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
-#include <linux/platform_data/i2c-cbus-gpio.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 #include <linux/mfd/menelaus.h>
@@ -33,7 +32,6 @@
 #include "common.h"
 #include "mmc.h"
 #include "soc.h"
-#include "mux.h"
 #include "gpmc-onenand.h"
 
 #define TUSB6010_ASYNC_CS	1
@@ -61,57 +59,11 @@ static void board_check_revision(void)
 			board_caps = NOKIA_N810;
 		else if (of_machine_is_compatible("nokia,n810-wimax"))
 			board_caps = NOKIA_N810_WIMAX;
-	} else {
-		if (machine_is_nokia_n800())
-			board_caps = NOKIA_N800;
-		else if (machine_is_nokia_n810())
-			board_caps = NOKIA_N810;
-		else if (machine_is_nokia_n810_wimax())
-			board_caps = NOKIA_N810_WIMAX;
 	}
 
 	if (!board_caps)
 		pr_err("Unknown board\n");
 }
-
-#if defined(CONFIG_I2C_CBUS_GPIO) || defined(CONFIG_I2C_CBUS_GPIO_MODULE)
-static struct i2c_cbus_platform_data n8x0_cbus_data = {
-	.clk_gpio = 66,
-	.dat_gpio = 65,
-	.sel_gpio = 64,
-};
-
-static struct platform_device n8x0_cbus_device = {
-	.name	= "i2c-cbus-gpio",
-	.id	= 3,
-	.dev	= {
-		.platform_data = &n8x0_cbus_data,
-	},
-};
-
-static struct i2c_board_info n8x0_i2c_board_info_3[] __initdata = {
-	{
-		I2C_BOARD_INFO("retu-mfd", 0x01),
-	},
-};
-
-static void __init n8x0_cbus_init(void)
-{
-	const int retu_irq_gpio = 108;
-
-	if (gpio_request_one(retu_irq_gpio, GPIOF_IN, "Retu IRQ"))
-		return;
-	irq_set_irq_type(gpio_to_irq(retu_irq_gpio), IRQ_TYPE_EDGE_RISING);
-	n8x0_i2c_board_info_3[0].irq = gpio_to_irq(retu_irq_gpio);
-	i2c_register_board_info(3, n8x0_i2c_board_info_3,
-				ARRAY_SIZE(n8x0_i2c_board_info_3));
-	platform_device_register(&n8x0_cbus_device);
-}
-#else /* CONFIG_I2C_CBUS_GPIO */
-static void __init n8x0_cbus_init(void)
-{
-}
-#endif /* CONFIG_I2C_CBUS_GPIO */
 
 #if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_TUSB6010_MODULE)
 /*
@@ -598,8 +550,6 @@ static void __init n8x0_mmc_init(void)
 
 	mmc1_data.nr_slots = 2;
 	mmc_data[0] = &mmc1_data;
-	if (!of_have_populated_dt())
-		omap242x_init_mmc(mmc_data);
 }
 #else
 static struct omap_mmc_platform_data mmc1_data;
@@ -684,54 +634,6 @@ static struct i2c_board_info n810_i2c_board_info_2[] __initdata = {
 	},
 };
 
-#ifdef CONFIG_OMAP_MUX
-static struct omap_board_mux board_mux[] __initdata = {
-	/* I2S codec port pins for McBSP block */
-	OMAP2420_MUX(EAC_AC_SCLK, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
-	OMAP2420_MUX(EAC_AC_FS, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
-	OMAP2420_MUX(EAC_AC_DIN, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
-	OMAP2420_MUX(EAC_AC_DOUT, OMAP_MUX_MODE1 | OMAP_PIN_OUTPUT),
-	{ .reg_offset = OMAP_MUX_TERMINATOR },
-};
-
-static struct omap_device_pad serial2_pads[] __initdata = {
-	{
-		.name	= "uart3_rx_irrx.uart3_rx_irrx",
-		.flags	= OMAP_DEVICE_PAD_REMUX | OMAP_DEVICE_PAD_WAKEUP,
-		.enable	= OMAP_MUX_MODE0,
-		.idle	= OMAP_MUX_MODE3	/* Mux as GPIO for idle */
-	},
-};
-
-static inline void board_serial_init(void)
-{
-	struct omap_board_data bdata;
-
-	bdata.flags = 0;
-	bdata.pads = NULL;
-	bdata.pads_cnt = 0;
-
-	bdata.id = 0;
-	omap_serial_init_port(&bdata, NULL);
-
-	bdata.id = 1;
-	omap_serial_init_port(&bdata, NULL);
-
-	bdata.id = 2;
-	bdata.pads = serial2_pads;
-	bdata.pads_cnt = ARRAY_SIZE(serial2_pads);
-	omap_serial_init_port(&bdata, NULL);
-}
-
-#else
-
-static inline void board_serial_init(void)
-{
-	omap_serial_init();
-}
-
-#endif
-
 static int __init n8x0_late_initcall(void)
 {
 	if (!board_caps)
@@ -740,8 +642,6 @@ static int __init n8x0_late_initcall(void)
 	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();
-	if (!of_have_populated_dt())
-		n8x0_cbus_init();
 
 	return 0;
 }
@@ -764,61 +664,3 @@ void * __init n8x0_legacy_init(void)
 
 	return &mmc1_data;
 }
-
-static void __init n8x0_init_machine(void)
-{
-	board_check_revision();
-	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
-	/* FIXME: add n810 spi devices */
-	spi_register_board_info(n800_spi_board_info,
-				ARRAY_SIZE(n800_spi_board_info));
-	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
-			      ARRAY_SIZE(n8x0_i2c_board_info_1));
-	omap_register_i2c_bus(2, 400, NULL, 0);
-	if (board_is_n810())
-		i2c_register_board_info(2, n810_i2c_board_info_2,
-					ARRAY_SIZE(n810_i2c_board_info_2));
-	if (!of_have_populated_dt()) {
-		board_serial_init();
-		omap_sdrc_init(NULL, NULL);
-	}
-}
-
-MACHINE_START(NOKIA_N800, "Nokia N800")
-	.atag_offset	= 0x100,
-	.reserve	= omap_reserve,
-	.map_io		= omap242x_map_io,
-	.init_early	= omap2420_init_early,
-	.init_irq	= omap2_init_irq,
-	.handle_irq	= omap2_intc_handle_irq,
-	.init_machine	= n8x0_init_machine,
-	.init_late	= omap2420_init_late,
-	.init_time	= omap2_sync32k_timer_init,
-	.restart	= omap2xxx_restart,
-MACHINE_END
-
-MACHINE_START(NOKIA_N810, "Nokia N810")
-	.atag_offset	= 0x100,
-	.reserve	= omap_reserve,
-	.map_io		= omap242x_map_io,
-	.init_early	= omap2420_init_early,
-	.init_irq	= omap2_init_irq,
-	.handle_irq	= omap2_intc_handle_irq,
-	.init_machine	= n8x0_init_machine,
-	.init_late	= omap2420_init_late,
-	.init_time	= omap2_sync32k_timer_init,
-	.restart	= omap2xxx_restart,
-MACHINE_END
-
-MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
-	.atag_offset	= 0x100,
-	.reserve	= omap_reserve,
-	.map_io		= omap242x_map_io,
-	.init_early	= omap2420_init_early,
-	.init_irq	= omap2_init_irq,
-	.handle_irq	= omap2_intc_handle_irq,
-	.init_machine	= n8x0_init_machine,
-	.init_late	= omap2420_init_late,
-	.init_time	= omap2_sync32k_timer_init,
-	.restart	= omap2xxx_restart,
-MACHINE_END
