@@ -2278,17 +2278,15 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, radar_detected_work);
-	struct cfg80211_chan_def chandef;
+	struct cfg80211_chan_def chandef = local->hw.conf.chandef;
 
 	ieee80211_dfs_cac_cancel(local);
 
 	if (local->use_chanctx)
 		/* currently not handled */
 		WARN_ON(1);
-	else {
-		chandef = local->hw.conf.chandef;
+	else
 		cfg80211_radar_event(local->hw.wiphy, &chandef, GFP_KERNEL);
-	}
 }
 
 void ieee80211_radar_detected(struct ieee80211_hw *hw)
@@ -2459,14 +2457,9 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			  WLAN_EID_CHAN_SWITCH_PARAM_TX_RESTRICT : 0x00;
 		put_unaligned_le16(WLAN_REASON_MESH_CHAN, pos); /* Reason Cd */
 		pos += 2;
-		if (!ifmsh->pre_value)
-			ifmsh->pre_value = 1;
-		else
-			ifmsh->pre_value++;
 		pre_value = cpu_to_le16(ifmsh->pre_value);
 		memcpy(pos, &pre_value, 2);		/* Precedence Value */
 		pos += 2;
-		ifmsh->chsw_init = true;
 	}
 
 	ieee80211_tx_skb(sdata, skb);
