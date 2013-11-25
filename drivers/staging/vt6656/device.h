@@ -667,8 +667,6 @@ struct vnt_private {
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
 
-	int bAES;
-
 	u32 uKeyLength;
 	u8 abyKey[WLAN_WEP232_KEYLEN];
 
