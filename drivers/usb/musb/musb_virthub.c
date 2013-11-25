@@ -44,7 +44,7 @@
 
 #include "musb_core.h"
 
-static void musb_port_suspend(struct musb *musb, bool do_suspend)
+void musb_port_suspend(struct musb *musb, bool do_suspend)
 {
 	struct usb_otg	*otg = musb->xceiv->otg;
 	u8		power;
