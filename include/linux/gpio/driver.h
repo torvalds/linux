@@ -2,9 +2,12 @@
 #define __LINUX_GPIO_DRIVER_H
 
 #include <linux/types.h>
+#include <linux/module.h>
 
 struct device;
 struct gpio_desc;
+struct of_phandle_args;
+struct device_node;
 struct seq_file;
 
 /**
