@@ -3111,7 +3111,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 					  fsg->common->can_stall);
 		if (ret)
 			return ret;
-		fsg_common_set_inquiry_string(fsg->common, 0, 0);
+		fsg_common_set_inquiry_string(fsg->common, NULL, NULL);
 		ret = fsg_common_run_thread(fsg->common);
 		if (ret)
 			return ret;
