@@ -517,11 +517,10 @@ static DEFINE_SPINLOCK(stop_lock);
  *
  *  Bit 0 - Inter-processor function call
  */
-static int do_IPI(struct pt_regs *regs)
+static int do_IPI(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long msgs, nextmsg;
 	int handled = 0;
 
@@ -556,8 +555,6 @@ static int do_IPI(struct pt_regs *regs)
 			break;
 		}
 	}
-
-	set_irq_regs(old_regs);
 
 	return handled;
 }
@@ -624,7 +621,7 @@ static void kick_raise_softirq(cpumask_t callmap, unsigned int irq)
 static TBIRES ipi_handler(TBIRES State, int SigNum, int Triggers,
 		   int Inst, PTBI pTBI, int *handled)
 {
-	*handled = do_IPI((struct pt_regs *)State.Sig.pCtx);
+	*handled = do_IPI();
 
 	return State;
 }
