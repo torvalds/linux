@@ -2224,16 +2224,28 @@ static int musb_suspend(struct device *dev)
 		 */
 	}
 
+	musb_save_context(musb);
+
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
 
 static int musb_resume_noirq(struct device *dev)
 {
-	/* for static cmos like DaVinci, register values were preserved
+	struct musb	*musb = dev_to_musb(dev);
+
+	/*
+	 * For static cmos like DaVinci, register values were preserved
 	 * unless for some reason the whole soc powered down or the USB
 	 * module got reset through the PSC (vs just being disabled).
+	 *
+	 * For the DSPS glue layer though, a full register restore has to
+	 * be done. As it shouldn't harm other platforms, we do it
+	 * unconditionally.
 	 */
+
+	musb_restore_context(musb);
+
 	return 0;
 }
 
