@@ -248,15 +248,15 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				   ctl);
 	}
 
-	if (dai->id == 0)
-		ctl &= ~KIRKWOOD_PLAYCTL_SPDIF_EN;	/* i2s */
-	else
-		ctl &= ~KIRKWOOD_PLAYCTL_I2S_EN;	/* spdif */
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		/* configure */
 		ctl = priv->ctl_play;
+		if (dai->id == 0)
+			ctl &= ~KIRKWOOD_PLAYCTL_SPDIF_EN;	/* i2s */
+		else
+			ctl &= ~KIRKWOOD_PLAYCTL_I2S_EN;	/* spdif */
+
 		value = ctl & ~KIRKWOOD_PLAYCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
