@@ -812,6 +812,22 @@ static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 	iwl_mvm_nic_restart(mvm);
 }
 
+static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
+	return 0;
+}
+
+static int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
+	return 0;
+}
+
 static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.start = iwl_op_mode_mvm_start,
 	.stop = iwl_op_mode_mvm_stop,
@@ -823,4 +839,6 @@ static const struct iwl_op_mode_ops iwl_mvm_ops = {
 	.nic_error = iwl_mvm_nic_error,
 	.cmd_queue_full = iwl_mvm_cmd_queue_full,
 	.nic_config = iwl_mvm_nic_config,
+	.enter_d0i3 = iwl_mvm_enter_d0i3,
+	.exit_d0i3 = iwl_mvm_exit_d0i3,
 };
