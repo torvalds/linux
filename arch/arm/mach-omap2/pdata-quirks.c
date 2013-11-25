@@ -26,6 +26,8 @@ struct pdata_init {
 	void (*fn)(void);
 };
 
+struct of_dev_auxdata omap_auxdata_lookup[];
+
 /*
  * Create alias for USB host PHY clock.
  * Remove this when clock phandle can be provided via DT
@@ -66,6 +68,15 @@ static inline void legacy_init_wl12xx(unsigned ref_clock,
 				      int gpio)
 {
 }
+#endif
+
+#ifdef CONFIG_MACH_NOKIA_N8X0
+static void __init omap2420_n8x0_legacy_init(void)
+{
+	omap_auxdata_lookup[0].platform_data = n8x0_legacy_init();
+}
+#else
+#define omap2420_n8x0_legacy_init	NULL
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -130,6 +141,11 @@ void omap_pcs_legacy_init(int irq, void (*rearm)(void))
  * the dev entries in of_platform_populate().
  */
 static struct pdata_init auxdata_quirks[] __initdata = {
+#ifdef CONFIG_SOC_OMAP2420
+	{ "nokia,n800", omap2420_n8x0_legacy_init, },
+	{ "nokia,n810", omap2420_n8x0_legacy_init, },
+	{ "nokia,n810-wimax", omap2420_n8x0_legacy_init, },
+#endif
 	{ /* sentinel */ },
 };
 

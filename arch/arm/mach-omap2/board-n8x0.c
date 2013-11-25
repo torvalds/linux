@@ -529,7 +529,7 @@ static void n8x0_mmc_cleanup(struct device *dev)
  * MMC controller2 is not in use.
  */
 static struct omap_mmc_platform_data mmc1_data = {
-	.nr_slots			= 2,
+	.nr_slots			= 0,
 	.switch_slot			= n8x0_mmc_switch_slot,
 	.init				= n8x0_mmc_late_init,
 	.cleanup			= n8x0_mmc_cleanup,
@@ -596,12 +596,13 @@ static void __init n8x0_mmc_init(void)
 		}
 	}
 
+	mmc1_data.nr_slots = 2;
 	mmc_data[0] = &mmc1_data;
 	if (!of_have_populated_dt())
 		omap242x_init_mmc(mmc_data);
 }
 #else
-
+static struct omap_mmc_platform_data mmc1_data;
 void __init n8x0_mmc_init(void)
 {
 }
@@ -745,6 +746,24 @@ static int __init n8x0_late_initcall(void)
 	return 0;
 }
 omap_late_initcall(n8x0_late_initcall);
+
+/*
+ * Legacy init pdata init for n8x0. Note that we want to follow the
+ * I2C bus numbering starting at 0 for device tree like other omaps.
+ */
+void * __init n8x0_legacy_init(void)
+{
+	board_check_revision();
+	spi_register_board_info(n800_spi_board_info,
+				ARRAY_SIZE(n800_spi_board_info));
+	i2c_register_board_info(0, n8x0_i2c_board_info_1,
+				ARRAY_SIZE(n8x0_i2c_board_info_1));
+	if (board_is_n810())
+		i2c_register_board_info(1, n810_i2c_board_info_2,
+					ARRAY_SIZE(n810_i2c_board_info_2));
+
+	return &mmc1_data;
+}
 
 static void __init n8x0_init_machine(void)
 {
