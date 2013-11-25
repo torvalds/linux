@@ -47,6 +47,21 @@ TRACE_EVENT(radeon_cs,
 		      __entry->fences)
 );
 
+TRACE_EVENT(radeon_vm_grab_id,
+	    TP_PROTO(unsigned vmid, int ring),
+	    TP_ARGS(vmid, ring),
+	    TP_STRUCT__entry(
+			     __field(u32, vmid)
+			     __field(u32, ring)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->vmid = vmid;
+			   __entry->ring = ring;
+			   ),
+	    TP_printk("vmid=%u, ring=%u", __entry->vmid, __entry->ring)
+);
+
 TRACE_EVENT(radeon_vm_set_page,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint32_t flags),

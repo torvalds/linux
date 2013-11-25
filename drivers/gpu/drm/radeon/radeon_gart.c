@@ -29,6 +29,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_reg.h"
+#include "radeon_trace.h"
 
 /*
  * GART
@@ -737,6 +738,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	for (i = 0; i < 2; ++i) {
 		if (choices[i]) {
 			vm->id = choices[i];
+			trace_radeon_vm_grab_id(vm->id, ring);
 			return rdev->vm_manager.active[choices[i]];
 		}
 	}
