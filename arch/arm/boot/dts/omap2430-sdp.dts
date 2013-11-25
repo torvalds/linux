@@ -1,0 +1,49 @@
+/*
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+#include "omap2430.dtsi"
+
+/ {
+	model = "TI OMAP2430 SDP";
+	compatible = "ti,omap2430-sdp", "ti,omap2430", "ti,omap2";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x8000000>; /* 128 MB */
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+	};
+};
+
+#include "twl4030.dtsi"
+
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	bus-width = <4>;
+};
+
+&gpmc {
+	ranges = <5 0 0x08000000 0x01000000>;
+	ethernet@gpmc {
+		compatible = "smsc,lan91c94";
+		interrupt-parent = <&gpio5>;
+		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;	/* gpio149 */
+		reg = <5 0x300 0xf>;
+		bank-width = <2>;
+		gpmc,mux-add-data;
+        };
+};
+
