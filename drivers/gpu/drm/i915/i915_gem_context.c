@@ -492,8 +492,6 @@ static int do_switch(struct i915_hw_context *to)
  * @ring: ring for which we'll execute the context switch
  * @file_priv: file_priv associated with the context, may be NULL
  * @id: context id number
- * @seqno: sequence number by which the new context will be switched to
- * @flags:
  *
  * The context life cycle is simple. The context refcount is incremented and
  * decremented by 1 and create and destroy. If the context is in use by the GPU,
