@@ -156,8 +156,6 @@ exit_release_regions:
 exit_disable_device:
 	pci_disable_device(pci_dev);
 
-	pci_set_drvdata(pci_dev, NULL);
-
 	return retval;
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_probe);
@@ -177,7 +175,6 @@ void rt2x00pci_remove(struct pci_dev *pci_dev)
 	/*
 	 * Free the PCI device data.
 	 */
-	pci_set_drvdata(pci_dev, NULL);
 	pci_disable_device(pci_dev);
 	pci_release_regions(pci_dev);
 }
