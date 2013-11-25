@@ -567,7 +567,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	u8 regval, reg;
 
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data;
 
