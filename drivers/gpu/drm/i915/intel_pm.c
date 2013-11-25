@@ -5608,25 +5608,6 @@ void intel_suspend_hw(struct drm_device *dev)
 		lpt_suspend_hw(dev);
 }
 
-static bool is_always_on_power_domain(struct drm_device *dev,
-				      enum intel_display_power_domain domain)
-{
-	unsigned long always_on_domains;
-
-	BUG_ON(BIT(domain) & ~POWER_DOMAIN_MASK);
-
-	if (IS_BROADWELL(dev)) {
-		always_on_domains = BDW_ALWAYS_ON_POWER_DOMAINS;
-	} else if (IS_HASWELL(dev)) {
-		always_on_domains = HSW_ALWAYS_ON_POWER_DOMAINS;
-	} else {
-		WARN_ON(1);
-		return true;
-	}
-
-	return BIT(domain) & always_on_domains;
-}
-
 #define for_each_power_well(i, power_well, domain_mask, power_domains)	\
 	for (i = 0;							\
 	     i < (power_domains)->power_well_count &&			\
@@ -5666,15 +5647,15 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	if (!HAS_POWER_WELL(dev))
 		return true;
 
-	if (is_always_on_power_domain(dev, domain))
-		return true;
-
 	power_domains = &dev_priv->power_domains;
 
 	is_enabled = true;
 
 	mutex_lock(&power_domains->lock);
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains) {
+		if (power_well->always_on)
+			continue;
+
 		if (!power_well->is_enabled(dev, power_well)) {
 			is_enabled = false;
 			break;
@@ -5776,9 +5757,6 @@ void intel_display_power_get(struct drm_device *dev,
 	if (!HAS_POWER_WELL(dev))
 		return;
 
-	if (is_always_on_power_domain(dev, domain))
-		return;
-
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
@@ -5796,9 +5774,6 @@ void intel_display_power_put(struct drm_device *dev,
 	int i;
 
 	if (!HAS_POWER_WELL(dev))
-		return;
-
-	if (is_always_on_power_domain(dev, domain))
 		return;
 
 	power_domains = &dev_priv->power_domains;
@@ -5841,6 +5816,11 @@ EXPORT_SYMBOL_GPL(i915_release_power_well);
 
 static struct i915_power_well hsw_power_wells[] = {
 	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = HSW_ALWAYS_ON_POWER_DOMAINS,
+	},
+	{
 		.name = "display",
 		.domains = POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS,
 		.is_enabled = hsw_power_well_enabled,
@@ -5849,6 +5829,11 @@ static struct i915_power_well hsw_power_wells[] = {
 };
 
 static struct i915_power_well bdw_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = BDW_ALWAYS_ON_POWER_DOMAINS,
+	},
 	{
 		.name = "display",
 		.domains = POWER_DOMAIN_MASK & ~BDW_ALWAYS_ON_POWER_DOMAINS,
