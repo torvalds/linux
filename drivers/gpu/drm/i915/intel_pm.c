@@ -5644,9 +5644,6 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	bool is_enabled;
 	int i;
 
-	if (!HAS_POWER_WELL(dev))
-		return true;
-
 	power_domains = &dev_priv->power_domains;
 
 	is_enabled = true;
@@ -5754,9 +5751,6 @@ void intel_display_power_get(struct drm_device *dev,
 	struct i915_power_well *power_well;
 	int i;
 
-	if (!HAS_POWER_WELL(dev))
-		return;
-
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
@@ -5772,9 +5766,6 @@ void intel_display_power_put(struct drm_device *dev,
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
 	int i;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
 
 	power_domains = &dev_priv->power_domains;
 
@@ -5814,6 +5805,14 @@ void i915_release_power_well(void)
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
+static struct i915_power_well i9xx_always_on_power_well[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = POWER_DOMAIN_MASK,
+	},
+};
+
 static struct i915_power_well hsw_power_wells[] = {
 	{
 		.name = "always-on",
@@ -5852,9 +5851,6 @@ int intel_power_domains_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
-	if (!HAS_POWER_WELL(dev))
-		return 0;
-
 	mutex_init(&power_domains->lock);
 
 	/*
@@ -5868,7 +5864,7 @@ int intel_power_domains_init(struct drm_device *dev)
 		set_power_wells(power_domains, bdw_power_wells);
 		hsw_pwr = power_domains;
 	} else {
-		WARN_ON(1);
+		set_power_wells(power_domains, i9xx_always_on_power_well);
 	}
 
 	return 0;
@@ -5885,9 +5881,6 @@ static void intel_power_domains_resume(struct drm_device *dev)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *power_well;
 	int i;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
 
 	mutex_lock(&power_domains->lock);
 	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
@@ -5906,9 +5899,6 @@ static void intel_power_domains_resume(struct drm_device *dev)
 void intel_power_domains_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_POWER_WELL(dev))
-		return;
 
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev, true);
