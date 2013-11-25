@@ -5471,7 +5471,7 @@ static int alloc_thread_groups(struct r5conf *conf, int cnt,
 	for (i = 0; i < *group_cnt; i++) {
 		struct r5worker_group *group;
 
-		group = worker_groups[i];
+		group = &(*worker_groups)[i];
 		INIT_LIST_HEAD(&group->handle_list);
 		group->conf = conf;
 		group->workers = workers + i * cnt;
