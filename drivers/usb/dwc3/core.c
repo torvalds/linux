@@ -569,6 +569,8 @@ err2:
 	dwc3_event_buffers_cleanup(dwc);
 
 err1:
+	usb_phy_set_suspend(dwc->usb2_phy, 1);
+	usb_phy_set_suspend(dwc->usb3_phy, 1);
 	dwc3_core_exit(dwc);
 
 err0:
