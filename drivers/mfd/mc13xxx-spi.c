@@ -149,7 +149,6 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
 				ret);
-		spi_set_drvdata(spi, NULL);
 		return ret;
 	}
 
