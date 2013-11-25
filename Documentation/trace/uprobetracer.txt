@@ -32,6 +32,7 @@ Synopsis of uprobe_tracer
   FETCHARGS     : Arguments. Each probe can have up to 128 args.
    %REG         : Fetch register REG
    @ADDR	: Fetch memory at ADDR (ADDR should be in userspace)
+   @+OFFSET	: Fetch memory at OFFSET (OFFSET from same file as PATH)
    $stackN	: Fetch Nth entry of stack (N >= 0)
    $stack	: Fetch stack address.
    $retval	: Fetch return value.(*)

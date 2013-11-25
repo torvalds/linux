@@ -70,6 +70,11 @@ static int unregister_uprobe_event(struct trace_uprobe *tu);
 static DEFINE_MUTEX(uprobe_lock);
 static LIST_HEAD(uprobe_list);
 
+struct uprobe_dispatch_data {
+	struct trace_uprobe	*tu;
+	unsigned long		bp_addr;
+};
+
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs);
 static int uretprobe_dispatcher(struct uprobe_consumer *con,
 				unsigned long func, struct pt_regs *regs);
@@ -174,6 +179,29 @@ static __kprobes void FETCH_FUNC_NAME(memory, string_size)(struct pt_regs *regs,
 #define fetch_symbol_u64		NULL
 #define fetch_symbol_string		NULL
 #define fetch_symbol_string_size	NULL
+
+static unsigned long translate_user_vaddr(void *file_offset)
+{
+	unsigned long base_addr;
+	struct uprobe_dispatch_data *udd;
+
+	udd = (void *) current->utask->vaddr;
+
+	base_addr = udd->bp_addr - udd->tu->offset;
+	return base_addr + (unsigned long)file_offset;
+}
+
+#define DEFINE_FETCH_file_offset(type)					\
+static __kprobes void FETCH_FUNC_NAME(file_offset, type)(struct pt_regs *regs,\
+					void *offset, void *dest) 	\
+{									\
+	void *vaddr = (void *)translate_user_vaddr(offset);		\
+									\
+	FETCH_FUNC_NAME(memory, type)(regs, vaddr, dest);		\
+}
+DEFINE_BASIC_FETCH_FUNCS(file_offset)
+DEFINE_FETCH_file_offset(string)
+DEFINE_FETCH_file_offset(string_size)
 
 /* Fetch type information table */
 const struct fetch_type uprobes_fetch_type_table[] = {
@@ -1106,10 +1134,16 @@ int trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type, 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 {
 	struct trace_uprobe *tu;
+	struct uprobe_dispatch_data udd;
 	int ret = 0;
 
 	tu = container_of(con, struct trace_uprobe, consumer);
 	tu->nhit++;
+
+	udd.tu = tu;
+	udd.bp_addr = instruction_pointer(regs);
+
+	current->utask->vaddr = (unsigned long) &udd;
 
 	if (tu->tp.flags & TP_FLAG_TRACE)
 		ret |= uprobe_trace_func(tu, regs);
@@ -1125,8 +1159,14 @@ static int uretprobe_dispatcher(struct uprobe_consumer *con,
 				unsigned long func, struct pt_regs *regs)
 {
 	struct trace_uprobe *tu;
+	struct uprobe_dispatch_data udd;
 
 	tu = container_of(con, struct trace_uprobe, consumer);
+
+	udd.tu = tu;
+	udd.bp_addr = func;
+
+	current->utask->vaddr = (unsigned long) &udd;
 
 	if (tu->tp.flags & TP_FLAG_TRACE)
 		uretprobe_trace_func(tu, func, regs);

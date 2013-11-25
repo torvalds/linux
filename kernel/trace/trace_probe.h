@@ -106,6 +106,7 @@ enum {
 	FETCH_MTD_symbol,
 	FETCH_MTD_deref,
 	FETCH_MTD_bitfield,
+	FETCH_MTD_file_offset,
 	FETCH_MTD_END,
 };
 
@@ -217,6 +218,7 @@ ASSIGN_FETCH_FUNC(memory, ftype),			\
 ASSIGN_FETCH_FUNC(symbol, ftype),			\
 ASSIGN_FETCH_FUNC(deref, ftype),			\
 ASSIGN_FETCH_FUNC(bitfield, ftype),			\
+ASSIGN_FETCH_FUNC(file_offset, ftype),			\
 	  }						\
 	}
 
