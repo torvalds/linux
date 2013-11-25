@@ -218,23 +218,9 @@ static dma_addr_t crypt_phys;
 
 static int support_aes = 1;
 
-static void dev_release(struct device *dev)
-{
-	return;
-}
-
 #define DRIVER_NAME "ixp4xx_crypto"
-static struct platform_device pseudo_dev = {
-	.name = DRIVER_NAME,
-	.id   = 0,
-	.num_resources = 0,
-	.dev  = {
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-		.release = dev_release,
-	}
-};
 
-static struct device *dev = &pseudo_dev.dev;
+static struct platform_device *pdev;
 
 static inline dma_addr_t crypt_virt2phys(struct crypt_ctl *virt)
 {
@@ -263,6 +249,7 @@ static inline const struct ix_hash_algo *ix_hash(struct crypto_tfm *tfm)
 
 static int setup_crypt_desc(void)
 {
+	struct device *dev = &pdev->dev;
 	BUILD_BUG_ON(sizeof(struct crypt_ctl) != 64);
 	crypt_virt = dma_alloc_coherent(dev,
 			NPE_QLEN * sizeof(struct crypt_ctl),
@@ -363,6 +350,7 @@ static void finish_scattered_hmac(struct crypt_ctl *crypt)
 
 static void one_packet(dma_addr_t phys)
 {
+	struct device *dev = &pdev->dev;
 	struct crypt_ctl *crypt;
 	struct ixp_ctx *ctx;
 	int failed;
@@ -432,7 +420,7 @@ static void crypto_done_action(unsigned long arg)
 	tasklet_schedule(&crypto_done_tasklet);
 }
 
-static int init_ixp_crypto(void)
+static int init_ixp_crypto(struct device *dev)
 {
 	int ret = -ENODEV;
 	u32 msg[2] = { 0, 0 };
@@ -519,7 +507,7 @@ err:
 	return ret;
 }
 
-static void release_ixp_crypto(void)
+static void release_ixp_crypto(struct device *dev)
 {
 	qmgr_disable_irq(RECV_QID);
 	tasklet_kill(&crypto_done_tasklet);
@@ -886,6 +874,7 @@ static int ablk_perform(struct ablkcipher_request *req, int encrypt)
 	enum dma_data_direction src_direction = DMA_BIDIRECTIONAL;
 	struct ablk_ctx *req_ctx = ablkcipher_request_ctx(req);
 	struct buffer_desc src_hook;
+	struct device *dev = &pdev->dev;
 	gfp_t flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
 				GFP_KERNEL : GFP_ATOMIC;
 
@@ -1010,6 +999,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	unsigned int cryptlen;
 	struct buffer_desc *buf, src_hook;
 	struct aead_ctx *req_ctx = aead_request_ctx(req);
+	struct device *dev = &pdev->dev;
 	gfp_t flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
 				GFP_KERNEL : GFP_ATOMIC;
 
@@ -1418,20 +1408,30 @@ static struct ixp_alg ixp4xx_algos[] = {
 } };
 
 #define IXP_POSTFIX "-ixp4xx"
+
+static const struct platform_device_info ixp_dev_info __initdata = {
+	.name		= DRIVER_NAME,
+	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 static int __init ixp_module_init(void)
 {
 	int num = ARRAY_SIZE(ixp4xx_algos);
-	int i,err ;
+	int i, err ;
 
-	if (platform_device_register(&pseudo_dev))
-		return -ENODEV;
+	pdev = platform_device_register_full(&ixp_dev_info);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	dev = &pdev->dev;
 
 	spin_lock_init(&desc_lock);
 	spin_lock_init(&emerg_lock);
 
-	err = init_ixp_crypto();
+	err = init_ixp_crypto(&pdev->dev);
 	if (err) {
-		platform_device_unregister(&pseudo_dev);
+		platform_device_unregister(pdev);
 		return err;
 	}
 	for (i=0; i< num; i++) {
@@ -1495,8 +1495,8 @@ static void __exit ixp_module_exit(void)
 		if (ixp4xx_algos[i].registered)
 			crypto_unregister_alg(&ixp4xx_algos[i].crypto);
 	}
-	release_ixp_crypto();
-	platform_device_unregister(&pseudo_dev);
+	release_ixp_crypto(&pdev->dev);
+	platform_device_unregister(pdev);
 }
 
 module_init(ixp_module_init);

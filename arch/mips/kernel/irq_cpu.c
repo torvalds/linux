@@ -150,7 +150,7 @@ int __init mips_cpu_intc_init(struct device_node *of_node,
 	domain = irq_domain_add_legacy(of_node, 8, MIPS_CPU_IRQ_BASE, 0,
 				       &mips_cpu_intc_irq_domain_ops, NULL);
 	if (!domain)
-		panic("Failed to add irqdomain for MIPS CPU\n");
+		panic("Failed to add irqdomain for MIPS CPU");
 
 	return 0;
 }

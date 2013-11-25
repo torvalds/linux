@@ -5,7 +5,7 @@
  * TODO: This table is a real mess, as it merges RC codes from several
  * devices into a big table. It also has both RC-5 and NEC codes inside.
  * It should be broken into small tables, and the protocols should properly
- * be indentificated.
+ * be identificated.
  *
  * The table were imported from dib0700_devices.c.
  *

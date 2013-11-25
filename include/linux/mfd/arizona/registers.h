@@ -1908,7 +1908,7 @@
 #define ARIZONA_FLL2_SYNC_GAIN_MASK              0x003c  /* FLL2_SYNC_GAIN */
 #define ARIZONA_FLL2_SYNC_GAIN_SHIFT                  2  /* FLL2_SYNC_GAIN */
 #define ARIZONA_FLL2_SYNC_GAIN_WIDTH                  4  /* FLL2_SYNC_GAIN */
-#define ARIZONA_FLL2_SYNC_BW_MASK                0x0001  /* FLL2_SYNC_BW */
+#define ARIZONA_FLL2_SYNC_BW                     0x0001  /* FLL2_SYNC_BW */
 #define ARIZONA_FLL2_SYNC_BW_MASK                0x0001  /* FLL2_SYNC_BW */
 #define ARIZONA_FLL2_SYNC_BW_SHIFT                    0  /* FLL2_SYNC_BW */
 #define ARIZONA_FLL2_SYNC_BW_WIDTH                    1  /* FLL2_SYNC_BW */

@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 50
-#define QLCNIC_LINUX_VERSIONID  "5.3.50"
+#define _QLCNIC_LINUX_SUBVERSION 52
+#define QLCNIC_LINUX_VERSIONID  "5.3.52"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -98,8 +98,22 @@
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
 							+ MGMT_CMD_DESC_RESV)
 #define QLCNIC_MAX_TX_TIMEOUTS	2
-#define QLCNIC_MAX_TX_RINGS	8
-#define QLCNIC_MAX_SDS_RINGS	8
+
+/* Driver will use 1 Tx ring in INT-x/MSI/SRIOV mode. */
+#define QLCNIC_SINGLE_RING		1
+#define QLCNIC_DEF_SDS_RINGS		4
+#define QLCNIC_DEF_TX_RINGS		4
+#define QLCNIC_MAX_VNIC_TX_RINGS	4
+#define QLCNIC_MAX_VNIC_SDS_RINGS	4
+
+enum qlcnic_queue_type {
+	QLCNIC_TX_QUEUE = 1,
+	QLCNIC_RX_QUEUE,
+};
+
+/* Operational mode for driver */
+#define QLCNIC_VNIC_MODE	0xFF
+#define QLCNIC_DEFAULT_MODE	0x0
 
 /*
  * Following are the states of the Phantom. Phantom will set them and
@@ -533,6 +547,14 @@ struct qlcnic_host_sds_ring {
 	char name[IFNAMSIZ + 12];
 } ____cacheline_internodealigned_in_smp;
 
+struct qlcnic_tx_queue_stats {
+	u64 xmit_on;
+	u64 xmit_off;
+	u64 xmit_called;
+	u64 xmit_finished;
+	u64 tx_bytes;
+};
+
 struct qlcnic_host_tx_ring {
 	int irq;
 	void __iomem *crb_intr_mask;
@@ -544,10 +566,7 @@ struct qlcnic_host_tx_ring {
 	u32 sw_consumer;
 	u32 num_desc;
 
-	u64 xmit_on;
-	u64 xmit_off;
-	u64 xmit_called;
-	u64 xmit_finished;
+	struct qlcnic_tx_queue_stats tx_stats;
 
 	void __iomem *crb_cmd_producer;
 	struct cmd_desc_type0 *desc_head;
@@ -940,8 +959,6 @@ struct qlcnic_ipaddr {
 #define QLCNIC_BEACON_EANBLE		0xC
 #define QLCNIC_BEACON_DISABLE		0xD
 
-#define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
-#define QLCNIC_DEF_NUM_TX_RINGS		4
 #define QLCNIC_MSIX_TBL_SPACE		8192
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
 #define QLCNIC_MSIX_TBL_PGSIZE		4096
@@ -961,8 +978,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
 #define __QLCNIC_DIAG_MODE		13
-#define __QLCNIC_DCB_STATE		14
-#define __QLCNIC_DCB_IN_AEN		15
+#define __QLCNIC_MAINTENANCE_MODE	16
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1013,7 +1029,6 @@ struct qlcnic_adapter {
 	unsigned long state;
 	u32 flags;
 
-	int max_drv_tx_rings;
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
@@ -1021,7 +1036,13 @@ struct qlcnic_adapter {
 	u16 max_jumbo_rxd;
 
 	u8 max_rds_rings;
-	u8 max_sds_rings;
+
+	u8 max_sds_rings; /* max sds rings supported by adapter */
+	u8 max_tx_rings;  /* max tx rings supported by adapter */
+
+	u8 drv_tx_rings;  /* max tx rings supported by driver */
+	u8 drv_sds_rings; /* max sds rings supported by driver */
+
 	u8 rx_csum;
 	u8 portnum;
 
@@ -1199,6 +1220,7 @@ struct qlcnic_npar_info {
 	u8	promisc_mode;
 	u8	offload_flags;
 	u8      pci_func;
+	u8      mac[ETH_ALEN];
 };
 
 struct qlcnic_eswitch {
@@ -1543,12 +1565,13 @@ int qlcnic_loopback_test(struct net_device *, u8);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
-void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
-int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
-netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
-int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, int);
-int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
-int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *, u32 txq);
+void qlcnic_diag_free_res(struct net_device *netdev, int);
+int qlcnic_diag_alloc_res(struct net_device *netdev, int);
+netdev_tx_t qlcnic_xmit_frame(struct sk_buff *, struct net_device *);
+void qlcnic_set_tx_ring_count(struct qlcnic_adapter *, u8);
+void qlcnic_set_sds_ring_count(struct qlcnic_adapter *, u8);
+int qlcnic_setup_rings(struct qlcnic_adapter *, u8, u8);
+int qlcnic_validate_rings(struct qlcnic_adapter *, __u32, int);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
@@ -1641,19 +1664,18 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 static inline int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
 					     struct net_device *netdev)
 {
-	int err, tx_q;
+	int err;
 
-	tx_q = adapter->max_drv_tx_rings;
+	netdev->num_tx_queues = adapter->drv_tx_rings;
+	netdev->real_num_tx_queues = adapter->drv_tx_rings;
 
-	netdev->num_tx_queues = tx_q;
-	netdev->real_num_tx_queues = tx_q;
-
-	err = netif_set_real_num_tx_queues(netdev, tx_q);
+	err = netif_set_real_num_tx_queues(netdev, adapter->drv_tx_rings);
 	if (err)
 		dev_err(&adapter->pdev->dev, "failed to set %d Tx queues\n",
-			tx_q);
+			adapter->drv_tx_rings);
 	else
-		dev_info(&adapter->pdev->dev, "set %d Tx queues\n", tx_q);
+		dev_info(&adapter->pdev->dev, "Set %d Tx queues\n",
+			 adapter->drv_tx_rings);
 
 	return err;
 }
@@ -1695,7 +1717,7 @@ struct qlcnic_hardware_ops {
 	int (*write_reg) (struct qlcnic_adapter *, ulong, u32);
 	void (*get_ocm_win) (struct qlcnic_hardware_context *);
 	int (*get_mac_address) (struct qlcnic_adapter *, u8 *, u8);
-	int (*setup_intr) (struct qlcnic_adapter *, u8, int);
+	int (*setup_intr) (struct qlcnic_adapter *);
 	int (*alloc_mbx_args)(struct qlcnic_cmd_args *,
 			      struct qlcnic_adapter *, u32);
 	int (*mbx_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
@@ -1766,10 +1788,9 @@ static inline int qlcnic_get_mac_address(struct qlcnic_adapter *adapter,
 	return adapter->ahw->hw_ops->get_mac_address(adapter, mac, function);
 }
 
-static inline int qlcnic_setup_intr(struct qlcnic_adapter *adapter,
-				    u8 num_intr, int txq)
+static inline int qlcnic_setup_intr(struct qlcnic_adapter *adapter)
 {
-	return adapter->ahw->hw_ops->setup_intr(adapter, num_intr, txq);
+	return adapter->ahw->hw_ops->setup_intr(adapter);
 }
 
 static inline int qlcnic_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
@@ -2005,7 +2026,7 @@ static inline bool qlcnic_check_multi_tx(struct qlcnic_adapter *adapter)
 static inline void qlcnic_disable_multi_tx(struct qlcnic_adapter *adapter)
 {
 	test_and_clear_bit(__QLCNIC_MULTI_TX_UNIQUE, &adapter->state);
-	adapter->max_drv_tx_rings = 1;
+	adapter->drv_tx_rings = QLCNIC_SINGLE_RING;
 }
 
 /* When operating in a muti tx mode, driver needs to write 0x1
@@ -2114,99 +2135,5 @@ static inline bool qlcnic_sriov_vf_check(struct qlcnic_adapter *adapter)
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
 
 	return status;
-}
-
-static inline int qlcnic_dcb_get_hw_capability(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->get_hw_capability)
-		return dcb->ops->get_hw_capability(adapter);
-
-	return 0;
-}
-
-static inline void qlcnic_dcb_free(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->free)
-		dcb->ops->free(adapter);
-}
-
-static inline int qlcnic_dcb_attach(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->attach)
-		return dcb->ops->attach(adapter);
-
-	return 0;
-}
-
-static inline int
-qlcnic_dcb_query_hw_capability(struct qlcnic_adapter *adapter, char *buf)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->query_hw_capability)
-		return dcb->ops->query_hw_capability(adapter, buf);
-
-	return 0;
-}
-
-static inline void qlcnic_dcb_get_info(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->get_info)
-		dcb->ops->get_info(adapter);
-}
-
-static inline int
-qlcnic_dcb_query_cee_param(struct qlcnic_adapter *adapter, char *buf, u8 type)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->query_cee_param)
-		return dcb->ops->query_cee_param(adapter, buf, type);
-
-	return 0;
-}
-
-static inline int qlcnic_dcb_get_cee_cfg(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->get_cee_cfg)
-		return dcb->ops->get_cee_cfg(adapter);
-
-	return 0;
-}
-
-static inline void
-qlcnic_dcb_register_aen(struct qlcnic_adapter *adapter, u8 flag)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->register_aen)
-		dcb->ops->register_aen(adapter, flag);
-}
-
-static inline void qlcnic_dcb_handle_aen(struct qlcnic_adapter *adapter,
-					 void *msg)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->handle_aen)
-		dcb->ops->handle_aen(adapter, msg);
-}
-
-static inline void qlcnic_dcb_init_dcbnl_ops(struct qlcnic_adapter *adapter)
-{
-	struct qlcnic_dcb *dcb = adapter->dcb;
-
-	if (dcb && dcb->ops->init_dcbnl_ops)
-		dcb->ops->init_dcbnl_ops(adapter);
 }
 #endif				/* __QLCNIC_H_ */

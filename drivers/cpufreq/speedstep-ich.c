@@ -251,55 +251,22 @@ static unsigned int speedstep_get(unsigned int cpu)
 /**
  * speedstep_target - set a new CPUFreq policy
  * @policy: new policy
- * @target_freq: the target frequency
- * @relation: how that frequency relates to achieved frequency
- *	(CPUFREQ_RELATION_L or CPUFREQ_RELATION_H)
+ * @index: index of target frequency
  *
  * Sets a new CPUFreq policy.
  */
-static int speedstep_target(struct cpufreq_policy *policy,
-			     unsigned int target_freq,
-			     unsigned int relation)
+static int speedstep_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	unsigned int newstate = 0, policy_cpu;
-	struct cpufreq_freqs freqs;
-
-	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0],
-				target_freq, relation, &newstate))
-		return -EINVAL;
+	unsigned int policy_cpu;
 
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
-	freqs.old = speedstep_get(policy_cpu);
-	freqs.new = speedstep_freqs[newstate].frequency;
 
-	pr_debug("transiting from %u to %u kHz\n", freqs.old, freqs.new);
-
-	/* no transition necessary */
-	if (freqs.old == freqs.new)
-		return 0;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	smp_call_function_single(policy_cpu, _speedstep_set_state, &newstate,
+	smp_call_function_single(policy_cpu, _speedstep_set_state, &index,
 				 true);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }
 
-
-/**
- * speedstep_verify - verifies a new CPUFreq policy
- * @policy: new policy
- *
- * Limit must be within speedstep_low_freq and speedstep_high_freq, with
- * at least one border included.
- */
-static int speedstep_verify(struct cpufreq_policy *policy)
-{
-	return cpufreq_frequency_table_verify(policy, &speedstep_freqs[0]);
-}
 
 struct get_freqs {
 	struct cpufreq_policy *policy;
@@ -320,8 +287,7 @@ static void get_freqs_on_cpu(void *_get_freqs)
 
 static int speedstep_cpu_init(struct cpufreq_policy *policy)
 {
-	int result;
-	unsigned int policy_cpu, speed;
+	unsigned int policy_cpu;
 	struct get_freqs gf;
 
 	/* only run on CPU to be set, or on its sibling */
@@ -336,49 +302,18 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	if (gf.ret)
 		return gf.ret;
 
-	/* get current speed setting */
-	speed = speedstep_get(policy_cpu);
-	if (!speed)
-		return -EIO;
-
-	pr_debug("currently at %s speed setting - %i MHz\n",
-		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency)
-		? "low" : "high",
-		(speed / 1000));
-
-	/* cpuinfo and default policy values */
-	policy->cur = speed;
-
-	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
-	if (result)
-		return result;
-
-	cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
-
-	return 0;
+	return cpufreq_table_validate_and_show(policy, speedstep_freqs);
 }
-
-
-static int speedstep_cpu_exit(struct cpufreq_policy *policy)
-{
-	cpufreq_frequency_table_put_attr(policy->cpu);
-	return 0;
-}
-
-static struct freq_attr *speedstep_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
 
 
 static struct cpufreq_driver speedstep_driver = {
 	.name	= "speedstep-ich",
-	.verify	= speedstep_verify,
-	.target	= speedstep_target,
+	.verify	= cpufreq_generic_frequency_table_verify,
+	.target_index = speedstep_target,
 	.init	= speedstep_cpu_init,
-	.exit	= speedstep_cpu_exit,
+	.exit	= cpufreq_generic_exit,
 	.get	= speedstep_get,
-	.attr	= speedstep_attr,
+	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id ss_smi_ids[] = {

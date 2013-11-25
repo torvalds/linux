@@ -267,7 +267,7 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 	const seqno_t new_end  = range->lsr_end;
 	struct fld_cache_entry *fldt;
 
-	OBD_ALLOC_GFP(fldt, sizeof *fldt, GFP_ATOMIC);
+	OBD_ALLOC_GFP(fldt, sizeof(*fldt), GFP_ATOMIC);
 	if (!fldt) {
 		OBD_FREE_PTR(f_new);
 		/* overlap is not allowed, so dont mess up list. */

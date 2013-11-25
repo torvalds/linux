@@ -462,9 +462,10 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 				unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	unsigned char *rx_buf, *tx_buf;
+	unsigned char *rx_buf = devpriv->usb_rx_buf;
+	unsigned char *tx_buf = devpriv->usb_tx_buf;
 	int reg, cmd;
-	int retval;
+	int ret;
 
 	if (devpriv->model == VMK8061_MODEL) {
 		reg = VMK8061_DO_REG;
@@ -476,37 +477,27 @@ static int vmk80xx_do_insn_bits(struct comedi_device *dev,
 
 	down(&devpriv->limit_sem);
 
-	rx_buf = devpriv->usb_rx_buf;
-	tx_buf = devpriv->usb_tx_buf;
-
-	if (data[0]) {
-		tx_buf[reg] &= ~data[0];
-		tx_buf[reg] |= (data[0] & data[1]);
-
-		retval = vmk80xx_write_packet(dev, cmd);
-
-		if (retval)
+	if (comedi_dio_update_state(s, data)) {
+		tx_buf[reg] = s->state;
+		ret = vmk80xx_write_packet(dev, cmd);
+		if (ret)
 			goto out;
 	}
 
 	if (devpriv->model == VMK8061_MODEL) {
 		tx_buf[0] = VMK8061_CMD_RD_DO;
-
-		retval = vmk80xx_read_packet(dev);
-
-		if (!retval) {
-			data[1] = rx_buf[reg];
-			retval = 2;
-		}
+		ret = vmk80xx_read_packet(dev);
+		if (ret)
+			goto out;
+		data[1] = rx_buf[reg];
 	} else {
-		data[1] = tx_buf[reg];
-		retval = 2;
+		data[1] = s->state;
 	}
 
 out:
 	up(&devpriv->limit_sem);
 
-	return retval;
+	return ret ? ret : insn->n;
 }
 
 static int vmk80xx_cnt_insn_read(struct comedi_device *dev,

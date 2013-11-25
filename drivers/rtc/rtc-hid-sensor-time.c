@@ -209,7 +209,7 @@ static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		platform_get_drvdata(to_platform_device(dev));
 	int ret;
 
-	INIT_COMPLETION(time_state->comp_last_time);
+	reinit_completion(&time_state->comp_last_time);
 	/* get a report with all values through requesting one value */
 	sensor_hub_input_attr_get_raw_value(time_state->common_attributes.hsdev,
 			HID_USAGE_SENSOR_TIME, hid_time_addresses[0],
@@ -236,7 +236,7 @@ static const struct rtc_class_ops hid_time_rtc_ops = {
 static int hid_time_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct hid_time_state *time_state = devm_kzalloc(&pdev->dev,
 		sizeof(struct hid_time_state), GFP_KERNEL);
 
@@ -275,24 +275,44 @@ static int hid_time_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = sensor_hub_device_open(hsdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to open sensor hub device!\n");
+		goto err_open;
+	}
+
+	/*
+	 * Enable HID input processing early in order to be able to read the
+	 * clock already in devm_rtc_device_register().
+	 */
+	hid_device_io_start(hsdev->hdev);
+
 	time_state->rtc = devm_rtc_device_register(&pdev->dev,
 					"hid-sensor-time", &hid_time_rtc_ops,
 					THIS_MODULE);
 
 	if (IS_ERR_OR_NULL(time_state->rtc)) {
+		hid_device_io_stop(hsdev->hdev);
 		ret = time_state->rtc ? PTR_ERR(time_state->rtc) : -ENODEV;
 		time_state->rtc = NULL;
-		sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
 		dev_err(&pdev->dev, "rtc device register failed!\n");
+		goto err_rtc;
 	}
 
+	return ret;
+
+err_rtc:
+	sensor_hub_device_close(hsdev);
+err_open:
+	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
 	return ret;
 }
 
 static int hid_time_remove(struct platform_device *pdev)
 {
-	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
+	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 
+	sensor_hub_device_close(hsdev);
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
 
 	return 0;

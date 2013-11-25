@@ -259,7 +259,7 @@ static unsigned int mmp_new_seq(void)
 	u32 new_seq;
 
 	do {
-		get_random_bytes(&new_seq, sizeof(u32));
+		new_seq = prandom_u32();
 	} while (new_seq > EXT4_MMP_SEQ_MAX);
 
 	return new_seq;

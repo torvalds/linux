@@ -10,10 +10,10 @@ bool CheckHighPower(struct net_device *dev)
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
 
-	if(!priv->bRegHighPowerMechanism)
+	if (!priv->bRegHighPowerMechanism)
 		return false;
 
-	if(ieee->state == IEEE80211_LINKED_SCANNING)
+	if (ieee->state == IEEE80211_LINKED_SCANNING)
 		return false;
 
 	return true;
@@ -30,7 +30,7 @@ bool CheckHighPower(struct net_device *dev)
  *		and they are related to OFDM and MAC registers.
  *		So, we don't want to update it so frequently in per-Rx packet base.
  */
-void DoTxHighPower(struct net_device *dev)
+static void DoTxHighPower(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16			HiPwrUpperTh = 0;
@@ -57,15 +57,15 @@ void DoTxHighPower(struct net_device *dev)
 		/* Stevenl suggested that degrade 8dbm in high power sate. 2007-12-04 Isaiah */
 
 		priv->bToUpdateTxPwr = true;
-		u1bTmp= read_nic_byte(dev, CCK_TXAGC);
+		u1bTmp = read_nic_byte(dev, CCK_TXAGC);
 
 		/* If it never enter High Power. */
 		if (CckTxPwrIdx == u1bTmp) {
-			u1bTmp = (u1bTmp > 16) ? (u1bTmp -16): 0;  /* 8dbm */
+			u1bTmp = (u1bTmp > 16) ? (u1bTmp - 16) : 0;  /* 8dbm */
 			write_nic_byte(dev, CCK_TXAGC, u1bTmp);
 
-			u1bTmp= read_nic_byte(dev, OFDM_TXAGC);
-			u1bTmp = (u1bTmp > 16) ? (u1bTmp -16): 0;  /* 8dbm */
+			u1bTmp = read_nic_byte(dev, OFDM_TXAGC);
+			u1bTmp = (u1bTmp > 16) ? (u1bTmp - 16) : 0;  /* 8dbm */
 			write_nic_byte(dev, OFDM_TXAGC, u1bTmp);
 		}
 
@@ -74,12 +74,12 @@ void DoTxHighPower(struct net_device *dev)
 		if (priv->bToUpdateTxPwr) {
 			priv->bToUpdateTxPwr = false;
 			/* SD3 required. */
-			u1bTmp= read_nic_byte(dev, CCK_TXAGC);
+			u1bTmp = read_nic_byte(dev, CCK_TXAGC);
 			if (u1bTmp < CckTxPwrIdx) {
 				write_nic_byte(dev, CCK_TXAGC, CckTxPwrIdx);
 			}
 
-			u1bTmp= read_nic_byte(dev, OFDM_TXAGC);
+			u1bTmp = read_nic_byte(dev, OFDM_TXAGC);
 			if (u1bTmp < OfdmTxPwrIdx) {
 				write_nic_byte(dev, OFDM_TXAGC, OfdmTxPwrIdx);
 			}
@@ -97,7 +97,7 @@ void DoTxHighPower(struct net_device *dev)
 void rtl8180_tx_pw_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,tx_pw_wq);
+	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, tx_pw_wq);
 	struct net_device *dev = ieee->dev;
 
 	DoTxHighPower(dev);
@@ -125,7 +125,7 @@ bool CheckDig(struct net_device *dev)
 /*
  *	Implementation of DIG for Zebra and Zebra2.
  */
-void DIG_Zebra(struct net_device *dev)
+static void DIG_Zebra(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16			CCKFalseAlarm, OFDMFalseAlarm;
@@ -149,11 +149,11 @@ void DIG_Zebra(struct net_device *dev)
 
 #if 1 /* lzm reserved 080826 */
 	AwakePeriodIn2Sec = (2000 - priv->DozePeriodInPast2Sec);
-	priv ->DozePeriodInPast2Sec = 0;
+	priv->DozePeriodInPast2Sec = 0;
 
 	if (AwakePeriodIn2Sec) {
-		OfdmFA1 = (u16)((OfdmFA1 * AwakePeriodIn2Sec) / 2000) ;
-		OfdmFA2 = (u16)((OfdmFA2 * AwakePeriodIn2Sec) / 2000) ;
+		OfdmFA1 = (u16)((OfdmFA1 * AwakePeriodIn2Sec) / 2000);
+		OfdmFA2 = (u16)((OfdmFA2 * AwakePeriodIn2Sec) / 2000);
 	} else {
 		;
 	}
@@ -202,7 +202,7 @@ void DIG_Zebra(struct net_device *dev)
 /*
  *	Dispatch DIG implementation according to RF.
  */
-void DynamicInitGain(struct net_device *dev)
+static void DynamicInitGain(struct net_device *dev)
 {
 	DIG_Zebra(dev);
 }
@@ -210,7 +210,7 @@ void DynamicInitGain(struct net_device *dev)
 void rtl8180_hw_dig_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_dig_wq);
+	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, hw_dig_wq);
 	struct net_device *dev = ieee->dev;
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -223,7 +223,7 @@ void rtl8180_hw_dig_wq(struct work_struct *work)
 
 }
 
-int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
+static int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
 {
 	u8 rate_len;
 	u8 rate_ex_len;
@@ -234,7 +234,7 @@ int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
 
 	rate_len = priv->ieee80211->current_network.rates_len;
 	rate_ex_len = priv->ieee80211->current_network.rates_ex_len;
-	for (idx=0; idx < rate_len; idx++) {
+	for (idx = 0; idx < rate_len; idx++) {
 		if ((priv->ieee80211->current_network.rates[idx] & RateMask) == NaiveTxRate) {
 			Found = 1;
 			goto found_rate;
@@ -247,7 +247,7 @@ int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
 		}
 	}
 	return Found;
-	found_rate:
+found_rate:
 	return Found;
 }
 
@@ -255,7 +255,7 @@ int IncludedInSupportedRates(struct r8180_priv *priv, u8 TxRate)
  *	Get the Tx rate one degree up form the input rate in the supported rates.
  *	Return the upgrade rate if it is successed, otherwise return the input rate.
  */
-u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
+static u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8                      UpRate;
@@ -315,7 +315,7 @@ u8 GetUpgradeTxRate(struct net_device *dev, u8 rate)
  *	Return the degrade rate if it is successed, otherwise return the input rate.
  */
 
-u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
+static u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u8                      DownRate;
@@ -375,7 +375,7 @@ u8 GetDegradeTxRate(struct net_device *dev, u8 rate)
  *      CCK rate.
  */
 
-bool MgntIsCckRate(u16 rate)
+static bool MgntIsCckRate(u16 rate)
 {
 	bool bReturn = false;
 
@@ -397,7 +397,7 @@ void TxPwrTracking87SE(struct net_device *dev)
 
 	tmpu1Byte = read_nic_byte(dev, EN_LPF_CAL);
 	CurrentThermal = (tmpu1Byte & 0xf0) >> 4; /*[ 7:4]: thermal meter indication. */
-	CurrentThermal = (CurrentThermal > 0x0c) ? 0x0c:CurrentThermal;/* lzm add 080826 */
+	CurrentThermal = (CurrentThermal > 0x0c) ? 0x0c : CurrentThermal;/* lzm add 080826 */
 
 	if (CurrentThermal != priv->ThermalMeter) {
 		/* Update Tx Power level on each channel. */
@@ -435,7 +435,7 @@ void TxPwrTracking87SE(struct net_device *dev)
 	}
 	priv->ThermalMeter = CurrentThermal;
 }
-void StaRateAdaptive87SE(struct net_device *dev)
+static void StaRateAdaptive87SE(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	unsigned long	CurrTxokCnt;
@@ -513,7 +513,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 	 */
 
 	/*
- 	 *  11Mbps or 36Mbps
+	 * 11Mbps or 36Mbps
 	 * Check more times in these rate(key rates).
 	 */
 	if (priv->CurrentOperaRate == 22 || priv->CurrentOperaRate == 72)
@@ -542,7 +542,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 		}
 	} else if (CurrSignalStrength > -47 && (CurrRetryRate < 50)) {
 		/*
- 		 * 2For High Power
+		 * 2For High Power
 		 *
 		 * Return to highest data rate, if signal strength is good enough.
 		 * SignalStrength threshold(-50dbm) is for RTL8186.
@@ -577,8 +577,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 
 		if (bTryDown && (CurrSignalStrength < -75)) /* cable link */
 			priv->TryDownCountLowData += TryDownTh;
-	}
-	else if (priv->CurrentOperaRate == 96) {
+	} else if (priv->CurrentOperaRate == 96) {
 		/* 2For 48Mbps */
 		/* Air Link */
 		if (((CurrRetryRate > 48) && (priv->LastRetryRate > 47))) {
@@ -593,7 +592,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			bTryUp = true;
 		}
 
-		if (bTryDown && (CurrSignalStrength < -75)){
+		if (bTryDown && (CurrSignalStrength < -75)) {
 			priv->TryDownCountLowData += TryDownTh;
 		}
 	} else if (priv->CurrentOperaRate == 72) {
@@ -618,7 +617,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			bTryDown = true;
 		} else if (((CurrRetryRate > 33) && (priv->LastRetryRate > 32)) && (CurrSignalStrength > -82)) { /* Cable Link */
 			bTryDown = true;
-		} else if ((CurrRetryRate > (priv->LastRetryRate + 50)) && (priv->FailTxRateCount > 2 )) {
+		} else if ((CurrRetryRate > (priv->LastRetryRate + 50)) && (priv->FailTxRateCount > 2)) {
 			bTryDown = true;
 			priv->TryDownCountLowData += TryDownTh;
 		} else if ((CurrRetryRate < 20) && (priv->LastRetryRate < 21)) { /* TO DO: need to consider (RSSI) */
@@ -641,8 +640,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 		/* 2For 11Mbps */
 		if (CurrRetryRate > 95) {
 			bTryDown = true;
-		}
-		else if ((CurrRetryRate < 29) && (priv->LastRetryRate < 30)) { /*TO DO: need to consider (RSSI) */
+		} else if ((CurrRetryRate < 29) && (priv->LastRetryRate < 30)) { /*TO DO: need to consider (RSSI) */
 			bTryUp = true;
 		}
 	} else if (priv->CurrentOperaRate == 11) {
@@ -667,12 +665,12 @@ void StaRateAdaptive87SE(struct net_device *dev)
 	}
 
 	if (bTryUp && bTryDown)
-	printk("StaRateAdaptive87B(): Tx Rate tried upping and downing simultaneously!\n");
+		printk("StaRateAdaptive87B(): Tx Rate tried upping and downing simultaneously!\n");
 
 	/* 1 Test Upgrading Tx Rate
 	 * Sometimes the cause of the low throughput (high retry rate) is the compatibility between the AP and NIC.
 	 * To test if the upper rate may cause lower retry rate, this mechanism randomly occurs to test upgrading tx rate.
-	 */ 
+	 */
 	if (!bTryUp && !bTryDown && (priv->TryupingCount == 0) && (priv->TryDownCountLowData == 0)
 		&& priv->CurrentOperaRate != priv->ieee80211->current_network.HighestOperaRate && priv->FailTxRateCount < 2) {
 		if (jiffies % (CurrRetryRate + 101) == 0) {
@@ -702,7 +700,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			if (priv->CurrentOperaRate == 22)
 				bUpdateInitialGain = true;
 
-			/* 
+			/*
 			 * The difference in throughput between 48Mbps and 36Mbps is 8M.
 			 * So, we must be careful in this rate scale. Isaiah 2008-02-15.
 			 */
@@ -718,7 +716,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			if (priv->CurrentOperaRate == 36) {
 				priv->bUpdateARFR = true;
 				write_nic_word(dev, ARFR, 0x0F8F); /* bypass 12/9/6 */
-			} else if(priv->bUpdateARFR) {
+			} else if (priv->bUpdateARFR) {
 				priv->bUpdateARFR = false;
 				write_nic_word(dev, ARFR, 0x0FFF); /* set 1M ~ 54Mbps. */
 			}
@@ -732,7 +730,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 		}
 	} else {
 		if (priv->TryupingCount > 0)
-			priv->TryupingCount --;
+			priv->TryupingCount--;
 	}
 
 	if (bTryDown) {
@@ -757,7 +755,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			priv->CurrentOperaRate = GetDegradeTxRate(dev, priv->CurrentOperaRate);
 
 			/* Reduce chariot training time at weak signal strength situation. SD3 ED demand. */
-			if ((CurrSignalStrength < -80) && (priv->CurrentOperaRate > 72 )) {
+			if ((CurrSignalStrength < -80) && (priv->CurrentOperaRate > 72)) {
 				priv->CurrentOperaRate = 72;
 			}
 
@@ -781,8 +779,8 @@ void StaRateAdaptive87SE(struct net_device *dev)
 			priv->TryDownCountLowData--;
 	}
 
-	/* 
- 	 * Keep the Tx fail rate count to equal to 0x15 at most. 
+	/*
+	 * Keep the Tx fail rate count to equal to 0x15 at most.
 	 * Reduce the fail count at least to 10 sec if tx rate is tending stable.
 	 */
 	if (priv->FailTxRateCount >= 0x15 ||
@@ -803,14 +801,14 @@ void StaRateAdaptive87SE(struct net_device *dev)
 		if (u1bCck == CckTxPwrIdx) {
 			if (u1bOfdm != (OfdmTxPwrIdx + 2)) {
 			priv->bEnhanceTxPwr = true;
-			u1bOfdm = ((u1bOfdm + 2) > 35) ? 35: (u1bOfdm + 2);
+			u1bOfdm = ((u1bOfdm + 2) > 35) ? 35 : (u1bOfdm + 2);
 			write_nic_byte(dev, OFDM_TXAGC, u1bOfdm);
 			}
 		} else if (u1bCck < CckTxPwrIdx) {
 		/* case 2: enter high power */
 			if (!priv->bEnhanceTxPwr) {
 				priv->bEnhanceTxPwr = true;
-				u1bOfdm = ((u1bOfdm + 2) > 35) ? 35: (u1bOfdm + 2);
+				u1bOfdm = ((u1bOfdm + 2) > 35) ? 35 : (u1bOfdm + 2);
 				write_nic_byte(dev, OFDM_TXAGC, u1bOfdm);
 			}
 		}
@@ -826,7 +824,7 @@ void StaRateAdaptive87SE(struct net_device *dev)
 		/* case 2: enter high power */
 		else if (u1bCck < CckTxPwrIdx) {
 			priv->bEnhanceTxPwr = false;
-			u1bOfdm = ((u1bOfdm - 2) > 0) ? (u1bOfdm - 2): 0;
+			u1bOfdm = ((u1bOfdm - 2) > 0) ? (u1bOfdm - 2) : 0;
 			write_nic_byte(dev, OFDM_TXAGC, u1bOfdm);
 		}
 	}
@@ -851,7 +849,7 @@ SetInitialGain:
 				else
 					priv->InitialGain--;
 
-				printk("StaRateAdaptive87SE(): update init_gain to index %d for date rate %d\n",priv->InitialGain, priv->CurrentOperaRate);
+				printk("StaRateAdaptive87SE(): update init_gain to index %d for date rate %d\n", priv->InitialGain, priv->CurrentOperaRate);
 				UpdateInitialGain(dev);
 			}
 		} else { /* OFDM */
@@ -859,7 +857,7 @@ SetInitialGain:
 				priv->InitialGainBackUp = priv->InitialGain;
 
 				priv->InitialGain++;
-				printk("StaRateAdaptive87SE(): update init_gain to index %d for date rate %d\n",priv->InitialGain, priv->CurrentOperaRate);
+				printk("StaRateAdaptive87SE(): update init_gain to index %d for date rate %d\n", priv->InitialGain, priv->CurrentOperaRate);
 				UpdateInitialGain(dev);
 			}
 		}
@@ -904,7 +902,7 @@ void SwAntennaDiversityRxOk8185(struct net_device *dev, u8 SignalStrength)
 	} else { /* Initialization case. */
 		priv->AdRxSignalStrength = SignalStrength;
 	}
-	
+
 	if (priv->LastRxPktAntenna) /* Main antenna. */
 		priv->AdMainAntennaRxOkCnt++;
 	else	 /* Aux antenna. */
@@ -943,7 +941,7 @@ bool SetAntenna8185(struct net_device *dev, u8 u1bAntennaIndex)
 		break;
 	}
 
-	if(bAntennaSwitched)
+	if (bAntennaSwitched)
 		priv->CurrAntennaIndex = u1bAntennaIndex;
 
 	return bAntennaSwitched;
@@ -1000,8 +998,8 @@ void SwAntennaDiversity(struct net_device *dev)
 		priv->AdRxSsThreshold = (priv->AdRxSignalStrength + priv->AdRxSsBeforeSwitched) / 2;
 
 		priv->AdRxSsThreshold = (priv->AdRxSsThreshold > priv->AdMaxRxSsThreshold) ?
-					priv->AdMaxRxSsThreshold: priv->AdRxSsThreshold;
-		if(priv->AdRxSignalStrength < priv->AdRxSsBeforeSwitched) {
+					priv->AdMaxRxSsThreshold : priv->AdRxSsThreshold;
+		if (priv->AdRxSignalStrength < priv->AdRxSsBeforeSwitched) {
 		/* Rx signal strength is not improved after we swtiched antenna. => Swich back. */
 			/* Increase Antenna Diversity checking period due to bad decision. */
 			priv->AdCheckPeriod *= 2;
@@ -1083,7 +1081,7 @@ void SwAntennaDiversity(struct net_device *dev)
 
 					priv->AdRxSsThreshold = (priv->AdRxSsThreshold + priv->AdRxSignalStrength) / 2;
 					priv->AdRxSsThreshold = (priv->AdRxSsThreshold > priv->AdMaxRxSsThreshold) ?
-								priv->AdMaxRxSsThreshold: priv->AdRxSsThreshold;/* +by amy 080312 */
+								priv->AdMaxRxSsThreshold : priv->AdRxSsThreshold;/* +by amy 080312 */
 				}
 
 				/* Reduce Antenna Diversity checking period if possible. */

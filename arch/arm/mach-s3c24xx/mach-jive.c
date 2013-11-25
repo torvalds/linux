@@ -466,6 +466,7 @@ static struct platform_device *jive_devices[] __initdata = {
 	&jive_device_wm8750,
 	&s3c_device_nand,
 	&s3c_device_usbgadget,
+	&s3c2412_device_dma,
 };
 
 static struct s3c2410_udc_mach_info jive_udc_cfg __initdata = {

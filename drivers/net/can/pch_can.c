@@ -964,7 +964,6 @@ static void pch_can_remove(struct pci_dev *pdev)
 		pci_disable_msi(priv->dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	pch_can_reset(priv);
 	pci_iounmap(pdev, priv->regs);
 	free_candev(priv->ndev);

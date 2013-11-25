@@ -57,6 +57,8 @@
 #include "common-board-devices.h"
 #include "gpmc.h"
 #include "gpmc-onenand.h"
+#include "soc.h"
+#include "omap-secure.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
@@ -211,29 +213,11 @@ static struct lp55xx_led_config rx51_lp5523_led_config[] = {
 	}
 };
 
-static int rx51_lp5523_setup(void)
-{
-	return gpio_request_one(RX51_LP5523_CHIP_EN_GPIO, GPIOF_DIR_OUT,
-			"lp5523_enable");
-}
-
-static void rx51_lp5523_release(void)
-{
-	gpio_free(RX51_LP5523_CHIP_EN_GPIO);
-}
-
-static void rx51_lp5523_enable(bool state)
-{
-	gpio_set_value(RX51_LP5523_CHIP_EN_GPIO, !!state);
-}
-
 static struct lp55xx_platform_data rx51_lp5523_platform_data = {
 	.led_config		= rx51_lp5523_led_config,
 	.num_channels		= ARRAY_SIZE(rx51_lp5523_led_config),
 	.clock_mode		= LP55XX_CLOCK_AUTO,
-	.setup_resources	= rx51_lp5523_setup,
-	.release_resources	= rx51_lp5523_release,
-	.enable			= rx51_lp5523_enable,
+	.enable_gpio		= RX51_LP5523_CHIP_EN_GPIO,
 };
 #endif
 
@@ -1298,6 +1282,22 @@ static void __init rx51_init_twl4030_hwmon(void)
 	platform_device_register(&madc_hwmon);
 }
 
+static struct platform_device omap3_rom_rng_device = {
+	.name		= "omap3-rom-rng",
+	.id		= -1,
+	.dev	= {
+		.platform_data	= rx51_secure_rng_call,
+	},
+};
+
+static void __init rx51_init_omap3_rom_rng(void)
+{
+	if (omap_type() == OMAP2_DEVICE_TYPE_SEC) {
+		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		platform_device_register(&omap3_rom_rng_device);
+	}
+}
+
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
@@ -1318,5 +1318,6 @@ void __init rx51_peripherals_init(void)
 
 	rx51_charger_init();
 	rx51_init_twl4030_hwmon();
+	rx51_init_omap3_rom_rng();
 }
 

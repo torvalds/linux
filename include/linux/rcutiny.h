@@ -132,4 +132,21 @@ static inline void rcu_scheduler_starting(void)
 }
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE)
+
+static inline bool rcu_is_watching(void)
+{
+	return __rcu_is_watching();
+}
+
+#else /* defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
+static inline bool rcu_is_watching(void)
+{
+	return true;
+}
+
+
+#endif /* #else defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) */
+
 #endif /* __LINUX_RCUTINY_H */

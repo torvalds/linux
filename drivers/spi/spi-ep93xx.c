@@ -330,7 +330,7 @@ static int ep93xx_spi_chip_setup(const struct ep93xx_spi *espi,
 
 	dev_dbg(&espi->pdev->dev, "setup: mode %d, cpsr %d, scr %d, dss %d\n",
 		chip->spi->mode, div_cpsr, div_scr, dss);
-	dev_dbg(&espi->pdev->dev, "setup: cr0 %#x", cr0);
+	dev_dbg(&espi->pdev->dev, "setup: cr0 %#x\n", cr0);
 
 	ep93xx_spi_write_u8(espi, SSPCPSR, div_cpsr);
 	ep93xx_spi_write_u16(espi, SSPCR0, cr0);
@@ -509,7 +509,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_transfer_direction dir)
 	}
 
 	if (WARN_ON(len)) {
-		dev_warn(&espi->pdev->dev, "len = %zu expected 0!", len);
+		dev_warn(&espi->pdev->dev, "len = %zu expected 0!\n", len);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -942,7 +942,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	/* make sure that the hardware is disabled */
 	ep93xx_spi_write_u8(espi, SSPCR1, 0);
 
-	error = spi_register_master(master);
+	error = devm_spi_register_master(&pdev->dev, master);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register SPI master\n");
 		goto fail_free_dma;
@@ -968,7 +968,6 @@ static int ep93xx_spi_remove(struct platform_device *pdev)
 
 	ep93xx_spi_release_dma(espi);
 
-	spi_unregister_master(master);
 	return 0;
 }
 

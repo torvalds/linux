@@ -613,7 +613,6 @@ static int imx_ssi_probe(struct platform_device *pdev)
 failed_pcm:
 	snd_soc_unregister_component(&pdev->dev);
 failed_register:
-	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(ssi->clk);
 failed_clk:
 	snd_soc_set_ac97_ops(NULL);
@@ -623,7 +622,6 @@ failed_clk:
 
 static int imx_ssi_remove(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 
 	if (!ssi->dma_init)
@@ -637,7 +635,6 @@ static int imx_ssi_remove(struct platform_device *pdev)
 	if (ssi->flags & IMX_SSI_USE_AC97)
 		ac97_ssi = NULL;
 
-	release_mem_region(res->start, resource_size(res));
 	clk_disable_unprepare(ssi->clk);
 	snd_soc_set_ac97_ops(NULL);
 

@@ -20,6 +20,8 @@ obj-$(CONFIG_IP_SET_HASH_IPPORTNET) += ip_set_hash_ipportnet.o
 obj-$(CONFIG_IP_SET_HASH_NET) += ip_set_hash_net.o
 obj-$(CONFIG_IP_SET_HASH_NETPORT) += ip_set_hash_netport.o
 obj-$(CONFIG_IP_SET_HASH_NETIFACE) += ip_set_hash_netiface.o
+obj-$(CONFIG_IP_SET_HASH_NETNET) += ip_set_hash_netnet.o
+obj-$(CONFIG_IP_SET_HASH_NETPORTNET) += ip_set_hash_netportnet.o
 
 # list types
 obj-$(CONFIG_IP_SET_LIST_SET) += ip_set_list_set.o

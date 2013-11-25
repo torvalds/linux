@@ -168,10 +168,14 @@ int bch_parse_uuid(const char *s, char *uuid)
 
 void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 {
-	uint64_t now		= local_clock();
-	uint64_t duration	= time_after64(now, start_time)
+	uint64_t now, duration, last;
+
+	spin_lock(&stats->lock);
+
+	now		= local_clock();
+	duration	= time_after64(now, start_time)
 		? now - start_time : 0;
-	uint64_t last		= time_after64(now, stats->last)
+	last		= time_after64(now, stats->last)
 		? now - stats->last : 0;
 
 	stats->max_duration = max(stats->max_duration, duration);
@@ -188,6 +192,8 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 	}
 
 	stats->last = now ?: 1;
+
+	spin_unlock(&stats->lock);
 }
 
 /**

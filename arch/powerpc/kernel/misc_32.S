@@ -659,6 +659,20 @@ _GLOBAL(__lshrdi3)
 	blr
 
 /*
+ * 64-bit comparison: __cmpdi2(s64 a, s64 b)
+ * Returns 0 if a < b, 1 if a == b, 2 if a > b.
+ */
+_GLOBAL(__cmpdi2)
+	cmpw	r3,r5
+	li	r3,1
+	bne	1f
+	cmplw	r4,r6
+	beqlr
+1:	li	r3,0
+	bltlr
+	li	r3,2
+	blr
+/*
  * 64-bit comparison: __ucmpdi2(u64 a, u64 b)
  * Returns 0 if a < b, 1 if a == b, 2 if a > b.
  */

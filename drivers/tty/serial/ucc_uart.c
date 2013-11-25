@@ -25,6 +25,8 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 
@@ -269,7 +271,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 			return 1;
 
 		bdp++;
-	};
+	}
 }
 
 /*

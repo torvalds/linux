@@ -954,10 +954,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 
 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
 
-	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
-		file->f_path.dentry->d_parent->d_name.name,
-		file->f_path.dentry->d_name.name, count,
-		(long long)(page_file_offset(page) + offset));
+	dprintk("NFS:       nfs_updatepage(%pD2 %d@%lld)\n",
+		file, count, (long long)(page_file_offset(page) + offset));
 
 	if (nfs_can_extend_write(file, page, inode)) {
 		count = max(count + offset, nfs_page_length(page));

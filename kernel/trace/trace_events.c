@@ -989,7 +989,7 @@ static ssize_t
 event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
 {
-	struct ftrace_event_call *call;
+	struct ftrace_event_file *file;
 	struct trace_seq *s;
 	int r = -ENODEV;
 
@@ -1004,12 +1004,12 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 	trace_seq_init(s);
 
 	mutex_lock(&event_mutex);
-	call = event_file_data(filp);
-	if (call)
-		print_event_filter(call, s);
+	file = event_file_data(filp);
+	if (file)
+		print_event_filter(file, s);
 	mutex_unlock(&event_mutex);
 
-	if (call)
+	if (file)
 		r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -1021,7 +1021,7 @@ static ssize_t
 event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
-	struct ftrace_event_call *call;
+	struct ftrace_event_file *file;
 	char *buf;
 	int err = -ENODEV;
 
@@ -1039,9 +1039,9 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	buf[cnt] = '\0';
 
 	mutex_lock(&event_mutex);
-	call = event_file_data(filp);
-	if (call)
-		err = apply_event_filter(call, buf);
+	file = event_file_data(filp);
+	if (file)
+		err = apply_event_filter(file, buf);
 	mutex_unlock(&event_mutex);
 
 	free_page((unsigned long) buf);
@@ -1061,6 +1061,9 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	struct ftrace_subsystem_dir *dir = NULL; /* Initialize for gcc */
 	struct trace_array *tr;
 	int ret;
+
+	if (tracing_is_disabled())
+		return -ENODEV;
 
 	/* Make sure the system still exists */
 	mutex_lock(&trace_types_lock);
@@ -1108,6 +1111,9 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 	struct trace_array *tr = inode->i_private;
 	int ret;
 
+	if (tracing_is_disabled())
+		return -ENODEV;
+
 	if (trace_array_get(tr) < 0)
 		return -ENODEV;
 
@@ -1124,11 +1130,12 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 	if (ret < 0) {
 		trace_array_put(tr);
 		kfree(dir);
+		return ret;
 	}
 
 	filp->private_data = dir;
 
-	return ret;
+	return 0;
 }
 
 static int subsystem_release(struct inode *inode, struct file *file)
@@ -1539,7 +1546,7 @@ event_create_dir(struct dentry *parent, struct ftrace_event_file *file)
 			return -1;
 		}
 	}
-	trace_create_file("filter", 0644, file->dir, call,
+	trace_create_file("filter", 0644, file->dir, file,
 			  &ftrace_event_filter_fops);
 
 	trace_create_file("format", 0444, file->dir, call,
@@ -1577,6 +1584,7 @@ static void event_remove(struct ftrace_event_call *call)
 		if (file->event_call != call)
 			continue;
 		ftrace_event_enable_disable(file, 0);
+		destroy_preds(file);
 		/*
 		 * The do_for_each_event_file() is
 		 * a double loop. After finding the call for this
@@ -1700,7 +1708,7 @@ static void __trace_remove_event_call(struct ftrace_event_call *call)
 {
 	event_remove(call);
 	trace_destroy_fields(call);
-	destroy_preds(call);
+	destroy_call_preds(call);
 }
 
 static int probe_remove_event_call(struct ftrace_event_call *call)

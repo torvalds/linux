@@ -1188,7 +1188,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.driver_data = info;
 	config.of_node = pdev->dev.of_node;
 
-	rdev = regulator_register(&info->desc, &config);
+	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register %s, %ld\n",
 				info->desc.name, PTR_ERR(rdev));
@@ -1217,7 +1217,6 @@ static int twlreg_remove(struct platform_device *pdev)
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct twlreg_info *info = rdev->reg_data;
 
-	regulator_unregister(rdev);
 	kfree(info);
 	return 0;
 }

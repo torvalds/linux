@@ -54,6 +54,28 @@ struct ehci_stats {
 	unsigned long		unlink;
 };
 
+/*
+ * Scheduling and budgeting information for periodic transfers, for both
+ * high-speed devices and full/low-speed devices lying behind a TT.
+ */
+struct ehci_per_sched {
+	struct usb_device	*udev;		/* access to the TT */
+	struct usb_host_endpoint *ep;
+	struct list_head	ps_list;	/* node on ehci_tt's ps_list */
+	u16			tt_usecs;	/* time on the FS/LS bus */
+	u16			cs_mask;	/* C-mask and S-mask bytes */
+	u16			period;		/* actual period in frames */
+	u16			phase;		/* actual phase, frame part */
+	u8			bw_phase;	/* same, for bandwidth
+						   reservation */
+	u8			phase_uf;	/* uframe part of the phase */
+	u8			usecs, c_usecs;	/* times on the HS bus */
+	u8			bw_uperiod;	/* period in microframes, for
+						   bandwidth reservation */
+	u8			bw_period;	/* same, in frames */
+};
+#define NO_FRAME	29999			/* frame not assigned yet */
+
 /* ehci_hcd->lock guards shared data against other CPUs:
  *   ehci_hcd:	async, unlink, periodic (and shadow), ...
  *   usb_host_endpoint: hcpriv
@@ -230,6 +252,15 @@ struct ehci_hcd {			/* one per controller */
 	struct dentry		*debug_dir;
 #endif
 
+	/* bandwidth usage */
+#define EHCI_BANDWIDTH_SIZE	64
+#define EHCI_BANDWIDTH_FRAMES	(EHCI_BANDWIDTH_SIZE >> 3)
+	u8			bandwidth[EHCI_BANDWIDTH_SIZE];
+						/* us allocated per uframe */
+	u8			tt_budget[EHCI_BANDWIDTH_SIZE];
+						/* us budgeted per uframe */
+	struct list_head	tt_list;
+
 	/* platform-specific data -- must come last */
 	unsigned long		priv[0] __aligned(sizeof(s64));
 };
@@ -385,6 +416,7 @@ struct ehci_qh {
 	struct list_head	intr_node;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
 	struct list_head	unlink_node;
+	struct ehci_per_sched	ps;		/* scheduling info */
 
 	unsigned		unlink_cycle;
 
@@ -398,16 +430,8 @@ struct ehci_qh {
 	u8			xacterrs;	/* XactErr retry counter */
 #define	QH_XACTERR_MAX		32		/* XactErr retry limit */
 
-	/* periodic schedule info */
-	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
-	u8			c_usecs;	/* ... split completion bw */
-	u16			tt_usecs;	/* tt downstream bandwidth */
-	unsigned short		period;		/* polling interval */
-	unsigned short		start;		/* where polling starts */
-#define NO_FRAME ((unsigned short)~0)			/* pick new start */
 
-	struct usb_device	*dev;		/* access to TT */
 	unsigned		is_out:1;	/* bulk or intr OUT */
 	unsigned		clearing_tt:1;	/* Clear-TT-Buf in progress */
 	unsigned		dequeue_during_giveback:1;
@@ -434,6 +458,7 @@ struct ehci_iso_packet {
 struct ehci_iso_sched {
 	struct list_head	td_list;
 	unsigned		span;
+	unsigned		first_packet;
 	struct ehci_iso_packet	packet [0];
 };
 
@@ -449,22 +474,17 @@ struct ehci_iso_stream {
 	u8			highspeed;
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
-	struct usb_device	*udev;
-	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
-	int			next_uframe;
+	struct ehci_per_sched	ps;		/* scheduling info */
+	unsigned		next_uframe;
 	__hc32			splits;
 
 	/* the rest is derived from the endpoint descriptor,
-	 * trusting urb->interval == f(epdesc->bInterval) and
 	 * including the extra info for hw_bufp[0..2]
 	 */
-	u8			usecs, c_usecs;
-	u16			interval;
-	u16			tt_usecs;
+	u16			uperiod;	/* period in uframes */
 	u16			maxp;
-	u16			raw_mask;
 	unsigned		bandwidth;
 
 	/* This is used to initialize iTD's hw_bufp fields */
@@ -576,6 +596,35 @@ struct ehci_fstn {
 	dma_addr_t		fstn_dma;
 	union ehci_shadow	fstn_next;	/* ptr to periodic q entry */
 } __attribute__ ((aligned (32)));
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * USB-2.0 Specification Sections 11.14 and 11.18
+ * Scheduling and budgeting split transactions using TTs
+ *
+ * A hub can have a single TT for all its ports, or multiple TTs (one for each
+ * port).  The bandwidth and budgeting information for the full/low-speed bus
+ * below each TT is self-contained and independent of the other TTs or the
+ * high-speed bus.
+ *
+ * "Bandwidth" refers to the number of microseconds on the FS/LS bus allocated
+ * to an interrupt or isochronous endpoint for each frame.  "Budget" refers to
+ * the best-case estimate of the number of full-speed bytes allocated to an
+ * endpoint for each microframe within an allocated frame.
+ *
+ * Removal of an endpoint invalidates a TT's budget.  Instead of trying to
+ * keep an up-to-date record, we recompute the budget when it is needed.
+ */
+
+struct ehci_tt {
+	u16			bandwidth[EHCI_BANDWIDTH_FRAMES];
+
+	struct list_head	tt_list;	/* List of all ehci_tt's */
+	struct list_head	ps_list;	/* Items using this TT */
+	struct usb_tt		*usb_tt;
+	int			tt_port;	/* TT port number */
+};
 
 /*-------------------------------------------------------------------------*/
 

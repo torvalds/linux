@@ -41,6 +41,8 @@ module_param(debug, bool, 0644);
 #define TRANS_QUEUED		(1 << 0)
 /* Instance is currently running in hardware */
 #define TRANS_RUNNING		(1 << 1)
+/* Instance is currently aborting */
+#define TRANS_ABORT		(1 << 2)
 
 
 /* Offset base for buffers on the destination queue - used to distinguish
@@ -221,6 +223,14 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	}
 
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
+
+	/* If the context is aborted then don't schedule it */
+	if (m2m_ctx->job_flags & TRANS_ABORT) {
+		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+		dprintk("Aborted context\n");
+		return;
+	}
+
 	if (m2m_ctx->job_flags & TRANS_QUEUED) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("On job queue already\n");
@@ -280,6 +290,8 @@ static void v4l2_m2m_cancel_job(struct v4l2_m2m_ctx *m2m_ctx)
 
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+
+	m2m_ctx->job_flags |= TRANS_ABORT;
 	if (m2m_ctx->job_flags & TRANS_RUNNING) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 		m2m_dev->m2m_ops->job_abort(m2m_ctx->priv);
@@ -480,13 +492,15 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
 	/* We should not be scheduled anymore, since we're dropping a queue. */
-	INIT_LIST_HEAD(&m2m_ctx->queue);
+	if (m2m_ctx->job_flags & TRANS_QUEUED)
+		list_del(&m2m_ctx->queue);
 	m2m_ctx->job_flags = 0;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
 	/* Drop queue, since streamoff returns device to the same state as after
 	 * calling reqbufs. */
 	INIT_LIST_HEAD(&q_ctx->rdy_queue);
+	q_ctx->num_rdy = 0;
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 
 	if (m2m_dev->curr_ctx == m2m_ctx) {

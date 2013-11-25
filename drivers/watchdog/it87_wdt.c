@@ -772,4 +772,3 @@ module_exit(it87_wdt_exit);
 MODULE_AUTHOR("Oliver Schuster");
 MODULE_DESCRIPTION("Hardware Watchdog Device Driver for IT87xx EC-LPC I/O");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

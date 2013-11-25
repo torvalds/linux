@@ -564,6 +564,7 @@ static ssize_t counter_set(struct kobject *kobj,
 	acpi_event_status status;
 	acpi_handle handle;
 	int result = 0;
+	unsigned long tmp;
 
 	if (index == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI) {
 		int i;
@@ -596,8 +597,10 @@ static ssize_t counter_set(struct kobject *kobj,
 		else if (!strcmp(buf, "clear\n") &&
 			 (status & ACPI_EVENT_FLAG_SET))
 			result = acpi_clear_gpe(handle, index);
+		else if (!kstrtoul(buf, 0, &tmp))
+			all_counters[index].count = tmp;
 		else
-			all_counters[index].count = strtoul(buf, NULL, 0);
+			result = -EINVAL;
 	} else if (index < num_gpes + ACPI_NUM_FIXED_EVENTS) {
 		int event = index - num_gpes;
 		if (!strcmp(buf, "disable\n") &&
@@ -609,8 +612,10 @@ static ssize_t counter_set(struct kobject *kobj,
 		else if (!strcmp(buf, "clear\n") &&
 			 (status & ACPI_EVENT_FLAG_SET))
 			result = acpi_clear_event(event);
+		else if (!kstrtoul(buf, 0, &tmp))
+			all_counters[index].count = tmp;
 		else
-			all_counters[index].count = strtoul(buf, NULL, 0);
+			result = -EINVAL;
 	} else
 		all_counters[index].count = strtoul(buf, NULL, 0);
 
@@ -762,13 +767,8 @@ void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
 	if (!hotplug_kobj)
 		goto err_out;
 
-	kobject_init(&hotplug->kobj, &acpi_hotplug_profile_ktype);
-	error = kobject_set_name(&hotplug->kobj, "%s", name);
-	if (error)
-		goto err_out;
-
-	hotplug->kobj.parent = hotplug_kobj;
-	error = kobject_add(&hotplug->kobj, hotplug_kobj, NULL);
+	error = kobject_init_and_add(&hotplug->kobj,
+		&acpi_hotplug_profile_ktype, hotplug_kobj, "%s", name);
 	if (error)
 		goto err_out;
 

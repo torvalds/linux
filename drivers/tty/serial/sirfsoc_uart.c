@@ -529,7 +529,7 @@ static void sirfsoc_rx_tmo_process_tl(unsigned long param)
 	while (sirfport->rx_completed != sirfport->rx_issued) {
 		sirfsoc_uart_insert_rx_buf_to_tty(sirfport,
 					SIRFSOC_RX_DMA_BUF_SIZE);
-		sirfsoc_rx_submit_one_dma_desc(port, sirfport->rx_completed++);
+		sirfport->rx_completed++;
 		sirfport->rx_completed %= SIRFSOC_RX_LOOP_BUF_CNT;
 	}
 	count = CIRC_CNT(sirfport->rx_dma_items[sirfport->rx_issued].xmit.head,
@@ -706,12 +706,19 @@ static void sirfsoc_uart_rx_dma_complete_tl(unsigned long param)
 {
 	struct sirfsoc_uart_port *sirfport = (struct sirfsoc_uart_port *)param;
 	struct uart_port *port = &sirfport->port;
+	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
+	struct sirfsoc_int_en *uint_en = &sirfport->uart_reg->uart_int_en;
 	unsigned long flags;
 	spin_lock_irqsave(&sirfport->rx_lock, flags);
 	while (sirfport->rx_completed != sirfport->rx_issued) {
 		sirfsoc_uart_insert_rx_buf_to_tty(sirfport,
 					SIRFSOC_RX_DMA_BUF_SIZE);
-		sirfsoc_rx_submit_one_dma_desc(port, sirfport->rx_completed++);
+		if (rd_regl(port, ureg->sirfsoc_int_en_reg) &
+				uint_en->sirfsoc_rx_timeout_en)
+			sirfsoc_rx_submit_one_dma_desc(port,
+					sirfport->rx_completed++);
+		else
+			sirfport->rx_completed++;
 		sirfport->rx_completed %= SIRFSOC_RX_LOOP_BUF_CNT;
 	}
 	spin_unlock_irqrestore(&sirfport->rx_lock, flags);

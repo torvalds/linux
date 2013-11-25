@@ -964,7 +964,7 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static int sh_mmcif_clk_update(struct sh_mmcif_host *host)
 {
-	int ret = clk_enable(host->hclk);
+	int ret = clk_prepare_enable(host->hclk);
 
 	if (!ret) {
 		host->clk = clk_get_rate(host->hclk);
@@ -1018,7 +1018,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		if (host->power) {
 			pm_runtime_put_sync(&host->pd->dev);
-			clk_disable(host->hclk);
+			clk_disable_unprepare(host->hclk);
 			host->power = false;
 			if (ios->power_mode == MMC_POWER_OFF)
 				sh_mmcif_set_power(host, ios);
@@ -1466,7 +1466,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	mutex_init(&host->thread_lock);
 
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
 		goto emmcaddh;
@@ -1487,7 +1487,7 @@ ereqirq1:
 ereqirq0:
 	pm_runtime_suspend(&pdev->dev);
 eresume:
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 eclkupdate:
 	clk_put(host->hclk);
 eclkget:
@@ -1505,7 +1505,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	int irq[2];
 
 	host->dying = true;
-	clk_enable(host->hclk);
+	clk_prepare_enable(host->hclk);
 	pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);
@@ -1530,7 +1530,7 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	if (irq[1] >= 0)
 		free_irq(irq[1], host);
 
-	clk_disable(host->hclk);
+	clk_disable_unprepare(host->hclk);
 	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1538,28 +1538,21 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sh_mmcif_suspend(struct device *dev)
 {
 	struct sh_mmcif_host *host = dev_get_drvdata(dev);
-	int ret = mmc_suspend_host(host->mmc);
 
-	if (!ret)
-		sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
+	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
-	return ret;
+	return 0;
 }
 
 static int sh_mmcif_resume(struct device *dev)
 {
-	struct sh_mmcif_host *host = dev_get_drvdata(dev);
-
-	return mmc_resume_host(host->mmc);
+	return 0;
 }
-#else
-#define sh_mmcif_suspend	NULL
-#define sh_mmcif_resume		NULL
-#endif	/* CONFIG_PM */
+#endif
 
 static const struct of_device_id mmcif_of_match[] = {
 	{ .compatible = "renesas,sh-mmcif" },
@@ -1568,8 +1561,7 @@ static const struct of_device_id mmcif_of_match[] = {
 MODULE_DEVICE_TABLE(of, mmcif_of_match);
 
 static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
-	.suspend = sh_mmcif_suspend,
-	.resume = sh_mmcif_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sh_mmcif_suspend, sh_mmcif_resume)
 };
 
 static struct platform_driver sh_mmcif_driver = {

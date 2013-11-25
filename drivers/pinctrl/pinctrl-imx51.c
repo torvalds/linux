@@ -782,7 +782,7 @@ static struct platform_driver imx51_pinctrl_driver = {
 	.driver = {
 		.name = "imx51-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(imx51_pinctrl_of_match),
+		.of_match_table = imx51_pinctrl_of_match,
 	},
 	.probe = imx51_pinctrl_probe,
 	.remove = imx_pinctrl_remove,

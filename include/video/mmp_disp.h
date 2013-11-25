@@ -91,6 +91,11 @@ struct mmp_win {
 	u16	up_crop;
 	u16	bottom_crop;
 	int	pix_fmt;
+	/*
+	 * pitch[0]: graphics/video layer line length or y pitch
+	 * pitch[1]/pitch[2]: video u/v pitch if non-zero
+	 */
+	u32	pitch[3];
 };
 
 struct mmp_addr {
@@ -334,6 +339,7 @@ struct mmp_mach_path_config {
 	int output_type;
 	u32 path_config;
 	u32 link_config;
+	u32 dsi_rbswap;
 };
 
 struct mmp_mach_plat_info {

@@ -690,8 +690,7 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 
 	/* set the lane count on the sink */
 	tmp = dp_info->dp_lane_count;
-	if (dp_info->dpcd[DP_DPCD_REV] >= 0x11 &&
-	    dp_info->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)
+	if (drm_dp_enhanced_frame_cap(dp_info->dpcd))
 		tmp |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LANE_COUNT_SET, tmp);
 

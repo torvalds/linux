@@ -922,8 +922,8 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	u32 i, *ptr;
 	u8 *payload = firmware->payload;
 	int rc = 0;
-	firmware->start_address = le32_to_cpu(firmware->start_address);
-	firmware->length = le32_to_cpu(firmware->length);
+	firmware->start_address = le32_to_cpup((__le32 *)&firmware->start_address);
+	firmware->length = le32_to_cpup((__le32 *)&firmware->length);
 
 	mem_address = firmware->start_address;
 
@@ -982,7 +982,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	if (rc < 0)
 		goto exit_fw_download;
 
-	sms_err("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
+	sms_debug("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
 		calc_checksum);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_VALIDITY_REQ,
 			sizeof(msg->x_msg_header) +
@@ -1562,7 +1562,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		{
 			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
 
-			sms_err("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
+			sms_debug("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
 				validity->msg_data[0]);
 			complete(&coredev->data_validity_done);
 			break;

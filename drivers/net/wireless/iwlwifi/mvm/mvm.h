@@ -73,7 +73,6 @@
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
-#include "iwl-trans.h"
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"
@@ -162,6 +161,7 @@ enum iwl_power_scheme {
 struct iwl_mvm_power_ops {
 	int (*power_update_mode)(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
+	int (*power_update_device_mode)(struct iwl_mvm *mvm);
 	int (*power_disable)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	int (*power_dbgfs_read)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -241,12 +241,18 @@ enum iwl_mvm_smps_type_request {
 * @last_beacon_signal: last beacon rssi signal in dbm
 * @ave_beacon_signal: average beacon signal
 * @last_cqm_event: rssi of the last cqm event
+* @bt_coex_min_thold: minimum threshold for BT coex
+* @bt_coex_max_thold: maximum threshold for BT coex
+* @last_bt_coex_event: rssi of the last BT coex event
 */
 struct iwl_mvm_vif_bf_data {
 	bool bf_enabled;
 	bool ba_enabled;
 	s8 ave_beacon_signal;
 	s8 last_cqm_event;
+	s8 bt_coex_min_thold;
+	s8 bt_coex_max_thold;
+	s8 last_bt_coex_event;
 };
 
 /**
@@ -255,8 +261,8 @@ struct iwl_mvm_vif_bf_data {
  * @color: to solve races upon MAC addition and removal
  * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
  * @uploaded: indicates the MAC context has been added to the device
- * @ap_active: indicates that ap context is configured, and that the interface
- *  should get quota etc.
+ * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
+ *	should get quota etc.
  * @monitor_active: indicates that monitor context is configured, and that the
  * interface should get quota etc.
  * @queue_params: QoS params for this MAC
@@ -272,7 +278,7 @@ struct iwl_mvm_vif {
 	u8 ap_sta_id;
 
 	bool uploaded;
-	bool ap_active;
+	bool ap_ibss_active;
 	bool monitor_active;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -306,6 +312,9 @@ struct iwl_mvm_vif {
 
 	int tx_key_idx;
 
+	bool seqno_valid;
+	u16 seqno;
+
 #if IS_ENABLED(CONFIG_IPV6)
 	/* IPv6 addresses for WoWLAN */
 	struct in6_addr target_ipv6_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX];
@@ -333,6 +342,7 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 enum iwl_scan_status {
 	IWL_MVM_SCAN_NONE,
 	IWL_MVM_SCAN_OS,
+	IWL_MVM_SCAN_SCHED,
 };
 
 /**
@@ -434,7 +444,7 @@ struct iwl_mvm {
 
 	enum iwl_ucode_type cur_ucode;
 	bool ucode_loaded;
-	bool init_ucode_run;
+	bool init_ucode_complete;
 	u32 error_event_table;
 	u32 log_event_table;
 
@@ -470,6 +480,9 @@ struct iwl_mvm {
 	enum iwl_scan_status scan_status;
 	struct iwl_scan_cmd *scan_cmd;
 
+	/* rx chain antennas set through debugfs for the scan command */
+	u8 scan_rx_ant;
+
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
 
@@ -479,7 +492,8 @@ struct iwl_mvm {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
-	bool prevent_power_down_d3;
+	bool disable_power_off;
+	bool disable_power_off_d3;
 #endif
 
 	struct iwl_mvm_phy_ctxt phy_ctxts[NUM_PHY_CTX];
@@ -523,12 +537,23 @@ struct iwl_mvm {
 	/* BT-Coex */
 	u8 bt_kill_msk;
 	struct iwl_bt_coex_profile_notif last_bt_notif;
+	struct iwl_bt_coex_ci_cmd last_bt_ci_cmd;
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
 	s32 temperature;	/* Celsius */
 
 	const struct iwl_mvm_power_ops *pm_ops;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	u32 noa_duration;
+	struct ieee80211_vif *noa_vif;
+#endif
+
+	/* Tx queues */
+	u8 aux_queue;
+	u8 first_agg_queue;
+	u8 last_agg_queue;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -570,6 +595,9 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
 /* Utils */
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
 					enum ieee80211_band band);
+void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
+			       enum ieee80211_band band,
+			       struct ieee80211_tx_rate *r);
 u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 void iwl_mvm_dump_sram(struct iwl_mvm *mvm);
@@ -608,6 +636,7 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm);
+int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
 
 int iwl_mvm_up(struct iwl_mvm *mvm);
 int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm);
@@ -682,6 +711,23 @@ int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
 void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 
+/* Scheduled scan */
+int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
+					   struct iwl_rx_cmd_buffer *rxb,
+					   struct iwl_device_cmd *cmd);
+int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct cfg80211_sched_scan_request *req,
+			      struct ieee80211_sched_scan_ies *ies);
+int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
+				       struct cfg80211_sched_scan_request *req);
+int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
+			     struct cfg80211_sched_scan_request *req);
+void iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm);
+int iwl_mvm_rx_sched_scan_results(struct iwl_mvm *mvm,
+				  struct iwl_rx_cmd_buffer *rxb,
+				  struct iwl_device_cmd *cmd);
+
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir);
@@ -720,6 +766,13 @@ static inline int iwl_mvm_power_disable(struct iwl_mvm *mvm,
 	return mvm->pm_ops->power_disable(mvm, vif);
 }
 
+static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
+{
+	if (mvm->pm_ops->power_update_device_mode)
+		return mvm->pm_ops->power_update_device_mode(mvm);
+	return 0;
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline int iwl_mvm_power_dbgfs_read(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
@@ -745,6 +798,15 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
+#ifdef CONFIG_PM_SLEEP
+void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
+#else
+static inline void
+iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+}
+#endif
 
 /* BT Coex */
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);
@@ -754,7 +816,20 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_device_cmd *cmd);
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event rssi_event);
-void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm);
+u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta);
+bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
+				     struct ieee80211_sta *sta);
+
+enum iwl_bt_kill_msk {
+	BT_KILL_MSK_DEFAULT,
+	BT_KILL_MSK_SCO_HID_A2DP,
+	BT_KILL_MSK_REDUCED_TXPOW,
+	BT_KILL_MSK_MAX,
+};
+extern const u32 iwl_bt_ack_kill_msk[BT_KILL_MSK_MAX];
+extern const u32 iwl_bt_cts_kill_msk[BT_KILL_MSK_MAX];
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS

@@ -1,7 +1,7 @@
 /*
  * intel_idle.c - native hardware idle loop for modern Intel processors
  *
- * Copyright (c) 2010, Intel Corporation.
+ * Copyright (c) 2013, Intel Corporation.
  * Len Brown <len.brown@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -123,7 +123,7 @@ static struct cpuidle_state *cpuidle_state_table;
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
  */
-static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state nehalem_cstates[] __initdata = {
 	{
 		.name = "C1-NHM",
 		.desc = "MWAIT 0x00",
@@ -156,7 +156,7 @@ static struct cpuidle_state nehalem_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state snb_cstates[] __initdata = {
 	{
 		.name = "C1-SNB",
 		.desc = "MWAIT 0x00",
@@ -196,7 +196,7 @@ static struct cpuidle_state snb_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state ivb_cstates[] __initdata = {
 	{
 		.name = "C1-IVB",
 		.desc = "MWAIT 0x00",
@@ -236,7 +236,7 @@ static struct cpuidle_state ivb_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state hsw_cstates[] __initdata = {
 	{
 		.name = "C1-HSW",
 		.desc = "MWAIT 0x00",
@@ -297,7 +297,7 @@ static struct cpuidle_state hsw_cstates[CPUIDLE_STATE_MAX] = {
 		.enter = NULL }
 };
 
-static struct cpuidle_state atom_cstates[CPUIDLE_STATE_MAX] = {
+static struct cpuidle_state atom_cstates[] __initdata = {
 	{
 		.name = "C1E-ATM",
 		.desc = "MWAIT 0x00",
@@ -329,6 +329,22 @@ static struct cpuidle_state atom_cstates[CPUIDLE_STATE_MAX] = {
 	{
 		.enter = NULL }
 };
+static struct cpuidle_state avn_cstates[CPUIDLE_STATE_MAX] = {
+	{
+		.name = "C1-AVN",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00) | CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 2,
+		.target_residency = 2,
+		.enter = &intel_idle },
+	{
+		.name = "C6-AVN",
+		.desc = "MWAIT 0x51",
+		.flags = MWAIT2flg(0x58) | CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 15,
+		.target_residency = 45,
+		.enter = &intel_idle },
+};
 
 /**
  * intel_idle
@@ -359,7 +375,7 @@ static int intel_idle(struct cpuidle_device *dev,
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 
-	if (!need_resched()) {
+	if (!current_set_polling_and_test()) {
 
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
@@ -390,7 +406,7 @@ static int cpu_hotplug_notify(struct notifier_block *n,
 	int hotcpu = (unsigned long)hcpu;
 	struct cpuidle_device *dev;
 
-	switch (action & 0xf) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 
 		if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE)
@@ -462,6 +478,11 @@ static const struct idle_cpu idle_cpu_hsw = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_avn = {
+	.state_table = avn_cstates,
+	.disable_promotion_to_c1e = true,
+};
+
 #define ICPU(model, cpu) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&cpu }
 
@@ -483,6 +504,7 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x3f, idle_cpu_hsw),
 	ICPU(0x45, idle_cpu_hsw),
 	ICPU(0x46, idle_cpu_hsw),
+	ICPU(0x4D, idle_cpu_avn),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
@@ -490,7 +512,7 @@ MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
 /*
  * intel_idle_probe()
  */
-static int intel_idle_probe(void)
+static int __init intel_idle_probe(void)
 {
 	unsigned int eax, ebx, ecx;
 	const struct x86_cpu_id *id;
@@ -558,7 +580,7 @@ static void intel_idle_cpuidle_devices_uninit(void)
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static int intel_idle_cpuidle_driver_init(void)
+static int __init intel_idle_cpuidle_driver_init(void)
 {
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
@@ -628,7 +650,7 @@ static int intel_idle_cpu_init(int cpu)
 		int num_substates, mwait_hint, mwait_cstate, mwait_substate;
 
 		if (cpuidle_state_table[cstate].enter == NULL)
-			continue;
+			break;
 
 		if (cstate + 1 > max_cstate) {
 			printk(PREFIX "max_cstate %d reached\n", max_cstate);

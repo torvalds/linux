@@ -784,8 +784,8 @@ static const unsigned armv8_pmuv3_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 /*
  * PMXEVTYPER: Event selection reg
  */
-#define	ARMV8_EVTYPE_MASK	0xc80000ff	/* Mask for writable bits */
-#define	ARMV8_EVTYPE_EVENT	0xff		/* Mask for EVENT bits */
+#define	ARMV8_EVTYPE_MASK	0xc80003ff	/* Mask for writable bits */
+#define	ARMV8_EVTYPE_EVENT	0x3ff		/* Mask for EVENT bits */
 
 /*
  * Event filters for PMUv3
@@ -1044,7 +1044,7 @@ static irqreturn_t armv8pmu_handle_irq(int irq_num, void *dev)
 	 */
 	regs = get_irq_regs();
 
-	cpuc = &__get_cpu_var(cpu_hw_events);
+	cpuc = this_cpu_ptr(&cpu_hw_events);
 	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
@@ -1175,7 +1175,8 @@ static void armv8pmu_reset(void *info)
 static int armv8_pmuv3_map_event(struct perf_event *event)
 {
 	return map_cpu_event(event, &armv8_pmuv3_perf_map,
-				&armv8_pmuv3_perf_cache_map, 0xFF);
+				&armv8_pmuv3_perf_cache_map,
+				ARMV8_EVTYPE_EVENT);
 }
 
 static struct arm_pmu armv8pmu = {
@@ -1257,7 +1258,7 @@ device_initcall(register_pmu_driver);
 
 static struct pmu_hw_events *armpmu_get_cpu_events(void)
 {
-	return &__get_cpu_var(cpu_hw_events);
+	return this_cpu_ptr(&cpu_hw_events);
 }
 
 static void __init cpu_pmu_init(struct arm_pmu *armpmu)

@@ -49,6 +49,7 @@ static int st_press_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id st_press_id_table[] = {
+	{ LPS001WP_PRESS_DEV_NAME },
 	{ LPS331AP_PRESS_DEV_NAME },
 	{},
 };

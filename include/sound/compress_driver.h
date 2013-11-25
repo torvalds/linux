@@ -171,4 +171,13 @@ static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
 	wake_up(&stream->runtime->sleep);
 }
 
+static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
+{
+	if (snd_BUG_ON(!stream))
+		return;
+
+	stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+	wake_up(&stream->runtime->sleep);
+}
+
 #endif

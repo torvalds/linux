@@ -26,7 +26,6 @@
 static struct clk *cpu_clk;
 static struct clk *dmc0_clk;
 static struct clk *dmc1_clk;
-static struct cpufreq_freqs freqs;
 static DEFINE_MUTEX(set_freq_lock);
 
 /* APLL M,P,S values for 1G/800Mhz */
@@ -36,16 +35,7 @@ static DEFINE_MUTEX(set_freq_lock);
 /* Use 800MHz when entering sleep mode */
 #define SLEEP_FREQ	(800 * 1000)
 
-/*
- * relation has an additional symantics other than the standard of cpufreq
- * DISALBE_FURTHER_CPUFREQ: disable further access to target
- * ENABLE_FURTUER_CPUFREQ: enable access to target
- */
-enum cpufreq_access {
-	DISABLE_FURTHER_CPUFREQ = 0x10,
-	ENABLE_FURTHER_CPUFREQ = 0x20,
-};
-
+/* Tracks if cpu freqency can be updated anymore */
 static bool no_cpufreq_access;
 
 /*
@@ -174,14 +164,6 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	__raw_writel(tmp1, reg);
 }
 
-static int s5pv210_verify_speed(struct cpufreq_policy *policy)
-{
-	if (policy->cpu)
-		return -EINVAL;
-
-	return cpufreq_frequency_table_verify(policy, s5pv210_freq_table);
-}
-
 static unsigned int s5pv210_getspeed(unsigned int cpu)
 {
 	if (cpu)
@@ -190,21 +172,17 @@ static unsigned int s5pv210_getspeed(unsigned int cpu)
 	return clk_get_rate(cpu_clk) / 1000;
 }
 
-static int s5pv210_target(struct cpufreq_policy *policy,
-			  unsigned int target_freq,
-			  unsigned int relation)
+static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned long reg;
-	unsigned int index, priv_index;
+	unsigned int priv_index;
 	unsigned int pll_changing = 0;
 	unsigned int bus_speed_changing = 0;
+	unsigned int old_freq, new_freq;
 	int arm_volt, int_volt;
 	int ret = 0;
 
 	mutex_lock(&set_freq_lock);
-
-	if (relation & ENABLE_FURTHER_CPUFREQ)
-		no_cpufreq_access = false;
 
 	if (no_cpufreq_access) {
 #ifdef CONFIG_PM_VERBOSE
@@ -215,27 +193,13 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		goto exit;
 	}
 
-	if (relation & DISABLE_FURTHER_CPUFREQ)
-		no_cpufreq_access = true;
-
-	relation &= ~(ENABLE_FURTHER_CPUFREQ | DISABLE_FURTHER_CPUFREQ);
-
-	freqs.old = s5pv210_getspeed(0);
-
-	if (cpufreq_frequency_table_target(policy, s5pv210_freq_table,
-					   target_freq, relation, &index)) {
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	freqs.new = s5pv210_freq_table[index].frequency;
-
-	if (freqs.new == freqs.old)
-		goto exit;
+	old_freq = s5pv210_getspeed(0);
+	new_freq = s5pv210_freq_table[index].frequency;
 
 	/* Finding current running level index */
 	if (cpufreq_frequency_table_target(policy, s5pv210_freq_table,
-					   freqs.old, relation, &priv_index)) {
+					   old_freq, CPUFREQ_RELATION_H,
+					   &priv_index)) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -243,7 +207,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	arm_volt = dvs_conf[index].arm_volt;
 	int_volt = dvs_conf[index].int_volt;
 
-	if (freqs.new > freqs.old) {
+	if (new_freq > old_freq) {
 		ret = regulator_set_voltage(arm_regulator,
 				arm_volt, arm_volt_max);
 		if (ret)
@@ -254,8 +218,6 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		if (ret)
 			goto exit;
 	}
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* Check if there need to change PLL */
 	if ((index == L0) || (priv_index == L0))
@@ -467,9 +429,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	if (freqs.new < freqs.old) {
+	if (new_freq < old_freq) {
 		regulator_set_voltage(int_regulator,
 				int_volt, int_volt_max);
 
@@ -551,13 +511,7 @@ static int __init s5pv210_cpu_init(struct cpufreq_policy *policy)
 	s5pv210_dram_conf[1].refresh = (__raw_readl(S5P_VA_DMC1 + 0x30) * 1000);
 	s5pv210_dram_conf[1].freq = clk_get_rate(dmc1_clk);
 
-	policy->cur = policy->min = policy->max = s5pv210_getspeed(0);
-
-	cpufreq_frequency_table_get_attr(s5pv210_freq_table, policy->cpu);
-
-	policy->cpuinfo.transition_latency = 40000;
-
-	return cpufreq_frequency_table_cpuinfo(policy, s5pv210_freq_table);
+	return cpufreq_generic_init(policy, s5pv210_freq_table, 40000);
 
 out_dmc1:
 	clk_put(dmc0_clk);
@@ -573,16 +527,18 @@ static int s5pv210_cpufreq_notifier_event(struct notifier_block *this,
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
-		ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
-					    DISABLE_FURTHER_CPUFREQ);
+		ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
 		if (ret < 0)
 			return NOTIFY_BAD;
 
+		/* Disable updation of cpu frequency */
+		no_cpufreq_access = true;
 		return NOTIFY_OK;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
-				      ENABLE_FURTHER_CPUFREQ);
+		/* Enable updation of cpu frequency */
+		no_cpufreq_access = false;
+		cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
 
 		return NOTIFY_OK;
 	}
@@ -595,18 +551,18 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 {
 	int ret;
 
-	ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
-				    DISABLE_FURTHER_CPUFREQ);
+	ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ, 0);
 	if (ret < 0)
 		return NOTIFY_BAD;
 
+	no_cpufreq_access = true;
 	return NOTIFY_DONE;
 }
 
 static struct cpufreq_driver s5pv210_driver = {
 	.flags		= CPUFREQ_STICKY,
-	.verify		= s5pv210_verify_speed,
-	.target		= s5pv210_target,
+	.verify		= cpufreq_generic_frequency_table_verify,
+	.target_index	= s5pv210_target,
 	.get		= s5pv210_getspeed,
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",

@@ -94,6 +94,7 @@
  *
  */
 #include <linux/pm_runtime.h>
+#include <linux/shdma-base.h>
 #include "rsnd.h"
 
 #define RSND_RATES SNDRV_PCM_RATE_8000_96000
@@ -103,53 +104,8 @@
  *	rsnd_platform functions
  */
 #define rsnd_platform_call(priv, dai, func, param...)	\
-	(!(priv->info->func) ? -ENODEV :		\
+	(!(priv->info->func) ? 0 :		\
 	 priv->info->func(param))
-
-
-/*
- *	basic function
- */
-u32 rsnd_read(struct rsnd_priv *priv,
-	      struct rsnd_mod *mod, enum rsnd_reg reg)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-
-	BUG_ON(!base);
-
-	return ioread32(base);
-}
-
-void rsnd_write(struct rsnd_priv *priv,
-		struct rsnd_mod *mod,
-		enum rsnd_reg reg, u32 data)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	BUG_ON(!base);
-
-	dev_dbg(dev, "w %p : %08x\n", base, data);
-
-	iowrite32(data, base);
-}
-
-void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
-	       enum rsnd_reg reg, u32 mask, u32 data)
-{
-	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 val;
-
-	BUG_ON(!base);
-
-	val = ioread32(base);
-	val &= ~mask;
-	val |= data & mask;
-	iowrite32(val, base);
-
-	dev_dbg(dev, "s %p : %08x\n", base, val);
-}
 
 /*
  *	rsnd_mod functions
@@ -244,21 +200,13 @@ static void rsnd_dma_do_work(struct work_struct *work)
 			return;
 		}
 
+		dma_async_issue_pending(dma->chan);
 	}
-
-	dma_async_issue_pending(dma->chan);
 }
 
 int rsnd_dma_available(struct rsnd_dma *dma)
 {
 	return !!dma->chan;
-}
-
-static bool rsnd_dma_filter(struct dma_chan *chan, void *param)
-{
-	chan->private = param;
-
-	return true;
 }
 
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
@@ -268,7 +216,9 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		  int (*complete)(struct rsnd_dma *dma))
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct dma_slave_config cfg;
 	dma_cap_mask_t mask;
+	int ret;
 
 	if (dma->chan) {
 		dev_err(dev, "it already has dma channel\n");
@@ -278,14 +228,22 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	dma->slave.shdma_slave.slave_id = id;
-
-	dma->chan = dma_request_channel(mask, rsnd_dma_filter,
-					&dma->slave.shdma_slave);
+	dma->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+						     (void *)id, dev,
+						     is_play ? "tx" : "rx");
 	if (!dma->chan) {
 		dev_err(dev, "can't get dma channel\n");
 		return -EIO;
 	}
+
+	cfg.slave_id	= id;
+	cfg.dst_addr	= 0; /* use default addr when playback */
+	cfg.src_addr	= 0; /* use default addr when capture */
+	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+
+	ret = dmaengine_slave_config(dma->chan, &cfg);
+	if (ret < 0)
+		goto rsnd_dma_init_err;
 
 	dma->dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	dma->priv = priv;
@@ -294,6 +252,11 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	INIT_WORK(&dma->work, rsnd_dma_do_work);
 
 	return 0;
+
+rsnd_dma_init_err:
+	rsnd_dma_quit(priv, dma);
+
+	return ret;
 }
 
 void  rsnd_dma_quit(struct rsnd_priv *priv,
@@ -324,15 +287,13 @@ int rsnd_dai_connect(struct rsnd_dai *rdai,
 		     struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	if (!mod) {
-		dev_err(dev, "NULL mod\n");
+	if (!mod)
 		return -EIO;
-	}
 
 	if (!list_empty(&mod->list)) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
 		dev_err(dev, "%s%d is not empty\n",
 			rsnd_mod_name(mod),
 			rsnd_mod_id(mod));
@@ -363,6 +324,9 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
+	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+		return NULL;
+
 	return priv->rdai + id;
 }
 

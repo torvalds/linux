@@ -97,6 +97,7 @@ void ipu_idmac_put(struct ipuv3_channel *);
 
 int ipu_idmac_enable_channel(struct ipuv3_channel *channel);
 int ipu_idmac_disable_channel(struct ipuv3_channel *channel);
+int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms);
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer);
@@ -283,7 +284,7 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 		int width);
 
 int ipu_cpmem_set_format_rgb(struct ipu_ch_param __iomem *,
-		struct ipu_rgb *rgb);
+		const struct ipu_rgb *rgb);
 
 static inline void ipu_cpmem_interlaced_scan(struct ipu_ch_param *p,
 		int stride)
@@ -303,6 +304,7 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat);
 int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 		struct ipu_image *image);
 
+enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
 
 static inline void ipu_cpmem_set_burstsize(struct ipu_ch_param __iomem *p,

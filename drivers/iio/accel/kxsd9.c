@@ -222,7 +222,6 @@ static int kxsd9_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct kxsd9_state *st;
-	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -244,11 +243,7 @@ static int kxsd9_probe(struct spi_device *spi)
 	spi_setup(spi);
 	kxsd9_power_up(st);
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 static int kxsd9_remove(struct spi_device *spi)

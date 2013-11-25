@@ -217,12 +217,12 @@ Not supported:
   would be enabled with ALSA kcontrols.
 
 - Audio policy/resource management. This API does not provide any
-  hooks to query the utilization of the audio DSP, nor any premption
+  hooks to query the utilization of the audio DSP, nor any preemption
   mechanisms.
 
-- No notion of underun/overrun. Since the bytes written are compressed
+- No notion of underrun/overrun. Since the bytes written are compressed
   in nature and data written/read doesn't translate directly to
-  rendered output in time, this does not deal with underrun/overun and
+  rendered output in time, this does not deal with underrun/overrun and
   maybe dealt in user-library
 
 Credits:

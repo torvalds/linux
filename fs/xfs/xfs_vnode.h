@@ -25,14 +25,6 @@ struct xfs_inode;
 struct attrlist_cursor_kern;
 
 /*
- * Return values for xfs_inactive.  A return value of
- * VN_INACTIVE_NOCACHE implies that the file system behavior
- * has disassociated its state and bhv_desc_t from the vnode.
- */
-#define	VN_INACTIVE_CACHE	0
-#define	VN_INACTIVE_NOCACHE	1
-
-/*
  * Flags for read/write calls - same values as IRIX
  */
 #define IO_ISDIRECT	0x00004		/* bypass page cache */

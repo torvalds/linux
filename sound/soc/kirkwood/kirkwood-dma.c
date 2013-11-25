@@ -29,9 +29,7 @@
 #define KIRKWOOD_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | \
-	 SNDRV_PCM_FMTBIT_S32_LE | \
-	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE | \
-	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_BE)
+	 SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct kirkwood_dma_data *kirkwood_priv(struct snd_pcm_substream *subs)
 {
@@ -58,8 +56,6 @@ static struct snd_pcm_hardware kirkwood_dma_snd_hw = {
 	.periods_max		= KIRKWOOD_SND_MAX_PERIODS,
 	.fifo_size		= 0,
 };
-
-static u64 kirkwood_dma_dmamask = DMA_BIT_MASK(32);
 
 static irqreturn_t kirkwood_dma_irq(int irq, void *dev_id)
 {
@@ -161,7 +157,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 		 * Enable Error interrupts. We're only ack'ing them but
 		 * it's useful for diagnostics
 		 */
-		writel((unsigned long)-1, priv->io + KIRKWOOD_ERR_MASK);
+		writel((unsigned int)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}
 
 	dram = mv_mbus_dram_info();
@@ -292,10 +288,9 @@ static int kirkwood_dma_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
-	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &kirkwood_dma_dmamask;
-	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = kirkwood_dma_preallocate_dma_buffer(pcm,

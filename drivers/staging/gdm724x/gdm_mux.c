@@ -26,7 +26,7 @@
 
 #include "gdm_mux.h"
 
-struct workqueue_struct *mux_rx_wq;
+static struct workqueue_struct *mux_rx_wq;
 
 static u16 packet_type[TTY_MAX_COUNT] = {0xF011, 0xF010};
 
@@ -51,7 +51,7 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-int packet_type_to_index(u16 packetType)
+static int packet_type_to_index(u16 packetType)
 {
 	int i;
 
@@ -96,12 +96,12 @@ static struct mux_rx *alloc_mux_rx(void)
 {
 	struct mux_rx *r = NULL;
 
-	r = kzalloc(sizeof(struct mux_rx), GFP_ATOMIC);
+	r = kzalloc(sizeof(struct mux_rx), GFP_KERNEL);
 	if (!r)
 		return NULL;
 
-	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
-	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_ATOMIC);
+	r->urb = usb_alloc_urb(0, GFP_KERNEL);
+	r->buf = kmalloc(MUX_RX_MAX_SIZE, GFP_KERNEL);
 	if (!r->urb || !r->buf) {
 		usb_free_urb(r->urb);
 		kfree(r->buf);
@@ -541,7 +541,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	ret = init_usb(mux_dev);
 	if (ret)
-		goto err_free_tty;
+		goto err_free_usb;
 
 	tty_dev->priv_dev = (void *)mux_dev;
 	tty_dev->send_func = gdm_mux_send;
@@ -565,8 +565,8 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 
 err_unregister_tty:
 	unregister_lte_tty_device(tty_dev);
+err_free_usb:
 	release_usb(mux_dev);
-err_free_tty:
 	kfree(tty_dev);
 err_free_mux:
 	kfree(mux_dev);

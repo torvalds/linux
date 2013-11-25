@@ -14,6 +14,8 @@
 /* maximum packet length for USB devices */
 #define WACOM_PKGLEN_MAX	64
 
+#define WACOM_NAME_MAX		64
+
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
 #define WACOM_PKGLEN_GRAPHIRE	 8
@@ -76,10 +78,14 @@ enum {
 	INTUOS5S,
 	INTUOS5,
 	INTUOS5L,
+	INTUOSPS,
+	INTUOSPM,
+	INTUOSPL,
 	WACOM_21UX2,
 	WACOM_22HD,
 	DTK,
 	WACOM_24HD,
+	CINTIQ_HYBRID,
 	CINTIQ,
 	WACOM_BEE,
 	WACOM_13HD,
@@ -126,7 +132,7 @@ struct wacom_shared {
 };
 
 struct wacom_wac {
-	char name[64];
+	char name[WACOM_NAME_MAX];
 	unsigned char *data;
 	int tool[2];
 	int id[2];

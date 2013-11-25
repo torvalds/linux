@@ -260,7 +260,6 @@ int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root = fs_info->uuid_root;
 	struct btrfs_key key;
-	struct btrfs_key max_key;
 	struct btrfs_path *path;
 	int ret = 0;
 	struct extent_buffer *leaf;
@@ -277,13 +276,10 @@ int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
 	key.objectid = 0;
 	key.type = 0;
 	key.offset = 0;
-	max_key.objectid = (u64)-1;
-	max_key.type = (u8)-1;
-	max_key.offset = (u64)-1;
 
 again_search_slot:
 	path->keep_locks = 1;
-	ret = btrfs_search_forward(root, &key, &max_key, path, 0);
+	ret = btrfs_search_forward(root, &key, path, 0);
 	if (ret) {
 		if (ret > 0)
 			ret = 0;

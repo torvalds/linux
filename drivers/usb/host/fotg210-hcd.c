@@ -412,7 +412,7 @@ struct debug_buffer {
 			tmp = 'h'; break; \
 		default:		\
 			tmp = '?'; break; \
-		}; tmp; })
+		} tmp; })
 
 static inline char token_mark(struct fotg210_hcd *fotg210, __hc32 token)
 {

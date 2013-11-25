@@ -268,7 +268,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 #endif /* CONFIG_IWLDVM */
 
 #if IS_ENABLED(CONFIG_IWLMVM)
-/* 7000 Series */
+/* 7260 Series */
 	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4072, iwl7260_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0x4170, iwl7260_2ac_cfg)},
@@ -350,6 +350,9 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl3160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl3160_2ac_cfg)},
 	{IWL_PCI_DEVICE(0x08B3, 0x8570, iwl3160_2ac_cfg)},
+
+/* 7265 Series */
+	{IWL_PCI_DEVICE(0x095A, 0x5010, iwl7265_2ac_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -391,7 +394,6 @@ out_free_drv:
 	iwl_drv_stop(trans_pcie->drv);
 out_free_trans:
 	iwl_trans_pcie_free(iwl_trans);
-	pci_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -402,8 +404,6 @@ static void iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_drv_stop(trans_pcie->drv);
 	iwl_trans_pcie_free(trans);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

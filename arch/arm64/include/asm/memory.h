@@ -33,18 +33,23 @@
 #define UL(x) _AC(x, UL)
 
 /*
- * PAGE_OFFSET - the virtual address of the start of the kernel image.
+ * PAGE_OFFSET - the virtual address of the start of the kernel image (top
+ *		 (VA_BITS - 1))
  * VA_BITS - the maximum number of bits for virtual addresses.
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 128MB of the kernel text.
  */
-#define PAGE_OFFSET		UL(0xffffffc000000000)
+#ifdef CONFIG_ARM64_64K_PAGES
+#define VA_BITS			(42)
+#else
+#define VA_BITS			(39)
+#endif
+#define PAGE_OFFSET		(UL(0xffffffffffffffff) << (VA_BITS - 1))
 #define MODULES_END		(PAGE_OFFSET)
 #define MODULES_VADDR		(MODULES_END - SZ_64M)
 #define EARLYCON_IOBASE		(MODULES_VADDR - SZ_4M)
-#define VA_BITS			(39)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
 
 #ifdef CONFIG_COMPAT

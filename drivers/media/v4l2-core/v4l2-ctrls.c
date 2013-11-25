@@ -565,13 +565,13 @@ EXPORT_SYMBOL(v4l2_ctrl_get_menu);
  * Returns NULL or an s64 type array containing the menu for given
  * control ID. The total number of the menu items is returned in @len.
  */
-const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
+const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
 {
-	static const s64 const qmenu_int_vpx_num_partitions[] = {
+	static const s64 qmenu_int_vpx_num_partitions[] = {
 		1, 2, 4, 8,
 	};
 
-	static const s64 const qmenu_int_vpx_num_ref_frames[] = {
+	static const s64 qmenu_int_vpx_num_ref_frames[] = {
 		1, 2, 3,
 	};
 
@@ -583,7 +583,7 @@ const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
 	default:
 		*len = 0;
 		return NULL;
-	};
+	}
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_int_menu);
 

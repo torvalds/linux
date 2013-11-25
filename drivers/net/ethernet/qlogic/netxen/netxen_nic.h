@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 81
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.81"
+#define _NETXEN_NIC_LINUX_SUBVERSION 82
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.82"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -1883,9 +1883,8 @@ static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
 
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac);
-extern void netxen_change_ringparam(struct netxen_adapter *adapter);
-extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
-				int *valp);
+void netxen_change_ringparam(struct netxen_adapter *adapter);
+int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
 
 extern const struct ethtool_ops netxen_nic_ethtool_ops;
 

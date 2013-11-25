@@ -27,19 +27,29 @@
 
 #include "rtl2830_priv.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 /* write multiple hardware registers */
 static int rtl2830_wr(struct rtl2830_priv *priv, u8 reg, const u8 *val, int len)
 {
 	int ret;
-	u8 buf[1+len];
+	u8 buf[MAX_XFER_SIZE];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
 			.flags = 0,
-			.len = 1+len,
+			.len = 1 + len,
 			.buf = buf,
 		}
 	};
+
+	if (1 + len > sizeof(buf)) {
+		dev_warn(&priv->i2c->dev,
+			 "%s: i2c wr reg=%04x: len=%d is too big!\n",
+			 KBUILD_MODNAME, reg, len);
+		return -EINVAL;
+	}
 
 	buf[0] = reg;
 	memcpy(&buf[1], val, len);

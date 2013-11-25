@@ -460,6 +460,7 @@ manner. The codes are the following:
     nl  - non-linear mapping
     ar  - architecture specific flag
     dd  - do not include area into core dump
+    sd  - soft-dirty flag
     mm  - mixed map area
     hg  - huge page advise flag
     nh  - no-huge page advise flag

@@ -1541,17 +1541,16 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 					      snd_dma_pci_data(chip->pci),
 					      rec->prealloc_size, rec->prealloc_max_size);
 
-	if (rec->ac97_idx == ICHD_PCMOUT && rec->playback_ops) {
+	if (rec->playback_ops &&
+	    rec->playback_ops->open == snd_intel8x0_playback_open) {
 		struct snd_pcm_chmap *chmap;
 		int chs = 2;
-		if (rec->ac97_idx == ICHD_PCMOUT) {
-			if (chip->multi8)
-				chs = 8;
-			else if (chip->multi6)
-				chs = 6;
-			else if (chip->multi4)
-				chs = 4;
-		}
+		if (chip->multi8)
+			chs = 8;
+		else if (chip->multi6)
+			chs = 6;
+		else if (chip->multi4)
+			chs = 4;
 		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 					     snd_pcm_alt_chmaps, chs, 0,
 					     &chmap);

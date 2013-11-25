@@ -534,7 +534,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 out_cmm_unreg:
-	pci_set_drvdata(pdev, NULL);
 	megaraid_cmm_unregister(adapter);
 out_fini_mbox:
 	megaraid_fini_mbox(adapter);
@@ -593,11 +592,6 @@ megaraid_detach_one(struct pci_dev *pdev)
 
 	// detach from the IO sub-system
 	megaraid_io_detach(adapter);
-
-	// reset the device state in the PCI structure. We check this
-	// condition when we enter here. If the device state is NULL,
-	// that would mean the device has already been removed
-	pci_set_drvdata(pdev, NULL);
 
 	// Unregister from common management module
 	//

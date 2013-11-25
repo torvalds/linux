@@ -57,7 +57,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 static unsigned int max_backlog = 1024;
 
 static struct ctl_table_header *ucma_ctl_table_hdr;
-static ctl_table ucma_ctl_table[] = {
+static struct ctl_table ucma_ctl_table[] = {
 	{
 		.procname	= "max_backlog",
 		.data		= &max_backlog,
@@ -271,7 +271,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 			goto out;
 		}
 		ctx->backlog--;
-	} else if (!ctx->uid) {
+	} else if (!ctx->uid || ctx->cm_id != cm_id) {
 		/*
 		 * We ignore events for new connections until userspace has set
 		 * their context.  This can only happen if an error occurs on a

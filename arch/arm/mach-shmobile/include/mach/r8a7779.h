@@ -6,6 +6,13 @@
 #include <linux/sh_eth.h>
 #include <linux/platform_data/camera-rcar.h>
 
+/* HPB-DMA slave IDs */
+enum {
+	HPBDMA_SLAVE_DUMMY,
+	HPBDMA_SLAVE_SDHI0_TX,
+	HPBDMA_SLAVE_SDHI0_RX,
+};
+
 struct platform_device;
 
 struct r8a7779_pm_ch {
@@ -26,6 +33,7 @@ static inline struct r8a7779_pm_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 
 extern void r8a7779_init_delay(void);
 extern void r8a7779_init_irq_extpin(int irlm);
+extern void r8a7779_init_irq_extpin_dt(int irlm);
 extern void r8a7779_init_irq_dt(void);
 extern void r8a7779_map_io(void);
 extern void r8a7779_earlytimer_init(void);

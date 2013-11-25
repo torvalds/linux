@@ -158,9 +158,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
  * Interrupts are enabled again at this point.
  */
 
-.global kvmppc_handler_highmem
-kvmppc_handler_highmem:
-
 	/*
 	 * Register usage at this point:
 	 *

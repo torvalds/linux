@@ -35,7 +35,7 @@
 struct fepimg {
     int type;				/* board type */
     int	len;				/* length of image */
-    char fepimage[1];			/* begining of image */
+    char fepimage[1];			/* beginning of image */
 };
 
 struct downldio {

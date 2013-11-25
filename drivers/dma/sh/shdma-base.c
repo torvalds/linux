@@ -724,7 +724,7 @@ static enum dma_status shdma_tx_status(struct dma_chan *chan,
 	 * If we don't find cookie on the queue, it has been aborted and we have
 	 * to report error
 	 */
-	if (status != DMA_SUCCESS) {
+	if (status != DMA_COMPLETE) {
 		struct shdma_desc *sdesc;
 		status = DMA_ERROR;
 		list_for_each_entry(sdesc, &schan->ld_queue, node)

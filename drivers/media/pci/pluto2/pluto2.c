@@ -736,7 +736,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 	goto out;
 }
@@ -765,7 +764,6 @@ static void pluto2_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, pluto->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 }
 

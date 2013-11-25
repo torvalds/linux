@@ -373,7 +373,7 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 	if (req->buf == NULL)
 		req->buf = (void *)0xDEADBABE;
 
-	INIT_COMPLETION(ffs->ep0req_completion);
+	reinit_completion(&ffs->ep0req_completion);
 
 	ret = usb_ep_queue(ffs->gadget->ep0, req, GFP_ATOMIC);
 	if (unlikely(ret < 0))

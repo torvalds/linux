@@ -83,6 +83,8 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		uint8_t outCount, uint32_t *mbx_cmd, uint32_t *mbx_sts);
 int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 			   char *password, int bidi, uint16_t *chap_index);
+int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
+		     uint16_t idx, int bidi);
 
 void qla4xxx_queue_iocb(struct scsi_qla_host *ha);
 void qla4xxx_complete_iocb(struct scsi_qla_host *ha);

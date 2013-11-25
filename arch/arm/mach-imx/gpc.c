@@ -90,7 +90,7 @@ void imx_gpc_restore_all(void)
 		writel_relaxed(gpc_saved_imrs[i], reg_imr1 + i * 4);
 }
 
-static void imx_gpc_irq_unmask(struct irq_data *d)
+void imx_gpc_irq_unmask(struct irq_data *d)
 {
 	void __iomem *reg;
 	u32 val;
@@ -105,7 +105,7 @@ static void imx_gpc_irq_unmask(struct irq_data *d)
 	writel_relaxed(val, reg);
 }
 
-static void imx_gpc_irq_mask(struct irq_data *d)
+void imx_gpc_irq_mask(struct irq_data *d)
 {
 	void __iomem *reg;
 	u32 val;

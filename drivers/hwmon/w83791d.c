@@ -1043,7 +1043,7 @@ static struct sensor_device_attribute sda_temp_alarm[] = {
 	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
 };
 
-/* get reatime status of all sensors items: voltage, temp, fan */
+/* get realtime status of all sensors items: voltage, temp, fan */
 static ssize_t show_alarms_reg(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {

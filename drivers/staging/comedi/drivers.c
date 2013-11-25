@@ -190,6 +190,28 @@ int comedi_dio_insn_config(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(comedi_dio_insn_config);
 
+/**
+ * comedi_dio_update_state() - update the internal state of DIO subdevices.
+ * @s: comedi_subdevice struct
+ * @data: the channel mask and bits to update
+ */
+unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
+				     unsigned int *data)
+{
+	unsigned int chanmask = (s->n_chan < 32) ? ((1 << s->n_chan) - 1)
+						 : 0xffffffff;
+	unsigned int mask = data[0] & chanmask;
+	unsigned int bits = data[1];
+
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+	}
+
+	return mask;
+}
+EXPORT_SYMBOL_GPL(comedi_dio_update_state);
+
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
@@ -284,6 +306,13 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 
 		if (s->type == COMEDI_SUBD_UNUSED)
 			continue;
+
+		if (s->type == COMEDI_SUBD_DO) {
+			if (s->n_chan < 32)
+				s->io_bits = (1 << s->n_chan) - 1;
+			else
+				s->io_bits = 0xffffffff;
+		}
 
 		if (s->len_chanlist == 0)
 			s->len_chanlist = 1;

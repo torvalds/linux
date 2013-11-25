@@ -43,10 +43,9 @@
 	(((x) + ((mul)/2)) / (mul))
 
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
-void ath9k_cmn_update_ichannel(struct ath9k_channel *ichan,
-			       struct cfg80211_chan_def *chandef);
-struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
-					       struct ath_hw *ah);
+struct ath9k_channel *ath9k_cmn_get_channel(struct ieee80211_hw *hw,
+					    struct ath_hw *ah,
+					    struct cfg80211_chan_def *chandef);
 int ath9k_cmn_count_streams(unsigned int chainmask, int max);
 void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
 				  enum ath_stomp_type stomp_type);

@@ -656,6 +656,7 @@ config SENSORS_LM75
 
 		- Analog Devices ADT75
 		- Dallas Semiconductor DS75, DS1775 and DS7505
+		- Global Mixed-mode Technology (GMT) G751
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
 		- National Semiconductor LM75, LM75A

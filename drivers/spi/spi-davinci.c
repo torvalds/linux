@@ -279,7 +279,8 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	struct davinci_spi *dspi;
 	struct davinci_spi_config *spicfg;
 	u8 bits_per_word = 0;
-	u32 hz = 0, spifmt = 0, prescale = 0;
+	u32 hz = 0, spifmt = 0;
+	int prescale;
 
 	dspi = spi_master_get_devdata(spi->master);
 	spicfg = (struct davinci_spi_config *)spi->controller_data;
@@ -553,7 +554,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 	set_io_bits(dspi->base + SPIGCR1, SPIGCR1_SPIENA_MASK);
 
-	INIT_COMPLETION(dspi->done);
+	reinit_completion(&dspi->done);
 
 	if (spicfg->io_type == SPI_IO_TYPE_INTR)
 		set_io_bits(dspi->base + SPIINT, SPIINT_MASKINT);
@@ -916,7 +917,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto unmap_io;
 
-	dspi->bitbang.master = spi_master_get(master);
+	dspi->bitbang.master = master;
 	if (dspi->bitbang.master == NULL) {
 		ret = -ENODEV;
 		goto irq_free;
@@ -925,7 +926,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
 		ret = -ENODEV;
-		goto put_master;
+		goto irq_free;
 	}
 	clk_prepare_enable(dspi->clk);
 
@@ -1015,8 +1016,6 @@ free_dma:
 free_clk:
 	clk_disable_unprepare(dspi->clk);
 	clk_put(dspi->clk);
-put_master:
-	spi_master_put(master);
 irq_free:
 	free_irq(dspi->irq, dspi);
 unmap_io:
@@ -1024,7 +1023,7 @@ unmap_io:
 release_region:
 	release_mem_region(dspi->pbase, resource_size(r));
 free_master:
-	kfree(master);
+	spi_master_put(master);
 err:
 	return ret;
 }
@@ -1051,11 +1050,11 @@ static int davinci_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(dspi->clk);
 	clk_put(dspi->clk);
-	spi_master_put(master);
 	free_irq(dspi->irq, dspi);
 	iounmap(dspi->base);
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(dspi->pbase, resource_size(r));
+	spi_master_put(master);
 
 	return 0;
 }

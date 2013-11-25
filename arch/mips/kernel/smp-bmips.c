@@ -136,10 +136,10 @@ static void bmips_prepare_cpus(unsigned int max_cpus)
 {
 	if (request_irq(IPI0_IRQ, bmips_ipi_interrupt, IRQF_PERCPU,
 			"smp_ipi0", NULL))
-		panic("Can't request IPI0 interrupt\n");
+		panic("Can't request IPI0 interrupt");
 	if (request_irq(IPI1_IRQ, bmips_ipi_interrupt, IRQF_PERCPU,
 			"smp_ipi1", NULL))
-		panic("Can't request IPI1 interrupt\n");
+		panic("Can't request IPI1 interrupt");
 }
 
 /*

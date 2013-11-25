@@ -56,8 +56,10 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 			return -EINVAL;
 		}
 		args.ucRegIndex = buf[0];
-		if (num > 1)
-			memcpy(&out, &buf[1], num - 1);
+		if (num > 1) {
+			num--;
+			memcpy(&out, &buf[1], num);
+		}
 		args.lpI2CDataOut = cpu_to_le16(out);
 	} else {
 		if (num > ATOM_MAX_HW_I2C_READ) {

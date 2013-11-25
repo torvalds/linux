@@ -332,30 +332,44 @@ static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-/* DIO devices are slightly special.  Although it is possible to
+/*
+ * DIO devices are slightly special. Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
  * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
+ * This allows packed reading/writing of the DIO channels. The
+ * comedi core can convert between insn_bits and insn_read/write.
+ */
 static int skel_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	/*
+	 * The insn data is a mask in data[0] and the new data
+	 * in data[1], each channel cooresponding to a bit.
+	 *
+	 * The core provided comedi_dio_update_state() function can
+	 * be used to handle the internal state update to DIO subdevices
+	 * with <= 32 channels. This function will return '0' if the
+	 * state does not change or the mask of the channels that need
+	 * to be updated.
+	 */
+	if (comedi_dio_update_state(s, data)) {
 		/* Write out the new digital output lines */
-		/* outw(s->state,dev->iobase + SKEL_DIO); */
+		/* outw(s->state, dev->iobase + SKEL_DIO); */
 	}
 
-	/* on return, data[1] contains the value of the digital
-	 * input and output lines. */
-	/* data[1]=inw(dev->iobase + SKEL_DIO); */
-	/* or we could just return the software copy of the output values if
-	 * it was a purely digital output subdevice */
-	/* data[1]=s->state; */
+	/*
+	 * On return, data[1] contains the value of the digital
+	 * input and output lines.
+	 */
+	/* data[1] = inw(dev->iobase + SKEL_DIO); */
+
+	/*
+	 * Or we could just return the software copy of the output
+	 * values if it was a purely digital output subdevice.
+	 */
+	/* data[1] = s->state; */
 
 	return insn->n;
 }

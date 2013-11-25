@@ -495,6 +495,7 @@ void fscache_object_lookup_negative(struct fscache_object *object)
 		 * returning ENODATA.
 		 */
 		set_bit(FSCACHE_COOKIE_NO_DATA_YET, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
 
 		_debug("wake up lookup %p", &cookie->flags);
 		clear_bit_unlock(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags);
@@ -527,6 +528,7 @@ void fscache_obtained_object(struct fscache_object *object)
 
 		/* We do (presumably) have data */
 		clear_bit_unlock(FSCACHE_COOKIE_NO_DATA_YET, &cookie->flags);
+		clear_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
 
 		/* Allow write requests to begin stacking up and read requests
 		 * to begin shovelling data.
@@ -679,7 +681,8 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	 */
 	spin_lock(&cookie->lock);
 	hlist_del_init(&object->cookie_link);
-	if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
+	if (hlist_empty(&cookie->backing_objects) &&
+	    test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
 		awaken = true;
 	spin_unlock(&cookie->lock);
 
@@ -796,7 +799,7 @@ void fscache_enqueue_object(struct fscache_object *object)
  */
 bool fscache_object_sleep_till_congested(signed long *timeoutp)
 {
-	wait_queue_head_t *cong_wq = &__get_cpu_var(fscache_object_cong_wait);
+	wait_queue_head_t *cong_wq = this_cpu_ptr(&fscache_object_cong_wait);
 	DEFINE_WAIT(wait);
 
 	if (fscache_object_congested())
@@ -927,7 +930,7 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	 */
 	if (!fscache_use_cookie(object)) {
 		ASSERT(object->cookie->stores.rnode == NULL);
-		set_bit(FSCACHE_COOKIE_RETIRED, &cookie->flags);
+		set_bit(FSCACHE_OBJECT_RETIRED, &object->flags);
 		_leave(" [no cookie]");
 		return transit_to(KILL_OBJECT);
 	}

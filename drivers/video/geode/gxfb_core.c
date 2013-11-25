@@ -423,7 +423,7 @@ static int gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err;
 	}
 	pci_set_drvdata(pdev, info);
-	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 	return 0;
 
   err:
@@ -471,7 +471,6 @@ static void gxfb_remove(struct pci_dev *pdev)
 	pci_release_region(pdev, 1);
 
 	fb_dealloc_cmap(&info->cmap);
-	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);
 }

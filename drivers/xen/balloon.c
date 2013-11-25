@@ -596,7 +596,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	}
 }
 
-static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
+static int balloon_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
@@ -616,7 +616,7 @@ static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block balloon_cpu_notifier __cpuinitdata = {
+static struct notifier_block balloon_cpu_notifier = {
 	.notifier_call	= balloon_cpu_notify,
 };
 
@@ -641,7 +641,7 @@ static int __init balloon_init(void)
 
 	balloon_stats.current_pages = xen_pv_domain()
 		? min(xen_start_info->nr_pages - xen_released_pages, max_pfn)
-		: max_pfn;
+		: get_num_physpages();
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;

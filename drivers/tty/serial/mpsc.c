@@ -2030,7 +2030,7 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 {
 	struct mpsc_pdata	*pdata;
 
-	pdata = (struct mpsc_pdata *)dev_get_platdata(&pd->dev);
+	pdata = dev_get_platdata(&pd->dev);
 
 	pi->port.uartclk = pdata->brg_clk_freq;
 	pi->port.iotype = UPIO_MEM;

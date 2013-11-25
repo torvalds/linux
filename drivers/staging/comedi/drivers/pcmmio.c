@@ -553,12 +553,11 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 										val |= (1U << n);
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((short *)&val)[0])
+								if (comedi_buf_put(s->async, val)
 								    &&
 								    comedi_buf_put
 								    (s->async,
-								     ((short *)
-								      &val)[1])) {
+								     val >> 16)) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */
@@ -846,7 +845,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    CR_RANGE(insn->chanspec), aref = CR_AREF(insn->chanspec);
 		unsigned char command_byte = 0;
 		unsigned iooffset = 0;
-		short sample, adc_adjust = 0;
+		unsigned short sample, adc_adjust = 0;
 
 		if (chan > 7)
 			chan -= 8, iooffset = 4;	/*

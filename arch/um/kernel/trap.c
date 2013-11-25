@@ -206,9 +206,12 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	int is_write = FAULT_WRITE(fi);
 	unsigned long address = FAULT_ADDRESS(fi);
 
+	if (regs)
+		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
+
 	if (!is_user && (address >= start_vm) && (address < end_vm)) {
 		flush_tlb_kernel_vm();
-		return 0;
+		goto out;
 	}
 	else if (current->mm == NULL) {
 		show_regs(container_of(regs, struct pt_regs, regs));
@@ -230,7 +233,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 
 	catcher = current->thread.fault_catcher;
 	if (!err)
-		return 0;
+		goto out;
 	else if (catcher != NULL) {
 		current->thread.fault_addr = (void *) address;
 		UML_LONGJMP(catcher, 1);
@@ -238,7 +241,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	else if (current->thread.fault_addr != NULL)
 		panic("fault_addr set but no fault catcher");
 	else if (!is_user && arch_fixup(ip, regs))
-		return 0;
+		goto out;
 
 	if (!is_user) {
 		show_regs(container_of(regs, struct pt_regs, regs));
@@ -262,6 +265,11 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
+
+out:
+	if (regs)
+		current->thread.segv_regs = NULL;
+
 	return 0;
 }
 

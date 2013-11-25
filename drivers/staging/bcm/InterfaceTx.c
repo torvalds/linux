@@ -7,7 +7,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	struct bcm_interface_adapter *psIntfAdapter = pTcb->psIntfAdapter;
 	struct bcm_link_request *pControlMsg = (struct bcm_link_request *)urb->transfer_buffer;
 	struct bcm_mini_adapter *psAdapter = psIntfAdapter->psAdapter ;
-	BOOLEAN bpowerDownMsg = FALSE ;
+	bool bpowerDownMsg = false ;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
     if (unlikely(netif_msg_tx_done(Adapter)))
@@ -26,7 +26,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 		}
 	}
 
-	pTcb->bUsed = FALSE;
+	pTcb->bUsed = false;
 	atomic_dec(&psIntfAdapter->uNumTcbUsed);
 
 
@@ -42,7 +42,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 			//This covers the bus err while Idle Request msg sent down.
 			if(urb->status != STATUS_SUCCESS)
 			{
-				psAdapter->bPreparingForLowPowerMode = FALSE ;
+				psAdapter->bPreparingForLowPowerMode = false ;
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,"Idle Mode Request msg failed to reach to Modem");
 				//Signalling the cntrl pkt path in Ioctl
 				wake_up(&psAdapter->lowpower_mode_wait_queue);
@@ -50,11 +50,11 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				goto err_exit;
 			}
 
-			if(psAdapter->bDoSuspend == FALSE)
+			if(psAdapter->bDoSuspend == false)
 			{
 				psAdapter->IdleMode = TRUE;
 				//since going in Idle mode completed hence making this var false;
-				psAdapter->bPreparingForLowPowerMode = FALSE ;
+				psAdapter->bPreparingForLowPowerMode = false ;
 
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Host Entered in Idle Mode State...");
 				//Signalling the cntrl pkt path in Ioctl
@@ -70,7 +70,7 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 			//This covers the bus err while shutdown Request msg sent down.
 			if(urb->status != STATUS_SUCCESS)
 			{
-				psAdapter->bPreparingForLowPowerMode = FALSE ;
+				psAdapter->bPreparingForLowPowerMode = false ;
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,"Shutdown Request Msg failed to reach to Modem");
 				//Signalling the cntrl pkt path in Ioctl
 				wake_up(&psAdapter->lowpower_mode_wait_queue);
@@ -79,11 +79,11 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 			}
 
 			bpowerDownMsg = TRUE ;
-			if(psAdapter->bDoSuspend == FALSE)
+			if(psAdapter->bDoSuspend == false)
 			{
 				psAdapter->bShutStatus = TRUE;
 				//since going in shutdown mode completed hence making this var false;
-				psAdapter->bPreparingForLowPowerMode = FALSE ;
+				psAdapter->bPreparingForLowPowerMode = false ;
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,"Host Entered in shutdown Mode State...");
 				//Signalling the cntrl pkt path in Ioctl
 				wake_up(&psAdapter->lowpower_mode_wait_queue);
@@ -113,7 +113,7 @@ static struct bcm_usb_tcb *GetBulkOutTcb(struct bcm_interface_adapter *psIntfAda
 	UINT index = 0;
 
 	if((atomic_read(&psIntfAdapter->uNumTcbUsed) < MAXIMUM_USB_TCB) &&
-		(psIntfAdapter->psAdapter->StopAllXaction ==FALSE))
+		(psIntfAdapter->psAdapter->StopAllXaction ==false))
 	{
 		index = atomic_read(&psIntfAdapter->uCurrTcb);
 		pTcb = &psIntfAdapter->asUsbTcb[index];
@@ -161,10 +161,10 @@ static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_u
 	}
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP; /* For DMA transfer */
 
-	if(FALSE == psIntfAdapter->psAdapter->device_removed &&
-	   FALSE == psIntfAdapter->psAdapter->bEndPointHalted &&
-	   FALSE == psIntfAdapter->bSuspended &&
-	   FALSE == psIntfAdapter->bPreparingForBusSuspend)
+	if(false == psIntfAdapter->psAdapter->device_removed &&
+	   false == psIntfAdapter->psAdapter->bEndPointHalted &&
+	   false == psIntfAdapter->bSuspended &&
+	   false == psIntfAdapter->bPreparingForBusSuspend)
 	{
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
 		if (retval)
@@ -184,7 +184,7 @@ int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 {
 	struct bcm_usb_tcb *pTcb= NULL;
 
-	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)arg;
+	struct bcm_interface_adapter *psIntfAdapter = arg;
 	pTcb= GetBulkOutTcb(psIntfAdapter);
 	if(pTcb == NULL)
 	{

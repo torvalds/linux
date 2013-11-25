@@ -19,6 +19,7 @@
  ******************************************************************************/
 #define _HAL_INIT_C_
 
+#include <linux/firmware.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
 
@@ -588,13 +589,15 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	u8 writeFW_retry = 0;
 	u32 fwdl_start_time;
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
-
-	u8 *FwImage;
-	u32			FwImageLen;
+	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
+	struct device *device = dvobj_to_dev(dvobj);
 	struct rt_firmware *pFirmware = NULL;
+	const struct firmware *fw;
 	struct rt_firmware_hdr *pFwHdr = NULL;
 	u8 *pFirmwareBuf;
-	u32			FirmwareLen;
+	u32 FirmwareLen;
+	char fw_name[] = "rtlwifi/rtl8188eufw.bin";
+	static int log_version;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
 	pFirmware = (struct rt_firmware *)rtw_zmalloc(sizeof(struct rt_firmware));
@@ -603,27 +606,32 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 		goto Exit;
 	}
 
-	FwImage = (u8 *)Rtl8188E_FwImageArray;
-	FwImageLen = Rtl8188E_FWImgArrayLength;
-
-	pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
-
-	switch (pFirmware->eFWSource) {
-	case FW_SOURCE_IMG_FILE:
-		break;
-	case FW_SOURCE_HEADER_FILE:
-		if (FwImageLen > FW_8188E_SIZE) {
-			rtStatus = _FAIL;
-			RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8188E_SIZE));
-			goto Exit;
-		}
-
-		pFirmware->szFwBuffer = FwImage;
-		pFirmware->ulFwLength = FwImageLen;
-		break;
+	if (request_firmware(&fw, fw_name, device)) {
+		rtStatus = _FAIL;
+		goto Exit;
 	}
+	if (!fw) {
+		pr_err("Firmware %s not available\n", fw_name);
+		rtStatus = _FAIL;
+		goto Exit;
+	}
+	if (fw->size > FW_8188E_SIZE) {
+		rtStatus = _FAIL;
+		RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8188E_SIZE));
+		goto Exit;
+	}
+
+	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	if (!pFirmware->szFwBuffer) {
+		rtStatus = _FAIL;
+		goto Exit;
+	}
+	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
+	pFirmware->ulFwLength = fw->size;
 	pFirmwareBuf = pFirmware->szFwBuffer;
 	FirmwareLen = pFirmware->ulFwLength;
+	release_firmware(fw);
+
 	DBG_88E_LEVEL(_drv_info_, "+%s: !bUsedWoWLANFw, FmrmwareLen:%d+\n", __func__, FirmwareLen);
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
@@ -633,8 +641,10 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	pHalData->FirmwareSubVersion = pFwHdr->Subversion;
 	pHalData->FirmwareSignature = le16_to_cpu(pFwHdr->Signature);
 
-	DBG_88E("%s: fw_ver =%d fw_subver =%d sig = 0x%x\n",
-		__func__, pHalData->FirmwareVersion, pHalData->FirmwareSubVersion, pHalData->FirmwareSignature);
+	if (!log_version++)
+		pr_info("%sFirmware Version %d, SubVersion %d, Signature 0x%x\n",
+			DRIVER_PREFIX, pHalData->FirmwareVersion,
+			pHalData->FirmwareSubVersion, pHalData->FirmwareSignature);
 
 	if (IS_FW_HEADER_EXIST(pFwHdr)) {
 		/*  Shift 32 bytes for FW header */
@@ -677,7 +687,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 		goto Exit;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("Firmware is ready to run!\n"));
-
+	kfree(pFirmware->szFwBuffer);
 Exit:
 
 	kfree(pFirmware);
@@ -1479,7 +1489,6 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 
 static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt, bool bPseudoTest)
 {
-	bool bRet = false;
 	u16	efuse_addr = *pAddr;
 	u8 badworden = 0;
 	u32	PgWriteSuccess = 0;
@@ -1497,7 +1506,6 @@ static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u
 		else
 			return true;
 	}
-	return bRet;
 }
 
 static bool
@@ -1653,7 +1661,7 @@ hal_EfusePgCheckAvailableAddr(
 {
 	u16	efuse_max_available_len = 0;
 
-	/* Change to check TYPE_EFUSE_MAP_LEN , beacuse 8188E raw 256, logic map over 256. */
+	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len, false);
 
 	if (Efuse_GetCurrentSize(pAdapter, efuseType, bPseudoTest) >= efuse_max_available_len)
@@ -2100,7 +2108,7 @@ static u8 Hal_GetChnlGroup88E(u8 chnl, u8 *pGroup)
 	if (chnl <= 14) {
 		bIn24G = true;
 
-		if (chnl < 3)			/*  Chanel 1-2 */
+		if (chnl < 3)			/*  Channel 1-2 */
 			*pGroup = 0;
 		else if (chnl < 6)		/*  Channel 3-5 */
 			*pGroup = 1;
@@ -2182,7 +2190,7 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 		pHalData->bTXPowerDataReadFromEEPORM = true;
 
 	for (rfPath = 0; rfPath < pHalData->NumTotalRFPath; rfPath++) {
-		for (ch = 0; ch <= CHANNEL_MAX_NUMBER; ch++) {
+		for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 			bIn24G = Hal_GetChnlGroup88E(ch, &group);
 			if (bIn24G) {
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];

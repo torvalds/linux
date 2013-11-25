@@ -10,6 +10,7 @@
  *
  *  ARM PrimeCell PL110 Color LCD Controller
  */
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -544,12 +545,16 @@ static int clcdfb_register(struct clcd_fb *fb)
 
 static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 {
-	struct clcd_board *board = dev->dev.platform_data;
+	struct clcd_board *board = dev_get_platdata(&dev->dev);
 	struct clcd_fb *fb;
 	int ret;
 
 	if (!board)
 		return -EINVAL;
+
+	ret = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto out;
 
 	ret = amba_request_regions(dev, NULL);
 	if (ret) {
@@ -593,8 +598,6 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 static int clcdfb_remove(struct amba_device *dev)
 {
 	struct clcd_fb *fb = amba_get_drvdata(dev);
-
-	amba_set_drvdata(dev, NULL);
 
 	clcdfb_disable(fb);
 	unregister_framebuffer(&fb->fb);

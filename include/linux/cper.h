@@ -218,8 +218,8 @@ enum {
 #define CPER_PROC_VALID_IP			0x1000
 
 #define CPER_MEM_VALID_ERROR_STATUS		0x0001
-#define CPER_MEM_VALID_PHYSICAL_ADDRESS		0x0002
-#define CPER_MEM_VALID_PHYSICAL_ADDRESS_MASK	0x0004
+#define CPER_MEM_VALID_PA			0x0002
+#define CPER_MEM_VALID_PA_MASK			0x0004
 #define CPER_MEM_VALID_NODE			0x0008
 #define CPER_MEM_VALID_CARD			0x0010
 #define CPER_MEM_VALID_MODULE			0x0020
@@ -232,6 +232,9 @@ enum {
 #define CPER_MEM_VALID_RESPONDER_ID		0x1000
 #define CPER_MEM_VALID_TARGET_ID		0x2000
 #define CPER_MEM_VALID_ERROR_TYPE		0x4000
+#define CPER_MEM_VALID_RANK_NUMBER		0x8000
+#define CPER_MEM_VALID_CARD_HANDLE		0x10000
+#define CPER_MEM_VALID_MODULE_HANDLE		0x20000
 
 #define CPER_PCIE_VALID_PORT_TYPE		0x0001
 #define CPER_PCIE_VALID_VERSION			0x0002
@@ -347,6 +350,10 @@ struct cper_sec_mem_err {
 	__u64	responder_id;
 	__u64	target_id;
 	__u8	error_type;
+	__u8	reserved;
+	__u16	rank;
+	__u16	mem_array_handle;	/* card handle in UEFI 2.4 */
+	__u16	mem_dev_handle;		/* module handle in UEFI 2.4 */
 };
 
 struct cper_sec_pcie {
@@ -389,6 +396,6 @@ struct cper_sec_pcie {
 
 u64 cper_next_record_id(void);
 void cper_print_bits(const char *prefix, unsigned int bits,
-		     const char *strs[], unsigned int strs_size);
+		     const char * const strs[], unsigned int strs_size);
 
 #endif

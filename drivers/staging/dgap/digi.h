@@ -203,9 +203,9 @@ struct shrink_buf_struct {
 	unsigned long	shrink_buf_vaddr;	/* Virtual address of board */
 	unsigned long	shrink_buf_phys;	/* Physical address of board */
 	unsigned long	shrink_buf_bseg;	/* Amount of board memory */
-	unsigned long	shrink_buf_hseg;	/* '186 Begining of Dual-Port */
+	unsigned long	shrink_buf_hseg;	/* '186 Beginning of Dual-Port */
 
-	unsigned long	shrink_buf_lseg;	/* '186 Begining of freed memory						*/ 
+	unsigned long	shrink_buf_lseg;	/* '186 Beginning of freed memory						*/ 
 	unsigned long	shrink_buf_mseg;	/* Linear address from start of
 						   dual-port were freed memory
 						   begins, host viewpoint. */

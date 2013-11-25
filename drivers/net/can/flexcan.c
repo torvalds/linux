@@ -1068,7 +1068,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->clk_ipg = clk_ipg;
 	priv->clk_per = clk_per;
-	priv->pdata = pdev->dev.platform_data;
+	priv->pdata = dev_get_platdata(&pdev->dev);
 	priv->devtype_data = devtype_data;
 
 	priv->reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");

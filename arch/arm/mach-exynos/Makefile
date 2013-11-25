@@ -32,5 +32,5 @@ AFLAGS_exynos-smc.o		:=-Wa,-march=armv7-a$(plus_sec)
 
 # machine support
 
-obj-$(CONFIG_MACH_EXYNOS4_DT)		+= mach-exynos4-dt.o
-obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o
+obj-$(CONFIG_ARCH_EXYNOS4)	+= mach-exynos4-dt.o
+obj-$(CONFIG_ARCH_EXYNOS5)	+= mach-exynos5-dt.o

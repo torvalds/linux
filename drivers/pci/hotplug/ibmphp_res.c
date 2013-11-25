@@ -72,7 +72,7 @@ static struct bus_node * __init alloc_error_bus (struct ebda_pci_rsrc * curr, u8
 static struct resource_node * __init alloc_resources (struct ebda_pci_rsrc * curr)
 {
 	struct resource_node *rs;
-	
+
 	if (!curr) {
 		err ("NULL passed to allocate\n");
 		return NULL;
@@ -128,7 +128,7 @@ static int __init alloc_bus_range (struct bus_node **new_bus, struct range_node 
 	}
 	newrange->start = curr->start_addr;
 	newrange->end = curr->end_addr;
-		
+
 	if (first_bus || (!num_ranges))
 		newrange->rangeno = 1;
 	else {
@@ -162,7 +162,7 @@ static int __init alloc_bus_range (struct bus_node **new_bus, struct range_node 
 			newbus->rangePFMem = newrange;
 			if (first_bus)
 				newbus->noPFMemRanges = 1;
-			else {	
+			else {
 				debug ("1st PFMemory Primary on Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
 				++newbus->noPFMemRanges;
 				fix_resources (newbus);
@@ -190,7 +190,7 @@ static int __init alloc_bus_range (struct bus_node **new_bus, struct range_node 
  * This is the Resource Management initialization function.  It will go through
  * the Resource list taken from EBDA and fill in this module's data structures
  *
- * THIS IS NOT TAKING INTO CONSIDERATION IO RESTRICTIONS OF PRIMARY BUSES, 
+ * THIS IS NOT TAKING INTO CONSIDERATION IO RESTRICTIONS OF PRIMARY BUSES,
  * SINCE WE'RE GOING TO ASSUME FOR NOW WE DON'T HAVE THOSE ON OUR BUSES FOR NOW
  *
  * Input: ptr to the head of the resource list from EBDA
@@ -382,7 +382,7 @@ int __init ibmphp_rsrc_init (void)
  * pci devices' resources for the appropriate resource
  *
  * Input: type of the resource, range to add, current bus
- * Output: 0 or -1, bus and range ptrs 
+ * Output: 0 or -1, bus and range ptrs
  ********************************************************************************/
 static int add_bus_range (int type, struct range_node *range, struct bus_node *bus_cur)
 {
@@ -466,7 +466,7 @@ static void update_resources (struct bus_node *bus_cur, int type, int rangeno)
 
 	switch (type) {
 		case MEM:
-			if (bus_cur->firstMem) 
+			if (bus_cur->firstMem)
 				res = bus_cur->firstMem;
 			break;
 		case PFMEM:
@@ -583,7 +583,7 @@ static void fix_resources (struct bus_node *bus_cur)
 }
 
 /*******************************************************************************
- * This routine adds a resource to the list of resources to the appropriate bus 
+ * This routine adds a resource to the list of resources to the appropriate bus
  * based on their resource type and sorted by their starting addresses.  It assigns
  * the ptrs to next and nextRange if needed.
  *
@@ -605,11 +605,11 @@ int ibmphp_add_resource (struct resource_node *res)
 		err ("NULL passed to add\n");
 		return -ENODEV;
 	}
-	
+
 	bus_cur = find_bus_wprev (res->busno, NULL, 0);
-	
+
 	if (!bus_cur) {
-		/* didn't find a bus, smth's wrong!!! */
+		/* didn't find a bus, something's wrong!!! */
 		debug ("no bus in the system, either pci_dev's wrong or allocation failed\n");
 		return -ENODEV;
 	}
@@ -648,7 +648,7 @@ int ibmphp_add_resource (struct resource_node *res)
 	if (!range_cur) {
 		switch (res->type) {
 			case IO:
-				++bus_cur->needIOUpdate;					
+				++bus_cur->needIOUpdate;
 				break;
 			case MEM:
 				++bus_cur->needMemUpdate;
@@ -659,13 +659,13 @@ int ibmphp_add_resource (struct resource_node *res)
 		}
 		res->rangeno = -1;
 	}
-	
+
 	debug ("The range is %d\n", res->rangeno);
 	if (!res_start) {
 		/* no first{IO,Mem,Pfmem} on the bus, 1st IO/Mem/Pfmem resource ever */
 		switch (res->type) {
 			case IO:
-				bus_cur->firstIO = res;					
+				bus_cur->firstIO = res;
 				break;
 			case MEM:
 				bus_cur->firstMem = res;
@@ -673,7 +673,7 @@ int ibmphp_add_resource (struct resource_node *res)
 			case PFMEM:
 				bus_cur->firstPFMem = res;
 				break;
-		}	
+		}
 		res->next = NULL;
 		res->nextRange = NULL;
 	} else {
@@ -770,7 +770,7 @@ int ibmphp_add_resource (struct resource_node *res)
  * This routine will remove the resource from the list of resources
  *
  * Input: io, mem, and/or pfmem resource to be deleted
- * Ouput: modified resource list
+ * Output: modified resource list
  *        0 or error code
  ****************************************************************************/
 int ibmphp_remove_resource (struct resource_node *res)
@@ -825,7 +825,7 @@ int ibmphp_remove_resource (struct resource_node *res)
 
 	if (!res_cur) {
 		if (res->type == PFMEM) {
-			/* 
+			/*
 			 * case where pfmem might be in the PFMemFromMem list
 			 * so will also need to remove the corresponding mem
 			 * entry
@@ -961,12 +961,12 @@ static struct range_node * find_range (struct bus_node *bus_cur, struct resource
 }
 
 /*****************************************************************************
- * This routine will check to make sure the io/mem/pfmem->len that the device asked for 
+ * This routine will check to make sure the io/mem/pfmem->len that the device asked for
  * can fit w/i our list of available IO/MEM/PFMEM resources.  If cannot, returns -EINVAL,
  * otherwise, returns 0
  *
  * Input: resource
- * Ouput: the correct start and end address are inputted into the resource node,
+ * Output: the correct start and end address are inputted into the resource node,
  *        0 or -EINVAL
  *****************************************************************************/
 int ibmphp_check_resource (struct resource_node *res, u8 bridge)
@@ -996,7 +996,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 	bus_cur = find_bus_wprev (res->busno, NULL, 0);
 
 	if (!bus_cur) {
-		/* didn't find a bus, smth's wrong!!! */
+		/* didn't find a bus, something's wrong!!! */
 		debug ("no bus in the system, either pci_dev's wrong or allocation failed\n");
 		return -EINVAL;
 	}
@@ -1066,7 +1066,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 								break;
 						}
 					}
-			
+
 					if (flag && len_cur == res->len) {
 						debug ("but we are not here, right?\n");
 						res->start = start_cur;
@@ -1118,10 +1118,10 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		if (res_prev) {
 			if (res_prev->rangeno != res_cur->rangeno) {
 				/* 1st device on this range */
-				if ((res_cur->start != range->start) && 
+				if ((res_cur->start != range->start) &&
 					((len_tmp = res_cur->start - 1 - range->start) >= res->len)) {
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
-						if ((range->start % tmp_divide) == 0) {	
+						if ((range->start % tmp_divide) == 0) {
 							/* just perfect, starting address is divisible by length */
 							flag = 1;
 							len_cur = len_tmp;
@@ -1344,7 +1344,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
  * This routine is called from remove_card if the card contained PPB.
  * It will remove all the resources on the bus as well as the bus itself
  * Input: Bus
- * Ouput: 0, -ENODEV
+ * Output: 0, -ENODEV
  ********************************************************************************/
 int ibmphp_remove_bus (struct bus_node *bus, u8 parent_busno)
 {
@@ -1353,7 +1353,7 @@ int ibmphp_remove_bus (struct bus_node *bus, u8 parent_busno)
 	struct bus_node *prev_bus;
 	int rc;
 
-	prev_bus = find_bus_wprev (parent_busno, NULL, 0);	
+	prev_bus = find_bus_wprev (parent_busno, NULL, 0);
 
 	if (!prev_bus) {
 		debug ("something terribly wrong. Cannot find parent bus to the one to remove\n");
@@ -1424,7 +1424,7 @@ int ibmphp_remove_bus (struct bus_node *bus, u8 parent_busno)
 }
 
 /******************************************************************************
- * This routine deletes the ranges from a given bus, and the entries from the 
+ * This routine deletes the ranges from a given bus, and the entries from the
  * parent's bus in the resources
  * Input: current bus, previous bus
  * Output: 0, -EINVAL
@@ -1453,7 +1453,7 @@ static int remove_ranges (struct bus_node *bus_cur, struct bus_node *bus_prev)
 	if (bus_cur->noMemRanges) {
 		range_cur = bus_cur->rangeMem;
 		for (i = 0; i < bus_cur->noMemRanges; i++) {
-			if (ibmphp_find_resource (bus_prev, range_cur->start, &res, MEM) < 0) 
+			if (ibmphp_find_resource (bus_prev, range_cur->start, &res, MEM) < 0)
 				return -EINVAL;
 
 			ibmphp_remove_resource (res);
@@ -1467,7 +1467,7 @@ static int remove_ranges (struct bus_node *bus_cur, struct bus_node *bus_prev)
 	if (bus_cur->noPFMemRanges) {
 		range_cur = bus_cur->rangePFMem;
 		for (i = 0; i < bus_cur->noPFMemRanges; i++) {
-			if (ibmphp_find_resource (bus_prev, range_cur->start, &res, PFMEM) < 0) 
+			if (ibmphp_find_resource (bus_prev, range_cur->start, &res, PFMEM) < 0)
 				return -EINVAL;
 
 			ibmphp_remove_resource (res);
@@ -1482,7 +1482,7 @@ static int remove_ranges (struct bus_node *bus_cur, struct bus_node *bus_prev)
 }
 
 /*
- * find the resource node in the bus 
+ * find the resource node in the bus
  * Input: Resource needed, start address of the resource, type of resource
  */
 int ibmphp_find_resource (struct bus_node *bus, u32 start_address, struct resource_node **res, int flag)
@@ -1512,7 +1512,7 @@ int ibmphp_find_resource (struct bus_node *bus, u32 start_address, struct resour
 			err ("wrong type of flag\n");
 			return -EINVAL;
 	}
-	
+
 	while (res_cur) {
 		if (res_cur->start == start_address) {
 			*res = res_cur;
@@ -1718,7 +1718,7 @@ static int __init once_over (void)
 			}	/* end for pfmem */
 		}	/* end if */
 	}	/* end list_for_each bus */
-	return 0; 
+	return 0;
 }
 
 int ibmphp_add_pfmem_from_mem (struct resource_node *pfmem)
@@ -1760,9 +1760,9 @@ static struct bus_node *find_bus_wprev (u8 bus_number, struct bus_node **prev, u
 	list_for_each (tmp, &gbuses) {
 		tmp_prev = tmp->prev;
 		bus_cur = list_entry (tmp, struct bus_node, bus_list);
-		if (flag) 
+		if (flag)
 			*prev = list_entry (tmp_prev, struct bus_node, bus_list);
-		if (bus_cur->busno == bus_number) 
+		if (bus_cur->busno == bus_number)
 			return bus_cur;
 	}
 
@@ -1776,7 +1776,7 @@ void ibmphp_print_test (void)
 	struct range_node *range;
 	struct resource_node *res;
 	struct list_head *tmp;
-	
+
 	debug_pci ("*****************START**********************\n");
 
 	if ((!list_empty(&gbuses)) && flags) {
@@ -1906,7 +1906,7 @@ static int range_exists_already (struct range_node * range, struct bus_node * bu
 			return 1;
 		range_cur = range_cur->next;
 	}
-	
+
 	return 0;
 }
 
@@ -1920,7 +1920,7 @@ static int range_exists_already (struct range_node * range, struct bus_node * bu
  * Returns: none
  * Note: this function doesn't take into account IO restrictions etc,
  *	 so will only work for bridges with no video/ISA devices behind them It
- *	 also will not work for onboard PPB's that can have more than 1 *bus
+ *	 also will not work for onboard PPBs that can have more than 1 *bus
  *	 behind them All these are TO DO.
  *	 Also need to add more error checkings... (from fnc returns etc)
  */
@@ -1963,7 +1963,7 @@ static int __init update_bridge_ranges (struct bus_node **bus)
 					case PCI_HEADER_TYPE_BRIDGE:
 						function = 0x8;
 					case PCI_HEADER_TYPE_MULTIBRIDGE:
-						/* We assume here that only 1 bus behind the bridge 
+						/* We assume here that only 1 bus behind the bridge
 						   TO DO: add functionality for several:
 						   temp = secondary;
 						   while (temp < subordinate) {
@@ -1972,7 +1972,7 @@ static int __init update_bridge_ranges (struct bus_node **bus)
 						   }
 						 */
 						pci_bus_read_config_byte (ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_busno);
-						bus_sec = find_bus_wprev (sec_busno, NULL, 0); 
+						bus_sec = find_bus_wprev (sec_busno, NULL, 0);
 						/* this bus structure doesn't exist yet, PPB was configured during previous loading of ibmphp */
 						if (!bus_sec) {
 							bus_sec = alloc_error_bus (NULL, sec_busno, 1);
@@ -2028,7 +2028,7 @@ static int __init update_bridge_ranges (struct bus_node **bus)
 								io->len = io->end - io->start + 1;
 								ibmphp_add_resource (io);
 							}
-						}	
+						}
 
 						pci_bus_read_config_word (ibmphp_pci_bus, devfn, PCI_MEMORY_BASE, &start_mem_address);
 						pci_bus_read_config_word (ibmphp_pci_bus, devfn, PCI_MEMORY_LIMIT, &end_mem_address);

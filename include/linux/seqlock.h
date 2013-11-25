@@ -34,6 +34,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/preempt.h>
+#include <linux/lockdep.h>
 #include <asm/processor.h>
 
 /*
@@ -44,10 +45,50 @@
  */
 typedef struct seqcount {
 	unsigned sequence;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map dep_map;
+#endif
 } seqcount_t;
 
-#define SEQCNT_ZERO { 0 }
-#define seqcount_init(x)	do { *(x) = (seqcount_t) SEQCNT_ZERO; } while (0)
+static inline void __seqcount_init(seqcount_t *s, const char *name,
+					  struct lock_class_key *key)
+{
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	lockdep_init_map(&s->dep_map, name, key, 0);
+	s->sequence = 0;
+}
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# define SEQCOUNT_DEP_MAP_INIT(lockname) \
+		.dep_map = { .name = #lockname } \
+
+# define seqcount_init(s)				\
+	do {						\
+		static struct lock_class_key __key;	\
+		__seqcount_init((s), #s, &__key);	\
+	} while (0)
+
+static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
+{
+	seqcount_t *l = (seqcount_t *)s;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	seqcount_acquire_read(&l->dep_map, 0, 0, _RET_IP_);
+	seqcount_release(&l->dep_map, 1, _RET_IP_);
+	local_irq_restore(flags);
+}
+
+#else
+# define SEQCOUNT_DEP_MAP_INIT(lockname)
+# define seqcount_init(s) __seqcount_init(s, NULL, NULL)
+# define seqcount_lockdep_reader_access(x)
+#endif
+
+#define SEQCNT_ZERO(lockname) { .sequence = 0, SEQCOUNT_DEP_MAP_INIT(lockname)}
+
 
 /**
  * __read_seqcount_begin - begin a seq-read critical section (without barrier)
@@ -76,6 +117,22 @@ repeat:
 }
 
 /**
+ * read_seqcount_begin_no_lockdep - start seq-read critical section w/o lockdep
+ * @s: pointer to seqcount_t
+ * Returns: count to be passed to read_seqcount_retry
+ *
+ * read_seqcount_begin_no_lockdep opens a read critical section of the given
+ * seqcount, but without any lockdep checking. Validity of the critical
+ * section is tested by checking read_seqcount_retry function.
+ */
+static inline unsigned read_seqcount_begin_no_lockdep(const seqcount_t *s)
+{
+	unsigned ret = __read_seqcount_begin(s);
+	smp_rmb();
+	return ret;
+}
+
+/**
  * read_seqcount_begin - begin a seq-read critical section
  * @s: pointer to seqcount_t
  * Returns: count to be passed to read_seqcount_retry
@@ -86,9 +143,8 @@ repeat:
  */
 static inline unsigned read_seqcount_begin(const seqcount_t *s)
 {
-	unsigned ret = __read_seqcount_begin(s);
-	smp_rmb();
-	return ret;
+	seqcount_lockdep_reader_access(s);
+	return read_seqcount_begin_no_lockdep(s);
 }
 
 /**
@@ -108,6 +164,8 @@ static inline unsigned read_seqcount_begin(const seqcount_t *s)
 static inline unsigned raw_seqcount_begin(const seqcount_t *s)
 {
 	unsigned ret = ACCESS_ONCE(s->sequence);
+
+	seqcount_lockdep_reader_access(s);
 	smp_rmb();
 	return ret & ~1;
 }
@@ -152,14 +210,21 @@ static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
  * Sequence counter only version assumes that callers are using their
  * own mutexing.
  */
-static inline void write_seqcount_begin(seqcount_t *s)
+static inline void write_seqcount_begin_nested(seqcount_t *s, int subclass)
 {
 	s->sequence++;
 	smp_wmb();
+	seqcount_acquire(&s->dep_map, subclass, 0, _RET_IP_);
+}
+
+static inline void write_seqcount_begin(seqcount_t *s)
+{
+	write_seqcount_begin_nested(s, 0);
 }
 
 static inline void write_seqcount_end(seqcount_t *s)
 {
+	seqcount_release(&s->dep_map, 1, _RET_IP_);
 	smp_wmb();
 	s->sequence++;
 }
@@ -188,7 +253,7 @@ typedef struct {
  */
 #define __SEQLOCK_UNLOCKED(lockname)			\
 	{						\
-		.seqcount = SEQCNT_ZERO,		\
+		.seqcount = SEQCNT_ZERO(lockname),	\
 		.lock =	__SPIN_LOCK_UNLOCKED(lockname)	\
 	}
 
@@ -287,6 +352,35 @@ static inline void read_seqlock_excl(seqlock_t *sl)
 static inline void read_sequnlock_excl(seqlock_t *sl)
 {
 	spin_unlock(&sl->lock);
+}
+
+/**
+ * read_seqbegin_or_lock - begin a sequence number check or locking block
+ * @lock: sequence lock
+ * @seq : sequence number to be checked
+ *
+ * First try it once optimistically without taking the lock. If that fails,
+ * take the lock. The sequence number is also used as a marker for deciding
+ * whether to be a reader (even) or writer (odd).
+ * N.B. seq must be initialized to an even number to begin with.
+ */
+static inline void read_seqbegin_or_lock(seqlock_t *lock, int *seq)
+{
+	if (!(*seq & 1))	/* Even */
+		*seq = read_seqbegin(lock);
+	else			/* Odd */
+		read_seqlock_excl(lock);
+}
+
+static inline int need_seqretry(seqlock_t *lock, int seq)
+{
+	return !(seq & 1) && read_seqretry(lock, seq);
+}
+
+static inline void done_seqretry(seqlock_t *lock, int seq)
+{
+	if (seq & 1)
+		read_sequnlock_excl(lock);
 }
 
 static inline void read_seqlock_excl_bh(seqlock_t *sl)

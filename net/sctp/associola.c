@@ -602,7 +602,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 
 		/* Start a T3 timer here in case it wasn't running so
 		 * that these migrated packets have a chance to get
-		 * retrnasmitted.
+		 * retransmitted.
 		 */
 		if (!timer_pending(&active->T3_rtx_timer))
 			if (!mod_timer(&active->T3_rtx_timer,
@@ -665,7 +665,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	/* Set the path max_retrans.  */
 	peer->pathmaxrxt = asoc->pathmaxrxt;
 
-	/* And the partial failure retrnas threshold */
+	/* And the partial failure retrans threshold */
 	peer->pf_retrans = asoc->pf_retrans;
 
 	/* Initialize the peer's SACK delay timeout based on the
@@ -907,8 +907,8 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		if (!first || t->last_time_heard > first->last_time_heard) {
 			second = first;
 			first = t;
-		}
-		if (!second || t->last_time_heard > second->last_time_heard)
+		} else if (!second ||
+			   t->last_time_heard > second->last_time_heard)
 			second = t;
 	}
 
@@ -929,6 +929,8 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		first = asoc->peer.primary_path;
 	}
 
+	if (!second)
+		second = first;
 	/* If we failed to find a usable transport, just camp on the
 	 * primary, even if it is inactive.
 	 */

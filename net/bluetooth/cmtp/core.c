@@ -340,20 +340,20 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	down_write(&cmtp_session_sem);
 
-	s = __cmtp_get_session(&bt_sk(sock->sk)->dst);
+	s = __cmtp_get_session(&l2cap_pi(sock->sk)->chan->dst);
 	if (s && s->state == BT_CONNECTED) {
 		err = -EEXIST;
 		goto failed;
 	}
 
-	bacpy(&session->bdaddr, &bt_sk(sock->sk)->dst);
+	bacpy(&session->bdaddr, &l2cap_pi(sock->sk)->chan->dst);
 
 	session->mtu = min_t(uint, l2cap_pi(sock->sk)->chan->omtu,
 					l2cap_pi(sock->sk)->chan->imtu);
 
 	BT_DBG("mtu %d", session->mtu);
 
-	sprintf(session->name, "%pMR", &bt_sk(sock->sk)->dst);
+	sprintf(session->name, "%pMR", &session->bdaddr);
 
 	session->sock  = sock;
 	session->state = BT_CONFIG;

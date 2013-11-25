@@ -383,6 +383,8 @@ out:
 					g2d_userptr->npages,
 					g2d_userptr->vma);
 
+	exynos_gem_put_vma(g2d_userptr->vma);
+
 	if (!g2d_userptr->out_of_list)
 		list_del_init(&g2d_userptr->list);
 

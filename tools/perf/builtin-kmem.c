@@ -13,6 +13,7 @@
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
+#include "util/data.h"
 
 #include "util/debug.h"
 
@@ -314,10 +315,10 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->tid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
-	if (evsel->handler.func != NULL) {
-		tracepoint_handler f = evsel->handler.func;
+	if (evsel->handler != NULL) {
+		tracepoint_handler f = evsel->handler;
 		return f(evsel, sample);
 	}
 
@@ -486,8 +487,12 @@ static int __cmd_kmem(void)
 		{ "kmem:kfree",			perf_evsel__process_free_event, },
     		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
 	};
+	struct perf_data_file file = {
+		.path = input_name,
+		.mode = PERF_DATA_MODE_READ,
+	};
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_kmem);
+	session = perf_session__new(&file, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
 

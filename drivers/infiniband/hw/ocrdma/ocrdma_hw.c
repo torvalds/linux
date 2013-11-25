@@ -1783,7 +1783,7 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	u32 max_sges = attrs->cap.max_send_sge;
 
 	/* QP1 may exceed 127 */
-	max_wqe_allocated = min_t(int, attrs->cap.max_send_wr + 1,
+	max_wqe_allocated = min_t(u32, attrs->cap.max_send_wr + 1,
 				dev->attr.max_wqe);
 
 	status = ocrdma_build_q_conf(&max_wqe_allocated,

@@ -344,7 +344,7 @@ unsigned int comedi_buf_read_free(struct comedi_async *async,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_read_free);
 
-int comedi_buf_put(struct comedi_async *async, short x)
+int comedi_buf_put(struct comedi_async *async, unsigned short x)
 {
 	unsigned int n = __comedi_buf_write_alloc(async, sizeof(short), 1);
 
@@ -352,20 +352,20 @@ int comedi_buf_put(struct comedi_async *async, short x)
 		async->events |= COMEDI_CB_ERROR;
 		return 0;
 	}
-	*(short *)(async->prealloc_buf + async->buf_write_ptr) = x;
+	*(unsigned short *)(async->prealloc_buf + async->buf_write_ptr) = x;
 	comedi_buf_write_free(async, sizeof(short));
 	return 1;
 }
 EXPORT_SYMBOL_GPL(comedi_buf_put);
 
-int comedi_buf_get(struct comedi_async *async, short *x)
+int comedi_buf_get(struct comedi_async *async, unsigned short *x)
 {
 	unsigned int n = comedi_buf_read_n_available(async);
 
 	if (n < sizeof(short))
 		return 0;
 	comedi_buf_read_alloc(async, sizeof(short));
-	*x = *(short *)(async->prealloc_buf + async->buf_read_ptr);
+	*x = *(unsigned short *)(async->prealloc_buf + async->buf_read_ptr);
 	comedi_buf_read_free(async, sizeof(short));
 	return 1;
 }

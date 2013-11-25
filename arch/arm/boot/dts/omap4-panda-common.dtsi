@@ -60,22 +60,6 @@
 			"AFMR", "Line In";
 	};
 
-	/*
-	 * Temp hack: Need to be replaced with the proper gpio-controlled
-	 * reset driver as soon it will be merged.
-	 * http://thread.gmane.org/gmane.linux.drivers.devicetree/36830
-	 */
-	/* HS USB Port 1 RESET */
-	hsusb1_reset: hsusb1_reset_reg {
-		compatible = "regulator-fixed";
-		regulator-name = "hsusb1_reset";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio2 30 0>;	/* gpio_62 */
-		startup-delay-us = <70000>;
-		enable-active-high;
-	};
-
 	/* HS USB Port 1 Power */
 	hsusb1_power: hsusb1_power_reg {
 		compatible = "regulator-fixed";
@@ -97,7 +81,7 @@
 	/* HS USB Host PHY on PORT 1 */
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
-		reset-supply = <&hsusb1_reset>;
+		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;   /* gpio_62 */
 		vcc-supply = <&hsusb1_power>;
 	/**
 	 * FIXME:
@@ -122,36 +106,18 @@
 	};
 };
 
-&omap4_pmx_wkup {
-	pinctrl-names = "default";
-	pinctrl-0 = <
-			&twl6030_wkup_pins
-	>;
-
-	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
-		pinctrl-single,pins = <
-			0x14 (PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
-		>;
-	};
-};
-
 &omap4_pmx_core {
 	pinctrl-names = "default";
 	pinctrl-0 = <
-			&twl6030_pins
 			&twl6040_pins
 			&mcpdm_pins
 			&mcbsp1_pins
+			&dss_dpi_pins
+			&tfp410_pins
 			&dss_hdmi_pins
 			&tpd12s015_pins
 			&hsusbb1_pins
 	>;
-
-	twl6030_pins: pinmux_twl6030_pins {
-		pinctrl-single,pins = <
-			0x15e (WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
-		>;
-	};
 
 	twl6040_pins: pinmux_twl6040_pins {
 		pinctrl-single,pins = <
@@ -176,6 +142,47 @@
 			0xc0 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dr.abe_mcbsp1_dr */
 			0xc2 (PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dx.abe_mcbsp1_dx */
 			0xc4 (PIN_INPUT | MUX_MODE0)		/* abe_mcbsp1_fsx.abe_mcbsp1_fsx */
+		>;
+	};
+
+	dss_dpi_pins: pinmux_dss_dpi_pins {
+		pinctrl-single,pins = <
+			0x122 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data23 */
+			0x124 (PIN_OUTPUT | MUX_MODE5) 	/* dispc2_data22 */
+			0x126 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data21 */
+			0x128 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data20 */
+			0x12a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data19 */
+			0x12c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data18 */
+			0x12e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data15 */
+			0x130 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data14 */
+			0x132 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data13 */
+			0x134 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data12 */
+			0x136 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data11 */
+
+			0x174 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data10 */
+			0x176 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data9 */
+			0x178 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data16 */
+			0x17a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data17 */
+			0x17c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_hsync */
+			0x17e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_pclk */
+			0x180 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_vsync */
+			0x182 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_de */
+			0x184 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data8 */
+			0x186 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data7 */
+			0x188 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data6 */
+			0x18a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data5 */
+			0x18c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data4 */
+			0x18e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data3 */
+
+			0x190 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data2 */
+			0x192 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data1 */
+			0x194 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data0 */
+		>;
+	};
+
+	tfp410_pins: pinmux_tfp410_pins {
+		pinctrl-single,pins = <
+			0x144 (PIN_OUTPUT | MUX_MODE3)	/* gpio_0 */
 		>;
 	};
 
@@ -305,6 +312,7 @@
 };
 
 #include "twl6030.dtsi"
+#include "twl6030_omap4.dtsi"
 
 &i2c2 {
 	pinctrl-names = "default";

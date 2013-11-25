@@ -239,14 +239,14 @@ static int mwifiex_cmd_tx_power_cfg(struct host_cmd_ds_command *cmd,
 			memmove(cmd_txp_cfg, txp,
 				sizeof(struct host_cmd_ds_txpwr_cfg) +
 				sizeof(struct mwifiex_types_power_group) +
-				pg_tlv->length);
+				le16_to_cpu(pg_tlv->length));
 
 			pg_tlv = (struct mwifiex_types_power_group *) ((u8 *)
 				  cmd_txp_cfg +
 				  sizeof(struct host_cmd_ds_txpwr_cfg));
 			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size) +
 				  sizeof(struct mwifiex_types_power_group) +
-				  pg_tlv->length);
+				  le16_to_cpu(pg_tlv->length));
 		} else {
 			memmove(cmd_txp_cfg, txp, sizeof(*txp));
 		}
@@ -327,7 +327,7 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_hs_cfg_enh *hs_cfg = &cmd->params.opt_hs_cfg;
-	u16 hs_activate = false;
+	bool hs_activate = false;
 
 	if (!hscfg_param)
 		/* New Activate command */
