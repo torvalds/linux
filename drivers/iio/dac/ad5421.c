@@ -75,7 +75,7 @@ struct ad5421_state {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[2] ____cacheline_aligned;
 };
