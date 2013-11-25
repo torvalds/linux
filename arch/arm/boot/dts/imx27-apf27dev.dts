@@ -22,10 +22,10 @@
 		bits-per-pixel = <16>;  /* non-standard but required */
 		fsl,pcr = <0xfae80083>;	/* non-standard but required */
 		display-timings {
-			timing0: 640x480 {
+			timing0: 800x480 {
 				clock-frequency = <33000033>;
 				hactive = <800>;
-				vactive = <640>;
+				vactive = <480>;
 				hback-porch = <96>;
 				hfront-porch = <96>;
 				vback-porch = <20>;
