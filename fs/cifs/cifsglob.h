@@ -373,6 +373,9 @@ struct smb_version_operations {
 	int (*query_mf_symlink)(unsigned int, struct cifs_tcon *,
 				struct cifs_sb_info *, const unsigned char *,
 				char *, unsigned int *);
+	int (*create_mf_symlink)(unsigned int, struct cifs_tcon *,
+				 struct cifs_sb_info *, const unsigned char *,
+				 char *, unsigned int *);
 	/* if we can do cache read operations */
 	bool (*is_read_op)(__u32);
 	/* set oplock level for the inode */
