@@ -1777,7 +1777,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	list_del(&dev_priv->gtt.base.global_link);
 	WARN_ON(!list_empty(&dev_priv->vm_list));
-	drm_mm_takedown(&dev_priv->gtt.base.mm);
 
 	drm_vblank_cleanup(dev);
 

@@ -1411,6 +1411,8 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 {
 
 	struct i915_gtt *gtt = container_of(vm, struct i915_gtt, base);
+
+	drm_mm_takedown(&vm->mm);
 	iounmap(gtt->gsm);
 	teardown_scratch_page(vm->dev);
 }
