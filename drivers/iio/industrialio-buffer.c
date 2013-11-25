@@ -56,13 +56,34 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 {
 	struct iio_dev *indio_dev = filp->private_data;
 	struct iio_buffer *rb = indio_dev->buffer;
+	int ret;
 
 	if (!indio_dev->info)
 		return -ENODEV;
 
 	if (!rb || !rb->access->read_first_n)
 		return -EINVAL;
-	return rb->access->read_first_n(rb, n, buf);
+
+	do {
+		if (!iio_buffer_data_available(rb)) {
+			if (filp->f_flags & O_NONBLOCK)
+				return -EAGAIN;
+
+			ret = wait_event_interruptible(rb->pollq,
+					iio_buffer_data_available(rb) ||
+					indio_dev->info == NULL);
+			if (ret)
+				return ret;
+			if (indio_dev->info == NULL)
+				return -ENODEV;
+		}
+
+		ret = rb->access->read_first_n(rb, n, buf);
+		if (ret == 0 && (filp->f_flags & O_NONBLOCK))
+			ret = -EAGAIN;
+	 } while (ret == 0);
+
+	return ret;
 }
 
 /**
