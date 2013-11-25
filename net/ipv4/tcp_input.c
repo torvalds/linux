@@ -2856,7 +2856,8 @@ static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 	 * left edge of the send window.
 	 * See draft-ietf-tcplw-high-performance-00, section 3.3.
 	 */
-	if (seq_rtt < 0 && tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
+	if (seq_rtt < 0 && tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr &&
+	    flag & FLAG_ACKED)
 		seq_rtt = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
 
 	if (seq_rtt < 0)
@@ -2871,14 +2872,19 @@ static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 }
 
 /* Compute time elapsed between (last) SYNACK and the ACK completing 3WHS. */
-static void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req)
+static void tcp_synack_rtt_meas(struct sock *sk, const u32 synack_stamp)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	s32 seq_rtt = -1;
 
-	if (tp->lsndtime && !tp->total_retrans)
-		seq_rtt = tcp_time_stamp - tp->lsndtime;
-	tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt, -1);
+	if (synack_stamp && !tp->total_retrans)
+		seq_rtt = tcp_time_stamp - synack_stamp;
+
+	/* If the ACK acks both the SYNACK and the (Fast Open'd) data packets
+	 * sent in SYN_RECV, SYNACK RTT is the smooth RTT computed in tcp_ack()
+	 */
+	if (!tp->srtt)
+		tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt, -1);
 }
 
 static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
@@ -2981,6 +2987,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	s32 seq_rtt = -1;
 	s32 ca_seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
+	bool rtt_update;
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
@@ -3057,14 +3064,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 		flag |= FLAG_SACK_RENEGING;
 
-	if (tcp_ack_update_rtt(sk, flag, seq_rtt, sack_rtt) ||
-	    (flag & FLAG_ACKED))
-		tcp_rearm_rto(sk);
+	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt, sack_rtt);
 
 	if (flag & FLAG_ACKED) {
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
 
+		tcp_rearm_rto(sk);
 		if (unlikely(icsk->icsk_mtup.probe_size &&
 			     !after(tp->mtu_probe.probe_seq_end, tp->snd_una))) {
 			tcp_mtup_probe_success(sk);
@@ -3103,6 +3109,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 			ca_ops->pkts_acked(sk, pkts_acked, rtt_us);
 		}
+	} else if (skb && rtt_update && sack_rtt >= 0 &&
+		   sack_rtt > (s32)(now - TCP_SKB_CB(skb)->when)) {
+		/* Do not re-arm RTO if the sack RTT is measured from data sent
+		 * after when the head was last (re)transmitted. Otherwise the
+		 * timeout may continue to extend in loss recovery.
+		 */
+		tcp_rearm_rto(sk);
 	}
 
 #if FASTRETRANS_DEBUG > 0
@@ -5587,6 +5600,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	struct request_sock *req;
 	int queued = 0;
 	bool acceptable;
+	u32 synack_stamp;
 
 	tp->rx_opt.saw_tstamp = 0;
 
@@ -5669,9 +5683,11 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * so release it.
 		 */
 		if (req) {
+			synack_stamp = tcp_rsk(req)->snt_synack;
 			tp->total_retrans = req->num_retrans;
 			reqsk_fastopen_remove(sk, req, false);
 		} else {
+			synack_stamp = tp->lsndtime;
 			/* Make sure socket is routed, for correct metrics. */
 			icsk->icsk_af_ops->rebuild_header(sk);
 			tcp_init_congestion_control(sk);
@@ -5694,7 +5710,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
 		tp->snd_wnd = ntohs(th->window) << tp->rx_opt.snd_wscale;
 		tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
-		tcp_synack_rtt_meas(sk, req);
+		tcp_synack_rtt_meas(sk, synack_stamp);
 
 		if (tp->rx_opt.tstamp_ok)
 			tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;

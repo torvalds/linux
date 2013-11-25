@@ -1118,11 +1118,6 @@ static int virtnet_cpu_callback(struct notifier_block *nfb,
 {
 	struct virtnet_info *vi = container_of(nfb, struct virtnet_info, nb);
 
-	mutex_lock(&vi->config_lock);
-
-	if (!vi->config_enable)
-		goto done;
-
 	switch(action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
@@ -1136,8 +1131,6 @@ static int virtnet_cpu_callback(struct notifier_block *nfb,
 		break;
 	}
 
-done:
-	mutex_unlock(&vi->config_lock);
 	return NOTIFY_OK;
 }
 
@@ -1699,6 +1692,8 @@ static int virtnet_freeze(struct virtio_device *vdev)
 	struct virtnet_info *vi = vdev->priv;
 	int i;
 
+	unregister_hotcpu_notifier(&vi->nb);
+
 	/* Prevent config work handler from accessing the device */
 	mutex_lock(&vi->config_lock);
 	vi->config_enable = false;
@@ -1746,6 +1741,10 @@ static int virtnet_restore(struct virtio_device *vdev)
 	rtnl_lock();
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
 	rtnl_unlock();
+
+	err = register_hotcpu_notifier(&vi->nb);
+	if (err)
+		return err;
 
 	return 0;
 }
