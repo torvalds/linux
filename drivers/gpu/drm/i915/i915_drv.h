@@ -971,6 +971,9 @@ struct i915_power_domains {
 	int power_well_count;
 
 	struct mutex lock;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	int domain_use_count[POWER_DOMAIN_NUM];
+#endif
 	struct i915_power_well *power_wells;
 };
 

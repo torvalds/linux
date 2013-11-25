@@ -5754,8 +5754,13 @@ void intel_display_power_get(struct drm_device *dev,
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	power_domains->domain_use_count[domain]++;
+#endif
 	for_each_power_well(i, power_well, BIT(domain), power_domains)
 		__intel_power_well_get(dev, power_well);
+
 	mutex_unlock(&power_domains->lock);
 }
 
@@ -5770,8 +5775,15 @@ void intel_display_power_put(struct drm_device *dev,
 	power_domains = &dev_priv->power_domains;
 
 	mutex_lock(&power_domains->lock);
+
 	for_each_power_well_rev(i, power_well, BIT(domain), power_domains)
 		__intel_power_well_put(dev, power_well);
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	WARN_ON(!power_domains->domain_use_count[domain]);
+	power_domains->domain_use_count[domain]--;
+#endif
+
 	mutex_unlock(&power_domains->lock);
 }
 
