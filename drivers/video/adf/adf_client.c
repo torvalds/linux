@@ -49,6 +49,9 @@ int adf_interface_blank(struct adf_interface *intf, u8 state)
 	if (!intf->ops || !intf->ops->blank)
 		return -EOPNOTSUPP;
 
+	if (state > DRM_MODE_DPMS_OFF)
+		return -EINVAL;
+
 	mutex_lock(&dev->client_lock);
 	if (state != DRM_MODE_DPMS_ON)
 		flush_kthread_worker(&dev->post_worker);

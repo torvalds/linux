@@ -1578,6 +1578,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 		}
 	}
 
+#ifdef CONFIG_EARLY_PRINTK_DIRECT
+	printascii(text);
+#endif
+
 	if (level == -1)
 		level = default_message_loglevel;
 
