@@ -373,10 +373,10 @@ static unsigned __wa_xfer_is_done(struct wa_xfer *xfer)
 				seg->result);
 			goto out;
 		case WA_SEG_ABORTED:
-			dev_dbg(dev, "xfer %p ID %08X#%u ABORTED: result %d\n",
-				xfer, wa_xfer_id(xfer), seg->index,
-				urb->status);
-			xfer->result = urb->status;
+			xfer->result = seg->result;
+			dev_dbg(dev, "xfer %p ID %08X#%u: ABORTED result %zu(0x%08zX)\n",
+				xfer, wa_xfer_id(xfer), seg->index, seg->result,
+				seg->result);
 			goto out;
 		default:
 			dev_warn(dev, "xfer %p ID %08X#%u: is_done bad state %d\n",
@@ -1568,7 +1568,8 @@ static int wa_urb_enqueue_b(struct wa_xfer *xfer)
 	wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 	if (wusb_dev == NULL) {
 		mutex_unlock(&wusbhc->mutex);
-		pr_err("%s: error wusb dev gone\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error wusb dev gone\n",
+			__func__);
 		goto error_dev_gone;
 	}
 	mutex_unlock(&wusbhc->mutex);
@@ -1577,18 +1578,18 @@ static int wa_urb_enqueue_b(struct wa_xfer *xfer)
 	xfer->wusb_dev = wusb_dev;
 	result = urb->status;
 	if (urb->status != -EINPROGRESS) {
-		pr_err("%s: error_dequeued\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_dequeued\n", __func__);
 		goto error_dequeued;
 	}
 
 	result = __wa_xfer_setup(xfer, urb);
 	if (result < 0) {
-		pr_err("%s: error_xfer_setup\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_xfer_setup\n", __func__);
 		goto error_xfer_setup;
 	}
 	result = __wa_xfer_submit(xfer);
 	if (result < 0) {
-		pr_err("%s: error_xfer_submit\n", __func__);
+		dev_err(&(urb->dev->dev), "%s: error_xfer_submit\n", __func__);
 		goto error_xfer_submit;
 	}
 	spin_unlock_irqrestore(&xfer->lock, flags);
@@ -1844,8 +1845,8 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb, int status)
 	pr_debug("%s: DEQUEUE xfer id 0x%08X\n", __func__, wa_xfer_id(xfer));
 	rpipe = xfer->ep->hcpriv;
 	if (rpipe == NULL) {
-		pr_debug("%s: xfer id 0x%08X has no RPIPE.  %s",
-			__func__, wa_xfer_id(xfer),
+		pr_debug("%s: xfer %p id 0x%08X has no RPIPE.  %s",
+			__func__, xfer, wa_xfer_id(xfer),
 			"Probably already aborted.\n" );
 		goto out_unlock;
 	}
