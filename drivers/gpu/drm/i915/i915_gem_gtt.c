@@ -238,10 +238,16 @@ static int gen8_ppgtt_enable(struct drm_device *dev)
 		for_each_ring(ring, dev_priv, j) {
 			ret = gen8_write_pdp(ring, i, addr);
 			if (ret)
-				return ret;
+				goto err_out;
 		}
 	}
 	return 0;
+
+err_out:
+	for_each_ring(ring, dev_priv, j)
+		I915_WRITE(RING_MODE_GEN7(ring),
+			   _MASKED_BIT_DISABLE(GFX_PPGTT_ENABLE));
+	return ret;
 }
 
 static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
