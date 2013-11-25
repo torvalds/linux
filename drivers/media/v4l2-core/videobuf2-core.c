@@ -2632,15 +2632,28 @@ int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL_GPL(vb2_fop_mmap);
 
-int vb2_fop_release(struct file *file)
+int _vb2_fop_release(struct file *file, struct mutex *lock)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (file->private_data == vdev->queue->owner) {
+		if (lock)
+			mutex_lock(lock);
 		vb2_queue_release(vdev->queue);
 		vdev->queue->owner = NULL;
+		if (lock)
+			mutex_unlock(lock);
 	}
 	return v4l2_fh_release(file);
+}
+EXPORT_SYMBOL_GPL(_vb2_fop_release);
+
+int vb2_fop_release(struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+
+	return _vb2_fop_release(file, lock);
 }
 EXPORT_SYMBOL_GPL(vb2_fop_release);
 
