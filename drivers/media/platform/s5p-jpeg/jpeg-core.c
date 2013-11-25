@@ -1272,7 +1272,6 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		return ret;
 	}
 	dev_dbg(&pdev->dev, "clock source %p\n", jpeg->clk);
-	clk_prepare_enable(jpeg->clk);
 
 	/* v4l2 device */
 	ret = v4l2_device_register(&pdev->dev, &jpeg->v4l2_dev);
@@ -1380,7 +1379,6 @@ device_register_rollback:
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
 clk_get_rollback:
-	clk_disable_unprepare(jpeg->clk);
 	clk_put(jpeg->clk);
 
 	return ret;
@@ -1400,7 +1398,9 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
 
-	clk_disable_unprepare(jpeg->clk);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		clk_disable_unprepare(jpeg->clk);
+
 	clk_put(jpeg->clk);
 
 	return 0;
@@ -1408,12 +1408,21 @@ static int s5p_jpeg_remove(struct platform_device *pdev)
 
 static int s5p_jpeg_runtime_suspend(struct device *dev)
 {
+	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(jpeg->clk);
+
 	return 0;
 }
 
 static int s5p_jpeg_runtime_resume(struct device *dev)
 {
 	struct s5p_jpeg *jpeg = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(jpeg->clk);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * JPEG IP allows storing two Huffman tables for each component
@@ -1427,9 +1436,25 @@ static int s5p_jpeg_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int s5p_jpeg_suspend(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return s5p_jpeg_runtime_suspend(dev);
+}
+
+static int s5p_jpeg_resume(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return s5p_jpeg_runtime_resume(dev);
+}
+
 static const struct dev_pm_ops s5p_jpeg_pm_ops = {
-	.runtime_suspend = s5p_jpeg_runtime_suspend,
-	.runtime_resume	 = s5p_jpeg_runtime_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(s5p_jpeg_suspend, s5p_jpeg_resume)
+	SET_RUNTIME_PM_OPS(s5p_jpeg_runtime_suspend, s5p_jpeg_runtime_resume, NULL)
 };
 
 #ifdef CONFIG_OF
