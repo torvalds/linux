@@ -78,7 +78,7 @@ struct ad5686_state {
 	 */
 
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[3] ____cacheline_aligned;
 };
