@@ -1009,7 +1009,7 @@ struct smb_version_operations smb1_operations = {
 	.mand_lock = cifs_mand_lock,
 	.mand_unlock_range = cifs_unlock_range,
 	.push_mand_locks = cifs_push_mandatory_locks,
-	.query_mf_symlink = open_query_close_cifs_symlink,
+	.query_mf_symlink = cifs_query_mf_symlink,
 	.is_read_op = cifs_is_read_op,
 };
 

@@ -305,53 +305,40 @@ CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr)
 }
 
 int
-open_query_close_cifs_symlink(const unsigned char *path, char *pbuf,
-			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
-			unsigned int xid)
+cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+		      struct cifs_sb_info *cifs_sb, const unsigned char *path,
+		      char *pbuf, unsigned int *pbytes_read)
 {
 	int rc;
 	int oplock = 0;
 	__u16 netfid = 0;
-	struct tcon_link *tlink;
-	struct cifs_tcon *ptcon;
 	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
 	FILE_ALL_INFO file_info;
 
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink))
-		return PTR_ERR(tlink);
-	ptcon = tlink_tcon(tlink);
-
-	rc = CIFSSMBOpen(xid, ptcon, path, FILE_OPEN, GENERIC_READ,
+	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, GENERIC_READ,
 			 CREATE_NOT_DIR, &netfid, &oplock, &file_info,
 			 cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc != 0) {
-		cifs_put_tlink(tlink);
+	if (rc)
 		return rc;
-	}
 
-	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
-		CIFSSMBClose(xid, ptcon, netfid);
-		cifs_put_tlink(tlink);
+	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE))
 		/* it's not a symlink */
-		return rc;
-	}
+		goto out;
 
 	io_parms.netfid = netfid;
 	io_parms.pid = current->tgid;
-	io_parms.tcon = ptcon;
+	io_parms.tcon = tcon;
 	io_parms.offset = 0;
 	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
 	rc = CIFSSMBRead(xid, &io_parms, pbytes_read, &pbuf, &buf_type);
-	CIFSSMBClose(xid, ptcon, netfid);
-	cifs_put_tlink(tlink);
+out:
+	CIFSSMBClose(xid, tcon, netfid);
 	return rc;
 }
-
 
 int
 CIFSCheckMFSymlink(unsigned int xid, struct cifs_tcon *tcon,
@@ -372,8 +359,8 @@ CIFSCheckMFSymlink(unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	if (tcon->ses->server->ops->query_mf_symlink)
-		rc = tcon->ses->server->ops->query_mf_symlink(path, buf,
-						&bytes_read, cifs_sb, xid);
+		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
+					      cifs_sb, path, buf, &bytes_read);
 	else
 		rc = -ENOSYS;
 
