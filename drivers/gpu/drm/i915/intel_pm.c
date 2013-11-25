@@ -5775,10 +5775,7 @@ void i915_request_power_well(void)
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
-
-	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_get(dev_priv->dev, &hsw_pwr->power_wells[0]);
-	mutex_unlock(&hsw_pwr->lock);
+	intel_display_power_get(dev_priv->dev, POWER_DOMAIN_AUDIO);
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
 
@@ -5792,10 +5789,7 @@ void i915_release_power_well(void)
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
-
-	mutex_lock(&hsw_pwr->lock);
-	__intel_power_well_put(dev_priv->dev, &hsw_pwr->power_wells[0]);
-	mutex_unlock(&hsw_pwr->lock);
+	intel_display_power_put(dev_priv->dev, POWER_DOMAIN_AUDIO);
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
