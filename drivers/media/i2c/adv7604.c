@@ -1882,13 +1882,13 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	struct stdi_readback stdi;
 	u8 reg_io_0x02 = io_read(sd, 0x02);
 
-	char *csc_coeff_sel_rb[16] = {
+	static const char * const csc_coeff_sel_rb[16] = {
 		"bypassed", "YPbPr601 -> RGB", "reserved", "YPbPr709 -> RGB",
 		"reserved", "RGB -> YPbPr601", "reserved", "RGB -> YPbPr709",
 		"reserved", "YPbPr709 -> YPbPr601", "YPbPr601 -> YPbPr709",
 		"reserved", "reserved", "reserved", "reserved", "manual"
 	};
-	char *input_color_space_txt[16] = {
+	static const char * const input_color_space_txt[16] = {
 		"RGB limited range (16-235)", "RGB full range (0-255)",
 		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
 		"xvYCC Bt.601", "xvYCC Bt.709",
@@ -1896,12 +1896,12 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 		"invalid", "invalid", "invalid", "invalid", "invalid",
 		"invalid", "invalid", "automatic"
 	};
-	char *rgb_quantization_range_txt[] = {
+	static const char * const rgb_quantization_range_txt[] = {
 		"Automatic",
 		"RGB limited range (16-235)",
 		"RGB full range (0-255)",
 	};
-	char *deep_color_mode_txt[4] = {
+	static const char * const deep_color_mode_txt[4] = {
 		"8-bits per channel",
 		"10-bits per channel",
 		"12-bits per channel",
