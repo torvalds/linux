@@ -278,6 +278,31 @@ do {									\
 	__ret;								\
 })
 
+#define __wait_event_cmd(wq, condition, cmd1, cmd2)			\
+	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
+			    cmd1; schedule(); cmd2)
+
+/**
+ * wait_event_cmd - sleep until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * cmd1: the command will be executed before sleep
+ * cmd2: the command will be executed after sleep
+ *
+ * The process is put to sleep (TASK_UNINTERRUPTIBLE) until the
+ * @condition evaluates to true. The @condition is checked each time
+ * the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ */
+#define wait_event_cmd(wq, condition, cmd1, cmd2)			\
+do {									\
+	if (condition)							\
+		break;							\
+	__wait_event_cmd(wq, condition, cmd1, cmd2);			\
+} while (0)
+
 #define __wait_event_interruptible(wq, condition)			\
 	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
 		      schedule())

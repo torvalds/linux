@@ -465,7 +465,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TXE);
 
 	/* start by setting frame bit */
-	INIT_COMPLETION(p->done);
+	reinit_completion(&p->done);
 	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");

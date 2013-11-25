@@ -224,7 +224,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 		GOTO(put_old, err = PTR_ERR(dchild_new));
 
 	err = ll_vfs_rename(dir->d_inode, dchild_old, mnt,
-			    dir->d_inode, dchild_new, mnt);
+			    dir->d_inode, dchild_new, mnt, NULL);
 
 	dput(dchild_new);
 put_old:

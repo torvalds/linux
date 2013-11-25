@@ -630,6 +630,8 @@ ssetup_ntlmssp_authenticate:
 		goto ssetup_exit;
 
 	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+	if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+		cifs_dbg(VFS, "SMB3 encryption not supported yet\n");
 ssetup_exit:
 	free_rsp_buf(resp_buftype, rsp);
 
@@ -716,6 +718,14 @@ static inline void cifs_stats_fail_inc(struct cifs_tcon *tcon, uint16_t code)
 }
 
 #define MAX_SHARENAME_LENGTH (255 /* server */ + 80 /* share */ + 1 /* NULL */)
+
+/* These are similar values to what Windows uses */
+static inline void init_copy_chunk_defaults(struct cifs_tcon *tcon)
+{
+	tcon->max_chunks = 256;
+	tcon->max_bytes_chunk = 1048576;
+	tcon->max_bytes_copy = 16777216;
+}
 
 int
 SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
@@ -818,7 +828,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
 	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
 		cifs_dbg(VFS, "DFS capability contradicts DFS flag\n");
-
+	init_copy_chunk_defaults(tcon);
 tcon_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	kfree(unc_path);

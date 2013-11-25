@@ -551,7 +551,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	}
 	mlx5_ib_populate_pas(dev, qp->umem, page_shift, (*in)->pas, 0);
 	(*in)->ctx.log_pg_sz_remote_qpn =
-		cpu_to_be32((page_shift - PAGE_SHIFT) << 24);
+		cpu_to_be32((page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	(*in)->ctx.params2 = cpu_to_be32(offset << 6);
 
 	(*in)->ctx.qp_counter_set_usr_page = cpu_to_be32(uar_index);
@@ -648,7 +648,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 		goto err_buf;
 	}
 	(*in)->ctx.qp_counter_set_usr_page = cpu_to_be32(uar_index);
-	(*in)->ctx.log_pg_sz_remote_qpn = cpu_to_be32((qp->buf.page_shift - PAGE_SHIFT) << 24);
+	(*in)->ctx.log_pg_sz_remote_qpn =
+		cpu_to_be32((qp->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT) << 24);
 	/* Set "fast registration enabled" for all kernel QPs */
 	(*in)->ctx.params1 |= cpu_to_be32(1 << 11);
 	(*in)->ctx.sq_crq_size |= cpu_to_be16(1 << 4);
@@ -1317,9 +1318,11 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					  MLX5_QP_OPTPAR_RAE		|
 					  MLX5_QP_OPTPAR_RWE		|
 					  MLX5_QP_OPTPAR_RNR_TIMEOUT	|
-					  MLX5_QP_OPTPAR_PM_STATE,
+					  MLX5_QP_OPTPAR_PM_STATE	|
+					  MLX5_QP_OPTPAR_ALT_ADDR_PATH,
 			[MLX5_QP_ST_UC] = MLX5_QP_OPTPAR_RWE		|
-					  MLX5_QP_OPTPAR_PM_STATE,
+					  MLX5_QP_OPTPAR_PM_STATE	|
+					  MLX5_QP_OPTPAR_ALT_ADDR_PATH,
 			[MLX5_QP_ST_UD] = MLX5_QP_OPTPAR_Q_KEY		|
 					  MLX5_QP_OPTPAR_SRQN		|
 					  MLX5_QP_OPTPAR_CQN_RCV,
@@ -1550,7 +1553,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	mlx5_cur = to_mlx5_state(cur_state);
 	mlx5_new = to_mlx5_state(new_state);
 	mlx5_st = to_mlx5_st(ibqp->qp_type);
-	if (mlx5_cur < 0 || mlx5_new < 0 || mlx5_st < 0)
+	if (mlx5_st < 0)
 		goto out;
 
 	optpar = ib_mask_to_mlx5_opt(attr_mask);
@@ -1744,6 +1747,7 @@ static void set_reg_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 			MLX5_MKEY_MASK_PD		|
 			MLX5_MKEY_MASK_LR		|
 			MLX5_MKEY_MASK_LW		|
+			MLX5_MKEY_MASK_KEY		|
 			MLX5_MKEY_MASK_RR		|
 			MLX5_MKEY_MASK_RW		|
 			MLX5_MKEY_MASK_A		|
@@ -1800,7 +1804,8 @@ static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *w
 	seg->start_addr = cpu_to_be64(wr->wr.fast_reg.iova_start);
 	seg->len = cpu_to_be64(wr->wr.fast_reg.length);
 	seg->log2_page_size = wr->wr.fast_reg.page_shift;
-	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff00 |
+				       mlx5_mkey_variant(wr->wr.fast_reg.rkey));
 }
 
 static void set_frwr_pages(struct mlx5_wqe_data_seg *dseg,
@@ -1913,6 +1918,10 @@ static int set_frwr_li_wr(void **seg, struct ib_send_wr *wr, int *size,
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
 	if (!li) {
+		if (unlikely(wr->wr.fast_reg.page_list_len >
+			     wr->wr.fast_reg.page_list->max_page_list_len))
+			return	-ENOMEM;
+
 		set_frwr_pages(*seg, wr, mdev, pd, writ);
 		*seg += sizeof(struct mlx5_wqe_data_seg);
 		*size += (sizeof(struct mlx5_wqe_data_seg) / 16);

@@ -1614,7 +1614,7 @@ static int nfs_parse_mount_options(char *raw,
 		goto out_minorversion_mismatch;
 
 	if (mnt->options & NFS_OPTION_MIGRATION &&
-	    mnt->version != 4 && mnt->minorversion != 0)
+	    (mnt->version != 4 || mnt->minorversion != 0))
 		goto out_migration_misuse;
 
 	/*

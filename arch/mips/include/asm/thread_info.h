@@ -92,8 +92,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #define STACK_WARN	(THREAD_SIZE / 8)
 
-#define PREEMPT_ACTIVE		0x10000000
-
 /*
  * thread information flags
  * - these are process state flags that various assembly files may need to

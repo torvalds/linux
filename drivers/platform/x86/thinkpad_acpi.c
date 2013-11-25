@@ -701,6 +701,14 @@ static void __init drv_acpi_handle_init(const char *name,
 static acpi_status __init tpacpi_acpi_handle_locate_callback(acpi_handle handle,
 			u32 level, void *context, void **return_value)
 {
+	struct acpi_device *dev;
+	if (!strcmp(context, "video")) {
+		if (acpi_bus_get_device(handle, &dev))
+			return AE_OK;
+		if (strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
+			return AE_OK;
+	}
+
 	*(acpi_handle *)return_value = handle;
 
 	return AE_CTRL_TERMINATE;
@@ -713,10 +721,10 @@ static void __init tpacpi_acpi_handle_locate(const char *name,
 	acpi_status status;
 	acpi_handle device_found;
 
-	BUG_ON(!name || !hid || !handle);
+	BUG_ON(!name || !handle);
 	vdbg_printk(TPACPI_DBG_INIT,
 			"trying to locate ACPI handle for %s, using HID %s\n",
-			name, hid);
+			name, hid ? hid : "NULL");
 
 	memset(&device_found, 0, sizeof(device_found));
 	status = acpi_get_devices(hid, tpacpi_acpi_handle_locate_callback,
@@ -6091,19 +6099,28 @@ static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
+	struct acpi_device *device, *child;
 	int rc;
 
-	if (ACPI_SUCCESS(acpi_evaluate_object(handle, "_BCL", NULL, &buffer))) {
+	if (acpi_bus_get_device(handle, &device))
+		return 0;
+
+	rc = 0;
+	list_for_each_entry(child, &device->children, node) {
+		acpi_status status = acpi_evaluate_object(child->handle, "_BCL",
+							  NULL, &buffer);
+		if (ACPI_FAILURE(status))
+			continue;
+
 		obj = (union acpi_object *)buffer.pointer;
 		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
 			pr_err("Unknown _BCL data, please report this to %s\n",
-			       TPACPI_MAIL);
+				TPACPI_MAIL);
 			rc = 0;
 		} else {
 			rc = obj->package.count;
 		}
-	} else {
-		return 0;
+		break;
 	}
 
 	kfree(buffer.pointer);
@@ -6119,7 +6136,7 @@ static unsigned int __init tpacpi_check_std_acpi_brightness_support(void)
 	acpi_handle video_device;
 	int bcl_levels = 0;
 
-	tpacpi_acpi_handle_locate("video", ACPI_VIDEO_HID, &video_device);
+	tpacpi_acpi_handle_locate("video", NULL, &video_device);
 	if (video_device)
 		bcl_levels = tpacpi_query_bcl_levels(video_device);
 

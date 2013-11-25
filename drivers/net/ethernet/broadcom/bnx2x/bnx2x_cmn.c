@@ -2959,6 +2959,10 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 
 	bp->port.pmf = 0;
 
+	/* clear pending work in rtnl task */
+	bp->sp_rtnl_state = 0;
+	smp_mb();
+
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
 	if (CNIC_LOADED(bp))
@@ -3256,14 +3260,16 @@ static u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 	if (prot == IPPROTO_TCP)
 		rc |= XMIT_CSUM_TCP;
 
-	if (skb_is_gso_v6(skb)) {
-		rc |= (XMIT_GSO_V6 | XMIT_CSUM_TCP);
-		if (rc & XMIT_CSUM_ENC)
-			rc |= XMIT_GSO_ENC_V6;
-	} else if (skb_is_gso(skb)) {
-		rc |= (XMIT_GSO_V4 | XMIT_CSUM_TCP);
-		if (rc & XMIT_CSUM_ENC)
-			rc |= XMIT_GSO_ENC_V4;
+	if (skb_is_gso(skb)) {
+		if (skb_is_gso_v6(skb)) {
+			rc |= (XMIT_GSO_V6 | XMIT_CSUM_TCP);
+			if (rc & XMIT_CSUM_ENC)
+				rc |= XMIT_GSO_ENC_V6;
+		} else {
+			rc |= (XMIT_GSO_V4 | XMIT_CSUM_TCP);
+			if (rc & XMIT_CSUM_ENC)
+				rc |= XMIT_GSO_ENC_V4;
+		}
 	}
 
 	return rc;

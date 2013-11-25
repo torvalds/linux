@@ -906,7 +906,7 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 		}
 		ret = tps65910_reg_write(pmic->mfd, sr_reg_add, 0);
 		if (ret < 0) {
-			dev_err(mfd->dev, "Error in settting sr register\n");
+			dev_err(mfd->dev, "Error in setting sr register\n");
 			return ret;
 		}
 	}

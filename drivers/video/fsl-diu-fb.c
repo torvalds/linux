@@ -1104,7 +1104,7 @@ static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 		fsl_diu_load_cursor_image(info, image, bg, fg,
 			cursor->image.width, cursor->image.height);
-	};
+	}
 
 	/*
 	 * Show or hide the cursor.  The cursor data is always stored in the

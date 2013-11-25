@@ -128,138 +128,93 @@ static __inline__ struct llc_conn_state_ev *llc_conn_ev(struct sk_buff *skb)
 typedef int (*llc_conn_ev_t)(struct sock *sk, struct sk_buff *skb);
 typedef int (*llc_conn_ev_qfyr_t)(struct sock *sk, struct sk_buff *skb);
 
-extern int llc_conn_ev_conn_req(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_data_req(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_disc_req(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_rst_req(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_local_busy_detected(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_local_busy_cleared(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_rx_bad_pdu(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_rx_disc_cmd_pbit_set_x(struct sock *sk,
-					      struct sk_buff *skb);
-extern int llc_conn_ev_rx_dm_rsp_fbit_set_x(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_frmr_rsp_fbit_set_x(struct sock *sk,
-					      struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_cmd_pbit_set_x_inval_ns(struct sock *sk,
-						    struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_x(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_x_unexpd_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_x_inval_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_rej_rsp_fbit_set_x(struct sock *sk,
+int llc_conn_ev_conn_req(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_data_req(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_disc_req(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rst_req(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_local_busy_detected(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_local_busy_cleared(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_bad_pdu(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_disc_cmd_pbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_dm_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_frmr_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_cmd_pbit_set_x_inval_ns(struct sock *sk,
 					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_sabme_cmd_pbit_set_x(struct sock *sk,
+int llc_conn_ev_rx_i_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_x_unexpd_ns(struct sock *sk,
+					      struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_x_inval_ns(struct sock *sk,
+					     struct sk_buff *skb);
+int llc_conn_ev_rx_rej_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_sabme_cmd_pbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_ua_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_xxx_cmd_pbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_xxx_rsp_fbit_set_x(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_zzz_cmd_pbit_set_x_inval_nr(struct sock *sk,
 					       struct sk_buff *skb);
-extern int llc_conn_ev_rx_ua_rsp_fbit_set_x(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_xxx_cmd_pbit_set_x(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_xxx_rsp_fbit_set_x(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_zzz_cmd_pbit_set_x_inval_nr(struct sock *sk,
-						      struct sk_buff *skb);
-extern int llc_conn_ev_rx_zzz_rsp_fbit_set_x_inval_nr(struct sock *sk,
-						      struct sk_buff *skb);
-extern int llc_conn_ev_p_tmr_exp(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_ack_tmr_exp(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_rej_tmr_exp(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_busy_tmr_exp(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_sendack_tmr_exp(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_zzz_rsp_fbit_set_x_inval_nr(struct sock *sk,
+					       struct sk_buff *skb);
+int llc_conn_ev_p_tmr_exp(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_ack_tmr_exp(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rej_tmr_exp(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_busy_tmr_exp(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_sendack_tmr_exp(struct sock *sk, struct sk_buff *skb);
 /* NOT_USED functions and their variations */
-extern int llc_conn_ev_rx_xxx_cmd_pbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_xxx_rsp_fbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_cmd_pbit_set_0_unexpd_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_cmd_pbit_set_1_unexpd_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_cmd_pbit_set_0(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_cmd_pbit_set_1(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_0_unexpd_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_1_unexpd_ns(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_0(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_rx_i_rsp_fbit_set_1(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_rx_rr_cmd_pbit_set_0(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_rr_cmd_pbit_set_1(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_rr_rsp_fbit_set_0(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_rr_rsp_fbit_set_1(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_rx_rnr_cmd_pbit_set_0(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rnr_cmd_pbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rnr_rsp_fbit_set_0(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rnr_rsp_fbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rej_cmd_pbit_set_0(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rej_cmd_pbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rej_rsp_fbit_set_0(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_rej_rsp_fbit_set_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_rx_any_frame(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_tx_buffer_full(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_init_p_f_cycle(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_xxx_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_xxx_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_cmd_pbit_set_0_unexpd_ns(struct sock *sk,
+					      struct sk_buff *skb);
+int llc_conn_ev_rx_i_cmd_pbit_set_1_unexpd_ns(struct sock *sk,
+					      struct sk_buff *skb);
+int llc_conn_ev_rx_i_cmd_pbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_0_unexpd_ns(struct sock *sk,
+					      struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_1_unexpd_ns(struct sock *sk,
+					      struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_i_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rr_cmd_pbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rr_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rr_rsp_fbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rr_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rnr_cmd_pbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rnr_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rnr_rsp_fbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rnr_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rej_cmd_pbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rej_cmd_pbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rej_rsp_fbit_set_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_rej_rsp_fbit_set_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_rx_any_frame(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_tx_buffer_full(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_init_p_f_cycle(struct sock *sk, struct sk_buff *skb);
 
 /* Available connection action qualifiers */
-extern int llc_conn_ev_qlfy_data_flag_eq_1(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_data_flag_eq_0(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_data_flag_eq_2(struct sock *sk,
-					   struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_p_flag_eq_1(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_last_frame_eq_1(struct sock *sk,
+int llc_conn_ev_qlfy_data_flag_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_data_flag_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_data_flag_eq_2(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_p_flag_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_last_frame_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_last_frame_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_p_flag_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_p_flag_eq_f(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_remote_busy_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_remote_busy_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_retry_cnt_lt_n2(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_retry_cnt_gte_n2(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_s_flag_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_s_flag_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_cause_flag_eq_1(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_cause_flag_eq_0(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_conn(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_disc(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_failed(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_remote_busy(struct sock *sk,
 					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_last_frame_eq_0(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_p_flag_eq_0(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_p_flag_eq_f(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_remote_busy_eq_0(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_remote_busy_eq_1(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_retry_cnt_lt_n2(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_retry_cnt_gte_n2(struct sock *sk,
-					     struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_s_flag_eq_1(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_s_flag_eq_0(struct sock *sk, struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_cause_flag_eq_1(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_cause_flag_eq_0(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_conn(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_disc(struct sock *sk,
-					    struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_failed(struct sock *sk,
-					      struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_remote_busy(struct sock *sk,
-						  struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_refuse(struct sock *sk,
-					      struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_conflict(struct sock *sk,
-						struct sk_buff *skb);
-extern int llc_conn_ev_qlfy_set_status_rst_done(struct sock *sk,
-						struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_refuse(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_conflict(struct sock *sk, struct sk_buff *skb);
+int llc_conn_ev_qlfy_set_status_rst_done(struct sock *sk, struct sk_buff *skb);
 
 static __inline__ int llc_conn_space(struct sock *sk, struct sk_buff *skb)
 {

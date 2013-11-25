@@ -266,20 +266,23 @@ static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PARMS]	= { .len = sizeof(struct tc_tbf_qopt) },
 	[TCA_TBF_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
 	[TCA_TBF_PTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_TBF_RATE64]	= { .type = NLA_U64 },
+	[TCA_TBF_PRATE64]	= { .type = NLA_U64 },
 };
 
 static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	int err;
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	struct nlattr *tb[TCA_TBF_PTAB + 1];
+	struct nlattr *tb[TCA_TBF_MAX + 1];
 	struct tc_tbf_qopt *qopt;
 	struct qdisc_rate_table *rtab = NULL;
 	struct qdisc_rate_table *ptab = NULL;
 	struct Qdisc *child = NULL;
 	int max_size, n;
+	u64 rate64 = 0, prate64 = 0;
 
-	err = nla_parse_nested(tb, TCA_TBF_PTAB, opt, tbf_policy);
+	err = nla_parse_nested(tb, TCA_TBF_MAX, opt, tbf_policy);
 	if (err < 0)
 		return err;
 
@@ -341,9 +344,13 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 
-	psched_ratecfg_precompute(&q->rate, &rtab->rate);
+	if (tb[TCA_TBF_RATE64])
+		rate64 = nla_get_u64(tb[TCA_TBF_RATE64]);
+	psched_ratecfg_precompute(&q->rate, &rtab->rate, rate64);
 	if (ptab) {
-		psched_ratecfg_precompute(&q->peak, &ptab->rate);
+		if (tb[TCA_TBF_PRATE64])
+			prate64 = nla_get_u64(tb[TCA_TBF_PRATE64]);
+		psched_ratecfg_precompute(&q->peak, &ptab->rate, prate64);
 		q->peak_present = true;
 	} else {
 		q->peak_present = false;
@@ -401,6 +408,13 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.mtu = PSCHED_NS2TICKS(q->mtu);
 	opt.buffer = PSCHED_NS2TICKS(q->buffer);
 	if (nla_put(skb, TCA_TBF_PARMS, sizeof(opt), &opt))
+		goto nla_put_failure;
+	if (q->rate.rate_bytes_ps >= (1ULL << 32) &&
+	    nla_put_u64(skb, TCA_TBF_RATE64, q->rate.rate_bytes_ps))
+		goto nla_put_failure;
+	if (q->peak_present &&
+	    q->peak.rate_bytes_ps >= (1ULL << 32) &&
+	    nla_put_u64(skb, TCA_TBF_PRATE64, q->peak.rate_bytes_ps))
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);

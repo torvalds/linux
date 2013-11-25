@@ -56,7 +56,7 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 		ev.id = ev_code;
 		ev.timestamp = timestamp;
 
-		copied = kfifo_put(&ev_int->det_events, &ev);
+		copied = kfifo_put(&ev_int->det_events, ev);
 		if (copied != 0)
 			wake_up_locked_poll(&ev_int->wait, POLLIN);
 	}

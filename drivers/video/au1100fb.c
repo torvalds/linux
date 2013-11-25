@@ -564,7 +564,7 @@ int au1100fb_drv_remove(struct platform_device *dev)
 	if (!dev)
 		return -ENODEV;
 
-	fbdev = (struct au1100fb_device *) platform_get_drvdata(dev);
+	fbdev = platform_get_drvdata(dev);
 
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
 	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
@@ -636,19 +636,7 @@ static struct platform_driver au1100fb_driver = {
 	.suspend	= au1100fb_drv_suspend,
         .resume		= au1100fb_drv_resume,
 };
-
-static int __init au1100fb_load(void)
-{
-	return platform_driver_register(&au1100fb_driver);
-}
-
-static void __exit au1100fb_unload(void)
-{
-	platform_driver_unregister(&au1100fb_driver);
-}
-
-module_init(au1100fb_load);
-module_exit(au1100fb_unload);
+module_platform_driver(au1100fb_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

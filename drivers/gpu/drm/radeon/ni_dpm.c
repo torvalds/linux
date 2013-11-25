@@ -3445,9 +3445,9 @@ static int ni_enable_smc_cac(struct radeon_device *rdev,
 static int ni_pcie_performance_request(struct radeon_device *rdev,
 				       u8 perf_req, bool advertise)
 {
+#if defined(CONFIG_ACPI)
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 
-#if defined(CONFIG_ACPI)
 	if ((perf_req == PCIE_PERF_REQ_PECI_GEN1) ||
             (perf_req == PCIE_PERF_REQ_PECI_GEN2)) {
 		if (eg_pi->pcie_performance_request_registered == false)

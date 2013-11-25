@@ -102,7 +102,7 @@ void perf_evlist__config(struct perf_evlist *evlist,
 int perf_record_opts__config(struct perf_record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
-				  struct perf_target *target,
+				  struct target *target,
 				  const char *argv[], bool pipe_output,
 				  bool want_signal);
 int perf_evlist__start_workload(struct perf_evlist *evlist);
@@ -134,8 +134,7 @@ static inline void perf_evlist__set_maps(struct perf_evlist *evlist,
 	evlist->threads	= threads;
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist,
-			     struct perf_target *target);
+int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
 int perf_evlist__apply_filters(struct perf_evlist *evlist);
 

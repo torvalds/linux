@@ -880,8 +880,6 @@ static int jz4740_mmc_suspend(struct device *dev)
 {
 	struct jz4740_mmc_host *host = dev_get_drvdata(dev);
 
-	mmc_suspend_host(host->mmc);
-
 	jz_gpio_bulk_suspend(jz4740_mmc_pins, jz4740_mmc_num_pins(host));
 
 	return 0;
@@ -892,8 +890,6 @@ static int jz4740_mmc_resume(struct device *dev)
 	struct jz4740_mmc_host *host = dev_get_drvdata(dev);
 
 	jz_gpio_bulk_resume(jz4740_mmc_pins, jz4740_mmc_num_pins(host));
-
-	mmc_resume_host(host->mmc);
 
 	return 0;
 }

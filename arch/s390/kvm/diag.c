@@ -107,14 +107,13 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 
 static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 {
-	int ret, idx;
+	int ret;
 
 	/* No virtio-ccw notification? Get out quickly. */
 	if (!vcpu->kvm->arch.css_support ||
 	    (vcpu->run->s.regs.gprs[1] != KVM_S390_VIRTIO_CCW_NOTIFY))
 		return -EOPNOTSUPP;
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	/*
 	 * The layout is as follows:
 	 * - gpr 2 contains the subchannel id (passed as addr)
@@ -125,7 +124,6 @@ static int __diag_virtio_hypercall(struct kvm_vcpu *vcpu)
 				      vcpu->run->s.regs.gprs[2],
 				      8, &vcpu->run->s.regs.gprs[3],
 				      vcpu->run->s.regs.gprs[4]);
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 	/*
 	 * Return cookie in gpr 2, but don't overwrite the register if the

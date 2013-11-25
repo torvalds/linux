@@ -1368,7 +1368,7 @@ int machine__resolve_callchain(struct machine *machine,
 
 	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
 				   thread, evsel->attr.sample_regs_user,
-				   sample);
+				   sample, max_stack);
 
 }
 
@@ -1393,4 +1393,16 @@ int machine__for_each_thread(struct machine *machine,
 			return rc;
 	}
 	return rc;
+}
+
+int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
+				  struct target *target, struct thread_map *threads,
+				  perf_event__handler_t process, bool data_mmap)
+{
+	if (target__has_task(target))
+		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap);
+	else if (target__has_cpu(target))
+		return perf_event__synthesize_threads(tool, process, machine, data_mmap);
+	/* command specified */
+	return 0;
 }

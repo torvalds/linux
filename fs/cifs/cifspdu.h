@@ -697,7 +697,13 @@ struct ntlmssp2_name {
 } __attribute__((packed));
 
 struct ntlmv2_resp {
-	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	union {
+	    char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	    struct {
+		__u8 reserved[8];
+		__u8 key[CIFS_SERVER_CHALLENGE_SIZE];
+	    } __attribute__((packed)) challenge;
+	} __attribute__((packed));
 	__le32 blob_signature;
 	__u32  reserved;
 	__le64  time;

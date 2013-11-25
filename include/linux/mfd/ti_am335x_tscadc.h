@@ -134,13 +134,18 @@
 #define FIFO1_THRESHOLD		19
 
 /*
-* ADC runs at 3MHz, and it takes
-* 15 cycles to latch one data output.
-* Hence the idle time for ADC to
-* process one sample data would be
-* around 5 micro seconds.
-*/
-#define IDLE_TIMEOUT 5 /* microsec */
+ * time in us for processing a single channel, calculated as follows:
+ *
+ * num cycles = open delay + (sample delay + conv time) * averaging
+ *
+ * num cycles: 152 + (1 + 13) * 16 = 376
+ *
+ * clock frequency: 26MHz / 8 = 3.25MHz
+ * clock period: 1 / 3.25MHz = 308ns
+ *
+ * processing time: 376 * 308ns = 116us
+ */
+#define IDLE_TIMEOUT 116 /* microsec */
 
 #define TSCADC_CELLS		2
 
@@ -155,6 +160,7 @@ struct ti_tscadc_dev {
 	struct mfd_cell cells[TSCADC_CELLS];
 	u32 reg_se_cache;
 	spinlock_t reg_lock;
+	unsigned int clk_div;
 
 	/* tsc device */
 	struct titsc *tsc;

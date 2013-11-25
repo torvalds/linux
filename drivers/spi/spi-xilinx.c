@@ -258,7 +258,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	xspi->tx_ptr = t->tx_buf;
 	xspi->rx_ptr = t->rx_buf;
 	xspi->remaining_bytes = t->len;
-	INIT_COMPLETION(xspi->done);
+	reinit_completion(&xspi->done);
 
 
 	/* Enable the transmit empty interrupt, which we use to determine

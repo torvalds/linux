@@ -407,14 +407,14 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 
 	/*
 	 * enable drm irq mode.
-	 * - with irq_enabled = 1, we can use the vblank feature.
+	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
 	 * P.S. note that we wouldn't use drm irq handler but
 	 *      just specific driver own one instead because
 	 *      drm framework supports only one irq handler and
 	 *      drivers can well take care of their interrupts
 	 */
-	drm->irq_enabled = 1;
+	drm->irq_enabled = true;
 
 	drm_mode_config_init(drm);
 	imx_drm_mode_config_init(drm);
@@ -434,11 +434,11 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		goto err_init;
 
 	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
 	 * by drm timer once a current process gives up ownership of
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
-	imxdrm->drm->vblank_disable_allowed = 1;
+	imxdrm->drm->vblank_disable_allowed = true;
 
 	if (!imx_drm_device_get())
 		ret = -EINVAL;
@@ -815,6 +815,12 @@ static struct drm_driver imx_drm_driver = {
 
 static int imx_drm_platform_probe(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
 	imx_drm_device->dev = &pdev->dev;
 
 	return drm_platform_init(&imx_drm_driver, pdev);
@@ -856,8 +862,6 @@ static int __init imx_drm_init(void)
 		ret = PTR_ERR(imx_drm_pdev);
 		goto err_pdev;
 	}
-
-	imx_drm_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32),
 
 	ret = platform_driver_register(&imx_drm_pdrv);
 	if (ret)

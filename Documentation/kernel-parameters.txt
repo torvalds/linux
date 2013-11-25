@@ -1070,6 +1070,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				VIA, nVidia)
 			verbose: show contents of HPET registers during setup
 
+	hpet_mmap=	[X86, HPET_MMAP] Allow userspace to mmap HPET
+			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
+
 	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
 	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
 			On x86-64 and powerpc, this option can be specified
@@ -1187,14 +1190,23 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			owned by uid=0.
 
 	ima_hash=	[IMA]
-			Format: { "sha1" | "md5" }
+			Format: { md5 | sha1 | rmd160 | sha256 | sha384
+				   | sha512 | ... }
 			default: "sha1"
+
+			The list of supported hash algorithms is defined
+			in crypto/hash_info.h.
 
 	ima_tcb		[IMA]
 			Load a policy which meets the needs of the Trusted
 			Computing Base.  This means IMA will measure all
 			programs exec'd, files mmap'd for exec, and all files
 			opened for read by uid=0.
+
+	ima_template=   [IMA]
+			Select one of defined IMA measurements template formats.
+			Formats: { "ima" | "ima-ng" }
+			Default: "ima-ng"
 
 	init=		[KNL]
 			Format: <full_path>
@@ -1774,6 +1786,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			is specified, the administrator must be careful
 			that the amount of memory usable for all allocations
 			is not too small.
+
+	movable_node	[KNL,X86] Boot-time switch to enable the effects
+			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
 
 	MTD_Partition=	[MTD]
 			Format: <name>,<region-number>,<size>,<offset>

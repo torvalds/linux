@@ -493,7 +493,7 @@ static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 		ret = wait_for_completion_interruptible(&tr->completion);
 		if (!ret)
 			ret = tr->err;
-		INIT_COMPLETION(tr->completion);
+		reinit_completion(&tr->completion);
 	}
 	return ret;
 }
@@ -721,7 +721,7 @@ static inline int do_one_acipher_op(struct ablkcipher_request *req, int ret)
 		ret = wait_for_completion_interruptible(&tr->completion);
 		if (!ret)
 			ret = tr->err;
-		INIT_COMPLETION(tr->completion);
+		reinit_completion(&tr->completion);
 	}
 
 	return ret;

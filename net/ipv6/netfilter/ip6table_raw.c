@@ -19,13 +19,14 @@ static const struct xt_table packet_raw = {
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ip6table_raw_hook(unsigned int hook, struct sk_buff *skb,
+ip6table_raw_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		  const struct net_device *in, const struct net_device *out,
 		  int (*okfn)(struct sk_buff *))
 {
 	const struct net *net = dev_net((in != NULL) ? in : out);
 
-	return ip6t_do_table(skb, hook, in, out, net->ipv6.ip6table_raw);
+	return ip6t_do_table(skb, ops->hooknum, in, out,
+			     net->ipv6.ip6table_raw);
 }
 
 static struct nf_hook_ops *rawtable_ops __read_mostly;

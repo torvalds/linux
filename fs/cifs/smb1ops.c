@@ -534,9 +534,11 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 static int
 cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		     struct cifs_sb_info *cifs_sb, const char *full_path,
-		     FILE_ALL_INFO *data, bool *adjustTZ)
+		     FILE_ALL_INFO *data, bool *adjustTZ, bool *symlink)
 {
 	int rc;
+
+	*symlink = false;
 
 	/* could do find first instead but this returns more info */
 	rc = CIFSSMBQPathInfo(xid, tcon, full_path, data, 0 /* not legacy */,
@@ -554,6 +556,23 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		*adjustTZ = true;
 	}
+
+	if (!rc && (le32_to_cpu(data->Attributes) & ATTR_REPARSE)) {
+		int tmprc;
+		int oplock = 0;
+		__u16 netfid;
+
+		/* Need to check if this is a symbolic link or not */
+		tmprc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+				    FILE_READ_ATTRIBUTES, 0, &netfid, &oplock,
+				    NULL, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (tmprc == -EOPNOTSUPP)
+			*symlink = true;
+		else
+			CIFSSMBClose(xid, tcon, netfid);
+	}
+
 	return rc;
 }
 

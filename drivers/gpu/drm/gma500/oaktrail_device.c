@@ -40,6 +40,9 @@ static int oaktrail_output_init(struct drm_device *dev)
 		dev_err(dev->dev, "DSI is not supported\n");
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_init(dev, &dev_priv->mode_dev);
+
+	psb_intel_sdvo_init(dev, SDVOB);
+
 	return 0;
 }
 
@@ -526,6 +529,7 @@ static int oaktrail_chip_setup(struct drm_device *dev)
 		psb_intel_opregion_init(dev);
 		psb_intel_init_bios(dev);
 	}
+	gma_intel_setup_gmbus(dev);
 	oaktrail_hdmi_setup(dev);
 	return 0;
 }
@@ -534,6 +538,7 @@ static void oaktrail_teardown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
+	gma_intel_teardown_gmbus(dev);
 	oaktrail_hdmi_teardown(dev);
 	if (!dev_priv->has_gct)
 		psb_intel_destroy_bios(dev);
@@ -546,6 +551,7 @@ const struct psb_ops oaktrail_chip_ops = {
 	.crtcs = 2,
 	.hdmi_mask = (1 << 1),
 	.lvds_mask = (1 << 0),
+	.sdvo_mask = (1 << 1),
 	.cursor_needs_phys = 0,
 	.sgx_offset = MRST_SGX_OFFSET,
 

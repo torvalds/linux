@@ -1753,7 +1753,7 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 				if (pll != ATOM_PPLL_INVALID)
 					return pll;
 			}
-		} else {
+		} else if (!ASIC_IS_DCE41(rdev)) { /* Don't share PLLs on DCE4.1 chips */
 			/* use the same PPLL for all monitors with the same clock */
 			pll = radeon_get_shared_nondp_ppll(crtc);
 			if (pll != ATOM_PPLL_INVALID)
@@ -1910,6 +1910,21 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	if (crtc->fb) {
+		int r;
+		struct radeon_framebuffer *radeon_fb;
+		struct radeon_bo *rbo;
+
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
+		r = radeon_bo_reserve(rbo, false);
+		if (unlikely(r))
+			DRM_ERROR("failed to reserve rbo before unpin\n");
+		else {
+			radeon_bo_unpin(rbo);
+			radeon_bo_unreserve(rbo);
+		}
+	}
 	/* disable the GRPH */
 	if (ASIC_IS_DCE4(rdev))
 		WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 0);
@@ -1940,7 +1955,9 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 		break;
 	case ATOM_PPLL0:
 		/* disable the ppll */
-		if ((rdev->family == CHIP_ARUBA) || (rdev->family == CHIP_BONAIRE))
+		if ((rdev->family == CHIP_ARUBA) ||
+		    (rdev->family == CHIP_BONAIRE) ||
+		    (rdev->family == CHIP_HAWAII))
 			atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 						  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;

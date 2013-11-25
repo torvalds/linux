@@ -41,9 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+#define EXPORT_ACPI_INTERFACES
 #define DEFINE_ACPI_GLOBALS
 
-#include <linux/export.h>
 #include <acpi/acpi.h>
 #include "accommon.h"
 
@@ -289,9 +289,19 @@ acpi_status acpi_ut_init_globals(void)
 
 	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;
 
+	/* Event counters */
+
+	acpi_method_count = 0;
+	acpi_sci_count = 0;
+	acpi_gpe_count = 0;
+
+	for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++) {
+		acpi_fixed_event_count[i] = 0;
+	}
+
 #if (!ACPI_REDUCED_HARDWARE)
 
-	/* GPE support */
+	/* GPE/SCI support */
 
 	acpi_gbl_all_gpes_initialized = FALSE;
 	acpi_gbl_gpe_xrupt_list_head = NULL;
@@ -300,6 +310,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_current_gpe_count = 0;
 
 	acpi_gbl_global_event_handler = NULL;
+	acpi_gbl_sci_handler_list = NULL;
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
 
@@ -377,6 +388,11 @@ acpi_status acpi_ut_init_globals(void)
 /* Public globals */
 
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
+
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)
+
 ACPI_EXPORT_SYMBOL(acpi_dbg_layer)
+
+ACPI_EXPORT_SYMBOL(acpi_gpe_count)
+
 ACPI_EXPORT_SYMBOL(acpi_current_gpe_count)

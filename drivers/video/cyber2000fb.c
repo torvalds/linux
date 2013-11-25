@@ -1810,11 +1810,6 @@ static void cyberpro_pci_remove(struct pci_dev *dev)
 		iounmap(cfb->region);
 		cyberpro_free_fb_info(cfb);
 
-		/*
-		 * Ensure that the driver data is no longer
-		 * valid.
-		 */
-		pci_set_drvdata(dev, NULL);
 		if (cfb == int_cfb_info)
 			int_cfb_info = NULL;
 

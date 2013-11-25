@@ -1171,8 +1171,11 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (d != NULL)
 		dentry = d;
 	if (dentry->d_inode) {
-		if (!(*opened & FILE_OPENED))
+		if (!(*opened & FILE_OPENED)) {
+			if (d == NULL)
+				dget(dentry);
 			return finish_no_open(file, dentry);
+		}
 		dput(d);
 		return 0;
 	}
@@ -1512,13 +1515,6 @@ out:
 	gfs2_glock_dq_uninit(&i_gh);
 	nd_set_link(nd, buf);
 	return NULL;
-}
-
-static void gfs2_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
-{
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
 }
 
 /**
@@ -1872,7 +1868,7 @@ const struct inode_operations gfs2_dir_iops = {
 const struct inode_operations gfs2_symlink_iops = {
 	.readlink = generic_readlink,
 	.follow_link = gfs2_follow_link,
-	.put_link = gfs2_put_link,
+	.put_link = kfree_put_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,

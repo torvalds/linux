@@ -354,8 +354,15 @@ static int titsc_parse_dt(struct platform_device *pdev,
 	if (err < 0)
 		return err;
 
-	err = of_property_read_u32(node, "ti,coordiante-readouts",
+	/*
+	 * Try with the new binding first. If it fails, try again with
+	 * bogus, miss-spelled version.
+	 */
+	err = of_property_read_u32(node, "ti,coordinate-readouts",
 			&ts_dev->coordinate_readouts);
+	if (err < 0)
+		err = of_property_read_u32(node, "ti,coordiante-readouts",
+				&ts_dev->coordinate_readouts);
 	if (err < 0)
 		return err;
 
@@ -511,7 +518,7 @@ static struct platform_driver ti_tsc_driver = {
 		.name   = "TI-am335x-tsc",
 		.owner	= THIS_MODULE,
 		.pm	= TITSC_PM_OPS,
-		.of_match_table = of_match_ptr(ti_tsc_dt_ids),
+		.of_match_table = ti_tsc_dt_ids,
 	},
 };
 module_platform_driver(ti_tsc_driver);

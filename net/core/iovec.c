@@ -48,7 +48,8 @@ int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *a
 			if (err < 0)
 				return err;
 		}
-		m->msg_name = address;
+		if (m->msg_name)
+			m->msg_name = address;
 	} else {
 		m->msg_name = NULL;
 	}
@@ -100,7 +101,7 @@ int memcpy_toiovecend(const struct iovec *iov, unsigned char *kdata,
 EXPORT_SYMBOL(memcpy_toiovecend);
 
 /*
- *	Copy iovec from kernel. Returns -EFAULT on error.
+ *	Copy iovec to kernel. Returns -EFAULT on error.
  */
 
 int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,

@@ -493,7 +493,7 @@ static int mic_remove_device(struct mic_device_desc __iomem *d,
 			ioread8(&dc->config_change), ioread8(&d->type), mvdev);
 
 		status = ioread8(&d->status);
-		INIT_COMPLETION(mvdev->reset_done);
+		reinit_completion(&mvdev->reset_done);
 		unregister_virtio_device(&mvdev->vdev);
 		mic_free_card_irq(mvdev->virtio_cookie, mvdev);
 		if (status & VIRTIO_CONFIG_S_DRIVER_OK)

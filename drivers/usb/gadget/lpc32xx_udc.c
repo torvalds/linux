@@ -3078,7 +3078,9 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 		 udc->isp1301_i2c_client->addr);
 
 	pdev->dev.dma_mask = &lpc32xx_usbd_dmamask;
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	retval = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto resource_fail;
 
 	udc->board = &lpc32xx_usbddata;
 

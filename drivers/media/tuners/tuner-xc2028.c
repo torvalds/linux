@@ -24,6 +24,9 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  80
+
 /* Registers (Write-only) */
 #define XREG_INIT         0x00
 #define XREG_RF_FREQ      0x02
@@ -547,7 +550,10 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                pos, rc;
-	unsigned char      *p, *endp, buf[priv->ctrl.max_len];
+	unsigned char      *p, *endp, buf[MAX_XFER_SIZE];
+
+	if (priv->ctrl.max_len > sizeof(buf))
+		priv->ctrl.max_len = sizeof(buf);
 
 	tuner_dbg("%s called\n", __func__);
 
@@ -572,7 +578,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			return -EINVAL;
 		}
 
-		size = le16_to_cpu(*(__u16 *) p);
+		size = le16_to_cpu(*(__le16 *) p);
 		p += sizeof(size);
 
 		if (size == 0xffff)
@@ -683,7 +689,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 		/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
 		 * has a 2-byte size header in the firmware format. */
 		if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
-		    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
+		    le16_to_cpu(*(__le16 *)(p + 14 * scode)) != 12)
 			return -EINVAL;
 		p += 14 * scode + 2;
 	}

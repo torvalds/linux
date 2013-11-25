@@ -2868,7 +2868,7 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
 	}
 
-v4l2_std_id pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw)
+static v4l2_std_id pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw)
 {
 	v4l2_std_id std;
 	std = (v4l2_std_id)hdw->std_mask_avail;

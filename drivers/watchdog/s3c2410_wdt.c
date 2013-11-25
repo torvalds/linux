@@ -29,7 +29,6 @@
 #include <linux/moduleparam.h>
 #include <linux/types.h>
 #include <linux/timer.h>
-#include <linux/miscdevice.h> /* for MODULE_ALIAS_MISCDEV */
 #include <linux/watchdog.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -539,5 +538,4 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
 	      "Dimitry Andric <dimitry.andric@tomtom.com>");
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 MODULE_ALIAS("platform:s3c2410-wdt");

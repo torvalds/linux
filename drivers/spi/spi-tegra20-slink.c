@@ -462,7 +462,7 @@ static void tegra_slink_dma_complete(void *args)
 
 static int tegra_slink_start_tx_dma(struct tegra_slink_data *tspi, int len)
 {
-	INIT_COMPLETION(tspi->tx_dma_complete);
+	reinit_completion(&tspi->tx_dma_complete);
 	tspi->tx_dma_desc = dmaengine_prep_slave_single(tspi->tx_dma_chan,
 				tspi->tx_dma_phys, len, DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
@@ -481,7 +481,7 @@ static int tegra_slink_start_tx_dma(struct tegra_slink_data *tspi, int len)
 
 static int tegra_slink_start_rx_dma(struct tegra_slink_data *tspi, int len)
 {
-	INIT_COMPLETION(tspi->rx_dma_complete);
+	reinit_completion(&tspi->rx_dma_complete);
 	tspi->rx_dma_desc = dmaengine_prep_slave_single(tspi->rx_dma_chan,
 				tspi->rx_dma_phys, len, DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
@@ -836,7 +836,7 @@ static int tegra_slink_transfer_one(struct spi_master *master,
 	struct tegra_slink_data *tspi = spi_master_get_devdata(master);
 	int ret;
 
-	INIT_COMPLETION(tspi->xfer_completion);
+	reinit_completion(&tspi->xfer_completion);
 	ret = tegra_slink_start_transfer_one(spi, xfer);
 	if (ret < 0) {
 		dev_err(tspi->dev,

@@ -148,7 +148,7 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	list_for_each_entry(client, &client_list, list) {
 		if (client->index == index) {
 			if (op < 0 || op >= client->nops ||
-			    !client->cb_table[RDMA_NL_GET_OP(op)].dump)
+			    !client->cb_table[op].dump)
 				return -EINVAL;
 
 			{

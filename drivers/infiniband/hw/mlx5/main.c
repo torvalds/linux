@@ -745,7 +745,8 @@ static int alloc_pa_mkey(struct mlx5_ib_dev *dev, u32 *key, u32 pdn)
 	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 	seg->start_addr = 0;
 
-	err = mlx5_core_create_mkey(&dev->mdev, &mr, in, sizeof(*in));
+	err = mlx5_core_create_mkey(&dev->mdev, &mr, in, sizeof(*in),
+				    NULL, NULL, NULL);
 	if (err) {
 		mlx5_ib_warn(dev, "failed to create mkey, %d\n", err);
 		goto err_in;

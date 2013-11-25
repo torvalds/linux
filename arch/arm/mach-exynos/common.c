@@ -28,6 +28,7 @@
 #include <linux/of_address.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/platform_device.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -290,6 +291,16 @@ void exynos5_restart(enum reboot_mode mode, const char *cmd)
 	}
 
 	__raw_writel(val, addr);
+}
+
+static struct platform_device exynos_cpuidle = {
+	.name		= "exynos_cpuidle",
+	.id		= -1,
+};
+
+void __init exynos_cpuidle_init(void)
+{
+	platform_device_register(&exynos_cpuidle);
 }
 
 void __init exynos_init_late(void)

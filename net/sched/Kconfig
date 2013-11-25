@@ -443,6 +443,16 @@ config NET_CLS_CGROUP
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_cgroup.
 
+config NET_CLS_BPF
+	tristate "BPF-based classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  programmable BPF (JIT'ed) filters as an alternative to ematches.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_bpf.
+
 config NET_EMATCH
 	bool "Extended Matches"
 	select NET_CLS

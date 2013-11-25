@@ -485,7 +485,7 @@ static void ar9002_hw_do_getnf(struct ath_hw *ah,
 	if (IS_CHAN_HT40(ah->curchan))
 		nfarray[3] = sign_extend32(nf, 8);
 
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+	if (!(ah->rxchainmask & BIT(1)))
 		return;
 
 	nf = MS(REG_READ(ah, AR_PHY_CH1_CCA), AR9280_PHY_CH1_MINCCA_PWR);
@@ -532,6 +532,7 @@ static void ar9002_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 				 AR_PHY_9285_ANT_DIV_ALT_LNACONF_S;
 	antconf->fast_div_bias = (regval & AR_PHY_9285_FAST_DIV_BIAS) >>
 				  AR_PHY_9285_FAST_DIV_BIAS_S;
+	antconf->lna1_lna2_switch_delta = -1;
 	antconf->lna1_lna2_delta = -3;
 	antconf->div_group = 0;
 }
@@ -679,6 +680,26 @@ static void ar9002_hw_spectral_scan_wait(struct ath_hw *ah)
 	}
 }
 
+static void ar9002_hw_tx99_start(struct ath_hw *ah, u32 qnum)
+{
+	REG_SET_BIT(ah, 0x9864, 0x7f000);
+	REG_SET_BIT(ah, 0x9924, 0x7f00fe);
+	REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
+	REG_WRITE(ah, AR_CR, AR_CR_RXD);
+	REG_WRITE(ah, AR_DLCL_IFS(qnum), 0);
+	REG_WRITE(ah, AR_D_GBL_IFS_SIFS, 20);
+	REG_WRITE(ah, AR_D_GBL_IFS_EIFS, 20);
+	REG_WRITE(ah, AR_D_FPCTL, 0x10|qnum);
+	REG_WRITE(ah, AR_TIME_OUT, 0x00000400);
+	REG_WRITE(ah, AR_DRETRY_LIMIT(qnum), 0xffffffff);
+	REG_SET_BIT(ah, AR_QMISC(qnum), AR_Q_MISC_DCU_EARLY_TERM_REQ);
+}
+
+static void ar9002_hw_tx99_stop(struct ath_hw *ah)
+{
+	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
+}
+
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -700,6 +721,8 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	ops->set_bt_ant_diversity = ar9002_hw_set_bt_ant_diversity;
 #endif
+	ops->tx99_start = ar9002_hw_tx99_start;
+	ops->tx99_stop = ar9002_hw_tx99_stop;
 
 	ar9002_hw_set_nf_limits(ah);
 }

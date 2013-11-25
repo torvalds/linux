@@ -783,7 +783,7 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 	if (!ret)
 		return -EBUSY;
 
-	INIT_COMPLETION(lradc->completion);
+	reinit_completion(&lradc->completion);
 
 	/*
 	 * No buffered operation in progress, map the channel and trigger it.

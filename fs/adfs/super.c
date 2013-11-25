@@ -123,8 +123,7 @@ static void adfs_put_super(struct super_block *sb)
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
-	kfree(asb);
-	sb->s_fs_info = NULL;
+	kfree_rcu(asb, rcu);
 }
 
 static int adfs_show_options(struct seq_file *seq, struct dentry *root)

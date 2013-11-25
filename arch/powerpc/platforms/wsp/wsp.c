@@ -13,6 +13,7 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/time.h>
+#include <linux/of_address.h>
 
 #include <asm/scom.h>
 

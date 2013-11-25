@@ -1283,9 +1283,7 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 
 	sti->info = info; /* save for unregister_framebuffer() */
 
-	printk(KERN_INFO 
-	    "fb%d: %s %dx%d-%d frame buffer device, %s, id: %04x, mmio: 0x%04lx\n",
-		fb->info.node, 
+	fb_info(&fb->info, "%s %dx%d-%d frame buffer device, %s, id: %04x, mmio: 0x%04lx\n",
 		fix->id,
 		var->xres, 
 		var->yres,

@@ -23,7 +23,7 @@ static void blk_done_softirq(struct softirq_action *h)
 	struct list_head *cpu_list, local_list;
 
 	local_irq_disable();
-	cpu_list = &__get_cpu_var(blk_cpu_done);
+	cpu_list = this_cpu_ptr(&blk_cpu_done);
 	list_replace_init(cpu_list, &local_list);
 	local_irq_enable();
 
@@ -36,7 +36,7 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-#if defined(CONFIG_SMP) && defined(CONFIG_USE_GENERIC_SMP_HELPERS)
+#ifdef CONFIG_SMP
 static void trigger_softirq(void *data)
 {
 	struct request *rq = data;
@@ -44,7 +44,7 @@ static void trigger_softirq(void *data)
 	struct list_head *list;
 
 	local_irq_save(flags);
-	list = &__get_cpu_var(blk_cpu_done);
+	list = this_cpu_ptr(&blk_cpu_done);
 	list_add_tail(&rq->csd.list, list);
 
 	if (list->next == &rq->csd.list)
@@ -71,7 +71,7 @@ static int raise_blk_irq(int cpu, struct request *rq)
 
 	return 1;
 }
-#else /* CONFIG_SMP && CONFIG_USE_GENERIC_SMP_HELPERS */
+#else /* CONFIG_SMP */
 static int raise_blk_irq(int cpu, struct request *rq)
 {
 	return 1;
@@ -90,7 +90,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 
 		local_irq_disable();
 		list_splice_init(&per_cpu(blk_cpu_done, cpu),
-				 &__get_cpu_var(blk_cpu_done));
+				 this_cpu_ptr(&blk_cpu_done));
 		raise_softirq_irqoff(BLOCK_SOFTIRQ);
 		local_irq_enable();
 	}
@@ -135,7 +135,7 @@ void __blk_complete_request(struct request *req)
 	if (ccpu == cpu || shared) {
 		struct list_head *list;
 do_local:
-		list = &__get_cpu_var(blk_cpu_done);
+		list = this_cpu_ptr(&blk_cpu_done);
 		list_add_tail(&req->csd.list, list);
 
 		/*

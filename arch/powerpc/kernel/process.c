@@ -858,17 +858,21 @@ void show_regs(struct pt_regs * regs)
 	printk("MSR: "REG" ", regs->msr);
 	printbits(regs->msr, msr_bits);
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
-#ifdef CONFIG_PPC64
-	printk("SOFTE: %ld\n", regs->softe);
-#endif
 	trap = TRAP(regs);
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
-		printk("CFAR: "REG"\n", regs->orig_gpr3);
-	if (trap == 0x300 || trap == 0x600)
+		printk("CFAR: "REG" ", regs->orig_gpr3);
+	if (trap == 0x200 || trap == 0x300 || trap == 0x600)
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
+		printk("DEAR: "REG" ESR: "REG" ", regs->dar, regs->dsisr);
 #else
-		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
+		printk("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
+#endif
+#ifdef CONFIG_PPC64
+	printk("SOFTE: %ld ", regs->softe);
+#endif
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (MSR_TM_ACTIVE(regs->msr))
+		printk("\nPACATMSCRATCH: %016llx ", get_paca()->tm_scratch);
 #endif
 
 	for (i = 0;  i < 32;  i++) {
@@ -886,9 +890,6 @@ void show_regs(struct pt_regs * regs)
 	 */
 	printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
 	printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
-#endif
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	printk("PACATMSCRATCH [%llx]\n", get_paca()->tm_scratch);
 #endif
 	show_stack(current, (unsigned long *) regs->gpr[1]);
 	if (!user_mode(regs))
@@ -1086,25 +1087,45 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->msr = MSR_USER;
 #else
 	if (!is_32bit_task()) {
-		unsigned long entry, toc;
+		unsigned long entry;
 
-		/* start is a relocated pointer to the function descriptor for
-		 * the elf _start routine.  The first entry in the function
-		 * descriptor is the entry address of _start and the second
-		 * entry is the TOC value we need to use.
-		 */
-		__get_user(entry, (unsigned long __user *)start);
-		__get_user(toc, (unsigned long __user *)start+1);
+		if (is_elf2_task()) {
+			/* Look ma, no function descriptors! */
+			entry = start;
 
-		/* Check whether the e_entry function descriptor entries
-		 * need to be relocated before we can use them.
-		 */
-		if (load_addr != 0) {
-			entry += load_addr;
-			toc   += load_addr;
+			/*
+			 * Ulrich says:
+			 *   The latest iteration of the ABI requires that when
+			 *   calling a function (at its global entry point),
+			 *   the caller must ensure r12 holds the entry point
+			 *   address (so that the function can quickly
+			 *   establish addressability).
+			 */
+			regs->gpr[12] = start;
+			/* Make sure that's restored on entry to userspace. */
+			set_thread_flag(TIF_RESTOREALL);
+		} else {
+			unsigned long toc;
+
+			/* start is a relocated pointer to the function
+			 * descriptor for the elf _start routine.  The first
+			 * entry in the function descriptor is the entry
+			 * address of _start and the second entry is the TOC
+			 * value we need to use.
+			 */
+			__get_user(entry, (unsigned long __user *)start);
+			__get_user(toc, (unsigned long __user *)start+1);
+
+			/* Check whether the e_entry function descriptor entries
+			 * need to be relocated before we can use them.
+			 */
+			if (load_addr != 0) {
+				entry += load_addr;
+				toc   += load_addr;
+			}
+			regs->gpr[2] = toc;
 		}
 		regs->nip = entry;
-		regs->gpr[2] = toc;
 		regs->msr = MSR_USER64;
 	} else {
 		regs->nip = start;

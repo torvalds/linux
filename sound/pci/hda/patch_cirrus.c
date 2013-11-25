@@ -47,6 +47,10 @@ struct cs_spec {
 	unsigned int spdif_present:1;
 	unsigned int sense_b:1;
 	hda_nid_t vendor_nid;
+
+	/* for MBP SPDIF control */
+	int (*spdif_sw_put)(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol);
 };
 
 /* available models with CS420x */
@@ -331,10 +335,21 @@ static int cs_init(struct hda_codec *codec)
 	return 0;
 }
 
+static int cs_build_controls(struct hda_codec *codec)
+{
+	int err;
+
+	err = snd_hda_gen_build_controls(codec);
+	if (err < 0)
+		return err;
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_BUILD);
+	return 0;
+}
+
 #define cs_free		snd_hda_gen_free
 
 static const struct hda_codec_ops cs_patch_ops = {
-	.build_controls = snd_hda_gen_build_controls,
+	.build_controls = cs_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cs_init,
 	.free = cs_free,
@@ -599,12 +614,14 @@ static int patch_cs420x(struct hda_codec *codec)
 enum {
 	CS4208_MAC_AUTO,
 	CS4208_MBA6,
+	CS4208_MBP11,
 	CS4208_GPIO0,
 };
 
 static const struct hda_model_fixup cs4208_models[] = {
 	{ .id = CS4208_GPIO0, .name = "gpio0" },
 	{ .id = CS4208_MBA6, .name = "mba6" },
+	{ .id = CS4208_MBP11, .name = "mbp11" },
 	{}
 };
 
@@ -615,6 +632,7 @@ static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
 
 /* codec SSID matching */
 static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	{} /* terminator */
@@ -646,10 +664,46 @@ static void cs4208_fixup_mac(struct hda_codec *codec,
 	snd_hda_apply_fixup(codec, action);
 }
 
+static int cs4208_spdif_sw_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs_spec *spec = codec->spec;
+	hda_nid_t pin = spec->gen.autocfg.dig_out_pins[0];
+	int pinctl = ucontrol->value.integer.value[0] ? PIN_OUT : 0;
+
+	snd_hda_set_pin_ctl_cache(codec, pin, pinctl);
+	return spec->spdif_sw_put(kcontrol, ucontrol);
+}
+
+/* hook the SPDIF switch */
+static void cs4208_fixup_spdif_switch(struct hda_codec *codec,
+				      const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_BUILD) {
+		struct cs_spec *spec = codec->spec;
+		struct snd_kcontrol *kctl;
+
+		if (!spec->gen.autocfg.dig_out_pins[0])
+			return;
+		kctl = snd_hda_find_mixer_ctl(codec, "IEC958 Playback Switch");
+		if (!kctl)
+			return;
+		spec->spdif_sw_put = kctl->put;
+		kctl->put = cs4208_spdif_sw_put;
+	}
+}
+
 static const struct hda_fixup cs4208_fixups[] = {
 	[CS4208_MBA6] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = mba6_pincfgs,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
+	[CS4208_MBP11] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_spdif_switch,
 		.chained = true,
 		.chain_id = CS4208_GPIO0,
 	},

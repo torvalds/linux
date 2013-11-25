@@ -474,12 +474,14 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		pr_err("failed to load catalog file\n");
 		goto out_close_ext_tree;
 	}
+	atomic_set(&sbi->attr_tree_state, HFSPLUS_EMPTY_ATTR_TREE);
 	if (vhdr->attr_file.total_blocks != 0) {
 		sbi->attr_tree = hfs_btree_open(sb, HFSPLUS_ATTR_CNID);
 		if (!sbi->attr_tree) {
 			pr_err("failed to load attributes file\n");
 			goto out_close_cat_tree;
 		}
+		atomic_set(&sbi->attr_tree_state, HFSPLUS_VALID_ATTR_TREE);
 	}
 	sb->s_xattr = hfsplus_xattr_handlers;
 

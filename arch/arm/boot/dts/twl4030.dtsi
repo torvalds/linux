@@ -19,6 +19,12 @@
 		interrupts = <11>;
 	};
 
+	charger: bci {
+		compatible = "ti,twl4030-bci";
+		interrupts = <9>, <2>;
+		bci3v1-supply = <&vusb3v1>;
+	};
+
 	watchdog {
 		compatible = "ti,twl4030-wdt";
 	};

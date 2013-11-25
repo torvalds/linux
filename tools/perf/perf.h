@@ -248,7 +248,7 @@ enum perf_call_graph_mode {
 };
 
 struct perf_record_opts {
-	struct perf_target target;
+	struct target target;
 	int	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;

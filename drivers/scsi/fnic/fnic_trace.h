@@ -84,7 +84,8 @@ fnic_trace_data_t *fnic_trace_get_buf(void);
 int fnic_get_trace_data(fnic_dbgfs_t *);
 int fnic_trace_buf_init(void);
 void fnic_trace_free(void);
+int fnic_debugfs_init(void);
+void fnic_debugfs_terminate(void);
 int fnic_trace_debugfs_init(void);
 void fnic_trace_debugfs_terminate(void);
-
 #endif

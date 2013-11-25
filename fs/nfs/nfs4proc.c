@@ -3771,9 +3771,8 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	};
 	int			status;
 
-	dprintk("%s: dentry = %s/%s, cookie = %Lu\n", __func__,
-			dentry->d_parent->d_name.name,
-			dentry->d_name.name,
+	dprintk("%s: dentry = %pd2, cookie = %Lu\n", __func__,
+			dentry,
 			(unsigned long long)cookie);
 	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
 	res.pgbase = args.pgbase;

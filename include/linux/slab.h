@@ -53,7 +53,14 @@
  *  }
  *  rcu_read_unlock();
  *
- * See also the comment on struct slab_rcu in mm/slab.c.
+ * This is useful if we need to approach a kernel structure obliquely,
+ * from its address obtained without the usual locking. We can lock
+ * the structure to stabilize it and check it's still at the given address,
+ * only if we can be sure that the memory has not been meanwhile reused
+ * for some other kind of object (which our subsystem's lock might corrupt).
+ *
+ * rcu_read_lock before reading the address, then rcu_read_unlock after
+ * taking the spinlock within the structure expected at that address.
  */
 #define SLAB_DESTROY_BY_RCU	0x00080000UL	/* Defer freeing slabs to RCU */
 #define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */

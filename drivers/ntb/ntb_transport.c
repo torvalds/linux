@@ -1034,10 +1034,9 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 	struct dma_chan *chan = qp->dma_chan;
 	struct dma_device *device;
 	size_t pay_off, buff_off;
-	dma_addr_t src, dest;
+	struct dmaengine_unmap_data *unmap;
 	dma_cookie_t cookie;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	entry->len = len;
 
@@ -1045,35 +1044,49 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 		goto err;
 
 	if (len < copy_bytes) 
-		goto err1;
+		goto err_wait;
 
 	device = chan->device;
 	pay_off = (size_t) offset & ~PAGE_MASK;
 	buff_off = (size_t) buf & ~PAGE_MASK;
 
 	if (!is_dma_copy_aligned(device, pay_off, buff_off, len))
-		goto err1;
+		goto err_wait;
 
-	dest = dma_map_single(device->dev, buf, len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(device->dev, dest))
-		goto err1;
+	unmap = dmaengine_get_unmap_data(device->dev, 2, GFP_NOWAIT);
+	if (!unmap)
+		goto err_wait;
 
-	src = dma_map_single(device->dev, offset, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dev, src))
-		goto err2;
+	unmap->len = len;
+	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(offset),
+				      pay_off, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[0]))
+		goto err_get_unmap;
 
-	flags = DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SRC_UNMAP_SINGLE |
-		DMA_PREP_INTERRUPT;
-	txd = device->device_prep_dma_memcpy(chan, dest, src, len, flags);
+	unmap->to_cnt = 1;
+
+	unmap->addr[1] = dma_map_page(device->dev, virt_to_page(buf),
+				      buff_off, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[1]))
+		goto err_get_unmap;
+
+	unmap->from_cnt = 1;
+
+	txd = device->device_prep_dma_memcpy(chan, unmap->addr[1],
+					     unmap->addr[0], len,
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
-		goto err3;
+		goto err_get_unmap;
 
 	txd->callback = ntb_rx_copy_callback;
 	txd->callback_param = entry;
+	dma_set_unmap(txd, unmap);
 
 	cookie = dmaengine_submit(txd);
 	if (dma_submit_error(cookie))
-		goto err3;
+		goto err_set_unmap;
+
+	dmaengine_unmap_put(unmap);
 
 	qp->last_cookie = cookie;
 
@@ -1081,11 +1094,11 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 
 	return;
 
-err3:
-	dma_unmap_single(device->dev, src, len, DMA_TO_DEVICE);
-err2:
-	dma_unmap_single(device->dev, dest, len, DMA_FROM_DEVICE);
-err1:
+err_set_unmap:
+	dmaengine_unmap_put(unmap);
+err_get_unmap:
+	dmaengine_unmap_put(unmap);
+err_wait:
 	/* If the callbacks come out of order, the writing of the index to the
 	 * last completed will be out of order.  This may result in the
 	 * receive stalling forever.
@@ -1245,12 +1258,12 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 	struct dma_chan *chan = qp->dma_chan;
 	struct dma_device *device;
 	size_t dest_off, buff_off;
-	dma_addr_t src, dest;
+	struct dmaengine_unmap_data *unmap;
+	dma_addr_t dest;
 	dma_cookie_t cookie;
 	void __iomem *offset;
 	size_t len = entry->len;
 	void *buf = entry->buf;
-	unsigned long flags;
 
 	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 	hdr = offset + qp->tx_max_frame - sizeof(struct ntb_payload_header);
@@ -1273,28 +1286,41 @@ static void ntb_async_tx(struct ntb_transport_qp *qp,
 	if (!is_dma_copy_aligned(device, buff_off, dest_off, len))
 		goto err;
 
-	src = dma_map_single(device->dev, buf, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(device->dev, src))
+	unmap = dmaengine_get_unmap_data(device->dev, 1, GFP_NOWAIT);
+	if (!unmap)
 		goto err;
 
-	flags = DMA_COMPL_SRC_UNMAP_SINGLE | DMA_PREP_INTERRUPT;
-	txd = device->device_prep_dma_memcpy(chan, dest, src, len, flags);
+	unmap->len = len;
+	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(buf),
+				      buff_off, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(device->dev, unmap->addr[0]))
+		goto err_get_unmap;
+
+	unmap->to_cnt = 1;
+
+	txd = device->device_prep_dma_memcpy(chan, dest, unmap->addr[0], len,
+					     DMA_PREP_INTERRUPT);
 	if (!txd)
-		goto err1;
+		goto err_get_unmap;
 
 	txd->callback = ntb_tx_copy_callback;
 	txd->callback_param = entry;
+	dma_set_unmap(txd, unmap);
 
 	cookie = dmaengine_submit(txd);
 	if (dma_submit_error(cookie))
-		goto err1;
+		goto err_set_unmap;
+
+	dmaengine_unmap_put(unmap);
 
 	dma_async_issue_pending(chan);
 	qp->tx_async++;
 
 	return;
-err1:
-	dma_unmap_single(device->dev, src, len, DMA_TO_DEVICE);
+err_set_unmap:
+	dmaengine_unmap_put(unmap);
+err_get_unmap:
+	dmaengine_unmap_put(unmap);
 err:
 	ntb_memcpy_tx(entry, offset);
 	qp->tx_memcpy++;

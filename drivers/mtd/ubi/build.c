@@ -41,6 +41,7 @@
 #include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/major.h>
 #include "ubi.h"
 
 /* Maximum length of the 'mtd=' parameter */

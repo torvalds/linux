@@ -585,8 +585,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 
 	/* ->kill_sb() will take care of root_info */
 	ecryptfs_set_dentry_private(s->s_root, root_info);
-	ecryptfs_set_dentry_lower(s->s_root, path.dentry);
-	ecryptfs_set_dentry_lower_mnt(s->s_root, path.mnt);
+	root_info->lower_path = path;
 
 	s->s_flags |= MS_ACTIVE;
 	return dget(s->s_root);

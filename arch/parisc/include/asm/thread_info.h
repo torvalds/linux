@@ -46,9 +46,6 @@ struct thread_info {
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)
 #define THREAD_SHIFT            (PAGE_SHIFT + THREAD_SIZE_ORDER)
 
-#define PREEMPT_ACTIVE_BIT	28
-#define PREEMPT_ACTIVE		(1 << PREEMPT_ACTIVE_BIT)
-
 /*
  * thread information flags
  */

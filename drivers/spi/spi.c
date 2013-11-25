@@ -245,15 +245,27 @@ EXPORT_SYMBOL_GPL(spi_bus_type);
 static int spi_drv_probe(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
+	int ret;
 
-	return sdrv->probe(to_spi_device(dev));
+	acpi_dev_pm_attach(&spi->dev, true);
+	ret = sdrv->probe(spi);
+	if (ret)
+		acpi_dev_pm_detach(&spi->dev, true);
+
+	return ret;
 }
 
 static int spi_drv_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+	struct spi_device		*spi = to_spi_device(dev);
+	int ret;
 
-	return sdrv->remove(to_spi_device(dev));
+	ret = sdrv->remove(spi);
+	acpi_dev_pm_detach(&spi->dev, true);
+
+	return ret;
 }
 
 static void spi_drv_shutdown(struct device *dev)
@@ -345,6 +357,19 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 }
 EXPORT_SYMBOL_GPL(spi_alloc_device);
 
+static void spi_dev_set_name(struct spi_device *spi)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&spi->dev);
+
+	if (adev) {
+		dev_set_name(&spi->dev, "spi-%s", acpi_dev_name(adev));
+		return;
+	}
+
+	dev_set_name(&spi->dev, "%s.%u", dev_name(&spi->master->dev),
+		     spi->chip_select);
+}
+
 /**
  * spi_add_device - Add spi_device allocated with spi_alloc_device
  * @spi: spi_device to register
@@ -371,9 +396,7 @@ int spi_add_device(struct spi_device *spi)
 	}
 
 	/* Set the bus ID string */
-	dev_set_name(&spi->dev, "%s.%u", dev_name(&spi->master->dev),
-			spi->chip_select);
-
+	spi_dev_set_name(spi);
 
 	/* We need to make sure there's no other device with this
 	 * chipselect **BEFORE** we call setup(), else we'll trash
@@ -559,7 +582,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		trace_spi_transfer_start(msg, xfer);
 
-		INIT_COMPLETION(master->xfer_completion);
+		reinit_completion(&master->xfer_completion);
 
 		ret = master->transfer_one(master, msg->spi, xfer);
 		if (ret < 0) {
@@ -1132,7 +1155,7 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 		return AE_NO_MEMORY;
 	}
 
-	ACPI_HANDLE_SET(&spi->dev, handle);
+	ACPI_COMPANION_SET(&spi->dev, adev);
 	spi->irq = -1;
 
 	INIT_LIST_HEAD(&resource_list);
@@ -1145,8 +1168,10 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 		return AE_OK;
 	}
 
+	adev->power.flags.ignore_parent = true;
 	strlcpy(spi->modalias, acpi_device_hid(adev), sizeof(spi->modalias));
 	if (spi_add_device(spi)) {
+		adev->power.flags.ignore_parent = false;
 		dev_err(&master->dev, "failed to add SPI device %s from ACPI\n",
 			dev_name(&adev->dev));
 		spi_dev_put(spi);

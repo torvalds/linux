@@ -763,12 +763,12 @@ static struct channel_map_table map_tables[] = {
 	{ SNDRV_CHMAP_RC,	RC },
 	{ SNDRV_CHMAP_FLC,	FLC },
 	{ SNDRV_CHMAP_FRC,	FRC },
-	{ SNDRV_CHMAP_FLH,	FLH },
-	{ SNDRV_CHMAP_FRH,	FRH },
+	{ SNDRV_CHMAP_TFL,	FLH },
+	{ SNDRV_CHMAP_TFR,	FRH },
 	{ SNDRV_CHMAP_FLW,	FLW },
 	{ SNDRV_CHMAP_FRW,	FRW },
 	{ SNDRV_CHMAP_TC,	TC },
-	{ SNDRV_CHMAP_FCH,	FCH },
+	{ SNDRV_CHMAP_TFC,	FCH },
 	{} /* terminator */
 };
 
@@ -1246,6 +1246,9 @@ static int hdmi_pin_hbr_setup(struct hda_codec *codec, hda_nid_t pin_nid,
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
 		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
 					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+
+		if (pinctl < 0)
+			return hbr ? -EINVAL : 0;
 
 		new_pinctl = pinctl & ~AC_PINCTL_EPT;
 		if (hbr)
@@ -3091,7 +3094,7 @@ static int atihdmi_pin_hbr_setup(struct hda_codec *codec, hda_nid_t pin_nid,
 	int hbr_ctl, hbr_ctl_new;
 
 	hbr_ctl = snd_hda_codec_read(codec, pin_nid, 0, ATI_VERB_GET_HBR_CONTROL, 0);
-	if (hbr_ctl & ATI_HBR_CAPABLE) {
+	if (hbr_ctl >= 0 && (hbr_ctl & ATI_HBR_CAPABLE)) {
 		if (hbr)
 			hbr_ctl_new = hbr_ctl | ATI_HBR_ENABLE;
 		else

@@ -190,7 +190,7 @@
 
 			usbphy0: usbphy@0 {
 				compatible = "usb-nop-xceiv";
-				clocks = <&clks 124>;
+				clocks = <&clks 75>;
 				clock-names = "main_clk";
 				status = "okay";
 			};

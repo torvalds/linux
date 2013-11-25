@@ -17,17 +17,18 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
 
 
 kmem_zone_t	*xfs_buf_item_zone;
@@ -808,7 +809,7 @@ xfs_buf_item_init(
  * Mark bytes first through last inclusive as dirty in the buf
  * item's bitmap.
  */
-void
+static void
 xfs_buf_item_log_segment(
 	struct xfs_buf_log_item	*bip,
 	uint			first,

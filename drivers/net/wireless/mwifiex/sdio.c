@@ -196,7 +196,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	}
 
 	mwifiex_remove_card(card->adapter, &add_remove_card_sem);
-	kfree(card);
 }
 
 /*
@@ -1029,7 +1028,10 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 				    struct sk_buff *skb, u32 upld_typ)
 {
 	u8 *cmd_buf;
+	__le16 *curr_ptr = (__le16 *)skb->data;
+	u16 pkt_len = le16_to_cpu(*curr_ptr);
 
+	skb_trim(skb, pkt_len);
 	skb_pull(skb, INTF_HEADER_LEN);
 
 	switch (upld_typ) {
@@ -1742,7 +1744,6 @@ mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 		sdio_claim_host(card->func);
 		sdio_disable_func(card->func);
 		sdio_release_host(card->func);
-		sdio_set_drvdata(card->func, NULL);
 	}
 }
 
@@ -1770,7 +1771,6 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 		return ret;
 	}
 
-	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
 
@@ -1797,6 +1797,8 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	int ret;
 	u8 sdio_ireg;
+
+	sdio_set_drvdata(card->func, card);
 
 	/*
 	 * Read the HOST_INT_STATUS_REG for ACK the first interrupt got
@@ -1880,6 +1882,8 @@ static void mwifiex_cleanup_sdio(struct mwifiex_adapter *adapter)
 	kfree(card->mpa_rx.len_arr);
 	kfree(card->mpa_tx.buf);
 	kfree(card->mpa_rx.buf);
+	sdio_set_drvdata(card->func, NULL);
+	kfree(card);
 }
 
 /*

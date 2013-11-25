@@ -248,6 +248,7 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
+#define SPRN_TBU40	0x11E	/* Timebase upper 40 bits (hyper, R/W) */
 #define SPRN_SPURR	0x134	/* Scaled PURR */
 #define SPRN_HSPRG0	0x130	/* Hypervisor Scratch 0 */
 #define SPRN_HSPRG1	0x131	/* Hypervisor Scratch 1 */
@@ -288,6 +289,7 @@
 #define   LPCR_ISL	(1ul << (63-2))
 #define   LPCR_VC_SH	(63-2)
 #define   LPCR_DPFD_SH	(63-11)
+#define   LPCR_DPFD	(7ul << LPCR_DPFD_SH)
 #define   LPCR_VRMASD	(0x1ful << (63-16))
 #define   LPCR_VRMA_L	(1ul << (63-12))
 #define   LPCR_VRMA_LP0	(1ul << (63-15))
@@ -304,6 +306,7 @@
 #define     LPCR_PECE2	0x00001000	/* machine check etc can cause exit */
 #define   LPCR_MER	0x00000800	/* Mediated External Exception */
 #define   LPCR_MER_SH	11
+#define   LPCR_TC      0x00000200	/* Translation control */
 #define   LPCR_LPES    0x0000000c
 #define   LPCR_LPES0   0x00000008      /* LPAR Env selector 0 */
 #define   LPCR_LPES1   0x00000004      /* LPAR Env selector 1 */
@@ -316,6 +319,10 @@
 #define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hardware m? error recovery */
 #define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
+#define SPRN_PCR	0x152	/* Processor compatibility register */
+#define   PCR_VEC_DIS	(1ul << (63-0))	/* Vec. disable (bit NA since POWER8) */
+#define   PCR_VSX_DIS	(1ul << (63-1))	/* VSX disable (bit NA since POWER8) */
+#define   PCR_ARCH_205	0x2		/* Architecture 2.05 */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */
 #define SPRN_TLBINDEXR	0x154	/* P7 TLB control register */
 #define SPRN_TLBVPNR	0x155	/* P7 TLB control register */
@@ -425,6 +432,7 @@
 #define	 HID4_RMLS2_SH	 (63 - 2)	/* Real mode limit bottom 2 bits */
 #define	 HID4_LPID5_SH	 (63 - 6)	/* partition ID bottom 4 bits */
 #define	 HID4_RMOR_SH	 (63 - 22)	/* real mode offset (16 bits) */
+#define  HID4_RMOR	 (0xFFFFul << HID4_RMOR_SH)
 #define  HID4_LPES1	 (1 << (63-57))	/* LPAR env. sel. bit 1 */
 #define  HID4_RMLS0_SH	 (63 - 58)	/* Real mode limit top bit */
 #define	 HID4_LPID1_SH	 0		/* partition ID top 2 bits */
@@ -1106,6 +1114,13 @@
 #define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
+
+/* "Logical" PVR values defined in PAPR, representing architecture levels */
+#define PVR_ARCH_204	0x0f000001
+#define PVR_ARCH_205	0x0f000002
+#define PVR_ARCH_206	0x0f000003
+#define PVR_ARCH_206p	0x0f100003
+#define PVR_ARCH_207	0x0f000004
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__

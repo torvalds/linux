@@ -2113,7 +2113,6 @@ error_startup:
 error_request_irq:
 	if (cd->cpdata->init)
 		cd->cpdata->init(cd->cpdata, 0, dev);
-	dev_set_drvdata(dev, NULL);
 error_free_xfer:
 	kfree(cd->xfer_buf);
 error_free_cd:
@@ -2151,7 +2150,6 @@ int cyttsp4_remove(struct cyttsp4 *cd)
 	free_irq(cd->irq, cd);
 	if (cd->cpdata->init)
 		cd->cpdata->init(cd->cpdata, 0, dev);
-	dev_set_drvdata(dev, NULL);
 	cyttsp4_free_si_ptrs(cd);
 	kfree(cd);
 	return 0;

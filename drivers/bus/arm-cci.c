@@ -852,7 +852,7 @@ asmlinkage void __naked cci_enable_port_for_self(void)
 
 	/* Enable the CCI port */
 "	ldr	r0, [r0, %[offsetof_port_phys]] \n"
-"	mov	r3, #"__stringify(CCI_ENABLE_REQ)" \n"
+"	mov	r3, %[cci_enable_req]\n"		   
 "	str	r3, [r0, #"__stringify(CCI_PORT_CTRL)"] \n"
 
 	/* poll the status reg for completion */
@@ -860,7 +860,7 @@ asmlinkage void __naked cci_enable_port_for_self(void)
 "	ldr	r0, [r1] \n"
 "	ldr	r0, [r0, r1]		@ cci_ctrl_base \n"
 "4:	ldr	r1, [r0, #"__stringify(CCI_CTRL_STATUS)"] \n"
-"	tst	r1, #1 \n"
+"	tst	r1, %[cci_control_status_bits] \n"			
 "	bne	4b \n"
 
 "	mov	r0, #0 \n"
@@ -873,6 +873,8 @@ asmlinkage void __naked cci_enable_port_for_self(void)
 "7:	.word	cci_ctrl_phys - . \n"
 	: :
 	[sizeof_cpu_port] "i" (sizeof(cpu_port)),
+	[cci_enable_req] "i" cpu_to_le32(CCI_ENABLE_REQ),
+	[cci_control_status_bits] "i" cpu_to_le32(1),
 #ifndef __ARMEB__
 	[offsetof_cpu_port_mpidr_lsb] "i" (offsetof(struct cpu_port, mpidr)),
 #else

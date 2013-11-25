@@ -1726,8 +1726,8 @@ int __init ndisc_init(void)
 				    &ndisc_ifinfo_sysctl_change);
 	if (err)
 		goto out_unregister_pernet;
-#endif
 out:
+#endif
 	return err;
 
 #ifdef CONFIG_SYSCTL

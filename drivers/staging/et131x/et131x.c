@@ -3601,17 +3601,10 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 		goto err_out;
 	}
 
-	/* Let's set up the PORT LOGIC Register.  First we need to know what
-	 * the max_payload_size is
-	 */
-	if (pcie_capability_read_word(pdev, PCI_EXP_DEVCAP, &max_payload)) {
-		dev_err(&pdev->dev,
-		    "Could not read PCI config space for Max Payload Size\n");
-		goto err_out;
-	}
+	/* Let's set up the PORT LOGIC Register. */
 
 	/* Program the Ack/Nak latency and replay timers */
-	max_payload &= 0x07;
+	max_payload = pdev->pcie_mpss;
 
 	if (max_payload < 2) {
 		static const u16 acknak[2] = { 0x76, 0xD0 };
@@ -3641,8 +3634,7 @@ static int et131x_pci_init(struct et131x_adapter *adapter,
 	}
 
 	/* Change the max read size to 2k */
-	if (pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
-				PCI_EXP_DEVCTL_READRQ, 0x4 << 12)) {
+	if (pcie_set_readrq(pdev, 2048)) {
 		dev_err(&pdev->dev,
 			"Couldn't change PCI config space for Max read size\n");
 		goto err_out;
@@ -4791,21 +4783,8 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* Check the DMA addressing support of this device */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (rc < 0) {
-			dev_err(&pdev->dev,
-			  "Unable to obtain 64 bit DMA for consistent allocations\n");
-			goto err_release_res;
-		}
-	} else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (rc < 0) {
-			dev_err(&pdev->dev,
-			  "Unable to obtain 32 bit DMA for consistent allocations\n");
-			goto err_release_res;
-		}
-	} else {
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) &&
+	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_err(&pdev->dev, "No usable DMA addressing method\n");
 		rc = -EIO;
 		goto err_release_res;

@@ -208,6 +208,7 @@ struct debug_reg {
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
+
 #ifdef CONFIG_PPC64
 	unsigned long	ksp_vsid;
 #endif
@@ -221,6 +222,7 @@ struct thread_struct {
 	void		*pgdir;		/* root of page-table tree */
 	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
 #endif
+	/* Debug Registers */
 	struct debug_reg debug;
 	struct thread_fp_state	fp_state;
 	struct thread_fp_state	*fp_save_area;

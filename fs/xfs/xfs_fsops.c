@@ -17,28 +17,29 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_trans.h"
 #include "xfs_inode_item.h"
-#include "xfs_btree.h"
 #include "xfs_error.h"
+#include "xfs_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
 #include "xfs_fsops.h"
 #include "xfs_itable.h"
 #include "xfs_trans_space.h"
 #include "xfs_rtalloc.h"
-#include "xfs_filestream.h"
 #include "xfs_trace.h"
+#include "xfs_log.h"
+#include "xfs_dinode.h"
+#include "xfs_filestream.h"
 
 /*
  * File system operations
@@ -101,7 +102,9 @@ xfs_fs_geometry(
 			(xfs_sb_version_hasprojid32bit(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_PROJID32 : 0) |
 			(xfs_sb_version_hascrc(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_V5SB : 0);
+				XFS_FSOP_GEOM_FLAGS_V5SB : 0) |
+			(xfs_sb_version_hasftype(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_FTYPE : 0);
 		geo->logsectsize = xfs_sb_version_hassector(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;
@@ -153,7 +156,7 @@ xfs_growfs_data_private(
 	xfs_buf_t		*bp;
 	int			bucket;
 	int			dpct;
-	int			error;
+	int			error, saved_error = 0;
 	xfs_agnumber_t		nagcount;
 	xfs_agnumber_t		nagimax = 0;
 	xfs_rfsblock_t		nb, nb_mod;
@@ -496,29 +499,33 @@ xfs_growfs_data_private(
 				error = ENOMEM;
 		}
 
+		/*
+		 * If we get an error reading or writing alternate superblocks,
+		 * continue.  xfs_repair chooses the "best" superblock based
+		 * on most matches; if we break early, we'll leave more
+		 * superblocks un-updated than updated, and xfs_repair may
+		 * pick them over the properly-updated primary.
+		 */
 		if (error) {
 			xfs_warn(mp,
 		"error %d reading secondary superblock for ag %d",
 				error, agno);
-			break;
+			saved_error = error;
+			continue;
 		}
 		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
 
-		/*
-		 * If we get an error writing out the alternate superblocks,
-		 * just issue a warning and continue.  The real work is
-		 * already done and committed.
-		 */
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error) {
 			xfs_warn(mp,
 		"write error %d updating secondary superblock for ag %d",
 				error, agno);
-			break; /* no point in continuing */
+			saved_error = error;
+			continue;
 		}
 	}
-	return error;
+	return saved_error ? saved_error : error;
 
  error0:
 	xfs_trans_cancel(tp, XFS_TRANS_ABORT);

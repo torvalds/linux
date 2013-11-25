@@ -1127,7 +1127,7 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 		rgd->rd_free_clone = rgd->rd_free;
 	}
-	if (be32_to_cpu(GFS2_MAGIC) != rgd->rd_rgl->rl_magic) {
+	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic) {
 		rgd->rd_rgl->rl_unlinked = cpu_to_be32(count_unlinked(rgd));
 		gfs2_rgrp_ondisk2lvb(rgd->rd_rgl,
 				     rgd->rd_bits[0].bi_bh->b_data);
@@ -1161,7 +1161,7 @@ int update_rgrp_lvb(struct gfs2_rgrpd *rgd)
 	if (rgd->rd_flags & GFS2_RDF_UPTODATE)
 		return 0;
 
-	if (be32_to_cpu(GFS2_MAGIC) != rgd->rd_rgl->rl_magic)
+	if (cpu_to_be32(GFS2_MAGIC) != rgd->rd_rgl->rl_magic)
 		return gfs2_rgrp_bh_get(rgd);
 
 	rl_flags = be32_to_cpu(rgd->rd_rgl->rl_flags);

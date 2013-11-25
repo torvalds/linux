@@ -775,9 +775,9 @@ static int mvsd_probe(struct platform_device *pdev)
 
 	spin_lock_init(&host->lock);
 
-	host->base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!host->base) {
-		ret = -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(host->base)) {
+		ret = PTR_ERR(host->base);
 		goto out;
 	}
 
@@ -838,33 +838,6 @@ static int mvsd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mvsd_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_suspend_host(mmc);
-
-	return ret;
-}
-
-static int mvsd_resume(struct platform_device *dev)
-{
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	int ret = 0;
-
-	if (mmc)
-		ret = mmc_resume_host(mmc);
-
-	return ret;
-}
-#else
-#define mvsd_suspend	NULL
-#define mvsd_resume	NULL
-#endif
-
 static const struct of_device_id mvsdio_dt_ids[] = {
 	{ .compatible = "marvell,orion-sdio" },
 	{ /* sentinel */ }
@@ -874,8 +847,6 @@ MODULE_DEVICE_TABLE(of, mvsdio_dt_ids);
 static struct platform_driver mvsd_driver = {
 	.probe		= mvsd_probe,
 	.remove		= mvsd_remove,
-	.suspend	= mvsd_suspend,
-	.resume		= mvsd_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = mvsdio_dt_ids,

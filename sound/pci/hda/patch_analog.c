@@ -139,6 +139,18 @@ static int ad198x_suspend(struct hda_codec *codec)
 }
 #endif
 
+/* follow EAPD via vmaster hook */
+static void ad_vmaster_eapd_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct ad198x_spec *spec = codec->spec;
+
+	if (!spec->eapd_nid)
+		return;
+	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
+				   AC_VERB_SET_EAPD_BTLENABLE,
+				   enabled ? 0x02 : 0x00);
+}
 
 /*
  * Automatic parse of I/O pins from the BIOS configuration
@@ -219,8 +231,14 @@ static int alloc_ad_spec(struct hda_codec *codec)
 static void ad_fixup_inv_jack_detect(struct hda_codec *codec,
 				     const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	struct ad198x_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		codec->inv_jack_detect = 1;
+		spec->gen.keep_eapd_on = 1;
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		spec->eapd_nid = 0x1b;
+	}
 }
 
 enum {
@@ -464,19 +482,6 @@ static int patch_ad1983(struct hda_codec *codec)
 /*
  * AD1981 HD specific
  */
-
-/* follow EAPD via vmaster hook */
-static void ad_vmaster_eapd_hook(void *private_data, int enabled)
-{
-	struct hda_codec *codec = private_data;
-	struct ad198x_spec *spec = codec->spec;
-
-	if (!spec->eapd_nid)
-		return;
-	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
-				   AC_VERB_SET_EAPD_BTLENABLE,
-				   enabled ? 0x02 : 0x00);
-}
 
 static void ad1981_fixup_hp_eapd(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)

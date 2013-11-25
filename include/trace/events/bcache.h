@@ -6,11 +6,9 @@
 
 #include <linux/tracepoint.h>
 
-struct search;
-
 DECLARE_EVENT_CLASS(bcache_request,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio),
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev			)
@@ -24,8 +22,8 @@ DECLARE_EVENT_CLASS(bcache_request,
 
 	TP_fast_assign(
 		__entry->dev		= bio->bi_bdev->bd_dev;
-		__entry->orig_major	= s->d->disk->major;
-		__entry->orig_minor	= s->d->disk->first_minor;
+		__entry->orig_major	= d->disk->major;
+		__entry->orig_minor	= d->disk->first_minor;
 		__entry->sector		= bio->bi_sector;
 		__entry->orig_sector	= bio->bi_sector - 16;
 		__entry->nr_sector	= bio->bi_size >> 9;
@@ -79,13 +77,13 @@ DECLARE_EVENT_CLASS(btree_node,
 /* request.c */
 
 DEFINE_EVENT(bcache_request, bcache_request_start,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio)
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio)
 );
 
 DEFINE_EVENT(bcache_request, bcache_request_end,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio)
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio)
 );
 
 DECLARE_EVENT_CLASS(bcache_bio,
@@ -368,6 +366,35 @@ DEFINE_EVENT(btree_split, bcache_btree_node_compact,
 DEFINE_EVENT(btree_node, bcache_btree_set_root,
 	TP_PROTO(struct btree *b),
 	TP_ARGS(b)
+);
+
+TRACE_EVENT(bcache_keyscan,
+	TP_PROTO(unsigned nr_found,
+		 unsigned start_inode, uint64_t start_offset,
+		 unsigned end_inode, uint64_t end_offset),
+	TP_ARGS(nr_found,
+		start_inode, start_offset,
+		end_inode, end_offset),
+
+	TP_STRUCT__entry(
+		__field(__u32,	nr_found			)
+		__field(__u32,	start_inode			)
+		__field(__u64,	start_offset			)
+		__field(__u32,	end_inode			)
+		__field(__u64,	end_offset			)
+	),
+
+	TP_fast_assign(
+		__entry->nr_found	= nr_found;
+		__entry->start_inode	= start_inode;
+		__entry->start_offset	= start_offset;
+		__entry->end_inode	= end_inode;
+		__entry->end_offset	= end_offset;
+	),
+
+	TP_printk("found %u keys from %u:%llu to %u:%llu", __entry->nr_found,
+		  __entry->start_inode, __entry->start_offset,
+		  __entry->end_inode, __entry->end_offset)
 );
 
 /* Allocator */

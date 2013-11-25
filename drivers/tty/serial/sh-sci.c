@@ -1433,7 +1433,7 @@ static void work_fn_rx(struct work_struct *work)
 	desc = s->desc_rx[new];
 
 	if (dma_async_is_tx_complete(s->chan_rx, s->active_rx, NULL, NULL) !=
-	    DMA_SUCCESS) {
+	    DMA_COMPLETE) {
 		/* Handle incomplete DMA receive */
 		struct dma_chan *chan = s->chan_rx;
 		struct shdma_desc *sh_desc = container_of(desc,

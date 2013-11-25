@@ -126,6 +126,6 @@ void irlap_do_event(struct irlap_cb *self, IRLAP_EVENT event,
 		    struct sk_buff *skb, struct irlap_info *info);
 void irlap_print_event(IRLAP_EVENT event);
 
-extern int irlap_qos_negotiate(struct irlap_cb *self, struct sk_buff *skb);
+int irlap_qos_negotiate(struct irlap_cb *self, struct sk_buff *skb);
 
 #endif

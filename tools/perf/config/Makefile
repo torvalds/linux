@@ -31,6 +31,10 @@ ifeq ($(ARCH),x86_64)
   endif
   NO_PERF_REGS := 0
 endif
+ifeq ($(ARCH),arm)
+  NO_PERF_REGS := 0
+  LIBUNWIND_LIBS = -lunwind -lunwind-arm
+endif
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
@@ -138,7 +142,8 @@ CORE_FEATURE_TESTS =			\
 	libunwind			\
 	on-exit				\
 	stackprotector			\
-	stackprotector-all
+	stackprotector-all		\
+	timerfd
 
 #
 # So here we detect whether test-all was rebuilt, to be able
@@ -305,8 +310,7 @@ ifndef NO_LIBELF
   endif # NO_DWARF
 endif # NO_LIBELF
 
-# There's only x86 (both 32 and 64) support for CFI unwind so far
-ifneq ($(ARCH),x86)
+ifeq ($(LIBUNWIND_LIBS),)
   NO_LIBUNWIND := 1
 endif
 
@@ -322,8 +326,19 @@ ifndef NO_LIBUNWIND
   endif
 
   ifneq ($(feature-libunwind), 1)
-    msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 0.99);
+    msg := $(warning No libunwind found, disabling post unwind support. Please install libunwind-dev[el] >= 1.1);
     NO_LIBUNWIND := 1
+  else
+    ifeq ($(ARCH),arm)
+      $(call feature_check,libunwind-debug-frame)
+      ifneq ($(feature-libunwind-debug-frame), 1)
+        msg := $(warning No debug_frame support found in libunwind);
+        CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
+      endif
+    else
+      # non-ARM has no dwarf_find_debug_frame() function:
+      CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME
+    endif
   endif
 endif
 
@@ -397,7 +412,6 @@ else
   endif
 endif
 
-$(call feature_check,timerfd)
 ifeq ($(feature-timerfd), 1)
   CFLAGS += -DHAVE_TIMERFD_SUPPORT
 else

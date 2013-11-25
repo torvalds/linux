@@ -699,7 +699,4 @@ extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
 extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
 extern void	xfs_sb_quota_from_disk(struct xfs_sb *sbp);
 
-extern const struct xfs_buf_ops xfs_sb_buf_ops;
-extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
-
 #endif	/* __XFS_SB_H__ */

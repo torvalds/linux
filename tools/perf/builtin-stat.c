@@ -108,7 +108,7 @@ enum {
 
 static struct perf_evlist	*evsel_list;
 
-static struct perf_target	target = {
+static struct target target = {
 	.uid	= UINT_MAX,
 };
 
@@ -294,11 +294,10 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 
 	attr->inherit = !no_inherit;
 
-	if (perf_target__has_cpu(&target))
+	if (target__has_cpu(&target))
 		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
-	if (!perf_target__has_task(&target) &&
-	    perf_evsel__is_group_leader(evsel)) {
+	if (!target__has_task(&target) && perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
 		if (!initial_delay)
 			attr->enable_on_exec = 1;
@@ -1236,7 +1235,7 @@ static void print_stat(int argc, const char **argv)
 			fprintf(output, "\'system wide");
 		else if (target.cpu_list)
 			fprintf(output, "\'CPU(s) %s", target.cpu_list);
-		else if (!perf_target__has_task(&target)) {
+		else if (!target__has_task(&target)) {
 			fprintf(output, "\'%s", argv[0]);
 			for (i = 1; i < argc; i++)
 				fprintf(output, " %s", argv[i]);
@@ -1667,7 +1666,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
-	if (!argc && perf_target__none(&target))
+	if (!argc && target__none(&target))
 		usage_with_options(stat_usage, options);
 
 	if (run_count < 0) {
@@ -1680,8 +1679,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	/* no_aggr, cgroup are for system-wide only */
-	if ((aggr_mode != AGGR_GLOBAL || nr_cgroups)
-	     && !perf_target__has_cpu(&target)) {
+	if ((aggr_mode != AGGR_GLOBAL || nr_cgroups) &&
+	    !target__has_cpu(&target)) {
 		fprintf(stderr, "both cgroup and no-aggregation "
 			"modes only available in system-wide mode\n");
 
@@ -1694,14 +1693,14 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (add_default_attributes())
 		goto out;
 
-	perf_target__validate(&target);
+	target__validate(&target);
 
 	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
-		if (perf_target__has_task(&target)) {
+		if (target__has_task(&target)) {
 			pr_err("Problems finding threads of monitor\n");
 			parse_options_usage(stat_usage, options, "p", 1);
 			parse_options_usage(NULL, options, "t", 1);
-		} else if (perf_target__has_cpu(&target)) {
+		} else if (target__has_cpu(&target)) {
 			perror("failed to parse CPUs map");
 			parse_options_usage(stat_usage, options, "C", 1);
 			parse_options_usage(NULL, options, "a", 1);

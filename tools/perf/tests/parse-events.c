@@ -441,9 +441,8 @@ static int test__checkevent_pmu_name(struct perf_evlist *evlist)
 
 static int test__checkevent_pmu_events(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
 
-	evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
 	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong exclude_user",
