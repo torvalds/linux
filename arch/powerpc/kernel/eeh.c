@@ -84,7 +84,7 @@
 #define EEH_MAX_FAILS	2100000
 
 /* Time to wait for a PCI slot to report status, in milliseconds */
-#define PCI_BUS_RESET_WAIT_MSEC (60*1000)
+#define PCI_BUS_RESET_WAIT_MSEC (5*60*1000)
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;

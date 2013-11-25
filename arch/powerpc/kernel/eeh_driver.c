@@ -468,7 +468,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 /* The longest amount of time to wait for a pci device
  * to come back on line, in seconds.
  */
-#define MAX_WAIT_FOR_RECOVERY 150
+#define MAX_WAIT_FOR_RECOVERY 300
 
 static void eeh_handle_normal_event(struct eeh_pe *pe)
 {
