@@ -114,7 +114,7 @@ MODULE_PARM_DESC(enable_hangcheck,
 		"(default: true)");
 
 int i915_enable_ppgtt __read_mostly = -1;
-module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0600);
+module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0400);
 MODULE_PARM_DESC(i915_enable_ppgtt,
 		"Enable PPGTT (default: true)");
 
