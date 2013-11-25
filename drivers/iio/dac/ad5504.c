@@ -68,7 +68,7 @@ enum ad5504_supported_device_ids {
 
 static int ad5504_spi_write(struct spi_device *spi, u8 addr, u16 val)
 {
-	u16 tmp = cpu_to_be16(AD5504_CMD_WRITE |
+	__be16 tmp = cpu_to_be16(AD5504_CMD_WRITE |
 			      AD5504_ADDR(addr) |
 			      (val & AD5504_RES_MASK));
 
@@ -77,8 +77,8 @@ static int ad5504_spi_write(struct spi_device *spi, u8 addr, u16 val)
 
 static int ad5504_spi_read(struct spi_device *spi, u8 addr)
 {
-	u16 tmp = cpu_to_be16(AD5504_CMD_READ | AD5504_ADDR(addr));
-	u16 val;
+	__be16 tmp = cpu_to_be16(AD5504_CMD_READ | AD5504_ADDR(addr));
+	__be16 val;
 	int ret;
 	struct spi_transfer	t = {
 			.tx_buf		= &tmp,
