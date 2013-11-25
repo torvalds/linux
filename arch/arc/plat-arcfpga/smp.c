@@ -93,9 +93,9 @@ static void iss_model_ipi_send(int cpu)
 	idu_irq_assert(cpu);
 }
 
-static void iss_model_ipi_clear(int cpu, int irq)
+static void iss_model_ipi_clear(int irq)
 {
-	idu_irq_clear(IDU_INTERRUPT_0 + cpu);
+	idu_irq_clear(IDU_INTERRUPT_0 + smp_processor_id());
 }
 
 void iss_model_init_early_smp(void)

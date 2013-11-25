@@ -310,7 +310,7 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	unsigned long ops;
 
 	if (plat_smp_ops.ipi_clear)
-		plat_smp_ops.ipi_clear(cpu, irq);
+		plat_smp_ops.ipi_clear(irq);
 
 	/*
 	 * XXX: is this loop really needed
