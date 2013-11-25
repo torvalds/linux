@@ -579,7 +579,7 @@ static void dwc2_deschedule_periodic(struct dwc2_hsotg *hsotg,
  */
 int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
-	int status = 0;
+	int status;
 	u32 intr_mask;
 
 	if (dbg_qh(qh))
@@ -587,7 +587,7 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	if (!list_empty(&qh->qh_list_entry))
 		/* QH already in a schedule */
-		return status;
+		return 0;
 
 	/* Add the new QH to the appropriate schedule */
 	if (dwc2_qh_is_non_per(qh)) {
@@ -596,17 +596,17 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 			      &hsotg->non_periodic_sched_inactive);
 	} else {
 		status = dwc2_schedule_periodic(hsotg, qh);
-		if (status == 0) {
-			if (!hsotg->periodic_qh_count) {
-				intr_mask = readl(hsotg->regs + GINTMSK);
-				intr_mask |= GINTSTS_SOF;
-				writel(intr_mask, hsotg->regs + GINTMSK);
-			}
-			hsotg->periodic_qh_count++;
+		if (status)
+			return status;
+		if (!hsotg->periodic_qh_count) {
+			intr_mask = readl(hsotg->regs + GINTMSK);
+			intr_mask |= GINTSTS_SOF;
+			writel(intr_mask, hsotg->regs + GINTMSK);
 		}
+		hsotg->periodic_qh_count++;
 	}
 
-	return status;
+	return 0;
 }
 
 /**
