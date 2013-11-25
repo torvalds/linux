@@ -27,7 +27,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/debug-monitors.h>
-#include <asm/local.h>
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
 
@@ -89,8 +88,8 @@ early_param("nodebugmon", early_debug_disable);
  * Keep track of debug users on each core.
  * The ref counts are per-cpu so we use a local_t type.
  */
-static DEFINE_PER_CPU(local_t, mde_ref_count);
-static DEFINE_PER_CPU(local_t, kde_ref_count);
+static DEFINE_PER_CPU(int, mde_ref_count);
+static DEFINE_PER_CPU(int, kde_ref_count);
 
 void enable_debug_monitors(enum debug_el el)
 {
@@ -98,11 +97,11 @@ void enable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_inc_return(&__get_cpu_var(mde_ref_count)) == 1)
+	if (this_cpu_inc_return(mde_ref_count) == 1)
 		enable = DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_inc_return(&__get_cpu_var(kde_ref_count)) == 1)
+	    this_cpu_inc_return(kde_ref_count) == 1)
 		enable |= DBG_MDSCR_KDE;
 
 	if (enable && debug_enabled) {
@@ -118,11 +117,11 @@ void disable_debug_monitors(enum debug_el el)
 
 	WARN_ON(preemptible());
 
-	if (local_dec_and_test(&__get_cpu_var(mde_ref_count)))
+	if (this_cpu_dec_return(mde_ref_count) == 0)
 		disable = ~DBG_MDSCR_MDE;
 
 	if (el == DBG_ACTIVE_EL1 &&
-	    local_dec_and_test(&__get_cpu_var(kde_ref_count)))
+	    this_cpu_dec_return(kde_ref_count) == 0)
 		disable &= ~DBG_MDSCR_KDE;
 
 	if (disable) {

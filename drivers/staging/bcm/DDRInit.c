@@ -1106,7 +1106,7 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 	unsigned long ul_ddr_setting_load_addr = DDR_DUMP_INTERNAL_DEVICE_MEMORY;
 	UINT  value = 0;
 	int retval = STATUS_SUCCESS;
-	BOOLEAN bOverrideSelfRefresh = FALSE;
+	bool bOverrideSelfRefresh = false;
 
 	switch (Adapter->chip_id)
 	{

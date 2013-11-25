@@ -197,13 +197,14 @@ static void vp_reset(struct virtio_device *vdev)
 }
 
 /* the notify function used when creating a virt queue */
-static void vp_notify(struct virtqueue *vq)
+static bool vp_notify(struct virtqueue *vq)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vq->vdev);
 
 	/* we write the queue's selector into the notification register to
 	 * signal the other end */
 	iowrite16(vq->index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NOTIFY);
+	return true;
 }
 
 /* Handle a configuration change: Tell driver if it wants to know. */

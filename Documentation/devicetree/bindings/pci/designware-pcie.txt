@@ -1,9 +1,9 @@
-* Synopsis Designware PCIe interface
+* Synopsys Designware PCIe interface
 
 Required properties:
 - compatible: should contain "snps,dw-pcie" to identify the
 	core, plus an identifier for the specific instance, such
-	as "samsung,exynos5440-pcie".
+	as "samsung,exynos5440-pcie" or "fsl,imx6q-pcie".
 - reg: base addresses and lengths of the pcie controller,
 	the phy controller, additional register for the phy controller.
 - interrupts: interrupt values for level interrupt,
@@ -20,6 +20,11 @@ Required properties:
 	numbers.
 - num-lanes: number of lanes to use
 - reset-gpio: gpio pin number of power good signal
+
+Optional properties for fsl,imx6q-pcie
+- power-on-gpio: gpio pin number of power-enable signal
+- wake-up-gpio: gpio pin number of incoming wakeup signal
+- disable-gpio: gpio pin number of outgoing rfkill/endpoint disable signal
 
 Example:
 

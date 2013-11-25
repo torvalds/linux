@@ -31,6 +31,10 @@
 	ocp {
 		uart4: serial@49042000 {
 			compatible = "ti,omap3-uart";
+			reg = <0x49042000 0x400>;
+			interrupts = <80>;
+			dmas = <&sdma 81 &sdma 82>;
+			dma-names = "tx", "rx";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
 		};

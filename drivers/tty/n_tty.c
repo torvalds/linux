@@ -767,7 +767,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 	 * of echo overrun before the next commit), then discard enough
 	 * data at the tail to prevent a subsequent overrun */
 	while (ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
-		if (echo_buf(ldata, tail == ECHO_OP_START)) {
+		if (echo_buf(ldata, tail) == ECHO_OP_START) {
 			if (echo_buf(ldata, tail) == ECHO_OP_ERASE_TAB)
 				tail += 3;
 			else
@@ -1752,20 +1752,13 @@ int is_ignored(int sig)
 static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int canon_change = 1;
 
-	if (old)
-		canon_change = (old->c_lflag ^ tty->termios.c_lflag) & ICANON;
-	if (canon_change) {
+	if (!old || (old->c_lflag ^ tty->termios.c_lflag) & ICANON) {
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
-		ldata->line_start = 0;
-		ldata->canon_head = ldata->read_tail;
+		ldata->line_start = ldata->canon_head = ldata->read_tail;
 		ldata->erasing = 0;
 		ldata->lnext = 0;
 	}
-
-	if (canon_change && !L_ICANON(tty) && read_cnt(ldata))
-		wake_up_interruptible(&tty->read_wait);
 
 	ldata->icanon = (L_ICANON(tty) != 0);
 
@@ -1821,9 +1814,8 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	 * Fix tty hang when I_IXON(tty) is cleared, but the tty
 	 * been stopped by STOP_CHAR(tty) before it.
 	 */
-	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped) {
+	if (!I_IXON(tty) && old && (old->c_iflag & IXON) && !tty->flow_stopped)
 		start_tty(tty);
-	}
 
 	/* The termios change make the tty ready for I/O */
 	wake_up_interruptible(&tty->write_wait);
@@ -2184,28 +2176,34 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 
 		if (!input_available_p(tty, 0)) {
 			if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
-				retval = -EIO;
-				break;
-			}
-			if (tty_hung_up_p(file))
-				break;
-			if (!timeout)
-				break;
-			if (file->f_flags & O_NONBLOCK) {
-				retval = -EAGAIN;
-				break;
-			}
-			if (signal_pending(current)) {
-				retval = -ERESTARTSYS;
-				break;
-			}
-			n_tty_set_room(tty);
-			up_read(&tty->termios_rwsem);
+				up_read(&tty->termios_rwsem);
+				tty_flush_to_ldisc(tty);
+				down_read(&tty->termios_rwsem);
+				if (!input_available_p(tty, 0)) {
+					retval = -EIO;
+					break;
+				}
+			} else {
+				if (tty_hung_up_p(file))
+					break;
+				if (!timeout)
+					break;
+				if (file->f_flags & O_NONBLOCK) {
+					retval = -EAGAIN;
+					break;
+				}
+				if (signal_pending(current)) {
+					retval = -ERESTARTSYS;
+					break;
+				}
+				n_tty_set_room(tty);
+				up_read(&tty->termios_rwsem);
 
-			timeout = schedule_timeout(timeout);
+				timeout = schedule_timeout(timeout);
 
-			down_read(&tty->termios_rwsem);
-			continue;
+				down_read(&tty->termios_rwsem);
+				continue;
+			}
 		}
 		__set_current_state(TASK_RUNNING);
 

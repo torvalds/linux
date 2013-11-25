@@ -181,7 +181,7 @@ i		 *  Currently, we cannot fully disable driver dynamic
 		 * tx power mechanism because it is referenced by BT
 		 * coexist mechanism.
 		 * In the future, two mechanism shall be separated from
-		 * each other and maintained independantly. */
+		 * each other and maintained independently. */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
 			TxAGC[RF_PATH_A] = 0x10101010;
 			TxAGC[RF_PATH_B] = 0x10101010;
@@ -216,11 +216,11 @@ i		 *  Currently, we cannot fully disable driver dynamic
 	ODM_TxPwrTrackAdjust88E(&pHalData->odmpriv, 1, &direction, &pwrtrac_value);
 
 	if (direction == 1) {
-		/*  Increase TX pwoer */
+		/*  Increase TX power */
 		TxAGC[0] += pwrtrac_value;
 		TxAGC[1] += pwrtrac_value;
 	} else if (direction == 2) {
-		/*  Decrease TX pwoer */
+		/*  Decrease TX power */
 		TxAGC[0] -=  pwrtrac_value;
 		TxAGC[1] -=  pwrtrac_value;
 	}
@@ -292,7 +292,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 			if (pHalData->pwrGroupCnt == 1)
 				chnlGroup = 0;
 			if (pHalData->pwrGroupCnt >= pHalData->PGMaxGroup) {
-				if (Channel < 3)			/*  Chanel 1-2 */
+				if (Channel < 3)			/*  Channel 1-2 */
 					chnlGroup = 0;
 				else if (Channel < 6)		/*  Channel 3-5 */
 					chnlGroup = 1;
@@ -349,7 +349,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 		}
 /*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx power. It shall be determined by power training mechanism. */
 /*  Currently, we cannot fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
-/*  In the future, two mechanism shall be separated from each other and maintained independantly. Thanks for Lanhsin's reminder. */
+/*  In the future, two mechanism shall be separated from each other and maintained independently. Thanks for Lanhsin's reminder. */
 		/* 92d do not need this */
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
 			writeVal = 0x14141414;

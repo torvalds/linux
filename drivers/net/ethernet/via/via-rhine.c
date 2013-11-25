@@ -32,7 +32,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define DRV_NAME	"via-rhine"
-#define DRV_VERSION	"1.5.0"
+#define DRV_VERSION	"1.5.1"
 #define DRV_RELDATE	"2010-10-09"
 
 #include <linux/types.h>
@@ -987,6 +987,9 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rp->base = ioaddr;
 
+	u64_stats_init(&rp->tx_stats.syncp);
+	u64_stats_init(&rp->rx_stats.syncp);
+
 	/* Get chip registers into a sane state */
 	rhine_power_init(dev);
 	rhine_hw_init(dev, pioaddr);
@@ -1704,7 +1707,12 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 		cpu_to_le32(TXDESC | (skb->len >= ETH_ZLEN ? skb->len : ETH_ZLEN));
 
 	if (unlikely(vlan_tx_tag_present(skb))) {
-		rp->tx_ring[entry].tx_status = cpu_to_le32((vlan_tx_tag_get(skb)) << 16);
+		u16 vid_pcp = vlan_tx_tag_get(skb);
+
+		/* drop CFI/DEI bit, register needs VID and PCP */
+		vid_pcp = (vid_pcp & VLAN_VID_MASK) |
+			  ((vid_pcp & VLAN_PRIO_MASK) >> 1);
+		rp->tx_ring[entry].tx_status = cpu_to_le32((vid_pcp) << 16);
 		/* request tagging */
 		rp->tx_ring[entry].desc_length |= cpu_to_le32(0x020000);
 	}
@@ -2287,7 +2295,6 @@ static void rhine_remove_one(struct pci_dev *pdev)
 
 	free_netdev(dev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 }
 
 static void rhine_shutdown (struct pci_dev *pdev)

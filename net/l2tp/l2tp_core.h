@@ -194,6 +194,9 @@ struct l2tp_tunnel {
 	struct sock		*sock;		/* Parent socket */
 	int			fd;		/* Parent fd, if tunnel socket
 						 * was created by userspace */
+#if IS_ENABLED(CONFIG_IPV6)
+	bool			v4mapped;
+#endif
 
 	struct work_struct	del_work;
 
@@ -235,29 +238,40 @@ out:
 	return tunnel;
 }
 
-extern struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
-extern void l2tp_tunnel_sock_put(struct sock *sk);
-extern struct l2tp_session *l2tp_session_find(struct net *net, struct l2tp_tunnel *tunnel, u32 session_id);
-extern struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
-extern struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname);
-extern struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id);
-extern struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth);
+struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
+void l2tp_tunnel_sock_put(struct sock *sk);
+struct l2tp_session *l2tp_session_find(struct net *net,
+				       struct l2tp_tunnel *tunnel,
+				       u32 session_id);
+struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
+struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname);
+struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id);
+struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth);
 
-extern int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg, struct l2tp_tunnel **tunnelp);
-extern void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
-extern int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
-extern struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunnel, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
-extern void __l2tp_session_unhash(struct l2tp_session *session);
-extern int l2tp_session_delete(struct l2tp_session *session);
-extern void l2tp_session_free(struct l2tp_session *session);
-extern void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb, unsigned char *ptr, unsigned char *optr, u16 hdrflags, int length, int (*payload_hook)(struct sk_buff *skb));
-extern int l2tp_session_queue_purge(struct l2tp_session *session);
-extern int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
+int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id,
+		       u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg,
+		       struct l2tp_tunnel **tunnelp);
+void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
+int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
+struct l2tp_session *l2tp_session_create(int priv_size,
+					 struct l2tp_tunnel *tunnel,
+					 u32 session_id, u32 peer_session_id,
+					 struct l2tp_session_cfg *cfg);
+void __l2tp_session_unhash(struct l2tp_session *session);
+int l2tp_session_delete(struct l2tp_session *session);
+void l2tp_session_free(struct l2tp_session *session);
+void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
+		      unsigned char *ptr, unsigned char *optr, u16 hdrflags,
+		      int length, int (*payload_hook)(struct sk_buff *skb));
+int l2tp_session_queue_purge(struct l2tp_session *session);
+int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
-extern int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len);
+int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb,
+		  int hdr_len);
 
-extern int l2tp_nl_register_ops(enum l2tp_pwtype pw_type, const struct l2tp_nl_cmd_ops *ops);
-extern void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
+int l2tp_nl_register_ops(enum l2tp_pwtype pw_type,
+			 const struct l2tp_nl_cmd_ops *ops);
+void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type);
 
 /* Session reference counts. Incremented when code obtains a reference
  * to a session.

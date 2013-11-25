@@ -522,7 +522,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, int is_break)
 				serio_interrupt(&up->serio, ch, 0);
 #endif
 				break;
-			};
+			}
 		}
 	} while (serial_in(up, UART_LSR) & UART_LSR_DR);
 }

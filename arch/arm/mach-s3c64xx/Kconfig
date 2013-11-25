@@ -3,16 +3,7 @@
 #
 # Licensed under GPLv2
 
-# temporary until we can eliminate all drivers using it.
-config PLAT_S3C64XX
-	bool
-	depends on ARCH_S3C64XX
-	default y
-	select PM_GENERIC_DOMAINS
-	select SAMSUNG_WAKEMASK
-	help
-	  Base platform code for any Samsung S3C64XX device
-
+if ARCH_S3C64XX
 
 # Configuration options for the S3C6410 CPU
 
@@ -306,3 +297,21 @@ config MACH_WLF_CRAGG_6410
 	select SAMSUNG_GPIO_EXTRA128
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.
+
+config MACH_S3C64XX_DT
+	bool "Samsung S3C6400/S3C6410 machine using Device Tree"
+	select CLKSRC_OF
+	select CPU_S3C6400
+	select CPU_S3C6410
+	select PINCTRL
+	select PINCTRL_S3C64XX
+	select USE_OF
+	help
+	  Machine support for Samsung S3C6400/S3C6410 machines with Device Tree
+	  enabled.
+	  Select this if a fdt blob is available for your S3C64XX SoC based
+	  board.
+	  Note: This is under development and not all peripherals can be
+	  supported with this machine file.
+
+endif

@@ -68,6 +68,14 @@ void mei_device_init(struct mei_device *dev)
 	mei_io_list_init(&dev->amthif_cmd_list);
 	mei_io_list_init(&dev->amthif_rd_complete_list);
 
+	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
+	dev->open_handle_count = 0;
+
+	/*
+	 * Reserving the first client ID
+	 * 0: Reserved for MEI Bus Message communications
+	 */
+	bitmap_set(dev->host_clients_map, 0, 1);
 }
 EXPORT_SYMBOL_GPL(mei_device_init);
 
@@ -139,6 +147,10 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 			dev->dev_state != MEI_DEV_POWER_DOWN &&
 			dev->dev_state != MEI_DEV_POWER_UP);
 
+	if (unexpected)
+		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
+			 mei_dev_state_str(dev->dev_state));
+
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "hw reset failed disabling the device\n");
@@ -165,23 +177,17 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		/* remove entry if already in list */
 		dev_dbg(&dev->pdev->dev, "remove iamthif and wd from the file list.\n");
 		mei_cl_unlink(&dev->wd_cl);
-		if (dev->open_handle_count > 0)
-			dev->open_handle_count--;
 		mei_cl_unlink(&dev->iamthif_cl);
-		if (dev->open_handle_count > 0)
-			dev->open_handle_count--;
-
 		mei_amthif_reset_params(dev);
 		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}
 
+	/* we're already in reset, cancel the init timer */
+	dev->init_clients_timer = 0;
+
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
-
-	if (unexpected)
-		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
-			 mei_dev_state_str(dev->dev_state));
 
 	if (!interrupts_enabled) {
 		dev_dbg(&dev->pdev->dev, "intr not enabled end of reset\n");

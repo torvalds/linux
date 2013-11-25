@@ -11,9 +11,6 @@
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
 
-#define EFI_PAGE_SIZE		(1UL << EFI_PAGE_SHIFT)
-#define EFI_READ_CHUNK_SIZE	(1024 * 1024)
-
 #define EFI_CONSOLE_OUT_DEVICE_GUID    \
 	EFI_GUID(0xd3b36f2c, 0xd551, 0x11d4, 0x9a, 0x46, 0x0, 0x90, 0x27, \
 		  0x3f, 0xc1, 0x4d)
@@ -60,12 +57,6 @@ struct efi_uga_draw_protocol {
 	void *get_mode;
 	void *set_mode;
 	void *blt;
-};
-
-struct efi_simple_text_output_protocol {
-	void *reset;
-	void *output_string;
-	void *test_string;
 };
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */

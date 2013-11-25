@@ -613,6 +613,9 @@ static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
 	sl = dev_to_w1_slave(dev);
 	fops = sl->family->fops;
 
+	if (!fops)
+		return 0;
+
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
 		/* if the family driver needs to initialize something... */
@@ -706,14 +709,17 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 
 	sl->owner = THIS_MODULE;
 	sl->master = dev;
-	set_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
+	set_bit(W1_SLAVE_ACTIVE, &sl->flags);
 
 	memset(&msg, 0, sizeof(msg));
 	memcpy(&sl->reg_num, rn, sizeof(sl->reg_num));
 	atomic_set(&sl->refcnt, 0);
 	init_completion(&sl->released);
 
+	/* slave modules need to be loaded in a context with unlocked mutex */
+	mutex_unlock(&dev->mutex);
 	request_module("w1-family-0x%0x", rn->family);
+	mutex_lock(&dev->mutex);
 
 	spin_lock(&w1_flock);
 	f = w1_family_registered(rn->family);
@@ -860,7 +866,7 @@ void w1_slave_found(struct w1_master *dev, u64 rn)
 
 	sl = w1_slave_search_device(dev, tmp);
 	if (sl) {
-		set_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
+		set_bit(W1_SLAVE_ACTIVE, &sl->flags);
 	} else {
 		if (rn && tmp->crc == w1_calc_crc8((u8 *)&rn_le, 7))
 			w1_attach_slave_device(dev, tmp);
@@ -978,14 +984,14 @@ void w1_search_process_cb(struct w1_master *dev, u8 search_type,
 	struct w1_slave *sl, *sln;
 
 	list_for_each_entry(sl, &dev->slist, w1_slave_entry)
-		clear_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
+		clear_bit(W1_SLAVE_ACTIVE, &sl->flags);
 
 	w1_search_devices(dev, search_type, cb);
 
 	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-		if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl)
+		if (!test_bit(W1_SLAVE_ACTIVE, &sl->flags) && !--sl->ttl)
 			w1_slave_detach(sl);
-		else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
+		else if (test_bit(W1_SLAVE_ACTIVE, &sl->flags))
 			sl->ttl = dev->slave_ttl;
 	}
 

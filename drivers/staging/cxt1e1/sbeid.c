@@ -22,7 +22,7 @@
 char       *
 sbeid_get_bdname (ci_t *ci)
 {
-    char       *np = 0;
+    char       *np = NULL;
 
     switch (ci->brd_id)
     {

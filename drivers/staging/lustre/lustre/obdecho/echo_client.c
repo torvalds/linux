@@ -1089,7 +1089,7 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 		} else {
 			struct lustre_md *md;
 			md = &info->eti_md;
-			memset(md, 0, sizeof *md);
+			memset(md, 0, sizeof(*md));
 			md->lsm = lsm;
 			conf->eoc_cl.u.coc_md = md;
 		}
@@ -1387,7 +1387,7 @@ echo_copyout_lsm (struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 	if (nob > ulsm_nob)
 		return (-EINVAL);
 
-	if (copy_to_user (ulsm, lsm, sizeof(ulsm)))
+	if (copy_to_user (ulsm, lsm, sizeof(*ulsm)))
 		return (-EFAULT);
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {

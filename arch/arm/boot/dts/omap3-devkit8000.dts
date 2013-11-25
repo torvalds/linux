@@ -125,7 +125,7 @@
 		nand-bus-width = <16>;
 
 		gpmc,device-nand;
-		gpmc,sync-clki-ps = <0>;
+		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <44>;
 		gpmc,cs-wr-off-ns = <44>;

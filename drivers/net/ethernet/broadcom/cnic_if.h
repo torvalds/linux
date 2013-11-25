@@ -353,8 +353,8 @@ struct cnic_ulp_ops {
 	atomic_t ref_count;
 };
 
-extern int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
+int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops);
 
-extern int cnic_unregister_driver(int ulp_type);
+int cnic_unregister_driver(int ulp_type);
 
 #endif

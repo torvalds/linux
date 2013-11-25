@@ -235,7 +235,7 @@ nfs_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	};
 	int status = -ENOMEM;
 
-	dprintk("NFS call  create %s\n", dentry->d_name.name);
+	dprintk("NFS call  create %pd\n", dentry);
 	data = nfs_alloc_createdata(dir, dentry, sattr);
 	if (data == NULL)
 		goto out;
@@ -265,7 +265,7 @@ nfs_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	umode_t mode;
 	int status = -ENOMEM;
 
-	dprintk("NFS call  mknod %s\n", dentry->d_name.name);
+	dprintk("NFS call  mknod %pd\n", dentry);
 
 	mode = sattr->ia_mode;
 	if (S_ISFIFO(mode)) {
@@ -423,7 +423,7 @@ nfs_proc_symlink(struct inode *dir, struct dentry *dentry, struct page *page,
 	};
 	int status = -ENAMETOOLONG;
 
-	dprintk("NFS call  symlink %s\n", dentry->d_name.name);
+	dprintk("NFS call  symlink %pd\n", dentry);
 
 	if (len > NFS2_MAXPATHLEN)
 		goto out;
@@ -462,7 +462,7 @@ nfs_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	};
 	int status = -ENOMEM;
 
-	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
+	dprintk("NFS call  mkdir %pd\n", dentry);
 	data = nfs_alloc_createdata(dir, dentry, sattr);
 	if (data == NULL)
 		goto out;

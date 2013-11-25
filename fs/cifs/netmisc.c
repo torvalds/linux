@@ -51,7 +51,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRnoaccess, -EACCES},
 	{ERRbadfid, -EBADF},
 	{ERRbadmcb, -EIO},
-	{ERRnomem, -ENOMEM},
+	{ERRnomem, -EREMOTEIO},
 	{ERRbadmem, -EFAULT},
 	{ERRbadenv, -EFAULT},
 	{ERRbadformat, -EINVAL},
@@ -780,7 +780,9 @@ static const struct {
 	ERRDOS, ERRnoaccess, 0xc0000290}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
 	ERRDOS, ERRsymlink, NT_STATUS_STOPPED_ON_SYMLINK}, {
-	ERRDOS, ERRinvlevel, 0x007c0001}, };
+	ERRDOS, ERRinvlevel, 0x007c0001}, {
+	0, 0, 0 }
+};
 
 /*****************************************************************************
  Print an error message from the status code

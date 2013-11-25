@@ -108,23 +108,16 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	data->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "fsl,usbphy", 0);
-	if (!IS_ERR(data->phy)) {
-		ret = usb_phy_init(data->phy);
-		if (ret) {
-			dev_err(&pdev->dev, "unable to init phy: %d\n", ret);
-			goto err_clk;
-		}
-	} else if (PTR_ERR(data->phy) == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
+	if (IS_ERR(data->phy)) {
+		ret = PTR_ERR(data->phy);
 		goto err_clk;
 	}
 
 	pdata.phy = data->phy;
 
-	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (!pdev->dev.coherent_dma_mask)
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto err_clk;
 
 	if (data->usbmisc_data) {
 		ret = imx_usbmisc_init(data->usbmisc_data);
@@ -175,10 +168,6 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	ci_hdrc_remove_device(data->ci_pdev);
-
-	if (data->phy)
-		usb_phy_shutdown(data->phy);
-
 	clk_disable_unprepare(data->clk);
 
 	return 0;

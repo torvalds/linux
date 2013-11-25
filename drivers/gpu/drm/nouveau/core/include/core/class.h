@@ -22,7 +22,7 @@
 #define NV_DEVICE_DISABLE_PPP                             0x0000004000000000ULL
 #define NV_DEVICE_DISABLE_COPY0                           0x0000008000000000ULL
 #define NV_DEVICE_DISABLE_COPY1                           0x0000010000000000ULL
-#define NV_DEVICE_DISABLE_UNK1C1                          0x0000020000000000ULL
+#define NV_DEVICE_DISABLE_VIC                             0x0000020000000000ULL
 #define NV_DEVICE_DISABLE_VENC                            0x0000040000000000ULL
 
 struct nv_device_class {
@@ -96,6 +96,77 @@ struct nv_dma_class {
 	u64 start;
 	u64 limit;
 	u32 conf0;
+};
+
+/* Perfmon counter class
+ *
+ * XXXX: NV_PERFCTR
+ */
+#define NV_PERFCTR_CLASS                                             0x0000ffff
+#define NV_PERFCTR_QUERY                                             0x00000000
+#define NV_PERFCTR_SAMPLE                                            0x00000001
+#define NV_PERFCTR_READ                                              0x00000002
+
+struct nv_perfctr_class {
+	u16 logic_op;
+	struct {
+		char __user *name; /*XXX: use cfu when exposed to userspace */
+		u32 size;
+	} signal[4];
+};
+
+struct nv_perfctr_query {
+	u32 iter;
+	u32 size;
+	char __user *name; /*XXX: use ctu when exposed to userspace */
+};
+
+struct nv_perfctr_sample {
+};
+
+struct nv_perfctr_read {
+	u32 ctr;
+	u32 clk;
+};
+
+/* Device control class
+ *
+ * XXXX: NV_CONTROL
+ */
+#define NV_CONTROL_CLASS                                             0x0000fffe
+
+#define NV_CONTROL_PSTATE_INFO                                       0x00000000
+#define NV_CONTROL_PSTATE_INFO_USTATE_DISABLE                              (-1)
+#define NV_CONTROL_PSTATE_INFO_USTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN                              (-1)
+#define NV_CONTROL_PSTATE_INFO_PSTATE_PERFMON                              (-2)
+#define NV_CONTROL_PSTATE_ATTR                                       0x00000001
+#define NV_CONTROL_PSTATE_ATTR_STATE_CURRENT                               (-1)
+#define NV_CONTROL_PSTATE_USER                                       0x00000002
+#define NV_CONTROL_PSTATE_USER_STATE_UNKNOWN                               (-1)
+#define NV_CONTROL_PSTATE_USER_STATE_PERFMON                               (-2)
+
+struct nv_control_pstate_info {
+	u32 count; /* out: number of power states */
+	s32 ustate; /* out: current target pstate index */
+	u32 pstate; /* out: current pstate index */
+};
+
+struct nv_control_pstate_attr {
+	s32 state; /*  in: index of pstate to query
+		    * out: pstate identifier
+		    */
+	u32 index; /*  in: index of attribute to query
+		    * out: index of next attribute, or 0 if no more
+		    */
+	char name[32];
+	char unit[16];
+	u32 min;
+	u32 max;
+};
+
+struct nv_control_pstate_user {
+	s32 state; /*  in: pstate identifier */
 };
 
 /* DMA FIFO channel classes

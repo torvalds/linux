@@ -21,11 +21,8 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_OF
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
-#endif
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -64,8 +61,8 @@ extern struct rtc_ops no_rtc_ops;
 struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-extern void *initrd_start;
-extern void *initrd_end;
+extern unsigned long initrd_start;
+extern unsigned long initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
@@ -152,8 +149,8 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
 	meminfo_t* mi;
 	mi = (meminfo_t*)(tag->data);
-	initrd_start = __va(mi->start);
-	initrd_end = __va(mi->end);
+	initrd_start = (unsigned long)__va(mi->start);
+	initrd_end = (unsigned long)__va(mi->end);
 
 	return 0;
 }
@@ -169,13 +166,6 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 }
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
-
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
-{
-	initrd_start = (void *)__va(start);
-	initrd_end = (void *)__va(end);
-	initrd_below_start_ok = 1;
-}
 
 #endif /* CONFIG_OF */
 
@@ -222,9 +212,13 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 }
 
 #ifdef CONFIG_OF
+bool __initdata dt_memory_scan = false;
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
+	if (!dt_memory_scan)
+		return;
+
 	size &= PAGE_MASK;
 	add_sysmem_bank(MEMORY_TYPE_CONVENTIONAL, base, base + size);
 }
@@ -236,31 +230,13 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 
 void __init early_init_devtree(void *params)
 {
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
-
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, TCE reserve, and more ...
-	 */
-	if (!command_line[0])
-		of_scan_flat_dt(early_init_dt_scan_chosen, command_line);
-
-	/* Scan memory nodes and rebuild MEMBLOCKs */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	if (sysmem.nr_banks == 0)
-		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
+		dt_memory_scan = true;
 
-static void __init copy_devtree(void)
-{
-	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 8);
-	if (alloc) {
-		memcpy(alloc, initial_boot_params,
-				be32_to_cpu(initial_boot_params->totalsize));
-		initial_boot_params = alloc;
-	}
+	early_init_dt_scan(params);
+
+	if (!command_line[0])
+		strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 }
 
 static int __init xtensa_device_probe(void)
@@ -525,10 +501,7 @@ void __init setup_arch(char **cmdline_p)
 
 	bootmem_init();
 
-#ifdef CONFIG_OF
-	copy_devtree();
-	unflatten_device_tree();
-#endif
+	unflatten_and_copy_device_tree();
 
 	platform_setup(cmdline_p);
 

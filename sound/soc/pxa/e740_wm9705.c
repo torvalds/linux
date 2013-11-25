@@ -178,6 +178,7 @@ static struct platform_driver e740_driver = {
 	.driver		= {
 		.name	= "e740-audio",
 		.owner	= THIS_MODULE,
+		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= e740_probe,
 	.remove		= e740_remove,

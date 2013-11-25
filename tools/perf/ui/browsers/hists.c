@@ -1255,7 +1255,7 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 	if (thread)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
-				    (thread->comm_set ? thread->comm : ""),
+				     (thread->comm_set ? thread__comm_str(thread) : ""),
 				    thread->tid);
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
@@ -1578,7 +1578,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
-			     (thread->comm_set ? thread->comm : ""),
+			     (thread->comm_set ? thread__comm_str(thread) : ""),
 			     thread->tid) > 0)
 			zoom_thread = nr_options++;
 
@@ -1598,7 +1598,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			struct symbol *sym;
 
 			if (asprintf(&options[nr_options], "Run scripts for samples of thread [%s]",
-				browser->he_selection->thread->comm) > 0)
+				     thread__comm_str(browser->he_selection->thread)) > 0)
 				scripts_comm = nr_options++;
 
 			sym = browser->he_selection->ms.sym;
@@ -1701,7 +1701,7 @@ zoom_out_thread:
 				sort_thread.elide = false;
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
-						   thread->comm_set ? thread->comm : "",
+						   thread->comm_set ? thread__comm_str(thread) : "",
 						   thread->tid);
 				browser->hists->thread_filter = thread;
 				sort_thread.elide = true;
@@ -1717,7 +1717,7 @@ do_scripts:
 			memset(script_opt, 0, 64);
 
 			if (choice == scripts_comm)
-				sprintf(script_opt, " -c %s ", browser->he_selection->thread->comm);
+				sprintf(script_opt, " -c %s ", thread__comm_str(browser->he_selection->thread));
 
 			if (choice == scripts_symbol)
 				sprintf(script_opt, " -S %s ", browser->he_selection->ms.sym->name);
@@ -1847,15 +1847,15 @@ browse_hists:
 			switch (key) {
 			case K_TAB:
 				if (pos->node.next == &evlist->entries)
-					pos = list_entry(evlist->entries.next, struct perf_evsel, node);
+					pos = perf_evlist__first(evlist);
 				else
-					pos = list_entry(pos->node.next, struct perf_evsel, node);
+					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
 				if (pos->node.prev == &evlist->entries)
-					pos = list_entry(evlist->entries.prev, struct perf_evsel, node);
+					pos = perf_evlist__last(evlist);
 				else
-					pos = list_entry(pos->node.prev, struct perf_evsel, node);
+					pos = perf_evsel__prev(pos);
 				goto browse_hists;
 			case K_ESC:
 				if (!ui_browser__dialog_yesno(&menu->b,
@@ -1889,7 +1889,7 @@ out:
 	return key;
 }
 
-static bool filter_group_entries(struct ui_browser *self __maybe_unused,
+static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
 	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
@@ -1943,8 +1943,7 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 
 single_entry:
 	if (nr_entries == 1) {
-		struct perf_evsel *first = list_entry(evlist->entries.next,
-						      struct perf_evsel, node);
+		struct perf_evsel *first = perf_evlist__first(evlist);
 		const char *ev_name = perf_evsel__name(first);
 
 		return perf_evsel__hists_browse(first, nr_entries, help,

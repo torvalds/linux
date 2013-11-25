@@ -213,6 +213,12 @@ acpi_ns_dump_objects(acpi_object_type type,
 		     u8 display_type,
 		     u32 max_depth,
 		     acpi_owner_id owner_id, acpi_handle start_handle);
+
+void
+acpi_ns_dump_object_paths(acpi_object_type type,
+			  u8 display_type,
+			  u32 max_depth,
+			  acpi_owner_id owner_id, acpi_handle start_handle);
 #endif				/* ACPI_FUTURE_USAGE */
 
 /*

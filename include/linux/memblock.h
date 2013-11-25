@@ -35,6 +35,7 @@ struct memblock_type {
 };
 
 struct memblock {
+	bool bottom_up;  /* is bottom up direction? */
 	phys_addr_t current_limit;
 	struct memblock_type memory;
 	struct memblock_type reserved;
@@ -147,6 +148,29 @@ phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
 phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
 
 phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
+
+#ifdef CONFIG_MOVABLE_NODE
+/*
+ * Set the allocation direction to bottom-up or top-down.
+ */
+static inline void memblock_set_bottom_up(bool enable)
+{
+	memblock.bottom_up = enable;
+}
+
+/*
+ * Check if the allocation direction is bottom-up or not.
+ * if this is true, that said, memblock will allocate memory
+ * in bottom-up direction.
+ */
+static inline bool memblock_bottom_up(void)
+{
+	return memblock.bottom_up;
+}
+#else
+static inline void memblock_set_bottom_up(bool enable) {}
+static inline bool memblock_bottom_up(void) { return false; }
+#endif
 
 /* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
 #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)

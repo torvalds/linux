@@ -53,3 +53,4 @@ generic-y += types.h
 generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += xor.h
+generic-y += preempt.h

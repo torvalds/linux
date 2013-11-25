@@ -90,7 +90,7 @@ int fcp_avc_transaction(struct fw_unit *unit,
 					  : TCODE_WRITE_BLOCK_REQUEST;
 		ret = snd_fw_transaction(t.unit, tcode,
 					 CSR_REGISTER_BASE + CSR_FCP_COMMAND,
-					 (void *)command, command_size);
+					 (void *)command, command_size, 0);
 		if (ret < 0)
 			break;
 

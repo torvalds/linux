@@ -131,6 +131,7 @@ struct l2cap_conninfo {
 
 /* L2CAP fixed channels */
 #define L2CAP_FC_L2CAP		0x02
+#define L2CAP_FC_CONNLESS	0x04
 #define L2CAP_FC_A2MP		0x08
 
 /* L2CAP Control Field bit masks */
@@ -237,8 +238,9 @@ struct l2cap_conn_rsp {
 /* protocol/service multiplexer (PSM) */
 #define L2CAP_PSM_SDP		0x0001
 #define L2CAP_PSM_RFCOMM	0x0003
+#define L2CAP_PSM_3DSP		0x0021
 
-/* channel indentifier */
+/* channel identifier */
 #define L2CAP_CID_SIGNALING	0x0001
 #define L2CAP_CID_CONN_LESS	0x0002
 #define L2CAP_CID_A2MP		0x0003
@@ -433,8 +435,6 @@ struct l2cap_seq_list {
 #define L2CAP_SEQ_LIST_TAIL	0x8000
 
 struct l2cap_chan {
-	struct sock *sk;
-
 	struct l2cap_conn	*conn;
 	struct hci_conn		*hs_hcon;
 	struct hci_chan		*hs_hchan;
@@ -442,7 +442,12 @@ struct l2cap_chan {
 
 	__u8		state;
 
+	bdaddr_t	dst;
+	__u8		dst_type;
+	bdaddr_t	src;
+	__u8		src_type;
 	__le16		psm;
+	__le16		sport;
 	__u16		dcid;
 	__u16		scid;
 
@@ -452,8 +457,6 @@ struct l2cap_chan {
 	__u8		mode;
 	__u8		chan_type;
 	__u8		chan_policy;
-
-	__le16		sport;
 
 	__u8		sec_level;
 
@@ -546,9 +549,12 @@ struct l2cap_ops {
 	void			(*teardown) (struct l2cap_chan *chan, int err);
 	void			(*close) (struct l2cap_chan *chan);
 	void			(*state_change) (struct l2cap_chan *chan,
-						 int state);
+						 int state, int err);
 	void			(*ready) (struct l2cap_chan *chan);
 	void			(*defer) (struct l2cap_chan *chan);
+	void			(*resume) (struct l2cap_chan *chan);
+	void			(*set_shutdown) (struct l2cap_chan *chan);
+	long			(*get_sndtimeo) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -557,13 +563,11 @@ struct l2cap_conn {
 	struct hci_conn		*hcon;
 	struct hci_chan		*hchan;
 
-	bdaddr_t		*dst;
-	bdaddr_t		*src;
-
 	unsigned int		mtu;
 
 	__u32			feat_mask;
 	__u8			fixed_chan_mask;
+	bool			hs_enabled;
 
 	__u8			info_state;
 	__u8			info_ident;
@@ -649,6 +653,7 @@ enum {
 	FLAG_FLUSHABLE,
 	FLAG_EXT_CTRL,
 	FLAG_EFS_ENABLE,
+	FLAG_DEFER_SETUP,
 };
 
 enum {
@@ -790,6 +795,19 @@ static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_resume(struct l2cap_chan *chan)
+{
+}
+
+static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
+{
+}
+
+static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
+{
+	return 0;
+}
+
 extern bool disable_ertm;
 
 int l2cap_init_sockets(void);
@@ -797,7 +815,6 @@ void l2cap_cleanup_sockets(void);
 bool l2cap_is_socket(struct socket *sock);
 
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
-int __l2cap_wait_ack(struct sock *sk);
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);

@@ -936,7 +936,6 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	if (err)
 		goto err_out_free_mtt;
 
-	memset(eq_context, 0, sizeof *eq_context);
 	eq_context->flags	  = cpu_to_be32(MLX4_EQ_STATUS_OK   |
 						MLX4_EQ_STATE_ARMED);
 	eq_context->log_eq_size	  = ilog2(eq->nent);

@@ -61,7 +61,7 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	/* Push down and install the IP header. */
-	__skb_push(skb, sizeof(struct iphdr));
+	skb_push(skb, sizeof(struct iphdr));
 	skb_reset_network_header(skb);
 
 	iph = ip_hdr(skb);
@@ -116,3 +116,36 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iptunnel_pull_header);
+
+struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
+					 bool csum_help,
+					 int gso_type_mask)
+{
+	int err;
+
+	if (likely(!skb->encapsulation)) {
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+	}
+
+	if (skb_is_gso(skb)) {
+		err = skb_unclone(skb, GFP_ATOMIC);
+		if (unlikely(err))
+			goto error;
+		skb_shinfo(skb)->gso_type |= gso_type_mask;
+		return skb;
+	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL && csum_help) {
+		err = skb_checksum_help(skb);
+		if (unlikely(err))
+			goto error;
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	return skb;
+error:
+	kfree_skb(skb);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);

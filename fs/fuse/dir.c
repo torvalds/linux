@@ -182,6 +182,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 	struct inode *inode;
 	struct dentry *parent;
 	struct fuse_conn *fc;
+	struct fuse_inode *fi;
 	int ret;
 
 	inode = ACCESS_ONCE(entry->d_inode);
@@ -228,7 +229,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 		if (!err && !outarg.nodeid)
 			err = -ENOENT;
 		if (!err) {
-			struct fuse_inode *fi = get_fuse_inode(inode);
+			fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
 				fuse_queue_forget(fc, forget, outarg.nodeid, 1);
 				goto invalid;
@@ -246,8 +247,11 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 				       attr_version);
 		fuse_change_entry_timeout(entry, &outarg);
 	} else if (inode) {
-		fc = get_fuse_conn(inode);
-		if (fc->readdirplus_auto) {
+		fi = get_fuse_inode(inode);
+		if (flags & LOOKUP_RCU) {
+			if (test_bit(FUSE_I_INIT_RDPLUS, &fi->state))
+				return -ECHILD;
+		} else if (test_and_clear_bit(FUSE_I_INIT_RDPLUS, &fi->state)) {
 			parent = dget_parent(entry);
 			fuse_advise_use_readdirplus(parent->d_inode);
 			dput(parent);
@@ -259,7 +263,8 @@ out:
 
 invalid:
 	ret = 0;
-	if (check_submounts_and_drop(entry) != 0)
+
+	if (!(flags & LOOKUP_RCU) && check_submounts_and_drop(entry) != 0)
 		ret = 1;
 	goto out;
 }
@@ -337,24 +342,6 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 	return err;
 }
 
-static struct dentry *fuse_materialise_dentry(struct dentry *dentry,
-					      struct inode *inode)
-{
-	struct dentry *newent;
-
-	if (inode && S_ISDIR(inode->i_mode)) {
-		struct fuse_conn *fc = get_fuse_conn(inode);
-
-		mutex_lock(&fc->inst_mutex);
-		newent = d_materialise_unique(dentry, inode);
-		mutex_unlock(&fc->inst_mutex);
-	} else {
-		newent = d_materialise_unique(dentry, inode);
-	}
-
-	return newent;
-}
-
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 				  unsigned int flags)
 {
@@ -377,7 +364,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	if (inode && get_node_id(inode) == FUSE_ROOT_ID)
 		goto out_iput;
 
-	newent = fuse_materialise_dentry(entry, inode);
+	newent = d_materialise_unique(entry, inode);
 	err = PTR_ERR(newent);
 	if (IS_ERR(newent))
 		goto out_err;
@@ -596,21 +583,9 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	}
 	kfree(forget);
 
-	if (S_ISDIR(inode->i_mode)) {
-		struct dentry *alias;
-		mutex_lock(&fc->inst_mutex);
-		alias = d_find_alias(inode);
-		if (alias) {
-			/* New directory must have moved since mkdir */
-			mutex_unlock(&fc->inst_mutex);
-			dput(alias);
-			iput(inode);
-			return -EBUSY;
-		}
-		d_instantiate(entry, inode);
-		mutex_unlock(&fc->inst_mutex);
-	} else
-		d_instantiate(entry, inode);
+	err = d_instantiate_no_diralias(entry, inode);
+	if (err)
+		return err;
 
 	fuse_change_entry_timeout(entry, &outarg);
 	fuse_invalidate_attr(dir);
@@ -1063,6 +1038,8 @@ static int fuse_access(struct inode *inode, int mask)
 	struct fuse_access_in inarg;
 	int err;
 
+	BUG_ON(mask & MAY_NOT_BLOCK);
+
 	if (fc->no_access)
 		return 0;
 
@@ -1150,9 +1127,6 @@ static int fuse_permission(struct inode *inode, int mask)
 		   noticed immediately, only after the attribute
 		   timeout has expired */
 	} else if (mask & (MAY_ACCESS | MAY_CHDIR)) {
-		if (mask & MAY_NOT_BLOCK)
-			return -ECHILD;
-
 		err = fuse_access(inode, mask);
 	} else if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode)) {
 		if (!(inode->i_mode & S_IXUGO)) {
@@ -1280,7 +1254,7 @@ static int fuse_direntplus_link(struct file *file,
 	if (!inode)
 		goto out;
 
-	alias = fuse_materialise_dentry(dentry, inode);
+	alias = d_materialise_unique(dentry, inode);
 	err = PTR_ERR(alias);
 	if (IS_ERR(alias))
 		goto out;
@@ -1291,6 +1265,8 @@ static int fuse_direntplus_link(struct file *file,
 	}
 
 found:
+	if (fc->readdirplus_auto)
+		set_bit(FUSE_I_INIT_RDPLUS, &get_fuse_inode(inode)->state);
 	fuse_change_entry_timeout(dentry, o);
 
 	err = 0;

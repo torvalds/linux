@@ -234,10 +234,10 @@ struct cfg80211_beacon_registration {
 };
 
 /* free object */
-extern void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
+void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
 
-extern int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
-			       char *newname);
+int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
+			char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 
@@ -382,15 +382,6 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 				 enum cfg80211_chan_mode chanmode,
 				 u8 radar_detect);
 
-/**
- * cfg80211_chandef_dfs_required - checks if radar detection is required
- * @wiphy: the wiphy to validate against
- * @chandef: the channel definition to check
- * Return: 1 if radar detection is required, 0 if it is not, < 0 on error
- */
-int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
-				  const struct cfg80211_chan_def *c);
-
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
 			    const struct cfg80211_chan_def *chandef,
 			    enum nl80211_dfs_state dfs_state);
@@ -411,6 +402,9 @@ static inline int
 cfg80211_can_add_interface(struct cfg80211_registered_device *rdev,
 			   enum nl80211_iftype iftype)
 {
+	if (rfkill_blocked(rdev->rfkill))
+		return -ERFKILL;
+
 	return cfg80211_can_change_interface(rdev, NULL, iftype);
 }
 

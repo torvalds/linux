@@ -88,10 +88,16 @@ static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int dummy_dev_init(struct net_device *dev)
 {
+	int i;
 	dev->dstats = alloc_percpu(struct pcpu_dstats);
 	if (!dev->dstats)
 		return -ENOMEM;
 
+	for_each_possible_cpu(i) {
+		struct pcpu_dstats *dstats;
+		dstats = per_cpu_ptr(dev->dstats, i);
+		u64_stats_init(&dstats->syncp);
+	}
 	return 0;
 }
 

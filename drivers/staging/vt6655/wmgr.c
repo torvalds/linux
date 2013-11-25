@@ -1680,7 +1680,8 @@ s_vMgrRxDeauthentication(
 			vMgrDecodeDeauthen(&sFrame);
 			DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO  "AP deauthed me, reason=%d.\n", cpu_to_le16((*(sFrame.pwReason))));
 			// TODO: update BSS list for specific BSSID if pre-authentication case
-			if (!compare_ether_addr(sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID)) {
+			if (ether_addr_equal(sFrame.pHdr->sA3.abyAddr3,
+					     pMgmt->abyCurrBSSID)) {
 				if (pMgmt->eCurrState >= WMAC_STATE_AUTHPENDING) {
 					pMgmt->sNodeDBTable[0].bActive = false;
 					pMgmt->eCurrMode = WMAC_MODE_STANDBY;

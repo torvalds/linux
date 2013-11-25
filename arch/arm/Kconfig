@@ -5,6 +5,8 @@ config ARM
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT if MMU
 	select CLONE_BACKWARDS
@@ -23,7 +25,7 @@ config ARM
 	select HARDIRQS_SW_RESEND
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
-	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
 	select HAVE_CONTEXT_TRACKING
@@ -51,9 +53,12 @@ config ARM
 	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_FORCED_THREADING
 	select KTIME_SCALAR
 	select MODULES_USE_ELF_REL
@@ -317,6 +322,7 @@ config ARCH_INTEGRATOR
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
 	select SPARSE_IRQ
+	select USE_OF
 	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
@@ -358,7 +364,6 @@ config ARCH_AT91
 	bool "Atmel AT91"
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select HAVE_CLK
 	select IRQ_DOMAIN
 	select NEED_MACH_GPIO_H
 	select NEED_MACH_IO_H if PCCARD
@@ -372,7 +377,6 @@ config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB
 	select AUTO_ZRELADDR
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select COMMON_CLK
 	select CPU_ARM720T
@@ -386,9 +390,9 @@ config ARCH_CLPS711X
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select ARCH_REQUIRE_GPIOLIB
-	select ARCH_USES_GETTIMEOFFSET
+	select CLKSRC_MMIO
 	select CPU_FA526
-	select NEED_MACH_GPIO_H
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
@@ -457,7 +461,7 @@ config ARCH_IOP32X
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
-	select NEED_MACH_GPIO_H
+	select GPIO_IOP
 	select NEED_RET_TO_USER
 	select PCI
 	select PLAT_IOP
@@ -470,7 +474,7 @@ config ARCH_IOP33X
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
-	select NEED_MACH_GPIO_H
+	select GPIO_IOP
 	select NEED_RET_TO_USER
 	select PCI
 	select PLAT_IOP
@@ -481,6 +485,7 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select CPU_XSCALE
@@ -559,7 +564,6 @@ config ARCH_MMP
 	select GPIO_PXA
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
-	select NEED_MACH_GPIO_H
 	select PINCTRL
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -622,7 +626,6 @@ config ARCH_PXA
 	select GPIO_PXA
 	select HAVE_IDE
 	select MULTI_IRQ_HANDLER
-	select NEED_MACH_GPIO_H
 	select PLAT_PXA
 	select SPARSE_IRQ
 	help
@@ -631,7 +634,6 @@ config ARCH_PXA
 config ARCH_MSM
 	bool "Qualcomm MSM"
 	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
 	select CLKSRC_OF if OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
@@ -649,7 +651,6 @@ config ARCH_SHMOBILE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_CLK
 	select HAVE_MACH_CLKDEV
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
@@ -692,7 +693,6 @@ config ARCH_SA1100
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
 	select ISA
-	select NEED_MACH_GPIO_H
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
@@ -706,7 +706,6 @@ config ARCH_S3C24XX
 	select CLKSRC_SAMSUNG_PWM
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -727,21 +726,22 @@ config ARCH_S3C64XX
 	select ARM_VIC
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_TCM
 	select NEED_MACH_GPIO_H
 	select NO_IOPORT
 	select PLAT_SAMSUNG
+	select PM_GENERIC_DOMAINS
 	select S3C_DEV_NAND
 	select S3C_GPIO_TRACK
 	select SAMSUNG_ATAGS
-	select SAMSUNG_CLKSRC
 	select SAMSUNG_GPIOLIB_4BIT
+	select SAMSUNG_WAKEMASK
 	select SAMSUNG_WDT_RESET
 	select USB_ARCH_HAS_OHCI
 	help
@@ -754,7 +754,6 @@ config ARCH_S5P64X0
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -773,7 +772,6 @@ config ARCH_S5PC100
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -793,7 +791,6 @@ config ARCH_S5PV210
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -810,11 +807,9 @@ config ARCH_EXYNOS
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SPARSEMEM_ENABLE
 	select ARM_GIC
-	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
@@ -823,20 +818,6 @@ config ARCH_EXYNOS
 	select USE_OF
 	help
 	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
-
-config ARCH_SHARK
-	bool "Shark"
-	select ARCH_USES_GETTIMEOFFSET
-	select CPU_SA110
-	select ISA
-	select ISA_DMA
-	select NEED_MACH_MEMORY_H
-	select PCI
-	select VIRT_TO_BUS
-	select ZONE_DMA
-	help
-	  Support for the StrongARM based Digital DNARD machine, also known
-	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
@@ -847,7 +828,6 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
-	select NEED_MACH_GPIO_H
 	select TI_PRIV_EDMA
 	select USE_OF
 	select ZONE_DMA
@@ -865,7 +845,6 @@ config ARCH_OMAP1
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
-	select HAVE_CLK
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
@@ -1009,9 +988,7 @@ source "arch/arm/mach-sti/Kconfig"
 
 source "arch/arm/mach-s3c24xx/Kconfig"
 
-if ARCH_S3C64XX
 source "arch/arm/mach-s3c64xx/Kconfig"
-endif
 
 source "arch/arm/mach-s5p64x0/Kconfig"
 
@@ -1090,11 +1067,6 @@ config IWMMXT
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
-
-config XSCALE_PMU
-	bool
-	depends on CPU_XSCALE
-	default y
 
 config MULTI_IRQ_HANDLER
 	bool
@@ -1431,12 +1403,6 @@ config PCI_NANOENGINE
 config PCI_SYSCALL
 	def_bool PCI
 
-# Select the host bridge type
-config PCI_HOST_VIA82C505
-	bool
-	depends on PCI && ARCH_SHARK
-	default y
-
 config PCI_HOST_ITE8152
 	bool
 	depends on PCI && MACH_ARMCORE
@@ -1467,7 +1433,6 @@ config SMP
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAVE_SMP
 	depends on MMU || ARM_MPU
-	select USE_GENERIC_SMP_HELPERS
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1531,6 +1496,7 @@ config HAVE_ARM_ARCH_TIMER
 	bool "Architected timer support"
 	depends on CPU_V7
 	select ARM_ARCH_TIMER
+	select GENERIC_CLOCKEVENTS
 	help
 	  This option enables support for the ARM architected timer
 
@@ -1548,6 +1514,32 @@ config MCPM
 	  This option provides the common power management infrastructure
 	  for (multi-)cluster based systems, such as big.LITTLE based
 	  systems.
+
+config BIG_LITTLE
+	bool "big.LITTLE support (Experimental)"
+	depends on CPU_V7 && SMP
+	select MCPM
+	help
+	  This option enables support selections for the big.LITTLE
+	  system architecture.
+
+config BL_SWITCHER
+	bool "big.LITTLE switcher support"
+	depends on BIG_LITTLE && MCPM && HOTPLUG_CPU
+	select CPU_PM
+	select ARM_CPU_SUSPEND
+	help
+	  The big.LITTLE "switcher" provides the core functionality to
+	  transparently handle transition between a cluster of A15's
+	  and a cluster of A7's in a big.LITTLE system.
+
+config BL_SWITCHER_DUMMY_IF
+	tristate "Simple big.LITTLE switcher user interface"
+	depends on BL_SWITCHER && DEBUG_KERNEL
+	help
+	  This is a simple and dummy char dev interface to control
+	  the big.LITTLE switcher core code.  It is meant for
+	  debugging purposes only.
 
 choice
 	prompt "Memory split"
@@ -1728,7 +1720,6 @@ config AEABI
 config OABI_COMPAT
 	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
 	depends on AEABI && !THUMB2_KERNEL
-	default y
 	help
 	  This option preserves the old syscall interface along with the
 	  new (ARM EABI) one. It also provides a compatibility layer to
@@ -1736,11 +1727,16 @@ config OABI_COMPAT
 	  in memory differs between the legacy ABI and the new ARM EABI
 	  (only for non "thumb" binaries). This option adds a tiny
 	  overhead to all syscalls and produces a slightly larger kernel.
+
+	  The seccomp filter system will not be available when this is
+	  selected, since there is no way yet to sensibly distinguish
+	  between calling conventions during filtering.
+
 	  If you know you'll be using only pure EABI user space then you
 	  can say N here. If this option is not selected and you attempt
 	  to execute a legacy ABI binary then the result will be
 	  UNPREDICTABLE (in fact it can be predicted that it won't work
-	  at all). If in doubt say Y.
+	  at all). If in doubt say N.
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
@@ -1872,6 +1868,12 @@ config CC_STACKPROTECTOR
 	  neutralized via a kernel panic.
 	  This feature requires gcc version 4.2 or above.
 
+config SWIOTLB
+	def_bool y
+
+config IOMMU_HELPER
+	def_bool SWIOTLB
+
 config XEN_DOM0
 	def_bool y
 	depends on XEN
@@ -1882,6 +1884,7 @@ config XEN
 	depends on CPU_V7 && !CPU_V6
 	depends on !GENERIC_ATOMIC64
 	select ARM_PSCI
+	select SWIOTLB_XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
@@ -2217,8 +2220,7 @@ config NEON
 
 config KERNEL_MODE_NEON
 	bool "Support for NEON in kernel mode"
-	default n
-	depends on NEON
+	depends on NEON && AEABI
 	help
 	  Say Y to include support for NEON in kernel mode.
 

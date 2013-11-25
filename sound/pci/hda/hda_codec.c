@@ -565,7 +565,7 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 		range_val = !!(parm & (1 << (shift-1))); /* ranges */
 		val = parm & mask;
 		if (val == 0 && null_count++) {  /* no second chance */
-			snd_printk(KERN_WARNING "hda_codec: "
+			snd_printdd("hda_codec: "
 				   "invalid CONNECT_LIST verb %x[%i]:%x\n",
 				    nid, i, parm);
 			return 0;
@@ -2579,9 +2579,6 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	cancel_delayed_work_sync(&codec->jackpoll_work);
 #ifdef CONFIG_PM
 	cancel_delayed_work_sync(&codec->power_work);
-	codec->power_on = 0;
-	codec->power_transition = 0;
-	codec->power_jiffies = jiffies;
 	flush_workqueue(bus->workq);
 #endif
 	snd_hda_ctls_clear(codec);
@@ -2634,8 +2631,7 @@ static int map_slaves(struct hda_codec *codec, const char * const *slaves,
 	items = codec->mixers.list;
 	for (i = 0; i < codec->mixers.used; i++) {
 		struct snd_kcontrol *sctl = items[i].kctl;
-		if (!sctl || !sctl->id.name ||
-		    sctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER)
+		if (!sctl || sctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER)
 			continue;
 		for (s = slaves; *s; s++) {
 			char tmpname[sizeof(sctl->id.name)];
@@ -2662,7 +2658,7 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
 }
 
 /* guess the value corresponding to 0dB */
-static int get_kctl_0dB_offset(struct snd_kcontrol *kctl)
+static int get_kctl_0dB_offset(struct snd_kcontrol *kctl, int *step_to_check)
 {
 	int _tlv[4];
 	const int *tlv = NULL;
@@ -2677,8 +2673,19 @@ static int get_kctl_0dB_offset(struct snd_kcontrol *kctl)
 		set_fs(fs);
 	} else if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_READ)
 		tlv = kctl->tlv.p;
-	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE)
-		val = -tlv[2] / tlv[3];
+	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE) {
+		int step = tlv[3];
+		step &= ~TLV_DB_SCALE_MUTE;
+		if (!step)
+			return -1;
+		if (*step_to_check && *step_to_check != step) {
+			snd_printk(KERN_ERR "hda_codec: Mismatching dB step for vmaster slave (%d!=%d)\n",
+				   *step_to_check, step);
+			return -1;
+		}
+		*step_to_check = step;
+		val = -tlv[2] / step;
+	}
 	return val;
 }
 
@@ -2699,7 +2706,7 @@ static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 /* initialize the slave volume with 0dB */
 static int init_slave_0dB(void *data, struct snd_kcontrol *slave)
 {
-	int offset = get_kctl_0dB_offset(slave);
+	int offset = get_kctl_0dB_offset(slave, data);
 	if (offset > 0)
 		put_kctl_with_value(slave, offset);
 	return 0;
@@ -2760,9 +2767,11 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 
 	/* init with master mute & zero volume */
 	put_kctl_with_value(kctl, 0);
-	if (init_slave_vol)
+	if (init_slave_vol) {
+		int step = 0;
 		map_slaves(codec, slaves, suffix,
-			   tlv ? init_slave_0dB : init_slave_unmute, kctl);
+			   tlv ? init_slave_0dB : init_slave_unmute, &step);
+	}
 
 	if (ctl_ret)
 		*ctl_ret = kctl;
@@ -3991,6 +4000,10 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	 * in the resume / power-save sequence
 	 */
 	hda_keep_power_on(codec);
+	if (codec->pm_down_notified) {
+		codec->pm_down_notified = 0;
+		hda_call_pm_notify(codec->bus, true);
+	}
 	hda_set_power_state(codec, AC_PWRST_D0);
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
@@ -4864,8 +4877,8 @@ static void hda_power_work(struct work_struct *work)
 	spin_unlock(&codec->power_lock);
 
 	state = hda_call_codec_suspend(codec, true);
-	codec->pm_down_notified = 0;
-	if (!bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK)) {
+	if (!codec->pm_down_notified &&
+	    !bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK)) {
 		codec->pm_down_notified = 1;
 		hda_call_pm_notify(bus, false);
 	}
@@ -5395,11 +5408,6 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 			snd_hda_codec_setup_stream(codec,
 						   mout->hp_out_nid[i],
 						   stream_tag, 0, format);
-	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
-		if (!mout->no_share_stream && mout->extra_out_nid[i])
-			snd_hda_codec_setup_stream(codec,
-						   mout->extra_out_nid[i],
-						   stream_tag, 0, format);
 
 	/* surrounds */
 	for (i = 1; i < mout->num_dacs; i++) {
@@ -5410,6 +5418,20 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   0, format);
 	}
+
+	/* extra surrounds */
+	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++) {
+		int ch = 0;
+		if (!mout->extra_out_nid[i])
+			break;
+		if (chs >= (i + 1) * 2)
+			ch = i * 2;
+		else if (!mout->no_share_stream)
+			break;
+		snd_hda_codec_setup_stream(codec, mout->extra_out_nid[i],
+					   stream_tag, ch, format);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_multi_out_analog_prepare);

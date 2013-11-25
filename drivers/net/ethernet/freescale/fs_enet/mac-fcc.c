@@ -32,7 +32,9 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/gfp.h>
 
 #include <asm/immap_cpm2.h>
@@ -88,7 +90,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
 	if (fep->interrupt == NO_IRQ)
 		goto out;
 

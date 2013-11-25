@@ -136,7 +136,9 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 	return of_read_number(cell, size);
 }
 
+#if defined(CONFIG_SPARC)
 #include <asm/prom.h>
+#endif
 
 /* Default #address and #size cells.  Allow arch asm/prom.h to override */
 #if !defined(OF_ROOT_NODE_ADDR_CELLS_DEFAULT)
@@ -226,6 +228,19 @@ static inline int of_get_child_count(const struct device_node *np)
 	return num;
 }
 
+static inline int of_get_available_child_count(const struct device_node *np)
+{
+	struct device_node *child;
+	int num = 0;
+
+	for_each_available_child_of_node(np, child)
+		num++;
+
+	return num;
+}
+
+/* cache lookup */
+extern struct device_node *of_find_next_cache_node(const struct device_node *);
 extern struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name);
 #define for_each_node_with_property(dn, prop_name) \
@@ -275,6 +290,7 @@ extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
 	const struct of_device_id *matches, const struct device_node *node);
 extern int of_modalias_node(struct device_node *node, char *modalias, int len);
+extern void of_print_phandle_args(const char *msg, const struct of_phandle_args *args);
 extern struct device_node *of_parse_phandle(const struct device_node *np,
 					    const char *phandle_name,
 					    int index);
@@ -364,6 +380,9 @@ static inline bool of_have_populated_dt(void)
 #define for_each_child_of_node(parent, child) \
 	while (0)
 
+#define for_each_available_child_of_node(parent, child) \
+	while (0)
+
 static inline struct device_node *of_get_child_by_name(
 					const struct device_node *node,
 					const char *name)
@@ -372,6 +391,11 @@ static inline struct device_node *of_get_child_by_name(
 }
 
 static inline int of_get_child_count(const struct device_node *np)
+{
+	return 0;
+}
+
+static inline int of_get_available_child_count(const struct device_node *np)
 {
 	return 0;
 }
@@ -534,13 +558,10 @@ static inline const char *of_prop_next_string(struct property *prop,
 #define of_match_node(_matches, _node)	NULL
 #endif /* CONFIG_OF */
 
-#ifndef of_node_to_nid
-static inline int of_node_to_nid(struct device_node *np)
-{
-	return numa_node_id();
-}
-
-#define of_node_to_nid of_node_to_nid
+#if defined(CONFIG_OF) && defined(CONFIG_NUMA)
+extern int of_node_to_nid(struct device_node *np);
+#else
+static inline int of_node_to_nid(struct device_node *device) { return 0; }
 #endif
 
 /**

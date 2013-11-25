@@ -72,6 +72,7 @@ FILELINE * docsection;
 #define FUNCTION      "-function"
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
+#define SHOWNOTFOUND  "-show-not-found"
 
 static char *srctree, *kernsrctree;
 
@@ -294,6 +295,7 @@ static void singfunc(char * filename, char * line)
         int startofsym = 1;
 	vec[idx++] = KERNELDOC;
 	vec[idx++] = DOCBOOK;
+	vec[idx++] = SHOWNOTFOUND;
 
         /* Split line up in individual parameters preceded by FUNCTION */
         for (i=0; line[i]; i++) {
@@ -325,7 +327,8 @@ static void singfunc(char * filename, char * line)
  */
 static void docsect(char *filename, char *line)
 {
-	char *vec[6]; /* kerneldoc -docbook -function "section" file NULL */
+	/* kerneldoc -docbook -show-not-found -function "section" file NULL */
+	char *vec[7];
 	char *s;
 
 	for (s = line; *s; s++)
@@ -341,10 +344,11 @@ static void docsect(char *filename, char *line)
 
 	vec[0] = KERNELDOC;
 	vec[1] = DOCBOOK;
-	vec[2] = FUNCTION;
-	vec[3] = line;
-	vec[4] = filename;
-	vec[5] = NULL;
+	vec[2] = SHOWNOTFOUND;
+	vec[3] = FUNCTION;
+	vec[4] = line;
+	vec[5] = filename;
+	vec[6] = NULL;
 	exec_kernel_doc(vec);
 }
 

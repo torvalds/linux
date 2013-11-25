@@ -257,13 +257,13 @@ static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
 
 #define PROFILE_ATTR(number)						\
 static struct bin_attribute bin_attr_profile##number##_settings = {	\
-	.attr = { .name = "profile##number##_settings", .mode = 0440 },	\
+	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,				\
 	.read = kovaplus_sysfs_read_profilex_settings,			\
 	.private = &profile_numbers[number-1],				\
 };									\
 static struct bin_attribute bin_attr_profile##number##_buttons = {	\
-	.attr = { .name = "profile##number##_buttons", .mode = 0440 },	\
+	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,				\
 	.read = kovaplus_sysfs_read_profilex_buttons,			\
 	.private = &profile_numbers[number-1],				\
@@ -554,9 +554,13 @@ static void kovaplus_keep_values_up_to_date(struct kovaplus_device *kovaplus,
 		break;
 	case KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_CPI:
 		kovaplus->actual_cpi = kovaplus_convert_event_cpi(button_report->data1);
+		break;
 	case KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_SENSITIVITY:
 		kovaplus->actual_x_sensitivity = button_report->data1;
 		kovaplus->actual_y_sensitivity = button_report->data2;
+		break;
+	default:
+		break;
 	}
 }
 

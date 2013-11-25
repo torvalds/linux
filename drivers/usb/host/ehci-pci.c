@@ -58,8 +58,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-	struct pci_dev		*p_smbus;
-	u8			rev;
 	u32			temp;
 	int			retval;
 
@@ -175,22 +173,12 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		/* SB600 and old version of SB700 have a bug in EHCI controller,
 		 * which causes usb devices lose response in some cases.
 		 */
-		if ((pdev->device == 0x4386) || (pdev->device == 0x4396)) {
-			p_smbus = pci_get_device(PCI_VENDOR_ID_ATI,
-						 PCI_DEVICE_ID_ATI_SBX00_SMBUS,
-						 NULL);
-			if (!p_smbus)
-				break;
-			rev = p_smbus->revision;
-			if ((pdev->device == 0x4386) || (rev == 0x3a)
-			    || (rev == 0x3b)) {
-				u8 tmp;
-				ehci_info(ehci, "applying AMD SB600/SB700 USB "
-					"freeze workaround\n");
-				pci_read_config_byte(pdev, 0x53, &tmp);
-				pci_write_config_byte(pdev, 0x53, tmp | (1<<3));
-			}
-			pci_dev_put(p_smbus);
+		if ((pdev->device == 0x4386 || pdev->device == 0x4396) &&
+				usb_amd_hang_symptom_quirk()) {
+			u8 tmp;
+			ehci_info(ehci, "applying AMD SB600/SB700 USB freeze workaround\n");
+			pci_read_config_byte(pdev, 0x53, &tmp);
+			pci_write_config_byte(pdev, 0x53, tmp | (1<<3));
 		}
 		break;
 	case PCI_VENDOR_ID_NETMOS:
@@ -361,7 +349,7 @@ static struct pci_driver ehci_pci_driver = {
 	.remove =	usb_hcd_pci_remove,
 	.shutdown = 	usb_hcd_pci_shutdown,
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 	.driver =	{
 		.pm =	&usb_hcd_pci_pm_ops
 	},

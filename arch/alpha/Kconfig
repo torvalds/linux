@@ -1,6 +1,7 @@
 config ALPHA
 	bool
 	default y
+	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -15,8 +16,8 @@ config ALPHA
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select GENERIC_CLOCKEVENTS
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_CMOS_UPDATE
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -487,6 +488,20 @@ config VGA_HOSE
 	  which always have multiple hoses, and whose consoles support it.
 
 
+config ALPHA_QEMU
+	bool "Run under QEMU emulation"
+	depends on !ALPHA_GENERIC
+	---help---
+	  Assume the presence of special features supported by QEMU PALcode
+	  that reduce the overhead of system emulation.
+
+	  Generic kernels will auto-detect QEMU.  But when building a
+	  system-specific kernel, the assumption is that we want to
+	  elimiate as many runtime tests as possible.
+
+	  If unsure, say N.
+
+
 config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY
@@ -522,7 +537,6 @@ config ARCH_MAY_HAVE_PC_FDC
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on ALPHA_SABLE || ALPHA_LYNX || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
-	select USE_GENERIC_SMP_HELPERS
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -572,6 +586,30 @@ config NUMA
 	  Access).  This option is for configuring high-end multiprocessor
 	  server machines.  If in doubt, say N.
 
+config ALPHA_WTINT
+	bool "Use WTINT" if ALPHA_SRM || ALPHA_GENERIC
+	default y if ALPHA_QEMU
+	default n if ALPHA_EV5 || ALPHA_EV56 || (ALPHA_EV4 && !ALPHA_LCA)
+	default n if !ALPHA_SRM && !ALPHA_GENERIC
+	default y if SMP
+	---help---
+	  The Wait for Interrupt (WTINT) PALcall attempts to place the CPU
+	  to sleep until the next interrupt.  This may reduce the power
+	  consumed, and the heat produced by the computer.  However, it has
+	  the side effect of making the cycle counter unreliable as a timing
+	  device across the sleep.
+
+	  For emulation under QEMU, definitely say Y here, as we have other
+	  mechanisms for measuring time than the cycle counter.
+
+	  For EV4 (but not LCA), EV5 and EV56 systems, or for systems running
+	  MILO, sleep mode is not supported so you might as well say N here.
+
+	  For SMP systems we cannot use the cycle counter for timing anyway,
+	  so you might as well say Y here.
+
+	  If unsure, say N.
+
 config NODES_SHIFT
 	int
 	default "7"
@@ -613,9 +651,41 @@ config VERBOSE_MCHECK_ON
 
 	  Take the default (1) unless you want more control or more info.
 
+choice
+	prompt "Timer interrupt frequency (HZ)?"
+	default HZ_128 if ALPHA_QEMU
+	default HZ_1200 if ALPHA_RAWHIDE
+	default HZ_1024
+	---help---
+	  The frequency at which timer interrupts occur.  A high frequency
+	  minimizes latency, whereas a low frequency minimizes overhead of
+	  process accounting.  The later effect is especially significant
+	  when being run under QEMU.
+
+	  Note that some Alpha hardware cannot change the interrupt frequency
+	  of the timer.  If unsure, say 1024 (or 1200 for Rawhide).
+
+	config HZ_32
+		bool "32 Hz"
+	config HZ_64
+		bool "64 Hz"
+	config HZ_128
+		bool "128 Hz"
+	config HZ_256
+		bool "256 Hz"
+	config HZ_1024
+		bool "1024 Hz"
+	config HZ_1200
+		bool "1200 Hz"
+endchoice
+
 config HZ
-	int
-	default 1200 if ALPHA_RAWHIDE
+	int 
+	default 32 if HZ_32
+	default 64 if HZ_64
+	default 128 if HZ_128
+	default 256 if HZ_256
+	default 1200 if HZ_1200
 	default 1024
 
 source "drivers/pci/Kconfig"

@@ -1885,8 +1885,10 @@ ok:
 			 * up nodes that this node contacted */
 			while ((nn = find_next_bit (mle->response_map, O2NM_MAX_NODES,
 						    nn+1)) < O2NM_MAX_NODES) {
-				if (nn != dlm->node_num && nn != assert->node_idx)
+				if (nn != dlm->node_num && nn != assert->node_idx) {
 					master_request = 1;
+					break;
+				}
 			}
 		}
 		mle->master = assert->node_idx;
@@ -2353,6 +2355,10 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 	u64 cookie;
 
 	assert_spin_locked(&res->spinlock);
+
+	/* delay migration when the lockres is in MIGRATING state */
+	if (res->state & DLM_LOCK_RES_MIGRATING)
+		return 0;
 
 	if (res->owner != dlm->node_num)
 		return 0;

@@ -73,6 +73,8 @@ __setup("fpe=", fpe_setup);
 #endif
 
 extern void paging_init(const struct machine_desc *desc);
+extern void early_paging_init(const struct machine_desc *,
+			      struct proc_info_list *);
 extern void sanity_check_meminfo(void);
 extern enum reboot_mode reboot_mode;
 extern void setup_dma_zone(const struct machine_desc *desc);
@@ -599,6 +601,8 @@ static void __init setup_processor(void)
 	elf_hwcap &= ~(HWCAP_THUMB | HWCAP_IDIVT);
 #endif
 
+	erratum_a15_798181_init();
+
 	feat_v6_fixup();
 
 	cacheid_init();
@@ -619,9 +623,10 @@ void __init dump_machine_table(void)
 		/* can't use cpu_relax() here as it may require MMU setup */;
 }
 
-int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
+int __init arm_add_memory(u64 start, u64 size)
 {
 	struct membank *bank = &meminfo.bank[meminfo.nr_banks];
+	u64 aligned_start;
 
 	if (meminfo.nr_banks >= NR_BANKS) {
 		printk(KERN_CRIT "NR_BANKS too low, "
@@ -634,10 +639,16 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 	 * Size is appropriately rounded down, start is rounded up.
 	 */
 	size -= start & ~PAGE_MASK;
-	bank->start = PAGE_ALIGN(start);
+	aligned_start = PAGE_ALIGN(start);
 
-#ifndef CONFIG_ARM_LPAE
-	if (bank->start + size < bank->start) {
+#ifndef CONFIG_ARCH_PHYS_ADDR_T_64BIT
+	if (aligned_start > ULONG_MAX) {
+		printk(KERN_CRIT "Ignoring memory at 0x%08llx outside "
+		       "32-bit physical address space\n", (long long)start);
+		return -EINVAL;
+	}
+
+	if (aligned_start + size > ULONG_MAX) {
 		printk(KERN_CRIT "Truncating memory at 0x%08llx to fit in "
 			"32-bit physical address space\n", (long long)start);
 		/*
@@ -645,10 +656,11 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 		 * 32 bits, we use ULONG_MAX as the upper limit rather than 4GB.
 		 * This means we lose a page after masking.
 		 */
-		size = ULONG_MAX - bank->start;
+		size = ULONG_MAX - aligned_start;
 	}
 #endif
 
+	bank->start = aligned_start;
 	bank->size = size & ~(phys_addr_t)(PAGE_SIZE - 1);
 
 	/*
@@ -669,8 +681,8 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 static int __init early_mem(char *p)
 {
 	static int usermem __initdata = 0;
-	phys_addr_t size;
-	phys_addr_t start;
+	u64 size;
+	u64 start;
 	char *endp;
 
 	/*
@@ -878,6 +890,8 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]), meminfo_cmp, NULL);
+
+	early_paging_init(mdesc, lookup_processor_type(read_cpuid_id()));
 	sanity_check_meminfo();
 	arm_memblock_init(&meminfo, mdesc);
 
@@ -975,6 +989,7 @@ static const char *hwcap_str[] = {
 	"idivt",
 	"vfpd32",
 	"lpae",
+	"evtstrm",
 	NULL
 };
 

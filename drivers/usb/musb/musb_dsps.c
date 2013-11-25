@@ -121,6 +121,43 @@ struct dsps_glue {
 	unsigned long last_timer;    /* last timer data for each instance */
 };
 
+static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
+{
+	struct device *dev = musb->controller;
+	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
+
+	if (timeout == 0)
+		timeout = jiffies + msecs_to_jiffies(3);
+
+	/* Never idle if active, or when VBUS timeout is not set as host */
+	if (musb->is_active || (musb->a_wait_bcon == 0 &&
+				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+		dev_dbg(musb->controller, "%s active, deleting timer\n",
+				usb_otg_state_string(musb->xceiv->state));
+		del_timer(&glue->timer);
+		glue->last_timer = jiffies;
+		return;
+	}
+	if (musb->port_mode != MUSB_PORT_MODE_DUAL_ROLE)
+		return;
+
+	if (!musb->g.dev.driver)
+		return;
+
+	if (time_after(glue->last_timer, timeout) &&
+				timer_pending(&glue->timer)) {
+		dev_dbg(musb->controller,
+			"Longer idle timer already pending, ignoring...\n");
+		return;
+	}
+	glue->last_timer = timeout;
+
+	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
+		usb_otg_state_string(musb->xceiv->state),
+			jiffies_to_msecs(timeout - jiffies));
+	mod_timer(&glue->timer, timeout);
+}
+
 /**
  * dsps_musb_enable - enable interrupts
  */
@@ -143,6 +180,7 @@ static void dsps_musb_enable(struct musb *musb)
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
 	dsps_writel(reg_base, wrp->coreintr_set,
 		    (1 << wrp->drvvbus) << wrp->usb_shift);
+	dsps_musb_try_idle(musb, 0);
 }
 
 /**
@@ -171,6 +209,7 @@ static void otg_timer(unsigned long _musb)
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
 	u8 devctl;
 	unsigned long flags;
+	int skip_session = 0;
 
 	/*
 	 * We poll because DSPS IP's won't expose several OTG-critical
@@ -183,10 +222,12 @@ static void otg_timer(unsigned long _musb)
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_WAIT_BCON:
-		devctl &= ~MUSB_DEVCTL_SESSION;
-		dsps_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+		dsps_writeb(musb->mregs, MUSB_DEVCTL, 0);
+		skip_session = 1;
+		/* fall */
 
-		devctl = dsps_readb(musb->mregs, MUSB_DEVCTL);
+	case OTG_STATE_A_IDLE:
+	case OTG_STATE_B_IDLE:
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 			MUSB_DEV_MODE(musb);
@@ -194,58 +235,19 @@ static void otg_timer(unsigned long _musb)
 			musb->xceiv->state = OTG_STATE_A_IDLE;
 			MUSB_HST_MODE(musb);
 		}
+		if (!(devctl & MUSB_DEVCTL_SESSION) && !skip_session)
+			dsps_writeb(mregs, MUSB_DEVCTL, MUSB_DEVCTL_SESSION);
+		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
 		dsps_writel(musb->ctrl_base, wrp->coreintr_set,
 			    MUSB_INTR_VBUSERROR << wrp->usb_shift);
 		break;
-	case OTG_STATE_B_IDLE:
-		devctl = dsps_readb(mregs, MUSB_DEVCTL);
-		if (devctl & MUSB_DEVCTL_BDEVICE)
-			mod_timer(&glue->timer,
-					jiffies + wrp->poll_seconds * HZ);
-		else
-			musb->xceiv->state = OTG_STATE_A_IDLE;
-		break;
 	default:
 		break;
 	}
 	spin_unlock_irqrestore(&musb->lock, flags);
-}
-
-static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
-{
-	struct device *dev = musb->controller;
-	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
-
-	if (timeout == 0)
-		timeout = jiffies + msecs_to_jiffies(3);
-
-	/* Never idle if active, or when VBUS timeout is not set as host */
-	if (musb->is_active || (musb->a_wait_bcon == 0 &&
-				musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
-		dev_dbg(musb->controller, "%s active, deleting timer\n",
-				usb_otg_state_string(musb->xceiv->state));
-		del_timer(&glue->timer);
-		glue->last_timer = jiffies;
-		return;
-	}
-	if (musb->port_mode == MUSB_PORT_MODE_HOST)
-		return;
-
-	if (time_after(glue->last_timer, timeout) &&
-				timer_pending(&glue->timer)) {
-		dev_dbg(musb->controller,
-			"Longer idle timer already pending, ignoring...\n");
-		return;
-	}
-	glue->last_timer = timeout;
-
-	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
-		usb_otg_state_string(musb->xceiv->state),
-			jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&glue->timer, timeout);
 }
 
 static irqreturn_t dsps_interrupt(int irq, void *hci)
@@ -443,7 +445,7 @@ static int get_musb_port_mode(struct device *dev)
 	case USB_DR_MODE_OTG:
 	default:
 		return MUSB_PORT_MODE_DUAL_ROLE;
-	};
+	}
 }
 
 static int dsps_create_musb_pdev(struct dsps_glue *glue,
@@ -534,6 +536,9 @@ static int dsps_probe(struct platform_device *pdev)
 	const struct dsps_musb_wrapper *wrp;
 	struct dsps_glue *glue;
 	int ret;
+
+	if (!strcmp(pdev->name, "musb-hdrc"))
+		return -ENODEV;
 
 	match = of_match_node(musb_dsps_of_match, pdev->dev.of_node);
 	if (!match) {
@@ -628,7 +633,7 @@ static struct platform_driver dsps_usbss_driver = {
 	.remove         = dsps_remove,
 	.driver         = {
 		.name   = "musb-dsps",
-		.of_match_table	= of_match_ptr(musb_dsps_of_match),
+		.of_match_table	= musb_dsps_of_match,
 	},
 };
 

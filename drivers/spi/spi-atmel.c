@@ -170,18 +170,18 @@
 /* Bit manipulation macros */
 #define SPI_BIT(name) \
 	(1 << SPI_##name##_OFFSET)
-#define SPI_BF(name,value) \
+#define SPI_BF(name, value) \
 	(((value) & ((1 << SPI_##name##_SIZE) - 1)) << SPI_##name##_OFFSET)
-#define SPI_BFEXT(name,value) \
+#define SPI_BFEXT(name, value) \
 	(((value) >> SPI_##name##_OFFSET) & ((1 << SPI_##name##_SIZE) - 1))
-#define SPI_BFINS(name,value,old) \
-	( ((old) & ~(((1 << SPI_##name##_SIZE) - 1) << SPI_##name##_OFFSET)) \
-	  | SPI_BF(name,value))
+#define SPI_BFINS(name, value, old) \
+	(((old) & ~(((1 << SPI_##name##_SIZE) - 1) << SPI_##name##_OFFSET)) \
+	  | SPI_BF(name, value))
 
 /* Register access macros */
-#define spi_readl(port,reg) \
+#define spi_readl(port, reg) \
 	__raw_readl((port)->regs + SPI_##reg)
-#define spi_writel(port,reg,value) \
+#define spi_writel(port, reg, value) \
 	__raw_writel((value), (port)->regs + SPI_##reg)
 
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
@@ -1401,8 +1401,8 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 			asd = spi->controller_state;
 			bits = (asd->csr >> 4) & 0xf;
 			if (bits != xfer->bits_per_word - 8) {
-				dev_dbg(&spi->dev, "you can't yet change "
-					 "bits_per_word in transfers\n");
+				dev_dbg(&spi->dev,
+					"you can't yet change bits_per_word in transfers\n");
 				return -ENOPROTOOPT;
 			}
 		}
@@ -1516,7 +1516,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	/* setup spi core then atmel-specific driver state */
 	ret = -ENOMEM;
-	master = spi_alloc_master(&pdev->dev, sizeof *as);
+	master = spi_alloc_master(&pdev->dev, sizeof(*as));
 	if (!master)
 		goto out_free;
 
@@ -1546,9 +1546,11 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&as->queue);
 
 	as->pdev = pdev;
-	as->regs = ioremap(regs->start, resource_size(regs));
-	if (!as->regs)
+	as->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(as->regs)) {
+		ret = PTR_ERR(as->regs);
 		goto out_free_buffer;
+	}
 	as->phybase = regs->start;
 	as->irq = irq;
 	as->clk = clk;
@@ -1583,7 +1585,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	/* Initialize the hardware */
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		goto out_unmap_regs;
+		goto out_free_irq;
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	if (as->caps.has_wdrbt) {
@@ -1614,9 +1616,9 @@ out_free_dma:
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	clk_disable_unprepare(clk);
+out_free_irq:
 	free_irq(irq, master);
 out_unmap_regs:
-	iounmap(as->regs);
 out_free_buffer:
 	if (!as->use_pdc)
 		tasklet_kill(&as->tasklet);
@@ -1668,36 +1670,36 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(as->clk);
 	clk_put(as->clk);
 	free_irq(as->irq, master);
-	iounmap(as->regs);
 
 	spi_unregister_master(master);
 
 	return 0;
 }
 
-#ifdef	CONFIG_PM
-
-static int atmel_spi_suspend(struct platform_device *pdev, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int atmel_spi_suspend(struct device *dev)
 {
-	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(as->clk);
 	return 0;
 }
 
-static int atmel_spi_resume(struct platform_device *pdev)
+static int atmel_spi_resume(struct device *dev)
 {
-	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
-	return clk_prepare_enable(as->clk);
+	clk_prepare_enable(as->clk);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(atmel_spi_pm_ops, atmel_spi_suspend, atmel_spi_resume);
+
+#define ATMEL_SPI_PM_OPS	(&atmel_spi_pm_ops)
 #else
-#define	atmel_spi_suspend	NULL
-#define	atmel_spi_resume	NULL
+#define ATMEL_SPI_PM_OPS	NULL
 #endif
 
 #if defined(CONFIG_OF)
@@ -1713,10 +1715,9 @@ static struct platform_driver atmel_spi_driver = {
 	.driver		= {
 		.name	= "atmel_spi",
 		.owner	= THIS_MODULE,
+		.pm	= ATMEL_SPI_PM_OPS,
 		.of_match_table	= of_match_ptr(atmel_spi_dt_ids),
 	},
-	.suspend	= atmel_spi_suspend,
-	.resume		= atmel_spi_resume,
 	.probe		= atmel_spi_probe,
 	.remove		= atmel_spi_remove,
 };

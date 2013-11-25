@@ -151,7 +151,7 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 			MaxChnlNum = pTriple->FirstChnl + j;
 		}
 
-		pTriple = (struct chnl_txpow_triple *)((u8*)pTriple + 3);
+		pTriple = (struct chnl_txpow_triple *)((u8 *)pTriple + 3);
 	}
 
 	UPDATE_CIE_SRC(dev, pTaddr);

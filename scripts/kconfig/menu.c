@@ -119,9 +119,10 @@ void menu_set_type(int type)
 		sym->type = type;
 		return;
 	}
-	menu_warn(current_entry, "type of '%s' redefined from '%s' to '%s'",
-	    sym->name ? sym->name : "<choice>",
-	    sym_type_name(sym->type), sym_type_name(type));
+	menu_warn(current_entry,
+		"ignoring type redefinition of '%s' from '%s' to '%s'",
+		sym->name ? sym->name : "<choice>",
+		sym_type_name(sym->type), sym_type_name(type));
 }
 
 struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep)
@@ -583,7 +584,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 		for (j = 4; --i >= 0; j += 2) {
 			menu = submenu[i];
 			if (head && location && menu == location)
-				jump->offset = r->len - 1;
+				jump->offset = strlen(r->s);
 			str_printf(r, "%*c-> %s", j, ' ',
 				   _(menu_get_prompt(menu)));
 			if (menu->sym) {
@@ -597,7 +598,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 }
 
 /*
- * get peoperty of type P_SYMBOL
+ * get property of type P_SYMBOL
  */
 static struct property *get_symbol_prop(struct symbol *sym)
 {

@@ -802,7 +802,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if(!pdev->dev.of_node) {
+	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "must be instantiated using device tree\n");
 		return -ENODEV;
 	}

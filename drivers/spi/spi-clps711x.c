@@ -105,7 +105,7 @@ static int spi_clps711x_transfer_one_message(struct spi_master *master,
 
 		gpio_set_value(cs, !!(msg->spi->mode & SPI_CS_HIGH));
 
-		INIT_COMPLETION(hw->done);
+		reinit_completion(&hw->done);
 
 		hw->count = 0;
 		hw->len = xfer->len;
@@ -226,11 +226,10 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 			       dev_name(&pdev->dev), hw);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't request IRQ\n");
-		clk_put(hw->spi_clk);
-		goto clk_out;
+		goto err_out;
 	}
 
-	ret = spi_register_master(master);
+	ret = devm_spi_register_master(&pdev->dev, master);
 	if (!ret) {
 		dev_info(&pdev->dev,
 			 "SPI bus driver initialized. Master clock %u Hz\n",
@@ -240,14 +239,12 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	dev_err(&pdev->dev, "Failed to register master\n");
 
-clk_out:
 err_out:
 	while (--i >= 0)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -261,9 +258,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 	for (i = 0; i < master->num_chipselect; i++)
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
-
-	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }

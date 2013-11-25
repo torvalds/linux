@@ -647,7 +647,10 @@ void sa1100_register_uart_fns(struct sa1100_port_fns *fns)
 		sa1100_pops.set_mctrl = fns->set_mctrl;
 
 	sa1100_pops.pm       = fns->pm;
-	sa1100_pops.set_wake = fns->set_wake;
+	/*
+	 * FIXME: fns->set_wake is unused - this should be called from
+	 * the suspend() callback if device_may_wakeup(dev)) is set.
+	 */
 }
 
 void __init sa1100_register_uart(int idx, int port)

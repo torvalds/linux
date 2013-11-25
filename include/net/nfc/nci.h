@@ -166,6 +166,10 @@
 #define NCI_GID_NFCEE_MGMT					0x2
 #define NCI_GID_PROPRIETARY					0xf
 
+/* ----- NCI over SPI head/crc(tail) room needed for outgoing frames ----- */
+#define NCI_SPI_HDR_LEN						4
+#define NCI_SPI_CRC_LEN						2
+
 /* ---- NCI Packet structures ---- */
 #define NCI_CTRL_HDR_SIZE					3
 #define NCI_DATA_HDR_SIZE					3

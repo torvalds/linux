@@ -329,7 +329,7 @@ bool init_firmware(struct net_device *dev)
 		}
 
 		rt_status = fw_download_code(dev, mapped_file, file_length);
-		if (rt_status != true) {
+		if (!rt_status) {
 			goto download_firmware_fail;
 		}
 

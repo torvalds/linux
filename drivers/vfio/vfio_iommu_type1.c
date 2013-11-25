@@ -545,6 +545,8 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	long npage;
 	int ret = 0, prot = 0;
 	uint64_t mask;
+	struct vfio_dma *dma = NULL;
+	unsigned long pfn;
 
 	end = map->iova + map->size;
 
@@ -587,8 +589,6 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 	}
 
 	for (iova = map->iova; iova < end; iova += size, vaddr += size) {
-		struct vfio_dma *dma = NULL;
-		unsigned long pfn;
 		long i;
 
 		/* Pin a contiguous chunk of memory */
@@ -597,16 +597,15 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		if (npage <= 0) {
 			WARN_ON(!npage);
 			ret = (int)npage;
-			break;
+			goto out;
 		}
 
 		/* Verify pages are not already mapped */
 		for (i = 0; i < npage; i++) {
 			if (iommu_iova_to_phys(iommu->domain,
 					       iova + (i << PAGE_SHIFT))) {
-				vfio_unpin_pages(pfn, npage, prot, true);
 				ret = -EBUSY;
-				break;
+				goto out_unpin;
 			}
 		}
 
@@ -616,8 +615,7 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		if (ret) {
 			if (ret != -EBUSY ||
 			    map_try_harder(iommu, iova, pfn, npage, prot)) {
-				vfio_unpin_pages(pfn, npage, prot, true);
-				break;
+				goto out_unpin;
 			}
 		}
 
@@ -672,9 +670,8 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 			dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 			if (!dma) {
 				iommu_unmap(iommu->domain, iova, size);
-				vfio_unpin_pages(pfn, npage, prot, true);
 				ret = -ENOMEM;
-				break;
+				goto out_unpin;
 			}
 
 			dma->size = size;
@@ -685,16 +682,21 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 		}
 	}
 
-	if (ret) {
-		struct vfio_dma *tmp;
-		iova = map->iova;
-		size = map->size;
-		while ((tmp = vfio_find_dma(iommu, iova, size))) {
-			int r = vfio_remove_dma_overlap(iommu, iova,
-							&size, tmp);
-			if (WARN_ON(r || !size))
-				break;
-		}
+	WARN_ON(ret);
+	mutex_unlock(&iommu->lock);
+	return ret;
+
+out_unpin:
+	vfio_unpin_pages(pfn, npage, prot, true);
+
+out:
+	iova = map->iova;
+	size = map->size;
+	while ((dma = vfio_find_dma(iommu, iova, size))) {
+		int r = vfio_remove_dma_overlap(iommu, iova,
+						&size, dma);
+		if (WARN_ON(r || !size))
+			break;
 	}
 
 	mutex_unlock(&iommu->lock);

@@ -115,6 +115,8 @@ struct fuse_inode {
 enum {
 	/** Advise readdirplus  */
 	FUSE_I_ADVISE_RDPLUS,
+	/** Initialized with readdirplus */
+	FUSE_I_INIT_RDPLUS,
 	/** An operation changing file size is in progress  */
 	FUSE_I_SIZE_UNSTABLE,
 };
@@ -319,6 +321,7 @@ struct fuse_req {
 		struct {
 			struct fuse_write_in in;
 			struct fuse_write_out out;
+			struct fuse_req *next;
 		} write;
 		struct fuse_notify_retrieve_in retrieve_in;
 		struct fuse_lk_in lk_in;
@@ -372,11 +375,10 @@ struct fuse_conn {
 	/** Lock protecting accessess to  members of this structure */
 	spinlock_t lock;
 
-	/** Mutex protecting against directory alias creation */
-	struct mutex inst_mutex;
-
 	/** Refcount */
 	atomic_t count;
+
+	struct rcu_head rcu;
 
 	/** The user id for this mount */
 	kuid_t user_id;

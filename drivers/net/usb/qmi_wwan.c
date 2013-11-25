@@ -143,24 +143,28 @@ static const struct net_device_ops qmi_wwan_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* using a counter to merge subdriver requests with our own into a combined state */
+/* using a counter to merge subdriver requests with our own into a
+ * combined state
+ */
 static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 {
 	struct qmi_wwan_state *info = (void *)&dev->data;
-	int rv = 0;
+	int rv;
 
-	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(&info->pmcount), on);
+	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__,
+		atomic_read(&info->pmcount), on);
 
-	if ((on && atomic_add_return(1, &info->pmcount) == 1) || (!on && atomic_dec_and_test(&info->pmcount))) {
-		/* need autopm_get/put here to ensure the usbcore sees the new value */
+	if ((on && atomic_add_return(1, &info->pmcount) == 1) ||
+	    (!on && atomic_dec_and_test(&info->pmcount))) {
+		/* need autopm_get/put here to ensure the usbcore sees
+		 * the new value
+		 */
 		rv = usb_autopm_get_interface(dev->intf);
-		if (rv < 0)
-			goto err;
 		dev->intf->needs_remote_wakeup = on;
-		usb_autopm_put_interface(dev->intf);
+		if (!rv)
+			usb_autopm_put_interface(dev->intf);
 	}
-err:
-	return rv;
+	return 0;
 }
 
 static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
@@ -199,7 +203,8 @@ static int qmi_wwan_register_subdriver(struct usbnet *dev)
 	atomic_set(&info->pmcount, 0);
 
 	/* register subdriver */
-	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc, 4096, &qmi_wwan_cdc_wdm_manage_power);
+	subdriver = usb_cdc_wdm_register(info->control, &dev->status->desc,
+					 4096, &qmi_wwan_cdc_wdm_manage_power);
 	if (IS_ERR(subdriver)) {
 		dev_err(&info->control->dev, "subdriver registration failed\n");
 		rv = PTR_ERR(subdriver);
@@ -228,7 +233,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_driver *driver = driver_of(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
 
-	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
+	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) <
+		      sizeof(struct qmi_wwan_state)));
 
 	/* set up initial state */
 	info->control = intf;
@@ -250,7 +256,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_header_desc)) {
-				dev_dbg(&intf->dev, "CDC header len %u\n", h->bLength);
+				dev_dbg(&intf->dev, "CDC header len %u\n",
+					h->bLength);
 				goto err;
 			}
 			break;
@@ -260,7 +267,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_union_desc)) {
-				dev_dbg(&intf->dev, "CDC union len %u\n", h->bLength);
+				dev_dbg(&intf->dev, "CDC union len %u\n",
+					h->bLength);
 				goto err;
 			}
 			cdc_union = (struct usb_cdc_union_desc *)buf;
@@ -271,15 +279,15 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto err;
 			}
 			if (h->bLength != sizeof(struct usb_cdc_ether_desc)) {
-				dev_dbg(&intf->dev, "CDC ether len %u\n",  h->bLength);
+				dev_dbg(&intf->dev, "CDC ether len %u\n",
+					h->bLength);
 				goto err;
 			}
 			cdc_ether = (struct usb_cdc_ether_desc *)buf;
 			break;
 		}
 
-		/*
-		 * Remember which CDC functional descriptors we've seen.  Works
+		/* Remember which CDC functional descriptors we've seen.  Works
 		 * for all types we care about, of which USB_CDC_ETHERNET_TYPE
 		 * (0x0f) is the highest numbered
 		 */
@@ -293,10 +301,14 @@ next_desc:
 
 	/* Use separate control and data interfaces if we found a CDC Union */
 	if (cdc_union) {
-		info->data = usb_ifnum_to_if(dev->udev, cdc_union->bSlaveInterface0);
-		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 || !info->data) {
-			dev_err(&intf->dev, "bogus CDC Union: master=%u, slave=%u\n",
-				cdc_union->bMasterInterface0, cdc_union->bSlaveInterface0);
+		info->data = usb_ifnum_to_if(dev->udev,
+					     cdc_union->bSlaveInterface0);
+		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 ||
+		    !info->data) {
+			dev_err(&intf->dev,
+				"bogus CDC Union: master=%u, slave=%u\n",
+				cdc_union->bMasterInterface0,
+				cdc_union->bSlaveInterface0);
 			goto err;
 		}
 	}
@@ -374,8 +386,7 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret;
 
-	/*
-	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
+	/* Both usbnet_suspend() and subdriver->suspend() MUST return 0
 	 * in system sleep context, otherwise, the resume callback has
 	 * to recover device from previous suspend failure.
 	 */
@@ -383,7 +394,8 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	if (ret < 0)
 		goto err;
 
-	if (intf == info->control && info->subdriver && info->subdriver->suspend)
+	if (intf == info->control && info->subdriver &&
+	    info->subdriver->suspend)
 		ret = info->subdriver->suspend(intf, message);
 	if (ret < 0)
 		usbnet_resume(intf);
@@ -396,14 +408,15 @@ static int qmi_wwan_resume(struct usb_interface *intf)
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret = 0;
-	bool callsub = (intf == info->control && info->subdriver && info->subdriver->resume);
+	bool callsub = (intf == info->control && info->subdriver &&
+			info->subdriver->resume);
 
 	if (callsub)
 		ret = info->subdriver->resume(intf);
 	if (ret < 0)
 		goto err;
 	ret = usbnet_resume(intf);
-	if (ret < 0 && callsub && info->subdriver->suspend)
+	if (ret < 0 && callsub)
 		info->subdriver->suspend(intf, PMSG_SUSPEND);
 err:
 	return ret;
@@ -714,7 +727,9 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x2357, 0x0201, 4)},	/* TP-LINK HSUPA Modem MA180 */
 	{QMI_FIXED_INTF(0x2357, 0x9000, 4)},	/* TP-LINK MA260 */
 	{QMI_FIXED_INTF(0x1bc7, 0x1200, 5)},	/* Telit LE920 */
-	{QMI_FIXED_INTF(0x1e2d, 0x12d1, 4)},	/* Cinterion PLxx */
+	{QMI_FIXED_INTF(0x1bc7, 0x1201, 2)},	/* Telit LE920 */
+	{QMI_FIXED_INTF(0x0b3c, 0xc005, 6)},    /* Olivetti Olicard 200 */
+	{QMI_FIXED_INTF(0x1e2d, 0x0060, 4)},	/* Cinterion PLxx */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
@@ -776,7 +791,8 @@ static const struct usb_device_id products[] = {
 };
 MODULE_DEVICE_TABLE(usb, products);
 
-static int qmi_wwan_probe(struct usb_interface *intf, const struct usb_device_id *prod)
+static int qmi_wwan_probe(struct usb_interface *intf,
+			  const struct usb_device_id *prod)
 {
 	struct usb_device_id *id = (struct usb_device_id *)prod;
 

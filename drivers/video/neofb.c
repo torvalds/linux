@@ -2075,6 +2075,7 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!fb_find_mode(&info->var, info, mode_option, NULL, 0,
 			info->monspecs.modedb, 16)) {
 		printk(KERN_ERR "neofb: Unable to find usable video mode.\n");
+		err = -EINVAL;
 		goto err_map_video;
 	}
 
@@ -2097,15 +2098,15 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	       info->fix.smem_len >> 10, info->var.xres,
 	       info->var.yres, h_sync / 1000, h_sync % 1000, v_sync);
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0)
+	err = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (err < 0)
 		goto err_map_video;
 
 	err = register_framebuffer(info);
 	if (err < 0)
 		goto err_reg_fb;
 
-	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+	fb_info(info, "%s frame buffer device\n", info->fix.id);
 
 	/*
 	 * Our driver data
@@ -2146,12 +2147,6 @@ static void neofb_remove(struct pci_dev *dev)
 		fb_destroy_modedb(info->monspecs.modedb);
 		neo_unmap_mmio(info);
 		neo_free_fb_info(info);
-
-		/*
-		 * Ensure that the driver data is no longer
-		 * valid.
-		 */
-		pci_set_drvdata(dev, NULL);
 	}
 }
 

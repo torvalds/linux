@@ -290,7 +290,12 @@
 				};
 
 				varm_breg: BUCK1 {
-				     regulator-name = "VARM_1.2V_C210";
+				     /*
+				      * HACK: The real name is VARM_1.2V_C210,
+				      * but exynos-cpufreq does not support
+				      * DT-based regulator lookup yet.
+				      */
+				     regulator-name = "vdd_arm";
 				     regulator-min-microvolt = <900000>;
 				     regulator-max-microvolt = <1350000>;
 				     regulator-always-on;

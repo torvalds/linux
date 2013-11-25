@@ -172,6 +172,27 @@ u8 hw_port_test_get(struct ci_hdrc *ci)
 	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
+/* The PHY enters/leaves low power mode */
+static void ci_hdrc_enter_lpm(struct ci_hdrc *ci, bool enable)
+{
+	enum ci_hw_regs reg = ci->hw_bank.lpm ? OP_DEVLC : OP_PORTSC;
+	bool lpm = !!(hw_read(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm)));
+
+	if (enable && !lpm) {
+		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
+				PORTSC_PHCD(ci->hw_bank.lpm));
+	} else  if (!enable && lpm) {
+		hw_write(ci, reg, PORTSC_PHCD(ci->hw_bank.lpm),
+				0);
+		/* 
+		 * The controller needs at least 1ms to reflect
+		 * PHY's status, the PHY also needs some time (less
+		 * than 1ms) to leave low power mode.
+		 */
+		usleep_range(1500, 2000);
+	}
+}
+
 static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 {
 	u32 reg;
@@ -198,6 +219,8 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 
 	if (ci->hw_ep_max > ENDPT_MAX)
 		return -ENODEV;
+
+	ci_hdrc_enter_lpm(ci, false);
 
 	/* Disable all interrupts bits */
 	hw_write(ci, OP_USBINTR, 0xffffffff, 0);
@@ -369,16 +392,28 @@ static irqreturn_t ci_irq(int irq, void *data)
 static int ci_get_platdata(struct device *dev,
 		struct ci_hdrc_platform_data *platdata)
 {
-	/* Get the vbus regulator */
-	platdata->reg_vbus = devm_regulator_get(dev, "vbus");
-	if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
-		platdata->reg_vbus = NULL; /* no vbus regualator is needed */
-	} else if (IS_ERR(platdata->reg_vbus)) {
-		dev_err(dev, "Getting regulator error: %ld\n",
-			PTR_ERR(platdata->reg_vbus));
-		return PTR_ERR(platdata->reg_vbus);
+	if (!platdata->phy_mode)
+		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
+
+	if (!platdata->dr_mode)
+		platdata->dr_mode = of_usb_get_dr_mode(dev->of_node);
+
+	if (platdata->dr_mode == USB_DR_MODE_UNKNOWN)
+		platdata->dr_mode = USB_DR_MODE_OTG;
+
+	if (platdata->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		/* Get the vbus regulator */
+		platdata->reg_vbus = devm_regulator_get(dev, "vbus");
+		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
+			return -EPROBE_DEFER;
+		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
+			/* no vbus regualator is needed */
+			platdata->reg_vbus = NULL;
+		} else if (IS_ERR(platdata->reg_vbus)) {
+			dev_err(dev, "Getting regulator error: %ld\n",
+				PTR_ERR(platdata->reg_vbus));
+			return PTR_ERR(platdata->reg_vbus);
+		}
 	}
 
 	return 0;
@@ -465,6 +500,33 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
+static int ci_usb_phy_init(struct ci_hdrc *ci)
+{
+	if (ci->platdata->phy) {
+		ci->transceiver = ci->platdata->phy;
+		return usb_phy_init(ci->transceiver);
+	} else {
+		ci->global_phy = true;
+		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (IS_ERR(ci->transceiver))
+			ci->transceiver = NULL;
+
+		return 0;
+	}
+}
+
+static void ci_usb_phy_destroy(struct ci_hdrc *ci)
+{
+	if (!ci->transceiver)
+		return;
+
+	otg_set_peripheral(ci->transceiver->otg, NULL);
+	if (ci->global_phy)
+		usb_put_phy(ci->transceiver);
+	else
+		usb_phy_shutdown(ci->transceiver);
+}
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -473,7 +535,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	void __iomem	*base;
 	int		ret;
 	enum usb_dr_mode dr_mode;
-	struct device_node *of_node = dev->of_node ?: dev->parent->of_node;
 
 	if (!dev->platform_data) {
 		dev_err(dev, "platform data missing\n");
@@ -493,10 +554,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	ci->dev = dev;
 	ci->platdata = dev->platform_data;
-	if (ci->platdata->phy)
-		ci->transceiver = ci->platdata->phy;
-	else
-		ci->global_phy = true;
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
@@ -504,26 +561,24 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ret = ci_usb_phy_init(ci);
+	if (ret) {
+		dev_err(dev, "unable to init phy: %d\n", ret);
+		return ret;
+	}
+
 	ci->hw_bank.phys = res->start;
 
 	ci->irq = platform_get_irq(pdev, 0);
 	if (ci->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto destroy_phy;
 	}
 
 	ci_get_otg_capable(ci);
 
-	if (!ci->platdata->phy_mode)
-		ci->platdata->phy_mode = of_usb_get_phy_mode(of_node);
-
 	hw_phymode_configure(ci);
-
-	if (!ci->platdata->dr_mode)
-		ci->platdata->dr_mode = of_usb_get_dr_mode(of_node);
-
-	if (ci->platdata->dr_mode == USB_DR_MODE_UNKNOWN)
-		ci->platdata->dr_mode = USB_DR_MODE_OTG;
 
 	dr_mode = ci->platdata->dr_mode;
 	/* initialize role(s) before the interrupt is requested */
@@ -537,11 +592,23 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ret = ci_hdrc_gadget_init(ci);
 		if (ret)
 			dev_info(dev, "doesn't support gadget\n");
+		if (!ret && ci->transceiver) {
+			ret = otg_set_peripheral(ci->transceiver->otg,
+							&ci->gadget);
+			/*
+			 * If we implement all USB functions using chipidea drivers,
+			 * it doesn't need to call above API, meanwhile, if we only
+			 * use gadget function, calling above API is useless.
+			 */
+			if (ret && ret != -ENOTSUPP)
+				goto destroy_phy;
+		}
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto destroy_phy;
 	}
 
 	if (ci->is_otg) {
@@ -594,6 +661,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 stop:
 	ci_role_destroy(ci);
+destroy_phy:
+	ci_usb_phy_destroy(ci);
 
 	return ret;
 }
@@ -605,6 +674,9 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	dbg_remove_files(ci);
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
+	ci_hdrc_enter_lpm(ci, true);
+	ci_usb_phy_destroy(ci);
+	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

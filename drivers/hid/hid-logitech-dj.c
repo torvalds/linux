@@ -542,9 +542,9 @@ static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
 	return 0;
 }
 
-static void rdcat(char **rdesc, unsigned int *rsize, const char *data, unsigned int size)
+static void rdcat(char *rdesc, unsigned int *rsize, const char *data, unsigned int size)
 {
-	memcpy(*rdesc + *rsize, data, size);
+	memcpy(rdesc + *rsize, data, size);
 	*rsize += size;
 }
 
@@ -567,31 +567,31 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	if (djdev->reports_supported & STD_KEYBOARD) {
 		dbg_hid("%s: sending a kbd descriptor, reports_supported: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
+		rdcat(rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
 	}
 
 	if (djdev->reports_supported & STD_MOUSE) {
 		dbg_hid("%s: sending a mouse descriptor, reports_supported: "
 			"%x\n", __func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
+		rdcat(rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
 		dbg_hid("%s: sending a multimedia report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
+		rdcat(rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
 	}
 
 	if (djdev->reports_supported & POWER_KEYS) {
 		dbg_hid("%s: sending a power keys report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
+		rdcat(rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
 	}
 
 	if (djdev->reports_supported & MEDIA_CENTER) {
 		dbg_hid("%s: sending a media center report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		rdcat(&rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
+		rdcat(rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
 	}
 
 	if (djdev->reports_supported & KBD_LEDS) {

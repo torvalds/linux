@@ -218,7 +218,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 		goto done;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(tune_timeout));
 	if (!retval)
@@ -341,7 +341,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 		return retval;
 
 	/* wait till tune operation has completed */
-	INIT_COMPLETION(radio->completion);
+	reinit_completion(&radio->completion);
 	retval = wait_for_completion_timeout(&radio->completion,
 			msecs_to_jiffies(seek_timeout));
 	if (!retval)

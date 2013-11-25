@@ -72,7 +72,7 @@ int sync_wait_on_multiple_events(struct sync_object **events,
 	spin_lock_bh(&sync_lock);
 	for (i = 0; i < count; i++) {
 		if (completion_done(&events[i]->comp)) {
-			INIT_COMPLETION(events[i]->comp);
+			reinit_completion(&events[i]->comp);
 			*index = i;
 			spin_unlock_bh(&sync_lock);
 			status = 0;
@@ -92,7 +92,7 @@ int sync_wait_on_multiple_events(struct sync_object **events,
 	spin_lock_bh(&sync_lock);
 	for (i = 0; i < count; i++) {
 		if (completion_done(&events[i]->comp)) {
-			INIT_COMPLETION(events[i]->comp);
+			reinit_completion(&events[i]->comp);
 			*index = i;
 			status = 0;
 		}

@@ -45,9 +45,6 @@ struct msm_gem_object {
 	 */
 	struct list_head submit_entry;
 
-	/* work defered until bo is inactive: */
-	struct list_head inactive_work;
-
 	struct page **pages;
 	struct sg_table *sgt;
 	void *vaddr;

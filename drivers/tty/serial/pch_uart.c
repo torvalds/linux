@@ -667,17 +667,9 @@ static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
 
 static int dma_push_rx(struct eg20t_port *priv, int size)
 {
-	struct tty_struct *tty;
 	int room;
 	struct uart_port *port = &priv->port;
 	struct tty_port *tport = &port->state->port;
-
-	port = &priv->port;
-	tty = tty_port_tty_get(tport);
-	if (!tty) {
-		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
-		return 0;
-	}
 
 	room = tty_buffer_request_room(tport, size);
 
@@ -685,12 +677,11 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 		dev_warn(port->dev, "Rx overrun: dropping %u bytes\n",
 			 size - room);
 	if (!room)
-		return room;
+		return 0;
 
 	tty_insert_flip_string(tport, sg_virt(&priv->sg_rx), size);
 
 	port->icount.rx += room;
-	tty_kref_put(tty);
 
 	return room;
 }
@@ -1098,6 +1089,8 @@ static void pch_uart_err_ir(struct eg20t_port *priv, unsigned int lsr)
 	if (tty == NULL) {
 		for (i = 0; error_msg[i] != NULL; i++)
 			dev_err(&priv->pdev->dev, error_msg[i]);
+	} else {
+		tty_kref_put(tty);
 	}
 }
 
@@ -1621,7 +1614,6 @@ static struct uart_ops pch_uart_ops = {
 	.shutdown = pch_uart_shutdown,
 	.set_termios = pch_uart_set_termios,
 /*	.pm		= pch_uart_pm,		Not supported yet */
-/*	.set_wake	= pch_uart_set_wake,	Not supported yet */
 	.type = pch_uart_type,
 	.release_port = pch_uart_release_port,
 	.request_port = pch_uart_request_port,
@@ -2003,6 +1995,8 @@ module_exit(pch_uart_module_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel EG20T PCH UART PCI Driver");
+MODULE_DEVICE_TABLE(pci, pch_uart_pci_id);
+
 module_param(default_baud, uint, S_IRUGO);
 MODULE_PARM_DESC(default_baud,
                  "Default BAUD for initial driver state and console (default 9600)");

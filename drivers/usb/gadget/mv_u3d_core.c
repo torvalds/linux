@@ -310,6 +310,7 @@ static struct mv_u3d_trb *mv_u3d_build_trb_one(struct mv_u3d_req *req,
 	 */
 	trb_hw = dma_pool_alloc(u3d->trb_pool, GFP_ATOMIC, dma);
 	if (!trb_hw) {
+		kfree(trb);
 		dev_err(u3d->dev,
 			"%s, dma_pool_alloc fail\n", __func__);
 		return NULL;
@@ -454,6 +455,7 @@ static int mv_u3d_req_to_trb(struct mv_u3d_req *req)
 
 		trb_hw = kcalloc(trb_num, sizeof(*trb_hw), GFP_ATOMIC);
 		if (!trb_hw) {
+			kfree(trb);
 			dev_err(u3d->dev,
 					"%s, trb_hw alloc fail\n", __func__);
 			return -ENOMEM;
@@ -1936,7 +1938,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	}
 	u3d->irq = r->start;
 	if (request_irq(u3d->irq, mv_u3d_irq,
-		IRQF_DISABLED | IRQF_SHARED, driver_name, u3d)) {
+		IRQF_SHARED, driver_name, u3d)) {
 		u3d->irq = 0;
 		dev_err(&dev->dev, "Request irq %d for u3d failed\n",
 			u3d->irq);

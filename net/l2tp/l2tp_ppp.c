@@ -197,8 +197,6 @@ static int pppol2tp_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state & PPPOX_BOUND)
 		goto end;
 
-	msg->msg_namelen = 0;
-
 	err = 0;
 	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 				flags & MSG_DONTWAIT, &err);
@@ -353,7 +351,9 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 		goto error_put_sess_tun;
 	}
 
+	local_bh_disable();
 	l2tp_xmit_skb(session, skb, session->hdr_len);
+	local_bh_enable();
 
 	sock_put(ps->tunnel_sock);
 	sock_put(sk);
@@ -422,7 +422,9 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb->data[0] = ppph[0];
 	skb->data[1] = ppph[1];
 
+	local_bh_disable();
 	l2tp_xmit_skb(session, skb, session->hdr_len);
+	local_bh_enable();
 
 	sock_put(sk_tun);
 	sock_put(sk);
@@ -906,8 +908,8 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if ((tunnel->version == 2) &&
 		   (tunnel->sock->sk_family == AF_INET6)) {
-		struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
 		struct sockaddr_pppol2tpin6 sp;
+
 		len = sizeof(sp);
 		memset(&sp, 0, len);
 		sp.sa_family	= AF_PPPOX;
@@ -920,13 +922,13 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		sp.pppol2tp.d_session = session->peer_session_id;
 		sp.pppol2tp.addr.sin6_family = AF_INET6;
 		sp.pppol2tp.addr.sin6_port = inet->inet_dport;
-		memcpy(&sp.pppol2tp.addr.sin6_addr, &np->daddr,
-		       sizeof(np->daddr));
+		memcpy(&sp.pppol2tp.addr.sin6_addr, &tunnel->sock->sk_v6_daddr,
+		       sizeof(tunnel->sock->sk_v6_daddr));
 		memcpy(uaddr, &sp, len);
 	} else if ((tunnel->version == 3) &&
 		   (tunnel->sock->sk_family == AF_INET6)) {
-		struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
 		struct sockaddr_pppol2tpv3in6 sp;
+
 		len = sizeof(sp);
 		memset(&sp, 0, len);
 		sp.sa_family	= AF_PPPOX;
@@ -939,8 +941,8 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		sp.pppol2tp.d_session = session->peer_session_id;
 		sp.pppol2tp.addr.sin6_family = AF_INET6;
 		sp.pppol2tp.addr.sin6_port = inet->inet_dport;
-		memcpy(&sp.pppol2tp.addr.sin6_addr, &np->daddr,
-		       sizeof(np->daddr));
+		memcpy(&sp.pppol2tp.addr.sin6_addr, &tunnel->sock->sk_v6_daddr,
+		       sizeof(tunnel->sock->sk_v6_daddr));
 		memcpy(uaddr, &sp, len);
 #endif
 	} else if (tunnel->version == 3) {

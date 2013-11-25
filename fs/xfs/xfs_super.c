@@ -17,34 +17,26 @@
  */
 
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
-#include "xfs_log.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_inum.h"
-#include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_alloc.h"
-#include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_dinode.h"
+#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_rtalloc.h"
+#include "xfs_alloc.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
 #include "xfs_fsops.h"
-#include "xfs_attr.h"
+#include "xfs_trans.h"
 #include "xfs_buf_item.h"
+#include "xfs_log.h"
 #include "xfs_log_priv.h"
-#include "xfs_trans_priv.h"
-#include "xfs_filestream.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_format.h"
 #include "xfs_dir2.h"
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
@@ -52,6 +44,9 @@
 #include "xfs_icache.h"
 #include "xfs_trace.h"
 #include "xfs_icreate_item.h"
+#include "xfs_dinode.h"
+#include "xfs_filestream.h"
+#include "xfs_quota.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -918,7 +913,7 @@ xfs_flush_inodes(
 	struct super_block	*sb = mp->m_super;
 
 	if (down_read_trylock(&sb->s_umount)) {
-		sync_inodes_sb(sb);
+		sync_inodes_sb(sb, jiffies);
 		up_read(&sb->s_umount);
 	}
 }
@@ -946,10 +941,6 @@ xfs_fs_destroy_inode(
 
 	XFS_STATS_INC(vn_reclaim);
 
-	/* bad inode, get out here ASAP */
-	if (is_bad_inode(inode))
-		goto out_reclaim;
-
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
 
 	/*
@@ -965,7 +956,6 @@ xfs_fs_destroy_inode(
 	 * this more efficiently than we can here, so simply let background
 	 * reclaim tear down all inodes.
 	 */
-out_reclaim:
 	xfs_inode_set_reclaim_tag(ip);
 }
 
@@ -1165,7 +1155,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * Note: xfs_log_quiesce() stops background log work - the callers must ensure
  * it is started again when appropriate.
  */
-void
+static void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
@@ -1246,7 +1236,7 @@ xfs_fs_remount(
 			 */
 #if 0
 			xfs_info(mp,
-		"mount option \"%s\" not supported for remount\n", p);
+		"mount option \"%s\" not supported for remount", p);
 			return -EINVAL;
 #else
 			break;
@@ -1489,10 +1479,6 @@ xfs_fs_fill_super(
 	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
 		error = ENOENT;
-		goto out_unmount;
-	}
-	if (is_bad_inode(root)) {
-		error = EINVAL;
 		goto out_unmount;
 	}
 	sb->s_root = d_make_root(root);

@@ -166,12 +166,12 @@ static void sirfsoc_pinmux_endisable(struct sirfsoc_pmx *spmx, unsigned selector
 
 	if (mux->funcmask && enable) {
 		u32 func_en_val;
+
 		func_en_val =
-			readl(spmx->rsc_virtbase + SIRFSOC_RSC_PIN_MUX);
+			readl(spmx->rsc_virtbase + mux->ctrlreg);
 		func_en_val =
-			(func_en_val & ~mux->funcmask) | (mux->
-				funcval);
-		writel(func_en_val, spmx->rsc_virtbase + SIRFSOC_RSC_PIN_MUX);
+			(func_en_val & ~mux->funcmask) | (mux->funcval);
+		writel(func_en_val, spmx->rsc_virtbase + mux->ctrlreg);
 	}
 }
 

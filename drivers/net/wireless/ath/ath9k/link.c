@@ -28,6 +28,13 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	int i;
 	bool needreset = false;
 
+
+	if (sc->tx99_state) {
+		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
+			"skip tx hung detection on tx99\n");
+		return;
+	}
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		txq = sc->tx.txq_map[i];
 
@@ -70,7 +77,7 @@ void ath_hw_check(struct work_struct *work)
 	ath9k_ps_wakeup(sc);
 	is_alive = ath9k_hw_check_alive(sc->sc_ah);
 
-	if (is_alive && !AR_SREV_9300(sc->sc_ah))
+	if ((is_alive && !AR_SREV_9300(sc->sc_ah)) || sc->tx99_state)
 		goto out;
 	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
 		ath_dbg(common, RESET,
@@ -141,6 +148,9 @@ void ath_hw_pll_work(struct work_struct *work)
 	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
 		return;
 
+	if (sc->tx99_state)
+		return;
+
 	ath9k_ps_wakeup(sc);
 	pll_sqsum = ar9003_get_pll_sqsum_dvc(sc->sc_ah);
 	ath9k_ps_restore(sc);
@@ -184,7 +194,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!caldata || !caldata->paprd_done) {
+	if (!caldata || !test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Failed to activate PAPRD\n");
 		return;
 	}
@@ -256,7 +266,9 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int len = 1800;
 	int ret;
 
-	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done) {
+	if (!caldata ||
+	    !test_bit(PAPRD_PACKET_SENT, &caldata->cal_flags) ||
+	    test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Skipping PAPRD calibration\n");
 		return;
 	}
@@ -316,7 +328,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	kfree_skb(skb);
 
 	if (chain_ok) {
-		caldata->paprd_done = true;
+		set_bit(PAPRD_DONE, &caldata->cal_flags);
 		ath_paprd_activate(sc);
 	}
 
@@ -343,7 +355,7 @@ void ath_ani_calibrate(unsigned long data)
 	u32 cal_interval, short_cal_interval, long_cal_interval;
 	unsigned long flags;
 
-	if (ah->caldata && ah->caldata->nfcal_interference)
+	if (ah->caldata && test_bit(NFCAL_INTF, &ah->caldata->cal_flags))
 		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
 	else
 		long_cal_interval = ATH_LONG_CALINTERVAL;
@@ -432,7 +444,7 @@ set_timer:
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 
 	if (ar9003_is_paprd_enabled(ah) && ah->caldata) {
-		if (!ah->caldata->paprd_done) {
+		if (!test_bit(PAPRD_DONE, &ah->caldata->cal_flags)) {
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		} else if (!ah->paprd_table_write_done) {
 			ath9k_ps_wakeup(sc);
@@ -516,7 +528,8 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel)
 
 	if (chan->noisefloor) {
 		survey->filled |= SURVEY_INFO_NOISE_DBM;
-		survey->noise = ath9k_hw_getchan_noise(ah, chan);
+		survey->noise = ath9k_hw_getchan_noise(ah, chan,
+						       chan->noisefloor);
 	}
 }
 

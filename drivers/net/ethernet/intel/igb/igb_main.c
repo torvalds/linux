@@ -182,6 +182,7 @@ static void igb_check_vf_rate_limit(struct igb_adapter *);
 
 #ifdef CONFIG_PCI_IOV
 static int igb_vf_configure(struct igb_adapter *adapter, int vf);
+static int igb_pci_enable_sriov(struct pci_dev *dev, int num_vfs);
 #endif
 
 #ifdef CONFIG_PM
@@ -1223,6 +1224,9 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = txr_idx;
 
+		u64_stats_init(&ring->tx_syncp);
+		u64_stats_init(&ring->tx_syncp2);
+
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
 
@@ -1255,6 +1259,8 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = rxr_idx;
+
+		u64_stats_init(&ring->rx_syncp);
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;
@@ -2034,21 +2040,15 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	pci_using_dac = 0;
-	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (!err)
-			pci_using_dac = 1;
+		pci_using_dac = 1;
 	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = dma_set_coherent_mask(&pdev->dev,
-						    DMA_BIT_MASK(32));
-			if (err) {
-				dev_err(&pdev->dev,
-					"No usable DMA configuration, aborting\n");
-				goto err_dma;
-			}
+			dev_err(&pdev->dev,
+				"No usable DMA configuration, aborting\n");
+			goto err_dma;
 		}
 	}
 
@@ -2429,7 +2429,7 @@ err_dma:
 }
 
 #ifdef CONFIG_PCI_IOV
-static int  igb_disable_sriov(struct pci_dev *pdev)
+static int igb_disable_sriov(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2470,27 +2470,19 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	int err = 0;
 	int i;
 
-	if (!adapter->msix_entries) {
+	if (!adapter->msix_entries || num_vfs > 7) {
 		err = -EPERM;
 		goto out;
 	}
-
 	if (!num_vfs)
 		goto out;
-	else if (old_vfs && old_vfs == num_vfs)
-		goto out;
-	else if (old_vfs && old_vfs != num_vfs)
-		err = igb_disable_sriov(pdev);
 
-	if (err)
-		goto out;
-
-	if (num_vfs > 7) {
-		err = -EPERM;
-		goto out;
-	}
-
-	adapter->vfs_allocated_count = num_vfs;
+	if (old_vfs) {
+		dev_info(&pdev->dev, "%d pre-allocated VFs found - override max_vfs setting of %d\n",
+			 old_vfs, max_vfs);
+		adapter->vfs_allocated_count = old_vfs;
+	} else
+		adapter->vfs_allocated_count = num_vfs;
 
 	adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
 				sizeof(struct vf_data_storage), GFP_KERNEL);
@@ -2504,10 +2496,12 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 		goto out;
 	}
 
-	err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
-	if (err)
-		goto err_out;
-
+	/* only call pci_enable_sriov() if no VFs are allocated already */
+	if (!old_vfs) {
+		err = pci_enable_sriov(pdev, adapter->vfs_allocated_count);
+		if (err)
+			goto err_out;
+	}
 	dev_info(&pdev->dev, "%d VFs allocated\n",
 		 adapter->vfs_allocated_count);
 	for (i = 0; i < adapter->vfs_allocated_count; i++)
@@ -2623,7 +2617,7 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 		return;
 
 	pci_sriov_set_totalvfs(pdev, 7);
-	igb_enable_sriov(pdev, max_vfs);
+	igb_pci_enable_sriov(pdev, max_vfs);
 
 #endif /* CONFIG_PCI_IOV */
 }
@@ -5708,7 +5702,7 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 
 	/* reply to reset with ack and vf mac address */
 	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
-	memcpy(addr, vf_mac, 6);
+	memcpy(addr, vf_mac, ETH_ALEN);
 	igb_write_mbx(hw, msgbuf, 3, vf);
 }
 
@@ -7837,5 +7831,27 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset,
 	else
 		return E1000_SUCCESS;
 
+}
+
+int igb_reinit_queues(struct igb_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+	int err = 0;
+
+	if (netif_running(netdev))
+		igb_close(netdev);
+
+	igb_clear_interrupt_scheme(adapter);
+
+	if (igb_init_interrupt_scheme(adapter, true)) {
+		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		return -ENOMEM;
+	}
+
+	if (netif_running(netdev))
+		err = igb_open(netdev);
+
+	return err;
 }
 /* igb_main.c */

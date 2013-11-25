@@ -117,6 +117,7 @@ struct vnt_rts_g {
 	u16 wDuration_bb;
 	u16 wReserved;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_g data_head;
 } __packed;
 
 struct vnt_rts_g_fb {
@@ -131,6 +132,7 @@ struct vnt_rts_g_fb {
 	u16 wRTSDuration_ba_f1;
 	u16 wRTSDuration_aa_f1;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_g_fb data_head;
 } __packed;
 
 struct vnt_rts_ab {
@@ -138,6 +140,7 @@ struct vnt_rts_ab {
 	u16 wDuration;
 	u16 wReserved;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_ab data_head;
 } __packed;
 
 struct vnt_rts_a_fb {
@@ -147,6 +150,7 @@ struct vnt_rts_a_fb {
 	u16 wRTSDuration_f0;
 	u16 wRTSDuration_f1;
 	struct ieee80211_rts data;
+	struct vnt_tx_datahead_a_fb data_head;
 } __packed;
 
 /* CTS buffer header */
@@ -156,6 +160,7 @@ struct vnt_cts {
 	u16 wReserved;
 	struct ieee80211_cts data;
 	u16 reserved2;
+	struct vnt_tx_datahead_g data_head;
 } __packed;
 
 struct vnt_cts_fb {
@@ -166,6 +171,7 @@ struct vnt_cts_fb {
 	u16 wCTSDuration_ba_f1;
 	struct ieee80211_cts data;
 	u16 reserved2;
+	struct vnt_tx_datahead_g_fb data_head;
 } __packed;
 
 union vnt_tx_data_head {
@@ -178,17 +184,50 @@ union vnt_tx_data_head {
 	/* cts g */
 	struct vnt_cts cts_g;
 	struct vnt_cts_fb cts_g_fb;
+	/* no rts/cts */
+	struct vnt_tx_datahead_a_fb data_head_a_fb;
+	struct vnt_tx_datahead_ab data_head_ab;
 };
 
-struct vnt_tx_buffer {
-	u8 byType;
-	u8 byPKTNO;
-	u16 wTxByteCount;
+struct vnt_tx_mic_hdr {
+	struct vnt_mic_hdr hdr;
+	union vnt_tx_data_head head;
+} __packed;
+
+union vnt_tx {
+	struct vnt_tx_mic_hdr mic;
+	union vnt_tx_data_head head;
+};
+
+union vnt_tx_head {
+	struct {
+		struct vnt_rrv_time_rts rts;
+		union vnt_tx tx;
+	} __packed tx_rts;
+	struct {
+		struct vnt_rrv_time_cts cts;
+		union vnt_tx tx;
+	} __packed tx_cts;
+	struct {
+		struct vnt_rrv_time_ab ab;
+		union vnt_tx tx;
+	} __packed tx_ab;
+};
+
+struct vnt_tx_fifo_head {
 	u32 adwTxKey[4];
 	u16 wFIFOCtl;
 	u16 wTimeStamp;
 	u16 wFragCtl;
 	u16 wReserved;
+} __packed;
+
+struct vnt_tx_buffer {
+	u8 byType;
+	u8 byPKTNO;
+	u16 wTxByteCount;
+	struct vnt_tx_fifo_head fifo_head;
+	union vnt_tx_head tx_head;
 } __packed;
 
 struct vnt_beacon_buffer {

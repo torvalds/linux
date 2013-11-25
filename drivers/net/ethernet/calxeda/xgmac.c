@@ -106,7 +106,6 @@
 #define XGMAC_DMA_HW_FEATURE	0x00000f58	/* Enabled Hardware Features */
 
 #define XGMAC_ADDR_AE		0x80000000
-#define XGMAC_MAX_FILTER_ADDR	31
 
 /* PMT Control and Status */
 #define XGMAC_PMT_POINTER_RESET	0x80000000
@@ -384,6 +383,7 @@ struct xgmac_priv {
 	struct device *device;
 	struct napi_struct napi;
 
+	int max_macs;
 	struct xgmac_extra_stats xstats;
 
 	spinlock_t stats_lock;
@@ -1060,12 +1060,12 @@ static int xgmac_stop(struct net_device *dev)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
 
-	netif_stop_queue(dev);
-
 	if (readl(priv->base + XGMAC_DMA_INTR_ENA))
 		napi_disable(&priv->napi);
 
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
+
+	netif_tx_disable(dev);
 
 	/* Disable the MAC core */
 	xgmac_mac_disable(priv->base);
@@ -1291,14 +1291,12 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	netdev_dbg(priv->dev, "# mcasts %d, # unicast %d\n",
 		 netdev_mc_count(dev), netdev_uc_count(dev));
 
-	if (dev->flags & IFF_PROMISC) {
-		writel(XGMAC_FRAME_FILTER_PR, ioaddr + XGMAC_FRAME_FILTER);
-		return;
-	}
+	if (dev->flags & IFF_PROMISC)
+		value |= XGMAC_FRAME_FILTER_PR;
 
 	memset(hash_filter, 0, sizeof(hash_filter));
 
-	if (netdev_uc_count(dev) > XGMAC_MAX_FILTER_ADDR) {
+	if (netdev_uc_count(dev) > priv->max_macs) {
 		use_hash = true;
 		value |= XGMAC_FRAME_FILTER_HUC | XGMAC_FRAME_FILTER_HPF;
 	}
@@ -1321,7 +1319,7 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 		goto out;
 	}
 
-	if ((netdev_mc_count(dev) + reg - 1) > XGMAC_MAX_FILTER_ADDR) {
+	if ((netdev_mc_count(dev) + reg - 1) > priv->max_macs) {
 		use_hash = true;
 		value |= XGMAC_FRAME_FILTER_HMC | XGMAC_FRAME_FILTER_HPF;
 	} else {
@@ -1342,8 +1340,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	}
 
 out:
-	for (i = reg; i < XGMAC_MAX_FILTER_ADDR; i++)
-		xgmac_set_mac_addr(ioaddr, NULL, reg);
+	for (i = reg; i <= priv->max_macs; i++)
+		xgmac_set_mac_addr(ioaddr, NULL, i);
 	for (i = 0; i < XGMAC_NUM_HASH; i++)
 		writel(hash_filter[i], ioaddr + XGMAC_HASH(i));
 
@@ -1372,11 +1370,8 @@ static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 	old_mtu = dev->mtu;
-	dev->mtu = new_mtu;
 
 	/* return early if the buffer sizes will not change */
-	if (old_mtu <= ETH_DATA_LEN && new_mtu <= ETH_DATA_LEN)
-		return 0;
 	if (old_mtu == new_mtu)
 		return 0;
 
@@ -1384,8 +1379,9 @@ static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 	if (!netif_running(dev))
 		return 0;
 
-	/* Bring the interface down and then back up */
+	/* Bring interface down, change mtu and bring interface back up */
 	xgmac_stop(dev);
+	dev->mtu = new_mtu;
 	return xgmac_open(dev);
 }
 
@@ -1760,6 +1756,13 @@ static int xgmac_probe(struct platform_device *pdev)
 
 	uid = readl(priv->base + XGMAC_VERSION);
 	netdev_info(ndev, "h/w version is 0x%x\n", uid);
+
+	/* Figure out how many valid mac address filter registers we have */
+	writel(1, priv->base + XGMAC_ADDR_HIGH(31));
+	if (readl(priv->base + XGMAC_ADDR_HIGH(31)) == 1)
+		priv->max_macs = 31;
+	else
+		priv->max_macs = 7;
 
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
 	ndev->irq = platform_get_irq(pdev, 0);

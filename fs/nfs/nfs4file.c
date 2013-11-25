@@ -19,6 +19,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	struct inode *dir;
 	unsigned openflags = filp->f_flags;
 	struct iattr attr;
+	int opened = 0;
 	int err;
 
 	/*
@@ -30,9 +31,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	 * -EOPENSTALE.  The VFS will retry the lookup/create/open.
 	 */
 
-	dprintk("NFS: open file(%s/%s)\n",
-		dentry->d_parent->d_name.name,
-		dentry->d_name.name);
+	dprintk("NFS: open file(%pd2)\n", dentry);
 
 	if ((openflags & O_ACCMODE) == 3)
 		openflags--;
@@ -55,7 +54,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 		nfs_wb_all(inode);
 	}
 
-	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr);
+	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, &opened);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		switch (err) {
@@ -74,7 +73,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	nfs_file_set_open_context(filp, ctx);
-	nfs_fscache_set_inode_cookie(inode, filp);
+	nfs_fscache_open_file(inode, filp);
 	err = 0;
 
 out_put_ctx:

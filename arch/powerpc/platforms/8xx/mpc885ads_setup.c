@@ -25,6 +25,8 @@
 #include <linux/fs_uart_pd.h>
 #include <linux/fsl_devices.h>
 #include <linux/mii.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
 #include <asm/delay.h>

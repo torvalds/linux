@@ -42,6 +42,7 @@ struct usbnet {
 	struct usb_host_endpoint *status;
 	unsigned		maxpacket;
 	struct timer_list	delay;
+	const char		*padding_pkt;
 
 	/* protocol/interface state */
 	struct net_device	*net;

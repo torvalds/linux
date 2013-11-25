@@ -509,9 +509,8 @@ netif_rx:
 	}
 }
 
-void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
+void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
 {
-	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
@@ -519,29 +518,24 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 	u8 ifidx;
 	int ret;
 
-	brcmf_dbg(DATA, "Enter: %s: count=%u\n", dev_name(dev),
-		  skb_queue_len(skb_list));
+	brcmf_dbg(DATA, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
 
-	skb_queue_walk_safe(skb_list, skb, pnext) {
-		skb_unlink(skb, skb_list);
+	/* process and remove protocol-specific header */
+	ret = brcmf_proto_hdrpull(drvr, true, &ifidx, skb);
+	ifp = drvr->iflist[ifidx];
 
-		/* process and remove protocol-specific header */
-		ret = brcmf_proto_hdrpull(drvr, true, &ifidx, skb);
-		ifp = drvr->iflist[ifidx];
-
-		if (ret || !ifp || !ifp->ndev) {
-			if ((ret != -ENODATA) && ifp)
-				ifp->stats.rx_errors++;
-			brcmu_pkt_buf_free_skb(skb);
-			continue;
-		}
-
-		rd = (struct brcmf_skb_reorder_data *)skb->cb;
-		if (rd->reorder)
-			brcmf_rxreorder_process_info(ifp, rd->reorder, skb);
-		else
-			brcmf_netif_rx(ifp, skb);
+	if (ret || !ifp || !ifp->ndev) {
+		if ((ret != -ENODATA) && ifp)
+			ifp->stats.rx_errors++;
+		brcmu_pkt_buf_free_skb(skb);
+		return;
 	}
+
+	rd = (struct brcmf_skb_reorder_data *)skb->cb;
+	if (rd->reorder)
+		brcmf_rxreorder_process_info(ifp, rd->reorder, skb);
+	else
+		brcmf_netif_rx(ifp, skb);
 }
 
 void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
@@ -1231,21 +1225,23 @@ u32 brcmf_get_chip_info(struct brcmf_if *ifp)
 	return bus->chip << 4 | bus->chiprev;
 }
 
-static void brcmf_driver_init(struct work_struct *work)
+static void brcmf_driver_register(struct work_struct *work)
 {
-	brcmf_debugfs_init();
-
 #ifdef CONFIG_BRCMFMAC_SDIO
-	brcmf_sdio_init();
+	brcmf_sdio_register();
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
-	brcmf_usb_init();
+	brcmf_usb_register();
 #endif
 }
-static DECLARE_WORK(brcmf_driver_work, brcmf_driver_init);
+static DECLARE_WORK(brcmf_driver_work, brcmf_driver_register);
 
 static int __init brcmfmac_module_init(void)
 {
+	brcmf_debugfs_init();
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_init();
+#endif
 	if (!schedule_work(&brcmf_driver_work))
 		return -EBUSY;
 

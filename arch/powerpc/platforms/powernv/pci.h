@@ -17,7 +17,7 @@ enum pnv_phb_model {
 	PNV_PHB_MODEL_PHB3,
 };
 
-#define PNV_PCI_DIAG_BUF_SIZE	4096
+#define PNV_PCI_DIAG_BUF_SIZE	8192
 #define PNV_IODA_PE_DEV		(1 << 0)	/* PE has single PCI device	*/
 #define PNV_IODA_PE_BUS		(1 << 1)	/* PE has primary PCI bus	*/
 #define PNV_IODA_PE_BUS_ALL	(1 << 2)	/* PE has subordinate buses	*/
@@ -52,6 +52,7 @@ struct pnv_ioda_pe {
 	int			tce32_seg;
 	int			tce32_segcount;
 	struct iommu_table	tce32_table;
+	phys_addr_t		tce_inval_reg_phys;
 
 	/* XXX TODO: Add support for additional 64-bit iommus */
 
@@ -124,6 +125,7 @@ struct pnv_phb {
 		struct {
 			/* Global bridge info */
 			unsigned int		total_pe;
+			unsigned int		reserved_pe;
 			unsigned int		m32_size;
 			unsigned int		m32_segsize;
 			unsigned int		m32_pci_base;
@@ -193,6 +195,6 @@ extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
-					u64 *startp, u64 *endp);
+					__be64 *startp, __be64 *endp, bool rm);
 
 #endif /* __POWERNV_PCI_H */

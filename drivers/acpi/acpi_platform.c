@@ -29,6 +29,13 @@ ACPI_MODULE_NAME("platform");
 static const struct acpi_device_id acpi_platform_device_ids[] = {
 
 	{ "PNP0D40" },
+	{ "ACPI0003" },
+	{ "VPC2004" },
+	{ "BCM4752" },
+
+	/* Intel Smart Sound Technology */
+	{ "INT33C8" },
+	{ "80860F28" },
 
 	{ }
 };
@@ -104,7 +111,7 @@ int acpi_create_platform_device(struct acpi_device *adev,
 	pdevinfo.id = -1;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
-	pdevinfo.acpi_node.handle = adev->handle;
+	pdevinfo.acpi_node.companion = adev;
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev)) {
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",

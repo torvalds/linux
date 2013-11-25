@@ -398,8 +398,6 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
 
-	scratch_page = get_balloon_scratch_page();
-
 	for (i = 0; i < nr_pages; i++) {
 		page = alloc_page(gfp);
 		if (page == NULL) {
@@ -413,6 +411,12 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 
 		scrub_page(page);
 
+		/*
+		 * Ballooned out frames are effectively replaced with
+		 * a scratch frame.  Ensure direct mappings and the
+		 * p2m are consistent.
+		 */
+		scratch_page = get_balloon_scratch_page();
 #ifdef CONFIG_XEN_HAVE_PVMMU
 		if (xen_pv_domain() && !PageHighMem(page)) {
 			ret = HYPERVISOR_update_va_mapping(
@@ -422,24 +426,19 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 			BUG_ON(ret);
 		}
 #endif
-	}
-
-	/* Ensure that ballooned highmem pages don't have kmaps. */
-	kmap_flush_unused();
-	flush_tlb_all();
-
-	/* No more mappings: invalidate P2M and add to balloon. */
-	for (i = 0; i < nr_pages; i++) {
-		pfn = mfn_to_pfn(frame_list[i]);
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			unsigned long p;
 			p = page_to_pfn(scratch_page);
 			__set_phys_to_machine(pfn, pfn_to_mfn(p));
 		}
+		put_balloon_scratch_page();
+
 		balloon_append(pfn_to_page(pfn));
 	}
 
-	put_balloon_scratch_page();
+	/* Ensure that ballooned highmem pages don't have kmaps. */
+	kmap_flush_unused();
+	flush_tlb_all();
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
 	reservation.nr_extents   = nr_pages;
@@ -597,7 +596,7 @@ static void __init balloon_add_region(unsigned long start_pfn,
 	}
 }
 
-static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
+static int balloon_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
@@ -617,7 +616,7 @@ static int __cpuinit balloon_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block balloon_cpu_notifier __cpuinitdata = {
+static struct notifier_block balloon_cpu_notifier = {
 	.notifier_call	= balloon_cpu_notify,
 };
 
@@ -642,7 +641,7 @@ static int __init balloon_init(void)
 
 	balloon_stats.current_pages = xen_pv_domain()
 		? min(xen_start_info->nr_pages - xen_released_pages, max_pfn)
-		: max_pfn;
+		: get_num_physpages();
 	balloon_stats.target_pages  = balloon_stats.current_pages;
 	balloon_stats.balloon_low   = 0;
 	balloon_stats.balloon_high  = 0;

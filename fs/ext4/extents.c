@@ -1666,7 +1666,7 @@ int
 ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 				struct ext4_extent *ex2)
 {
-	unsigned short ext1_ee_len, ext2_ee_len, max_len;
+	unsigned short ext1_ee_len, ext2_ee_len;
 
 	/*
 	 * Make sure that both extents are initialized. We don't merge
@@ -1676,11 +1676,6 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 */
 	if (ext4_ext_is_uninitialized(ex1) || ext4_ext_is_uninitialized(ex2))
 		return 0;
-
-	if (ext4_ext_is_uninitialized(ex1))
-		max_len = EXT_UNINIT_MAX_LEN;
-	else
-		max_len = EXT_INIT_MAX_LEN;
 
 	ext1_ee_len = ext4_ext_get_actual_len(ex1);
 	ext2_ee_len = ext4_ext_get_actual_len(ex2);
@@ -1694,7 +1689,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 * as an RO_COMPAT feature, refuse to merge to extents if
 	 * this can result in the top bit of ee_len being set.
 	 */
-	if (ext1_ee_len + ext2_ee_len > max_len)
+	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
 		return 0;
 #ifdef AGGRESSIVE_TEST
 	if (ext1_ee_len >= 4)
@@ -1720,7 +1715,6 @@ static int ext4_ext_try_to_merge_right(struct inode *inode,
 	struct ext4_extent_header *eh;
 	unsigned int depth, len;
 	int merge_done = 0;
-	int uninitialized = 0;
 
 	depth = ext_depth(inode);
 	BUG_ON(path[depth].p_hdr == NULL);
@@ -1730,12 +1724,8 @@ static int ext4_ext_try_to_merge_right(struct inode *inode,
 		if (!ext4_can_extents_be_merged(inode, ex, ex + 1))
 			break;
 		/* merge with next extent! */
-		if (ext4_ext_is_uninitialized(ex))
-			uninitialized = 1;
 		ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 				+ ext4_ext_get_actual_len(ex + 1));
-		if (uninitialized)
-			ext4_ext_mark_uninitialized(ex);
 
 		if (ex + 1 < EXT_LAST_EXTENT(eh)) {
 			len = (EXT_LAST_EXTENT(eh) - ex - 1)
@@ -1890,7 +1880,6 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *npath = NULL;
 	int depth, len, err;
 	ext4_lblk_t next;
-	unsigned uninitialized = 0;
 	int mb_flags = 0;
 
 	if (unlikely(ext4_ext_get_actual_len(newext) == 0)) {
@@ -1942,18 +1931,8 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 			if (err)
 				return err;
 
-			/*
-			 * ext4_can_extents_be_merged should have checked
-			 * that either both extents are uninitialized, or
-			 * both aren't. Thus we need to check only one of
-			 * them here.
-			 */
-			if (ext4_ext_is_uninitialized(ex))
-				uninitialized = 1;
 			ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 					+ ext4_ext_get_actual_len(newext));
-			if (uninitialized)
-				ext4_ext_mark_uninitialized(ex);
 			eh = path[depth].p_hdr;
 			nearex = ex;
 			goto merge;
@@ -1976,20 +1955,10 @@ prepend:
 			if (err)
 				return err;
 
-			/*
-			 * ext4_can_extents_be_merged should have checked
-			 * that either both extents are uninitialized, or
-			 * both aren't. Thus we need to check only one of
-			 * them here.
-			 */
-			if (ext4_ext_is_uninitialized(ex))
-				uninitialized = 1;
 			ex->ee_block = newext->ee_block;
 			ext4_ext_store_pblock(ex, ext4_ext_pblock(newext));
 			ex->ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex)
 					+ ext4_ext_get_actual_len(newext));
-			if (uninitialized)
-				ext4_ext_mark_uninitialized(ex);
 			eh = path[depth].p_hdr;
 			nearex = ex;
 			goto merge;

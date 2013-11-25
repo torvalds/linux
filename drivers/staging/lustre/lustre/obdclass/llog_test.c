@@ -242,7 +242,7 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 
 		hdr.lrh_len = 8;
 		hdr.lrh_type = OBD_CFG_REC;
-		memset(buf, 0, sizeof buf);
+		memset(buf, 0, sizeof(buf));
 		rc = llog_write(env, llh, &hdr, NULL, 0, buf, -1);
 		if (rc < 0) {
 			CERROR("3b: write 10 records failed at #%d: %d\n",
@@ -277,8 +277,8 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 		char			buf_even[24];
 		char			buf_odd[32];
 
-		memset(buf_odd, 0, sizeof buf_odd);
-		memset(buf_even, 0, sizeof buf_even);
+		memset(buf_odd, 0, sizeof(buf_odd));
+		memset(buf_even, 0, sizeof(buf_even));
 		if ((i % 2) == 0) {
 			hdr.lrh_len = 24;
 			hdr.lrh_type = OBD_CFG_REC;

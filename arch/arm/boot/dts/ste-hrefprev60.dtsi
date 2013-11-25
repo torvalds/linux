@@ -1,0 +1,59 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * Device Tree for the HREF+ prior to the v60 variant.
+ */
+
+#include "ste-dbx5x0.dtsi"
+#include "ste-href.dtsi"
+
+/ {
+	gpio_keys {
+		button@1 {
+			gpios = <&tc3589x_gpio 7 0x4>;
+		};
+	};
+
+	soc {
+		i2c@80004000 {
+			tps61052@33 {
+				compatible = "tps61052";
+				reg = <0x33>;
+			};
+
+			tc3589x@42 {
+				compatible = "tc3589x";
+				reg = <0x42>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				tc3589x_gpio: tc3589x_gpio {
+					compatible = "tc3589x-gpio";
+					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+			};
+		};
+
+		vmmci: regulator-gpio {
+			gpios = <&tc3589x_gpio 18 0x4>;
+			enable-gpio = <&tc3589x_gpio 17 0x4>;
+
+			status = "okay";
+		};
+	};
+};

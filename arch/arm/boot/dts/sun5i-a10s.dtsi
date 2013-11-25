@@ -255,6 +255,11 @@
 			reg = <0x01c20c90 0x10>;
 		};
 
+		sid: eeprom@01c23800 {
+			compatible = "allwinner,sun4i-sid";
+			reg = <0x01c23800 0x10>;
+		};
+
 		uart0: serial@01c28000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c28000 0x400>;

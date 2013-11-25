@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <sound/pcm.h>
@@ -270,7 +271,7 @@ MODULE_DEVICE_TABLE(of, pcm1681_dt_ids);
 static const struct regmap_config pcm1681_regmap = {
 	.reg_bits		= 8,
 	.val_bits		= 8,
-	.max_register		= ARRAY_SIZE(pcm1681_reg_defaults) + 1,
+	.max_register		= 0x13,
 	.reg_defaults		= pcm1681_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(pcm1681_reg_defaults),
 	.writeable_reg		= pcm1681_writeable_reg,

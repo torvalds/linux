@@ -24,6 +24,7 @@
 #include <linux/i2c-mux-pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 struct i2c_mux_pinctrl {
 	struct device *dev;
@@ -113,7 +114,7 @@ static int i2c_mux_pinctrl_parse_dt(struct i2c_mux_pinctrl *mux,
 	adapter = of_find_i2c_adapter_by_node(adapter_np);
 	if (!adapter) {
 		dev_err(mux->dev, "Cannot find parent bus\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 	mux->pdata->parent_bus_num = i2c_adapter_id(adapter);
 	put_device(&adapter->dev);
@@ -211,7 +212,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	if (!mux->parent) {
 		dev_err(&pdev->dev, "Parent adapter (%d) not found\n",
 			mux->pdata->parent_bus_num);
-		ret = -ENODEV;
+		ret = -EPROBE_DEFER;
 		goto err;
 	}
 

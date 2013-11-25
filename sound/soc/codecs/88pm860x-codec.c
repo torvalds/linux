@@ -16,6 +16,7 @@
 #include <linux/mfd/88pm860x.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -140,6 +141,7 @@ struct pm860x_priv {
 	unsigned int		filter;
 	struct snd_soc_codec	*codec;
 	struct i2c_client	*i2c;
+	struct regmap		*regmap;
 	struct pm860x_chip	*chip;
 	struct pm860x_det	det;
 
@@ -269,48 +271,6 @@ static struct st_gain st_table[] = {
 	{   -86, 29,  0}, {   -56, 30,  0}, {   -28, 31,  0}, {     0,  0,  0},
 };
 
-static int pm860x_volatile(unsigned int reg)
-{
-	BUG_ON(reg >= REG_CACHE_SIZE);
-
-	switch (reg) {
-	case PM860X_AUDIO_SUPPLIES_2:
-		return 1;
-	}
-
-	return 0;
-}
-
-static unsigned int pm860x_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
-{
-	unsigned char *cache = codec->reg_cache;
-
-	BUG_ON(reg >= REG_CACHE_SIZE);
-
-	if (pm860x_volatile(reg))
-		return cache[reg];
-
-	reg += REG_CACHE_BASE;
-
-	return pm860x_reg_read(codec->control_data, reg);
-}
-
-static int pm860x_write_reg_cache(struct snd_soc_codec *codec,
-				  unsigned int reg, unsigned int value)
-{
-	unsigned char *cache = codec->reg_cache;
-
-	BUG_ON(reg >= REG_CACHE_SIZE);
-
-	if (!pm860x_volatile(reg))
-		cache[reg] = (unsigned char)value;
-
-	reg += REG_CACHE_BASE;
-
-	return pm860x_reg_write(codec->control_data, reg, value);
-}
-
 static int snd_soc_get_volsw_2r_st(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -348,6 +308,9 @@ static int snd_soc_put_volsw_2r_st(struct snd_kcontrol *kcontrol,
 
 	val = ucontrol->value.integer.value[0];
 	val2 = ucontrol->value.integer.value[1];
+
+	if (val >= ARRAY_SIZE(st_table) || val2 >= ARRAY_SIZE(st_table))
+		return -EINVAL;
 
 	err = snd_soc_update_bits(codec, reg, 0x3f, st_table[val].m);
 	if (err < 0)
@@ -1166,6 +1129,7 @@ static int pm860x_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct pm860x_priv *pm860x = snd_soc_codec_get_drvdata(codec);
 	int data;
 
 	switch (level) {
@@ -1179,17 +1143,17 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable Audio PLL & Audio section */
 			data = AUDIO_PLL | AUDIO_SECTION_ON;
-			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			pm860x_reg_write(pm860x->i2c, REG_MISC2, data);
 			udelay(300);
 			data = AUDIO_PLL | AUDIO_SECTION_RESET
 				| AUDIO_SECTION_ON;
-			pm860x_reg_write(codec->control_data, REG_MISC2, data);
+			pm860x_reg_write(pm860x->i2c, REG_MISC2, data);
 		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
 		data = AUDIO_PLL | AUDIO_SECTION_RESET | AUDIO_SECTION_ON;
-		pm860x_set_bits(codec->control_data, REG_MISC2, data, 0);
+		pm860x_set_bits(pm860x->i2c, REG_MISC2, data, 0);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1319,17 +1283,17 @@ int pm860x_hs_jack_detect(struct snd_soc_codec *codec,
 	pm860x->det.lo_shrt = lo_shrt;
 
 	if (det & SND_JACK_HEADPHONE)
-		pm860x_set_bits(codec->control_data, REG_HS_DET,
+		pm860x_set_bits(pm860x->i2c, REG_HS_DET,
 				EN_HS_DET, EN_HS_DET);
 	/* headset short detect */
 	if (hs_shrt) {
 		data = CLR_SHORT_HS2 | CLR_SHORT_HS1;
-		pm860x_set_bits(codec->control_data, REG_SHORTS, data, data);
+		pm860x_set_bits(pm860x->i2c, REG_SHORTS, data, data);
 	}
 	/* Lineout short detect */
 	if (lo_shrt) {
 		data = CLR_SHORT_LO2 | CLR_SHORT_LO1;
-		pm860x_set_bits(codec->control_data, REG_SHORTS, data, data);
+		pm860x_set_bits(pm860x->i2c, REG_SHORTS, data, data);
 	}
 
 	/* sync status */
@@ -1347,7 +1311,7 @@ int pm860x_mic_jack_detect(struct snd_soc_codec *codec,
 	pm860x->det.mic_det = det;
 
 	if (det & SND_JACK_MICROPHONE)
-		pm860x_set_bits(codec->control_data, REG_MIC_DET,
+		pm860x_set_bits(pm860x->i2c, REG_MIC_DET,
 				MICDET_MASK, MICDET_MASK);
 
 	/* sync status */
@@ -1363,7 +1327,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 
 	pm860x->codec = codec;
 
-	codec->control_data = pm860x->i2c;
+	codec->control_data = pm860x->regmap;
 
 	for (i = 0; i < 4; i++) {
 		ret = request_threaded_irq(pm860x->irq[i], NULL,
@@ -1376,14 +1340,6 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 	}
 
 	pm860x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	ret = pm860x_bulk_read(codec->control_data, REG_CACHE_BASE,
-			       REG_CACHE_SIZE, codec->reg_cache);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to fill register cache: %d\n",
-			ret);
-		goto out;
-	}
 
 	return 0;
 
@@ -1407,10 +1363,6 @@ static int pm860x_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
-	.read		= pm860x_read_reg_cache,
-	.write		= pm860x_write_reg_cache,
-	.reg_cache_size	= REG_CACHE_SIZE,
-	.reg_word_size	= sizeof(u8),
 	.set_bias_level	= pm860x_set_bias_level,
 
 	.controls = pm860x_snd_controls,
@@ -1436,6 +1388,8 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 	pm860x->chip = chip;
 	pm860x->i2c = (chip->id == CHIP_PM8607) ? chip->client
 			: chip->companion;
+	pm860x->regmap = (chip->id == CHIP_PM8607) ? chip->regmap
+			: chip->regmap_companion;
 	platform_set_drvdata(pdev, pm860x);
 
 	for (i = 0; i < 4; i++) {

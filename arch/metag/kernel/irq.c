@@ -159,44 +159,30 @@ void irq_ctx_exit(int cpu)
 
 extern asmlinkage void __do_softirq(void);
 
-asmlinkage void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	unsigned long flags;
 	struct thread_info *curctx;
 	union irq_ctx *irqctx;
 	u32 *isp;
 
-	if (in_interrupt())
-		return;
+	curctx = current_thread_info();
+	irqctx = softirq_ctx[smp_processor_id()];
+	irqctx->tinfo.task = curctx->task;
 
-	local_irq_save(flags);
+	/* build the stack frame on the softirq stack */
+	isp = (u32 *) ((char *)irqctx + sizeof(struct thread_info));
 
-	if (local_softirq_pending()) {
-		curctx = current_thread_info();
-		irqctx = softirq_ctx[smp_processor_id()];
-		irqctx->tinfo.task = curctx->task;
-
-		/* build the stack frame on the softirq stack */
-		isp = (u32 *) ((char *)irqctx + sizeof(struct thread_info));
-
-		asm volatile (
-			"MOV   D0.5,%0\n"
-			"SWAP  A0StP,D0.5\n"
-			"CALLR D1RtP,___do_softirq\n"
-			"MOV   A0StP,D0.5\n"
-			:
-			: "r" (isp)
-			: "memory", "cc", "D1Ar1", "D0Ar2", "D1Ar3", "D0Ar4",
-			  "D1Ar5", "D0Ar6", "D0Re0", "D1Re0", "D0.4", "D1RtP",
-			  "D0.5"
-			);
-		/*
-		 * Shouldn't happen, we returned above if in_interrupt():
-		 */
-		WARN_ON_ONCE(softirq_count());
-	}
-
-	local_irq_restore(flags);
+	asm volatile (
+		"MOV   D0.5,%0\n"
+		"SWAP  A0StP,D0.5\n"
+		"CALLR D1RtP,___do_softirq\n"
+		"MOV   A0StP,D0.5\n"
+		:
+		: "r" (isp)
+		: "memory", "cc", "D1Ar1", "D0Ar2", "D1Ar3", "D0Ar4",
+		  "D1Ar5", "D0Ar6", "D0Re0", "D1Re0", "D0.4", "D1RtP",
+		  "D0.5"
+		);
 }
 #endif
 

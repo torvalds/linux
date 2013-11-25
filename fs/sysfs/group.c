@@ -26,7 +26,7 @@ static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 
 	if (grp->attrs)
 		for (attr = grp->attrs; *attr; attr++)
-			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
+			sysfs_hash_and_remove(dir_sd, (*attr)->name, NULL);
 	if (grp->bin_attrs)
 		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++)
 			sysfs_remove_bin_file(kobj, *bin_attr);
@@ -49,16 +49,17 @@ static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			 * re-adding (if required) the file.
 			 */
 			if (update)
-				sysfs_hash_and_remove(dir_sd, NULL,
-						      (*attr)->name);
+				sysfs_hash_and_remove(dir_sd, (*attr)->name,
+						      NULL);
 			if (grp->is_visible) {
 				mode = grp->is_visible(kobj, *attr, i);
 				if (!mode)
 					continue;
 			}
-			error = sysfs_add_file_mode(dir_sd, *attr,
-						    SYSFS_KOBJ_ATTR,
-						    (*attr)->mode | mode);
+			error = sysfs_add_file_mode_ns(dir_sd, *attr,
+						       SYSFS_KOBJ_ATTR,
+						       (*attr)->mode | mode,
+						       NULL);
 			if (unlikely(error))
 				break;
 		}
@@ -110,7 +111,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 	error = create_files(sd, kobj, grp, update);
 	if (error) {
 		if (grp->name)
-			sysfs_remove_subdir(sd);
+			sysfs_remove(sd);
 	}
 	sysfs_put(sd);
 	return error;
@@ -206,7 +207,7 @@ void sysfs_remove_group(struct kobject *kobj,
 	struct sysfs_dirent *sd;
 
 	if (grp->name) {
-		sd = sysfs_get_dirent(dir_sd, NULL, grp->name);
+		sd = sysfs_get_dirent(dir_sd, grp->name);
 		if (!sd) {
 			WARN(!sd, KERN_WARNING
 			     "sysfs group %p not found for kobject '%s'\n",
@@ -218,7 +219,7 @@ void sysfs_remove_group(struct kobject *kobj,
 
 	remove_files(sd, kobj, grp);
 	if (grp->name)
-		sysfs_remove_subdir(sd);
+		sysfs_remove(sd);
 
 	sysfs_put(sd);
 }
@@ -261,7 +262,7 @@ int sysfs_merge_group(struct kobject *kobj,
 	struct attribute *const *attr;
 	int i;
 
-	dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
+	dir_sd = sysfs_get_dirent(kobj->sd, grp->name);
 	if (!dir_sd)
 		return -ENOENT;
 
@@ -269,7 +270,7 @@ int sysfs_merge_group(struct kobject *kobj,
 		error = sysfs_add_file(dir_sd, *attr, SYSFS_KOBJ_ATTR);
 	if (error) {
 		while (--i >= 0)
-			sysfs_hash_and_remove(dir_sd, NULL, (*--attr)->name);
+			sysfs_hash_and_remove(dir_sd, (*--attr)->name, NULL);
 	}
 	sysfs_put(dir_sd);
 
@@ -288,10 +289,10 @@ void sysfs_unmerge_group(struct kobject *kobj,
 	struct sysfs_dirent *dir_sd;
 	struct attribute *const *attr;
 
-	dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
+	dir_sd = sysfs_get_dirent(kobj->sd, grp->name);
 	if (dir_sd) {
 		for (attr = grp->attrs; *attr; ++attr)
-			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
+			sysfs_hash_and_remove(dir_sd, (*attr)->name, NULL);
 		sysfs_put(dir_sd);
 	}
 }
@@ -310,7 +311,7 @@ int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
 	struct sysfs_dirent *dir_sd;
 	int error = 0;
 
-	dir_sd = sysfs_get_dirent(kobj->sd, NULL, group_name);
+	dir_sd = sysfs_get_dirent(kobj->sd, group_name);
 	if (!dir_sd)
 		return -ENOENT;
 
@@ -332,9 +333,9 @@ void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 {
 	struct sysfs_dirent *dir_sd;
 
-	dir_sd = sysfs_get_dirent(kobj->sd, NULL, group_name);
+	dir_sd = sysfs_get_dirent(kobj->sd, group_name);
 	if (dir_sd) {
-		sysfs_hash_and_remove(dir_sd, NULL, link_name);
+		sysfs_hash_and_remove(dir_sd, link_name, NULL);
 		sysfs_put(dir_sd);
 	}
 }

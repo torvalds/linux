@@ -1025,7 +1025,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 		for(i = count;  i < (num_got + count); i++) {
 			bhs[i] = sb_getblk(osb->sb, first_blkno);
 			if (bhs[i] == NULL) {
-				status = -EIO;
+				status = -ENOMEM;
 				mlog_errno(status);
 				goto bail;
 			}

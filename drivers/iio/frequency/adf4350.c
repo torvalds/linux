@@ -351,6 +351,7 @@ static ssize_t adf4350_read(struct iio_dev *indio_dev,
 	.read = adf4350_read, \
 	.write = adf4350_write, \
 	.private = _ident, \
+	.shared = IIO_SEPARATE, \
 }
 
 static const struct iio_chan_spec_ext_info adf4350_ext_info[] = {
@@ -525,8 +526,10 @@ static int adf4350_probe(struct spi_device *spi)
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
-		return -ENOMEM;
+	if (indio_dev == NULL) {
+		ret =  -ENOMEM;
+		goto error_disable_clk;
+	}
 
 	st = iio_priv(indio_dev);
 

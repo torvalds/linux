@@ -3,7 +3,6 @@ config ARCH_TEGRA
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
-	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select COMMON_CLK
@@ -11,7 +10,6 @@ config ARCH_TEGRA
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select MIGHT_HAVE_PCI
@@ -53,12 +51,20 @@ config ARCH_TEGRA_3x_SOC
 
 config ARCH_TEGRA_114_SOC
 	bool "Enable support for Tegra114 family"
-	select HAVE_ARM_ARCH_TIMER
-	select ARM_ERRATA_798181
+	select ARM_ERRATA_798181 if SMP
 	select ARM_L1_CACHE_SHIFT_6
+	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL_TEGRA114
 	help
 	  Support for NVIDIA Tegra T114 processor family, based on the
+	  ARM CortexA15MP CPU
+
+config ARCH_TEGRA_124_SOC
+	bool "Enable support for Tegra124 family"
+	select ARM_L1_CACHE_SHIFT_6
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  Support for NVIDIA Tegra T124 processor family, based on the
 	  ARM CortexA15MP CPU
 
 config TEGRA_AHB

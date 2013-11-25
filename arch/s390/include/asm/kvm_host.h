@@ -38,13 +38,6 @@ struct sca_block {
 	struct sca_entry cpu[64];
 } __attribute__((packed));
 
-#define KVM_NR_PAGE_SIZES 2
-#define KVM_HPAGE_GFN_SHIFT(x) (((x) - 1) * 8)
-#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + KVM_HPAGE_GFN_SHIFT(x))
-#define KVM_HPAGE_SIZE(x) (1UL << KVM_HPAGE_SHIFT(x))
-#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
-#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
-
 #define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
 #define CPUSTAT_ECALL_PEND 0x08000000
@@ -220,7 +213,6 @@ struct kvm_s390_interrupt_info {
 /* for local_interrupt.action_flags */
 #define ACTION_STORE_ON_STOP		(1<<0)
 #define ACTION_STOP_ON_STOP		(1<<1)
-#define ACTION_RELOADVCPU_ON_STOP	(1<<2)
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;

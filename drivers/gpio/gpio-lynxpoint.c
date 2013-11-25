@@ -242,26 +242,28 @@ static int lp_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(lg->domain, offset);
 }
 
-static void lp_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
+static void lp_gpio_irq_handler(unsigned hwirq, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct lp_gpio *lg = irq_data_get_irq_handler_data(data);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	u32 base, pin, mask;
-	unsigned long reg, pending;
-	unsigned virq;
+	unsigned long reg, ena, pending;
 
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < lg->chip.ngpio; base += 32) {
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
+		ena = lp_gpio_reg(&lg->chip, base, LP_INT_ENABLE);
 
-		while ((pending = inl(reg))) {
+		while ((pending = (inl(reg) & inl(ena)))) {
+			unsigned irq;
+
 			pin = __ffs(pending);
 			mask = BIT(pin);
 			/* Clear before handling so we don't lose an edge */
 			outl(mask, reg);
-			virq = irq_find_mapping(lg->domain, base + pin);
-			generic_handle_irq(virq);
+			irq = irq_find_mapping(lg->domain, base + pin);
+			generic_handle_irq(irq);
 		}
 	}
 	chip->irq_eoi(data);
@@ -324,15 +326,15 @@ static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
 	}
 }
 
-static int lp_gpio_irq_map(struct irq_domain *d, unsigned int virq,
-			    irq_hw_number_t hw)
+static int lp_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+			    irq_hw_number_t hwirq)
 {
 	struct lp_gpio *lg = d->host_data;
 
-	irq_set_chip_and_handler_name(virq, &lp_irqchip, handle_simple_irq,
+	irq_set_chip_and_handler_name(irq, &lp_irqchip, handle_simple_irq,
 				      "demux");
-	irq_set_chip_data(virq, lg);
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
+	irq_set_chip_data(irq, lg);
+	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
 	return 0;
 }

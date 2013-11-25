@@ -63,7 +63,7 @@ struct s3c24xx_uart_port {
 
 /* conversion functions */
 
-#define s3c24xx_dev_to_port(__dev) (struct uart_port *)dev_get_drvdata(__dev)
+#define s3c24xx_dev_to_port(__dev) dev_get_drvdata(__dev)
 
 /* register access controls */
 

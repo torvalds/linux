@@ -55,11 +55,8 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto error_ret;
 
-	if (indio_dev->scan_timestamp)
-		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
-				&pf->timestamp, sizeof(pf->timestamp));
+	iio_push_to_buffers_with_timestamp(indio_dev, buf, pf->timestamp);
 
-	iio_push_to_buffers(indio_dev, (u8 *)buf);
 	iio_trigger_notify_done(indio_dev->trig);
 
 error_ret:

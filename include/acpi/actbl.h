@@ -146,7 +146,24 @@ struct acpi_table_rsdp {
 	u8 reserved[3];		/* Reserved, must be zero */
 };
 
-#define ACPI_RSDP_REV0_SIZE     20	/* Size of original ACPI 1.0 RSDP */
+/* Standalone struct for the ACPI 1.0 RSDP */
+
+struct acpi_rsdp_common {
+	char signature[8];
+	u8 checksum;
+	char oem_id[ACPI_OEM_ID_SIZE];
+	u8 revision;
+	u32 rsdt_physical_address;
+};
+
+/* Standalone struct for the extended part of the RSDP (ACPI 2.0+) */
+
+struct acpi_rsdp_extension {
+	u32 length;
+	u64 xsdt_physical_address;
+	u8 extended_checksum;
+	u8 reserved[3];
+};
 
 /*******************************************************************************
  *

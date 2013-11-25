@@ -1216,6 +1216,7 @@ static int do_grow(struct inode *inode, u64 size)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_alloc_parms ap = { .target = 1, };
 	struct buffer_head *dibh;
 	int error;
 	int unstuff = 0;
@@ -1226,7 +1227,7 @@ static int do_grow(struct inode *inode, u64 size)
 		if (error)
 			return error;
 
-		error = gfs2_inplace_reserve(ip, 1, 0);
+		error = gfs2_inplace_reserve(ip, &ap);
 		if (error)
 			goto do_grow_qunlock;
 		unstuff = 1;
@@ -1279,6 +1280,7 @@ do_grow_qunlock:
 
 int gfs2_setattr_size(struct inode *inode, u64 newsize)
 {
+	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret;
 	u64 oldsize;
 
@@ -1294,7 +1296,7 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 
 	inode_dio_wait(inode);
 
-	ret = gfs2_rs_alloc(GFS2_I(inode));
+	ret = gfs2_rs_alloc(ip);
 	if (ret)
 		goto out;
 
@@ -1304,6 +1306,7 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 		goto out;
 	}
 
+	gfs2_rs_deltree(ip->i_res);
 	ret = do_shrink(inode, oldsize, newsize);
 out:
 	put_write_access(inode);

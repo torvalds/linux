@@ -180,6 +180,9 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			dev_err(&adapter->pdev->dev,
 				"opcode %d-%d failed:status %d-%d\n",
 				opcode, subsystem, compl_status, extd_status);
+
+			if (extd_status == MCC_ADDL_STS_INSUFFICIENT_RESOURCES)
+				return extd_status;
 		}
 	}
 done:
@@ -519,7 +522,7 @@ static u16 be_POST_stage_get(struct be_adapter *adapter)
 	return sem & POST_STAGE_MASK;
 }
 
-int lancer_wait_ready(struct be_adapter *adapter)
+static int lancer_wait_ready(struct be_adapter *adapter)
 {
 #define SLIPORT_READY_TIMEOUT 30
 	u32 sliport_status;
@@ -1195,7 +1198,6 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 
 	if (lancer_chip(adapter)) {
 		req->hdr.version = 1;
-		req->if_id = cpu_to_le16(adapter->if_handle);
 	} else if (BEx_chip(adapter)) {
 		if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC)
 			req->hdr.version = 2;
@@ -1203,6 +1205,8 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 		req->hdr.version = 2;
 	}
 
+	if (req->hdr.version > 0)
+		req->if_id = cpu_to_le16(adapter->if_handle);
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
 	req->ulp_num = BE_ULP1_NUM;
 	req->type = BE_ETH_TX_RING_TYPE_STANDARD;
@@ -1432,8 +1436,12 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 		OPCODE_ETH_GET_STATISTICS, nonemb_cmd->size, wrb, nonemb_cmd);
 
 	/* version 1 of the cmd is not supported only by BE2 */
-	if (!BE2_chip(adapter))
+	if (BE2_chip(adapter))
+		hdr->version = 0;
+	if (BE3_chip(adapter) || lancer_chip(adapter))
 		hdr->version = 1;
+	else
+		hdr->version = 2;
 
 	be_mcc_notify(adapter);
 	adapter->stats_cmd_sent = true;
@@ -1715,11 +1723,12 @@ err:
 /* set the EQ delay interval of an EQ to specified value
  * Uses async mcc
  */
-int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd)
+int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
+		      int num)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_modify_eq_delay *req;
-	int status = 0;
+	int status = 0, i;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1733,13 +1742,15 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, u32 eq_id, u32 eqd)
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req), wrb, NULL);
 
-	req->num_eq = cpu_to_le32(1);
-	req->delay[0].eq_id = cpu_to_le32(eq_id);
-	req->delay[0].phase = 0;
-	req->delay[0].delay_multiplier = cpu_to_le32(eqd);
+	req->num_eq = cpu_to_le32(num);
+	for (i = 0; i < num; i++) {
+		req->set_eqd[i].eq_id = cpu_to_le32(set_eqd[i].eq_id);
+		req->set_eqd[i].phase = 0;
+		req->set_eqd[i].delay_multiplier =
+				cpu_to_le32(set_eqd[i].delay_multiplier);
+	}
 
 	be_mcc_notify(adapter);
-
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -1747,7 +1758,7 @@ err:
 
 /* Uses sycnhronous mcc */
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-			u32 num, bool untagged, bool promiscuous)
+		       u32 num, bool promiscuous)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_vlan_config *req;
@@ -1767,7 +1778,7 @@ int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 
 	req->interface_id = if_id;
 	req->promiscuous = promiscuous;
-	req->untagged = untagged;
+	req->untagged = BE_IF_FLAGS_UNTAGGED & be_if_cap_flags(adapter) ? 1 : 0;
 	req->num_vlan = num;
 	if (!promiscuous) {
 		memcpy(req->normal_vlan, vtag_array,
@@ -1812,6 +1823,12 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 	} else if (flags & IFF_ALLMULTI) {
 		req->if_flags_mask = req->if_flags =
 				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
+	} else if (flags & BE_FLAGS_VLAN_PROMISC) {
+		req->if_flags_mask = cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
+
+		if (value == ON)
+			req->if_flags =
+				cpu_to_le32(BE_IF_FLAGS_VLAN_PROMISCUOUS);
 	} else {
 		struct netdev_hw_addr *ha;
 		int i = 0;
@@ -1830,7 +1847,19 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
 	}
 
+	if ((req->if_flags_mask & cpu_to_le32(be_if_cap_flags(adapter))) !=
+	     req->if_flags_mask) {
+		dev_warn(&adapter->pdev->dev,
+			 "Cannot set rx filter flags 0x%x\n",
+			 req->if_flags_mask);
+		dev_warn(&adapter->pdev->dev,
+			 "Interface is capable of 0x%x flags only\n",
+			 be_if_cap_flags(adapter));
+	}
+	req->if_flags_mask &= cpu_to_le32(be_if_cap_flags(adapter));
+
 	status = be_mcc_notify_wait(adapter);
+
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
@@ -3510,7 +3539,7 @@ int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain)
 	struct be_cmd_enable_disable_vf *req;
 	int status;
 
-	if (!lancer_chip(adapter))
+	if (BEx_chip(adapter))
 		return 0;
 
 	spin_lock_bh(&adapter->mcc_lock);

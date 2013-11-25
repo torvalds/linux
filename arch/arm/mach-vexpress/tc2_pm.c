@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/irqchip/arm-gic.h>
@@ -131,6 +132,16 @@ static void tc2_pm_down(u64 residency)
 	} else
 		BUG();
 
+	/*
+	 * If the CPU is committed to power down, make sure
+	 * the power controller will be in charge of waking it
+	 * up upon IRQ, ie IRQ lines are cut from GIC CPU IF
+	 * to the CPU by disabling the GIC CPU IF to prevent wfi
+	 * from completing execution behind power controller back
+	 */
+	if (!skip_wfi)
+		gic_cpu_if_down();
+
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&tc2_pm_lock);
 
@@ -146,32 +157,7 @@ static void tc2_pm_down(u64 residency)
 			: : "r" (0x400) );
 		}
 
-		/*
-		 * We need to disable and flush the whole (L1 and L2) cache.
-		 * Let's do it in the safest possible way i.e. with
-		 * no memory access within the following sequence
-		 * including the stack.
-		 *
-		 * Note: fp is preserved to the stack explicitly prior doing
-		 * this since adding it to the clobber list is incompatible
-		 * with having CONFIG_FRAME_POINTER=y.
-		 */
-		asm volatile(
-		"str	fp, [sp, #-4]! \n\t"
-		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
-		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
-		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
-		"isb	\n\t"
-		"bl	v7_flush_dcache_all \n\t"
-		"clrex	\n\t"
-		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
-		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
-		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
-		"isb	\n\t"
-		"dsb	\n\t"
-		"ldr	fp, [sp], #4"
-		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","lr","memory");
+		v7_exit_coherency_flush(all);
 
 		cci_disable_port_by_cpu(mpidr);
 
@@ -187,26 +173,7 @@ static void tc2_pm_down(u64 residency)
 
 		arch_spin_unlock(&tc2_pm_lock);
 
-		/*
-		 * We need to disable and flush only the L1 cache.
-		 * Let's do it in the safest possible way as above.
-		 */
-		asm volatile(
-		"str	fp, [sp, #-4]! \n\t"
-		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
-		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
-		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
-		"isb	\n\t"
-		"bl	v7_flush_dcache_louis \n\t"
-		"clrex	\n\t"
-		"mrc	p15, 0, r0, c1, c0, 1	@ get AUXCR \n\t"
-		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
-		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
-		"isb	\n\t"
-		"dsb	\n\t"
-		"ldr	fp, [sp], #4"
-		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","lr","memory");
+		v7_exit_coherency_flush(louis);
 	}
 
 	__mcpm_cpu_down(cpu, cluster);
@@ -231,7 +198,6 @@ static void tc2_pm_suspend(u64 residency)
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	ve_spc_set_resume_addr(cluster, cpu, virt_to_phys(mcpm_entry_point));
-	gic_cpu_if_down();
 	tc2_pm_down(residency);
 }
 
@@ -302,7 +268,7 @@ static void __naked tc2_pm_power_up_setup(unsigned int affinity_level)
 
 static int __init tc2_pm_init(void)
 {
-	int ret;
+	int ret, irq;
 	void __iomem *scc;
 	u32 a15_cluster_id, a7_cluster_id, sys_info;
 	struct device_node *np;
@@ -327,13 +293,15 @@ static int __init tc2_pm_init(void)
 	tc2_nr_cpus[a15_cluster_id] = (sys_info >> 16) & 0xf;
 	tc2_nr_cpus[a7_cluster_id] = (sys_info >> 20) & 0xf;
 
+	irq = irq_of_parse_and_map(np, 0);
+
 	/*
 	 * A subset of the SCC registers is also used to communicate
 	 * with the SPC (power controller). We need to be able to
 	 * drive it very early in the boot process to power up
 	 * processors, so we initialize the SPC driver here.
 	 */
-	ret = ve_spc_init(scc + SPC_BASE, a15_cluster_id);
+	ret = ve_spc_init(scc + SPC_BASE, a15_cluster_id, irq);
 	if (ret)
 		return ret;
 

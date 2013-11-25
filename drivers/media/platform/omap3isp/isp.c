@@ -2182,9 +2182,9 @@ static int isp_probe(struct platform_device *pdev)
 	isp->pdata = pdata;
 	isp->ref_count = 0;
 
-	isp->raw_dmamask = DMA_BIT_MASK(32);
-	isp->dev->dma_mask = &isp->raw_dmamask;
-	isp->dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	ret = dma_coerce_mask_and_coherent(isp->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, isp);
 

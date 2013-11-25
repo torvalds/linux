@@ -29,6 +29,8 @@ enum nfs4_client_state {
 	NFS4CLNT_SERVER_SCOPE_MISMATCH,
 	NFS4CLNT_PURGE_STATE,
 	NFS4CLNT_BIND_CONN_TO_SESSION,
+	NFS4CLNT_MOVED,
+	NFS4CLNT_LEASE_MOVED,
 };
 
 #define NFS4_RENEW_TIMEOUT		0x01
@@ -50,6 +52,7 @@ struct nfs4_minor_version_ops {
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
+	const struct nfs4_mig_recovery_ops *mig_recovery_ops;
 };
 
 #define NFS_SEQID_CONFIRMED 1
@@ -203,6 +206,12 @@ struct nfs4_state_maintenance_ops {
 	int (*renew_lease)(struct nfs_client *, struct rpc_cred *);
 };
 
+struct nfs4_mig_recovery_ops {
+	int (*get_locations)(struct inode *, struct nfs4_fs_locations *,
+		struct page *, struct rpc_cred *);
+	int (*fsid_present)(struct inode *, struct rpc_cred *);
+};
+
 extern const struct dentry_operations nfs4_dentry_operations;
 
 /* dir.c */
@@ -213,10 +222,11 @@ int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 extern struct file_system_type nfs4_fs_type;
 
 /* nfs4namespace.c */
-rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *);
 struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *, struct inode *, struct qstr *);
 struct vfsmount *nfs4_submount(struct nfs_server *, struct dentry *,
 			       struct nfs_fh *, struct nfs_fattr *);
+int nfs4_replace_transport(struct nfs_server *server,
+				const struct nfs4_fs_locations *locations);
 
 /* nfs4proc.c */
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
@@ -231,6 +241,9 @@ extern int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
 extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct inode *, const struct qstr *,
 				  struct nfs4_fs_locations *, struct page *);
+extern int nfs4_proc_get_locations(struct inode *, struct nfs4_fs_locations *,
+		struct page *page, struct rpc_cred *);
+extern int nfs4_proc_fsid_present(struct inode *, struct rpc_cred *);
 extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
@@ -411,6 +424,8 @@ extern int nfs4_client_recover_expired_lease(struct nfs_client *clp);
 extern void nfs4_schedule_state_manager(struct nfs_client *);
 extern void nfs4_schedule_path_down_recovery(struct nfs_client *clp);
 extern int nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
+extern int nfs4_schedule_migration_recovery(const struct nfs_server *);
+extern void nfs4_schedule_lease_moved_recovery(struct nfs_client *);
 extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags);
 extern void nfs41_handle_server_scope(struct nfs_client *,
 				      struct nfs41_server_scope **);

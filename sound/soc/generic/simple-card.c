@@ -27,6 +27,11 @@ static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 	if (!ret && daifmt)
 		ret = snd_soc_dai_set_fmt(dai, daifmt);
 
+	if (ret == -ENOTSUPP) {
+		dev_dbg(dai->dev, "ASoC: set_fmt is not supported\n");
+		ret = 0;
+	}
+
 	if (!ret && set->sysclk)
 		ret = snd_soc_dai_set_sysclk(dai, 0, set->sysclk, 0);
 

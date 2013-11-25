@@ -454,14 +454,14 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	tstats->rx_bytes += skb->len;
 	u64_stats_update_end(&tstats->syncp);
 
+	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
+
 	if (tunnel->dev->type == ARPHRD_ETHER) {
 		skb->protocol = eth_type_trans(skb, tunnel->dev);
 		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 	} else {
 		skb->dev = tunnel->dev;
 	}
-
-	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
 
 	gro_cells_receive(&tunnel->gro_cells, skb);
 	return 0;
@@ -623,6 +623,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 			tunnel->err_count = 0;
 	}
 
+	tos = ip_tunnel_ecn_encap(tos, inner_iph, skb);
 	ttl = tnl_params->ttl;
 	if (ttl == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
@@ -641,18 +642,17 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	max_headroom = LL_RESERVED_SPACE(rt->dst.dev) + sizeof(struct iphdr)
 			+ rt->dst.header_len;
-	if (max_headroom > dev->needed_headroom) {
+	if (max_headroom > dev->needed_headroom)
 		dev->needed_headroom = max_headroom;
-		if (skb_cow_head(skb, dev->needed_headroom)) {
-			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
-			return;
-		}
+
+	if (skb_cow_head(skb, dev->needed_headroom)) {
+		dev->stats.tx_dropped++;
+		dev_kfree_skb(skb);
+		return;
 	}
 
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, protocol,
-			    ip_tunnel_ecn_encap(tos, inner_iph, skb), ttl, df,
-			    !net_eq(tunnel->net, dev_net(dev)));
+			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
 	return;
@@ -853,8 +853,10 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
-	if (!IS_ERR(itn->fb_tunnel_dev))
+	if (!IS_ERR(itn->fb_tunnel_dev)) {
 		itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
+		ip_tunnel_add(itn, netdev_priv(itn->fb_tunnel_dev));
+	}
 	rtnl_unlock();
 
 	return PTR_RET(itn->fb_tunnel_dev);
@@ -884,8 +886,6 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 			if (!net_eq(dev_net(t->dev), net))
 				unregister_netdevice_queue(t->dev, head);
 	}
-	if (itn->fb_tunnel_dev)
-		unregister_netdevice_queue(itn->fb_tunnel_dev, head);
 }
 
 void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)
@@ -976,12 +976,18 @@ int ip_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
-	int err;
+	int i, err;
 
 	dev->destructor	= ip_tunnel_dev_free;
 	dev->tstats = alloc_percpu(struct pcpu_tstats);
 	if (!dev->tstats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct pcpu_tstats *ipt_stats;
+		ipt_stats = per_cpu_ptr(dev->tstats, i);
+		u64_stats_init(&ipt_stats->syncp);
+	}
 
 	err = gro_cells_init(&tunnel->gro_cells, dev);
 	if (err) {

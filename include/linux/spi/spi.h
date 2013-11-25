@@ -23,6 +23,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
+#include <linux/completion.h>
 
 /*
  * INTERFACES between SPI master-side drivers and SPI infrastructure.
@@ -150,8 +151,7 @@ static inline void *spi_get_drvdata(struct spi_device *spi)
 }
 
 struct spi_message;
-
-
+struct spi_transfer;
 
 /**
  * struct spi_driver - Host side "protocol" driver
@@ -257,6 +257,9 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
  * @cur_msg: the currently in-flight message
+ * @cur_msg_prepared: spi_prepare_message was called for the currently
+ *                    in-flight message
+ * @xfer_completion: used by core tranfer_one_message()
  * @busy: message pump is busy
  * @running: message pump is running
  * @rt: whether this queue is set to run as a realtime task
@@ -274,6 +277,16 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @unprepare_transfer_hardware: there are currently no more messages on the
  *	queue so the subsystem notifies the driver that it may relax the
  *	hardware by issuing this call
+ * @set_cs: assert or deassert chip select, true to assert.  May be called
+ *          from interrupt context.
+ * @prepare_message: set up the controller to transfer a single message,
+ *                   for example doing DMA mapping.  Called from threaded
+ *                   context.
+ * @transfer_one: transfer a single spi_transfer. When the
+ *	          driver is finished with this transfer it must call
+ *	          spi_finalize_current_transfer() so the subsystem can issue
+ *                the next transfer
+ * @unprepare_message: undo any work done by prepare_message().
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
@@ -388,11 +401,25 @@ struct spi_master {
 	bool				running;
 	bool				rt;
 	bool				auto_runtime_pm;
+	bool                            cur_msg_prepared;
+	struct completion               xfer_completion;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
 				    struct spi_message *mesg);
 	int (*unprepare_transfer_hardware)(struct spi_master *master);
+	int (*prepare_message)(struct spi_master *master,
+			       struct spi_message *message);
+	int (*unprepare_message)(struct spi_master *master,
+				 struct spi_message *message);
+
+	/*
+	 * These hooks are for drivers that use a generic implementation
+	 * of transfer_one_message() provied by the core.
+	 */
+	void (*set_cs)(struct spi_device *spi, bool enable);
+	int (*transfer_one)(struct spi_master *master, struct spi_device *spi,
+			    struct spi_transfer *transfer);
 
 	/* gpio chip select */
 	int			*cs_gpios;
@@ -428,12 +455,15 @@ extern int spi_master_resume(struct spi_master *master);
 /* Calls the driver make to interact with the message queue */
 extern struct spi_message *spi_get_next_queued_message(struct spi_master *master);
 extern void spi_finalize_current_message(struct spi_master *master);
+extern void spi_finalize_current_transfer(struct spi_master *master);
 
 /* the spi driver core manages memory for the spi_master classdev */
 extern struct spi_master *
 spi_alloc_master(struct device *host, unsigned size);
 
 extern int spi_register_master(struct spi_master *master);
+extern int devm_spi_register_master(struct device *dev,
+				    struct spi_master *master);
 extern void spi_unregister_master(struct spi_master *master);
 
 extern struct spi_master *spi_busnum_to_master(u16 busnum);
@@ -821,6 +851,33 @@ static inline ssize_t spi_w8r16(struct spi_device *spi, u8 cmd)
 
 	/* return negative errno or unsigned value */
 	return (status < 0) ? status : result;
+}
+
+/**
+ * spi_w8r16be - SPI synchronous 8 bit write followed by 16 bit big-endian read
+ * @spi: device with which data will be exchanged
+ * @cmd: command to be written before data is read back
+ * Context: can sleep
+ *
+ * This returns the (unsigned) sixteen bit number returned by the device in cpu
+ * endianness, or else a negative error code. Callable only from contexts that
+ * can sleep.
+ *
+ * This function is similar to spi_w8r16, with the exception that it will
+ * convert the read 16 bit data word from big-endian to native endianness.
+ *
+ */
+static inline ssize_t spi_w8r16be(struct spi_device *spi, u8 cmd)
+
+{
+	ssize_t status;
+	__be16 result;
+
+	status = spi_write_then_read(spi, &cmd, 1, &result, 2);
+	if (status < 0)
+		return status;
+
+	return be16_to_cpu(result);
 }
 
 /*---------------------------------------------------------------------------*/

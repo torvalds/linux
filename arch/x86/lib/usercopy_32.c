@@ -654,14 +654,13 @@ EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);
  * Returns number of bytes that could not be copied.
  * On success, this will be zero.
  */
-unsigned long
-copy_to_user(void __user *to, const void *from, unsigned long n)
+unsigned long _copy_to_user(void __user *to, const void *from, unsigned n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
 		n = __copy_to_user(to, from, n);
 	return n;
 }
-EXPORT_SYMBOL(copy_to_user);
+EXPORT_SYMBOL(_copy_to_user);
 
 /**
  * copy_from_user: - Copy a block of data from user space.
@@ -679,8 +678,7 @@ EXPORT_SYMBOL(copy_to_user);
  * If some data could not be copied, this function will pad the copied
  * data to the requested size using zero bytes.
  */
-unsigned long
-_copy_from_user(void *to, const void __user *from, unsigned long n)
+unsigned long _copy_from_user(void *to, const void __user *from, unsigned n)
 {
 	if (access_ok(VERIFY_READ, from, n))
 		n = __copy_from_user(to, from, n);

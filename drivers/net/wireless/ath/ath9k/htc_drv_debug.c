@@ -37,29 +37,29 @@ static ssize_t read_file_tgt_int_stats(struct file *file, char __user *user_buf,
 
 	ath9k_htc_ps_restore(priv);
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "RX",
-			be32_to_cpu(cmd_rsp.rx));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "RX",
+			 be32_to_cpu(cmd_rsp.rx));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "RXORN",
-			be32_to_cpu(cmd_rsp.rxorn));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "RXORN",
+			 be32_to_cpu(cmd_rsp.rxorn));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "RXEOL",
-			be32_to_cpu(cmd_rsp.rxeol));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "RXEOL",
+			 be32_to_cpu(cmd_rsp.rxeol));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "TXURN",
-			be32_to_cpu(cmd_rsp.txurn));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "TXURN",
+			 be32_to_cpu(cmd_rsp.txurn));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "TXTO",
-			be32_to_cpu(cmd_rsp.txto));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "TXTO",
+			 be32_to_cpu(cmd_rsp.txto));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "CST",
-			be32_to_cpu(cmd_rsp.cst));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "CST",
+			 be32_to_cpu(cmd_rsp.cst));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -95,41 +95,41 @@ static ssize_t read_file_tgt_tx_stats(struct file *file, char __user *user_buf,
 
 	ath9k_htc_ps_restore(priv);
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Xretries",
-			be32_to_cpu(cmd_rsp.xretries));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "Xretries",
+			 be32_to_cpu(cmd_rsp.xretries));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "FifoErr",
-			be32_to_cpu(cmd_rsp.fifoerr));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "FifoErr",
+			 be32_to_cpu(cmd_rsp.fifoerr));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Filtered",
-			be32_to_cpu(cmd_rsp.filtered));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "Filtered",
+			 be32_to_cpu(cmd_rsp.filtered));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "TimerExp",
-			be32_to_cpu(cmd_rsp.timer_exp));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "TimerExp",
+			 be32_to_cpu(cmd_rsp.timer_exp));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "ShortRetries",
-			be32_to_cpu(cmd_rsp.shortretries));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "ShortRetries",
+			 be32_to_cpu(cmd_rsp.shortretries));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "LongRetries",
-			be32_to_cpu(cmd_rsp.longretries));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "LongRetries",
+			 be32_to_cpu(cmd_rsp.longretries));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "QueueNull",
-			be32_to_cpu(cmd_rsp.qnull));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "QueueNull",
+			 be32_to_cpu(cmd_rsp.qnull));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "EncapFail",
-			be32_to_cpu(cmd_rsp.encap_fail));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "EncapFail",
+			 be32_to_cpu(cmd_rsp.encap_fail));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "NoBuf",
-			be32_to_cpu(cmd_rsp.nobuf));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "NoBuf",
+			 be32_to_cpu(cmd_rsp.nobuf));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -165,17 +165,17 @@ static ssize_t read_file_tgt_rx_stats(struct file *file, char __user *user_buf,
 
 	ath9k_htc_ps_restore(priv);
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "NoBuf",
-			be32_to_cpu(cmd_rsp.nobuf));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "NoBuf",
+			 be32_to_cpu(cmd_rsp.nobuf));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "HostSend",
-			be32_to_cpu(cmd_rsp.host_send));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "HostSend",
+			 be32_to_cpu(cmd_rsp.host_send));
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "HostDone",
-			be32_to_cpu(cmd_rsp.host_done));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "HostDone",
+			 be32_to_cpu(cmd_rsp.host_done));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -197,37 +197,37 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	char buf[512];
 	unsigned int len = 0;
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Buffers queued",
-			priv->debug.tx_stats.buf_queued);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "Buffers completed",
-			priv->debug.tx_stats.buf_completed);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs queued",
-			priv->debug.tx_stats.skb_queued);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs success",
-			priv->debug.tx_stats.skb_success);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "SKBs failed",
-			priv->debug.tx_stats.skb_failed);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "CAB queued",
-			priv->debug.tx_stats.cab_queued);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "Buffers queued",
+			 priv->debug.tx_stats.buf_queued);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "Buffers completed",
+			 priv->debug.tx_stats.buf_completed);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "SKBs queued",
+			 priv->debug.tx_stats.skb_queued);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "SKBs success",
+			 priv->debug.tx_stats.skb_success);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "SKBs failed",
+			 priv->debug.tx_stats.skb_failed);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "CAB queued",
+			 priv->debug.tx_stats.cab_queued);
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "BE queued",
-			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BE]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "BK queued",
-			priv->debug.tx_stats.queue_stats[IEEE80211_AC_BK]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "VI queued",
-			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VI]);
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"%20s : %10u\n", "VO queued",
-			priv->debug.tx_stats.queue_stats[IEEE80211_AC_VO]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "BE queued",
+			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_BE]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "BK queued",
+			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_BK]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "VI queued",
+			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_VI]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%20s : %10u\n", "VO queued",
+			 priv->debug.tx_stats.queue_stats[IEEE80211_AC_VO]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -273,8 +273,8 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 #define PHY_ERR(s, p)							\
-	len += snprintf(buf + len, size - len, "%20s : %10u\n", s,	\
-			priv->debug.rx_stats.err_phy_stats[p]);
+	len += scnprintf(buf + len, size - len, "%20s : %10u\n", s,	\
+			 priv->debug.rx_stats.err_phy_stats[p]);
 
 	struct ath9k_htc_priv *priv = file->private_data;
 	char *buf;
@@ -285,37 +285,37 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "SKBs allocated",
-			priv->debug.rx_stats.skb_allocated);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "SKBs completed",
-			priv->debug.rx_stats.skb_completed);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "SKBs Dropped",
-			priv->debug.rx_stats.skb_dropped);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "SKBs allocated",
+			 priv->debug.rx_stats.skb_allocated);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "SKBs completed",
+			 priv->debug.rx_stats.skb_completed);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "SKBs Dropped",
+			 priv->debug.rx_stats.skb_dropped);
 
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "CRC ERR",
-			priv->debug.rx_stats.err_crc);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "DECRYPT CRC ERR",
-			priv->debug.rx_stats.err_decrypt_crc);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "MIC ERR",
-			priv->debug.rx_stats.err_mic);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "PRE-DELIM CRC ERR",
-			priv->debug.rx_stats.err_pre_delim);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "POST-DELIM CRC ERR",
-			priv->debug.rx_stats.err_post_delim);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "DECRYPT BUSY ERR",
-			priv->debug.rx_stats.err_decrypt_busy);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10u\n", "TOTAL PHY ERR",
-			priv->debug.rx_stats.err_phy);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "CRC ERR",
+			 priv->debug.rx_stats.err_crc);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "DECRYPT CRC ERR",
+			 priv->debug.rx_stats.err_decrypt_crc);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "MIC ERR",
+			 priv->debug.rx_stats.err_mic);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "PRE-DELIM CRC ERR",
+			 priv->debug.rx_stats.err_pre_delim);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "POST-DELIM CRC ERR",
+			 priv->debug.rx_stats.err_post_delim);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "DECRYPT BUSY ERR",
+			 priv->debug.rx_stats.err_decrypt_busy);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10u\n", "TOTAL PHY ERR",
+			 priv->debug.rx_stats.err_phy);
 
 
 	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
@@ -372,16 +372,16 @@ static ssize_t read_file_slot(struct file *file, char __user *user_buf,
 
 	spin_lock_bh(&priv->tx.tx_lock);
 
-	len += snprintf(buf + len, sizeof(buf) - len, "TX slot bitmap : ");
+	len += scnprintf(buf + len, sizeof(buf) - len, "TX slot bitmap : ");
 
 	len += bitmap_scnprintf(buf + len, sizeof(buf) - len,
 			       priv->tx.tx_slot, MAX_TX_BUF_NUM);
 
-	len += snprintf(buf + len, sizeof(buf) - len, "\n");
+	len += scnprintf(buf + len, sizeof(buf) - len, "\n");
 
-	len += snprintf(buf + len, sizeof(buf) - len,
-			"Used slots     : %d\n",
-			bitmap_weight(priv->tx.tx_slot, MAX_TX_BUF_NUM));
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "Used slots     : %d\n",
+			 bitmap_weight(priv->tx.tx_slot, MAX_TX_BUF_NUM));
 
 	spin_unlock_bh(&priv->tx.tx_lock);
 
@@ -405,30 +405,30 @@ static ssize_t read_file_queue(struct file *file, char __user *user_buf,
 	char buf[512];
 	unsigned int len = 0;
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Mgmt endpoint", skb_queue_len(&priv->tx.mgmt_ep_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Mgmt endpoint", skb_queue_len(&priv->tx.mgmt_ep_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Cab endpoint", skb_queue_len(&priv->tx.cab_ep_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Cab endpoint", skb_queue_len(&priv->tx.cab_ep_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Data BE endpoint", skb_queue_len(&priv->tx.data_be_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Data BE endpoint", skb_queue_len(&priv->tx.data_be_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Data BK endpoint", skb_queue_len(&priv->tx.data_bk_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Data BK endpoint", skb_queue_len(&priv->tx.data_bk_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Data VI endpoint", skb_queue_len(&priv->tx.data_vi_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Data VI endpoint", skb_queue_len(&priv->tx.data_vi_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Data VO endpoint", skb_queue_len(&priv->tx.data_vo_queue));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Data VO endpoint", skb_queue_len(&priv->tx.data_vo_queue));
 
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Failed queue", skb_queue_len(&priv->tx.tx_failed));
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Failed queue", skb_queue_len(&priv->tx.tx_failed));
 
 	spin_lock_bh(&priv->tx.tx_lock);
-	len += snprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
-			"Queued count", priv->tx.queued_cnt);
+	len += scnprintf(buf + len, sizeof(buf) - len, "%20s : %10u\n",
+			 "Queued count", priv->tx.queued_cnt);
 	spin_unlock_bh(&priv->tx.tx_lock);
 
 	if (len > sizeof(buf))
@@ -507,70 +507,70 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "Major Version",
-			pBase->version >> 12);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "Minor Version",
-			pBase->version & 0xFFF);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "Checksum",
-			pBase->checksum);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "Length",
-			pBase->length);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "RegDomain1",
-			pBase->regDmn[0]);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n", "RegDomain2",
-			pBase->regDmn[1]);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"TX Mask", pBase->txMask);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"RX Mask", pBase->rxMask);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Allow 5GHz",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_11A));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Allow 2GHz",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_11G));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Disable 2GHz HT20",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT20));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Disable 2GHz HT40",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT40));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Disable 5Ghz HT20",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT20));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Disable 5Ghz HT40",
-			!!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT40));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Big Endian",
-			!!(pBase->eepMisc & 0x01));
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Cal Bin Major Ver",
-			(pBase->binBuildNumber >> 24) & 0xFF);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Cal Bin Minor Ver",
-			(pBase->binBuildNumber >> 16) & 0xFF);
-	len += snprintf(buf + len, size - len,
-			"%20s : %10d\n",
-			"Cal Bin Build",
-			(pBase->binBuildNumber >> 8) & 0xFF);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "Major Version",
+			 pBase->version >> 12);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "Minor Version",
+			 pBase->version & 0xFFF);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "Checksum",
+			 pBase->checksum);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "Length",
+			 pBase->length);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "RegDomain1",
+			 pBase->regDmn[0]);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n", "RegDomain2",
+			 pBase->regDmn[1]);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "TX Mask", pBase->txMask);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "RX Mask", pBase->rxMask);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Allow 5GHz",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_11A));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Allow 2GHz",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_11G));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Disable 2GHz HT20",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT20));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Disable 2GHz HT40",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_2G_HT40));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Disable 5Ghz HT20",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT20));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Disable 5Ghz HT40",
+			 !!(pBase->opCapFlags & AR5416_OPFLAGS_N_5G_HT40));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Big Endian",
+			 !!(pBase->eepMisc & 0x01));
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Cal Bin Major Ver",
+			 (pBase->binBuildNumber >> 24) & 0xFF);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Cal Bin Minor Ver",
+			 (pBase->binBuildNumber >> 16) & 0xFF);
+	len += scnprintf(buf + len, size - len,
+			 "%20s : %10d\n",
+			 "Cal Bin Build",
+			 (pBase->binBuildNumber >> 8) & 0xFF);
 
 	/*
 	 * UB91 specific data.
@@ -579,10 +579,10 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 		struct base_eep_header_4k *pBase4k =
 			&priv->ah->eeprom.map4k.baseEepHeader;
 
-		len += snprintf(buf + len, size - len,
-				"%20s : %10d\n",
-				"TX Gain type",
-				pBase4k->txGainType);
+		len += scnprintf(buf + len, size - len,
+				 "%20s : %10d\n",
+				 "TX Gain type",
+				 pBase4k->txGainType);
 	}
 
 	/*
@@ -592,19 +592,19 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 		struct base_eep_ar9287_header *pBase9287 =
 			&priv->ah->eeprom.map9287.baseEepHeader;
 
-		len += snprintf(buf + len, size - len,
-				"%20s : %10ddB\n",
-				"Power Table Offset",
-				pBase9287->pwrTableOffset);
+		len += scnprintf(buf + len, size - len,
+				 "%20s : %10ddB\n",
+				 "Power Table Offset",
+				 pBase9287->pwrTableOffset);
 
-		len += snprintf(buf + len, size - len,
-				"%20s : %10d\n",
-				"OpenLoop Power Ctrl",
-				pBase9287->openLoopPwrCntl);
+		len += scnprintf(buf + len, size - len,
+				 "%20s : %10d\n",
+				 "OpenLoop Power Ctrl",
+				 pBase9287->openLoopPwrCntl);
 	}
 
-	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			pBase->macAddr);
+	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			 pBase->macAddr);
 	if (len > size)
 		len = size;
 
@@ -627,8 +627,8 @@ static ssize_t read_4k_modal_eeprom(struct file *file,
 {
 #define PR_EEP(_s, _val)						\
 	do {								\
-		len += snprintf(buf + len, size - len, "%20s : %10d\n",	\
-				_s, (_val));				\
+		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
+				 _s, (_val));				\
 	} while (0)
 
 	struct ath9k_htc_priv *priv = file->private_data;
@@ -708,12 +708,12 @@ static ssize_t read_def_modal_eeprom(struct file *file,
 	do {								\
 		if (pBase->opCapFlags & AR5416_OPFLAGS_11G) {		\
 			pModal = &priv->ah->eeprom.def.modalHeader[1];	\
-			len += snprintf(buf + len, size - len, "%20s : %8d%7s", \
-					_s, (_val), "|");		\
+			len += scnprintf(buf + len, size - len, "%20s : %8d%7s", \
+					 _s, (_val), "|");		\
 		}							\
 		if (pBase->opCapFlags & AR5416_OPFLAGS_11A) {		\
 			pModal = &priv->ah->eeprom.def.modalHeader[0];	\
-			len += snprintf(buf + len, size - len, "%9d\n", \
+			len += scnprintf(buf + len, size - len, "%9d\n",\
 					(_val));			\
 		}							\
 	} while (0)
@@ -729,10 +729,10 @@ static ssize_t read_def_modal_eeprom(struct file *file,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += snprintf(buf + len, size - len,
-			"%31s %15s\n", "2G", "5G");
-	len += snprintf(buf + len, size - len,
-			"%32s %16s\n", "====", "====\n");
+	len += scnprintf(buf + len, size - len,
+			 "%31s %15s\n", "2G", "5G");
+	len += scnprintf(buf + len, size - len,
+			 "%32s %16s\n", "====", "====\n");
 
 	PR_EEP("Chain0 Ant. Control", pModal->antCtrlChain[0]);
 	PR_EEP("Chain1 Ant. Control", pModal->antCtrlChain[1]);
@@ -814,8 +814,8 @@ static ssize_t read_9287_modal_eeprom(struct file *file,
 {
 #define PR_EEP(_s, _val)						\
 	do {								\
-		len += snprintf(buf + len, size - len, "%20s : %10d\n",	\
-				_s, (_val));				\
+		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
+				 _s, (_val));				\
 	} while (0)
 
 	struct ath9k_htc_priv *priv = file->private_data;

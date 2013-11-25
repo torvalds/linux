@@ -10,7 +10,7 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-extern int __cpu_suspend(unsigned long, int (*)(unsigned long));
+extern int __cpu_suspend(unsigned long, int (*)(unsigned long), u32 cpuid);
 extern void cpu_resume_mmu(void);
 
 #ifdef CONFIG_MMU
@@ -21,6 +21,7 @@ extern void cpu_resume_mmu(void);
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
 	struct mm_struct *mm = current->active_mm;
+	u32 __mpidr = cpu_logical_map(smp_processor_id());
 	int ret;
 
 	if (!idmap_pgd)
@@ -32,7 +33,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	 * resume (indicated by a zero return code), we need to switch
 	 * back to the correct page tables.
 	 */
-	ret = __cpu_suspend(arg, fn);
+	ret = __cpu_suspend(arg, fn, __mpidr);
 	if (ret == 0) {
 		cpu_switch_mm(mm->pgd, mm);
 		local_flush_bp_all();
@@ -44,7 +45,8 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 #else
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 {
-	return __cpu_suspend(arg, fn);
+	u32 __mpidr = cpu_logical_map(smp_processor_id());
+	return __cpu_suspend(arg, fn, __mpidr);
 }
 #define	idmap_pgd	NULL
 #endif

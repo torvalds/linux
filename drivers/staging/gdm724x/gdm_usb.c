@@ -88,12 +88,11 @@ static struct usb_tx *alloc_tx_struct(int len)
 	struct usb_tx *t = NULL;
 	int ret = 0;
 
-	t = kmalloc(sizeof(struct usb_tx), GFP_ATOMIC);
+	t = kzalloc(sizeof(struct usb_tx), GFP_ATOMIC);
 	if (!t) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(t, 0, sizeof(struct usb_tx));
 
 	t->urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!(len % 512))
@@ -124,12 +123,11 @@ static struct usb_tx_sdu *alloc_tx_sdu_struct(void)
 	int ret = 0;
 
 
-	t_sdu = kmalloc(sizeof(struct usb_tx_sdu), GFP_ATOMIC);
+	t_sdu = kzalloc(sizeof(struct usb_tx_sdu), GFP_ATOMIC);
 	if (!t_sdu) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(t_sdu, 0, sizeof(struct usb_tx_sdu));
 
 	t_sdu->buf = kmalloc(SDU_BUF_SIZE, GFP_ATOMIC);
 	if (!t_sdu->buf) {

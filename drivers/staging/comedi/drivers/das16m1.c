@@ -63,8 +63,6 @@ irq can be omitted, although the cmd interface will not work without it.
 #define DAS16M1_SIZE 16
 #define DAS16M1_SIZE2 8
 
-#define DAS16M1_XTAL 100	/* 10 MHz master clock */
-
 #define FIFO_SIZE 1024		/*  1024 sample fifo */
 
 /*
@@ -133,19 +131,18 @@ struct das16m1_private_struct {
 	 * needed to keep track of whether new count has been loaded into
 	 * counter yet (loaded by first sample conversion) */
 	u16 initial_hw_count;
-	short ai_buffer[FIFO_SIZE];
-	unsigned int do_bits;	/*  saves status of digital output bits */
+	unsigned short ai_buffer[FIFO_SIZE];
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
 	unsigned long extra_iobase;
 };
 
-static inline short munge_sample(short data)
+static inline unsigned short munge_sample(unsigned short data)
 {
 	return (data >> 4) & 0xfff;
 }
 
-static void munge_sample_array(short *array, unsigned int num_elements)
+static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 {
 	unsigned int i;
 
@@ -208,11 +205,10 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	if (cmd->convert_src == TRIG_TIMER) {
 		tmp = cmd->convert_arg;
 		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->convert_arg),
-					       cmd->flags & TRIG_ROUND_MASK);
+		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
+					  &devpriv->divisor1,
+					  &devpriv->divisor2,
+					  &cmd->convert_arg, cmd->flags);
 		if (tmp != cmd->convert_arg)
 			err++;
 	}
@@ -251,9 +247,10 @@ static unsigned int das16m1_set_pacer(struct comedi_device *dev,
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 
-	i8253_cascade_ns_to_timer_2div(DAS16M1_XTAL, &(devpriv->divisor1),
-				       &(devpriv->divisor2), &ns,
-				       rounding_flags & TRIG_ROUND_MASK);
+	i8253_cascade_ns_to_timer_2div(I8254_OSC_BASE_10MHZ,
+				       &devpriv->divisor1,
+				       &devpriv->divisor2,
+				       &ns, rounding_flags);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
 	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,
@@ -393,22 +390,13 @@ static int das16m1_di_rbits(struct comedi_device *dev,
 
 static int das16m1_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
-	unsigned int wbits;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS16M1_DIO);
 
-	/*  only set bits that have been masked */
-	data[0] &= 0xf;
-	wbits = devpriv->do_bits;
-	/*  zero bits that have been masked */
-	wbits &= ~data[0];
-	/*  set masked bits */
-	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
-	data[1] = wbits;
-
-	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -649,7 +637,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
 
 	/*  initialize digital output lines */
-	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+	outb(0, dev->iobase + DAS16M1_DIO);
 
 	/* set the interrupt level */
 	if (dev->irq)

@@ -460,7 +460,7 @@ static inline void
 __ip_vs_bind_svc(struct ip_vs_dest *dest, struct ip_vs_service *svc)
 {
 	atomic_inc(&svc->refcnt);
-	dest->svc = svc;
+	rcu_assign_pointer(dest->svc, svc);
 }
 
 static void ip_vs_service_free(struct ip_vs_service *svc)
@@ -470,18 +470,25 @@ static void ip_vs_service_free(struct ip_vs_service *svc)
 	kfree(svc);
 }
 
-static void
-__ip_vs_unbind_svc(struct ip_vs_dest *dest)
+static void ip_vs_service_rcu_free(struct rcu_head *head)
 {
-	struct ip_vs_service *svc = dest->svc;
+	struct ip_vs_service *svc;
 
-	dest->svc = NULL;
+	svc = container_of(head, struct ip_vs_service, rcu_head);
+	ip_vs_service_free(svc);
+}
+
+static void __ip_vs_svc_put(struct ip_vs_service *svc, bool do_delay)
+{
 	if (atomic_dec_and_test(&svc->refcnt)) {
 		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
 			      ntohs(svc->port));
-		ip_vs_service_free(svc);
+		if (do_delay)
+			call_rcu(&svc->rcu_head, ip_vs_service_rcu_free);
+		else
+			ip_vs_service_free(svc);
 	}
 }
 
@@ -667,11 +674,6 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 			      IP_VS_DBG_ADDR(svc->af, &dest->addr),
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
-		/* We can not reuse dest while in grace period
-		 * because conns still can use dest->svc
-		 */
-		if (test_bit(IP_VS_DEST_STATE_REMOVING, &dest->state))
-			continue;
 		if (dest->af == svc->af &&
 		    ip_vs_addr_equal(svc->af, &dest->addr, daddr) &&
 		    dest->port == dport &&
@@ -697,10 +699,12 @@ out:
 
 static void ip_vs_dest_free(struct ip_vs_dest *dest)
 {
+	struct ip_vs_service *svc = rcu_dereference_protected(dest->svc, 1);
+
 	__ip_vs_dst_cache_reset(dest);
-	__ip_vs_unbind_svc(dest);
+	__ip_vs_svc_put(svc, false);
 	free_percpu(dest->stats.cpustats);
-	kfree(dest);
+	ip_vs_dest_put_and_free(dest);
 }
 
 /*
@@ -771,6 +775,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		    struct ip_vs_dest_user_kern *udest, int add)
 {
 	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	struct ip_vs_service *old_svc;
 	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
@@ -792,13 +797,14 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	atomic_set(&dest->conn_flags, conn_flags);
 
 	/* bind the service */
-	if (!dest->svc) {
+	old_svc = rcu_dereference_protected(dest->svc, 1);
+	if (!old_svc) {
 		__ip_vs_bind_svc(dest, svc);
 	} else {
-		if (dest->svc != svc) {
-			__ip_vs_unbind_svc(dest);
+		if (old_svc != svc) {
 			ip_vs_zero_stats(&dest->stats);
 			__ip_vs_bind_svc(dest, svc);
+			__ip_vs_svc_put(old_svc, true);
 		}
 	}
 
@@ -836,7 +842,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	       struct ip_vs_dest **dest_p)
 {
 	struct ip_vs_dest *dest;
-	unsigned int atype;
+	unsigned int atype, i;
 
 	EnterFunction(2);
 
@@ -862,6 +868,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	dest->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
 	if (!dest->stats.cpustats)
 		goto err_alloc;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ip_vs_dest_stats;
+		ip_vs_dest_stats = per_cpu_ptr(dest->stats.cpustats, i);
+		u64_stats_init(&ip_vs_dest_stats->syncp);
+	}
 
 	dest->af = svc->af;
 	dest->protocol = svc->protocol;
@@ -998,16 +1010,6 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	return 0;
 }
 
-static void ip_vs_dest_wait_readers(struct rcu_head *head)
-{
-	struct ip_vs_dest *dest = container_of(head, struct ip_vs_dest,
-					       rcu_head);
-
-	/* End of grace period after unlinking */
-	clear_bit(IP_VS_DEST_STATE_REMOVING, &dest->state);
-}
-
-
 /*
  *	Delete a destination (must be already unlinked from the service)
  */
@@ -1023,20 +1025,16 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest,
 	 */
 	ip_vs_rs_unhash(dest);
 
-	if (!cleanup) {
-		set_bit(IP_VS_DEST_STATE_REMOVING, &dest->state);
-		call_rcu(&dest->rcu_head, ip_vs_dest_wait_readers);
-	}
-
 	spin_lock_bh(&ipvs->dest_trash_lock);
 	IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, dest->refcnt=%d\n",
 		      IP_VS_DBG_ADDR(dest->af, &dest->addr), ntohs(dest->port),
 		      atomic_read(&dest->refcnt));
 	if (list_empty(&ipvs->dest_trash) && !cleanup)
 		mod_timer(&ipvs->dest_trash_timer,
-			  jiffies + IP_VS_DEST_TRASH_PERIOD);
+			  jiffies + (IP_VS_DEST_TRASH_PERIOD >> 1));
 	/* dest lives in trash without reference */
 	list_add(&dest->t_list, &ipvs->dest_trash);
+	dest->idle_start = 0;
 	spin_unlock_bh(&ipvs->dest_trash_lock);
 	ip_vs_dest_put(dest);
 }
@@ -1108,24 +1106,30 @@ static void ip_vs_dest_trash_expire(unsigned long data)
 	struct net *net = (struct net *) data;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_dest *dest, *next;
+	unsigned long now = jiffies;
 
 	spin_lock(&ipvs->dest_trash_lock);
 	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
-		/* Skip if dest is in grace period */
-		if (test_bit(IP_VS_DEST_STATE_REMOVING, &dest->state))
-			continue;
 		if (atomic_read(&dest->refcnt) > 0)
 			continue;
+		if (dest->idle_start) {
+			if (time_before(now, dest->idle_start +
+					     IP_VS_DEST_TRASH_PERIOD))
+				continue;
+		} else {
+			dest->idle_start = max(1UL, now);
+			continue;
+		}
 		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u from trash\n",
 			      dest->vfwmark,
-			      IP_VS_DBG_ADDR(dest->svc->af, &dest->addr),
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
 			      ntohs(dest->port));
 		list_del(&dest->t_list);
 		ip_vs_dest_free(dest);
 	}
 	if (!list_empty(&ipvs->dest_trash))
 		mod_timer(&ipvs->dest_trash_timer,
-			  jiffies + IP_VS_DEST_TRASH_PERIOD);
+			  jiffies + (IP_VS_DEST_TRASH_PERIOD >> 1));
 	spin_unlock(&ipvs->dest_trash_lock);
 }
 
@@ -1136,7 +1140,7 @@ static int
 ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		  struct ip_vs_service **svc_p)
 {
-	int ret = 0;
+	int ret = 0, i;
 	struct ip_vs_scheduler *sched = NULL;
 	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
@@ -1185,6 +1189,13 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		ret = -ENOMEM;
 		goto out_err;
 	}
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ip_vs_stats;
+		ip_vs_stats = per_cpu_ptr(svc->stats.cpustats, i);
+		u64_stats_init(&ip_vs_stats->syncp);
+	}
+
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->refcnt, 0);
@@ -1320,14 +1331,6 @@ out:
 	return ret;
 }
 
-static void ip_vs_service_rcu_free(struct rcu_head *head)
-{
-	struct ip_vs_service *svc;
-
-	svc = container_of(head, struct ip_vs_service, rcu_head);
-	ip_vs_service_free(svc);
-}
-
 /*
  *	Delete a service from the service list
  *	- The service must be unlinked, unlocked and not referenced!
@@ -1376,13 +1379,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 	/*
 	 *    Free the service if nobody refers to it
 	 */
-	if (atomic_dec_and_test(&svc->refcnt)) {
-		IP_VS_DBG_BUF(3, "Removing service %u/%s:%u\n",
-			      svc->fwmark,
-			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
-			      ntohs(svc->port));
-		call_rcu(&svc->rcu_head, ip_vs_service_rcu_free);
-	}
+	__ip_vs_svc_put(svc, true);
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -3583,7 +3580,7 @@ out:
 }
 
 
-static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
+static const struct genl_ops ip_vs_genl_ops[] __read_mostly = {
 	{
 		.cmd	= IPVS_CMD_NEW_SERVICE,
 		.flags	= GENL_ADMIN_PERM,
@@ -3682,7 +3679,7 @@ static struct genl_ops ip_vs_genl_ops[] __read_mostly = {
 static int __init ip_vs_genl_register(void)
 {
 	return genl_register_family_with_ops(&ip_vs_genl_family,
-		ip_vs_genl_ops, ARRAY_SIZE(ip_vs_genl_ops));
+					     ip_vs_genl_ops);
 }
 
 static void ip_vs_genl_unregister(void)
@@ -3796,7 +3793,7 @@ static struct notifier_block ip_vs_dst_notifier = {
 
 int __net_init ip_vs_control_net_init(struct net *net)
 {
-	int idx;
+	int i, idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	/* Initialize rs_table */
@@ -3814,6 +3811,12 @@ int __net_init ip_vs_control_net_init(struct net *net)
 	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
 	if (!ipvs->tot_stats.cpustats)
 		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *ipvs_tot_stats;
+		ipvs_tot_stats = per_cpu_ptr(ipvs->tot_stats.cpustats, i);
+		u64_stats_init(&ipvs_tot_stats->syncp);
+	}
 
 	spin_lock_init(&ipvs->tot_stats.lock);
 
@@ -3836,10 +3839,6 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	/* Some dest can be in grace period even before cleanup, we have to
-	 * defer ip_vs_trash_cleanup until ip_vs_dest_wait_readers is called.
-	 */
-	rcu_barrier();
 	ip_vs_trash_cleanup(net);
 	ip_vs_stop_estimator(net, &ipvs->tot_stats);
 	ip_vs_control_net_cleanup_sysctl(net);

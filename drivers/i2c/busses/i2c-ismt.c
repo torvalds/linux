@@ -393,6 +393,9 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 
 	desc = &priv->hw[priv->head];
 
+	/* Initialize the DMA buffer */
+	memset(priv->dma_buffer, 0, sizeof(priv->dma_buffer));
+
 	/* Initialize the descriptor */
 	memset(desc, 0, sizeof(struct ismt_desc));
 	desc->tgtaddr_rw = ISMT_DESC_ADDR_RW(addr, read_write);
@@ -538,7 +541,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 		desc->dptr_high = upper_32_bits(dma_addr);
 	}
 
-	INIT_COMPLETION(priv->cmp);
+	reinit_completion(&priv->cmp);
 
 	/* Add the descriptor */
 	ismt_submit_desc(priv);

@@ -1868,14 +1868,14 @@ int trinity_dpm_init(struct radeon_device *rdev)
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++)
 		pi->at[i] = TRINITY_AT_DFLT;
 
-	pi->enable_bapm = true;
+	pi->enable_bapm = false;
 	pi->enable_nbps_policy = true;
 	pi->enable_sclk_ds = true;
 	pi->enable_gfx_power_gating = true;
 	pi->enable_gfx_clock_gating = true;
-	pi->enable_mg_clock_gating = true;
-	pi->enable_gfx_dynamic_mgpg = true; /* ??? */
-	pi->override_dynamic_mgpg = true;
+	pi->enable_mg_clock_gating = false;
+	pi->enable_gfx_dynamic_mgpg = false;
+	pi->override_dynamic_mgpg = false;
 	pi->enable_auto_thermal_throttling = true;
 	pi->voltage_drop_in_dce = false; /* need to restructure dpm/modeset interaction */
 	pi->uvd_dpm = true; /* ??? */

@@ -65,6 +65,11 @@
 				compatible = "sirf,prima2-rsc";
 				reg = <0x88020000 0x1000>;
 			};
+
+			cphifbg@88030000 {
+				compatible = "sirf,prima2-cphifbg";
+				reg = <0x88030000 0x1000>;
+			};
 		};
 
 		mem-iobg {
@@ -75,9 +80,16 @@
 
 			memory-controller@90000000 {
 				compatible = "sirf,prima2-memc";
-				reg = <0x90000000 0x10000>;
+				reg = <0x90000000 0x2000>;
 				interrupts = <27>;
 				clocks = <&clks 5>;
+			};
+
+			memc-monitor {
+				compatible = "sirf,prima2-memcmon";
+				reg = <0x90002000 0x200>;
+				interrupts = <4>;
+				clocks = <&clks 32>;
 			};
 		};
 
@@ -117,6 +129,20 @@
 				reg = <0x98000000 0x8000000>;
 				interrupts = <6>;
 				clocks = <&clks 32>;
+			};
+		};
+
+		graphics2d-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xa0000000 0xa0000000 0x8000000>;
+
+			ble@a0000000 {
+				compatible = "sirf,atlas6-ble";
+				reg = <0xa0000000 0x2000>;
+				interrupts = <5>;
+				clocks = <&clks 33>;
 			};
 		};
 
@@ -181,6 +207,8 @@
 				interrupts = <17>;
 				fifosize = <128>;
 				clocks = <&clks 13>;
+				sirf,uart-dma-rx-channel = <21>;
+				sirf,uart-dma-tx-channel = <2>;
 			};
 
 			uart1: uart@b0060000 {
@@ -199,6 +227,8 @@
 				interrupts = <19>;
 				fifosize = <128>;
 				clocks = <&clks 15>;
+				sirf,uart-dma-rx-channel = <6>;
+				sirf,uart-dma-tx-channel = <7>;
 			};
 
 			usp0: usp@b0080000 {
@@ -206,7 +236,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0080000 0x10000>;
 				interrupts = <20>;
+				fifosize = <128>;
 				clocks = <&clks 28>;
+				sirf,usp-dma-rx-channel = <17>;
+				sirf,usp-dma-tx-channel = <18>;
 			};
 
 			usp1: usp@b0090000 {
@@ -214,7 +247,10 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0090000 0x10000>;
 				interrupts = <21>;
+				fifosize = <128>;
 				clocks = <&clks 29>;
+				sirf,usp-dma-rx-channel = <14>;
+				sirf,usp-dma-tx-channel = <15>;
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -237,6 +273,8 @@
 				compatible = "sirf,prima2-vip";
 				reg = <0xb00C0000 0x10000>;
 				clocks = <&clks 31>;
+				interrupts = <14>;
+				sirf,vip-dma-rx-channel = <16>;
 			};
 
 			spi0: spi@b00d0000 {
@@ -259,6 +297,11 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
+				sirf,spi-num-chipselects = <1>;
+				sirf,spi-dma-rx-channel = <12>;
+				sirf,spi-dma-tx-channel = <13>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&clks 20>;
 				status = "disabled";
 			};
@@ -513,6 +556,18 @@
                                         usb1_utmi_drvbus {
                                                 sirf,pins = "usb1_utmi_drvbusgrp";
                                                 sirf,function = "usb1_utmi_drvbus";
+                                        };
+                                };
+                                usb1_dp_dn_pins_a: usb1_dp_dn@0 {
+                                        usb1_dp_dn {
+                                                sirf,pins = "usb1_dp_dngrp";
+                                                sirf,function = "usb1_dp_dn";
+                                        };
+                                };
+                                uart1_route_io_usb1_pins_a: uart1_route_io_usb1@0 {
+                                        uart1_route_io_usb1 {
+                                                sirf,pins = "uart1_route_io_usb1grp";
+                                                sirf,function = "uart1_route_io_usb1";
                                         };
                                 };
                                 warm_rst_pins_a: warm_rst@0 {

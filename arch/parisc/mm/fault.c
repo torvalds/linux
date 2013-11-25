@@ -142,6 +142,12 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
+	/* If we only stored 32bit addresses in the exception table we can drop
+	 * out if we faulted on a 64bit address. */
+	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
+		&& (regs->iaoq[0] >> 32))
+			return 0;
+
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
@@ -171,17 +177,25 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 			      unsigned long address)
 {
 	struct vm_area_struct *vma, *prev_vma;
-	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
+	struct task_struct *tsk;
+	struct mm_struct *mm;
 	unsigned long acc_type;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags;
 
-	if (in_atomic() || !mm)
+	if (in_atomic())
 		goto no_context;
 
+	tsk = current;
+	mm = tsk->mm;
+	if (!mm)
+		goto no_context;
+
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
+
+	acc_type = parisc_acctyp(code, regs->iir);
 	if (acc_type & VM_WRITE)
 		flags |= FAULT_FLAG_WRITE;
 retry:
@@ -195,8 +209,6 @@ retry:
  */
 
 good_area:
-
-	acc_type = parisc_acctyp(code,regs->iir);
 
 	if ((vma->vm_flags & acc_type) != acc_type)
 		goto bad_area;
@@ -268,12 +280,40 @@ bad_area:
 		}
 		show_regs(regs);
 #endif
-		/* FIXME: actually we need to get the signo and code correct */
-		si.si_signo = SIGSEGV;
+		switch (code) {
+		case 15:	/* Data TLB miss fault/Data page fault */
+			/* send SIGSEGV when outside of vma */
+			if (!vma ||
+			    address < vma->vm_start || address > vma->vm_end) {
+				si.si_signo = SIGSEGV;
+				si.si_code = SEGV_MAPERR;
+				break;
+			}
+
+			/* send SIGSEGV for wrong permissions */
+			if ((vma->vm_flags & acc_type) != acc_type) {
+				si.si_signo = SIGSEGV;
+				si.si_code = SEGV_ACCERR;
+				break;
+			}
+
+			/* probably address is outside of mapped file */
+			/* fall through */
+		case 17:	/* NA data TLB miss / page fault */
+		case 18:	/* Unaligned access - PCXS only */
+			si.si_signo = SIGBUS;
+			si.si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
+			break;
+		case 16:	/* Non-access instruction TLB miss fault */
+		case 26:	/* PCXL: Data memory access rights trap */
+		default:
+			si.si_signo = SIGSEGV;
+			si.si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
+			break;
+		}
 		si.si_errno = 0;
-		si.si_code = SEGV_MAPERR;
 		si.si_addr = (void __user *) address;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_info(si.si_signo, &si, current);
 		return;
 	}
 

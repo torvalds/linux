@@ -136,6 +136,7 @@ static int traverse(struct seq_file *m, loff_t offset)
 Eoverflow:
 	m->op->stop(m, p);
 	kfree(m->buf);
+	m->count = 0;
 	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
 	return !m->buf ? -ENOMEM : -EAGAIN;
 }
@@ -232,10 +233,10 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 			goto Fill;
 		m->op->stop(m, p);
 		kfree(m->buf);
+		m->count = 0;
 		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
 		if (!m->buf)
 			goto Enomem;
-		m->count = 0;
 		m->version = 0;
 		pos = m->index;
 		p = m->op->start(m, &pos);
@@ -328,6 +329,8 @@ loff_t seq_lseek(struct file *file, loff_t offset, int whence)
 				m->read_pos = offset;
 				retval = file->f_pos = offset;
 			}
+		} else {
+			file->f_pos = offset;
 		}
 	}
 	file->f_version = m->version;
@@ -763,6 +766,21 @@ int seq_write(struct seq_file *seq, const void *data, size_t len)
 	return -1;
 }
 EXPORT_SYMBOL(seq_write);
+
+/**
+ * seq_pad - write padding spaces to buffer
+ * @m: seq_file identifying the buffer to which data should be written
+ * @c: the byte to append after padding if non-zero
+ */
+void seq_pad(struct seq_file *m, char c)
+{
+	int size = m->pad_until - m->count;
+	if (size > 0)
+		seq_printf(m, "%*s", size, "");
+	if (c)
+		seq_putc(m, c);
+}
+EXPORT_SYMBOL(seq_pad);
 
 struct list_head *seq_list_start(struct list_head *head, loff_t pos)
 {

@@ -2394,7 +2394,8 @@ static int fwserial_create(struct fw_unit *unit)
 
 	list_del_rcu(&serial->list);
 	if (create_loop_dev)
-		tty_unregister_device(fwloop_driver, loop_idx(serial->ports[j]));
+		tty_unregister_device(fwloop_driver,
+				      loop_idx(serial->ports[j]));
 unregister_ttys:
 	for (--j; j >= 0; --j)
 		tty_unregister_device(fwtty_driver, serial->ports[j]->index);

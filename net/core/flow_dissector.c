@@ -25,9 +25,35 @@ static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *i
 	memcpy(&flow->src, &iph->saddr, sizeof(flow->src) + sizeof(flow->dst));
 }
 
+/**
+ * skb_flow_get_ports - extract the upper layer ports and return them
+ * @skb: buffer to extract the ports from
+ * @thoff: transport header offset
+ * @ip_proto: protocol for which to get port offset
+ *
+ * The function will try to retrieve the ports at offset thoff + poff where poff
+ * is the protocol port offset returned from proto_ports_offset
+ */
+__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto)
+{
+	int poff = proto_ports_offset(ip_proto);
+
+	if (poff >= 0) {
+		__be32 *ports, _ports;
+
+		ports = skb_header_pointer(skb, thoff + poff,
+					   sizeof(_ports), &_ports);
+		if (ports)
+			return *ports;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(skb_flow_get_ports);
+
 bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
 {
-	int poff, nhoff = skb_network_offset(skb);
+	int nhoff = skb_network_offset(skb);
 	u8 ip_proto;
 	__be16 proto = skb->protocol;
 
@@ -40,15 +66,15 @@ again:
 		struct iphdr _iph;
 ip:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
-		if (!iph)
+		if (!iph || iph->ihl < 5)
 			return false;
+		nhoff += iph->ihl * 4;
 
+		ip_proto = iph->protocol;
 		if (ip_is_fragment(iph))
 			ip_proto = 0;
-		else
-			ip_proto = iph->protocol;
+
 		iph_to_flow_copy_addrs(flow, iph);
-		nhoff += iph->ihl * 4;
 		break;
 	}
 	case __constant_htons(ETH_P_IPV6): {
@@ -150,16 +176,7 @@ ipv6:
 	}
 
 	flow->ip_proto = ip_proto;
-	poff = proto_ports_offset(ip_proto);
-	if (poff >= 0) {
-		__be32 *ports, _ports;
-
-		nhoff += poff;
-		ports = skb_header_pointer(skb, nhoff, sizeof(_ports), &_ports);
-		if (ports)
-			flow->ports = *ports;
-	}
-
+	flow->ports = skb_flow_get_ports(skb, nhoff, ip_proto);
 	flow->thoff = (u16) nhoff;
 
 	return true;
@@ -167,6 +184,22 @@ ipv6:
 EXPORT_SYMBOL(skb_flow_dissect);
 
 static u32 hashrnd __read_mostly;
+static __always_inline void __flow_hash_secret_init(void)
+{
+	net_get_random_once(&hashrnd, sizeof(hashrnd));
+}
+
+static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c)
+{
+	__flow_hash_secret_init();
+	return jhash_3words(a, b, c, hashrnd);
+}
+
+static __always_inline u32 __flow_hash_1word(u32 a)
+{
+	__flow_hash_secret_init();
+	return jhash_1word(a, hashrnd);
+}
 
 /*
  * __skb_get_rxhash: calculate a flow hash based on src/dst addresses
@@ -193,9 +226,9 @@ void __skb_get_rxhash(struct sk_buff *skb)
 		swap(keys.port16[0], keys.port16[1]);
 	}
 
-	hash = jhash_3words((__force u32)keys.dst,
-			    (__force u32)keys.src,
-			    (__force u32)keys.ports, hashrnd);
+	hash = __flow_hash_3words((__force u32)keys.dst,
+				  (__force u32)keys.src,
+				  (__force u32)keys.ports);
 	if (!hash)
 		hash = 1;
 
@@ -231,7 +264,7 @@ u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
 		hash = skb->sk->sk_hash;
 	else
 		hash = (__force u16) skb->protocol;
-	hash = jhash_1word(hash, hashrnd);
+	hash = __flow_hash_1word(hash);
 
 	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
 }
@@ -323,7 +356,7 @@ static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 				else
 					hash = (__force u16) skb->protocol ^
 					    skb->rxhash;
-				hash = jhash_1word(hash, hashrnd);
+				hash = __flow_hash_1word(hash);
 				queue_index = map->queues[
 				    ((u64)hash * map->len) >> 32];
 			}
@@ -378,11 +411,3 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 	skb_set_queue_mapping(skb, queue_index);
 	return netdev_get_tx_queue(dev, queue_index);
 }
-
-static int __init initialize_hashrnd(void)
-{
-	get_random_bytes(&hashrnd, sizeof(hashrnd));
-	return 0;
-}
-
-late_initcall_sync(initialize_hashrnd);

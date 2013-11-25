@@ -358,10 +358,12 @@ process_start:
 		}
 	} while (true);
 
-	if ((adapter->int_status) || IS_CARD_RX_RCVD(adapter))
-		goto process_start;
-
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	if ((adapter->int_status) || IS_CARD_RX_RCVD(adapter)) {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+		goto process_start;
+	}
+
 	adapter->mwifiex_processing = false;
 	spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 
@@ -409,13 +411,14 @@ static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
  */
 static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
-	int ret, i;
+	int ret;
 	char fmt[64];
 	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
 	struct semaphore *sem = adapter->card_sem;
 	bool init_failed = false;
+	struct wireless_dev *wdev;
 
 	if (!firmware) {
 		dev_err(adapter->dev,
@@ -467,14 +470,16 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 	if (mwifiex_register_cfg80211(adapter)) {
 		dev_err(adapter->dev, "cannot register with cfg80211\n");
-		goto err_register_cfg80211;
+		goto err_init_fw;
 	}
 
 	rtnl_lock();
 	/* Create station interface by default */
-	if (!mwifiex_add_virtual_intf(adapter->wiphy, "mlan%d",
-				      NL80211_IFTYPE_STATION, NULL, NULL)) {
+	wdev = mwifiex_add_virtual_intf(adapter->wiphy, "mlan%d",
+					NL80211_IFTYPE_STATION, NULL, NULL);
+	if (IS_ERR(wdev)) {
 		dev_err(adapter->dev, "cannot create default STA interface\n");
+		rtnl_unlock();
 		goto err_add_intf;
 	}
 	rtnl_unlock();
@@ -484,17 +489,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-
-		if (!priv)
-			continue;
-
-		if (priv->wdev && priv->netdev)
-			mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
-	}
-	rtnl_unlock();
-err_register_cfg80211:
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
 err_init_fw:
@@ -880,7 +874,9 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	adapter->cmd_wait_q.status = 0;
 	adapter->scan_wait_q_woken = false;
 
-	adapter->workqueue = create_workqueue("MWIFIEX_WORK_QUEUE");
+	adapter->workqueue =
+		alloc_workqueue("MWIFIEX_WORK_QUEUE",
+				WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!adapter->workqueue)
 		goto err_kmalloc;
 
@@ -1001,12 +997,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);
-
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-		if (priv)
-			kfree(priv->wdev);
-	}
 
 	mwifiex_terminate_workqueue(adapter);
 

@@ -18,32 +18,31 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_types.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_log_format.h"
+#include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_log.h"
-#include "xfs_trans.h"
-#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
+#include "xfs_da_format.h"
 #include "xfs_da_btree.h"
+#include "xfs_inode.h"
+#include "xfs_trans.h"
+#include "xfs_inode_item.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_btree.h"
+#include "xfs_bmap.h"
 #include "xfs_attr_sf.h"
 #include "xfs_attr_remote.h"
-#include "xfs_dinode.h"
-#include "xfs_inode.h"
-#include "xfs_inode_item.h"
-#include "xfs_bmap.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
+#include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 
 /*
@@ -918,8 +917,8 @@ xfs_attr3_leaf_to_node(
 	if (error)
 		goto out;
 	node = bp1->b_addr;
-	xfs_da3_node_hdr_from_disk(&icnodehdr, node);
-	btree = xfs_da3_node_tree_p(node);
+	dp->d_ops->node_hdr_from_disk(&icnodehdr, node);
+	btree = dp->d_ops->node_tree_p(node);
 
 	leaf = bp2->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(&icleafhdr, leaf);
@@ -929,7 +928,7 @@ xfs_attr3_leaf_to_node(
 	btree[0].hashval = entries[icleafhdr.count - 1].hashval;
 	btree[0].before = cpu_to_be32(blkno);
 	icnodehdr.count = 1;
-	xfs_da3_node_hdr_to_disk(node, &icnodehdr);
+	dp->d_ops->node_hdr_to_disk(node, &icnodehdr);
 	xfs_trans_log_buf(args->trans, bp1, 0, XFS_LBSIZE(mp) - 1);
 	error = 0;
 out:

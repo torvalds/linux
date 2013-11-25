@@ -58,11 +58,11 @@ config RT61PCI
 
 config RT2800PCI
 	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
-	depends on PCI || SOC_RT288X || SOC_RT305X
+	depends on PCI
 	select RT2800_LIB
+	select RT2800_LIB_MMIO
 	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_PCI if PCI
-	select RT2X00_LIB_SOC if SOC_RT288X || SOC_RT305X
+	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -199,8 +199,29 @@ config RT2800USB_UNKNOWN
 
 endif
 
+config RT2800SOC
+	tristate "Ralink WiSoC support"
+	depends on SOC_RT288X || SOC_RT305X
+	select RT2X00_LIB_SOC
+	select RT2X00_LIB_MMIO
+	select RT2X00_LIB_CRYPTO
+	select RT2X00_LIB_FIRMWARE
+	select RT2800_LIB
+	select RT2800_LIB_MMIO
+	---help---
+	  This adds support for Ralink WiSoC devices.
+	  Supported chips: RT2880, RT3050, RT3052, RT3350, RT3352.
+
+	  When compiled as a module, this driver will be called rt2800soc.
+
+
 config RT2800_LIB
 	tristate
+
+config RT2800_LIB_MMIO
+	tristate
+	select RT2X00_LIB_MMIO
+	select RT2800_LIB
 
 config RT2X00_LIB_MMIO
 	tristate
@@ -219,6 +240,7 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
+	select AVERAGE
 
 config RT2X00_LIB_FIRMWARE
 	boolean
