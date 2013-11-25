@@ -201,6 +201,19 @@ static const struct ce_pipe_config target_ce_config_wlan[] = {
 	/* CE7 used only by Host */
 };
 
+static bool ath10k_pci_irq_pending(struct ath10k *ar)
+{
+	u32 cause;
+
+	/* Check if the shared legacy irq is for us */
+	cause = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				  PCIE_INTR_CAUSE_ADDRESS);
+	if (cause & (PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL))
+		return true;
+
+	return false;
+}
+
 /*
  * Diagnostic read/write access is provided for startup/config/debug usage.
  * Caller must guarantee proper alignment, when applicable, and single user
@@ -2086,6 +2099,9 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (ar_pci->num_msi_intrs == 0) {
+		if (!ath10k_pci_irq_pending(ar))
+			return IRQ_NONE;
+
 		/*
 		 * IMPORTANT: INTR_CLR regiser has to be set after
 		 * INTR_ENABLE is set to 0, otherwise interrupt can not be
