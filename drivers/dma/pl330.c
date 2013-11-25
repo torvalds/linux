@@ -578,6 +578,9 @@ struct dma_pl330_dmac {
 	/* DMA-Engine Device */
 	struct dma_device ddma;
 
+	/* Holds info about sg limitations */
+	struct device_dma_parameters dma_parms;
+
 	/* Pool of descriptors available for the DMAC's channels */
 	struct list_head desc_pool;
 	/* To protect desc_pool manipulation */
@@ -3020,6 +3023,9 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 			"unable to register DMA to the generic DT DMA helpers\n");
 		}
 	}
+
+	adev->dev.dma_parms = &pdmac->dma_parms;
+
 	/*
 	 * This is the limit for transfers with a buswidth of 1, larger
 	 * buswidths will have larger limits.
