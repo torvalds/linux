@@ -191,7 +191,7 @@ static void ad7280_delay(struct ad7280_state *st)
 
 static int __ad7280_read32(struct spi_device *spi, unsigned *val)
 {
-	unsigned rx_buf, tx_buf = cpu_to_be32(AD7280A_READ_TXVAL);
+	__be32 rx_buf, tx_buf = cpu_to_be32(AD7280A_READ_TXVAL);
 	int ret;
 
 	struct spi_transfer t = {
@@ -214,11 +214,12 @@ static int ad7280_write(struct ad7280_state *st, unsigned devaddr,
 {
 	unsigned reg = (devaddr << 27 | addr << 21 |
 			(val & 0xFF) << 13 | all << 12);
+	__be32 tx_buf;
 
 	reg |= ad7280_calc_crc8(st->crc_tab, reg >> 11) << 3 | 0x2;
-	reg = cpu_to_be32(reg);
+	tx_buf = cpu_to_be32(reg);
 
-	return spi_write(st->spi, &reg, 4);
+	return spi_write(st->spi, &tx_buf, 4);
 }
 
 static int ad7280_read(struct ad7280_state *st, unsigned devaddr,
