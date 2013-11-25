@@ -6902,8 +6902,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int ret;
 
-	if (!intel_ddi_pll_mode_set(crtc))
+	if (!intel_ddi_pll_select(intel_crtc))
 		return -EINVAL;
+	intel_ddi_pll_enable(intel_crtc);
 
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
