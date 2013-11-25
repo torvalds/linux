@@ -199,7 +199,6 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
       do_unregister_netdev:
 	unregister_netdev(ndev);
 	islpci_free_memory(priv);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 	priv = NULL;
       do_pci_clear_mwi:
@@ -247,7 +246,6 @@ prism54_remove(struct pci_dev *pdev)
 	/* free the PCI memory and unmap the remapped page */
 	islpci_free_memory(priv);
 
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 	priv = NULL;
 
