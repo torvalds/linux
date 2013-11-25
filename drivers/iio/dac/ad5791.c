@@ -107,7 +107,7 @@ enum ad5791_supported_device_ids {
 static int ad5791_spi_write(struct spi_device *spi, u8 addr, u32 val)
 {
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data;
 
@@ -121,7 +121,7 @@ static int ad5791_spi_write(struct spi_device *spi, u8 addr, u32 val)
 static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 {
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} data[3];
 	int ret;
