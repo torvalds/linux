@@ -58,7 +58,7 @@ static struct s5p_jpeg_fmt formats_enc[] = {
 static struct s5p_jpeg_fmt formats_dec[] = {
 	{
 		.name		= "YUV 4:2:0 planar, YCbCr",
-		.fourcc		= V4L2_PIX_FMT_YUV420,
+		.fourcc		= V4L2_PIX_FMT_NV12,
 		.depth		= 12,
 		.colplanes	= 3,
 		.h_align	= 4,
