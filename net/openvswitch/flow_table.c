@@ -429,7 +429,7 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 	return NULL;
 }
 
-struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
+struct sw_flow *ovs_flow_tbl_lookup_stats(struct flow_table *tbl,
 				    const struct sw_flow_key *key,
 				    u32 *n_mask_hit)
 {
@@ -445,6 +445,14 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
 			return flow;
 	}
 	return NULL;
+}
+
+struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *tbl,
+				    const struct sw_flow_key *key)
+{
+	u32 __always_unused n_mask_hit;
+
+	return ovs_flow_tbl_lookup_stats(tbl, key, &n_mask_hit);
 }
 
 int ovs_flow_tbl_num_masks(const struct flow_table *table)
