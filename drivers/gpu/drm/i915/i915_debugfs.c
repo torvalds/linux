@@ -2744,7 +2744,7 @@ i915_drop_caches_set(void *data, u64 val)
 	struct i915_vma *vma, *x;
 	int ret;
 
-	DRM_DEBUG_DRIVER("Dropping caches: 0x%08llx\n", val);
+	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
