@@ -29,6 +29,10 @@
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
 
+/*
+ * M-F Symlink Functions - Begin
+ */
+
 #define CIFS_MF_SYMLINK_LEN_OFFSET (4+1)
 #define CIFS_MF_SYMLINK_MD5_OFFSET (CIFS_MF_SYMLINK_LEN_OFFSET+(4+1))
 #define CIFS_MF_SYMLINK_LINK_OFFSET (CIFS_MF_SYMLINK_MD5_OFFSET+(32+1))
@@ -178,6 +182,20 @@ format_mf_symlink(u8 *buf, unsigned int buf_len, const char *link_str)
 	return 0;
 }
 
+bool
+couldbe_mf_symlink(const struct cifs_fattr *fattr)
+{
+	if (!(fattr->cf_mode & S_IFREG))
+		/* it's not a symlink */
+		return false;
+
+	if (fattr->cf_eof != CIFS_MF_SYMLINK_FILE_SIZE)
+		/* it's not a symlink */
+		return false;
+
+	return true;
+}
+
 static int
 create_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 		  struct cifs_sb_info *cifs_sb, const char *fromName,
@@ -241,19 +259,59 @@ out:
 	return rc;
 }
 
-bool
-couldbe_mf_symlink(const struct cifs_fattr *fattr)
+int
+check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
+		 struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
+		 const unsigned char *path)
 {
-	if (!(fattr->cf_mode & S_IFREG))
-		/* it's not a symlink */
-		return false;
+	int rc;
+	u8 *buf = NULL;
+	unsigned int link_len = 0;
+	unsigned int bytes_read = 0;
 
-	if (fattr->cf_eof != CIFS_MF_SYMLINK_FILE_SIZE)
+	if (!couldbe_mf_symlink(fattr))
 		/* it's not a symlink */
-		return false;
+		return 0;
 
-	return true;
+	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (tcon->ses->server->ops->query_mf_symlink)
+		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
+					      cifs_sb, path, buf, &bytes_read);
+	else
+		rc = -ENOSYS;
+
+	if (rc)
+		goto out;
+
+	if (bytes_read == 0) /* not a symlink */
+		goto out;
+
+	rc = parse_mf_symlink(buf, bytes_read, &link_len, NULL);
+	if (rc == -EINVAL) {
+		/* it's not a symlink */
+		rc = 0;
+		goto out;
+	}
+
+	if (rc != 0)
+		goto out;
+
+	/* it is a symlink */
+	fattr->cf_eof = link_len;
+	fattr->cf_mode &= ~S_IFMT;
+	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
+	fattr->cf_dtype = DT_LNK;
+out:
+	kfree(buf);
+	return rc;
 }
+
+/*
+ * SMB 1.0 Protocol specific functions
+ */
 
 int
 cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
@@ -324,55 +382,9 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-int
-check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
-		 struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		 const unsigned char *path)
-{
-	int rc;
-	u8 *buf = NULL;
-	unsigned int link_len = 0;
-	unsigned int bytes_read = 0;
-
-	if (!couldbe_mf_symlink(fattr))
-		/* it's not a symlink */
-		return 0;
-
-	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (tcon->ses->server->ops->query_mf_symlink)
-		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
-					      cifs_sb, path, buf, &bytes_read);
-	else
-		rc = -ENOSYS;
-
-	if (rc)
-		goto out;
-
-	if (bytes_read == 0) /* not a symlink */
-		goto out;
-
-	rc = parse_mf_symlink(buf, bytes_read, &link_len, NULL);
-	if (rc == -EINVAL) {
-		/* it's not a symlink */
-		rc = 0;
-		goto out;
-	}
-
-	if (rc != 0)
-		goto out;
-
-	/* it is a symlink */
-	fattr->cf_eof = link_len;
-	fattr->cf_mode &= ~S_IFMT;
-	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
-	fattr->cf_dtype = DT_LNK;
-out:
-	kfree(buf);
-	return rc;
-}
+/*
+ * M-F Symlink Functions - End
+ */
 
 int
 cifs_hardlink(struct dentry *old_file, struct inode *inode,
