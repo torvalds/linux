@@ -248,6 +248,46 @@ static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
 				 PCIE_INTR_ENABLE_ADDRESS);
 }
 
+static irqreturn_t ath10k_pci_early_irq_handler(int irq, void *arg)
+{
+	struct ath10k *ar = arg;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (ar_pci->num_msi_intrs == 0) {
+		if (!ath10k_pci_irq_pending(ar))
+			return IRQ_NONE;
+
+		ath10k_pci_disable_and_clear_legacy_irq(ar);
+	}
+
+	tasklet_schedule(&ar_pci->early_irq_tasklet);
+
+	return IRQ_HANDLED;
+}
+
+static int ath10k_pci_request_early_irq(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
+
+	/* Regardless whether MSI-X/MSI/legacy irqs have been set up the first
+	 * interrupt from irq vector is triggered in all cases for FW
+	 * indication/errors */
+	ret = request_irq(ar_pci->pdev->irq, ath10k_pci_early_irq_handler,
+			  IRQF_SHARED, "ath10k_pci (early)", ar);
+	if (ret) {
+		ath10k_warn("failed to request early irq: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void ath10k_pci_free_early_irq(struct ath10k *ar)
+{
+	free_irq(ath10k_pci_priv(ar)->pdev->irq, ar);
+}
+
 /*
  * Diagnostic read/write access is provided for startup/config/debug usage.
  * Caller must guarantee proper alignment, when applicable, and single user
@@ -937,6 +977,7 @@ static void ath10k_pci_kill_tasklet(struct ath10k *ar)
 
 	tasklet_kill(&ar_pci->intr_tq);
 	tasklet_kill(&ar_pci->msi_fw_err);
+	tasklet_kill(&ar_pci->early_irq_tasklet);
 
 	for (i = 0; i < CE_COUNT; i++)
 		tasklet_kill(&ar_pci->pipe_info[i].intr);
@@ -1249,12 +1290,15 @@ static int ath10k_pci_post_rx(struct ath10k *ar)
 static int ath10k_pci_hif_start(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ret;
+	int ret, ret_early;
+
+	ath10k_pci_free_early_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 
 	ret = ath10k_pci_alloc_compl(ar);
 	if (ret) {
 		ath10k_warn("failed to allocate CE completions: %d\n", ret);
-		return ret;
+		goto err_early_irq;
 	}
 
 	ret = ath10k_pci_request_irq(ar);
@@ -1289,6 +1333,14 @@ err_stop:
 	ath10k_pci_process_ce(ar);
 err_free_compl:
 	ath10k_pci_cleanup_ce(ar);
+err_early_irq:
+	/* Though there should be no interrupts (device was reset)
+	 * power_down() expects the early IRQ to be installed as per the
+	 * driver lifecycle. */
+	ret_early = ath10k_pci_request_early_irq(ar);
+	if (ret_early)
+		ath10k_warn("failed to re-enable early irq: %d\n", ret_early);
+
 	return ret;
 }
 
@@ -1421,6 +1473,10 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_free_irq(ar);
 	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_stop_ce(ar);
+
+	ret = ath10k_pci_request_early_irq(ar);
+	if (ret)
+		ath10k_warn("failed to re-enable early irq: %d\n", ret);
 
 	/* At this point, asynchronous threads are stopped, the target should
 	 * not DMA nor interrupt. We process the leftovers and then free
@@ -1970,22 +2026,28 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 		goto err_ce;
 	}
 
+	ret = ath10k_pci_request_early_irq(ar);
+	if (ret) {
+		ath10k_err("failed to request early irq: %d\n", ret);
+		goto err_deinit_irq;
+	}
+
 	ret = ath10k_pci_wait_for_target_init(ar);
 	if (ret) {
 		ath10k_err("failed to wait for target to init: %d\n", ret);
-		goto err_deinit_irq;
+		goto err_free_early_irq;
 	}
 
 	ret = ath10k_pci_init_config(ar);
 	if (ret) {
 		ath10k_err("failed to setup init config: %d\n", ret);
-		goto err_deinit_irq;
+		goto err_free_early_irq;
 	}
 
 	ret = ath10k_pci_wake_target_cpu(ar);
 	if (ret) {
 		ath10k_err("could not wake up target CPU: %d\n", ret);
-		goto err_deinit_irq;
+		goto err_free_early_irq;
 	}
 
 	if (ar_pci->num_msi_intrs > 1)
@@ -2000,6 +2062,8 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 
 	return 0;
 
+err_free_early_irq:
+	ath10k_pci_free_early_irq(ar);
 err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
 err_ce:
@@ -2016,6 +2080,8 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
+	ath10k_pci_free_early_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_device_reset(ar);
 
@@ -2164,6 +2230,34 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static void ath10k_pci_early_irq_tasklet(unsigned long data)
+{
+	struct ath10k *ar = (struct ath10k *)data;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	u32 fw_ind;
+	int ret;
+
+	ret = ath10k_pci_wake(ar);
+	if (ret) {
+		ath10k_warn("failed to wake target in early irq tasklet: %d\n",
+			    ret);
+		return;
+	}
+
+	fw_ind = ath10k_pci_read32(ar, ar_pci->fw_indicator_address);
+	if (fw_ind & FW_IND_EVENT_PENDING) {
+		ath10k_pci_write32(ar, ar_pci->fw_indicator_address,
+				   fw_ind & ~FW_IND_EVENT_PENDING);
+
+		/* Some structures are unavailable during early boot or at
+		 * driver teardown so just print that the device has crashed. */
+		ath10k_warn("device crashed - no diagnostics available\n");
+	}
+
+	ath10k_pci_sleep(ar);
+	ath10k_pci_enable_legacy_irq(ar);
+}
+
 static void ath10k_pci_tasklet(unsigned long data)
 {
 	struct ath10k *ar = (struct ath10k *)data;
@@ -2279,6 +2373,8 @@ static void ath10k_pci_init_irq_tasklets(struct ath10k *ar)
 
 	tasklet_init(&ar_pci->intr_tq, ath10k_pci_tasklet, (unsigned long)ar);
 	tasklet_init(&ar_pci->msi_fw_err, ath10k_msi_err_tasklet,
+		     (unsigned long)ar);
+	tasklet_init(&ar_pci->early_irq_tasklet, ath10k_pci_early_irq_tasklet,
 		     (unsigned long)ar);
 
 	for (i = 0; i < CE_COUNT; i++) {
