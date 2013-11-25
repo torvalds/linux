@@ -220,28 +220,33 @@ struct ipi_data {
 
 static DEFINE_PER_CPU(struct ipi_data, ipi_data);
 
-static void ipi_send_msg(const struct cpumask *callmap, enum ipi_msg_type msg)
+static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 {
+	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
 	unsigned long flags;
-	unsigned int cpu;
 
 	local_irq_save(flags);
 
-	for_each_cpu(cpu, callmap) {
-		struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-		set_bit(msg, &ipi->bits);
-	}
+	set_bit(msg, &ipi->bits);
 
 	/* Call the platform specific cross-CPU call function  */
 	if (plat_smp_ops.ipi_send)
-		plat_smp_ops.ipi_send((void *)callmap);
+		plat_smp_ops.ipi_send(cpu);
 
 	local_irq_restore(flags);
 }
 
+static void ipi_send_msg(const struct cpumask *callmap, enum ipi_msg_type msg)
+{
+	unsigned int cpu;
+
+	for_each_cpu(cpu, callmap)
+		ipi_send_msg_one(cpu, msg);
+}
+
 void smp_send_reschedule(int cpu)
 {
-	ipi_send_msg(cpumask_of(cpu), IPI_RESCHEDULE);
+	ipi_send_msg_one(cpu, IPI_RESCHEDULE);
 }
 
 void smp_send_stop(void)
@@ -254,7 +259,7 @@ void smp_send_stop(void)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	ipi_send_msg(cpumask_of(cpu), IPI_CALL_FUNC);
+	ipi_send_msg_one(cpu, IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
