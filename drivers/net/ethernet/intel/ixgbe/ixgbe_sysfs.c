@@ -118,22 +118,22 @@ static int ixgbe_add_hwmon_attr(struct ixgbe_adapter *adapter,
 	case IXGBE_HWMON_TYPE_LOC:
 		ixgbe_attr->dev_attr.show = ixgbe_hwmon_show_location;
 		snprintf(ixgbe_attr->name, sizeof(ixgbe_attr->name),
-			 "temp%u_label", offset);
+			 "temp%u_label", offset + 1);
 		break;
 	case IXGBE_HWMON_TYPE_TEMP:
 		ixgbe_attr->dev_attr.show = ixgbe_hwmon_show_temp;
 		snprintf(ixgbe_attr->name, sizeof(ixgbe_attr->name),
-			 "temp%u_input", offset);
+			 "temp%u_input", offset + 1);
 		break;
 	case IXGBE_HWMON_TYPE_CAUTION:
 		ixgbe_attr->dev_attr.show = ixgbe_hwmon_show_cautionthresh;
 		snprintf(ixgbe_attr->name, sizeof(ixgbe_attr->name),
-			 "temp%u_max", offset);
+			 "temp%u_max", offset + 1);
 		break;
 	case IXGBE_HWMON_TYPE_MAX:
 		ixgbe_attr->dev_attr.show = ixgbe_hwmon_show_maxopthresh;
 		snprintf(ixgbe_attr->name, sizeof(ixgbe_attr->name),
-			 "temp%u_crit", offset);
+			 "temp%u_crit", offset + 1);
 		break;
 	default:
 		rc = -EPERM;
