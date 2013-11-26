@@ -232,21 +232,6 @@ static bool tpm_nsc_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == NSC_STATUS_RDY);
 }
 
-static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
-static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
-static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
-static DEVICE_ATTR(cancel, S_IWUSR|S_IWGRP, NULL, tpm_store_cancel);
-
-static struct attribute * nsc_attrs[] = {
-	&dev_attr_pubek.attr,
-	&dev_attr_pcrs.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_cancel.attr,
-	NULL,
-};
-
-static struct attribute_group nsc_attr_grp = { .attrs = nsc_attrs };
-
 static const struct tpm_vendor_specific tpm_nsc = {
 	.recv = tpm_nsc_recv,
 	.send = tpm_nsc_send,
@@ -255,7 +240,6 @@ static const struct tpm_vendor_specific tpm_nsc = {
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
 	.req_canceled = tpm_nsc_req_canceled,
-	.attr_group = &nsc_attr_grp,
 };
 
 static struct platform_device *pdev = NULL;

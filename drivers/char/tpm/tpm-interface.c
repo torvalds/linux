@@ -879,7 +879,7 @@ void tpm_remove_hardware(struct device *dev)
 	synchronize_rcu();
 
 	tpm_dev_del_device(chip);
-	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
+	tpm_sysfs_del_device(chip);
 	tpm_remove_ppi(&dev->kobj);
 	tpm_bios_log_teardown(chip->bios_dir);
 
@@ -1095,7 +1095,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	if (tpm_dev_add_device(chip))
 		goto put_device;
 
-	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group))
+	if (tpm_sysfs_add_device(chip))
 		goto del_misc;
 
 	if (tpm_add_ppi(&dev->kobj))

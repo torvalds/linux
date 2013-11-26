@@ -61,27 +61,6 @@ enum tpm_duration {
 #define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_HEADER_SIZE		10
-extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
-				const char *, size_t);
-extern ssize_t tpm_show_enabled(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_show_active(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_show_owned(struct device *, struct device_attribute *attr,
-				char *);
-extern ssize_t tpm_show_temp_deactivated(struct device *,
-					 struct device_attribute *attr, char *);
-extern ssize_t tpm_show_durations(struct device *,
-				  struct device_attribute *attr, char *);
-extern ssize_t tpm_show_timeouts(struct device *,
-				 struct device_attribute *attr, char *);
-
 struct tpm_chip;
 
 struct tpm_vendor_specific {
@@ -103,7 +82,6 @@ struct tpm_vendor_specific {
 	u8 (*status) (struct tpm_chip *);
 	void (*release) (struct device *);
 	struct miscdevice miscdev;
-	struct attribute_group *attr_group;
 	struct list_head list;
 	int locality;
 	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
@@ -368,6 +346,8 @@ extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 
 int tpm_dev_add_device(struct tpm_chip *chip);
 void tpm_dev_del_device(struct tpm_chip *chip);
+int tpm_sysfs_add_device(struct tpm_chip *chip);
+void tpm_sysfs_del_device(struct tpm_chip *chip);
 
 int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 

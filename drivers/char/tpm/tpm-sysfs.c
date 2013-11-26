@@ -6,6 +6,9 @@
  * Reiner Sailer <sailer@watson.ibm.com>
  * Kylene Hall <kjhall@us.ibm.com>
  *
+ * Copyright (C) 2013 Obsidian Research Corp
+ * Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+ *
  * sysfs filesystem inspection interface to the TPM
  *
  * This program is free software; you can redistribute it and/or
@@ -43,9 +46,8 @@ static struct tpm_input_header tpm_readpubek_header = {
 	.length = cpu_to_be32(30),
 	.ordinal = TPM_ORD_READPUBEK
 };
-
-ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
-		       char *buf)
+static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	u8 *data;
 	struct tpm_cmd_t tpm_cmd;
@@ -99,10 +101,10 @@ out:
 	rc = str - buf;
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_show_pubek);
+static DEVICE_ATTR_RO(pubek);
 
-ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
-		      char *buf)
+static ssize_t pcrs_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	cap_t cap;
 	u8 digest[TPM_DIGEST_SIZE];
@@ -128,10 +130,10 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 	}
 	return str - buf;
 }
-EXPORT_SYMBOL_GPL(tpm_show_pcrs);
+static DEVICE_ATTR_RO(pcrs);
 
-ssize_t tpm_show_enabled(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t enabled_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -144,10 +146,10 @@ ssize_t tpm_show_enabled(struct device *dev, struct device_attribute *attr,
 	rc = sprintf(buf, "%d\n", !cap.perm_flags.disable);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_show_enabled);
+static DEVICE_ATTR_RO(enabled);
 
-ssize_t tpm_show_active(struct device *dev, struct device_attribute *attr,
-			char *buf)
+ssize_t active_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -160,10 +162,10 @@ ssize_t tpm_show_active(struct device *dev, struct device_attribute *attr,
 	rc = sprintf(buf, "%d\n", !cap.perm_flags.deactivated);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_show_active);
+static DEVICE_ATTR_RO(active);
 
-ssize_t tpm_show_owned(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t owned_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -176,10 +178,10 @@ ssize_t tpm_show_owned(struct device *dev, struct device_attribute *attr,
 	rc = sprintf(buf, "%d\n", cap.owned);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_show_owned);
+static DEVICE_ATTR_RO(owned);
 
-ssize_t tpm_show_temp_deactivated(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t temp_deactivated_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -192,10 +194,10 @@ ssize_t tpm_show_temp_deactivated(struct device *dev,
 	rc = sprintf(buf, "%d\n", cap.stclear_flags.deactivated);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_show_temp_deactivated);
+static DEVICE_ATTR_RO(temp_deactivated);
 
-ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
-		      char *buf)
+static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	cap_t cap;
 	ssize_t rc;
@@ -234,10 +236,10 @@ ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
 
 	return str - buf;
 }
-EXPORT_SYMBOL_GPL(tpm_show_caps);
+static DEVICE_ATTR_RO(caps);
 
-ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cancel_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip == NULL)
@@ -246,10 +248,10 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 	chip->vendor.cancel(chip);
 	return count;
 }
-EXPORT_SYMBOL_GPL(tpm_store_cancel);
+static DEVICE_ATTR_WO(cancel);
 
-ssize_t tpm_show_durations(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t durations_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
@@ -263,10 +265,10 @@ ssize_t tpm_show_durations(struct device *dev, struct device_attribute *attr,
 		       chip->vendor.duration_adjusted
 		       ? "adjusted" : "original");
 }
-EXPORT_SYMBOL_GPL(tpm_show_durations);
+static DEVICE_ATTR_RO(durations);
 
-ssize_t tpm_show_timeouts(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t timeouts_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
@@ -278,4 +280,39 @@ ssize_t tpm_show_timeouts(struct device *dev, struct device_attribute *attr,
 		       chip->vendor.timeout_adjusted
 		       ? "adjusted" : "original");
 }
-EXPORT_SYMBOL_GPL(tpm_show_timeouts);
+static DEVICE_ATTR_RO(timeouts);
+
+static struct attribute *tpm_dev_attrs[] = {
+	&dev_attr_pubek.attr,
+	&dev_attr_pcrs.attr,
+	&dev_attr_enabled.attr,
+	&dev_attr_active.attr,
+	&dev_attr_owned.attr,
+	&dev_attr_temp_deactivated.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_cancel.attr,
+	&dev_attr_durations.attr,
+	&dev_attr_timeouts.attr,
+	NULL,
+};
+
+static const struct attribute_group tpm_dev_group = {
+	.attrs = tpm_dev_attrs,
+};
+
+int tpm_sysfs_add_device(struct tpm_chip *chip)
+{
+	int err;
+	err = sysfs_create_group(&chip->dev->kobj,
+				 &tpm_dev_group);
+
+	if (err)
+		dev_err(chip->dev,
+			"failed to create sysfs attributes, %d\n", err);
+	return err;
+}
+
+void tpm_sysfs_del_device(struct tpm_chip *chip)
+{
+	sysfs_remove_group(&chip->dev->kobj, &tpm_dev_group);
+}
