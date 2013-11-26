@@ -289,13 +289,6 @@ static int dt2801_writedata(struct comedi_device *dev, unsigned int data)
 			outb_p(data & 0xff, dev->iobase + DT2801_DATA);
 			return 0;
 		}
-#if 0
-		if (stat & DT_S_READY) {
-			printk
-			    ("dt2801: ready flag set (bad!) in dt2801_writedata()\n");
-			return -EIO;
-		}
-#endif
 	} while (--timeout > 0);
 
 	return -ETIME;
