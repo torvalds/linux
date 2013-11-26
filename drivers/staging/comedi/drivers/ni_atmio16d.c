@@ -631,7 +631,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 	const struct atmio16_board_t *board = comedi_board(dev);
 	struct atmio16d_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned int irq;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], ATMIO16D_SIZE);
@@ -649,19 +648,11 @@ static int atmio16d_attach(struct comedi_device *dev,
 	/* reset the atmio16d hardware */
 	reset_atmio16d(dev);
 
-	/* check if our interrupt is available and get it */
-	irq = it->options[1];
-	if (irq) {
-
-		ret = request_irq(irq, atmio16d_interrupt, 0, "atmio16d", dev);
-		if (ret < 0) {
-			printk(KERN_INFO "failed to allocate irq %u\n", irq);
-			return ret;
-		}
-		dev->irq = irq;
-		printk(KERN_INFO "( irq = %u )\n", irq);
-	} else {
-		printk(KERN_INFO "( no irq )");
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], atmio16d_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
 	/* set device options */
@@ -677,16 +668,11 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 	/* setup sub-devices */
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = (devpriv->adc_mux ? 16 : 8);
-	s->len_chanlist = 16;
 	s->insn_read = atmio16d_ai_insn_read;
-	s->do_cmdtest = atmio16d_ai_cmdtest;
-	s->do_cmd = atmio16d_ai_cmd;
-	s->cancel = atmio16d_ai_cancel;
 	s->maxdata = 0xfff;	/* 4095 decimal */
 	switch (devpriv->adc_range) {
 	case adc_bipolar10:
@@ -698,6 +684,14 @@ static int atmio16d_attach(struct comedi_device *dev,
 	case adc_unipolar10:
 		s->range_table = &range_atmio16d_ai_unipolar;
 		break;
+	}
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags |= SDF_CMD_READ;
+		s->len_chanlist = 16;
+		s->do_cmdtest = atmio16d_ai_cmdtest;
+		s->do_cmd = atmio16d_ai_cmd;
+		s->cancel = atmio16d_ai_cancel;
 	}
 
 	/* ao subdevice */
