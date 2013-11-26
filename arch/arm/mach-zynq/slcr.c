@@ -71,6 +71,18 @@ static int zynq_slcr_read(u32 *val, u32 offset)
 }
 
 /**
+ * zynq_slcr_unlock - Unlock SLCR registers
+ *
+ * Return:	a negative value on error, 0 on success
+ */
+static inline int zynq_slcr_unlock(void)
+{
+	zynq_slcr_write(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK_OFFSET);
+
+	return 0;
+}
+
+/**
  * zynq_slcr_system_reset - Reset the entire system.
  */
 void zynq_slcr_system_reset(void)
@@ -82,7 +94,7 @@ void zynq_slcr_system_reset(void)
 	 * Note that this seems to require raw i/o
 	 * functions or there's a lockup?
 	 */
-	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK_OFFSET);
+	zynq_slcr_unlock();
 
 	/*
 	 * Clear 0x0F000000 bits of reboot status register to workaround
@@ -166,7 +178,7 @@ int __init zynq_early_slcr_init(void)
 	np->data = (__force void *)zynq_slcr_base;
 
 	/* unlock the SLCR so that registers can be changed */
-	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK_OFFSET);
+	zynq_slcr_unlock();
 
 	pr_info("%s mapped to %p\n", np->name, zynq_slcr_base);
 
