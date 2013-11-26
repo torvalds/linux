@@ -910,10 +910,10 @@ static int check_channel_list(struct comedi_device *dev,
 			nowmustbechan =
 			    (CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
 			if (nowmustbechan != CR_CHAN(chanlist[i])) {	/*  channel list isn't continuous :-( */
-				printk
-				    ("comedi%d: pcl818: channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
-				     dev->minor, i, CR_CHAN(chanlist[i]),
-				     nowmustbechan, CR_CHAN(chanlist[0]));
+				dev_dbg(dev->class_dev,
+					"channel list must be continuous! chanlist[%i]=%d but must be %d or %d!\n",
+					i, CR_CHAN(chanlist[i]), nowmustbechan,
+					CR_CHAN(chanlist[0]));
 				return 0;
 			}
 			/*  well, this is next correct channel in list */
@@ -924,14 +924,14 @@ static int check_channel_list(struct comedi_device *dev,
 		for (i = 0, segpos = 0; i < n_chan; i++) {
 			/* printk("%d %d=%d %d\n",CR_CHAN(chansegment[i%seglen]),CR_RANGE(chansegment[i%seglen]),CR_CHAN(it->chanlist[i]),CR_RANGE(it->chanlist[i])); */
 			if (chanlist[i] != chansegment[i % seglen]) {
-				printk
-				    ("comedi%d: pcl818: bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
-				     dev->minor, i, CR_CHAN(chansegment[i]),
-				     CR_RANGE(chansegment[i]),
-				     CR_AREF(chansegment[i]),
-				     CR_CHAN(chanlist[i % seglen]),
-				     CR_RANGE(chanlist[i % seglen]),
-				     CR_AREF(chansegment[i % seglen]));
+				dev_dbg(dev->class_dev,
+					"bad channel or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+					i, CR_CHAN(chansegment[i]),
+					CR_RANGE(chansegment[i]),
+					CR_AREF(chansegment[i]),
+					CR_CHAN(chanlist[i % seglen]),
+					CR_RANGE(chanlist[i % seglen]),
+					CR_AREF(chansegment[i % seglen]));
 				return 0;	/*  chan/gain list is strange */
 			}
 		}
