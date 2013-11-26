@@ -999,6 +999,8 @@ static void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, stru
 	spin_unlock(&nn->client_lock);
 	memcpy(&new->se_fchannel, &cses->fore_channel,
 			sizeof(struct nfsd4_channel_attrs));
+	memcpy(&new->se_bchannel, &cses->back_channel,
+			sizeof(struct nfsd4_channel_attrs));
 	if (cses->flags & SESSION4_BACK_CHAN) {
 		struct sockaddr *sa = svc_addr(rqstp);
 		/*
