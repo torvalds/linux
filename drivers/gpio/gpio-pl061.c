@@ -254,7 +254,7 @@ static void pl061_irq_shutdown(struct irq_data *d)
 }
 
 static struct irq_chip pl061_irqchip = {
-	.name		= "pl061 gpio",
+	.name		= "pl061",
 	.irq_mask	= pl061_irq_mask,
 	.irq_unmask	= pl061_irq_unmask,
 	.irq_set_type	= pl061_irq_type,
@@ -267,8 +267,7 @@ static int pl061_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct pl061_gpio *chip = d->host_data;
 
-	irq_set_chip_and_handler_name(irq, &pl061_irqchip, handle_simple_irq,
-				      "pl061");
+	irq_set_chip_and_handler(irq, &pl061_irqchip, handle_simple_irq);
 	irq_set_chip_data(irq, chip);
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 
