@@ -282,8 +282,8 @@ static DEFINE_SPINLOCK(sysrate_lock);
 #define TEGRA_INIT_DATA_MUX(_name, _con_id, _dev_id, _parents, _offset,	\
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
 	TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parents, _offset,	\
-			30, 2, 0, 0, 8, 1, 0, _regs, _clk_num,		\
-			periph_clk_enb_refcnt, _gate_flags, _clk_id)
+			30, 2, 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP, _regs, \
+			_clk_num, periph_clk_enb_refcnt, _gate_flags, _clk_id)
 
 #define TEGRA_INIT_DATA_DIV16(_name, _con_id, _dev_id, _parents, _offset, \
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
@@ -295,21 +295,22 @@ static DEFINE_SPINLOCK(sysrate_lock);
 #define TEGRA_INIT_DATA_MUX8(_name, _con_id, _dev_id, _parents, _offset, \
 			     _clk_num, _regs, _gate_flags, _clk_id)	\
 	TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parents, _offset,	\
-			29, 3, 0, 0, 8, 1, 0, _regs, _clk_num,		\
-			periph_clk_enb_refcnt, _gate_flags, _clk_id)
+			29, 3, 0, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP, _regs,\
+			_clk_num, periph_clk_enb_refcnt, _gate_flags, _clk_id)
 
 #define TEGRA_INIT_DATA_INT(_name, _con_id, _dev_id, _parents, _offset,	\
 			    _clk_num, _regs, _gate_flags, _clk_id)	\
 	TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parents, _offset,	\
-			30, 2, 0, 0, 8, 1, TEGRA_DIVIDER_INT, _regs,	\
-			_clk_num, periph_clk_enb_refcnt, _gate_flags,	\
-			_clk_id)
+			30, 2, 0, 0, 8, 1, TEGRA_DIVIDER_INT |		\
+			TEGRA_DIVIDER_ROUND_UP, _regs, _clk_num,	\
+			periph_clk_enb_refcnt, _gate_flags, _clk_id)
 
 #define TEGRA_INIT_DATA_UART(_name, _con_id, _dev_id, _parents, _offset,\
 			     _clk_num, _regs, _clk_id)			\
 	TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parents, _offset,	\
-			30, 2, 0, 0, 16, 1, TEGRA_DIVIDER_UART, _regs,	\
-			_clk_num, periph_clk_enb_refcnt, 0, _clk_id)
+			30, 2, 0, 0, 16, 1, TEGRA_DIVIDER_UART |	\
+			TEGRA_DIVIDER_ROUND_UP, _regs, _clk_num,	\
+			periph_clk_enb_refcnt, 0, _clk_id)
 
 #define TEGRA_INIT_DATA_NODIV(_name, _con_id, _dev_id, _parents, _offset, \
 			      _mux_shift, _mux_width, _clk_num, _regs,	\
