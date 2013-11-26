@@ -176,7 +176,7 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	chan->vblank.nr_event = pdisp->vblank->index_nr;
+	chan->vblank.nr_event = pdisp ? pdisp->vblank->index_nr : 0;
 	chan->vblank.event = kzalloc(chan->vblank.nr_event *
 				     sizeof(*chan->vblank.event), GFP_KERNEL);
 	if (!chan->vblank.event)
