@@ -47,7 +47,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 */
 
 #define USE_DMA
-/* #define DEBUG_FLAGS */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -311,14 +310,6 @@ static int ni_pcidio_ns_to_timer(int *nanosec, int round_mode);
 static int setup_mite_dma(struct comedi_device *dev,
 			  struct comedi_subdevice *s);
 
-#ifdef DEBUG_FLAGS
-static void ni_pcidio_print_flags(unsigned int flags);
-static void ni_pcidio_print_status(unsigned int status);
-#else
-#define ni_pcidio_print_flags(x)
-#define ni_pcidio_print_status(x)
-#endif
-
 static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 {
 	struct nidio96_private *devpriv = dev->private;
@@ -421,8 +412,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 
 	DPRINTK("ni_pcidio_interrupt: status=0x%02x,flags=0x%02x\n",
 		status, flags);
-	ni_pcidio_print_flags(flags);
-	ni_pcidio_print_status(status);
 
 	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
@@ -488,8 +477,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 				async->buf_int_count); */
 			/* DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",
 				IntEn,flags,status); */
-			/* ni_pcidio_print_flags(flags); */
-			/* ni_pcidio_print_status(status); */
 			async->events |= COMEDI_CB_BLOCK;
 		}
 
@@ -536,8 +523,6 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			       Interrupt_And_Window_Status);
 		/* DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,"
 			"status=0x%02x\n", IntEn, flags, status); */
-		/* ni_pcidio_print_flags(flags); */
-		/* ni_pcidio_print_status(status); */
 	}
 
 out:
@@ -553,51 +538,6 @@ out:
 	spin_unlock(&dev->spinlock);
 	return IRQ_HANDLED;
 }
-
-#ifdef DEBUG_FLAGS
-static const char *bit_set_string(unsigned int bits, unsigned int bit,
-				  const char *const strings[])
-{
-	return (bits & (1U << bit)) ? strings[bit] : "";
-}
-
-static const char *const flags_strings[] = {
-	" TransferReady", " CountExpired", " 2", " 3",
-	" 4", " Waited", " PrimaryTC", " SecondaryTC",
-};
-
-
-static void ni_pcidio_print_flags(unsigned int flags)
-{
-	pr_debug("group_1_flags:%s%s%s%s%s%s%s%s\n",
-		 bit_set_string(flags, 7, flags_strings),
-		 bit_set_string(flags, 6, flags_strings),
-		 bit_set_string(flags, 5, flags_strings),
-		 bit_set_string(flags, 4, flags_strings),
-		 bit_set_string(flags, 3, flags_strings),
-		 bit_set_string(flags, 2, flags_strings),
-		 bit_set_string(flags, 1, flags_strings),
-		 bit_set_string(flags, 0, flags_strings));
-}
-
-static const char *const status_strings[] = {
-	" DataLeft1", " Reserved1", " Req1", " StopTrig1",
-	" DataLeft2", " Reserved2", " Req2", " StopTrig2",
-};
-
-static void ni_pcidio_print_status(unsigned int flags)
-{
-	pr_debug("group_status:%s%s%s%s%s%s%s%s\n",
-		 bit_set_string(flags, 7, status_strings),
-		 bit_set_string(flags, 6, status_strings),
-		 bit_set_string(flags, 5, status_strings),
-		 bit_set_string(flags, 4, status_strings),
-		 bit_set_string(flags, 3, status_strings),
-		 bit_set_string(flags, 2, status_strings),
-		 bit_set_string(flags, 1, status_strings),
-		 bit_set_string(flags, 0, status_strings));
-}
-#endif
 
 #ifdef unused
 static void debug_int(struct comedi_device *dev)
