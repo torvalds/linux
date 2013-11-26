@@ -276,12 +276,14 @@ static void i40e_get_pauseparam(struct net_device *netdev,
 		((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
 		  AUTONEG_ENABLE : AUTONEG_DISABLE);
 
-	pause->rx_pause = 0;
-	pause->tx_pause = 0;
-	if (hw_link_info->an_info & I40E_AQ_LINK_PAUSE_RX)
+	if (hw->fc.current_mode == I40E_FC_RX_PAUSE) {
 		pause->rx_pause = 1;
-	if (hw_link_info->an_info & I40E_AQ_LINK_PAUSE_TX)
+	} else if (hw->fc.current_mode == I40E_FC_TX_PAUSE) {
 		pause->tx_pause = 1;
+	} else if (hw->fc.current_mode == I40E_FC_FULL) {
+		pause->rx_pause = 1;
+		pause->tx_pause = 1;
+	}
 }
 
 static u32 i40e_get_msglevel(struct net_device *netdev)
