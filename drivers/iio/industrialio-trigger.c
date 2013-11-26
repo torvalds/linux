@@ -318,7 +318,7 @@ static ssize_t iio_trigger_read_current(struct device *dev,
  * iio_trigger_write_current() - trigger consumer sysfs set current trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
- * used for this device to be specified at run time based on the triggers
+ * used for this device to be specified at run time based on the trigger's
  * name.
  **/
 static ssize_t iio_trigger_write_current(struct device *dev,
@@ -356,7 +356,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 
 	indio_dev->trig = trig;
 
-	if (oldtrig && indio_dev->trig != oldtrig)
+	if (oldtrig)
 		iio_trigger_put(oldtrig);
 	if (indio_dev->trig)
 		iio_trigger_get(indio_dev->trig);
@@ -506,6 +506,23 @@ static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
 	return *r == data;
 }
 
+/**
+ * devm_iio_trigger_alloc - Resource-managed iio_trigger_alloc()
+ * @dev:		Device to allocate iio_trigger for
+ * @fmt:		trigger name format. If it includes format
+ *			specifiers, the additional arguments following
+ *			format are formatted and inserted in the resulting
+ *			string replacing their respective specifiers.
+ *
+ * Managed iio_trigger_alloc.  iio_trigger allocated with this function is
+ * automatically freed on driver detach.
+ *
+ * If an iio_trigger allocated with this function needs to be freed separately,
+ * devm_iio_trigger_free() must be used.
+ *
+ * RETURNS:
+ * Pointer to allocated iio_trigger on success, NULL on failure.
+ */
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 						const char *fmt, ...)
 {
@@ -532,6 +549,13 @@ struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
 
+/**
+ * devm_iio_trigger_free - Resource-managed iio_trigger_free()
+ * @dev:		Device this iio_dev belongs to
+ * @iio_trig:		the iio_trigger associated with the device
+ *
+ * Free iio_trigger allocated with devm_iio_trigger_alloc().
+ */
 void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
 {
 	int rc;

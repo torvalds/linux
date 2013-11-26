@@ -514,16 +514,7 @@ static int ad5421_probe(struct spi_device *spi)
 			return ret;
 	}
 
-	return iio_device_register(indio_dev);
-}
-
-static int ad5421_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static struct spi_driver ad5421_driver = {
@@ -532,7 +523,6 @@ static struct spi_driver ad5421_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = ad5421_probe,
-	.remove = ad5421_remove,
 };
 module_spi_driver(ad5421_driver);
 

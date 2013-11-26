@@ -490,32 +490,12 @@ struct iio_dev {
 #endif
 };
 
-/**
- * iio_find_channel_from_si() - get channel from its scan index
- * @indio_dev:		device
- * @si:			scan index to match
- */
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
-
-/**
- * iio_device_register() - register a device with the IIO subsystem
- * @indio_dev:		Device structure filled by the device driver
- **/
 int iio_device_register(struct iio_dev *indio_dev);
-
-/**
- * iio_device_unregister() - unregister a device from the IIO subsystem
- * @indio_dev:		Device structure representing the device.
- **/
 void iio_device_unregister(struct iio_dev *indio_dev);
-
-/**
- * iio_push_event() - try to add event to the list for userspace reading
- * @indio_dev:		IIO device structure
- * @ev_code:		What event
- * @timestamp:		When the event occurred
- **/
+int devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev);
+void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 
 extern struct bus_type iio_bus_type;
@@ -579,10 +559,6 @@ static inline void *iio_device_get_drvdata(struct iio_dev *indio_dev)
 
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
-/**
- * iio_device_alloc() - allocate an iio_dev from a driver
- * @sizeof_priv: 	Space to allocate for private structure.
- **/
 struct iio_dev *iio_device_alloc(int sizeof_priv);
 
 static inline void *iio_priv(const struct iio_dev *indio_dev)
@@ -596,64 +572,11 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
 				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
 }
 
-/**
- * iio_device_free() - free an iio_dev from a driver
- * @indio_dev: 		the iio_dev associated with the device
- **/
 void iio_device_free(struct iio_dev *indio_dev);
-
-/**
- * devm_iio_device_alloc - Resource-managed iio_device_alloc()
- * @dev: 		Device to allocate iio_dev for
- * @sizeof_priv: 	Space to allocate for private structure.
- *
- * Managed iio_device_alloc.  iio_dev allocated with this function is
- * automatically freed on driver detach.
- *
- * If an iio_dev allocated with this function needs to be freed separately,
- * devm_iio_device_free() must be used.
- *
- * RETURNS:
- * Pointer to allocated iio_dev on success, NULL on failure.
- */
 struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
-
-/**
- * devm_iio_device_free - Resource-managed iio_device_free()
- * @dev:		Device this iio_dev belongs to
- * @indio_dev: 		the iio_dev associated with the device
- *
- * Free iio_dev allocated with devm_iio_device_alloc().
- */
 void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
-
-/**
- * devm_iio_trigger_alloc - Resource-managed iio_trigger_alloc()
- * @dev:		Device to allocate iio_trigger for
- * @fmt:		trigger name format. If it includes format
- *			specifiers, the additional arguments following
- *			format are formatted and inserted in the resulting
- *			string replacing their respective specifiers.
- *
- * Managed iio_trigger_alloc.  iio_trigger allocated with this function is
- * automatically freed on driver detach.
- *
- * If an iio_trigger allocated with this function needs to be freed separately,
- * devm_iio_trigger_free() must be used.
- *
- * RETURNS:
- * Pointer to allocated iio_trigger on success, NULL on failure.
- */
 struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
 						const char *fmt, ...);
-
-/**
- * devm_iio_trigger_free - Resource-managed iio_trigger_free()
- * @dev:		Device this iio_dev belongs to
- * @iio_trig:		the iio_trigger associated with the device
- *
- * Free iio_trigger allocated with devm_iio_trigger_alloc().
- */
 void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig);
 
 /**

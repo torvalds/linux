@@ -439,13 +439,13 @@ static int adis16220_probe(struct spi_device *spi)
 	indio_dev->channels = adis16220_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16220_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
 		return ret;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	if (ret)
-		goto error_unregister_dev;
+		return ret;
 
 	ret = sysfs_create_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	if (ret)
@@ -470,8 +470,6 @@ error_rm_adc1_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 error_rm_accel_bin:
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
-error_unregister_dev:
-	iio_device_unregister(indio_dev);
 	return ret;
 }
 
@@ -482,7 +480,6 @@ static int adis16220_remove(struct spi_device *spi)
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc2_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
-	iio_device_unregister(indio_dev);
 
 	return 0;
 }
