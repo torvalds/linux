@@ -13,11 +13,6 @@
 
 #include "f2fs.h"
 
-inline int f2fs_has_inline_data(struct inode *inode)
-{
-	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DATA);
-}
-
 bool f2fs_may_inline(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
@@ -113,6 +108,7 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
 	clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+	stat_dec_inline_inode(inode);
 
 	sync_inode_page(&dn);
 	f2fs_put_page(ipage, 1);
@@ -165,6 +161,7 @@ int f2fs_write_inline_data(struct inode *inode,
 	if (!f2fs_has_inline_data(inode)) {
 		truncate_data_blocks_range(&dn, 1);
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+		stat_inc_inline_inode(inode);
 	}
 
 	sync_inode_page(&dn);
