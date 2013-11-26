@@ -74,7 +74,7 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 
 		if (order > 4)
 			gfp_flags = high_order_gfp_flags;
-		page = ion_heap_alloc_pages(buffer, gfp_flags, order);
+		page = alloc_pages(gfp_flags, order);
 		if (!page)
 			return 0;
 		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << order,
@@ -91,15 +91,10 @@ static void free_buffer_page(struct ion_system_heap *heap,
 			     unsigned int order)
 {
 	bool cached = ion_buffer_cached(buffer);
-	bool split_pages = ion_buffer_fault_user_mappings(buffer);
-	int i;
 
 	if (!cached) {
 		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
 		ion_page_pool_free(pool, page);
-	} else if (split_pages) {
-		for (i = 0; i < (1 << order); i++)
-			__free_page(page + i);
 	} else {
 		__free_pages(page, order);
 	}
