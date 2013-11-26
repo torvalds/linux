@@ -250,11 +250,13 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return -EPERM;
 
 	if (s->busy) {
-		DPRINTK("subdevice is busy, cannot resize buffer\n");
+		dev_dbg(dev->class_dev,
+			"subdevice is busy, cannot resize buffer\n");
 		return -EBUSY;
 	}
 	if (comedi_buf_is_mmapped(async)) {
-		DPRINTK("subdevice is mmapped, cannot resize buffer\n");
+		dev_dbg(dev->class_dev,
+			"subdevice is mmapped, cannot resize buffer\n");
 		return -EBUSY;
 	}
 
@@ -272,8 +274,8 @@ static int resize_async_buffer(struct comedi_device *dev,
 			return retval;
 	}
 
-	DPRINTK("comedi%i subd %d buffer resized to %i bytes\n",
-		dev->minor, s->index, async->prealloc_bufsz);
+	dev_dbg(dev->class_dev, "subd %d buffer resized to %i bytes\n",
+		s->index, async->prealloc_bufsz);
 	return 0;
 }
 
@@ -726,7 +728,8 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (!async) {
-		DPRINTK("subdevice does not have async capability\n");
+		dev_dbg(dev->class_dev,
+			"subdevice does not have async capability\n");
 		bc.size = 0;
 		bc.maximum_size = 0;
 		goto copyback;
@@ -973,7 +976,8 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (!async) {
-		DPRINTK("subdevice does not have async capability\n");
+		dev_dbg(dev->class_dev,
+			"subdevice does not have async capability\n");
 		bi.buf_write_ptr = 0;
 		bi.buf_read_ptr = 0;
 		bi.buf_write_count = 0;
@@ -1125,19 +1129,20 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				break;
 			}
 			if (insn->subdev >= dev->n_subdevices) {
-				DPRINTK("%d not usable subdevice\n",
+				dev_dbg(dev->class_dev,
+					"%d not usable subdevice\n",
 					insn->subdev);
 				ret = -EINVAL;
 				break;
 			}
 			s = &dev->subdevices[insn->subdev];
 			if (!s->async) {
-				DPRINTK("no async\n");
+				dev_dbg(dev->class_dev, "no async\n");
 				ret = -EINVAL;
 				break;
 			}
 			if (!s->async->inttrig) {
-				DPRINTK("no inttrig\n");
+				dev_dbg(dev->class_dev, "no inttrig\n");
 				ret = -EAGAIN;
 				break;
 			}
@@ -1146,7 +1151,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 				ret = 1;
 			break;
 		default:
-			DPRINTK("invalid insn\n");
+			dev_dbg(dev->class_dev, "invalid insn\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -1155,21 +1160,23 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		unsigned int maxdata;
 
 		if (insn->subdev >= dev->n_subdevices) {
-			DPRINTK("subdevice %d out of range\n", insn->subdev);
+			dev_dbg(dev->class_dev, "subdevice %d out of range\n",
+				insn->subdev);
 			ret = -EINVAL;
 			goto out;
 		}
 		s = &dev->subdevices[insn->subdev];
 
 		if (s->type == COMEDI_SUBD_UNUSED) {
-			DPRINTK("%d not usable subdevice\n", insn->subdev);
+			dev_dbg(dev->class_dev, "%d not usable subdevice\n",
+				insn->subdev);
 			ret = -EIO;
 			goto out;
 		}
 
 		/* are we locked? (ioctl lock) */
 		if (s->lock && s->lock != file) {
-			DPRINTK("device locked\n");
+			dev_dbg(dev->class_dev, "device locked\n");
 			ret = -EACCES;
 			goto out;
 		}
@@ -1177,7 +1184,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		ret = comedi_check_chanlist(s, 1, &insn->chanspec);
 		if (ret < 0) {
 			ret = -EINVAL;
-			DPRINTK("bad chanspec\n");
+			dev_dbg(dev->class_dev, "bad chanspec\n");
 			goto out;
 		}
 
@@ -1198,7 +1205,8 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			for (i = 0; i < insn->n; ++i) {
 				if (data[i] > maxdata) {
 					ret = -EINVAL;
-					DPRINTK("bad data value(s)\n");
+					dev_dbg(dev->class_dev,
+						"bad data value(s)\n");
 					break;
 				}
 			}
@@ -1280,35 +1288,35 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 
 	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
 	if (!data) {
-		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns) {
-		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	if (copy_from_user(insns, insnlist.insns,
 			   sizeof(*insns) * insnlist.n_insns)) {
-		DPRINTK("copy_from_user failed\n");
+		dev_dbg(dev->class_dev, "copy_from_user failed\n");
 		ret = -EFAULT;
 		goto error;
 	}
 
 	for (i = 0; i < insnlist.n_insns; i++) {
 		if (insns[i].n > MAX_SAMPLES) {
-			DPRINTK("number of samples too large\n");
+			dev_dbg(dev->class_dev,
+				"number of samples too large\n");
 			ret = -EINVAL;
 			goto error;
 		}
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
 					   insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_from_user failed\n");
+				dev_dbg(dev->class_dev,
+					"copy_from_user failed\n");
 				ret = -EFAULT;
 				goto error;
 			}
@@ -1319,7 +1327,8 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		if (insns[i].insn & INSN_MASK_READ) {
 			if (copy_to_user(insns[i].data, data,
 					 insns[i].n * sizeof(unsigned int))) {
-				DPRINTK("copy_to_user failed\n");
+				dev_dbg(dev->class_dev,
+					"copy_to_user failed\n");
 				ret = -EFAULT;
 				goto error;
 			}
@@ -1409,14 +1418,14 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
 		return -ENODEV;
 	}
 
@@ -1424,38 +1433,38 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	async = s->async;
 
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest || !s->async) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd.subdev);
+		dev_dbg(dev->class_dev,
+			"subdevice %i does not support commands\n", cmd.subdev);
 		return -EIO;
 	}
 
 	/* are we locked? (ioctl lock) */
 	if (s->lock && s->lock != file) {
-		DPRINTK("subdevice locked\n");
+		dev_dbg(dev->class_dev, "subdevice locked\n");
 		return -EACCES;
 	}
 
 	/* are we busy? */
 	if (s->busy) {
-		DPRINTK("subdevice busy\n");
+		dev_dbg(dev->class_dev, "subdevice busy\n");
 		return -EBUSY;
 	}
 
 	/* make sure channel/gain list isn't too long */
 	if (cmd.chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %u > %d\n",
+		dev_dbg(dev->class_dev, "channel/gain list too long %u > %d\n",
 			cmd.chanlist_len, s->len_chanlist);
 		return -EINVAL;
 	}
 
 	/* make sure channel/gain list isn't too short */
 	if (cmd.chanlist_len < 1) {
-		DPRINTK("channel/gain list too short %u < 1\n",
+		dev_dbg(dev->class_dev, "channel/gain list too short %u < 1\n",
 			cmd.chanlist_len);
 		return -EINVAL;
 	}
@@ -1467,7 +1476,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 					  async->cmd.chanlist_len * sizeof(int));
 	if (IS_ERR(async->cmd.chanlist)) {
 		ret = PTR_ERR(async->cmd.chanlist);
-		DPRINTK("memdup_user failed with code %d\n", ret);
+		dev_dbg(dev->class_dev, "memdup_user failed with code %d\n",
+			ret);
 		goto cleanup;
 	}
 
@@ -1476,20 +1486,20 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 				    async->cmd.chanlist_len,
 				    async->cmd.chanlist);
 	if (ret < 0) {
-		DPRINTK("bad chanlist\n");
+		dev_dbg(dev->class_dev, "bad chanlist\n");
 		goto cleanup;
 	}
 
 	ret = s->do_cmdtest(dev, s, &async->cmd);
 
 	if (async->cmd.flags & TRIG_BOGUS || ret) {
-		DPRINTK("test returned %d\n", ret);
+		dev_dbg(dev->class_dev, "test returned %d\n", ret);
 		cmd = async->cmd;
 		/* restore chanlist pointer before copying back */
 		cmd.chanlist = (unsigned int __force *)user_chanlist;
 		cmd.data = NULL;
 		if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-			DPRINTK("fault writing cmd\n");
+			dev_dbg(dev->class_dev, "fault writing cmd\n");
 			ret = -EFAULT;
 			goto cleanup;
 		}
@@ -1499,7 +1509,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	if (!async->prealloc_bufsz) {
 		ret = -ENOMEM;
-		DPRINTK("no buffer (?)\n");
+		dev_dbg(dev->class_dev, "no buffer (?)\n");
 		goto cleanup;
 	}
 
@@ -1551,32 +1561,32 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	unsigned int __user *user_chanlist;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		return -EFAULT;
 	}
 	/* save user's chanlist pointer so it can be restored later */
 	user_chanlist = (unsigned int __user *)cmd.chanlist;
 
 	if (cmd.subdev >= dev->n_subdevices) {
-		DPRINTK("%d no such subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d no such subdevice\n", cmd.subdev);
 		return -ENODEV;
 	}
 
 	s = &dev->subdevices[cmd.subdev];
 	if (s->type == COMEDI_SUBD_UNUSED) {
-		DPRINTK("%d not valid subdevice\n", cmd.subdev);
+		dev_dbg(dev->class_dev, "%d not valid subdevice\n", cmd.subdev);
 		return -EIO;
 	}
 
 	if (!s->do_cmd || !s->do_cmdtest) {
-		DPRINTK("subdevice %i does not support commands\n",
-			cmd.subdev);
+		dev_dbg(dev->class_dev,
+			"subdevice %i does not support commands\n", cmd.subdev);
 		return -EIO;
 	}
 
 	/* make sure channel/gain list isn't too long */
 	if (cmd.chanlist_len > s->len_chanlist) {
-		DPRINTK("channel/gain list too long %d > %d\n",
+		dev_dbg(dev->class_dev, "channel/gain list too long %d > %d\n",
 			cmd.chanlist_len, s->len_chanlist);
 		ret = -EINVAL;
 		goto cleanup;
@@ -1588,14 +1598,15 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 				       cmd.chanlist_len * sizeof(int));
 		if (IS_ERR(chanlist)) {
 			ret = PTR_ERR(chanlist);
-			DPRINTK("memdup_user exited with code %d", ret);
+			dev_dbg(dev->class_dev,
+				"memdup_user exited with code %d", ret);
 			goto cleanup;
 		}
 
 		/* make sure each element in channel/gain list is valid */
 		ret = comedi_check_chanlist(s, cmd.chanlist_len, chanlist);
 		if (ret < 0) {
-			DPRINTK("bad chanlist\n");
+			dev_dbg(dev->class_dev, "bad chanlist\n");
 			goto cleanup;
 		}
 
@@ -1608,7 +1619,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	cmd.chanlist = (unsigned int __force *)user_chanlist;
 
 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-		DPRINTK("bad cmd address\n");
+		dev_dbg(dev->class_dev, "bad cmd address\n");
 		ret = -EFAULT;
 		goto cleanup;
 	}
@@ -1818,7 +1829,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on /dev/comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		rc = -ENODEV;
 		goto done;
 	}
@@ -1923,7 +1934,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	mutex_lock(&dev->mutex);
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		retval = -ENODEV;
 		goto done;
 	}
@@ -1944,7 +1955,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (vma->vm_pgoff != 0) {
-		DPRINTK("comedi: mmap() offset must be 0.\n");
+		dev_dbg(dev->class_dev, "mmap() offset must be 0.\n");
 		retval = -EINVAL;
 		goto done;
 	}
@@ -1998,7 +2009,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	mutex_lock(&dev->mutex);
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		goto done;
 	}
 
@@ -2045,7 +2056,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		retval = -ENODEV;
 		goto out;
 	}
@@ -2181,7 +2192,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	old_detach_count = dev->detach_count;
 
 	if (!dev->attached) {
-		DPRINTK("no driver configured on comedi%i\n", dev->minor);
+		dev_dbg(dev->class_dev, "no driver attached\n");
 		retval = -ENODEV;
 		goto out;
 	}
@@ -2300,7 +2311,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	int rc;
 
 	if (!dev) {
-		DPRINTK("invalid minor number\n");
+		pr_debug("invalid minor number\n");
 		return -ENODEV;
 	}
 
@@ -2321,7 +2332,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	if (dev->attached)
 		goto ok;
 	if (!capable(CAP_NET_ADMIN) && dev->in_request_module) {
-		DPRINTK("in request module\n");
+		dev_dbg(dev->class_dev, "in request module\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -2339,7 +2350,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 	dev->in_request_module = false;
 
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
-		DPRINTK("not attached and not CAP_NET_ADMIN\n");
+		dev_dbg(dev->class_dev, "not attached and not CAP_NET_ADMIN\n");
 		rc = -ENODEV;
 		goto out;
 	}
@@ -2439,8 +2450,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_async *async = s->async;
 	unsigned runflags = 0;
 	unsigned runflags_mask = 0;
-
-	/* DPRINTK("comedi_event 0x%x\n",mask); */
 
 	if (!comedi_is_subdevice_running(s))
 		return;
