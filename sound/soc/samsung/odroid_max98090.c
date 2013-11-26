@@ -205,7 +205,7 @@ static struct snd_soc_dai_link odroid_dai[] = {
 		.name = "MAX98090 AIF1",
 		.stream_name = "Playback",
 		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "max98090-aif1",
+		.codec_dai_name = "HiFi",
 #ifdef CONFIG_SND_SAMSUNG_USE_IDMA
 		.platform_name = "samsung-idma",
 #else
@@ -219,7 +219,7 @@ static struct snd_soc_dai_link odroid_dai[] = {
 		.name = "MAX98090 AIF2",
 		.stream_name = "Capture",
 		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "max98090-aif1",
+		.codec_dai_name = "HiFi",
 #ifdef CONFIG_SND_SAMSUNG_USE_IDMA
 		.platform_name = "samsung-idma",
 #else

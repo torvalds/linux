@@ -27,7 +27,36 @@
 
 /*
  * Convenience kcontrol builders
+ * 
  */
+#define SOC_DOUBLE_R_RANGE_VALUE(xlreg, xrreg, xshift, xmin, xmax, xinvert) \
+        ((unsigned long)&(struct soc_mixer_control) \
+        {.reg = xlreg, .rreg = xrreg, .shift = xshift, .rshift = xshift, \
+        .min = xmin, .max = xmax, .platform_max = xmax, .invert = xinvert})
+
+#define SOC_DOUBLE_R_RANGE_TLV(xname, reg_left, reg_right, xshift, xmin, \
+                               xmax, xinvert, tlv_array)                \
+{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+        .access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+                 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+        .tlv.p = (tlv_array), \
+        .info = snd_soc_info_volsw_range, \
+        .get = snd_soc_get_volsw_range, .put = snd_soc_put_volsw_range, \
+        .private_value = SOC_DOUBLE_R_RANGE_VALUE(reg_left, reg_right, \
+                                            xshift, xmin, xmax, xinvert) }
+
+#define SOC_SINGLE_RANGE_TLV(xname, xreg, xshift, xmin, xmax, xinvert, tlv_array) \
+{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+        .access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+                 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+        .tlv.p = (tlv_array), \
+        .info = snd_soc_info_volsw_range, \
+        .get = snd_soc_get_volsw_range, .put = snd_soc_put_volsw_range, \
+        .private_value = (unsigned long)&(struct soc_mixer_control) \
+                {.reg = xreg, .rreg = xreg, .shift = xshift, \
+                 .rshift = xshift, .min = xmin, .max = xmax, \
+                 .platform_max = xmax, .invert = xinvert} }
+
 #define SOC_DOUBLE_VALUE(xreg, shift_left, shift_right, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
 	{.reg = xreg, .rreg = xreg, .shift = shift_left, \
@@ -438,6 +467,14 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
 int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
+
+int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_info *uinfo);
+int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol);
+int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol);
+
 
 
 /**

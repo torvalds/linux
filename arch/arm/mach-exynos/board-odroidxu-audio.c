@@ -18,9 +18,20 @@
 
 #include "board-odroidxu.h"
 
+#include <sound/max98090.h>
+static struct max98090_pdata max98090 = {
+        .digmic_left_mode        = 0,
+        .digmic_right_mode        = 0,
+        .digmic_3_mode                = 0,
+        .digmic_4_mode                = 0,
+};
+
+
 static struct i2c_board_info i2c_devs1[] __initdata = {
 	{
 		I2C_BOARD_INFO("max98090", (0x20>>1)),
+		.platform_data = &max98090,
+		.irq = IRQ_EINT(0),
 	},
 };
 
