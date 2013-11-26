@@ -67,12 +67,6 @@
 #include "inode.h"
 #include "util.h"
 
-struct gfs2_quota_change_host {
-	u64 qc_change;
-	u32 qc_flags; /* GFS2_QCF_... */
-	struct kqid qc_id;
-};
-
 /* Lock order: qd_lock -> qd->lockref.lock -> lru lock */
 static DEFINE_SPINLOCK(qd_lock);
 struct list_lru gfs2_qd_lru;
@@ -1214,17 +1208,6 @@ int gfs2_quota_refresh(struct gfs2_sbd *sdp, struct kqid qid)
 	return error;
 }
 
-static void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *buf)
-{
-	const struct gfs2_quota_change *str = buf;
-
-	qc->qc_change = be64_to_cpu(str->qc_change);
-	qc->qc_flags = be32_to_cpu(str->qc_flags);
-	qc->qc_id = make_kqid(&init_user_ns,
-			      (qc->qc_flags & GFS2_QCF_USER)?USRQUOTA:GRPQUOTA,
-			      be32_to_cpu(str->qc_id));
-}
-
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_qc_inode);
@@ -1257,6 +1240,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 	for (x = 0; x < blocks; x++) {
 		struct buffer_head *bh;
+		const struct gfs2_quota_change *qc;
 		unsigned int y;
 
 		if (!extlen) {
@@ -1274,25 +1258,28 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 			goto fail;
 		}
 
+		qc = (const struct gfs2_quota_change *)(bh->b_data + sizeof(struct gfs2_meta_header));
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
 		     y++, slot++) {
-			struct gfs2_quota_change_host qc;
 			struct gfs2_quota_data *qd;
-
-			gfs2_quota_change_in(&qc, bh->b_data +
-					  sizeof(struct gfs2_meta_header) +
-					  y * sizeof(struct gfs2_quota_change));
-			if (!qc.qc_change)
+			s64 qc_change = be64_to_cpu(qc->qc_change);
+			u32 qc_flags = be32_to_cpu(qc->qc_flags);
+			enum quota_type qtype = (qc_flags & GFS2_QCF_USER) ?
+						USRQUOTA : GRPQUOTA;
+			struct kqid qc_id = make_kqid(&init_user_ns, qtype,
+						      be32_to_cpu(qc->qc_id));
+			qc++;
+			if (!qc_change)
 				continue;
 
-			error = qd_alloc(sdp, qc.qc_id, &qd);
+			error = qd_alloc(sdp, qc_id, &qd);
 			if (error) {
 				brelse(bh);
 				goto fail;
 			}
 
 			set_bit(QDF_CHANGE, &qd->qd_flags);
-			qd->qd_change = qc.qc_change;
+			qd->qd_change = qc_change;
 			qd->qd_slot = slot;
 			qd->qd_slot_count = 1;
 
