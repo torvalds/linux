@@ -123,6 +123,8 @@ int __init zynq_early_slcr_init(void)
 		BUG();
 	}
 
+	np->data = (__force void *)zynq_slcr_base;
+
 	/* unlock the SLCR so that registers can be changed */
 	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK_OFFSET);
 
