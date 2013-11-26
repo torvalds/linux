@@ -372,7 +372,6 @@ static int dt2801_reset(struct comedi_device *dev)
 	if (!timeout)
 		printk("dt2801: timeout 1 status=0x%02x\n", stat);
 
-	/* printk("dt2801: reading dummy\n"); */
 	/* dt2801_readdata(dev,&board_code); */
 
 	outb_p(DT_C_RESET, dev->iobase + DT2801_CMD);
