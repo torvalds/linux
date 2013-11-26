@@ -116,9 +116,34 @@ static struct resource h3xxx_flash_resource =
 /*
  * H3xxx uart support
  */
+static struct gpio h3xxx_uart_gpio[] = {
+	{ H3XXX_GPIO_COM_DCD,	GPIOF_IN,		"COM DCD" },
+	{ H3XXX_GPIO_COM_CTS,	GPIOF_IN,		"COM CTS" },
+	{ H3XXX_GPIO_COM_RTS,	GPIOF_OUT_INIT_LOW,	"COM RTS" },
+};
+
+static bool h3xxx_uart_request_gpios(void)
+{
+	static bool h3xxx_uart_gpio_ok;
+	int rc;
+
+	if (h3xxx_uart_gpio_ok)
+		return true;
+
+	rc = gpio_request_array(h3xxx_uart_gpio, ARRAY_SIZE(h3xxx_uart_gpio));
+	if (rc)
+		pr_err("h3xxx_uart_request_gpios: error %d\n", rc);
+	else
+		h3xxx_uart_gpio_ok = true;
+
+	return h3xxx_uart_gpio_ok;
+}
+
 static void h3xxx_uart_set_mctrl(struct uart_port *port, u_int mctrl)
 {
 	if (port->mapbase == _Ser3UTCR0) {
+		if (!h3xxx_uart_request_gpios())
+			return;
 		gpio_set_value(H3XXX_GPIO_COM_RTS, !(mctrl & TIOCM_RTS));
 	}
 }
@@ -128,6 +153,8 @@ static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
 	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
 
 	if (port->mapbase == _Ser3UTCR0) {
+		if (!h3xxx_uart_request_gpios())
+			return ret;
 		/*
 		 * DCD and CTS bits are inverted in GPLR by RS232 transceiver
 		 */
