@@ -215,3 +215,8 @@
 &usbhsehci {
 	phys = <&hsusb1_phy>;
 };
+
+&vpll2 {
+        /* Needed for DSS */
+        regulator-name = "vdds_dsi";
+};
