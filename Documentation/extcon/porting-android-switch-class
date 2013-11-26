@@ -50,7 +50,7 @@ so that they are still compatible with legacy userspace processes.
 	Extcon's extended features for switch device drivers with
 	complex features usually required magic numbers in state
 	value of switch_dev. With extcon, such magic numbers that
-	support multiple cables (
+	support multiple cables are no more required or supported.
 
   1. Define cable names at edev->supported_cable.
   2. (Recommended) remove print_state callback.
@@ -114,11 +114,8 @@ exclusive, the two cables cannot be in ATTACHED state simulteneously.
 
 ****** ABI Location
 
-  If "CONFIG_ANDROID" is enabled and "CONFIG_ANDROID_SWITCH" is
-disabled, /sys/class/switch/* are created as symbolic links to
-/sys/class/extcon/*. Because CONFIG_ANDROID_SWITCH creates
-/sys/class/switch directory, we disable symboling linking if
-CONFIG_ANDROID_SWITCH is enabled.
+  If "CONFIG_ANDROID" is enabled, /sys/class/switch/* are created
+as symbolic links to /sys/class/extcon/*.
 
   The two files of switch class, name and state, are provided with
 extcon, too. When the multistate support (STEP 2 of CHAPTER 1.) is
