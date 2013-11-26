@@ -1290,19 +1290,22 @@ int audit_filter_user(int type)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
-	int ret = 1;
+	int rc, ret;
+
+	ret = 1; /* Audit by default */
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		if (audit_filter_user_rules(&e->rule, type, &state)) {
-			if (state == AUDIT_DISABLED)
+		rc = audit_filter_user_rules(&e->rule, type, &state);
+		if (rc) {
+			if (rc > 0 && state == AUDIT_DISABLED)
 				ret = 0;
 			break;
 		}
 	}
 	rcu_read_unlock();
 
-	return ret; /* Audit by default */
+	return ret;
 }
 
 int audit_filter_type(int type)

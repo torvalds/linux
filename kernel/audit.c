@@ -869,7 +869,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return 0;
 
 		err = audit_filter_user(msg_type);
-		if (err == 1) {
+		if (err == 1) { /* match or error */
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
 				err = tty_audit_push_current();
