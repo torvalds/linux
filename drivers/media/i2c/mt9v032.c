@@ -305,8 +305,8 @@ mt9v032_update_hblank(struct mt9v032 *mt9v032)
 
 	if (mt9v032->version->version == MT9V034_CHIP_ID_REV1)
 		min_hblank += (mt9v032->hratio - 1) * 10;
-	min_hblank = max((int)mt9v032->model->data->min_row_time - crop->width,
-			 (int)min_hblank);
+	min_hblank = max_t(unsigned int, (int)mt9v032->model->data->min_row_time - crop->width,
+			   (int)min_hblank);
 	hblank = max_t(unsigned int, mt9v032->hblank, min_hblank);
 
 	return mt9v032_write(client, MT9V032_HORIZONTAL_BLANKING, hblank);
@@ -525,12 +525,14 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
-	width = clamp_t(unsigned int, ALIGN(format->format.width, 2),
-			max(__crop->width / 4, MT9V032_WINDOW_WIDTH_MIN),
-			__crop->width);
-	height = clamp_t(unsigned int, ALIGN(format->format.height, 2),
-			 max(__crop->height / 4, MT9V032_WINDOW_HEIGHT_MIN),
-			 __crop->height);
+	width = clamp(ALIGN(format->format.width, 2),
+		      max_t(unsigned int, __crop->width / 4,
+			    MT9V032_WINDOW_WIDTH_MIN),
+		      __crop->width);
+	height = clamp(ALIGN(format->format.height, 2),
+		       max_t(unsigned int, __crop->height / 4,
+			     MT9V032_WINDOW_HEIGHT_MIN),
+		       __crop->height);
 
 	hratio = mt9v032_calc_ratio(__crop->width, width);
 	vratio = mt9v032_calc_ratio(__crop->height, height);
@@ -580,15 +582,17 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
 	rect.top = clamp(ALIGN(crop->rect.top + 1, 2) - 1,
 			 MT9V032_ROW_START_MIN,
 			 MT9V032_ROW_START_MAX);
-	rect.width = clamp(ALIGN(crop->rect.width, 2),
-			   MT9V032_WINDOW_WIDTH_MIN,
-			   MT9V032_WINDOW_WIDTH_MAX);
-	rect.height = clamp(ALIGN(crop->rect.height, 2),
-			    MT9V032_WINDOW_HEIGHT_MIN,
-			    MT9V032_WINDOW_HEIGHT_MAX);
+	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+			     MT9V032_WINDOW_WIDTH_MIN,
+			     MT9V032_WINDOW_WIDTH_MAX);
+	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+			      MT9V032_WINDOW_HEIGHT_MIN,
+			      MT9V032_WINDOW_HEIGHT_MAX);
 
-	rect.width = min(rect.width, MT9V032_PIXEL_ARRAY_WIDTH - rect.left);
-	rect.height = min(rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
+	rect.width = min_t(unsigned int,
+			   rect.width, MT9V032_PIXEL_ARRAY_WIDTH - rect.left);
+	rect.height = min_t(unsigned int,
+			    rect.height, MT9V032_PIXEL_ARRAY_HEIGHT - rect.top);
 
 	__crop = __mt9v032_get_pad_crop(mt9v032, fh, crop->pad, crop->which);
 

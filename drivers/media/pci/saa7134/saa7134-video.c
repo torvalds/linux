@@ -1729,10 +1729,6 @@ static int saa7134_s_crop(struct file *file, void *f, const struct v4l2_crop *cr
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
 		return -EINVAL;
-	if (crop->c.height < 0)
-		return -EINVAL;
-	if (crop->c.width < 0)
-		return -EINVAL;
 
 	if (res_locked(dev, RESOURCE_OVERLAY))
 		return -EBUSY;

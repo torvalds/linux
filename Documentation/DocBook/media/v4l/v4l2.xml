@@ -141,6 +141,14 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.14</revnumber>
+	<date>2013-11-25</date>
+	<authorinitials>rr</authorinitials>
+	<revremark>Set width and height as unsigned on v4l2_rect.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.11</revnumber>
 	<date>2013-05-26</date>
 	<authorinitials>hv</authorinitials>
@@ -501,7 +509,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.11</subtitle>
+ <subtitle>Revision 3.14</subtitle>
 
   <chapter id="common">
     &sub-common;
