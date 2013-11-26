@@ -885,7 +885,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
 					  devpriv->dma_maxsize);
 	if (size == 0) {
-		printk(KERN_ERR "dt282x: AO underrun\n");
+		dev_err(dev->class_dev, "AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 0, size);
@@ -893,7 +893,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
 					  devpriv->dma_maxsize);
 	if (size == 0) {
-		printk(KERN_ERR "dt282x: AO underrun\n");
+		dev_err(dev->class_dev, "AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 1, size);
