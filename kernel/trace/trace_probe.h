@@ -81,6 +81,17 @@
  */
 #define convert_rloc_to_loc(dl, offs)	((u32)(dl) + (offs))
 
+static inline void *get_rloc_data(u32 *dl)
+{
+	return (u8 *)dl + get_rloc_offs(*dl);
+}
+
+/* For data_loc conversion */
+static inline void *get_loc_data(u32 *dl, void *ent)
+{
+	return (u8 *)ent + get_rloc_offs(*dl);
+}
+
 /* Data fetch function type */
 typedef	void (*fetch_func_t)(struct pt_regs *, void *, void *);
 /* Printing function type */
@@ -114,6 +125,60 @@ struct fetch_param {
 	fetch_func_t		fn;
 	void 			*data;
 };
+
+#define PRINT_TYPE_FUNC_NAME(type)	print_type_##type
+#define PRINT_TYPE_FMT_NAME(type)	print_type_format_##type
+
+/* Printing  in basic type function template */
+#define DECLARE_BASIC_PRINT_TYPE_FUNC(type)				\
+__kprobes int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s,		\
+					 const char *name,		\
+					 void *data, void *ent);	\
+extern const char PRINT_TYPE_FMT_NAME(type)[]
+
+DECLARE_BASIC_PRINT_TYPE_FUNC(u8);
+DECLARE_BASIC_PRINT_TYPE_FUNC(u16);
+DECLARE_BASIC_PRINT_TYPE_FUNC(u32);
+DECLARE_BASIC_PRINT_TYPE_FUNC(u64);
+DECLARE_BASIC_PRINT_TYPE_FUNC(s8);
+DECLARE_BASIC_PRINT_TYPE_FUNC(s16);
+DECLARE_BASIC_PRINT_TYPE_FUNC(s32);
+DECLARE_BASIC_PRINT_TYPE_FUNC(s64);
+DECLARE_BASIC_PRINT_TYPE_FUNC(string);
+
+/* Default (unsigned long) fetch type */
+#define __DEFAULT_FETCH_TYPE(t) u##t
+#define _DEFAULT_FETCH_TYPE(t) __DEFAULT_FETCH_TYPE(t)
+#define DEFAULT_FETCH_TYPE _DEFAULT_FETCH_TYPE(BITS_PER_LONG)
+#define DEFAULT_FETCH_TYPE_STR __stringify(DEFAULT_FETCH_TYPE)
+
+#define ASSIGN_FETCH_FUNC(method, type)	\
+	[FETCH_MTD_##method] = FETCH_FUNC_NAME(method, type)
+
+#define __ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, _fmttype)	\
+	{.name = _name,				\
+	 .size = _size,					\
+	 .is_signed = sign,				\
+	 .print = PRINT_TYPE_FUNC_NAME(ptype),		\
+	 .fmt = PRINT_TYPE_FMT_NAME(ptype),		\
+	 .fmttype = _fmttype,				\
+	 .fetch = {					\
+ASSIGN_FETCH_FUNC(reg, ftype),				\
+ASSIGN_FETCH_FUNC(stack, ftype),			\
+ASSIGN_FETCH_FUNC(retval, ftype),			\
+ASSIGN_FETCH_FUNC(memory, ftype),			\
+ASSIGN_FETCH_FUNC(symbol, ftype),			\
+ASSIGN_FETCH_FUNC(deref, ftype),			\
+ASSIGN_FETCH_FUNC(bitfield, ftype),			\
+	  }						\
+	}
+
+#define ASSIGN_FETCH_TYPE(ptype, ftype, sign)			\
+	__ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, #ptype)
+
+#define FETCH_TYPE_STRING	0
+#define FETCH_TYPE_STRSIZE	1
+
 
 struct probe_arg {
 	struct fetch_param	fetch;
