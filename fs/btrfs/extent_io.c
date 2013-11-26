@@ -224,11 +224,19 @@ void free_extent_state(struct extent_state *state)
 }
 
 static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
-				   struct rb_node *node)
+				   struct rb_node *node,
+				   struct rb_node ***p_in,
+				   struct rb_node **parent_in)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct tree_entry *entry;
+
+	if (p_in && parent_in) {
+		p = *p_in;
+		parent = *parent_in;
+		goto do_insert;
+	}
 
 	while (*p) {
 		parent = *p;
@@ -242,34 +250,42 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 			return parent;
 	}
 
+do_insert:
 	rb_link_node(node, parent, p);
 	rb_insert_color(node, root);
 	return NULL;
 }
 
 static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
-				     struct rb_node **prev_ret,
-				     struct rb_node **next_ret)
+				      struct rb_node **prev_ret,
+				      struct rb_node **next_ret,
+				      struct rb_node ***p_ret,
+				      struct rb_node **parent_ret)
 {
 	struct rb_root *root = &tree->state;
-	struct rb_node *n = root->rb_node;
+	struct rb_node **n = &root->rb_node;
 	struct rb_node *prev = NULL;
 	struct rb_node *orig_prev = NULL;
 	struct tree_entry *entry;
 	struct tree_entry *prev_entry = NULL;
 
-	while (n) {
-		entry = rb_entry(n, struct tree_entry, rb_node);
-		prev = n;
+	while (*n) {
+		prev = *n;
+		entry = rb_entry(prev, struct tree_entry, rb_node);
 		prev_entry = entry;
 
 		if (offset < entry->start)
-			n = n->rb_left;
+			n = &(*n)->rb_left;
 		else if (offset > entry->end)
-			n = n->rb_right;
+			n = &(*n)->rb_right;
 		else
-			return n;
+			return *n;
 	}
+
+	if (p_ret)
+		*p_ret = n;
+	if (parent_ret)
+		*parent_ret = prev;
 
 	if (prev_ret) {
 		orig_prev = prev;
@@ -292,16 +308,25 @@ static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 	return NULL;
 }
 
-static inline struct rb_node *tree_search(struct extent_io_tree *tree,
-					  u64 offset)
+static inline struct rb_node *
+tree_search_for_insert(struct extent_io_tree *tree,
+		       u64 offset,
+		       struct rb_node ***p_ret,
+		       struct rb_node **parent_ret)
 {
 	struct rb_node *prev = NULL;
 	struct rb_node *ret;
 
-	ret = __etree_search(tree, offset, &prev, NULL);
+	ret = __etree_search(tree, offset, &prev, NULL, p_ret, parent_ret);
 	if (!ret)
 		return prev;
 	return ret;
+}
+
+static inline struct rb_node *tree_search(struct extent_io_tree *tree,
+					  u64 offset)
+{
+	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
 static void merge_cb(struct extent_io_tree *tree, struct extent_state *new,
@@ -385,6 +410,8 @@ static void set_state_bits(struct extent_io_tree *tree,
  */
 static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state, u64 start, u64 end,
+			struct rb_node ***p,
+			struct rb_node **parent,
 			unsigned long *bits)
 {
 	struct rb_node *node;
@@ -397,7 +424,7 @@ static int insert_state(struct extent_io_tree *tree,
 
 	set_state_bits(tree, state, bits);
 
-	node = tree_insert(&tree->state, end, &state->rb_node);
+	node = tree_insert(&tree->state, end, &state->rb_node, p, parent);
 	if (node) {
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
@@ -444,7 +471,8 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	prealloc->state = orig->state;
 	orig->start = split;
 
-	node = tree_insert(&tree->state, prealloc->end, &prealloc->rb_node);
+	node = tree_insert(&tree->state, prealloc->end, &prealloc->rb_node,
+			   NULL, NULL);
 	if (node) {
 		free_extent_state(prealloc);
 		return -EEXIST;
@@ -783,6 +811,8 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
+	struct rb_node **p;
+	struct rb_node *parent;
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
@@ -809,11 +839,12 @@ again:
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(tree, start);
+	node = tree_search_for_insert(tree, start, &p, &parent);
 	if (!node) {
 		prealloc = alloc_extent_state_atomic(prealloc);
 		BUG_ON(!prealloc);
-		err = insert_state(tree, prealloc, start, end, &bits);
+		err = insert_state(tree, prealloc, start, end,
+				   &p, &parent, &bits);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -920,7 +951,7 @@ hit_next:
 		 * the later extent.
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
-				   &bits);
+				   NULL, NULL, &bits);
 		if (err)
 			extent_io_tree_panic(tree, err);
 
@@ -1006,6 +1037,8 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
+	struct rb_node **p;
+	struct rb_node *parent;
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
@@ -1033,14 +1066,15 @@ again:
 	 * this search will find all the extents that end after
 	 * our range starts.
 	 */
-	node = tree_search(tree, start);
+	node = tree_search_for_insert(tree, start, &p, &parent);
 	if (!node) {
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc) {
 			err = -ENOMEM;
 			goto out;
 		}
-		err = insert_state(tree, prealloc, start, end, &bits);
+		err = insert_state(tree, prealloc, start, end,
+				   &p, &parent, &bits);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
@@ -1137,7 +1171,7 @@ hit_next:
 		 * the later extent.
 		 */
 		err = insert_state(tree, prealloc, start, this_end,
-				   &bits);
+				   NULL, NULL, &bits);
 		if (err)
 			extent_io_tree_panic(tree, err);
 		cache_state(prealloc, cached_state);
