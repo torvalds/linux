@@ -336,11 +336,11 @@ static int dt2801_writecmd(struct comedi_device *dev, int command)
 
 	stat = inb_p(dev->iobase + DT2801_STATUS);
 	if (stat & DT_S_COMPOSITE_ERROR) {
-		printk
-		    ("dt2801: composite-error in dt2801_writecmd(), ignoring\n");
+		dev_dbg(dev->class_dev,
+			"composite-error in %s, ignoring\n", __func__);
 	}
 	if (!(stat & DT_S_READY))
-		printk("dt2801: !ready in dt2801_writecmd(), ignoring\n");
+		dev_dbg(dev->class_dev, "!ready in %s, ignoring\n", __func__);
 	outb_p(command, dev->iobase + DT2801_CMD);
 
 	return 0;
@@ -370,7 +370,7 @@ static int dt2801_reset(struct comedi_device *dev)
 			break;
 	} while (timeout--);
 	if (!timeout)
-		printk("dt2801: timeout 1 status=0x%02x\n", stat);
+		dev_dbg(dev->class_dev, "timeout 1 status=0x%02x\n", stat);
 
 	/* dt2801_readdata(dev,&board_code); */
 
@@ -385,7 +385,7 @@ static int dt2801_reset(struct comedi_device *dev)
 			break;
 	} while (timeout--);
 	if (!timeout)
-		printk("dt2801: timeout 2 status=0x%02x\n", stat);
+		dev_dbg(dev->class_dev, "timeout 2 status=0x%02x\n", stat);
 
 	dt2801_readdata(dev, &board_code);
 
@@ -448,12 +448,12 @@ static int dt2801_error(struct comedi_device *dev, int stat)
 {
 	if (stat < 0) {
 		if (stat == -ETIME)
-			printk("dt2801: timeout\n");
+			dev_dbg(dev->class_dev, "timeout\n");
 		else
-			printk("dt2801: error %d\n", stat);
+			dev_dbg(dev->class_dev, "error %d\n", stat);
 		return stat;
 	}
-	printk("dt2801: error status 0x%02x, resetting...\n", stat);
+	dev_dbg(dev->class_dev, "error status 0x%02x, resetting...\n", stat);
 
 	dt2801_reset(dev);
 	dt2801_reset(dev);
@@ -584,8 +584,8 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (boardtypes[type].boardcode == board_code)
 			goto havetype;
 	}
-	printk("dt2801: unrecognized board code=0x%02x, contact author\n",
-	       board_code);
+	dev_dbg(dev->class_dev,
+		"unrecognized board code=0x%02x, contact author\n", board_code);
 	type = 0;
 
 havetype:
