@@ -238,11 +238,11 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 		 */
 
 		if (data_in & MPC624_EOC_BIT)
-			printk(KERN_INFO "MPC624:EOC bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"EOC bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_DMY_BIT)
-			printk(KERN_INFO "MPC624:DMY bit is set (data_in=%lu)!",
-			       data_in);
+			dev_dbg(dev->class_dev,
+				"DMY bit is set (data_in=%lu)!", data_in);
 		if (data_in & MPC624_SGN_BIT) {	/* Volatge is positive */
 			/*
 			 * comedi operates on unsigned numbers, so mask off EOC
