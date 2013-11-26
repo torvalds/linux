@@ -70,14 +70,11 @@ static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
 	unsigned long iobase = arg;
 	unsigned char inbres;
-	/* printk("8255cb %d %d %d %lx\n", dir,port,data,arg); */
 	if (dir) {
-		/* printk("8255 cb   outb(%x, %lx)\n", data, iobase+port); */
 		outb(data, iobase + port);
 		return 0;
 	} else {
 		inbres = inb(iobase + port);
-		/* printk("8255 cb   inb(%lx) = %x\n", iobase+port, inbres); */
 		return inbres;
 	}
 }
@@ -137,8 +134,6 @@ static void do_3724_config(struct comedi_device *dev,
 		port_8255_cfg = dev->iobase + SIZE_8255 + _8255_CR;
 
 	outb(buffer_config, dev->iobase + 8);	/* update buffer register */
-	/* printk("pcm3724 buffer_config (%lx) %d, %x\n",
-	       dev->iobase + _8255_CR, chanspec, buffer_config); */
 
 	outb(config, port_8255_cfg);
 }
@@ -177,7 +172,6 @@ static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (priv->dio_2 & 0xff)
 		gatecfg |= GATE_A1;
 
-	/*       printk("gate control %x\n", gatecfg); */
 	outb(gatecfg, dev->iobase + 9);
 }
 
