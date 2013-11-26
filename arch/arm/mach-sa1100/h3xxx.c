@@ -28,37 +28,6 @@
 
 #include "generic.h"
 
-void h3xxx_init_gpio(struct gpio_default_state *s, size_t n)
-{
-	while (n--) {
-		const char *name = s->name;
-		int err;
-
-		if (!name)
-			name = "[init]";
-		err = gpio_request(s->gpio, name);
-		if (err) {
-			printk(KERN_ERR "gpio%u: unable to request: %d\n",
-				s->gpio, err);
-			continue;
-		}
-		if (s->mode >= 0) {
-			err = gpio_direction_output(s->gpio, s->mode);
-		} else {
-			err = gpio_direction_input(s->gpio);
-		}
-		if (err) {
-			printk(KERN_ERR "gpio%u: unable to set direction: %d\n",
-				s->gpio, err);
-			continue;
-		}
-		if (!s->name)
-			gpio_free(s->gpio);
-		s++;
-	}
-}
-
-
 /*
  * H3xxx flash support
  */
