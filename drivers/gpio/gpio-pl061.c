@@ -150,6 +150,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	int offset = irqd_to_hwirq(d);
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
+	u8 bit = BIT(offset);
 
 	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
@@ -157,30 +158,31 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	spin_lock_irqsave(&chip->lock, flags);
 
 	gpioiev = readb(chip->base + GPIOIEV);
-
 	gpiois = readb(chip->base + GPIOIS);
-	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
-		gpiois |= 1 << offset;
-		if (trigger & IRQ_TYPE_LEVEL_HIGH)
-			gpioiev |= 1 << offset;
-		else
-			gpioiev &= ~(1 << offset);
-	} else
-		gpiois &= ~(1 << offset);
-	writeb(gpiois, chip->base + GPIOIS);
-
 	gpioibe = readb(chip->base + GPIOIBE);
-	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
-		gpioibe |= 1 << offset;
-	else {
-		gpioibe &= ~(1 << offset);
-		if (trigger & IRQ_TYPE_EDGE_RISING)
-			gpioiev |= 1 << offset;
-		else if (trigger & IRQ_TYPE_EDGE_FALLING)
-			gpioiev &= ~(1 << offset);
-	}
-	writeb(gpioibe, chip->base + GPIOIBE);
 
+	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
+		gpiois |= bit;
+		if (trigger & IRQ_TYPE_LEVEL_HIGH)
+			gpioiev |= bit;
+		else
+			gpioiev &= ~bit;
+	} else
+		gpiois &= ~bit;
+
+	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
+		/* Setting this makes GPIOEV be ignored */
+		gpioibe |= bit;
+	else {
+		gpioibe &= ~bit;
+		if (trigger & IRQ_TYPE_EDGE_RISING)
+			gpioiev |= bit;
+		else if (trigger & IRQ_TYPE_EDGE_FALLING)
+			gpioiev &= ~bit;
+	}
+
+	writeb(gpiois, chip->base + GPIOIS);
+	writeb(gpioibe, chip->base + GPIOIBE);
 	writeb(gpioiev, chip->base + GPIOIEV);
 
 	spin_unlock_irqrestore(&chip->lock, flags);
