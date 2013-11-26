@@ -22,6 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-davinci.h>
+#include <linux/irqchip/chained_irq.h>
 
 struct davinci_gpio_regs {
 	u32	dir;
@@ -321,8 +322,7 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		mask <<= 16;
 
 	/* temporarily mask (level sensitive) parent IRQ */
-	desc->irq_data.chip->irq_mask(&desc->irq_data);
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
+	chained_irq_enter(irq_desc_get_chip(desc), desc);
 	while (1) {
 		u32		status;
 		int		bit;
@@ -343,7 +343,7 @@ gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 						 d->chip.base + bit));
 		}
 	}
-	desc->irq_data.chip->irq_unmask(&desc->irq_data);
+	chained_irq_exit(irq_desc_get_chip(desc), desc);
 	/* now it may re-trigger */
 }
 
