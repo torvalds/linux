@@ -141,7 +141,6 @@ static struct vnt_usb_send_context
 	*s_vGetFreeContext(struct vnt_private *pDevice)
 {
 	struct vnt_usb_send_context *pContext = NULL;
-	struct vnt_usb_send_context *pReturnContext = NULL;
 	int ii;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
@@ -153,15 +152,14 @@ static struct vnt_usb_send_context
         if (pContext->bBoolInUse == false) {
             pContext->bBoolInUse = true;
 		memset(pContext->Data, 0, MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
-            pReturnContext = pContext;
-            break;
+		return pContext;
         }
     }
     if ( ii == pDevice->cbTD ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Free Tx Context\n");
     }
 
-	return pReturnContext;
+	return NULL;
 }
 
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
