@@ -1198,7 +1198,8 @@ static void wacom_wireless_work(struct work_struct *work)
 			goto fail;
 
 		/* Touch interface */
-		if (wacom_wac1->features.touch_max) {
+		if (wacom_wac1->features.touch_max ||
+		    wacom_wac1->features.type == INTUOSHT) {
 			wacom_wac2->features =
 				*((struct wacom_features *)id->driver_info);
 			wacom_wac2->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
@@ -1321,7 +1322,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	 * HID descriptor. If this is the touch interface (wMaxPacketSize
 	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
 	 */
-	if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
+	if (features->type >= INTUOS5S && features->type <= INTUOSHT) {
 		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
 			features->device_type = BTN_TOOL_FINGER;
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
@@ -1391,7 +1392,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			goto fail5;
 		}
 	}
-
 	return 0;
 
  fail5: wacom_destroy_leds(wacom);
