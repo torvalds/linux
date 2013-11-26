@@ -15,6 +15,9 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef __LINUX_USB_OTG_FSM_H
+#define __LINUX_USB_OTG_FSM_H
+
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 
@@ -237,3 +240,5 @@ static inline int otg_start_gadget(struct otg_fsm *fsm, int on)
 }
 
 int otg_statemachine(struct otg_fsm *fsm);
+
+#endif /* __LINUX_USB_OTG_FSM_H */
