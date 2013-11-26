@@ -793,11 +793,7 @@ static int dmm32at_attach(struct comedi_device *dev,
 	s->insn_bits = dmm32at_dio_insn_bits;
 	s->insn_config = dmm32at_dio_insn_config;
 
-	/* success */
-	printk(KERN_INFO "comedi%d: dmm32at: attached\n", dev->minor);
-
-	return 1;
-
+	return 0;
 }
 
 static struct comedi_driver dmm32at_driver = {
