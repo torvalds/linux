@@ -96,8 +96,7 @@ static const u16 wFB_Opt1[2][5] = {
 static void s_vSaveTxPktInfo(struct vnt_private *pDevice, u8 byPktNum,
 	u8 *pbyDestAddr, u16 wPktLength, u16 wFIFOCtl);
 
-static struct vnt_usb_send_context
-		*s_vGetFreeContext(struct vnt_private *pDevice);
+static struct vnt_usb_send_context *s_vGetFreeContext(struct vnt_private *);
 
 static u16 s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	struct vnt_tx_buffer *tx_buffer,
@@ -138,26 +137,28 @@ static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice,
 	int bNeedAck, u8 byFBOption);
 
 static struct vnt_usb_send_context
-	*s_vGetFreeContext(struct vnt_private *pDevice)
+	*s_vGetFreeContext(struct vnt_private *priv)
 {
-	struct vnt_usb_send_context *pContext = NULL;
+	struct vnt_usb_send_context *context = NULL;
 	int ii;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
 
-    for (ii = 0; ii < pDevice->cbTD; ii++) {
-	if (!pDevice->apTD[ii])
-		return NULL;
-        pContext = pDevice->apTD[ii];
-        if (pContext->bBoolInUse == false) {
-            pContext->bBoolInUse = true;
-		memset(pContext->Data, 0, MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
-		return pContext;
-        }
-    }
-    if ( ii == pDevice->cbTD ) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Free Tx Context\n");
-    }
+	for (ii = 0; ii < priv->cbTD; ii++) {
+		if (!priv->apTD[ii])
+			return NULL;
+
+		context = priv->apTD[ii];
+		if (context->bBoolInUse == false) {
+			context->bBoolInUse = true;
+			memset(context->Data, 0,
+					MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
+			return context;
+		}
+	}
+
+	if (ii == priv->cbTD)
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"No Free Tx Context\n");
 
 	return NULL;
 }
