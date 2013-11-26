@@ -1221,8 +1221,6 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	printk(KERN_INFO "\n");
-
 	return 0;
 }
 
