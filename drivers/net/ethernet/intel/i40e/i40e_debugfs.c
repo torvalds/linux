@@ -1022,8 +1022,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	char *cmd_buf, *cmd_buf_tmp;
 	int bytes_not_copied;
 	struct i40e_vsi *vsi;
-	u8 *print_buf_start;
-	u8 *print_buf;
 	int vsi_seid;
 	int veb_seid;
 	int cnt;
@@ -1047,11 +1045,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		*cmd_buf_tmp = '\0';
 		count = cmd_buf_tmp - cmd_buf + 1;
 	}
-
-	print_buf_start = kzalloc(I40E_MAX_DEBUG_OUT_BUFFER, GFP_KERNEL);
-	if (!print_buf_start)
-		goto command_write_done;
-	print_buf = print_buf_start;
 
 	if (strncmp(cmd_buf, "add vsi", 7) == 0) {
 		vsi_seid = -1;
@@ -1592,19 +1585,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		packet_len = min_t(u16,
 				   packet_len, I40E_FDIR_MAX_RAW_PACKET_LOOKUP);
 
-		dev_info(&pf->pdev->dev, "FD raw packet:\n");
 		for (i = 0; i < packet_len; i++) {
 			sscanf(&asc_packet[j], "%2hhx ",
 			       &fd_data.raw_packet[i]);
 			j += 3;
-			snprintf(print_buf, 3, "%02x ", fd_data.raw_packet[i]);
-			print_buf += 3;
-			if ((i % 16) == 15) {
-				snprintf(print_buf, 1, "\n");
-				print_buf++;
-			}
 		}
-		dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+		dev_info(&pf->pdev->dev, "FD raw packet dump\n");
+		print_hex_dump(KERN_INFO, "FD raw packet: ",
+			       DUMP_PREFIX_OFFSET, 16, 1,
+			       fd_data.raw_packet, packet_len, true);
 		ret = i40e_program_fdir_filter(&fd_data, pf, add);
 		if (!ret) {
 			dev_info(&pf->pdev->dev, "Filter command send Status : Success\n");
@@ -1638,7 +1627,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		} else if (strncmp(&cmd_buf[5],
 			   "get local", 9) == 0) {
 			u16 llen, rlen;
-			int ret, i;
+			int ret;
 			u8 *buff;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
@@ -1656,22 +1645,15 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				buff = NULL;
 				goto command_write_done;
 			}
-			dev_info(&pf->pdev->dev,
-				 "Get LLDP MIB (local) AQ buffer written back:\n");
-			for (i = 0; i < I40E_LLDPDU_SIZE; i++) {
-				snprintf(print_buf, 3, "%02x ", buff[i]);
-				print_buf += 3;
-				if ((i % 16) == 15) {
-					snprintf(print_buf, 1, "\n");
-					print_buf++;
-				}
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			dev_info(&pf->pdev->dev, "LLDP MIB (local)\n");
+			print_hex_dump(KERN_INFO, "LLDP MIB (local): ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       buff, I40E_LLDPDU_SIZE, true);
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "get remote", 10) == 0) {
 			u16 llen, rlen;
-			int ret, i;
+			int ret;
 			u8 *buff;
 			buff = kzalloc(I40E_LLDPDU_SIZE, GFP_KERNEL);
 			if (!buff)
@@ -1690,17 +1672,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				buff = NULL;
 				goto command_write_done;
 			}
-			dev_info(&pf->pdev->dev,
-				 "Get LLDP MIB (remote) AQ buffer written back:\n");
-			for (i = 0; i < I40E_LLDPDU_SIZE; i++) {
-				snprintf(print_buf, 3, "%02x ", buff[i]);
-				print_buf += 3;
-				if ((i % 16) == 15) {
-					snprintf(print_buf, 1, "\n");
-					print_buf++;
-				}
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			dev_info(&pf->pdev->dev, "LLDP MIB (remote)\n");
+			print_hex_dump(KERN_INFO, "LLDP MIB (remote): ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       buff, I40E_LLDPDU_SIZE, true);
 			kfree(buff);
 			buff = NULL;
 		} else if (strncmp(&cmd_buf[5], "event on", 8) == 0) {
@@ -1725,7 +1700,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			}
 		}
 	} else if (strncmp(cmd_buf, "nvm read", 8) == 0) {
-		u16 buffer_len, i, bytes;
+		u16 buffer_len, bytes;
 		u16 module;
 		u32 offset;
 		u16 *buff;
@@ -1779,16 +1754,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev,
 				 "Read NVM module=0x%x offset=0x%x words=%d\n",
 				 module, offset, buffer_len);
-			for (i = 0; i < buffer_len; i++) {
-				if ((i % 16) == 0) {
-					snprintf(print_buf, 11, "\n0x%08x: ",
-						 offset + i);
-					print_buf += 11;
-				}
-				snprintf(print_buf, 5, "%04x ", buff[i]);
-				print_buf += 5;
-			}
-			dev_info(&pf->pdev->dev, "%s\n", print_buf_start);
+			if (buffer_len)
+				print_hex_dump(KERN_INFO, "NVM Dump: ",
+					DUMP_PREFIX_OFFSET, 16, 2,
+					buff, buffer_len, true);
 		}
 		kfree(buff);
 		buff = NULL;
@@ -1832,9 +1801,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 command_write_done:
 	kfree(cmd_buf);
 	cmd_buf = NULL;
-	kfree(print_buf_start);
-	print_buf = NULL;
-	print_buf_start = NULL;
 	return count;
 }
 
