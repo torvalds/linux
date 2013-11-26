@@ -231,7 +231,7 @@ int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
 							   int db_num));
 void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx);
 int ntb_register_event_callback(struct ntb_device *ndev,
-				void (*event_cb_func) (void *handle,
+				void (*event_cb_func)(void *handle,
 						      enum ntb_hw_event event));
 void ntb_unregister_event_callback(struct ntb_device *ndev);
 int ntb_get_max_spads(struct ntb_device *ndev);

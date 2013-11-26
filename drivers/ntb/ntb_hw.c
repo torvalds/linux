@@ -91,7 +91,7 @@ static struct dentry *debugfs_dir;
 /* Translate memory window 0,1 to BAR 2,4 */
 #define MW_TO_BAR(mw)	(mw * NTB_MAX_NUM_MW + 2)
 
-static DEFINE_PCI_DEVICE_TABLE(ntb_pci_tbl) = {
+static const struct pci_device_id ntb_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_BWD)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_JSF)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_SNB)},
@@ -120,7 +120,8 @@ MODULE_DEVICE_TABLE(pci, ntb_pci_tbl);
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
 int ntb_register_event_callback(struct ntb_device *ndev,
-			    void (*func)(void *handle, enum ntb_hw_event event))
+				void (*func)(void *handle,
+					     enum ntb_hw_event event))
 {
 	if (ndev->event_cb)
 		return -EINVAL;
@@ -715,9 +716,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			       SNB_PBAR4LMT_OFFSET);
 			/* HW errata on the Limit registers.  They can only be
 			 * written when the base register is 4GB aligned and
-			 * < 32bit.  This should already be the case based on the
-			 * driver defaults, but write the Limit registers first
-			 * just in case.
+			 * < 32bit.  This should already be the case based on
+			 * the driver defaults, but write the Limit registers
+			 * first just in case.
 			 */
 		} else {
 			ndev->limits.max_mw = SNB_MAX_MW;
@@ -739,9 +740,9 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
 			/* HW errata on the Limit registers.  They can only be
 			 * written when the base register is 4GB aligned and
-			 * < 32bit.  This should already be the case based on the
-			 * driver defaults, but write the Limit registers first
-			 * just in case.
+			 * < 32bit.  This should already be the case based on
+			 * the driver defaults, but write the Limit registers
+			 * first just in case.
 			 */
 		}
 
@@ -803,7 +804,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		ndev->conn_type = NTB_CONN_RP;
 
 		if (xeon_errata_workaround) {
-			dev_err(&ndev->pdev->dev, 
+			dev_err(&ndev->pdev->dev,
 				"NTB-RP disabled due to hardware errata.  To disregard this warning and potentially lock-up the system, add the parameter 'xeon_errata_workaround=0'.\n");
 			return -EINVAL;
 		}
