@@ -782,6 +782,12 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 			dev_info(&pf->pdev->dev, "dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
 		return;
 	}
+	if (!vsi->tx_rings) {
+		dev_info(&pf->pdev->dev,
+			 "descriptor rings have not been allocated for vsi %d\n",
+			 vsi_seid);
+		return;
+	}
 	if (is_rx_ring)
 		ring = *vsi->rx_rings[ring_id];
 	else
