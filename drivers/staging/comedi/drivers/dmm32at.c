@@ -182,8 +182,6 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	chan = CR_CHAN(insn->chanspec) & (s->n_chan - 1);
 	range = CR_RANGE(insn->chanspec);
 
-	/* printk("channel=0x%02x, range=%d\n",chan,range); */
-
 	/* zero scan and fifo control and reset fifo */
 	outb(DMM32AT_FIFORESET, dev->iobase + DMM32AT_FIFOCNTRL);
 
@@ -461,8 +459,6 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(0xff, dev->iobase + DMM32AT_CONV);
 	}
 
-/*	printk("dmmat32 in command\n"); */
-
 /*	for(i=0;i<cmd->chanlist_len;i++) */
 /*		comedi_buf_put(s->async,i*100); */
 
@@ -550,7 +546,6 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 		lo = data[i] & 0x00ff;
 		/* high byte also contains channel number */
 		hi = (data[i] >> 8) + chan * (1 << 6);
-		/* printk("writing 0x%02x  0x%02x\n",hi,lo); */
 		/* write the low and high values to the board */
 		outb(lo, dev->iobase + DMM32AT_DACLSB);
 		outb(hi, dev->iobase + DMM32AT_DACMSB);
