@@ -206,6 +206,9 @@ OPTIONS
 --show-task-events
 	Display task related events (e.g. FORK, COMM, EXIT).
 
+--show-mmap-events
+	Display mmap related events (e.g. MMAP, MMAP2).
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
