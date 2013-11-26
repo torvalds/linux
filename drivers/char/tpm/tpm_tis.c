@@ -702,7 +702,7 @@ out_err:
 	return rc;
 }
 
-#if defined(CONFIG_PNP) || defined(CONFIG_PM_SLEEP)
+#ifdef CONFIG_PM_SLEEP
 static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 {
 	u32 intmask;
@@ -723,9 +723,7 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 	iowrite32(intmask,
 		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int tpm_tis_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
@@ -794,11 +792,9 @@ static struct pnp_driver tis_pnp_driver = {
 	.id_table = tpm_pnp_tbl,
 	.probe = tpm_tis_pnp_init,
 	.remove = tpm_tis_pnp_remove,
-#ifdef CONFIG_PM_SLEEP
 	.driver	= {
 		.pm = &tpm_tis_pm,
 	},
-#endif
 };
 
 #define TIS_HID_USR_IDX sizeof(tpm_pnp_tbl)/sizeof(struct pnp_device_id) -2
