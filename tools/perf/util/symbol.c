@@ -1526,14 +1526,15 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 
+	scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s", buildid_dir,
+		  sbuild_id);
+
 	/* Use /proc/kallsyms if possible */
 	if (is_host) {
 		DIR *d;
 		int fd;
 
 		/* If no cached kcore go with /proc/kallsyms */
-		scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s",
-			  buildid_dir, sbuild_id);
 		d = opendir(path);
 		if (!d)
 			goto proc_kallsyms;
@@ -1557,6 +1558,10 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 
 		goto proc_kallsyms;
 	}
+
+	/* Find kallsyms in build-id cache with kcore */
+	if (!find_matching_kcore(map, path, sizeof(path)))
+		return strdup(path);
 
 	scnprintf(path, sizeof(path), "%s/[kernel.kallsyms]/%s",
 		  buildid_dir, sbuild_id);
