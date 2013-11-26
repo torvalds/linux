@@ -337,8 +337,10 @@ struct hwmon_attr {
 	};
 
 struct hwmon_buff {
-	struct device *device;
-	struct hwmon_attr *hwmon_list;
+	struct attribute_group group;
+	const struct attribute_group *groups[2];
+	struct attribute *attrs[E1000_MAX_SENSORS * 4 + 1];
+	struct hwmon_attr hwmon_list[E1000_MAX_SENSORS * 4];
 	unsigned int n_hwmon;
 	};
 #endif
@@ -440,7 +442,7 @@ struct igb_adapter {
 
 	char fw_version[32];
 #ifdef CONFIG_IGB_HWMON
-	struct hwmon_buff igb_hwmon_buff;
+	struct hwmon_buff *igb_hwmon_buff;
 	bool ets;
 #endif
 	struct i2c_algo_bit_data i2c_algo;
