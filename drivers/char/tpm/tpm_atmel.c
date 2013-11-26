@@ -121,15 +121,6 @@ static bool tpm_atml_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == ATML_STATUS_READY);
 }
 
-static const struct file_operations atmel_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
@@ -154,7 +145,6 @@ static const struct tpm_vendor_specific tpm_atmel = {
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
 	.req_canceled = tpm_atml_req_canceled,
 	.attr_group = &atmel_attr_grp,
-	.miscdev = { .fops = &atmel_ops, },
 };
 
 static struct platform_device *pdev;

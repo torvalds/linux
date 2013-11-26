@@ -455,15 +455,6 @@ static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == TPM_STS_COMMAND_READY);
 }
 
-static const struct file_operations i2c_nuvoton_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
@@ -502,7 +493,6 @@ static const struct tpm_vendor_specific tpm_i2c = {
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_canceled = i2c_nuvoton_req_canceled,
 	.attr_group = &i2c_nuvoton_attr_grp,
-	.miscdev.fops = &i2c_nuvoton_ops,
 };
 
 /* The only purpose for the handler is to signal to any waiting threads that

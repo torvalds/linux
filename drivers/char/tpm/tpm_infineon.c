@@ -386,15 +386,6 @@ static struct attribute *inf_attrs[] = {
 
 static struct attribute_group inf_attr_grp = {.attrs = inf_attrs };
 
-static const struct file_operations inf_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
 static const struct tpm_vendor_specific tpm_inf = {
 	.recv = tpm_inf_recv,
 	.send = tpm_inf_send,
@@ -403,7 +394,6 @@ static const struct tpm_vendor_specific tpm_inf = {
 	.req_complete_mask = 0,
 	.req_complete_val = 0,
 	.attr_group = &inf_attr_grp,
-	.miscdev = {.fops = &inf_ops,},
 };
 
 static const struct pnp_device_id tpm_inf_pnp_tbl[] = {

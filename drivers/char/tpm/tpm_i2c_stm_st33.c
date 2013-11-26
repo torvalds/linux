@@ -574,15 +574,6 @@ static bool tpm_st33_i2c_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == TPM_STS_COMMAND_READY);
 }
 
-static const struct file_operations tpm_st33_i2c_fops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.read = tpm_read,
-	.write = tpm_write,
-	.open = tpm_open,
-	.release = tpm_release,
-};
-
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
@@ -616,7 +607,6 @@ static struct tpm_vendor_specific st_i2c_tpm = {
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_canceled = tpm_st33_i2c_req_canceled,
 	.attr_group = &stm_tpm_attr_grp,
-	.miscdev = {.fops = &tpm_st33_i2c_fops,},
 };
 
 static int interrupts;

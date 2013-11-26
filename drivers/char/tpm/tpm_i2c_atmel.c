@@ -135,15 +135,6 @@ static u8 i2c_atmel_read_status(struct tpm_chip *chip)
 	return ATMEL_STS_OK;
 }
 
-static const struct file_operations i2c_atmel_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
@@ -187,7 +178,6 @@ static const struct tpm_vendor_specific i2c_atmel = {
 	.req_complete_val = ATMEL_STS_OK,
 	.req_canceled = i2c_atmel_req_canceled,
 	.attr_group = &i2c_atmel_attr_grp,
-	.miscdev.fops = &i2c_atmel_ops,
 };
 
 static int i2c_atmel_probe(struct i2c_client *client,

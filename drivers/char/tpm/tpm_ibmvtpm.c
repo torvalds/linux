@@ -403,15 +403,6 @@ static bool tpm_ibmvtpm_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == 0);
 }
 
-static const struct file_operations ibmvtpm_ops = {
-	.owner = THIS_MODULE,
-	.llseek = no_llseek,
-	.open = tpm_open,
-	.read = tpm_read,
-	.write = tpm_write,
-	.release = tpm_release,
-};
-
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(enabled, S_IRUGO, tpm_show_enabled, NULL);
@@ -448,7 +439,6 @@ static const struct tpm_vendor_specific tpm_ibmvtpm = {
 	.req_complete_val = 0,
 	.req_canceled = tpm_ibmvtpm_req_canceled,
 	.attr_group = &ibmvtpm_attr_grp,
-	.miscdev = { .fops = &ibmvtpm_ops, },
 };
 
 static const struct dev_pm_ops tpm_ibmvtpm_pm_ops = {
