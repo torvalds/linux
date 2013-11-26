@@ -245,6 +245,8 @@ extern struct req_format RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK;
 extern struct req_format RQF_LLOG_ORIGIN_HANDLE_READ_HEADER;
 extern struct req_format RQF_LLOG_ORIGIN_CONNECT;
 
+extern struct req_format RQF_CONNECT;
+
 extern struct req_msg_field RMF_GENERIC_DATA;
 extern struct req_msg_field RMF_PTLRPC_BODY;
 extern struct req_msg_field RMF_MDT_BODY;
