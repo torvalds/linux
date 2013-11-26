@@ -362,7 +362,7 @@ static ssize_t i40e_dbg_command_read(struct file *filp, char __user *buffer,
 }
 
 /**
- * i40e_dbg_dump_vsi_seid - handles dump vsi seid write into pokem datum
+ * i40e_dbg_dump_vsi_seid - handles dump vsi seid write into command datum
  * @pf: the i40e_pf created in command write
  * @seid: the seid the user put in
  **/
@@ -707,7 +707,12 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 {
 	struct i40e_adminq_ring *ring;
 	struct i40e_hw *hw = &pf->hw;
+	char hdr[32];
 	int i;
+
+	snprintf(hdr, sizeof(hdr), "%s %s:         ",
+		 dev_driver_string(&pf->pdev->dev),
+		 dev_name(&pf->pdev->dev));
 
 	/* first the send (command) ring, then the receive (event) ring */
 	dev_info(&pf->pdev->dev, "AdminQ Tx Ring\n");
@@ -718,14 +723,8 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   at[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		dev_info(&pf->pdev->dev,
-			 "            %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-			 d->params.raw[0], d->params.raw[1], d->params.raw[2],
-			 d->params.raw[3], d->params.raw[4], d->params.raw[5],
-			 d->params.raw[6], d->params.raw[7], d->params.raw[8],
-			 d->params.raw[9], d->params.raw[10], d->params.raw[11],
-			 d->params.raw[12], d->params.raw[13],
-			 d->params.raw[14], d->params.raw[15]);
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+			       16, 1, d->params.raw, 16, 0);
 	}
 
 	dev_info(&pf->pdev->dev, "AdminQ Rx Ring\n");
@@ -736,14 +735,8 @@ static void i40e_dbg_dump_aq_desc(struct i40e_pf *pf)
 			 "   ar[%02d] flags=0x%04x op=0x%04x dlen=0x%04x ret=0x%04x cookie_h=0x%08x cookie_l=0x%08x\n",
 			 i, d->flags, d->opcode, d->datalen, d->retval,
 			 d->cookie_high, d->cookie_low);
-		dev_info(&pf->pdev->dev,
-			 "            %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-			 d->params.raw[0], d->params.raw[1], d->params.raw[2],
-			 d->params.raw[3], d->params.raw[4], d->params.raw[5],
-			 d->params.raw[6], d->params.raw[7], d->params.raw[8],
-			 d->params.raw[9], d->params.raw[10], d->params.raw[11],
-			 d->params.raw[12], d->params.raw[13],
-			 d->params.raw[14], d->params.raw[15]);
+		print_hex_dump(KERN_INFO, hdr, DUMP_PREFIX_NONE,
+			       16, 1, d->params.raw, 16, 0);
 	}
 }
 
@@ -973,8 +966,7 @@ static void i40e_dbg_dump_veb_seid(struct i40e_pf *pf, int seid)
 
 	veb = i40e_dbg_find_veb(pf, seid);
 	if (!veb) {
-		dev_info(&pf->pdev->dev,
-			 "%d: can't find veb\n", seid);
+		dev_info(&pf->pdev->dev, "can't find veb %d\n", seid);
 		return;
 	}
 	dev_info(&pf->pdev->dev,
