@@ -194,6 +194,7 @@ struct gsm_control {
 struct gsm_mux {
 	struct tty_struct *tty;		/* The tty our ldisc is bound to */
 	spinlock_t lock;
+	struct mutex mutex;
 	unsigned int num;
 	struct kref ref;
 
@@ -2054,9 +2055,11 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 					dlci->state == DLCI_CLOSED);
 	}
 	/* Free up any link layer users */
+	mutex_lock(&gsm->mutex);
 	for (i = 0; i < NUM_DLCI; i++)
 		if (gsm->dlci[i])
 			gsm_dlci_release(gsm->dlci[i]);
+	mutex_unlock(&gsm->mutex);
 	/* Now wipe the queues */
 	list_for_each_entry_safe(txq, ntxq, &gsm->tx_list, list)
 		kfree(txq);
@@ -2170,6 +2173,7 @@ struct gsm_mux *gsm_alloc_mux(void)
 		return NULL;
 	}
 	spin_lock_init(&gsm->lock);
+	mutex_init(&gsm->mutex);
 	kref_init(&gsm->ref);
 	INIT_LIST_HEAD(&gsm->tx_list);
 
@@ -2910,23 +2914,33 @@ static int gsmtty_install(struct tty_driver *driver, struct tty_struct *tty)
 	This is ok from a locking
 	perspective as we don't have to worry about this
 	if DLCI0 is lost */
-	if (gsm->dlci[0] && gsm->dlci[0]->state != DLCI_OPEN)
+	mutex_lock(&gsm->mutex);
+	if (gsm->dlci[0] && gsm->dlci[0]->state != DLCI_OPEN) {
+		mutex_unlock(&gsm->mutex);
 		return -EL2NSYNC;
+	}
 	dlci = gsm->dlci[line];
 	if (dlci == NULL) {
 		alloc = true;
 		dlci = gsm_dlci_alloc(gsm, line);
 	}
-	if (dlci == NULL)
+	if (dlci == NULL) {
+		mutex_unlock(&gsm->mutex);
 		return -ENOMEM;
+	}
 	ret = tty_port_install(&dlci->port, driver, tty);
 	if (ret) {
 		if (alloc)
 			dlci_put(dlci);
+		mutex_unlock(&gsm->mutex);
 		return ret;
 	}
 
+	dlci_get(dlci);
+	dlci_get(gsm->dlci[0]);
+	mux_get(gsm);
 	tty->driver_data = dlci;
+	mutex_unlock(&gsm->mutex);
 
 	return 0;
 }
@@ -2937,9 +2951,6 @@ static int gsmtty_open(struct tty_struct *tty, struct file *filp)
 	struct tty_port *port = &dlci->port;
 
 	port->count++;
-	dlci_get(dlci);
-	dlci_get(dlci->gsm->dlci[0]);
-	mux_get(dlci->gsm);
 	tty_port_tty_set(port, tty);
 
 	dlci->modem_rx = 0;
@@ -2966,7 +2977,7 @@ static void gsmtty_close(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&dlci->mutex);
 	gsm = dlci->gsm;
 	if (tty_port_close_start(&dlci->port, tty, filp) == 0)
-		goto out;
+		return;
 	gsm_dlci_begin_close(dlci);
 	if (test_bit(ASYNCB_INITIALIZED, &dlci->port.flags)) {
 		if (C_HUPCL(tty))
@@ -2974,10 +2985,7 @@ static void gsmtty_close(struct tty_struct *tty, struct file *filp)
 	}
 	tty_port_close_end(&dlci->port, tty);
 	tty_port_tty_set(&dlci->port, NULL);
-out:
-	dlci_put(dlci);
-	dlci_put(gsm->dlci[0]);
-	mux_put(gsm);
+	return;
 }
 
 static void gsmtty_hangup(struct tty_struct *tty)
@@ -3154,6 +3162,16 @@ static int gsmtty_break_ctl(struct tty_struct *tty, int state)
 	return gsmtty_modem_update(dlci, encode);
 }
 
+static void gsmtty_remove(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct gsm_dlci *dlci = tty->driver_data;
+	struct gsm_mux *gsm = dlci->gsm;
+
+	dlci_put(dlci);
+	dlci_put(gsm->dlci[0]);
+	mux_put(gsm);
+	driver->ttys[tty->index] = NULL;
+}
 
 /* Virtual ttys for the demux */
 static const struct tty_operations gsmtty_ops = {
@@ -3173,6 +3191,7 @@ static const struct tty_operations gsmtty_ops = {
 	.tiocmget		= gsmtty_tiocmget,
 	.tiocmset		= gsmtty_tiocmset,
 	.break_ctl		= gsmtty_break_ctl,
+	.remove			= gsmtty_remove,
 };
 
 
