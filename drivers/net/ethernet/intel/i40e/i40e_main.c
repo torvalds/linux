@@ -5411,15 +5411,18 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	/* The number of vectors we'll request will be comprised of:
 	 *   - Add 1 for "other" cause for Admin Queue events, etc.
 	 *   - The number of LAN queue pairs
-	 *        already adjusted for the number of cpus in the system
-	 *        assumes symmetric Tx/Rx pairing
+	 *	- Queues being used for RSS.
+	 *		We don't need as many as max_rss_size vectors.
+	 *		use rss_size instead in the calculation since that
+	 *		is governed by number of cpus in the system.
+	 *	- assumes symmetric Tx/Rx pairing
 	 *   - The number of VMDq pairs
 	 * Once we count this up, try the request.
 	 *
 	 * If we can't get what we want, we'll simplify to nearly nothing
 	 * and try again.  If that still fails, we punt.
 	 */
-	pf->num_lan_msix = pf->num_lan_qps;
+	pf->num_lan_msix = pf->num_lan_qps - (pf->rss_size_max - pf->rss_size);
 	pf->num_vmdq_msix = pf->num_vmdq_qps;
 	v_budget = 1 + pf->num_lan_msix;
 	v_budget += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
@@ -5700,6 +5703,42 @@ static int i40e_config_rss(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_reconfig_rss_queues - change number of queues for rss and rebuild
+ * @pf: board private structure
+ * @queue_count: the requested queue count for rss.
+ *
+ * returns 0 if rss is not enabled, if enabled returns the final rss queue
+ * count which may be different from the requested queue count.
+ **/
+int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
+{
+	if (!(pf->flags & I40E_FLAG_RSS_ENABLED))
+		return 0;
+
+	queue_count = min_t(int, queue_count, pf->rss_size_max);
+	queue_count = rounddown_pow_of_two(queue_count);
+
+	if (queue_count != pf->rss_size) {
+		if (pf->queues_left < (queue_count - pf->rss_size)) {
+			dev_info(&pf->pdev->dev,
+				"Not enough queues to do RSS on %d queues: remaining queues %d\n",
+				queue_count, pf->queues_left);
+			return pf->rss_size;
+		}
+		i40e_prep_for_reset(pf);
+
+		pf->num_lan_qps += (queue_count - pf->rss_size);
+		pf->queues_left -= (queue_count - pf->rss_size);
+		pf->rss_size = queue_count;
+
+		i40e_reset_and_rebuild(pf, true);
+		i40e_config_rss(pf);
+	}
+	dev_info(&pf->pdev->dev, "RSS count:  %d\n", pf->rss_size);
+	return pf->rss_size;
+}
+
+/**
  * i40e_sw_init - Initialize general software structures (struct i40e_pf)
  * @pf: board private structure to initialize
  *
@@ -5880,7 +5919,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	int etherdev_size;
 
 	etherdev_size = sizeof(struct i40e_netdev_priv);
-	netdev = alloc_etherdev_mq(etherdev_size, vsi->num_queue_pairs);
+	netdev = alloc_etherdev_mq(etherdev_size, vsi->alloc_queue_pairs);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -7180,7 +7219,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 		pf->rss_size = i40e_set_rss_size(pf, queues_left);
 
 		queues_left -= pf->rss_size;
-		pf->num_lan_qps = pf->rss_size;
+		pf->num_lan_qps = pf->rss_size_max;
 
 	} else if (pf->flags & I40E_FLAG_RSS_ENABLED	  &&
 		   !(pf->flags & I40E_FLAG_FDIR_ENABLED)  &&
@@ -7199,7 +7238,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			return;
 		}
 
-		pf->num_lan_qps = pf->rss_size + accum_tc_size;
+		pf->num_lan_qps = pf->rss_size_max + accum_tc_size;
 
 	} else if (pf->flags & I40E_FLAG_RSS_ENABLED   &&
 		  (pf->flags & I40E_FLAG_FDIR_ENABLED) &&
@@ -7215,7 +7254,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			return;
 		}
 
-		pf->num_lan_qps = pf->rss_size;
+		pf->num_lan_qps = pf->rss_size_max;
 
 	} else if (pf->flags & I40E_FLAG_RSS_ENABLED   &&
 		  (pf->flags & I40E_FLAG_FDIR_ENABLED) &&
@@ -7235,7 +7274,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 			return;
 		}
 
-		pf->num_lan_qps = pf->rss_size + accum_tc_size;
+		pf->num_lan_qps = pf->rss_size_max + accum_tc_size;
 
 	} else {
 		dev_info(&pf->pdev->dev,
@@ -7257,6 +7296,7 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 		queues_left -= (pf->num_vmdq_vsis * pf->num_vmdq_qps);
 	}
 
+	pf->queues_left = queues_left;
 	return;
 }
 
