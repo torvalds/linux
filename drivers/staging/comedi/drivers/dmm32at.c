@@ -199,10 +199,8 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
-	if (i == 40000) {
-		printk(KERN_WARNING "dmm32at: timeout\n");
+	if (i == 40000)
 		return -ETIMEDOUT;
-	}
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
@@ -214,10 +212,8 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			if ((status & DMM32AT_STATUS) == 0)
 				break;
 		}
-		if (i == 40000) {
-			printk(KERN_WARNING "dmm32at: timeout\n");
+		if (i == 40000)
 			return -ETIMEDOUT;
-		}
 
 		/* read data */
 		lsb = inb(dev->iobase + DMM32AT_AILSB);
@@ -453,10 +449,8 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if ((status & DMM32AT_STATUS) == 0)
 			break;
 	}
-	if (i == 40000) {
-		printk(KERN_WARNING "dmm32at: timeout\n");
+	if (i == 40000)
 		return -ETIMEDOUT;
-	}
 
 	if (devpriv->ai_scans_left > 1) {
 		/* start the clock and enable the interrupts */
@@ -567,10 +561,9 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 			if ((status & DMM32AT_DACBUSY) == 0)
 				break;
 		}
-		if (i == 40000) {
-			printk(KERN_WARNING "dmm32at: timeout\n");
+		if (i == 40000)
 			return -ETIMEDOUT;
-		}
+
 		/* dummy read to update trigger the output */
 		status = inb(dev->iobase + DMM32AT_DACMSB);
 
