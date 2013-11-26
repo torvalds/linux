@@ -1472,6 +1472,94 @@ static int i40e_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	return ret;
 }
 
+/**
+ * i40e_max_channels - get Max number of combined channels supported
+ * @vsi: vsi pointer
+ **/
+static unsigned int i40e_max_channels(struct i40e_vsi *vsi)
+{
+	/* TODO: This code assumes DCB and FD is disabled for now. */
+	return vsi->alloc_queue_pairs;
+}
+
+/**
+ * i40e_get_channels - Get the current channels enabled and max supported etc.
+ * @netdev: network interface device structure
+ * @ch: ethtool channels structure
+ *
+ * We don't support separate tx and rx queues as channels. The other count
+ * represents how many queues are being used for control. max_combined counts
+ * how many queue pairs we can support. They may not be mapped 1 to 1 with
+ * q_vectors since we support a lot more queue pairs than q_vectors.
+ **/
+static void i40e_get_channels(struct net_device *dev,
+			       struct ethtool_channels *ch)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+
+	/* report maximum channels */
+	ch->max_combined = i40e_max_channels(vsi);
+
+	/* report info for other vector */
+	ch->other_count = (pf->flags & I40E_FLAG_FDIR_ENABLED) ? 1 : 0;
+	ch->max_other = ch->other_count;
+
+	/* Note: This code assumes DCB is disabled for now. */
+	ch->combined_count = vsi->num_queue_pairs;
+}
+
+/**
+ * i40e_set_channels - Set the new channels count.
+ * @netdev: network interface device structure
+ * @ch: ethtool channels structure
+ *
+ * The new channels count may not be the same as requested by the user
+ * since it gets rounded down to a power of 2 value.
+ **/
+static int i40e_set_channels(struct net_device *dev,
+			      struct ethtool_channels *ch)
+{
+	struct i40e_netdev_priv *np = netdev_priv(dev);
+	unsigned int count = ch->combined_count;
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	int new_count;
+
+	/* We do not support setting channels for any other VSI at present */
+	if (vsi->type != I40E_VSI_MAIN)
+		return -EINVAL;
+
+	/* verify they are not requesting separate vectors */
+	if (!count || ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	/* verify other_count has not changed */
+	if (ch->other_count != ((pf->flags & I40E_FLAG_FDIR_ENABLED) ? 1 : 0))
+		return -EINVAL;
+
+	/* verify the number of channels does not exceed hardware limits */
+	if (count > i40e_max_channels(vsi))
+		return -EINVAL;
+
+	/* update feature limits from largest to smallest supported values */
+	/* TODO: Flow director limit, DCB etc */
+
+	/* cap RSS limit */
+	if (count > pf->rss_size_max)
+		count = pf->rss_size_max;
+
+	/* use rss_reconfig to rebuild with new queue count and update traffic
+	 * class queue mapping
+	 */
+	new_count = i40e_reconfig_rss_queues(pf, count);
+	if (new_count > 1)
+		return 0;
+	else
+		return -EINVAL;
+}
+
 static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_settings		= i40e_get_settings,
 	.get_drvinfo		= i40e_get_drvinfo,
@@ -1496,6 +1584,8 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_ethtool_stats	= i40e_get_ethtool_stats,
 	.get_coalesce		= i40e_get_coalesce,
 	.set_coalesce		= i40e_set_coalesce,
+	.get_channels		= i40e_get_channels,
+	.set_channels		= i40e_set_channels,
 	.get_ts_info		= i40e_get_ts_info,
 };
 
