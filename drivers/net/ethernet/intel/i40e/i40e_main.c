@@ -3966,6 +3966,15 @@ static int i40e_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_rx;
 
+	/* Notify the stack of the actual queue counts. */
+	err = netif_set_real_num_tx_queues(netdev, pf->num_tx_queues);
+	if (err)
+		goto err_set_queues;
+
+	err = netif_set_real_num_rx_queues(netdev, pf->num_rx_queues);
+	if (err)
+		goto err_set_queues;
+
 	err = i40e_up_complete(vsi);
 	if (err)
 		goto err_up_complete;
@@ -3982,6 +3991,7 @@ static int i40e_open(struct net_device *netdev)
 
 err_up_complete:
 	i40e_down(vsi);
+err_set_queues:
 	i40e_vsi_free_irq(vsi);
 err_setup_rx:
 	i40e_vsi_free_rx_resources(vsi);
