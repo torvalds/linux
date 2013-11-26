@@ -116,8 +116,6 @@ Bugs:
 #include "ni_stc.h"
 #include "mite.h"
 
-/* #define PCI_DEBUG */
-
 #define PCIDMA
 
 #define PCIMIO 1
