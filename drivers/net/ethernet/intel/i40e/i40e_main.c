@@ -5401,7 +5401,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	/* The number of vectors we'll request will be comprised of:
 	 *   - Add 1 for "other" cause for Admin Queue events, etc.
 	 *   - The number of LAN queue pairs
-	 *        already adjusted for the NUMA node
+	 *        already adjusted for the number of cpus in the system
 	 *        assumes symmetric Tx/Rx pairing
 	 *   - The number of VMDq pairs
 	 * Once we count this up, try the request.
@@ -5728,8 +5728,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 				 pf->hw.func_caps.num_tx_qp);
 	if (pf->hw.func_caps.rss) {
 		pf->flags |= I40E_FLAG_RSS_ENABLED;
-		pf->rss_size = min_t(int, pf->rss_size_max,
-				     nr_cpus_node(numa_node_id()));
+		pf->rss_size = min_t(int, pf->rss_size_max, num_online_cpus());
 	} else {
 		pf->rss_size = 1;
 	}
@@ -7054,7 +7053,7 @@ static u16 i40e_set_rss_size(struct i40e_pf *pf, int queues_left)
 	int num_tc0;
 
 	num_tc0 = min_t(int, queues_left, pf->rss_size_max);
-	num_tc0 = min_t(int, num_tc0, nr_cpus_node(numa_node_id()));
+	num_tc0 = min_t(int, num_tc0, num_online_cpus());
 	num_tc0 = rounddown_pow_of_two(num_tc0);
 
 	return num_tc0;
