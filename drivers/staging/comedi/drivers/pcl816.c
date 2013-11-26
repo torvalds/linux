@@ -922,7 +922,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->dmapages[0] = pages;
 		devpriv->hwdmaptr[0] = virt_to_bus((void *)devpriv->dmabuf[0]);
 		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
-		/* printk("%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE); */
 
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
@@ -958,7 +957,6 @@ no_dma:
 		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
 		s->n_chan = board->n_aichan;
 		s->subdev_flags |= SDF_DIFF;
-		/* printk (", %dchans DIFF DAC - %d", s->n_chan, i); */
 		s->maxdata = board->ai_maxdata;
 		s->len_chanlist = board->ai_chanlist;
 		s->range_table = board->ai_range_type;
