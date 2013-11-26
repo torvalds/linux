@@ -27,8 +27,6 @@
 
 #include "comedi.h"
 
-#define DPRINTK(format, args...)	pr_debug("comedi: " format, ## args);
-
 #define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
 #define COMEDI_VERSION_CODE COMEDI_VERSION(COMEDI_MAJORVERSION, \
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
