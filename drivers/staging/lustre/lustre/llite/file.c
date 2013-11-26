@@ -368,8 +368,6 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 {
 	struct ll_sb_info *sbi = ll_i2sbi(file->f_dentry->d_inode);
 	struct dentry *parent = file->f_dentry->d_parent;
-	const char *name = file->f_dentry->d_name.name;
-	const int len = file->f_dentry->d_name.len;
 	struct md_op_data *op_data;
 	struct ptlrpc_request *req;
 	__u32 opc = LUSTRE_OPC_ANY;
@@ -394,8 +392,9 @@ static int ll_intent_file_open(struct file *file, void *lmm,
 	}
 
 	op_data  = ll_prep_md_op_data(NULL, parent->d_inode,
-				      file->f_dentry->d_inode, name, len,
+				      file->f_dentry->d_inode, NULL, 0,
 				      O_RDWR, opc, NULL);
+
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
