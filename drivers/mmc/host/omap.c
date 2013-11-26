@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/of.h>
 #include <linux/omap-dma.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -1329,7 +1330,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	}
 	if (pdata->nr_slots == 0) {
 		dev_err(&pdev->dev, "no slots\n");
-		return -ENXIO;
+		return -EPROBE_DEFER;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1502,12 +1503,20 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if IS_BUILTIN(CONFIG_OF)
+static const struct of_device_id mmc_omap_match[] = {
+	{ .compatible = "ti,omap2420-mmc", },
+	{ },
+};
+#endif
+
 static struct platform_driver mmc_omap_driver = {
 	.probe		= mmc_omap_probe,
 	.remove		= mmc_omap_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mmc_omap_match),
 	},
 };
 
