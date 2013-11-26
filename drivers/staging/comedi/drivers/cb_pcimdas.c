@@ -142,10 +142,9 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			if (!busy)
 				break;
 		}
-		if (i == TIMEOUT) {
-			printk("timeout\n");
+		if (i == TIMEOUT)
 			return -ETIMEDOUT;
-		}
+
 		/* read data */
 		data[n] = inw(dev->iobase + 0);
 	}
