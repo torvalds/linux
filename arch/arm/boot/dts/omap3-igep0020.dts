@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEPv2 board
+ * Device Tree Source for IGEPv2 Rev. (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -13,7 +13,7 @@
 #include "omap-gpmc-smsc911x.dtsi"
 
 / {
-	model = "IGEPv2";
+	model = "IGEPv2 (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0020", "ti,omap3";
 
 	leds {

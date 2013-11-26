@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEP Technology devices
+ * Common device tree for IGEP boards based on AM/DM37x
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -10,7 +10,7 @@
  */
 /dts-v1/;
 
-#include "omap34xx.dtsi"
+#include "omap36xx.dtsi"
 
 / {
 	memory {

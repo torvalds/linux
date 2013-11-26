@@ -1,5 +1,5 @@
 /*
- * Device Tree Source for IGEP COM Module
+ * Device Tree Source for IGEP COM MODULE (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2012 Javier Martinez Canillas <javier@collabora.co.uk>
  * Copyright (C) 2012 Enric Balletbo i Serra <eballetbo@gmail.com>
@@ -12,7 +12,7 @@
 #include "omap3-igep.dtsi"
 
 / {
-	model = "IGEP COM Module";
+	model = "IGEP COM MODULE (TI OMAP AM/DM37x)";
 	compatible = "isee,omap3-igep0030", "ti,omap3";
 
 	leds {
