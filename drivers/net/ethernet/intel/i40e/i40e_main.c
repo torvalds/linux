@@ -6911,7 +6911,7 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
  **/
 static int i40e_setup_pf_switch(struct i40e_pf *pf)
 {
-	u32 rxfc, txfc, rxfc_reg;
+	u32 rxfc = 0, txfc = 0, rxfc_reg;
 	int ret;
 
 	/* find out what's out there already */
