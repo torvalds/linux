@@ -864,7 +864,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	if (pcl816_check(dev->iobase)) {
-		printk(KERN_ERR ", I cann't detect board. FAIL!\n");
+		dev_err(dev->class_dev, "I can't detect board. FAIL!\n");
 		return -EIO;
 	}
 
@@ -896,23 +896,24 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			goto no_dma;	/* DMA disabled */
 
 		if (((1 << dma) & board->DMAbits) == 0) {
-			printk(", DMA is out of allowed range, FAIL!\n");
+			dev_err(dev->class_dev,
+				"DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, dev->board_name);
 		if (ret) {
-			printk(KERN_ERR
-			       ", unable to allocate DMA %u, FAIL!\n", dma);
+			dev_err(dev->class_dev,
+				"unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 
 		devpriv->dma = dma;
-		printk(KERN_INFO ", dma=%u", dma);
 		pages = 2;	/* we need 16KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 
 		if (!devpriv->dmabuf[0]) {
-			printk(", unable to allocate DMA buffer, FAIL!\n");
+			dev_err(dev->class_dev,
+				"unable to allocate DMA buffer, FAIL!\n");
 			/*
 			 * maybe experiment with try_to_free_pages()
 			 * will help ....
@@ -925,9 +926,8 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
-			printk(KERN_ERR
-				", unable to allocate DMA buffer, "
-				"FAIL!\n");
+			dev_err(dev->class_dev,
+				"unable to allocate DMA buffer, FAIL!\n");
 			return -EBUSY;
 		}
 		devpriv->dmapages[1] = pages;
@@ -996,8 +996,6 @@ case COMEDI_SUBD_DO:
 #endif
 
 	pcl816_reset(dev);
-
-	printk("\n");
 
 	return 0;
 }
