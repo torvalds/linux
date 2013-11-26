@@ -167,10 +167,6 @@ DECLARE_BASIC_FETCH_FUNCS(reg);
 #define fetch_reg_string			NULL
 #define fetch_reg_string_size			NULL
 
-DECLARE_BASIC_FETCH_FUNCS(stack);
-#define fetch_stack_string			NULL
-#define fetch_stack_string_size			NULL
-
 DECLARE_BASIC_FETCH_FUNCS(retval);
 #define fetch_retval_string			NULL
 #define fetch_retval_string_size		NULL
@@ -190,6 +186,16 @@ DECLARE_FETCH_FUNC(deref, string_size);
 DECLARE_BASIC_FETCH_FUNCS(bitfield);
 #define fetch_bitfield_string			NULL
 #define fetch_bitfield_string_size		NULL
+
+/*
+ * Define macro for basic types - we don't need to define s* types, because
+ * we have to care only about bitwidth at recording time.
+ */
+#define DEFINE_BASIC_FETCH_FUNCS(method) \
+DEFINE_FETCH_##method(u8)		\
+DEFINE_FETCH_##method(u16)		\
+DEFINE_FETCH_##method(u32)		\
+DEFINE_FETCH_##method(u64)
 
 /* Default (unsigned long) fetch type */
 #define __DEFAULT_FETCH_TYPE(t) u##t
