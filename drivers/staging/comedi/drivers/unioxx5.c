@@ -146,8 +146,8 @@ static int __unioxx5_digital_read(struct comedi_subdevice *s,
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
 		dev_err(csdev,
-			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-			minor, channel);
+			"undefined channel %d. channel range is 0 .. 23\n",
+			channel);
 		return 0;
 	}
 
@@ -174,8 +174,9 @@ static int __unioxx5_analog_read(struct comedi_subdevice *s,
 
 	/* defining if given module can work on input */
 	if (usp->usp_module_type[module_no] & MODULE_OUTPUT_MASK) {
-		dev_err(csdev, "comedi%d: module in position %d with id 0x%02x is for output only",
-		       minor, module_no, usp->usp_module_type[module_no]);
+		dev_err(csdev,
+			"module in position %d with id 0x%02x is for output only",
+			module_no, usp->usp_module_type[module_no]);
 		return 0;
 	}
 
@@ -191,8 +192,7 @@ static int __unioxx5_analog_read(struct comedi_subdevice *s,
 
 	/* if four bytes readding error occurs - return 0(false) */
 	if ((control & Rx4CA_ERR_MASK)) {
-		dev_err(csdev,
-			"comedi%d: 4 bytes error\n", minor);
+		dev_err(csdev, "4 bytes error\n");
 		return 0;
 	}
 
@@ -214,8 +214,9 @@ static int __unioxx5_digital_write(struct comedi_subdevice *s,
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
-		dev_err(csdev, "comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-		       minor, channel);
+		dev_err(csdev,
+			"undefined channel %d. channel range is 0 .. 23\n",
+			channel);
 		return 0;
 	}
 
@@ -246,8 +247,9 @@ static int __unioxx5_analog_write(struct comedi_subdevice *s,
 
 	/* defining if given module can work on output */
 	if (!(usp->usp_module_type[module] & MODULE_OUTPUT_MASK)) {
-		dev_err(csdev, "comedi%d: module in position %d with id 0x%0x is for input only!\n",
-		       minor, module, usp->usp_module_type[module]);
+		dev_err(csdev,
+			"module in position %d with id 0x%0x is for input only!\n",
+			module, usp->usp_module_type[module]);
 		return 0;
 	}
 
@@ -329,16 +331,15 @@ static int unioxx5_insn_config(struct comedi_device *dev,
 
 	if (type != MODULE_DIGITAL) {
 		dev_err(dev->class_dev,
-			"comedi%d: channel configuration accessible only for digital modules\n",
-			dev->minor);
+			"channel configuration accessible only for digital modules\n");
 		return -1;
 	}
 
 	channel_offset = __unioxx5_define_chan_offset(channel);
 	if (channel_offset < 0) {
 		dev_err(dev->class_dev,
-			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
-			dev->minor, channel);
+			"undefined channel %d. channel range is 0 .. 23\n",
+			channel);
 		return -1;
 	}
 
@@ -353,8 +354,7 @@ static int unioxx5_insn_config(struct comedi_device *dev,
 		flags |= mask;
 		break;
 	default:
-		dev_err(dev->class_dev,
-			"comedi%d: unknown flag\n", dev->minor);
+		dev_err(dev->class_dev, "unknown flag\n");
 		return -1;
 	}
 
