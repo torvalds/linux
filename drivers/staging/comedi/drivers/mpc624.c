@@ -177,11 +177,9 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 			else
 				break;
 		}
-		if (i == TIMEOUT) {
-			printk(KERN_ERR "MPC624: timeout (%dms)\n", TIMEOUT);
-			data[n] = 0;
+		if (i == TIMEOUT)
 			return -ETIMEDOUT;
-		}
+
 		/*  Start reading data */
 		data_in = 0;
 		data_out = devpriv->ulConvertionRate;
