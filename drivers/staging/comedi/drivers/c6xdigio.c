@@ -322,14 +322,6 @@ static void C6X_encResetAll(unsigned long baseAddr)
 	}
 }
 
-static int c6xdigio_pwmo_insn_read(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
-{
-	printk(KERN_DEBUG "c6xdigio_pwmo_insn_read %x\n", insn->n);
-	return insn->n;
-}
-
 static int c6xdigio_pwmo_insn_write(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -426,7 +418,6 @@ static int c6xdigio_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 2;
 	/*      s->trig[0] = c6xdigio_pwmo; */
-	s->insn_read = c6xdigio_pwmo_insn_read;
 	s->insn_write = c6xdigio_pwmo_insn_write;
 	s->maxdata = 500;
 	s->range_table = &range_bipolar10;	/*  A suitable lie */
