@@ -70,6 +70,9 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      unsigned long size, unsigned long align,
 				      unsigned long flags)
 {
+	if (align > PAGE_SIZE)
+		return -EINVAL;
+
 	buffer->priv_phys = ion_carveout_allocate(heap, size, align);
 	return buffer->priv_phys == ION_CARVEOUT_ALLOCATE_FAIL ? -ENOMEM : 0;
 }
