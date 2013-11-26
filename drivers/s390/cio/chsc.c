@@ -237,26 +237,6 @@ void chsc_chp_offline(struct chp_id chpid)
 	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &link);
 }
 
-static int s390_process_res_acc_new_sch(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-	/*
-	 * We don't know the device yet, but since a path
-	 * may be available now to the device we'll have
-	 * to do recognition again.
-	 * Since we don't have any idea about which chpid
-	 * that beast may be on we'll have to do a stsch
-	 * on all devices, grr...
-	 */
-	if (stsch_err(schid, &schib))
-		/* We're through */
-		return -ENXIO;
-
-	/* Put it on the slow path. */
-	css_schedule_eval(schid);
-	return 0;
-}
-
 static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
 	spin_lock_irq(sch->lock);
@@ -287,8 +267,8 @@ static void s390_process_res_acc(struct chp_link *link)
 	 * The more information we have (info), the less scanning
 	 * will we have to do.
 	 */
-	for_each_subchannel_staged(__s390_process_res_acc,
-				   s390_process_res_acc_new_sch, link);
+	for_each_subchannel_staged(__s390_process_res_acc, NULL, link);
+	css_schedule_reprobe();
 }
 
 static int
@@ -663,19 +643,6 @@ static int s390_subchannel_vary_chpid_on(struct subchannel *sch, void *data)
 	return 0;
 }
 
-static int
-__s390_vary_chpid_on(struct subchannel_id schid, void *data)
-{
-	struct schib schib;
-
-	if (stsch_err(schid, &schib))
-		/* We're through */
-		return -ENXIO;
-	/* Put it on the slow path. */
-	css_schedule_eval(schid);
-	return 0;
-}
-
 /**
  * chsc_chp_vary - propagate channel-path vary operation to subchannels
  * @chpid: channl-path ID
@@ -694,7 +661,8 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 		/* Try to update the channel path description. */
 		chp_update_desc(chp);
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
-					   __s390_vary_chpid_on, &chpid);
+					   NULL, &chpid);
+		css_schedule_reprobe();
 	} else
 		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
 					   NULL, &chpid);
