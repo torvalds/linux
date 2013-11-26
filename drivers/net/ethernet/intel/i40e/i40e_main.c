@@ -4132,6 +4132,19 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 }
 
 /**
+ * i40e_do_reset_safe - Protected reset path for userland calls.
+ * @pf: board private structure
+ * @reset_flags: which reset is requested
+ *
+ **/
+void i40e_do_reset_safe(struct i40e_pf *pf, u32 reset_flags)
+{
+	rtnl_lock();
+	i40e_do_reset(pf, reset_flags);
+	rtnl_unlock();
+}
+
+/**
  * i40e_handle_lan_overflow_event - Handler for LAN queue overflow event
  * @pf: board private structure
  * @e: event info posted on ARQ
@@ -4376,6 +4389,7 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 {
 	u32 reset_flags = 0;
 
+	rtnl_lock();
 	if (test_bit(__I40E_REINIT_REQUESTED, &pf->state)) {
 		reset_flags |= (1 << __I40E_REINIT_REQUESTED);
 		clear_bit(__I40E_REINIT_REQUESTED, &pf->state);
@@ -4398,7 +4412,7 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 	 */
 	if (test_bit(__I40E_RESET_INTR_RECEIVED, &pf->state)) {
 		i40e_handle_reset_warning(pf);
-		return;
+		goto unlock;
 	}
 
 	/* If we're already down or resetting, just bail */
@@ -4406,6 +4420,9 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 	    !test_bit(__I40E_DOWN, &pf->state) &&
 	    !test_bit(__I40E_CONFIG_BUSY, &pf->state))
 		i40e_do_reset(pf, reset_flags);
+
+unlock:
+	rtnl_unlock();
 }
 
 /**
