@@ -539,37 +539,6 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef unused
-static void debug_int(struct comedi_device *dev)
-{
-	struct nidio96_private *devpriv = dev->private;
-	int a, b;
-	static int n_int;
-	struct timeval tv;
-
-	do_gettimeofday(&tv);
-	a = readb(devpriv->mite->daq_io_addr + Group_Status);
-	b = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
-
-	if (n_int < 10) {
-		DPRINTK("status 0x%02x flags 0x%02x time %06d\n", a, b,
-			(int)tv.tv_usec);
-	}
-
-	while (b & 1) {
-		writew(0xff, devpriv->mite->daq_io_addr + Group_1_FIFO);
-		b = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
-	}
-
-	b = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
-
-	if (n_int < 10) {
-		DPRINTK("new status 0x%02x\n", b);
-		n_int++;
-	}
-}
-#endif
-
 static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
