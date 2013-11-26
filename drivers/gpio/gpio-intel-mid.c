@@ -358,8 +358,7 @@ static int intel_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 {
 	struct intel_mid_gpio *priv = d->host_data;
 
-	irq_set_chip_and_handler_name(irq, &intel_mid_irqchip,
-				      handle_simple_irq, "demux");
+	irq_set_chip_and_handler(irq, &intel_mid_irqchip, handle_simple_irq);
 	irq_set_chip_data(irq, priv);
 	irq_set_irq_type(irq, IRQ_TYPE_NONE);
 

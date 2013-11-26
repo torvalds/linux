@@ -305,10 +305,9 @@ static int platform_msic_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mg->chip.ngpio; i++) {
 		irq_set_chip_data(i + mg->irq_base, mg);
-		irq_set_chip_and_handler_name(i + mg->irq_base,
-					      &msic_irqchip,
-					      handle_simple_irq,
-					      "demux");
+		irq_set_chip_and_handler(i + mg->irq_base,
+					 &msic_irqchip,
+					 handle_simple_irq);
 	}
 	irq_set_chained_handler(mg->irq, msic_gpio_irq_handler);
 	irq_set_handler_data(mg->irq, mg);
