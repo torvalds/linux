@@ -991,11 +991,8 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->sprivs =
 	    kcalloc(n_subdevs, sizeof(struct pcmmio_subdev_private),
 		    GFP_KERNEL);
-	if (!devpriv->sprivs) {
-		printk(KERN_ERR "comedi%d: cannot allocate subdevice private data structures\n",
-				dev->minor);
+	if (!devpriv->sprivs)
 		return -ENOMEM;
-	}
 
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret)
