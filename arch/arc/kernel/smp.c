@@ -197,37 +197,31 @@ int __init setup_profiling_timer(unsigned int multiplier)
 /*              Inter Processor Interrupt Handling                           */
 /*****************************************************************************/
 
-/*
- * structures for inter-processor calls
- * A Collection of single bit ipi messages
- *
- */
-
-/*
- * TODO_rajesh investigate tlb message types.
- * IPI Timer not needed because each ARC has an individual Interrupting Timer
- */
 enum ipi_msg_type {
-	IPI_NOP = 0,
+	IPI_EMPTY = 0,
 	IPI_RESCHEDULE = 1,
 	IPI_CALL_FUNC,
-	IPI_CPU_STOP
+	IPI_CPU_STOP,
 };
 
-struct ipi_data {
-	unsigned long bits;
-};
+/*
+ * In arches with IRQ for each msg type (above), receiver can use IRQ-id  to
+ * figure out what msg was sent. For those which don't (ARC has dedicated IPI
+ * IRQ), the msg-type needs to be conveyed via per-cpu data
+ */
 
-static DEFINE_PER_CPU(struct ipi_data, ipi_data);
+static DEFINE_PER_CPU(unsigned long, ipi_data);
 
 static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 {
-	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
+	unsigned long __percpu *ipi_data_ptr = per_cpu_ptr(&ipi_data, cpu);
 	unsigned long flags;
+
+	pr_debug("%d Sending msg [%d] to %d\n", smp_processor_id(), msg, cpu);
 
 	local_irq_save(flags);
 
-	set_bit(msg, &ipi->bits);
+	set_bit(msg, ipi_data_ptr);
 
 	/* Call the platform specific cross-CPU call function  */
 	if (plat_smp_ops.ipi_send)
@@ -275,12 +269,11 @@ static void ipi_cpu_stop(void)
 	machine_halt();
 }
 
-static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi)
+static inline void __do_IPI(unsigned long pending)
 {
-	unsigned long msg = 0;
+	while (pending) {
 
-	do {
-		msg = find_next_bit(ops, BITS_PER_LONG, msg+1);
+		unsigned long msg = __ffs(pending);
 
 		switch (msg) {
 		case IPI_RESCHEDULE:
@@ -294,8 +287,14 @@ static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi)
 		case IPI_CPU_STOP:
 			ipi_cpu_stop();
 			break;
+
+		default:
+			pr_warn("IPI missing msg\n");
+
 		}
-	} while (msg < BITS_PER_LONG);
+
+		pending &= ~(1U << msg);
+	}
 }
 
 /*
@@ -304,9 +303,10 @@ static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi)
  */
 irqreturn_t do_IPI(int irq, void *dev_id)
 {
-	int cpu = smp_processor_id();
-	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-	unsigned long ops;
+	unsigned long pending;
+
+	pr_debug("IPI [%ld] received on cpu %d\n",
+		 *this_cpu_ptr(&ipi_data), smp_processor_id());
 
 	if (plat_smp_ops.ipi_clear)
 		plat_smp_ops.ipi_clear(irq);
@@ -315,8 +315,8 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 	 * XXX: is this loop really needed
 	 * And do we need to move ipi_clean inside
 	 */
-	while ((ops = xchg(&ipi->bits, 0)) != 0)
-		__do_IPI(&ops, ipi);
+	while ((pending = xchg(this_cpu_ptr(&ipi_data), 0)) != 0)
+		__do_IPI(pending);
 
 	return IRQ_HANDLED;
 }
