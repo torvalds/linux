@@ -1234,16 +1234,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & board->IRQbits) == 0) {
-				printk
-				    (", IRQ %u is out of allowed range, DISABLING IT",
-				     irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (request_irq(irq, interrupt_pcl818, 0,
 						dev->board_name, dev)) {
-					printk
-					    (", unable to allocate IRQ %u, DISABLING IT",
-					     irq);
 					irq = 0;	/* Can't use IRQ */
 				}
 			}
@@ -1308,11 +1302,9 @@ no_dma:
 		if (check_single_ended(dev->iobase)) {
 			s->n_chan = board->n_aichan_se;
 			s->subdev_flags |= SDF_COMMON | SDF_GROUND;
-			printk(", %dchans S.E. DAC", s->n_chan);
 		} else {
 			s->n_chan = board->n_aichan_diff;
 			s->subdev_flags |= SDF_DIFF;
-			printk(", %dchans DIFF DAC", s->n_chan);
 		}
 		s->maxdata = board->ai_maxdata;
 		s->len_chanlist = s->n_chan;
@@ -1430,8 +1422,6 @@ no_dma:
 	}
 
 	pcl818_reset(dev);
-
-	printk("\n");
 
 	return 0;
 }
