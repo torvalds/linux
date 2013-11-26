@@ -15,6 +15,9 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/spinlock.h>
+#include <linux/errno.h>
+
 #undef VERBOSE
 
 #ifdef VERBOSE
