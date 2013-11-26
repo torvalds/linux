@@ -463,10 +463,10 @@ conv_finish:
 	outb(0, dev->iobase + PCL818_CLRINT);	/* clear INT request */
 
 	if ((low & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
-		printk
-		    ("comedi: A/D mode1/3 IRQ - channel dropout %x!=%x !\n",
-		     (low & 0xf),
-		     devpriv->act_chanlist[devpriv->act_chanlist_pos]);
+		dev_dbg(dev->class_dev,
+			"A/D mode1/3 IRQ - channel dropout %x!=%x !\n",
+			(low & 0xf),
+			devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 		pcl818_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
@@ -532,11 +532,11 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 	for (i = 0; i < len; i++) {
 		if ((ptr[bufptr] & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
-			printk
-			    ("comedi: A/D mode1/3 DMA - channel dropout %d(card)!=%d(chanlist) at %d !\n",
-			     (ptr[bufptr] & 0xf),
-			     devpriv->act_chanlist[devpriv->act_chanlist_pos],
-			     devpriv->act_chanlist_pos);
+			dev_dbg(dev->class_dev,
+				"A/D mode1/3 DMA - channel dropout %d(card)!=%d(chanlist) at %d !\n",
+				(ptr[bufptr] & 0xf),
+				devpriv->act_chanlist[devpriv->act_chanlist_pos],
+				devpriv->act_chanlist_pos);
 			pcl818_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			comedi_event(dev, s);
@@ -609,10 +609,10 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 	for (i = 0; i < len; i++) {
 		lo = inb(dev->iobase + PCL818_FI_DATALO);
 		if ((lo & 0xf) != devpriv->act_chanlist[devpriv->act_chanlist_pos]) {	/*  dropout! */
-			printk
-			    ("comedi: A/D mode1/3 FIFO - channel dropout %d!=%d !\n",
-			     (lo & 0xf),
-			     devpriv->act_chanlist[devpriv->act_chanlist_pos]);
+			dev_dbg(dev->class_dev,
+				"A/D mode1/3 FIFO - channel dropout %d!=%d !\n",
+				(lo & 0xf),
+				devpriv->act_chanlist[devpriv->act_chanlist_pos]);
 			pcl818_ai_cancel(dev, s);
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 			comedi_event(dev, s);
@@ -1249,7 +1249,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (dma < 1)
 			goto no_dma;	/* DMA disabled */
 		if (((1 << dma) & board->DMAbits) == 0) {
-			printk(KERN_ERR "DMA is out of allowed range, FAIL!\n");
+			dev_err(dev->class_dev,
+				"DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, dev->board_name);
