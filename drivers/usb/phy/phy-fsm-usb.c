@@ -23,7 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
@@ -245,9 +245,8 @@ int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 int otg_statemachine(struct otg_fsm *fsm)
 {
 	enum usb_otg_state state;
-	unsigned long flags;
 
-	spin_lock_irqsave(&fsm->lock, flags);
+	mutex_lock(&fsm->lock);
 
 	state = fsm->otg->phy->state;
 	state_changed = 0;
@@ -359,7 +358,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&fsm->lock, flags);
+	mutex_lock(&fsm->lock);
 
 	VDBG("quit statemachine, changed = %d\n", state_changed);
 	return state_changed;

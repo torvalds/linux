@@ -848,7 +848,7 @@ static int fsl_otg_conf(struct platform_device *pdev)
 		pr_info("Couldn't init OTG timers\n");
 		goto err;
 	}
-	spin_lock_init(&fsl_otg_tc->fsm.lock);
+	mutex_init(&fsl_otg_tc->fsm.lock);
 
 	/* Set OTG state machine operations */
 	fsl_otg_tc->fsm.ops = &fsl_otg_ops;
@@ -1017,10 +1017,9 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 	struct otg_fsm *fsm = &fsl_otg_dev->fsm;
 	char *next = buf;
 	unsigned size = PAGE_SIZE;
-	unsigned long flags;
 	int t;
 
-	spin_lock_irqsave(&fsm->lock, flags);
+	mutex_lock(&fsm->lock);
 
 	/* basic driver infomation */
 	t = scnprintf(next, size,
@@ -1088,7 +1087,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 	size -= t;
 	next += t;
 
-	spin_unlock_irqrestore(&fsm->lock, flags);
+	mutex_unlock(&fsm->lock);
 
 	return PAGE_SIZE - size;
 }

@@ -18,7 +18,7 @@
 #ifndef __LINUX_USB_OTG_FSM_H
 #define __LINUX_USB_OTG_FSM_H
 
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/errno.h>
 
 #undef VERBOSE
@@ -116,7 +116,7 @@ struct otg_fsm {
 
 	/* Current usb protocol used: 0:undefine; 1:host; 2:client */
 	int protocol;
-	spinlock_t lock;
+	struct mutex lock;
 };
 
 struct otg_fsm_ops {
