@@ -435,7 +435,6 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	if (rc < 0)
 		return rc;
 
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (rc & 3ul) << 44;
+	kvm_s390_set_psw_cc(vcpu, rc);
 	return 0;
 }
