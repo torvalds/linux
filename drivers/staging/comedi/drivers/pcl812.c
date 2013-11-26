@@ -1115,21 +1115,22 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (board->DMAbits != 0) {	/* board support DMA */
 		dma = it->options[2];
 		if (((1 << dma) & board->DMAbits) == 0) {
-			printk(", DMA is out of allowed range, FAIL!\n");
+			dev_err(dev->class_dev,
+				"DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
 		ret = request_dma(dma, dev->board_name);
 		if (ret) {
-			printk(KERN_ERR ", unable to allocate DMA %u, FAIL!\n",
-			       dma);
+			dev_err(dev->class_dev,
+				"unable to allocate DMA %u, FAIL!\n", dma);
 			return -EBUSY;	/* DMA isn't free */
 		}
 		devpriv->dma = dma;
-		printk(KERN_INFO ", dma=%u", dma);
 		pages = 1;	/* we want 8KB */
 		devpriv->dmabuf[0] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[0]) {
-			printk(", unable to allocate DMA buffer, FAIL!\n");
+			dev_err(dev->class_dev,
+				"unable to allocate DMA buffer, FAIL!\n");
 			/*
 			 * maybe experiment with try_to_free_pages()
 			 * will help ....
@@ -1141,7 +1142,8 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->hwdmasize[0] = PAGE_SIZE * (1 << pages);
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
-			printk(KERN_ERR ", unable to allocate DMA buffer, FAIL!\n");
+			dev_err(dev->class_dev,
+				"unable to allocate DMA buffer, FAIL!\n");
 			return -EBUSY;
 		}
 		devpriv->dmapages[1] = pages;
@@ -1243,10 +1245,6 @@ no_dma:
 			default:
 				s->range_table = &range_bipolar10;
 				break;
-				printk
-				    (", incorrect range number %d, changing "
-				     "to 0 (+/-10V)", it->options[4]);
-				break;
 			}
 			break;
 			break;
@@ -1273,10 +1271,6 @@ no_dma:
 			default:
 				s->range_table = &range_iso813_1_ai;
 				break;
-				printk
-				    (", incorrect range number %d, "
-				     "changing to 0 ", it->options[1]);
-				break;
 			}
 			break;
 		case boardACL8113:
@@ -1297,10 +1291,6 @@ no_dma:
 				break;
 			default:
 				s->range_table = &range_acl8113_1_ai;
-				break;
-				printk
-				    (", incorrect range number %d, "
-				     "changing to 0 ", it->options[1]);
 				break;
 			}
 			break;
@@ -1387,7 +1377,6 @@ no_dma:
 		break;
 	}
 
-	printk(KERN_INFO "\n");
 	devpriv->valid = 1;
 
 	pcl812_reset(dev);
