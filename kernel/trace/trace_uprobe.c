@@ -115,6 +115,14 @@ DEFINE_BASIC_FETCH_FUNCS(stack)
 #define fetch_stack_string_size	NULL
 
 
+/* uprobes do not support symbol fetch methods */
+#define fetch_symbol_u8			NULL
+#define fetch_symbol_u16		NULL
+#define fetch_symbol_u32		NULL
+#define fetch_symbol_u64		NULL
+#define fetch_symbol_string		NULL
+#define fetch_symbol_string_size	NULL
+
 /* Fetch type information table */
 const struct fetch_type uprobes_fetch_type_table[] = {
 	/* Special types */

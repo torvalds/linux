@@ -239,6 +239,30 @@ ASSIGN_FETCH_FUNC(bitfield, ftype),			\
 extern __weak const struct fetch_type kprobes_fetch_type_table[];
 extern __weak const struct fetch_type uprobes_fetch_type_table[];
 
+#ifdef CONFIG_KPROBE_EVENT
+struct symbol_cache;
+unsigned long update_symbol_cache(struct symbol_cache *sc);
+void free_symbol_cache(struct symbol_cache *sc);
+struct symbol_cache *alloc_symbol_cache(const char *sym, long offset);
+#else
+struct symbol_cache {
+};
+static inline unsigned long __used update_symbol_cache(struct symbol_cache *sc)
+{
+	return 0;
+}
+
+static inline void __used free_symbol_cache(struct symbol_cache *sc)
+{
+}
+
+static inline struct symbol_cache * __used
+alloc_symbol_cache(const char *sym, long offset)
+{
+	return NULL;
+}
+#endif /* CONFIG_KPROBE_EVENT */
+
 struct probe_arg {
 	struct fetch_param	fetch;
 	struct fetch_param	fetch_size;
