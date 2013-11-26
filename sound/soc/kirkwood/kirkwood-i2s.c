@@ -33,6 +33,10 @@
 	 SNDRV_PCM_FMTBIT_S24_LE | \
 	 SNDRV_PCM_FMTBIT_S32_LE)
 
+#define KIRKWOOD_SPDIF_FORMATS \
+	(SNDRV_PCM_FMTBIT_S16_LE | \
+	 SNDRV_PCM_FMTBIT_S24_LE)
+
 static int kirkwood_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
@@ -449,14 +453,14 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai[2] = {
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
 				SNDRV_PCM_RATE_96000,
-		.formats = KIRKWOOD_I2S_FORMATS,
+		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.capture = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
 				SNDRV_PCM_RATE_96000,
-		.formats = KIRKWOOD_I2S_FORMATS,
+		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.ops = &kirkwood_i2s_dai_ops,
     },
@@ -493,7 +497,7 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk[2] = {
 		.rates = SNDRV_PCM_RATE_8000_192000 |
 			 SNDRV_PCM_RATE_CONTINUOUS |
 			 SNDRV_PCM_RATE_KNOT,
-		.formats = KIRKWOOD_I2S_FORMATS,
+		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.capture = {
 		.channels_min = 1,
@@ -501,7 +505,7 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk[2] = {
 		.rates = SNDRV_PCM_RATE_8000_192000 |
 			 SNDRV_PCM_RATE_CONTINUOUS |
 			 SNDRV_PCM_RATE_KNOT,
-		.formats = KIRKWOOD_I2S_FORMATS,
+		.formats = KIRKWOOD_SPDIF_FORMATS,
 	},
 	.ops = &kirkwood_i2s_dai_ops,
     },
