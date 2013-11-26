@@ -455,7 +455,7 @@ static bool i2c_nuvoton_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == TPM_STS_COMMAND_READY);
 }
 
-static const struct tpm_vendor_specific tpm_i2c = {
+static const struct tpm_class_ops tpm_i2c = {
 	.status = i2c_nuvoton_read_status,
 	.recv = i2c_nuvoton_recv,
 	.send = i2c_nuvoton_send,

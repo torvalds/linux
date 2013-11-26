@@ -574,7 +574,7 @@ static bool tpm_st33_i2c_req_canceled(struct tpm_chip *chip, u8 status)
 	return (status == TPM_STS_COMMAND_READY);
 }
 
-static struct tpm_vendor_specific st_i2c_tpm = {
+static const struct tpm_class_ops st_i2c_tpm = {
 	.send = tpm_stm_i2c_send,
 	.recv = tpm_stm_i2c_recv,
 	.cancel = tpm_stm_i2c_cancel,

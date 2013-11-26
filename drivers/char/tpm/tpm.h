@@ -64,8 +64,8 @@ enum tpm_duration {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	const u8 req_complete_mask;
-	const u8 req_complete_val;
+	u8 req_complete_mask;
+	u8 req_complete_val;
 	bool (*req_canceled)(struct tpm_chip *chip, u8 status);
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
@@ -336,7 +336,7 @@ extern void tpm_gen_interrupt(struct tpm_chip *);
 extern int tpm_do_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
 extern struct tpm_chip* tpm_register_hardware(struct device *,
-				 const struct tpm_vendor_specific *);
+					      const struct tpm_class_ops *ops);
 extern void tpm_dev_vendor_release(struct tpm_chip *);
 extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct device *);

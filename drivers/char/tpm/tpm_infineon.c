@@ -371,7 +371,7 @@ static u8 tpm_inf_status(struct tpm_chip *chip)
 	return tpm_data_in(STAT);
 }
 
-static const struct tpm_vendor_specific tpm_inf = {
+static const struct tpm_class_ops tpm_inf = {
 	.recv = tpm_inf_recv,
 	.send = tpm_inf_send,
 	.cancel = tpm_inf_cancel,

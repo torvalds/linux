@@ -143,7 +143,7 @@ static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	return length;
 }
 
-static const struct tpm_vendor_specific tpm_vtpm = {
+static const struct tpm_class_ops tpm_vtpm = {
 	.status = vtpm_status,
 	.recv = vtpm_recv,
 	.send = vtpm_send,

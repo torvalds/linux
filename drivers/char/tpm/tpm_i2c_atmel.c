@@ -140,7 +140,7 @@ static bool i2c_atmel_req_canceled(struct tpm_chip *chip, u8 status)
 	return false;
 }
 
-static const struct tpm_vendor_specific i2c_atmel = {
+static const struct tpm_class_ops i2c_atmel = {
 	.status = i2c_atmel_read_status,
 	.recv = i2c_atmel_recv,
 	.send = i2c_atmel_send,

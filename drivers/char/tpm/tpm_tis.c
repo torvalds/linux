@@ -432,7 +432,7 @@ static bool tpm_tis_req_canceled(struct tpm_chip *chip, u8 status)
 	}
 }
 
-static struct tpm_vendor_specific tpm_tis = {
+static const struct tpm_class_ops tpm_tis = {
 	.status = tpm_tis_status,
 	.recv = tpm_tis_recv,
 	.send = tpm_tis_send,

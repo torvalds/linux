@@ -1060,7 +1060,7 @@ static void tpm_dev_release(struct device *dev)
  * pci_disable_device
  */
 struct tpm_chip *tpm_register_hardware(struct device *dev,
-					const struct tpm_vendor_specific *entry)
+				       const struct tpm_class_ops *ops)
 {
 	struct tpm_chip *chip;
 
@@ -1073,7 +1073,13 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	mutex_init(&chip->tpm_mutex);
 	INIT_LIST_HEAD(&chip->list);
 
-	memcpy(&chip->vendor, entry, sizeof(struct tpm_vendor_specific));
+	chip->vendor.req_complete_mask = ops->req_complete_mask;
+	chip->vendor.req_complete_val = ops->req_complete_val;
+	chip->vendor.req_canceled = ops->req_canceled;
+	chip->vendor.recv = ops->recv;
+	chip->vendor.send = ops->send;
+	chip->vendor.cancel = ops->cancel;
+	chip->vendor.status = ops->status;
 
 	chip->dev_num = find_first_zero_bit(dev_mask, TPM_NUM_DEVICES);
 
