@@ -219,15 +219,6 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
 	iobase_8255 = pci_resource_start(pcidev, 4);
 
-/* Dont support IRQ yet */
-/*  get irq */
-/* if(request_irq(pcidev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
-/* { */
-/* printk(" unable to allocate irq %u\n", pcidev->irq); */
-/* return -EINVAL; */
-/* } */
-/* dev->irq = pcidev->irq; */
-
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
