@@ -54,7 +54,6 @@
 
 /* #define DEBUG_INTERRUPT */
 /* #define DEBUG_STATUS_A */
-/* #define DEBUG_STATUS_B */
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
@@ -266,11 +265,6 @@ static int ni_read_eeprom(struct comedi_device *dev, int addr);
 static void ni_mio_print_status_a(int status);
 #else
 #define ni_mio_print_status_a(a)
-#endif
-#ifdef DEBUG_STATUS_B
-static void ni_mio_print_status_b(int status);
-#else
-#define ni_mio_print_status_b(a)
 #endif
 
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s);
@@ -1176,7 +1170,6 @@ static void handle_b_interrupt(struct comedi_device *dev,
 #ifdef DEBUG_INTERRUPT
 	printk("ni_mio_common: interrupt: b_status=%04x m1_status=%08x\n",
 	       b_status, ao_mite_status);
-	ni_mio_print_status_b(b_status);
 #endif
 
 #ifdef PCIDMA
@@ -1241,28 +1234,6 @@ static void ni_mio_print_status_a(int status)
 	for (i = 15; i >= 0; i--) {
 		if (status & (1 << i)) {
 			printk(" %s", status_a_strings[i]);
-		}
-	}
-	printk("\n");
-}
-#endif
-
-#ifdef DEBUG_STATUS_B
-static const char *const status_b_strings[] = {
-	"passthru1", "fifo", "G1_gate", "G1_TC",
-	"UI2_TC", "UPDATE", "UC_TC", "BC_TC",
-	"start1", "overrun", "start", "bc_tc_error",
-	"fifo_empty", "fifo_half_full", "fifo_full", "interrupt_b"
-};
-
-static void ni_mio_print_status_b(int status)
-{
-	int i;
-
-	printk("B status:");
-	for (i = 15; i >= 0; i--) {
-		if (status & (1 << i)) {
-			printk(" %s", status_b_strings[i]);
 		}
 	}
 	printk("\n");
