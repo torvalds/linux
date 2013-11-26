@@ -278,35 +278,6 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return i;
 }
 
-#if 0
-/* Wow.  This is code from the Comedi stone age.  But it hasn't been
- * replaced, so I'll let it stay. */
-int dt2811_adtrig(kdev_t minor, comedi_adtrig *adtrig)
-{
-	struct comedi_device *dev = comedi_devices + minor;
-
-	if (adtrig->n < 1)
-		return 0;
-	dev->curadchan = adtrig->chan;
-	switch (dev->i_admode) {
-	case COMEDI_MDEMAND:
-		dev->ntrig = adtrig->n - 1;
-		/* not necessary */
-		/*printk("dt2811: AD soft trigger\n"); */
-		/*outb(DT2811_CLRERROR|DT2811_INTENB,
-			dev->iobase+DT2811_ADCSR); */
-		outb(dev->curadchan, dev->iobase + DT2811_ADGCR);
-		do_gettimeofday(&trigtime);
-		break;
-	case COMEDI_MCONTS:
-		dev->ntrig = adtrig->n;
-		break;
-	}
-
-	return 0;
-}
-#endif
-
 static int dt2811_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
