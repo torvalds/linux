@@ -72,8 +72,8 @@ static int __init versatile_leds_init(void)
 {
 	int i;
 
-	/* All ON */
-	writel(0xff, LEDREG);
+	/* All off */
+	writel(0, LEDREG);
 	for (i = 0; i < ARRAY_SIZE(versatile_leds); i++) {
 		struct versatile_led *led;
 
