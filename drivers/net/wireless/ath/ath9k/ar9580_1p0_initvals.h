@@ -771,7 +771,7 @@ static const u32 ar9580_1p0_soc_preamble[][2] = {
 	{0x00007048, 0x00000008},
 };
 
-#define ar9580_1p0_rx_gain_table ar9462_common_rx_gain_table_2p0
+#define ar9580_1p0_rx_gain_table ar9462_2p0_common_rx_gain
 
 static const u32 ar9580_1p0_radio_core[][2] = {
 	/* Addr      allmodes  */
