@@ -506,6 +506,8 @@
 			rtc: real-time-clock@d8500 {
 				compatible = "marvell,orion-rtc";
 				reg = <0xd8500 0x20>;
+				interrupt-parent = <&pmu_intc>;
+				interrupts = <5>;
 			};
 
 			crypto: crypto-engine@30000 {
