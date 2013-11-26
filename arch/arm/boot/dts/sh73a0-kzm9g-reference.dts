@@ -106,6 +106,52 @@
 			gpios = <&pfc 23 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		back-key {
+			gpios = <&pcf8575 8 GPIO_ACTIVE_LOW>;
+			linux,code = <158>;
+			label = "SW3";
+		};
+
+		right-key {
+			gpios = <&pcf8575 9 GPIO_ACTIVE_LOW>;
+			linux,code = <106>;
+			label = "SW2-R";
+		};
+
+		left-key {
+			gpios = <&pcf8575 10 GPIO_ACTIVE_LOW>;
+			linux,code = <105>;
+			label = "SW2-L";
+		};
+
+		enter-key {
+			gpios = <&pcf8575 11 GPIO_ACTIVE_LOW>;
+			linux,code = <28>;
+			label = "SW2-P";
+		};
+
+		up-key {
+			gpios = <&pcf8575 12 GPIO_ACTIVE_LOW>;
+			linux,code = <103>;
+			label = "SW2-U";
+		};
+
+		down-key {
+			gpios = <&pcf8575 13 GPIO_ACTIVE_LOW>;
+			linux,code = <108>;
+			label = "SW2-D";
+		};
+
+		home-key {
+			gpios = <&pcf8575 14 GPIO_ACTIVE_LOW>;
+			linux,code = <102>;
+			label = "SW1";
+		};
+	};
 };
 
 &i2c0 {
