@@ -1204,7 +1204,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv;
 	int ret;
-	unsigned int irq;
 	int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
@@ -1228,27 +1227,14 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-	/* grab our IRQ */
-	irq = 0;
-	if (board->IRQbits != 0) {	/* board support IRQ */
-		irq = it->options[1];
-		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & board->IRQbits) == 0) {
-				irq = 0;	/* Bad IRQ */
-			} else {
-				if (request_irq(irq, interrupt_pcl818, 0,
-						dev->board_name, dev)) {
-					irq = 0;	/* Can't use IRQ */
-				}
-			}
+	if ((1 << it->options[1]) & board->IRQbits) {
+		ret = request_irq(it->options[1], interrupt_pcl818, 0,
+				  dev->board_name, dev);
+		if (ret == 0) {
+			dev->irq = it->options[1];
+			devpriv->irq_free = 1;
 		}
 	}
-
-	dev->irq = irq;
-	if (irq)
-		devpriv->irq_free = 1;   /* 1=we have allocated irq */
-	else
-		devpriv->irq_free = 0;
 
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->ai_mode = 0;	/* mode of irq */
@@ -1311,7 +1297,7 @@ no_dma:
 		s->range_table = board->ai_range_type;
 		s->cancel = pcl818_ai_cancel;
 		s->insn_read = pcl818_ai_insn_read;
-		if (irq) {
+		if (dev->irq) {
 			dev->read_subdev = s;
 			s->subdev_flags |= SDF_CMD_READ;
 			s->do_cmdtest = ai_cmdtest;
