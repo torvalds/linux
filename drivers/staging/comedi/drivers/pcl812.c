@@ -404,9 +404,7 @@ static int pcl812_ai_insn_read(struct comedi_device *dev,
 				goto conv_finish;
 			udelay(1);
 		}
-		printk
-		    ("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
-		     dev->minor, dev->board_name, dev->iobase);
+		dev_dbg(dev->class_dev, "A/D insn read timeout\n");
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
 		return -ETIME;
 
@@ -441,9 +439,7 @@ static int acl8216_ai_insn_read(struct comedi_device *dev,
 				goto conv_finish;
 			udelay(1);
 		}
-		printk
-		    ("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
-		     dev->minor, dev->board_name, dev->iobase);
+		dev_dbg(dev->class_dev, "A/D insn read timeout\n");
 		outb(0, dev->iobase + PCL812_MODE);
 		return -ETIME;
 
@@ -786,10 +782,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	}
 
 	if (err) {
-		printk
-		    ("comedi%d: pcl812: (%s at 0x%lx) "
-		     "A/D cmd IRQ without DRDY!\n",
-		     dev->minor, dev->board_name, dev->iobase);
+		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
 		pcl812_ai_cancel(dev, s);
 		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		comedi_event(dev, s);
